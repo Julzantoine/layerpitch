@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LayerPitch</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #111214;
+    color: #e8e8e6;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 40px 20px;
+  }
+  .page { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 32px; }
+
+  .track {
+    border: 1px solid #2a2b2f;
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 14px;
+  }
+  .track-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .track-desc { font-size: 13px; color: #999; margin-bottom: 16px; }
+  .status { font-size: 11px; color: #666; margin-bottom: 10px; min-height: 14px; font-family: monospace; }
+
+  .progress-wrap { position: relative; height: 3px; background: #2a2b2f; border-radius: 2px; margin-bottom: 6px; cursor: pointer; }
+  .progress-fill { height: 100%; background: #4ea8de; border-radius: 2px; width: 0%; pointer-events: none; }
+  .progress-head { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 8px; height: 8px; background: #4ea8de; border-radius: 50%; pointer-events: none; }
+  .time-row { display: flex; justify-content: space-between; font-size: 10px; color: #666; font-family: monospace; margin-bottom: 16px; }
+
+  .control-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .transport { display: flex; gap: 6px; }
+  .btn {
+    padding: 8px 14px; border-radius: 4px; border: 1px solid #333; background: transparent;
+    color: #ccc; font-size: 11px; text-transform: uppercase; cursor: pointer; font-family: monospace;
+  }
+  .btn:hover:not(:disabled) { border-color: #4ea8de; color: #fff; }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .intensity-btns { display: flex; gap: 6px; margin-left: auto; }
+  .btn-int {
+    padding: 7px 12px; border-radius: 4px; border: 1px solid #333; background: transparent;
+    color: #888; font-size: 10.5px; cursor: pointer; font-family: monospace;
+  }
+  .btn-int.active { border-color: #4ea8de; color: #4ea8de; }
+  .btn-int:disabled { opacity: 0.25; cursor: not-allowed; }
+
+  .placeholder-tag { font-size: 10px; color: #666; border: 1px dashed #333; border-radius: 4px; padding: 6px 10px; display: inline-block; font-family: monospace; }
+  .track.disabled { opacity: 0.45; }
+
+  .empty { font-size: 13px; color: #666; text-align: center; padding: 40px 0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>LayerPitch</h1>
+  <div class="sub">Écoute interactive — musique adaptative</div>
+  <div id="tracks"></div>
+</div>
+
+<script>
+let ctx = null;
+let activeTrackId = null;
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+// Profil de mix cumulatif : le niveau i active les couches 0..i
+function cumulativeProfiles(n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push(Array.from({ length: n }, (_, j) => (j <= i ? 1 : 0)));
+  }
+  return out;
+}
+
+function buildTrackCard(track) {
+  const supported = track.mode === 'vertical';
+  const hasFiles = supported && track.base && track.layers.every(l => l.file);
+  const el = document.createElement('div');
+  el.className = 'track' + (hasFiles ? '' : ' disabled');
+
+  const intBtns = track.layers.map((l, i) =>
+    `<button class="btn-int${i===0?' active':''}" data-level="${i}" disabled>${l.label}</button>`
+  ).join('');
+
+  el.innerHTML = `
+    <div class="track-title">${track.title}</div>
+    <div class="track-desc">${track.description || ''}</div>
+    ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté par le lecteur</span>` :
+      !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : `
+      <div class="status" data-role="status">Chargement…</div>
+      <div class="progress-wrap" data-role="progressWrap">
+        <div class="progress-fill" data-role="progressFill"></div>
+        <div class="progress-head" data-role="progressHead"></div>
+      </div>
+      <div class="time-row">
+        <span data-role="timeCurrent">0:00</span>
+        <span>${formatTime(track.duration)}</span>
+      </div>
+      <div class="control-row">
+        <div class="transport">
+          <button class="btn" data-role="btnPlay" disabled>Play</button>
+          <button class="btn" data-role="btnStop" disabled>Stop</button>
+        </div>
+        <div class="intensity-btns" data-role="intensityBtns">${intBtns}</div>
+      </div>
+    `}
+  `;
+  return el;
+}
+
+function initTrackPlayer(track, el) {
+  if (track.mode !== 'vertical' || !track.base || !track.layers.every(l => l.file)) return;
+
+  const profiles = cumulativeProfiles(track.layers.length);
+  const statusEl = el.querySelector('[data-role="status"]');
+  const wrap = el.querySelector('[data-role="progressWrap"]');
+  const fill = el.querySelector('[data-role="progressFill"]');
+  const head = el.querySelector('[data-role="progressHead"]');
+  const timeCurrent = el.querySelector('[data-role="timeCurrent"]');
+  const btnPlay = el.querySelector('[data-role="btnPlay"]');
+  const btnStop = el.querySelector('[data-role="btnStop"]');
+  const intBtns = [...el.querySelectorAll('[data-role="intensityBtns"] .btn-int')];
+
+  let buffers = [], sources = [], gains = [];
+  let level = 0, playing = false, startedAt = 0, offsetAt = 0, rafId = null;
+
+  function updateProgressAt(elapsed) {
+    const pct = (elapsed / track.duration) * 100;
+    fill.style.width = pct + '%';
+    head.style.left = pct + '%';
+    timeCurrent.textContent = formatTime(elapsed);
+  }
+  function tick() {
+    if (!playing) return;
+    updateProgressAt((ctx.currentTime - startedAt) % track.duration);
+    rafId = requestAnimationFrame(tick);
+  }
+  function stopAllSources() {
+    playing = false;
+    offsetAt = (ctx.currentTime - startedAt) % track.duration;
+    sources.forEach(s => { if (s) { try { s.stop(); } catch(e){} } });
+    sources = []; gains = [];
+    cancelAnimationFrame(rafId);
+    statusEl.textContent = 'En pause';
+    btnPlay.disabled = false; btnStop.disabled = true;
+  }
+  function stopThisTrack() {
+    if (activeTrackId === track.id) activeTrackId = null;
+    stopAllSources();
+  }
+  function playThisTrack() {
+    if (activeTrackId && activeTrackId !== track.id) {
+      document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+    }
+    activeTrackId = track.id;
+    if (ctx.state === 'suspended') ctx.resume();
+    playing = true;
+    startedAt = ctx.currentTime - offsetAt;
+    const p = profiles[level];
+    for (let i = 0; i < buffers.length; i++) {
+      const src = ctx.createBufferSource();
+      src.buffer = buffers[i]; src.loop = true; src.loopStart = 0; src.loopEnd = track.duration;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(p[i] || 0, ctx.currentTime);
+      src.connect(g); g.connect(ctx.destination);
+      src.start(0, offsetAt % track.duration);
+      sources[i] = src; gains[i] = g;
+    }
+    statusEl.textContent = 'Lecture en cours';
+    btnPlay.disabled = true; btnStop.disabled = false;
+    tick();
+  }
+
+  document.addEventListener('stop-track', (e) => { if (e.detail === track.id) stopAllSources(); });
+  btnPlay.addEventListener('click', playThisTrack);
+  btnStop.addEventListener('click', stopThisTrack);
+  wrap.addEventListener('click', (e) => {
+    const rect = wrap.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    offsetAt = pct * track.duration;
+    if (playing) { stopAllSources(); playThisTrack(); }
+    else { updateProgressAt(offsetAt); }
+  });
+  intBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      level = parseInt(btn.dataset.level, 10);
+      intBtns.forEach(b => b.classList.toggle('active', b === btn));
+      if (!playing) return;
+      const p = profiles[level];
+      const now = ctx.currentTime;
+      gains.forEach((g, i) => {
+        if (!g) return;
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(g.gain.value, now);
+        g.gain.linearRampToValueAtTime(p[i] || 0, now + 1.4);
+      });
+    });
+  });
+
+  (async () => {
+    let loaded = 0;
+    for (let i = 0; i < track.layers.length; i++) {
+      try {
+        const res = await fetch(track.base + encodeURIComponent(track.layers[i].file));
+        const ab = await res.arrayBuffer();
+        buffers[i] = await ctx.decodeAudioData(ab);
+        loaded++;
+        statusEl.textContent = `Chargement… ${loaded}/${track.layers.length}`;
+      } catch (e) {
+        statusEl.textContent = 'Erreur de chargement';
+        return;
+      }
+    }
+    statusEl.textContent = 'Prêt';
+    btnPlay.disabled = false;
+    intBtns.forEach(b => b.disabled = false);
+  })();
+}
+
+async function init() {
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const container = document.getElementById('tracks');
+  try {
+    const res = await fetch('./data.json');
+    const data = await res.json();
+    if (!data.tracks || data.tracks.length === 0) {
+      container.innerHTML = '<div class="empty">Aucun morceau publié pour l\'instant.</div>';
+      return;
+    }
+    data.tracks.forEach(track => {
+      const card = buildTrackCard(track);
+      container.appendChild(card);
+      initTrackPlayer(track, card);
+    });
+  } catch (e) {
+    container.innerHTML = '<div class="empty">Impossible de charger data.json</div>';
+  }
+}
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
