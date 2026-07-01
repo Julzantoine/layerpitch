@@ -1,3 +1,26 @@
 {
-  "tracks": []
+  "tracks": [
+    {
+      "id": "battle-loop",
+      "title": "Battle Loop",
+      "description": "Une battle loop à 3 niveaux d'intensité : plutôt texturale pour la 1ere couche, orchestrale pour la deuxième, plus aggressive/moderne pour la 3ème. ",
+      "mode": "vertical",
+      "duration": 128,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/battle-loop/",
+      "layers": [
+        {
+          "label": "Low Intensity",
+          "file": "0-low-intensity.ogg"
+        },
+        {
+          "label": "Mid Intensity",
+          "file": "1-mid-intensity.ogg"
+        },
+        {
+          "label": "High Intensity",
+          "file": "2-high-intensity.ogg"
+        }
+      ]
+    }
+  ]
 }
