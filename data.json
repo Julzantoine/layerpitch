@@ -4,7 +4,7 @@
     "testimonials",
     "tracks",
     "videos",
-    "photo",
+    "gallery",
     "bio"
   ],
   "profile": {
@@ -15,6 +15,7 @@
     "logo": "logo.jpeg",
     "photo": "photo.jpg"
   },
+  "gallery": [],
   "testimonials": [
     {
       "text": "\"J'ai été impressionné par la capacité de Jules à être à l'écoute des thèmes et des désirs abordés dans les projets. Il n'hésite pas à faire preuve d'initiative en étant force de proposition, tout en ayant la volonté de se renseigner sur ce qu'il ne connait pas (encore). Jules-Antoine est quelqu'un de généreux, empathique et ouvert d'esprit.\"",
@@ -29,8 +30,8 @@
   "tracks": [
     {
       "id": "battle-loop",
-      "title": "Battle Loop",
-      "description": "Sire Perd-son-Cheval — jadis Perceval, avant qu'une succession d'incidents regrettables ne rebaptise durablement sa réputation — pénètre dans la zone. L'éclairage y est optionnel, l'ambiance nettement moins chevaleresque que son blason ne le promettait. Quelque chose respire, quelque part. Sire Perd-son-Cheval décide, par principe, que ça ne le concerne pas (Intensité 1).\n\n\nÇa le concerne. Les premiers Gorilles Mutants Robots débarquent, visiblement vexés qu'on ait mis autant de temps à les prendre au sérieux. La musique accélère avec eux — Sire Perd-Son-Cheval nettement moins, son cheval l'ayant, comme d'habitude, abandonné trois scènes plus tôt (Intensité 2).\n\n\nLe noble chevalier faisant fi de l'adversité, commence à entrevoir la victoire. Erreur ! Ce n'était que l'avant-garde. Le reste arrive, et la boucle sort enfin la couche qu'elle gardait en réserve, avec l'air de quelqu'un qui savait depuis le début comment ça finirait (Intensité 3).\n\n\nUne battle loop adaptative à 3 niveaux, calée sur le nombre d'ennemis à l'écran et qui mêle les plaisirs comme savent le faire les jeux indie — parce qu'une bonne musique de baston sent toujours venir le savon un peu avant le chevalier, cheval ou pas. ",
+      "title": "Battle Loop #1",
+      "description": "Une battle loop adaptative à 3 niveaux d'intensité (Low/Mid/High), calée sur le nombre d'ennemis à l'écran et qui mêle les plaisirs comme savent le faire les jeux indie — parce qu'une bonne musique de baston sent toujours venir le savon un peu avant qu'on se prenne la douche.",
       "mode": "vertical",
       "duration": 128,
       "base": "https://Julzantoine.github.io/layerpitch/audio/battle-loop/",
