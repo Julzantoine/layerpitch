@@ -15,10 +15,11 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 56px 24px 60px; }
   .page { max-width: 760px; margin: 0 auto; }
+  a { color: var(--accent); }
 
   .header { text-align: center; margin-bottom: 56px; }
-  .logo-img { max-height: 70px; max-width: 260px; }
-  .logo-fallback { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 30px; font-style: italic; }
+  .logo-img { max-height: clamp(60px, 12vw, 140px); max-width: clamp(180px, 40vw, 420px); width: auto; height: auto; }
+  .logo-fallback { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(24px, 5vw, 40px); font-style: italic; }
   .logo-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-top: 10px; }
 
   .block { margin-bottom: 56px; }
@@ -48,10 +49,16 @@
   .video-card.disabled { pointer-events: none; opacity: 0.4; color: var(--text-dim); background: repeating-linear-gradient(45deg, #ddd8cf, #ddd8cf 6px, #e8e4dd 6px, #e8e4dd 12px); }
   .video-card.disabled .vt { color: var(--text-dim); }
 
-  .photo-block { display: flex; justify-content: center; }
-  .photo-block img { max-width: 260px; width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+  .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .gallery-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+  @media (max-width: 540px) { .gallery-grid { grid-template-columns: repeat(2, 1fr); } }
 
+  .bio { display: grid; grid-template-columns: 180px 1fr; gap: 28px; align-items: start; }
+  .bio-photo { width: 100%; aspect-ratio: 1; border-radius: 6px; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border); }
+  .bio-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .bio-photo svg { width: 40%; height: 40%; opacity: 0.35; }
   .bio-text p { font-size: 14px; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; white-space: pre-wrap; }
+  @media (max-width: 540px) { .bio { grid-template-columns: 1fr; } .bio-photo { max-width: 160px; } }
 
   .track { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); padding: 26px; margin-bottom: 16px; }
   .track-title { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 18px; margin-bottom: 4px; }
@@ -95,7 +102,7 @@
 let ctx = null;
 let activeTrackId = null;
 
-const DEFAULT_BLOCK_ORDER = ['header', 'testimonials', 'videos', 'photo', 'bio', 'tracks'];
+const DEFAULT_BLOCK_ORDER = ['header', 'testimonials', 'videos', 'gallery', 'bio', 'tracks'];
 
 function formatTime(s) {
   const m = Math.floor(s / 60);
@@ -107,11 +114,18 @@ function cumulativeProfiles(n) {
   for (let i = 0; i < n; i++) out.push(Array.from({ length: n }, (_, j) => (j <= i ? 1 : 0)));
   return out;
 }
-function section(label, innerHTML, extraClass) {
+function section(label, innerHTML) {
   const el = document.createElement('div');
-  el.className = 'block' + (extraClass ? ' ' + extraClass : '');
+  el.className = 'block';
   el.innerHTML = (label ? `<div class="section-label">${label}</div>` : '') + innerHTML;
   return el;
+}
+function escapeHtml(s) {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+// Convertit [texte](url) en vrai lien cliquable, après échappement HTML de base
+function linkify(s) {
+  return escapeHtml(s).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
 }
 
 /* ---------------- Blocs ---------------- */
@@ -120,25 +134,29 @@ function renderHeaderBlock(container, profile) {
   el.className = 'header';
   el.innerHTML = `
     ${profile.logo ? `<img class="logo-img" src="./images/${profile.logo}" alt="Logo">` : `<div class="logo-fallback">LayerPitch</div>`}
-    ${profile.tagline ? `<div class="logo-tag">${profile.tagline}</div>` : ''}
+    ${profile.tagline ? `<div class="logo-tag">${escapeHtml(profile.tagline)}</div>` : ''}
   `;
   container.appendChild(el);
   return true;
 }
-function renderPhotoBlock(container, profile) {
-  if (!profile.photo) return false;
-  container.appendChild(section(null, `<div class="photo-block"><img src="./images/${profile.photo}" alt="Photo"></div>`));
+function renderGalleryBlock(container, gallery) {
+  if (!gallery || gallery.length === 0) return false;
+  const imgs = gallery.map(g => `<img src="./images/${g.file}" alt="">`).join('');
+  container.appendChild(section('Galerie', `<div class="gallery-grid">${imgs}</div>`));
   return true;
 }
 function renderBioBlock(container, profile) {
-  if (!profile.bio) return false;
-  const html = profile.bio.split('\n\n').map(p => `<p>${p}</p>`).join('');
-  container.appendChild(section('À propos', `<div class="bio-text">${html}</div>`));
+  if (!profile.bio && !profile.photo) return false;
+  const textHtml = (profile.bio || '').split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('');
+  const photoHtml = profile.photo
+    ? `<img src="./images/${profile.photo}" alt="Photo">`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>`;
+  container.appendChild(section('À propos', `<div class="bio"><div class="bio-photo">${photoHtml}</div><div class="bio-text">${textHtml}</div></div>`));
   return true;
 }
 function renderTestimonialsBlock(container, list) {
   if (!list || list.length === 0) return false;
-  const inner = list.map(t => `<div class="testimonial"><p>« ${t.text} »</p><cite>${t.author}</cite></div>`).join('');
+  const inner = list.map(t => `<div class="testimonial"><p>« ${linkify(t.text)} »</p><cite>${escapeHtml(t.author)}</cite></div>`).join('');
   container.appendChild(section('Ils en parlent', inner));
   return true;
 }
@@ -148,7 +166,7 @@ function renderVideosBlock(container, list) {
     const hasUrl = !!v.url;
     const tag = hasUrl ? 'a' : 'div';
     return `<${tag} class="video-card${hasUrl ? '' : ' disabled'}" ${hasUrl ? `href="${v.url}" target="_blank"` : ''}>
-      <div class="vt">${v.title}</div>${hasUrl ? '<div class="play-dot"></div>' : ''}
+      <div class="vt">${escapeHtml(v.title)}</div>${hasUrl ? '<div class="play-dot"></div>' : ''}
     </${tag}>`;
   }).join('');
   container.appendChild(section('Vidéos', `<div class="video-grid">${cards}</div>`));
@@ -156,7 +174,6 @@ function renderVideosBlock(container, list) {
 }
 function renderTracksBlock(container, tracks) {
   const wrap = document.createElement('div');
-  wrap.id = 'tracksInner';
   const el = section('Musique adaptative — écoute interactive', '');
   el.appendChild(wrap);
   container.appendChild(el);
@@ -174,7 +191,7 @@ function renderTracksBlock(container, tracks) {
 
 const BLOCK_RENDERERS = {
   header: (c, data) => renderHeaderBlock(c, data.profile || {}),
-  photo: (c, data) => renderPhotoBlock(c, data.profile || {}),
+  gallery: (c, data) => renderGalleryBlock(c, data.gallery),
   bio: (c, data) => renderBioBlock(c, data.profile || {}),
   testimonials: (c, data) => renderTestimonialsBlock(c, data.testimonials),
   videos: (c, data) => renderVideosBlock(c, data.videos),
@@ -187,10 +204,10 @@ function buildTrackCard(track) {
   const hasFiles = supported && track.base && track.layers.every(l => l.file);
   const el = document.createElement('div');
   el.className = 'track' + (hasFiles ? '' : ' disabled');
-  const intBtns = track.layers.map((l, i) => `<button class="btn-int${i===0?' active':''}" data-level="${i}" disabled>${l.label}</button>`).join('');
+  const intBtns = track.layers.map((l, i) => `<button class="btn-int${i===0?' active':''}" data-level="${i}" disabled>${escapeHtml(l.label)}</button>`).join('');
   el.innerHTML = `
-    <div class="track-title">${track.title}</div>
-    <div class="track-desc">${track.description || ''}</div>
+    <div class="track-title">${escapeHtml(track.title)}</div>
+    <div class="track-desc">${linkify(track.description || '')}</div>
     ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
       !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : `
       <div class="status" data-role="status">Chargement…</div>
@@ -328,8 +345,8 @@ async function init() {
     const profile = data.profile || {};
     if (profile.contactUrl || profile.contactEmail) {
       document.getElementById('contact').innerHTML = [
-        profile.contactUrl ? `<a href="${profile.contactUrl}" target="_blank" style="color:inherit">${profile.contactUrl.replace(/^https?:\/\//, '')}</a>` : '',
-        profile.contactEmail ? `<a href="mailto:${profile.contactEmail}" style="color:inherit">${profile.contactEmail}</a>` : ''
+        profile.contactUrl ? `<a href="${profile.contactUrl}" target="_blank">${profile.contactUrl.replace(/^https?:\/\//, '')}</a>` : '',
+        profile.contactEmail ? `<a href="mailto:${profile.contactEmail}">${profile.contactEmail}</a>` : ''
       ].filter(Boolean).join(' &nbsp;/&nbsp; ');
     }
   } catch (e) {
