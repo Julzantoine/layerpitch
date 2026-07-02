@@ -15,7 +15,17 @@
     "logo": "logo.jpeg",
     "photo": "photo.jpg"
   },
-  "gallery": [],
+  "gallery": [
+    {
+      "file": "gallery-0-1782996309465.jpg"
+    },
+    {
+      "file": "gallery-1-1782996311266.png"
+    },
+    {
+      "file": "gallery-2-1782996313052.png"
+    }
+  ],
   "testimonials": [
     {
       "text": "\"J'ai été impressionné par la capacité de Jules à être à l'écoute des thèmes et des désirs abordés dans les projets. Il n'hésite pas à faire preuve d'initiative en étant force de proposition, tout en ayant la volonté de se renseigner sur ce qu'il ne connait pas (encore). Jules-Antoine est quelqu'un de généreux, empathique et ouvert d'esprit.\"",
@@ -26,7 +36,16 @@
       "author": "(Alioune Koné - Composer)"
     }
   ],
-  "videos": [],
+  "videos": [
+    {
+      "title": "Retrouvez des vidéos ici",
+      "url": "https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0"
+    },
+    {
+      "title": "test",
+      "url": "https://youtu.be/VT5bNZ6kbHw?si=hLC0gqdnru1k221A"
+    }
+  ],
   "tracks": [
     {
       "id": "battle-loop",
