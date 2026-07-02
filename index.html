@@ -369,10 +369,15 @@ function initTrackPlayer(track, wrapper) {
   let buffers = [], sources = [], gains = [];
   let stingerBuffers = [];
   let activeStingerSources = [];
-  let level = 0, playing = false, startedAt = 0, offsetAt = 0, rafId = null, manualStop = false;
+  let level = 0, playing = false, startedAt = 0, offsetAt = 0, rafId = null, manualStop = false, ready = false;
 
   const PLAY_SVG = '<path d="M8 5v14l11-7z"/>';
   const PAUSE_SVG = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+
+  function updateStingerAvailability() {
+    const expanded = details.style.display !== 'none';
+    setStingerButtonsEnabled(expanded && ready);
+  }
 
   function setStingerButtonsEnabled(enabled) {
     stingerBtns.forEach(b => { b.disabled = !enabled; });
@@ -401,7 +406,6 @@ function initTrackPlayer(track, wrapper) {
   function setStoppedUI() {
     playIcon.innerHTML = PLAY_SVG;
     if (statusEl) statusEl.textContent = 'En pause';
-    setStingerButtonsEnabled(false);
   }
   function stopAllSources(keepPosition) {
     playing = false;
@@ -450,9 +454,11 @@ function initTrackPlayer(track, wrapper) {
     }
     playIcon.innerHTML = PAUSE_SVG;
     if (statusEl) statusEl.textContent = 'Lecture en cours';
-    setStingerButtonsEnabled(true);
     tick();
   }
+
+  const titleToggle = wrapper.querySelector('[data-role="titleToggle"]');
+  if (titleToggle) titleToggle.addEventListener('click', updateStingerAvailability);
 
   document.addEventListener('stop-track', (e) => { if (e.detail === track.id) stopAllSources(); });
   playBtn.addEventListener('click', () => { playing ? stopAllSources() : playThisTrack(); });
@@ -485,10 +491,11 @@ function initTrackPlayer(track, wrapper) {
 
   stingerBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      if (btn.disabled || !playing) return;
+      if (btn.disabled) return;
       const idx = parseInt(btn.dataset.stinger, 10);
       const buf = stingerBuffers[idx];
       if (!buf) return;
+      if (ctx.state === 'suspended') ctx.resume();
       const src = ctx.createBufferSource();
       src.buffer = buf;
       const g = ctx.createGain();
@@ -523,6 +530,8 @@ function initTrackPlayer(track, wrapper) {
     }
     if (statusEl) statusEl.textContent = 'Prêt';
     playBtn.disabled = false;
+    ready = true;
+    updateStingerAvailability();
   })();
 }
 
