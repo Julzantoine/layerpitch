@@ -5,98 +5,193 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LayerPitch</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
+    --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --accent: #c9713c; --accent-soft: #f3e4d6;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: #111214;
-    color: #e8e8e6;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    padding: 40px 20px;
-  }
-  .page { max-width: 640px; margin: 0 auto; }
-  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
-  .sub { font-size: 13px; color: #888; margin-bottom: 32px; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 56px 24px 60px; }
+  .page { max-width: 760px; margin: 0 auto; }
 
-  .track {
-    border: 1px solid #2a2b2f;
-    border-radius: 6px;
-    padding: 20px;
-    margin-bottom: 14px;
-  }
-  .track-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
-  .track-desc { font-size: 13px; color: #999; margin-bottom: 16px; white-space: pre-wrap; }
-  .status { font-size: 11px; color: #666; margin-bottom: 10px; min-height: 14px; font-family: monospace; }
+  .header { text-align: center; margin-bottom: 56px; }
+  .logo-img { max-height: 70px; max-width: 260px; }
+  .logo-fallback { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 30px; font-style: italic; }
+  .logo-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-top: 10px; }
 
-  .progress-wrap {
-    position: relative; height: 24px; margin-bottom: 6px; cursor: pointer;
+  .block { margin-bottom: 56px; }
+  .section-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 18px;
   }
-  .progress-track { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 3px; background: #2a2b2f; border-radius: 2px; pointer-events: none; }
-  .progress-fill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 3px; background: #4ea8de; border-radius: 2px; width: 0%; pointer-events: none; }
-  .progress-head { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 8px; height: 8px; background: #4ea8de; border-radius: 50%; pointer-events: none; }
-  .time-row { display: flex; justify-content: space-between; font-size: 10px; color: #666; font-family: monospace; margin-bottom: 16px; }
 
-  .control-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-  .transport { display: flex; gap: 6px; }
-  .btn {
-    padding: 8px 14px; border-radius: 4px; border: 1px solid #333; background: transparent;
-    color: #ccc; font-size: 11px; text-transform: uppercase; cursor: pointer; font-family: monospace;
+  .testimonial { border-left: 2px solid var(--accent); padding: 4px 0 4px 20px; margin-bottom: 22px; }
+  .testimonial p { font-size: 14.5px; line-height: 1.7; font-style: italic; margin-bottom: 8px; }
+  .testimonial cite { font-family: 'JetBrains Mono', monospace; font-style: normal; font-size: 11px; color: var(--text-dim); }
+
+  .video-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .video-card {
+    position: relative; aspect-ratio: 16/9; border-radius: 6px; border: 1px solid var(--border);
+    background: linear-gradient(135deg, #2a2822, #423b30);
+    display: flex; align-items: flex-end; padding: 14px; color: #f6f5f3;
+    text-decoration: none; overflow: hidden; transition: transform 0.15s;
   }
-  .btn:hover:not(:disabled) { border-color: #4ea8de; color: #fff; }
+  .video-card:hover { transform: translateY(-2px); }
+  .video-card .vt { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 14px; line-height: 1.3; }
+  .video-card .play-dot {
+    position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center;
+  }
+  .video-card .play-dot::after { content: ''; border-left: 8px solid #fff; border-top: 5px solid transparent; border-bottom: 5px solid transparent; margin-left: 2px; }
+  .video-card.disabled { pointer-events: none; opacity: 0.4; color: var(--text-dim); background: repeating-linear-gradient(45deg, #ddd8cf, #ddd8cf 6px, #e8e4dd 6px, #e8e4dd 12px); }
+  .video-card.disabled .vt { color: var(--text-dim); }
+
+  .photo-block { display: flex; justify-content: center; }
+  .photo-block img { max-width: 260px; width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+
+  .bio-text p { font-size: 14px; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; white-space: pre-wrap; }
+
+  .track { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); padding: 26px; margin-bottom: 16px; }
+  .track-title { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 18px; margin-bottom: 4px; }
+  .track-desc { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; white-space: pre-wrap; }
+  .status { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); margin-bottom: 12px; min-height: 14px; }
+
+  .progress-wrap { position: relative; height: 24px; margin-bottom: 6px; cursor: pointer; }
+  .progress-track { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--border); border-radius: 2px; pointer-events: none; }
+  .progress-fill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--accent); border-radius: 2px; width: 0%; pointer-events: none; }
+  .progress-head { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 9px; height: 9px; background: var(--accent); border-radius: 50%; pointer-events: none; }
+  .time-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); margin-bottom: 20px; }
+
+  .control-row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .transport { display: flex; gap: 8px; }
+  .btn { padding: 9px 18px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
   .btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
   .intensity-btns { display: flex; gap: 6px; margin-left: auto; }
-  .btn-int {
-    padding: 7px 12px; border-radius: 4px; border: 1px solid #333; background: transparent;
-    color: #888; font-size: 10.5px; cursor: pointer; font-family: monospace;
-  }
-  .btn-int.active { border-color: #4ea8de; color: #4ea8de; }
+  .btn-int { padding: 8px 14px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-dimmer); font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+  .btn-int:hover:not(:disabled) { border-color: var(--text-dim); color: var(--text-dim); }
   .btn-int:disabled { opacity: 0.25; cursor: not-allowed; }
+  .btn-int.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 
-  .placeholder-tag { font-size: 10px; color: #666; border: 1px dashed #333; border-radius: 4px; padding: 6px 10px; display: inline-block; font-family: monospace; }
-  .track.disabled { opacity: 0.45; }
+  .placeholder-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dimmer); border: 1px dashed var(--border); border-radius: 4px; padding: 8px 12px; display: inline-block; }
+  .track.disabled { opacity: 0.5; }
 
-  .empty { font-size: 13px; color: #666; text-align: center; padding: 40px 0; }
+  @media (max-width: 480px) { .intensity-btns { margin-left: 0; width: 100%; } .btn-int { flex: 1; } }
+
+  .contact { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); letter-spacing: 0.03em; line-height: 1.8; padding-top: 24px; border-top: 1px solid var(--border); }
+  .empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 20px 0; }
 </style>
 </head>
 <body>
 <div class="page">
-  <h1>LayerPitch</h1>
-  <div class="sub">Écoute interactive — musique adaptative</div>
-  <div id="tracks"></div>
+  <div id="blocksContainer"></div>
+  <div class="contact" id="contact"></div>
 </div>
 
 <script>
 let ctx = null;
 let activeTrackId = null;
 
+const DEFAULT_BLOCK_ORDER = ['header', 'testimonials', 'videos', 'photo', 'bio', 'tracks'];
+
 function formatTime(s) {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   return m + ':' + (sec < 10 ? '0' : '') + sec;
 }
-
-// Profil de mix cumulatif : le niveau i active les couches 0..i
 function cumulativeProfiles(n) {
   const out = [];
-  for (let i = 0; i < n; i++) {
-    out.push(Array.from({ length: n }, (_, j) => (j <= i ? 1 : 0)));
-  }
+  for (let i = 0; i < n; i++) out.push(Array.from({ length: n }, (_, j) => (j <= i ? 1 : 0)));
   return out;
 }
+function section(label, innerHTML, extraClass) {
+  const el = document.createElement('div');
+  el.className = 'block' + (extraClass ? ' ' + extraClass : '');
+  el.innerHTML = (label ? `<div class="section-label">${label}</div>` : '') + innerHTML;
+  return el;
+}
 
+/* ---------------- Blocs ---------------- */
+function renderHeaderBlock(container, profile) {
+  const el = document.createElement('div');
+  el.className = 'header';
+  el.innerHTML = `
+    ${profile.logo ? `<img class="logo-img" src="./images/${profile.logo}" alt="Logo">` : `<div class="logo-fallback">LayerPitch</div>`}
+    ${profile.tagline ? `<div class="logo-tag">${profile.tagline}</div>` : ''}
+  `;
+  container.appendChild(el);
+  return true;
+}
+function renderPhotoBlock(container, profile) {
+  if (!profile.photo) return false;
+  container.appendChild(section(null, `<div class="photo-block"><img src="./images/${profile.photo}" alt="Photo"></div>`));
+  return true;
+}
+function renderBioBlock(container, profile) {
+  if (!profile.bio) return false;
+  const html = profile.bio.split('\n\n').map(p => `<p>${p}</p>`).join('');
+  container.appendChild(section('À propos', `<div class="bio-text">${html}</div>`));
+  return true;
+}
+function renderTestimonialsBlock(container, list) {
+  if (!list || list.length === 0) return false;
+  const inner = list.map(t => `<div class="testimonial"><p>« ${t.text} »</p><cite>${t.author}</cite></div>`).join('');
+  container.appendChild(section('Ils en parlent', inner));
+  return true;
+}
+function renderVideosBlock(container, list) {
+  if (!list || list.length === 0) return false;
+  const cards = list.map(v => {
+    const hasUrl = !!v.url;
+    const tag = hasUrl ? 'a' : 'div';
+    return `<${tag} class="video-card${hasUrl ? '' : ' disabled'}" ${hasUrl ? `href="${v.url}" target="_blank"` : ''}>
+      <div class="vt">${v.title}</div>${hasUrl ? '<div class="play-dot"></div>' : ''}
+    </${tag}>`;
+  }).join('');
+  container.appendChild(section('Vidéos', `<div class="video-grid">${cards}</div>`));
+  return true;
+}
+function renderTracksBlock(container, tracks) {
+  const wrap = document.createElement('div');
+  wrap.id = 'tracksInner';
+  const el = section('Musique adaptative — écoute interactive', '');
+  el.appendChild(wrap);
+  container.appendChild(el);
+  if (!tracks || tracks.length === 0) {
+    wrap.innerHTML = '<div class="empty">Aucun morceau publié pour l\'instant.</div>';
+  } else {
+    tracks.forEach(track => {
+      const card = buildTrackCard(track);
+      wrap.appendChild(card);
+      initTrackPlayer(track, card);
+    });
+  }
+  return true;
+}
+
+const BLOCK_RENDERERS = {
+  header: (c, data) => renderHeaderBlock(c, data.profile || {}),
+  photo: (c, data) => renderPhotoBlock(c, data.profile || {}),
+  bio: (c, data) => renderBioBlock(c, data.profile || {}),
+  testimonials: (c, data) => renderTestimonialsBlock(c, data.testimonials),
+  videos: (c, data) => renderVideosBlock(c, data.videos),
+  tracks: (c, data) => renderTracksBlock(c, data.tracks),
+};
+
+/* ---------------- Lecteur adaptatif ---------------- */
 function buildTrackCard(track) {
   const supported = track.mode === 'vertical';
   const hasFiles = supported && track.base && track.layers.every(l => l.file);
   const el = document.createElement('div');
   el.className = 'track' + (hasFiles ? '' : ' disabled');
-
-  const intBtns = track.layers.map((l, i) =>
-    `<button class="btn-int${i===0?' active':''}" data-level="${i}" disabled>${l.label}</button>`
-  ).join('');
-
+  const intBtns = track.layers.map((l, i) => `<button class="btn-int${i===0?' active':''}" data-level="${i}" disabled>${l.label}</button>`).join('');
   el.innerHTML = `
     <div class="track-title">${track.title}</div>
     <div class="track-desc">${track.description || ''}</div>
-    ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté par le lecteur</span>` :
+    ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
       !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : `
       <div class="status" data-role="status">Chargement…</div>
       <div class="progress-wrap" data-role="progressWrap">
@@ -104,10 +199,7 @@ function buildTrackCard(track) {
         <div class="progress-fill" data-role="progressFill"></div>
         <div class="progress-head" data-role="progressHead"></div>
       </div>
-      <div class="time-row">
-        <span data-role="timeCurrent">0:00</span>
-        <span>${formatTime(track.duration)}</span>
-      </div>
+      <div class="time-row"><span data-role="timeCurrent">0:00</span><span>${formatTime(track.duration)}</span></div>
       <div class="control-row">
         <div class="transport">
           <button class="btn" data-role="btnPlay" disabled>Play</button>
@@ -122,7 +214,6 @@ function buildTrackCard(track) {
 
 function initTrackPlayer(track, el) {
   if (track.mode !== 'vertical' || !track.base || !track.layers.every(l => l.file)) return;
-
   const profiles = cumulativeProfiles(track.layers.length);
   const statusEl = el.querySelector('[data-role="status"]');
   const wrap = el.querySelector('[data-role="progressWrap"]');
@@ -138,8 +229,7 @@ function initTrackPlayer(track, el) {
 
   function updateProgressAt(elapsed) {
     const pct = (elapsed / track.duration) * 100;
-    fill.style.width = pct + '%';
-    head.style.left = pct + '%';
+    fill.style.width = pct + '%'; head.style.left = pct + '%';
     timeCurrent.textContent = formatTime(elapsed);
   }
   function tick() {
@@ -156,14 +246,9 @@ function initTrackPlayer(track, el) {
     statusEl.textContent = 'En pause';
     btnPlay.disabled = false; btnStop.disabled = true;
   }
-  function stopThisTrack() {
-    if (activeTrackId === track.id) activeTrackId = null;
-    stopAllSources();
-  }
+  function stopThisTrack() { if (activeTrackId === track.id) activeTrackId = null; stopAllSources(); }
   function playThisTrack() {
-    if (activeTrackId && activeTrackId !== track.id) {
-      document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
-    }
+    if (activeTrackId && activeTrackId !== track.id) document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
     activeTrackId = track.id;
     if (ctx.state === 'suspended') ctx.resume();
     playing = true;
@@ -190,14 +275,8 @@ function initTrackPlayer(track, el) {
     const rect = wrap.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const seekTo = pct * track.duration;
-    if (playing) {
-      stopAllSources();
-      offsetAt = seekTo;
-      playThisTrack();
-    } else {
-      offsetAt = seekTo;
-      updateProgressAt(offsetAt);
-    }
+    if (playing) { stopAllSources(); offsetAt = seekTo; playThisTrack(); }
+    else { offsetAt = seekTo; updateProgressAt(offsetAt); }
   });
   intBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -224,10 +303,7 @@ function initTrackPlayer(track, el) {
         buffers[i] = await ctx.decodeAudioData(ab);
         loaded++;
         statusEl.textContent = `Chargement… ${loaded}/${track.layers.length}`;
-      } catch (e) {
-        statusEl.textContent = 'Erreur de chargement';
-        return;
-      }
+      } catch (e) { statusEl.textContent = 'Erreur de chargement'; return; }
     }
     statusEl.textContent = 'Prêt';
     btnPlay.disabled = false;
@@ -235,26 +311,31 @@ function initTrackPlayer(track, el) {
   })();
 }
 
+/* ---------------- Init ---------------- */
 async function init() {
   ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const container = document.getElementById('tracks');
+  const container = document.getElementById('blocksContainer');
   try {
     const res = await fetch('./data.json');
     const data = await res.json();
-    if (!data.tracks || data.tracks.length === 0) {
-      container.innerHTML = '<div class="empty">Aucun morceau publié pour l\'instant.</div>';
-      return;
-    }
-    data.tracks.forEach(track => {
-      const card = buildTrackCard(track);
-      container.appendChild(card);
-      initTrackPlayer(track, card);
+    const order = (data.blocks && data.blocks.length) ? data.blocks : DEFAULT_BLOCK_ORDER;
+
+    order.forEach(type => {
+      const renderer = BLOCK_RENDERERS[type];
+      if (renderer) renderer(container, data);
     });
+
+    const profile = data.profile || {};
+    if (profile.contactUrl || profile.contactEmail) {
+      document.getElementById('contact').innerHTML = [
+        profile.contactUrl ? `<a href="${profile.contactUrl}" target="_blank" style="color:inherit">${profile.contactUrl.replace(/^https?:\/\//, '')}</a>` : '',
+        profile.contactEmail ? `<a href="mailto:${profile.contactEmail}" style="color:inherit">${profile.contactEmail}</a>` : ''
+      ].filter(Boolean).join(' &nbsp;/&nbsp; ');
+    }
   } catch (e) {
     container.innerHTML = '<div class="empty">Impossible de charger data.json</div>';
   }
 }
-
 window.addEventListener('load', init);
 </script>
 </body>
