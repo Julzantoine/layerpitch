@@ -32,12 +32,11 @@
   .testimonial p { font-size: 14.5px; line-height: 1.7; font-style: italic; margin-bottom: 8px; }
   .testimonial cite { font-family: 'JetBrains Mono', monospace; font-style: normal; font-size: 11px; color: var(--text-dim); }
 
-  .video-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
   .video-card {
     position: relative; aspect-ratio: 16/9; border-radius: 6px; border: 1px solid var(--border);
     background: linear-gradient(135deg, #2a2822, #423b30);
     display: flex; align-items: flex-end; padding: 14px; color: #f6f5f3;
-    text-decoration: none; overflow: hidden; transition: transform 0.15s;
+    text-decoration: none; overflow: hidden; transition: transform 0.15s; max-width: 420px;
   }
   .video-card:hover { transform: translateY(-2px); }
   .video-card .vt { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 14px; line-height: 1.3; }
@@ -49,44 +48,69 @@
   .video-card.disabled { pointer-events: none; opacity: 0.4; color: var(--text-dim); background: repeating-linear-gradient(45deg, #ddd8cf, #ddd8cf 6px, #e8e4dd 6px, #e8e4dd 12px); }
   .video-card.disabled .vt { color: var(--text-dim); }
 
-  .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .gallery-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
-  @media (max-width: 540px) { .gallery-grid { grid-template-columns: repeat(2, 1fr); } }
+  .photo-block-single { display: flex; }
+  .photo-block-single img { max-width: 420px; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
+  .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .photo-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+  @media (max-width: 540px) { .photo-grid { grid-template-columns: repeat(2, 1fr); } }
+  .video-grid-multi { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+
+  .text-block p { font-size: 14px; line-height: 1.7; color: var(--text-dim); margin-bottom: 12px; white-space: pre-wrap; }
+  .text-block p:last-child { margin-bottom: 0; }
 
   .bio { display: grid; grid-template-columns: 180px 1fr; gap: 28px; align-items: start; }
-  .bio-photo { width: 100%; aspect-ratio: 1; border-radius: 6px; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border); }
-  .bio-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .bio-photo {
+    width: 100%; aspect-ratio: 3/4; border-radius: 6px; background: var(--accent-soft);
+    display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border);
+  }
+  .bio-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 15%; display: block; }
   .bio-photo svg { width: 40%; height: 40%; opacity: 0.35; }
   .bio-text p { font-size: 14px; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; white-space: pre-wrap; }
-  @media (max-width: 540px) { .bio { grid-template-columns: 1fr; } .bio-photo { max-width: 160px; } }
+  @media (max-width: 540px) { .bio { grid-template-columns: 1fr; } .bio-photo { max-width: 200px; } }
 
-  .track { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); padding: 26px; margin-bottom: 16px; }
-  .track-title { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 18px; margin-bottom: 4px; }
-  .track-desc { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; white-space: pre-wrap; }
-  .status { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); margin-bottom: 12px; min-height: 14px; }
+  .music-header { display: grid; grid-template-columns: 1fr 140px; align-items: end; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .music-header-label { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); text-align: center; margin-bottom: 4px; }
+  .music-header-notches { display: grid; font-size: 11px; color: var(--text-dim); text-align: center; }
+
+  .track-row-wrapper { border-bottom: 1px solid var(--border); }
+  .track-row { display: grid; grid-template-columns: auto 1fr 140px; align-items: center; gap: 10px; padding: 12px 0; }
+  .play-btn {
+    width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); background: transparent;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; padding: 0; color: var(--text-dim);
+  }
+  .play-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .play-btn svg { width: 12px; height: 12px; }
+  .track-row-title { display: flex; align-items: center; gap: 8px; min-width: 0; cursor: pointer; }
+  .track-row-title .name { font-family: 'Space Grotesk', sans-serif; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mode-tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.04em; color: var(--text-dimmer);
+    border: 1px dashed var(--border); border-radius: 4px; padding: 1px 6px; flex-shrink: 0; white-space: nowrap;
+  }
+  .slider-col { display: grid; align-items: center; height: 20px; }
+  .notch-cell { position: relative; display: flex; align-items: center; justify-content: center; }
+  .notch-line { position: absolute; left: 50%; width: 100%; height: 2px; background: var(--border); }
+  .notch-dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--bg-card); border: 1.5px solid var(--border-dim, var(--text-dimmer)); cursor: pointer; }
+  .notch-dot.active { width: 12px; height: 12px; background: var(--accent); border-color: var(--accent); }
+  .dash-col { text-align: center; color: var(--text-dimmer); font-size: 13px; }
+
+  .track-row-details { padding: 0 0 18px 38px; }
+  .track-desc { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 16px; white-space: pre-wrap; }
+  .status { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); margin-bottom: 10px; min-height: 14px; }
 
   .progress-wrap { position: relative; height: 24px; margin-bottom: 6px; cursor: pointer; }
   .progress-track { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--border); border-radius: 2px; pointer-events: none; }
   .progress-fill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--accent); border-radius: 2px; width: 0%; pointer-events: none; }
   .progress-head { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 9px; height: 9px; background: var(--accent); border-radius: 50%; pointer-events: none; }
-  .time-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); margin-bottom: 20px; }
-
-  .control-row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-  .transport { display: flex; gap: 8px; }
-  .btn { padding: 9px 18px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
-  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
-  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-  .intensity-btns { display: flex; gap: 6px; margin-left: auto; }
-  .btn-int { padding: 8px 14px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-dimmer); font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
-  .btn-int:hover:not(:disabled) { border-color: var(--text-dim); color: var(--text-dim); }
-  .btn-int:disabled { opacity: 0.25; cursor: not-allowed; }
-  .btn-int.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .time-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); }
 
   .placeholder-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dimmer); border: 1px dashed var(--border); border-radius: 4px; padding: 8px 12px; display: inline-block; }
-  .track.disabled { opacity: 0.5; }
 
-  @media (max-width: 480px) { .intensity-btns { margin-left: 0; width: 100%; } .btn-int { flex: 1; } }
+  @media (max-width: 480px) {
+    .track-row { grid-template-columns: auto 1fr; }
+    .slider-col, .dash-col { grid-column: 1 / -1; margin-left: 38px; margin-top: -4px; }
+    .music-header { grid-template-columns: 1fr; }
+    .music-header-notches, .music-header-label { display: none; }
+  }
 
   .contact { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); letter-spacing: 0.03em; line-height: 1.8; padding-top: 24px; border-top: 1px solid var(--border); }
   .empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 20px 0; }
@@ -101,8 +125,6 @@
 <script>
 let ctx = null;
 let activeTrackId = null;
-
-const DEFAULT_BLOCK_ORDER = ['header', 'testimonials', 'videos', 'gallery', 'bio', 'tracks'];
 
 function formatTime(s) {
   const m = Math.floor(s / 60);
@@ -120,12 +142,32 @@ function section(label, innerHTML) {
   el.innerHTML = (label ? `<div class="section-label">${label}</div>` : '') + innerHTML;
   return el;
 }
-function escapeHtml(s) {
-  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-// Convertit [texte](url) en vrai lien cliquable, après échappement HTML de base
-function linkify(s) {
-  return escapeHtml(s).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function linkify(s) { return escapeHtml(s).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>'); }
+function genId() { return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+/* ---------------- Migration (anciens formats de data.json) ---------------- */
+function migrateBlocks(data) {
+  let blocks = data.blocks;
+  if (!Array.isArray(blocks) || blocks.length === 0 || typeof blocks[0] !== 'object') {
+    const legacy = Array.isArray(blocks) ? blocks : ['header', 'testimonials', 'videos', 'gallery', 'bio', 'tracks'];
+    const out = [];
+    legacy.forEach(type => {
+      const t = type === 'photo' ? 'gallery' : type;
+      if (t === 'gallery') out.push({ id: genId(), type: 'photo', align: 'left', images: (data.gallery || []).map(g => ({ file: g.file })) });
+      else if (t === 'videos') out.push({ id: genId(), type: 'video', videos: (data.videos || []).map(v => ({ title: v.title, url: v.url })) });
+      else if (['header', 'bio', 'testimonials', 'tracks'].includes(t)) out.push({ id: genId(), type: t });
+    });
+    blocks = out;
+  }
+  blocks.forEach(b => {
+    if (b.type === 'photo' && !b.images) b.images = b.file ? [{ file: b.file }] : [];
+    if (b.type === 'video' && !b.videos) b.videos = (b.title || b.url) ? [{ title: b.title || '', url: b.url || '' }] : [];
+  });
+  ['header', 'testimonials', 'tracks'].forEach(t => {
+    if (!blocks.some(b => b.type === t)) blocks.push({ id: genId(), type: t });
+  });
+  return blocks;
 }
 
 /* ---------------- Blocs ---------------- */
@@ -137,168 +179,258 @@ function renderHeaderBlock(container, profile) {
     ${profile.tagline ? `<div class="logo-tag">${escapeHtml(profile.tagline)}</div>` : ''}
   `;
   container.appendChild(el);
-  return true;
-}
-function renderGalleryBlock(container, gallery) {
-  if (!gallery || gallery.length === 0) return false;
-  const imgs = gallery.map(g => `<img src="./images/${g.file}" alt="">`).join('');
-  container.appendChild(section('Galerie', `<div class="gallery-grid">${imgs}</div>`));
-  return true;
 }
 function renderBioBlock(container, profile) {
-  if (!profile.bio && !profile.photo) return false;
+  if (!profile.bio && !profile.photo) return;
   const textHtml = (profile.bio || '').split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('');
   const photoHtml = profile.photo
     ? `<img src="./images/${profile.photo}" alt="Photo">`
     : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>`;
   container.appendChild(section('À propos', `<div class="bio"><div class="bio-photo">${photoHtml}</div><div class="bio-text">${textHtml}</div></div>`));
-  return true;
 }
 function renderTestimonialsBlock(container, list) {
-  if (!list || list.length === 0) return false;
+  if (!list || list.length === 0) return;
   const inner = list.map(t => `<div class="testimonial"><p>« ${linkify(t.text)} »</p><cite>${escapeHtml(t.author)}</cite></div>`).join('');
   container.appendChild(section('Ils en parlent', inner));
-  return true;
 }
-function renderVideosBlock(container, list) {
-  if (!list || list.length === 0) return false;
-  const cards = list.map(v => {
+function renderTextBlockItem(container, block) {
+  if (!block.content) return;
+  const align = ['left', 'center', 'right'].includes(block.align) ? block.align : 'left';
+  const html = block.content.split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('');
+  const el = document.createElement('div');
+  el.className = 'block text-block';
+  el.style.textAlign = align;
+  el.innerHTML = html;
+  container.appendChild(el);
+}
+function renderPhotoBlockItem(container, block) {
+  if (!block.images || block.images.length === 0) return;
+  const align = block.align === 'center' ? 'center' : block.align === 'right' ? 'flex-end' : 'flex-start';
+  const el = document.createElement('div');
+  el.className = 'block';
+  if (block.images.length === 1) {
+    el.innerHTML = `<div class="photo-block-single" style="justify-content:${align}"><img src="./images/${block.images[0].file}" alt=""></div>`;
+  } else {
+    const imgs = block.images.map(g => `<img src="./images/${g.file}" alt="">`).join('');
+    el.innerHTML = `<div class="photo-grid">${imgs}</div>`;
+  }
+  container.appendChild(el);
+}
+function renderVideoBlockItem(container, block) {
+  if (!block.videos || block.videos.length === 0) return;
+  const makeCard = (v) => {
     const hasUrl = !!v.url;
     const tag = hasUrl ? 'a' : 'div';
     return `<${tag} class="video-card${hasUrl ? '' : ' disabled'}" ${hasUrl ? `href="${v.url}" target="_blank"` : ''}>
-      <div class="vt">${escapeHtml(v.title)}</div>${hasUrl ? '<div class="play-dot"></div>' : ''}
+      <div class="vt">${escapeHtml(v.title || '')}</div>${hasUrl ? '<div class="play-dot"></div>' : ''}
     </${tag}>`;
-  }).join('');
-  container.appendChild(section('Vidéos', `<div class="video-grid">${cards}</div>`));
-  return true;
+  };
+  const el = document.createElement('div');
+  el.className = 'block';
+  if (block.videos.length === 1) {
+    el.innerHTML = makeCard(block.videos[0]);
+  } else {
+    el.innerHTML = `<div class="video-grid-multi">${block.videos.map(makeCard).join('')}</div>`;
+  }
+  container.appendChild(el);
 }
 function renderTracksBlock(container, tracks) {
-  const wrap = document.createElement('div');
-  const el = section('Musique adaptative — écoute interactive', '');
-  el.appendChild(wrap);
+  const el = section('Musique', '');
   container.appendChild(el);
   if (!tracks || tracks.length === 0) {
-    wrap.innerHTML = '<div class="empty">Aucun morceau publié pour l\'instant.</div>';
-  } else {
-    tracks.forEach(track => {
-      const card = buildTrackCard(track);
-      wrap.appendChild(card);
-      initTrackPlayer(track, card);
-    });
+    el.innerHTML += '<div class="empty">Aucun morceau publié pour l\'instant.</div>';
+    return;
   }
-  return true;
+  const adaptive = tracks.filter(t => t.mode === 'vertical');
+  const maxLayers = adaptive.reduce((n, t) => Math.max(n, t.layers.length), 0);
+
+  if (maxLayers > 0) {
+    const header = document.createElement('div');
+    header.className = 'music-header';
+    const notches = Array.from({ length: maxLayers }, (_, i) => `<span>${i + 1}</span>`).join('');
+    header.innerHTML = `<div></div><div><div class="music-header-label">Intensité</div><div class="music-header-notches" style="grid-template-columns:repeat(${maxLayers},1fr)">${notches}</div></div>`;
+    el.appendChild(header);
+  }
+
+  tracks.forEach(track => {
+    const row = buildTrackRow(track, maxLayers);
+    el.appendChild(row);
+    initTrackPlayer(track, row);
+  });
 }
 
-const BLOCK_RENDERERS = {
-  header: (c, data) => renderHeaderBlock(c, data.profile || {}),
-  gallery: (c, data) => renderGalleryBlock(c, data.gallery),
-  bio: (c, data) => renderBioBlock(c, data.profile || {}),
-  testimonials: (c, data) => renderTestimonialsBlock(c, data.testimonials),
-  videos: (c, data) => renderVideosBlock(c, data.videos),
-  tracks: (c, data) => renderTracksBlock(c, data.tracks),
+const MODE_LABELS = {
+  static: 'statique',
+  vertical: 'layering vertical',
+  'vertical-random': 'layering vertical randomisé',
+  sequential: 'séquentiel',
+  branching: 'embranchement'
 };
+const PLAYABLE_MODES = ['static', 'vertical'];
 
-/* ---------------- Lecteur adaptatif ---------------- */
-function buildTrackCard(track) {
-  const supported = track.mode === 'vertical';
-  const hasFiles = supported && track.base && track.layers.every(l => l.file);
-  const el = document.createElement('div');
-  el.className = 'track' + (hasFiles ? '' : ' disabled');
-  const intBtns = track.layers.map((l, i) => `<button class="btn-int${i===0?' active':''}" data-level="${i}" disabled>${escapeHtml(l.label)}</button>`).join('');
-  el.innerHTML = `
-    <div class="track-title">${escapeHtml(track.title)}</div>
-    <div class="track-desc">${linkify(track.description || '')}</div>
-    ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
-      !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : `
-      <div class="status" data-role="status">Chargement…</div>
-      <div class="progress-wrap" data-role="progressWrap">
-        <div class="progress-track"></div>
-        <div class="progress-fill" data-role="progressFill"></div>
-        <div class="progress-head" data-role="progressHead"></div>
+function buildTrackRow(track, maxLayers) {
+  const supported = PLAYABLE_MODES.includes(track.mode);
+  const isStatic = track.mode === 'static';
+  const hasFiles = supported && track.base && track.layers[0] && track.layers[0].file &&
+    (isStatic || track.layers.every(l => l.file));
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'track-row-wrapper';
+
+  let sliderHtml;
+  if (isStatic) {
+    sliderHtml = `<div class="dash-col">—</div>`;
+  } else if (supported) {
+    const cells = Array.from({ length: maxLayers }, (_, i) => {
+      if (i >= track.layers.length) return '<div class="notch-cell"></div>';
+      const isLast = i === track.layers.length - 1;
+      return `<div class="notch-cell">${i < track.layers.length - 1 ? '<div class="notch-line"></div>' : ''}<div class="notch-dot${i===0?' active':''}" data-level="${i}"></div></div>`;
+    }).join('');
+    sliderHtml = `<div class="slider-col" style="grid-template-columns:repeat(${maxLayers},1fr)" data-role="slider">${cells}</div>`;
+  } else {
+    sliderHtml = `<div class="dash-col">—</div>`;
+  }
+
+  wrapper.innerHTML = `
+    <div class="track-row">
+      <button class="play-btn" data-role="playBtn" ${hasFiles ? '' : 'disabled'} aria-label="Lecture">
+        <svg data-role="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <div class="track-row-title" data-role="titleToggle">
+        <span class="name">${escapeHtml(track.title)}</span>
+        <span class="mode-tag">${MODE_LABELS[track.mode] || track.mode}</span>
       </div>
-      <div class="time-row"><span data-role="timeCurrent">0:00</span><span>${formatTime(track.duration)}</span></div>
-      <div class="control-row">
-        <div class="transport">
-          <button class="btn" data-role="btnPlay" disabled>Play</button>
-          <button class="btn" data-role="btnStop" disabled>Stop</button>
+      ${sliderHtml}
+    </div>
+    <div class="track-row-details" data-role="details" style="display:none">
+      <div class="track-desc">${linkify(track.description || '')}</div>
+      ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
+        !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : `
+        <div class="status" data-role="status">Chargement…</div>
+        <div class="progress-wrap" data-role="progressWrap">
+          <div class="progress-track"></div>
+          <div class="progress-fill" data-role="progressFill"></div>
+          <div class="progress-head" data-role="progressHead"></div>
         </div>
-        <div class="intensity-btns" data-role="intensityBtns">${intBtns}</div>
-      </div>
-    `}
+        <div class="time-row"><span data-role="timeCurrent">0:00</span><span>${formatTime(track.duration)}</span></div>
+      `}
+    </div>
   `;
-  return el;
+
+  wrapper.querySelector('[data-role="titleToggle"]').addEventListener('click', () => {
+    const details = wrapper.querySelector('[data-role="details"]');
+    details.style.display = details.style.display === 'none' ? 'block' : 'none';
+  });
+
+  return wrapper;
 }
 
-function initTrackPlayer(track, el) {
-  if (track.mode !== 'vertical' || !track.base || !track.layers.every(l => l.file)) return;
-  const profiles = cumulativeProfiles(track.layers.length);
-  const statusEl = el.querySelector('[data-role="status"]');
-  const wrap = el.querySelector('[data-role="progressWrap"]');
-  const fill = el.querySelector('[data-role="progressFill"]');
-  const head = el.querySelector('[data-role="progressHead"]');
-  const timeCurrent = el.querySelector('[data-role="timeCurrent"]');
-  const btnPlay = el.querySelector('[data-role="btnPlay"]');
-  const btnStop = el.querySelector('[data-role="btnStop"]');
-  const intBtns = [...el.querySelectorAll('[data-role="intensityBtns"] .btn-int')];
+function initTrackPlayer(track, wrapper) {
+  const isStatic = track.mode === 'static';
+  const supported = PLAYABLE_MODES.includes(track.mode);
+  const hasFiles = supported && track.base && track.layers[0] && track.layers[0].file &&
+    (isStatic || track.layers.every(l => l.file));
+  if (!hasFiles) return;
+
+  const layersToLoad = isStatic ? [track.layers[0]] : track.layers;
+  const profiles = isStatic ? [[1]] : cumulativeProfiles(track.layers.length);
+
+  const playBtn = wrapper.querySelector('[data-role="playBtn"]');
+  const playIcon = wrapper.querySelector('[data-role="playIcon"]');
+  const statusEl = wrapper.querySelector('[data-role="status"]');
+  const wrap = wrapper.querySelector('[data-role="progressWrap"]');
+  const fill = wrapper.querySelector('[data-role="progressFill"]');
+  const head = wrapper.querySelector('[data-role="progressHead"]');
+  const timeCurrent = wrapper.querySelector('[data-role="timeCurrent"]');
+  const notchDots = [...wrapper.querySelectorAll('.notch-dot')];
 
   let buffers = [], sources = [], gains = [];
-  let level = 0, playing = false, startedAt = 0, offsetAt = 0, rafId = null;
+  let level = 0, playing = false, startedAt = 0, offsetAt = 0, rafId = null, manualStop = false;
+
+  const PLAY_SVG = '<path d="M8 5v14l11-7z"/>';
+  const PAUSE_SVG = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
 
   function updateProgressAt(elapsed) {
+    if (!wrap) return;
     const pct = (elapsed / track.duration) * 100;
     fill.style.width = pct + '%'; head.style.left = pct + '%';
     timeCurrent.textContent = formatTime(elapsed);
   }
   function tick() {
     if (!playing) return;
-    updateProgressAt((ctx.currentTime - startedAt) % track.duration);
+    const elapsed = isStatic
+      ? Math.min(ctx.currentTime - startedAt, track.duration)
+      : (ctx.currentTime - startedAt) % track.duration;
+    updateProgressAt(elapsed);
     rafId = requestAnimationFrame(tick);
   }
-  function stopAllSources() {
+  function setStoppedUI() {
+    playIcon.innerHTML = PLAY_SVG;
+    if (statusEl) statusEl.textContent = 'En pause';
+  }
+  function stopAllSources(keepPosition) {
     playing = false;
-    offsetAt = (ctx.currentTime - startedAt) % track.duration;
+    manualStop = true;
+    if (!isStatic && keepPosition !== false) {
+      offsetAt = (ctx.currentTime - startedAt) % track.duration;
+    }
     sources.forEach(s => { if (s) { try { s.stop(); } catch(e){} } });
     sources = []; gains = [];
     cancelAnimationFrame(rafId);
-    statusEl.textContent = 'En pause';
-    btnPlay.disabled = false; btnStop.disabled = true;
+    setStoppedUI();
+    manualStop = false;
   }
   function stopThisTrack() { if (activeTrackId === track.id) activeTrackId = null; stopAllSources(); }
+  function naturalEnd() {
+    playing = false;
+    cancelAnimationFrame(rafId);
+    offsetAt = 0;
+    updateProgressAt(0);
+    setStoppedUI();
+    if (activeTrackId === track.id) activeTrackId = null;
+  }
   function playThisTrack() {
     if (activeTrackId && activeTrackId !== track.id) document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
     activeTrackId = track.id;
     if (ctx.state === 'suspended') ctx.resume();
     playing = true;
     startedAt = ctx.currentTime - offsetAt;
-    const p = profiles[level];
+    const p = profiles[level] || profiles[0];
     for (let i = 0; i < buffers.length; i++) {
       const src = ctx.createBufferSource();
-      src.buffer = buffers[i]; src.loop = true; src.loopStart = 0; src.loopEnd = track.duration;
+      src.buffer = buffers[i];
+      if (!isStatic) { src.loop = true; src.loopStart = 0; src.loopEnd = track.duration; }
       const g = ctx.createGain();
       g.gain.setValueAtTime(p[i] || 0, ctx.currentTime);
       src.connect(g); g.connect(ctx.destination);
       src.start(0, offsetAt % track.duration);
       sources[i] = src; gains[i] = g;
+      if (isStatic) {
+        src.onended = () => { if (!manualStop) naturalEnd(); };
+      }
     }
-    statusEl.textContent = 'Lecture en cours';
-    btnPlay.disabled = true; btnStop.disabled = false;
+    playIcon.innerHTML = PAUSE_SVG;
+    if (statusEl) statusEl.textContent = 'Lecture en cours';
     tick();
   }
 
   document.addEventListener('stop-track', (e) => { if (e.detail === track.id) stopAllSources(); });
-  btnPlay.addEventListener('click', playThisTrack);
-  btnStop.addEventListener('click', stopThisTrack);
-  wrap.addEventListener('click', (e) => {
-    const rect = wrap.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const seekTo = pct * track.duration;
-    if (playing) { stopAllSources(); offsetAt = seekTo; playThisTrack(); }
-    else { offsetAt = seekTo; updateProgressAt(offsetAt); }
-  });
-  intBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      level = parseInt(btn.dataset.level, 10);
-      intBtns.forEach(b => b.classList.toggle('active', b === btn));
+  playBtn.addEventListener('click', () => { playing ? stopThisTrack() : playThisTrack(); });
+
+  if (wrap) {
+    wrap.addEventListener('click', (e) => {
+      const rect = wrap.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const seekTo = pct * track.duration;
+      if (playing) { stopAllSources(false); offsetAt = seekTo; playThisTrack(); }
+      else { offsetAt = seekTo; updateProgressAt(offsetAt); }
+    });
+  }
+
+  notchDots.forEach(dot => {
+    dot.addEventListener('click', () => {
+      level = parseInt(dot.dataset.level, 10);
+      notchDots.forEach(d => d.classList.toggle('active', d === dot));
       if (!playing) return;
       const p = profiles[level];
       const now = ctx.currentTime;
@@ -313,18 +445,17 @@ function initTrackPlayer(track, el) {
 
   (async () => {
     let loaded = 0;
-    for (let i = 0; i < track.layers.length; i++) {
+    for (let i = 0; i < layersToLoad.length; i++) {
       try {
-        const res = await fetch(track.base + encodeURIComponent(track.layers[i].file));
+        const res = await fetch(track.base + encodeURIComponent(layersToLoad[i].file));
         const ab = await res.arrayBuffer();
         buffers[i] = await ctx.decodeAudioData(ab);
         loaded++;
-        statusEl.textContent = `Chargement… ${loaded}/${track.layers.length}`;
-      } catch (e) { statusEl.textContent = 'Erreur de chargement'; return; }
+        if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${layersToLoad.length}`;
+      } catch (e) { if (statusEl) statusEl.textContent = 'Erreur de chargement'; return; }
     }
-    statusEl.textContent = 'Prêt';
-    btnPlay.disabled = false;
-    intBtns.forEach(b => b.disabled = false);
+    if (statusEl) statusEl.textContent = 'Prêt';
+    playBtn.disabled = false;
   })();
 }
 
@@ -335,14 +466,21 @@ async function init() {
   try {
     const res = await fetch('./data.json');
     const data = await res.json();
-    const order = (data.blocks && data.blocks.length) ? data.blocks : DEFAULT_BLOCK_ORDER;
+    const blocks = migrateBlocks(data);
+    const profile = data.profile || {};
 
-    order.forEach(type => {
-      const renderer = BLOCK_RENDERERS[type];
-      if (renderer) renderer(container, data);
+    blocks.forEach(block => {
+      switch (block.type) {
+        case 'header': renderHeaderBlock(container, profile); break;
+        case 'bio': renderBioBlock(container, profile); break;
+        case 'testimonials': renderTestimonialsBlock(container, data.testimonials); break;
+        case 'text': renderTextBlockItem(container, block); break;
+        case 'photo': renderPhotoBlockItem(container, block); break;
+        case 'video': renderVideoBlockItem(container, block); break;
+        case 'tracks': renderTracksBlock(container, data.tracks); break;
+      }
     });
 
-    const profile = data.profile || {};
     if (profile.contactUrl || profile.contactEmail) {
       document.getElementById('contact').innerHTML = [
         profile.contactUrl ? `<a href="${profile.contactUrl}" target="_blank">${profile.contactUrl.replace(/^https?:\/\//, '')}</a>` : '',
