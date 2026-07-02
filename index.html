@@ -26,8 +26,11 @@
   .track-desc { font-size: 13px; color: #999; margin-bottom: 16px; }
   .status { font-size: 11px; color: #666; margin-bottom: 10px; min-height: 14px; font-family: monospace; }
 
-  .progress-wrap { position: relative; height: 3px; background: #2a2b2f; border-radius: 2px; margin-bottom: 6px; cursor: pointer; }
-  .progress-fill { height: 100%; background: #4ea8de; border-radius: 2px; width: 0%; pointer-events: none; }
+  .progress-wrap {
+    position: relative; height: 24px; margin-bottom: 6px; cursor: pointer;
+  }
+  .progress-track { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 3px; background: #2a2b2f; border-radius: 2px; pointer-events: none; }
+  .progress-fill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 3px; background: #4ea8de; border-radius: 2px; width: 0%; pointer-events: none; }
   .progress-head { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 8px; height: 8px; background: #4ea8de; border-radius: 50%; pointer-events: none; }
   .time-row { display: flex; justify-content: space-between; font-size: 10px; color: #666; font-family: monospace; margin-bottom: 16px; }
 
@@ -97,6 +100,7 @@ function buildTrackCard(track) {
       !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : `
       <div class="status" data-role="status">Chargement…</div>
       <div class="progress-wrap" data-role="progressWrap">
+        <div class="progress-track"></div>
         <div class="progress-fill" data-role="progressFill"></div>
         <div class="progress-head" data-role="progressHead"></div>
       </div>
