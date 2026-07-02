@@ -386,7 +386,7 @@ function initTrackPlayer(track, wrapper) {
     activeStingerSources.forEach(s => { try { s.stop(); } catch(e){} });
     activeStingerSources = [];
   }
-  trackCollapsers[track.id] = () => { details.style.display = 'none'; };
+  trackCollapsers[track.id] = () => { details.style.display = 'none'; updateStingerAvailability(); };
   trackStingerKillers[track.id] = killStingers;
 
   function updateProgressAt(elapsed) {
@@ -430,11 +430,14 @@ function initTrackPlayer(track, wrapper) {
   function playThisTrack() {
     if (activeTrackId && activeTrackId !== track.id) {
       document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
-      if (trackCollapsers[activeTrackId]) trackCollapsers[activeTrackId]();
       if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
     }
+    Object.keys(trackCollapsers).forEach(id => {
+      if (id !== track.id) trackCollapsers[id]();
+    });
     activeTrackId = track.id;
     details.style.display = 'block';
+    updateStingerAvailability();
     if (ctx.state === 'suspended') ctx.resume();
     playing = true;
     startedAt = ctx.currentTime - offsetAt;
