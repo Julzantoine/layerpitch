@@ -18,7 +18,7 @@
   a { color: var(--accent); }
 
   .header { text-align: center; margin-bottom: 56px; }
-  .logo-img { max-height: clamp(60px, 12vw, 140px); max-width: clamp(180px, 40vw, 420px); width: auto; height: auto; }
+  .logo-img { width: clamp(200px, 28vw, 360px); height: auto; display: block; margin: 0 auto; }
   .logo-fallback { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(24px, 5vw, 40px); font-style: italic; }
   .logo-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-top: 10px; }
 
@@ -59,14 +59,12 @@
   .text-block p:last-child { margin-bottom: 0; }
 
   .bio { display: grid; grid-template-columns: 180px 1fr; gap: 28px; align-items: start; }
-  .bio-photo {
-    width: 100%; aspect-ratio: 3/4; border-radius: 6px; background: var(--accent-soft);
-    display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border);
-  }
-  .bio-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 15%; display: block; }
-  .bio-photo svg { width: 40%; height: 40%; opacity: 0.35; }
+  .bio-photo { width: 100%; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+  .bio-photo img { width: 100%; height: auto; display: block; }
+  .bio-photo.empty { aspect-ratio: 1; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; }
+  .bio-photo.empty svg { width: 40%; height: 40%; opacity: 0.35; }
   .bio-text p { font-size: 14px; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; white-space: pre-wrap; }
-  @media (max-width: 540px) { .bio { grid-template-columns: 1fr; } .bio-photo { max-width: 200px; } }
+  @media (max-width: 540px) { .bio { grid-template-columns: 1fr; } .bio-photo { max-width: 220px; } }
 
   .music-header { display: grid; grid-template-columns: 1fr 140px; align-items: end; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
   .music-header-label { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); text-align: center; margin-bottom: 4px; }
@@ -103,6 +101,16 @@
   .progress-head { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 9px; height: 9px; background: var(--accent); border-radius: 50%; pointer-events: none; }
   .time-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); }
 
+  .stingers { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .stinger-btn {
+    display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px;
+    border: 1px solid var(--border); background: transparent; color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; cursor: pointer;
+  }
+  .stinger-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .stinger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .stinger-btn svg { width: 10px; height: 10px; }
+
   .placeholder-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dimmer); border: 1px dashed var(--border); border-radius: 4px; padding: 8px 12px; display: inline-block; }
 
   @media (max-width: 480px) {
@@ -125,6 +133,8 @@
 <script>
 let ctx = null;
 let activeTrackId = null;
+const trackCollapsers = {};
+const trackStingerKillers = {};
 
 function formatTime(s) {
   const m = Math.floor(s / 60);
@@ -184,9 +194,9 @@ function renderBioBlock(container, profile) {
   if (!profile.bio && !profile.photo) return;
   const textHtml = (profile.bio || '').split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('');
   const photoHtml = profile.photo
-    ? `<img src="./images/${profile.photo}" alt="Photo">`
-    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>`;
-  container.appendChild(section('À propos', `<div class="bio"><div class="bio-photo">${photoHtml}</div><div class="bio-text">${textHtml}</div></div>`));
+    ? `<div class="bio-photo"><img src="./images/${profile.photo}" alt="Photo"></div>`
+    : `<div class="bio-photo empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></div>`;
+  container.appendChild(section('À propos', `<div class="bio">${photoHtml}<div class="bio-text">${textHtml}</div></div>`));
 }
 function renderTestimonialsBlock(container, list) {
   if (!list || list.length === 0) return;
@@ -221,7 +231,10 @@ function renderVideoBlockItem(container, block) {
   const makeCard = (v) => {
     const hasUrl = !!v.url;
     const tag = hasUrl ? 'a' : 'div';
-    return `<${tag} class="video-card${hasUrl ? '' : ' disabled'}" ${hasUrl ? `href="${v.url}" target="_blank"` : ''}>
+    const bg = v.thumbnail
+      ? `background-image:linear-gradient(rgba(0,0,0,0.1),rgba(0,0,0,0.55)), url('./images/${v.thumbnail}'); background-size:cover; background-position:center;`
+      : '';
+    return `<${tag} class="video-card${hasUrl ? '' : ' disabled'}" style="${bg}" ${hasUrl ? `href="${v.url}" target="_blank"` : ''}>
       <div class="vt">${escapeHtml(v.title || '')}</div>${hasUrl ? '<div class="play-dot"></div>' : ''}
     </${tag}>`;
   };
@@ -313,6 +326,11 @@ function buildTrackRow(track, maxLayers) {
           <div class="progress-head" data-role="progressHead"></div>
         </div>
         <div class="time-row"><span data-role="timeCurrent">0:00</span><span>${formatTime(track.duration)}</span></div>
+        ${track.stingers && track.stingers.length ? `
+          <div class="stingers" data-role="stingers">
+            ${track.stingers.map((s, i) => `<button class="stinger-btn" data-stinger="${i}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml(s.label || ('Stinger ' + (i + 1)))}</button>`).join('')}
+          </div>
+        ` : ''}
       `}
     </div>
   `;
@@ -334,21 +352,37 @@ function initTrackPlayer(track, wrapper) {
 
   const layersToLoad = isStatic ? [track.layers[0]] : track.layers;
   const profiles = isStatic ? [[1]] : cumulativeProfiles(track.layers.length);
+  const loops = !isStatic || !!track.loopable;
+  const stingerDefs = track.stingers ? track.stingers.filter(s => s.file) : [];
 
   const playBtn = wrapper.querySelector('[data-role="playBtn"]');
   const playIcon = wrapper.querySelector('[data-role="playIcon"]');
+  const details = wrapper.querySelector('[data-role="details"]');
   const statusEl = wrapper.querySelector('[data-role="status"]');
   const wrap = wrapper.querySelector('[data-role="progressWrap"]');
   const fill = wrapper.querySelector('[data-role="progressFill"]');
   const head = wrapper.querySelector('[data-role="progressHead"]');
   const timeCurrent = wrapper.querySelector('[data-role="timeCurrent"]');
   const notchDots = [...wrapper.querySelectorAll('.notch-dot')];
+  const stingerBtns = [...wrapper.querySelectorAll('.stinger-btn')];
 
   let buffers = [], sources = [], gains = [];
+  let stingerBuffers = [];
+  let activeStingerSources = [];
   let level = 0, playing = false, startedAt = 0, offsetAt = 0, rafId = null, manualStop = false;
 
   const PLAY_SVG = '<path d="M8 5v14l11-7z"/>';
   const PAUSE_SVG = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+
+  function setStingerButtonsEnabled(enabled) {
+    stingerBtns.forEach(b => { b.disabled = !enabled; });
+  }
+  function killStingers() {
+    activeStingerSources.forEach(s => { try { s.stop(); } catch(e){} });
+    activeStingerSources = [];
+  }
+  trackCollapsers[track.id] = () => { details.style.display = 'none'; };
+  trackStingerKillers[track.id] = killStingers;
 
   function updateProgressAt(elapsed) {
     if (!wrap) return;
@@ -358,20 +392,21 @@ function initTrackPlayer(track, wrapper) {
   }
   function tick() {
     if (!playing) return;
-    const elapsed = isStatic
-      ? Math.min(ctx.currentTime - startedAt, track.duration)
-      : (ctx.currentTime - startedAt) % track.duration;
+    const elapsed = loops
+      ? (ctx.currentTime - startedAt) % track.duration
+      : Math.min(ctx.currentTime - startedAt, track.duration);
     updateProgressAt(elapsed);
     rafId = requestAnimationFrame(tick);
   }
   function setStoppedUI() {
     playIcon.innerHTML = PLAY_SVG;
     if (statusEl) statusEl.textContent = 'En pause';
+    setStingerButtonsEnabled(false);
   }
   function stopAllSources(keepPosition) {
     playing = false;
     manualStop = true;
-    if (!isStatic && keepPosition !== false) {
+    if (loops && keepPosition !== false) {
       offsetAt = (ctx.currentTime - startedAt) % track.duration;
     }
     sources.forEach(s => { if (s) { try { s.stop(); } catch(e){} } });
@@ -380,7 +415,6 @@ function initTrackPlayer(track, wrapper) {
     setStoppedUI();
     manualStop = false;
   }
-  function stopThisTrack() { if (activeTrackId === track.id) activeTrackId = null; stopAllSources(); }
   function naturalEnd() {
     playing = false;
     cancelAnimationFrame(rafId);
@@ -390,8 +424,13 @@ function initTrackPlayer(track, wrapper) {
     if (activeTrackId === track.id) activeTrackId = null;
   }
   function playThisTrack() {
-    if (activeTrackId && activeTrackId !== track.id) document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+    if (activeTrackId && activeTrackId !== track.id) {
+      document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+      if (trackCollapsers[activeTrackId]) trackCollapsers[activeTrackId]();
+      if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
+    }
     activeTrackId = track.id;
+    details.style.display = 'block';
     if (ctx.state === 'suspended') ctx.resume();
     playing = true;
     startedAt = ctx.currentTime - offsetAt;
@@ -399,23 +438,24 @@ function initTrackPlayer(track, wrapper) {
     for (let i = 0; i < buffers.length; i++) {
       const src = ctx.createBufferSource();
       src.buffer = buffers[i];
-      if (!isStatic) { src.loop = true; src.loopStart = 0; src.loopEnd = track.duration; }
+      if (loops) { src.loop = true; src.loopStart = 0; src.loopEnd = track.duration; }
       const g = ctx.createGain();
       g.gain.setValueAtTime(p[i] || 0, ctx.currentTime);
       src.connect(g); g.connect(ctx.destination);
       src.start(0, offsetAt % track.duration);
       sources[i] = src; gains[i] = g;
-      if (isStatic) {
+      if (isStatic && !loops) {
         src.onended = () => { if (!manualStop) naturalEnd(); };
       }
     }
     playIcon.innerHTML = PAUSE_SVG;
     if (statusEl) statusEl.textContent = 'Lecture en cours';
+    setStingerButtonsEnabled(true);
     tick();
   }
 
   document.addEventListener('stop-track', (e) => { if (e.detail === track.id) stopAllSources(); });
-  playBtn.addEventListener('click', () => { playing ? stopThisTrack() : playThisTrack(); });
+  playBtn.addEventListener('click', () => { playing ? stopAllSources() : playThisTrack(); });
 
   if (wrap) {
     wrap.addEventListener('click', (e) => {
@@ -443,16 +483,43 @@ function initTrackPlayer(track, wrapper) {
     });
   });
 
+  stingerBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled || !playing) return;
+      const idx = parseInt(btn.dataset.stinger, 10);
+      const buf = stingerBuffers[idx];
+      if (!buf) return;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(1, ctx.currentTime);
+      src.connect(g); g.connect(ctx.destination);
+      src.start(0);
+      activeStingerSources.push(src);
+      src.onended = () => { activeStingerSources = activeStingerSources.filter(s => s !== src); };
+    });
+  });
+
   (async () => {
     let loaded = 0;
+    const total = layersToLoad.length + stingerDefs.length;
     for (let i = 0; i < layersToLoad.length; i++) {
       try {
         const res = await fetch(track.base + encodeURIComponent(layersToLoad[i].file));
         const ab = await res.arrayBuffer();
         buffers[i] = await ctx.decodeAudioData(ab);
         loaded++;
-        if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${layersToLoad.length}`;
+        if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
       } catch (e) { if (statusEl) statusEl.textContent = 'Erreur de chargement'; return; }
+    }
+    for (let i = 0; i < stingerDefs.length; i++) {
+      try {
+        const res = await fetch(track.base + encodeURIComponent(stingerDefs[i].file));
+        const ab = await res.arrayBuffer();
+        stingerBuffers[i] = await ctx.decodeAudioData(ab);
+        loaded++;
+        if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+      } catch (e) { /* un stinger manquant ne bloque pas la lecture principale */ }
     }
     if (statusEl) statusEl.textContent = 'Prêt';
     playBtn.disabled = false;
