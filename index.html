@@ -189,9 +189,15 @@ function initTrackPlayer(track, el) {
   wrap.addEventListener('click', (e) => {
     const rect = wrap.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    offsetAt = pct * track.duration;
-    if (playing) { stopAllSources(); playThisTrack(); }
-    else { updateProgressAt(offsetAt); }
+    const seekTo = pct * track.duration;
+    if (playing) {
+      stopAllSources();
+      offsetAt = seekTo;
+      playThisTrack();
+    } else {
+      offsetAt = seekTo;
+      updateProgressAt(offsetAt);
+    }
   });
   intBtns.forEach(btn => {
     btn.addEventListener('click', () => {
