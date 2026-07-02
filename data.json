@@ -1,4 +1,31 @@
 {
+  "blocks": [
+    "header",
+    "testimonials",
+    "tracks",
+    "videos",
+    "photo",
+    "bio"
+  ],
+  "profile": {
+    "tagline": "",
+    "bio": "Julzantoine\n\nJules Antoine est compositeur pour l’image, nourri par un long parcours de musicien de scène. Formé en conservatoire (classique, jazz, musiques actuelles) et à l’université, il développe une écriture vivante et polyvalente, façonnée par des années passées à naviguer entre rock, reggae, pop, funk, jazz et musiques urbaines. Cette expérience du live lui apporte une sensibilité rythmique et une énergie organique qu’il met aujourd’hui au service de la narration audiovisuelle.\n\nEn 2022, il se spécialise dans la composition pour médias en intégrant le Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), au sein duquel il explore différents registres — fiction, animation, documentaire, jeux vidéo — et affine son langage sonore. Il continue de se spécialiser en 2026 en intégrant le MFA \"VideoGame and Mediacomposition\", pour s'aguerrir dans la composition adaptative et l'implémentation de musique au sein de moteurs audios.\n\nParallèlement à son travail pour l’image, il compose pour le spectacle vivant et dirige la création musicale de la compagnie jeune public Des Coccinelles dans les Chaussettes depuis 2017.\n\nEn 2026, il signera notamment la musique du spectacle Il y a des choses que non (Cie La Femme et l’Homme Debout — DRAC) ainsi que la bande-son du premier jeu vidéo du studio PocketKnife.",
+    "contactEmail": "",
+    "contactUrl": "",
+    "logo": "logo.jpeg",
+    "photo": "photo.jpg"
+  },
+  "testimonials": [
+    {
+      "text": "\"J'ai été impressionné par la capacité de Jules à être à l'écoute des thèmes et des désirs abordés dans les projets. Il n'hésite pas à faire preuve d'initiative en étant force de proposition, tout en ayant la volonté de se renseigner sur ce qu'il ne connait pas (encore). Jules-Antoine est quelqu'un de généreux, empathique et ouvert d'esprit.\"",
+      "author": "(Frederic Maslanka - Scénariste)"
+    },
+    {
+      "text": "\"Jules est un compositeur véritablement créatif, animé par une réelle soif d’apprendre et de progresser en permanence. Il possède non seulement une solide maîtrise de la théorie musicale, mais aussi un grand sens de la musicalité. C’est une belle personne, ainsi qu’un compositeur passionné et inventif.\" (",
+      "author": "(Alioune Koné - Composer)"
+    }
+  ],
+  "videos": [],
   "tracks": [
     {
       "id": "battle-loop",
