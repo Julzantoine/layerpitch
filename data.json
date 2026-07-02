@@ -1,11 +1,51 @@
 {
   "blocks": [
-    "header",
-    "testimonials",
-    "tracks",
-    "videos",
-    "gallery",
-    "bio"
+    {
+      "id": "bmr3jkt1ev7ogg",
+      "type": "header"
+    },
+    {
+      "id": "bmr3jkt1e650nu",
+      "type": "testimonials"
+    },
+    {
+      "id": "bmr3jkt1e8tn80",
+      "type": "tracks"
+    },
+    {
+      "id": "bmr3jkt1er00cd",
+      "type": "video",
+      "videos": [
+        {
+          "title": "Retrouvez des vidéos ici",
+          "url": "https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0"
+        },
+        {
+          "title": "test",
+          "url": "https://youtu.be/VT5bNZ6kbHw?si=hLC0gqdnru1k221A"
+        }
+      ]
+    },
+    {
+      "id": "bmr3jkt1eijvp9",
+      "type": "photo",
+      "align": "left",
+      "images": [
+        {
+          "file": "gallery-0-1782996309465.jpg"
+        },
+        {
+          "file": "gallery-1-1782996311266.png"
+        },
+        {
+          "file": "gallery-2-1782996313052.png"
+        }
+      ]
+    },
+    {
+      "id": "bmr3jkt1ejactv",
+      "type": "bio"
+    }
   ],
   "profile": {
     "tagline": "",
@@ -15,17 +55,6 @@
     "logo": "logo.jpeg",
     "photo": "photo.jpg"
   },
-  "gallery": [
-    {
-      "file": "gallery-0-1782996309465.jpg"
-    },
-    {
-      "file": "gallery-1-1782996311266.png"
-    },
-    {
-      "file": "gallery-2-1782996313052.png"
-    }
-  ],
   "testimonials": [
     {
       "text": "\"J'ai été impressionné par la capacité de Jules à être à l'écoute des thèmes et des désirs abordés dans les projets. Il n'hésite pas à faire preuve d'initiative en étant force de proposition, tout en ayant la volonté de se renseigner sur ce qu'il ne connait pas (encore). Jules-Antoine est quelqu'un de généreux, empathique et ouvert d'esprit.\"",
@@ -34,16 +63,6 @@
     {
       "text": "\"Jules est un compositeur véritablement créatif, animé par une réelle soif d’apprendre et de progresser en permanence. Il possède non seulement une solide maîtrise de la théorie musicale, mais aussi un grand sens de la musicalité. C’est une belle personne, ainsi qu’un compositeur passionné et inventif.\" (",
       "author": "(Alioune Koné - Composer)"
-    }
-  ],
-  "videos": [
-    {
-      "title": "Retrouvez des vidéos ici",
-      "url": "https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0"
-    },
-    {
-      "title": "test",
-      "url": "https://youtu.be/VT5bNZ6kbHw?si=hLC0gqdnru1k221A"
     }
   ],
   "tracks": [
@@ -66,6 +85,48 @@
         {
           "label": "High Intensity",
           "file": "2-high-intensity.ogg"
+        }
+      ]
+    },
+    {
+      "id": "attack-of-the-robots-exploration",
+      "title": "Attack Of The Robots_Exploration",
+      "description": "Une Exploration Loop statique pour un danger relativement lointain",
+      "mode": "static",
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/attack-of-the-robots-exploration/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg"
+        }
+      ]
+    },
+    {
+      "id": "attack-of-the-robots-the-corridor",
+      "title": "Attack Of The Robots_The Corridor",
+      "description": "Une Loop statique dans le même style que la précédente, mais qui fait monter l'intensité d'un cran.",
+      "mode": "static",
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/attack-of-the-robots-the-corridor/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg"
+        }
+      ]
+    },
+    {
+      "id": "attack-of-the-robots-the-corridor",
+      "title": "Attack Of The Robots_The Corridor",
+      "description": "Une Battle Loop Statique : Saleté de robots, ils sont partout !! Pression Maximale !!! ",
+      "mode": "static",
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/attack-of-the-robots-the-corridor/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg"
         }
       ]
     }
