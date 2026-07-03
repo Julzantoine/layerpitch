@@ -71,7 +71,7 @@
       "title": "Robot Adventure",
       "illustration": null,
       "presentation": "",
-      "buyable": false,
+      "buyable": true,
       "buyUrl": ""
     }
   ],
