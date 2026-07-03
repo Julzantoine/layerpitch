@@ -128,13 +128,13 @@
       "stingers": []
     },
     {
-      "id": "attack-of-the-robots-the-final-battle",
+      "id": "attack-of-the-robots-the-corridor",
       "title": "Attack Of The Robots_The Final Battle",
       "description": "- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait?!\"\n\nUne Battle Loop Statique : Pression Maximale !!! ",
       "mode": "static",
       "loopable": true,
       "duration": 60,
-      "base": "https://Julzantoine.github.io/layerpitch/audio/attack-of-the-robots-the-final-battle/",
+      "base": "https://Julzantoine.github.io/layerpitch/audio/attack-of-the-robots-the-corridor/",
       "layers": [
         {
           "label": "Niveau 1",
