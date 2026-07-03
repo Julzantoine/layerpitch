@@ -222,8 +222,9 @@ function renderPhotoBlockItem(container, block) {
   if (block.images.length === 1) {
     el.innerHTML = `<div class="photo-block-single" style="justify-content:${align}"><img src="./images/${block.images[0].file}" alt=""></div>`;
   } else {
+    const cols = Math.ceil(Math.sqrt(block.images.length));
     const imgs = block.images.map(g => `<img src="./images/${g.file}" alt="">`).join('');
-    el.innerHTML = `<div class="photo-grid">${imgs}</div>`;
+    el.innerHTML = `<div class="photo-grid" style="grid-template-columns:repeat(${cols},1fr)">${imgs}</div>`;
   }
   container.appendChild(el);
 }
