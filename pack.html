@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LayerPitch</title>
+<title>LayerPitch — Pack</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -18,55 +18,22 @@
   .page { max-width: 760px; margin: 0 auto; }
   a { color: var(--accent); }
 
-  .header { text-align: center; margin-bottom: 56px; }
-  .logo-img { width: clamp(200px, 28vw, 360px); height: auto; display: block; margin: 0 auto; }
-  .logo-fallback { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(24px, 5vw, 40px); font-style: italic; }
-  .logo-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-top: 10px; }
+  .back-link { display: inline-block; margin-bottom: 32px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); text-decoration: none; }
+  .back-link:hover { color: var(--accent); }
 
-  .block { margin-bottom: 56px; }
+  .pack-illustration { width: 100%; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 28px; }
+  .pack-illustration.empty { aspect-ratio: 16/7; background: linear-gradient(135deg, #2a2822, #423b30); }
+
+  .pack-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 28px; margin-bottom: 16px; }
+  .pack-presentation p { font-size: 14.5px; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; white-space: pre-wrap; }
+
+  .block { margin-bottom: 56px; margin-top: 48px; }
   .section-label {
     font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.14em;
     text-transform: uppercase; color: var(--accent); margin-bottom: 18px;
   }
 
-  .testimonial { border-left: 2px solid var(--accent); padding: 4px 0 4px 20px; margin-bottom: 22px; }
-  .testimonial p { font-size: 14.5px; line-height: 1.7; font-style: italic; margin-bottom: 8px; }
-  .testimonial cite { font-family: 'JetBrains Mono', monospace; font-style: normal; font-size: 11px; color: var(--text-dim); }
-
-  .video-card {
-    position: relative; aspect-ratio: 16/9; border-radius: 6px; border: 1px solid var(--border);
-    background: linear-gradient(135deg, #2a2822, #423b30);
-    display: flex; align-items: flex-end; padding: 14px; color: #f6f5f3;
-    text-decoration: none; overflow: hidden; transition: transform 0.15s; max-width: 420px;
-  }
-  .video-card:hover { transform: translateY(-2px); }
-  .video-card .vt { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 14px; line-height: 1.3; }
-  .video-card .play-dot {
-    position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 50%;
-    border: 1px solid rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center;
-  }
-  .video-card .play-dot::after { content: ''; border-left: 8px solid #fff; border-top: 5px solid transparent; border-bottom: 5px solid transparent; margin-left: 2px; }
-  .video-card.disabled { pointer-events: none; opacity: 0.4; color: var(--text-dim); background: repeating-linear-gradient(45deg, #ddd8cf, #ddd8cf 6px, #e8e4dd 6px, #e8e4dd 12px); }
-  .video-card.disabled .vt { color: var(--text-dim); }
-
-  .photo-block-single { display: flex; }
-  .photo-block-single img { max-width: 420px; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
-  .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .photo-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
-  @media (max-width: 540px) { .photo-grid { grid-template-columns: repeat(2, 1fr); } }
-  .video-grid-multi { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-
-  .text-block p { font-size: 14px; line-height: 1.7; color: var(--text-dim); margin-bottom: 12px; white-space: pre-wrap; }
-  .text-block p:last-child { margin-bottom: 0; }
-
-  .bio { display: grid; grid-template-columns: 180px 1fr; gap: 28px; align-items: start; }
-  .bio-photo { width: 100%; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
-  .bio-photo img { width: 100%; height: auto; display: block; }
-  .bio-photo.empty { aspect-ratio: 1; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; }
-  .bio-photo.empty svg { width: 40%; height: 40%; opacity: 0.35; }
-  .bio-text p { font-size: 14px; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; white-space: pre-wrap; }
-  @media (max-width: 540px) { .bio { grid-template-columns: 1fr; } .bio-photo { max-width: 220px; } }
-
+  .track { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); padding: 26px; margin-bottom: 16px; }
   .music-header { display: grid; grid-template-columns: 1fr 140px; align-items: end; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
   .music-header-label { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); text-align: center; margin-bottom: 4px; }
   .music-header-notches { display: grid; font-size: 11px; color: var(--text-dim); text-align: center; }
@@ -88,13 +55,11 @@
   .slider-col { display: grid; align-items: center; height: 20px; }
   .notch-cell { position: relative; display: flex; align-items: center; justify-content: center; }
   .notch-line { position: absolute; left: 50%; width: 100%; height: 2px; background: var(--border); }
-  .notch-dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--bg-card); border: 1.5px solid var(--border-dim, var(--text-dimmer)); cursor: pointer; }
+  .notch-dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--bg-card); border: 1.5px solid var(--text-dimmer); cursor: pointer; }
   .notch-dot.active { width: 12px; height: 12px; background: var(--accent); border-color: var(--accent); }
   .dash-col { text-align: center; color: var(--text-dimmer); font-size: 13px; }
 
   .track-row-details { padding: 0 0 18px 38px; }
-  .pack-link { margin-bottom: 12px; }
-  .pack-link a { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
   .track-desc { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 16px; white-space: pre-wrap; }
   .status { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); margin-bottom: 10px; min-height: 14px; }
 
@@ -115,22 +80,27 @@
   .stinger-btn svg { width: 10px; height: 10px; }
 
   .placeholder-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dimmer); border: 1px dashed var(--border); border-radius: 4px; padding: 8px 12px; display: inline-block; }
+  .track.disabled { opacity: 0.5; }
 
-  @media (max-width: 480px) {
-    .track-row { grid-template-columns: auto 1fr; }
-    .slider-col, .dash-col { grid-column: 1 / -1; margin-left: 38px; margin-top: -4px; }
-    .music-header { grid-template-columns: 1fr; }
-    .music-header-notches, .music-header-label { display: none; }
-  }
+  @media (max-width: 480px) { .track-row { grid-template-columns: auto 1fr; } .slider-col, .dash-col { grid-column: 1 / -1; margin-left: 38px; margin-top: -4px; } .music-header { grid-template-columns: 1fr; } .music-header-notches, .music-header-label { display: none; } }
 
-  .contact { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); letter-spacing: 0.03em; line-height: 1.8; padding-top: 24px; border-top: 1px solid var(--border); }
   .empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 20px 0; }
+
+  .buy-section { margin-top: 56px; text-align: center; padding: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); }
+  .buy-btn {
+    display: inline-block; padding: 14px 32px; border-radius: 6px; background: var(--accent); color: #fff;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+    text-decoration: none; border: none; cursor: pointer;
+  }
+  .buy-btn:hover { opacity: 0.9; }
+  .buy-btn.disabled { background: var(--border); color: var(--text-dimmer); cursor: not-allowed; pointer-events: none; }
+  .buy-hint { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dimmer); margin-top: 10px; }
 </style>
 </head>
 <body>
 <div class="page">
-  <div id="blocksContainer"></div>
-  <div class="contact" id="contact"></div>
+  <a class="back-link" href="./index.html">← Retour</a>
+  <div id="content"></div>
 </div>
 
 <script>
@@ -149,134 +119,8 @@ function cumulativeProfiles(n) {
   for (let i = 0; i < n; i++) out.push(Array.from({ length: n }, (_, j) => (j <= i ? 1 : 0)));
   return out;
 }
-function section(label, innerHTML) {
-  const el = document.createElement('div');
-  el.className = 'block';
-  el.innerHTML = (label ? `<div class="section-label">${label}</div>` : '') + innerHTML;
-  return el;
-}
 function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function linkify(s) { return escapeHtml(s).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>'); }
-function genId() { return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-
-/* ---------------- Migration (anciens formats de data.json) ---------------- */
-function migrateBlocks(data) {
-  let blocks = data.blocks;
-  if (!Array.isArray(blocks) || blocks.length === 0 || typeof blocks[0] !== 'object') {
-    const legacy = Array.isArray(blocks) ? blocks : ['header', 'testimonials', 'videos', 'gallery', 'bio', 'tracks'];
-    const out = [];
-    legacy.forEach(type => {
-      const t = type === 'photo' ? 'gallery' : type;
-      if (t === 'gallery') out.push({ id: genId(), type: 'photo', align: 'left', images: (data.gallery || []).map(g => ({ file: g.file })) });
-      else if (t === 'videos') out.push({ id: genId(), type: 'video', videos: (data.videos || []).map(v => ({ title: v.title, url: v.url })) });
-      else if (['header', 'bio', 'testimonials', 'tracks'].includes(t)) out.push({ id: genId(), type: t });
-    });
-    blocks = out;
-  }
-  blocks.forEach(b => {
-    if (b.type === 'photo' && !b.images) b.images = b.file ? [{ file: b.file }] : [];
-    if (b.type === 'video' && !b.videos) b.videos = (b.title || b.url) ? [{ title: b.title || '', url: b.url || '' }] : [];
-  });
-  ['header', 'testimonials', 'tracks'].forEach(t => {
-    if (!blocks.some(b => b.type === t)) blocks.push({ id: genId(), type: t });
-  });
-  return blocks;
-}
-
-/* ---------------- Blocs ---------------- */
-function renderHeaderBlock(container, profile) {
-  const el = document.createElement('div');
-  el.className = 'header';
-  el.innerHTML = `
-    ${profile.logo ? `<img class="logo-img" src="./images/${profile.logo}" alt="Logo">` : `<div class="logo-fallback">LayerPitch</div>`}
-    ${profile.tagline ? `<div class="logo-tag">${escapeHtml(profile.tagline)}</div>` : ''}
-  `;
-  container.appendChild(el);
-}
-function renderBioBlock(container, profile) {
-  if (!profile.bio && !profile.photo) return;
-  const textHtml = (profile.bio || '').split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('');
-  const photoHtml = profile.photo
-    ? `<div class="bio-photo"><img src="./images/${profile.photo}" alt="Photo"></div>`
-    : `<div class="bio-photo empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></div>`;
-  container.appendChild(section('À propos', `<div class="bio">${photoHtml}<div class="bio-text">${textHtml}</div></div>`));
-}
-function renderTestimonialsBlock(container, list) {
-  if (!list || list.length === 0) return;
-  const inner = list.map(t => `<div class="testimonial"><p>« ${linkify(t.text)} »</p><cite>${escapeHtml(t.author)}</cite></div>`).join('');
-  container.appendChild(section('Ils en parlent', inner));
-}
-function renderTextBlockItem(container, block) {
-  if (!block.content) return;
-  const align = ['left', 'center', 'right'].includes(block.align) ? block.align : 'left';
-  const html = block.content.split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('');
-  const el = document.createElement('div');
-  el.className = 'block text-block';
-  el.style.textAlign = align;
-  el.innerHTML = html;
-  container.appendChild(el);
-}
-function renderPhotoBlockItem(container, block) {
-  if (!block.images || block.images.length === 0) return;
-  const align = block.align === 'center' ? 'center' : block.align === 'right' ? 'flex-end' : 'flex-start';
-  const el = document.createElement('div');
-  el.className = 'block';
-  if (block.images.length === 1) {
-    el.innerHTML = `<div class="photo-block-single" style="justify-content:${align}"><img src="./images/${block.images[0].file}" alt=""></div>`;
-  } else {
-    const cols = Math.ceil(Math.sqrt(block.images.length));
-    const imgs = block.images.map(g => `<img src="./images/${g.file}" alt="">`).join('');
-    el.innerHTML = `<div class="photo-grid" style="grid-template-columns:repeat(${cols},1fr)">${imgs}</div>`;
-  }
-  container.appendChild(el);
-}
-function renderVideoBlockItem(container, block) {
-  if (!block.videos || block.videos.length === 0) return;
-  const makeCard = (v) => {
-    const hasUrl = !!v.url;
-    const tag = hasUrl ? 'a' : 'div';
-    const bg = v.thumbnail
-      ? `background-image:linear-gradient(rgba(0,0,0,0.1),rgba(0,0,0,0.55)), url('./images/${v.thumbnail}'); background-size:cover; background-position:center;`
-      : '';
-    return `<${tag} class="video-card${hasUrl ? '' : ' disabled'}" style="${bg}" ${hasUrl ? `href="${v.url}" target="_blank"` : ''}>
-      <div class="vt">${escapeHtml(v.title || '')}</div>${hasUrl ? '<div class="play-dot"></div>' : ''}
-    </${tag}>`;
-  };
-  const el = document.createElement('div');
-  el.className = 'block';
-  if (block.videos.length === 1) {
-    el.innerHTML = makeCard(block.videos[0]);
-  } else {
-    el.innerHTML = `<div class="video-grid-multi">${block.videos.map(makeCard).join('')}</div>`;
-  }
-  container.appendChild(el);
-}
-function renderTracksBlock(container, allTracks, packsById) {
-  const el = section('Musique', '');
-  container.appendChild(el);
-  const tracks = (allTracks || []).filter(t => t.showInMainPlaylist !== false);
-  if (!tracks || tracks.length === 0) {
-    el.innerHTML += '<div class="empty">Aucun morceau publié pour l\'instant.</div>';
-    return;
-  }
-  const adaptive = tracks.filter(t => t.mode === 'vertical');
-  const maxLayers = adaptive.reduce((n, t) => Math.max(n, t.layers.length), 0);
-
-  if (maxLayers > 0) {
-    const header = document.createElement('div');
-    header.className = 'music-header';
-    const notches = Array.from({ length: maxLayers }, (_, i) => `<span>${i + 1}</span>`).join('');
-    header.innerHTML = `<div></div><div><div class="music-header-label">Intensité</div><div class="music-header-notches" style="grid-template-columns:repeat(${maxLayers},1fr)">${notches}</div></div>`;
-    el.appendChild(header);
-  }
-
-  tracks.forEach(track => {
-    const pack = track.packId ? packsById[track.packId] : null;
-    const row = buildTrackRow(track, maxLayers, pack);
-    el.appendChild(row);
-    initTrackPlayer(track, row);
-  });
-}
 
 const MODE_LABELS = {
   static: 'statique',
@@ -287,7 +131,37 @@ const MODE_LABELS = {
 };
 const PLAYABLE_MODES = ['static', 'vertical'];
 
-function buildTrackRow(track, maxLayers, pack) {
+function section(label, innerHTML) {
+  const el = document.createElement('div');
+  el.className = 'block';
+  el.innerHTML = (label ? `<div class="section-label">${label}</div>` : '') + innerHTML;
+  return el;
+}
+
+function renderTracksBlock(container, tracks) {
+  const el = section('Musique du pack', '');
+  container.appendChild(el);
+  if (!tracks || tracks.length === 0) {
+    el.innerHTML += '<div class="empty">Aucun morceau dans ce pack.</div>';
+    return;
+  }
+  const adaptive = tracks.filter(t => t.mode === 'vertical');
+  const maxLayers = adaptive.reduce((n, t) => Math.max(n, t.layers.length), 0);
+  if (maxLayers > 0) {
+    const header = document.createElement('div');
+    header.className = 'music-header';
+    const notches = Array.from({ length: maxLayers }, (_, i) => `<span>${i + 1}</span>`).join('');
+    header.innerHTML = `<div></div><div><div class="music-header-label">Intensité</div><div class="music-header-notches" style="grid-template-columns:repeat(${maxLayers},1fr)">${notches}</div></div>`;
+    el.appendChild(header);
+  }
+  tracks.forEach(track => {
+    const row = buildTrackRow(track, maxLayers);
+    el.appendChild(row);
+    initTrackPlayer(track, row);
+  });
+}
+
+function buildTrackRow(track, maxLayers) {
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
   const hasFiles = supported && track.base && track.layers[0] && track.layers[0].file &&
@@ -302,7 +176,6 @@ function buildTrackRow(track, maxLayers, pack) {
   } else if (supported) {
     const cells = Array.from({ length: maxLayers }, (_, i) => {
       if (i >= track.layers.length) return '<div class="notch-cell"></div>';
-      const isLast = i === track.layers.length - 1;
       return `<div class="notch-cell">${i < track.layers.length - 1 ? '<div class="notch-line"></div>' : ''}<div class="notch-dot${i===0?' active':''}" data-level="${i}"></div></div>`;
     }).join('');
     sliderHtml = `<div class="slider-col" style="grid-template-columns:repeat(${maxLayers},1fr)" data-role="slider">${cells}</div>`;
@@ -323,7 +196,6 @@ function buildTrackRow(track, maxLayers, pack) {
     </div>
     <div class="track-row-details" data-role="details" style="display:none">
       <div class="track-desc">${linkify(track.description || '')}</div>
-      ${pack ? `<div class="pack-link"><a href="./pack.html?id=${encodeURIComponent(pack.id)}">Fait partie du pack : ${escapeHtml(pack.title)}</a></div>` : ''}
       ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
         !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : `
         <div class="status" data-role="status">Chargement…</div>
@@ -333,7 +205,7 @@ function buildTrackRow(track, maxLayers, pack) {
           <div class="progress-head" data-role="progressHead"></div>
         </div>
         <div class="time-row"><span data-role="timeCurrent">0:00</span><span>${formatTime(track.duration)}</span></div>
-        ${track.stingers && track.stingers.length ? `
+        ${isStatic && track.stingers && track.stingers.length ? `
           <div class="stingers" data-role="stingers">
             ${track.stingers.map((s, i) => `<button class="stinger-btn" data-stinger="${i}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml(s.label || ('Stinger ' + (i + 1)))}</button>`).join('')}
           </div>
@@ -341,12 +213,6 @@ function buildTrackRow(track, maxLayers, pack) {
       `}
     </div>
   `;
-
-  wrapper.querySelector('[data-role="titleToggle"]').addEventListener('click', () => {
-    const details = wrapper.querySelector('[data-role="details"]');
-    details.style.display = details.style.display === 'none' ? 'block' : 'none';
-  });
-
   return wrapper;
 }
 
@@ -385,10 +251,7 @@ function initTrackPlayer(track, wrapper) {
     const expanded = details.style.display !== 'none';
     setStingerButtonsEnabled(expanded && ready);
   }
-
-  function setStingerButtonsEnabled(enabled) {
-    stingerBtns.forEach(b => { b.disabled = !enabled; });
-  }
+  function setStingerButtonsEnabled(enabled) { stingerBtns.forEach(b => { b.disabled = !enabled; }); }
   function killStingers() {
     activeStingerSources.forEach(s => { try { s.stop(); } catch(e){} });
     activeStingerSources = [];
@@ -404,9 +267,7 @@ function initTrackPlayer(track, wrapper) {
   }
   function tick() {
     if (!playing) return;
-    const elapsed = loops
-      ? (ctx.currentTime - startedAt) % track.duration
-      : Math.min(ctx.currentTime - startedAt, track.duration);
+    const elapsed = loops ? (ctx.currentTime - startedAt) % track.duration : Math.min(ctx.currentTime - startedAt, track.duration);
     updateProgressAt(elapsed);
     rafId = requestAnimationFrame(tick);
   }
@@ -417,9 +278,7 @@ function initTrackPlayer(track, wrapper) {
   function stopAllSources(keepPosition) {
     playing = false;
     manualStop = true;
-    if (loops && keepPosition !== false) {
-      offsetAt = (ctx.currentTime - startedAt) % track.duration;
-    }
+    if (loops && keepPosition !== false) offsetAt = (ctx.currentTime - startedAt) % track.duration;
     sources.forEach(s => { if (s) { try { s.stop(); } catch(e){} } });
     sources = []; gains = [];
     cancelAnimationFrame(rafId);
@@ -439,9 +298,7 @@ function initTrackPlayer(track, wrapper) {
       document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
       if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
     }
-    Object.keys(trackCollapsers).forEach(id => {
-      if (id !== track.id) trackCollapsers[id]();
-    });
+    Object.keys(trackCollapsers).forEach(id => { if (id !== track.id) trackCollapsers[id](); });
     activeTrackId = track.id;
     details.style.display = 'block';
     updateStingerAvailability();
@@ -458,9 +315,7 @@ function initTrackPlayer(track, wrapper) {
       src.connect(g); g.connect(ctx.destination);
       src.start(0, offsetAt % track.duration);
       sources[i] = src; gains[i] = g;
-      if (isStatic && !loops) {
-        src.onended = () => { if (!manualStop) naturalEnd(); };
-      }
+      if (isStatic && !loops) src.onended = () => { if (!manualStop) naturalEnd(); };
     }
     playIcon.innerHTML = PAUSE_SVG;
     if (statusEl) statusEl.textContent = 'Lecture en cours';
@@ -536,7 +391,7 @@ function initTrackPlayer(track, wrapper) {
         stingerBuffers[i] = await ctx.decodeAudioData(ab);
         loaded++;
         if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
-      } catch (e) { /* un stinger manquant ne bloque pas la lecture principale */ }
+      } catch (e) { /* stinger manquant : pas bloquant */ }
     }
     if (statusEl) statusEl.textContent = 'Prêt';
     playBtn.disabled = false;
@@ -545,39 +400,36 @@ function initTrackPlayer(track, wrapper) {
   })();
 }
 
-/* ---------------- Init ---------------- */
 async function init() {
   ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const container = document.getElementById('blocksContainer');
+  const container = document.getElementById('content');
+  const id = new URLSearchParams(location.search).get('id');
   try {
     const res = await fetch('./data.json');
     const data = await res.json();
-    const blocks = migrateBlocks(data);
-    const profile = data.profile || {};
-
-    blocks.forEach(block => {
-      switch (block.type) {
-        case 'header': renderHeaderBlock(container, profile); break;
-        case 'bio': renderBioBlock(container, profile); break;
-        case 'testimonials': renderTestimonialsBlock(container, data.testimonials); break;
-        case 'text': renderTextBlockItem(container, block); break;
-        case 'photo': renderPhotoBlockItem(container, block); break;
-        case 'video': renderVideoBlockItem(container, block); break;
-        case 'tracks': {
-          const packsById = {};
-          (data.packs || []).forEach(p => { packsById[p.id] = p; });
-          renderTracksBlock(container, data.tracks, packsById);
-          break;
-        }
-      }
-    });
-
-    if (profile.contactUrl || profile.contactEmail) {
-      document.getElementById('contact').innerHTML = [
-        profile.contactUrl ? `<a href="${profile.contactUrl}" target="_blank">${profile.contactUrl.replace(/^https?:\/\//, '')}</a>` : '',
-        profile.contactEmail ? `<a href="mailto:${profile.contactEmail}">${profile.contactEmail}</a>` : ''
-      ].filter(Boolean).join(' &nbsp;/&nbsp; ');
+    const pack = (data.packs || []).find(p => p.id === id);
+    if (!pack) {
+      container.innerHTML = '<div class="empty">Pack introuvable.</div>';
+      return;
     }
+    container.innerHTML = `
+      ${pack.illustration ? `<img class="pack-illustration" src="./images/${pack.illustration}" alt="">` : `<div class="pack-illustration empty"></div>`}
+      <div class="pack-title">${escapeHtml(pack.title)}</div>
+      <div class="pack-presentation">${(pack.presentation || '').split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('')}</div>
+    `;
+    const musicContainer = document.createElement('div');
+    container.appendChild(musicContainer);
+    const packTracks = (data.tracks || []).filter(t => t.packId === pack.id);
+    renderTracksBlock(musicContainer, packTracks);
+
+    const buySection = document.createElement('div');
+    buySection.className = 'buy-section';
+    if (pack.buyable && pack.buyUrl) {
+      buySection.innerHTML = `<a class="buy-btn" href="${pack.buyUrl}" target="_blank" rel="noopener">Acheter et télécharger ce pack</a>`;
+    } else {
+      buySection.innerHTML = `<span class="buy-btn disabled">Bientôt disponible</span><div class="buy-hint">Ce pack n'est pas encore proposé à l'achat.</div>`;
+    }
+    container.appendChild(buySection);
   } catch (e) {
     container.innerHTML = '<div class="empty">Impossible de charger data.json</div>';
   }
