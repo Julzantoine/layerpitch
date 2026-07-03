@@ -71,7 +71,7 @@
       "title": "Robot Adventure",
       "illustration": null,
       "presentation": "",
-      "buyable": true,
+      "buyable": false,
       "buyUrl": "www.julzantoine.fr"
     }
   ],
