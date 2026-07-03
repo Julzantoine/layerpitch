@@ -1,8 +1,17 @@
 {
   "blocks": [
-    { "id": "bmr3jkt1ev7ogg", "type": "header" },
-    { "id": "bmr3jkt1e650nu", "type": "testimonials" },
-    { "id": "bmr3jkt1e8tn80", "type": "tracks" },
+    {
+      "id": "bmr3jkt1ev7ogg",
+      "type": "header"
+    },
+    {
+      "id": "bmr3jkt1e650nu",
+      "type": "testimonials"
+    },
+    {
+      "id": "bmr3jkt1e8tn80",
+      "type": "tracks"
+    },
     {
       "id": "bmr3jkt1er00cd",
       "type": "video",
@@ -19,13 +28,24 @@
       "type": "photo",
       "align": "left",
       "images": [
-        { "file": "bmr3jkt1eijvp9-0.png" },
-        { "file": "bmr3jkt1eijvp9-1.png" },
-        { "file": "bmr3jkt1eijvp9-2.png" },
-        { "file": "bmr3jkt1eijvp9-3.png" }
+        {
+          "file": "bmr3jkt1eijvp9-0.png"
+        },
+        {
+          "file": "bmr3jkt1eijvp9-1.png"
+        },
+        {
+          "file": "bmr3jkt1eijvp9-2.png"
+        },
+        {
+          "file": "bmr3jkt1eijvp9-3.png"
+        }
       ]
     },
-    { "id": "bmr3jkt1ejactv", "type": "bio" }
+    {
+      "id": "bmr3jkt1ejactv",
+      "type": "bio"
+    }
   ],
   "profile": {
     "tagline": "",
@@ -55,9 +75,18 @@
       "duration": 128,
       "base": "https://Julzantoine.github.io/layerpitch/audio/battle-loop/",
       "layers": [
-        { "label": "Low Intensity", "file": "0-low-intensity.ogg" },
-        { "label": "Mid Intensity", "file": "1-mid-intensity.ogg" },
-        { "label": "High Intensity", "file": "2-high-intensity.ogg" }
+        {
+          "label": "Low Intensity",
+          "file": "0-low-intensity.ogg"
+        },
+        {
+          "label": "Mid Intensity",
+          "file": "1-mid-intensity.ogg"
+        },
+        {
+          "label": "High Intensity",
+          "file": "2-high-intensity.ogg"
+        }
       ],
       "stingers": []
     },
@@ -69,9 +98,17 @@
       "loopable": true,
       "duration": 60,
       "base": "https://Julzantoine.github.io/layerpitch/audio/attack-of-the-robots-exploration/",
-      "layers": [{ "label": "Niveau 1", "file": "0-niveau-1.ogg" }],
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg"
+        }
+      ],
       "stingers": [
-        { "label": "Secret Lever", "file": "stinger-0-secret-lever.ogg" }
+        {
+          "label": "Secret Lever",
+          "file": "stinger-0-secret-lever.ogg"
+        }
       ]
     },
     {
@@ -82,7 +119,12 @@
       "loopable": true,
       "duration": 60,
       "base": "https://Julzantoine.github.io/layerpitch/audio/attack-of-the-robots-the-corridor/",
-      "layers": [{ "label": "Niveau 1", "file": "0-niveau-1.ogg" }],
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg"
+        }
+      ],
       "stingers": []
     },
     {
@@ -93,7 +135,12 @@
       "loopable": true,
       "duration": 60,
       "base": "https://Julzantoine.github.io/layerpitch/audio/attack-of-the-robots-the-final-battle/",
-      "layers": [{ "label": "Niveau 1", "file": "0-niveau-1.ogg" }],
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg"
+        }
+      ],
       "stingers": []
     }
   ]
