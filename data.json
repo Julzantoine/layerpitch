@@ -69,8 +69,8 @@
     {
       "id": "bmr5jpo68xe7sd",
       "title": "Robot Adventure",
-      "illustration": null,
-      "presentation": "",
+      "illustration": "pack-bmr5jpo68xe7sd.avif",
+      "presentation": "Ceci est un pack de musique pour un jeu de robot",
       "buyable": false,
       "buyUrl": "www.julzantoine.fr"
     }
