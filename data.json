@@ -108,7 +108,7 @@
       "description": "Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \n\nUne Exploration Loop statique pour un danger relativement lointain",
       "mode": "static",
       "loopable": true,
-      "packId": null,
+      "packId": "bmr5jpo68xe7sd",
       "showInMainPlaylist": true,
       "duration": 60,
       "base": "https://Julzantoine.github.io/layerpitch/audio/attack-of-the-robots-exploration/",
