@@ -552,6 +552,8 @@ async function init() {
     const data = await res.json();
     const blocks = migrateBlocks(data);
     const profile = data.profile || {};
+    if (profile.bgColor) document.documentElement.style.setProperty('--bg', profile.bgColor);
+    if (profile.textColor) document.documentElement.style.setProperty('--text', profile.textColor);
 
     blocks.forEach(block => {
       switch (block.type) {
