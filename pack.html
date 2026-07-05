@@ -408,6 +408,8 @@ async function init() {
     const res = await fetch('./data.json');
     const data = await res.json();
     const pack = (data.packs || []).find(p => p.id === id);
+    if (pack && pack.bgColor) document.documentElement.style.setProperty('--bg', pack.bgColor);
+    if (pack && pack.textColor) document.documentElement.style.setProperty('--text', pack.textColor);
     if (!pack) {
       container.innerHTML = '<div class="empty">Pack introuvable.</div>';
       return;
