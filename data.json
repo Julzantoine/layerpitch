@@ -36,9 +36,9 @@
       "type": "video",
       "videos": [
         {
-          "title": "Retrouvez des vidéos ici",
+          "title": "",
           "url": "https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0",
-          "thumbnail": null
+          "thumbnail": "bmr3jkt1er00cd-thumb-0.jpeg"
         }
       ]
     },
@@ -53,7 +53,9 @@
     "contactEmail": "",
     "contactUrl": "",
     "logo": "logo.jpeg",
-    "photo": "photo.jpg"
+    "photo": "photo.jpg",
+    "bgColor": "#f6f5f3",
+    "textColor": "#262521"
   },
   "testimonials": [
     {
@@ -72,7 +74,9 @@
       "illustration": "pack-bmr5jpo68xe7sd.avif",
       "presentation": "Ceci est un pack de musique pour un jeu de robot",
       "buyable": false,
-      "buyUrl": "www.julzantoine.fr"
+      "buyUrl": "www.julzantoine.fr",
+      "bgColor": "#f6f5f3",
+      "textColor": "#262521"
     }
   ],
   "tracks": [
