@@ -421,7 +421,9 @@ async function init() {
     `;
     const musicContainer = document.createElement('div');
     container.appendChild(musicContainer);
-    const packTracks = (data.tracks || []).filter(t => t.packId === pack.id);
+    const libraryById = {};
+    (data.library || []).forEach(t => { libraryById[t.id] = t; });
+    const packTracks = (pack.trackIds || []).map(id => libraryById[id]).filter(Boolean);
     renderTracksBlock(musicContainer, packTracks);
 
     const buySection = document.createElement('div');

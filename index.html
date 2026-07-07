@@ -249,10 +249,9 @@ function renderVideoBlockItem(container, block) {
   }
   container.appendChild(el);
 }
-function renderTracksBlock(container, allTracks, packsById) {
+function renderTracksBlock(container, tracks, packsByTrackId) {
   const el = section('Musique', '');
   container.appendChild(el);
-  const tracks = (allTracks || []).filter(t => t.showInMainPlaylist !== false);
   if (!tracks || tracks.length === 0) {
     el.innerHTML += '<div class="empty">Aucun morceau publié pour l\'instant.</div>';
     return;
@@ -269,8 +268,8 @@ function renderTracksBlock(container, allTracks, packsById) {
   }
 
   tracks.forEach(track => {
-    const pack = track.packId ? packsById[track.packId] : null;
-    const row = buildTrackRow(track, maxLayers, pack);
+    const packsForTrack = (packsByTrackId && packsByTrackId[track.id]) || [];
+    const row = buildTrackRow(track, maxLayers, packsForTrack);
     el.appendChild(row);
     initTrackPlayer(track, row);
   });
@@ -285,7 +284,7 @@ const MODE_LABELS = {
 };
 const PLAYABLE_MODES = ['static', 'vertical'];
 
-function buildTrackRow(track, maxLayers, pack) {
+function buildTrackRow(track, maxLayers, packsForTrack) {
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
   const hasFiles = supported && track.base && track.layers[0] && track.layers[0].file &&
@@ -321,7 +320,7 @@ function buildTrackRow(track, maxLayers, pack) {
     </div>
     <div class="track-row-details" data-role="details" style="display:none">
       <div class="track-desc">${linkify(track.description || '')}</div>
-      ${pack ? `<div class="pack-link"><a href="./pack.html?id=${encodeURIComponent(pack.id)}">Fait partie du pack : ${escapeHtml(pack.title)}</a></div>` : ''}
+      ${packsForTrack && packsForTrack.length ? `<div class="pack-link">${packsForTrack.map(p => `<a href="./pack.html?id=${encodeURIComponent(p.id)}">Fait partie du pack : ${escapeHtml(p.title)}</a>`).join('<br>')}</div>` : ''}
       ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
         !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : `
         <div class="status" data-role="status">Chargement…</div>
@@ -547,26 +546,40 @@ function initTrackPlayer(track, wrapper) {
 async function init() {
   ctx = new (window.AudioContext || window.webkitAudioContext)();
   const container = document.getElementById('blocksContainer');
+  const adreelId = new URLSearchParams(location.search).get('adreel') || 'main';
   try {
     const res = await fetch('./data.json');
     const data = await res.json();
-    const blocks = migrateBlocks(data);
-    const profile = data.profile || {};
+    const adReel = (data.adReels || []).find(a => a.id === adreelId);
+    if (!adReel) {
+      container.innerHTML = '<div class="empty">AdReel introuvable.</div>';
+      return;
+    }
+    const blocks = migrateBlocks(adReel);
+    const profile = adReel.profile || {};
     if (profile.bgColor) document.documentElement.style.setProperty('--bg', profile.bgColor);
     if (profile.textColor) document.documentElement.style.setProperty('--text', profile.textColor);
+
+    const libraryById = {};
+    (data.library || []).forEach(t => { libraryById[t.id] = t; });
+    const packsByTrackId = {};
+    (data.packs || []).forEach(p => {
+      (p.trackIds || []).forEach(tid => {
+        (packsByTrackId[tid] = packsByTrackId[tid] || []).push(p);
+      });
+    });
 
     blocks.forEach(block => {
       switch (block.type) {
         case 'header': renderHeaderBlock(container, profile); break;
         case 'bio': renderBioBlock(container, profile); break;
-        case 'testimonials': renderTestimonialsBlock(container, data.testimonials); break;
+        case 'testimonials': renderTestimonialsBlock(container, adReel.testimonials); break;
         case 'text': renderTextBlockItem(container, block); break;
         case 'photo': renderPhotoBlockItem(container, block); break;
         case 'video': renderVideoBlockItem(container, block); break;
         case 'tracks': {
-          const packsById = {};
-          (data.packs || []).forEach(p => { packsById[p.id] = p; });
-          renderTracksBlock(container, data.tracks, packsById);
+          const orderedTracks = (adReel.trackIds || []).map(id => libraryById[id]).filter(Boolean);
+          renderTracksBlock(container, orderedTracks, packsByTrackId);
           break;
         }
       }
