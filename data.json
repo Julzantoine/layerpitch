@@ -203,18 +203,6 @@
           "type": "header"
         },
         {
-          "id": "bmrao5uwnkmhm6",
-          "type": "bio"
-        },
-        {
-          "id": "bmrao5uwnunorp",
-          "type": "testimonials"
-        },
-        {
-          "id": "bmrao5uwn2tpu7",
-          "type": "tracks"
-        },
-        {
           "id": "bmrao5uwnbr59n",
           "type": "photo",
           "align": "left",
@@ -234,6 +222,14 @@
           ]
         },
         {
+          "id": "bmrao5uwnunorp",
+          "type": "testimonials"
+        },
+        {
+          "id": "bmrao5uwn2tpu7",
+          "type": "tracks"
+        },
+        {
           "id": "bmrao5uwnbo0ew",
           "type": "video",
           "videos": [
@@ -243,6 +239,10 @@
               "thumbnail": "bmr3jkt1er00cd-thumb-0.jpeg"
             }
           ]
+        },
+        {
+          "id": "bmrao5uwnkmhm6",
+          "type": "bio"
         }
       ],
       "profile": {
