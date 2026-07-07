@@ -33,7 +33,7 @@
     {
       "id": "attack-of-the-robots-exploration",
       "title": "Robot Adventure_Exploration",
-      "description": "Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \n\nUne Exploration Loop statique pour un danger relativement lointain",
+      "description": "Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \n\nUne Exploration Loop statique pour un danger relativement lointain. Avec un prime, un levier secret avec lequel s'amuser un peu.",
       "mode": "static",
       "loopable": true,
       "loopEngine": "simple",
