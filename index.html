@@ -357,7 +357,16 @@ function initTrackPlayer(track, wrapper) {
   const layersToLoad = isStatic ? [track.layers[0]] : track.layers;
   const profiles = isStatic ? [[1]] : cumulativeProfiles(track.layers.length);
   const loops = !isStatic || !!track.loopable;
+  const useQuantizedLoop = loops && track.loopEngine === 'quantized';
   const stingerDefs = track.stingers ? track.stingers.filter(s => s.file) : [];
+
+  // Paramètres du moteur quantifié (BPM/mesures + queue de fin superposée) — ignorés si useQuantizedLoop est faux
+  const bpm = track.bpm || 120;
+  const beatsPerBar = track.beatsPerBar || 4;
+  const secondsPerBeat = 60 / bpm;
+  const loopInSec = (track.loopInBeat || 0) * secondsPerBeat;
+  const loopOutSec = Math.max(loopInSec + secondsPerBeat, (track.loopOutBeat || beatsPerBar * 4) * secondsPerBeat);
+  const cycleLength = loopOutSec - loopInSec;
 
   const playBtn = wrapper.querySelector('[data-role="playBtn"]');
   const playIcon = wrapper.querySelector('[data-role="playIcon"]');
@@ -370,7 +379,12 @@ function initTrackPlayer(track, wrapper) {
   const notchDots = [...wrapper.querySelectorAll('.notch-dot')];
   const stingerBtns = [...wrapper.querySelectorAll('.stinger-btn')];
 
-  let buffers = [], sources = [], gains = [];
+  let buffers = [], sources = [], gains = []; // moteur simple
+  let activeGenSources = []; // moteur quantifié : [{src, gain}], toutes générations (dont queues) confondues
+  let currentGainNodes = []; // moteur quantifié : gains de la génération la plus récente, par couche (contrôle d'intensité en direct)
+  let schedulerTimer = null;
+  let latestGenStartCtxTime = 0, latestGenBufferOffset = 0, nextGenStartCtxTime = 0, nextGenBufferOffset = 0;
+
   let stingerBuffers = [];
   let activeStingerSources = [];
   let level = 0, playing = false, startedAt = 0, offsetAt = 0, rafId = null, manualStop = false, ready = false;
@@ -401,9 +415,9 @@ function initTrackPlayer(track, wrapper) {
   }
   function tick() {
     if (!playing) return;
-    const elapsed = loops
-      ? (ctx.currentTime - startedAt) % track.duration
-      : Math.min(ctx.currentTime - startedAt, track.duration);
+    const elapsed = useQuantizedLoop
+      ? Math.min(latestGenBufferOffset + (ctx.currentTime - latestGenStartCtxTime), track.duration)
+      : (loops ? (ctx.currentTime - startedAt) % track.duration : Math.min(ctx.currentTime - startedAt, track.duration));
     updateProgressAt(elapsed);
     rafId = requestAnimationFrame(tick);
   }
@@ -411,17 +425,95 @@ function initTrackPlayer(track, wrapper) {
     playIcon.innerHTML = PLAY_SVG;
     if (statusEl) statusEl.textContent = 'En pause';
   }
-  function stopAllSources(keepPosition) {
-    playing = false;
+
+  /* ---- Moteur simple (bouclage natif, comportement existant inchangé) ---- */
+  function stopSimple(keepPosition) {
     manualStop = true;
     if (loops && keepPosition !== false) {
       offsetAt = (ctx.currentTime - startedAt) % track.duration;
     }
     sources.forEach(s => { if (s) { try { s.stop(); } catch(e){} } });
     sources = []; gains = [];
+    manualStop = false;
+  }
+  function playSimple() {
+    startedAt = ctx.currentTime - offsetAt;
+    const p = profiles[level] || profiles[0];
+    for (let i = 0; i < buffers.length; i++) {
+      const src = ctx.createBufferSource();
+      src.buffer = buffers[i];
+      if (loops) { src.loop = true; src.loopStart = 0; src.loopEnd = track.duration; }
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(p[i] || 0, ctx.currentTime);
+      src.connect(g); g.connect(ctx.destination);
+      src.start(0, offsetAt % track.duration);
+      sources[i] = src; gains[i] = g;
+      if (isStatic && !loops) {
+        src.onended = () => { if (!manualStop) naturalEnd(); };
+      }
+    }
+  }
+
+  /* ---- Moteur quantifié (BPM + mesures, retrigger avec queue de fin superposée) ---- */
+  function scheduleGeneration(ctxStartTime, bufferOffset) {
+    const p = profiles[level] || profiles[0];
+    const gensThisRound = [];
+    for (let i = 0; i < buffers.length; i++) {
+      if (!buffers[i]) continue;
+      const src = ctx.createBufferSource();
+      src.buffer = buffers[i];
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(p[i] || 0, ctxStartTime);
+      src.connect(g); g.connect(ctx.destination);
+      src.start(ctxStartTime, bufferOffset);
+      activeGenSources.push({ src, gain: g });
+      gensThisRound[i] = g;
+    }
+    currentGainNodes = gensThisRound;
+    latestGenStartCtxTime = ctxStartTime;
+    latestGenBufferOffset = bufferOffset;
+  }
+  function schedulerTick() {
+    const lookahead = 1.0;
+    while (nextGenStartCtxTime < ctx.currentTime + lookahead) {
+      scheduleGeneration(nextGenStartCtxTime, nextGenBufferOffset);
+      nextGenStartCtxTime += cycleLength;
+      nextGenBufferOffset = loopInSec;
+    }
+  }
+  function stopQuantized() {
+    if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
+    activeGenSources.forEach(({ src }) => { try { src.stop(); } catch(e){} });
+    activeGenSources = [];
+  }
+  function playQuantized(fromOffsetSec) {
+    stopQuantized();
+    const now = ctx.currentTime;
+    scheduleGeneration(now, fromOffsetSec);
+    let timeUntilNext;
+    if (fromOffsetSec < loopInSec) {
+      timeUntilNext = loopOutSec - fromOffsetSec;
+    } else {
+      const positionInLoop = (fromOffsetSec - loopInSec) % cycleLength;
+      timeUntilNext = cycleLength - positionInLoop;
+    }
+    nextGenStartCtxTime = now + Math.max(0.02, timeUntilNext);
+    nextGenBufferOffset = loopInSec;
+    schedulerTimer = setInterval(schedulerTick, 200);
+  }
+
+  function stopAllSources(keepPosition) {
+    playing = false;
+    if (useQuantizedLoop) {
+      if (keepPosition !== false) {
+        offsetAt = Math.min(latestGenBufferOffset + (ctx.currentTime - latestGenStartCtxTime), track.duration);
+      }
+      stopQuantized();
+    } else {
+      stopSimple(keepPosition);
+    }
     cancelAnimationFrame(rafId);
     setStoppedUI();
-    manualStop = false;
   }
   function naturalEnd() {
     playing = false;
@@ -444,20 +536,10 @@ function initTrackPlayer(track, wrapper) {
     updateStingerAvailability();
     if (ctx.state === 'suspended') ctx.resume();
     playing = true;
-    startedAt = ctx.currentTime - offsetAt;
-    const p = profiles[level] || profiles[0];
-    for (let i = 0; i < buffers.length; i++) {
-      const src = ctx.createBufferSource();
-      src.buffer = buffers[i];
-      if (loops) { src.loop = true; src.loopStart = 0; src.loopEnd = track.duration; }
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(p[i] || 0, ctx.currentTime);
-      src.connect(g); g.connect(ctx.destination);
-      src.start(0, offsetAt % track.duration);
-      sources[i] = src; gains[i] = g;
-      if (isStatic && !loops) {
-        src.onended = () => { if (!manualStop) naturalEnd(); };
-      }
+    if (useQuantizedLoop) {
+      playQuantized(offsetAt % track.duration);
+    } else {
+      playSimple();
     }
     playIcon.innerHTML = PAUSE_SVG;
     if (statusEl) statusEl.textContent = 'Lecture en cours';
@@ -487,7 +569,8 @@ function initTrackPlayer(track, wrapper) {
       if (!playing) return;
       const p = profiles[level];
       const now = ctx.currentTime;
-      gains.forEach((g, i) => {
+      const gainsToRamp = useQuantizedLoop ? currentGainNodes : gains;
+      gainsToRamp.forEach((g, i) => {
         if (!g) return;
         g.gain.cancelScheduledValues(now);
         g.gain.setValueAtTime(g.gain.value, now);
