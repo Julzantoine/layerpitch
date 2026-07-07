@@ -112,11 +112,7 @@
       "buyUrl": "www.julzantoine.fr",
       "bgColor": "#f6f5f3",
       "textColor": "#262521",
-      "trackIds": [
-        "attack-of-the-robots-exploration",
-        "attack-of-the-robots-the-corridor",
-        "robot-adventure-the-final-battle"
-      ]
+      "trackIds": []
     }
   ],
   "adReels": [
