@@ -168,7 +168,25 @@
       "stingers": []
     }
   ],
-  "packs": [],
+  "packs": [
+    {
+      "id": "bmrcakdllw9m7v",
+      "title": "Robot Adventure",
+      "illustration": "pack-bmrcakdllw9m7v.png",
+      "presentation": "An 2372. Claude est sacré Empereur. Les Robots sont partout et toute la galaxie d'Anthropie est sous leur joug. Toute? Non. Car un petit village d'humains résistent encore et toujours à l'envahisseur.\n\nUne sélection de musique pour un jeu intergalactique ! ",
+      "buyable": false,
+      "buyUrl": "",
+      "bgColor": "#f6f5f3",
+      "textColor": "#262521",
+      "trackIds": [
+        "bmrc8vlgamn4fl",
+        "bmrc8x6x8x9cof",
+        "bmrc8yz5vutcbi",
+        "bmrc90bhy0sxpk",
+        "bmrc98f39dwq3c"
+      ]
+    }
+  ],
   "adReels": [
     {
       "id": "main",
