@@ -43,6 +43,7 @@
   }
   .intensity-chip:hover { border-color: var(--accent); color: var(--accent); }
   .intensity-chip.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
+  .intensity-chip-num { opacity: 0.55; margin-right: 5px; }
 
   .track-row-wrapper { border-bottom: 1px solid var(--border); }
   .track-row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; padding: 12px 0; }
@@ -58,6 +59,8 @@
     font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.04em; color: var(--text-dimmer);
     border: 1px dashed var(--border); border-radius: 4px; padding: 1px 6px; flex-shrink: 0; white-space: nowrap;
   }
+  .loop-icon { display: inline-flex; flex-shrink: 0; color: var(--text-dimmer); }
+  .loop-icon svg { width: 11px; height: 11px; }
   .track-row-details { padding: 0 0 18px 38px; }
   .track-desc { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 16px; white-space: pre-wrap; }
   .status { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); margin-bottom: 10px; min-height: 14px; }
