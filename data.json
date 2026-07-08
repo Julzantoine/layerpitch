@@ -210,10 +210,19 @@
         {
           "id": "bmrc9wrt713mzm",
           "type": "photo",
-          "align": "left",
+          "align": "center",
           "images": [
             {
               "file": "bmrc9wrt713mzm-0.png"
+            },
+            {
+              "file": "bmrc9wrt713mzm-1.png"
+            },
+            {
+              "file": "bmrc9wrt713mzm-2.png"
+            },
+            {
+              "file": "bmrc9wrt713mzm-3.png"
             }
           ]
         }
