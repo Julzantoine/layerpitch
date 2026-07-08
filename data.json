@@ -204,10 +204,6 @@
           "align": "center"
         },
         {
-          "id": "bmrc8jutcd4w5f",
-          "type": "bio"
-        },
-        {
           "id": "bmrc9wrt713mzm",
           "type": "photo",
           "align": "center",
@@ -225,6 +221,10 @@
               "file": "bmrc9wrt713mzm-3.png"
             }
           ]
+        },
+        {
+          "id": "bmrc8jutcd4w5f",
+          "type": "bio"
         }
       ],
       "profile": {
