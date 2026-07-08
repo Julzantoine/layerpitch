@@ -34,7 +34,7 @@
   }
 
   .track { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); padding: 26px; margin-bottom: 16px; }
-  .track-intensity-block { margin-bottom: 14px; }
+  .track-intensity-block { margin-top: 16px; }
   .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
   .intensity-picker { display: flex; flex-wrap: wrap; gap: 6px; }
   .intensity-chip {
@@ -184,7 +184,6 @@ function buildTrackRow(track) {
       </div>
     </div>
     <div class="track-row-details" data-role="details" style="display:none">
-      ${intensityBlockHtml}
       <div class="track-desc">${linkify(track.description || '')}</div>
       ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
         !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : `
@@ -201,6 +200,7 @@ function buildTrackRow(track) {
           </div>
         ` : ''}
       `}
+      ${intensityBlockHtml}
     </div>
   `;
   return wrapper;
