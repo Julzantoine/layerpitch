@@ -1,5 +1,217 @@
 {
-  "library": [],
+  "library": [
+    {
+      "id": "bmrc8rec1wtahz",
+      "title": "Goûte donc ma hache, pour voir !",
+      "description": "Une battle loop adaptative à 3 niveaux d'intensité (Low/Mid/High), idéal pour un hack'n'slash. L'intensité est calée sur le nombre d'ennemis à l'écran et la boucle mêle les plaisirs comme savent le faire les jeux indie — parce qu'une bonne musique de baston sent toujours venir le savon un peu avant qu'on se prenne la douche.",
+      "mode": "vertical",
+      "loopable": false,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "duration": 128,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8rec1wtahz/",
+      "layers": [
+        {
+          "label": "Ca va, c'est cool...",
+          "file": "0-ca-va-c-est-cool.ogg"
+        },
+        {
+          "label": "Mais ils sont combien comme ça?",
+          "file": "1-mais-ils-sont-combien-comme-ca.ogg"
+        },
+        {
+          "label": "On va tous crever!!!",
+          "file": "2-on-va-tous-crever.ogg"
+        }
+      ],
+      "stingers": []
+    },
+    {
+      "id": "bmrc8vlgamn4fl",
+      "title": "Robot Adventure_Exploration",
+      "description": "\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\nUne Exploration Loop statique pour un danger relativement lointain. Avec en prime, un levier secret avec lequel s'amuser un peu.",
+      "mode": "static",
+      "loopable": true,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8vlgamn4fl/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg"
+        }
+      ],
+      "stingers": [
+        {
+          "label": "Levier Secret",
+          "file": "stinger-0-levier-secret.ogg"
+        }
+      ]
+    },
+    {
+      "id": "bmrc8x6x8x9cof",
+      "title": "Robot Adventure_The Corridor",
+      "description": "- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nUne Loop statique dans le même style que la précédente, mais qui fait monter l'intensité d'un cran.",
+      "mode": "static",
+      "loopable": true,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8x6x8x9cof/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg"
+        }
+      ],
+      "stingers": []
+    },
+    {
+      "id": "bmrc8yz5vutcbi",
+      "title": "Robot Adventure_Final Battle",
+      "description": "- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait? Chef?? Chef?!\"\n\nUne Battle Loop Statique : Pression Maximale !!! ",
+      "mode": "static",
+      "loopable": true,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8yz5vutcbi/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg"
+        }
+      ],
+      "stingers": []
+    },
+    {
+      "id": "bmrc90bhy0sxpk",
+      "title": "Dans l'Immensité Spatiale",
+      "description": "Au milieu des étoiles vogue le USS PME, le fleuron de la marine Terrienne. En pleine exploration spatiale, l'équipe reste sur ses gardes... Le danger peut provenir de partout.\n\nUn générique d'ouverture pour mettre tout le monde dans l'ambiance. On n'est pas là, pour rigoler, ok?!",
+      "mode": "static",
+      "loopable": false,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "duration": 183,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc90bhy0sxpk/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg"
+        }
+      ],
+      "stingers": []
+    },
+    {
+      "id": "bmrc98f39dwq3c",
+      "title": "Galactic Baston",
+      "description": "\"Nous sommes les Borgs. Abaissez vos boucliers et rendez-vous sans condition. Nous intègrerons vos caractéristiques biologiques et technologiques aux nôtres. Votre culture s’adaptera à nos besoins. Toute résistance serait futile.\" \nQuand tu entends ça, il n'y a plus qu'une chose à faire : vérifier que ton pistolaser a encore un peu de batterie...\n\nUne battle loop statique à base de baston contre les robots",
+      "mode": "static",
+      "loopable": true,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc98f39dwq3c/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg"
+        }
+      ],
+      "stingers": []
+    },
+    {
+      "id": "bmrc9dbzsaio19",
+      "title": "Il est minuit et tout va bien",
+      "description": "Il n'est pas encore minuit. Une ombre glisse sur les toits... Elle s'élance, intrépide et bondit de toitures en gargouilles. Se recevant en souplesse sur un balcon, on ne distingue quasiment pas le bruit du loquet de la porte vitrée... A peine quelques instants plus tard, l'ombre ressort, un sourire aux lèvres. Un éclat de lune accroche sa machoire déformée. Don Benvenuto. Il jette un dernier coup d'oeil au fruit de son larcin. C'est Ducatore qui va être content... Mais en contrebas, un garde l'aperçoit et sonne l'alarme. Il en faut plus pour Benvenuto qui prend un malin plaisir à faire courir ses poursuivants... en vain.\n\nUn thème/générique pour une aventure mystero-ludico-fantasy dans la chaleur d'une nuit d'été.",
+      "mode": "static",
+      "loopable": false,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "duration": 140.97,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc9dbzsaio19/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg"
+        }
+      ],
+      "stingers": []
+    }
+  ],
   "packs": [],
-  "adReels": []
+  "adReels": [
+    {
+      "id": "main",
+      "label": "Principal",
+      "blocks": [
+        {
+          "id": "bmrc8jutc1864w",
+          "type": "header"
+        },
+        {
+          "id": "bmrc8jutc76x5x",
+          "type": "testimonials"
+        },
+        {
+          "id": "bmrc8jutcsb597",
+          "type": "tracks"
+        },
+        {
+          "id": "bmrc8jutcd4w5f",
+          "type": "bio"
+        }
+      ],
+      "profile": {
+        "tagline": "",
+        "bio": "Jules Antoine est compositeur pour l’image, nourri par un long parcours de musicien de scène. Formé en conservatoire (classique, jazz, musiques actuelles) et à l’université, il développe une écriture vivante et polyvalente, façonnée par des années passées à naviguer entre rock, reggae, pop, funk, jazz et musiques urbaines. Cette expérience du live lui apporte une sensibilité rythmique et une énergie organique qu’il met aujourd’hui au service de la narration audiovisuelle.\n\nEn 2022, il se spécialise dans la composition pour médias en intégrant le Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), au sein duquel il explore différents registres — fiction, animation, documentaire, jeux vidéo — et affine son langage sonore. Il continue de se spécialiser en 2026 en intégrant le MFA \"VideoGame and Mediacomposition\", pour s'aguerrir dans la composition adaptative et l'implémentation de musique au sein de moteurs audios.\n\nParallèlement à son travail pour l’image, il compose pour le spectacle vivant et dirige la création musicale de la compagnie jeune public Des Coccinelles dans les Chaussettes depuis 2017. Il collabore également très régulièrement avec Les concerts de Poche (ateliers écriture/MAO), La Femme et l'Homme Debout (Spectacles, ateliers), La Roulotte ruche (Spectacles de Rue)\n\nEn 2026, Jules-Antoine a notamment composé tout l'habillage sonore du dernier spectacle \"Il y'a des Choses que Non\", de la Compagnie \"La Femme et l'Homme Debout\"",
+        "contactEmail": "",
+        "contactUrl": "",
+        "logo": null,
+        "photo": "photo-main.jpg",
+        "bgColor": "#f6f5f3",
+        "textColor": "#262521"
+      },
+      "testimonials": [
+        {
+          "text": "Jules est un compositeur véritablement créatif, animé par une réelle soif d’apprendre et de progresser en permanence. Il possède non seulement une solide maîtrise de la théorie musicale, mais aussi un grand sens de la musicalité. C’est une belle personne, ainsi qu’un compositeur passionné et inventif.",
+          "author": "Alioune Koné - Composer"
+        },
+        {
+          "text": "J'ai été impressionné par la capacité de Jules à être à l'écoute des thèmes et des désirs abordés dans les projets. Il n'hésite pas à faire preuve d'initiative en étant force de proposition, tout en ayant la volonté de se renseigner sur ce qu'il ne connait pas (encore). Jules-Antoine est quelqu'un de généreux, empathique et ouvert d'esprit.",
+          "author": "Frederic Maslanka - Scénariste"
+        }
+      ],
+      "trackIds": []
+    }
+  ]
 }
