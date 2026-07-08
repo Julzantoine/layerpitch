@@ -270,6 +270,89 @@
         "bmrc8vlgamn4fl",
         "bmrc9dbzsaio19"
       ]
+    },
+    {
+      "id": "amsel-suite",
+      "label": "Amsel Suite",
+      "blocks": [
+        {
+          "id": "bmrcp99sqfvfi3",
+          "type": "header"
+        },
+        {
+          "id": "bmrcp99sqqe91c",
+          "type": "bio"
+        },
+        {
+          "id": "bmrcp99sqkx1jk",
+          "type": "testimonials"
+        },
+        {
+          "id": "bmrcp99sq29n9z",
+          "type": "tracks"
+        },
+        {
+          "id": "bmrcp99sq6w8mz",
+          "type": "video",
+          "videos": [
+            {
+              "title": "https://youtu.be/vHJAhKIIlWc",
+              "url": "https://youtu.be/vHJAhKIIlWc",
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png"
+            }
+          ]
+        },
+        {
+          "id": "bmrcp99sqbehbg",
+          "type": "text",
+          "content": "[Retrouvez pleins d'extraits vidéos dans pleins de styles ICI !](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)\n",
+          "align": "center"
+        },
+        {
+          "id": "bmrcp99sqo4egx",
+          "type": "photo",
+          "align": "center",
+          "images": [
+            {
+              "file": "bmrc9wrt713mzm-0.png"
+            },
+            {
+              "file": "bmrc9wrt713mzm-1.png"
+            },
+            {
+              "file": "bmrc9wrt713mzm-2.png"
+            },
+            {
+              "file": "bmrc9wrt713mzm-3.png"
+            }
+          ]
+        }
+      ],
+      "profile": {
+        "tagline": "",
+        "bio": "Jules Antoine est compositeur pour l’image, nourri par un long parcours de musicien de scène. Formé en conservatoire (classique, jazz, musiques actuelles) et à l’université, il développe une écriture vivante et polyvalente, façonnée par des années passées à naviguer entre rock, reggae, pop, funk, jazz et musiques urbaines. Cette expérience du live lui apporte une sensibilité rythmique et une énergie organique qu’il met aujourd’hui au service de la narration audiovisuelle.\n\nEn 2022, il se spécialise dans la composition pour médias en intégrant le Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), au sein duquel il explore différents registres — fiction, animation, documentaire, jeux vidéo — et affine son langage sonore. Il continue de se spécialiser en 2026 en intégrant le MFA \"VideoGame and Mediacomposition\", pour s'aguerrir dans la composition adaptative et l'implémentation de musique au sein de moteurs audios.\n\nParallèlement à son travail pour l’image, il compose pour le spectacle vivant et dirige la création musicale de la compagnie jeune public Des Coccinelles dans les Chaussettes depuis 2017. Il collabore également très régulièrement avec Les concerts de Poche (ateliers écriture/MAO), La Femme et l'Homme Debout (Spectacles, ateliers), La Roulotte ruche (Spectacles de Rue)\n\nEn 2026, Jules-Antoine a notamment composé tout l'habillage sonore du dernier spectacle \"Il y'a des Choses que Non\", de la Compagnie \"La Femme et l'Homme Debout\"",
+        "contactEmail": "",
+        "contactUrl": "",
+        "logo": "logo-main.jpeg",
+        "photo": "photo-main.jpg",
+        "bgColor": "#f6f5f3",
+        "textColor": "#262521"
+      },
+      "testimonials": [
+        {
+          "text": "Jules est un compositeur véritablement créatif, animé par une réelle soif d’apprendre et de progresser en permanence. Il possède non seulement une solide maîtrise de la théorie musicale, mais aussi un grand sens de la musicalité. C’est une belle personne, ainsi qu’un compositeur passionné et inventif.",
+          "author": "(Alioune Koné - Composer)"
+        },
+        {
+          "text": "J'ai été impressionné par la capacité de Jules à être à l'écoute des thèmes et des désirs abordés dans les projets. Il n'hésite pas à faire preuve d'initiative en étant force de proposition, tout en ayant la volonté de se renseigner sur ce qu'il ne connait pas (encore). Jules-Antoine est quelqu'un de généreux, empathique et ouvert d'esprit.",
+          "author": "(Frederic Maslanka - Scénariste)"
+        }
+      ],
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmrc8vlgamn4fl",
+        "bmrc9dbzsaio19"
+      ]
     }
   ]
 }
