@@ -57,6 +57,7 @@ export function buildTrackRow(track, packsForTrack) {
   packsForTrack = packsForTrack || [];
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
+  const loops = !isStatic || !!track.loopable;
   const hasFiles = supported && track.base && track.layers[0] && track.layers[0].file &&
     (isStatic || track.layers.every(l => l.file));
 
@@ -67,8 +68,11 @@ export function buildTrackRow(track, packsForTrack) {
   if (!isStatic && supported) {
     const n = track.layers.length;
     const chips = Array.from({ length: n }, (_, i) => {
-      const label = (track.layers[i] && track.layers[i].label) ? track.layers[i].label : String(i + 1);
-      return `<button type="button" class="intensity-chip${i === 0 ? ' active' : ''}" data-level="${i}">${escapeHtml(label)}</button>`;
+      const customLabel = (track.layers[i] && track.layers[i].label) ? track.layers[i].label : '';
+      const inner = customLabel
+        ? `<span class="intensity-chip-num">${i + 1}</span>${escapeHtml(customLabel)}`
+        : String(i + 1);
+      return `<button type="button" class="intensity-chip${i === 0 ? ' active' : ''}" data-level="${i}">${inner}</button>`;
     }).join('');
     intensityBlockHtml = `
       <div class="track-intensity-block">
@@ -86,6 +90,13 @@ export function buildTrackRow(track, packsForTrack) {
       <div class="track-row-title" data-role="titleToggle">
         <span class="name">${escapeHtml(track.title)}</span>
         <span class="mode-tag">${MODE_LABELS[track.mode] || track.mode}</span>
+        ${supported ? `
+          <span class="loop-icon" title="${loops ? 'Bouclable' : 'Ne boucle pas'}">
+            ${loops
+              ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>'
+              : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg>'}
+          </span>
+        ` : ''}
       </div>
     </div>
     <div class="track-row-details" data-role="details" style="display:none">
