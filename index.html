@@ -67,8 +67,14 @@
   @media (max-width: 540px) { .bio { grid-template-columns: 1fr; } .bio-photo { max-width: 220px; } }
 
   .track-intensity-block { margin-bottom: 14px; }
-  .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 4px; }
-  .track-intensity-numbers { display: grid; font-size: 11px; color: var(--text-dim); text-align: center; margin-bottom: 6px; }
+  .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
+  .intensity-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+  .intensity-chip {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 10px;
+    border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; line-height: 1.6;
+  }
+  .intensity-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .intensity-chip.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
 
   .track-row-wrapper { border-bottom: 1px solid var(--border); }
   .track-row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; padding: 12px 0; }
@@ -84,12 +90,6 @@
     font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.04em; color: var(--text-dimmer);
     border: 1px dashed var(--border); border-radius: 4px; padding: 1px 6px; flex-shrink: 0; white-space: nowrap;
   }
-  .slider-col { display: grid; align-items: center; height: 20px; }
-  .notch-cell { position: relative; display: flex; align-items: center; justify-content: center; }
-  .notch-line { position: absolute; left: 50%; width: 100%; height: 2px; background: var(--border); }
-  .notch-dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--bg-card); border: 1.5px solid var(--border-dim, var(--text-dimmer)); cursor: pointer; }
-  .notch-dot.active { width: 12px; height: 12px; background: var(--accent); border-color: var(--accent); }
-
   .track-row-details { padding: 0 0 18px 38px; }
   .pack-link { margin-bottom: 12px; }
   .pack-link a { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
@@ -278,16 +278,14 @@ function buildTrackRow(track, packsForTrack) {
   let intensityBlockHtml = '';
   if (!isStatic && supported) {
     const n = track.layers.length;
-    const numbers = Array.from({ length: n }, (_, i) => `<span>${i + 1}</span>`).join('');
-    const cells = Array.from({ length: n }, (_, i) => {
-      const isLast = i === n - 1;
-      return `<div class="notch-cell">${!isLast ? '<div class="notch-line"></div>' : ''}<div class="notch-dot${i === 0 ? ' active' : ''}" data-level="${i}"></div></div>`;
+    const chips = Array.from({ length: n }, (_, i) => {
+      const label = (track.layers[i] && track.layers[i].label) ? track.layers[i].label : String(i + 1);
+      return `<button type="button" class="intensity-chip${i === 0 ? ' active' : ''}" data-level="${i}">${escapeHtml(label)}</button>`;
     }).join('');
     intensityBlockHtml = `
       <div class="track-intensity-block">
         <div class="track-intensity-label">Intensité</div>
-        <div class="track-intensity-numbers" style="grid-template-columns:repeat(${n},1fr)">${numbers}</div>
-        <div class="slider-col" style="grid-template-columns:repeat(${n},1fr)" data-role="slider">${cells}</div>
+        <div class="intensity-picker" data-role="slider">${chips}</div>
       </div>
     `;
   }
@@ -361,7 +359,7 @@ function initTrackPlayer(track, wrapper) {
   const fill = wrapper.querySelector('[data-role="progressFill"]');
   const head = wrapper.querySelector('[data-role="progressHead"]');
   const timeCurrent = wrapper.querySelector('[data-role="timeCurrent"]');
-  const notchDots = [...wrapper.querySelectorAll('.notch-dot')];
+  const notchDots = [...wrapper.querySelectorAll('.intensity-chip')];
   const stingerBtns = [...wrapper.querySelectorAll('.stinger-btn')];
 
   let buffers = [], sources = [], gains = []; // moteur simple
