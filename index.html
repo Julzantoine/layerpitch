@@ -66,12 +66,12 @@
   .bio-text p { font-size: 14px; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; white-space: pre-wrap; }
   @media (max-width: 540px) { .bio { grid-template-columns: 1fr; } .bio-photo { max-width: 220px; } }
 
-  .music-header { display: grid; grid-template-columns: 1fr 140px; align-items: end; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
-  .music-header-label { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); text-align: center; margin-bottom: 4px; }
-  .music-header-notches { display: grid; font-size: 11px; color: var(--text-dim); text-align: center; }
+  .track-intensity-block { margin-bottom: 14px; }
+  .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 4px; }
+  .track-intensity-numbers { display: grid; font-size: 11px; color: var(--text-dim); text-align: center; margin-bottom: 6px; }
 
   .track-row-wrapper { border-bottom: 1px solid var(--border); }
-  .track-row { display: grid; grid-template-columns: auto 1fr 140px; align-items: center; gap: 10px; padding: 12px 0; }
+  .track-row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; padding: 12px 0; }
   .play-btn {
     width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); background: transparent;
     display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; padding: 0; color: var(--text-dim);
@@ -89,7 +89,6 @@
   .notch-line { position: absolute; left: 50%; width: 100%; height: 2px; background: var(--border); }
   .notch-dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--bg-card); border: 1.5px solid var(--border-dim, var(--text-dimmer)); cursor: pointer; }
   .notch-dot.active { width: 12px; height: 12px; background: var(--accent); border-color: var(--accent); }
-  .dash-col { text-align: center; color: var(--text-dimmer); font-size: 13px; }
 
   .track-row-details { padding: 0 0 18px 38px; }
   .pack-link { margin-bottom: 12px; }
@@ -114,13 +113,6 @@
   .stinger-btn svg { width: 10px; height: 10px; }
 
   .placeholder-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dimmer); border: 1px dashed var(--border); border-radius: 4px; padding: 8px 12px; display: inline-block; }
-
-  @media (max-width: 480px) {
-    .track-row { grid-template-columns: auto 1fr; }
-    .slider-col, .dash-col { grid-column: 1 / -1; margin-left: 38px; margin-top: -4px; }
-    .music-header { grid-template-columns: 1fr; }
-    .music-header-notches, .music-header-label { display: none; }
-  }
 
   .contact { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); letter-spacing: 0.03em; line-height: 1.8; padding-top: 24px; border-top: 1px solid var(--border); }
   .empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 20px 0; }
@@ -256,20 +248,10 @@ function renderTracksBlock(container, tracks, packsByTrackId) {
     el.innerHTML += '<div class="empty">Aucun morceau publié pour l\'instant.</div>';
     return;
   }
-  const adaptive = tracks.filter(t => t.mode === 'vertical');
-  const maxLayers = adaptive.reduce((n, t) => Math.max(n, t.layers.length), 0);
-
-  if (maxLayers > 0) {
-    const header = document.createElement('div');
-    header.className = 'music-header';
-    const notches = Array.from({ length: maxLayers }, (_, i) => `<span>${i + 1}</span>`).join('');
-    header.innerHTML = `<div></div><div><div class="music-header-label">Intensité</div><div class="music-header-notches" style="grid-template-columns:repeat(${maxLayers},1fr)">${notches}</div></div>`;
-    el.appendChild(header);
-  }
 
   tracks.forEach(track => {
     const packsForTrack = (packsByTrackId && packsByTrackId[track.id]) || [];
-    const row = buildTrackRow(track, maxLayers, packsForTrack);
+    const row = buildTrackRow(track, packsForTrack);
     el.appendChild(row);
     initTrackPlayer(track, row);
   });
@@ -284,7 +266,7 @@ const MODE_LABELS = {
 };
 const PLAYABLE_MODES = ['static', 'vertical'];
 
-function buildTrackRow(track, maxLayers, packsForTrack) {
+function buildTrackRow(track, packsForTrack) {
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
   const hasFiles = supported && track.base && track.layers[0] && track.layers[0].file &&
@@ -293,18 +275,21 @@ function buildTrackRow(track, maxLayers, packsForTrack) {
   const wrapper = document.createElement('div');
   wrapper.className = 'track-row-wrapper';
 
-  let sliderHtml;
-  if (isStatic) {
-    sliderHtml = `<div class="dash-col">—</div>`;
-  } else if (supported) {
-    const cells = Array.from({ length: maxLayers }, (_, i) => {
-      if (i >= track.layers.length) return '<div class="notch-cell"></div>';
-      const isLast = i === track.layers.length - 1;
-      return `<div class="notch-cell">${i < track.layers.length - 1 ? '<div class="notch-line"></div>' : ''}<div class="notch-dot${i===0?' active':''}" data-level="${i}"></div></div>`;
+  let intensityBlockHtml = '';
+  if (!isStatic && supported) {
+    const n = track.layers.length;
+    const numbers = Array.from({ length: n }, (_, i) => `<span>${i + 1}</span>`).join('');
+    const cells = Array.from({ length: n }, (_, i) => {
+      const isLast = i === n - 1;
+      return `<div class="notch-cell">${!isLast ? '<div class="notch-line"></div>' : ''}<div class="notch-dot${i === 0 ? ' active' : ''}" data-level="${i}"></div></div>`;
     }).join('');
-    sliderHtml = `<div class="slider-col" style="grid-template-columns:repeat(${maxLayers},1fr)" data-role="slider">${cells}</div>`;
-  } else {
-    sliderHtml = `<div class="dash-col">—</div>`;
+    intensityBlockHtml = `
+      <div class="track-intensity-block">
+        <div class="track-intensity-label">Intensité</div>
+        <div class="track-intensity-numbers" style="grid-template-columns:repeat(${n},1fr)">${numbers}</div>
+        <div class="slider-col" style="grid-template-columns:repeat(${n},1fr)" data-role="slider">${cells}</div>
+      </div>
+    `;
   }
 
   wrapper.innerHTML = `
@@ -316,9 +301,9 @@ function buildTrackRow(track, maxLayers, packsForTrack) {
         <span class="name">${escapeHtml(track.title)}</span>
         <span class="mode-tag">${MODE_LABELS[track.mode] || track.mode}</span>
       </div>
-      ${sliderHtml}
     </div>
     <div class="track-row-details" data-role="details" style="display:none">
+      ${intensityBlockHtml}
       <div class="track-desc">${linkify(track.description || '')}</div>
       ${packsForTrack && packsForTrack.length ? `<div class="pack-link">${packsForTrack.map(p => `<a href="./pack.html?id=${encodeURIComponent(p.id)}">Fait partie du pack : ${escapeHtml(p.title)}</a>`).join('<br>')}</div>` : ''}
       ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
