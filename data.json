@@ -187,6 +187,23 @@
           "type": "tracks"
         },
         {
+          "id": "bmrc9ryuilymwc",
+          "type": "video",
+          "videos": [
+            {
+              "title": "https://youtu.be/vHJAhKIIlWc",
+              "url": "https://youtu.be/vHJAhKIIlWc",
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png"
+            }
+          ]
+        },
+        {
+          "id": "bmrc9u6n4z4dx0",
+          "type": "text",
+          "content": "[Retrouvez pleins d'extraits vidéos dans pleins de styles ICI !](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)\n",
+          "align": "center"
+        },
+        {
           "id": "bmrc8jutcd4w5f",
           "type": "bio"
         }
@@ -211,7 +228,11 @@
           "author": "Frederic Maslanka - Scénariste"
         }
       ],
-      "trackIds": []
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmrc8vlgamn4fl",
+        "bmrc9dbzsaio19"
+      ]
     }
   ]
 }
