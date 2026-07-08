@@ -6,12 +6,6 @@
       "description": "Une battle loop adaptative à 3 niveaux d'intensité (Low/Mid/High), calée sur le nombre d'ennemis à l'écran et qui mêle les plaisirs comme savent le faire les jeux indie — parce qu'une bonne musique de baston sent toujours venir le savon un peu avant qu'on se prenne la douche.",
       "mode": "vertical",
       "loopable": false,
-      "loopEngine": "simple",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 16,
       "duration": 128,
       "base": "https://Julzantoine.github.io/layerpitch/audio/battle-loop/",
       "layers": [
@@ -33,15 +27,9 @@
     {
       "id": "attack-of-the-robots-exploration",
       "title": "Robot Adventure_Exploration",
-      "description": "Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \n\nUne Exploration Loop statique pour un danger relativement lointain. Avec en prime, un levier secret avec lequel s'amuser un peu.",
+      "description": "Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \n\nUne Exploration Loop statique pour un danger relativement lointain",
       "mode": "static",
       "loopable": true,
-      "loopEngine": "simple",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 16,
       "duration": 60,
       "base": "https://Julzantoine.github.io/layerpitch/audio/attack-of-the-robots-exploration/",
       "layers": [
@@ -52,7 +40,7 @@
       ],
       "stingers": [
         {
-          "label": "Levier Secret",
+          "label": "Secret Lever",
           "file": "stinger-0-secret-lever.ogg"
         }
       ]
@@ -63,12 +51,6 @@
       "description": "- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Putain, ça me rend nerveux ces conneries\"\n\nUne Loop statique dans le même style que la précédente, mais qui fait monter l'intensité d'un cran.",
       "mode": "static",
       "loopable": true,
-      "loopEngine": "simple",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 16,
       "duration": 60,
       "base": "https://Julzantoine.github.io/layerpitch/audio/attack-of-the-robots-the-corridor/",
       "layers": [
@@ -80,19 +62,13 @@
       "stingers": []
     },
     {
-      "id": "robot-adventure-the-final-battle",
+      "id": "attack-of-the-robots-the-final-battle",
       "title": "Robot Adventure_The Final Battle",
       "description": "- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait?!\"\n\nUne Battle Loop Statique : Pression Maximale !!! ",
       "mode": "static",
       "loopable": true,
-      "loopEngine": "simple",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 16,
       "duration": 60,
-      "base": "https://Julzantoine.github.io/layerpitch/audio/robot-adventure-the-final-battle/",
+      "base": "https://Julzantoine.github.io/layerpitch/audio/attack-of-the-robots-the-final-battle/",
       "layers": [
         {
           "label": "Niveau 1",
@@ -114,7 +90,8 @@
       "textColor": "#262521",
       "trackIds": [
         "attack-of-the-robots-exploration",
-        "robot-adventure-the-final-battle"
+        "attack-of-the-robots-the-corridor",
+        "attack-of-the-robots-the-final-battle"
       ]
     }
   ],
@@ -192,87 +169,7 @@
       ],
       "trackIds": [
         "battle-loop",
-        "attack-of-the-robots-exploration",
-        "attack-of-the-robots-the-corridor",
-        "robot-adventure-the-final-battle"
-      ]
-    },
-    {
-      "id": "amsel-suite",
-      "label": "Amsel Suite",
-      "blocks": [
-        {
-          "id": "bmrao5uwnb31pr",
-          "type": "header"
-        },
-        {
-          "id": "bmrao5uwnbr59n",
-          "type": "photo",
-          "align": "left",
-          "images": [
-            {
-              "file": "bmr3jkt1eijvp9-0.png"
-            },
-            {
-              "file": "bmr3jkt1eijvp9-1.png"
-            },
-            {
-              "file": "bmr3jkt1eijvp9-2.png"
-            },
-            {
-              "file": "bmr3jkt1eijvp9-3.png"
-            }
-          ]
-        },
-        {
-          "id": "bmrao5uwnunorp",
-          "type": "testimonials"
-        },
-        {
-          "id": "bmrao5uwn2tpu7",
-          "type": "tracks"
-        },
-        {
-          "id": "bmrao5uwnbo0ew",
-          "type": "video",
-          "videos": [
-            {
-              "title": "",
-              "url": "https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0",
-              "thumbnail": "bmr3jkt1er00cd-thumb-0.jpeg"
-            }
-          ]
-        },
-        {
-          "id": "bmrao5uwnkmhm6",
-          "type": "bio"
-        }
-      ],
-      "profile": {
-        "tagline": "",
-        "bio": "Julzantoine\n\nJules Antoine est compositeur pour l’image, nourri par un long parcours de musicien de scène. Formé en conservatoire (classique, jazz, musiques actuelles) et à l’université, il développe une écriture vivante et polyvalente, façonnée par des années passées à naviguer entre rock, reggae, pop, funk, jazz et musiques urbaines. Cette expérience du live lui apporte une sensibilité rythmique et une énergie organique qu’il met aujourd’hui au service de la narration audiovisuelle.\n\nEn 2022, il se spécialise dans la composition pour médias en intégrant le Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), au sein duquel il explore différents registres — fiction, animation, documentaire, jeux vidéo — et affine son langage sonore. Il continue de se spécialiser en 2026 en intégrant le MFA \"VideoGame and Mediacomposition\", pour s'aguerrir dans la composition adaptative et l'implémentation de musique au sein de moteurs audios.\n\nParallèlement à son travail pour l’image, il compose pour le spectacle vivant et dirige la création musicale de la compagnie jeune public Des Coccinelles dans les Chaussettes depuis 2017.\n\nEn 2026, il signera notamment la musique du spectacle Il y a des choses que non (Cie La Femme et l’Homme Debout — DRAC) ainsi que la bande-son du premier jeu vidéo du studio PocketKnife.",
-        "contactEmail": "",
-        "contactUrl": "",
-        "logo": "logo.jpeg",
-        "photo": "photo.jpg",
-        "bgColor": "#f6f5f3",
-        "textColor": "#262521"
-      },
-      "testimonials": [
-        {
-          "text": "\"J'ai été impressionné par la capacité de Jules à être à l'écoute des thèmes et des désirs abordés dans les projets. Il n'hésite pas à faire preuve d'initiative en étant force de proposition, tout en ayant la volonté de se renseigner sur ce qu'il ne connait pas (encore). Jules-Antoine est quelqu'un de généreux, empathique et ouvert d'esprit.\"",
-          "author": "(Frederic Maslanka - Scénariste)"
-        },
-        {
-          "text": "\"Jules est un compositeur véritablement créatif, animé par une réelle soif d’apprendre et de progresser en permanence. Il possède non seulement une solide maîtrise de la théorie musicale, mais aussi un grand sens de la musicalité. C’est une belle personne, ainsi qu’un compositeur passionné et inventif.\" (",
-          "author": "(Alioune Koné - Composer)"
-        }
-      ],
-      "trackIds": [
-        "battle-loop",
-        "attack-of-the-robots-exploration",
-        "attack-of-the-robots-the-corridor",
-        "robot-adventure-the-final-battle"
+        "attack-of-the-robots-exploration"
       ]
     }
   ]
