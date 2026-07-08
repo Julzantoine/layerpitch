@@ -206,6 +206,16 @@
         {
           "id": "bmrc8jutcd4w5f",
           "type": "bio"
+        },
+        {
+          "id": "bmrc9wrt713mzm",
+          "type": "photo",
+          "align": "left",
+          "images": [
+            {
+              "file": "bmrc9wrt713mzm-0.png"
+            }
+          ]
         }
       ],
       "profile": {
