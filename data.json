@@ -28,6 +28,8 @@
           "file": "2-on-va-tous-crever.ogg"
         }
       ],
+      "fixedLayer": null,
+      "randomGroups": [],
       "stingers": []
     },
     {
@@ -50,6 +52,8 @@
           "file": "0-niveau-1.ogg"
         }
       ],
+      "fixedLayer": null,
+      "randomGroups": [],
       "stingers": [
         {
           "label": "Levier Secret",
@@ -77,6 +81,8 @@
           "file": "0-niveau-1.ogg"
         }
       ],
+      "fixedLayer": null,
+      "randomGroups": [],
       "stingers": []
     },
     {
@@ -99,6 +105,8 @@
           "file": "0-niveau-1.ogg"
         }
       ],
+      "fixedLayer": null,
+      "randomGroups": [],
       "stingers": []
     },
     {
@@ -121,6 +129,8 @@
           "file": "0-niveau-1.ogg"
         }
       ],
+      "fixedLayer": null,
+      "randomGroups": [],
       "stingers": []
     },
     {
@@ -143,6 +153,8 @@
           "file": "0-niveau-1.ogg"
         }
       ],
+      "fixedLayer": null,
+      "randomGroups": [],
       "stingers": []
     },
     {
@@ -163,6 +175,152 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg"
+        }
+      ],
+      "fixedLayer": null,
+      "randomGroups": [],
+      "stingers": []
+    },
+    {
+      "id": "bmrdjlv9p1cbv9",
+      "title": "Test Layer Random",
+      "description": "",
+      "mode": "vertical-random",
+      "loopable": false,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 68,
+      "duration": 40.12,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrdjlv9p1cbv9/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": null
+        }
+      ],
+      "fixedLayer": {
+        "label": "Couche fixe",
+        "file": "fixed.ogg"
+      },
+      "randomGroups": [
+        {
+          "label": "Alt Perc",
+          "avoidImmediateRepeat": true,
+          "alternatives": [
+            {
+              "label": "Vide",
+              "file": null
+            },
+            {
+              "label": "AltPerc#1",
+              "file": "group0-1-altperc-1.ogg"
+            },
+            {
+              "label": "AltPerc#1.5",
+              "file": "group0-2-altperc-1-5.ogg"
+            },
+            {
+              "label": "AltPerc#2",
+              "file": "group0-3-altperc-2.ogg"
+            },
+            {
+              "label": "AltPerc#2.5",
+              "file": "group0-4-altperc-2-5.ogg"
+            }
+          ]
+        },
+        {
+          "label": "Bass",
+          "avoidImmediateRepeat": true,
+          "alternatives": [
+            {
+              "label": "BS#1",
+              "file": "group1-0-bs-1.ogg"
+            },
+            {
+              "label": "BS#2",
+              "file": "group1-1-bs-2.ogg"
+            },
+            {
+              "label": "BS#3",
+              "file": "group1-2-bs-3.ogg"
+            },
+            {
+              "label": "BS#4 (Slap)",
+              "file": "group1-3-bs-4-slap.ogg"
+            }
+          ]
+        },
+        {
+          "label": "GUITARES NAPPES",
+          "avoidImmediateRepeat": true,
+          "alternatives": [
+            {
+              "label": "Nappes GT#1",
+              "file": "group2-0-nappes-gt-1.ogg"
+            },
+            {
+              "label": "Vide",
+              "file": null
+            },
+            {
+              "label": "Nappes Gt#2",
+              "file": "group2-2-nappes-gt-2.ogg"
+            }
+          ]
+        },
+        {
+          "label": "COCOTTES GT",
+          "avoidImmediateRepeat": true,
+          "alternatives": [
+            {
+              "label": "Cocottes GT#1",
+              "file": "group3-0-cocottes-gt-1.ogg"
+            },
+            {
+              "label": "Cocottes GT#2",
+              "file": "group3-1-cocottes-gt-2.ogg"
+            }
+          ]
+        },
+        {
+          "label": "KB",
+          "avoidImmediateRepeat": true,
+          "alternatives": [
+            {
+              "label": "Nappes KB#1",
+              "file": "group4-0-nappes-kb-1.ogg"
+            },
+            {
+              "label": "Nappes KB#2",
+              "file": "group4-1-nappes-kb-2.ogg"
+            },
+            {
+              "label": "Thème Kb",
+              "file": "group4-2-theme-kb.ogg"
+            }
+          ]
+        },
+        {
+          "label": "THEME GT",
+          "avoidImmediateRepeat": true,
+          "alternatives": [
+            {
+              "label": "Vide1",
+              "file": null
+            },
+            {
+              "label": "Vide2",
+              "file": null
+            },
+            {
+              "label": "Theme Gt",
+              "file": "group5-2-theme-gt.ogg"
+            }
+          ]
         }
       ],
       "stingers": []
