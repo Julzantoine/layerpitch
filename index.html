@@ -128,8 +128,9 @@
   <div class="contact" id="contact"></div>
 </div>
 
-<script type="module">
-import { section, escapeHtml, linkify, renderTracksBlock } from './player.js';
+<script src="player.js"></script>
+<script>
+const { section, escapeHtml, linkify, renderTracksBlock } = window.LayerPlayerCore;
 
 function genId() { return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 

@@ -1,34 +1,36 @@
+(function() {
 // player.js — Moteur de lecture partagé entre index.html et pack.html (LayerPitch)
 // Un seul endroit pour le rendu des morceaux et toute la logique audio (bouclage simple + quantifié, stingers, intensité).
-// Chargé comme module ES natif (<script type="module">) — pas de build nécessaire, GitHub Pages le sert tel quel.
+// Chargé comme script classique (<script src="player.js"></script>) — fonctionne en file:// comme en https://,
+// contrairement aux modules ES qui sont bloqués par les navigateurs en ouverture locale directe.
 
 const ctx = new (window.AudioContext || window.webkitAudioContext)();
 
-export function formatTime(s) {
+function formatTime(s) {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   return m + ':' + (sec < 10 ? '0' : '') + sec;
 }
-export function cumulativeProfiles(n) {
+function cumulativeProfiles(n) {
   const out = [];
   for (let i = 0; i < n; i++) out.push(Array.from({ length: n }, (_, j) => (j <= i ? 1 : 0)));
   return out;
 }
-export function section(label, innerHTML) {
+function section(label, innerHTML) {
   const el = document.createElement('div');
   el.className = 'block';
   el.innerHTML = (label ? `<div class="section-label">${label}</div>` : '') + innerHTML;
   return el;
 }
-export function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-export function linkify(s) { return escapeHtml(s).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>'); }
+function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function linkify(s) { return escapeHtml(s).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>'); }
 
 /* ---------------- État partagé entre toutes les pistes de la page (une seule instance par page chargée) ---------------- */
 const trackCollapsers = {};
 const trackStingerKillers = {};
 let activeTrackId = null;
 
-export function renderTracksBlock(container, tracks, packsByTrackId) {
+function renderTracksBlock(container, tracks, packsByTrackId) {
   const el = section('Musique', '');
   container.appendChild(el);
   if (!tracks || tracks.length === 0) {
@@ -44,18 +46,18 @@ export function renderTracksBlock(container, tracks, packsByTrackId) {
   });
 }
 
-export const MODE_LABELS = {
+const MODE_LABELS = {
   static: 'statique',
   vertical: 'layering vertical',
   'vertical-random': 'layering vertical randomisé',
   sequential: 'séquentiel',
   branching: 'embranchement'
 };
-export const PLAYABLE_MODES = ['static', 'vertical'];
+const PLAYABLE_MODES = ['static', 'vertical'];
 
-export function layerHasSource(l) { return !!(l && (l.localFile || l.file)); }
+function layerHasSource(l) { return !!(l && (l.localFile || l.file)); }
 
-export function buildTrackRow(track, packsForTrack) {
+function buildTrackRow(track, packsForTrack) {
   packsForTrack = packsForTrack || [];
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
@@ -131,7 +133,7 @@ export function buildTrackRow(track, packsForTrack) {
   return wrapper;
 }
 
-export function initTrackPlayer(track, wrapper) {
+function initTrackPlayer(track, wrapper) {
   const isStatic = track.mode === 'static';
   const supported = PLAYABLE_MODES.includes(track.mode);
   const hasFiles = supported && layerHasSource(track.layers[0]) &&
@@ -425,3 +427,21 @@ export function initTrackPlayer(track, wrapper) {
 }
 
 /* ---------------- Init ---------------- */
+
+
+
+window.LayerPlayerCore = {
+  formatTime,
+  cumulativeProfiles,
+  section,
+  escapeHtml,
+  linkify,
+  layerHasSource,
+  buildTrackRow,
+  initTrackPlayer,
+  renderTracksBlock,
+  MODE_LABELS,
+  PLAYABLE_MODES
+};
+
+})();
