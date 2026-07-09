@@ -3,7 +3,7 @@
     {
       "id": "bmrc8rec1wtahz",
       "title": "Goûte donc ma hache, pour voir !",
-      "description": "Une battle loop adaptative à 3 niveaux d'intensité (Low/Mid/High), idéal pour un hack'n'slash. L'intensité est calée sur le nombre d'ennemis à l'écran et la boucle mêle les plaisirs comme savent le faire les jeux indie — parce qu'une bonne musique de baston sent toujours venir le savon un peu avant qu'on se prenne la douche.",
+      "description": "Une battle loop adaptative à 3 niveaux d'intensité (Low/Mid/High), idéal pour un hack'n'slash. L'intensité est calée sur le nombre d'ennemis à l'écran et la boucle mêle les plaisirs comme savent le faire les jeux indie — parce qu'une bonne musique de baston sent toujours venir le savon un peu avant qu'on se prenne la douche.\n\nAn adaptive battle loop with 3 intensity levels (Low/Mid/High), perfect for a hack'n'slash game. The intensity scales with the number of enemies on screen, and the loop blends indie charm with punchy energy—because great combat music should always tease the soap before the shower hits. ",
       "mode": "vertical",
       "loopable": false,
       "loopEngine": "simple",
@@ -37,7 +37,7 @@
     {
       "id": "bmrc8vlgamn4fl",
       "title": "Robot Adventure_Exploration",
-      "description": "\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\nUne Exploration Loop statique pour un danger relativement lointain. Avec en prime, un levier secret avec lequel s'amuser un peu.",
+      "description": "\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\nUne Exploration Loop statique pour un danger relativement lointain. Avec en prime, un levier secret avec lequel s'amuser un peu.\n\n\"Alright, team—let’s move out. If the plan’s right, we shouldn’t be far from the heart of the matrix now!\"\nA static exploration loop for distant danger—with a secret lever stinger to play with, just for fun.",
       "mode": "static",
       "loopable": true,
       "loopEngine": "simple",
@@ -68,7 +68,7 @@
     {
       "id": "bmrc8x6x8x9cof",
       "title": "Robot Adventure_The Corridor",
-      "description": "- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nUne Loop statique dans le même style que la précédente, mais qui fait monter l'intensité d'un cran.",
+      "description": "- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nUne Loop statique dans le même style que la précédente, mais qui fait monter l'intensité d'un cran.\n\n\"Hey Joe! There’s a door that just opened!\"\n\"Watch out, Lucien—they’re everywhere, those bastards...\"\n\"I think it’s this way—I hear noises. Should we go?\"\n\"Okay... but don’t go too far. This whole thing’s making me nervous.\"\nA static loop in the same style as before, but with the tension cranked up a notch. \n",
       "mode": "static",
       "loopable": true,
       "loopEngine": "simple",
@@ -94,7 +94,7 @@
     {
       "id": "bmrc8yz5vutcbi",
       "title": "Robot Adventure_Final Battle",
-      "description": "- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait? Chef?? Chef?!\"\n\nUne Battle Loop Statique : Pression Maximale !!! ",
+      "description": "- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait? Chef?? Chef?!\"\n\nUne Battle Loop Statique : Pression Maximale !!! \n\n\"THEY'RE COMING!!! Form up—open fire! Damn robots, they're everywhere!\"\n\"Boss, what do we do?! Boss?? Boss?!\"\nA static battle loop—maximum pressure!!!\n",
       "mode": "static",
       "loopable": true,
       "loopEngine": "simple",
@@ -120,7 +120,7 @@
     {
       "id": "bmrc90bhy0sxpk",
       "title": "Dans l'Immensité Spatiale",
-      "description": "Au milieu des étoiles vogue le USS PME, le fleuron de la marine Terrienne. En pleine exploration spatiale, l'équipe reste sur ses gardes... Le danger peut provenir de partout.\n\nUn générique d'ouverture pour mettre tout le monde dans l'ambiance. On n'est pas là, pour rigoler, ok?!",
+      "description": "Au milieu des étoiles vogue le USS PME, le fleuron de la marine Terrienne. En pleine exploration spatiale, l'équipe reste sur ses gardes... Le danger peut provenir de partout.\n\nUn générique d'ouverture pour mettre tout le monde dans l'ambiance. On n'est pas là, pour rigoler, ok?!\n\nAmidst the stars, the USS LLC, the pride of the Terran Navy, sails through the cosmos. On a deep-space exploration mission, the crew stays on high alert... Danger could come from anywhere.\nAn opening theme to set the mood. We’re not here to mess around, got it?!\n",
       "mode": "static",
       "loopable": false,
       "loopEngine": "simple",
@@ -146,7 +146,7 @@
     {
       "id": "bmrc98f39dwq3c",
       "title": "Galactic Baston",
-      "description": "\"Nous sommes les Borgs. Abaissez vos boucliers et rendez-vous sans condition. Nous intègrerons vos caractéristiques biologiques et technologiques aux nôtres. Votre culture s’adaptera à nos besoins. Toute résistance serait futile.\" \nQuand tu entends ça, il n'y a plus qu'une chose à faire : vérifier que ton pistolaser a encore un peu de batterie...\n\nUne battle loop statique à base de baston contre les robots",
+      "description": "\"Nous sommes les Borgs. Abaissez vos boucliers et rendez-vous sans condition. Nous intègrerons vos caractéristiques biologiques et technologiques aux nôtres. Votre culture s’adaptera à nos besoins. Toute résistance serait futile.\" \nQuand tu entends ça, il n'y a plus qu'une chose à faire : vérifier que ton pistolaser a encore un peu de batterie...\n\nUne battle loop statique à base de baston contre les robots\n\n\"We are the Borg. Lower your shields and surrender your ships. We will add your biological and technological distinctiveness to our own. Your culture will adapt to service us. Resistance is futile.\"\n\nWhen you hear this, there’s only one thing left to do: check if your laser pistol still has juice...\nA static battle loop for all-out robot brawls.",
       "mode": "static",
       "loopable": true,
       "loopEngine": "simple",
@@ -172,7 +172,7 @@
     {
       "id": "bmrc9dbzsaio19",
       "title": "Il est minuit et tout va bien",
-      "description": "Il n'est pas encore minuit. Une ombre glisse sur les toits... Elle s'élance, intrépide et bondit de toitures en gargouilles. Se recevant en souplesse sur un balcon, on ne distingue quasiment pas le bruit du loquet de la porte vitrée... A peine quelques instants plus tard, l'ombre ressort, un sourire aux lèvres. Un éclat de lune accroche sa machoire déformée. Don Benvenuto. Il jette un dernier coup d'oeil au fruit de son larcin. C'est Ducatore qui va être content... Mais en contrebas, un garde l'aperçoit et sonne l'alarme. Il en faut plus pour Benvenuto qui prend un malin plaisir à faire courir ses poursuivants... en vain.\n\nUn thème/générique pour une aventure mystero-ludico-fantasy dans la chaleur d'une nuit d'été.",
+      "description": "Il n'est pas encore minuit. Une ombre glisse sur les toits... Elle s'élance, intrépide et bondit de toitures en gargouilles. Se recevant en souplesse sur un balcon, on ne distingue quasiment pas le bruit du loquet de la porte vitrée... A peine quelques instants plus tard, l'ombre ressort, un sourire aux lèvres. Un éclat de lune accroche sa machoire déformée. Don Benvenuto. Il jette un dernier coup d'oeil au fruit de son larcin. C'est Ducatore qui va être content... Mais en contrebas, un garde l'aperçoit et sonne l'alarme. Il en faut plus pour Benvenuto qui prend un malin plaisir à faire courir ses poursuivants... en vain.\n\nUn thème/générique pour une aventure mystero-ludico-fantasy dans la chaleur d'une nuit d'été.\n\nIt isn't midnight yet. A shadow slips across the rooftops... Fearless, it leaps from roof to gargoyle. Landing lightly on a balcony, the faint click of the French door's latch is almost impossible to hear... Barely moments later, the shadow emerges again, a grin spreading across its face. A shaft of moonlight catches its misshapen jaw. **Don Benvenuto.**\n\nHe casts one last glance at the spoils of his theft. *Ducatore* is going to be delighted...\n\nBut below, a guard spots him and sounds the alarm. It will take more than that to stop Benvenuto. With mischievous delight, he leads his pursuers on a wild chase... to no avail.\n\nA main theme/title cue for a mysterious, playful fantasy adventure set in the warmth of a summer night.*\n",
       "mode": "static",
       "loopable": false,
       "loopEngine": "simple",
@@ -198,7 +198,7 @@
     {
       "id": "bmrdjlv9p1cbv9",
       "title": "Victory ! ",
-      "description": "Après maintes et maintes essais, le Boss est enfin tombé ! Victoire !!! Il pleut du loot, ça prend du temps de tout ramasser. Avec un peu de chances, on aura même le droit à une petite cinématique pour passer au prochain niveau? va savoir... En tout cas, la musique est prête, elle n'attend que l'histoire.\n\n3 parties de Batterie, 4 partie de Basse, 6 parties de guitare, 4 de claviers... Une boucle au layering vertical randomisé pour générer de la musique différente à chaque écoute.",
+      "description": "Après maintes et maintes essais, le Boss est enfin tombé ! Victoire !!! Il pleut du loot, ça prend du temps de tout ramasser. Avec un peu de chances, on aura même le droit à une petite cinématique pour passer au prochain niveau? va savoir... En tout cas, la musique est prête, elle n'attend que l'histoire.\n\n3 parties de Batterie, 4 partie de Basse, 6 parties de guitare, 4 de claviers... Une boucle au layering vertical randomisé pour générer de la musique différente à chaque écoute.\n\nAfter countless attempts, the boss finally went down! **Victory!** Loot is raining from the sky, and it takes a while to gather it all. With a bit of luck, we might even get a little cutscene to unlock the next level... who knows? Either way, the music is ready—it’s just waiting for the story.\n\nThree drum parts, four bass parts, six guitar parts, and four keyboard parts... A vertically layered, randomized loop that generates a different musical experience every time you listen.",
       "mode": "vertical-random",
       "loopable": false,
       "loopEngine": "simple",
