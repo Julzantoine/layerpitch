@@ -158,7 +158,7 @@ async function init() {
 
     const credit = document.createElement('div');
     credit.className = 'layerpitch-credit';
-    credit.textContent = `${pack.title} · powered by LayerPitch`;
+    credit.textContent = `Pack: ${pack.title}, powered by LayerPitch`;
     container.appendChild(credit);
   } catch (e) {
     container.innerHTML = '<div class="empty">Impossible de charger data.json</div>';
