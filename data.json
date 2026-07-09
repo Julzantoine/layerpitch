@@ -183,8 +183,8 @@
     },
     {
       "id": "bmrdjlv9p1cbv9",
-      "title": "Test Layer Random",
-      "description": "",
+      "title": "Victory ! ",
+      "description": "Après maintes et maintes essais, le Boss est enfin tombé ! Victoire !!! Il pleut du loot, ça prend du temps de tout ramasser. Avec un peu de chances, on aura même le droit à une petite cinématique pour passer au prochain niveau? va savoir... En tout cas, la musique est prête, elle n'attend que l'histoire.\n\n3 parties de Batterie, 4 partie de Basse, 6 parties de guitare, 4 de claviers... Une boucle au layering vertical randomisé pour générer de la musique différente à chaque écoute/boucle.",
       "mode": "vertical-random",
       "loopable": false,
       "loopEngine": "simple",
