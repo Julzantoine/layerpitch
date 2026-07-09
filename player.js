@@ -64,7 +64,7 @@ function buildTrackRow(track, packsForTrack) {
   const isVerticalRandom = track.mode === 'vertical-random';
   const loops = !isStatic || !!track.loopable;
   const hasFiles = supported && (isVerticalRandom
-    ? layerHasSource(track.fixedLayer)
+    ? (track.fixedLayers || []).some(layerHasSource)
     : layerHasSource(track.layers[0]) && (isStatic || track.layers.every(layerHasSource)));
 
   const wrapper = document.createElement('div');
@@ -90,21 +90,42 @@ function buildTrackRow(track, packsForTrack) {
 
   let voiceGraphHtml = '';
   if (isVerticalRandom && supported) {
+    const fixedRows = (track.fixedLayers || []).map((f, fi) => `
+      <div class="voice-row">
+        <span class="voice-meter" data-role="voiceMeter-fixed-${fi}"></span>
+        <span class="voice-row-current">${escapeHtml(f && f.label ? f.label : ('Couche fixe ' + (fi + 1)))}</span>
+      </div>
+    `).join('');
     const groupRows = (track.randomGroups || []).map((g, gi) => `
       <div class="voice-row">
         <span class="voice-meter" data-role="voiceMeter-${gi}"></span>
-        <span class="voice-row-label">${escapeHtml(g.label || ('Groupe ' + (gi + 1)))}</span>
         <span class="voice-row-current" data-role="voiceCurrent-${gi}">—</span>
       </div>
     `).join('');
     voiceGraphHtml = `
       <div class="voice-graph" data-role="voiceGraph">
         <div class="voice-graph-label">En cours</div>
-        <div class="voice-row">
-          <span class="voice-meter" data-role="voiceMeter-fixed"></span>
-          <span class="voice-row-label">Couche fixe</span>
-        </div>
+        ${fixedRows}
         ${groupRows}
+        <button type="button" class="voice-refresh-btn" data-role="refreshPool">↻ Rafraîchir le pool</button>
+      </div>
+    `;
+  }
+
+  // Sélecteur de boucles : uniquement pour les pistes qui utilisent le moteur quantifié (seul moteur
+  // qui connaît la notion de cycle et donc de "nombre de boucles"). Valeur par défaut = celle choisie
+  // par le compositeur, modifiable ici par le visiteur — la piste applique le changement au vol.
+  const useQuantizedLoopForUI = isVerticalRandom || (loops && track.loopEngine === 'quantized');
+  let loopCountHtml = '';
+  if (useQuantizedLoopForUI && supported) {
+    const options = [null, 1, 2, 3, 5, 10];
+    const current = track.maxLoops || null;
+    loopCountHtml = `
+      <div class="loop-count-block">
+        <div class="loop-count-label">Nombre de boucles</div>
+        <select data-role="loopCountSelect">
+          ${options.map(n => `<option value="${n === null ? '' : n}"${current === n ? ' selected' : ''}>${n === null ? '∞ Infini' : n}</option>`).join('')}
+        </select>
       </div>
     `;
   }
@@ -145,6 +166,7 @@ function buildTrackRow(track, packsForTrack) {
         ` : ''}
       `}
       ${intensityBlockHtml}
+      ${loopCountHtml}
       ${voiceGraphHtml}
     </div>
   `;
@@ -162,7 +184,7 @@ function initTrackPlayer(track, wrapper) {
   const isVerticalRandom = track.mode === 'vertical-random';
   const supported = PLAYABLE_MODES.includes(track.mode);
   const hasFiles = supported && (isVerticalRandom
-    ? layerHasSource(track.fixedLayer)
+    ? (track.fixedLayers || []).some(layerHasSource)
     : layerHasSource(track.layers[0]) && (isStatic || track.layers.every(layerHasSource)));
   if (!hasFiles) return;
 
@@ -179,6 +201,9 @@ function initTrackPlayer(track, wrapper) {
   const loopInSec = (track.loopInBeat || 0) * secondsPerBeat;
   const loopOutSec = Math.max(loopInSec + secondsPerBeat, (track.loopOutBeat || beatsPerBar * 4) * secondsPerBeat);
   const cycleLength = loopOutSec - loopInSec;
+  // StartTrackPoint : où démarre la toute première lecture (permet de sauter un silence en tête).
+  // Ne s'applique qu'au moteur quantifié — le moteur simple garde son comportement natif inchangé.
+  const startTrackSec = Math.min((track.startTrackBeat || 0) * secondsPerBeat, loopInSec);
 
   const playBtn = wrapper.querySelector('[data-role="playBtn"]');
   const playIcon = wrapper.querySelector('[data-role="playIcon"]');
@@ -191,7 +216,8 @@ function initTrackPlayer(track, wrapper) {
   const timeTotal = wrapper.querySelector('[data-role="timeTotal"]');
   const notchDots = [...wrapper.querySelectorAll('.intensity-chip')];
   const stingerBtns = [...wrapper.querySelectorAll('.stinger-btn')];
-  const voiceMeterFixed = wrapper.querySelector('[data-role="voiceMeter-fixed"]');
+  const loopCountSelect = wrapper.querySelector('[data-role="loopCountSelect"]');
+  const voiceMeterFixeds = (track.fixedLayers || []).map((f, fi) => wrapper.querySelector(`[data-role="voiceMeter-fixed-${fi}"]`));
   const voiceMeters = (track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="voiceMeter-${gi}"]`));
   const voiceCurrents = (track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="voiceCurrent-${gi}"]`));
 
@@ -201,9 +227,16 @@ function initTrackPlayer(track, wrapper) {
   let schedulerTimer = null;
   let voiceGraphTimeouts = [];
   let latestGenStartCtxTime = 0, latestGenBufferOffset = 0, nextGenStartCtxTime = 0, nextGenBufferOffset = 0;
+  // Nombre de boucles (moteur quantifié) : loopsPlayed compte les passages programmés par le scheduler
+  // récurrent (pas le tout premier, déclenché directement par playQuantized). Une fois track.maxLoops
+  // atteint (si non nul), on arrête de programmer de nouvelles générations et on laisse la dernière
+  // en cours filer seule jusqu'à sa fin naturelle (l'outro = la queue déjà présente dans le fichier).
+  let loopsPlayed = 0;
+  let lastGenSources = [];
+  let finalGenerationMarkerSrc = null;
 
   // Spécifique au mode vertical-random
-  let fixedBuffer = null;
+  let fixedBuffers = []; // une entrée par couche fixe déclarée (toutes jouent systématiquement, à chaque cycle)
   let groupBuffers = [];    // groupBuffers[g] = [buffer, buffer, ...] pour chaque alternative jouable du groupe g
   let lastPickedIndex = []; // lastPickedIndex[g] = index de la dernière alternative tirée pour le groupe g (-1 si aucune encore)
   function pickAlternativeIndex(g) {
@@ -221,7 +254,7 @@ function initTrackPlayer(track, wrapper) {
 
   let stingerBuffers = [];
   let activeStingerSources = [];
-  let level = 0, playing = false, startedAt = 0, offsetAt = 0, rafId = null, ready = false;
+  let level = 0, playing = false, startedAt = 0, offsetAt = (useQuantizedLoop ? startTrackSec : 0), rafId = null, ready = false;
 
   const PLAY_SVG = '<path d="M8 5v14l11-7z"/>';
   const PAUSE_SVG = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
@@ -301,7 +334,7 @@ function initTrackPlayer(track, wrapper) {
   function scheduleVoiceGraphUpdate(ctxStartTime, groupPicks) {
     const delayMs = Math.max(0, (ctxStartTime - ctx.currentTime) * 1000);
     const timeoutId = setTimeout(() => {
-      pulseMeter(voiceMeterFixed);
+      voiceMeterFixeds.forEach(pulseMeter);
       groupPicks.forEach(({ gi, label }) => {
         pulseMeter(voiceMeters[gi]);
         if (voiceCurrents[gi]) voiceCurrents[gi].textContent = label;
@@ -311,20 +344,25 @@ function initTrackPlayer(track, wrapper) {
   }
 
   /* ---- Moteur quantifié / vertical-random (BPM + mesures, retrigger avec queue de fin superposée) ---- */
-  function scheduleGeneration(ctxStartTime, bufferOffset) {
+  function scheduleGeneration(ctxStartTime, bufferOffset, reroll) {
+    const thisGenSources = [];
     if (isVerticalRandom) {
-      if (fixedBuffer) {
+      fixedBuffers.forEach(buf => {
+        if (!buf) return;
         const src = ctx.createBufferSource();
-        src.buffer = fixedBuffer;
+        src.buffer = buf;
         const g = ctx.createGain();
         g.gain.setValueAtTime(1, ctxStartTime);
         src.connect(g); g.connect(ctx.destination);
         src.start(ctxStartTime, bufferOffset);
         activeGenSources.push({ src, gain: g });
-      }
+        thisGenSources.push(src);
+      });
       const groupPicks = [];
       (track.randomGroups || []).forEach((group, gi) => {
-        const idx = pickAlternativeIndex(gi);
+        const idx = (reroll === false && lastPickedIndex[gi] !== undefined && lastPickedIndex[gi] !== -1)
+          ? lastPickedIndex[gi]
+          : pickAlternativeIndex(gi);
         let label = '—';
         if (idx >= 0) {
           const alt = (group.alternatives || [])[idx];
@@ -338,6 +376,7 @@ function initTrackPlayer(track, wrapper) {
             src.connect(g); g.connect(ctx.destination);
             src.start(ctxStartTime, bufferOffset);
             activeGenSources.push({ src, gain: g });
+            thisGenSources.push(src);
           }
         }
         groupPicks.push({ gi, label });
@@ -355,37 +394,65 @@ function initTrackPlayer(track, wrapper) {
         src.connect(g); g.connect(ctx.destination);
         src.start(ctxStartTime, bufferOffset);
         activeGenSources.push({ src, gain: g });
+        thisGenSources.push(src);
         gensThisRound[i] = g;
       }
       currentGainNodes = gensThisRound;
     }
     latestGenStartCtxTime = ctxStartTime;
     latestGenBufferOffset = bufferOffset;
+    lastGenSources = thisGenSources;
   }
   function schedulerTick() {
     const lookahead = 1.0;
     while (nextGenStartCtxTime < ctx.currentTime + lookahead) {
-      scheduleGeneration(nextGenStartCtxTime, nextGenBufferOffset);
+      if (track.maxLoops && loopsPlayed >= track.maxLoops) {
+        clearInterval(schedulerTimer);
+        schedulerTimer = null;
+        armFinalGenerationEnd();
+        return;
+      }
+      scheduleGeneration(nextGenStartCtxTime, nextGenBufferOffset, true);
+      loopsPlayed++;
       nextGenStartCtxTime += cycleLength;
       nextGenBufferOffset = loopInSec;
     }
   }
+  // Une fois la limite de boucles atteinte : on n'interrompt pas la génération en cours (qui contient
+  // la queue déjà présente dans le fichier après le point de sortie) — elle continue de jouer seule,
+  // sans rien programmer par-dessus. C'est ça, l'outro : pas un fichier séparé, juste l'absence de relance.
+  function armFinalGenerationEnd() {
+    const marker = lastGenSources[0];
+    if (!marker) return;
+    finalGenerationMarkerSrc = marker;
+    marker.onended = () => {
+      if (finalGenerationMarkerSrc !== marker) return; // piste arrêtée/relancée entretemps : on ignore
+      activeGenSources = [];
+      playing = false;
+      cancelAnimationFrame(rafId);
+      offsetAt = startTrackSec;
+      updateProgressAt(offsetAt);
+      setStoppedUI();
+      if (activeTrackId === track.id) activeTrackId = null;
+    };
+  }
   function stopQuantized() {
+    finalGenerationMarkerSrc = null;
     if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
     activeGenSources.forEach(({ src }) => { try { src.stop(); } catch(e){} });
     activeGenSources = [];
     voiceGraphTimeouts.forEach(id => clearTimeout(id));
     voiceGraphTimeouts = [];
     if (isVerticalRandom) {
-      if (voiceMeterFixed) voiceMeterFixed.classList.remove('pulse');
+      voiceMeterFixeds.forEach(el => { if (el) el.classList.remove("pulse"); });
       voiceMeters.forEach(el => { if (el) el.classList.remove('pulse'); });
       voiceCurrents.forEach(el => { if (el) el.textContent = '—'; });
     }
   }
-  function playQuantized(fromOffsetSec) {
+  function playQuantized(fromOffsetSec, reroll) {
     stopQuantized();
     const now = ctx.currentTime;
-    scheduleGeneration(now, fromOffsetSec);
+    scheduleGeneration(now, fromOffsetSec, reroll);
     let timeUntilNext;
     if (fromOffsetSec < loopInSec) {
       timeUntilNext = loopOutSec - fromOffsetSec;
@@ -419,7 +486,7 @@ function initTrackPlayer(track, wrapper) {
     setStoppedUI();
     if (activeTrackId === track.id) activeTrackId = null;
   }
-  function playThisTrack() {
+  function playThisTrack(reroll, isContinuation) {
     if (activeTrackId && activeTrackId !== track.id) {
       document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
       if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
@@ -433,7 +500,12 @@ function initTrackPlayer(track, wrapper) {
     if (ctx.state === 'suspended') ctx.resume();
     playing = true;
     if (useQuantizedLoop) {
-      playQuantized(offsetAt % track.duration);
+      // Un vrai démarrage à froid réinitialise le budget de boucles (le premier passage compte déjà comme 1) ;
+      // un reroll ou une recherche en cours de lecture (isContinuation) ne remet pas le compteur à zéro et ne l'avance pas non plus.
+      // Note : on ne peut pas déduire ça de `playing`, qui est déjà retombé à false par le stopAllSources(false)
+      // que ces deux appelants font juste avant — d'où ce paramètre explicite plutôt qu'une lecture d'état ambiant.
+      if (!isContinuation) loopsPlayed = 1;
+      playQuantized(offsetAt % track.duration, reroll !== false);
     } else {
       playSimple();
     }
@@ -442,18 +514,32 @@ function initTrackPlayer(track, wrapper) {
     tick();
   }
 
+  function rerollPool() {
+    if (!isVerticalRandom) return;
+    if (playing) {
+      const currentOffset = Math.min(latestGenBufferOffset + (ctx.currentTime - latestGenStartCtxTime), track.duration);
+      stopAllSources(false);
+      offsetAt = currentOffset;
+      playThisTrack(true, true);
+    } else {
+      lastPickedIndex = lastPickedIndex.map(() => -1);
+    }
+  }
+
   const titleToggle = wrapper.querySelector('[data-role="titleToggle"]');
   if (titleToggle) titleToggle.addEventListener('click', updateStingerAvailability);
+  const refreshPoolBtn = wrapper.querySelector('[data-role="refreshPool"]');
+  if (refreshPoolBtn) refreshPoolBtn.addEventListener('click', rerollPool);
 
   document.addEventListener('stop-track', (e) => { if (e.detail === track.id) stopAllSources(); });
-  playBtn.addEventListener('click', () => { playing ? stopAllSources() : playThisTrack(); });
+  playBtn.addEventListener('click', () => { playing ? stopAllSources() : playThisTrack(true); });
 
   if (wrap) {
     wrap.addEventListener('click', (e) => {
       const rect = wrap.getBoundingClientRect();
       const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       const seekTo = pct * track.duration;
-      if (playing) { stopAllSources(false); offsetAt = seekTo; playThisTrack(); }
+      if (playing) { stopAllSources(false); offsetAt = seekTo; playThisTrack(false, true); }
       else { offsetAt = seekTo; updateProgressAt(offsetAt); }
     });
   }
@@ -493,6 +579,14 @@ function initTrackPlayer(track, wrapper) {
     });
   });
 
+  if (loopCountSelect) {
+    loopCountSelect.addEventListener('change', () => {
+      // Mutation directe de l'objet track lu par schedulerTick à chaque cycle — s'applique donc au vol,
+      // y compris en cours de lecture, sans avoir à relancer la piste.
+      track.maxLoops = loopCountSelect.value === '' ? null : parseInt(loopCountSelect.value, 10);
+    });
+  }
+
   async function loadArrayBuffer(item) {
     if (item.localFile) return await item.localFile.arrayBuffer();
     const res = await fetch(track.base + encodeURIComponent(item.file));
@@ -504,13 +598,18 @@ function initTrackPlayer(track, wrapper) {
     let total;
     if (isVerticalRandom) {
       const rawGroups = track.randomGroups || [];
-      total = 1 + rawGroups.reduce((n, g) => n + (g.alternatives || []).filter(layerHasSource).length, 0) + stingerDefs.length;
-      try {
-        const ab = await loadArrayBuffer(track.fixedLayer);
-        fixedBuffer = await ctx.decodeAudioData(ab);
-        loaded++;
-        if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
-      } catch (e) { if (statusEl) statusEl.textContent = 'Erreur de chargement (couche fixe)'; return; }
+      const rawFixed = (track.fixedLayers || []).filter(layerHasSource);
+      total = rawFixed.length + rawGroups.reduce((n, g) => n + (g.alternatives || []).filter(layerHasSource).length, 0) + stingerDefs.length;
+      fixedBuffers = new Array(rawFixed.length).fill(null);
+      for (let fi = 0; fi < rawFixed.length; fi++) {
+        try {
+          const ab = await loadArrayBuffer(rawFixed[fi]);
+          fixedBuffers[fi] = await ctx.decodeAudioData(ab);
+          loaded++;
+          if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+        } catch (e) { /* une couche fixe manquante ne bloque pas les autres */ }
+      }
+      if (fixedBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = 'Erreur de chargement (aucune couche fixe)'; return; }
       for (let gi = 0; gi < rawGroups.length; gi++) {
         const alts = rawGroups[gi].alternatives || [];
         // Même longueur que les alternatives déclarées, y compris les slots vides (intentionnels : ils restent
@@ -548,7 +647,7 @@ function initTrackPlayer(track, wrapper) {
     }
     // Pour une source locale non encore publiée, la durée réelle n'est connue qu'une fois décodée.
     const allMainBuffers = isVerticalRandom
-      ? [fixedBuffer, ...groupBuffers.flat()].filter(Boolean)
+      ? [...fixedBuffers, ...groupBuffers.flat()].filter(Boolean)
       : buffers.filter(Boolean);
     const decodedMax = Math.max(0, ...allMainBuffers.map(b => b.duration), ...stingerBuffers.filter(Boolean).map(b => b.duration));
     if (decodedMax > (track.duration || 0)) {
