@@ -109,6 +109,7 @@
   .buy-btn:hover { opacity: 0.9; }
   .buy-btn.disabled { background: var(--border); color: var(--text-dimmer); cursor: not-allowed; pointer-events: none; }
   .buy-hint { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dimmer); margin-top: 10px; }
+  .layerpitch-credit { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--text-dimmer); opacity: 0.55; letter-spacing: 0.04em; margin-top: 32px; }
 </style>
 </head>
 <body>
@@ -154,6 +155,11 @@ async function init() {
       buySection.innerHTML = `<span class="buy-btn disabled">Bientôt disponible</span><div class="buy-hint">Ce pack n'est pas encore proposé à l'achat.</div>`;
     }
     container.appendChild(buySection);
+
+    const credit = document.createElement('div');
+    credit.className = 'layerpitch-credit';
+    credit.textContent = `${pack.title} · powered by LayerPitch`;
+    container.appendChild(credit);
   } catch (e) {
     container.innerHTML = '<div class="empty">Impossible de charger data.json</div>';
   }

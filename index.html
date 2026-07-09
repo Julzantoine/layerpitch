@@ -134,6 +134,7 @@
   .placeholder-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dimmer); border: 1px dashed var(--border); border-radius: 4px; padding: 8px 12px; display: inline-block; }
 
   .contact { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); letter-spacing: 0.03em; line-height: 1.8; padding-top: 24px; border-top: 1px solid var(--border); }
+  .layerpitch-credit { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--text-dimmer); opacity: 0.55; letter-spacing: 0.04em; margin-top: 16px; }
   .empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 20px 0; }
 </style>
 </head>
@@ -141,6 +142,7 @@
 <div class="page">
   <div id="blocksContainer"></div>
   <div class="contact" id="contact"></div>
+  <div class="layerpitch-credit" id="layerpitchCredit"></div>
 </div>
 
 <script src="player.js"></script>
@@ -346,6 +348,7 @@ async function init() {
         profile.contactEmail ? `<a href="mailto:${profile.contactEmail}">${profile.contactEmail}</a>` : ''
       ].filter(Boolean).join(' &nbsp;/&nbsp; ');
     }
+    document.getElementById('layerpitchCredit').textContent = `${adReel.label || adReel.id} · powered by LayerPitch`;
   } catch (e) {
     container.innerHTML = '<div class="empty">Impossible de charger data.json</div>';
   }
