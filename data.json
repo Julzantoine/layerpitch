@@ -532,6 +532,91 @@
         "bmrc8vlgamn4fl",
         "bmrc9dbzsaio19"
       ]
+    },
+    {
+      "id": "xp-games",
+      "label": "XP Games",
+      "blocks": [
+        {
+          "id": "bmre2nedw74jps",
+          "type": "header"
+        },
+        {
+          "id": "bmre2nedwuc55q",
+          "type": "bio"
+        },
+        {
+          "id": "bmre2nedwknx92",
+          "type": "testimonials"
+        },
+        {
+          "id": "bmre2nedwxfsdn",
+          "type": "tracks"
+        },
+        {
+          "id": "bmre2nedwz2j5b",
+          "type": "video",
+          "videos": [
+            {
+              "title": "https://youtu.be/vHJAhKIIlWc",
+              "url": "https://youtu.be/vHJAhKIIlWc",
+              "comment": "",
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png"
+            }
+          ]
+        },
+        {
+          "id": "bmre2nedwq8gt6",
+          "type": "text",
+          "content": "[Retrouvez pleins d'extraits vidéos dans pleins de styles ICI !](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)\n",
+          "align": "center"
+        },
+        {
+          "id": "bmre2nedwxgejr",
+          "type": "photo",
+          "align": "center",
+          "images": [
+            {
+              "file": "bmrc9wrt713mzm-0.png"
+            },
+            {
+              "file": "bmrc9wrt713mzm-1.png"
+            },
+            {
+              "file": "bmrc9wrt713mzm-2.png"
+            },
+            {
+              "file": "bmrc9wrt713mzm-3.png"
+            }
+          ]
+        }
+      ],
+      "profile": {
+        "tagline": "",
+        "bio": "Jules-Antoine Escande is a composer for visual media, shaped by a rich background as a live performer. Trained in conservatories (classical, jazz, and contemporary music) and at university, he has developed a dynamic and versatile writing style, honed through years of navigating rock, reggae, pop, funk, jazz, and urban music. His extensive live experience brings a keen rhythmic sensitivity and organic energy to his audiovisual storytelling.\nIn 2022, he specialized in media composition by joining the Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), where he explored various genres—fiction, animation, documentary, and video games—while refining his sonic language. In 2026, he further deepened his expertise by enrolling in the MFA in Video Game and Media Composition, focusing on adaptive composition and music implementation within audio engines.\nAlongside his work in visual media, Jules-Antoine composes for live performances and has been the musical director for the youth-focused theater company Des Coccinelles dans les Chaussettes since 2017. He also frequently collaborates with Les Concerts de Poche (songwriting/DAW workshops), La Femme et l'Homme Debout (performances and workshops), and La Roulotte Ruche (street performances).\nIn 2026, Jules-Antoine composed the entire sound design for the latest production, \"Il y a des Choses que Non,\" by the company La Femme et l'Homme Debout.\n",
+        "contactEmail": "",
+        "contactUrl": "",
+        "logo": "logo-main.jpeg",
+        "photo": "photo-main.jpg",
+        "bgColor": "#f6f5f3",
+        "textColor": "#262521"
+      },
+      "testimonials": [
+        {
+          "text": "Jules is a truly creative composer, driven by a genuine thirst for continuous learning and growth. Not only does he have a strong grasp of music theory, but he also possesses a deep sense of musicality. He’s a wonderful person, as well as a passionate and inventive composer.",
+          "author": "(Alioune Koné - Composer)"
+        },
+        {
+          "text": "I was impressed by Jules’ ability to truly listen to the themes and desires expressed in projects. He doesn’t hesitate to take initiative and bring forward strong ideas, while also being eager to research and learn about anything he doesn’t yet know. Jules-Antoine is generous, empathetic, and open-minded.",
+          "author": "(Frederic Maslanka - Scénariste)"
+        }
+      ],
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmrc8vlgamn4fl",
+        "bmrc9dbzsaio19",
+        "bmrdjlv9p1cbv9"
+      ]
     }
   ]
 }
