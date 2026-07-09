@@ -447,7 +447,8 @@
         "bmrc8vlgamn4fl",
         "bmrc9dbzsaio19",
         "bmrdjlv9p1cbv9"
-      ]
+      ],
+      "trackOverrides": {}
     },
     {
       "id": "amsel-suite",
@@ -531,7 +532,8 @@
         "bmrc8rec1wtahz",
         "bmrc8vlgamn4fl",
         "bmrc9dbzsaio19"
-      ]
+      ],
+      "trackOverrides": {}
     },
     {
       "id": "xp-games",
@@ -616,7 +618,29 @@
         "bmrc8vlgamn4fl",
         "bmrc9dbzsaio19",
         "bmrdjlv9p1cbv9"
-      ]
+      ],
+      "trackOverrides": {
+        "bmrc8rec1wtahz": {
+          "description": "An adaptive battle loop with 3 intensity levels (Low/Mid/High), perfect for a hack'n'slash game. The intensity scales with the number of enemies on screen, and the loop blends indie charm with punchy energy—because great combat music should always tease the soap before the shower hits. ",
+          "layers": {
+            "0": "Everything's allright, here",
+            "1": "How many of these guys are there?!",
+            "2": "We all gonne die!!!"
+          }
+        },
+        "bmrc8vlgamn4fl": {
+          "description": "\"Alright, team—let’s move out. If the plan’s right, we shouldn’t be far from the heart of the matrix now!\"\nA static exploration loop for distant danger—with a secret lever stinger to play with, just for fun.",
+          "stingers": {
+            "0": "Secret Lever"
+          }
+        },
+        "bmrc9dbzsaio19": {
+          "description": "It isn't midnight yet. A shadow slips across the rooftops... Fearless, it leaps from roof to gargoyle. Landing lightly on a balcony, the faint click of the French door's latch is almost impossible to hear... Barely moments later, the shadow emerges again, a grin spreading across its face. A shaft of moonlight catches its misshapen jaw. Don Benvenuto.\n\nHe casts one last glance at the spoils of his theft. *Ducatore* is going to be delighted...\n\nBut below, a guard spots him and sounds the alarm. It will take more than that to stop Benvenuto. With mischievous delight, he leads his pursuers on a wild chase... to no avail.\n\nA Opening Yheme for a mysterious, playful fantasy adventure set in the warmth of a summer night.\n"
+        },
+        "bmrdjlv9p1cbv9": {
+          "description": "After countless attempts, the boss finally went down! **Victory!** Loot is raining from the sky, and it takes a while to gather it all. With a bit of luck, we might even get a little cutscene to unlock the next level... who knows? Either way, the music is ready—it’s just waiting for the story.\n\nThree drum parts, four bass parts, six guitar parts, and four keyboard parts... A vertically layered, randomized loop that generates a different musical experience every time you listen."
+        }
+      }
     }
   ]
 }
