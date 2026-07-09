@@ -103,8 +103,9 @@
   <div id="content"></div>
 </div>
 
-<script type="module">
-import { escapeHtml, linkify, renderTracksBlock } from './player.js';
+<script src="player.js"></script>
+<script>
+const { escapeHtml, linkify, renderTracksBlock } = window.LayerPlayerCore;
 
 async function init() {
   const container = document.getElementById('content');
