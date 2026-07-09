@@ -348,7 +348,7 @@ async function init() {
         profile.contactEmail ? `<a href="mailto:${profile.contactEmail}">${profile.contactEmail}</a>` : ''
       ].filter(Boolean).join(' &nbsp;/&nbsp; ');
     }
-    document.getElementById('layerpitchCredit').textContent = `${adReel.label || adReel.id} · powered by LayerPitch`;
+    document.getElementById('layerpitchCredit').textContent = `AdReel for ${adReel.label || adReel.id}, powered by LayerPitch`;
   } catch (e) {
     container.innerHTML = '<div class="empty">Impossible de charger data.json</div>';
   }
