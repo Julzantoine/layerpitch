@@ -301,6 +301,23 @@ function renderVideoBlockItem(container, block) {
   }
   container.appendChild(el);
 }
+// Applique les surcharges de texte propres à cet AdReel (titre/description/labels de couche/labels de
+// stinger) par-dessus le morceau tel qu'il vit dans la Bibliothèque — sans jamais modifier ce dernier.
+// Absent = le texte de la Bibliothèque reste affiché tel quel.
+function applyTrackOverride(track, ov) {
+  if (!ov) return track;
+  const merged = { ...track };
+  if (ov.title !== undefined) merged.title = ov.title;
+  if (ov.description !== undefined) merged.description = ov.description;
+  if (ov.layers && Object.keys(ov.layers).length) {
+    const key = track.mode === 'vertical-random' ? 'fixedLayers' : 'layers';
+    merged[key] = (track[key] || []).map((l, i) => (ov.layers[i] !== undefined ? { ...l, label: ov.layers[i] } : l));
+  }
+  if (ov.stingers && Object.keys(ov.stingers).length) {
+    merged.stingers = (track.stingers || []).map((s, i) => (ov.stingers[i] !== undefined ? { ...s, label: ov.stingers[i] } : s));
+  }
+  return merged;
+}
 async function init() {
   const container = document.getElementById('blocksContainer');
   const adreelId = new URLSearchParams(location.search).get('adreel') || 'main';
@@ -335,7 +352,8 @@ async function init() {
         case 'photo': renderPhotoBlockItem(container, block); break;
         case 'video': renderVideoBlockItem(container, block); break;
         case 'tracks': {
-          const orderedTracks = (adReel.trackIds || []).map(id => libraryById[id]).filter(Boolean);
+          const orderedTracks = (adReel.trackIds || []).map(id => libraryById[id]).filter(Boolean)
+            .map(t => applyTrackOverride(t, (adReel.trackOverrides || {})[t.id]));
           renderTracksBlock(container, orderedTracks, packsByTrackId);
           break;
         }
