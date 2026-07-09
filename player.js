@@ -132,7 +132,7 @@ function buildTrackRow(track, packsForTrack) {
 
   wrapper.innerHTML = `
     <div class="track-row">
-      <button class="play-btn" data-role="playBtn" ${hasFiles ? '' : 'disabled'} aria-label="Lecture">
+      <button class="play-btn" data-role="playBtn" disabled aria-label="Lecture">
         <svg data-role="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
       </button>
       <div class="track-row-title" data-role="titleToggle">
@@ -226,7 +226,20 @@ function initTrackPlayer(track, wrapper) {
   let currentGainNodes = []; // moteur quantifié : gains de la génération la plus récente, par couche (contrôle d'intensité en direct)
   let schedulerTimer = null;
   let voiceGraphTimeouts = [];
-  let latestGenStartCtxTime = 0, latestGenBufferOffset = 0, nextGenStartCtxTime = 0, nextGenBufferOffset = 0;
+  let nextGenStartCtxTime = 0, nextGenBufferOffset = 0;
+  // Historique des générations programmées : { ctxStartTime, bufferOffset }. Sert à retrouver la position
+  // RÉELLEMENT audible à un instant donné (voir currentPlaybackOffset ci-dessous) — pas simplement "la dernière
+  // programmée", qui à cause du lookahead scheduler (jusqu'à 1s d'avance) peut encore être dans le futur au
+  // moment où on la lit, ce qui donnait une tête de lecture visuellement en avance sur le son.
+  let scheduledGens = [];
+  function currentPlaybackOffset() {
+    let chosen = null;
+    for (const g of scheduledGens) {
+      if (g.ctxStartTime <= ctx.currentTime && (!chosen || g.ctxStartTime > chosen.ctxStartTime)) chosen = g;
+    }
+    if (!chosen) return 0;
+    return Math.min(chosen.bufferOffset + (ctx.currentTime - chosen.ctxStartTime), track.duration);
+  }
   // Nombre de boucles (moteur quantifié) : loopsPlayed compte les passages programmés par le scheduler
   // récurrent (pas le tout premier, déclenché directement par playQuantized). Une fois track.maxLoops
   // atteint (si non nul), on arrête de programmer de nouvelles générations et on laisse la dernière
@@ -283,7 +296,7 @@ function initTrackPlayer(track, wrapper) {
   function tick() {
     if (!playing) return;
     const elapsed = useQuantizedLoop
-      ? Math.min(latestGenBufferOffset + (ctx.currentTime - latestGenStartCtxTime), track.duration)
+      ? currentPlaybackOffset()
       : (loops ? (ctx.currentTime - startedAt) % track.duration : Math.min(ctx.currentTime - startedAt, track.duration));
     updateProgressAt(elapsed);
     rafId = requestAnimationFrame(tick);
@@ -367,7 +380,7 @@ function initTrackPlayer(track, wrapper) {
         if (idx >= 0) {
           const alt = (group.alternatives || [])[idx];
           const buf = (groupBuffers[gi] || [])[idx];
-          label = (alt && alt.label) ? alt.label : (buf ? 'Alt. ' + (idx + 1) : '(silence)');
+          label = buf ? ((alt && alt.label) ? alt.label : 'Alt. ' + (idx + 1)) : '(silence)';
           if (buf) {
             const src = ctx.createBufferSource();
             src.buffer = buf;
@@ -399,9 +412,10 @@ function initTrackPlayer(track, wrapper) {
       }
       currentGainNodes = gensThisRound;
     }
-    latestGenStartCtxTime = ctxStartTime;
-    latestGenBufferOffset = bufferOffset;
     lastGenSources = thisGenSources;
+    scheduledGens.push({ ctxStartTime, bufferOffset });
+    const cutoff = ctx.currentTime - Math.max(cycleLength, 4) * 2;
+    if (scheduledGens.length > 6) scheduledGens = scheduledGens.filter(g => g.ctxStartTime >= cutoff);
   }
   function schedulerTick() {
     const lookahead = 1.0;
@@ -469,7 +483,7 @@ function initTrackPlayer(track, wrapper) {
     playing = false;
     if (useQuantizedLoop) {
       if (keepPosition !== false) {
-        offsetAt = Math.min(latestGenBufferOffset + (ctx.currentTime - latestGenStartCtxTime), track.duration);
+        offsetAt = currentPlaybackOffset();
       }
       stopQuantized();
     } else {
@@ -517,7 +531,7 @@ function initTrackPlayer(track, wrapper) {
   function rerollPool() {
     if (!isVerticalRandom) return;
     if (playing) {
-      const currentOffset = Math.min(latestGenBufferOffset + (ctx.currentTime - latestGenStartCtxTime), track.duration);
+      const currentOffset = currentPlaybackOffset();
       stopAllSources(false);
       offsetAt = currentOffset;
       playThisTrack(true, true);
