@@ -68,6 +68,14 @@
   @media (max-width: 540px) { .bio { grid-template-columns: 1fr; } .bio-photo { max-width: 220px; } }
 
   .track-intensity-block { margin-top: 16px; }
+  .voice-graph { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .voice-graph-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 8px; }
+  .voice-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; }
+  .voice-row-label { color: var(--text-dim); min-width: 130px; flex-shrink: 0; }
+  .voice-row-current { font-family: 'JetBrains Mono', monospace; color: var(--text-dim); font-style: italic; }
+  .voice-meter { width: 20px; height: 8px; border-radius: 2px; background: var(--border); flex-shrink: 0; }
+  .voice-meter.pulse { background: var(--accent); animation: voice-meter-fade 0.5s ease-out forwards; }
+  @keyframes voice-meter-fade { 0% { opacity: 1; } 100% { opacity: 0.35; } }
   .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
   .intensity-picker { display: flex; flex-wrap: wrap; gap: 6px; }
   .intensity-chip {
