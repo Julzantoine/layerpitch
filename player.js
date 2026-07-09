@@ -53,7 +53,7 @@ const MODE_LABELS = {
   sequential: 'séquentiel',
   branching: 'embranchement'
 };
-const PLAYABLE_MODES = ['static', 'vertical'];
+const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random'];
 
 function layerHasSource(l) { return !!(l && (l.localFile || l.file)); }
 
@@ -61,15 +61,17 @@ function buildTrackRow(track, packsForTrack) {
   packsForTrack = packsForTrack || [];
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
+  const isVerticalRandom = track.mode === 'vertical-random';
   const loops = !isStatic || !!track.loopable;
-  const hasFiles = supported && layerHasSource(track.layers[0]) &&
-    (isStatic || track.layers.every(layerHasSource));
+  const hasFiles = supported && (isVerticalRandom
+    ? layerHasSource(track.fixedLayer)
+    : layerHasSource(track.layers[0]) && (isStatic || track.layers.every(layerHasSource)));
 
   const wrapper = document.createElement('div');
   wrapper.className = 'track-row-wrapper';
 
   let intensityBlockHtml = '';
-  if (!isStatic && supported) {
+  if (track.mode === 'vertical' && supported) {
     const n = track.layers.length;
     const chips = Array.from({ length: n }, (_, i) => {
       const customLabel = (track.layers[i] && track.layers[i].label) ? track.layers[i].label : '';
@@ -82,6 +84,27 @@ function buildTrackRow(track, packsForTrack) {
       <div class="track-intensity-block">
         <div class="track-intensity-label">Intensité</div>
         <div class="intensity-picker" data-role="slider">${chips}</div>
+      </div>
+    `;
+  }
+
+  let voiceGraphHtml = '';
+  if (isVerticalRandom && supported) {
+    const groupRows = (track.randomGroups || []).map((g, gi) => `
+      <div class="voice-row">
+        <span class="voice-meter" data-role="voiceMeter-${gi}"></span>
+        <span class="voice-row-label">${escapeHtml(g.label || ('Groupe ' + (gi + 1)))}</span>
+        <span class="voice-row-current" data-role="voiceCurrent-${gi}">—</span>
+      </div>
+    `).join('');
+    voiceGraphHtml = `
+      <div class="voice-graph" data-role="voiceGraph">
+        <div class="voice-graph-label">En cours</div>
+        <div class="voice-row">
+          <span class="voice-meter" data-role="voiceMeter-fixed"></span>
+          <span class="voice-row-label">Couche fixe</span>
+        </div>
+        ${groupRows}
       </div>
     `;
   }
@@ -122,6 +145,7 @@ function buildTrackRow(track, packsForTrack) {
         ` : ''}
       `}
       ${intensityBlockHtml}
+      ${voiceGraphHtml}
     </div>
   `;
 
@@ -135,15 +159,17 @@ function buildTrackRow(track, packsForTrack) {
 
 function initTrackPlayer(track, wrapper) {
   const isStatic = track.mode === 'static';
+  const isVerticalRandom = track.mode === 'vertical-random';
   const supported = PLAYABLE_MODES.includes(track.mode);
-  const hasFiles = supported && layerHasSource(track.layers[0]) &&
-    (isStatic || track.layers.every(layerHasSource));
+  const hasFiles = supported && (isVerticalRandom
+    ? layerHasSource(track.fixedLayer)
+    : layerHasSource(track.layers[0]) && (isStatic || track.layers.every(layerHasSource)));
   if (!hasFiles) return;
 
-  const layersToLoad = isStatic ? [track.layers[0]] : track.layers;
-  const profiles = isStatic ? [[1]] : cumulativeProfiles(track.layers.length);
-  const loops = !isStatic || !!track.loopable;
-  const useQuantizedLoop = loops && track.loopEngine === 'quantized';
+  const layersToLoad = isVerticalRandom ? [] : (isStatic ? [track.layers[0]] : track.layers);
+  const profiles = isVerticalRandom ? [] : (isStatic ? [[1]] : cumulativeProfiles(track.layers.length));
+  const loops = !isStatic || !!track.loopable; // toujours vrai pour vertical-random (isStatic est faux)
+  const useQuantizedLoop = isVerticalRandom || (loops && track.loopEngine === 'quantized');
   const stingerDefs = track.stingers ? track.stingers.filter(s => s.file || s.localFile) : [];
 
   // Paramètres du moteur quantifié (BPM/mesures + queue de fin superposée) — ignorés si useQuantizedLoop est faux
@@ -165,12 +191,33 @@ function initTrackPlayer(track, wrapper) {
   const timeTotal = wrapper.querySelector('[data-role="timeTotal"]');
   const notchDots = [...wrapper.querySelectorAll('.intensity-chip')];
   const stingerBtns = [...wrapper.querySelectorAll('.stinger-btn')];
+  const voiceMeterFixed = wrapper.querySelector('[data-role="voiceMeter-fixed"]');
+  const voiceMeters = (track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="voiceMeter-${gi}"]`));
+  const voiceCurrents = (track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="voiceCurrent-${gi}"]`));
 
   let buffers = [], sources = [], gains = []; // moteur simple
   let activeGenSources = []; // moteur quantifié : [{src, gain}], toutes générations (dont queues) confondues
   let currentGainNodes = []; // moteur quantifié : gains de la génération la plus récente, par couche (contrôle d'intensité en direct)
   let schedulerTimer = null;
+  let voiceGraphTimeouts = [];
   let latestGenStartCtxTime = 0, latestGenBufferOffset = 0, nextGenStartCtxTime = 0, nextGenBufferOffset = 0;
+
+  // Spécifique au mode vertical-random
+  let fixedBuffer = null;
+  let groupBuffers = [];    // groupBuffers[g] = [buffer, buffer, ...] pour chaque alternative jouable du groupe g
+  let lastPickedIndex = []; // lastPickedIndex[g] = index de la dernière alternative tirée pour le groupe g (-1 si aucune encore)
+  function pickAlternativeIndex(g) {
+    const group = (track.randomGroups || [])[g];
+    const bufs = groupBuffers[g] || [];
+    const n = bufs.length;
+    if (n === 0) return -1;
+    let idx = Math.floor(Math.random() * n);
+    if (group && group.avoidImmediateRepeat && n > 1) {
+      while (idx === lastPickedIndex[g]) idx = Math.floor(Math.random() * n);
+    }
+    lastPickedIndex[g] = idx;
+    return idx;
+  }
 
   let stingerBuffers = [];
   let activeStingerSources = [];
@@ -245,22 +292,73 @@ function initTrackPlayer(track, wrapper) {
     }
   }
 
-  /* ---- Moteur quantifié (BPM + mesures, retrigger avec queue de fin superposée) ---- */
+  function pulseMeter(el) {
+    if (!el) return;
+    el.classList.remove('pulse');
+    void el.offsetWidth; // force le reflow pour pouvoir rejouer l'animation même si elle est déjà active
+    el.classList.add('pulse');
+  }
+  function scheduleVoiceGraphUpdate(ctxStartTime, groupPicks) {
+    const delayMs = Math.max(0, (ctxStartTime - ctx.currentTime) * 1000);
+    const timeoutId = setTimeout(() => {
+      pulseMeter(voiceMeterFixed);
+      groupPicks.forEach(({ gi, label }) => {
+        pulseMeter(voiceMeters[gi]);
+        if (voiceCurrents[gi]) voiceCurrents[gi].textContent = label;
+      });
+    }, delayMs);
+    voiceGraphTimeouts.push(timeoutId);
+  }
+
+  /* ---- Moteur quantifié / vertical-random (BPM + mesures, retrigger avec queue de fin superposée) ---- */
   function scheduleGeneration(ctxStartTime, bufferOffset) {
-    const p = profiles[level] || profiles[0];
-    const gensThisRound = [];
-    for (let i = 0; i < buffers.length; i++) {
-      if (!buffers[i]) continue;
-      const src = ctx.createBufferSource();
-      src.buffer = buffers[i];
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(p[i] || 0, ctxStartTime);
-      src.connect(g); g.connect(ctx.destination);
-      src.start(ctxStartTime, bufferOffset);
-      activeGenSources.push({ src, gain: g });
-      gensThisRound[i] = g;
+    if (isVerticalRandom) {
+      if (fixedBuffer) {
+        const src = ctx.createBufferSource();
+        src.buffer = fixedBuffer;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(1, ctxStartTime);
+        src.connect(g); g.connect(ctx.destination);
+        src.start(ctxStartTime, bufferOffset);
+        activeGenSources.push({ src, gain: g });
+      }
+      const groupPicks = [];
+      (track.randomGroups || []).forEach((group, gi) => {
+        const idx = pickAlternativeIndex(gi);
+        let label = '—';
+        if (idx >= 0) {
+          const alt = (group.alternatives || [])[idx];
+          const buf = (groupBuffers[gi] || [])[idx];
+          label = (alt && alt.label) ? alt.label : (buf ? 'Alt. ' + (idx + 1) : '(silence)');
+          if (buf) {
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(1, ctxStartTime);
+            src.connect(g); g.connect(ctx.destination);
+            src.start(ctxStartTime, bufferOffset);
+            activeGenSources.push({ src, gain: g });
+          }
+        }
+        groupPicks.push({ gi, label });
+      });
+      scheduleVoiceGraphUpdate(ctxStartTime, groupPicks);
+    } else {
+      const p = profiles[level] || profiles[0];
+      const gensThisRound = [];
+      for (let i = 0; i < buffers.length; i++) {
+        if (!buffers[i]) continue;
+        const src = ctx.createBufferSource();
+        src.buffer = buffers[i];
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(p[i] || 0, ctxStartTime);
+        src.connect(g); g.connect(ctx.destination);
+        src.start(ctxStartTime, bufferOffset);
+        activeGenSources.push({ src, gain: g });
+        gensThisRound[i] = g;
+      }
+      currentGainNodes = gensThisRound;
     }
-    currentGainNodes = gensThisRound;
     latestGenStartCtxTime = ctxStartTime;
     latestGenBufferOffset = bufferOffset;
   }
@@ -276,6 +374,13 @@ function initTrackPlayer(track, wrapper) {
     if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
     activeGenSources.forEach(({ src }) => { try { src.stop(); } catch(e){} });
     activeGenSources = [];
+    voiceGraphTimeouts.forEach(id => clearTimeout(id));
+    voiceGraphTimeouts = [];
+    if (isVerticalRandom) {
+      if (voiceMeterFixed) voiceMeterFixed.classList.remove('pulse');
+      voiceMeters.forEach(el => { if (el) el.classList.remove('pulse'); });
+      voiceCurrents.forEach(el => { if (el) el.textContent = '—'; });
+    }
   }
   function playQuantized(fromOffsetSec) {
     stopQuantized();
@@ -396,14 +501,42 @@ function initTrackPlayer(track, wrapper) {
 
   (async () => {
     let loaded = 0;
-    const total = layersToLoad.length + stingerDefs.length;
-    for (let i = 0; i < layersToLoad.length; i++) {
+    let total;
+    if (isVerticalRandom) {
+      const rawGroups = track.randomGroups || [];
+      total = 1 + rawGroups.reduce((n, g) => n + (g.alternatives || []).filter(layerHasSource).length, 0) + stingerDefs.length;
       try {
-        const ab = await loadArrayBuffer(layersToLoad[i]);
-        buffers[i] = await ctx.decodeAudioData(ab);
+        const ab = await loadArrayBuffer(track.fixedLayer);
+        fixedBuffer = await ctx.decodeAudioData(ab);
         loaded++;
         if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
-      } catch (e) { if (statusEl) statusEl.textContent = 'Erreur de chargement'; return; }
+      } catch (e) { if (statusEl) statusEl.textContent = 'Erreur de chargement (couche fixe)'; return; }
+      for (let gi = 0; gi < rawGroups.length; gi++) {
+        const alts = rawGroups[gi].alternatives || [];
+        // Même longueur que les alternatives déclarées, y compris les slots vides (intentionnels : ils restent
+        // un choix possible du tirage, avec pour effet un cycle silencieux pour ce groupe — pas un fichier à charger).
+        groupBuffers[gi] = new Array(alts.length).fill(null);
+        lastPickedIndex[gi] = -1;
+        for (let ai = 0; ai < alts.length; ai++) {
+          if (!layerHasSource(alts[ai])) continue;
+          try {
+            const ab = await loadArrayBuffer(alts[ai]);
+            groupBuffers[gi][ai] = await ctx.decodeAudioData(ab);
+            loaded++;
+            if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+          } catch (e) { /* fichier manquant : ce tirage restera silencieux plutôt que de bloquer la lecture */ }
+        }
+      }
+    } else {
+      total = layersToLoad.length + stingerDefs.length;
+      for (let i = 0; i < layersToLoad.length; i++) {
+        try {
+          const ab = await loadArrayBuffer(layersToLoad[i]);
+          buffers[i] = await ctx.decodeAudioData(ab);
+          loaded++;
+          if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+        } catch (e) { if (statusEl) statusEl.textContent = 'Erreur de chargement'; return; }
+      }
     }
     for (let i = 0; i < stingerDefs.length; i++) {
       try {
@@ -414,7 +547,10 @@ function initTrackPlayer(track, wrapper) {
       } catch (e) { /* un stinger manquant ne bloque pas la lecture principale */ }
     }
     // Pour une source locale non encore publiée, la durée réelle n'est connue qu'une fois décodée.
-    const decodedMax = Math.max(0, ...buffers.filter(Boolean).map(b => b.duration), ...stingerBuffers.filter(Boolean).map(b => b.duration));
+    const allMainBuffers = isVerticalRandom
+      ? [fixedBuffer, ...groupBuffers.flat()].filter(Boolean)
+      : buffers.filter(Boolean);
+    const decodedMax = Math.max(0, ...allMainBuffers.map(b => b.duration), ...stingerBuffers.filter(Boolean).map(b => b.duration));
     if (decodedMax > (track.duration || 0)) {
       track.duration = decodedMax;
       if (timeTotal) timeTotal.textContent = formatTime(track.duration);
