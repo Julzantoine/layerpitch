@@ -53,13 +53,15 @@ export const MODE_LABELS = {
 };
 export const PLAYABLE_MODES = ['static', 'vertical'];
 
+export function layerHasSource(l) { return !!(l && (l.localFile || l.file)); }
+
 export function buildTrackRow(track, packsForTrack) {
   packsForTrack = packsForTrack || [];
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
   const loops = !isStatic || !!track.loopable;
-  const hasFiles = supported && track.base && track.layers[0] && track.layers[0].file &&
-    (isStatic || track.layers.every(l => l.file));
+  const hasFiles = supported && layerHasSource(track.layers[0]) &&
+    (isStatic || track.layers.every(layerHasSource));
 
   const wrapper = document.createElement('div');
   wrapper.className = 'track-row-wrapper';
@@ -110,7 +112,7 @@ export function buildTrackRow(track, packsForTrack) {
           <div class="progress-fill" data-role="progressFill"></div>
           <div class="progress-head" data-role="progressHead"></div>
         </div>
-        <div class="time-row"><span data-role="timeCurrent">0:00</span><span>${formatTime(track.duration)}</span></div>
+        <div class="time-row"><span data-role="timeCurrent">0:00</span><span data-role="timeTotal">${formatTime(track.duration)}</span></div>
         ${track.stingers && track.stingers.length ? `
           <div class="stingers" data-role="stingers">
             ${track.stingers.map((s, i) => `<button class="stinger-btn" data-stinger="${i}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml(s.label || ('Stinger ' + (i + 1)))}</button>`).join('')}
@@ -132,15 +134,15 @@ export function buildTrackRow(track, packsForTrack) {
 export function initTrackPlayer(track, wrapper) {
   const isStatic = track.mode === 'static';
   const supported = PLAYABLE_MODES.includes(track.mode);
-  const hasFiles = supported && track.base && track.layers[0] && track.layers[0].file &&
-    (isStatic || track.layers.every(l => l.file));
+  const hasFiles = supported && layerHasSource(track.layers[0]) &&
+    (isStatic || track.layers.every(layerHasSource));
   if (!hasFiles) return;
 
   const layersToLoad = isStatic ? [track.layers[0]] : track.layers;
   const profiles = isStatic ? [[1]] : cumulativeProfiles(track.layers.length);
   const loops = !isStatic || !!track.loopable;
   const useQuantizedLoop = loops && track.loopEngine === 'quantized';
-  const stingerDefs = track.stingers ? track.stingers.filter(s => s.file) : [];
+  const stingerDefs = track.stingers ? track.stingers.filter(s => s.file || s.localFile) : [];
 
   // Paramètres du moteur quantifié (BPM/mesures + queue de fin superposée) — ignorés si useQuantizedLoop est faux
   const bpm = track.bpm || 120;
@@ -158,6 +160,7 @@ export function initTrackPlayer(track, wrapper) {
   const fill = wrapper.querySelector('[data-role="progressFill"]');
   const head = wrapper.querySelector('[data-role="progressHead"]');
   const timeCurrent = wrapper.querySelector('[data-role="timeCurrent"]');
+  const timeTotal = wrapper.querySelector('[data-role="timeTotal"]');
   const notchDots = [...wrapper.querySelectorAll('.intensity-chip')];
   const stingerBtns = [...wrapper.querySelectorAll('.stinger-btn')];
 
@@ -383,13 +386,18 @@ export function initTrackPlayer(track, wrapper) {
     });
   });
 
+  async function loadArrayBuffer(item) {
+    if (item.localFile) return await item.localFile.arrayBuffer();
+    const res = await fetch(track.base + encodeURIComponent(item.file));
+    return await res.arrayBuffer();
+  }
+
   (async () => {
     let loaded = 0;
     const total = layersToLoad.length + stingerDefs.length;
     for (let i = 0; i < layersToLoad.length; i++) {
       try {
-        const res = await fetch(track.base + encodeURIComponent(layersToLoad[i].file));
-        const ab = await res.arrayBuffer();
+        const ab = await loadArrayBuffer(layersToLoad[i]);
         buffers[i] = await ctx.decodeAudioData(ab);
         loaded++;
         if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
@@ -397,12 +405,17 @@ export function initTrackPlayer(track, wrapper) {
     }
     for (let i = 0; i < stingerDefs.length; i++) {
       try {
-        const res = await fetch(track.base + encodeURIComponent(stingerDefs[i].file));
-        const ab = await res.arrayBuffer();
+        const ab = await loadArrayBuffer(stingerDefs[i]);
         stingerBuffers[i] = await ctx.decodeAudioData(ab);
         loaded++;
         if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
       } catch (e) { /* un stinger manquant ne bloque pas la lecture principale */ }
+    }
+    // Pour une source locale non encore publiée, la durée réelle n'est connue qu'une fois décodée.
+    const decodedMax = Math.max(0, ...buffers.filter(Boolean).map(b => b.duration), ...stingerBuffers.filter(Boolean).map(b => b.duration));
+    if (decodedMax > (track.duration || 0)) {
+      track.duration = decodedMax;
+      if (timeTotal) timeTotal.textContent = formatTime(track.duration);
     }
     if (statusEl) statusEl.textContent = 'Prêt';
     playBtn.disabled = false;
