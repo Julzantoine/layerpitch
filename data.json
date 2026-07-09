@@ -542,10 +542,6 @@
           "type": "header"
         },
         {
-          "id": "bmre2nedwuc55q",
-          "type": "bio"
-        },
-        {
           "id": "bmre2nedwknx92",
           "type": "testimonials"
         },
@@ -589,6 +585,10 @@
               "file": "bmrc9wrt713mzm-3.png"
             }
           ]
+        },
+        {
+          "id": "bmre2nedwuc55q",
+          "type": "bio"
         }
       ],
       "profile": {
