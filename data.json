@@ -342,6 +342,32 @@
         }
       ],
       "stingers": []
+    },
+    {
+      "id": "bmresp3hdlhbmx",
+      "title": "The Last Door",
+      "description": "Il fait noir... La tension monte. Pourquoi tu nas foncé sans attendre l'équipe? C'est ce que tu te demandes en moment même. La porte au bout du couloir est entrebaillée et laisse passer un mince filet de lumière. Alors... Tu fais quoi? Tu continues la poursuite pour ne pas laisser l'autre s'échapper, au risque de tomber dans le piège... Ou tu attends l'équipe? Respire. Lentement. A fond... Et prends une décision\n\nUne musique statique de mise en tension... Qui a vocation à se transformer bientôt en musique séquentielle... Stay tuned !",
+      "mode": "static",
+      "loopable": false,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "duration": 132.57,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmresp3hdlhbmx/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg"
+        }
+      ],
+      "fixedLayers": [],
+      "randomGroups": [],
+      "stingers": []
     }
   ],
   "packs": [
