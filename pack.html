@@ -46,6 +46,13 @@
   .voice-refresh-btn { margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; padding: 3px 9px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; }
   .voice-refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
   .voice-refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .seq-blocks { display: flex; gap: 6px; margin-top: 8px; margin-bottom: 4px; }
+  .seq-block { flex: 1; height: 30px; border-radius: 4px; border: 1px solid var(--border); position: relative; overflow: hidden; background: transparent; }
+  .seq-block-fill { position: absolute; inset: 0; width: 0%; background: var(--accent-soft, var(--border)); opacity: 0.55; }
+  .seq-block.active { border-color: var(--accent); }
+  .seq-block.active .seq-block-fill { opacity: 0.9; }
+  .seq-block.done .seq-block-fill { background: var(--border); opacity: 1; }
+  .seq-block-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.03em; color: var(--text-dim); z-index: 1; padding: 0 4px; text-align: center; }
   .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
   .intensity-picker { display: flex; flex-wrap: wrap; gap: 6px; }
   .intensity-chip {
@@ -76,11 +83,16 @@
   }
   .loop-icon { display: inline-flex; flex-shrink: 0; color: var(--text-dimmer); }
   .loop-icon svg { width: 11px; height: 11px; }
-  .track-row-details { padding: 0 0 18px 38px; }
+  .track-row-details { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.28s ease; }
+  .track-row-details.expanded { grid-template-rows: 1fr; }
+  .track-row-details-inner { overflow: hidden; min-height: 0; padding: 0 0 18px 38px; }
   .track-desc { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 16px; white-space: pre-wrap; }
   .status { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); margin-bottom: 10px; min-height: 14px; }
 
   .progress-wrap { position: relative; height: 24px; margin-bottom: 6px; cursor: pointer; }
+  .progress-wrap.waveform-mode { height: 44px; }
+  .waveform-bg, .waveform-fg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .waveform-fg { clip-path: inset(0 100% 0 0); }
   .progress-track { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--border); border-radius: 2px; pointer-events: none; }
   .progress-fill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--accent); border-radius: 2px; width: 0%; pointer-events: none; }
   .progress-head { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 9px; height: 9px; background: var(--accent); border-radius: 50%; pointer-events: none; }
@@ -110,6 +122,10 @@
   .buy-btn:hover { opacity: 0.9; }
   .buy-btn.disabled { background: var(--border); color: var(--text-dimmer); cursor: not-allowed; pointer-events: none; }
   .buy-hint { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dimmer); margin-top: 10px; }
+  .contrast-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 24px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); cursor: pointer; user-select: none; }
+  .contrast-toggle input { width: auto; margin: 0; cursor: pointer; }
+  body.high-contrast .contrast-toggle { color: var(--text); font-weight: 600; }
+  body.high-contrast .pack-watermark { display: none; }
   .layerpitch-credit { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--text-dimmer); opacity: 0.55; letter-spacing: 0.04em; margin-top: 32px; }
   .pack-watermark { position: fixed; inset: 0; z-index: -1; background-position: center; background-repeat: no-repeat; background-size: cover; opacity: 0.15; pointer-events: none; }
 </style>
@@ -118,11 +134,12 @@
 <div class="page">
   <a class="back-link" href="./index.html">← Retour</a>
   <div id="content"></div>
+  <label class="contrast-toggle"><input type="checkbox" id="contrastToggle"> Contraste renforcé</label>
 </div>
 
 <script src="player.js"></script>
 <script>
-const { escapeHtml, linkify, renderTracksBlock } = window.LayerPlayerCore;
+const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.LayerPlayerCore;
 
 async function init() {
   const container = document.getElementById('content');
@@ -133,6 +150,7 @@ async function init() {
     const pack = (data.packs || []).find(p => p.id === id);
     if (pack && pack.bgColor) document.documentElement.style.setProperty('--bg', pack.bgColor);
     if (pack && pack.textColor) document.documentElement.style.setProperty('--text', pack.textColor);
+    if (pack) setupContrastToggle('contrastToggle', pack.bgColor, pack.textColor);
     if (!pack) {
       container.innerHTML = '<div class="empty">Pack introuvable.</div>';
       return;
