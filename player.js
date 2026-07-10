@@ -155,7 +155,7 @@ function buildTrackRow(track, packsForTrack) {
       <div class="track-row-title" data-role="titleToggle">
         <span class="name">${escapeHtml(track.title)}</span>
         <span class="mode-tag">${MODE_LABELS[track.mode] || track.mode}</span>
-        ${supported && !isSequential ? `
+        ${supported ? `
           <span class="loop-icon" title="${loops ? 'Bouclable' : 'Ne boucle pas'}">
             ${loops
               ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>'
