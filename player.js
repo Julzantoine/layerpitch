@@ -78,6 +78,15 @@ function buildTrackRow(track, packsForTrack) {
   const isVerticalRandom = track.mode === 'vertical-random';
   const isSequential = track.mode === 'sequential';
   const loops = !isStatic || !!track.loopable;
+  // Même plafond que progressMaxSec() dans initTrackPlayer : vertical-random affiche la longueur du
+  // cycle qui boucle, pas celle du fichier le plus long du pool (voir le commentaire détaillé là-bas).
+  const displayMaxSec = (() => {
+    if (!isVerticalRandom) return track.duration;
+    const spb = 60 / (track.bpm || 120);
+    const lIn = (track.loopInBeat || 0) * spb;
+    const lOut = Math.max(lIn + spb, (track.loopOutBeat || (track.beatsPerBar || 4) * 4) * spb);
+    return lOut || track.duration;
+  })();
   const hasFiles = supported && (isVerticalRandom
     ? (track.fixedLayers || []).some(layerHasSource)
     : isSequential
@@ -244,7 +253,7 @@ function buildTrackRow(track, packsForTrack) {
             <div class="progress-head" data-role="progressHead"></div>
           `}
         </div>
-        <div class="time-row"><span data-role="timeCurrent">0:00</span><span data-role="timeTotal">${formatTime(track.duration)}</span></div>
+        <div class="time-row"><span data-role="timeCurrent">0:00</span><span data-role="timeTotal">${formatTime(displayMaxSec)}</span></div>
         ${track.stingers && track.stingers.length ? `
           <div class="stingers" data-role="stingers">
             ${track.stingers.map((s, i) => `<button class="stinger-btn" data-stinger="${i}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml(s.label || ('Stinger ' + (i + 1)))}</button>`).join('')}
@@ -273,6 +282,13 @@ function initTrackPlayer(track, wrapper) {
   const isVerticalRandom = track.mode === 'vertical-random';
   const isSequential = track.mode === 'sequential';
   const supported = PLAYABLE_MODES.includes(track.mode);
+  // Harmonisation des volumes : décision du compositeur (case à cocher dans le backstage), jamais
+  // automatique — sinon un fichier qui sonne différemment de ce qu'il a exporté serait déroutant.
+  // Le gain mesuré à la conversion reste stocké dans tous les cas ; ce n'est que son application à la
+  // lecture qui dépend de ce réglage.
+  function effGain(item) {
+    return (track.normalizeVolume && item && item.gain) ? item.gain : 1;
+  }
   const hasFiles = supported && (isVerticalRandom
     ? (track.fixedLayers || []).some(layerHasSource)
     : isSequential
@@ -293,6 +309,15 @@ function initTrackPlayer(track, wrapper) {
   const loopInSec = (track.loopInBeat || 0) * secondsPerBeat;
   const loopOutSec = Math.max(loopInSec + secondsPerBeat, (track.loopOutBeat || beatsPerBar * 4) * secondsPerBeat);
   const cycleLength = loopOutSec - loopInSec;
+  // Pour vertical-random, track.duration reflète le fichier le PLUS LONG de tout le pool (couches fixes
+  // + toutes les alternatives de tous les groupes), pas la longueur du cycle qui boucle réellement —
+  // un seul alternative par groupe joue à la fois, souvent bien plus courte que la plus longue du pool.
+  // Sans ce plafond, cliquer loin dans la barre programme un bufferOffset au-delà de la longueur réelle
+  // des buffers en cours de lecture (silence, plus de boucle). Les autres modes gardent track.duration :
+  // toutes leurs couches partagent la même durée par convention, donc pas le même risque.
+  // Fonction plutôt que valeur figée : track.duration n'est connu avec certitude qu'une fois le
+  // décodage terminé (voir plus bas), donc on le relit à chaque appel plutôt que de le geler trop tôt.
+  function progressMaxSec() { return isVerticalRandom ? (loopOutSec || track.duration) : track.duration; }
   // StartTrackPoint : où démarre la toute première lecture (permet de sauter un silence en tête).
   // Ne s'applique qu'au moteur quantifié — le moteur simple garde son comportement natif inchangé.
   const startTrackSec = Math.min((track.startTrackBeat || 0) * secondsPerBeat, loopInSec);
@@ -462,7 +487,7 @@ function initTrackPlayer(track, wrapper) {
       if (g.ctxStartTime <= ctx.currentTime && (!chosen || g.ctxStartTime > chosen.ctxStartTime)) chosen = g;
     }
     if (!chosen) return 0;
-    return Math.min(chosen.bufferOffset + (ctx.currentTime - chosen.ctxStartTime), track.duration);
+    return Math.min(chosen.bufferOffset + (ctx.currentTime - chosen.ctxStartTime), progressMaxSec());
   }
   // Nombre de boucles (moteur quantifié) : loopsPlayed compte les passages programmés par le scheduler
   // récurrent (pas le tout premier, déclenché directement par playQuantized). Une fois track.maxLoops
@@ -602,13 +627,13 @@ function initTrackPlayer(track, wrapper) {
   function decideNextSeqBlock() {
     if (goToEndRequested) {
       goToEndRequested = false;
-      if (outroBuffer) return { buffer: outroBuffer, label: (track.outro && track.outro.label) || 'Outro', durationSec: null, terminal: true, kind: 'outro', gain: (track.outro && track.outro.gain) || 1 };
+      if (outroBuffer) return { buffer: outroBuffer, label: (track.outro && track.outro.label) || 'Outro', durationSec: null, terminal: true, kind: 'outro', gain: effGain(track.outro) };
       return null;
     }
     const idx = pickSegmentIndex();
     if (idx < 0) return null;
     const seg = track.segments[idx];
-    return { buffer: segmentBuffers[idx], label: (seg && seg.label) || ('Segment ' + (idx + 1)), durationSec: blockSeconds(seg && seg.bars), terminal: false, kind: 'segment', gain: (seg && seg.gain) || 1 };
+    return { buffer: segmentBuffers[idx], label: (seg && seg.label) || ('Segment ' + (idx + 1)), durationSec: blockSeconds(seg && seg.bars), terminal: false, kind: 'segment', gain: effGain(seg) };
   }
   function armSeqFinalEnd() {
     const marker = seqLastGenSources[0];
@@ -659,12 +684,12 @@ function initTrackPlayer(track, wrapper) {
     const now = ctx.currentTime;
     let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain;
     if (!isContinuation && introBuffer) {
-      firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars); firstKind = 'intro'; firstGain = (track.intro && track.intro.gain) || 1;
+      firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars); firstKind = 'intro'; firstGain = effGain(track.intro);
     } else {
       const idx = pickSegmentIndex();
       if (idx < 0) { if (statusEl) statusEl.textContent = 'Aucun segment disponible'; return; }
       const seg = track.segments[idx];
-      firstBuffer = segmentBuffers[idx]; firstLabel = (seg && seg.label) || ('Segment ' + (idx + 1)); firstDurationSec = blockSeconds(seg && seg.bars); firstKind = 'segment'; firstGain = (seg && seg.gain) || 1;
+      firstBuffer = segmentBuffers[idx]; firstLabel = (seg && seg.label) || ('Segment ' + (idx + 1)); firstDurationSec = blockSeconds(seg && seg.bars); firstKind = 'segment'; firstGain = effGain(seg);
     }
     scheduleSeqGeneration(now, firstBuffer, firstLabel, firstKind, firstDurationSec, firstGain);
     seqNextStartCtxTime = now + firstDurationSec;
@@ -693,7 +718,7 @@ function initTrackPlayer(track, wrapper) {
 
   function updateProgressAt(elapsed) {
     if (!wrap) return;
-    const pct = (elapsed / track.duration) * 100;
+    const pct = (elapsed / progressMaxSec()) * 100;
     if (fill) fill.style.width = pct + '%';
     if (head) head.style.left = pct + '%';
     if (waveformFg) waveformFg.style.clipPath = `inset(0 ${Math.max(0, 100 - pct)}% 0 0)`;
@@ -745,7 +770,7 @@ function initTrackPlayer(track, wrapper) {
       src.buffer = buffers[i];
       if (loops) { src.loop = true; src.loopStart = 0; src.loopEnd = track.duration; }
       const g = ctx.createGain();
-      g.gain.setValueAtTime((p[i] || 0) * ((layersToLoad[i] && layersToLoad[i].gain) || 1), ctx.currentTime);
+      g.gain.setValueAtTime((p[i] || 0) * effGain(layersToLoad[i]), ctx.currentTime);
       src.connect(g); g.connect(ctx.destination);
       src.start(0, offsetAt % track.duration);
       sources[i] = src; gains[i] = g;
@@ -799,7 +824,7 @@ function initTrackPlayer(track, wrapper) {
         const src = ctx.createBufferSource();
         src.buffer = buf;
         const g = ctx.createGain();
-        g.gain.setValueAtTime((rawFixedLayers[fi] && rawFixedLayers[fi].gain) || 1, ctxStartTime);
+        g.gain.setValueAtTime(effGain(rawFixedLayers[fi]), ctxStartTime);
         src.connect(g); g.connect(ctx.destination);
         src.start(ctxStartTime, bufferOffset);
         activeGenSources.push({ src, gain: g });
@@ -823,7 +848,7 @@ function initTrackPlayer(track, wrapper) {
             const src = ctx.createBufferSource();
             src.buffer = buf;
             const g = ctx.createGain();
-            g.gain.setValueAtTime((alt && alt.gain) || 1, ctxStartTime);
+            g.gain.setValueAtTime(effGain(alt), ctxStartTime);
             src.connect(g); g.connect(ctx.destination);
             src.start(ctxStartTime, bufferOffset);
             activeGenSources.push({ src, gain: g });
@@ -841,7 +866,7 @@ function initTrackPlayer(track, wrapper) {
         const src = ctx.createBufferSource();
         src.buffer = buffers[i];
         const g = ctx.createGain();
-        g.gain.setValueAtTime((p[i] || 0) * ((layersToLoad[i] && layersToLoad[i].gain) || 1), ctxStartTime);
+        g.gain.setValueAtTime((p[i] || 0) * effGain(layersToLoad[i]), ctxStartTime);
         src.connect(g); g.connect(ctx.destination);
         src.start(ctxStartTime, bufferOffset);
         activeGenSources.push({ src, gain: g });
@@ -1006,7 +1031,7 @@ function initTrackPlayer(track, wrapper) {
     wrap.addEventListener('click', (e) => {
       const rect = wrap.getBoundingClientRect();
       const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const seekTo = pct * track.duration;
+      const seekTo = pct * progressMaxSec();
       if (playing) { stopAllSources(false); offsetAt = seekTo; playThisTrack(false, true); }
       else { offsetAt = seekTo; updateProgressAt(offsetAt); }
     });
@@ -1022,7 +1047,7 @@ function initTrackPlayer(track, wrapper) {
       const gainsToRamp = useQuantizedLoop ? currentGainNodes : gains;
       gainsToRamp.forEach((g, i) => {
         if (!g) return;
-        const layerGain = (layersToLoad[i] && layersToLoad[i].gain) || 1;
+        const layerGain = effGain(layersToLoad[i]);
         g.gain.cancelScheduledValues(now);
         g.gain.setValueAtTime(g.gain.value, now);
         g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain, now + 1.4);
@@ -1040,7 +1065,7 @@ function initTrackPlayer(track, wrapper) {
       const src = ctx.createBufferSource();
       src.buffer = buf;
       const g = ctx.createGain();
-      g.gain.setValueAtTime((stingerDefs[idx] && stingerDefs[idx].gain) || 1, ctx.currentTime);
+      g.gain.setValueAtTime(effGain(stingerDefs[idx]), ctx.currentTime);
       src.connect(g); g.connect(ctx.destination);
       src.start(0);
       activeStingerSources.push(src);
@@ -1164,7 +1189,7 @@ function initTrackPlayer(track, wrapper) {
     const decodedMax = Math.max(0, ...allMainBuffers.map(b => b.duration), ...stingerBuffers.filter(Boolean).map(b => b.duration));
     if (decodedMax > (track.duration || 0)) {
       track.duration = decodedMax;
-      if (timeTotal) timeTotal.textContent = formatTime(track.duration);
+      if (timeTotal) timeTotal.textContent = formatTime(progressMaxSec());
     }
     if (statusEl) statusEl.textContent = 'Prêt';
     playBtn.disabled = false;
