@@ -19,15 +19,18 @@
       "layers": [
         {
           "label": "Ca va, c'est cool...",
-          "file": "0-ca-va-c-est-cool.ogg"
+          "file": "0-ca-va-c-est-cool.ogg",
+          "gain": 1
         },
         {
           "label": "Mais ils sont combien comme ça?",
-          "file": "1-mais-ils-sont-combien-comme-ca.ogg"
+          "file": "1-mais-ils-sont-combien-comme-ca.ogg",
+          "gain": 1
         },
         {
           "label": "On va tous crever!!!",
-          "file": "2-on-va-tous-crever.ogg"
+          "file": "2-on-va-tous-crever.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -57,7 +60,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -69,7 +73,8 @@
       "stingers": [
         {
           "label": "Levier Secret",
-          "file": "stinger-0-levier-secret.ogg"
+          "file": "stinger-0-levier-secret.ogg",
+          "gain": 1
         }
       ]
     },
@@ -92,7 +97,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -122,7 +128,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -152,7 +159,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -182,7 +190,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -212,7 +221,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -242,13 +252,15 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": null
+          "file": null,
+          "gain": 1
         }
       ],
       "fixedLayers": [
         {
           "label": "Percussion Main",
-          "file": "fixed.ogg"
+          "file": "fixed.ogg",
+          "gain": 1
         }
       ],
       "randomGroups": [
@@ -258,23 +270,28 @@
           "alternatives": [
             {
               "label": "Vide",
-              "file": null
+              "file": null,
+              "gain": 1
             },
             {
               "label": "AltPerc#1",
-              "file": "group0-1-altperc-1.ogg"
+              "file": "group0-1-altperc-1.ogg",
+              "gain": 1
             },
             {
               "label": "AltPerc#1.5",
-              "file": "group0-2-altperc-1-5.ogg"
+              "file": "group0-2-altperc-1-5.ogg",
+              "gain": 1
             },
             {
               "label": "AltPerc#2",
-              "file": "group0-3-altperc-2.ogg"
+              "file": "group0-3-altperc-2.ogg",
+              "gain": 1
             },
             {
               "label": "AltPerc#2.5",
-              "file": "group0-4-altperc-2-5.ogg"
+              "file": "group0-4-altperc-2-5.ogg",
+              "gain": 1
             }
           ]
         },
@@ -284,19 +301,23 @@
           "alternatives": [
             {
               "label": "BS#1",
-              "file": "group1-0-bs-1.ogg"
+              "file": "group1-0-bs-1.ogg",
+              "gain": 1
             },
             {
               "label": "BS#2",
-              "file": "group1-1-bs-2.ogg"
+              "file": "group1-1-bs-2.ogg",
+              "gain": 1
             },
             {
               "label": "BS#3",
-              "file": "group1-2-bs-3.ogg"
+              "file": "group1-2-bs-3.ogg",
+              "gain": 1
             },
             {
               "label": "BS#4 (Slap)",
-              "file": "group1-3-bs-4-slap.ogg"
+              "file": "group1-3-bs-4-slap.ogg",
+              "gain": 1
             }
           ]
         },
@@ -306,15 +327,18 @@
           "alternatives": [
             {
               "label": "Nappes GT#1",
-              "file": "group2-0-nappes-gt-1.ogg"
+              "file": "group2-0-nappes-gt-1.ogg",
+              "gain": 1
             },
             {
               "label": "Vide",
-              "file": null
+              "file": null,
+              "gain": 1
             },
             {
               "label": "Nappes GT#2",
-              "file": "group2-2-nappes-gt-2.ogg"
+              "file": "group2-2-nappes-gt-2.ogg",
+              "gain": 1
             }
           ]
         },
@@ -324,11 +348,13 @@
           "alternatives": [
             {
               "label": "Cocottes GT#1",
-              "file": "group3-0-cocottes-gt-1.ogg"
+              "file": "group3-0-cocottes-gt-1.ogg",
+              "gain": 1
             },
             {
               "label": "Cocottes GT#2",
-              "file": "group3-1-cocottes-gt-2.ogg"
+              "file": "group3-1-cocottes-gt-2.ogg",
+              "gain": 1
             }
           ]
         },
@@ -338,15 +364,18 @@
           "alternatives": [
             {
               "label": "Nappes KB#1",
-              "file": "group4-0-nappes-kb-1.ogg"
+              "file": "group4-0-nappes-kb-1.ogg",
+              "gain": 1
             },
             {
               "label": "Nappes KB#2",
-              "file": "group4-1-nappes-kb-2.ogg"
+              "file": "group4-1-nappes-kb-2.ogg",
+              "gain": 1
             },
             {
               "label": "Thème KB",
-              "file": "group4-2-theme-kb.ogg"
+              "file": "group4-2-theme-kb.ogg",
+              "gain": 1
             }
           ]
         },
@@ -356,15 +385,18 @@
           "alternatives": [
             {
               "label": "Vide1",
-              "file": null
+              "file": null,
+              "gain": 1
             },
             {
               "label": "Vide2",
-              "file": null
+              "file": null,
+              "gain": 1
             },
             {
               "label": "Thème GT",
-              "file": "group5-2-theme-gt.ogg"
+              "file": "group5-2-theme-gt.ogg",
+              "gain": 1
             }
           ]
         }
@@ -394,7 +426,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -403,32 +436,38 @@
       "intro": {
         "label": "Intro",
         "bars": 14,
-        "file": "intro-intro.ogg"
+        "file": "intro-intro.ogg",
+        "gain": 1
       },
       "outro": {
         "label": "Outro",
-        "file": "outro-outro.ogg"
+        "file": "outro-outro.ogg",
+        "gain": 1
       },
       "segments": [
         {
           "label": "The Last Door Chunk#1 120bpm 8M",
           "bars": 8,
-          "file": "segment-0-the-last-door-chunk-1-120bpm-8m.ogg"
+          "file": "segment-0-the-last-door-chunk-1-120bpm-8m.ogg",
+          "gain": 1
         },
         {
           "label": "The Last Door Chunk#2 120bpm 16M",
           "bars": 16,
-          "file": "segment-1-the-last-door-chunk-2-120bpm-16m.ogg"
+          "file": "segment-1-the-last-door-chunk-2-120bpm-16m.ogg",
+          "gain": 1
         },
         {
           "label": "The Last Door Chunk#3 120bpm 8M",
           "bars": 8,
-          "file": "segment-2-the-last-door-chunk-3-120bpm-8m.ogg"
+          "file": "segment-2-the-last-door-chunk-3-120bpm-8m.ogg",
+          "gain": 1
         },
         {
           "label": "The Last Door Chunk#4 120bpm 8M",
           "bars": 8,
-          "file": "segment-3-the-last-door-chunk-4-120bpm-8m.ogg"
+          "file": "segment-3-the-last-door-chunk-4-120bpm-8m.ogg",
+          "gain": 1
         }
       ],
       "stingers": []
@@ -518,6 +557,7 @@
         "bio": "Jules Antoine est compositeur pour l’image, nourri par un long parcours de musicien de scène. Formé en conservatoire (classique, jazz, musiques actuelles) et à l’université, il développe une écriture vivante et polyvalente, façonnée par des années passées à naviguer entre rock, reggae, pop, funk, jazz et musiques urbaines. Cette expérience du live lui apporte une sensibilité rythmique et une énergie organique qu’il met aujourd’hui au service de la narration audiovisuelle.\n\nEn 2022, il se spécialise dans la composition pour médias en intégrant le Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), au sein duquel il explore différents registres — fiction, animation, documentaire, jeux vidéo — et affine son langage sonore. Il continue de se spécialiser en 2026 en intégrant le MFA \"VideoGame and Mediacomposition\", pour s'aguerrir dans la composition adaptative et l'implémentation de musique au sein de moteurs audios.\n\nParallèlement à son travail pour l’image, il compose pour le spectacle vivant et dirige la création musicale de la compagnie jeune public Des Coccinelles dans les Chaussettes depuis 2017. Il collabore également très régulièrement avec Les concerts de Poche (ateliers écriture/MAO), La Femme et l'Homme Debout (Spectacles, ateliers), La Roulotte ruche (Spectacles de Rue)\n\nEn 2026, Jules-Antoine a notamment composé tout l'habillage sonore du dernier spectacle \"Il y'a des Choses que Non\", de la Compagnie \"La Femme et l'Homme Debout\"",
         "contactEmail": "",
         "contactUrl": "",
+        "formspreeEndpoint": "",
         "logo": "logo-main.jpeg",
         "photo": "photo-main.jpg",
         "bgColor": "#f6f5f3",
@@ -605,6 +645,7 @@
         "bio": "Jules Antoine est compositeur pour l’image, nourri par un long parcours de musicien de scène. Formé en conservatoire (classique, jazz, musiques actuelles) et à l’université, il développe une écriture vivante et polyvalente, façonnée par des années passées à naviguer entre rock, reggae, pop, funk, jazz et musiques urbaines. Cette expérience du live lui apporte une sensibilité rythmique et une énergie organique qu’il met aujourd’hui au service de la narration audiovisuelle.\n\nEn 2022, il se spécialise dans la composition pour médias en intégrant le Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), au sein duquel il explore différents registres — fiction, animation, documentaire, jeux vidéo — et affine son langage sonore. Il continue de se spécialiser en 2026 en intégrant le MFA \"VideoGame and Mediacomposition\", pour s'aguerrir dans la composition adaptative et l'implémentation de musique au sein de moteurs audios.\n\nParallèlement à son travail pour l’image, il compose pour le spectacle vivant et dirige la création musicale de la compagnie jeune public Des Coccinelles dans les Chaussettes depuis 2017. Il collabore également très régulièrement avec Les concerts de Poche (ateliers écriture/MAO), La Femme et l'Homme Debout (Spectacles, ateliers), La Roulotte ruche (Spectacles de Rue)\n\nEn 2026, Jules-Antoine a notamment composé tout l'habillage sonore du dernier spectacle \"Il y'a des Choses que Non\", de la Compagnie \"La Femme et l'Homme Debout\"",
         "contactEmail": "",
         "contactUrl": "",
+        "formspreeEndpoint": "",
         "logo": "logo-main.jpeg",
         "photo": "photo-main.jpg",
         "bgColor": "#f6f5f3",
@@ -690,6 +731,7 @@
         "bio": "Jules-Antoine Escande is a composer for visual media, shaped by a rich background as a live performer. Trained in conservatories (classical, jazz, and contemporary music) and at university, he has developed a dynamic and versatile writing style, honed through years of navigating rock, reggae, pop, funk, jazz, and urban music. His extensive live experience brings a keen rhythmic sensitivity and organic energy to his audiovisual storytelling.\nIn 2022, he specialized in media composition by joining the Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), where he explored various genres—fiction, animation, documentary, and video games—while refining his sonic language. In 2026, he further deepened his expertise by enrolling in the MFA in Video Game and Media Composition, focusing on adaptive composition and music implementation within audio engines.\nAlongside his work in visual media, Jules-Antoine composes for live performances and has been the musical director for the youth-focused theater company Des Coccinelles dans les Chaussettes since 2017. He also frequently collaborates with Les Concerts de Poche (songwriting/DAW workshops), La Femme et l'Homme Debout (performances and workshops), and La Roulotte Ruche (street performances).\nIn 2026, Jules-Antoine composed the entire sound design for the latest production, \"Il y a des Choses que Non,\" by the company La Femme et l'Homme Debout.\n",
         "contactEmail": "",
         "contactUrl": "",
+        "formspreeEndpoint": "",
         "logo": "logo-main.jpeg",
         "photo": "photo-main.jpg",
         "bgColor": "#f6f5f3",
