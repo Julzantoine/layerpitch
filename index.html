@@ -104,12 +104,14 @@
   .wwise-graph-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
   .wwise-line { fill: none; stroke: var(--border); stroke-width: 1.5px; }
   .wwise-col { display: flex; flex-direction: column; justify-content: center; gap: 10px; position: relative; z-index: 1; }
-  .wwise-col-voices { justify-content: space-around; flex: 1; }
+  .wwise-col-voices { justify-content: space-around; align-items: center; flex: 1; }
   .wwise-node { background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dim); white-space: nowrap; text-align: center; }
   .wwise-node-source, .wwise-node-bus { font-weight: 600; color: var(--text); }
-  .wwise-node-voice { display: flex; flex-direction: column; gap: 5px; align-items: center; min-width: 96px; }
-  .wwise-node-label { overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
-  .wwise-node-meter { width: 100%; }
+  .wwise-node-voice { display: flex; flex-direction: column; gap: 5px; align-items: center; width: 220px; flex-shrink: 0; }
+  .wwise-node-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+  .wwise-node-wave { position: relative; width: 100%; height: 30px; border-radius: 3px; overflow: hidden; background: var(--bg); }
+  .wwise-wave-bg, .wwise-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .wwise-wave-fg { clip-path: inset(0 100% 0 0); }
   .voice-meter.pulse { background: var(--accent); animation: voice-meter-fade 0.5s ease-out forwards; }
   @keyframes voice-meter-fade { 0% { opacity: 1; } 100% { opacity: 0.35; } }
   .voice-refresh-btn { margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; padding: 3px 9px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; }

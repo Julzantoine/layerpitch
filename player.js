@@ -127,13 +127,19 @@ function buildTrackRow(track, packsForTrack) {
     const fixedNodes = (track.fixedLayers || []).map((f, fi) => `
       <div class="wwise-node wwise-node-voice" data-role="wwiseVoice-fixed-${fi}">
         <div class="wwise-node-label">${escapeHtml(f && f.label ? f.label : ('Couche fixe ' + (fi + 1)))}</div>
-        <span class="voice-meter-bar wwise-node-meter" data-role="voiceMeter-fixed-${fi}"><span class="voice-meter-bar-fill"></span></span>
+        <span class="wwise-node-wave">
+          <canvas class="wwise-wave-bg" data-role="voiceWaveBg-fixed-${fi}"></canvas>
+          <canvas class="wwise-wave-fg" data-role="voiceWaveFg-fixed-${fi}"></canvas>
+        </span>
       </div>
     `).join('');
     const groupNodes = (track.randomGroups || []).map((g, gi) => `
       <div class="wwise-node wwise-node-voice" data-role="wwiseVoice-group-${gi}">
         <div class="wwise-node-label" data-role="voiceCurrent-${gi}">—</div>
-        <span class="voice-meter-bar wwise-node-meter" data-role="voiceMeter-${gi}"><span class="voice-meter-bar-fill"></span></span>
+        <span class="wwise-node-wave">
+          <canvas class="wwise-wave-bg" data-role="voiceWaveBg-${gi}"></canvas>
+          <canvas class="wwise-wave-fg" data-role="voiceWaveFg-${gi}"></canvas>
+        </span>
       </div>
     `).join('');
     voiceGraphHtml = `
@@ -368,9 +374,23 @@ function initTrackPlayer(track, wrapper) {
   const notchDots = [...wrapper.querySelectorAll('.intensity-chip')];
   const stingerBtns = [...wrapper.querySelectorAll('.stinger-btn')];
   const loopCountSelect = wrapper.querySelector('[data-role="loopCountSelect"]');
-  const voiceMeterFixeds = (track.fixedLayers || []).map((f, fi) => wrapper.querySelector(`[data-role="voiceMeter-fixed-${fi}"] .voice-meter-bar-fill`));
-  const voiceMeters = (track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="voiceMeter-${gi}"] .voice-meter-bar-fill`));
+  const voiceWaveFixed = (track.fixedLayers || []).map((f, fi) => ({
+    bg: wrapper.querySelector(`[data-role="voiceWaveBg-fixed-${fi}"]`),
+    fg: wrapper.querySelector(`[data-role="voiceWaveFg-fixed-${fi}"]`)
+  }));
+  const voiceWaveGroups = (track.randomGroups || []).map((g, gi) => ({
+    bg: wrapper.querySelector(`[data-role="voiceWaveBg-${gi}"]`),
+    fg: wrapper.querySelector(`[data-role="voiceWaveFg-${gi}"]`)
+  }));
   const voiceCurrents = (track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="voiceCurrent-${gi}"]`));
+  // Dessine la waveform d'une voix vertical-random (couche fixe ou alternative piochée) — même principe
+  // fond/avant-plan que la waveform du mode statique et les blocs du mode séquentiel.
+  function drawVoiceWave(els, buffer) {
+    if (!els || !els.bg || !els.fg || !buffer) return;
+    const peaks = computeWaveformPeaks(buffer, 60);
+    drawWaveformCanvas(els.bg, peaks, cssVar('--border', '#ccc'));
+    drawWaveformCanvas(els.fg, peaks, cssVar('--accent', '#c9713c'));
+  }
   // Graphe de nœuds façon Wwise (Voice Graph) pour vertical-random : source -> une voix par couche
   // fixe/groupe -> bus de sortie, reliés par des connecteurs courbes dessinés en SVG. Le nombre de voix
   // est fixe pour un morceau donné (seul le libellé/l'état de chaque voix change à chaque tirage), donc
@@ -694,6 +714,14 @@ function initTrackPlayer(track, wrapper) {
         fillEl.style.width = Math.round(v * 100) + '%';
       });
     }
+    if (isVerticalRandom) {
+      // Toutes les voix redémarrent ensemble à chaque cycle (même scheduler partagé) : une seule
+      // fraction de progression suffit pour synchroniser le recouvrement de toutes les waveforms.
+      const frac = cycleLength > 0 ? Math.min(1, Math.max(0, (elapsed - loopInSec) / cycleLength)) : 0;
+      const clip = `inset(0 ${(1 - frac) * 100}% 0 0)`;
+      voiceWaveFixed.forEach(els => { if (els && els.fg) els.fg.style.clipPath = clip; });
+      voiceWaveGroups.forEach(els => { if (els && els.fg) els.fg.style.clipPath = clip; });
+    }
     rafId = requestAnimationFrame(tick);
   }
   function setStoppedUI() {
@@ -739,30 +767,22 @@ function initTrackPlayer(track, wrapper) {
     void el.offsetWidth; // force le reflow pour pouvoir rejouer l'animation même si elle est déjà active
     el.classList.add('pulse');
   }
-  // Flash de déclenchement sur une barre de vumètre (vertical-random) : redescend brièvement puis
-  // remonte à plein — donne un repère visuel de "nouvelle génération programmée" même quand la valeur
-  // réelle ne change pas (la couche/l'alternative jouait déjà à plein volume juste avant).
-  function activateBarMeter(fillEl) {
-    if (!fillEl) return;
-    fillEl.style.transition = 'none';
-    fillEl.style.width = '30%';
-    void fillEl.offsetWidth;
-    fillEl.style.transition = '';
-    fillEl.style.width = '100%';
-  }
   function scheduleVoiceGraphUpdate(ctxStartTime, groupPicks) {
     const delayMs = Math.max(0, (ctxStartTime - ctx.currentTime) * 1000);
     const timeoutId = setTimeout(() => {
-      voiceMeterFixeds.forEach(activateBarMeter);
       let topologyChanged = false;
-      groupPicks.forEach(({ gi, label, silent }) => {
-        if (!silent) activateBarMeter(voiceMeters[gi]);
+      groupPicks.forEach(({ gi, label, silent, buf }) => {
         if (voiceCurrents[gi]) voiceCurrents[gi].textContent = label;
         const nodeEl = wwiseGroupVoiceEls[gi];
         if (nodeEl) {
           const wasHidden = nodeEl.style.display === 'none';
           nodeEl.style.display = silent ? 'none' : '';
           if (wasHidden !== !!silent) topologyChanged = true;
+        }
+        if (!silent && buf) {
+          drawVoiceWave(voiceWaveGroups[gi], buf);
+          const fg = voiceWaveGroups[gi] && voiceWaveGroups[gi].fg;
+          if (fg) { fg.style.transition = 'none'; fg.style.clipPath = 'inset(0 100% 0 0)'; }
         }
       });
       if (topologyChanged) drawWwiseLines();
@@ -792,10 +812,12 @@ function initTrackPlayer(track, wrapper) {
           : pickAlternativeIndex(gi);
         let label = '—';
         let silent = true;
+        let pickedBuf = null;
         if (idx >= 0) {
           const alt = (group.alternatives || [])[idx];
           const buf = (groupBuffers[gi] || [])[idx];
           silent = !buf;
+          pickedBuf = buf;
           label = buf ? ((alt && alt.label) ? alt.label : 'Alt. ' + (idx + 1)) : '(silence)';
           if (buf) {
             const src = ctx.createBufferSource();
@@ -808,7 +830,7 @@ function initTrackPlayer(track, wrapper) {
             thisGenSources.push(src);
           }
         }
-        groupPicks.push({ gi, label, silent });
+        groupPicks.push({ gi, label, silent, buf: pickedBuf });
       });
       scheduleVoiceGraphUpdate(ctxStartTime, groupPicks);
     } else {
@@ -874,8 +896,8 @@ function initTrackPlayer(track, wrapper) {
     voiceGraphTimeouts.forEach(id => clearTimeout(id));
     voiceGraphTimeouts = [];
     if (isVerticalRandom) {
-      voiceMeterFixeds.forEach(el => { if (el) { el.style.transition = 'none'; el.style.width = '0%'; } });
-      voiceMeters.forEach(el => { if (el) { el.style.transition = 'none'; el.style.width = '0%'; } });
+      voiceWaveFixed.forEach(els => { if (els && els.fg) { els.fg.style.transition = 'none'; els.fg.style.clipPath = 'inset(0 100% 0 0)'; } });
+      voiceWaveGroups.forEach(els => { if (els && els.fg) { els.fg.style.transition = 'none'; els.fg.style.clipPath = 'inset(0 100% 0 0)'; } });
       voiceCurrents.forEach(el => { if (el) el.textContent = '—'; });
       let anyWasHidden = false;
       wwiseGroupVoiceEls.forEach(el => { if (el && el.style.display === 'none') { anyWasHidden = true; el.style.display = ''; } });
@@ -1055,6 +1077,10 @@ function initTrackPlayer(track, wrapper) {
           fixedBuffers[fi] = await ctx.decodeAudioData(ab);
           loaded++;
           if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+          // rawFixed est filtré (layerHasSource) : son index ne correspond pas forcément à celui de
+          // track.fixedLayers utilisé par le gabarit — on retrouve la bonne case par référence d'objet.
+          const origIndex = track.fixedLayers.indexOf(rawFixed[fi]);
+          if (origIndex >= 0) drawVoiceWave(voiceWaveFixed[origIndex], fixedBuffers[fi]);
         } catch (e) { /* une couche fixe manquante ne bloque pas les autres */ }
       }
       if (fixedBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = 'Erreur de chargement (aucune couche fixe)'; return; }
