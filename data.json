@@ -19,15 +19,18 @@
       "layers": [
         {
           "label": "Ca va, c'est cool...",
-          "file": "0-ca-va-c-est-cool.ogg"
+          "file": "0-ca-va-c-est-cool.ogg",
+          "gain": 1
         },
         {
           "label": "Mais ils sont combien comme ça?",
-          "file": "1-mais-ils-sont-combien-comme-ca.ogg"
+          "file": "1-mais-ils-sont-combien-comme-ca.ogg",
+          "gain": 1
         },
         {
           "label": "On va tous crever!!!",
-          "file": "2-on-va-tous-crever.ogg"
+          "file": "2-on-va-tous-crever.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -57,7 +60,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -69,7 +73,8 @@
       "stingers": [
         {
           "label": "Levier Secret",
-          "file": "stinger-0-levier-secret.ogg"
+          "file": "stinger-0-levier-secret.ogg",
+          "gain": 1
         }
       ]
     },
@@ -92,7 +97,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -122,7 +128,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -152,7 +159,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -182,7 +190,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -212,7 +221,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -242,13 +252,15 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": null
+          "file": null,
+          "gain": 1
         }
       ],
       "fixedLayers": [
         {
           "label": "Percussion Main",
-          "file": "fixed.ogg"
+          "file": "fixed.ogg",
+          "gain": 1
         }
       ],
       "randomGroups": [
@@ -258,23 +270,28 @@
           "alternatives": [
             {
               "label": "Vide",
-              "file": null
+              "file": null,
+              "gain": 1
             },
             {
               "label": "AltPerc#1",
-              "file": "group0-1-altperc-1.ogg"
+              "file": "group0-1-altperc-1.ogg",
+              "gain": 1
             },
             {
               "label": "AltPerc#1.5",
-              "file": "group0-2-altperc-1-5.ogg"
+              "file": "group0-2-altperc-1-5.ogg",
+              "gain": 1
             },
             {
               "label": "AltPerc#2",
-              "file": "group0-3-altperc-2.ogg"
+              "file": "group0-3-altperc-2.ogg",
+              "gain": 1
             },
             {
               "label": "AltPerc#2.5",
-              "file": "group0-4-altperc-2-5.ogg"
+              "file": "group0-4-altperc-2-5.ogg",
+              "gain": 1
             }
           ]
         },
@@ -284,19 +301,23 @@
           "alternatives": [
             {
               "label": "BS#1",
-              "file": "group1-0-bs-1.ogg"
+              "file": "group1-0-bs-1.ogg",
+              "gain": 1
             },
             {
               "label": "BS#2",
-              "file": "group1-1-bs-2.ogg"
+              "file": "group1-1-bs-2.ogg",
+              "gain": 1
             },
             {
               "label": "BS#3",
-              "file": "group1-2-bs-3.ogg"
+              "file": "group1-2-bs-3.ogg",
+              "gain": 1
             },
             {
               "label": "BS#4 (Slap)",
-              "file": "group1-3-bs-4-slap.ogg"
+              "file": "group1-3-bs-4-slap.ogg",
+              "gain": 1
             }
           ]
         },
@@ -306,15 +327,18 @@
           "alternatives": [
             {
               "label": "Nappes GT#1",
-              "file": "group2-0-nappes-gt-1.ogg"
+              "file": "group2-0-nappes-gt-1.ogg",
+              "gain": 1
             },
             {
               "label": "Vide",
-              "file": null
+              "file": null,
+              "gain": 1
             },
             {
               "label": "Nappes GT#2",
-              "file": "group2-2-nappes-gt-2.ogg"
+              "file": "group2-2-nappes-gt-2.ogg",
+              "gain": 1
             }
           ]
         },
@@ -324,11 +348,13 @@
           "alternatives": [
             {
               "label": "Cocottes GT#1",
-              "file": "group3-0-cocottes-gt-1.ogg"
+              "file": "group3-0-cocottes-gt-1.ogg",
+              "gain": 1
             },
             {
               "label": "Cocottes GT#2",
-              "file": "group3-1-cocottes-gt-2.ogg"
+              "file": "group3-1-cocottes-gt-2.ogg",
+              "gain": 1
             }
           ]
         },
@@ -338,15 +364,18 @@
           "alternatives": [
             {
               "label": "Nappes KB#1",
-              "file": "group4-0-nappes-kb-1.ogg"
+              "file": "group4-0-nappes-kb-1.ogg",
+              "gain": 1
             },
             {
               "label": "Nappes KB#2",
-              "file": "group4-1-nappes-kb-2.ogg"
+              "file": "group4-1-nappes-kb-2.ogg",
+              "gain": 1
             },
             {
               "label": "Thème KB",
-              "file": "group4-2-theme-kb.ogg"
+              "file": "group4-2-theme-kb.ogg",
+              "gain": 1
             }
           ]
         },
@@ -356,15 +385,18 @@
           "alternatives": [
             {
               "label": "Vide1",
-              "file": null
+              "file": null,
+              "gain": 1
             },
             {
               "label": "Vide2",
-              "file": null
+              "file": null,
+              "gain": 1
             },
             {
               "label": "Thème GT",
-              "file": "group5-2-theme-gt.ogg"
+              "file": "group5-2-theme-gt.ogg",
+              "gain": 1
             }
           ]
         }
@@ -394,7 +426,8 @@
       "layers": [
         {
           "label": "Niveau 1",
-          "file": "0-niveau-1.ogg"
+          "file": "0-niveau-1.ogg",
+          "gain": 1
         }
       ],
       "fixedLayers": [],
@@ -403,32 +436,38 @@
       "intro": {
         "label": "Intro",
         "bars": 14,
-        "file": "intro-intro.ogg"
+        "file": "intro-intro.ogg",
+        "gain": 1
       },
       "outro": {
         "label": "Outro",
-        "file": "outro-outro.ogg"
+        "file": "outro-outro.ogg",
+        "gain": 1
       },
       "segments": [
         {
           "label": "The Last Door Chunk#1 120bpm 8M",
           "bars": 8,
-          "file": "segment-0-the-last-door-chunk-1-120bpm-8m.ogg"
+          "file": "segment-0-the-last-door-chunk-1-120bpm-8m.ogg",
+          "gain": 1
         },
         {
           "label": "The Last Door Chunk#2 120bpm 16M",
           "bars": 16,
-          "file": "segment-1-the-last-door-chunk-2-120bpm-16m.ogg"
+          "file": "segment-1-the-last-door-chunk-2-120bpm-16m.ogg",
+          "gain": 1
         },
         {
           "label": "The Last Door Chunk#3 120bpm 8M",
           "bars": 8,
-          "file": "segment-2-the-last-door-chunk-3-120bpm-8m.ogg"
+          "file": "segment-2-the-last-door-chunk-3-120bpm-8m.ogg",
+          "gain": 1
         },
         {
           "label": "The Last Door Chunk#4 120bpm 8M",
           "bars": 8,
-          "file": "segment-3-the-last-door-chunk-4-120bpm-8m.ogg"
+          "file": "segment-3-the-last-door-chunk-4-120bpm-8m.ogg",
+          "gain": 1
         }
       ],
       "stingers": []
