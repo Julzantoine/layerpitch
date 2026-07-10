@@ -117,16 +117,9 @@ function buildTrackRow(track, packsForTrack) {
 
   let seqGraphHtml = '';
   if (isSequential && supported) {
-    const hasIntro = layerHasSource(track.intro);
-    const hasOutro = layerHasSource(track.outro);
     seqGraphHtml = `
       <div class="voice-graph" data-role="seqGraph">
         <div class="voice-graph-label">En cours</div>
-        <div class="seq-blocks" data-role="seqBlocks">
-          ${hasIntro ? `<div class="seq-block" data-role="seqBlock-intro"><div class="seq-block-fill" data-role="seqFill-intro"></div><span class="seq-block-label">Intro</span></div>` : ''}
-          <div class="seq-block" data-role="seqBlock-segment"><div class="seq-block-fill" data-role="seqFill-segment"></div><span class="seq-block-label">Segment</span></div>
-          ${hasOutro ? `<div class="seq-block" data-role="seqBlock-outro"><div class="seq-block-fill" data-role="seqFill-outro"></div><span class="seq-block-label">Outro</span></div>` : ''}
-        </div>
         <div class="voice-row">
           <span class="voice-meter" data-role="seqMeter"></span>
           <span class="voice-row-current" data-role="seqCurrent">—</span>
@@ -171,8 +164,7 @@ function buildTrackRow(track, packsForTrack) {
         ` : ''}
       </div>
     </div>
-    <div class="track-row-details" data-role="details">
-     <div class="track-row-details-inner">
+    <div class="track-row-details" data-role="details" style="display:none">
       <div class="track-desc">${linkify(track.description || '')}</div>
       ${packsForTrack && packsForTrack.length ? `<div class="pack-link">${packsForTrack.map(p => `<a href="./pack.html?id=${encodeURIComponent(p.id)}">Fait partie du pack : ${escapeHtml(p.title)}</a>`).join('<br>')}</div>` : ''}
       ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
@@ -186,15 +178,10 @@ function buildTrackRow(track, packsForTrack) {
           ` : ''}
         ` : `
         <div class="status" data-role="status">Chargement…</div>
-        <div class="progress-wrap${isStatic ? ' waveform-mode' : ''}" data-role="progressWrap">
-          ${isStatic ? `
-            <canvas class="waveform-bg" data-role="waveformBg"></canvas>
-            <canvas class="waveform-fg" data-role="waveformFg"></canvas>
-          ` : `
-            <div class="progress-track"></div>
-            <div class="progress-fill" data-role="progressFill"></div>
-            <div class="progress-head" data-role="progressHead"></div>
-          `}
+        <div class="progress-wrap" data-role="progressWrap">
+          <div class="progress-track"></div>
+          <div class="progress-fill" data-role="progressFill"></div>
+          <div class="progress-head" data-role="progressHead"></div>
         </div>
         <div class="time-row"><span data-role="timeCurrent">0:00</span><span data-role="timeTotal">${formatTime(track.duration)}</span></div>
         ${track.stingers && track.stingers.length ? `
@@ -207,13 +194,12 @@ function buildTrackRow(track, packsForTrack) {
       ${loopCountHtml}
       ${voiceGraphHtml}
       ${seqGraphHtml}
-     </div>
     </div>
   `;
 
   wrapper.querySelector('[data-role="titleToggle"]').addEventListener('click', () => {
     const details = wrapper.querySelector('[data-role="details"]');
-    details.classList.toggle('expanded');
+    details.style.display = details.style.display === 'none' ? 'block' : 'none';
   });
 
   return wrapper;
@@ -255,62 +241,6 @@ function initTrackPlayer(track, wrapper) {
   const wrap = wrapper.querySelector('[data-role="progressWrap"]');
   const fill = wrapper.querySelector('[data-role="progressFill"]');
   const head = wrapper.querySelector('[data-role="progressHead"]');
-  // Waveform (mode statique uniquement — une seule couche jouée à la fois, donc "la" forme d'onde du
-  // morceau a un sens ; ambigu pour vertical/vertical-random où plusieurs couches sonnent ensemble).
-  const waveformBg = wrapper.querySelector('[data-role="waveformBg"]');
-  const waveformFg = wrapper.querySelector('[data-role="waveformFg"]');
-  let waveformPeaks = null;
-  function cssVar(name, fallback) {
-    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    return v || fallback;
-  }
-  function computeWaveformPeaks(buffer, bucketCount) {
-    const data = buffer.getChannelData(0); // un seul canal suffit pour une représentation visuelle
-    const samplesPerBucket = Math.max(1, Math.floor(data.length / bucketCount));
-    const peaks = new Array(bucketCount).fill(0);
-    for (let i = 0; i < bucketCount; i++) {
-      let max = 0;
-      const start = i * samplesPerBucket;
-      const end = Math.min(start + samplesPerBucket, data.length);
-      for (let j = start; j < end; j++) {
-        const v = Math.abs(data[j]);
-        if (v > max) max = v;
-      }
-      peaks[i] = max;
-    }
-    return peaks;
-  }
-  function drawWaveformCanvas(canvas, peaks, color) {
-    if (!canvas || !peaks) return;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const w = Math.max(1, Math.round(rect.width * dpr));
-    const h = Math.max(1, Math.round(rect.height * dpr));
-    if (w < 2 || h < 2) return; // pas encore mis en page (ex. onglet caché) : on retentera au prochain redraw
-    canvas.width = w; canvas.height = h;
-    const c2d = canvas.getContext('2d');
-    c2d.clearRect(0, 0, w, h);
-    c2d.fillStyle = color;
-    const barCount = peaks.length;
-    const slot = w / barCount;
-    const barWidth = Math.max(1, slot - Math.max(1, Math.round(dpr)));
-    const mid = h / 2;
-    for (let i = 0; i < barCount; i++) {
-      const amp = Math.max(0.04, peaks[i]); // hauteur minimale visible même sur un silence
-      const barH = Math.max(2 * dpr, amp * h);
-      c2d.fillRect(i * slot, mid - barH / 2, barWidth, barH);
-    }
-  }
-  function redrawWaveforms() {
-    drawWaveformCanvas(waveformBg, waveformPeaks, cssVar('--border', '#ccc'));
-    drawWaveformCanvas(waveformFg, waveformPeaks, cssVar('--accent', '#c9713c'));
-  }
-  if (waveformBg && waveformFg) {
-    // Redessine si le contraste renforcé change (couleurs différentes) ou si le conteneur change de taille
-    // (redimensionnement de fenêtre, ou premier dépli depuis l'état replié).
-    document.addEventListener('layerpitch-contrast-changed', redrawWaveforms);
-    if (window.ResizeObserver) new ResizeObserver(redrawWaveforms).observe(waveformBg);
-  }
   const timeCurrent = wrapper.querySelector('[data-role="timeCurrent"]');
   const timeTotal = wrapper.querySelector('[data-role="timeTotal"]');
   const notchDots = [...wrapper.querySelectorAll('.intensity-chip')];
@@ -352,7 +282,6 @@ function initTrackPlayer(track, wrapper) {
 
   // Spécifique au mode vertical-random
   let fixedBuffers = []; // une entrée par couche fixe déclarée (toutes jouent systématiquement, à chaque cycle)
-  let rawFixedLayers = []; // couches fixes réellement chargées (avec fichier), même indexation que fixedBuffers — sert à retrouver le bon gain de correction par index dans scheduleGeneration
   let groupBuffers = [];    // groupBuffers[g] = [buffer, buffer, ...] pour chaque alternative jouable du groupe g
   let lastPickedIndex = []; // lastPickedIndex[g] = index de la dernière alternative tirée pour le groupe g (-1 si aucune encore)
   function pickAlternativeIndex(g) {
@@ -393,73 +322,25 @@ function initTrackPlayer(track, wrapper) {
     lastSegmentIndex = idx;
     return idx;
   }
-  // Visualisation en blocs (intro / segment en cours / outro), qui se remplissent au rythme de la lecture —
-  // demande directe d'un retour compositeur : "montrer un bloc pour le cue de départ qui se remplit en jouant,
-  // puis un bloc pour la boucle tirée au sort, puis un bloc pour le cue de fin".
-  const seqBlockEls = {
-    intro: wrapper.querySelector('[data-role="seqBlock-intro"]'),
-    segment: wrapper.querySelector('[data-role="seqBlock-segment"]'),
-    outro: wrapper.querySelector('[data-role="seqBlock-outro"]')
-  };
-  const seqFillEls = {
-    intro: wrapper.querySelector('[data-role="seqFill-intro"]'),
-    segment: wrapper.querySelector('[data-role="seqFill-segment"]'),
-    outro: wrapper.querySelector('[data-role="seqFill-outro"]')
-  };
-  function activateSeqStage(kind, durationSec) {
-    const order = ['intro', 'segment', 'outro'];
-    const idx = order.indexOf(kind);
-    // Tout ce qui précède ce stade (hors "segment", qui se remplit à nouveau à chaque tirage plutôt que
-    // de passer "fait") est figé plein — reflète la lecture qui vient réellement de passer ce point.
-    order.forEach((k, i) => {
-      if (i >= idx || k === 'segment') return;
-      const block = seqBlockEls[k], fill = seqFillEls[k];
-      if (!block || !fill) return;
-      block.classList.remove('active'); block.classList.add('done');
-      fill.style.transition = 'none'; fill.style.width = '100%';
-    });
-    const block = seqBlockEls[kind], fill = seqFillEls[kind];
-    if (block && fill) {
-      block.classList.remove('done'); block.classList.add('active');
-      fill.style.transition = 'none'; fill.style.width = '0%';
-      void fill.offsetWidth; // force le reflow avant de relancer la transition, sinon le navigateur la fusionne avec le reset ci-dessus
-      if (durationSec > 0) { fill.style.transition = `width ${durationSec}s linear`; fill.style.width = '100%'; }
-    }
-    // Le passage à l'outro clôt définitivement le stade "segment" (plus de nouveau tirage à suivre).
-    if (kind === 'outro' && seqBlockEls.segment && seqFillEls.segment) {
-      seqBlockEls.segment.classList.remove('active'); seqBlockEls.segment.classList.add('done');
-      seqFillEls.segment.style.transition = 'none'; seqFillEls.segment.style.width = '100%';
-    }
-  }
-  function resetSeqStages() {
-    Object.keys(seqBlockEls).forEach(k => {
-      const block = seqBlockEls[k], fill = seqFillEls[k];
-      if (block) block.classList.remove('active', 'done');
-      if (fill) { fill.style.transition = 'none'; fill.style.width = '0%'; }
-    });
-  }
-  function scheduleSeqLabelUpdate(ctxStartTime, label, kind, fillDurationSec) {
+  function scheduleSeqLabelUpdate(ctxStartTime, label) {
     const delayMs = Math.max(0, (ctxStartTime - ctx.currentTime) * 1000);
     const id = setTimeout(() => {
       pulseMeter(seqMeterEl);
       if (seqCurrentEl) seqCurrentEl.textContent = label;
-      if (kind) activateSeqStage(kind, fillDurationSec);
     }, delayMs);
     seqTimeouts.push(id);
   }
-  function scheduleSeqGeneration(ctxStartTime, buffer, label, kind, fillDurationSec, gainValue) {
+  function scheduleSeqGeneration(ctxStartTime, buffer, label) {
     if (!buffer) return;
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     const g = ctx.createGain();
-    g.gain.setValueAtTime(gainValue != null ? gainValue : 1, ctxStartTime);
+    g.gain.setValueAtTime(1, ctxStartTime);
     src.connect(g); g.connect(ctx.destination);
     src.start(ctxStartTime, 0);
     seqActiveSources.push({ src, gain: g });
     seqLastGenSources = [src];
-    // Sans durée explicite (cas de l'outro, qui ne programme rien après elle) : on anime le remplissage
-    // sur la durée réelle du fichier décodé, seule longueur connue dans ce cas.
-    scheduleSeqLabelUpdate(ctxStartTime, label, kind, (fillDurationSec != null) ? fillDurationSec : buffer.duration);
+    scheduleSeqLabelUpdate(ctxStartTime, label);
   }
   // Détermine le prochain bloc à programmer : soit l'outro (si "Aller vers la fin" a été demandé et
   // qu'une outro existe), soit rien du tout (demande faite mais pas d'outro : on laisse filer), soit
@@ -467,13 +348,13 @@ function initTrackPlayer(track, wrapper) {
   function decideNextSeqBlock() {
     if (goToEndRequested) {
       goToEndRequested = false;
-      if (outroBuffer) return { buffer: outroBuffer, label: (track.outro && track.outro.label) || 'Outro', durationSec: null, terminal: true, kind: 'outro', gain: (track.outro && track.outro.gain) || 1 };
+      if (outroBuffer) return { buffer: outroBuffer, label: (track.outro && track.outro.label) || 'Outro', durationSec: null, terminal: true };
       return null;
     }
     const idx = pickSegmentIndex();
     if (idx < 0) return null;
     const seg = track.segments[idx];
-    return { buffer: segmentBuffers[idx], label: (seg && seg.label) || ('Segment ' + (idx + 1)), durationSec: blockSeconds(seg && seg.bars), terminal: false, kind: 'segment', gain: (seg && seg.gain) || 1 };
+    return { buffer: segmentBuffers[idx], label: (seg && seg.label) || ('Segment ' + (idx + 1)), durationSec: blockSeconds(seg && seg.bars), terminal: false };
   }
   function armSeqFinalEnd() {
     const marker = seqLastGenSources[0];
@@ -497,7 +378,7 @@ function initTrackPlayer(track, wrapper) {
         armSeqFinalEnd();
         return;
       }
-      scheduleSeqGeneration(seqNextStartCtxTime, next.buffer, next.label, next.kind, next.terminal ? null : next.durationSec, next.gain);
+      scheduleSeqGeneration(seqNextStartCtxTime, next.buffer, next.label);
       if (next.terminal) {
         clearInterval(seqSchedulerTimer); seqSchedulerTimer = null;
         armSeqFinalEnd();
@@ -517,21 +398,20 @@ function initTrackPlayer(track, wrapper) {
     if (seqMeterEl) seqMeterEl.classList.remove('pulse');
     if (seqCurrentEl) seqCurrentEl.textContent = '—';
     if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = 'Aller vers la fin →'; }
-    resetSeqStages();
   }
   function playSequential(isContinuation) {
     stopSequential();
     const now = ctx.currentTime;
-    let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain;
+    let firstBuffer, firstLabel, firstDurationSec;
     if (!isContinuation && introBuffer) {
-      firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars); firstKind = 'intro'; firstGain = (track.intro && track.intro.gain) || 1;
+      firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars);
     } else {
       const idx = pickSegmentIndex();
       if (idx < 0) { if (statusEl) statusEl.textContent = 'Aucun segment disponible'; return; }
       const seg = track.segments[idx];
-      firstBuffer = segmentBuffers[idx]; firstLabel = (seg && seg.label) || ('Segment ' + (idx + 1)); firstDurationSec = blockSeconds(seg && seg.bars); firstKind = 'segment'; firstGain = (seg && seg.gain) || 1;
+      firstBuffer = segmentBuffers[idx]; firstLabel = (seg && seg.label) || ('Segment ' + (idx + 1)); firstDurationSec = blockSeconds(seg && seg.bars);
     }
-    scheduleSeqGeneration(now, firstBuffer, firstLabel, firstKind, firstDurationSec, firstGain);
+    scheduleSeqGeneration(now, firstBuffer, firstLabel);
     seqNextStartCtxTime = now + firstDurationSec;
     seqSchedulerTimer = setInterval(seqSchedulerTick, 200);
     if (goToEndBtn) goToEndBtn.disabled = false;
@@ -542,7 +422,7 @@ function initTrackPlayer(track, wrapper) {
   const PAUSE_SVG = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
 
   function updateStingerAvailability() {
-    const expanded = details.classList.contains('expanded');
+    const expanded = details.style.display !== 'none';
     setStingerButtonsEnabled(expanded && ready);
   }
 
@@ -553,15 +433,13 @@ function initTrackPlayer(track, wrapper) {
     activeStingerSources.forEach(s => { try { s.stop(); } catch(e){} });
     activeStingerSources = [];
   }
-  trackCollapsers[track.id] = () => { details.classList.remove('expanded'); updateStingerAvailability(); };
+  trackCollapsers[track.id] = () => { details.style.display = 'none'; updateStingerAvailability(); };
   trackStingerKillers[track.id] = killStingers;
 
   function updateProgressAt(elapsed) {
     if (!wrap) return;
     const pct = (elapsed / track.duration) * 100;
-    if (fill) fill.style.width = pct + '%';
-    if (head) head.style.left = pct + '%';
-    if (waveformFg) waveformFg.style.clipPath = `inset(0 ${Math.max(0, 100 - pct)}% 0 0)`;
+    fill.style.width = pct + '%'; head.style.left = pct + '%';
     timeCurrent.textContent = formatTime(elapsed);
   }
   function tick() {
@@ -593,7 +471,7 @@ function initTrackPlayer(track, wrapper) {
       src.buffer = buffers[i];
       if (loops) { src.loop = true; src.loopStart = 0; src.loopEnd = track.duration; }
       const g = ctx.createGain();
-      g.gain.setValueAtTime((p[i] || 0) * ((layersToLoad[i] && layersToLoad[i].gain) || 1), ctx.currentTime);
+      g.gain.setValueAtTime(p[i] || 0, ctx.currentTime);
       src.connect(g); g.connect(ctx.destination);
       src.start(0, offsetAt % track.duration);
       sources[i] = src; gains[i] = g;
@@ -631,12 +509,12 @@ function initTrackPlayer(track, wrapper) {
   function scheduleGeneration(ctxStartTime, bufferOffset, reroll) {
     const thisGenSources = [];
     if (isVerticalRandom) {
-      fixedBuffers.forEach((buf, fi) => {
+      fixedBuffers.forEach(buf => {
         if (!buf) return;
         const src = ctx.createBufferSource();
         src.buffer = buf;
         const g = ctx.createGain();
-        g.gain.setValueAtTime((rawFixedLayers[fi] && rawFixedLayers[fi].gain) || 1, ctxStartTime);
+        g.gain.setValueAtTime(1, ctxStartTime);
         src.connect(g); g.connect(ctx.destination);
         src.start(ctxStartTime, bufferOffset);
         activeGenSources.push({ src, gain: g });
@@ -656,7 +534,7 @@ function initTrackPlayer(track, wrapper) {
             const src = ctx.createBufferSource();
             src.buffer = buf;
             const g = ctx.createGain();
-            g.gain.setValueAtTime((alt && alt.gain) || 1, ctxStartTime);
+            g.gain.setValueAtTime(1, ctxStartTime);
             src.connect(g); g.connect(ctx.destination);
             src.start(ctxStartTime, bufferOffset);
             activeGenSources.push({ src, gain: g });
@@ -674,7 +552,7 @@ function initTrackPlayer(track, wrapper) {
         const src = ctx.createBufferSource();
         src.buffer = buffers[i];
         const g = ctx.createGain();
-        g.gain.setValueAtTime((p[i] || 0) * ((layersToLoad[i] && layersToLoad[i].gain) || 1), ctxStartTime);
+        g.gain.setValueAtTime(p[i] || 0, ctxStartTime);
         src.connect(g); g.connect(ctx.destination);
         src.start(ctxStartTime, bufferOffset);
         activeGenSources.push({ src, gain: g });
@@ -782,7 +660,7 @@ function initTrackPlayer(track, wrapper) {
       if (id !== track.id) trackCollapsers[id]();
     });
     activeTrackId = track.id;
-    details.classList.add('expanded');
+    details.style.display = 'block';
     updateStingerAvailability();
     if (ctx.state === 'suspended') ctx.resume();
     playing = true;
@@ -851,10 +729,9 @@ function initTrackPlayer(track, wrapper) {
       const gainsToRamp = useQuantizedLoop ? currentGainNodes : gains;
       gainsToRamp.forEach((g, i) => {
         if (!g) return;
-        const layerGain = (layersToLoad[i] && layersToLoad[i].gain) || 1;
         g.gain.cancelScheduledValues(now);
         g.gain.setValueAtTime(g.gain.value, now);
-        g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain, now + 1.4);
+        g.gain.linearRampToValueAtTime(p[i] || 0, now + 1.4);
       });
     });
   });
@@ -869,7 +746,7 @@ function initTrackPlayer(track, wrapper) {
       const src = ctx.createBufferSource();
       src.buffer = buf;
       const g = ctx.createGain();
-      g.gain.setValueAtTime((stingerDefs[idx] && stingerDefs[idx].gain) || 1, ctx.currentTime);
+      g.gain.setValueAtTime(1, ctx.currentTime);
       src.connect(g); g.connect(ctx.destination);
       src.start(0);
       activeStingerSources.push(src);
@@ -897,7 +774,6 @@ function initTrackPlayer(track, wrapper) {
     if (isVerticalRandom) {
       const rawGroups = track.randomGroups || [];
       const rawFixed = (track.fixedLayers || []).filter(layerHasSource);
-      rawFixedLayers = rawFixed;
       total = rawFixed.length + rawGroups.reduce((n, g) => n + (g.alternatives || []).filter(layerHasSource).length, 0) + stingerDefs.length;
       fixedBuffers = new Array(rawFixed.length).fill(null);
       for (let fi = 0; fi < rawFixed.length; fi++) {
@@ -967,10 +843,6 @@ function initTrackPlayer(track, wrapper) {
           if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
         } catch (e) { if (statusEl) statusEl.textContent = 'Erreur de chargement'; return; }
       }
-      if (isStatic && buffers[0] && waveformBg) {
-        waveformPeaks = computeWaveformPeaks(buffers[0], 200);
-        redrawWaveforms();
-      }
     }
     for (let i = 0; i < stingerDefs.length; i++) {
       try {
@@ -1002,40 +874,6 @@ function initTrackPlayer(track, wrapper) {
 
 
 
-/* ---------------- Accessibilité : contraste renforcé ---------------- */
-// Case à cocher côté visiteur (mémorisée sur ce navigateur via localStorage) qui remplace les couleurs
-// personnalisées (celles de l'AdReel ou du pack) par une palette à fort contraste, lisible quel que
-// soit le choix esthétique du compositeur. Purement client, aucune dépendance backend.
-const HIGH_CONTRAST_VARS = {
-  '--bg': '#ffffff', '--bg-card': '#ffffff', '--text': '#000000',
-  '--text-dim': '#1a1a1a', '--text-dimmer': '#3a3a3a', '--border': '#000000',
-  '--accent': '#a3390f', '--accent-soft': '#f4d9cb'
-};
-function setupContrastToggle(toggleId, customBg, customText) {
-  const toggle = document.getElementById(toggleId);
-  if (!toggle) return;
-  const root = document.documentElement;
-  function apply(on) {
-    if (on) {
-      Object.keys(HIGH_CONTRAST_VARS).forEach(key => root.style.setProperty(key, HIGH_CONTRAST_VARS[key]));
-    } else {
-      Object.keys(HIGH_CONTRAST_VARS).forEach(key => root.style.removeProperty(key));
-      if (customBg) root.style.setProperty('--bg', customBg);
-      if (customText) root.style.setProperty('--text', customText);
-    }
-    document.body.classList.toggle('high-contrast', on);
-    document.dispatchEvent(new CustomEvent('layerpitch-contrast-changed'));
-  }
-  let saved = false;
-  try { saved = localStorage.getItem('layerpitch-high-contrast') === '1'; } catch (e) {}
-  toggle.checked = saved;
-  apply(saved);
-  toggle.addEventListener('change', () => {
-    apply(toggle.checked);
-    try { localStorage.setItem('layerpitch-high-contrast', toggle.checked ? '1' : '0'); } catch (e) {}
-  });
-}
-
 window.LayerPlayerCore = {
   formatTime,
   cumulativeProfiles,
@@ -1046,7 +884,6 @@ window.LayerPlayerCore = {
   buildTrackRow,
   initTrackPlayer,
   renderTracksBlock,
-  setupContrastToggle,
   MODE_LABELS,
   PLAYABLE_MODES
 };
