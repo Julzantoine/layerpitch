@@ -32,6 +32,10 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
+      "avoidImmediateRepeat": true,
+      "intro": null,
+      "outro": null,
+      "segments": [],
       "stingers": []
     },
     {
@@ -58,6 +62,10 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
+      "avoidImmediateRepeat": true,
+      "intro": null,
+      "outro": null,
+      "segments": [],
       "stingers": [
         {
           "label": "Levier Secret",
@@ -89,6 +97,10 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
+      "avoidImmediateRepeat": true,
+      "intro": null,
+      "outro": null,
+      "segments": [],
       "stingers": []
     },
     {
@@ -115,6 +127,10 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
+      "avoidImmediateRepeat": true,
+      "intro": null,
+      "outro": null,
+      "segments": [],
       "stingers": []
     },
     {
@@ -141,6 +157,10 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
+      "avoidImmediateRepeat": true,
+      "intro": null,
+      "outro": null,
+      "segments": [],
       "stingers": []
     },
     {
@@ -167,6 +187,10 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
+      "avoidImmediateRepeat": true,
+      "intro": null,
+      "outro": null,
+      "segments": [],
       "stingers": []
     },
     {
@@ -193,6 +217,10 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
+      "avoidImmediateRepeat": true,
+      "intro": null,
+      "outro": null,
+      "segments": [],
       "stingers": []
     },
     {
@@ -341,13 +369,17 @@
           ]
         }
       ],
+      "avoidImmediateRepeat": true,
+      "intro": null,
+      "outro": null,
+      "segments": [],
       "stingers": []
     },
     {
       "id": "bmresp3hdlhbmx",
       "title": "The Last Door",
       "description": "Il fait noir... La tension monte. Pourquoi as tu foncé sans attendre l'équipe? C'est ce que tu te demandes en ce moment même... La porte au bout du couloir est entrebaillée et laisse passer un mince filet de lumière. Alors... Tu fais quoi? Tu continues la poursuite pour ne pas laisser l'autre s'échapper, au risque de tomber dans le piège? Ou tu attends l'équipe? Respire. Lentement. A fond... Et prends une décision\n\nUne musique statique de mise en tension... Qui a vocation à se transformer bientôt en musique séquentielle... Stay tuned !",
-      "mode": "static",
+      "mode": "sequential",
       "loopable": false,
       "loopEngine": "simple",
       "bpm": 120,
@@ -367,6 +399,38 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
+      "avoidImmediateRepeat": true,
+      "intro": {
+        "label": "Intro",
+        "bars": 14,
+        "file": "intro-intro.ogg"
+      },
+      "outro": {
+        "label": "Outro",
+        "file": "outro-outro.ogg"
+      },
+      "segments": [
+        {
+          "label": "The Last Door Chunk#1 120bpm 8M",
+          "bars": 8,
+          "file": "segment-0-the-last-door-chunk-1-120bpm-8m.ogg"
+        },
+        {
+          "label": "The Last Door Chunk#2 120bpm 16M",
+          "bars": 16,
+          "file": "segment-1-the-last-door-chunk-2-120bpm-16m.ogg"
+        },
+        {
+          "label": "The Last Door Chunk#3 120bpm 8M",
+          "bars": 8,
+          "file": "segment-2-the-last-door-chunk-3-120bpm-8m.ogg"
+        },
+        {
+          "label": "The Last Door Chunk#4 120bpm 8M",
+          "bars": 8,
+          "file": "segment-3-the-last-door-chunk-4-120bpm-8m.ogg"
+        }
+      ],
       "stingers": []
     }
   ],
