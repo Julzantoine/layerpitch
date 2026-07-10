@@ -53,7 +53,7 @@ const MODE_LABELS = {
   sequential: 'séquentiel',
   branching: 'embranchement'
 };
-const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random'];
+const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential'];
 
 function layerHasSource(l) { return !!(l && (l.localFile || l.file)); }
 
@@ -62,9 +62,12 @@ function buildTrackRow(track, packsForTrack) {
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
   const isVerticalRandom = track.mode === 'vertical-random';
+  const isSequential = track.mode === 'sequential';
   const loops = !isStatic || !!track.loopable;
   const hasFiles = supported && (isVerticalRandom
     ? (track.fixedLayers || []).some(layerHasSource)
+    : isSequential
+    ? (track.segments || []).some(layerHasSource)
     : layerHasSource(track.layers[0]) && (isStatic || track.layers.every(layerHasSource)));
 
   const wrapper = document.createElement('div');
@@ -112,6 +115,20 @@ function buildTrackRow(track, packsForTrack) {
     `;
   }
 
+  let seqGraphHtml = '';
+  if (isSequential && supported) {
+    seqGraphHtml = `
+      <div class="voice-graph" data-role="seqGraph">
+        <div class="voice-graph-label">En cours</div>
+        <div class="voice-row">
+          <span class="voice-meter" data-role="seqMeter"></span>
+          <span class="voice-row-current" data-role="seqCurrent">—</span>
+        </div>
+        <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled>Aller vers la fin →</button>
+      </div>
+    `;
+  }
+
   // Sélecteur de boucles : uniquement pour les pistes qui utilisent le moteur quantifié (seul moteur
   // qui connaît la notion de cycle et donc de "nombre de boucles"). Valeur par défaut = celle choisie
   // par le compositeur, modifiable ici par le visiteur — la piste applique le changement au vol.
@@ -138,7 +155,7 @@ function buildTrackRow(track, packsForTrack) {
       <div class="track-row-title" data-role="titleToggle">
         <span class="name">${escapeHtml(track.title)}</span>
         <span class="mode-tag">${MODE_LABELS[track.mode] || track.mode}</span>
-        ${supported ? `
+        ${supported && !isSequential ? `
           <span class="loop-icon" title="${loops ? 'Bouclable' : 'Ne boucle pas'}">
             ${loops
               ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>'
@@ -151,7 +168,15 @@ function buildTrackRow(track, packsForTrack) {
       <div class="track-desc">${linkify(track.description || '')}</div>
       ${packsForTrack && packsForTrack.length ? `<div class="pack-link">${packsForTrack.map(p => `<a href="./pack.html?id=${encodeURIComponent(p.id)}">Fait partie du pack : ${escapeHtml(p.title)}</a>`).join('<br>')}</div>` : ''}
       ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
-        !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : `
+        !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : (
+        isSequential ? `
+          <div class="status" data-role="status">Chargement…</div>
+          ${track.stingers && track.stingers.length ? `
+            <div class="stingers" data-role="stingers">
+              ${track.stingers.map((s, i) => `<button class="stinger-btn" data-stinger="${i}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml(s.label || ('Stinger ' + (i + 1)))}</button>`).join('')}
+            </div>
+          ` : ''}
+        ` : `
         <div class="status" data-role="status">Chargement…</div>
         <div class="progress-wrap" data-role="progressWrap">
           <div class="progress-track"></div>
@@ -164,10 +189,11 @@ function buildTrackRow(track, packsForTrack) {
             ${track.stingers.map((s, i) => `<button class="stinger-btn" data-stinger="${i}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml(s.label || ('Stinger ' + (i + 1)))}</button>`).join('')}
           </div>
         ` : ''}
-      `}
+      `)}
       ${intensityBlockHtml}
       ${loopCountHtml}
       ${voiceGraphHtml}
+      ${seqGraphHtml}
     </div>
   `;
 
@@ -182,16 +208,19 @@ function buildTrackRow(track, packsForTrack) {
 function initTrackPlayer(track, wrapper) {
   const isStatic = track.mode === 'static';
   const isVerticalRandom = track.mode === 'vertical-random';
+  const isSequential = track.mode === 'sequential';
   const supported = PLAYABLE_MODES.includes(track.mode);
   const hasFiles = supported && (isVerticalRandom
     ? (track.fixedLayers || []).some(layerHasSource)
+    : isSequential
+    ? (track.segments || []).some(layerHasSource)
     : layerHasSource(track.layers[0]) && (isStatic || track.layers.every(layerHasSource)));
   if (!hasFiles) return;
 
-  const layersToLoad = isVerticalRandom ? [] : (isStatic ? [track.layers[0]] : track.layers);
-  const profiles = isVerticalRandom ? [] : (isStatic ? [[1]] : cumulativeProfiles(track.layers.length));
+  const layersToLoad = (isVerticalRandom || isSequential) ? [] : (isStatic ? [track.layers[0]] : track.layers);
+  const profiles = (isVerticalRandom || isSequential) ? [] : (isStatic ? [[1]] : cumulativeProfiles(track.layers.length));
   const loops = !isStatic || !!track.loopable; // toujours vrai pour vertical-random (isStatic est faux)
-  const useQuantizedLoop = isVerticalRandom || (loops && track.loopEngine === 'quantized');
+  const useQuantizedLoop = !isSequential && (isVerticalRandom || (loops && track.loopEngine === 'quantized'));
   const stingerDefs = track.stingers ? track.stingers.filter(s => s.file || s.localFile) : [];
 
   // Paramètres du moteur quantifié (BPM/mesures + queue de fin superposée) — ignorés si useQuantizedLoop est faux
@@ -220,6 +249,9 @@ function initTrackPlayer(track, wrapper) {
   const voiceMeterFixeds = (track.fixedLayers || []).map((f, fi) => wrapper.querySelector(`[data-role="voiceMeter-fixed-${fi}"]`));
   const voiceMeters = (track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="voiceMeter-${gi}"]`));
   const voiceCurrents = (track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="voiceCurrent-${gi}"]`));
+  const seqMeterEl = wrapper.querySelector('[data-role="seqMeter"]');
+  const seqCurrentEl = wrapper.querySelector('[data-role="seqCurrent"]');
+  const goToEndBtn = wrapper.querySelector('[data-role="goToEndBtn"]');
 
   let buffers = [], sources = [], gains = []; // moteur simple
   let activeGenSources = []; // moteur quantifié : [{src, gain}], toutes générations (dont queues) confondues
@@ -267,6 +299,123 @@ function initTrackPlayer(track, wrapper) {
 
   let stingerBuffers = [];
   let activeStingerSources = [];
+
+  // Spécifique au mode séquentiel
+  let introBuffer = null, outroBuffer = null;
+  let segmentBuffers = []; // aligné sur track.segments
+  let lastSegmentIndex = -1;
+  let seqSchedulerTimer = null;
+  let seqNextStartCtxTime = 0;
+  let seqActiveSources = []; // {src, gain} toutes générations confondues (dont queues en train de finir)
+  let seqLastGenSources = [];
+  let seqFinalMarkerSrc = null;
+  let seqTimeouts = [];
+  let goToEndRequested = false;
+  function blockSeconds(bars) { return (bars || beatsPerBar) * beatsPerBar * secondsPerBeat; }
+  function pickSegmentIndex() {
+    const validIdxs = segmentBuffers.map((b, i) => b ? i : -1).filter(i => i >= 0);
+    if (validIdxs.length === 0) return -1;
+    let idx = validIdxs[Math.floor(Math.random() * validIdxs.length)];
+    if (track.avoidImmediateRepeat && validIdxs.length > 1) {
+      while (idx === lastSegmentIndex) idx = validIdxs[Math.floor(Math.random() * validIdxs.length)];
+    }
+    lastSegmentIndex = idx;
+    return idx;
+  }
+  function scheduleSeqLabelUpdate(ctxStartTime, label) {
+    const delayMs = Math.max(0, (ctxStartTime - ctx.currentTime) * 1000);
+    const id = setTimeout(() => {
+      pulseMeter(seqMeterEl);
+      if (seqCurrentEl) seqCurrentEl.textContent = label;
+    }, delayMs);
+    seqTimeouts.push(id);
+  }
+  function scheduleSeqGeneration(ctxStartTime, buffer, label) {
+    if (!buffer) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(1, ctxStartTime);
+    src.connect(g); g.connect(ctx.destination);
+    src.start(ctxStartTime, 0);
+    seqActiveSources.push({ src, gain: g });
+    seqLastGenSources = [src];
+    scheduleSeqLabelUpdate(ctxStartTime, label);
+  }
+  // Détermine le prochain bloc à programmer : soit l'outro (si "Aller vers la fin" a été demandé et
+  // qu'une outro existe), soit rien du tout (demande faite mais pas d'outro : on laisse filer), soit
+  // un segment tiré au sort. `terminal: true` signifie "rien à programmer après ce bloc".
+  function decideNextSeqBlock() {
+    if (goToEndRequested) {
+      goToEndRequested = false;
+      if (outroBuffer) return { buffer: outroBuffer, label: (track.outro && track.outro.label) || 'Outro', durationSec: null, terminal: true };
+      return null;
+    }
+    const idx = pickSegmentIndex();
+    if (idx < 0) return null;
+    const seg = track.segments[idx];
+    return { buffer: segmentBuffers[idx], label: (seg && seg.label) || ('Segment ' + (idx + 1)), durationSec: blockSeconds(seg && seg.bars), terminal: false };
+  }
+  function armSeqFinalEnd() {
+    const marker = seqLastGenSources[0];
+    if (!marker) return;
+    seqFinalMarkerSrc = marker;
+    marker.onended = () => {
+      if (seqFinalMarkerSrc !== marker) return; // piste arrêtée/relancée entretemps : on ignore
+      seqActiveSources = [];
+      playing = false;
+      setStoppedUI();
+      if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = 'Aller vers la fin →'; }
+      if (activeTrackId === track.id) activeTrackId = null;
+    };
+  }
+  function seqSchedulerTick() {
+    const lookahead = 1.0;
+    while (seqNextStartCtxTime < ctx.currentTime + lookahead) {
+      const next = decideNextSeqBlock();
+      if (!next) {
+        clearInterval(seqSchedulerTimer); seqSchedulerTimer = null;
+        armSeqFinalEnd();
+        return;
+      }
+      scheduleSeqGeneration(seqNextStartCtxTime, next.buffer, next.label);
+      if (next.terminal) {
+        clearInterval(seqSchedulerTimer); seqSchedulerTimer = null;
+        armSeqFinalEnd();
+        return;
+      }
+      seqNextStartCtxTime += next.durationSec;
+    }
+  }
+  function stopSequential() {
+    seqFinalMarkerSrc = null;
+    if (seqSchedulerTimer) { clearInterval(seqSchedulerTimer); seqSchedulerTimer = null; }
+    seqActiveSources.forEach(({ src }) => { try { src.stop(); } catch(e){} });
+    seqActiveSources = [];
+    seqTimeouts.forEach(id => clearTimeout(id));
+    seqTimeouts = [];
+    goToEndRequested = false;
+    if (seqMeterEl) seqMeterEl.classList.remove('pulse');
+    if (seqCurrentEl) seqCurrentEl.textContent = '—';
+    if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = 'Aller vers la fin →'; }
+  }
+  function playSequential(isContinuation) {
+    stopSequential();
+    const now = ctx.currentTime;
+    let firstBuffer, firstLabel, firstDurationSec;
+    if (!isContinuation && introBuffer) {
+      firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars);
+    } else {
+      const idx = pickSegmentIndex();
+      if (idx < 0) { if (statusEl) statusEl.textContent = 'Aucun segment disponible'; return; }
+      const seg = track.segments[idx];
+      firstBuffer = segmentBuffers[idx]; firstLabel = (seg && seg.label) || ('Segment ' + (idx + 1)); firstDurationSec = blockSeconds(seg && seg.bars);
+    }
+    scheduleSeqGeneration(now, firstBuffer, firstLabel);
+    seqNextStartCtxTime = now + firstDurationSec;
+    seqSchedulerTimer = setInterval(seqSchedulerTick, 200);
+    if (goToEndBtn) goToEndBtn.disabled = false;
+  }
   let level = 0, playing = false, startedAt = 0, offsetAt = (useQuantizedLoop ? startTrackSec : 0), rafId = null, ready = false;
 
   const PLAY_SVG = '<path d="M8 5v14l11-7z"/>';
@@ -294,7 +443,7 @@ function initTrackPlayer(track, wrapper) {
     timeCurrent.textContent = formatTime(elapsed);
   }
   function tick() {
-    if (!playing) return;
+    if (!playing || isSequential) return;
     const elapsed = useQuantizedLoop
       ? currentPlaybackOffset()
       : (loops ? (ctx.currentTime - startedAt) % track.duration : Math.min(ctx.currentTime - startedAt, track.duration));
@@ -481,7 +630,9 @@ function initTrackPlayer(track, wrapper) {
 
   function stopAllSources(keepPosition) {
     playing = false;
-    if (useQuantizedLoop) {
+    if (isSequential) {
+      stopSequential();
+    } else if (useQuantizedLoop) {
       if (keepPosition !== false) {
         offsetAt = currentPlaybackOffset();
       }
@@ -513,7 +664,9 @@ function initTrackPlayer(track, wrapper) {
     updateStingerAvailability();
     if (ctx.state === 'suspended') ctx.resume();
     playing = true;
-    if (useQuantizedLoop) {
+    if (isSequential) {
+      playSequential(isContinuation);
+    } else if (useQuantizedLoop) {
       // Un vrai démarrage à froid réinitialise le budget de boucles (le premier passage compte déjà comme 1) ;
       // un reroll ou une recherche en cours de lecture (isContinuation) ne remet pas le compteur à zéro et ne l'avance pas non plus.
       // Note : on ne peut pas déduire ça de `playing`, qui est déjà retombé à false par le stopAllSources(false)
@@ -544,6 +697,14 @@ function initTrackPlayer(track, wrapper) {
   if (titleToggle) titleToggle.addEventListener('click', updateStingerAvailability);
   const refreshPoolBtn = wrapper.querySelector('[data-role="refreshPool"]');
   if (refreshPoolBtn) refreshPoolBtn.addEventListener('click', rerollPool);
+  if (goToEndBtn) {
+    goToEndBtn.addEventListener('click', () => {
+      if (!playing || goToEndRequested) return;
+      goToEndRequested = true;
+      goToEndBtn.disabled = true;
+      goToEndBtn.textContent = track.outro ? 'Fin en cours…' : 'Dernier segment…';
+    });
+  }
 
   document.addEventListener('stop-track', (e) => { if (e.detail === track.id) stopAllSources(); });
   playBtn.addEventListener('click', () => { playing ? stopAllSources() : playThisTrack(true); });
@@ -640,6 +801,38 @@ function initTrackPlayer(track, wrapper) {
           } catch (e) { /* fichier manquant : ce tirage restera silencieux plutôt que de bloquer la lecture */ }
         }
       }
+    } else if (isSequential) {
+      const hasIntro = layerHasSource(track.intro);
+      const hasOutro = layerHasSource(track.outro);
+      const segs = (track.segments || []).filter(layerHasSource);
+      total = (hasIntro ? 1 : 0) + (hasOutro ? 1 : 0) + segs.length + stingerDefs.length;
+      segmentBuffers = new Array((track.segments || []).length).fill(null);
+      if (hasIntro) {
+        try {
+          const ab = await loadArrayBuffer(track.intro);
+          introBuffer = await ctx.decodeAudioData(ab);
+          loaded++;
+          if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+        } catch (e) { /* intro manquante : la lecture démarrera directement sur un segment */ }
+      }
+      if (hasOutro) {
+        try {
+          const ab = await loadArrayBuffer(track.outro);
+          outroBuffer = await ctx.decodeAudioData(ab);
+          loaded++;
+          if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+        } catch (e) { /* outro manquante : "Aller vers la fin" laissera simplement filer le segment en cours */ }
+      }
+      for (let sgi = 0; sgi < (track.segments || []).length; sgi++) {
+        if (!layerHasSource(track.segments[sgi])) continue;
+        try {
+          const ab = await loadArrayBuffer(track.segments[sgi]);
+          segmentBuffers[sgi] = await ctx.decodeAudioData(ab);
+          loaded++;
+          if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+        } catch (e) { /* segment manquant : simplement absent du tirage, ne bloque pas le reste */ }
+      }
+      if (segmentBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = 'Erreur de chargement (aucun segment)'; return; }
     } else {
       total = layersToLoad.length + stingerDefs.length;
       for (let i = 0; i < layersToLoad.length; i++) {
@@ -662,6 +855,8 @@ function initTrackPlayer(track, wrapper) {
     // Pour une source locale non encore publiée, la durée réelle n'est connue qu'une fois décodée.
     const allMainBuffers = isVerticalRandom
       ? [...fixedBuffers, ...groupBuffers.flat()].filter(Boolean)
+      : isSequential
+      ? [introBuffer, outroBuffer, ...segmentBuffers].filter(Boolean)
       : buffers.filter(Boolean);
     const decodedMax = Math.max(0, ...allMainBuffers.map(b => b.duration), ...stingerBuffers.filter(Boolean).map(b => b.duration));
     if (decodedMax > (track.duration || 0)) {
