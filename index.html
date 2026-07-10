@@ -62,6 +62,23 @@
   .packs-list-item-title { font-family: 'Space Grotesk', sans-serif; font-size: 15px; }
   .packs-list-item-arrow { color: var(--text-dimmer); font-family: 'JetBrains Mono', monospace; transition: transform 0.15s ease, color 0.15s ease; flex-shrink: 0; }
   .packs-list-item:hover .packs-list-item-arrow { transform: translateX(3px); color: var(--accent); }
+  .contact-form { display: flex; flex-direction: column; max-width: 480px; }
+  .contact-form label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-top: 14px; margin-bottom: 5px; }
+  .contact-form input, .contact-form textarea {
+    font-family: 'Inter', sans-serif; font-size: 14px; padding: 10px 12px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--bg-card); color: var(--text);
+  }
+  .contact-form textarea { resize: vertical; min-height: 100px; font-family: inherit; }
+  .contact-form button {
+    margin-top: 18px; align-self: flex-start; padding: 11px 26px; border-radius: 6px; border: none;
+    background: var(--accent); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer;
+  }
+  .contact-form button:hover { opacity: 0.9; }
+  .contact-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .contact-form-status { margin-top: 10px; font-size: 13px; color: var(--text-dim); min-height: 16px; }
+  .contact-form-status.success { color: #2f9e44; font-family: 'Space Grotesk', sans-serif; font-size: 16px; margin-top: 0; }
+  .contact-form-status.error { color: #c0392b; }
 
   .text-block p { font-size: 14px; line-height: 1.7; color: var(--text-dim); margin-bottom: 12px; white-space: pre-wrap; }
   .text-block p:last-child { margin-bottom: 0; }
@@ -262,6 +279,53 @@ function renderPacksBlockItem(container, block, packsById) {
   container.appendChild(el);
 }
 
+function renderContactBlockItem(container, profile) {
+  const endpoint = profile && profile.formspreeEndpoint && profile.formspreeEndpoint.trim();
+  if (!endpoint) return; // pas configuré côté backstage : ce bloc ne s'affiche simplement pas
+  const el = section('Contact', '');
+  el.innerHTML += `
+    <form data-role="contactForm" class="contact-form">
+      <label>Nom</label>
+      <input type="text" name="name" required>
+      <label>Email</label>
+      <input type="email" name="email" required>
+      <label>Message</label>
+      <textarea name="message" required rows="5"></textarea>
+      <button type="submit" data-role="contactSubmit">Envoyer</button>
+      <div class="contact-form-status" data-role="contactStatus"></div>
+    </form>
+  `;
+  container.appendChild(el);
+  const form = el.querySelector('[data-role="contactForm"]');
+  const submitBtn = el.querySelector('[data-role="contactSubmit"]');
+  const statusEl = el.querySelector('[data-role="contactStatus"]');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    statusEl.textContent = 'Envoi en cours…';
+    statusEl.className = 'contact-form-status';
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: new FormData(form)
+      });
+      if (res.ok) {
+        form.innerHTML = '<div class="contact-form-status success">Merci, ton message a été envoyé ✓</div>';
+      } else {
+        const data = await res.json().catch(() => ({}));
+        statusEl.textContent = (data.errors && data.errors.map(er => er.message).join(', ')) || 'Une erreur est survenue — réessaie.';
+        statusEl.className = 'contact-form-status error';
+        submitBtn.disabled = false;
+      }
+    } catch (err) {
+      statusEl.textContent = "Impossible d'envoyer le message (connexion ?) — réessaie.";
+      statusEl.className = 'contact-form-status error';
+      submitBtn.disabled = false;
+    }
+  });
+}
+
 function renderVideoBlockItem(container, block) {
   if (!block.videos || block.videos.length === 0) return;
   const makeCard = (v) => {
@@ -378,6 +442,7 @@ async function init() {
         case 'photo': renderPhotoBlockItem(container, block); break;
         case 'video': renderVideoBlockItem(container, block); break;
         case 'packs': renderPacksBlockItem(container, block, packsById); break;
+        case 'contact': renderContactBlockItem(container, profile); break;
         case 'tracks': {
           const orderedTracks = (adReel.trackIds || []).map(id => libraryById[id]).filter(Boolean)
             .map(t => applyTrackOverride(t, (adReel.trackOverrides || {})[t.id]));
