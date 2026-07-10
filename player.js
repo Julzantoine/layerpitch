@@ -124,23 +124,34 @@ function buildTrackRow(track, packsForTrack) {
 
   let voiceGraphHtml = '';
   if (isVerticalRandom && supported) {
-    const fixedRows = (track.fixedLayers || []).map((f, fi) => `
-      <div class="voice-row">
-        <span class="voice-row-label">${escapeHtml(f && f.label ? f.label : ('Couche fixe ' + (fi + 1)))}</span>
-        <span class="voice-meter-bar" data-role="voiceMeter-fixed-${fi}"><span class="voice-meter-bar-fill"></span></span>
+    const fixedNodes = (track.fixedLayers || []).map((f, fi) => `
+      <div class="wwise-node wwise-node-voice" data-role="wwiseVoice-fixed-${fi}">
+        <div class="wwise-node-label">${escapeHtml(f && f.label ? f.label : ('Couche fixe ' + (fi + 1)))}</div>
+        <span class="voice-meter-bar wwise-node-meter" data-role="voiceMeter-fixed-${fi}"><span class="voice-meter-bar-fill"></span></span>
       </div>
     `).join('');
-    const groupRows = (track.randomGroups || []).map((g, gi) => `
-      <div class="voice-row">
-        <span class="voice-row-current" data-role="voiceCurrent-${gi}">—</span>
-        <span class="voice-meter-bar" data-role="voiceMeter-${gi}"><span class="voice-meter-bar-fill"></span></span>
+    const groupNodes = (track.randomGroups || []).map((g, gi) => `
+      <div class="wwise-node wwise-node-voice" data-role="wwiseVoice-group-${gi}">
+        <div class="wwise-node-label" data-role="voiceCurrent-${gi}">—</div>
+        <span class="voice-meter-bar wwise-node-meter" data-role="voiceMeter-${gi}"><span class="voice-meter-bar-fill"></span></span>
       </div>
     `).join('');
     voiceGraphHtml = `
       <div class="voice-graph" data-role="voiceGraph">
         <div class="voice-graph-label">En cours</div>
-        ${fixedRows}
-        ${groupRows}
+        <div class="wwise-graph" data-role="wwiseGraph">
+          <svg class="wwise-graph-lines" data-role="wwiseLines"></svg>
+          <div class="wwise-col wwise-col-source">
+            <div class="wwise-node wwise-node-source" data-role="wwiseSource">${escapeHtml(track.title || 'Morceau')}</div>
+          </div>
+          <div class="wwise-col wwise-col-voices">
+            ${fixedNodes}
+            ${groupNodes}
+          </div>
+          <div class="wwise-col wwise-col-bus">
+            <div class="wwise-node wwise-node-bus" data-role="wwiseBus">Sortie</div>
+          </div>
+        </div>
         <button type="button" class="voice-refresh-btn" data-role="refreshPool">↻ Rafraîchir le pool</button>
       </div>
     `;
@@ -360,6 +371,53 @@ function initTrackPlayer(track, wrapper) {
   const voiceMeterFixeds = (track.fixedLayers || []).map((f, fi) => wrapper.querySelector(`[data-role="voiceMeter-fixed-${fi}"] .voice-meter-bar-fill`));
   const voiceMeters = (track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="voiceMeter-${gi}"] .voice-meter-bar-fill`));
   const voiceCurrents = (track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="voiceCurrent-${gi}"]`));
+  // Graphe de nœuds façon Wwise (Voice Graph) pour vertical-random : source -> une voix par couche
+  // fixe/groupe -> bus de sortie, reliés par des connecteurs courbes dessinés en SVG. Le nombre de voix
+  // est fixe pour un morceau donné (seul le libellé/l'état de chaque voix change à chaque tirage), donc
+  // les connecteurs ne sont redessinés qu'au premier rendu et au redimensionnement, pas à chaque tirage.
+  const wwiseGraphEl = wrapper.querySelector('[data-role="wwiseGraph"]');
+  const wwiseLinesEl = wrapper.querySelector('[data-role="wwiseLines"]');
+  const wwiseSourceEl = wrapper.querySelector('[data-role="wwiseSource"]');
+  const wwiseBusEl = wrapper.querySelector('[data-role="wwiseBus"]');
+  const wwiseVoiceEls = [
+    ...(track.fixedLayers || []).map((f, fi) => wrapper.querySelector(`[data-role="wwiseVoice-fixed-${fi}"]`)),
+    ...(track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="wwiseVoice-group-${gi}"]`))
+  ];
+  // Référence directe par groupe (pas seulement dans la liste à plat ci-dessus) pour pouvoir cacher/montrer
+  // une voix précise quand son tirage tombe sur un slot silencieux — voir scheduleVoiceGraphUpdate.
+  const wwiseGroupVoiceEls = (track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="wwiseVoice-group-${gi}"]`));
+  function drawWwiseLines() {
+    if (!wwiseGraphEl || !wwiseLinesEl || !wwiseSourceEl || !wwiseBusEl) return;
+    const rect = wwiseGraphEl.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    const svgNS = 'http://www.w3.org/2000/svg';
+    wwiseLinesEl.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+    wwiseLinesEl.innerHTML = '';
+    const srcRect = wwiseSourceEl.getBoundingClientRect();
+    const busRect = wwiseBusEl.getBoundingClientRect();
+    const srcPoint = { x: srcRect.right - rect.left, y: srcRect.top + srcRect.height / 2 - rect.top };
+    const busPoint = { x: busRect.left - rect.left, y: busRect.top + busRect.height / 2 - rect.top };
+    wwiseVoiceEls.forEach(voiceEl => {
+      if (!voiceEl || voiceEl.style.display === 'none') return; // voix actuellement silencieuse : pas de connecteur vers du vide
+      const vRect = voiceEl.getBoundingClientRect();
+      const vLeft = { x: vRect.left - rect.left, y: vRect.top + vRect.height / 2 - rect.top };
+      const vRight = { x: vRect.right - rect.left, y: vRect.top + vRect.height / 2 - rect.top };
+      const mid1 = (srcPoint.x + vLeft.x) / 2;
+      const path1 = document.createElementNS(svgNS, 'path');
+      path1.setAttribute('d', `M ${srcPoint.x} ${srcPoint.y} C ${mid1} ${srcPoint.y}, ${mid1} ${vLeft.y}, ${vLeft.x} ${vLeft.y}`);
+      path1.setAttribute('class', 'wwise-line');
+      wwiseLinesEl.appendChild(path1);
+      const mid2 = (vRight.x + busPoint.x) / 2;
+      const path2 = document.createElementNS(svgNS, 'path');
+      path2.setAttribute('d', `M ${vRight.x} ${vRight.y} C ${mid2} ${vRight.y}, ${mid2} ${busPoint.y}, ${busPoint.x} ${busPoint.y}`);
+      path2.setAttribute('class', 'wwise-line');
+      wwiseLinesEl.appendChild(path2);
+    });
+  }
+  if (wwiseGraphEl) {
+    requestAnimationFrame(drawWwiseLines); // laisse le temps à un premier passage de mise en page
+    if (window.ResizeObserver) new ResizeObserver(drawWwiseLines).observe(wwiseGraphEl);
+  }
   // Vumètres du mode vertical classique — remplissage en direct sur le vrai gain de chaque couche,
   // visible pendant le fondu enchaîné quand l'intensité change (voir tick() plus bas).
   const vertMeterFills = (track.mode === 'vertical' ? track.layers : []).map((l, i) => wrapper.querySelector(`[data-role="vertMeter-${i}"] .voice-meter-bar-fill`));
@@ -696,10 +754,18 @@ function initTrackPlayer(track, wrapper) {
     const delayMs = Math.max(0, (ctxStartTime - ctx.currentTime) * 1000);
     const timeoutId = setTimeout(() => {
       voiceMeterFixeds.forEach(activateBarMeter);
-      groupPicks.forEach(({ gi, label }) => {
-        activateBarMeter(voiceMeters[gi]);
+      let topologyChanged = false;
+      groupPicks.forEach(({ gi, label, silent }) => {
+        if (!silent) activateBarMeter(voiceMeters[gi]);
         if (voiceCurrents[gi]) voiceCurrents[gi].textContent = label;
+        const nodeEl = wwiseGroupVoiceEls[gi];
+        if (nodeEl) {
+          const wasHidden = nodeEl.style.display === 'none';
+          nodeEl.style.display = silent ? 'none' : '';
+          if (wasHidden !== !!silent) topologyChanged = true;
+        }
       });
+      if (topologyChanged) drawWwiseLines();
     }, delayMs);
     voiceGraphTimeouts.push(timeoutId);
   }
@@ -725,9 +791,11 @@ function initTrackPlayer(track, wrapper) {
           ? lastPickedIndex[gi]
           : pickAlternativeIndex(gi);
         let label = '—';
+        let silent = true;
         if (idx >= 0) {
           const alt = (group.alternatives || [])[idx];
           const buf = (groupBuffers[gi] || [])[idx];
+          silent = !buf;
           label = buf ? ((alt && alt.label) ? alt.label : 'Alt. ' + (idx + 1)) : '(silence)';
           if (buf) {
             const src = ctx.createBufferSource();
@@ -740,7 +808,7 @@ function initTrackPlayer(track, wrapper) {
             thisGenSources.push(src);
           }
         }
-        groupPicks.push({ gi, label });
+        groupPicks.push({ gi, label, silent });
       });
       scheduleVoiceGraphUpdate(ctxStartTime, groupPicks);
     } else {
@@ -809,6 +877,9 @@ function initTrackPlayer(track, wrapper) {
       voiceMeterFixeds.forEach(el => { if (el) { el.style.transition = 'none'; el.style.width = '0%'; } });
       voiceMeters.forEach(el => { if (el) { el.style.transition = 'none'; el.style.width = '0%'; } });
       voiceCurrents.forEach(el => { if (el) el.textContent = '—'; });
+      let anyWasHidden = false;
+      wwiseGroupVoiceEls.forEach(el => { if (el && el.style.display === 'none') { anyWasHidden = true; el.style.display = ''; } });
+      if (anyWasHidden) drawWwiseLines();
     }
   }
   function playQuantized(fromOffsetSec, reroll) {
