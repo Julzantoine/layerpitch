@@ -44,6 +44,25 @@ const trackCollapsers = {};
 const trackStingerKillers = {};
 let activeTrackId = null;
 
+// Empêche l'écran de se verrouiller pendant qu'une piste joue (sinon le tél s'éteint "comme si de rien
+// n'était" pendant une écoute) — best-effort, l'API n'existe pas partout, et le verrou se relâche de
+// toute façon automatiquement si l'onglet passe en arrière-plan (voir la reprise après veille plus bas).
+const playingTrackIds = new Set(); // pas activeTrackId : celui-ci n'est jamais effacé sur une simple pause manuelle
+let wakeLock = null;
+async function requestWakeLock() {
+  if (!navigator.wakeLock || wakeLock) return;
+  try { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); }
+  catch (e) { /* refusé ou indisponible : tant pis, ce n'est qu'un confort */ }
+}
+function releaseWakeLockIfIdle() {
+  if (wakeLock && playingTrackIds.size === 0) { wakeLock.release().catch(() => {}); wakeLock = null; }
+}
+if (navigator.wakeLock) {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && playingTrackIds.size > 0) requestWakeLock();
+  });
+}
+
 function renderTracksBlock(container, tracks, packsByTrackId) {
   const el = section('Musique', '');
   container.appendChild(el);
@@ -643,6 +662,7 @@ function initTrackPlayer(track, wrapper) {
       if (seqFinalMarkerSrc !== marker) return; // piste arrêtée/relancée entretemps : on ignore
       seqActiveSources = [];
       playing = false;
+      playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
       setStoppedUI();
       if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = 'Aller vers la fin →'; }
       if (activeTrackId === track.id) activeTrackId = null;
@@ -697,6 +717,7 @@ function initTrackPlayer(track, wrapper) {
     if (goToEndBtn) goToEndBtn.disabled = false;
   }
   let level = 0, playing = false, startedAt = 0, offsetAt = (useQuantizedLoop ? startTrackSec : 0), rafId = null, ready = false;
+  let isDraggingSeek = false; // vrai pendant qu'on glisse sur la barre de lecture — tick() ne doit pas écraser la position affichée pendant ce temps
 
   const PLAY_SVG = '<path d="M8 5v14l11-7z"/>';
   const PAUSE_SVG = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
@@ -724,11 +745,15 @@ function initTrackPlayer(track, wrapper) {
     if (waveformFg) waveformFg.style.clipPath = `inset(0 ${Math.max(0, 100 - pct)}% 0 0)`;
     timeCurrent.textContent = formatTime(elapsed);
   }
-  function tick() {
-    if (!playing || isSequential) return;
-    const elapsed = useQuantizedLoop
+  function computeElapsed() {
+    return useQuantizedLoop
       ? currentPlaybackOffset()
       : (loops ? (ctx.currentTime - startedAt) % track.duration : Math.min(ctx.currentTime - startedAt, track.duration));
+  }
+  function tick() {
+    if (!playing || isSequential) return;
+    const elapsed = computeElapsed();
+    if (isDraggingSeek) { rafId = requestAnimationFrame(tick); return; } // laisse la position glissée visible, ne pas l'écraser
     updateProgressAt(elapsed);
     if (vertMeterFills.length) {
       const gainArr = useQuantizedLoop ? currentGainNodes : gains;
@@ -906,6 +931,7 @@ function initTrackPlayer(track, wrapper) {
       if (finalGenerationMarkerSrc !== marker) return; // piste arrêtée/relancée entretemps : on ignore
       activeGenSources = [];
       playing = false;
+      playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
       cancelAnimationFrame(rafId);
       offsetAt = startTrackSec;
       updateProgressAt(offsetAt);
@@ -947,6 +973,7 @@ function initTrackPlayer(track, wrapper) {
 
   function stopAllSources(keepPosition) {
     playing = false;
+    playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
     if (isSequential) {
       stopSequential();
     } else if (useQuantizedLoop) {
@@ -963,6 +990,7 @@ function initTrackPlayer(track, wrapper) {
   }
   function naturalEnd() {
     playing = false;
+    playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
     cancelAnimationFrame(rafId);
     offsetAt = 0;
     updateProgressAt(0);
@@ -982,6 +1010,7 @@ function initTrackPlayer(track, wrapper) {
     updateStingerAvailability();
     if (ctx.state === 'suspended') ctx.resume();
     playing = true;
+    playingTrackIds.add(track.id); requestWakeLock();
     if (isSequential) {
       playSequential(isContinuation);
     } else if (useQuantizedLoop) {
@@ -1025,16 +1054,45 @@ function initTrackPlayer(track, wrapper) {
   }
 
   document.addEventListener('stop-track', (e) => { if (e.detail === track.id) stopAllSources(); });
+  // Reprise après mise en veille de l'écran ou passage en arrière-plan : les minuteurs de programmation
+  // et l'horloge audio peuvent avoir été suspendus pendant ce temps, laissant une programmation obsolète
+  // qui resterait silencieuse indéfiniment sans ça. On relance proprement depuis la position actuelle
+  // plutôt que de laisser un état incohérent qui obligerait à recharger la page.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !playing) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    const resumeFrom = computeElapsed();
+    stopAllSources(false);
+    offsetAt = resumeFrom;
+    playThisTrack(false, true);
+  });
   playBtn.addEventListener('click', () => { playing ? stopAllSources() : playThisTrack(true); });
 
   if (wrap) {
-    wrap.addEventListener('click', (e) => {
+    // Glisser-déposer sur la barre de lecture (pas juste un tap) : la position se met à jour en direct
+    // pendant le glissement (y compris la waveform), et la vraie recherche audio (arrêt/redémarrage des
+    // sources) ne se déclenche qu'au relâchement — sinon on redémarrerait l'audio à chaque pixel parcouru.
+    function seekPctFromEvent(e) {
       const rect = wrap.getBoundingClientRect();
-      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const seekTo = pct * progressMaxSec();
+      return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    }
+    wrap.addEventListener('pointerdown', (e) => {
+      isDraggingSeek = true;
+      try { wrap.setPointerCapture(e.pointerId); } catch (err) {}
+      updateProgressAt(seekPctFromEvent(e) * progressMaxSec());
+    });
+    wrap.addEventListener('pointermove', (e) => {
+      if (!isDraggingSeek) return;
+      updateProgressAt(seekPctFromEvent(e) * progressMaxSec());
+    });
+    wrap.addEventListener('pointerup', (e) => {
+      if (!isDraggingSeek) return;
+      isDraggingSeek = false;
+      const seekTo = seekPctFromEvent(e) * progressMaxSec();
       if (playing) { stopAllSources(false); offsetAt = seekTo; playThisTrack(false, true); }
       else { offsetAt = seekTo; updateProgressAt(offsetAt); }
     });
+    wrap.addEventListener('pointercancel', () => { isDraggingSeek = false; });
   }
 
   notchDots.forEach(dot => {
