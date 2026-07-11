@@ -6,37 +6,6 @@
 
 const ctx = new (window.AudioContext || window.webkitAudioContext)();
 
-// Relais de décodage : Safari (Mac et iOS, donc tout navigateur sur iPhone/iPad puisqu'Apple impose
-// WebKit) ne sait pas décoder l'Ogg Vorbis nativement via decodeAudioData — échec silencieux, capté
-// plus bas par le try/catch de chaque piste ("Erreur de chargement"). On tente d'abord le décodage
-// natif (rapide, ne change rien pour les navigateurs qui le supportent déjà), et seulement s'il échoue,
-// on bascule sur un décodeur Ogg Vorbis en JavaScript/WebAssembly, indépendant du support natif.
-let vorbisDecoderPromise = null;
-function getVorbisDecoder() {
-  if (!vorbisDecoderPromise) {
-    vorbisDecoderPromise = (async () => {
-      if (!window['ogg-vorbis-decoder']) throw new Error('Décodeur Ogg Vorbis de secours introuvable (bibliothèque non chargée)');
-      const decoder = new window['ogg-vorbis-decoder'].OggVorbisDecoder();
-      await decoder.ready;
-      return decoder;
-    })();
-  }
-  return vorbisDecoderPromise;
-}
-async function decodeAudioDataCompat(arrayBuffer) {
-  try {
-    return await ctx.decodeAudioData(arrayBuffer.slice(0));
-  } catch (nativeError) {
-    const decoder = await getVorbisDecoder();
-    await decoder.reset();
-    const { channelData, samplesDecoded, sampleRate } = await decoder.decode(new Uint8Array(arrayBuffer));
-    if (!samplesDecoded || !channelData || !channelData.length) throw nativeError;
-    const audioBuffer = ctx.createBuffer(channelData.length, samplesDecoded, sampleRate);
-    for (let ch = 0; ch < channelData.length; ch++) audioBuffer.copyToChannel(channelData[ch], ch);
-    return audioBuffer;
-  }
-}
-
 function formatTime(s) {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
@@ -1116,6 +1085,39 @@ function initTrackPlayer(track, wrapper) {
     if (item.localFile) return await item.localFile.arrayBuffer();
     const res = await fetch(track.base + encodeURIComponent(item.file));
     return await res.arrayBuffer();
+  }
+  // Relais de décodage : Safari (Mac et iOS, donc tout navigateur sur iPhone/iPad puisqu'Apple impose
+  // WebKit) ne sait pas décoder l'Ogg Vorbis nativement via decodeAudioData — échec silencieux, capté
+  // plus bas par le try/catch ("Erreur de chargement"). On tente d'abord le décodage natif (rapide, ne
+  // change rien pour les navigateurs qui le supportent déjà), et seulement s'il échoue, on bascule sur
+  // un décodeur Ogg Vorbis en JavaScript/WebAssembly, indépendant du support natif.
+  // Volontairement une instance PAR PISTE (pas partagée au niveau du module) : plusieurs pistes chargent
+  // leurs fichiers en parallèle au chargement de la page, et un décodeur partagé verrait ses appels
+  // .reset()/.decode() de pistes différentes s'entremêler — corruption silencieuse plutôt qu'erreur.
+  let vorbisDecoderPromise = null;
+  function getVorbisDecoder() {
+    if (!vorbisDecoderPromise) {
+      vorbisDecoderPromise = (async () => {
+        if (!window['ogg-vorbis-decoder']) throw new Error('Décodeur Ogg Vorbis de secours introuvable (bibliothèque non chargée)');
+        const decoder = new window['ogg-vorbis-decoder'].OggVorbisDecoder();
+        await decoder.ready;
+        return decoder;
+      })();
+    }
+    return vorbisDecoderPromise;
+  }
+  async function decodeAudioDataCompat(arrayBuffer) {
+    try {
+      return await ctx.decodeAudioData(arrayBuffer.slice(0));
+    } catch (nativeError) {
+      const decoder = await getVorbisDecoder();
+      await decoder.reset();
+      const { channelData, samplesDecoded, sampleRate } = await decoder.decode(new Uint8Array(arrayBuffer));
+      if (!samplesDecoded || !channelData || !channelData.length) throw nativeError;
+      const audioBuffer = ctx.createBuffer(channelData.length, samplesDecoded, sampleRate);
+      for (let ch = 0; ch < channelData.length; ch++) audioBuffer.copyToChannel(channelData[ch], ch);
+      return audioBuffer;
+    }
   }
 
   (async () => {
