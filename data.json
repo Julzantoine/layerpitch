@@ -600,10 +600,6 @@
           "type": "header"
         },
         {
-          "id": "bmrcp99sqqe91c",
-          "type": "bio"
-        },
-        {
           "id": "bmrcp99sqkx1jk",
           "type": "testimonials"
         },
@@ -647,6 +643,10 @@
               "file": "bmrc9wrt713mzm-3.png"
             }
           ]
+        },
+        {
+          "id": "bmrcp99sqqe91c",
+          "type": "bio"
         }
       ],
       "profile": {
