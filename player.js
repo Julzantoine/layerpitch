@@ -1168,8 +1168,10 @@ function initTrackPlayer(track, wrapper) {
         } catch (e) { if (statusEl) statusEl.textContent = 'Erreur de chargement'; return; }
       }
       if (isStatic && buffers[0] && waveformBg) {
-        waveformPeaks = computeWaveformPeaks(buffers[0], 200);
-        redrawWaveforms();
+        try {
+          waveformPeaks = computeWaveformPeaks(buffers[0], 200);
+          redrawWaveforms();
+        } catch (e) { /* la waveform est un bonus visuel : un échec ici ne doit jamais bloquer la lecture */ }
       }
     }
     for (let i = 0; i < stingerDefs.length; i++) {
