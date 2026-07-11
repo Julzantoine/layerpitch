@@ -6,6 +6,37 @@
 
 const ctx = new (window.AudioContext || window.webkitAudioContext)();
 
+// Relais de décodage : Safari (Mac et iOS, donc tout navigateur sur iPhone/iPad puisqu'Apple impose
+// WebKit) ne sait pas décoder l'Ogg Vorbis nativement via decodeAudioData — échec silencieux, capté
+// plus bas par le try/catch de chaque piste ("Erreur de chargement"). On tente d'abord le décodage
+// natif (rapide, ne change rien pour les navigateurs qui le supportent déjà), et seulement s'il échoue,
+// on bascule sur un décodeur Ogg Vorbis en JavaScript/WebAssembly, indépendant du support natif.
+let vorbisDecoderPromise = null;
+function getVorbisDecoder() {
+  if (!vorbisDecoderPromise) {
+    vorbisDecoderPromise = (async () => {
+      if (!window['ogg-vorbis-decoder']) throw new Error('Décodeur Ogg Vorbis de secours introuvable (bibliothèque non chargée)');
+      const decoder = new window['ogg-vorbis-decoder'].OggVorbisDecoder();
+      await decoder.ready;
+      return decoder;
+    })();
+  }
+  return vorbisDecoderPromise;
+}
+async function decodeAudioDataCompat(arrayBuffer) {
+  try {
+    return await ctx.decodeAudioData(arrayBuffer.slice(0));
+  } catch (nativeError) {
+    const decoder = await getVorbisDecoder();
+    await decoder.reset();
+    const { channelData, samplesDecoded, sampleRate } = await decoder.decode(new Uint8Array(arrayBuffer));
+    if (!samplesDecoded || !channelData || !channelData.length) throw nativeError;
+    const audioBuffer = ctx.createBuffer(channelData.length, samplesDecoded, sampleRate);
+    for (let ch = 0; ch < channelData.length; ch++) audioBuffer.copyToChannel(channelData[ch], ch);
+    return audioBuffer;
+  }
+}
+
 function formatTime(s) {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
@@ -1099,7 +1130,7 @@ function initTrackPlayer(track, wrapper) {
       for (let fi = 0; fi < rawFixed.length; fi++) {
         try {
           const ab = await loadArrayBuffer(rawFixed[fi]);
-          fixedBuffers[fi] = await ctx.decodeAudioData(ab);
+          fixedBuffers[fi] = await decodeAudioDataCompat(ab);
           loaded++;
           if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
           // rawFixed est filtré (layerHasSource) : son index ne correspond pas forcément à celui de
@@ -1119,7 +1150,7 @@ function initTrackPlayer(track, wrapper) {
           if (!layerHasSource(alts[ai])) continue;
           try {
             const ab = await loadArrayBuffer(alts[ai]);
-            groupBuffers[gi][ai] = await ctx.decodeAudioData(ab);
+            groupBuffers[gi][ai] = await decodeAudioDataCompat(ab);
             loaded++;
             if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
           } catch (e) { /* fichier manquant : ce tirage restera silencieux plutôt que de bloquer la lecture */ }
@@ -1134,7 +1165,7 @@ function initTrackPlayer(track, wrapper) {
       if (hasIntro) {
         try {
           const ab = await loadArrayBuffer(track.intro);
-          introBuffer = await ctx.decodeAudioData(ab);
+          introBuffer = await decodeAudioDataCompat(ab);
           loaded++;
           if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
         } catch (e) { /* intro manquante : la lecture démarrera directement sur un segment */ }
@@ -1142,7 +1173,7 @@ function initTrackPlayer(track, wrapper) {
       if (hasOutro) {
         try {
           const ab = await loadArrayBuffer(track.outro);
-          outroBuffer = await ctx.decodeAudioData(ab);
+          outroBuffer = await decodeAudioDataCompat(ab);
           loaded++;
           if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
         } catch (e) { /* outro manquante : "Aller vers la fin" laissera simplement filer le segment en cours */ }
@@ -1151,7 +1182,7 @@ function initTrackPlayer(track, wrapper) {
         if (!layerHasSource(track.segments[sgi])) continue;
         try {
           const ab = await loadArrayBuffer(track.segments[sgi]);
-          segmentBuffers[sgi] = await ctx.decodeAudioData(ab);
+          segmentBuffers[sgi] = await decodeAudioDataCompat(ab);
           loaded++;
           if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
         } catch (e) { /* segment manquant : simplement absent du tirage, ne bloque pas le reste */ }
@@ -1162,7 +1193,7 @@ function initTrackPlayer(track, wrapper) {
       for (let i = 0; i < layersToLoad.length; i++) {
         try {
           const ab = await loadArrayBuffer(layersToLoad[i]);
-          buffers[i] = await ctx.decodeAudioData(ab);
+          buffers[i] = await decodeAudioDataCompat(ab);
           loaded++;
           if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
         } catch (e) { if (statusEl) statusEl.textContent = 'Erreur de chargement'; return; }
@@ -1177,7 +1208,7 @@ function initTrackPlayer(track, wrapper) {
     for (let i = 0; i < stingerDefs.length; i++) {
       try {
         const ab = await loadArrayBuffer(stingerDefs[i]);
-        stingerBuffers[i] = await ctx.decodeAudioData(ab);
+        stingerBuffers[i] = await decodeAudioDataCompat(ab);
         loaded++;
         if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
       } catch (e) { /* un stinger manquant ne bloque pas la lecture principale */ }
