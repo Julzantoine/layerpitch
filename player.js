@@ -232,8 +232,8 @@ function buildTrackRow(track, packsForTrack) {
 
   wrapper.innerHTML = `
     <div class="track-row">
-      <button class="play-btn" data-role="playBtn" disabled aria-label="Lecture">
-        <svg data-role="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <button class="play-btn" data-role="playBtn" disabled aria-label="Chargement en cours">
+        <svg data-role="playIcon" class="loading-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="28 100"/></svg>
       </button>
       <div class="track-row-title" data-role="titleToggle">
         <span class="name">${escapeHtml(track.title)}</span>
@@ -721,6 +721,15 @@ function initTrackPlayer(track, wrapper) {
 
   const PLAY_SVG = '<path d="M8 5v14l11-7z"/>';
   const PAUSE_SVG = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+  // En cas d'échec de chargement : arrête l'icône qui tourne (elle donnerait l'impression que ça continue
+  // de charger indéfiniment) et affiche un repère visuel statique d'erreur, cohérent avec le texte de
+  // statut déjà présent dans le panneau déplié.
+  function setLoadErrorIcon() {
+    playIcon.classList.remove('loading-icon');
+    playIcon.classList.add('error-icon');
+    playIcon.innerHTML = '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v6"/><circle cx="12" cy="16.7" r="0.9" fill="currentColor" stroke="none"/>';
+    playBtn.setAttribute('aria-label', 'Erreur de chargement');
+  }
 
   function updateStingerAvailability() {
     const expanded = details.classList.contains('expanded');
@@ -1141,7 +1150,8 @@ function initTrackPlayer(track, wrapper) {
 
   async function loadArrayBuffer(item) {
     if (item.localFile) return await item.localFile.arrayBuffer();
-    const res = await fetch(track.base + encodeURIComponent(item.file));
+    const v = track.publishedAt ? ('?v=' + encodeURIComponent(track.publishedAt)) : '';
+    const res = await fetch(track.base + encodeURIComponent(item.file) + v);
     return await res.arrayBuffer();
   }
   // Relais de décodage : Safari (Mac et iOS, donc tout navigateur sur iPhone/iPad puisqu'Apple impose
@@ -1199,7 +1209,7 @@ function initTrackPlayer(track, wrapper) {
           if (origIndex >= 0) drawVoiceWave(voiceWaveFixed[origIndex], fixedBuffers[fi]);
         } catch (e) { /* une couche fixe manquante ne bloque pas les autres */ }
       }
-      if (fixedBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = 'Erreur de chargement (aucune couche fixe)'; return; }
+      if (fixedBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = 'Erreur de chargement (aucune couche fixe)'; setLoadErrorIcon(); return; }
       for (let gi = 0; gi < rawGroups.length; gi++) {
         const alts = rawGroups[gi].alternatives || [];
         // Même longueur que les alternatives déclarées, y compris les slots vides (intentionnels : ils restent
@@ -1247,7 +1257,7 @@ function initTrackPlayer(track, wrapper) {
           if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
         } catch (e) { /* segment manquant : simplement absent du tirage, ne bloque pas le reste */ }
       }
-      if (segmentBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = 'Erreur de chargement (aucun segment)'; return; }
+      if (segmentBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = 'Erreur de chargement (aucun segment)'; setLoadErrorIcon(); return; }
     } else {
       total = layersToLoad.length + stingerDefs.length;
       for (let i = 0; i < layersToLoad.length; i++) {
@@ -1256,7 +1266,7 @@ function initTrackPlayer(track, wrapper) {
           buffers[i] = await decodeAudioDataCompat(ab);
           loaded++;
           if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
-        } catch (e) { if (statusEl) statusEl.textContent = 'Erreur de chargement'; return; }
+        } catch (e) { if (statusEl) statusEl.textContent = 'Erreur de chargement'; setLoadErrorIcon(); return; }
       }
       if (isStatic && buffers[0] && waveformBg) {
         try {
@@ -1286,6 +1296,9 @@ function initTrackPlayer(track, wrapper) {
     }
     if (statusEl) statusEl.textContent = 'Prêt';
     playBtn.disabled = false;
+    playBtn.setAttribute('aria-label', 'Lecture');
+    playIcon.classList.remove('loading-icon');
+    playIcon.innerHTML = PLAY_SVG;
     ready = true;
     updateStingerAvailability();
   })();
