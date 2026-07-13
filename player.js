@@ -6,6 +6,12 @@
 
 const ctx = new (window.AudioContext || window.webkitAudioContext)();
 
+// Petit repère vers Umami (voir index.html/pack.html pour le script) : jamais bloquant, silencieux
+// si Umami n'est pas chargé (ex. test en local sans connexion, ou service temporairement indisponible).
+function trackPublicEvent(name, detail) {
+  try { if (window.umami) window.umami.track(name, detail); } catch (e) { /* jamais bloquant */ }
+}
+
 function formatTime(s) {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
@@ -1083,6 +1089,7 @@ function initTrackPlayer(track, wrapper) {
     setDetailsExpanded(details, true);
     updateStingerAvailability();
     if (ctx.state === 'suspended') ctx.resume();
+    if (!isContinuation) trackPublicEvent('track_play', { trackId: track.id, mode: track.mode });
     playing = true;
     playingTrackIds.add(track.id); requestWakeLock();
     if (isSequential) {
@@ -1133,6 +1140,7 @@ function initTrackPlayer(track, wrapper) {
     goToEndBtn.addEventListener('click', () => {
       if (!playing || goToEndRequested) return;
       goToEndRequested = true;
+      trackPublicEvent('go_to_end_click', { trackId: track.id });
       goToEndBtn.disabled = true;
       goToEndBtn.textContent = track.outro ? 'Fin en cours…' : 'Dernier segment…';
     });
@@ -1221,6 +1229,7 @@ function initTrackPlayer(track, wrapper) {
       // Mutation directe de l'objet track lu par schedulerTick à chaque cycle — s'applique donc au vol,
       // y compris en cours de lecture, sans avoir à relancer la piste.
       track.maxLoops = loopCountSelect.value === '' ? null : parseInt(loopCountSelect.value, 10);
+      trackPublicEvent('track_loop_change', { trackId: track.id, maxLoops: track.maxLoops });
     });
   }
 
