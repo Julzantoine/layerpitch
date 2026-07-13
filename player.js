@@ -1191,6 +1191,7 @@ function initTrackPlayer(track, wrapper) {
   notchDots.forEach(dot => {
     dot.addEventListener('click', () => {
       level = parseInt(dot.dataset.level, 10);
+      trackPublicEvent('intensity_level_click', { trackId: track.id, level });
       notchDots.forEach(d => d.classList.toggle('active', d === dot));
       if (!playing) return;
       const p = profiles[level];
