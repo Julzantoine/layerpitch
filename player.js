@@ -144,6 +144,10 @@ function buildTrackRow(track, packsForTrack) {
           <div class="voice-row">
             <span class="voice-row-label">${escapeHtml((l && l.label) || 'Couche ' + (i + 1))}</span>
             <span class="voice-meter-bar" data-role="vertMeter-${i}"><span class="voice-meter-bar-fill"></span></span>
+            <div class="wwise-node-controls">
+              <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="layer-${i}" title="Solo">S</button>
+              <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="layer-${i}" title="Muet">M</button>
+            </div>
           </div>
         `).join('')}
       </div>
@@ -335,13 +339,33 @@ function initTrackPlayer(track, wrapper) {
   // prochaine génération programmée, avec un délai pouvant aller jusqu'à la longueur du cycle.
   function refreshVoiceGains() {
     const now = ctx.currentTime;
+    const p = profiles[level] || profiles[0];
     activeGenSources.forEach(({ gain, voiceKey, baseGain }) => {
       if (!voiceKey || !gain) return;
-      const target = (baseGain != null ? baseGain : 1) * voiceGain(voiceKey);
+      // Vertical classique : le gain dépend de l'intensité courante, qui peut avoir changé depuis que
+      // cette génération a été programmée (via le curseur) — on le recalcule plutôt que de se fier à
+      // une valeur figée, sinon un changement d'intensité récent serait ignoré par ce recalcul.
+      let base = baseGain != null ? baseGain : 1;
+      if (voiceKey.indexOf('layer-') === 0) {
+        const i = parseInt(voiceKey.slice(6), 10);
+        base = (p[i] || 0) * effGain(layersToLoad[i]);
+      }
+      const target = base * voiceGain(voiceKey);
       gain.gain.cancelScheduledValues(now);
       gain.gain.setValueAtTime(gain.gain.value, now);
       gain.gain.linearRampToValueAtTime(target, now + 0.15);
     });
+    // Moteur simple (vertical sans moteur quantifié) : les gains vivent dans gains[], pas activeGenSources.
+    if (!useQuantizedLoop && gains.length && playing) {
+      gains.forEach((g, i) => {
+        if (!g) return;
+        const base = (p[i] || 0) * effGain(layersToLoad[i]);
+        const target = base * voiceGain('layer-' + i);
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(g.gain.value, now);
+        g.gain.linearRampToValueAtTime(target, now + 0.15);
+      });
+    }
   }
   const hasFiles = supported && (isVerticalRandom
     ? (track.fixedLayers || []).some(layerHasSource)
@@ -839,7 +863,7 @@ function initTrackPlayer(track, wrapper) {
       src.buffer = buffers[i];
       if (loops) { src.loop = true; src.loopStart = 0; src.loopEnd = track.duration; }
       const g = ctx.createGain();
-      g.gain.setValueAtTime((p[i] || 0) * effGain(layersToLoad[i]), ctx.currentTime);
+      g.gain.setValueAtTime((p[i] || 0) * effGain(layersToLoad[i]) * voiceGain('layer-' + i), ctx.currentTime);
       src.connect(g); g.connect(ctx.destination);
       src.start(0, offsetAt % track.duration);
       sources[i] = src; gains[i] = g;
@@ -939,10 +963,12 @@ function initTrackPlayer(track, wrapper) {
         const src = ctx.createBufferSource();
         src.buffer = buffers[i];
         const g = ctx.createGain();
-        g.gain.setValueAtTime((p[i] || 0) * effGain(layersToLoad[i]), ctxStartTime);
+        const key = 'layer-' + i;
+        const base = (p[i] || 0) * effGain(layersToLoad[i]);
+        g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
         src.connect(g); g.connect(ctx.destination);
         src.start(ctxStartTime, bufferOffset);
-        activeGenSources.push({ src, gain: g });
+        activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
         thisGenSources.push(src);
         gensThisRound[i] = g;
       }
@@ -1167,7 +1193,7 @@ function initTrackPlayer(track, wrapper) {
         const layerGain = effGain(layersToLoad[i]);
         g.gain.cancelScheduledValues(now);
         g.gain.setValueAtTime(g.gain.value, now);
-        g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain, now + 1.4);
+        g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain * voiceGain('layer-' + i), now + 1.4);
       });
     });
   });
