@@ -197,6 +197,7 @@
   body.high-contrast .contrast-toggle { color: var(--text); font-weight: 600; }
   .empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 20px 0; }
 </style>
+<script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
 </head>
 <body>
 <div class="page">
@@ -212,6 +213,12 @@
 <script src="player.js"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.LayerPlayerCore;
+
+// Même petit repère que dans player.js — dupliqué ici car ce script inline est un fichier séparé,
+// sans accès direct à l'intérieur de la fonction IIFE de player.js.
+function trackPublicEvent(name, detail) {
+  try { if (window.umami) window.umami.track(name, detail); } catch (e) { /* jamais bloquant */ }
+}
 
 function genId() { return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
@@ -351,6 +358,7 @@ function renderContactBlockItem(container, profile) {
         body: new FormData(form)
       });
       if (res.ok) {
+        trackPublicEvent('contact_submit', {});
         form.innerHTML = '<div class="contact-form-status success">Merci, ton message a été envoyé ✓</div>';
       } else {
         const data = await res.json().catch(() => ({}));
