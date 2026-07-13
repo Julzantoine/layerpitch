@@ -154,7 +154,13 @@ function buildTrackRow(track, packsForTrack) {
   if (isVerticalRandom && supported) {
     const fixedNodes = (track.fixedLayers || []).map((f, fi) => `
       <div class="wwise-node wwise-node-voice" data-role="wwiseVoice-fixed-${fi}">
-        <div class="wwise-node-label">${escapeHtml(f && f.label ? f.label : ('Couche fixe ' + (fi + 1)))}</div>
+        <div class="wwise-node-top">
+          <div class="wwise-node-label">${escapeHtml(f && f.label ? f.label : ('Couche fixe ' + (fi + 1)))}</div>
+          <div class="wwise-node-controls">
+            <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="fixed-${fi}" title="Solo">S</button>
+            <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="fixed-${fi}" title="Muet">M</button>
+          </div>
+        </div>
         <span class="wwise-node-wave">
           <canvas class="wwise-wave-bg" data-role="voiceWaveBg-fixed-${fi}"></canvas>
           <canvas class="wwise-wave-fg" data-role="voiceWaveFg-fixed-${fi}"></canvas>
@@ -163,7 +169,13 @@ function buildTrackRow(track, packsForTrack) {
     `).join('');
     const groupNodes = (track.randomGroups || []).map((g, gi) => `
       <div class="wwise-node wwise-node-voice" data-role="wwiseVoice-group-${gi}">
-        <div class="wwise-node-label" data-role="voiceCurrent-${gi}">—</div>
+        <div class="wwise-node-top">
+          <div class="wwise-node-label" data-role="voiceCurrent-${gi}">—</div>
+          <div class="wwise-node-controls">
+            <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="group-${gi}" title="Solo">S</button>
+            <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="group-${gi}" title="Muet">M</button>
+          </div>
+        </div>
         <span class="wwise-node-wave">
           <canvas class="wwise-wave-bg" data-role="voiceWaveBg-${gi}"></canvas>
           <canvas class="wwise-wave-fg" data-role="voiceWaveFg-${gi}"></canvas>
@@ -307,6 +319,29 @@ function initTrackPlayer(track, wrapper) {
   // lecture qui dépend de ce réglage.
   function effGain(item) {
     return (track.normalizeVolume && item && item.gain) ? item.gain : 1;
+  }
+  // Solo/muet par voix (vertical-random uniquement) : plusieurs voix peuvent être soloées en même temps
+  // (convention DAW classique) — dès qu'au moins une l'est, tout le reste se tait, quel que soit son
+  // propre état muet. "Voix" = une couche fixe ou un groupe entier (pas chaque alternative individuellement,
+  // puisqu'une seule alternative par groupe sonne à la fois).
+  const mutedVoices = new Set();
+  const soloedVoices = new Set();
+  function voiceGain(key) {
+    if (soloedVoices.size > 0) return soloedVoices.has(key) ? 1 : 0;
+    return mutedVoices.has(key) ? 0 : 1;
+  }
+  // Recalcule en direct le gain de toutes les sources actuellement en train de sonner (génération en
+  // cours et éventuelles queues encore audibles) — sans ça, un solo/muet ne prendrait effet qu'à la
+  // prochaine génération programmée, avec un délai pouvant aller jusqu'à la longueur du cycle.
+  function refreshVoiceGains() {
+    const now = ctx.currentTime;
+    activeGenSources.forEach(({ gain, voiceKey, baseGain }) => {
+      if (!voiceKey || !gain) return;
+      const target = (baseGain != null ? baseGain : 1) * voiceGain(voiceKey);
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.linearRampToValueAtTime(target, now + 0.15);
+    });
   }
   const hasFiles = supported && (isVerticalRandom
     ? (track.fixedLayers || []).some(layerHasSource)
@@ -858,10 +893,12 @@ function initTrackPlayer(track, wrapper) {
         const src = ctx.createBufferSource();
         src.buffer = buf;
         const g = ctx.createGain();
-        g.gain.setValueAtTime(effGain(rawFixedLayers[fi]), ctxStartTime);
+        const key = 'fixed-' + fi;
+        const base = effGain(rawFixedLayers[fi]);
+        g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
         src.connect(g); g.connect(ctx.destination);
         src.start(ctxStartTime, bufferOffset);
-        activeGenSources.push({ src, gain: g });
+        activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
         thisGenSources.push(src);
       });
       const groupPicks = [];
@@ -882,10 +919,12 @@ function initTrackPlayer(track, wrapper) {
             const src = ctx.createBufferSource();
             src.buffer = buf;
             const g = ctx.createGain();
-            g.gain.setValueAtTime(effGain(alt), ctxStartTime);
+            const key = 'group-' + gi;
+            const base = effGain(alt);
+            g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
             src.connect(g); g.connect(ctx.destination);
             src.start(ctxStartTime, bufferOffset);
-            activeGenSources.push({ src, gain: g });
+            activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
             thisGenSources.push(src);
           }
         }
@@ -1053,6 +1092,17 @@ function initTrackPlayer(track, wrapper) {
   if (titleToggle) titleToggle.addEventListener('click', updateStingerAvailability);
   const refreshPoolBtn = wrapper.querySelector('[data-role="refreshPool"]');
   if (refreshPoolBtn) refreshPoolBtn.addEventListener('click', rerollPool);
+
+  wrapper.querySelectorAll('[data-voice-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.voiceKey;
+      const action = btn.dataset.voiceAction;
+      const set = action === 'solo' ? soloedVoices : mutedVoices;
+      if (set.has(key)) set.delete(key); else set.add(key);
+      btn.classList.toggle('active', set.has(key));
+      refreshVoiceGains();
+    });
+  });
   if (goToEndBtn) {
     goToEndBtn.addEventListener('click', () => {
       if (!playing || goToEndRequested) return;
