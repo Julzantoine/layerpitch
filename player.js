@@ -34,6 +34,12 @@ function resumeAudioContext() {
   unlockIOSSilentSwitch();
 }
 
+// Dupliqué à l'identique dans index.html et pack.html : chaque script a sa propre closure, pas d'accès
+// croisé possible. Jamais bloquant, silencieux si Umami n'est pas chargé.
+function trackPublicEvent(name, detail) {
+  try { if (window.umami) window.umami.track(name, detail); } catch (e) { /* jamais bloquant */ }
+}
+
 function formatTime(s) {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
@@ -172,6 +178,10 @@ function buildTrackRow(track, packsForTrack) {
           <div class="voice-row">
             <span class="voice-row-label">${escapeHtml((l && l.label) || 'Couche ' + (i + 1))}</span>
             <span class="voice-meter-bar" data-role="vertMeter-${i}"><span class="voice-meter-bar-fill"></span></span>
+            <div class="wwise-node-controls">
+              <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="layer-${i}" title="Solo">S</button>
+              <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="layer-${i}" title="Muet">M</button>
+            </div>
           </div>
         `).join('')}
       </div>
@@ -182,7 +192,13 @@ function buildTrackRow(track, packsForTrack) {
   if (isVerticalRandom && supported) {
     const fixedNodes = (track.fixedLayers || []).map((f, fi) => `
       <div class="wwise-node wwise-node-voice" data-role="wwiseVoice-fixed-${fi}">
-        <div class="wwise-node-label">${escapeHtml(f && f.label ? f.label : ('Couche fixe ' + (fi + 1)))}</div>
+        <div class="wwise-node-top">
+          <div class="wwise-node-label">${escapeHtml(f && f.label ? f.label : ('Couche fixe ' + (fi + 1)))}</div>
+          <div class="wwise-node-controls">
+            <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="fixed-${fi}" title="Solo">S</button>
+            <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="fixed-${fi}" title="Muet">M</button>
+          </div>
+        </div>
         <span class="wwise-node-wave">
           <canvas class="wwise-wave-bg" data-role="voiceWaveBg-fixed-${fi}"></canvas>
           <canvas class="wwise-wave-fg" data-role="voiceWaveFg-fixed-${fi}"></canvas>
@@ -191,7 +207,13 @@ function buildTrackRow(track, packsForTrack) {
     `).join('');
     const groupNodes = (track.randomGroups || []).map((g, gi) => `
       <div class="wwise-node wwise-node-voice" data-role="wwiseVoice-group-${gi}">
-        <div class="wwise-node-label" data-role="voiceCurrent-${gi}">—</div>
+        <div class="wwise-node-top">
+          <div class="wwise-node-label" data-role="voiceCurrent-${gi}">—</div>
+          <div class="wwise-node-controls">
+            <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="group-${gi}" title="Solo">S</button>
+            <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="group-${gi}" title="Muet">M</button>
+          </div>
+        </div>
         <span class="wwise-node-wave">
           <canvas class="wwise-wave-bg" data-role="voiceWaveBg-${gi}"></canvas>
           <canvas class="wwise-wave-fg" data-role="voiceWaveFg-${gi}"></canvas>
@@ -335,6 +357,49 @@ function initTrackPlayer(track, wrapper) {
   // lecture qui dépend de ce réglage.
   function effGain(item) {
     return (track.normalizeVolume && item && item.gain) ? item.gain : 1;
+  }
+  // Solo/muet par voix (vertical et vertical-random) : plusieurs voix peuvent être soloées en même temps
+  // (convention DAW classique) — dès qu'au moins une l'est, tout le reste se tait, quel que soit son
+  // propre état muet. "Voix" = une couche (vertical), une couche fixe ou un groupe entier (vertical-random,
+  // pas chaque alternative individuellement, puisqu'une seule alternative par groupe sonne à la fois).
+  const mutedVoices = new Set();
+  const soloedVoices = new Set();
+  function voiceGain(key) {
+    if (soloedVoices.size > 0) return soloedVoices.has(key) ? 1 : 0;
+    return mutedVoices.has(key) ? 0 : 1;
+  }
+  // Recalcule en direct le gain de toutes les sources actuellement en train de sonner (génération en
+  // cours et éventuelles queues encore audibles) — sans ça, un solo/muet ne prendrait effet qu'à la
+  // prochaine génération programmée, avec un délai pouvant aller jusqu'à la longueur du cycle.
+  function refreshVoiceGains() {
+    const now = ctx.currentTime;
+    const p = profiles[level] || profiles[0];
+    activeGenSources.forEach(({ gain, voiceKey, baseGain }) => {
+      if (!voiceKey || !gain) return;
+      // Vertical classique : le gain dépend de l'intensité courante, qui peut avoir changé depuis que
+      // cette génération a été programmée (via le curseur) — on le recalcule plutôt que de se fier à
+      // une valeur figée, sinon un changement d'intensité récent serait ignoré par ce recalcul.
+      let base = baseGain != null ? baseGain : 1;
+      if (voiceKey.indexOf('layer-') === 0) {
+        const i = parseInt(voiceKey.slice(6), 10);
+        base = (p[i] || 0) * effGain(layersToLoad[i]);
+      }
+      const target = base * voiceGain(voiceKey);
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.linearRampToValueAtTime(target, now + 0.15);
+    });
+    // Moteur simple (vertical sans moteur quantifié) : les gains vivent dans gains[], pas activeGenSources.
+    if (!useQuantizedLoop && gains.length && playing) {
+      gains.forEach((g, i) => {
+        if (!g) return;
+        const base = (p[i] || 0) * effGain(layersToLoad[i]);
+        const target = base * voiceGain('layer-' + i);
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(g.gain.value, now);
+        g.gain.linearRampToValueAtTime(target, now + 0.15);
+      });
+    }
   }
   const hasFiles = supported && (isVerticalRandom
     ? (track.fixedLayers || []).some(layerHasSource)
@@ -832,7 +897,7 @@ function initTrackPlayer(track, wrapper) {
       src.buffer = buffers[i];
       if (loops) { src.loop = true; src.loopStart = 0; src.loopEnd = track.duration; }
       const g = ctx.createGain();
-      g.gain.setValueAtTime((p[i] || 0) * effGain(layersToLoad[i]), ctx.currentTime);
+      g.gain.setValueAtTime((p[i] || 0) * effGain(layersToLoad[i]) * voiceGain('layer-' + i), ctx.currentTime);
       src.connect(g); g.connect(ctx.destination);
       src.start(0, offsetAt % track.duration);
       sources[i] = src; gains[i] = g;
@@ -886,10 +951,12 @@ function initTrackPlayer(track, wrapper) {
         const src = ctx.createBufferSource();
         src.buffer = buf;
         const g = ctx.createGain();
-        g.gain.setValueAtTime(effGain(rawFixedLayers[fi]), ctxStartTime);
+        const key = 'fixed-' + fi;
+        const base = effGain(rawFixedLayers[fi]);
+        g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
         src.connect(g); g.connect(ctx.destination);
         src.start(ctxStartTime, bufferOffset);
-        activeGenSources.push({ src, gain: g });
+        activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
         thisGenSources.push(src);
       });
       const groupPicks = [];
@@ -910,10 +977,12 @@ function initTrackPlayer(track, wrapper) {
             const src = ctx.createBufferSource();
             src.buffer = buf;
             const g = ctx.createGain();
-            g.gain.setValueAtTime(effGain(alt), ctxStartTime);
+            const key = 'group-' + gi;
+            const base = effGain(alt);
+            g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
             src.connect(g); g.connect(ctx.destination);
             src.start(ctxStartTime, bufferOffset);
-            activeGenSources.push({ src, gain: g });
+            activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
             thisGenSources.push(src);
           }
         }
@@ -928,10 +997,12 @@ function initTrackPlayer(track, wrapper) {
         const src = ctx.createBufferSource();
         src.buffer = buffers[i];
         const g = ctx.createGain();
-        g.gain.setValueAtTime((p[i] || 0) * effGain(layersToLoad[i]), ctxStartTime);
+        const key = 'layer-' + i;
+        const base = (p[i] || 0) * effGain(layersToLoad[i]);
+        g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
         src.connect(g); g.connect(ctx.destination);
         src.start(ctxStartTime, bufferOffset);
-        activeGenSources.push({ src, gain: g });
+        activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
         thisGenSources.push(src);
         gensThisRound[i] = g;
       }
@@ -1048,6 +1119,7 @@ function initTrackPlayer(track, wrapper) {
     resumeAudioContext();
     playing = true;
     playingTrackIds.add(track.id); requestWakeLock();
+    if (!isContinuation) trackPublicEvent('track_play', { trackId: track.id, mode: track.mode });
     if (isSequential) {
       playSequential(isContinuation);
     } else if (useQuantizedLoop) {
@@ -1081,12 +1153,24 @@ function initTrackPlayer(track, wrapper) {
   if (titleToggle) titleToggle.addEventListener('click', updateStingerAvailability);
   const refreshPoolBtn = wrapper.querySelector('[data-role="refreshPool"]');
   if (refreshPoolBtn) refreshPoolBtn.addEventListener('click', rerollPool);
+
+  wrapper.querySelectorAll('[data-voice-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.voiceKey;
+      const action = btn.dataset.voiceAction;
+      const set = action === 'solo' ? soloedVoices : mutedVoices;
+      if (set.has(key)) set.delete(key); else set.add(key);
+      btn.classList.toggle('active', set.has(key));
+      refreshVoiceGains();
+    });
+  });
   if (goToEndBtn) {
     goToEndBtn.addEventListener('click', () => {
       if (!playing || goToEndRequested) return;
       goToEndRequested = true;
       goToEndBtn.disabled = true;
       goToEndBtn.textContent = track.outro ? 'Fin en cours…' : 'Dernier segment…';
+      trackPublicEvent('go_to_end_click', { trackId: track.id });
     });
   }
 
@@ -1145,7 +1229,7 @@ function initTrackPlayer(track, wrapper) {
         const layerGain = effGain(layersToLoad[i]);
         g.gain.cancelScheduledValues(now);
         g.gain.setValueAtTime(g.gain.value, now);
-        g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain, now + 1.4);
+        g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain * voiceGain('layer-' + i), now + 1.4);
       });
     });
   });
@@ -1173,6 +1257,7 @@ function initTrackPlayer(track, wrapper) {
       // Mutation directe de l'objet track lu par schedulerTick à chaque cycle — s'applique donc au vol,
       // y compris en cours de lecture, sans avoir à relancer la piste.
       track.maxLoops = loopCountSelect.value === '' ? null : parseInt(loopCountSelect.value, 10);
+      trackPublicEvent('track_loop_change', { trackId: track.id, maxLoops: track.maxLoops });
     });
   }
 
