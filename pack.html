@@ -143,6 +143,36 @@
   .buy-btn:hover { opacity: 0.9; }
   .buy-btn.disabled { background: var(--border); color: var(--text-dimmer); cursor: not-allowed; pointer-events: none; }
   .buy-hint { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dimmer); margin-top: 10px; }
+
+  /* Mode Test Gameplay : bouton déclencheur + boîte de dialogue pour coller une URL vidéo */
+  .video-test-trigger-btn {
+    display: block; margin: 0 auto 28px; padding: 12px 24px; border-radius: 6px; border: 1px solid var(--accent);
+    background: transparent; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer;
+  }
+  .video-test-trigger-btn:hover { background: var(--accent-soft); }
+  .video-test-dialog {
+    border: 1px solid var(--border); border-radius: 10px; padding: 0; max-width: 440px; width: calc(100% - 40px);
+    background: var(--bg-card); color: var(--text); box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+  }
+  .video-test-dialog::backdrop { background: rgba(0,0,0,0.4); }
+  .video-test-form { padding: 24px; display: flex; flex-direction: column; }
+  .video-test-dialog-title { font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+  .video-test-dialog-hint { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin: 0 0 16px; }
+  .video-test-form input[type="text"] {
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg);
+    color: var(--text); font-size: 13px; font-family: inherit;
+  }
+  .video-test-dialog-error { font-size: 12px; color: #c0392b; min-height: 16px; margin-top: 8px; }
+  .video-test-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+  .video-test-btn-secondary, .video-test-btn-primary {
+    padding: 9px 18px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+    letter-spacing: 0.03em; cursor: pointer; border: 1px solid var(--border);
+  }
+  .video-test-btn-secondary { background: transparent; color: var(--text-dim); }
+  .video-test-btn-secondary:hover { border-color: var(--text-dim); }
+  .video-test-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .video-test-btn-primary:hover { opacity: 0.9; }
   .contrast-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 24px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); cursor: pointer; user-select: none; }
   .contrast-toggle input { width: auto; margin: 0; cursor: pointer; }
   body.high-contrast .contrast-toggle { color: var(--text); font-weight: 600; }
@@ -150,6 +180,7 @@
   .layerpitch-credit { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--text-dimmer); opacity: 0.55; letter-spacing: 0.04em; margin-top: 32px; }
   .pack-watermark { position: fixed; inset: 0; z-index: -1; background-position: center; background-repeat: no-repeat; background-size: cover; opacity: 0.15; pointer-events: none; }
 </style>
+<script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
 </head>
 <body>
 <div class="page">
@@ -158,12 +189,83 @@
   <label class="contrast-toggle"><input type="checkbox" id="contrastToggle"> Contraste renforcé</label>
 </div>
 
+<dialog id="videoTestDialog" class="video-test-dialog">
+  <div class="video-test-form">
+    <div class="video-test-dialog-title">Tester en jeu</div>
+    <p class="video-test-dialog-hint">Colle le lien d'une vidéo YouTube ou Vimeo (gameplay, cinématique...). Elle s'ouvrira dans une fenêtre séparée, son coupé — à toi de déclencher les morceaux ici pendant que tu regardes.</p>
+    <input type="text" id="videoTestUrlInput" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+    <div class="video-test-dialog-error" id="videoTestError"></div>
+    <div class="video-test-dialog-actions">
+      <button type="button" class="video-test-btn-secondary" id="videoTestCancelBtn">Annuler</button>
+      <button type="button" class="video-test-btn-primary" id="videoTestOpenBtn">Ouvrir la fenêtre</button>
+    </div>
+  </div>
+</dialog>
+
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="player.js?v=1784019157950"></script>
+<script src="player.js"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.LayerPlayerCore;
+
+// Dupliqué à l'identique dans player.js et index.html : chaque script a sa propre closure, pas d'accès
+// croisé possible. Jamais bloquant, silencieux si Umami n'est pas chargé.
+function trackPublicEvent(name, detail) {
+  try { if (window.umami) window.umami.track(name, detail); } catch (e) { /* jamais bloquant */ }
+}
+
+// Reconnaît une URL YouTube ou Vimeo et en extrait l'identifiant — gère les formats courants de chaque
+// service (watch?v=, youtu.be, /embed/, /shorts/ pour YouTube ; vimeo.com/ID et player.vimeo.com/video/ID).
+function parseVideoUrl(rawUrl) {
+  let u;
+  try { u = new URL(rawUrl.trim()); } catch (e) { return null; }
+  const host = u.hostname.replace(/^www\./, '');
+  if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtu.be') {
+    let id = null;
+    if (host === 'youtu.be') id = u.pathname.slice(1).split('/')[0];
+    else if (u.pathname === '/watch') id = u.searchParams.get('v');
+    else if (u.pathname.startsWith('/embed/')) id = u.pathname.split('/')[2];
+    else if (u.pathname.startsWith('/shorts/')) id = u.pathname.split('/')[2];
+    if (id) return { service: 'youtube', id };
+    return null;
+  }
+  if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+    const parts = u.pathname.split('/').filter(Boolean);
+    const id = parts[parts.length - 1];
+    if (id && /^\d+$/.test(id)) return { service: 'vimeo', id };
+    return null;
+  }
+  return null;
+}
+
+// Boîte de dialogue Mode Test Gameplay — mise en place une fois, indépendamment du fait que ce pack
+// l'active ou non (la balise <dialog> ne s'ouvre de toute façon que si le bouton déclencheur existe).
+(function setupVideoTestDialog() {
+  const dialog = document.getElementById('videoTestDialog');
+  const input = document.getElementById('videoTestUrlInput');
+  const errorEl = document.getElementById('videoTestError');
+  const cancelBtn = document.getElementById('videoTestCancelBtn');
+  const openBtn = document.getElementById('videoTestOpenBtn');
+  if (!dialog) return;
+  function tryOpen() {
+    const parsed = parseVideoUrl(input.value);
+    if (!parsed) {
+      errorEl.textContent = 'Lien non reconnu — colle une URL YouTube ou Vimeo valide.';
+      trackPublicEvent('video_test_invalid_url', {});
+      return;
+    }
+    errorEl.textContent = '';
+    window.open(`./video-test.html?service=${parsed.service}&id=${encodeURIComponent(parsed.id)}`, '_blank');
+    trackPublicEvent('video_test_open', { service: parsed.service });
+    dialog.close();
+    input.value = '';
+  }
+  cancelBtn.addEventListener('click', () => dialog.close());
+  openBtn.addEventListener('click', tryOpen);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tryOpen(); } });
+  dialog.addEventListener('close', () => { errorEl.textContent = ''; });
+})();
 
 async function init() {
   const container = document.getElementById('content');
@@ -191,6 +293,14 @@ async function init() {
       <div class="pack-presentation">${(pack.presentation || '').split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('')}</div>
     `;
     const musicContainer = document.createElement('div');
+    if (pack.videoTestModeEnabled) {
+      const triggerBtn = document.createElement('button');
+      triggerBtn.type = 'button';
+      triggerBtn.className = 'video-test-trigger-btn';
+      triggerBtn.textContent = '🎮 Tester en jeu';
+      triggerBtn.addEventListener('click', () => document.getElementById('videoTestDialog').showModal());
+      container.appendChild(triggerBtn);
+    }
     container.appendChild(musicContainer);
     const libraryById = {};
     (data.library || []).forEach(t => { t.publishedAt = data.publishedAt; libraryById[t.id] = t; });
