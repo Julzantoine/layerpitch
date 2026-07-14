@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784026263093,
+  "publishedAt": 1784026591919,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -492,7 +492,7 @@
       "presentation": "An 2372. Claude est sacré Empereur. Les Robots sont partout et toute la galaxie d'Anthropie est sous leur joug. Toute? Non. Car un village peuplé d'irréductibles d'humains résiste encore et toujours à l'envahisseur.\n\nUne sélection de musique pour un jeu intergalactique ! \n\n***\n\nYear 2372. Claude has been crowned Emperor. Robots are everywhere, and the entire galaxy of Anthropia has fallen under their rule.\n\nThe entire galaxy? No\n\nOnly one small village of indomitable Gauls still holds out against the invaders",
       "buyable": false,
       "buyUrl": "",
-      "videoTestModeEnabled": false,
+      "videoTestModeEnabled": true,
       "bgColor": "#f6f5f3",
       "textColor": "#262521",
       "trackIds": [
