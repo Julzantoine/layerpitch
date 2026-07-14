@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784018952887,
+  "publishedAt": 1784019157950,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -560,6 +560,10 @@
         {
           "id": "bmrc8jutcd4w5f",
           "type": "bio"
+        },
+        {
+          "id": "bmrkexrkghgp8p",
+          "type": "contact"
         }
       ],
       "profile": {
