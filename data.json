@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784019157950,
+  "publishedAt": 1784026263093,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -492,6 +492,7 @@
       "presentation": "An 2372. Claude est sacré Empereur. Les Robots sont partout et toute la galaxie d'Anthropie est sous leur joug. Toute? Non. Car un village peuplé d'irréductibles d'humains résiste encore et toujours à l'envahisseur.\n\nUne sélection de musique pour un jeu intergalactique ! \n\n***\n\nYear 2372. Claude has been crowned Emperor. Robots are everywhere, and the entire galaxy of Anthropia has fallen under their rule.\n\nThe entire galaxy? No\n\nOnly one small village of indomitable Gauls still holds out against the invaders",
       "buyable": false,
       "buyUrl": "",
+      "videoTestModeEnabled": false,
       "bgColor": "#f6f5f3",
       "textColor": "#262521",
       "trackIds": [
@@ -568,7 +569,7 @@
       ],
       "profile": {
         "tagline": "",
-        "bio": "Jules-Antoine est compositeur pour l’image, nourri par un long parcours de musicien de scène. Formé en conservatoire (classique, jazz, musiques actuelles) et à l’université, il développe une écriture vivante et polyvalente, façonnée par des années passées à naviguer entre rock, reggae, pop, funk, jazz et musiques urbaines. Cette expérience du live lui apporte une sensibilité rythmique et une énergie organique qu’il met aujourd’hui au service de la narration audiovisuelle.\n\nEn 2022, il se spécialise dans la composition pour médias en intégrant le Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), au sein duquel il explore différents registres — fiction, animation, documentaire, jeux vidéo — et affine son langage sonore. Il continue de se spécialiser en 2026 en intégrant le MFA \"VideoGame and Mediacomposition\", pour s'aguerrir dans la composition adaptative et l'implémentation de musique au sein de moteurs audios.\n\nParallèlement à son travail pour l’image, il compose pour le spectacle vivant et dirige la création musicale de la compagnie jeune public Des Coccinelles dans les Chaussettes depuis 2017. Il collabore également très régulièrement avec Les concerts de Poche (ateliers écriture/MAO), La Femme et l'Homme Debout (Spectacles, ateliers), La Roulotte ruche (Spectacles de Rue)\n\nEn 2026, Jules-Antoine a notamment composé tout l'habillage sonore du dernier spectacle \"Il y'a des Choses que Non\", de la Compagnie \"La Femme et l'Homme Debout\"",
+        "bio": "Jules Antoine est compositeur pour l’image, nourri par un long parcours de musicien de scène. Formé en conservatoire (classique, jazz, musiques actuelles) et à l’université, il développe une écriture vivante et polyvalente, façonnée par des années passées à naviguer entre rock, reggae, pop, funk, jazz et musiques urbaines. Cette expérience du live lui apporte une sensibilité rythmique et une énergie organique qu’il met aujourd’hui au service de la narration audiovisuelle.\n\nEn 2022, il se spécialise dans la composition pour médias en intégrant le Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), au sein duquel il explore différents registres — fiction, animation, documentaire, jeux vidéo — et affine son langage sonore. Il continue de se spécialiser en 2026 en intégrant le MFA \"VideoGame and Mediacomposition\", pour s'aguerrir dans la composition adaptative et l'implémentation de musique au sein de moteurs audios.\n\nParallèlement à son travail pour l’image, il compose pour le spectacle vivant et dirige la création musicale de la compagnie jeune public Des Coccinelles dans les Chaussettes depuis 2017. Il collabore également très régulièrement avec Les concerts de Poche (ateliers écriture/MAO), La Femme et l'Homme Debout (Spectacles, ateliers), La Roulotte ruche (Spectacles de Rue)\n\nEn 2026, Jules-Antoine a notamment composé tout l'habillage sonore du dernier spectacle \"Il y'a des Choses que Non\", de la Compagnie \"La Femme et l'Homme Debout\"",
         "contactEmail": "",
         "contactUrl": "",
         "formspreeEndpoint": "https://formspree.io/f/mojognrj",
