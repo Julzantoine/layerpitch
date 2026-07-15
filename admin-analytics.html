@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>LayerPitch — Admin analytics bêta</title>
+<style>
+  body { font-family: 'Inter', system-ui, sans-serif; background: #f6f5f3; color: #262521; padding: 30px; max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: #777; font-size: 13px; margin-bottom: 20px; }
+  fieldset { border: 1px solid #e2e2e6; border-radius: 8px; padding: 16px; margin-bottom: 20px; background: #fff; }
+  label { display: block; font-size: 12px; margin-bottom: 4px; margin-top: 10px; }
+  input { width: 100%; padding: 7px 9px; border: 1px solid #d8d8dc; border-radius: 6px; font-size: 13px; box-sizing: border-box; }
+  .btn { padding: 8px 16px; border-radius: 6px; border: 1px solid #262521; background: #262521; color: #fff; cursor: pointer; font-size: 13px; margin-top: 14px; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eee; }
+  th { color: #888; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .tester-card { background: #fff; border: 1px solid #e2e2e6; border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+  .tester-card h3 { margin: 0 0 8px; font-size: 14px; }
+  .badge { display: inline-block; background: #f0f0f2; border-radius: 10px; padding: 2px 8px; font-size: 11px; margin-right: 6px; color: #666; }
+  .err-line { color: #b23; font-size: 12px; font-family: monospace; margin-top: 4px; }
+  #log { font-family: monospace; font-size: 11px; color: #555; margin-top: 10px; white-space: pre-wrap; }
+  .ok { color: #2a7; } .err { color: #b23; }
+</style>
+</head>
+<body>
+
+<h1>LayerPitch — Analytics bêta-testeurs</h1>
+<div class="sub">Agrège les <code>events.json</code> de tous les repos de l'organisation GitHub dédiée à la bêta. Lecture seule, rien n'est publié.</div>
+
+<fieldset>
+  <label>Organisation GitHub (celle créée pour la bêta)</label>
+  <input type="text" id="ghOrg" placeholder="ex : layerpitch-beta">
+  <label>Token d'accès personnel (lecture seule suffit — scope "Contents: Read" sur l'organisation)</label>
+  <input type="password" id="ghToken" placeholder="ghp_...">
+  <div class="sub" style="margin-top:6px">Jamais sauvegardé — à recoller à chaque session.</div>
+  <button class="btn" id="btnLoad">Charger les stats</button>
+</fieldset>
+
+<div id="summary"></div>
+<div id="testers"></div>
+<div id="log"></div>
+
+<script>
+function log(msg, cls) {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  el.appendChild(line);
+}
+function base64ToUint8(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function ghListRepos(org, token) {
+  const headers = { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}` };
+  let page = 1, all = [];
+  while (true) {
+    const res = await fetch(`https://api.github.com/orgs/${encodeURIComponent(org)}/repos?per_page=100&page=${page}`, { headers });
+    if (!res.ok) throw new Error(`Liste des repos → ${res.status}`);
+    const batch = await res.json();
+    all = all.concat(batch);
+    if (batch.length < 100) break;
+    page++;
+  }
+  return all;
+}
+
+async function ghGetEvents(org, repo, token) {
+  const headers = { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}` };
+  const res = await fetch(`https://api.github.com/repos/${org}/${repo}/contents/events.json`, { headers, cache: 'no-store' });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`events.json (${repo}) → ${res.status}`);
+  const json = await res.json();
+  try {
+    return JSON.parse(new TextDecoder().decode(base64ToUint8(json.content.replace(/\n/g, ''))));
+  } catch {
+    return null;
+  }
+}
+
+document.getElementById('btnLoad').addEventListener('click', async () => {
+  const org = document.getElementById('ghOrg').value.trim();
+  const token = document.getElementById('ghToken').value.trim();
+  const btn = document.getElementById('btnLoad');
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('summary').innerHTML = '';
+  document.getElementById('testers').innerHTML = '';
+  if (!org || !token) { log('Renseigne l\'organisation et le token.', 'err'); return; }
+
+  btn.disabled = true;
+  try {
+    log(`Recherche des repos de l'organisation "${org}"…`);
+    const repos = await ghListRepos(org, token);
+    log(`${repos.length} repo(s) trouvé(s).`, 'ok');
+
+    const perTester = [];
+    let totalActions = 0, totalErrors = 0, totalTestActions = 0;
+    const globalActionCounts = {};
+
+    for (const r of repos) {
+      log(`Lecture de events.json pour ${r.name}…`);
+      const data = await ghGetEvents(org, r.name, token);
+      if (!data || !data.events || !data.events.length) { log(`— rien pour ${r.name} (pas encore publié ou pas d'activité).`); continue; }
+      const realEvents = data.events.filter(ev => ev.context !== 'test');
+      const testEvents = data.events.filter(ev => ev.context === 'test');
+      const actionCounts = {};
+      const errors = [];
+      realEvents.forEach(ev => {
+        if (ev.type === 'action') {
+          actionCounts[ev.name] = (actionCounts[ev.name] || 0) + 1;
+          globalActionCounts[ev.name] = (globalActionCounts[ev.name] || 0) + 1;
+          totalActions++;
+        } else if (ev.type === 'error') {
+          errors.push(ev);
+          totalErrors++;
+        }
+      });
+      totalTestActions += testEvents.length;
+      if (!realEvents.length && !testEvents.length) continue;
+      perTester.push({ tester: data.testerId || r.name, actionCounts, errors, testCount: testEvents.length });
+    }
+
+    // Résumé global
+    const summaryEl = document.getElementById('summary');
+    let summaryHtml = `<fieldset><h3 style="margin-top:0">Résumé global</h3>
+      <div class="sub">${perTester.length} testeur(s) actif(s) — ${totalActions} action(s) réelle(s) — ${totalErrors} erreur(s)${totalTestActions ? ` — ${totalTestActions} action(s) en Mode test exclue(s) des stats` : ''}</div>
+      <table><tr><th>Action</th><th>Total (tous testeurs, hors Mode test)</th></tr>`;
+    Object.entries(globalActionCounts).sort((a, b) => b[1] - a[1]).forEach(([name, count]) => {
+      summaryHtml += `<tr><td>${name}</td><td>${count}</td></tr>`;
+    });
+    summaryHtml += `</table></fieldset>`;
+    summaryEl.innerHTML = summaryHtml;
+
+    // Détail par testeur
+    const testersEl = document.getElementById('testers');
+    perTester.forEach(t => {
+      let html = `<div class="tester-card"><h3>${t.tester}${t.testCount ? ` <span class="badge" style="background:#fff3cd">${t.testCount} action(s) test exclue(s)</span>` : ''}</h3>`;
+      Object.entries(t.actionCounts).sort((a, b) => b[1] - a[1]).forEach(([name, count]) => {
+        html += `<span class="badge">${name} × ${count}</span>`;
+      });
+      if (t.errors.length) {
+        html += `<div style="margin-top:10px"><strong>Erreurs (${t.errors.length}) :</strong>`;
+        t.errors.slice(-5).forEach(e => {
+          html += `<div class="err-line">${e.ts} — ${(e.detail && e.detail.message) || e.name}</div>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
+      testersEl.innerHTML += html;
+    });
+
+    log('Terminé.', 'ok');
+  } catch (err) {
+    log('Erreur : ' + err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
