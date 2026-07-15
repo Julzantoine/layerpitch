@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title data-i18n="pageTitle">Test gameplay — LayerPitch</title>
+<title>Test gameplay — LayerPitch</title>
 <style>
   html, body { margin: 0; padding: 0; height: 100%; background: #111; overflow: hidden; }
   #player-wrap, #yt-target { position: fixed; inset: 0; width: 100%; height: 100%; }
@@ -20,27 +20,10 @@
 <body>
 <div id="player-wrap"><div id="yt-target"></div></div>
 <div id="error-box">
-  <div class="msg" data-i18n="errorMsg">Impossible de charger cette vidéo ici.</div>
-  <div class="hint" data-i18n="errorHint">Vérifie qu'elle est publique et intégrable (pas restreinte "propriétaire uniquement" côté YouTube, ou "à mots de passe" côté Vimeo).</div>
+  <div class="msg">Impossible de charger cette vidéo ici.</div>
+  <div class="hint">Vérifie qu'elle est publique et intégrable (pas restreinte "propriétaire uniquement" côté YouTube, ou "à mots de passe" côté Vimeo).</div>
 </div>
-<script src="layerpitch-i18n.js"></script>
 <script>
-// Fenêtre transitoire (ouverte par pack.html) : pas d'interrupteur de langue ici, on hérite simplement
-// de la langue transmise par pack.html via l'URL. Dictionnaire dans layerpitch-i18n.js (zone "videoTest").
-// Langue transmise par pack.html (paramètre ?lang=) — même AdReel, même langue, jamais de choix ici.
-function currentLang() { return new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'fr'; }
-function applyI18n() {
-  const I18N = window.LAYERPITCH_I18N || { fr: { videoTest: {} }, en: { videoTest: {} } };
-  const dict = (I18N[currentLang()] || I18N.fr).videoTest || {};
-  const dictFr = (I18N.fr || {}).videoTest || {};
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.dataset.i18n;
-    const v = dict[key] || dictFr[key];
-    if (v) el.textContent = v;
-  });
-}
-applyI18n();
-
 function showError() {
   document.getElementById('player-wrap').style.display = 'none';
   document.getElementById('error-box').classList.add('visible');
