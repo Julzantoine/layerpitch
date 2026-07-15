@@ -40,6 +40,34 @@ function trackPublicEvent(name, detail) {
   try { if (window.umami) window.umami.track(name, detail); } catch (e) { /* jamais bloquant */ }
 }
 
+// Traductions de l'habillage généré par le moteur (statuts, boutons, libellés de mode...) — pas le
+// Traductions de l'habillage généré par le moteur (statuts, boutons, libellés de mode...) — pas le
+// contenu des morceaux eux-mêmes (titres, descriptions, labels de couches saisis par le compositeur).
+// Vit dans layerpitch-i18n.js (zones "shared" + "player"), chargé avant ce script — édité via l'outil
+// dédié, jamais à la main. Ce fichier n'a pas besoin de balayer le DOM après coup : le texte est inséré
+// directement dans les gabarits au moment de leur construction, via t('clé').
+//
+// La langue n'est plus lue depuis localStorage ici : chaque page hôte (index.html, pack.html,
+// layerpitch-backstage.html) la détermine elle-même selon son propre contexte (langue de l'AdReel,
+// paramètre d'URL du pack, réglage du backstage) et l'impose via setLang() avant de construire quoi
+// que ce soit. Évite qu'un visiteur voie une langue différente de celle choisie par le compositeur.
+let CURRENT_LANG = 'fr';
+function setLang(lang) { CURRENT_LANG = (lang === 'en') ? 'en' : 'fr'; }
+function currentLang() { return CURRENT_LANG; }
+// t('clé', {placeholder: valeur}) — remplace {placeholder} dans la chaîne traduite si fourni.
+// Ordre de repli : zone player dans la langue courante -> zone shared dans la langue courante ->
+// zone player en français (au cas où l'anglais ne serait pas encore traduit) -> zone shared en français
+// -> la clé elle-même (filet de sécurité si layerpitch-i18n.js n'a pas encore chargé ou est incomplet).
+function t(key, vars) {
+  const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, player: {} }, en: { shared: {}, player: {} } };
+  const dict = I18N[currentLang()] || I18N.fr;
+  const dictFr = I18N.fr;
+  let str = (dict.player && dict.player[key]) || (dict.shared && dict.shared[key])
+    || (dictFr.player && dictFr.player[key]) || (dictFr.shared && dictFr.shared[key]) || key;
+  if (vars) Object.keys(vars).forEach(k => { str = str.replace('{' + k + '}', vars[k]); });
+  return str;
+}
+
 function formatTime(s) {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
@@ -98,10 +126,10 @@ if (navigator.wakeLock) {
 }
 
 function renderTracksBlock(container, tracks, packsByTrackId) {
-  const el = section('Musique', '');
+  const el = section(t('musicSection'), '');
   container.appendChild(el);
   if (!tracks || tracks.length === 0) {
-    el.innerHTML += '<div class="empty">Aucun morceau publié pour l\'instant.</div>';
+    el.innerHTML += `<div class="empty">${t('noTracksPublished')}</div>`;
     return;
   }
 
@@ -113,13 +141,16 @@ function renderTracksBlock(container, tracks, packsByTrackId) {
   });
 }
 
-const MODE_LABELS = {
-  static: 'statique',
-  vertical: 'layering vertical',
-  'vertical-random': 'layering vertical randomisé',
-  sequential: 'séquentiel',
-  branching: 'embranchement'
-};
+function getModeLabel(mode) {
+  const map = {
+    static: t('modeStatic'),
+    vertical: t('modeVertical'),
+    'vertical-random': t('modeVerticalRandom'),
+    sequential: t('modeSequential'),
+    branching: t('modeBranching')
+  };
+  return map[mode] || mode;
+}
 const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential'];
 
 function layerHasSource(l) { return !!(l && (l.localFile || l.file)); }
@@ -161,7 +192,7 @@ function buildTrackRow(track, packsForTrack) {
     }).join('');
     intensityBlockHtml = `
       <div class="track-intensity-block">
-        <div class="track-intensity-label">Intensité</div>
+        <div class="track-intensity-label">${t('intensityLabel')}</div>
         <div class="intensity-picker" data-role="slider">${chips}</div>
       </div>
     `;
@@ -173,14 +204,14 @@ function buildTrackRow(track, packsForTrack) {
   if (track.mode === 'vertical' && supported) {
     vertGraphHtml = `
       <div class="voice-graph" data-role="vertGraph">
-        <div class="voice-graph-label">En cours</div>
+        <div class="voice-graph-label">${t('inProgressLabel')}</div>
         ${track.layers.map((l, i) => `
           <div class="voice-row">
-            <span class="voice-row-label">${escapeHtml((l && l.label) || 'Couche ' + (i + 1))}</span>
+            <span class="voice-row-label">${escapeHtml((l && l.label) || t('layerFallback', { n: i + 1 }))}</span>
             <span class="voice-meter-bar" data-role="vertMeter-${i}"><span class="voice-meter-bar-fill"></span></span>
             <div class="wwise-node-controls">
-              <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="layer-${i}" title="Solo">S</button>
-              <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="layer-${i}" title="Muet">M</button>
+              <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="layer-${i}" title="${t('soloTitle')}">S</button>
+              <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="layer-${i}" title="${t('muteTitle')}">M</button>
             </div>
           </div>
         `).join('')}
@@ -193,10 +224,10 @@ function buildTrackRow(track, packsForTrack) {
     const fixedNodes = (track.fixedLayers || []).map((f, fi) => `
       <div class="wwise-node wwise-node-voice" data-role="wwiseVoice-fixed-${fi}">
         <div class="wwise-node-top">
-          <div class="wwise-node-label">${escapeHtml(f && f.label ? f.label : ('Couche fixe ' + (fi + 1)))}</div>
+          <div class="wwise-node-label">${escapeHtml(f && f.label ? f.label : t('fixedLayerFallback', { n: fi + 1 }))}</div>
           <div class="wwise-node-controls">
-            <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="fixed-${fi}" title="Solo">S</button>
-            <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="fixed-${fi}" title="Muet">M</button>
+            <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="fixed-${fi}" title="${t('soloTitle')}">S</button>
+            <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="fixed-${fi}" title="${t('muteTitle')}">M</button>
           </div>
         </div>
         <span class="wwise-node-wave">
@@ -210,8 +241,8 @@ function buildTrackRow(track, packsForTrack) {
         <div class="wwise-node-top">
           <div class="wwise-node-label" data-role="voiceCurrent-${gi}">—</div>
           <div class="wwise-node-controls">
-            <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="group-${gi}" title="Solo">S</button>
-            <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="group-${gi}" title="Muet">M</button>
+            <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="group-${gi}" title="${t('soloTitle')}">S</button>
+            <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="group-${gi}" title="${t('muteTitle')}">M</button>
           </div>
         </div>
         <span class="wwise-node-wave">
@@ -222,21 +253,21 @@ function buildTrackRow(track, packsForTrack) {
     `).join('');
     voiceGraphHtml = `
       <div class="voice-graph" data-role="voiceGraph">
-        <div class="voice-graph-label">En cours</div>
+        <div class="voice-graph-label">${t('inProgressLabel')}</div>
         <div class="wwise-graph" data-role="wwiseGraph">
           <svg class="wwise-graph-lines" data-role="wwiseLines"></svg>
           <div class="wwise-col wwise-col-source">
-            <div class="wwise-node wwise-node-source" data-role="wwiseSource">${escapeHtml(track.title || 'Morceau')}</div>
+            <div class="wwise-node wwise-node-source" data-role="wwiseSource">${escapeHtml(track.title || t('trackFallback'))}</div>
           </div>
           <div class="wwise-col wwise-col-voices">
             ${fixedNodes}
             ${groupNodes}
           </div>
           <div class="wwise-col wwise-col-bus">
-            <div class="wwise-node wwise-node-bus" data-role="wwiseBus">Sortie</div>
+            <div class="wwise-node wwise-node-bus" data-role="wwiseBus">${t('outputNode')}</div>
           </div>
         </div>
-        <button type="button" class="voice-refresh-btn" data-role="refreshPool">↻ Rafraîchir le pool</button>
+        <button type="button" class="voice-refresh-btn" data-role="refreshPool">${t('refreshPool')}</button>
       </div>
     `;
   }
@@ -247,17 +278,17 @@ function buildTrackRow(track, packsForTrack) {
     const hasOutro = layerHasSource(track.outro);
     seqGraphHtml = `
       <div class="voice-graph" data-role="seqGraph">
-        <div class="voice-graph-label">En cours</div>
+        <div class="voice-graph-label">${t('inProgressLabel')}</div>
         <div class="seq-blocks" data-role="seqBlocks">
-          ${hasIntro ? `<div class="seq-block" data-role="seqBlock-intro"><canvas class="seq-block-wave-bg" data-role="seqWaveBg-intro"></canvas><canvas class="seq-block-wave-fg" data-role="seqWaveFg-intro"></canvas><span class="seq-block-label">Intro</span></div>` : ''}
-          <div class="seq-block" data-role="seqBlock-segment"><canvas class="seq-block-wave-bg" data-role="seqWaveBg-segment"></canvas><canvas class="seq-block-wave-fg" data-role="seqWaveFg-segment"></canvas><span class="seq-block-label">Segment</span></div>
-          ${hasOutro ? `<div class="seq-block" data-role="seqBlock-outro"><canvas class="seq-block-wave-bg" data-role="seqWaveBg-outro"></canvas><canvas class="seq-block-wave-fg" data-role="seqWaveFg-outro"></canvas><span class="seq-block-label">Outro</span></div>` : ''}
+          ${hasIntro ? `<div class="seq-block" data-role="seqBlock-intro"><canvas class="seq-block-wave-bg" data-role="seqWaveBg-intro"></canvas><canvas class="seq-block-wave-fg" data-role="seqWaveFg-intro"></canvas><span class="seq-block-label">${t('introLabel')}</span></div>` : ''}
+          <div class="seq-block" data-role="seqBlock-segment"><canvas class="seq-block-wave-bg" data-role="seqWaveBg-segment"></canvas><canvas class="seq-block-wave-fg" data-role="seqWaveFg-segment"></canvas><span class="seq-block-label">${t('segmentLabel')}</span></div>
+          ${hasOutro ? `<div class="seq-block" data-role="seqBlock-outro"><canvas class="seq-block-wave-bg" data-role="seqWaveBg-outro"></canvas><canvas class="seq-block-wave-fg" data-role="seqWaveFg-outro"></canvas><span class="seq-block-label">${t('outroLabel')}</span></div>` : ''}
         </div>
         <div class="voice-row">
           <span class="voice-meter" data-role="seqMeter"></span>
           <span class="voice-row-current" data-role="seqCurrent">—</span>
         </div>
-        <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled>Aller vers la fin →</button>
+        <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled>${t('goToEndBtn')}</button>
       </div>
     `;
   }
@@ -272,9 +303,9 @@ function buildTrackRow(track, packsForTrack) {
     const current = track.maxLoops || null;
     loopCountHtml = `
       <div class="loop-count-block">
-        <div class="loop-count-label">Nombre de boucles</div>
+        <div class="loop-count-label">${t('loopCountLabel')}</div>
         <select data-role="loopCountSelect">
-          ${options.map(n => `<option value="${n === null ? '' : n}"${current === n ? ' selected' : ''}>${n === null ? '∞ Infini' : n}</option>`).join('')}
+          ${options.map(n => `<option value="${n === null ? '' : n}"${current === n ? ' selected' : ''}>${n === null ? t('infiniteLoops') : n}</option>`).join('')}
         </select>
       </div>
     `;
@@ -282,12 +313,12 @@ function buildTrackRow(track, packsForTrack) {
 
   wrapper.innerHTML = `
     <div class="track-row">
-      <button class="play-btn" data-role="playBtn" disabled aria-label="Chargement en cours">
+      <button class="play-btn" data-role="playBtn" disabled aria-label="${t('loadingAriaLabel')}">
         <svg data-role="playIcon" class="loading-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="28 100"/></svg>
       </button>
       <div class="track-row-title" data-role="titleToggle">
         <span class="name">${escapeHtml(track.title)}</span>
-        <span class="mode-tag">${MODE_LABELS[track.mode] || track.mode}</span>
+        <span class="mode-tag">${getModeLabel(track.mode)}</span>
         ${supported ? `
           <span class="loop-icon" title="${loops ? 'Bouclable' : 'Ne boucle pas'}">
             ${loops
@@ -757,7 +788,7 @@ function initTrackPlayer(track, wrapper) {
       playing = false;
       playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
       setStoppedUI();
-      if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = 'Aller vers la fin →'; }
+      if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = t('goToEndBtn'); }
       if (activeTrackId === track.id) activeTrackId = null;
     };
   }
@@ -789,7 +820,7 @@ function initTrackPlayer(track, wrapper) {
     goToEndRequested = false;
     if (seqMeterEl) seqMeterEl.classList.remove('pulse');
     if (seqCurrentEl) seqCurrentEl.textContent = '—';
-    if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = 'Aller vers la fin →'; }
+    if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = t('goToEndBtn'); }
     resetSeqStages();
   }
   function playSequential(isContinuation) {
@@ -800,7 +831,7 @@ function initTrackPlayer(track, wrapper) {
       firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars); firstKind = 'intro'; firstGain = effGain(track.intro);
     } else {
       const idx = pickSegmentIndex();
-      if (idx < 0) { if (statusEl) statusEl.textContent = 'Aucun segment disponible'; return; }
+      if (idx < 0) { if (statusEl) statusEl.textContent = t('noSegmentAvailable'); return; }
       const seg = track.segments[idx];
       firstBuffer = segmentBuffers[idx]; firstLabel = (seg && seg.label) || ('Segment ' + (idx + 1)); firstDurationSec = blockSeconds(seg && seg.bars); firstKind = 'segment'; firstGain = effGain(seg);
     }
@@ -821,7 +852,7 @@ function initTrackPlayer(track, wrapper) {
     playIcon.classList.remove('loading-icon');
     playIcon.classList.add('error-icon');
     playIcon.innerHTML = '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v6"/><circle cx="12" cy="16.7" r="0.9" fill="currentColor" stroke="none"/>';
-    playBtn.setAttribute('aria-label', 'Erreur de chargement');
+    playBtn.setAttribute('aria-label', t('loadErrorAriaLabel'));
   }
 
   function updateStingerAvailability() {
@@ -878,7 +909,7 @@ function initTrackPlayer(track, wrapper) {
   }
   function setStoppedUI() {
     playIcon.innerHTML = PLAY_SVG;
-    if (statusEl) statusEl.textContent = 'En pause';
+    if (statusEl) statusEl.textContent = t('pausedStatus');
   }
 
   /* ---- Moteur simple (bouclage natif, comportement existant inchangé) ---- */
@@ -972,7 +1003,7 @@ function initTrackPlayer(track, wrapper) {
           const buf = (groupBuffers[gi] || [])[idx];
           silent = !buf;
           pickedBuf = buf;
-          label = buf ? ((alt && alt.label) ? alt.label : 'Alt. ' + (idx + 1)) : '(silence)';
+          label = buf ? ((alt && alt.label) ? alt.label : t('altFallback', { n: idx + 1 })) : t('silenceLabel');
           if (buf) {
             const src = ctx.createBufferSource();
             src.buffer = buf;
@@ -1133,7 +1164,7 @@ function initTrackPlayer(track, wrapper) {
       playSimple();
     }
     playIcon.innerHTML = PAUSE_SVG;
-    if (statusEl) statusEl.textContent = 'Lecture en cours';
+    if (statusEl) statusEl.textContent = t('playingStatus');
     tick();
   }
 
@@ -1169,7 +1200,7 @@ function initTrackPlayer(track, wrapper) {
       if (!playing || goToEndRequested) return;
       goToEndRequested = true;
       goToEndBtn.disabled = true;
-      goToEndBtn.textContent = track.outro ? 'Fin en cours…' : 'Dernier segment…';
+      goToEndBtn.textContent = track.outro ? t('endingWithOutro') : t('endingLastSegment');
       trackPublicEvent('go_to_end_click', { trackId: track.id });
     });
   }
@@ -1315,14 +1346,14 @@ function initTrackPlayer(track, wrapper) {
           const ab = await loadArrayBuffer(rawFixed[fi]);
           fixedBuffers[fi] = await decodeAudioDataCompat(ab);
           loaded++;
-          if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+          if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
           // rawFixed est filtré (layerHasSource) : son index ne correspond pas forcément à celui de
           // track.fixedLayers utilisé par le gabarit — on retrouve la bonne case par référence d'objet.
           const origIndex = track.fixedLayers.indexOf(rawFixed[fi]);
           if (origIndex >= 0) drawVoiceWave(voiceWaveFixed[origIndex], fixedBuffers[fi]);
         } catch (e) { /* une couche fixe manquante ne bloque pas les autres */ }
       }
-      if (fixedBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = 'Erreur de chargement (aucune couche fixe)'; setLoadErrorIcon(); return; }
+      if (fixedBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = t('loadErrorNoFixedLayers'); setLoadErrorIcon(); return; }
       for (let gi = 0; gi < rawGroups.length; gi++) {
         const alts = rawGroups[gi].alternatives || [];
         // Même longueur que les alternatives déclarées, y compris les slots vides (intentionnels : ils restent
@@ -1335,7 +1366,7 @@ function initTrackPlayer(track, wrapper) {
             const ab = await loadArrayBuffer(alts[ai]);
             groupBuffers[gi][ai] = await decodeAudioDataCompat(ab);
             loaded++;
-            if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+            if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
           } catch (e) { /* fichier manquant : ce tirage restera silencieux plutôt que de bloquer la lecture */ }
         }
       }
@@ -1350,7 +1381,7 @@ function initTrackPlayer(track, wrapper) {
           const ab = await loadArrayBuffer(track.intro);
           introBuffer = await decodeAudioDataCompat(ab);
           loaded++;
-          if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+          if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
         } catch (e) { /* intro manquante : la lecture démarrera directement sur un segment */ }
       }
       if (hasOutro) {
@@ -1358,7 +1389,7 @@ function initTrackPlayer(track, wrapper) {
           const ab = await loadArrayBuffer(track.outro);
           outroBuffer = await decodeAudioDataCompat(ab);
           loaded++;
-          if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+          if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
         } catch (e) { /* outro manquante : "Aller vers la fin" laissera simplement filer le segment en cours */ }
       }
       for (let sgi = 0; sgi < (track.segments || []).length; sgi++) {
@@ -1367,10 +1398,10 @@ function initTrackPlayer(track, wrapper) {
           const ab = await loadArrayBuffer(track.segments[sgi]);
           segmentBuffers[sgi] = await decodeAudioDataCompat(ab);
           loaded++;
-          if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+          if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
         } catch (e) { /* segment manquant : simplement absent du tirage, ne bloque pas le reste */ }
       }
-      if (segmentBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = 'Erreur de chargement (aucun segment)'; setLoadErrorIcon(); return; }
+      if (segmentBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = t('loadErrorNoSegments'); setLoadErrorIcon(); return; }
     } else {
       total = layersToLoad.length + stingerDefs.length;
       for (let i = 0; i < layersToLoad.length; i++) {
@@ -1378,8 +1409,8 @@ function initTrackPlayer(track, wrapper) {
           const ab = await loadArrayBuffer(layersToLoad[i]);
           buffers[i] = await decodeAudioDataCompat(ab);
           loaded++;
-          if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
-        } catch (e) { if (statusEl) statusEl.textContent = 'Erreur de chargement'; setLoadErrorIcon(); return; }
+          if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
+        } catch (e) { if (statusEl) statusEl.textContent = t('loadErrorStatus'); setLoadErrorIcon(); return; }
       }
       if (isStatic && buffers[0] && waveformBg) {
         try {
@@ -1393,7 +1424,7 @@ function initTrackPlayer(track, wrapper) {
         const ab = await loadArrayBuffer(stingerDefs[i]);
         stingerBuffers[i] = await decodeAudioDataCompat(ab);
         loaded++;
-        if (statusEl) statusEl.textContent = `Chargement… ${loaded}/${total}`;
+        if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
       } catch (e) { /* un stinger manquant ne bloque pas la lecture principale */ }
     }
     // Pour une source locale non encore publiée, la durée réelle n'est connue qu'une fois décodée.
@@ -1407,9 +1438,9 @@ function initTrackPlayer(track, wrapper) {
       track.duration = decodedMax;
       if (timeTotal) timeTotal.textContent = formatTime(progressMaxSec());
     }
-    if (statusEl) statusEl.textContent = 'Prêt';
+    if (statusEl) statusEl.textContent = t('readyStatus');
     playBtn.disabled = false;
-    playBtn.setAttribute('aria-label', 'Lecture');
+    playBtn.setAttribute('aria-label', t('playAriaLabel'));
     playIcon.classList.remove('loading-icon');
     playIcon.innerHTML = PLAY_SVG;
     ready = true;
@@ -1466,7 +1497,8 @@ window.LayerPlayerCore = {
   initTrackPlayer,
   renderTracksBlock,
   setupContrastToggle,
-  MODE_LABELS,
+  getModeLabel,
+  setLang,
   PLAYABLE_MODES
 };
 
