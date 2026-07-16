@@ -5,10 +5,8 @@
 // Édité via l'outil dédié (layerpitch-help-editor.html), jamais à la main directement.
 // Chargé uniquement par layerpitch-backstage.html — jamais publié sur les pages publiques.
 //
-// Structure : une zone par section du backstage (une seule pour l'instant : "library", la
-// bibliothèque/l'éditeur de morceaux). D'autres zones (packs, appearance, github...) viendront
-// s'ajouter au fil des prochaines sessions. Chaque clé correspond à un attribut data-help="clé"
-// posé sur un contrôle du backstage.
+// Structure : une zone par section du backstage. Chaque clé correspond à un attribut
+// data-help="clé" posé sur un contrôle du backstage.
 window.LAYERPITCH_HELP = {
   fr: {
     library: {
@@ -33,6 +31,33 @@ window.LAYERPITCH_HELP = {
       layersVertical: "Les couches de ce morceau, de la plus calme à la plus intense — c'est cet ordre qui détermine ce qui s'ajoute quand le visiteur augmente l'intensité sur la page publique.",
       stingers: "Sons courts que le visiteur peut déclencher à la main pendant la lecture (ex. un impact, un sting d'alerte), en plus de la musique en cours — n'affectent pas la boucle principale.",
     },
+    packs: {
+      packIllustration: "Image principale affichée en haut de la page publique de ce pack.",
+      packWatermark: "Image de fond décorative affichée en transparence derrière tout le contenu de la page — purement esthétique, optionnelle.",
+      packPresentation: "Texte de présentation affiché sur la page publique du pack, au-dessus de la liste des morceaux. Sélectionne du texte puis Cmd+K pour y insérer un lien.",
+      packBuyable: "Affiche un bouton d'achat sur la page publique du pack. Aucun paiement réel n'est traité aujourd'hui — le lien peut pointer vers autre chose en attendant (mail, formulaire) si besoin.",
+      packVideoTestMode: "Ajoute un bouton qui ouvre une vidéo YouTube/Vimeo dans une fenêtre séparée, son coupé, pour que le visiteur teste tes morceaux en direct dessus pendant qu'il regarde.",
+      packAppearance: "Couleurs de fond et de texte propres à la page de ce pack — indépendantes de celles de l'AdReel qui y renvoie.",
+      packTracks: "Les morceaux de la bibliothèque inclus dans ce pack, dans l'ordre d'affichage sur sa page publique.",
+    },
+    appearance: {
+      publishLang: "Langue de l'interface publique pour cet AdReel — n'affecte pas ton contenu (titres, textes, témoignages), qui reste dans la langue où tu l'as écrit. Les packs liés depuis cet AdReel suivent automatiquement ce choix.",
+      bgColorAppearance: "Couleur de fond de la page publique de cet AdReel. Vérifie le contraste avec la couleur du texte pour rester lisible.",
+      textColorAppearance: "Couleur du texte principal de la page publique de cet AdReel.",
+    },
+    github: {
+      ghOwner: "Ton nom d'utilisateur ou d'organisation GitHub — visible dans l'URL de ton repo (github.com/OWNER/repo).",
+      ghRepo: "Le nom du dépôt GitHub où ce site est hébergé — visible dans l'URL (github.com/owner/REPO).",
+      ghBranch: "La branche du dépôt à lire et publier — \"main\" dans la grande majorité des cas, à ne changer que si ton repo utilise un nom de branche différent.",
+      ghToken: "Un token d'accès personnel GitHub (\"Fine-grained\", limité à ce seul dépôt) qui autorise ce backstage à publier à ta place. Jamais sauvegardé — à recoller à chaque session.",
+    },
+    content: {
+      formspreeEndpoint: "L'URL de ton formulaire Formspree — nécessaire uniquement si tu ajoutes un bloc \"Contact\" à une page. Sans ça, ce bloc n'affichera rien côté public.",
+      blockAlign: "Position de ce bloc sur la page publique. S'applique uniquement si le bloc ne contient qu'un seul élément (une image) ; avec plusieurs images, elles s'affichent en grille quel que soit ce réglage.",
+    },
+    misc: {
+      feedbackBtn: "Envoie un message directement à Jules-Antoine — bugs, confusions, idées, ce qui t'a plu ou pas. Pas besoin d'être structuré.",
+    },
   },
   en: {
     library: {
@@ -56,6 +81,33 @@ window.LAYERPITCH_HELP = {
       outroSection: "Only triggers if the visitor clicks \"Go to ending\" on the public side. Without an outro set, this button simply lets the current segment run to its natural end.",
       layersVertical: "This track's layers, from calmest to most intense — this order determines what gets added as the visitor increases the intensity on the public page.",
       stingers: "Short sounds the visitor can trigger manually during playback (e.g. a hit, an alert sting), layered on top of the ongoing music — they don't affect the main loop.",
+    },
+    packs: {
+      packIllustration: "Main image shown at the top of this pack's public page.",
+      packWatermark: "Decorative background image shown as a transparent overlay behind all the page content — purely aesthetic, optional.",
+      packPresentation: "Presentation text shown on the pack's public page, above the track list. Select text then Cmd+K to insert a link.",
+      packBuyable: "Shows a buy button on the pack's public page. No real payment is processed today — the link can point to something else in the meantime (email, form) if needed.",
+      packVideoTestMode: "Adds a button that opens a YouTube/Vimeo video in a separate window, muted, so the visitor can test your tracks live against it while watching.",
+      packAppearance: "Background and text colors specific to this pack's page — independent from those of the AdReel linking to it.",
+      packTracks: "The library tracks included in this pack, in the order they're shown on its public page.",
+    },
+    appearance: {
+      publishLang: "The public interface language for this AdReel — doesn't affect your own content (titles, texts, testimonials), which stays in the language you wrote it in. Packs linked from this AdReel automatically follow this choice.",
+      bgColorAppearance: "Background color of this AdReel's public page. Check the contrast against the text color to stay readable.",
+      textColorAppearance: "Main text color of this AdReel's public page.",
+    },
+    github: {
+      ghOwner: "Your GitHub username or organization — visible in your repo's URL (github.com/OWNER/repo).",
+      ghRepo: "The name of the GitHub repository hosting this site — visible in the URL (github.com/owner/REPO).",
+      ghBranch: "The repo branch to read from and publish to — \"main\" in the vast majority of cases, only change it if your repo uses a different branch name.",
+      ghToken: "A GitHub personal access token (\"Fine-grained\", scoped to this one repository) that lets this backstage publish on your behalf. Never saved — paste it in again each session.",
+    },
+    content: {
+      formspreeEndpoint: "Your Formspree form URL — only needed if you add a \"Contact\" block to a page. Without it, that block will show nothing on the public side.",
+      blockAlign: "This block's position on the public page. Only applies if the block contains a single item (one image); with several images, they're shown as a grid regardless of this setting.",
+    },
+    misc: {
+      feedbackBtn: "Sends a message straight to Jules-Antoine — bugs, confusing bits, ideas, what you liked or didn't. No need to be structured about it.",
     },
   },
 };
