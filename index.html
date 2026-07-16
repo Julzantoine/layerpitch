@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LayerPitch</title>
+<title data-i18n="pageTitle">LayerPitch</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -204,15 +204,36 @@
   <div id="blocksContainer"></div>
   <div class="contact" id="contact"></div>
   <div class="layerpitch-credit" id="layerpitchCredit"></div>
-  <label class="contrast-toggle"><input type="checkbox" id="contrastToggle"> Contraste renforcé</label>
+  <label class="contrast-toggle"><input type="checkbox" id="contrastToggle"> <span data-i18n="highContrast">Contraste renforcé</span></label>
 </div>
 
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
+<script src="layerpitch-i18n.js"></script>
 <script src="player.js"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.LayerPlayerCore;
+
+// Traductions de l'habillage LayerPitch (pas le contenu des AdReels/morceaux, qui reste dans sa langue
+// d'origine). Vit dans layerpitch-i18n.js (zones "shared" + "index"), édité via l'outil dédié.
+// Langue fixée par le compositeur pour cet AdReel (champ adReel.lang dans data.json), jamais par le
+// visiteur — déterminée une fois l'AdReel trouvé, voir init(). 'fr' tant que rien n'est encore connu.
+let pageLang = 'fr';
+function currentLang() { return pageLang; }
+// t('clé') pour le texte généré en JS ; data-i18n pour le HTML statique. Un même dictionnaire pour les
+// deux. Ordre de repli : zone index -> zone shared -> même chose en français -> la clé elle-même.
+function t(key) {
+  const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, index: {} }, en: { shared: {}, index: {} } };
+  const dict = I18N[currentLang()] || I18N.fr;
+  const dictFr = I18N.fr;
+  return (dict.index && dict.index[key]) || (dict.shared && dict.shared[key])
+    || (dictFr.index && dictFr.index[key]) || (dictFr.shared && dictFr.shared[key]) || key;
+}
+function applyI18n() {
+  document.documentElement.lang = currentLang();
+  document.querySelectorAll('[data-i18n]').forEach(el => { const v = t(el.dataset.i18n); if (v) el.textContent = v; });
+}
 
 // Même petit repère que dans player.js — dupliqué ici car ce script inline est un fichier séparé,
 // sans accès direct à l'intérieur de la fonction IIFE de player.js.
@@ -251,7 +272,7 @@ function renderHeaderBlock(container, profile) {
   const el = document.createElement('div');
   el.className = 'header';
   el.innerHTML = `
-    ${profile.logo ? `<img class="logo-img" src="./images/${profile.logo}" alt="Logo">` : `<div class="logo-fallback">LayerPitch</div>`}
+    ${profile.logo ? `<img class="logo-img" src="./images/${profile.logo}" alt="${t('logoAlt')}">` : `<div class="logo-fallback">LayerPitch</div>`}
     ${profile.tagline ? `<div class="logo-tag">${escapeHtml(profile.tagline)}</div>` : ''}
   `;
   container.appendChild(el);
@@ -260,14 +281,14 @@ function renderBioBlock(container, profile) {
   if (!profile.bio && !profile.photo) return;
   const textHtml = (profile.bio || '').split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('');
   const photoHtml = profile.photo
-    ? `<div class="bio-photo"><img src="./images/${profile.photo}" alt="Photo"></div>`
+    ? `<div class="bio-photo"><img src="./images/${profile.photo}" alt="${t('photoAlt')}"></div>`
     : `<div class="bio-photo empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></div>`;
-  container.appendChild(section('À propos', `<div class="bio">${photoHtml}<div class="bio-text">${textHtml}</div></div>`));
+  container.appendChild(section(t('aboutSection'), `<div class="bio">${photoHtml}<div class="bio-text">${textHtml}</div></div>`));
 }
 function renderTestimonialsBlock(container, list) {
   if (!list || list.length === 0) return;
   const inner = list.map(t => `<div class="testimonial"><p>« ${linkify(t.text)} »</p><cite>${escapeHtml(t.author)}</cite></div>`).join('');
-  container.appendChild(section('Ils en parlent', inner));
+  container.appendChild(section(t('testimonialsSection'), inner));
 }
 function renderTextBlockItem(container, block) {
   if (!block.content) return;
@@ -312,13 +333,13 @@ function extractYouTubeId(url) {
 function renderPacksBlockItem(container, block, packsById) {
   const selected = (block.packIds || []).map(id => packsById[id]).filter(Boolean);
   if (!selected.length) return;
-  const el = section('Packs', '');
+  const el = section(t('packsSection'), '');
   const list = document.createElement('div');
   list.className = 'packs-list';
   selected.forEach(p => {
     const a = document.createElement('a');
     a.className = 'packs-list-item';
-    a.href = `./pack.html?id=${encodeURIComponent(p.id)}`;
+    a.href = `./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}`;
     a.innerHTML = `<span class="packs-list-item-title">${escapeHtml(p.title)}</span><span class="packs-list-item-arrow">→</span>`;
     list.appendChild(a);
   });
@@ -329,16 +350,16 @@ function renderPacksBlockItem(container, block, packsById) {
 function renderContactBlockItem(container, profile) {
   const endpoint = profile && profile.formspreeEndpoint && profile.formspreeEndpoint.trim();
   if (!endpoint) return; // pas configuré côté backstage : ce bloc ne s'affiche simplement pas
-  const el = section('Contact', '');
+  const el = section(t('contactSection'), '');
   el.innerHTML += `
     <form data-role="contactForm" class="contact-form">
-      <label>Nom</label>
+      <label>${t('formName')}</label>
       <input type="text" name="name" required>
-      <label>Email</label>
+      <label>${t('formEmail')}</label>
       <input type="email" name="email" required>
-      <label>Message</label>
+      <label>${t('formMessage')}</label>
       <textarea name="message" required rows="5"></textarea>
-      <button type="submit" data-role="contactSubmit">Envoyer</button>
+      <button type="submit" data-role="contactSubmit">${t('send')}</button>
       <div class="contact-form-status" data-role="contactStatus"></div>
     </form>
   `;
@@ -349,7 +370,7 @@ function renderContactBlockItem(container, profile) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     submitBtn.disabled = true;
-    statusEl.textContent = 'Envoi en cours…';
+    statusEl.textContent = t('sending');
     statusEl.className = 'contact-form-status';
     try {
       const res = await fetch(endpoint, {
@@ -359,15 +380,15 @@ function renderContactBlockItem(container, profile) {
       });
       if (res.ok) {
         trackPublicEvent('contact_submit', {});
-        form.innerHTML = '<div class="contact-form-status success">Merci, ton message a été envoyé ✓</div>';
+        form.innerHTML = `<div class="contact-form-status success">${t('sent')}</div>`;
       } else {
         const data = await res.json().catch(() => ({}));
-        statusEl.textContent = (data.errors && data.errors.map(er => er.message).join(', ')) || 'Une erreur est survenue — réessaie.';
+        statusEl.textContent = (data.errors && data.errors.map(er => er.message).join(', ')) || t('genericError');
         statusEl.className = 'contact-form-status error';
         submitBtn.disabled = false;
       }
     } catch (err) {
-      statusEl.textContent = "Impossible d'envoyer le message (connexion ?) — réessaie.";
+      statusEl.textContent = t('networkError');
       statusEl.className = 'contact-form-status error';
       submitBtn.disabled = false;
     }
@@ -394,7 +415,7 @@ function renderVideoBlockItem(container, block) {
         const iframe = document.createElement('iframe');
         iframe.className = 'video-embed-frame';
         iframe.src = `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0`;
-        iframe.title = v.title || 'Vidéo';
+        iframe.title = v.title || t('videoFallbackTitle');
         iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
         iframe.allowFullscreen = true;
         card.replaceWith(iframe);
@@ -462,9 +483,12 @@ async function init() {
     const data = await res.json();
     const adReel = (data.adReels || []).find(a => a.id === adreelId);
     if (!adReel) {
-      container.innerHTML = '<div class="empty">AdReel introuvable.</div>';
+      container.innerHTML = `<div class="empty">${t('adreelNotFound')}</div>`;
       return;
     }
+    pageLang = adReel.lang || 'fr';
+    window.LayerPlayerCore.setLang(pageLang);
+    applyI18n();
     const blocks = migrateBlocks(adReel);
     const profile = adReel.profile || {};
     if (profile.bgColor) document.documentElement.style.setProperty('--bg', profile.bgColor);
@@ -507,9 +531,9 @@ async function init() {
         profile.contactEmail ? `<a href="mailto:${profile.contactEmail}">${profile.contactEmail}</a>` : ''
       ].filter(Boolean).join(' &nbsp;/&nbsp; ');
     }
-    document.getElementById('layerpitchCredit').textContent = `AdReel for ${adReel.label || adReel.id}, powered by LayerPitch`;
+    document.getElementById('layerpitchCredit').textContent = t('creditLine').replace('{label}', adReel.label || adReel.id);
   } catch (e) {
-    container.innerHTML = '<div class="empty">Impossible de charger data.json</div>';
+    container.innerHTML = `<div class="empty">${t('loadError')}</div>`;
   }
 }
 window.addEventListener('load', init);
