@@ -54,6 +54,16 @@ window.LAYERPITCH_HELP = {
     content: {
       formspreeEndpoint: "L'URL de ton formulaire Formspree — nécessaire uniquement si tu ajoutes un bloc \"Contact\" à une page. Sans ça, ce bloc n'affichera rien côté public.",
       blockAlign: "Position de ce bloc sur la page publique. S'applique uniquement si le bloc ne contient qu'un seul élément (une image) ; avec plusieurs images, elles s'affichent en grille quel que soit ce réglage.",
+      headerTagline: "Courte phrase affichée sous ton logo (ou ton nom en toutes lettres si tu n'as pas de logo) — ta spécialité ou positionnement en une ligne.",
+      headerLogo: "Ton logo, affiché en haut de la page. Sans logo, ton nom s'affiche en toutes lettres à la place.",
+      headerContactEmail: "Affiché en bas de page si renseigné — indépendant du bloc \"Contact\" (formulaire), qui est optionnel.",
+      headerWebsite: "Ton site web, affiché en bas de page si renseigné.",
+      bioPhoto: "Photo affichée à côté de ton texte de présentation, dans ses proportions réelles (pas de recadrage forcé).",
+      bioText: "Ton texte de présentation. Sépare les paragraphes par une ligne vide pour qu'ils s'affichent distinctement.",
+      tracksBlockSelector: "Ce bloc affiche les morceaux sélectionnés ici, dans cet ordre, sur la page publique. Le contenu de chaque morceau (fichiers, description) se gère dans la Bibliothèque — ici tu choisis juste lesquels et dans quel ordre.",
+      trackOverride: "Coche pour donner à ce morceau un titre/texte différent uniquement pour cet AdReel, sans toucher à la version de référence dans la Bibliothèque — utile par ex. pour une version dans une autre langue. Décoché, le texte de la Bibliothèque s'affiche tel quel.",
+      videoLink: "Un lien YouTube ou Vimeo s'intègre automatiquement en vignette cliquable sur la page publique. Un autre type de lien (Dropbox, etc.) s'affiche comme un simple lien externe.",
+      videoThumbnail: "Image affichée à la place de la vignette par défaut (générée automatiquement pour YouTube, absente sinon). Optionnel.",
     },
     misc: {
       feedbackBtn: "Envoie un message directement à Jules-Antoine — bugs, confusions, idées, ce qui t'a plu ou pas. Pas besoin d'être structuré.",
@@ -105,6 +115,16 @@ window.LAYERPITCH_HELP = {
     content: {
       formspreeEndpoint: "Your Formspree form URL — only needed if you add a \"Contact\" block to a page. Without it, that block will show nothing on the public side.",
       blockAlign: "This block's position on the public page. Only applies if the block contains a single item (one image); with several images, they're shown as a grid regardless of this setting.",
+      headerTagline: "Short line shown under your logo (or your spelled-out name if you don't have one) — your specialty or positioning in one sentence.",
+      headerLogo: "Your logo, shown at the top of the page. Without one, your name is shown spelled out instead.",
+      headerContactEmail: "Shown at the bottom of the page if filled in — independent from the \"Contact\" block (form), which is optional.",
+      headerWebsite: "Your website, shown at the bottom of the page if filled in.",
+      bioPhoto: "Photo shown next to your bio text, in its real proportions (no forced cropping).",
+      bioText: "Your bio text. Separate paragraphs with a blank line so they display as distinct blocks.",
+      tracksBlockSelector: "This block shows the tracks selected here, in this order, on the public page. Each track's content (files, description) is managed in the Library — here you're just choosing which ones and in what order.",
+      trackOverride: "Check to give this track a different title/text just for this AdReel, without touching the reference version in the Library — useful e.g. for a version in another language. Unchecked, the Library text is shown as-is.",
+      videoLink: "A YouTube or Vimeo link automatically embeds as a clickable thumbnail on the public page. Any other kind of link (Dropbox, etc.) shows as a plain external link instead.",
+      videoThumbnail: "Image shown instead of the default thumbnail (auto-generated for YouTube, absent otherwise). Optional.",
     },
     misc: {
       feedbackBtn: "Sends a message straight to Jules-Antoine — bugs, confusing bits, ideas, what you liked or didn't. No need to be structured about it.",
