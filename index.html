@@ -533,7 +533,9 @@ async function init() {
     }
     document.getElementById('layerpitchCredit').textContent = t('creditLine').replace('{label}', adReel.label || adReel.id);
   } catch (e) {
-    container.innerHTML = `<div class="empty">${t('loadError')}</div>`;
+    // DEBUG TEMPORAIRE — à retirer une fois la vraie cause trouvée.
+    console.error('[LayerPitch DEBUG] Erreur réelle interceptée dans init() :', e);
+    container.innerHTML = `<div class="empty">Erreur : ${escapeHtml(e && e.message || String(e))}</div>`;
   }
 }
 window.addEventListener('load', init);
