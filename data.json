@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784189679824,
+  "publishedAt": 1784189789767,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -809,10 +809,6 @@
           "type": "header"
         },
         {
-          "id": "bmrn8gekhegr0d",
-          "type": "bio"
-        },
-        {
           "id": "bmrn8gekhc7j2a",
           "type": "testimonials"
         },
@@ -856,6 +852,10 @@
               "file": "bmrc9wrt713mzm-3.png"
             }
           ]
+        },
+        {
+          "id": "bmrn8gekhegr0d",
+          "type": "bio"
         }
       ],
       "profile": {
