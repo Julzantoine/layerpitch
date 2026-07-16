@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784188365516,
+  "publishedAt": 1784189679824,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -744,6 +744,118 @@
         {
           "id": "bmre2nedwuc55q",
           "type": "bio"
+        }
+      ],
+      "profile": {
+        "tagline": "",
+        "bio": "Jules-Antoine Escande is a composer for visual media, shaped by a rich background as a live performer. Trained in conservatories (classical, jazz, and contemporary music) and at university, he has developed a dynamic and versatile writing style, honed through years of navigating rock, reggae, pop, funk, jazz, and urban music. His extensive live experience brings a keen rhythmic sensitivity and organic energy to his audiovisual storytelling.\nIn 2022, he specialized in media composition by joining the Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), where he explored various genres—fiction, animation, documentary, and video games—while refining his sonic language. In 2026, he further deepened his expertise by enrolling in the MFA in Video Game and Media Composition, focusing on adaptive composition and music implementation within audio engines.\nAlongside his work in visual media, Jules-Antoine composes for live performances and has been the musical director for the youth-focused theater company Des Coccinelles dans les Chaussettes since 2017. He also frequently collaborates with Les Concerts de Poche (songwriting/DAW workshops), La Femme et l'Homme Debout (performances and workshops), and La Roulotte Ruche (street performances).\nIn 2026, Jules-Antoine composed the entire sound design for the latest production, \"Il y a des Choses que Non,\" by the company La Femme et l'Homme Debout.\n",
+        "contactEmail": "",
+        "contactUrl": "",
+        "formspreeEndpoint": "",
+        "logo": "logo-main.jpeg",
+        "photo": "photo-main.jpg",
+        "bgColor": "#f6f5f3",
+        "textColor": "#262521"
+      },
+      "testimonials": [
+        {
+          "text": "Jules is a truly creative composer, driven by a genuine thirst for continuous learning and growth. Not only does he have a strong grasp of music theory, but he also possesses a deep sense of musicality. He’s a wonderful person, as well as a passionate and inventive composer.",
+          "author": "(Alioune Koné - Composer)"
+        },
+        {
+          "text": "I was impressed by Jules’ ability to truly listen to the themes and desires expressed in projects. He doesn’t hesitate to take initiative and bring forward strong ideas, while also being eager to research and learn about anything he doesn’t yet know. Jules-Antoine is generous, empathetic, and open-minded.",
+          "author": "(Frederic Maslanka - Scénariste)"
+        }
+      ],
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmresp3hdlhbmx",
+        "bmrc8vlgamn4fl",
+        "bmrdjlv9p1cbv9"
+      ],
+      "trackOverrides": {
+        "bmrc8rec1wtahz": {
+          "description": "An adaptive battle loop with 3 intensity levels (Low/Mid/High), perfect for a hack'n'slash game. The intensity scales with the number of enemies on screen, and the loop blends indie charm with punchy energy—because great combat music should always tease the soap before the shower hits. ",
+          "layers": {
+            "0": "Everything's allright, here",
+            "1": "How many of these guys are there?!",
+            "2": "We all gonne die!!!"
+          }
+        },
+        "bmrc8vlgamn4fl": {
+          "description": "\"Alright, team—let’s move out. If the plan’s right, we shouldn’t be far from the heart of the matrix now!\"\nA static exploration loop for distant danger—with a secret lever stinger to play with, just for fun.",
+          "stingers": {
+            "0": "Secret Lever"
+          }
+        },
+        "bmrc9dbzsaio19": {
+          "description": "It isn't midnight yet. A shadow slips across the rooftops... Fearless, it leaps from roof to gargoyle. Landing lightly on a balcony, the faint click of the French door's latch is almost impossible to hear... Barely moments later, the shadow emerges again, a grin spreading across its face. A shaft of moonlight catches its misshapen jaw. Don Benvenuto.\n\nHe casts one last glance at the spoils of his theft. *Ducatore* is going to be delighted...\n\nBut below, a guard spots him and sounds the alarm. It will take more than that to stop Benvenuto. With mischievous delight, he leads his pursuers on a wild chase... to no avail.\n\nA Opening Yheme for a mysterious, playful fantasy adventure set in the warmth of a summer night.\n"
+        },
+        "bmrdjlv9p1cbv9": {
+          "description": "After countless attempts, the boss finally went down! **Victory!** Loot is raining from the sky, and it takes a while to gather it all. With a bit of luck, we might even get a little cutscene to unlock the next level... who knows? Either way, the music is ready—it’s just waiting for the story.\n\nThree drum parts, four bass parts, six guitar parts, and four keyboard parts... A vertically layered, randomized loop that generates a different musical experience every time you listen."
+        },
+        "bmresp3hdlhbmx": {
+          "description": "It’s pitch black... The tension rises. Why did you rush ahead without waiting for the team? That’s the question running through your mind right now. The door at the end of the hallway is slightly ajar, letting through a thin beam of light. So... what do you do? Do you keep chasing to prevent them from escaping, risking walking into a trap? Or do you wait for the team? Breathe. Slowly. Deeply... And make a decision.\n\nAn intro, an outro... In between, randomly selected 8- or 16-bar segments. Pure sequential tension-building music..."
+        }
+      }
+    },
+    {
+      "id": "demo-trusted-people",
+      "label": "Démo Trusted People",
+      "lang": "en",
+      "blocks": [
+        {
+          "id": "bmrn8gekhr15wc",
+          "type": "header"
+        },
+        {
+          "id": "bmrn8gekhegr0d",
+          "type": "bio"
+        },
+        {
+          "id": "bmrn8gekhc7j2a",
+          "type": "testimonials"
+        },
+        {
+          "id": "bmrn8gekhz5wxb",
+          "type": "tracks"
+        },
+        {
+          "id": "bmrn8gekhjeizq",
+          "type": "video",
+          "videos": [
+            {
+              "title": "Rescore Trailer DLC PRojectCars",
+              "url": "https://youtu.be/vHJAhKIIlWc",
+              "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png"
+            }
+          ]
+        },
+        {
+          "id": "bmrn8gekhtx9ll",
+          "type": "text",
+          "content": "[Find tons of video clips in all kinds of styles HERE!](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)\n",
+          "align": "center"
+        },
+        {
+          "id": "bmrn8gekhvkn4c",
+          "type": "photo",
+          "align": "center",
+          "images": [
+            {
+              "file": "bmrc9wrt713mzm-0.png"
+            },
+            {
+              "file": "bmrc9wrt713mzm-1.png"
+            },
+            {
+              "file": "bmrc9wrt713mzm-2.png"
+            },
+            {
+              "file": "bmrc9wrt713mzm-3.png"
+            }
+          ]
         }
       ],
       "profile": {
