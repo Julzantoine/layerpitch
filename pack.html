@@ -216,9 +216,9 @@ const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.L
 // visiteur. 'fr' par défaut si le pack est ouvert directement (lien ancien, accès direct sans AdReel).
 const pageLang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'fr';
 function currentLang() { return pageLang; }
-// t('clé') pour le texte généré en JS ; data-i18n pour le HTML statique. Un même dictionnaire pour les
+// tr('clé') pour le texte généré en JS ; data-i18n pour le HTML statique. Un même dictionnaire pour les
 // deux. Ordre de repli : zone pack -> zone shared -> même chose en français -> la clé elle-même.
-function t(key) {
+function tr(key) {
   const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, pack: {} }, en: { shared: {}, pack: {} } };
   const dict = I18N[currentLang()] || I18N.fr;
   const dictFr = I18N.fr;
@@ -227,7 +227,7 @@ function t(key) {
 }
 function applyI18n() {
   document.documentElement.lang = currentLang();
-  document.querySelectorAll('[data-i18n]').forEach(el => { const v = t(el.dataset.i18n); if (v) el.textContent = v; });
+  document.querySelectorAll('[data-i18n]').forEach(el => { const v = tr(el.dataset.i18n); if (v) el.textContent = v; });
 }
 window.LayerPlayerCore.setLang(pageLang);
 applyI18n();
@@ -274,7 +274,7 @@ function parseVideoUrl(rawUrl) {
   function tryOpen() {
     const parsed = parseVideoUrl(input.value);
     if (!parsed) {
-      errorEl.textContent = t('invalidUrl');
+      errorEl.textContent = tr('invalidUrl');
       trackPublicEvent('video_test_invalid_url', {});
       return;
     }
@@ -301,7 +301,7 @@ async function init() {
     if (pack && pack.textColor) document.documentElement.style.setProperty('--text', pack.textColor);
     if (pack) setupContrastToggle('contrastToggle', pack.bgColor, pack.textColor);
     if (!pack) {
-      container.innerHTML = `<div class="empty">${t('packNotFound')}</div>`;
+      container.innerHTML = `<div class="empty">${tr('packNotFound')}</div>`;
       return;
     }
     if (pack.watermark) {
@@ -320,7 +320,7 @@ async function init() {
       const triggerBtn = document.createElement('button');
       triggerBtn.type = 'button';
       triggerBtn.className = 'video-test-trigger-btn';
-      triggerBtn.textContent = t('videoTestTriggerBtn');
+      triggerBtn.textContent = tr('videoTestTriggerBtn');
       triggerBtn.addEventListener('click', () => document.getElementById('videoTestDialog').showModal());
       container.appendChild(triggerBtn);
     }
@@ -333,18 +333,18 @@ async function init() {
     const buySection = document.createElement('div');
     buySection.className = 'buy-section';
     if (pack.buyable && pack.buyUrl) {
-      buySection.innerHTML = `<a class="buy-btn" href="${pack.buyUrl}" target="_blank" rel="noopener">${t('buyBtn')}</a>`;
+      buySection.innerHTML = `<a class="buy-btn" href="${pack.buyUrl}" target="_blank" rel="noopener">${tr('buyBtn')}</a>`;
     } else {
-      buySection.innerHTML = `<span class="buy-btn disabled">${t('comingSoon')}</span><div class="buy-hint">${t('notForSaleYet')}</div>`;
+      buySection.innerHTML = `<span class="buy-btn disabled">${tr('comingSoon')}</span><div class="buy-hint">${tr('notForSaleYet')}</div>`;
     }
     container.appendChild(buySection);
 
     const credit = document.createElement('div');
     credit.className = 'layerpitch-credit';
-    credit.textContent = t('creditLine').replace('{title}', pack.title);
+    credit.textContent = tr('creditLine').replace('{title}', pack.title);
     container.appendChild(credit);
   } catch (e) {
-    container.innerHTML = `<div class="empty">${t('loadError')}</div>`;
+    container.innerHTML = `<div class="empty">${tr('loadError')}</div>`;
   }
 }
 window.addEventListener('load', init);
