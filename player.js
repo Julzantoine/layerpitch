@@ -36,8 +36,15 @@ function resumeAudioContext() {
 
 // Dupliqué à l'identique dans index.html et pack.html : chaque script a sa propre closure, pas d'accès
 // croisé possible. Jamais bloquant, silencieux si Umami n'est pas chargé.
+// Le contexte (quel AdReel ou quel Pack a généré l'événement) est déposé sur `window.__lpTrackContext`
+// par la page hôte (index.html ou pack.html) dès qu'elle connaît son propre identifiant — permet de
+// distinguer dans Umami "le lien envoyé au Studio X" plutôt qu'un compteur global indifférencié.
 function trackPublicEvent(name, detail) {
-  try { if (window.umami) window.umami.track(name, detail); } catch (e) { /* jamais bloquant */ }
+  try {
+    if (!window.umami) return;
+    const ctx = window.__lpTrackContext || {};
+    window.umami.track(name, Object.assign({}, detail, ctx.type ? { [ctx.type]: ctx.id } : {}));
+  } catch (e) { /* jamais bloquant */ }
 }
 
 // Traductions de l'habillage généré par le moteur (statuts, boutons, libellés de mode...) — pas le
@@ -331,7 +338,7 @@ function buildTrackRow(track, packsForTrack) {
     <div class="track-row-details" data-role="details">
      <div class="track-row-details-inner">
       <div class="track-desc">${linkify(track.description || '')}</div>
-      ${packsForTrack && packsForTrack.length ? `<div class="pack-link">${packsForTrack.map(p => `<a href="./pack.html?id=${encodeURIComponent(p.id)}">Fait partie du pack : ${escapeHtml(p.title)}</a>`).join('<br>')}</div>` : ''}
+      ${packsForTrack && packsForTrack.length ? `<div class="pack-link">${packsForTrack.map(p => `<a href="./pack.html?id=${encodeURIComponent(p.id)}">${t('partOfCollection', { title: escapeHtml(p.title) })}</a>`).join('<br>')}</div>` : ''}
       ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
         !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : (
         isSequential ? `
@@ -1170,6 +1177,7 @@ function initTrackPlayer(track, wrapper) {
 
   function rerollPool() {
     if (!isVerticalRandom) return;
+    trackPublicEvent('pool_refresh', { trackId: track.id });
     if (playing) {
       const currentOffset = currentPlaybackOffset();
       stopAllSources(false);
@@ -1191,8 +1199,10 @@ function initTrackPlayer(track, wrapper) {
       const action = btn.dataset.voiceAction;
       const set = action === 'solo' ? soloedVoices : mutedVoices;
       if (set.has(key)) set.delete(key); else set.add(key);
-      btn.classList.toggle('active', set.has(key));
+      const active = set.has(key);
+      btn.classList.toggle('active', active);
       refreshVoiceGains();
+      trackPublicEvent(action === 'solo' ? 'voice_solo_toggle' : 'voice_mute_toggle', { trackId: track.id, voice: key, active });
     });
   });
   if (goToEndBtn) {
@@ -1251,6 +1261,7 @@ function initTrackPlayer(track, wrapper) {
     dot.addEventListener('click', () => {
       level = parseInt(dot.dataset.level, 10);
       notchDots.forEach(d => d.classList.toggle('active', d === dot));
+      trackPublicEvent('intensity_change', { trackId: track.id, level });
       if (!playing) return;
       const p = profiles[level];
       const now = ctx.currentTime;
@@ -1280,6 +1291,7 @@ function initTrackPlayer(track, wrapper) {
       src.start(0);
       activeStingerSources.push(src);
       src.onended = () => { activeStingerSources = activeStingerSources.filter(s => s !== src); };
+      trackPublicEvent('stinger_play', { trackId: track.id, stingerIndex: idx });
     });
   });
 

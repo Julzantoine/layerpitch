@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title data-i18n="pageTitle">LayerPitch — Pack</title>
+<title data-i18n="pageTitle">LayerPitch — Collection</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -143,6 +143,7 @@
   .buy-btn:hover { opacity: 0.9; }
   .buy-btn.disabled { background: var(--border); color: var(--text-dimmer); cursor: not-allowed; pointer-events: none; }
   .buy-hint { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dimmer); margin-top: 10px; }
+  .implementation-help { margin-top: 32px; padding: 16px 20px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); font-size: 13px; color: var(--text-dim); text-align: center; }
 
   /* Mode Test Gameplay : bouton déclencheur + boîte de dialogue pour coller une URL vidéo */
   .video-test-trigger-btn {
@@ -173,6 +174,31 @@
   .video-test-btn-secondary:hover { border-color: var(--text-dim); }
   .video-test-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .video-test-btn-primary:hover { opacity: 0.9; }
+
+  /* Panneau vidéo intégré (écran unique) — cf. Mode Test Gameplay. Sur multi-écrans détecté
+     (window.screen.isExtended), on passe par une fenêtre séparée à la place, voir openInWindow(). */
+  .video-test-panel { display: none; background: #111; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+  .video-test-panel.active { display: block; }
+  .video-test-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: #1a1a1a; }
+  .video-test-panel-title { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: #ccc; }
+  .video-test-panel-actions { display: flex; gap: 6px; }
+  .video-test-panel-btn { width: 26px; height: 26px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc; cursor: pointer; font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .video-test-panel-btn:hover { border-color: #666; color: #fff; }
+  .video-test-panel-frame-wrap { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
+  .video-test-panel-frame-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+  /* Empilé par défaut (mobile, laptop pas assez large) : vidéo au-dessus, contenu de la page en dessous
+     — ordre du DOM (le panneau est déclaré avant .page dans le body). À partir de 1280px, on passe
+     côte à côte pour l'aisance d'interaction (regarder la vidéo tout en cliquant les morceaux), sans
+     que ce soit encore trop serré sur un écran de laptop 13"/14" standard. */
+  body.video-panel-active { display: flex; flex-direction: column; align-items: center; gap: 24px; }
+  body.video-panel-active .page { margin: 0; }
+  body.video-panel-active .video-test-panel { width: 100%; max-width: 640px; }
+  @media (min-width: 1280px) {
+    body.video-panel-active { flex-direction: row; align-items: flex-start; justify-content: center; max-width: 1240px; margin: 0 auto; gap: 28px; }
+    body.video-panel-active .page { order: 1; flex-shrink: 0; }
+    body.video-panel-active .video-test-panel { order: 2; width: 400px; max-width: none; flex-shrink: 0; position: sticky; top: 40px; }
+  }
   .contrast-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 24px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); cursor: pointer; user-select: none; }
   .contrast-toggle input { width: auto; margin: 0; cursor: pointer; }
   body.high-contrast .contrast-toggle { color: var(--text); font-weight: 600; }
@@ -183,6 +209,7 @@
 <script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
 </head>
 <body>
+<div id="videoTestPanel" class="video-test-panel"></div>
 <div class="page">
   <a class="back-link" href="./index.html" data-i18n="backLink">← Retour</a>
   <div id="content"></div>
@@ -206,7 +233,7 @@
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="layerpitch-i18n.js"></script>
-<script src="player.js?v=1784192253817"></script>
+<script src="player.js"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.LayerPlayerCore;
 
@@ -234,8 +261,14 @@ applyI18n();
 
 // Dupliqué à l'identique dans player.js et index.html : chaque script a sa propre closure, pas d'accès
 // croisé possible. Jamais bloquant, silencieux si Umami n'est pas chargé.
+// Contexte déposé sur window.__lpTrackContext une fois le Pack identifié plus bas — voir player.js
+// pour l'explication complète du mécanisme.
 function trackPublicEvent(name, detail) {
-  try { if (window.umami) window.umami.track(name, detail); } catch (e) { /* jamais bloquant */ }
+  try {
+    if (!window.umami) return;
+    const ctx = window.__lpTrackContext || {};
+    window.umami.track(name, Object.assign({}, detail, ctx.type ? { [ctx.type]: ctx.id } : {}));
+  } catch (e) { /* jamais bloquant */ }
 }
 
 // Reconnaît une URL YouTube ou Vimeo et en extrait l'identifiant — gère les formats courants de chaque
@@ -262,6 +295,59 @@ function parseVideoUrl(rawUrl) {
   return null;
 }
 
+// Multi-écrans : window.screen.isExtended n'existe que sur Chromium (Chrome/Edge desktop) et dit si le
+// bureau de la personne s'étend sur plusieurs écrans, sans avoir besoin de lui demander la permission
+// (contrairement à l'API complète Window Management / getScreenDetails()). Sur Safari, Firefox, mobile —
+// où la propriété n'existe simplement pas — on considère qu'il n'y a qu'un seul écran, ce qui est le cas
+// le plus sûr par défaut (mieux vaut intégrer à tort que perdre la vidéo dans une fenêtre égarée).
+function isMultiScreen() {
+  try { return !!(window.screen && window.screen.isExtended); } catch (e) { return false; }
+}
+
+function videoTestUrl(parsed) {
+  return `./video-test.html?service=${parsed.service}&id=${encodeURIComponent(parsed.id)}&lang=${pageLang}`;
+}
+
+// Positionnement approximatif sur le second écran : sans permission Window Management, on ne connaît pas
+// la vraie disposition des écrans, donc on décale simplement la fenêtre de la largeur de l'écran principal.
+// Fonctionne bien pour la disposition la plus courante (écrans côte à côte) ; à défaut, la personne peut
+// toujours la déplacer elle-même — les navigateurs se souviennent en général de la position choisie.
+function openInWindow(parsed) {
+  const left = (window.screen && window.screen.width) ? window.screen.width : 0;
+  window.open(videoTestUrl(parsed), '_blank', `left=${left},top=40,width=960,height=600`);
+  trackPublicEvent('video_test_open', { service: parsed.service, mode: 'window' });
+}
+
+function closeVideoPanel() {
+  const panel = document.getElementById('videoTestPanel');
+  panel.classList.remove('active');
+  document.body.classList.remove('video-panel-active');
+  panel.innerHTML = ''; // vide l'iframe pour couper la vidéo, pas juste la masquer
+}
+
+function openInPanel(parsed) {
+  const panel = document.getElementById('videoTestPanel');
+  panel.innerHTML = `
+    <div class="video-test-panel-header">
+      <span class="video-test-panel-title">${tr('videoTestPanelTitle')}</span>
+      <div class="video-test-panel-actions">
+        <button type="button" class="video-test-panel-btn" id="videoTestDetachBtn" title="${tr('detachBtn')}" aria-label="${tr('detachBtn')}">⤢</button>
+        <button type="button" class="video-test-panel-btn" id="videoTestCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
+      </div>
+    </div>
+    <div class="video-test-panel-frame-wrap"><iframe src="${videoTestUrl(parsed)}" allow="autoplay"></iframe></div>
+  `;
+  panel.classList.add('active');
+  document.body.classList.add('video-panel-active');
+  document.getElementById('videoTestCloseBtn').addEventListener('click', closeVideoPanel);
+  document.getElementById('videoTestDetachBtn').addEventListener('click', () => {
+    closeVideoPanel();
+    openInWindow(parsed);
+  });
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  trackPublicEvent('video_test_open', { service: parsed.service, mode: 'embedded' });
+}
+
 // Boîte de dialogue Mode Test Gameplay — mise en place une fois, indépendamment du fait que ce pack
 // l'active ou non (la balise <dialog> ne s'ouvre de toute façon que si le bouton déclencheur existe).
 (function setupVideoTestDialog() {
@@ -279,8 +365,7 @@ function parseVideoUrl(rawUrl) {
       return;
     }
     errorEl.textContent = '';
-    window.open(`./video-test.html?service=${parsed.service}&id=${encodeURIComponent(parsed.id)}&lang=${pageLang}`, '_blank');
-    trackPublicEvent('video_test_open', { service: parsed.service });
+    if (isMultiScreen()) { openInWindow(parsed); } else { openInPanel(parsed); }
     dialog.close();
     input.value = '';
   }
@@ -293,6 +378,7 @@ function parseVideoUrl(rawUrl) {
 async function init() {
   const container = document.getElementById('content');
   const id = new URLSearchParams(location.search).get('id');
+  window.__lpTrackContext = { type: 'pack', id: id };
   try {
     const res = await fetch('./data.json?v=' + Date.now());
     const data = await res.json();
@@ -329,6 +415,16 @@ async function init() {
     (data.library || []).forEach(t => { t.publishedAt = data.publishedAt; libraryById[t.id] = t; });
     const packTracks = (pack.trackIds || []).map(id => libraryById[id]).filter(Boolean);
     renderTracksBlock(musicContainer, packTracks);
+
+    const skills = data.implementationSkills || {};
+    const skillLabels = { wwise: 'Wwise', fmod: 'FMOD', unity: 'Unity', unreal: 'Unreal' };
+    const checkedTools = Object.keys(skillLabels).filter(k => skills[k]).map(k => skillLabels[k]);
+    if (checkedTools.length) {
+      const implEl = document.createElement('div');
+      implEl.className = 'implementation-help';
+      implEl.textContent = tr('implementationHelpMessage').replace('{tools}', checkedTools.join(', '));
+      container.appendChild(implEl);
+    }
 
     const buySection = document.createElement('div');
     buySection.className = 'buy-section';
