@@ -211,7 +211,7 @@
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="layerpitch-i18n.js"></script>
-<script src="player.js?v=1784192253817"></script>
+<script src="player.js"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.LayerPlayerCore;
 
@@ -237,8 +237,14 @@ function applyI18n() {
 
 // Même petit repère que dans player.js — dupliqué ici car ce script inline est un fichier séparé,
 // sans accès direct à l'intérieur de la fonction IIFE de player.js.
+// Contexte déposé sur window.__lpTrackContext une fois l'AdReel identifié plus bas — voir player.js
+// pour l'explication complète du mécanisme.
 function trackPublicEvent(name, detail) {
-  try { if (window.umami) window.umami.track(name, detail); } catch (e) { /* jamais bloquant */ }
+  try {
+    if (!window.umami) return;
+    const ctx = window.__lpTrackContext || {};
+    window.umami.track(name, Object.assign({}, detail, ctx.type ? { [ctx.type]: ctx.id } : {}));
+  } catch (e) { /* jamais bloquant */ }
 }
 
 function genId() { return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -478,6 +484,7 @@ function applyTrackOverride(track, ov) {
 async function init() {
   const container = document.getElementById('blocksContainer');
   const adreelId = new URLSearchParams(location.search).get('adreel') || 'main';
+  window.__lpTrackContext = { type: 'adreel', id: adreelId };
   try {
     const res = await fetch('./data.json?v=' + Date.now());
     const data = await res.json();
