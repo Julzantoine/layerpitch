@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784192253817,
+  "publishedAt": 1784391656457,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -7,6 +7,7 @@
       "description": "Une battle loop adaptative à 3 niveaux d'intensité (Low/Mid/High), idéal pour un hack'n'slash. L'intensité est calée sur le nombre d'ennemis à l'écran et la boucle mêle les plaisirs comme savent le faire les jeux indie — parce qu'une bonne musique de baston sent toujours venir le savon un peu avant qu'on se prenne la douche.",
       "mode": "vertical",
       "loopable": false,
+      "implementationNote": "RTPC Suggéré : Nombre d'ennemis à l'écran",
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -49,6 +50,7 @@
       "description": "\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\nUne Exploration Loop statique pour un danger relativement lointain. Avec en prime, un levier secret avec lequel s'amuser un peu.",
       "mode": "static",
       "loopable": true,
+      "implementationNote": "",
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -87,6 +89,7 @@
       "description": "- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nUne Loop statique dans le même style que la précédente, mais qui fait monter l'intensité d'un cran.",
       "mode": "static",
       "loopable": true,
+      "implementationNote": "",
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -119,6 +122,7 @@
       "description": "- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait? Chef?? Chef?!\"\n\nUne Battle Loop Statique : Pression Maximale !!! ",
       "mode": "static",
       "loopable": true,
+      "implementationNote": "",
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -151,6 +155,7 @@
       "description": "Au milieu des étoiles vogue le USS PME, le fleuron de la marine Terrienne. En pleine exploration spatiale, l'équipe reste sur ses gardes... Le danger peut provenir de partout.\n\nUn générique d'ouverture pour mettre tout le monde dans l'ambiance. On n'est pas là, pour rigoler, ok?!",
       "mode": "static",
       "loopable": false,
+      "implementationNote": "",
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -183,6 +188,7 @@
       "description": "\"Nous sommes les Borgs. Abaissez vos boucliers et rendez-vous sans condition. Nous intègrerons vos caractéristiques biologiques et technologiques aux nôtres. Votre culture s’adaptera à nos besoins. Toute résistance serait futile.\" \nQuand tu entends ça, il n'y a plus qu'une chose à faire : vérifier que ton pistolaser a encore un peu de batterie...\n\nUne battle loop statique à base de baston contre les robots",
       "mode": "static",
       "loopable": true,
+      "implementationNote": "",
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -215,6 +221,7 @@
       "description": "Il n'est pas encore minuit. Une ombre glisse sur les toits... Elle s'élance, intrépide et bondit de toitures en gargouilles. Se recevant en souplesse sur un balcon, on ne distingue quasiment pas le bruit du loquet de la porte vitrée... A peine quelques instants plus tard, l'ombre ressort, un sourire aux lèvres. Un éclat de lune accroche sa machoire déformée. Don Benvenuto. Il jette un dernier coup d'oeil au fruit de son larcin. C'est Ducatore qui va être content... Mais en contrebas, un garde l'aperçoit et sonne l'alarme. Il en faut plus pour Benvenuto qui prend un malin plaisir à faire courir ses poursuivants... en vain.\n\nUn générique d'ouverture pour une aventure mystero-ludico-fantasy dans la chaleur d'une nuit d'été.",
       "mode": "static",
       "loopable": false,
+      "implementationNote": "",
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -247,6 +254,7 @@
       "description": "Après maintes et maintes essais, le Boss est enfin tombé ! Victoire !!! Il pleut du loot, ça prend du temps de tout ramasser. Avec un peu de chances, on aura même le droit à une petite cinématique pour passer au prochain niveau? va savoir... En tout cas, la musique est prête, elle n'attend que l'histoire.\n\n3 parties de Batterie, 4 partie de Basse, 6 parties de guitare, 4 de claviers... Une boucle au layering vertical randomisé pour générer de la musique différente à chaque écoute.",
       "mode": "vertical-random",
       "loopable": false,
+      "implementationNote": "",
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -422,6 +430,7 @@
       "description": "Il fait noir... La tension monte. Pourquoi as tu foncé sans attendre l'équipe? C'est ce que tu te demandes en ce moment même... La porte au bout du couloir est entrebaillée et laisse passer un mince filet de lumière. Alors... Tu fais quoi? Tu continues la poursuite pour ne pas laisser l'autre s'échapper, au risque de tomber dans le piège? Ou tu attends l'équipe? Respire. Lentement. A fond... Et prends une décision\n\nUne intro, une outro... Entre les deux, des segments de 8 ou 16 mesures choisis aléatoirement. Une pure musique séquentielle de mise en tension... ",
       "mode": "sequential",
       "loopable": false,
+      "implementationNote": "",
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -504,6 +513,12 @@
       ]
     }
   ],
+  "implementationSkills": {
+    "wwise": true,
+    "fmod": false,
+    "unity": false,
+    "unreal": false
+  },
   "adReels": [
     {
       "id": "main",
