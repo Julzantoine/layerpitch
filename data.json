@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784558536386,
+  "publishedAt": 1784584303922,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -8,6 +8,7 @@
       "mode": "vertical",
       "loopable": false,
       "implementationNote": "RTPC Suggéré : Nombre d'ennemis à l'écran",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -50,6 +51,7 @@
       "mode": "static",
       "loopable": true,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -88,6 +90,7 @@
       "mode": "static",
       "loopable": true,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -120,6 +123,7 @@
       "mode": "static",
       "loopable": true,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -152,6 +156,7 @@
       "mode": "static",
       "loopable": false,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -184,6 +189,7 @@
       "mode": "static",
       "loopable": true,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -216,6 +222,7 @@
       "mode": "static",
       "loopable": false,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -248,6 +255,7 @@
       "mode": "vertical-random",
       "loopable": false,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -435,6 +443,7 @@
       "mode": "sequential",
       "loopable": false,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -532,6 +541,7 @@
     "unity": false,
     "unreal": false
   },
+  "noAiCertifiedGlobal": true,
   "collections": [],
   "adReels": [
     {
