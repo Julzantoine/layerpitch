@@ -132,7 +132,7 @@ if (navigator.wakeLock) {
   });
 }
 
-function renderTracksBlock(container, tracks, packsByTrackId) {
+function renderTracksBlock(container, tracks, packsByTrackId, globalNoAiCertified) {
   const el = section(t('musicSection'), '');
   container.appendChild(el);
   if (!tracks || tracks.length === 0) {
@@ -142,7 +142,7 @@ function renderTracksBlock(container, tracks, packsByTrackId) {
 
   tracks.forEach(track => {
     const packsForTrack = (packsByTrackId && packsByTrackId[track.id]) || [];
-    const row = buildTrackRow(track, packsForTrack);
+    const row = buildTrackRow(track, packsForTrack, globalNoAiCertified);
     el.appendChild(row);
     initTrackPlayer(track, row);
   });
@@ -162,8 +162,11 @@ const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential'];
 
 function layerHasSource(l) { return !!(l && (l.localFile || l.file)); }
 
-function buildTrackRow(track, packsForTrack) {
+function buildTrackRow(track, packsForTrack, globalNoAiCertified) {
   packsForTrack = packsForTrack || [];
+  // Même logique qu'effectiveNoAiCertified() côté Backstage : une exception explicite par morceau
+  // (true/false) prime sur le réglage global, sinon on suit le réglage global.
+  const isNoAiCertified = (track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : !!globalNoAiCertified;
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
   const isVerticalRandom = track.mode === 'vertical-random';
@@ -325,6 +328,7 @@ function buildTrackRow(track, packsForTrack) {
       </button>
       <div class="track-row-title" data-role="titleToggle">
         <span class="name">${escapeHtml(track.title)}</span>
+        ${isNoAiCertified ? `<span class="no-ai-badge" title="${t('noAiBadgeTitle')}">${t('noAiBadgeLabel')}</span>` : ''}
         <span class="mode-tag">${getModeLabel(track.mode)}</span>
         ${supported ? `
           <span class="loop-icon" title="${loops ? 'Bouclable' : 'Ne boucle pas'}">
