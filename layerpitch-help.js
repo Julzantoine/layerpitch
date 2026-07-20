@@ -33,7 +33,7 @@ window.LAYERPITCH_HELP = {
       layersVertical: "Les couches de ce morceau, de la plus calme à la plus intense — c'est cet ordre qui détermine ce qui s'ajoute quand le visiteur augmente l'intensité sur la page publique.",
       stingers: "Sons courts que le visiteur peut déclencher à la main pendant la lecture (ex. un impact, un sting d'alerte), en plus de la musique en cours — n'affectent pas la boucle principale.",
       implementationNote: "Note libre à ton attention, reprise telle quelle dans la fiche d'implémentation du pack (onglet Packs). Peut contenir du jargon spécifique à un moteur si tu veux (ex. suggestion de RTPC) — contrairement au reste de la fiche, générée en langage neutre.",
-      noAiCertification: "Réglage global pour tout ton catalogue. Coché, un petit badge \"Sans IA\" apparaît à côté de chaque morceau certifié sur la page publique. Chaque morceau peut individuellement faire exception à ce réglage (voir sa propre fiche, plus bas dans sa carte).",
+      noAiCertification: "Réglage global pour tout ton catalogue. Coché, une petite icône discrète apparaît sur la page publique — un seul badge à côté de \"Musique\" si tout un bloc est certifié, sinon un par morceau certifié. Chaque morceau peut individuellement faire exception à ce réglage (voir sa propre fiche, plus bas dans sa carte).",
       noAiOverride: "Par défaut, un morceau suit le réglage global. Choisis \"Toujours certifier\" ou \"Ne jamais certifier\" pour faire une exception explicite sur ce morceau précis, indépendamment du réglage global.",
     },
     packs: {
@@ -108,7 +108,7 @@ window.LAYERPITCH_HELP = {
       layersVertical: "This track's layers, from calmest to most intense — this order determines what gets added as the visitor increases the intensity on the public page.",
       stingers: "Short sounds the visitor can trigger manually during playback (e.g. a hit, an alert sting), layered on top of the ongoing music — they don't affect the main loop.",
       implementationNote: "Free note for your own use, reused as-is in the pack's implementation sheet (Packs tab). Can contain engine-specific jargon if you want (e.g. a suggested RTPC) — unlike the rest of the sheet, which is generated in neutral language.",
-      noAiCertification: "Global setting for your whole catalog. When checked, a small \"No AI\" badge appears next to each certified track on the public page. Each track can individually make an exception to this setting (see its own sheet, further down in its card).",
+      noAiCertification: "Global setting for your whole catalog. When checked, a small discreet icon appears on the public page — a single badge next to \"Music\" if a whole block is certified, otherwise one per certified track. Each track can individually make an exception to this setting (see its own sheet, further down in its card).",
       noAiOverride: "By default, a track follows the global setting. Choose \"Always certify\" or \"Never certify\" to make an explicit exception for this specific track, independent of the global setting.",
     },
     packs: {

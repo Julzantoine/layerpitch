@@ -132,8 +132,21 @@ if (navigator.wakeLock) {
   });
 }
 
+// Icône graphique discrète (bouclier + coche), réutilisée pour le badge collectif et le badge par
+// morceau — un symbole plutôt qu'un texte, pour rester discret sur la page publique.
+function noAiBadgeSvg() {
+  return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5l8-3z"/><path d="M8.5 12.2l2.4 2.4 4.8-4.8"/></svg>`;
+}
 function renderTracksBlock(container, tracks, packsByTrackId, globalNoAiCertified) {
-  const el = section(t('musicSection'), '');
+  // Si TOUT le lot rendu ici est certifié (que ce soit via le réglage global ou une exception explicite
+  // par morceau), un seul badge discret à côté du titre "Musique" suffit — pas la peine de répéter la
+  // même icône sur chaque ligne. Sinon, chaque morceau certifié garde son propre badge individuel.
+  const effectiveCertified = (track) => (track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : !!globalNoAiCertified;
+  const allCertified = !!(tracks && tracks.length && tracks.every(effectiveCertified));
+  const titleHtml = allCertified
+    ? `${t('musicSection')} <span class="no-ai-badge no-ai-badge-collective" title="${t('noAiBadgeAllTitle')}">${noAiBadgeSvg()}</span>`
+    : t('musicSection');
+  const el = section(titleHtml, '');
   container.appendChild(el);
   if (!tracks || tracks.length === 0) {
     el.innerHTML += `<div class="empty">${t('noTracksPublished')}</div>`;
@@ -142,7 +155,7 @@ function renderTracksBlock(container, tracks, packsByTrackId, globalNoAiCertifie
 
   tracks.forEach(track => {
     const packsForTrack = (packsByTrackId && packsByTrackId[track.id]) || [];
-    const row = buildTrackRow(track, packsForTrack, globalNoAiCertified);
+    const row = buildTrackRow(track, packsForTrack, globalNoAiCertified, allCertified);
     el.appendChild(row);
     initTrackPlayer(track, row);
   });
@@ -162,11 +175,12 @@ const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential'];
 
 function layerHasSource(l) { return !!(l && (l.localFile || l.file)); }
 
-function buildTrackRow(track, packsForTrack, globalNoAiCertified) {
+function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndividualBadge) {
   packsForTrack = packsForTrack || [];
   // Même logique qu'effectiveNoAiCertified() côté Backstage : une exception explicite par morceau
-  // (true/false) prime sur le réglage global, sinon on suit le réglage global.
-  const isNoAiCertified = (track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : !!globalNoAiCertified;
+  // (true/false) prime sur le réglage global, sinon on suit le réglage global. Pas affiché du tout si
+  // le badge collectif (tout le catalogue certifié) est déjà montré une fois pour tout le bloc.
+  const isNoAiCertified = !suppressIndividualBadge && ((track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : !!globalNoAiCertified);
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
   const isVerticalRandom = track.mode === 'vertical-random';
@@ -328,7 +342,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified) {
       </button>
       <div class="track-row-title" data-role="titleToggle">
         <span class="name">${escapeHtml(track.title)}</span>
-        ${isNoAiCertified ? `<span class="no-ai-badge" title="${t('noAiBadgeTitle')}">${t('noAiBadgeLabel')}</span>` : ''}
+        ${isNoAiCertified ? `<span class="no-ai-badge" title="${t('noAiBadgeTitle')}">${noAiBadgeSvg()}</span>` : ''}
         <span class="mode-tag">${getModeLabel(track.mode)}</span>
         ${supported ? `
           <span class="loop-icon" title="${loops ? 'Bouclable' : 'Ne boucle pas'}">
