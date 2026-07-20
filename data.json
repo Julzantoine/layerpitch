@@ -1,10 +1,10 @@
 {
-  "publishedAt": 1784392640474,
+  "publishedAt": 1784558536386,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
       "title": "Goûte donc ma hache, pour voir !",
-      "description": "Une battle loop adaptative à 3 niveaux d'intensité (Low/Mid/High), idéal pour un hack'n'slash. L'intensité est calée sur le nombre d'ennemis à l'écran et la boucle mêle les plaisirs comme savent le faire les jeux indie — parce qu'une bonne musique de baston sent toujours venir le savon un peu avant qu'on se prenne la douche.",
+      "description": "Une battle loop adaptative à 3 niveaux d'intensité (Low/Mid/High), idéale pour un hack'n'slash. L'intensité est calée sur le nombre d'ennemis à l'écran et la boucle mêle les plaisirs comme savent le faire les jeux indie — parce qu'une bonne musique de baston sent toujours venir le savon un peu avant qu'on se prenne la douche.",
       "mode": "vertical",
       "loopable": false,
       "implementationNote": "RTPC Suggéré : Nombre d'ennemis à l'écran",
@@ -38,10 +38,9 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
-      "avoidImmediateRepeat": true,
       "intro": null,
       "outro": null,
-      "segments": [],
+      "segmentSlots": [],
       "stingers": []
     },
     {
@@ -71,10 +70,9 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
-      "avoidImmediateRepeat": true,
       "intro": null,
       "outro": null,
-      "segments": [],
+      "segmentSlots": [],
       "stingers": [
         {
           "label": "Levier Secret",
@@ -110,10 +108,9 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
-      "avoidImmediateRepeat": true,
       "intro": null,
       "outro": null,
-      "segments": [],
+      "segmentSlots": [],
       "stingers": []
     },
     {
@@ -143,10 +140,9 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
-      "avoidImmediateRepeat": true,
       "intro": null,
       "outro": null,
-      "segments": [],
+      "segmentSlots": [],
       "stingers": []
     },
     {
@@ -176,10 +172,9 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
-      "avoidImmediateRepeat": true,
       "intro": null,
       "outro": null,
-      "segments": [],
+      "segmentSlots": [],
       "stingers": []
     },
     {
@@ -209,10 +204,9 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
-      "avoidImmediateRepeat": true,
       "intro": null,
       "outro": null,
-      "segments": [],
+      "segmentSlots": [],
       "stingers": []
     },
     {
@@ -242,10 +236,9 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
-      "avoidImmediateRepeat": true,
       "intro": null,
       "outro": null,
-      "segments": [],
+      "segmentSlots": [],
       "stingers": []
     },
     {
@@ -282,8 +275,10 @@
       ],
       "randomGroups": [
         {
+          "id": "bmrtc0osvsegl0",
           "label": "Alt Perc",
           "avoidImmediateRepeat": true,
+          "referencesGroupId": null,
           "alternatives": [
             {
               "label": "Vide",
@@ -313,8 +308,10 @@
           ]
         },
         {
+          "id": "bmrtc0osvf17r6",
           "label": "Bass",
           "avoidImmediateRepeat": true,
+          "referencesGroupId": null,
           "alternatives": [
             {
               "label": "BS#1",
@@ -339,8 +336,10 @@
           ]
         },
         {
+          "id": "bmrtc0osvgf4fk",
           "label": "GUITARES NAPPES",
           "avoidImmediateRepeat": true,
+          "referencesGroupId": null,
           "alternatives": [
             {
               "label": "Nappes GT#1",
@@ -360,8 +359,10 @@
           ]
         },
         {
+          "id": "bmrtc0osvp3d59",
           "label": "COCOTTES GT",
           "avoidImmediateRepeat": true,
+          "referencesGroupId": null,
           "alternatives": [
             {
               "label": "Cocottes GT#1",
@@ -376,8 +377,10 @@
           ]
         },
         {
+          "id": "bmrtc0osvpm5in",
           "label": "KB",
           "avoidImmediateRepeat": true,
+          "referencesGroupId": null,
           "alternatives": [
             {
               "label": "Nappes KB#1",
@@ -397,8 +400,10 @@
           ]
         },
         {
+          "id": "bmrtc0osv0a9h9",
           "label": "THEME GT",
           "avoidImmediateRepeat": true,
+          "referencesGroupId": null,
           "alternatives": [
             {
               "label": "Vide1",
@@ -418,10 +423,9 @@
           ]
         }
       ],
-      "avoidImmediateRepeat": true,
       "intro": null,
       "outro": null,
-      "segments": [],
+      "segmentSlots": [],
       "stingers": []
     },
     {
@@ -451,7 +455,6 @@
       ],
       "fixedLayers": [],
       "randomGroups": [],
-      "avoidImmediateRepeat": true,
       "intro": {
         "label": "Intro",
         "bars": 14,
@@ -463,30 +466,39 @@
         "file": "outro-outro.ogg",
         "gain": 1
       },
-      "segments": [
+      "segmentSlots": [
         {
-          "label": "The Last Door Chunk#1 120bpm 8M",
-          "bars": 8,
-          "file": "segment-0-the-last-door-chunk-1-120bpm-8m.ogg",
-          "gain": 1
-        },
-        {
-          "label": "The Last Door Chunk#2 120bpm 16M",
-          "bars": 16,
-          "file": "segment-1-the-last-door-chunk-2-120bpm-16m.ogg",
-          "gain": 1
-        },
-        {
-          "label": "The Last Door Chunk#3 120bpm 8M",
-          "bars": 8,
-          "file": "segment-2-the-last-door-chunk-3-120bpm-8m.ogg",
-          "gain": 1
-        },
-        {
-          "label": "The Last Door Chunk#4 120bpm 8M",
-          "bars": 8,
-          "file": "segment-3-the-last-door-chunk-4-120bpm-8m.ogg",
-          "gain": 1
+          "id": "bmrtc0osvot3kj",
+          "label": "",
+          "avoidImmediateRepeat": true,
+          "referencesSlotId": null,
+          "repeatCount": 1,
+          "alternatives": [
+            {
+              "label": "The Last Door Chunk#1 120bpm 8M",
+              "bars": 8,
+              "file": "segment-0-the-last-door-chunk-1-120bpm-8m.ogg",
+              "gain": 1
+            },
+            {
+              "label": "The Last Door Chunk#2 120bpm 16M",
+              "bars": 16,
+              "file": "segment-1-the-last-door-chunk-2-120bpm-16m.ogg",
+              "gain": 1
+            },
+            {
+              "label": "The Last Door Chunk#3 120bpm 8M",
+              "bars": 8,
+              "file": "segment-2-the-last-door-chunk-3-120bpm-8m.ogg",
+              "gain": 1
+            },
+            {
+              "label": "The Last Door Chunk#4 120bpm 8M",
+              "bars": 8,
+              "file": "segment-3-the-last-door-chunk-4-120bpm-8m.ogg",
+              "gain": 1
+            }
+          ]
         }
       ],
       "stingers": []
@@ -498,7 +510,8 @@
       "title": "Robot Adventure",
       "illustration": "pack-bmrcakdllw9m7v.png",
       "watermark": "pack-watermark-bmrcakdllw9m7v.jpg",
-      "presentation": "Year 2372. Claude has been crowned Emperor. Robots are everywhere, and the entire galaxy of Anthropia has fallen under their rule.\n\nThe entire galaxy? No\n\nOnly one small village of indomitable Gauls still holds out against the invaders",
+      "presentationFr": "Year 2372. Claude has been crowned Emperor. Robots are everywhere, and the entire galaxy of Anthropia has fallen under their rule.\n\nThe entire galaxy? No\n\nOnly one small village of indomitable Gauls still holds out against the invaders",
+      "presentationEn": "",
       "buyable": false,
       "buyUrl": "",
       "videoTestModeEnabled": true,
@@ -519,6 +532,7 @@
     "unity": false,
     "unreal": false
   },
+  "collections": [],
   "adReels": [
     {
       "id": "main",
