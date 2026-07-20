@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784584987453,
+  "publishedAt": 1784585142326,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -542,7 +542,18 @@
     "unreal": false
   },
   "noAiCertifiedGlobal": true,
-  "collections": [],
+  "collections": [
+    {
+      "id": "bmrtrvnpp6tfqm",
+      "title": "SF Collections",
+      "illustration": null,
+      "presentationFr": "Une collections de packs aux accents SF",
+      "presentationEn": "A collection of sci-fi-inspired packs",
+      "packIds": [
+        "bmrcakdllw9m7v"
+      ]
+    }
+  ],
   "adReels": [
     {
       "id": "main",
