@@ -10,7 +10,7 @@
 window.LAYERPITCH_HELP = {
   fr: {
     library: {
-      trackMode: "Détermine comment ce morceau réagit à l'écoute : Statique pour une piste simple, Layering vertical pour des couches qui s'ajoutent selon l'intensité, Layering vertical randomisé pour une variation aléatoire à chaque écoute, Séquentiel pour un enchaînement intro / segments / outro.",
+      trackMode: "Détermine comment ce morceau réagit à l'écoute : Statique pour une piste simple, Layering vertical additif pour des couches qui s'ajoutent selon l'intensité, Layering vertical randomisé pour une variation aléatoire à chaque écoute, Séquentiel pour un enchaînement intro / segments / outro.",
       loopableStatic: "Coche si ce morceau statique doit boucler en continu (ambiance). Décoché, il joue une fois puis s'arrête — adapté à un thème ou un générique.",
       bpmMeasuresVerticalRandom: "Le tempo et la mesure de ce morceau, utilisés pour caler la grille de la boucle. Nécessaires ici car ce mode tire des couches aléatoires qui doivent rester synchronisées au rythme.",
       loopPointsVerticalRandom: "Ces repères définissent où la boucle commence et se termine dans le fichier. Toutes les couches (fixe et alternatives) doivent avoir exactement la même durée pour rester synchronisées.",
@@ -83,7 +83,7 @@ window.LAYERPITCH_HELP = {
   },
   en: {
     library: {
-      trackMode: "Determines how this track behaves for the listener: Static for a single track, Vertical layering for layers that build up with intensity, Randomized vertical layering for variation on every listen, Sequential for an intro / segments / outro flow.",
+      trackMode: "Determines how this track behaves for the listener: Static for a single track, Additive vertical layering for layers that build up with intensity, Randomized vertical layering for variation on every listen, Sequential for an intro / segments / outro flow.",
       loopableStatic: "Check if this static track should loop continuously (ambience). Unchecked, it plays once and stops — suited to a theme or credits.",
       bpmMeasuresVerticalRandom: "This track's tempo and time signature, used to set the loop grid. Required here because this mode draws random layers that must stay synced to the beat.",
       loopPointsVerticalRandom: "These markers define where the loop starts and ends in the file. All layers (fixed and alternatives) must have exactly the same duration to stay in sync.",
