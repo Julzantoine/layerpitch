@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784620868223,
+  "publishedAt": 1784620896088,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -653,7 +653,7 @@
     }
   ],
   "implementationSkills": {
-    "wwise": false,
+    "wwise": true,
     "fmod": false,
     "unity": false,
     "unreal": false
