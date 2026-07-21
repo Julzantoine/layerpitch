@@ -32,6 +32,16 @@
     text-transform: uppercase; color: var(--accent); margin-bottom: 18px; margin-top: 48px;
   }
 
+  .buy-section { margin-top: 56px; text-align: center; padding: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); }
+  .buy-btn {
+    display: inline-block; padding: 14px 32px; border-radius: 6px; background: var(--accent); color: #fff;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+    text-decoration: none; border: none; cursor: pointer;
+  }
+  .buy-btn:hover { opacity: 0.9; }
+  .buy-btn.disabled { background: var(--border); color: var(--text-dimmer); cursor: not-allowed; pointer-events: none; }
+  .buy-hint { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dimmer); margin-top: 10px; }
+
   /* Liste des packs inclus — vignette + titre, cliquable. Même logique de vignette que le futur bloc
      "Packs" d'un AdReel (cf. thumbnailOf), pour une cohérence visuelle partout où des packs sont listés. */
   .collection-pack-list { display: flex; flex-direction: column; gap: 2px; }
@@ -126,11 +136,21 @@ async function init() {
       </div>
     `;
 
+    const buySection = document.createElement('div');
+    buySection.className = 'buy-section';
+    if (collection.buyable && collection.buyUrl) {
+      buySection.innerHTML = `<a class="buy-btn" href="${collection.buyUrl}" target="_blank" rel="noopener">${tr('buyBtn')}</a>`;
+    } else {
+      buySection.innerHTML = `<span class="buy-btn disabled">${tr('comingSoon')}</span><div class="buy-hint">${tr('notForSaleYet')}</div>`;
+    }
+    container.appendChild(buySection);
+
     const credit = document.createElement('div');
     credit.className = 'layerpitch-credit';
     credit.textContent = tr('creditLine').replace('{title}', collection.title);
     document.getElementById('content').appendChild(credit);
   } catch (e) {
+    console.error('LayerPitch — échec du chargement de la collection :', e);
     container.innerHTML = `<div class="empty">${tr('loadError')}</div>`;
   }
 }
