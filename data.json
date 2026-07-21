@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784619498674,
+  "publishedAt": 1784619649836,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -632,10 +632,28 @@
         "bmrc90bhy0sxpk",
         "bmrc98f39dwq3c"
       ]
+    },
+    {
+      "id": "bmrucduoqf8jzn",
+      "title": "8 bits Comptines",
+      "illustration": "pack-bmrucduoqf8jzn.png",
+      "watermark": null,
+      "presentationFr": "J’ai le même âge que la FamiCon de Nintendo… J’ai joué à la Nes, à la mastersystem, à la mega drive, à la gameboy, la supernes, la game gear, la gamecube, la PlayStation, la Xbox…\n\nAlors quand je suis devenu papa, alors que le fakebit explosait à la face du monde, j’étais presque obligé de revisiter quelques comptines à la sauce chiptune!",
+      "presentationEn": "",
+      "buyable": false,
+      "buyUrl": "",
+      "videoTestModeEnabled": false,
+      "bgColor": "#f6f5f3",
+      "textColor": "#262521",
+      "trackIds": [
+        "bmruc7dbdxf1i0",
+        "bmruc9x0htabo1",
+        "bmruccnxudcuy8"
+      ]
     }
   ],
   "implementationSkills": {
-    "wwise": true,
+    "wwise": false,
     "fmod": false,
     "unity": false,
     "unreal": false
