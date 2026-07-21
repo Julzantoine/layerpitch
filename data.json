@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784619649836,
+  "publishedAt": 1784619873147,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -729,19 +729,19 @@
           ]
         },
         {
+          "id": "bmrn9bj1f1kcfy",
+          "type": "packs",
+          "packIds": [
+            "bmrcakdllw9m7v"
+          ]
+        },
+        {
           "id": "bmrc8jutcd4w5f",
           "type": "bio"
         },
         {
           "id": "bmrkexrkghgp8p",
           "type": "contact"
-        },
-        {
-          "id": "bmrn9bj1f1kcfy",
-          "type": "packs",
-          "packIds": [
-            "bmrcakdllw9m7v"
-          ]
         }
       ],
       "profile": {
