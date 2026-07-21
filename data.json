@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784585142326,
+  "publishedAt": 1784619498674,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -511,6 +511,105 @@
         }
       ],
       "stingers": []
+    },
+    {
+      "id": "bmruc7dbdxf1i0",
+      "title": "Les Petits Poissons",
+      "description": "",
+      "mode": "static",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "normalizeVolume": false,
+      "duration": 98.14,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmruc7dbdxf1i0/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "gain": 0.877
+        }
+      ],
+      "fixedLayers": [],
+      "randomGroups": [],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "stingers": []
+    },
+    {
+      "id": "bmruc9x0htabo1",
+      "title": "Doucement s'en va le jour",
+      "description": "",
+      "mode": "static",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "normalizeVolume": false,
+      "duration": 108.54,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmruc9x0htabo1/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "gain": 0.864
+        }
+      ],
+      "fixedLayers": [],
+      "randomGroups": [],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "stingers": []
+    },
+    {
+      "id": "bmruccnxudcuy8",
+      "title": "Dans la Forêt Lointaine",
+      "description": "",
+      "mode": "static",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "normalizeVolume": false,
+      "duration": 112.82,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmruccnxudcuy8/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "gain": 0.95
+        }
+      ],
+      "fixedLayers": [],
+      "randomGroups": [],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "stingers": []
     }
   ],
   "packs": [
@@ -549,6 +648,8 @@
       "illustration": null,
       "presentationFr": "Une collections de packs aux accents SF",
       "presentationEn": "A collection of sci-fi-inspired packs",
+      "buyable": false,
+      "buyUrl": "",
       "packIds": [
         "bmrcakdllw9m7v"
       ]
