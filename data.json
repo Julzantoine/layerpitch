@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784620226238,
+  "publishedAt": 1784620253370,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -710,6 +710,14 @@
           "align": "center"
         },
         {
+          "id": "bmrn9bj1f1kcfy",
+          "type": "packs",
+          "packIds": [
+            "bmrcakdllw9m7v",
+            "bmrucduoqf8jzn"
+          ]
+        },
+        {
           "id": "bmrc9wrt713mzm",
           "type": "photo",
           "align": "center",
@@ -726,14 +734,6 @@
             {
               "file": "bmrc9wrt713mzm-3.png"
             }
-          ]
-        },
-        {
-          "id": "bmrn9bj1f1kcfy",
-          "type": "packs",
-          "packIds": [
-            "bmrcakdllw9m7v",
-            "bmrucduoqf8jzn"
           ]
         },
         {
