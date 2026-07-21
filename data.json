@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784620410971,
+  "publishedAt": 1784620554782,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -659,21 +659,7 @@
     "unreal": false
   },
   "noAiCertifiedGlobal": true,
-  "collections": [
-    {
-      "id": "bmrucwkvmiq8no",
-      "title": "Tutti",
-      "illustration": null,
-      "presentationFr": "",
-      "presentationEn": "",
-      "buyable": false,
-      "buyUrl": "",
-      "packIds": [
-        "bmrcakdllw9m7v",
-        "bmrucduoqf8jzn"
-      ]
-    }
-  ],
+  "collections": [],
   "adReels": [
     {
       "id": "main",
