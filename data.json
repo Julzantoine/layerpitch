@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784620632066,
+  "publishedAt": 1784620644513,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -679,6 +679,14 @@
           "type": "tracks"
         },
         {
+          "id": "bmrn9bj1f1kcfy",
+          "type": "packs",
+          "packIds": [
+            "bmrcakdllw9m7v",
+            "bmrucduoqf8jzn"
+          ]
+        },
+        {
           "id": "bmrc9ryuilymwc",
           "type": "video",
           "videos": [
@@ -695,14 +703,6 @@
           "type": "text",
           "content": "[Retrouvez pleins d'extraits vidéos dans pleins de styles ICI !](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)\n",
           "align": "center"
-        },
-        {
-          "id": "bmrn9bj1f1kcfy",
-          "type": "packs",
-          "packIds": [
-            "bmrcakdllw9m7v",
-            "bmrucduoqf8jzn"
-          ]
         },
         {
           "id": "bmrc9wrt713mzm",
