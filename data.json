@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784620644513,
+  "publishedAt": 1784620868223,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -618,8 +618,8 @@
       "title": "Robot Adventure",
       "illustration": "pack-bmrcakdllw9m7v.png",
       "watermark": "pack-watermark-bmrcakdllw9m7v.jpg",
-      "presentationFr": "Year 2372. Claude has been crowned Emperor. Robots are everywhere, and the entire galaxy of Anthropia has fallen under their rule.\n\nThe entire galaxy? No\n\nOnly one small village of indomitable Gauls still holds out against the invaders",
-      "presentationEn": "",
+      "presentationFr": "Année 2372. Claude a été couronné Empereur. Les robots sont partout, et toute la galaxie d’Anthropia est tombée sous leur domination.\n\nToute la galaxie ? Non.\n\nUn petit village d'humains indomptables résiste encore et toujours à l’envahisseur.\n\n",
+      "presentationEn": "Year 2372. Claude has been crowned Emperor. Robots are everywhere, and the entire galaxy of Anthropia has fallen under their rule.\n\nThe entire galaxy? No\n\nOnly one small village of indomitable Humans still holds out against the invaders",
       "buyable": false,
       "buyUrl": "",
       "videoTestModeEnabled": true,
