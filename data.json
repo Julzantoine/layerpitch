@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784620361045,
+  "publishedAt": 1784620410971,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -661,15 +661,16 @@
   "noAiCertifiedGlobal": true,
   "collections": [
     {
-      "id": "bmrtrvnpp6tfqm",
-      "title": "SF Collections",
+      "id": "bmrucwkvmiq8no",
+      "title": "Tutti",
       "illustration": null,
-      "presentationFr": "Une collections de packs aux accents SF",
-      "presentationEn": "A collection of sci-fi-inspired packs",
+      "presentationFr": "",
+      "presentationEn": "",
       "buyable": false,
       "buyUrl": "",
       "packIds": [
-        "bmrcakdllw9m7v"
+        "bmrcakdllw9m7v",
+        "bmrucduoqf8jzn"
       ]
     }
   ],
