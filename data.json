@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1784620896088,
+  "publishedAt": 1785088477016,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -8,7 +8,6 @@
       "mode": "vertical",
       "loopable": false,
       "implementationNote": "RTPC Suggéré : Nombre d'ennemis à l'écran",
-      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -51,7 +50,6 @@
       "mode": "static",
       "loopable": true,
       "implementationNote": "",
-      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -90,7 +88,6 @@
       "mode": "static",
       "loopable": true,
       "implementationNote": "",
-      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -123,7 +120,6 @@
       "mode": "static",
       "loopable": true,
       "implementationNote": "",
-      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -156,7 +152,6 @@
       "mode": "static",
       "loopable": false,
       "implementationNote": "",
-      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -189,7 +184,6 @@
       "mode": "static",
       "loopable": true,
       "implementationNote": "",
-      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -222,7 +216,6 @@
       "mode": "static",
       "loopable": false,
       "implementationNote": "",
-      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -255,7 +248,6 @@
       "mode": "vertical-random",
       "loopable": false,
       "implementationNote": "",
-      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -443,7 +435,6 @@
       "mode": "sequential",
       "loopable": false,
       "implementationNote": "",
-      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -519,7 +510,6 @@
       "mode": "static",
       "loopable": false,
       "implementationNote": "",
-      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -552,7 +542,6 @@
       "mode": "static",
       "loopable": false,
       "implementationNote": "",
-      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -585,7 +574,6 @@
       "mode": "static",
       "loopable": false,
       "implementationNote": "",
-      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -658,7 +646,6 @@
     "unity": false,
     "unreal": false
   },
-  "noAiCertifiedGlobal": true,
   "collections": [],
   "adReels": [
     {
@@ -1082,6 +1069,74 @@
           "description": "It’s pitch black... The tension rises. Why did you rush ahead without waiting for the team? That’s the question running through your mind right now. The door at the end of the hallway is slightly ajar, letting through a thin beam of light. So... what do you do? Do you keep chasing to prevent them from escaping, risking walking into a trap? Or do you wait for the team? Breathe. Slowly. Deeply... And make a decision.\n\nAn intro, an outro... In between, randomly selected 8- or 16-bar segments. Pure sequential tension-building music..."
         }
       }
+    },
+    {
+      "id": "demo-fr",
+      "label": "DEMO_FR",
+      "lang": "fr",
+      "blocks": [
+        {
+          "id": "bms23agu93s9lx",
+          "type": "header"
+        },
+        {
+          "id": "bms23agu9t7io3",
+          "type": "testimonials"
+        },
+        {
+          "id": "bms23agu9107f1",
+          "type": "tracks"
+        },
+        {
+          "id": "bms23agu9ygt8z",
+          "type": "bio"
+        },
+        {
+          "id": "bms23k4srbb2ab",
+          "type": "photo",
+          "align": "center",
+          "images": [
+            {
+              "file": "bms23k4srbb2ab-0.png"
+            },
+            {
+              "file": "bms23k4srbb2ab-1.png"
+            },
+            {
+              "file": "bms23k4srbb2ab-2.png"
+            }
+          ]
+        }
+      ],
+      "profile": {
+        "tagline": "",
+        "bio": "Salut, je m'appelle Jules et je suis compositeur.\n\nRécemment, j'ai pitché de la musique à un studio de jeu vidéo. J'ai voulu frapper fort et présenter directement de la musique adaptative — mais je n'ai trouvé aucune solution technique adéquate pour ça. Alors j'ai créé LayerPitch.\n\nLa page avec laquelle vous interagissez s'appelle un AdReel (Adaptive Reel). Avec un compte LayerPitch, vous générez des AdReels à la demande, personnalisés selon la personne à qui vous les envoyez. Ensuite, en backstage, vous suivez comment votre interlocuteur a réellement interagi : niveaux d'intensité testés, SFX déclenchés, packs et collections explorés — bref, à quel point il ou elle s'est vraiment intéressé·e à ce que vous proposez.\n\nÀ partir de septembre, j'entre en incubation pour voir jusqu'où cette idée peut aller. Je cherche des bêta-testeurs — si ça vous intéresse, ou si vous avez un retour à me faire, écrivez-moi : julzantoine@yahoo.com.\n\nPS — Et sinon, normalement, c'est ici que vous afficheriez votre bio, pour expliquer à quel point vous êtes extraordinaire et pertinent·e pour le poste. :)",
+        "contactEmail": "",
+        "contactUrl": "",
+        "formspreeEndpoint": "",
+        "logo": null,
+        "photo": null,
+        "bgColor": "#f6f5f3",
+        "textColor": "#262521"
+      },
+      "testimonials": [
+        {
+          "text": "Ma collaboration avec ce compositeur a été étonnamment fluide, notamment grâce à LayerPitch : on a pu tester des idées presque en temps réel, sans passer par une implémentation dans un moteur audio à chaque essai.",
+          "author": "John Doe, développeur"
+        },
+        {
+          "text": "Grâce aux packs de ce compositeur, j'ai pu tester la musique et les SFX directement sur le gameplay de mon jeu. Sans budget pour une composition sur mesure, ça m'a permis de construire l'atmosphère sonore exactement comme je l'imaginais.",
+          "author": "A. Nonyme, GameDev"
+        }
+      ],
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmrc8vlgamn4fl",
+        "bmresp3hdlhbmx",
+        "bmrdjlv9p1cbv9",
+        "bmrc9dbzsaio19"
+      ],
+      "trackOverrides": {}
     }
   ]
 }
