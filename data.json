@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785089206758,
+  "publishedAt": 1785089725217,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -999,16 +999,13 @@
           "align": "center",
           "images": [
             {
-              "file": "bmrc9wrt713mzm-0.png"
+              "file": "bmrn8gekhvkn4c-0.png"
             },
             {
-              "file": "bmrc9wrt713mzm-1.png"
+              "file": "bmrn8gekhvkn4c-1.png"
             },
             {
-              "file": "bmrc9wrt713mzm-2.png"
-            },
-            {
-              "file": "bmrc9wrt713mzm-3.png"
+              "file": "bmrn8gekhvkn4c-2.png"
             }
           ]
         },
@@ -1019,23 +1016,23 @@
       ],
       "profile": {
         "tagline": "",
-        "bio": "Jules-Antoine Escande is a composer for visual media, shaped by a rich background as a live performer. Trained in conservatories (classical, jazz, and contemporary music) and at university, he has developed a dynamic and versatile writing style, honed through years of navigating rock, reggae, pop, funk, jazz, and urban music. His extensive live experience brings a keen rhythmic sensitivity and organic energy to his audiovisual storytelling.\nIn 2022, he specialized in media composition by joining the Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), where he explored various genres—fiction, animation, documentary, and video games—while refining his sonic language. In 2026, he further deepened his expertise by enrolling in the MFA in Video Game and Media Composition, focusing on adaptive composition and music implementation within audio engines.\nAlongside his work in visual media, Jules-Antoine composes for live performances and has been the musical director for the youth-focused theater company Des Coccinelles dans les Chaussettes since 2017. He also frequently collaborates with Les Concerts de Poche (songwriting/DAW workshops), La Femme et l'Homme Debout (performances and workshops), and La Roulotte Ruche (street performances).\nIn 2026, Jules-Antoine composed the entire sound design for the latest production, \"Il y a des Choses que Non,\" by the company La Femme et l'Homme Debout.\n",
+        "bio": "Hi, I’m Jules, and I’m a composer.\nRecently, I pitched music to a video game studio. I wanted to make a strong impression and present adaptive music directly—but I couldn’t find any suitable technical solution for it. So I created LayerPitch.\nThe page you’re interacting with is called an AdReel (Adaptive Reel). With a LayerPitch account, you can generate AdReels on demand, tailored to the person you’re sending them to. Behind the scenes, you can track how your contact actually interacted with it: intensity levels tested, SFX triggered, packs and collections explored—in short, how engaged they were with what you’re offering.\nStarting in September, I’ll be entering an incubation program to see how far this idea can go. I’m looking for beta testers—if you’re interested or have feedback, feel free to reach out: julzantoine@yahoo.com.\n\nPS—And by the way, this is where you’d normally display your bio to explain just how extraordinary and perfect you are for the role. :)",
         "contactEmail": "",
         "contactUrl": "",
         "formspreeEndpoint": "",
-        "logo": "logo-main.jpeg",
+        "logo": "logo-demo-trusted-people.jpeg",
         "photo": "photo-main.jpg",
         "bgColor": "#f6f5f3",
         "textColor": "#262521"
       },
       "testimonials": [
         {
-          "text": "Jules is a truly creative composer, driven by a genuine thirst for continuous learning and growth. Not only does he have a strong grasp of music theory, but he also possesses a deep sense of musicality. He’s a wonderful person, as well as a passionate and inventive composer.",
-          "author": "(Alioune Koné - Composer)"
+          "text": "My collaboration with this composer was surprisingly smooth, thanks to LayerPitch: we were able to test ideas almost in real time, without having to implement them in an audio engine for every trial.",
+          "author": "John Doe, Developer"
         },
         {
-          "text": "I was impressed by Jules’ ability to truly listen to the themes and desires expressed in projects. He doesn’t hesitate to take initiative and bring forward strong ideas, while also being eager to research and learn about anything he doesn’t yet know. Jules-Antoine is generous, empathetic, and open-minded.",
-          "author": "(Frederic Maslanka - Scénariste)"
+          "text": "Thanks to this composer’s packs, I was able to test the music and SFX directly in my game’s gameplay. With no budget for custom composition, it allowed me to build the exact sound atmosphere I had in mind.",
+          "author": "A. Nonyme"
         }
       ],
       "trackIds": [
