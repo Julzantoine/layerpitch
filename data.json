@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785088705503,
+  "publishedAt": 1785088800340,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -1114,7 +1114,7 @@
         "contactEmail": "",
         "contactUrl": "",
         "formspreeEndpoint": "",
-        "logo": null,
+        "logo": "logo-demo-fr.png",
         "photo": "photo-demo-fr.jpg",
         "bgColor": "#f6f5f3",
         "textColor": "#262521"
