@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785088958611,
+  "publishedAt": 1785089098209,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -1088,10 +1088,6 @@
           "type": "tracks"
         },
         {
-          "id": "bms23agu9ygt8z",
-          "type": "bio"
-        },
-        {
           "id": "bms23k4srbb2ab",
           "type": "photo",
           "align": "center",
@@ -1106,6 +1102,10 @@
               "file": "bms23k4srbb2ab-2.png"
             }
           ]
+        },
+        {
+          "id": "bms23agu9ygt8z",
+          "type": "bio"
         }
       ],
       "profile": {
