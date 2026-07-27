@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785190878358,
+  "publishedAt": 1785190915808,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -1238,6 +1238,14 @@
         {
           "id": "bms23agu9107f1",
           "type": "tracks"
+        },
+        {
+          "id": "bms3ske7sqci3i",
+          "type": "sfx",
+          "sfxIds": [
+            "bms3s3uj7b4oi8",
+            "bms3sf3itgekxm"
+          ]
         },
         {
           "id": "bms240gihkbw4m",
