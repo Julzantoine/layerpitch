@@ -60,6 +60,108 @@ function trackPublicEvent(name, detail) {
 // que ce soit. Évite qu'un visiteur voie une langue différente de celle choisie par le compositeur.
 let CURRENT_LANG = 'fr';
 function setLang(lang) { CURRENT_LANG = (lang === 'en') ? 'en' : 'fr'; }
+// Bibliothèque de Sfx de la page en cours, fournie une fois par la page publique (index.html) avant le
+// rendu des morceaux — permet à buildTrackRow/initTrackPlayer de résoudre track.sfxIds (simples id) en
+// entrées Sfx complètes (titre, variations, réglage aléatoire/séquentiel) sans threader ce paramètre à
+// travers toute la chaîne d'appel (renderTracksBlock -> buildTrackRow -> initTrackPlayer).
+let SFX_LIBRARY_BY_ID = {};
+function setSfxLibrary(byId) { SFX_LIBRARY_BY_ID = byId || {}; }
+/* ---------------- Téléchargement gratuit (zip généré côté navigateur) ----------------
+ * Partagée entre pack.html et collection.html (un pack télécharge ses morceaux, une collection ceux de
+ * tous ses packs) — un seul endroit pour cette logique plutôt que dupliquée dans les deux pages.
+ * Aucune dépendance backend : chaque fichier audio déjà publié est simplement re-téléchargé et regroupé
+ * en zip dans le navigateur du visiteur. JSZip n'est chargé qu'au moment du clic, jamais au chargement
+ * de la page — un visiteur qui ne télécharge jamais ne paie aucun coût pour cette fonction.
+ */
+let jsZipLoadPromise = null;
+function ensureJSZipLoaded() {
+  if (window.JSZip) return Promise.resolve();
+  if (!jsZipLoadPromise) {
+    jsZipLoadPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('JSZip introuvable (bloqué ou hors ligne)'));
+      document.head.appendChild(s);
+    });
+  }
+  return jsZipLoadPromise;
+}
+function slugifyForFile(s) {
+  return (s || 'fichier').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'fichier';
+}
+// Rassemble tous les fichiers audio publiés d'un morceau, quel que soit son mode — un morceau vertical
+// ou séquentiel n'a pas "un" fichier mais plusieurs (couches, variations, intro/segment/outro) ; le
+// téléchargement gratuit les inclut tous plutôt que de n'en choisir arbitrairement qu'un seul.
+function collectTrackAudioFiles(track) {
+  const out = [];
+  const push = (label, file) => { if (file) out.push({ label: label || 'Fichier', file }); };
+  (track.layers || []).forEach((l, i) => push(l.label || `Couche ${i + 1}`, l.file));
+  (track.fixedLayers || []).forEach((f, i) => push(f.label || `Couche fixe ${i + 1}`, f.file));
+  (track.randomGroups || []).forEach((g, gi) => (g.alternatives || []).forEach((a, ai) =>
+    push(`${g.label || 'Groupe ' + (gi + 1)} - ${a.label || 'Variation ' + (ai + 1)}`, a.file)));
+  if (track.intro) push(track.intro.label || 'Intro', track.intro.file);
+  (track.segmentSlots || []).forEach((sl, si) => (sl.alternatives || []).forEach((a, ai) =>
+    push(`${sl.label || 'Emplacement ' + (si + 1)} - ${a.label || 'Variation ' + (ai + 1)}`, a.file)));
+  if (track.outro) push(track.outro.label || 'Outro', track.outro.file);
+  return out;
+}
+// zipBaseName : nom du fichier .zip généré (titre du pack, ou de la collection). tracks : liste de
+// morceaux déjà résolus (objets complets, pas juste des ids) — dédupliqués par l'appelant si besoin
+// (un même morceau pourrait apparaître dans plusieurs packs d'une même collection).
+async function downloadTracksAsZip(zipBaseName, tracks) {
+  await ensureJSZipLoaded();
+  const zip = new JSZip();
+  let fileCount = 0;
+  for (const track of tracks) {
+    const files = collectTrackAudioFiles(track);
+    if (!files.length || !track.base) continue;
+    const folder = zip.folder(slugifyForFile(track.title));
+    for (const f of files) {
+      const v = track.publishedAt ? ('?v=' + encodeURIComponent(track.publishedAt)) : '';
+      const res = await fetch(track.base + encodeURIComponent(f.file) + v);
+      if (!res.ok) continue; // un fichier manquant ne doit pas faire échouer tout le zip
+      const blob = await res.blob();
+      const ext = (f.file.split('.').pop() || 'ogg').toLowerCase();
+      folder.file(`${slugifyForFile(f.label)}.${ext}`, blob);
+      fileCount++;
+    }
+  }
+  if (!fileCount) throw new Error('Aucun fichier audio disponible pour ce téléchargement.');
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(zipBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${slugifyForFile(zipBaseName)}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+// Partage d'un lien — utilisé par les pages publiques (bouton "Partager") et par le backstage (AdReel,
+// pack, collection). Utilise la Web Share API du navigateur quand elle est disponible (menu natif :
+// WhatsApp, Discord, Messages... sur mobile, et de plus en plus sur desktop aussi), sinon copie le lien
+// dans le presse-papier. Retourne un statut plutôt que de gérer l'affichage elle-même — chaque appelant
+// reste responsable de son propre retour visuel (silencieux si le menu natif s'est ouvert, "Copié" sinon).
+async function shareOrCopy(url, title) {
+  if (navigator.share) {
+    try {
+      await navigator.share({ url, title });
+      return 'shared';
+    } catch (e) {
+      if (e && e.name === 'AbortError') return 'cancelled'; // le visiteur a fermé le menu sans choisir
+      // Autre échec (rare) : on retente via la copie plutôt que de laisser un clic sans aucun effet.
+    }
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(url);
+      return 'copied';
+    } catch (e) { /* presse-papier bloqué (permissions) : rien de plus à tenter */ }
+  }
+  return 'unavailable';
+}
 function currentLang() { return CURRENT_LANG; }
 // t('clé', {placeholder: valeur}) — remplace {placeholder} dans la chaîne traduite si fourni.
 // Ordre de repli : zone player dans la langue courante -> zone shared dans la langue courante ->
@@ -107,6 +209,93 @@ function section(label, innerHTML) {
 }
 function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function linkify(s) { return escapeHtml(s).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>'); }
+
+/* ---------------- Waveform (fonctions pures, niveau module) ----------------
+ * Hissées hors de initTrackPlayer (elles ne dépendaient d'aucune fermeture de piste) pour être
+ * réutilisables ailleurs — notamment le lecteur de Sfx, qui a besoin de la même logique de dessin sans
+ * dupliquer tout le fichier une troisième fois.
+ */
+function cssVar(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+// maxDurationSec (optionnel) : limite l'analyse aux X premières secondes du buffer plutôt qu'à sa
+// totalité — utile pour les blocs Intro/Segment du mode séquentiel, dont le fichier réel déborde
+// volontairement au-delà de sa durée musicale nominale (queue de recouvrement crossfade). Sans ce
+// paramètre (ou si absent), le comportement est inchangé : buffer analysé dans son intégralité.
+function computeWaveformPeaks(buffer, bucketCount, maxDurationSec) {
+  const data = buffer.getChannelData(0); // un seul canal suffit pour une représentation visuelle
+  const fullLength = data.length;
+  const length = (maxDurationSec != null)
+    ? Math.max(1, Math.min(fullLength, Math.round(maxDurationSec * buffer.sampleRate)))
+    : fullLength;
+  const samplesPerBucket = Math.max(1, Math.floor(length / bucketCount));
+  const peaks = new Array(bucketCount).fill(0);
+  for (let i = 0; i < bucketCount; i++) {
+    let max = 0;
+    const start = i * samplesPerBucket;
+    const end = Math.min(start + samplesPerBucket, length);
+    for (let j = start; j < end; j++) {
+      const v = Math.abs(data[j]);
+      if (v > max) max = v;
+    }
+    peaks[i] = max;
+  }
+  // Lissage léger (moyenne pondérée avec les deux voisins immédiats) : atténue les barres isolées trop
+  // erratiques d'une frame à l'autre sans aplatir le relief général — le niveau de détail vient du
+  // nombre de barres (voir bucketCountForWidth), pas de la précision brute de chacune.
+  return peaks.map((v, i) => {
+    const prev = i > 0 ? peaks[i - 1] : v;
+    const next = i < peaks.length - 1 ? peaks[i + 1] : v;
+    return v * 0.6 + prev * 0.2 + next * 0.2;
+  });
+}
+// Nombre de barres calculé à partir de la largeur réellement affichée plutôt qu'un nombre fixe choisi à
+// l'aveugle : trop grossier sur un grand format (waveform statique pleine largeur), ou au contraire plus
+// de barres que de pixels physiques disponibles sur un petit format (nœud du graphe vertical-random).
+const WAVEFORM_BAR_PITCH_PX = 4; // largeur barre + espace visés, en px CSS
+function bucketCountForWidth(cssWidthPx) {
+  return Math.max(24, Math.min(320, Math.round(cssWidthPx / WAVEFORM_BAR_PITCH_PX)));
+}
+function drawWaveformCanvas(canvas, peaks, color) {
+  if (!canvas || !peaks) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.round(rect.width * dpr));
+  const h = Math.max(1, Math.round(rect.height * dpr));
+  if (w < 2 || h < 2) return; // pas encore mis en page (ex. onglet caché) : on retentera au prochain redraw
+  canvas.width = w; canvas.height = h;
+  const c2d = canvas.getContext('2d');
+  c2d.clearRect(0, 0, w, h);
+  c2d.fillStyle = color;
+  const barCount = peaks.length;
+  const slot = w / barCount;
+  // Barres aérées (pas collées) avec coins arrondis pour un rendu moins anguleux — repli silencieux sur
+  // des rectangles droits si roundRect n'est pas supporté (Safari < 16, très marginal aujourd'hui).
+  const barWidth = Math.max(1, slot * 0.62);
+  const radius = Math.min(barWidth / 2, 2.5 * dpr);
+  const mid = h / 2;
+  for (let i = 0; i < barCount; i++) {
+    const amp = Math.max(0.04, peaks[i]); // hauteur minimale visible même sur un silence
+    const barH = Math.max(2 * dpr, amp * h);
+    const x = i * slot + (slot - barWidth) / 2;
+    const y = mid - barH / 2;
+    if (c2d.roundRect) { c2d.beginPath(); c2d.roundRect(x, y, barWidth, barH, radius); c2d.fill(); }
+    else { c2d.fillRect(x, y, barWidth, barH); }
+  }
+}
+// Point d'entrée commun : mesure la largeur une seule fois (bg/fg partagent la même taille), calcule les
+// pics une seule fois pour les deux calques plutôt que de dupliquer le travail.
+function renderWaveformPair(bgCanvas, fgCanvas, buffer, bgColor, fgColor, maxDurationSec) {
+  if (!buffer) return;
+  const refCanvas = bgCanvas || fgCanvas;
+  if (!refCanvas) return;
+  const cssWidth = refCanvas.getBoundingClientRect().width;
+  if (cssWidth < 2) return;
+  const peaks = computeWaveformPeaks(buffer, bucketCountForWidth(cssWidth), maxDurationSec);
+  if (bgCanvas) drawWaveformCanvas(bgCanvas, peaks, bgColor);
+  if (fgCanvas) drawWaveformCanvas(fgCanvas, peaks, fgColor);
+}
 
 /* ---------------- État partagé entre toutes les pistes de la page (une seule instance par page chargée) ---------------- */
 const trackCollapsers = {};
@@ -361,9 +550,9 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
         !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : (
         isSequential ? `
           <div class="status" data-role="status">Chargement…</div>
-          ${track.stingers && track.stingers.length ? `
-            <div class="stingers" data-role="stingers">
-              ${track.stingers.map((s, i) => `<button class="stinger-btn" data-stinger="${i}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml(s.label || ('Stinger ' + (i + 1)))}</button>`).join('')}
+          ${(track.sfxIds && track.sfxIds.length) ? `
+            <div class="track-sfx-row">
+              ${track.sfxIds.map(id => SFX_LIBRARY_BY_ID[id]).filter(Boolean).map((sfx, i) => `<button class="stinger-btn" data-stinger="${i}" data-sfx-id="${sfx.id}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml((track.sfxLabelOverrides && track.sfxLabelOverrides[sfx.id]) || sfx.title || ('Sfx ' + (i + 1)))}</button>`).join('')}
             </div>
           ` : ''}
         ` : `
@@ -379,9 +568,9 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
           `}
         </div>
         <div class="time-row"><span data-role="timeCurrent">0:00</span><span data-role="timeTotal">${formatTime(displayMaxSec)}</span></div>
-        ${track.stingers && track.stingers.length ? `
-          <div class="stingers" data-role="stingers">
-            ${track.stingers.map((s, i) => `<button class="stinger-btn" data-stinger="${i}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml(s.label || ('Stinger ' + (i + 1)))}</button>`).join('')}
+        ${(track.sfxIds && track.sfxIds.length) ? `
+          <div class="track-sfx-row">
+            ${track.sfxIds.map(id => SFX_LIBRARY_BY_ID[id]).filter(Boolean).map((sfx, i) => `<button class="stinger-btn" data-stinger="${i}" data-sfx-id="${sfx.id}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml((track.sfxLabelOverrides && track.sfxLabelOverrides[sfx.id]) || sfx.title || ('Sfx ' + (i + 1)))}</button>`).join('')}
           </div>
         ` : ''}
       `)}
@@ -468,7 +657,33 @@ function initTrackPlayer(track, wrapper) {
   const profiles = (isVerticalRandom || isSequential) ? [] : (isStatic ? [[1]] : cumulativeProfiles(track.layers.length));
   const loops = !isStatic || !!track.loopable; // toujours vrai pour vertical-random (isStatic est faux)
   const useQuantizedLoop = !isSequential && (isVerticalRandom || (loops && track.loopEngine === 'quantized'));
-  const stingerDefs = track.stingers ? track.stingers.filter(s => s.file || s.localFile) : [];
+  // Sfx attachés à ce morceau (ex-"stingers") — résolus depuis la Bibliothèque Sfx partagée, chacun
+  // pouvant porter plusieurs variations round robin (contrairement à l'ancien stinger, un seul fichier).
+  const attachedSfx = (track.sfxIds || []).map(id => SFX_LIBRARY_BY_ID[id]).filter(Boolean);
+  const totalSfxFilesToLoad = attachedSfx.reduce((n, sfx) => n + (sfx.alternatives || []).filter(a => a.file || a.localFile).length, 0);
+  // Gain maître de CE morceau : tout ce qui sonne pour lui (une seule couche statique, plusieurs couches
+  // vertical/vertical-random simultanées, ou les générations successives du moteur séquentiel) route par
+  // ici plutôt que directement vers la destination — point d'accroche unique pour le ducking (Phase 4),
+  // qui doit baisser TOUT le morceau en cours d'un coup, peu importe son mode de lecture.
+  const trackMasterGain = ctx.createGain();
+  trackMasterGain.connect(ctx.destination);
+  // Ducking : abaisse brièvement le gain maître du morceau pendant qu'un Sfx réglé pour ça est en train
+  // de jouer, pour le mettre en valeur, puis remonte — réglage propre à chaque Sfx (duckMainTrack), pas
+  // au morceau. Rampes linéaires plutôt qu'un changement instantané, moins désagréable à l'oreille.
+  const DUCK_ATTACK_SEC = 0.08;
+  const DUCK_RELEASE_SEC = 0.35;
+  const DUCK_LEVEL = 0.35;
+  function duckMainTrack(sfxDurationSec) {
+    const now = ctx.currentTime;
+    trackMasterGain.gain.cancelScheduledValues(now);
+    trackMasterGain.gain.setValueAtTime(trackMasterGain.gain.value, now);
+    trackMasterGain.gain.linearRampToValueAtTime(DUCK_LEVEL, now + DUCK_ATTACK_SEC);
+    // Remonte un peu avant la toute fin du Sfx (DUCK_RELEASE_SEC), pour que le morceau ait retrouvé son
+    // plein volume à peu près au moment où le Sfx s'éteint plutôt qu'après coup.
+    const restoreAt = now + Math.max(DUCK_ATTACK_SEC, sfxDurationSec - DUCK_RELEASE_SEC);
+    trackMasterGain.gain.setValueAtTime(DUCK_LEVEL, restoreAt);
+    trackMasterGain.gain.linearRampToValueAtTime(1, restoreAt + DUCK_RELEASE_SEC);
+  }
 
   // Paramètres du moteur quantifié (BPM/mesures + queue de fin superposée) — ignorés si useQuantizedLoop est faux
   const bpm = track.bpm || 120;
@@ -511,79 +726,6 @@ function initTrackPlayer(track, wrapper) {
   const waveformBg = wrapper.querySelector('[data-role="waveformBg"]');
   const waveformFg = wrapper.querySelector('[data-role="waveformFg"]');
   let waveformBuffer = null;
-  function cssVar(name, fallback) {
-    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    return v || fallback;
-  }
-  function computeWaveformPeaks(buffer, bucketCount) {
-    const data = buffer.getChannelData(0); // un seul canal suffit pour une représentation visuelle
-    const samplesPerBucket = Math.max(1, Math.floor(data.length / bucketCount));
-    const peaks = new Array(bucketCount).fill(0);
-    for (let i = 0; i < bucketCount; i++) {
-      let max = 0;
-      const start = i * samplesPerBucket;
-      const end = Math.min(start + samplesPerBucket, data.length);
-      for (let j = start; j < end; j++) {
-        const v = Math.abs(data[j]);
-        if (v > max) max = v;
-      }
-      peaks[i] = max;
-    }
-    // Lissage léger (moyenne pondérée avec les deux voisins immédiats) : atténue les barres isolées trop
-    // erratiques d'une frame à l'autre sans aplatir le relief général — le niveau de détail vient du
-    // nombre de barres (voir bucketCountForWidth), pas de la précision brute de chacune.
-    return peaks.map((v, i) => {
-      const prev = i > 0 ? peaks[i - 1] : v;
-      const next = i < peaks.length - 1 ? peaks[i + 1] : v;
-      return v * 0.6 + prev * 0.2 + next * 0.2;
-    });
-  }
-  // Nombre de barres calculé à partir de la largeur réellement affichée plutôt qu'un nombre fixe choisi à
-  // l'aveugle : trop grossier sur un grand format (waveform statique pleine largeur), ou au contraire plus
-  // de barres que de pixels physiques disponibles sur un petit format (nœud du graphe vertical-random).
-  const WAVEFORM_BAR_PITCH_PX = 4; // largeur barre + espace visés, en px CSS
-  function bucketCountForWidth(cssWidthPx) {
-    return Math.max(24, Math.min(320, Math.round(cssWidthPx / WAVEFORM_BAR_PITCH_PX)));
-  }
-  function drawWaveformCanvas(canvas, peaks, color) {
-    if (!canvas || !peaks) return;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const w = Math.max(1, Math.round(rect.width * dpr));
-    const h = Math.max(1, Math.round(rect.height * dpr));
-    if (w < 2 || h < 2) return; // pas encore mis en page (ex. onglet caché) : on retentera au prochain redraw
-    canvas.width = w; canvas.height = h;
-    const c2d = canvas.getContext('2d');
-    c2d.clearRect(0, 0, w, h);
-    c2d.fillStyle = color;
-    const barCount = peaks.length;
-    const slot = w / barCount;
-    // Barres aérées (pas collées) avec coins arrondis pour un rendu moins anguleux — repli silencieux sur
-    // des rectangles droits si roundRect n'est pas supporté (Safari < 16, très marginal aujourd'hui).
-    const barWidth = Math.max(1, slot * 0.62);
-    const radius = Math.min(barWidth / 2, 2.5 * dpr);
-    const mid = h / 2;
-    for (let i = 0; i < barCount; i++) {
-      const amp = Math.max(0.04, peaks[i]); // hauteur minimale visible même sur un silence
-      const barH = Math.max(2 * dpr, amp * h);
-      const x = i * slot + (slot - barWidth) / 2;
-      const y = mid - barH / 2;
-      if (c2d.roundRect) { c2d.beginPath(); c2d.roundRect(x, y, barWidth, barH, radius); c2d.fill(); }
-      else { c2d.fillRect(x, y, barWidth, barH); }
-    }
-  }
-  // Point d'entrée commun : mesure la largeur une seule fois (bg/fg partagent la même taille), calcule les
-  // pics une seule fois pour les deux calques plutôt que de dupliquer le travail.
-  function renderWaveformPair(bgCanvas, fgCanvas, buffer, bgColor, fgColor) {
-    if (!buffer) return;
-    const refCanvas = bgCanvas || fgCanvas;
-    if (!refCanvas) return;
-    const cssWidth = refCanvas.getBoundingClientRect().width;
-    if (cssWidth < 2) return;
-    const peaks = computeWaveformPeaks(buffer, bucketCountForWidth(cssWidth));
-    if (bgCanvas) drawWaveformCanvas(bgCanvas, peaks, bgColor);
-    if (fgCanvas) drawWaveformCanvas(fgCanvas, peaks, fgColor);
-  }
   function redrawWaveforms() {
     renderWaveformPair(waveformBg, waveformFg, waveformBuffer, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
   }
@@ -722,7 +864,10 @@ function initTrackPlayer(track, wrapper) {
     return idx;
   }
 
-  let stingerBuffers = [];
+  // Buffers des Sfx attachés : un tableau de buffers (une entrée par variation round robin) par Sfx,
+  // indexé par son id — remplace l'ancien tableau plat "un buffer par stinger".
+  let sfxBuffersById = {};
+  let sfxLastIndexById = {}; // dernier index tiré par Sfx (anti-répétition aléatoire / avance séquentielle)
   let activeStingerSources = [];
 
   // Spécifique au mode séquentiel
@@ -824,19 +969,26 @@ function initTrackPlayer(track, wrapper) {
   // (ex. juste avant qu'une transition de layout ne se termine), d'où une forme d'onde qui semblait
   // "correcte sur une partie, plate ensuite" alors que le son continuait bel et bien. Même principe que
   // waveformBg/waveformFg (mode statique) et voiceWave* (vertical-random) : on retient le dernier buffer
-  // dessiné par bloc et on redessine dès que le conteneur change de taille.
+  // dessiné par bloc (+ sa durée de rognage éventuelle) et on redessine dès que le conteneur change de taille.
   const seqLastBuffers = { intro: null, segment: null, outro: null };
+  const seqLastCropSec = { intro: null, segment: null, outro: null };
   const seqBlocksContainer = wrapper.querySelector('.seq-blocks');
   if (seqBlocksContainer && window.ResizeObserver) {
     new ResizeObserver(() => {
-      Object.keys(seqLastBuffers).forEach(k => { if (seqLastBuffers[k]) drawSeqBlockWave(k, seqLastBuffers[k]); });
+      Object.keys(seqLastBuffers).forEach(k => { if (seqLastBuffers[k]) drawSeqBlockWave(k, seqLastBuffers[k], seqLastCropSec[k]); });
     }).observe(seqBlocksContainer);
   }
-  function drawSeqBlockWave(kind, buffer) {
+  // maxDurationSec (optionnel) : pour Intro/Segment, dont le fichier réel déborde volontairement au-delà
+  // de sa durée musicale nominale (queue de recouvrement crossfade), n'affiche que la portion nominale —
+  // la queue technique ne fait pas partie de "la" forme d'onde du bloc du point de vue du visiteur.
+  // Pour l'Outro (pas de notion de durée nominale, fin ouverte), ce paramètre vaut simplement la durée
+  // réelle du fichier : aucun rognage effectif, comportement inchangé.
+  function drawSeqBlockWave(kind, buffer, maxDurationSec) {
     seqLastBuffers[kind] = buffer || seqLastBuffers[kind]; // conservé pour le redessin au resize (voir plus bas)
+    seqLastCropSec[kind] = (maxDurationSec != null) ? maxDurationSec : seqLastCropSec[kind];
     const els = seqWaveEls[kind];
     if (!els || !els.bg || !els.fg || !buffer) return;
-    renderWaveformPair(els.bg, els.fg, buffer, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+    renderWaveformPair(els.bg, els.fg, buffer, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'), seqLastCropSec[kind]);
   }
   // État du bloc actuellement en cours de lecture, retenu pour permettre le seek (glisser sur sa waveform) :
   // sans ça, impossible de savoir quel buffer/gain relancer, ni à quelle position on se trouve réellement
@@ -859,7 +1011,7 @@ function initTrackPlayer(track, wrapper) {
     currentSeqBlockInfo = { kind, buffer, gain: gainValue, totalSec, virtualZero: ctx.currentTime - (startFraction * totalSec), terminal: !!terminal };
     if (block) {
       block.classList.remove('done'); block.classList.add('active');
-      if (buffer) drawSeqBlockWave(kind, buffer);
+      if (buffer) drawSeqBlockWave(kind, buffer, totalSec);
       if (els && els.fg) {
         els.fg.style.transition = 'none'; els.fg.style.clipPath = `inset(0 ${(1 - startFraction) * 100}% 0 0)`;
         void els.fg.offsetWidth; // force le reflow avant de relancer la transition, sinon le navigateur la fusionne avec le reset ci-dessus
@@ -900,7 +1052,7 @@ function initTrackPlayer(track, wrapper) {
     src.buffer = buffer;
     const g = ctx.createGain();
     g.gain.setValueAtTime(gainValue != null ? gainValue : 1, ctxStartTime);
-    src.connect(g); g.connect(ctx.destination);
+    src.connect(g); g.connect(trackMasterGain);
     src.start(ctxStartTime, off);
     seqActiveSources.push({ src, gain: g });
     seqLastGenSources = [src];
@@ -998,17 +1150,38 @@ function initTrackPlayer(track, wrapper) {
     const { kind, buffer, gain, totalSec, terminal } = currentSeqBlockInfo;
     const off = Math.max(0, Math.min(totalSec - 0.05, targetSec));
     const remaining = totalSec - off;
+    // stopSequential() remet goToEndRequested à false (comportement voulu pour un vrai arrêt) — mais un
+    // seek n'est qu'un redémarrage interne du même bloc, pas un arrêt demandé par le visiteur. Si "Aller
+    // vers la fin" avait été cliqué et n'était pas encore consommé (bloc courant non terminal), la demande
+    // doit survivre au seek, sans quoi le morceau continue de boucler comme si rien n'avait été cliqué.
+    const wasGoToEndRequested = goToEndRequested;
     stopSequential();
+    goToEndRequested = wasGoToEndRequested;
     const now = ctx.currentTime;
     const label = seqCurrentEl ? seqCurrentEl.textContent : '';
-    scheduleSeqGeneration(now, buffer, label, kind, terminal ? null : remaining, gain, off, totalSec, terminal);
+    // Important : on transmet TOUJOURS `remaining` (durée réellement restante après le seek), y compris
+    // pour un bloc terminal (l'outro). Le passer à null ici (comme le fait le premier appel normal, sans
+    // seek, où l'décalage est de toute façon 0) ferait retomber le calcul du remplissage visuel sur
+    // buffer.duration — la durée TOTALE du fichier plutôt que ce qu'il en reste après le point de seek —
+    // et le curseur se recalerait visuellement comme si la lecture repartait du tout début, alors que
+    // l'audio, lui, joue bien depuis la bonne position.
+    scheduleSeqGeneration(now, buffer, label, kind, remaining, gain, off, totalSec, terminal);
     if (terminal) {
       armSeqFinalEnd();
       if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = t('endingWithOutro'); }
     } else {
       seqNextStartCtxTime = now + remaining;
       seqSchedulerTimer = setInterval(seqSchedulerTick, 200);
-      if (goToEndBtn) goToEndBtn.disabled = false;
+      // Le bouton doit refléter l'état réel : si la demande est encore en attente (restaurée ci-dessus),
+      // il doit rester désactivé avec son texte "en cours de fin", pas se réactiver comme si de rien n'était.
+      if (goToEndBtn) {
+        if (goToEndRequested) {
+          goToEndBtn.disabled = true;
+          goToEndBtn.textContent = track.outro ? t('endingWithOutro') : t('endingLastSegment');
+        } else {
+          goToEndBtn.disabled = false;
+        }
+      }
     }
   }
   let level = 0, playing = false, startedAt = 0, offsetAt = (useQuantizedLoop ? startTrackSec : 0), rafId = null, ready = false;
@@ -1100,7 +1273,7 @@ function initTrackPlayer(track, wrapper) {
       if (loops) { src.loop = true; src.loopStart = 0; src.loopEnd = track.duration; }
       const g = ctx.createGain();
       g.gain.setValueAtTime((p[i] || 0) * effGain(layersToLoad[i]) * voiceGain('layer-' + i), ctx.currentTime);
-      src.connect(g); g.connect(ctx.destination);
+      src.connect(g); g.connect(trackMasterGain);
       src.start(0, offsetAt % track.duration);
       sources[i] = src; gains[i] = g;
       if (isStatic && !loops) {
@@ -1156,7 +1329,7 @@ function initTrackPlayer(track, wrapper) {
         const key = 'fixed-' + fi;
         const base = effGain(rawFixedLayers[fi]);
         g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
-        src.connect(g); g.connect(ctx.destination);
+        src.connect(g); g.connect(trackMasterGain);
         src.start(ctxStartTime, bufferOffset);
         activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
         thisGenSources.push(src);
@@ -1183,7 +1356,7 @@ function initTrackPlayer(track, wrapper) {
             const key = 'group-' + gi;
             const base = effGain(alt);
             g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
-            src.connect(g); g.connect(ctx.destination);
+            src.connect(g); g.connect(trackMasterGain);
             src.start(ctxStartTime, bufferOffset);
             activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
             thisGenSources.push(src);
@@ -1203,7 +1376,7 @@ function initTrackPlayer(track, wrapper) {
         const key = 'layer-' + i;
         const base = (p[i] || 0) * effGain(layersToLoad[i]);
         g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
-        src.connect(g); g.connect(ctx.destination);
+        src.connect(g); g.connect(trackMasterGain);
         src.start(ctxStartTime, bufferOffset);
         activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
         thisGenSources.push(src);
@@ -1285,6 +1458,11 @@ function initTrackPlayer(track, wrapper) {
   function stopAllSources(keepPosition) {
     playing = false;
     playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
+    // Annule toute rampe de ducking en cours et revient à 1 immédiatement — sinon une prochaine lecture
+    // pourrait démarrer avec un gain maître encore abaissé (ou en cours de remontée programmée dans le
+    // futur) si le morceau est arrêté pile pendant qu'un Sfx joue.
+    trackMasterGain.gain.cancelScheduledValues(ctx.currentTime);
+    trackMasterGain.gain.setValueAtTime(1, ctx.currentTime);
     if (isSequential) {
       stopSequential();
     } else if (useQuantizedLoop) {
@@ -1302,6 +1480,8 @@ function initTrackPlayer(track, wrapper) {
   function naturalEnd() {
     playing = false;
     playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
+    trackMasterGain.gain.cancelScheduledValues(ctx.currentTime);
+    trackMasterGain.gain.setValueAtTime(1, ctx.currentTime);
     cancelAnimationFrame(rafId);
     offsetAt = 0;
     updateProgressAt(0);
@@ -1479,19 +1659,31 @@ function initTrackPlayer(track, wrapper) {
   stingerBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.disabled) return;
-      const idx = parseInt(btn.dataset.stinger, 10);
-      const buf = stingerBuffers[idx];
+      const sfx = SFX_LIBRARY_BY_ID[btn.dataset.sfxId];
+      const bufs = sfx && sfxBuffersById[sfx.id];
+      if (!sfx || !bufs || !bufs.length) return;
+      // Tirage round robin : aléatoire sans rejouer deux fois de suite la même variation, ou avance
+      // séquentielle bouclée — selon le réglage propre à ce Sfx (même logique que le bloc de contenu Sfx).
+      const n = bufs.length;
+      let idx;
+      if (n <= 1) idx = 0;
+      else if (sfx.rrMode === 'sequential') {
+        idx = ((sfxLastIndexById[sfx.id] != null ? sfxLastIndexById[sfx.id] : -1) + 1) % n;
+      } else {
+        do { idx = Math.floor(Math.random() * n); } while (idx === sfxLastIndexById[sfx.id]);
+      }
+      sfxLastIndexById[sfx.id] = idx;
+      const buf = bufs[idx];
       if (!buf) return;
       resumeAudioContext();
+      if (sfx.duckMainTrack) duckMainTrack(buf.duration);
       const src = ctx.createBufferSource();
       src.buffer = buf;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(effGain(stingerDefs[idx]), ctx.currentTime);
-      src.connect(g); g.connect(ctx.destination);
+      src.connect(ctx.destination);
       src.start(0);
       activeStingerSources.push(src);
       src.onended = () => { activeStingerSources = activeStingerSources.filter(s => s !== src); };
-      trackPublicEvent('stinger_play', { trackId: track.id, stingerIndex: idx });
+      trackPublicEvent('stinger_play', { trackId: track.id, sfxId: sfx.id, variationIndex: idx });
     });
   });
 
@@ -1551,7 +1743,7 @@ function initTrackPlayer(track, wrapper) {
       const rawGroups = track.randomGroups || [];
       const rawFixed = (track.fixedLayers || []).filter(layerHasSource);
       rawFixedLayers = rawFixed;
-      total = rawFixed.length + rawGroups.reduce((n, g) => n + (g.alternatives || []).filter(layerHasSource).length, 0) + stingerDefs.length;
+      total = rawFixed.length + rawGroups.reduce((n, g) => n + (g.alternatives || []).filter(layerHasSource).length, 0) + totalSfxFilesToLoad;
       fixedBuffers = new Array(rawFixed.length).fill(null);
       for (let fi = 0; fi < rawFixed.length; fi++) {
         try {
@@ -1596,7 +1788,7 @@ function initTrackPlayer(track, wrapper) {
       const hasOutro = layerHasSource(track.outro);
       const rawSlots = track.segmentSlots || [];
       const slotAltsWithSource = rawSlots.reduce((sum, sl) => sum + (sl.alternatives || []).filter(layerHasSource).length, 0);
-      total = (hasIntro ? 1 : 0) + (hasOutro ? 1 : 0) + slotAltsWithSource + stingerDefs.length;
+      total = (hasIntro ? 1 : 0) + (hasOutro ? 1 : 0) + slotAltsWithSource + totalSfxFilesToLoad;
       if (hasIntro) {
         try {
           const ab = await loadArrayBuffer(track.intro);
@@ -1638,7 +1830,7 @@ function initTrackPlayer(track, wrapper) {
       }
       if (slotBuffers.every(bufs => bufs.every(b => !b))) { if (statusEl) statusEl.textContent = t('loadErrorNoSegments'); setLoadErrorIcon(); return; }
     } else {
-      total = layersToLoad.length + stingerDefs.length;
+      total = layersToLoad.length + totalSfxFilesToLoad;
       for (let i = 0; i < layersToLoad.length; i++) {
         try {
           const ab = await loadArrayBuffer(layersToLoad[i]);
@@ -1654,13 +1846,26 @@ function initTrackPlayer(track, wrapper) {
         } catch (e) { /* la waveform est un bonus visuel : un échec ici ne doit jamais bloquer la lecture */ }
       }
     }
-    for (let i = 0; i < stingerDefs.length; i++) {
-      try {
-        const ab = await loadArrayBuffer(stingerDefs[i]);
-        stingerBuffers[i] = await decodeAudioDataCompat(ab);
-        loaded++;
-        if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
-      } catch (e) { /* un stinger manquant ne bloque pas la lecture principale */ }
+    for (const sfx of attachedSfx) {
+      const alts = (sfx.alternatives || []).filter(a => a.file || a.localFile);
+      sfxBuffersById[sfx.id] = new Array(alts.length).fill(null);
+      for (let ai = 0; ai < alts.length; ai++) {
+        try {
+          // Base propre au Sfx (audio/sfx-{id}/), jamais celle du morceau — un Sfx est une entrée de
+          // bibliothèque partagée, potentiellement attachée à plusieurs morceaux à la fois.
+          const alt = alts[ai];
+          let ab;
+          if (alt.localFile) ab = await alt.localFile.arrayBuffer();
+          else {
+            const v = sfx.publishedAt ? ('?v=' + encodeURIComponent(sfx.publishedAt)) : '';
+            const res = await fetch(sfx.base + encodeURIComponent(alt.file) + v);
+            ab = await res.arrayBuffer();
+          }
+          sfxBuffersById[sfx.id][ai] = await decodeAudioDataCompat(ab);
+          loaded++;
+          if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
+        } catch (e) { /* une variation manquante ne bloque pas la lecture principale */ }
+      }
     }
     // Pour une source locale non encore publiée, la durée réelle n'est connue qu'une fois décodée.
     const allMainBuffers = isVerticalRandom
@@ -1668,7 +1873,8 @@ function initTrackPlayer(track, wrapper) {
       : isSequential
       ? [introBuffer, outroBuffer, ...slotBuffers.flat()].filter(Boolean)
       : buffers.filter(Boolean);
-    const decodedMax = Math.max(0, ...allMainBuffers.map(b => b.duration), ...stingerBuffers.filter(Boolean).map(b => b.duration));
+    const allSfxBuffers = Object.values(sfxBuffersById).flat().filter(Boolean);
+    const decodedMax = Math.max(0, ...allMainBuffers.map(b => b.duration), ...allSfxBuffers.map(b => b.duration));
     if (decodedMax > (track.duration || 0)) {
       track.duration = decodedMax;
       if (timeTotal) timeTotal.textContent = formatTime(progressMaxSec());
@@ -1692,11 +1898,11 @@ function initTrackPlayer(track, wrapper) {
 // personnalisées (celles de l'AdReel ou du pack) par une palette à fort contraste, lisible quel que
 // soit le choix esthétique du compositeur. Purement client, aucune dépendance backend.
 const HIGH_CONTRAST_VARS = {
-  '--bg': '#ffffff', '--bg-card': '#ffffff', '--text': '#000000',
+  '--bg': '#ffffff', '--bg-card': '#ffffff', '--text': '#000000', '--text-title': '#000000',
   '--text-dim': '#1a1a1a', '--text-dimmer': '#3a3a3a', '--border': '#000000',
   '--accent': '#a3390f', '--accent-soft': '#f4d9cb'
 };
-function setupContrastToggle(toggleId, customBg, customText) {
+function setupContrastToggle(toggleId, customBg, customText, customTitleColor) {
   const toggle = document.getElementById(toggleId);
   if (!toggle) return;
   const root = document.documentElement;
@@ -1707,6 +1913,7 @@ function setupContrastToggle(toggleId, customBg, customText) {
       Object.keys(HIGH_CONTRAST_VARS).forEach(key => root.style.removeProperty(key));
       if (customBg) root.style.setProperty('--bg', customBg);
       if (customText) root.style.setProperty('--text', customText);
+      if (customTitleColor) root.style.setProperty('--text-title', customTitleColor);
     }
     document.body.classList.toggle('high-contrast', on);
     document.dispatchEvent(new CustomEvent('layerpitch-contrast-changed'));
@@ -1721,6 +1928,131 @@ function setupContrastToggle(toggleId, customBg, customText) {
   });
 }
 
+/* ---------------- Lecteur Sfx (bloc de contenu AdReel) ----------------
+ * Même principe visuel que les blocs Intro/Segment/Outro du mode séquentiel (une forme d'onde par
+ * variation, cliquable individuellement), mais sans notion de mesures/BPM — juste un jeu de variations
+ * interchangeables du même son (round robin), et un bouton "Play" qui en choisit une selon le réglage
+ * de la bibliothèque Sfx (aléatoire sans répéter la précédente, ou dans l'ordre).
+ */
+function buildSfxPlayer(sfxDef) {
+  const alts = sfxDef.alternatives || [];
+  const wrapper = document.createElement('div');
+  wrapper.className = 'sfx-player';
+  wrapper.innerHTML = `
+    <div class="sfx-player-title">${escapeHtml(sfxDef.title || '')}</div>
+    ${sfxDef.description ? `<div class="sfx-player-desc">${linkify(sfxDef.description)}</div>` : ''}
+    <div class="sfx-rr-row">
+      ${alts.map((a, i) => `
+        <button class="sfx-rr-block" type="button" data-ri="${i}" aria-label="${escapeHtml(a.label) || ('Variation ' + (i + 1))}">
+          <canvas class="sfx-rr-wave-bg"></canvas>
+          <canvas class="sfx-rr-wave-fg"></canvas>
+          <span class="sfx-rr-label">${escapeHtml(a.label) || ('#' + (i + 1))}</span>
+        </button>
+      `).join('')}
+    </div>
+    <button class="sfx-play-btn" type="button">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+  `;
+  if (!alts.length) return wrapper; // Sfx sans variation uploadée : titre/description seuls, pas de lecteur
+
+  const rrBlocks = [...wrapper.querySelectorAll('.sfx-rr-block')];
+  const playBtn = wrapper.querySelector('.sfx-play-btn');
+  const buffers = new Array(alts.length).fill(null);
+  const loadPromises = new Array(alts.length).fill(null);
+  let lastIndex = -1;
+  let activeSource = null;
+
+  // Décodeur dédié à CE lecteur, jamais partagé — même raisonnement que pour chaque piste musicale : des
+  // appels .decode() concurrents sur un décodeur Ogg Vorbis partagé s'entremêleraient silencieusement.
+  let vorbisDecoderPromise = null;
+  function getVorbisDecoder() {
+    if (!vorbisDecoderPromise) {
+      vorbisDecoderPromise = (async () => {
+        if (!window['ogg-vorbis-decoder']) throw new Error('Décodeur Ogg Vorbis de secours introuvable (bibliothèque non chargée)');
+        const decoder = new window['ogg-vorbis-decoder'].OggVorbisDecoder();
+        await decoder.ready;
+        return decoder;
+      })();
+    }
+    return vorbisDecoderPromise;
+  }
+  async function decodeAudioDataCompat(arrayBuffer) {
+    try {
+      return await ctx.decodeAudioData(arrayBuffer.slice(0));
+    } catch (nativeError) {
+      const decoder = await getVorbisDecoder();
+      await decoder.reset();
+      const { channelData, samplesDecoded, sampleRate } = await decoder.decode(new Uint8Array(arrayBuffer));
+      if (!samplesDecoded || !channelData || !channelData.length) throw nativeError;
+      const audioBuffer = ctx.createBuffer(channelData.length, samplesDecoded, sampleRate);
+      for (let ch = 0; ch < channelData.length; ch++) audioBuffer.copyToChannel(channelData[ch], ch);
+      return audioBuffer;
+    }
+  }
+  function drawRrWave(i) {
+    const buf = buffers[i];
+    if (!buf) return;
+    const block = rrBlocks[i];
+    const bg = block.querySelector('.sfx-rr-wave-bg');
+    const fg = block.querySelector('.sfx-rr-wave-fg');
+    renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+  }
+  async function loadAlt(i) {
+    if (buffers[i]) return buffers[i];
+    if (loadPromises[i]) return loadPromises[i];
+    loadPromises[i] = (async () => {
+      const alt = alts[i];
+      if (!alt.file || !sfxDef.base) return null;
+      const v = sfxDef.publishedAt ? ('?v=' + encodeURIComponent(sfxDef.publishedAt)) : '';
+      const res = await fetch(sfxDef.base + encodeURIComponent(alt.file) + v);
+      const ab = await res.arrayBuffer();
+      const buf = await decodeAudioDataCompat(ab);
+      buffers[i] = buf;
+      drawRrWave(i);
+      return buf;
+    })().catch(e => { console.error('Sfx — échec de chargement d\'une variation :', e); return null; });
+    return loadPromises[i];
+  }
+  // Chargement dès le montage plutôt qu'à la demande : contrairement aux morceaux complets (chargés à
+  // l'expansion seulement), un Sfx est un one-shot court — coût réseau marginal, et ça évite un délai
+  // perceptible au premier clic sur "Play" ou sur une variation.
+  alts.forEach((_, i) => loadAlt(i));
+
+  function pickIndex() {
+    const n = alts.length;
+    if (n <= 1) return 0;
+    if (sfxDef.rrMode === 'sequential') { lastIndex = (lastIndex + 1) % n; return lastIndex; }
+    let idx;
+    do { idx = Math.floor(Math.random() * n); } while (idx === lastIndex);
+    lastIndex = idx;
+    return idx;
+  }
+  async function playIndex(i) {
+    const buf = await loadAlt(i);
+    if (!buf) return;
+    if (activeSource) { try { activeSource.stop(); } catch (e) {} }
+    rrBlocks.forEach(b => b.classList.remove('active'));
+    rrBlocks[i].classList.add('active');
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start();
+    activeSource = src;
+    src.onended = () => { if (activeSource === src) { activeSource = null; rrBlocks[i].classList.remove('active'); } };
+  }
+  rrBlocks.forEach((block, i) => { block.addEventListener('click', () => playIndex(i)); });
+  playBtn.addEventListener('click', () => playIndex(pickIndex()));
+
+  // Redessine les formes d'onde déjà chargées si le conteneur change de taille — même principe que
+  // partout ailleurs sur le site (mode statique, séquentiel, etc.).
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => { buffers.forEach((buf, i) => { if (buf) drawRrWave(i); }); }).observe(wrapper);
+  }
+
+  return wrapper;
+}
+
 window.LayerPlayerCore = {
   formatTime,
   cumulativeProfiles,
@@ -1731,9 +2063,13 @@ window.LayerPlayerCore = {
   buildTrackRow,
   initTrackPlayer,
   renderTracksBlock,
+  buildSfxPlayer,
   setupContrastToggle,
   getModeLabel,
   setLang,
+  setSfxLibrary,
+  shareOrCopy,
+  downloadTracksAsZip,
   PLAYABLE_MODES
 };
 

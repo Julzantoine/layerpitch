@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
   :root {
     --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
@@ -32,6 +32,46 @@
     font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.14em;
     text-transform: uppercase; color: var(--accent); margin-bottom: 18px;
   }
+
+  /* ---------------- Lecteur Sfx ---------------- */
+  .sfx-player { margin-bottom: 28px; }
+  .sfx-player:last-child { margin-bottom: 0; }
+  .sfx-player-title { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px; color: var(--text); margin-bottom: 4px; }
+  .sfx-player-desc { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 12px; white-space: pre-wrap; }
+  .sfx-rr-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .sfx-rr-block {
+    position: relative; flex: 1 1 64px; min-width: 64px; height: 40px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent; cursor: pointer; overflow: hidden;
+    padding: 0; font-family: inherit;
+  }
+  .sfx-rr-block.active { border-color: var(--accent); }
+  .sfx-rr-wave-bg, .sfx-rr-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .sfx-rr-wave-fg { opacity: 0; transition: opacity 0.15s ease; }
+  .sfx-rr-block.active .sfx-rr-wave-fg { opacity: 1; }
+  .sfx-rr-label {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.03em; color: var(--text-dim);
+    z-index: 1; padding: 0 4px; text-align: center;
+    text-shadow: 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff);
+  }
+  .sfx-play-btn {
+    display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;
+    border-radius: 50%; border: none; background: var(--accent); color: #fff; cursor: pointer;
+  }
+  .sfx-play-btn svg { width: 16px; height: 16px; }
+  .sfx-play-btn:hover { opacity: 0.9; }
+
+  .share-btn {
+    position: fixed; top: 20px; right: 20px; z-index: 50;
+    width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .share-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .share-btn:active { transform: scale(0.94); }
+  .share-btn svg { width: 18px; height: 18px; }
+  .share-btn.copied { color: #2a7; border-color: #2a7; }
 
   .track { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); padding: 26px; margin-bottom: 16px; }
   .track-intensity-block { margin-top: 16px; }
@@ -124,7 +164,7 @@
   .progress-head { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 9px; height: 9px; background: var(--accent); border-radius: 50%; pointer-events: none; }
   .time-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); }
 
-  .stingers { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .track-sfx-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
   .stinger-btn {
     display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px;
     border: 1px solid var(--border); background: transparent; color: var(--text-dim);
@@ -146,7 +186,7 @@
     text-decoration: none; border: none; cursor: pointer;
   }
   .buy-btn:hover { opacity: 0.9; }
-  .buy-btn.disabled { background: var(--border); color: var(--text-dimmer); cursor: not-allowed; pointer-events: none; }
+  .buy-btn.disabled, .buy-btn:disabled { background: var(--border); color: var(--text-dimmer); cursor: not-allowed; pointer-events: none; }
   .buy-hint { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dimmer); margin-top: 10px; }
   .implementation-help { margin-top: 18px; font-size: 11.5px; color: var(--text-dimmer); text-align: center; font-family: 'JetBrains Mono', monospace; }
 
@@ -214,6 +254,13 @@
 <script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
 </head>
 <body>
+<button id="shareBtn" class="share-btn" type="button" aria-label="Share">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 15V4"/>
+    <path d="M7.5 8.5L12 4l4.5 4.5"/>
+    <path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/>
+  </svg>
+</button>
 <div id="videoTestPanel" class="video-test-panel"></div>
 <div class="page">
   <a class="back-link" href="./index.html" data-i18n="backLink">← Retour</a>
@@ -238,9 +285,9 @@
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="layerpitch-i18n.js"></script>
-<script src="player.js?v=1785091349954"></script>
+<script src="player.js"></script>
 <script>
-const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.LayerPlayerCore;
+const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, section } = window.LayerPlayerCore;
 
 // Traductions de l'habillage LayerPitch (pas le contenu des packs/morceaux, qui reste dans sa langue
 // d'origine). Vit dans layerpitch-i18n.js (zones "shared" + "pack"), édité via l'outil dédié.
@@ -424,8 +471,18 @@ async function init() {
     container.appendChild(musicContainer);
     const libraryById = {};
     (data.library || []).forEach(t => { t.publishedAt = data.publishedAt; libraryById[t.id] = t; });
+    const sfxById = {};
+    (data.sfxLibrary || []).forEach(s => { s.publishedAt = data.publishedAt; sfxById[s.id] = s; });
+    window.LayerPlayerCore.setSfxLibrary(sfxById);
     const packTracks = (pack.trackIds || []).map(id => libraryById[id]).filter(Boolean);
     renderTracksBlock(musicContainer, packTracks, null, data.noAiCertifiedGlobal);
+
+    const packSfx = (pack.sfxIds || []).map(id => sfxById[id]).filter(Boolean);
+    if (packSfx.length) {
+      const sfxSectionEl = section(tr('sfxSection'), '');
+      packSfx.forEach(s => { sfxSectionEl.appendChild(window.LayerPlayerCore.buildSfxPlayer(s)); });
+      container.appendChild(sfxSectionEl);
+    }
 
     const skills = data.implementationSkills || {};
     const skillLabels = { wwise: 'Wwise', fmod: 'FMOD', unity: 'Unity', unreal: 'Unreal' };
@@ -439,12 +496,34 @@ async function init() {
 
     const buySection = document.createElement('div');
     buySection.className = 'buy-section';
-    if (pack.buyable && pack.buyUrl) {
-      buySection.innerHTML = `<a class="buy-btn" href="${pack.buyUrl}" target="_blank" rel="noopener">${tr('buyBtn')}</a>`;
-    } else {
-      buySection.innerHTML = `<span class="buy-btn disabled">${tr('comingSoon')}</span><div class="buy-hint">${tr('notForSaleYet')}</div>`;
+    // Téléchargement gratuit : réel dès aujourd'hui (zip généré côté navigateur, JSZip chargé à la
+    // demande seulement — jamais au chargement de la page). Vente : toujours affichée grisée pendant la
+    // bêta, quel que soit buyUrl — signale clairement aux testeurs que c'est une option envisagée, pas
+    // encore un vrai système de paiement, plutôt que de faire semblant via un simple lien externe.
+    let buyHtml = '';
+    if (pack.freeDownloadEnabled) {
+      buyHtml += `<button class="buy-btn" id="freeDownloadBtn" type="button">${tr('freeDownloadBtn')}</button>`;
     }
+    buyHtml += `<div style="margin-top:${pack.freeDownloadEnabled ? '14px' : '0'}"><span class="buy-btn disabled">${tr('comingSoon')}</span><div class="buy-hint">${tr('notForSaleYet')}</div></div>`;
+    buySection.innerHTML = buyHtml;
     container.appendChild(buySection);
+    if (pack.freeDownloadEnabled) {
+      document.getElementById('freeDownloadBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('freeDownloadBtn');
+        const original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = tr('downloadPreparing');
+        try {
+          await window.LayerPlayerCore.downloadTracksAsZip(pack.title, packTracks);
+        } catch (e) {
+          console.error('LayerPitch — échec du téléchargement du pack :', e);
+          alert(tr('downloadError'));
+        } finally {
+          btn.disabled = false;
+          btn.textContent = original;
+        }
+      });
+    }
 
     const containingCollections = (data.collections || []).filter(c => (c.packIds || []).includes(pack.id));
     if (containingCollections.length) {
@@ -452,6 +531,19 @@ async function init() {
       collEl.className = 'pack-link';
       collEl.innerHTML = containingCollections.map(c => `<a href="./collection.html?id=${encodeURIComponent(c.id)}&lang=${pageLang}">${tr('partOfCollectionMention').replace('{title}', escapeHtml(c.title))}</a>`).join('<br>');
       container.appendChild(collEl);
+    }
+
+    // Renvoi vers l'AdReel choisi par le compositeur — utile quand ce pack est envoyé seul (hors
+    // Marketplace), pour que le destinataire puisse découvrir le reste du travail et le moyen de
+    // contact, plutôt que de rester sur un pack sans aucune identité derrière.
+    const linkedAdReel = pack.linkedAdReelId ? (data.adReels || []).find(a => a.id === pack.linkedAdReelId) : null;
+    if (linkedAdReel) {
+      const composerName = (linkedAdReel.profile && linkedAdReel.profile.title) || tr('linkedAdReelFallbackName');
+      const adReelHref = linkedAdReel.id === 'main' ? `./index.html?lang=${pageLang}` : `./index.html?adreel=${encodeURIComponent(linkedAdReel.id)}&lang=${pageLang}`;
+      const adReelLinkEl = document.createElement('div');
+      adReelLinkEl.className = 'pack-link';
+      adReelLinkEl.innerHTML = `<a href="${adReelHref}">${tr('viewFullWorkLink').replace('{name}', escapeHtml(composerName))}</a>`;
+      container.appendChild(adReelLinkEl);
     }
 
     const credit = document.createElement('div');
@@ -462,6 +554,20 @@ async function init() {
     container.innerHTML = `<div class="empty">${tr('loadError')}</div>`;
   }
 }
+(function setupShareButton() {
+  const btn = document.getElementById('shareBtn');
+  if (!btn) return;
+  btn.setAttribute('aria-label', tr('shareBtn'));
+  btn.title = tr('shareBtn');
+  btn.addEventListener('click', async () => {
+    const result = await window.LayerPlayerCore.shareOrCopy(location.href, document.title);
+    if (result === 'copied') {
+      btn.classList.add('copied');
+      btn.title = tr('linkCopiedToast');
+      setTimeout(() => { btn.classList.remove('copied'); btn.title = tr('shareBtn'); }, 1500);
+    }
+  });
+})();
 window.addEventListener('load', init);
 </script>
 </body>
