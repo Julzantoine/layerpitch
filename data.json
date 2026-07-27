@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785091349954,
+  "publishedAt": 1785155108481,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -8,6 +8,7 @@
       "mode": "vertical",
       "loopable": false,
       "implementationNote": "RTPC Suggéré : Nombre d'ennemis à l'écran",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -41,7 +42,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
-      "stingers": []
+      "sfxIds": []
     },
     {
       "id": "bmrc8vlgamn4fl",
@@ -50,6 +51,7 @@
       "mode": "static",
       "loopable": true,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -73,12 +75,8 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
-      "stingers": [
-        {
-          "label": "Levier Secret",
-          "file": "stinger-0-levier-secret.ogg",
-          "gain": 1
-        }
+      "sfxIds": [
+        "bms378c2zbxgpd"
       ]
     },
     {
@@ -88,6 +86,7 @@
       "mode": "static",
       "loopable": true,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -111,7 +110,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
-      "stingers": []
+      "sfxIds": []
     },
     {
       "id": "bmrc8yz5vutcbi",
@@ -120,6 +119,7 @@
       "mode": "static",
       "loopable": true,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -143,7 +143,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
-      "stingers": []
+      "sfxIds": []
     },
     {
       "id": "bmrc90bhy0sxpk",
@@ -152,6 +152,7 @@
       "mode": "static",
       "loopable": false,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -175,7 +176,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
-      "stingers": []
+      "sfxIds": []
     },
     {
       "id": "bmrc98f39dwq3c",
@@ -184,6 +185,7 @@
       "mode": "static",
       "loopable": true,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -207,7 +209,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
-      "stingers": []
+      "sfxIds": []
     },
     {
       "id": "bmrc9dbzsaio19",
@@ -216,6 +218,7 @@
       "mode": "static",
       "loopable": false,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -239,7 +242,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
-      "stingers": []
+      "sfxIds": []
     },
     {
       "id": "bmrdjlv9p1cbv9",
@@ -248,6 +251,7 @@
       "mode": "vertical-random",
       "loopable": false,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -426,7 +430,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
-      "stingers": []
+      "sfxIds": []
     },
     {
       "id": "bmresp3hdlhbmx",
@@ -435,6 +439,7 @@
       "mode": "sequential",
       "loopable": false,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -501,7 +506,7 @@
           ]
         }
       ],
-      "stingers": []
+      "sfxIds": []
     },
     {
       "id": "bmruc7dbdxf1i0",
@@ -510,6 +515,7 @@
       "mode": "static",
       "loopable": false,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -533,7 +539,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
-      "stingers": []
+      "sfxIds": []
     },
     {
       "id": "bmruc9x0htabo1",
@@ -542,6 +548,7 @@
       "mode": "static",
       "loopable": false,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -565,7 +572,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
-      "stingers": []
+      "sfxIds": []
     },
     {
       "id": "bmruccnxudcuy8",
@@ -574,6 +581,7 @@
       "mode": "static",
       "loopable": false,
       "implementationNote": "",
+      "noAiOverride": null,
       "loopEngine": "simple",
       "bpm": 120,
       "beatsPerBar": 4,
@@ -597,9 +605,26 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
-      "stingers": []
+      "sfxIds": []
     }
   ],
+  "sfxLibrary": [
+    {
+      "id": "bms378c2zbxgpd",
+      "title": "Levier Secret",
+      "description": "",
+      "rrMode": "random",
+      "duckMainTrack": false,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms378c2zbxgpd/",
+      "alternatives": [
+        {
+          "label": "",
+          "file": "stinger-0-levier-secret.ogg"
+        }
+      ]
+    }
+  ],
+  "socials": [],
   "packs": [
     {
       "id": "bmrcakdllw9m7v",
@@ -610,6 +635,7 @@
       "presentationEn": "Year 2372. Claude has been crowned Emperor. Robots are everywhere, and the entire galaxy of Anthropia has fallen under their rule.\n\nThe entire galaxy? No\n\nOnly one small village of indomitable Humans still holds out against the invaders",
       "buyable": false,
       "buyUrl": "",
+      "freeDownloadEnabled": false,
       "videoTestModeEnabled": true,
       "bgColor": "#f6f5f3",
       "textColor": "#262521",
@@ -619,7 +645,9 @@
         "bmrc8yz5vutcbi",
         "bmrc90bhy0sxpk",
         "bmrc98f39dwq3c"
-      ]
+      ],
+      "sfxIds": [],
+      "linkedAdReelId": null
     },
     {
       "id": "bmrucduoqf8jzn",
@@ -630,6 +658,7 @@
       "presentationEn": "I’m the same age as Nintendo’s FamiCom… I’ve played on the NES, Master System, Mega Drive, Game Boy, Super Nintendo, Game Gear, GameCube, PlayStation, Xbox…\n\nSo when I became a dad, just as fakebit was taking the world by storm, I almost *had* to revisit some nursery rhymes with a chiptune twist!",
       "buyable": false,
       "buyUrl": "",
+      "freeDownloadEnabled": false,
       "videoTestModeEnabled": false,
       "bgColor": "#f6f5f3",
       "textColor": "#262521",
@@ -637,7 +666,9 @@
         "bmruc7dbdxf1i0",
         "bmruc9x0htabo1",
         "bmruccnxudcuy8"
-      ]
+      ],
+      "sfxIds": [],
+      "linkedAdReelId": null
     }
   ],
   "implementationSkills": {
@@ -646,7 +677,9 @@
     "unity": false,
     "unreal": false
   },
+  "noAiCertifiedGlobal": false,
   "collections": [],
+  "customFonts": [],
   "adReels": [
     {
       "id": "main",
@@ -720,15 +753,25 @@
         }
       ],
       "profile": {
-        "tagline": "",
+        "title": "",
+        "subtitle": "",
         "bio": "Jules-Antoine est compositeur pour l’image, nourri par un long parcours de musicien de scène. Formé en conservatoire (classique, jazz, musiques actuelles) et à l’université, il développe une écriture vivante et polyvalente, façonnée par des années passées à naviguer entre rock, reggae, pop, funk, jazz et musiques urbaines. Cette expérience du live lui apporte une sensibilité rythmique et une énergie organique qu’il met aujourd’hui au service de la narration audiovisuelle.\n\nEn 2022, il se spécialise dans la composition pour médias en intégrant le Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), au sein duquel il explore différents registres — fiction, animation, documentaire, jeux vidéo — et affine son langage sonore. Il continue de se spécialiser en 2026 en intégrant le MFA \"VideoGame and Mediacomposition\", pour s'aguerrir dans la composition adaptative et l'implémentation de musique au sein de moteurs audios.\n\nParallèlement à son travail pour l’image, il compose pour le spectacle vivant et dirige la création musicale de la compagnie jeune public Des Coccinelles dans les Chaussettes depuis 2017. Il collabore également très régulièrement avec Les concerts de Poche (ateliers écriture/MAO), La Femme et l'Homme Debout (Spectacles, ateliers), La Roulotte ruche (Spectacles de Rue)\n\nEn 2026, Jules-Antoine a notamment composé tout l'habillage sonore du dernier spectacle \"Il y'a des Choses que Non\", de la Compagnie \"La Femme et l'Homme Debout\"",
         "contactEmail": "",
         "contactUrl": "",
         "formspreeEndpoint": "https://formspree.io/f/mojognrj",
         "logo": "logo-main.jpeg",
         "photo": "photo-main.jpg",
+        "tagline": "",
         "bgColor": "#f6f5f3",
-        "textColor": "#262521"
+        "textColor": "#262521",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        }
       },
       "testimonials": [
         {
@@ -809,15 +852,25 @@
         }
       ],
       "profile": {
-        "tagline": "",
+        "title": "",
+        "subtitle": "",
         "bio": "Jules Antoine est compositeur pour l’image, nourri par un long parcours de musicien de scène. Formé en conservatoire (classique, jazz, musiques actuelles) et à l’université, il développe une écriture vivante et polyvalente, façonnée par des années passées à naviguer entre rock, reggae, pop, funk, jazz et musiques urbaines. Cette expérience du live lui apporte une sensibilité rythmique et une énergie organique qu’il met aujourd’hui au service de la narration audiovisuelle.\n\nEn 2022, il se spécialise dans la composition pour médias en intégrant le Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), au sein duquel il explore différents registres — fiction, animation, documentaire, jeux vidéo — et affine son langage sonore. Il continue de se spécialiser en 2026 en intégrant le MFA \"VideoGame and Mediacomposition\", pour s'aguerrir dans la composition adaptative et l'implémentation de musique au sein de moteurs audios.\n\nParallèlement à son travail pour l’image, il compose pour le spectacle vivant et dirige la création musicale de la compagnie jeune public Des Coccinelles dans les Chaussettes depuis 2017. Il collabore également très régulièrement avec Les concerts de Poche (ateliers écriture/MAO), La Femme et l'Homme Debout (Spectacles, ateliers), La Roulotte ruche (Spectacles de Rue)\n\nEn 2026, Jules-Antoine a notamment composé tout l'habillage sonore du dernier spectacle \"Il y'a des Choses que Non\", de la Compagnie \"La Femme et l'Homme Debout\"",
         "contactEmail": "",
         "contactUrl": "",
         "formspreeEndpoint": "",
         "logo": "logo-main.jpeg",
         "photo": "photo-main.jpg",
+        "tagline": "",
         "bgColor": "#f6f5f3",
-        "textColor": "#262521"
+        "textColor": "#262521",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        }
       },
       "testimonials": [
         {
@@ -898,15 +951,25 @@
         }
       ],
       "profile": {
-        "tagline": "",
+        "title": "",
+        "subtitle": "",
         "bio": "Jules-Antoine Escande is a composer for visual media, shaped by a rich background as a live performer. Trained in conservatories (classical, jazz, and contemporary music) and at university, he has developed a dynamic and versatile writing style, honed through years of navigating rock, reggae, pop, funk, jazz, and urban music. His extensive live experience brings a keen rhythmic sensitivity and organic energy to his audiovisual storytelling.\nIn 2022, he specialized in media composition by joining the Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), where he explored various genres—fiction, animation, documentary, and video games—while refining his sonic language. In 2026, he further deepened his expertise by enrolling in the MFA in Video Game and Media Composition, focusing on adaptive composition and music implementation within audio engines.\nAlongside his work in visual media, Jules-Antoine composes for live performances and has been the musical director for the youth-focused theater company Des Coccinelles dans les Chaussettes since 2017. He also frequently collaborates with Les Concerts de Poche (songwriting/DAW workshops), La Femme et l'Homme Debout (performances and workshops), and La Roulotte Ruche (street performances).\nIn 2026, Jules-Antoine composed the entire sound design for the latest production, \"Il y a des Choses que Non,\" by the company La Femme et l'Homme Debout.\n",
         "contactEmail": "",
         "contactUrl": "",
         "formspreeEndpoint": "",
         "logo": "logo-main.jpeg",
         "photo": "photo-main.jpg",
+        "tagline": "",
         "bgColor": "#f6f5f3",
-        "textColor": "#262521"
+        "textColor": "#262521",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        }
       },
       "testimonials": [
         {
@@ -1015,15 +1078,25 @@
         }
       ],
       "profile": {
-        "tagline": "",
-        "bio": "Hi, I’m Jules, and I’m a composer.\nRecently, I pitched music to a video game studio. I wanted to make a strong impression and present adaptive music directly—but I couldn’t find any suitable technical solution for it. So I created LayerPitch.\nThe page you’re interacting with is called an AdReel (Adaptive Reel). With a LayerPitch account, you can generate AdReels on demand, tailored to the person you’re sending them to. Behind the scenes, you can track how your contact actually interacted with it: intensity levels tested, SFX triggered, packs and collections explored—in short, how engaged they were with what you’re offering.\nStarting in September, I’ll be entering an incubation program to see how far this idea can go. I’m looking for beta testers—if you’re interested or have feedback, feel free to reach out: julzantoine@yahoo.com.\n\nPS—And by the way, this is where you’d normally display your bio to explain just how extraordinary and perfect you are for the role. :)",
+        "title": "",
+        "subtitle": "",
+        "bio": "Hi, I’m Jules, and I’m a composer\nRecently, I pitched music to a video game studio. I wanted to make a strong impression and present adaptive music directly—but I couldn’t find any suitable technical solution for it. So I created LayerPitch.\nThe page you’re interacting with is called an AdReel (Adaptive Reel). With a LayerPitch account, you can generate AdReels on demand, tailored to the person you’re sending them to. Behind the scenes, you can track how your contact actually interacted with it: intensity levels tested, SFX triggered, packs and collections explored—in short, how engaged they were with what you’re offering.\nStarting in September, I’ll be entering an incubation program to see how far this idea can go. I’m looking for beta testers—if you’re interested or have feedback, feel free to reach out: julzantoine@yahoo.com.\n\nPS—And by the way, this is where you’d normally display your bio to explain just how extraordinary and perfect you are for the role. :)",
         "contactEmail": "",
         "contactUrl": "",
         "formspreeEndpoint": "",
         "logo": "logo-demo-trusted-people.jpeg",
         "photo": "photo-main.jpg",
+        "tagline": "",
         "bgColor": "#f6f5f3",
-        "textColor": "#262521"
+        "textColor": "#262521",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        }
       },
       "testimonials": [
         {
@@ -1132,15 +1205,25 @@
         }
       ],
       "profile": {
-        "tagline": "",
+        "title": "",
+        "subtitle": "",
         "bio": "Salut, je m'appelle Jules et je suis compositeur.\n\nRécemment, j'ai pitché de la musique à un studio de jeu vidéo. J'ai voulu frapper fort et présenter directement de la musique adaptative — mais je n'ai trouvé aucune solution technique adéquate pour ça. Alors j'ai créé LayerPitch.\n\nLa page avec laquelle vous interagissez s'appelle un AdReel (Adaptive Reel). Avec un compte LayerPitch, vous générez des AdReels à la demande, personnalisés selon la personne à qui vous les envoyez. Ensuite, en backstage, vous suivez comment votre interlocuteur a réellement interagi : niveaux d'intensité testés, SFX déclenchés, packs et collections explorés — bref, à quel point il ou elle s'est vraiment intéressé·e à ce que vous proposez.\n\nÀ partir de septembre, j'entre en incubation pour voir jusqu'où cette idée peut aller. Je cherche des bêta-testeurs — si ça vous intéresse, ou si vous avez un retour à me faire, écrivez-moi : julzantoine@yahoo.com.\n\nPS — Et sinon, normalement, c'est ici que vous afficheriez votre bio, pour expliquer à quel point vous êtes extraordinaire et pertinent·e pour le poste. :)",
         "contactEmail": "",
         "contactUrl": "",
         "formspreeEndpoint": "",
         "logo": "logo-demo-fr.jpeg",
         "photo": "photo-demo-fr.jpg",
+        "tagline": "",
         "bgColor": "#f6f5f3",
-        "textColor": "#262521"
+        "textColor": "#262521",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        }
       },
       "testimonials": [
         {
