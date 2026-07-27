@@ -39,7 +39,7 @@
     text-decoration: none; border: none; cursor: pointer;
   }
   .buy-btn:hover { opacity: 0.9; }
-  .buy-btn.disabled { background: var(--border); color: var(--text-dimmer); cursor: not-allowed; pointer-events: none; }
+  .buy-btn.disabled, .buy-btn:disabled { background: var(--border); color: var(--text-dimmer); cursor: not-allowed; pointer-events: none; }
   .buy-hint { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dimmer); margin-top: 10px; }
 
   /* Liste des packs inclus — vignette + titre, cliquable. Même logique de vignette que le futur bloc
@@ -58,9 +58,28 @@
   .layerpitch-credit { margin-top: 56px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dimmer); text-align: center; }
   .contrast-toggle { display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); margin-top: 40px; cursor: pointer; }
   .contrast-toggle input { width: auto; }
+
+  .share-btn {
+    position: fixed; top: 20px; right: 20px; z-index: 50;
+    width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text-dimmer); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .share-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .share-btn:active { transform: scale(0.94); }
+  .share-btn svg { width: 18px; height: 18px; }
+  .share-btn.copied { color: #2a7; border-color: #2a7; }
 </style>
 </head>
 <body>
+<button id="shareBtn" class="share-btn" type="button" aria-label="Share">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 15V4"/>
+    <path d="M7.5 8.5L12 4l4.5 4.5"/>
+    <path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/>
+  </svg>
+</button>
 <div class="page">
   <a class="back-link" href="./index.html" data-i18n="backLink">← Retour</a>
   <div id="content"></div>
@@ -69,7 +88,7 @@
 
 <script src="layerpitch-i18n.js"></script>
 <script src="layerpitch-help.js"></script>
-<script src="player.js?v=1784620896088"></script>
+<script src="player.js"></script>
 <script>
 // Langue transmise par l'AdReel/pack qui a mené ici (paramètre ?lang= dans le lien), jamais choisie par
 // le visiteur — même principe que pack.html.
@@ -129,21 +148,55 @@ async function init() {
       <div class="collection-pack-list">
         ${includedPacks.length ? includedPacks.map(p => `
           <a class="collection-pack-row" href="./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}">
-            ${p.illustration ? `<img class="collection-pack-thumb" src="./images/${p.illustration}" alt="">` : `<div class="collection-pack-thumb empty"></div>`}
+            ${p.illustration ? `<img class="collection-pack-thumb" src="./images/${p.illustration}" alt="" loading="lazy">` : `<div class="collection-pack-thumb empty"></div>`}
             <span class="collection-pack-row-title">${escapeHtml(p.title)}</span>
           </a>
         `).join('') : `<div class="empty">${tr('noPacksInCollectionYet')}</div>`}
       </div>
     `;
 
+    const libraryById = {};
+    (data.library || []).forEach(t => { t.publishedAt = data.publishedAt; libraryById[t.id] = t; });
+    // Morceaux de tous les packs inclus, dédupliqués — un même morceau pourrait apparaître dans
+    // plusieurs packs d'une même collection, il ne doit figurer qu'une fois dans le zip.
+    const seenTrackIds = new Set();
+    const allTracks = [];
+    includedPacks.forEach(p => (p.trackIds || []).forEach(tid => {
+      if (seenTrackIds.has(tid)) return;
+      seenTrackIds.add(tid);
+      const t = libraryById[tid];
+      if (t) allTracks.push(t);
+    }));
+
     const buySection = document.createElement('div');
     buySection.className = 'buy-section';
-    if (collection.buyable && collection.buyUrl) {
-      buySection.innerHTML = `<a class="buy-btn" href="${collection.buyUrl}" target="_blank" rel="noopener">${tr('buyBtn')}</a>`;
-    } else {
-      buySection.innerHTML = `<span class="buy-btn disabled">${tr('comingSoon')}</span><div class="buy-hint">${tr('notForSaleYet')}</div>`;
+    // Même principe que pack.html : téléchargement gratuit réel dès aujourd'hui, vente toujours affichée
+    // grisée pendant la bêta (quel que soit buyUrl), pour ne jamais laisser croire à un vrai système de
+    // paiement qui n'existe pas encore.
+    let buyHtml = '';
+    if (collection.freeDownloadEnabled) {
+      buyHtml += `<button class="buy-btn" id="freeDownloadBtn" type="button">${tr('freeDownloadBtn')}</button>`;
     }
+    buyHtml += `<div style="margin-top:${collection.freeDownloadEnabled ? '14px' : '0'}"><span class="buy-btn disabled">${tr('comingSoon')}</span><div class="buy-hint">${tr('notForSaleYet')}</div></div>`;
+    buySection.innerHTML = buyHtml;
     container.appendChild(buySection);
+    if (collection.freeDownloadEnabled) {
+      document.getElementById('freeDownloadBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('freeDownloadBtn');
+        const original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = tr('downloadPreparing');
+        try {
+          await window.LayerPlayerCore.downloadTracksAsZip(collection.title, allTracks);
+        } catch (e) {
+          console.error('LayerPitch — échec du téléchargement de la collection :', e);
+          alert(tr('downloadError'));
+        } finally {
+          btn.disabled = false;
+          btn.textContent = original;
+        }
+      });
+    }
 
     const credit = document.createElement('div');
     credit.className = 'layerpitch-credit';
@@ -154,6 +207,20 @@ async function init() {
     container.innerHTML = `<div class="empty">${tr('loadError')}</div>`;
   }
 }
+(function setupShareButton() {
+  const btn = document.getElementById('shareBtn');
+  if (!btn) return;
+  btn.setAttribute('aria-label', tr('shareBtn'));
+  btn.title = tr('shareBtn');
+  btn.addEventListener('click', async () => {
+    const result = await window.LayerPlayerCore.shareOrCopy(location.href, document.title);
+    if (result === 'copied') {
+      btn.classList.add('copied');
+      btn.title = tr('linkCopiedToast');
+      setTimeout(() => { btn.classList.remove('copied'); btn.title = tr('shareBtn'); }, 1500);
+    }
+  });
+})();
 window.addEventListener('load', init);
 </script>
 </body>
