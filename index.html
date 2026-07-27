@@ -5,23 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
   :root {
     --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
-    --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --text: #262521; --text-title: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
     --accent: #c9713c; --accent-soft: #f3e4d6;
+    --font-body: 'Inter', sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   img { max-width: 100%; height: auto; display: block; }
-  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 56px 24px 60px; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); padding: 56px 24px 60px; }
   .page { max-width: 1100px; margin: 0 auto; }
   a { color: var(--accent); }
 
   .header { text-align: center; margin-bottom: 56px; }
   .logo-img { width: clamp(200px, 28vw, 360px); height: auto; display: block; margin: 0 auto; }
-  .logo-fallback { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(24px, 5vw, 40px); font-style: italic; }
-  .logo-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-top: 10px; }
+  .header-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(24px, 5vw, 40px); font-style: italic; color: var(--text-title); margin-top: 14px; }
+  .header-subtitle { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); margin-top: 10px; }
 
   .block { margin-bottom: 56px; }
   .section-label {
@@ -64,6 +65,46 @@
   .packs-list-item-title { font-family: 'Space Grotesk', sans-serif; font-size: 15px; flex: 1; }
   .packs-list-item-arrow { color: var(--text-dimmer); font-family: 'JetBrains Mono', monospace; transition: transform 0.15s ease, color 0.15s ease; flex-shrink: 0; }
   .packs-list-item:hover .packs-list-item-arrow { transform: translateX(3px); color: var(--accent); }
+
+  /* ---------------- Lecteur Sfx ---------------- */
+  .sfx-player { margin-bottom: 28px; }
+  .sfx-player:last-child { margin-bottom: 0; }
+  .sfx-player-title { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px; color: var(--text-title); margin-bottom: 4px; }
+  .sfx-player-desc { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 12px; white-space: pre-wrap; }
+  .sfx-rr-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .sfx-rr-block {
+    position: relative; flex: 1 1 64px; min-width: 64px; height: 40px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent; cursor: pointer; overflow: hidden;
+    padding: 0; font-family: inherit;
+  }
+  .sfx-rr-block.active { border-color: var(--accent); }
+  .sfx-rr-wave-bg, .sfx-rr-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .sfx-rr-wave-fg { opacity: 0; transition: opacity 0.15s ease; }
+  .sfx-rr-block.active .sfx-rr-wave-fg { opacity: 1; }
+  .sfx-rr-label {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.03em; color: var(--text-dim);
+    z-index: 1; padding: 0 4px; text-align: center;
+    text-shadow: 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff);
+  }
+  .sfx-play-btn {
+    display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;
+    border-radius: 50%; border: none; background: var(--accent); color: #fff; cursor: pointer;
+  }
+  .sfx-play-btn svg { width: 16px; height: 16px; }
+  .sfx-play-btn:hover { opacity: 0.9; }
+
+  .share-btn {
+    position: fixed; top: 20px; right: 20px; z-index: 50;
+    width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .share-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .share-btn:active { transform: scale(0.94); }
+  .share-btn svg { width: 18px; height: 18px; }
+  .share-btn.copied { color: #2a7; border-color: #2a7; }
   .contact-form { display: flex; flex-direction: column; max-width: 480px; }
   .contact-form label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-top: 14px; margin-bottom: 5px; }
   .contact-form input, .contact-form textarea {
@@ -90,6 +131,25 @@
   .bio-photo img { width: 100%; height: auto; display: block; }
   .bio-photo.empty { aspect-ratio: 1; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; }
   .bio-photo.empty svg { width: 40%; height: 40%; opacity: 0.35; }
+
+  .photo-block-single img, .photo-grid img, .bio-photo img { cursor: zoom-in; }
+
+  .lightbox-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200; background: rgba(10, 9, 7, 0.92);
+    align-items: center; justify-content: center; padding: 40px;
+  }
+  .lightbox-overlay.open { display: flex; }
+  .lightbox-overlay img { max-width: 90vw; max-height: 88vh; object-fit: contain; border-radius: 4px; cursor: default; }
+  .lightbox-close, .lightbox-prev, .lightbox-next {
+    position: fixed; background: rgba(255,255,255,0.12); color: #fff; border: none; border-radius: 50%;
+    width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+    font-size: 20px; cursor: pointer; transition: background 0.15s ease;
+  }
+  .lightbox-close:hover, .lightbox-prev:hover, .lightbox-next:hover { background: rgba(255,255,255,0.25); }
+  .lightbox-close { top: 20px; right: 20px; }
+  .lightbox-prev { left: 20px; top: 50%; transform: translateY(-50%); }
+  .lightbox-next { right: 20px; top: 50%; transform: translateY(-50%); }
+  @media (max-width: 640px) { .lightbox-prev, .lightbox-next { width: 38px; height: 38px; font-size: 17px; } }
   .bio-text p { font-size: 14px; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; white-space: pre-wrap; }
   @media (max-width: 540px) { .bio { grid-template-columns: 1fr; } .bio-photo { max-width: 220px; } }
 
@@ -185,7 +245,7 @@
   .progress-head { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 9px; height: 9px; background: var(--accent); border-radius: 50%; pointer-events: none; }
   .time-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); }
 
-  .stingers { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .track-sfx-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
   .stinger-btn {
     display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px;
     border: 1px solid var(--border); background: transparent; color: var(--text-dim);
@@ -207,6 +267,19 @@
 <script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
 </head>
 <body>
+<button id="shareBtn" class="share-btn" type="button" aria-label="Partager">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 15V4"/>
+    <path d="M7.5 8.5L12 4l4.5 4.5"/>
+    <path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/>
+  </svg>
+</button>
+<div id="lightboxOverlay" class="lightbox-overlay">
+  <button class="lightbox-close" type="button" aria-label="Fermer">✕</button>
+  <button class="lightbox-prev" type="button" aria-label="Précédent">‹</button>
+  <img id="lightboxImg" src="" alt="">
+  <button class="lightbox-next" type="button" aria-label="Suivant">›</button>
+</div>
 <div class="page">
   <div id="blocksContainer"></div>
   <div class="contact" id="contact"></div>
@@ -218,7 +291,7 @@
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="layerpitch-i18n.js"></script>
-<script src="player.js?v=1785091349954"></script>
+<script src="player.js"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.LayerPlayerCore;
 
@@ -284,9 +357,15 @@ function migrateBlocks(data) {
 function renderHeaderBlock(container, profile) {
   const el = document.createElement('div');
   el.className = 'header';
+  // Rétrocompatibilité : un AdReel publié avant ce changement n'a qu'un tagline (jamais de subtitle),
+  // repris ici comme repli. Le titre n'a pas d'équivalent antérieur — repli sur "LayerPitch" seulement
+  // si vraiment rien n'a jamais été configuré, comme au tout premier chargement d'un AdReel neuf.
+  const subtitle = (profile.subtitle != null && profile.subtitle !== '') ? profile.subtitle : (profile.tagline || '');
+  const title = profile.title || (profile.logo ? '' : 'LayerPitch');
   el.innerHTML = `
-    ${profile.logo ? `<img class="logo-img" src="./images/${profile.logo}" alt="${tr('logoAlt')}">` : `<div class="logo-fallback">LayerPitch</div>`}
-    ${profile.tagline ? `<div class="logo-tag">${escapeHtml(profile.tagline)}</div>` : ''}
+    ${profile.logo ? `<img class="logo-img" src="./images/${profile.logo}" alt="${tr('logoAlt')}">` : ''}
+    ${title ? `<div class="header-title">${escapeHtml(title)}</div>` : ''}
+    ${subtitle ? `<div class="header-subtitle">${escapeHtml(subtitle)}</div>` : ''}
   `;
   container.appendChild(el);
 }
@@ -294,9 +373,15 @@ function renderBioBlock(container, profile) {
   if (!profile.bio && !profile.photo) return;
   const textHtml = (profile.bio || '').split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('');
   const photoHtml = profile.photo
-    ? `<div class="bio-photo"><img src="./images/${profile.photo}" alt="${tr('photoAlt')}"></div>`
+    ? `<div class="bio-photo"><img src="./images/${profile.photo}" alt="${tr('photoAlt')}" loading="lazy"></div>`
     : `<div class="bio-photo empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></div>`;
-  container.appendChild(section(tr('aboutSection'), `<div class="bio">${photoHtml}<div class="bio-text">${textHtml}</div></div>`));
+  const el = section(tr('aboutSection'), `<div class="bio">${photoHtml}<div class="bio-text">${textHtml}</div></div>`);
+  container.appendChild(el);
+  if (profile.photo) {
+    const bioImg = el.querySelector('.bio-photo img');
+    const url = `./images/${profile.photo}`;
+    bioImg.addEventListener('click', () => openLightbox([url], 0));
+  }
 }
 function renderTestimonialsBlock(container, list) {
   if (!list || list.length === 0) return;
@@ -318,13 +403,17 @@ function renderPhotoBlockItem(container, block) {
   const align = block.align === 'center' ? 'center' : block.align === 'right' ? 'flex-end' : 'flex-start';
   const el = document.createElement('div');
   el.className = 'block';
+  const urls = block.images.map(g => `./images/${g.file}`);
   if (block.images.length === 1) {
-    el.innerHTML = `<div class="photo-block-single" style="justify-content:${align}"><img src="./images/${block.images[0].file}" alt=""></div>`;
+    el.innerHTML = `<div class="photo-block-single" style="justify-content:${align}"><img src="${urls[0]}" alt="" loading="lazy"></div>`;
   } else {
-    const imgs = block.images.map(g => `<img src="./images/${g.file}" alt="">`).join('');
+    const imgs = urls.map(u => `<img src="${u}" alt="" loading="lazy">`).join('');
     el.innerHTML = `<div class="photo-grid">${imgs}</div>`;
   }
   container.appendChild(el);
+  el.querySelectorAll('img').forEach((img, i) => {
+    img.addEventListener('click', () => openLightbox(urls, i));
+  });
 }
 function extractYouTubeId(url) {
   if (!url) return null;
@@ -353,11 +442,112 @@ function renderPacksBlockItem(container, block, packsById) {
     const a = document.createElement('a');
     a.className = 'packs-list-item';
     a.href = `./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}`;
-    a.innerHTML = `${p.illustration ? `<img class="packs-list-item-thumb" src="./images/${p.illustration}" alt="">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(p.title)}</span><span class="packs-list-item-arrow">→</span>`;
+    a.innerHTML = `${p.illustration ? `<img class="packs-list-item-thumb" src="./images/${p.illustration}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(p.title)}</span><span class="packs-list-item-arrow">→</span>`;
     list.appendChild(a);
   });
   el.appendChild(list);
   container.appendChild(el);
+}
+
+function renderCollectionsBlockItem(container, block, collectionsById) {
+  const selected = (block.collectionIds || []).map(id => collectionsById[id]).filter(Boolean);
+  if (!selected.length) return;
+  const el = section(tr('collectionsSection'), '');
+  const list = document.createElement('div');
+  list.className = 'packs-list';
+  selected.forEach(c => {
+    const a = document.createElement('a');
+    a.className = 'packs-list-item';
+    a.href = `./collection.html?id=${encodeURIComponent(c.id)}&lang=${pageLang}`;
+    a.innerHTML = `${c.illustration ? `<img class="packs-list-item-thumb" src="./images/${c.illustration}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(c.title)}</span><span class="packs-list-item-arrow">→</span>`;
+    list.appendChild(a);
+  });
+  el.appendChild(list);
+  container.appendChild(el);
+}
+
+function renderSfxBlockItem(container, block, sfxById) {
+  const selected = (block.sfxIds || []).map(id => sfxById[id]).filter(Boolean);
+  if (!selected.length) return;
+  const el = section(tr('sfxSection'), '');
+  selected.forEach(s => { el.appendChild(window.LayerPlayerCore.buildSfxPlayer(s)); });
+  container.appendChild(el);
+}
+
+// Résout une valeur de police ('default' | 'google:Nom' | 'custom:id') en une déclaration font-family CSS
+// utilisable. Retourne null pour 'default' (aucun override — le body garde son font-family de base).
+function fontCssFamily(fontValue, customFonts) {
+  if (!fontValue || fontValue === 'default') return null;
+  if (fontValue.startsWith('google:')) return `'${fontValue.slice(7)}', sans-serif`;
+  if (fontValue.startsWith('custom:')) {
+    const id = fontValue.slice(7);
+    const font = (customFonts || []).find(f => f.id === id);
+    return font ? `'${font.name}', sans-serif` : null;
+  }
+  return null;
+}
+// Injecte uniquement les assets nécessaires aux polices réellement utilisées sur cette page (thème
+// général + réglages par bloc de cet AdReel précis) — jamais toute la bibliothèque de polices du
+// compositeur, ni deux fois le même lien/@font-face si plusieurs blocs partagent la même police.
+const injectedFontAssets = new Set();
+function injectFontAssets(usedFontValues, customFonts) {
+  usedFontValues.forEach(val => {
+    if (!val || val === 'default' || injectedFontAssets.has(val)) return;
+    injectedFontAssets.add(val);
+    if (val.startsWith('google:')) {
+      const family = val.slice(7);
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, '+')}:wght@400;500;600;700&display=swap`;
+      document.head.appendChild(link);
+    } else if (val.startsWith('custom:')) {
+      const font = (customFonts || []).find(f => f.id === val.slice(7));
+      if (!font || !font.file) return;
+      const style = document.createElement('style');
+      style.textContent = `@font-face { font-family: '${font.name}'; src: url('./fonts/${font.file}'); font-display: swap; }`;
+      document.head.appendChild(style);
+    }
+  });
+}
+// Applique le réglage d'apparence par bloc (block.appearance), s'il existe, par-dessus le thème général —
+// un bloc sans override n'est jamais touché (transparent, hérite entièrement du thème). Un bloc avec une
+// couleur de fond personnalisée devient visuellement une "carte" (fond + marge intérieure) puisqu'il se
+// détache alors du fond de page ; sans override de fond, aucun style de boîte n'est ajouté.
+function applyBlockAppearance(el, block, customFonts) {
+  const ov = block.appearance;
+  if (!ov) return;
+  if (ov.bgColor) {
+    el.style.background = ov.bgColor;
+    el.style.borderRadius = '10px';
+    el.style.padding = '28px';
+    el.style.margin = '12px 0';
+  }
+  if (ov.titleColor) el.style.setProperty('--text-title', ov.titleColor);
+  if (ov.contentColor) el.style.setProperty('--text', ov.contentColor);
+  if (ov.font) {
+    const family = fontCssFamily(ov.font, customFonts);
+    if (family) el.style.setProperty('--font-body', family);
+  }
+  // Image de fond propre à CE bloc : un calque interne en arrière-plan (position absolue, opacité
+  // réglable) plutôt que de mettre l'opacité sur le bloc entier — sans ça, le texte du bloc deviendrait
+  // lui aussi transparent, ce qui n'est jamais l'effet recherché.
+  // IMPORTANT : on déplace les vrais nœuds DOM existants (pas une copie via innerHTML) pour ne jamais
+  // perdre les gestionnaires d'événements déjà attachés par le rendu du bloc (formulaire de contact,
+  // lecteur de morceaux, etc.) — une simple copie de innerHTML les aurait silencieusement détruits.
+  if (ov.bgImage) {
+    const inner = document.createElement('div');
+    inner.style.position = 'relative';
+    inner.style.zIndex = '1';
+    while (el.firstChild) inner.appendChild(el.firstChild);
+    const bgLayer = document.createElement('div');
+    const opacity = (ov.bgImageOpacity != null) ? ov.bgImageOpacity : 1;
+    bgLayer.style.cssText = `position:absolute;inset:0;background-image:url('./images/${ov.bgImage}');background-size:cover;background-position:center;opacity:${opacity};border-radius:inherit;`;
+    el.style.position = 'relative';
+    el.style.overflow = 'hidden';
+    if (!ov.bgColor) { el.style.borderRadius = '10px'; el.style.padding = '28px'; el.style.margin = '12px 0'; }
+    el.appendChild(bgLayer);
+    el.appendChild(inner);
+  }
 }
 
 function renderContactBlockItem(container, profile) {
@@ -483,9 +673,12 @@ function applyTrackOverride(track, ov) {
     const key = track.mode === 'vertical-random' ? 'fixedLayers' : 'layers';
     merged[key] = (track[key] || []).map((l, i) => (ov.layers[i] !== undefined ? { ...l, label: ov.layers[i] } : l));
   }
-  if (ov.stingers && Object.keys(ov.stingers).length) {
-    merged.stingers = (track.stingers || []).map((s, i) => (ov.stingers[i] !== undefined ? { ...s, label: ov.stingers[i] } : s));
-  }
+  // Contrairement aux couches (propres au morceau), un Sfx est une entrée de bibliothèque partagée —
+  // on ne peut pas réécrire son titre directement sans affecter tous les autres morceaux qui le
+  // référencent aussi. La surcharge est donc portée à part (sfxLabelOverrides), lue par le rendu du
+  // bouton Sfx du morceau (buildTrackRow / initTrackPlayer, player.js) plutôt que d'être fusionnée dans
+  // une copie de l'entrée Sfx elle-même.
+  if (ov.sfx && Object.keys(ov.sfx).length) merged.sfxLabelOverrides = ov.sfx;
   return merged;
 }
 async function init() {
@@ -505,9 +698,29 @@ async function init() {
     applyI18n();
     const blocks = migrateBlocks(adReel);
     const profile = adReel.profile || {};
-    if (profile.bgColor) document.documentElement.style.setProperty('--bg', profile.bgColor);
-    if (profile.textColor) document.documentElement.style.setProperty('--text', profile.textColor);
-    setupContrastToggle('contrastToggle', profile.bgColor, profile.textColor);
+    // profile.theme remplace les anciens champs bgColor/textColor (gardés en lecture seule pour les
+    // AdReels publiés avant ce changement, tant qu'ils n'ont pas été republiés depuis le backstage).
+    const theme = profile.theme
+      ? Object.assign({ bgColor: '#f6f5f3', titleColor: '#262521', contentColor: '#262521', font: 'default', bgImage: null, bgImageOpacity: 1 }, profile.theme)
+      : { bgColor: profile.bgColor || '#f6f5f3', titleColor: profile.textColor || '#262521', contentColor: profile.textColor || '#262521', font: 'default', bgImage: null, bgImageOpacity: 1 };
+    document.documentElement.style.setProperty('--bg', theme.bgColor);
+    document.documentElement.style.setProperty('--text', theme.contentColor);
+    document.documentElement.style.setProperty('--text-title', theme.titleColor);
+    // Polices : n'injecte (lien Google Fonts / @font-face) que ce qui est réellement utilisé par ce
+    // thème général et les éventuels réglages par bloc de CET AdReel — jamais toute la bibliothèque de
+    // polices personnalisées du compositeur, pour ne pas charger des fichiers inutiles à ce visiteur.
+    const usedFontValues = new Set([theme.font].filter(Boolean));
+    (adReel.blocks || []).forEach(b => { if (b.appearance && b.appearance.font) usedFontValues.add(b.appearance.font); });
+    injectFontAssets(usedFontValues, data.customFonts || []);
+    document.documentElement.style.setProperty('--font-body', fontCssFamily(theme.font, data.customFonts || []) || "'Inter', sans-serif");
+    setupContrastToggle('contrastToggle', theme.bgColor, theme.contentColor, theme.titleColor);
+    // Image de fond générale : calque plein écran fixe, sous le contenu — reste indépendante de l'opacité
+    // du texte, qui n'est jamais affectée par ce réglage.
+    if (theme.bgImage) {
+      const bgLayer = document.createElement('div');
+      bgLayer.style.cssText = `position:fixed;inset:0;z-index:-1;background-image:url('./images/${theme.bgImage}');background-size:cover;background-position:center;opacity:${theme.bgImageOpacity != null ? theme.bgImageOpacity : 1};`;
+      document.body.appendChild(bgLayer);
+    }
 
     const libraryById = {};
     (data.library || []).forEach(t => { t.publishedAt = data.publishedAt; libraryById[t.id] = t; });
@@ -519,8 +732,14 @@ async function init() {
     });
     const packsById = {};
     (data.packs || []).forEach(p => { packsById[p.id] = p; });
+    const collectionsById = {};
+    (data.collections || []).forEach(c => { collectionsById[c.id] = c; });
+    const sfxById = {};
+    (data.sfxLibrary || []).forEach(s => { s.publishedAt = data.publishedAt; sfxById[s.id] = s; });
+    window.LayerPlayerCore.setSfxLibrary(sfxById); // avant tout rendu de morceau, qui résout track.sfxIds via cette table
 
     blocks.forEach(block => {
+      const beforeCount = container.children.length;
       switch (block.type) {
         case 'header': renderHeaderBlock(container, profile); break;
         case 'bio': renderBioBlock(container, profile); break;
@@ -529,6 +748,8 @@ async function init() {
         case 'photo': renderPhotoBlockItem(container, block); break;
         case 'video': renderVideoBlockItem(container, block); break;
         case 'packs': renderPacksBlockItem(container, block, packsById); break;
+        case 'collections': renderCollectionsBlockItem(container, block, collectionsById); break;
+        case 'sfx': renderSfxBlockItem(container, block, sfxById); break;
         case 'contact': renderContactBlockItem(container, profile); break;
         case 'tracks': {
           const orderedTracks = (adReel.trackIds || []).map(id => libraryById[id]).filter(Boolean)
@@ -536,6 +757,11 @@ async function init() {
           renderTracksBlock(container, orderedTracks, packsByTrackId, data.noAiCertifiedGlobal);
           break;
         }
+      }
+      // Un bloc peut ne rien avoir ajouté au DOM (contenu vide — cf. les nombreux early-return des
+      // fonctions render*BlockItem) : dans ce cas, container.children n'a pas grandi, rien à styliser.
+      if (container.children.length > beforeCount) {
+        applyBlockAppearance(container.children[container.children.length - 1], block, data.customFonts || []);
       }
     });
 
@@ -550,6 +776,66 @@ async function init() {
     container.innerHTML = `<div class="empty">${tr('loadError')}</div>`;
   }
 }
+// Bouton "Partager" : Web Share API si le navigateur la propose (menu natif — WhatsApp, Discord,
+// Messages...), repli sur la copie du lien sinon (essentiellement desktop). Câblé une seule fois, pas
+// besoin d'attendre init() puisque le bouton partage toujours l'URL courante de la page.
+(function setupShareButton() {
+  const btn = document.getElementById('shareBtn');
+  if (!btn) return;
+  btn.setAttribute('aria-label', tr('shareBtn'));
+  btn.title = tr('shareBtn');
+  btn.addEventListener('click', async () => {
+    const result = await window.LayerPlayerCore.shareOrCopy(location.href, document.title);
+    if (result === 'copied') {
+      btn.classList.add('copied');
+      btn.title = tr('linkCopiedToast');
+      setTimeout(() => { btn.classList.remove('copied'); btn.title = tr('shareBtn'); }, 1500);
+    }
+  });
+})();
+
+// Visionneuse plein écran (lightbox) pour les photos — bloc Photo (simple et galerie) et photo de la
+// Bio. openLightbox(urls, startIndex) est appelé par chaque fonction de rendu concernée, qui connaît
+// déjà l'ensemble des images de son propre groupe (pour la navigation précédent/suivant au sein d'une
+// même galerie — jamais mélangée avec les photos d'un autre bloc).
+let lightboxImages = [];
+let lightboxIndex = 0;
+function updateLightboxImage() {
+  document.getElementById('lightboxImg').src = lightboxImages[lightboxIndex];
+  const multi = lightboxImages.length > 1;
+  document.querySelector('.lightbox-prev').style.display = multi ? '' : 'none';
+  document.querySelector('.lightbox-next').style.display = multi ? '' : 'none';
+}
+function openLightbox(urls, index) {
+  lightboxImages = urls;
+  lightboxIndex = index;
+  updateLightboxImage();
+  document.getElementById('lightboxOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  document.getElementById('lightboxOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.getElementById('lightboxOverlay').addEventListener('click', e => {
+  if (e.target.id === 'lightboxOverlay') closeLightbox();
+});
+document.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
+document.querySelector('.lightbox-prev').addEventListener('click', () => {
+  lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+  updateLightboxImage();
+});
+document.querySelector('.lightbox-next').addEventListener('click', () => {
+  lightboxIndex = (lightboxIndex + 1) % lightboxImages.length;
+  updateLightboxImage();
+});
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('lightboxOverlay').classList.contains('open')) return;
+  if (e.key === 'Escape') closeLightbox();
+  else if (e.key === 'ArrowLeft') document.querySelector('.lightbox-prev').click();
+  else if (e.key === 'ArrowRight') document.querySelector('.lightbox-next').click();
+});
+
 window.addEventListener('load', init);
 </script>
 </body>
