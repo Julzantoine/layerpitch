@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785190771168,
+  "publishedAt": 1785190831865,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -626,7 +626,7 @@
     {
       "id": "bms3s3uj7b4oi8",
       "title": "FlameThrower",
-      "description": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Flammable Liquid Library\" and are used exclusively for this LayerPitch Demo. They include 3 versions (Round-Robins) of a Flamethrower SFX playing randomly.",
+      "description": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Flammable Liquid Library\" and are used exclusively for this LayerPitch Demo. They include 3 versions (Round-Robins) of a Flamethrower SFX playing randomly.\n\n-> https://www.boomlibrary.com",
       "rrMode": "random",
       "duckMainTrack": false,
       "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms3s3uj7b4oi8/",
@@ -648,7 +648,7 @@
     {
       "id": "bms3sf3itgekxm",
       "title": "Impacts",
-      "description": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Impact\" library and are used exclusively for this LayerPitch Demo. They include 6 versions (Round-Robins) of a Flamethrower SFX playing randomly.",
+      "description": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Impact\" library and are used exclusively for this LayerPitch Demo. They include 6 versions (Round-Robins) of a Impact SFX playing randomly.\n\n-> https://www.boomlibrary.com",
       "rrMode": "random",
       "duckMainTrack": false,
       "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms3sf3itgekxm/",
