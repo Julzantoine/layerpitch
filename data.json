@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785162188796,
+  "publishedAt": 1785190771168,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -622,6 +622,62 @@
           "file": "stinger-0-levier-secret.ogg"
         }
       ]
+    },
+    {
+      "id": "bms3s3uj7b4oi8",
+      "title": "FlameThrower",
+      "description": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Flammable Liquid Library\" and are used exclusively for this LayerPitch Demo. They include 3 versions (Round-Robins) of a Flamethrower SFX playing randomly.",
+      "rrMode": "random",
+      "duckMainTrack": false,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms3s3uj7b4oi8/",
+      "alternatives": [
+        {
+          "label": "",
+          "file": "0-variation.ogg"
+        },
+        {
+          "label": "",
+          "file": "1-variation.ogg"
+        },
+        {
+          "label": "",
+          "file": "2-variation.ogg"
+        }
+      ]
+    },
+    {
+      "id": "bms3sf3itgekxm",
+      "title": "Impacts",
+      "description": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Impact\" library and are used exclusively for this LayerPitch Demo. They include 6 versions (Round-Robins) of a Flamethrower SFX playing randomly.",
+      "rrMode": "random",
+      "duckMainTrack": false,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms3sf3itgekxm/",
+      "alternatives": [
+        {
+          "label": "",
+          "file": "0-variation.ogg"
+        },
+        {
+          "label": "",
+          "file": "1-variation.ogg"
+        },
+        {
+          "label": "",
+          "file": "2-variation.ogg"
+        },
+        {
+          "label": "",
+          "file": "3-variation.ogg"
+        },
+        {
+          "label": "",
+          "file": "4-variation.ogg"
+        },
+        {
+          "label": "",
+          "file": "5-variation.ogg"
+        }
+      ]
     }
   ],
   "socials": [],
@@ -1093,6 +1149,11 @@
         {
           "id": "bmrn8gekhegr0d",
           "type": "bio"
+        },
+        {
+          "id": "bms3s281zasunb",
+          "type": "sfx",
+          "sfxIds": []
         }
       ],
       "profile": {
