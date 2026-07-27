@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785155108481,
+  "publishedAt": 1785161789074,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -614,7 +614,7 @@
       "title": "Levier Secret",
       "description": "",
       "rrMode": "random",
-      "duckMainTrack": false,
+      "duckMainTrack": true,
       "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms378c2zbxgpd/",
       "alternatives": [
         {
@@ -678,7 +678,22 @@
     "unreal": false
   },
   "noAiCertifiedGlobal": false,
-  "collections": [],
+  "collections": [
+    {
+      "id": "bms3b5smeya9d3",
+      "title": "All inclusive",
+      "illustration": null,
+      "presentationFr": "",
+      "presentationEn": "",
+      "buyable": false,
+      "buyUrl": "",
+      "freeDownloadEnabled": false,
+      "packIds": [
+        "bmrcakdllw9m7v",
+        "bmrucduoqf8jzn"
+      ]
+    }
+  ],
   "customFonts": [],
   "adReels": [
     {
