@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785270736536,
+  "publishedAt": 1785271174072,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -627,8 +627,8 @@
     {
       "id": "bms3s3uj7b4oi8",
       "title": "FlameThrower",
-      "descriptionFr": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Flammable Liquid Library\" and are used exclusively for this LayerPitch Demo. They include 3 versions (Round-Robins) of a Flamethrower SFX playing randomly.\n\n-> https://www.boomlibrary.com",
-      "descriptionEn": "",
+      "descriptionFr": "Disclaimer: Les SFX de cette demo proviennent d'une librairie gratuite (\"Flamable Liquid Library\" - BOOM) et sont uniquement utilisés pour les besoins de cette démo. Ils comptent 3 versions (RoundRobins) d'un SFX d'impact qui sont jouées de manière randomisés.\n\n-> https://www.boomlibrary.com",
+      "descriptionEn": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Flammable Liquid Library\" and are used exclusively for this LayerPitch Demo. They include 3 versions (Round-Robins) of a Flamethrower SFX playing randomly.\n\n-> https://www.boomlibrary.com",
       "rrMode": "random",
       "duckMainTrack": false,
       "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms3s3uj7b4oi8/",
@@ -650,8 +650,8 @@
     {
       "id": "bms3sf3itgekxm",
       "title": "Impacts",
-      "descriptionFr": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Impact\" library and are used exclusively for this LayerPitch Demo. They include 6 versions (Round-Robins) of a Impact SFX playing randomly.\n\n-> https://www.boomlibrary.com",
-      "descriptionEn": "",
+      "descriptionFr": "Disclaimer: Les SFX de cette demo proviennent d'une librairie gratuite (\"Impact - Boom) et sont uniquement utilisés pour les besoins de cette démo. Ils comptent 6 versions (RoundRobins) d'un SFX d'impact qui sont jouées de manière randomisés.\n\n-> https://www.boomlibrary.com\n\n-> https://www.boomlibrary.com",
+      "descriptionEn": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Impact\" library and are used exclusively for this LayerPitch Demo. They include 6 versions (Round-Robins) of a Impact SFX playing randomly.\n\n-> https://www.boomlibrary.com",
       "rrMode": "random",
       "duckMainTrack": false,
       "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms3sf3itgekxm/",
