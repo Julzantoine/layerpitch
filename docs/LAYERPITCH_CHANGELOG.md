@@ -6,6 +6,44 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-07-28] — Variations Sfx repliables, repliées par défaut
+
+**Fichiers touchés** : `layerpitch-backstage.html`
+
+**Contexte** : retour sur une capture d'écran — chaque variation Sfx (Label + fichier + suppression) s'affichait toujours en entier, sans aucun repli, contrairement aux couches fixes/alternatives de groupe/alternatives de segment qui ont déjà ce mécanisme (`collapsedLayerKeys`, glyphe ▸/▾).
+
+**Changement** : chaque variation Sfx gagne le même en-tête repliable (`list-block-head`/`list-block-body.collapsed`), avec le label (ou "Variation N" à défaut) et le statut du fichier ("Publié ✓" / nom du fichier en attente / aucun fichier) visibles même repliée. **Différence assumée avec les listes sœurs** : repliée par défaut plutôt que dépliée (nouveau registre `expandedSfxAltKeys`, à l'inverse de la logique habituelle) — une liste de variations Sfx peut s'allonger vite et n'a besoin d'être ouverte qu'au moment d'ajuster une variation précise, contrairement à une couche/segment qu'on consulte plus systématiquement en configurant un morceau.
+
+**Point ouvert, à trancher avec Jules-Antoine** : les couches fixes, alternatives de groupe et alternatives de segment ont ce même mécanisme de repli mais restent dépliées par défaut (comportement historique, non touché ici) — à voir si elles doivent aussi passer en repliées par défaut pour la même raison de clarté, ou si elles restent comme prévu à l'origine.
+
+**Vérification** : suite de tests Node/jsdom — replié par défaut, dépli/repli indépendant entre variations, statut de fichier visible repliée, suppression toujours fonctionnelle après le changement de structure.
+
+---
+
+## [2026-07-28] — Panneau "Apparence de ce bloc" repliable, replié par défaut
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : retour sur une capture d'écran — la section "Apparence de ce bloc" (couleur de fond, couleur des titres, couleur du contenu, police, image de fond, opacité) s'affichait toujours en entier dans chaque bloc, alors que la plupart des blocs héritent simplement du réglage général et n'ont besoin de rien y toucher.
+
+**Changement** : `appendBlockAppearanceSection()` enveloppe désormais les champs dans le même mécanisme de repli que le reste du backstage (`.list-block-head`/`.list-block-body.collapsed`, glyphe ▸/▾) — replié par défaut, un clic sur l'en-tête suffit à dérouler. L'état de repli est suivi par bloc (`expandedBlockAppearanceIds`, clé = `block.id`) et survit aux re-rendus des champs eux-mêmes (cocher une case ne referme pas le panneau, puisque `renderBlockAppearanceFields` ne touche qu'à son propre sous-conteneur, jamais à l'en-tête). Nouvelle clé i18n `blockAppearanceTitle` (FR/EN) pour le titre court de l'en-tête, distinct du texte d'explication complet qui reste dans le corps déplié.
+
+**Vérification** : suite de tests Node/jsdom — replié par défaut, dépli/repli au clic, aucune duplication d'en-tête après re-rendu des champs, et deux blocs différents gardent chacun leur propre état de repli indépendant.
+
+---
+
+## [2026-07-28] — Boutons icône pour upload/suppression dans les listes de variations
+
+**Fichiers touchés** : `layerpitch-backstage.html`
+
+**Contexte** : retour sur une capture d'écran d'une variation Sfx — trop de texte pour ce que ça fait ("Choisir un fichier audio" / "Supprimer cette variation" en boutons pleine largeur, sur deux lignes séparées).
+
+**Changement** : `fileCtrlHtml()` (fonction partagée, utilisée partout où on choisit un fichier) affiche désormais une icône seule (upload) au lieu d'un bouton texte — `title`/`aria-label` conservés pour l'accessibilité. Nouvelle fonction `deleteIconBtnHtml(action, dataAttrs, label)` : bouton de suppression icône (corbeille), injectable dans la même ligne que le contrôle de fichier plutôt que dans une rangée d'actions séparée en dessous. Appliqué aux 5 listes de variations qui suivaient ce pattern répétitif : variations Sfx, alternatives de groupe (vertical-random), alternatives de segment (séquentiel), couches fixes (vertical-random) et couches classiques (vertical). Les uploads "un seul exemplaire" sans suppression associée (logo, photo de bio, illustration de pack/collection, image de fond, police, vignette) gardent leur bouton d'upload en icône (cohérence visuelle) mais n'ont pas de bouton de suppression à déplacer, puisqu'ils n'en avaient pas.
+
+**Vérification** : suite de tests Node/jsdom — icône présente sans texte résiduel, `aria-label`/`title` corrects, attributs `data-*` du bouton de suppression corrects, et test de bout en bout en pilotage UI pur (ajout d'un Sfx, ajout de 2 variations, clic sur le bouton de suppression icône, vérification qu'une seule variation reste — la bonne).
+
+---
+
 ## [2026-07-28] — Refonte de la sidebar : icônes sur mesure, hiérarchie renforcée
 
 **Fichiers touchés** : `layerpitch-backstage.html`
