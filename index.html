@@ -67,10 +67,9 @@
   .packs-list-item:hover .packs-list-item-arrow { transform: translateX(3px); color: var(--accent); }
 
   /* ---------------- Lecteur Sfx ---------------- */
-  .sfx-player { margin-bottom: 28px; }
-  .sfx-player:last-child { margin-bottom: 0; }
-  .sfx-player-title { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px; color: var(--text-title); margin-bottom: 4px; }
-  .sfx-player-desc { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 12px; white-space: pre-wrap; }
+  /* Ligne compacte + repli : réutilise .track-row-wrapper/.track-row/.track-row-details (voir plus bas).
+     Seules les variations RR (affichées dans le repli, en-dessous de la forme d'onde principale) ont
+     encore besoin de classes propres. */
   .sfx-rr-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
   .sfx-rr-block {
     position: relative; flex: 1 1 64px; min-width: 64px; height: 40px; border-radius: 6px;
@@ -291,7 +290,7 @@
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="layerpitch-i18n.js"></script>
-<script src="player.js?v=1785260964482"></script>
+<script src="player.js"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.LayerPlayerCore;
 

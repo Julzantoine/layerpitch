@@ -670,17 +670,18 @@ function initTrackPlayer(track, wrapper) {
   // Ducking : abaisse brièvement le gain maître du morceau pendant qu'un Sfx réglé pour ça est en train
   // de jouer, pour le mettre en valeur, puis remonte — réglage propre à chaque Sfx (duckMainTrack), pas
   // au morceau. Rampes linéaires plutôt qu'un changement instantané, moins désagréable à l'oreille.
+  // Baisse plafonnée à 30% (DUCK_LEVEL = 0.7) : la descente reste rapide et nette, mais la remontée
+  // démarre dès la moitié du Sfx et s'étale sur une rampe longue — quitte à se terminer après la fin du
+  // Sfx lui-même, plutôt que la remontée courte et collée à la toute fin d'avant.
   const DUCK_ATTACK_SEC = 0.08;
-  const DUCK_RELEASE_SEC = 0.35;
-  const DUCK_LEVEL = 0.35;
+  const DUCK_RELEASE_SEC = 1.2;
+  const DUCK_LEVEL = 0.7;
   function duckMainTrack(sfxDurationSec) {
     const now = ctx.currentTime;
     trackMasterGain.gain.cancelScheduledValues(now);
     trackMasterGain.gain.setValueAtTime(trackMasterGain.gain.value, now);
     trackMasterGain.gain.linearRampToValueAtTime(DUCK_LEVEL, now + DUCK_ATTACK_SEC);
-    // Remonte un peu avant la toute fin du Sfx (DUCK_RELEASE_SEC), pour que le morceau ait retrouvé son
-    // plein volume à peu près au moment où le Sfx s'éteint plutôt qu'après coup.
-    const restoreAt = now + Math.max(DUCK_ATTACK_SEC, sfxDurationSec - DUCK_RELEASE_SEC);
+    const restoreAt = now + Math.max(DUCK_ATTACK_SEC, sfxDurationSec / 2);
     trackMasterGain.gain.setValueAtTime(DUCK_LEVEL, restoreAt);
     trackMasterGain.gain.linearRampToValueAtTime(1, restoreAt + DUCK_RELEASE_SEC);
   }
@@ -1934,30 +1935,68 @@ function setupContrastToggle(toggleId, customBg, customText, customTitleColor) {
  * interchangeables du même son (round robin), et un bouton "Play" qui en choisit une selon le réglage
  * de la bibliothèque Sfx (aléatoire sans répéter la précédente, ou dans l'ordre).
  */
+// Texte bilingue d'un Sfx : descriptionFr/descriptionEn (même pattern que presentationFr/En des packs et
+// collections), avec repli sur l'ancien champ unique "description" pour tout Sfx publié avant le passage
+// au bilingue (voir migration côté backstage). Résolu ici, dans player.js, puisque c'est le seul endroit
+// qui connaît déjà la langue courante (currentLang()/setLang()) sans dépendre de chaque page hôte.
+function pickSfxDescription(sfxDef) {
+  const fr = sfxDef.descriptionFr != null ? sfxDef.descriptionFr : (sfxDef.description || '');
+  const en = sfxDef.descriptionEn || '';
+  return (currentLang() === 'en' ? (en || fr) : (fr || en)) || '';
+}
+
+// Même architecture que le morceau (buildTrackRow/initTrackPlayer) : une ligne compacte (bouton Play +
+// titre), un seul repli qui laisse apparaître tout ce qu'il y a à voir — description, la forme d'onde de
+// la SEULE variation effectivement jouée (pas les N en même temps comme avant), et les variations RR
+// juste en dessous pour en choisir une précise. Pas de second niveau de repli imbriqué.
 function buildSfxPlayer(sfxDef) {
   const alts = sfxDef.alternatives || [];
+  const description = pickSfxDescription(sfxDef);
   const wrapper = document.createElement('div');
-  wrapper.className = 'sfx-player';
+  wrapper.className = 'track-row-wrapper sfx-row-wrapper';
   wrapper.innerHTML = `
-    <div class="sfx-player-title">${escapeHtml(sfxDef.title || '')}</div>
-    ${sfxDef.description ? `<div class="sfx-player-desc">${linkify(sfxDef.description)}</div>` : ''}
-    <div class="sfx-rr-row">
-      ${alts.map((a, i) => `
-        <button class="sfx-rr-block" type="button" data-ri="${i}" aria-label="${escapeHtml(a.label) || ('Variation ' + (i + 1))}">
-          <canvas class="sfx-rr-wave-bg"></canvas>
-          <canvas class="sfx-rr-wave-fg"></canvas>
-          <span class="sfx-rr-label">${escapeHtml(a.label) || ('#' + (i + 1))}</span>
-        </button>
-      `).join('')}
+    <div class="track-row">
+      <button class="play-btn" data-role="playBtn" ${alts.length ? '' : 'disabled'} aria-label="${t('playAriaLabel') || 'Play'}">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <div class="track-row-title" data-role="titleToggle">
+        <span class="name">${escapeHtml(sfxDef.title || '')}</span>
+        <span class="mode-tag">${t('sfxModeTag')}</span>
+      </div>
     </div>
-    <button class="sfx-play-btn" type="button">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-    </button>
+    <div class="track-row-details" data-role="details">
+      <div class="track-row-details-inner">
+        ${description ? `<div class="track-desc">${linkify(description)}</div>` : ''}
+        ${alts.length ? `
+          <div class="progress-wrap waveform-mode" data-role="mainWaveWrap">
+            <canvas class="waveform-bg" data-role="mainWaveBg"></canvas>
+            <canvas class="waveform-fg" data-role="mainWaveFg"></canvas>
+          </div>
+          <div class="sfx-rr-row" data-role="sfxRrRow">
+            ${alts.map((a, i) => `
+              <button class="sfx-rr-block" type="button" data-ri="${i}" aria-label="${escapeHtml(a.label) || ('Variation ' + (i + 1))}">
+                <canvas class="sfx-rr-wave-bg"></canvas>
+                <canvas class="sfx-rr-wave-fg"></canvas>
+                <span class="sfx-rr-label">${escapeHtml(a.label) || ('#' + (i + 1))}</span>
+              </button>
+            `).join('')}
+          </div>
+        ` : `<span class="placeholder-tag">${t('sfxNoFilesYet')}</span>`}
+      </div>
+    </div>
   `;
+
+  wrapper.querySelector('[data-role="titleToggle"]').addEventListener('click', () => {
+    const details = wrapper.querySelector('[data-role="details"]');
+    setDetailsExpanded(details, !details.classList.contains('expanded'));
+  });
+
   if (!alts.length) return wrapper; // Sfx sans variation uploadée : titre/description seuls, pas de lecteur
 
   const rrBlocks = [...wrapper.querySelectorAll('.sfx-rr-block')];
-  const playBtn = wrapper.querySelector('.sfx-play-btn');
+  const playBtn = wrapper.querySelector('[data-role="playBtn"]');
+  const mainWaveBg = wrapper.querySelector('[data-role="mainWaveBg"]');
+  const mainWaveFg = wrapper.querySelector('[data-role="mainWaveFg"]');
   const buffers = new Array(alts.length).fill(null);
   const loadPromises = new Array(alts.length).fill(null);
   let lastIndex = -1;
@@ -1998,6 +2037,25 @@ function buildSfxPlayer(sfxDef) {
     const fg = block.querySelector('.sfx-rr-wave-fg');
     renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
   }
+  let currentMainIndex = -1;
+  // Forme d'onde principale : reflète uniquement la variation en train de jouer (ou la dernière jouée),
+  // jamais toutes les variations à la fois — c'est ce que montrent les blocs RR en dessous, à la demande.
+  function drawMainWave(i) {
+    const buf = buffers[i];
+    if (!buf || !mainWaveBg) return;
+    renderWaveformPair(mainWaveBg, mainWaveFg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+  }
+  // Anime le remplissage de la forme d'onde principale sur la durée réelle du buffer — même mécanisme de
+  // transition CSS (clip-path) que le reste du site (cf. activateSeqStage pour le mode séquentiel), plutôt
+  // qu'une boucle requestAnimationFrame : un Sfx est un one-shot sans pause/seek, une transition CSS suffit.
+  function animateMainWaveProgress(durationSec) {
+    if (!mainWaveFg || !(durationSec > 0)) return;
+    mainWaveFg.style.transition = 'none';
+    mainWaveFg.style.clipPath = 'inset(0 100% 0 0)';
+    void mainWaveFg.offsetWidth; // force le reflow, sinon le navigateur fusionne ce reset avec la transition suivante
+    mainWaveFg.style.transition = `clip-path ${durationSec}s linear`;
+    mainWaveFg.style.clipPath = 'inset(0 0% 0 0)';
+  }
   async function loadAlt(i) {
     if (buffers[i]) return buffers[i];
     if (loadPromises[i]) return loadPromises[i];
@@ -2034,6 +2092,9 @@ function buildSfxPlayer(sfxDef) {
     if (activeSource) { try { activeSource.stop(); } catch (e) {} }
     rrBlocks.forEach(b => b.classList.remove('active'));
     rrBlocks[i].classList.add('active');
+    currentMainIndex = i;
+    drawMainWave(i);
+    animateMainWaveProgress(buf.duration);
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.connect(ctx.destination);
@@ -2045,9 +2106,13 @@ function buildSfxPlayer(sfxDef) {
   playBtn.addEventListener('click', () => playIndex(pickIndex()));
 
   // Redessine les formes d'onde déjà chargées si le conteneur change de taille — même principe que
-  // partout ailleurs sur le site (mode statique, séquentiel, etc.).
+  // partout ailleurs sur le site (mode statique, séquentiel, etc.). Inclut la forme d'onde principale si
+  // une variation a déjà été jouée au moins une fois.
   if (window.ResizeObserver) {
-    new ResizeObserver(() => { buffers.forEach((buf, i) => { if (buf) drawRrWave(i); }); }).observe(wrapper);
+    new ResizeObserver(() => {
+      buffers.forEach((buf, i) => { if (buf) drawRrWave(i); });
+      if (currentMainIndex >= 0) drawMainWave(currentMainIndex);
+    }).observe(wrapper);
   }
 
   return wrapper;
