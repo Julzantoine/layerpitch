@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785272470651,
+  "publishedAt": 1785272987541,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -612,8 +612,8 @@
     {
       "id": "bms378c2zbxgpd",
       "title": "Levier Secret",
-      "descriptionFr": "",
-      "descriptionEn": "",
+      "descriptionFr": "Vous êtes complètement bloqués dans cette cave sombre. Tout le mobilier est cassé, les ennemis tués, le loot ramassé... Vous tournez en rond depuis des heures quand tout à coup, derrière une tapisserie... un levier secret... La bibliothèque pivote. ENFIN, vous pouvez poursuivre votre aventure ! ",
+      "descriptionEn": "You're completely stuck in this dark cave. All the furniture is broken, the enemies defeated, the loot collected... You've been going in circles for hours when suddenly, behind a tapestry... a hidden lever! The bookshelf swings open. FINALLY, you can continue your adventure!",
       "rrMode": "random",
       "duckMainTrack": true,
       "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms378c2zbxgpd/",
