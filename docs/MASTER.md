@@ -24,4 +24,10 @@ Prototype fonctionnel sur GitHub Pages. Bêta GitHub en préparation (essai à b
 
 ## Discipline de méthode à préserver
 
-Architecture discutée et validée avant tout code ; pas de bricolage ; une question à la fois plutôt qu'une supposition ; jamais de travail sans accord explicite ; fichiers complets livrés plutôt que patches ; distinction systématique fait vérifié / estimation / hypothèse non testée dans toute donnée chiffrée (marché, coûts, marge). Quand une action est proposée sous
+Architecture discutée et validée avant tout code ; pas de bricolage ; une question à la fois plutôt qu'une supposition ; jamais de travail sans accord explicite ; fichiers complets livrés plutôt que patches ; distinction systématique fait vérifié / estimation / hypothèse non testée dans toute donnée chiffrée (marché, coûts, marge). Quand une action est proposée sous forme de question, attendre la réponse explicite avant d'agir. Relectures externes (ChatGPT ou autres) challengées avant intégration, jamais adoptées telles quelles.
+
+## Prochaine étape
+
+- Éditeur visuel de forme d'onde (StartTrackPoint/StartLoopPoint/ExitLoopPoint, limite de boucles + outro) — chantier volontairement reporté.
+- Essai à blanc de la bêta (Partie A infra) avant invitation de vrais testeurs.
+- Raccourcir l'intro du mode séquentiel dans l'AdReel de démo (retour bêta du 27 juillet).
