@@ -6,6 +6,21 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-07-28] — Refonte de la sidebar : icônes sur mesure, hiérarchie renforcée
+
+**Fichiers touchés** : `layerpitch-backstage.html`
+
+**Contexte** : retour sur la lisibilité globale du backstage, comparée à un concurrent (ReelCrafter) — la sidebar était du texte nu sans aucune icône, sans hiérarchie entre les items "Compte" et le groupe spécifique à l'AdReel sélectionné.
+
+- 10 icônes ligne dessinées sur mesure (pas de librairie générique, pas d'emoji) — chacune conceptuellement liée à la fonction plutôt que décorative : trois barres ascendantes pour la Bibliothèque musicale (le motif même du layering vertical, déjà présent dans les puces d'intensité du site public), un éclat pour la Bibliothèque Sfx (one-shot, par opposition aux barres continues), une boîte pour les Packs, deux boîtes superposées pour les Collections, trois nœuds reliés pour les Réseaux sociaux, une grille de cartes pour "Gérer les AdReels", un cadenas pour Projet(s) (cohérent avec son état verrouillé), des lignes de blocs pour Contenu, un cercle mi-plein pour Apparence (rappel du toggle "Contraste renforcé" déjà présent côté public), une bulle de dialogue pour le retour sur version.
+- `.nav-item` passe en flex (icône + libellé), `justify-content: space-between` conservé pour le badge "bientôt" de Projet(s).
+- Séparation visuelle renforcée entre le groupe "Compte" (ressources globales) et le groupe "Site (AdReel)" (marge augmentée), et un séparateur (filet + marge) ajouté avant le bouton de retour, qui flottait seul auparavant.
+- **Point de vigilance corrigé en cours de route** : les icônes avaient d'abord été ajoutées en gardant `data-i18n` sur le `<button>` lui-même en plus du nouveau `<span>` interne — `applyI18n()` fait `el.textContent = v`, ce qui aurait effacé les icônes SVG à chaque application des traductions. Corrigé en ne laissant `data-i18n` que sur le `<span>` du libellé.
+
+**Vérification** : suite de tests Node/jsdom dédiée — icône présente sur chaque item, badge et attributs (`data-help`, `data-tab`) intacts, structure survivant à une application simulée de `applyI18n()`.
+
+---
+
 ## [2026-07-28] — Sfx : le bouton Play déplie sa ligne et replie les autres, comme un morceau
 
 **Fichiers touchés** : `player.js`
