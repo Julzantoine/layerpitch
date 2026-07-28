@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785191484070,
+  "publishedAt": 1785259800771,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -462,9 +462,9 @@
       "randomGroups": [],
       "intro": {
         "label": "Intro",
-        "bars": 14,
+        "bars": 6,
         "file": "intro-intro.ogg",
-        "gain": 1
+        "gain": 1.759
       },
       "outro": {
         "label": "Outro",
@@ -502,6 +502,12 @@
               "bars": 8,
               "file": "segment-3-the-last-door-chunk-4-120bpm-8m.ogg",
               "gain": 1
+            },
+            {
+              "label": "The Last Door Chunk #0",
+              "bars": 8,
+              "file": "slot0-4-the-last-door-chunk-0.ogg",
+              "gain": 1.37
             }
           ]
         }
