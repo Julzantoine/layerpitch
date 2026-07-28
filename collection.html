@@ -88,8 +88,10 @@
 
 <script src="layerpitch-i18n.js"></script>
 <script src="layerpitch-help.js"></script>
-<script src="player.js?v=1785260964482"></script>
+<script src="player.js"></script>
 <script>
+const { escapeHtml, linkify, setupContrastToggle } = window.LayerPlayerCore;
+
 // Langue transmise par l'AdReel/pack qui a mené ici (paramètre ?lang= dans le lien), jamais choisie par
 // le visiteur — même principe que pack.html.
 const pageLang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'fr';
