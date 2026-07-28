@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785260964482,
+  "publishedAt": 1785270736536,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -612,7 +612,8 @@
     {
       "id": "bms378c2zbxgpd",
       "title": "Levier Secret",
-      "description": "",
+      "descriptionFr": "",
+      "descriptionEn": "",
       "rrMode": "random",
       "duckMainTrack": true,
       "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms378c2zbxgpd/",
@@ -626,7 +627,8 @@
     {
       "id": "bms3s3uj7b4oi8",
       "title": "FlameThrower",
-      "description": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Flammable Liquid Library\" and are used exclusively for this LayerPitch Demo. They include 3 versions (Round-Robins) of a Flamethrower SFX playing randomly.\n\n-> https://www.boomlibrary.com",
+      "descriptionFr": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Flammable Liquid Library\" and are used exclusively for this LayerPitch Demo. They include 3 versions (Round-Robins) of a Flamethrower SFX playing randomly.\n\n-> https://www.boomlibrary.com",
+      "descriptionEn": "",
       "rrMode": "random",
       "duckMainTrack": false,
       "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms3s3uj7b4oi8/",
@@ -648,7 +650,8 @@
     {
       "id": "bms3sf3itgekxm",
       "title": "Impacts",
-      "description": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Impact\" library and are used exclusively for this LayerPitch Demo. They include 6 versions (Round-Robins) of a Impact SFX playing randomly.\n\n-> https://www.boomlibrary.com",
+      "descriptionFr": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Impact\" library and are used exclusively for this LayerPitch Demo. They include 6 versions (Round-Robins) of a Impact SFX playing randomly.\n\n-> https://www.boomlibrary.com",
+      "descriptionEn": "",
       "rrMode": "random",
       "duckMainTrack": false,
       "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms3sf3itgekxm/",
@@ -723,6 +726,23 @@
         "bmruc9x0htabo1",
         "bmruccnxudcuy8"
       ],
+      "sfxIds": [],
+      "linkedAdReelId": null
+    },
+    {
+      "id": "bms53ze9zfu132",
+      "title": "SFX Demo Pack",
+      "illustration": "pack-bms53ze9zfu132.png",
+      "watermark": null,
+      "presentationFr": "",
+      "presentationEn": "",
+      "buyable": false,
+      "buyUrl": "",
+      "freeDownloadEnabled": false,
+      "videoTestModeEnabled": true,
+      "bgColor": "#f6f5f3",
+      "textColor": "#262521",
+      "trackIds": [],
       "sfxIds": [],
       "linkedAdReelId": null
     }
@@ -1100,6 +1120,15 @@
         {
           "id": "bmrn8gekhz5wxb",
           "type": "tracks"
+        },
+        {
+          "id": "bms540osnogxiu",
+          "type": "sfx",
+          "sfxIds": [
+            "bms3s3uj7b4oi8",
+            "bms3sf3itgekxm",
+            "bms378c2zbxgpd"
+          ]
         },
         {
           "id": "bmrn8gekhjeizq",
