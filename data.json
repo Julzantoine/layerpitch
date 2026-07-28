@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785259800771,
+  "publishedAt": 1785259924644,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -480,25 +480,25 @@
           "repeatCount": 1,
           "alternatives": [
             {
-              "label": "The Last Door Chunk#1 120bpm 8M",
+              "label": "The Last Door Chunk#1",
               "bars": 8,
               "file": "segment-0-the-last-door-chunk-1-120bpm-8m.ogg",
               "gain": 1
             },
             {
-              "label": "The Last Door Chunk#2 120bpm 16M",
+              "label": "The Last Door Chunk#2",
               "bars": 16,
               "file": "segment-1-the-last-door-chunk-2-120bpm-16m.ogg",
               "gain": 1
             },
             {
-              "label": "The Last Door Chunk#3 120bpm 8M",
+              "label": "The Last Door Chunk#3",
               "bars": 8,
               "file": "segment-2-the-last-door-chunk-3-120bpm-8m.ogg",
               "gain": 1
             },
             {
-              "label": "The Last Door Chunk#4 120bpm 8M",
+              "label": "The Last Door Chunk#4",
               "bars": 8,
               "file": "segment-3-the-last-door-chunk-4-120bpm-8m.ogg",
               "gain": 1
