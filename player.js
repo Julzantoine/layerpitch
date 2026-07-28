@@ -1997,10 +1997,15 @@ function buildSfxPlayer(sfxDef) {
   const playBtn = wrapper.querySelector('[data-role="playBtn"]');
   const mainWaveBg = wrapper.querySelector('[data-role="mainWaveBg"]');
   const mainWaveFg = wrapper.querySelector('[data-role="mainWaveFg"]');
+  const details = wrapper.querySelector('[data-role="details"]');
   const buffers = new Array(alts.length).fill(null);
   const loadPromises = new Array(alts.length).fill(null);
   let lastIndex = -1;
   let activeSource = null;
+  // Participe au même registre partagé que les morceaux (trackCollapsers/activeTrackId, voir plus haut
+  // dans le fichier) : un Sfx joué déplie sa propre ligne et replie tout le reste de la page — morceaux
+  // ET autres Sfx confondus — exactement comme playThisTrack() le fait pour un morceau.
+  trackCollapsers[sfxDef.id] = () => setDetailsExpanded(details, false);
 
   // Décodeur dédié à CE lecteur, jamais partagé — même raisonnement que pour chaque piste musicale : des
   // appels .decode() concurrents sur un décodeur Ogg Vorbis partagé s'entremêleraient silencieusement.
@@ -2100,10 +2105,25 @@ function buildSfxPlayer(sfxDef) {
     src.connect(ctx.destination);
     src.start();
     activeSource = src;
-    src.onended = () => { if (activeSource === src) { activeSource = null; rrBlocks[i].classList.remove('active'); } };
+    src.onended = () => {
+      if (activeSource === src) {
+        activeSource = null;
+        rrBlocks[i].classList.remove('active');
+        if (activeTrackId === sfxDef.id) activeTrackId = null;
+      }
+    };
   }
   rrBlocks.forEach((block, i) => { block.addEventListener('click', () => playIndex(i)); });
-  playBtn.addEventListener('click', () => playIndex(pickIndex()));
+  playBtn.addEventListener('click', () => {
+    if (activeTrackId && activeTrackId !== sfxDef.id) {
+      document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+      if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
+    }
+    Object.keys(trackCollapsers).forEach(id => { if (id !== sfxDef.id) trackCollapsers[id](); });
+    activeTrackId = sfxDef.id;
+    setDetailsExpanded(details, true);
+    playIndex(pickIndex());
+  });
 
   // Redessine les formes d'onde déjà chargées si le conteneur change de taille — même principe que
   // partout ailleurs sur le site (mode statique, séquentiel, etc.). Inclut la forme d'onde principale si
