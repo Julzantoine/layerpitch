@@ -6,6 +6,18 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-07-28] — Sfx : le bouton Play déplie sa ligne et replie les autres, comme un morceau
+
+**Fichiers touchés** : `player.js`
+
+**Contexte** : retour explicite — le lecteur Sfx venait d'être aligné visuellement sur le morceau, mais le bouton Play ne participait pas encore au même comportement de dépli/repli collectif.
+
+**Changement** : le Sfx rejoint le même registre partagé que les morceaux (`trackCollapsers`/`activeTrackId`, déjà utilisé par `playThisTrack()`). Cliquer sur le bouton Play rond d'un Sfx déplie désormais sa propre ligne et replie tout le reste de la page — morceaux et autres Sfx confondus —, arrête un morceau en cours de lecture s'il y en avait un (même mécanisme d'événement `stop-track`), et efface son statut d'élément actif à la fin naturelle du son. Seul le bouton Play déclenche ce comportement ; cliquer directement sur une variation RR reste une simple audition locale, sans repli des autres lignes.
+
+**Vérification** : suite de tests étendue — jouer un second Sfx replie bien le premier resté déplié.
+
+---
+
 ## [2026-07-28] — Ducking : plafond de baisse et remontée progressive
 
 **Fichiers touchés** : `player.js`
