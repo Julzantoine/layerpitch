@@ -6,7 +6,50 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
-## [2026-07-25] — Documentation de fin de session
+## [2026-07-28] — Ducking : plafond de baisse et remontée progressive
+
+**Fichiers touchés** : `player.js`
+
+**Contexte** : retour d'écoute — la baisse actuelle (65 %) était trop marquée, et la remontée, collée à la toute fin du Sfx, semblait abrupte.
+
+- `DUCK_LEVEL` : 0.35 → **0.7** (baisse plafonnée à 30 % au lieu de 65 %).
+- La remontée démarre désormais à **la moitié de la durée du Sfx** (`sfxDurationSec / 2`) au lieu de `sfxDurationSec - DUCK_RELEASE_SEC` (collée à la fin).
+- `DUCK_RELEASE_SEC` : 0.35s → **1.2s** — remontée nettement plus progressive, quitte à se terminer après la fin du Sfx lui-même plutôt qu'exactement dessus.
+- L'attaque (`DUCK_ATTACK_SEC = 0.08`) reste inchangée, jugée satisfaisante.
+
+---
+
+## [2026-07-28] — Bug persistant de chargement de `collection.html` : cause trouvée et corrigée
+
+**Fichiers touchés** : `collection.html`
+
+**Diagnostic** : contrairement à `pack.html`/`index.html`, `collection.html` n'a jamais déstructuré `escapeHtml`/`linkify`/`setupContrastToggle` depuis `window.LayerPlayerCore` — ces fonctions vivent dans la fermeture (IIFE) de `player.js` et ne sont pas des globales. Chaque appel nu (`escapeHtml(collection.title)`, etc.) déclenchait un `ReferenceError` dès le premier rendu dans `init()`, catché silencieusement par le `try/catch` → page systématiquement affichée en `loadError`, quel que soit l'état réel des données.
+
+**Changement** : ajout de `const { escapeHtml, linkify, setupContrastToggle } = window.LayerPlayerCore;` en tête du script, comme dans `pack.html`.
+
+**Vérification** : reproduit puis corrigé en conditions réelles (Node/jsdom, `fetch` mocké, vrai `player.js`) — la page charge sans erreur, affiche le titre de la collection et la liste des packs inclus.
+
+---
+
+## [2026-07-28] — Refonte du lecteur Sfx : architecture alignée sur le lecteur de morceau
+
+**Fichiers touchés** : `player.js`, `index.html`, `pack.html`, `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : le lecteur Sfx (`buildSfxPlayer`) affichait jusqu'ici toutes les variations round robin côte à côte en permanence, chacune avec sa propre forme d'onde toujours visible, sans aucune vue repliée/dépliée — incohérent avec le reste du site.
+
+**Changement** :
+- `player.js` : `buildSfxPlayer` réécrit pour réutiliser telles quelles les classes `.track-row-wrapper`/`.track-row`/`.track-row-details`/`.track-row-details-inner`/`.track-desc` du lecteur de morceau — ligne compacte (bouton Play + titre + tag "Sfx"), **un seul repli** au clic sur le titre (pas de second niveau imbriqué, conformément à la demande explicite).
+- Le repli affiche désormais **une seule forme d'onde principale**, qui reflète uniquement la variation RR effectivement en train de jouer (mise à jour à chaque tirage/clic), et non plus les N formes d'onde simultanément. Les blocs RR individuels (mini-forme d'onde + label, cliquables pour forcer une variation précise) restent visibles juste en dessous, dans ce même repli.
+- **Animation de progression** ajoutée sur la forme d'onde principale (initialement oubliée dans la première passe, ajoutée après retour explicite) : remplissage via transition CSS `clip-path` sur la durée réelle du buffer joué — même mécanisme que celui déjà utilisé pour le mode séquentiel (`activateSeqStage`), plutôt qu'une boucle `requestAnimationFrame` (superflue pour un one-shot sans pause/seek).
+- **Glisser-déposer groupé des variations RR** : `wireBatchDrop` (déjà utilisé pour les groupes vertical-random et les emplacements séquentiels) branché sur la liste d'alternatives Sfx du backstage — déposer plusieurs fichiers d'un coup crée une variation par fichier, avec le nom repris automatiquement du fichier.
+- **Description bilingue** : `sfx.description` (champ unique) remplacé par `descriptionFr`/`descriptionEn` (même pattern que `presentationFr`/`presentationEn` des packs/collections). Repli automatique sur l'ancien champ unique pour tout Sfx publié avant ce changement (lu une fois au chargement, jamais réécrit dans l'ancien champ). Résolution de la langue faite directement dans `player.js` (nouvelle fonction `pickSfxDescription`, utilise `currentLang()`), pas dans chaque page hôte.
+- `layerpitch-backstage.html` : éditeur Sfx mis à jour (deux textarea FR/EN au lieu d'un champ unique, indice de glisser-déposer groupé), migration au chargement et sérialisation à la publication adaptées aux nouveaux champs.
+- `layerpitch-i18n.js` : nouvelles clés `sfxModeTag`/`sfxNoFilesYet` (zone `player`, FR/EN) et `descriptionLabelFr`/`descriptionLabelEn` (zone `backstage`, FR/EN).
+- CSS : ancien bloc `.sfx-player`/`.sfx-player-title`/`.sfx-player-desc`/`.sfx-play-btn` retiré de `index.html` et `pack.html` (remplacé par la réutilisation des classes du morceau) ; `.sfx-rr-row`/`.sfx-rr-block` conservées à l'identique pour la liste RR en dessous.
+
+**Vérification** : suite de tests Node/jsdom dédiée (`AudioContext` et `fetch` simulés) — structure DOM (repli/dépli à un seul niveau, forme d'onde principale unique, variations RR en dessous), résolution bilingue de la description (FR, EN avec repli sur FR si vide, repli sur l'ancien champ non migré), état désactivé du bouton Play si aucune variation, et — après correction suite au retour explicite sur l'oubli initial — l'animation de progression réelle (clip-path final `inset(0 0% 0 0)`, durée de transition correspondant exactement à la durée du buffer joué). 20 assertions, toutes passantes.
+
+---
 
 **Fichiers touchés** : `LAYERPITCH_MASTER.md`, ce changelog
 
