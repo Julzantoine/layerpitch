@@ -6,17 +6,19 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
-## [2026-07-28] — Variations Sfx repliables, repliées par défaut
+## [2026-07-28] — Un seul bouton "Voir les variations" pour les pools de variations (Sfx, groupes, segments)
 
-**Fichiers touchés** : `layerpitch-backstage.html`
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
 
-**Contexte** : retour sur une capture d'écran — chaque variation Sfx (Label + fichier + suppression) s'affichait toujours en entier, sans aucun repli, contrairement aux couches fixes/alternatives de groupe/alternatives de segment qui ont déjà ce mécanisme (`collapsedLayerKeys`, glyphe ▸/▾).
+**Contexte** : retour en deux temps sur le repli individuel par variation ajouté un peu plus tôt dans la session — Jules-Antoine ne voulait pas un repli par ligne (un clic par variation), mais un seul bouton qui déplie **tout le pool d'un coup**. Clarifié à l'aide d'une seconde capture d'écran montrant un groupe vertical-random ("Alt Perc") : les réglages du groupe lui-même (nom, source du contenu, case "interdire la répétition") doivent rester toujours visibles ; seule la liste de ses variations (Vide, AltPerc#1, AltPerc#1.5...) doit se cacher derrière un unique repli.
 
-**Changement** : chaque variation Sfx gagne le même en-tête repliable (`list-block-head`/`list-block-body.collapsed`), avec le label (ou "Variation N" à défaut) et le statut du fichier ("Publié ✓" / nom du fichier en attente / aucun fichier) visibles même repliée. **Différence assumée avec les listes sœurs** : repliée par défaut plutôt que dépliée (nouveau registre `expandedSfxAltKeys`, à l'inverse de la logique habituelle) — une liste de variations Sfx peut s'allonger vite et n'a besoin d'être ouverte qu'au moment d'ajuster une variation précise, contrairement à une couche/segment qu'on consulte plus systématiquement en configurant un morceau.
+**Changement** :
+- Nouveau générateur partagé `altPoolToggleHtml(key, count)` — un seul bouton "Voir les variations (N)" avec un caret, replié par défaut (nouveau registre `expandedAltPoolKeys`, clé par pool). Câblé directement au clic (`wireAltPoolToggle`), sans passer par les gestionnaires délégués existants.
+- Appliqué aux **3 pools de variations interchangeables** : variations d'un Sfx, alternatives d'un groupe aléatoire (vertical-random), alternatives d'un emplacement séquentiel — chacun n'affiche plus qu'un seul bouton, et les lignes individuelles (revenues à leur forme simple : label + fichier + suppression, sans en-tête propre) apparaissent toutes ensemble une fois déplié.
+- **Couches fixes et couches classiques (vertical) laissées inchangées**, avec leur repli individuel par ligne existant : ce sont des éléments distincts qu'on veut pouvoir retrouver un par un (chaque couche fixe est un son différent, chaque couche classique un niveau d'intensité différent), pas un pool de variations interchangeables — distinction actée avec Jules-Antoine.
+- Nettoyage du premier essai (repli individuel Sfx replié par défaut, `expandedSfxAltKeys`) : registre et gestionnaire retirés, remplacés par le pool unique.
 
-**Point ouvert, à trancher avec Jules-Antoine** : les couches fixes, alternatives de groupe et alternatives de segment ont ce même mécanisme de repli mais restent dépliées par défaut (comportement historique, non touché ici) — à voir si elles doivent aussi passer en repliées par défaut pour la même raison de clarté, ou si elles restent comme prévu à l'origine.
-
-**Vérification** : suite de tests Node/jsdom — replié par défaut, dépli/repli indépendant entre variations, statut de fichier visible repliée, suppression toujours fonctionnelle après le changement de structure.
+**Vérification** : suite de tests Node/jsdom, entièrement pilotée en clics UI réels (création d'un morceau vertical-random avec un groupe, d'un morceau séquentiel avec un segment, ajout de variations) — un seul bouton par pool, replié par défaut, toutes les lignes apparaissent d'un coup au clic, et les couches fixes gardent bien leur comportement d'origine.
 
 ---
 
