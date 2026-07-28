@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785272285946,
+  "publishedAt": 1785272470651,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -743,7 +743,11 @@
       "bgColor": "#f6f5f3",
       "textColor": "#262521",
       "trackIds": [],
-      "sfxIds": [],
+      "sfxIds": [
+        "bms3s3uj7b4oi8",
+        "bms3sf3itgekxm",
+        "bms378c2zbxgpd"
+      ],
       "linkedAdReelId": null
     }
   ],
