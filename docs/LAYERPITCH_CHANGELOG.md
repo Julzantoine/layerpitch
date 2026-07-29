@@ -6,6 +6,111 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-07-28] — Passe de nettoyage et d'audit sur l'ensemble du projet
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : demande explicite de repasser sur tout le code pour le nettoyer/l'optimiser. Audit systématique plutôt qu'un nettoyage à l'aveugle : déclarations de fonctions dupliquées (dans un même fichier), sélecteurs CSS dupliqués/conflictuels, clés i18n orphelines, clés de bulles d'aide orphelines, classes CSS définies mais jamais utilisées, `console.log`/`TODO`/`FIXME` résiduels — sur les 11 fichiers du projet.
+
+**Un vrai bug trouvé et corrigé** : `.nav-feedback-btn` était défini deux fois avec des propriétés contradictoires — la règle ajoutée pendant la refonte de la sidebar (filet de séparation `border-top` uni) et l'ancienne règle pré-existante (encadré pointillé). À cause de la cascade CSS, le `border` en raccourci de la seconde écrasait silencieusement le `border-top` de la première : **le filet de séparation ajouté lors de la refonte de la sidebar n'a en réalité jamais été visible**, le bouton a gardé son style pointillé d'origine tout du long. Corrigé en retirant la règle en doublon — l'encadré pointillé (déjà là avant cette session, assure déjà une séparation visuelle suffisante) fait foi.
+
+**12 clés i18n orphelines retirées** (confirmées à 0 occurrence hors `layerpitch-i18n.js`, FR+EN, 26 lignes) :
+- 3 restes de la Phase 1 de hiérarchisation (`verticalRandomBpmHint`, `sequentialBpmHint`, `normalizeVolumeHint`) — jamais nettoyées au moment où leur paragraphe a été retiré du formulaire.
+- 1 reste du passage en pool unique de variations (`alternativeFallback` — l'ancien texte de repli des en-têtes individuels, supprimés depuis).
+- 7 restes de l'ancien système "stinger" d'avant la migration vers la Bibliothèque Sfx (18-25 juillet) : `addStingerBtn`, `stingerLabelText`, `removeStingerBtn`, `stingerFallback`, `segmentFallbackShort`, `convertingStinger`, `stingerFallbackShort`.
+- 1 clé plus ancienne, `buyBtn` (2 variantes, pack et collection) — supplantée depuis par `buyableLabel`/`packBuyable`.
+
+**Ce qui n'a rien trouvé d'anormal** (audit fait, pas seulement supposé) : aucune fonction dupliquée au sein d'un même fichier, aucune bulle d'aide orpheline, aucune classe CSS définie sans jamais être utilisée, aucun `console.log`/`debugger`/`TODO`/`FIXME` résiduel. Les quelques "sélecteurs dupliqués" détectés dans `index.html`/`pack.html` (`.lightbox-close`, `.video-test-btn-secondary`) sont en réalité un pattern volontaire (règle de base groupée par virgule + réglage spécifique en plus) — vérifiés, pas de problème.
+
+**Vérification** : syntaxe validée sur les 11 fichiers (JS purs + scripts inline de chaque page HTML), intégralité de la suite de tests de la session rejouée sans régression après le nettoyage.
+
+---
+
+## [2026-07-28] — Hiérarchisation par sections : Header, Sfx Library, Apparence générale de l'AdReel
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : passe finale sur "l'ensemble des blocs qui pourraient en tirer parti" — après sidebar, morceau, pack et collection, revue de tous les autres formulaires du backstage (Bio, Témoignages, Contact, Texte, Photo, Vidéo, blocs Packs/Collections/Sfx d'un AdReel, Réseaux sociaux, dépôt GitHub) : la plupart sont déjà assez courts (2-3 champs) ou déjà structurés en `<fieldset>` avec légende (GitHub) pour ne pas avoir besoin de repères supplémentaires. Trois endroits en revanche suivaient le même flux plat que les précédents :
+
+- **Header** (3 sections) : Identité (titre, sous-titre, logo) → Contact (email, site) → Formulaire (endpoint Formspree).
+- **Bibliothèque Sfx**, entrée d'un Sfx (2 sections) : Identité (titre, descriptions FR/EN) → Comportement (mode round robin, ducking) — le pool "Voir les variations" juste après sert déjà de troisième repère naturel.
+- **Apparence — AdReel en cours d'édition** (HTML statique, 2 sections) : Langue → Thème (couleurs, police, image de fond). Les "Polices personnalisées", déjà dans leur propre `<fieldset><legend>`, laissées telles quelles.
+
+Nouvelles clés i18n génériques (FR/EN) : `sectionContact`, `sectionForm`, `sectionBehavior`, `sectionLanguage`, `sectionTheme`.
+
+**Vérification** : suite de tests Node/jsdom dédiée (flux "data.json introuvable" simulé via un mock de `ghGetContent` pour obtenir l'AdReel par défaut avec ses blocs, sans dépendre du réseau) + l'intégralité de la suite de tests de la session rejouée sans régression.
+
+---
+
+## [2026-07-28] — Hiérarchisation par sections étendue aux éditeurs de pack et de collection
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : suite de la Phase 2 (sidebar → éditeur de morceau → ici) — l'éditeur de pack et celui de collection avaient exactement le même défaut de formulaire plat que le morceau, avant la refonte.
+
+**Changement** : réutilisation telle quelle de `sectionEyebrow()` (aucune nouvelle mécanique).
+- **Pack** (5 sections) : Identité (titre, illustration, watermark) → Présentation (FR/EN) → Diffusion (téléchargement gratuit, vente, mode test gameplay, renvoi AdReel, lien direct, partage, réseaux sociaux) → Apparence (couleurs) → Contenu (sélecteur de morceaux, sélecteur de Sfx).
+- **Collection** (4 sections) : Identité (titre, illustration) → Présentation (FR/EN) → Contenu (sélecteur de packs) → Diffusion (téléchargement gratuit, vente, lien direct, partage, réseaux sociaux).
+- Nouvelles clés i18n génériques `sectionPresentation`/`sectionDistribution`/`sectionAppearance` (FR/EN) ; `trackSectionIdentity`/`trackSectionContent` réutilisées telles quelles (même libellé "Identité"/"Contenu" que dans l'éditeur de morceau, malgré le nom de clé).
+
+**Vérification** : suite de tests Node/jsdom dédiée (ordre des sections, IDENTITÉ toujours en tête, aucun champ perdu) + l'intégralité de la suite de tests de la session rejouée sans régression.
+
+---
+
+## [2026-07-28] — Bulles d'aide enrichies avec le détail retiré des paragraphes permanents
+
+**Fichiers touchés** : `layerpitch-help.js`
+
+**Contexte** : retour après la Phase 1 — les bulles d'aide (`data-help`) qui remplaçaient les paragraphes permanents étaient globalement moins précises que ce qui avait été retiré, malgré le recoupement de contenu vérifié avant suppression.
+
+**Changement** : fusion du détail manquant dans 3 bulles (FR/EN) :
+- `bpmMeasuresSequential` — ajout de la précision sur le fondu de fin ("le fichier peut être plus long que ces mesures : la fin sonne en fondu pendant que le bloc suivant démarre déjà").
+- `bpmMeasuresVerticalRandom` — mention explicite de la couche fixe (pas seulement les tirages aléatoires) parmi ce qui doit rester synchronisé.
+- `normalizeVolume` — ajout de la précision sur le comportement par défaut ("décoché par défaut : sans ça, tes fichiers sonnent exactement à leur volume d'origine").
+
+`trackDescription` non touchée : déjà complète (la phrase "Cmd+K" retirée en Phase 1 y figurait déjà mot pour mot).
+
+**Vérification** : contenu des 3 bulles relu et confirmé présent après modification.
+
+---
+
+## [2026-07-28] — Éditeur de morceau : retrait des paragraphes redondants avec une bulle d'aide (Phase 1)
+
+**Fichiers touchés** : `layerpitch-backstage.html`
+
+**Contexte** : Phase 1 initialement mise de côté ("les explications doivent rester au moins jusqu'à la bêta multi"), validée après coup une fois la Phase 2 (sections) vue en pratique.
+
+**Changement** : retrait des 4 paragraphes permanents identifiés comme strictement redondants avec une bulle d'aide déjà présente sur le même champ (contenu quasi identique, confirmé texte à texte avant suppression) :
+- BPM/mesures (vertical-random) — doublon de la bulle `bpmMeasuresVerticalRandom`
+- BPM/mesures (séquentiel) — doublon de la bulle `bpmMeasuresSequential`
+- Description — le paragraphe "Sélectionne du texte puis Cmd+K..." était déjà la dernière phrase de la bulle `trackDescription`
+- Harmoniser les volumes — doublon de la bulle `normalizeVolume`
+
+Seuls ces 4 cas du formulaire de morceau ont été touchés — les usages de `linkHint` ailleurs dans le backstage (packs, collections, bio...) n'ont pas été vérifiés un par un et restent inchangés. Les avertissements orange, le texte des zones de dépôt et les instructions de la timeline de boucle (interaction non standard) restent également inchangés, comme prévu.
+
+**Vérification** : suite de tests Node/jsdom mise à jour — confirme la disparition des 4 paragraphes tout en vérifiant que leur bulle d'aide respective (`data-help`) reste bien en place ; l'ensemble de la suite de tests de la session (sidebar, Sfx, pools de variations, panneau Apparence) rejoué sans régression.
+
+---
+
+## [2026-07-28] — Éditeur de morceau : hiérarchisation par sections (Phase 2)
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : suite du travail de hiérarchisation visuelle entamé sur la sidebar — appliqué maintenant à l'éditeur de morceau, dont le formulaire déplié s'enchaînait jusqu'ici en un long flux plat (titre, format, tempo, description, structure, Sfx, note d'implémentation, certification, tout au même niveau visuel). **Phase 1 (retirer les paragraphes redondants avec les bulles d'aide) explicitement mise de côté par Jules-Antoine** — les explications restent visibles telles quelles, au moins jusqu'à la bêta multi.
+
+**Changement** : 5 repères de section ajoutés (même langage visuel que les eyebrows de la sidebar — `.nav-section-label`, réutilisée telle quelle — avec un filet de séparation en plus, `.track-section-label`) :
+- **Identité** — titre, format, case "bouclable" (mode statique)
+- **Tempo** — BPM/mesures, points de boucle, nombre de boucles par défaut ; **absent si sans objet** (mode statique non bouclable) plutôt que de montrer un repère vide — calculé via un nouveau booléen `hasTempoSection`
+- **Contenu** — description, harmonisation des volumes
+- **Structure** — couches fixes/groupes aléatoires, ou intro/emplacements/outro, ou couches classiques/fichier statique selon le mode
+- **Réglages avancés** — Sfx attachés, note d'implémentation, certification sans IA
+
+Nouveau générateur partagé `sectionEyebrow(label)`. Aucun champ, aucune bulle d'aide, aucun texte explicatif existant déplacé ou supprimé — uniquement des repères insérés autour du contenu déjà en place.
+
+**Vérification** : suite de tests Node/jsdom couvrant les 4 modes (statique non bouclable, statique bouclable, vertical-random, séquentiel) — les 5 sections apparaissent dans le bon ordre, Tempo disparaît proprement quand non pertinent, et tous les textes d'aide existants sont confirmés intacts.
+
+---
+
 ## [2026-07-28] — Un seul bouton "Voir les variations" pour les pools de variations (Sfx, groupes, segments)
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
