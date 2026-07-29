@@ -6,6 +6,22 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-07-29] — Bouton de repli en bas à droite des blocs, en plus de celui du haut
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : retour sur une capture d'écran — après avoir lu tout le contenu d'un bloc long (ex. la liste de packs sélectionnés), il fallait remonter tout en haut pour le replier. Demande explicite de garder aussi la commande du haut pour qui la préfère.
+
+**Changement** : nouveau générateur partagé `collapseFooterHtml(action, dataAttrs)` — un bouton "▴ Replier" (jamais juste un triangle nu, plus explicite en bas de contenu) inséré en pied de bloc, aligné à droite, avec un filet de séparation au-dessus. Réutilise le **même** `data-action`/attributs `data-*` que le bouton du haut : pris en charge par le gestionnaire délégué déjà existant, sans mécanisme séparé. Appliqué aux 5 endroits ayant ce pattern replié/déplié :
+- Blocs de contenu d'un AdReel (Header, Bio, Témoignages, Morceaux, Texte, Photo, Vidéo, Packs, Collections, Sfx, Contact) — point de passage unique `buildCardForBlock`.
+- Éditeur de morceau, éditeur de pack, éditeur de collection, entrée de la Bibliothèque Sfx.
+
+**Bug évité en cours de route** : les gestionnaires existants ne mettaient à jour que le glyphe du bouton **cliqué** (`btn.textContent = ...`) — correct tant qu'un seul bouton existait, mais aurait laissé le bouton du haut affiché dans le mauvais état après un clic sur celui du bas. Corrigé pour cibler explicitement le bouton du haut (`.list-block-head [data-action="..."]` / `.block-editor-head [data-action="toggle-collapse"]`), sans jamais écraser le libellé "Replier" du bouton du bas avec un simple triangle. La Bibliothèque Sfx échappe à ce problème par construction (repli déjà géré par un re-rendu complet de la liste).
+
+**Vérification** : suite de tests Node/jsdom dédiée (17 assertions) — bouton présent aux 5 endroits, clic depuis le bas replie bien le bloc, le bouton du haut se resynchronise correctement, réouverture depuis le haut toujours fonctionnelle. Intégralité de la suite de tests de la session rejouée sans régression.
+
+---
+
 ## [2026-07-28] — Passe de nettoyage et d'audit sur l'ensemble du projet
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
