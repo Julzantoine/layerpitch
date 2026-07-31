@@ -35,6 +35,71 @@ Signalé par un retour compositeur externe : le gris clair utilisé pour le text
 
 **5.2 Marketplace de packs** *(14 juillet)* — case à cocher pour rendre un pack visible dans un catalogue public, achat unitaire direct, même mécanique de commission (30/5/1 % par palier). Relation avec le Moodboard : prérequis naturel — impossible de construire un catalogue accessible par abonnement studio sans d'abord avoir un catalogue de packs publics découvrables.
 
+**5.3 Interface acheteur (game dev) — bibliothèque personnelle et packs custom** *(30 juillet)* — conception d'interface (aucun code écrit) pour le profil "acheteur" : un game dev qui a acheté des packs musique/SFX et veut les réorganiser librement pour ses playtests, sans logique de revente. Prérequis explicite : suppose des comptes utilisateurs et des achats enregistrés, donc entièrement dépendant de la bascule backend — aucune valeur avant ça, contrairement à 2.2 et à la section 4.
+
+*Portée volontairement exclue à ce stade* : pas d'affichage d'un catalogue "à acheter" dans les bibliothèques (Music Library / SFX Library n'affichent que ce que l'acheteur possède déjà) — la vitrine catalogue viendra avec la Marketplace (5.2), pas avant.
+
+*Structure de navigation* : trois entrées côté acheteur — Music Library, SFX Library, Packs. "Packs" est un point d'entrée unique donnant accès à deux onglets internes : **Achetés** (packs officiels, lecture seule — action "Ouvrir" uniquement, pas de suppression/duplication puisque ce sont des achats) et **Mes packs custom** (créés par l'acheteur — actions Ouvrir / Dupliquer / Supprimer, plus bouton "+ Nouveau pack custom").
+
+*Modèle de données envisagé pour un pack custom* :
+```
+PackCustom {
+  id, nom, date_création
+  allowSimultaneousPlayback: boolean (défaut false)
+  musiques: [ { id, référence asset musique }, ... ]
+  sfx_pool: [ { id, référence asset sfx, label perso (optionnel) }, ... ]
+}
+```
+Un pack custom référence des assets déjà possédés (musique + SFX), jamais un nouvel objet vendable — usage perso uniquement, pas de republication. Peut être partiel (que des musiques, ou même que des SFX ; un pack "orphelin" sans musique est toléré, modifiable ensuite).
+
+*Principe retenu — pas de timeline* : un SFX rattaché à une musique dans un pack custom n'est pas synchronisé/positionné dans le temps ; il reste déclenchable librement en overlay pendant que la musique joue (façon pads/sampler), sur le modèle des Sfx "stingers" déjà attachables à un morceau côté compositeur — mêmes assets, usage différent (déclenchement manuel en playtest plutôt que stinger ponctuel prévu par le compositeur).
+
+*Lecture simultanée de plusieurs musiques* : réglage explicite par pack (`allowSimultaneousPlayback`), pas figé en dur. Décoché (défaut) : comportement identique à la page publique actuelle — lancer une musique replie/stoppe les autres (`activeTrackId` unique). Coché : chaque musique garde un état indépendant, plusieurs peuvent jouer/être dépliées ensemble. Le pool de SFX reste déclenchable librement dans les deux cas, indépendamment de l'état des musiques.
+
+*Réutilisation du lecteur existant* : le lecteur de musique dans l'écran d'édition d'un pack custom reprend à l'identique le composant du site public (`.track-row-wrapper`/`.track-row`/`.track-row-details`), pas un lecteur ad hoc — ligne compacte (bouton Play rond + titre, repli/dépli au clic), une seule forme d'onde principale avec progression animée en `clip-path`, puces d'intensité si le morceau est en mode vertical.
+
+*Flow de création d'un pack custom — deux points d'entrée complémentaires* :
+1. **Depuis l'écran d'édition du pack** : sélecteurs "+ Ajouter un morceau…" / "+ Ajouter un Sfx…" listant les assets possédés non encore inclus, avec bouton "Retirer" par ligne — reprise à l'identique de la logique déjà en place dans le backstage compositeur pour peupler un pack (`addTrackOption`/`allTracksIncluded`/`removeBtn`).
+2. **Depuis Music Library / SFX Library** : cases à cocher sur les assets possédés + bouton "Ajouter à un pack" (actif dès une sélection) → menu déroulant listant les packs custom existants + option "+ Nouveau pack…" (celle-ci demande juste un nom, crée le pack, y ajoute la sélection, puis redirige vers l'écran d'édition).
+
+*Statut* : conception validée dans le détail (structure de données, navigation, deux écrans "Achetés"/"Mes packs custom" en onglets sous un point d'entrée unique "Packs", flow de création à deux entrées). Aucun wireframe visuel ni code produits — prochaine étape naturelle si ce chantier est repris : wireframe HTML/artifact cliquable, puis attente de la bascule backend (comptes + achats) avant tout développement réel.
+
+**5.4 Comptes — un seul compte, plusieurs profils bascule** *(30 juillet)* — modèle retenu façon YouTube/YouTube Studio : **un seul système de compte** (auth unique, Supabase), pas de comptes séparés par rôle. Trois profils activables et basculables sans reconnexion :
+- **[Nom à définir, provisoirement "Fan"]** — toujours présent par défaut sur tout compte, quel que soit le reste. Nom de travail jugé réducteur (un compositeur ou un game dev qui achète un OST n'est pas qu'un "fan") — à trancher au moment de l'exposer dans l'UI.
+- **Compositeur** — accès backstage habituel.
+- **Game dev** — accès Packs custom / bibliothèque acheteur (voir 5.3).
+
+Un même compte peut cumuler plusieurs profils (ex. un compositeur a aussi son profil auditeur/fan de base ; un game dev peut aussi être compositeur). Le profil par défaut reste accessible à tout le monde, y compris ceux qui n'ont jamais activé les deux autres — c'est la brique commune qui porte l'entité Album (5.5).
+
+**5.5 Album (OST adaptative) — entité distincte du Pack, interface auditeur** *(structure détaillée dans un fil séparé, "BiZ_CODE BACKSTAGE ACHETEUR_LP", non encore poussé en doc avant le 30 juillet)*
+
+**Décision de fond** : Album ≠ Pack sur le plan technique/visuel (même moteur de lecture adaptative), mais **≠ sur l'audience et la finalité commerciale** — un Pack s'adresse à un studio/game dev qui achète en vue d'implémentation (notes techniques Wwise/FMOD/Unity/Unreal) ; un Album s'adresse à un auditeur qui achète en vue d'écoute/possession, modèle Bandcamp (téléchargement définitif, pas de streaming-only). Cette différence d'audience — et le fait que l'Album doit rester accessible à quelqu'un qui n'a *aucun* des deux autres profils — impose une entité `Album` séparée de `Pack` dans le schéma, pas un simple champ `type` sur un Pack existant.
+
+**Interface auditeur validée (wireframe niveau réflexion, aucun HTML/code)** :
+- **Library** — grille "trophées" façon page collection Bandcamp : pochettes d'albums possédés, favoris au niveau album (étoile) et au niveau morceau (étoile), notes personnelles, réordonnancement manuel par glisser-déposer, masquage individuel d'un item.
+- **Album View** — liner notes reprises du champ `presentationLabelFr/En` déjà existant (aucun nouveau champ compositeur nécessaire), tracklist avec favoris par morceau et bouton "ajouter à la file", lecteur complet façon AdReel embarqué directement sur la page (pas de version simplifiée).
+- **Queue et Playlists** — distinction entre une **file de session** temporaire (multi-albums, non sauvegardée, bouton "Enregistrer comme playlist") et des **playlists nommées persistantes** stockées par compte.
+- **Player** — lecteur complet AdReel par défaut, repliable en mini-player persistant ; panneau "Réglages de lecture" qui s'adapte au mode du morceau (séquentiel vs vertical/vertical-random), mémorisé par morceau par compte (implique une table type `user_track_settings`, clé composite compte+morceau — dépend entièrement de la bascule backend).
+- **Bouton "Figer"** — capture en direct de ce qui joue via `MediaRecorder` (pas une resynthèse), nécessite une UI de sélection de fenêtre à figer + gestion d'état d'encodage. Détail d'interaction non terminé.
+- **Page collection publique partageable** (façon profil Bandcamp) — explicitement repoussée en v2, pas dans le périmètre de cette conception.
+- Point resté ouvert lors de cette session : détail de l'écran Playlists et flow complet du bouton Figer non couverts.
+
+**5.6 Marketplace — trois catégories et mécanisme d'exclusivité** *(structure détaillée dans un fil séparé, "BIZ_DISCUSSION Gale_LP #2", non encore poussé en doc avant le 30 juillet)*
+
+Trois catégories distinctes sur la Marketplace, pas deux :
+- **Packs** — réutilisables, vendables à plusieurs game dev/studios différents (fonction actuelle).
+- **Albums de compositeur** — œuvre artistique exclusive du compositeur, sans lien avec un jeu ou un studio précis (équivalent d'un artiste sortant un album sur Bandcamp indépendamment de tout travail de commande).
+- **OST officielles / Adaptive Editions** — bande originale d'un jeu sorti, vendue par l'éditeur/studio, avec possibilité d'enrichir l'édition (artbook, vidéos, making-of — façon édition deluxe Bandcamp, précédent déjà répandu chez eux).
+
+**Mécanisme d'exclusivité comme condition de conversion Pack → Album** : un Pack classique (non exclusif) peut être vendu à plusieurs studios différents, donc ne peut pas légitimement devenir "la" BO officielle d'un jeu précis — il n'est rattaché à aucun jeu en particulier. Un Pack **exclusif** (vendu une seule fois, à un seul studio) est par nature déjà rattaché à un jeu précis dès la vente initiale ; une fois ce jeu sorti, il devient éligible à être promu en Album OST officiel. L'exclusivité au moment de la vente initiale est ce qui rend la conversion légitime — ça répond à une question contractuelle laissée ouverte précédemment ("qui a le droit de packager la BO en interactif").
+
+**Trois chemins d'entrée possibles vers un Album, convergeant vers le même objet final** :
+1. Pack exclusif du Marketplace → promu en Album une fois le jeu sorti.
+2. Musique née dans un Espace Projet → promue en Album à la sortie du jeu (extension du bouton "Convertir en Moodboard" déjà prévu, version "Convertir en Album OST").
+3. Dépôt direct par l'éditeur (idée d'origine, gratuit, produit d'appel vers le Moodboard) — pour une BO jamais passée par LayerPitch en amont.
+
+**Statut (5.4, 5.5, 5.6)** : cohérence vérifiée entre les trois fils sources et la conception game dev de 5.3 — aucune contradiction trouvée, le profil auditeur/"Fan" de 5.4 correspond exactement au périmètre de l'interface décrite en 5.5. Conception à un niveau de détail variable selon la section (5.4 et 5.6 : principes actés ; 5.5 : wireframe niveau réflexion validé mais incomplet — Playlists et Figer restent à finir). Aucun code, entièrement dépendant de la bascule backend (comptes, profils, achats, stockage des réglages de lecture).
+
 ### Statut global des extensions
 
-Aucune de ces extensions n'est engagée côté développement au-delà de ce qui figure ✅ fait dans `architecture.md`/`audio-engine.md`. La quasi-totalité (sections 1, 2.1, 3) dépend de la bascule backend. Seules 2.2 (onglets backstage) et la section 4 (visualisation, waveform, petites améliorations) sont réalisables sur l'architecture statique actuelle, sans backend.
+Aucune de ces extensions n'est engagée côté développement au-delà de ce qui figure ✅ fait dans `architecture.md`/`audio-engine.md`. La quasi-totalité (sections 1, 2.1, 3, 5.3, 5.4, 5.5, 5.6) dépend de la bascule backend. Seules 2.2 (onglets backstage) et la section 4 (visualisation, waveform, petites améliorations) sont réalisables sur l'architecture statique actuelle, sans backend.
