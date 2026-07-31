@@ -8,6 +8,108 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-07-30] — Passe de relecture/nettoyage sur l'ensemble du chantier du jour
+
+**Fichiers touchés** : `player.js`, `layerpitch-i18n.js`, `test_quantized_loop_engine.js` (nouveau)
+
+**Contexte** : demande explicite de repasser sur tout le code produit dans la journée (fusion des modes, moteur de lecture, barre de progression par section) avant de considérer le chantier refermé — même discipline de vérification exhaustive qu'après tout changement majeur (syntaxe, symétrie FR/EN, clés orphelines, fonctions dupliquées, cohérence des références DOM).
+
+**Vérifications menées** :
+- Symétrie FR/EN complète sur les ~540 clés de `layerpitch-i18n.js` : aucun écart.
+- Recoupement clés définies / clés réellement utilisées sur `player.js`, `layerpitch-backstage.html`, `index.html`, `pack.html` (`collection.html`/`video-test.html` non touchés aujourd'hui, exclus du recoupement) : une seule clé orpheline trouvée et supprimée (`loadErrorNoFixedLayers`, FR+EN — reliquat de l'ancien éditeur couches fixes/groupes, remplacée depuis par `loadErrorNoSections`).
+- Recherche exhaustive de toute référence résiduelle à l'ancien schéma (`fixedLayers`, `randomGroups`, `referencesGroupId`, `fixedBuffers`, `groupBuffers`, `vertical-random-sequential`) dans tous les fichiers touchés aujourd'hui : aucune, hors code de migration légitime et deux commentaires devenus obsolètes (corrigés — ils citaient encore `canonicalGroupKey`, remplacée par `canonicalPoolKey`).
+- Vérification des noms de fonctions dupliqués dans `player.js` et `layerpitch-backstage.html` : les doublons trouvés (`getVorbisDecoder`, `fractionFromEvent`, `render`, `renderList`) sont tous des fermetures indépendantes dans des portées distinctes (une par piste, un widget par type de bloc) — légitimes, pré-existants pour la plupart, pas de conflit réel.
+- Cohérence des références `data-role` (dynamiques et statiques) entre déclaration dans les gabarits et lecture par le code JS, pour tous les rôles liés au vertical-random : aucun écart.
+- **Bug réel trouvé et corrigé** : `stopAllSources` calculait encore `offsetAt` pour le vertical-random à l'arrêt — un calcul devenu mort depuis la fusion (le moteur reprend désormais via l'état conservé de `sectionScheduler`, jamais via `offsetAt`, comme le séquentiel). Retiré, avec le même commentaire explicatif que pour le séquentiel.
+- Commentaires obsolètes corrigés : `introBuffer`/`outroBuffer` étaient encore documentés comme "spécifique au séquentiel" alors qu'ils sont désormais partagés avec le vertical-random depuis la fusion.
+- Nouveau test ciblé (`test_quantized_loop_engine.js`) : confirme que le moteur de boucle quantifiée classique (vertical/statique avec `loopEngine: 'quantized'`) fonctionne toujours après la généralisation de `buildLoopTimelineEl` pour un usage par section — n'avait pas été vérifié explicitement dans les passes précédentes.
+- Les quatre suites de tests (`test-section-scheduler.js`, `test_vr_engine.js`, `test_player_regression.js`, `test_quantized_loop_engine.js`) rendues indépendantes et exécutables isolément (aucune ne dépend plus d'un fichier de montage généré séparément).
+
+**Conclusion** : aucun autre problème trouvé. Le code du jour est cohérent, sans référence résiduelle à l'ancien schéma, sans clé i18n orpheline, et les quatre suites de tests passent de façon indépendante.
+
+---
+
+## [2026-07-30] — Barre de progression par section (vertical-random), cliquable
+
+**Fichiers touchés** : `player.js`, `index.html`, `pack.html`, `layerpitch-backstage.html`, `test_vr_engine.js`
+
+**Contexte** : suite de l'incrément 2 (moteur vertical-random) — demande explicite de remplacer la barre de progression unique (rendue non interactive lors de la fusion, faute de position temporelle cohérente sur plusieurs sections) par une barre **par section**, qui reste cliquable.
+
+**Changement** :
+- Un bloc de progression par section déclarée (réutilise le style `.seq-block` déjà existant du mode séquentiel — mêmes blocs visuels, principe déjà connu), affiché dans le graphe de voix.
+- Seul le bloc de la section **actuellement audible** est cliquable/glissable (`.seq-block.active`) — chercher une position n'a de sens que dans la section qui joue réellement ; les autres restent de simples repères visuels.
+- Nouvelle fonction `seekVerticalRandom(fraction)` : recherche à l'intérieur du cycle de la section en cours sans faire avancer la chaîne (même esprit que `rerollPool`, déjà existant).
+- CSS ajoutée dans les trois pages qui affichent des morceaux (`index.html`, `pack.html`, `layerpitch-backstage.html` — `collection.html` n'affiche pas de lecteur de morceau directement, pas concernée).
+
+**Bug réel découvert et corrigé grâce à cette extension** : le libellé "section en cours" et la mise en valeur du bloc actif se mettaient à jour **au moment où la lecture est programmée à l'avance** (jusqu'à 1 seconde avant qu'elle ne s'entende réellement), pas au moment où elle devient audible. Avec la fenêtre de programmation anticipée du scheduler, une section à très peu de boucles pouvait être décidée puis aussitôt dépassée en une seule fois — l'affichage risquait de sauter directement à la section suivante sans jamais montrer la précédente, ou de refléter une section jamais réellement entendue par le visiteur. Corrigé en alignant sur le mécanisme déjà utilisé ailleurs (le libellé de la section séquentielle, lui, était déjà correctement différé) : la mise à jour de l'affichage attend maintenant le moment réel où le son se fait entendre, via le même délai que l'indicateur des pools.
+
+**Vérification** : suite de tests étendue (`test_vr_engine.js`, 14 vérifications au total désormais) — un bloc par section, mise en valeur correcte du bloc actif, clic sans effet sur un bloc inactif, recherche fonctionnelle sur le bloc actif sans faire avancer la chaîne, et non-régression complète sur le reste du moteur (avancement automatique, "section suivante", "aller vers la fin"). Le bug de timing ci-dessus n'a été repéré QUE grâce à ce test — sans lui, il serait passé inaperçu jusqu'à un usage réel.
+
+**Points ouverts** : inchangés depuis l'entrée précédente (duplication de pool sans interface, bulles d'aide, finition visuelle du graphe) — plus un vrai test d'écoute qui reste nécessaire avant validation définitive.
+
+---
+
+## [2026-07-30] — Moteur de lecture vertical-random (incréments 1 et 2)
+
+**Fichiers touchés** : `player.js`, `layerpitch-i18n.js`, `test-section-scheduler.js` (nouveau), `test_vr_engine.js` (nouveau), `test_player_regression.js` (nouveau)
+
+**Contexte** : suite directe de la fusion "Vertical random séquentiel" → "Vertical random" (entrée précédente) — le schéma de données et l'éditeur backstage étaient prêts, restait le moteur de lecture réel dans `player.js`. Vu la nature différente de ce chantier (un moteur audio temps réel ne se vérifie pas par de simples tests structurels — il faut l'entendre pour juger du calage), découpage en deux incréments distincts plutôt qu'un bloc monolithique, décision actée explicitement avec Jules-Antoine.
+
+**Incrément 1 — logique pure d'enchaînement** : `createSectionPlaybackScheduler`, une fonction sans aucune dépendance à Web Audio ni au DOM, qui décide uniquement *quoi jouer ensuite* (intro / quelle section / outro), jamais *comment*. Comportements couverts et testés indépendamment (`test-section-scheduler.js`, 8 scénarios, 13 vérifications) : boucle infinie à une seule section (rétrocompatibilité avec l'ancien vertical-random), avancement automatique par nombre de boucles, "Aller vers la section suivante" sans répétition superflue, "Départ" appliqué uniquement au tout premier passage de chaque section, "Aller vers la fin" avec et sans outro, brassage complet équitable (y compris avec des sections dupliquées type AABA, vérifié sur 100 cycles).
+
+**Incrément 2 — branchement Web Audio** : traduction des décisions du scheduler pur en programmation réelle de sources sonores.
+- Nouveau modèle de buffers `sectionBuffers[section][pool][alternative]`, remplaçant l'ancien `fixedBuffers`/`groupBuffers` — chargement en deux passes (contenu réel, puis alias pour les sections dupliquées), même principe que les autres duplications du projet.
+- Chaque section garde son propre tempo/timeline au moment de jouer (`sectionTiming()`), plus de constantes figées au niveau du morceau pour ce mode.
+- Graphe de voix (Wwise Voice Graph) généralisé en "emplacements de pool" génériques plutôt que couches fixes/groupes distincts — dimensionné au plus grand nombre de pools parmi toutes les sections, les emplacements excédentaires étant masqués section par section (même mécanisme que les tirages silencieux déjà existants).
+- Moteur quantifié classique (vertical/statique en boucle quantifiée) et moteur vertical-random maintenant clairement séparés — le premier ne connaît plus du tout la logique de sections.
+- `rerollPool` réécrit : rejoue la section en cours avec de nouveaux tirages sans faire avancer la chaîne d'un cran (ne consomme pas de budget de boucles).
+- **Simplification assumée** : la barre de progression de ce mode n'est plus interactive (pas de recherche par glissement) — avec plusieurs sections potentiellement enchaînées dans un ordre mélangé, "une position dans le temps" n'a plus de cible de recherche unique et cohérente vers laquelle glisser. Elle reste un indicateur visuel de progression dans la section en cours. À confirmer avec Jules-Antoine si ce compromis lui convient, ou s'il préfère une autre approche.
+- Zip de téléchargement gratuit (`collectTrackAudioFiles`) mis à jour pour inclure les fichiers du nouveau format sections/pools.
+
+**Vérification** : `test_vr_engine.js` — test de bout en bout avec un faux `AudioContext` qui simule fidèlement le comportement réel (horloge basée sur le temps réel écoulé, `onended` déclenché après la durée du buffer ou un `stop()` explicite, exactement comme un vrai navigateur) : chargement, intro, avancement automatique par nombre de boucles, "section suivante" manuelle, "aller vers la fin" menant à l'outro puis à l'arrêt naturel — 9 vérifications, toutes passées. `test_player_regression.js` : non-régression confirmée sur les modes statique, vertical classique et séquentiel après le refactor (chacun charge, joue, et réagit à ses contrôles propres sans erreur).
+
+**Limite assumée de cette vérification** : aucun son réel n'a été entendu — la suite de tests valide la logique de programmation (quoi se déclenche, quand, dans quel ordre) mais pas la qualité perçue du calage à l'oreille. Un vrai test d'écoute par Jules-Antoine reste nécessaire avant de considérer ce moteur définitivement validé.
+
+**Points ouverts** :
+- Barre de progression non interactive pour ce mode (voir simplification assumée ci-dessus) — à valider ou à revoir.
+- Duplication de pool à l'intérieur d'une section (`referencesPoolId`) : toujours pas d'interface, cf. entrée précédente.
+- Bulles d'aide contextuelles toujours pas ajoutées (étape 3, inchangé).
+- Graphe de voix : plus de connecteurs SVG individualisés par couche fixe/groupe comme avant la fusion — désormais générique par emplacement de pool. Fonctionnellement équivalent, esthétiquement simplifié ; à revoir si Jules-Antoine souhaite plus de finition visuelle une fois le calage audio confirmé à l'oreille.
+
+---
+
+## [2026-07-30] — Fusion de "Vertical random séquentiel" dans "Vertical random" (bilan de la session)
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : après l'étape 1 du nouveau mode "Vertical random séquentiel" (entrée précédente), constat avec Jules-Antoine que ce mode et le vertical-random existant se recouvrent largement — le vertical-random n'est jamais qu'un cas particulier à une seule section, qui rejoue en boucle sur elle-même. Décision de les fusionner sous l'identifiant `vertical-random` existant plutôt que de maintenir deux modes proches.
+
+**Recherche menée avant l'architecture** : comportement du modèle de segments Wwise (Entry Cue/Exit Cue, pre-entry/post-exit, dovetailing) et de son ancêtre DirectMusic — confirme qu'un point de départ ne s'applique qu'à la toute première lecture d'un segment, jamais aux passages suivants même en boucle, ce qui valide directement le comportement voulu pour le repère "Départ" dans une chaîne à plusieurs sections.
+
+**Décision d'architecture retenue** : chaque section porte désormais son **propre** tempo/timeline (BPM, mesures, repères Départ/Entrée/Sortie, nombre de boucles par défaut) — comme un vrai segment Wwise indépendant — plutôt qu'un tempo unique partagé par tout le morceau. Le cas à une seule section (l'ancien vertical-random) garde un comportement strictement identique à avant.
+
+**Changement** :
+- Mode `vertical-random-sequential` retiré du menu déroulant — entièrement fusionné dans `vertical-random`.
+- Chaque section a maintenant son propre BPM/mesures/timeline (réutilise le composant `buildLoopTimelineEl`, généralisé pour accepter n'importe quel objet porteur de tempo — le morceau ou une section) et son propre nombre de boucles par défaut.
+- L'éditeur "couches fixes + groupes aléatoires" au niveau du morceau est supprimé — tout vit désormais dans `sections[].pools[]`. Une couche fixe devient un pool à un seul fichier ; un groupe aléatoire devient un pool à plusieurs fichiers — même distinction que celle déjà actée pour ne garder qu'un seul concept de pool.
+- **Migration douce automatique** au chargement : un morceau déjà publié dans l'ancien format vertical-random (tempo/timeline unique, couches fixes + groupes aléatoires au niveau du morceau) devient une unique section qui reprend tout à l'identique — mêmes fichiers, même timeline, mêmes probabilités, comportement de lecture strictement inchangé. Vérifiée directement sur le morceau réel publié ("Victory !", 1 couche fixe + 6 groupes) : migration correcte vers 1 section à 7 pools.
+- `describeVerticalRandom`/`describeVerticalRandomSequential` fusionnés en une seule fonction pour la fiche d'implémentation, avec description du tempo par section.
+- `publishAll`/`loadData`/`buildPreviewTrack`/`togglePreview` mis à jour pour le nouveau schéma ; ancien format `fixedLayers`/`randomGroups` retiré de la sortie publiée (toujours lu en entrée pour la migration).
+- 15 clés i18n orphelines retirées (FR+EN, 30 lignes) : `fixedLayersLabel`, `randomGroupsLabel`, `noFixedFileWarning`, `fixedLayersDropHint`, `addFixedLayerBtn`, `addGroupBtn`, `groupNamePlaceholder`, `removeGroupBtn`, `namePlaceholderFixed`, `removeFixedLayerBtn`, `groupDuplicateHint`, `fixedLayerFallback`, `fixedLayerFallbackShort`, `groupAltLabel`, `modeOptionVerticalRandomSequential`.
+- CSS de zone de dépôt vide (bordure pointillée + texte d'invite) recalée sur les data-role réellement utilisés aujourd'hui (`poolAlternatives`, `slotAlternatives`) — pointait vers des data-role obsolètes depuis un moment déjà, avant même cette session.
+
+**Bug rencontré et corrigé en cours de route** : lors de la fusion, une étape de découpage/re-collage de blocs de code a supprimé par erreur le `} else {` séparant la branche séquentielle de la branche par défaut (vertical/statique) — les deux blocs se retrouvaient accolés sans séparateur. Conséquence : passer une piste de vertical-random vers séquentiel faisait planter le rendu (tentative d'insertion dans un conteneur DOM inexistant en mode séquentiel). Repéré uniquement grâce à la suite de tests de non-régression (le rendu plantait au changement de mode, pas à l'affichage initial) — sans cette suite, le bug serait passé inaperçu jusqu'à un usage réel. Un premier réflexe de déboguer via les numéros de ligne des traces d'erreur s'est avéré trompeur (la présence de plusieurs balises `<script>` distinctes dans le montage de test brouille la numérotation rapportée par le moteur JS) ; la localisation exacte a nécessité de poser des marqueurs de log directement dans le code, un par un, jusqu'à isoler la ligne fautive.
+
+**Vérification** : suite de tests Node/jsdom étendue — mode vertical-random fusionné (timeline par section, duplication de section, aucune trace de l'ancien éditeur couches fixes/groupes), non-régression complète sur séquentiel/vertical/statique, **et** un test dédié rejouant le chargement du `data.json` réellement publié (12 morceaux, tous modes confondus) pour confirmer que la migration automatique fonctionne sur les vraies données de production, pas seulement des données de test fabriquées.
+
+**Points ouverts** :
+- Duplication de pool à l'intérieur d'une même section (l'équivalent de l'ancien `referencesGroupId`) : le champ `referencesPoolId` existe dans le schéma pour la fidélité d'aller-retour des données, mais aucune interface ne permet encore de le régler (aucun groupe du morceau réel migré ne l'utilisait, donc pas de perte constatée en pratique — mais fonctionnalité non reconstruite si un jour nécessaire).
+- La surcharge de libellé de couche par AdReel (`trackOverrides`) ne couvre plus le vertical-random (elle ne couvrait déjà que les couches fixes avant, jamais les groupes) — dégradation mineure déjà partielle avant cette session, pas aggravée mais pas non plus corrigée.
+- Bulles d'aide contextuelles toujours pas ajoutées (étape 3, inchangé depuis l'entrée précédente).
+- Moteur de lecture (`player.js`) toujours pas mis à jour pour interpréter cette structure (étape 2, prochaine session).
+
+---
+
 ## [2026-07-30] — Nouveau mode "Vertical random séquentiel" (étape 1 : schéma + éditeur backstage)
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
