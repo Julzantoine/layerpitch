@@ -8,6 +8,35 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-07-31] — Nombre de boucles généralisé : `maxChainLoops` (chaîne entière), séquentiel + vertical-random
+
+**Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `layerpitch-help.js`, `test-section-scheduler.js`, `test-slot-chain-advancer.js` (nouveau), `test_backstage_maxchainloops.js` (nouveau), `test_max_chain_loops_e2e.js` (nouveau)
+
+**Contexte** : chantier discuté en fin de session le 30/07, pas encore codé — généraliser l'affichage/réglage du "nombre de boucles" à tous les modes qui peuvent en bénéficier. Nouveau champ partagé `track.maxChainLoops` (nullable, null = illimité) : combien de fois la **chaîne entière** se répète avant transition automatique vers l'outro (ou fin naturelle sans outro) — réglable compositeur (backstage) et visiteur (page publique), indépendant de `section.maxLoops` (par section, vertical-random) et de `track.maxLoops` (moteur quantifié classique, inchangé).
+
+**Incrément 1 — logique pure, testée sans son réel** :
+- Vertical-random (`createSectionPlaybackScheduler`) : `advanceOrder()` compte les cycles complets (retour à `orderPos = 0`) et déclenche `goToEndRequested` au seuil — réutilise le mécanisme "aller vers la fin" existant. `options.maxChainLoops` relu à chaque cycle (pas figé à la création) pour supporter un getter live côté appelant. 4 nouveaux scénarios dans `test-section-scheduler.js` (9 à 12), les 8 scénarios existants inchangés.
+- Séquentiel : nouvelle fonction pure `advanceChainIndex` (aucune closure, aucune dépendance audio), factorise les deux avancements jusque-là dupliqués dans `pickNextSegmentSlot` (emplacement vide sauté / `repeatCount` épuisé — les deux avancent la chaîne pour la même raison). Compte les cycles, expose `capReached`, consommé par `pickNextSegmentSlot` pour déclencher `goToEndRequested`. Nouveau fichier `test-slot-chain-advancer.js`, 5 scénarios.
+- `chainState` (séquentiel) remis à zéro à un vrai redémarrage (pas une reprise), même convention que `currentSlotIndex`.
+
+**Incrément 2 — backstage** :
+- **Bug trouvé et corrigé en route** (hors périmètre initial, corrigé sur confirmation) : le bloc "Tempo" affichait encore un sélecteur "moteur de bouclage" (+ BPM/mesures/points de boucle/nombre de boucles par défaut au niveau morceau) pour le **vertical-random** — mort depuis la fusion du 30/07, chaque section ayant désormais son propre tempo. `hasTempoSection` et le ternaire associé excluent maintenant `isVerticalRandom`.
+- Nouveau sélecteur `maxChainLoops` : dans le bloc Tempo pour le séquentiel, dans le bloc Structure (à côté de "randomiser l'ordre") pour le vertical-random. Sérialisé partout où `maxLoops` l'était déjà au niveau morceau (aperçu, création par défaut, fiche technique texte + JSON, lecture/écriture `data.json`).
+- Nouvelles clés `maxChainLoopsLabel`, `maxChainLoopsHint`, `maxChainLoopsHintVerticalRandom` (i18n) et `maxChainLoops`/`maxChainLoopsVerticalRandom` (help.js, édité directement sur confirmation malgré l'avertissement "jamais à la main" de l'en-tête du fichier — ajout simple, même format que l'existant). Symétrie FR/EN vérifiée programmatiquement (555→557 clés i18n, 77 clés help, 0 écart).
+- Nouveau test `test_backstage_maxchainloops.js` : champ mort disparu pour le vertical-random, nouveau champ présent et persistant après re-rendu pour les deux modes, BPM/mesures séquentiel non cassés par le fix.
+
+**Incrément 3 — page publique (`player.js`)** :
+- `useQuantizedLoopForUI` restreint au moteur quantifié classique (retrait de `isVerticalRandom`, qui écrivait sans effet dans `track.maxLoops` — mort côté moteur depuis la fusion, confirmé via `useQuantizedLoop` qui l'exclut déjà explicitement).
+- Nouveau sélecteur "nombre de cycles avant la fin" (séquentiel + vertical-random), lié à `track.maxChainLoops`, appliqué au vol (mutation directe de `track.maxChainLoops`, lu en direct par `pickNextSegmentSlot` et par un getter passé à `createSectionPlaybackScheduler`).
+- Vertical-random : une ligne de petits sélecteurs sous les blocs de section (un par section, affichés en permanence — décision du 31/07), liés à `section.maxLoops`, mutant en place `vrPlayableSectionRefs[j]` (le même objet réellement lu par le scheduler) — aucun effet si la section n'est pas jouable (no-op silencieux).
+- Nouveau test de bout en bout `test_max_chain_loops_e2e.js` : arrêt automatique réel sans clic manuel (VR et séquentiel), changement du sélecteur en cours de lecture, mutation live du nombre de boucles par section. Note : un changement en direct ne prend effet qu'après la fenêtre de lookahead du scheduler (jusqu'à ~1s de générations déjà programmées) — comportement préexistant, pas introduit ici, juste rendu visible par ce nouveau test.
+
+**Vérifications menées** : syntaxe (`node --check` + extraction des blocs `<script>` du backstage), symétrie FR/EN programmatique (i18n + help), 7 suites de tests indépendantes toutes vertes (`test-slot-chain-advancer`, `test-section-scheduler`, `test_quantized_loop_engine`, `test_vr_engine`, `test_player_regression`, `test_backstage_maxchainloops`, `test_max_chain_loops_e2e`).
+
+**Pas encore fait** : aucun test d'écoute réel (comme toujours, à valider par Jules-Antoine avant publication).
+
+---
+
 ## [2026-07-30] — Passe de relecture/nettoyage sur l'ensemble du chantier du jour
 
 **Fichiers touchés** : `player.js`, `layerpitch-i18n.js`, `test_quantized_loop_engine.js` (nouveau)
