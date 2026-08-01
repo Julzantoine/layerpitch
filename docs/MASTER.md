@@ -15,7 +15,7 @@ Prototype fonctionnel sur GitHub Pages. Bêta GitHub en préparation (essai à b
 
 - **`business-marche.md`** — problème, marché (TAM/SAM/SOM), avantage concurrentiel, stratégie de communication, signaux de validation qualitative, statut du dossier Take Off.
 - **`architecture.md`** — fichiers actuels, schéma de données, fonctionnalités transverses faites, état du backstage.
-- **`audio-engine.md`** — modes de lecture (statique, vertical, vertical-random, séquentiel, branchement), éditeur de points de boucle.
+- **`audio-engine.md`** — modes de lecture (statique, vertical, vertical-random, séquentiel, embranchement-vertical), option `nextOptions` du mode séquentiel, éditeur de points de boucle.
 - **`infrastructure.md`** — bêta de retour qualitatif (Partie A) et bascule backend (Partie B), guide de démarrage bêta-testeurs séparé (voir ci-dessous).
 - **`guide-beta-testeurs.md`** — document destiné à être transmis quasiment tel quel aux bêta-testeurs.
 - **`extensions-roadmap.md`** — catalogue complet des idées non engagées, point de qualité ouvert (contraste des couleurs).

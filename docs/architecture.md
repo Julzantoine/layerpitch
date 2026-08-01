@@ -21,7 +21,7 @@ Repo GitHub `Julzantoine/layerpitch`, hébergé via GitHub Pages, tous les fichi
 - **`packs[]`** — regroupements de morceaux (`trackIds[]`) sous une page dédiée.
 - **`adReels[]`** — plusieurs sites indépendants partageant la même bibliothèque (ex. pitch ciblé par studio).
 
-Champs par morceau : `mode` (`static`, `vertical`, `vertical-random`, `sequential`, `branching` prévu), `loopable`, `startTrackBeat`, `maxLoops`, `normalizeVolume`, `bpm`/`beatsPerBar` pour les modes quantifiés.
+Champs par morceau : `mode` (`static`, `vertical`, `vertical-random`, `sequential`, `embranchement-vertical`), `loopable`, `startTrackBeat`, `maxLoops`, `normalizeVolume`, `bpm`/`beatsPerBar` pour les modes quantifiés. Le mode `sequential` accepte en plus un champ optionnel `nextOptions` par emplacement (`segmentSlots[].nextOptions`, liste de `{targetId, label}`) — absence du champ : comportement inchangé (avancement automatique) ; présence : le visiteur choisit la suite par bouton au lieu d'un avancement automatique (voir `audio-engine.md`).
 
 ## Fonctionnalités transverses faites
 
