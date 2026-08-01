@@ -8,6 +8,50 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-07-31] — Deux nouveaux modes d'embranchement pilotés par le visiteur : `embranchement-vertical` (nouveau mode) + `nextOptions` sur `sequential` (option, pas un nouveau mode)
+
+**Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `index.html`, `pack.html`, `layerpitch-i18n.js`, `layerpitch-help.js`, `test_embr_vertical_engine.js` (nouveau), `test_seq_branching.js` (nouveau). `collection.html` relu, non modifié (voir plus bas).
+
+**Contexte** : schéma discuté et validé avant tout code (architecture puis relecture de `player.js`/`layerpitch-backstage.html` avant implémentation, conformément au protocole habituel). Décision en cours de route : `embranchement-séquentiel`, envisagé un temps comme un mode à part entière, a été abandonné au profit d'une option (`nextOptions`) directement sur le mode `sequential` existant — plus cohérent avec la discipline de réutilisation maximale, la différence n'étant qu'un comportement local sur certains emplacements, pas un moteur différent.
+
+**1. Mode `embranchement-vertical` (nouveau, entièrement inédit)** :
+- N boucles nommées et autonomes, calées sur un même BPM/mesures au niveau du morceau. La boucle marquée `isInitial` sert de référence de cycle. Les boucles de même longueur (`bars` égal à la référence) tournent en continu en arrière-plan (silencieuses sauf celle active), verrouillées en phase — bascule entre elles par pure rampe de gain (0.15s, réutilise exactement le mécanisme du solo/muet existant, `refreshVoiceGains`), sans redémarrage audio donc sans décalage.
+- Une boucle plus courte que la référence n'est PAS jouée en arrière-plan (pas de verrouillage de phase naturel) : au clic, lecture fraîche en fondu d'entrée, lecture unique, puis retour automatique à la boucle de référence une fois sa durée nominale (en mesures) écoulée. Bouton désactivé pendant ce détour (validé le 31/07 — pas de retrigger possible).
+- Nouvelles fonctions dans `player.js` : `scheduleEmbrGeneration`, `embrSchedulerTick`, `refreshEmbrGains`, `playEmbrVertical`, `stopEmbrVertical`, `selectEmbrLoop`. Réutilise `blockSeconds()` du moteur séquentiel (une seule notion de "durée en mesures" dans tout le fichier), pas de moteur parallèle dupliqué.
+- Backstage : nouvel éditeur de boucles nommées (label, mesures, radio "boucle de référence", contrôle de fichier, réordonnancement) dans la section Structure, bloc BPM/mesures dédié (sans le choix "simple vs quantifié", sans notion de chaîne — non pertinents ici). Sérialisation complète : aperçu (`buildPreviewTrackObject`), import/export data.json, upload des fichiers à la publication, fiche d'implémentation (`describeEmbrVert`).
+- CSS : `.embr-loop-btn` (classe dédiée, volontairement distincte de `.intensity-chip` pour ne pas hériter du sélecteur de niveau d'intensité vertical classique).
+
+**2. `nextOptions` sur `sequential` (option, rétrocompatible)** :
+- Nouveau champ optionnel `nextOptions` sur `segmentSlots[]` : liste de `{ targetId, label }`. Absence du champ = comportement strictement inchangé pour tous les morceaux existants (avancement automatique par `advanceChainIndex`).
+- Présence du champ : au lieu d'avancer automatiquement, le moteur affiche des boutons nommés (les cibles possibles) et attend un choix explicite du visiteur. Tant qu'aucun choix n'est fait, l'emplacement se rejoue à l'identique (`repeatCount` ignoré — n'a plus de sens dans ce cas, validé le 31/07). Un clic met en file le choix (`pendingNextSegmentId`) ; un second clic sur une autre option écrase le premier (dernier clic gagne, validé le 31/07) ; la bascule effective attend le prochain point de quantification du scheduler séquentiel existant (aucune modification du timing lui-même).
+- Nouvelle fonction pure `advanceFromSlot()` dans `player.js`, remplace les deux appels directs à `advanceChainIndex()` dans `pickNextSegmentSlot()`. `slotIdx` propagé à travers toute la chaîne de scheduling (`decideNextSeqBlock` → `scheduleSeqGeneration` → `scheduleSeqLabelUpdate` → `activateSeqStage`) pour que les boutons affichés correspondent toujours à l'emplacement réellement audible. Choix en attente préservé à travers un `seek` (même principe que `goToEndRequested`), réinitialisé à un vrai arrêt.
+- Backstage : case à cocher "prévoir un ou plusieurs embranchements" par emplacement, révélant un éditeur de cibles (sélecteur d'emplacement + libellé optionnel, ajout/suppression). Sérialisation complète (aperçu, import/export data.json, fiche d'implémentation avec note explicite sur les embranchements). L'option `branching` (placeholder grisé "à venir" dans le sélecteur de mode) est retirée — devenue obsolète, remplacée par ces deux chantiers concrets.
+- CSS : `.seq-branch-options` / `.seq-branch-btn` / `.seq-branch-btn.pending` / `.seq-pending-indicator` ("en attente de bascule").
+
+**Vérifications menées** : syntaxe (`node --check` sur `player.js`, `layerpitch-i18n.js`, `layerpitch-help.js`, et sur le bloc `<script>` extrait de `layerpitch-backstage.html`) — tout passe. Symétrie FR/EN vérifiée programmatiquement sur `layerpitch-i18n.js` (namespaces `player` 47→47, `backstage` 470→470, `shared` 8→8, aucun écart) et sur `layerpitch-help.js` (34→34, aucun écart). Recoupement automatique clés utilisées (`t()`/`tr()` dans `player.js`/`layerpitch-backstage.html`) vs clés définies : aucune clé manquante. Recoupement attributs `data-help` vs clés `layerpitch-help.js` : les 4 nouvelles clés (`bpmMeasuresEmbrVert`, `embrLoopsSection`, `slotHasBranches`, `embrLoopInitial`) correctement appariées (les autres écarts détectés par le script sont préexistants, hors périmètre de cette session). `collection.html` vérifié : ne restitue aucun lecteur de morceau (juste une liste de packs), donc aucun CSS à y ajouter — dossier refermé sans modification.
+
+**Deux nouveaux tests écrits, même infrastructure que les suites existantes (horloge fictive temps réel, pas de faux "tick manuel")** :
+- `test_embr_vertical_engine.js` : boutons nommés présents, boucle de référence active par défaut, bascule immédiate entre boucles de même longueur (pas d'attente de quantification), boucle courte désactivée pendant son détour puis retour automatique à la référence.
+- `test_seq_branching.js` : aucun avancement automatique tant qu'aucun choix n'est fait (repeatCount ignoré), libellé personnalisé vs repli sur le nom de l'emplacement cible, indicateur "en attente" affiché/masqué au bon moment, dernier clic gagne (B puis C avant bascule → atterrit bien sur C).
+
+**Bug réel trouvé et corrigé par `test_embr_vertical_engine.js`** : le retour automatique à la boucle de référence après un détour (boucle courte) remettait bien le gain audio à 1, mais oubliait d'appeler `updateEmbrButtonsUI()` — le bouton affiché comme "actif" restait figé sur l'ancien état alors que l'audio était déjà revenu à la référence. Corrigé dans `player.js` (callback du `setTimeout` de fin de détour).
+
+**Les 9 suites de tests (7 existantes + 2 nouvelles) toutes vertes, exécutées ensemble sans régression.**
+
+**Passe de nettoyage/débogage supplémentaire (même jour)** — demande explicite de repasser sur le code produit avant de considérer le chantier refermé, même discipline que la passe du 30/07 :
+- **Second bug réel trouvé et corrigé** dans le moteur `embranchement-vertical` : interrompre un détour (boucle courte) avant sa fin naturelle — en cliquant sur une autre boucle, ou en arrêtant la lecture — laissait la source audio du détour orpheline (jamais coupée) et son bouton bloqué en désactivé. Cause : la source du détour n'était référencée que dans une fermeture locale, invisible pour `stopEmbrVertical()` ou un second appel à `selectEmbrLoop()`. Corrigé par une fonction dédiée `fadeOutCurrentDetour()`, réutilisée à la fois pour le retour naturel à la référence, l'interruption volontaire par un nouveau choix, et l'arrêt global — un seul chemin de nettoyage au lieu de plusieurs copies partielles.
+- Variable morte retirée (`currentBranchSlotIdx`, assignée mais jamais lue).
+- Recherche exhaustive de références résiduelles à l'ancien placeholder `branching` : aucune (les 3 occurrences du mot restantes sont des textes anglais légitimes, pas des vestiges).
+- Fonctions dupliquées (`decodeAudioDataCompat`, `getVorbisDecoder`, `fractionFromEvent`, `render`, `renderList`) : toutes préexistantes à cette session (confirmé par comparaison avec les fichiers uploadés d'origine), fermetures indépendantes légitimes — aucune introduite ni aggravée ici.
+- Cohérence `data-role` (déclarés dans les gabarits vs lus par `querySelector`/`querySelectorAll`) sur `player.js` : aucun écart, y compris pour les nouveaux rôles (`embrLoopPicker`, `seqBranchOptions`, `seqPendingIndicator`).
+- Trois nouveaux scénarios ajoutés à `test_embr_vertical_engine.js` pour figer le bug corrigé en non-régression : interruption d'un détour avant sa fin naturelle (bouton réactivé immédiatement, bascule directe vers le nouveau choix), ré-déclenchement de la même boucle après une interruption (état bien nettoyé, pas de blocage permanent), arrêt complet pendant un détour en cours (aucune erreur, tous les boutons réactivés).
+
+**Pas encore fait** : aucun test d'écoute réel (comme toujours, à valider par Jules-Antoine avant publication).
+
+---
+
+
+
 ## [2026-07-31] — Nombre de boucles généralisé : `maxChainLoops` (chaîne entière), séquentiel + vertical-random
 
 **Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `layerpitch-help.js`, `test-section-scheduler.js`, `test-slot-chain-advancer.js` (nouveau), `test_backstage_maxchainloops.js` (nouveau), `test_max_chain_loops_e2e.js` (nouveau)
