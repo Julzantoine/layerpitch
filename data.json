@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785272987541,
+  "publishedAt": 1785704405935,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -17,6 +17,7 @@
       "loopOutBeat": 16,
       "startTrackBeat": 0,
       "maxLoops": null,
+      "maxChainLoops": null,
       "normalizeVolume": false,
       "duration": 134.88,
       "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8rec1wtahz/",
@@ -37,11 +38,11 @@
           "gain": 1
         }
       ],
-      "fixedLayers": [],
-      "randomGroups": [],
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "randomizeSections": false,
+      "sections": [],
       "sfxIds": []
     },
     {
@@ -60,6 +61,7 @@
       "loopOutBeat": 16,
       "startTrackBeat": 0,
       "maxLoops": null,
+      "maxChainLoops": null,
       "normalizeVolume": false,
       "duration": 60,
       "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8vlgamn4fl/",
@@ -70,11 +72,11 @@
           "gain": 1
         }
       ],
-      "fixedLayers": [],
-      "randomGroups": [],
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "randomizeSections": false,
+      "sections": [],
       "sfxIds": [
         "bms378c2zbxgpd"
       ]
@@ -95,6 +97,7 @@
       "loopOutBeat": 16,
       "startTrackBeat": 0,
       "maxLoops": null,
+      "maxChainLoops": null,
       "normalizeVolume": false,
       "duration": 60,
       "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8x6x8x9cof/",
@@ -105,11 +108,11 @@
           "gain": 1
         }
       ],
-      "fixedLayers": [],
-      "randomGroups": [],
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "randomizeSections": false,
+      "sections": [],
       "sfxIds": []
     },
     {
@@ -128,6 +131,7 @@
       "loopOutBeat": 16,
       "startTrackBeat": 0,
       "maxLoops": null,
+      "maxChainLoops": null,
       "normalizeVolume": false,
       "duration": 60,
       "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8yz5vutcbi/",
@@ -138,11 +142,11 @@
           "gain": 1
         }
       ],
-      "fixedLayers": [],
-      "randomGroups": [],
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "randomizeSections": false,
+      "sections": [],
       "sfxIds": []
     },
     {
@@ -161,6 +165,7 @@
       "loopOutBeat": 16,
       "startTrackBeat": 0,
       "maxLoops": null,
+      "maxChainLoops": null,
       "normalizeVolume": false,
       "duration": 183,
       "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc90bhy0sxpk/",
@@ -171,11 +176,11 @@
           "gain": 1
         }
       ],
-      "fixedLayers": [],
-      "randomGroups": [],
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "randomizeSections": false,
+      "sections": [],
       "sfxIds": []
     },
     {
@@ -194,6 +199,7 @@
       "loopOutBeat": 16,
       "startTrackBeat": 0,
       "maxLoops": null,
+      "maxChainLoops": null,
       "normalizeVolume": false,
       "duration": 60,
       "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc98f39dwq3c/",
@@ -204,11 +210,11 @@
           "gain": 1
         }
       ],
-      "fixedLayers": [],
-      "randomGroups": [],
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "randomizeSections": false,
+      "sections": [],
       "sfxIds": []
     },
     {
@@ -227,6 +233,7 @@
       "loopOutBeat": 16,
       "startTrackBeat": 0,
       "maxLoops": null,
+      "maxChainLoops": null,
       "normalizeVolume": false,
       "duration": 140.97,
       "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc9dbzsaio19/",
@@ -237,11 +244,11 @@
           "gain": 1
         }
       ],
-      "fixedLayers": [],
-      "randomGroups": [],
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "randomizeSections": false,
+      "sections": [],
       "sfxIds": []
     },
     {
@@ -260,6 +267,7 @@
       "loopOutBeat": 65,
       "startTrackBeat": 0,
       "maxLoops": null,
+      "maxChainLoops": null,
       "normalizeVolume": false,
       "duration": 40.12,
       "base": "https://Julzantoine.github.io/layerpitch/audio/bmrdjlv9p1cbv9/",
@@ -270,166 +278,187 @@
           "gain": 1
         }
       ],
-      "fixedLayers": [
-        {
-          "label": "Percussion Main",
-          "file": "fixed.ogg",
-          "gain": 1
-        }
-      ],
-      "randomGroups": [
-        {
-          "id": "bmrtc0osvsegl0",
-          "label": "Alt Perc",
-          "avoidImmediateRepeat": true,
-          "referencesGroupId": null,
-          "alternatives": [
-            {
-              "label": "Vide",
-              "file": null,
-              "gain": 1
-            },
-            {
-              "label": "AltPerc#1",
-              "file": "group0-1-altperc-1.ogg",
-              "gain": 1
-            },
-            {
-              "label": "AltPerc#1.5",
-              "file": "group0-2-altperc-1-5.ogg",
-              "gain": 1
-            },
-            {
-              "label": "AltPerc#2",
-              "file": "group0-3-altperc-2.ogg",
-              "gain": 1
-            },
-            {
-              "label": "AltPerc#2.5",
-              "file": "group0-4-altperc-2-5.ogg",
-              "gain": 1
-            }
-          ]
-        },
-        {
-          "id": "bmrtc0osvf17r6",
-          "label": "Bass",
-          "avoidImmediateRepeat": true,
-          "referencesGroupId": null,
-          "alternatives": [
-            {
-              "label": "BS#1",
-              "file": "group1-0-bs-1.ogg",
-              "gain": 1
-            },
-            {
-              "label": "BS#2",
-              "file": "group1-1-bs-2.ogg",
-              "gain": 1
-            },
-            {
-              "label": "BS#3",
-              "file": "group1-2-bs-3.ogg",
-              "gain": 1
-            },
-            {
-              "label": "BS#4 (Slap)",
-              "file": "group1-3-bs-4-slap.ogg",
-              "gain": 1
-            }
-          ]
-        },
-        {
-          "id": "bmrtc0osvgf4fk",
-          "label": "GUITARES NAPPES",
-          "avoidImmediateRepeat": true,
-          "referencesGroupId": null,
-          "alternatives": [
-            {
-              "label": "Nappes GT#1",
-              "file": "group2-0-nappes-gt-1.ogg",
-              "gain": 1
-            },
-            {
-              "label": "Vide",
-              "file": null,
-              "gain": 1
-            },
-            {
-              "label": "Nappes GT#2",
-              "file": "group2-2-nappes-gt-2.ogg",
-              "gain": 1
-            }
-          ]
-        },
-        {
-          "id": "bmrtc0osvp3d59",
-          "label": "COCOTTES GT",
-          "avoidImmediateRepeat": true,
-          "referencesGroupId": null,
-          "alternatives": [
-            {
-              "label": "Cocottes GT#1",
-              "file": "group3-0-cocottes-gt-1.ogg",
-              "gain": 1
-            },
-            {
-              "label": "Cocottes GT#2",
-              "file": "group3-1-cocottes-gt-2.ogg",
-              "gain": 1
-            }
-          ]
-        },
-        {
-          "id": "bmrtc0osvpm5in",
-          "label": "KB",
-          "avoidImmediateRepeat": true,
-          "referencesGroupId": null,
-          "alternatives": [
-            {
-              "label": "Nappes KB#1",
-              "file": "group4-0-nappes-kb-1.ogg",
-              "gain": 1
-            },
-            {
-              "label": "Nappes KB#2",
-              "file": "group4-1-nappes-kb-2.ogg",
-              "gain": 1
-            },
-            {
-              "label": "Thème KB",
-              "file": "group4-2-theme-kb.ogg",
-              "gain": 1
-            }
-          ]
-        },
-        {
-          "id": "bmrtc0osv0a9h9",
-          "label": "THEME GT",
-          "avoidImmediateRepeat": true,
-          "referencesGroupId": null,
-          "alternatives": [
-            {
-              "label": "Vide1",
-              "file": null,
-              "gain": 1
-            },
-            {
-              "label": "Vide2",
-              "file": null,
-              "gain": 1
-            },
-            {
-              "label": "Thème GT",
-              "file": "group5-2-theme-gt.ogg",
-              "gain": 1
-            }
-          ]
-        }
-      ],
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "randomizeSections": false,
+      "sections": [
+        {
+          "id": "bmsca7lnxrmpix",
+          "label": "",
+          "referencesSectionId": null,
+          "bpm": 120,
+          "beatsPerBar": 4,
+          "startTrackBeat": 0,
+          "loopInBeat": 1,
+          "loopOutBeat": 65,
+          "maxLoops": null,
+          "duration": 40.12,
+          "pools": [
+            {
+              "id": "bmsca7lnx7xy6k",
+              "label": "Percussion Main",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "Percussion Main",
+                  "file": "fixed.ogg",
+                  "gain": 1
+                }
+              ]
+            },
+            {
+              "id": "bmrtc0osvsegl0",
+              "label": "Alt Perc",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "Vide",
+                  "file": null,
+                  "gain": 1
+                },
+                {
+                  "label": "AltPerc#1",
+                  "file": "group0-1-altperc-1.ogg",
+                  "gain": 1
+                },
+                {
+                  "label": "AltPerc#1.5",
+                  "file": "group0-2-altperc-1-5.ogg",
+                  "gain": 1
+                },
+                {
+                  "label": "AltPerc#2",
+                  "file": "group0-3-altperc-2.ogg",
+                  "gain": 1
+                },
+                {
+                  "label": "AltPerc#2.5",
+                  "file": "group0-4-altperc-2-5.ogg",
+                  "gain": 1
+                }
+              ]
+            },
+            {
+              "id": "bmrtc0osvf17r6",
+              "label": "Bass",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "BS#1",
+                  "file": "group1-0-bs-1.ogg",
+                  "gain": 1
+                },
+                {
+                  "label": "BS#2",
+                  "file": "group1-1-bs-2.ogg",
+                  "gain": 1
+                },
+                {
+                  "label": "BS#3",
+                  "file": "group1-2-bs-3.ogg",
+                  "gain": 1
+                },
+                {
+                  "label": "BS#4 (Slap)",
+                  "file": "group1-3-bs-4-slap.ogg",
+                  "gain": 1
+                }
+              ]
+            },
+            {
+              "id": "bmrtc0osvgf4fk",
+              "label": "GUITARES NAPPES",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "Nappes GT#1",
+                  "file": "group2-0-nappes-gt-1.ogg",
+                  "gain": 1
+                },
+                {
+                  "label": "Vide",
+                  "file": null,
+                  "gain": 1
+                },
+                {
+                  "label": "Nappes GT#2",
+                  "file": "group2-2-nappes-gt-2.ogg",
+                  "gain": 1
+                }
+              ]
+            },
+            {
+              "id": "bmrtc0osvp3d59",
+              "label": "COCOTTES GT",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "Cocottes GT#1",
+                  "file": "group3-0-cocottes-gt-1.ogg",
+                  "gain": 1
+                },
+                {
+                  "label": "Cocottes GT#2",
+                  "file": "group3-1-cocottes-gt-2.ogg",
+                  "gain": 1
+                }
+              ]
+            },
+            {
+              "id": "bmrtc0osvpm5in",
+              "label": "KB",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "Nappes KB#1",
+                  "file": "group4-0-nappes-kb-1.ogg",
+                  "gain": 1
+                },
+                {
+                  "label": "Nappes KB#2",
+                  "file": "group4-1-nappes-kb-2.ogg",
+                  "gain": 1
+                },
+                {
+                  "label": "Thème KB",
+                  "file": "group4-2-theme-kb.ogg",
+                  "gain": 1
+                }
+              ]
+            },
+            {
+              "id": "bmrtc0osv0a9h9",
+              "label": "THEME GT",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "Vide1",
+                  "file": null,
+                  "gain": 1
+                },
+                {
+                  "label": "Vide2",
+                  "file": null,
+                  "gain": 1
+                },
+                {
+                  "label": "Thème GT",
+                  "file": "group5-2-theme-gt.ogg",
+                  "gain": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
       "sfxIds": []
     },
     {
@@ -448,6 +477,7 @@
       "loopOutBeat": 16,
       "startTrackBeat": 0,
       "maxLoops": null,
+      "maxChainLoops": null,
       "normalizeVolume": false,
       "duration": 132.57,
       "base": "https://Julzantoine.github.io/layerpitch/audio/bmresp3hdlhbmx/",
@@ -458,8 +488,6 @@
           "gain": 1
         }
       ],
-      "fixedLayers": [],
-      "randomGroups": [],
       "intro": {
         "label": "Intro",
         "bars": 6,
@@ -506,6 +534,8 @@
           ]
         }
       ],
+      "randomizeSections": false,
+      "sections": [],
       "sfxIds": []
     },
     {
@@ -524,6 +554,7 @@
       "loopOutBeat": 16,
       "startTrackBeat": 0,
       "maxLoops": null,
+      "maxChainLoops": null,
       "normalizeVolume": false,
       "duration": 98.14,
       "base": "https://Julzantoine.github.io/layerpitch/audio/bmruc7dbdxf1i0/",
@@ -534,11 +565,11 @@
           "gain": 0.877
         }
       ],
-      "fixedLayers": [],
-      "randomGroups": [],
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "randomizeSections": false,
+      "sections": [],
       "sfxIds": []
     },
     {
@@ -557,6 +588,7 @@
       "loopOutBeat": 16,
       "startTrackBeat": 0,
       "maxLoops": null,
+      "maxChainLoops": null,
       "normalizeVolume": false,
       "duration": 108.54,
       "base": "https://Julzantoine.github.io/layerpitch/audio/bmruc9x0htabo1/",
@@ -567,11 +599,11 @@
           "gain": 0.864
         }
       ],
-      "fixedLayers": [],
-      "randomGroups": [],
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "randomizeSections": false,
+      "sections": [],
       "sfxIds": []
     },
     {
@@ -590,6 +622,7 @@
       "loopOutBeat": 16,
       "startTrackBeat": 0,
       "maxLoops": null,
+      "maxChainLoops": null,
       "normalizeVolume": false,
       "duration": 112.82,
       "base": "https://Julzantoine.github.io/layerpitch/audio/bmruccnxudcuy8/",
@@ -600,11 +633,11 @@
           "gain": 0.95
         }
       ],
-      "fixedLayers": [],
-      "randomGroups": [],
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "randomizeSections": false,
+      "sections": [],
       "sfxIds": []
     }
   ],
@@ -1361,6 +1394,143 @@
         "bmrc9dbzsaio19"
       ],
       "trackOverrides": {}
+    },
+    {
+      "id": "formike",
+      "label": "ForMike",
+      "lang": "en",
+      "blocks": [
+        {
+          "id": "bmsca81bnihius",
+          "type": "header"
+        },
+        {
+          "id": "bmsca81bnyxpv6",
+          "type": "testimonials"
+        },
+        {
+          "id": "bmsca81bnj1g2t",
+          "type": "tracks"
+        },
+        {
+          "id": "bmsca81bnxhkhm",
+          "type": "sfx",
+          "sfxIds": [
+            "bms3s3uj7b4oi8",
+            "bms3sf3itgekxm",
+            "bms378c2zbxgpd"
+          ]
+        },
+        {
+          "id": "bmsca81bn8ifi1",
+          "type": "packs",
+          "packIds": [
+            "bmrcakdllw9m7v",
+            "bmrucduoqf8jzn",
+            "bms53ze9zfu132"
+          ]
+        },
+        {
+          "id": "bmsca81bndb2fb",
+          "type": "video",
+          "videos": [
+            {
+              "title": "Rescore Trailer DLC PRojectCars",
+              "url": "https://youtu.be/vHJAhKIIlWc",
+              "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png"
+            }
+          ]
+        },
+        {
+          "id": "bmsca81bnp8jks",
+          "type": "text",
+          "content": "[Find tons of video clips in all kinds of styles HERE!](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)\n",
+          "align": "center"
+        },
+        {
+          "id": "bmsca81bnm99aa",
+          "type": "photo",
+          "align": "center",
+          "images": [
+            {
+              "file": "bmrn8gekhvkn4c-0.png"
+            },
+            {
+              "file": "bmrn8gekhvkn4c-1.png"
+            },
+            {
+              "file": "bmrn8gekhvkn4c-2.png"
+            },
+            {
+              "file": "bmrn8gekhvkn4c-3.png"
+            }
+          ]
+        },
+        {
+          "id": "bmsca81bnnlnci",
+          "type": "bio"
+        }
+      ],
+      "profile": {
+        "title": "",
+        "subtitle": "",
+        "bio": "Hi Mike ! Thank you for taking the time to check out layerpitch!\nRecently, I pitched music to a video game studio. I wanted to make a strong impression and present adaptive music directly—but I couldn’t find any suitable technical solution for it. So I created LayerPitch.\nThe page you’re interacting with is called an AdReel (Adaptive Reel). With a LayerPitch account, you can generate AdReels on demand, tailored to the person you’re sending them to. Behind the scenes, you can track how your contact actually interacted with it: intensity levels tested, SFX triggered, packs and collections explored—in short, how engaged they were with what you’re offering.\nStarting in September, I’ll be entering an incubation program to see how far this idea can go. I’m looking for beta testers—if you’re interested or have feedback, feel free to reach out: julzantoine@yahoo.com.\n\nPS—And by the way, this is where you’d normally display your bio to explain just how extraordinary and perfect you are for the role. :)",
+        "contactEmail": "",
+        "contactUrl": "",
+        "formspreeEndpoint": "",
+        "logo": "logo-demo-trusted-people.jpeg",
+        "photo": "photo-main.jpg",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        }
+      },
+      "testimonials": [
+        {
+          "text": "My collaboration with this composer was surprisingly smooth, thanks to LayerPitch: we were able to test ideas almost in real time, without having to implement them in an audio engine for every trial.",
+          "author": "John Doe, Developer"
+        },
+        {
+          "text": "What really convinced me about this composer’s packs was being able to see the music and SFX work directly on **my** gameplay video—not some generic vendor demo. With no budget for custom composition, I could build the exact sound atmosphere I envisioned, seeing it come to life on my own footage before even making a purchase.",
+          "author": "A. Nonyme"
+        }
+      ],
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmresp3hdlhbmx",
+        "bmrc8vlgamn4fl",
+        "bmrdjlv9p1cbv9"
+      ],
+      "trackOverrides": {
+        "bmrc8rec1wtahz": {
+          "description": "An adaptive battle loop with 3 intensity levels (Low/Mid/High), perfect for a hack'n'slash game. The intensity scales with the number of enemies on screen, and the loop blends indie charm with punchy energy—because great combat music should always tease the soap before the shower hits. ",
+          "layers": {
+            "0": "Everything's allright, here",
+            "1": "How many of these guys are there?!",
+            "2": "We all gonne die!!!"
+          }
+        },
+        "bmrc8vlgamn4fl": {
+          "description": "\"Alright, team—let’s move out. If the plan’s right, we shouldn’t be far from the heart of the matrix now!\"\nA static exploration loop for distant danger—with a secret lever stinger to play with, just for fun.",
+          "stingers": {
+            "0": "Secret Lever"
+          }
+        },
+        "bmrc9dbzsaio19": {
+          "description": "It isn't midnight yet. A shadow slips across the rooftops... Fearless, it leaps from roof to gargoyle. Landing lightly on a balcony, the faint click of the French door's latch is almost impossible to hear... Barely moments later, the shadow emerges again, a grin spreading across its face. A shaft of moonlight catches its misshapen jaw. Don Benvenuto.\n\nHe casts one last glance at the spoils of his theft. *Ducatore* is going to be delighted...\n\nBut below, a guard spots him and sounds the alarm. It will take more than that to stop Benvenuto. With mischievous delight, he leads his pursuers on a wild chase... to no avail.\n\nA Opening Yheme for a mysterious, playful fantasy adventure set in the warmth of a summer night.\n"
+        },
+        "bmrdjlv9p1cbv9": {
+          "description": "After countless attempts, the boss finally went down! **Victory!** Loot is raining from the sky, and it takes a while to gather it all. With a bit of luck, we might even get a little cutscene to unlock the next level... who knows? Either way, the music is ready—it’s just waiting for the story.\n\nThree drum parts, four bass parts, six guitar parts, and four keyboard parts... A vertically layered, randomized loop that generates a different musical experience every time you listen."
+        },
+        "bmresp3hdlhbmx": {
+          "description": "It’s pitch black... The tension rises. Why did you rush ahead without waiting for the team? That’s the question running through your mind right now. The door at the end of the hallway is slightly ajar, letting through a thin beam of light. So... what do you do? Do you keep chasing to prevent them from escaping, risking walking into a trap? Or do you wait for the team? Breathe. Slowly. Deeply... And make a decision.\n\nAn intro, an outro... In between, randomly selected 8- or 16-bar segments. Pure sequential tension-building music..."
+        }
+      }
     }
   ]
 }
