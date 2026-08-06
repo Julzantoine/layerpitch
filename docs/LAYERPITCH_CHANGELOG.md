@@ -4,7 +4,24 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 *Ce document a été reconstitué le 28 juillet 2026 à partir de cinq fichiers de changelog partiels retrouvés dans le projet (le fichier global ayant été accidentellement écrasé par une version antérieure) : `LAYERPITCH_CHANGELOG_25_JUILLET.md`, `LAYERPITCH_CHANGELOG_20_JUILLET.md`, `LAYERPITCH_CHANGELOG_SESSION_18_JUILLET.md`, `LAYERPITCH_CHANGELOG_CETTE_SESSION.md` (session du 16 juillet) et la version encore présente de `LAYERPITCH_CHANGELOG.md` (01 → 16 juillet). Les doublons entre fichiers ont été fusionnés (notamment l'entrée du 16 juillet sur la collision `t`, présente à l'identique dans deux sources).*
 
-*À partir de cette entrée, ce fichier vit à la racine du dépôt (`LAYERPITCH_CHANGELOG.md`), plus dans `docs/` — décision du 30 juillet 2026, pour plus de simplicité de publication. La copie dans `docs/` doit être supprimée à la prochaine publication.*
+*Note du 30 juillet 2026 (obsolète) : ce fichier avait été déplacé à la racine du dépôt pour simplifier la publication. Remis dans `docs/` le 6 août 2026 — c'est son emplacement actuel.*
+
+---
+
+## [2026-08-06] — Fix chevauchement audio à la coupure fine d'un embranchement séquentiel + repli de libellé cassé
+
+**Fichiers touchés** : `player.js`, `layerpitch-i18n.js`
+
+**Contexte** : bug signalé par Jules-Antoine — chevauchement audible entre l'ancien et le nouvel emplacement lors d'une coupure fine d'embranchement séquentiel (`performSeqBranchCut`, voir entrée du 04/08). Repéré en comparant la version corrigée dans le bac à sable local contre la version encore en ligne, qui n'avait pas reçu le fix.
+
+**Diagnostic** : `performSeqBranchCut` n'annulait que la DERNIÈRE génération programmée (`seqNextScheduled`, référence unique). Le scheduler séquentiel programme jusqu'à 1s à l'avance (`seqSchedulerTick`) — un emplacement court pouvait donc empiler plusieurs générations futures (`source.start()` déjà appelé côté Web Audio, pas encore audibles) avant qu'une coupure ne survienne. Seule la plus récente était stoppée ; les autres continuaient de sonner par-dessus la nouvelle destination, Web Audio n'ayant aucun moyen de savoir qu'elles étaient devenues obsolètes tant qu'on ne les arrêtait pas explicitement une par une.
+
+**Changement** :
+- `player.js` : `seqNextScheduled` supprimé. Chaque entrée de `seqActiveSources` porte désormais son propre `ctxStartTime` (ajouté dans `scheduleSeqGeneration`). `performSeqBranchCut` filtre et stoppe maintenant TOUTES les générations dont `ctxStartTime > now` (pas encore audibles), pas seulement la dernière — la génération actuellement audible (`ctxStartTime <= now`) n'est jamais concernée, elle s'éteint séparément via son `gainNode`.
+- `player.js` : `renderSeqBranchOptions` — un bouton d'embranchement sans `label` explicite ni `targetSlot.label` retombait sur l'id technique brut (`genId()`, illisible). Aligné sur le repli déjà utilisé côté éditeur Backstage : `t('slotFallback', {n})` → "Emplacement N" / "Slot N".
+- `layerpitch-i18n.js` : `slotFallback` n'existait que dans la zone `backstage`, jamais consultée par `player.js` (qui ne lit que les zones `player`/`shared`) — sans ce déplacement, le repli ci-dessus aurait affiché la clé brute "slotFallback" au visiteur. Ajoutée à `fr.shared` et `en.shared`.
+
+**Vérification** : `node --check` sur les deux fichiers ; suites Node/jsdom existantes relancées sans modification (`test_seq_transitions.js`, `test_seq_branching.js`, `test_embr_vertical_engine.js`, `test_backstage_seq_transitions.js`) — 39/39 assertions passées, aucune régression. `layerpitch-backstage.html` vérifié non affecté (n'expose ni ne consomme l'état interne modifié).
 
 ---
 
