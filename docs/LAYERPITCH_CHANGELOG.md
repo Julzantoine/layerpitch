@@ -8,6 +8,23 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-06] — Backstage : panneaux visuels pour embranchements et pools d'alternatives
+
+**Fichiers touchés** : `layerpitch-backstage.html`
+
+**Contexte** : retour visuel de Jules-Antoine — dans l'éditeur d'un emplacement séquentiel ou d'un pool (vertical-random, alternatives séquentielles, variations Sfx), la section embranchements et la liste d'alternatives se fondaient visuellement dans la carte `.list-block` parente, sans repère pour les distinguer du reste du formulaire. Repris depuis la feuille de style partagée du bac à sable local (extraite du `<style>` de ce même fichier, qui avait déjà reçu ce correctif) — le principe du projet étant que ce fichier partagé fait foi et que le backstage en ligne doit suivre, jamais l'inverse.
+
+**Changement** :
+- Deux nouvelles règles CSS ajoutées au `<style>` de `layerpitch-backstage.html`, juste après `.list-block-head` (même emplacement que dans la feuille partagée) :
+  - `.branch-options-panel` — liseré bleu (`var(--accent)`, la même couleur déjà associée au choix/à l'interactif via le retour visuel du glisser-déposer), fond `#f1f8fd`. Pour les embranchements, qui sont un choix laissé au visiteur.
+  - `.alt-pool-panel` — liseré neutre (`#d8d8dc`), fond blanc. Pour les pools d'alternatives, qui ne sont pas un choix du visiteur mais du contenu (variations tirées au sort par le moteur).
+- Markup : la classe `branch-options-panel` posée sur le conteneur des réglages `quantization`/`cutStyle` + liste d'embranchements d'un emplacement séquentiel (`hasBranches` coché). La classe `alt-pool-panel` ajoutée aux trois corps de pool existants (`data-role="altPoolBody"`) : alternatives d'un pool vertical-random, alternatives d'un emplacement séquentiel, variations round-robin d'un Sfx.
+- Aucun changement de structure ni de logique — uniquement l'ajout de classes CSS sur des conteneurs déjà en place.
+
+**Vérification** : `test_backstage_seq_transitions.js` relancé sans modification — 9/9 assertions passées, aucune régression sur la logique des embranchements séquentiels (case à cocher, sélecteurs quantization/cutStyle, fichier de transition).
+
+---
+
 ## [2026-08-06] — Fix chevauchement audio à la coupure fine d'un embranchement séquentiel + repli de libellé cassé
 
 **Fichiers touchés** : `player.js`, `layerpitch-i18n.js`
