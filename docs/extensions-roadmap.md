@@ -25,6 +25,8 @@ Signalé par un retour compositeur externe : le gris clair utilisé pour le text
 
 **3.3 Traduction automatisée à la demande** *(14 juillet)* — traduire bio/textes de morceaux/packs à partir de l'échafaudage i18n existant. Nuance actée : traduction proposée à valider par le compositeur avant publication, jamais automatique.
 
+**3.4 Assistant IA pour l'analyse d'usage plateforme** *(3 août)* — extension naturelle du principe déjà en place dans `admin-beta-console.html` (agrégation des `events.json` par utilisateur), une fois la bascule backend faite et de vrais clients payants en usage réel — pas limité aux testeurs bêta. Les événements déjà typés et structurés (`intensity_change`, `voice_solo_toggle`, `track_play`, `publish_click`, etc.) permettent une analyse en langage naturel sans traitement audio ni comportemental complexe. Exemples concrets de questions visées : quels modes de lecture sont les plus utilisés par les compositeurs, nombre moyen d'AdReels par compositeur, taux d'engagement des destinataires (interaction réelle avec l'adaptativité — curseur d'intensité, solo/mute — plutôt que simple lecture passive). Deux formes possibles, non exclusives : question libre posée par Jules-Antoine, ou rapport automatique périodique. Même contrainte que Smart Import IA/Interface à prompt : nécessite un backend (clé API jamais exposée côté client), coût attendu du même ordre de grandeur (quelques centimes par requête). **Point de vigilance propre à cette extension, absent des autres idées IA** : l'analyse porte sur l'usage agrégé de tous les clients, pas seulement les données propres d'un compositeur — implique une couverture explicite dans la conformité RGPD (déjà une des six briques manquantes du backend), pas une simple extension technique.
+
 ## 4. Visualisation et confort d'usage
 
 **4.1 Waveform à la lecture (page publique)** *(7 juillet, retour compositeur externe)* — afficher la forme d'onde pendant la lecture, surtout pour les morceaux `static`.
@@ -100,6 +102,18 @@ Trois catégories distinctes sur la Marketplace, pas deux :
 
 **Statut (5.4, 5.5, 5.6)** : cohérence vérifiée entre les trois fils sources et la conception game dev de 5.3 — aucune contradiction trouvée, le profil auditeur/"Fan" de 5.4 correspond exactement au périmètre de l'interface décrite en 5.5. Conception à un niveau de détail variable selon la section (5.4 et 5.6 : principes actés ; 5.5 : wireframe niveau réflexion validé mais incomplet — Playlists et Figer restent à finir). Aucun code, entièrement dépendant de la bascule backend (comptes, profils, achats, stockage des réglages de lecture).
 
+## 6. Relations industrie — contacts moteurs audio (Wwise, FMOD)
+
+**Idée actée, non engagée** *(3 août 2026)* — envisager de contacter Audiokinetic (éditeur de Wwise) et Firelight Technologies (éditeur de FMOD) pour présenter LayerPitch une fois le projet suffisamment mature. Positionnement pressenti comme complémentaire plutôt que concurrent avec les deux : ces moteurs couvrent l'implémentation audio en aval, LayerPitch couvre la présentation/le pitch en amont — logique similaire à la relation déjà établie avec Ollam Technologies dans l'espace RPG adaptatif.
+
+**Cohérence déjà présente** : le vocabulaire du moteur emprunte volontairement des concepts partagés par les deux (segment model, "Voice Graph" pour le mode vertical-random) — un rapprochement s'appuierait sur une parenté déjà construite, pas artificielle. LayerPitch ne prend techniquement parti pour aucun des deux moteurs, ce qui permet de solliciter les deux sans contradiction ni risque de sembler affilié à l'un plutôt qu'à l'autre.
+
+**Bénéfice envisagé** : visibilité dans leur écosystème respectif (forum, blog partenaire, mention communautaire), touchant une audience déjà qualifiée (compositeurs familiers de Wwise et/ou FMOD) — plus ciblée qu'une exposition presse généraliste.
+
+**Différence de nature entre les deux cibles** : Audiokinetic est un groupe international (adossé à Sony/Sacem depuis son rachat) — visibilité potentiellement plus large, mais contact probablement plus formel/long à obtenir. Firelight Technologies (créateur de FMOD) est une structure indépendante et modeste (11-50 employés, Melbourne) — contact potentiellement plus direct et personnel, mais portée moindre. Pas d'ordre imposé entre les deux : commencer par celui pour lequel un contact naturel existe (connexion existante, forum, événement), puis répliquer l'approche vers l'autre.
+
+**Timing à respecter (les deux)** : pas avant d'avoir dépassé la bêta A et idéalement obtenu une première preuve de traction côté backend V1 — se présenter en position de force plutôt qu'avec un prototype encore en bêta à une dizaine de testeurs. Cohérent avec (sans y être strictement identique) la discipline déjà actée de ne pas engager de communication externe avant que le SaaS soit pleinement opérationnel.
+
 ### Statut global des extensions
 
-Aucune de ces extensions n'est engagée côté développement au-delà de ce qui figure ✅ fait dans `architecture.md`/`audio-engine.md`. La quasi-totalité (sections 1, 2.1, 3, 5.3, 5.4, 5.5, 5.6) dépend de la bascule backend. Seules 2.2 (onglets backstage) et la section 4 (visualisation, waveform, petites améliorations) sont réalisables sur l'architecture statique actuelle, sans backend.
+Aucune de ces extensions n'est engagée côté développement au-delà de ce qui figure ✅ fait dans `architecture.md`/`audio-engine.md`. La quasi-totalité (sections 1, 2.1, 3, 5.3, 5.4, 5.5, 5.6) dépend de la bascule backend. Seules 2.2 (onglets backstage), la section 4 (visualisation, waveform, petites améliorations) et la section 6 (relations industrie, sans dépendance technique) sont réalisables ou engageables sans attendre la bascule backend.
