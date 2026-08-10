@@ -8,6 +8,21 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-06] — Renommage "embranchement vertical" → "vertical à embranchement" + libellé dynamique pour le mode séquentiel
+
+**Fichiers touchés** : `player.js`, `layerpitch-i18n.js`
+
+**Contexte** : demande de Jules-Antoine — renommer le mode `embranchement-vertical` en "vertical à embranchement" (s'insère naturellement dans la même famille de libellés que "vertical additif" et "vertical randomisé"), et faire apparaître la possibilité d'embranchement dans le nom du mode séquentiel. Question ouverte tranchée avec lui : le mode séquentiel n'a l'embranchement que comme fonctionnalité optionnelle par emplacement (`nextOptions`), contrairement à l'embranchement-vertical où la bascule entre boucles nommées est la nature même du mode — un renommage statique aurait donc été trompeur pour un morceau séquentiel purement linéaire. Approche dynamique retenue : le badge affiché n'inclut "à embranchement" que pour les morceaux qui en ont réellement au moins un configuré.
+
+**Changement** :
+- `player.js` : `getModeLabel(mode)` devient `getModeLabel(mode, track)`. Pour `sequential`, vérifie si au moins un `segmentSlots[].nextOptions` est configuré (non vide) ; retourne alors `t('modeSequentialBranching')` au lieu de `t('modeSequential')`. Seul appelant existant (`buildTrackRow`, badge `.mode-tag` sur la page publique) mis à jour pour passer `track`.
+- `layerpitch-i18n.js` (zones `player`, fr/en) : nouvelle clé `modeSequentialBranching` (« séquentiel à embranchement » / « branching sequential »). `modeEmbranchementVertical` fr renommé « embranchement vertical » → « vertical à embranchement » (l'anglais « vertical branching » restait déjà cohérent avec le nouvel ordre, inchangé).
+- `layerpitch-i18n.js` (zone `backstage`, fr) : `modeOptionEmbranchementVertical` renommé en cohérence dans le sélecteur de mode du Backstage (« Embranchement vertical » → « Vertical à embranchement »). Le sélecteur `Séquentiel` reste volontairement statique — il précède la configuration du contenu, donc aucune information sur d'éventuels embranchements n'est disponible à ce stade.
+
+**Vérification** : `node --check` sur les deux fichiers ; les 4 suites de tests existantes relancées sans modification (`test_seq_transitions.js`, `test_seq_branching.js`, `test_embr_vertical_engine.js`, `test_backstage_seq_transitions.js`) — 39/39 assertions passées, aucune régression (aucune n'inspecte le texte du badge de mode). Test manuel ad hoc confirmant les trois cas : séquentiel sans embranchement → "séquentiel", séquentiel avec au moins un embranchement → "séquentiel à embranchement", embranchement-vertical → "vertical à embranchement".
+
+---
+
 ## [2026-08-06] — Backstage : panneaux visuels pour embranchements et pools d'alternatives
 
 **Fichiers touchés** : `layerpitch-backstage.html`
