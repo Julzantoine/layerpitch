@@ -1194,14 +1194,19 @@ function initTrackPlayer(track, wrapper) {
   // "transition" validé le 02/08) — voir armNextSeqBranchBoundary()/performSeqBranchCut() plus bas. ----
   let forcedNextBlock = null; // bloc à jouer en priorité au prochain decideNextSeqBlock() (la transition injectée par une coupure), consommé et vidé aussitôt lu
   let seqBranchEpoch = 0; // incrémenté à chaque nouveau passage sur un emplacement et à chaque coupure — invalide les chaînes de vérification de frontière héritées d'un passage précédent (voir armNextSeqBranchBoundary)
+  // Tempo effectif d'un emplacement séquentiel — même principe que sectionTiming() pour le vertical-random
+  // (une seule formule de repli, réutilisée partout plutôt que dupliquée) : slot.bpm/beatsPerBar si réglés
+  // sur CET emplacement, sinon le tempo du morceau.
+  function slotTiming(slot) {
+    return { secondsPerBeat: 60 / ((slot && slot.bpm) || bpm), beatsPerBar: (slot && slot.beatsPerBar) || beatsPerBar };
+  }
   function blockSeconds(bars, slot) {
     // slot fourni ET porteur d'un tempo propre (bpm ou beatsPerBar) : grille de CET emplacement.
     // Sinon (pas de slot, ou slot sans réglage propre) : grille du morceau, comportement historique
     // inchangé — même chaîne de repli que le moteur quantifié classique (track.bpm || 120).
     if (slot && (slot.bpm || slot.beatsPerBar)) {
-      const slotBeatsPerBar = slot.beatsPerBar || beatsPerBar;
-      const slotSecondsPerBeat = 60 / (slot.bpm || bpm);
-      return (bars || slotBeatsPerBar) * slotBeatsPerBar * slotSecondsPerBeat;
+      const timing = slotTiming(slot);
+      return (bars || timing.beatsPerBar) * timing.beatsPerBar * timing.secondsPerBeat;
     }
     return (bars || beatsPerBar) * beatsPerBar * secondsPerBeat;
   }
@@ -1433,9 +1438,8 @@ function initTrackPlayer(track, wrapper) {
     if (!slot || !slot.nextOptions || !slot.nextOptions.length) return;
     const quant = slot.quantization || 'bar';
     const segStart = currentSeqBlockInfo.virtualZero;
-    const slotSecondsPerBeat = 60 / (slot.bpm || bpm);
-    const slotBeatsPerBar = slot.beatsPerBar || beatsPerBar;
-    const unitSec = quant === 'beat' ? slotSecondsPerBeat : (slotBeatsPerBar * slotSecondsPerBeat);
+    const timing = slotTiming(slot);
+    const unitSec = quant === 'beat' ? timing.secondsPerBeat : (timing.beatsPerBar * timing.secondsPerBeat);
     const elapsed = Math.max(0, ctx.currentTime - segStart);
     const stepsElapsed = Math.floor(elapsed / unitSec + 1e-6);
     const cutTime = segStart + (stepsElapsed + 1) * unitSec; // toujours la PROCHAINE frontière, strictement après maintenant
@@ -1478,7 +1482,7 @@ function initTrackPlayer(track, wrapper) {
     // autres fondus courts du morceau, solo/muet, embranchement-vertical), "custom" (durée choisie par le
     // compositeur, `sourceSlot.customCutFadeSec`, en secondes réelles — pas en mesures, un fondu de sortie
     // n'a pas besoin d'être quantifié musicalement comme un segment).
-    const fadeOutSec = cutStyle === 'custom' ? (sourceSlot.customCutFadeSec || 0.15) : 0.15;
+    const fadeOutSec = cutStyle === 'custom' ? (sourceSlot.customCutFadeSec != null ? sourceSlot.customCutFadeSec : 0.15) : 0.15;
     if (currentSeqBlockInfo.gainNode) {
       const g = currentSeqBlockInfo.gainNode;
       g.gain.cancelScheduledValues(now);
@@ -1648,6 +1652,11 @@ function initTrackPlayer(track, wrapper) {
     const { kind, buffer, gain, totalSec, terminal, slotIdx } = currentSeqBlockInfo;
     const off = Math.max(0, Math.min(totalSec - 0.05, targetSec));
     const remaining = totalSec - off;
+    // Capturé AVANT stopSequential() (qui remet le libellé affiché à "—") — bug trouvé le 13/08 en
+    // réutilisant cette fonction pour la reprise après changement d'onglet : l'audio rejouait bien le bon
+    // segment à la bonne position, mais l'étiquette affichée retombait à "—" au lieu de son nom, capturée
+    // une fois déjà écrasée par l'arrêt.
+    const label = seqCurrentEl ? seqCurrentEl.textContent : '';
     // stopSequential() remet goToEndRequested à false (comportement voulu pour un vrai arrêt) — mais un
     // seek n'est qu'un redémarrage interne du même bloc, pas un arrêt demandé par le visiteur. Si "Aller
     // vers la fin" avait été cliqué et n'était pas encore consommé (bloc courant non terminal), la demande
@@ -1659,7 +1668,6 @@ function initTrackPlayer(track, wrapper) {
     goToEndRequested = wasGoToEndRequested;
     pendingNextSegmentId = wasPendingNextSegmentId;
     const now = ctx.currentTime;
-    const label = seqCurrentEl ? seqCurrentEl.textContent : '';
     // Important : on transmet TOUJOURS `remaining` (durée réellement restante après le seek), y compris
     // pour un bloc terminal (l'outro). Le passer à null ici (comme le fait le premier appel normal, sans
     // seek, où l'décalage est de toute façon 0) ferait retomber le calcul du remplissage visuel sur
@@ -2460,6 +2468,27 @@ function initTrackPlayer(track, wrapper) {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible' || !playing) return;
     resumeAudioContext();
+    // Séquentiel et vertical-random (bug trouvé le 13/08) : le chemin générique ci-dessous arrêtait tout
+    // puis relançait la chaîne via un tout nouveau tirage (isContinuation=true préserve la position dans
+    // la CHAÎNE, mais le bloc en cours au moment du passage en arrière-plan était perdu, remplacé par un
+    // nouveau bloc qui, lui, repart de sa propre position 0 — d'où l'impression de "repartir de zéro").
+    // Correctif : réutiliser les mêmes primitives de recherche (seek) déjà éprouvées pour le glissement
+    // manuel sur la waveform, qui rejouent précisément le bloc/section EN COURS à sa position réelle
+    // plutôt que d'en tirer un nouveau.
+    if (isSequential) {
+      if (currentSeqBlockInfo) seekSequential(ctx.currentTime - currentSeqBlockInfo.virtualZero);
+      return;
+    }
+    if (isVerticalRandom) {
+      if (vrCurrentSectionOriginalIndex >= 0) {
+        const section = resolveVRSection(track, vrCurrentSectionOriginalIndex);
+        const timing = sectionTiming(section);
+        const elapsed = currentPlaybackOffset();
+        const frac = timing.cycleLength > 0 ? Math.min(1, Math.max(0, (elapsed - timing.loopInSec) / timing.cycleLength)) : 0;
+        seekVerticalRandom(frac);
+      }
+      return;
+    }
     const resumeFrom = computeElapsed();
     stopAllSources(false);
     offsetAt = resumeFrom;

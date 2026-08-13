@@ -106,6 +106,39 @@ const path = require('path');
     check('durée du fondu proche de 1.5s (personnalisée), pas de 0.15s (delta=' + delta + ')', delta != null && delta > 1.2 && delta < 1.8);
   }
 
+  // ---- Scénario A2 : cutStyle "custom", 0s de fondu (coupure instantanée voulue) — bug trouvé le 13/08
+  // lors d'une relecture du code : "sourceSlot.customCutFadeSec || 0.15" traitait 0 comme absent et
+  // retombait sur 0.15s au lieu de respecter la coupure instantanée explicitement voulue. ----
+  {
+    fadeRamps.length = 0;
+    const track = {
+      id: 'ccf-a2', title: 'Custom fade zero', mode: 'sequential', description: '', duration: 0,
+      base: '', publishedAt: 1, bpm, beatsPerBar,
+      segmentSlots: [
+        {
+          id: 'slotA', label: 'A', avoidImmediateRepeat: false, repeatCount: 1, quantization: 'immediate', cutStyle: 'custom', customCutFadeSec: 0,
+          alternatives: [{ label: 'A1', bars: 4, localFile: fakeFile('a1.wav') }],
+          nextOptions: [{ targetId: 'slotB', label: 'To B' }]
+        },
+        { id: 'slotB', label: 'B', avoidImmediateRepeat: false, repeatCount: 1, alternatives: [{ label: 'B1', bars: 1, localFile: fakeFile('b1.wav') }] }
+      ],
+      sfxIds: []
+    };
+    const row = Core.buildTrackRow(track, null, false);
+    doc.getElementById('host').appendChild(row);
+    Core.initTrackPlayer(track, row);
+    await sleep(300);
+    const seqCurrentEl = row.querySelector('[data-role="seqCurrent"]');
+    click(row.querySelector('[data-role="playBtn"]'));
+    check('reaches segment A', await waitUntil(() => seqCurrentEl.textContent === 'A1', 2000));
+    const branchBtn = [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotB');
+    click(branchBtn);
+    await sleep(50);
+    check('un fondu vers le silence déclenché', fadeRamps.length >= 1);
+    const delta = fadeRamps[0] && fadeRamps[0].deltaSec;
+    check('durée du fondu proche de 0s (coupure instantanée respectée, pas de repli sur 0.15s) (delta=' + delta + ')', delta != null && delta < 0.05);
+  }
+
   // ---- Scénario B : cutStyle "fade" (par défaut) — reste fixe à 0.15s même avec une transition longue ----
   // (décision du 13/08 : pas d'auto-calcul basé sur la transition, "fade" reste toujours 0.15s)
   {
