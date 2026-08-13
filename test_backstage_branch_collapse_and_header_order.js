@@ -60,7 +60,16 @@ const path = require('path');
   check('bouton de repli des embranchements présent', !!branchesToggle);
   click(branchesToggle);
   branchesBody = q('[data-role="branchesBody"]');
-  check('un clic replie le panneau', branchesBody.classList.contains('collapsed'));
+  check('un clic replie le panneau (classe CSS)', branchesBody.classList.contains('collapsed'));
+  // Bug réel trouvé le 13/08 : la classe se posait bien, mais sans la classe de base "list-block-body"
+  // requise par la règle CSS ".list-block-body.collapsed" — la flèche changeait d'état sans que rien ne
+  // se masque visuellement. Vérification du rendu réel, pas seulement de la présence de la classe.
+  check('le panneau est réellement masqué visuellement (display:none, pas juste la classe posée)',
+    window.getComputedStyle(branchesBody).display === 'none');
+  click(branchesToggle);
+  branchesBody = q('[data-role="branchesBody"]');
+  check('un second clic déplie à nouveau visuellement', window.getComputedStyle(branchesBody).display !== 'none');
+  click(branchesToggle); // on referme pour la suite du test (persistance après re-rendu)
 
   // Changer de mode et revenir force un re-rendu complet : le repli manuel doit persister (pas de reset
   // intempestif à chaque rendu), même mécanisme que les autres pools de variations déjà en place.
