@@ -8,6 +8,42 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-13] — Cache-busting : trou trouvé sur layerpitch-i18n.js/layerpitch-help.js, docs/infrastructure.md corrigé
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`, `docs/infrastructure.md`
+
+**Contexte** : Jules-Antoine signale, d'après `docs/infrastructure.md`, un problème de cache non résolu — après publication, les visiteurs peuvent voir une version périmée du site sans vidage manuel du cache, cause probable étant l'absence de cache-busting sur `data.json`. Investigation menée sur les fichiers réellement livrés cette session (le repo GitHub étant en retard sur ces sessions, jamais utilisé comme source de vérité ici) :
+- `data.json` : déjà cache-busté avec `?v=' + Date.now()` dans `index.html`/`pack.html`/`collection.html` (`video-test.html` n'en a pas besoin, ne charge pas `data.json`) — donc DÉJÀ résolu, contrairement à ce que dit encore le doc. Cette approche (timestamp de chargement, pas `publishedAt`) évite au passage le problème d'œuf-et-poule que Jules-Antoine anticipait (`publishedAt` ne vivant que dans `data.json` lui-même) : pas besoin d'un `version.json` séparé.
+- `player.js` : déjà versionné à chaque publication (`updatePlayerScriptVersion()`, balise `<script>` réécrite avec `?v=<buildVersion>`, même timestamp que `publishedAt`).
+- **Trou réel trouvé, jamais traité** : `layerpitch-i18n.js` (chargé par les 5 fichiers publics) et `layerpitch-help.js` (chargé par `collection.html` et le backstage) n'avaient aucun cache-busting — `updatePlayerScriptVersion()` ne touchait que `player.js`. Un visiteur pouvait voir des traductions ou une aide contextuelle périmées jusqu'à 10 min après une publication (TTL GitHub Pages, non configurable, non contournable côté navigateur puisque l'URL ne changeait jamais).
+
+**Changement** :
+- `layerpitch-backstage.html` : `updatePlayerScriptVersion()` remplacée par `updateScriptVersions()`, généralisée à une liste `VERSIONED_SCRIPTS = ['player.js', 'layerpitch-i18n.js', 'layerpitch-help.js']` — un seul fetch + une seule écriture par fichier HTML, quel que soit le nombre de balises concernées réellement présentes dans ce fichier (ex. `video-test.html` n'a que `layerpitch-i18n.js`). `video-test.html` ajouté à la liste des fichiers mis à jour dans `publishAll()` (chargeait déjà `layerpitch-i18n.js` sans jamais être touché par la version précédente de la fonction).
+- `layerpitch-i18n.js` (zone `backstage`, fr/en) : clés `fileNotFoundVersionUpdate`, `scriptTagNotFound`, `versionUpdatedLog`, `updatingPlayerVersion` reformulées pour ne plus mentionner que `player.js` spécifiquement.
+- `docs/infrastructure.md` : paragraphe cache corrigé pour refléter l'état réel (résolu, avec le détail de ce qui est déjà en place et le seul résiduel restant : le TTL de 10 min de GitHub Pages sur l'URL canonique de la page HTML elle-même, sans conséquence sur le contenu affiché puisque piloté par `data.json` toujours frais, auto-résolutif). Entrée ajoutée au journal des décisions d'infrastructure.
+
+**Vérification** : `node --check` sur `layerpitch-i18n.js` — OK. Logique de `updateScriptVersions()` testée hors-ligne (regex extraite et rejouée sur 4 cas : première publication d'`index.html`, republication — pas de doublon de `?v=` —, `video-test.html` avec un seul script, `collection.html` avec les trois) — comportement correct dans les 4 cas. Les 11 suites de tests existantes + `test_seq_slot_tempo.js` relancées intégralement (aucune ne couvre `publishAll`/la publication GitHub, mais confirment l'absence de régression sur le reste du backstage et du moteur) — toutes vertes.
+
+---
+
+## [2026-08-13] — Slider de volume par voix (vertical classique + vertical-random)
+
+**Fichiers touchés** : `player.js`, `layerpitch-i18n.js`, `index.html`, `pack.html`, `layerpitch-backstage.html`
+
+**Contexte** : demande de Jules-Antoine — ajouter un réglage de volume continu par couche sur la page publique, en plus du Solo/Muet déjà existant dans le mixer (`vertGraph` pour le vertical classique, `voiceGraph` pour le vertical-random). Portée et comportement validés avec lui avant codage : les deux modes sont concernés ; en vertical-random, une position de pool peut tirer un slot vide (silence) à un cycle donné — le nœud correspondant (déjà masqué entièrement dans ce cas via `display:none`) embarque désormais le slider, qui se cache/réapparaît avec lui sans logique supplémentaire, la valeur réglée restant en mémoire pour le prochain tirage audible de cette position. Réglage volontairement non persisté (comme Solo/Muet), et démarrant à 100% (= volume du fichier source, rien d'atténué par défaut).
+
+**Changement** :
+- `player.js` : nouvelle `Map` `layerVolumes` (clé `layer-i` / `pool-i` → 0–1.5, défaut 1) à côté de `mutedVoices`/`soloedVoices`, même durée de vie (en mémoire, jamais persisté). `voiceGain(key)` multiplie désormais son résultat solo/muet par `getLayerVolume(key)` — un seul point de changement, tous les usages existants du gain (`refreshVoiceGains`, moteur simple, `playSimple`, `scheduleGeneration` quantifié, `scheduleSectionGeneration` vertical-random, ramp d'intensité sur clic des puces) en héritent automatiquement sans modification.
+- `player.js` : nouveau `<input type="range">` (`voice-volume-slider`, min 0 / max 1.5 / step 0.01 / défaut 1) + valeur en % affichée à côté, ajouté dans `vertGraphHtml` (une ligne par couche, sous la ligne label/vumètre/S/M existante) et dans les `poolNodes` de `voiceGraphHtml` (sous la ligne du haut, au-dessus de la forme d'onde). Écouteurs `input` (retour audio + visuel immédiat, appelle `refreshVoiceGains()`) et `change` (tracking Umami `voice_volume_change` une seule fois à la valeur finale relâchée, pas à chaque pas du curseur) posés juste après ceux des boutons Solo/Muet.
+- `layerpitch-i18n.js` : nouvelle clé `volumeTitle` (« Volume » / « Volume ») dans la zone `player`, fr et en, pour le `title`/`aria-label` du slider.
+- `index.html`, `pack.html`, `layerpitch-backstage.html` : nouvelles règles CSS `.voice-row-wrap`, `.voice-volume-row` et `.voice-volume-value` (slider fin, thumb rond, couleur `--accent`, cohérent avec le reste du mixer), ajoutées à l'identique dans les trois fichiers juste après `.voice-ctrl-btn[data-voice-action="mute"].active`. Le slider s'aligne sous le vumètre en vertical classique (`padding-left: 138px`, largeur du label + l'espacement) ; en vertical-random, il occupe toute la largeur de la carte de pool (`padding-left: 0`).
+
+**⚠️ Rappel de synchronisation** : `backstage.css` (feuille partagée du bac à sable local, non uploadée cette session) doit recevoir le même bloc CSS que `layerpitch-backstage.html` ci-dessus, sans quoi l'aperçu "Écouter" du bac à sable divergerait visuellement de la production.
+
+**Vérification** : `node --check` sur `player.js` et `layerpitch-i18n.js` — OK. Symétrie FR/EN de la nouvelle clé `volumeTitle` vérifiée programmatiquement. Les 4 suites de tests jsdom existantes (`test_seq_transitions.js`, `test_seq_branching.js`, `test_embr_vertical_engine.js`, `test_backstage_seq_transitions.js`) n'ont pas été relancées cette session — fichiers de test non fournis dans les uploads ; aucune n'inspecte le mixer de voix (solo/muet/volume) donc risque de régression faible, mais à relancer côté Jules-Antoine avant publication.
+
+---
+
 ## [2026-08-06] — Renommage "embranchement vertical" → "vertical à embranchement" + libellé dynamique pour le mode séquentiel
 
 **Fichiers touchés** : `player.js`, `layerpitch-i18n.js`

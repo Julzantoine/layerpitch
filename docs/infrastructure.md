@@ -34,7 +34,10 @@ Trois commandes :
 - **`create <nom>`** — crée `layerpitch-beta-<nom>` depuis le template, remplace le repère `__TESTER_REPO__` du backstage par le vrai nom.
 - **`rollout`** — pousse une mise à jour des fichiers moteur vers tous les repos testeurs existants.
 
-**Point technique à corriger avant l'ouverture de la bêta A — cache navigateur** : après publication depuis le backstage, les changements n'apparaissent pas de façon fiable côté public sans vidage manuel du cache. Cause probable : absence de cache-busting systématique sur les requêtes qui chargent `data.json`. À corriger avant d'inviter des testeurs externes.
+**Cache navigateur/CDN — résolu le 13/08** : après publication depuis le backstage, les changements pouvaient ne pas apparaître de façon fiable côté public sans vidage manuel du cache. Cause : absence de cache-busting sur `data.json` et sur les scripts moteur partagés. État actuel :
+- `data.json` : chargé avec `?v=' + Date.now()` dans `index.html`/`pack.html`/`collection.html` — requête réseau fraîche à chaque chargement de page, jamais de cache, ni navigateur ni CDN.
+- `player.js`, `layerpitch-i18n.js`, `layerpitch-help.js` : leurs balises `<script>` sont réécrites à chaque publication avec `?v=<buildVersion>` (même timestamp que `publishedAt`), via `updateScriptVersions()` — un seul fetch+écriture par fichier concerné (`index.html`, `pack.html`, `collection.html`, `video-test.html`, `layerpitch-backstage.html`).
+- **Résiduel, hors de notre contrôle** : le TTL de 10 min de GitHub Pages (non configurable) s'applique toujours à l'URL canonique de la page HTML elle-même (celle du lien partagé, qui ne change jamais). Sans conséquence sur le *contenu* affiché (toujours piloté par `data.json`, toujours frais), seulement sur le *code* (nouvelle fonctionnalité, changement de structure) — s'autorésout tout seul en 10 min maximum après une publication.
 
 ## Partie B — Bascule backend (cadrée, non commencée)
 
@@ -68,4 +71,5 @@ Trois commandes :
 
 - **12 juillet** — cadrage Partie A/B, six briques manquantes identifiées, script `layerpitch-beta-sync.js` conçu.
 - **14 juillet** — décision Cloudflare R2 pour l'audio et la vidéo, Supabase réservé au Postgres ; coûts et marge post-bascule chiffrés ; garde-fous de plafonds actés.
+- **13 août** — cache navigateur/CDN sur publication : `data.json` déjà cache-busté (`Date.now()`) ; trou trouvé et corrigé sur `layerpitch-i18n.js`/`layerpitch-help.js` (jamais versionnés, contrairement à `player.js`) — `updateScriptVersions()` généralisée aux trois scripts, `video-test.html` ajouté à la liste des fichiers mis à jour à la publication.
 - **À trancher** : Supabase managé vs auto-hébergé sur OVH ; date d'ouverture réelle de la bêta A (dépend de l'essai à blanc + correctif cache).
