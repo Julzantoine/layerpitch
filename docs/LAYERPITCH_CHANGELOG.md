@@ -8,6 +8,18 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-13] — Repères de section (IDENTITÉ, TEMPO, CONTENU, STRUCTURE…) assombris
+
+**Fichiers touchés** : `layerpitch-backstage.html`
+
+**Contexte** : Jules-Antoine trouve les libellés de section dans l'éditeur de morceau (IDENTITÉ, TEMPO, CONTENU, STRUCTURE) trop clairs (#999) pour bien se repérer visuellement.
+
+**Changement** : couleur de `.nav-section-label` passée de `#999` à `#222`, déjà utilisé ailleurs dans le backstage comme couleur de texte principale (titres de modales) — réutilisation plutôt qu'une nouvelle teinte inventée. Cette classe est partagée par `sectionEyebrow()` (IDENTITÉ/TEMPO/CONTENU/STRUCTURE dans les cartes de morceau) et par la navigation latérale, donc les deux en bénéficient.
+
+**Vérification** : changement CSS pur, pas de logique touchée. `node --check` sur `player.js` — OK. Quelques suites backstage relancées à titre de contrôle de non-régression général — toutes vertes.
+
+---
+
 ## [2026-08-13] — Bug : repli des embranchements sans effet visuel (classe CSS incomplète)
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `test_backstage_branch_collapse_and_header_order.js`
