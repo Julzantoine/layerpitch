@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1785704405935,
+  "publishedAt": 1786636530855,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -41,6 +41,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "loops": [],
       "randomizeSections": false,
       "sections": [],
       "sfxIds": []
@@ -75,6 +76,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "loops": [],
       "randomizeSections": false,
       "sections": [],
       "sfxIds": [
@@ -111,6 +113,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "loops": [],
       "randomizeSections": false,
       "sections": [],
       "sfxIds": []
@@ -145,6 +148,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "loops": [],
       "randomizeSections": false,
       "sections": [],
       "sfxIds": []
@@ -179,6 +183,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "loops": [],
       "randomizeSections": false,
       "sections": [],
       "sfxIds": []
@@ -213,6 +218,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "loops": [],
       "randomizeSections": false,
       "sections": [],
       "sfxIds": []
@@ -247,6 +253,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "loops": [],
       "randomizeSections": false,
       "sections": [],
       "sfxIds": []
@@ -281,6 +288,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "loops": [],
       "randomizeSections": false,
       "sections": [
         {
@@ -506,6 +514,9 @@
           "avoidImmediateRepeat": true,
           "referencesSlotId": null,
           "repeatCount": 1,
+          "quantization": "bar",
+          "cutStyle": "fade",
+          "nextOptions": null,
           "alternatives": [
             {
               "label": "The Last Door Chunk#1",
@@ -534,6 +545,7 @@
           ]
         }
       ],
+      "loops": [],
       "randomizeSections": false,
       "sections": [],
       "sfxIds": []
@@ -568,6 +580,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "loops": [],
       "randomizeSections": false,
       "sections": [],
       "sfxIds": []
@@ -602,6 +615,7 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "loops": [],
       "randomizeSections": false,
       "sections": [],
       "sfxIds": []
@@ -636,6 +650,125 @@
       "intro": null,
       "outro": null,
       "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": []
+    },
+    {
+      "id": "bmsrox5psn3r4k",
+      "title": "Robot Adventure",
+      "description": "",
+      "mode": "sequential",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 124.74,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmsrox5psn3r4k/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": null,
+          "gain": 1
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [
+        {
+          "id": "bmsroyqkw2curh",
+          "label": "#1 WetDarkCave",
+          "avoidImmediateRepeat": true,
+          "referencesSlotId": null,
+          "repeatCount": 1,
+          "quantization": "bar",
+          "cutStyle": "fade",
+          "nextOptions": [
+            {
+              "targetId": "bmsroyqkwf73ti",
+              "label": "",
+              "transition": {
+                "label": "#1bis SecretLever Transition",
+                "bars": 2,
+                "file": "slot0-branch0-transition-1bis-secretlever-transition.ogg",
+                "gain": 3.981
+              }
+            }
+          ],
+          "alternatives": [
+            {
+              "label": "#1 RobotAdventure WetDarkCave 120bpm 30M",
+              "bars": 30,
+              "file": "slot0-0-1-robotadventure-wetdarkcave-120bpm-30m.ogg",
+              "gain": 1.066
+            }
+          ]
+        },
+        {
+          "id": "bmsroyqkwf73ti",
+          "label": "#2 Corridor",
+          "avoidImmediateRepeat": true,
+          "referencesSlotId": null,
+          "repeatCount": 1,
+          "quantization": "beat",
+          "cutStyle": "fade",
+          "nextOptions": [
+            {
+              "targetId": "bmsroyqkw5wacj",
+              "label": "",
+              "transition": null
+            }
+          ],
+          "alternatives": [
+            {
+              "label": "#2 RobotAdventure Corridor 120bpm 30M",
+              "bars": 30,
+              "file": "slot1-0-2-robotadventure-corridor-120bpm-30m.ogg",
+              "gain": 1.738
+            }
+          ]
+        },
+        {
+          "id": "bmsroyqkw5wacj",
+          "label": "#3 Battle",
+          "avoidImmediateRepeat": true,
+          "referencesSlotId": null,
+          "repeatCount": 1,
+          "quantization": "bar",
+          "cutStyle": "fade",
+          "nextOptions": [
+            {
+              "targetId": "bmsroyqkw2curh",
+              "label": "",
+              "transition": null
+            },
+            {
+              "targetId": "bmsroyqkwf73ti",
+              "label": "",
+              "transition": null
+            }
+          ],
+          "alternatives": [
+            {
+              "label": "#3 RobotAdventure BattleFinal 160bpm 40M",
+              "bars": 40,
+              "file": "slot2-0-3-robotadventure-battlefinal-160bpm-40m.ogg",
+              "gain": 1.156
+            }
+          ]
+        }
+      ],
+      "loops": [],
       "randomizeSections": false,
       "sections": [],
       "sfxIds": []
