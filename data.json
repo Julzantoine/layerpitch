@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1786636530855,
+  "publishedAt": 1786636563376,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -771,7 +771,11 @@
       "loops": [],
       "randomizeSections": false,
       "sections": [],
-      "sfxIds": []
+      "sfxIds": [
+        "bms3sf3itgekxm",
+        "bms3s3uj7b4oi8",
+        "bms378c2zbxgpd"
+      ]
     }
   ],
   "sfxLibrary": [
