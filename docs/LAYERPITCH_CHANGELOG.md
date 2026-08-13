@@ -8,6 +8,36 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-13] — Détection du BPM et des mesures dans le nom de fichier au dépôt
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `test_backstage_slot_autolabel.js`, `test_backstage_filename_bpm_bars_detection.js` (nouveau)
+
+**Contexte** : Jules-Antoine utilise une nomenclature de fichiers systématique (`#3_RobotAdventure_BattleFinal_160bpm_40M.wav`) et demande que le dépôt groupé en tienne compte pour pré-remplir le tempo et le nombre de mesures, plutôt que de tout ressaisir à la main. Ceci explique probablement le bug "l'embranchement ne boucle pas au nombre de mesures indiqué" signalé juste avant dans la session : le tempo par emplacement (fonctionnalité plus tôt le 13/08) doit être saisi manuellement, sans détection automatique — un emplacement dont le BPM n'a jamais été renseigné retombe silencieusement sur le tempo du morceau, ce qui expliquerait un écart si la valeur du nom de fichier n'a jamais été reportée dans le champ.
+
+**Changement** :
+- Nouvelle fonction `parseAudioFilenameHints(filename)` : détecte un BPM (`\d+bpm`) et un nombre de mesures (`\d+M`), chacun bordé par un séparateur (espace/underscore) ou une extrémité de nom, pour éviter un faux positif du genre "Room40Meters" (pas de séparateur entre "40M" et "eters" → pas de détection).
+- `titleFromFilename()` retire désormais ces jetons du libellé généré automatiquement (redondants avec les champs structurés qu'ils viennent remplir) — ex. `#3_RobotAdventure_BattleFinal_160bpm_40M.wav` → libellé "`#3 RobotAdventure BattleFinal`", BPM et mesures dans leurs champs respectifs.
+- Branché sur les créations de contenu par dépôt : nouvel emplacement (BPM sur l'emplacement + mesures sur son alternative) dans les deux points de création par lot (dépôt direct sur "Emplacements", dépôt global avec devinette de rôle) ; mesures seules (le BPM d'un emplacement déjà existant n'est jamais réécrit par un dépôt d'alternative supplémentaire) sur l'ajout d'alternatives à un emplacement existant ; mesures sur l'intro si détectées dans le dépôt global.
+- `test_backstage_slot_autolabel.js` : assertion mise à jour (le libellé ne garde plus "120bpm", volontairement retiré désormais).
+
+**Vérification** : `test_backstage_filename_bpm_bars_detection.js` (nouveau) — reprend l'exemple exact de sa capture d'écran (3 segments + 1 fichier de transition sans jeton) : `parseAudioFilenameHints` testée isolément (extraction correcte + deux cas de non-faux-positif), puis dépôt réel sur la zone "Emplacements" vérifiant que les 3 champs BPM, les 3 champs mesures et les 3 libellés nettoyés sont tous corrects. Les 19 autres suites relancées intégralement — toutes vertes.
+
+---
+
+## [2026-08-13] — Bug : la musique redémarre de zéro en revenant sur l'onglet (séquentiel + vertical-random)
+
+**Fichiers touchés** : `player.js`, `test_visibility_resume.js` (nouveau)
+
+**Contexte** : Jules-Antoine signale qu'en changeant d'onglet (musique en cours) puis en revenant sur celui de l'AdReel, la musique repart de zéro — en séquentiel et en vertical-random, mais pas en vertical classique. Diagnostic : le gestionnaire `visibilitychange` générique arrêtait tout puis relançait la chaîne via `playThisTrack(false, true)` — `isContinuation=true` préserve bien la position dans la CHAÎNE (`currentSlotIndex`/le cycle de sections en cours), mais ni `playSequential` ni `playVerticalRandom` ne tiennent compte d'un `offsetAt` : le bloc ou la section qui ÉTAIT en train de jouer au moment du passage en arrière-plan est purement abandonné, remplacé par un tout nouveau tirage qui, lui, repart de SA propre position 0 — perçu comme "ça repart de zéro". Le vertical classique n'est pas concerné : `playQuantized`/`playSimple` respectent déjà `offsetAt` correctement.
+
+**Changement** : le gestionnaire `visibilitychange` réutilise maintenant, pour ces deux modes, les mêmes primitives de recherche (seek) déjà éprouvées pour le glissement manuel sur la waveform — `seekSequential(ctx.currentTime - currentSeqBlockInfo.virtualZero)` et `seekVerticalRandom(fraction calculée comme dans tick())` — qui rejouent précisément le bloc/section EN COURS à sa position réelle plutôt que d'en tirer un nouveau. Les autres modes (vertical classique, embranchement-vertical) ne sont pas touchés, leur chemin de reprise générique existant fonctionnait déjà correctement.
+
+**Bug additionnel trouvé au passage** (préexistant, pas introduit par cette session) : dans `seekSequential`, le libellé du segment affiché était capturé *après* l'arrêt interne (`stopSequential()`), qui l'avait déjà remis à "—" — l'audio rejouait bien le bon segment à la bonne position, mais l'étiquette affichée retombait à "—" au lieu de son nom. Concernait donc aussi tout seek manuel sur la waveform, pas seulement la nouvelle reprise après changement d'onglet. Capture du libellé déplacée avant l'arrêt.
+
+**Vérification** : `test_visibility_resume.js` (nouveau) simule un passage en arrière-plan puis un retour (`document.visibilityState` + événement `visibilitychange`) pendant la lecture d'un segment séquentiel et d'une section vertical-random longs — confirme que le même segment/section reste affiché après le retour (pas de nouveau tirage) et que la lecture continue. A d'abord détecté le bug du libellé "—" avant que je le corrige. Les 17 suites existantes relancées intégralement — toutes vertes.
+
+---
+
 ## [2026-08-13] — Repères de section (IDENTITÉ, TEMPO, CONTENU, STRUCTURE…) assombris
 
 **Fichiers touchés** : `layerpitch-backstage.html`
