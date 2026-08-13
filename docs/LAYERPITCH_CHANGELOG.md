@@ -8,6 +8,18 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-13] — Bug : repli des embranchements sans effet visuel (classe CSS incomplète)
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `test_backstage_branch_collapse_and_header_order.js`
+
+**Contexte** : Jules-Antoine signale que le bouton de repli des embranchements (ajouté plus tôt dans la session) ne fonctionne pas — la flèche change d'état au clic, mais rien ne se replie visuellement. Diagnostic : la règle CSS qui masque un bloc replié est un sélecteur composé, `.list-block-body.collapsed { display: none; }` (jamais `.collapsed` seule) — Intro/Outro avaient bien la classe de base `list-block-body` en plus de `collapsed`, mais le corps du panneau d'embranchements (`branchesBody`, ajouté juste après) ne portait QUE `collapsed`, sans `list-block-body`. Le JS posait donc la classe correctement (`classList.toggle('collapsed')` fonctionnait, d'où la flèche qui changeait), mais aucune règle CSS ne matchait une classe `collapsed` isolée : rien ne se masquait. Mon test précédent ne l'avait pas attrapé car il vérifiait la présence de la classe, pas le rendu visuel réel.
+
+**Changement** : classe de base `list-block-body` ajoutée au corps repliable du panneau d'embranchements, même schéma exact qu'Intro/Outro.
+
+**Vérification** : `test_backstage_branch_collapse_and_header_order.js` renforcé pour vérifier le **rendu réel** (`getComputedStyle(...).display === 'none'`) plutôt que la seule présence de la classe CSS — jsdom résout correctement les sélecteurs composés simples (`.a.b`) via `getComputedStyle`, vérifié séparément avant de fiabiliser le test dessus. Contre-preuve : le test réintroduit temporairement le bug d'origine dans une copie et confirme qu'il est bien détecté (échec), puis repasse entièrement au vert sur le fichier corrigé. Les 17 autres suites relancées intégralement — toutes vertes.
+
+---
+
 ## [2026-08-13] — "Aller vers la fin" masqué sans outro, repli des embranchements, ordre de l'en-tête
 
 **Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `test_seq_no_outro_goto_end.js` (nouveau), `test_backstage_branch_collapse_and_header_order.js` (nouveau)
