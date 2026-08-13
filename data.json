@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1786637345955,
+  "publishedAt": 1786637484069,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -1391,7 +1391,8 @@
         "bmrc8rec1wtahz",
         "bmresp3hdlhbmx",
         "bmrc8vlgamn4fl",
-        "bmrdjlv9p1cbv9"
+        "bmrdjlv9p1cbv9",
+        "bmsrox5psn3r4k"
       ],
       "trackOverrides": {
         "bmrc8rec1wtahz": {
@@ -1416,6 +1417,9 @@
         },
         "bmresp3hdlhbmx": {
           "description": "It’s pitch black... The tension rises. Why did you rush ahead without waiting for the team? That’s the question running through your mind right now. The door at the end of the hallway is slightly ajar, letting through a thin beam of light. So... what do you do? Do you keep chasing to prevent them from escaping, risking walking into a trap? Or do you wait for the team? Breathe. Slowly. Deeply... And make a decision.\n\nAn intro, an outro... In between, randomly selected 8- or 16-bar segments. Pure sequential tension-building music..."
+        },
+        "bmsrox5psn3r4k": {
+          "description": "(1_Wet Dark Cave)\n“Okay guys, spread out. If the map is right, we shouldn’t be too far from the core of the Matrix!”\n\n(2_The Corridor)\n\n* “Hey Joe! A door just opened!”\n* “Watch out, Lucien. Those bastards are everywhere…”\n* “I think it’s this way. I can hear something. Shall we go?”\n* “Okay… But don’t go too far. This shit is making me nervous.”\n\nYour team moves forward… and eventually finds a secret lever that opens a hidden door. You make your way into a long, dark corridor. The tension is rising.\n\n(3_Battle)\n\n* “THEY’RE COMING!!! Formation! Fire at will! Goddamn robots, they’re everywhere!”\n* “Boss, what do we do? Boss?? Boss?!”\n\nYou emerge into a huge cavern… where hundreds of robots catch you off guard and open fire. Maybe you should’ve saved your game after all…"
         }
       }
     },
