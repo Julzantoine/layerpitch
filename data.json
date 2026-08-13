@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1786640755357,
+  "publishedAt": 1786640907148,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -160,7 +160,7 @@
           "alternatives": [
             {
               "label": "#3 RobotAdventure BattleFinal 160bpm 40M",
-              "bars": 40,
+              "bars": 30,
               "file": "slot2-0-3-robotadventure-battlefinal-160bpm-40m.ogg",
               "gain": 1.156
             }
