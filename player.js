@@ -1470,6 +1470,15 @@ function initTrackPlayer(track, wrapper) {
     if (goToEndBtn) { goToEndBtn.disabled = false; goToEndBtn.textContent = t('goToEndBtn'); }
     const cutStyle = sourceSlot.cutStyle || 'fade';
     const now = ctx.currentTime;
+    const opt = (sourceSlot.nextOptions || []).find(o => o.targetId === targetId);
+    const oi = opt ? sourceSlot.nextOptions.indexOf(opt) : -1;
+    const transitionBuf = (oi >= 0 && transitionBuffers[sourceSlotIdx]) ? transitionBuffers[sourceSlotIdx][oi] : null;
+    const transitionDurationSec = transitionBuf ? blockSeconds(opt.transition && opt.transition.bars, sourceSlot) : null;
+    // Trois styles de coupure : "hard" (fin nette), "fade" (fondu court fixe, 0.15s — même durée que les
+    // autres fondus courts du morceau, solo/muet, embranchement-vertical), "custom" (durée choisie par le
+    // compositeur, `sourceSlot.customCutFadeSec`, en secondes réelles — pas en mesures, un fondu de sortie
+    // n'a pas besoin d'être quantifié musicalement comme un segment).
+    const fadeOutSec = cutStyle === 'custom' ? (sourceSlot.customCutFadeSec || 0.15) : 0.15;
     if (currentSeqBlockInfo.gainNode) {
       const g = currentSeqBlockInfo.gainNode;
       g.gain.cancelScheduledValues(now);
@@ -1477,7 +1486,7 @@ function initTrackPlayer(track, wrapper) {
         g.gain.setValueAtTime(0, now);
       } else {
         g.gain.setValueAtTime(g.gain.value, now);
-        g.gain.linearRampToValueAtTime(0, now + 0.15); // même durée que les autres fondus courts du morceau (solo/muet, embranchement-vertical)
+        g.gain.linearRampToValueAtTime(0, now + fadeOutSec);
       }
     }
     // Le scheduler normal programme jusqu'à 1s à l'avance (voir seqSchedulerTick) : au moment d'une coupure,
@@ -1496,13 +1505,10 @@ function initTrackPlayer(track, wrapper) {
       return true;
     });
     seqTimeouts.forEach(id => clearTimeout(id)); seqTimeouts = [];
-    const opt = (sourceSlot.nextOptions || []).find(o => o.targetId === targetId);
-    const oi = opt ? sourceSlot.nextOptions.indexOf(opt) : -1;
-    const transitionBuf = (oi >= 0 && transitionBuffers[sourceSlotIdx]) ? transitionBuffers[sourceSlotIdx][oi] : null;
     if (transitionBuf) {
       forcedNextBlock = {
         buffer: transitionBuf, label: (opt.transition && opt.transition.label) || t('transitionFallbackLabel'),
-        durationSec: blockSeconds(opt.transition && opt.transition.bars, sourceSlot), terminal: false, kind: 'transition',
+        durationSec: transitionDurationSec, terminal: false, kind: 'transition',
         gain: effGain(opt.transition), slotIdx: -1
       };
     }
