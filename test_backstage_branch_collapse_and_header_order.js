@@ -76,12 +76,18 @@ const path = require('path');
   setValue(quantSelect, 'immediate');
   check('la valeur saisie est bien reflétée', quantSelect.value === 'immediate');
 
-  // ---- 2) Ordre des boutons dans l'en-tête de la carte de morceau ----
+  // ---- 2) Ordre des boutons dans l'en-tête de la carte de morceau : repli / titre / flèches ----
   const headLeft = q('.list-block-head-left');
   const buttons = [...headLeft.querySelectorAll('button')];
   const actions = buttons.map(b => b.dataset.action);
-  check('ordre des boutons d\'en-tête : repli en premier, puis les flèches (' + actions.join(', ') + ')',
+  check('ordre des boutons d\'en-tête : repli, puis les flèches, de part et d\'autre du titre (' + actions.join(', ') + ')',
     JSON.stringify(actions) === JSON.stringify(['toggle-collapse-track', 'move-track-up', 'move-track-down']));
+  const toggleBtn = headLeft.querySelector('[data-action="toggle-collapse-track"]');
+  const titleEl = headLeft.querySelector('strong');
+  const upBtn = headLeft.querySelector('[data-action="move-track-up"]');
+  check('le titre est bien positionné entre le bouton de repli et les flèches',
+    toggleBtn.compareDocumentPosition(titleEl) & window.Node.DOCUMENT_POSITION_FOLLOWING
+    && titleEl.compareDocumentPosition(upBtn) & window.Node.DOCUMENT_POSITION_FOLLOWING);
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
