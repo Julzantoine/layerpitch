@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1786636715569,
+  "publishedAt": 1786637345955,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -658,7 +658,7 @@
     {
       "id": "bmsrox5psn3r4k",
       "title": "Robot Adventure",
-      "description": "",
+      "description": "(1_Wet Dark Cave)\n\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\n(2_The Corridor)\n- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nVotre team avance... et finit par trouver un levier secret qui ouvre une porte dérobée... Vous vous engagez dans un long corridor sombre, la tension monte. \n\n(3_Battle)\n- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait? Chef?? Chef?!\"\n\nVous débouchez sur une grande caverne...où des centaines de robots vous prennent au dépourvu et vous mitraillent. Peut être que vous auriez dû sauvegarder avant, finalement...",
       "mode": "sequential",
       "loopable": false,
       "implementationNote": "",
