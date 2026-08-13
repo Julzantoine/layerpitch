@@ -8,6 +8,22 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-13] — Intro/Outro repliés par défaut (séquentiel) + réorganisation de la bibliothèque
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `test_backstage_intro_outro_collapse_and_reorder.js` (nouveau)
+
+**Contexte** : deux demandes indépendantes de Jules-Antoine.
+1. Dans l'éditeur d'un morceau séquentiel, les blocs Intro et Outro étaient toujours entièrement dépliés (label, mesures, sélecteur de rôle, contrôle de fichier) — occupaient de la place même une fois configurés et plus besoin d'y toucher.
+2. Aucun moyen de changer l'ordre des morceaux dans la bibliothèque — possible à tous les niveaux inférieurs (sections, emplacements, boucles nommées) mais pas au niveau de la bibliothèque elle-même.
+
+**Changement** :
+- Nouveau mécanisme générique `collapsibleBlockToggleHtml()`/`wireCollapsibleBlockToggle()` pour replier un bloc isolé (par opposition à `altPoolToggleHtml`/`wireAltPoolToggle`, déjà existant, qui replie une liste de *variations*) — réutilise la même Map `expandedAltPoolKeys` (clés `intro:${ti}`/`outro:${ti}`, distinctes des clés de pools existantes) plutôt que d'introduire un second Set redondant. Appliqué aux blocs Intro et Outro du mode séquentiel uniquement (pas touché au vertical-random, qui a son propre rendu intro/outro, non concerné par la demande). Repliés par défaut ; l'icône d'aide contextuelle (`data-help`) déplacée du `<label>` d'origine vers le bouton de repli, pour rester accessible même replié.
+- Boutons ↑/↓ (`move-track-up`/`move-track-down`) ajoutés dans l'en-tête de chaque carte de morceau, même principe exact que `move-section-up`/`move-slot-up`/`move-embr-loop-up` déjà en place (échange de deux éléments adjacents du tableau `library`, désactivés en butée). Aucun impact sur les AdReels/Packs existants : ils référencent les morceaux par `id`, pas par position dans `library`.
+
+**Vérification** : `test_backstage_intro_outro_collapse_and_reorder.js` (nouveau) — repli par défaut d'Intro et Outro, dépli/repli au clic, champs toujours fonctionnels une fois dépliés (non-régression), et réorganisation de trois morceaux (monter/descendre, boutons désactivés en butée). Les 13 suites existantes relancées intégralement — toutes vertes.
+
+---
+
 ## [2026-08-13] — Troisième style de coupure : durée de fondu personnalisée
 
 **Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `layerpitch-help.js`, `test_seq_custom_cut_fade.js` (nouveau)
