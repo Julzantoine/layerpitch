@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1786640907148,
+  "publishedAt": 1786641134958,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -145,6 +145,7 @@
           "quantization": "bar",
           "cutStyle": "custom",
           "customCutFadeSec": 1,
+          "bpm": 160,
           "nextOptions": [
             {
               "targetId": "bmsroyqkw2curh",
@@ -160,7 +161,7 @@
           "alternatives": [
             {
               "label": "#3 RobotAdventure BattleFinal 160bpm 40M",
-              "bars": 30,
+              "bars": 40,
               "file": "slot2-0-3-robotadventure-battlefinal-160bpm-40m.ogg",
               "gain": 1.156
             }
