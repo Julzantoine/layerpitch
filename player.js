@@ -714,7 +714,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
         </div>
         <div class="seq-branch-options" data-role="seqBranchOptions"></div>
         <div class="seq-pending-indicator" data-role="seqPendingIndicator" style="display:none">${t('pendingBranchLabel')}</div>
-        <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled>${t('goToEndBtn')}</button>
+        <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled ${hasOutro ? '' : 'style="display:none"'}>${t('goToEndBtn')}</button>
       </div>
     `;
   }
