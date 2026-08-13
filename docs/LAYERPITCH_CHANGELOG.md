@@ -8,6 +8,37 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-13] — "Aller vers la fin" masqué sans outro, repli des embranchements, ordre de l'en-tête
+
+**Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `test_seq_no_outro_goto_end.js` (nouveau), `test_backstage_branch_collapse_and_header_order.js` (nouveau)
+
+**Contexte** : trois demandes de Jules-Antoine.
+1. En séquentiel (lecteur public), le bouton "Aller vers la fin" restait affiché même sans outro déclarée (avec un texte de repli "fin après le segment en cours") — jugé inutile/déroutant sans véritable outro.
+2. Le panneau de réglages des embranchements (quantification, style de coupure, durée personnalisée, liste des options) n'était pas repliable, contrairement à Intro/Outro (13/08, plus tôt dans la session).
+3. Dans l'en-tête de carte de morceau, l'ordre voulu est : bouton replier/déplier, puis le titre, puis les flèches de réorganisation — mauvaise interprétation la première fois (flèches avant le titre).
+
+**Changement** :
+- `player.js` : le bouton `goToEndBtn` du mode séquentiel (`seqGraphHtml`) est maintenant masqué (`style="display:none"`) quand `layerHasSource(track.outro)` est faux — reste dans le DOM (pas retiré) pour que tout le code existant qui le référence (`goToEndBtn.disabled = ...`, `.textContent = ...`) continue de fonctionner sans risque de référence nulle. Le `goToEndBtn` du vertical-random (bloc séparé, `voiceGraphHtml`) n'est pas concerné — demande limitée au séquentiel.
+- `layerpitch-backstage.html` : panneau "embranchements" enveloppé dans le même mécanisme générique que Intro/Outro (`collapsibleBlockToggleHtml`/`wireCollapsibleBlockToggle`, clé `branches:${ti}:${si}`) — mais avec un dépli automatique dès l'activation de la case "Prévoir des embranchements" (sinon le panneau disparaîtrait juste après l'avoir coché, déroutant), replié par défaut aux rendus suivants.
+- `layerpitch-backstage.html` : en-tête de carte de morceau réordonné — `[toggle▾][titre][↑][↓]` (repli, puis titre, puis flèches).
+- `layerpitch-i18n.js` (zone `backstage`, fr/en) : nouvelle clé `branchOptionsToggleLabel`.
+
+**Vérification** : `test_seq_no_outro_goto_end.js` (nouveau) — bouton masqué sans outro, visible avec (non-régression). `test_backstage_branch_collapse_and_header_order.js` (nouveau) — panneau absent avant activation, déplié juste après, repli au clic, état persistant après re-rendu, champs toujours fonctionnels une fois redéplié, et ordre exact des boutons d'en-tête. Les 16 suites existantes relancées intégralement — toutes vertes.
+
+---
+
+## [2026-08-13] — Bug : durées de fondu personnalisées perdues à la publication
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `test_backstage_custom_cut_fade_roundtrip.js` (nouveau)
+
+**Contexte** : Jules-Antoine signale que les durées de fondu personnalisées (`cutStyle: 'custom'`, ajouté plus tôt dans la session) ne fonctionnent pas. Diagnostic : `customCutFadeSec` avait bien été ajouté au formulaire et à l'aperçu local (`buildPreviewTrack`), mais **pas** aux deux autres endroits où `segmentSlots` est sérialisé — la vraie fonction de publication (`data.json`, autour de la ligne 5619) et la fonction de chargement d'un morceau déjà publié dans l'éditeur (autour de la ligne 5050). `cutStyle: 'custom'` partait bien en publication, mais `customCutFadeSec` lui-même se perdait en route : le site publié retombait silencieusement sur le fondu par défaut de 0.15s, sans erreur visible. Même trou exact pour le tempo par emplacement (`bpm`/`beatsPerBar`, fonctionnalité antérieure de cette même session) — présent nulle part ailleurs que dans l'aperçu local non plus, donc lui aussi cassé en publication sans que ça ait été signalé.
+
+**Changement** : `customCutFadeSec`, `bpm`, `beatsPerBar` ajoutés aux deux mappings `segmentSlots` manquants (publication et chargement), en plus de celui de l'aperçu déjà corrigé. Trois points de sérialisation au total pour ces champs, désormais tous alignés. `describeSequential()` (texte descriptif généré, ex. pour les notes d'implémentation) corrigé au passage pour ne plus afficher "fondu de 0.15s" sur un emplacement en durée personnalisée.
+
+**Vérification** : `test_backstage_custom_cut_fade_roundtrip.js` (nouveau) extrait directement les deux mappings corrigés du code source (même principe que `test-section-scheduler.js`/`test-slot-chain-advancer.js` pour `player.js` — aucune dépendance réseau/DOM nécessaire) et vérifie que `customCutFadeSec`/`bpm`/`beatsPerBar` survivent à un aller-retour publication et chargement. Les 14 suites existantes relancées intégralement — toutes vertes.
+
+---
+
 ## [2026-08-13] — Intro/Outro repliés par défaut (séquentiel) + réorganisation de la bibliothèque
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `test_backstage_intro_outro_collapse_and_reorder.js` (nouveau)
