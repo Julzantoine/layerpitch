@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1786639797271,
+  "publishedAt": 1786640146298,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -84,7 +84,7 @@
           "repeatCount": 1,
           "quantization": "bar",
           "cutStyle": "custom",
-          "customCutFadeSec": 8,
+          "customCutFadeSec": 1,
           "nextOptions": [
             {
               "targetId": "bmsroyqkwf73ti",
@@ -114,7 +114,7 @@
           "repeatCount": 1,
           "quantization": "beat",
           "cutStyle": "custom",
-          "customCutFadeSec": 8,
+          "customCutFadeSec": 1,
           "nextOptions": [
             {
               "targetId": "bmsroyqkw5wacj",
@@ -143,7 +143,8 @@
           "referencesSlotId": null,
           "repeatCount": 1,
           "quantization": "bar",
-          "cutStyle": "fade",
+          "cutStyle": "custom",
+          "customCutFadeSec": 1,
           "nextOptions": [
             {
               "targetId": "bmsroyqkw2curh",
