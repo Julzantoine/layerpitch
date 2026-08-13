@@ -33,18 +33,18 @@
   .row { display: flex; gap: 12px; }
   .row > div { flex: 1; }
   .hint-inline { color: #999; font-size: 10px; margin-top: 3px; }
-  [data-role="fixedLayers"], [data-role="alternatives"], [data-role="segments"], [data-role="allBlocksDrop"] { border-radius: 6px; transition: background 0.15s, outline 0.15s; }
-  [data-role="fixedLayers"]:empty, [data-role="alternatives"]:empty, [data-role="segments"]:empty {
+  [data-role="poolAlternatives"], [data-role="slotAlternatives"], [data-role="allBlocksDrop"] { border-radius: 6px; transition: background 0.15s, outline 0.15s; }
+  [data-role="poolAlternatives"]:empty, [data-role="slotAlternatives"]:empty {
     border: 1px dashed #d5d5da; min-height: 44px; display: flex; align-items: center; justify-content: center;
   }
-  [data-role="fixedLayers"]:empty::before, [data-role="alternatives"]:empty::before, [data-role="segments"]:empty::before {
+  [data-role="poolAlternatives"]:empty::before, [data-role="slotAlternatives"]:empty::before {
     content: var(--drop-hint-text, 'Glisse des fichiers ici'); color: #aaa; font-size: 11px;
   }
   [data-role="allBlocksDrop"] {
     border: 1px dashed #d5d5da; min-height: 44px; display: flex; align-items: center; justify-content: center;
   }
   [data-role="allBlocksDrop"]::before { content: var(--drop-all-hint-text, 'Dépose tous tes fichiers ici'); color: #aaa; font-size: 11px; }
-  [data-role="fixedLayers"].drag-over, [data-role="alternatives"].drag-over, [data-role="segments"].drag-over, [data-role="allBlocksDrop"].drag-over { background: #eef6ff; outline: 2px dashed #2f80c0; outline-offset: 2px; }
+  [data-role="poolAlternatives"].drag-over, [data-role="slotAlternatives"].drag-over, [data-role="allBlocksDrop"].drag-over { background: #eef6ff; outline: 2px dashed #2f80c0; outline-offset: 2px; }
   .hint { color: #888; font-size: 11px; margin-top: 4px; }
   .lang-toggle { display: flex; gap: 6px; margin: 14px 0; }
   .lang-toggle button { font-size: 11px; padding: 4px 10px; border-radius: 10px; border: 1px solid #d8d8dc; background: transparent; color: #888; cursor: pointer; }
@@ -61,6 +61,17 @@
 
   .list-block { border: 1px solid #e2e2e6; border-radius: 6px; padding: 14px; margin-bottom: 10px; background: #f7f7f8; }
   .list-block-head { display: flex; justify-content: space-between; margin-bottom: 8px; }
+
+  /* Panneaux emboîtés dans une carte d'emplacement/pool (.list-block) : sans cadre propre, un embranchement
+     ou une liste d'alternatives se fond visuellement dans la carte parente (signalé par Jules-Antoine le
+     06/08). Liseré bleu (même bleu --accent que le retour visuel du drag-over, déjà associé au choix/à
+     l'interactif dans cette appli) pour les embranchements ; liseré neutre + fond plus clair que la carte
+     parente pour les alternatives, qui ne sont pas un choix du visiteur mais du contenu. */
+  .branch-options-panel { margin-top: 10px; padding: 12px; border-radius: 6px; border-left: 3px solid var(--accent); background: #f1f8fd; }
+  .branch-options-panel .hint-inline:first-child { margin-top: 0; }
+  .branch-options-panel .row { margin-top: 8px; }
+  .branch-options-panel .row:first-of-type { margin-top: 10px; }
+  .alt-pool-panel { border-left: 3px solid #d8d8dc; background: #ffffff; padding: 12px; border-radius: 6px; }
 
   .layer-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #e8e8ec; }
   .layer-row input[type=text] { flex: 0 0 140px; }
@@ -202,6 +213,17 @@
   .voice-ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
   .voice-ctrl-btn[data-voice-action="solo"].active { background: var(--accent); border-color: var(--accent); color: #fff; }
   .voice-ctrl-btn[data-voice-action="mute"].active { background: #b5442e; border-color: #b5442e; color: #fff; }
+  /* Volume par voix : slider continu sous la ligne existante (label + vumètre + S/M en vertical
+     classique, ligne du haut en vertical-random), aligné sous le vumètre pour rester dans le même
+     champ visuel plutôt qu'un ajout qui semblerait étranger au reste du mixer. */
+  .voice-row-wrap { padding: 3px 0; }
+  .voice-row-wrap .voice-row { padding: 0; }
+  .voice-volume-row { display: flex; align-items: center; gap: 6px; padding-left: 138px; }
+  .wwise-node-voice .voice-volume-row { padding-left: 0; margin-top: 2px; }
+  .voice-volume-row input[type="range"] { flex: 1; max-width: 160px; -webkit-appearance: none; appearance: none; height: 3px; border-radius: 2px; background: var(--border); outline: none; cursor: pointer; }
+  .voice-volume-row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  .voice-volume-row input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer; }
+  .voice-volume-value { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--text-dimmer); min-width: 32px; text-align: right; flex-shrink: 0; }
   .wwise-node-wave { position: relative; width: 100%; height: 30px; border-radius: 3px; overflow: hidden; background: var(--bg); }
   .wwise-wave-bg, .wwise-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .wwise-wave-fg { clip-path: inset(0 100% 0 0); }
@@ -214,6 +236,7 @@
   .seq-block { flex: 1; height: 34px; border-radius: 4px; border: 1px solid var(--border); position: relative; overflow: hidden; background: transparent; }
   .seq-block-wave-bg, .seq-block-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .seq-block-wave-fg { clip-path: inset(0 100% 0 0); }
+  .vr-block-fill { position: absolute; inset: 0; width: 0%; background: var(--accent); opacity: 0.28; }
   .seq-block.active { border-color: var(--accent); }
   .seq-block-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.03em; color: var(--text-dim); z-index: 1; padding: 0 4px; text-align: center; text-shadow: 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff); }
   .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
@@ -679,9 +702,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1786637484069"></script>
-<script src="layerpitch-help.js?v=1786637484069"></script>
-<script src="player.js?v=1786637484069"></script>
+<script src="layerpitch-i18n.js"></script>
+<script src="layerpitch-help.js"></script>
+<script src="player.js"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -1141,7 +1164,6 @@ function buildTrackSelectorWidget(hostEl, selectedIds, onChange, overridesObj) {
   const expandedOverrides = new Set(); // état d'affichage de l'éditeur de surcharge, local à ce widget (pas persistant entre rendus de page)
 
   function layersOf(track) {
-    if (track.mode === 'vertical-random') return track.fixedLayers || [];
     if (track.mode === 'vertical') return track.layers || [];
     return [];
   }
@@ -1693,29 +1715,38 @@ function buildPreviewTrack(track) {
     loopOutBeat: track.loopOutBeat,
     startTrackBeat: track.startTrackBeat || 0,
     maxLoops: (track.maxLoops !== undefined && track.maxLoops !== null) ? track.maxLoops : null,
-    normalizeVolume: !!track.normalizeVolume,
+    maxChainLoops: (track.maxChainLoops !== undefined && track.maxChainLoops !== null) ? track.maxChainLoops : null,
     noAiOverride: (track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : null,
     duration: track.duration || 0,
     base: `https://${owner}.github.io/${repo}/audio/${track.id}/`,
     publishedAt: Date.now(), // aperçu local : toujours frais à chaque clic sur "Écouter", pas besoin d'attendre une publication pour retrouver la bonne version
     layers: (track.layers || []).map(mapItem).filter(Boolean),
-    fixedLayers: (track.fixedLayers || []).map(mapItem).filter(Boolean),
-    randomGroups: (track.randomGroups || []).map(g => ({
-      id: g.id, label: g.label, avoidImmediateRepeat: g.avoidImmediateRepeat, referencesGroupId: g.referencesGroupId || null,
-      alternatives: (g.alternatives || []).map(mapAlternative)
-    })),
     intro: mapBlockWithBars(track.intro),
     outro: mapItem(track.outro),
     segmentSlots: (track.segmentSlots || []).map(sl => ({
       id: sl.id, label: sl.label, avoidImmediateRepeat: sl.avoidImmediateRepeat,
       referencesSlotId: sl.referencesSlotId || null, repeatCount: sl.repeatCount || 1,
+      quantization: sl.quantization || 'bar', cutStyle: sl.cutStyle || 'fade', customCutFadeSec: sl.customCutFadeSec,
+      bpm: sl.bpm, beatsPerBar: sl.beatsPerBar,
+      nextOptions: sl.nextOptions ? sl.nextOptions.map(opt => ({ targetId: opt.targetId, label: opt.label || '', transition: opt.transition ? mapBlockWithBars(opt.transition) : null })) : null,
       alternatives: (sl.alternatives || []).map(mapAlternativeWithBars)
     })),
-    // Mode "Vertical random séquentiel" : le moteur de lecture (player.js) ne sait pas encore l'interpréter
-    // (chantier suivant) — la structure est déjà correctement transmise en prévision de ce chantier.
+    // Une entrée par boucle déclarée, y compris sans fichier — l'index doit rester aligné avec celui
+    // utilisé par les boutons nommés du lecteur (data-loop-idx), contrairement à `layers` ci-dessus qui,
+    // lui, filtre les entrées vides (le vertical classique n'a pas cette contrainte d'alignement par id).
+    loops: (track.loops || []).map(l => {
+      const m = mapItem(l) || {};
+      return { id: l.id, label: l.label || '', bars: l.bars || 8, isInitial: !!l.isInitial, localFile: m.localFile || null, file: m.file || null, gain: m.gain };
+    }),
+    // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : le moteur de lecture
+    // (player.js) ne sait pas encore l'interpréter dans ce nouveau format (chantier suivant) — la structure
+    // est déjà correctement transmise en prévision de ce chantier.
     randomizeSections: !!track.randomizeSections,
     sections: (track.sections || []).map(sec => ({
-      id: sec.id, label: sec.label, bars: sec.bars || 8, referencesSectionId: sec.referencesSectionId || null,
+      id: sec.id, label: sec.label, referencesSectionId: sec.referencesSectionId || null,
+      bpm: sec.bpm || 120, beatsPerBar: sec.beatsPerBar || 4, startTrackBeat: sec.startTrackBeat || 0,
+      loopInBeat: sec.loopInBeat || 0, loopOutBeat: sec.loopOutBeat || 16,
+      maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
       pools: (sec.pools || []).map(p => ({
         id: p.id, label: p.label, avoidImmediateRepeat: p.avoidImmediateRepeat,
         alternatives: (p.alternatives || []).map(mapAlternative)
@@ -1738,11 +1769,11 @@ function togglePreview(ti, cardEl) {
   const hasFile = f => !!(f && (f.pendingFile || f.remoteFile));
   let hasAnyFile;
   if (track.mode === 'vertical-random') {
-    hasAnyFile = (track.fixedLayers || []).some(hasFile) || (track.randomGroups || []).some(g => (g.alternatives || []).some(hasFile));
+    hasAnyFile = hasFile(track.intro) || hasFile(track.outro) || (track.sections || []).some(sec => (sec.pools || []).some(p => (p.alternatives || []).some(hasFile)));
   } else if (track.mode === 'sequential') {
     hasAnyFile = hasFile(track.intro) || hasFile(track.outro) || (track.segmentSlots || []).some(sl => (sl.alternatives || []).some(hasFile));
-  } else if (track.mode === 'vertical-random-sequential') {
-    hasAnyFile = hasFile(track.intro) || hasFile(track.outro) || (track.sections || []).some(sec => (sec.pools || []).some(p => (p.alternatives || []).some(hasFile)));
+  } else if (track.mode === 'embranchement-vertical') {
+    hasAnyFile = (track.loops || []).some(hasFile);
   } else {
     hasAnyFile = (track.layers || []).some(hasFile);
   }
@@ -1801,14 +1832,18 @@ async function probeAudioDuration(file) {
 // visuelle : graduations de mesures/temps + 3 repères glissables (Départ / Entrée boucle / Sortie
 // boucle), aimantés au temps le plus proche. Pas de waveform décodée — uniquement duration/BPM,
 // déjà présents dans le schéma.
-function buildLoopTimelineEl(track, ti, cardEl) {
+// timingOwner : objet possédant bpm/beatsPerBar/duration/startTrackBeat/loopInBeat/loopOutBeat — le morceau
+// lui-même pour les modes qui n'ont qu'une seule zone de tempo (séquentiel quantifié, boucle simple/quantifiée),
+// ou une section pour le mode vertical-random (chaque section a désormais sa propre timeline, comme un vrai
+// segment Wwise indépendant — cf. discussion du 30/07).
+function buildLoopTimelineEl(timingOwner, ti, cardEl) {
   const wrap = document.createElement('div');
   wrap.className = 'loop-timeline';
 
-  const bpm = track.bpm || 120;
-  const beatsPerBar = track.beatsPerBar || 4;
+  const bpm = timingOwner.bpm || 120;
+  const beatsPerBar = timingOwner.beatsPerBar || 4;
   const spb = 60 / bpm;
-  const duration = track.duration || 0;
+  const duration = timingOwner.duration || 0;
 
   if (!duration) {
     wrap.innerHTML = `<div class="loop-timeline-placeholder">${tr('chooseFileFirstHint')}</div>`;
@@ -1816,9 +1851,9 @@ function buildLoopTimelineEl(track, ti, cardEl) {
   }
 
   const totalBeats = Math.max(1, Math.round(duration / spb));
-  let startTrackBeat = Math.max(0, Math.min(track.startTrackBeat || 0, totalBeats));
-  let loopInBeat = Math.max(0, Math.min(track.loopInBeat || 0, totalBeats));
-  let loopOutBeat = Math.max(0, Math.min(track.loopOutBeat || totalBeats, totalBeats));
+  let startTrackBeat = Math.max(0, Math.min(timingOwner.startTrackBeat || 0, totalBeats));
+  let loopInBeat = Math.max(0, Math.min(timingOwner.loopInBeat || 0, totalBeats));
+  let loopOutBeat = Math.max(0, Math.min(timingOwner.loopOutBeat || totalBeats, totalBeats));
 
   const ruler = document.createElement('div');
   ruler.className = 'loop-timeline-ruler';
@@ -1876,9 +1911,9 @@ function buildLoopTimelineEl(track, ti, cardEl) {
         ruler.removeEventListener('pointermove', onMove);
         ruler.removeEventListener('pointerup', onUp);
         const finalBeat = h.dataset.pendingBeat !== undefined ? parseInt(h.dataset.pendingBeat, 10) : beat;
-        if (kind === 'start') track.startTrackBeat = finalBeat;
-        else if (kind === 'loopin') track.loopInBeat = finalBeat;
-        else if (kind === 'loopout') track.loopOutBeat = finalBeat;
+        if (kind === 'start') timingOwner.startTrackBeat = finalBeat;
+        else if (kind === 'loopin') timingOwner.loopInBeat = finalBeat;
+        else if (kind === 'loopout') timingOwner.loopOutBeat = finalBeat;
         hasUnsavedEdits = true;
         renderLibrary();
         if (blockTracksRefresh) blockTracksRefresh();
@@ -1975,17 +2010,17 @@ function renderLibrary() {
     const isStatic = track.mode === 'static';
     const isVerticalRandom = track.mode === 'vertical-random';
     const isSequential = track.mode === 'sequential';
-    // Hybride "Vertical random séquentiel" : des sections chaînées dans le temps (comme le séquentiel),
-    // chacune contenant plusieurs pools simultanés randomisés (comme le vertical-random) — voir la
-    // distinction actée avec Jules-Antoine : différent du futur "vertical additif randomisé" (qui lui
-    // porte sur un contrôle d'intensité par le visiteur, absent ici).
-    const isVerticalRandomSequential = track.mode === 'vertical-random-sequential';
+    const isEmbrVert = track.mode === 'embranchement-vertical';
     const loops = !isStatic || !!track.loopable;
     const beatsPerBar = track.beatsPerBar || 4;
     const bpm = track.bpm || 120;
     // Détermine si la section "Tempo" aura le moindre contenu à afficher, pour ne pas montrer un repère
     // de section vide (statique non bouclable : aucun champ de tempo, ni tempo classique non quantifié).
-    const hasTempoSection = isVerticalRandom || isSequential || isVerticalRandomSequential || loops;
+    // Le vertical-random n'a plus de tempo au niveau du morceau : chaque section a désormais son propre
+    // tempo/timeline (comme un vrai segment Wwise indépendant) — affiché dans la section Structure, pas ici.
+    // L'embranchement-vertical a toujours un BPM/mesures au niveau du morceau (calage commun à toutes les
+    // boucles), jamais le choix "simple vs quantifié" — ses boucles sont TOUJOURS calées, par définition.
+    const hasTempoSection = isSequential || isEmbrVert || (loops && !isVerticalRandom);
     const el = document.createElement('div');
     el.className = 'list-block';
     const trackCollapsed = collapsedTrackIds.has(track.id);
@@ -2010,8 +2045,7 @@ function renderLibrary() {
         <option value="vertical"${track.mode === 'vertical' ? ' selected' : ''}>${tr('modeOptionVertical')}</option>
         <option value="vertical-random"${track.mode === 'vertical-random' ? ' selected' : ''}>${tr('modeOptionVerticalRandom')}</option>
         <option value="sequential"${track.mode === 'sequential' ? ' selected' : ''}>${tr('modeOptionSequential')}</option>
-        <option value="vertical-random-sequential"${track.mode === 'vertical-random-sequential' ? ' selected' : ''}>${tr('modeOptionVerticalRandomSequential')}</option>
-        <option value="branching" disabled>${tr('modeOptionBranching')}</option>
+        <option value="embranchement-vertical"${track.mode === 'embranchement-vertical' ? ' selected' : ''}>${tr('modeOptionEmbranchementVertical')}</option>
         <option value="vertical-additive-random" disabled>${tr('modeOptionVerticalAdditiveRandom')}</option>
         <option value="vertical-additive-sequential" disabled>${tr('modeOptionVerticalAdditiveSequential')}</option>
         <option value="vertical-additive-sequential-random" disabled>${tr('modeOptionVerticalAdditiveSequentialRandom')}</option>
@@ -2023,34 +2057,26 @@ function renderLibrary() {
         </label>
       ` : ''}
       ${hasTempoSection ? sectionEyebrow(tr('trackSectionTempo')) : ''}
-      ${isVerticalRandom ? `
-        <label data-help="bpmMeasuresVerticalRandom" style="margin-top:14px">${tr('bpmMeasuresLabel')}</label>
-        <div class="row" style="margin-top:8px">
-          <div><label>${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-field="bpm" data-ti="${ti}" value="${bpm}"></div>
-          <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" data-field="beatsPerBar" data-ti="${ti}" value="${beatsPerBar}"></div>
-        </div>
-        <label data-help="loopPointsVerticalRandom" style="margin-top:8px">${tr('loopPointsLabel')}</label>
-        <div data-role="loopTimelineHost" data-ti="${ti}"></div>
-        <div class="hint-inline">${tr('loopTimelineHintVerticalRandom')}</div>
-        <label data-help="defaultLoopCount" style="margin-top:10px">${tr('defaultLoopCountLabel')}</label>
-        <select data-field="maxLoops" data-ti="${ti}">
-          <option value=""${!track.maxLoops ? ' selected' : ''}>${tr('infiniteLoops')}</option>
-          ${[1,2,3,5,10].map(n => `<option value="${n}"${track.maxLoops === n ? ' selected' : ''}>${n}</option>`).join('')}
-        </select>
-        <div class="hint-inline">${tr('loopCountVisitorHint')}</div>
-      ` : (isSequential ? `
+      ${isSequential ? `
         <label data-help="bpmMeasuresSequential" style="margin-top:14px">${tr('bpmMeasuresLabel')}</label>
         <div class="row" style="margin-top:8px">
           <div><label>${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-field="bpm" data-ti="${ti}" value="${bpm}"></div>
           <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" data-field="beatsPerBar" data-ti="${ti}" value="${beatsPerBar}"></div>
         </div>
-      ` : (isVerticalRandomSequential ? `
-        <label data-help="bpmMeasuresVerticalRandomSequential" style="margin-top:14px">${tr('bpmMeasuresLabel')}</label>
+        <label data-help="maxChainLoops" style="margin-top:10px">${tr('maxChainLoopsLabel')}</label>
+        <select data-field="maxChainLoops" data-ti="${ti}">
+          <option value=""${!track.maxChainLoops ? ' selected' : ''}>${tr('infiniteLoops')}</option>
+          ${[1,2,3,5,10].map(n => `<option value="${n}"${track.maxChainLoops === n ? ' selected' : ''}>${n}</option>`).join('')}
+        </select>
+        <div class="hint-inline">${tr('maxChainLoopsHint')}</div>
+      ` : (isEmbrVert ? `
+        <label data-help="bpmMeasuresEmbrVert" style="margin-top:14px">${tr('bpmMeasuresLabel')}</label>
         <div class="row" style="margin-top:8px">
           <div><label>${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-field="bpm" data-ti="${ti}" value="${bpm}"></div>
           <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" data-field="beatsPerBar" data-ti="${ti}" value="${beatsPerBar}"></div>
         </div>
-      ` : (loops ? `
+        <div class="hint-inline">${tr('embrBpmHint')}</div>
+      ` : (loops && !isVerticalRandom ? `
         <label data-help="loopEngine" style="margin-top:14px">${tr('loopEngineLabel')}</label>
         <select data-field="loopEngine" data-ti="${ti}">
           <option value="simple"${track.loopEngine !== 'quantized' ? ' selected' : ''}>${tr('loopEngineSimple')}</option>
@@ -2071,7 +2097,7 @@ function renderLibrary() {
           </select>
           <div class="hint-inline">${tr('loopCountVisitorHint')}</div>
         ` : ''}
-      ` : '')))}
+      ` : ''))}
       ${sectionEyebrow(tr('trackSectionContent'))}
       <label data-help="trackDescription">${tr('descriptionLabel')}</label><textarea class="linkable" data-field="description" data-ti="${ti}">${track.description}</textarea>
       <label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
@@ -2080,14 +2106,35 @@ function renderLibrary() {
       </label>
       ${sectionEyebrow(tr('trackSectionStructure'))}
       ${isVerticalRandom ? `
-        <label data-help="fixedLayers" style="margin-top:14px">${tr('fixedLayersLabel')}</label>
-        ${!(track.fixedLayers && track.fixedLayers.some(f => f.pendingFile || f.remoteFile)) ? `<div class="hint-inline" style="color:#b45309">${tr('noFixedFileWarning')}</div>` : ''}
-        <div class="hint-inline">${tr('fixedLayersDropHint')}</div>
-        <div data-role="fixedLayers"></div>
-        <div class="actions"><button class="btn btn-small" data-action="add-fixed-layer" data-ti="${ti}">${tr('addFixedLayerBtn')}</button></div>
-        <label data-help="randomGroups" style="margin-top:14px">${tr('randomGroupsLabel')}</label>
-        <div data-role="randomGroups"></div>
-        <div class="actions"><button class="btn btn-small" data-action="add-group" data-ti="${ti}">${tr('addGroupBtn')}</button></div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:14px;">
+          <input type="checkbox" data-field="randomizeSections" data-ti="${ti}" ${track.randomizeSections ? 'checked' : ''} style="width:auto;margin:0;">
+          <span data-help="randomizeSections" style="color:#444;font-size:12px;">${tr('randomizeSectionsLabel')}</span>
+        </label>
+        <div class="hint-inline">${tr('randomizeSectionsHint')}</div>
+        <label data-help="maxChainLoopsVerticalRandom" style="margin-top:14px">${tr('maxChainLoopsLabel')}</label>
+        <select data-field="maxChainLoops" data-ti="${ti}">
+          <option value=""${!track.maxChainLoops ? ' selected' : ''}>${tr('infiniteLoops')}</option>
+          ${[1,2,3,5,10].map(n => `<option value="${n}"${track.maxChainLoops === n ? ' selected' : ''}>${n}</option>`).join('')}
+        </select>
+        <div class="hint-inline">${tr('maxChainLoopsHintVerticalRandom')}</div>
+        <label data-help="introSectionVrs" style="margin-top:18px">${tr('introSectionLabel')}</label>
+        <div data-role="introCtrl"></div>
+        <div class="row" style="margin-top:8px">
+          <div><label>${tr('nameFieldLabel')}</label><input type="text" data-field="introLabel" data-ti="${ti}" value="${escapeAttr(track.intro && track.intro.label)}"></div>
+          <div><label>${tr('barsLabel')}</label><input type="text" inputmode="numeric" data-field="introBars" data-ti="${ti}" value="${(track.intro && track.intro.bars) || 8}"></div>
+        </div>
+        <div class="hint-inline">${tr('introTailHintVrs')}</div>
+        <label data-help="vrsSections" style="margin-top:14px">${tr('vrsSectionsLabel')}</label>
+        ${!(track.sections && track.sections.some(sec => (sec.pools || []).some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile)))) ? `<div class="hint-inline" style="color:#b45309">${tr('noSectionWarning')}</div>` : ''}
+        <div class="hint-inline">${tr('vrsSectionsOrderHint')}</div>
+        <div data-role="vrsSections"></div>
+        <div class="actions"><button class="btn btn-small" data-action="add-section" data-ti="${ti}">${tr('addSectionBtn')}</button></div>
+        <label data-help="outroSection" style="margin-top:14px">${tr('outroSectionLabel')}</label>
+        <div data-role="outroCtrl"></div>
+        <div class="row" style="margin-top:8px">
+          <div><label>${tr('nameFieldLabel')}</label><input type="text" data-field="outroLabel" data-ti="${ti}" value="${escapeAttr(track.outro && track.outro.label)}"></div>
+        </div>
+        <div class="hint-inline">${tr('noOutroHint')}</div>
       ` : (isSequential ? `
         <label data-help="batchDropSequential" style="margin-top:14px">${tr('batchDropLabel')}</label>
         <div class="hint-inline">${tr('batchDropHint')}</div>
@@ -2124,30 +2171,13 @@ function renderLibrary() {
           </div>
         </div>
         <div class="hint-inline">${tr('noOutroHint')}</div>
-      ` : (isVerticalRandomSequential ? `
-        <label style="display:flex;align-items:center;gap:8px;margin-top:14px;">
-          <input type="checkbox" data-field="randomizeSections" data-ti="${ti}" ${track.randomizeSections ? 'checked' : ''} style="width:auto;margin:0;">
-          <span data-help="randomizeSections" style="color:#444;font-size:12px;">${tr('randomizeSectionsLabel')}</span>
-        </label>
-        <div class="hint-inline">${tr('randomizeSectionsHint')}</div>
-        <label data-help="introSectionVrs" style="margin-top:18px">${tr('introSectionLabel')}</label>
-        <div data-role="introCtrl"></div>
-        <div class="row" style="margin-top:8px">
-          <div><label>${tr('nameFieldLabel')}</label><input type="text" data-field="introLabel" data-ti="${ti}" value="${escapeAttr(track.intro && track.intro.label)}"></div>
-          <div><label>${tr('barsLabel')}</label><input type="text" inputmode="numeric" data-field="introBars" data-ti="${ti}" value="${(track.intro && track.intro.bars) || 8}"></div>
-        </div>
-        <div class="hint-inline">${tr('introTailHintVrs')}</div>
-        <label data-help="vrsSections" style="margin-top:14px">${tr('vrsSectionsLabel')}</label>
-        ${!(track.sections && track.sections.some(sec => (sec.pools || []).some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile)))) ? `<div class="hint-inline" style="color:#b45309">${tr('noSectionWarning')}</div>` : ''}
-        <div class="hint-inline">${tr('vrsSectionsOrderHint')}</div>
-        <div data-role="vrsSections"></div>
-        <div class="actions"><button class="btn btn-small" data-action="add-section" data-ti="${ti}">${tr('addSectionBtn')}</button></div>
-        <label data-help="outroSection" style="margin-top:14px">${tr('outroSectionLabel')}</label>
-        <div data-role="outroCtrl"></div>
-        <div class="row" style="margin-top:8px">
-          <div><label>${tr('nameFieldLabel')}</label><input type="text" data-field="outroLabel" data-ti="${ti}" value="${escapeAttr(track.outro && track.outro.label)}"></div>
-        </div>
-        <div class="hint-inline">${tr('noOutroHint')}</div>
+      ` : (isEmbrVert ? `
+        <label data-help="embrLoopsSection" style="margin-top:14px">${tr('embrLoopsLabelBackstage')}</label>
+        ${!(track.loops && track.loops.some(l => l.pendingFile || l.remoteFile)) ? `<div class="hint-inline" style="color:#b45309">${tr('noEmbrLoopWarning')}</div>` : ''}
+        <div class="hint-inline">${tr('embrLoopsHint')}</div>
+        <div class="hint-inline">${tr('embrLoopsDropHint')}</div>
+        <div data-role="embrLoops"></div>
+        <div class="actions"><button class="btn btn-small" data-action="add-embr-loop" data-ti="${ti}">${tr('addEmbrLoopBtn')}</button></div>
       ` : `
         <label${isStatic ? '' : ' data-help="layersVertical"'} style="margin-top:14px">${isStatic ? tr('audioTrackLabel') : tr('layersLabel')}</label>
         <div data-role="layers"></div>
@@ -2177,127 +2207,165 @@ function renderLibrary() {
     }
 
     if (isVerticalRandom) {
-      if (!track.fixedLayers) track.fixedLayers = track.fixedLayer ? [track.fixedLayer] : [];
-      if (!track.randomGroups) track.randomGroups = [];
+      if (!track.sections) track.sections = [];
+      if (!track.intro) track.intro = { label: 'Intro', bars: 8, remoteFile: null, pendingFile: null };
+      if (!track.outro) track.outro = { label: 'Outro', remoteFile: null, pendingFile: null };
 
-      const fixedHost = el.querySelector('[data-role="fixedLayers"]');
-      track.fixedLayers.forEach((fixed, fli) => {
-        const key = `fixed:${ti}:${fli}`;
-        const rowCollapsed = collapsedLayerKeys.has(key);
-        const fixedRow = document.createElement('div');
-        fixedRow.className = 'list-block';
-        fixedRow.style.marginBottom = '8px';
-        fixedRow.innerHTML = `
+      const introCtrlHost = el.querySelector('[data-role="introCtrl"]');
+      introCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'));
+      wireFileControl(introCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
+        () => track.intro.pendingFile, () => track.intro.remoteFile,
+        f => {
+          track.intro.pendingFile = f;
+          hasUnsavedEdits = true;
+          if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilename(f.name);
+          renderLibrary();
+          probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } });
+        });
+
+      const outroCtrlHost = el.querySelector('[data-role="outroCtrl"]');
+      outroCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'));
+      wireFileControl(outroCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
+        () => track.outro.pendingFile, () => track.outro.remoteFile,
+        f => {
+          track.outro.pendingFile = f;
+          hasUnsavedEdits = true;
+          renderLibrary();
+          probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } });
+        });
+
+      const sectionsHost = el.querySelector('[data-role="vrsSections"]');
+      track.sections.forEach((section, sci) => {
+        if (!section.pools) section.pools = [];
+        // Chaque section a désormais son propre tempo/timeline (comme un vrai segment Wwise indépendant,
+        // cf. discussion du 30/07) — valeurs par défaut identiques à l'ancien réglage unique du morceau.
+        if (!section.bpm) section.bpm = 120;
+        if (!section.beatsPerBar) section.beatsPerBar = 4;
+        if (section.startTrackBeat === undefined) section.startTrackBeat = 0;
+        if (section.loopInBeat === undefined) section.loopInBeat = 0;
+        if (section.loopOutBeat === undefined) section.loopOutBeat = 16;
+        if (section.duration === undefined) section.duration = 0;
+        if (section.maxLoops === undefined) section.maxLoops = null;
+        const sectionBpm = section.bpm || 120;
+        const sectionBeatsPerBar = section.beatsPerBar || 4;
+        const sectionEl = document.createElement('div');
+        sectionEl.className = 'list-block';
+        sectionEl.style.marginBottom = '10px';
+        const isDuplicate = !!section.referencesSectionId;
+        const sourceSection = isDuplicate ? track.sections.find(s2 => s2.id === section.referencesSectionId) : null;
+        const hasAnyFile = isDuplicate
+          ? !!(sourceSection && sourceSection.pools.some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile)))
+          : section.pools.some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile));
+        // Sections pouvant servir de source à dupliquer : n'importe quelle autre section qui n'est pas
+        // elle-même une duplication (même garde-fou qu'ailleurs — une seule indirection, pas de chaîne).
+        const duplicatableOptions = track.sections.filter((s2, osci) => osci !== sci && !s2.referencesSectionId);
+        const isReferencedByOthers = track.sections.some(s2 => s2.referencesSectionId === section.id);
+        sectionEl.innerHTML = `
           <div class="list-block-head">
             <div class="list-block-head-left">
-              <button class="btn btn-icon btn-toggle-collapse" data-action="toggle-collapse-layer" data-key="${key}" type="button">${rowCollapsed ? '▸' : '▾'}</button>
-              <strong>${escapeAttr(fixed.label) || tr('fixedLayerFallback', { n: fli + 1 })}</strong>
+              <button class="btn btn-icon" data-action="move-section-up" data-ti="${ti}" data-si="${sci}" ${sci === 0 ? 'disabled' : ''} title="${tr('moveUpBtn')}">↑</button>
+              <button class="btn btn-icon" data-action="move-section-down" data-ti="${ti}" data-si="${sci}" ${sci === track.sections.length - 1 ? 'disabled' : ''} title="${tr('moveDownBtn')}">↓</button>
             </div>
-          </div>
-          <div class="list-block-body${rowCollapsed ? ' collapsed' : ''}">
-            <label>${tr('nameFieldLabel')}</label>
-            <input type="text" placeholder="${tr('namePlaceholderFixed')}" data-fixed-field="label" data-ti="${ti}" data-fli="${fli}" value="${escapeAttr(fixed.label)}" style="margin-bottom:8px">
-            <div data-role="fixedFileCtrl"></div>
-          </div>
-        `;
-        const fixedCtrlHost = fixedRow.querySelector('[data-role="fixedFileCtrl"]');
-        fixedCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'), deleteIconBtnHtml('remove-fixed-layer', { ti, fli }, tr('removeFixedLayerBtn')));
-        wireFileControl(fixedCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
-          () => fixed.pendingFile, () => fixed.remoteFile,
-          f => {
-            fixed.pendingFile = f;
-            hasUnsavedEdits = true;
-            if (!fixed.label || !fixed.label.trim()) fixed.label = titleFromFilename(f.name);
-            if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilename(f.name);
-            renderLibrary();
-            probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } });
-          });
-        fixedHost.appendChild(fixedRow);
-      });
-      wireBatchDrop(fixedHost, files => {
-        files.forEach(f => track.fixedLayers.push({ label: titleFromFilename(f.name), remoteFile: null, pendingFile: f }));
-        hasUnsavedEdits = true;
-        if ((!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) && files[0]) track.title = titleFromFilename(files[0].name);
-        renderLibrary();
-        Promise.all(files.map(probeAudioDuration)).then(durs => {
-          const maxDur = Math.max(0, ...durs);
-          if (maxDur > (track.duration || 0)) { track.duration = maxDur; renderLibrary(); }
-        });
-      });
-
-      const groupsHost = el.querySelector('[data-role="randomGroups"]');
-      track.randomGroups.forEach((group, gi) => {
-        const groupEl = document.createElement('div');
-        groupEl.className = 'list-block';
-        groupEl.style.marginBottom = '10px';
-        const isDuplicate = !!group.referencesGroupId;
-        const sourceGroup = isDuplicate ? track.randomGroups.find(g => g.id === group.referencesGroupId) : null;
-        const hasAnyFile = isDuplicate ? !!(sourceGroup && sourceGroup.alternatives.some(a => a.pendingFile || a.remoteFile)) : group.alternatives.some(a => a.pendingFile || a.remoteFile);
-        const duplicatableOptions = track.randomGroups.filter((g, ogi) => ogi !== gi && !g.referencesGroupId);
-        // Même garde-fou anti-chaîne que les emplacements séquentiels : un groupe qui sert déjà de source
-        // à un autre ne peut pas à son tour devenir un duplicata (une seule indirection).
-        const isReferencedByOthers = track.randomGroups.some(g => g.referencesGroupId === group.id);
-        groupEl.innerHTML = `
-          <div class="list-block-head">
-            <input type="text" placeholder="${tr('groupNamePlaceholder')}" data-group-field="label" data-ti="${ti}" data-gi="${gi}" value="${escapeAttr(group.label)}" style="flex:1;margin-right:8px;">
-            <button class="btn btn-small btn-danger" data-action="remove-group" data-ti="${ti}" data-gi="${gi}">${tr('removeGroupBtn')}</button>
+            <input type="text" placeholder="${tr('sectionNamePlaceholder')}" data-section-field="label" data-ti="${ti}" data-si="${sci}" value="${escapeAttr(section.label)}" style="flex:1;margin:0 8px;">
+            <button class="btn btn-small btn-danger" data-action="remove-section" data-ti="${ti}" data-si="${sci}">${tr('removeSectionBtn')}</button>
           </div>
           ${!hasAnyFile ? `<div class="hint-inline" style="color:#b45309">${tr('noAltFileWarning')}</div>` : ''}
-          <label data-help="groupContentSource" style="margin-top:8px">${tr('slotContentSourceLabel')}</label>
-          <select data-group-field="referencesGroupId" data-ti="${ti}" data-gi="${gi}" ${isReferencedByOthers ? 'disabled' : ''}>
+          <label data-help="slotContentSource" style="margin-top:8px">${tr('slotContentSourceLabel')}</label>
+          <select data-section-field="referencesSectionId" data-ti="${ti}" data-si="${sci}" ${isReferencedByOthers ? 'disabled' : ''}>
             <option value="">${tr('slotContentOwnOption')}</option>
-            ${duplicatableOptions.map(other => `<option value="${other.id}" ${group.referencesGroupId === other.id ? 'selected' : ''}>${tr('slotContentDuplicateOption', { label: escapeAttr(other.label) || tr('untitledFallback') })}</option>`).join('')}
+            ${duplicatableOptions.map(other => `<option value="${other.id}" ${section.referencesSectionId === other.id ? 'selected' : ''}>${tr('slotContentDuplicateOption', { label: escapeAttr(other.label) || tr('untitledFallback') })}</option>`).join('')}
           </select>
           ${isReferencedByOthers ? `<div class="hint-inline">${tr('slotIsSourceHint')}</div>` : ''}
           ${isDuplicate ? `
-            <div class="hint-inline">${tr('groupDuplicateHint', { label: escapeAttr((sourceGroup && sourceGroup.label) || tr('untitledFallback')) })}</div>
+            <div class="hint-inline">${tr('sectionDuplicateHint', { label: escapeAttr((sourceSection && sourceSection.label) || tr('untitledFallback')) })}</div>
           ` : `
+            <label data-help="bpmMeasuresVerticalRandom" style="margin-top:14px">${tr('bpmMeasuresLabel')}</label>
+            <div class="row" style="margin-top:8px">
+              <div><label>${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-section-field="bpm" data-ti="${ti}" data-si="${sci}" value="${sectionBpm}"></div>
+              <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" data-section-field="beatsPerBar" data-ti="${ti}" data-si="${sci}" value="${sectionBeatsPerBar}"></div>
+            </div>
+            <label data-help="loopPointsVerticalRandom" style="margin-top:8px">${tr('loopPointsLabel')}</label>
+            <div data-role="loopTimelineHost" data-ti="${ti}" data-si="${sci}"></div>
+            <div class="hint-inline">${tr('loopTimelineHintVerticalRandom')}</div>
+            <label data-help="defaultLoopCount" style="margin-top:10px">${tr('defaultLoopCountLabel')}</label>
+            <select data-section-field="maxLoops" data-ti="${ti}" data-si="${sci}">
+              <option value=""${!section.maxLoops ? ' selected' : ''}>${tr('infiniteLoops')}</option>
+              ${[1,2,3,5,10].map(n => `<option value="${n}"${section.maxLoops === n ? ' selected' : ''}>${n}</option>`).join('')}
+            </select>
+            <div class="hint-inline">${tr('loopCountVisitorHint')}</div>
+            <label data-help="vrsPools" style="margin-top:14px">${tr('vrsPoolsLabel')}</label>
+            <div data-role="vrsPools"></div>
+            <div class="actions"><button class="btn btn-small" data-action="add-pool" data-ti="${ti}" data-si="${sci}">${tr('addPoolBtn')}</button></div>
+          `}
+        `;
+        if (isDuplicate) { sectionsHost.appendChild(sectionEl); return; }
+
+        const timelineHost = sectionEl.querySelector('[data-role="loopTimelineHost"]');
+        if (timelineHost) timelineHost.appendChild(buildLoopTimelineEl(section, ti, el));
+
+        const poolsHost = sectionEl.querySelector('[data-role="vrsPools"]');
+        section.pools.forEach((pool, pi) => {
+          if (!pool.alternatives) pool.alternatives = [];
+          const poolEl = document.createElement('div');
+          poolEl.className = 'list-block';
+          poolEl.style.marginBottom = '8px';
+          const poolHasFile = pool.alternatives.some(a => a.pendingFile || a.remoteFile);
+          poolEl.innerHTML = `
+            <div class="list-block-head">
+              <input type="text" placeholder="${tr('poolNamePlaceholder')}" data-pool-field="label" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" value="${escapeAttr(pool.label)}" style="flex:1;margin-right:8px;">
+              <button class="btn btn-small btn-danger" data-action="remove-pool" data-ti="${ti}" data-si="${sci}" data-pi="${pi}">${tr('removePoolBtn')}</button>
+            </div>
+            ${!poolHasFile ? `<div class="hint-inline" style="color:#b45309">${tr('noAltFileWarning')}</div>` : ''}
             <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-              <input type="checkbox" data-group-field="avoidImmediateRepeat" data-ti="${ti}" data-gi="${gi}" ${group.avoidImmediateRepeat ? 'checked' : ''} style="width:auto;margin:0;">
+              <input type="checkbox" data-pool-field="avoidImmediateRepeat" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" ${pool.avoidImmediateRepeat ? 'checked' : ''} style="width:auto;margin:0;">
               <span style="color:#444;font-size:12px;">${tr('avoidRepeatAltLabel')}</span>
             </label>
             <div class="hint-inline">${tr('silentAltHint')}</div>
             <div class="hint-inline">${tr('altDropHint')}</div>
-            <div style="margin-top:10px">${altPoolToggleHtml(`grouppool:${ti}:${gi}`, group.alternatives.length)}</div>
-            <div class="list-block-body${expandedAltPoolKeys.has(`grouppool:${ti}:${gi}`) ? '' : ' collapsed'}" data-role="altPoolBody" style="margin-top:8px">
-              <div data-role="alternatives"></div>
-              <div class="actions"><button class="btn btn-small" data-action="add-alternative" data-ti="${ti}" data-gi="${gi}">${tr('addAlternativeBtn')}</button></div>
+            <div style="margin-top:10px">${altPoolToggleHtml(`vrspool:${ti}:${sci}:${pi}`, pool.alternatives.length)}</div>
+            <div class="list-block-body alt-pool-panel${expandedAltPoolKeys.has(`vrspool:${ti}:${sci}:${pi}`) ? '' : ' collapsed'}" data-role="altPoolBody" style="margin-top:8px">
+              <div data-role="poolAlternatives"></div>
+              <div class="actions"><button class="btn btn-small" data-action="add-pool-alt" data-ti="${ti}" data-si="${sci}" data-pi="${pi}">${tr('addAlternativeBtn')}</button></div>
             </div>
-          `}
-        `;
-        if (isDuplicate) { groupsHost.appendChild(groupEl); return; }
-        wireAltPoolToggle(groupEl);
-        const altsHost = groupEl.querySelector('[data-role="alternatives"]');
-        group.alternatives.forEach((alt, ai) => {
-          const altRow = document.createElement('div');
-          altRow.className = 'list-block';
-          altRow.style.marginBottom = '8px';
-          altRow.innerHTML = `
-            <label>${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('altLabelPlaceholder')}" data-alt-field="label" data-ti="${ti}" data-gi="${gi}" data-ai="${ai}" value="${escapeAttr(alt.label)}" style="margin-bottom:8px">
-            <div data-role="altFileCtrl"></div>
           `;
-          const altCtrlHost = altRow.querySelector('[data-role="altFileCtrl"]');
-          altCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'), deleteIconBtnHtml('remove-alternative', { ti, gi, ai }, tr('removeAlternativeBtn')));
-          wireFileControl(altCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
-            () => alt.pendingFile, () => alt.remoteFile,
-            f => {
-              alt.pendingFile = f;
-              hasUnsavedEdits = true;
-              if (!alt.label || !alt.label.trim()) { alt.label = titleFromFilename(f.name); renderLibrary(); }
-              probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } });
-            });
-          altsHost.appendChild(altRow);
-        });
-        wireBatchDrop(altsHost, files => {
-          files.forEach(f => group.alternatives.push({ label: titleFromFilename(f.name), remoteFile: null, pendingFile: f }));
-          hasUnsavedEdits = true;
-          renderLibrary();
-          Promise.all(files.map(probeAudioDuration)).then(durs => {
-            const maxDur = Math.max(0, ...durs);
-            if (maxDur > (track.duration || 0)) { track.duration = maxDur; renderLibrary(); }
+          wireAltPoolToggle(poolEl);
+          const altsHost = poolEl.querySelector('[data-role="poolAlternatives"]');
+          pool.alternatives.forEach((alt, ai) => {
+            const altRow = document.createElement('div');
+            altRow.className = 'list-block';
+            altRow.style.marginBottom = '8px';
+            altRow.innerHTML = `
+              <label>${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('altLabelPlaceholder')}" data-pool-alt-field="label" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" data-ai="${ai}" value="${escapeAttr(alt.label)}" style="margin-bottom:8px">
+              <div data-role="poolAltFileCtrl"></div>
+            `;
+            const altCtrlHost = altRow.querySelector('[data-role="poolAltFileCtrl"]');
+            altCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'), deleteIconBtnHtml('remove-pool-alt', { ti, si: sci, pi, ai }, tr('removeAlternativeBtn')));
+            wireFileControl(altCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
+              () => alt.pendingFile, () => alt.remoteFile,
+              f => {
+                alt.pendingFile = f;
+                hasUnsavedEdits = true;
+                if (!alt.label || !alt.label.trim()) { alt.label = titleFromFilename(f.name); renderLibrary(); }
+                probeAudioDuration(f).then(dur => {
+                  if (dur > (section.duration || 0)) { section.duration = dur; renderLibrary(); }
+                  if (dur > (track.duration || 0)) { track.duration = dur; }
+                });
+              });
+            altsHost.appendChild(altRow);
           });
+          wireBatchDrop(altsHost, files => {
+            files.forEach(f => pool.alternatives.push({ label: titleFromFilename(f.name), remoteFile: null, pendingFile: f }));
+            hasUnsavedEdits = true;
+            renderLibrary();
+            Promise.all(files.map(probeAudioDuration)).then(durs => {
+              const maxDur = Math.max(0, ...durs);
+              if (maxDur > (section.duration || 0)) { section.duration = maxDur; renderLibrary(); }
+              if (maxDur > (track.duration || 0)) { track.duration = maxDur; }
+            });
+          });
+          poolsHost.appendChild(poolEl);
         });
-        groupsHost.appendChild(groupEl);
+        sectionsHost.appendChild(sectionEl);
       });
     } else if (isSequential) {
       if (!track.segmentSlots) track.segmentSlots = [];
@@ -2317,7 +2385,7 @@ function renderLibrary() {
             } else if (guess === 'outro' && !outroTaken) {
               track.outro = { label: titleFromFilename(f.name), remoteFile: null, pendingFile: f };
             } else {
-              track.segmentSlots.push({ id: genId(), label: '', avoidImmediateRepeat: true, alternatives: [{ label: titleFromFilename(f.name), bars: 8, remoteFile: null, pendingFile: f }] });
+              track.segmentSlots.push({ id: genId(), label: titleFromFilename(f.name), avoidImmediateRepeat: true, alternatives: [{ label: titleFromFilename(f.name), bars: 8, remoteFile: null, pendingFile: f }] });
             }
           });
           hasUnsavedEdits = true;
@@ -2392,8 +2460,52 @@ function renderLibrary() {
               </select>
             </div>
           </div>
+          ${!isDuplicate ? `
+            <label data-help="slotBpmOverride" style="margin-top:8px">${tr('slotBpmOverrideLabel')}</label>
+            <div class="row" style="margin-top:8px">
+              <div><label>${tr('bpmLabel')}</label><input type="text" inputmode="decimal" placeholder="${bpm}" data-slot-field="bpm" data-ti="${ti}" data-si="${si}" value="${slot.bpm || ''}"></div>
+              <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" placeholder="${beatsPerBar}" data-slot-field="beatsPerBar" data-ti="${ti}" data-si="${si}" value="${slot.beatsPerBar || ''}"></div>
+            </div>
+            <div class="hint-inline">${tr('slotBpmOverrideHint')}</div>
+          ` : ''}
           ${isReferencedByOthers ? `<div class="hint-inline">${tr('slotIsSourceHint')}</div>` : ''}
           <div class="hint-inline">${tr('repeatCountHint')}</div>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+            <input type="checkbox" data-slot-field="hasBranches" data-ti="${ti}" data-si="${si}" ${(slot.nextOptions && slot.nextOptions.length) ? 'checked' : ''} style="width:auto;margin:0;">
+            <span data-help="slotHasBranches" style="color:#444;font-size:12px;">${tr('hasBranchesLabel')}</span>
+          </label>
+          ${(slot.nextOptions && slot.nextOptions.length) ? `
+            <div class="branch-options-panel">
+              <div class="hint-inline">${tr('branchOptionsHint')}</div>
+              <div class="row" style="margin-top:8px">
+                <div>
+                  <label data-help="slotQuantization">${tr('quantizationLabel')}</label>
+                  <select data-slot-field="quantization" data-ti="${ti}" data-si="${si}">
+                    <option value="immediate"${(slot.quantization || 'bar') === 'immediate' ? ' selected' : ''}>${tr('quantizationImmediate')}</option>
+                    <option value="beat"${(slot.quantization || 'bar') === 'beat' ? ' selected' : ''}>${tr('quantizationBeat')}</option>
+                    <option value="bar"${(slot.quantization || 'bar') === 'bar' ? ' selected' : ''}>${tr('quantizationBar')}</option>
+                  </select>
+                </div>
+                <div>
+                  <label data-help="slotCutStyle">${tr('cutStyleLabel')}</label>
+                  <select data-slot-field="cutStyle" data-ti="${ti}" data-si="${si}">
+                    <option value="fade"${(slot.cutStyle || 'fade') === 'fade' ? ' selected' : ''}>${tr('cutStyleFade')}</option>
+                    <option value="hard"${(slot.cutStyle || 'fade') === 'hard' ? ' selected' : ''}>${tr('cutStyleHard')}</option>
+                    <option value="custom"${slot.cutStyle === 'custom' ? ' selected' : ''}>${tr('cutStyleCustom')}</option>
+                  </select>
+                </div>
+              </div>
+              ${slot.cutStyle === 'custom' ? `
+                <div style="margin-top:8px">
+                  <label data-help="slotCustomCutFade">${tr('customCutFadeLabel')}</label>
+                  <input type="range" min="0" max="8" step="0.05" data-slot-field="customCutFadeSec" data-ti="${ti}" data-si="${si}" value="${slot.customCutFadeSec != null ? slot.customCutFadeSec : 0.15}">
+                  <span class="hint-inline" data-role="customCutFadeValue">${(slot.customCutFadeSec != null ? slot.customCutFadeSec : 0.15).toFixed(2)}s</span>
+                </div>
+              ` : ''}
+              <div data-role="branchOptions"></div>
+              <div class="actions"><button class="btn btn-small" data-action="add-branch-option" data-ti="${ti}" data-si="${si}">${tr('addBranchOptionBtn')}</button></div>
+            </div>
+          ` : ''}
           ${isDuplicate ? `
             <div class="hint-inline">${tr('slotDuplicateHint', { label: escapeAttr((sourceSlot && sourceSlot.label) || tr('untitledFallback')) })}</div>
           ` : `
@@ -2404,12 +2516,68 @@ function renderLibrary() {
             <div class="hint-inline">${tr('silentAltHint')}</div>
             <div class="hint-inline">${tr('altDropHint')}</div>
             <div style="margin-top:10px">${altPoolToggleHtml(`slotpool:${ti}:${si}`, slot.alternatives.length)}</div>
-            <div class="list-block-body${expandedAltPoolKeys.has(`slotpool:${ti}:${si}`) ? '' : ' collapsed'}" data-role="altPoolBody" style="margin-top:8px">
+            <div class="list-block-body alt-pool-panel${expandedAltPoolKeys.has(`slotpool:${ti}:${si}`) ? '' : ' collapsed'}" data-role="altPoolBody" style="margin-top:8px">
               <div data-role="slotAlternatives"></div>
               <div class="actions"><button class="btn btn-small" data-action="add-slot-alternative" data-ti="${ti}" data-si="${si}">${tr('addAlternativeBtn')}</button></div>
             </div>
           `}
         `;
+        // Les options d'embranchement dépendent des libellés de TOUS les emplacements (qui peuvent changer
+        // à tout moment) : construites dynamiquement ici plutôt que figées dans le gabarit HTML statique
+        // ci-dessus — même principe que le <select> "dupliquer le contenu de" un peu plus haut. Placé AVANT
+        // le retour anticipé sur emplacement dupliqué : le contenu audio peut être dupliqué, la position
+        // dans la chaîne (donc les embranchements) reste une propriété propre à CET emplacement.
+        const branchOptionsHost = slotEl.querySelector('[data-role="branchOptions"]');
+        if (branchOptionsHost && slot.nextOptions) {
+          slot.nextOptions.forEach((opt, bi) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'list-block';
+            wrap.style.marginTop = '8px';
+            const targetOptionsHtml = track.segmentSlots.map((sl, tsi) => tsi === si ? '' :
+              `<option value="${sl.id}" ${opt.targetId === sl.id ? 'selected' : ''}>${escapeAttr(sl.label) || tr('slotFallback', { n: tsi + 1 })}</option>`
+            ).join('');
+            const hasTransitionFile = !!(opt.transition && (opt.transition.pendingFile || opt.transition.remoteFile));
+            wrap.innerHTML = `
+              <div class="row">
+                <div>
+                  <label>${tr('branchTargetLabel')}</label>
+                  <select data-branch-field="targetId" data-ti="${ti}" data-si="${si}" data-bi="${bi}">${targetOptionsHtml}</select>
+                </div>
+                <div>
+                  <label>${tr('branchLabelOverrideLabel')}</label>
+                  <input type="text" placeholder="${tr('branchLabelOverridePlaceholder')}" data-branch-field="label" data-ti="${ti}" data-si="${si}" data-bi="${bi}" value="${escapeAttr(opt.label)}">
+                </div>
+                <button class="btn btn-icon btn-danger" data-action="remove-branch-option" data-ti="${ti}" data-si="${si}" data-bi="${bi}" title="${tr('removeBranchOptionBtn')}" style="align-self:flex-end">×</button>
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+                <input type="checkbox" data-branch-field="hasTransition" data-ti="${ti}" data-si="${si}" data-bi="${bi}" ${opt.transition ? 'checked' : ''} style="width:auto;margin:0;">
+                <span data-help="branchTransition" style="color:#444;font-size:12px;">${tr('hasTransitionLabel')}</span>
+              </label>
+              ${opt.transition ? `
+                <div class="hint-inline">${tr('transitionHint')}</div>
+                ${!hasTransitionFile ? `<div class="hint-inline" style="color:#b45309">${tr('noTransitionFileWarning')}</div>` : ''}
+                <div class="row" style="margin-top:6px">
+                  <div><label>${tr('barsLabel')}</label><input type="text" inputmode="numeric" data-branch-transition-field="bars" data-ti="${ti}" data-si="${si}" data-bi="${bi}" value="${opt.transition.bars || 4}"></div>
+                  <div><label>${tr('branchLabelOverrideLabel')}</label><input type="text" placeholder="${tr('transitionNamePlaceholder')}" data-branch-transition-field="label" data-ti="${ti}" data-si="${si}" data-bi="${bi}" value="${escapeAttr(opt.transition.label)}"></div>
+                </div>
+                <div data-role="transitionFileCtrl" style="margin-top:6px"></div>
+              ` : ''}
+            `;
+            branchOptionsHost.appendChild(wrap);
+            if (opt.transition) {
+              const ctrlHost = wrap.querySelector('[data-role="transitionFileCtrl"]');
+              ctrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'));
+              wireFileControl(ctrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
+                () => opt.transition.pendingFile, () => opt.transition.remoteFile,
+                f => {
+                  opt.transition.pendingFile = f;
+                  hasUnsavedEdits = true;
+                  if (!opt.transition.label || !opt.transition.label.trim()) opt.transition.label = titleFromFilename(f.name);
+                  renderLibrary();
+                });
+            }
+          });
+        }
         if (isDuplicate) { slotsHost.appendChild(slotEl); return; }
         wireAltPoolToggle(slotEl);
         const altsHost = slotEl.querySelector('[data-role="slotAlternatives"]');
@@ -2458,7 +2626,7 @@ function renderLibrary() {
         // Dépôt direct sur la zone "Emplacements" (pas dans un emplacement précis) : chaque fichier crée son
         // propre emplacement plutôt que de les regrouper comme alternatives d'un même emplacement — l'intérêt
         // des emplacements, c'est justement de distinguer des parties différentes de la structure.
-        files.forEach(f => track.segmentSlots.push({ id: genId(), label: '', avoidImmediateRepeat: true, alternatives: [{ label: titleFromFilename(f.name), bars: 8, remoteFile: null, pendingFile: f }] }));
+        files.forEach(f => track.segmentSlots.push({ id: genId(), label: titleFromFilename(f.name), avoidImmediateRepeat: true, alternatives: [{ label: titleFromFilename(f.name), bars: 8, remoteFile: null, pendingFile: f }] }));
         hasUnsavedEdits = true;
         renderLibrary();
         Promise.all(files.map(probeAudioDuration)).then(durs => {
@@ -2466,141 +2634,65 @@ function renderLibrary() {
           if (maxDur > (track.duration || 0)) { track.duration = maxDur; renderLibrary(); }
         });
       });
-    } else if (isVerticalRandomSequential) {
-      if (!track.sections) track.sections = [];
-      if (!track.intro) track.intro = { label: 'Intro', bars: 8, remoteFile: null, pendingFile: null };
-      if (!track.outro) track.outro = { label: 'Outro', remoteFile: null, pendingFile: null };
-
-      const introCtrlHost = el.querySelector('[data-role="introCtrl"]');
-      introCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'));
-      wireFileControl(introCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
-        () => track.intro.pendingFile, () => track.intro.remoteFile,
-        f => {
-          track.intro.pendingFile = f;
-          hasUnsavedEdits = true;
-          if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilename(f.name);
-          renderLibrary();
-          probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } });
-        });
-
-      const outroCtrlHost = el.querySelector('[data-role="outroCtrl"]');
-      outroCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'));
-      wireFileControl(outroCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
-        () => track.outro.pendingFile, () => track.outro.remoteFile,
-        f => {
-          track.outro.pendingFile = f;
-          hasUnsavedEdits = true;
-          renderLibrary();
-          probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } });
-        });
-
-      const sectionsHost = el.querySelector('[data-role="vrsSections"]');
-      track.sections.forEach((section, sci) => {
-        if (!section.pools) section.pools = [];
-        const sectionEl = document.createElement('div');
-        sectionEl.className = 'list-block';
-        sectionEl.style.marginBottom = '10px';
-        const isDuplicate = !!section.referencesSectionId;
-        const sourceSection = isDuplicate ? track.sections.find(s2 => s2.id === section.referencesSectionId) : null;
-        const hasAnyFile = isDuplicate
-          ? !!(sourceSection && sourceSection.pools.some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile)))
-          : section.pools.some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile));
-        // Sections pouvant servir de source à dupliquer : n'importe quelle autre section qui n'est pas
-        // elle-même une duplication (même garde-fou qu'ailleurs — une seule indirection, pas de chaîne).
-        const duplicatableOptions = track.sections.filter((s2, osci) => osci !== sci && !s2.referencesSectionId);
-        const isReferencedByOthers = track.sections.some(s2 => s2.referencesSectionId === section.id);
-        sectionEl.innerHTML = `
+    } else if (isEmbrVert) {
+      if (!track.loops) track.loops = [];
+      // Toujours exactement une boucle de référence (isInitial) — la première par défaut si aucune ne
+      // l'est encore (ex. juste après un basculement de mode), jamais zéro ni plusieurs à la fois.
+      if (track.loops.length && !track.loops.some(l => l.isInitial)) track.loops[0].isInitial = true;
+      const loopsHost = el.querySelector('[data-role="embrLoops"]');
+      track.loops.forEach((loop, li) => {
+        const loopEl = document.createElement('div');
+        loopEl.className = 'list-block';
+        loopEl.style.marginBottom = '10px';
+        const hasFile = !!(loop.pendingFile || loop.remoteFile);
+        loopEl.innerHTML = `
           <div class="list-block-head">
             <div class="list-block-head-left">
-              <button class="btn btn-icon" data-action="move-section-up" data-ti="${ti}" data-si="${sci}" ${sci === 0 ? 'disabled' : ''} title="${tr('moveUpBtn')}">↑</button>
-              <button class="btn btn-icon" data-action="move-section-down" data-ti="${ti}" data-si="${sci}" ${sci === track.sections.length - 1 ? 'disabled' : ''} title="${tr('moveDownBtn')}">↓</button>
+              <button class="btn btn-icon" data-action="move-embr-loop-up" data-ti="${ti}" data-li="${li}" ${li === 0 ? 'disabled' : ''} title="${tr('moveUpBtn')}">↑</button>
+              <button class="btn btn-icon" data-action="move-embr-loop-down" data-ti="${ti}" data-li="${li}" ${li === track.loops.length - 1 ? 'disabled' : ''} title="${tr('moveDownBtn')}">↓</button>
             </div>
-            <input type="text" placeholder="${tr('sectionNamePlaceholder')}" data-section-field="label" data-ti="${ti}" data-si="${sci}" value="${escapeAttr(section.label)}" style="flex:1;margin:0 8px;">
-            <button class="btn btn-small btn-danger" data-action="remove-section" data-ti="${ti}" data-si="${sci}">${tr('removeSectionBtn')}</button>
+            <input type="text" placeholder="${tr('embrLoopNamePlaceholder')}" data-embr-loop-field="label" data-ti="${ti}" data-li="${li}" value="${escapeAttr(loop.label)}" style="flex:1;margin:0 8px;">
+            <button class="btn btn-small btn-danger" data-action="remove-embr-loop" data-ti="${ti}" data-li="${li}">${tr('removeEmbrLoopBtn')}</button>
           </div>
-          ${!hasAnyFile ? `<div class="hint-inline" style="color:#b45309">${tr('noAltFileWarning')}</div>` : ''}
+          ${!hasFile ? `<div class="hint-inline" style="color:#b45309">${tr('noEmbrLoopFileWarning')}</div>` : ''}
           <div class="row" style="margin-top:8px">
+            <div><label>${tr('barsLabel')}</label><input type="text" inputmode="numeric" data-embr-loop-field="bars" data-ti="${ti}" data-li="${li}" value="${loop.bars || 8}"></div>
             <div>
-              <label>${tr('barsLabel')}</label>
-              <input type="text" inputmode="numeric" data-section-field="bars" data-ti="${ti}" data-si="${sci}" value="${section.bars || 8}" ${isDuplicate ? 'disabled' : ''}>
-            </div>
-            <div>
-              <label data-help="slotContentSource">${tr('slotContentSourceLabel')}</label>
-              <select data-section-field="referencesSectionId" data-ti="${ti}" data-si="${sci}" ${isReferencedByOthers ? 'disabled' : ''}>
-                <option value="">${tr('slotContentOwnOption')}</option>
-                ${duplicatableOptions.map(other => `<option value="${other.id}" ${section.referencesSectionId === other.id ? 'selected' : ''}>${tr('slotContentDuplicateOption', { label: escapeAttr(other.label) || tr('untitledFallback') })}</option>`).join('')}
-              </select>
+              <label data-help="embrLoopInitial">${tr('embrInitialLabel')}</label>
+              <label style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+                <input type="radio" name="embrInitial-${ti}" data-embr-loop-field="isInitial" data-ti="${ti}" data-li="${li}" ${loop.isInitial ? 'checked' : ''} style="width:auto;margin:0;">
+                <span style="color:#444;font-size:12px;">${tr('embrInitialCheckLabel')}</span>
+              </label>
             </div>
           </div>
-          ${isReferencedByOthers ? `<div class="hint-inline">${tr('slotIsSourceHint')}</div>` : ''}
-          ${isDuplicate ? `
-            <div class="hint-inline">${tr('sectionDuplicateHint', { label: escapeAttr((sourceSection && sourceSection.label) || tr('untitledFallback')) })}</div>
-          ` : `
-            <label data-help="vrsPools" style="margin-top:10px">${tr('vrsPoolsLabel')}</label>
-            <div data-role="vrsPools"></div>
-            <div class="actions"><button class="btn btn-small" data-action="add-pool" data-ti="${ti}" data-si="${sci}">${tr('addPoolBtn')}</button></div>
-          `}
+          <div class="hint-inline">${loop.isInitial ? tr('embrInitialHint') : tr('embrBarsCompareHint')}</div>
+          <div data-role="embrLoopFileCtrl" style="margin-top:8px"></div>
         `;
-        if (isDuplicate) { sectionsHost.appendChild(sectionEl); return; }
-        const poolsHost = sectionEl.querySelector('[data-role="vrsPools"]');
-        section.pools.forEach((pool, pi) => {
-          if (!pool.alternatives) pool.alternatives = [];
-          const poolEl = document.createElement('div');
-          poolEl.className = 'list-block';
-          poolEl.style.marginBottom = '8px';
-          const poolHasFile = pool.alternatives.some(a => a.pendingFile || a.remoteFile);
-          poolEl.innerHTML = `
-            <div class="list-block-head">
-              <input type="text" placeholder="${tr('poolNamePlaceholder')}" data-pool-field="label" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" value="${escapeAttr(pool.label)}" style="flex:1;margin-right:8px;">
-              <button class="btn btn-small btn-danger" data-action="remove-pool" data-ti="${ti}" data-si="${sci}" data-pi="${pi}">${tr('removePoolBtn')}</button>
-            </div>
-            ${!poolHasFile ? `<div class="hint-inline" style="color:#b45309">${tr('noAltFileWarning')}</div>` : ''}
-            <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-              <input type="checkbox" data-pool-field="avoidImmediateRepeat" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" ${pool.avoidImmediateRepeat ? 'checked' : ''} style="width:auto;margin:0;">
-              <span style="color:#444;font-size:12px;">${tr('avoidRepeatAltLabel')}</span>
-            </label>
-            <div class="hint-inline">${tr('silentAltHint')}</div>
-            <div class="hint-inline">${tr('altDropHint')}</div>
-            <div style="margin-top:10px">${altPoolToggleHtml(`vrspool:${ti}:${sci}:${pi}`, pool.alternatives.length)}</div>
-            <div class="list-block-body${expandedAltPoolKeys.has(`vrspool:${ti}:${sci}:${pi}`) ? '' : ' collapsed'}" data-role="altPoolBody" style="margin-top:8px">
-              <div data-role="poolAlternatives"></div>
-              <div class="actions"><button class="btn btn-small" data-action="add-pool-alt" data-ti="${ti}" data-si="${sci}" data-pi="${pi}">${tr('addAlternativeBtn')}</button></div>
-            </div>
-          `;
-          wireAltPoolToggle(poolEl);
-          const altsHost = poolEl.querySelector('[data-role="poolAlternatives"]');
-          pool.alternatives.forEach((alt, ai) => {
-            const altRow = document.createElement('div');
-            altRow.className = 'list-block';
-            altRow.style.marginBottom = '8px';
-            altRow.innerHTML = `
-              <label>${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('altLabelPlaceholder')}" data-pool-alt-field="label" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" data-ai="${ai}" value="${escapeAttr(alt.label)}" style="margin-bottom:8px">
-              <div data-role="poolAltFileCtrl"></div>
-            `;
-            const altCtrlHost = altRow.querySelector('[data-role="poolAltFileCtrl"]');
-            altCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'), deleteIconBtnHtml('remove-pool-alt', { ti, si: sci, pi, ai }, tr('removeAlternativeBtn')));
-            wireFileControl(altCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
-              () => alt.pendingFile, () => alt.remoteFile,
-              f => {
-                alt.pendingFile = f;
-                hasUnsavedEdits = true;
-                if (!alt.label || !alt.label.trim()) { alt.label = titleFromFilename(f.name); renderLibrary(); }
-                probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } });
-              });
-            altsHost.appendChild(altRow);
-          });
-          wireBatchDrop(altsHost, files => {
-            files.forEach(f => pool.alternatives.push({ label: titleFromFilename(f.name), remoteFile: null, pendingFile: f }));
+        const ctrlHost = loopEl.querySelector('[data-role="embrLoopFileCtrl"]');
+        ctrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'));
+        wireFileControl(ctrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
+          () => loop.pendingFile, () => loop.remoteFile,
+          f => {
+            loop.pendingFile = f;
             hasUnsavedEdits = true;
+            if (!loop.label || !loop.label.trim()) loop.label = titleFromFilename(f.name);
+            if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilename(f.name);
             renderLibrary();
-            Promise.all(files.map(probeAudioDuration)).then(durs => {
-              const maxDur = Math.max(0, ...durs);
-              if (maxDur > (track.duration || 0)) { track.duration = maxDur; renderLibrary(); }
-            });
+            probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } });
           });
-          poolsHost.appendChild(poolEl);
+        loopsHost.appendChild(loopEl);
+      });
+      wireBatchDrop(loopsHost, files => {
+        files.forEach((f, idx) => {
+          track.loops.push({ id: genId(), label: titleFromFilename(f.name), bars: 8, isInitial: track.loops.length === 0 && idx === 0, remoteFile: null, pendingFile: f });
         });
-        sectionsHost.appendChild(sectionEl);
+        hasUnsavedEdits = true;
+        if ((!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) && files[0]) track.title = titleFromFilename(files[0].name);
+        renderLibrary();
+        Promise.all(files.map(probeAudioDuration)).then(durs => {
+          const maxDur = Math.max(0, ...durs);
+          if (maxDur > (track.duration || 0)) { track.duration = maxDur; renderLibrary(); }
+        });
       });
     } else {
     const layersEl = el.querySelector('[data-role="layers"]');
@@ -2700,7 +2792,7 @@ function renderSfxLibrary() {
         <div class="hint-inline">${tr('sfxAlternativesHint')}</div>
         <div class="hint-inline">${tr('altDropHint')}</div>
         <div style="margin-top:8px">${altPoolToggleHtml(`sfxpool:${si}`, sfx.alternatives.length)}</div>
-        <div class="list-block-body${expandedAltPoolKeys.has(`sfxpool:${si}`) ? '' : ' collapsed'}" data-role="altPoolBody" style="margin-top:8px">
+        <div class="list-block-body alt-pool-panel${expandedAltPoolKeys.has(`sfxpool:${si}`) ? '' : ' collapsed'}" data-role="altPoolBody" style="margin-top:8px">
           <div data-role="sfxAlternatives" data-si="${si}"></div>
           <div class="actions"><button class="btn btn-small" data-action="add-sfx-alt" data-si="${si}">${tr('addSfxAltBtn')}</button></div>
         </div>
@@ -2867,7 +2959,7 @@ document.getElementById('sfxLibraryContainer').addEventListener('input', e => {
 });
 
 document.getElementById('btnAddLibraryTrack').addEventListener('click', () => {
-  library.push({ id: genId(), title: tr('defaultTrackTitle'), description: '', mode: 'vertical', duration: 0, base: '', loopable: false, startTrackBeat: 0, maxLoops: null, normalizeVolume: false, layers: [{ label: tr('defaultLevelLabel'), remoteFile: null, pendingFile: null }], stingers: [], sfxIds: [] });
+  library.push({ id: genId(), title: tr('defaultTrackTitle'), description: '', mode: 'vertical', duration: 0, base: '', loopable: false, startTrackBeat: 0, maxLoops: null, maxChainLoops: null, normalizeVolume: false, layers: [{ label: tr('defaultLevelLabel'), remoteFile: null, pendingFile: null }], stingers: [], sfxIds: [] });
   hasUnsavedEdits = true;
   trackBackstageEvent('track_add', {});
   renderLibrary();
@@ -2883,6 +2975,7 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
   const ai = btn.dataset.ai !== undefined ? parseInt(btn.dataset.ai, 10) : null;
   const fli = btn.dataset.fli !== undefined ? parseInt(btn.dataset.fli, 10) : null;
   const pi = btn.dataset.pi !== undefined ? parseInt(btn.dataset.pi, 10) : null;
+  const bi = btn.dataset.bi !== undefined ? parseInt(btn.dataset.bi, 10) : null;
   if (btn.dataset.action === 'toggle-collapse-track') {
     const rowEl = btn.closest('.list-block');
     const body = rowEl.querySelector('[data-role="trackBody"]');
@@ -2916,19 +3009,6 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
   }
   else if (btn.dataset.action === 'add-layer') library[ti].layers.push({ label: '', remoteFile: null, pendingFile: null });
   else if (btn.dataset.action === 'remove-layer') library[ti].layers.splice(li, 1);
-  else if (btn.dataset.action === 'add-group') {
-    if (!library[ti].randomGroups) library[ti].randomGroups = [];
-    library[ti].randomGroups.push({ id: genId(), label: '', avoidImmediateRepeat: true, alternatives: [{ label: '', remoteFile: null, pendingFile: null }] });
-  }
-  else if (btn.dataset.action === 'remove-group') {
-    const removedId = library[ti].randomGroups[gi].id;
-    library[ti].randomGroups.splice(gi, 1);
-    library[ti].randomGroups.forEach(g => { if (g.referencesGroupId === removedId) g.referencesGroupId = null; });
-  }
-  else if (btn.dataset.action === 'add-alternative') library[ti].randomGroups[gi].alternatives.push({ label: '', remoteFile: null, pendingFile: null });
-  else if (btn.dataset.action === 'remove-alternative') library[ti].randomGroups[gi].alternatives.splice(ai, 1);
-  else if (btn.dataset.action === 'add-fixed-layer') { if (!library[ti].fixedLayers) library[ti].fixedLayers = []; library[ti].fixedLayers.push({ label: '', remoteFile: null, pendingFile: null }); }
-  else if (btn.dataset.action === 'remove-fixed-layer') library[ti].fixedLayers.splice(fli, 1);
   else if (btn.dataset.action === 'add-segment-slot') {
     if (!library[ti].segmentSlots) library[ti].segmentSlots = [];
     library[ti].segmentSlots.push({ id: genId(), label: '', avoidImmediateRepeat: true, alternatives: [{ label: '', bars: 8, remoteFile: null, pendingFile: null }] });
@@ -2973,6 +3053,37 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
   else if (btn.dataset.action === 'remove-pool') library[ti].sections[si].pools.splice(pi, 1);
   else if (btn.dataset.action === 'add-pool-alt') library[ti].sections[si].pools[pi].alternatives.push({ label: '', remoteFile: null, pendingFile: null });
   else if (btn.dataset.action === 'remove-pool-alt') library[ti].sections[si].pools[pi].alternatives.splice(ai, 1);
+  else if (btn.dataset.action === 'add-embr-loop') {
+    if (!library[ti].loops) library[ti].loops = [];
+    library[ti].loops.push({ id: genId(), label: '', bars: 8, isInitial: library[ti].loops.length === 0, remoteFile: null, pendingFile: null });
+  }
+  else if (btn.dataset.action === 'remove-embr-loop') {
+    const removedLoop = library[ti].loops[li];
+    library[ti].loops.splice(li, 1);
+    // La boucle de référence vient d'être supprimée : la première boucle restante en hérite plutôt que
+    // de laisser le morceau sans aucune référence (voir garde-fou au rendu, qui ferait la même chose,
+    // mais autant fixer l'état tout de suite pour rester cohérent avant même le prochain rendu).
+    if (removedLoop && removedLoop.isInitial && library[ti].loops.length) library[ti].loops[0].isInitial = true;
+  }
+  else if (btn.dataset.action === 'move-embr-loop-up' && li > 0) {
+    const loopsArr = library[ti].loops;
+    [loopsArr[li - 1], loopsArr[li]] = [loopsArr[li], loopsArr[li - 1]];
+  }
+  else if (btn.dataset.action === 'move-embr-loop-down' && li < library[ti].loops.length - 1) {
+    const loopsArr = library[ti].loops;
+    [loopsArr[li + 1], loopsArr[li]] = [loopsArr[li], loopsArr[li + 1]];
+  }
+  else if (btn.dataset.action === 'add-branch-option') {
+    const slot = library[ti].segmentSlots[si];
+    if (!slot.nextOptions) slot.nextOptions = [];
+    // Cible par défaut : le premier autre emplacement de la chaîne (autre que soi-même) s'il y en a un —
+    // sinon soi-même (auto-boucle explicite), pour ne jamais créer une option invalide dès l'ajout.
+    const firstOther = library[ti].segmentSlots.find(sl => sl.id !== slot.id);
+    slot.nextOptions.push({ targetId: (firstOther || slot).id, label: '' });
+  }
+  else if (btn.dataset.action === 'remove-branch-option') {
+    library[ti].segmentSlots[si].nextOptions.splice(bi, 1);
+  }
   renderLibrary();
   if (blockTracksRefresh) blockTracksRefresh(); packTracksRefreshers.forEach(fn => fn());
 });
@@ -2986,9 +3097,10 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     else if (field === 'mode') {
       library[ti].mode = e.target.value;
       if (e.target.value === 'vertical-random') {
-        if (!library[ti].bpm) { library[ti].bpm = 120; library[ti].beatsPerBar = 4; library[ti].loopGridUnit = 'bars'; library[ti].loopInBeat = 0; library[ti].loopOutBeat = 16; }
-        if (!library[ti].fixedLayers) library[ti].fixedLayers = [];
-        if (!library[ti].randomGroups) library[ti].randomGroups = [];
+        if (!library[ti].intro) library[ti].intro = { label: 'Intro', bars: 8, remoteFile: null, pendingFile: null };
+        if (!library[ti].outro) library[ti].outro = { label: 'Outro', remoteFile: null, pendingFile: null };
+        if (!library[ti].sections) library[ti].sections = [];
+        if (library[ti].randomizeSections === undefined) library[ti].randomizeSections = false;
       }
       if (e.target.value === 'sequential') {
         if (!library[ti].bpm) { library[ti].bpm = 120; library[ti].beatsPerBar = 4; }
@@ -2996,12 +3108,9 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
         if (!library[ti].outro) library[ti].outro = { label: 'Outro', bars: 8, remoteFile: null, pendingFile: null };
         if (!library[ti].segmentSlots) library[ti].segmentSlots = [];
       }
-      if (e.target.value === 'vertical-random-sequential') {
+      if (e.target.value === 'embranchement-vertical') {
         if (!library[ti].bpm) { library[ti].bpm = 120; library[ti].beatsPerBar = 4; }
-        if (!library[ti].intro) library[ti].intro = { label: 'Intro', bars: 8, remoteFile: null, pendingFile: null };
-        if (!library[ti].outro) library[ti].outro = { label: 'Outro', remoteFile: null, pendingFile: null };
-        if (!library[ti].sections) library[ti].sections = [];
-        if (library[ti].randomizeSections === undefined) library[ti].randomizeSections = false;
+        if (!library[ti].loops) library[ti].loops = [];
       }
       renderLibrary();
       return;
@@ -3022,6 +3131,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     else if (field === 'bpm') { library[ti].bpm = parseFloat(e.target.value) || 120; }
     else if (field === 'beatsPerBar') { library[ti].beatsPerBar = parseInt(e.target.value, 10) || 4; }
     else if (field === 'maxLoops') { library[ti].maxLoops = e.target.value === '' ? null : parseInt(e.target.value, 10); }
+    else if (field === 'maxChainLoops') { library[ti].maxChainLoops = e.target.value === '' ? null : parseInt(e.target.value, 10); }
     else if (field === 'normalizeVolume') { library[ti].normalizeVolume = e.target.checked; }
     else if (field === 'introLabel') { library[ti].intro.label = e.target.value; }
     else if (field === 'introBars') { library[ti].intro.bars = parseInt(e.target.value, 10) || 8; }
@@ -3034,27 +3144,6 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       renderLibrary(); // le libellé de l'option "suivre le réglage global" affiche l'état effectif (oui/non)
     }
     else if (field === 'label') library[ti].layers[li].label = e.target.value;
-  } else if (e.target.dataset.groupField) {
-    const ti = parseInt(e.target.dataset.ti, 10);
-    const gi = parseInt(e.target.dataset.gi, 10);
-    const group = library[ti].randomGroups[gi];
-    if (e.target.dataset.groupField === 'label') group.label = e.target.value;
-    else if (e.target.dataset.groupField === 'avoidImmediateRepeat') group.avoidImmediateRepeat = e.target.checked;
-    else if (e.target.dataset.groupField === 'referencesGroupId') {
-      const isReferencedByOthers = library[ti].randomGroups.some(g => g.referencesGroupId === group.id);
-      if (isReferencedByOthers) { renderLibrary(); return; }
-      group.referencesGroupId = e.target.value || null;
-      renderLibrary();
-    }
-  } else if (e.target.dataset.altField) {
-    const ti = parseInt(e.target.dataset.ti, 10);
-    const gi = parseInt(e.target.dataset.gi, 10);
-    const ai = parseInt(e.target.dataset.ai, 10);
-    if (e.target.dataset.altField === 'label') library[ti].randomGroups[gi].alternatives[ai].label = e.target.value;
-  } else if (e.target.dataset.fixedField) {
-    const ti = parseInt(e.target.dataset.ti, 10);
-    const fli = parseInt(e.target.dataset.fli, 10);
-    if (e.target.dataset.fixedField === 'label') library[ti].fixedLayers[fli].label = e.target.value;
   } else if (e.target.dataset.slotField) {
     const ti = parseInt(e.target.dataset.ti, 10);
     const si = parseInt(e.target.dataset.si, 10);
@@ -3068,6 +3157,31 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       slot.referencesSlotId = e.target.value || null;
       renderLibrary();
     }
+    else if (e.target.dataset.slotField === 'hasBranches') {
+      if (e.target.checked) {
+        // Une première option par défaut plutôt qu'une liste vide : évite un panneau "embranchements
+        // activés" sans le moindre bouton pour le visiteur tant que le compositeur n'a rien ajouté.
+        const firstOther = library[ti].segmentSlots.find(sl => sl.id !== slot.id);
+        slot.nextOptions = [{ targetId: (firstOther || slot).id, label: '' }];
+      } else {
+        slot.nextOptions = null;
+      }
+      renderLibrary();
+    }
+    else if (e.target.dataset.slotField === 'quantization') { slot.quantization = e.target.value; }
+    else if (e.target.dataset.slotField === 'cutStyle') { slot.cutStyle = e.target.value; renderLibrary(); }
+    // Curseur de durée : mise à jour directe de l'affichage à côté (pas de renderLibrary() ici, qui
+    // recréerait le curseur en plein glissement et interromprait le drag en cours).
+    else if (e.target.dataset.slotField === 'customCutFadeSec') {
+      const v = parseFloat(e.target.value);
+      slot.customCutFadeSec = v;
+      const valueEl = e.target.parentElement.querySelector('[data-role="customCutFadeValue"]');
+      if (valueEl) valueEl.textContent = v.toFixed(2) + 's';
+    }
+    // Champ vide = hérite du tempo du morceau (pas de valeur forcée comme le tempo par section du
+    // vertical-random, qui lui n'a jamais de morceau à hériter) — voir joueur.js : slot.bpm || track.bpm || 120.
+    else if (e.target.dataset.slotField === 'bpm') { slot.bpm = e.target.value === '' ? null : (parseFloat(e.target.value) || null); }
+    else if (e.target.dataset.slotField === 'beatsPerBar') { slot.beatsPerBar = e.target.value === '' ? null : (parseInt(e.target.value, 10) || null); }
   } else if (e.target.dataset.slotAltField) {
     const ti = parseInt(e.target.dataset.ti, 10);
     const si = parseInt(e.target.dataset.si, 10);
@@ -3075,12 +3189,46 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     const alt = library[ti].segmentSlots[si].alternatives[ai];
     if (e.target.dataset.slotAltField === 'label') alt.label = e.target.value;
     else if (e.target.dataset.slotAltField === 'bars') alt.bars = parseInt(e.target.value, 10) || 8;
+  } else if (e.target.dataset.branchField) {
+    const ti = parseInt(e.target.dataset.ti, 10);
+    const si = parseInt(e.target.dataset.si, 10);
+    const bi = parseInt(e.target.dataset.bi, 10);
+    const opt = library[ti].segmentSlots[si].nextOptions[bi];
+    if (e.target.dataset.branchField === 'targetId') opt.targetId = e.target.value;
+    else if (e.target.dataset.branchField === 'label') opt.label = e.target.value;
+    else if (e.target.dataset.branchField === 'hasTransition') {
+      if (e.target.checked) opt.transition = { label: '', bars: 4, remoteFile: null, pendingFile: null };
+      else opt.transition = null;
+      renderLibrary();
+    }
+  } else if (e.target.dataset.branchTransitionField) {
+    const ti = parseInt(e.target.dataset.ti, 10);
+    const si = parseInt(e.target.dataset.si, 10);
+    const bi = parseInt(e.target.dataset.bi, 10);
+    const transition = library[ti].segmentSlots[si].nextOptions[bi].transition;
+    if (e.target.dataset.branchTransitionField === 'label') transition.label = e.target.value;
+    else if (e.target.dataset.branchTransitionField === 'bars') transition.bars = parseInt(e.target.value, 10) || 4;
+  } else if (e.target.dataset.embrLoopField) {
+    const ti = parseInt(e.target.dataset.ti, 10);
+    const li = parseInt(e.target.dataset.li, 10);
+    const loop = library[ti].loops[li];
+    if (e.target.dataset.embrLoopField === 'label') loop.label = e.target.value;
+    else if (e.target.dataset.embrLoopField === 'bars') loop.bars = parseInt(e.target.value, 10) || 8;
+    else if (e.target.dataset.embrLoopField === 'isInitial') {
+      // Une seule boucle de référence à la fois (comportement de radio) : on nettoie les autres avant de
+      // poser le nouveau drapeau, plutôt que de dépendre uniquement du groupement HTML `name` des radios.
+      library[ti].loops.forEach(l => { l.isInitial = false; });
+      loop.isInitial = true;
+      renderLibrary(); // les indices "boucle courte / boucle paire" affichés dépendent tous de la référence
+    }
   } else if (e.target.dataset.sectionField) {
     const ti = parseInt(e.target.dataset.ti, 10);
     const si = parseInt(e.target.dataset.si, 10);
     const section = library[ti].sections[si];
     if (e.target.dataset.sectionField === 'label') section.label = e.target.value;
-    else if (e.target.dataset.sectionField === 'bars') section.bars = parseInt(e.target.value, 10) || 8;
+    else if (e.target.dataset.sectionField === 'bpm') section.bpm = parseFloat(e.target.value) || 120;
+    else if (e.target.dataset.sectionField === 'beatsPerBar') section.beatsPerBar = parseInt(e.target.value, 10) || 4;
+    else if (e.target.dataset.sectionField === 'maxLoops') section.maxLoops = e.target.value === '' ? null : parseInt(e.target.value, 10);
     else if (e.target.dataset.sectionField === 'referencesSectionId') {
       const isReferencedByOthers = library[ti].sections.some(s2 => s2.referencesSectionId === section.id);
       if (isReferencedByOthers) { renderLibrary(); return; } // garde-fou : une section-source ne peut pas devenir elle-même un duplicata
@@ -3129,7 +3277,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     }
     if (to === 'intro') track.intro = { label: payload.label, bars: payload.bars || 8, remoteFile: payload.remoteFile, pendingFile: payload.pendingFile };
     else if (to === 'outro') track.outro = { label: payload.label, remoteFile: payload.remoteFile, pendingFile: payload.pendingFile };
-    else track.segmentSlots.push({ id: genId(), label: '', avoidImmediateRepeat: true, alternatives: [{ label: payload.label, bars: payload.bars || 8, remoteFile: payload.remoteFile, pendingFile: payload.pendingFile }] });
+    else track.segmentSlots.push({ id: genId(), label: payload.label, avoidImmediateRepeat: true, alternatives: [{ label: payload.label, bars: payload.bars || 8, remoteFile: payload.remoteFile, pendingFile: payload.pendingFile }] });
     hasUnsavedEdits = true;
     renderLibrary();
     return;
@@ -3142,7 +3290,9 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
 // restera juste sur l'ancien BPM le temps que l'aperçu se ferme ou qu'un autre rafraîchissement survienne.
 document.getElementById('libraryContainer').addEventListener('change', e => {
   const field = e.target.dataset.field;
-  if (field !== 'bpm' && field !== 'beatsPerBar') return;
+  const sectionField = e.target.dataset.sectionField;
+  const isTimingField = (field === 'bpm' || field === 'beatsPerBar') || (sectionField === 'bpm' || sectionField === 'beatsPerBar');
+  if (!isTimingField) return;
   const ti = parseInt(e.target.dataset.ti, 10);
   const previewId = 'preview-' + library[ti].id;
   if (activePreviewIds.has(previewId)) return;
@@ -3249,13 +3399,13 @@ document.getElementById('feedbackSend').addEventListener('click', async () => {
 
 function describeTimingBlock(track) {
   const lines = [];
-  const isQuantized = track.mode === 'vertical-random' || track.mode === 'sequential' || track.mode === 'vertical-random-sequential' || track.loopEngine === 'quantized';
+  const isQuantized = track.mode === 'sequential' || track.mode === 'embranchement-vertical' || track.loopEngine === 'quantized';
   if (!isQuantized) return lines;
   const bpm = track.bpm || 120;
   const bpb = track.beatsPerBar || 4;
   lines.push(`Tempo : ${bpm} BPM, ${bpb} temps par mesure.`);
   if (track.startTrackBeat) lines.push(`Point de démarrage : temps ${track.startTrackBeat} depuis le début du fichier.`);
-  if (track.mode !== 'sequential' && track.mode !== 'vertical-random-sequential' && track.loopInBeat !== undefined && track.loopOutBeat !== undefined) {
+  if (track.mode !== 'sequential' && track.loopInBeat !== undefined && track.loopOutBeat !== undefined) {
     lines.push(`Boucle entre le temps ${track.loopInBeat} et le temps ${track.loopOutBeat}.`);
   }
   if (track.maxLoops) lines.push(`Nombre de boucles par défaut : ${track.maxLoops} (réglable par le visiteur jusqu'à ce nombre côté page publique ; illimité si non précisé).`);
@@ -3275,19 +3425,42 @@ function describeVertical(track) {
 }
 function describeVerticalRandom(track) {
   const lines = [];
-  const fixed = (track.fixedLayers || []).filter(f => f.label || f.remoteFile || f.pendingFile);
-  if (fixed.length) lines.push(`${fixed.length} couche(s) fixe(s), toujours actives simultanément : ${fixed.map(f => f.label || 'sans nom').join(', ')}.`);
-  (track.randomGroups || []).forEach((g, gi) => {
-    const groupLabel = g.label || `Groupe ${gi + 1}`;
-    if (g.referencesGroupId) {
-      const src = (track.randomGroups || []).find(g2 => g2.id === g.referencesGroupId);
-      lines.push(`Groupe "${groupLabel}" : duplique le pool du groupe "${(src && src.label) || 'sans nom'}" (mêmes fichiers, mêmes probabilités, anti-répétition partagée).`);
+  if (track.intro && (track.intro.remoteFile || track.intro.pendingFile)) {
+    lines.push(`Intro ("${track.intro.label || 'Intro'}", ${track.intro.bars || 8} mesures) : jouée une fois au tout début, avec chevauchement sur le début de la première section si le fichier dépasse cette durée nominale.`);
+  }
+  const allSections = track.sections || [];
+  const playableSections = allSections.filter(sec => sec.referencesSectionId
+    ? (allSections.find(s2 => s2.id === sec.referencesSectionId) || {}).pools?.some(p => (p.alternatives || []).some(a => a.remoteFile || a.pendingFile))
+    : (sec.pools || []).some(p => (p.alternatives || []).some(a => a.remoteFile || a.pendingFile)));
+  if (playableSections.length > 1) {
+    lines.push(track.randomizeSections
+      ? `${playableSections.length} section(s), jouées à chaque cycle dans un ordre mélangé (brassage complet — chacune joue exactement une fois par cycle) :`
+      : `${playableSections.length} section(s), enchaînées dans cet ordre, en boucle sur elles-mêmes :`);
+  } else if (playableSections.length === 1) {
+    lines.push('1 section, en boucle continue sur elle-même :');
+  }
+  playableSections.forEach((sec, sci) => {
+    const secLabel = sec.label || `Section ${sci + 1}`;
+    if (sec.referencesSectionId) {
+      const src = allSections.find(s2 => s2.id === sec.referencesSectionId);
+      lines.push(`  ${sci + 1}. "${secLabel}" : duplique tous les pools de la section "${(src && src.label) || 'sans nom'}" (mêmes fichiers, mêmes probabilités, anti-répétition partagée par pool).`);
       return;
     }
-    const alts = (g.alternatives || []).filter(a => a.label || a.remoteFile || a.pendingFile);
-    lines.push(`Groupe "${groupLabel}" : une variante tirée au hasard parmi ${alts.length} à chaque cycle (${alts.map(a => a.label || 'sans nom').join(', ')}).${g.avoidImmediateRepeat ? ' La même variante ne peut pas être tirée deux fois de suite.' : ''}`);
+    const pools = (sec.pools || []).filter(p => (p.alternatives || []).some(a => a.remoteFile || a.pendingFile));
+    const poolDescs = pools.map(p => {
+      const alts = (p.alternatives || []).filter(a => a.remoteFile || a.pendingFile);
+      return `${p.label || 'sans nom'} (${alts.length} variante(s)${p.avoidImmediateRepeat ? ', anti-répétition immédiate' : ''})`;
+    });
+    const bpm = sec.bpm || 120, bpb = sec.beatsPerBar || 4;
+    lines.push(`  ${sci + 1}. "${secLabel}" (${bpm} BPM, ${bpb} temps/mesure, boucle entre le temps ${sec.loopInBeat || 0} et le temps ${sec.loopOutBeat || 16}) : ${pools.length} pool(s) simultané(s) — ${poolDescs.join(', ')}.`);
   });
-  return [...lines, ...describeTimingBlock(track)];
+  if (track.maxChainLoops) lines.push(`Nombre de cycles complets (toutes les sections une fois chacune) avant transition automatique : ${track.maxChainLoops} (réglable par le visiteur côté page publique ; illimité si non précisé).`);
+  if (track.outro && (track.outro.remoteFile || track.outro.pendingFile)) {
+    lines.push(`Outro ("${track.outro.label || 'Outro'}") : jouée après la section en cours, via "Aller vers la fin".`);
+  } else if (playableSections.length) {
+    lines.push('Pas d\'outro définie : "Aller vers la fin" laisse simplement la section en cours filer jusqu\'à sa fin naturelle.');
+  }
+  return lines;
 }
 function describeSequential(track) {
   const lines = [];
@@ -3309,13 +3482,23 @@ function describeSequential(track) {
         return;
       }
       const alts = (sl.alternatives || []).filter(a => a.remoteFile || a.pendingFile);
+      const quantLabel = { immediate: 'tout de suite', beat: 'au prochain temps', bar: 'à la prochaine mesure' }[sl.quantization || 'bar'];
+      const cutLabel = (sl.cutStyle || 'fade') === 'hard' ? 'coupure nette' : 'fondu de 0.15s';
+      const branchNote = (sl.nextOptions && sl.nextOptions.length)
+        ? ` Le visiteur choisit la suite parmi : ${sl.nextOptions.map(opt => {
+            const t2 = allSlots.find(s2 => s2.id === opt.targetId);
+            const hasTrans = opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile);
+            return `"${opt.label || (t2 && t2.label) || 'sans nom'}"${hasTrans ? ` (via transition "${opt.transition.label || 'sans nom'}", ${opt.transition.bars || 4} mesures)` : ''}`;
+          }).join(', ')} — bascule ${quantLabel}, ${cutLabel} (sans choix, cet emplacement se rejoue).`
+        : '';
       if (alts.length > 1) {
-        lines.push(`  ${si + 1}. "${slotLabel}" : une alternative tirée au hasard parmi ${alts.length} (${alts.map(a => `"${a.label || 'sans nom'}" (${a.bars || 8} mesures)`).join(', ')}).${sl.avoidImmediateRepeat ? ' La même alternative ne peut pas être tirée deux fois de suite.' : ''}${repeatNote}`);
+        lines.push(`  ${si + 1}. "${slotLabel}" : une alternative tirée au hasard parmi ${alts.length} (${alts.map(a => `"${a.label || 'sans nom'}" (${a.bars || 8} mesures)`).join(', ')}).${sl.avoidImmediateRepeat ? ' La même alternative ne peut pas être tirée deux fois de suite.' : ''}${branchNote || repeatNote}`);
       } else {
-        lines.push(`  ${si + 1}. "${slotLabel}" (${alts[0].bars || 8} mesures).${repeatNote}`);
+        lines.push(`  ${si + 1}. "${slotLabel}" (${alts[0].bars || 8} mesures).${branchNote || repeatNote}`);
       }
     });
   }
+  if (track.maxChainLoops) lines.push(`Nombre de cycles complets de la chaîne avant transition automatique : ${track.maxChainLoops} (réglable par le visiteur côté page publique ; illimité si non précisé).`);
   if (track.outro && (track.outro.remoteFile || track.outro.pendingFile)) {
     lines.push(`Outro ("${track.outro.label || 'Outro'}") : jouée après l'emplacement en cours, une fois le nombre de boucles atteint.`);
   } else {
@@ -3323,39 +3506,16 @@ function describeSequential(track) {
   }
   return [...lines, ...describeTimingBlock(track)];
 }
-function describeVerticalRandomSequential(track) {
-  const lines = [];
-  if (track.intro && (track.intro.remoteFile || track.intro.pendingFile)) {
-    lines.push(`Intro ("${track.intro.label || 'Intro'}", ${track.intro.bars || 8} mesures) : jouée une fois au tout début, avec chevauchement sur le début de la première section si le fichier dépasse cette durée nominale.`);
-  }
-  const allSections = track.sections || [];
-  const playableSections = allSections.filter(sec => sec.referencesSectionId
-    ? (allSections.find(s2 => s2.id === sec.referencesSectionId) || {}).pools?.some(p => (p.alternatives || []).some(a => a.remoteFile || a.pendingFile))
-    : (sec.pools || []).some(p => (p.alternatives || []).some(a => a.remoteFile || a.pendingFile)));
-  if (playableSections.length) {
-    lines.push(track.randomizeSections
-      ? `${playableSections.length} section(s), jouées à chaque cycle dans un ordre mélangé (brassage complet — chacune joue exactement une fois par cycle) :`
-      : `${playableSections.length} section(s), enchaînées dans cet ordre, en boucle sur elles-mêmes :`);
-    playableSections.forEach((sec, sci) => {
-      const secLabel = sec.label || `Section ${sci + 1}`;
-      if (sec.referencesSectionId) {
-        const src = allSections.find(s2 => s2.id === sec.referencesSectionId);
-        lines.push(`  ${sci + 1}. "${secLabel}" : duplique tous les pools de la section "${(src && src.label) || 'sans nom'}" (mêmes fichiers, mêmes probabilités, anti-répétition partagée par pool).`);
-        return;
-      }
-      const pools = (sec.pools || []).filter(p => (p.alternatives || []).some(a => a.remoteFile || a.pendingFile));
-      const poolDescs = pools.map(p => {
-        const alts = (p.alternatives || []).filter(a => a.remoteFile || a.pendingFile);
-        return `${p.label || 'sans nom'} (${alts.length} variante(s)${p.avoidImmediateRepeat ? ', anti-répétition immédiate' : ''})`;
-      });
-      lines.push(`  ${sci + 1}. "${secLabel}" (${sec.bars || 8} mesures) : ${pools.length} pool(s) simultané(s) — ${poolDescs.join(', ')}.`);
-    });
-  }
-  if (track.outro && (track.outro.remoteFile || track.outro.pendingFile)) {
-    lines.push(`Outro ("${track.outro.label || 'Outro'}") : jouée après la section en cours, via "Aller vers la fin".`);
-  } else {
-    lines.push('Pas d\'outro définie : "Aller vers la fin" laisse simplement la section en cours filer jusqu\'à sa fin naturelle.');
-  }
+function describeEmbrVert(track) {
+  const loopsArr = (track.loops || []).filter(l => l.remoteFile || l.pendingFile);
+  if (!loopsArr.length) return describeTimingBlock(track);
+  const ref = loopsArr.find(l => l.isInitial) || loopsArr[0];
+  const lines = [`${loopsArr.length} boucle(s) nommée(s), autonomes, jouant simultanément en arrière-plan — le visiteur bascule entre elles par clic (fondu court, sans attente).`];
+  loopsArr.forEach(l => {
+    if (l === ref) { lines.push(`  "${l.label || 'sans nom'}" (${l.bars || 8} mesures) : boucle de référence, active par défaut.`); return; }
+    if (l.bars === ref.bars) { lines.push(`  "${l.label || 'sans nom'}" (${l.bars || 8} mesures) : tourne en continu en arrière-plan comme la référence, peut être gardée indéfiniment.`); }
+    else { lines.push(`  "${l.label || 'sans nom'}" (${l.bars || 8} mesures, plus courte que la référence) : jouée une fois puis retour automatique à la référence.`); }
+  });
   return [...lines, ...describeTimingBlock(track)];
 }
 function describeTrackBehavior(track) {
@@ -3364,7 +3524,7 @@ function describeTrackBehavior(track) {
     case 'vertical': return describeVertical(track);
     case 'vertical-random': return describeVerticalRandom(track);
     case 'sequential': return describeSequential(track);
-    case 'vertical-random-sequential': return describeVerticalRandomSequential(track);
+    case 'embranchement-vertical': return describeEmbrVert(track);
     default: return [`Mode "${track.mode}" non pris en charge par le générateur de fiche pour l'instant.`];
   }
 }
@@ -3387,7 +3547,7 @@ function buildTrackSheetText(track) {
 }
 function buildTrackSheetJson(track) {
   const json = { title: track.title || '', mode: track.mode };
-  const isQuantized = track.mode === 'vertical-random' || track.mode === 'sequential' || track.loopEngine === 'quantized';
+  const isQuantized = track.mode === 'sequential' || track.loopEngine === 'quantized';
   if (isQuantized) {
     json.timing = {
       bpm: track.bpm || 120, beatsPerBar: track.beatsPerBar || 4, startTrackBeat: track.startTrackBeat || 0,
@@ -3396,20 +3556,28 @@ function buildTrackSheetJson(track) {
       defaultMaxLoops: track.maxLoops || null
     };
   }
+  if (track.mode === 'sequential' || track.mode === 'vertical-random') {
+    json.defaultMaxChainLoops = track.maxChainLoops || null;
+  }
   if (track.mode === 'static') {
     json.loopable = !!track.loopable;
   } else if (track.mode === 'vertical') {
     json.layers = (track.layers || []).map((l, i) => ({ threshold: i, label: l.label || `Couche ${i + 1}` }));
   } else if (track.mode === 'vertical-random') {
-    json.fixedLayers = (track.fixedLayers || []).filter(f => f.label || f.remoteFile || f.pendingFile).map(f => ({ label: f.label || '' }));
-    json.randomGroups = (track.randomGroups || []).map(g => {
-      if (g.referencesGroupId) {
-        const src = (track.randomGroups || []).find(g2 => g2.id === g.referencesGroupId);
-        return { label: g.label || '', duplicatesGroup: (src && src.label) || '' };
+    json.randomizeSections = !!track.randomizeSections;
+    json.sections = (track.sections || []).map((sec, sci) => {
+      const base = { order: sci, label: sec.label || '' };
+      if (sec.referencesSectionId) {
+        const src = (track.sections || []).find(s2 => s2.id === sec.referencesSectionId);
+        return { ...base, duplicatesSection: (src && src.label) || '' };
       }
       return {
-        label: g.label || '', avoidImmediateRepeat: !!g.avoidImmediateRepeat,
-        alternatives: (g.alternatives || []).filter(a => a.label || a.remoteFile || a.pendingFile).map(a => ({ label: a.label || '' }))
+        ...base,
+        timing: { bpm: sec.bpm || 120, beatsPerBar: sec.beatsPerBar || 4, loopInBeat: sec.loopInBeat || 0, loopOutBeat: sec.loopOutBeat || 16, defaultMaxLoops: sec.maxLoops || null },
+        pools: (sec.pools || []).map(p => ({
+          label: p.label || '', avoidImmediateRepeat: !!p.avoidImmediateRepeat,
+          alternatives: (p.alternatives || []).filter(a => a.label || a.remoteFile || a.pendingFile).map(a => ({ label: a.label || '' }))
+        }))
       };
     });
   } else if (track.mode === 'sequential') {
@@ -4770,53 +4938,107 @@ async function loadData(silent) {
     const data = JSON.parse(new TextDecoder().decode(base64ToUint8(content.content.replace(/\n/g, ''))));
     showBackstageNoticeIfAny(data);
 
-    library = (data.library || []).map(t => ({
-      id: t.id, title: t.title, description: t.description || '', mode: t.mode || 'vertical',
-      implementationNote: t.implementationNote || '',
-      noAiOverride: (t.noAiOverride === true || t.noAiOverride === false) ? t.noAiOverride : null,
-      duration: t.duration || 0, base: t.base || '', loopable: !!t.loopable,
-      loopEngine: t.loopEngine || 'simple',
-      bpm: t.bpm || 120, beatsPerBar: t.beatsPerBar || 4, loopGridUnit: t.loopGridUnit || 'bars',
-      loopInBeat: t.loopInBeat || 0, loopOutBeat: t.loopOutBeat || (t.beatsPerBar || 4) * 4,
-      startTrackBeat: t.startTrackBeat || 0,
-      maxLoops: (t.maxLoops !== undefined && t.maxLoops !== null) ? t.maxLoops : null,
-      normalizeVolume: !!t.normalizeVolume,
-      layers: (t.layers || []).map(l => ({ label: l.label, remoteFile: l.file, pendingFile: null, gain: l.gain || 1 })),
-      fixedLayers: t.fixedLayers ? t.fixedLayers.map(f => ({ label: f.label || '', remoteFile: f.file, pendingFile: null, gain: f.gain || 1 }))
-        : (t.fixedLayer ? [{ label: t.fixedLayer.label || '', remoteFile: t.fixedLayer.file, pendingFile: null, gain: t.fixedLayer.gain || 1 }] : []),
-      randomGroups: (t.randomGroups || []).map(g => ({
-        id: g.id || genId(), label: g.label || '', avoidImmediateRepeat: g.avoidImmediateRepeat !== false,
-        referencesGroupId: g.referencesGroupId || null,
-        alternatives: (g.alternatives || []).map(a => ({ label: a.label, remoteFile: a.file, pendingFile: null, gain: a.gain || 1 }))
-      })),
-      intro: t.intro ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, remoteFile: t.intro.file || null, pendingFile: null, gain: t.intro.gain || 1 } : null,
-      outro: t.outro ? { label: t.outro.label || 'Outro', remoteFile: t.outro.file || null, pendingFile: null, gain: t.outro.gain || 1 } : null,
-      // Migration douce : les morceaux séquentiels publiés avant l'architecture à emplacements avaient un
-      // pool de segments plat (un seul groupe, anti-répétition au niveau du morceau) — repris tel quel comme
-      // unique emplacement, comportement de lecture strictement identique à avant (même ordre de tirage
-      // possible, mêmes probabilités, juste une seule "case" dans la chaîne au lieu de plusieurs).
-      segmentSlots: t.segmentSlots ? t.segmentSlots.map(sl => ({
-        id: sl.id || genId(), label: sl.label || '', avoidImmediateRepeat: sl.avoidImmediateRepeat !== false,
-        referencesSlotId: sl.referencesSlotId || null, repeatCount: sl.repeatCount || 1,
-        alternatives: (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, remoteFile: a.file || null, pendingFile: null, gain: a.gain || 1 }))
-      })) : ((t.segments && t.segments.length) ? [{
-        id: genId(), label: '', avoidImmediateRepeat: t.avoidImmediateRepeat !== false, repeatCount: 1,
-        alternatives: t.segments.map(s => ({ label: s.label || '', bars: s.bars || 8, remoteFile: s.file || null, pendingFile: null, gain: s.gain || 1 }))
-      }] : []),
-      stingers: (t.stingers || []).map(s => ({ label: s.label, remoteFile: s.file, pendingFile: null, gain: s.gain || 1 })),
-      sfxIds: t.sfxIds ? t.sfxIds.slice() : null, // null = pas encore migré (voir migration juste après le chargement de sfxLibrary) ; [] = migré, aucun Sfx attaché
-      // Mode "Vertical random séquentiel" : sections chaînées dans le temps, chacune avec ses pools
-      // simultanés randomisés — voir renderLibrary() pour l'éditeur, player.js (à venir) pour la lecture.
-      randomizeSections: !!t.randomizeSections,
-      sections: (t.sections || []).map(sec => ({
-        id: sec.id || genId(), label: sec.label || '', bars: sec.bars || 8,
-        referencesSectionId: sec.referencesSectionId || null,
-        pools: (sec.pools || []).map(p => ({
-          id: p.id || genId(), label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
-          alternatives: (p.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file || null, pendingFile: null, gain: a.gain || 1 }))
-        }))
-      }))
-    }));
+    library = (data.library || []).map(t => {
+      const legacyMode = t.mode || 'vertical';
+      // "vertical-random-sequential" n'a jamais existé que localement (jamais publié) — repli de sécurité
+      // au cas où un data.json de test l'aurait quand même, fusionné depuis le 30/07 dans "vertical-random".
+      const mode = (legacyMode === 'vertical-random-sequential') ? 'vertical-random' : legacyMode;
+
+      // Migration douce (30/07) : l'ancien vertical-random avait un tempo/timeline unique pour tout le
+      // morceau, avec des couches fixes + groupes aléatoires au niveau du morceau. Le nouveau modèle donne
+      // à chaque section son propre tempo/timeline (comme un vrai segment Wwise indépendant) — un morceau
+      // déjà publié dans l'ancien format devient donc une unique section qui reprend tout à l'identique
+      // (mêmes fichiers, même timeline, mêmes probabilités) : comportement de lecture strictement inchangé.
+      let sections;
+      if (t.sections && t.sections.length) {
+        sections = t.sections.map(sec => ({
+          id: sec.id || genId(), label: sec.label || '',
+          referencesSectionId: sec.referencesSectionId || null,
+          bpm: sec.bpm || 120, beatsPerBar: sec.beatsPerBar || 4,
+          startTrackBeat: sec.startTrackBeat || 0,
+          loopInBeat: sec.loopInBeat || 0,
+          // Repli sur l'ancien champ plat "bars" (version locale jamais publiée du 30/07, avant l'ajout
+          // d'une vraie timeline par section) si présent, sinon 4 mesures par défaut.
+          loopOutBeat: sec.loopOutBeat || ((sec.bars || 4) * (sec.beatsPerBar || 4)),
+          maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
+          duration: sec.duration || 0,
+          pools: (sec.pools || []).map(p => ({
+            id: p.id || genId(), label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
+            referencesPoolId: p.referencesPoolId || null,
+            alternatives: (p.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file || null, pendingFile: null, gain: a.gain || 1 }))
+          }))
+        }));
+      } else if (mode === 'vertical-random' && (t.fixedLayers || t.fixedLayer || (t.randomGroups && t.randomGroups.length))) {
+        const migratedPools = [];
+        (t.fixedLayers ? t.fixedLayers : (t.fixedLayer ? [t.fixedLayer] : [])).forEach(f => {
+          migratedPools.push({ id: genId(), label: f.label || '', avoidImmediateRepeat: true, referencesPoolId: null,
+            alternatives: [{ label: f.label || '', remoteFile: f.file || null, pendingFile: null, gain: f.gain || 1 }] });
+        });
+        (t.randomGroups || []).forEach(g => {
+          migratedPools.push({
+            id: g.id || genId(), label: g.label || '', avoidImmediateRepeat: g.avoidImmediateRepeat !== false,
+            referencesPoolId: g.referencesGroupId || null,
+            alternatives: (g.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file || null, pendingFile: null, gain: a.gain || 1 }))
+          });
+        });
+        sections = migratedPools.length ? [{
+          id: genId(), label: '', referencesSectionId: null,
+          bpm: t.bpm || 120, beatsPerBar: t.beatsPerBar || 4,
+          startTrackBeat: t.startTrackBeat || 0, loopInBeat: t.loopInBeat || 0,
+          loopOutBeat: t.loopOutBeat || (t.beatsPerBar || 4) * 4,
+          maxLoops: (t.maxLoops !== undefined && t.maxLoops !== null) ? t.maxLoops : null,
+          duration: t.duration || 0,
+          pools: migratedPools
+        }] : [];
+      } else {
+        sections = [];
+      }
+
+      return {
+        id: t.id, title: t.title, description: t.description || '', mode,
+        implementationNote: t.implementationNote || '',
+        noAiOverride: (t.noAiOverride === true || t.noAiOverride === false) ? t.noAiOverride : null,
+        duration: t.duration || 0, base: t.base || '', loopable: !!t.loopable,
+        loopEngine: t.loopEngine || 'simple',
+        // bpm/beatsPerBar/loopInBeat/loopOutBeat/startTrackBeat/maxLoops au niveau du morceau ne servent plus
+        // qu'au séquentiel (BPM d'affichage) et au moteur de boucle simple/quantifié classique — plus au
+        // vertical-random, désormais entièrement porté par chaque section.
+        bpm: t.bpm || 120, beatsPerBar: t.beatsPerBar || 4, loopGridUnit: t.loopGridUnit || 'bars',
+        loopInBeat: t.loopInBeat || 0, loopOutBeat: t.loopOutBeat || (t.beatsPerBar || 4) * 4,
+        startTrackBeat: t.startTrackBeat || 0,
+        maxLoops: (t.maxLoops !== undefined && t.maxLoops !== null) ? t.maxLoops : null,
+        maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
+        normalizeVolume: !!t.normalizeVolume,
+        layers: (t.layers || []).map(l => ({ label: l.label, remoteFile: l.file, pendingFile: null, gain: l.gain || 1 })),
+        intro: t.intro ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, remoteFile: t.intro.file || null, pendingFile: null, gain: t.intro.gain || 1 } : null,
+        outro: t.outro ? { label: t.outro.label || 'Outro', remoteFile: t.outro.file || null, pendingFile: null, gain: t.outro.gain || 1 } : null,
+        // Migration douce : les morceaux séquentiels publiés avant l'architecture à emplacements avaient un
+        // pool de segments plat (un seul groupe, anti-répétition au niveau du morceau) — repris tel quel comme
+        // unique emplacement, comportement de lecture strictement identique à avant (même ordre de tirage
+        // possible, mêmes probabilités, juste une seule "case" dans la chaîne au lieu de plusieurs).
+        segmentSlots: t.segmentSlots ? t.segmentSlots.map(sl => ({
+          id: sl.id || genId(), label: sl.label || '', avoidImmediateRepeat: sl.avoidImmediateRepeat !== false,
+          referencesSlotId: sl.referencesSlotId || null, repeatCount: sl.repeatCount || 1,
+          quantization: sl.quantization || 'bar', cutStyle: sl.cutStyle || 'fade',
+          nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
+            targetId: opt.targetId, label: opt.label || '',
+            transition: opt.transition ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, remoteFile: opt.transition.file || null, pendingFile: null, gain: opt.transition.gain || 1 } : null
+          })) : null,
+          alternatives: (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, remoteFile: a.file || null, pendingFile: null, gain: a.gain || 1 }))
+        })) : ((t.segments && t.segments.length) ? [{
+          id: genId(), label: '', avoidImmediateRepeat: t.avoidImmediateRepeat !== false, repeatCount: 1,
+          alternatives: t.segments.map(s => ({ label: s.label || '', bars: s.bars || 8, remoteFile: s.file || null, pendingFile: null, gain: s.gain || 1 }))
+        }] : []),
+        // Embranchement-vertical : une entrée par boucle déclarée, id conservé pour que les cibles
+        // d'embranchement séquentiel d'autres morceaux (sans rapport ici, mais même principe partout dans
+        // le fichier) et les boutons du lecteur restent stables d'une publication à l'autre.
+        loops: (t.loops || []).map(l => ({ id: l.id || genId(), label: l.label || '', bars: l.bars || 8, isInitial: !!l.isInitial, remoteFile: l.file || null, pendingFile: null, gain: l.gain || 1 })),
+        stingers: (t.stingers || []).map(s => ({ label: s.label, remoteFile: s.file, pendingFile: null, gain: s.gain || 1 })),
+        sfxIds: t.sfxIds ? t.sfxIds.slice() : null, // null = pas encore migré (voir migration juste après le chargement de sfxLibrary) ; [] = migré, aucun Sfx attaché
+        randomizeSections: !!t.randomizeSections,
+        sections
+      };
+    });
     sfxLibrary = (data.sfxLibrary || []).map(s => ({
       id: s.id, title: s.title || '',
       // Repli sur l'ancien champ unique "description" pour tout Sfx publié avant le passage au bilingue —
@@ -5071,16 +5293,29 @@ function base64ToUint8(b64) {
   return bytes;
 }
 function textToBase64(str) { return uint8ToBase64(new TextEncoder().encode(str)); }
-// Réécrit la balise <script src="player.js"> d'un fichier déjà publié pour y inscrire la version de cette
-// publication (remplace une éventuelle ancienne version) — sans ça, un navigateur qui a mis player.js en
-// cache continuerait de faire tourner l'ancienne logique même quand data.json est à jour.
-async function updatePlayerScriptVersion(owner, repo, branch, token, path, version) {
+// Réécrit les balises <script src="..."> des scripts moteur partagés (player.js, layerpitch-i18n.js,
+// layerpitch-help.js) d'un fichier déjà publié pour y inscrire la version de cette publication (remplace
+// une éventuelle ancienne version) — sans ça, un navigateur ou le cache CDN GitHub Pages (10 min, non
+// configurable) continuerait de servir l'ancienne version de ces scripts même quand data.json est à jour.
+// Historiquement ne couvrait que player.js (trou trouvé le 13/08 : layerpitch-i18n.js et
+// layerpitch-help.js n'étaient jamais versionnés, alors qu'ils sont chargés par les mêmes pages) — un
+// seul fetch + une seule écriture par fichier, quel que soit le nombre de balises concernées PRÉSENTES
+// dans CE fichier précis (tous les fichiers ne chargent pas les mêmes scripts, ex. video-test.html n'a
+// ni player.js ni layerpitch-help.js).
+const VERSIONED_SCRIPTS = ['player.js', 'layerpitch-i18n.js', 'layerpitch-help.js'];
+async function updateScriptVersions(owner, repo, branch, token, path, version) {
   const existing = await ghGetContent(owner, repo, path, branch, token);
   if (!existing) { log(tr('fileNotFoundVersionUpdate', { path }), 'err'); return; }
-  const currentText = new TextDecoder().decode(base64ToUint8(existing.content.replace(/\n/g, '')));
-  const updatedText = currentText.replace(/(<script src="player\.js)(\?v=[^"]*)?(")/, `$1?v=${version}$3`);
-  if (updatedText === currentText) { log(tr('scriptTagNotFound', { path }), 'err'); return; }
-  await ghPutFile(owner, repo, path, branch, token, textToBase64(updatedText), 'Mise à jour version player.js (LayerPitch)');
+  let updatedText = new TextDecoder().decode(base64ToUint8(existing.content.replace(/\n/g, '')));
+  let touched = 0;
+  VERSIONED_SCRIPTS.forEach(script => {
+    const escaped = script.replace(/\./g, '\\.');
+    const re = new RegExp(`(<script src="${escaped})(\\?v=[^"]*)?(")`);
+    const next = updatedText.replace(re, `$1?v=${version}$3`);
+    if (next !== updatedText) { updatedText = next; touched++; }
+  });
+  if (!touched) { log(tr('scriptTagNotFound', { path }), 'err'); return; }
+  await ghPutFile(owner, repo, path, branch, token, textToBase64(updatedText), 'Mise à jour version des scripts moteur (LayerPitch)');
   log(tr('versionUpdatedLog', { path }), 'ok');
 }
 
@@ -5213,35 +5448,6 @@ async function publishAll() {
         layer.remoteFile = fileName; layer.pendingFile = null; layer.gain = gain;
         log(tr('uploadedPath', { path }), 'ok');
       }
-      for (let fli = 0; fli < (track.fixedLayers || []).length; fli++) {
-        const fixed = track.fixedLayers[fli];
-        if (!fixed.pendingFile) continue;
-        log(tr('convertingGeneric', { title: track.title, label: fixed.label || tr('fixedLayerFallbackShort', { n: fli + 1 }) }));
-        const { bytes, duration, gain } = await wavFileToOgg(fixed.pendingFile);
-        track.duration = Math.max(track.duration, duration);
-        const fileName = `fixed-${fli}-${slug(fixed.label || 'couche')}.ogg`;
-        const path = `audio/${track.id}/${fileName}`;
-        log(tr('uploadingPath', { path }));
-        await ghPutFile(owner, repo, path, branch, token, uint8ToBase64(bytes), `Ajout couche fixe ${fixed.label || ''} — ${track.title}`);
-        fixed.remoteFile = fileName; fixed.pendingFile = null; fixed.gain = gain;
-        log(tr('uploadedPath', { path }), 'ok');
-      }
-      for (let gi = 0; gi < (track.randomGroups || []).length; gi++) {
-        const group = track.randomGroups[gi];
-        for (let ai = 0; ai < group.alternatives.length; ai++) {
-          const alt = group.alternatives[ai];
-          if (!alt.pendingFile) continue;
-          log(tr('convertingGeneric', { title: track.title, label: tr('groupAltLabel', { gi, label: alt.label || tr('altFallbackShort') }) }));
-          const { bytes, duration, gain } = await wavFileToOgg(alt.pendingFile);
-          track.duration = Math.max(track.duration, duration);
-          const fileName = `group${gi}-${ai}-${slug(alt.label || 'alt')}.ogg`;
-          const path = `audio/${track.id}/${fileName}`;
-          log(tr('uploadingPath', { path }));
-          await ghPutFile(owner, repo, path, branch, token, uint8ToBase64(bytes), `Ajout alternative ${alt.label || ''} (groupe ${gi}) — ${track.title}`);
-          alt.remoteFile = fileName; alt.pendingFile = null; alt.gain = gain;
-          log(tr('uploadedPath', { path }), 'ok');
-        }
-      }
       if (track.intro && track.intro.pendingFile) {
         log(tr('convertingGeneric', { title: track.title, label: track.intro.label || 'Intro' }));
         const { bytes, duration, gain } = await wavFileToOgg(track.intro.pendingFile);
@@ -5279,6 +5485,22 @@ async function publishAll() {
           alt.remoteFile = fileName; alt.pendingFile = null; alt.gain = gain;
           log(tr('uploadedPath', { path }), 'ok');
         }
+        // Fichiers de transition (optionnels, un par embranchement précis — voir schéma validé le 02/08) :
+        // même boucle d'upload que les alternatives ci-dessus, mais indexée par nextOptions[oi], pas
+        // alternatives[ai].
+        for (let oi = 0; oi < (slot.nextOptions || []).length; oi++) {
+          const opt = slot.nextOptions[oi];
+          if (!opt.transition || !opt.transition.pendingFile) continue;
+          log(tr('convertingGeneric', { title: track.title, label: opt.transition.label || tr('transitionFallbackShort') }));
+          const { bytes, duration, gain } = await wavFileToOgg(opt.transition.pendingFile);
+          track.duration = Math.max(track.duration, duration);
+          const fileName = `slot${si}-branch${oi}-transition-${slug(opt.transition.label || 'transition')}.ogg`;
+          const path = `audio/${track.id}/${fileName}`;
+          log(tr('uploadingPath', { path }));
+          await ghPutFile(owner, repo, path, branch, token, uint8ToBase64(bytes), `Ajout transition ${opt.transition.label || ''} (emplacement ${si + 1} → embranchement ${oi + 1}) — ${track.title}`);
+          opt.transition.remoteFile = fileName; opt.transition.pendingFile = null; opt.transition.gain = gain;
+          log(tr('uploadedPath', { path }), 'ok');
+        }
       }
       for (let sci = 0; sci < (track.sections || []).length; sci++) {
         const section = track.sections[sci];
@@ -5298,6 +5520,19 @@ async function publishAll() {
             log(tr('uploadedPath', { path }), 'ok');
           }
         }
+      }
+      for (let li = 0; li < (track.loops || []).length; li++) {
+        const loop = track.loops[li];
+        if (!loop.pendingFile) continue;
+        log(tr('convertingGeneric', { title: track.title, label: loop.label || tr('embrLoopFallbackShort') }));
+        const { bytes, duration, gain } = await wavFileToOgg(loop.pendingFile);
+        track.duration = Math.max(track.duration, duration);
+        const fileName = `loop${li}-${slug(loop.label || 'boucle')}.ogg`;
+        const path = `audio/${track.id}/${fileName}`;
+        log(tr('uploadingPath', { path }));
+        await ghPutFile(owner, repo, path, branch, token, uint8ToBase64(bytes), `Ajout boucle ${loop.label || ''} — ${track.title}`);
+        loop.remoteFile = fileName; loop.pendingFile = null; loop.gain = gain;
+        log(tr('uploadedPath', { path }), 'ok');
       }
     }
     for (const sfx of sfxLibrary) {
@@ -5344,29 +5579,41 @@ async function publishAll() {
         loopInBeat: t.loopInBeat || 0, loopOutBeat: t.loopOutBeat || (t.beatsPerBar || 4) * 4,
         startTrackBeat: t.startTrackBeat || 0,
         maxLoops: (t.maxLoops !== undefined && t.maxLoops !== null) ? t.maxLoops : null,
+        maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
         normalizeVolume: !!t.normalizeVolume,
         duration: Math.round(t.duration * 100) / 100, base: t.base,
         layers: (t.mode === 'static' ? (t.layers || []).slice(0, 1) : (t.layers || [])).map(l => ({ label: l.label, file: l.remoteFile, gain: l.gain || 1 })),
-        fixedLayers: (t.fixedLayers || []).filter(f => f.remoteFile).map(f => ({ label: f.label || '', file: f.remoteFile, gain: f.gain || 1 })),
-        randomGroups: (t.randomGroups || []).map(g => ({
-          id: g.id, label: g.label || '', avoidImmediateRepeat: g.avoidImmediateRepeat !== false,
-          referencesGroupId: g.referencesGroupId || null,
-          alternatives: g.referencesGroupId ? [] : (g.alternatives || []).map(a => ({ label: a.label || '', file: a.remoteFile || null, gain: a.gain || 1 }))
-        })),
         intro: (t.intro && t.intro.remoteFile) ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, file: t.intro.remoteFile, gain: t.intro.gain || 1 } : null,
         outro: (t.outro && t.outro.remoteFile) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile, gain: t.outro.gain || 1 } : null,
         segmentSlots: (t.segmentSlots || []).map(sl => ({
           id: sl.id, label: sl.label || '', avoidImmediateRepeat: sl.avoidImmediateRepeat !== false,
           referencesSlotId: sl.referencesSlotId || null, repeatCount: sl.repeatCount || 1,
+          quantization: sl.quantization || 'bar', cutStyle: sl.cutStyle || 'fade',
+          nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
+            targetId: opt.targetId, label: opt.label || '',
+            transition: (opt.transition && opt.transition.remoteFile) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, file: opt.transition.remoteFile, gain: opt.transition.gain || 1 } : null
+          })) : null,
           alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, gain: a.gain || 1 }))
         })),
+        // Embranchement-vertical : une entrée par boucle déclarée (même les boucles sans fichier — voir
+        // note dans buildPreviewTrackObject, l'index doit rester aligné avec data-loop-idx côté lecteur).
+        loops: (t.loops || []).map(l => ({ id: l.id, label: l.label || '', bars: l.bars || 8, isInitial: !!l.isInitial, file: l.remoteFile || null, gain: l.gain || 1 })),
         randomizeSections: !!t.randomizeSections,
+        // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : chaque section porte
+        // désormais son propre tempo/timeline, comme un vrai segment Wwise indépendant — plus de
+        // fixedLayers/randomGroups au niveau du morceau, tout vit dans sections[].pools[].
         sections: (t.sections || []).map(sec => ({
-          id: sec.id, label: sec.label || '', bars: sec.bars || 8,
+          id: sec.id, label: sec.label || '',
           referencesSectionId: sec.referencesSectionId || null,
+          bpm: sec.bpm || 120, beatsPerBar: sec.beatsPerBar || 4,
+          startTrackBeat: sec.startTrackBeat || 0,
+          loopInBeat: sec.loopInBeat || 0, loopOutBeat: sec.loopOutBeat || (sec.beatsPerBar || 4) * 4,
+          maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
+          duration: Math.round((sec.duration || 0) * 100) / 100,
           pools: sec.referencesSectionId ? [] : (sec.pools || []).map(p => ({
             id: p.id, label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
-            alternatives: (p.alternatives || []).map(a => ({ label: a.label || '', file: a.remoteFile || null, gain: a.gain || 1 }))
+            referencesPoolId: p.referencesPoolId || null,
+            alternatives: p.referencesPoolId ? [] : (p.alternatives || []).map(a => ({ label: a.label || '', file: a.remoteFile || null, gain: a.gain || 1 }))
           }))
         })),
         sfxIds: t.sfxIds || []
@@ -5412,10 +5659,11 @@ async function publishAll() {
     log(tr('dataJsonPublished'), 'ok');
 
     log(tr('updatingPlayerVersion'));
-    await updatePlayerScriptVersion(owner, repo, branch, token, 'index.html', buildVersion);
-    await updatePlayerScriptVersion(owner, repo, branch, token, 'pack.html', buildVersion);
-    await updatePlayerScriptVersion(owner, repo, branch, token, 'collection.html', buildVersion);
-    await updatePlayerScriptVersion(owner, repo, branch, token, 'layerpitch-backstage.html', buildVersion);
+    await updateScriptVersions(owner, repo, branch, token, 'index.html', buildVersion);
+    await updateScriptVersions(owner, repo, branch, token, 'pack.html', buildVersion);
+    await updateScriptVersions(owner, repo, branch, token, 'collection.html', buildVersion);
+    await updateScriptVersions(owner, repo, branch, token, 'video-test.html', buildVersion);
+    await updateScriptVersions(owner, repo, branch, token, 'layerpitch-backstage.html', buildVersion);
 
     log(tr('publicationComplete'), 'ok');
     trackBackstageEvent('publish_success', {});
