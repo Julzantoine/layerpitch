@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1786637895264,
+  "publishedAt": 1786638036344,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -745,7 +745,7 @@
           "referencesSlotId": null,
           "repeatCount": 1,
           "quantization": "bar",
-          "cutStyle": "fade",
+          "cutStyle": "custom",
           "nextOptions": [
             {
               "targetId": "bmsroyqkw2curh",
