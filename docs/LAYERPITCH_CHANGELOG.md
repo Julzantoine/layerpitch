@@ -15,12 +15,12 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 **Contexte** : trois demandes de Jules-Antoine.
 1. En séquentiel (lecteur public), le bouton "Aller vers la fin" restait affiché même sans outro déclarée (avec un texte de repli "fin après le segment en cours") — jugé inutile/déroutant sans véritable outro.
 2. Le panneau de réglages des embranchements (quantification, style de coupure, durée personnalisée, liste des options) n'était pas repliable, contrairement à Intro/Outro (13/08, plus tôt dans la session).
-3. Dans l'en-tête de carte de morceau, l'ordre voulu est : bouton replier/déplier, puis le titre, puis les flèches de réorganisation — mauvaise interprétation la première fois (flèches avant le titre).
+3. Dans l'en-tête de carte de morceau, l'ordre voulu est : bouton replier/déplier, puis le titre, puis Écouter, puis Supprimer, puis les flèches de réorganisation — deux tentatives précédentes incorrectes avant d'arriver au bon ordre.
 
 **Changement** :
 - `player.js` : le bouton `goToEndBtn` du mode séquentiel (`seqGraphHtml`) est maintenant masqué (`style="display:none"`) quand `layerHasSource(track.outro)` est faux — reste dans le DOM (pas retiré) pour que tout le code existant qui le référence (`goToEndBtn.disabled = ...`, `.textContent = ...`) continue de fonctionner sans risque de référence nulle. Le `goToEndBtn` du vertical-random (bloc séparé, `voiceGraphHtml`) n'est pas concerné — demande limitée au séquentiel.
 - `layerpitch-backstage.html` : panneau "embranchements" enveloppé dans le même mécanisme générique que Intro/Outro (`collapsibleBlockToggleHtml`/`wireCollapsibleBlockToggle`, clé `branches:${ti}:${si}`) — mais avec un dépli automatique dès l'activation de la case "Prévoir des embranchements" (sinon le panneau disparaîtrait juste après l'avoir coché, déroutant), replié par défaut aux rendus suivants.
-- `layerpitch-backstage.html` : en-tête de carte de morceau réordonné — `[toggle▾][titre][↑][↓]` (repli, puis titre, puis flèches).
+- `layerpitch-backstage.html` : en-tête de carte de morceau réordonné en un seul groupe linéaire (les deux `<div>` séparés — actions à gauche, Écouter/Supprimer à droite — fusionnés en un seul) — `[toggle▾][titre][Écouter][Supprimer][↑][↓]`.
 - `layerpitch-i18n.js` (zone `backstage`, fr/en) : nouvelle clé `branchOptionsToggleLabel`.
 
 **Vérification** : `test_seq_no_outro_goto_end.js` (nouveau) — bouton masqué sans outro, visible avec (non-régression). `test_backstage_branch_collapse_and_header_order.js` (nouveau) — panneau absent avant activation, déplié juste après, repli au clic, état persistant après re-rendu, champs toujours fonctionnels une fois redéplié, et ordre exact des boutons d'en-tête. Les 16 suites existantes relancées intégralement — toutes vertes.
