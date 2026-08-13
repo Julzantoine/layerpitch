@@ -8,6 +8,40 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-13] — Troisième style de coupure : durée de fondu personnalisée
+
+**Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `layerpitch-help.js`, `test_seq_custom_cut_fade.js` (nouveau)
+
+**Contexte** : Jules-Antoine signale que le fondu de sortie (0.15s fixe) est trop court quand un fichier de transition est utilisé. Premier essai proposé (fondu automatiquement porté à la moitié de la durée de la transition) — revenu dessus après discussion : préférence pour un contrôle explicite plutôt qu'un auto-calcul. Décision finale : `cutStyle` passe de deux à trois valeurs — `hard` (coupure nette, inchangé), `fade` (fondu court fixe 0.15s, comportement historique inchangé, **pas** d'auto-calcul basé sur une transition), `custom` (nouveau — durée choisie par le compositeur en secondes réelles, via un curseur).
+
+**Changement** :
+- `player.js` (`performSeqBranchCut`) : `fadeOutSec = cutStyle === 'custom' ? (sourceSlot.customCutFadeSec || 0.15) : 0.15` — calcul de `opt`/`oi`/`transitionBuf`/`transitionDurationSec` remonté avant le fondu (nécessaire pour construire `forcedNextBlock` un peu plus loin, réutilisé tel quel, aucune duplication).
+- `layerpitch-backstage.html` : troisième `<option value="custom">` sur le select `cutStyle` ; nouveau curseur (`<input type="range" min="0" max="8" step="0.05">`, `data-slot-field="customCutFadeSec"`) affiché uniquement quand `custom` est sélectionné, avec la valeur courante affichée à côté (`data-role="customCutFadeValue"`). Handler d'input : le changement de `cutStyle` déclenche un `renderLibrary()` (fait apparaître/disparaître le curseur) ; le curseur lui-même NE déclenche PAS de `renderLibrary()` sur chaque `input` (mise à jour directe du texte à côté à la place) — un re-rendu complet à chaque tick de glissement aurait recréé l'élément et interrompu le drag en cours.
+- `layerpitch-backstage.html` (`buildPreviewTrack`) : au passage, deux oublis corrigés dans le mapping `segmentSlots` de l'aperçu "Écouter" — `bpm`/`beatsPerBar` par emplacement (fonctionnalité du 13/08, jamais transmise à l'aperçu jusqu'ici) et `customCutFadeSec` (nouveau). Sans ce correctif, l'aperçu local aurait fonctionné différemment de la version publiée pour ces deux réglages.
+- `layerpitch-i18n.js` (zone `backstage`, fr/en) : `cutStyleCustom`, `customCutFadeLabel`.
+- `layerpitch-help.js` (zone `library`, fr/en) : `slotCutStyle` mis à jour (mentionne le 3e choix), nouvelle clé `slotCustomCutFade`.
+
+**Vérification** : `node --check` sur les trois fichiers JS — OK. `test_seq_custom_cut_fade.js` (nouveau) instrumente `createGain` pour capturer les appels `linearRampToValueAtTime(0, ...)` et mesure le délai réel : confirme qu'un emplacement `cutStyle: 'custom', customCutFadeSec: 1.5` produit un fondu d'environ 1.5s, et qu'un emplacement `cutStyle: 'fade'` (par défaut) reste à ~0.15s même avec une transition longue (0.8s) déclarée — non-régression explicite de la décision "pas d'auto-calcul". Les 12 suites existantes relancées intégralement — toutes vertes.
+
+---
+
+## [2026-08-13] — Nom d'emplacement séquentiel repris automatiquement du fichier déposé
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `test_backstage_slot_autolabel.js` (nouveau)
+
+**Contexte** : Jules-Antoine signale (capture d'écran à l'appui) que quand un dépôt de fichier crée un nouvel emplacement séquentiel, le champ nom de l'emplacement lui-même (`#1 WetDarkCave` dans son exemple) reste vide — seule l'alternative à l'intérieur héritait du nom du fichier via `titleFromFilename()`. Obligeait à ouvrir "Voir les variations" à chaque fois pour savoir quel fichier avait atterri dans quel emplacement, alors que le texte d'aide (`segmentsDropHint`) promet déjà "le nom repris automatiquement".
+
+**Changement** : trois points de création d'un `segmentSlot` identifiés, tous corrigés (`label: ''` → `label: titleFromFilename(f.name)`, ou `payload.label` quand un nom était déjà connu) :
+- Dépôt direct sur la zone "Emplacements" (chaque fichier crée son propre emplacement).
+- Dépôt groupé au niveau du morceau, avec devinette intro/segment/outro par nom de fichier (`guessSequentialRole`) — la branche "segment" ne remplissait pas le label de l'emplacement.
+- Reclassification de rôle après un tel dépôt (sélecteur intro/segment/outro) — le label déjà connu (`payload.label`) n'était pas repris pour le nouvel emplacement créé.
+
+Le nom reste évidemment modifiable ensuite (aucun champ verrouillé), exactement comme demandé.
+
+**Vérification** : `test_backstage_slot_autolabel.js` (nouveau) simule un dépôt sur la zone "Emplacements" et vérifie que le champ `label` de l'emplacement créé est bien pré-rempli avec le nom du fichier (pas vide). Les 12 suites existantes relancées intégralement — toutes vertes, aucune régression.
+
+---
+
 ## [2026-08-13] — Cache-busting : trou trouvé sur layerpitch-i18n.js/layerpitch-help.js, docs/infrastructure.md corrigé
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`, `docs/infrastructure.md`
