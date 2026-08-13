@@ -98,10 +98,12 @@ function collectTrackAudioFiles(track) {
   const out = [];
   const push = (label, file) => { if (file) out.push({ label: label || 'Fichier', file }); };
   (track.layers || []).forEach((l, i) => push(l.label || `Couche ${i + 1}`, l.file));
-  (track.fixedLayers || []).forEach((f, i) => push(f.label || `Couche fixe ${i + 1}`, f.file));
-  (track.randomGroups || []).forEach((g, gi) => (g.alternatives || []).forEach((a, ai) =>
-    push(`${g.label || 'Groupe ' + (gi + 1)} - ${a.label || 'Variation ' + (ai + 1)}`, a.file)));
   if (track.intro) push(track.intro.label || 'Intro', track.intro.file);
+  (track.sections || []).forEach((sec, si) => {
+    if (sec.referencesSectionId) return; // duplique une autre section : mêmes fichiers, déjà inclus via elle
+    (sec.pools || []).forEach((p, pi) => (p.alternatives || []).forEach((a, ai) =>
+      push(`${sec.label || 'Section ' + (si + 1)} - ${p.label || 'Pool ' + (pi + 1)} - ${a.label || 'Variation ' + (ai + 1)}`, a.file)));
+  });
   (track.segmentSlots || []).forEach((sl, si) => (sl.alternatives || []).forEach((a, ai) =>
     push(`${sl.label || 'Emplacement ' + (si + 1)} - ${a.label || 'Variation ' + (ai + 1)}`, a.file)));
   if (track.outro) push(track.outro.label || 'Outro', track.outro.file);
@@ -350,19 +352,168 @@ function renderTracksBlock(container, tracks, packsByTrackId, globalNoAiCertifie
   });
 }
 
-function getModeLabel(mode) {
+// track (optionnel) : permet d'affiner le libellé du mode séquentiel selon que le morceau a
+// réellement au moins un embranchement configuré (segmentSlots[].nextOptions) — l'embranchement y
+// étant une fonctionnalité optionnelle par emplacement, contrairement à embranchement-vertical où la
+// bascule entre boucles nommées est la nature même du mode, donc toujours mentionnée. Sans `track`
+// (repli), le libellé de base "séquentiel" est utilisé — ne devrait arriver qu'en dehors du rendu
+// normal d'une piste (aucun appelant connu actuellement dans ce cas).
+function getModeLabel(mode, track) {
+  const hasSeqBranching = !!(track && (track.segmentSlots || []).some(sl => sl.nextOptions && sl.nextOptions.length));
   const map = {
     static: t('modeStatic'),
     vertical: t('modeVertical'),
     'vertical-random': t('modeVerticalRandom'),
-    sequential: t('modeSequential'),
-    branching: t('modeBranching')
+    sequential: hasSeqBranching ? t('modeSequentialBranching') : t('modeSequential'),
+    'embranchement-vertical': t('modeEmbranchementVertical')
   };
   return map[mode] || mode;
 }
-const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential'];
+const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential', 'embranchement-vertical'];
 
 function layerHasSource(l) { return !!(l && (l.localFile || l.file)); }
+
+// Résout une section vertical-random qui duplique une autre (referencesSectionId) vers sa section
+// source réelle — pools ET tempo/timeline viennent tous de la source (mêmes fichiers, même minutage),
+// seul le libellé affiché reste celui de la section dupliquée elle-même. Même principe que
+// canonicalPoolKey/canonicalSlotKey utilisés ailleurs pour les autres duplications.
+function resolveVRSection(track, idx) {
+  const sections = track.sections || [];
+  const sec = sections[idx];
+  if (!sec) return null;
+  if (sec.referencesSectionId) {
+    const src = sections.find(s => s.id === sec.referencesSectionId);
+    return src || sec;
+  }
+  return sec;
+}
+function vrSectionIsPlayable(track, idx) {
+  const r = resolveVRSection(track, idx);
+  return !!(r && (r.pools || []).some(p => (p.alternatives || []).some(layerHasSource)));
+}
+
+// ---------------- Vertical-random : logique pure d'enchaînement des sections ----------------
+// Fonction volontairement pure (aucune dépendance à Web Audio, à ctx, ni à quoi que ce soit dans le DOM) —
+// elle décide UNIQUEMENT quoi jouer ensuite, jamais comment. Le code Web Audio (incrément 2) ne fera
+// qu'appeler decideNext() et traduire son résultat en programmation de sources sonores. Séparée ainsi
+// pour pouvoir être testée exhaustivement sans avoir besoin de faire jouer de son réel — voir
+// test-section-scheduler.js.
+//
+// playableSections : tableau de { maxLoops: number|null }, dans l'ordre déclaré par le compositeur,
+//   DÉJÀ FILTRÉ aux sections qui ont au moins un fichier chargé (même convention que pickNextSegmentSlot
+//   pour le séquentiel, qui saute silencieusement les emplacements vides plutôt que de casser la chaîne).
+// options.randomize : brassage complet (true) ou ordre fixe (false) — voir décision du 30/07.
+// options.hasIntro / options.hasOutro : présence d'un fichier intro/outro pour ce morceau.
+//
+// Retour de decideNext() : un descripteur de ce qu'il faut programmer ensuite, ou null si plus rien à
+// programmer après le générateur en cours (fin naturelle, comme le séquentiel existant sans outro) :
+//   { type: 'intro' }
+//   { type: 'section', index, isFirstEverForThisSection }
+//   { type: 'outro' }
+function createSectionPlaybackScheduler(playableSections, options) {
+  const randomize = !!(options && options.randomize);
+  const hasIntro = !!(options && options.hasIntro);
+  const hasOutro = !!(options && options.hasOutro);
+  const n = playableSections.length;
+
+  function buildOrder() {
+    const base = Array.from({ length: n }, (_, i) => i);
+    if (!randomize) return base;
+    // Fisher-Yates : un brassage complet par cycle — chaque section joue exactement une fois par
+    // passage, seul l'ORDRE est mélangé (une section dupliquée plusieurs fois dans la liste pèse donc
+    // plus lourd, sans jamais être "perdue" — voir discussion du 30/07 sur le choix brassage vs pioche).
+    for (let i = base.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = base[i]; base[i] = base[j]; base[j] = tmp;
+    }
+    return base;
+  }
+
+  let order = buildOrder();
+  let orderPos = 0;
+  let loopsPlayedInSection = 0;
+  let chainCyclesCompleted = 0;
+  const everStarted = new Array(n).fill(false);
+  let introConsumed = !hasIntro;
+  let goToEndRequested = false;
+  let goToNextRequested = false;
+
+  function requestGoToEnd() { goToEndRequested = true; }
+  function requestGoToNextSection() { goToNextRequested = true; }
+
+  function advanceOrder() {
+    loopsPlayedInSection = 0;
+    orderPos++;
+    if (orderPos >= n) {
+      orderPos = 0;
+      if (randomize) order = buildOrder(); // nouveau brassage à chaque cycle complet
+      // Un cycle complet vient de se refermer (retour au début de l'ordre) — c'est la frontière qui
+      // compte pour maxChainLoops, indépendamment de la raison de l'avancement (maxLoops d'une section
+      // épuisé ou "section suivante" demandée manuellement, les deux passent par advanceOrder()).
+      // Lu ici (pas mis en cache à la création) : options.maxChainLoops peut être un getter branché sur
+      // une valeur mutable côté appelant (voir playVerticalRandom), pour un changement pris en compte au
+      // vol sans recréer le scheduler.
+      chainCyclesCompleted++;
+      const maxChainLoops = (options && options.maxChainLoops) || null;
+      if (maxChainLoops && chainCyclesCompleted >= maxChainLoops) goToEndRequested = true;
+    }
+  }
+
+  function decideNext() {
+    if (!introConsumed) {
+      introConsumed = true;
+      return { type: 'intro' };
+    }
+    if (goToEndRequested) {
+      goToEndRequested = false;
+      // Sans outro définie : rien à programmer après le générateur en cours — il va simplement jusqu'à
+      // sa fin réelle (même comportement que le séquentiel existant sans outro).
+      return hasOutro ? { type: 'outro' } : null;
+    }
+    if (n === 0) return null;
+
+    // "Aller vers la section suivante" : la décision en cours (le générateur qui va être programmé MAINTENANT,
+    // juste après celui qui joue déjà) saute directement à la section suivante — le générateur déjà en cours
+    // de lecture n'est jamais interrompu, seul ce qui vient après change. Vérifié explicitement avec
+    // Jules-Antoine : "attend la fin de la section en cours", jamais une répétition en plus.
+    if (goToNextRequested) {
+      goToNextRequested = false;
+      advanceOrder();
+    }
+
+    const sectionIndex = order[orderPos];
+    const isFirstEverForThisSection = !everStarted[sectionIndex];
+    everStarted[sectionIndex] = true;
+    loopsPlayedInSection++;
+
+    const maxLoops = playableSections[sectionIndex].maxLoops;
+    if (maxLoops && loopsPlayedInSection >= maxLoops) advanceOrder();
+
+    return { type: 'section', index: sectionIndex, isFirstEverForThisSection };
+  }
+
+  return { decideNext, requestGoToEnd, requestGoToNextSection };
+}
+
+// ---------------- Séquentiel : avancement pur d'un cran dans la chaîne d'emplacements ----------------
+// Fonction volontairement pure (aucune closure, aucune dépendance à l'audio) — factorise les deux
+// endroits de pickNextSegmentSlot qui avancent currentSlotIndex pour EXACTEMENT la même raison (un
+// emplacement vide qu'on saute, ou un repeatCount épuisé) : les deux cas font "avancer d'un cran dans la
+// chaîne", point sur lequel on peut détecter un cycle complet (retour à l'emplacement 0) et compter vers
+// maxChainLoops. `chainState` est un objet partagé { cyclesCompleted, capReached } muté en place par
+// l'appelant, pour rester lisible sans faire de cette fonction un objet à part entière comme le
+// scheduler du vertical-random (voir décision du 31/07 — pas nécessaire ici, pickNextSegmentSlot garde
+// la responsabilité du choix d'alternative et du saut des emplacements vides, qui dépendent des buffers
+// audio réels et ne sont donc pas testables de la même façon). Testée isolément dans
+// test-slot-chain-advancer.js.
+function advanceChainIndex(index, n, chainState, maxChainLoops) {
+  const nextIndex = (index + 1) % n;
+  if (nextIndex === 0) {
+    chainState.cyclesCompleted = (chainState.cyclesCompleted || 0) + 1;
+    if (maxChainLoops && chainState.cyclesCompleted >= maxChainLoops) chainState.capReached = true;
+  }
+  return nextIndex;
+}
 
 function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndividualBadge) {
   packsForTrack = packsForTrack || [];
@@ -374,20 +525,28 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   const isStatic = track.mode === 'static';
   const isVerticalRandom = track.mode === 'vertical-random';
   const isSequential = track.mode === 'sequential';
+  const isEmbrVert = track.mode === 'embranchement-vertical';
   const loops = !isStatic || !!track.loopable;
   // Même plafond que progressMaxSec() dans initTrackPlayer : vertical-random affiche la longueur du
-  // cycle qui boucle, pas celle du fichier le plus long du pool (voir le commentaire détaillé là-bas).
+  // cycle qui boucle de la PREMIÈRE section jouable, pas celle du fichier le plus long de tous les pools
+  // de toutes les sections (voir le commentaire détaillé dans initTrackPlayer).
   const displayMaxSec = (() => {
     if (!isVerticalRandom) return track.duration;
-    const spb = 60 / (track.bpm || 120);
-    const lIn = (track.loopInBeat || 0) * spb;
-    const lOut = Math.max(lIn + spb, (track.loopOutBeat || (track.beatsPerBar || 4) * 4) * spb);
+    const sections = track.sections || [];
+    let firstPlayable = null;
+    for (let i = 0; i < sections.length; i++) { if (vrSectionIsPlayable(track, i)) { firstPlayable = resolveVRSection(track, i); break; } }
+    if (!firstPlayable) return track.duration;
+    const spb = 60 / (firstPlayable.bpm || 120);
+    const lIn = (firstPlayable.loopInBeat || 0) * spb;
+    const lOut = Math.max(lIn + spb, (firstPlayable.loopOutBeat || (firstPlayable.beatsPerBar || 4) * 4) * spb);
     return lOut || track.duration;
   })();
   const hasFiles = supported && (isVerticalRandom
-    ? (track.fixedLayers || []).some(layerHasSource)
+    ? (track.sections || []).some((s, i) => vrSectionIsPlayable(track, i))
     : isSequential
     ? (track.segmentSlots || []).some(sl => (sl.alternatives || []).some(layerHasSource))
+    : isEmbrVert
+    ? (track.loops || []).some(layerHasSource)
     : layerHasSource(track.layers[0]) && (isStatic || track.layers.every(layerHasSource)));
 
   const wrapper = document.createElement('div');
@@ -411,6 +570,28 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
     `;
   }
 
+  // Boutons nommés d'embranchement-vertical : une boucle autonome par bouton (pas un curseur continu,
+  // contrairement au vertical classique) — la boucle marquée isInitial est active par défaut. Le bouton
+  // de la boucle actuellement audible porte la classe "active" ; celui d'une boucle plus courte que la
+  // référence (donc un aller-retour à sens unique, pas une boucle qu'on peut garder) est désactivé
+  // pendant qu'elle joue (voir selectEmbrLoop côté moteur) pour éviter un retrigger qui casserait le calage.
+  let embrVertBlockHtml = '';
+  if (isEmbrVert && supported) {
+    const loopsList = track.loops || [];
+    const refBars = (loopsList.find(l => l.isInitial) || loopsList[0] || {}).bars;
+    const buttons = loopsList.map((l, i) => {
+      const isRef = !!l.isInitial;
+      const isShort = !isRef && refBars != null && l.bars != null && l.bars < refBars;
+      return `<button type="button" class="embr-loop-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="${isShort ? '1' : '0'}">${escapeHtml(l.label || t('loopFallback', { n: i + 1 }))}</button>`;
+    }).join('');
+    embrVertBlockHtml = `
+      <div class="track-intensity-block">
+        <div class="track-intensity-label">${t('embrLoopsLabel')}</div>
+        <div class="intensity-picker" data-role="embrLoopPicker">${buttons}</div>
+      </div>
+    `;
+  }
+
   // Panneau "En cours" pour le vertical classique : un vumètre par couche, qui reflète en direct
   // son gain réel — visible pendant le fondu enchaîné quand l'intensité change (façon Wwise Voice Graph).
   let vertGraphHtml = '';
@@ -419,12 +600,18 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       <div class="voice-graph" data-role="vertGraph">
         <div class="voice-graph-label">${t('inProgressLabel')}</div>
         ${track.layers.map((l, i) => `
-          <div class="voice-row">
-            <span class="voice-row-label">${escapeHtml((l && l.label) || t('layerFallback', { n: i + 1 }))}</span>
-            <span class="voice-meter-bar" data-role="vertMeter-${i}"><span class="voice-meter-bar-fill"></span></span>
-            <div class="wwise-node-controls">
-              <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="layer-${i}" title="${t('soloTitle')}">S</button>
-              <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="layer-${i}" title="${t('muteTitle')}">M</button>
+          <div class="voice-row-wrap">
+            <div class="voice-row">
+              <span class="voice-row-label">${escapeHtml((l && l.label) || t('layerFallback', { n: i + 1 }))}</span>
+              <span class="voice-meter-bar" data-role="vertMeter-${i}"><span class="voice-meter-bar-fill"></span></span>
+              <div class="wwise-node-controls">
+                <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="layer-${i}" title="${t('soloTitle')}">S</button>
+                <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="layer-${i}" title="${t('muteTitle')}">M</button>
+              </div>
+            </div>
+            <div class="voice-volume-row">
+              <input type="range" class="voice-volume-slider" data-voice-key="layer-${i}" min="0" max="1.5" step="0.01" value="1" title="${t('volumeTitle')}" aria-label="${t('volumeTitle')}">
+              <span class="voice-volume-value" data-role="volumeValue-layer-${i}">100%</span>
             </div>
           </div>
         `).join('')}
@@ -434,53 +621,77 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
 
   let voiceGraphHtml = '';
   if (isVerticalRandom && supported) {
-    const fixedNodes = (track.fixedLayers || []).map((f, fi) => `
-      <div class="wwise-node wwise-node-voice" data-role="wwiseVoice-fixed-${fi}">
-        <div class="wwise-node-top">
-          <div class="wwise-node-label">${escapeHtml(f && f.label ? f.label : t('fixedLayerFallback', { n: fi + 1 }))}</div>
-          <div class="wwise-node-controls">
-            <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="fixed-${fi}" title="${t('soloTitle')}">S</button>
-            <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="fixed-${fi}" title="${t('muteTitle')}">M</button>
-          </div>
-        </div>
-        <span class="wwise-node-wave">
-          <canvas class="wwise-wave-bg" data-role="voiceWaveBg-fixed-${fi}"></canvas>
-          <canvas class="wwise-wave-fg" data-role="voiceWaveFg-fixed-${fi}"></canvas>
-        </span>
+    // Nombre de "voix" affichées : le plus grand nombre de pools parmi toutes les sections jouables — une
+    // section qui en a moins voit simplement ses voix excédentaires masquées à l'écran au moment de jouer
+    // (même mécanisme que les tirages silencieux existants), plutôt que de reconstruire tout le graphe en
+    // HTML à chaque changement de section.
+    const allSections = track.sections || [];
+    const maxPoolCount = Math.max(0, ...allSections.map((s, i) => (resolveVRSection(track, i) || {}).pools?.length || 0));
+    const sectionBlocks = allSections.map((sec, i) => `
+      <div class="seq-block" data-role="vrBlock-${i}">
+        <div class="vr-block-fill" data-role="vrBlockFill-${i}"></div>
+        <span class="seq-block-label">${escapeHtml(sec.label || t('sectionFallback', { n: i + 1 }))}</span>
       </div>
     `).join('');
-    const groupNodes = (track.randomGroups || []).map((g, gi) => `
-      <div class="wwise-node wwise-node-voice" data-role="wwiseVoice-group-${gi}">
+    // Une petite liste déroulante par section, alignée sous chaque bloc — affichée en permanence (pas
+    // seulement pour la section active), pour régler section.maxLoops indépendamment de maxChainLoops
+    // (qui porte sur la chaîne entière). Désactivée si la section n'a aucun contenu jouable.
+    const sectionLoopOptions = [null, 1, 2, 3, 5, 10];
+    const sectionLoopRow = allSections.map((sec, i) => {
+      const label = sec.label || t('sectionFallback', { n: i + 1 });
+      const current = resolveVRSection(track, i).maxLoops || null;
+      return `
+      <div style="flex:1">
+        <select data-role="vrSectionLoop-${i}" title="${escapeHtml(t('sectionLoopCountTitle', { label }))}">
+          ${sectionLoopOptions.map(n => `<option value="${n === null ? '' : n}"${current === n ? ' selected' : ''}>${n === null ? '∞' : n}</option>`).join('')}
+        </select>
+      </div>`;
+    }).join('');
+    const poolNodes = Array.from({ length: maxPoolCount }, (_, pi) => `
+      <div class="wwise-node wwise-node-voice" data-role="wwiseVoice-pool-${pi}">
         <div class="wwise-node-top">
-          <div class="wwise-node-label" data-role="voiceCurrent-${gi}">—</div>
+          <div class="wwise-node-label" data-role="voiceCurrent-${pi}">—</div>
           <div class="wwise-node-controls">
-            <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="group-${gi}" title="${t('soloTitle')}">S</button>
-            <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="group-${gi}" title="${t('muteTitle')}">M</button>
+            <button type="button" class="voice-ctrl-btn" data-voice-action="solo" data-voice-key="pool-${pi}" title="${t('soloTitle')}">S</button>
+            <button type="button" class="voice-ctrl-btn" data-voice-action="mute" data-voice-key="pool-${pi}" title="${t('muteTitle')}">M</button>
           </div>
         </div>
+        <div class="voice-volume-row">
+          <input type="range" class="voice-volume-slider" data-voice-key="pool-${pi}" min="0" max="1.5" step="0.01" value="1" title="${t('volumeTitle')}" aria-label="${t('volumeTitle')}">
+          <span class="voice-volume-value" data-role="volumeValue-pool-${pi}">100%</span>
+        </div>
         <span class="wwise-node-wave">
-          <canvas class="wwise-wave-bg" data-role="voiceWaveBg-${gi}"></canvas>
-          <canvas class="wwise-wave-fg" data-role="voiceWaveFg-${gi}"></canvas>
+          <canvas class="wwise-wave-bg" data-role="voiceWaveBg-${pi}"></canvas>
+          <canvas class="wwise-wave-fg" data-role="voiceWaveFg-${pi}"></canvas>
         </span>
       </div>
     `).join('');
     voiceGraphHtml = `
       <div class="voice-graph" data-role="voiceGraph">
         <div class="voice-graph-label">${t('inProgressLabel')}</div>
+        <div class="voice-row">
+          <span class="voice-row-label">${t('currentSectionLabel')}</span>
+          <span class="voice-row-current" data-role="sectionCurrent">—</span>
+        </div>
+        ${sectionBlocks ? `<div class="seq-blocks" data-role="vrBlocks">${sectionBlocks}</div>` : ''}
+        ${sectionBlocks ? `<div class="seq-blocks" data-role="vrSectionLoopRow" style="margin-top:2px">${sectionLoopRow}</div>` : ''}
         <div class="wwise-graph" data-role="wwiseGraph">
           <svg class="wwise-graph-lines" data-role="wwiseLines"></svg>
           <div class="wwise-col wwise-col-source">
             <div class="wwise-node wwise-node-source" data-role="wwiseSource">${escapeHtml(track.title || t('trackFallback'))}</div>
           </div>
           <div class="wwise-col wwise-col-voices">
-            ${fixedNodes}
-            ${groupNodes}
+            ${poolNodes}
           </div>
           <div class="wwise-col wwise-col-bus">
             <div class="wwise-node wwise-node-bus" data-role="wwiseBus">${t('outputNode')}</div>
           </div>
         </div>
-        <button type="button" class="voice-refresh-btn" data-role="refreshPool">${t('refreshPool')}</button>
+        <div class="actions" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+          <button type="button" class="voice-refresh-btn" data-role="refreshPool">${t('refreshPool')}</button>
+          <button type="button" class="voice-refresh-btn" data-role="goToNextSectionBtn" disabled>${t('goToNextSectionBtn')}</button>
+          <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled>${t('goToEndBtn')}</button>
+        </div>
       </div>
     `;
   }
@@ -501,6 +712,8 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
           <span class="voice-meter" data-role="seqMeter"></span>
           <span class="voice-row-current" data-role="seqCurrent">—</span>
         </div>
+        <div class="seq-branch-options" data-role="seqBranchOptions"></div>
+        <div class="seq-pending-indicator" data-role="seqPendingIndicator" style="display:none">${t('pendingBranchLabel')}</div>
         <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled>${t('goToEndBtn')}</button>
       </div>
     `;
@@ -509,7 +722,9 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   // Sélecteur de boucles : uniquement pour les pistes qui utilisent le moteur quantifié (seul moteur
   // qui connaît la notion de cycle et donc de "nombre de boucles"). Valeur par défaut = celle choisie
   // par le compositeur, modifiable ici par le visiteur — la piste applique le changement au vol.
-  const useQuantizedLoopForUI = isVerticalRandom || (loops && track.loopEngine === 'quantized');
+  // Le vertical-random n'est PAS concerné ici : depuis la fusion des modes, il a son propre sélecteur de
+  // cycles de chaîne plus bas (chainLoopCountHtml), lié à maxChainLoops et non à maxLoops.
+  const useQuantizedLoopForUI = (loops && track.loopEngine === 'quantized');
   let loopCountHtml = '';
   if (useQuantizedLoopForUI && supported) {
     const options = [null, 1, 2, 3, 5, 10];
@@ -524,6 +739,23 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
     `;
   }
 
+  // Sélecteur du nombre de cycles complets de la chaîne avant transition automatique — séquentiel et
+  // vertical-random uniquement (voir maxChainLoops, décision du 31/07). Indépendant de section.maxLoops
+  // (réglable section par section juste sous les blocs, pour le vertical-random — voir sectionLoopRowHtml).
+  let chainLoopCountHtml = '';
+  if ((isSequential || isVerticalRandom) && supported) {
+    const options = [null, 1, 2, 3, 5, 10];
+    const current = track.maxChainLoops || null;
+    chainLoopCountHtml = `
+      <div class="loop-count-block">
+        <div class="loop-count-label">${t('chainLoopCountLabel')}</div>
+        <select data-role="chainLoopCountSelect">
+          ${options.map(n => `<option value="${n === null ? '' : n}"${current === n ? ' selected' : ''}>${n === null ? t('infiniteLoops') : n}</option>`).join('')}
+        </select>
+      </div>
+    `;
+  }
+
   wrapper.innerHTML = `
     <div class="track-row">
       <button class="play-btn" data-role="playBtn" disabled aria-label="${t('loadingAriaLabel')}">
@@ -532,7 +764,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       <div class="track-row-title" data-role="titleToggle">
         <span class="name">${escapeHtml(track.title)}</span>
         ${isNoAiCertified ? `<span class="no-ai-badge" title="${t('noAiBadgeTitle')}">${noAiBadgeSvg()}</span>` : ''}
-        <span class="mode-tag">${getModeLabel(track.mode)}</span>
+        <span class="mode-tag">${getModeLabel(track.mode, track)}</span>
         ${supported ? `
           <span class="loop-icon" title="${loops ? 'Bouclable' : 'Ne boucle pas'}">
             ${loops
@@ -548,7 +780,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       ${packsForTrack && packsForTrack.length ? `<div class="pack-link">${packsForTrack.map(p => `<a href="./pack.html?id=${encodeURIComponent(p.id)}">${t('partOfPack', { title: escapeHtml(p.title) })}</a>`).join('<br>')}</div>` : ''}
       ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
         !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : (
-        isSequential ? `
+        (isSequential || isVerticalRandom || isEmbrVert) ? `
           <div class="status" data-role="status">Chargement…</div>
           ${(track.sfxIds && track.sfxIds.length) ? `
             <div class="track-sfx-row">
@@ -575,7 +807,9 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
         ` : ''}
       `)}
       ${intensityBlockHtml}
+      ${embrVertBlockHtml}
       ${loopCountHtml}
+      ${chainLoopCountHtml}
       ${voiceGraphHtml}
       ${vertGraphHtml}
       ${seqGraphHtml}
@@ -595,6 +829,7 @@ function initTrackPlayer(track, wrapper) {
   const isStatic = track.mode === 'static';
   const isVerticalRandom = track.mode === 'vertical-random';
   const isSequential = track.mode === 'sequential';
+  const isEmbrVert = track.mode === 'embranchement-vertical';
   const supported = PLAYABLE_MODES.includes(track.mode);
   // Harmonisation des volumes : décision du compositeur (case à cocher dans le backstage), jamais
   // automatique — sinon un fichier qui sonne différemment de ce qu'il a exporté serait déroutant.
@@ -609,9 +844,16 @@ function initTrackPlayer(track, wrapper) {
   // pas chaque alternative individuellement, puisqu'une seule alternative par groupe sonne à la fois).
   const mutedVoices = new Set();
   const soloedVoices = new Set();
+  // Volume par voix (vertical et vertical-random) : réglage continu (slider 0-150%, défaut 100% = volume
+  // du fichier source, rien d'atténué au départ) — même clé que Solo/Muet ('layer-i' / 'pool-i'), même
+  // principe de vie : en mémoire seulement, jamais persisté, remis à 100% au rechargement de la page.
+  const layerVolumes = new Map();
+  function getLayerVolume(key) {
+    return layerVolumes.has(key) ? layerVolumes.get(key) : 1;
+  }
   function voiceGain(key) {
-    if (soloedVoices.size > 0) return soloedVoices.has(key) ? 1 : 0;
-    return mutedVoices.has(key) ? 0 : 1;
+    const soloMute = soloedVoices.size > 0 ? (soloedVoices.has(key) ? 1 : 0) : (mutedVoices.has(key) ? 0 : 1);
+    return soloMute * getLayerVolume(key);
   }
   // Recalcule en direct le gain de toutes les sources actuellement en train de sonner (génération en
   // cours et éventuelles queues encore audibles) — sans ça, un solo/muet ne prendrait effet qu'à la
@@ -647,16 +889,18 @@ function initTrackPlayer(track, wrapper) {
     }
   }
   const hasFiles = supported && (isVerticalRandom
-    ? (track.fixedLayers || []).some(layerHasSource)
+    ? (track.sections || []).some((s, i) => vrSectionIsPlayable(track, i))
     : isSequential
     ? (track.segmentSlots || []).some(sl => (sl.alternatives || []).some(layerHasSource))
+    : isEmbrVert
+    ? (track.loops || []).some(layerHasSource)
     : layerHasSource(track.layers[0]) && (isStatic || track.layers.every(layerHasSource)));
   if (!hasFiles) return;
 
-  const layersToLoad = (isVerticalRandom || isSequential) ? [] : (isStatic ? [track.layers[0]] : track.layers);
-  const profiles = (isVerticalRandom || isSequential) ? [] : (isStatic ? [[1]] : cumulativeProfiles(track.layers.length));
+  const layersToLoad = (isVerticalRandom || isSequential || isEmbrVert) ? [] : (isStatic ? [track.layers[0]] : track.layers);
+  const profiles = (isVerticalRandom || isSequential || isEmbrVert) ? [] : (isStatic ? [[1]] : cumulativeProfiles(track.layers.length));
   const loops = !isStatic || !!track.loopable; // toujours vrai pour vertical-random (isStatic est faux)
-  const useQuantizedLoop = !isSequential && (isVerticalRandom || (loops && track.loopEngine === 'quantized'));
+  const useQuantizedLoop = !isSequential && !isVerticalRandom && !isEmbrVert && (loops && track.loopEngine === 'quantized');
   // Sfx attachés à ce morceau (ex-"stingers") — résolus depuis la Bibliothèque Sfx partagée, chacun
   // pouvant porter plusieurs variations round robin (contrairement à l'ancien stinger, un seul fichier).
   const attachedSfx = (track.sfxIds || []).map(id => SFX_LIBRARY_BY_ID[id]).filter(Boolean);
@@ -701,7 +945,16 @@ function initTrackPlayer(track, wrapper) {
   // toutes leurs couches partagent la même durée par convention, donc pas le même risque.
   // Fonction plutôt que valeur figée : track.duration n'est connu avec certitude qu'une fois le
   // décodage terminé (voir plus bas), donc on le relit à chaque appel plutôt que de le geler trop tôt.
-  function progressMaxSec() { return isVerticalRandom ? (loopOutSec || track.duration) : track.duration; }
+  // Pour vertical-random, la durée affichée est celle du cycle de la section EN COURS (celle qui joue
+  // réellement, ou à défaut la première jouable avant tout démarrage) — plus un tempo unique partagé par
+  // tout le morceau, chaque section ayant désormais sa propre timeline (30/07).
+  function progressMaxSec() {
+    if (!isVerticalRandom) return track.duration;
+    const origIdx = vrCurrentSectionOriginalIndex >= 0 ? vrCurrentSectionOriginalIndex : (playableSectionOriginalIndex[0] !== undefined ? playableSectionOriginalIndex[0] : -1);
+    if (origIdx < 0) return track.duration;
+    const section = resolveVRSection(track, origIdx);
+    return (section ? sectionTiming(section).loopOutSec : 0) || track.duration;
+  }
   // StartTrackPoint : où démarre la toute première lecture (permet de sauter un silence en tête).
   // Ne s'applique qu'au moteur quantifié — le moteur simple garde son comportement natif inchangé.
   const startTrackSec = Math.min((track.startTrackBeat || 0) * secondsPerBeat, loopInSec);
@@ -739,38 +992,38 @@ function initTrackPlayer(track, wrapper) {
   const timeCurrent = wrapper.querySelector('[data-role="timeCurrent"]');
   const timeTotal = wrapper.querySelector('[data-role="timeTotal"]');
   const notchDots = [...wrapper.querySelectorAll('.intensity-chip')];
+  const embrLoopBtns = [...wrapper.querySelectorAll('.embr-loop-btn')];
   const stingerBtns = [...wrapper.querySelectorAll('.stinger-btn')];
   const loopCountSelect = wrapper.querySelector('[data-role="loopCountSelect"]');
-  const voiceWaveFixed = (track.fixedLayers || []).map((f, fi) => ({
-    bg: wrapper.querySelector(`[data-role="voiceWaveBg-fixed-${fi}"]`),
-    fg: wrapper.querySelector(`[data-role="voiceWaveFg-fixed-${fi}"]`)
+  const chainLoopCountSelect = wrapper.querySelector('[data-role="chainLoopCountSelect"]');
+  // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : le graphe affiche des
+  // "emplacements de voix" génériques (pool-0, pool-1, ...), dimensionnés au plus grand nombre de pools
+  // parmi toutes les sections — quand la section en cours en a moins, les emplacements excédentaires sont
+  // simplement masqués (même mécanisme que les tirages silencieux déjà existants), plutôt que de
+  // reconstruire le graphe en HTML à chaque changement de section.
+  const vrMaxPoolCount = isVerticalRandom ? Math.max(0, ...(track.sections || []).map((s, i) => (resolveVRSection(track, i) || {}).pools?.length || 0)) : 0;
+  const voiceWavePools = Array.from({ length: vrMaxPoolCount }, (_, pi) => ({
+    bg: wrapper.querySelector(`[data-role="voiceWaveBg-${pi}"]`),
+    fg: wrapper.querySelector(`[data-role="voiceWaveFg-${pi}"]`)
   }));
-  const voiceWaveGroups = (track.randomGroups || []).map((g, gi) => ({
-    bg: wrapper.querySelector(`[data-role="voiceWaveBg-${gi}"]`),
-    fg: wrapper.querySelector(`[data-role="voiceWaveFg-${gi}"]`)
-  }));
-  const voiceCurrents = (track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="voiceCurrent-${gi}"]`));
-  // Dessine la waveform d'une voix vertical-random (couche fixe ou alternative piochée) — même principe
+  const voiceCurrents = Array.from({ length: vrMaxPoolCount }, (_, pi) => wrapper.querySelector(`[data-role="voiceCurrent-${pi}"]`));
+  // Dessine la waveform d'une voix vertical-random (alternative piochée dans un pool) — même principe
   // fond/avant-plan que la waveform du mode statique et les blocs du mode séquentiel.
   function drawVoiceWave(els, buffer) {
     if (!els || !els.bg || !els.fg || !buffer) return;
     renderWaveformPair(els.bg, els.fg, buffer, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
   }
-  // Graphe de nœuds façon Wwise (Voice Graph) pour vertical-random : source -> une voix par couche
-  // fixe/groupe -> bus de sortie, reliés par des connecteurs courbes dessinés en SVG. Le nombre de voix
-  // est fixe pour un morceau donné (seul le libellé/l'état de chaque voix change à chaque tirage), donc
-  // les connecteurs ne sont redessinés qu'au premier rendu et au redimensionnement, pas à chaque tirage.
+  // Graphe de nœuds façon Wwise (Voice Graph) pour vertical-random : source -> une voix par emplacement
+  // de pool -> bus de sortie, reliés par des connecteurs courbes dessinés en SVG. Le nombre d'emplacements
+  // est fixe pour un morceau donné (seul le libellé/l'état de chaque emplacement change selon la section
+  // en cours et le tirage), donc les connecteurs ne sont redessinés qu'au premier rendu, au
+  // redimensionnement, et quand un emplacement apparaît/disparaît (changement de section).
   const wwiseGraphEl = wrapper.querySelector('[data-role="wwiseGraph"]');
   const wwiseLinesEl = wrapper.querySelector('[data-role="wwiseLines"]');
   const wwiseSourceEl = wrapper.querySelector('[data-role="wwiseSource"]');
   const wwiseBusEl = wrapper.querySelector('[data-role="wwiseBus"]');
-  const wwiseVoiceEls = [
-    ...(track.fixedLayers || []).map((f, fi) => wrapper.querySelector(`[data-role="wwiseVoice-fixed-${fi}"]`)),
-    ...(track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="wwiseVoice-group-${gi}"]`))
-  ];
-  // Référence directe par groupe (pas seulement dans la liste à plat ci-dessus) pour pouvoir cacher/montrer
-  // une voix précise quand son tirage tombe sur un slot silencieux — voir scheduleVoiceGraphUpdate.
-  const wwiseGroupVoiceEls = (track.randomGroups || []).map((g, gi) => wrapper.querySelector(`[data-role="wwiseVoice-group-${gi}"]`));
+  const wwisePoolVoiceEls = Array.from({ length: vrMaxPoolCount }, (_, pi) => wrapper.querySelector(`[data-role="wwiseVoice-pool-${pi}"]`));
+  const wwiseVoiceEls = wwisePoolVoiceEls;
   function drawWwiseLines() {
     if (!wwiseGraphEl || !wwiseLinesEl || !wwiseSourceEl || !wwiseBusEl) return;
     const rect = wwiseGraphEl.getBoundingClientRect();
@@ -808,10 +1061,30 @@ function initTrackPlayer(track, wrapper) {
   const vertMeterFills = (track.mode === 'vertical' ? track.layers : []).map((l, i) => wrapper.querySelector(`[data-role="vertMeter-${i}"] .voice-meter-bar-fill`));
   const seqMeterEl = wrapper.querySelector('[data-role="seqMeter"]');
   const seqCurrentEl = wrapper.querySelector('[data-role="seqCurrent"]');
+  const seqBranchOptionsEl = wrapper.querySelector('[data-role="seqBranchOptions"]');
+  const seqPendingIndicatorEl = wrapper.querySelector('[data-role="seqPendingIndicator"]');
   const goToEndBtn = wrapper.querySelector('[data-role="goToEndBtn"]');
+  const goToNextSectionBtn = wrapper.querySelector('[data-role="goToNextSectionBtn"]');
+  const sectionCurrentEl = wrapper.querySelector('[data-role="sectionCurrent"]');
+  const vrBlockEls = (track.sections || []).map((s, i) => wrapper.querySelector(`[data-role="vrBlock-${i}"]`));
+  const vrBlockFillEls = (track.sections || []).map((s, i) => wrapper.querySelector(`[data-role="vrBlockFill-${i}"]`));
+  const vrSectionLoopSelectEls = (track.sections || []).map((s, i) => wrapper.querySelector(`[data-role="vrSectionLoop-${i}"]`));
+  // Référence live vers les objets réellement lus par sectionScheduler.decideNext() à chaque cycle — les
+  // muter en place (voir vrSectionLoopSelectEls ci-dessous) fait donc effet au vol, sans recréer le
+  // scheduler ni interrompre la lecture en cours (même principe que track.maxLoops pour le moteur quantifié).
+  let vrPlayableSectionRefs = [];
 
   let buffers = [], sources = [], gains = []; // moteur simple
   let activeGenSources = []; // moteur quantifié : [{src, gain}], toutes générations (dont queues) confondues
+  // ---- État moteur embranchement-vertical (voir bloc dédié plus bas pour la logique) ----
+  let embrLoopBuffers = []; // un buffer par boucle déclarée (même ordre que track.loops), null si manquante
+  let embrActiveGenSources = []; // {src, gain, loopIdx} des générations "pairs" (même longueur que la référence) en cours
+  let embrActiveLoopIdx = -1; // index (dans track.loops) de la boucle actuellement AUDIBLE
+  let embrSchedulerTimer = null;
+  let embrNextStartCtxTime = 0;
+  let embrDetourTimeout = null; // minuterie du retour auto à la référence après une boucle courte
+  let embrDetourSource = null; // {src, gain} du détour en cours, si il y en a un
+  let embrDetourBtn = null; // bouton désactivé le temps de ce détour, si il y en a un
   let currentGainNodes = []; // moteur quantifié : gains de la génération la plus récente, par couche (contrôle d'intensité en direct)
   let schedulerTimer = null;
   let voiceGraphTimeouts = [];
@@ -837,32 +1110,48 @@ function initTrackPlayer(track, wrapper) {
   let lastGenSources = [];
   let finalGenerationMarkerSrc = null;
 
-  // Spécifique au mode vertical-random
-  let fixedBuffers = []; // une entrée par couche fixe déclarée (toutes jouent systématiquement, à chaque cycle)
-  let rawFixedLayers = []; // couches fixes réellement chargées (avec fichier), même indexation que fixedBuffers — sert à retrouver le bon gain de correction par index dans scheduleGeneration
-  let groupBuffers = [];    // groupBuffers[g] = [buffer, buffer, ...] pour chaque alternative jouable du groupe g
-  // Un groupe peut "dupliquer" (référencer) le pool d'un autre groupe plutôt que de charger deux fois les
-  // mêmes fichiers en mémoire (ex. deux groupes qui doivent varier de façon identique) — groupBuffers[g]
-  // pointe alors directement vers le MÊME tableau que le groupe référencé (pas une copie). L'anti-répétition
-  // est elle aussi partagée entre toutes les occurrences d'un même pool : on la garde donc par identifiant
-  // canonique (l'id du groupe réellement porteur du contenu), pas par index de groupe.
-  let lastPickedIndex = {}; // lastPickedIndex[canonicalGroupId] = index de la dernière alternative tirée pour ce pool
-  function canonicalGroupKey(g) {
-    const group = (track.randomGroups || [])[g];
-    return (group && group.referencesGroupId) || (group && group.id) || ('g' + g);
+  // Spécifique au mode vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07)
+  // sectionBuffers[secIdx][poolIdx] = [buffer, buffer, ...] pour chaque alternative jouable de ce pool,
+  // secIdx étant l'index DÉCLARÉ de la section (pas résolu) — une section qui duplique une autre
+  // (referencesSectionId) pointe directement vers le MÊME tableau que sa source (pas une copie), exactement
+  // comme les groupes/emplacements dupliqués des autres modes. L'anti-répétition par pool se garde donc par
+  // identifiant canonique (l'id du pool réellement porteur du contenu), pas par index brut.
+  let sectionBuffers = [];
+  let lastPickedPoolIndex = {}; // lastPickedPoolIndex[canonicalPoolId] = index de la dernière alternative tirée pour ce pool
+  // playableSectionOriginalIndex[i] = index RÉEL dans track.sections pour la i-ème section jouable — le
+  // scheduler pur (createSectionPlaybackScheduler) ne connaît que des positions 0..N-1 parmi les sections
+  // jouables, il faut donc toujours repasser par cette table pour retrouver la vraie section (et ses
+  // buffers déjà chargés) à jouer.
+  let playableSectionOriginalIndex = [];
+  let sectionScheduler = null; // recréé à chaque vrai démarrage (pas une reprise), voir playVerticalRandom
+  function canonicalPoolKey(secIdx, poolIdx) {
+    const section = resolveVRSection(track, secIdx);
+    const pool = (section && section.pools || [])[poolIdx];
+    return (pool && pool.referencesPoolId) || (pool && pool.id) || ('s' + secIdx + 'p' + poolIdx);
   }
-  function pickAlternativeIndex(g) {
-    const group = (track.randomGroups || [])[g];
-    const bufs = groupBuffers[g] || [];
+  function pickPoolAlternativeIndex(secIdx, poolIdx) {
+    const section = resolveVRSection(track, secIdx);
+    const pool = (section && section.pools || [])[poolIdx];
+    const bufs = (sectionBuffers[secIdx] && sectionBuffers[secIdx][poolIdx]) || [];
     const n = bufs.length;
     if (n === 0) return -1;
-    const key = canonicalGroupKey(g);
+    const key = canonicalPoolKey(secIdx, poolIdx);
     let idx = Math.floor(Math.random() * n);
-    if (group && group.avoidImmediateRepeat && n > 1) {
-      while (idx === lastPickedIndex[key]) idx = Math.floor(Math.random() * n);
+    if (pool && pool.avoidImmediateRepeat && n > 1) {
+      while (idx === lastPickedPoolIndex[key]) idx = Math.floor(Math.random() * n);
     }
-    lastPickedIndex[key] = idx;
+    lastPickedPoolIndex[key] = idx;
     return idx;
+  }
+  // Minutage d'une section résolue (bpm/mesures/timeline propres à CETTE section — plus un tempo unique
+  // partagé par tout le morceau, voir décision du 30/07). Calculé à la demande plutôt que figé une fois,
+  // puisque la section "courante" change au fil de la lecture.
+  function sectionTiming(section) {
+    const spb = 60 / (section.bpm || 120);
+    const loopInSec = (section.loopInBeat || 0) * spb;
+    const loopOutSec = Math.max(loopInSec + spb, (section.loopOutBeat || (section.beatsPerBar || 4) * 4) * spb);
+    const startTrackSec = Math.min((section.startTrackBeat || 0) * spb, loopInSec);
+    return { loopInSec, loopOutSec, cycleLength: loopOutSec - loopInSec, startTrackSec };
   }
 
   // Buffers des Sfx attachés : un tableau de buffers (une entrée par variation round robin) par Sfx,
@@ -871,17 +1160,29 @@ function initTrackPlayer(track, wrapper) {
   let sfxLastIndexById = {}; // dernier index tiré par Sfx (anti-répétition aléatoire / avance séquentielle)
   let activeStingerSources = [];
 
-  // Spécifique au mode séquentiel
+  // introBuffer/outroBuffer : partagés entre séquentiel et vertical-random (même forme de champs, fusion
+  // du 30/07) — jamais utilisés par les deux modes à la fois, un morceau n'ayant qu'un seul mode.
   let introBuffer = null, outroBuffer = null;
   // slotBuffers[s] = [buffer, buffer, ...] pour chaque alternative jouable de l'emplacement s — même
-  // principe que groupBuffers du vertical-random (y compris la duplication/référence pour économiser la
-  // mémoire, voir canonicalGroupKey ci-dessus), mais ici l'ORDRE des emplacements compte en plus : ils
-  // s'enchaînent dans l'ordre défini par le compositeur (contrairement aux groupes, qui jouent tous
-  // simultanément et n'ont pas de notion d'ordre entre eux).
+  // principe que sectionBuffers du vertical-random (y compris la duplication/référence pour économiser la
+  // mémoire, voir canonicalPoolKey plus bas), mais ici l'ORDRE des emplacements compte en plus : ils
+  // s'enchaînent dans l'ordre défini par le compositeur (contrairement aux pools d'une même section, qui
+  // jouent tous simultanément et n'ont pas de notion d'ordre entre eux).
   let slotBuffers = [];
+  // transitionBuffers[s][o] = buffer du fichier de transition déclaré pour le o-ième embranchement sortant
+  // de l'emplacement s (nextOptions[o].transition), ou null si aucun n'est défini pour cette paire précise
+  // — chaque embranchement a le sien, contrairement à slotBuffers qui est par emplacement (voir schéma
+  // "Embranchement séquentiel avec transitions" validé le 02/08).
+  let transitionBuffers = [];
   let lastPickedSlotAltIndex = {}; // lastPickedSlotAltIndex[canonicalSlotId] = index de la dernière alternative tirée pour ce pool — partagé entre tous les emplacements qui dupliquent le même pool (ex. structure AABA : les deux "A" évitent la même dernière alternative jouée)
   let currentSlotIndex = 0; // position dans le cycle d'emplacements ; boucle sur elle-même (0,1,...,N-1,0,1,...)
   let currentSlotRepeatsPlayed = 0; // combien de fois l'emplacement courant a déjà rejoué depuis qu'on y est arrivé, pour respecter repeatCount avant de passer au suivant
+  // Embranchement séquentiel (optionnel, par emplacement — voir schéma `nextOptions` validé le 31/07,
+  // étendu le 02/08 avec `quantization`/`cutStyle`/`transition` par embranchement) : id de l'emplacement
+  // choisi par le visiteur, en attente d'être consommé par performSeqBranchCut(). Un nouveau clic écrase
+  // la valeur précédente (dernier clic gagne) ; remis à null une fois consommé.
+  let pendingNextSegmentId = null;
+  let chainState = { cyclesCompleted: 0, capReached: false }; // compteur de cycles complets pour maxChainLoops — voir advanceChainIndex(), remis à zéro à chaque vrai redémarrage (pas une reprise)
   let seqSchedulerTimer = null;
   let seqNextStartCtxTime = 0;
   let seqActiveSources = []; // {src, gain} toutes générations confondues (dont queues en train de finir)
@@ -889,7 +1190,21 @@ function initTrackPlayer(track, wrapper) {
   let seqFinalMarkerSrc = null;
   let seqTimeouts = [];
   let goToEndRequested = false;
-  function blockSeconds(bars) { return (bars || beatsPerBar) * beatsPerBar * secondsPerBeat; }
+  // ---- État pour la coupure fine des embranchements séquentiels (voir schéma "quantization"/"cutStyle"/
+  // "transition" validé le 02/08) — voir armNextSeqBranchBoundary()/performSeqBranchCut() plus bas. ----
+  let forcedNextBlock = null; // bloc à jouer en priorité au prochain decideNextSeqBlock() (la transition injectée par une coupure), consommé et vidé aussitôt lu
+  let seqBranchEpoch = 0; // incrémenté à chaque nouveau passage sur un emplacement et à chaque coupure — invalide les chaînes de vérification de frontière héritées d'un passage précédent (voir armNextSeqBranchBoundary)
+  function blockSeconds(bars, slot) {
+    // slot fourni ET porteur d'un tempo propre (bpm ou beatsPerBar) : grille de CET emplacement.
+    // Sinon (pas de slot, ou slot sans réglage propre) : grille du morceau, comportement historique
+    // inchangé — même chaîne de repli que le moteur quantifié classique (track.bpm || 120).
+    if (slot && (slot.bpm || slot.beatsPerBar)) {
+      const slotBeatsPerBar = slot.beatsPerBar || beatsPerBar;
+      const slotSecondsPerBeat = 60 / (slot.bpm || bpm);
+      return (bars || slotBeatsPerBar) * slotBeatsPerBar * slotSecondsPerBeat;
+    }
+    return (bars || beatsPerBar) * beatsPerBar * secondsPerBeat;
+  }
   function canonicalSlotKey(s) {
     const slot = (track.segmentSlots || [])[s];
     return (slot && slot.referencesSlotId) || (slot && slot.id) || ('s' + s);
@@ -935,16 +1250,28 @@ function initTrackPlayer(track, wrapper) {
       const altIdx = pickSlotAlternativeIndex(slotIdx);
       if (altIdx < 0) {
         // emplacement totalement vide : on l'ignore, on passe au suivant sans consommer de répétition
-        currentSlotIndex = (currentSlotIndex + 1) % slots.length;
+        currentSlotIndex = advanceChainIndex(currentSlotIndex, slots.length, chainState, track.maxChainLoops);
         currentSlotRepeatsPlayed = 0;
         continue;
+      }
+      // Un emplacement à embranchements ne quitte JAMAIS sa position tout seul, quel que soit repeatCount
+      // (qui n'a plus de sens ici) — l'avancement automatique n'a plus lieu d'être dès lors que le visiteur
+      // peut cliquer pour choisir (validé le 02/08). Seule une coupure fine (performSeqBranchCut(), voir
+      // plus bas) peut faire avancer currentSlotIndex pour un tel emplacement.
+      if (slots[slotIdx].nextOptions && slots[slotIdx].nextOptions.length) {
+        return { slotIdx, altIdx };
       }
       currentSlotRepeatsPlayed++;
       const repeatCount = Math.max(1, slots[slotIdx].repeatCount || 1);
       if (currentSlotRepeatsPlayed >= repeatCount) {
-        currentSlotIndex = (currentSlotIndex + 1) % slots.length;
+        currentSlotIndex = advanceChainIndex(currentSlotIndex, slots.length, chainState, track.maxChainLoops);
         currentSlotRepeatsPlayed = 0;
       }
+      // Un cycle complet de la chaîne vient d'atteindre la limite maxChainLoops (toutes deux causes
+      // d'avancement ci-dessus y mènent pareil) : même mécanisme que "Aller vers la fin" manuel, pris en
+      // compte au prochain decideNextSeqBlock() — l'emplacement en cours de programmation ici va tout de
+      // même jusqu'à son terme, seul ce qui vient après bascule vers l'outro (ou la fin naturelle).
+      if (chainState.capReached) { chainState.capReached = false; goToEndRequested = true; }
       return { slotIdx, altIdx };
     }
     return null; // aucun emplacement n'a la moindre alternative chargée
@@ -994,8 +1321,8 @@ function initTrackPlayer(track, wrapper) {
   // État du bloc actuellement en cours de lecture, retenu pour permettre le seek (glisser sur sa waveform) :
   // sans ça, impossible de savoir quel buffer/gain relancer, ni à quelle position on se trouve réellement
   // dedans (le curseur visuel seul ne suffit pas — il faut aussi la référence temporelle audio exacte).
-  let currentSeqBlockInfo = null; // { kind, buffer, gain, totalSec, virtualZero, terminal }
-  function activateSeqStage(kind, remainingSec, totalSec, buffer, gainValue, terminal) {
+  let currentSeqBlockInfo = null; // { kind, buffer, gain, totalSec, virtualZero, terminal, slotIdx }
+  function activateSeqStage(kind, remainingSec, totalSec, buffer, gainValue, terminal, slotIdx, gainNode) {
     const order = ['intro', 'segment', 'outro'];
     const idx = order.indexOf(kind);
     // Tout ce qui précède ce stade (hors "segment", qui se remplit à nouveau à chaque tirage plutôt que
@@ -1009,7 +1336,23 @@ function initTrackPlayer(track, wrapper) {
     });
     const block = seqBlockEls[kind], els = seqWaveEls[kind];
     const startFraction = totalSec > 0 ? Math.max(0, Math.min(1, 1 - (remainingSec / totalSec))) : 0;
-    currentSeqBlockInfo = { kind, buffer, gain: gainValue, totalSec, virtualZero: ctx.currentTime - (startFraction * totalSec), terminal: !!terminal };
+    currentSeqBlockInfo = { kind, buffer, gain: gainValue, gainNode: gainNode || null, totalSec, virtualZero: ctx.currentTime - (startFraction * totalSec), terminal: !!terminal, slotIdx: (slotIdx != null ? slotIdx : -1) };
+    // Boutons d'embranchement : uniquement pertinents pendant un "segment" (l'intro/l'outro n'ont pas de
+    // nextOptions dans le schéma) — masqués/vidés sinon, reconstruits pour l'emplacement qui vient de
+    // devenir audible.
+    renderSeqBranchOptions(kind === 'segment' && slotIdx != null ? slotIdx : -1);
+    // Chaque nouveau passage sur UN emplacement (y compris une simple répétition du même) a ses propres
+    // frontières de temps/mesure à surveiller — l'epoch invalide toute chaîne héritée d'un passage
+    // précédent (voir armNextSeqBranchBoundary), pour ne jamais laisser deux chaînes tourner en parallèle.
+    if (kind === 'segment' && slotIdx != null && slotIdx >= 0) {
+      seqBranchEpoch++;
+      const slot = (track.segmentSlots || [])[slotIdx];
+      // "immediate" n'a pas besoin de surveillance de frontière : géré directement au clic (voir
+      // renderSeqBranchOptions). Seuls "beat"/"bar" ont une frontière à attendre.
+      if (slot && slot.nextOptions && slot.nextOptions.length && (slot.quantization || 'bar') !== 'immediate') {
+        armNextSeqBranchBoundary(seqBranchEpoch);
+      }
+    }
     if (block) {
       block.classList.remove('done'); block.classList.add('active');
       if (buffer) drawSeqBlockWave(kind, buffer, totalSec);
@@ -1033,19 +1376,158 @@ function initTrackPlayer(track, wrapper) {
       if (els && els.fg) { els.fg.style.transition = 'none'; els.fg.style.clipPath = 'inset(0 100% 0 0)'; }
     });
   }
+  // Boutons d'embranchement séquentiel (optionnel, voir `nextOptions` sur segmentSlots) : reconstruits à
+  // chaque fois que l'emplacement audible change, puisque les cibles disponibles dépendent de CET
+  // emplacement précis. slotIdx === -1 (intro/outro/arrêt) : rien à montrer, panneau vidé.
+  function renderSeqBranchOptions(slotIdx) {
+    if (!seqBranchOptionsEl) return;
+    const slot = slotIdx >= 0 ? (track.segmentSlots || [])[slotIdx] : null;
+    const options = (slot && slot.nextOptions) || [];
+    if (!options.length) {
+      seqBranchOptionsEl.innerHTML = '';
+      if (seqPendingIndicatorEl) seqPendingIndicatorEl.style.display = 'none';
+      return;
+    }
+    seqBranchOptionsEl.innerHTML = options.map(opt => {
+      const targetIdx = (track.segmentSlots || []).findIndex(sl => sl.id === opt.targetId);
+      const targetSlot = targetIdx >= 0 ? track.segmentSlots[targetIdx] : null;
+      // Repli aligné sur celui déjà utilisé côté éditeur (libraryRender.js, menu de cible) : "Emplacement N"
+      // plutôt que l'id technique brut (genId(), ex. "b1a2b3c4d5e") quand ni l'embranchement ni l'emplacement
+      // cible n'ont de nom — l'id brut ne reste un ultime recours que pour une cible orpheline (emplacement
+      // supprimé depuis), cas déjà géré sans casse ailleurs (performSeqBranchCut sort silencieusement).
+      const label = opt.label || (targetSlot && targetSlot.label) || (targetSlot ? t('slotFallback', { n: targetIdx + 1 }) : opt.targetId);
+      const isPending = pendingNextSegmentId === opt.targetId;
+      return `<button type="button" class="seq-branch-btn${isPending ? ' pending' : ''}" data-target-id="${escapeHtml(opt.targetId)}">${escapeHtml(label)}</button>`;
+    }).join('');
+    updateSeqPendingIndicator();
+    seqBranchOptionsEl.querySelectorAll('.seq-branch-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Dernier clic gagne (validé le 31/07) : un second clic sur une autre option remplace simplement
+        // le choix précédent, il n'y a jamais de verrou sur le premier clic.
+        pendingNextSegmentId = btn.dataset.targetId;
+        seqBranchOptionsEl.querySelectorAll('.seq-branch-btn').forEach(b => b.classList.toggle('pending', b === btn));
+        updateSeqPendingIndicator();
+        trackPublicEvent('seq_branch_select', { trackId: track.id, targetId: pendingNextSegmentId });
+        // "immediate" (validé le 02/08) : pas de frontière à attendre, la coupure se déclenche directement
+        // au clic — pour "beat"/"bar", c'est armNextSeqBranchBoundary (armée dès le début de CET emplacement
+        // dans activateSeqStage) qui surveille déjà la prochaine frontière et lira ce choix à son tour.
+        if (slot && (slot.quantization || 'bar') === 'immediate') performSeqBranchCut();
+      });
+    });
+  }
+  function updateSeqPendingIndicator() {
+    if (!seqPendingIndicatorEl) return;
+    seqPendingIndicatorEl.style.display = pendingNextSegmentId ? '' : 'none';
+  }
+  // Surveille la prochaine frontière de temps ("beat") ou de mesure ("bar") de l'emplacement ACTUELLEMENT
+  // audible, et déclenche la coupure dès qu'elle est atteinte SI un choix est en attente à ce moment-là —
+  // sinon se réarme pour la frontière suivante (l'emplacement continue de se rejouer normalement tant
+  // qu'aucun choix n'est fait). myEpoch protège contre les chaînes héritées d'un passage précédent sur cet
+  // emplacement (ou un autre) : si l'epoch global a changé entretemps (nouveau passage, coupure survenue
+  // par un autre chemin), cette chaîne s'éteint silencieusement au lieu de continuer à tourner en double.
+  function armNextSeqBranchBoundary(myEpoch) {
+    if (myEpoch !== seqBranchEpoch) return;
+    if (!currentSeqBlockInfo || currentSeqBlockInfo.kind !== 'segment') return;
+    const slotIdx = currentSeqBlockInfo.slotIdx;
+    const slot = (slotIdx != null && slotIdx >= 0) ? (track.segmentSlots || [])[slotIdx] : null;
+    if (!slot || !slot.nextOptions || !slot.nextOptions.length) return;
+    const quant = slot.quantization || 'bar';
+    const segStart = currentSeqBlockInfo.virtualZero;
+    const slotSecondsPerBeat = 60 / (slot.bpm || bpm);
+    const slotBeatsPerBar = slot.beatsPerBar || beatsPerBar;
+    const unitSec = quant === 'beat' ? slotSecondsPerBeat : (slotBeatsPerBar * slotSecondsPerBeat);
+    const elapsed = Math.max(0, ctx.currentTime - segStart);
+    const stepsElapsed = Math.floor(elapsed / unitSec + 1e-6);
+    const cutTime = segStart + (stepsElapsed + 1) * unitSec; // toujours la PROCHAINE frontière, strictement après maintenant
+    const delayMs = Math.max(0, (cutTime - ctx.currentTime) * 1000);
+    const id = setTimeout(() => {
+      if (myEpoch !== seqBranchEpoch) return; // périmée pendant l'attente (nouveau passage ou coupure survenue par ailleurs)
+      if (pendingNextSegmentId) performSeqBranchCut();
+      else armNextSeqBranchBoundary(myEpoch); // rien choisi à cette frontière : on surveille la suivante
+    }, delayMs);
+    seqTimeouts.push(id);
+  }
+  // Exécute la coupure : termine net ou en fondu (cutStyle) l'emplacement actuellement audible au point de
+  // quantification atteint, annule toute génération déjà programmée mais pas encore audible (voir filtrage
+  // de seqActiveSources plus bas), puis bascule vers la cible choisie — via un fichier de transition si l'embranchement
+  // en déclare un (rejoue ensuite normalement, chevauchement crossfade-tail classique vers la cible), sinon
+  // directement. Schéma "quantization"/"cutStyle"/"transition" validé le 02/08.
+  function performSeqBranchCut() {
+    const targetId = pendingNextSegmentId;
+    pendingNextSegmentId = null;
+    updateSeqPendingIndicator();
+    if (!currentSeqBlockInfo || currentSeqBlockInfo.kind !== 'segment' || currentSeqBlockInfo.slotIdx == null || currentSeqBlockInfo.slotIdx < 0 || !targetId) return;
+    const sourceSlotIdx = currentSeqBlockInfo.slotIdx;
+    const sourceSlot = (track.segmentSlots || [])[sourceSlotIdx];
+    if (!sourceSlot) return;
+    const targetIdx = (track.segmentSlots || []).findIndex(sl => sl.id === targetId);
+    if (targetIdx < 0) return; // cible introuvable (id orphelin, ex. emplacement supprimé depuis) : l'emplacement continue de se rejouer normalement, rien de cassé
+    seqBranchEpoch++; // invalide toute chaîne de vérification de frontière encore en vol pour l'emplacement qu'on quitte
+    // Un choix de cible précis est plus spécifique qu'une demande générique "aller vers la fin" déjà en
+    // attente (les deux boutons coexistent, rien n'empêche de cliquer les deux) — sans ça, decideNextSeqBlock()
+    // route vers l'outro dès le prochain calcul et le visiteur n'entend jamais la cible qu'il vient de choisir.
+    goToEndRequested = false;
+    if (goToEndBtn) { goToEndBtn.disabled = false; goToEndBtn.textContent = t('goToEndBtn'); }
+    const cutStyle = sourceSlot.cutStyle || 'fade';
+    const now = ctx.currentTime;
+    if (currentSeqBlockInfo.gainNode) {
+      const g = currentSeqBlockInfo.gainNode;
+      g.gain.cancelScheduledValues(now);
+      if (cutStyle === 'hard') {
+        g.gain.setValueAtTime(0, now);
+      } else {
+        g.gain.setValueAtTime(g.gain.value, now);
+        g.gain.linearRampToValueAtTime(0, now + 0.15); // même durée que les autres fondus courts du morceau (solo/muet, embranchement-vertical)
+      }
+    }
+    // Le scheduler normal programme jusqu'à 1s à l'avance (voir seqSchedulerTick) : au moment d'une coupure,
+    // une ou PLUSIEURS générations peuvent déjà être programmées (source.start() déjà appelé sur le
+    // contexte audio) sans être encore audibles — un emplacement court peut suffire à en empiler plusieurs
+    // dans la même fenêtre. Toutes sont maintenant caduques et doivent être coupées avant leur heure de
+    // départ, sinon elles sonnent quand même par-dessus la nouvelle destination : Web Audio ne sait pas
+    // qu'elles sont devenues obsolètes tant qu'on ne les arrête pas explicitement une par une. Ne retenir
+    // que "la dernière programmée" (ancien seqNextScheduled, une seule référence) ne suffisait pas dès que
+    // plus d'une génération future était en attente — bug trouvé le 06/08 (chevauchement audible entre
+    // l'ancien et le nouvel emplacement, signalé par Jules-Antoine). La génération ACTUELLEMENT audible
+    // (ctxStartTime <= now) n'est jamais concernée ici : elle est déjà en train de s'éteindre via son
+    // gainNode juste au-dessus.
+    seqActiveSources = seqActiveSources.filter(({ src, ctxStartTime: st }) => {
+      if (st > now) { try { src.stop(); } catch (e) {} return false; }
+      return true;
+    });
+    seqTimeouts.forEach(id => clearTimeout(id)); seqTimeouts = [];
+    const opt = (sourceSlot.nextOptions || []).find(o => o.targetId === targetId);
+    const oi = opt ? sourceSlot.nextOptions.indexOf(opt) : -1;
+    const transitionBuf = (oi >= 0 && transitionBuffers[sourceSlotIdx]) ? transitionBuffers[sourceSlotIdx][oi] : null;
+    if (transitionBuf) {
+      forcedNextBlock = {
+        buffer: transitionBuf, label: (opt.transition && opt.transition.label) || t('transitionFallbackLabel'),
+        durationSec: blockSeconds(opt.transition && opt.transition.bars, sourceSlot), terminal: false, kind: 'transition',
+        gain: effGain(opt.transition), slotIdx: -1
+      };
+    }
+    // currentSlotIndex pointe maintenant sur la cible : que le bloc immédiatement suivant soit la
+    // transition injectée (forcedNextBlock, consommée une seule fois) ou directement la cible (pas de
+    // transition définie pour cet embranchement), decideNextSeqBlock() retombera ensuite naturellement sur
+    // pickNextSegmentSlot() pour CET emplacement — exactement le même mécanisme qu'un enchaînement normal.
+    currentSlotIndex = targetIdx;
+    currentSlotRepeatsPlayed = 0;
+    seqNextStartCtxTime = now;
+    seqSchedulerTick();
+  }
   // fillDurationSec : temps restant à animer jusqu'à 100% (pas forcément la durée totale du bloc — après
   // un seek, on reprend au milieu). totalDurationSec : durée nominale complète du bloc, nécessaire pour
   // savoir où se trouve le curseur de seek même après plusieurs reprises successives.
-  function scheduleSeqLabelUpdate(ctxStartTime, label, kind, fillDurationSec, totalDurationSec, buffer, gainValue, terminal) {
+  function scheduleSeqLabelUpdate(ctxStartTime, label, kind, fillDurationSec, totalDurationSec, buffer, gainValue, terminal, slotIdx, gainNode) {
     const delayMs = Math.max(0, (ctxStartTime - ctx.currentTime) * 1000);
     const id = setTimeout(() => {
       pulseMeter(seqMeterEl);
       if (seqCurrentEl) seqCurrentEl.textContent = label;
-      if (kind) activateSeqStage(kind, (fillDurationSec != null) ? fillDurationSec : buffer.duration, totalDurationSec, buffer, gainValue, terminal);
+      if (kind) activateSeqStage(kind, (fillDurationSec != null) ? fillDurationSec : buffer.duration, totalDurationSec, buffer, gainValue, terminal, slotIdx, gainNode);
     }, delayMs);
     seqTimeouts.push(id);
   }
-  function scheduleSeqGeneration(ctxStartTime, buffer, label, kind, fillDurationSec, gainValue, offsetSec, totalDurationSec, terminal) {
+  function scheduleSeqGeneration(ctxStartTime, buffer, label, kind, fillDurationSec, gainValue, offsetSec, totalDurationSec, terminal, slotIdx) {
     if (!buffer) return;
     const off = offsetSec || 0;
     const total = totalDurationSec != null ? totalDurationSec : ((fillDurationSec != null) ? fillDurationSec + off : buffer.duration);
@@ -1055,16 +1537,17 @@ function initTrackPlayer(track, wrapper) {
     g.gain.setValueAtTime(gainValue != null ? gainValue : 1, ctxStartTime);
     src.connect(g); g.connect(trackMasterGain);
     src.start(ctxStartTime, off);
-    seqActiveSources.push({ src, gain: g });
+    seqActiveSources.push({ src, gain: g, ctxStartTime });
     seqLastGenSources = [src];
     // Sans durée explicite (cas de l'outro, qui ne programme rien après elle) : on anime le remplissage
     // sur la durée réelle du fichier décodé, seule longueur connue dans ce cas.
-    scheduleSeqLabelUpdate(ctxStartTime, label, kind, fillDurationSec, total, buffer, gainValue, terminal);
+    scheduleSeqLabelUpdate(ctxStartTime, label, kind, fillDurationSec, total, buffer, gainValue, terminal, slotIdx, g);
   }
   // Détermine le prochain bloc à programmer : soit l'outro (si "Aller vers la fin" a été demandé et
   // qu'une outro existe), soit rien du tout (demande faite mais pas d'outro : on laisse filer), soit
   // un segment tiré au sort. `terminal: true` signifie "rien à programmer après ce bloc".
   function decideNextSeqBlock() {
+    if (forcedNextBlock) { const b = forcedNextBlock; forcedNextBlock = null; return b; }
     if (goToEndRequested) {
       goToEndRequested = false;
       if (outroBuffer) return { buffer: outroBuffer, label: (track.outro && track.outro.label) || 'Outro', durationSec: null, terminal: true, kind: 'outro', gain: effGain(track.outro) };
@@ -1074,7 +1557,7 @@ function initTrackPlayer(track, wrapper) {
     if (!picked) return null;
     const slot = track.segmentSlots[picked.slotIdx];
     const alt = resolveSlotAlternative(picked.slotIdx, picked.altIdx);
-    return { buffer: slotBuffers[picked.slotIdx][picked.altIdx], label: (alt && alt.label) || (slot.label || ('Emplacement ' + (picked.slotIdx + 1))), durationSec: blockSeconds(alt && alt.bars), terminal: false, kind: 'segment', gain: effGain(alt) };
+    return { buffer: slotBuffers[picked.slotIdx][picked.altIdx], label: (alt && alt.label) || (slot.label || ('Emplacement ' + (picked.slotIdx + 1))), durationSec: blockSeconds(alt && alt.bars, slot), terminal: false, kind: 'segment', gain: effGain(alt), slotIdx: picked.slotIdx };
   }
   function armSeqFinalEnd() {
     const marker = seqLastGenSources[0];
@@ -1099,7 +1582,7 @@ function initTrackPlayer(track, wrapper) {
         armSeqFinalEnd();
         return;
       }
-      scheduleSeqGeneration(seqNextStartCtxTime, next.buffer, next.label, next.kind, next.terminal ? null : next.durationSec, next.gain, 0, null, next.terminal);
+      scheduleSeqGeneration(seqNextStartCtxTime, next.buffer, next.label, next.kind, next.terminal ? null : next.durationSec, next.gain, 0, null, next.terminal, next.slotIdx);
       if (next.terminal) {
         clearInterval(seqSchedulerTimer); seqSchedulerTimer = null;
         armSeqFinalEnd();
@@ -1116,28 +1599,36 @@ function initTrackPlayer(track, wrapper) {
     seqTimeouts.forEach(id => clearTimeout(id));
     seqTimeouts = [];
     goToEndRequested = false;
+    pendingNextSegmentId = null;
+    seqBranchEpoch++; // éteint silencieusement toute chaîne de vérification de frontière encore en vol
+    forcedNextBlock = null;
     if (seqMeterEl) seqMeterEl.classList.remove('pulse');
     if (seqCurrentEl) seqCurrentEl.textContent = '—';
     if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = t('goToEndBtn'); }
     resetSeqStages();
+    renderSeqBranchOptions(-1);
   }
   function playSequential(isContinuation) {
     stopSequential();
     // Un vrai démarrage (pas une reprise après pause/veille) repart du premier emplacement de la chaîne —
     // la reprise, elle, continue le cycle là où il en était plutôt que de tout redémarrer.
-    if (!isContinuation) currentSlotIndex = 0;
+    if (!isContinuation) { currentSlotIndex = 0; chainState = { cyclesCompleted: 0, capReached: false }; }
     const now = ctx.currentTime;
-    let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain;
+    let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain, firstSlotIdx = -1;
     if (!isContinuation && introBuffer) {
-      firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars); firstKind = 'intro'; firstGain = effGain(track.intro);
+      // L'intro n'appartient à aucun emplacement — son tempo suit celui du premier emplacement de la
+      // chaîne (position 0, point de départ conventionnel), même principe que le vertical-random dont
+      // l'intro suit le tempo de la première section jouable.
+      const firstSlot = (track.segmentSlots || [])[0];
+      firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars, firstSlot); firstKind = 'intro'; firstGain = effGain(track.intro);
     } else {
       const picked = pickNextSegmentSlot();
       if (!picked) { if (statusEl) statusEl.textContent = t('noSegmentAvailable'); return; }
       const slot = track.segmentSlots[picked.slotIdx];
       const alt = resolveSlotAlternative(picked.slotIdx, picked.altIdx);
-      firstBuffer = slotBuffers[picked.slotIdx][picked.altIdx]; firstLabel = (alt && alt.label) || (slot.label || ('Emplacement ' + (picked.slotIdx + 1))); firstDurationSec = blockSeconds(alt && alt.bars); firstKind = 'segment'; firstGain = effGain(alt);
+      firstBuffer = slotBuffers[picked.slotIdx][picked.altIdx]; firstLabel = (alt && alt.label) || (slot.label || ('Emplacement ' + (picked.slotIdx + 1))); firstDurationSec = blockSeconds(alt && alt.bars, slot); firstKind = 'segment'; firstGain = effGain(alt); firstSlotIdx = picked.slotIdx;
     }
-    scheduleSeqGeneration(now, firstBuffer, firstLabel, firstKind, firstDurationSec, firstGain);
+    scheduleSeqGeneration(now, firstBuffer, firstLabel, firstKind, firstDurationSec, firstGain, 0, null, false, firstSlotIdx);
     seqNextStartCtxTime = now + firstDurationSec;
     seqSchedulerTimer = setInterval(seqSchedulerTick, 200);
     if (goToEndBtn) goToEndBtn.disabled = false;
@@ -1148,16 +1639,19 @@ function initTrackPlayer(track, wrapper) {
   // au sort, ou la fin, ne sont pas affectés par le seek.
   function seekSequential(targetSec) {
     if (!currentSeqBlockInfo || !playing) return;
-    const { kind, buffer, gain, totalSec, terminal } = currentSeqBlockInfo;
+    const { kind, buffer, gain, totalSec, terminal, slotIdx } = currentSeqBlockInfo;
     const off = Math.max(0, Math.min(totalSec - 0.05, targetSec));
     const remaining = totalSec - off;
     // stopSequential() remet goToEndRequested à false (comportement voulu pour un vrai arrêt) — mais un
     // seek n'est qu'un redémarrage interne du même bloc, pas un arrêt demandé par le visiteur. Si "Aller
     // vers la fin" avait été cliqué et n'était pas encore consommé (bloc courant non terminal), la demande
     // doit survivre au seek, sans quoi le morceau continue de boucler comme si rien n'avait été cliqué.
+    // Même logique pour un choix d'embranchement en attente : un seek ne doit pas l'annuler.
     const wasGoToEndRequested = goToEndRequested;
+    const wasPendingNextSegmentId = pendingNextSegmentId;
     stopSequential();
     goToEndRequested = wasGoToEndRequested;
+    pendingNextSegmentId = wasPendingNextSegmentId;
     const now = ctx.currentTime;
     const label = seqCurrentEl ? seqCurrentEl.textContent : '';
     // Important : on transmet TOUJOURS `remaining` (durée réellement restante après le seek), y compris
@@ -1166,7 +1660,7 @@ function initTrackPlayer(track, wrapper) {
     // buffer.duration — la durée TOTALE du fichier plutôt que ce qu'il en reste après le point de seek —
     // et le curseur se recalerait visuellement comme si la lecture repartait du tout début, alors que
     // l'audio, lui, joue bien depuis la bonne position.
-    scheduleSeqGeneration(now, buffer, label, kind, remaining, gain, off, totalSec, terminal);
+    scheduleSeqGeneration(now, buffer, label, kind, remaining, gain, off, totalSec, terminal, slotIdx);
     if (terminal) {
       armSeqFinalEnd();
       if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = t('endingWithOutro'); }
@@ -1224,12 +1718,12 @@ function initTrackPlayer(track, wrapper) {
     timeCurrent.textContent = formatTime(elapsed);
   }
   function computeElapsed() {
-    return useQuantizedLoop
+    return (useQuantizedLoop || isVerticalRandom)
       ? currentPlaybackOffset()
       : (loops ? (ctx.currentTime - startedAt) % track.duration : Math.min(ctx.currentTime - startedAt, track.duration));
   }
   function tick() {
-    if (!playing || isSequential) return;
+    if (!playing || isSequential || isEmbrVert) return;
     const elapsed = computeElapsed();
     if (isDraggingSeek) { rafId = requestAnimationFrame(tick); return; } // laisse la position glissée visible, ne pas l'écraser
     updateProgressAt(elapsed);
@@ -1243,12 +1737,18 @@ function initTrackPlayer(track, wrapper) {
       });
     }
     if (isVerticalRandom) {
-      // Toutes les voix redémarrent ensemble à chaque cycle (même scheduler partagé) : une seule
-      // fraction de progression suffit pour synchroniser le recouvrement de toutes les waveforms.
-      const frac = cycleLength > 0 ? Math.min(1, Math.max(0, (elapsed - loopInSec) / cycleLength)) : 0;
-      const clip = `inset(0 ${(1 - frac) * 100}% 0 0)`;
-      voiceWaveFixed.forEach(els => { if (els && els.fg) els.fg.style.clipPath = clip; });
-      voiceWaveGroups.forEach(els => { if (els && els.fg) els.fg.style.clipPath = clip; });
+      // Toutes les voix d'une même section redémarrent ensemble à chaque cycle (même scheduler partagé) :
+      // une seule fraction de progression suffit à synchroniser le recouvrement de toutes les waveforms —
+      // recalculée sur le tempo/timeline de la section EN COURS, plus un cycle unique pour tout le morceau.
+      const origIdx = vrCurrentSectionOriginalIndex >= 0 ? vrCurrentSectionOriginalIndex : (playableSectionOriginalIndex[0] !== undefined ? playableSectionOriginalIndex[0] : -1);
+      const currentSection = origIdx >= 0 ? resolveVRSection(track, origIdx) : null;
+      if (currentSection) {
+        const timing = sectionTiming(currentSection);
+        const frac = timing.cycleLength > 0 ? Math.min(1, Math.max(0, (elapsed - timing.loopInSec) / timing.cycleLength)) : 0;
+        const clip = `inset(0 ${(1 - frac) * 100}% 0 0)`;
+        voiceWavePools.forEach(els => { if (els && els.fg) els.fg.style.clipPath = clip; });
+        if (!vrIsDraggingSeek && vrBlockFillEls[origIdx]) vrBlockFillEls[origIdx].style.width = (frac * 100) + '%';
+      }
     }
     rafId = requestAnimationFrame(tick);
   }
@@ -1295,96 +1795,67 @@ function initTrackPlayer(track, wrapper) {
     void el.offsetWidth; // force le reflow pour pouvoir rejouer l'animation même si elle est déjà active
     el.classList.add('pulse');
   }
-  function scheduleVoiceGraphUpdate(ctxStartTime, groupPicks) {
+  // poolPicks : [{ pi, label, silent, buf }] où pi est la position d'affichage (0..vrMaxPoolCount-1) —
+  // PAS l'index du pool dans la section en cours, qui peut varier d'une section à l'autre. Le mappage
+  // entre "position d'affichage" et "pool réel de la section courante" est fait par l'appelant.
+  function scheduleVoiceGraphUpdate(ctxStartTime, poolPicks, secIdx) {
     const delayMs = Math.max(0, (ctxStartTime - ctx.currentTime) * 1000);
     const timeoutId = setTimeout(() => {
       let topologyChanged = false;
-      groupPicks.forEach(({ gi, label, silent, buf }) => {
-        if (voiceCurrents[gi]) voiceCurrents[gi].textContent = label;
-        const nodeEl = wwiseGroupVoiceEls[gi];
+      poolPicks.forEach(({ pi, label, silent, buf }) => {
+        if (voiceCurrents[pi]) voiceCurrents[pi].textContent = label;
+        const nodeEl = wwisePoolVoiceEls[pi];
         if (nodeEl) {
           const wasHidden = nodeEl.style.display === 'none';
           nodeEl.style.display = silent ? 'none' : '';
           if (wasHidden !== !!silent) topologyChanged = true;
         }
         if (!silent && buf) {
-          drawVoiceWave(voiceWaveGroups[gi], buf);
-          const fg = voiceWaveGroups[gi] && voiceWaveGroups[gi].fg;
+          drawVoiceWave(voiceWavePools[pi], buf);
+          const fg = voiceWavePools[pi] && voiceWavePools[pi].fg;
           if (fg) { fg.style.transition = 'none'; fg.style.clipPath = 'inset(0 100% 0 0)'; }
         }
       });
       if (topologyChanged) drawWwiseLines();
+      // Le libellé "section en cours" et le bloc de progression actif ne doivent changer qu'au moment où
+      // cette génération devient réellement AUDIBLE — pas dès qu'elle est programmée. Avec la fenêtre de
+      // programmation à l'avance (jusqu'à 1s), plusieurs décisions peuvent s'enchaîner en une seule fois
+      // de façon synchrone (ex. une section à très peu de boucles qui avance presque aussitôt) : sans ce
+      // délai, l'affichage sauterait déjà à la section suivante avant même que celle-ci ne se fasse
+      // entendre, voire "clignoterait" sur une section jamais réellement audible pour le visiteur.
+      if (secIdx != null && vrCurrentSectionOriginalIndex !== secIdx) {
+        vrCurrentSectionOriginalIndex = secIdx;
+        const declaredSection = (track.sections || [])[secIdx];
+        if (sectionCurrentEl) sectionCurrentEl.textContent = (declaredSection && declaredSection.label) || t('sectionFallback', { n: secIdx + 1 });
+        vrBlockEls.forEach((el, i) => { if (el) el.classList.toggle('active', i === secIdx); });
+      }
     }, delayMs);
     voiceGraphTimeouts.push(timeoutId);
   }
 
-  /* ---- Moteur quantifié / vertical-random (BPM + mesures, retrigger avec queue de fin superposée) ---- */
-  function scheduleGeneration(ctxStartTime, bufferOffset, reroll) {
+  /* ---- Moteur quantifié classique (vertical/statique avec loopEngine "quantized" — BPM + mesures,
+     retrigger avec queue de fin superposée). Le vertical-random a désormais son propre moteur séparé,
+     voir plus bas, puisque son minutage varie section par section plutôt que d'être fixe pour tout le
+     morceau. ---- */
+  function scheduleGeneration(ctxStartTime, bufferOffset) {
     const thisGenSources = [];
-    if (isVerticalRandom) {
-      fixedBuffers.forEach((buf, fi) => {
-        if (!buf) return;
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        const g = ctx.createGain();
-        const key = 'fixed-' + fi;
-        const base = effGain(rawFixedLayers[fi]);
-        g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
-        src.connect(g); g.connect(trackMasterGain);
-        src.start(ctxStartTime, bufferOffset);
-        activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
-        thisGenSources.push(src);
-      });
-      const groupPicks = [];
-      (track.randomGroups || []).forEach((group, gi) => {
-        const canonKey = canonicalGroupKey(gi);
-        const idx = (reroll === false && lastPickedIndex[canonKey] !== undefined && lastPickedIndex[canonKey] !== -1)
-          ? lastPickedIndex[canonKey]
-          : pickAlternativeIndex(gi);
-        let label = '—';
-        let silent = true;
-        let pickedBuf = null;
-        if (idx >= 0) {
-          const alt = (group.alternatives || [])[idx];
-          const buf = (groupBuffers[gi] || [])[idx];
-          silent = !buf;
-          pickedBuf = buf;
-          label = buf ? ((alt && alt.label) ? alt.label : t('altFallback', { n: idx + 1 })) : t('silenceLabel');
-          if (buf) {
-            const src = ctx.createBufferSource();
-            src.buffer = buf;
-            const g = ctx.createGain();
-            const key = 'group-' + gi;
-            const base = effGain(alt);
-            g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
-            src.connect(g); g.connect(trackMasterGain);
-            src.start(ctxStartTime, bufferOffset);
-            activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
-            thisGenSources.push(src);
-          }
-        }
-        groupPicks.push({ gi, label, silent, buf: pickedBuf });
-      });
-      scheduleVoiceGraphUpdate(ctxStartTime, groupPicks);
-    } else {
-      const p = profiles[level] || profiles[0];
-      const gensThisRound = [];
-      for (let i = 0; i < buffers.length; i++) {
-        if (!buffers[i]) continue;
-        const src = ctx.createBufferSource();
-        src.buffer = buffers[i];
-        const g = ctx.createGain();
-        const key = 'layer-' + i;
-        const base = (p[i] || 0) * effGain(layersToLoad[i]);
-        g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
-        src.connect(g); g.connect(trackMasterGain);
-        src.start(ctxStartTime, bufferOffset);
-        activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
-        thisGenSources.push(src);
-        gensThisRound[i] = g;
-      }
-      currentGainNodes = gensThisRound;
+    const p = profiles[level] || profiles[0];
+    const gensThisRound = [];
+    for (let i = 0; i < buffers.length; i++) {
+      if (!buffers[i]) continue;
+      const src = ctx.createBufferSource();
+      src.buffer = buffers[i];
+      const g = ctx.createGain();
+      const key = 'layer-' + i;
+      const base = (p[i] || 0) * effGain(layersToLoad[i]);
+      g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
+      src.connect(g); g.connect(trackMasterGain);
+      src.start(ctxStartTime, bufferOffset);
+      activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
+      thisGenSources.push(src);
+      gensThisRound[i] = g;
     }
+    currentGainNodes = gensThisRound;
     lastGenSources = thisGenSources;
     scheduledGens.push({ ctxStartTime, bufferOffset });
     const cutoff = ctx.currentTime - Math.max(cycleLength, 4) * 2;
@@ -1399,7 +1870,7 @@ function initTrackPlayer(track, wrapper) {
         armFinalGenerationEnd();
         return;
       }
-      scheduleGeneration(nextGenStartCtxTime, nextGenBufferOffset, true);
+      scheduleGeneration(nextGenStartCtxTime, nextGenBufferOffset);
       loopsPlayed++;
       nextGenStartCtxTime += cycleLength;
       nextGenBufferOffset = loopInSec;
@@ -1431,19 +1902,11 @@ function initTrackPlayer(track, wrapper) {
     activeGenSources = [];
     voiceGraphTimeouts.forEach(id => clearTimeout(id));
     voiceGraphTimeouts = [];
-    if (isVerticalRandom) {
-      voiceWaveFixed.forEach(els => { if (els && els.fg) { els.fg.style.transition = 'none'; els.fg.style.clipPath = 'inset(0 100% 0 0)'; } });
-      voiceWaveGroups.forEach(els => { if (els && els.fg) { els.fg.style.transition = 'none'; els.fg.style.clipPath = 'inset(0 100% 0 0)'; } });
-      voiceCurrents.forEach(el => { if (el) el.textContent = '—'; });
-      let anyWasHidden = false;
-      wwiseGroupVoiceEls.forEach(el => { if (el && el.style.display === 'none') { anyWasHidden = true; el.style.display = ''; } });
-      if (anyWasHidden) drawWwiseLines();
-    }
   }
-  function playQuantized(fromOffsetSec, reroll) {
+  function playQuantized(fromOffsetSec) {
     stopQuantized();
     const now = ctx.currentTime;
-    scheduleGeneration(now, fromOffsetSec, reroll);
+    scheduleGeneration(now, fromOffsetSec);
     let timeUntilNext;
     if (fromOffsetSec < loopInSec) {
       timeUntilNext = loopOutSec - fromOffsetSec;
@@ -1456,6 +1919,343 @@ function initTrackPlayer(track, wrapper) {
     schedulerTimer = setInterval(schedulerTick, 200);
   }
 
+  /* ---- Moteur embranchement-vertical : N boucles nommées et autonomes, calées sur le même BPM,
+     jouant simultanément en arrière-plan pour les boucles de MÊME longueur que la référence (celle
+     marquée isInitial) — bascule entre elles par pure rampe de gain (0.15s, même mécanisme que le
+     solo/muet ci-dessus), sans redémarrage audio donc sans décalage. Une boucle plus courte que la
+     référence n'est PAS jouée en arrière-plan (aucun verrouillage de phase naturel avec le cycle de
+     référence) : au clic, lecture fraîche en fondu d'entrée, puis retour automatique à la référence une
+     fois sa durée nominale écoulée (voir schéma validé le 31/07). Réutilise blockSeconds() du moteur
+     séquentiel pour rester sur une seule notion de "durée en mesures" dans tout le fichier. ---- */
+  const embrReferenceIdx = (() => {
+    const ls = track.loops || [];
+    const idx = ls.findIndex(l => l && l.isInitial);
+    return idx >= 0 ? idx : 0;
+  })();
+  const embrRefBars = ((track.loops || [])[embrReferenceIdx] || {}).bars;
+  const embrPeerIndices = (track.loops || []).map((l, i) => i)
+    .filter(i => i === embrReferenceIdx || (track.loops[i].bars === embrRefBars));
+  const EMBR_CROSSFADE_SEC = 0.15; // même durée que refreshVoiceGains() — fondu court et immédiat, pas d'attente de quantification
+  function embrCycleLengthSec() { return blockSeconds(embrRefBars); }
+  function updateEmbrButtonsUI() {
+    embrLoopBtns.forEach(btn => {
+      const idx = parseInt(btn.dataset.loopIdx, 10);
+      btn.classList.toggle('active', idx === embrActiveLoopIdx);
+    });
+  }
+  // Programme une génération de toutes les boucles "paires" (même longueur que la référence) en simultané,
+  // gain à 1 pour celle actuellement active, 0 pour les autres — même principe que scheduleGeneration()
+  // du moteur quantifié classique (retrigger périodique avec queue de fin superposée), généralisé à des
+  // buffers indépendants au lieu des couches d'un seul morceau.
+  function scheduleEmbrGeneration(ctxStartTime) {
+    embrPeerIndices.forEach(idx => {
+      const buf = embrLoopBuffers[idx];
+      if (!buf) return;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(idx === embrActiveLoopIdx ? 1 : 0, ctxStartTime);
+      src.connect(g); g.connect(trackMasterGain);
+      src.start(ctxStartTime, 0);
+      embrActiveGenSources.push({ src, gain: g, loopIdx: idx, ctxStartTime });
+    });
+    // Purge des générations trop anciennes pour ne plus jamais sonner (même logique de nettoyage que
+    // scheduledGens du moteur quantifié) — évite une croissance illimitée du tableau sur une lecture longue.
+    const cutoff = ctx.currentTime - Math.max(embrCycleLengthSec(), 4) * 2;
+    if (embrActiveGenSources.length > 40) embrActiveGenSources = embrActiveGenSources.filter(g => g.ctxStartTime >= cutoff);
+  }
+  function embrSchedulerTick() {
+    const lookahead = 1.0;
+    while (embrNextStartCtxTime < ctx.currentTime + lookahead) {
+      scheduleEmbrGeneration(embrNextStartCtxTime);
+      embrNextStartCtxTime += embrCycleLengthSec();
+    }
+  }
+  // Recalcule en direct le gain de toutes les sources "paires" actuellement audibles ou en train de finir
+  // (queue) — sans ça, un clic ne prendrait effet qu'à la prochaine génération programmée. Reprend
+  // exactement le principe de refreshVoiceGains() ci-dessus, avec une seule "voix" active à la fois
+  // plutôt que la logique solo/muet à plusieurs voix simultanées.
+  function refreshEmbrGains() {
+    const now = ctx.currentTime;
+    embrActiveGenSources.forEach(({ gain, loopIdx }) => {
+      if (!gain) return;
+      const target = (loopIdx === embrActiveLoopIdx) ? 1 : 0;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.linearRampToValueAtTime(target, now + EMBR_CROSSFADE_SEC);
+    });
+  }
+  function playEmbrVertical() {
+    stopEmbrVertical();
+    embrActiveLoopIdx = embrReferenceIdx;
+    const now = ctx.currentTime;
+    scheduleEmbrGeneration(now);
+    embrNextStartCtxTime = now + embrCycleLengthSec();
+    embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
+    updateEmbrButtonsUI();
+  }
+  function stopEmbrVertical() {
+    if (embrSchedulerTimer) { clearInterval(embrSchedulerTimer); embrSchedulerTimer = null; }
+    if (embrDetourTimeout) { clearTimeout(embrDetourTimeout); embrDetourTimeout = null; }
+    // Le détour d'une boucle courte (voir selectEmbrLoop) n'est jamais poussé dans embrActiveGenSources —
+    // ce n'est pas une génération "paire" en arrière-plan, juste une lecture ponctuelle — donc sans cet
+    // arrêt explicite, elle continuerait de jouer jusqu'à sa fin naturelle après un Stop (bug trouvé et
+    // corrigé le 31/07, voir CHANGELOG).
+    if (embrDetourSource) { try { embrDetourSource.src.stop(); } catch (e) {} embrDetourSource = null; }
+    if (embrDetourBtn) { embrDetourBtn.disabled = false; embrDetourBtn = null; }
+    embrActiveGenSources.forEach(({ src }) => { try { src.stop(); } catch (e) {} });
+    embrActiveGenSources = [];
+    embrActiveLoopIdx = -1;
+    embrLoopBtns.forEach(btn => { btn.disabled = false; });
+    updateEmbrButtonsUI();
+  }
+  // Interrompt en douceur (fondu de EMBR_CROSSFADE_SEC) un détour en cours, sans décider de ce qui doit
+  // devenir actif ensuite — à la charge de l'appelant. Réutilisée à la fois pour le retour naturel à la
+  // référence (durée nominale écoulée) et pour une interruption volontaire (le visiteur fait un nouveau
+  // choix avant la fin du détour précédent) : sans ça, l'ancien détour restait orphelin — jamais coupé,
+  // son bouton jamais réactivé (bug trouvé le 31/07, voir CHANGELOG).
+  function fadeOutCurrentDetour() {
+    if (embrDetourTimeout) { clearTimeout(embrDetourTimeout); embrDetourTimeout = null; }
+    if (!embrDetourSource) return;
+    const t2 = ctx.currentTime;
+    const dg = embrDetourSource.gain;
+    dg.gain.cancelScheduledValues(t2);
+    dg.gain.setValueAtTime(dg.gain.value, t2);
+    dg.gain.linearRampToValueAtTime(0, t2 + EMBR_CROSSFADE_SEC);
+    embrDetourSource = null;
+    if (embrDetourBtn) { embrDetourBtn.disabled = false; embrDetourBtn = null; }
+  }
+  // Clic sur un bouton nommé : bascule pure (rampe de gain) si la boucle ciblée est "paire" avec la
+  // référence (elle tourne déjà en silence en arrière-plan, verrouillée en phase) ; détour ponctuel en
+  // aller-retour si elle est plus courte (pas de verrouillage de phase possible, donc pas de lecture en
+  // arrière-plan avant sélection — voir commentaire d'en-tête du moteur).
+  function selectEmbrLoop(idx) {
+    if (!playing) return;
+    const buf = embrLoopBuffers[idx];
+    if (!buf) return;
+    const loopDef = (track.loops || [])[idx];
+    if (embrPeerIndices.includes(idx)) {
+      if (idx === embrActiveLoopIdx && !embrDetourSource) return; // déjà la voix active, rien à faire
+      fadeOutCurrentDetour(); // sans effet si aucun détour n'était en cours
+      embrActiveLoopIdx = idx;
+      refreshEmbrGains();
+      updateEmbrButtonsUI();
+    } else {
+      // Ce détour précis est déjà celui en cours (son bouton est de toute façon désactivé pendant qu'il
+      // joue — double sécurité si l'appel venait d'ailleurs qu'un clic utilisateur).
+      if (embrDetourBtn && parseInt(embrDetourBtn.dataset.loopIdx, 10) === idx) return;
+      fadeOutCurrentDetour(); // coupe en douceur un éventuel détour précédent avant d'en démarrer un nouveau
+      const btn = embrLoopBtns.find(b => parseInt(b.dataset.loopIdx, 10) === idx);
+      if (btn) btn.disabled = true; // pas de retrigger possible tant que le détour joue (validé le 31/07)
+      embrActiveLoopIdx = -1; // plus aucune voix "paire" n'est active pendant le détour
+      refreshEmbrGains();
+      const now = ctx.currentTime;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(1, now + EMBR_CROSSFADE_SEC);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(g); g.connect(trackMasterGain);
+      src.start(now, 0);
+      embrDetourSource = { src, gain: g };
+      embrDetourBtn = btn;
+      const durationSec = blockSeconds(loopDef && loopDef.bars);
+      embrDetourTimeout = setTimeout(() => {
+        fadeOutCurrentDetour();
+        embrActiveLoopIdx = embrReferenceIdx;
+        refreshEmbrGains();
+        updateEmbrButtonsUI();
+      }, durationSec * 1000);
+      updateEmbrButtonsUI();
+    }
+    trackPublicEvent('embr_loop_select', { trackId: track.id, loopId: loopDef && loopDef.id });
+  }
+  embrLoopBtns.forEach(btn => {
+    btn.addEventListener('click', () => selectEmbrLoop(parseInt(btn.dataset.loopIdx, 10)));
+  });
+
+  /* ---- Moteur vertical-random : sections chaînées, chacune avec ses pools simultanés et son propre
+     tempo/timeline (30/07). La décision "quoi jouer ensuite" vient entièrement de
+     createSectionPlaybackScheduler (logique pure, testée indépendamment — voir test-section-scheduler.js) ;
+     ce qui suit ne fait que traduire ses décisions en programmation Web Audio réelle. ---- */
+  let vrNextStartCtxTime = 0;
+  let vrIsDraggingSeek = false; // pendant un glissement sur le bloc de section actif : le tick() n'écrase pas le remplissage affiché
+  let vrSchedulerTimer = null;
+  let vrCurrentSectionOriginalIndex = -1; // pour savoir quand la section affichée doit changer (rebuild du graphe)
+  function scheduleSectionGeneration(ctxStartTime, secIdx, isFirstEverForThisSection, offsetOverride) {
+    const section = resolveVRSection(track, secIdx);
+    const timing = sectionTiming(section);
+    const bufferOffset = offsetOverride != null ? offsetOverride : (isFirstEverForThisSection ? timing.startTrackSec : timing.loopInSec);
+    const pools = section.pools || [];
+    const poolPicks = [];
+    pools.forEach((pool, poolIdx) => {
+      const displaySlot = poolIdx; // les sections d'un même morceau ont chacune leur propre liste de pools,
+      // affichée dans les mêmes emplacements visuels 0..N-1 (voir vrMaxPoolCount) — une section avec moins
+      // de pools laisse simplement les emplacements suivants masqués.
+      const bufs = (sectionBuffers[secIdx] && sectionBuffers[secIdx][poolIdx]) || [];
+      const idx = pickPoolAlternativeIndex(secIdx, poolIdx);
+      let label = '—', silent = true, pickedBuf = null;
+      if (idx >= 0) {
+        const alt = (pool.alternatives || [])[idx];
+        const buf = bufs[idx];
+        silent = !buf;
+        pickedBuf = buf;
+        label = buf ? ((alt && alt.label) ? alt.label : t('altFallback', { n: idx + 1 })) : t('silenceLabel');
+        if (buf) {
+          const src = ctx.createBufferSource();
+          src.buffer = buf;
+          const g = ctx.createGain();
+          const key = 'pool-' + displaySlot;
+          const base = effGain(alt);
+          g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
+          src.connect(g); g.connect(trackMasterGain);
+          src.start(ctxStartTime, bufferOffset);
+          activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
+        }
+      }
+      poolPicks.push({ pi: displaySlot, label, silent, buf: pickedBuf });
+    });
+    // Emplacements au-delà du nombre de pools de CETTE section (mais existants pour une autre section
+    // du même morceau, donc présents dans le graphe) : masqués, pas juste silencieux.
+    for (let pi = pools.length; pi < vrMaxPoolCount; pi++) poolPicks.push({ pi, label: '—', silent: true, buf: null });
+    scheduleVoiceGraphUpdate(ctxStartTime, poolPicks, secIdx);
+    lastGenSources = activeGenSources.slice(-Math.max(1, pools.length)).map(s => s.src);
+    scheduledGens.push({ ctxStartTime, bufferOffset });
+    const roughCutoffWindow = 8; // les sections n'ont pas de cycleLength unique commun, fenêtre fixe raisonnable
+    const cutoff = ctx.currentTime - roughCutoffWindow;
+    if (scheduledGens.length > 12) scheduledGens = scheduledGens.filter(g => g.ctxStartTime >= cutoff);
+    return timing;
+  }
+  function sectionSchedulerTick() {
+    const lookahead = 1.0;
+    while (vrNextStartCtxTime < ctx.currentTime + lookahead) {
+      const next = sectionScheduler.decideNext();
+      if (!next) {
+        clearInterval(vrSchedulerTimer); vrSchedulerTimer = null;
+        armVRFinalEnd();
+        return;
+      }
+      if (next.type === 'intro') {
+        if (!introBuffer) continue; // pas de fichier intro chargé : ignoré, on redemande immédiatement la suite
+        const src = ctx.createBufferSource();
+        src.buffer = introBuffer;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(effGain(track.intro), vrNextStartCtxTime);
+        src.connect(g); g.connect(trackMasterGain);
+        src.start(vrNextStartCtxTime, 0);
+        activeGenSources.push({ src, gain: g, voiceKey: 'intro', baseGain: effGain(track.intro) });
+        lastGenSources = [src];
+        scheduledGens.push({ ctxStartTime: vrNextStartCtxTime, bufferOffset: 0 });
+        // Durée nominale de l'intro : mesures déclarées, au tempo de la PREMIÈRE section jouable (elle
+        // seule a un sens ici, l'intro n'appartenant à aucune section) — la partie du fichier qui dépasse
+        // cette durée nominale forme la queue de chevauchement, exactement comme en séquentiel.
+        const firstPlayableOrigIdx = playableSectionOriginalIndex[0];
+        const firstSection = firstPlayableOrigIdx !== undefined ? resolveVRSection(track, firstPlayableOrigIdx) : null;
+        const introBpm = (firstSection && firstSection.bpm) || 120;
+        const introBeatsPerBar = (firstSection && firstSection.beatsPerBar) || 4;
+        const introDurationSec = ((track.intro && track.intro.bars) || introBeatsPerBar) * introBeatsPerBar * (60 / introBpm);
+        vrNextStartCtxTime += introDurationSec;
+        continue;
+      }
+      if (next.type === 'outro') {
+        if (!outroBuffer) { clearInterval(vrSchedulerTimer); vrSchedulerTimer = null; armVRFinalEnd(); return; }
+        const src = ctx.createBufferSource();
+        src.buffer = outroBuffer;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(effGain(track.outro), vrNextStartCtxTime);
+        src.connect(g); g.connect(trackMasterGain);
+        src.start(vrNextStartCtxTime, 0);
+        activeGenSources.push({ src, gain: g, voiceKey: 'outro', baseGain: effGain(track.outro) });
+        lastGenSources = [src];
+        scheduledGens.push({ ctxStartTime: vrNextStartCtxTime, bufferOffset: 0 });
+        clearInterval(vrSchedulerTimer); vrSchedulerTimer = null;
+        armVRFinalEnd();
+        return;
+      }
+      // next.type === 'section'
+      const origIdx = playableSectionOriginalIndex[next.index];
+      const timing = scheduleSectionGeneration(vrNextStartCtxTime, origIdx, next.isFirstEverForThisSection);
+      vrNextStartCtxTime += next.isFirstEverForThisSection ? (timing.loopOutSec - timing.startTrackSec) : timing.cycleLength;
+    }
+  }
+  function armVRFinalEnd() {
+    const marker = lastGenSources[0];
+    if (!marker) return;
+    finalGenerationMarkerSrc = marker;
+    marker.onended = () => {
+      if (finalGenerationMarkerSrc !== marker) return;
+      activeGenSources = [];
+      playing = false;
+      playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
+      cancelAnimationFrame(rafId);
+      updateProgressAt(0);
+      setStoppedUI();
+      if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = t('goToEndBtn'); }
+      if (goToNextSectionBtn) goToNextSectionBtn.disabled = true;
+      if (activeTrackId === track.id) activeTrackId = null;
+    };
+  }
+  function stopVerticalRandom() {
+    finalGenerationMarkerSrc = null;
+    if (vrSchedulerTimer) { clearInterval(vrSchedulerTimer); vrSchedulerTimer = null; }
+    activeGenSources.forEach(({ src }) => { try { src.stop(); } catch(e){} });
+    activeGenSources = [];
+    voiceGraphTimeouts.forEach(id => clearTimeout(id));
+    voiceGraphTimeouts = [];
+    voiceWavePools.forEach(els => { if (els && els.fg) { els.fg.style.transition = 'none'; els.fg.style.clipPath = 'inset(0 100% 0 0)'; } });
+    voiceCurrents.forEach(el => { if (el) el.textContent = '—'; });
+    let anyWasHidden = false;
+    wwisePoolVoiceEls.forEach(el => { if (el && el.style.display === 'none') { anyWasHidden = true; el.style.display = ''; } });
+    if (anyWasHidden) drawWwiseLines();
+    if (sectionCurrentEl) sectionCurrentEl.textContent = '—';
+    vrBlockEls.forEach(el => { if (el) el.classList.remove('active'); });
+    vrBlockFillEls.forEach(el => { if (el) el.style.width = '0%'; });
+    vrCurrentSectionOriginalIndex = -1;
+  }
+  function playVerticalRandom(isContinuation) {
+    stopVerticalRandom();
+    // Un vrai démarrage (pas une reprise après pause/veille) repart de zéro : nouvel ordre de sections
+    // (rebrassé si "randomiser" est coché), intro rejouée si présente. Une reprise continue la chaîne là
+    // où elle en était — même convention que playSequential(isContinuation) pour le séquentiel.
+    if (!isContinuation || !sectionScheduler) {
+      vrPlayableSectionRefs = playableSectionOriginalIndex.map(origIdx => ({ maxLoops: resolveVRSection(track, origIdx).maxLoops }));
+      sectionScheduler = createSectionPlaybackScheduler(
+        vrPlayableSectionRefs,
+        {
+          randomize: !!track.randomizeSections, hasIntro: !!introBuffer, hasOutro: !!outroBuffer,
+          // Getter plutôt qu'une valeur figée à la création : le sélecteur visiteur mute track.maxChainLoops
+          // directement (voir plus bas), donc chaque cycle voit la valeur à jour sans recréer le scheduler.
+          get maxChainLoops() { return track.maxChainLoops || null; }
+        }
+      );
+    }
+    vrNextStartCtxTime = ctx.currentTime;
+    sectionSchedulerTick();
+    vrSchedulerTimer = setInterval(sectionSchedulerTick, 200);
+    if (goToEndBtn) goToEndBtn.disabled = false;
+    if (goToNextSectionBtn) goToNextSectionBtn.disabled = false;
+  }
+  // Glisser sur le bloc de la section EN COURS (voir vrBlockEls) : recherche à l'intérieur du cycle de
+  // CETTE section uniquement, sans faire avancer la chaîne (même esprit que rerollPool) — les autres
+  // blocs ne sont pas cliquables, une "position" n'ayant de sens que dans la section qui joue réellement.
+  function seekVerticalRandom(fraction) {
+    if (!playing || vrCurrentSectionOriginalIndex < 0) return;
+    const origIdx = vrCurrentSectionOriginalIndex;
+    const section = resolveVRSection(track, origIdx);
+    const timing = sectionTiming(section);
+    const offset = timing.loopInSec + fraction * timing.cycleLength;
+    if (vrSchedulerTimer) { clearInterval(vrSchedulerTimer); vrSchedulerTimer = null; }
+    activeGenSources.forEach(({ src }) => { try { src.stop(); } catch (e) {} });
+    activeGenSources = [];
+    voiceGraphTimeouts.forEach(id => clearTimeout(id));
+    voiceGraphTimeouts = [];
+    const now = ctx.currentTime;
+    scheduleSectionGeneration(now, origIdx, false, offset);
+    const timeUntilNext = timing.cycleLength - (fraction * timing.cycleLength);
+    vrNextStartCtxTime = now + Math.max(0.02, timeUntilNext);
+    vrSchedulerTimer = setInterval(sectionSchedulerTick, 200);
+  }
+
   function stopAllSources(keepPosition) {
     playing = false;
     playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
@@ -1466,6 +2266,13 @@ function initTrackPlayer(track, wrapper) {
     trackMasterGain.gain.setValueAtTime(1, ctx.currentTime);
     if (isSequential) {
       stopSequential();
+    } else if (isEmbrVert) {
+      stopEmbrVertical();
+    } else if (isVerticalRandom) {
+      // Comme le séquentiel, la reprise après pause/veille passe par l'état déjà conservé du scheduler
+      // (sectionScheduler persiste tant que la piste n'est pas complètement relancée) — jamais par
+      // offsetAt, qui n'a plus de sens unique sur plusieurs sections potentiellement enchaînées.
+      stopVerticalRandom();
     } else if (useQuantizedLoop) {
       if (keepPosition !== false) {
         offsetAt = currentPlaybackOffset();
@@ -1506,13 +2313,17 @@ function initTrackPlayer(track, wrapper) {
     if (!isContinuation) trackPublicEvent('track_play', { trackId: track.id, mode: track.mode });
     if (isSequential) {
       playSequential(isContinuation);
+    } else if (isEmbrVert) {
+      playEmbrVertical();
+    } else if (isVerticalRandom) {
+      playVerticalRandom(isContinuation);
     } else if (useQuantizedLoop) {
       // Un vrai démarrage à froid réinitialise le budget de boucles (le premier passage compte déjà comme 1) ;
       // un reroll ou une recherche en cours de lecture (isContinuation) ne remet pas le compteur à zéro et ne l'avance pas non plus.
       // Note : on ne peut pas déduire ça de `playing`, qui est déjà retombé à false par le stopAllSources(false)
       // que ces deux appelants font juste avant — d'où ce paramètre explicite plutôt qu'une lecture d'état ambiant.
       if (!isContinuation) loopsPlayed = 1;
-      playQuantized(offsetAt % track.duration, reroll !== false);
+      playQuantized(offsetAt % track.duration);
     } else {
       playSimple();
     }
@@ -1524,14 +2335,23 @@ function initTrackPlayer(track, wrapper) {
   function rerollPool() {
     if (!isVerticalRandom) return;
     trackPublicEvent('pool_refresh', { trackId: track.id });
-    if (playing) {
-      const currentOffset = currentPlaybackOffset();
-      stopAllSources(false);
-      offsetAt = currentOffset;
-      playThisTrack(true, true);
-    } else {
-      Object.keys(lastPickedIndex).forEach(k => { lastPickedIndex[k] = -1; });
+    if (!playing || vrCurrentSectionOriginalIndex < 0) {
+      Object.keys(lastPickedPoolIndex).forEach(k => { lastPickedPoolIndex[k] = -1; });
+      return;
     }
+    // Rejoue la MÊME section avec de nouveaux tirages, sans faire avancer la chaîne d'un cran (contrairement
+    // à un vrai changement de section) — n'arrête donc que les sources en cours, pas le scheduler pur
+    // sous-jacent (sectionScheduler), dont l'état de progression reste intact.
+    const origIdx = vrCurrentSectionOriginalIndex;
+    if (vrSchedulerTimer) { clearInterval(vrSchedulerTimer); vrSchedulerTimer = null; }
+    activeGenSources.forEach(({ src }) => { try { src.stop(); } catch (e) {} });
+    activeGenSources = [];
+    voiceGraphTimeouts.forEach(id => clearTimeout(id));
+    voiceGraphTimeouts = [];
+    const now = ctx.currentTime;
+    const timing = scheduleSectionGeneration(now, origIdx, false);
+    vrNextStartCtxTime = now + timing.cycleLength;
+    vrSchedulerTimer = setInterval(sectionSchedulerTick, 200);
   }
 
   const titleToggle = wrapper.querySelector('[data-role="titleToggle"]');
@@ -1551,13 +2371,43 @@ function initTrackPlayer(track, wrapper) {
       trackPublicEvent(action === 'solo' ? 'voice_solo_toggle' : 'voice_mute_toggle', { trackId: track.id, voice: key, active });
     });
   });
+  // Volume par voix : 'input' pour un retour audio et visuel immédiat pendant le glissement (même
+  // rampe courte que refreshVoiceGains partout ailleurs) ; 'change' pour ne tracker que la valeur
+  // finale relâchée, pas chaque pas intermédiaire du curseur.
+  wrapper.querySelectorAll('.voice-volume-slider').forEach(slider => {
+    const key = slider.dataset.voiceKey;
+    const valueEl = wrapper.querySelector(`[data-role="volumeValue-${key}"]`);
+    slider.addEventListener('input', () => {
+      layerVolumes.set(key, parseFloat(slider.value));
+      if (valueEl) valueEl.textContent = Math.round(parseFloat(slider.value) * 100) + '%';
+      refreshVoiceGains();
+    });
+    slider.addEventListener('change', () => {
+      trackPublicEvent('voice_volume_change', { trackId: track.id, voice: key, value: parseFloat(slider.value) });
+    });
+  });
   if (goToEndBtn) {
     goToEndBtn.addEventListener('click', () => {
-      if (!playing || goToEndRequested) return;
-      goToEndRequested = true;
-      goToEndBtn.disabled = true;
-      goToEndBtn.textContent = track.outro ? t('endingWithOutro') : t('endingLastSegment');
+      if (!playing) return;
+      if (isVerticalRandom) {
+        if (!sectionScheduler) return;
+        sectionScheduler.requestGoToEnd();
+        goToEndBtn.disabled = true;
+        goToEndBtn.textContent = layerHasSource(track.outro) ? t('endingWithOutro') : t('endingLastSegment');
+      } else {
+        if (goToEndRequested) return;
+        goToEndRequested = true;
+        goToEndBtn.disabled = true;
+        goToEndBtn.textContent = track.outro ? t('endingWithOutro') : t('endingLastSegment');
+      }
       trackPublicEvent('go_to_end_click', { trackId: track.id });
+    });
+  }
+  if (goToNextSectionBtn) {
+    goToNextSectionBtn.addEventListener('click', () => {
+      if (!playing || !sectionScheduler) return;
+      sectionScheduler.requestGoToNextSection();
+      trackPublicEvent('go_to_next_section_click', { trackId: track.id });
     });
   }
 
@@ -1611,7 +2461,11 @@ function initTrackPlayer(track, wrapper) {
   });
   playBtn.addEventListener('click', () => { playing ? stopAllSources() : playThisTrack(true); });
 
-  if (wrap) {
+  // Vertical-random (fusionné le 30/07) : pas de recherche par glissement — avec plusieurs sections
+  // potentiellement enchaînées dans un ordre mélangé, "une position dans le temps" n'a plus de sens
+  // unique à faire glisser vers. La barre reste un indicateur visuel de progression dans la section en
+  // cours, juste non interactive pour ce mode.
+  if (wrap && !isVerticalRandom) {
     // Glisser-déposer sur la barre de lecture (pas juste un tap) : la position se met à jour en direct
     // pendant le glissement (y compris la waveform), et la vraie recherche audio (arrêt/redémarrage des
     // sources) ne se déclenche qu'au relâchement — sinon on redémarrerait l'audio à chaque pixel parcouru.
@@ -1637,6 +2491,32 @@ function initTrackPlayer(track, wrapper) {
     });
     wrap.addEventListener('pointercancel', () => { isDraggingSeek = false; });
   }
+
+  // Glisser sur le bloc de la section EN COURS uniquement (voir seekVerticalRandom) — les autres blocs
+  // ne réagissent pas, une "position" n'ayant de sens que dans la section qui joue réellement.
+  vrBlockEls.forEach((block, i) => {
+    if (!block) return;
+    function fractionFromEvent(e) {
+      const rect = block.getBoundingClientRect();
+      return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    }
+    block.addEventListener('pointerdown', (e) => {
+      if (vrCurrentSectionOriginalIndex !== i) return;
+      vrIsDraggingSeek = true;
+      try { block.setPointerCapture(e.pointerId); } catch (err) {}
+      if (vrBlockFillEls[i]) vrBlockFillEls[i].style.width = (fractionFromEvent(e) * 100) + '%';
+    });
+    block.addEventListener('pointermove', (e) => {
+      if (!vrIsDraggingSeek || vrCurrentSectionOriginalIndex !== i) return;
+      if (vrBlockFillEls[i]) vrBlockFillEls[i].style.width = (fractionFromEvent(e) * 100) + '%';
+    });
+    block.addEventListener('pointerup', (e) => {
+      if (!vrIsDraggingSeek || vrCurrentSectionOriginalIndex !== i) { vrIsDraggingSeek = false; return; }
+      vrIsDraggingSeek = false;
+      seekVerticalRandom(fractionFromEvent(e));
+    });
+    block.addEventListener('pointercancel', () => { vrIsDraggingSeek = false; });
+  });
 
   notchDots.forEach(dot => {
     dot.addEventListener('click', () => {
@@ -1697,6 +2577,29 @@ function initTrackPlayer(track, wrapper) {
     });
   }
 
+  if (chainLoopCountSelect) {
+    chainLoopCountSelect.addEventListener('change', () => {
+      // Mutation directe de track.maxChainLoops : lu au vol par pickNextSegmentSlot (séquentiel) à chaque
+      // avancement, et par le getter passé à createSectionPlaybackScheduler (vertical-random) à chaque
+      // cycle — dans les deux cas, pas besoin de relancer la piste pour que le changement s'applique.
+      track.maxChainLoops = chainLoopCountSelect.value === '' ? null : parseInt(chainLoopCountSelect.value, 10);
+      trackPublicEvent('track_chain_loop_change', { trackId: track.id, maxChainLoops: track.maxChainLoops });
+    });
+  }
+
+  // Boucles par section (vertical-random uniquement) : chaque petit sélecteur mute en place l'objet
+  // réellement lu par sectionScheduler.decideNext() (voir vrPlayableSectionRefs) — pas d'effet si la
+  // section touchée n'est pas (encore) jouable, la mutation est alors simplement un no-op silencieux.
+  vrSectionLoopSelectEls.forEach((sel, origIdx) => {
+    if (!sel) return;
+    sel.addEventListener('change', () => {
+      const value = sel.value === '' ? null : parseInt(sel.value, 10);
+      const j = playableSectionOriginalIndex.indexOf(origIdx);
+      if (j >= 0 && vrPlayableSectionRefs[j]) vrPlayableSectionRefs[j].maxLoops = value;
+      trackPublicEvent('track_section_loop_change', { trackId: track.id, sectionIndex: origIdx, maxLoops: value });
+    });
+  });
+
   async function loadArrayBuffer(item) {
     if (item.localFile) return await item.localFile.arrayBuffer();
     const v = track.publishedAt ? ('?v=' + encodeURIComponent(track.publishedAt)) : '';
@@ -1741,55 +2644,73 @@ function initTrackPlayer(track, wrapper) {
     let loaded = 0;
     let total;
     if (isVerticalRandom) {
-      const rawGroups = track.randomGroups || [];
-      const rawFixed = (track.fixedLayers || []).filter(layerHasSource);
-      rawFixedLayers = rawFixed;
-      total = rawFixed.length + rawGroups.reduce((n, g) => n + (g.alternatives || []).filter(layerHasSource).length, 0) + totalSfxFilesToLoad;
-      fixedBuffers = new Array(rawFixed.length).fill(null);
-      for (let fi = 0; fi < rawFixed.length; fi++) {
+      const rawSections = track.sections || [];
+      const hasIntro = layerHasSource(track.intro);
+      const hasOutro = layerHasSource(track.outro);
+      // Total de fichiers à charger : intro/outro + toutes les alternatives ayant un fichier, dans les
+      // sections NON dupliquées (une section qui duplique une autre ne charge rien en propre, voir 2e passe).
+      const poolAltsWithSource = rawSections.reduce((sum, sec) => {
+        if (sec.referencesSectionId) return sum;
+        return sum + (sec.pools || []).reduce((s2, p) => s2 + (p.alternatives || []).filter(layerHasSource).length, 0);
+      }, 0);
+      total = (hasIntro ? 1 : 0) + (hasOutro ? 1 : 0) + poolAltsWithSource + totalSfxFilesToLoad;
+      if (hasIntro) {
         try {
-          const ab = await loadArrayBuffer(rawFixed[fi]);
-          fixedBuffers[fi] = await decodeAudioDataCompat(ab);
+          const ab = await loadArrayBuffer(track.intro);
+          introBuffer = await decodeAudioDataCompat(ab);
           loaded++;
           if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
-          // rawFixed est filtré (layerHasSource) : son index ne correspond pas forcément à celui de
-          // track.fixedLayers utilisé par le gabarit — on retrouve la bonne case par référence d'objet.
-          const origIndex = track.fixedLayers.indexOf(rawFixed[fi]);
-          if (origIndex >= 0) drawVoiceWave(voiceWaveFixed[origIndex], fixedBuffers[fi]);
-        } catch (e) { /* une couche fixe manquante ne bloque pas les autres */ }
+        } catch (e) { /* intro manquante : la lecture démarrera directement sur la première section */ }
       }
-      if (fixedBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = t('loadErrorNoFixedLayers'); setLoadErrorIcon(); return; }
-      // Deux passes : d'abord décoder réellement les groupes avec leur propre contenu, puis faire pointer
-      // les groupes qui "dupliquent" (referencesGroupId) vers le MÊME tableau de buffers déjà décodé —
-      // aucun fichier n'est chargé ni décodé deux fois, l'alias suffit à partager la mémoire.
-      for (let gi = 0; gi < rawGroups.length; gi++) {
-        if (rawGroups[gi].referencesGroupId) continue; // traité en 2e passe
-        const alts = rawGroups[gi].alternatives || [];
-        // Même longueur que les alternatives déclarées, y compris les slots vides (intentionnels : ils restent
-        // un choix possible du tirage, avec pour effet un cycle silencieux pour ce groupe — pas un fichier à charger).
-        groupBuffers[gi] = new Array(alts.length).fill(null);
-        lastPickedIndex[canonicalGroupKey(gi)] = -1;
-        for (let ai = 0; ai < alts.length; ai++) {
-          if (!layerHasSource(alts[ai])) continue;
-          try {
-            const ab = await loadArrayBuffer(alts[ai]);
-            groupBuffers[gi][ai] = await decodeAudioDataCompat(ab);
-            loaded++;
-            if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
-          } catch (e) { /* fichier manquant : ce tirage restera silencieux plutôt que de bloquer la lecture */ }
+      if (hasOutro) {
+        try {
+          const ab = await loadArrayBuffer(track.outro);
+          outroBuffer = await decodeAudioDataCompat(ab);
+          loaded++;
+          if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
+        } catch (e) { /* outro manquante : "Aller vers la fin" laissera simplement filer la section en cours */ }
+      }
+      // Deux passes, même principe que les groupes/emplacements ailleurs : d'abord les sections avec leur
+      // propre contenu, puis celles qui dupliquent (referencesSectionId) pointent vers le MÊME tableau —
+      // aucun fichier n'est chargé ni décodé deux fois.
+      for (let si = 0; si < rawSections.length; si++) {
+        if (rawSections[si].referencesSectionId) continue; // traité en 2e passe
+        const pools = rawSections[si].pools || [];
+        sectionBuffers[si] = [];
+        for (let pi = 0; pi < pools.length; pi++) {
+          const alts = pools[pi].alternatives || [];
+          // Même longueur que les alternatives déclarées, y compris les slots vides (intentionnels : ils
+          // restent un choix possible du tirage, avec pour effet un cycle silencieux pour ce pool).
+          sectionBuffers[si][pi] = new Array(alts.length).fill(null);
+          lastPickedPoolIndex[canonicalPoolKey(si, pi)] = -1;
+          for (let ai = 0; ai < alts.length; ai++) {
+            if (!layerHasSource(alts[ai])) continue;
+            try {
+              const ab = await loadArrayBuffer(alts[ai]);
+              sectionBuffers[si][pi][ai] = await decodeAudioDataCompat(ab);
+              loaded++;
+              if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
+            } catch (e) { /* alternative manquante : ce tirage restera silencieux pour ce pool, ne bloque pas le reste */ }
+          }
         }
       }
-      for (let gi = 0; gi < rawGroups.length; gi++) {
-        if (!rawGroups[gi].referencesGroupId) continue;
-        const sourceIdx = rawGroups.findIndex(g => g.id === rawGroups[gi].referencesGroupId);
-        groupBuffers[gi] = sourceIdx >= 0 ? groupBuffers[sourceIdx] : [];
+      for (let si = 0; si < rawSections.length; si++) {
+        if (!rawSections[si].referencesSectionId) continue;
+        const sourceIdx = rawSections.findIndex(s => s.id === rawSections[si].referencesSectionId);
+        sectionBuffers[si] = sourceIdx >= 0 ? sectionBuffers[sourceIdx] : [];
       }
+      // Sections effectivement jouables : celles qui ont, une fois les duplications résolues, au moins un
+      // pool avec au moins un fichier chargé — ordre DÉCLARÉ conservé (même convention que
+      // pickNextSegmentSlot pour le séquentiel, qui saute silencieusement les emplacements vides).
+      playableSectionOriginalIndex = rawSections.map((s, i) => i).filter(i => (sectionBuffers[i] || []).some(bufs => bufs.some(b => b)));
+      if (!playableSectionOriginalIndex.length) { if (statusEl) statusEl.textContent = t('loadErrorNoSections'); setLoadErrorIcon(); return; }
     } else if (isSequential) {
       const hasIntro = layerHasSource(track.intro);
       const hasOutro = layerHasSource(track.outro);
       const rawSlots = track.segmentSlots || [];
       const slotAltsWithSource = rawSlots.reduce((sum, sl) => sum + (sl.alternatives || []).filter(layerHasSource).length, 0);
-      total = (hasIntro ? 1 : 0) + (hasOutro ? 1 : 0) + slotAltsWithSource + totalSfxFilesToLoad;
+      const transitionsWithSource = rawSlots.reduce((sum, sl) => sum + (sl.nextOptions || []).filter(opt => layerHasSource(opt.transition)).length, 0);
+      total = (hasIntro ? 1 : 0) + (hasOutro ? 1 : 0) + slotAltsWithSource + transitionsWithSource + totalSfxFilesToLoad;
       if (hasIntro) {
         try {
           const ab = await loadArrayBuffer(track.intro);
@@ -1829,7 +2750,40 @@ function initTrackPlayer(track, wrapper) {
         const sourceIdx = rawSlots.findIndex(sl => sl.id === rawSlots[si].referencesSlotId);
         slotBuffers[si] = sourceIdx >= 0 ? slotBuffers[sourceIdx] : [];
       }
+      // Fichiers de transition (optionnels, un par embranchement précis — paire source→cible, PAS par
+      // emplacement) : même convention d'indexation que slotBuffers, mais un niveau plus loin puisque
+      // c'est nextOptions[oi], pas alternatives[ai], qui porte le fichier. transitionBuffers[si][oi] reste
+      // null si aucun fichier n'est déclaré pour cet embranchement précis — la bascule sera alors directe
+      // (pas de fichier de transition à jouer) plutôt qu'une erreur de chargement.
+      for (let si = 0; si < rawSlots.length; si++) {
+        const opts = rawSlots[si].nextOptions || [];
+        transitionBuffers[si] = new Array(opts.length).fill(null);
+        for (let oi = 0; oi < opts.length; oi++) {
+          if (!layerHasSource(opts[oi].transition)) continue;
+          try {
+            const ab = await loadArrayBuffer(opts[oi].transition);
+            transitionBuffers[si][oi] = await decodeAudioDataCompat(ab);
+            loaded++;
+            if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
+          } catch (e) { /* transition manquante : la bascule vers cette cible se fera directement, sans fichier intermédiaire */ }
+        }
+      }
       if (slotBuffers.every(bufs => bufs.every(b => !b))) { if (statusEl) statusEl.textContent = t('loadErrorNoSegments'); setLoadErrorIcon(); return; }
+    } else if (isEmbrVert) {
+      const rawLoops = track.loops || [];
+      const loopsWithSource = rawLoops.filter(layerHasSource).length;
+      total = loopsWithSource + totalSfxFilesToLoad;
+      embrLoopBuffers = new Array(rawLoops.length).fill(null);
+      for (let li = 0; li < rawLoops.length; li++) {
+        if (!layerHasSource(rawLoops[li])) continue;
+        try {
+          const ab = await loadArrayBuffer(rawLoops[li]);
+          embrLoopBuffers[li] = await decodeAudioDataCompat(ab);
+          loaded++;
+          if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
+        } catch (e) { /* boucle manquante : ce bouton restera désactivé, ne bloque pas les autres */ }
+      }
+      if (embrLoopBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = t('loadErrorNoSegments'); setLoadErrorIcon(); return; }
     } else {
       total = layersToLoad.length + totalSfxFilesToLoad;
       for (let i = 0; i < layersToLoad.length; i++) {
@@ -1870,9 +2824,11 @@ function initTrackPlayer(track, wrapper) {
     }
     // Pour une source locale non encore publiée, la durée réelle n'est connue qu'une fois décodée.
     const allMainBuffers = isVerticalRandom
-      ? [...fixedBuffers, ...groupBuffers.flat()].filter(Boolean)
+      ? [introBuffer, outroBuffer, ...sectionBuffers.flat(2)].filter(Boolean)
       : isSequential
       ? [introBuffer, outroBuffer, ...slotBuffers.flat()].filter(Boolean)
+      : isEmbrVert
+      ? embrLoopBuffers.filter(Boolean)
       : buffers.filter(Boolean);
     const allSfxBuffers = Object.values(sfxBuffersById).flat().filter(Boolean);
     const decodedMax = Math.max(0, ...allMainBuffers.map(b => b.duration), ...allSfxBuffers.map(b => b.duration));
@@ -2155,6 +3111,7 @@ window.LayerPlayerCore = {
   setSfxLibrary,
   shareOrCopy,
   downloadTracksAsZip,
+  createSectionPlaybackScheduler,
   PLAYABLE_MODES
 };
 

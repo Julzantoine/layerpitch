@@ -176,6 +176,17 @@
   .voice-ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
   .voice-ctrl-btn[data-voice-action="solo"].active { background: var(--accent); border-color: var(--accent); color: #fff; }
   .voice-ctrl-btn[data-voice-action="mute"].active { background: #b5442e; border-color: #b5442e; color: #fff; }
+  /* Volume par voix : slider continu sous la ligne existante (label + vumètre + S/M en vertical
+     classique, ligne du haut en vertical-random), aligné sous le vumètre pour rester dans le même
+     champ visuel plutôt qu'un ajout qui semblerait étranger au reste du mixer. */
+  .voice-row-wrap { padding: 3px 0; }
+  .voice-row-wrap .voice-row { padding: 0; }
+  .voice-volume-row { display: flex; align-items: center; gap: 6px; padding-left: 138px; }
+  .wwise-node-voice .voice-volume-row { padding-left: 0; margin-top: 2px; }
+  .voice-volume-row input[type="range"] { flex: 1; max-width: 160px; -webkit-appearance: none; appearance: none; height: 3px; border-radius: 2px; background: var(--border); outline: none; cursor: pointer; }
+  .voice-volume-row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  .voice-volume-row input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer; }
+  .voice-volume-value { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--text-dimmer); min-width: 32px; text-align: right; flex-shrink: 0; }
   .wwise-node-wave { position: relative; width: 100%; height: 30px; border-radius: 3px; overflow: hidden; background: var(--bg); }
   .wwise-wave-bg, .wwise-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .wwise-wave-fg { clip-path: inset(0 100% 0 0); }
@@ -188,6 +199,7 @@
   .seq-block { flex: 1; height: 34px; border-radius: 4px; border: 1px solid var(--border); position: relative; overflow: hidden; background: transparent; touch-action: none; }
   .seq-block-wave-bg, .seq-block-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .seq-block-wave-fg { clip-path: inset(0 100% 0 0); }
+  .vr-block-fill { position: absolute; inset: 0; width: 0%; background: var(--accent); opacity: 0.28; }
   .seq-block.active { border-color: var(--accent); cursor: pointer; }
   .seq-block-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.03em; color: var(--text-dim); z-index: 1; padding: 0 4px; text-align: center; text-shadow: 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff); }
   .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
@@ -199,6 +211,29 @@
   .intensity-chip:hover { border-color: var(--accent); color: var(--accent); }
   .intensity-chip.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
   .intensity-chip-num { opacity: 0.55; margin-right: 5px; }
+
+  /* Boutons nommés d'embranchement-vertical : même gabarit que intensity-chip (classe distincte pour ne
+     pas hériter du sélecteur de niveau d'intensité) — état désactivé pendant qu'un détour (boucle plus
+     courte que la référence) est en cours de lecture. */
+  .embr-loop-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 10px;
+    border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; line-height: 1.6;
+  }
+  .embr-loop-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .embr-loop-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
+  .embr-loop-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Boutons d'embranchement séquentiel (nextOptions) : "pending" = choix en attente de bascule au
+     prochain point de quantification, visuellement distinct de "active" (qui n'existe pas ici — aucune
+     de ces options n'est celle en train de jouer, seul le segment courant l'est). */
+  .seq-branch-options { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .seq-branch-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 10px;
+    border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; line-height: 1.6;
+  }
+  .seq-branch-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .seq-branch-btn.pending { border-color: var(--accent); border-style: dashed; color: var(--accent); }
+  .seq-pending-indicator { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.04em; color: var(--accent); margin-top: 6px; font-style: italic; }
 
   .loop-count-block { margin-top: 14px; }
   .loop-count-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
@@ -290,7 +325,7 @@
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="layerpitch-i18n.js"></script>
-<script src="player.js?v=1785704405935"></script>
+<script src="player.js"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.LayerPlayerCore;
 
