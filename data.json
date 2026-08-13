@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1786638757413,
+  "publishedAt": 1786639797271,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -84,6 +84,7 @@
           "repeatCount": 1,
           "quantization": "bar",
           "cutStyle": "custom",
+          "customCutFadeSec": 8,
           "nextOptions": [
             {
               "targetId": "bmsroyqkwf73ti",
@@ -113,6 +114,7 @@
           "repeatCount": 1,
           "quantization": "beat",
           "cutStyle": "custom",
+          "customCutFadeSec": 8,
           "nextOptions": [
             {
               "targetId": "bmsroyqkw5wacj",
