@@ -8,6 +8,55 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-15] — Texte de présentation optionnel par emplacement/intro/outro/transition (séquentiel)
+
+**Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `layerpitch-help.js`, `test_seq_stage_description.js` (nouveau), `test_backstage_custom_cut_fade_roundtrip.js`
+
+**Contexte** : demande de Jules-Antoine — chaque élément qui devient audible en mode séquentiel (un emplacement, l'intro, l'outro, un fichier de transition) peut porter un texte de présentation optionnel, affiché à la place de la description du morceau pendant qu'il joue. Architecture discutée en profondeur avant tout code : bilingue dès maintenant (`descriptionFr`/`descriptionEn`, pattern classique de l'existant) plutôt qu'un système de langues généralisé anticipé — jugé prématuré tant qu'aucune demande concrète au-delà de FR/EN ne s'est manifestée (piste notée dans `extensions-roadmap.md` pour plus tard). Portée précisée par un exemple concret de Jules-Antoine (Intro → WetDarkCave → transition "Secret Lever" → Corridor → Battle) : le texte suit les étapes RÉELLEMENT audibles (pas le clic du visiteur), et un champ vide ne doit JAMAIS écraser le texte précédemment affiché (attention explicite portée au cas d'une intro sans texte propre, qui doit laisser voir la description du morceau jusqu'au premier élément qui en a un — obtenu gratuitement par cette règle, sans cas particulier à coder).
+
+**Schéma retenu** : `descriptionFr`/`descriptionEn` (chaînes optionnelles, `''`/absent = ne redéfinit rien) sur `segmentSlots[]`, `track.intro`, `track.outro`, et `nextOptions[].transition`.
+
+**Incrément 1 — `player.js` (moteur)** : `pickStageDescription(obj)` (résolution bilingue, même pattern que `pickSfxDescription`, mais sans repli sur un ancien champ unique — nouveau champ, aucune migration à gérer). Un champ `desc` transite désormais dans toute la chaîne de programmation séquentielle (`decideNextSeqBlock()` → `forcedNextBlock` → `scheduleSeqGeneration()` → `scheduleSeqLabelUpdate()`), mis à jour au même instant que le libellé affiché (`seqCurrentEl`). Nouvel élément `data-role="trackDesc"` sur le conteneur de description (`.track-desc`), référencé une fois par lecteur (`trackDescEl`). Un texte vide ne touche jamais à `trackDescEl` — c'est cette règle, et non un repli explicite vers `track.description`, qui gère le cas "intro sans texte" demandé. Un vrai arrêt (`stopSequential()`) réinitialise vers `track.description` ; un `seek` (qui appelle `stopSequential()` en interne) capture et restaure le texte affiché avant/après — exactement le même piège que celui déjà rencontré et corrigé pour le libellé le 13/08, corrigé ici de la même manière.
+
+**Incrément 2 — `layerpitch-backstage.html`** : bloc "Texte de présentation (facultatif)" repliable (réutilise le pattern générique existant `collapsibleBlockToggleHtml`/`wireCollapsibleBlockToggle`, replié par défaut — consigne explicite de Jules-Antoine de ne jamais surcharger l'UI en ajoutant une fonctionnalité) sur les 4 emplacements concernés : éditeur d'emplacement (`segmentSlots`), intro, outro, et éditeur de transition (imbriqué dans le panneau déjà repliable des embranchements). Les 3 points de sérialisation (aperçu, chargement, publication) mis à jour ensemble : `mapBlockWithBars()` porte maintenant `descriptionFr`/`descriptionEn` (partagé par l'intro et, via `mapTransition()`, par la transition), l'outro (qui n'utilise pas `mapBlockWithBars`, pas de notion de `bars`) et les `segmentSlots` mis à jour séparément aux 3 points.
+
+**Piège rencontré en cours de route** : première version des nouveaux `<textarea>` utilisant `escapeHtml()`, qui n'existe QUE dans `player.js` (fonction interne à son IIFE, non exposée globalement) — `layerpitch-backstage.html` n'a que `escapeAttr()` (échappement de guillemets pour les attributs `value="..."`, pas pour du contenu de `<textarea>`). Corrigé en s'alignant sur le pattern déjà utilisé partout ailleurs pour les `<textarea>` de ce fichier (`description`, `presentationFr`/`presentationEn` des packs/collections) : interpolation directe, sans échappement — détecté immédiatement par la suite de tests (4 suites Backstage en échec dès le premier lancement après cet incrément), corrigé avant livraison.
+
+**i18n/aide** : nouvelles clés `stageDescriptionToggleLabel`, `stageDescriptionHint`, `stageDescriptionFrLabel`, `stageDescriptionEnLabel` (FR/EN, symétrie vérifiée programmatiquement : 0 écart). Bulle d'aide `stageDescription` ajoutée (FR/EN).
+
+**Tests** : nouveau `test_seq_stage_description.js`, qui reproduit exactement l'exemple donné par Jules-Antoine (Intro sans texte → WetDarkCave → Secret Lever → Corridor → Battle sans texte, plus une vérification de la résolution EN). `test_backstage_custom_cut_fade_roundtrip.js` mis à jour (ses ancres de texte littéral sur la ligne `outro:` ne correspondaient plus après l'ajout des nouveaux champs) et étendu avec des vérifications dédiées au nouveau texte de présentation, dans le même esprit que ce qu'il vérifiait déjà pour `customCutFadeSec`/`bpm`/`beatsPerBar`.
+
+**Vérifications menées** : `node --check` sur tous les fichiers touchés — OK. Symétrie FR/EN vérifiée programmatiquement (0 écart dans les deux sens). 17 suites de tests concernées relancées ensemble après correction du piège `escapeHtml` — toutes vertes, aucune régression restante.
+
+**Pas encore fait** : aucun test d'écoute réel (comme toujours, à valider par Jules-Antoine avant publication).
+
+---
+
+## [2026-08-14] — Durée explicite du fichier de transition avant bascule vers la cible (`durationUnit`)
+
+**Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `layerpitch-help.js`, `test_seq_transitions.js`, `test_backstage_seq_transitions.js`
+
+**Contexte** : demande de Jules-Antoine — pour un fichier de transition (`nextOptions[].transition`), pouvoir contrôler explicitement l'instant où la cible démarre, plutôt que de dépendre du seul champ `bars` existant (découverte en cours de discussion : ce champ existait déjà, câblé, mais utilisait systématiquement le tempo de l'emplacement SOURCE — aucune option n'existait pour un tempo propre à la transition, ni pour une durée en secondes indépendante de tout tempo). Architecture discutée et validée avant tout code (schéma, sémantique de repli, rétrocompatibilité).
+
+**Schéma retenu** sur `nextOptions[].transition` :
+- `durationUnit` (`'bars'` | `'seconds'`, absent = comportement historique inchangé : `blockSeconds(bars, sourceSlot)`, tempo de l'emplacement source).
+- `durationUnit: 'bars'` : mesures sur le tempo **propre** à la transition (`bpm`/`beatsPerBar`), avec repli sur le tempo de l'emplacement source puis celui du morceau si non renseignés — utile pour un impact/riser à un tempo différent de l'emplacement qu'on quitte.
+- `durationUnit: 'seconds'` : `durationSeconds`, durée brute sans notion de tempo — pour un fichier non quantifié musicalement. Exclusif du mode mesures (sélecteur, pas de repli entre les deux).
+
+**Incrément 1 — `player.js` (moteur)** : `transitionTiming(tr, sourceSlot)` et `transitionDurationSecFor(opt, sourceSlot)` ajoutées, remplacent l'appel direct à `blockSeconds()` dans `performSeqBranchCut()`. Bascule vers le nouveau calcul uniquement si `durationUnit` est explicitement renseigné ; sinon appelle `blockSeconds()` exactement comme avant — zéro risque de régression sur les transitions déjà publiées.
+
+**Incrément 2 — `layerpitch-backstage.html`** : sélecteur d'unité (mesures/secondes) sur chaque embranchement ayant une transition, affiché avec repli visuel `'bars'` par défaut sans rien écrire tant que l'utilisateur ne touche à rien (même convention que `cutStyle`). En mode mesures : champs BPM/temps-par-mesure propres à la transition (placeholder = ce qu'ils hériteraient, càd le tempo de l'emplacement source). En mode secondes : champ durée unique (défaut 1s). Les 3 points de sérialisation (aperçu, chargement, publication) mis à jour ensemble via une nouvelle fonction dédiée `mapTransition()` (distincte de `mapBlockWithBars`, réutilisée par l'intro, qui n'a pas cette notion de durée explicite).
+
+**i18n/aide** : nouvelles clés `transitionDurationUnitLabel/Bars/Seconds`, `transitionDurationSecondsLabel`, `transitionBarsTempoHint` (FR/EN, symétrie vérifiée programmatiquement : 0 écart) ; `bpmLabel`/`beatsPerBarLabel` génériques réutilisés tels quels. Bulle d'aide `transitionDurationUnit` ajoutée (FR/EN) ; `slotBpmOverride` mise à jour pour ne plus affirmer que le fichier de transition suit systématiquement le tempo de l'emplacement source (ce n'est plus vrai en mode mesures avec tempo propre).
+
+**Tests** : 2 nouveaux scénarios dans `test_seq_transitions.js` (mode `seconds`, durée indépendante du tempo source à 300 BPM ; mode `bars` avec tempo propre à 60 BPM très différent du tempo source, confirmant que le calcul utilise bien le tempo de la transition et non celui de l'emplacement quitté) — non-régression du scénario existant (transition sans `durationUnit`) confirmée. 6 nouveaux checks dans `test_backstage_seq_transitions.js` (apparition/disparition conditionnelle des champs selon l'unité choisie, valeurs par défaut, persistance après re-rendu y compris un aller-retour par le mode secondes).
+
+**Vérifications menées** : `node --check` sur tous les fichiers touchés — OK. Symétrie FR/EN vérifiée programmatiquement (0 écart dans les deux sens). Les 5 suites de tests concernées (`test_seq_transitions.js`, `test_seq_branching.js`, `test_embr_vertical_engine.js`, `test_backstage_seq_transitions.js`, `test_seq_custom_cut_fade.js`) toutes vertes ensemble, aucune régression.
+
+**Pas encore fait** : aucun test d'écoute réel (comme toujours, à valider par Jules-Antoine avant publication).
+
+---
+
 ## [2026-08-13] — Passe de relecture/nettoyage sur tout le code de la session
 
 **Fichiers touchés** : `player.js`, `test_seq_custom_cut_fade.js`, `backstage.css`
