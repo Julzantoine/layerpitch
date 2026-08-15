@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1786812682413,
+  "publishedAt": 1786813040825,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -97,8 +97,8 @@
                 "durationUnit": null,
                 "file": "slot0-branch0-transition-1bis-secretlever-transition.ogg",
                 "gain": 3.981,
-                "descriptionFr": "Une porte dérobée s'ouvre devant vous... Un long couloir sombre vous attend... \n\nPS : Vous pouvez également revenir sur vos pas...petit joueur!",
-                "descriptionEn": "A hidden door creaks open in front of you... A long, dark corridor lies ahead...\n\nPS: You can also backtrack... you cautious player! "
+                "descriptionFr": "Une porte dérobée s'ouvre devant vous... Un long couloir sombre vous attend... ",
+                "descriptionEn": "A hidden door creaks open in front of you... A long, dark corridor lies ahead..."
               }
             }
           ],
@@ -120,8 +120,8 @@
           "quantization": "beat",
           "cutStyle": "custom",
           "customCutFadeSec": 1,
-          "descriptionFr": "#2_The Corridor\n- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nVotre team avance... et finit par trouver un levier secret qui ouvre une porte dérobée... Vous vous engagez dans un long corridor sombre, la tension monte. \n\n-> Qu'allez vous trouver au bout de ce long corridor? c'est encore flou mais la musique qui fait monter gentiment la pression vous donne quand même une petite idée, non?\n\nLorsque vous êtes prêts, continuez votre route jusqu'au grand hall que vous apercevez au loin !",
-          "descriptionEn": "### **#2_The Corridor**\n\n- **\"Hey Joe! A door just opened!\"**\n- **\"Watch out, Lucien, those bastards are everywhere...\"**\n- **\"I think it’s this way—I hear noises. Should we go?\"**\n- **\"Okay... But don’t go too far, this crap’s making me nervous.\"**\n\nYour team moves forward... and ends up finding a hidden lever that opens a secret door... You step into a long, dark corridor, tension rising.\n\n→ What will you find at the end of this long corridor? It’s still unclear, but the music, gently building pressure, gives you a little hint, doesn’t it?\n\nWhen you're ready, continue your journey toward the grand hall you can see in the distance!",
+          "descriptionFr": "#2_The Corridor\n- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nVotre team avance... et finit par trouver un levier secret qui ouvre une porte dérobée... Vous vous engagez dans un long corridor sombre, la tension monte. \n\n-> Qu'allez vous trouver au bout de ce long corridor? c'est encore flou mais la musique qui fait monter gentiment la pression vous donne quand même une petite idée, non?\n\nLorsque vous êtes prêts, continuez votre route jusqu'au grand hall que vous apercevez au loin !\n\nPS : Vous pouvez également revenir sur vos pas...petit joueur!",
+          "descriptionEn": "#2_The Corridor\n\n- **\"Hey Joe! A door just opened!\"**\n- **\"Watch out, Lucien, those bastards are everywhere...\"**\n- **\"I think it’s this way—I hear noises. Should we go?\"**\n- **\"Okay... But don’t go too far, this crap’s making me nervous.\"**\n\nYour team moves forward... and ends up finding a hidden lever that opens a secret door... You step into a long, dark corridor, tension rising.\n\n→ What will you find at the end of this long corridor? It’s still unclear, but the music, gently building pressure, gives you a little hint, doesn’t it?\n\nWhen you're ready, continue your journey toward the grand hall you can see in the distance!\n\nPS: You can also backtrack... you cautious player! ",
           "nextOptions": [
             {
               "targetId": "bmsroyqkw5wacj",
