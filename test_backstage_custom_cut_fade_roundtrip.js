@@ -38,24 +38,26 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
 
 // ---- Publication (library -> data.json), ligne ~5619 : anchor unique juste avant ce mapping précis ----
 {
-  const mapPublish = extractMapBody("outro: (t.outro && t.outro.remoteFile) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile, gain: t.outro.gain || 1 } : null,\n        segmentSlots:");
-  const slot = { id: 's1', label: 'A', cutStyle: 'custom', customCutFadeSec: 2.5, bpm: 90, beatsPerBar: 3, alternatives: [] };
+  const mapPublish = extractMapBody("outro: (t.outro && t.outro.remoteFile) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,\n        segmentSlots:");
+  const slot = { id: 's1', label: 'A', cutStyle: 'custom', customCutFadeSec: 2.5, bpm: 90, beatsPerBar: 3, descriptionFr: 'Texte FR', descriptionEn: 'Text EN', alternatives: [] };
   const out = mapPublish(slot);
   check('publication : customCutFadeSec transmis à data.json', out.customCutFadeSec === 2.5);
   check('publication : cutStyle transmis', out.cutStyle === 'custom');
   check('publication : bpm par emplacement transmis à data.json', out.bpm === 90);
   check('publication : beatsPerBar par emplacement transmis à data.json', out.beatsPerBar === 3);
+  check('publication : texte de présentation (descriptionFr/descriptionEn) transmis à data.json', out.descriptionFr === 'Texte FR' && out.descriptionEn === 'Text EN');
 }
 
 // ---- Chargement (data.json -> library éditable), ligne ~5050 : anchor unique juste avant ce mapping précis ----
 {
-  const mapLoad = extractMapBody("outro: t.outro ? { label: t.outro.label || 'Outro', remoteFile: t.outro.file || null, pendingFile: null, gain: t.outro.gain || 1 } : null,");
-  const slotFromJson = { id: 's1', label: 'A', cutStyle: 'custom', customCutFadeSec: 2.5, bpm: 90, beatsPerBar: 3, alternatives: [] };
+  const mapLoad = extractMapBody("outro: t.outro ? { label: t.outro.label || 'Outro', remoteFile: t.outro.file || null, pendingFile: null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,");
+  const slotFromJson = { id: 's1', label: 'A', cutStyle: 'custom', customCutFadeSec: 2.5, bpm: 90, beatsPerBar: 3, descriptionFr: 'Texte FR', descriptionEn: 'Text EN', alternatives: [] };
   const out = mapLoad(slotFromJson);
   check('chargement : customCutFadeSec repris depuis un data.json déjà publié', out.customCutFadeSec === 2.5);
   check('chargement : cutStyle repris', out.cutStyle === 'custom');
   check('chargement : bpm par emplacement repris depuis un data.json déjà publié', out.bpm === 90);
   check('chargement : beatsPerBar par emplacement repris depuis un data.json déjà publié', out.beatsPerBar === 3);
+  check('chargement : texte de présentation (descriptionFr/descriptionEn) repris depuis un data.json déjà publié', out.descriptionFr === 'Texte FR' && out.descriptionEn === 'Text EN');
 }
 
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));

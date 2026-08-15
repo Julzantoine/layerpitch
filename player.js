@@ -776,7 +776,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
     </div>
     <div class="track-row-details" data-role="details">
      <div class="track-row-details-inner">
-      <div class="track-desc">${linkify(track.description || '')}</div>
+      <div class="track-desc" data-role="trackDesc">${linkify(track.description || '')}</div>
       ${packsForTrack && packsForTrack.length ? `<div class="pack-link">${packsForTrack.map(p => `<a href="./pack.html?id=${encodeURIComponent(p.id)}">${t('partOfPack', { title: escapeHtml(p.title) })}</a>`).join('<br>')}</div>` : ''}
       ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
         !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : (
@@ -1061,6 +1061,13 @@ function initTrackPlayer(track, wrapper) {
   const vertMeterFills = (track.mode === 'vertical' ? track.layers : []).map((l, i) => wrapper.querySelector(`[data-role="vertMeter-${i}"] .voice-meter-bar-fill`));
   const seqMeterEl = wrapper.querySelector('[data-role="seqMeter"]');
   const seqCurrentEl = wrapper.querySelector('[data-role="seqCurrent"]');
+  // Texte affiché par-dessus la description du morceau pendant la lecture séquentielle — mis à jour
+  // uniquement quand l'emplacement/transition en cours en déclare un (voir pickStageDescription()) : un
+  // champ vide laisse volontairement le texte précédent affiché plutôt que de revenir à la description du
+  // morceau (ex. une intro sans texte propre doit laisser voir la description du morceau jusqu'au premier
+  // emplacement qui en a un — comportement demandé explicitement le 15/08, obtenu gratuitement par cette
+  // règle "ne jamais écraser par du vide" sans cas particulier à coder).
+  const trackDescEl = wrapper.querySelector('[data-role="trackDesc"]');
   const seqBranchOptionsEl = wrapper.querySelector('[data-role="seqBranchOptions"]');
   const seqPendingIndicatorEl = wrapper.querySelector('[data-role="seqPendingIndicator"]');
   const goToEndBtn = wrapper.querySelector('[data-role="goToEndBtn"]');
@@ -1209,6 +1216,34 @@ function initTrackPlayer(track, wrapper) {
       return (bars || timing.beatsPerBar) * timing.beatsPerBar * timing.secondsPerBeat;
     }
     return (bars || beatsPerBar) * beatsPerBar * secondsPerBeat;
+  }
+  // Tempo effectif d'un fichier de transition (nextOptions[].transition) — même principe de repli que
+  // slotTiming(), mais à un niveau de plus : tempo propre à la transition si réglé, sinon celui de
+  // l'emplacement source qu'on quitte, sinon celui du morceau. Distinct de slotTiming() car une transition
+  // peut délibérément changer de tempo par rapport à l'emplacement qu'elle quitte (impact, riser...), alors
+  // qu'un emplacement hérite normalement du morceau.
+  function transitionTiming(tr, sourceSlot) {
+    return {
+      secondsPerBeat: 60 / ((tr && tr.bpm) || (sourceSlot && sourceSlot.bpm) || bpm),
+      beatsPerBar: (tr && tr.beatsPerBar) || (sourceSlot && sourceSlot.beatsPerBar) || beatsPerBar
+    };
+  }
+  // Durée nominale d'un fichier de transition avant que le crossfade-tail classique vers la cible ne prenne
+  // le relais (voir schéma "durationUnit" validé le 14/08). Trois cas :
+  // - `durationUnit` absent (transitions déjà publiées avant ce chantier) : comportement historique
+  //   strictement inchangé, blockSeconds() sur le tempo de l'emplacement source — rétrocompatibilité totale.
+  // - `durationUnit: 'bars'` : mesures sur le tempo PROPRE de la transition (transitionTiming), pas
+  //   forcément celui de l'emplacement source.
+  // - `durationUnit: 'seconds'` : durée brute en secondes, aucune notion de tempo.
+  function transitionDurationSecFor(opt, sourceSlot) {
+    const tr = opt && opt.transition;
+    if (!tr) return null;
+    if (tr.durationUnit === 'seconds') return tr.durationSeconds != null ? tr.durationSeconds : 0;
+    if (tr.durationUnit === 'bars') {
+      const timing = transitionTiming(tr, sourceSlot);
+      return (tr.bars || timing.beatsPerBar) * timing.beatsPerBar * timing.secondsPerBeat;
+    }
+    return blockSeconds(tr.bars, sourceSlot);
   }
   function canonicalSlotKey(s) {
     const slot = (track.segmentSlots || [])[s];
@@ -1477,7 +1512,7 @@ function initTrackPlayer(track, wrapper) {
     const opt = (sourceSlot.nextOptions || []).find(o => o.targetId === targetId);
     const oi = opt ? sourceSlot.nextOptions.indexOf(opt) : -1;
     const transitionBuf = (oi >= 0 && transitionBuffers[sourceSlotIdx]) ? transitionBuffers[sourceSlotIdx][oi] : null;
-    const transitionDurationSec = transitionBuf ? blockSeconds(opt.transition && opt.transition.bars, sourceSlot) : null;
+    const transitionDurationSec = transitionBuf ? transitionDurationSecFor(opt, sourceSlot) : null;
     // Trois styles de coupure : "hard" (fin nette), "fade" (fondu court fixe, 0.15s — même durée que les
     // autres fondus courts du morceau, solo/muet, embranchement-vertical), "custom" (durée choisie par le
     // compositeur, `sourceSlot.customCutFadeSec`, en secondes réelles — pas en mesures, un fondu de sortie
@@ -1513,7 +1548,7 @@ function initTrackPlayer(track, wrapper) {
       forcedNextBlock = {
         buffer: transitionBuf, label: (opt.transition && opt.transition.label) || t('transitionFallbackLabel'),
         durationSec: transitionDurationSec, terminal: false, kind: 'transition',
-        gain: effGain(opt.transition), slotIdx: -1
+        gain: effGain(opt.transition), slotIdx: -1, desc: pickStageDescription(opt.transition)
       };
     }
     // currentSlotIndex pointe maintenant sur la cible : que le bloc immédiatement suivant soit la
@@ -1528,16 +1563,19 @@ function initTrackPlayer(track, wrapper) {
   // fillDurationSec : temps restant à animer jusqu'à 100% (pas forcément la durée totale du bloc — après
   // un seek, on reprend au milieu). totalDurationSec : durée nominale complète du bloc, nécessaire pour
   // savoir où se trouve le curseur de seek même après plusieurs reprises successives.
-  function scheduleSeqLabelUpdate(ctxStartTime, label, kind, fillDurationSec, totalDurationSec, buffer, gainValue, terminal, slotIdx, gainNode) {
+  function scheduleSeqLabelUpdate(ctxStartTime, label, kind, fillDurationSec, totalDurationSec, buffer, gainValue, terminal, slotIdx, gainNode, desc) {
     const delayMs = Math.max(0, (ctxStartTime - ctx.currentTime) * 1000);
     const id = setTimeout(() => {
       pulseMeter(seqMeterEl);
       if (seqCurrentEl) seqCurrentEl.textContent = label;
+      // "" (aucun texte propre à cet élément) laisse volontairement le texte déjà affiché tel quel — voir
+      // pickStageDescription().
+      if (desc && trackDescEl) trackDescEl.innerHTML = linkify(desc);
       if (kind) activateSeqStage(kind, (fillDurationSec != null) ? fillDurationSec : buffer.duration, totalDurationSec, buffer, gainValue, terminal, slotIdx, gainNode);
     }, delayMs);
     seqTimeouts.push(id);
   }
-  function scheduleSeqGeneration(ctxStartTime, buffer, label, kind, fillDurationSec, gainValue, offsetSec, totalDurationSec, terminal, slotIdx) {
+  function scheduleSeqGeneration(ctxStartTime, buffer, label, kind, fillDurationSec, gainValue, offsetSec, totalDurationSec, terminal, slotIdx, desc) {
     if (!buffer) return;
     const off = offsetSec || 0;
     const total = totalDurationSec != null ? totalDurationSec : ((fillDurationSec != null) ? fillDurationSec + off : buffer.duration);
@@ -1551,7 +1589,7 @@ function initTrackPlayer(track, wrapper) {
     seqLastGenSources = [src];
     // Sans durée explicite (cas de l'outro, qui ne programme rien après elle) : on anime le remplissage
     // sur la durée réelle du fichier décodé, seule longueur connue dans ce cas.
-    scheduleSeqLabelUpdate(ctxStartTime, label, kind, fillDurationSec, total, buffer, gainValue, terminal, slotIdx, g);
+    scheduleSeqLabelUpdate(ctxStartTime, label, kind, fillDurationSec, total, buffer, gainValue, terminal, slotIdx, g, desc);
   }
   // Détermine le prochain bloc à programmer : soit l'outro (si "Aller vers la fin" a été demandé et
   // qu'une outro existe), soit rien du tout (demande faite mais pas d'outro : on laisse filer), soit
@@ -1560,14 +1598,14 @@ function initTrackPlayer(track, wrapper) {
     if (forcedNextBlock) { const b = forcedNextBlock; forcedNextBlock = null; return b; }
     if (goToEndRequested) {
       goToEndRequested = false;
-      if (outroBuffer) return { buffer: outroBuffer, label: (track.outro && track.outro.label) || 'Outro', durationSec: null, terminal: true, kind: 'outro', gain: effGain(track.outro) };
+      if (outroBuffer) return { buffer: outroBuffer, label: (track.outro && track.outro.label) || 'Outro', durationSec: null, terminal: true, kind: 'outro', gain: effGain(track.outro), desc: pickStageDescription(track.outro) };
       return null;
     }
     const picked = pickNextSegmentSlot();
     if (!picked) return null;
     const slot = track.segmentSlots[picked.slotIdx];
     const alt = resolveSlotAlternative(picked.slotIdx, picked.altIdx);
-    return { buffer: slotBuffers[picked.slotIdx][picked.altIdx], label: (alt && alt.label) || (slot.label || ('Emplacement ' + (picked.slotIdx + 1))), durationSec: blockSeconds(alt && alt.bars, slot), terminal: false, kind: 'segment', gain: effGain(alt), slotIdx: picked.slotIdx };
+    return { buffer: slotBuffers[picked.slotIdx][picked.altIdx], label: (alt && alt.label) || (slot.label || ('Emplacement ' + (picked.slotIdx + 1))), durationSec: blockSeconds(alt && alt.bars, slot), terminal: false, kind: 'segment', gain: effGain(alt), slotIdx: picked.slotIdx, desc: pickStageDescription(slot) };
   }
   function armSeqFinalEnd() {
     const marker = seqLastGenSources[0];
@@ -1592,7 +1630,7 @@ function initTrackPlayer(track, wrapper) {
         armSeqFinalEnd();
         return;
       }
-      scheduleSeqGeneration(seqNextStartCtxTime, next.buffer, next.label, next.kind, next.terminal ? null : next.durationSec, next.gain, 0, null, next.terminal, next.slotIdx);
+      scheduleSeqGeneration(seqNextStartCtxTime, next.buffer, next.label, next.kind, next.terminal ? null : next.durationSec, next.gain, 0, null, next.terminal, next.slotIdx, next.desc);
       if (next.terminal) {
         clearInterval(seqSchedulerTimer); seqSchedulerTimer = null;
         armSeqFinalEnd();
@@ -1614,6 +1652,10 @@ function initTrackPlayer(track, wrapper) {
     forcedNextBlock = null;
     if (seqMeterEl) seqMeterEl.classList.remove('pulse');
     if (seqCurrentEl) seqCurrentEl.textContent = '—';
+    // Symétrique à seqCurrentEl ci-dessus : à un vrai arrêt (pas une reprise, voir seekSequential qui ne
+    // passe jamais par ici), le texte affiché revient à la description de base du morceau plutôt que de
+    // rester figé sur le dernier emplacement/transition entendu.
+    if (trackDescEl) trackDescEl.innerHTML = linkify(track.description || '');
     if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = t('goToEndBtn'); }
     resetSeqStages();
     renderSeqBranchOptions(-1);
@@ -1624,21 +1666,21 @@ function initTrackPlayer(track, wrapper) {
     // la reprise, elle, continue le cycle là où il en était plutôt que de tout redémarrer.
     if (!isContinuation) { currentSlotIndex = 0; chainState = { cyclesCompleted: 0, capReached: false }; }
     const now = ctx.currentTime;
-    let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain, firstSlotIdx = -1;
+    let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain, firstDesc, firstSlotIdx = -1;
     if (!isContinuation && introBuffer) {
       // L'intro n'appartient à aucun emplacement — son tempo suit celui du premier emplacement de la
       // chaîne (position 0, point de départ conventionnel), même principe que le vertical-random dont
       // l'intro suit le tempo de la première section jouable.
       const firstSlot = (track.segmentSlots || [])[0];
-      firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars, firstSlot); firstKind = 'intro'; firstGain = effGain(track.intro);
+      firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars, firstSlot); firstKind = 'intro'; firstGain = effGain(track.intro); firstDesc = pickStageDescription(track.intro);
     } else {
       const picked = pickNextSegmentSlot();
       if (!picked) { if (statusEl) statusEl.textContent = t('noSegmentAvailable'); return; }
       const slot = track.segmentSlots[picked.slotIdx];
       const alt = resolveSlotAlternative(picked.slotIdx, picked.altIdx);
-      firstBuffer = slotBuffers[picked.slotIdx][picked.altIdx]; firstLabel = (alt && alt.label) || (slot.label || ('Emplacement ' + (picked.slotIdx + 1))); firstDurationSec = blockSeconds(alt && alt.bars, slot); firstKind = 'segment'; firstGain = effGain(alt); firstSlotIdx = picked.slotIdx;
+      firstBuffer = slotBuffers[picked.slotIdx][picked.altIdx]; firstLabel = (alt && alt.label) || (slot.label || ('Emplacement ' + (picked.slotIdx + 1))); firstDurationSec = blockSeconds(alt && alt.bars, slot); firstKind = 'segment'; firstGain = effGain(alt); firstSlotIdx = picked.slotIdx; firstDesc = pickStageDescription(slot);
     }
-    scheduleSeqGeneration(now, firstBuffer, firstLabel, firstKind, firstDurationSec, firstGain, 0, null, false, firstSlotIdx);
+    scheduleSeqGeneration(now, firstBuffer, firstLabel, firstKind, firstDurationSec, firstGain, 0, null, false, firstSlotIdx, firstDesc);
     seqNextStartCtxTime = now + firstDurationSec;
     seqSchedulerTimer = setInterval(seqSchedulerTick, 200);
     if (goToEndBtn) goToEndBtn.disabled = false;
@@ -1657,6 +1699,11 @@ function initTrackPlayer(track, wrapper) {
     // segment à la bonne position, mais l'étiquette affichée retombait à "—" au lieu de son nom, capturée
     // une fois déjà écrasée par l'arrêt.
     const label = seqCurrentEl ? seqCurrentEl.textContent : '';
+    // Même piège que pour `label` juste au-dessus (et déjà corrigé une fois pour lui, le 13/08) : ma propre
+    // remise à zéro de trackDescEl dans stopSequential() (ajoutée le 15/08) écraserait le texte affiché par
+    // un vrai arrêt alors qu'un seek n'est qu'un redémarrage interne du même bloc. Capturé avant, restauré
+    // après, à l'identique.
+    const descHtml = trackDescEl ? trackDescEl.innerHTML : '';
     // stopSequential() remet goToEndRequested à false (comportement voulu pour un vrai arrêt) — mais un
     // seek n'est qu'un redémarrage interne du même bloc, pas un arrêt demandé par le visiteur. Si "Aller
     // vers la fin" avait été cliqué et n'était pas encore consommé (bloc courant non terminal), la demande
@@ -1667,6 +1714,7 @@ function initTrackPlayer(track, wrapper) {
     stopSequential();
     goToEndRequested = wasGoToEndRequested;
     pendingNextSegmentId = wasPendingNextSegmentId;
+    if (trackDescEl) trackDescEl.innerHTML = descHtml;
     const now = ctx.currentTime;
     // Important : on transmet TOUJOURS `remaining` (durée réellement restante après le seek), y compris
     // pour un bloc terminal (l'outro). Le passer à null ici (comme le fait le premier appel normal, sans
@@ -2933,6 +2981,18 @@ function setupContrastToggle(toggleId, customBg, customText, customTitleColor) {
 function pickSfxDescription(sfxDef) {
   const fr = sfxDef.descriptionFr != null ? sfxDef.descriptionFr : (sfxDef.description || '');
   const en = sfxDef.descriptionEn || '';
+  return (currentLang() === 'en' ? (en || fr) : (fr || en)) || '';
+}
+
+// Texte optionnel affiché pendant la lecture séquentielle d'un emplacement (segmentSlots[]), d'une intro/
+// outro, ou d'un fichier de transition (nextOptions[].transition) — même pattern bilingue que pickSfxDescription,
+// mais sans repli sur un ancien champ unique (nouveau champ, jamais publié avant, pas de migration à gérer).
+// Retourne '' (falsy) si l'objet n'a de texte dans aucune langue — le point d'appel (scheduleSeqLabelUpdate)
+// interprète ça comme "cet élément ne redéfinit rien" et laisse le texte précédemment affiché tel quel.
+function pickStageDescription(obj) {
+  if (!obj) return '';
+  const fr = obj.descriptionFr || '';
+  const en = obj.descriptionEn || '';
   return (currentLang() === 'en' ? (en || fr) : (fr || en)) || '';
 }
 
