@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1786702636076,
+  "publishedAt": 1786812553332,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -49,7 +49,7 @@
     {
       "id": "bmsrox5psn3r4k",
       "title": "Robot Adventure",
-      "description": "#1_Wet Dark Cave\n\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\n#2_The Corridor\n- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nVotre team avance... et finit par trouver un levier secret qui ouvre une porte dérobée... Vous vous engagez dans un long corridor sombre, la tension monte. \n\n#3_Battle\n- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait? Chef?? Chef?!\"\n\nVous débouchez sur une grande caverne...où des centaines de robots vous prennent au dépourvu et vous mitraillent. Peut être que vous auriez dû sauvegarder avant, finalement...\n\n-> une musique à embranchement qui suit les actions et la localisation du joueur...",
+      "description": "Une musique SF à embranchement qui suit les actions et la localisation du joueur...",
       "mode": "sequential",
       "loopable": false,
       "implementationNote": "",
@@ -85,6 +85,8 @@
           "quantization": "bar",
           "cutStyle": "custom",
           "customCutFadeSec": 1,
+          "descriptionFr": "#1_Wet Dark Cave\n\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\n-> Alors que vous explorez la cave dans laquelle vous venez de débouler, la musique vous accompagne gentiment et boucle en attendant que trouviez le levier secret... \nC'est bon? Vous l'avez trouvé, caché derrière un vieux meuble? \nAlors vous pouvez cliquer sur #2 Corridor !",
+          "descriptionEn": "#1_Wet Dark Cave\n\"Alright, team, let’s spread out. If the map’s right, we shouldn’t be far from the core of the matrix!\"\n→ As you explore the cave you just tumbled into, the music gently accompanies you, looping as you search for the hidden lever...\nGot it? Found it, tucked behind an old piece of furniture?\nThen you can click on #2_Corridor!\n",
           "nextOptions": [
             {
               "targetId": "bmsroyqkwf73ti",
@@ -92,8 +94,11 @@
               "transition": {
                 "label": "#1bis SecretLever Transition",
                 "bars": 2,
+                "durationUnit": null,
                 "file": "slot0-branch0-transition-1bis-secretlever-transition.ogg",
-                "gain": 3.981
+                "gain": 3.981,
+                "descriptionFr": "Une porte dérobée s'ouvre devant vous... Un long couloir sombre vous attend...",
+                "descriptionEn": "A hidden door creaks open in front of you... A long, dark corridor lies ahead..."
               }
             }
           ],
@@ -115,6 +120,8 @@
           "quantization": "beat",
           "cutStyle": "custom",
           "customCutFadeSec": 1,
+          "descriptionFr": "#2_The Corridor\n- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nVotre team avance... et finit par trouver un levier secret qui ouvre une porte dérobée... Vous vous engagez dans un long corridor sombre, la tension monte. \n\n-> Qu'allez vous trouver au bout de ce long corridor? c'est encore flou mais la musique qui fait monter gentiment la pression vous donne quand même une petite idée, non?\n\nLorsque vous êtes prêts, continuez votre route jusqu'au grand hall que vous apercevez au loin !",
+          "descriptionEn": "### **#2_The Corridor**\n\n- **\"Hey Joe! A door just opened!\"**\n- **\"Watch out, Lucien, those bastards are everywhere...\"**\n- **\"I think it’s this way—I hear noises. Should we go?\"**\n- **\"Okay... But don’t go too far, this crap’s making me nervous.\"**\n\nYour team moves forward... and ends up finding a hidden lever that opens a secret door... You step into a long, dark corridor, tension rising.\n\n→ What will you find at the end of this long corridor? It’s still unclear, but the music, gently building pressure, gives you a little hint, doesn’t it?\n\nWhen you're ready, continue your journey toward the grand hall you can see in the distance!",
           "nextOptions": [
             {
               "targetId": "bmsroyqkw5wacj",
@@ -146,6 +153,8 @@
           "cutStyle": "custom",
           "customCutFadeSec": 1,
           "bpm": 160,
+          "descriptionFr": "#3_Battle\n- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait? Chef?? Chef?!\"\n\nVous débouchez sur une grande caverne...où des centaines de robots vous prennent au dépourvu et vous mitraillent. Peut être que vous auriez dû sauvegarder avant, finalement...",
+          "descriptionEn": "#3_Battle\n\n- \"THEY’RE COMING!!! Form up, fire at will! Damn robots, they’re everywhere!\"\n- \"Boss, what do we do? Boss?? Boss?!\"\n\nYou emerge into a massive cavern... where hundreds of robots catch you off guard and open fire. Maybe you *should* have saved earlier, after all...\n\n→ A branching soundtrack that follows the player’s actions and location...",
           "nextOptions": [
             {
               "targetId": "bmsroyqkw2curh",
@@ -631,12 +640,16 @@
         "label": "Intro",
         "bars": 6,
         "file": "intro-intro.ogg",
-        "gain": 1.759
+        "gain": 1.759,
+        "descriptionFr": "",
+        "descriptionEn": ""
       },
       "outro": {
         "label": "Outro",
         "file": "outro-outro.ogg",
-        "gain": 1
+        "gain": 1,
+        "descriptionFr": "",
+        "descriptionEn": ""
       },
       "segmentSlots": [
         {
@@ -647,6 +660,8 @@
           "repeatCount": 1,
           "quantization": "bar",
           "cutStyle": "fade",
+          "descriptionFr": "",
+          "descriptionEn": "",
           "nextOptions": null,
           "alternatives": [
             {
