@@ -8,6 +8,32 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-15] — Message d'aide sur l'ordre des emplacements, nuancé en présence d'embranchements
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : Jules-Antoine signale que le message "L'ordre ci-dessous est celui de la chaîne de lecture [...] Une fois le dernier atteint, ça reboucle sur le premier" n'est vrai que pour un séquentiel SANS embranchement — dès qu'un embranchement existe, la lecture réelle peut dévier de cet ordre selon les choix du visiteur, et prétendre que "l'ordre" détermine la lecture devient trompeur.
+
+**Changement** : message conditionnel selon `(track.segmentSlots || []).some(sl => sl.nextOptions && sl.nextOptions.length)`. Sans embranchement : texte original inchangé. Avec au moins un embranchement configuré : nouveau texte (`segmentSlotsOrderHintWithBranches`, FR/EN) précisant que l'ordre affiché est l'ordre PAR DÉFAUT (utilisé quand aucun embranchement n'est déclenché), que la lecture réelle peut en dévier, et que le rebouclage s'applique au dernier emplacement de la chaîne "par défaut ou par embranchement".
+
+**Vérifications** : symétrie FR/EN vérifiée programmatiquement (0 écart). Suites Backstage concernées relancées — toutes vertes.
+
+---
+
+## [2026-08-15] — Repli/dépli individuel de chaque emplacement séquentiel
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `test_backstage_slot_collapse.js` (nouveau)
+
+**Contexte** : demande de Jules-Antoine — l'éditeur d'un morceau séquentiel avec plusieurs emplacements (`segmentSlots`) devenait très long à faire défiler ; chaque emplacement doit pouvoir se replier pour ne laisser voir que son titre (comme Intro/Outro depuis le 13/08, ou un morceau entier dans la bibliothèque).
+
+**Changement** : bouton de repli (▾/▸) ajouté dans l'en-tête de chaque emplacement, avant les flèches ↑/↓ — même position/style que celui de la carte morceau. Le corps de l'emplacement (tout sauf l'en-tête : répétitions, source du contenu, tempo propre, texte de présentation, embranchements, alternatives) enveloppé dans un `data-role="slotBody"`, replié via la même classe `list-block-body.collapsed` que partout ailleurs. Contrairement à Intro/Outro, un emplacement fraîchement créé est DÉPLIÉ par défaut (rien ne change pour l'existant tant qu'on n'a pas cliqué) — la demande portait sur la capacité à replier, pas sur un repli automatique.
+
+**État suivi par id, pas par position** : `collapsedSlotIds` (nouveau `Set`, id de l'emplacement) plutôt qu'une clé positionnelle `ti:si` — un emplacement garde son état replié/déplié même après un réordonnancement ↑/↓, puisque sa position (`si`) change à chaque déplacement alors que son identité (`slot.id`) reste stable. Testé explicitement : après avoir replié le premier emplacement puis l'avoir déplacé en seconde position, c'est bien LUI qui reste replié (pas "la seconde position", qui elle affiche l'autre emplacement, désormais en premier, toujours déplié).
+
+**Tests** : nouveau `test_backstage_slot_collapse.js` — création, repli/dépli, persistance du champ titre visible même replié, persistance après réordonnancement (le point ci-dessus) et après un re-rendu complet. `test_backstage_seq_transitions.js`, `test_backstage_intro_outro_collapse_and_reorder.js`, `test_backstage_maxchainloops.js`, `test_backstage_custom_cut_fade_roundtrip.js` relancées — toutes vertes, aucune régression.
+
+---
+
 ## [2026-08-15] — Bug de repli visuel (panneau des embranchements) + libellés de section noircis/soulignés
 
 **Fichiers touchés** : `layerpitch-backstage.html`
@@ -16,7 +42,7 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 **Correctif** : classe `list-block-body` ajoutée aux 5 panneaux concernés (`branchesBody`, `introDescBody`, `outroDescBody`, `slotDescBody`, `transDescBody`).
 
-**Second changement (demande directe)** : les libellés de section ("IDENTITÉ", "TEMPO", "CONTENU", "STRUCTURE"...) passent de gris (`#999`) à noir (`#24262b`), avec un liseré (`border-bottom: 1px solid #d8d8dc`) sous le texte pour mieux repérer les sections. Cette classe (`.nav-section-label`) est partagée avec les libellés de section de la barre latérale gauche ("COMPTE", "SITE (ADREEL)"), qui en bénéficient donc aussi — confirmé explicitement avec Jules-Antoine avant modification, puisque ça touchait plus large que la demande initiale.
+**Second changement (demande directe, plusieurs itérations)** : les libellés de section ("IDENTITÉ", "TEMPO", "CONTENU", "STRUCTURE"...) passent de gris (`#999`) à noir (`#24262b`). Premier essai — un liseré (`border-bottom`) sous le texte — jugé peu concluant par Jules-Antoine ("ça fait plein de barres, on comprend encore moins", en plus du `border-top` déjà existant entre sections qui produisait un doublon visuel). Remplacé par un badge encadré (`border` + `border-radius:4px` + fond `#f4f4f5`, `display:inline-block`) à la suggestion de Jules-Antoine. Deux ajustements suite à retour visuel : texte recentré horizontalement (le `letter-spacing` ajoute de l'espace après la DERNIÈRE lettre aussi, décalant visuellement le texte vers la gauche dans un cadre — compensé par un `padding-right` réduit d'autant) ; centrage vertical fiabilisé via `display:inline-flex; align-items:center; line-height:1` plutôt qu'un simple padding symétrique (sensible aux métriques de la police). Marge au-dessus du tout premier badge d'une carte morceau ("IDENTITÉ") : une tentative intermédiaire ratée avait ANNULÉ la marge au lieu de l'augmenter (bug de ma part, corrigé) — la valeur finale retenue est la marge standard de 20px, comme tous les autres badges, sauf dans la barre latérale (`.backstage-sidebar > .nav-section-label:first-child`) où elle reste à 0, le badge y étant vraiment tout en haut sans rien au-dessus. Cette classe (`.nav-section-label`) est partagée avec les libellés de section de la barre latérale gauche ("COMPTE", "SITE (ADREEL)"), qui en bénéficient donc aussi — confirmé explicitement avec Jules-Antoine avant modification, puisque ça touchait plus large que la demande initiale.
 
 **Troisième changement (omis du changelog sur le moment, rattrapé ici)** : `.page { max-width: 760px; margin: 0 auto; }` → `max-width: min(1400px, 92vw)`. Jules-Antoine signale un espace vide important sur un grand écran (largeur fixe à 760px, très étroite face à une fenêtre >1900px). Le contenu occupe désormais jusqu'à 92% de la largeur de la fenêtre, plafonné à 1400px pour éviter des lignes de texte/formulaire démesurément longues sur un très grand écran. `.row` (disposition en colonnes flexibles) s'adapte sans effet de bord à ce surcroît d'espace.
 
