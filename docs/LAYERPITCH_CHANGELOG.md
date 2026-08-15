@@ -8,6 +8,24 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-15] — Repli des Sfx attachés à un morceau + repli par défaut étendu aux emplacements/bibliothèque Sfx
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`, `test_backstage_default_collapse.js` (nouveau)
+
+**Contexte** : Jules-Antoine signale deux choses sur une capture d'écran de la section "Sfx (déclenchables à la main pendant la lecture)" d'un morceau : (1) pas de flèche de repli sur cette section (contrairement à Intro/Outro/embranchements), et (2) toutes les flèches du Backstage devraient être repliées par défaut à l'ouverture — pas seulement celles qui l'étaient déjà.
+
+**Découverte en cours de route** : le repli par défaut au chargement existait déjà pour morceaux/packs/collections/blocs de contenu (`collapsedTrackIds`/`collapsedPackIds`/`collapsedCollectionIds`/`collapsedBlockIds`, peuplés avec tous les ids existants dans `loadData()`) — mais pas pour les emplacements séquentiels (`collapsedSlotIds`, ajoutés le 15/08 plus tôt dans la journée) ni pour la bibliothèque Sfx (`collapsedSfxIds`), qui restaient dépliés par défaut à l'ouverture.
+
+**Changements** :
+1. Nouveau bouton de repli sur "Sfx (déclenchables à la main pendant la lecture)" d'un morceau (widget `buildSfxSelectorWidget`), même pattern que les autres blocs (`collapsibleBlockToggleHtml`/`wireCollapsibleBlockToggle`, clé `trackSfx:${ti}`) — replié par défaut même sur un morceau fraîchement créé (convention `expandedAltPoolKeys`, vide = replié).
+2. `collapsedSlotIds` et `collapsedSfxIds` ajoutés au bloc d'initialisation de `loadData()` qui peuple déjà les autres Sets avec tous les ids existants — tous les emplacements de tous les morceaux et tous les Sfx de la bibliothèque sont désormais repliés dès l'ouverture du Backstage, au même titre que les morceaux/packs/collections/blocs.
+
+**i18n** : nouvelle clé `viewAttachedSfxBtn` (FR/EN, symétrie vérifiée).
+
+**Tests** : nouveau `test_backstage_default_collapse.js` en deux volets — extraction littérale du bloc de peuplement des Sets (même technique que `test_backstage_custom_cut_fade_roundtrip.js`, pas besoin de mocker tout le flux réseau GitHub) vérifiant que tous les emplacements/Sfx sont bien repliés après chargement ; test UI en direct du nouveau bouton sur un morceau créé dans la session (présent, replié par défaut, bascule au clic). Suites Backstage concernées relancées — toutes vertes.
+
+---
+
 ## [2026-08-15] — Message d'aide sur l'ordre des emplacements, nuancé en présence d'embranchements
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
