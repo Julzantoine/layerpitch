@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1786813040825,
+  "publishedAt": 1786813068764,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -49,7 +49,7 @@
     {
       "id": "bmsrox5psn3r4k",
       "title": "Robot Adventure",
-      "description": "Une musique SF à embranchement qui suit les actions et la localisation du joueur...",
+      "description": "",
       "mode": "sequential",
       "loopable": false,
       "implementationNote": "",
@@ -85,7 +85,7 @@
           "quantization": "bar",
           "cutStyle": "custom",
           "customCutFadeSec": 1,
-          "descriptionFr": "#1_Wet Dark Cave\n\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\n-> Alors que vous explorez la cave dans laquelle vous venez de débouler, la musique vous accompagne gentiment et boucle en attendant que trouviez le levier secret... \nC'est bon? Vous l'avez trouvé, caché derrière un vieux meuble? \nAlors vous pouvez cliquer sur #2 Corridor !",
+          "descriptionFr": "Une musique SF à embranchement qui suit les actions et la localisation du joueur...\n\n#1_Wet Dark Cave\n\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\n-> Alors que vous explorez la cave dans laquelle vous venez de débouler, la musique vous accompagne gentiment et boucle en attendant que trouviez le levier secret... \nC'est bon? Vous l'avez trouvé, caché derrière un vieux meuble? \nAlors vous pouvez cliquer sur #2 Corridor !",
           "descriptionEn": "#1_Wet Dark Cave\n\"Alright, team, let’s spread out. If the map’s right, we shouldn’t be far from the core of the matrix!\"\n→ As you explore the cave you just tumbled into, the music gently accompanies you, looping as you search for the hidden lever...\nGot it? Found it, tucked behind an old piece of furniture?\nThen you can click on #2_Corridor!\n",
           "nextOptions": [
             {
