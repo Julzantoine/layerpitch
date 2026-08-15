@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1786812553332,
+  "publishedAt": 1786812682413,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -97,8 +97,8 @@
                 "durationUnit": null,
                 "file": "slot0-branch0-transition-1bis-secretlever-transition.ogg",
                 "gain": 3.981,
-                "descriptionFr": "Une porte dérobée s'ouvre devant vous... Un long couloir sombre vous attend...",
-                "descriptionEn": "A hidden door creaks open in front of you... A long, dark corridor lies ahead..."
+                "descriptionFr": "Une porte dérobée s'ouvre devant vous... Un long couloir sombre vous attend... \n\nPS : Vous pouvez également revenir sur vos pas...petit joueur!",
+                "descriptionEn": "A hidden door creaks open in front of you... A long, dark corridor lies ahead...\n\nPS: You can also backtrack... you cautious player! "
               }
             }
           ],
