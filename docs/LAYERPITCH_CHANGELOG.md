@@ -8,6 +8,24 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-15] — Bug de repli visuel (panneau des embranchements) + libellés de section noircis/soulignés
+
+**Fichiers touchés** : `layerpitch-backstage.html`
+
+**Diagnostic** : Jules-Antoine signale que le panneau des embranchements ne se replie plus visuellement. Investigation : bug **préexistant**, confirmé identique sur le fichier d'origine non modifié (avant toute intervention de cette session) — donc pas une régression introduite par le chantier "texte de présentation" de plus tôt dans la journée. La règle CSS qui masque réellement un panneau replié est `.list-block-body.collapsed { display: none; }` — elle exige la classe `list-block-body` EN PLUS de `collapsed`. Le panneau des embranchements (`data-role="branchesBody"`) n'avait que la classe `collapsed` seule : le bouton et le chevron ▸/▾ réagissaient bien au clic (la classe changeait), mais rien ne se masquait jamais puisque la règle CSS ne matchait pas. Les 4 nouveaux blocs "Texte de présentation" ajoutés plus tôt dans la journée (intro/outro/emplacement/transition) reproduisaient exactement le même bug, copié depuis ce même pattern.
+
+**Correctif** : classe `list-block-body` ajoutée aux 5 panneaux concernés (`branchesBody`, `introDescBody`, `outroDescBody`, `slotDescBody`, `transDescBody`).
+
+**Second changement (demande directe)** : les libellés de section ("IDENTITÉ", "TEMPO", "CONTENU", "STRUCTURE"...) passent de gris (`#999`) à noir (`#24262b`), avec un liseré (`border-bottom: 1px solid #d8d8dc`) sous le texte pour mieux repérer les sections. Cette classe (`.nav-section-label`) est partagée avec les libellés de section de la barre latérale gauche ("COMPTE", "SITE (ADREEL)"), qui en bénéficient donc aussi — confirmé explicitement avec Jules-Antoine avant modification, puisque ça touchait plus large que la demande initiale.
+
+**Troisième changement (omis du changelog sur le moment, rattrapé ici)** : `.page { max-width: 760px; margin: 0 auto; }` → `max-width: min(1400px, 92vw)`. Jules-Antoine signale un espace vide important sur un grand écran (largeur fixe à 760px, très étroite face à une fenêtre >1900px). Le contenu occupe désormais jusqu'à 92% de la largeur de la fenêtre, plafonné à 1400px pour éviter des lignes de texte/formulaire démesurément longues sur un très grand écran. `.row` (disposition en colonnes flexibles) s'adapte sans effet de bord à ce surcroît d'espace.
+
+**Vérifications menées** : `test_backstage_branch_collapse_and_header_order.js` — le check "le panneau est réellement masqué visuellement" passe désormais (échouait avant, y compris sur le fichier d'origine). Un second échec dans cette même suite (ordre des boutons de l'en-tête de carte morceau) reste préexistant et sans rapport avec ce correctif — non traité, pas signalé par Jules-Antoine. `test_backstage_seq_transitions.js`, `test_backstage_intro_outro_collapse_and_reorder.js`, `test_backstage_maxchainloops.js`, `test_backstage_custom_cut_fade_roundtrip.js` relancées — toutes vertes, aucune régression.
+
+**Note pour plus tard** : le même piège (`collapsed` seul, sans `list-block-body`) pourrait exister ailleurs dans le fichier — pas d'audit systématique fait sur ce point précis, seulement les 5 panneaux directement concernés cette session.
+
+---
+
 ## [2026-08-15] — Texte de présentation optionnel par emplacement/intro/outro/transition (séquentiel)
 
 **Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `layerpitch-help.js`, `test_seq_stage_description.js` (nouveau), `test_backstage_custom_cut_fade_roundtrip.js`
