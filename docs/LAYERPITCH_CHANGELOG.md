@@ -8,6 +8,80 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-16] — Hiérarchie de surfaces à trois niveaux, navigation Contenu/Apparence restructurée, liste de blocs (résumés, glisser-déposer, Tout replier)
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `backstage.css`, `layerpitch-i18n.js`, `test_backstage_content_nav_redesign.js` (nouveau)
+
+**Contexte** : le backstage a été jugé peu lisible — sidebar, fond de page et blocs de contenu dans le même blanc, séparés seulement par de fines bordures. Direction validée en amont (hors code) pour la hiérarchie visuelle générale et pour la page Contenu spécifiquement.
+
+**Changements** :
+1. **Hiérarchie de surfaces à trois niveaux**, sur l'ensemble du backstage (pas seulement la page Contenu) : nouvelle variable `--bg-sidebar` (le plus sombre), `--backstage-bg` repositionnée comme niveau intermédiaire (fond de page, toujours personnalisable via le réglage existant "Apparence du backstage"/`#backstageBgColor` — seule sa valeur par défaut change, de `#ffffff` à `#f7f6f3`), `--bg` confirmée comme le niveau le plus clair (cartes/blocs). Appliqué explicitement (au lieu de couleurs codées en dur) sur `.backstage-sidebar`, `.block-editor-card`/`.block-editor-body`, `fieldset`, la carte "AdReel en édition" et les 5 modales (`#linkModal`, `#newAdReelModal`, `#feedbackModal`, `#implSheetModal`, `#themeConflictModal`). Écart de teinte volontairement discret entre les trois niveaux.
+2. **Navigation Contenu/Apparence restructurée** :
+   - La carte "AdReel en édition" (sélecteur + lien public + Copier/Partager) remonte en tête de sidebar, avant la section Compte — casse la hiérarchie logique habituelle (Compte > AdReel) volontairement, puisque c'est l'objet manipulé en continu pendant une session de travail.
+   - Contenu/Apparence sortis de la liste verticale de `nav-item` et présentés côte à côte dans un nouveau `.content-appearance-toggle` (deux vues du même objet, pas une navigation vers un autre objet).
+   - Aperçu et Publier sortis du flux de page (ils vivaient tout en bas, après le formulaire du token GitHub) et fixés en haut à droite (`.global-actions-bar`), **visibles sur toutes les pages** — Publier pousse tout `data.json` (bibliothèque, packs, collections, réseaux inclus), donc reste pertinent depuis n'importe quel panneau, pas seulement Contenu/Apparence. Bouton renommé `publishBtn` : "Publier sur GitHub" → "Sauvegarder / publier" (FR), "Publish to GitHub" → "Save / publish" (EN) — l'ancien libellé était trompeur une fois le bouton rendu global, mais "Sauvegarder" seul aurait fait l'erreur inverse (ce bouton pousse réellement en ligne, ce n'est pas un enregistrement local sans conséquence).
+3. **Liste des blocs de contenu** :
+   - Résumé compact toujours visible sur l'en-tête de chaque bloc (replié ou déplié), via `blockSummaryText(block)` — comptage ou aperçu selon le type (ex. "6 morceaux", "2 citations", "Email + formulaire"/"Formulaire non configuré" pour Contact). Rafraîchi (`refreshAllBlockSummaries()`) après tout changement pertinent, y compris ceux qui ne repassent pas par `layoutBlocks()` (sélecteur de morceaux, témoignages, photos, vidéos, packs/collections/Sfx, champs Header/Bio/Texte).
+   - Bouton "Tout replier"/"Tout déplier" au-dessus de la liste (`btnToggleCollapseAllBlocks`), état dérivé de `collapsedBlockIds` — un repli individuel ne fait pas basculer le libellé global tant que tout n'est pas replié.
+   - Réordonnancement : les boutons flèches ↑/↓ sont supprimés, remplacés par un glisser-déposer via une poignée dédiée à gauche de chaque bloc (API HTML5 native `draggable`/`dragstart`/`dragover`/`drop`, pas de dépendance externe). L'attribut `draggable` de la carte n'est activé que pendant que le pointeur est sur la poignée (`pointerdown`→`pointerup`/`pointercancel`, écouté sur tout le document) : cliquer ailleurs sur la carte (titre, boutons, champs) ne peut jamais déclencher un drag involontaire.
+   - Position affichée au format compact "01"/"02"/… au lieu de "position 1"/"position 2"/….
+
+**Explicitement écarté** : pastille de couleur par morceau dans la liste des morceaux d'un bloc Musique (présente sur la maquette Claude Design fournie en référence, jamais demandée ni validée — résidu de maquette, ignoré). De même, la maquette montrait encore des flèches ↑/↓ à côté de la poignée sur chaque bloc ; le brief écrit validé en amont était explicite sur leur suppression au profit du glisser-déposer seul — c'est ce dernier qui a été suivi.
+
+**Différé à une session future** : les flèches de réordonnancement accessibles au clavier (pour malvoyants/navigation clavier) initialement envisagées comme réglage d'accessibilité persistant (`localStorage`) sont reportées — elles reviendront comme option dans un onglet Apparence dédié à l'accessibilité, pas dans cette session.
+
+**Tests** : nouveau `test_backstage_content_nav_redesign.js` (jsdom, pattern habituel : `<script>` externes stripés, `window.LayerPlayerCore` stubbé, état seedé à la main plutôt que dépendance au réseau) — construction des cartes, absence des anciennes flèches, présence de la poignée, format de position compact, résumé compact pour Header/Musique/Témoignages/Contact (pluriel et singulier), bascule Tout replier/déplier (y compris qu'un repli individuel ne fait pas basculer le libellé global à tort), compteur de blocs, activation de `draggable` strictement liée à la poignée (`pointerdown` ailleurs sur la carte = aucun effet), réordonnancement effectif du tableau `blocks` via l'événement `drop`. Tous les cas passent. Vérifications habituelles également faites : `node --check` sur le script principal et sur `layerpitch-i18n.js`, symétrie FR/EN programmatique (501 clés de chaque côté, 0 écart), contrôles structurels (pas de carte AdReel dupliquée, pas d'identifiants dupliqués sur Publier/Aperçu/sélecteur d'AdReel).
+
+**Rappel `backstage.css`** : synchronisé avec les mêmes changements CSS que le `<style>` inline de `layerpitch-backstage.html` (diff vérifié programmatiquement : les deux seules divergences restantes sont les deux déjà connues et volontairement préservées — couleur de `.nav-section-label` propre au sandbox, et les règles orphelines `.track-section-head/caret/body` du 10/08, toujours sans JS/HTML correspondant côté backstage).
+
+---
+
+## [2026-08-16] — Audit/nettoyage de la session précédente (hiérarchie, sidebar, liste de blocs, glisser-déposer)
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `backstage.css`, `test_backstage_content_nav_redesign.js`
+
+**Contexte** : audit demandé explicitement sur le seul code de la session précédente (pas tout le fichier).
+
+**Bugs corrigés** :
+1. **Troncature du résumé de bloc inopérante** : `.block-editor-head-left` n'avait pas `flex: 1; min-width: 0`, donc le `flex: 1` posé sur `.block-summary` n'avait rien à quoi se contracter dans la ligne d'en-tête (`justify-content: space-between`) — un résumé long aurait débordé au lieu de s'ellipser proprement. Corrigé, et `flex-shrink: 0` ajouté explicitement (scopé à `.block-editor-head`, sans toucher les règles partagées `strong`/`.btn-toggle-collapse` utilisées ailleurs dans le fichier) sur la poignée, le chevron, la position et le libellé, pour que seul le résumé se resserre jamais eux.
+2. **Dépôt (drop) impossible sur l'espace vide sous le dernier bloc** : `dragover` n'appelait `preventDefault()` que lorsque la cible était une carte — déposer en dehors de toute carte était donc rejeté par défaut par le navigateur. Corrigé (`preventDefault()` systématique dès qu'un drag de bloc est en cours) et le comportement du `drop` complété : déposer sur l'espace vide du conteneur déplace maintenant le bloc en toute fin de liste au lieu de ne rien faire. `#blocksEditorContainer` reçoit un peu de `padding-bottom` pour que cette zone de dépôt soit réellement atteignable.
+
+**Nettoyage / DRY** :
+- Règle CSS `.block-editor-head strong` dupliquée (une résiduelle de l'édition précédente, une nouvelle) → fusionnées en une seule.
+- `margin-left` redondants sur `.pos`/`.block-summary` retirés (le `gap: 8px` du conteneur flex parent gère déjà l'espacement — les marges explicites cassaient légèrement le rythme visuel).
+- Couleur du résumé de bloc : hex codé en dur (`#888`) → `var(--text-dimmer)`, cohérent avec la variable déjà utilisée pour ce rôle ailleurs dans le fichier.
+- Condition "formulaire de contact configuré ?" dupliquée à l'identique dans `buildContactBlockCard` et `blockSummaryText` → extraite en fonction partagée `hasContactFormEndpoint()`, un seul point de vérité.
+
+**Tests** : `test_backstage_content_nav_redesign.js` complété avec 4 nouveaux cas (drop sur l'espace vide → fin de liste, `hasContactFormEndpoint()` avec/sans endpoint). Suite complète relancée (25 assertions) — tout est vert. `node --check` refait sur le script principal après corrections. Contrôles de non-duplication (`grep -c`) confirmant une seule occurrence de la logique contact et une seule règle `.block-editor-head strong`. `backstage.css` resynchronisé et re-diffé (toujours seulement les 2 divergences connues).
+
+---
+
+## [2026-08-16] — Deuxième passe d'audit (même périmètre : hiérarchie, sidebar, liste de blocs, glisser-déposer)
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `backstage.css`
+
+**Bug corrigé** : **chevauchement possible de la barre d'actions globale sur fenêtre étroite**. `.page` n'a pas de largeur minimale (`max-width: 760px` seulement) : sous ~800px de fenêtre, elle s'étend en pleine largeur, et le H1 ou le bandeau d'avertissement (`#backstageNoticeBanner`, fond plein) se seraient retrouvés directement sous la bande verticale occupée par `.global-actions-bar` (fixée, `top: 18px`, ~50-55px de hauteur) plutôt qu'à côté. `padding-top` du `body` porté de 32px à 76px pour réserver systématiquement cette bande, quelle que soit la largeur de fenêtre.
+
+**Vérifications faites sans correction nécessaire** (pour mémoire, plutôt que de les re-vérifier à l'aveugle une prochaine fois) :
+- Rafraîchissement des textes dynamiques (compteur de blocs, libellé Tout replier/déplier) au changement de langue : le bouton FR/EN déclenche un `location.reload()` complet, donc tout se recalcule proprement — pas de bug de libellé qui resterait dans l'ancienne langue.
+- Symétrie des clés i18n utilisées par le code de cette session (`dragHandleTitle`, `blockSummary*`, `blocksList*`, `blocksCount*`, `collapseAllBlocksBtn`, `expandAllBlocksBtn`) : toutes présentes côté FR et EN. **Hors périmètre, trouvé au passage sans y toucher** : 18 clés i18n manquantes ailleurs dans le fichier, toutes liées au mode séquentiel (quantization/cutStyle/transition) — aucun rapport avec cette session, signalé pour une session future.
+
+**Tests** : suite `test_backstage_content_nav_redesign.js` relancée à l'identique (25 assertions, non affectées par ce correctif purement CSS) — toutes vertes. `node --check` refait. `backstage.css` resynchronisé et re-diffé (toujours seulement les 2 divergences connues).
+
+---
+
+## [2026-08-16] — Ajout des 17 clés i18n manquantes (mode séquentiel : tempo par emplacement, embranchements, quantization, style de coupure, transition)
+
+**Fichiers touchés** : `layerpitch-i18n.js`
+
+**Contexte** : signalées au passage lors de la deuxième passe d'audit du 16/08 (hors périmètre de cette session-là, pas corrigées sur le coup) — Jules-Antoine a explicitement demandé de les ajouter.
+
+**Changement** : 17 clés ajoutées en FR et en EN (`slotBpmOverrideLabel`/`Hint`, `branchOptionsToggleLabel`, `quantizationLabel`/`Immediate`/`Beat`/`Bar`, `cutStyleLabel`/`Fade`/`Hard`/`Custom`, `customCutFadeLabel`, `hasTransitionLabel`, `transitionHint`, `noTransitionFileWarning`, `transitionNamePlaceholder`, `transitionFallbackShort`), rédigées d'après le contexte d'usage réel dans `layerpitch-backstage.html` (section embranchements/quantization/transition de l'éditeur de mode séquentiel). La 18ème clé initialement listée (`socialPlatform_`) était un faux positif de la recherche par regex — les vraies clés `socialPlatform_twitter`/`facebook`/etc. existaient déjà des deux côtés, rien à ajouter là.
+
+**Vérifications** : symétrie FR/EN programmatique (518 clés de chaque côté, 0 écart, contre 501 avant) ; balayage de tout le fichier confirmant qu'aucune clé `tr(...)` utilisée n'est plus manquante nulle part (0 résultat, faux positif `socialPlatform_` exclu explicitement du contrôle). `node --check` sur `layerpitch-i18n.js`. Suite `test_backstage_content_nav_redesign.js` relancée (25 assertions, non concernées par ce changement mais confirment l'absence de régression) — toutes vertes.
+
+---
+
 ## [2026-08-15] — Repli des Sfx attachés à un morceau + repli par défaut étendu aux emplacements/bibliothèque Sfx
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`, `test_backstage_default_collapse.js` (nouveau)
