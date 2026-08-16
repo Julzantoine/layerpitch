@@ -7,20 +7,30 @@
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
 <style>
   :root {
+    /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
+       sombre) < --backstage-bg (fond de page, niveau intermédiaire, personnalisable via le réglage
+       "Apparence du backstage" / #backstageBgColor) < --bg (le plus clair, cartes/blocs de contenu).
+       Écart de teinte volontairement discret entre les trois — l'objectif est que l'œil découpe les
+       zones sans effort, pas un habillage voyant. */
     --bg: #ffffff;
     --bg-card: #fafafa;
     --text-dim: #555;
     --text-dimmer: #999;
     --border: #e2e2e6;
     --accent: #2f80c0;
-    --backstage-bg: #ffffff;
+    --backstage-bg: #f7f6f3;
+    --bg-sidebar: #efeee9;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--backstage-bg); color: #24262b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 32px 20px 80px; font-size: 13px; }
+  /* padding-top porté à 76px (au lieu de 32px) : la barre d'actions globale fixée (.global-actions-bar,
+     top:18px, ~50-55px de hauteur) doit toujours avoir sa propre bande verticale, y compris sur fenêtre
+     étroite -- .page n'a pas de largeur minimale et s'étend en pleine largeur sous ~800px, auquel cas le
+     H1 ou le bandeau d'avertissement passeraient sinon juste sous la barre plutôt qu'à côté. */
+  body { background: var(--backstage-bg); color: #24262b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 76px 20px 80px; font-size: 13px; }
   .page { max-width: 760px; margin: 0 auto; }
   h1 { font-size: 18px; margin-bottom: 4px; }
   .sub { color: #767676; margin-bottom: 28px; font-size: 12px; }
-  fieldset { border: 1px solid #e2e2e6; border-radius: 6px; padding: 16px 18px; margin-bottom: 20px; }
+  fieldset { border: 1px solid #e2e2e6; border-radius: 6px; padding: 16px 18px; margin-bottom: 20px; background: var(--bg); }
   legend { padding: 0 8px; color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
   label { display: block; color: #666; font-size: 11px; margin-bottom: 4px; margin-top: 10px; }
   label:first-of-type { margin-top: 0; }
@@ -96,14 +106,14 @@
   .add-block-row { display: flex; gap: 8px; margin: 20px 0 28px; flex-wrap: wrap; }
 
   .backstage-layout { display: flex; gap: 28px; align-items: flex-start; margin-top: 20px; }
-  .backstage-sidebar { width: 196px; flex-shrink: 0; position: sticky; top: 20px; }
+  .backstage-sidebar { width: 196px; flex-shrink: 0; position: sticky; top: 20px; background: var(--bg-sidebar); border-radius: 10px; padding: 16px 14px; }
   .nav-section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #999; margin: 20px 0 8px; }
   .nav-section-label:first-child { margin-top: 0; }
   .nav-item {
     display: flex; align-items: center; justify-content: space-between; gap: 9px; width: 100%; text-align: left; background: none; border: none;
     padding: 7px 10px; margin-bottom: 2px; border-radius: 6px; font-size: 13px; color: #333; cursor: pointer; font-family: inherit;
   }
-  .nav-item:hover:not(:disabled) { background: #f0f0f2; }
+  .nav-item:hover:not(:disabled) { background: var(--bg); }
   .nav-item.active { background: #262521; color: #fff; }
   .nav-item:disabled { color: #bbb; cursor: default; }
   .nav-item-label { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; }
@@ -116,24 +126,43 @@
   .sidebar-adreel-selector select { font-size: 12px; padding: 5px 8px; }
   .sidebar-adreel-actions { display: flex; gap: 6px; margin-top: 6px; }
   .sidebar-adreel-actions .btn { flex: 1; padding: 4px; font-size: 13px; }
-  .sidebar-adreel-group { border: 1px solid #e2e2e6; border-radius: 8px; padding: 12px 10px 8px; margin-top: 14px; background: #fafaf9; }
+  /* Carte "AdReel en édition" : en tête de sidebar (avant Compte) — c'est l'objet manipulé en continu
+     pendant une session de travail, prioritaire sur la hiérarchie logique habituelle (Compte > AdReel). */
+  .sidebar-adreel-group { border: 1px solid #e2e2e6; border-radius: 8px; padding: 12px 10px 10px; margin-bottom: 18px; background: var(--bg); }
   .sidebar-adreel-group .nav-section-label { margin-top: 0; }
   .sidebar-adreel-group .nav-item.active { background: #262521; color: #fff; }
+  /* Contenu / Apparence : deux vues du même objet (l'AdReel en cours), pas une navigation vers un autre
+     objet -> sorties de la liste verticale de nav-item, présentées côte à côte comme un vrai bascule. */
+  .content-appearance-toggle { display: flex; gap: 4px; margin-top: 10px; background: var(--backstage-bg); border-radius: 8px; padding: 3px; }
+  .content-appearance-toggle .nav-item { flex: 1; justify-content: center; margin-bottom: 0; padding: 6px 4px; }
   .backstage-content { flex: 1; min-width: 0; }
   .backstage-panel { display: none; }
   .backstage-panel.active { display: block; }
   .empty-panel-placeholder { border: 1px dashed #d8d8dc; border-radius: 8px; padding: 30px; text-align: center; color: #999; font-size: 12px; }
 
-  .block-editor-card { border: 1px solid #e2e2e6; border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  .block-editor-card { border: 1px solid #e2e2e6; border-radius: 8px; margin-bottom: 14px; overflow: hidden; background: var(--bg); }
   .block-editor-head {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 14px; background: #f7f7f8; border-bottom: 1px solid #e2e2e6;
   }
-  .block-editor-head strong { font-size: 12.5px; letter-spacing: 0.02em; }
-  .block-editor-head .pos { color: #999; font-size: 10.5px; margin-left: 8px; font-family: monospace; }
-  .block-order-btns { display: flex; gap: 6px; }
-  .block-editor-body { padding: 16px; background: #ffffff; }
-  .block-editor-head-left { display: flex; align-items: center; gap: 8px; }
+  .block-editor-head strong { font-size: 12.5px; letter-spacing: 0.02em; flex-shrink: 0; }
+  .block-editor-head .pos { color: #999; font-size: 10.5px; font-family: monospace; flex-shrink: 0; }
+  .block-editor-head .btn-toggle-collapse { flex-shrink: 0; }
+  .block-editor-head .block-summary { color: var(--text-dimmer); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .block-order-btns { display: flex; gap: 6px; flex-shrink: 0; }
+  .block-editor-body { padding: 16px; background: var(--bg); }
+  .block-drag-handle { display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; color: #bbb; cursor: grab; flex-shrink: 0; }
+  .block-drag-handle svg { width: 14px; height: 14px; display: block; }
+  .block-drag-handle:hover { color: #888; }
+  .block-editor-card[draggable="true"] .block-drag-handle { cursor: grabbing; }
+  .block-editor-card.dragging { opacity: 0.4; }
+  .block-editor-card.drag-over-top { box-shadow: inset 0 3px 0 var(--accent); }
+  .block-editor-card.drag-over-bottom { box-shadow: inset 0 -3px 0 var(--accent); }
+  .blocks-list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+  .blocks-list-header-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .blocks-list-header-left strong { font-size: 13px; }
+  #blocksEditorContainer { min-height: 24px; padding-bottom: 12px; }
+  .block-editor-head-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
   .block-editor-body.collapsed { display: none; }
   .list-block-head-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
   .list-block-head-left strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -145,16 +174,16 @@
   h2 { font-size: 15px; margin-bottom: 12px; margin-top: 4px; color: #222; }
 
   #linkModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
-  #linkModal { background: #ffffff; border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  #linkModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   #linkModal h3 { font-size: 13px; margin-bottom: 12px; color: #222; }
   #linkModal input { margin-bottom: 12px; }
   #linkModal .actions { justify-content: flex-end; }
   #newAdReelModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
-  #newAdReelModal { background: #ffffff; border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  #newAdReelModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   #newAdReelModal h3 { font-size: 13px; margin-bottom: 12px; color: #222; }
   #newAdReelModal .actions { justify-content: flex-end; }
   #feedbackModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
-  #feedbackModal { background: #ffffff; border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 420px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  #feedbackModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 420px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   #feedbackModal h3 { font-size: 13px; margin-bottom: 4px; color: #222; }
   #feedbackModal .sub { margin-bottom: 12px; }
   #feedbackModal textarea { width: 100%; box-sizing: border-box; min-height: 110px; padding: 8px 10px; border: 1px solid #d8d8dc; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; margin-bottom: 10px; }
@@ -165,9 +194,9 @@
   .nav-feedback-btn { margin-top: 16px; border: 1px dashed #d8d8dc; color: #666; }
   .nav-feedback-btn:hover { border-color: #999; color: #262521; }
   #implSheetModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
-  #implSheetModal { background: #ffffff; border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 640px; max-width: 90vw; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  #implSheetModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 640px; max-width: 90vw; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   #themeConflictModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
-  #themeConflictModal { background: #ffffff; border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 420px; max-width: 90vw; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  #themeConflictModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 420px; max-width: 90vw; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   #themeConflictModal h3 { font-size: 13px; margin-bottom: 10px; color: #222; }
   #themeConflictModal .sub { margin-bottom: 4px; }
   #themeConflictModal .actions { justify-content: flex-end; margin-top: 16px; }
@@ -323,6 +352,12 @@
 
   [data-role="previewHost"]:not(:empty) { border: 1px solid var(--border); border-radius: 6px; padding: 0 14px; margin: 10px 0; background: var(--bg); }
 
+  /* Actions globales (Sauvegarder/publier, Aperçu) : fixées en haut à droite, visibles sur toutes les
+     pages -- publier pousse tout data.json (bibliothèque, packs, collections, réseaux, pas seulement
+     l'AdReel affiché), donc ça reste utile depuis n'importe quel panneau, pas seulement Contenu/Apparence. */
+  .global-actions-bar { position: fixed; top: 18px; right: 24px; display: flex; gap: 8px; z-index: 400; background: var(--bg); padding: 8px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); border: 1px solid #e2e2e6; }
+  .global-actions-bar .btn { white-space: nowrap; }
+
   /* ---------------- Bulles d'aide contextuelle (data-help) ---------------- */
   [data-help] { cursor: help; border-bottom: 1px dotted #999; }
   #helpTooltip {
@@ -336,6 +371,10 @@
 </head>
 <body>
 <div id="helpTooltip"></div>
+<div class="global-actions-bar">
+  <button class="btn" id="btnView" data-i18n="viewResultBtn">Visualiser le résultat ↗</button>
+  <button class="btn btn-primary" id="btnPublish" data-i18n="publishBtn">Sauvegarder / publier</button>
+</div>
 <div class="page">
   <h1 data-i18n="pageTitle">LayerPitch — Backstage</h1>
   <div class="sub" data-i18n="introText">Outil local. Ton contenu se charge automatiquement à l'ouverture (lecture publique, pas besoin de token). Le token n'est demandé qu'au moment de publier — ne partage jamais ce fichier une fois rempli.</div>
@@ -348,6 +387,33 @@
 
   <div class="backstage-layout">
     <nav class="backstage-sidebar">
+      <div class="sidebar-adreel-group">
+        <div class="nav-section-label" data-i18n="navSite">AdReel en édition</div>
+        <div class="sidebar-adreel-selector">
+          <select id="adReelSelect"></select>
+          <div class="sidebar-adreel-actions">
+            <button class="btn" id="btnAddAdReel" type="button" data-i18n-title="newAdreelTitle" data-i18n="addNew" title="Nouvel AdReel">+ Nouveau</button>
+            <button class="btn btn-danger" id="btnDeleteAdReel" type="button" data-i18n-title="deleteAdreelTitle" data-i18n="deleteShort" title="Supprimer cet AdReel">Suppr.</button>
+          </div>
+          <div class="hint" style="font-size:10px; margin-top:6px;" data-i18n="publicLinkLabel">Lien public de cet AdReel :</div>
+          <div id="adReelUrlBox" style="font-size:10px; word-break:break-all; margin-top:2px;"></div>
+          <div style="display:flex; gap:6px; margin-top:4px;">
+            <button class="btn btn-small" id="btnCopyAdReelUrl" type="button" style="flex:1; font-size:11px;" data-i18n="copyLink">Copier le lien</button>
+            <button class="btn btn-small" id="btnShareAdReelUrl" type="button" style="flex:1; font-size:11px;" data-i18n="shareBtn">Partager</button>
+          </div>
+        </div>
+        <div class="content-appearance-toggle">
+          <button class="nav-item active" data-tab="content" type="button">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 5.5h14M5 10.5h14M5 15.5h9M5 20h6"/></svg>
+            <span data-i18n="navContent">Contenu</span>
+          </button>
+          <button class="nav-item" data-tab="appearance" type="button">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><path d="M12 3.8a8.2 8.2 0 0 1 0 16.4z" fill="currentColor" stroke="none"/></svg>
+            <span data-i18n="navAppearance">Apparence</span>
+          </button>
+        </div>
+      </div>
+
       <div class="nav-section-label" data-i18n="navAccount">Compte</div>
       <button class="nav-item" data-tab="library" type="button">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="14" width="3.4" height="6" rx="1"/><rect x="10.3" y="9" width="3.4" height="11" rx="1"/><rect x="16.6" y="4" width="3.4" height="16" rx="1"/></svg>
@@ -381,30 +447,6 @@
         <span class="nav-badge" data-i18n="comingSoonBadge">bientôt</span>
       </button>
 
-      <div class="sidebar-adreel-group">
-        <div class="nav-section-label" data-i18n="navSite">Site (AdReel)</div>
-        <div class="sidebar-adreel-selector">
-          <select id="adReelSelect"></select>
-          <div class="sidebar-adreel-actions">
-            <button class="btn" id="btnAddAdReel" type="button" data-i18n-title="newAdreelTitle" data-i18n="addNew" title="Nouvel AdReel">+ Nouveau</button>
-            <button class="btn btn-danger" id="btnDeleteAdReel" type="button" data-i18n-title="deleteAdreelTitle" data-i18n="deleteShort" title="Supprimer cet AdReel">Suppr.</button>
-          </div>
-          <div class="hint" style="font-size:10px; margin-top:6px;" data-i18n="publicLinkLabel">Lien public de cet AdReel :</div>
-          <div id="adReelUrlBox" style="font-size:10px; word-break:break-all; margin-top:2px;"></div>
-          <div style="display:flex; gap:6px; margin-top:4px;">
-            <button class="btn btn-small" id="btnCopyAdReelUrl" type="button" style="flex:1; font-size:11px;" data-i18n="copyLink">Copier le lien</button>
-            <button class="btn btn-small" id="btnShareAdReelUrl" type="button" style="flex:1; font-size:11px;" data-i18n="shareBtn">Partager</button>
-          </div>
-        </div>
-        <button class="nav-item active" data-tab="content" type="button">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 5.5h14M5 10.5h14M5 15.5h9M5 20h6"/></svg>
-          <span data-i18n="navContent">Contenu</span>
-        </button>
-        <button class="nav-item" data-tab="appearance" type="button">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><path d="M12 3.8a8.2 8.2 0 0 1 0 16.4z" fill="currentColor" stroke="none"/></svg>
-          <span data-i18n="navAppearance">Apparence</span>
-        </button>
-      </div>
       <button class="nav-item nav-feedback-btn" id="btnOpenFeedback" type="button" data-help="feedbackBtn">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1H9.5l-4 4V16H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1z"/></svg>
         <span data-i18n="feedbackNavLabel">Faire un retour sur la version</span>
@@ -491,6 +533,13 @@
 
       <div class="backstage-panel active" data-panel="content">
         <h2 data-i18n="contentPanelTitle">Contenu — AdReel en cours d'édition</h2>
+        <div class="blocks-list-header">
+          <div class="blocks-list-header-left">
+            <strong id="blocksCountLabel"></strong>
+            <span class="hint-inline" data-i18n="blocksListHint">Glisse pour réordonner. Clique un bloc pour l'éditer.</span>
+          </div>
+          <button type="button" class="btn btn-small" id="btnToggleCollapseAllBlocks"></button>
+        </div>
         <div id="blocksEditorContainer"></div>
         <div class="add-block-row">
           <button class="btn btn-small" id="btnAddText" data-i18n="addTextBlock">+ Bloc texte</button>
@@ -591,8 +640,6 @@
   </fieldset>
 
   <div class="actions-top">
-    <button class="btn btn-primary" id="btnPublish" data-i18n="publishBtn">Publier sur GitHub</button>
-    <button class="btn" id="btnView" data-i18n="viewResultBtn">Visualiser le résultat ↗</button>
     <button class="btn" id="btnCheckFresh" data-i18n="checkFreshBtn">Vérifier si le site public est à jour</button>
   </div>
 
@@ -3703,16 +3750,90 @@ document.getElementById('implSheetDownloadBtn').addEventListener('click', () => 
 });
 
 /* ---------------- Layout (ordre des cartes) ---------------- */
+// Résumé compact affiché sur l'en-tête de chaque bloc, replié ou déplié (10/08 -> lisibilité de la
+// liste) : un simple comptage/aperçu, pas une vue détaillée, juste de quoi savoir ce qu'il y a dedans
+// sans le déplier. tronqueSummary() coupe les textes libres (bio/texte) à une longueur d'aperçu.
+function truncateSummary(str, max) {
+  max = max || 46;
+  const clean = String(str).replace(/\s+/g, ' ').trim();
+  return clean.length > max ? clean.slice(0, max - 1).trimEnd() + '…' : clean;
+}
+function trCount(n, singularKey, pluralKey) {
+  return tr(n === 1 ? singularKey : pluralKey, { n });
+}
+// Formulaire de contact configuré ou non -- même condition utilisée par buildContactBlockCard (avertissement
+// dans le corps du bloc) et blockSummaryText (résumé compact de l'en-tête) : un seul point de vérité.
+function hasContactFormEndpoint() {
+  return !!(profile.formspreeEndpoint && profile.formspreeEndpoint.trim());
+}
+function blockSummaryText(block) {
+  switch (block.type) {
+    case 'header': {
+      const parts = [profile.title, profile.subtitle].filter(Boolean);
+      return parts.length ? parts.join(' — ') : tr('blockSummaryEmpty');
+    }
+    case 'bio':
+      return profile.bio ? truncateSummary(profile.bio) : tr('blockSummaryEmpty');
+    case 'testimonials':
+      return trCount(testimonials.length, 'blockSummaryTestimonialSingular', 'blockSummaryTestimonials');
+    case 'tracks':
+      return trCount(trackIds.length, 'blockSummaryTrackSingular', 'blockSummaryTracks');
+    case 'text':
+      return block.content ? truncateSummary(block.content) : tr('blockSummaryEmpty');
+    case 'photo':
+      return trCount((block.images || []).length, 'blockSummaryPhotoSingular', 'blockSummaryPhotos');
+    case 'video':
+      return trCount((block.videos || []).length, 'blockSummaryVideoSingular', 'blockSummaryVideos');
+    case 'packs':
+      return trCount((block.packIds || []).length, 'blockSummaryPackSingular', 'blockSummaryPacks');
+    case 'collections':
+      return trCount((block.collectionIds || []).length, 'blockSummaryCollectionSingular', 'blockSummaryCollections');
+    case 'sfx':
+      return trCount((block.sfxIds || []).length, 'blockSummarySfxSingular', 'blockSummarySfx');
+    case 'contact': {
+      return hasContactFormEndpoint() ? tr('blockSummaryContactReady') : tr('blockSummaryContactMissing');
+    }
+    default:
+      return '';
+  }
+}
+// Appelé après layoutBlocks() (réordonnancement/ajout/suppression) et par chaque widget dont
+// l'édition ne repasse pas par layoutBlocks() (sélecteur de morceaux, témoignages, photos, vidéos,
+// packs/collections/Sfx, champs Header/Bio/Texte) -- simple rafraîchissement de texte, peu coûteux
+// vu le nombre de blocs en jeu, pas besoin d'un système de dépendances plus fin.
+function refreshAllBlockSummaries() {
+  blocks.forEach(b => {
+    const card = blockCards[b.id];
+    if (!card) return;
+    const el = card.querySelector('.block-summary');
+    if (el) el.textContent = blockSummaryText(b);
+  });
+}
+
+function allBlocksCollapsed() {
+  return blocks.length > 0 && blocks.every(b => collapsedBlockIds.has(b.id));
+}
+function updateCollapseAllBtn() {
+  const btn = document.getElementById('btnToggleCollapseAllBlocks');
+  if (!btn) return;
+  btn.textContent = allBlocksCollapsed() ? tr('expandAllBlocksBtn') : tr('collapseAllBlocksBtn');
+}
+function updateBlocksCountLabel() {
+  const el = document.getElementById('blocksCountLabel');
+  if (el) el.textContent = trCount(blocks.length, 'blocksCountSingular', 'blocksCountPlural');
+}
+
 function layoutBlocks() {
   const container = document.getElementById('blocksEditorContainer');
   blocks.forEach(b => { if (blockCards[b.id]) container.appendChild(blockCards[b.id]); });
   blocks.forEach((b, i) => {
     const card = blockCards[b.id];
     if (!card) return;
-    card.querySelector('[data-action="move-up"]').disabled = i === 0;
-    card.querySelector('[data-action="move-down"]').disabled = i === blocks.length - 1;
-    card.querySelector('.pos').textContent = `position ${i + 1}`;
+    card.querySelector('.pos').textContent = String(i + 1).padStart(2, '0');
   });
+  refreshAllBlockSummaries();
+  updateCollapseAllBtn();
+  updateBlocksCountLabel();
 }
 document.getElementById('blocksEditorContainer').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action]');
@@ -3720,14 +3841,13 @@ document.getElementById('blocksEditorContainer').addEventListener('click', (e) =
   const card = btn.closest('.block-editor-card');
   const id = card.dataset.id;
   const i = blocks.findIndex(b => b.id === id);
-  if (btn.dataset.action === 'move-up' && i > 0) { [blocks[i-1], blocks[i]] = [blocks[i], blocks[i-1]]; hasUnsavedEdits = true; layoutBlocks(); }
-  else if (btn.dataset.action === 'move-down' && i < blocks.length - 1) { [blocks[i+1], blocks[i]] = [blocks[i], blocks[i+1]]; hasUnsavedEdits = true; layoutBlocks(); }
-  else if (btn.dataset.action === 'toggle-collapse') {
+  if (btn.dataset.action === 'toggle-collapse') {
     const body = card.querySelector('.block-editor-body');
     const collapsed = body.classList.toggle('collapsed');
     const topToggle = card.querySelector('.block-editor-head [data-action="toggle-collapse"]');
     if (topToggle) topToggle.textContent = collapsed ? '▸' : '▾';
     if (collapsed) collapsedBlockIds.add(id); else collapsedBlockIds.delete(id);
+    updateCollapseAllBtn();
   }
   else if (btn.dataset.action === 'remove-block') {
     blocks.splice(i, 1);
@@ -3736,6 +3856,96 @@ document.getElementById('blocksEditorContainer').addEventListener('click', (e) =
     hasUnsavedEdits = true;
     layoutBlocks();
   }
+});
+document.getElementById('btnToggleCollapseAllBlocks').addEventListener('click', () => {
+  const shouldCollapse = !allBlocksCollapsed();
+  blocks.forEach(b => {
+    const card = blockCards[b.id];
+    if (!card) return;
+    const body = card.querySelector('.block-editor-body');
+    body.classList.toggle('collapsed', shouldCollapse);
+    const topToggle = card.querySelector('.block-editor-head [data-action="toggle-collapse"]');
+    if (topToggle) topToggle.textContent = shouldCollapse ? '▸' : '▾';
+    if (shouldCollapse) collapsedBlockIds.add(b.id); else collapsedBlockIds.delete(b.id);
+  });
+  updateCollapseAllBtn();
+});
+
+/* ---------------- Glisser-déposer des blocs (poignée uniquement) ----------------
+ * L'attribut draggable de la carte n'est activé que pendant que le pointeur est sur sa poignée
+ * (pointerdown -> pointerup/pointercancel, sur tout le document pour couvrir un relâchement hors de
+ * la poignée) -- un clic ailleurs sur la carte (titre, boutons, champs) ne peut donc jamais déclencher
+ * un drag involontaire. API HTML5 native (pas de pointeur fait main) : outil desktop (Electron/
+ * Chromium), zéro dépendance externe comme le reste du fichier. */
+let draggedBlockId = null;
+document.getElementById('blocksEditorContainer').addEventListener('pointerdown', (e) => {
+  const handle = e.target.closest('.block-drag-handle');
+  if (!handle) return;
+  const card = handle.closest('.block-editor-card');
+  if (card) card.draggable = true;
+});
+function releaseDragHandles() {
+  document.querySelectorAll('#blocksEditorContainer .block-editor-card[draggable="true"]').forEach(c => { c.draggable = false; });
+}
+document.addEventListener('pointerup', releaseDragHandles);
+document.addEventListener('pointercancel', releaseDragHandles);
+document.getElementById('blocksEditorContainer').addEventListener('dragstart', (e) => {
+  const card = e.target.closest('.block-editor-card');
+  if (!card || !card.draggable) return;
+  draggedBlockId = card.dataset.id;
+  card.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', card.dataset.id); } catch (err) { /* certains navigateurs exigent un type MIME valide, jamais bloquant ici */ }
+});
+document.getElementById('blocksEditorContainer').addEventListener('dragover', (e) => {
+  if (!draggedBlockId) return;
+  // Toujours preventDefault dès qu'un drag de bloc est en cours -- y compris au-dessus de l'espace vide
+  // du conteneur (pas seulement une carte) : sans ça, le navigateur refuse le drop hors des cartes, et
+  // il devient impossible de déposer un bloc tout en bas de la liste.
+  e.preventDefault();
+  const card = e.target.closest('.block-editor-card');
+  if (!card || card.dataset.id === draggedBlockId) return;
+  const rect = card.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  card.classList.toggle('drag-over-top', before);
+  card.classList.toggle('drag-over-bottom', !before);
+});
+document.getElementById('blocksEditorContainer').addEventListener('dragleave', (e) => {
+  const card = e.target.closest('.block-editor-card');
+  if (card && !card.contains(e.relatedTarget)) card.classList.remove('drag-over-top', 'drag-over-bottom');
+});
+document.getElementById('blocksEditorContainer').addEventListener('drop', (e) => {
+  if (!draggedBlockId) return;
+  e.preventDefault();
+  const targetCard = e.target.closest('.block-editor-card');
+  document.querySelectorAll('#blocksEditorContainer .block-editor-card').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+  const fromIdx = blocks.findIndex(b => b.id === draggedBlockId);
+  if (fromIdx === -1) return;
+  if (targetCard && targetCard.dataset.id !== draggedBlockId) {
+    const toIdx = blocks.findIndex(b => b.id === targetCard.dataset.id);
+    if (toIdx === -1) return;
+    const rect = targetCard.getBoundingClientRect();
+    const before = (e.clientY - rect.top) < rect.height / 2;
+    const insertAt = before ? toIdx : toIdx + 1;
+    const [moved] = blocks.splice(fromIdx, 1);
+    const adjustedInsertAt = insertAt > fromIdx ? insertAt - 1 : insertAt;
+    blocks.splice(adjustedInsertAt, 0, moved);
+    hasUnsavedEdits = true;
+    layoutBlocks();
+  } else if (!targetCard) {
+    // Dépôt sur l'espace vide du conteneur (sous le dernier bloc, par exemple) : déplace le bloc en
+    // toute fin de liste plutôt que de ne rien faire.
+    const [moved] = blocks.splice(fromIdx, 1);
+    blocks.push(moved);
+    hasUnsavedEdits = true;
+    layoutBlocks();
+  }
+});
+document.getElementById('blocksEditorContainer').addEventListener('dragend', (e) => {
+  const card = e.target.closest('.block-editor-card');
+  if (card) { card.classList.remove('dragging'); card.draggable = false; }
+  document.querySelectorAll('#blocksEditorContainer .block-editor-card').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+  draggedBlockId = null;
 });
 
 /* ---------------- Construction des cartes ---------------- */
@@ -3749,12 +3959,15 @@ function makeCardShell(block) {
   head.className = 'block-editor-head';
   head.innerHTML = `
     <div class="block-editor-head-left">
+      <span class="block-drag-handle" aria-hidden="true" title="${tr('dragHandleTitle')}">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+      </span>
       <button class="btn btn-icon btn-toggle-collapse" data-action="toggle-collapse" type="button">${blockCollapsed ? '▸' : '▾'}</button>
-      <strong>${BLOCK_LABELS[block.type] || block.type}</strong><span class="pos"></span>
+      <span class="pos"></span>
+      <strong>${BLOCK_LABELS[block.type] || block.type}</strong>
+      <span class="block-summary"></span>
     </div>
     <div class="block-order-btns">
-      <button class="btn btn-icon" data-action="move-up">↑</button>
-      <button class="btn btn-icon" data-action="move-down">↓</button>
       ${canDelete ? `<button class="btn btn-icon btn-danger" data-action="remove-block">×</button>` : ''}
     </div>
   `;
@@ -3799,8 +4012,8 @@ function buildHeaderCard(block) {
   emailEl.value = profile.contactEmail || '';
   urlEl.value = profile.contactUrl || '';
   formspreeEl.value = profile.formspreeEndpoint || '';
-  titleEl.addEventListener('input', e => { profile.title = e.target.value; hasUnsavedEdits = true; });
-  subtitleEl.addEventListener('input', e => { profile.subtitle = e.target.value; hasUnsavedEdits = true; });
+  titleEl.addEventListener('input', e => { profile.title = e.target.value; hasUnsavedEdits = true; refreshAllBlockSummaries(); });
+  subtitleEl.addEventListener('input', e => { profile.subtitle = e.target.value; hasUnsavedEdits = true; refreshAllBlockSummaries(); });
   emailEl.addEventListener('input', e => { profile.contactEmail = e.target.value; hasUnsavedEdits = true; });
   urlEl.addEventListener('input', e => { profile.contactUrl = e.target.value; hasUnsavedEdits = true; });
   formspreeEl.addEventListener('input', e => { profile.formspreeEndpoint = e.target.value; hasUnsavedEdits = true; });
@@ -3821,7 +4034,7 @@ function buildBioCard(block) {
   `;
   const bioTextEl = body.querySelector('[data-role="bioText"]');
   bioTextEl.value = profile.bio || '';
-  bioTextEl.addEventListener('input', e => { profile.bio = e.target.value; hasUnsavedEdits = true; });
+  bioTextEl.addEventListener('input', e => { profile.bio = e.target.value; hasUnsavedEdits = true; refreshAllBlockSummaries(); });
   wireFileControl(body.querySelector('[data-role="photoCtrl"]'), 'image/*',
     () => photoPendingFile, () => profile.photo,
     f => { photoPendingFile = f; hasUnsavedEdits = true; });
@@ -3846,13 +4059,14 @@ function buildTestimonialsCard(block) {
       listEl.appendChild(el);
     });
   }
-  body.querySelector('[data-role="addBtn"]').addEventListener('click', () => { testimonials.push({ text: '', author: '' }); hasUnsavedEdits = true; renderList(); });
+  body.querySelector('[data-role="addBtn"]').addEventListener('click', () => { testimonials.push({ text: '', author: '' }); hasUnsavedEdits = true; renderList(); refreshAllBlockSummaries(); });
   listEl.addEventListener('click', e => {
     const btn = e.target.closest('[data-action="remove"]');
     if (!btn) return;
     testimonials.splice(parseInt(btn.dataset.i, 10), 1);
     hasUnsavedEdits = true;
     renderList();
+    refreshAllBlockSummaries();
   });
   listEl.addEventListener('input', e => {
     const field = e.target.dataset.field;
@@ -3868,7 +4082,7 @@ function buildTracksCard(block) {
   const { card, body } = makeCardShell(block);
   body.innerHTML = `<div class="hint" data-help="tracksBlockSelector" style="margin-bottom:10px">${tr('tracksBlockHint')}</div><div data-role="selector"></div>`;
   const host = body.querySelector('[data-role="selector"]');
-  const refresh = buildTrackSelectorWidget(host, trackIds, () => { hasUnsavedEdits = true; }, trackOverrides);
+  const refresh = buildTrackSelectorWidget(host, trackIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); }, trackOverrides);
   blockTracksRefresh = refresh;
   return card;
 }
@@ -3887,7 +4101,7 @@ function buildTextCard(block) {
     </select>
   `;
   body.querySelector('[data-role="align"]').value = block.align || 'left';
-  body.querySelector('[data-role="content"]').addEventListener('input', e => { block.content = e.target.value; hasUnsavedEdits = true; });
+  body.querySelector('[data-role="content"]').addEventListener('input', e => { block.content = e.target.value; hasUnsavedEdits = true; refreshAllBlockSummaries(); });
   body.querySelector('[data-role="align"]').addEventListener('change', e => { block.align = e.target.value; hasUnsavedEdits = true; });
   return card;
 }
@@ -3926,6 +4140,7 @@ function buildPhotoCard(block) {
     block.images.push({ file: null, pendingFile: null });
     hasUnsavedEdits = true;
     renderList();
+    refreshAllBlockSummaries();
   });
   listEl.addEventListener('click', e => {
     const btn = e.target.closest('[data-action="remove"]');
@@ -3933,6 +4148,7 @@ function buildPhotoCard(block) {
     block.images.splice(parseInt(btn.dataset.i, 10), 1);
     hasUnsavedEdits = true;
     renderList();
+    refreshAllBlockSummaries();
   });
   renderList();
   return card;
@@ -3999,7 +4215,7 @@ function buildPacksBlockCard(block) {
   body.innerHTML = `<div class="hint" style="margin-bottom:10px">${tr('packsBlockHint')}</div><div data-role="selector"></div>`;
   const host = body.querySelector('[data-role="selector"]');
   if (!block.packIds) block.packIds = [];
-  buildPackSelectorWidget(host, block.packIds, () => { hasUnsavedEdits = true; });
+  buildPackSelectorWidget(host, block.packIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); });
   return card;
 }
 
@@ -4064,7 +4280,7 @@ function buildCollectionsBlockCard(block) {
   body.innerHTML = `<div class="hint" style="margin-bottom:10px">${tr('collectionsBlockHint')}</div><div data-role="selector"></div>`;
   const host = body.querySelector('[data-role="selector"]');
   if (!block.collectionIds) block.collectionIds = [];
-  buildCollectionSelectorWidget(host, block.collectionIds, () => { hasUnsavedEdits = true; });
+  buildCollectionSelectorWidget(host, block.collectionIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); });
   return card;
 }
 
@@ -4129,13 +4345,13 @@ function buildSfxBlockCard(block) {
   body.innerHTML = `<div class="hint" style="margin-bottom:10px">${tr('sfxBlockHint')}</div><div data-role="selector"></div>`;
   const host = body.querySelector('[data-role="selector"]');
   if (!block.sfxIds) block.sfxIds = [];
-  buildSfxSelectorWidget(host, block.sfxIds, () => { hasUnsavedEdits = true; });
+  buildSfxSelectorWidget(host, block.sfxIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); });
   return card;
 }
 
 function buildContactBlockCard(block) {
   const { card, body } = makeCardShell(block);
-  const hasEndpoint = !!(profile.formspreeEndpoint && profile.formspreeEndpoint.trim());
+  const hasEndpoint = hasContactFormEndpoint();
   body.innerHTML = `
     ${!hasEndpoint ? `<div class="hint-inline" style="color:#b45309">${tr('noFormspreeWarning')}</div>` : `<div class="hint-inline">${tr('formspreeOkHint')}</div>`}
   `;
@@ -4171,6 +4387,7 @@ function buildVideoCard(block) {
     block.videos.push({ title: '', url: '', comment: '', thumbnail: null, pendingThumbnail: null });
     hasUnsavedEdits = true;
     renderList();
+    refreshAllBlockSummaries();
   });
   listEl.addEventListener('click', e => {
     const btn = e.target.closest('[data-action="remove"]');
@@ -4178,6 +4395,7 @@ function buildVideoCard(block) {
     block.videos.splice(parseInt(btn.dataset.i, 10), 1);
     hasUnsavedEdits = true;
     renderList();
+    refreshAllBlockSummaries();
   });
   listEl.addEventListener('input', e => {
     const field = e.target.dataset.field;
