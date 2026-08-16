@@ -82,6 +82,18 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-16] — Correction d'une régression : perte d'adaptation à la taille d'écran (signalée par Jules-Antoine)
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `backstage.css`
+
+**Cause** : le correctif du 16/08 pour le chevauchement de `.global-actions-bar` sur fenêtre étroite (`padding-top` du `body` porté à 76px) réservait cet espace **en permanence, sur toutes les tailles de fenêtre** — au lieu de s'adapter, la page perdait de la hauteur utile en haut quelle que soit la largeur réelle, ce qui se ressentait particulièrement sur petit écran. Un correctif "au marteau" (toujours réserver le pire cas) plutôt qu'une vraie solution adaptative.
+
+**Correction** : `.global-actions-bar` (Aperçu + Sauvegarder/publier) sort de `position: fixed` (hors du flux de page) et rejoint le flux normal de `.page`, dans une nouvelle ligne `.page-top-row` partagée avec le H1 (`display:flex; justify-content:space-between`). Cette ligne est `position: sticky` (pas `fixed`) : elle reste visible en scrollant loin dans une longue liste de blocs — l'objectif d'origine —, mais étant dans le flux de `.page`, elle ne peut plus jamais dépasser la largeur de `.page` (max 760px), quelle que soit la largeur de fenêtre. Plus besoin de réserver un espace fixe artificiellement : `padding-top` du `body` revient à sa valeur d'origine (32px). Le H1 et la barre d'actions se retrouvent sur la même ligne, avec retour à la ligne automatique (`flex-wrap: wrap`) si la fenêtre devient vraiment trop étroite pour les deux côte à côte, plutôt qu'un chevauchement.
+
+**Tests** : `node --check` refait sur le script principal, suite `test_backstage_content_nav_redesign.js` relancée (25 assertions, non affectées par ce changement structurel/CSS) — toutes vertes. Contrôles structurels : un seul `#btnPublish`, un seul `#btnView`, une seule `.page-top-row` (pas de duplication introduite par la restructuration). `backstage.css` resynchronisé et re-diffé (toujours seulement les 2 divergences connues).
+
+---
+
 ## [2026-08-15] — Repli des Sfx attachés à un morceau + repli par défaut étendu aux emplacements/bibliothèque Sfx
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`, `test_backstage_default_collapse.js` (nouveau)
