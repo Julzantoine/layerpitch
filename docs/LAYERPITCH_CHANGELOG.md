@@ -94,6 +94,21 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-16] — Trois bugs signalés par capture d'écran (résumé Header incorrect, alignement sidebar, débordement du toggle Contenu/Apparence)
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `backstage.css`, `test_backstage_content_nav_redesign.js`
+
+**Contexte** : Jules-Antoine a fourni 3 captures d'écran du backstage réel montrant des problèmes non détectés par les passes d'audit précédentes (données réelles avec historique, pas seulement l'état seedé à la main des tests).
+
+**Bugs corrigés** :
+1. **Résumé du bloc Header disait "Vide pour l'instant" alors que l'écran affichait un vrai sous-titre.** Cause : `buildHeaderCard` affiche `profile.subtitle`, et si celui-ci est `null` (AdReel publié avant l'existence de ce champ), retombe sur l'ancien `profile.tagline` pour l'affichage — mais `blockSummaryText('header')` ne lisait que `profile.subtitle` directement, sans ce même fallback. Résultat : le champ affiche du vrai contenu hérité (tagline) mais le résumé le voit comme vide. Corrigé en répliquant exactement le même fallback dans `blockSummaryText`.
+2. **"Bibliothèque musicale" (et potentiellement tout item dont le texte s'approche de la largeur disponible) apparaissait visuellement décalée par rapport aux autres items de la sidebar.** Cause racine, pas seulement un symptôme du padding ajouté à la sidebar dans une session précédente : `.nav-item` utilise `justify-content: space-between`, mais l'icône (`<svg>`) et le texte (`<span>`) étaient des enfants flex **séparés**, pas groupés — avec deux enfants directs, `space-between` les pousse chacun vers un bord opposé du bouton. Pour la plupart des libellés, le texte est presque aussi large que le bouton donc l'écart est invisible ; pour un texte qui passe sur 2 lignes (donc plus étroit sur sa ligne la plus longue), l'écart devient visible et le texte semble "poussé à droite". Corrigé en groupant systématiquement icône + texte dans `.nav-item-label` (comme c'était déjà fait pour "Projets", seul item avec badge) sur les 8 autres `nav-item` de la sidebar — `.nav-item-label` a déjà `flex:1; min-width:0`, donc le texte peut désormais se replier sur 2 lignes normalement, à sa place, sans décalage.
+3. **Le mot "Apparence" débordait de son onglet dans le nouveau toggle Contenu/Apparence.** Cause : l'espace réellement disponible dans la carte "AdReel en édition" pour les 2 boutons combinés est d'environ 140px (196px de sidebar − 2×14px de padding sidebar − 2×10px de padding de carte − 2×3px de padding du toggle − 4px de gap), soit ~61px de contenu par bouton une fois son propre padding déduit — trop étroit pour icône (16px) + interligne (9px) + le mot "Apparence" (~60-65px à 13px). Corrigé en retirant les icônes de ce toggle spécifiquement (un bascule à 2 boutons n'en a pas vraiment besoin, et ça libère la place nécessaire), et réduction légère du padding/font-size par précaution supplémentaire (6px 2px / 12px au lieu de 6px 4px / 13px).
+
+**Tests** : 2 nouveaux cas ajoutés à `test_backstage_content_nav_redesign.js` (résumé Header avec tagline hérité sans subtitle → doit refléter le vrai contenu ; nav-item Bibliothèque musicale → icône et texte bien groupés dans `.nav-item-label`). Suite complète relancée (27 assertions) — tout est vert. `node --check` refait, équilibre des balises `<button>`/`<svg>`/`<span>` vérifié par comptage programmatique après la réécriture des 8 nav-item. `backstage.css` resynchronisé et re-diffé (toujours seulement les 2 divergences connues).
+
+---
+
 ## [2026-08-15] — Repli des Sfx attachés à un morceau + repli par défaut étendu aux emplacements/bibliothèque Sfx
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`, `test_backstage_default_collapse.js` (nouveau)
