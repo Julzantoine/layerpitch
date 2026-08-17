@@ -140,6 +140,21 @@ profile.formspreeEndpoint = '';
 check('hasContactFormEndpoint() = false sans endpoint', hasContactFormEndpoint() === false);
 profile.formspreeEndpoint = 'https://formspree.io/f/abcd';
 check('hasContactFormEndpoint() = true avec un endpoint renseigné', hasContactFormEndpoint() === true);
+
+// 9) Régression signalée par Jules-Antoine (16/08) -- header avec tagline héritée (pas de subtitle) :
+// le champ affiché à l'écran utilise déjà ce fallback (buildHeaderCard), le résumé doit faire pareil.
+blocks = [{ id: 'h1', type: 'header' }];
+rebuildAllCards();
+profile.title = '';
+profile.subtitle = null;
+profile.tagline = 'Composer for films / documentaries / games';
+refreshAllBlockSummaries();
+check('resume Header reflete profile.tagline quand subtitle est absent (pas "vide")', document.querySelector('.block-editor-card[data-id="h1"] .block-summary').textContent === 'Composer for films / documentaries / games');
+
+// 10) Régression signalée -- icône + texte des nav-item doivent être groupés (.nav-item-label), pas
+// des enfants flex séparés (justify-content:space-between les écartait visuellement l'un de l'autre).
+const libraryBtn = document.querySelector('[data-tab="library"]');
+check('nav-item Bibliotheque musicale : icone et texte groupes dans .nav-item-label', !!libraryBtn.querySelector('.nav-item-label svg') && !!libraryBtn.querySelector('.nav-item-label span[data-i18n]'));
 `;
 
 window.eval(i18nSrc + '\n' + mainScriptSrc + '\n' + assertions);
