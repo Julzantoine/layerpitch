@@ -8,6 +8,39 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-18] — Généralisation de la disposition maître-détail aux 4 modes restants (vertical, vertical-random, statique, embranchement-vertical)
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : suite de l'incrément 1 (séquentiel uniquement, plus tôt le 18/08) — extension du même principe (liste compacte à gauche, détail à droite) validée mode par mode avant codage : glisser-déposer par poignée (remplace les flèches ↑/↓) pour couches/sections/boucles nommées, 3 entrées virtuelles communes à tous les modes (« Infos du morceau », « Sfx », « Infos additionnelles »), catégorie « Structure » (libellé non cliquable) pour vertical-random regroupant Intro/Sections/Outro.
+
+**Changement** :
+- En-tête de carte de morceau (titre + sélecteur de format éditables en place) unifié pour tous les modes — auparavant réservé au séquentiel.
+- Sections Identité/Tempo/Contenu/Structure/Réglages avancés de l'ancien flux plat supprimées pour les 4 modes concernés ; tous les champs qu'elles contenaient sont **déplacés** (jamais dupliqués) dans le détail des entrées virtuelles ou des éléments spécifiques au mode.
+- Nouvelle fonction JS partagée `wireArrayDragReorder()` (glisser-déposer par poignée, même principe exact que le réordonnancement des blocs de contenu du 16/08, généralisé à n'importe quel tableau) et helper `dragHandleHtml()`.
+- **Vertical** : couches réordonnables par glisser-déposer (niveau d'intensité = position, jamais un champ saisissable). Migration douce : `id` ajouté à chaque couche existante (nécessaire au glisser-déposer), garde-fou si `track.layers` n'existait pas encore.
+- **Statique** : fichier audio et case « bouclable » déplacés dans le détail de « Infos du morceau » — aucun élément sous les 3 entrées virtuelles, comme décidé.
+- **Vertical-random** : catégorie « Structure » (libellé non cliquable) → Intro / chaque section / Outro, tous sélectionnables individuellement. Sections réordonnables par glisser-déposer (remplace les boutons ↑/↓ `move-section-up/down`, désormais orphelins — voir « Non fait » plus bas). Les pools d'une section restent repliables individuellement (`altPoolToggleHtml`, déjà en place, aucun changement nécessaire). **Nouveau** : l'intro gagne son propre BPM/temps par mesure (`track.intro.bpm`/`beatsPerBar`, additif, ne touche pas au champ `bars` déjà lu par `player.js` pour le chevauchement de queue).
+- **Embranchement-vertical** : boucles nommées réordonnables par glisser-déposer (remplace `move-embr-loop-up/down`, désormais orphelins également).
+- Ancien rendu à plat (couches/boucles/sections) entièrement supprimé, pas seulement désactivé — aucun code mort laissé en place pour ces trois blocs.
+
+**i18n** : 4 clés ajoutées en FR et en EN dans la zone `shared` (`sectionFallback` y était déjà dupliquée depuis la zone `player`, nécessaire ici car `tr()` côté backstage ne lit jamais la zone `player`) : `embrLoopFallback`, `vrsPoolCountSingular`, `vrsPoolCountPlural`, plus `sectionFallback` dupliquée dans `shared`. Symétrie FR/EN vérifiée programmatiquement par zone (shared 12→12, player 47→47, backstage 528→528, 0 écart).
+
+**Vérifications menées** : `node --check` sur `layerpitch-i18n.js` et sur le script principal extrait de `layerpitch-backstage.html` — les deux passent. Balises `<div>` équilibrées (408/408). Recoupement programmatique de toutes les clés `tr('...')` utilisées contre le dictionnaire — 0 manquante (seul `socialPlatform_` ressort, faux positif déjà documenté). Recoupement de tous les `data-role` interrogés contre ceux réellement posés — 0 orphelin.
+
+**Non fait, à noter honnêtement** :
+- **Grille de mesures complète de l'intro (vertical-random)** : seuls BPM/temps par mesure ont été ajoutés. La grille interactive Entrée/Boucle/Sortie (`buildLoopTimelineEl`) montrée en maquette n'a **pas** été branchée sur l'intro — ses champs (`loopInBeat`/`loopOutBeat`) ne sont actuellement lus par aucune logique de lecture réelle dans `player.js` pour l'intro. Brancher cette grille pour de vrai nécessite une coordination avec le canal Claude Code pour confirmer ce que `player.js` doit en faire, sans quoi ce serait une UI décorative sans effet à la lecture.
+- **5 gestionnaires devenus orphelins** (`toggle-collapse-layer`, `move-section-up`, `move-section-down`, `move-embr-loop-up`, `move-embr-loop-down`) : plus aucun bouton ne les déclenche (remplacés par le glisser-déposer), mais laissés en place plutôt que supprimés à la hâte — inertes, sans risque, à nettoyer dans une prochaine passe d'audit si confirmé inutile pour de bon.
+- `backstage.css` volontairement non touché, comme convenu — à synchroniser une fois cette session validée visuellement.
+
+**Vérifications complémentaires menées après coup (tests jsdom réels, récupérés à la racine du repo)** :
+- 12 suites moteur (`test-section-scheduler.js`, `test-slot-chain-advancer.js`, `test_seq_branching.js`, `test_embr_vertical_engine.js`, `test_vr_engine.js`, `test_player_regression.js`, `test_quantized_loop_engine.js`, `test_max_chain_loops_e2e.js`, `test_seq_transitions.js`, `test_seq_stage_description.js`, `test_seq_custom_cut_fade.js`, `test_seq_no_outro_goto_end.js`) — toutes vertes, sans surprise puisque `player.js` n'a pas été touché cette session.
+- 4 suites backstage directement pertinentes — toutes vertes : `test_backstage_content_nav_redesign.js`, `test_backstage_maxchainloops.js` (bascules de mode répétées, y compris vers/depuis vertical-random et séquentiel, aucune régression), `test_backstage_custom_cut_fade_roundtrip.js`, `test_backstage_intro_outro_collapse_and_reorder.js`.
+- 5 suites backstage en échec (`test_backstage_seq_transitions.js`, `test_backstage_slot_collapse.js`, `test_backstage_default_collapse.js`, `test_backstage_slot_autolabel.js`, `test_backstage_filename_bpm_bars_detection.js`) — **confirmées préexistantes** : échec strictement identique rejoué sur le fichier original non modifié (avant toute intervention de cette session). Tests devenus obsolètes suite à une restructuration antérieure, pas des régressions introduites ici.
+- **Point technique trouvé en cours de vérification, sans rapport avec le code livré** : les fichiers de test comparent la ligne exacte `<script src="player.js"></script>` (sans paramètre) pour l'inliner — depuis l'ajout du cache-busting (13/08), les balises publiées portent `?v=<timestamp>`, donc plus aucun test ne trouve la ligne à remplacer et tous plantent au chargement (`window.LayerPlayerCore` jamais défini), y compris sur l'original. Contourné localement (copie de `layerpitch-backstage.html` avec les paramètres `?v=...` retirés) pour pouvoir exécuter les suites ; **les fichiers de test eux-mêmes, sur le repo, ont besoin du même correctif pour refonctionner tels quels** — non traité ici, hors périmètre de cette session (fichiers de test non demandés).
+
+---
+
 ## [2026-08-18] — Audit complet de la session (i18n, CSS, data-role/action, bug de câblage sur emplacement dupliqué)
 
 **Fichiers touchés** : `layerpitch-backstage.html`
