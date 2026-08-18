@@ -8,6 +8,83 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-18] — Audit complet de la session (i18n, CSS, data-role/action, bug de câblage sur emplacement dupliqué)
+
+**Fichiers touchés** : `layerpitch-backstage.html`
+
+**Contexte** : audit demandé explicitement sur l'ensemble du code du jour (disposition maître-détail + réconciliation textes narratifs), pas seulement le dernier changement.
+
+**Vérifications programmatiques faites** :
+- Extraction de toutes les clés `tr('...')` réellement utilisées dans le fichier (397) et contrôle une par une contre le dictionnaire FR/EN — 0 manquante (le seul signalement initial, `socialPlatform_`, est un faux positif : concaténation dynamique `'socialPlatform_' + platform`, pas une vraie clé).
+- Comparaison des variables CSS `var(--xxx)` utilisées contre celles déclarées dans `:root`.
+- Croisement automatique de tous les `data-role` interrogés par `querySelector` contre ceux réellement posés dans le HTML généré, et de tous les `data-action` vérifiés dans les gestionnaires délégués contre ceux réellement posés (en tenant compte des deux façons de les poser : littéral `data-action="..."` et construction dynamique via `deleteIconBtnHtml()`) — 0 orphelin, 0 gestionnaire mort des deux côtés.
+
+**Bugs corrigés** :
+1. **`var(--text)` non déclarée** (préexistant, sans rapport avec les sessions du jour) : utilisée par `.wwise-node-source`/`.wwise-node-bus` sans jamais être définie dans `:root`. Ajoutée (`--text: #24262b`, même teinte que le texte du body).
+2. **Toggles inertes sur un emplacement dupliqué** : les boutons dépliants "Embranchements" et "Texte affiché pendant la lecture" s'affichent dans le gabarit qu'un emplacement soit un duplicata ou non (seul le contenu audio en dessous — alternatives/anti-répétition — diffère), mais leur câblage (`wireCollapsibleBlockToggle`) se faisait *après* le retour anticipé réservé aux duplicatas. Un clic sur ces boutons sur un emplacement dupliqué ne faisait donc rien. Corrigé en déplaçant leur câblage avant ce retour ; celui d'`altPoolToggleHtml` (pertinent seulement pour un emplacement non dupliqué) reste après. Le bug sur "Embranchements" était présent avant même les ajouts du texte narratif de cette session.
+3. **Badge de sorties resté en français en dur** : celui affiché à côté de l'interrupteur "Embranchements" (`"2 sorties"`) n'était pas passé par `tr()`, contrairement à celui déjà corrigé plus tôt dans la liste maître. Aligné sur les mêmes clés `seqOutletsSingular`/`seqOutletsPlural` via `trCount()`.
+
+**Vérifications finales** : `node --check` sur le script principal et sur `layerpitch-i18n.js`, balises `<div>` équilibrées sur tout le fichier (396/396), symétrie FR/EN reconfirmée après les correctifs (640 clés de chaque côté, 0 écart), suite de tests ciblés Node relancée (14 scénarios entre les deux fichiers de test du jour) — tout est vert.
+
+**Non fait, à noter honnêtement** : pas de harnais de test jsdom complet construit pour cette session (uniquement des tests Node ciblés sur les fonctions extraites, sans rendu DOM réel) — la validation visuelle en conditions réelles reste entièrement celle de Jules-Antoine.
+
+---
+
+## [2026-08-18] — Réconciliation : disposition maître-détail + chantier textes narratifs par élément (descriptionFr/descriptionEn)
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : le fichier `layerpitch-backstage.html` fourni en début de session par Jules-Antoine ne contenait pas un chantier récent mené côté canal Claude Code — un texte de présentation par morceau et par élément jouable (intro, chaque emplacement, outro, chaque fichier de transition), avec logique de repli si vide (le texte précédemment affiché reste tel quel plutôt que d'être effacé). Le mécanisme de lecture (`pickStageDescription()` dans `player.js`) était bien présent et fonctionnel ; c'est l'interface d'édition côté backstage qui manquait dans le fichier de départ. Après plusieurs allers-retours et un faux départ (un fichier réuploadé par erreur s'est révélé être une simple copie de mon propre travail du jour), le bon fichier de référence a été identifié et fourni.
+
+**Décision de reconstruction** : plutôt que de repartir du fichier de référence et d'y rejouer toute la disposition maître-détail construite dans la session précédente (risque de régression sur un travail déjà construit et en partie validé), reconstruction dans l'autre sens — le fichier du jour (disposition maître-détail) sert de base, et les éléments du chantier textes narratifs y sont greffés un par un.
+
+**Changement** :
+- Bloc dépliable "Texte affiché pendant la lecture" (`descriptionFr`/`descriptionEn`) ajouté à l'intro et à l'outro (colonne de gauche, position inchangée), à chaque emplacement (colonne de droite, entre le résumé des répétitions et l'interrupteur Embranchements), et à chaque fichier de transition (à l'intérieur de sa carte "SORTIE N").
+- Pour les transitions, deux champs supplémentaires manquaient aussi dans la simplification faite lors de la construction des cartes de sortie de la session précédente et ont été restaurés en même temps : l'unité de durée (mesures calées sur le tempo vs secondes fixes) et le tempo propre à la transition (BPM/temps par mesure, hérite de l'emplacement puis du morceau si vide).
+- `buildPreviewTrack()` (aperçu "Écouter") : transmet désormais ces textes au lecteur — sans ça, rien ne se serait affiché en aperçu malgré la présence des champs de saisie.
+- `loadData()` (migration au chargement) et la sérialisation de `publishAll()` : lisent et republient ces champs sans perte.
+- Gestionnaire de saisie délégué complété pour tous les nouveaux champs (`introDescriptionFr/En`, `outroDescriptionFr/En`, `slot.descriptionFr/En`, `transition.descriptionFr/En`, `transition.durationUnit/durationSeconds/bpm/beatsPerBar`).
+
+**i18n** : 9 clés ajoutées en FR et en EN (`stageDescriptionToggleLabel`, `stageDescriptionHint`, `stageDescriptionFrLabel`, `stageDescriptionEnLabel`, `transitionDurationUnitLabel`, `transitionDurationUnitBars`, `transitionDurationUnitSeconds`, `transitionDurationSecondsLabel`, `transitionBarsTempoHint`) — absentes non seulement du fichier de travail du jour mais aussi de la version de `layerpitch-i18n.js` récupérée depuis la racine du repo GitHub, confirmant que ce dernier est également en retard sur ce chantier.
+
+**Vérifications** : `node --check` sur les deux fichiers, balises équilibrées (396/396), symétrie FR/EN programmatique (640 clés de chaque côté, 0 écart), test Node ciblé sur les fonctions de mapping (`mapBlockWithBars`/`mapTransition`) contre 5 formes de données (legacy sans les nouveaux champs, avec textes narratifs, transition en secondes, intro absente) — tous les cas passent sans exception.
+
+---
+
+## [2026-08-18] — Disposition maître-détail du mode séquentiel (incrément 1), en-tête titre/format, entrées virtuelles Infos du morceau/Contenu additionnel/Infos additionnelles
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : discussion approfondie (hors code, plusieurs maquettes générées par Claude Code passées en revue et pour la plupart écartées — voir décisions ci-dessous) aboutissant à un besoin réel identifié : l'éditeur d'un morceau séquentiel oblige à scroller une colonne unique et sans fin pour naviguer entre les emplacements, et manque de relief visuel entre ses sections. Portée volontairement limitée au **mode séquentiel uniquement** pour ce premier incrément — les autres modes (vertical, vertical-random, statique, embranchement-vertical) restent inchangés, dans l'attente d'une validation visuelle en conditions réelles avant extension.
+
+**Explicitement écarté** (idées venues des maquettes Claude Code, discutées puis rejetées) : rail de navigation à icônes seules sans libellé, système d'onglets (Graphe/Liste/Fiche), panneau de simulation dédié (le mécanisme existe déjà via l'aperçu "Écouter" + `renderSeqBranchOptions`, jugé redondant).
+
+**Changement** :
+1. **Disposition à deux colonnes** pour la section "Chaîne de lecture" d'un morceau séquentiel : liste compacte cliquable à gauche (`.seq-master-list`), détail complet de l'élément sélectionné à droite (`.seq-detail-col`) — au lieu d'empiler tous les formulaires d'emplacement les uns sous les autres. Sélection gérée par `seqSelectedSlotIndex` (Map trackId → index ou clé spéciale), purement un état d'affichage local à la session, sans impact sur les données.
+2. **En-tête de carte morceau** (mode séquentiel) : titre et sélecteur de Format déplacés dans l'en-tête, éditables en place, à côté des flèches ↑/↓.
+3. **Trois entrées virtuelles** ajoutées à la liste maître, au même titre que les emplacements : "Infos du morceau" (BPM/mesures, cycles avant transition automatique, description, harmonisation — sélectionnée par défaut à l'ouverture), "Contenu additionnel" (Sfx attachés), "Infos additionnelles" (note d'implémentation, certification "sans IA"). Ces champs sont déplacés (pas dupliqués) depuis leur ancien emplacement dans le flux plat du formulaire.
+4. **Cartes de sortie d'embranchement** : chaque sortie devient une carte encadrée en accent avec étiquette "SORTIE N", au lieu d'un bloc générique indifférencié.
+5. **Interrupteurs** : cases à cocher "Embranchements" et "Fichier de transition" stylées en vrais interrupteurs (CSS pur, mêmes éléments `<input type="checkbox">`, aucun changement de câblage), badge de comptage des sorties à côté.
+6. **Champs compactés** : Répétitions / Source du contenu / Tempo regroupés sur une seule ligne à 3 colonnes au lieu de deux blocs séparés. Repère "Variations de cet emplacement" ajouté au-dessus du pool de variations, qui n'avait auparavant aucun titre.
+7. **Bug corrigé en cours de session** : la liste maître affichait un numéro d'emplacement en double (ex. "#3 #3 Battle") quand le libellé saisi par l'utilisateur commençait déjà par son propre préfixe manuel — une regex (`^#\d+\s*`) retire ce préfixe avant d'appliquer la numérotation automatique.
+8. **Correctif CSS séparé, trouvé en cours de session** : `.list-block` avait un fond codé en dur (`#f7f7f8`) quasiment identique au fond de page par défaut (`--backstage-bg: #f7f6f3`), cassant le contraste page/contenu attendu. Remplacé par `var(--bg)` (blanc), conforme à la hiérarchie à trois niveaux documentée le 16/08 (les autres panneaux du fichier suivaient déjà cette règle, `.list-block` avait été oublié).
+
+**i18n** : 9 clés ajoutées en FR et en EN (`seqTrackInfoLabel`, `seqContentAdditionalLabel`, `seqAdditionalInfoLabel`, `seqDuplicateTag`, `seqOutletsSingular`, `seqOutletsPlural`, `seqOutletLabel`, `seqCyclesInfinite`, `seqCyclesFinite`).
+
+**Tests** : tests Node ciblés (pas de harnais jsdom complet, `player.js`/`layerpitch-i18n.js` non disponibles au moment de l'écriture initiale) sur les expressions nouvellement écrites de la liste maître (détection de duplicat, comptage de sorties, résolution du libellé, index de sélection par défaut et après suppression d'un emplacement) contre 6 formes de données représentatives, dont un morceau antérieur au 04/08 (avant l'existence des embranchements) — tous les cas passent. `node --check` sur les deux fichiers à chaque étape.
+
+---
+
+## [2026-08-18] — Correction d'une régression : `.page` revenue à 760px (perte de l'adaptation à la largeur d'écran)
+
+**Fichiers touchés** : `layerpitch-backstage.html`
+
+**Diagnostic** : `.page { max-width: 760px }` — la valeur d'avant le correctif du 13/08 (`min(1400px, 92vw)`), qui avait pourtant déjà corrigé ce même problème une première fois. Preuve la plus parlante : le commentaire du correctif du 16/08 sur `.page-top-row` affirmait lui-même "jamais plus large que `.page` (max 760px)" comme une évidence — signe que la régression était déjà en place au moment où ce commentaire a été écrit, entre le 13/08 et le 16/08, sans avoir été remarquée sur le coup.
+
+**Correction** : `.page` restaurée à `max-width: min(1400px, 92vw)`, commentaire de `.page-top-row` corrigé pour ne plus affirmer la valeur erronée.
+
+**Test** : `node --check` sur le script principal, une seule règle `.page` confirmée dans le fichier.
+
 ## [2026-08-16] — Hiérarchie de surfaces à trois niveaux, navigation Contenu/Apparence restructurée, liste de blocs (résumés, glisser-déposer, Tout replier)
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `backstage.css`, `layerpitch-i18n.js`, `test_backstage_content_nav_redesign.js` (nouveau)
