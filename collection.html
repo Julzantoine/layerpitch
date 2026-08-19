@@ -11,10 +11,11 @@
     --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
     --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
     --accent: #c9713c; --accent-soft: #f3e4d6;
+    --font-body: 'Inter', sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   img { max-width: 100%; height: auto; display: block; }
-  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 56px 24px 60px; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); padding: 56px 24px 60px; }
   .page { max-width: 760px; margin: 0 auto; }
   a { color: var(--accent); }
 
@@ -86,11 +87,47 @@
   <label class="contrast-toggle"><input type="checkbox" id="contrastToggle"> <span data-i18n="highContrast">Contraste renforcé</span></label>
 </div>
 
-<script src="layerpitch-i18n.js?v=1787136890140"></script>
-<script src="layerpitch-help.js?v=1787136890140"></script>
-<script src="player.js?v=1787136890140"></script>
+<script src="layerpitch-i18n.js?v=1786813348420"></script>
+<script src="layerpitch-help.js?v=1786813348420"></script>
+<script src="player.js?v=1786813348420"></script>
 <script>
 const { escapeHtml, linkify, setupContrastToggle } = window.LayerPlayerCore;
+
+// Résout une valeur de police ('default' | 'google:Nom' | 'custom:id') en une déclaration font-family CSS
+// utilisable. Retourne null pour 'default' (aucun override -- le body garde son font-family de base).
+// Copié tel quel depuis index.html/pack.html (19/08) : même encodage, même logique, pas de duplication.
+function fontCssFamily(fontValue, customFonts) {
+  if (!fontValue || fontValue === 'default') return null;
+  if (fontValue.startsWith('google:')) return `'${fontValue.slice(7)}', sans-serif`;
+  if (fontValue.startsWith('custom:')) {
+    const id = fontValue.slice(7);
+    const font = (customFonts || []).find(f => f.id === id);
+    return font ? `'${font.name}', sans-serif` : null;
+  }
+  return null;
+}
+// Injecte uniquement l'asset nécessaire à la police effectivement utilisée par cette collection -- jamais
+// toute la bibliothèque de polices du compositeur.
+const injectedFontAssets = new Set();
+function injectFontAssets(usedFontValues, customFonts) {
+  usedFontValues.forEach(val => {
+    if (!val || val === 'default' || injectedFontAssets.has(val)) return;
+    injectedFontAssets.add(val);
+    if (val.startsWith('google:')) {
+      const family = val.slice(7);
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, '+')}:wght@400;500;600;700&display=swap`;
+      document.head.appendChild(link);
+    } else if (val.startsWith('custom:')) {
+      const font = (customFonts || []).find(f => f.id === val.slice(7));
+      if (!font || !font.file) return;
+      const style = document.createElement('style');
+      style.textContent = `@font-face { font-family: '${font.name}'; src: url('./fonts/${font.file}'); font-display: swap; }`;
+      document.head.appendChild(style);
+    }
+  });
+}
 
 // Langue transmise par l'AdReel/pack qui a mené ici (paramètre ?lang= dans le lien), jamais choisie par
 // le visiteur — même principe que pack.html.
@@ -133,7 +170,13 @@ async function init() {
     const res = await fetch('./data.json?v=' + Date.now());
     const data = await res.json();
     const collection = (data.collections || []).find(c => c.id === id);
-    setupContrastToggle('contrastToggle');
+    if (collection && collection.bgColor) document.documentElement.style.setProperty('--bg', collection.bgColor);
+    if (collection && collection.textColor) document.documentElement.style.setProperty('--text', collection.textColor);
+    if (collection && collection.font) {
+      injectFontAssets([collection.font], data.customFonts || []);
+      document.documentElement.style.setProperty('--font-body', fontCssFamily(collection.font, data.customFonts || []) || "'Inter', sans-serif");
+    }
+    setupContrastToggle('contrastToggle', collection && collection.bgColor, collection && collection.textColor);
     if (!collection) {
       container.innerHTML = `<div class="empty">${tr('collectionNotFound')}</div>`;
       return;
