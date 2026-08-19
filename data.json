@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1787136890140,
+  "publishedAt": 1787150720411,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -892,6 +892,7 @@
       "videoTestModeEnabled": true,
       "bgColor": "#f6f5f3",
       "textColor": "#262521",
+      "font": "default",
       "trackIds": [
         "bmsrox5psn3r4k",
         "bmrc8vlgamn4fl",
@@ -901,7 +902,7 @@
         "bmrc98f39dwq3c"
       ],
       "sfxIds": [],
-      "linkedAdReelId": null
+      "linkedAdReelId": "main"
     },
     {
       "id": "bmrucduoqf8jzn",
@@ -913,16 +914,17 @@
       "buyable": false,
       "buyUrl": "",
       "freeDownloadEnabled": false,
-      "videoTestModeEnabled": false,
+      "videoTestModeEnabled": true,
       "bgColor": "#f6f5f3",
       "textColor": "#262521",
+      "font": "default",
       "trackIds": [
         "bmruc7dbdxf1i0",
         "bmruc9x0htabo1",
         "bmruccnxudcuy8"
       ],
       "sfxIds": [],
-      "linkedAdReelId": null
+      "linkedAdReelId": "main"
     },
     {
       "id": "bms53ze9zfu132",
@@ -937,6 +939,7 @@
       "videoTestModeEnabled": true,
       "bgColor": "#f6f5f3",
       "textColor": "#262521",
+      "font": "default",
       "trackIds": [],
       "sfxIds": [
         "bms3s3uj7b4oi8",
@@ -960,6 +963,9 @@
       "illustration": null,
       "presentationFr": "",
       "presentationEn": "",
+      "bgColor": "#f6f5f3",
+      "textColor": "#262521",
+      "font": "default",
       "buyable": false,
       "buyUrl": "",
       "freeDownloadEnabled": false,
