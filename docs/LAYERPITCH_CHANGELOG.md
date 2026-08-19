@@ -8,6 +8,51 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-18] — Structure repositionnée sous Infos du morceau (tous modes), Intro/Outro séquentiel intégrés en sous-entrées, libellés courts corrigés
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : ajustements demandés après retour visuel (captures d'écran) sur l'état de la disposition maître-détail généralisée.
+
+**Changement** :
+- **Ordre des entrées, tous modes** : Infos du morceau → Structure → Contenu additionnel → Infos additionnelles (auparavant Structure arrivait après les deux dernières). Concerne vertical, vertical-random, embranchement-vertical.
+- **Séquentiel restructuré** : Intro et Outro n'étaient jusqu'ici que deux blocs repliables à part, en dehors de la disposition maître-détail des emplacements. Ils deviennent deux entrées de la liste maître, dans la catégorie "Structure" avec les emplacements — même principe que vertical-random. L'ancien mécanisme de repli (`introBlockToggle`/`outroBlockToggle`, `collapsed` par défaut) disparaît : la sélection dans la liste maître fait désormais office d'affichage/masquage, comme pour tous les autres éléments de la disposition. Le mécanisme de reclassification de rôle (bouton "Segment/Intro/Outro", conversion d'un bloc glissé-déposé) est entièrement conservé, aucune donnée ni gestionnaire touché.
+- **Catégorie "Structure"** : libellé non cliquable (confirmé), maintenant posé de façon universelle pour les 4 modes non-statiques (vertical, vertical-random, séquentiel, embranchement-vertical) plutôt que seulement vertical-random.
+- **Bug de libellé trouvé et corrigé** (vérification manuelle après la restructuration) : les items "Intro"/"Outro" de la liste maître affichaient tout le texte descriptif long (`introSectionLabel`/`outroSectionLabel`, prévu à l'origine comme titre de bloc repliable) au lieu d'un mot court — présent à la fois dans le nouveau code séquentiel et dans le vertical-random de la session précédente (jamais remarqué faute de vérification aussi poussée à l'époque). Corrigé aux 4 emplacements concernés : nouvelles clés i18n `introShortLabel`/`outroShortLabel` ("Intro"/"Outro") pour le libellé de la liste, texte descriptif long déplacé en indication (`hint-inline`) dans le panneau de détail plutôt que perdu.
+- Trois indications utiles (avertissement absence de fichier, ordre des emplacements compte, dépôt groupé) avaient disparu du template lors de la restructuration séquentielle — repérées et restaurées au bon endroit (au-dessus de la grille maître-détail).
+
+**Bouton "Partager" (AdReel en édition)** : examen du code — appelle déjà `shareOrCopy()` (`player.js`), qui tente le partage natif du navigateur/OS puis retombe automatiquement sur la copie presse-papier si indisponible. Confirmé non redondant avec "Copier le lien" : ce dernier offre une copie garantie en un clic (utile pour coller ailleurs qu'un réseau social), quand "Partager" ouvre le menu natif avec ses apps installées. **Les deux boutons sont conservés**, aucun changement de code sur ce point.
+
+**i18n** : 2 clés ajoutées en FR et en EN dans la zone `backstage` (`introShortLabel`, `outroShortLabel`). Symétrie FR/EN vérifiée programmatiquement (shared 12→12, player 47→47, backstage 530→530, 0 écart).
+
+**Vérifications** : `node --check` sur les deux fichiers — OK. Balises `<div>` équilibrées (412/412). Recoupement de toutes les clés `tr('...')` utilisées contre le dictionnaire — 0 manquante. Les 3 suites backstage encore valides (`test_backstage_content_nav_redesign`, `test_backstage_maxchainloops`, `test_backstage_custom_cut_fade_roundtrip`) et les 12 suites moteur — toutes rejouées, toutes vertes.
+
+**Non fait, à noter honnêtement** :
+- `test_backstage_intro_outro_collapse_and_reorder.js` échoue désormais **par design** (sa partie 1 teste explicitement l'ancien mécanisme de repli Intro/Outro, remplacé cette session par la sélection dans "Structure") — vérifié manuellement que le nouveau comportement fonctionne (catégorie Structure présente, Intro/Outro sélectionnables, champs modifiables, ordre correct) et que sa partie 2 (réordonnancement des morceaux, fonctionnalité indépendante) n'est pas affectée. Le fichier de test lui-même a besoin d'être réécrit pour refléter le nouveau modèle d'interaction — non traité ici.
+- "Section compte : encadrés sur les intitulés" — demande restée sans réponse claire de quelle section il s'agit, non traitée.
+- AdReels organisables en dossiers, et généralisation de la disposition maître-détail aux autres sections (Packs, etc.) — chantiers d'architecture à part entière, mis de côté comme convenu pour une session dédiée.
+
+---
+
+## [2026-08-18] — Relecture/nettoyage de la généralisation maître-détail : fuite d'écouteurs corrigée, code mort retiré
+
+**Fichier touché** : `layerpitch-backstage.html`
+
+**Contexte** : passe de relecture demandée juste après la session précédente (généralisation maître-détail aux 4 modes restants) — "repasse sur le nouveau code, corrige, optimise, nettoie".
+
+**Bug réel trouvé et corrigé** : `wireArrayDragReorder()` posait ses écouteurs de secours `pointerup`/`pointercancel` sur `document` à l'intérieur de la fonction elle-même — or cette fonction est appelée à chaque `renderLibrary()`, donc potentiellement des centaines de fois par session (à chaque frappe dans un champ). Chaque appel empilait deux écouteurs supplémentaires jamais retirés : fuite de mémoire/écouteurs qui grossit sans borne sur une session d'édition longue. Corrigé en reprenant le modèle déjà en place pour les blocs de contenu (16/08) : un seul écouteur global `releaseAllDragHandles`, posé une fois à portée module, balayant tout le document plutôt qu'un conteneur précis.
+
+**Nettoyage** :
+- Les 5 gestionnaires devenus orphelins après le passage au glisser-déposer (`toggle-collapse-layer`, `move-section-up`, `move-section-down`, `move-embr-loop-up`, `move-embr-loop-down`) sont retirés pour de bon, ainsi que `collapsedLayerKeys` (Set désormais sans utilité, y compris ses deux points de `.clear()`) — précédemment laissés en place par prudence, supprimés proprement maintenant que le contexte s'y prêtait.
+- CSS `.list-block.dragging`/`.list-block.drag-over-*` retiré (ajouté par anticipation lors de la session précédente, jamais utilisé — `wireArrayDragReorder()` n'est appelée qu'avec `.seq-master-item` en pratique). Commentaire associé corrigé pour ne plus promettre un support déjà présent qui ne l'était pas.
+- Variable `hasTempoSection`, devenue inutilisée après la restructuration du template, retirée.
+
+**Vérifications** : `node --check` sur le script extrait — OK. Balises `<div>` équilibrées (408/408). Les 4 suites backstage pertinentes (`test_backstage_content_nav_redesign`, `test_backstage_maxchainloops`, `test_backstage_custom_cut_fade_roundtrip`, `test_backstage_intro_outro_collapse_and_reorder`) et les 12 suites moteur — toutes rejouées après nettoyage, toutes vertes, aucune régression.
+
+**Non fait, à noter honnêtement** : la grille de mesures complète de l'intro (vertical-random) reste non branchée à `player.js` (déjà signalé dans l'entrée précédente, toujours vrai). `layerpitch-i18n.js` non modifié cette passe (aucune clé touchée).
+
+---
+
 ## [2026-08-18] — Généralisation de la disposition maître-détail aux 4 modes restants (vertical, vertical-random, statique, embranchement-vertical)
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
