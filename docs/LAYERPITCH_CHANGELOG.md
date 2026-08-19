@@ -8,6 +8,30 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-19] — Items de la section "Compte" (sidebar) encadrés individuellement
+
+**Fichier touché** : `layerpitch-backstage.html`
+
+**Contexte** : retour visuel (capture d'écran) — clarification de ce que signifiait "section compte" (la navigation de la sidebar : Bibliothèque musicale, Bibliothèque Sfx, Packs, Collections, Réseaux sociaux, Gérer les AdReels, Projet(s)).
+
+**Changement** : ces 7 items sont désormais enveloppés dans un conteneur `.nav-account-group`, avec un encadré (bordure fine) individuel par item -- l'item actif garde son fond plein existant, avec la bordure qui prend juste la même couleur pour rester cohérente. Bouton "Faire un retour sur la version" non touché (avait déjà son propre encadré en pointillés). CSS scopé à ce seul groupe : ni le toggle Contenu/Apparence, ni les boutons de la carte "AdReel en édition" (qui partagent la classe `.nav-item` de base) ne sont affectés.
+
+**Vérifications** : `node --check` -- OK. Balises `<div>` équilibrées (413/413, +1 partout pour le nouveau conteneur). Contenu du groupe vérifié programmatiquement contre le DOM généré (les 7 bons items, ni plus ni moins). `test_backstage_content_nav_redesign.js` (qui teste justement cette zone de la sidebar) rejoué -- vert.
+
+---
+
+## [2026-08-19] — Retrait visuel des items "enfants" de la catégorie Structure
+
+**Fichier touché** : `layerpitch-backstage.html`
+
+**Contexte** : retour visuel (capture d'écran) — la catégorie "Structure" (libellé non cliquable) et ses éléments (Intro/Outro/emplacements/couches/sections/boucles nommées) avaient exactement la même indentation que les 3 entrées virtuelles de premier niveau, rendant la hiérarchie peu lisible.
+
+**Changement** : nouvelle classe CSS `.seq-master-item-child` (léger `margin-left`, pas un simple `padding` pour que la bordure de la carte elle-même se décale) appliquée aux items qui vivent sous "Structure", quel que soit le mode — Intro/Outro (séquentiel et vertical-random), emplacements (séquentiel), couches (vertical), sections (vertical-random), boucles nommées (embranchement-vertical). Les 3 entrées virtuelles de premier niveau (Infos du morceau, Contenu additionnel, Infos additionnelles) restent alignées à gauche, non affectées. `modeMasterItem()`/`seqMasterItem()` acceptent un nouveau paramètre optionnel `isChild`, et la construction directe de l'item d'emplacement séquentiel (qui n'utilise pas ces helpers) reçoit la classe directement.
+
+**Vérifications** : `node --check` — OK. Balises `<div>` équilibrées (412/412). Vérification concrète du DOM généré pour les 4 modes concernés (séquentiel avec 2 emplacements, vertical, vertical-random, embranchement-vertical avec 2 boucles) : la classe `seq-master-item-child` est posée exactement sur les bons éléments dans tous les cas, jamais sur les 3 entrées de premier niveau. 5 suites de tests rejouées (`test_backstage_content_nav_redesign`, `test_backstage_maxchainloops`, `test_backstage_custom_cut_fade_roundtrip`, `test_seq_slot_tempo`, `test_seq_branching`) — toutes vertes.
+
+---
+
 ## [2026-08-18] — Structure repositionnée sous Infos du morceau (tous modes), Intro/Outro séquentiel intégrés en sous-entrées, libellés courts corrigés
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
