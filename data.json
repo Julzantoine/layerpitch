@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1787152493605,
+  "publishedAt": 1787259253094,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -44,324 +44,8 @@
       "loops": [],
       "randomizeSections": false,
       "sections": [],
-      "sfxIds": []
-    },
-    {
-      "id": "bmsrox5psn3r4k",
-      "title": "Robot Adventure",
-      "description": "",
-      "mode": "sequential",
-      "loopable": false,
-      "implementationNote": "",
-      "noAiOverride": null,
-      "loopEngine": "simple",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 16,
-      "startTrackBeat": 0,
-      "maxLoops": null,
-      "maxChainLoops": null,
-      "normalizeVolume": false,
-      "duration": 124.74,
-      "base": "https://Julzantoine.github.io/layerpitch/audio/bmsrox5psn3r4k/",
-      "layers": [
-        {
-          "label": "Niveau 1",
-          "file": null,
-          "gain": 1
-        }
-      ],
-      "intro": null,
-      "outro": null,
-      "segmentSlots": [
-        {
-          "id": "bmsroyqkw2curh",
-          "label": "#1 WetDarkCave",
-          "avoidImmediateRepeat": true,
-          "referencesSlotId": null,
-          "repeatCount": 1,
-          "quantization": "bar",
-          "cutStyle": "custom",
-          "customCutFadeSec": 1,
-          "descriptionFr": "Une musique SF à embranchement qui suit les actions et la localisation du joueur...\n\n#1_Wet Dark Cave\n\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\n-> Alors que vous explorez la cave dans laquelle vous venez de débouler, la musique vous accompagne gentiment et boucle en attendant que trouviez le levier secret... \nC'est bon? Vous l'avez trouvé, caché derrière un vieux meuble? \nAlors vous pouvez cliquer sur #2 Corridor !",
-          "descriptionEn": "#1_Wet Dark Cave\n\"Alright, team, let’s spread out. If the map’s right, we shouldn’t be far from the core of the matrix!\"\n→ As you explore the cave you just tumbled into, the music gently accompanies you, looping as you search for the hidden lever...\nGot it? Found it, tucked behind an old piece of furniture?\nThen you can click on #2_Corridor!\n",
-          "nextOptions": [
-            {
-              "targetId": "bmsroyqkwf73ti",
-              "label": "",
-              "transition": {
-                "label": "#1bis SecretLever Transition",
-                "bars": 2,
-                "durationUnit": null,
-                "file": "slot0-branch0-transition-1bis-secretlever-transition.ogg",
-                "gain": 3.981,
-                "descriptionFr": "Une porte dérobée s'ouvre devant vous... Un long couloir sombre vous attend... ",
-                "descriptionEn": "A hidden door creaks open in front of you... A long, dark corridor lies ahead..."
-              }
-            }
-          ],
-          "alternatives": [
-            {
-              "label": "#1 RobotAdventure WetDarkCave 120bpm 30M",
-              "bars": 30,
-              "file": "slot0-0-1-robotadventure-wetdarkcave-120bpm-30m.ogg",
-              "gain": 1.066
-            }
-          ]
-        },
-        {
-          "id": "bmsroyqkwf73ti",
-          "label": "#2 Corridor",
-          "avoidImmediateRepeat": true,
-          "referencesSlotId": null,
-          "repeatCount": 1,
-          "quantization": "beat",
-          "cutStyle": "custom",
-          "customCutFadeSec": 1,
-          "descriptionFr": "#2_The Corridor\n- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nVous et votre team vous remettez en route... Vous vous engagez dans un long corridor sombre, la tension monte. \n\n-> Qu'allez vous trouver au bout de ce long corridor? X'est encore flou mais la musique qui fait monter gentiment la pression vous donne quand même une petite idée, non?\n\nLorsque vous êtes prêts, continuez votre route jusqu'au grand hall que vous apercevez au loin !\n\nPS : Vous pouvez également revenir sur vos pas... Petit joueur!",
-          "descriptionEn": "#2_The Corridor\n\n- **\"Hey Joe! A door just opened!\"**\n- **\"Watch out, Lucien, those bastards are everywhere...\"**\n- **\"I think it’s this way—I hear noises. Should we go?\"**\n- **\"Okay... But don’t go too far, this crap’s making me nervous.\"**\n\nYou and your team move forward... You step into a long, dark corridor, tension rising.\n\n→ What will you find at the end of this long corridor? It’s still unclear, but the music, gently building pressure, gives you a little hint, doesn’t it?\n\nWhen you're ready, continue your journey toward the grand hall you can see in the distance!\n\nPS: You can also backtrack... You cautious player! ",
-          "nextOptions": [
-            {
-              "targetId": "bmsroyqkw5wacj",
-              "label": "",
-              "transition": null
-            },
-            {
-              "targetId": "bmsroyqkw2curh",
-              "label": "",
-              "transition": null
-            }
-          ],
-          "alternatives": [
-            {
-              "label": "#2 RobotAdventure Corridor 120bpm 30M",
-              "bars": 30,
-              "file": "slot1-0-2-robotadventure-corridor-120bpm-30m.ogg",
-              "gain": 1.738
-            }
-          ]
-        },
-        {
-          "id": "bmsroyqkw5wacj",
-          "label": "#3 Battle",
-          "avoidImmediateRepeat": true,
-          "referencesSlotId": null,
-          "repeatCount": 1,
-          "quantization": "bar",
-          "cutStyle": "custom",
-          "customCutFadeSec": 1,
-          "bpm": 160,
-          "descriptionFr": "#3_Battle\n- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait? Chef?? Chef?!\"\n\nVous débouchez sur une grande caverne...où des centaines de robots vous prennent au dépourvu et vous mitraillent. Peut être que vous auriez dû sauvegarder avant, finalement...",
-          "descriptionEn": "#3_Battle\n\n- \"THEY’RE COMING!!! Form up, fire at will! Damn robots, they’re everywhere!\"\n- \"Boss, what do we do? Boss?? Boss?!\"\n\nYou emerge into a massive cavern... where hundreds of robots catch you off guard and open fire. Maybe you *should* have saved earlier, after all...\n\n→ A branching soundtrack that follows the player’s actions and location...",
-          "nextOptions": [
-            {
-              "targetId": "bmsroyqkw2curh",
-              "label": "",
-              "transition": null
-            },
-            {
-              "targetId": "bmsroyqkwf73ti",
-              "label": "",
-              "transition": null
-            }
-          ],
-          "alternatives": [
-            {
-              "label": "#3 RobotAdventure BattleFinal 160bpm 40M",
-              "bars": 40,
-              "file": "slot2-0-3-robotadventure-battlefinal-160bpm-40m.ogg",
-              "gain": 1.156
-            }
-          ]
-        }
-      ],
-      "loops": [],
-      "randomizeSections": false,
-      "sections": [],
-      "sfxIds": [
-        "bms3sf3itgekxm",
-        "bms3s3uj7b4oi8",
-        "bms378c2zbxgpd"
-      ]
-    },
-    {
-      "id": "bmrc8vlgamn4fl",
-      "title": "Robot Adventure_Exploration",
-      "description": "\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\nUne Exploration Loop statique pour un danger relativement lointain. Avec en prime, un levier secret avec lequel s'amuser un peu.",
-      "mode": "static",
-      "loopable": true,
-      "implementationNote": "",
-      "noAiOverride": null,
-      "loopEngine": "simple",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 16,
-      "startTrackBeat": 0,
-      "maxLoops": null,
-      "maxChainLoops": null,
-      "normalizeVolume": false,
-      "duration": 60,
-      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8vlgamn4fl/",
-      "layers": [
-        {
-          "label": "Niveau 1",
-          "file": "0-niveau-1.ogg",
-          "gain": 1
-        }
-      ],
-      "intro": null,
-      "outro": null,
-      "segmentSlots": [],
-      "loops": [],
-      "randomizeSections": false,
-      "sections": [],
-      "sfxIds": [
-        "bms378c2zbxgpd"
-      ]
-    },
-    {
-      "id": "bmrc8x6x8x9cof",
-      "title": "Robot Adventure_The Corridor",
-      "description": "- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nUne Loop statique dans le même style que la précédente, mais qui fait monter l'intensité d'un cran.",
-      "mode": "static",
-      "loopable": true,
-      "implementationNote": "",
-      "noAiOverride": null,
-      "loopEngine": "simple",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 16,
-      "startTrackBeat": 0,
-      "maxLoops": null,
-      "maxChainLoops": null,
-      "normalizeVolume": false,
-      "duration": 60,
-      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8x6x8x9cof/",
-      "layers": [
-        {
-          "label": "Niveau 1",
-          "file": "0-niveau-1.ogg",
-          "gain": 1
-        }
-      ],
-      "intro": null,
-      "outro": null,
-      "segmentSlots": [],
-      "loops": [],
-      "randomizeSections": false,
-      "sections": [],
-      "sfxIds": []
-    },
-    {
-      "id": "bmrc8yz5vutcbi",
-      "title": "Robot Adventure_Final Battle",
-      "description": "- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait? Chef?? Chef?!\"\n\nUne Battle Loop Statique : Pression Maximale !!! ",
-      "mode": "static",
-      "loopable": true,
-      "implementationNote": "",
-      "noAiOverride": null,
-      "loopEngine": "simple",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 16,
-      "startTrackBeat": 0,
-      "maxLoops": null,
-      "maxChainLoops": null,
-      "normalizeVolume": false,
-      "duration": 60,
-      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8yz5vutcbi/",
-      "layers": [
-        {
-          "label": "Niveau 1",
-          "file": "0-niveau-1.ogg",
-          "gain": 1
-        }
-      ],
-      "intro": null,
-      "outro": null,
-      "segmentSlots": [],
-      "loops": [],
-      "randomizeSections": false,
-      "sections": [],
-      "sfxIds": []
-    },
-    {
-      "id": "bmrc90bhy0sxpk",
-      "title": "Dans l'Immensité Spatiale",
-      "description": "Au milieu des étoiles vogue le USS PME, le fleuron de la marine Terrienne. En pleine exploration spatiale, l'équipe reste sur ses gardes... Le danger peut provenir de partout.\n\nUn générique d'ouverture pour mettre tout le monde dans l'ambiance. On n'est pas là, pour rigoler, ok?!",
-      "mode": "static",
-      "loopable": false,
-      "implementationNote": "",
-      "noAiOverride": null,
-      "loopEngine": "simple",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 16,
-      "startTrackBeat": 0,
-      "maxLoops": null,
-      "maxChainLoops": null,
-      "normalizeVolume": false,
-      "duration": 183,
-      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc90bhy0sxpk/",
-      "layers": [
-        {
-          "label": "Niveau 1",
-          "file": "0-niveau-1.ogg",
-          "gain": 1
-        }
-      ],
-      "intro": null,
-      "outro": null,
-      "segmentSlots": [],
-      "loops": [],
-      "randomizeSections": false,
-      "sections": [],
-      "sfxIds": []
-    },
-    {
-      "id": "bmrc98f39dwq3c",
-      "title": "Galactic Baston",
-      "description": "\"Nous sommes les Borgs. Abaissez vos boucliers et rendez-vous sans condition. Nous intègrerons vos caractéristiques biologiques et technologiques aux nôtres. Votre culture s’adaptera à nos besoins. Toute résistance serait futile.\" \nQuand tu entends ça, il n'y a plus qu'une chose à faire : vérifier que ton pistolaser a encore un peu de batterie...\n\nUne battle loop statique à base de baston contre les robots",
-      "mode": "static",
-      "loopable": true,
-      "implementationNote": "",
-      "noAiOverride": null,
-      "loopEngine": "simple",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 16,
-      "startTrackBeat": 0,
-      "maxLoops": null,
-      "maxChainLoops": null,
-      "normalizeVolume": false,
-      "duration": 60,
-      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc98f39dwq3c/",
-      "layers": [
-        {
-          "label": "Niveau 1",
-          "file": "0-niveau-1.ogg",
-          "gain": 1
-        }
-      ],
-      "intro": null,
-      "outro": null,
-      "segmentSlots": [],
-      "loops": [],
-      "randomizeSections": false,
-      "sections": [],
-      "sfxIds": []
+      "sfxIds": [],
+      "folderId": null
     },
     {
       "id": "bmrc9dbzsaio19",
@@ -396,7 +80,8 @@
       "loops": [],
       "randomizeSections": false,
       "sections": [],
-      "sfxIds": []
+      "sfxIds": [],
+      "folderId": null
     },
     {
       "id": "bmrdjlv9p1cbv9",
@@ -607,7 +292,8 @@
           ]
         }
       ],
-      "sfxIds": []
+      "sfxIds": [],
+      "folderId": null
     },
     {
       "id": "bmresp3hdlhbmx",
@@ -694,7 +380,331 @@
       "loops": [],
       "randomizeSections": false,
       "sections": [],
-      "sfxIds": []
+      "sfxIds": [],
+      "folderId": null
+    },
+    {
+      "id": "bmsrox5psn3r4k",
+      "title": "Robot Adventure",
+      "description": "",
+      "mode": "sequential",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 124.74,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmsrox5psn3r4k/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": null,
+          "gain": 1
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [
+        {
+          "id": "bmsroyqkw2curh",
+          "label": "#1 WetDarkCave",
+          "avoidImmediateRepeat": true,
+          "referencesSlotId": null,
+          "repeatCount": 1,
+          "quantization": "bar",
+          "cutStyle": "custom",
+          "customCutFadeSec": 1,
+          "descriptionFr": "Une musique SF à embranchement qui suit les actions et la localisation du joueur...\n\n#1_Wet Dark Cave\n\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\n-> Alors que vous explorez la cave dans laquelle vous venez de débouler, la musique vous accompagne gentiment et boucle en attendant que trouviez le levier secret... \nC'est bon? Vous l'avez trouvé, caché derrière un vieux meuble? \nAlors vous pouvez cliquer sur #2 Corridor !",
+          "descriptionEn": "#1_Wet Dark Cave\n\"Alright, team, let’s spread out. If the map’s right, we shouldn’t be far from the core of the matrix!\"\n→ As you explore the cave you just tumbled into, the music gently accompanies you, looping as you search for the hidden lever...\nGot it? Found it, tucked behind an old piece of furniture?\nThen you can click on #2_Corridor!\n",
+          "nextOptions": [
+            {
+              "targetId": "bmsroyqkwf73ti",
+              "label": "",
+              "transition": {
+                "label": "#1bis SecretLever Transition",
+                "bars": 2,
+                "durationUnit": null,
+                "file": "slot0-branch0-transition-1bis-secretlever-transition.ogg",
+                "gain": 3.981,
+                "descriptionFr": "Une porte dérobée s'ouvre devant vous... Un long couloir sombre vous attend... ",
+                "descriptionEn": "A hidden door creaks open in front of you... A long, dark corridor lies ahead..."
+              }
+            }
+          ],
+          "alternatives": [
+            {
+              "label": "#1 RobotAdventure WetDarkCave 120bpm 30M",
+              "bars": 30,
+              "file": "slot0-0-1-robotadventure-wetdarkcave-120bpm-30m.ogg",
+              "gain": 1.066
+            }
+          ]
+        },
+        {
+          "id": "bmsroyqkwf73ti",
+          "label": "#2 Corridor",
+          "avoidImmediateRepeat": true,
+          "referencesSlotId": null,
+          "repeatCount": 1,
+          "quantization": "beat",
+          "cutStyle": "custom",
+          "customCutFadeSec": 1,
+          "descriptionFr": "#2_The Corridor\n- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nVous et votre team vous remettez en route... Vous vous engagez dans un long corridor sombre, la tension monte. \n\n-> Qu'allez vous trouver au bout de ce long corridor? X'est encore flou mais la musique qui fait monter gentiment la pression vous donne quand même une petite idée, non?\n\nLorsque vous êtes prêts, continuez votre route jusqu'au grand hall que vous apercevez au loin !\n\nPS : Vous pouvez également revenir sur vos pas... Petit joueur!",
+          "descriptionEn": "#2_The Corridor\n\n- **\"Hey Joe! A door just opened!\"**\n- **\"Watch out, Lucien, those bastards are everywhere...\"**\n- **\"I think it’s this way—I hear noises. Should we go?\"**\n- **\"Okay... But don’t go too far, this crap’s making me nervous.\"**\n\nYou and your team move forward... You step into a long, dark corridor, tension rising.\n\n→ What will you find at the end of this long corridor? It’s still unclear, but the music, gently building pressure, gives you a little hint, doesn’t it?\n\nWhen you're ready, continue your journey toward the grand hall you can see in the distance!\n\nPS: You can also backtrack... You cautious player! ",
+          "nextOptions": [
+            {
+              "targetId": "bmsroyqkw5wacj",
+              "label": "",
+              "transition": null
+            },
+            {
+              "targetId": "bmsroyqkw2curh",
+              "label": "",
+              "transition": null
+            }
+          ],
+          "alternatives": [
+            {
+              "label": "#2 RobotAdventure Corridor 120bpm 30M",
+              "bars": 30,
+              "file": "slot1-0-2-robotadventure-corridor-120bpm-30m.ogg",
+              "gain": 1.738
+            }
+          ]
+        },
+        {
+          "id": "bmsroyqkw5wacj",
+          "label": "#3 Battle",
+          "avoidImmediateRepeat": true,
+          "referencesSlotId": null,
+          "repeatCount": 1,
+          "quantization": "bar",
+          "cutStyle": "custom",
+          "customCutFadeSec": 1,
+          "bpm": 160,
+          "descriptionFr": "#3_Battle\n- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait? Chef?? Chef?!\"\n\nVous débouchez sur une grande caverne...où des centaines de robots vous prennent au dépourvu et vous mitraillent. Peut être que vous auriez dû sauvegarder avant, finalement...",
+          "descriptionEn": "#3_Battle\n\n- \"THEY’RE COMING!!! Form up, fire at will! Damn robots, they’re everywhere!\"\n- \"Boss, what do we do? Boss?? Boss?!\"\n\nYou emerge into a massive cavern... where hundreds of robots catch you off guard and open fire. Maybe you *should* have saved earlier, after all...\n\n→ A branching soundtrack that follows the player’s actions and location...",
+          "nextOptions": [
+            {
+              "targetId": "bmsroyqkw2curh",
+              "label": "",
+              "transition": null
+            },
+            {
+              "targetId": "bmsroyqkwf73ti",
+              "label": "",
+              "transition": null
+            }
+          ],
+          "alternatives": [
+            {
+              "label": "#3 RobotAdventure BattleFinal 160bpm 40M",
+              "bars": 40,
+              "file": "slot2-0-3-robotadventure-battlefinal-160bpm-40m.ogg",
+              "gain": 1.156
+            }
+          ]
+        }
+      ],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [
+        "bms3sf3itgekxm",
+        "bms3s3uj7b4oi8",
+        "bms378c2zbxgpd"
+      ],
+      "folderId": "bmt1zz0k0043qq"
+    },
+    {
+      "id": "bmrc8x6x8x9cof",
+      "title": "Robot Adventure_The Corridor",
+      "description": "- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nUne Loop statique dans le même style que la précédente, mais qui fait monter l'intensité d'un cran.",
+      "mode": "static",
+      "loopable": true,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8x6x8x9cof/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "gain": 1
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": "bmt1zz0k0043qq"
+    },
+    {
+      "id": "bmrc8yz5vutcbi",
+      "title": "Robot Adventure_Final Battle",
+      "description": "- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait? Chef?? Chef?!\"\n\nUne Battle Loop Statique : Pression Maximale !!! ",
+      "mode": "static",
+      "loopable": true,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8yz5vutcbi/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "gain": 1
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": "bmt1zz0k0043qq"
+    },
+    {
+      "id": "bmrc90bhy0sxpk",
+      "title": "Dans l'Immensité Spatiale",
+      "description": "Au milieu des étoiles vogue le USS PME, le fleuron de la marine Terrienne. En pleine exploration spatiale, l'équipe reste sur ses gardes... Le danger peut provenir de partout.\n\nUn générique d'ouverture pour mettre tout le monde dans l'ambiance. On n'est pas là, pour rigoler, ok?!",
+      "mode": "static",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 183,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc90bhy0sxpk/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "gain": 1
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": "bmt1zz0k0043qq"
+    },
+    {
+      "id": "bmrc98f39dwq3c",
+      "title": "Galactic Baston",
+      "description": "\"Nous sommes les Borgs. Abaissez vos boucliers et rendez-vous sans condition. Nous intègrerons vos caractéristiques biologiques et technologiques aux nôtres. Votre culture s’adaptera à nos besoins. Toute résistance serait futile.\" \nQuand tu entends ça, il n'y a plus qu'une chose à faire : vérifier que ton pistolaser a encore un peu de batterie...\n\nUne battle loop statique à base de baston contre les robots",
+      "mode": "static",
+      "loopable": true,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc98f39dwq3c/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "gain": 1
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": "bmt1zz0k0043qq"
+    },
+    {
+      "id": "bmrc8vlgamn4fl",
+      "title": "Robot Adventure_Exploration",
+      "description": "\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\nUne Exploration Loop statique pour un danger relativement lointain. Avec en prime, un levier secret avec lequel s'amuser un peu.",
+      "mode": "static",
+      "loopable": true,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8vlgamn4fl/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "gain": 1
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [
+        "bms378c2zbxgpd"
+      ],
+      "folderId": "bmt1zz0k0043qq"
     },
     {
       "id": "bmruc7dbdxf1i0",
@@ -729,42 +739,8 @@
       "loops": [],
       "randomizeSections": false,
       "sections": [],
-      "sfxIds": []
-    },
-    {
-      "id": "bmruc9x0htabo1",
-      "title": "Doucement s'en va le jour",
-      "description": "",
-      "mode": "static",
-      "loopable": false,
-      "implementationNote": "",
-      "noAiOverride": null,
-      "loopEngine": "simple",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 16,
-      "startTrackBeat": 0,
-      "maxLoops": null,
-      "maxChainLoops": null,
-      "normalizeVolume": false,
-      "duration": 108.54,
-      "base": "https://Julzantoine.github.io/layerpitch/audio/bmruc9x0htabo1/",
-      "layers": [
-        {
-          "label": "Niveau 1",
-          "file": "0-niveau-1.ogg",
-          "gain": 0.864
-        }
-      ],
-      "intro": null,
-      "outro": null,
-      "segmentSlots": [],
-      "loops": [],
-      "randomizeSections": false,
-      "sections": [],
-      "sfxIds": []
+      "sfxIds": [],
+      "folderId": "bmt1zzvylh1am2"
     },
     {
       "id": "bmruccnxudcuy8",
@@ -799,7 +775,54 @@
       "loops": [],
       "randomizeSections": false,
       "sections": [],
-      "sfxIds": []
+      "sfxIds": [],
+      "folderId": "bmt1zzvylh1am2"
+    },
+    {
+      "id": "bmruc9x0htabo1",
+      "title": "Doucement s'en va le jour",
+      "description": "",
+      "mode": "static",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 108.54,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmruc9x0htabo1/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "gain": 0.864
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": "bmt1zzvylh1am2"
+    }
+  ],
+  "libraryFolders": [
+    {
+      "id": "bmt1zz0k0043qq",
+      "label": "SF"
+    },
+    {
+      "id": "bmt1zzvylh1am2",
+      "label": "8Bits"
     }
   ],
   "sfxLibrary": [
@@ -816,7 +839,8 @@
           "label": "",
           "file": "stinger-0-levier-secret.ogg"
         }
-      ]
+      ],
+      "folderId": null
     },
     {
       "id": "bms3s3uj7b4oi8",
@@ -839,7 +863,8 @@
           "label": "",
           "file": "2-variation.ogg"
         }
-      ]
+      ],
+      "folderId": null
     },
     {
       "id": "bms3sf3itgekxm",
@@ -874,9 +899,11 @@
           "label": "",
           "file": "5-variation.ogg"
         }
-      ]
+      ],
+      "folderId": null
     }
   ],
+  "sfxFolders": [],
   "socials": [
     {
       "id": "bmt08g6pt5rm75",
@@ -884,6 +911,7 @@
       "url": ""
     }
   ],
+  "adReelFolders": [],
   "packs": [
     {
       "id": "bmrcakdllw9m7v",
@@ -1092,7 +1120,8 @@
         "bmrdjlv9p1cbv9",
         "bmrc9dbzsaio19"
       ],
-      "trackOverrides": {}
+      "trackOverrides": {},
+      "folderId": null
     },
     {
       "id": "amsel-suite",
@@ -1191,7 +1220,8 @@
         "bmresp3hdlhbmx",
         "bmrc9dbzsaio19"
       ],
-      "trackOverrides": {}
+      "trackOverrides": {},
+      "folderId": null
     },
     {
       "id": "xp-games",
@@ -1313,7 +1343,8 @@
         "bmresp3hdlhbmx": {
           "description": "It’s pitch black... The tension rises. Why did you rush ahead without waiting for the team? That’s the question running through your mind right now. The door at the end of the hallway is slightly ajar, letting through a thin beam of light. So... what do you do? Do you keep chasing to prevent them from escaping, risking walking into a trap? Or do you wait for the team? Breathe. Slowly. Deeply... And make a decision.\n\nAn intro, an outro... In between, randomly selected 8- or 16-bar segments. Pure sequential tension-building music..."
         }
-      }
+      },
+      "folderId": null
     },
     {
       "id": "demo-trusted-people",
@@ -1456,7 +1487,8 @@
         "bmsrox5psn3r4k": {
           "description": "#1_Wet Dark Cave\n“Okay guys, spread out. If the map is right, we shouldn’t be too far from the core of the Matrix!”\n\n#2_The Corridor\n“Hey Joe! A door just opened!”\n“Watch out, Lucien. Those bastards are everywhere…”\n“I think it’s this way. I can hear something. Shall we go?”\n“Okay… But don’t go too far. This shit is making me nervous.”\n\nYour team moves forward… and eventually finds a secret lever that opens a hidden door. You make your way into a long, dark corridor. The tension is rising.\n\n#3_Battle\n“THEY’RE COMING!!! Formation! Fire at will! Goddamn robots, they’re everywhere!”\n“Boss, what do we do? Boss?? Boss?!”\n\nYou emerge into a huge cavern… where hundreds of robots catch you off guard and open fire. Maybe you should’ve saved your game after all…\n\n-> A branching piece of music that follows the player’s actions and location…\n"
         }
-      }
+      },
+      "folderId": null
     },
     {
       "id": "demo-fr",
@@ -1570,7 +1602,8 @@
         "bmrdjlv9p1cbv9",
         "bmrc9dbzsaio19"
       ],
-      "trackOverrides": {}
+      "trackOverrides": {},
+      "folderId": null
     },
     {
       "id": "formike",
@@ -1710,7 +1743,8 @@
         "bmsrox5psn3r4k": {
           "description": "#1_Wet Dark Cave\n“Okay guys, spread out. If the map is right, we shouldn’t be too far from the core of the Matrix!”\n\n#2_The Corridor\n“Hey Joe! A door just opened!”\n“Watch out, Lucien. Those bastards are everywhere…”\n“I think it’s this way. I can hear something. Shall we go?”\n“Okay… But don’t go too far. This shit is making me nervous.”\n\nYour team moves forward… and eventually finds a secret lever that opens a hidden door. You make your way into a long, dark corridor. The tension is rising.\n\n#3_Battle\n“THEY’RE COMING!!! Formation! Fire at will! Goddamn robots, they’re everywhere!”\n“Boss, what do we do? Boss?? Boss?!”\n\nYou emerge into a huge cavern… where hundreds of robots catch you off guard and open fire. Maybe you should’ve saved your game after all…\n\n-> A branching piece of music that follows the player’s actions and location…"
         }
-      }
+      },
+      "folderId": null
     }
   ]
 }
