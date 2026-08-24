@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1787578504348,
+  "publishedAt": 1787578705069,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -14,7 +14,7 @@
       "beatsPerBar": 4,
       "loopGridUnit": "bars",
       "loopInBeat": 0,
-      "loopOutBeat": 255,
+      "loopOutBeat": 259,
       "startTrackBeat": 0,
       "maxLoops": null,
       "maxChainLoops": null,
