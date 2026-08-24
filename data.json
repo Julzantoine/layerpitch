@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1787259253094,
+  "publishedAt": 1787578051313,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -9,12 +9,12 @@
       "loopable": false,
       "implementationNote": "RTPC Suggéré : Nombre d'ennemis à l'écran",
       "noAiOverride": null,
-      "loopEngine": "simple",
+      "loopEngine": "quantized",
       "bpm": 120,
       "beatsPerBar": 4,
       "loopGridUnit": "bars",
       "loopInBeat": 0,
-      "loopOutBeat": 16,
+      "loopOutBeat": 119,
       "startTrackBeat": 0,
       "maxLoops": null,
       "maxChainLoops": null,
