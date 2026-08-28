@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1787949274770,
+  "publishedAt": 1787949374101,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -831,7 +831,7 @@
     },
     {
       "id": "bmtdertfd54oce",
-      "title": "#1 Lent",
+      "title": "Monte en l'air et Patte de velours",
       "description": "",
       "mode": "embranchement-vertical",
       "loopable": false,
@@ -863,7 +863,7 @@
       "loops": [
         {
           "id": "bmtdes2ldszm6j",
-          "label": "#1 Lent",
+          "label": "Tout se bien...",
           "bars": 8,
           "isInitial": true,
           "file": "loop0-1-lent.ogg",
@@ -887,7 +887,7 @@
         },
         {
           "id": "bmtdesxntpfexr",
-          "label": "#2 Rapide",
+          "label": "Des gens arrivent",
           "bars": 8,
           "isInitial": false,
           "file": "loop1-2-rapide.ogg",
