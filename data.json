@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1787581040821,
+  "publishedAt": 1787949274770,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -25,17 +25,20 @@
         {
           "label": "Ca va, c'est cool...",
           "file": "0-ca-va-c-est-cool.ogg",
-          "gain": 1
+          "gain": 1,
+          "duration": 0
         },
         {
           "label": "Mais ils sont combien comme ça?",
           "file": "1-mais-ils-sont-combien-comme-ca.ogg",
-          "gain": 1
+          "gain": 1,
+          "duration": 0
         },
         {
           "label": "On va tous crever!!!",
           "file": "2-on-va-tous-crever.ogg",
-          "gain": 1
+          "gain": 1,
+          "duration": 0
         }
       ],
       "intro": null,
@@ -71,7 +74,8 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
-          "gain": 1
+          "gain": 1,
+          "duration": 0
         }
       ],
       "intro": null,
@@ -107,7 +111,8 @@
         {
           "label": "Niveau 1",
           "file": null,
-          "gain": 1
+          "gain": 1,
+          "duration": 0
         }
       ],
       "intro": null,
@@ -319,7 +324,8 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
-          "gain": 1
+          "gain": 1,
+          "duration": 0
         }
       ],
       "intro": {
@@ -407,7 +413,8 @@
         {
           "label": "Niveau 1",
           "file": null,
-          "gain": 1
+          "gain": 1,
+          "duration": 0
         }
       ],
       "intro": null,
@@ -548,7 +555,8 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
-          "gain": 1
+          "gain": 1,
+          "duration": 0
         }
       ],
       "intro": null,
@@ -584,7 +592,8 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
-          "gain": 1
+          "gain": 1,
+          "duration": 0
         }
       ],
       "intro": null,
@@ -620,7 +629,8 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
-          "gain": 1
+          "gain": 1,
+          "duration": 0
         }
       ],
       "intro": null,
@@ -656,7 +666,8 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
-          "gain": 1
+          "gain": 1,
+          "duration": 0
         }
       ],
       "intro": null,
@@ -692,7 +703,8 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
-          "gain": 1
+          "gain": 1,
+          "duration": 0
         }
       ],
       "intro": null,
@@ -730,7 +742,8 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
-          "gain": 0.877
+          "gain": 0.877,
+          "duration": 0
         }
       ],
       "intro": null,
@@ -766,7 +779,8 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
-          "gain": 0.95
+          "gain": 0.95,
+          "duration": 0
         }
       ],
       "intro": null,
@@ -802,7 +816,8 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
-          "gain": 0.864
+          "gain": 0.864,
+          "duration": 0
         }
       ],
       "intro": null,
@@ -813,6 +828,92 @@
       "sections": [],
       "sfxIds": [],
       "folderId": "bmt1zzvylh1am2"
+    },
+    {
+      "id": "bmtdertfd54oce",
+      "title": "#1 Lent",
+      "description": "",
+      "mode": "embranchement-vertical",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 60,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 0,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmtdertfd54oce/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [
+        {
+          "id": "bmtdes2ldszm6j",
+          "label": "#1 Lent",
+          "bars": 8,
+          "isInitial": true,
+          "file": "loop0-1-lent.ogg",
+          "gain": 2.31,
+          "switchQuantize": "immediate",
+          "autoReturnEnabled": false,
+          "autoReturnValue": 4,
+          "autoReturnUnit": "bars",
+          "detourMode": "once",
+          "endLoopButtonLabel": "",
+          "startTrackBeat": 0,
+          "loopInBeat": 4,
+          "loopOutBeat": null,
+          "duration": 41.4,
+          "isDetour": false,
+          "bpm": 60,
+          "beatsPerBar": 4,
+          "cutStyle": "fade",
+          "customCutFadeSec": null,
+          "transition": null
+        },
+        {
+          "id": "bmtdesxntpfexr",
+          "label": "#2 Rapide",
+          "bars": 8,
+          "isInitial": false,
+          "file": "loop1-2-rapide.ogg",
+          "gain": 1.972,
+          "switchQuantize": "immediate",
+          "autoReturnEnabled": false,
+          "autoReturnValue": 4,
+          "autoReturnUnit": "bars",
+          "detourMode": "once",
+          "endLoopButtonLabel": "",
+          "startTrackBeat": 0,
+          "loopInBeat": 0,
+          "loopOutBeat": null,
+          "duration": 41.4,
+          "isDetour": false,
+          "bpm": null,
+          "beatsPerBar": null,
+          "cutStyle": "fade",
+          "customCutFadeSec": null,
+          "transition": null
+        }
+      ],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": null
     }
   ],
   "libraryFolders": [
