@@ -1085,6 +1085,8 @@ function initTrackPlayer(track, wrapper) {
   let activeGenSources = []; // moteur quantifié : [{src, gain}], toutes générations (dont queues) confondues
   // ---- État moteur embranchement-vertical (voir bloc dédié plus bas pour la logique) ----
   let embrLoopBuffers = []; // un buffer par boucle déclarée (même ordre que track.loops), null si manquante
+  let embrTransitionBuffers = []; // idem, un buffer de transition optionnel par boucle (24/08), null si absente/pas de fichier
+  let embrActiveTransitionSources = []; // sources de transition actuellement en train de sonner -- suivies pour pouvoir les couper sur Stop (voir stopEmbrVertical)
   let embrActiveGenSources = []; // {src, gain, loopIdx} des générations "pairs" (même longueur que la référence) en cours
   let embrActiveLoopIdx = -1; // index (dans track.loops) de la boucle actuellement AUDIBLE
   let embrSchedulerTimer = null;
@@ -2001,9 +2003,47 @@ function initTrackPlayer(track, wrapper) {
     return idx >= 0 ? idx : 0;
   })();
   const embrRefBars = ((track.loops || [])[embrReferenceIdx] || {}).bars;
+  // Classification paire/détour explicite (isDetour, 24/08) plutôt qu'une comparaison implicite des
+  // mesures -- avec repli sur l'ancienne comparaison si le champ est absent du JSON chargé (morceau publié
+  // avant ce changement, pas encore republié depuis). Une fois republié via le backstage, `isDetour` est
+  // toujours explicitement présent (migré à la volée côté loadData()) et ce repli ne joue plus.
   const embrPeerIndices = (track.loops || []).map((l, i) => i)
-    .filter(i => i === embrReferenceIdx || (track.loops[i].bars === embrRefBars));
-  const EMBR_CROSSFADE_SEC = 0.15; // même durée que refreshVoiceGains() — fondu court et immédiat, pas d'attente de quantification
+    .filter(i => {
+      if (i === embrReferenceIdx) return true;
+      const l = track.loops[i];
+      return 'isDetour' in l ? !l.isDetour : (l.bars === embrRefBars);
+    });
+  const EMBR_CROSSFADE_SEC = 0.15; // repli par défaut ("fade" standard, sans réglage personnalisé) -- même durée que refreshVoiceGains()
+  // Durée de fondu à utiliser pour la bascule VERS une boucle donnée (24/08) -- remplace la constante fixe
+  // EMBR_CROSSFADE_SEC utilisée partout jusqu'ici. "hard" = coupure nette (0s, aucune rampe) ; "custom" =
+  // valeur réglée sur cette boucle précise ; "fade" (par défaut) ou réglage absent = repli EMBR_CROSSFADE_SEC,
+  // comportement identique à avant ce changement.
+  function embrCutFadeSec(loopDef) {
+    if (!loopDef) return EMBR_CROSSFADE_SEC;
+    if (loopDef.cutStyle === 'hard') return 0;
+    if (loopDef.cutStyle === 'custom') return loopDef.customCutFadeSec != null ? loopDef.customCutFadeSec : EMBR_CROSSFADE_SEC;
+    return EMBR_CROSSFADE_SEC;
+  }
+  // Joue le fichier de transition (24/08) de la boucle CIBLE, s'il en existe un -- en overlay, superposé au
+  // fondu de coupure plutôt qu'inséré séquentiellement entre les deux boucles (bien plus simple à
+  // synchroniser correctement, et suffisant pour l'usage visé : un whoosh/une texture qui accompagne la
+  // bascule plutôt qu'un vrai montage Wwise à embranchements). Suivie dans embrActiveTransitionSources
+  // (contrairement à une vraie source "fire-and-forget") uniquement pour pouvoir la couper sur Stop --
+  // bug trouvé à la relecture du 24/08 : sans ce suivi, une transition encore audible continuerait de
+  // sonner après un Stop, la seule source de ce moteur à ne pas être coupée proprement.
+  function playEmbrTransitionIfAny(loopIdx, ctxStartTime) {
+    const buf = embrTransitionBuffers[loopIdx];
+    if (!buf) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(trackMasterGain);
+    src.start(ctxStartTime, 0);
+    embrActiveTransitionSources.push(src);
+    src.onended = () => {
+      const i = embrActiveTransitionSources.indexOf(src);
+      if (i !== -1) embrActiveTransitionSources.splice(i, 1);
+    };
+  }
   // Points de boucle (Départ/Entrée/Sortie) de la boucle de référence (24/08) -- optionnels. S'ils sont
   // réglés (Sortie > Entrée), remplacent le calcul de durée de cycle par simple nombre de mesures : la
   // fenêtre de lecture Entrée->Sortie devient le cycle réel, et TOUTE génération (référence et boucles
@@ -2014,12 +2054,19 @@ function initTrackPlayer(track, wrapper) {
   // inchangé (durée = nombre de mesures, démarrage à l'offset 0 pour toutes les générations).
   function embrLoopTiming() {
     const refLoop = (track.loops || [])[embrReferenceIdx] || {};
-    const hasPoints = refLoop.loopOutBeat != null && refLoop.loopOutBeat > (refLoop.loopInBeat || 0);
-    if (!hasPoints) {
+    const duration = refLoop.duration || 0;
+    if (!duration) {
+      // Pas encore de fichier probé (ou données publiées avant l'ajout de la durée par boucle) -- seul
+      // repère disponible, l'ancien calcul par mesures.
       return { startSec: 0, loopInSec: 0, cycleLength: blockSeconds(embrRefBars) };
     }
     const loopInSec = (refLoop.loopInBeat || 0) * secondsPerBeat;
-    const loopOutSec = Math.max(loopInSec + secondsPerBeat, refLoop.loopOutBeat * secondsPerBeat);
+    // Pas de Sortie explicitement réglée -> le cycle va jusqu'à la fin réelle du fichier plutôt que de
+    // retomber sur un calcul par mesures déconnecté de l'audio (24/08, retour visuel : "Mesures" est
+    // vestige une fois un fichier chargé, la durée réelle prime toujours).
+    const loopOutSec = refLoop.loopOutBeat != null
+      ? Math.max(loopInSec + secondsPerBeat, refLoop.loopOutBeat * secondsPerBeat)
+      : duration;
     const startSec = Math.min((refLoop.startTrackBeat || 0) * secondsPerBeat, loopInSec);
     return { startSec, loopInSec, cycleLength: loopOutSec - loopInSec };
   }
@@ -2069,13 +2116,20 @@ function initTrackPlayer(track, wrapper) {
   // plutôt que la logique solo/muet à plusieurs voix simultanées.
   function refreshEmbrGains() {
     const now = ctx.currentTime;
+    // Durée de fondu déterminée par la boucle CIBLE (celle qui devient active), appliquée à toutes les
+    // générations en même temps -- celle qui monte à 1 ET celles qui redescendent à 0 (24/08, remplace la
+    // constante fixe EMBR_CROSSFADE_SEC).
+    const activeLoopDef = (track.loops || [])[embrActiveLoopIdx];
+    const fadeSec = embrCutFadeSec(activeLoopDef);
     embrActiveGenSources.forEach(({ gain, loopIdx }) => {
       if (!gain) return;
       const target = (loopIdx === embrActiveLoopIdx) ? 1 : 0;
       gain.gain.cancelScheduledValues(now);
       gain.gain.setValueAtTime(gain.gain.value, now);
-      gain.gain.linearRampToValueAtTime(target, now + EMBR_CROSSFADE_SEC);
+      if (fadeSec <= 0) gain.gain.setValueAtTime(target, now); // "hard" : coupure nette, aucune rampe
+      else gain.gain.linearRampToValueAtTime(target, now + fadeSec);
     });
+    if (embrActiveLoopIdx >= 0) playEmbrTransitionIfAny(embrActiveLoopIdx, now);
   }
   function playEmbrVertical() {
     stopEmbrVertical();
@@ -2101,6 +2155,15 @@ function initTrackPlayer(track, wrapper) {
     if (embrDetourBtn) { embrDetourBtn.disabled = false; embrDetourBtn = null; }
     embrActiveGenSources.forEach(({ src }) => { try { src.stop(); } catch (e) {} });
     embrActiveGenSources = [];
+    // Transitions encore audibles (24/08, bug trouvé à la relecture) -- même raisonnement que le détour
+    // ci-dessus : sans cet arrêt explicite, une transition en cours continuerait de sonner après Stop.
+    // Itère sur une COPIE (slice()) plutôt que le tableau live : src.stop() peut déclencher onended, qui
+    // mute embrActiveTransitionSources pendant l'itération -- sans cette copie, un forEach sur le tableau
+    // live sauterait l'élément suivant après chaque suppression en cours de boucle (bug détecté par le
+    // test avant même d'atteindre un vrai navigateur, où onended est généralement asynchrone -- mais
+    // s'appuyer sur cette hypothèse de timing pour la justesse du code serait fragile).
+    embrActiveTransitionSources.slice().forEach(src => { try { src.stop(); } catch (e) {} });
+    embrActiveTransitionSources = [];
     embrActiveLoopIdx = -1;
     embrLoopBtns.forEach(btn => { btn.disabled = false; });
     updateEmbrButtonsUI();
@@ -2116,9 +2179,15 @@ function initTrackPlayer(track, wrapper) {
     if (!embrDetourSource) return;
     const t2 = ctx.currentTime;
     const dg = embrDetourSource.gain;
+    // Fondu de sortie propre à CETTE boucle détour (24/08) -- même réglage cutStyle/customCutFadeSec que
+    // celui utilisé pour son fondu d'entrée, retrouvé via le bouton désactivé pendant qu'elle joue.
+    const leavingIdx = embrDetourBtn ? parseInt(embrDetourBtn.dataset.loopIdx, 10) : -1;
+    const leavingLoopDef = leavingIdx >= 0 ? (track.loops || [])[leavingIdx] : null;
+    const fadeSec = embrCutFadeSec(leavingLoopDef);
     dg.gain.cancelScheduledValues(t2);
     dg.gain.setValueAtTime(dg.gain.value, t2);
-    dg.gain.linearRampToValueAtTime(0, t2 + EMBR_CROSSFADE_SEC);
+    if (fadeSec <= 0) dg.gain.setValueAtTime(0, t2);
+    else dg.gain.linearRampToValueAtTime(0, t2 + fadeSec);
     embrDetourSource = null;
     if (embrDetourBtn) { embrDetourBtn.disabled = false; embrDetourBtn = null; }
   }
@@ -2206,15 +2275,18 @@ function initTrackPlayer(track, wrapper) {
       embrActiveLoopIdx = -1; // plus aucune voix "paire" n'est active pendant le détour
       refreshEmbrGains();
       const now = ctx.currentTime;
+      const fadeSec = embrCutFadeSec(loopDef);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, now);
-      g.gain.linearRampToValueAtTime(1, now + EMBR_CROSSFADE_SEC);
+      if (fadeSec <= 0) g.gain.setValueAtTime(1, now); // "hard" : coupure nette, pas de fondu d'entrée
+      else g.gain.linearRampToValueAtTime(1, now + fadeSec);
       const src = ctx.createBufferSource();
       src.buffer = buf;
       const loopsUntilButton = loopDef && loopDef.detourMode === 'loop';
       if (loopsUntilButton) { src.loop = true; src.loopStart = 0; src.loopEnd = buf.duration; }
       src.connect(g); g.connect(trackMasterGain);
       src.start(now, 0);
+      playEmbrTransitionIfAny(idx, now);
       embrDetourSource = { src, gain: g };
       embrDetourBtn = btn;
       if (loopsUntilButton) {
@@ -2222,7 +2294,10 @@ function initTrackPlayer(track, wrapper) {
         // (ou sur le bouton d'une autre boucle, qui interrompt aussi ce détour via fadeOutCurrentDetour()).
         showEmbrEndLoopButton(loopDef);
       } else {
-        const durationSec = blockSeconds(loopDef && loopDef.bars);
+        // Durée propre à CETTE boucle détour si elle a son propre tempo (bpm/beatsPerBar, 24/08) --
+        // blockSeconds() accepte déjà un `slot` optionnel avec repli sur le tempo du morceau, exactement
+        // le même mécanisme que slotTiming()/sectionTiming() ailleurs dans ce fichier, réutilisé tel quel.
+        const durationSec = blockSeconds(loopDef && loopDef.bars, loopDef);
         embrDetourTimeout = setTimeout(() => {
           fadeOutCurrentDetour();
           embrActiveLoopIdx = embrReferenceIdx;
@@ -2976,8 +3051,10 @@ function initTrackPlayer(track, wrapper) {
     } else if (isEmbrVert) {
       const rawLoops = track.loops || [];
       const loopsWithSource = rawLoops.filter(layerHasSource).length;
-      total = loopsWithSource + totalSfxFilesToLoad;
+      const transitionsWithSource = rawLoops.filter(l => layerHasSource(l && l.transition)).length;
+      total = loopsWithSource + transitionsWithSource + totalSfxFilesToLoad;
       embrLoopBuffers = new Array(rawLoops.length).fill(null);
+      embrTransitionBuffers = new Array(rawLoops.length).fill(null);
       for (let li = 0; li < rawLoops.length; li++) {
         if (!layerHasSource(rawLoops[li])) continue;
         try {
@@ -2986,6 +3063,19 @@ function initTrackPlayer(track, wrapper) {
           loaded++;
           if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
         } catch (e) { /* boucle manquante : ce bouton restera désactivé, ne bloque pas les autres */ }
+      }
+      // Fichiers de transition (24/08) -- optionnels, un par boucle. Une transition manquante/en échec ne
+      // bloque jamais la boucle elle-même : la bascule se fait juste sans overlay, comme si aucune
+      // transition n'avait été réglée (même tolérance que les transitions du séquentiel).
+      for (let li = 0; li < rawLoops.length; li++) {
+        const trans = rawLoops[li] && rawLoops[li].transition;
+        if (!layerHasSource(trans)) continue;
+        try {
+          const ab = await loadArrayBuffer(trans);
+          embrTransitionBuffers[li] = await decodeAudioDataCompat(ab);
+          loaded++;
+          if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
+        } catch (e) { /* transition manquante : la bascule vers cette boucle se fera sans overlay */ }
       }
       if (embrLoopBuffers.every(b => !b)) { if (statusEl) statusEl.textContent = t('loadErrorNoSegments'); setLoadErrorIcon(); return; }
     } else {
