@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1787949374101,
+  "publishedAt": 1787949427293,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -863,7 +863,7 @@
       "loops": [
         {
           "id": "bmtdes2ldszm6j",
-          "label": "Tout se bien...",
+          "label": "J'adore quand un plan se déroule sans accroc......",
           "bars": 8,
           "isInitial": true,
           "file": "loop0-1-lent.ogg",
@@ -887,7 +887,7 @@
         },
         {
           "id": "bmtdesxntpfexr",
-          "label": "Des gens arrivent",
+          "label": "Quelqu'un vient ! ",
           "bars": 8,
           "isInitial": false,
           "file": "loop1-2-rapide.ogg",
