@@ -1092,6 +1092,12 @@ function initTrackPlayer(track, wrapper) {
   let embrDetourTimeout = null; // minuterie du retour auto à la référence après une boucle courte
   let embrDetourSource = null; // {src, gain} du détour en cours, si il y en a un
   let embrDetourBtn = null; // bouton désactivé le temps de ce détour, si il y en a un
+  // ---- Ajouts 24/08 : timing de bascule quantifié, minuteur de retour pour les boucles paires, mode
+  // "en boucle jusqu'à un bouton" pour les boucles détour (voir bloc moteur dédié plus bas) ----
+  let embrReferenceStartCtxTime = 0; // ctx.currentTime du tout premier démarrage de la référence -- horloge de phase pour la quantification
+  let embrPendingSwitchTimeout = null; // bascule quantifiée en attente (annulée/remplacée si un nouveau clic arrive avant qu'elle ne s'exécute)
+  let embrAutoReturnTimeout = null; // minuterie de retour auto d'une boucle PAIRE (différent de embrDetourTimeout, qui concerne les boucles courtes)
+  let embrEndLoopBtnEl = null; // bouton "Mettre fin à la boucle" inséré dynamiquement pendant un détour en mode "en boucle jusqu'à un bouton"
   let currentGainNodes = []; // moteur quantifié : gains de la génération la plus récente, par couche (contrôle d'intensité en direct)
   let schedulerTimer = null;
   let voiceGraphTimeouts = [];
@@ -2051,6 +2057,7 @@ function initTrackPlayer(track, wrapper) {
     stopEmbrVertical();
     embrActiveLoopIdx = embrReferenceIdx;
     const now = ctx.currentTime;
+    embrReferenceStartCtxTime = now; // point zéro de l'horloge de phase, utilisé par embrQuantizeDelaySec()
     scheduleEmbrGeneration(now);
     embrNextStartCtxTime = now + embrCycleLengthSec();
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
@@ -2059,6 +2066,9 @@ function initTrackPlayer(track, wrapper) {
   function stopEmbrVertical() {
     if (embrSchedulerTimer) { clearInterval(embrSchedulerTimer); embrSchedulerTimer = null; }
     if (embrDetourTimeout) { clearTimeout(embrDetourTimeout); embrDetourTimeout = null; }
+    if (embrAutoReturnTimeout) { clearTimeout(embrAutoReturnTimeout); embrAutoReturnTimeout = null; }
+    if (embrPendingSwitchTimeout) { clearTimeout(embrPendingSwitchTimeout); embrPendingSwitchTimeout = null; }
+    removeEmbrEndLoopButton();
     // Le détour d'une boucle courte (voir selectEmbrLoop) n'est jamais poussé dans embrActiveGenSources —
     // ce n'est pas une génération "paire" en arrière-plan, juste une lecture ponctuelle — donc sans cet
     // arrêt explicite, elle continuerait de jouer jusqu'à sa fin naturelle après un Stop (bug trouvé et
@@ -2078,6 +2088,7 @@ function initTrackPlayer(track, wrapper) {
   // son bouton jamais réactivé (bug trouvé le 31/07, voir CHANGELOG).
   function fadeOutCurrentDetour() {
     if (embrDetourTimeout) { clearTimeout(embrDetourTimeout); embrDetourTimeout = null; }
+    removeEmbrEndLoopButton();
     if (!embrDetourSource) return;
     const t2 = ctx.currentTime;
     const dg = embrDetourSource.gain;
@@ -2087,24 +2098,79 @@ function initTrackPlayer(track, wrapper) {
     embrDetourSource = null;
     if (embrDetourBtn) { embrDetourBtn.disabled = false; embrDetourBtn = null; }
   }
-  // Clic sur un bouton nommé : bascule pure (rampe de gain) si la boucle ciblée est "paire" avec la
-  // référence (elle tourne déjà en silence en arrière-plan, verrouillée en phase) ; détour ponctuel en
-  // aller-retour si elle est plus courte (pas de verrouillage de phase possible, donc pas de lecture en
-  // arrière-plan avant sélection — voir commentaire d'en-tête du moteur).
-  function selectEmbrLoop(idx) {
-    if (!playing) return;
+  // Durée en secondes d'un minuteur de retour auto (boucle paire), quelle que soit son unité de réglage
+  // (temps/mesures/secondes) -- même conversion bpm/beatsPerBar que le reste du moteur quantifié.
+  function embrDurationToSeconds(value, unit) {
+    const v = value || 0;
+    if (unit === 'seconds') return v;
+    if (unit === 'beats') return v * (60 / bpm);
+    return v * beatsPerBar * (60 / bpm); // 'bars', réglage par défaut
+  }
+  // Délai (en secondes) avant qu'une bascule demandée ne s'exécute réellement, selon le réglage de
+  // quantification de la boucle CIBLE (24/08) -- calculé par rapport à la phase de la référence, seule
+  // horloge qui tourne en continu en arrière-plan (y compris pour déclencher un détour, qui n'a pas
+  // encore de cycle propre avant de démarrer). 'immediate' (ou absent) -> 0, aucune attente.
+  function embrQuantizeDelaySec(quantize) {
+    if (quantize !== 'beat' && quantize !== 'bar') return 0;
+    const cycle = embrCycleLengthSec();
+    if (!(cycle > 0)) return 0;
+    const elapsed = ((ctx.currentTime - embrReferenceStartCtxTime) % cycle + cycle) % cycle;
+    const beatDuration = 60 / bpm;
+    if (quantize === 'beat') {
+      const positionInBeat = elapsed % beatDuration;
+      return (beatDuration - positionInBeat) % beatDuration;
+    }
+    const barDuration = beatsPerBar * beatDuration;
+    const positionInBar = elapsed % barDuration;
+    return (barDuration - positionInBar) % barDuration;
+  }
+  // Affiche/retire le bouton "Mettre fin à la boucle" inséré dynamiquement à la suite des boutons de
+  // boucle habituels, uniquement pendant qu'un détour en mode "en boucle jusqu'à un bouton" est actif
+  // (24/08). Un clic dessus redemande la boucle de référence -- en repassant par selectEmbrLoop(), donc en
+  // respectant lui aussi le timing de bascule quantifié réglé sur la boucle de référence.
+  function removeEmbrEndLoopButton() {
+    if (embrEndLoopBtnEl) { embrEndLoopBtnEl.remove(); embrEndLoopBtnEl = null; }
+  }
+  function showEmbrEndLoopButton(loopDef) {
+    removeEmbrEndLoopButton();
+    const picker = wrapper.querySelector('[data-role="embrLoopPicker"]');
+    if (!picker) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'embr-loop-btn embr-end-loop-btn';
+    btn.textContent = (loopDef.endLoopButtonLabel && loopDef.endLoopButtonLabel.trim()) || t('embrEndLoopDefaultLabel');
+    btn.addEventListener('click', () => { selectEmbrLoop(embrReferenceIdx); });
+    picker.appendChild(btn);
+    embrEndLoopBtnEl = btn;
+  }
+  // Exécute réellement la bascule vers `idx` -- toute la logique qui existait auparavant directement dans
+  // selectEmbrLoop(), désormais appelée soit tout de suite (quantification "immédiat"), soit après le
+  // délai calculé par embrQuantizeDelaySec() pour "prochain temps"/"prochaine mesure" (24/08).
+  function performEmbrSwitch(idx) {
     const buf = embrLoopBuffers[idx];
     if (!buf) return;
     const loopDef = (track.loops || [])[idx];
+    if (embrAutoReturnTimeout) { clearTimeout(embrAutoReturnTimeout); embrAutoReturnTimeout = null; }
     if (embrPeerIndices.includes(idx)) {
       if (idx === embrActiveLoopIdx && !embrDetourSource) return; // déjà la voix active, rien à faire
       fadeOutCurrentDetour(); // sans effet si aucun détour n'était en cours
       embrActiveLoopIdx = idx;
       refreshEmbrGains();
       updateEmbrButtonsUI();
+      // Minuteur de retour auto (24/08) -- seulement si réglé sur cette boucle, jamais sur la référence
+      // elle-même (revenir "vers" la référence n'aurait pas de sens).
+      if (loopDef && !loopDef.isInitial && loopDef.autoReturnEnabled) {
+        const sec = embrDurationToSeconds(loopDef.autoReturnValue, loopDef.autoReturnUnit);
+        if (sec > 0) {
+          embrAutoReturnTimeout = setTimeout(() => {
+            embrAutoReturnTimeout = null;
+            performEmbrSwitch(embrReferenceIdx); // retour direct, sans quantification supplémentaire -- le délai est déjà exprimé en unités musicales
+          }, sec * 1000);
+        }
+      }
     } else {
       // Ce détour précis est déjà celui en cours (son bouton est de toute façon désactivé pendant qu'il
-      // joue — double sécurité si l'appel venait d'ailleurs qu'un clic utilisateur).
+      // joue -- double sécurité si l'appel venait d'ailleurs qu'un clic utilisateur).
       if (embrDetourBtn && parseInt(embrDetourBtn.dataset.loopIdx, 10) === idx) return;
       fadeOutCurrentDetour(); // coupe en douceur un éventuel détour précédent avant d'en démarrer un nouveau
       const btn = embrLoopBtns.find(b => parseInt(b.dataset.loopIdx, 10) === idx);
@@ -2117,20 +2183,47 @@ function initTrackPlayer(track, wrapper) {
       g.gain.linearRampToValueAtTime(1, now + EMBR_CROSSFADE_SEC);
       const src = ctx.createBufferSource();
       src.buffer = buf;
+      const loopsUntilButton = loopDef && loopDef.detourMode === 'loop';
+      if (loopsUntilButton) { src.loop = true; src.loopStart = 0; src.loopEnd = buf.duration; }
       src.connect(g); g.connect(trackMasterGain);
       src.start(now, 0);
       embrDetourSource = { src, gain: g };
       embrDetourBtn = btn;
-      const durationSec = blockSeconds(loopDef && loopDef.bars);
-      embrDetourTimeout = setTimeout(() => {
-        fadeOutCurrentDetour();
-        embrActiveLoopIdx = embrReferenceIdx;
-        refreshEmbrGains();
-        updateEmbrButtonsUI();
-      }, durationSec * 1000);
+      if (loopsUntilButton) {
+        // Pas de minuterie de retour ici : ça tourne jusqu'à ce qu'on clique sur "Mettre fin à la boucle"
+        // (ou sur le bouton d'une autre boucle, qui interrompt aussi ce détour via fadeOutCurrentDetour()).
+        showEmbrEndLoopButton(loopDef);
+      } else {
+        const durationSec = blockSeconds(loopDef && loopDef.bars);
+        embrDetourTimeout = setTimeout(() => {
+          fadeOutCurrentDetour();
+          embrActiveLoopIdx = embrReferenceIdx;
+          refreshEmbrGains();
+          updateEmbrButtonsUI();
+        }, durationSec * 1000);
+      }
       updateEmbrButtonsUI();
     }
     trackPublicEvent('embr_loop_select', { trackId: track.id, loopId: loopDef && loopDef.id });
+  }
+  // Clic sur un bouton nommé : bascule pure (rampe de gain) si la boucle ciblée est "paire" avec la
+  // référence (elle tourne déjà en silence en arrière-plan, verrouillée en phase) ; détour ponctuel en
+  // aller-retour si elle est plus courte (pas de verrouillage de phase possible, donc pas de lecture en
+  // arrière-plan avant sélection — voir commentaire d'en-tête du moteur). Depuis le 24/08, la bascule
+  // réelle (performEmbrSwitch) peut être différée selon le réglage de quantification de la boucle CIBLE --
+  // un nouveau clic avant l'exécution d'une bascule en attente l'annule et la remplace, plutôt que
+  // d'empiler les bascules.
+  function selectEmbrLoop(idx) {
+    if (!playing) return;
+    if (!embrLoopBuffers[idx]) return;
+    if (embrPendingSwitchTimeout) { clearTimeout(embrPendingSwitchTimeout); embrPendingSwitchTimeout = null; }
+    const loopDef = (track.loops || [])[idx];
+    const delaySec = embrQuantizeDelaySec(loopDef && loopDef.switchQuantize);
+    if (delaySec <= 0.001) {
+      performEmbrSwitch(idx);
+    } else {
+      embrPendingSwitchTimeout = setTimeout(() => { embrPendingSwitchTimeout = null; performEmbrSwitch(idx); }, delaySec * 1000);
+    }
   }
   embrLoopBtns.forEach(btn => {
     btn.addEventListener('click', () => selectEmbrLoop(parseInt(btn.dataset.loopIdx, 10)));
