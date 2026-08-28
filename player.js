@@ -2004,7 +2004,26 @@ function initTrackPlayer(track, wrapper) {
   const embrPeerIndices = (track.loops || []).map((l, i) => i)
     .filter(i => i === embrReferenceIdx || (track.loops[i].bars === embrRefBars));
   const EMBR_CROSSFADE_SEC = 0.15; // même durée que refreshVoiceGains() — fondu court et immédiat, pas d'attente de quantification
-  function embrCycleLengthSec() { return blockSeconds(embrRefBars); }
+  // Points de boucle (Départ/Entrée/Sortie) de la boucle de référence (24/08) -- optionnels. S'ils sont
+  // réglés (Sortie > Entrée), remplacent le calcul de durée de cycle par simple nombre de mesures : la
+  // fenêtre de lecture Entrée->Sortie devient le cycle réel, et TOUTE génération (référence et boucles
+  // paires, sur leur PROPRE fichier -- verrouillage de phase, décision validée le 24/08) démarre à
+  // "Entrée" plutôt qu'au tout début du fichier. Le tout premier lancement démarre en revanche à "Départ"
+  // (peut être avant "Entrée"), qui ne joue donc qu'une seule fois -- même principe que le moteur quantifié
+  // classique (voir bufferOffset plus haut dans ce fichier). Aucun réglage -> comportement d'origine
+  // inchangé (durée = nombre de mesures, démarrage à l'offset 0 pour toutes les générations).
+  function embrLoopTiming() {
+    const refLoop = (track.loops || [])[embrReferenceIdx] || {};
+    const hasPoints = refLoop.loopOutBeat != null && refLoop.loopOutBeat > (refLoop.loopInBeat || 0);
+    if (!hasPoints) {
+      return { startSec: 0, loopInSec: 0, cycleLength: blockSeconds(embrRefBars) };
+    }
+    const loopInSec = (refLoop.loopInBeat || 0) * secondsPerBeat;
+    const loopOutSec = Math.max(loopInSec + secondsPerBeat, refLoop.loopOutBeat * secondsPerBeat);
+    const startSec = Math.min((refLoop.startTrackBeat || 0) * secondsPerBeat, loopInSec);
+    return { startSec, loopInSec, cycleLength: loopOutSec - loopInSec };
+  }
+  function embrCycleLengthSec() { return embrLoopTiming().cycleLength; }
   function updateEmbrButtonsUI() {
     embrLoopBtns.forEach(btn => {
       const idx = parseInt(btn.dataset.loopIdx, 10);
@@ -2014,8 +2033,13 @@ function initTrackPlayer(track, wrapper) {
   // Programme une génération de toutes les boucles "paires" (même longueur que la référence) en simultané,
   // gain à 1 pour celle actuellement active, 0 pour les autres — même principe que scheduleGeneration()
   // du moteur quantifié classique (retrigger périodique avec queue de fin superposée), généralisé à des
-  // buffers indépendants au lieu des couches d'un seul morceau.
-  function scheduleEmbrGeneration(ctxStartTime) {
+  // buffers indépendants au lieu des couches d'un seul morceau. isFirst (24/08) : seule la toute première
+  // génération de la lecture démarre à "Départ" (offset embrLoopTiming().startSec) -- toutes les
+  // suivantes démarrent à "Entrée" (embrLoopTiming().loopInSec), même principe que le moteur quantifié
+  // classique.
+  function scheduleEmbrGeneration(ctxStartTime, isFirst) {
+    const timing = embrLoopTiming();
+    const bufferOffset = isFirst ? timing.startSec : timing.loopInSec;
     embrPeerIndices.forEach(idx => {
       const buf = embrLoopBuffers[idx];
       if (!buf) return;
@@ -2024,7 +2048,7 @@ function initTrackPlayer(track, wrapper) {
       const g = ctx.createGain();
       g.gain.setValueAtTime(idx === embrActiveLoopIdx ? 1 : 0, ctxStartTime);
       src.connect(g); g.connect(trackMasterGain);
-      src.start(ctxStartTime, 0);
+      src.start(ctxStartTime, bufferOffset);
       embrActiveGenSources.push({ src, gain: g, loopIdx: idx, ctxStartTime });
     });
     // Purge des générations trop anciennes pour ne plus jamais sonner (même logique de nettoyage que
@@ -2035,7 +2059,7 @@ function initTrackPlayer(track, wrapper) {
   function embrSchedulerTick() {
     const lookahead = 1.0;
     while (embrNextStartCtxTime < ctx.currentTime + lookahead) {
-      scheduleEmbrGeneration(embrNextStartCtxTime);
+      scheduleEmbrGeneration(embrNextStartCtxTime, false); // jamais "Départ" ici, uniquement au tout premier lancement (playEmbrVertical)
       embrNextStartCtxTime += embrCycleLengthSec();
     }
   }
@@ -2058,7 +2082,7 @@ function initTrackPlayer(track, wrapper) {
     embrActiveLoopIdx = embrReferenceIdx;
     const now = ctx.currentTime;
     embrReferenceStartCtxTime = now; // point zéro de l'horloge de phase, utilisé par embrQuantizeDelaySec()
-    scheduleEmbrGeneration(now);
+    scheduleEmbrGeneration(now, true); // seul appel avec isFirst=true -- démarre à "Départ", pas "Entrée"
     embrNextStartCtxTime = now + embrCycleLengthSec();
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
     updateEmbrButtonsUI();
@@ -2150,9 +2174,12 @@ function initTrackPlayer(track, wrapper) {
     const buf = embrLoopBuffers[idx];
     if (!buf) return;
     const loopDef = (track.loops || [])[idx];
-    if (embrAutoReturnTimeout) { clearTimeout(embrAutoReturnTimeout); embrAutoReturnTimeout = null; }
     if (embrPeerIndices.includes(idx)) {
-      if (idx === embrActiveLoopIdx && !embrDetourSource) return; // déjà la voix active, rien à faire
+      if (idx === embrActiveLoopIdx && !embrDetourSource) return; // déjà la voix active, rien à faire --
+      // AVANT le nettoyage du minuteur ci-dessous (bug corrigé le 24/08 : un reclic accidentel sur le
+      // bouton déjà actif annulait silencieusement son propre minuteur de retour sans jamais le
+      // reprogrammer, laissant la boucle active indéfiniment au lieu de revenir comme prévu).
+      if (embrAutoReturnTimeout) { clearTimeout(embrAutoReturnTimeout); embrAutoReturnTimeout = null; }
       fadeOutCurrentDetour(); // sans effet si aucun détour n'était en cours
       embrActiveLoopIdx = idx;
       refreshEmbrGains();
@@ -2172,6 +2199,7 @@ function initTrackPlayer(track, wrapper) {
       // Ce détour précis est déjà celui en cours (son bouton est de toute façon désactivé pendant qu'il
       // joue -- double sécurité si l'appel venait d'ailleurs qu'un clic utilisateur).
       if (embrDetourBtn && parseInt(embrDetourBtn.dataset.loopIdx, 10) === idx) return;
+      if (embrAutoReturnTimeout) { clearTimeout(embrAutoReturnTimeout); embrAutoReturnTimeout = null; } // on quitte le groupe des boucles paires -- son minuteur n'a plus lieu d'être
       fadeOutCurrentDetour(); // coupe en douceur un éventuel détour précédent avant d'en démarrer un nouveau
       const btn = embrLoopBtns.find(b => parseInt(b.dataset.loopIdx, 10) === idx);
       if (btn) btn.disabled = true; // pas de retrigger possible tant que le détour joue (validé le 31/07)
