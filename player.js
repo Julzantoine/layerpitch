@@ -2104,10 +2104,19 @@ function initTrackPlayer(track, wrapper) {
     return { startSec, loopInSec, cycleLength: loopOutSec - loopInSec };
   }
   function embrCycleLengthSec() { return embrLoopTiming().cycleLength; }
+  // Le bouton d'une boucle EST masqué (pas seulement désactivé) tant qu'elle est celle effectivement
+  // audible -- inutile d'afficher un bouton vers ce qui joue déjà (retour de Jules-Antoine, 29/08).
+  // S'applique aussi bien à une boucle "paire" (embrActiveLoopIdx) qu'à un détour en cours (embrDetourBtn,
+  // déjà désactivé par ailleurs -- le masquage remplace ici ce simple grisage). Seulement pendant une
+  // lecture réelle (`playing`) : dans l'état "Prêt" avant tout premier clic sur Écouter, la référence est
+  // déjà marquée .active par défaut (rendu serveur) mais rien ne joue encore -- son bouton doit rester
+  // visible et cliquable comme les autres à ce stade.
   function updateEmbrButtonsUI() {
     embrLoopBtns.forEach(btn => {
       const idx = parseInt(btn.dataset.loopIdx, 10);
       btn.classList.toggle('active', idx === embrActiveLoopIdx);
+      const isCurrentlyAudible = playing && (idx === embrActiveLoopIdx || btn === embrDetourBtn);
+      btn.style.display = isCurrentlyAudible ? 'none' : '';
     });
   }
   // Programme une génération de toutes les boucles "paires" (même longueur que la référence) en simultané,
