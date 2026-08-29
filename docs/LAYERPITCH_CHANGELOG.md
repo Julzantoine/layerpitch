@@ -8,6 +8,47 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-29f] — Garde-fou contre une publication écrasant les données après un échec de chargement
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : confirmation de Jules-Antoine sur le scénario exact vécu — erreur 403 au chargement automatique (jeton GitHub), puis clic sur "Sauvegarder / publier" en mode panique, ce qui aurait écrasé les vraies données publiées par une bibliothèque restée vide en mémoire. Diagnostic mené la session précédente : le bouton Publier n'avait aucune protection contre ce cas.
+
+**Correctif** : nouveau flag `dataLoadOk`, vrai une fois qu'un chargement a réussi (données existantes chargées OU absence légitime de `data.json` au tout premier lancement) — et qui **reste vrai** ensuite même si un rechargement manuel ultérieur échoue à son tour, puisque les données en mémoire restent alors les bonnes (le `catch` de `loadData()` ne les touche pas). Seul le tout premier chargement resté en échec bloque réellement la publication.
+
+Trois niveaux de protection :
+- Le bouton "Sauvegarder / publier" est désactivé par défaut dans le HTML, et reste désactivé si le tout premier chargement échoue (infobulle explicative).
+- `loadData()` le réactive dès qu'un chargement réussit (dans les deux cas légitimes).
+- `publishAll()` vérifie aussi `dataLoadOk` en tout début de fonction (défense en profondeur, au cas où le bouton serait réactivé par un autre chemin), avec un message clair dans le journal expliquant quoi faire (recharger avant de publier).
+
+**i18n** : `publishBlockedNoLoadMsg`, `publishDisabledUntilLoadHint` (nouvelles, FR/EN) — symétrie vérifiée (687 clés de chaque côté).
+
+**Vérifications** : `node --check` OK, balises `<div>` équilibrées (474/474), couverture i18n complète. Modification limitée au backstage (aucun changement dans `player.js`), suite de tests audio non concernée.
+
+---
+
+## [2026-08-29e] — Reprise après changement d'onglet corrigée, UI transition réorganisée, glisser-déposer pour l'ordre des morceaux d'un AdReel
+
+**Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, nouveau `test_embr_vertical_visibility_resume.js`
+
+**Contexte** : message groupé de Jules-Antoine (4 captures d'écran) après avoir buté sur un jeton GitHub expiré. Diagnostic mené en premier : `data.json` publié vérifié intact (14 morceaux, 6 AdReels, 3 packs — la sauvegarde interrompue par la fermeture accidentelle de fenêtre n'a rien corrompu), le `403` au chargement automatique est un problème d'authentification côté navigateur (jeton à régénérer), pas un bug applicatif. Vérification du morceau concerné par le signalement "la transition ne réagit toujours pas correctement" : `transition: null` sur les deux boucles dans le JSON publié — sa configuration (bascule "prochain temps" + durée "1 temps") n'a donc jamais pu être publiée, bloquée depuis le début par ce même jeton expiré. Aucune régression du moteur trouvée à ce sujet ; à retester une fois le jeton réparé et les derniers fichiers republiés.
+
+**1) Bug réel trouvé et corrigé — la lecture d'un morceau en embranchement-vertical repartait de la référence à chaque changement d'onglet.** Diagnostic : le gestionnaire de reprise après mise en arrière-plan (`visibilitychange`) ne traite explicitement que le séquentiel et le vertical-random (recherche fine à la position exacte) ; l'embranchement-vertical tombait dans le chemin générique, qui appelle `playThisTrack()` sans discernement — or pour ce mode, ça route vers `playEmbrVertical()`, qui réinitialise TOUJOURS `embrActiveLoopIdx` sur la référence, perdant la boucle "paire" réellement active (ex. "On est repéré !").
+
+   Correctif : nouvelle fonction `resumeEmbrVerticalAfterBackground()`, chemin dédié dans le gestionnaire `visibilitychange`. Ne tente pas de retrouver la phase exacte d'avant la mise en veille (potentiellement longue, aucun repère fiable pour plusieurs boucles phase-verrouillées en parallèle) mais relance proprement une nouvelle horloge de phase à partir de maintenant, EN PRÉSERVANT la boucle qui était effectivement active. Cas d'un détour en cours au moment de la mise en veille (pas de boucle "paire" à préserver) : repli sur la référence, compromis acceptable pour un aparté ponctuel.
+
+   **Test** : nouveau fichier `test_embr_vertical_visibility_resume.js` — simule un vrai changement de `document.visibilityState` (pas un appel direct à une fonction interne), bascule vers une boucle "paire", déclenche hidden→visible, vérifie que cette boucle reste active après le retour. Au vert.
+
+**2) Réorganisation de l'UI transition d'une boucle embranchement-vertical.** Deux retours de Jules-Antoine : le bloc de réglages de transition ("Ajouter une transition" + réglages associés) est maintenant entouré d'un encadré à fond bleu clair — réutilisation de la classe `.branch-options-panel` déjà existante côté séquentiel plutôt qu'un nouveau style. Le bloc "Retour automatique vers la référence" est déplacé AVANT le bloc transition (dans l'ordre de lecture), pour éviter la confusion entre les deux réglages, qui n'ont pourtant aucun lien entre eux.
+
+**3) Glisser-déposer pour l'ordre des morceaux d'un AdReel.** `wireArrayDragReorder()` généralisée pour accepter aussi bien un tableau d'objets `{id, ...}` (usage historique) qu'un tableau de simples identifiants (le cas ici) — nouvel `idOf()` interne, aucun changement de comportement pour les usages existants. Poignée de glisser-déposer (`dragHandleHtml()`, déjà existante) ajoutée à chaque ligne du sélecteur de morceaux d'un AdReel (`buildTrackSelectorWidget`, les deux variantes avec et sans éditeur de surcharge). Câblage fait UNE SEULE FOIS hors de `render()` (le conteneur est persistant à travers les rendus successifs du widget — le câbler depuis l'intérieur de `render()` aurait empilé un nouveau jeu d'écouteurs à chaque rendu). Styles CSS et filet de sécurité global (relâchement du `draggable` sur pointerup/pointercancel) étendus à la nouvelle classe `.sel-track-item`, en miroir exact de `.seq-master-item`. Les flèches ↑/↓ restent en place (repli accessible/clavier), comme demandé.
+
+**Non traité, laissé en attente** : position du message d'aide "Boucle de détour" (formulation ambiguë, à clarifier avec Jules-Antoine avant d'y toucher) ; visualisation des pistes superposées (nouvelle fonctionnalité explicitement différée par Jules-Antoine lui-même — "quand ce sera réparé").
+
+**Vérifications** : `node --check` OK. Balises `<div>` équilibrées (474/474). Couverture i18n complète, aucune nouvelle clé nécessaire (réutilisation totale). Suite de tests complète (12 fichiers, dont le nouveau) rejouée sans régression.
+
+---
+
 ## [2026-08-29d] — Correctif audio critique (silence + boucles superposées), icône du contrôle de fichier, nom de fichier d'origine conservé
 
 **Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `test_embr_vertical_transitions.js` (réécrit)
