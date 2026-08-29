@@ -1101,6 +1101,7 @@ function initTrackPlayer(track, wrapper) {
   let embrAutoReturnTimeout = null; // minuterie de retour auto d'une boucle PAIRE (différent de embrDetourTimeout, qui concerne les boucles courtes)
   let embrEndLoopBtnEl = null; // bouton "Mettre fin à la boucle" inséré dynamiquement pendant un détour en mode "en boucle jusqu'à un bouton"
   let embrIntroLockTimeout = null; // verrouillage des boutons pendant le segment Départ→Entrée de la référence au tout premier lancement (29/08) -- voir playEmbrVertical()
+  let embrPendingTransitionSwitchTimeout = null; // bascule réelle en attente le temps qu'un fichier de transition finisse de jouer (29/08, voir performEmbrSwitch) -- distinct de embrPendingSwitchTimeout (quantification), les deux peuvent s'enchaîner
   let currentGainNodes = []; // moteur quantifié : gains de la génération la plus récente, par couche (contrôle d'intensité en direct)
   let schedulerTimer = null;
   let voiceGraphTimeouts = [];
@@ -2157,16 +2158,14 @@ function initTrackPlayer(track, wrapper) {
   // exactement le principe de refreshVoiceGains() ci-dessus, avec une seule "voix" active à la fois
   // plutôt que la logique solo/muet à plusieurs voix simultanées.
   // targetIdx : boucle qui doit monter à 1 (-1 si aucune, cas du détour où plus aucune voix paire n'est
-  // active). upDelaySec (29/08, retour visuel : la transition sonnait par-dessus la cible au lieu de la
-  // précéder) : délai avant que CETTE seule montée ne démarre, laissant le temps au fichier de transition
-  // de la boucle cible de jouer d'abord -- même mécanisme que le fondu de coupure + transition du
-  // séquentiel (performSeqBranchCut : le fondu de sortie de la source part immédiatement, la cible
-  // n'arrive qu'après la transition). Le fondu de sortie des autres voix, lui, démarre toujours
-  // immédiatement, sans attendre ce délai.
-  function refreshEmbrGains(targetIdx, upDelaySec) {
+  // active). Bascule toujours IMMÉDIATE (29/08) : une éventuelle transition est gérée en amont par
+  // l'appelant (performEmbrSwitch), qui attend sa fin avant d'appeler cette fonction -- jamais de délai
+  // géré ICI. Un délai géré à ce niveau avait été tenté (24/08→29/08) mais se heurtait au planificateur
+  // périodique de générations (scheduleEmbrGeneration), qui ignore tout délai en cours et réinitialise le
+  // gain de la cible dès le cycle suivant -- source de silences et de boucles superposées (bug signalé par
+  // Jules-Antoine). Voir le commentaire d'en-tête de performEmbrSwitch pour le mécanisme retenu à la place.
+  function refreshEmbrGains(targetIdx) {
     const now = ctx.currentTime;
-    const delay = upDelaySec > 0 ? upDelaySec : 0;
-    const upStartTime = now + delay;
     const activeLoopDef = (track.loops || [])[targetIdx];
     const fadeSec = embrCutFadeSec(activeLoopDef);
     embrActiveGenSources.forEach(({ gain, loopIdx }) => {
@@ -2174,9 +2173,8 @@ function initTrackPlayer(track, wrapper) {
       gain.gain.cancelScheduledValues(now);
       gain.gain.setValueAtTime(gain.gain.value, now);
       if (loopIdx === targetIdx) {
-        if (delay > 0) gain.gain.setValueAtTime(gain.gain.value, upStartTime); // maintien du niveau courant (silence) jusqu'à la fin de la transition
-        if (fadeSec <= 0) gain.gain.setValueAtTime(1, upStartTime); // "hard" : coupure nette, aucune rampe
-        else gain.gain.linearRampToValueAtTime(1, upStartTime + fadeSec);
+        if (fadeSec <= 0) gain.gain.setValueAtTime(1, now); // "hard" : coupure nette, aucune rampe
+        else gain.gain.linearRampToValueAtTime(1, now + fadeSec);
       } else {
         if (fadeSec <= 0) gain.gain.setValueAtTime(0, now);
         else gain.gain.linearRampToValueAtTime(0, now + fadeSec);
@@ -2212,6 +2210,7 @@ function initTrackPlayer(track, wrapper) {
     if (embrDetourTimeout) { clearTimeout(embrDetourTimeout); embrDetourTimeout = null; }
     if (embrAutoReturnTimeout) { clearTimeout(embrAutoReturnTimeout); embrAutoReturnTimeout = null; }
     if (embrPendingSwitchTimeout) { clearTimeout(embrPendingSwitchTimeout); embrPendingSwitchTimeout = null; }
+    if (embrPendingTransitionSwitchTimeout) { clearTimeout(embrPendingTransitionSwitchTimeout); embrPendingTransitionSwitchTimeout = null; }
     if (embrIntroLockTimeout) { clearTimeout(embrIntroLockTimeout); embrIntroLockTimeout = null; }
     removeEmbrEndLoopButton();
     // Le détour d'une boucle courte (voir selectEmbrLoop) n'est jamais poussé dans embrActiveGenSources —
@@ -2310,6 +2309,15 @@ function initTrackPlayer(track, wrapper) {
     const buf = embrLoopBuffers[idx];
     if (!buf) return;
     const loopDef = (track.loops || [])[idx];
+    // Une bascule "transition en attente" précédente n'a plus lieu d'être si un nouveau choix arrive avant
+    // qu'elle ne s'exécute (29/08, corrige un bug réel : le planificateur périodique de générations ignore
+    // totalement une bascule en attente et réinitialise le gain de la cible à 1 dès le cycle suivant, quel
+    // que soit le délai en cours -- laissé tel quel, ça produisait un silence pendant la transition ET des
+    // boucles superposées selon le moment du clic par rapport aux cycles. Correctif : la bascule RÉELLE
+    // (embrActiveLoopIdx, gains, UI) n'a plus lieu tant que la transition ne s'est pas terminée -- jusque
+    // là, embrActiveLoopIdx reste sur l'ancienne boucle, donc le planificateur continue de la régénérer
+    // normalement, sans connaître ni se soucier de la bascule en attente).
+    if (embrPendingTransitionSwitchTimeout) { clearTimeout(embrPendingTransitionSwitchTimeout); embrPendingTransitionSwitchTimeout = null; }
     if (embrPeerIndices.includes(idx)) {
       if (idx === embrActiveLoopIdx && !embrDetourSource) return; // déjà la voix active, rien à faire --
       // AVANT le nettoyage du minuteur ci-dessous (bug corrigé le 24/08 : un reclic accidentel sur le
@@ -2317,26 +2325,33 @@ function initTrackPlayer(track, wrapper) {
       // reprogrammer, laissant la boucle active indéfiniment au lieu de revenir comme prévu).
       if (embrAutoReturnTimeout) { clearTimeout(embrAutoReturnTimeout); embrAutoReturnTimeout = null; }
       fadeOutCurrentDetour(); // sans effet si aucun détour n'était en cours
-      const sourceLoopDef = (track.loops || [])[embrActiveLoopIdx]; // boucle quittée -- repli de tempo pour la transition (29/08), capturée AVANT réassignation
-      embrActiveLoopIdx = idx;
-      // Transition (29/08) : jouée tout de suite, mais la montée de la boucle cible n'intervient qu'après
-      // sa durée nominale -- sans quoi les deux sonnaient au même instant (bug signalé par Jules-Antoine).
+      const sourceLoopDef = (track.loops || [])[embrActiveLoopIdx]; // boucle quittée -- repli de tempo pour la transition
+      // Transition (29/08) : jouée tout de suite, EN OVERLAY par-dessus ce qui joue déjà (la boucle
+      // quittée continue normalement pendant ce temps -- jamais de silence). La bascule réelle
+      // (embrActiveLoopIdx + gains + UI) n'intervient qu'une fois la transition terminée, exactement comme
+      // une coupure immédiate ordinaire à cet instant-là -- jamais de gain différé en parallèle du
+      // planificateur périodique.
       const transBuf = embrTransitionBuffers[idx];
       const transDelay = transBuf ? embrTransitionDurationSecFor(loopDef, sourceLoopDef, transBuf) : 0;
       if (transBuf) playEmbrTransitionIfAny(idx, ctx.currentTime);
-      refreshEmbrGains(idx, transDelay);
-      updateEmbrButtonsUI();
-      // Minuteur de retour auto (24/08) -- seulement si réglé sur cette boucle, jamais sur la référence
-      // elle-même (revenir "vers" la référence n'aurait pas de sens).
-      if (loopDef && !loopDef.isInitial && loopDef.autoReturnEnabled) {
-        const sec = embrDurationToSeconds(loopDef.autoReturnValue, loopDef.autoReturnUnit);
-        if (sec > 0) {
-          embrAutoReturnTimeout = setTimeout(() => {
-            embrAutoReturnTimeout = null;
-            performEmbrSwitch(embrReferenceIdx); // retour direct, sans quantification supplémentaire -- le délai est déjà exprimé en unités musicales
-          }, sec * 1000);
+      const doSwitch = () => {
+        embrActiveLoopIdx = idx;
+        refreshEmbrGains(idx);
+        updateEmbrButtonsUI();
+        // Minuteur de retour auto (24/08) -- seulement si réglé sur cette boucle, jamais sur la référence
+        // elle-même (revenir "vers" la référence n'aurait pas de sens).
+        if (loopDef && !loopDef.isInitial && loopDef.autoReturnEnabled) {
+          const sec = embrDurationToSeconds(loopDef.autoReturnValue, loopDef.autoReturnUnit);
+          if (sec > 0) {
+            embrAutoReturnTimeout = setTimeout(() => {
+              embrAutoReturnTimeout = null;
+              performEmbrSwitch(embrReferenceIdx); // retour direct, sans quantification supplémentaire -- le délai est déjà exprimé en unités musicales
+            }, sec * 1000);
+          }
         }
-      }
+      };
+      if (transDelay > 0) embrPendingTransitionSwitchTimeout = setTimeout(() => { embrPendingTransitionSwitchTimeout = null; doSwitch(); }, transDelay * 1000);
+      else doSwitch();
     } else {
       // Ce détour précis est déjà celui en cours (son bouton est de toute façon désactivé pendant qu'il
       // joue -- double sécurité si l'appel venait d'ailleurs qu'un clic utilisateur).
@@ -2345,49 +2360,50 @@ function initTrackPlayer(track, wrapper) {
       fadeOutCurrentDetour(); // coupe en douceur un éventuel détour précédent avant d'en démarrer un nouveau
       const btn = embrLoopBtns.find(b => parseInt(b.dataset.loopIdx, 10) === idx);
       if (btn) btn.disabled = true; // pas de retrigger possible tant que le détour joue (validé le 31/07)
-      const sourceLoopDef = (track.loops || [])[embrActiveLoopIdx]; // boucle quittée -- repli de tempo pour la transition (29/08), capturée AVANT réassignation
-      embrActiveLoopIdx = -1; // plus aucune voix "paire" n'est active pendant le détour
-      refreshEmbrGains(-1, 0); // aucune cible parmi les voix paires -- extinction immédiate, rien à différer ici
-      const now = ctx.currentTime;
-      const fadeSec = embrCutFadeSec(loopDef);
-      // Transition (29/08) : même principe que la branche "paire" ci-dessus -- jouée tout de suite, mais le
-      // détour lui-même (fondu d'entrée ET déclenchement du buffer) ne démarre qu'après sa durée nominale.
+      const sourceLoopDef = (track.loops || [])[embrActiveLoopIdx]; // boucle quittée -- repli de tempo pour la transition
+      // Transition (29/08) : même principe que la branche "paire" ci-dessus -- jouée en overlay tout de
+      // suite, la voix actuellement active continue sans interruption jusqu'à ce que le détour démarre
+      // réellement une fois la transition terminée.
       const transBuf = embrTransitionBuffers[idx];
       const transDelay = transBuf ? embrTransitionDurationSecFor(loopDef, sourceLoopDef, transBuf) : 0;
-      if (transBuf) playEmbrTransitionIfAny(idx, now);
-      const startAt = now + transDelay;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, startAt);
-      if (fadeSec <= 0) g.gain.setValueAtTime(1, startAt); // "hard" : coupure nette, pas de fondu d'entrée
-      else g.gain.linearRampToValueAtTime(1, startAt + fadeSec);
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      const loopsUntilButton = loopDef && loopDef.detourMode === 'loop';
-      if (loopsUntilButton) { src.loop = true; src.loopStart = 0; src.loopEnd = buf.duration; }
-      src.connect(g); g.connect(trackMasterGain);
-      src.start(startAt, 0);
-      embrDetourSource = { src, gain: g };
-      embrDetourBtn = btn;
-      if (loopsUntilButton) {
-        // Pas de minuterie de retour ici : ça tourne jusqu'à ce qu'on clique sur "Mettre fin à la boucle"
-        // (ou sur le bouton d'une autre boucle, qui interrompt aussi ce détour via fadeOutCurrentDetour()).
-        showEmbrEndLoopButton(loopDef);
-      } else {
-        // Durée propre à CETTE boucle détour si elle a son propre tempo (bpm/beatsPerBar, 24/08) --
-        // blockSeconds() accepte déjà un `slot` optionnel avec repli sur le tempo du morceau, exactement
-        // le même mécanisme que slotTiming()/sectionTiming() ailleurs dans ce fichier, réutilisé tel quel.
-        // Le minuteur de retour compte à partir du démarrage RÉEL du détour (startAt), donc après la
-        // transition éventuelle (29/08) -- sans ça, le retour auto arriverait trop tôt, pendant que le
-        // détour vient tout juste de démarrer.
-        const durationSec = blockSeconds(loopDef && loopDef.bars, loopDef);
-        embrDetourTimeout = setTimeout(() => {
-          fadeOutCurrentDetour();
-          embrActiveLoopIdx = embrReferenceIdx;
-          refreshEmbrGains(embrReferenceIdx, 0);
-          updateEmbrButtonsUI();
-        }, (transDelay + durationSec) * 1000);
-      }
-      updateEmbrButtonsUI();
+      if (transBuf) playEmbrTransitionIfAny(idx, ctx.currentTime);
+      const startDetour = () => {
+        embrActiveLoopIdx = -1; // plus aucune voix "paire" n'est active pendant le détour
+        refreshEmbrGains(-1);
+        const now = ctx.currentTime;
+        const fadeSec = embrCutFadeSec(loopDef);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0, now);
+        if (fadeSec <= 0) g.gain.setValueAtTime(1, now); // "hard" : coupure nette, pas de fondu d'entrée
+        else g.gain.linearRampToValueAtTime(1, now + fadeSec);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const loopsUntilButton = loopDef && loopDef.detourMode === 'loop';
+        if (loopsUntilButton) { src.loop = true; src.loopStart = 0; src.loopEnd = buf.duration; }
+        src.connect(g); g.connect(trackMasterGain);
+        src.start(now, 0);
+        embrDetourSource = { src, gain: g };
+        embrDetourBtn = btn;
+        if (loopsUntilButton) {
+          // Pas de minuterie de retour ici : ça tourne jusqu'à ce qu'on clique sur "Mettre fin à la boucle"
+          // (ou sur le bouton d'une autre boucle, qui interrompt aussi ce détour via fadeOutCurrentDetour()).
+          showEmbrEndLoopButton(loopDef);
+        } else {
+          // Durée propre à CETTE boucle détour si elle a son propre tempo (bpm/beatsPerBar, 24/08) --
+          // blockSeconds() accepte déjà un `slot` optionnel avec repli sur le tempo du morceau, exactement
+          // le même mécanisme que slotTiming()/sectionTiming() ailleurs dans ce fichier, réutilisé tel quel.
+          const durationSec = blockSeconds(loopDef && loopDef.bars, loopDef);
+          embrDetourTimeout = setTimeout(() => {
+            fadeOutCurrentDetour();
+            embrActiveLoopIdx = embrReferenceIdx;
+            refreshEmbrGains(embrReferenceIdx);
+            updateEmbrButtonsUI();
+          }, durationSec * 1000);
+        }
+        updateEmbrButtonsUI();
+      };
+      if (transDelay > 0) embrPendingTransitionSwitchTimeout = setTimeout(() => { embrPendingTransitionSwitchTimeout = null; startDetour(); }, transDelay * 1000);
+      else startDetour();
     }
     trackPublicEvent('embr_loop_select', { trackId: track.id, loopId: loopDef && loopDef.id });
   }
