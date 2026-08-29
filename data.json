@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1787949427293,
+  "publishedAt": 1787988632121,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -908,6 +908,95 @@
           "cutStyle": "fade",
           "customCutFadeSec": null,
           "transition": null
+        }
+      ],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": null
+    },
+    {
+      "id": "bmte20leed4x7j",
+      "title": "Monte en l'air et Pattes de Velours",
+      "description": "",
+      "mode": "embranchement-vertical",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 60,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 0,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmte20leed4x7j/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [
+        {
+          "id": "bmte20p7iqbsif",
+          "label": "Jusqu'ici tout va bien...",
+          "bars": 8,
+          "isInitial": true,
+          "file": "loop0-jusqu-ici-tout-va-bien.ogg",
+          "gain": 2.31,
+          "switchQuantize": "immediate",
+          "autoReturnEnabled": false,
+          "autoReturnValue": 4,
+          "autoReturnUnit": "bars",
+          "detourMode": "once",
+          "endLoopButtonLabel": "",
+          "startTrackBeat": 0,
+          "loopInBeat": 4,
+          "loopOutBeat": 40,
+          "duration": 41.4,
+          "isDetour": false,
+          "bpm": 60,
+          "beatsPerBar": 4,
+          "cutStyle": "custom",
+          "customCutFadeSec": 0.65,
+          "transition": null
+        },
+        {
+          "id": "bmte21jdsmr670",
+          "label": "On est repéré !",
+          "bars": 8,
+          "isInitial": false,
+          "file": "loop1-on-est-repere.ogg",
+          "gain": 1.972,
+          "switchQuantize": "immediate",
+          "autoReturnEnabled": false,
+          "autoReturnValue": 4,
+          "autoReturnUnit": "bars",
+          "detourMode": "once",
+          "endLoopButtonLabel": "",
+          "startTrackBeat": 0,
+          "loopInBeat": 0,
+          "loopOutBeat": null,
+          "duration": 41.4,
+          "isDetour": false,
+          "bpm": null,
+          "beatsPerBar": null,
+          "cutStyle": "custom",
+          "customCutFadeSec": 0.55,
+          "transition": {
+            "label": "Attention !",
+            "file": "loop1-transition-attention.ogg"
+          }
         }
       ],
       "randomizeSections": false,
