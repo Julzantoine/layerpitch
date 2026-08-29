@@ -8,6 +8,22 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-29b] — Nouvelle unité "temps" pour la durée des transitions (séquentiel ET embranchement-vertical)
+
+**Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `test_seq_transitions.js`, `test_embr_vertical_transitions.js`
+
+**Contexte** : demande de Jules-Antoine, capture d'écran du réglage "Durée exprimée en" existant côté séquentiel — ajouter une unité "temps" (en plus de "mesures"/"secondes"), et appliquer le même réglage aux transitions d'embranchement-vertical, en maximisant la réutilisation entre les deux modes.
+
+**Changement** : troisième valeur `durationUnit: 'beats'` ajoutée aux deux moteurs de transition (`transitionDurationSecFor()` côté séquentiel, `embrTransitionDurationSecFor()` côté embranchement-vertical, ajoutée le 29/08 plus tôt cette session) — même formule que "mesures" mais sans la multiplication par `beatsPerBar` (on compte directement des temps individuels, pratique pour un réglage plus fin qu'une mesure entière). Nouveau champ `transition.durationBeats` (parallèle à `durationSeconds`/`bars`), même tempo propre à la transition (bpm/beatsPerBar avec repli sur l'emplacement/la boucle source puis le morceau, via `transitionTiming()` déjà existante — aucune nouvelle logique de tempo, réutilisation totale).
+
+**Backstage** : troisième option dans les deux menus déroulants "Durée exprimée en" (séquentiel ET embranchement-vertical), champ "Durée (temps)" affiché à la place de "Mesures" quand cette unité est choisie (BPM/temps par mesure restent partagés avec "Mesures", inchangés). Les deux dropdowns et tous les champs réutilisent les mêmes clés i18n (`transitionDurationUnitBeats`, `transitionDurationBeatsLabel`) — aucune duplication entre les deux modes.
+
+**i18n** : `transitionDurationUnitBeats`, `transitionDurationBeatsLabel` (nouvelles, FR/EN) — symétrie vérifiée (685 clés de chaque côté).
+
+**Vérifications** : `node --check` OK. Balises `<div>` équilibrées (473/473). Couverture i18n complète (aucune clé manquante). Nouveau scénario dans `test_seq_transitions.js` (transition de 3 temps à 240 BPM/4 temps par mesure = 0.75s, distincte des ~0.2s d'1 mesure au tempo du morceau) et dans `test_embr_vertical_transitions.js` (même principe sur une bascule "paire") — tous deux au vert. Suite de tests complète rejouée (11 fichiers dépendant de `player.js`/`layerpitch-backstage.html`) sans régression.
+
+---
+
 ## [2026-08-29] — Embranchement-vertical : chevauchement transition/boucle cible corrigé, verrouillage pendant l'intro, message de propagation GitHub Pages
 
 **Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, nouveau `test_embr_vertical_transitions.js`
