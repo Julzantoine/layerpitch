@@ -8,7 +8,29 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
-## [2026-08-20] — Bug i18n "Prévisualiser"/"Écouter", extension aux Packs/Collections, tous les blocs rendus supprimables
+## [2026-08-29] — Embranchement-vertical : chevauchement transition/boucle cible corrigé, verrouillage pendant l'intro, message de propagation GitHub Pages
+
+**Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, nouveau `test_embr_vertical_transitions.js`
+
+**Contexte** : trois retours de Jules-Antoine sur la preview du mode embranchement-vertical (capture d'écran d'une boucle "On est repéré !" avec transition personnalisée) — traités ensemble.
+
+**1) Bug — le fichier de transition sonnait EN MÊME TEMPS que la boucle cible.** Diagnostic : `refreshEmbrGains()` démarrait la montée de gain de la boucle cible ET jouait le fichier de transition au même instant `now`, plutôt que la seconde après la première. Corrigé en reprenant le mécanisme déjà en place côté branching séquentiel (`performSeqBranchCut()`/`transitionDurationSecFor()`), confirmé par Jules-Antoine comme référence à suivre :
+- Nouvelle fonction `embrTransitionDurationSecFor()` (mesures/secondes/tempo propre à la transition, même conventions que le séquentiel). Sans réglage, repli sur la **durée réelle du fichier décodé** plutôt que `blockSeconds()` — une transition d'embranchement-vertical n'a par défaut aucune valeur "mesures" pré-remplie à la création (contrairement au séquentiel, toujours créé avec `bars: 4`), un repli par mesures y aurait donné un silence arbitraire (potentiellement plusieurs secondes) sur la cible.
+- `refreshEmbrGains(targetIdx, upDelaySec)` restructurée : la montée de la boucle cible est désormais différée de `upDelaySec` (durée de la transition), pendant que le fondu de sortie de la voix quittée démarre toujours immédiatement — même répartition que le fondu de coupure + transition du séquentiel.
+- Même correction appliquée aux deux cas : boucle "paire" (rampe de gain sur une boucle déjà en arrière-plan) et "détour" (nouvelle source déclenchée) — dans ce second cas, le démarrage du buffer lui-même (`src.start()`) est différé, pas seulement son fondu d'entrée.
+- Champs de durée de transition ajoutés dans le backstage (unité mesures/secondes, mesures, BPM, mesure — réutilisation intégrale des clés i18n déjà existantes côté séquentiel) + nouvelle clé `transitionDurationUnitAuto` (FR/EN) pour le repli par défaut sur la durée du fichier.
+
+**2) Verrouillage des boutons pendant le segment Départ→Entrée.** Au tout premier lancement, si la boucle de référence a un point d'Entrée réglé après son point de Départ (segment non-bouclé, joué une seule fois), les boutons de boucle sont désactivés le temps de ce segment puis réactivés automatiquement — sans réglage de Départ/Entrée, comportement inchangé (aucun verrouillage).
+
+**3) Message dédié pendant la propagation GitHub Pages.** `loadArrayBuffer()` détecte désormais les réponses HTTP non-ok ; si TOUTES les requêtes réseau tentées pour une piste échouent (signe fort d'une publication toute récente pas encore propagée, plutôt qu'un vrai fichier manquant), le message affiché devient "Le site vient d'être mis à jour, les fichiers sont encore en cours de propagation. Réessayez dans quelques minutes." (nouvelle clé `loadErrorPropagating`) à la place du générique "Erreur de chargement". S'applique aux quatre points de chargement du fichier (séquentiel, vertical-random, embranchement-vertical, vertical/statique).
+
+**i18n** : `loadErrorPropagating`, `transitionDurationUnitAuto` (nouvelles, FR/EN) — symétrie vérifiée programmatiquement (683 clés de chaque côté après ajout). `embrTransitionHint` reformulé pour refléter le nouveau comportement séquentiel (n'est plus un simple "overlay").
+
+**Vérifications** : `node --check` sur `player.js` et sur le script inline extrait du backstage — OK. Balises `<div>` équilibrées (471/471). Toutes les clés `tr()`/`data-i18n` référencées dans le backstage couvertes en FR et EN (un seul faux positif pré-existant sans rapport, `socialPlatform_` — concaténation dynamique). Nouveau fichier `test_embr_vertical_transitions.js` (8 vérifications : timing différé sur bascule paire, sur détour, repli sur durée de fichier, verrouillage pendant l'intro) — toutes au vert. Suite de tests existante entièrement rejouée sans régression (`test_embr_vertical_engine.js` et les neuf autres fichiers de test dépendant de `player.js`/`layerpitch-backstage.html`) ; `test_quantized_loop_engine.js` échoue mais de façon strictement identique avec les fichiers originaux non modifiés (bug d'environnement de test pré-existant, sans lien avec cette session).
+
+**Non vérifié** : `backstage.css` (fichier local, jamais commité sur GitHub) — sa synchronisation avec le `<style>` inline du backstage n'a pas pu être vérifiée depuis cette session ; aucune classe CSS nouvelle n'a cependant été introduite ici (réutilisation intégrale des classes `.row`, `.hint-inline` déjà existantes), donc aucune synchronisation attendue.
+
+---
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
 
