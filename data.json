@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1788018717540,
+  "publishedAt": 1788020257757,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -923,7 +923,7 @@
           "endLoopButtonLabel": "",
           "startTrackBeat": 0,
           "loopInBeat": 4,
-          "loopOutBeat": 40,
+          "loopOutBeat": 36,
           "duration": 41.47,
           "isDetour": false,
           "bpm": 60,
