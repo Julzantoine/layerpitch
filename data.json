@@ -1,20 +1,1946 @@
 {
-  "publishedAt": 1788018785200,
-  "library": [],
-  "libraryFolders": [],
-  "sfxLibrary": [],
+  "publishedAt": 1788018717540,
+  "library": [
+    {
+      "id": "bmrc8rec1wtahz",
+      "title": "Goûte donc ma hache, pour voir !",
+      "description": "Une battle loop adaptative à 3 niveaux d'intensité (Low/Mid/High), idéale pour un hack'n'slash. L'intensité est calée sur le nombre d'ennemis à l'écran et la boucle mêle les plaisirs comme savent le faire les jeux indie — parce qu'une bonne musique de baston sent toujours venir le savon un peu avant qu'on se prenne la douche.",
+      "mode": "vertical",
+      "loopable": false,
+      "implementationNote": "RTPC Suggéré : Nombre d'ennemis à l'écran",
+      "noAiOverride": null,
+      "loopEngine": "quantized",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 256,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 134.88,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8rec1wtahz/",
+      "layers": [
+        {
+          "label": "Ca va, c'est cool...",
+          "file": "0-ca-va-c-est-cool.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        },
+        {
+          "label": "Mais ils sont combien comme ça?",
+          "file": "1-mais-ils-sont-combien-comme-ca.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        },
+        {
+          "label": "On va tous crever!!!",
+          "file": "2-on-va-tous-crever.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": null
+    },
+    {
+      "id": "bmrc9dbzsaio19",
+      "title": "Il est minuit et tout va bien",
+      "description": "Il n'est pas encore minuit. Une ombre glisse sur les toits... Elle s'élance, intrépide et bondit de toitures en gargouilles. Se recevant en souplesse sur un balcon, on ne distingue quasiment pas le bruit du loquet de la porte vitrée... A peine quelques instants plus tard, l'ombre ressort, un sourire aux lèvres. Un éclat de lune accroche sa machoire déformée. Don Benvenuto. Il jette un dernier coup d'oeil au fruit de son larcin. C'est Ducatore qui va être content... Mais en contrebas, un garde l'aperçoit et sonne l'alarme. Il en faut plus pour Benvenuto qui prend un malin plaisir à faire courir ses poursuivants... en vain.\n\nUn générique d'ouverture pour une aventure mystero-ludico-fantasy dans la chaleur d'une nuit d'été.",
+      "mode": "static",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 140.97,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc9dbzsaio19/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": null
+    },
+    {
+      "id": "bmrdjlv9p1cbv9",
+      "title": "Victory ! ",
+      "description": "Après maintes et maintes essais, le Boss est enfin tombé ! Victoire !!! Il pleut du loot, ça prend du temps de tout ramasser. Avec un peu de chances, on aura même le droit à une petite cinématique pour passer au prochain niveau? va savoir... En tout cas, la musique est prête, elle n'attend que l'histoire.\n\n3 parties de Batterie, 4 partie de Basse, 6 parties de guitare, 4 de claviers... Une boucle au layering vertical randomisé pour générer de la musique différente à chaque écoute.",
+      "mode": "vertical-random",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 1,
+      "loopOutBeat": 65,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 40.12,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrdjlv9p1cbv9/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": null,
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [
+        {
+          "id": "bmsca7lnxrmpix",
+          "label": "",
+          "referencesSectionId": null,
+          "bpm": 120,
+          "beatsPerBar": 4,
+          "startTrackBeat": 0,
+          "loopInBeat": 1,
+          "loopOutBeat": 65,
+          "maxLoops": null,
+          "duration": 40.12,
+          "pools": [
+            {
+              "id": "bmsca7lnx7xy6k",
+              "label": "Percussion Main",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "Percussion Main",
+                  "file": "fixed.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                }
+              ]
+            },
+            {
+              "id": "bmrtc0osvsegl0",
+              "label": "Alt Perc",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "Vide",
+                  "file": null,
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "AltPerc#1",
+                  "file": "group0-1-altperc-1.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "AltPerc#1.5",
+                  "file": "group0-2-altperc-1-5.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "AltPerc#2",
+                  "file": "group0-3-altperc-2.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "AltPerc#2.5",
+                  "file": "group0-4-altperc-2-5.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                }
+              ]
+            },
+            {
+              "id": "bmrtc0osvf17r6",
+              "label": "Bass",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "BS#1",
+                  "file": "group1-0-bs-1.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "BS#2",
+                  "file": "group1-1-bs-2.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "BS#3",
+                  "file": "group1-2-bs-3.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "BS#4 (Slap)",
+                  "file": "group1-3-bs-4-slap.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                }
+              ]
+            },
+            {
+              "id": "bmrtc0osvgf4fk",
+              "label": "GUITARES NAPPES",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "Nappes GT#1",
+                  "file": "group2-0-nappes-gt-1.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "Vide",
+                  "file": null,
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "Nappes GT#2",
+                  "file": "group2-2-nappes-gt-2.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                }
+              ]
+            },
+            {
+              "id": "bmrtc0osvp3d59",
+              "label": "COCOTTES GT",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "Cocottes GT#1",
+                  "file": "group3-0-cocottes-gt-1.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "Cocottes GT#2",
+                  "file": "group3-1-cocottes-gt-2.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                }
+              ]
+            },
+            {
+              "id": "bmrtc0osvpm5in",
+              "label": "KB",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "Nappes KB#1",
+                  "file": "group4-0-nappes-kb-1.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "Nappes KB#2",
+                  "file": "group4-1-nappes-kb-2.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "Thème KB",
+                  "file": "group4-2-theme-kb.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                }
+              ]
+            },
+            {
+              "id": "bmrtc0osv0a9h9",
+              "label": "THEME GT",
+              "avoidImmediateRepeat": true,
+              "referencesPoolId": null,
+              "alternatives": [
+                {
+                  "label": "Vide1",
+                  "file": null,
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "Vide2",
+                  "file": null,
+                  "originalFileName": null,
+                  "gain": 1
+                },
+                {
+                  "label": "Thème GT",
+                  "file": "group5-2-theme-gt.ogg",
+                  "originalFileName": null,
+                  "gain": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "sfxIds": [],
+      "folderId": null
+    },
+    {
+      "id": "bmresp3hdlhbmx",
+      "title": "The Last Door",
+      "description": "Il fait noir... La tension monte. Pourquoi as tu foncé sans attendre l'équipe? C'est ce que tu te demandes en ce moment même... La porte au bout du couloir est entrebaillée et laisse passer un mince filet de lumière. Alors... Tu fais quoi? Tu continues la poursuite pour ne pas laisser l'autre s'échapper, au risque de tomber dans le piège? Ou tu attends l'équipe? Respire. Lentement. A fond... Et prends une décision\n\nUne intro, une outro... Entre les deux, des segments de 8 ou 16 mesures choisis aléatoirement. Une pure musique séquentielle de mise en tension... ",
+      "mode": "sequential",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 132.57,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmresp3hdlhbmx/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": {
+        "label": "Intro",
+        "bars": 6,
+        "file": "intro-intro.ogg",
+        "originalFileName": null,
+        "gain": 1.759,
+        "descriptionFr": "",
+        "descriptionEn": ""
+      },
+      "outro": {
+        "label": "Outro",
+        "file": "outro-outro.ogg",
+        "originalFileName": null,
+        "gain": 1,
+        "descriptionFr": "",
+        "descriptionEn": ""
+      },
+      "segmentSlots": [
+        {
+          "id": "bmrtc0osvot3kj",
+          "label": "",
+          "avoidImmediateRepeat": true,
+          "referencesSlotId": null,
+          "repeatCount": 1,
+          "quantization": "bar",
+          "cutStyle": "fade",
+          "descriptionFr": "",
+          "descriptionEn": "",
+          "nextOptions": null,
+          "alternatives": [
+            {
+              "label": "The Last Door Chunk#1",
+              "bars": 8,
+              "file": "segment-0-the-last-door-chunk-1-120bpm-8m.ogg",
+              "originalFileName": null,
+              "gain": 1
+            },
+            {
+              "label": "The Last Door Chunk#2",
+              "bars": 16,
+              "file": "segment-1-the-last-door-chunk-2-120bpm-16m.ogg",
+              "originalFileName": null,
+              "gain": 1
+            },
+            {
+              "label": "The Last Door Chunk#3",
+              "bars": 8,
+              "file": "segment-2-the-last-door-chunk-3-120bpm-8m.ogg",
+              "originalFileName": null,
+              "gain": 1
+            },
+            {
+              "label": "The Last Door Chunk#4",
+              "bars": 8,
+              "file": "segment-3-the-last-door-chunk-4-120bpm-8m.ogg",
+              "originalFileName": null,
+              "gain": 1
+            }
+          ]
+        }
+      ],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": null
+    },
+    {
+      "id": "bmsrox5psn3r4k",
+      "title": "Robot Adventure",
+      "description": "",
+      "mode": "sequential",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 124.74,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmsrox5psn3r4k/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": null,
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [
+        {
+          "id": "bmsroyqkw2curh",
+          "label": "#1 WetDarkCave",
+          "avoidImmediateRepeat": true,
+          "referencesSlotId": null,
+          "repeatCount": 1,
+          "quantization": "bar",
+          "cutStyle": "custom",
+          "customCutFadeSec": 1,
+          "descriptionFr": "Une musique SF à embranchement qui suit les actions et la localisation du joueur...\n\n#1_Wet Dark Cave\n\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\n-> Alors que vous explorez la cave dans laquelle vous venez de débouler, la musique vous accompagne gentiment et boucle en attendant que trouviez le levier secret... \nC'est bon? Vous l'avez trouvé, caché derrière un vieux meuble? \nAlors vous pouvez cliquer sur #2 Corridor !",
+          "descriptionEn": "#1_Wet Dark Cave\n\"Alright, team, let’s spread out. If the map’s right, we shouldn’t be far from the core of the matrix!\"\n→ As you explore the cave you just tumbled into, the music gently accompanies you, looping as you search for the hidden lever...\nGot it? Found it, tucked behind an old piece of furniture?\nThen you can click on #2_Corridor!\n",
+          "nextOptions": [
+            {
+              "targetId": "bmsroyqkwf73ti",
+              "label": "",
+              "transition": {
+                "label": "#1bis SecretLever Transition",
+                "bars": 2,
+                "durationUnit": null,
+                "file": "slot0-branch0-transition-1bis-secretlever-transition.ogg",
+                "originalFileName": null,
+                "gain": 3.981,
+                "descriptionFr": "Une porte dérobée s'ouvre devant vous... Un long couloir sombre vous attend... ",
+                "descriptionEn": "A hidden door creaks open in front of you... A long, dark corridor lies ahead..."
+              }
+            }
+          ],
+          "alternatives": [
+            {
+              "label": "#1 RobotAdventure WetDarkCave 120bpm 30M",
+              "bars": 30,
+              "file": "slot0-0-1-robotadventure-wetdarkcave-120bpm-30m.ogg",
+              "originalFileName": null,
+              "gain": 1.066
+            }
+          ]
+        },
+        {
+          "id": "bmsroyqkwf73ti",
+          "label": "#2 Corridor",
+          "avoidImmediateRepeat": true,
+          "referencesSlotId": null,
+          "repeatCount": 1,
+          "quantization": "beat",
+          "cutStyle": "custom",
+          "customCutFadeSec": 1,
+          "descriptionFr": "#2_The Corridor\n- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nVous et votre team vous remettez en route... Vous vous engagez dans un long corridor sombre, la tension monte. \n\n-> Qu'allez vous trouver au bout de ce long corridor? X'est encore flou mais la musique qui fait monter gentiment la pression vous donne quand même une petite idée, non?\n\nLorsque vous êtes prêts, continuez votre route jusqu'au grand hall que vous apercevez au loin !\n\nPS : Vous pouvez également revenir sur vos pas... Petit joueur!",
+          "descriptionEn": "#2_The Corridor\n\n- **\"Hey Joe! A door just opened!\"**\n- **\"Watch out, Lucien, those bastards are everywhere...\"**\n- **\"I think it’s this way—I hear noises. Should we go?\"**\n- **\"Okay... But don’t go too far, this crap’s making me nervous.\"**\n\nYou and your team move forward... You step into a long, dark corridor, tension rising.\n\n→ What will you find at the end of this long corridor? It’s still unclear, but the music, gently building pressure, gives you a little hint, doesn’t it?\n\nWhen you're ready, continue your journey toward the grand hall you can see in the distance!\n\nPS: You can also backtrack... You cautious player! ",
+          "nextOptions": [
+            {
+              "targetId": "bmsroyqkw5wacj",
+              "label": "",
+              "transition": null
+            },
+            {
+              "targetId": "bmsroyqkw2curh",
+              "label": "",
+              "transition": null
+            }
+          ],
+          "alternatives": [
+            {
+              "label": "#2 RobotAdventure Corridor 120bpm 30M",
+              "bars": 30,
+              "file": "slot1-0-2-robotadventure-corridor-120bpm-30m.ogg",
+              "originalFileName": null,
+              "gain": 1.738
+            }
+          ]
+        },
+        {
+          "id": "bmsroyqkw5wacj",
+          "label": "#3 Battle",
+          "avoidImmediateRepeat": true,
+          "referencesSlotId": null,
+          "repeatCount": 1,
+          "quantization": "bar",
+          "cutStyle": "custom",
+          "customCutFadeSec": 1,
+          "bpm": 160,
+          "descriptionFr": "#3_Battle\n- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait? Chef?? Chef?!\"\n\nVous débouchez sur une grande caverne...où des centaines de robots vous prennent au dépourvu et vous mitraillent. Peut être que vous auriez dû sauvegarder avant, finalement...",
+          "descriptionEn": "#3_Battle\n\n- \"THEY’RE COMING!!! Form up, fire at will! Damn robots, they’re everywhere!\"\n- \"Boss, what do we do? Boss?? Boss?!\"\n\nYou emerge into a massive cavern... where hundreds of robots catch you off guard and open fire. Maybe you *should* have saved earlier, after all...\n\n→ A branching soundtrack that follows the player’s actions and location...",
+          "nextOptions": [
+            {
+              "targetId": "bmsroyqkw2curh",
+              "label": "",
+              "transition": null
+            },
+            {
+              "targetId": "bmsroyqkwf73ti",
+              "label": "",
+              "transition": null
+            }
+          ],
+          "alternatives": [
+            {
+              "label": "#3 RobotAdventure BattleFinal 160bpm 40M",
+              "bars": 40,
+              "file": "slot2-0-3-robotadventure-battlefinal-160bpm-40m.ogg",
+              "originalFileName": null,
+              "gain": 1.156
+            }
+          ]
+        }
+      ],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [
+        "bms3sf3itgekxm",
+        "bms3s3uj7b4oi8",
+        "bms378c2zbxgpd"
+      ],
+      "folderId": "bmt1zz0k0043qq"
+    },
+    {
+      "id": "bmrc8x6x8x9cof",
+      "title": "Robot Adventure_The Corridor",
+      "description": "- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nUne Loop statique dans le même style que la précédente, mais qui fait monter l'intensité d'un cran.",
+      "mode": "static",
+      "loopable": true,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8x6x8x9cof/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": "bmt1zz0k0043qq"
+    },
+    {
+      "id": "bmrc8yz5vutcbi",
+      "title": "Robot Adventure_Final Battle",
+      "description": "- \"ILS ARRIVENT !!! En Formation, Feu à volonté ! Saleté de Robots, ils sont partout !\"\n- \"Chef, qu'est ce qu'on fait? Chef?? Chef?!\"\n\nUne Battle Loop Statique : Pression Maximale !!! ",
+      "mode": "static",
+      "loopable": true,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8yz5vutcbi/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": "bmt1zz0k0043qq"
+    },
+    {
+      "id": "bmrc90bhy0sxpk",
+      "title": "Dans l'Immensité Spatiale",
+      "description": "Au milieu des étoiles vogue le USS PME, le fleuron de la marine Terrienne. En pleine exploration spatiale, l'équipe reste sur ses gardes... Le danger peut provenir de partout.\n\nUn générique d'ouverture pour mettre tout le monde dans l'ambiance. On n'est pas là, pour rigoler, ok?!",
+      "mode": "static",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 183,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc90bhy0sxpk/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": "bmt1zz0k0043qq"
+    },
+    {
+      "id": "bmrc98f39dwq3c",
+      "title": "Galactic Baston",
+      "description": "\"Nous sommes les Borgs. Abaissez vos boucliers et rendez-vous sans condition. Nous intègrerons vos caractéristiques biologiques et technologiques aux nôtres. Votre culture s’adaptera à nos besoins. Toute résistance serait futile.\" \nQuand tu entends ça, il n'y a plus qu'une chose à faire : vérifier que ton pistolaser a encore un peu de batterie...\n\nUne battle loop statique à base de baston contre les robots",
+      "mode": "static",
+      "loopable": true,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc98f39dwq3c/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": "bmt1zz0k0043qq"
+    },
+    {
+      "id": "bmrc8vlgamn4fl",
+      "title": "Robot Adventure_Exploration",
+      "description": "\"Ok les gars, on se déploie. Si on en croit le plan, on ne devrait plus être trop loin du coeur de la matrice ! \"\n\nUne Exploration Loop statique pour un danger relativement lointain. Avec en prime, un levier secret avec lequel s'amuser un peu.",
+      "mode": "static",
+      "loopable": true,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 60,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmrc8vlgamn4fl/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [
+        "bms378c2zbxgpd"
+      ],
+      "folderId": "bmt1zz0k0043qq"
+    },
+    {
+      "id": "bmruc7dbdxf1i0",
+      "title": "Les Petits Poissons",
+      "description": "",
+      "mode": "static",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 98.14,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmruc7dbdxf1i0/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "originalFileName": null,
+          "gain": 0.877,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": "bmt1zzvylh1am2"
+    },
+    {
+      "id": "bmruccnxudcuy8",
+      "title": "Dans la Forêt Lointaine",
+      "description": "",
+      "mode": "static",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 112.82,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmruccnxudcuy8/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "originalFileName": null,
+          "gain": 0.95,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": "bmt1zzvylh1am2"
+    },
+    {
+      "id": "bmruc9x0htabo1",
+      "title": "Doucement s'en va le jour",
+      "description": "",
+      "mode": "static",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 108.54,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmruc9x0htabo1/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "originalFileName": null,
+          "gain": 0.864,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": "bmt1zzvylh1am2"
+    },
+    {
+      "id": "bmteimdrwxw5iq",
+      "title": "Monte en l'air et Pattes de Velours",
+      "description": "Le rossignol coulisse dans la serrure et la porte s'ouvre dans un silence feutré, dévoilant un salon richement décoré. Le plan a été préparé consciencieusement : on entre, on prend le tableau, on ressort. Tout devrait se passer comme sur des roul...\n\nUne lumière s'allume sous la porte de la chambre !\n\nOn saute derrière le canapé, prêt à défendre chèrement notre peau. Le \"client\" passe, embrumé, va se chercher un verre d'eau à la cuisine... et repart se coucher. \n\nOuf, on l'a échappé belle! Bon, retour à la mission, maintenant... ",
+      "mode": "embranchement-vertical",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 60,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 0,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmteimdrwxw5iq/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": null,
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [
+        {
+          "id": "bmteimpzrefnta",
+          "label": "Retour au calme...",
+          "bars": 8,
+          "isInitial": true,
+          "file": "loop0-jusqu-ici-tout-va-bien.ogg",
+          "gain": 2.327,
+          "switchQuantize": "beat",
+          "autoReturnEnabled": false,
+          "autoReturnValue": 4,
+          "autoReturnUnit": "bars",
+          "detourMode": "once",
+          "endLoopButtonLabel": "",
+          "startTrackBeat": 0,
+          "loopInBeat": 4,
+          "loopOutBeat": 40,
+          "duration": 41.47,
+          "isDetour": false,
+          "bpm": 60,
+          "beatsPerBar": 4,
+          "cutStyle": "fade",
+          "customCutFadeSec": null,
+          "transition": null
+        },
+        {
+          "id": "bmteinsfu7v7tl",
+          "label": "On est repéré !",
+          "bars": 8,
+          "isInitial": false,
+          "file": "loop1-on-est-repere.ogg",
+          "gain": 1.972,
+          "switchQuantize": "beat",
+          "autoReturnEnabled": true,
+          "autoReturnValue": 2,
+          "autoReturnUnit": "bars",
+          "detourMode": "once",
+          "endLoopButtonLabel": "",
+          "startTrackBeat": 0,
+          "loopInBeat": 0,
+          "loopOutBeat": null,
+          "duration": 41.4,
+          "isDetour": false,
+          "bpm": null,
+          "beatsPerBar": null,
+          "cutStyle": "fade",
+          "customCutFadeSec": null,
+          "transition": null
+        }
+      ],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": null
+    }
+  ],
+  "libraryFolders": [
+    {
+      "id": "bmt1zz0k0043qq",
+      "label": "SF"
+    },
+    {
+      "id": "bmt1zzvylh1am2",
+      "label": "8Bits"
+    }
+  ],
+  "sfxLibrary": [
+    {
+      "id": "bms378c2zbxgpd",
+      "title": "Levier Secret",
+      "descriptionFr": "Vous êtes complètement bloqués dans cette cave sombre. Tout le mobilier est cassé, les ennemis tués, le loot ramassé... Vous tournez en rond depuis des heures quand tout à coup, derrière une tapisserie... un levier secret... La bibliothèque pivote. ENFIN, vous pouvez poursuivre votre aventure ! ",
+      "descriptionEn": "You're completely stuck in this dark cave. All the furniture is broken, the enemies defeated, the loot collected... You've been going in circles for hours when suddenly, behind a tapestry... a hidden lever! The bookshelf swings open. FINALLY, you can continue your adventure!",
+      "rrMode": "random",
+      "duckMainTrack": true,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms378c2zbxgpd/",
+      "alternatives": [
+        {
+          "label": "",
+          "file": "stinger-0-levier-secret.ogg",
+          "originalFileName": null
+        }
+      ],
+      "folderId": null
+    },
+    {
+      "id": "bms3s3uj7b4oi8",
+      "title": "FlameThrower",
+      "descriptionFr": "Disclaimer: Les SFX de cette demo proviennent d'une librairie gratuite (\"Flamable Liquid Library\" - BOOM) et sont uniquement utilisés pour les besoins de cette démo. Ils comptent 3 versions (RoundRobins) d'un SFX d'impact qui sont jouées de manière randomisés.\n\n-> https://www.boomlibrary.com",
+      "descriptionEn": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Flammable Liquid Library\" and are used exclusively for this LayerPitch Demo. They include 3 versions (Round-Robins) of a Flamethrower SFX playing randomly.\n\n-> https://www.boomlibrary.com",
+      "rrMode": "random",
+      "duckMainTrack": false,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms3s3uj7b4oi8/",
+      "alternatives": [
+        {
+          "label": "",
+          "file": "0-variation.ogg",
+          "originalFileName": null
+        },
+        {
+          "label": "",
+          "file": "1-variation.ogg",
+          "originalFileName": null
+        },
+        {
+          "label": "",
+          "file": "2-variation.ogg",
+          "originalFileName": null
+        }
+      ],
+      "folderId": null
+    },
+    {
+      "id": "bms3sf3itgekxm",
+      "title": "Impacts",
+      "descriptionFr": "Disclaimer: Les SFX de cette demo proviennent d'une librairie gratuite (\"Impact - Boom) et sont uniquement utilisés pour les besoins de cette démo. Ils comptent 6 versions (RoundRobins) d'un SFX d'impact qui sont jouées de manière randomisés.\n\n-> https://www.boomlibrary.com",
+      "descriptionEn": "Disclaimer: The SFX featured in this demo are from the free BOOM \"Impact\" library and are used exclusively for this LayerPitch Demo. They include 6 versions (Round-Robins) of a Impact SFX playing randomly.\n\n-> https://www.boomlibrary.com",
+      "rrMode": "random",
+      "duckMainTrack": false,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/sfx-bms3sf3itgekxm/",
+      "alternatives": [
+        {
+          "label": "",
+          "file": "0-variation.ogg",
+          "originalFileName": null
+        },
+        {
+          "label": "",
+          "file": "1-variation.ogg",
+          "originalFileName": null
+        },
+        {
+          "label": "",
+          "file": "2-variation.ogg",
+          "originalFileName": null
+        },
+        {
+          "label": "",
+          "file": "3-variation.ogg",
+          "originalFileName": null
+        },
+        {
+          "label": "",
+          "file": "4-variation.ogg",
+          "originalFileName": null
+        },
+        {
+          "label": "",
+          "file": "5-variation.ogg",
+          "originalFileName": null
+        }
+      ],
+      "folderId": null
+    }
+  ],
   "sfxFolders": [],
-  "socials": [],
+  "socials": [
+    {
+      "id": "bmt08g6pt5rm75",
+      "platform": "linkedin",
+      "url": ""
+    }
+  ],
   "adReelFolders": [],
-  "packs": [],
+  "packs": [
+    {
+      "id": "bmrcakdllw9m7v",
+      "title": "Robot Adventure",
+      "illustration": "pack-bmrcakdllw9m7v.png",
+      "illustrationOriginalName": null,
+      "watermark": "pack-watermark-bmrcakdllw9m7v.jpg",
+      "watermarkOriginalName": null,
+      "presentationFr": "Année 2372. Claude a été couronné Empereur. Les robots sont partout, et toute la galaxie d’Anthropia est tombée sous leur domination.\n\nToute la galaxie ? Non.\n\nUn petit village d'humains indomptables résiste encore et toujours à l’envahisseur.\n\n",
+      "presentationEn": "Year 2372. Claude has been crowned Emperor. Robots are everywhere, and the entire galaxy of Anthropia has fallen under their rule.\n\nThe entire galaxy? No\n\nOnly one small village of indomitable Humans still holds out against the invaders",
+      "buyable": false,
+      "buyUrl": "",
+      "freeDownloadEnabled": false,
+      "videoTestModeEnabled": true,
+      "bgColor": "#f6f5f3",
+      "textColor": "#262521",
+      "font": "default",
+      "trackIds": [
+        "bmsrox5psn3r4k",
+        "bmrc8vlgamn4fl",
+        "bmrc8x6x8x9cof",
+        "bmrc8yz5vutcbi",
+        "bmrc90bhy0sxpk",
+        "bmrc98f39dwq3c"
+      ],
+      "sfxIds": [],
+      "linkedAdReelId": "main"
+    },
+    {
+      "id": "bmrucduoqf8jzn",
+      "title": "8 bits Comptines",
+      "illustration": "pack-bmrucduoqf8jzn.png",
+      "illustrationOriginalName": null,
+      "watermark": "pack-watermark-bmrucduoqf8jzn.png",
+      "watermarkOriginalName": null,
+      "presentationFr": "J’ai le même âge que la FamiCon de Nintendo… J’ai joué à la Nes, à la mastersystem, à la mega drive, à la gameboy, la supernes, la game gear, la gamecube, la PlayStation, la Xbox…\n\nAlors quand je suis devenu papa, alors que le fakebit explosait à la face du monde, j’étais presque obligé de revisiter quelques comptines à la sauce chiptune!",
+      "presentationEn": "I’m the same age as Nintendo’s FamiCom… I’ve played on the NES, Master System, Mega Drive, Game Boy, Super Nintendo, Game Gear, GameCube, PlayStation, Xbox…\n\nSo when I became a dad, just as fakebit was taking the world by storm, I almost *had* to revisit some nursery rhymes with a chiptune twist!",
+      "buyable": false,
+      "buyUrl": "",
+      "freeDownloadEnabled": false,
+      "videoTestModeEnabled": true,
+      "bgColor": "#f6f5f3",
+      "textColor": "#262521",
+      "font": "default",
+      "trackIds": [
+        "bmruc7dbdxf1i0",
+        "bmruc9x0htabo1",
+        "bmruccnxudcuy8"
+      ],
+      "sfxIds": [],
+      "linkedAdReelId": "main"
+    },
+    {
+      "id": "bms53ze9zfu132",
+      "title": "SFX Demo Pack",
+      "illustration": "pack-bms53ze9zfu132.png",
+      "illustrationOriginalName": null,
+      "watermark": null,
+      "watermarkOriginalName": null,
+      "presentationFr": "",
+      "presentationEn": "",
+      "buyable": false,
+      "buyUrl": "",
+      "freeDownloadEnabled": false,
+      "videoTestModeEnabled": true,
+      "bgColor": "#f6f5f3",
+      "textColor": "#262521",
+      "font": "default",
+      "trackIds": [],
+      "sfxIds": [
+        "bms3s3uj7b4oi8",
+        "bms3sf3itgekxm",
+        "bms378c2zbxgpd"
+      ],
+      "linkedAdReelId": null
+    }
+  ],
   "implementationSkills": {
-    "wwise": false,
+    "wwise": true,
     "fmod": false,
     "unity": false,
     "unreal": false
   },
-  "noAiCertifiedGlobal": false,
-  "collections": [],
+  "noAiCertifiedGlobal": true,
+  "collections": [
+    {
+      "id": "bms3b5smeya9d3",
+      "title": "All inclusive",
+      "illustration": null,
+      "illustrationOriginalName": null,
+      "presentationFr": "",
+      "presentationEn": "",
+      "bgColor": "#f6f5f3",
+      "textColor": "#262521",
+      "font": "default",
+      "buyable": false,
+      "buyUrl": "",
+      "freeDownloadEnabled": false,
+      "packIds": [
+        "bmrcakdllw9m7v",
+        "bmrucduoqf8jzn"
+      ]
+    }
+  ],
   "customFonts": [],
-  "adReels": []
+  "adReels": [
+    {
+      "id": "main",
+      "label": "Principal",
+      "lang": "fr",
+      "blocks": [
+        {
+          "id": "bmrc8jutc1864w",
+          "type": "header"
+        },
+        {
+          "id": "bmrc8jutc76x5x",
+          "type": "testimonials"
+        },
+        {
+          "id": "bmrc8jutcsb597",
+          "type": "tracks"
+        },
+        {
+          "id": "bmrn9bj1f1kcfy",
+          "type": "packs",
+          "packIds": [
+            "bmrcakdllw9m7v",
+            "bmrucduoqf8jzn"
+          ]
+        },
+        {
+          "id": "bmrc9ryuilymwc",
+          "type": "video",
+          "videos": [
+            {
+              "title": "Rescore Trailer DLC PRojectCars",
+              "url": "https://youtu.be/vHJAhKIIlWc",
+              "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png",
+              "thumbnailOriginalName": null
+            }
+          ]
+        },
+        {
+          "id": "bmrc9u6n4z4dx0",
+          "type": "text",
+          "content": "[Retrouvez pleins d'extraits vidéos dans pleins de styles ICI !](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)\n",
+          "align": "center"
+        },
+        {
+          "id": "bmrc9wrt713mzm",
+          "type": "photo",
+          "align": "center",
+          "images": [
+            {
+              "file": "bmrc9wrt713mzm-0.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrc9wrt713mzm-1.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrc9wrt713mzm-2.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrc9wrt713mzm-3.png",
+              "originalFileName": null
+            }
+          ]
+        },
+        {
+          "id": "bmrc8jutcd4w5f",
+          "type": "bio"
+        },
+        {
+          "id": "bmrkexrkghgp8p",
+          "type": "contact"
+        }
+      ],
+      "profile": {
+        "title": "",
+        "subtitle": "",
+        "bio": "Jules-Antoine est compositeur pour l’image, nourri par un long parcours de musicien de scène. Formé en conservatoire (classique, jazz, musiques actuelles) et à l’université, il développe une écriture vivante et polyvalente, façonnée par des années passées à naviguer entre rock, reggae, pop, funk, jazz et musiques urbaines. Cette expérience du live lui apporte une sensibilité rythmique et une énergie organique qu’il met aujourd’hui au service de la narration audiovisuelle.\n\nEn 2022, il se spécialise dans la composition pour médias en intégrant le Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), au sein duquel il explore différents registres — fiction, animation, documentaire, jeux vidéo — et affine son langage sonore. Il continue de se spécialiser en 2026 en intégrant le MFA \"VideoGame and Mediacomposition\", pour s'aguerrir dans la composition adaptative et l'implémentation de musique au sein de moteurs audios.\n\nParallèlement à son travail pour l’image, il compose pour le spectacle vivant et dirige la création musicale de la compagnie jeune public Des Coccinelles dans les Chaussettes depuis 2017. Il collabore également très régulièrement avec Les concerts de Poche (ateliers écriture/MAO), La Femme et l'Homme Debout (Spectacles, ateliers), La Roulotte ruche (Spectacles de Rue)\n\nEn 2026, Jules-Antoine a notamment composé tout l'habillage sonore du dernier spectacle \"Il y'a des Choses que Non\", de la Compagnie \"La Femme et l'Homme Debout\"",
+        "contactEmail": "",
+        "contactUrl": "",
+        "formspreeEndpoint": "https://formspree.io/f/mojognrj",
+        "logo": "logo-main.jpeg",
+        "photo": "photo-main.jpg",
+        "tagline": "",
+        "bgColor": "#f6f5f3",
+        "textColor": "#262521",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        }
+      },
+      "testimonials": [
+        {
+          "text": "Jules est un compositeur véritablement créatif, animé par une réelle soif d’apprendre et de progresser en permanence. Il possède non seulement une solide maîtrise de la théorie musicale, mais aussi un grand sens de la musicalité. C’est une belle personne, ainsi qu’un compositeur passionné et inventif.",
+          "author": "(Alioune Koné - Composer)"
+        },
+        {
+          "text": "J'ai été impressionné par la capacité de Jules à être à l'écoute des thèmes et des désirs abordés dans les projets. Il n'hésite pas à faire preuve d'initiative en étant force de proposition, tout en ayant la volonté de se renseigner sur ce qu'il ne connait pas (encore). Jules-Antoine est quelqu'un de généreux, empathique et ouvert d'esprit.",
+          "author": "(Frederic Maslanka - Scénariste)"
+        }
+      ],
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmsrox5psn3r4k",
+        "bmresp3hdlhbmx",
+        "bmrdjlv9p1cbv9",
+        "bmrc9dbzsaio19"
+      ],
+      "trackOverrides": {},
+      "folderId": null
+    },
+    {
+      "id": "amsel-suite",
+      "label": "Amsel Suite",
+      "lang": "fr",
+      "blocks": [
+        {
+          "id": "bmrcp99sqfvfi3",
+          "type": "header"
+        },
+        {
+          "id": "bmrcp99sqkx1jk",
+          "type": "testimonials"
+        },
+        {
+          "id": "bmrcp99sq29n9z",
+          "type": "tracks"
+        },
+        {
+          "id": "bmrcp99sq6w8mz",
+          "type": "video",
+          "videos": [
+            {
+              "title": "https://youtu.be/vHJAhKIIlWc",
+              "url": "https://youtu.be/vHJAhKIIlWc",
+              "comment": "",
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png",
+              "thumbnailOriginalName": null
+            }
+          ]
+        },
+        {
+          "id": "bmrcp99sqbehbg",
+          "type": "text",
+          "content": "[Retrouvez pleins d'extraits vidéos dans pleins de styles ICI !](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)\n",
+          "align": "center"
+        },
+        {
+          "id": "bmrcp99sqo4egx",
+          "type": "photo",
+          "align": "center",
+          "images": [
+            {
+              "file": "bmrc9wrt713mzm-0.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrc9wrt713mzm-1.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrc9wrt713mzm-2.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrc9wrt713mzm-3.png",
+              "originalFileName": null
+            }
+          ]
+        },
+        {
+          "id": "bmrcp99sqqe91c",
+          "type": "bio"
+        }
+      ],
+      "profile": {
+        "title": "",
+        "subtitle": "",
+        "bio": "Jules Antoine est compositeur pour l’image, nourri par un long parcours de musicien de scène. Formé en conservatoire (classique, jazz, musiques actuelles) et à l’université, il développe une écriture vivante et polyvalente, façonnée par des années passées à naviguer entre rock, reggae, pop, funk, jazz et musiques urbaines. Cette expérience du live lui apporte une sensibilité rythmique et une énergie organique qu’il met aujourd’hui au service de la narration audiovisuelle.\n\nEn 2022, il se spécialise dans la composition pour médias en intégrant le Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), au sein duquel il explore différents registres — fiction, animation, documentaire, jeux vidéo — et affine son langage sonore. Il continue de se spécialiser en 2026 en intégrant le MFA \"VideoGame and Mediacomposition\", pour s'aguerrir dans la composition adaptative et l'implémentation de musique au sein de moteurs audios.\n\nParallèlement à son travail pour l’image, il compose pour le spectacle vivant et dirige la création musicale de la compagnie jeune public Des Coccinelles dans les Chaussettes depuis 2017. Il collabore également très régulièrement avec Les concerts de Poche (ateliers écriture/MAO), La Femme et l'Homme Debout (Spectacles, ateliers), La Roulotte ruche (Spectacles de Rue)\n\nEn 2026, Jules-Antoine a notamment composé tout l'habillage sonore du dernier spectacle \"Il y'a des Choses que Non\", de la Compagnie \"La Femme et l'Homme Debout\"",
+        "contactEmail": "",
+        "contactUrl": "",
+        "formspreeEndpoint": "",
+        "logo": "logo-main.jpeg",
+        "photo": "photo-main.jpg",
+        "tagline": "",
+        "bgColor": "#f6f5f3",
+        "textColor": "#262521",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        }
+      },
+      "testimonials": [
+        {
+          "text": "Jules est un compositeur véritablement créatif, animé par une réelle soif d’apprendre et de progresser en permanence. Il possède non seulement une solide maîtrise de la théorie musicale, mais aussi un grand sens de la musicalité. C’est une belle personne, ainsi qu’un compositeur passionné et inventif.",
+          "author": "(Alioune Koné - Composer)"
+        },
+        {
+          "text": "J'ai été impressionné par la capacité de Jules à être à l'écoute des thèmes et des désirs abordés dans les projets. Il n'hésite pas à faire preuve d'initiative en étant force de proposition, tout en ayant la volonté de se renseigner sur ce qu'il ne connait pas (encore). Jules-Antoine est quelqu'un de généreux, empathique et ouvert d'esprit.",
+          "author": "(Frederic Maslanka - Scénariste)"
+        }
+      ],
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmrc8vlgamn4fl",
+        "bmrdjlv9p1cbv9",
+        "bmresp3hdlhbmx",
+        "bmrc9dbzsaio19"
+      ],
+      "trackOverrides": {},
+      "folderId": null
+    },
+    {
+      "id": "xp-games",
+      "label": "XP Games",
+      "lang": "en",
+      "blocks": [
+        {
+          "id": "bmre2nedw74jps",
+          "type": "header"
+        },
+        {
+          "id": "bmre2nedwknx92",
+          "type": "testimonials"
+        },
+        {
+          "id": "bmre2nedwxfsdn",
+          "type": "tracks"
+        },
+        {
+          "id": "bmre2nedwz2j5b",
+          "type": "video",
+          "videos": [
+            {
+              "title": "Rescore Trailer DLC PRojectCars",
+              "url": "https://youtu.be/vHJAhKIIlWc",
+              "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png",
+              "thumbnailOriginalName": null
+            }
+          ]
+        },
+        {
+          "id": "bmre2nedwq8gt6",
+          "type": "text",
+          "content": "[Find tons of video clips in all kinds of styles HERE!](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)\n",
+          "align": "center"
+        },
+        {
+          "id": "bmre2nedwxgejr",
+          "type": "photo",
+          "align": "center",
+          "images": [
+            {
+              "file": "bmrc9wrt713mzm-0.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrc9wrt713mzm-1.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrc9wrt713mzm-2.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrc9wrt713mzm-3.png",
+              "originalFileName": null
+            }
+          ]
+        },
+        {
+          "id": "bmre2nedwuc55q",
+          "type": "bio"
+        }
+      ],
+      "profile": {
+        "title": "",
+        "subtitle": "",
+        "bio": "Jules-Antoine Escande is a composer for visual media, shaped by a rich background as a live performer. Trained in conservatories (classical, jazz, and contemporary music) and at university, he has developed a dynamic and versatile writing style, honed through years of navigating rock, reggae, pop, funk, jazz, and urban music. His extensive live experience brings a keen rhythmic sensitivity and organic energy to his audiovisual storytelling.\nIn 2022, he specialized in media composition by joining the Master of Arts in Professional Composition for Media (Bournemouth University / ThinkSpace Education), where he explored various genres—fiction, animation, documentary, and video games—while refining his sonic language. In 2026, he further deepened his expertise by enrolling in the MFA in Video Game and Media Composition, focusing on adaptive composition and music implementation within audio engines.\nAlongside his work in visual media, Jules-Antoine composes for live performances and has been the musical director for the youth-focused theater company Des Coccinelles dans les Chaussettes since 2017. He also frequently collaborates with Les Concerts de Poche (songwriting/DAW workshops), La Femme et l'Homme Debout (performances and workshops), and La Roulotte Ruche (street performances).\nIn 2026, Jules-Antoine composed the entire sound design for the latest production, \"Il y a des Choses que Non,\" by the company La Femme et l'Homme Debout.\n",
+        "contactEmail": "",
+        "contactUrl": "",
+        "formspreeEndpoint": "",
+        "logo": "logo-main.jpeg",
+        "photo": "photo-main.jpg",
+        "tagline": "",
+        "bgColor": "#f6f5f3",
+        "textColor": "#262521",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        }
+      },
+      "testimonials": [
+        {
+          "text": "Jules is a truly creative composer, driven by a genuine thirst for continuous learning and growth. Not only does he have a strong grasp of music theory, but he also possesses a deep sense of musicality. He’s a wonderful person, as well as a passionate and inventive composer.",
+          "author": "(Alioune Koné - Composer)"
+        },
+        {
+          "text": "I was impressed by Jules’ ability to truly listen to the themes and desires expressed in projects. He doesn’t hesitate to take initiative and bring forward strong ideas, while also being eager to research and learn about anything he doesn’t yet know. Jules-Antoine is generous, empathetic, and open-minded.",
+          "author": "(Frederic Maslanka - Scénariste)"
+        }
+      ],
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmresp3hdlhbmx",
+        "bmrc8vlgamn4fl",
+        "bmrdjlv9p1cbv9"
+      ],
+      "trackOverrides": {
+        "bmrc8rec1wtahz": {
+          "description": "An adaptive battle loop with 3 intensity levels (Low/Mid/High), perfect for a hack'n'slash game. The intensity scales with the number of enemies on screen, and the loop blends indie charm with punchy energy—because great combat music should always tease the soap before the shower hits. ",
+          "layers": {
+            "0": "Everything's allright, here",
+            "1": "How many of these guys are there?!",
+            "2": "We all gonne die!!!"
+          }
+        },
+        "bmrc8vlgamn4fl": {
+          "description": "\"Alright, team—let’s move out. If the plan’s right, we shouldn’t be far from the heart of the matrix now!\"\nA static exploration loop for distant danger—with a secret lever stinger to play with, just for fun.",
+          "stingers": {
+            "0": "Secret Lever"
+          }
+        },
+        "bmrc9dbzsaio19": {
+          "description": "It isn't midnight yet. A shadow slips across the rooftops... Fearless, it leaps from roof to gargoyle. Landing lightly on a balcony, the faint click of the French door's latch is almost impossible to hear... Barely moments later, the shadow emerges again, a grin spreading across its face. A shaft of moonlight catches its misshapen jaw. Don Benvenuto.\n\nHe casts one last glance at the spoils of his theft. *Ducatore* is going to be delighted...\n\nBut below, a guard spots him and sounds the alarm. It will take more than that to stop Benvenuto. With mischievous delight, he leads his pursuers on a wild chase... to no avail.\n\nA Opening Yheme for a mysterious, playful fantasy adventure set in the warmth of a summer night.\n"
+        },
+        "bmrdjlv9p1cbv9": {
+          "description": "After countless attempts, the boss finally went down! **Victory!** Loot is raining from the sky, and it takes a while to gather it all. With a bit of luck, we might even get a little cutscene to unlock the next level... who knows? Either way, the music is ready—it’s just waiting for the story.\n\nThree drum parts, four bass parts, six guitar parts, and four keyboard parts... A vertically layered, randomized loop that generates a different musical experience every time you listen."
+        },
+        "bmresp3hdlhbmx": {
+          "description": "It’s pitch black... The tension rises. Why did you rush ahead without waiting for the team? That’s the question running through your mind right now. The door at the end of the hallway is slightly ajar, letting through a thin beam of light. So... what do you do? Do you keep chasing to prevent them from escaping, risking walking into a trap? Or do you wait for the team? Breathe. Slowly. Deeply... And make a decision.\n\nAn intro, an outro... In between, randomly selected 8- or 16-bar segments. Pure sequential tension-building music..."
+        }
+      },
+      "folderId": null
+    },
+    {
+      "id": "demo-trusted-people",
+      "label": "Démo Trusted People",
+      "lang": "en",
+      "blocks": [
+        {
+          "id": "bmrn8gekhr15wc",
+          "type": "header"
+        },
+        {
+          "id": "bmrn8gekhc7j2a",
+          "type": "testimonials"
+        },
+        {
+          "id": "bmrn8gekhz5wxb",
+          "type": "tracks"
+        },
+        {
+          "id": "bms540osnogxiu",
+          "type": "sfx",
+          "sfxIds": [
+            "bms3s3uj7b4oi8",
+            "bms3sf3itgekxm",
+            "bms378c2zbxgpd"
+          ]
+        },
+        {
+          "id": "bms550ffb0h21k",
+          "type": "packs",
+          "packIds": [
+            "bmrcakdllw9m7v",
+            "bmrucduoqf8jzn",
+            "bms53ze9zfu132"
+          ]
+        },
+        {
+          "id": "bmrn8gekhjeizq",
+          "type": "video",
+          "videos": [
+            {
+              "title": "Rescore Trailer DLC PRojectCars",
+              "url": "https://youtu.be/vHJAhKIIlWc",
+              "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png",
+              "thumbnailOriginalName": null
+            }
+          ]
+        },
+        {
+          "id": "bmrn8gekhtx9ll",
+          "type": "text",
+          "content": "[Find tons of video clips in all kinds of styles HERE!](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)\n",
+          "align": "center"
+        },
+        {
+          "id": "bmrn8gekhvkn4c",
+          "type": "photo",
+          "align": "center",
+          "images": [
+            {
+              "file": "bmrn8gekhvkn4c-0.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrn8gekhvkn4c-1.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrn8gekhvkn4c-2.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrn8gekhvkn4c-3.png",
+              "originalFileName": null
+            }
+          ]
+        },
+        {
+          "id": "bmrn8gekhegr0d",
+          "type": "bio"
+        }
+      ],
+      "profile": {
+        "title": "",
+        "subtitle": "",
+        "bio": "Hi, I’m Jules, and I’m a composer\nRecently, I pitched music to a video game studio. I wanted to make a strong impression and present adaptive music directly—but I couldn’t find any suitable technical solution for it. So I created LayerPitch.\nThe page you’re interacting with is called an AdReel (Adaptive Reel). With a LayerPitch account, you can generate AdReels on demand, tailored to the person you’re sending them to. Behind the scenes, you can track how your contact actually interacted with it: intensity levels tested, SFX triggered, packs and collections explored—in short, how engaged they were with what you’re offering.\nStarting in September, I’ll be entering an incubation program to see how far this idea can go. I’m looking for beta testers—if you’re interested or have feedback, feel free to reach out: julzantoine@yahoo.com.\n\nPS—And by the way, this is where you’d normally display your bio to explain just how extraordinary and perfect you are for the role. :)",
+        "contactEmail": "",
+        "contactUrl": "",
+        "formspreeEndpoint": "",
+        "logo": "logo-demo-trusted-people.jpeg",
+        "photo": "photo-main.jpg",
+        "tagline": "",
+        "bgColor": "#f6f5f3",
+        "textColor": "#262521",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        }
+      },
+      "testimonials": [
+        {
+          "text": "My collaboration with this composer was surprisingly smooth, thanks to LayerPitch: we were able to test ideas almost in real time, without having to implement them in an audio engine for every trial.",
+          "author": "John Doe, Developer"
+        },
+        {
+          "text": "What really convinced me about this composer’s packs was being able to see the music and SFX work directly on **my** gameplay video—not some generic vendor demo. With no budget for custom composition, I could build the exact sound atmosphere I envisioned, seeing it come to life on my own footage before even making a purchase.",
+          "author": "A. Nonyme"
+        }
+      ],
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmsrox5psn3r4k",
+        "bmteimdrwxw5iq",
+        "bmresp3hdlhbmx",
+        "bmrdjlv9p1cbv9"
+      ],
+      "trackOverrides": {
+        "bmrc8rec1wtahz": {
+          "description": "An adaptive battle loop with 3 intensity levels (Low/Mid/High), perfect for a hack'n'slash game. The intensity scales with the number of enemies on screen, and the loop blends indie charm with punchy energy—because great combat music should always tease the soap before the shower hits. ",
+          "layers": {
+            "0": "Everything's allright, here",
+            "1": "How many of these guys are there?!",
+            "2": "We all gonne die!!!"
+          }
+        },
+        "bmrc8vlgamn4fl": {
+          "description": "\"Alright, team—let’s move out. If the plan’s right, we shouldn’t be far from the heart of the matrix now!\"\nA static exploration loop for distant danger—with a secret lever stinger to play with, just for fun.",
+          "stingers": {
+            "0": "Secret Lever"
+          }
+        },
+        "bmrc9dbzsaio19": {
+          "description": "It isn't midnight yet. A shadow slips across the rooftops... Fearless, it leaps from roof to gargoyle. Landing lightly on a balcony, the faint click of the French door's latch is almost impossible to hear... Barely moments later, the shadow emerges again, a grin spreading across its face. A shaft of moonlight catches its misshapen jaw. Don Benvenuto.\n\nHe casts one last glance at the spoils of his theft. *Ducatore* is going to be delighted...\n\nBut below, a guard spots him and sounds the alarm. It will take more than that to stop Benvenuto. With mischievous delight, he leads his pursuers on a wild chase... to no avail.\n\nA Opening Yheme for a mysterious, playful fantasy adventure set in the warmth of a summer night.\n"
+        },
+        "bmrdjlv9p1cbv9": {
+          "description": "After countless attempts, the boss finally went down! **Victory!** Loot is raining from the sky, and it takes a while to gather it all. With a bit of luck, we might even get a little cutscene to unlock the next level... who knows? Either way, the music is ready—it’s just waiting for the story.\n\nThree drum parts, four bass parts, six guitar parts, and four keyboard parts... A vertically layered, randomized loop that generates a different musical experience every time you listen."
+        },
+        "bmresp3hdlhbmx": {
+          "description": "It’s pitch black... The tension rises. Why did you rush ahead without waiting for the team? That’s the question running through your mind right now. The door at the end of the hallway is slightly ajar, letting through a thin beam of light. So... what do you do? Do you keep chasing to prevent them from escaping, risking walking into a trap? Or do you wait for the team? Breathe. Slowly. Deeply... And make a decision.\n\nAn intro, an outro... In between, randomly selected 8- or 16-bar segments. Pure sequential tension-building music..."
+        },
+        "bmsrox5psn3r4k": {
+          "description": "#1_Wet Dark Cave\n“Okay guys, spread out. If the map is right, we shouldn’t be too far from the core of the Matrix!”\n\n#2_The Corridor\n“Hey Joe! A door just opened!”\n“Watch out, Lucien. Those bastards are everywhere…”\n“I think it’s this way. I can hear something. Shall we go?”\n“Okay… But don’t go too far. This shit is making me nervous.”\n\nYour team moves forward… and eventually finds a secret lever that opens a hidden door. You make your way into a long, dark corridor. The tension is rising.\n\n#3_Battle\n“THEY’RE COMING!!! Formation! Fire at will! Goddamn robots, they’re everywhere!”\n“Boss, what do we do? Boss?? Boss?!”\n\nYou emerge into a huge cavern… where hundreds of robots catch you off guard and open fire. Maybe you should’ve saved your game after all…\n\n-> A branching piece of music that follows the player’s actions and location…\n"
+        }
+      },
+      "folderId": null
+    },
+    {
+      "id": "demo-fr",
+      "label": "DEMO_FR",
+      "lang": "fr",
+      "blocks": [
+        {
+          "id": "bms23agu93s9lx",
+          "type": "header"
+        },
+        {
+          "id": "bms23agu9t7io3",
+          "type": "testimonials"
+        },
+        {
+          "id": "bms23agu9107f1",
+          "type": "tracks"
+        },
+        {
+          "id": "bms54elcli1lgf",
+          "type": "sfx",
+          "sfxIds": [
+            "bms3s3uj7b4oi8",
+            "bms3sf3itgekxm",
+            "bms378c2zbxgpd"
+          ]
+        },
+        {
+          "id": "bms54v8xcyc78g",
+          "type": "packs",
+          "packIds": [
+            "bmrcakdllw9m7v",
+            "bmrucduoqf8jzn",
+            "bms53ze9zfu132"
+          ]
+        },
+        {
+          "id": "bms24mgodnb64m",
+          "type": "video",
+          "videos": [
+            {
+              "title": "Rescore trailer DLC ProjectCars",
+              "url": "https://youtu.be/vHJAhKIIlWc",
+              "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
+              "thumbnail": null,
+              "thumbnailOriginalName": null
+            }
+          ]
+        },
+        {
+          "id": "bms24o5q8371f3",
+          "type": "text",
+          "content": "[Retrouvez pleins d'autres vidéos ici ! ](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)",
+          "align": "center"
+        },
+        {
+          "id": "bms23k4srbb2ab",
+          "type": "photo",
+          "align": "center",
+          "images": [
+            {
+              "file": "bms23k4srbb2ab-0.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bms23k4srbb2ab-1.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bms23k4srbb2ab-2.png",
+              "originalFileName": null
+            }
+          ]
+        },
+        {
+          "id": "bms23agu9ygt8z",
+          "type": "bio"
+        }
+      ],
+      "profile": {
+        "title": "",
+        "subtitle": "",
+        "bio": "Salut, je m'appelle Jules et je suis compositeur.\n\nRécemment, j'ai pitché de la musique à un studio de jeu vidéo. J'ai voulu frapper fort et présenter directement de la musique adaptative — mais je n'ai trouvé aucune solution technique adéquate pour ça. Alors j'ai créé LayerPitch.\n\nLa page avec laquelle vous interagissez s'appelle un AdReel (Adaptive Reel). Avec un compte LayerPitch, vous générez des AdReels à la demande, personnalisés selon la personne à qui vous les envoyez. Ensuite, en backstage, vous suivez comment votre interlocuteur a réellement interagi : niveaux d'intensité testés, SFX déclenchés, packs et collections explorés — bref, à quel point il ou elle s'est vraiment intéressé·e à ce que vous proposez.\n\nÀ partir de septembre, j'entre en incubation pour voir jusqu'où cette idée peut aller. Je cherche des bêta-testeurs — si ça vous intéresse, ou si vous avez un retour à me faire, écrivez-moi : julzantoine@yahoo.com.\n\nPS — Et sinon, normalement, c'est ici que vous afficheriez votre bio, pour expliquer à quel point vous êtes extraordinaire et pertinent·e pour le poste. :)",
+        "contactEmail": "",
+        "contactUrl": "",
+        "formspreeEndpoint": "",
+        "logo": "logo-demo-fr.jpeg",
+        "photo": "photo-demo-fr.jpg",
+        "tagline": "",
+        "bgColor": "#f6f5f3",
+        "textColor": "#262521",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        }
+      },
+      "testimonials": [
+        {
+          "text": "Ma collaboration avec ce compositeur a été étonnamment fluide, notamment grâce à LayerPitch : on a pu tester des idées presque en temps réel, sans passer par une implémentation dans un moteur audio à chaque essai.",
+          "author": "John Doe, développeur"
+        },
+        {
+          "text": "Ce qui m'a vraiment convaincu avec les packs de ce compositeur, c'est d'avoir pu voir la musique et les SFX fonctionner directement sur MA vidéo de gameplay — pas une démo générique du vendeur. Sans budget pour une composition sur mesure, j'ai pu construire l'atmosphère sonore exactement comme je l'imaginais, en la voyant vivre sur mes propres images avant même d'acheter.",
+          "author": "A. Nonyme, GameDev"
+        }
+      ],
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmsrox5psn3r4k",
+        "bmteimdrwxw5iq",
+        "bmresp3hdlhbmx",
+        "bmrdjlv9p1cbv9"
+      ],
+      "trackOverrides": {},
+      "folderId": null
+    },
+    {
+      "id": "formike",
+      "label": "ForMike",
+      "lang": "en",
+      "blocks": [
+        {
+          "id": "bmsca81bnihius",
+          "type": "header"
+        },
+        {
+          "id": "bmsca81bnyxpv6",
+          "type": "testimonials"
+        },
+        {
+          "id": "bmsca81bnj1g2t",
+          "type": "tracks"
+        },
+        {
+          "id": "bmsca81bnxhkhm",
+          "type": "sfx",
+          "sfxIds": [
+            "bms3s3uj7b4oi8",
+            "bms3sf3itgekxm",
+            "bms378c2zbxgpd"
+          ]
+        },
+        {
+          "id": "bmsca81bn8ifi1",
+          "type": "packs",
+          "packIds": [
+            "bmrcakdllw9m7v",
+            "bmrucduoqf8jzn",
+            "bms53ze9zfu132"
+          ]
+        },
+        {
+          "id": "bmsca81bndb2fb",
+          "type": "video",
+          "videos": [
+            {
+              "title": "Rescore Trailer DLC PRojectCars",
+              "url": "https://youtu.be/vHJAhKIIlWc",
+              "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png",
+              "thumbnailOriginalName": null
+            }
+          ]
+        },
+        {
+          "id": "bmsca81bnp8jks",
+          "type": "text",
+          "content": "[Find tons of video clips in all kinds of styles HERE!](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)\n",
+          "align": "center"
+        },
+        {
+          "id": "bmsca81bnm99aa",
+          "type": "photo",
+          "align": "center",
+          "images": [
+            {
+              "file": "bmrn8gekhvkn4c-0.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrn8gekhvkn4c-1.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrn8gekhvkn4c-2.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrn8gekhvkn4c-3.png",
+              "originalFileName": null
+            }
+          ]
+        },
+        {
+          "id": "bmsca81bnnlnci",
+          "type": "bio"
+        }
+      ],
+      "profile": {
+        "title": "",
+        "subtitle": "",
+        "bio": "Hi Mike ! Thank you for taking the time to check out layerpitch!\nRecently, I pitched music to a video game studio. I wanted to make a strong impression and present adaptive music directly—but I couldn’t find any suitable technical solution for it. So I created LayerPitch.\nThe page you’re interacting with is called an AdReel (Adaptive Reel). With a LayerPitch account, you can generate AdReels on demand, tailored to the person you’re sending them to. Behind the scenes, you can track how your contact actually interacted with it: intensity levels tested, SFX triggered, packs and collections explored—in short, how engaged they were with what you’re offering.\nStarting in September, I’ll be entering an incubation program to see how far this idea can go. I’m looking for beta testers—if you’re interested or have feedback, feel free to reach out: julzantoine@yahoo.com.\n\nPS—And by the way, this is where you’d normally display your bio to explain just how extraordinary and perfect you are for the role. :)",
+        "contactEmail": "",
+        "contactUrl": "",
+        "formspreeEndpoint": "",
+        "logo": "logo-demo-trusted-people.jpeg",
+        "photo": "photo-main.jpg",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        }
+      },
+      "testimonials": [
+        {
+          "text": "My collaboration with this composer was surprisingly smooth, thanks to LayerPitch: we were able to test ideas almost in real time, without having to implement them in an audio engine for every trial.",
+          "author": "John Doe, Developer"
+        },
+        {
+          "text": "What really convinced me about this composer’s packs was being able to see the music and SFX work directly on **my** gameplay video—not some generic vendor demo. With no budget for custom composition, I could build the exact sound atmosphere I envisioned, seeing it come to life on my own footage before even making a purchase.",
+          "author": "A. Nonyme"
+        }
+      ],
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmsrox5psn3r4k",
+        "bmteimdrwxw5iq",
+        "bmresp3hdlhbmx",
+        "bmrdjlv9p1cbv9"
+      ],
+      "trackOverrides": {
+        "bmrc8rec1wtahz": {
+          "description": "An adaptive battle loop with 3 intensity levels (Low/Mid/High), perfect for a hack'n'slash game. The intensity scales with the number of enemies on screen, and the loop blends indie charm with punchy energy—because great combat music should always tease the soap before the shower hits. ",
+          "layers": {
+            "0": "Everything's allright, here",
+            "1": "How many of these guys are there?!",
+            "2": "We all gonne die!!!"
+          }
+        },
+        "bmrc8vlgamn4fl": {
+          "description": "\"Alright, team—let’s move out. If the plan’s right, we shouldn’t be far from the heart of the matrix now!\"\nA static exploration loop for distant danger—with a secret lever stinger to play with, just for fun.",
+          "stingers": {
+            "0": "Secret Lever"
+          }
+        },
+        "bmrc9dbzsaio19": {
+          "description": "It isn't midnight yet. A shadow slips across the rooftops... Fearless, it leaps from roof to gargoyle. Landing lightly on a balcony, the faint click of the French door's latch is almost impossible to hear... Barely moments later, the shadow emerges again, a grin spreading across its face. A shaft of moonlight catches its misshapen jaw. Don Benvenuto.\n\nHe casts one last glance at the spoils of his theft. *Ducatore* is going to be delighted...\n\nBut below, a guard spots him and sounds the alarm. It will take more than that to stop Benvenuto. With mischievous delight, he leads his pursuers on a wild chase... to no avail.\n\nA Opening Yheme for a mysterious, playful fantasy adventure set in the warmth of a summer night.\n"
+        },
+        "bmrdjlv9p1cbv9": {
+          "description": "After countless attempts, the boss finally went down! **Victory!** Loot is raining from the sky, and it takes a while to gather it all. With a bit of luck, we might even get a little cutscene to unlock the next level... who knows? Either way, the music is ready—it’s just waiting for the story.\n\nThree drum parts, four bass parts, six guitar parts, and four keyboard parts... A vertically layered, randomized loop that generates a different musical experience every time you listen."
+        },
+        "bmresp3hdlhbmx": {
+          "description": "It’s pitch black... The tension rises. Why did you rush ahead without waiting for the team? That’s the question running through your mind right now. The door at the end of the hallway is slightly ajar, letting through a thin beam of light. So... what do you do? Do you keep chasing to prevent them from escaping, risking walking into a trap? Or do you wait for the team? Breathe. Slowly. Deeply... And make a decision.\n\nAn intro, an outro... In between, randomly selected 8- or 16-bar segments. Pure sequential tension-building music..."
+        },
+        "bmsrox5psn3r4k": {
+          "description": "#1_Wet Dark Cave\n“Okay guys, spread out. If the map is right, we shouldn’t be too far from the core of the Matrix!”\n\n#2_The Corridor\n“Hey Joe! A door just opened!”\n“Watch out, Lucien. Those bastards are everywhere…”\n“I think it’s this way. I can hear something. Shall we go?”\n“Okay… But don’t go too far. This shit is making me nervous.”\n\nYour team moves forward… and eventually finds a secret lever that opens a hidden door. You make your way into a long, dark corridor. The tension is rising.\n\n#3_Battle\n“THEY’RE COMING!!! Formation! Fire at will! Goddamn robots, they’re everywhere!”\n“Boss, what do we do? Boss?? Boss?!”\n\nYou emerge into a huge cavern… where hundreds of robots catch you off guard and open fire. Maybe you should’ve saved your game after all…\n\n-> A branching piece of music that follows the player’s actions and location…"
+        }
+      },
+      "folderId": null
+    }
+  ]
 }
