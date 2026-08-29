@@ -1,12 +1,13 @@
 # LAYERPITCH — INFRASTRUCTURE
-*Extrait de `MASTER.md` le 28 juillet 2026 lors de la restructuration en fichiers spécialisés. Partie A inchangée sur le fond. Partie B mise à jour le 27 août 2026 — canal dédié à la bascule backend, cinq décisions d'architecture actées avant tout code.*
+*Extrait de `MASTER.md` le 28 juillet 2026 lors de la restructuration en fichiers spécialisés. Partie A inchangée sur le fond. Partie B mise à jour le 27 août 2026 — canal dédié à la bascule backend, cinq décisions d'architecture actées avant tout code ; corrigée le 29 août 2026 (schéma `loops`/`segment_slots`). Partie C ajoutée le 29 août 2026 — protection d'accès du repo bêta.*
 
-## Vue d'ensemble — deux chantiers de nature différente
+## Vue d'ensemble — trois chantiers de nature différente
 
 - **Partie A — Bêta de retour qualitatif** (décidée le 12 juillet, en cours) : ne nécessite aucun développement backend.
 - **Partie B — Bascule backend réelle** (cadrée le 12 juillet, architecture actée le 27 août, développement pas encore commencé) : comptes, base de données, paiement — pour une version ultérieure du produit.
+- **Partie C — Protection d'accès du repo bêta** (décidée le 27 août, mise en œuvre en cours depuis le 29 août) : verrouillage de l'accès au site GitHub Pages actuel via Cloudflare Zero Trust Access, indépendant de la bascule backend.
 
-**Changement de calendrier (27 août)** : la roadmap datée dans `business-marche.md` visait un démarrage "début 2027". Décision volontaire d'avancer ce chantier en tâche de fond dès maintenant, en parallèle du reste — motivée par l'avancement du travail de fond, pas par l'urgence de sécurité (celle-ci est traitée séparément via Cloudflare Access, voir plus bas).
+**Changement de calendrier (27 août)** : la roadmap datée dans `business-marche.md` visait un démarrage "début 2027" pour la Partie B. Décision volontaire d'avancer ce chantier en tâche de fond dès maintenant, en parallèle du reste — motivée par l'avancement du travail de fond, pas par l'urgence de sécurité (celle-ci est traitée séparément via Cloudflare Access, Partie C).
 
 ## Partie A — Bêta de retour qualitatif
 
@@ -104,8 +105,8 @@ Front statique (index.html, backstage, player.js)
 
 - **Un seul bucket** (`layerpitch-media`), distinction par préfixe de clé plutôt que par bucket.
 - **Structure de clés miroir de l'actuelle** : `audio/<trackId>/<filename>`, `sfx/<sfxId>/<filename>`, `images/<packId ou adReelId>/<filename>` — réécriture d'URL quasi mécanique (changement du seul domaine de base).
-- **Accès public via domaine personnalisé `media.layerpitch.com`** — nécessite que `layerpitch.com` soit une zone gérée par Cloudflare (nameservers pointés dessus). **Bloqué tant que le domaine n'est pas acheté** (voir section Domaine ci-dessous). En attendant, le sous-domaine `r2.dev` sert uniquement de bac à sable technique, jamais de lien partagé réel (rate-limité, non prévu pour la production).
-- **Pas de presigned URLs / auth par objet à ce stade** — cohérent avec le modèle de sécurité par obscurité déjà en place aujourd'hui (ID de dossier non devinables dans les chemins GitHub Pages actuels), réévaluable une fois Cloudflare Access branché.
+- **Accès public via domaine personnalisé `media.layerpitch.com`** — nécessite que `layerpitch.com` soit une zone gérée par Cloudflare (nameservers pointés dessus). **Point bloquant levé le 29 août** : le domaine est acheté et sa zone en cours de bascule vers Cloudflare (voir section Domaine ci-dessous) — l'exposition publique réelle du bucket (cache, WAF, URL stable) pourra être configurée une fois la zone confirmée active. Le `r2.dev` temporaire n'est plus nécessaire même pour les tests, dès que la zone est active.
+- **Pas de presigned URLs / auth par objet à ce stade** — cohérent avec le modèle de sécurité par obscurité déjà en place aujourd'hui (ID de dossier non devinables dans les chemins GitHub Pages actuels), réévaluable une fois Cloudflare Access branché (Partie C).
 - **Migration = copie 1:1** des fichiers `images/` et `audio/` du repo GitHub vers le bucket, chemins conservés.
 
 ### Décision 4 — Authentification
@@ -134,15 +135,17 @@ Décidé le 27 août, en s'appuyant sur des features déjà conçues dans `exten
 - **Vraie Marketplace organisée** (catalogue, tags, filtres) — repoussée à la Phase 2, une fois "assez de packs en vente" ; `packs.tags` provisionné vide dès maintenant pour éviter une migration ultérieure.
 - **Extension `admin-analytics.html`** — comptages directs sur les nouvelles tables (nombre de comptes, d'AdReels, de morceaux, de packs créés/en vente) en complément du suivi comportemental existant (`events.json`/Umami). Implémentation triviale une fois Postgres en place, aucune décision d'architecture supplémentaire requise.
 
-### Domaine — `layerpitch.com` (statut : acheté le 29 août)
+### Domaine — `layerpitch.com` (statut : acheté le 29 août, bascule DNS vers Cloudflare en cours)
 
+Structure confirmée le 29 août lors de la mise en œuvre de la Partie C :
 - **`layerpitch.com` (apex)** → landing page Framer (pré-lancement)
-- **`www.layerpitch.com`** → GitHub Pages. Sa protection par Cloudflare Access (sécurisation du repo principal, en attendant l'auth réelle) est traitée dans un canal séparé, hors périmètre de ce chantier backend.
-- **`media.layerpitch.com`** → bucket R2 (Décision 3) — **point bloquant levé** : le domaine étant maintenant acheté et sa zone gérée par Cloudflare, l'exposition publique propre du bucket (cache, WAF, URL stable) peut être configurée pour de vrai. Le `r2.dev` temporaire n'est plus nécessaire même pour les tests.
+- **`www.layerpitch.com`** → réservé pour le site final (l'app LayerPitch réelle) ; pointera vers GitHub Pages (ou son successeur) au moment du lancement — bascule DNS pure, aucun impact code
+- **`beta.layerpitch.com`** → repo GitHub Pages **actuel** (backstage + démo), protégé par Cloudflare Access — voir Partie C pour la séquence complète. Distinct de `www` pour ne pas mélanger le prototype protégé et la future app publique.
+- **`media.layerpitch.com`** → bucket R2 (Décision 3), point bloquant levé, configuration du domaine personnalisé sur le bucket lui-même pas encore faite (dépend de la finalisation de la Partie C en cours).
 
-**Prérequis technique** : les nameservers du domaine doivent pointer vers Cloudflare (zone DNS complète), pas seulement un enregistrement isolé — condition pour activer un domaine personnalisé sur R2. Framer n'a pas besoin d'être le gestionnaire des nameservers, un enregistrement DNS chez Cloudflare suffit pour `www`.
+**Prérequis technique** : les nameservers du domaine doivent pointer vers Cloudflare (zone DNS complète), pas seulement un enregistrement isolé — condition pour activer un domaine personnalisé sur R2 et pour Cloudflare Access. Framer n'a pas besoin d'être le gestionnaire des nameservers, un enregistrement DNS chez Cloudflare suffit pour `www`. Nameservers OVH remplacés par ceux de Cloudflare le 29 août — propagation en cours au moment de la rédaction.
 
-**Piège à connaître pour la bascule `www` → GitHub Pages** : Cloudflare proxifie les enregistrements par défaut (nuage orange), ce qui empêche GitHub de terminer son challenge HTTP pour émettre son certificat Let's Encrypt (HTTPS ne se met jamais en place, risque de boucle de redirection si le TLS Cloudflare est forcé en plus). Mettre l'enregistrement en "DNS only" (nuage gris) le temps que le certificat GitHub soit émis, avant de repasser en proxifié si souhaité.
+**Piège à connaître pour la bascule `www` → GitHub Pages (à anticiper, pas encore rencontré)** : Cloudflare proxifie les enregistrements par défaut (nuage orange), ce qui empêche GitHub de terminer son challenge HTTP pour émettre son certificat Let's Encrypt (HTTPS ne se met jamais en place, risque de boucle de redirection si le TLS Cloudflare est forcé en plus). Mettre l'enregistrement en "DNS only" (nuage gris) le temps que le certificat GitHub soit émis, avant de repasser en proxifié si souhaité. **Ce piège ne s'applique pas à `beta.layerpitch.com`** : Cloudflare Access nécessite justement que l'enregistrement reste proxifié (nuage orange) pour pouvoir s'intercaler — à vérifier concrètement lors de la mise en place du custom domain côté repo GitHub (Partie C) ; si le certificat ne s'émet pas, passer temporairement en DNS only le temps de l'émission, comme pour `www`.
 
 ### Roadmap séquencée proposée (12 juillet, non révisée depuis)
 
@@ -168,12 +171,56 @@ Phase 0 (fondation comptes/BDD/stockage) → Phase 1 (Packs V2 minimal, paiement
 
 **Point non négociable avant tout lancement réel** : audit ponctuel par un développeur humain (cloisonnement des comptes, non-fuite de clés, permissions BDD) — pas requis pour la bêta Partie A. Environnement recommandé : Claude Code plutôt qu'un chat classique.
 
+## Partie C — Protection d'accès du repo bêta (Cloudflare Zero Trust Access)
+
+### Problème traité
+
+Le repo GitHub Pages actuel (site + backstage) est aujourd'hui public et sans authentification : n'importe qui tombant sur l'URL peut consulter le prototype et son code source côté client. Objectif : empêcher la découverte non invitée (concurrents, curieux) avant l'ouverture publique, sans bloquer la bascule backend déjà planifiée (Partie B) ni retarder la bêta qualitative (Partie A).
+
+### Solution retenue — Cloudflare Zero Trust Access
+
+Choisie plutôt qu'un repo GitHub privé (GitHub Pro, 4$/mois) car un repo privé n'empêche pas l'accès au site publié — GitHub Pages reste public par défaut même depuis un repo privé, il protège seulement contre la découverte via l'interface GitHub elle-même (recherche, scraping de code). Cloudflare Access verrouille l'URL publique elle-même.
+
+**Caractéristiques** :
+- Gratuit jusqu'à 50 utilisateurs (largement suffisant pour une bêta qualitative d'une dizaine de testeurs).
+- Couche d'authentification posée devant le trafic (email + code à usage unique), aucune modification du code du repo.
+- Rétention des logs limitée à 24h sur le plan gratuit — sans impact pour cet usage.
+- Nécessite que le trafic passe par le réseau Cloudflare (DNS proxifié) — condition qui a motivé l'achat du domaine `layerpitch.com`, un `github.io` par défaut ne le permettant pas.
+
+### Périmètre — `beta.layerpitch.com`
+
+Sous-domaine dédié (voir section Domaine, Partie B) plutôt que l'apex `layerpitch.com`, pour ne pas bloquer la future vitrine Framer publique. Application Zero Trust créée spécifiquement sur `beta.layerpitch.com`, policy "Allow" basée sur une liste d'emails autorisés (Jules-Antoine + contacts de confiance).
+
+### Séquence de mise en œuvre (état au 29 août, en cours)
+
+1. Achat de `layerpitch.com` sur OVH.
+2. Ajout du site sur Cloudflare (plan Free).
+3. Création du `CNAME beta → julzantoine.github.io` sur Cloudflare, proxy activé.
+4. Bascule des nameservers OVH vers Cloudflare (`sloan.ns.cloudflare.com` / `zac.ns.cloudflare.com`) — propagation en cours.
+5. *(à faire)* Confirmation de l'activation de la zone Cloudflare.
+6. *(à faire)* Renseignement de `beta.layerpitch.com` comme custom domain dans Settings → Pages du repo GitHub — déclenche la redirection automatique de l'URL `github.io` par défaut, condition pour n'avoir qu'un seul point d'accès ("propre", décision actée le 29 août : pas d'URL parallèle non protégée).
+7. *(à faire)* Vérification que le site répond correctement en HTTPS sur `beta.layerpitch.com`.
+8. *(à faire)* Création de l'Application Zero Trust sur `beta.layerpitch.com`.
+9. *(à faire)* Définition de la policy d'accès (liste d'emails).
+
+### Extension envisagée — protection des repos testeurs (`layerpitch-beta`)
+
+**Sujet ouvert le 29 août, non implémenté, à reprendre une fois `beta.layerpitch.com` validé de bout en bout.**
+
+Piste retenue pour éviter de répéter la configuration repo par repo : Cloudflare supporte les enregistrements DNS wildcard et les Applications Zero Trust wildcard, y compris sur le plan gratuit (confirmé le 29 août). Plutôt qu'un CNAME + une Application Access par testeur, mise en place envisagée d'un seul :
+- Enregistrement DNS wildcard (ex. `*.testeurs.layerpitch.com`) → GitHub Pages.
+- Application Zero Trust wildcard sur le même pattern, avec une policy d'accès.
+
+Pour chaque nouveau testeur, il suffirait alors de renseigner son sous-domaine (ex. `remi.testeurs.layerpitch.com`) dans Settings → Pages de son repo — héritage automatique du DNS et de la protection Access déjà en place, sans nouveau réglage Cloudflare.
+
+**Point non tranché** : liste d'emails commune (chaque testeur voit potentiellement les sous-domaines des autres) vs restriction par testeur (chaque testeur limité à son propre sous-domaine, nécessite une policy plus fine par hostname). À trancher avant implémentation.
+
 ### Journal des décisions d'infrastructure
 
 - **12 juillet** — cadrage Partie A/B, six briques manquantes identifiées, script `layerpitch-beta-sync.js` conçu.
 - **14 juillet** — décision Cloudflare R2 pour l'audio et la vidéo, Supabase réservé au Postgres ; coûts et marge post-bascule chiffrés ; garde-fous de plafonds actés.
 - **13 août** — cache navigateur/CDN sur publication : `data.json` déjà cache-busté (`Date.now()`) ; trou trouvé et corrigé sur `layerpitch-i18n.js`/`layerpitch-help.js` (jamais versionnés, contrairement à `player.js`) — `updateScriptVersions()` généralisée aux trois scripts, `video-test.html` ajouté à la liste des fichiers mis à jour à la publication.
-- **27 août** — canal dédié à la bascule backend ouvert. Cinq décisions d'architecture actées : (1) schéma hybride Postgres relationnel + JSONB, avec tables dures sur tout ce qui porte une logique de graphe/transaction (`segment_slots`, `segment_slot_transitions`, achats) ; (2) couche d'abstraction API en service layer JS côté client, RPC Postgres pour la logique métier, Edge Functions réservées aux secrets/appels externes ; (3) migration médias vers R2, bucket unique, domaine personnalisé bloqué en attendant l'achat de `layerpitch.com` ; (4) auth Supabase magic link invite-only, modèle de comptes à profils multiples ; (5) ordre de bascule incrémental (médias → auth → BDD → achats), pattern Strangler Fig. Périmètre fonctionnel d'ouverture élargi pour inclure l'achat de packs depuis l'AdReel, la bibliothèque acheteur, et une entité `Album` provisionnée (vente d'OST façon Bandcamp). Décision explicite de tenir Moodboard Studios (nom et modèle de rémunération) et les mécaniques non finalisées (playlists, "Figer") hors du schéma actuel.
+- **27 août** — canal dédié à la bascule backend ouvert. Cinq décisions d'architecture actées : (1) schéma hybride Postgres relationnel + JSONB, avec tables dures sur tout ce qui porte une logique de graphe/transaction (`segment_slots`, `segment_slot_transitions`, achats) ; (2) couche d'abstraction API en service layer JS côté client, RPC Postgres pour la logique métier, Edge Functions réservées aux secrets/appels externes ; (3) migration médias vers R2, bucket unique, domaine personnalisé bloqué en attendant l'achat de `layerpitch.com` ; (4) auth Supabase magic link invite-only, modèle de comptes à profils multiples ; (5) ordre de bascule incrémental (médias → auth → BDD → achats), pattern Strangler Fig. Périmètre fonctionnel d'ouverture élargi pour inclure l'achat de packs depuis l'AdReel, la bibliothèque acheteur, et une entité `Album` provisionnée (vente d'OST façon Bandcamp). Décision explicite de tenir Moodboard Studios (nom et modèle de rémunération) et les mécaniques non finalisées (playlists, "Figer") hors du schéma actuel. Décision de protection d'accès actée le même jour : Cloudflare Zero Trust Access plutôt qu'un repo GitHub privé, sous-domaine `beta.layerpitch.com` dédié.
 - **29 août** — correction du schéma de la Décision 1 : `loops` (mode `embranchement-vertical`) déplacé de la piste "table dure façon `segment_slots`" vers JSONB, après vérification sur un premier morceau réel de ce mode. `segment_slots`/`segment_slot_transitions` recentrées explicitement sur le seul mode `sequential`. Aucun impact sur les Décisions 2 à 5.
-- **29 août** — domaine `layerpitch.com` acheté. Point bloquant de la Décision 3 levé : `media.layerpitch.com` peut être configuré en exposition publique réelle pour R2.
-- **À trancher** : Supabase managé vs auto-hébergé sur OVH ; date d'ouverture réelle de la bêta A (dépend de l'essai à blanc + correctif cache) ; ADR formalisant la révision de calendrier de la Partie B (documentée ici, ADR séparé à rédiger une fois ces docs poussées sur GitHub).
+- **29 août** — achat effectif de `layerpitch.com` sur OVH, point bloquant de la Décision 3 levé (exposition publique réelle possible pour `media.layerpitch.com`). Mise en œuvre de la Partie C démarrée : site ajouté sur Cloudflare, `CNAME beta` créé, bascule des nameservers OVH → Cloudflare lancée (propagation en cours). Décision actée : redirection automatique de l'URL `github.io` par défaut vers `beta.layerpitch.com` une fois le custom domain renseigné côté repo, pour n'avoir qu'un seul point d'accès protégé (pas d'URL parallèle non sécurisée). Piste ouverte (non implémentée) pour étendre la protection aux repos testeurs via DNS et Application Access wildcard.
+- **À trancher** : Supabase managé vs auto-hébergé sur OVH ; date d'ouverture réelle de la bêta A (dépend de l'essai à blanc + correctif cache) ; policy d'accès Zero Trust pour les repos testeurs (liste commune vs restriction par testeur) ; ADR formalisant la révision de calendrier de la Partie B (documentée ici, ADR séparé à rédiger une fois ces docs poussées sur GitHub).
