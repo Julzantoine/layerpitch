@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1788016946046,
+  "publishedAt": 1788017055717,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -1031,7 +1031,7 @@
           "isInitial": false,
           "file": "loop1-on-est-repere.ogg",
           "gain": 1.972,
-          "switchQuantize": "immediate",
+          "switchQuantize": "beat",
           "autoReturnEnabled": false,
           "autoReturnValue": 4,
           "autoReturnUnit": "bars",
