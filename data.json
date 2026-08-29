@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1788009719894,
+  "publishedAt": 1788010278359,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -894,8 +894,8 @@
           "gain": 3.981,
           "switchQuantize": "beat",
           "autoReturnEnabled": true,
-          "autoReturnValue": 1,
-          "autoReturnUnit": "beats",
+          "autoReturnValue": 4,
+          "autoReturnUnit": "bars",
           "detourMode": "once",
           "endLoopButtonLabel": "",
           "startTrackBeat": 0,
