@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1788009038077,
+  "publishedAt": 1788009315011,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -891,7 +891,7 @@
           "bars": 8,
           "isInitial": false,
           "file": "loop1-on-est-repere.ogg",
-          "gain": 1.972,
+          "gain": 3.981,
           "switchQuantize": "beat",
           "autoReturnEnabled": true,
           "autoReturnValue": 1,
@@ -901,7 +901,7 @@
           "startTrackBeat": 0,
           "loopInBeat": 0,
           "loopOutBeat": null,
-          "duration": 41.4,
+          "duration": 4.32,
           "isDetour": false,
           "bpm": null,
           "beatsPerBar": null,
