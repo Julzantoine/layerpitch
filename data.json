@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1788010278359,
+  "publishedAt": 1788011893693,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -25,18 +25,21 @@
         {
           "label": "Ca va, c'est cool...",
           "file": "0-ca-va-c-est-cool.ogg",
+          "originalFileName": null,
           "gain": 1,
           "duration": 0
         },
         {
           "label": "Mais ils sont combien comme ça?",
           "file": "1-mais-ils-sont-combien-comme-ca.ogg",
+          "originalFileName": null,
           "gain": 1,
           "duration": 0
         },
         {
           "label": "On va tous crever!!!",
           "file": "2-on-va-tous-crever.ogg",
+          "originalFileName": null,
           "gain": 1,
           "duration": 0
         }
@@ -74,6 +77,7 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
+          "originalFileName": null,
           "gain": 1,
           "duration": 0
         }
@@ -111,6 +115,7 @@
         {
           "label": "Niveau 1",
           "file": null,
+          "originalFileName": null,
           "gain": 1,
           "duration": 0
         }
@@ -142,6 +147,7 @@
                 {
                   "label": "Percussion Main",
                   "file": "fixed.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 }
               ]
@@ -155,26 +161,31 @@
                 {
                   "label": "Vide",
                   "file": null,
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "AltPerc#1",
                   "file": "group0-1-altperc-1.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "AltPerc#1.5",
                   "file": "group0-2-altperc-1-5.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "AltPerc#2",
                   "file": "group0-3-altperc-2.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "AltPerc#2.5",
                   "file": "group0-4-altperc-2-5.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 }
               ]
@@ -188,21 +199,25 @@
                 {
                   "label": "BS#1",
                   "file": "group1-0-bs-1.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "BS#2",
                   "file": "group1-1-bs-2.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "BS#3",
                   "file": "group1-2-bs-3.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "BS#4 (Slap)",
                   "file": "group1-3-bs-4-slap.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 }
               ]
@@ -216,16 +231,19 @@
                 {
                   "label": "Nappes GT#1",
                   "file": "group2-0-nappes-gt-1.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "Vide",
                   "file": null,
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "Nappes GT#2",
                   "file": "group2-2-nappes-gt-2.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 }
               ]
@@ -239,11 +257,13 @@
                 {
                   "label": "Cocottes GT#1",
                   "file": "group3-0-cocottes-gt-1.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "Cocottes GT#2",
                   "file": "group3-1-cocottes-gt-2.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 }
               ]
@@ -257,16 +277,19 @@
                 {
                   "label": "Nappes KB#1",
                   "file": "group4-0-nappes-kb-1.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "Nappes KB#2",
                   "file": "group4-1-nappes-kb-2.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "Thème KB",
                   "file": "group4-2-theme-kb.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 }
               ]
@@ -280,16 +303,19 @@
                 {
                   "label": "Vide1",
                   "file": null,
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "Vide2",
                   "file": null,
+                  "originalFileName": null,
                   "gain": 1
                 },
                 {
                   "label": "Thème GT",
                   "file": "group5-2-theme-gt.ogg",
+                  "originalFileName": null,
                   "gain": 1
                 }
               ]
@@ -324,6 +350,7 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
+          "originalFileName": null,
           "gain": 1,
           "duration": 0
         }
@@ -332,6 +359,7 @@
         "label": "Intro",
         "bars": 6,
         "file": "intro-intro.ogg",
+        "originalFileName": null,
         "gain": 1.759,
         "descriptionFr": "",
         "descriptionEn": ""
@@ -339,6 +367,7 @@
       "outro": {
         "label": "Outro",
         "file": "outro-outro.ogg",
+        "originalFileName": null,
         "gain": 1,
         "descriptionFr": "",
         "descriptionEn": ""
@@ -360,24 +389,28 @@
               "label": "The Last Door Chunk#1",
               "bars": 8,
               "file": "segment-0-the-last-door-chunk-1-120bpm-8m.ogg",
+              "originalFileName": null,
               "gain": 1
             },
             {
               "label": "The Last Door Chunk#2",
               "bars": 16,
               "file": "segment-1-the-last-door-chunk-2-120bpm-16m.ogg",
+              "originalFileName": null,
               "gain": 1
             },
             {
               "label": "The Last Door Chunk#3",
               "bars": 8,
               "file": "segment-2-the-last-door-chunk-3-120bpm-8m.ogg",
+              "originalFileName": null,
               "gain": 1
             },
             {
               "label": "The Last Door Chunk#4",
               "bars": 8,
               "file": "segment-3-the-last-door-chunk-4-120bpm-8m.ogg",
+              "originalFileName": null,
               "gain": 1
             }
           ]
@@ -413,6 +446,7 @@
         {
           "label": "Niveau 1",
           "file": null,
+          "originalFileName": null,
           "gain": 1,
           "duration": 0
         }
@@ -440,6 +474,7 @@
                 "bars": 2,
                 "durationUnit": null,
                 "file": "slot0-branch0-transition-1bis-secretlever-transition.ogg",
+                "originalFileName": null,
                 "gain": 3.981,
                 "descriptionFr": "Une porte dérobée s'ouvre devant vous... Un long couloir sombre vous attend... ",
                 "descriptionEn": "A hidden door creaks open in front of you... A long, dark corridor lies ahead..."
@@ -451,6 +486,7 @@
               "label": "#1 RobotAdventure WetDarkCave 120bpm 30M",
               "bars": 30,
               "file": "slot0-0-1-robotadventure-wetdarkcave-120bpm-30m.ogg",
+              "originalFileName": null,
               "gain": 1.066
             }
           ]
@@ -483,6 +519,7 @@
               "label": "#2 RobotAdventure Corridor 120bpm 30M",
               "bars": 30,
               "file": "slot1-0-2-robotadventure-corridor-120bpm-30m.ogg",
+              "originalFileName": null,
               "gain": 1.738
             }
           ]
@@ -516,6 +553,7 @@
               "label": "#3 RobotAdventure BattleFinal 160bpm 40M",
               "bars": 40,
               "file": "slot2-0-3-robotadventure-battlefinal-160bpm-40m.ogg",
+              "originalFileName": null,
               "gain": 1.156
             }
           ]
@@ -555,6 +593,7 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
+          "originalFileName": null,
           "gain": 1,
           "duration": 0
         }
@@ -592,6 +631,7 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
+          "originalFileName": null,
           "gain": 1,
           "duration": 0
         }
@@ -629,6 +669,7 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
+          "originalFileName": null,
           "gain": 1,
           "duration": 0
         }
@@ -666,6 +707,7 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
+          "originalFileName": null,
           "gain": 1,
           "duration": 0
         }
@@ -703,6 +745,7 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
+          "originalFileName": null,
           "gain": 1,
           "duration": 0
         }
@@ -742,6 +785,7 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
+          "originalFileName": null,
           "gain": 0.877,
           "duration": 0
         }
@@ -779,6 +823,7 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
+          "originalFileName": null,
           "gain": 0.95,
           "duration": 0
         }
@@ -816,6 +861,7 @@
         {
           "label": "Niveau 1",
           "file": "0-niveau-1.ogg",
+          "originalFileName": null,
           "gain": 0.864,
           "duration": 0
         }
@@ -853,6 +899,7 @@
         {
           "label": "Niveau 1",
           "file": null,
+          "originalFileName": null,
           "gain": 1,
           "duration": 0
         }
@@ -891,7 +938,7 @@
           "bars": 8,
           "isInitial": false,
           "file": "loop1-on-est-repere.ogg",
-          "gain": 3.981,
+          "gain": 1.972,
           "switchQuantize": "beat",
           "autoReturnEnabled": true,
           "autoReturnValue": 4,
@@ -901,7 +948,7 @@
           "startTrackBeat": 0,
           "loopInBeat": 0,
           "loopOutBeat": null,
-          "duration": 4.32,
+          "duration": 41.4,
           "isDetour": false,
           "bpm": null,
           "beatsPerBar": null,
@@ -909,7 +956,9 @@
           "customCutFadeSec": 0.55,
           "transition": {
             "label": "Attention !",
-            "file": "loop1-transition-attention.ogg"
+            "durationUnit": "beats",
+            "file": "loop1-transition-attention.ogg",
+            "originalFileName": "Transition #2.wav"
           }
         }
       ],
@@ -941,7 +990,8 @@
       "alternatives": [
         {
           "label": "",
-          "file": "stinger-0-levier-secret.ogg"
+          "file": "stinger-0-levier-secret.ogg",
+          "originalFileName": null
         }
       ],
       "folderId": null
@@ -957,15 +1007,18 @@
       "alternatives": [
         {
           "label": "",
-          "file": "0-variation.ogg"
+          "file": "0-variation.ogg",
+          "originalFileName": null
         },
         {
           "label": "",
-          "file": "1-variation.ogg"
+          "file": "1-variation.ogg",
+          "originalFileName": null
         },
         {
           "label": "",
-          "file": "2-variation.ogg"
+          "file": "2-variation.ogg",
+          "originalFileName": null
         }
       ],
       "folderId": null
@@ -981,27 +1034,33 @@
       "alternatives": [
         {
           "label": "",
-          "file": "0-variation.ogg"
+          "file": "0-variation.ogg",
+          "originalFileName": null
         },
         {
           "label": "",
-          "file": "1-variation.ogg"
+          "file": "1-variation.ogg",
+          "originalFileName": null
         },
         {
           "label": "",
-          "file": "2-variation.ogg"
+          "file": "2-variation.ogg",
+          "originalFileName": null
         },
         {
           "label": "",
-          "file": "3-variation.ogg"
+          "file": "3-variation.ogg",
+          "originalFileName": null
         },
         {
           "label": "",
-          "file": "4-variation.ogg"
+          "file": "4-variation.ogg",
+          "originalFileName": null
         },
         {
           "label": "",
-          "file": "5-variation.ogg"
+          "file": "5-variation.ogg",
+          "originalFileName": null
         }
       ],
       "folderId": null
@@ -1021,7 +1080,9 @@
       "id": "bmrcakdllw9m7v",
       "title": "Robot Adventure",
       "illustration": "pack-bmrcakdllw9m7v.png",
+      "illustrationOriginalName": null,
       "watermark": "pack-watermark-bmrcakdllw9m7v.jpg",
+      "watermarkOriginalName": null,
       "presentationFr": "Année 2372. Claude a été couronné Empereur. Les robots sont partout, et toute la galaxie d’Anthropia est tombée sous leur domination.\n\nToute la galaxie ? Non.\n\nUn petit village d'humains indomptables résiste encore et toujours à l’envahisseur.\n\n",
       "presentationEn": "Year 2372. Claude has been crowned Emperor. Robots are everywhere, and the entire galaxy of Anthropia has fallen under their rule.\n\nThe entire galaxy? No\n\nOnly one small village of indomitable Humans still holds out against the invaders",
       "buyable": false,
@@ -1046,7 +1107,9 @@
       "id": "bmrucduoqf8jzn",
       "title": "8 bits Comptines",
       "illustration": "pack-bmrucduoqf8jzn.png",
+      "illustrationOriginalName": null,
       "watermark": "pack-watermark-bmrucduoqf8jzn.png",
+      "watermarkOriginalName": null,
       "presentationFr": "J’ai le même âge que la FamiCon de Nintendo… J’ai joué à la Nes, à la mastersystem, à la mega drive, à la gameboy, la supernes, la game gear, la gamecube, la PlayStation, la Xbox…\n\nAlors quand je suis devenu papa, alors que le fakebit explosait à la face du monde, j’étais presque obligé de revisiter quelques comptines à la sauce chiptune!",
       "presentationEn": "I’m the same age as Nintendo’s FamiCom… I’ve played on the NES, Master System, Mega Drive, Game Boy, Super Nintendo, Game Gear, GameCube, PlayStation, Xbox…\n\nSo when I became a dad, just as fakebit was taking the world by storm, I almost *had* to revisit some nursery rhymes with a chiptune twist!",
       "buyable": false,
@@ -1068,7 +1131,9 @@
       "id": "bms53ze9zfu132",
       "title": "SFX Demo Pack",
       "illustration": "pack-bms53ze9zfu132.png",
+      "illustrationOriginalName": null,
       "watermark": null,
+      "watermarkOriginalName": null,
       "presentationFr": "",
       "presentationEn": "",
       "buyable": false,
@@ -1099,6 +1164,7 @@
       "id": "bms3b5smeya9d3",
       "title": "All inclusive",
       "illustration": null,
+      "illustrationOriginalName": null,
       "presentationFr": "",
       "presentationEn": "",
       "bgColor": "#f6f5f3",
@@ -1148,7 +1214,8 @@
               "title": "Rescore Trailer DLC PRojectCars",
               "url": "https://youtu.be/vHJAhKIIlWc",
               "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
-              "thumbnail": "bmrc9ryuilymwc-thumb-0.png"
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png",
+              "thumbnailOriginalName": null
             }
           ]
         },
@@ -1164,16 +1231,20 @@
           "align": "center",
           "images": [
             {
-              "file": "bmrc9wrt713mzm-0.png"
+              "file": "bmrc9wrt713mzm-0.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrc9wrt713mzm-1.png"
+              "file": "bmrc9wrt713mzm-1.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrc9wrt713mzm-2.png"
+              "file": "bmrc9wrt713mzm-2.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrc9wrt713mzm-3.png"
+              "file": "bmrc9wrt713mzm-3.png",
+              "originalFileName": null
             }
           ]
         },
@@ -1252,7 +1323,8 @@
               "title": "https://youtu.be/vHJAhKIIlWc",
               "url": "https://youtu.be/vHJAhKIIlWc",
               "comment": "",
-              "thumbnail": "bmrc9ryuilymwc-thumb-0.png"
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png",
+              "thumbnailOriginalName": null
             }
           ]
         },
@@ -1268,16 +1340,20 @@
           "align": "center",
           "images": [
             {
-              "file": "bmrc9wrt713mzm-0.png"
+              "file": "bmrc9wrt713mzm-0.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrc9wrt713mzm-1.png"
+              "file": "bmrc9wrt713mzm-1.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrc9wrt713mzm-2.png"
+              "file": "bmrc9wrt713mzm-2.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrc9wrt713mzm-3.png"
+              "file": "bmrc9wrt713mzm-3.png",
+              "originalFileName": null
             }
           ]
         },
@@ -1352,7 +1428,8 @@
               "title": "Rescore Trailer DLC PRojectCars",
               "url": "https://youtu.be/vHJAhKIIlWc",
               "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
-              "thumbnail": "bmrc9ryuilymwc-thumb-0.png"
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png",
+              "thumbnailOriginalName": null
             }
           ]
         },
@@ -1368,16 +1445,20 @@
           "align": "center",
           "images": [
             {
-              "file": "bmrc9wrt713mzm-0.png"
+              "file": "bmrc9wrt713mzm-0.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrc9wrt713mzm-1.png"
+              "file": "bmrc9wrt713mzm-1.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrc9wrt713mzm-2.png"
+              "file": "bmrc9wrt713mzm-2.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrc9wrt713mzm-3.png"
+              "file": "bmrc9wrt713mzm-3.png",
+              "originalFileName": null
             }
           ]
         },
@@ -1493,7 +1574,8 @@
               "title": "Rescore Trailer DLC PRojectCars",
               "url": "https://youtu.be/vHJAhKIIlWc",
               "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
-              "thumbnail": "bmrc9ryuilymwc-thumb-0.png"
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png",
+              "thumbnailOriginalName": null
             }
           ]
         },
@@ -1509,16 +1591,20 @@
           "align": "center",
           "images": [
             {
-              "file": "bmrn8gekhvkn4c-0.png"
+              "file": "bmrn8gekhvkn4c-0.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrn8gekhvkn4c-1.png"
+              "file": "bmrn8gekhvkn4c-1.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrn8gekhvkn4c-2.png"
+              "file": "bmrn8gekhvkn4c-2.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrn8gekhvkn4c-3.png"
+              "file": "bmrn8gekhvkn4c-3.png",
+              "originalFileName": null
             }
           ]
         },
@@ -1637,7 +1723,8 @@
               "title": "Rescore trailer DLC ProjectCars",
               "url": "https://youtu.be/vHJAhKIIlWc",
               "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
-              "thumbnail": null
+              "thumbnail": null,
+              "thumbnailOriginalName": null
             }
           ]
         },
@@ -1653,13 +1740,16 @@
           "align": "center",
           "images": [
             {
-              "file": "bms23k4srbb2ab-0.png"
+              "file": "bms23k4srbb2ab-0.png",
+              "originalFileName": null
             },
             {
-              "file": "bms23k4srbb2ab-1.png"
+              "file": "bms23k4srbb2ab-1.png",
+              "originalFileName": null
             },
             {
-              "file": "bms23k4srbb2ab-2.png"
+              "file": "bms23k4srbb2ab-2.png",
+              "originalFileName": null
             }
           ]
         },
@@ -1752,7 +1842,8 @@
               "title": "Rescore Trailer DLC PRojectCars",
               "url": "https://youtu.be/vHJAhKIIlWc",
               "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
-              "thumbnail": "bmrc9ryuilymwc-thumb-0.png"
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png",
+              "thumbnailOriginalName": null
             }
           ]
         },
@@ -1768,16 +1859,20 @@
           "align": "center",
           "images": [
             {
-              "file": "bmrn8gekhvkn4c-0.png"
+              "file": "bmrn8gekhvkn4c-0.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrn8gekhvkn4c-1.png"
+              "file": "bmrn8gekhvkn4c-1.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrn8gekhvkn4c-2.png"
+              "file": "bmrn8gekhvkn4c-2.png",
+              "originalFileName": null
             },
             {
-              "file": "bmrn8gekhvkn4c-3.png"
+              "file": "bmrn8gekhvkn4c-3.png",
+              "originalFileName": null
             }
           ]
         },
