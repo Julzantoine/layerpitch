@@ -152,6 +152,38 @@ const path = require('path');
       newStart && newStart.deltaSec > 0.1 && newStart.deltaSec < 0.35);
   }
 
+  // ---- Scénario B2 : durée de transition exprimée en "temps" (29/08, cohérence avec le séquentiel) --
+  // 3 temps à 240 BPM/4 temps par mesure (tempo propre à la transition) = 0.75s.
+  {
+    rampCalls.length = 0;
+    const track = {
+      id: 'evt-b2', title: 'Peer switch, beats duration', mode: 'embranchement-vertical', description: '',
+      duration: 0, base: '', publishedAt: 1, bpm, beatsPerBar,
+      loops: [
+        { id: 'ref', label: 'Reference', bars: 4, isInitial: true, localFile: fakeFile('ref.wav') },
+        {
+          id: 'peer', label: 'Peer', bars: 4, localFile: fakeFile('peer.wav'),
+          transition: { label: 'Whoosh', durationUnit: 'beats', durationBeats: 3, bpm: 240, beatsPerBar: 4, localFile: fakeFile('whoosh.wav') }
+        }
+      ],
+      sfxIds: []
+    };
+    const row = Core.buildTrackRow(track, null, false);
+    doc.getElementById('host').appendChild(row);
+    Core.initTrackPlayer(track, row);
+    await sleep(300);
+    click(row.querySelector('[data-role="playBtn"]'));
+    await sleep(100);
+    rampCalls.length = 0; // ignore le calage initial de la référence au lancement
+    const btnPeer = [...row.querySelectorAll('.embr-loop-btn')].find(b => b.dataset.loopId === 'peer');
+    click(btnPeer);
+    await sleep(50);
+    const upRamp = rampCalls.find(c => c.kind === 'ramp' && c.target === 1);
+    // delta = fin de la rampe = transition (0.75s) + fondu standard (0.15s) = ~0.9s.
+    check('durée "temps" (3 temps à 240 BPM/4 temps par mesure = 0.75s) appliquée, pas les mesures/le tempo du morceau (delta=' + (upRamp && upRamp.deltaSec) + ')',
+      upRamp && upRamp.deltaSec > 0.75 && upRamp.deltaSec < 1.05);
+  }
+
   // ---- Scénario C : aucune durée réglée -> repli sur la durée réelle du fichier de transition décodé ----
   {
     rampCalls.length = 0;
