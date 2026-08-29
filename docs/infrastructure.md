@@ -1,5 +1,5 @@
 # LAYERPITCH — INFRASTRUCTURE
-*Extrait de `MASTER.md` le 28 juillet 2026 lors de la restructuration en fichiers spécialisés. Partie A inchangée sur le fond. Partie B mise à jour le 27 août 2026 — canal dédié à la bascule backend, cinq décisions d'architecture actées avant tout code ; corrigée le 29 août 2026 (schéma `loops`/`segment_slots`). Partie C ajoutée le 29 août 2026 — protection d'accès du repo bêta.*
+*Extrait de `MASTER.md` le 28 juillet 2026 lors de la restructuration en fichiers spécialisés. Partie A inchangée sur le fond. Partie B mise à jour le 27 août 2026 — canal dédié à la bascule backend, cinq décisions d'architecture actées avant tout code ; corrigée le 29 août 2026 (schéma `loops`/`segment_slots`, Supabase managé vs auto-hébergé). Partie C ajoutée le 29 août 2026 — protection d'accès du repo bêta.*
 
 ## Vue d'ensemble — trois chantiers de nature différente
 
@@ -126,6 +126,14 @@ Migration incrémentale (pattern "Strangler Fig"), pas de big bang — chaque é
 3. **Base Postgres + migration des données** — étape la plus délicate. Le script de migration peuple Postgres depuis `data.json` (validation du graphe `segmentSlots`/`nextOptions` incluse) sans faire dépendre le site public de cette base tant qu'un AdReel de test servi depuis Postgres n'a pas été vérifié identique en comportement à l'original.
 4. **Logique d'achat** (`pack_purchases`/`album_purchases`, bibliothèque acheteur) — dépend des trois étapes précédentes, dernière pièce.
 
+### Décision complémentaire — Supabase managé vs auto-hébergé (tranchée le 29 août)
+
+**Retenu : Supabase Cloud managé**, pas d'auto-hébergement sur OVH.
+
+- **Coût** : plan gratuit disponible, puis Pro à partir de 25\$/mois (10\$ de crédit de calcul inclus, 8 Go de disque, 100 000 utilisateurs actifs/mois, 250 Go de sortie réseau inclus) — largement suffisant pour la bêta et les premiers mois d'ouverture réelle.
+- **Raison de fond** : l'auto-hébergement ne retire pas de travail de code, il ajoute du travail d'exploitation serveur (mises à jour mensuelles, durcissement de sécurité, sauvegardes, surveillance) — hors du périmètre de Jules-Antoine (ne code pas lui-même) et de Claude Code (assistance au code, pas astreinte serveur). Une base auto-hébergée sans sauvegarde hors-site correctement mise en place n'est pas une économie, c'est un risque déguisé.
+- **Réversibilité préservée** : Supabase reste du Postgres standard dans les deux cas — un passage à l'auto-hébergement resterait possible plus tard si le volume le justifiait un jour, sans que ce choix initial ne l'hypothèque.
+
 ### Périmètre fonctionnel de l'ouverture (au-delà de la simple bascule technique)
 
 Décidé le 27 août, en s'appuyant sur des features déjà conçues dans `extensions-roadmap.md` mais jusque-là non priorisées pour un lancement :
@@ -179,7 +187,7 @@ Le repo GitHub Pages actuel (site + backstage) est aujourd'hui public et sans au
 
 ### Solution retenue — Cloudflare Zero Trust Access
 
-Choisie plutôt qu'un repo GitHub privé (GitHub Pro, 4$/mois) car un repo privé n'empêche pas l'accès au site publié — GitHub Pages reste public par défaut même depuis un repo privé, il protège seulement contre la découverte via l'interface GitHub elle-même (recherche, scraping de code). Cloudflare Access verrouille l'URL publique elle-même.
+Choisie plutôt qu'un repo GitHub privé (GitHub Pro, 4\$/mois) car un repo privé n'empêche pas l'accès au site publié — GitHub Pages reste public par défaut même depuis un repo privé, il protège seulement contre la découverte via l'interface GitHub elle-même (recherche, scraping de code). Cloudflare Access verrouille l'URL publique elle-même.
 
 **Caractéristiques** :
 - Gratuit jusqu'à 50 utilisateurs (largement suffisant pour une bêta qualitative d'une dizaine de testeurs).
@@ -223,4 +231,5 @@ Pour chaque nouveau testeur, il suffirait alors de renseigner son sous-domaine (
 - **27 août** — canal dédié à la bascule backend ouvert. Cinq décisions d'architecture actées : (1) schéma hybride Postgres relationnel + JSONB, avec tables dures sur tout ce qui porte une logique de graphe/transaction (`segment_slots`, `segment_slot_transitions`, achats) ; (2) couche d'abstraction API en service layer JS côté client, RPC Postgres pour la logique métier, Edge Functions réservées aux secrets/appels externes ; (3) migration médias vers R2, bucket unique, domaine personnalisé bloqué en attendant l'achat de `layerpitch.com` ; (4) auth Supabase magic link invite-only, modèle de comptes à profils multiples ; (5) ordre de bascule incrémental (médias → auth → BDD → achats), pattern Strangler Fig. Périmètre fonctionnel d'ouverture élargi pour inclure l'achat de packs depuis l'AdReel, la bibliothèque acheteur, et une entité `Album` provisionnée (vente d'OST façon Bandcamp). Décision explicite de tenir Moodboard Studios (nom et modèle de rémunération) et les mécaniques non finalisées (playlists, "Figer") hors du schéma actuel. Décision de protection d'accès actée le même jour : Cloudflare Zero Trust Access plutôt qu'un repo GitHub privé, sous-domaine `beta.layerpitch.com` dédié.
 - **29 août** — correction du schéma de la Décision 1 : `loops` (mode `embranchement-vertical`) déplacé de la piste "table dure façon `segment_slots`" vers JSONB, après vérification sur un premier morceau réel de ce mode. `segment_slots`/`segment_slot_transitions` recentrées explicitement sur le seul mode `sequential`. Aucun impact sur les Décisions 2 à 5.
 - **29 août** — achat effectif de `layerpitch.com` sur OVH, point bloquant de la Décision 3 levé (exposition publique réelle possible pour `media.layerpitch.com`). Mise en œuvre de la Partie C démarrée : site ajouté sur Cloudflare, `CNAME beta` créé, bascule des nameservers OVH → Cloudflare lancée (propagation en cours). Décision actée : redirection automatique de l'URL `github.io` par défaut vers `beta.layerpitch.com` une fois le custom domain renseigné côté repo, pour n'avoir qu'un seul point d'accès protégé (pas d'URL parallèle non sécurisée). Piste ouverte (non implémentée) pour étendre la protection aux repos testeurs via DNS et Application Access wildcard.
-- **À trancher** : Supabase managé vs auto-hébergé sur OVH ; date d'ouverture réelle de la bêta A (dépend de l'essai à blanc + correctif cache) ; policy d'accès Zero Trust pour les repos testeurs (liste commune vs restriction par testeur) ; ADR formalisant la révision de calendrier de la Partie B (documentée ici, ADR séparé à rédiger une fois ces docs poussées sur GitHub).
+- **29 août** — Supabase Cloud managé retenu (vs auto-hébergement OVH), tranché dans le canal dédié à la bascule backend. Dernier point d'architecture de la Partie B résolu ; plus aucune décision bloquante avant le démarrage de l'implémentation en Claude Code sur les étapes 1-2 (médias, auth).
+- **À trancher** : date d'ouverture réelle de la bêta A (dépend de l'essai à blanc + correctif cache) ; policy d'accès Zero Trust pour les repos testeurs (liste commune vs restriction par testeur) ; ADR formalisant la révision de calendrier de la Partie B (documentée ici, ADR séparé à rédiger une fois ces docs poussées sur GitHub).
