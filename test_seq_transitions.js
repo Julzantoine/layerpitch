@@ -172,6 +172,45 @@ const path = require('path');
     check('le bouton "aller vers la fin" est bien réinitialisé (pas resté bloqué "en cours de fin")', !row.querySelector('[data-role="goToEndBtn"]').disabled);
   }
 
+  // ---- Scénario D : durée de transition exprimée en "temps" (29/08, nouvelle unité, cohérence avec la
+  // demande d'ajout à côté des mesures/secondes déjà existantes) — 3 temps à 240 BPM/4 temps par mesure
+  // (tempo PROPRE à la transition, différent du morceau) = 0.75s, nettement différent des ~0.2s d'1 mesure
+  // au tempo du morceau (300 BPM/1 temps par mesure) si le calcul retombait par erreur sur "bars".
+  {
+    const track = {
+      id: 'sbt-d', title: 'Beats duration', mode: 'sequential', description: '', duration: 0,
+      base: '', publishedAt: 1, bpm, beatsPerBar,
+      segmentSlots: [
+        {
+          id: 'slotM', label: 'M', avoidImmediateRepeat: false, repeatCount: 1, quantization: 'immediate', cutStyle: 'hard',
+          alternatives: [{ label: 'M1', bars: 4, localFile: fakeFile('m1.wav') }],
+          nextOptions: [{ targetId: 'slotN', label: 'To N', transition: { label: 'TransBeats', durationUnit: 'beats', durationBeats: 3, bpm: 240, beatsPerBar: 4, localFile: fakeFile('transbeats.wav') } }]
+        },
+        { id: 'slotN', label: 'N', avoidImmediateRepeat: false, repeatCount: 1, alternatives: [{ label: 'N1', bars: 1, localFile: fakeFile('n1.wav') }] }
+      ],
+      sfxIds: []
+    };
+    const row = Core.buildTrackRow(track, null, false);
+    doc.getElementById('host').appendChild(row);
+    Core.initTrackPlayer(track, row);
+    await sleep(300);
+
+    const seqCurrentEl = row.querySelector('[data-role="seqCurrent"]');
+    click(row.querySelector('[data-role="playBtn"]'));
+    check('reaches segment M', await waitUntil(() => seqCurrentEl.textContent === 'M1', 2000));
+
+    const branchBtn = [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotN');
+    click(branchBtn); // quantization "immediate" -> la transition démarre quasi tout de suite
+    check('bascule vers la transition quasi immédiate (quantization "immediate")', await waitUntil(() => seqCurrentEl.textContent === 'TransBeats', 200));
+
+    const transStartTime = Date.now();
+    check('la transition dure ~0.75s (3 temps à 240 BPM/4 temps par mesure), pas ~0.2s (1 mesure au tempo du morceau)',
+      await waitUntil(() => seqCurrentEl.textContent === 'N1', 1200));
+    const transDelayMs = Date.now() - transStartTime;
+    check('délai mesuré cohérent avec 0.75s, pas avec la durée "1 mesure" du morceau (delai=' + transDelayMs + 'ms)',
+      transDelayMs > 600 && transDelayMs < 950);
+  }
+
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
 })().catch(e => { console.error('TEST THREW:', e); process.exit(1); });

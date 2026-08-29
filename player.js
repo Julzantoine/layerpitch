@@ -1238,16 +1238,24 @@ function initTrackPlayer(track, wrapper) {
     };
   }
   // Durée nominale d'un fichier de transition avant que le crossfade-tail classique vers la cible ne prenne
-  // le relais (voir schéma "durationUnit" validé le 14/08). Trois cas :
+  // le relais (voir schéma "durationUnit" validé le 14/08, complété le 29/08 avec l'unité "temps"). Quatre
+  // cas :
   // - `durationUnit` absent (transitions déjà publiées avant ce chantier) : comportement historique
   //   strictement inchangé, blockSeconds() sur le tempo de l'emplacement source — rétrocompatibilité totale.
   // - `durationUnit: 'bars'` : mesures sur le tempo PROPRE de la transition (transitionTiming), pas
   //   forcément celui de l'emplacement source.
+  // - `durationUnit: 'beats'` (29/08) : temps individuels sur ce même tempo propre -- pour un réglage plus
+  //   fin qu'une mesure entière (ex. un stinger d'1.5 temps). Même `transitionTiming()` que 'bars', sans la
+  //   multiplication par beatsPerBar puisqu'on compte déjà des temps, pas des mesures.
   // - `durationUnit: 'seconds'` : durée brute en secondes, aucune notion de tempo.
   function transitionDurationSecFor(opt, sourceSlot) {
     const tr = opt && opt.transition;
     if (!tr) return null;
     if (tr.durationUnit === 'seconds') return tr.durationSeconds != null ? tr.durationSeconds : 0;
+    if (tr.durationUnit === 'beats') {
+      const timing = transitionTiming(tr, sourceSlot);
+      return (tr.durationBeats || 1) * timing.secondsPerBeat;
+    }
     if (tr.durationUnit === 'bars') {
       const timing = transitionTiming(tr, sourceSlot);
       return (tr.bars || timing.beatsPerBar) * timing.beatsPerBar * timing.secondsPerBeat;
@@ -2027,17 +2035,22 @@ function initTrackPlayer(track, wrapper) {
   }
   // Durée nominale du fichier de transition d'une boucle avant que la boucle cible ne commence réellement
   // à monter (29/08, même mécanisme que transitionDurationSecFor() côté branching séquentiel, décision
-  // confirmée par Jules-Antoine) : `durationUnit` réglé -> mesures (tempo propre à la transition, repli sur
-  // celui de la boucle quittée puis celui du morceau, via transitionTiming()) ou secondes explicites,
-  // mêmes conventions que le séquentiel. Rien de réglé -> durée réelle du fichier décodé lui-même plutôt
-  // que blockSeconds() : contrairement aux transitions séquentielles (toujours créées avec `bars: 4` par
-  // défaut), une transition d'embranchement-vertical n'a par défaut AUCUNE valeur de mesures -- un repli
-  // par mesures y donnerait une durée arbitraire (potentiellement plusieurs secondes de silence sur la
-  // cible) plutôt que la durée réelle du fichier déposé.
+  // confirmée par Jules-Antoine, complété le 29/08 avec l'unité "temps" pour rester cohérent avec le
+  // séquentiel) : `durationUnit` réglé -> mesures ou temps individuels (tempo propre à la transition,
+  // repli sur celui de la boucle quittée puis celui du morceau, via transitionTiming()) ou secondes
+  // explicites, mêmes conventions que le séquentiel. Rien de réglé -> durée réelle du fichier décodé
+  // lui-même plutôt que blockSeconds() : contrairement aux transitions séquentielles (toujours créées avec
+  // `bars: 4` par défaut), une transition d'embranchement-vertical n'a par défaut AUCUNE valeur de mesures
+  // -- un repli par mesures y donnerait une durée arbitraire (potentiellement plusieurs secondes de silence
+  // sur la cible) plutôt que la durée réelle du fichier déposé.
   function embrTransitionDurationSecFor(loopDef, sourceLoopDef, buf) {
     const tr = loopDef && loopDef.transition;
     if (!tr) return 0;
     if (tr.durationUnit === 'seconds') return tr.durationSeconds != null ? tr.durationSeconds : (buf ? buf.duration : 0);
+    if (tr.durationUnit === 'beats') {
+      const timing = transitionTiming(tr, sourceLoopDef);
+      return (tr.durationBeats || 1) * timing.secondsPerBeat;
+    }
     if (tr.durationUnit === 'bars') {
       const timing = transitionTiming(tr, sourceLoopDef);
       return (tr.bars || timing.beatsPerBar) * timing.beatsPerBar * timing.secondsPerBeat;
