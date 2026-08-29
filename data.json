@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1788016930667,
+  "publishedAt": 1788016946046,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -1007,7 +1007,7 @@
           "isInitial": true,
           "file": "loop0-jusqu-ici-tout-va-bien.ogg",
           "gain": 2.327,
-          "switchQuantize": "immediate",
+          "switchQuantize": "beat",
           "autoReturnEnabled": false,
           "autoReturnValue": 4,
           "autoReturnUnit": "bars",
