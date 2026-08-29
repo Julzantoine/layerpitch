@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1788011893693,
+  "publishedAt": 1788016245440,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -958,6 +958,98 @@
             "label": "Attention !",
             "durationUnit": "beats",
             "file": "loop1-transition-attention.ogg",
+            "originalFileName": "Transition #2.wav"
+          }
+        }
+      ],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": null
+    },
+    {
+      "id": "bmteimdrwxw5iq",
+      "title": "Monte en l'air et Pattes de Velours",
+      "description": "",
+      "mode": "embranchement-vertical",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 60,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 0,
+      "base": "https://Julzantoine.github.io/layerpitch/audio/bmteimdrwxw5iq/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": null,
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [
+        {
+          "id": "bmteimpzrefnta",
+          "label": "Jusqu'ici tout va bien...",
+          "bars": 8,
+          "isInitial": true,
+          "file": "loop0-jusqu-ici-tout-va-bien.ogg",
+          "gain": 2.327,
+          "switchQuantize": "beat",
+          "autoReturnEnabled": false,
+          "autoReturnValue": 4,
+          "autoReturnUnit": "bars",
+          "detourMode": "once",
+          "endLoopButtonLabel": "",
+          "startTrackBeat": 0,
+          "loopInBeat": 4,
+          "loopOutBeat": 40,
+          "duration": 41.47,
+          "isDetour": false,
+          "bpm": 60,
+          "beatsPerBar": 4,
+          "cutStyle": "fade",
+          "customCutFadeSec": null,
+          "transition": null
+        },
+        {
+          "id": "bmteinsfu7v7tl",
+          "label": "On est repéré !",
+          "bars": 8,
+          "isInitial": false,
+          "file": "loop1-on-est-repere.ogg",
+          "gain": 1.972,
+          "switchQuantize": "beat",
+          "autoReturnEnabled": false,
+          "autoReturnValue": 4,
+          "autoReturnUnit": "bars",
+          "detourMode": "once",
+          "endLoopButtonLabel": "",
+          "startTrackBeat": 0,
+          "loopInBeat": 0,
+          "loopOutBeat": null,
+          "duration": 41.4,
+          "isDetour": false,
+          "bpm": null,
+          "beatsPerBar": null,
+          "cutStyle": "fade",
+          "customCutFadeSec": null,
+          "transition": {
+            "label": "Transition #2",
+            "durationUnit": "beats",
+            "file": "loop1-transition-transition-2.ogg",
             "originalFileName": "Transition #2.wav"
           }
         }
