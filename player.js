@@ -2181,6 +2181,28 @@ function initTrackPlayer(track, wrapper) {
       }
     });
   }
+  // Reprise après mise en veille (29/08, bug signalé par Jules-Antoine : changer d'onglet relançait le
+  // morceau depuis la référence). Contrairement au séquentiel/vertical-random, l'embranchement-vertical
+  // n'a pas de notion de "position dans le temps" à laquelle chercher (plusieurs boucles phase-verrouillées
+  // tournent en parallèle indéfiniment, pas une seule chronologie linéaire) -- on ne cherche donc pas à
+  // retrouver la phase exacte d'avant la mise en veille (potentiellement longue, aucun repère fiable), mais
+  // à relancer proprement une nouvelle horloge de phase à partir de maintenant, EN PRÉSERVANT la boucle qui
+  // était effectivement active plutôt que de repartir de la référence comme le ferait playEmbrVertical().
+  // Cas d'un détour en cours au moment de la mise en veille (embrActiveLoopIdx déjà à -1 à cet instant,
+  // pas de boucle "paire" à préserver) : repli sur la référence -- un détour est un aparté ponctuel, pas la
+  // boucle de fond que l'auditeur associe au morceau, le perdre au retour d'un onglet resté longtemps en
+  // arrière-plan est un compromis acceptable plutôt que de tenter de reconstituer sa position exacte.
+  function resumeEmbrVerticalAfterBackground() {
+    const preservedIdx = embrActiveLoopIdx >= 0 ? embrActiveLoopIdx : embrReferenceIdx;
+    stopEmbrVertical();
+    embrActiveLoopIdx = preservedIdx;
+    const now = ctx.currentTime;
+    embrReferenceStartCtxTime = now;
+    scheduleEmbrGeneration(now, true); // fixe déjà le bon gain (1) sur preservedIdx via embrActiveLoopIdx ci-dessus
+    embrNextStartCtxTime = now + embrCycleLengthSec();
+    embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
+    updateEmbrButtonsUI();
+  }
   function playEmbrVertical() {
     stopEmbrVertical();
     embrActiveLoopIdx = embrReferenceIdx;
@@ -2829,6 +2851,15 @@ function initTrackPlayer(track, wrapper) {
         const frac = timing.cycleLength > 0 ? Math.min(1, Math.max(0, (elapsed - timing.loopInSec) / timing.cycleLength)) : 0;
         seekVerticalRandom(frac);
       }
+      return;
+    }
+    // Embranchement-vertical (29/08, bug signalé par Jules-Antoine : changer d'onglet relançait le morceau
+    // depuis la référence) : chemin dédié plutôt que le repli générique ci-dessous, qui appelle
+    // playEmbrVertical() sans discernement -- or cette fonction réinitialise TOUJOURS embrActiveLoopIdx sur
+    // la référence, perdant la boucle réellement active (ex. "On est repéré !") au profit d'un retour
+    // silencieux à la case départ.
+    if (isEmbrVert) {
+      resumeEmbrVerticalAfterBackground();
       return;
     }
     const resumeFrom = computeElapsed();
