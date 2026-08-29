@@ -8,6 +8,32 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-29d] — Correctif audio critique (silence + boucles superposées), icône du contrôle de fichier, nom de fichier d'origine conservé
+
+**Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `test_embr_vertical_transitions.js` (réécrit)
+
+**Contexte** : Jules-Antoine a testé en conditions réelles le correctif de timing des transitions livré plus tôt dans la session (29/08c) et signalé deux régressions concrètes : silence pendant la transition, et boucles superposées (notamment en revenant sur la boucle de référence).
+
+**1) Bug critique corrigé — architecture des transitions d'embranchement-vertical entièrement revue.** Diagnostic : l'approche précédente ne différait que la MONTÉE de gain de la boucle cible (via `refreshEmbrGains(idx, transDelay)`), tout en mettant à jour `embrActiveLoopIdx` immédiatement. Deux conséquences :
+   - La boucle SOURCE redescendait à 0 tout de suite (fondu de 0.15s), pendant que la boucle CIBLE ne remontait qu'après la durée de la transition -> un vrai trou de silence entre les deux si la transition dure plus longtemps que le fondu de sortie.
+   - Le planificateur périodique qui régénère les boucles à chaque cycle (`scheduleEmbrGeneration`) lit `embrActiveLoopIdx` (déjà mis à jour) pour décider du gain de chaque nouvelle génération — et l'affecte directement à 1, sans avoir la moindre connaissance de la bascule en attente. Si un nouveau cycle démarre avant la fin de la transition (cas fréquent, notamment pour la boucle de référence qui tourne en permanence), une nouvelle génération de la boucle cible démarre à plein volume en même temps que l'ancienne génération continue d'exister -> boucles superposées.
+
+   **Correctif retenu** : toute la bascule (`embrActiveLoopIdx`, gains, UI, minuteur de retour) est désormais différée EN BLOC via un vrai délai JS (`setTimeout`), plutôt que le gain seul via l'automation Web Audio. Pendant l'attente, RIEN ne change dans le moteur — la boucle actuellement audible continue de jouer absolument normalement (la transition vient simplement se superposer par-dessus, en overlay, jamais de silence), et le planificateur périodique continue de fonctionner exactement comme avant, sans avoir besoin d'être rendu "conscient" d'une bascule en cours. Une fois la transition terminée, la bascule s'exécute d'un coup, exactement comme une coupure immédiate ordinaire. Nouveau minuteur `embrPendingTransitionSwitchTimeout`, annulé/remplacé si un nouveau clic arrive avant son exécution (même principe que `embrPendingSwitchTimeout` pour la quantification — les deux peuvent s'enchaîner). `refreshEmbrGains()` simplifiée en conséquence (paramètre de délai retiré, plus jamais utilisé).
+
+   **Découverte annexe pendant ce diagnostic** : les réglages de durée de transition (mesures/temps/secondes/tempo propre, ajoutés en 29/08b) n'étaient en réalité JAMAIS persistés dans `data.json` pour l'embranchement-vertical (aucun champ chargé ni sauvé, seul le fichier lui-même survivait), et `durationBeats` manquait aussi côté chargement pour le séquentiel. Corrigé en même temps (chargement ET sauvegarde des deux modes désormais complets et symétriques).
+
+   **Tests** : `test_embr_vertical_transitions.js` entièrement réécrit — l'ancienne méthode (inspection des paramètres passés aux appels Web Audio) ne reflète plus rien avec la nouvelle architecture, où le délai vit dans un `setTimeout` JS et non plus dans l'automation audio. Nouvelle méthode : mesure en temps réel écoulé (même principe que `test_seq_transitions.js`), observation de l'état des boutons. Nouveau scénario E de non-régression : un second clic pendant une transition en attente annule et remplace la première bascule plutôt que de laisser les deux s'exécuter.
+
+**2) Icône du bouton de sélection de fichier trop grande.** Cause : la règle CSS `.btn-icon svg { width: 14px; height: 14px }` ne s'appliquait plus après le remplacement de la classe `btn-icon` par `btn btn-small` (29/08c, ajout du libellé texte). Nouvelle règle dédiée `.file-ctrl [data-role="pickBtn"] svg` dans le `<style>` inline du backstage. **Non reporté dans `backstage.css`** (fichier local, hors d'atteinte) — à synchroniser manuellement.
+
+**3) Nom de fichier d'origine conservé et affiché.** Le nom affiché à côté de l'icône une fois un fichier publié était jusqu'ici le nom de STOCKAGE généré par l'app à partir du label (ex. `loop1-on-est-repere.ogg`), pas le nom donné par le compositeur (ex. `Lent.wav`), perdu à la publication. Nouveau champ `originalFileName`, capturé à la publication (juste avant que `pendingFile` soit vidé) et persisté au chargement/sauvegarde de `data.json`, pour la quasi-totalité des entités avec fichier : couches, intro/outro (séquentiel + vertical-random), alternatives (séquentiel, vertical-random, Sfx), boucles et transitions d'embranchement-vertical, transitions séquentielles, logo, photo, image de fond du thème, vignettes vidéo, galerie photo, illustration/filigrane Pack, illustration Collection, polices personnalisées. `updateFileStatus()` affiche ce nom en priorité, avec repli sur l'ancien comportement (nom de stockage) pour les fichiers déjà publiés avant ce chantier — jamais retouché rétroactivement. Seul le champ d'image de fond dynamique PAR BLOC (réglage d'apparence générique, décoratif) reste hors périmètre, jugé trop marginal.
+
+**i18n** : `publishedFilePrefix` (session précédente) réutilisée, aucune nouvelle clé nécessaire pour ce tour.
+
+**Vérifications** : `node --check` OK sur `player.js` et le script inline extrait du backstage. Balises `<div>` équilibrées (473/473). Couverture i18n complète. Suite de tests complète (11 fichiers) rejouée sans régression, y compris le fichier de test réécrit. `test_quantized_loop_engine.js` échoue toujours à l'identique (bug d'environnement pré-existant confirmé sans lien avec cette session).
+
+---
+
 ## [2026-08-29c] — Dossiers fermés par défaut, bouton de boucle masqué pendant sa propre lecture, refonte des contrôles de fichier
 
 **Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `test_embr_vertical_engine.js`
