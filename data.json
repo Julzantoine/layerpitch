@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1788017446654,
+  "publishedAt": 1788017578024,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -1007,7 +1007,7 @@
           "isInitial": true,
           "file": "loop0-jusqu-ici-tout-va-bien.ogg",
           "gain": 2.327,
-          "switchQuantize": "bar",
+          "switchQuantize": "beat",
           "autoReturnEnabled": false,
           "autoReturnValue": 4,
           "autoReturnUnit": "bars",
@@ -1032,8 +1032,8 @@
           "file": "loop1-on-est-repere.ogg",
           "gain": 1.972,
           "switchQuantize": "beat",
-          "autoReturnEnabled": false,
-          "autoReturnValue": 4,
+          "autoReturnEnabled": true,
+          "autoReturnValue": 2,
           "autoReturnUnit": "bars",
           "detourMode": "once",
           "endLoopButtonLabel": "",
