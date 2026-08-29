@@ -90,15 +90,20 @@ const path = require('path');
   const btnPeer = loopBtns.find(b => b.dataset.loopId === 'peer');
   const btnShort = loopBtns.find(b => b.dataset.loopId === 'short');
   check('reference loop marked active before playback even starts (server-rendered default)', btnRef.classList.contains('active'));
+  check('but its button stays visible before playback actually starts ("Prêt" state)', btnRef.style.display !== 'none');
 
   click(playBtn);
   await sleep(100);
   check('reference loop still active right after play starts', btnRef.classList.contains('active'));
+  // Retour du 29/08 : inutile d'afficher le bouton d'une boucle vers elle-même pendant qu'elle joue déjà.
+  check('reference loop button now HIDDEN once actually playing (no point linking to what\'s already playing)', btnRef.style.display === 'none');
+  check('the other loop buttons remain visible', btnPeer.style.display !== 'none' && btnShort.style.display !== 'none');
 
   // ---- Bascule pure entre deux boucles de même longueur (rampe de gain, pas de redémarrage) ----
   click(btnPeer);
   await sleep(50); // rampe de 0.15s pas encore terminée, mais l'état "actif" bascule immédiatement au clic
   check('clicking a same-length loop switches the active button immediately (no wait for quantization)', btnPeer.classList.contains('active') && !btnRef.classList.contains('active'));
+  check('the newly active peer button is now hidden, the reference button reappears', btnPeer.style.display === 'none' && btnRef.style.display !== 'none');
   await sleep(200);
   check('peer loop still active well after the crossfade ramp (background loop, can be kept indefinitely)', btnPeer.classList.contains('active'));
 
@@ -106,10 +111,14 @@ const path = require('path');
   click(btnShort);
   await sleep(30);
   check('short loop button disabled immediately once the detour starts (no retrigger while it plays)', btnShort.disabled === true);
+  check('short loop button also hidden while its own detour plays', btnShort.style.display === 'none');
   check('no peer button shows as active during the detour (embrActiveLoopIdx = -1)', !btnRef.classList.contains('active') && !btnPeer.classList.contains('active'));
+  check('peer/reference buttons stay visible during the detour (only the one actually playing is hidden)', btnRef.style.display !== 'none' && btnPeer.style.display !== 'none');
   // Le détour dure blockSeconds(1 mesure) = 0.4s ; on attend son terme + une marge pour la rampe de retour.
   check('short loop button re-enabled and reference loop active again once the detour has run its course',
     await waitUntil(() => !btnShort.disabled && btnRef.classList.contains('active'), 2000));
+  check('short loop button visible again once the detour is over', btnShort.style.display !== 'none');
+  check('reference loop button hidden again now that it\'s the one playing', btnRef.style.display === 'none');
 
   // ---- Non-régression (bug trouvé et corrigé le 31/07) : interrompre un détour AVANT sa fin naturelle,
   // en choisissant autre chose, ne doit pas laisser le détour orphelin (bouton bloqué, source jamais coupée).
@@ -137,6 +146,7 @@ const path = require('path');
   click(playBtn); // Stop en pleine lecture du détour
   await sleep(50);
   check('stopping mid-detour does not throw and re-enables every loop button', loopBtns.every(b => !b.disabled));
+  check('stopping also makes every loop button visible again (nothing playing anymore)', loopBtns.every(b => b.style.display !== 'none'));
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
