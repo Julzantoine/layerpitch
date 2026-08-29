@@ -8,6 +8,197 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-20] — Bug i18n "Prévisualiser"/"Écouter", extension aux Packs/Collections, tous les blocs rendus supprimables
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : retour visuel (capture d'écran) sur trois points distincts, traités ensemble.
+
+**1) Bug — clé i18n en collision.** Le bouton "Prévisualiser" (placeholder désactivé, entrée précédente) affichait "▶ Écouter" au lieu de "Prévisualiser". Diagnostic : la clé `previewBtn` utilisée pour ce nouveau bouton existait déjà dans `layerpitch-i18n.js`, réservée au bouton d'aperçu audio d'un morceau ("▶ Écouter", `data-action="preview-track"`). Les objets JavaScript acceptant des clés dupliquées avec la dernière déclaration qui l'emporte, et l'entrée préexistante (`▶ Écouter`) apparaissant plus loin dans le fichier que la mienne, c'est elle qui gagnait pour les deux boutons. Corrigé en renommant ma clé en `previewComingSoonBtn`, unique.
+
+**2) Bouton "Prévisualiser" désactivé étendu aux Packs et Collections**, à côté de "Copier le lien"/"Partager" dans leur onglet Distribution, même infobulle explicative que celui de la barre d'actions globales.
+
+**3) Tous les blocs de contenu d'un AdReel sont désormais supprimables**, y compris les 4 qui ne l'étaient pas jusque-là (Header, Bio, Témoignages, Musique — `SINGLETON_TYPES`) :
+- `canDelete` n'exclut plus ces 4 types — bouton × disponible partout.
+- Retrait de la réinjection forcée dans `migrateBlocks()` (`SINGLETON_TYPES.forEach(t => { if (!loaded.some(...)) loaded.push(...) })`) : sans ce retrait, un bloc supprimé aurait silencieusement réapparu, vide, au rechargement suivant.
+- **Second problème trouvé en creusant le premier** : le test de détection "ancien format legacy" de `migrateBlocks()` (`loaded.length === 0`) aurait, lui aussi, traité un tableau de blocs intentionnellement vidé (tous supprimés) comme un cas corrompu à reconstruire depuis la liste par défaut — corrigé en distinguant explicitement "tableau vide légitime" de "champ absent/ancien format" (`loaded.length > 0 && typeof loaded[0] !== 'object'` plutôt que `loaded.length === 0 || ...`).
+- Ajout de 4 nouveaux boutons "+ Bloc header/bio/témoignages/musique" dans la rangée d'ajout de blocs, visibles uniquement quand le type correspondant est absent de l'AdReel en cours (`updateSingletonAddButtons()`, appelée à chaque `layoutBlocks()`) — pas de risque de doublon, et un moyen de revenir en arrière après suppression.
+
+**i18n** : `previewComingSoonBtn` (renommage, plus de collision), `addHeaderBlock`/`addBioBlock`/`addTestimonialsBlock`/`addTracksBlock` (nouvelles clés) — FR et EN.
+
+**Vérifications** : `node --check` sur les deux fichiers — OK. Balises `<div>` équilibrées (452/452). 0 clé `tr()`/`data-i18n`/`data-i18n-title` manquante. Symétrie i18n vérifiée programmatiquement (663 clés FR = 663 clés EN). Nouveau `test_deletable_blocks.js` (32 assertions) : présence du bouton × sur les 4 singletons, masquage/réapparition conditionnelle des boutons "+ Bloc X", suppression de la totalité des blocs sans résurrection, non-régression du chemin `migrateBlocks()` legacy (ancien format tableau de chaînes) et du cas partiel (un seul type manquant), non-régression du bouton "Écouter" du lecteur d'aperçu track, présence du bouton "Prévisualiser" désactivé dans Pack et Collection. Les 9 suites précédentes de la session rejouées — 221 assertions au total, aucune régression.
+
+---
+
+## [2026-08-20] — Bouton "Prévisualiser" (désactivé, à venir) + réordonnancement des actions globales
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : retour visuel (capture d'écran) — "Visualiser le résultat" (qui ouvre la page publique déjà publiée) apparaissait avant "Sauvegarder / publier" dans la barre d'actions globales, alors qu'il n'a de sens qu'après. Discussion de suivi : est-il possible d'avoir une prévisualisation des modifications *non publiées* ? Diagnostic — le blocage n'est pas un choix mais une contrainte structurelle de l'architecture GitHub Pages actuelle : un fichier n'existe sur le réseau qu'à partir du clic "Sauvegarder / publier" ; avant ça, ce n'est qu'un objet en mémoire dans l'onglet backstage, non transférable directement vers un autre onglet. Cette contrainte disparaîtrait avec la migration backend prévue (Supabase + Cloudflare R2), où un fichier uploadé obtiendrait une URL réelle dès l'ajout, indépendamment de la publication. Décision : ne pas construire de contournement technique en attendant — un bouton désactivé avec explication suffit pour l'instant. Voir aussi l'entrée ajoutée dans `docs/extensions-roadmap.md` le même jour.
+
+**Changement** :
+- Réordonnancement de la barre d'actions globales : **Prévisualiser** (nouveau, désactivé) → **Sauvegarder / publier** → **Visualiser le résultat** — ordre chronologique logique.
+- Nouveau bouton `#btnPreview`, désactivé, infobulle native (`title`, via `data-i18n-title` comme le bouton "Supprimer" désactivé de l'AdReel — plus fiable qu'une bulle d'aide personnalisée sur un élément `disabled`, certains navigateurs ne déclenchant pas les événements de survol dessus) expliquant que la fonctionnalité arrive avec le backend.
+- Cadres séparés pour "Contenu"/"Apparence" (sidebar, retour visuel séparé le même jour) : les deux bascules vivaient dans un fond commun en pilule sans bordure individuelle — remplacé par le même principe que les items de la section "Compte" (bordure par item, accentuée en noir si actif).
+
+**i18n** : 2 nouvelles clés en FR et en EN (`previewBtn`, `previewComingSoonHint`).
+
+**Vérifications** : `node --check` sur les deux fichiers — OK. Balises `<div>` équilibrées. 0 clé `tr()`/`data-i18n`/`data-i18n-title` manquante. Aucune régression fonctionnelle (changement de position DOM + CSS uniquement, aucun gestionnaire d'événement touché) — suite de tests de la session rejouée par précaution, tout vert.
+
+---
+
+## [2026-08-20] — Relecture de nettoyage : dates de commentaires corrigées, petite factorisation
+
+**Fichier touché** : `layerpitch-backstage.html`
+
+**Contexte** : demande explicite de relecture ("optimise, corrige, nettoie") sur l'ensemble du code produit dans la session.
+
+**Ce qui a été trouvé et corrigé** :
+- **Erreur de date généralisée** : 21 commentaires ajoutés au fil de la session portaient la date "19/08" alors qu'ils documentaient du travail du jour même (20/08) — probablement hérité par habitude des dates déjà présentes dans le changelog au démarrage de la session. Seuls 2 commentaires préexistants (déjà présents avant le début de cette session, vérifiés par comparaison avec le fichier tel qu'uploadé en tout début de session) étaient légitimement datés du 19/08 et ont été laissés intacts. Correction faite par script plutôt qu'à la main, pour éviter d'en oublier un.
+- **Variable alias inutile** dans `renderLibrary()` (`const container = detailHost`, reliquat du refactor minimalement invasif de l'entrée précédente) — supprimée, `detailHost.appendChild(el)` utilisé directement.
+- **Duplication** : les 4 boutons d'ajout (+ Emplacement, + Section, + Boucle, + Couche — voir entrée suivante) étaient 4 blocs de 6 lignes quasi identiques — factorisés en une fonction unique `appendMasterAddButton(masterHost, action, ti, labelKey)`.
+
+**Vérifié et confirmé sain** (donc non modifié) : aucun doublon de déclaration `let`/`const`/`function`, aucune référence morte résiduelle, le mécanisme générique `renderOrgMasterList`/`wireOrgDragDrop` est solide sur les cas limites déjà couverts par les tests, aucune clé i18n orpheline (les clés qui semblaient inutilisées à un premier grep textuel sont en réalité consommées via `data-i18n` ou des clés dynamiques passées en config).
+
+**Vérifications** : `node --check` — OK. Balises `<div>` équilibrées (452/452). Les 9 suites de tests de la session rejouées après chaque modification — 189 assertions, aucune régression.
+
+---
+
+## [2026-08-20] — Boutons "+ Emplacement/Section/Boucle/Couche" repositionnés à la suite de la Structure
+
+**Fichier touché** : `layerpitch-backstage.html`
+
+**Contexte** : retour visuel (capture d'écran) — dans l'éditeur d'un morceau séquentiel, "+ Emplacement" apparaissait tout en bas de la colonne maître, après les entrées virtuelles partagées "Contenu additionnel" et "Infos additionnelles", au lieu de juste après la Structure (Intro/emplacements/Outro) à laquelle il se rapporte. Le même défaut de position touchait "+ Section" (vertical-random), "+ Boucle" (embranchement-vertical) et "+ Couche" (vertical) — les 4 étaient placés sous toute la colonne (`.actions` après le `.seq-two-col` complet) plutôt qu'insérés dans la liste maître elle-même.
+
+**Changement** : les 4 boutons sont désormais des éléments DOM insérés directement dans leur liste maître respective, juste après le dernier élément de structure (Outro, dernière boucle, dernière couche) et avant les entrées virtuelles "Sfx"/"Infos additionnelles". Les 4 anciens blocs `.actions` correspondants, désormais vides, ont été retirés. Aucun changement des gestionnaires de clic (`add-segment-slot`, `add-section`, `add-embr-loop`, `add-layer`) : délégation déjà posée sur `#libraryContainer`, insensible à la position DOM du bouton déclencheur.
+
+**Vérifications** : `node --check` — OK. Balises `<div>` équilibrées (-4, cohérent avec les 4 wrappers `.actions` retirés). Nouveau `test_add_button_position.js` (14 assertions) : position exacte du bouton avant les entrées partagées pour les 4 modes concernés, absence de doublon, non-régression sur le mode statique (toujours aucun bouton). Les 8 suites précédentes de la session rejouées — aucune régression.
+
+---
+
+## [2026-08-20] — Mécanisme de dossiers généralisé (AdReels → Sfx + Bibliothèque de morceaux)
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : demande de suite directe à l'entrée précédente (dossiers d'AdReel) — étendre le même principe d'organisation à la bibliothèque Sfx, puis (élargi en cours de discussion) à la bibliothèque de morceaux également. Décision explicite : plutôt que dupliquer le mécanisme AdReel trois fois, le généraliser en un système partagé — impliquant de renommer les classes CSS et fonctions spécifiques aux AdReels en équivalents génériques.
+
+**Changement** :
+- **Généralisation** : `wireAdReelFolderDragDrop` → `wireOrgDragDrop(containerEl, getItems, getFolders, onDrop)`, paramétré par les tableaux réels à manipuler plutôt que codé en dur sur `adReels`/`adReelFolders`. Nouvelle fonction `renderOrgMasterList(masterHost, items, folders, collapsedFolderIds, opts)` factorisant la construction DOM (dossiers repliables + zone racine + lignes glissables) commune aux trois panneaux. Nouvelle fonction `deleteOrgFolder(folders, items, folderId)` (suppression non destructrice, factorisée). Classes CSS renommées `.adreel-*` → `.org-*`. Clés i18n généralisées (`adReelFolderFallback` → `orgFolderFallback`, `defaultAdReelFolderLabel` → `defaultOrgFolderLabel`, `adReelFolderEmptyHint`/`deleteAdReelFolderConfirm` → `orgFolderEmptyHint`/`deleteOrgFolderConfirm`, `addAdReelFolder` → `addOrgFolder`).
+- **Bibliothèque Sfx** : panneau restructuré à l'identique de "Gérer les AdReels" — liste compacte à gauche (dossiers + racine, glisser-déposer), détail à droite. **Nouveauté propre à cette entrée** : à l'intérieur du Sfx sélectionné, une disposition maître-détail à 3 entrées — Identité (par défaut) / Comportement / Variations — remplaçant l'ancien empilement à plat (`sectionEyebrow`). Le double niveau de repli des variations (bouton "N variations" à l'intérieur de l'entrée Variations) est conservé tel quel (décision explicite). Titre synchronisé à 3 endroits (en-tête du détail, entrée Identité, ligne de la liste maître), sans re-rendu complet.
+- **Bibliothèque de morceaux** : même traitement extérieur (dossiers, glisser-déposer, liste compacte). L'éditeur interne d'un morceau (déjà maître-détail depuis une session antérieure — modes vertical/séquentiel/vertical-random/statique/embranchement-vertical) n'a pas été restructuré, seulement déplacé dans le panneau de détail. Nettoyage associé : les boutons "replier"/"monter"/"descendre" de l'en-tête d'un morceau, devenus redondants avec la sélection et le glisser-déposer, ont été retirés (déclaration `collapsedTrackIds`, branches mortes du gestionnaire de clic, footer de repli — tout supprimé). **Bug trouvé et corrigé en cours de route** : deux appels résiduels à `collapsedTrackIds` (variable supprimée) seraient restés dans le chemin de chargement des données et auraient fait planter `loadData()` — repérés par relecture systématique des références avant livraison.
+- Modèle de données étendu pour Sfx et morceaux : `sfxFolders`/`libraryFolders` (nouveaux tableaux), `folderId` par entrée — sérialisation mise à jour aux 3 points habituels (chargement, création par défaut, publication) pour les deux.
+
+**i18n** : `sfxVariationsShortLabel` (libellé court "Variations" pour l'entrée de la disposition interne, l'existant `sfxAlternativesLabel` étant trop long), `sfxLibraryEmptyHint`, `libraryEmptyHint` — nouvelles clés en FR et en EN. Les 5 clés généralisées listées plus haut renommées (pas dupliquées).
+
+**Vérifications** : `node --check` sur les deux fichiers — OK. Balises `<div>` équilibrées. 0 clé `tr()` manquante, symétrie i18n vérifiée programmatiquement (657 clés FR = 657 clés EN). `test_adreel_folders.js` adapté aux nouvelles classes génériques et rejoué (28 assertions, aucune régression du fait de la généralisation). Nouveaux `test_sfx_folders.js` (22 assertions : disposition interne à 3 entrées, synchronisation du titre à 3 endroits, glisser-déposer, suppression avec retombée de sélection) et `test_library_folders.js` (20 assertions : éditeur interne préservé, boutons repli/monter/descendre bien absents, glisser-déposer, round-trip persistance).
+
+---
+
+## [2026-08-20] — Dossiers d'AdReel : réorganisation de "Gérer les AdReels" en liste maître-détail à dossiers
+
+**Fichier touché** : `layerpitch-backstage.html`
+
+**Contexte** : demande d'extension de la disposition maître-détail (Packs/Collections) aux AdReels — précisée en cours de discussion comme portant sur la section "Gérer les AdReels" (vue d'ensemble de tous les AdReels), pas sur l'éditeur d'un AdReel donné. Discussion de suivi : possibilité de regrouper les AdReels en dossiers, comme un explorateur de fichiers. Décisions validées avant codage : assignation à un dossier par glisser-déposer (plutôt qu'un menu déroulant, malgré la complexité supplémentaire assumée) ; suppression d'un dossier non destructrice (les AdReels remontent à la racine, jamais supprimés — un AdReel représente trop de travail pour risquer une perte accidentelle) ; le petit sélecteur rapide en haut de la barre latérale reste une liste à plat, non concerné par les dossiers.
+
+**Changement** :
+- Panneau "Gérer les AdReels" restructuré : liste compacte à gauche (dossiers repliables + zone racine, titres de dossier éditables inline, glisser-déposer), détail (titre, badge "en cours d'édition", lien public, actions Éditer/Dupliquer/Copier/Partager/Supprimer) de l'AdReel sélectionné à droite. Sélection par défaut : l'AdReel actuellement en cours d'édition.
+- Glisser-déposer complet : déposer un AdReel sur un autre le repositionne avant/après lui (au sein du même groupe ou en changeant de groupe en un seul geste) ; les dossiers eux-mêmes sont réordonnables entre eux via une poignée dédiée sur leur en-tête. Aucune notion d'ordre au sein d'un groupe autre que via glisser-déposer explicite sur un élément précis.
+- Nouveau modèle de données : `adReelFolders` (tableau, `{ id, label }`), `folderId` par AdReel (`null` = racine) — sérialisation aux 3 points habituels.
+
+**i18n** : 5 nouvelles clés en FR et en EN (`addAdReelFolder`, `adReelFolderFallback`, `defaultAdReelFolderLabel`, `adReelFolderEmptyHint`, `deleteAdReelFolderConfirm` — toutes renommées en équivalents génériques dans l'entrée suivante, qui étend ce mécanisme à Sfx et à la bibliothèque de morceaux).
+
+**Vérifications** : `node --check` — OK. Balises `<div>` équilibrées (441/441). 0 clé `tr()` manquante. Nouveau `test_adreel_folders.js` (28 assertions : état initial, création/repli/dépli/suppression de dossier avec et sans confirmation, glisser-déposer réel — racine↔dossier, réordonnancement au sein d'un groupe, réordonnancement de dossiers, cas combiné groupe+position en un seul dépôt). Les 5 suites précédentes de la session rejouées — aucune régression.
+
+---
+
+## [2026-08-20] — Bug : réseaux sociaux non persistés à la publication quand le lien de référence est vide
+
+**Fichier touché** : `layerpitch-backstage.html`
+
+**Contexte** : retour utilisateur — le backstage "oublie" le réseau social configuré (LinkedIn) à chaque réouverture, obligeant à le reconfigurer systématiquement.
+
+**Diagnostic** : dans `publishAll()`, la ligne `socials: socials.filter(s => s.url).map(...)` excluait de `data.json` toute entrée dont le champ "Lien vers ton profil" — explicitement documenté comme optionnel dans l'UI ("pour ta propre référence") — était vide. Or `buildSocialShareUrl()` n'utilise jamais ce champ pour construire l'URL de partage d'aucune plateforme (LinkedIn, X, etc. ne s'appuient que sur `platform` + l'URL de la page et le texte). Un réseau choisi sans lien de référence renseigné était donc silencieusement absent de la publication, et donc introuvable au rechargement suivant. Le chemin de chargement (`data.socials || []`) n'avait pas ce problème — seule la sérialisation à la publication filtrait à tort.
+
+**Changement** : `socials.map(s => ({ id: s.id, platform: s.platform, url: s.url || '' }))` — persiste dès qu'une plateforme est choisie, lien de référence renseigné ou non.
+
+**Vérifications** : `node --check` — OK. Nouveau `test_socials_persistence_fix.js` (6 assertions) : reproduit le cas exact (LinkedIn sans lien de référence + X avec lien renseigné), vérifie le round-trip sérialisation → rechargement, et que les réseaux persistés sont bien reconnus comme publiables. Les 4 suites précédentes de la session rejouées (`test_backstage_pack_collection_masterdetail`, `test_pack_collection_theme_font`, `test_share_socials_dialog`, `test_share_popup_dimensions`) — aucune régression.
+
+---
+
+## [2026-08-20] — Fenêtres de partage/publication en popup centrée plutôt qu'en plein onglet
+
+**Fichier touché** : `layerpitch-backstage.html`
+
+**Contexte** : retour utilisateur — même une fois le bouton "Partager" branché sur les réseaux configurés (entrée précédente), cliquer dessus ouvrait la fenêtre LinkedIn en plein onglet, faisant quitter le backstage. Référence donnée : le comportement de WordPress (popup dédiée, le site d'origine reste au premier plan).
+
+**Changement** : nouvelle fonction `openSharePopup(url)` — popup centrée 600×600, `noopener,noreferrer`, nom de fenêtre réutilisable (`layerpitch-share`, un second clic pendant qu'une popup est déjà ouverte la réutilise plutôt que d'en empiler une nouvelle). Appliquée aux 4 points d'ouverture d'une fenêtre de publication : partage AdReel via un seul réseau, confirmation du dialogue à cocher (entrée précédente), bouton "Publier" d'un Pack, bouton "Publier" d'une Collection — décision de cohérence, les 4 partageaient déjà le même `window.open(url, '_blank', 'noopener')`. L'aperçu de l'AdReel (bouton séparé, sans rapport avec le partage social) n'est pas concerné et continue de s'ouvrir en plein onglet.
+
+**Vérifications** : `node --check` — OK. Balises `<div>` équilibrées (435/435). Nouveau `test_share_popup_dimensions.js` (34 assertions) : dimensions/position calculée, `noopener`/`noreferrer`, réutilisation du nom de fenêtre, sur les 4 points d'ouverture. Les 3 suites précédentes de la session rejouées — aucune régression.
+
+---
+
+## [2026-08-20] — Bouton "Partager" branché sur les réseaux sociaux configurés (dialogue à cocher si plusieurs)
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `layerpitch-i18n.js`
+
+**Contexte** : retour utilisateur (capture d'écran) — sur Mac, le bouton "Partager" de l'AdReel en édition n'ouvrait rien vers LinkedIn alors que ce réseau était configuré dans l'onglet "Réseaux sociaux". Diagnostic : ce bouton appelait `shareOrCopy()` (Web Share API native, puis repli presse-papier silencieux) — un mécanisme générique du système, totalement indépendant de la liste de réseaux configurée, qui n'alimente que les boutons "Publier" des Packs/Collections. Sur Chrome/Firefox desktop Mac (`navigator.share` généralement absent), le clic ne faisait qu'une copie presse-papier invisible.
+
+**Changement** : nouvelle fonction `shareViaSocialsOrFallback(url, title)` — tente `navigator.share()` en premier (inchangé, fonctionne bien sur mobile et Safari desktop), puis en cas d'indisponibilité ou d'échec :
+- 0 réseau publiable configuré → repli sur `shareOrCopy()` (comportement d'origine, inchangé)
+- 1 réseau publiable → ouverture directe de sa fenêtre de publication pré-remplie
+- 2+ réseaux publiables → nouvelle modale à cocher (`#shareSocialsModalOverlay`, style réutilisé des modales existantes) : le compositeur choisit lesquels ouvrir cette fois-ci
+
+Appliqué aux 3 boutons "Partager" du backstage (AdReel — barre latérale et action déléguée —, Pack, Collection) : décision de cohérence, les 3 partageaient déjà `shareOrCopy()`.
+
+**i18n** : 3 nouvelles clés en FR et en EN (`shareSocialsModalTitle`, `shareSocialsModalHint`, `shareSocialsConfirmBtn`) ; réutilisation de la clé `cancel` existante pour le bouton d'annulation. Symétrie FR/EN vérifiée programmatiquement : 649 clés de chaque côté, 0 écart.
+
+**Vérifications** : `node --check` sur les deux fichiers — OK. Nouveau `test_share_socials_dialog.js` (17 assertions, `navigator.share` simulé absent pour reproduire le cas Chrome/Firefox desktop) : les 4 scénarios (0/1/2+ réseaux, annulation) — tout vert. `test_backstage_pack_collection_masterdetail.js` et `test_pack_collection_theme_font.js` rejoués — aucune régression.
+
+---
+
+## [2026-08-20] — Packs/Collections : fusion Identité+Présentation, Apparence enrichie (couleurs, police, images), application publique
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `pack.html`, `collection.html`
+
+**Contexte** : retour visuel (capture d'écran) sur la disposition maître-détail des Packs livrée dans l'entrée précédente — demande de fusionner Identité et Présentation sous un seul libellé, de faire remonter Contenu en 2ᵉ position, et de déplacer les images (illustration, filigrane) vers Apparence. Discussion de suivi : étendre Apparence des Collections (qui n'existait pas encore) avec les mêmes réglages que le Pack, couleurs et police comprises — ce qui impliquait d'ajouter un système de thème (couleurs + police) à Collections, qui n'en avait aucun, et de l'appliquer réellement sur `collection.html` (jusque-là purement visuel côté backstage sans effet public).
+
+**Changement** :
+- **Pack** — 4 entrées au lieu de 5 : **Présentation** (fusion Identité+Présentation : titre + textes FR/EN), **Contenu** (remonté en 2ᵉ position), **Apparence** (couleurs, police — nouveau champ `pack.font` —, illustration et filigrane désormais ici), **Distribution** (inchangée). Titre toujours éditable aux deux endroits (en-tête de carte + entrée Présentation), synchronisation en direct sans re-rendu.
+- **Collection** — 4 entrées, même principe : **Présentation** (fusion), **Contenu**, **Apparence** (**nouvelle entrée** — couleurs `bgColor`/`textColor`, police `font`, illustration ; aucun de ces réglages n'existait avant pour les Collections), **Distribution**.
+- **`pack.html`** : application de `pack.font` au chargement (nouveau — les couleurs `bgColor`/`textColor` étaient déjà appliquées, inchangé). Fonctions `fontCssFamily()`/`injectFontAssets()` copiées telles quelles depuis `index.html` (même encodage `default`/`google:Nom`/`custom:id`, même logique d'injection ciblée des assets).
+- **`collection.html`** : application de `bgColor`/`textColor`/`font` au chargement — tout nouveau, Collections n'avait jusqu'ici aucune personnalisation de thème publique. Mêmes fonctions de police copiées, variable CSS `--font-body` ajoutée au `:root` (auparavant `font-family` en dur).
+- Sérialisation mise à jour aux 3 points habituels pour les deux nouveaux champs/modèles : chargement (`loadData`), création par défaut (`btnAddPack`/`btnAddCollection`), publication (`publishAll`).
+
+**i18n** : aucune nouvelle clé pour les libellés d'entrées (réutilisation de `trackSectionIdentity`, `sectionPresentation`, `sectionDistribution`, `sectionAppearance`, `trackSectionContent`, déjà en place). Réutilisation de `themeFontLabel` (déjà existante pour le thème général des AdReels) plutôt que d'inventer une clé dédiée pour le libellé "Police" du Pack/de la Collection.
+
+**Vérifications** : `node --check` sur les 3 fichiers — OK. Balises `<div>` équilibrées sur le backstage. 0 clé `tr()` manquante sur les 3 fichiers. `test_backstage_pack_collection_masterdetail.js` étendu (39 assertions : nouvel ordre à 4 entrées, déplacement image/filigrane, synchronisation titre, fiche d'implémentation toujours en Distribution). Nouveau `test_pack_collection_theme_font.js` (9 assertions) : application réelle de `--bg`/`--text`/`--font-body` et injection du lien Google Fonts sur `pack.html` et `collection.html`, non-régression sur les couleurs de Pack.
+
+**Non fait, à noter honnêtement** :
+- Les clés `data-help` ajoutées (`packFont`, `collectionFont`, `collectionAppearance`) n'ont pas de bulle d'aide correspondante dans `layerpitch-help.js` — sans effet néfaste, juste pas de tooltip affichée.
+
+---
+
+## [2026-08-20] — Disposition maître-détail étendue aux Packs et Collections
+
+**Fichier touché** : `layerpitch-backstage.html`
+
+**Contexte** : session dédiée, prompt de reprise préparé en fin de session précédente. Objectif : étendre le principe de la disposition maître-détail (déjà en place pour les 4 modes de lecture d'un morceau) aux Packs et probablement aux Collections — mais pas le mécanisme littéral, un Pack/une Collection étant un formulaire à plat en zones thématiques plutôt qu'une liste de sous-éléments nommés à réordonner.
+
+**Changement** :
+- **Pack** — 5 entrées : Identité (titre, illustration, filigrane), Présentation (textes FR/EN), Distribution (téléchargement, vente, mode test, renvoi AdReel, lien direct, réseaux sociaux, **fiche d'implémentation déplacée ici depuis Contenu**), Apparence (couleurs), Contenu (sélecteurs morceaux/Sfx). Titre éditable à la fois dans l'en-tête de carte et dans l'entrée Identité (même donnée `pack.title`, synchronisée en direct sans re-rendu complet pour ne pas perdre le focus). Sélection par défaut à l'ouverture : Contenu.
+- **Collection** — 4 entrées par symétrie (pas d'Apparence, Collections n'avait aucun réglage de couleur à l'époque) : Identité, Présentation, Contenu, Distribution. Mêmes principes (titre synchronisé, sélection par défaut Contenu).
+- Nouvelles Maps d'état `packSelectedEntry`/`collectionSelectedEntry` (même principe que `seqSelectedSlotIndex` : affichage local à la session, jamais persisté).
+
+**i18n** : aucune nouvelle clé — les 5 labels d'entrées réutilisent des clés déjà existantes en FR/EN.
+
+**Vérifications** : `node --check` — OK. Balises `<div>` équilibrées (428/428). 0 clé `tr()` manquante. Nouveau `test_backstage_pack_collection_masterdetail.js` (28 assertions initiales) : ordre des entrées, sélection par défaut, position de la fiche d'implémentation, synchronisation des deux champs titre, non-régression du repli/dépli de carte.
+
+**Non fait, à noter honnêtement** (au moment de cette entrée — traité dans les entrées suivantes de la même journée) :
+- Widgets internes (sélecteurs morceaux/Sfx, contrôles de fichier) codés tels quels, pas d'ajustement préventif pour le panneau plus étroit — décision explicite, à corriger seulement si besoin après test visuel.
+- Retour visuel reçu immédiatement après livraison → fusion Identité/Présentation, réorganisation Apparence, et extension aux Collections traitées dans l'entrée suivante.
+
+---
+
 ## [2026-08-19] — Items de la section "Compte" (sidebar) encadrés individuellement
 
 **Fichier touché** : `layerpitch-backstage.html`
