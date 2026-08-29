@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1788009527421,
+  "publishedAt": 1788009573971,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -867,7 +867,7 @@
           "bars": 8,
           "isInitial": true,
           "file": "loop0-jusqu-ici-tout-va-bien.ogg",
-          "gain": 2.31,
+          "gain": 2.327,
           "switchQuantize": "beat",
           "autoReturnEnabled": false,
           "autoReturnValue": 4,
@@ -877,7 +877,7 @@
           "startTrackBeat": 0,
           "loopInBeat": 4,
           "loopOutBeat": 40,
-          "duration": 41.4,
+          "duration": 41.47,
           "isDetour": false,
           "bpm": 60,
           "beatsPerBar": 4,
