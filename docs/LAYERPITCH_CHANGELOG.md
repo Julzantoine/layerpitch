@@ -8,6 +8,27 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-08-29c] — Dossiers fermés par défaut, bouton de boucle masqué pendant sa propre lecture, refonte des contrôles de fichier
+
+**Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `test_embr_vertical_engine.js`
+
+**Contexte** : trois retours de Jules-Antoine (captures d'écran des dossiers de bibliothèque ouverts par défaut, des boutons de boucle embranchement-vertical, et d'un contrôle de fichier de transition).
+
+**1) Dossiers fermés par défaut à l'ouverture.** `collapsedLibraryFolderIds`/`collapsedSfxFolderIds`/`collapsedAdReelFolderIds` partaient d'un `Set()` vide (tous les dossiers ouverts). Peuplés désormais avec tous les dossiers existants juste après leur chargement depuis `data.json`, dans `loadData()`. Un dossier créé en cours de session (bouton "+ Dossier") n'est pas concerné et reste ouvert comme avant.
+
+**2) Bouton d'une boucle masqué pendant qu'elle joue.** `updateEmbrButtonsUI()` (player.js) masque désormais (au lieu de simplement l'entourer d'une classe "active") le bouton de la boucle actuellement audible — qu'il s'agisse d'une boucle "paire" active ou d'un détour en cours — inutile d'afficher un bouton vers ce qui joue déjà. Uniquement pendant une lecture réelle (`playing`) : à l'état "Prêt" avant le premier clic sur Écouter, tous les boutons restent visibles malgré la référence déjà marquée active par défaut.
+
+**3) Refonte des contrôles de fichier (icône seule → icône + libellé + nom du fichier), et repositionnement en tête de bloc.** Trois changements sur la fonction partagée `fileCtrlHtml()`/`updateFileStatus()`/`wireFileControl()`, qui se répercutent automatiquement partout où un fichier peut être uploadé (plus d'une vingtaine d'emplacements : intro/outro séquentiel et vertical-random, alternatives de pool/emplacement, boucles et transitions d'embranchement-vertical, couches, Sfx, logo/photo, illustrations, filigrane, polices personnalisées, vignettes vidéo) :
+   - Bouton icône seule (`btn-icon`) remplacé par icône + libellé texte visible (`btn btn-small`) — une icône seule n'était pas assez explicite.
+   - Nom du fichier affiché à côté de l'icône même une fois PUBLIÉ (pas seulement pour une sélection en attente) — nouvelle fonction `basenameOf()` (extrait le nom depuis le chemin distant) + nouvelle clé i18n `publishedFilePrefix` ("Publié : {name} ✓"), remplace l'ancien texte générique "Publié ✓" sans nom.
+   - Contrôle de fichier déplacé en tête de chaque bloc concerné, avant les réglages qui décrivent CE fichier (libellé, durée, tempo...) — plus logique de choisir le fichier avant de régler ses paramètres. Laissé inchangé dans les blocs où il n'y avait rien à réordonner (logo/photo, apparence Pack/Collection, champs d'apparence par bloc AdReel), déjà positionnés juste après leur propre libellé sans autre champ intercalé.
+
+**i18n** : `publishedFilePrefix` (nouvelle, FR/EN, remplace l'usage de l'ancienne `publishedStatus` désormais orpheline mais conservée par prudence) — symétrie vérifiée (685 clés de chaque côté, couverture complète confirmée programmatiquement).
+
+**Vérifications** : `node --check` OK sur `player.js` et le script inline extrait du backstage. Balises `<div>` équilibrées (473/473). Nouvelles assertions dans `test_embr_vertical_engine.js` (visibilité des boutons avant/pendant/après lecture, pendant un détour, après Stop) — toutes au vert. Suite de tests complète (11 fichiers) rejouée deux fois sans régression ; `test_quantized_loop_engine.js` échoue toujours à l'identique (bug d'environnement pré-existant, confirmé sans lien avec cette session).
+
+---
+
 ## [2026-08-29b] — Nouvelle unité "temps" pour la durée des transitions (séquentiel ET embranchement-vertical)
 
 **Fichiers touchés** : `player.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `test_seq_transitions.js`, `test_embr_vertical_transitions.js`
