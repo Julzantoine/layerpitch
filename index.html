@@ -329,6 +329,10 @@
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.LayerPlayerCore;
 
+// Images migrées vers Cloudflare R2 (docs/infrastructure.md, Partie B, Décision 3) — chemins
+// conservés à l'identique (images/<filename>), seul le domaine de base change.
+const IMAGES_BASE = 'https://media.layerpitch.com/images/';
+
 // Traductions de l'habillage LayerPitch (pas le contenu des AdReels/morceaux, qui reste dans sa langue
 // d'origine). Vit dans layerpitch-i18n.js (zones "shared" + "index"), édité via l'outil dédié.
 // Langue fixée par le compositeur pour cet AdReel (champ adReel.lang dans data.json), jamais par le
@@ -397,7 +401,7 @@ function renderHeaderBlock(container, profile) {
   const subtitle = (profile.subtitle != null && profile.subtitle !== '') ? profile.subtitle : (profile.tagline || '');
   const title = profile.title || (profile.logo ? '' : 'LayerPitch');
   el.innerHTML = `
-    ${profile.logo ? `<img class="logo-img" src="./images/${profile.logo}" alt="${tr('logoAlt')}">` : ''}
+    ${profile.logo ? `<img class="logo-img" src="${IMAGES_BASE}${profile.logo}" alt="${tr('logoAlt')}">` : ''}
     ${title ? `<div class="header-title">${escapeHtml(title)}</div>` : ''}
     ${subtitle ? `<div class="header-subtitle">${escapeHtml(subtitle)}</div>` : ''}
   `;
@@ -407,13 +411,13 @@ function renderBioBlock(container, profile) {
   if (!profile.bio && !profile.photo) return;
   const textHtml = (profile.bio || '').split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('');
   const photoHtml = profile.photo
-    ? `<div class="bio-photo"><img src="./images/${profile.photo}" alt="${tr('photoAlt')}" loading="lazy"></div>`
+    ? `<div class="bio-photo"><img src="${IMAGES_BASE}${profile.photo}" alt="${tr('photoAlt')}" loading="lazy"></div>`
     : `<div class="bio-photo empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></div>`;
   const el = section(tr('aboutSection'), `<div class="bio">${photoHtml}<div class="bio-text">${textHtml}</div></div>`);
   container.appendChild(el);
   if (profile.photo) {
     const bioImg = el.querySelector('.bio-photo img');
-    const url = `./images/${profile.photo}`;
+    const url = `${IMAGES_BASE}${profile.photo}`;
     bioImg.addEventListener('click', () => openLightbox([url], 0));
   }
 }
@@ -437,7 +441,7 @@ function renderPhotoBlockItem(container, block) {
   const align = block.align === 'center' ? 'center' : block.align === 'right' ? 'flex-end' : 'flex-start';
   const el = document.createElement('div');
   el.className = 'block';
-  const urls = block.images.map(g => `./images/${g.file}`);
+  const urls = block.images.map(g => `${IMAGES_BASE}${g.file}`);
   if (block.images.length === 1) {
     el.innerHTML = `<div class="photo-block-single" style="justify-content:${align}"><img src="${urls[0]}" alt="" loading="lazy"></div>`;
   } else {
@@ -476,7 +480,7 @@ function renderPacksBlockItem(container, block, packsById) {
     const a = document.createElement('a');
     a.className = 'packs-list-item';
     a.href = `./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}`;
-    a.innerHTML = `${p.illustration ? `<img class="packs-list-item-thumb" src="./images/${p.illustration}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(p.title)}</span><span class="packs-list-item-arrow">→</span>`;
+    a.innerHTML = `${p.illustration ? `<img class="packs-list-item-thumb" src="${IMAGES_BASE}${p.illustration}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(p.title)}</span><span class="packs-list-item-arrow">→</span>`;
     list.appendChild(a);
   });
   el.appendChild(list);
@@ -493,7 +497,7 @@ function renderCollectionsBlockItem(container, block, collectionsById) {
     const a = document.createElement('a');
     a.className = 'packs-list-item';
     a.href = `./collection.html?id=${encodeURIComponent(c.id)}&lang=${pageLang}`;
-    a.innerHTML = `${c.illustration ? `<img class="packs-list-item-thumb" src="./images/${c.illustration}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(c.title)}</span><span class="packs-list-item-arrow">→</span>`;
+    a.innerHTML = `${c.illustration ? `<img class="packs-list-item-thumb" src="${IMAGES_BASE}${c.illustration}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(c.title)}</span><span class="packs-list-item-arrow">→</span>`;
     list.appendChild(a);
   });
   el.appendChild(list);
@@ -575,7 +579,7 @@ function applyBlockAppearance(el, block, customFonts) {
     while (el.firstChild) inner.appendChild(el.firstChild);
     const bgLayer = document.createElement('div');
     const opacity = (ov.bgImageOpacity != null) ? ov.bgImageOpacity : 1;
-    bgLayer.style.cssText = `position:absolute;inset:0;background-image:url('./images/${ov.bgImage}');background-size:cover;background-position:center;opacity:${opacity};border-radius:inherit;`;
+    bgLayer.style.cssText = `position:absolute;inset:0;background-image:url('${IMAGES_BASE}${ov.bgImage}');background-size:cover;background-position:center;opacity:${opacity};border-radius:inherit;`;
     el.style.position = 'relative';
     el.style.overflow = 'hidden';
     if (!ov.bgColor) { el.style.borderRadius = '10px'; el.style.padding = '28px'; el.style.margin = '12px 0'; }
@@ -636,7 +640,7 @@ function renderVideoBlockItem(container, block) {
   if (!block.videos || block.videos.length === 0) return;
   const makeCard = (v) => {
     const ytId = extractYouTubeId(v.url);
-    const thumbUrl = v.thumbnail ? `./images/${v.thumbnail}` : (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null);
+    const thumbUrl = v.thumbnail ? `${IMAGES_BASE}${v.thumbnail}` : (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null);
     const bg = thumbUrl ? `background-image:url('${thumbUrl}'); background-size:cover; background-position:center;` : '';
 
     if (ytId) {
@@ -752,7 +756,7 @@ async function init() {
     // du texte, qui n'est jamais affectée par ce réglage.
     if (theme.bgImage) {
       const bgLayer = document.createElement('div');
-      bgLayer.style.cssText = `position:fixed;inset:0;z-index:-1;background-image:url('./images/${theme.bgImage}');background-size:cover;background-position:center;opacity:${theme.bgImageOpacity != null ? theme.bgImageOpacity : 1};`;
+      bgLayer.style.cssText = `position:fixed;inset:0;z-index:-1;background-image:url('${IMAGES_BASE}${theme.bgImage}');background-size:cover;background-position:center;opacity:${theme.bgImageOpacity != null ? theme.bgImageOpacity : 1};`;
       document.body.appendChild(bgLayer);
     }
 

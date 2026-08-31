@@ -61,16 +61,27 @@ const path = require('path');
   let failures = 0;
   function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; }
 
-  // BPM=300, 1 temps/mesure -> 0.2s par emplacement (même ordre de grandeur que le test "Sequential live
-  // change" de test_max_chain_loops_e2e.js) — assez rapide pour observer plusieurs rejeux de A avant de
-  // faire un choix, sans faire traîner le test.
+  // BPM=300, 1 temps/mesure -> 0.2s par unité de quantification (même ordre de grandeur que le test
+  // "Sequential live change" de test_max_chain_loops_e2e.js) — assez rapide pour observer plusieurs
+  // rejeux de A avant de faire un choix, sans faire traîner le test.
+  //
+  // slotA.alternatives[0].bars = 2 (pas 1) : point important pour la fiabilité du test, pas juste
+  // cosmétique. Avec bars=1, la durée totale d'un passage sur A est EXACTEMENT une unité de
+  // quantification — l'événement "A rejoue depuis le début" (qui avance seqBranchEpoch, voir player.js
+  // activateSeqStage) et le timer de vérification de la frontière de CE passage (armNextSeqBranchBoundary)
+  // tombent alors au même instant nominal, et lequel des deux callbacks JS s'exécute en premier devient
+  // une course dépendant de micro-écarts de calcul flottant — observé empiriquement : le test échouait de
+  // façon intermittente (~2 fois sur 3) quand ces deux timers coïncidaient exactement. bars=2 fait en
+  // sorte que la première frontière de quantification tombe au milieu du passage sur A, bien avant que
+  // l'epoch ne soit avancé par le passage suivant — élimine la coïncidence sans changer le comportement
+  // testé (choix de branchement toujours consommé à la prochaine frontière).
   const track = {
     id: 'sb1', title: 'Test embranchement séquentiel', mode: 'sequential', description: '', duration: 0,
     base: '', publishedAt: 1, bpm: 300, beatsPerBar: 1,
     segmentSlots: [
       {
         id: 'slotA', label: 'A', avoidImmediateRepeat: false, repeatCount: 1,
-        alternatives: [{ label: 'A1', bars: 1, localFile: fakeFile('a1.wav') }],
+        alternatives: [{ label: 'A1', bars: 2, localFile: fakeFile('a1.wav') }],
         nextOptions: [{ targetId: 'slotB', label: 'To B' }, { targetId: 'slotC', label: '' }]
       },
       { id: 'slotB', label: 'B', avoidImmediateRepeat: false, repeatCount: 1, alternatives: [{ label: 'B1', bars: 1, localFile: fakeFile('b1.wav') }] },
