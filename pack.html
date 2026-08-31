@@ -198,6 +198,23 @@
   .buy-hint { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dimmer); margin-top: 10px; }
   .implementation-help { margin-top: 18px; font-size: 11.5px; color: var(--text-dimmer); text-align: center; font-family: 'JetBrains Mono', monospace; }
 
+  /* Achat réel (Décision 5, étape 4) — masqué en production tant que PURCHASES_ENABLED est faux */
+  .purchase-owned { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
+  .purchase-signin { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .purchase-signin input {
+    font-family: 'Inter', sans-serif; font-size: 13px; padding: 8px 12px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text); width: 240px; text-align: center;
+  }
+  .purchase-msg { font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-top: 8px; }
+  .purchase-msg.err { color: #b5442e; }
+  .purchase-msg.ok { color: #2a7; }
+  .purchase-banner {
+    max-width: 1100px; margin: 0 auto 24px; padding: 12px 20px; border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; text-align: center;
+  }
+  .purchase-banner.ok { background: #e4f5ec; color: #1f7a4d; }
+  .purchase-banner.cancelled { background: #f5efe4; color: #8a6a2f; }
+
   /* Mode Test Gameplay : bouton déclencheur + boîte de dialogue pour coller une URL vidéo */
   .video-test-trigger-btn {
     display: block; margin: 0 auto 28px; padding: 12px 24px; border-radius: 6px; border: 1px solid var(--accent);
@@ -296,6 +313,111 @@
 <script src="player.js?v=1788020257757"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, section } = window.LayerPlayerCore;
+
+// Images migrées vers Cloudflare R2 (docs/infrastructure.md, Partie B, Décision 3) — chemins
+// conservés à l'identique (images/<filename>), seul le domaine de base change.
+const IMAGES_BASE = 'https://media.layerpitch.com/images/';
+
+// Achat réel de packs (Décision 5, étape 4 — backend Stripe/Postgres construit et vérifié le
+// 31 août, docs/LAYERPITCH_CHANGELOG.md). Volontairement désactivé en production pour l'instant :
+// décision actée avec Jules-Antoine de garder l'affichage "Bientôt disponible" pendant la bêta
+// (comportement inchangé tant que ce flag reste à false — aucune requête réseau supplémentaire,
+// aucun SDK chargé). Passer à true pour activer, une fois prêt à sortir de la bêta.
+const PURCHASES_ENABLED = false;
+
+// Charge le SDK Supabase + api/*.js à la demande seulement (jamais si PURCHASES_ENABLED est faux) —
+// mémorisé pour ne charger qu'une fois même si plusieurs packs de la page en ont besoin.
+let purchaseScriptsLoaded = null;
+function loadPurchaseScripts() {
+  if (purchaseScriptsLoaded) return purchaseScriptsLoaded;
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src; s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+  purchaseScriptsLoaded = (async () => {
+    await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js');
+    await loadScript('./api/auth.js');
+    await loadScript('./api/packs.js');
+    await loadScript('./api/purchases.js');
+  })();
+  return purchaseScriptsLoaded;
+}
+
+// Rendu du widget d'achat réel (Décision 5, étape 4) dans `el` — un des trois états : formulaire de
+// connexion (magic link), bouton d'achat (prix lu depuis Postgres, jamais inventé côté client), ou
+// "déjà acheté". Affiche aussi une bannière de retour Stripe (succès/annulation) une fois, puis
+// nettoie l'URL pour ne pas la réafficher à un rechargement ultérieur.
+async function renderRealPurchaseWidget(el, pack) {
+  await loadPurchaseScripts();
+
+  const params = new URLSearchParams(window.location.search);
+  const purchaseStatus = params.get('purchase');
+  if (purchaseStatus === 'success' || purchaseStatus === 'cancelled') {
+    const banner = document.createElement('div');
+    banner.className = 'purchase-banner ' + (purchaseStatus === 'success' ? 'ok' : 'cancelled');
+    banner.textContent = purchaseStatus === 'success' ? tr('purchaseSuccessMsg') : tr('purchaseCancelledMsg');
+    el.parentNode.insertBefore(banner, el);
+    params.delete('purchase');
+    const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+    window.history.replaceState({}, '', newUrl);
+  }
+
+  const { pack: livePack, error: packError } = await window.LayerPitchPacks.getPack(pack.id);
+  if (packError || !livePack || !livePack.buyable || !livePack.priceUsdCents) {
+    el.innerHTML = `<span class="buy-btn disabled">${tr('comingSoon')}</span><div class="buy-hint">${tr('notForSaleYet')}</div>`;
+    return;
+  }
+  const priceLabel = '$' + (livePack.priceUsdCents / 100).toFixed(2);
+
+  const { session } = await window.LayerPitchAuth.getSession();
+  if (!session) {
+    el.innerHTML = `
+      <div class="purchase-signin">
+        <div class="buy-hint">${tr('signInToBuyHint')}</div>
+        <input type="email" id="purchaseSignInEmail" placeholder="${tr('signInToBuyEmailPlaceholder')}">
+        <button class="buy-btn" id="purchaseSignInBtn" type="button">${tr('signInToBuySendBtn')}</button>
+        <div class="purchase-msg" id="purchaseSignInMsg"></div>
+      </div>`;
+    el.querySelector('#purchaseSignInBtn').addEventListener('click', async () => {
+      const email = el.querySelector('#purchaseSignInEmail').value.trim();
+      const msg = el.querySelector('#purchaseSignInMsg');
+      if (!email) return;
+      msg.textContent = '…'; msg.className = 'purchase-msg';
+      const { ok, error } = await window.LayerPitchAuth.signInWithMagicLink(email, window.location.href);
+      msg.textContent = ok ? tr('signInToBuySentMsg') : tr('purchaseErrorMsg').replace('{error}', error);
+      msg.className = 'purchase-msg ' + (ok ? 'ok' : 'err');
+    });
+    return;
+  }
+
+  const { purchases } = await window.LayerPitchPurchases.myPurchases();
+  const alreadyOwned = (purchases || []).some(p => p.packId === pack.id);
+  if (alreadyOwned) {
+    el.innerHTML = `<span class="purchase-owned">${tr('alreadyOwned')}</span>`;
+    return;
+  }
+
+  el.innerHTML = `<button class="buy-btn" id="realBuyBtn" type="button">${tr('buyBtn').replace('{price}', priceLabel)}</button><div class="purchase-msg" id="purchaseBuyMsg"></div>`;
+  el.querySelector('#realBuyBtn').addEventListener('click', async () => {
+    const btn = el.querySelector('#realBuyBtn');
+    const msg = el.querySelector('#purchaseBuyMsg');
+    btn.disabled = true;
+    btn.textContent = tr('buyBtnLoading');
+    const successUrl = window.location.origin + window.location.pathname + '?id=' + encodeURIComponent(pack.id) + '&purchase=success';
+    const cancelUrl = window.location.origin + window.location.pathname + '?id=' + encodeURIComponent(pack.id) + '&purchase=cancelled';
+    const { ok, error } = await window.LayerPitchPurchases.buyPack(pack.id, { successUrl, cancelUrl });
+    if (!ok) {
+      msg.textContent = tr('purchaseErrorMsg').replace('{error}', error);
+      msg.className = 'purchase-msg err';
+      btn.disabled = false;
+      btn.textContent = tr('buyBtn').replace('{price}', priceLabel);
+    }
+    // Si ok, buyPack() a déjà redirigé la page vers Stripe Checkout — rien d'autre à faire ici.
+  });
+}
 
 // Résout une valeur de police ('default' | 'google:Nom' | 'custom:id') en une déclaration font-family CSS
 // utilisable. Retourne null pour 'default' (aucun override -- le body garde son font-family de base).
@@ -499,11 +621,11 @@ async function init() {
     if (pack.watermark) {
       const watermarkEl = document.createElement('div');
       watermarkEl.className = 'pack-watermark';
-      watermarkEl.style.backgroundImage = `url('./images/${pack.watermark}')`;
+      watermarkEl.style.backgroundImage = `url('${IMAGES_BASE}${pack.watermark}')`;
       document.body.prepend(watermarkEl);
     }
     container.innerHTML = `
-      ${pack.illustration ? `<img class="pack-illustration" src="./images/${pack.illustration}" alt="">` : `<div class="pack-illustration empty"></div>`}
+      ${pack.illustration ? `<img class="pack-illustration" src="${IMAGES_BASE}${pack.illustration}" alt="">` : `<div class="pack-illustration empty"></div>`}
       <div class="pack-title">${escapeHtml(pack.title)}</div>
       <div class="pack-presentation">${pickBilingualText(pack.presentationFr, pack.presentationEn).split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('')}</div>
     `;
@@ -545,14 +667,16 @@ async function init() {
     const buySection = document.createElement('div');
     buySection.className = 'buy-section';
     // Téléchargement gratuit : réel dès aujourd'hui (zip généré côté navigateur, JSZip chargé à la
-    // demande seulement — jamais au chargement de la page). Vente : toujours affichée grisée pendant la
-    // bêta, quel que soit buyUrl — signale clairement aux testeurs que c'est une option envisagée, pas
-    // encore un vrai système de paiement, plutôt que de faire semblant via un simple lien externe.
+    // demande seulement — jamais au chargement de la page). Vente : voir PURCHASES_ENABLED plus haut —
+    // grisée par défaut pendant la bêta (comportement historique inchangé), vrai flux Stripe/Postgres
+    // activable en un seul flag une fois prêt (Décision 5, étape 4, construit et vérifié le 31 août).
     let buyHtml = '';
     if (pack.freeDownloadEnabled) {
       buyHtml += `<button class="buy-btn" id="freeDownloadBtn" type="button">${tr('freeDownloadBtn')}</button>`;
     }
-    buyHtml += `<div style="margin-top:${pack.freeDownloadEnabled ? '14px' : '0'}"><span class="buy-btn disabled">${tr('comingSoon')}</span><div class="buy-hint">${tr('notForSaleYet')}</div></div>`;
+    if (!PURCHASES_ENABLED) {
+      buyHtml += `<div style="margin-top:${pack.freeDownloadEnabled ? '14px' : '0'}"><span class="buy-btn disabled">${tr('comingSoon')}</span><div class="buy-hint">${tr('notForSaleYet')}</div></div>`;
+    }
     buySection.innerHTML = buyHtml;
     container.appendChild(buySection);
     if (pack.freeDownloadEnabled) {
@@ -571,6 +695,12 @@ async function init() {
           btn.textContent = original;
         }
       });
+    }
+    if (PURCHASES_ENABLED) {
+      const purchaseWrap = document.createElement('div');
+      purchaseWrap.style.marginTop = pack.freeDownloadEnabled ? '14px' : '0';
+      buySection.appendChild(purchaseWrap);
+      renderRealPurchaseWidget(purchaseWrap, pack).catch(e => console.error('LayerPitch — widget achat :', e));
     }
 
     const containingCollections = (data.collections || []).filter(c => (c.packIds || []).includes(pack.id));

@@ -7,7 +7,12 @@ const path = require('path');
     .replace(/<script[^>]*src="https:\/\/unpkg\.com[^"]*"[^>]*><\/script>\s*/g, '');
   function inlineExactLine(html, filename, tagline) {
     const content = fs.readFileSync(path.join(__dirname, filename), 'utf-8').replace(/<\/script/gi, '<\\/script');
-    return html.split('\n').map(line => line.trim() === tagline ? `<script>${content}</script>` : line).join('\n');
+    // Tolère le cache-busting "?v=..." ajouté aux balises <script> à la publication (13 août) —
+    // sans ça, la comparaison stricte échoue silencieusement et le script n'est jamais inliné.
+    return html.split('\n').map(line => {
+      const normalized = line.trim().replace(/\.js(\?[^"]*)?"/, '.js"');
+      return normalized === tagline ? `<script>${content}</script>` : line;
+    }).join('\n');
   }
   let html = inlineExactLine(backstageSrc, 'layerpitch-i18n.js', '<script src="layerpitch-i18n.js"></script>');
   html = inlineExactLine(html, 'layerpitch-help.js', '<script src="layerpitch-help.js"></script>');

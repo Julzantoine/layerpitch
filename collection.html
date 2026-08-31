@@ -93,6 +93,10 @@
 <script>
 const { escapeHtml, linkify, setupContrastToggle } = window.LayerPlayerCore;
 
+// Images migrées vers Cloudflare R2 (docs/infrastructure.md, Partie B, Décision 3) — chemins
+// conservés à l'identique (images/<filename>), seul le domaine de base change.
+const IMAGES_BASE = 'https://media.layerpitch.com/images/';
+
 // Résout une valeur de police ('default' | 'google:Nom' | 'custom:id') en une déclaration font-family CSS
 // utilisable. Retourne null pour 'default' (aucun override -- le body garde son font-family de base).
 // Copié tel quel depuis index.html/pack.html (19/08) : même encodage, même logique, pas de duplication.
@@ -186,14 +190,14 @@ async function init() {
     const includedPacks = (collection.packIds || []).map(pid => packsById[pid]).filter(Boolean);
 
     container.innerHTML = `
-      ${collection.illustration ? `<img class="pack-illustration" src="./images/${collection.illustration}" alt="">` : `<div class="pack-illustration empty"></div>`}
+      ${collection.illustration ? `<img class="pack-illustration" src="${IMAGES_BASE}${collection.illustration}" alt="">` : `<div class="pack-illustration empty"></div>`}
       <div class="pack-title">${escapeHtml(collection.title)}</div>
       <div class="pack-presentation">${pickBilingualText(collection.presentationFr, collection.presentationEn).split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('')}</div>
       <div class="section-label">${tr('packsInCollectionLabel')}</div>
       <div class="collection-pack-list">
         ${includedPacks.length ? includedPacks.map(p => `
           <a class="collection-pack-row" href="./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}">
-            ${p.illustration ? `<img class="collection-pack-thumb" src="./images/${p.illustration}" alt="" loading="lazy">` : `<div class="collection-pack-thumb empty"></div>`}
+            ${p.illustration ? `<img class="collection-pack-thumb" src="${IMAGES_BASE}${p.illustration}" alt="" loading="lazy">` : `<div class="collection-pack-thumb empty"></div>`}
             <span class="collection-pack-row-title">${escapeHtml(p.title)}</span>
           </a>
         `).join('') : `<div class="empty">${tr('noPacksInCollectionYet')}</div>`}
