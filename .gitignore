@@ -3,3 +3,4 @@ layerpitch-backstage.html
 .env.*
 !.env.example
 node_modules/
+.claude/

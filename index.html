@@ -333,6 +333,61 @@ const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle } =
 // conservés à l'identique (images/<filename>), seul le domaine de base change.
 const IMAGES_BASE = 'https://media.layerpitch.com/images/';
 
+// Lecture Postgres (Décision 5, séquençage "site public → Postgres", docs/infrastructure.md) —
+// validation de parité en isolation, jamais activée par défaut. Comportement inchangé pour tout
+// visiteur normal : aucun SDK chargé, aucune requête Postgres, tant que ?dataSource=postgres n'est
+// pas explicitement présent dans l'URL. Ce n'est PAS un basculement de production — data.json reste
+// la source de vérité tant que le backstage en ligne n'écrit pas encore dans Postgres (Décision 5).
+let postgresReadScriptsLoaded = null;
+function loadPostgresReadScripts() {
+  if (postgresReadScriptsLoaded) return postgresReadScriptsLoaded;
+  // Cache-busting sur les fichiers locaux (api/*.js) uniquement, jamais sur le SDK CDN (déjà
+  // versionné dans son URL) — sans ça, une session de développement rechargeant ces fichiers
+  // plusieurs fois hérite silencieusement d'une version obsolète mise en cache par le navigateur
+  // (trouvé le 1er septembre, voir docs/LAYERPITCH_CHANGELOG.md). Un vrai premier visiteur n'a
+  // rien à invalider, donc rien à perdre en cache pour lui.
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src.startsWith('http') ? src : src + '?v=' + Date.now();
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+  postgresReadScriptsLoaded = (async () => {
+    await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js');
+    await loadScript('./api/supabase-client.js');
+    await loadScript('./api/tracks.js');
+    await loadScript('./api/packs.js');
+    await loadScript('./api/collections.js');
+    await loadScript('./api/sfx.js');
+    await loadScript('./api/settings.js');
+    await loadScript('./api/adreels.js');
+    await loadScript('./api/site-data.js');
+  })();
+  return postgresReadScriptsLoaded;
+}
+
+// Charge les mêmes données qu'aujourd'hui (data.json), depuis Postgres si ?dataSource=postgres est
+// présent dans l'URL, sinon data.json comme toujours — un seul point de bascule, testable AdReel par
+// AdReel via l'URL sans jamais toucher au comportement par défaut.
+//
+// Isolation multi-compositeur (1er septembre) : côté Postgres, l'AdReel demandé est résolu EN
+// PREMIER pour découvrir son compositeur (ownerId), puis le reste du catalogue est chargé scopé à
+// ce seul compositeur — jamais celui de tous les compositeurs mélangés (voir api/site-data.js).
+async function loadSiteData(adreelId) {
+  const usePostgres = new URLSearchParams(location.search).get('dataSource') === 'postgres';
+  if (!usePostgres) {
+    const res = await fetch('./data.json?v=' + Date.now());
+    return res.json();
+  }
+  await loadPostgresReadScripts();
+  const { adReel, error } = await window.LayerPitchAdReels.getAdReel(adreelId);
+  if (error) throw new Error(error);
+  if (!adReel) return { adReels: [] };
+  return window.LayerPitchSiteData.loadSiteDataFromPostgres(adReel.ownerId);
+}
+
 // Traductions de l'habillage LayerPitch (pas le contenu des AdReels/morceaux, qui reste dans sa langue
 // d'origine). Vit dans layerpitch-i18n.js (zones "shared" + "index"), édité via l'outil dédié.
 // Langue fixée par le compositeur pour cet AdReel (champ adReel.lang dans data.json), jamais par le
@@ -724,8 +779,7 @@ async function init() {
   const adreelId = new URLSearchParams(location.search).get('adreel') || 'main';
   window.__lpTrackContext = { type: 'adreel', id: adreelId };
   try {
-    const res = await fetch('./data.json?v=' + Date.now());
-    const data = await res.json();
+    const data = await loadSiteData(adreelId);
     const adReel = (data.adReels || []).find(a => a.id === adreelId);
     if (!adReel) {
       container.innerHTML = `<div class="empty">${tr('adreelNotFound')}</div>`;
