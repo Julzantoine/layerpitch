@@ -50,6 +50,11 @@ const path = require('path');
   setValue(q('#libraryContainer select[data-field="mode"][data-ti="0"]'), 'sequential');
   click(q('button[data-action="add-segment-slot"][data-ti="0"]'));
   click(q('button[data-action="add-segment-slot"][data-ti="0"]'));
+  // Depuis la restructuration en master/détail des emplacements séquentiels (seqSelectedSlotIndex,
+  // voir layerpitch-backstage.html ~ligne 3885), seule la carte sélectionnée reçoit son détail
+  // complet dans le DOM — il faut désormais sélectionner explicitement l'emplacement #1 pour que
+  // ses champs (hasBranches, quantization, etc.) existent avant de les interroger.
+  click(q('[data-action="select-seq-slot"][data-ti="0"][data-si="0"]'));
 
   // ---- 1) Panneau d'embranchements : absent avant activation, déplié juste après activation ----
   check('pas de panneau d\'embranchements avant activation', !q('[data-role="branchesBody"][data-ti="0"], [data-role="branchesToggle"]'));
@@ -90,16 +95,29 @@ const path = require('path');
   setValue(quantSelect, 'immediate');
   check('la valeur saisie est bien reflétée', quantSelect.value === 'immediate');
 
-  // ---- 2) Ordre complet de l'en-tête de la carte de morceau : repli / titre / Écouter / Supprimer / flèches ----
+  // ---- 2) Ordre complet de l'en-tête de la carte de morceau ----
+  // Réécrit le 01/09 : depuis la restructuration en disposition maître-détail (18/08) et le passage de la
+  // bibliothèque de morceaux au glisser-déposer (20/08), toggle-collapse-track/move-track-up/move-track-down
+  // n'existent plus DU TOUT (confirmés absents par grep) -- le repli d'un morceau est désormais la sélection
+  // dans la liste maître (#libraryMaster, un seul morceau affiché en détail à la fois, voir
+  // test_backstage_intro_outro_collapse_and_reorder.js), et la réorganisation se fait par glisser-déposer sur
+  // cette même liste maître (poignée .block-drag-handle, testé lui aussi dans le même fichier). L'en-tête de
+  // la carte de détail elle-même n'a donc plus aucun bouton de repli/réorganisation : seuls titre+mode (à
+  // gauche) et Écouter+Supprimer (à droite) y subsistent. Vérifié ci-dessous.
   const headLeft = q('.list-block-head-left');
-  const actionEls = [...headLeft.children].filter(el => el.dataset && el.dataset.action);
-  const actions = actionEls.map(el => el.dataset.action);
-  check('ordre complet de l\'en-tête (' + actions.join(', ') + ')',
-    JSON.stringify(actions) === JSON.stringify(['toggle-collapse-track', 'preview-track', 'remove-track', 'move-track-up', 'move-track-down']));
-  const titleEl = headLeft.querySelector('strong');
-  check('le titre se trouve bien entre le bouton de repli et le bouton Écouter',
-    Boolean(headLeft.querySelector('[data-action="toggle-collapse-track"]').compareDocumentPosition(titleEl) & window.Node.DOCUMENT_POSITION_FOLLOWING)
-    && Boolean(titleEl.compareDocumentPosition(headLeft.querySelector('[data-action="preview-track"]')) & window.Node.DOCUMENT_POSITION_FOLLOWING));
+  const leftFieldEls = [...headLeft.children];
+  check('en-tête gauche : titre puis sélecteur de mode, dans cet ordre',
+    leftFieldEls.length === 2
+    && leftFieldEls[0].dataset.field === 'title'
+    && leftFieldEls[1].dataset.field === 'mode');
+  const actionEls = [...q('.list-block-head').children].find(el => el !== headLeft && el.querySelector('[data-action]'));
+  const rightActions = actionEls ? [...actionEls.querySelectorAll('[data-action]')].map(el => el.dataset.action) : [];
+  check('en-tête droite : Écouter puis Supprimer, plus aucun bouton de repli ni de réorganisation',
+    JSON.stringify(rightActions) === JSON.stringify(['preview-track', 'remove-track']));
+  check('aucun bouton toggle-collapse-track/move-track-up/move-track-down nulle part dans l\'en-tête (mécanisme entièrement déplacé vers la liste maître)',
+    !q('.list-block-head [data-action="toggle-collapse-track"]')
+    && !q('.list-block-head [data-action="move-track-up"]')
+    && !q('.list-block-head [data-action="move-track-down"]'));
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);

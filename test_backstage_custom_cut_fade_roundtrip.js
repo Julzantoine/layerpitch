@@ -38,7 +38,9 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
 
 // ---- Publication (library -> data.json), ligne ~5619 : anchor unique juste avant ce mapping précis ----
 {
-  const mapPublish = extractMapBody("outro: (t.outro && t.outro.remoteFile) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,\n        segmentSlots:");
+  // Marqueur mis à jour le 01/09 : le mapping de publication transmet désormais aussi originalFileName
+  // (ajouté entre file et gain) — texte littéral ajusté en conséquence, logique testée inchangée.
+  const mapPublish = extractMapBody("outro: (t.outro && t.outro.remoteFile) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile, originalFileName: t.outro.originalFileName || null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,\n        segmentSlots:");
   const slot = { id: 's1', label: 'A', cutStyle: 'custom', customCutFadeSec: 2.5, bpm: 90, beatsPerBar: 3, descriptionFr: 'Texte FR', descriptionEn: 'Text EN', alternatives: [] };
   const out = mapPublish(slot);
   check('publication : customCutFadeSec transmis à data.json', out.customCutFadeSec === 2.5);

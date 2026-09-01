@@ -1,7 +1,16 @@
 // Repli/dépli individuel de chaque emplacement séquentiel (segmentSlots), demande du 15/08 : ne laisser
-// apparaître que l'en-tête (flèches, titre, bouton Supprimer) une fois replié. Suivi par id (pas par
-// position ti/si, qui change à chaque réordonnancement ↑/↓) — voir collapsedSlotIds. Même infrastructure
-// (backstage inliné dans jsdom) que test_backstage_intro_outro_collapse_and_reorder.js.
+// apparaître que l'en-tête (flèches, titre, bouton Supprimer) une fois replié. À l'origine suivi par un
+// mécanisme dédié par id (collapsedSlotIds).
+//
+// Réécrit le 01/09 : depuis la restructuration en disposition maître-détail (18/08, voir
+// seqSelectedSlotIndex dans layerpitch-backstage.html ~ligne 3787), collapsedSlotIds/toggle-collapse-slot/
+// data-role="slotBody" n'existent plus du tout (confirmé par grep) -- remplacés par UN SEUL mécanisme de
+// sélection partagé avec "Infos du morceau"/"Contenu additionnel"/"Infos additionnelles" : seul l'emplacement
+// sélectionné reçoit son détail complet dans le DOM, les autres ne montrent que leur ligne de résumé dans la
+// liste maître (equivalent du "replié" d'avant, mais par sélection exclusive plutôt que par repli individuel).
+// Différence de comportement réelle et assumée par le nouveau design : la sélection suit la POSITION
+// (l'index si), pas l'identité de l'emplacement -- contrairement à l'ancien collapsedSlotIds qui suivait
+// l'id. Un réordonnancement change donc quel emplacement apparaît sélectionné, testé explicitement plus bas.
 const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
@@ -11,8 +20,6 @@ const path = require('path');
     .replace(/<script[^>]*src="https:\/\/unpkg\.com[^"]*"[^>]*><\/script>\s*/g, '');
   function inlineExactLine(html, filename, tagline) {
     const content = fs.readFileSync(path.join(__dirname, filename), 'utf-8').replace(/<\/script/gi, '<\\/script');
-    // Tolère le cache-busting "?v=..." ajouté aux balises <script> à la publication (13 août) —
-    // sans ça, la comparaison stricte échoue silencieusement et le script n'est jamais inliné.
     return html.split('\n').map(line => {
       const normalized = line.trim().replace(/\.js(\?[^"]*)?"/, '.js"');
       return normalized === tagline ? `<script>${content}</script>` : line;
@@ -42,56 +49,54 @@ const path = require('path');
   function click(el) { el.dispatchEvent(new window.MouseEvent('click', { bubbles: true })); }
   function setValue(el, value) { el.value = value; el.dispatchEvent(new window.Event('input', { bubbles: true })); }
   const q = sel => doc.querySelector(sel);
-  const qa = sel => [...doc.querySelectorAll(sel)];
 
   click(q('#btnAddLibraryTrack'));
   setValue(q('#libraryContainer select[data-field="mode"][data-ti="0"]'), 'sequential');
   click(q('[data-action="add-segment-slot"][data-ti="0"]'));
   click(q('[data-action="add-segment-slot"][data-ti="0"]'));
 
-  let slotToggles = qa('[data-action="toggle-collapse-slot"]');
-  check('deux emplacements créés, bouton de repli présent sur chacun', slotToggles.length === 2);
+  check('deux entrées d\'emplacement présentes dans la liste maître',
+    !!q('[data-action="select-seq-slot"][data-ti="0"][data-si="0"]') && !!q('[data-action="select-seq-slot"][data-ti="0"][data-si="1"]'));
 
-  let slotBody0 = q('[data-role="slotBody"]');
-  check('un emplacement fraîchement créé est DÉPLIÉ par défaut (pas comme Intro/Outro)', !!slotBody0 && !slotBody0.classList.contains('collapsed'));
+  check('aucun détail d\'emplacement affiché par défaut (sélection sur "Infos du morceau", pas sur un emplacement)',
+    !q('input[data-slot-field="label"][data-ti="0"][data-si="0"]') && !q('input[data-slot-field="label"][data-ti="0"][data-si="1"]'));
 
-  setValue(q('input[data-slot-field="label"][data-ti="0"][data-si="0"]'), 'WetDarkCave');
-  const firstSlotId = q('[data-action="move-slot-up"][data-ti="0"][data-si="0"]').closest('.list-block').querySelector('input[data-slot-field="label"]').value;
-  check('le libellé saisi est bien "WetDarkCave"', firstSlotId === 'WetDarkCave');
+  click(q('[data-action="select-seq-slot"][data-ti="0"][data-si="0"]'));
+  let label0 = q('input[data-slot-field="label"][data-ti="0"][data-si="0"]');
+  check('sélectionner le premier emplacement affiche son détail (champ libellé présent)', !!label0);
+  check('le second emplacement, non sélectionné, n\'a toujours aucun détail affiché', !q('input[data-slot-field="label"][data-ti="0"][data-si="1"]'));
+  setValue(label0, 'WetDarkCave');
+  // La saisie ne déclenche pas de re-rendu (pour ne pas perdre le focus pendant la frappe, même principe que
+  // le titre du morceau) -- la liste maître ne reflète le modèle qu'au prochain rendu complet, provoqué ici
+  // par un simple clic (sans effet de bord) sur l'emplacement déjà sélectionné.
+  click(q('[data-action="select-seq-slot"][data-ti="0"][data-si="0"]'));
 
-  click(slotToggles[0]);
-  slotBody0 = q('[data-role="slotBody"]');
-  check('un clic replie le corps de l\'emplacement (classe CSS)', slotBody0.classList.contains('collapsed'));
-  slotToggles = qa('[data-action="toggle-collapse-slot"]');
-  check('le chevron du bouton passe à ▸', slotToggles[0].textContent.trim() === '▸');
-  check('le champ titre reste visible et modifiable une fois replié (il est dans l\'en-tête, hors du corps replié)',
-    q('input[data-slot-field="label"][data-ti="0"][data-si="0"]').value === 'WetDarkCave');
-  check('les champs internes (répétitions, tempo...) sont bien hors du DOM utile visuellement (corps marqué collapsed)',
-    !!q('input[data-slot-field="repeatCount"][data-ti="0"][data-si="0"]')); // toujours présent dans le DOM, juste masqué par CSS — display:none vérifié séparément dans test_backstage_branch_collapse_and_header_order.js pour ce même mécanisme
+  const masterLabel0 = q('[data-action="select-seq-slot"][data-ti="0"][data-si="0"] .seq-master-item-label');
+  check('la ligne de la liste maître reflète le libellé saisi', !!masterLabel0 && masterLabel0.textContent.trim() === '#1 WetDarkCave');
 
-  click(slotToggles[0]);
-  slotBody0 = q('[data-role="slotBody"]');
-  check('un second clic déplie à nouveau', !slotBody0.classList.contains('collapsed'));
+  click(q('[data-action="select-seq-slot"][data-ti="0"][data-si="1"]'));
+  check('sélectionner le second emplacement bascule le détail (le premier disparaît du DOM)', !q('input[data-slot-field="label"][data-ti="0"][data-si="0"]'));
+  const label1 = q('input[data-slot-field="label"][data-ti="0"][data-si="1"]');
+  check('le détail du second emplacement est bien affiché', !!label1);
+  setValue(label1, 'Corridor');
 
-  // ---- L'état replié suit l'ID de l'emplacement, pas sa position (ti/si) ----
-  click(slotToggles[0]); // replie WetDarkCave (emplacement #1)
-  setValue(q('input[data-slot-field="label"][data-ti="0"][data-si="1"]'), 'Corridor');
-  click(q('[data-action="move-slot-down"][data-ti="0"][data-si="0"]')); // WetDarkCave passe en position #2
+  click(q('[data-action="select-seq-slot"][data-ti="0"][data-si="0"]'));
+  label0 = q('input[data-slot-field="label"][data-ti="0"][data-si="0"]');
+  check('en resélectionnant le premier emplacement, sa donnée "WetDarkCave" a bien persisté malgré le va-et-vient', !!label0 && label0.value === 'WetDarkCave');
 
-  const labelsInOrder = qa('input[data-slot-field="label"][data-ti="0"]').map(el => el.value);
-  check('après réordonnancement, Corridor est bien en position #1 et WetDarkCave en #2', JSON.stringify(labelsInOrder) === JSON.stringify(['Corridor', 'WetDarkCave']));
+  // ---- Comportement réel du nouveau design : la sélection suit la POSITION, pas l'identité ----
+  click(q('[data-action="move-slot-down"][data-ti="0"][data-si="0"]')); // échange les positions 0 et 1 (WetDarkCave <-> Corridor)
+  const labelAtPos0 = q('input[data-slot-field="label"][data-ti="0"][data-si="0"]');
+  check('après l\'échange, la sélection (toujours "position 0") affiche désormais Corridor, pas WetDarkCave',
+    !!labelAtPos0 && labelAtPos0.value === 'Corridor');
+  check('la position 1 (désormais WetDarkCave) n\'est plus sélectionnée, donc pas de détail affiché pour elle',
+    !q('input[data-slot-field="label"][data-ti="0"][data-si="1"]'));
 
-  const bodiesInOrder = qa('[data-role="slotBody"]');
-  const togglesInOrder = qa('[data-action="toggle-collapse-slot"]');
-  check('Corridor (maintenant en position #1) est DÉPLIÉ — l\'état replié n\'a pas suivi la position', !bodiesInOrder[0].classList.contains('collapsed'));
-  check('WetDarkCave (maintenant en position #2) est resté REPLIÉ — l\'état a bien suivi son identité, pas sa position',
-    bodiesInOrder[1].classList.contains('collapsed') && togglesInOrder[1].textContent.trim() === '▸');
-
-  // ---- Persistance après un re-rendu complet (changement de mode aller-retour) ----
+  // ---- Persistance de la sélection après un re-rendu complet (changement de mode aller-retour) ----
   setValue(q('#libraryContainer select[data-field="mode"][data-ti="0"]'), 'vertical');
   setValue(q('#libraryContainer select[data-field="mode"][data-ti="0"]'), 'sequential');
-  const bodiesAfterRerender = qa('[data-role="slotBody"]');
-  check('l\'état replié de WetDarkCave persiste après un re-rendu complet', bodiesAfterRerender[1].classList.contains('collapsed'));
+  const labelAfterRerender = q('input[data-slot-field="label"][data-ti="0"][data-si="0"]');
+  check('la sélection (position 0, "Corridor") persiste après un re-rendu complet', !!labelAfterRerender && labelAfterRerender.value === 'Corridor');
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);

@@ -2,6 +2,15 @@
 // 1) Intro/Outro repliés par défaut dans l'éditeur d'un morceau séquentiel (jusqu'ici toujours dépliés).
 // 2) Réorganisation de l'ordre des morceaux dans la bibliothèque (boutons monter/descendre, même principe
 //    que pour les sections/emplacements/boucles nommées).
+//
+// Réécrit le 01/09 : depuis la restructuration en disposition maître-détail (18/08), Intro/Outro n'ont plus
+// de bloc replié dédié (introBlockBody/introBlockToggle/outroBlockBody/outroBlockToggle n'existent plus,
+// confirmé par grep) -- ce sont désormais deux entrées de plus dans la même liste maître que les
+// emplacements ("Structure"), repliées/dépliées par le même mécanisme de sélection exclusive.
+// Le second volet a lui aussi changé de mécanisme : la bibliothèque de morceaux (#libraryMaster) est
+// maintenant elle-même une liste organisable par glisser-déposer (wireOrgDragDrop, généralisée le 20/08 aux
+// morceaux/AdReels/Sfx) -- plus de boutons monter/descendre ni move-track-up/move-track-down (confirmés
+// absents par grep). Réécrit ci-dessous avec de vrais événements drag/dragover/drop simulés dans jsdom.
 const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
@@ -11,8 +20,6 @@ const path = require('path');
     .replace(/<script[^>]*src="https:\/\/unpkg\.com[^"]*"[^>]*><\/script>\s*/g, '');
   function inlineExactLine(html, filename, tagline) {
     const content = fs.readFileSync(path.join(__dirname, filename), 'utf-8').replace(/<\/script/gi, '<\\/script');
-    // Tolère le cache-busting "?v=..." ajouté aux balises <script> à la publication (13 août) —
-    // sans ça, la comparaison stricte échoue silencieusement et le script n'est jamais inliné.
     return html.split('\n').map(line => {
       const normalized = line.trim().replace(/\.js(\?[^"]*)?"/, '.js"');
       return normalized === tagline ? `<script>${content}</script>` : line;
@@ -48,50 +55,80 @@ const path = require('path');
   click(q('#btnAddLibraryTrack'));
   setValue(q('#libraryContainer select[data-field="mode"][data-ti="0"]'), 'sequential');
 
-  const introBody = q('[data-role="introBlockBody"]');
-  const outroBody = q('[data-role="outroBlockBody"]');
-  check('bloc Intro présent et replié par défaut', !!introBody && introBody.classList.contains('collapsed'));
-  check('bloc Outro présent et replié par défaut', !!outroBody && outroBody.classList.contains('collapsed'));
+  // Chaque clic déclenche un renderLibrary() complet qui détruit et reconstruit le DOM -- une référence
+  // capturée avant un clic devient donc obsolète (détachée, ses événements ne remontent plus jusqu'au
+  // gestionnaire délégué sur #libraryContainer). On re-interroge le DOM à chaque fois plutôt que de garder
+  // des références en cache.
+  const introMasterItem = () => q('[data-action="select-seq-slot"][data-ti="0"][data-seq-key="seqIntro"]');
+  const outroMasterItem = () => q('[data-action="select-seq-slot"][data-ti="0"][data-seq-key="seqOutro"]');
+  check('entrée Intro présente dans la liste maître', !!introMasterItem());
+  check('entrée Outro présente dans la liste maître', !!outroMasterItem());
+  check('Intro repliée par défaut (sélection sur "Infos du morceau")', !q('input[data-field="introLabel"][data-ti="0"]'));
+  check('Outro repliée par défaut', !q('input[data-field="outroLabel"][data-ti="0"]'));
 
-  const introToggle = q('[data-role="introBlockToggle"]');
-  click(introToggle);
-  check('clic sur le bouton Intro déplie son corps', !introBody.classList.contains('collapsed'));
-  click(introToggle);
-  check('un second clic replie à nouveau', introBody.classList.contains('collapsed'));
+  click(introMasterItem());
+  check('cliquer sur Intro déplie son détail', !!q('input[data-field="introLabel"][data-ti="0"]'));
+  check('Outro reste repliée (un seul détail affiché à la fois)', !q('input[data-field="outroLabel"][data-ti="0"]'));
 
   // Les champs à l'intérieur (label, mesures) doivent rester fonctionnels une fois déplié — non-régression :
   // le repli ne doit pas avoir cassé le câblage des champs eux-mêmes.
-  click(introToggle);
   const introLabelInput = q('input[data-field="introLabel"][data-ti="0"]');
-  check('le champ nom de l\'intro est toujours présent et modifiable une fois déplié', !!introLabelInput);
+  check('le champ nom de l\'intro est présent et modifiable une fois déplié', !!introLabelInput);
   setValue(introLabelInput, 'Intro perso');
   check('la saisie dans le champ intro est bien reflétée dans le modèle', introLabelInput.value === 'Intro perso');
 
-  // ---- 2) Réorganisation de la bibliothèque ----
+  click(outroMasterItem());
+  check('sélectionner Outro déplie son détail et replie Intro', !!q('input[data-field="outroLabel"][data-ti="0"]') && !q('input[data-field="introLabel"][data-ti="0"]'));
+
+  // ---- 2) Réorganisation de la bibliothèque : glisser-déposer (wireOrgDragDrop), plus de boutons monter/descendre ----
   click(q('#btnAddLibraryTrack')); // morceau #2
   click(q('#btnAddLibraryTrack')); // morceau #3
-  setValue(qa('#libraryContainer input[data-field="title"]')[0], 'Premier');
-  setValue(qa('#libraryContainer input[data-field="title"]')[1], 'Deuxieme');
-  setValue(qa('#libraryContainer input[data-field="title"]')[2], 'Troisieme');
+  // Chaque nouveau morceau devient automatiquement le morceau sélectionné (manageLibrarySelectedId) -- il
+  // faut re-sélectionner chacun dans la liste maître pour accéder à son champ titre dans le détail.
+  // data-ti reflète l'index du morceau dans le tableau library (pas forcément 0 pour les morceaux #2/#3) --
+  // sans intérêt ici puisqu'un seul morceau est affiché en détail à la fois : sélecteur générique.
+  const rows = () => qa('#libraryMaster .org-row');
+  click(rows()[0]);
+  setValue(q('input[data-field="title"]'), 'Premier');
+  click(rows()[1]);
+  setValue(q('input[data-field="title"]'), 'Deuxieme');
+  click(rows()[2]);
+  setValue(q('input[data-field="title"]'), 'Troisieme');
 
-  const titlesInOrder = () => qa('#libraryContainer input[data-field="title"]').map(el => el.value);
+  // La liste maître ne se re-rend pas à chaque frappe (même raison que le libellé d'emplacement) -- forcer
+  // un rendu en resélectionnant le morceau courant avant de lire les libellés affichés dans la liste.
+  click(rows()[2]);
+  const titlesInOrder = () => rows().map(r => r.querySelector('.seq-master-item-label').textContent.trim());
   check('ordre initial des trois morceaux', JSON.stringify(titlesInOrder()) === JSON.stringify(['Premier', 'Deuxieme', 'Troisieme']));
 
-  const upBtn0 = q('[data-action="move-track-up"][data-ti="0"]');
-  const downBtn0 = q('[data-action="move-track-down"][data-ti="0"]');
-  check('bouton monter désactivé pour le premier morceau', upBtn0.disabled === true);
-  check('bouton descendre actif pour le premier morceau', downBtn0.disabled === false);
+  // Simule un glisser-déposer complet (poignée -> dragstart -> dragover -> drop -> dragend) d'une ligne sur
+  // une autre. jsdom ne calcule pas de vraie mise en page (getBoundingClientRect renvoie des zéros) : avec
+  // clientY=0 par défaut, "before" (moitié haute) est systématiquement faux, donc le dépôt place toujours
+  // l'élément déplacé JUSTE APRÈS la cible -- comportement déterministe exploité ici plutôt que contourné.
+  function dragRowOnto(fromRow, toRow) {
+    fromRow.draggable = true;
+    const dt = { effectAllowed: '', setData() {} };
+    const dragstartEv = new window.Event('dragstart', { bubbles: true, cancelable: true });
+    Object.defineProperty(dragstartEv, 'dataTransfer', { value: dt });
+    fromRow.dispatchEvent(dragstartEv);
+    const dragoverEv = new window.Event('dragover', { bubbles: true, cancelable: true });
+    Object.defineProperty(dragoverEv, 'dataTransfer', { value: dt });
+    Object.defineProperty(dragoverEv, 'target', { value: toRow });
+    toRow.dispatchEvent(dragoverEv);
+    const dropEv = new window.Event('drop', { bubbles: true, cancelable: true });
+    Object.defineProperty(dropEv, 'dataTransfer', { value: dt });
+    Object.defineProperty(dropEv, 'target', { value: toRow });
+    toRow.dispatchEvent(dropEv);
+    fromRow.dispatchEvent(new window.Event('dragend', { bubbles: true, cancelable: true }));
+  }
 
-  click(downBtn0); // Premier <-> Deuxieme
-  check('après "descendre" sur le 1er, l\'ordre devient Deuxieme, Premier, Troisieme', JSON.stringify(titlesInOrder()) === JSON.stringify(['Deuxieme', 'Premier', 'Troisieme']));
+  dragRowOnto(rows()[0], rows()[1]); // dépose "Premier" sur "Deuxieme" -> se place juste après lui
+  check('après avoir déposé Premier sur Deuxieme, l\'ordre devient Deuxieme, Premier, Troisieme',
+    JSON.stringify(titlesInOrder()) === JSON.stringify(['Deuxieme', 'Premier', 'Troisieme']));
 
-  const upBtn2 = q('[data-action="move-track-up"][data-ti="2"]');
-  const downBtn2 = q('[data-action="move-track-down"][data-ti="2"]');
-  check('bouton descendre désactivé pour le dernier morceau', downBtn2.disabled === true);
-  check('bouton monter actif pour le dernier morceau', upBtn2.disabled === false);
-
-  click(upBtn2); // Troisieme remonte devant Premier
-  check('après "monter" sur le dernier, l\'ordre devient Deuxieme, Troisieme, Premier', JSON.stringify(titlesInOrder()) === JSON.stringify(['Deuxieme', 'Troisieme', 'Premier']));
+  dragRowOnto(rows()[2], rows()[0]); // dépose "Troisieme" (position 2) sur "Deuxieme" (position 0) -> se place juste après lui
+  check('après avoir déposé Troisieme sur Deuxieme, l\'ordre devient Deuxieme, Troisieme, Premier',
+    JSON.stringify(titlesInOrder()) === JSON.stringify(['Deuxieme', 'Troisieme', 'Premier']));
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);

@@ -43,6 +43,10 @@ const path = require('path');
   setValue(q('#libraryContainer select[data-field="mode"][data-ti="0"]'), 'sequential');
   click(q('button[data-action="add-segment-slot"][data-ti="0"]'));
   click(q('button[data-action="add-segment-slot"][data-ti="0"]'));
+  // Depuis la restructuration en master/détail des emplacements séquentiels (seqSelectedSlotIndex,
+  // voir layerpitch-backstage.html ~ligne 3885), seule la carte sélectionnée reçoit son détail
+  // complet dans le DOM — il faut désormais sélectionner explicitement l'emplacement #1.
+  click(q('[data-action="select-seq-slot"][data-ti="0"][data-si="0"]'));
 
   check('pas de sélecteurs quantization/cutStyle avant d\'activer les embranchements', !q('select[data-slot-field="quantization"][data-ti="0"][data-si="0"]'));
 
