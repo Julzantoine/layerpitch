@@ -5,21 +5,13 @@
 // le front) — seule la RPC valide le graphe segmentSlots/nextOptions avant d'écrire quoi que ce
 // soit, une contrainte FK seule ne pouvant pas exprimer "la cible doit appartenir au même morceau".
 //
-// Nécessite le SDK Supabase chargé en amont (voir api/auth.js pour le <script> CDN requis).
+// Nécessite le SDK Supabase + api/supabase-client.js chargés en amont (voir api/auth.js pour le
+// détail des <script> requis).
 
 (function () {
-  const SUPABASE_URL = 'https://ypygllyjfynrnvapufow.supabase.co';
-  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
-
-  let client = null;
+  // Client Supabase partagé (api/supabase-client.js) — voir ce fichier pour le pourquoi.
   function getClient() {
-    if (!client) {
-      if (!window.supabase || !window.supabase.createClient) {
-        throw new Error('SDK Supabase non chargé — ajouter le <script> UMD avant api/tracks.js.');
-      }
-      client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-    }
-    return client;
+    return window.LayerPitchSupabaseClient.getClient();
   }
 
   // `!from_slot_id` : segment_slot_transitions porte deux FK vers segment_slots (from_slot_id et
@@ -61,10 +53,31 @@
     };
   }
 
-  async function listTracks() {
-    const { data, error } = await getClient().from('tracks').select(TRACK_SELECT);
+  // opts.ownerId : filtre par compositeur (Session C/D, isolation multi-compositeur — sans ce
+  // filtre, listTracks() renvoyait le catalogue de TOUS les compositeurs mélangés, sans distinction
+  // possible entre bibliothèque du backstage courant et celle des autres comptes ; trouvé en
+  // préparant l'authentification des testeurs, voir docs/LAYERPITCH_CHANGELOG.md). Omis = comportement
+  // historique inchangé (utilisé nulle part après ce correctif, gardé pour compatibilité ascendante).
+  async function listTracks(opts) {
+    let query = getClient().from('tracks').select(TRACK_SELECT);
+    if (opts && opts.ownerId) query = query.eq('owner_id', opts.ownerId);
+    const { data, error } = await query;
     if (error) return { tracks: null, error: error.message };
     return { tracks: data.map(reshapeTrack), error: null };
+  }
+
+  // Organisation propre au backstage — jamais lue par le rendu public (index.html/pack.html/
+  // collection.html), mais nécessaire dès qu'un consommateur (ex. le backstage lui-même) reconstruit
+  // library.folderId : son garde-fou existant réinitialise à null tout folderId ne correspondant à
+  // aucun dossier connu, donc une liste de dossiers absente/vide y est interprétée comme "tous les
+  // dossiers supprimés" plutôt que comme "non demandée".
+  // opts.ownerId : voir le commentaire d'isolation multi-compositeur plus haut (listTracks).
+  async function listTrackFolders(opts) {
+    let query = getClient().from('track_folders').select('*');
+    if (opts && opts.ownerId) query = query.eq('owner_id', opts.ownerId);
+    const { data, error } = await query;
+    if (error) return { folders: null, error: error.message };
+    return { folders: data.map(f => ({ id: f.id, label: f.label })), error: null };
   }
 
   async function getTrack(id) {
@@ -81,5 +94,5 @@
     return { ok: true, data };
   }
 
-  window.LayerPitchTracks = { listTracks, getTrack, upsertTrack };
+  window.LayerPitchTracks = { listTracks, getTrack, upsertTrack, listTrackFolders };
 })();

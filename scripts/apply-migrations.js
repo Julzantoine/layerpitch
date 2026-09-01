@@ -6,6 +6,14 @@
  * relancer ce script ne réapplique jamais un fichier déjà passé. Identifiants dans .env :
  * SUPABASE_DB_URL.
  *
+ * Envoie NOTIFY pgrst, 'reload schema' après coup (une seule fois, si au moins une migration a
+ * été appliquée) — sans ça, PostgREST continue de servir son schéma en cache et toute migration
+ * touchant une structure de table (colonne ajoutée/retirée, clé primaire changée) casse les
+ * lectures/écritures avec des erreurs du type "column X does not exist" jusqu'au prochain
+ * redémarrage naturel de PostgREST. Trouvé le 1er septembre (migration settings/socials),
+ * docs/LAYERPITCH_CHANGELOG.md pour le détail. La propagation prend quelques secondes une fois le
+ * signal envoyé — normal, pas une confirmation instantanée.
+ *
  * Usage : node scripts/apply-migrations.js
  */
 const fs = require('fs');
@@ -58,7 +66,8 @@ const MIGRATIONS_DIR = path.join(__dirname, '..', 'supabase', 'migrations');
         throw e;
       }
     }
-    console.log('\n✓ Toutes les migrations appliquées.');
+    await client.query("NOTIFY pgrst, 'reload schema'");
+    console.log('\n✓ Toutes les migrations appliquées. Signal de rechargement du cache de schéma PostgREST envoyé (propagation : quelques secondes).');
   } finally {
     await client.end();
   }

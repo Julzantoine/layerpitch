@@ -5,12 +5,11 @@
 // injectée automatiquement par Supabase — jamais à définir manuellement) — ne doit jamais être
 // exposée côté client. Appelée depuis api/auth.js (inviteTester()), jamais directement.
 //
-// Réservée à Jules-Antoine : vérifie que l'appelant est authentifié ET que son adresse
-// correspond au secret ADMIN_EMAIL (à définir via le dashboard Supabase, Edge Functions >
-// invite-tester > Secrets, ou `supabase secrets set ADMIN_EMAIL=...`). Pas de table
-// `profiles`/rôle disponible à ce stade (arrive à l'étape 3, base Postgres) — vérification par
-// email en dur en attendant, à remplacer par une vraie vérification de rôle une fois `profiles`
-// en place.
+// Réservée aux admins : vérifie que l'appelant est authentifié ET que son compte figure dans la
+// table `admins` (RPC `is_admin()`, supabase/migrations/20260901190000_admin_role.sql). Remplace
+// l'ancienne vérification par email en dur sur le secret ADMIN_EMAIL (intérim posé le 31 août, en
+// l'absence de `profiles`/rôle à ce moment — `profiles`/`composer_profiles` existent réellement
+// depuis, ADMIN_EMAIL n'est donc plus utilisé par cette fonction ni nécessaire dans ses secrets).
 //
 // Vigilance opérationnelle (Décision 4) : limite par défaut de 2 emails d'invitation/heure côté
 // Supabase — cette fonction n'en fait pas plus (un appel = une invitation), mais des appels en
@@ -38,7 +37,6 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const adminEmail = Deno.env.get('ADMIN_EMAIL');
 
     // Client "appelant" (clé anon + JWT de la requête) : sert uniquement à vérifier qui appelle,
     // ne touche jamais à l'API Admin.
@@ -51,13 +49,16 @@ Deno.serve(async (req) => {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    if (!adminEmail || callerData.user.email !== adminEmail) {
+    // is_admin() (security definer) vérifie l'appartenance de auth.uid() à la table admins —
+    // exécutée avec l'identité de l'appelant (callerClient porte son JWT), jamais avec service_role.
+    const { data: isAdmin, error: isAdminError } = await callerClient.rpc('is_admin');
+    if (isAdminError || !isAdmin) {
       return new Response(JSON.stringify({ error: 'Non autorisé.' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const { email } = await req.json();
+    const { email, redirectTo } = await req.json();
     if (!email || typeof email !== 'string') {
       return new Response(JSON.stringify({ error: 'email manquant ou invalide.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -65,8 +66,13 @@ Deno.serve(async (req) => {
     }
 
     // Client Admin (clé service_role) : seul point du système à s'en servir.
+    // redirectTo : sans ça, Supabase retombe sur la Site URL par défaut du projet
+    // (localhost:3000, jamais configurée pour ce cas — trouvé le 1er septembre, lien
+    // d'invitation cassé au premier vrai essai). Doit figurer dans la liste d'URLs autorisées du
+    // projet (Authentication > URL Configuration), même exigence que emailRedirectTo côté
+    // signInWithMagicLink.
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email);
+    const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, redirectTo ? { redirectTo } : undefined);
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },

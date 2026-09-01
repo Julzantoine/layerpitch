@@ -7,18 +7,9 @@
 // (stripe-webhook, déclenché par Stripe après paiement réel) écrit dans pack_purchases.
 
 (function () {
-  const SUPABASE_URL = 'https://ypygllyjfynrnvapufow.supabase.co';
-  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
-
-  let client = null;
+  // Client Supabase partagé (api/supabase-client.js) — voir ce fichier pour le pourquoi.
   function getClient() {
-    if (!client) {
-      if (!window.supabase || !window.supabase.createClient) {
-        throw new Error('SDK Supabase non chargé — ajouter le <script> UMD avant api/purchases.js.');
-      }
-      client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-    }
-    return client;
+    return window.LayerPitchSupabaseClient.getClient();
   }
 
   // Démarre un achat : ouvre une session Stripe Checkout pour ce pack et redirige le navigateur.

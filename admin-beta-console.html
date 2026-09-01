@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>LayerPitch — Console admin bêta &amp; analytics</title>
+<style>
+  body { font-family: 'Inter', system-ui, sans-serif; background: #f6f5f3; color: #262521; padding: 30px; max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  h2 { font-size: 15px; margin: 0 0 4px; }
+  .sub { color: #777; font-size: 13px; margin-bottom: 20px; }
+  fieldset { border: 1px solid #e2e2e6; border-radius: 8px; padding: 16px; margin-bottom: 20px; background: #fff; }
+  label { display: block; font-size: 12px; margin-bottom: 4px; margin-top: 10px; }
+  input, textarea, select { width: 100%; padding: 7px 9px; border: 1px solid #d8d8dc; border-radius: 6px; font-size: 13px; box-sizing: border-box; font-family: inherit; }
+  textarea { resize: vertical; min-height: 60px; }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  .btn { padding: 8px 16px; border-radius: 6px; border: 1px solid #262521; background: #262521; color: #fff; cursor: pointer; font-size: 13px; margin-top: 14px; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn-small { padding: 5px 10px; font-size: 12px; margin-top: 0; }
+  .btn-secondary { background: #fff; color: #262521; }
+  .btn-danger { background: #fff; color: #b23; border-color: #e0b3b3; }
+  .tester-card { background: #fff; border: 1px solid #e2e2e6; border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+  .tester-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .tester-card-head h3 { margin: 0; font-size: 14px; }
+  .tester-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .backups-list { margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; display: none; }
+  .backups-list.open { display: block; }
+  .backup-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; font-size: 12px; font-family: monospace; }
+  .backup-row .sha { color: #999; }
+  .checkbox-line { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; margin-top: 8px; }
+  .checkbox-line input { width: auto; }
+  .badge { display: inline-block; background: #f0f0f2; border-radius: 10px; padding: 2px 8px; font-size: 11px; margin-left: 8px; color: #666; }
+  .action-badge { display: inline-block; background: #f0f0f2; border-radius: 10px; padding: 2px 8px; font-size: 11px; margin: 3px 6px 3px 0; color: #666; }
+  table.analytics-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+  table.analytics-table th, table.analytics-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eee; }
+  table.analytics-table th { color: #888; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .err-line { color: #b23; font-size: 12px; font-family: monospace; margin-top: 4px; }
+  .analytics-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; display: none; }
+  .analytics-panel.open { display: block; }
+  #log { font-family: monospace; font-size: 11px; color: #555; margin-top: 10px; white-space: pre-wrap; max-height: 260px; overflow-y: auto; padding: 10px; background: #fafafa; border-radius: 6px; }
+  .ok { color: #2a7; } .err { color: #b23; } .warn { color: #b8860b; }
+  .hint { font-size: 11px; color: #999; margin-top: 4px; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</head>
+<body>
+
+<h1>LayerPitch — Console admin bêta &amp; analytics</h1>
+<div class="sub">Outil local, jamais publié. Pilote promote / create / rollout / restore / notify directement depuis le navigateur — remplace les commandes tapées dans le terminal. Fusionné avec les analytics bêta-testeurs (anciennement un outil séparé) : même organisation, même token, une vue générale et une vue par testeur (bouton "Analytics" sur chaque carte). Le token n'est jamais sauvegardé, à recoller à chaque session.</div>
+
+<fieldset>
+  <h2>Connexion</h2>
+  <div class="row">
+    <div>
+      <label>Organisation GitHub bêta</label>
+      <input type="text" id="cfgOrg" placeholder="ex : layerpitch-beta">
+    </div>
+    <div>
+      <label>Repo template</label>
+      <input type="text" id="cfgTemplate" value="layerpitch-beta-template">
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label>Repo personnel (owner)</label>
+      <input type="text" id="cfgPersonalOwner" value="Julzantoine">
+    </div>
+    <div>
+      <label>Repo personnel (nom)</label>
+      <input type="text" id="cfgPersonalRepo" value="layerpitch">
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label>schemaVersion attendue (doit rester alignée avec CONFIG.SCHEMA_VERSION de layerpitch-beta-sync.js)</label>
+      <input type="text" id="cfgSchemaVersion" value="1" inputmode="numeric">
+    </div>
+    <div>
+      <label>Token d'accès personnel (fine-grained — Contents Read/Write, Administration Read/Write)</label>
+      <input type="password" id="cfgToken" placeholder="ghp_...">
+    </div>
+  </div>
+  <label>Playlist de tutos vidéo (optionnel — laisse vide tant qu'elle n'existe pas, n'apparaît dans le kit que si rempli)</label>
+  <input type="text" id="cfgTutorialUrl" placeholder="https://youtube.com/playlist?list=...">
+  <button class="btn" id="btnConnect">Charger les testeurs</button>
+</fieldset>
+
+<fieldset>
+  <h2>Promouvoir le template</h2>
+  <div class="sub" style="margin:0 0 4px">Copie les fichiers moteur de ton repo personnel vers le repo template, et régénère son data.json de départ.</div>
+  <label>layerpitch-backstage.html local (jamais publié sur GitHub — à fournir ici à chaque promotion)</label>
+  <input type="file" id="backstageFileInput" accept=".html">
+  <div class="sub" id="backstageFileStatus" style="margin:4px 0 0">Aucun fichier sélectionné.</div>
+  <button class="btn btn-secondary" id="btnPromote" style="margin-top:10px">Promouvoir</button>
+</fieldset>
+
+<fieldset>
+  <h2>Créer un testeur</h2>
+  <div class="row">
+    <div>
+      <label>Nom du testeur</label>
+      <input type="text" id="newTesterName" placeholder="ex : alice">
+    </div>
+  </div>
+  <button class="btn btn-secondary" id="btnCreate">Créer le repo</button>
+</fieldset>
+
+<fieldset>
+  <h2>Notifier (bandeau d'alerte dans le Backstage)</h2>
+  <div class="sub" style="margin:0 0 4px">Fusion ciblée d'un seul champ dans le data.json du/des testeur(s) visé(s) — jamais un remplacement de contenu. Le message s'affiche dans la langue de l'AdReel principal de chacun.</div>
+  <label>Cible</label>
+  <select id="notifyTarget">
+    <option value="--all">Tous les testeurs</option>
+  </select>
+  <label>Message en français</label>
+  <textarea id="notifyFr" placeholder="Le message affiché aux testeurs dont l'AdReel principal est en français…"></textarea>
+  <label>Message en anglais</label>
+  <textarea id="notifyEn" placeholder="Message shown to testers whose main AdReel is in English…"></textarea>
+  <button class="btn btn-secondary" id="btnNotify">Envoyer le bandeau</button>
+</fieldset>
+
+<fieldset>
+  <div class="tester-card-head">
+    <h2>Testeurs<span class="badge" id="testerCount"></span></h2>
+    <button class="btn btn-secondary btn-small" id="btnRolloutAll">Rollout vers tous</button>
+  </div>
+  <div id="testersList" style="margin-top:14px"></div>
+</fieldset>
+
+<fieldset>
+  <h2>Analytics — vue générale</h2>
+  <div class="sub" style="margin:0 0 4px">Agrège les <code>events.json</code> de tous les testeurs de l'organisation. Lecture seule, rien n'est publié. Se recharge en même temps que la liste des testeurs (bouton "Charger les testeurs" plus haut).</div>
+  <div id="analyticsGlobalSummary"></div>
+</fieldset>
+
+<div id="log"></div>
+
+<script>
+/* ---------------- Utilitaires (base64, wrapper API GitHub) ---------------- */
+function log(msg, cls) {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+function uint8ToBase64(bytes) {
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  return btoa(binary);
+}
+function base64ToUint8(b64) {
+  const binary = atob(b64.replace(/\n/g, ''));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+function textToBase64(str) { return uint8ToBase64(new TextEncoder().encode(str)); }
+function base64ToText(b64) { return new TextDecoder().decode(base64ToUint8(b64)); }
+
+const CFG = {
+  org: () => document.getElementById('cfgOrg').value.trim(),
+  template: () => document.getElementById('cfgTemplate').value.trim(),
+  personalOwner: () => document.getElementById('cfgPersonalOwner').value.trim(),
+  personalRepo: () => document.getElementById('cfgPersonalRepo').value.trim(),
+  schemaVersion: () => parseInt(document.getElementById('cfgSchemaVersion').value, 10) || 1,
+  token: () => document.getElementById('cfgToken').value.trim(),
+  tutorialUrl: () => document.getElementById('cfgTutorialUrl').value.trim(),
+  branch: 'main',
+};
+const REPO_PLACEHOLDER = '__TESTER_REPO__';
+// Même liste que CONFIG.ENGINE_FILES dans layerpitch-beta-sync.js — à tenir manuellement synchronisée
+// entre les deux fichiers si un jour un nouveau fichier moteur rejoint le projet.
+const ENGINE_FILES = ['index.html', 'pack.html', 'collection.html', 'player.js', 'layerpitch-backstage.html', 'layerpitch-i18n.js', 'layerpitch-help.js', 'video-test.html'];
+
+// layerpitch-backstage.html n'est jamais publié sur GitHub par conception (outil d'édition local
+// uniquement) — il ne peut donc jamais être lu depuis le repo perso via l'API. Fourni ici via upload
+// local à chaque promotion plutôt que via getContent().
+let backstageLocalContent = null;
+document.getElementById('backstageFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  const statusEl = document.getElementById('backstageFileStatus');
+  if (!file) { backstageLocalContent = null; statusEl.textContent = 'Aucun fichier sélectionné.'; return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    backstageLocalContent = reader.result;
+    statusEl.textContent = `✓ ${file.name} chargé (${Math.round(file.size / 1024)} Ko) — reste en mémoire pour cette session seulement.`;
+  };
+  reader.onerror = () => { backstageLocalContent = null; statusEl.textContent = 'Erreur de lecture du fichier.'; };
+  reader.readAsText(file);
+});
+
+async function gh(path, options = {}) {
+  const res = await fetch(`https://api.github.com${path}`, {
+    ...options,
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${CFG.token()}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`${options.method || 'GET'} ${path} → ${res.status} ${body.slice(0, 300)}`);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+async function getContent(owner, repo, path, ref) {
+  try {
+    return await gh(`/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(ref || CFG.branch)}`);
+  } catch (e) {
+    if (e.message.includes('404')) return null;
+    throw e;
+  }
+}
+async function putFile(owner, repo, path, contentUtf8, message) {
+  const existing = await getContent(owner, repo, path);
+  const body = { message, content: textToBase64(contentUtf8), branch: CFG.branch, ...(existing ? { sha: existing.sha } : {}) };
+  return gh(`/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+}
+async function repoExists(owner, repo) {
+  try { await gh(`/repos/${owner}/${repo}`); return true; }
+  catch (e) { if (e.message.includes('404')) return false; throw e; }
+}
+async function createRepoFromTemplate(org, templateRepo, newRepoName) {
+  // Repos publics par choix assumé : évite un plan GitHub payant (Pages sur repo privé) — même décision
+  // que dans layerpitch-beta-sync.js, à garder synchronisée entre les deux fichiers.
+  return gh(`/repos/${org}/${templateRepo}/generate`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ owner: org, name: newRepoName, private: false, include_all_branches: false }),
+  });
+}
+async function listOrgRepos(org, prefix) {
+  let page = 1, all = [];
+  while (true) {
+    const batch = await gh(`/orgs/${org}/repos?per_page=100&page=${page}`);
+    all = all.concat(batch);
+    if (batch.length < 100) break;
+    page++;
+  }
+  return all.filter(r => r.name.startsWith(prefix) && r.name !== CFG.template());
+}
+
+/* ---------------- Git refs (branches de sauvegarde) — même logique que layerpitch-beta-sync.js ---------------- */
+async function getRefSha(owner, repo, branch) {
+  const ref = await gh(`/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`);
+  return ref.object.sha;
+}
+async function createRef(owner, repo, refName, sha) {
+  return gh(`/repos/${owner}/${repo}/git/refs`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ref: `refs/heads/${refName}`, sha }),
+  });
+}
+async function listBackupBranches(owner, repo) {
+  let branches;
+  try { branches = await gh(`/repos/${owner}/${repo}/git/matching-refs/heads/backup-`); }
+  catch (e) { if (e.message.includes('404')) return []; throw e; }
+  return branches.map(b => ({ name: b.ref.replace('refs/heads/', ''), sha: b.object.sha })).sort((a, b) => b.name.localeCompare(a.name));
+}
+async function createBackupBranch(owner, repo) {
+  const sha = await getRefSha(owner, repo, CFG.branch);
+  const now = new Date();
+  const datePart = now.toISOString().slice(0, 10);
+  let branchName = `backup-${datePart}`;
+  try { await createRef(owner, repo, branchName, sha); }
+  catch (e) {
+    if (!e.message.includes('422')) throw e;
+    const timePart = now.toISOString().slice(11, 16).replace(':', 'h');
+    branchName = `backup-${datePart}-${timePart}`;
+    await createRef(owner, repo, branchName, sha);
+  }
+  return branchName;
+}
+async function getContentAtRef(owner, repo, path, ref) {
+  try { return await gh(`/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(ref)}`); }
+  catch (e) { if (e.message.includes('404')) return null; throw e; }
+}
+
+/* ---------------- Compatibilité de schéma ---------------- */
+async function checkSchemaCompatible(owner, repo) {
+  const existing = await getContent(owner, repo, 'data.json');
+  if (!existing) return { compatible: true, reason: 'aucun data.json existant' };
+  let data;
+  try { data = JSON.parse(base64ToText(existing.content)); }
+  catch { return { compatible: false, reason: 'data.json illisible (JSON invalide)' }; }
+  const version = data.schemaVersion || 1;
+  if (version !== CFG.schemaVersion()) return { compatible: false, reason: `schemaVersion ${version} (testeur) ≠ ${CFG.schemaVersion()} (nouveau code)` };
+  return { compatible: true };
+}
+
+/* ---------------- Génération du data.json de départ ---------------- */
+// Un nouveau testeur démarre toujours avec ces 4 blocs vierges (header/bio/témoignages/morceaux),
+// jamais un décalque des blocs de l'AdReel personnel de l'admin — celui-ci peut très bien contenir des
+// blocs texte/photo/packs propres à son propre portfolio, qui n'ont aucune raison de se retrouver chez
+// un testeur qui démarre de zéro.
+function buildStarterDataJson() {
+  const emptyBlocks = [
+    { id: 'b_header', type: 'header' }, { id: 'b_bio', type: 'bio' },
+    { id: 'b_testimonials', type: 'testimonials' }, { id: 'b_tracks', type: 'tracks' },
+  ];
+  return {
+    schemaVersion: CFG.schemaVersion(), publishedAt: null, library: [], packs: [], collections: [], customFonts: [], sfxLibrary: [], socials: [],
+    implementationSkills: { wwise: false, fmod: false, unity: false, unreal: false },
+    adReels: [{
+      id: 'main', label: 'Principal', blocks: emptyBlocks,
+      profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', formspreeEndpoint: '', logo: null, photo: null, theme: { bgColor: '#f6f5f3', titleColor: '#262521', contentColor: '#262521' } },
+      testimonials: [], trackIds: [], trackOverrides: {},
+    }],
+  };
+}
+
+/* ---------------- Bandeau d'alerte (data.backstageNotice) ----------------
+ * Exception délibérée à la règle "on ne touche jamais au data.json du testeur" : fusion ciblée d'un seul
+ * champ technique, jamais un remplacement de contenu — toujours déclenchée à la main depuis cette console.
+ */
+async function sendNotice(owner, repo, frText, enText) {
+  const existing = await getContent(owner, repo, 'data.json');
+  if (!existing) { log(`  ⚠ ${repo} : data.json introuvable, notification ignorée.`, 'warn'); return false; }
+  let data;
+  try { data = JSON.parse(base64ToText(existing.content)); }
+  catch { log(`  ⚠ ${repo} : data.json illisible, notification ignorée.`, 'warn'); return false; }
+  const mainAdReel = (data.adReels || []).find(a => a.id === 'main') || (data.adReels || [])[0];
+  const lang = (mainAdReel && mainAdReel.lang === 'en') ? 'en' : 'fr';
+  data.backstageNotice = { message: lang === 'en' ? enText : frText, ts: new Date().toISOString() };
+  await gh(`/repos/${owner}/${repo}/contents/data.json`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: 'notify: bandeau d\'alerte pour le testeur', content: textToBase64(JSON.stringify(data, null, 2)), branch: CFG.branch, sha: existing.sha }),
+  });
+  return true;
+}
+
+/* ---------------- Actions ---------------- */
+async function promote() {
+  const org = CFG.org(), template = CFG.template(), pOwner = CFG.personalOwner(), pRepo = CFG.personalRepo();
+  log(`Promotion : ${pOwner}/${pRepo} → ${org}/${template}`);
+  for (const file of ENGINE_FILES) {
+    let content;
+    if (file === 'layerpitch-backstage.html') {
+      if (!backstageLocalContent) { log(`  ⚠ layerpitch-backstage.html : aucun fichier fourni dans le champ d'upload ci-dessus, ignoré.`, 'warn'); continue; }
+      content = backstageLocalContent.replace(new RegExp(`value="${pOwner}"`), `value="${org}"`).replace(new RegExp(`value="${pRepo}"`), `value="${REPO_PLACEHOLDER}"`);
+    } else {
+      const src = await getContent(pOwner, pRepo, file);
+      if (!src) { log(`  ⚠ ${file} introuvable dans le repo perso, ignoré.`, 'warn'); continue; }
+      content = base64ToText(src.content);
+    }
+    await putFile(org, template, file, content, `promote: sync ${file} depuis ${file === 'layerpitch-backstage.html' ? 'ton fichier local' : pRepo}`);
+    log(`  ✓ ${file}`, 'ok');
+  }
+  const starter = buildStarterDataJson();
+  await putFile(org, template, 'data.json', JSON.stringify(starter, null, 2), 'promote: régénère le data.json de départ (squelette vide)');
+  log('  ✓ data.json (squelette régénéré)', 'ok');
+  log('Promotion terminée.', 'ok');
+}
+
+async function createTester(name) {
+  const org = CFG.org(), template = CFG.template();
+  const repoName = `layerpitch-beta-${name}`;
+  if (await repoExists(org, repoName)) { log(`Le repo ${org}/${repoName} existe déjà.`, 'err'); return; }
+  log(`Création de ${org}/${repoName} depuis le template…`);
+  await createRepoFromTemplate(org, template, repoName);
+  await new Promise(r => setTimeout(r, 3000));
+  const backstageFile = await getContent(org, repoName, 'layerpitch-backstage.html');
+  if (backstageFile) {
+    const content = base64ToText(backstageFile.content).replaceAll(REPO_PLACEHOLDER, repoName);
+    await putFile(org, repoName, 'layerpitch-backstage.html', content, `create: pré-remplissage owner/repo pour ${name}`);
+    log('  ✓ backstage pré-rempli avec le bon nom de repo', 'ok');
+  }
+  // events.json initialisé dès la création avec le nom choisi (testerId) plutôt que de laisser les
+  // analytics se rabattre sur le slug du repo tant qu'aucune activité n'a eu lieu — le testeur apparaît
+  // par son nom dès qu'on recharge la console, même à zéro action.
+  await putFile(org, repoName, 'events.json', JSON.stringify({ testerId: name, events: [] }, null, 2), `create: initialise events.json pour ${name}`);
+  log('  ✓ events.json initialisé (testerId : ' + name + ')', 'ok');
+  log(`Repo prêt : https://github.com/${org}/${repoName}`, 'ok');
+  log('Reste à faire manuellement : générer un token fine-grained scopé à ce seul repo et le transmettre au testeur.');
+  await loadTesters();
+}
+
+async function rolloutOne(repoName) {
+  const org = CFG.org(), template = CFG.template();
+  const check = await checkSchemaCompatible(org, repoName);
+  if (!check.compatible) { log(`  ⚠ ${repoName} ignoré — ${check.reason}`, 'warn'); return false; }
+  const backupBranch = await createBackupBranch(org, repoName);
+  log(`  ✓ sauvegarde créée : ${backupBranch}`);
+  for (const file of ENGINE_FILES) {
+    const src = await getContent(org, template, file);
+    if (!src) continue;
+    let content = base64ToText(src.content);
+    if (file === 'layerpitch-backstage.html') content = content.replaceAll(REPO_PLACEHOLDER, repoName);
+    await putFile(org, repoName, file, content, `rollout: mise à jour ${file}`);
+  }
+  log(`  ✓ ${repoName} mis à jour`, 'ok');
+  return true;
+}
+
+async function rolloutAll() {
+  const org = CFG.org();
+  const repos = (await listOrgRepos(org, 'layerpitch-beta-')).map(r => r.name);
+  log(`Rollout vers : ${repos.join(', ') || '(aucun testeur)'}`);
+  for (const repo of repos) {
+    try { await rolloutOne(repo); }
+    catch (e) { log(`  ✗ ${repo} en échec — ${e.message}`, 'err'); }
+  }
+  log('Rollout terminé.', 'ok');
+}
+
+async function restoreTester(repoName, branchName, notifyFlag) {
+  const org = CFG.org();
+  if (!branchName) {
+    const backups = await listBackupBranches(org, repoName);
+    if (!backups.length) { log(`Aucune branche de sauvegarde trouvée pour ${repoName}.`, 'err'); return; }
+    branchName = backups[0].name;
+    log(`Aucune branche précisée — utilise la plus récente : ${branchName}`);
+  }
+  log(`Restauration de ${org}/${repoName} depuis la branche "${branchName}"…`);
+  const safetyBranch = await createBackupBranch(org, repoName);
+  log(`  ✓ sauvegarde de sécurité créée avant restauration : ${safetyBranch}`);
+  for (const file of ENGINE_FILES) {
+    const src = await getContentAtRef(org, repoName, file, branchName);
+    if (!src) { log(`  ⚠ ${file} absent de la branche "${branchName}", ignoré.`, 'warn'); continue; }
+    await putFile(org, repoName, file, base64ToText(src.content), `restore: rétablit ${file} depuis ${branchName}`);
+    log(`  ✓ ${file}`, 'ok');
+  }
+  log('Restauration terminée. data.json et events.json n\'ont pas été touchés.', 'ok');
+  log('⚠ Vérifie que ce code restauré fonctionne toujours avec le data.json actuel du testeur.', 'warn');
+  if (notifyFlag) {
+    const sent = await sendNotice(org, repoName,
+      'Une mise à jour ne s\'est pas passée comme prévu. Le système a été restauré à une version précédente — vérifie que tout va bien de ton côté, et préviens Jules-Antoine si tu remarques quoi que ce soit d\'anormal.',
+      'An update didn\'t go as planned. The system has been restored to a previous version — please check that everything looks right on your end, and let Jules-Antoine know if you notice anything unusual.'
+    );
+    if (sent) log('  ✓ testeur notifié (bandeau d\'alerte affiché dans son Backstage)', 'ok');
+  }
+}
+
+async function notifySend(target, frText, enText) {
+  const org = CFG.org();
+  if (!frText.trim() || !enText.trim()) { log('Renseigne les deux messages (FR et EN) avant d\'envoyer.', 'err'); return; }
+  const repos = target === '--all' ? (await listOrgRepos(org, 'layerpitch-beta-')).map(r => r.name) : [target];
+  log(`Envoi du bandeau d'alerte à : ${repos.join(', ')}`);
+  for (const repo of repos) {
+    try { const sent = await sendNotice(org, repo, frText, enText); if (sent) log(`  ✓ ${repo}`, 'ok'); }
+    catch (e) { log(`  ✗ ${repo} en échec — ${e.message}`, 'err'); }
+  }
+}
+
+// Empaquette les fichiers que le testeur ouvre réellement en local (layerpitch-backstage.html + les trois
+// scripts qu'il charge en balises <script src="..."> relatives — i18n, aide, ET le moteur audio player.js,
+// indispensable à l'aperçu "▶ Écouter" local — plus le dossier api/*.js dont dépendent les fonctionnalités
+// Postgres, voir downloadTesterKit()). Les fichiers publics (index.html, pack.html, etc.) restent sur
+// GitHub Pages, inutiles à télécharger : seuls ceux ouverts en file:// ont besoin d'être côte à côte.
+function buildKitReadme(repoName, lang, tutorialUrl) {
+  const tutorialLineFr = tutorialUrl ? `\n5. Une série de tutos vidéo est disponible ici : ${tutorialUrl}\n` : '';
+  const tutorialLineEn = tutorialUrl ? `\n5. A series of video tutorials is available here: ${tutorialUrl}\n` : '';
+  if (lang === 'en') {
+    return `LayerPitch — beta tester kit (${repoName})
+=========================================
+
+1. Unzip this whole folder (don't move the files one by one — they need to stay together, side by side).
+2. Double-click layerpitch-backstage.html to open it in your browser.
+3. Edit your content freely — nothing is sent anywhere until you click "Publish".
+4. When publishing, paste the token sent to you separately into the field provided.
+${tutorialLineEn}
+The token is never saved by the tool — paste it again each session if you close and reopen the file.
+`;
+  }
+  return `LayerPitch — kit bêta-testeur (${repoName})
+=========================================
+
+1. Dézippe ce dossier entièrement (ne déplace pas les fichiers un par un — ils doivent rester ensemble, côte à côte).
+2. Double-clique sur layerpitch-backstage.html pour l'ouvrir dans ton navigateur.
+3. Édite ton contenu librement — rien n'est envoyé tant que tu ne cliques pas sur "Publier".
+4. Au moment de publier, colle le token qu'on t'a transmis séparément dans le champ prévu.
+${tutorialLineFr}
+Le token n'est jamais sauvegardé par l'outil — à recoller à chaque session si tu fermes puis rouvres le fichier.
+`;
+}
+async function downloadTesterKit(repoName) {
+  const org = CFG.org();
+  log(`Préparation du kit pour ${repoName}…`);
+  const filesToBundle = ['layerpitch-backstage.html', 'layerpitch-i18n.js', 'layerpitch-help.js', 'player.js'];
+  const zip = new JSZip();
+  for (const file of filesToBundle) {
+    const src = await getContent(org, repoName, file);
+    if (!src) { log(`  ⚠ ${file} introuvable sur ${repoName}, absent du kit.`, 'warn'); continue; }
+    zip.file(file, base64ToText(src.content));
+  }
+  // Le backstage charge ./api/*.js en <script src> relatifs (voir loadPostgresReadScripts()) — sans ce
+  // dossier à côté du fichier ouvert en file://, les fonctionnalités Postgres (lien magique, écriture
+  // double) échouent en 404. Lu depuis le repo PERSONNEL de Jules-Antoine, jamais celui du testeur :
+  // ces fichiers sont strictement identiques pour tout le monde (même URL/clé Supabase en dur, rien de
+  // propre à un testeur) — inutile de les pousser dans chaque repo testeur via promote()/rollout(), ça
+  // coupleraient des fichiers sans rapport avec GitHub-par-testeur au pipeline qu'on cherche justement à
+  // remplacer à terme (Décision 5). On liste le dossier plutôt que de coder une liste figée, pour rester
+  // correct si de nouveaux fichiers api/*.js apparaissent sans qu'on pense à retoucher ce script.
+  const pOwner = CFG.personalOwner(), pRepo = CFG.personalRepo();
+  const apiDir = await getContent(pOwner, pRepo, 'api');
+  if (Array.isArray(apiDir)) {
+    const apiFiles = apiDir.filter(item => item.type === 'file' && item.name.endsWith('.js'));
+    for (const item of apiFiles) {
+      const src = await getContent(pOwner, pRepo, item.path);
+      if (!src) { log(`  ⚠ ${item.path} introuvable sur ${pOwner}/${pRepo}, absent du kit.`, 'warn'); continue; }
+      zip.file(item.path, base64ToText(src.content));
+    }
+  } else {
+    log(`  ⚠ dossier api/ introuvable sur ${pOwner}/${pRepo} — fonctionnalités Postgres absentes du kit.`, 'warn');
+  }
+  // Même logique que sendNotice pour déterminer la langue du testeur (AdReel principal) — le README
+  // n'est fourni qu'en une seule langue à la fois, celle du testeur, pas les deux empilées dans un fichier.
+  let lang = 'fr';
+  const dataFile = await getContent(org, repoName, 'data.json');
+  if (dataFile) {
+    try {
+      const data = JSON.parse(base64ToText(dataFile.content));
+      const mainAdReel = (data.adReels || []).find(a => a.id === 'main') || (data.adReels || [])[0];
+      lang = (mainAdReel && mainAdReel.lang === 'en') ? 'en' : 'fr';
+    } catch { /* data.json illisible : on reste sur fr par défaut */ }
+  }
+  const instructions = buildKitReadme(repoName, lang, CFG.tutorialUrl());
+  zip.file('LISEZMOI.txt', instructions);
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `layerpitch-kit-${repoName}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  log(`  ✓ Kit téléchargé (layerpitch-kit-${repoName}.zip)`, 'ok');
+}
+
+/* ---------------- Rendu de la liste des testeurs ---------------- */
+let currentTesters = [];
+async function loadTesters() {
+  const org = CFG.org();
+  const repos = await listOrgRepos(org, 'layerpitch-beta-');
+  currentTesters = repos.map(r => r.name);
+  document.getElementById('testerCount').textContent = currentTesters.length;
+  const select = document.getElementById('notifyTarget');
+  select.innerHTML = '<option value="--all">Tous les testeurs</option>' + currentTesters.map(n => `<option value="${n}">${n}</option>`).join('');
+  const container = document.getElementById('testersList');
+  container.innerHTML = '';
+  if (!currentTesters.length) { container.innerHTML = '<div class="sub">Aucun testeur trouvé dans cette organisation.</div>'; return; }
+  currentTesters.forEach(repoName => {
+    const card = document.createElement('div');
+    card.className = 'tester-card';
+    card.innerHTML = `
+      <div class="tester-card-head">
+        <h3>${repoName}</h3>
+        <div class="tester-actions">
+          <button class="btn btn-secondary btn-small" data-action="rollout">Rollout</button>
+          <button class="btn btn-secondary btn-small" data-action="download-kit">Télécharger le kit</button>
+          <button class="btn btn-secondary btn-small" data-action="toggle-backups">Sauvegardes</button>
+          <button class="btn btn-secondary btn-small" data-action="toggle-analytics">Analytics</button>
+        </div>
+      </div>
+      <div class="backups-list" data-role="backupsList">
+        <div class="sub">Chargement…</div>
+      </div>
+      <div class="analytics-panel" data-role="analyticsPanel"></div>
+    `;
+    card.querySelector('[data-action="rollout"]').addEventListener('click', async (e) => {
+      e.target.disabled = true;
+      try { await rolloutOne(repoName); } catch (err) { log(`  ✗ ${repoName} en échec — ${err.message}`, 'err'); }
+      e.target.disabled = false;
+    });
+    card.querySelector('[data-action="download-kit"]').addEventListener('click', async (e) => {
+      e.target.disabled = true;
+      try { await downloadTesterKit(repoName); } catch (err) { log(`  ✗ Kit ${repoName} en échec — ${err.message}`, 'err'); }
+      e.target.disabled = false;
+    });
+    const backupsList = card.querySelector('[data-role="backupsList"]');
+    card.querySelector('[data-action="toggle-backups"]').addEventListener('click', async () => {
+      const opening = !backupsList.classList.contains('open');
+      backupsList.classList.toggle('open');
+      if (opening) await renderBackupsList(repoName, backupsList);
+    });
+    const analyticsPanel = card.querySelector('[data-role="analyticsPanel"]');
+    card.querySelector('[data-action="toggle-analytics"]').addEventListener('click', async () => {
+      const opening = !analyticsPanel.classList.contains('open');
+      analyticsPanel.classList.toggle('open');
+      if (opening) await renderTesterAnalyticsPanel(repoName, analyticsPanel);
+    });
+    container.appendChild(card);
+  });
+  loadGlobalAnalytics(); // vue générale rechargée en même temps que la liste (même bouton "Charger les testeurs")
+}
+
+async function renderBackupsList(repoName, host) {
+  host.innerHTML = '<div class="sub">Chargement…</div>';
+  try {
+    const org = CFG.org();
+    const backups = await listBackupBranches(org, repoName);
+    if (!backups.length) { host.innerHTML = '<div class="sub">Aucune sauvegarde pour ce testeur.</div>'; return; }
+    host.innerHTML = `
+      <label style="margin-top:0">Notifier ce testeur après restauration</label>
+      <div class="checkbox-line"><input type="checkbox" data-role="notifyCheck"> <span>Afficher le bandeau d'alerte "mise à jour restaurée" dans son Backstage</span></div>
+      <div style="margin-top:10px">${backups.map(b => `
+        <div class="backup-row">
+          <span>${b.name} <span class="sha">(${b.sha.slice(0, 7)})</span></span>
+          <button class="btn btn-secondary btn-small" data-restore-branch="${b.name}">Restaurer celle-ci</button>
+        </div>
+      `).join('')}</div>
+    `;
+    host.querySelectorAll('[data-restore-branch]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const notifyFlag = host.querySelector('[data-role="notifyCheck"]').checked;
+        try { await restoreTester(repoName, btn.dataset.restoreBranch, notifyFlag); }
+        catch (e) { log(`  ✗ Restauration échouée — ${e.message}`, 'err'); }
+        btn.disabled = false;
+      });
+    });
+  } catch (e) {
+    host.innerHTML = `<div class="sub err">Erreur : ${e.message}</div>`;
+  }
+}
+
+/* ---------------- Analytics (fusionné depuis l'ancien admin-analytics.html) ----------------
+ * Réutilise getContent()/base64ToText() déjà définis plus haut pour le reste de la console — même
+ * connexion (org + token), pas de configuration séparée à recoller dans un second outil.
+ */
+async function fetchTesterEvents(org, repoName) {
+  const file = await getContent(org, repoName, 'events.json');
+  if (!file) return null;
+  try { return JSON.parse(base64ToText(file.content)); }
+  catch { return null; }
+}
+// Sépare les événements réels des événements générés en Mode test (jamais comptés dans les stats) —
+// même distinction que l'ancien admin-analytics.html.
+function computeStatsFromEvents(repoName, data) {
+  if (!data || !data.events) return { tester: (data && data.testerId) || repoName, actionCounts: {}, errors: [], testCount: 0, hasActivity: false };
+  const realEvents = data.events.filter(ev => ev.context !== 'test');
+  const testEvents = data.events.filter(ev => ev.context === 'test');
+  const actionCounts = {};
+  const errors = [];
+  realEvents.forEach(ev => {
+    if (ev.type === 'action') actionCounts[ev.name] = (actionCounts[ev.name] || 0) + 1;
+    else if (ev.type === 'error') errors.push(ev);
+  });
+  return {
+    tester: data.testerId || repoName, // le nom choisi à la création (testerId) prime sur le slug du repo
+    actionCounts, errors, testCount: testEvents.length,
+    hasActivity: realEvents.length > 0 || testEvents.length > 0
+  };
+}
+function statsSummaryHtml(stats) {
+  if (!stats.hasActivity && !Object.keys(stats.actionCounts).length) {
+    return `<div class="sub">Aucune activité pour l'instant (testeur enregistré, rien fait encore).</div>`;
+  }
+  let html = Object.entries(stats.actionCounts).sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => `<span class="action-badge">${name} × ${count}</span>`).join('');
+  if (stats.testCount) html += `<div class="hint" style="margin-top:6px">${stats.testCount} action(s) en Mode test exclue(s) des stats.</div>`;
+  if (stats.errors.length) {
+    html += `<div style="margin-top:10px"><strong>Erreurs (${stats.errors.length}) :</strong>`;
+    stats.errors.slice(-5).forEach(e => { html += `<div class="err-line">${e.ts} — ${(e.detail && e.detail.message) || e.name}</div>`; });
+    html += `</div>`;
+  }
+  return html;
+}
+async function renderTesterAnalyticsPanel(repoName, host) {
+  host.innerHTML = '<div class="sub">Chargement…</div>';
+  try {
+    const org = CFG.org();
+    const data = await fetchTesterEvents(org, repoName);
+    const stats = computeStatsFromEvents(repoName, data);
+    host.innerHTML = `<h3 style="margin:0 0 8px;font-size:13px">${stats.tester}${stats.tester !== repoName ? ` <span class="badge">${repoName}</span>` : ''}</h3>${statsSummaryHtml(stats)}`;
+  } catch (e) {
+    host.innerHTML = `<div class="sub err">Erreur : ${e.message}</div>`;
+  }
+}
+async function loadGlobalAnalytics() {
+  const el = document.getElementById('analyticsGlobalSummary');
+  if (!currentTesters.length) { el.innerHTML = '<div class="sub">Aucun testeur — charge la liste des testeurs d\'abord.</div>'; return; }
+  el.innerHTML = '<div class="sub">Chargement…</div>';
+  const org = CFG.org();
+  let activeTesters = 0, totalActions = 0, totalErrors = 0, totalTestActions = 0;
+  const globalActionCounts = {};
+  for (const repoName of currentTesters) {
+    const data = await fetchTesterEvents(org, repoName);
+    const stats = computeStatsFromEvents(repoName, data);
+    if (!stats.hasActivity) continue;
+    activeTesters++;
+    totalTestActions += stats.testCount;
+    Object.entries(stats.actionCounts).forEach(([name, count]) => {
+      globalActionCounts[name] = (globalActionCounts[name] || 0) + count;
+      totalActions += count;
+    });
+    totalErrors += stats.errors.length;
+  }
+  let html = `<div class="sub">${activeTesters}/${currentTesters.length} testeur(s) actif(s) — ${totalActions} action(s) réelle(s) — ${totalErrors} erreur(s)${totalTestActions ? ` — ${totalTestActions} action(s) en Mode test exclue(s)` : ''}</div>`;
+  if (Object.keys(globalActionCounts).length) {
+    html += `<table class="analytics-table"><tr><th>Action</th><th>Total (tous testeurs, hors Mode test)</th></tr>`;
+    Object.entries(globalActionCounts).sort((a, b) => b[1] - a[1]).forEach(([name, count]) => {
+      html += `<tr><td>${name}</td><td>${count}</td></tr>`;
+    });
+    html += `</table>`;
+  }
+  el.innerHTML = html;
+}
+
+document.getElementById('btnConnect').addEventListener('click', async () => {
+  if (!CFG.org() || !CFG.token()) { log('Renseigne au moins l\'organisation et le token.', 'err'); return; }
+  document.getElementById('log').innerHTML = '';
+  try { await loadTesters(); log('Testeurs chargés.', 'ok'); }
+  catch (e) { log('Erreur : ' + e.message, 'err'); }
+});
+document.getElementById('btnPromote').addEventListener('click', async () => {
+  if (!CFG.org() || !CFG.token()) { log('Connecte-toi d\'abord (organisation + token).', 'err'); return; }
+  const btn = document.getElementById('btnPromote');
+  btn.disabled = true;
+  try { await promote(); } catch (e) { log('Erreur : ' + e.message, 'err'); }
+  btn.disabled = false;
+});
+document.getElementById('btnCreate').addEventListener('click', async () => {
+  const name = document.getElementById('newTesterName').value.trim();
+  if (!name) { log('Renseigne un nom de testeur.', 'err'); return; }
+  if (!CFG.org() || !CFG.token()) { log('Connecte-toi d\'abord (organisation + token).', 'err'); return; }
+  const btn = document.getElementById('btnCreate');
+  btn.disabled = true;
+  try { await createTester(name); document.getElementById('newTesterName').value = ''; }
+  catch (e) { log('Erreur : ' + e.message, 'err'); }
+  btn.disabled = false;
+});
+document.getElementById('btnRolloutAll').addEventListener('click', async () => {
+  if (!CFG.org() || !CFG.token()) { log('Connecte-toi d\'abord (organisation + token).', 'err'); return; }
+  const btn = document.getElementById('btnRolloutAll');
+  btn.disabled = true;
+  try { await rolloutAll(); } catch (e) { log('Erreur : ' + e.message, 'err'); }
+  btn.disabled = false;
+});
+document.getElementById('btnNotify').addEventListener('click', async () => {
+  if (!CFG.org() || !CFG.token()) { log('Connecte-toi d\'abord (organisation + token).', 'err'); return; }
+  const btn = document.getElementById('btnNotify');
+  btn.disabled = true;
+  try {
+    await notifySend(document.getElementById('notifyTarget').value, document.getElementById('notifyFr').value, document.getElementById('notifyEn').value);
+  } catch (e) { log('Erreur : ' + e.message, 'err'); }
+  btn.disabled = false;
+});
+</script>
+</body>
+</html>
