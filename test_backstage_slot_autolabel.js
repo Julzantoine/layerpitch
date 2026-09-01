@@ -3,6 +3,11 @@
 // reclassification de rôle après un tel dépôt), le nom de L'EMPLACEMENT lui-même doit se remplir avec le
 // nom du fichier — jusqu'ici seule l'alternative à l'intérieur héritait du nom, obligeant à ouvrir
 // "Voir les variations" pour savoir quel fichier avait atterri où.
+//
+// Réécrit le 01/09 : la zone de dépôt directe des emplacements est désormais `[data-role="segmentSlotsMaster"]`
+// (l'ancien `[data-role="segmentSlots"]` n'existe plus, confirmé par grep — remplacé par la liste maître de
+// la disposition maître-détail du 18/08). Le champ libellé de l'emplacement créé n'est visible qu'une fois
+// l'emplacement sélectionné (même mécanisme que test_backstage_slot_collapse.js) -- ajouté ci-dessous.
 const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
@@ -12,8 +17,6 @@ const path = require('path');
     .replace(/<script[^>]*src="https:\/\/unpkg\.com[^"]*"[^>]*><\/script>\s*/g, '');
   function inlineExactLine(html, filename, tagline) {
     const content = fs.readFileSync(path.join(__dirname, filename), 'utf-8').replace(/<\/script/gi, '<\\/script');
-    // Tolère le cache-busting "?v=..." ajouté aux balises <script> à la publication (13 août) —
-    // sans ça, la comparaison stricte échoue silencieusement et le script n'est jamais inliné.
     return html.split('\n').map(line => {
       const normalized = line.trim().replace(/\.js(\?[^"]*)?"/, '.js"');
       return normalized === tagline ? `<script>${content}</script>` : line;
@@ -40,29 +43,33 @@ const path = require('path');
   const doc = window.document;
   let failures = 0;
   function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; }
-  function setValue(el, value) { el.value = value; el.dispatchEvent(new window.Event('input', { bubbles: true })); }
+  function click(el) { el.dispatchEvent(new window.MouseEvent('click', { bubbles: true })); }
   const q = sel => doc.querySelector(sel);
   function fakeFile(name) { return { name, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }; }
-  function fakeDataTransfer(files) { return { files, dataTransfer: { files } }; }
   function drop(el, files) {
     const ev = new window.Event('drop', { bubbles: true, cancelable: true });
     Object.defineProperty(ev, 'dataTransfer', { value: { files } });
     el.dispatchEvent(ev);
   }
 
-  q('#btnAddLibraryTrack').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  setValue(q('#libraryContainer select[data-field="mode"][data-ti="0"]'), 'sequential');
+  click(q('#btnAddLibraryTrack'));
+  const modeSelect = q('#libraryContainer select[data-field="mode"][data-ti="0"]');
+  modeSelect.value = 'sequential';
+  modeSelect.dispatchEvent(new window.Event('input', { bubbles: true }));
 
-  // ---- Dépôt direct sur la zone "Emplacements" : chaque fichier crée son propre emplacement, dont le nom
-  // doit être repris du fichier, pas laissé vide. ----
-  const host = q('[data-role="segmentSlots"]');
+  // ---- Dépôt direct sur la liste maître des emplacements : chaque fichier crée son propre emplacement,
+  // dont le nom doit être repris du fichier, pas laissé vide. ----
+  const host = q('[data-role="segmentSlotsMaster"]');
   check('zone de dépôt des emplacements trouvée', !!host);
   if (host) {
     drop(host, [fakeFile('#1_WetDarkCave_120bpm.wav')]);
+    click(q('[data-action="select-seq-slot"][data-ti="0"][data-si="0"]'));
     const labelInput = q('input[data-slot-field="label"][data-ti="0"][data-si="0"]');
     // Depuis le 13/08, "120bpm" est reconnu comme donnée structurée (slot.bpm) plutôt que laissé comme du
     // texte dans le nom — le libellé n'en garde donc plus la trace, contrairement à avant cet ajout.
     check('le nom de l\'emplacement est repris automatiquement du fichier déposé (pas vide, jeton bpm retiré)', !!labelInput && labelInput.value === '#1 WetDarkCave');
+    const bpmInput = q('input[data-slot-field="bpm"][data-ti="0"][data-si="0"]');
+    check('le bpm détecté dans le nom du fichier est bien repris dans le champ dédié', !!bpmInput && bpmInput.value === '120');
   }
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));

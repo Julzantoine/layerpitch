@@ -1,50 +1,25 @@
 // Demande du 15/08 : "toutes les flèches repliées par défaut quand on ouvre le backstage" + "il faut une
-// flèche pour sfx" (le sélecteur de Sfx attachés à un morceau n'avait aucun repli). Deux volets testés :
+// flèche pour sfx" (le sélecteur de Sfx attachés à un morceau n'avait aucun repli).
 //
-// 1) Bootstrap de chargement (loadData) : extraction littérale du bloc qui peuple les Sets de repli avec
-//    TOUS les ids existants — même technique que test_backstage_custom_cut_fade_roundtrip.js pour player.js,
-//    pas besoin de mocker tout le flux réseau GitHub pour vérifier cette logique pure.
-// 2) UI en direct : le nouveau bouton de repli sur "Sfx (déclenchables à la main pendant la lecture)"
-//    d'un morceau, câblage réel dans une page jsdom.
+// Réécrit le 01/09 : depuis la restructuration en disposition maître-détail (18/08), le bootstrap
+// collapsedSlotIds/collapsedSfxIds (Sets peuplés au chargement pour tout replier) n'existe plus du tout
+// (confirmé par grep) -- il n'a plus de raison d'être, puisque le nouveau mécanisme de sélection exclusive
+// (seqSelectedSlotIndex) n'affiche QUE l'élément sélectionné par défaut ('trackinfo'), donc "tout est replié
+// sauf un" est désormais la position de repos naturelle du design, sans Set à maintenir. Couvert par
+// test_backstage_slot_collapse.js ("aucun détail d'emplacement affiché par défaut").
+// Le second volet (repli des Sfx attachés à un morceau, trackSfxToggle/trackSfxBody) a lui aussi disparu de
+// ce nom -- le contenu "Sfx (déclenchables à la main pendant la lecture)" est désormais une entrée virtuelle
+// de plus dans la même liste maître ('sfx', juste après les emplacements), donc replié/déplié par le MÊME
+// mécanisme de sélection que les emplacements, pas par un toggle dédié. Réécrit ci-dessous.
+const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
-const { JSDOM } = require('jsdom');
 
-let failures = 0;
-function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; }
-
-const src = fs.readFileSync(path.join(__dirname, 'layerpitch-backstage.html'), 'utf-8');
-
-// ---- 1) Bootstrap : extraction littérale du bloc collapsedSlotIds/collapsedSfxIds (chargement complet) ----
-{
-  const startMarker = 'collapsedSlotIds.clear();\n    library.forEach(t => (t.segmentSlots || []).forEach(sl => collapsedSlotIds.add(sl.id)));\n    collapsedSfxIds.clear();\n    sfxLibrary.forEach(s => collapsedSfxIds.add(s.id));';
-  const idx = src.indexOf(startMarker);
-  if (idx === -1) throw new Error('marker not found — le bloc a peut-être été reformulé, ajuster ce test');
-  const fnSrc = 'function(library, sfxLibrary, collapsedSlotIds, collapsedSfxIds) { ' + startMarker + ' }';
-  const fn = eval('(' + fnSrc + ')');
-
-  const library = [
-    { id: 't1', segmentSlots: [{ id: 's1' }, { id: 's2' }] },
-    { id: 't2', segmentSlots: [{ id: 's3' }] },
-    { id: 't3' } // morceau non séquentiel : pas de segmentSlots du tout, ne doit rien casser
-  ];
-  const sfxLibrary = [{ id: 'sfxA' }, { id: 'sfxB' }];
-  const collapsedSlotIds = new Set(), collapsedSfxIds = new Set();
-  fn(library, sfxLibrary, collapsedSlotIds, collapsedSfxIds);
-
-  check('tous les emplacements de tous les morceaux sont repliés par défaut au chargement',
-    collapsedSlotIds.has('s1') && collapsedSlotIds.has('s2') && collapsedSlotIds.has('s3') && collapsedSlotIds.size === 3);
-  check('tous les Sfx de la bibliothèque sont repliés par défaut au chargement',
-    collapsedSfxIds.has('sfxA') && collapsedSfxIds.has('sfxB') && collapsedSfxIds.size === 2);
-}
-
-// ---- 2) UI en direct : repli des Sfx attachés à un morceau ----
 (async () => {
-  const backstageSrc = src.replace(/<script[^>]*src="https:\/\/unpkg\.com[^"]*"[^>]*><\/script>\s*/g, '');
+  const backstageSrc = fs.readFileSync(path.join(__dirname, 'layerpitch-backstage.html'), 'utf-8')
+    .replace(/<script[^>]*src="https:\/\/unpkg\.com[^"]*"[^>]*><\/script>\s*/g, '');
   function inlineExactLine(html, filename, tagline) {
     const content = fs.readFileSync(path.join(__dirname, filename), 'utf-8').replace(/<\/script/gi, '<\\/script');
-    // Tolère le cache-busting "?v=..." ajouté aux balises <script> à la publication (13 août) —
-    // sans ça, la comparaison stricte échoue silencieusement et le script n'est jamais inliné.
     return html.split('\n').map(line => {
       const normalized = line.trim().replace(/\.js(\?[^"]*)?"/, '.js"');
       return normalized === tagline ? `<script>${content}</script>` : line;
@@ -69,25 +44,24 @@ const src = fs.readFileSync(path.join(__dirname, 'layerpitch-backstage.html'), '
   const { window } = dom;
   await new Promise(resolve => dom.window.document.addEventListener('DOMContentLoaded', () => setTimeout(resolve, 50)));
   const doc = window.document;
+  let failures = 0;
+  function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; }
   function click(el) { el.dispatchEvent(new window.MouseEvent('click', { bubbles: true })); }
   function setValue(el, value) { el.value = value; el.dispatchEvent(new window.Event('input', { bubbles: true })); }
   const q = sel => doc.querySelector(sel);
 
-  // Un Sfx doit exister dans la bibliothèque pour pouvoir l'attacher à un morceau.
   click(q('#btnAddLibraryTrack'));
   setValue(q('#libraryContainer select[data-field="mode"][data-ti="0"]'), 'sequential');
 
-  const sfxToggle = q('[data-role="trackSfxToggle"]');
-  const sfxBody = q('[data-role="trackSfxBody"]');
-  check('le bouton de repli des Sfx attachés est bien présent', !!sfxToggle);
-  check('le corps des Sfx attachés est REPLIÉ par défaut (nouveau morceau)', !!sfxBody && sfxBody.classList.contains('collapsed'));
+  const sfxMasterItem = q('[data-action="select-seq-slot"][data-ti="0"][data-seq-key="sfx"]');
+  check('l\'entrée "Contenu additionnel" (Sfx) est présente dans la liste maître', !!sfxMasterItem);
+  check('les Sfx attachés au morceau sont REPLIÉS par défaut (sélection sur "Infos du morceau")', !q('[data-role="trackSfxSelector"][data-ti="0"]'));
 
-  if (sfxToggle && sfxBody) {
-    click(sfxToggle);
-    check('un clic déplie le corps', !sfxBody.classList.contains('collapsed'));
-    click(sfxToggle);
-    check('un second clic replie à nouveau', sfxBody.classList.contains('collapsed'));
-  }
+  click(sfxMasterItem);
+  check('cliquer sur l\'entrée Sfx déplie son détail (sélecteur de Sfx affiché)', !!q('[data-role="trackSfxSelector"][data-ti="0"]'));
+
+  click(q('[data-action="select-seq-slot"][data-ti="0"][data-seq-key="trackinfo"]'));
+  check('sélectionner "Infos du morceau" replie à nouveau les Sfx (un seul détail affiché à la fois)', !q('[data-role="trackSfxSelector"][data-ti="0"]'));
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
