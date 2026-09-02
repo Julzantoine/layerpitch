@@ -8,6 +8,24 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-02d] — Carte des chemins : forme d'onde retirée des nœuds, libellés d'arête en infobulle (deuxième passe de retours en situation réelle)
+
+**Fichiers touchés** : `player.js` (`updateSeqMap` : plus de canvas/rendu de forme d'onde sur les nœuds, hook de progression dans `activateSeqStage` supprimé ; `seqMapDrawEdges` : libellés en `<title>` au lieu de `<text>` toujours visible, boucles de retour étalées verticalement par index) ; `index.html`, `pack.html`, `layerpitch-backstage.html` (CSS `.seq-map-node-bg`/`.seq-map-node-fg`/`.seq-map-edge-label` retirées, devenues mortes) ; `test_seq_map.js` (assertions ajustées).
+
+**Contexte** : suite directe de l'entrée [2026-09-02c] ci-dessous, toujours en testant en situation réelle. Deux retours supplémentaires de Jules-Antoine sur le même écran :
+1. "Les emplacements des chemins n'ont pas besoin d'avoir la forme d'onde" — décision de la retirer aussi des nœuds de la carte globale (déjà retirée des boutons d'embranchement dans l'entrée précédente), pas seulement une question de goût : les formes d'onde affichées ne reflétaient de toute façon pas fidèlement le fichier réel ("celle de Corridor s'arrête à mi-chemin, tout comme celle de Battle").
+2. "Ici, c'est tout moche, tout recroquevillé" (capture d'écran à l'appui) : les libellés d'arête (`<text>` SVG toujours affiché dans la version 02c) se chevauchaient et devenaient illisibles dès que plusieurs embranchements/retours étaient proches sur le même écran — la piste "Robot Adventure" réelle a 5 arêtes (1 aller normal, 1 aller avec transition, 3 retours) qui finissaient toutes à des hauteurs très proches.
+
+**Corrigé** : les nœuds n'affichent plus que le libellé de l'emplacement (l'état courant/visité/pas-encore-atteint se lit uniquement via la bordure — pleine et colorée pour "courant", pointillée sinon). Les libellés d'arête passent d'un `<text>` SVG toujours visible à un `<title>` (infobulle native au survol) posé sur le `<path>` — même principe que le graphe Wwise du vertical-random, qui n'affiche lui-même aucun libellé permanent sur ses connecteurs. Les boucles de retour (arêtes en arrière) sont désormais étalées verticalement (chacune un peu plus bas que la précédente, via un compteur incrémenté à chaque arête en arrière rencontrée) plutôt que de toutes converger vers la même hauteur — `updateSeqMap()` réserve la marge verticale correspondante en fonction du nombre réel d'arêtes de retour, pas d'une marge fixe comme avant.
+
+**Vérifications** : `node --check` OK sur `player.js` et les 3 fichiers HTML. Balises équilibrées. Suite complète des 27 fichiers `test_*.js`/`test-*.js` rejouée — tous « ALL CHECKS PASSED », aucune régression. `test_seq_map.js` : les assertions sur la présence/absence de canvas remplacées par des vérifications d'absence totale (nœuds ET boutons) ; le scénario de dégradation vérifie maintenant la présence/absence du positionnement en couches (`style.left`) plutôt que celle des canvases, devenue non pertinente. Vérification visuelle réelle dans le navigateur, reproduction de la structure exacte de "Robot Adventure" (5 arêtes dont 3 retours) : confirmé mécaniquement 0 élément `<text>` dans le SVG (contre plusieurs qui se chevauchaient avant), 5 infobulles `<title>` correctement posées (une par arête), 0 canvas dans les nœuds.
+
+**Reste ouvert, suggéré par Jules-Antoine, pas traité ici** : une fois la carte fiable et bien présentée, les boutons d'embranchement du "zoom local" (`.seq-branch-btn`) pourraient devenir redondants si les nœuds de la carte eux-mêmes devenaient cliquables pour choisir la cible. Nécessiterait de transformer les `<div class="seq-map-node">` (purement informatifs aujourd'hui) en éléments interactifs et d'y migrer la logique de clic actuellement sur `renderSeqBranchOptions()` — chantier distinct, à traiter séparément une fois la carte elle-même validée.
+
+**Toujours aucune écoute/navigation réelle possible de ma part** — lisibilité finale (espacement, taille des nœuds en repli étroit) à confirmer par Jules-Antoine.
+
+---
+
 ## [2026-09-02c] — Corrections en situation réelle sur la carte des chemins (02b) : forme d'onde retirée des boutons, carte reprise en flowchart
 
 **Fichiers touchés** : `player.js` (`renderSeqBranchOptions` : forme d'onde retirée, badge conservé ; réécriture complète de `updateSeqMap`/nouvelles `seqMapComputeLayout`/`seqMapForwardTargets`/`seqMapDrawEdges`, ancienne `drawSeqMapLines` supprimée) ; `index.html`, `pack.html`, `layerpitch-backstage.html` (`<style>` inline, classes `.seq-map*` réécrites) ; `test_seq_map.js` (assertions adaptées + nouveaux contrôles géométriques).

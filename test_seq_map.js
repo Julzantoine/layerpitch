@@ -92,9 +92,11 @@ const path = require('path');
 
     const btnToB = () => [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotB');
     const btnToC = () => [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotC');
-    // Forme d'onde retirée le 02/09 sur retour direct de Jules-Antoine en situation réelle (gardée
-    // uniquement sur la carte globale, voir scénarios suivants) -- seul le badge de transition subsiste.
-    check('aucun canvas de forme d\'onde sur le bouton vers B (retiré, gardé uniquement sur la carte)', !btnToB().querySelector('canvas'));
+    // Forme d'onde retirée le 02/09 sur retour direct de Jules-Antoine en situation réelle (des boutons
+    // d'embranchement, puis le 03/09 des nœuds de la carte globale aussi -- voir scénarios suivants,
+    // en plus de ne pas être demandée, elle ne reflétait pas fidèlement le fichier réel) -- seul le badge
+    // de transition subsiste sur ces boutons.
+    check('aucun canvas de forme d\'onde sur le bouton vers B', !btnToB().querySelector('canvas'));
     check('aucun canvas de forme d\'onde sur le bouton vers C non plus', !btnToC().querySelector('canvas'));
     check('badge de transition présent UNIQUEMENT sur le bouton vers B (transition déclarée pour cette paire précise)', !!btnToB().querySelector('.seq-branch-transition-badge'));
     check('aucun badge sur le bouton vers C (aucune transition déclarée pour cette paire)', !btnToC().querySelector('.seq-branch-transition-badge'));
@@ -228,6 +230,7 @@ const path = require('path');
     await sleep(250);
     const nodes6 = row6.querySelector('[data-role="seqMapNodes"]');
     check('6 emplacements : toujours en taille pleine (96px), pas de repli compact', !nodes6.classList.contains('compact') && nodes6.style.getPropertyValue('--seq-map-node-w') === '96px');
+    check('6 emplacements : positionnement en couches (style "left" posé, pas un simple flux)', nodes6.querySelector('.seq-map-node').style.left !== '');
 
     const row10 = Core.buildTrackRow(trackWithSlotCount(10), null, false);
     doc.getElementById('host').appendChild(row10);
@@ -242,7 +245,7 @@ const path = require('path');
     await sleep(250);
     const nodes20 = row20.querySelector('[data-role="seqMapNodes"]');
     check('20 emplacements : repli compact (au-delà du plancher de lisibilité)', nodes20.classList.contains('compact'));
-    check('en repli compact, aucun canvas de forme d\'onde rendu (juste le libellé)', nodes20.querySelectorAll('.seq-map-node-bg').length === 0);
+    check('en repli compact, pas de positionnement en couches (simple flux, style "left" absent)', nodes20.querySelector('.seq-map-node').style.left === '');
   }
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));

@@ -1449,19 +1449,11 @@ function initTrackPlayer(track, wrapper) {
     // devenir audible.
     renderSeqBranchOptions(kind === 'segment' && slotIdx != null ? slotIdx : -1);
     // Carte globale (02/09) : un emplacement rejoint l'historique dès qu'il devient audible -- alimente
-    // seqVisitedSlotIds (rien de tel n'existait avant ce chantier). La ligne de progression de son nœud
-    // reprend le même calcul (startFraction/remainingSec) que le bloc "En cours" ci-dessus, appliqué à un
-    // élément DOM distinct puisque le nœud de la carte est un élément séparé, reconstruit à chaque appel
-    // d'updateSeqMap() (pas de référence stable à conserver entre deux passages).
+    // seqVisitedSlotIds (rien de tel n'existait avant ce chantier). Pas de forme d'onde/progression sur le
+    // nœud lui-même (retiré le 03/09, voir updateSeqMap()) -- juste rafraîchir quel nœud porte "current".
     if (kind === 'segment' && slotIdx != null && slotIdx >= 0) {
       seqVisitedSlotIds.add(slotIdx);
       updateSeqMap(slotIdx);
-      const curFg = seqMapNodesEl && seqMapNodesEl.querySelector('.seq-map-node.current .seq-map-node-fg');
-      if (curFg) {
-        curFg.style.transition = 'none'; curFg.style.clipPath = `inset(0 ${(1 - startFraction) * 100}% 0 0)`;
-        void curFg.offsetWidth;
-        if (remainingSec > 0) { curFg.style.transition = `clip-path ${remainingSec}s linear`; curFg.style.clipPath = 'inset(0 0% 0 0)'; }
-      }
     }
     // Chaque nouveau passage sur UN emplacement (y compris une simple répétition du même) a ses propres
     // frontières de temps/mesure à surveiller — l'epoch invalide toute chaîne héritée d'un passage
@@ -1681,6 +1673,11 @@ function initTrackPlayer(track, wrapper) {
     // invisibles derrière eux, voir CHANGELOG).
     seqMapCanvasEl.style.width = totalW + 'px';
     seqMapCanvasEl.style.height = totalH + 'px';
+    // Pas de forme d'onde sur les nœuds (retiré le 03/09 sur retour direct de Jules-Antoine en situation
+    // réelle -- en plus de ne pas être demandée ici, elle ne reflétait pas fidèlement le fichier : Corridor
+    // et Battle s'arrêtaient visiblement à mi-chemin). L'état (courant/visité/pas encore atteint) se lit
+    // uniquement via la bordure (voir CSS .seq-map-node.current/.visited) -- aucune donnée audio à charger
+    // ni dessiner ici, juste le libellé.
     seqMapNodesEl.innerHTML = visibleIdx.map(idx => {
       const slot = slots[idx] || {};
       const isCurrent = idx === currentIdx;
@@ -1689,14 +1686,8 @@ function initTrackPlayer(track, wrapper) {
       const cls = 'seq-map-node' + (isCurrent ? ' current' : '') + (isVisited ? ' visited' : '');
       const check = isVisited ? '<span class="seq-map-node-check">✓</span>' : '';
       const x = layout.col[idx] * colW, y = layout.row[idx] * rowH;
-      return `<div class="${cls}" data-slot-idx="${idx}" style="left:${x}px;top:${y}px"><canvas class="seq-map-node-bg" data-role="seqMapNodeBg-${idx}"></canvas><canvas class="seq-map-node-fg" data-role="seqMapNodeFg-${idx}"></canvas><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
+      return `<div class="${cls}" data-slot-idx="${idx}" style="left:${x}px;top:${y}px"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
     }).join('');
-    visibleIdx.forEach(idx => {
-      const bg = seqMapNodesEl.querySelector(`[data-role="seqMapNodeBg-${idx}"]`);
-      const fg = seqMapNodesEl.querySelector(`[data-role="seqMapNodeFg-${idx}"]`);
-      const buf = (slotBuffers[idx] || []).find(b => b);
-      if (buf) renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
-    });
     seqMapDrawEdges(layout, visibleIdx, colW, rowH, w, h, totalW, totalH);
   }
   // Arêtes SVG entre nœuds révélés, positions calculées directement depuis `layout` (pas de mesure DOM).
@@ -1719,32 +1710,37 @@ function initTrackPlayer(track, wrapper) {
     const rightOf = idx => ({ x: layout.col[idx] * colW + nodeW, y: layout.row[idx] * rowH + nodeH / 2 });
     const leftOf = idx => ({ x: layout.col[idx] * colW, y: layout.row[idx] * rowH + nodeH / 2 });
     const visibleSet = new Set(visibleIdx);
+    // Étale chaque boucle de retour un peu plus bas que la précédente (backEdgeIndex incrémenté à chaque
+    // arête en arrière rencontrée) -- sans ça, deux boucles de retour vers des lignes proches finissaient
+    // exactement à la même hauteur et se confondaient visuellement (retour "tout recroquevillé" en
+    // situation réelle). updateSeqMap() réserve la marge verticale correspondante dans totalH.
+    let backEdgeIndex = 0;
     const drawEdge = (fromIdx, toIdx, cls, label) => {
       const isBack = layout.col[toIdx] <= layout.col[fromIdx];
       const a = rightOf(fromIdx), b = isBack ? rightOf(toIdx) : leftOf(toIdx);
       const path = document.createElementNS(svgNS, 'path');
-      let d, labelX, labelY;
+      let d;
       if (isBack) {
-        const loopY = Math.max(a.y, b.y) + rowH * 0.55;
+        const loopY = Math.max(a.y, b.y) + rowH * 0.55 + backEdgeIndex * (rowH * 0.4);
+        backEdgeIndex++;
         d = `M ${a.x} ${a.y} C ${a.x + 26} ${loopY}, ${b.x + 26} ${loopY}, ${b.x} ${b.y}`;
-        labelX = (a.x + b.x) / 2 + 26; labelY = loopY - 4;
       } else {
         const midX = (a.x + b.x) / 2;
         d = `M ${a.x} ${a.y} C ${midX} ${a.y}, ${midX} ${b.y}, ${b.x} ${b.y}`;
-        labelX = midX; labelY = (a.y + b.y) / 2 - 4;
       }
       path.setAttribute('d', d);
       path.setAttribute('class', 'seq-map-edge' + (cls ? ' ' + cls : ''));
-      seqMapLinesEl.appendChild(path);
+      // <title> (infobulle au survol) plutôt qu'un <text> toujours affiché comme dans la version
+      // précédente : avec plusieurs embranchements/retours proches, des libellés SVG en permanence
+      // visibles se chevauchaient et devenaient illisibles (retour direct en situation réelle, "tout
+      // moche, tout recroquevillé") -- même principe que le graphe Wwise du vertical-random, qui n'a
+      // lui-même aucun libellé permanent sur ses connecteurs.
       if (label) {
-        const text = document.createElementNS(svgNS, 'text');
-        text.setAttribute('x', String(labelX));
-        text.setAttribute('y', String(labelY));
-        text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('class', 'seq-map-edge-label');
-        text.textContent = label;
-        seqMapLinesEl.appendChild(text);
+        const title = document.createElementNS(svgNS, 'title');
+        title.textContent = label;
+        path.appendChild(title);
       }
+      seqMapLinesEl.appendChild(path);
     };
     visibleIdx.forEach(idx => {
       const slot = slots[idx];

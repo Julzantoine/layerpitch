@@ -284,16 +284,12 @@
   .seq-map-node { position: absolute; width: var(--seq-map-node-w, 96px); height: var(--seq-map-node-h, 40px); border-radius: 6px; border: 1px solid var(--border); overflow: hidden; background: var(--bg-card); }
   .seq-map-node:not(.current):not(.visited) { border-style: dashed; }
   .seq-map-node.current { border-color: var(--accent); border-width: 2px; }
-  .seq-map-node.current .seq-map-node-fg { opacity: 1; }
-  .seq-map-node-bg, .seq-map-node-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .seq-map-node-fg { clip-path: inset(0 100% 0 0); opacity: 0.6; }
-  .seq-map-node-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; text-align: center; z-index: 1; color: var(--text-dim); text-shadow: 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff); }
+  .seq-map-node-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; text-align: center; z-index: 1; color: var(--text-dim); }
   .seq-map-node.current .seq-map-node-label { color: var(--text); font-weight: 600; }
   .seq-map-node-check { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; z-index: 2; font-size: 8px; line-height: 1; }
-  .seq-map-edge { fill: none; stroke: var(--border); stroke-width: 1.5px; }
+  .seq-map-edge { fill: none; stroke: var(--border); stroke-width: 1.5px; cursor: default; }
   .seq-map-edge.branch { stroke-dasharray: 3 3; }
   .seq-map-edge.transition { stroke: var(--accent); }
-  .seq-map-edge-label { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; fill: var(--text-dimmer); }
   /* Repli compact au-delà du plancher de lisibilité (voir seuils dans player.js) : simple liste de puces
      en flux, aucune position ni arête -- même principe de dégradation que le vertical à embranchement. */
   .seq-map-nodes.compact { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
