@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1788363013408,
+  "publishedAt": 1788370245103,
   "library": [
     {
       "id": "bmsrox5psn3r4k",
@@ -154,58 +154,6 @@
       "folderId": "bmt1zz0k0043qq"
     },
     {
-      "id": "bmrc8rec1wtahz",
-      "title": "Goûte donc ma hache, pour voir !",
-      "description": "Une battle loop adaptative à 3 niveaux d'intensité (Low/Mid/High), idéale pour un hack'n'slash. L'intensité est calée sur le nombre d'ennemis à l'écran et la boucle mêle les plaisirs comme savent le faire les jeux indie — parce qu'une bonne musique de baston sent toujours venir le savon un peu avant qu'on se prenne la douche.",
-      "mode": "vertical",
-      "loopable": false,
-      "implementationNote": "RTPC Suggéré : Nombre d'ennemis à l'écran",
-      "noAiOverride": null,
-      "loopEngine": "quantized",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 256,
-      "startTrackBeat": 0,
-      "maxLoops": null,
-      "maxChainLoops": null,
-      "normalizeVolume": false,
-      "duration": 134.88,
-      "base": "https://media.layerpitch.com/audio/bmrc8rec1wtahz/",
-      "layers": [
-        {
-          "label": "Ca va, c'est cool...",
-          "file": "0-ca-va-c-est-cool.ogg",
-          "originalFileName": null,
-          "gain": 1,
-          "duration": 0
-        },
-        {
-          "label": "Mais ils sont combien comme ça?",
-          "file": "1-mais-ils-sont-combien-comme-ca.ogg",
-          "originalFileName": null,
-          "gain": 1,
-          "duration": 0
-        },
-        {
-          "label": "On va tous crever!!!",
-          "file": "2-on-va-tous-crever.ogg",
-          "originalFileName": null,
-          "gain": 1,
-          "duration": 0
-        }
-      ],
-      "intro": null,
-      "outro": null,
-      "segmentSlots": [],
-      "loops": [],
-      "randomizeSections": false,
-      "sections": [],
-      "sfxIds": [],
-      "folderId": null
-    },
-    {
       "id": "bmrc9dbzsaio19",
       "title": "Il est minuit et tout va bien",
       "description": "Il n'est pas encore minuit. Une ombre glisse sur les toits... Elle s'élance, intrépide et bondit de toitures en gargouilles. Se recevant en souplesse sur un balcon, on ne distingue quasiment pas le bruit du loquet de la porte vitrée... A peine quelques instants plus tard, l'ombre ressort, un sourire aux lèvres. Un éclat de lune accroche sa machoire déformée. Don Benvenuto. Il jette un dernier coup d'oeil au fruit de son larcin. C'est Ducatore qui va être content... Mais en contrebas, un garde l'aperçoit et sonne l'alarme. Il en faut plus pour Benvenuto qui prend un malin plaisir à faire courir ses poursuivants... en vain.\n\nUn générique d'ouverture pour une aventure mystero-ludico-fantasy dans la chaleur d'une nuit d'été.",
@@ -318,46 +266,6 @@
       "sections": [],
       "sfxIds": [],
       "folderId": "bmt1zzvylh1am2"
-    },
-    {
-      "id": "bmrc8x6x8x9cof",
-      "title": "Robot Adventure_The Corridor",
-      "description": "- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nUne Loop statique dans le même style que la précédente, mais qui fait monter l'intensité d'un cran.",
-      "mode": "static",
-      "loopable": true,
-      "implementationNote": "",
-      "noAiOverride": null,
-      "loopEngine": "simple",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 16,
-      "startTrackBeat": 0,
-      "maxLoops": null,
-      "maxChainLoops": null,
-      "normalizeVolume": false,
-      "duration": 60,
-      "base": "https://media.layerpitch.com/audio/bmrc8x6x8x9cof/",
-      "layers": [
-        {
-          "label": "Niveau 1",
-          "file": "0-niveau-1.ogg",
-          "originalFileName": null,
-          "gain": 1,
-          "duration": 0
-        }
-      ],
-      "intro": null,
-      "outro": null,
-      "segmentSlots": [],
-      "loops": [],
-      "randomizeSections": false,
-      "sections": [],
-      "sfxIds": [
-        "bms378c2zbxgpd"
-      ],
-      "folderId": "bmt1zz0k0043qq"
     },
     {
       "id": "bmrc8yz5vutcbi",
@@ -514,6 +422,46 @@
       "folderId": "bmt1zzvylh1am2"
     },
     {
+      "id": "bmrc8x6x8x9cof",
+      "title": "Robot Adventure_The Corridor",
+      "description": "- \"Hey Joe ! Y'a une porte qui s'est ouverte ! \"\n- \"Fais gaffe Lucien, ils sont partout ces cons là...\"\n- \"Je crois que c'est par là, j'entends des bruits.  On y va?\"\n- \"Ok... Mais va pas trop loin, ça me rend nerveux ces conneries\"\n\nUne Loop statique dans le même style que la précédente, mais qui fait monter l'intensité d'un cran.",
+      "mode": "static",
+      "loopable": true,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 60,
+      "base": "https://media.layerpitch.com/audio/bmrc8x6x8x9cof/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [
+        "bms378c2zbxgpd"
+      ],
+      "folderId": "bmt1zz0k0043qq"
+    },
+    {
       "id": "bmruc9x0htabo1",
       "title": "Doucement s'en va le jour",
       "description": "",
@@ -633,11 +581,163 @@
           "transition": {
             "label": "Transition #2",
             "durationUnit": "beats",
+            "durationBeats": 4,
             "file": "loop1-transition-transition-2.ogg",
-            "originalFileName": "Transition #2.wav"
+            "originalFileName": "Transition #1.wav"
           }
         }
       ],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": null
+    },
+    {
+      "id": "bmrc8rec1wtahz",
+      "title": "Goûte donc ma hache, pour voir !",
+      "description": "Une battle loop adaptative à 3 niveaux d'intensité (Low/Mid/High), idéale pour un hack'n'slash. L'intensité est calée sur le nombre d'ennemis à l'écran et la boucle mêle les plaisirs comme savent le faire les jeux indie — parce qu'une bonne musique de baston sent toujours venir le savon un peu avant qu'on se prenne la douche.",
+      "mode": "vertical",
+      "loopable": false,
+      "implementationNote": "RTPC Suggéré : Nombre d'ennemis à l'écran",
+      "noAiOverride": null,
+      "loopEngine": "quantized",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 256,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 134.88,
+      "base": "https://media.layerpitch.com/audio/bmrc8rec1wtahz/",
+      "layers": [
+        {
+          "label": "Ca va, c'est cool...",
+          "file": "0-ca-va-c-est-cool.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        },
+        {
+          "label": "Mais ils sont combien comme ça?",
+          "file": "1-mais-ils-sont-combien-comme-ca.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        },
+        {
+          "label": "On va tous crever!!!",
+          "file": "2-on-va-tous-crever.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": null,
+      "outro": null,
+      "segmentSlots": [],
+      "loops": [],
+      "randomizeSections": false,
+      "sections": [],
+      "sfxIds": [],
+      "folderId": null
+    },
+    {
+      "id": "bmresp3hdlhbmx",
+      "title": "The Last Door",
+      "description": "Il fait noir... La tension monte. Pourquoi as tu foncé sans attendre l'équipe? C'est ce que tu te demandes en ce moment même... La porte au bout du couloir est entrebaillée et laisse passer un mince filet de lumière. Alors... Tu fais quoi? Tu continues la poursuite pour ne pas laisser l'autre s'échapper, au risque de tomber dans le piège? Ou tu attends l'équipe? Respire. Lentement. A fond... Et prends une décision\n\nUne intro, une outro... Entre les deux, des segments de 8 ou 16 mesures choisis aléatoirement. Une pure musique séquentielle de mise en tension... ",
+      "mode": "sequential",
+      "loopable": false,
+      "implementationNote": "",
+      "noAiOverride": null,
+      "loopEngine": "simple",
+      "bpm": 120,
+      "beatsPerBar": 4,
+      "loopGridUnit": "bars",
+      "loopInBeat": 0,
+      "loopOutBeat": 16,
+      "startTrackBeat": 0,
+      "maxLoops": null,
+      "maxChainLoops": null,
+      "normalizeVolume": false,
+      "duration": 132.57,
+      "base": "https://media.layerpitch.com/audio/bmresp3hdlhbmx/",
+      "layers": [
+        {
+          "label": "Niveau 1",
+          "file": "0-niveau-1.ogg",
+          "originalFileName": null,
+          "gain": 1,
+          "duration": 0
+        }
+      ],
+      "intro": {
+        "label": "Intro",
+        "bars": 6,
+        "file": "intro-intro.ogg",
+        "originalFileName": null,
+        "gain": 1.759,
+        "descriptionFr": "",
+        "descriptionEn": ""
+      },
+      "outro": {
+        "label": "Outro",
+        "file": "outro-outro.ogg",
+        "originalFileName": null,
+        "gain": 1,
+        "descriptionFr": "",
+        "descriptionEn": ""
+      },
+      "segmentSlots": [
+        {
+          "id": "bmrtc0osvot3kj",
+          "label": "",
+          "avoidImmediateRepeat": true,
+          "referencesSlotId": null,
+          "repeatCount": 1,
+          "quantization": "bar",
+          "cutStyle": "fade",
+          "customCutFadeSec": null,
+          "bpm": null,
+          "beatsPerBar": null,
+          "descriptionFr": "",
+          "descriptionEn": "",
+          "nextOptions": null,
+          "alternatives": [
+            {
+              "label": "The Last Door Chunk#1",
+              "bars": 8,
+              "file": "segment-0-the-last-door-chunk-1-120bpm-8m.ogg",
+              "originalFileName": null,
+              "gain": 1
+            },
+            {
+              "label": "The Last Door Chunk#2",
+              "bars": 16,
+              "file": "segment-1-the-last-door-chunk-2-120bpm-16m.ogg",
+              "originalFileName": null,
+              "gain": 1
+            },
+            {
+              "label": "The Last Door Chunk#3",
+              "bars": 8,
+              "file": "segment-2-the-last-door-chunk-3-120bpm-8m.ogg",
+              "originalFileName": null,
+              "gain": 1
+            },
+            {
+              "label": "The Last Door Chunk#4",
+              "bars": 8,
+              "file": "segment-3-the-last-door-chunk-4-120bpm-8m.ogg",
+              "originalFileName": null,
+              "gain": 1
+            }
+          ]
+        }
+      ],
+      "loops": [],
       "randomizeSections": false,
       "sections": [],
       "sfxIds": [],
@@ -877,105 +977,6 @@
       ],
       "sfxIds": [],
       "folderId": null
-    },
-    {
-      "id": "bmresp3hdlhbmx",
-      "title": "The Last Door",
-      "description": "Il fait noir... La tension monte. Pourquoi as tu foncé sans attendre l'équipe? C'est ce que tu te demandes en ce moment même... La porte au bout du couloir est entrebaillée et laisse passer un mince filet de lumière. Alors... Tu fais quoi? Tu continues la poursuite pour ne pas laisser l'autre s'échapper, au risque de tomber dans le piège? Ou tu attends l'équipe? Respire. Lentement. A fond... Et prends une décision\n\nUne intro, une outro... Entre les deux, des segments de 8 ou 16 mesures choisis aléatoirement. Une pure musique séquentielle de mise en tension... ",
-      "mode": "sequential",
-      "loopable": false,
-      "implementationNote": "",
-      "noAiOverride": null,
-      "loopEngine": "simple",
-      "bpm": 120,
-      "beatsPerBar": 4,
-      "loopGridUnit": "bars",
-      "loopInBeat": 0,
-      "loopOutBeat": 16,
-      "startTrackBeat": 0,
-      "maxLoops": null,
-      "maxChainLoops": null,
-      "normalizeVolume": false,
-      "duration": 132.57,
-      "base": "https://media.layerpitch.com/audio/bmresp3hdlhbmx/",
-      "layers": [
-        {
-          "label": "Niveau 1",
-          "file": "0-niveau-1.ogg",
-          "originalFileName": null,
-          "gain": 1,
-          "duration": 0
-        }
-      ],
-      "intro": {
-        "label": "Intro",
-        "bars": 6,
-        "file": "intro-intro.ogg",
-        "originalFileName": null,
-        "gain": 1.759,
-        "descriptionFr": "",
-        "descriptionEn": ""
-      },
-      "outro": {
-        "label": "Outro",
-        "file": "outro-outro.ogg",
-        "originalFileName": null,
-        "gain": 1,
-        "descriptionFr": "",
-        "descriptionEn": ""
-      },
-      "segmentSlots": [
-        {
-          "id": "bmrtc0osvot3kj",
-          "label": "",
-          "avoidImmediateRepeat": true,
-          "referencesSlotId": null,
-          "repeatCount": 1,
-          "quantization": "bar",
-          "cutStyle": "fade",
-          "customCutFadeSec": null,
-          "bpm": null,
-          "beatsPerBar": null,
-          "descriptionFr": "",
-          "descriptionEn": "",
-          "nextOptions": null,
-          "alternatives": [
-            {
-              "label": "The Last Door Chunk#1",
-              "bars": 8,
-              "file": "segment-0-the-last-door-chunk-1-120bpm-8m.ogg",
-              "originalFileName": null,
-              "gain": 1
-            },
-            {
-              "label": "The Last Door Chunk#2",
-              "bars": 16,
-              "file": "segment-1-the-last-door-chunk-2-120bpm-16m.ogg",
-              "originalFileName": null,
-              "gain": 1
-            },
-            {
-              "label": "The Last Door Chunk#3",
-              "bars": 8,
-              "file": "segment-2-the-last-door-chunk-3-120bpm-8m.ogg",
-              "originalFileName": null,
-              "gain": 1
-            },
-            {
-              "label": "The Last Door Chunk#4",
-              "bars": 8,
-              "file": "segment-3-the-last-door-chunk-4-120bpm-8m.ogg",
-              "originalFileName": null,
-              "gain": 1
-            }
-          ]
-        }
-      ],
-      "loops": [],
-      "randomizeSections": false,
-      "sections": [],
-      "sfxIds": [],
-      "folderId": null
     }
   ],
   "libraryFolders": [
@@ -1191,272 +1192,6 @@
   ],
   "customFonts": [],
   "adReels": [
-    {
-      "id": "demo-fr",
-      "label": "DEMO_FR",
-      "lang": "fr",
-      "blocks": [
-        {
-          "id": "bms23agu93s9lx",
-          "type": "header"
-        },
-        {
-          "id": "bms23agu9t7io3",
-          "type": "testimonials"
-        },
-        {
-          "id": "bms23agu9107f1",
-          "type": "tracks"
-        },
-        {
-          "id": "bms54elcli1lgf",
-          "type": "sfx",
-          "sfxIds": [
-            "bms3s3uj7b4oi8",
-            "bms3sf3itgekxm",
-            "bms378c2zbxgpd"
-          ]
-        },
-        {
-          "id": "bms54v8xcyc78g",
-          "type": "packs",
-          "packIds": [
-            "bmrcakdllw9m7v",
-            "bmrucduoqf8jzn",
-            "bms53ze9zfu132"
-          ]
-        },
-        {
-          "id": "bms24mgodnb64m",
-          "type": "video",
-          "videos": [
-            {
-              "title": "Rescore trailer DLC ProjectCars",
-              "url": "https://youtu.be/vHJAhKIIlWc",
-              "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
-              "thumbnail": null,
-              "thumbnailOriginalName": null
-            }
-          ]
-        },
-        {
-          "id": "bms24o5q8371f3",
-          "type": "text",
-          "content": "[Retrouvez pleins d'autres vidéos ici ! ](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)",
-          "align": "center"
-        },
-        {
-          "id": "bms23k4srbb2ab",
-          "type": "photo",
-          "align": "center",
-          "images": [
-            {
-              "file": "bms23k4srbb2ab-0.png",
-              "originalFileName": null
-            },
-            {
-              "file": "bms23k4srbb2ab-1.png",
-              "originalFileName": null
-            },
-            {
-              "file": "bms23k4srbb2ab-2.png",
-              "originalFileName": null
-            }
-          ]
-        },
-        {
-          "id": "bms23agu9ygt8z",
-          "type": "bio"
-        }
-      ],
-      "profile": {
-        "title": "",
-        "subtitle": "",
-        "bio": "Salut, je m'appelle Jules et je suis compositeur.\n\nRécemment, j'ai pitché de la musique à un studio de jeu vidéo. J'ai voulu frapper fort et présenter directement de la musique adaptative — mais je n'ai trouvé aucune solution technique adéquate pour ça. Alors j'ai créé LayerPitch.\n\nLa page avec laquelle vous interagissez s'appelle un AdReel (Adaptive Reel). Avec un compte LayerPitch, vous générez des AdReels à la demande, personnalisés selon la personne à qui vous les envoyez. Ensuite, en backstage, vous suivez comment votre interlocuteur a réellement interagi : niveaux d'intensité testés, SFX déclenchés, packs et collections explorés — bref, à quel point il ou elle s'est vraiment intéressé·e à ce que vous proposez.\n\nÀ partir de septembre, j'entre en incubation pour voir jusqu'où cette idée peut aller. Je cherche des bêta-testeurs — si ça vous intéresse, ou si vous avez un retour à me faire, écrivez-moi : julzantoine@yahoo.com.\n\nPS — Et sinon, normalement, c'est ici que vous afficheriez votre bio, pour expliquer à quel point vous êtes extraordinaire et pertinent·e pour le poste. :)",
-        "contactEmail": "",
-        "contactUrl": "",
-        "formspreeEndpoint": "",
-        "logo": "logo-demo-fr.jpeg",
-        "photo": "photo-demo-fr.jpg",
-        "theme": {
-          "bgColor": "#f6f5f3",
-          "titleColor": "#262521",
-          "contentColor": "#262521",
-          "font": "default",
-          "bgImage": null,
-          "bgImageOpacity": 1
-        },
-        "bgColor": "#f6f5f3",
-        "tagline": "",
-        "textColor": "#262521"
-      },
-      "testimonials": [
-        {
-          "text": "Ma collaboration avec ce compositeur a été étonnamment fluide, notamment grâce à LayerPitch : on a pu tester des idées presque en temps réel, sans passer par une implémentation dans un moteur audio à chaque essai.",
-          "author": "John Doe, développeur"
-        },
-        {
-          "text": "Ce qui m'a vraiment convaincu avec les packs de ce compositeur, c'est d'avoir pu voir la musique et les SFX fonctionner directement sur MA vidéo de gameplay — pas une démo générique du vendeur. Sans budget pour une composition sur mesure, j'ai pu construire l'atmosphère sonore exactement comme je l'imaginais, en la voyant vivre sur mes propres images avant même d'acheter.",
-          "author": "A. Nonyme, GameDev"
-        }
-      ],
-      "trackIds": [
-        "bmrc8rec1wtahz",
-        "bmsrox5psn3r4k",
-        "bmteimdrwxw5iq",
-        "bmresp3hdlhbmx",
-        "bmrdjlv9p1cbv9"
-      ],
-      "trackOverrides": {},
-      "folderId": null
-    },
-    {
-      "id": "formike",
-      "label": "ForMike",
-      "lang": "en",
-      "blocks": [
-        {
-          "id": "bmsca81bnihius",
-          "type": "header"
-        },
-        {
-          "id": "bmsca81bnyxpv6",
-          "type": "testimonials"
-        },
-        {
-          "id": "bmsca81bnj1g2t",
-          "type": "tracks"
-        },
-        {
-          "id": "bmsca81bnxhkhm",
-          "type": "sfx",
-          "sfxIds": [
-            "bms3s3uj7b4oi8",
-            "bms3sf3itgekxm",
-            "bms378c2zbxgpd"
-          ]
-        },
-        {
-          "id": "bmsca81bn8ifi1",
-          "type": "packs",
-          "packIds": [
-            "bmrcakdllw9m7v",
-            "bmrucduoqf8jzn",
-            "bms53ze9zfu132"
-          ]
-        },
-        {
-          "id": "bmsca81bndb2fb",
-          "type": "video",
-          "videos": [
-            {
-              "title": "Rescore Trailer DLC PRojectCars",
-              "url": "https://youtu.be/vHJAhKIIlWc",
-              "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
-              "thumbnail": "bmrc9ryuilymwc-thumb-0.png",
-              "thumbnailOriginalName": null
-            }
-          ]
-        },
-        {
-          "id": "bmsca81bnp8jks",
-          "type": "text",
-          "content": "[Find tons of video clips in all kinds of styles HERE!](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)\n",
-          "align": "center"
-        },
-        {
-          "id": "bmsca81bnm99aa",
-          "type": "photo",
-          "align": "center",
-          "images": [
-            {
-              "file": "bmrn8gekhvkn4c-0.png",
-              "originalFileName": null
-            },
-            {
-              "file": "bmrn8gekhvkn4c-1.png",
-              "originalFileName": null
-            },
-            {
-              "file": "bmrn8gekhvkn4c-2.png",
-              "originalFileName": null
-            },
-            {
-              "file": "bmrn8gekhvkn4c-3.png",
-              "originalFileName": null
-            }
-          ]
-        },
-        {
-          "id": "bmsca81bnnlnci",
-          "type": "bio"
-        }
-      ],
-      "profile": {
-        "title": "",
-        "subtitle": "",
-        "bio": "Hi Mike ! Thank you for taking the time to check out layerpitch!\nRecently, I pitched music to a video game studio. I wanted to make a strong impression and present adaptive music directly—but I couldn’t find any suitable technical solution for it. So I created LayerPitch.\nThe page you’re interacting with is called an AdReel (Adaptive Reel). With a LayerPitch account, you can generate AdReels on demand, tailored to the person you’re sending them to. Behind the scenes, you can track how your contact actually interacted with it: intensity levels tested, SFX triggered, packs and collections explored—in short, how engaged they were with what you’re offering.\nStarting in September, I’ll be entering an incubation program to see how far this idea can go. I’m looking for beta testers—if you’re interested or have feedback, feel free to reach out: julzantoine@yahoo.com.\n\nPS—And by the way, this is where you’d normally display your bio to explain just how extraordinary and perfect you are for the role. :)",
-        "contactEmail": "",
-        "contactUrl": "",
-        "formspreeEndpoint": "",
-        "logo": "logo-demo-trusted-people.jpeg",
-        "photo": "photo-main.jpg",
-        "theme": {
-          "bgColor": "#f6f5f3",
-          "titleColor": "#262521",
-          "contentColor": "#262521",
-          "font": "default",
-          "bgImage": null,
-          "bgImageOpacity": 1
-        }
-      },
-      "testimonials": [
-        {
-          "text": "My collaboration with this composer was surprisingly smooth, thanks to LayerPitch: we were able to test ideas almost in real time, without having to implement them in an audio engine for every trial.",
-          "author": "John Doe, Developer"
-        },
-        {
-          "text": "What really convinced me about this composer’s packs was being able to see the music and SFX work directly on **my** gameplay video—not some generic vendor demo. With no budget for custom composition, I could build the exact sound atmosphere I envisioned, seeing it come to life on my own footage before even making a purchase.",
-          "author": "A. Nonyme"
-        }
-      ],
-      "trackIds": [
-        "bmrc8rec1wtahz",
-        "bmsrox5psn3r4k",
-        "bmteimdrwxw5iq",
-        "bmresp3hdlhbmx",
-        "bmrdjlv9p1cbv9"
-      ],
-      "trackOverrides": {
-        "bmrc8rec1wtahz": {
-          "layers": {
-            "0": "Everything's allright, here",
-            "1": "How many of these guys are there?!",
-            "2": "We all gonne die!!!"
-          },
-          "description": "An adaptive battle loop with 3 intensity levels (Low/Mid/High), perfect for a hack'n'slash game. The intensity scales with the number of enemies on screen, and the loop blends indie charm with punchy energy—because great combat music should always tease the soap before the shower hits. "
-        },
-        "bmrc8vlgamn4fl": {
-          "stingers": {
-            "0": "Secret Lever"
-          },
-          "description": "\"Alright, team—let’s move out. If the plan’s right, we shouldn’t be far from the heart of the matrix now!\"\nA static exploration loop for distant danger—with a secret lever stinger to play with, just for fun."
-        },
-        "bmrc9dbzsaio19": {
-          "description": "It isn't midnight yet. A shadow slips across the rooftops... Fearless, it leaps from roof to gargoyle. Landing lightly on a balcony, the faint click of the French door's latch is almost impossible to hear... Barely moments later, the shadow emerges again, a grin spreading across its face. A shaft of moonlight catches its misshapen jaw. Don Benvenuto.\n\nHe casts one last glance at the spoils of his theft. *Ducatore* is going to be delighted...\n\nBut below, a guard spots him and sounds the alarm. It will take more than that to stop Benvenuto. With mischievous delight, he leads his pursuers on a wild chase... to no avail.\n\nA Opening Yheme for a mysterious, playful fantasy adventure set in the warmth of a summer night.\n"
-        },
-        "bmrdjlv9p1cbv9": {
-          "description": "After countless attempts, the boss finally went down! **Victory!** Loot is raining from the sky, and it takes a while to gather it all. With a bit of luck, we might even get a little cutscene to unlock the next level... who knows? Either way, the music is ready—it’s just waiting for the story.\n\nThree drum parts, four bass parts, six guitar parts, and four keyboard parts... A vertically layered, randomized loop that generates a different musical experience every time you listen."
-        },
-        "bmresp3hdlhbmx": {
-          "description": "It’s pitch black... The tension rises. Why did you rush ahead without waiting for the team? That’s the question running through your mind right now. The door at the end of the hallway is slightly ajar, letting through a thin beam of light. So... what do you do? Do you keep chasing to prevent them from escaping, risking walking into a trap? Or do you wait for the team? Breathe. Slowly. Deeply... And make a decision.\n\nAn intro, an outro... In between, randomly selected 8- or 16-bar segments. Pure sequential tension-building music..."
-        },
-        "bmsrox5psn3r4k": {
-          "description": "#1_Wet Dark Cave\n“Okay guys, spread out. If the map is right, we shouldn’t be too far from the core of the Matrix!”\n\n#2_The Corridor\n“Hey Joe! A door just opened!”\n“Watch out, Lucien. Those bastards are everywhere…”\n“I think it’s this way. I can hear something. Shall we go?”\n“Okay… But don’t go too far. This shit is making me nervous.”\n\nYour team moves forward… and eventually finds a secret lever that opens a hidden door. You make your way into a long, dark corridor. The tension is rising.\n\n#3_Battle\n“THEY’RE COMING!!! Formation! Fire at will! Goddamn robots, they’re everywhere!”\n“Boss, what do we do? Boss?? Boss?!”\n\nYou emerge into a huge cavern… where hundreds of robots catch you off guard and open fire. Maybe you should’ve saved your game after all…\n\n-> A branching piece of music that follows the player’s actions and location…"
-        }
-      },
-      "folderId": null
-    },
     {
       "id": "main",
       "label": "Principal",
@@ -1803,6 +1538,272 @@
         },
         "bmresp3hdlhbmx": {
           "description": "It’s pitch black... The tension rises. Why did you rush ahead without waiting for the team? That’s the question running through your mind right now. The door at the end of the hallway is slightly ajar, letting through a thin beam of light. So... what do you do? Do you keep chasing to prevent them from escaping, risking walking into a trap? Or do you wait for the team? Breathe. Slowly. Deeply... And make a decision.\n\nAn intro, an outro... In between, randomly selected 8- or 16-bar segments. Pure sequential tension-building music..."
+        }
+      },
+      "folderId": null
+    },
+    {
+      "id": "demo-fr",
+      "label": "DEMO_FR",
+      "lang": "fr",
+      "blocks": [
+        {
+          "id": "bms23agu93s9lx",
+          "type": "header"
+        },
+        {
+          "id": "bms23agu9t7io3",
+          "type": "testimonials"
+        },
+        {
+          "id": "bms23agu9107f1",
+          "type": "tracks"
+        },
+        {
+          "id": "bms54elcli1lgf",
+          "type": "sfx",
+          "sfxIds": [
+            "bms3s3uj7b4oi8",
+            "bms3sf3itgekxm",
+            "bms378c2zbxgpd"
+          ]
+        },
+        {
+          "id": "bms54v8xcyc78g",
+          "type": "packs",
+          "packIds": [
+            "bmrcakdllw9m7v",
+            "bmrucduoqf8jzn",
+            "bms53ze9zfu132"
+          ]
+        },
+        {
+          "id": "bms24mgodnb64m",
+          "type": "video",
+          "videos": [
+            {
+              "title": "Rescore trailer DLC ProjectCars",
+              "url": "https://youtu.be/vHJAhKIIlWc",
+              "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
+              "thumbnail": null,
+              "thumbnailOriginalName": null
+            }
+          ]
+        },
+        {
+          "id": "bms24o5q8371f3",
+          "type": "text",
+          "content": "[Retrouvez pleins d'autres vidéos ici ! ](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)",
+          "align": "center"
+        },
+        {
+          "id": "bms23k4srbb2ab",
+          "type": "photo",
+          "align": "center",
+          "images": [
+            {
+              "file": "bms23k4srbb2ab-0.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bms23k4srbb2ab-1.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bms23k4srbb2ab-2.png",
+              "originalFileName": null
+            }
+          ]
+        },
+        {
+          "id": "bms23agu9ygt8z",
+          "type": "bio"
+        }
+      ],
+      "profile": {
+        "title": "",
+        "subtitle": "",
+        "bio": "Salut, je m'appelle Jules et je suis compositeur.\n\nRécemment, j'ai pitché de la musique à un studio de jeu vidéo. J'ai voulu frapper fort et présenter directement de la musique adaptative — mais je n'ai trouvé aucune solution technique adéquate pour ça. Alors j'ai créé LayerPitch.\n\nLa page avec laquelle vous interagissez s'appelle un AdReel (Adaptive Reel). Avec un compte LayerPitch, vous générez des AdReels à la demande, personnalisés selon la personne à qui vous les envoyez. Ensuite, en backstage, vous suivez comment votre interlocuteur a réellement interagi : niveaux d'intensité testés, SFX déclenchés, packs et collections explorés — bref, à quel point il ou elle s'est vraiment intéressé·e à ce que vous proposez.\n\nÀ partir de septembre, j'entre en incubation pour voir jusqu'où cette idée peut aller. Je cherche des bêta-testeurs — si ça vous intéresse, ou si vous avez un retour à me faire, écrivez-moi : julzantoine@yahoo.com.\n\nPS — Et sinon, normalement, c'est ici que vous afficheriez votre bio, pour expliquer à quel point vous êtes extraordinaire et pertinent·e pour le poste. :)",
+        "contactEmail": "",
+        "contactUrl": "",
+        "formspreeEndpoint": "",
+        "logo": "logo-demo-fr.jpeg",
+        "photo": "photo-demo-fr.jpg",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        },
+        "bgColor": "#f6f5f3",
+        "tagline": "",
+        "textColor": "#262521"
+      },
+      "testimonials": [
+        {
+          "text": "Ma collaboration avec ce compositeur a été étonnamment fluide, notamment grâce à LayerPitch : on a pu tester des idées presque en temps réel, sans passer par une implémentation dans un moteur audio à chaque essai.",
+          "author": "John Doe, développeur"
+        },
+        {
+          "text": "Ce qui m'a vraiment convaincu avec les packs de ce compositeur, c'est d'avoir pu voir la musique et les SFX fonctionner directement sur MA vidéo de gameplay — pas une démo générique du vendeur. Sans budget pour une composition sur mesure, j'ai pu construire l'atmosphère sonore exactement comme je l'imaginais, en la voyant vivre sur mes propres images avant même d'acheter.",
+          "author": "A. Nonyme, GameDev"
+        }
+      ],
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmsrox5psn3r4k",
+        "bmteimdrwxw5iq",
+        "bmresp3hdlhbmx",
+        "bmrdjlv9p1cbv9"
+      ],
+      "trackOverrides": {},
+      "folderId": null
+    },
+    {
+      "id": "formike",
+      "label": "ForMike",
+      "lang": "en",
+      "blocks": [
+        {
+          "id": "bmsca81bnihius",
+          "type": "header"
+        },
+        {
+          "id": "bmsca81bnyxpv6",
+          "type": "testimonials"
+        },
+        {
+          "id": "bmsca81bnj1g2t",
+          "type": "tracks"
+        },
+        {
+          "id": "bmsca81bnxhkhm",
+          "type": "sfx",
+          "sfxIds": [
+            "bms3s3uj7b4oi8",
+            "bms3sf3itgekxm",
+            "bms378c2zbxgpd"
+          ]
+        },
+        {
+          "id": "bmsca81bn8ifi1",
+          "type": "packs",
+          "packIds": [
+            "bmrcakdllw9m7v",
+            "bmrucduoqf8jzn",
+            "bms53ze9zfu132"
+          ]
+        },
+        {
+          "id": "bmsca81bndb2fb",
+          "type": "video",
+          "videos": [
+            {
+              "title": "Rescore Trailer DLC PRojectCars",
+              "url": "https://youtu.be/vHJAhKIIlWc",
+              "comment": "Halloween + Motor Racing Brutality = Pure Adrenaline",
+              "thumbnail": "bmrc9ryuilymwc-thumb-0.png",
+              "thumbnailOriginalName": null
+            }
+          ]
+        },
+        {
+          "id": "bmsca81bnp8jks",
+          "type": "text",
+          "content": "[Find tons of video clips in all kinds of styles HERE!](https://www.dropbox.com/scl/fo/xejq3ujz23ie5n2dnk09t/AEAhvLmCPjHPBR-T9EFjkVk?rlkey=izl6thgbqh9mhz53zovocl1v0&dl=0)\n",
+          "align": "center"
+        },
+        {
+          "id": "bmsca81bnm99aa",
+          "type": "photo",
+          "align": "center",
+          "images": [
+            {
+              "file": "bmrn8gekhvkn4c-0.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrn8gekhvkn4c-1.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrn8gekhvkn4c-2.png",
+              "originalFileName": null
+            },
+            {
+              "file": "bmrn8gekhvkn4c-3.png",
+              "originalFileName": null
+            }
+          ]
+        },
+        {
+          "id": "bmsca81bnnlnci",
+          "type": "bio"
+        }
+      ],
+      "profile": {
+        "title": "",
+        "subtitle": "",
+        "bio": "Hi Mike ! Thank you for taking the time to check out layerpitch!\nRecently, I pitched music to a video game studio. I wanted to make a strong impression and present adaptive music directly—but I couldn’t find any suitable technical solution for it. So I created LayerPitch.\nThe page you’re interacting with is called an AdReel (Adaptive Reel). With a LayerPitch account, you can generate AdReels on demand, tailored to the person you’re sending them to. Behind the scenes, you can track how your contact actually interacted with it: intensity levels tested, SFX triggered, packs and collections explored—in short, how engaged they were with what you’re offering.\nStarting in September, I’ll be entering an incubation program to see how far this idea can go. I’m looking for beta testers—if you’re interested or have feedback, feel free to reach out: julzantoine@yahoo.com.\n\nPS—And by the way, this is where you’d normally display your bio to explain just how extraordinary and perfect you are for the role. :)",
+        "contactEmail": "",
+        "contactUrl": "",
+        "formspreeEndpoint": "",
+        "logo": "logo-demo-trusted-people.jpeg",
+        "photo": "photo-main.jpg",
+        "theme": {
+          "bgColor": "#f6f5f3",
+          "titleColor": "#262521",
+          "contentColor": "#262521",
+          "font": "default",
+          "bgImage": null,
+          "bgImageOpacity": 1
+        }
+      },
+      "testimonials": [
+        {
+          "text": "My collaboration with this composer was surprisingly smooth, thanks to LayerPitch: we were able to test ideas almost in real time, without having to implement them in an audio engine for every trial.",
+          "author": "John Doe, Developer"
+        },
+        {
+          "text": "What really convinced me about this composer’s packs was being able to see the music and SFX work directly on **my** gameplay video—not some generic vendor demo. With no budget for custom composition, I could build the exact sound atmosphere I envisioned, seeing it come to life on my own footage before even making a purchase.",
+          "author": "A. Nonyme"
+        }
+      ],
+      "trackIds": [
+        "bmrc8rec1wtahz",
+        "bmsrox5psn3r4k",
+        "bmteimdrwxw5iq",
+        "bmresp3hdlhbmx",
+        "bmrdjlv9p1cbv9"
+      ],
+      "trackOverrides": {
+        "bmrc8rec1wtahz": {
+          "layers": {
+            "0": "Everything's allright, here",
+            "1": "How many of these guys are there?!",
+            "2": "We all gonne die!!!"
+          },
+          "description": "An adaptive battle loop with 3 intensity levels (Low/Mid/High), perfect for a hack'n'slash game. The intensity scales with the number of enemies on screen, and the loop blends indie charm with punchy energy—because great combat music should always tease the soap before the shower hits. "
+        },
+        "bmrc8vlgamn4fl": {
+          "stingers": {
+            "0": "Secret Lever"
+          },
+          "description": "\"Alright, team—let’s move out. If the plan’s right, we shouldn’t be far from the heart of the matrix now!\"\nA static exploration loop for distant danger—with a secret lever stinger to play with, just for fun."
+        },
+        "bmrc9dbzsaio19": {
+          "description": "It isn't midnight yet. A shadow slips across the rooftops... Fearless, it leaps from roof to gargoyle. Landing lightly on a balcony, the faint click of the French door's latch is almost impossible to hear... Barely moments later, the shadow emerges again, a grin spreading across its face. A shaft of moonlight catches its misshapen jaw. Don Benvenuto.\n\nHe casts one last glance at the spoils of his theft. *Ducatore* is going to be delighted...\n\nBut below, a guard spots him and sounds the alarm. It will take more than that to stop Benvenuto. With mischievous delight, he leads his pursuers on a wild chase... to no avail.\n\nA Opening Yheme for a mysterious, playful fantasy adventure set in the warmth of a summer night.\n"
+        },
+        "bmrdjlv9p1cbv9": {
+          "description": "After countless attempts, the boss finally went down! **Victory!** Loot is raining from the sky, and it takes a while to gather it all. With a bit of luck, we might even get a little cutscene to unlock the next level... who knows? Either way, the music is ready—it’s just waiting for the story.\n\nThree drum parts, four bass parts, six guitar parts, and four keyboard parts... A vertically layered, randomized loop that generates a different musical experience every time you listen."
+        },
+        "bmresp3hdlhbmx": {
+          "description": "It’s pitch black... The tension rises. Why did you rush ahead without waiting for the team? That’s the question running through your mind right now. The door at the end of the hallway is slightly ajar, letting through a thin beam of light. So... what do you do? Do you keep chasing to prevent them from escaping, risking walking into a trap? Or do you wait for the team? Breathe. Slowly. Deeply... And make a decision.\n\nAn intro, an outro... In between, randomly selected 8- or 16-bar segments. Pure sequential tension-building music..."
+        },
+        "bmsrox5psn3r4k": {
+          "description": "#1_Wet Dark Cave\n“Okay guys, spread out. If the map is right, we shouldn’t be too far from the core of the Matrix!”\n\n#2_The Corridor\n“Hey Joe! A door just opened!”\n“Watch out, Lucien. Those bastards are everywhere…”\n“I think it’s this way. I can hear something. Shall we go?”\n“Okay… But don’t go too far. This shit is making me nervous.”\n\nYour team moves forward… and eventually finds a secret lever that opens a hidden door. You make your way into a long, dark corridor. The tension is rising.\n\n#3_Battle\n“THEY’RE COMING!!! Formation! Fire at will! Goddamn robots, they’re everywhere!”\n“Boss, what do we do? Boss?? Boss?!”\n\nYou emerge into a huge cavern… where hundreds of robots catch you off guard and open fire. Maybe you should’ve saved your game after all…\n\n-> A branching piece of music that follows the player’s actions and location…"
         }
       },
       "folderId": null
