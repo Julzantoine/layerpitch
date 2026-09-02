@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1788277095265,
+  "publishedAt": 1788357174783,
   "library": [
     {
       "id": "bmrc8rec1wtahz",
@@ -604,7 +604,9 @@
       "loops": [],
       "randomizeSections": false,
       "sections": [],
-      "sfxIds": [],
+      "sfxIds": [
+        "bms378c2zbxgpd"
+      ],
       "folderId": "bmt1zz0k0043qq"
     },
     {
