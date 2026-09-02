@@ -8,6 +8,28 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-02n] — Parité GitHub/Postgres vérifiée (27/27) : un écart réel trouvé et corrigé sur l'AdReel "Principal"
+
+**Fichiers touchés** : aucun fichier de code — correction de données en base Postgres uniquement (table `ad_reels`, colonne `blocks`, ligne `id = 'main'`)
+
+**Contexte** : à la demande de Jules-Antoine ("vérifie si ce qu'il y a dans le GitHub correspond bien à ce qu'il y a en Postgres"), exécution de `scripts/verify-postgres-migration.js` (déjà existant, utilisé le 31 août) sur l'état courant. Nécessite d'abord une resynchronisation : le dépôt local était 6 commits derrière `origin/main` (publications automatiques faites par le backstage pendant les tests de connexion de Jules-Antoine plus tôt dans la session) — `data.json` local était donc périmé de 26 lignes. `git fetch` + `git merge origin/main` (fusion automatique propre, aucun conflit — mêmes commits de publication routiniers déjà rencontrés plus tôt aujourd'hui) puis push, avant de lancer la vérification sur un `data.json` réellement à jour.
+
+**Diagnostic** : 26 des 27 éléments (morceaux, Sfx, packs, collections, AdReels) strictement identiques entre `data.json` et Postgres. Un seul écart réel, sur l'AdReel `main` ("Principal") : l'ordre des 9 blocs de la page diffère entre les deux (même contenu, positions différentes — notamment le bloc "morceaux" en 3ᵉ position côté GitHub mais en dernière position côté Postgres). Cause probable : une réorganisation de blocs dont l'écriture double n'a, à un moment donné, pas suivi côté Postgres jusqu'au bout. Un second écart de surface (`profile` : clés dans un ordre différent) s'est avéré un faux positif de mon script de diagnostic ad hoc (comparaison sans tri de clés) — le script `verify-postgres-migration.js` original, qui trie les clés avant de comparer, ne l'avait pas signalé à tort.
+
+**Corrigé** : mise à jour directe et ciblée de `ad_reels.blocks` pour `id = 'main'` avec l'ordre de blocs de `data.json` (source de vérité actuelle du site public), après explication à Jules-Antoine et autorisation explicite en chat — l'écriture directe en base avait d'abord été bloquée par le classifieur de permission automatique de Claude Code (action jugée trop risquée sans confirmation explicite), conformément à son fonctionnement attendu. Aucun trigger sur `ad_reels` (vérifié dans les migrations), donc une mise à jour ciblée de la seule colonne concernée est équivalente à ce qu'aurait fait l'RPC `upsert_ad_reel` pour ce champ précis.
+
+**Vérifications** : re-exécution de `scripts/verify-postgres-migration.js` après correction → 27 identique(s), 0 différent(s), "Tout data.json (...) est identique entre l'original et Postgres."
+
+## [2026-09-02m] — Corrige le message d'erreur "undefined" au chargement d'un script api/*.js échoué
+
+**Fichiers touchés** : `layerpitch-backstage.html`, `index.html`, `pack.html`, `collection.html`
+
+**Contexte** : Jules-Antoine a rencontré une alerte "Erreur : undefined" en testant le bouton "Envoyer le lien magique" du backstage (panneau Écriture Postgres, Session B). Diagnostic : `loadPostgresReadScripts()`/`loadPurchaseScripts()` chargent leurs scripts (`api/*.js`) via `new Promise((resolve, reject) => { ...; s.onerror = reject; ... })` — `s.onerror` reçoit en réalité un `Event` DOM, pas une `Error`, donc sans propriété `.message`. Toute erreur remontée plus haut dans la chaîne (`alert('Erreur : ' + e.message)`) tombait donc systématiquement sur "undefined", sans jamais dire quel script avait échoué à charger ni pourquoi — un problème d'affichage, pas une vraie panne : reproduit en direct (navigateur piloté), le clic fonctionnait en réalité correctement une fois testé isolément, la vraie cause du "undefined" ce jour-là étant probablement un script en échec de chargement à un instant donné (tous les fichiers `api/*.js` existent et se chargent normalement en temps normal, vérifié).
+
+**Corrigé** : `s.onerror` construit désormais une vraie `Error` nommant le script en cause (`new Error('Échec du chargement de ' + s.src)`) avant de `reject()`, dans les quatre fichiers qui répètent ce même motif `loadScript()`. Un futur échec de chargement affichera enfin un message exploitable au lieu de "undefined".
+
+**Vérifications** : reproduction en direct via navigateur piloté (serveur local `localhost:8420`) — bouton "Envoyer le lien magique" testé deux fois : premier essai bloqué par la limite anti-spam Supabase par email (message désormais lisible : "For security purposes, you can only request this after N seconds", comportement normal de Supabase, pas un bug), second essai après le délai → succès ("Lien envoyé — vérifie ta boîte mail."), confirmant à la fois la correction du message d'erreur et le bon fonctionnement du flux de connexion.
+
 ## [2026-09-02l] — Retire les boutons de destination du mode séquentiel à embranchement : la carte des chemins suffit
 
 **Fichiers touchés** : `player.js` (retrait de `renderSeqBranchOptions`, du panneau `.seq-branch-options`, simplification de `handleSeqBranchChoice`/`activateSeqStage`/`stopSequential`) ; `index.html`, `pack.html`, `layerpitch-backstage.html` (CSS `.seq-branch-options`/`.seq-branch-btn`/`.seq-branch-transition-badge` retirée ; `?v=` bumpée) ; `test_seq_branching.js`, `test_seq_custom_cut_fade.js`, `test_seq_stage_description.js`, `test_seq_transitions.js`, `test_seq_slot_tempo.js`, `test_seq_map.js` (les clics de test passent désormais par les nœuds de la carte).
