@@ -287,6 +287,41 @@ const path = require('path');
     check('C, la vraie option depuis B, est cliquable', nodeC().classList.contains('selectable'));
   }
 
+  // ---- Scénario 7 : la boule de transition "se colore" (classe .playing) pendant qu'elle est réellement
+  // audible, seulement pendant ce court intervalle (05/09, retour direct) ----
+  {
+    const track = {
+      id: 'sm-7', title: 'Transition dot playing', mode: 'sequential', description: '', duration: 0,
+      base: '', publishedAt: 1, bpm, beatsPerBar, seqMapFullReveal: true,
+      segmentSlots: [
+        {
+          id: 'slotA', label: 'A', repeatCount: 1, quantization: 'immediate',
+          alternatives: [{ label: 'A1', bars: 2, localFile: fakeFile('a1.wav') }],
+          nextOptions: [{ targetId: 'slotB', label: '', transition: { label: 'Whoosh', bars: 4, localFile: fakeFile('whoosh.wav') } }]
+        },
+        { id: 'slotB', label: 'B', repeatCount: 1, alternatives: [{ label: 'B1', bars: 4, localFile: fakeFile('b1.wav') }], nextOptions: [] }
+      ],
+      sfxIds: []
+    };
+    const row = Core.buildTrackRow(track, null, false);
+    doc.getElementById('host').appendChild(row);
+    Core.initTrackPlayer(track, row);
+    await sleep(300);
+    click(row.querySelector('[data-role="playBtn"]'));
+    await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'A1', 2000);
+
+    const dotEl = () => row.querySelector('[data-role="seqMapLines"] .seq-map-transition-dot');
+    check('la boule de transition existe (déclarée sur A->B) mais n\'est pas "en train de jouer" avant tout clic', !!dotEl() && !dotEl().classList.contains('playing'));
+
+    const btnToB = () => [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotB');
+    click(btnToB());
+    await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'Whoosh', 2000);
+    check('la boule passe "en train de jouer" pendant que le fichier de transition est réellement audible', dotEl().classList.contains('playing'));
+
+    await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'B1', 3000);
+    check('la boule redevient inerte une fois la transition terminée (B1 devenu le segment courant)', !dotEl().classList.contains('playing'));
+  }
+
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
 })().catch(e => { console.error('TEST THREW:', e); process.exit(1); });
