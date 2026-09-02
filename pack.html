@@ -150,31 +150,33 @@
   .seq-branch-btn.pending { border-color: var(--accent); border-style: dashed; color: var(--accent); }
   .seq-pending-indicator { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.04em; color: var(--accent); margin-top: 6px; font-style: italic; }
 
-  /* Aperçu enrichi des boutons d'embranchement (02/09) : forme d'onde statique du fichier de la boucle
-     cible (pas de progression, le segment n'a pas encore été atteint) derrière le libellé, plus un badge
-     si un fichier de transition existe pour cette paire précise. Classe distincte (.seq-branch-btn-rich)
-     ajoutée seulement quand un aperçu est disponible (buffer déjà décodé) -- repli sur le simple bouton
-     texte existant sinon (cible sans fichier chargé). Pas de bleu/violet ici : aucune convention de ce
-     genre n'existe ailleurs dans le projet (vérifié), on reprend var(--accent) comme partout ailleurs. */
-  .seq-branch-btn-rich { position: relative; width: 128px; height: 40px; padding: 0; overflow: hidden; border-radius: 6px; text-align: left; }
-  .seq-branch-wave-bg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.8; }
-  .seq-branch-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 6px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; text-align: center; z-index: 1; text-shadow: 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff); }
-  .seq-branch-transition-badge { position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; z-index: 2; }
+  /* Badge d'embranchement (02/09, forme d'onde retirée le même jour sur retour de Jules-Antoine en
+     situation réelle -- gardée uniquement sur la carte globale ci-dessous, pas sur ces boutons) : badge
+     si un fichier de transition existe pour cette paire d'embranchement précise. Pas de bleu/violet ici
+     malgré une maquette antérieure qui les utilisait : décidé avec Jules-Antoine de garder var(--accent)
+     partout (un seul langage visuel "actif" dans tout le site), y compris pour le chantier embr-vertical
+     déjà livré qui a la même maquette bleu/violet/vert non retenue. */
+  .seq-branch-btn { position: relative; }
+  .seq-branch-transition-badge { position: absolute; top: -5px; right: -5px; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; z-index: 2; }
   .seq-branch-transition-badge svg { width: 8px; height: 8px; }
 
-  /* Carte globale des chemins (mode séquentiel à embranchement, 02/09) : un nœud par emplacement révélé
-     (déjà atteint, courant, ou option immédiate depuis le courant -- voir updateSeqMap() dans player.js),
-     arêtes SVG dessinées en réutilisant la même technique que le graphe Wwise du vertical-random (chemins
-     courbes calculés depuis les positions réelles des nœuds, voir .wwise-graph-lines) mais sans
-     disposition en colonnes fixes -- généralisée à une grille en flux, seule façon simple de représenter
-     un vrai graphe avec boucles (une arête peut revenir vers un nœud déjà affiché plus tôt dans le flux).
-     Côté Backstage (aperçu "Écouter"), track.seqMapFullReveal affiche TOUS les emplacements d'emblée
-     (outil de vérification de sa propre structure) ; côté public, révélation progressive uniquement. */
+  /* Carte globale des chemins (mode séquentiel à embranchement, 02/09, reprise en flowchart le même jour
+     après un premier essai en grille en flux qui s'effondrait en une colonne illisible dans le panneau
+     étroit du Backstage -- arêtes de retour alors invisibles, superposées derrière les nœuds empilés,
+     signalé par Jules-Antoine en situation réelle). Disposition en couches : .seq-map-graph est la
+     fenêtre défilable (overflow-x:auto), .seq-map-canvas le contenu dimensionné par JS (updateSeqMap()
+     dans player.js) sur lequel .seq-map-lines/.seq-map-nodes se superposent en position absolue --
+     colonnes = distance depuis le premier emplacement découvert, lignes = ordre de première découverte.
+     Une arête de retour (boucle/cycle) est tracée en boucle large plutôt qu'en ligne droite -- jamais
+     superposée aux nœuds intermédiaires, contrairement à la première version. Côté Backstage (aperçu
+     "Écouter"), track.seqMapFullReveal affiche TOUS les emplacements d'emblée (outil de vérification de
+     sa propre structure) ; côté public, révélation progressive uniquement. */
   .seq-map { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
-  .seq-map-graph { position: relative; }
-  .seq-map-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-  .seq-map-nodes { display: flex; flex-wrap: wrap; gap: 14px 20px; position: relative; z-index: 1; }
-  .seq-map-node { position: relative; width: var(--seq-map-node-w, 96px); height: var(--seq-map-node-h, 40px); border-radius: 6px; border: 1px solid var(--border); overflow: hidden; background: var(--bg-card); }
+  .seq-map-graph { position: relative; overflow-x: auto; overflow-y: hidden; }
+  .seq-map-canvas { position: relative; }
+  .seq-map-lines { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+  .seq-map-nodes { position: absolute; inset: 0; }
+  .seq-map-node { position: absolute; width: var(--seq-map-node-w, 96px); height: var(--seq-map-node-h, 40px); border-radius: 6px; border: 1px solid var(--border); overflow: hidden; background: var(--bg-card); }
   .seq-map-node:not(.current):not(.visited) { border-style: dashed; }
   .seq-map-node.current { border-color: var(--accent); border-width: 2px; }
   .seq-map-node.current .seq-map-node-fg { opacity: 1; }
@@ -187,10 +189,10 @@
   .seq-map-edge.branch { stroke-dasharray: 3 3; }
   .seq-map-edge.transition { stroke: var(--accent); }
   .seq-map-edge-label { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; fill: var(--text-dimmer); }
-  /* Repli compact au-delà du plancher de lisibilité (voir seuils dans player.js) : petites puces sans
-     forme d'onde, juste le libellé -- même principe de dégradation que le vertical à embranchement. */
-  .seq-map-nodes.compact .seq-map-node { width: auto; height: auto; padding: 3px 8px; border-radius: 10px; }
-  .seq-map-nodes.compact .seq-map-node-bg, .seq-map-nodes.compact .seq-map-node-fg { display: none; }
+  /* Repli compact au-delà du plancher de lisibilité (voir seuils dans player.js) : simple liste de puces
+     en flux, aucune position ni arête -- même principe de dégradation que le vertical à embranchement. */
+  .seq-map-nodes.compact { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
+  .seq-map-nodes.compact .seq-map-node { position: static; width: auto; height: auto; padding: 3px 8px; border-radius: 10px; }
   .seq-map-nodes.compact .seq-map-node-label { position: static; text-shadow: none; }
 
   .loop-count-block { margin-top: 14px; }

@@ -741,8 +741,10 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       <div class="seq-map" data-role="seqMap">
         <div class="voice-graph-label">${t('seqMapLabel')}</div>
         <div class="seq-map-graph" data-role="seqMapGraph">
-          <svg class="seq-map-lines" data-role="seqMapLines"></svg>
-          <div class="seq-map-nodes" data-role="seqMapNodes"></div>
+          <div class="seq-map-canvas" data-role="seqMapCanvas">
+            <svg class="seq-map-lines" data-role="seqMapLines"></svg>
+            <div class="seq-map-nodes" data-role="seqMapNodes"></div>
+          </div>
         </div>
       </div>
     `;
@@ -1101,15 +1103,15 @@ function initTrackPlayer(track, wrapper) {
   const seqBranchOptionsEl = wrapper.querySelector('[data-role="seqBranchOptions"]');
   const seqPendingIndicatorEl = wrapper.querySelector('[data-role="seqPendingIndicator"]');
   // Carte globale des chemins (02/09) -- voir updateSeqMap()/drawSeqMapLines() plus bas.
+  // Carte globale des chemins (02/09) : .seq-map-graph est la fenêtre défilable (overflow-x:auto),
+  // .seq-map-canvas le contenu dimensionné par JS (voir updateSeqMap()), .seq-map-lines/.seq-map-nodes
+  // deux calques superposés à l'intérieur de ce contenu. Positions calculées en JS (pas de mesure
+  // getBoundingClientRect), donc pas besoin de ResizeObserver ici -- contrairement au graphe Wwise voisin
+  // (drawWwiseLines), qui lui mesure le DOM et doit être rappelé au redimensionnement.
   const seqMapGraphEl = wrapper.querySelector('[data-role="seqMapGraph"]');
+  const seqMapCanvasEl = wrapper.querySelector('[data-role="seqMapCanvas"]');
   const seqMapLinesEl = wrapper.querySelector('[data-role="seqMapLines"]');
   const seqMapNodesEl = wrapper.querySelector('[data-role="seqMapNodes"]');
-  // drawSeqMapLines() n'est définie que plus bas dans ce fichier (avec le reste du moteur séquentiel) --
-  // sans effet ici puisque `function` est hissée, mais l'observer lui-même doit être posé APRÈS la
-  // déclaration const de seqMapGraphEl ci-dessus (bug trouvé à l'exécution : le placer plus haut, au même
-  // endroit que l'observer du graphe Wwise, levait une ReferenceError -- accès à seqMapGraphEl avant son
-  // initialisation, la déclaration const n'ayant pas encore été exécutée à ce point du fichier).
-  if (seqMapGraphEl && window.ResizeObserver) new ResizeObserver(() => drawSeqMapLines()).observe(seqMapGraphEl);
   const goToEndBtn = wrapper.querySelector('[data-role="goToEndBtn"]');
   const goToNextSectionBtn = wrapper.querySelector('[data-role="goToNextSectionBtn"]');
   const sectionCurrentEl = wrapper.querySelector('[data-role="sectionCurrent"]');
@@ -1517,29 +1519,16 @@ function initTrackPlayer(track, wrapper) {
       // supprimé depuis), cas déjà géré sans casse ailleurs (performSeqBranchCut sort silencieusement).
       const label = opt.label || (targetSlot && targetSlot.label) || (targetSlot ? t('slotFallback', { n: targetIdx + 1 }) : opt.targetId);
       const isPending = pendingNextSegmentId === opt.targetId;
-      // Zoom local (02/09) : aperçu de la cible (forme d'onde statique, pas de progression -- ce segment
-      // n'a pas encore été atteint) + badge si un fichier de transition existe pour CETTE paire précise.
-      // slotBuffers/transitionBuffers sont déjà décodés au chargement (voir plus bas dans ce fichier) --
-      // rien à décoder ici, juste à lire l'état existant. Repli sur le simple bouton texte si la cible n'a
-      // aucun fichier chargé (orpheline, ou tous ses fichiers manquants).
-      const previewBuf = targetIdx >= 0 ? (slotBuffers[targetIdx] || []).find(b => b) : null;
+      // Zoom local (02/09, forme d'onde retirée le même jour sur retour direct de Jules-Antoine en
+      // situation réelle -- gardée uniquement sur la carte globale, pas sur ces boutons) : badge si un
+      // fichier de transition existe pour CETTE paire précise. transitionBuffers déjà décodé au
+      // chargement (voir plus bas dans ce fichier) -- rien à décoder ici, juste à lire l'état existant.
       const hasTransition = !!(transitionBuffers[slotIdx] && transitionBuffers[slotIdx][oi]);
       const badge = hasTransition ? `<span class="seq-branch-transition-badge" title="${escapeHtml(t('branchTransitionBadgeTitle'))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 L4 14 h6 l-1 8 9-12 h-6 z"/></svg></span>` : '';
-      if (previewBuf) {
-        return `<button type="button" class="seq-branch-btn seq-branch-btn-rich${isPending ? ' pending' : ''}" data-target-id="${escapeHtml(opt.targetId)}" data-opt-idx="${oi}"><canvas class="seq-branch-wave-bg"></canvas><span class="seq-branch-label">${escapeHtml(label)}</span>${badge}</button>`;
-      }
       return `<button type="button" class="seq-branch-btn${isPending ? ' pending' : ''}" data-target-id="${escapeHtml(opt.targetId)}" data-opt-idx="${oi}">${escapeHtml(label)}${badge}</button>`;
     }).join('');
     updateSeqPendingIndicator();
     seqBranchOptionsEl.querySelectorAll('.seq-branch-btn').forEach(btn => {
-      const bg = btn.querySelector('.seq-branch-wave-bg');
-      if (bg) {
-        const targetIdx = (track.segmentSlots || []).findIndex(sl => sl.id === btn.dataset.targetId);
-        const buf = targetIdx >= 0 ? (slotBuffers[targetIdx] || []).find(b => b) : null;
-        // fgCanvas volontairement omis (null) : aperçu statique, pas de progression -- renderWaveformPair()
-        // gère déjà ce cas (voir sa définition plus haut dans ce fichier).
-        if (buf) renderWaveformPair(bg, null, buf, cssVar('--border', '#ccc'));
-      }
       btn.addEventListener('click', () => {
         // Dernier clic gagne (validé le 31/07) : un second clic sur une autre option remplace simplement
         // le choix précédent, il n'y a jamais de verrou sur le premier clic.
@@ -1558,11 +1547,19 @@ function initTrackPlayer(track, wrapper) {
     if (!seqPendingIndicatorEl) return;
     seqPendingIndicatorEl.style.display = pendingNextSegmentId ? '' : 'none';
   }
-  // ---- Carte globale des chemins (02/09) : un nœud par emplacement révélé, arêtes SVG entre eux --
-  // pilotée depuis activateSeqStage() (voir plus haut), pas de boucle de rendu séparée. Dégradation
-  // (nombre de nœuds simultanément visibles) : seuils repris de la même logique que le vertical à
-  // embranchement (voir CHANGELOG pour le raisonnement détaillé des valeurs choisies). ----
+  // ---- Carte globale des chemins (02/09, réécrite le même jour après un premier passage en grille en
+  // flux -- voir CHANGELOG "reprise en flowchart" pour le contexte) : disposition en couches façon
+  // flowchart, colonnes = distance (en arêtes AVANT) depuis le premier emplacement découvert, lignes =
+  // ordre de première découverte au sein d'une colonne. Positions calculées entièrement en JS (pas de
+  // mesure getBoundingClientRect comme drawWwiseLines()) -- un vrai graphe avec boucles a besoin de
+  // connaître la colonne de la cible AVANT de choisir comment tracer l'arête (tout droit si elle avance,
+  // en boucle si elle revient en arrière), ce que la seule position DOM ne donne pas. Dégradation (nombre
+  // de nœuds simultanément visibles) : seuils repris de la même logique que le vertical à embranchement
+  // (voir CHANGELOG pour le raisonnement détaillé des valeurs choisies) -- au-delà du plancher, repli sur
+  // une simple liste de puces en flux, sans position ni arêtes (même principe que le repli compact déjà
+  // utilisé côté embr-vertical). ----
   const SEQ_MAP_FULL_SIZE_MAX = 6, SEQ_MAP_DEGRADE_MAX = 14;
+  const SEQ_MAP_COL_GAP = 40, SEQ_MAP_ROW_GAP = 16;
   // Ensemble des index d'emplacements à révéler pour l'état courant -- toujours tout en mode
   // seqMapFullReveal (Backstage), sinon déjà-visités + courant + options immédiates depuis le courant
   // (effet de découverte demandé le 1er septembre).
@@ -1580,22 +1577,110 @@ function initTrackPlayer(track, wrapper) {
     }
     return [...visible];
   }
+  // Cibles "en avant" d'un emplacement, restreintes aux emplacements révélés -- embranchement déclaré
+  // (nextOptions) ou, à défaut, avancement automatique vers le suivant dans l'ordre du tableau (même
+  // approximation volontaire que dans la première version : ne rejoue pas la logique de saut des
+  // emplacements vides de pickNextSegmentSlot(), suffisante pour un aperçu topologique).
+  function seqMapForwardTargets(idx, revealedSet) {
+    const slots = track.segmentSlots || [];
+    const slot = slots[idx];
+    if (!slot) return [];
+    const opts = slot.nextOptions || [];
+    if (opts.length) return opts.map(o => slots.findIndex(sl => sl.id === o.targetId)).filter(ti => ti >= 0 && revealedSet.has(ti));
+    const nextIdx = (idx + 1) % slots.length;
+    return (nextIdx !== idx && revealedSet.has(nextIdx)) ? [nextIdx] : [];
+  }
+  // Colonne = distance en arêtes AVANT depuis la racine (le premier emplacement découvert encore révélé,
+  // ou l'emplacement 0 si rien n'a encore été découvert -- cas Backstage avant toute lecture), par simple
+  // parcours en largeur sur le sous-graphe des emplacements révélés. Une arête vers un emplacement déjà
+  // affecté à une colonne (boucle/retour) n'avance jamais sa colonne -- c'est justement ce qui la
+  // distingue d'une avancée (voir seqMapDrawEdges, tracé en boucle plutôt qu'en ligne droite pour ces
+  // arêtes-là). Ligne = position dans sa colonne, dans l'ordre de première découverte
+  // (seqVisitedSlotIds étant un Set, son ordre d'itération EST l'ordre d'insertion -- aucun état
+  // supplémentaire à tenir pour ça).
+  function seqMapComputeLayout(visibleIdx, currentIdx) {
+    const revealedSet = new Set(visibleIdx);
+    const visitedOrder = [...seqVisitedSlotIds];
+    const startIdx = visitedOrder.find(i => revealedSet.has(i));
+    const root = startIdx != null ? startIdx : visibleIdx[0];
+    const col = {};
+    if (root != null) {
+      col[root] = 0;
+      const queue = [root];
+      while (queue.length) {
+        const idx = queue.shift();
+        seqMapForwardTargets(idx, revealedSet).forEach(ti => {
+          if (col[ti] == null) { col[ti] = col[idx] + 1; queue.push(ti); }
+        });
+      }
+    }
+    // Emplacement révélé mais jamais atteint par le parcours (composante détachée de la racine -- ne
+    // devrait pas arriver en pratique étant donné comment revealedSet est construit, mais ne doit jamais
+    // faire planter le rendu) : colonne 0 par défaut plutôt qu'un index manquant.
+    visibleIdx.forEach(idx => { if (col[idx] == null) col[idx] = 0; });
+    const orderOf = idx => { const p = visitedOrder.indexOf(idx); return p === -1 ? Infinity : p; };
+    const byCol = {};
+    visibleIdx.slice().sort((a, b) => orderOf(a) - orderOf(b) || a - b).forEach(idx => {
+      (byCol[col[idx]] = byCol[col[idx]] || []).push(idx);
+    });
+    const row = {};
+    Object.keys(byCol).forEach(c => byCol[c].forEach((idx, i) => { row[idx] = i; }));
+    const maxCol = Math.max(0, ...visibleIdx.map(idx => col[idx]));
+    const maxRows = Math.max(1, ...Object.values(byCol).map(arr => arr.length));
+    return { col, row, maxCol, maxRows };
+  }
   function updateSeqMap(currentIdx) {
-    if (!seqMapNodesEl) return;
+    if (!seqMapNodesEl || !seqMapCanvasEl) return;
     const slots = track.segmentSlots || [];
     const visibleIdx = seqMapVisibleSlotIndices(currentIdx);
-    if (!visibleIdx.length) { seqMapNodesEl.innerHTML = ''; if (seqMapLinesEl) seqMapLinesEl.innerHTML = ''; return; }
+    if (!visibleIdx.length) {
+      seqMapNodesEl.innerHTML = ''; if (seqMapLinesEl) seqMapLinesEl.innerHTML = '';
+      seqMapCanvasEl.style.width = ''; seqMapCanvasEl.style.height = '';
+      return;
+    }
     const n = visibleIdx.length;
     const compact = n > SEQ_MAP_DEGRADE_MAX;
     seqMapNodesEl.classList.toggle('compact', compact);
-    if (!compact) {
-      const span = SEQ_MAP_DEGRADE_MAX - SEQ_MAP_FULL_SIZE_MAX;
-      const over = Math.max(0, Math.min(n, SEQ_MAP_DEGRADE_MAX) - SEQ_MAP_FULL_SIZE_MAX);
-      const w = Math.round(96 - over * (36 / span));
-      const h = Math.round(40 - over * (12 / span));
-      seqMapNodesEl.style.setProperty('--seq-map-node-w', w + 'px');
-      seqMapNodesEl.style.setProperty('--seq-map-node-h', h + 'px');
+    if (compact) {
+      // Repli : simple liste de puces en flux, aucune position ni arête -- même esprit que le repli
+      // compact déjà utilisé côté embr-vertical (au-delà du plancher, la topologie exacte importe moins
+      // que rester lisible d'un coup d'œil).
+      seqMapCanvasEl.style.width = ''; seqMapCanvasEl.style.height = '';
+      if (seqMapLinesEl) seqMapLinesEl.innerHTML = '';
+      seqMapNodesEl.innerHTML = visibleIdx.map(idx => {
+        const slot = slots[idx] || {};
+        const isCurrent = idx === currentIdx;
+        const isVisited = seqVisitedSlotIds.has(idx) && !isCurrent;
+        const label = slot.label || t('slotFallback', { n: idx + 1 });
+        const cls = 'seq-map-node' + (isCurrent ? ' current' : '') + (isVisited ? ' visited' : '');
+        const check = isVisited ? '<span class="seq-map-node-check">✓</span>' : '';
+        return `<div class="${cls}" data-slot-idx="${idx}"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
+      }).join('');
+      return;
     }
+    const span = SEQ_MAP_DEGRADE_MAX - SEQ_MAP_FULL_SIZE_MAX;
+    const over = Math.max(0, Math.min(n, SEQ_MAP_DEGRADE_MAX) - SEQ_MAP_FULL_SIZE_MAX);
+    const w = Math.round(96 - over * (36 / span));
+    const h = Math.round(40 - over * (12 / span));
+    seqMapNodesEl.style.setProperty('--seq-map-node-w', w + 'px');
+    seqMapNodesEl.style.setProperty('--seq-map-node-h', h + 'px');
+    const layout = seqMapComputeLayout(visibleIdx, currentIdx);
+    const colW = w + SEQ_MAP_COL_GAP, rowH = h + SEQ_MAP_ROW_GAP;
+    const totalW = (layout.maxCol + 1) * colW - SEQ_MAP_COL_GAP;
+    // Marge verticale supplémentaire si au moins une arête de retour existe -- sa boucle dépasse
+    // volontairement la dernière ligne de nœuds (voir seqMapDrawEdges, loopY = ... + rowH*0.55), sans
+    // cette marge elle serait coupée par overflow-y:hidden sur .seq-map-graph (bug trouvé en vérification
+    // visuelle réelle : la boucle de retour existait bien dans le SVG mais restait invisible, coupée sous
+    // le bord de la carte -- même famille de bug que celui trouvé par Jules-Antoine, juste sur l'axe
+    // vertical cette fois plutôt qu'horizontal).
+    const hasBackEdge = visibleIdx.some(idx => seqMapForwardTargets(idx, new Set(visibleIdx)).some(ti => layout.col[ti] <= layout.col[idx]));
+    const totalH = layout.maxRows * rowH - SEQ_MAP_ROW_GAP + (hasBackEdge ? Math.round(rowH * 0.7) : 0);
+    // Taille explicite sur le conteneur défilable (pas sur .seq-map-graph, qui reste la fenêtre visible) --
+    // permet un défilement horizontal si le graphe est plus large que la carte, plutôt que l'effondrement
+    // en une seule colonne trouvé en situation réelle avec la première version (nœuds superposés, arêtes
+    // invisibles derrière eux, voir CHANGELOG).
+    seqMapCanvasEl.style.width = totalW + 'px';
+    seqMapCanvasEl.style.height = totalH + 'px';
     seqMapNodesEl.innerHTML = visibleIdx.map(idx => {
       const slot = slots[idx] || {};
       const isCurrent = idx === currentIdx;
@@ -1603,78 +1688,79 @@ function initTrackPlayer(track, wrapper) {
       const label = slot.label || t('slotFallback', { n: idx + 1 });
       const cls = 'seq-map-node' + (isCurrent ? ' current' : '') + (isVisited ? ' visited' : '');
       const check = isVisited ? '<span class="seq-map-node-check">✓</span>' : '';
-      const wave = compact ? '' : `<canvas class="seq-map-node-bg" data-role="seqMapNodeBg-${idx}"></canvas><canvas class="seq-map-node-fg" data-role="seqMapNodeFg-${idx}"></canvas>`;
-      return `<div class="${cls}" data-slot-idx="${idx}">${wave}<span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
+      const x = layout.col[idx] * colW, y = layout.row[idx] * rowH;
+      return `<div class="${cls}" data-slot-idx="${idx}" style="left:${x}px;top:${y}px"><canvas class="seq-map-node-bg" data-role="seqMapNodeBg-${idx}"></canvas><canvas class="seq-map-node-fg" data-role="seqMapNodeFg-${idx}"></canvas><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
     }).join('');
-    if (!compact) {
-      visibleIdx.forEach(idx => {
-        const bg = seqMapNodesEl.querySelector(`[data-role="seqMapNodeBg-${idx}"]`);
-        const fg = seqMapNodesEl.querySelector(`[data-role="seqMapNodeFg-${idx}"]`);
-        const buf = (slotBuffers[idx] || []).find(b => b);
-        if (buf) renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
-      });
-    }
-    requestAnimationFrame(drawSeqMapLines);
+    visibleIdx.forEach(idx => {
+      const bg = seqMapNodesEl.querySelector(`[data-role="seqMapNodeBg-${idx}"]`);
+      const fg = seqMapNodesEl.querySelector(`[data-role="seqMapNodeFg-${idx}"]`);
+      const buf = (slotBuffers[idx] || []).find(b => b);
+      if (buf) renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+    });
+    seqMapDrawEdges(layout, visibleIdx, colW, rowH, w, h, totalW, totalH);
   }
-  // Arêtes SVG entre nœuds révélés -- même technique que drawWwiseLines() (chemins bezier calculés depuis
-  // les positions réelles des nœuds via getBoundingClientRect), généralisée à une disposition en grille en
-  // flux au lieu de 3 colonnes fixes : seule façon simple de représenter un vrai graphe avec boucles (une
-  // arête peut revenir vers un nœud déjà affiché plus tôt dans le flux -- voir CHANGELOG). Deux types
-  // d'arêtes : linéaire (avancement automatique, un emplacement sans nextOptions vers le suivant dans
-  // l'ordre du tableau -- approximation volontaire, ne rejoue pas la logique de saut des emplacements
-  // vides de pickNextSegmentSlot(), suffisante pour un aperçu topologique) et embranchement (nextOptions,
-  // avec le libellé de l'option et un style distinct si un fichier de transition lui est associé).
-  function drawSeqMapLines() {
-    if (!seqMapGraphEl || !seqMapLinesEl || !seqMapNodesEl) return;
-    const rect = seqMapGraphEl.getBoundingClientRect();
-    if (rect.width < 2 || rect.height < 2) return;
-    const svgNS = 'http://www.w3.org/2000/svg';
-    seqMapLinesEl.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
-    seqMapLinesEl.innerHTML = '';
+  // Arêtes SVG entre nœuds révélés, positions calculées directement depuis `layout` (pas de mesure DOM).
+  // Arête "en avant" (colonne cible > colonne source) : courbe en S classique. Arête "en arrière ou même
+  // colonne" (boucle/retour, colonne cible <= colonne source -- exactement le cas "#3 Battle -> #1
+  // WetDarkCave" trouvé manquant en situation réelle avec la première version) : boucle large qui sort et
+  // rentre par la droite des deux nœuds, jamais une ligne droite qui passerait derrière les nœuds
+  // intermédiaires (c'est précisément ce qui la rendait invisible avant cette réécriture). totalW/totalH
+  // reçus tels quels depuis updateSeqMap() (pas recalculés ici) pour que le viewBox du SVG corresponde
+  // exactement à .seq-map-canvas, marge des boucles de retour comprise -- sinon une boucle qui dépasse la
+  // dernière ligne de nœuds serait coupée par overflow-y:hidden (bug trouvé en vérification visuelle).
+  function seqMapDrawEdges(layout, visibleIdx, colW, rowH, nodeW, nodeH, totalW, totalH) {
+    if (!seqMapLinesEl) return;
     const slots = track.segmentSlots || [];
-    const nodeEls = {};
-    seqMapNodesEl.querySelectorAll('.seq-map-node').forEach(el => { nodeEls[el.dataset.slotIdx] = el; });
-    const center = el => {
-      const r = el.getBoundingClientRect();
-      return { x: r.left + r.width / 2 - rect.left, y: r.top + r.height / 2 - rect.top };
-    };
-    const drawEdge = (fromEl, toEl, cls, label) => {
-      const a = center(fromEl), b = center(toEl);
-      const midX = (a.x + b.x) / 2;
+    seqMapLinesEl.setAttribute('viewBox', `0 0 ${totalW} ${totalH}`);
+    seqMapLinesEl.setAttribute('width', totalW);
+    seqMapLinesEl.setAttribute('height', totalH);
+    seqMapLinesEl.innerHTML = '';
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const rightOf = idx => ({ x: layout.col[idx] * colW + nodeW, y: layout.row[idx] * rowH + nodeH / 2 });
+    const leftOf = idx => ({ x: layout.col[idx] * colW, y: layout.row[idx] * rowH + nodeH / 2 });
+    const visibleSet = new Set(visibleIdx);
+    const drawEdge = (fromIdx, toIdx, cls, label) => {
+      const isBack = layout.col[toIdx] <= layout.col[fromIdx];
+      const a = rightOf(fromIdx), b = isBack ? rightOf(toIdx) : leftOf(toIdx);
       const path = document.createElementNS(svgNS, 'path');
-      path.setAttribute('d', `M ${a.x} ${a.y} C ${midX} ${a.y}, ${midX} ${b.y}, ${b.x} ${b.y}`);
+      let d, labelX, labelY;
+      if (isBack) {
+        const loopY = Math.max(a.y, b.y) + rowH * 0.55;
+        d = `M ${a.x} ${a.y} C ${a.x + 26} ${loopY}, ${b.x + 26} ${loopY}, ${b.x} ${b.y}`;
+        labelX = (a.x + b.x) / 2 + 26; labelY = loopY - 4;
+      } else {
+        const midX = (a.x + b.x) / 2;
+        d = `M ${a.x} ${a.y} C ${midX} ${a.y}, ${midX} ${b.y}, ${b.x} ${b.y}`;
+        labelX = midX; labelY = (a.y + b.y) / 2 - 4;
+      }
+      path.setAttribute('d', d);
       path.setAttribute('class', 'seq-map-edge' + (cls ? ' ' + cls : ''));
       seqMapLinesEl.appendChild(path);
       if (label) {
         const text = document.createElementNS(svgNS, 'text');
-        text.setAttribute('x', String(midX));
-        text.setAttribute('y', String((a.y + b.y) / 2 - 4));
+        text.setAttribute('x', String(labelX));
+        text.setAttribute('y', String(labelY));
         text.setAttribute('text-anchor', 'middle');
         text.setAttribute('class', 'seq-map-edge-label');
         text.textContent = label;
         seqMapLinesEl.appendChild(text);
       }
     };
-    Object.keys(nodeEls).forEach(key => {
-      const idx = parseInt(key, 10);
+    visibleIdx.forEach(idx => {
       const slot = slots[idx];
       if (!slot) return;
-      const fromEl = nodeEls[key];
       const options = slot.nextOptions || [];
       if (options.length) {
         options.forEach((opt, oi) => {
           const targetIdx = slots.findIndex(sl => sl.id === opt.targetId);
-          const toEl = targetIdx >= 0 ? nodeEls[String(targetIdx)] : null;
-          if (!toEl) return; // cible pas encore révélée -- pas d'arête vers du vide
+          if (targetIdx < 0 || !visibleSet.has(targetIdx)) return; // cible pas encore révélée -- pas d'arête vers du vide
           const hasTransition = !!(transitionBuffers[idx] && transitionBuffers[idx][oi]);
           const label = opt.label || (slots[targetIdx] && slots[targetIdx].label) || '';
-          drawEdge(fromEl, toEl, 'branch' + (hasTransition ? ' transition' : ''), label);
+          drawEdge(idx, targetIdx, 'branch' + (hasTransition ? ' transition' : ''), label);
         });
       } else {
-        // Avancement automatique (pas de choix) : emplacement suivant dans l'ordre du tableau, en boucle.
         const nextIdx = (idx + 1) % slots.length;
-        const toEl = nodeEls[String(nextIdx)];
-        if (toEl && nextIdx !== idx) drawEdge(fromEl, toEl, '', '');
+        if (nextIdx !== idx && visibleSet.has(nextIdx)) drawEdge(idx, nextIdx, '', '');
       }
     });
   }

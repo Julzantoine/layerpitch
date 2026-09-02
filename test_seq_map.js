@@ -92,11 +92,13 @@ const path = require('path');
 
     const btnToB = () => [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotB');
     const btnToC = () => [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotC');
-    check('bouton vers B enrichi (aperçu de la forme d\'onde de la cible, déjà décodée)', btnToB().classList.contains('seq-branch-btn-rich') && !!btnToB().querySelector('.seq-branch-wave-bg'));
-    check('bouton vers C également enrichi (sa cible a aussi un buffer décodé)', btnToC().classList.contains('seq-branch-btn-rich'));
+    // Forme d'onde retirée le 02/09 sur retour direct de Jules-Antoine en situation réelle (gardée
+    // uniquement sur la carte globale, voir scénarios suivants) -- seul le badge de transition subsiste.
+    check('aucun canvas de forme d\'onde sur le bouton vers B (retiré, gardé uniquement sur la carte)', !btnToB().querySelector('canvas'));
+    check('aucun canvas de forme d\'onde sur le bouton vers C non plus', !btnToC().querySelector('canvas'));
     check('badge de transition présent UNIQUEMENT sur le bouton vers B (transition déclarée pour cette paire précise)', !!btnToB().querySelector('.seq-branch-transition-badge'));
     check('aucun badge sur le bouton vers C (aucune transition déclarée pour cette paire)', !btnToC().querySelector('.seq-branch-transition-badge'));
-    check('le libellé reste lisible malgré le markup enrichi (canvas/badge ne contribuent aucun texte)', btnToB().textContent.trim() === 'To B');
+    check('le libellé reste lisible malgré le badge (le badge ne contribue aucun texte)', btnToB().textContent.trim() === 'To B');
   }
 
   // ---- Scénario 2 : révélation progressive côté public -- rien avant de jouer, puis courant + options immédiates seulement ----
@@ -167,6 +169,28 @@ const path = require('path');
     check('toujours 2 nœuds distincts après le retour sur A (aucun doublon créé par le cycle)', nodesEl.children.length === 2);
     check('A redevient "current" (pas un second nœud "A")', !!nodesEl.querySelector('.seq-map-node[data-slot-idx="0"].current'));
     check('B, quitté, porte maintenant "visited"', !!nodesEl.querySelector('.seq-map-node[data-slot-idx="1"].visited'));
+
+    // Bug trouvé en situation réelle (03/09) : la première version (grille en flux) ne traçait pas
+    // d'arête visible pour "#3 Battle -> #1 WetDarkCave" -- en fait si, mais superposée derrière les
+    // nœuds intermédiaires (tous à la même position x dans une colonne unique). La disposition en
+    // couches place A et B dans des colonnes DIFFÉRENTES (A avance vers B), donc l'arête de retour B->A
+    // doit maintenant être tracée en boucle distincte plutôt qu'invisible.
+    const nodeA = nodesEl.querySelector('[data-slot-idx="0"]'), nodeB = nodesEl.querySelector('[data-slot-idx="1"]');
+    check('A et B occupent des colonnes différentes (A précède B dans le flux, style "left" distinct)', parseFloat(nodeA.style.left) !== parseFloat(nodeB.style.left));
+    const linesEl = row.querySelector('[data-role="seqMapLines"]');
+    const edgePaths = [...linesEl.querySelectorAll('.seq-map-edge')];
+    check('les deux arêtes (A->B aller, B->A retour) sont bien tracées, pas une seule fusionnée par erreur', edgePaths.length === 2);
+    // Une arête en boucle (retour) a un point de contrôle dont le y dépasse largement celui des deux
+    // extrémités -- une arête classique (aller) ne "creuse" jamais au-delà de ses propres extrémités.
+    // C'est précisément la distinction qui manquait dans la première version (ligne droite superposée
+    // aux nœuds intermédiaires, invisible en pratique).
+    const isLoopedPath = d => {
+      const nums = d.match(/-?[0-9.]+/g).map(Number);
+      const [, ay, , cy1, , cy2, , by] = nums; // M ax ay C cx1 cy1, cx2 cy2, bx by
+      const maxEndY = Math.max(ay, by);
+      return cy1 > maxEndY + 1 && cy2 > maxEndY + 1;
+    };
+    check('l\'arête de retour (B->A) est routée en boucle distincte, pas en ligne droite superposée aux nœuds (bug trouvé en situation réelle)', edgePaths.some(p => isLoopedPath(p.getAttribute('d'))));
   }
 
   // ---- Scénario 4 : révélation complète côté Backstage (seqMapFullReveal) -- tout visible sans jamais jouer ----
