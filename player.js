@@ -579,15 +579,27 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   if (isEmbrVert && supported) {
     const loopsList = track.loops || [];
     const refBars = (loopsList.find(l => l.isInitial) || loopsList[0] || {}).bars;
+    const isShortLoop = (l, isRef) => !isRef && refBars != null && l.bars != null && l.bars < refBars;
+    // Seuils de dégradation du visuel riche (voir CHANGELOG du 02/09) : 2-4 boucles paires = hauteur
+    // pleine (34px, comme .seq-block) ; 5-7 = hauteur interpolée jusqu'à un plancher de 20px, en dessous
+    // duquel les barres de drawWaveformCanvas() fusionnent visuellement ; 8+ = repli complet sur le
+    // gabarit compact (bouton texte simple, comportement inchangé).
+    const peerCount = loopsList.filter(l => !isShortLoop(l, !!l.isInitial)).length;
+    const embrRichMode = peerCount <= 7;
+    const embrRowH = peerCount <= 4 ? 34 : Math.round(34 - (Math.min(peerCount, 7) - 4) * (14 / 3));
     const buttons = loopsList.map((l, i) => {
       const isRef = !!l.isInitial;
-      const isShort = !isRef && refBars != null && l.bars != null && l.bars < refBars;
-      return `<button type="button" class="embr-loop-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="${isShort ? '1' : '0'}">${escapeHtml(l.label || t('loopFallback', { n: i + 1 }))}</button>`;
+      const isShort = isShortLoop(l, isRef);
+      const label = escapeHtml(l.label || t('loopFallback', { n: i + 1 }));
+      if (embrRichMode && !isShort) {
+        return `<button type="button" class="embr-loop-btn embr-wave-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="0"><canvas class="embr-wave-bg" data-role="embrWaveBg-${i}"></canvas><canvas class="embr-wave-fg" data-role="embrWaveFg-${i}"></canvas><span class="embr-wave-label">${label}</span></button>`;
+      }
+      return `<button type="button" class="embr-loop-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="${isShort ? '1' : '0'}">${label}</button>`;
     }).join('');
     embrVertBlockHtml = `
       <div class="track-intensity-block">
         <div class="track-intensity-label">${t('embrLoopsLabel')}</div>
-        <div class="intensity-picker" data-role="embrLoopPicker">${buttons}</div>
+        <div class="intensity-picker" data-role="embrLoopPicker"${embrRichMode ? ` style="--embr-row-h:${embrRowH}px"` : ''}>${buttons}</div>
       </div>
     `;
   }
@@ -2116,9 +2128,103 @@ function initTrackPlayer(track, wrapper) {
     embrLoopBtns.forEach(btn => {
       const idx = parseInt(btn.dataset.loopIdx, 10);
       btn.classList.toggle('active', idx === embrActiveLoopIdx);
+      // Gabarit riche (2-7 boucles paires, voir buildTrackRow) : jamais masqué, même la boucle
+      // actuellement audible -- sa forme d'onde doit rester visible et continuer d'avancer (demande du
+      // 02/09). Le masquage display:none n'est conservé que pour le gabarit compact ci-dessous, inchangé.
+      if (btn.classList.contains('embr-wave-btn')) { btn.style.display = ''; return; }
       const isCurrentlyAudible = playing && (idx === embrActiveLoopIdx || btn === embrDetourBtn);
       btn.style.display = isCurrentlyAudible ? 'none' : '';
     });
+  }
+  // Anime la progression continue des lignes riches -- calée UNE SEULE FOIS par (re)démarrage de
+  // l'horloge de phase (embrReferenceStartCtxTime vient justement d'être remis à "maintenant" par
+  // l'appelant, playEmbrVertical()/resumeEmbrVerticalAfterBackground()), jamais recalculée à chaque
+  // bascule : le verrouillage de phase entre boucles paires ne change pas quand on change laquelle est
+  // audible (refreshEmbrGains est une pure rampe de gain, voir son commentaire d'en-tête). N'affecte que
+  // les boutons en gabarit riche (classe .embr-wave-btn) -- silencieusement ignoré pour les autres.
+  function applyEmbrWaveAnimation() {
+    const cycle = embrCycleLengthSec();
+    if (!(cycle > 0)) return;
+    embrLoopBtns.forEach(btn => {
+      const fg = btn.querySelector('.embr-wave-fg');
+      if (!fg) return;
+      fg.style.animationDuration = cycle + 's';
+      fg.style.animationDelay = '0s';
+      fg.style.animationPlayState = 'running';
+    });
+  }
+  // Repasse toutes les lignes riches en pause (état "Prêt", plus rien ne joue) -- évite une animation qui
+  // continue de tourner dans le vide après un Stop.
+  function pauseEmbrWaveAnimation() {
+    embrLoopBtns.forEach(btn => {
+      const fg = btn.querySelector('.embr-wave-fg');
+      if (fg) fg.style.animationPlayState = 'paused';
+    });
+  }
+  // Ligne overlay "en surimpression" affichée pendant la lecture d'un fichier de transition (voir
+  // playEmbrTransitionIfAny) -- même mécanisme one-shot clip-path que animateMainWaveProgress() du
+  // lecteur Sfx (buildSfxPlayer), réutilisé via renderWaveformPair() plutôt que dupliqué. Pendant qu'elle
+  // est affichée, les lignes riches de la boucle quittée ET de la boucle ciblée passent "en filigrane"
+  // (classe .embr-transition-dim, opacity 0.5 -- sans effet sur un bouton non riche) sans jamais
+  // interrompre leur propre animation continue.
+  let embrTransitionRowEl = null;
+  function removeEmbrTransitionOverlay() {
+    if (embrTransitionRowEl) { embrTransitionRowEl.remove(); embrTransitionRowEl = null; }
+    embrLoopBtns.forEach(btn => btn.classList.remove('embr-transition-dim'));
+  }
+  function showEmbrTransitionOverlay(fromIdx, toIdx, buf, durationSec) {
+    removeEmbrTransitionOverlay();
+    const picker = wrapper.querySelector('[data-role="embrLoopPicker"]');
+    if (!picker || !buf || !(durationSec > 0)) return;
+    const row = document.createElement('div');
+    row.className = 'embr-transition-row';
+    row.innerHTML = '<canvas class="embr-wave-bg"></canvas><canvas class="embr-wave-fg"></canvas>';
+    picker.appendChild(row);
+    embrTransitionRowEl = row;
+    const bg = row.querySelector('.embr-wave-bg'), fg = row.querySelector('.embr-wave-fg');
+    renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+    fg.style.animation = 'none';
+    fg.style.transition = 'none';
+    fg.style.clipPath = 'inset(0 100% 0 0)';
+    void fg.offsetWidth; // force le reflow avant de redémarrer la transition, même truc qu'ailleurs dans ce fichier
+    fg.style.transition = `clip-path ${durationSec}s linear`;
+    fg.style.clipPath = 'inset(0 0% 0 0)';
+    [fromIdx, toIdx].forEach(idx => {
+      const btn = embrLoopBtns.find(b => parseInt(b.dataset.loopIdx, 10) === idx);
+      if (btn) btn.classList.add('embr-transition-dim');
+    });
+  }
+  // Ligne dédiée à un détour en cours -- deux variantes : one-shot (clip-path fixe sur sa durée nominale,
+  // même mécanisme que la ligne de transition ci-dessus) pour un détour minuté, boucle infinie (même
+  // mécanisme que applyEmbrWaveAnimation, durée = celle du buffer lui-même) pour un détour "en boucle
+  // jusqu'à un bouton" (detourMode === 'loop', src.loop = true côté moteur -- voir startDetour()).
+  let embrDetourRowEl = null;
+  function removeEmbrDetourWaveRow() {
+    if (embrDetourRowEl) { embrDetourRowEl.remove(); embrDetourRowEl = null; }
+  }
+  function showEmbrDetourWaveRow(buf, durationSec, isLooping) {
+    removeEmbrDetourWaveRow();
+    const picker = wrapper.querySelector('[data-role="embrLoopPicker"]');
+    if (!picker || !buf) return;
+    const row = document.createElement('div');
+    row.className = 'embr-detour-wave-row';
+    row.innerHTML = '<canvas class="embr-wave-bg"></canvas><canvas class="embr-wave-fg"></canvas>';
+    picker.appendChild(row);
+    embrDetourRowEl = row;
+    const bg = row.querySelector('.embr-wave-bg'), fg = row.querySelector('.embr-wave-fg');
+    renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+    if (isLooping) {
+      fg.style.animationDuration = buf.duration + 's';
+      fg.style.animationDelay = '0s';
+      fg.style.animationPlayState = 'running';
+    } else if (durationSec > 0) {
+      fg.style.animation = 'none';
+      fg.style.transition = 'none';
+      fg.style.clipPath = 'inset(0 100% 0 0)';
+      void fg.offsetWidth;
+      fg.style.transition = `clip-path ${durationSec}s linear`;
+      fg.style.clipPath = 'inset(0 0% 0 0)';
+    }
   }
   // Programme une génération de toutes les boucles "paires" (même longueur que la référence) en simultané,
   // gain à 1 pour celle actuellement active, 0 pour les autres — même principe que scheduleGeneration()
@@ -2202,6 +2308,7 @@ function initTrackPlayer(track, wrapper) {
     embrNextStartCtxTime = now + embrCycleLengthSec();
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
     updateEmbrButtonsUI();
+    applyEmbrWaveAnimation();
   }
   function playEmbrVertical() {
     stopEmbrVertical();
@@ -2212,6 +2319,7 @@ function initTrackPlayer(track, wrapper) {
     embrNextStartCtxTime = now + embrCycleLengthSec();
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
     updateEmbrButtonsUI();
+    applyEmbrWaveAnimation();
     // Verrouillage des boutons pendant le segment Départ→Entrée (29/08, retour visuel) : ce segment ne
     // joue qu'une seule fois au tout premier lancement (voir embrLoopTiming()) et n'a pas de verrouillage
     // de phase établi avec les boucles paires avant d'avoir atteint "Entrée" -- une bascule pendant cette
@@ -2235,6 +2343,8 @@ function initTrackPlayer(track, wrapper) {
     if (embrPendingTransitionSwitchTimeout) { clearTimeout(embrPendingTransitionSwitchTimeout); embrPendingTransitionSwitchTimeout = null; }
     if (embrIntroLockTimeout) { clearTimeout(embrIntroLockTimeout); embrIntroLockTimeout = null; }
     removeEmbrEndLoopButton();
+    removeEmbrDetourWaveRow();
+    removeEmbrTransitionOverlay();
     // Le détour d'une boucle courte (voir selectEmbrLoop) n'est jamais poussé dans embrActiveGenSources —
     // ce n'est pas une génération "paire" en arrière-plan, juste une lecture ponctuelle — donc sans cet
     // arrêt explicite, elle continuerait de jouer jusqu'à sa fin naturelle après un Stop (bug trouvé et
@@ -2255,6 +2365,7 @@ function initTrackPlayer(track, wrapper) {
     embrActiveLoopIdx = -1;
     embrLoopBtns.forEach(btn => { btn.disabled = false; });
     updateEmbrButtonsUI();
+    pauseEmbrWaveAnimation();
   }
   // Interrompt en douceur (fondu de EMBR_CROSSFADE_SEC) un détour en cours, sans décider de ce qui doit
   // devenir actif ensuite — à la charge de l'appelant. Réutilisée à la fois pour le retour naturel à la
@@ -2264,6 +2375,7 @@ function initTrackPlayer(track, wrapper) {
   function fadeOutCurrentDetour() {
     if (embrDetourTimeout) { clearTimeout(embrDetourTimeout); embrDetourTimeout = null; }
     removeEmbrEndLoopButton();
+    removeEmbrDetourWaveRow();
     if (!embrDetourSource) return;
     const t2 = ctx.currentTime;
     const dg = embrDetourSource.gain;
@@ -2340,6 +2452,10 @@ function initTrackPlayer(track, wrapper) {
     // là, embrActiveLoopIdx reste sur l'ancienne boucle, donc le planificateur continue de la régénérer
     // normalement, sans connaître ni se soucier de la bascule en attente).
     if (embrPendingTransitionSwitchTimeout) { clearTimeout(embrPendingTransitionSwitchTimeout); embrPendingTransitionSwitchTimeout = null; }
+    // Une transition affichée pour cette bascule annulée n'a plus lieu d'être -- sans ce retrait
+    // inconditionnel, un nouveau choix SANS transition propre laisserait l'ancienne ligne affichée
+    // indéfiniment (showEmbrTransitionOverlay() ne serait alors jamais rappelée pour la nettoyer).
+    removeEmbrTransitionOverlay();
     if (embrPeerIndices.includes(idx)) {
       if (idx === embrActiveLoopIdx && !embrDetourSource) return; // déjà la voix active, rien à faire --
       // AVANT le nettoyage du minuteur ci-dessous (bug corrigé le 24/08 : un reclic accidentel sur le
@@ -2356,7 +2472,9 @@ function initTrackPlayer(track, wrapper) {
       const transBuf = embrTransitionBuffers[idx];
       const transDelay = transBuf ? embrTransitionDurationSecFor(loopDef, sourceLoopDef, transBuf) : 0;
       if (transBuf) playEmbrTransitionIfAny(idx, ctx.currentTime);
+      if (transBuf) showEmbrTransitionOverlay(embrActiveLoopIdx, idx, transBuf, transDelay);
       const doSwitch = () => {
+        removeEmbrTransitionOverlay();
         embrActiveLoopIdx = idx;
         refreshEmbrGains(idx);
         updateEmbrButtonsUI();
@@ -2389,7 +2507,9 @@ function initTrackPlayer(track, wrapper) {
       const transBuf = embrTransitionBuffers[idx];
       const transDelay = transBuf ? embrTransitionDurationSecFor(loopDef, sourceLoopDef, transBuf) : 0;
       if (transBuf) playEmbrTransitionIfAny(idx, ctx.currentTime);
+      if (transBuf) showEmbrTransitionOverlay(embrActiveLoopIdx, idx, transBuf, transDelay);
       const startDetour = () => {
+        removeEmbrTransitionOverlay();
         embrActiveLoopIdx = -1; // plus aucune voix "paire" n'est active pendant le détour
         refreshEmbrGains(-1);
         const now = ctx.currentTime;
@@ -2410,11 +2530,13 @@ function initTrackPlayer(track, wrapper) {
           // Pas de minuterie de retour ici : ça tourne jusqu'à ce qu'on clique sur "Mettre fin à la boucle"
           // (ou sur le bouton d'une autre boucle, qui interrompt aussi ce détour via fadeOutCurrentDetour()).
           showEmbrEndLoopButton(loopDef);
+          showEmbrDetourWaveRow(buf, buf.duration, true);
         } else {
           // Durée propre à CETTE boucle détour si elle a son propre tempo (bpm/beatsPerBar, 24/08) --
           // blockSeconds() accepte déjà un `slot` optionnel avec repli sur le tempo du morceau, exactement
           // le même mécanisme que slotTiming()/sectionTiming() ailleurs dans ce fichier, réutilisé tel quel.
           const durationSec = blockSeconds(loopDef && loopDef.bars, loopDef);
+          showEmbrDetourWaveRow(buf, durationSec, false);
           embrDetourTimeout = setTimeout(() => {
             fadeOutCurrentDetour();
             embrActiveLoopIdx = embrReferenceIdx;
