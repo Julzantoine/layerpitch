@@ -827,8 +827,11 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
         </div>
         <div class="time-row"><span data-role="timeCurrent">0:00</span><span data-role="timeTotal">${formatTime(displayMaxSec)}</span></div>
         ${(track.sfxIds && track.sfxIds.length) ? `
-          <div class="track-sfx-row">
-            ${track.sfxIds.map(id => SFX_LIBRARY_BY_ID[id]).filter(Boolean).map((sfx, i) => `<button class="stinger-btn" data-stinger="${i}" data-sfx-id="${sfx.id}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml((track.sfxLabelOverrides && track.sfxLabelOverrides[sfx.id]) || sfx.title || ('Sfx ' + (i + 1)))}</button>`).join('')}
+          <div class="track-intensity-block">
+            <div class="track-intensity-label">${t('sfxRowLabel')}</div>
+            <div class="track-sfx-row">
+              ${track.sfxIds.map(id => SFX_LIBRARY_BY_ID[id]).filter(Boolean).map((sfx, i) => `<button class="stinger-btn" data-stinger="${i}" data-sfx-id="${sfx.id}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml((track.sfxLabelOverrides && track.sfxLabelOverrides[sfx.id]) || sfx.title || ('Sfx ' + (i + 1)))}</button>`).join('')}
+            </div>
           </div>
         ` : ''}
       `)}
@@ -841,8 +844,11 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       ${seqGraphHtml}
       ${seqMapHtml}
       ${(isSequential || isVerticalRandom || isEmbrVert) && track.sfxIds && track.sfxIds.length ? `
-        <div class="track-sfx-row">
-          ${track.sfxIds.map(id => SFX_LIBRARY_BY_ID[id]).filter(Boolean).map((sfx, i) => `<button class="stinger-btn" data-stinger="${i}" data-sfx-id="${sfx.id}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml((track.sfxLabelOverrides && track.sfxLabelOverrides[sfx.id]) || sfx.title || ('Sfx ' + (i + 1)))}</button>`).join('')}
+        <div class="track-intensity-block">
+          <div class="track-intensity-label">${t('sfxRowLabel')}</div>
+          <div class="track-sfx-row">
+            ${track.sfxIds.map(id => SFX_LIBRARY_BY_ID[id]).filter(Boolean).map((sfx, i) => `<button class="stinger-btn" data-stinger="${i}" data-sfx-id="${sfx.id}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml((track.sfxLabelOverrides && track.sfxLabelOverrides[sfx.id]) || sfx.title || ('Sfx ' + (i + 1)))}</button>`).join('')}
+          </div>
         </div>
       ` : ''}
      </div>
@@ -1718,6 +1724,46 @@ function initTrackPlayer(track, wrapper) {
     const bottomOf = idx => ({ x: layout.col[idx] * colW + nodeW / 2, y: layout.row[idx] * rowH + nodeH });
     const visibleSet = new Set(visibleIdx);
     const gridBottom = layout.maxRows * rowH - SEQ_MAP_ROW_GAP;
+    // Flèches de sens (03/09, retour direct : "ajoute une flèche pour bien expliciter le sens de
+    // lecture") -- une définition <marker> par couleur utilisée (le gris par défaut des arêtes "en avant",
+    // plus une par couleur de la palette des boucles de retour ci-dessous), réutilisées par toutes les
+    // arêtes de cette couleur via marker-end. Redéfinies à chaque appel (innerHTML vidé juste au-dessus) --
+    // coût négligeable, une poignée d'éléments SVG.
+    const defs = document.createElementNS(svgNS, 'defs');
+    seqMapLinesEl.appendChild(defs);
+    const markerIds = {};
+    function ensureArrowMarker(color, key) {
+      if (markerIds[key]) return markerIds[key];
+      const id = 'seqMapArrow-' + key;
+      const marker = document.createElementNS(svgNS, 'marker');
+      marker.setAttribute('id', id);
+      marker.setAttribute('viewBox', '0 0 10 10');
+      marker.setAttribute('refX', '8.5');
+      marker.setAttribute('refY', '5');
+      marker.setAttribute('markerWidth', '6');
+      marker.setAttribute('markerHeight', '6');
+      marker.setAttribute('orient', 'auto-start-reverse');
+      const arrowPath = document.createElementNS(svgNS, 'path');
+      arrowPath.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+      arrowPath.setAttribute('fill', color);
+      marker.appendChild(arrowPath);
+      defs.appendChild(marker);
+      markerIds[key] = id;
+      return id;
+    }
+    // Couleur aléatoire par boucle de retour (03/09, retour direct : "donne-leur une couleur à chacun
+    // choisie aléatoirement") -- dérivée d'un hash stable de la paire source/cible plutôt que d'un vrai
+    // Math.random() : la carte est redessinée à chaque changement d'état (activateSeqStage), un vrai
+    // aléatoire ferait changer la couleur d'une boucle à chaque bascule, illisible. Même paire = toujours
+    // la même couleur, "aléatoire" seulement en ce sens qu'elle n'est pas choisie à la main. Orange
+    // volontairement absent de la palette (déjà réservé à var(--accent), l'état "courant").
+    const SEQ_MAP_LOOP_COLORS = ['#4e79a7', '#59a14f', '#b07aa1', '#e15759', '#499894', '#d4a72c'];
+    function colorForLoop(fromIdx, toIdx) {
+      const key = fromIdx + '>' + toIdx;
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) | 0;
+      return SEQ_MAP_LOOP_COLORS[Math.abs(hash) % SEQ_MAP_LOOP_COLORS.length];
+    }
     // Étale chaque boucle de retour un peu plus bas que la précédente (backEdgeIndex incrémenté à chaque
     // arête en arrière rencontrée) -- sans ça, deux boucles de retour finissaient à la même hauteur et se
     // confondaient visuellement. updateSeqMap() réserve la marge verticale correspondante dans totalH,
@@ -1726,7 +1772,7 @@ function initTrackPlayer(track, wrapper) {
     const drawEdge = (fromIdx, toIdx, cls, label, hasTransition) => {
       const isBack = layout.col[toIdx] <= layout.col[fromIdx];
       const path = document.createElementNS(svgNS, 'path');
-      let d, a, b, mid;
+      let d, a, b, mid, markerId;
       if (isBack) {
         // Tracé orthogonal (droites + angles droits, 03/09 sur retour direct : "plus clair, notamment
         // dans les systèmes complexes") plutôt qu'une courbe -- descend tout droit, traverse à
@@ -1738,14 +1784,19 @@ function initTrackPlayer(track, wrapper) {
         backEdgeIndex++;
         d = `M ${a.x} ${a.y} L ${a.x} ${loopY} L ${b.x} ${loopY} L ${b.x} ${b.y}`;
         mid = { x: (a.x + b.x) / 2, y: loopY };
+        const color = colorForLoop(fromIdx, toIdx);
+        path.style.stroke = color;
+        markerId = ensureArrowMarker(color, color.replace('#', ''));
       } else {
         a = rightOf(fromIdx); b = leftOf(toIdx);
         const midX = (a.x + b.x) / 2;
         d = `M ${a.x} ${a.y} C ${midX} ${a.y}, ${midX} ${b.y}, ${b.x} ${b.y}`;
         mid = { x: midX, y: (a.y + b.y) / 2 };
+        markerId = ensureArrowMarker(cssVar('--text-dimmer', '#a8a399'), 'default');
       }
       path.setAttribute('d', d);
       path.setAttribute('class', 'seq-map-edge' + (cls ? ' ' + cls : ''));
+      path.setAttribute('marker-end', `url(#${markerId})`);
       // <title> (infobulle au survol) plutôt qu'un <text> toujours affiché comme dans la version
       // précédente : avec plusieurs embranchements/retours proches, des libellés SVG en permanence
       // visibles se chevauchaient et devenaient illisibles (retour direct en situation réelle, "tout
@@ -1757,15 +1808,14 @@ function initTrackPlayer(track, wrapper) {
         path.appendChild(title);
       }
       seqMapLinesEl.appendChild(path);
-      // Repère de transition (03/09, retour direct : le simple changement de teinte du trait "n'est pas
-      // très parlant") -- un petit disque au milieu du chemin plutôt qu'une couleur de trait à peine
-      // perceptible. Forme ronde délibérément différente des nœuds (rectangulaires) pour ne jamais se
-      // confondre avec un emplacement.
+      // Repère de transition (03/09) : un disque au milieu du chemin -- couleur retirée du liseré lui-même
+      // sur retour direct ("oublie la couleur du liseré bleu"), gardée uniquement sur ce disque, agrandi
+      // ("un peu plus visible") pour rester le seul indicateur de transition sur cette arête.
       if (hasTransition) {
         const dot = document.createElementNS(svgNS, 'circle');
         dot.setAttribute('cx', String(mid.x));
         dot.setAttribute('cy', String(mid.y));
-        dot.setAttribute('r', '5');
+        dot.setAttribute('r', '6.5');
         dot.setAttribute('class', 'seq-map-transition-dot');
         const dotTitle = document.createElementNS(svgNS, 'title');
         dotTitle.textContent = t('branchTransitionBadgeTitle');

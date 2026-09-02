@@ -183,11 +183,13 @@
   .seq-map-node-check { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; z-index: 2; font-size: 8px; line-height: 1; }
   .seq-map-edge { fill: none; stroke: var(--border); stroke-width: 1.5px; cursor: default; }
   .seq-map-edge.branch { stroke-dasharray: 3 3; }
-  .seq-map-edge.transition { stroke: var(--accent); }
+  /* .seq-map-edge.transition n'a plus de règle de couleur (03/09, retour direct : "oublie la couleur du
+     liseré bleu") -- l'indicateur de transition est désormais uniquement le disque .seq-map-transition-dot
+     ci-dessous, agrandi pour rester bien visible sans l'aide du liseré. */
   /* Repère de transition (03/09) : un disque, forme délibérément différente des nœuds rectangulaires,
      posé au milieu du chemin -- une simple teinte de trait n'était pas assez visible ("pas très
      parlant", retour direct). */
-  .seq-map-transition-dot { fill: var(--accent); stroke: var(--bg-card); stroke-width: 1.5px; cursor: default; }
+  .seq-map-transition-dot { fill: var(--accent); stroke: var(--bg-card); stroke-width: 2px; cursor: default; }
   /* Repli compact au-delà du plancher de lisibilité (voir seuils dans player.js) : simple liste de puces
      en flux, aucune position ni arête -- même principe de dégradation que le vertical à embranchement. */
   .seq-map-nodes.compact { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
@@ -373,8 +375,8 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1788357279857"></script>
-<script src="player.js?v=1788357279857"></script>
+<script src="layerpitch-i18n.js?v=1788358367291"></script>
+<script src="player.js?v=1788358367291"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, section } = window.LayerPlayerCore;
 
