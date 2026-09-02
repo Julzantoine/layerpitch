@@ -3394,6 +3394,18 @@ function initTrackPlayer(track, wrapper) {
     // la référence, perdant la boucle réellement active (ex. "On est repéré !") au profit d'un retour
     // silencieux à la case départ.
     if (isEmbrVert) {
+      // (05/09, retour direct : "on veut que l'audio continue même si on va sur un autre onglet -- ce
+      // qu'il fait déjà -- mais qu'il ne reprenne pas au début quand on revient"). Le Web Audio de ce
+      // moteur continue réellement de jouer en arrière-plan la plupart du temps (aucune vraie coupure) --
+      // reconstruire systématiquement toute la programmation à CHAQUE retour d'onglet, sans savoir si
+      // quelque chose a vraiment été interrompu, provoquait donc un redémarrage audible depuis le début du
+      // fichier alors que rien n'en avait besoin. On ne relance que si quelque chose a RÉELLEMENT été
+      // interrompu : le contexte audio a été suspendu par le navigateur (ctx.state), ou le planificateur
+      // périodique (setInterval, que certains navigateurs ralentissent ou gèlent en arrière-plan) a pris du
+      // retard au point de ne plus avoir de génération programmée à l'heure -- sinon, on ne touche à rien,
+      // la lecture en cours continue exactement telle quelle.
+      const schedulerLate = embrSchedulerTimer && embrNextStartCtxTime < ctx.currentTime - 0.5;
+      if (ctx.state === 'running' && !schedulerLate) return;
       resumeEmbrVerticalAfterBackground();
       return;
     }
