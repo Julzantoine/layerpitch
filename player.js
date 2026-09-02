@@ -1254,6 +1254,14 @@ function initTrackPlayer(track, wrapper) {
   // structure pendant qu'on la construit ; côté public, révélation progressive comme demandé.
   let seqVisitedSlotIds = new Set();
   const seqMapFullReveal = !!track.seqMapFullReveal;
+  // Boule de transition "en train de jouer" (05/09, retour direct : "est-ce que la boule qui symbolise la
+  // transition peut se colorer lorsqu'elle joue ?") -- currentTransitionEdge identifie l'arête source->cible
+  // dont le fichier de transition est actuellement audible (posé/retiré par activateSeqStage(), voir plus
+  // bas), null le reste du temps. seqMapLastCurrentIdx retient le dernier index passé à updateSeqMap() pour
+  // pouvoir la redessiner à l'identique (même nœud "current") au moment où une transition démarre/se termine,
+  // sans devoir faire remonter cet index jusqu'ici depuis performSeqBranchCut().
+  let currentTransitionEdge = null;
+  let seqMapLastCurrentIdx = -1;
   let chainState = { cyclesCompleted: 0, capReached: false }; // compteur de cycles complets pour maxChainLoops — voir advanceChainIndex(), remis à zéro à chaque vrai redémarrage (pas une reprise)
   let seqSchedulerTimer = null;
   let seqNextStartCtxTime = 0;
@@ -1435,7 +1443,17 @@ function initTrackPlayer(track, wrapper) {
   // sans ça, impossible de savoir quel buffer/gain relancer, ni à quelle position on se trouve réellement
   // dedans (le curseur visuel seul ne suffit pas — il faut aussi la référence temporelle audio exacte).
   let currentSeqBlockInfo = null; // { kind, buffer, gain, totalSec, virtualZero, terminal, slotIdx }
-  function activateSeqStage(kind, remainingSec, totalSec, buffer, gainValue, terminal, slotIdx, gainNode) {
+  function activateSeqStage(kind, remainingSec, totalSec, buffer, gainValue, terminal, slotIdx, gainNode, fromSlotIdx, toSlotIdx) {
+    // Boule de transition en train de jouer (05/09) : posée uniquement pendant le stade "transition" lui-même,
+    // retirée dès que n'importe quel autre stade devient audible (le seul qui suit systématiquement une
+    // transition est le "segment" cible, mais un stop/seek peut aussi couper court -- dans tous les cas, plus
+    // de transition en cours dès qu'on n'est plus sur "transition").
+    if (kind === 'transition') {
+      currentTransitionEdge = (fromSlotIdx != null && toSlotIdx != null) ? { from: fromSlotIdx, to: toSlotIdx } : null;
+      updateSeqMap(seqMapLastCurrentIdx);
+    } else if (currentTransitionEdge) {
+      currentTransitionEdge = null;
+    }
     const order = ['intro', 'segment', 'outro'];
     const idx = order.indexOf(kind);
     // Tout ce qui précède ce stade (hors "segment", qui se remplit à nouveau à chaque tirage plutôt que
@@ -1637,6 +1655,7 @@ function initTrackPlayer(track, wrapper) {
   }
   function updateSeqMap(currentIdx) {
     if (!seqMapNodesEl || !seqMapCanvasEl) return;
+    seqMapLastCurrentIdx = currentIdx;
     const slots = track.segmentSlots || [];
     const visibleIdx = seqMapVisibleSlotIndices(currentIdx);
     if (!visibleIdx.length) {
@@ -1841,7 +1860,13 @@ function initTrackPlayer(track, wrapper) {
         dot.setAttribute('cx', String(mid.x));
         dot.setAttribute('cy', String(mid.y));
         dot.setAttribute('r', '6.5');
-        dot.setAttribute('class', 'seq-map-transition-dot');
+        // "Est-ce que la boule peut se colorer lorsqu'elle joue ?" (05/09, retour direct) : classe .playing
+        // posée seulement pendant que CE fichier de transition précis est audible (currentTransitionEdge,
+        // voir activateSeqStage()) -- distingue "cette arête a une transition" (toujours visible, disque de
+        // base) de "cette transition est en train de jouer là, maintenant" (le reste du temps, aucune arête
+        // n'est concernée).
+        const isPlaying = !!(currentTransitionEdge && currentTransitionEdge.from === fromIdx && currentTransitionEdge.to === toIdx);
+        dot.setAttribute('class', 'seq-map-transition-dot' + (isPlaying ? ' playing' : ''));
         const dotTitle = document.createElementNS(svgNS, 'title');
         dotTitle.textContent = t('branchTransitionBadgeTitle');
         dot.appendChild(dotTitle);
@@ -1955,7 +1980,11 @@ function initTrackPlayer(track, wrapper) {
       forcedNextBlock = {
         buffer: transitionBuf, label: (opt.transition && opt.transition.label) || t('transitionFallbackLabel'),
         durationSec: transitionDurationSec, terminal: false, kind: 'transition',
-        gain: effGain(opt.transition), slotIdx: -1, desc: pickStageDescription(opt.transition)
+        gain: effGain(opt.transition), slotIdx: -1, desc: pickStageDescription(opt.transition),
+        // Identité de l'arête (05/09, boule "en train de jouer") -- portée par le bloc plutôt que déduite
+        // plus tard : au moment où ce bloc devient réellement audible (voir activateSeqStage), currentSlotIndex
+        // pointe déjà sur la cible (posé juste en dessous), donc source/cible ne sont plus récupérables autrement.
+        fromSlotIdx: sourceSlotIdx, toSlotIdx: targetIdx
       };
     }
     // currentSlotIndex pointe maintenant sur la cible : que le bloc immédiatement suivant soit la
@@ -1970,7 +1999,7 @@ function initTrackPlayer(track, wrapper) {
   // fillDurationSec : temps restant à animer jusqu'à 100% (pas forcément la durée totale du bloc — après
   // un seek, on reprend au milieu). totalDurationSec : durée nominale complète du bloc, nécessaire pour
   // savoir où se trouve le curseur de seek même après plusieurs reprises successives.
-  function scheduleSeqLabelUpdate(ctxStartTime, label, kind, fillDurationSec, totalDurationSec, buffer, gainValue, terminal, slotIdx, gainNode, desc) {
+  function scheduleSeqLabelUpdate(ctxStartTime, label, kind, fillDurationSec, totalDurationSec, buffer, gainValue, terminal, slotIdx, gainNode, desc, fromSlotIdx, toSlotIdx) {
     const delayMs = Math.max(0, (ctxStartTime - ctx.currentTime) * 1000);
     const id = setTimeout(() => {
       pulseMeter(seqMeterEl);
@@ -1978,11 +2007,11 @@ function initTrackPlayer(track, wrapper) {
       // "" (aucun texte propre à cet élément) laisse volontairement le texte déjà affiché tel quel — voir
       // pickStageDescription().
       if (desc && trackDescEl) trackDescEl.innerHTML = linkify(desc);
-      if (kind) activateSeqStage(kind, (fillDurationSec != null) ? fillDurationSec : buffer.duration, totalDurationSec, buffer, gainValue, terminal, slotIdx, gainNode);
+      if (kind) activateSeqStage(kind, (fillDurationSec != null) ? fillDurationSec : buffer.duration, totalDurationSec, buffer, gainValue, terminal, slotIdx, gainNode, fromSlotIdx, toSlotIdx);
     }, delayMs);
     seqTimeouts.push(id);
   }
-  function scheduleSeqGeneration(ctxStartTime, buffer, label, kind, fillDurationSec, gainValue, offsetSec, totalDurationSec, terminal, slotIdx, desc) {
+  function scheduleSeqGeneration(ctxStartTime, buffer, label, kind, fillDurationSec, gainValue, offsetSec, totalDurationSec, terminal, slotIdx, desc, fromSlotIdx, toSlotIdx) {
     if (!buffer) return;
     const off = offsetSec || 0;
     const total = totalDurationSec != null ? totalDurationSec : ((fillDurationSec != null) ? fillDurationSec + off : buffer.duration);
@@ -1996,7 +2025,7 @@ function initTrackPlayer(track, wrapper) {
     seqLastGenSources = [src];
     // Sans durée explicite (cas de l'outro, qui ne programme rien après elle) : on anime le remplissage
     // sur la durée réelle du fichier décodé, seule longueur connue dans ce cas.
-    scheduleSeqLabelUpdate(ctxStartTime, label, kind, fillDurationSec, total, buffer, gainValue, terminal, slotIdx, g, desc);
+    scheduleSeqLabelUpdate(ctxStartTime, label, kind, fillDurationSec, total, buffer, gainValue, terminal, slotIdx, g, desc, fromSlotIdx, toSlotIdx);
   }
   // Détermine le prochain bloc à programmer : soit l'outro (si "Aller vers la fin" a été demandé et
   // qu'une outro existe), soit rien du tout (demande faite mais pas d'outro : on laisse filer), soit
@@ -2037,7 +2066,7 @@ function initTrackPlayer(track, wrapper) {
         armSeqFinalEnd();
         return;
       }
-      scheduleSeqGeneration(seqNextStartCtxTime, next.buffer, next.label, next.kind, next.terminal ? null : next.durationSec, next.gain, 0, null, next.terminal, next.slotIdx, next.desc);
+      scheduleSeqGeneration(seqNextStartCtxTime, next.buffer, next.label, next.kind, next.terminal ? null : next.durationSec, next.gain, 0, null, next.terminal, next.slotIdx, next.desc, next.fromSlotIdx, next.toSlotIdx);
       if (next.terminal) {
         clearInterval(seqSchedulerTimer); seqSchedulerTimer = null;
         armSeqFinalEnd();
@@ -2069,6 +2098,8 @@ function initTrackPlayer(track, wrapper) {
     // Carte globale (02/09) : plus aucun nœud "courant" une fois arrêté -- l'historique (seqVisitedSlotIds)
     // reste volontairement affiché tel quel (ce qui a été découvert cette session le reste), voir
     // playSequential() pour le seul cas où il est vraiment remis à zéro (un vrai redémarrage, pas juste Stop).
+    // Idem pour la boule de transition (05/09) : plus rien n'est audible à l'arrêt, jamais "en train de jouer".
+    currentTransitionEdge = null;
     updateSeqMap(-1);
   }
   function playSequential(isContinuation) {

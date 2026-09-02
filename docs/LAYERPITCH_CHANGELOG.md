@@ -8,6 +8,27 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-02i] — La boule de transition se colore pendant qu'elle joue réellement
+
+**Fichiers touchés** : `player.js` (`currentTransitionEdge`/`seqMapLastCurrentIdx`, `activateSeqStage`, `performSeqBranchCut`, `scheduleSeqGeneration`/`scheduleSeqLabelUpdate`, `seqMapDrawEdges`, `stopSequential`) ; `index.html`, `pack.html`, `layerpitch-backstage.html` (CSS : `.seq-map-transition-dot.playing` + `@keyframes seqMapTransitionDotPulse` ; `?v=` bumpée) ; `test_seq_map.js` (nouveau scénario 7, 3 vérifications).
+
+**Contexte** : retour en situation réelle sur [2026-09-02h] — "est-ce que la boule qui symbolise la transition peut se colorer lorsqu'elle joue ?". Jusqu'ici le disque de transition ([2026-09-02g]) avait une seule apparence, qu'un embranchement donné ait ou non son fichier de transition réellement en train de sonner à cet instant précis.
+
+**Corrigé** :
+- **`currentTransitionEdge`** : nouvel état (source→cible) posé par `activateSeqStage` uniquement pendant que le stade `'transition'` est le stade audible, retiré dès que n'importe quel autre stade (segment cible, ou un arrêt) devient actif à sa place.
+- **Identité de l'arête portée par le bloc lui-même** : `performSeqBranchCut()` connaît `sourceSlotIdx`/`targetIdx` au moment du clic, mais l'activation réelle du stade `'transition'` n'arrive que plus tard (après le `setTimeout` de planification, `currentSlotIndex` ayant déjà basculé sur la cible entretemps) — ces deux index sont donc ajoutés au `forcedNextBlock` puis relayés tels quels à travers `scheduleSeqGeneration`/`scheduleSeqLabelUpdate` jusqu'à `activateSeqStage`, plutôt que redéduits a posteriori (impossible à ce stade, l'info n'existe nulle part ailleurs).
+- **`seqMapLastCurrentIdx`** : mémorise le dernier index passé à `updateSeqMap()` pour pouvoir la redessiner à l'identique (même nœud "current") au moment précis où une transition démarre, sans faire remonter cet index jusqu'à `performSeqBranchCut()`.
+- **`.seq-map-transition-dot.playing`** : `seqMapDrawEdges` compare `currentTransitionEdge` à chaque arête tracée et pose la classe uniquement sur celle concernée. CSS : la teinte de repos (accent, toujours visible dès qu'une transition existe sur ce chemin) reste inchangée — seul un battement d'opacité (`@keyframes seqMapTransitionDotPulse`, 0.8s, boucle) s'ajoute pendant que `.playing` est présent, cohérent avec "se colorer lorsqu'elle joue" sans perdre la lisibilité de repos déjà validée le round précédent.
+- **`stopSequential()`** : `currentTransitionEdge` explicitement remis à `null` avant le `updateSeqMap(-1)` final — plus rien n'est audible à l'arrêt, jamais "en train de jouer".
+
+**Vérifications** : `node --check` OK sur `player.js` et le JS inline des 3 fichiers HTML. Nouveau scénario 7 de `test_seq_map.js` (3 assertions : la boule existe mais n'est pas `.playing` avant tout clic ; elle devient `.playing` exactement pendant que le libellé affiché est celui de la transition elle-même ("Whoosh") ; elle redevient inerte une fois le segment cible (B1) devenu le stade courant) — 34/34 vérifications au total sur ce fichier, toutes vertes. Suite complète des `test_*.js`/`test-*.js` rejouée, aucune régression. Balises équilibrées sur les 4 gabarits. Vérification en navigateur réel (page de test jetable avec le CSS complet d'index.html inliné, cette fois, précisément pour pouvoir mesurer l'animation calculée) : `animationName: none` avant le clic, `seqMapTransitionDotPulse` (durée 0.8s) après, opacité mesurée en train d'osciller réellement (0.91 puis 0.49 quelques centaines de ms plus tard) — page de test supprimée après vérification.
+
+**Précision apportée en cours de route** : à une question de Jules-Antoine sur une capture montrant le mode branching vertical (bouton bleu "Retour au calme...") — confirmé par lecture du diff que ce chantier ne touche aucune ligne liée à `.embr-loop-btn`/embr-vertical, et que le bleu observé est simplement `--accent: #2f80c0` propre au thème du Backstage (`--accent: #c9713c` orange côté public), pas une régression.
+
+**Toujours aucune écoute réelle possible de ma part** — la cadence du battement (0.8s) et sa lisibilité à l'œil, notamment sur des transitions très courtes où elle pourrait n'être visible que le temps d'un ou deux cycles, restent à confirmer par Jules-Antoine après rechargement forcé (Cmd+Shift+R).
+
+---
+
 ## [2026-09-02h] — Carte des chemins : nœuds cliquables, restreints aux vraies options depuis la position courante
 
 **Fichiers touchés** : `player.js` (nouvelle fonction `handleSeqBranchChoice`, refactorisation du clic sur `.seq-branch-btn`, réécriture de `updateSeqMap` avec `nodeStateCls`/`attachSeqMapNodeClicks`) ; `index.html`, `pack.html`, `layerpitch-backstage.html` (CSS : `.seq-map-node.selectable`, `.seq-map-node.pending` ; `?v=` bumpée) ; `test_seq_map.js` (nouveau scénario 6, 5 vérifications).
