@@ -8,6 +8,24 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-02h] — Carte des chemins : nœuds cliquables, restreints aux vraies options depuis la position courante
+
+**Fichiers touchés** : `player.js` (nouvelle fonction `handleSeqBranchChoice`, refactorisation du clic sur `.seq-branch-btn`, réécriture de `updateSeqMap` avec `nodeStateCls`/`attachSeqMapNodeClicks`) ; `index.html`, `pack.html`, `layerpitch-backstage.html` (CSS : `.seq-map-node.selectable`, `.seq-map-node.pending` ; `?v=` bumpée) ; `test_seq_map.js` (nouveau scénario 6, 5 vérifications).
+
+**Contexte** : retour en situation réelle sur [2026-09-02g] — "fais en sorte que les nœuds soient cliquables : en surbrillance pour celui qui est en train de jouer, les prochaines possibilités qui peuvent être choisies sont visibles, les possibilités non possibles n'apparaissent pas à l'écran (on découvre le chemin au fur et à mesure)". Le "n'apparaît pas à l'écran" était déjà couvert par la révélation progressive existante ([2026-09-02b]) — restait à rendre les nœuds réellement cliquables, et uniquement ceux qui représentent une vraie option depuis la position courante.
+
+**Corrigé** :
+- **`handleSeqBranchChoice(targetId, currentSlot)`** : extrait du gestionnaire de clic des boutons `.seq-branch-btn` (logique inchangée : marque le choix en attente, bascule immédiate si `quantization === 'immediate'`, sinon coupe au prochain temps fort) — désormais partagé entre les boutons ET les nœuds de la carte, un seul point de vérité pour "choisir une branche".
+- **`.seq-map-node.selectable`** : à chaque rendu de la carte, `updateSeqMap` calcule `selectableIds` à partir de `currentSlot.nextOptions` (l'emplacement en cours de lecture) et pose la classe uniquement sur les nœuds qui y figurent réellement — le nœud courant lui-même n'est jamais cliquable (`isCurrent` exclu), et un nœud déjà visité mais qui n'est plus une option valable depuis la position actuelle (ex. A après être passé sur B, si B ne repart pas vers A) reste affiché mais redevient inerte.
+- **`.seq-map-node.pending`** : au clic, le nœud choisi porte la même classe "en attente" que le bouton correspondant, retirée dès que la bascule effective a lieu — cohérence visuelle entre les deux façons de choisir (bouton ou nœud).
+- **`attachSeqMapNodeClicks`** : ré-attache les écouteurs à chaque reconstruction du HTML de la carte (nœuds recréés à chaque `updateSeqMap`, comme le reste du contenu).
+
+**Vérifications** : `node --check` OK sur `player.js` et le JS inline des 3 fichiers HTML. Nouveau scénario 6 de `test_seq_map.js` (5 assertions : nœud courant non cliquable, vraie option cliquable, clic sur un nœud déclenche la même bascule qu'un clic sur le bouton correspondant — vérifié par l'avancement réel de lecture jusqu'à `B1` —, nœud visité mais non-option redevient inerte, nouvelle vraie option redevient cliquable) — 31/31 vérifications au total sur ce fichier, toutes vertes. Suite complète des `test_*.js`/`test-*.js` rejouée, aucune régression. Balises équilibrées sur les 4 gabarits. Vérification en navigateur réel (page de test jetable, `LayerPlayerCore.buildTrackRow`/`initTrackPlayer` avec un vrai fichier WAV silencieux décodable) : lecture démarrée sur A, seul B (vraie option) porte `.selectable` ; clic sur B → `.pending` apparaît immédiatement, puis la lecture bascule réellement sur `B1` ; après la bascule, B devient le nœud courant non cliquable, A (option de "Retour" depuis B) reste cliquable, C devient cliquable — comportement identique à la couverture jsdom, page de test supprimée après vérification.
+
+**Toujours aucune écoute réelle possible de ma part** — le comportement au clic (position des nœuds, taille de la zone cliquable en mode carte complète comme en mode compact dégradé) reste à confirmer par Jules-Antoine après rechargement forcé (Cmd+Shift+R).
+
+---
+
 ## [2026-09-02g] — Couleurs par boucle de retour, flèches de sens, titre "SFX", et un merge suite à une publication concurrente
 
 **Fichiers touchés** : `player.js` (`seqMapDrawEdges` : palette de couleurs stables par boucle de retour, marqueurs SVG `<marker>` pour les flèches de sens sur toutes les arêtes, disque de transition agrandi ; `buildTrackRow` : titre "SFX" ajouté au-dessus des deux blocs `.track-sfx-row`) ; `index.html`, `pack.html`, `layerpitch-backstage.html` (CSS : règle de couleur retirée de `.seq-map-edge.transition`, épaisseur du liseré du disque de transition augmentée ; `?v=` bumpée) ; `layerpitch-i18n.js` (nouvelle clé `sfxRowLabel`).
