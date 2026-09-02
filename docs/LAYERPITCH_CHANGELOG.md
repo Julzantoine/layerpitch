@@ -8,6 +8,28 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-02f] — Boucles de retour en tracé orthogonal, repère de transition, stingers repositionnés, libellé de mode manquant corrigé
+
+**Fichiers touchés** : `player.js` (`seqMapDrawEdges` : boucles de retour en droites/angles droits au lieu d'une courbe bézier, marqueur circulaire de transition ajouté ; `buildTrackRow` : ligne des stingers déplacée après `seqMapHtml`) ; `index.html`, `pack.html`, `layerpitch-backstage.html` (CSS `.seq-map-transition-dot` ; `?v=` bumpée à nouveau) ; `layerpitch-i18n.js` (nouvelle clé `modeSequentialBranching`, manquante depuis l'introduction de `getModeLabel()`, sans rapport avec ce chantier mais trouvée en le testant).
+
+**Contexte** : encore des retours en situation réelle sur [2026-09-02e], une fois le cache correctement invalidé cette fois :
+1. "Avec des chemins de retour avec des droites et des angles droits, ce sera plus clair, notamment dans les systèmes complexes" — la courbe en "U" de l'entrée précédente, bien que prévisible, restait une courbe.
+2. "Le liseré bleu (transition), pas très parlant. On pourrait rajouter un nœud, une forme différente, comme un rond" — la simple teinte de trait ne se voyait pas assez.
+3. "Ce serait plus logique d'avoir les stingers en dessous de la carte des chemins" — actuellement affichés juste après le statut de chargement, avant tout le reste.
+4. Repéré au passage sur la même capture (pas remonté explicitement, mais visible) : le tag de mode affichait littéralement "modeSequentialBranching" au lieu d'un libellé lisible.
+
+**Corrigé** :
+- **Boucles de retour en tracé orthogonal** : `M ax ay L ax loopY L bx loopY L bx by` (trois segments droits) au lieu d'une courbe de Bézier — descend tout droit, traverse à l'horizontale, remonte tout droit. Mêmes points d'ancrage (bas des nœuds) et le même étalement vertical par boucle qu'avant (voir [2026-09-02e]).
+- **Marqueur de transition** : un petit disque (`<circle>`, rayon 5px, couleur `--accent`, liseré `--bg-card`) posé au milieu de chaque arête qui a un fichier de transition associé, en plus (pas à la place) de la teinte de trait déjà en place — forme délibérément différente des nœuds rectangulaires pour ne jamais se confondre avec un emplacement. Infobulle au survol identique au badge déjà présent sur les boutons d'embranchement (`branchTransitionBadgeTitle`, réutilisée).
+- **Stingers repositionnés** : la ligne `.track-sfx-row` (uniquement pour les modes séquentiel/vertical-random/embranchement-vertical, qui partagent ce chemin de rendu) déplacée de juste après le statut de chargement vers la toute fin du gabarit, après `seqGraphHtml`/`seqMapHtml`/`voiceGraphHtml`/`embrVertBlockHtml` selon le mode — cohérent pour les trois modes concernés, pas seulement le séquentiel à embranchement. Le second bloc `.track-sfx-row` (modes statique/vertical classique, gabarit avec forme d'onde/barre de progression) n'a pas été touché, non concerné par la demande.
+- **Libellé de mode manquant** : `getModeLabel()` (`player.js:361`) prévoyait déjà `t('modeSequentialBranching')` pour un morceau séquentiel avec au moins un embranchement configuré, mais cette clé n'a jamais existé dans `layerpitch-i18n.js` -- `t()` retombe sur le nom brut de la clé quand elle est absente, d'où "modeSequentialBranching" affiché tel quel. Corrigée par une clé cohérente avec les autres libellés de mode : "séquentiel à embranchement" (FR) / "sequential branching" (EN).
+
+**Vérifications** : `node --check` OK sur `player.js`, `layerpitch-i18n.js` et les 3 fichiers HTML. Symétrie i18n FR/EN : 718/718, 0 écart. Balises équilibrées. Suite complète des 27 fichiers `test_*.js`/`test-*.js` rejouée — tous « ALL CHECKS PASSED », aucune régression (aucun test existant ne référence `.stinger-btn`/`.track-sfx-row`, confirmé par grep avant de déplacer ce bloc). Vérification visuelle réelle : reconstruction de la structure "Robot Adventure" avec un `sfxIds` peuplé -- confirmé par inspection directe du DOM l'ordre final des blocs (`track-desc` → `status` → `loop-count-block` → `voice-graph` (séquentiel) → `seq-map` → `track-sfx-row`, stingers bien en dernier), le libellé de mode "séquentiel à embranchement" au lieu de la clé brute, et le marqueur de transition présent avec la bonne infobulle.
+
+**Toujours aucune écoute/navigation réelle possible de ma part** — rendu final à confirmer par Jules-Antoine après rechargement forcé.
+
+---
+
 ## [2026-09-02e] — Cache navigateur jamais invalidé + boucles de retour réécrites en "U" prévisible
 
 **Fichiers touchés** : `player.js` (`seqMapDrawEdges` : boucles de retour sorties/rentrées par le bas des nœuds, sous toute la grille, au lieu du bord droit avec décalage fixe ; `updateSeqMap` : marge verticale recalculée sur le nombre réel d'arêtes de retour) ; `index.html`, `pack.html`, `layerpitch-backstage.html` (CSS : bordure pointillée retirée pour "pas encore atteint", fond `--accent-soft` ajouté pour le nœud "courant" ; balise `?v=` de `player.js`/`layerpitch-i18n.js`/`layerpitch-help.js` bumpée à deux reprises) ; `layerpitch-backstage.html` (`--accent-soft` ajoutée à son `:root`, absente jusqu'ici).

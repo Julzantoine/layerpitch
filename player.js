@@ -813,11 +813,6 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
         !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : (
         (isSequential || isVerticalRandom || isEmbrVert) ? `
           <div class="status" data-role="status">Chargement…</div>
-          ${(track.sfxIds && track.sfxIds.length) ? `
-            <div class="track-sfx-row">
-              ${track.sfxIds.map(id => SFX_LIBRARY_BY_ID[id]).filter(Boolean).map((sfx, i) => `<button class="stinger-btn" data-stinger="${i}" data-sfx-id="${sfx.id}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml((track.sfxLabelOverrides && track.sfxLabelOverrides[sfx.id]) || sfx.title || ('Sfx ' + (i + 1)))}</button>`).join('')}
-            </div>
-          ` : ''}
         ` : `
         <div class="status" data-role="status">Chargement…</div>
         <div class="progress-wrap${isStatic ? ' waveform-mode' : ''}" data-role="progressWrap">
@@ -845,6 +840,11 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       ${vertGraphHtml}
       ${seqGraphHtml}
       ${seqMapHtml}
+      ${(isSequential || isVerticalRandom || isEmbrVert) && track.sfxIds && track.sfxIds.length ? `
+        <div class="track-sfx-row">
+          ${track.sfxIds.map(id => SFX_LIBRARY_BY_ID[id]).filter(Boolean).map((sfx, i) => `<button class="stinger-btn" data-stinger="${i}" data-sfx-id="${sfx.id}" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${escapeHtml((track.sfxLabelOverrides && track.sfxLabelOverrides[sfx.id]) || sfx.title || ('Sfx ' + (i + 1)))}</button>`).join('')}
+        </div>
+      ` : ''}
      </div>
     </div>
   `;
@@ -1695,14 +1695,13 @@ function initTrackPlayer(track, wrapper) {
   // Arêtes SVG entre nœuds révélés, positions calculées directement depuis `layout` (pas de mesure DOM).
   // Arête "en avant" (colonne cible > colonne source) : courbe en S classique entre le bord droit de la
   // source et le bord gauche de la cible. Arête "en arrière ou même colonne" (boucle/retour, colonne
-  // cible <= colonne source) : réécrite le 03/09 sur retour direct ("elles sont tracées un peu
-  // aléatoirement") -- l'ancienne version sortait par la droite avec un décalage fixe, ce qui donnait une
-  // forme différente selon la distance entre les deux nœuds (parfois un crochet serré, parfois un arc à
-  // peine visible). Désormais : sort par le BAS de la source, plonge sous TOUTE la grille (pas juste sous
-  // la ligne des deux nœuds concernés -- ne risque donc jamais de croiser un nœud intermédiaire), et
-  // remonte par le BAS de la cible -- une même forme en "U" prévisible quelle que soit la distance, les
-  // deux tangentes verticales aux extrémités (point de contrôle directement sous chaque nœud) évitant tout
-  // effet "aléatoire". totalW/totalH reçus tels quels depuis updateSeqMap() (pas recalculés ici) pour que
+  // cible <= colonne source) : réécrite deux fois le 03/09 sur retours directs -- d'abord une courbe (l'
+  // ancienne version sortait par la droite avec un décalage fixe, forme différente selon la distance,
+  // "tracées un peu aléatoirement"), puis un tracé ORTHOGONAL (droites + angles droits, "plus clair
+  // notamment dans les systèmes complexes") : descend tout droit depuis le BAS de la source, traverse à
+  // l'horizontale sous TOUTE la grille (pas juste sous la ligne des deux nœuds concernés -- ne risque donc
+  // jamais de croiser un nœud intermédiaire), remonte tout droit dans le BAS de la cible. Même tracé
+  // prévisible quelle que soit la distance entre les deux nœuds. totalW/totalH reçus tels quels depuis updateSeqMap() (pas recalculés ici) pour que
   // le viewBox du SVG corresponde exactement à .seq-map-canvas, marge des boucles de retour comprise --
   // sinon une boucle qui dépasse la dernière ligne de nœuds serait coupée par overflow-y:hidden (bug
   // trouvé en vérification visuelle réelle).
@@ -1724,19 +1723,26 @@ function initTrackPlayer(track, wrapper) {
     // confondaient visuellement. updateSeqMap() réserve la marge verticale correspondante dans totalH,
     // avec les mêmes constantes (SEQ_MAP_LOOP_MARGIN/SEQ_MAP_LOOP_STAGGER).
     let backEdgeIndex = 0;
-    const drawEdge = (fromIdx, toIdx, cls, label) => {
+    const drawEdge = (fromIdx, toIdx, cls, label, hasTransition) => {
       const isBack = layout.col[toIdx] <= layout.col[fromIdx];
       const path = document.createElementNS(svgNS, 'path');
-      let d, a, b;
+      let d, a, b, mid;
       if (isBack) {
+        // Tracé orthogonal (droites + angles droits, 03/09 sur retour direct : "plus clair, notamment
+        // dans les systèmes complexes") plutôt qu'une courbe -- descend tout droit, traverse à
+        // l'horizontale, remonte tout droit. Aucune ambiguïté de lecture même avec plusieurs boucles
+        // imbriquées, contrairement à des courbes qui peuvent se confondre visuellement dans un graphe
+        // chargé.
         a = bottomOf(fromIdx); b = bottomOf(toIdx);
         const loopY = gridBottom + SEQ_MAP_LOOP_MARGIN + backEdgeIndex * SEQ_MAP_LOOP_STAGGER;
         backEdgeIndex++;
-        d = `M ${a.x} ${a.y} C ${a.x} ${loopY}, ${b.x} ${loopY}, ${b.x} ${b.y}`;
+        d = `M ${a.x} ${a.y} L ${a.x} ${loopY} L ${b.x} ${loopY} L ${b.x} ${b.y}`;
+        mid = { x: (a.x + b.x) / 2, y: loopY };
       } else {
         a = rightOf(fromIdx); b = leftOf(toIdx);
         const midX = (a.x + b.x) / 2;
         d = `M ${a.x} ${a.y} C ${midX} ${a.y}, ${midX} ${b.y}, ${b.x} ${b.y}`;
+        mid = { x: midX, y: (a.y + b.y) / 2 };
       }
       path.setAttribute('d', d);
       path.setAttribute('class', 'seq-map-edge' + (cls ? ' ' + cls : ''));
@@ -1751,6 +1757,21 @@ function initTrackPlayer(track, wrapper) {
         path.appendChild(title);
       }
       seqMapLinesEl.appendChild(path);
+      // Repère de transition (03/09, retour direct : le simple changement de teinte du trait "n'est pas
+      // très parlant") -- un petit disque au milieu du chemin plutôt qu'une couleur de trait à peine
+      // perceptible. Forme ronde délibérément différente des nœuds (rectangulaires) pour ne jamais se
+      // confondre avec un emplacement.
+      if (hasTransition) {
+        const dot = document.createElementNS(svgNS, 'circle');
+        dot.setAttribute('cx', String(mid.x));
+        dot.setAttribute('cy', String(mid.y));
+        dot.setAttribute('r', '5');
+        dot.setAttribute('class', 'seq-map-transition-dot');
+        const dotTitle = document.createElementNS(svgNS, 'title');
+        dotTitle.textContent = t('branchTransitionBadgeTitle');
+        dot.appendChild(dotTitle);
+        seqMapLinesEl.appendChild(dot);
+      }
     };
     visibleIdx.forEach(idx => {
       const slot = slots[idx];
@@ -1762,7 +1783,7 @@ function initTrackPlayer(track, wrapper) {
           if (targetIdx < 0 || !visibleSet.has(targetIdx)) return; // cible pas encore révélée -- pas d'arête vers du vide
           const hasTransition = !!(transitionBuffers[idx] && transitionBuffers[idx][oi]);
           const label = opt.label || (slots[targetIdx] && slots[targetIdx].label) || '';
-          drawEdge(idx, targetIdx, 'branch' + (hasTransition ? ' transition' : ''), label);
+          drawEdge(idx, targetIdx, 'branch' + (hasTransition ? ' transition' : ''), label, hasTransition);
         });
       } else {
         const nextIdx = (idx + 1) % slots.length;
