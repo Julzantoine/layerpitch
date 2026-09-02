@@ -731,6 +731,23 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
     `;
   }
 
+  // Carte globale des chemins (02/09) : un nœud par emplacement de la chaîne, remplie/mise à jour
+  // dynamiquement par updateSeqMap()/drawSeqMapLines() (voir bloc dédié dans initTrackPlayer) -- vide au
+  // rendu initial (ni lecture ni structure "toujours révélée" avant l'exécution JS), sauf en mode
+  // Backstage (seqMapFullReveal) où elle se remplit dès le chargement des buffers.
+  let seqMapHtml = '';
+  if (isSequential && supported) {
+    seqMapHtml = `
+      <div class="seq-map" data-role="seqMap">
+        <div class="voice-graph-label">${t('seqMapLabel')}</div>
+        <div class="seq-map-graph" data-role="seqMapGraph">
+          <svg class="seq-map-lines" data-role="seqMapLines"></svg>
+          <div class="seq-map-nodes" data-role="seqMapNodes"></div>
+        </div>
+      </div>
+    `;
+  }
+
   // Sélecteur de boucles : uniquement pour les pistes qui utilisent le moteur quantifié (seul moteur
   // qui connaît la notion de cycle et donc de "nombre de boucles"). Valeur par défaut = celle choisie
   // par le compositeur, modifiable ici par le visiteur — la piste applique le changement au vol.
@@ -825,6 +842,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       ${voiceGraphHtml}
       ${vertGraphHtml}
       ${seqGraphHtml}
+      ${seqMapHtml}
      </div>
     </div>
   `;
@@ -1082,6 +1100,16 @@ function initTrackPlayer(track, wrapper) {
   const trackDescEl = wrapper.querySelector('[data-role="trackDesc"]');
   const seqBranchOptionsEl = wrapper.querySelector('[data-role="seqBranchOptions"]');
   const seqPendingIndicatorEl = wrapper.querySelector('[data-role="seqPendingIndicator"]');
+  // Carte globale des chemins (02/09) -- voir updateSeqMap()/drawSeqMapLines() plus bas.
+  const seqMapGraphEl = wrapper.querySelector('[data-role="seqMapGraph"]');
+  const seqMapLinesEl = wrapper.querySelector('[data-role="seqMapLines"]');
+  const seqMapNodesEl = wrapper.querySelector('[data-role="seqMapNodes"]');
+  // drawSeqMapLines() n'est définie que plus bas dans ce fichier (avec le reste du moteur séquentiel) --
+  // sans effet ici puisque `function` est hissée, mais l'observer lui-même doit être posé APRÈS la
+  // déclaration const de seqMapGraphEl ci-dessus (bug trouvé à l'exécution : le placer plus haut, au même
+  // endroit que l'observer du graphe Wwise, levait une ReferenceError -- accès à seqMapGraphEl avant son
+  // initialisation, la déclaration const n'ayant pas encore été exécutée à ce point du fichier).
+  if (seqMapGraphEl && window.ResizeObserver) new ResizeObserver(() => drawSeqMapLines()).observe(seqMapGraphEl);
   const goToEndBtn = wrapper.querySelector('[data-role="goToEndBtn"]');
   const goToNextSectionBtn = wrapper.querySelector('[data-role="goToNextSectionBtn"]');
   const sectionCurrentEl = wrapper.querySelector('[data-role="sectionCurrent"]');
@@ -1211,6 +1239,13 @@ function initTrackPlayer(track, wrapper) {
   // choisi par le visiteur, en attente d'être consommé par performSeqBranchCut(). Un nouveau clic écrase
   // la valeur précédente (dernier clic gagne) ; remis à null une fois consommé.
   let pendingNextSegmentId = null;
+  // Carte globale des chemins (02/09) : historique des emplacements déjà devenus audibles depuis le
+  // (re)démarrage -- rien de tel n'existait avant ce chantier (aucun état de ce genre à réutiliser), voir
+  // activateSeqStage() pour l'alimentation. seqMapFullReveal (posé par buildPreviewTrack() côté Backstage
+  // uniquement) affiche la carte en entier dès le chargement -- outil de vérification de sa propre
+  // structure pendant qu'on la construit ; côté public, révélation progressive comme demandé.
+  let seqVisitedSlotIds = new Set();
+  const seqMapFullReveal = !!track.seqMapFullReveal;
   let chainState = { cyclesCompleted: 0, capReached: false }; // compteur de cycles complets pour maxChainLoops — voir advanceChainIndex(), remis à zéro à chaque vrai redémarrage (pas une reprise)
   let seqSchedulerTimer = null;
   let seqNextStartCtxTime = 0;
@@ -1411,6 +1446,21 @@ function initTrackPlayer(track, wrapper) {
     // nextOptions dans le schéma) — masqués/vidés sinon, reconstruits pour l'emplacement qui vient de
     // devenir audible.
     renderSeqBranchOptions(kind === 'segment' && slotIdx != null ? slotIdx : -1);
+    // Carte globale (02/09) : un emplacement rejoint l'historique dès qu'il devient audible -- alimente
+    // seqVisitedSlotIds (rien de tel n'existait avant ce chantier). La ligne de progression de son nœud
+    // reprend le même calcul (startFraction/remainingSec) que le bloc "En cours" ci-dessus, appliqué à un
+    // élément DOM distinct puisque le nœud de la carte est un élément séparé, reconstruit à chaque appel
+    // d'updateSeqMap() (pas de référence stable à conserver entre deux passages).
+    if (kind === 'segment' && slotIdx != null && slotIdx >= 0) {
+      seqVisitedSlotIds.add(slotIdx);
+      updateSeqMap(slotIdx);
+      const curFg = seqMapNodesEl && seqMapNodesEl.querySelector('.seq-map-node.current .seq-map-node-fg');
+      if (curFg) {
+        curFg.style.transition = 'none'; curFg.style.clipPath = `inset(0 ${(1 - startFraction) * 100}% 0 0)`;
+        void curFg.offsetWidth;
+        if (remainingSec > 0) { curFg.style.transition = `clip-path ${remainingSec}s linear`; curFg.style.clipPath = 'inset(0 0% 0 0)'; }
+      }
+    }
     // Chaque nouveau passage sur UN emplacement (y compris une simple répétition du même) a ses propres
     // frontières de temps/mesure à surveiller — l'epoch invalide toute chaîne héritée d'un passage
     // précédent (voir armNextSeqBranchBoundary), pour ne jamais laisser deux chaînes tourner en parallèle.
@@ -1458,7 +1508,7 @@ function initTrackPlayer(track, wrapper) {
       if (seqPendingIndicatorEl) seqPendingIndicatorEl.style.display = 'none';
       return;
     }
-    seqBranchOptionsEl.innerHTML = options.map(opt => {
+    seqBranchOptionsEl.innerHTML = options.map((opt, oi) => {
       const targetIdx = (track.segmentSlots || []).findIndex(sl => sl.id === opt.targetId);
       const targetSlot = targetIdx >= 0 ? track.segmentSlots[targetIdx] : null;
       // Repli aligné sur celui déjà utilisé côté éditeur (libraryRender.js, menu de cible) : "Emplacement N"
@@ -1467,10 +1517,29 @@ function initTrackPlayer(track, wrapper) {
       // supprimé depuis), cas déjà géré sans casse ailleurs (performSeqBranchCut sort silencieusement).
       const label = opt.label || (targetSlot && targetSlot.label) || (targetSlot ? t('slotFallback', { n: targetIdx + 1 }) : opt.targetId);
       const isPending = pendingNextSegmentId === opt.targetId;
-      return `<button type="button" class="seq-branch-btn${isPending ? ' pending' : ''}" data-target-id="${escapeHtml(opt.targetId)}">${escapeHtml(label)}</button>`;
+      // Zoom local (02/09) : aperçu de la cible (forme d'onde statique, pas de progression -- ce segment
+      // n'a pas encore été atteint) + badge si un fichier de transition existe pour CETTE paire précise.
+      // slotBuffers/transitionBuffers sont déjà décodés au chargement (voir plus bas dans ce fichier) --
+      // rien à décoder ici, juste à lire l'état existant. Repli sur le simple bouton texte si la cible n'a
+      // aucun fichier chargé (orpheline, ou tous ses fichiers manquants).
+      const previewBuf = targetIdx >= 0 ? (slotBuffers[targetIdx] || []).find(b => b) : null;
+      const hasTransition = !!(transitionBuffers[slotIdx] && transitionBuffers[slotIdx][oi]);
+      const badge = hasTransition ? `<span class="seq-branch-transition-badge" title="${escapeHtml(t('branchTransitionBadgeTitle'))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 L4 14 h6 l-1 8 9-12 h-6 z"/></svg></span>` : '';
+      if (previewBuf) {
+        return `<button type="button" class="seq-branch-btn seq-branch-btn-rich${isPending ? ' pending' : ''}" data-target-id="${escapeHtml(opt.targetId)}" data-opt-idx="${oi}"><canvas class="seq-branch-wave-bg"></canvas><span class="seq-branch-label">${escapeHtml(label)}</span>${badge}</button>`;
+      }
+      return `<button type="button" class="seq-branch-btn${isPending ? ' pending' : ''}" data-target-id="${escapeHtml(opt.targetId)}" data-opt-idx="${oi}">${escapeHtml(label)}${badge}</button>`;
     }).join('');
     updateSeqPendingIndicator();
     seqBranchOptionsEl.querySelectorAll('.seq-branch-btn').forEach(btn => {
+      const bg = btn.querySelector('.seq-branch-wave-bg');
+      if (bg) {
+        const targetIdx = (track.segmentSlots || []).findIndex(sl => sl.id === btn.dataset.targetId);
+        const buf = targetIdx >= 0 ? (slotBuffers[targetIdx] || []).find(b => b) : null;
+        // fgCanvas volontairement omis (null) : aperçu statique, pas de progression -- renderWaveformPair()
+        // gère déjà ce cas (voir sa définition plus haut dans ce fichier).
+        if (buf) renderWaveformPair(bg, null, buf, cssVar('--border', '#ccc'));
+      }
       btn.addEventListener('click', () => {
         // Dernier clic gagne (validé le 31/07) : un second clic sur une autre option remplace simplement
         // le choix précédent, il n'y a jamais de verrou sur le premier clic.
@@ -1488,6 +1557,126 @@ function initTrackPlayer(track, wrapper) {
   function updateSeqPendingIndicator() {
     if (!seqPendingIndicatorEl) return;
     seqPendingIndicatorEl.style.display = pendingNextSegmentId ? '' : 'none';
+  }
+  // ---- Carte globale des chemins (02/09) : un nœud par emplacement révélé, arêtes SVG entre eux --
+  // pilotée depuis activateSeqStage() (voir plus haut), pas de boucle de rendu séparée. Dégradation
+  // (nombre de nœuds simultanément visibles) : seuils repris de la même logique que le vertical à
+  // embranchement (voir CHANGELOG pour le raisonnement détaillé des valeurs choisies). ----
+  const SEQ_MAP_FULL_SIZE_MAX = 6, SEQ_MAP_DEGRADE_MAX = 14;
+  // Ensemble des index d'emplacements à révéler pour l'état courant -- toujours tout en mode
+  // seqMapFullReveal (Backstage), sinon déjà-visités + courant + options immédiates depuis le courant
+  // (effet de découverte demandé le 1er septembre).
+  function seqMapVisibleSlotIndices(currentIdx) {
+    const slots = track.segmentSlots || [];
+    if (seqMapFullReveal) return slots.map((s, i) => i);
+    const visible = new Set(seqVisitedSlotIds);
+    if (currentIdx >= 0) {
+      visible.add(currentIdx);
+      const cur = slots[currentIdx];
+      ((cur && cur.nextOptions) || []).forEach(opt => {
+        const ti = slots.findIndex(sl => sl.id === opt.targetId);
+        if (ti >= 0) visible.add(ti);
+      });
+    }
+    return [...visible];
+  }
+  function updateSeqMap(currentIdx) {
+    if (!seqMapNodesEl) return;
+    const slots = track.segmentSlots || [];
+    const visibleIdx = seqMapVisibleSlotIndices(currentIdx);
+    if (!visibleIdx.length) { seqMapNodesEl.innerHTML = ''; if (seqMapLinesEl) seqMapLinesEl.innerHTML = ''; return; }
+    const n = visibleIdx.length;
+    const compact = n > SEQ_MAP_DEGRADE_MAX;
+    seqMapNodesEl.classList.toggle('compact', compact);
+    if (!compact) {
+      const span = SEQ_MAP_DEGRADE_MAX - SEQ_MAP_FULL_SIZE_MAX;
+      const over = Math.max(0, Math.min(n, SEQ_MAP_DEGRADE_MAX) - SEQ_MAP_FULL_SIZE_MAX);
+      const w = Math.round(96 - over * (36 / span));
+      const h = Math.round(40 - over * (12 / span));
+      seqMapNodesEl.style.setProperty('--seq-map-node-w', w + 'px');
+      seqMapNodesEl.style.setProperty('--seq-map-node-h', h + 'px');
+    }
+    seqMapNodesEl.innerHTML = visibleIdx.map(idx => {
+      const slot = slots[idx] || {};
+      const isCurrent = idx === currentIdx;
+      const isVisited = seqVisitedSlotIds.has(idx) && !isCurrent;
+      const label = slot.label || t('slotFallback', { n: idx + 1 });
+      const cls = 'seq-map-node' + (isCurrent ? ' current' : '') + (isVisited ? ' visited' : '');
+      const check = isVisited ? '<span class="seq-map-node-check">✓</span>' : '';
+      const wave = compact ? '' : `<canvas class="seq-map-node-bg" data-role="seqMapNodeBg-${idx}"></canvas><canvas class="seq-map-node-fg" data-role="seqMapNodeFg-${idx}"></canvas>`;
+      return `<div class="${cls}" data-slot-idx="${idx}">${wave}<span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
+    }).join('');
+    if (!compact) {
+      visibleIdx.forEach(idx => {
+        const bg = seqMapNodesEl.querySelector(`[data-role="seqMapNodeBg-${idx}"]`);
+        const fg = seqMapNodesEl.querySelector(`[data-role="seqMapNodeFg-${idx}"]`);
+        const buf = (slotBuffers[idx] || []).find(b => b);
+        if (buf) renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+      });
+    }
+    requestAnimationFrame(drawSeqMapLines);
+  }
+  // Arêtes SVG entre nœuds révélés -- même technique que drawWwiseLines() (chemins bezier calculés depuis
+  // les positions réelles des nœuds via getBoundingClientRect), généralisée à une disposition en grille en
+  // flux au lieu de 3 colonnes fixes : seule façon simple de représenter un vrai graphe avec boucles (une
+  // arête peut revenir vers un nœud déjà affiché plus tôt dans le flux -- voir CHANGELOG). Deux types
+  // d'arêtes : linéaire (avancement automatique, un emplacement sans nextOptions vers le suivant dans
+  // l'ordre du tableau -- approximation volontaire, ne rejoue pas la logique de saut des emplacements
+  // vides de pickNextSegmentSlot(), suffisante pour un aperçu topologique) et embranchement (nextOptions,
+  // avec le libellé de l'option et un style distinct si un fichier de transition lui est associé).
+  function drawSeqMapLines() {
+    if (!seqMapGraphEl || !seqMapLinesEl || !seqMapNodesEl) return;
+    const rect = seqMapGraphEl.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    const svgNS = 'http://www.w3.org/2000/svg';
+    seqMapLinesEl.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+    seqMapLinesEl.innerHTML = '';
+    const slots = track.segmentSlots || [];
+    const nodeEls = {};
+    seqMapNodesEl.querySelectorAll('.seq-map-node').forEach(el => { nodeEls[el.dataset.slotIdx] = el; });
+    const center = el => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2 - rect.left, y: r.top + r.height / 2 - rect.top };
+    };
+    const drawEdge = (fromEl, toEl, cls, label) => {
+      const a = center(fromEl), b = center(toEl);
+      const midX = (a.x + b.x) / 2;
+      const path = document.createElementNS(svgNS, 'path');
+      path.setAttribute('d', `M ${a.x} ${a.y} C ${midX} ${a.y}, ${midX} ${b.y}, ${b.x} ${b.y}`);
+      path.setAttribute('class', 'seq-map-edge' + (cls ? ' ' + cls : ''));
+      seqMapLinesEl.appendChild(path);
+      if (label) {
+        const text = document.createElementNS(svgNS, 'text');
+        text.setAttribute('x', String(midX));
+        text.setAttribute('y', String((a.y + b.y) / 2 - 4));
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('class', 'seq-map-edge-label');
+        text.textContent = label;
+        seqMapLinesEl.appendChild(text);
+      }
+    };
+    Object.keys(nodeEls).forEach(key => {
+      const idx = parseInt(key, 10);
+      const slot = slots[idx];
+      if (!slot) return;
+      const fromEl = nodeEls[key];
+      const options = slot.nextOptions || [];
+      if (options.length) {
+        options.forEach((opt, oi) => {
+          const targetIdx = slots.findIndex(sl => sl.id === opt.targetId);
+          const toEl = targetIdx >= 0 ? nodeEls[String(targetIdx)] : null;
+          if (!toEl) return; // cible pas encore révélée -- pas d'arête vers du vide
+          const hasTransition = !!(transitionBuffers[idx] && transitionBuffers[idx][oi]);
+          const label = opt.label || (slots[targetIdx] && slots[targetIdx].label) || '';
+          drawEdge(fromEl, toEl, 'branch' + (hasTransition ? ' transition' : ''), label);
+        });
+      } else {
+        // Avancement automatique (pas de choix) : emplacement suivant dans l'ordre du tableau, en boucle.
+        const nextIdx = (idx + 1) % slots.length;
+        const toEl = nodeEls[String(nextIdx)];
+        if (toEl && nextIdx !== idx) drawEdge(fromEl, toEl, '', '');
+      }
+    });
   }
   // Surveille la prochaine frontière de temps ("beat") ou de mesure ("bar") de l'emplacement ACTUELLEMENT
   // audible, et déclenche la coupure dès qu'elle est atteinte SI un choix est en attente à ce moment-là —
@@ -1689,12 +1878,17 @@ function initTrackPlayer(track, wrapper) {
     if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = t('goToEndBtn'); }
     resetSeqStages();
     renderSeqBranchOptions(-1);
+    // Carte globale (02/09) : plus aucun nœud "courant" une fois arrêté -- l'historique (seqVisitedSlotIds)
+    // reste volontairement affiché tel quel (ce qui a été découvert cette session le reste), voir
+    // playSequential() pour le seul cas où il est vraiment remis à zéro (un vrai redémarrage, pas juste Stop).
+    updateSeqMap(-1);
   }
   function playSequential(isContinuation) {
     stopSequential();
     // Un vrai démarrage (pas une reprise après pause/veille) repart du premier emplacement de la chaîne —
-    // la reprise, elle, continue le cycle là où il en était plutôt que de tout redémarrer.
-    if (!isContinuation) { currentSlotIndex = 0; chainState = { cyclesCompleted: 0, capReached: false }; }
+    // la reprise, elle, continue le cycle là où il en était plutôt que de tout redémarrer. La carte globale
+    // suit la même règle : un vrai redémarrage efface l'historique de découverte, une reprise le conserve.
+    if (!isContinuation) { currentSlotIndex = 0; chainState = { cyclesCompleted: 0, capReached: false }; seqVisitedSlotIds = new Set(); }
     const now = ctx.currentTime;
     let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain, firstDesc, firstSlotIdx = -1;
     if (!isContinuation && introBuffer) {
@@ -3317,6 +3511,10 @@ function initTrackPlayer(track, wrapper) {
         }
       }
       if (slotBuffers.every(bufs => bufs.every(b => !b))) { if (statusEl) statusEl.textContent = loadErrorMessageFor('loadErrorNoSegments'); setLoadErrorIcon(); return; }
+      // Carte globale (02/09) : côté Backstage (seqMapFullReveal), affichée en entier dès le chargement --
+      // outil de vérification de sa propre structure, pas besoin d'attendre une première lecture. Côté
+      // public, rien à afficher tant que rien n'a joué (révélation progressive, voir updateSeqMap()).
+      if (seqMapFullReveal) updateSeqMap(-1);
     } else if (isEmbrVert) {
       const rawLoops = track.loops || [];
       const loopsWithSource = rawLoops.filter(layerHasSource).length;
