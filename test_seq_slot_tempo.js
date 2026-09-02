@@ -104,9 +104,9 @@ const path = require('path');
   // ---- 2) Embranchement A -> B : la frontière "bar" ET la transition suivent le tempo de la SOURCE (A,
   // 300 BPM -> 0.2s/mesure), jamais celui de la cible (B, 60 BPM -> 1s/mesure) ----
   const clickTime = Date.now();
-  const branchBtn = () => [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotB');
-  check('bouton d\'embranchement vers B présent', !!branchBtn());
-  click(branchBtn());
+  const nodeB = () => row.querySelector('[data-role="seqMapNodes"] [data-slot-id="slotB"]');
+  check('nœud d\'embranchement vers B sélectionnable', !!nodeB() && nodeB().classList.contains('selectable'));
+  click(nodeB());
 
   check('la transition démarre à la prochaine frontière de MESURE de la source (~0.2s), pas de la cible (~1s)',
     await waitUntil(() => seqCurrentEl.textContent === 'Trans', 600));

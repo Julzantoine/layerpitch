@@ -91,9 +91,9 @@ const path = require('path');
     check('reaches segment A (4 mesures, 0.8s au total)', await waitUntil(() => seqCurrentEl.textContent === 'A1', 2000));
 
     const clickTime = Date.now();
-    const branchBtn = () => [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotTarget');
-    check('bouton d\'embranchement présent dès le début du segment', !!branchBtn());
-    click(branchBtn()); // cliqué presque tout de suite après le début de A -> il reste ~3 des 4 mesures
+    const nodeTarget = () => row.querySelector('[data-role="seqMapNodes"] [data-slot-id="slotTarget"]');
+    check('nœud d\'embranchement sélectionnable dès le début du segment', !!nodeTarget() && nodeTarget().classList.contains('selectable'));
+    click(nodeTarget()); // cliqué presque tout de suite après le début de A -> il reste ~3 des 4 mesures
 
     check('la transition démarre à la prochaine frontière de MESURE (~0.2s), bien avant la fin naturelle du segment (0.8s)',
       await waitUntil(() => seqCurrentEl.textContent === 'Trans', 500));
@@ -101,7 +101,7 @@ const path = require('path');
     check('le délai réel confirme une coupure mi-segment, pas une attente de la fin naturelle (delai=' + cutDelayMs + 'ms, doit être < 500ms)', cutDelayMs < 500);
 
     check('la transition s\'enchaîne ensuite normalement vers la cible (T1)', await waitUntil(() => seqCurrentEl.textContent === 'T1', 1000));
-    check('plus aucun bouton d\'embranchement une fois sur la cible (elle n\'en déclare pas)', row.querySelectorAll('.seq-branch-btn').length === 0);
+    check('plus aucun nœud sélectionnable une fois sur la cible (elle n\'en déclare pas)', row.querySelectorAll('.seq-map-node.selectable').length === 0);
   }
 
   // ---- Scénario B : quantization "immediate", aucun fichier de transition ----
@@ -129,8 +129,7 @@ const path = require('path');
     check('reaches segment X', await waitUntil(() => seqCurrentEl.textContent === 'X1', 2000));
 
     const clickTime = Date.now();
-    const branchBtn = [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotY');
-    click(branchBtn);
+    click(row.querySelector('[data-role="seqMapNodes"] [data-slot-id="slotY"]'));
     check('bascule directe (pas de transition déclarée) vers Y quasi instantanément', await waitUntil(() => seqCurrentEl.textContent === 'Y1', 250));
     const cutDelayMs = Date.now() - clickTime;
     check('délai nettement plus court qu\'une frontière de mesure (0.2s) — "immediate" distinct de "bar" (delai=' + cutDelayMs + 'ms)', cutDelayMs < 150);
@@ -165,8 +164,7 @@ const path = require('path');
 
     click(row.querySelector('[data-role="goToEndBtn"]')); // demande de fin cliquée en premier...
     await sleep(30);
-    const branchBtn = [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotQ');
-    click(branchBtn); // ...puis un choix d'embranchement précis juste après
+    click(row.querySelector('[data-role="seqMapNodes"] [data-slot-id="slotQ"]')); // ...puis un choix d'embranchement précis juste après
 
     check('le choix d\'embranchement l\'emporte : on atterrit bien sur Q, pas directement sur l\'outro', await waitUntil(() => seqCurrentEl.textContent === 'Q1', 500));
     check('le bouton "aller vers la fin" est bien réinitialisé (pas resté bloqué "en cours de fin")', !row.querySelector('[data-role="goToEndBtn"]').disabled);
@@ -199,8 +197,7 @@ const path = require('path');
     click(row.querySelector('[data-role="playBtn"]'));
     check('reaches segment M', await waitUntil(() => seqCurrentEl.textContent === 'M1', 2000));
 
-    const branchBtn = [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotN');
-    click(branchBtn); // quantization "immediate" -> la transition démarre quasi tout de suite
+    click(row.querySelector('[data-role="seqMapNodes"] [data-slot-id="slotN"]')); // quantization "immediate" -> la transition démarre quasi tout de suite
     check('bascule vers la transition quasi immédiate (quantization "immediate")', await waitUntil(() => seqCurrentEl.textContent === 'TransBeats', 200));
 
     const transStartTime = Date.now();

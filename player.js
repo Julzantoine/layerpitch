@@ -724,7 +724,6 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
           <span class="voice-meter" data-role="seqMeter"></span>
           <span class="voice-row-current" data-role="seqCurrent">—</span>
         </div>
-        <div class="seq-branch-options" data-role="seqBranchOptions"></div>
         <div class="seq-pending-indicator" data-role="seqPendingIndicator" style="display:none">${t('pendingBranchLabel')}</div>
         <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled ${hasOutro ? '' : 'style="display:none"'}>${t('goToEndBtn')}</button>
       </div>
@@ -1106,7 +1105,6 @@ function initTrackPlayer(track, wrapper) {
   // emplacement qui en a un — comportement demandé explicitement le 15/08, obtenu gratuitement par cette
   // règle "ne jamais écraser par du vide" sans cas particulier à coder).
   const trackDescEl = wrapper.querySelector('[data-role="trackDesc"]');
-  const seqBranchOptionsEl = wrapper.querySelector('[data-role="seqBranchOptions"]');
   const seqPendingIndicatorEl = wrapper.querySelector('[data-role="seqPendingIndicator"]');
   // Carte globale des chemins (02/09) -- voir updateSeqMap()/drawSeqMapLines() plus bas.
   // Carte globale des chemins (02/09) : .seq-map-graph est la fenêtre défilable (overflow-x:auto),
@@ -1468,10 +1466,9 @@ function initTrackPlayer(track, wrapper) {
     const block = seqBlockEls[kind], els = seqWaveEls[kind];
     const startFraction = totalSec > 0 ? Math.max(0, Math.min(1, 1 - (remainingSec / totalSec))) : 0;
     currentSeqBlockInfo = { kind, buffer, gain: gainValue, gainNode: gainNode || null, totalSec, virtualZero: ctx.currentTime - (startFraction * totalSec), terminal: !!terminal, slotIdx: (slotIdx != null ? slotIdx : -1) };
-    // Boutons d'embranchement : uniquement pertinents pendant un "segment" (l'intro/l'outro n'ont pas de
-    // nextOptions dans le schéma) — masqués/vidés sinon, reconstruits pour l'emplacement qui vient de
-    // devenir audible.
-    renderSeqBranchOptions(kind === 'segment' && slotIdx != null ? slotIdx : -1);
+    // L'indicateur "en attente" reste pertinent quelle que soit la façon dont le choix a été fait (bouton,
+    // retiré le 05/09 -- ou nœud de la carte globale) -- rafraîchi à chaque nouveau stade audible.
+    updateSeqPendingIndicator();
     // Carte globale (02/09) : un emplacement rejoint l'historique dès qu'il devient audible -- alimente
     // seqVisitedSlotIds (rien de tel n'existait avant ce chantier). Pas de forme d'onde/progression sur le
     // nœud lui-même (retiré le 03/09, voir updateSeqMap()) -- juste rafraîchir quel nœud porte "current".
@@ -1486,7 +1483,7 @@ function initTrackPlayer(track, wrapper) {
       seqBranchEpoch++;
       const slot = (track.segmentSlots || [])[slotIdx];
       // "immediate" n'a pas besoin de surveillance de frontière : géré directement au clic (voir
-      // renderSeqBranchOptions). Seuls "beat"/"bar" ont une frontière à attendre.
+      // handleSeqBranchChoice). Seuls "beat"/"bar" ont une frontière à attendre.
       if (slot && slot.nextOptions && slot.nextOptions.length && (slot.quantization || 'bar') !== 'immediate') {
         armNextSeqBranchBoundary(seqBranchEpoch);
       }
@@ -1514,14 +1511,14 @@ function initTrackPlayer(track, wrapper) {
       if (els && els.fg) { els.fg.style.transition = 'none'; els.fg.style.clipPath = 'inset(0 100% 0 0)'; }
     });
   }
-  // Choix d'un embranchement (04/09) : factorisé pour être appelé aussi bien depuis un clic sur un bouton
-  // .seq-branch-btn que depuis un clic sur un nœud cliquable de la carte globale (voir updateSeqMap()) --
-  // même effet des deux côtés, une seule logique à maintenir plutôt que deux copies qui pourraient diverger.
+  // Choix d'un embranchement : appelé depuis un clic sur un nœud cliquable de la carte globale (voir
+  // updateSeqMap()) -- seule façon de choisir désormais (les boutons de destination .seq-branch-btn ont
+  // été retirés le 05/09, retour direct : "plus besoin des boutons de destination non plus, la carte se
+  // suffit également à elle-même" -- la carte couvrait déjà exactement les mêmes cibles).
   function handleSeqBranchChoice(targetId, currentSlot) {
     // Dernier clic gagne (validé le 31/07) : un second clic sur une autre option remplace simplement le
     // choix précédent, il n'y a jamais de verrou sur le premier clic.
     pendingNextSegmentId = targetId;
-    if (seqBranchOptionsEl) seqBranchOptionsEl.querySelectorAll('.seq-branch-btn').forEach(b => b.classList.toggle('pending', b.dataset.targetId === targetId));
     if (seqMapNodesEl) seqMapNodesEl.querySelectorAll('.seq-map-node').forEach(n => n.classList.toggle('pending', n.dataset.slotId === targetId));
     updateSeqPendingIndicator();
     trackPublicEvent('seq_branch_select', { trackId: track.id, targetId });
@@ -1529,40 +1526,6 @@ function initTrackPlayer(track, wrapper) {
     // clic — pour "beat"/"bar", c'est armNextSeqBranchBoundary (armée dès le début de CET emplacement dans
     // activateSeqStage) qui surveille déjà la prochaine frontière et lira ce choix à son tour.
     if (currentSlot && (currentSlot.quantization || 'bar') === 'immediate') performSeqBranchCut();
-  }
-  // Boutons d'embranchement séquentiel (optionnel, voir `nextOptions` sur segmentSlots) : reconstruits à
-  // chaque fois que l'emplacement audible change, puisque les cibles disponibles dépendent de CET
-  // emplacement précis. slotIdx === -1 (intro/outro/arrêt) : rien à montrer, panneau vidé.
-  function renderSeqBranchOptions(slotIdx) {
-    if (!seqBranchOptionsEl) return;
-    const slot = slotIdx >= 0 ? (track.segmentSlots || [])[slotIdx] : null;
-    const options = (slot && slot.nextOptions) || [];
-    if (!options.length) {
-      seqBranchOptionsEl.innerHTML = '';
-      if (seqPendingIndicatorEl) seqPendingIndicatorEl.style.display = 'none';
-      return;
-    }
-    seqBranchOptionsEl.innerHTML = options.map((opt, oi) => {
-      const targetIdx = (track.segmentSlots || []).findIndex(sl => sl.id === opt.targetId);
-      const targetSlot = targetIdx >= 0 ? track.segmentSlots[targetIdx] : null;
-      // Repli aligné sur celui déjà utilisé côté éditeur (libraryRender.js, menu de cible) : "Emplacement N"
-      // plutôt que l'id technique brut (genId(), ex. "b1a2b3c4d5e") quand ni l'embranchement ni l'emplacement
-      // cible n'ont de nom — l'id brut ne reste un ultime recours que pour une cible orpheline (emplacement
-      // supprimé depuis), cas déjà géré sans casse ailleurs (performSeqBranchCut sort silencieusement).
-      const label = opt.label || (targetSlot && targetSlot.label) || (targetSlot ? t('slotFallback', { n: targetIdx + 1 }) : opt.targetId);
-      const isPending = pendingNextSegmentId === opt.targetId;
-      // Zoom local (02/09, forme d'onde retirée le même jour sur retour direct de Jules-Antoine en
-      // situation réelle -- gardée uniquement sur la carte globale, pas sur ces boutons) : badge si un
-      // fichier de transition existe pour CETTE paire précise. transitionBuffers déjà décodé au
-      // chargement (voir plus bas dans ce fichier) -- rien à décoder ici, juste à lire l'état existant.
-      const hasTransition = !!(transitionBuffers[slotIdx] && transitionBuffers[slotIdx][oi]);
-      const badge = hasTransition ? `<span class="seq-branch-transition-badge" title="${escapeHtml(t('branchTransitionBadgeTitle'))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 L4 14 h6 l-1 8 9-12 h-6 z"/></svg></span>` : '';
-      return `<button type="button" class="seq-branch-btn${isPending ? ' pending' : ''}" data-target-id="${escapeHtml(opt.targetId)}" data-opt-idx="${oi}">${escapeHtml(label)}${badge}</button>`;
-    }).join('');
-    updateSeqPendingIndicator();
-    seqBranchOptionsEl.querySelectorAll('.seq-branch-btn').forEach(btn => {
-      btn.addEventListener('click', () => handleSeqBranchChoice(btn.dataset.targetId, slot));
-    });
   }
   function updateSeqPendingIndicator() {
     if (!seqPendingIndicatorEl) return;
@@ -1663,10 +1626,10 @@ function initTrackPlayer(track, wrapper) {
       seqMapCanvasEl.style.width = ''; seqMapCanvasEl.style.height = '';
       return;
     }
-    // Nœuds cliquables (04/09) : uniquement ceux qui sont une vraie option depuis l'emplacement COURANT
-    // (les mêmes cibles que les boutons .seq-branch-btn, jamais un nœud "visité" par ailleurs qui n'est
-    // pas une option depuis ici -- on ne clique pas sur l'historique, seulement sur ce qui est réellement
-    // proposé maintenant). Rien de sélectionnable hors lecture (currentIdx < 0, ex. état "Prêt").
+    // Nœuds cliquables (04/09) : uniquement ceux qui sont une vraie option depuis l'emplacement COURANT,
+    // jamais un nœud "visité" par ailleurs qui n'est pas une option depuis ici -- on ne clique pas sur
+    // l'historique, seulement sur ce qui est réellement proposé maintenant. Rien de sélectionnable hors
+    // lecture (currentIdx < 0, ex. état "Prêt").
     const currentSlot = currentIdx >= 0 ? (slots[currentIdx] || null) : null;
     const selectableIds = new Set(((currentSlot && currentSlot.nextOptions) || []).map(o => o.targetId));
     const nodeStateCls = (idx, slot) => {
@@ -1733,10 +1696,9 @@ function initTrackPlayer(track, wrapper) {
     seqMapDrawEdges(layout, visibleIdx, colW, rowH, w, h, totalW, totalH);
     attachSeqMapNodeClicks(currentSlot);
   }
-  // Attache le clic sur les nœuds sélectionnables -- rappelée à chaque reconstruction de seqMapNodesEl
-  // (son innerHTML est entièrement remplacé à chaque appel d'updateSeqMap(), donc les écouteurs d'un
-  // passage précédent n'existent plus) exactement comme renderSeqBranchOptions() le fait déjà pour ses
-  // propres boutons.
+  // Attache le clic sur les nœuds sélectionnables -- rappelée à chaque reconstruction de seqMapNodesEl,
+  // son innerHTML étant entièrement remplacé à chaque appel d'updateSeqMap() (donc les écouteurs d'un
+  // passage précédent n'existent plus).
   function attachSeqMapNodeClicks(currentSlot) {
     seqMapNodesEl.querySelectorAll('.seq-map-node.selectable').forEach(el => {
       el.addEventListener('click', () => handleSeqBranchChoice(el.dataset.slotId, currentSlot));
@@ -2094,7 +2056,7 @@ function initTrackPlayer(track, wrapper) {
     if (trackDescEl) trackDescEl.innerHTML = linkify(track.description || '');
     if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = t('goToEndBtn'); }
     resetSeqStages();
-    renderSeqBranchOptions(-1);
+    updateSeqPendingIndicator();
     // Carte globale (02/09) : plus aucun nœud "courant" une fois arrêté -- l'historique (seqVisitedSlotIds)
     // reste volontairement affiché tel quel (ce qui a été découvert cette session le reste), voir
     // playSequential() pour le seul cas où il est vraiment remis à zéro (un vrai redémarrage, pas juste Stop).

@@ -64,44 +64,11 @@ const path = require('path');
 
   const bpm = 300, beatsPerBar = 1; // secondesPerBeat=0.2s -- rapide pour un test, assez lent pour observer les états intermédiaires
 
-  // ---- Scénario 1 : aperçu enrichi des boutons d'embranchement (forme d'onde + badge sélectif) ----
-  {
-    const track = {
-      id: 'sm-1', title: 'Branch preview + badge', mode: 'sequential', description: '', duration: 0,
-      base: '', publishedAt: 1, bpm, beatsPerBar,
-      segmentSlots: [
-        {
-          id: 'slotA', label: 'A', repeatCount: 1,
-          alternatives: [{ label: 'A1', bars: 2, localFile: fakeFile('a1.wav') }],
-          nextOptions: [
-            { targetId: 'slotB', label: 'To B', transition: { label: 'Whoosh', bars: 1, localFile: fakeFile('whoosh.wav') } },
-            { targetId: 'slotC', label: 'To C' } // pas de transition déclarée pour cette paire précise
-          ]
-        },
-        { id: 'slotB', label: 'B', repeatCount: 1, alternatives: [{ label: 'B1', bars: 1, localFile: fakeFile('b1.wav') }] },
-        { id: 'slotC', label: 'C', repeatCount: 1, alternatives: [{ label: 'C1', bars: 1, localFile: fakeFile('c1.wav') }] }
-      ],
-      sfxIds: []
-    };
-    const row = Core.buildTrackRow(track, null, false);
-    doc.getElementById('host').appendChild(row);
-    Core.initTrackPlayer(track, row);
-    await sleep(300);
-    click(row.querySelector('[data-role="playBtn"]'));
-    await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'A1', 2000);
-
-    const btnToB = () => [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotB');
-    const btnToC = () => [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotC');
-    // Forme d'onde retirée le 02/09 sur retour direct de Jules-Antoine en situation réelle (des boutons
-    // d'embranchement, puis le 03/09 des nœuds de la carte globale aussi -- voir scénarios suivants,
-    // en plus de ne pas être demandée, elle ne reflétait pas fidèlement le fichier réel) -- seul le badge
-    // de transition subsiste sur ces boutons.
-    check('aucun canvas de forme d\'onde sur le bouton vers B', !btnToB().querySelector('canvas'));
-    check('aucun canvas de forme d\'onde sur le bouton vers C non plus', !btnToC().querySelector('canvas'));
-    check('badge de transition présent UNIQUEMENT sur le bouton vers B (transition déclarée pour cette paire précise)', !!btnToB().querySelector('.seq-branch-transition-badge'));
-    check('aucun badge sur le bouton vers C (aucune transition déclarée pour cette paire)', !btnToC().querySelector('.seq-branch-transition-badge'));
-    check('le libellé reste lisible malgré le badge (le badge ne contribue aucun texte)', btnToB().textContent.trim() === 'To B');
-  }
+  // Scénario 1 (aperçu enrichi des boutons d'embranchement, badge de transition sélectif) supprimé le
+  // 05/09 : les boutons de destination (.seq-branch-btn/.seq-branch-transition-badge) ont été retirés
+  // (retour direct : "plus besoin des boutons de destination non plus, la carte se suffit également à
+  // elle-même") -- le seul indicateur de transition restant est la boule sur la carte globale, déjà
+  // couverte par le scénario "la boule de transition se colore" plus bas dans ce fichier.
 
   // ---- Scénario 2 : révélation progressive côté public -- rien avant de jouer, puis courant + options immédiates seulement ----
   {
@@ -132,8 +99,7 @@ const path = require('path');
     check('le nœud A porte la classe "current"', !!nodesEl.querySelector('.seq-map-node[data-slot-idx="0"].current'));
     check('le nœud B est révélé mais ni "current" ni "visited" (jamais encore atteint)', !!nodesEl.querySelector('.seq-map-node[data-slot-idx="1"]:not(.current):not(.visited)'));
 
-    const btnToB = () => [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotB');
-    click(btnToB());
+    click(nodesEl.querySelector('[data-slot-id="slotB"]'));
     await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'B1', 2000);
     check('après la bascule vers B, C devient visible (nouvelle option immédiate) -- A reste visible aussi', nodesEl.children.length === 3);
     check('A (quitté) porte désormais la classe "visited", plus "current"', !!nodesEl.querySelector('.seq-map-node[data-slot-idx="0"].visited') && !nodesEl.querySelector('.seq-map-node[data-slot-idx="0"].current'));
@@ -159,14 +125,14 @@ const path = require('path');
     const nodesEl = row.querySelector('[data-role="seqMapNodes"]');
     click(row.querySelector('[data-role="playBtn"]'));
     await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'A1', 2000);
-    click([...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotB'));
+    click(nodesEl.querySelector('[data-slot-id="slotB"]'));
     await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'B1', 2000);
     check('2 nœuds après le premier aller A->B (pas plus)', nodesEl.children.length === 2);
 
     // B pointe vers A, déjà affiché -- ne doit pas apparaître deux fois.
-    const btnBackToA = () => [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotA');
-    check('le bouton de retour vers A (déjà visité) est bien proposé depuis B', !!btnBackToA());
-    click(btnBackToA());
+    const nodeBackToA = () => nodesEl.querySelector('[data-slot-id="slotA"]');
+    check('le nœud de retour vers A (déjà visité) est bien cliquable depuis B', !!nodeBackToA() && nodeBackToA().classList.contains('selectable'));
+    click(nodeBackToA());
     await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'A1' && [...row.querySelectorAll('.seq-map-node')].find(n => n.dataset.slotIdx === '0').classList.contains('current'), 2000);
     check('toujours 2 nœuds distincts après le retour sur A (aucun doublon créé par le cycle)', nodesEl.children.length === 2);
     check('A redevient "current" (pas un second nœud "A")', !!nodesEl.querySelector('.seq-map-node[data-slot-idx="0"].current'));
@@ -277,7 +243,7 @@ const path = require('path');
 
     click(nodeB());
     await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'B1', 2000);
-    check('cliquer sur le nœud B déclenche bien la bascule (même effet qu\'un clic sur le bouton .seq-branch-btn)', row.querySelector('[data-role="seqCurrent"]').textContent === 'B1');
+    check('cliquer sur le nœud B déclenche bien la bascule', row.querySelector('[data-role="seqCurrent"]').textContent === 'B1');
 
     // Maintenant sur B (nextOptions vers C seulement) : A reste visible (visité) mais n'est PLUS une
     // option depuis B -- ne doit donc plus être cliquable, même si toujours affiché sur la carte.
@@ -313,8 +279,7 @@ const path = require('path');
     const dotEl = () => row.querySelector('[data-role="seqMapLines"] .seq-map-transition-dot');
     check('la boule de transition existe (déclarée sur A->B) mais n\'est pas "en train de jouer" avant tout clic', !!dotEl() && !dotEl().classList.contains('playing'));
 
-    const btnToB = () => [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotB');
-    click(btnToB());
+    click(row.querySelector('[data-role="seqMapNodes"] [data-slot-id="slotB"]'));
     await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'Whoosh', 2000);
     check('la boule passe "en train de jouer" pendant que le fichier de transition est réellement audible', dotEl().classList.contains('playing'));
 

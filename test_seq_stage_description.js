@@ -112,16 +112,14 @@ const path = require('path');
   check('WetDarkCave démarre', await waitUntil(() => seqCurrentEl.textContent === 'WDC1', 2000));
   check('texte FR de WetDarkCave affiché', trackDescEl.textContent.trim() === 'Texte FR WetDarkCave');
 
-  const branchToCorridor = [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotCorridor');
-  click(branchToCorridor);
+  click(row.querySelector('[data-role="seqMapNodes"] [data-slot-id="slotCorridor"]'));
   check('la transition "Secret Lever" démarre', await waitUntil(() => seqCurrentEl.textContent === 'SecretLever', 500));
   check('texte FR de la transition affiché', trackDescEl.textContent.trim() === 'Texte FR Secret Lever');
 
   check('Corridor démarre après la transition', await waitUntil(() => seqCurrentEl.textContent === 'Cor1', 2000));
   check('texte FR de Corridor affiché', trackDescEl.textContent.trim() === 'Texte FR Corridor');
 
-  const branchToBattle = [...row.querySelectorAll('.seq-branch-btn')].find(b => b.dataset.targetId === 'slotBattle');
-  click(branchToBattle);
+  click(row.querySelector('[data-role="seqMapNodes"] [data-slot-id="slotBattle"]'));
   check('Battle démarre (bascule directe, pas de transition déclarée)', await waitUntil(() => seqCurrentEl.textContent === 'Bat1', 1500));
   check('Battle sans texte propre : le texte de Corridor reste affiché (pas écrasé par du vide)', trackDescEl.textContent.trim() === 'Texte FR Corridor');
 

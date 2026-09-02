@@ -108,26 +108,26 @@ const path = require('path');
   await sleep(700); // plusieurs cycles de 0.2s auraient largement eu le temps d'avancer si le comportement était resté celui d'une chaîne fixe
   check('still on A after several cycles with no branch chosen (replays in place, does not advance on its own)', seqCurrentEl.textContent === 'A1');
 
-  const branchBtns = () => [...row.querySelectorAll('.seq-branch-btn')];
-  check('two branch buttons shown for slot A (its declared nextOptions)', branchBtns().length === 2);
-  const btnToB = () => branchBtns().find(b => b.dataset.targetId === 'slotB');
-  const btnToC = () => branchBtns().find(b => b.dataset.targetId === 'slotC');
-  check('custom label used when provided', btnToB().textContent === 'To B');
-  check('falls back to the target slot\'s own label when no override given', btnToC().textContent === 'C');
+  // Boutons de destination retirés le 05/09 (la carte des chemins couvre les mêmes cibles, voir
+  // test_seq_map.js) -- les choix se font désormais en cliquant sur les nœuds sélectionnables de la carte.
+  const selectableNodes = () => [...row.querySelectorAll('.seq-map-node.selectable')];
+  check('two selectable nodes shown for slot A (its declared nextOptions)', selectableNodes().length === 2);
+  const nodeB = () => row.querySelector('[data-role="seqMapNodes"] [data-slot-id="slotB"]');
+  const nodeC = () => row.querySelector('[data-role="seqMapNodes"] [data-slot-id="slotC"]');
   check('pending indicator hidden before any click', pendingEl.style.display === 'none');
 
   // ---- Dernier clic gagne : B puis C avant la bascule -> doit atterrir sur C, pas B ----
-  click(btnToB());
+  click(nodeB());
   await sleep(20);
   check('pending indicator shown right after a branch click', pendingEl.style.display !== 'none');
-  check('clicked button marked pending', btnToB().classList.contains('pending'));
-  click(btnToC());
+  check('clicked node marked pending', nodeB().classList.contains('pending'));
+  click(nodeC());
   await sleep(20);
-  check('second click replaces the pending choice (last click wins)', btnToC().classList.contains('pending') && !btnToB().classList.contains('pending'));
+  check('second click replaces the pending choice (last click wins)', nodeC().classList.contains('pending') && !nodeB().classList.contains('pending'));
 
   check('switch actually lands on C (the last-clicked target), not B', await waitUntil(() => seqCurrentEl.textContent === 'C1', 2000));
   check('pending indicator hidden again once the branch has been consumed (slot C has no nextOptions)', pendingEl.style.display === 'none');
-  check('no branch buttons shown for slot C (no nextOptions declared on it)', branchBtns().length === 0);
+  check('no selectable node once on C (no nextOptions declared on it)', selectableNodes().length === 0);
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
