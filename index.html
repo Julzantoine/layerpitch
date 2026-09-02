@@ -250,27 +250,12 @@
   .embr-detour-wave-row { position: relative; display: block; width: 100%; height: var(--embr-row-h, 34px); border-radius: 4px; overflow: hidden; margin-top: 4px; border: 1px solid var(--accent); }
   .embr-transition-row .embr-wave-fg, .embr-detour-wave-row .embr-wave-fg { opacity: 1; }
 
-  /* Boutons d'embranchement séquentiel (nextOptions) : "pending" = choix en attente de bascule au
-     prochain point de quantification, visuellement distinct de "active" (qui n'existe pas ici — aucune
-     de ces options n'est celle en train de jouer, seul le segment courant l'est). */
-  .seq-branch-options { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .seq-branch-btn {
-    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 10px;
-    border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; line-height: 1.6;
-  }
-  .seq-branch-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .seq-branch-btn.pending { border-color: var(--accent); border-style: dashed; color: var(--accent); }
+  /* Choix d'embranchement séquentiel (nextOptions) : "pending" = choix en attente de bascule au prochain
+     point de quantification. Les boutons de destination (.seq-branch-btn) ont été retirés le 05/09 (retour
+     direct : "plus besoin des boutons de destination non plus, la carte se suffit également à elle-même")
+     -- la carte globale ci-dessous (.seq-map-node.selectable/.pending) couvre déjà exactement les mêmes
+     cibles, un seul moyen de choisir plutôt que deux redondants. */
   .seq-pending-indicator { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.04em; color: var(--accent); margin-top: 6px; font-style: italic; }
-
-  /* Badge d'embranchement (02/09, forme d'onde retirée le même jour sur retour de Jules-Antoine en
-     situation réelle -- gardée uniquement sur la carte globale ci-dessous, pas sur ces boutons) : badge
-     si un fichier de transition existe pour cette paire d'embranchement précise. Pas de bleu/violet ici
-     malgré une maquette antérieure qui les utilisait : décidé avec Jules-Antoine de garder var(--accent)
-     partout (un seul langage visuel "actif" dans tout le site), y compris pour le chantier embr-vertical
-     déjà livré qui a la même maquette bleu/violet/vert non retenue. */
-  .seq-branch-btn { position: relative; }
-  .seq-branch-transition-badge { position: absolute; top: -5px; right: -5px; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; z-index: 2; }
-  .seq-branch-transition-badge svg { width: 8px; height: 8px; }
 
   /* Carte globale des chemins (mode séquentiel à embranchement, 02/09, reprise en flowchart le même jour
      après un premier essai en grille en flux qui s'effondrait en une colonne illisible dans le panneau
@@ -291,8 +276,8 @@
   .seq-map-node { position: absolute; width: var(--seq-map-node-w, 96px); height: var(--seq-map-node-h, 40px); border-radius: 6px; border: 1px solid var(--border); overflow: hidden; background: var(--bg-card); }
   .seq-map-node.current { border-color: var(--accent); border-width: 2px; background: var(--accent-soft); }
   /* Nœuds cliquables (04/09) : uniquement ceux qui sont une vraie option depuis l'emplacement courant --
-     voir updateSeqMap(). .pending reprend le même traitement que .seq-branch-btn.pending (bordure en
-     tirets, couleur accent) pour rester cohérent avec le panneau de boutons existant. */
+     voir updateSeqMap(). .pending (bordure en tirets, couleur accent) est la seule façon de signaler un
+     choix en attente depuis le retrait des boutons de destination le 05/09. */
   .seq-map-node.selectable { cursor: pointer; }
   .seq-map-node.selectable:hover { border-color: var(--accent); }
   .seq-map-node.pending { border-color: var(--accent); border-style: dashed; }
@@ -408,8 +393,8 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1788370454208"></script>
-<script src="player.js?v=1788370454208"></script>
+<script src="layerpitch-i18n.js?v=1788374347783"></script>
+<script src="player.js?v=1788374347783"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.LayerPlayerCore;
 

@@ -8,6 +8,25 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-02l] — Retire les boutons de destination du mode séquentiel à embranchement : la carte des chemins suffit
+
+**Fichiers touchés** : `player.js` (retrait de `renderSeqBranchOptions`, du panneau `.seq-branch-options`, simplification de `handleSeqBranchChoice`/`activateSeqStage`/`stopSequential`) ; `index.html`, `pack.html`, `layerpitch-backstage.html` (CSS `.seq-branch-options`/`.seq-branch-btn`/`.seq-branch-transition-badge` retirée ; `?v=` bumpée) ; `test_seq_branching.js`, `test_seq_custom_cut_fade.js`, `test_seq_stage_description.js`, `test_seq_transitions.js`, `test_seq_slot_tempo.js`, `test_seq_map.js` (les clics de test passent désormais par les nœuds de la carte).
+
+**Contexte** : retour direct en situation réelle sur [2026-09-02h] (nœuds cliquables) — "dans le backstage, plus besoin des boutons de destination non plus : la carte se suffit également à elle-même", confirmé "partout" (page publique et pack.html compris, pas seulement Backstage) après clarification.
+
+**Corrigé** :
+- **Panneau `.seq-branch-options` retiré du gabarit** (`buildTrackRow`) — les boutons de destination par emplacement (ex. "#3 Battle", "#1 WetDarkCave") ont disparu, la carte des chemins (déjà cliquable depuis [2026-09-02h]) reste l'unique façon de choisir un embranchement, sur les trois fichiers.
+- **`renderSeqBranchOptions()` supprimée** — plus rien à construire pour ce panneau. Ses deux points d'appel (`activateSeqStage`/`stopSequential`) appellent désormais directement `updateSeqPendingIndicator()`, seul comportement qu'ils avaient encore besoin de déclencher (l'indicateur textuel "en attente" reste, inchangé, quel que soit le mode de choix).
+- **`handleSeqBranchChoice()` simplifiée** — ne touche plus que les nœuds de la carte (`.seq-map-node.pending`), plus les boutons devenus inexistants.
+- **CSS mort retiré** sur les 3 fichiers : `.seq-branch-options`, `.seq-branch-btn` (+ `:hover`/`.pending`), `.seq-branch-transition-badge` (+ `svg`). `.seq-pending-indicator` conservé (toujours utilisé). Commentaires mis à jour là où ils faisaient encore référence à `.seq-branch-btn`.
+- **Perte de couverture assumée, pas comblée** : l'ancien Scénario 1 de `test_seq_map.js` testait un badge de transition spécifique aux boutons (retiré) — supprimé plutôt que converti, la boule de transition de la carte ([2026-09-02i]) couvre déjà le même besoin (signaler qu'un embranchement a une transition). Les tests qui utilisaient un bouton texte pour vérifier un libellé personnalisé par embranchement (`opt.label`) perdent cette assertion précise : un nœud de carte affiche toujours le nom de l'emplacement cible, jamais un libellé propre à l'arête (qui reste lisible en infobulle sur l'arête elle-même, déjà couvert ailleurs) — les autres 6 fichiers de test n'utilisaient les boutons que comme mécanisme de clic, convertis en clics sur les nœuds correspondants (`[data-slot-id="..."]`) sans perte de couverture comportementale.
+
+**Vérifications** : `node --check` OK sur `player.js` et le JS inline des 3 fichiers HTML. Suite complète des `test_*.js`/`test-*.js` rejouée après conversion des 6 fichiers concernés — tous verts, aucune régression sur le comportement testé (dernier-clic-gagne, quantification immediate/bar, fondus personnalisés, tempo par segment, textes de mise en scène, durées de transition en mesures/temps/secondes). Balises équilibrées sur les 4 gabarits.
+
+**Toujours aucune écoute réelle possible de ma part** — le confort d'usage de "cliquer uniquement sur la carte" (notamment en mode compact au-delà de 14 emplacements, où les nœuds sont plus petits) reste à confirmer par Jules-Antoine après rechargement forcé (Cmd+Shift+R).
+
+---
+
 ## [2026-09-02k] — Deux corrections en embranchement vertical : durée de transition ignorée dans l'aperçu Backstage, redémarrage inutile au retour d'onglet
 
 **Fichiers touchés** : `layerpitch-backstage.html` (`buildPreviewTrack()`, non suivi par git — voir rappel plus bas) ; `player.js` (`visibilitychange`, branche `isEmbrVert`) ; `?v=` bumpée sur les 3 fichiers HTML.
