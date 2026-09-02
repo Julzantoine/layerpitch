@@ -1552,6 +1552,9 @@ function initTrackPlayer(track, wrapper) {
   // utilisé côté embr-vertical). ----
   const SEQ_MAP_FULL_SIZE_MAX = 6, SEQ_MAP_DEGRADE_MAX = 14;
   const SEQ_MAP_COL_GAP = 40, SEQ_MAP_ROW_GAP = 16;
+  // Boucles de retour (03/09, retour direct "elles sont tracées un peu aléatoirement") : marge sous TOUTE
+  // la grille avant la première boucle, puis un écart entre boucles successives -- voir seqMapDrawEdges.
+  const SEQ_MAP_LOOP_MARGIN = 22, SEQ_MAP_LOOP_STAGGER = 18;
   // Ensemble des index d'emplacements à révéler pour l'état courant -- toujours tout en mode
   // seqMapFullReveal (Backstage), sinon déjà-visités + courant + options immédiates depuis le courant
   // (effet de découverte demandé le 1er septembre).
@@ -1659,14 +1662,13 @@ function initTrackPlayer(track, wrapper) {
     const layout = seqMapComputeLayout(visibleIdx, currentIdx);
     const colW = w + SEQ_MAP_COL_GAP, rowH = h + SEQ_MAP_ROW_GAP;
     const totalW = (layout.maxCol + 1) * colW - SEQ_MAP_COL_GAP;
-    // Marge verticale supplémentaire si au moins une arête de retour existe -- sa boucle dépasse
-    // volontairement la dernière ligne de nœuds (voir seqMapDrawEdges, loopY = ... + rowH*0.55), sans
-    // cette marge elle serait coupée par overflow-y:hidden sur .seq-map-graph (bug trouvé en vérification
-    // visuelle réelle : la boucle de retour existait bien dans le SVG mais restait invisible, coupée sous
-    // le bord de la carte -- même famille de bug que celui trouvé par Jules-Antoine, juste sur l'axe
-    // vertical cette fois plutôt qu'horizontal).
-    const hasBackEdge = visibleIdx.some(idx => seqMapForwardTargets(idx, new Set(visibleIdx)).some(ti => layout.col[ti] <= layout.col[idx]));
-    const totalH = layout.maxRows * rowH - SEQ_MAP_ROW_GAP + (hasBackEdge ? Math.round(rowH * 0.7) : 0);
+    // Marge verticale supplémentaire si des arêtes de retour existent -- chacune plonge volontairement
+    // sous TOUTE la grille (voir seqMapDrawEdges), une par une, en s'étalant verticalement pour rester
+    // distinctes. Sans cette marge elles seraient coupées par overflow-y:hidden sur .seq-map-graph (bug
+    // trouvé en vérification visuelle réelle : la boucle existait bien dans le SVG mais restait invisible,
+    // coupée sous le bord de la carte).
+    const backEdgeCount = visibleIdx.reduce((n, idx) => n + seqMapForwardTargets(idx, new Set(visibleIdx)).filter(ti => layout.col[ti] <= layout.col[idx]).length, 0);
+    const totalH = layout.maxRows * rowH - SEQ_MAP_ROW_GAP + (backEdgeCount > 0 ? SEQ_MAP_LOOP_MARGIN + (backEdgeCount - 1) * SEQ_MAP_LOOP_STAGGER + Math.round(h / 2) + 6 : 0);
     // Taille explicite sur le conteneur défilable (pas sur .seq-map-graph, qui reste la fenêtre visible) --
     // permet un défilement horizontal si le graphe est plus large que la carte, plutôt que l'effondrement
     // en une seule colonne trouvé en situation réelle avec la première version (nœuds superposés, arêtes
@@ -1691,14 +1693,19 @@ function initTrackPlayer(track, wrapper) {
     seqMapDrawEdges(layout, visibleIdx, colW, rowH, w, h, totalW, totalH);
   }
   // Arêtes SVG entre nœuds révélés, positions calculées directement depuis `layout` (pas de mesure DOM).
-  // Arête "en avant" (colonne cible > colonne source) : courbe en S classique. Arête "en arrière ou même
-  // colonne" (boucle/retour, colonne cible <= colonne source -- exactement le cas "#3 Battle -> #1
-  // WetDarkCave" trouvé manquant en situation réelle avec la première version) : boucle large qui sort et
-  // rentre par la droite des deux nœuds, jamais une ligne droite qui passerait derrière les nœuds
-  // intermédiaires (c'est précisément ce qui la rendait invisible avant cette réécriture). totalW/totalH
-  // reçus tels quels depuis updateSeqMap() (pas recalculés ici) pour que le viewBox du SVG corresponde
-  // exactement à .seq-map-canvas, marge des boucles de retour comprise -- sinon une boucle qui dépasse la
-  // dernière ligne de nœuds serait coupée par overflow-y:hidden (bug trouvé en vérification visuelle).
+  // Arête "en avant" (colonne cible > colonne source) : courbe en S classique entre le bord droit de la
+  // source et le bord gauche de la cible. Arête "en arrière ou même colonne" (boucle/retour, colonne
+  // cible <= colonne source) : réécrite le 03/09 sur retour direct ("elles sont tracées un peu
+  // aléatoirement") -- l'ancienne version sortait par la droite avec un décalage fixe, ce qui donnait une
+  // forme différente selon la distance entre les deux nœuds (parfois un crochet serré, parfois un arc à
+  // peine visible). Désormais : sort par le BAS de la source, plonge sous TOUTE la grille (pas juste sous
+  // la ligne des deux nœuds concernés -- ne risque donc jamais de croiser un nœud intermédiaire), et
+  // remonte par le BAS de la cible -- une même forme en "U" prévisible quelle que soit la distance, les
+  // deux tangentes verticales aux extrémités (point de contrôle directement sous chaque nœud) évitant tout
+  // effet "aléatoire". totalW/totalH reçus tels quels depuis updateSeqMap() (pas recalculés ici) pour que
+  // le viewBox du SVG corresponde exactement à .seq-map-canvas, marge des boucles de retour comprise --
+  // sinon une boucle qui dépasse la dernière ligne de nœuds serait coupée par overflow-y:hidden (bug
+  // trouvé en vérification visuelle réelle).
   function seqMapDrawEdges(layout, visibleIdx, colW, rowH, nodeW, nodeH, totalW, totalH) {
     if (!seqMapLinesEl) return;
     const slots = track.segmentSlots || [];
@@ -1709,22 +1716,25 @@ function initTrackPlayer(track, wrapper) {
     const svgNS = 'http://www.w3.org/2000/svg';
     const rightOf = idx => ({ x: layout.col[idx] * colW + nodeW, y: layout.row[idx] * rowH + nodeH / 2 });
     const leftOf = idx => ({ x: layout.col[idx] * colW, y: layout.row[idx] * rowH + nodeH / 2 });
+    const bottomOf = idx => ({ x: layout.col[idx] * colW + nodeW / 2, y: layout.row[idx] * rowH + nodeH });
     const visibleSet = new Set(visibleIdx);
+    const gridBottom = layout.maxRows * rowH - SEQ_MAP_ROW_GAP;
     // Étale chaque boucle de retour un peu plus bas que la précédente (backEdgeIndex incrémenté à chaque
-    // arête en arrière rencontrée) -- sans ça, deux boucles de retour vers des lignes proches finissaient
-    // exactement à la même hauteur et se confondaient visuellement (retour "tout recroquevillé" en
-    // situation réelle). updateSeqMap() réserve la marge verticale correspondante dans totalH.
+    // arête en arrière rencontrée) -- sans ça, deux boucles de retour finissaient à la même hauteur et se
+    // confondaient visuellement. updateSeqMap() réserve la marge verticale correspondante dans totalH,
+    // avec les mêmes constantes (SEQ_MAP_LOOP_MARGIN/SEQ_MAP_LOOP_STAGGER).
     let backEdgeIndex = 0;
     const drawEdge = (fromIdx, toIdx, cls, label) => {
       const isBack = layout.col[toIdx] <= layout.col[fromIdx];
-      const a = rightOf(fromIdx), b = isBack ? rightOf(toIdx) : leftOf(toIdx);
       const path = document.createElementNS(svgNS, 'path');
-      let d;
+      let d, a, b;
       if (isBack) {
-        const loopY = Math.max(a.y, b.y) + rowH * 0.55 + backEdgeIndex * (rowH * 0.4);
+        a = bottomOf(fromIdx); b = bottomOf(toIdx);
+        const loopY = gridBottom + SEQ_MAP_LOOP_MARGIN + backEdgeIndex * SEQ_MAP_LOOP_STAGGER;
         backEdgeIndex++;
-        d = `M ${a.x} ${a.y} C ${a.x + 26} ${loopY}, ${b.x + 26} ${loopY}, ${b.x} ${b.y}`;
+        d = `M ${a.x} ${a.y} C ${a.x} ${loopY}, ${b.x} ${loopY}, ${b.x} ${b.y}`;
       } else {
+        a = rightOf(fromIdx); b = leftOf(toIdx);
         const midX = (a.x + b.x) / 2;
         d = `M ${a.x} ${a.y} C ${midX} ${a.y}, ${midX} ${b.y}, ${b.x} ${b.y}`;
       }
