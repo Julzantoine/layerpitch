@@ -248,6 +248,45 @@ const path = require('path');
     check('en repli compact, pas de positionnement en couches (simple flux, style "left" absent)', nodes20.querySelector('.seq-map-node').style.left === '');
   }
 
+  // ---- Scénario 6 : nœuds cliquables (04/09) -- uniquement les vraies options depuis le nœud courant ----
+  {
+    const track = {
+      id: 'sm-6', title: 'Clickable nodes', mode: 'sequential', description: '', duration: 0,
+      base: '', publishedAt: 1, bpm, beatsPerBar,
+      segmentSlots: [
+        // bars:2 sur toute boucle qui embranche -- même raison que les scénarios précédents (course de
+        // timing documentée dans test_seq_branching.js si bars:1).
+        { id: 'slotA', label: 'A', repeatCount: 1, alternatives: [{ label: 'A1', bars: 2, localFile: fakeFile('a1.wav') }], nextOptions: [{ targetId: 'slotB', label: '' }] },
+        { id: 'slotB', label: 'B', repeatCount: 1, alternatives: [{ label: 'B1', bars: 2, localFile: fakeFile('b1.wav') }], nextOptions: [{ targetId: 'slotC', label: '' }] },
+        { id: 'slotC', label: 'C', repeatCount: 1, alternatives: [{ label: 'C1', bars: 1, localFile: fakeFile('c1.wav') }] }
+      ],
+      sfxIds: []
+    };
+    const row = Core.buildTrackRow(track, null, false);
+    doc.getElementById('host').appendChild(row);
+    Core.initTrackPlayer(track, row);
+    await sleep(300);
+    const nodesEl = row.querySelector('[data-role="seqMapNodes"]');
+    click(row.querySelector('[data-role="playBtn"]'));
+    await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'A1', 2000);
+
+    const nodeA = () => nodesEl.querySelector('[data-slot-id="slotA"]');
+    const nodeB = () => nodesEl.querySelector('[data-slot-id="slotB"]');
+    check('le nœud courant (A) n\'est PAS cliquable (on ne clique pas sur soi-même)', !nodeA().classList.contains('selectable'));
+    check('le nœud B (vraie option depuis A) est cliquable', nodeB().classList.contains('selectable'));
+
+    click(nodeB());
+    await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'B1', 2000);
+    check('cliquer sur le nœud B déclenche bien la bascule (même effet qu\'un clic sur le bouton .seq-branch-btn)', row.querySelector('[data-role="seqCurrent"]').textContent === 'B1');
+
+    // Maintenant sur B (nextOptions vers C seulement) : A reste visible (visité) mais n'est PLUS une
+    // option depuis B -- ne doit donc plus être cliquable, même si toujours affiché sur la carte.
+    await waitUntil(() => !!nodeA(), 1000);
+    check('A, visité mais plus une option depuis B, reste affiché mais n\'est plus cliquable', !!nodeA() && !nodeA().classList.contains('selectable'));
+    const nodeC = () => nodesEl.querySelector('[data-slot-id="slotC"]');
+    check('C, la vraie option depuis B, est cliquable', nodeC().classList.contains('selectable'));
+  }
+
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
 })().catch(e => { console.error('TEST THREW:', e); process.exit(1); });

@@ -1496,6 +1496,22 @@ function initTrackPlayer(track, wrapper) {
       if (els && els.fg) { els.fg.style.transition = 'none'; els.fg.style.clipPath = 'inset(0 100% 0 0)'; }
     });
   }
+  // Choix d'un embranchement (04/09) : factorisé pour être appelé aussi bien depuis un clic sur un bouton
+  // .seq-branch-btn que depuis un clic sur un nœud cliquable de la carte globale (voir updateSeqMap()) --
+  // même effet des deux côtés, une seule logique à maintenir plutôt que deux copies qui pourraient diverger.
+  function handleSeqBranchChoice(targetId, currentSlot) {
+    // Dernier clic gagne (validé le 31/07) : un second clic sur une autre option remplace simplement le
+    // choix précédent, il n'y a jamais de verrou sur le premier clic.
+    pendingNextSegmentId = targetId;
+    if (seqBranchOptionsEl) seqBranchOptionsEl.querySelectorAll('.seq-branch-btn').forEach(b => b.classList.toggle('pending', b.dataset.targetId === targetId));
+    if (seqMapNodesEl) seqMapNodesEl.querySelectorAll('.seq-map-node').forEach(n => n.classList.toggle('pending', n.dataset.slotId === targetId));
+    updateSeqPendingIndicator();
+    trackPublicEvent('seq_branch_select', { trackId: track.id, targetId });
+    // "immediate" (validé le 02/08) : pas de frontière à attendre, la coupure se déclenche directement au
+    // clic — pour "beat"/"bar", c'est armNextSeqBranchBoundary (armée dès le début de CET emplacement dans
+    // activateSeqStage) qui surveille déjà la prochaine frontière et lira ce choix à son tour.
+    if (currentSlot && (currentSlot.quantization || 'bar') === 'immediate') performSeqBranchCut();
+  }
   // Boutons d'embranchement séquentiel (optionnel, voir `nextOptions` sur segmentSlots) : reconstruits à
   // chaque fois que l'emplacement audible change, puisque les cibles disponibles dépendent de CET
   // emplacement précis. slotIdx === -1 (intro/outro/arrêt) : rien à montrer, panneau vidé.
@@ -1527,18 +1543,7 @@ function initTrackPlayer(track, wrapper) {
     }).join('');
     updateSeqPendingIndicator();
     seqBranchOptionsEl.querySelectorAll('.seq-branch-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        // Dernier clic gagne (validé le 31/07) : un second clic sur une autre option remplace simplement
-        // le choix précédent, il n'y a jamais de verrou sur le premier clic.
-        pendingNextSegmentId = btn.dataset.targetId;
-        seqBranchOptionsEl.querySelectorAll('.seq-branch-btn').forEach(b => b.classList.toggle('pending', b === btn));
-        updateSeqPendingIndicator();
-        trackPublicEvent('seq_branch_select', { trackId: track.id, targetId: pendingNextSegmentId });
-        // "immediate" (validé le 02/08) : pas de frontière à attendre, la coupure se déclenche directement
-        // au clic — pour "beat"/"bar", c'est armNextSeqBranchBoundary (armée dès le début de CET emplacement
-        // dans activateSeqStage) qui surveille déjà la prochaine frontière et lira ce choix à son tour.
-        if (slot && (slot.quantization || 'bar') === 'immediate') performSeqBranchCut();
-      });
+      btn.addEventListener('click', () => handleSeqBranchChoice(btn.dataset.targetId, slot));
     });
   }
   function updateSeqPendingIndicator() {
@@ -1639,6 +1644,19 @@ function initTrackPlayer(track, wrapper) {
       seqMapCanvasEl.style.width = ''; seqMapCanvasEl.style.height = '';
       return;
     }
+    // Nœuds cliquables (04/09) : uniquement ceux qui sont une vraie option depuis l'emplacement COURANT
+    // (les mêmes cibles que les boutons .seq-branch-btn, jamais un nœud "visité" par ailleurs qui n'est
+    // pas une option depuis ici -- on ne clique pas sur l'historique, seulement sur ce qui est réellement
+    // proposé maintenant). Rien de sélectionnable hors lecture (currentIdx < 0, ex. état "Prêt").
+    const currentSlot = currentIdx >= 0 ? (slots[currentIdx] || null) : null;
+    const selectableIds = new Set(((currentSlot && currentSlot.nextOptions) || []).map(o => o.targetId));
+    const nodeStateCls = (idx, slot) => {
+      const isCurrent = idx === currentIdx;
+      const isVisited = seqVisitedSlotIds.has(idx) && !isCurrent;
+      const isSelectable = selectableIds.has(slot.id);
+      const isPending = pendingNextSegmentId === slot.id;
+      return (isCurrent ? ' current' : '') + (isVisited ? ' visited' : '') + (isSelectable ? ' selectable' : '') + (isPending ? ' pending' : '');
+    };
     const n = visibleIdx.length;
     const compact = n > SEQ_MAP_DEGRADE_MAX;
     seqMapNodesEl.classList.toggle('compact', compact);
@@ -1650,13 +1668,12 @@ function initTrackPlayer(track, wrapper) {
       if (seqMapLinesEl) seqMapLinesEl.innerHTML = '';
       seqMapNodesEl.innerHTML = visibleIdx.map(idx => {
         const slot = slots[idx] || {};
-        const isCurrent = idx === currentIdx;
-        const isVisited = seqVisitedSlotIds.has(idx) && !isCurrent;
         const label = slot.label || t('slotFallback', { n: idx + 1 });
-        const cls = 'seq-map-node' + (isCurrent ? ' current' : '') + (isVisited ? ' visited' : '');
-        const check = isVisited ? '<span class="seq-map-node-check">✓</span>' : '';
-        return `<div class="${cls}" data-slot-idx="${idx}"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
+        const cls = 'seq-map-node' + nodeStateCls(idx, slot);
+        const check = (seqVisitedSlotIds.has(idx) && idx !== currentIdx) ? '<span class="seq-map-node-check">✓</span>' : '';
+        return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
       }).join('');
+      attachSeqMapNodeClicks(currentSlot);
       return;
     }
     const span = SEQ_MAP_DEGRADE_MAX - SEQ_MAP_FULL_SIZE_MAX;
@@ -1688,15 +1705,23 @@ function initTrackPlayer(track, wrapper) {
     // ni dessiner ici, juste le libellé.
     seqMapNodesEl.innerHTML = visibleIdx.map(idx => {
       const slot = slots[idx] || {};
-      const isCurrent = idx === currentIdx;
-      const isVisited = seqVisitedSlotIds.has(idx) && !isCurrent;
       const label = slot.label || t('slotFallback', { n: idx + 1 });
-      const cls = 'seq-map-node' + (isCurrent ? ' current' : '') + (isVisited ? ' visited' : '');
-      const check = isVisited ? '<span class="seq-map-node-check">✓</span>' : '';
+      const cls = 'seq-map-node' + nodeStateCls(idx, slot);
+      const check = (seqVisitedSlotIds.has(idx) && idx !== currentIdx) ? '<span class="seq-map-node-check">✓</span>' : '';
       const x = layout.col[idx] * colW, y = layout.row[idx] * rowH;
-      return `<div class="${cls}" data-slot-idx="${idx}" style="left:${x}px;top:${y}px"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
+      return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}" style="left:${x}px;top:${y}px"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
     }).join('');
     seqMapDrawEdges(layout, visibleIdx, colW, rowH, w, h, totalW, totalH);
+    attachSeqMapNodeClicks(currentSlot);
+  }
+  // Attache le clic sur les nœuds sélectionnables -- rappelée à chaque reconstruction de seqMapNodesEl
+  // (son innerHTML est entièrement remplacé à chaque appel d'updateSeqMap(), donc les écouteurs d'un
+  // passage précédent n'existent plus) exactement comme renderSeqBranchOptions() le fait déjà pour ses
+  // propres boutons.
+  function attachSeqMapNodeClicks(currentSlot) {
+    seqMapNodesEl.querySelectorAll('.seq-map-node.selectable').forEach(el => {
+      el.addEventListener('click', () => handleSeqBranchChoice(el.dataset.slotId, currentSlot));
+    });
   }
   // Arêtes SVG entre nœuds révélés, positions calculées directement depuis `layout` (pas de mesure DOM).
   // Arête "en avant" (colonne cible > colonne source) : courbe en S classique entre le bord droit de la
