@@ -8,6 +8,26 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-02k] — Deux corrections en embranchement vertical : durée de transition ignorée dans l'aperçu Backstage, redémarrage inutile au retour d'onglet
+
+**Fichiers touchés** : `layerpitch-backstage.html` (`buildPreviewTrack()`, non suivi par git — voir rappel plus bas) ; `player.js` (`visibilitychange`, branche `isEmbrVert`) ; `?v=` bumpée sur les 3 fichiers HTML.
+
+**Contexte** : deux retours directs successifs en situation réelle, sur le même morceau ("Monte en l'air et Pattes de Velours") :
+1. "J'ai réglé la durée de la transition sur 1 temps, mais ça va jusqu'au bout du fichier" — reproduit dans l'aperçu "Écouter" du Backstage, PAS sur la page publique (confirmé par le retour suivant : "ha non, ça marche sur la page publique").
+2. "On veut que l'audio continue même si on va sur un autre onglet (ce qu'il fait déjà), mais qu'il ne reprenne pas au début quand on revient sur l'AdReel !"
+
+**Corrigé** :
+- **Bug 1 (Backstage uniquement)** : `buildPreviewTrack()` construit l'objet piste utilisé par l'aperçu local à partir de `mapItem()`, qui ne renvoie que `label`/`localFile`/`file`/`gain` — jamais `durationUnit`/`durationBeats`/`durationSeconds`/`bpm`/`beatsPerBar`. Sans `durationUnit`, `embrTransitionDurationSecFor()` (player.js) ne reconnaît aucune des trois unités possibles et retombe systématiquement sur la durée totale du fichier décodé, quel que soit le réglage choisi dans le formulaire. La page publique n'est pas concernée : elle lit `data.json` directement, où ces champs sont bien présents (le chemin de sauvegarde/publication les portait déjà correctement, seul l'aperçu local en était privé). Correctif : les mêmes champs de durée sont désormais explicitement recopiés dans `buildPreviewTrack()`, à l'identique du bloc de chargement/restauration existant plus bas dans ce même fichier (qui, lui, les portait déjà depuis le 24/08).
+- **Bug 2 (tous les gabarits)** : la reprise après changement d'onglet (`visibilitychange`) relançait TOUJOURS `resumeEmbrVerticalAfterBackground()` sans savoir si quelque chose avait réellement été interrompu — or le Web Audio de ce moteur continue en pratique de jouer normalement en arrière-plan la plupart du temps (pas de vraie coupure), donc ce redémarrage systématique reconstruisait toute la programmation à chaque retour d'onglet, provoquant un redémarrage audible depuis le début du fichier alors que rien n'en avait besoin. Ajout d'une garde : on ne relance que si le contexte audio a été RÉELLEMENT suspendu par le navigateur (`ctx.state !== 'running'`) ou si le planificateur périodique a pris du retard au point de ne plus avoir de génération programmée à l'heure (`embrNextStartCtxTime` dépassé) — sinon, rien n'est touché, la lecture en cours continue exactement telle quelle. Le chemin de reprise pour un cas de VRAIE interruption (celui visé par le correctif du 29/08) reste inchangé et fonctionnel.
+
+**Vérifications** : `node --check` OK sur `player.js` et le JS inline des 3 fichiers HTML. Suite complète des `test_*.js`/`test-*.js` rejouée, aucune régression. Balises équilibrées. Vérification en navigateur réel pour le bug 2 (compteur de `BufferSource` créées, via un patch du constructeur `AudioContext`) : cycle onglet caché→visible avec `ctx.state` resté `'running'` -- 0 nouvelle source créée, rien redémarré ; même cycle avec le contexte explicitement suspendu (`ctx.suspend()`) avant le retour -- 2 nouvelles sources créées (les deux boucles paires reconstruites), contexte relancé, bonne boucle toujours active -- confirme que le chemin de vraie reprise n'a pas été cassé par la garde ajoutée. Le bug 1 n'a pas pu être revérifié en direct dans l'outil Backstage lui-même (nécessite l'environnement complet de Jules-Antoine) — correction faite par lecture directe du code, en miroir exact du bloc de chargement déjà existant et déjà fonctionnel plus bas dans le même fichier.
+
+**Rappel distribution** : `layerpitch-backstage.html` est dans `.gitignore` (fichier local, jamais suivi par git) — la correction du bug 1 n'apparaîtra jamais dans `git status`/`git diff`, seulement sur le disque local et via `downloadTesterKit()` pour les testeurs.
+
+**Toujours aucune écoute réelle possible de ma part** — les deux corrections sont à confirmer par Jules-Antoine après rechargement forcé (Cmd+Shift+R) et republication depuis le Backstage pour le bug 1.
+
+---
+
 ## [2026-09-02j] — Corrige deux bugs bloquants sur la forme d'onde des boutons de boucle en embranchement vertical
 
 **Fichiers touchés** : `player.js` (chargement des boucles, boucle `embrLoopBtns.forEach`) ; `index.html`, `pack.html`, `layerpitch-backstage.html` (CSS : `.embr-wave-btn.active` ; `?v=` bumpée).
