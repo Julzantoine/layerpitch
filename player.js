@@ -3750,6 +3750,19 @@ function initTrackPlayer(track, wrapper) {
           if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
         } catch (e) { /* boucle manquante : ce bouton restera désactivé, ne bloque pas les autres */ }
       }
+      // Formes d'onde des boutons de boucle (02/09) : les canvases .embr-wave-bg/.embr-wave-fg existent dans
+      // le HTML depuis le premier chantier, mais rien ne les dessinait jamais -- bug confirmé le 05/09 en
+      // situation réelle (retour direct : "on devrait voir les deux formes d'ondes des deux boucles paires
+      // ici"), chaque bouton "riche" restait entièrement vide (juste le fond CSS + le libellé, indiscernable
+      // d'un bouton plat). embrLoopBtns porte déjà data-loop-idx, posé une seule fois par buildTrackRow --
+      // aucun besoin de reconstruire l'association bouton/buffer ici.
+      embrLoopBtns.forEach(btn => {
+        if (!btn.classList.contains('embr-wave-btn')) return;
+        const idx = parseInt(btn.dataset.loopIdx, 10);
+        const buf = embrLoopBuffers[idx];
+        const bg = btn.querySelector('.embr-wave-bg'), fg = btn.querySelector('.embr-wave-fg');
+        if (buf && bg && fg) renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+      });
       // Fichiers de transition (24/08) -- optionnels, un par boucle. Une transition manquante/en échec ne
       // bloque jamais la boucle elle-même : la bascule se fait juste sans overlay, comme si aucune
       // transition n'avait été réglée (même tolérance que les transitions du séquentiel).
