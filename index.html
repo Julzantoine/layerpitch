@@ -223,6 +223,26 @@
   .embr-loop-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
   .embr-loop-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+  /* Forme d'onde du mode vertical à embranchement (02/09) : progression continue verrouillée en phase
+     pour les boucles "paires" (voir applyEmbrWaveAnimation() dans player.js), overlay one-shot pour une
+     bascule avec transition ou un détour -- réutilise le mécanisme clip-path déjà en place ailleurs
+     (.seq-block-wave-fg/.sfx-rr-wave-fg), généralisé en boucle CSS infinie pour la progression continue.
+     Un bouton riche prend 100% de la largeur du picker (.intensity-picker en flex-wrap) pour forcer son
+     propre retour à la ligne -- pas besoin de restructurer ce conteneur partagé avec les puces de détour,
+     qui gardent leur largeur de puce normale. Au-delà de 7 boucles paires, repli sur le gabarit compact
+     existant (.embr-loop-btn seul, sans ces règles) -- voir buildTrackRow. */
+  [data-role="embrLoopPicker"] { position: relative; }
+  .embr-wave-btn { position: relative; display: block; width: 100%; height: var(--embr-row-h, 34px); border-radius: 4px; overflow: hidden; text-align: left; padding: 0; }
+  .embr-wave-bg, .embr-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .embr-wave-fg { clip-path: inset(0 100% 0 0); opacity: 0.35; animation: embrWaveFill 1s linear infinite; animation-play-state: paused; }
+  .embr-wave-btn.active .embr-wave-fg { opacity: 1; }
+  .embr-wave-btn.embr-transition-dim { opacity: 0.5; }
+  .embr-wave-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.03em; z-index: 1; padding: 0 8px; text-align: center; pointer-events: none; text-shadow: 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff); }
+  @keyframes embrWaveFill { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
+  .embr-transition-row { position: absolute; top: 50%; left: 10%; right: 10%; transform: translateY(-50%); height: 34px; border-radius: 4px; overflow: hidden; border: 1px solid var(--accent); background: var(--bg-card); box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 3; }
+  .embr-detour-wave-row { position: relative; display: block; width: 100%; height: var(--embr-row-h, 34px); border-radius: 4px; overflow: hidden; margin-top: 4px; border: 1px solid var(--accent); }
+  .embr-transition-row .embr-wave-fg, .embr-detour-wave-row .embr-wave-fg { opacity: 1; }
+
   /* Boutons d'embranchement séquentiel (nextOptions) : "pending" = choix en attente de bascule au
      prochain point de quantification, visuellement distinct de "active" (qui n'existe pas ici — aucune
      de ces options n'est celle en train de jouer, seul le segment courant l'est). */
@@ -350,7 +370,11 @@ function loadPostgresReadScripts() {
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = src.startsWith('http') ? src : src + '?v=' + Date.now();
-      s.onload = resolve; s.onerror = reject;
+      // s.onerror reçoit un Event DOM (pas de .message) -- reject() explicite avec une vraie Error
+      // pour qu'un "Erreur : " + e.message plus haut dans la chaîne nomme le script en cause plutôt
+      // que d'afficher "undefined" (trouvé le 1er septembre).
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('Échec du chargement de ' + s.src));
       document.head.appendChild(s);
     });
   }

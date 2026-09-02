@@ -95,15 +95,17 @@ const path = require('path');
   click(playBtn);
   await sleep(100);
   check('reference loop still active right after play starts', btnRef.classList.contains('active'));
-  // Retour du 29/08 : inutile d'afficher le bouton d'une boucle vers elle-même pendant qu'elle joue déjà.
-  check('reference loop button now HIDDEN once actually playing (no point linking to what\'s already playing)', btnRef.style.display === 'none');
+  // Retour du 02/09 : les boucles "paires" (dont la référence) ont désormais une forme d'onde riche qui
+  // avance en continu -- elle ne doit JAMAIS être masquée, même pendant qu'elle joue (contraire au 29/08,
+  // remplacé par le nouveau visuel de progression, voir CHANGELOG et applyEmbrWaveAnimation()).
+  check('reference loop button is a rich waveform row and stays visible while playing', btnRef.classList.contains('embr-wave-btn') && btnRef.style.display !== 'none');
   check('the other loop buttons remain visible', btnPeer.style.display !== 'none' && btnShort.style.display !== 'none');
 
   // ---- Bascule pure entre deux boucles de même longueur (rampe de gain, pas de redémarrage) ----
   click(btnPeer);
   await sleep(50); // rampe de 0.15s pas encore terminée, mais l'état "actif" bascule immédiatement au clic
   check('clicking a same-length loop switches the active button immediately (no wait for quantization)', btnPeer.classList.contains('active') && !btnRef.classList.contains('active'));
-  check('the newly active peer button is now hidden, the reference button reappears', btnPeer.style.display === 'none' && btnRef.style.display !== 'none');
+  check('both rich rows stay visible after the switch (only the color role changes, never hidden)', btnPeer.style.display !== 'none' && btnRef.style.display !== 'none');
   await sleep(200);
   check('peer loop still active well after the crossfade ramp (background loop, can be kept indefinitely)', btnPeer.classList.contains('active'));
 
@@ -118,7 +120,7 @@ const path = require('path');
   check('short loop button re-enabled and reference loop active again once the detour has run its course',
     await waitUntil(() => !btnShort.disabled && btnRef.classList.contains('active'), 2000));
   check('short loop button visible again once the detour is over', btnShort.style.display !== 'none');
-  check('reference loop button hidden again now that it\'s the one playing', btnRef.style.display === 'none');
+  check('reference loop button active again and still visible now that it\'s the one playing', btnRef.classList.contains('active') && btnRef.style.display !== 'none');
 
   // ---- Non-régression (bug trouvé et corrigé le 31/07) : interrompre un détour AVANT sa fin naturelle,
   // en choisissant autre chose, ne doit pas laisser le détour orphelin (bouton bloqué, source jamais coupée).
