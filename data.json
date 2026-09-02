@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1788370288790,
+  "publishedAt": 1788370418807,
   "library": [
     {
       "id": "bmsrox5psn3r4k",
@@ -576,8 +576,8 @@
           "isDetour": false,
           "bpm": null,
           "beatsPerBar": null,
-          "cutStyle": "custom",
-          "customCutFadeSec": 0.55,
+          "cutStyle": "fade",
+          "customCutFadeSec": 0,
           "transition": {
             "label": "Transition #2",
             "durationUnit": "beats",
