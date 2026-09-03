@@ -8,6 +8,24 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-03h] — `plan_quotas` renseigné, palier étudiant compositeur
+
+**Fichiers touchés** : nouveau `supabase/migrations/20260903180000_plan_quotas_values_and_student_tier.sql`
+
+**Contexte** : chiffres de pricing actés par Jules-Antoine le 3 septembre (canal business plan dédié, `docs/business-plan.md` §6.1 une fois poussé) — première fois que `plan_quotas`, provisionnée vide depuis le 31 août, reçoit de vraies valeurs.
+
+**Trouvé en préparant la migration** : le schéma retenu par la grille business ne correspond pas aux colonnes d'origine de `plan_quotas` (`max_ad_reels`/`max_tracks`/`max_packs`/`storage_mb`/`price_usd_cents`) — 6 nouvelles colonnes nécessaires (`max_share_links`, `max_embeds`, `max_audio_tracks`, `max_video_blocks`, `max_video_storage_gb`, `commission_rate`). Anciennes colonnes laissées telles quelles (non référencées ailleurs dans le code, vérifié) plutôt que renommées/supprimées dans la foulée — décision à part si Jules-Antoine veut nettoyer. Trouvé aussi : rien ne reliait un `composer_profile` à un palier — `composer_profiles.plan` ajouté (FK vers `plan_quotas.plan`, défaut `'free'`, réglable à la main en attendant Stripe Billing qui l'assignera automatiquement une fois construit).
+
+**Palier étudiant compositeur** (déclaratif, sans justificatif) : volontairement pas nommé "remise" dans le code — Jules-Antoine a précisé que certains champs deviennent *moins* avantageux que le palier starter de base (`max_audio_tracks` passe d'illimité à 200, `commission_rate` augmente de 0,05 à 0,10), d'autres plus (`max_video_storage_gb` réduit à 5 Go) : un compromis, pas une réduction pure. Implémenté en `composer_profiles.student_tier_declared` (booléen) plutôt qu'une ligne dédiée `starter_student` dans `plan_quotas` — une ligne par variante obligerait à dupliquer `pro_student` le jour où la dérogation s'étend à d'autres paliers (explosion combinatoire) et à élargir la contrainte `check()` sur `plan_quotas.plan` à chaque nouveau cas.
+
+**`effective_plan_quotas(composer_id)`** (nouvelle RPC) : résout le palier de base puis applique la dérogation étudiante par-dessus si active et palier `starter` — un seul point de lecture pour tout futur code qui aura besoin d'appliquer réellement les quotas (aucun n'existe encore, comme noté dans `infrastructure.md`).
+
+**Vérifié en conditions réelles** : les 3 lignes de `plan_quotas` correspondent exactement à la grille fournie. `effective_plan_quotas()` testé sur le compte de Jules-Antoine dans les trois cas (free par défaut, starter sans dérogation, starter avec dérogation étudiante) — valeurs correctes dans les trois, remis à l'état d'origine (`free`, pas de dérogation) après test.
+
+**Non couvert ici, à dessein** : `price_usd_cents` des paliers payants reste `NULL` — aucun chiffre fourni, rien inventé. Écran de choix de palier (avec essai gratuit d'un mois du palier le plus élevé, sur le modèle ReelCrafter) et intégration Stripe Billing (Prix récurrents, `create-checkout-session` en mode abonnement, `stripe-webhook` étendu) : confirmé avec Jules-Antoine qu'aucun blocage technique ne les empêche plus (les chiffres existent désormais), mais volontairement traités comme leur propre chantier à planifier, pas greffés à la volée sur ce remplissage de schéma.
+
+---
+
 ## [2026-09-03g] — Flux d'inscription vérifié en conditions réelles, bug de droits corrigé au passage
 
 **Fichiers touchés** : `api/auth.js`, nouveau `supabase/migrations/20260903160000_mark_onboarding_complete_rpc.sql`
