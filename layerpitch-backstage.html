@@ -1365,7 +1365,10 @@ async function initPgAuthUi() {
       inviteBtn.disabled = true;
       try {
         await loadPostgresReadScripts();
-        const { ok, error } = await window.LayerPitchAuth.inviteTester(email, window.location.href);
+        // Redirige vers bienvenue.html (flux d'inscription, docs/infrastructure.md), pas vers le
+        // backstage lui-même -- sinon tout nouvel invité atterrit directement dans l'outil
+        // compositeur sans jamais voir l'écran d'accueil.
+        const { ok, error } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html');
         if (ok) {
           alert('Invitation envoyée à ' + email + '.');
           document.getElementById('inviteTesterEmail').value = '';

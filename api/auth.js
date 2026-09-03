@@ -115,8 +115,46 @@
     return { composerId: data, error: null };
   }
 
+  // Id de la ligne studio_profiles du compte connecté — même principe que getMyComposerId().
+  async function getMyStudioId() {
+    const { data: userData } = await getClient().auth.getUser();
+    if (!userData || !userData.user) return { studioId: null, error: null };
+    const { data, error } = await getClient().from('studio_profiles').select('id').maybeSingle();
+    if (error) return { studioId: null, error: error.message };
+    return { studioId: data ? data.id : null, error: null };
+  }
+
+  // Crée le studio_profile du compte connecté s'il n'existe pas encore — même principe
+  // qu'ensureMyComposerProfile(), RPC ensure_studio_profile() (docs/infrastructure.md, chantier
+  // "flux d'inscription").
+  async function ensureMyStudioProfile() {
+    const { data, error } = await getClient().rpc('ensure_studio_profile');
+    if (error) return { studioId: null, error: error.message };
+    return { studioId: data, error: null };
+  }
+
+  // profiles.onboarding_completed (docs/infrastructure.md, chantier "flux d'inscription") —
+  // lecture/écriture directe sur la table, pas de RPC nécessaire (policies RLS "own profile"/"own
+  // profile update" déjà en place, supabase/migrations/20260831102636_rls_policies.sql).
+  async function getMyProfile() {
+    const { data: userData } = await getClient().auth.getUser();
+    if (!userData || !userData.user) return { profile: null, error: null };
+    const { data, error } = await getClient().from('profiles').select('onboarding_completed').maybeSingle();
+    if (error) return { profile: null, error: error.message };
+    return { profile: data ? { onboardingCompleted: !!data.onboarding_completed } : null, error: null };
+  }
+
+  async function markOnboardingComplete() {
+    const { data: userData } = await getClient().auth.getUser();
+    if (!userData || !userData.user) return { ok: false, error: 'Non authentifié.' };
+    const { error } = await getClient().from('profiles').update({ onboarding_completed: true }).eq('id', userData.user.id);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, error: null };
+  }
+
   window.LayerPitchAuth = {
     signInWithMagicLink, signOut, getSession, onAuthStateChange, inviteTester,
     getMyComposerId, getMyComposerHandle, ensureMyComposerProfile,
+    getMyStudioId, ensureMyStudioProfile, getMyProfile, markOnboardingComplete,
   };
 })();
