@@ -1,5 +1,5 @@
 {
-  "publishedAt": 1788374836218,
+  "publishedAt": 1788421504545,
   "library": [
     {
       "id": "bmsrox5psn3r4k",
@@ -578,13 +578,7 @@
           "beatsPerBar": null,
           "cutStyle": "fade",
           "customCutFadeSec": 0,
-          "transition": {
-            "label": "Transition #2",
-            "durationUnit": "beats",
-            "durationBeats": 4,
-            "file": "loop1-transition-transition-2.ogg",
-            "originalFileName": "Transition #1.wav"
-          }
+          "transition": null
         }
       ],
       "randomizeSections": false,
