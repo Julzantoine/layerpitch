@@ -96,6 +96,17 @@
     return { composerId: data ? data.id : null, error: null };
   }
 
+  // Handle public du compte connecté (docs/infrastructure.md, chantier backstage hébergé — identité
+  // de compositeur dans l'URL) — null si aucun handle attribué (cas de tout compositeur autre que
+  // Jules-Antoine tant que le flux d'inscription n'attribue pas encore de handle réel).
+  async function getMyComposerHandle() {
+    const { data: userData } = await getClient().auth.getUser();
+    if (!userData || !userData.user) return { handle: null, error: null };
+    const { data, error } = await getClient().from('composer_profiles').select('handle').maybeSingle();
+    if (error) return { handle: null, error: error.message };
+    return { handle: data ? data.handle : null, error: null };
+  }
+
   // Crée le composer_profile du compte connecté s'il n'existe pas encore (RPC, aucune policy RLS
   // INSERT côté client) — à appeler après une connexion réussie, avant tout appel upsert_*.
   async function ensureMyComposerProfile() {
@@ -106,6 +117,6 @@
 
   window.LayerPitchAuth = {
     signInWithMagicLink, signOut, getSession, onAuthStateChange, inviteTester,
-    getMyComposerId, ensureMyComposerProfile,
+    getMyComposerId, getMyComposerHandle, ensureMyComposerProfile,
   };
 })();

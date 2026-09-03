@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>LayerPitch</title>
+</head>
+<body>
+<script>
+// LayerPitch — chemin joli par compositeur (backstage hébergé, docs/infrastructure.md).
+//
+// GitHub Pages sert ce fichier pour toute URL qui ne correspond à aucun fichier réel du dépôt —
+// donc /<handle>/, /<handle>/pack.html, etc. Reconnu comme un chemin de compositeur uniquement si
+// la forme colle exactement à ce qu'on attend (1 ou 2 segments, second segment parmi une liste
+// fermée de pages publiques réelles) ; sinon, laissé tel quel comme une vraie 404 — ne jamais
+// transformer une erreur véritable (lien mort, faute de frappe) en redirection silencieuse.
+//
+// Technique standard sur GitHub Pages (façon spa-github-pages) : redirection vers le vrai fichier
+// avec le chemin visé encodé en paramètre (__pretty), restauré dans la barre d'adresse par le
+// fichier cible via history.replaceState — voir index.html/pack.html/collection.html.
+(function () {
+  const KNOWN_PAGES = ['index.html', 'pack.html', 'collection.html'];
+  const path = location.pathname;
+  const segments = path.split('/').filter(Boolean);
+
+  if (segments.length < 1 || segments.length > 2) return; // vraie 404, on ne touche à rien
+
+  const handle = segments[0];
+  // Un segment unique avec une extension (favicon.ico, robots.txt...) est un vrai fichier manquant,
+  // jamais un handle -- un handle est toujours "nu", comme un dossier (trouvé en testant : sans ce
+  // garde-fou, /favicon.ico manquant se transformait silencieusement en redirection).
+  if (segments.length === 1 && handle.includes('.')) return; // vraie 404
+  const targetFile = segments.length === 2 ? segments[1] : 'index.html';
+  if (segments.length === 2 && !KNOWN_PAGES.includes(targetFile)) return; // vraie 404
+
+  const params = new URLSearchParams(location.search);
+  params.set('u', handle);
+  params.set('__pretty', path + location.search);
+  location.replace('/' + targetFile + '?' + params.toString());
+})();
+</script>
+</body>
+</html>

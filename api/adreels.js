@@ -12,9 +12,9 @@
   const AD_REEL_SELECT = `*, ad_reel_tracks(track_id, position)`;
 
   // ownerId exposé (absent de data.json, jamais réinjecté dans les payloads d'écriture qui
-  // construisent leur propre objet champ par champ) : nécessaire aux pages publiques pour
-  // découvrir le compositeur d'un AdReel avant de charger le reste de son catalogue scopé — voir
-  // le commentaire d'isolation multi-compositeur dans api/tracks.js (listTracks).
+  // construisent leur propre objet champ par champ) — utile à l'affichage/au backstage, plus
+  // nécessaire pour découvrir le compositeur d'un AdReel (l'identité vient maintenant du handle
+  // dans l'URL, résolue avant tout appel Postgres — voir api/composers.js, 404.html).
   function reshapeAdReel(row) {
     if (!row) return null;
     const trackIds = [...(row.ad_reel_tracks || [])].sort((a, b) => a.position - b.position).map(r => r.track_id);
@@ -34,8 +34,10 @@
     return { adReels: data.map(reshapeAdReel), error: null };
   }
 
-  async function getAdReel(id) {
-    const { data, error } = await getClient().from('ad_reels').select(AD_REEL_SELECT).eq('id', id).maybeSingle();
+  // ownerId obligatoire depuis le renommage de clé (owner_id, id) — un id d'AdReel seul (ex. 'main')
+  // n'identifie plus une ligne unique, tous compositeurs confondus.
+  async function getAdReel(id, ownerId) {
+    const { data, error } = await getClient().from('ad_reels').select(AD_REEL_SELECT).eq('id', id).eq('owner_id', ownerId).maybeSingle();
     if (error) return { adReel: null, error: error.message };
     return { adReel: reshapeAdReel(data), error: null };
   }
