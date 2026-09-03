@@ -8,6 +8,28 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-03e] — Backstage réellement hébergé, chantier fermé pour de bon
+
+**Fichiers touchés** : `.gitignore` (retrait de `layerpitch-backstage.html`), `layerpitch-backstage.html` (publié, placeholders R2 assainis)
+
+**Contexte** : Jules-Antoine a demandé "le backstage hébergé est terminé ?" en fin de journée — bonne question. Tout le travail précédent ([2026-09-02q], [2026-09-03c], [2026-09-03d]) n'avait été vérifié qu'en local. "Hébergé" au sens propre restait à faire.
+
+**Fait** :
+- Balayage complet de secrets sur `layerpitch-backstage.html` avant publication (pas seulement le champ token déjà connu) — aucun secret réel en dur, mais les placeholders des 3 champs R2 reprenaient les 6 premiers caractères des vrais identifiants de Jules-Antoine (`10fba6...`, `8089e0...`, `892bef...`) — remplacés par des exemples fictifs.
+- `layerpitch-backstage.html` retiré de `.gitignore`, committé, poussé — servi pour la première fois par GitHub Pages sur `https://beta.layerpitch.com/layerpitch-backstage.html`.
+- **Accès non authentifié** : Cloudflare Access reconfiguré, cette fois scopé uniquement au chemin `/layerpitch-backstage.html` (pas tout `beta.layerpitch.com`, comme la première tentative documentée dans `infrastructure.md` Partie C — retirée à l'époque car elle bloquait aussi les AdReels envoyés à de vrais prospects). Vérifié : la page backstage demande bien une authentification OTP, le site public (AdReels, packs) charge toujours sans rien demander.
+- Supabase : URL de redirection réelle ajoutée (`Authentication → URL Configuration → Redirect URLs`), et **cause racine du bug `localhost:3000` rencontré trois fois aujourd'hui enfin corrigée** : le champ "Site URL" (repli par défaut du projet) pointait encore vers `localhost:3000` depuis la création du projet — mis à jour vers `https://beta.layerpitch.com/`.
+
+**Détour, résolu** : passage du repo `layerpitch` en privé testé (pour protéger `docs/` — `business-marche.md` notamment, analyse de marché actuellement publique) — casse immédiatement la lecture GitHub du backstage (`ghGetContent` → 404 systématique), malgré un token fine-grained fraîchement régénéré, correctement scopé, avec les bonnes permissions. Cause exacte non élucidée. Repassé en public pour débloquer les tests du jour. Solution retenue par Jules-Antoine (pas exécutée aujourd'hui, notée dans une worktree dédiée `split-public-private-repos`, `CHANTIER_SPLIT_REPOS.md`) : séparer en repo public (site) + repo privé (doc interne) plutôt que forcer le token à fonctionner sur un repo privé unique.
+
+**Vérifié en conditions réelles, sur la vraie URL hébergée (pas en local)** :
+1. Jules-Antoine, repo GitHub configuré comme toujours : bibliothèque chargée (6 AdReels, 3 packs, 14 morceaux), publication complète réussie (data.json + versions de script des 5 fichiers, y compris `layerpitch-backstage.html` lui-même — premier vrai test de ce chemin de code).
+2. `jules_escande@hotmail.com`, sans repo GitHub configuré : bibliothèque vide confirmée (isolation), publication réussie entièrement via Postgres, aucun appel GitHub.
+
+**Chantier "backstage hébergé" considéré définitivement terminé.** Reste ouvert, volontairement hors de ce chantier : la séparation repo public/privé (worktree dédiée), le chemin joli `/<handle>/...` en conditions réelles (testable maintenant que le dépôt tourne pour de vrai), et la propagation de `?u=<handle>` dans le retour Pack→AdReel de l'autre canal.
+
+---
+
 ## [2026-09-03d] — Migrations appliquées, vérifiées en conditions réelles avec le second compte compositeur
 
 **Fichiers touchés** : aucun (vérification et opérations en base uniquement — voir [2026-09-03c] pour le code, `20260903120000_ad_reels_owner_scoped_id.sql` corrigée)
