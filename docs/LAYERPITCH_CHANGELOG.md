@@ -8,6 +8,26 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-03j] — Vérification du chantier Stripe Billing : tarification EUR, oubli du cas admin, liens trompeurs retirés
+
+**Fichiers touchés** : nouveaux `supabase/migrations/20260903200000_plan_quotas_prices_eur.sql`, `20260903210000_effective_plan_quotas_admin_case.sql` ; `supabase/functions/create-subscription-checkout-session/index.ts`, `bienvenue.html`, `library.html`, `layerpitch-i18n.js`, `docs/infrastructure.md`
+
+**Contexte** : premier test réel de [2026-09-03i] par Jules-Antoine, trois problèmes trouvés en cours de route.
+
+**1. Tarification en EUR, pas USD** : Jules-Antoine a donné les prix Starter (10€/100€) et Pro (25€/250€) en euros, alors que `create-subscription-checkout-session` (comme `create-checkout-session`, achat unitaire, non touché) facturait en `usd` en dur. Décision : facturer en EUR (site en français, prix pensés en euros) — `currency: 'eur'` dans la nouvelle fonction, et colonnes `plan_quotas.price_usd_cents_monthly`/`price_usd_cents_yearly` renommées `price_eur_cents_monthly`/`price_eur_cents_yearly` (auraient porté un nom trompeur avec des valeurs en centimes d'euros dedans) puis renseignées (Starter 1000/10000, Pro 2500/25000). `packs.price_usd_cents` (achat unitaire studio) volontairement non touché, question distincte non tranchée.
+
+**2. Cas admin oublié dans `effective_plan_quotas()`** : [2026-09-03i] avait vérifié que la colonne `profiles.is_admin` n'existait pas et avait sauté le cas admin en conséquence — raté un mécanisme différent, déjà en place depuis le 1er septembre (`admins` table + `is_admin()`, `20260901190000_admin_role.sql`, déjà utilisé en prod par `invite-tester`). Résultat concret : le compte de Jules-Antoine n'avait pas l'accès Pro complet promis par le plan approuvé (statut admin plutôt que palier dédié). Corrigé en ajoutant le cas admin en priorité la plus haute, vérifié via `exists (select 1 from admins where profile_id = cp.profile_id)` — `is_admin()` elle-même non réutilisable ici car elle vérifie `auth.uid()` de l'appelant, pas un `composer_id` arbitraire passé en paramètre.
+
+**3. Liens trompeurs vers `index.html` retirés** : `index.html` retombe sur `DEFAULT_OWNER_ID` (le compte de Jules-Antoine) quand aucun `?u=<handle>` n'est présent dans l'URL — vestige de l'époque mono-compositeur, aucune vraie page d'accueil générique. Trouvé par Jules-Antoine en testant avec un second compte (bibliothèque acheteur) : "← Retour" ramenait vers son propre site, pas vers un accueil générique. Deux liens retirés en attendant une vraie page d'accueil (option choisie parmi trois proposées — masquer / laisser tel quel / construire maintenant) : "Le site LayerPitch" (`bienvenue.html`, écran "déjà inscrit" — clé i18n `linkHome` supprimée, devenue orpheline) et "← Retour" (`library.html`). Même schéma trouvé mais **pas corrigé** sur `collection.html`/`pack.html` (leur "← Retour" perdrait le `?u=<handle>` de la page consultée — problème différent, ces pages restent publiques et ont besoin d'une vraie navigation) : documenté dans `docs/infrastructure.md` comme sujet à traiter avec la vraie page d'accueil, pas en pièces détachées.
+
+**Trouvé au passage, documenté sans être corrigé** (`docs/infrastructure.md`, liste "À trancher") : aucun des panneaux de debug du backstage (dépôt GitHub avec token, tests Postgres, stockage R2) n'est masqué par rôle — seule la liste d'emails Cloudflare Access limite l'exposition aujourd'hui ; le mécanisme `admins`/`is_admin()` existe déjà pour corriger ça. Le panneau "Mon abonnement" reste un point d'entrée minimal (5 boutons), pas une vraie page "Mon compte/Settings" (ID, moyen de paiement) — les deux volontairement hors périmètre de cette session.
+
+**Vérifié** : `library.html` rechargé en local (`localhost:8420`), lien "← Retour" absent, aucune erreur console.
+
+**Non couvert ici, à dessein** : le test de bout en bout (souscription réelle, webhook, essai) reste à faire par Jules-Antoine — invitation d'un compte test via le panneau admin (en cours au moment de cette entrée), migrations à appliquer, fonctions à redéployer.
+
+---
+
 ## [2026-09-03i] — Stripe Billing compositeur : essai reverse trial, tarification mensuelle/annuelle
 
 **Fichiers touchés** : nouveaux `supabase/migrations/20260903190000_stripe_billing_reverse_trial.sql`, `supabase/functions/create-subscription-checkout-session/index.ts`, `api/subscriptions.js` ; `supabase/functions/stripe-webhook/index.ts`, `layerpitch-backstage.html`, `bienvenue.html`, `layerpitch-i18n.js`
