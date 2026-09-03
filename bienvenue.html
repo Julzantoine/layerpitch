@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pageTitle">LayerPitch — Bienvenue</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root {
+    --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
+    --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --accent: #c9713c; --font-body: 'Inter', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); padding: 56px 24px 60px; }
+  .page { max-width: 480px; margin: 0 auto; text-align: center; }
+  a { color: var(--accent); }
+  h1 { font-family: 'Space Grotesk', sans-serif; font-size: 24px; margin-bottom: 16px; }
+  p { font-size: 14.5px; line-height: 1.6; color: var(--text-dim); margin-bottom: 24px; }
+  .signin-box input { width: 100%; padding: 10px; margin: 12px 0; border: 1px solid var(--border); border-radius: 4px; font-family: 'Inter', sans-serif; }
+  .btn { padding: 10px 24px; border: none; border-radius: 4px; background: var(--accent); color: #fff; cursor: pointer; font-size: 14px; }
+  .btn:disabled { opacity: 0.6; cursor: default; }
+  .msg { font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-top: 10px; }
+  .msg.err { color: #b5442e; }
+  .msg.ok { color: #2a7; }
+  .links { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 data-i18n="title">Bienvenue sur LayerPitch</h1>
+  <div id="content"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="layerpitch-i18n.js?v=1788440725621"></script>
+<script src="api/supabase-client.js"></script>
+<script src="api/auth.js"></script>
+<script>
+const pageLang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'fr';
+function currentLang() { return pageLang; }
+function tr(key) {
+  const I18N = window.LAYERPITCH_I18N || { fr: { welcome: {} }, en: { welcome: {} } };
+  const dict = I18N[currentLang()] || I18N.fr;
+  const dictFr = I18N.fr;
+  return (dict.welcome && dict.welcome[key]) || (dictFr.welcome && dictFr.welcome[key]) || key;
+}
+document.documentElement.lang = currentLang();
+
+const content = document.getElementById('content');
+
+async function render() {
+  const { session } = await LayerPitchAuth.getSession();
+  if (!session) {
+    content.innerHTML = `
+      <p>${tr('notSignedIn')}</p>
+      <div class="signin-box">
+        <input type="email" id="email" placeholder="${tr('emailPlaceholder')}">
+        <button class="btn" id="sendBtn" type="button">${tr('sendMagicLinkBtn')}</button>
+        <div class="msg" id="msg"></div>
+      </div>`;
+    document.getElementById('sendBtn').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim();
+      const msg = document.getElementById('msg');
+      if (!email) return;
+      msg.textContent = '…'; msg.className = 'msg';
+      const { ok, error } = await LayerPitchAuth.signInWithMagicLink(email, window.location.href);
+      msg.textContent = ok ? tr('magicLinkSentMsg') : tr('errorMsg').replace('{error}', error);
+      msg.className = 'msg ' + (ok ? 'ok' : 'err');
+    });
+    return;
+  }
+
+  const { profile, error } = await LayerPitchAuth.getMyProfile();
+  if (error) { content.innerHTML = `<div class="msg err">${tr('errorMsg').replace('{error}', error)}</div>`; return; }
+
+  // Revisite après un choix déjà fait -- ne jamais reproposer l'écran, juste des liens utiles.
+  if (profile && profile.onboardingCompleted) {
+    content.innerHTML = `
+      <p>${tr('alreadyOnboarded')}</p>
+      <div class="links">
+        <a href="./layerpitch-backstage.html">${tr('linkBackstage')}</a>
+        <a href="./library.html">${tr('linkLibrary')}</a>
+        <a href="./index.html">${tr('linkHome')}</a>
+      </div>`;
+    return;
+  }
+
+  // Bêta réservée aux compositeurs (docs/infrastructure.md, chantier "flux d'inscription") --
+  // pas d'écran à trois choix Compositeur/Studio/Fan tant que la bêta n'est pas ouverte au-delà
+  // des compositeurs. Un seul bouton, aucune option grisée.
+  content.innerHTML = `
+    <p>${tr('betaComposersOnly')}</p>
+    <button class="btn" id="continueBtn" type="button">${tr('continueBtn')}</button>
+    <div class="msg" id="continueMsg"></div>`;
+  document.getElementById('continueBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('continueBtn');
+    const msg = document.getElementById('continueMsg');
+    btn.disabled = true;
+    const { error: composerError } = await LayerPitchAuth.ensureMyComposerProfile();
+    if (composerError) {
+      msg.textContent = tr('errorMsg').replace('{error}', composerError);
+      msg.className = 'msg err';
+      btn.disabled = false;
+      return;
+    }
+    const { ok, error: markError } = await LayerPitchAuth.markOnboardingComplete();
+    if (!ok) {
+      msg.textContent = tr('errorMsg').replace('{error}', markError);
+      msg.className = 'msg err';
+      btn.disabled = false;
+      return;
+    }
+    window.location.href = './layerpitch-backstage.html';
+  });
+}
+
+LayerPitchAuth.onAuthStateChange(() => render());
+</script>
+</body>
+</html>

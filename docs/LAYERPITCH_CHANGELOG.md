@@ -8,6 +8,30 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-03f] — Flux d'inscription : écran d'accueil, bêta réservée aux compositeurs
+
+**Fichiers touchés** : nouveaux `bienvenue.html`, `supabase/migrations/20260903150000_onboarding_and_studio_profile_rpc.sql` ; `api/auth.js`, `layerpitch-i18n.js`, `layerpitch-backstage.html`
+
+**Contexte** : chantier 3 du plan de séquencement (renommage ✓, backstage hébergé ✓). Décision actée avec Jules-Antoine : le vrai écran de choix à trois options (Compositeur/Studio/Fan) est reporté à l'ouverture de la bêta au-delà des compositeurs (vivier de testeurs actuel 100% compositeurs) — construit ici seulement la variante "bêta compositeurs uniquement" (un message, un bouton "Continuer"), exception documentée et délibérée au principe de non-choix forcé.
+
+**Corrigé une exploration précédente** : `library.html` ("Ma bibliothèque", achat/bibliothèque acheteur) existe déjà, tracké et hébergé — jamais utilisé par erreur dans le raisonnement initial faute d'avoir cherché avant de conclure à son absence.
+
+**Changement** :
+- `profiles.onboarding_completed` (nouvelle colonne, backfillée à `true` pour tous les comptes existants — aucun ne doit voir le nouvel écran).
+- `ensure_studio_profile()` (RPC, copie conforme d'`ensure_composer_profile()`) — construite dès maintenant même si aucun écran ne l'appelle encore côté UI, pour réduire le coût du futur écran à trois choix. Policies RLS `studio_profiles` vérifiées avant de s'appuyer dessus (pas supposées) : bien suivies au renommage du 2 septembre, rien à recréer.
+- `api/auth.js` : `getMyStudioId()`/`ensureMyStudioProfile()` (miroir composer), `getMyProfile()`/`markOnboardingComplete()` (lecture/écriture directe sur `profiles`, policies RLS déjà en place, pas de RPC nécessaire).
+- `bienvenue.html` (nouveau, même patron que `library.html` : connexion par lien magique, `onAuthStateChange`) : revisite après onboarding déjà fait → liens (backstage/bibliothèque/accueil) ; première visite → message "bêta réservée aux compositeurs" + bouton "Continuer" → `ensureMyComposerProfile()` + `markOnboardingComplete()` → redirection backstage.
+- `layerpitch-backstage.html` : le panneau "Inviter un testeur" redirige désormais vers `bienvenue.html` (`window.location.origin + '/bienvenue.html'`) plutôt que vers lui-même — sinon tout nouvel invité atterrit directement dans l'outil compositeur sans jamais voir l'écran d'accueil.
+
+**Vérifié** : `node --check` OK sur tous les `.js` touchés/nouveaux. `bienvenue.html` chargé en local (`localhost:8420`), rendu correct de l'état "non connecté", aucune erreur console réelle. **Non testé en conditions réelles** : le parcours complet connecté (migration pas encore appliquée — bloqué par le classifieur de permission pour Claude Code, comme toujours ; `bienvenue.html` pas encore ajoutée à la liste blanche Supabase des URLs de redirection).
+
+**Reste à faire côté Jules-Antoine avant le premier test réel** :
+1. `node scripts/apply-migrations.js`
+2. Ajouter `https://beta.layerpitch.com/bienvenue.html` dans Supabase → Authentication → URL Configuration → Redirect URLs
+3. Tester : un compte avec `onboarding_completed` remis à `false` manuellement (ou une nouvelle invitation réelle) doit voir l'écran "bêta réservée aux compositeurs", et une revisite après coup doit afficher les liens plutôt que reproposer l'écran.
+
+---
+
 ## [2026-09-03e] — Backstage réellement hébergé, chantier fermé pour de bon
 
 **Fichiers touchés** : `.gitignore` (retrait de `layerpitch-backstage.html`), `layerpitch-backstage.html` (publié, placeholders R2 assainis)
