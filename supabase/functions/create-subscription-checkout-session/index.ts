@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     const { data: quota, error: quotaError } = await adminClient
       .from('plan_quotas')
-      .select('plan, price_usd_cents_monthly, price_usd_cents_yearly')
+      .select('plan, price_eur_cents_monthly, price_eur_cents_yearly')
       .eq('plan', plan)
       .maybeSingle();
     if (quotaError || !quota) {
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const unitAmount = interval === 'month' ? quota.price_usd_cents_monthly : quota.price_usd_cents_yearly;
+    const unitAmount = interval === 'month' ? quota.price_eur_cents_monthly : quota.price_eur_cents_yearly;
     if (!unitAmount) {
       return new Response(JSON.stringify({ error: 'Prix non renseigné pour ce palier/intervalle.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
       // deviné -- à confirmer contre la documentation Stripe (catégorie "Software as a Service").
       line_items: [{
         price_data: {
-          currency: 'usd',
+          currency: 'eur',
           product_data: { name: `LayerPitch — ${plan === 'pro' ? 'Pro' : 'Starter'} (${interval === 'month' ? 'mensuel' : 'annuel'})` },
           unit_amount: unitAmount,
           recurring: { interval },
