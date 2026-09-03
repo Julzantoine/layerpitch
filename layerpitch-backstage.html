@@ -927,6 +927,24 @@
   </fieldset>
 
   <fieldset>
+    <legend>Mon abonnement</legend>
+    <div class="hint">
+      Palier gratuit, essai Pro complet de 30 jours sans carte à l'inscription (retombe
+      automatiquement sur Free à l'expiration si tu ne choisis rien), ou un vrai palier payant
+      mensuel/annuel — voir docs/infrastructure.md, décisions du 3 septembre.
+    </div>
+    <div id="subscriptionStatus" class="hint" style="margin-top:8px;">Chargement…</div>
+    <div class="actions" style="margin-top:8px;flex-wrap:wrap;">
+      <button class="btn" id="btnPlanFree" type="button">Passer en Free</button>
+      <button class="btn" id="btnPlanStarterMonth" type="button">Starter — mensuel</button>
+      <button class="btn" id="btnPlanStarterYear" type="button">Starter — annuel</button>
+      <button class="btn" id="btnPlanProMonth" type="button">Pro — mensuel</button>
+      <button class="btn" id="btnPlanProYear" type="button">Pro — annuel</button>
+    </div>
+    <div class="hint" id="subscriptionMsg"></div>
+  </fieldset>
+
+  <fieldset>
     <legend>Inviter un testeur (admin)</legend>
     <div class="hint">
       Envoie une invitation par email (compte Supabase créé, lien magique de première connexion) —
@@ -1290,6 +1308,7 @@ function loadPostgresReadScripts() {
     await loadScript('./api/settings.js');
     await loadScript('./api/adreels.js');
     await loadScript('./api/site-data.js');
+    await loadScript('./api/subscriptions.js');
   })();
   return postgresReadScriptsLoaded;
 }
@@ -1323,6 +1342,32 @@ async function refreshMyComposerHandle(session) {
   if (!session || !session.user) { myComposerHandle = null; return; }
   const { handle } = await window.LayerPitchAuth.getMyComposerHandle();
   myComposerHandle = handle || null;
+}
+
+// Panneau "Mon abonnement" (docs/infrastructure.md, chantier 4b — décisions du 3 septembre :
+// essai reverse trial de 30 jours sans carte, retombée automatique sur Free à l'expiration).
+async function renderSubscriptionPanel(session) {
+  const statusEl = document.getElementById('subscriptionStatus');
+  if (!statusEl) return;
+  if (!session || !session.user) {
+    statusEl.textContent = 'Connecte-toi pour voir ton abonnement.';
+    return;
+  }
+  await loadPostgresReadScripts();
+  const { status, error } = await window.LayerPitchSubscriptions.getTrialStatus();
+  if (error) { statusEl.textContent = 'Erreur : ' + error; return; }
+  if (!status) { statusEl.textContent = 'Aucun profil compositeur pour l\'instant — publie une première fois pour en créer un.'; return; }
+  const planLabel = { free: 'Free', starter: 'Starter', pro: 'Pro' }[status.plan] || status.plan;
+  const trialEndsAt = status.trialEndsAt ? new Date(status.trialEndsAt) : null;
+  const trialActive = trialEndsAt && trialEndsAt > new Date();
+  if (trialActive) {
+    const daysLeft = Math.max(1, Math.ceil((trialEndsAt - new Date()) / 86400000));
+    statusEl.textContent = `Palier réel : ${planLabel}. Essai Pro complet actif — encore ${daysLeft} jour(s), sans carte.`;
+  } else if (trialEndsAt && status.plan === 'free') {
+    statusEl.textContent = `Ton essai Pro est terminé, tu es maintenant sur Free — choisis un palier payant ci-dessous pour retrouver l'accès complet.`;
+  } else {
+    statusEl.textContent = `Palier actuel : ${planLabel}.`;
+  }
 }
 function renderPgAuthStatus(session) {
   const el = document.getElementById('pgAuthStatus');
@@ -1379,6 +1424,39 @@ async function initPgAuthUi() {
       inviteBtn.disabled = false;
     });
   }
+  // Panneau "Mon abonnement" — un seul gestionnaire de clic générique pour les 5 boutons plutôt que
+  // cinq blocs quasi identiques, plan/interval lus sur chaque bouton lui-même.
+  const planButtons = [
+    { id: 'btnPlanFree', plan: 'free', interval: null },
+    { id: 'btnPlanStarterMonth', plan: 'starter', interval: 'month' },
+    { id: 'btnPlanStarterYear', plan: 'starter', interval: 'year' },
+    { id: 'btnPlanProMonth', plan: 'pro', interval: 'month' },
+    { id: 'btnPlanProYear', plan: 'pro', interval: 'year' },
+  ];
+  planButtons.forEach(({ id, plan, interval }) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      const msg = document.getElementById('subscriptionMsg');
+      btn.disabled = true;
+      msg.textContent = '…';
+      try {
+        await loadPostgresReadScripts();
+        if (plan === 'free') {
+          const { ok, error } = await window.LayerPitchSubscriptions.choosePlanFree();
+          msg.textContent = ok ? 'Palier Free activé.' : 'Erreur : ' + error;
+          if (ok) renderSubscriptionPanel((await window.LayerPitchAuth.getSession()).session);
+        } else {
+          const successUrl = window.location.origin + '/bienvenue.html?subscribed=1';
+          const cancelUrl = window.location.origin + '/bienvenue.html?subscribed=0';
+          const { ok, error } = await window.LayerPitchSubscriptions.subscribeToPlan(plan, interval, { successUrl, cancelUrl });
+          if (!ok) msg.textContent = 'Erreur : ' + error;
+          // Si ok, subscribeToPlan() a déjà redirigé vers Stripe Checkout — rien d'autre à faire ici.
+        }
+      } catch (e) { msg.textContent = 'Erreur : ' + e.message; }
+      btn.disabled = false;
+    });
+  });
   // Si la page vient d'un lien magique (fragment #access_token=...), le SDK Supabase détecte et
   // établit la session automatiquement dès sa création (detectSessionInUrl, comportement par défaut) —
   // il suffit de charger les scripts et de s'abonner pour le refléter dans l'UI.
@@ -1386,7 +1464,9 @@ async function initPgAuthUi() {
     await loadPostgresReadScripts();
   }
   if (window.LayerPitchAuth) {
-    window.LayerPitchAuth.onAuthStateChange((_event, session) => { renderPgAuthStatus(session); refreshMyComposerHandle(session); });
+    window.LayerPitchAuth.onAuthStateChange((_event, session) => {
+      renderPgAuthStatus(session); refreshMyComposerHandle(session); renderSubscriptionPanel(session);
+    });
   }
 }
 function pushEvent(entry) {

@@ -8,6 +8,30 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-03i] — Stripe Billing compositeur : essai reverse trial, tarification mensuelle/annuelle
+
+**Fichiers touchés** : nouveaux `supabase/migrations/20260903190000_stripe_billing_reverse_trial.sql`, `supabase/functions/create-subscription-checkout-session/index.ts`, `api/subscriptions.js` ; `supabase/functions/stripe-webhook/index.ts`, `layerpitch-backstage.html`, `bienvenue.html`, `layerpitch-i18n.js`
+
+**Contexte** : chantier 4b, dernier morceau du plan de séquencement d'origine. Débloqué par les chiffres de `plan_quotas` ([2026-09-03h]) puis révisé en profondeur suite à une série de décisions actées le même jour : essai en **reverse trial** (accès Pro complet 30 jours, sans carte, retombée automatique sur Free) plutôt qu'un essai Stripe classique carte-obligatoire ; bonus bêta-testeurs en coupon Stripe individuel manuel, pas une extension de l'essai ; code promo générique (`allow_promotion_codes`), réutilisable pour toute future opération commerciale ; tarification mensuelle **et** annuelle ; compte de Jules-Antoine couvert par le futur statut admin, pas un palier dédié ; `bienvenue.html` inchangé pour l'instant (l'écran à 3 cartes reste différé à la bascule), le point d'entrée pour s'abonner est un panneau dans le backstage déjà utilisé par les compositeurs.
+
+**Simplification trouvée en explorant** : `create-checkout-session` (achat unitaire, déjà en prod) n'utilise aucun objet Stripe Price pré-créé — le prix vient de Postgres via `price_data` calculé dynamiquement à chaque appel. Stripe Checkout accepte ce même mécanisme en mode `subscription` (`price_data` + `recurring`), donc **aucune configuration de Produit/Prix Stripe côté dashboard n'est nécessaire** — le reverse trial (pas de `trial_period_days` côté Stripe) simplifie encore : un abonnement souscrit facture immédiatement, l'essai a déjà eu lieu entièrement en base avant que Stripe n'intervienne.
+
+**Changement** :
+- `composer_profiles.trial_ends_at` (nouveau) : posé à `now() + 30 jours` uniquement à la création d'un **nouveau** `composer_profile` (`ensure_composer_profile()` modifiée) — jamais rétroactif sur les comptes existants (backfill explicitement exclu, voir la migration).
+- `plan_quotas.price_usd_cents_monthly`/`price_usd_cents_yearly` (nouveau, remplace l'usage du champ de prix unique d'origine — colonne laissée telle quelle, non touchée).
+- `choose_free_plan()`, `get_trial_status()` (nouvelles RPC, même patron que `ensure_studio_profile()`/`mark_onboarding_complete()`).
+- `effective_plan_quotas()` : `create or replace`, ajoute la priorité "essai actif → quotas Pro" au-dessus de la dérogation étudiante déjà en place. **Le cas `is_admin` (priorité la plus haute, décision actée) n'est pas construit ici** — `profiles.is_admin` vérifié inexistant au moment d'écrire cette migration (chantier admin d'une autre session, toujours en cours de planification, coordination faite en direct) ; à ajouter dès que cette colonne existera réellement.
+- `create-subscription-checkout-session` (nouvelle Edge Function, séparée de `create-checkout-session` — aucune donnée en commun entre les deux cas d'usage) : mode `subscription`, prix dynamique selon palier/intervalle, `allow_promotion_codes: true`, pas de `trial_period_days`.
+- `stripe-webhook` : nouveau cas `checkout.session.completed` en mode `subscription` (écrit `composer_profiles.plan`) et `customer.subscription.deleted` (repli sur `free`) — comportement de l'achat unitaire existant strictement inchangé.
+- `layerpitch-backstage.html` : nouveau panneau "Mon abonnement" (palier réel + compte à rebours d'essai si actif, 5 boutons Free/Starter mensuel/Starter annuel/Pro mensuel/Pro annuel).
+- `bienvenue.html` : gère le retour `?subscribed=1` de Stripe Checkout — sonde `get_trial_status()` (jusqu'à 10 fois, 1s d'intervalle) avant de rediriger vers le backstage, pour ne pas renvoyer le compositeur vers une interface dont le palier n'est pas encore à jour (le webhook Stripe est asynchrone).
+
+**Vérifié** : `node --check` OK sur tous les `.js` touchés/nouveaux (pas d'outil `deno check` disponible dans cet environnement pour les `.ts`, relu attentivement à la place, même structure que les Edge Functions déjà en prod). `bienvenue.html` et le nouveau panneau du backstage chargés en local (`localhost:8420`), aucune erreur console, les 5 boutons et les zones de statut confirmés présents dans le DOM.
+
+**Non testé, bloqué sur un vrai prérequis** : `price_usd_cents_monthly`/`price_usd_cents_yearly` restent `NULL` pour `starter`/`pro` — aucun chiffre fourni, rien inventé. Aucun test de bout en bout possible (souscription réelle, webhook, essai) sans ces valeurs. Migration écrite, pas encore appliquée (classifieur de permission, comme toujours).
+
+---
+
 ## [2026-09-03h] — `plan_quotas` renseigné, palier étudiant compositeur
 
 **Fichiers touchés** : nouveau `supabase/migrations/20260903180000_plan_quotas_values_and_student_tier.sql`

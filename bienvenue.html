@@ -36,6 +36,7 @@
 <script src="layerpitch-i18n.js?v=1788440725621"></script>
 <script src="api/supabase-client.js"></script>
 <script src="api/auth.js"></script>
+<script src="api/subscriptions.js"></script>
 <script>
 const pageLang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'fr';
 function currentLang() { return pageLang; }
@@ -68,6 +69,21 @@ async function render() {
       msg.textContent = ok ? tr('magicLinkSentMsg') : tr('errorMsg').replace('{error}', error);
       msg.className = 'msg ' + (ok ? 'ok' : 'err');
     });
+    return;
+  }
+
+  // Retour de Stripe Checkout après une souscription payante (chantier 4b, docs/infrastructure.md
+  // — décisions du 3 septembre) : le webhook Stripe écrit composer_profiles.plan de façon
+  // asynchrone, pas forcément déjà fait au moment où Stripe redirige ici -- on attend un peu
+  // plutôt que de renvoyer vers le backstage avec un palier pas encore à jour.
+  if (new URLSearchParams(location.search).get('subscribed') === '1') {
+    content.innerHTML = `<p>${tr('confirmingSubscription')}</p>`;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const { status } = await LayerPitchSubscriptions.getTrialStatus();
+      if (status && status.plan !== 'free') break;
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    window.location.href = './layerpitch-backstage.html';
     return;
   }
 
