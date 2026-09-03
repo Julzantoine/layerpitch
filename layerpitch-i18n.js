@@ -120,6 +120,7 @@ window.LAYERPITCH_I18N = {
       linkBackstage: 'Le backstage (créer/publier)',
       linkLibrary: 'Ma bibliothèque',
       linkHome: 'Le site LayerPitch',
+      confirmingSubscription: 'Confirmation de ton abonnement…',
       errorMsg: 'Erreur : {error}',
     },
     player: {
@@ -873,6 +874,7 @@ window.LAYERPITCH_I18N = {
       linkBackstage: 'The backstage (create/publish)',
       linkLibrary: 'My library',
       linkHome: 'The LayerPitch site',
+      confirmingSubscription: 'Confirming your subscription…',
       errorMsg: 'Error: {error}',
     },
     player: {
