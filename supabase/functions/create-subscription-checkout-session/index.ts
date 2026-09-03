@@ -92,14 +92,18 @@ Deno.serve(async (req) => {
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2025-03-31.basil' });
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
-      // TODO code de taxe à vérifier avant la première vraie souscription -- txcd_10401100 (utilisé
-      // pour l'achat unitaire) est spécifique à un téléchargement numérique définitif, probablement
-      // incorrect pour un abonnement SaaS récurrent. Non renseigné ici volontairement plutôt que
-      // deviné -- à confirmer contre la documentation Stripe (catégorie "Software as a Service").
+      // Code de taxe vérifié contre la documentation Stripe (catégorie "Software as a service"),
+      // txcd_10401100 (utilisé pour l'achat unitaire) était spécifique à un téléchargement
+      // numérique définitif, incorrect pour un abonnement récurrent. txcd_10103001 = usage
+      // professionnel (les compositeurs utilisent LayerPitch pour leur activité, pas en usage
+      // personnel) -- la distinction pro/perso n'a d'effet que sur les ventes US.
       line_items: [{
         price_data: {
           currency: 'eur',
-          product_data: { name: `LayerPitch — ${plan === 'pro' ? 'Pro' : 'Starter'} (${interval === 'month' ? 'mensuel' : 'annuel'})` },
+          product_data: {
+            name: `LayerPitch — ${plan === 'pro' ? 'Pro' : 'Starter'} (${interval === 'month' ? 'mensuel' : 'annuel'})`,
+            tax_code: 'txcd_10103001',
+          },
           unit_amount: unitAmount,
           recurring: { interval },
         },
