@@ -34,9 +34,9 @@ Deno.serve(async (req) => {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const packId = session.metadata?.packId;
-    const buyerId = session.metadata?.buyerId || session.client_reference_id;
+    const studioId = session.metadata?.studioId || session.client_reference_id;
 
-    if (packId && buyerId) {
+    if (packId && studioId) {
       const adminClient = createClient(
         Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
       );
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
       // fait qu'un deuxième envoi du même paiement n'écrit rien de plus, sans race condition entre
       // un SELECT et un INSERT séparés.
       const { error: insertError } = await adminClient.from('pack_purchases').upsert({
-        buyer_id: buyerId,
+        studio_id: studioId,
         pack_id: packId,
         price_paid: (session.amount_total || 0) / 100,
         stripe_payment_intent_id: session.payment_intent as string,
