@@ -8,6 +8,20 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-03d] — Migrations appliquées, vérifiées en conditions réelles avec le second compte compositeur
+
+**Fichiers touchés** : aucun (vérification et opérations en base uniquement — voir [2026-09-03c] pour le code, `20260903120000_ad_reels_owner_scoped_id.sql` corrigée)
+
+**Contexte** : suite de [2026-09-03c]. Jules-Antoine a appliqué les 3 migrations lui-même. **Premier essai en échec** : `cannot drop constraint ad_reels_pkey on table ad_reels because other objects depend on it` — la migration tentait de supprimer la clé primaire de `ad_reels` avant les deux FK qui la référencent (`ad_reel_tracks_ad_reel_id_fkey`, `packs_linked_ad_reel_id_fkey`), ordre invalide en Postgres. Rollback automatique propre (transaction par fichier de migration), rien de cassé — confirmé par lecture directe (`ad_reels` toujours `PRIMARY KEY (id)`, migration non enregistrée dans `_migrations`). Migration corrigée (FK dépendantes supprimées avant la clé primaire) et réappliquée avec succès.
+
+**Blocage opérationnel rencontré en cours de route** : Jules-Antoine a tenté de lancer la migration dans le même terminal que le serveur local (`python3 -m http.server 8420`, tournant au premier plan) — la commande ne s'exécutait pas. Résolu par Ctrl+C (arrêt temporaire du serveur) dans ce terminal, la commande a alors tourné normalement ; serveur relancé ensuite pour la suite des tests.
+
+**Vérifié après application** : `ad_reels` a bien `PRIMARY KEY (owner_id, id)` ; `composer_profiles.handle` de Jules-Antoine backfillé à `'julzantoine'` ; `resolve_composer_handle()` existe. **Test réel refait avec `jules_escande@hotmail.com`** (le cas qui avait échoué le matin même) : republication depuis le backstage, GitHub toujours non configuré, lecture Postgres cochée après un rechargement complet (Cmd+Shift+R — même redémarrage nécessaire que pour la connexion, cf. [2026-09-03]) — **succès** : "Écriture double Postgres : 1 AdReel(s) OK", "Publication terminée", sans aucun appel GitHub. Confirmé en base : `jules_escande` a maintenant sa propre ligne `ad_reels` avec `id = 'main'`, `owner_id` distinct de celui de Jules-Antoine (`d7b26934-...` vs `b0a8478f-...`) — les deux `'main'` coexistent sans collision.
+
+**Chantier "collision d'id ad_reels + identité de compositeur dans l'URL" considéré terminé et vérifié en conditions réelles**, y compris l'écriture (ce test). **Reste non testé en conditions réelles** : la lecture publique via le chemin joli (`beta.layerpitch.com/julzantoine/...` ou `/<handle inconnu ou futur>/...`) — nécessiterait un vrai déploiement GitHub Pages pour exercer `404.html` (le serveur Python local ne le sert pas). À vérifier à la prochaine mise en ligne.
+
+---
+
 ## [2026-09-03c] — Identité de compositeur dans l'URL publique + `ad_reels.id` unique par compositeur (chemin joli)
 
 **Fichiers touchés** : nouveaux `404.html`, `api/composers.js`, `supabase/migrations/20260903120000_ad_reels_owner_scoped_id.sql`, `20260903120100_composer_handle.sql`, `20260903120200_upsert_ad_reel_owner_scoped.sql` ; `api/adreels.js`, `api/auth.js`, `index.html`, `pack.html`, `collection.html`, `layerpitch-backstage.html`
