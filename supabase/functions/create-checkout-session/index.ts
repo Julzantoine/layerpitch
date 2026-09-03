@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const buyerId = callerData.user.id;
+    const studioId = callerData.user.id;
 
     const { packId, successUrl, cancelUrl } = await req.json();
     if (!packId || typeof packId !== 'string') {
@@ -90,8 +90,8 @@ Deno.serve(async (req) => {
         },
         quantity: 1,
       }],
-      client_reference_id: buyerId,
-      metadata: { packId: pack.id, buyerId },
+      client_reference_id: studioId,
+      metadata: { packId: pack.id, studioId },
       success_url: successUrl || 'http://localhost:8420/auth-test.html?purchase=success',
       cancel_url: cancelUrl || 'http://localhost:8420/auth-test.html?purchase=cancelled',
     });
