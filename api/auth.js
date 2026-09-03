@@ -144,10 +144,11 @@
     return { profile: data ? { onboardingCompleted: !!data.onboarding_completed } : null, error: null };
   }
 
+  // RPC plutôt qu'un update direct sur profiles : aucun GRANT UPDATE de base n'existe sur cette
+  // table (RLS seule ne suffit pas, voir la migration mark_onboarding_complete_rpc) — cohérent avec
+  // le principe déjà en place ailleurs dans le projet ("toute écriture passe par les RPC").
   async function markOnboardingComplete() {
-    const { data: userData } = await getClient().auth.getUser();
-    if (!userData || !userData.user) return { ok: false, error: 'Non authentifié.' };
-    const { error } = await getClient().from('profiles').update({ onboarding_completed: true }).eq('id', userData.user.id);
+    const { error } = await getClient().rpc('mark_onboarding_complete');
     if (error) return { ok: false, error: error.message };
     return { ok: true, error: null };
   }
