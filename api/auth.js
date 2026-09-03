@@ -157,5 +157,6 @@
     signInWithMagicLink, signOut, getSession, onAuthStateChange, inviteTester,
     getMyComposerId, getMyComposerHandle, ensureMyComposerProfile,
     getMyStudioId, ensureMyStudioProfile, getMyProfile, markOnboardingComplete,
+    describeFunctionError,
   };
 })();

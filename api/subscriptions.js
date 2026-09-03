@@ -18,7 +18,10 @@
     const { data, error } = await getClient().functions.invoke('create-subscription-checkout-session', {
       body: { plan, interval, successUrl, cancelUrl },
     });
-    if (error) return { ok: false, error: error.message };
+    // error.message du SDK pour une Edge Function en échec est générique ("Edge Function returned
+    // a non-2xx status code") -- describeFunctionError() (api/auth.js) relit le vrai message JSON
+    // renvoyé par la fonction, même correctif que celui trouvé le 1er septembre pour invite-tester.
+    if (error) return { ok: false, error: await window.LayerPitchAuth.describeFunctionError(error) };
     if (!data || !data.url) return { ok: false, error: data && data.error ? data.error : 'Réponse inattendue.' };
     window.location.href = data.url; // redirection vers Stripe Checkout
     return { ok: true };
