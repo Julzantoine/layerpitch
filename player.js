@@ -47,6 +47,16 @@ function trackPublicEvent(name, detail) {
   } catch (e) { /* jamais bloquant */ }
 }
 
+// Même `window.__lpTrackContext` que trackPublicEvent ci-dessus, réutilisé ici pour porter l'AdReel
+// d'origine sur les liens vers pack.html générés depuis un AdReel (bouton "Retour" dynamique du pack —
+// voir pack.html) : un pack intégré dans plusieurs AdReels différents doit renvoyer vers celui par
+// lequel le visiteur est réellement arrivé, pas vers un `linkedAdReelId` fixe configuré une fois pour
+// toutes en backstage.
+function adReelFromParam() {
+  const ctx = window.__lpTrackContext || {};
+  return (ctx.type === 'adreel' && ctx.id) ? `&from=${encodeURIComponent(ctx.id)}` : '';
+}
+
 // Traductions de l'habillage généré par le moteur (statuts, boutons, libellés de mode...) — pas le
 // Traductions de l'habillage généré par le moteur (statuts, boutons, libellés de mode...) — pas le
 // contenu des morceaux eux-mêmes (titres, descriptions, labels de couches saisis par le compositeur).
@@ -327,6 +337,12 @@ if (navigator.wakeLock) {
 // morceau — un symbole plutôt qu'un texte, pour rester discret sur la page publique.
 function noAiBadgeSvg() {
   return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5l8-3z"/><path d="M8.5 12.2l2.4 2.4 4.8-4.8"/></svg>`;
+}
+// Icône info générique (cercle + "i") — même mécanisme de bulle d'aide native que noAiBadgeSvg ci-dessus
+// (icône dans un <span title="...">, survol/clic géré par le navigateur) : réutilisée pour tout libellé
+// public qui a besoin d'une explication au survol, sans introduire de nouveau composant de tooltip.
+function infoBadgeSvg() {
+  return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="7.6" r="0.6" fill="currentColor" stroke="none"/></svg>`;
 }
 function renderTracksBlock(container, tracks, packsByTrackId, globalNoAiCertified) {
   // Si TOUT le lot rendu ici est certifié (que ce soit via le réglage global ou une exception explicite
@@ -807,7 +823,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
     <div class="track-row-details" data-role="details">
      <div class="track-row-details-inner">
       <div class="track-desc" data-role="trackDesc">${linkify(track.description || '')}</div>
-      ${packsForTrack && packsForTrack.length ? `<div class="pack-link">${packsForTrack.map(p => `<a href="./pack.html?id=${encodeURIComponent(p.id)}">${t('partOfPack', { title: escapeHtml(p.title) })}</a>`).join('<br>')}</div>` : ''}
+      ${packsForTrack && packsForTrack.length ? `<div class="pack-link">${packsForTrack.map(p => `<a href="./pack.html?id=${encodeURIComponent(p.id)}${adReelFromParam()}">${t('partOfPack', { title: escapeHtml(p.title) })}</a>`).join('<br>')}</div>` : ''}
       ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
         !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : (
         (isSequential || isVerticalRandom || isEmbrVert) ? `
@@ -4080,6 +4096,8 @@ window.LayerPlayerCore = {
   escapeHtml,
   linkify,
   layerHasSource,
+  adReelFromParam,
+  infoBadgeSvg,
   buildTrackRow,
   initTrackPlayer,
   renderTracksBlock,
