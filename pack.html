@@ -2,6 +2,9 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<!-- Chemin joli par compositeur (/<handle>/pack.html, voir 404.html) — voir le commentaire
+     équivalent dans index.html. -->
+<base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
 <style>
@@ -390,6 +393,13 @@ const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, section } =
 // conservés à l'identique (images/<filename>), seul le domaine de base change.
 const IMAGES_BASE = 'https://media.layerpitch.com/images/';
 
+// Chemin joli par compositeur — voir le commentaire équivalent dans index.html.
+(function restorePrettyUrl() {
+  const pretty = new URLSearchParams(location.search).get('__pretty');
+  if (pretty) history.replaceState(null, '', pretty);
+})();
+const DEFAULT_OWNER_ID = 'd7b26934-2f7d-43d4-a69e-52611bf4c141';
+
 // Lecture Postgres (Décision 5, séquençage "site public → Postgres", docs/infrastructure.md) —
 // validation de parité en isolation, jamais activée par défaut. Même principe que
 // loadPurchaseScripts() plus bas, mais pour la lecture seule : aucun SDK chargé, aucune requête
@@ -420,22 +430,27 @@ function loadPostgresReadScripts() {
     await loadScript('./api/settings.js');
     await loadScript('./api/adreels.js');
     await loadScript('./api/site-data.js');
+    await loadScript('./api/composers.js');
   })();
   return postgresReadScriptsLoaded;
 }
-// Isolation multi-compositeur (1er septembre) : voir le commentaire équivalent dans index.html —
-// le pack demandé est résolu en premier pour découvrir son compositeur (ownerId).
-async function loadSiteData(packId) {
-  const usePostgres = new URLSearchParams(location.search).get('dataSource') === 'postgres';
+// Identité de compositeur par handle — voir le commentaire équivalent dans index.html.
+async function loadSiteData() {
+  const params = new URLSearchParams(location.search);
+  const handle = params.get('u');
+  const usePostgres = !!handle || params.get('dataSource') === 'postgres';
   if (!usePostgres) {
     const res = await fetch('./data.json?v=' + Date.now());
     return res.json();
   }
   await loadPostgresReadScripts();
-  const { pack, error } = await window.LayerPitchPacks.getPack(packId);
-  if (error) throw new Error(error);
-  if (!pack) return { packs: [] };
-  return window.LayerPitchSiteData.loadSiteDataFromPostgres(pack.ownerId);
+  let ownerId = DEFAULT_OWNER_ID;
+  if (handle) {
+    const { ownerId: resolvedId, error } = await window.LayerPitchComposers.resolveHandle(handle);
+    if (error) throw new Error(error);
+    ownerId = resolvedId || DEFAULT_OWNER_ID;
+  }
+  return window.LayerPitchSiteData.loadSiteDataFromPostgres(ownerId);
 }
 
 // Achat réel de packs (Décision 5, étape 4 — backend Stripe/Postgres construit et vérifié le
@@ -731,7 +746,7 @@ async function init() {
   const id = new URLSearchParams(location.search).get('id');
   window.__lpTrackContext = { type: 'pack', id: id };
   try {
-    const data = await loadSiteData(id);
+    const data = await loadSiteData();
     const pack = (data.packs || []).find(p => p.id === id);
     if (pack && pack.bgColor) document.documentElement.style.setProperty('--bg', pack.bgColor);
     if (pack && pack.textColor) document.documentElement.style.setProperty('--text', pack.textColor);
@@ -761,6 +776,7 @@ async function init() {
       triggerBtn.type = 'button';
       triggerBtn.className = 'video-test-trigger-btn';
       triggerBtn.textContent = tr('videoTestTriggerBtn');
+      triggerBtn.title = tr('videoTestTriggerBtnHelp');
       triggerBtn.addEventListener('click', () => document.getElementById('videoTestDialog').showModal());
       container.appendChild(triggerBtn);
     }
@@ -837,10 +853,17 @@ async function init() {
       container.appendChild(collEl);
     }
 
-    // Renvoi vers l'AdReel choisi par le compositeur — utile quand ce pack est envoyé seul (hors
-    // Marketplace), pour que le destinataire puisse découvrir le reste du travail et le moyen de
-    // contact, plutôt que de rester sur un pack sans aucune identité derrière.
-    const linkedAdReel = pack.linkedAdReelId ? (data.adReels || []).find(a => a.id === pack.linkedAdReelId) : null;
+    // Renvoi vers l'AdReel d'origine — priorité au paramètre `from` déposé dans l'URL par l'AdReel qui a
+    // généré le lien vers ce pack (voir adReelFromParam, player.js) : un même pack peut être intégré dans
+    // plusieurs AdReels (ex. un AdReel principal et un AdReel de démo envoyé à un prospect), et le retour
+    // doit suivre celui par lequel CE visiteur est réellement arrivé, pas un choix figé. Si `from` est
+    // absent (visite directe, lien du pack partagé isolément) ou pointe vers un AdReel depuis supprimé,
+    // on retombe sur pack.linkedAdReelId choisi une fois pour toutes en backstage — même nettoyage
+    // défensif que linkedAdReelId lui-même (un .find() qui échoue renvoie simplement undefined, geste
+    // silencieux, cf. `if (linkedAdReel)` plus bas).
+    const fromAdReelId = new URLSearchParams(location.search).get('from');
+    const linkedAdReel = (fromAdReelId && (data.adReels || []).find(a => a.id === fromAdReelId))
+      || (pack.linkedAdReelId ? (data.adReels || []).find(a => a.id === pack.linkedAdReelId) : null);
     if (linkedAdReel) {
       const composerName = (linkedAdReel.profile && linkedAdReel.profile.title) || tr('linkedAdReelFallbackName');
       const adReelHref = linkedAdReel.id === 'main' ? `./index.html?lang=${pageLang}` : `./index.html?adreel=${encodeURIComponent(linkedAdReel.id)}&lang=${pageLang}`;

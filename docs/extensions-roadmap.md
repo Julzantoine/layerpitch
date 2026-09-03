@@ -5,6 +5,14 @@
 
 Signalé par un retour compositeur externe : le gris clair utilisé pour le texte n'offrirait pas un contraste suffisant pour les personnes malvoyantes (norme WCAG AA : ratio ≥ 4,5:1 texte normal, 3:1 grand texte). À vérifier avec un contrast checker (ex. WebAIM) sur les couleurs `bgColor`/`textColor` publiées, et ajuster si insuffisant. **Défaut d'accessibilité sur l'existant, pas une feature à roadmapper — prioritaire sur les nouvelles idées ci-dessous.**
 
+## Point de qualité — découvrabilité des packs (résolu le 03/09)
+
+Signalé à deux reprises par Jules-Antoine lui-même, en observant des compositeurs externes découvrir LayerPitch : sur la page publique (AdReel), les visiteurs ne comprennent pas spontanément ce qu'est un "pack" ni qu'il est cliquable — nécessitait à chaque fois une redirection orale explicite pour débloquer la découverte.
+
+**Décision actée** : "Pack" reste le meilleur terme disponible (compositeurs comme studios le comprennent déjà dans son sens musical/production) — le problème n'est pas le mot, c'est l'absence d'explication à côté. Pas de renommage envisagé.
+
+**Résolu** : infobulle d'aide ajoutée sur le libellé "Packs" du bloc AdReel correspondant, en réutilisant tel quel le mécanisme déjà en place pour le badge "certifié sans IA" (icône + `title` natif du navigateur, survol/clic géré par le navigateur — pas de nouveau composant). Voir `docs/LAYERPITCH_CHANGELOG.md`, entrée [2026-09-03b], et `infoBadgeSvg()` dans `player.js`.
+
 ## 0. Modes de lecture — nouvelle famille de modes hybrides
 
 **Contexte et intention stratégique** : renforcer la précision technique du vocabulaire des modes de lecture pour maximiser l'attrait de LayerPitch comme terrain de jeu pour des compositeurs exigeants — la sophistication de la nomenclature devient elle-même un argument de différenciation.
