@@ -16,6 +16,13 @@
 -- (index.html/pack.html/collection.html) a besoin d'un moyen de porter l'identité du compositeur
 -- dans l'URL pour résoudre 'main' sans ambiguïté (voir 20260903120100_composer_handle.sql et le
 -- code applicatif — api/adreels.js, 404.html, index.html/pack.html/collection.html).
+--
+-- Ordre corrigé le 3 septembre (premier essai en échec, rollback automatique propre, rien de cassé) :
+-- les deux FK qui pointent vers ad_reels(id) doivent être supprimées AVANT de pouvoir supprimer sa
+-- clé primaire, pas après.
+
+alter table public.ad_reel_tracks drop constraint ad_reel_tracks_ad_reel_id_fkey;
+alter table public.packs drop constraint packs_linked_ad_reel_id_fkey;
 
 alter table public.ad_reels drop constraint ad_reels_pkey;
 alter table public.ad_reels add primary key (owner_id, id);
@@ -26,13 +33,11 @@ update public.ad_reel_tracks art
   from public.ad_reels ar
   where ar.id = art.ad_reel_id;
 alter table public.ad_reel_tracks alter column owner_id set not null;
-alter table public.ad_reel_tracks drop constraint ad_reel_tracks_ad_reel_id_fkey;
 alter table public.ad_reel_tracks add constraint ad_reel_tracks_ad_reel_id_fkey
   foreign key (owner_id, ad_reel_id) references public.ad_reels(owner_id, id) on delete cascade;
 
 -- packs.linked_ad_reel_id : un pack ne peut lier qu'un AdReel de son propre compositeur (règle déjà
 -- vraie dans les faits, jamais construite pour en lier un autre) — réutilise packs.owner_id, déjà
 -- présent, plutôt que d'ajouter une colonne.
-alter table public.packs drop constraint packs_linked_ad_reel_id_fkey;
 alter table public.packs add constraint packs_linked_ad_reel_id_fkey
   foreign key (owner_id, linked_ad_reel_id) references public.ad_reels(owner_id, id) on delete set null;
