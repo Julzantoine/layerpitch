@@ -8,6 +8,24 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-03g] — Flux d'inscription vérifié en conditions réelles, bug de droits corrigé au passage
+
+**Fichiers touchés** : `api/auth.js`, nouveau `supabase/migrations/20260903160000_mark_onboarding_complete_rpc.sql`
+
+**Contexte** : premier vrai test de [2026-09-03f] (`jules_escande@hotmail.com`, `bienvenue.html`, sur `beta.layerpitch.com`) — échec immédiat, `Erreur : permission denied for table profiles`.
+
+**Diagnostic** : `markOnboardingComplete()` faisait un `update()` direct sur `profiles` côté client. La policy RLS "own profile update" existe depuis le 31 août, mais **aucun `GRANT UPDATE` de base n'avait jamais été posé** sur `profiles` pour `authenticated` — RLS filtre les lignes visibles, encore faut-il le privilège de table sous-jacent en premier lieu (même famille de trou que `20260831112717_grants.sql`, jamais rencontré avant faute d'avoir jamais tenté d'écrire directement sur `profiles` depuis un client).
+
+**Corrigé en RPC** (`mark_onboarding_complete()`, SECURITY DEFINER) plutôt qu'en ouvrant le `GRANT` manquant — cohérent avec le principe déjà acté et documenté dans `20260831112717_grants.sql` ("toute écriture passe par les RPC upsert_*, jamais un GRANT direct"), pas une dérogation ponctuelle.
+
+**Retard de déploiement inhabituel** : après le push du correctif, GitHub Pages a mis plusieurs minutes à servir la nouvelle version d'`api/auth.js` (bien au-delà du délai habituel, sans qu'un échec ne soit visible dans les vérifications faites) — surveillé par sondage (`curl` en boucle) plutôt que par estimation, confirmé déployé avant de faire retester.
+
+**Vérifié en conditions réelles, sur la vraie URL hébergée** : `jules_escande@hotmail.com`, écran "bêta réservée aux compositeurs" → clic "Continuer" → succès. Confirmé en base : `composer_profile` provisionné, `profiles.onboarding_completed = true`.
+
+**Chantier 3 (flux d'inscription) considéré terminé et vérifié en conditions réelles**, comme les chantiers 1 et 2 avant lui. Restent non testés, sans urgence : la revisite de `bienvenue.html` après onboarding déjà fait (doit afficher les liens, pas reproposer l'écran — logique simple, pas revérifiée en direct) et le futur écran à trois choix Compositeur/Studio/Fan (délibérément pas construit, voir [2026-09-03f]).
+
+---
+
 ## [2026-09-03f] — Flux d'inscription : écran d'accueil, bêta réservée aux compositeurs
 
 **Fichiers touchés** : nouveaux `bienvenue.html`, `supabase/migrations/20260903150000_onboarding_and_studio_profile_rpc.sql` ; `api/auth.js`, `layerpitch-i18n.js`, `layerpitch-backstage.html`
