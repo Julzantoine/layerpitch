@@ -909,7 +909,7 @@
     <div class="hint">Ne change rien à ce que voient tes visiteurs — c'est uniquement le confort visuel de cet écran d'édition, mémorisé sur cet ordinateur.</div>
   </fieldset>
 
-  <fieldset>
+  <fieldset id="panelGithubRepo" hidden>
     <legend data-i18n="githubRepoLegend">Dépôt GitHub</legend>
     <div class="row">
       <div><label data-i18n="ownerLabel" data-help="ghOwner">Propriétaire (owner)</label><input type="text" id="ghOwner" value="Julzantoine"></div>
@@ -926,7 +926,7 @@
     <div class="actions"><button class="btn" id="btnLoad" data-i18n="reloadDataBtn">Recharger data.json (écrase les modifs en cours)</button></div>
   </fieldset>
 
-  <fieldset>
+  <fieldset id="panelPgRead" hidden>
     <legend>Lecture Postgres (test — Session B, docs/infrastructure.md)</legend>
     <div class="hint">
       Écriture toujours vers GitHub/data.json uniquement (inchangé) — cette case ne change que la
@@ -940,7 +940,7 @@
     </label>
   </fieldset>
 
-  <fieldset>
+  <fieldset id="panelPgWrite" hidden>
     <legend>Écriture Postgres (test — Session B, docs/infrastructure.md)</legend>
     <div class="hint">
       Écriture double : à la publication, les morceaux, les packs, les AdReels, les Sfx, les
@@ -1039,7 +1039,7 @@
     <div id="issuedInvoicesList" class="hint" style="margin-top:8px;">Chargement…</div>
   </fieldset>
 
-  <fieldset>
+  <fieldset id="panelInviteTester" hidden>
     <legend>Inviter un testeur (admin)</legend>
     <div class="hint">
       Envoie une invitation par email (compte Supabase créé, lien magique de première connexion) —
@@ -1056,7 +1056,7 @@
     </div>
   </fieldset>
 
-  <fieldset>
+  <fieldset id="panelAdminLink" hidden>
     <legend>Panneau admin (statistiques, suspension de compte, bandeau d'annonce)</legend>
     <div class="hint">
       Réservé aux comptes admin — même barrière que ci-dessus (is_admin()), vérifiée côté serveur
@@ -1067,7 +1067,7 @@
     </div>
   </fieldset>
 
-  <fieldset>
+  <fieldset id="panelR2Storage" hidden>
     <legend>Stockage média (Cloudflare R2)</legend>
     <div class="hint">
       L'audio est servi depuis media.layerpitch.com (bucket R2), pas depuis GitHub — voir
@@ -1379,6 +1379,13 @@ function isModeTest() {
  * seulement, jamais si les deux cases restent décochées.
  */
 function pgReadEnabled() {
+  // Repo GitHub personnel optionnel (même principe que publishAll(), 2 septembre) : un compositeur
+  // SANS token configuré (le cas visé par le backstage hébergé) n'a pas de data.json GitHub à lire
+  // -- forcer la lecture Postgres pour lui, indépendamment de la case #pgReadToggle (pensée à
+  // l'origine comme un simple interrupteur de test pour Jules-Antoine). Sans ce repli, un
+  // compositeur hébergé verrait sa bibliothèque vide au premier chargement -- trouvé le 4
+  // septembre en vérifiant avant de masquer ce panneau aux bêta-testeurs (voir #pgReadToggle).
+  if (!state.token()) return true;
   const cb = document.getElementById('pgReadToggle');
   return cb ? cb.checked : (localStorage.getItem(PG_READ_KEY) === '1');
 }
@@ -1589,6 +1596,28 @@ async function renderIssuedInvoicesPanel(session) {
     });
   });
 }
+// Masque les panneaux de debug/admin (dépôt GitHub, tests Postgres, invitation testeur, stockage
+// R2, lien vers le panneau admin) pour tout compte non-admin -- trouvé le 4 septembre, jamais
+// filtré jusqu'ici (seule la liste d'emails Cloudflare Access limitait qui atteint la page du
+// tout, docs/infrastructure.md). Confort d'affichage uniquement, comme dans admin.html : la vraie
+// barrière reste is_admin() côté serveur (RPC SECURITY DEFINER, RLS) sur chaque action, jamais
+// cette vérification client seule. Avant de masquer #panelPgRead/#panelGithubRepo, vérifié que
+// fetchSiteData()/pgReadEnabled() basculent déjà seuls sur Postgres pour un compositeur sans token
+// GitHub configuré (comme publishAll() le fait déjà côté écriture) -- sinon un compositeur hébergé
+// aurait vu sa bibliothèque vide, ce panneau étant jusqu'ici le seul moyen de l'activer à la main.
+const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelInviteTester', 'panelR2Storage', 'panelAdminLink'];
+async function renderAdminOnlyPanels(session) {
+  let isAdmin = false;
+  if (session && session.user) {
+    await loadPostgresReadScripts();
+    const { data } = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin');
+    isAdmin = !!data;
+  }
+  ADMIN_ONLY_PANEL_IDS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.hidden = !isAdmin;
+  });
+}
 function renderPgAuthStatus(session) {
   const el = document.getElementById('pgAuthStatus');
   const signOutBtn = document.getElementById('btnPgSignOut');
@@ -1738,6 +1767,7 @@ async function initPgAuthUi() {
     window.LayerPitchAuth.onAuthStateChange((_event, session) => {
       renderPgAuthStatus(session); refreshMyComposerHandle(session); renderSubscriptionPanel(session);
       renderBillingProfilePanel(session); renderConnectPanel(session); renderIssuedInvoicesPanel(session);
+      renderAdminOnlyPanels(session);
     });
   }
 }
