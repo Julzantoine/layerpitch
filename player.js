@@ -764,7 +764,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   // rendu initial (ni lecture ni structure "toujours révélée" avant l'exécution JS), sauf en mode
   // Backstage (seqMapFullReveal) où elle se remplit dès le chargement des buffers.
   let seqMapHtml = '';
-  if (isSequential && supported) {
+  if (isSequential && supported && (track.segmentSlots || []).length > 1) {
     seqMapHtml = `
       <div class="seq-map" data-role="seqMap">
         <div class="voice-graph-label">${t('seqMapLabel')}</div>
@@ -2691,6 +2691,29 @@ function initTrackPlayer(track, wrapper) {
       }
     });
   }
+  // Fondu de sortie IMMÉDIAT d'une boucle "paire" quittée, déclenché dès qu'une transition démarre plutôt
+  // que d'attendre la fin de celle-ci (05/09, retour direct : "la boucle continue de jouer pendant la
+  // transition, je ne veux plus ça"). Avant ce correctif, la boucle quittée restait à plein volume pendant
+  // toute la durée de la transition -- gain remis à 0 seulement par refreshEmbrGains() une fois la
+  // transition terminée (voir performEmbrSwitch) -- d'où un mélange boucle+transition entendu par
+  // Jules-Antoine. Même principe que performSeqBranchCut() côté séquentiel (le bloc quitté y est fondu
+  // tout de suite, la transition suivant en bloc distinct) : ici la boucle ducke sur son propre
+  // cutStyle/customCutFadeSec (embrCutFadeSec, "fondu de sortie propre à CETTE boucle", même repli que
+  // fadeOutCurrentDetour) pendant que le fichier de transition joue seul par-dessus. Ne touche que la
+  // source `sourceIdx` -- les autres boucles paires sont déjà à gain 0, refreshEmbrGains() s'occupera de
+  // faire monter la cible une fois la transition terminée.
+  function duckEmbrSourceLoop(sourceIdx, sourceLoopDef) {
+    if (sourceIdx < 0) return; // aucune boucle paire active à ce moment (détour en cours, déjà géré par fadeOutCurrentDetour())
+    const now = ctx.currentTime;
+    const fadeSec = embrCutFadeSec(sourceLoopDef);
+    embrActiveGenSources.forEach(({ gain, loopIdx }) => {
+      if (!gain || loopIdx !== sourceIdx) return;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      if (fadeSec <= 0) gain.gain.setValueAtTime(0, now);
+      else gain.gain.linearRampToValueAtTime(0, now + fadeSec);
+    });
+  }
   // Reprise après mise en veille (29/08, bug signalé par Jules-Antoine : changer d'onglet relançait le
   // morceau depuis la référence). Contrairement au séquentiel/vertical-random, l'embranchement-vertical
   // n'a pas de notion de "position dans le temps" à laquelle chercher (plusieurs boucles phase-verrouillées
@@ -2868,14 +2891,15 @@ function initTrackPlayer(track, wrapper) {
       if (embrAutoReturnTimeout) { clearTimeout(embrAutoReturnTimeout); embrAutoReturnTimeout = null; }
       fadeOutCurrentDetour(); // sans effet si aucun détour n'était en cours
       const sourceLoopDef = (track.loops || [])[embrActiveLoopIdx]; // boucle quittée -- repli de tempo pour la transition
-      // Transition (29/08) : jouée tout de suite, EN OVERLAY par-dessus ce qui joue déjà (la boucle
-      // quittée continue normalement pendant ce temps -- jamais de silence). La bascule réelle
-      // (embrActiveLoopIdx + gains + UI) n'intervient qu'une fois la transition terminée, exactement comme
-      // une coupure immédiate ordinaire à cet instant-là -- jamais de gain différé en parallèle du
-      // planificateur périodique.
+      // Transition (29/08, ducking ajouté le 05/09) : jouée tout de suite. La boucle quittée ducke
+      // immédiatement sur son propre fondu de sortie (duckEmbrSourceLoop) plutôt que de continuer à plein
+      // volume pendant toute la transition -- seul le fichier de transition doit s'entendre entre les deux
+      // boucles. La bascule réelle (embrActiveLoopIdx + gains + UI) n'intervient elle qu'une fois la
+      // transition terminée, exactement comme une coupure immédiate ordinaire à cet instant-là -- jamais de
+      // gain différé en parallèle du planificateur périodique.
       const transBuf = embrTransitionBuffers[idx];
       const transDelay = transBuf ? embrTransitionDurationSecFor(loopDef, sourceLoopDef, transBuf) : 0;
-      if (transBuf) playEmbrTransitionIfAny(idx, ctx.currentTime);
+      if (transBuf) { playEmbrTransitionIfAny(idx, ctx.currentTime); duckEmbrSourceLoop(embrActiveLoopIdx, sourceLoopDef); }
       if (transBuf) showEmbrTransitionOverlay(embrActiveLoopIdx, idx, transBuf, transDelay);
       const doSwitch = () => {
         removeEmbrTransitionOverlay();
@@ -2905,12 +2929,13 @@ function initTrackPlayer(track, wrapper) {
       const btn = embrLoopBtns.find(b => parseInt(b.dataset.loopIdx, 10) === idx);
       if (btn) btn.disabled = true; // pas de retrigger possible tant que le détour joue (validé le 31/07)
       const sourceLoopDef = (track.loops || [])[embrActiveLoopIdx]; // boucle quittée -- repli de tempo pour la transition
-      // Transition (29/08) : même principe que la branche "paire" ci-dessus -- jouée en overlay tout de
-      // suite, la voix actuellement active continue sans interruption jusqu'à ce que le détour démarre
-      // réellement une fois la transition terminée.
+      // Transition (29/08, ducking ajouté le 05/09) : même principe que la branche "paire" ci-dessus --
+      // jouée tout de suite, la voix paire encore active (si elle existe -- fadeOutCurrentDetour() a déjà
+      // géré le cas d'un détour précédent juste au-dessus) ducke immédiatement sur son propre fondu de
+      // sortie plutôt que de continuer à plein volume jusqu'au démarrage réel du détour.
       const transBuf = embrTransitionBuffers[idx];
       const transDelay = transBuf ? embrTransitionDurationSecFor(loopDef, sourceLoopDef, transBuf) : 0;
-      if (transBuf) playEmbrTransitionIfAny(idx, ctx.currentTime);
+      if (transBuf) { playEmbrTransitionIfAny(idx, ctx.currentTime); duckEmbrSourceLoop(embrActiveLoopIdx, sourceLoopDef); }
       if (transBuf) showEmbrTransitionOverlay(embrActiveLoopIdx, idx, transBuf, transDelay);
       const startDetour = () => {
         removeEmbrTransitionOverlay();

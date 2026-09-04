@@ -8,6 +8,41 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-05] — La boucle quittée ducke immédiatement pendant une transition d'embranchement-vertical
+
+**Fichiers touchés** : `player.js`.
+
+**Contexte** : retour direct de Jules-Antoine en écoutant une piste vertical à embranchement avec un fichier de transition réglé — "la boucle continue de jouer pendant la transition, je ne veux plus ça".
+
+**Diagnostic** : `performEmbrSwitch()` jouait bien le fichier de transition tout de suite au clic (choix retenu le 29/08 pour éviter tout silence), mais la boucle quittée restait à plein volume jusqu'à la fin de la transition — son gain n'était ramené à 0 que par `refreshEmbrGains()`, appelée seulement une fois la transition terminée (dans `doSwitch()`/`startDetour()`). Résultat entendu : la transition se superposait à la boucle encore audible au lieu de s'entendre seule. Le moteur séquentiel n'a pas ce défaut : `performSeqBranchCut()` fond l'emplacement quitté tout de suite, avant même de jouer la transition (bloc distinct, pas un overlay).
+
+**Changement** : nouvelle fonction `duckEmbrSourceLoop(sourceIdx, sourceLoopDef)` — fond immédiatement la boucle "paire" quittée sur son propre réglage `cutStyle`/`customCutFadeSec` (`embrCutFadeSec`, même repli que `fadeOutCurrentDetour()`), appelée dès qu'une transition va jouer, dans les deux branches de `performEmbrSwitch()` (bascule vers une boucle paire, et départ en détour). Le cas où la boucle quittée est déjà un détour n'a pas besoin de ce correctif : `fadeOutCurrentDetour()` fondait déjà son gain immédiatement, indépendamment de la transition. `embrActiveLoopIdx` et l'UI ne changent toujours qu'une fois la transition terminée (inchangé) — seul le gain audio de la source quittée est avancé.
+
+**Vérification** : les 4 suites de tests existantes du moteur (`test_embr_vertical_transitions.js`, `test_embr_vertical_engine.js`, `test_embr_vertical_waveform.js`, `test_embr_vertical_visibility_resume.js`) rejouées sans modification — toutes vertes, aucune régression (elles vérifient l'état UI/le timing de la bascule, pas le gain audio brut). Vérification ad hoc du gain lui-même (capture des appels `linearRampToValueAtTime` sur un contexte audio simulé) : confirmé qu'un ordre de fondu vers 0 part sur la boucle quittée dès le clic, bien avant la fin de la transition — plus au moment où la bascule réelle se produit.
+
+---
+
+## [2026-09-04h] — Tableau de bord analytique compositeur, par palier
+
+**Fichiers touchés** : nouveau `supabase/functions/get-composer-analytics/index.ts`, nouveau `api/analytics.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `index.html`, `pack.html`, `collection.html`, `player.js` ; nouveaux `test_composer_analytics_gating.js`, `test_umami_owner_context.js`.
+
+**Contexte** : grille validée en canal architecture dédié (4 septembre) — tableau de bord propre à chaque compositeur, filtré sur ses propres AdReels/Packs, avec trois niveaux d'accès par palier (Free : aucun accès ; Starter : sessions/ouvertures de lien, appareil approximatif, date, rétention 1 mois glissant ; Pro : détail par morceau, interactions adaptatives complètes, filtre par plage de dates, rétention 1 an glissant). Source de données : Umami Cloud (déjà intégré côté visite publique), distinct du logger bêta-testeurs (`events.json`/`admin-analytics.html`), non touché ici.
+
+**Trouvé en préparant l'implémentation, corrigé avant de construire le tableau de bord lui-même** : `window.__lpTrackContext` ne portait jusqu'ici que `{ type, id }` (ex. `{ adreel: 'main' }`) — or `ad_reels.id` n'est unique que PAR compositeur (`20260903120000_ad_reels_owner_scoped_id.sql`), et `'main'` est justement l'id par défaut du tout premier AdReel de CHAQUE compositeur tant qu'il n'est pas renommé. Sans correction, deux compositeurs différents avec un AdReel `'main'` auraient produit des événements Umami indiscernables, risquant de mélanger leurs données. Signalé à Jules-Antoine avant de continuer (décision validée) : `index.html`/`pack.html`/`collection.html` ajoutent désormais `ownerId` (= `composer_profiles.id`, déjà résolu tôt dans `loadSiteData()`) à `window.__lpTrackContext`, et `trackPublicEvent` (`player.js`, plus la copie inline de `collection.html`) le propage dans le payload envoyé à Umami. Les événements collectés avant ce correctif restent ambigus pour le cas `'main'` et ne sont pas récupérables de façon fiable — non traité, juste documenté.
+
+**Point technique vérifié en codant (pas deviné)** : l'API REST d'Umami Cloud (`https://api.umami.is/v1`, auth `Authorization: Bearer <clé>`) ne permet pas de filtrer côté serveur par la valeur d'une propriété d'événement personnalisée — son paramètre `filters` ne couvre que des colonnes standard (url, referrer, navigateur, os, pays...). Le filtrage par AdReel/Pack/compositeur est donc fait dans l'Edge Function elle-même, après récupération paginée de `/event-data-pivot` (propriétés personnalisées) et `/events` (device/browser/os), croisées avec les ids réellement possédés par le compositeur (`ad_reels`/`packs` filtrés `owner_id`) et son `ownerId`. Bordé par un plafond de pages par requête, avec un indicateur `truncated: true` explicite si la plage demandée en contient plus — jamais une réponse tronquée présentée comme complète.
+
+**Changement** :
+- `supabase/functions/get-composer-analytics/index.ts` : nouvelle Edge Function. Résout le palier effectif via `get_trial_status()` + une copie intentionnelle de `effectiveTierFromTrialStatus()` (même limite que côté client : le rôle admin n'est pas pris en compte, chantier de gating admin séparé). Free → aucune donnée renvoyée (le gating est fait dans la fonction, pas seulement à l'affichage — un Starter ne reçoit jamais `tracks`/`interactions`, un Free ne reçoit jamais `sessions`). Fenêtre de rétention par palier posée en constante nommée (`ANALYTICS_RETENTION_DAYS`), filtre par plage de dates honoré uniquement pour Pro et toujours resserré dans cette fenêtre. Jeton d'API Umami (`UMAMI_API_TOKEN`, nouveau secret à renseigner côté Supabase, pas encore fait) jamais exposé côté client.
+- `api/analytics.js` : relais client (`getMyAnalytics()`) vers cette Edge Function, même patron que `api/connect.js`/`api/subscriptions.js`.
+- `layerpitch-backstage.html` : nouvel onglet "Analytics" (niveau Compte/Site) — écran verrouillé + lien vers `mon-compte.html` sur Free, liste de sessions sur Starter, détail par morceau ("jusqu'où, sauté ou non" — **inférence** à partir des marqueurs discrets déjà trackés comme `go_to_end_click`, pas une mesure continue de progression, documenté comme tel dans l'UI) et interactions adaptatives + filtre de dates sur Pro. Chargement à la demande (clic sur l'onglet), jamais au démarrage du backstage.
+- `test_composer_analytics_gating.js` : teste les fonctions pures de l'Edge Function (extraites par regex, même pattern que `test_publish_effective_plan.js`) — refus Free (aucune donnée renvoyée même si des sessions existaient réellement), contenu exact Starter vs Pro, résolution du palier avec essai actif, filtrage par owner_id (y compris le cas de collision `'main'` entre deux compositeurs).
+- `test_umami_owner_context.js` : teste le correctif de contexte de tracking (propagation d'`ownerId` dans `trackPublicEvent`, résolution de `lastResolvedOwnerId` par `loadSiteData()` sur les trois pages publiques).
+
+**Reste à faire avant mise en service réelle** : renseigner le secret `UMAMI_API_TOKEN` côté Supabase (génération d'une clé API dans les réglages Umami Cloud) — la fonction renvoie une erreur explicite tant qu'il est absent, jamais un faux "aucune donnée". Aucun test de bout en bout contre l'API Umami réelle n'a été possible dans cette session (pas d'accès au jeton) ; seule la logique de gating/filtrage/mise en forme est couverte par les tests automatisés ci-dessus.
+
+---
+
 ## [2026-09-04g] — Nouvelle page "Mon compte" (abonnement/facturation/Connect regroupés)
 
 **Fichiers touchés** : nouveau `mon-compte.html` ; `layerpitch-backstage.html`.
