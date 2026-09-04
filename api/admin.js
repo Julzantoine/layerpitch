@@ -32,19 +32,21 @@
     };
   }
 
-  // Bandeau bilingue (docs/infrastructure.md, retour du 3 septembre après premier test réel) :
-  // un message par langue, affiché selon la langue du backstage de chaque compte.
+  // Bandeau multilingue, structure ouverte au nombre de langues (docs/infrastructure.md, retour du
+  // 3 septembre après premier test réel) : messages = { <code langue>: <texte> }, une clé par
+  // langue — ajouter une langue au bandeau plus tard n'a pas besoin de toucher ce fichier.
   async function getPlatformNotice() {
-    const { data, error } = await getClient().from('platform_settings').select('notice_message_fr, notice_message_en, notice_updated_at').eq('id', true).maybeSingle();
+    const { data, error } = await getClient().from('platform_settings').select('notice_messages, notice_updated_at').eq('id', true).maybeSingle();
     if (error) return { notice: null, error: error.message };
     return {
-      notice: data ? { messageFr: data.notice_message_fr, messageEn: data.notice_message_en, updatedAt: data.notice_updated_at } : null,
+      notice: data ? { messages: data.notice_messages || {}, updatedAt: data.notice_updated_at } : null,
       error: null,
     };
   }
 
-  async function setPlatformNotice(messageFr, messageEn) {
-    const { error } = await getClient().rpc('set_platform_notice', { p_message_fr: messageFr, p_message_en: messageEn });
+  // messages : { <code langue>: <texte> }, ex. { fr: '...', en: '...' }.
+  async function setPlatformNotice(messages) {
+    const { error } = await getClient().rpc('set_platform_notice', { p_messages: messages });
     if (error) return { ok: false, error: error.message };
     return { ok: true, error: null };
   }

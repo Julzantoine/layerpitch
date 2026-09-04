@@ -962,6 +962,17 @@
   </fieldset>
 
   <fieldset>
+    <legend>Panneau admin (statistiques, suspension de compte, bandeau d'annonce)</legend>
+    <div class="hint">
+      Réservé aux comptes admin — même barrière que ci-dessus (is_admin()), vérifiée côté serveur
+      sur la page elle-même, pas seulement ici.
+    </div>
+    <div class="actions">
+      <a class="btn" href="admin.html" target="_blank" rel="noopener">Ouvrir le panneau admin</a>
+    </div>
+  </fieldset>
+
+  <fieldset>
     <legend>Stockage média (Cloudflare R2)</legend>
     <div class="hint">
       L'audio est servi depuis media.layerpitch.com (bucket R2), pas depuis GitHub — voir
@@ -7174,9 +7185,11 @@ async function loadPlatformNotice() {
   const { profile } = await window.LayerPitchAuth.getMyProfile();
   const dismissedAt = profile ? profile.noticeDismissedAt : null;
   // Message dans la langue du backstage de ce compte (même réglage que currentLang()/tr()) —
-  // repli sur l'autre langue si l'admin n'a rempli que l'une des deux (mieux vaut un message
-  // dans la mauvaise langue que pas de message du tout).
-  const message = notice ? (currentLang() === 'en' ? (notice.messageEn || notice.messageFr) : (notice.messageFr || notice.messageEn)) : null;
+  // repli sur le français si l'admin n'a pas rempli la langue courante (même convention que
+  // tr()/applyI18n(), qui retombe toujours sur le français). Structure ouverte au nombre de
+  // langues (notice_messages, une clé par code langue) — voir docs/infrastructure.md.
+  const messages = (notice && notice.messages) || {};
+  const message = messages[currentLang()] || messages.fr;
   // Un nouveau message (notice_updated_at plus récent que le dernier "J'ai vu") réaffiche le
   // bandeau même si le compte avait déjà accusé réception d'un message précédent.
   const shouldShow = message &&
