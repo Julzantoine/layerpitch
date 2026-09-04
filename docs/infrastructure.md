@@ -304,6 +304,12 @@ Sous-domaine dédié (voir section Domaine, Partie B) plutôt que l'apex `layerp
 8. *(à faire)* Création de l'Application Zero Trust sur `beta.layerpitch.com`.
 9. *(à faire)* Définition de la policy d'accès (liste d'emails).
 
+### Coordination avec l'invitation testeur Supabase (4 septembre)
+
+Problème trouvé une fois la Partie B (auth Supabase) et cette Partie C en place ensemble : le panneau "Inviter un testeur" du backstage (`invite-tester`, Partie B Décision 4) et cette liste d'emails Cloudflare Access sont deux barrières totalement indépendantes — rien ne garantissait qu'un testeur invité côté Supabase soit aussi ajouté ici, et inversement. Un testeur présent dans l'un sans l'autre reste bloqué (invité Supabase seul → jamais passé le mur Cloudflare ; ajouté à Cloudflare seul → pas de compte pour utiliser son accès).
+
+Corrigé : `invite-tester` appelle désormais l'API Cloudflare pour ajouter l'email à la policy Access "Backstage — accès compositeur" avant d'envoyer l'invitation Supabase (idempotent, non bloquant si l'appel échoue — voir `docs/LAYERPITCH_CHANGELOG.md`, entrée du 4 septembre). Un seul geste dans le backstage couvre désormais les deux barrières. Nécessite trois secrets Supabase : `CLOUDFLARE_API_TOKEN` (jeton scopé "Access: Apps and Policies", jamais "Full access"), `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_ACCESS_POLICY_ID` (ID de la policy réutilisable — ce compte Cloudflare utilise le modèle "Access controls > Policies", pas des policies imbriquées dans une Application).
+
 ### Extension envisagée — protection des repos testeurs (`layerpitch-beta`)
 
 **Sujet ouvert le 29 août, non implémenté, à reprendre une fois `beta.layerpitch.com` validé de bout en bout.**

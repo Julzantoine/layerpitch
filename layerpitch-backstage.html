@@ -1633,9 +1633,18 @@ async function initPgAuthUi() {
         // Redirige vers bienvenue.html (flux d'inscription, docs/infrastructure.md), pas vers le
         // backstage lui-même -- sinon tout nouvel invité atterrit directement dans l'outil
         // compositeur sans jamais voir l'écran d'accueil.
-        const { ok, error } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html');
+        const { ok, error, data } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html');
         if (ok) {
-          alert('Invitation envoyée à ' + email + '.');
+          if (data && data.cloudflareWarning) {
+            alert(
+              'Invitation Supabase envoyée à ' + email + '.\n\n' +
+              '⚠️ Mais l\'ajout automatique à la liste Cloudflare Access a échoué :\n' + data.cloudflareWarning + '\n\n' +
+              'Sans cet ajout manuel, ce testeur restera bloqué au mur Cloudflare et ne pourra jamais utiliser son lien.\n' +
+              'Dashboard Cloudflare → Zero Trust → Access → Applications → "beta" → Policies → ajoute son email à la règle "Include".'
+            );
+          } else {
+            alert('Invitation envoyée à ' + email + ' (ajouté aussi à la liste Cloudflare Access — plus de geste manuel à faire).');
+          }
           document.getElementById('inviteTesterEmail').value = '';
         } else {
           alert('Erreur : ' + error);

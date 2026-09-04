@@ -8,6 +8,21 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-04b] — Coordination Cloudflare Access / invitation testeur
+
+**Fichiers touchés** : `supabase/functions/invite-tester/index.ts`, `layerpitch-backstage.html`.
+
+**Contexte** : signalé par Jules-Antoine — un testeur invité via le panneau "Inviter un testeur" (compte Supabase + lien magique) mais absent de la liste d'emails Cloudflare Access (docs/infrastructure.md, Partie C) reste bloqué au mur Cloudflare et ne peut jamais utiliser son lien. Les deux barrières étaient jusqu'ici totalement indépendantes, sans aucun rappel dans l'outil. Deux options présentées (automatisation vs simple rappel manuel), automatisation retenue.
+
+**Changement** :
+- `invite-tester` (Edge Function) appelle désormais l'API Cloudflare (`addEmailToCloudflareAccess()`) pour ajouter l'email à la policy Access réutilisable "Backstage — accès compositeur" *avant* d'envoyer l'invitation Supabase. Idempotent (vérifie d'abord si l'email figure déjà dans `include`). Ce compte Cloudflare utilise le modèle "Access controls > Policies" (policy réutilisable, pas imbriquée dans une Application) — endpoint `/accounts/{id}/access/policies/{policy_id}`, pas `/access/apps/{app_id}/policies`. Nouveaux secrets requis côté Supabase : `CLOUDFLARE_API_TOKEN` (scope "Access: Apps and Policies", jamais "Full access"), `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_ACCESS_POLICY_ID`.
+- Non bloquant à dessein : si l'appel Cloudflare échoue (secrets absents, jeton expiré, API en panne...), l'invitation Supabase part quand même — comportement jamais pire qu'avant. L'échec est renvoyé via `cloudflareWarning` dans la réponse plutôt qu'avalé silencieusement.
+- Backstage : l'alerte de confirmation distingue désormais succès complet ("ajouté aussi à la liste Cloudflare Access") d'un succès partiel (invitation partie, mais ajout Cloudflare en échec — message explicite avec le geste manuel de secours à faire dans le dashboard).
+
+**Non couvert ici** : la policy d'accès Zero Trust pour les futurs repos testeurs individuels (`docs/infrastructure.md`, point "À trancher" séparé, sans rapport avec ce correctif). Secrets Cloudflare pas encore renseignés côté Supabase au moment de cette session — à faire par Jules-Antoine (jeton créé dans le dashboard Cloudflare, jamais transmis à Claude Code) puis `supabase secrets set` + redéploiement de `invite-tester` avant que l'automatisation soit active en pratique.
+
+---
+
 ## [2026-09-04a] — Chantier Apparence — Phase 3 : gestion par palier + mode nuit visiteur
 
 **Fichiers touchés** : `layerpitch-backstage.html`, `index.html`, `pack.html`, `collection.html`, `player.js`, `layerpitch-i18n.js`, nouveaux `test_theme_presets.js`, `test_theme_separators.js`, `test_publish_effective_plan.js`, `test_free_tier_fallback.js`, `test_watermark_gating.js`, `test_night_mode_toggle.js`, `test_i18n_symmetry.js`.
