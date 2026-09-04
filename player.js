@@ -43,7 +43,11 @@ function trackPublicEvent(name, detail) {
   try {
     if (!window.umami) return;
     const ctx = window.__lpTrackContext || {};
-    window.umami.track(name, Object.assign({}, detail, ctx.type ? { [ctx.type]: ctx.id } : {}));
+    // ownerId (identité du compositeur) ajouté le 4 septembre, à part du couple type/id ci-dessus :
+    // un id d'AdReel/Pack seul ('main' notamment) n'est unique que PAR compositeur, pas globalement --
+    // le tableau de bord analytique compositeur (Edge Function get-composer-analytics) en a besoin
+    // pour ne jamais mélanger les événements de deux compositeurs différents.
+    window.umami.track(name, Object.assign({}, detail, ctx.type ? { [ctx.type]: ctx.id } : {}, ctx.ownerId ? { ownerId: ctx.ownerId } : {}));
   } catch (e) { /* jamais bloquant */ }
 }
 
@@ -52,9 +56,18 @@ function trackPublicEvent(name, detail) {
 // voir pack.html) : un pack intégré dans plusieurs AdReels différents doit renvoyer vers celui par
 // lequel le visiteur est réellement arrivé, pas vers un `linkedAdReelId` fixe configuré une fois pour
 // toutes en backstage.
+//
+// `u` (handle du compositeur) ajouté le 4 septembre, trouvé manquant en corrigeant le bouton
+// "Retour" de pack.html : sans lui, le lien généré depuis l'AdReel d'un compositeur non-défaut
+// (`?u=<handle>`) perdait cette identité au clic sur un pack -- pack.html serait retombé sur
+// DEFAULT_OWNER_ID (le compte de Jules-Antoine) faute de handle, exactement le même bug que celui
+// documenté dans docs/infrastructure.md pour les liens "← Retour" génériques. `location.search` ici
+// reflète l'URL de la page qui a chargé player.js (index.html), pas un contexte propre à ce fichier.
 function adReelFromParam() {
   const ctx = window.__lpTrackContext || {};
-  return (ctx.type === 'adreel' && ctx.id) ? `&from=${encodeURIComponent(ctx.id)}` : '';
+  if (ctx.type !== 'adreel' || !ctx.id) return '';
+  const handle = new URLSearchParams(location.search).get('u');
+  return `&from=${encodeURIComponent(ctx.id)}` + (handle ? `&u=${encodeURIComponent(handle)}` : '');
 }
 
 // Traductions de l'habillage généré par le moteur (statuts, boutons, libellés de mode...) — pas le
