@@ -570,6 +570,14 @@
     opacity: 0; transform: translateY(4px); transition: opacity 0.12s ease, transform 0.12s ease;
   }
   #helpTooltip.visible { opacity: 1; transform: translateY(0); }
+
+  /* ---------------- Galerie de presets (palier Free, Chantier Apparence Phase 3) ---------------- */
+  .theme-preset-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
+  .theme-preset-card {
+    border: 2px solid transparent; border-radius: 8px; padding: 18px 10px; cursor: pointer;
+    font-family: inherit; font-size: 13px; font-weight: 600; text-align: center;
+  }
+  .theme-preset-card.active { border-color: currentColor; box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
 </style>
 </head>
 <body>
@@ -811,42 +819,73 @@
             <option value="en" data-i18n="publishLangEn">Anglais</option>
           </select>
           <div class="hint-inline" data-i18n="publishLangHint">S'applique à l'habillage de la page (boutons, libellés) — pas au contenu que tu as toi-même rédigé (titres, textes, témoignages), qui reste dans la langue où tu l'as écrit. Fixe pour tes visiteurs, pas un choix qu'ils peuvent changer. Les packs liés depuis cet AdReel héritent automatiquement de la même langue.</div>
+        </fieldset>
+
+        <!-- Palier Free (Chantier Apparence Phase 3) : galerie de presets à la place des réglages fins. -->
+        <div id="appThemeFreeGallery" style="display:none">
           <div class="nav-section-label track-section-label" data-i18n="sectionTheme">Thème</div>
-          <div class="hint-inline" data-i18n="themeGeneralHint">Réglage général de l'AdReel — chaque bloc peut redéfinir individuellement l'un de ces champs (section "Apparence de ce bloc" en bas de chaque bloc, onglet Contenu).</div>
-          <div class="row" style="margin-top:10px">
-            <div>
-              <label data-i18n="themeBgColorLabel" data-help="bgColorAppearance">Couleur de fond</label>
-              <input type="color" id="appThemeBgColor">
+          <div class="hint-inline" data-i18n="themePresetFreeHint">Palier Free : choisis l'un de ces thèmes prêts à l'emploi. Passe en Starter pour régler chaque couleur, la police et les séparateurs indépendamment.</div>
+          <div id="themePresetGallery" class="theme-preset-gallery"></div>
+        </div>
+
+        <!-- Starter et au-dessus : réglages fins existants + nouveau réglage des séparateurs. -->
+        <div id="appThemeFullControls">
+          <fieldset>
+            <div class="nav-section-label track-section-label" data-i18n="sectionTheme">Thème</div>
+            <div class="hint-inline" data-i18n="themeGeneralHint">Réglage général de l'AdReel — chaque bloc peut redéfinir individuellement l'un de ces champs (section "Apparence de ce bloc" en bas de chaque bloc, onglet Contenu).</div>
+            <div class="row" style="margin-top:10px">
+              <div>
+                <label data-i18n="themeBgColorLabel" data-help="bgColorAppearance">Couleur de fond</label>
+                <input type="color" id="appThemeBgColor">
+              </div>
+              <div>
+                <label data-i18n="themeTitleColorLabel" data-help="titleColorAppearance">Couleur police des titres</label>
+                <input type="color" id="appThemeTitleColor">
+              </div>
+              <div>
+                <label data-i18n="themeContentColorLabel" data-help="contentColorAppearance">Couleur police du contenu</label>
+                <input type="color" id="appThemeContentColor">
+              </div>
             </div>
-            <div>
-              <label data-i18n="themeTitleColorLabel" data-help="titleColorAppearance">Couleur police des titres</label>
-              <input type="color" id="appThemeTitleColor">
+            <div style="margin-top:14px">
+              <label data-i18n="themeFontLabel" data-help="fontAppearance">Police</label>
+              <select id="appThemeFont"></select>
             </div>
-            <div>
-              <label data-i18n="themeContentColorLabel" data-help="contentColorAppearance">Couleur police du contenu</label>
-              <input type="color" id="appThemeContentColor">
+            <div style="margin-top:14px">
+              <label data-i18n="themeBgImageLabel" data-help="bgImageAppearance">Image de fond</label>
+              <div id="appThemeBgImageCtrl"></div>
             </div>
-          </div>
-          <div style="margin-top:14px">
-            <label data-i18n="themeFontLabel" data-help="fontAppearance">Police</label>
-            <select id="appThemeFont"></select>
-          </div>
-          <div style="margin-top:14px">
-            <label data-i18n="themeBgImageLabel" data-help="bgImageAppearance">Image de fond</label>
-            <div id="appThemeBgImageCtrl"></div>
-          </div>
-          <div style="margin-top:14px">
-            <label data-i18n="themeBgImageOpacityLabel" data-help="bgImageOpacityAppearance">Opacité de l'image de fond</label>
-            <input type="range" id="appThemeBgImageOpacity" min="0" max="1" step="0.05">
-            <span id="appThemeBgImageOpacityValue" class="hint-inline"></span>
-          </div>
-        </fieldset>
-        <fieldset style="margin-top:16px">
-          <legend data-i18n="customFontsLegend">Polices personnalisées</legend>
-          <div class="sub" data-i18n="customFontsHint">Uploadées une fois, réutilisables depuis n'importe quel AdReel ou bloc — pas seulement celui-ci. Formats acceptés : .woff2, .woff, .ttf, .otf.</div>
-          <div id="customFontsContainer"></div>
-          <div class="actions" style="margin-bottom:6px"><button class="btn btn-small" id="btnAddCustomFont" data-i18n="addCustomFont">+ Police personnalisée</button></div>
-        </fieldset>
+            <div style="margin-top:14px">
+              <label data-i18n="themeBgImageOpacityLabel" data-help="bgImageOpacityAppearance">Opacité de l'image de fond</label>
+              <input type="range" id="appThemeBgImageOpacity" min="0" max="1" step="0.05">
+              <span id="appThemeBgImageOpacityValue" class="hint-inline"></span>
+            </div>
+          </fieldset>
+          <fieldset style="margin-top:16px">
+            <legend data-i18n="separatorsLegend">Séparateurs</legend>
+            <div class="sub" data-i18n="separatorsHint">Ligne de séparation entre les blocs — indépendante du reste du thème, désactivée par défaut.</div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:6px">
+              <input type="checkbox" id="appSeparatorVisible" style="width:auto;margin:0;">
+              <span data-i18n="separatorVisibleLabel">Afficher les séparateurs entre blocs</span>
+            </label>
+            <div class="row" style="margin-top:10px">
+              <div>
+                <label data-i18n="separatorColorLabel">Couleur</label>
+                <input type="color" id="appSeparatorColor">
+              </div>
+              <div>
+                <label data-i18n="separatorThicknessLabel">Épaisseur (px)</label>
+                <input type="number" id="appSeparatorThickness" min="1" max="10" step="1">
+              </div>
+            </div>
+          </fieldset>
+          <fieldset style="margin-top:16px">
+            <legend data-i18n="customFontsLegend">Polices personnalisées</legend>
+            <div class="sub" data-i18n="customFontsHint">Uploadées une fois, réutilisables depuis n'importe quel AdReel ou bloc — pas seulement celui-ci. Formats acceptés : .woff2, .woff, .ttf, .otf.</div>
+            <div id="customFontsContainer"></div>
+            <div class="actions" style="margin-bottom:6px"><button class="btn btn-small" id="btnAddCustomFont" data-i18n="addCustomFont">+ Police personnalisée</button></div>
+          </fieldset>
+        </div>
       </div>
 
     </div>
@@ -942,6 +981,62 @@
       <button class="btn" id="btnPlanProYear" type="button">Pro — annuel</button>
     </div>
     <div class="hint" id="subscriptionMsg"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Mes informations de facturation</legend>
+    <div class="hint">
+      LayerPitch émet la facture (ou l'attestation de vente si tu es un particulier) au nom de tes
+      ventes de packs, en ton nom (mandat de facturation, art. 289 du CGI) — ces informations
+      doivent être complètes avant qu'un de tes packs ne devienne achetable.
+    </div>
+    <div id="billingStatus" class="hint" style="margin-top:8px;">Chargement…</div>
+    <label>Statut</label>
+    <select id="billingStatusSelect">
+      <option value="">— Choisis —</option>
+      <option value="professionnel">Professionnel (facture avec ou sans TVA)</option>
+      <option value="particulier">Particulier (attestation de vente, jamais de TVA)</option>
+    </select>
+    <label>Raison sociale / Nom complet</label>
+    <input type="text" id="billingLegalName" placeholder="Ton nom ou celui de ta structure">
+    <label>Adresse complète</label>
+    <input type="text" id="billingAddress" placeholder="Numéro, rue, code postal, ville, pays">
+    <div class="row" style="margin-top:8px;">
+      <div><label>SIRET (si professionnel)</label><input type="text" id="billingSiret" placeholder="14 chiffres"></div>
+      <div><label>N° TVA intracommunautaire (si applicable)</label><input type="text" id="billingVatNumber" placeholder="FRxx xxxxxxxxx"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+      <input type="checkbox" id="billingVatApplicable" style="width:auto;margin:0;">
+      <span style="font-size:12px;color:#444;">Je facture la TVA (décoche si tu es en franchise en base, art. 293 B du CGI)</span>
+    </label>
+    <div class="actions" style="margin-top:12px;">
+      <button class="btn" id="btnSaveBillingProfile" type="button">Enregistrer</button>
+    </div>
+    <div class="hint" id="billingMsg"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Recevoir mes ventes</legend>
+    <div class="hint">
+      Chaque vente d'un de tes packs verse automatiquement ta part sur ton propre compte Stripe —
+      LayerPitch garde sa commission au même moment, aucun virement manuel de notre côté. Nécessite
+      un compte Stripe (le tien si tu en as déjà un, sinon Stripe t'aide à en créer un) ET tes
+      informations de facturation ci-dessus, complètes.
+    </div>
+    <div id="connectStatus" class="hint" style="margin-top:8px;">Chargement…</div>
+    <div class="actions" style="margin-top:8px;">
+      <button class="btn" id="btnConnectOnboard" type="button">Connecter mon compte Stripe</button>
+    </div>
+    <div class="hint" id="connectMsg"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Mes factures émises</legend>
+    <div class="hint">
+      Copie des factures/attestations de vente émises pour tes ventes — à conserver de ton côté,
+      LayerPitch les garde aussi.
+    </div>
+    <div id="issuedInvoicesList" class="hint" style="margin-top:8px;">Chargement…</div>
   </fieldset>
 
   <fieldset>
@@ -1321,6 +1416,8 @@ function loadPostgresReadScripts() {
     await loadScript('./api/site-data.js');
     await loadScript('./api/subscriptions.js');
     await loadScript('./api/admin.js');
+    await loadScript('./api/connect.js');
+    await loadScript('./api/invoices.js');
   })();
   return postgresReadScriptsLoaded;
 }
@@ -1356,6 +1453,25 @@ async function refreshMyComposerHandle(session) {
   myComposerHandle = handle || null;
 }
 
+// Palier effectif du compositeur pour le gating de l'apparence (Chantier Apparence Phase 3, 4
+// septembre) : pas une lecture brute de composer_profiles.plan -- un essai reverse trial actif doit
+// débloquer les réglages Starter/Pro, pas seulement Free. effective_plan_quotas() (SQL) ne renvoie
+// jamais un plan boosté (son champ `plan` reste toujours le palier brut, même en essai) -- get_trial_status(),
+// déjà câblé ci-dessous pour le panneau "Mon abonnement", est le seul mécanisme qui expose trial_ends_at
+// côté client, donc réutilisé ici plutôt que d'ajouter une fonction SQL de plus. Le rôle admin n'est pas
+// pris en compte ici -- chantier de gating admin séparé, pas encore fini ailleurs dans le backstage.
+function effectiveTierFromTrialStatus(status) {
+  if (!status) return 'free';
+  const trialEndsAt = status.trialEndsAt ? new Date(status.trialEndsAt) : null;
+  if (trialEndsAt && trialEndsAt > new Date()) return 'pro';
+  return status.plan || 'free';
+}
+// Optimiste avant la première résolution (évite un flash de galerie Free le temps que la
+// session/RPC réponde) -- recalculé par renderSubscriptionPanel() à chaque connexion/changement de
+// session, et par publishAll() indépendamment (résolution fraîche à chaque publication, jamais mise
+// en cache pour ça -- voir plan de chantier).
+let currentEffectivePlan = 'starter';
+
 // Panneau "Mon abonnement" (docs/infrastructure.md, chantier 4b — décisions du 3 septembre :
 // essai reverse trial de 30 jours sans carte, retombée automatique sur Free à l'expiration).
 async function renderSubscriptionPanel(session) {
@@ -1368,7 +1484,14 @@ async function renderSubscriptionPanel(session) {
   await loadPostgresReadScripts();
   const { status, error } = await window.LayerPitchSubscriptions.getTrialStatus();
   if (error) { statusEl.textContent = 'Erreur : ' + error; return; }
-  if (!status) { statusEl.textContent = 'Aucun profil compositeur pour l\'instant — publie une première fois pour en créer un.'; return; }
+  if (!status) {
+    statusEl.textContent = 'Aucun profil compositeur pour l\'instant — publie une première fois pour en créer un.';
+    currentEffectivePlan = 'free';
+    renderAppearancePanelForTier();
+    return;
+  }
+  currentEffectivePlan = effectiveTierFromTrialStatus(status);
+  renderAppearancePanelForTier();
   const planLabel = { free: 'Free', starter: 'Starter', pro: 'Pro' }[status.plan] || status.plan;
   const trialEndsAt = status.trialEndsAt ? new Date(status.trialEndsAt) : null;
   const trialActive = trialEndsAt && trialEndsAt > new Date();
@@ -1380,6 +1503,91 @@ async function renderSubscriptionPanel(session) {
   } else {
     statusEl.textContent = `Palier actuel : ${planLabel}.`;
   }
+}
+// Profil de facturation compositeur (mandat de facturation, art. 289 CGI — chantier 4 septembre).
+// Remplit le formulaire depuis la valeur existante plutôt que de le laisser vide à chaque
+// rechargement -- évite au compositeur de tout retaper s'il vient juste corriger un champ.
+async function renderBillingProfilePanel(session) {
+  const statusEl = document.getElementById('billingStatus');
+  if (!statusEl) return;
+  if (!session || !session.user) {
+    statusEl.textContent = 'Connecte-toi pour voir tes informations de facturation.';
+    return;
+  }
+  await loadPostgresReadScripts();
+  const { profile, error } = await window.LayerPitchConnect.getMyBillingProfile();
+  if (error) { statusEl.textContent = 'Erreur : ' + error; return; }
+  if (!profile || !profile.billing_status) {
+    statusEl.textContent = 'Profil de facturation incomplet — tes packs ne peuvent pas encore être achetés.';
+  } else {
+    statusEl.textContent = 'Profil de facturation complet.';
+  }
+  document.getElementById('billingStatusSelect').value = (profile && profile.billing_status) || '';
+  document.getElementById('billingLegalName').value = (profile && profile.billing_legal_name) || '';
+  document.getElementById('billingAddress').value = (profile && profile.billing_address) || '';
+  document.getElementById('billingSiret').value = (profile && profile.billing_siret) || '';
+  document.getElementById('billingVatNumber').value = (profile && profile.billing_vat_number) || '';
+  document.getElementById('billingVatApplicable').checked = !!(profile && profile.billing_vat_applicable);
+}
+// Statut de connexion Stripe Connect (versement automatique à la vente — chantier 4 septembre).
+async function renderConnectPanel(session) {
+  const statusEl = document.getElementById('connectStatus');
+  const btn = document.getElementById('btnConnectOnboard');
+  if (!statusEl) return;
+  if (!session || !session.user) {
+    statusEl.textContent = 'Connecte-toi pour voir ton statut de paiement.';
+    return;
+  }
+  await loadPostgresReadScripts();
+  const { status, error } = await window.LayerPitchConnect.myConnectStatus();
+  if (error) { statusEl.textContent = 'Erreur : ' + error; return; }
+  if (!status || !status.connected) {
+    statusEl.textContent = 'Aucun compte Stripe connecté — tes packs ne peuvent pas encore être achetés.';
+    if (btn) btn.textContent = 'Connecter mon compte Stripe';
+  } else if (!status.chargesEnabled) {
+    statusEl.textContent = 'Compte Stripe créé, mais l\'inscription n\'est pas terminée côté Stripe — reprends-la pour pouvoir recevoir des paiements.';
+    if (btn) btn.textContent = 'Terminer la connexion Stripe';
+  } else {
+    statusEl.textContent = 'Compte Stripe connecté et actif — tu reçois automatiquement ta part à chaque vente.';
+    if (btn) btn.textContent = 'Gérer mon compte Stripe';
+  }
+}
+// Factures/attestations de vente déjà émises pour les ventes de ce compositeur.
+async function renderIssuedInvoicesPanel(session) {
+  const listEl = document.getElementById('issuedInvoicesList');
+  if (!listEl) return;
+  if (!session || !session.user) {
+    listEl.textContent = 'Connecte-toi pour voir tes factures.';
+    return;
+  }
+  await loadPostgresReadScripts();
+  const { invoices, error } = await window.LayerPitchInvoices.getMyIssuedInvoices();
+  if (error) { listEl.textContent = 'Erreur : ' + error; return; }
+  if (!invoices.length) {
+    listEl.textContent = 'Aucune facture émise pour l\'instant.';
+    return;
+  }
+  listEl.innerHTML = invoices.map((inv) => {
+    const label = inv.document_type === 'facture' ? 'Facture' : 'Attestation de vente';
+    const date = new Date(inv.created_at).toLocaleDateString('fr-FR');
+    return `<div style="margin-top:4px;">${label} ${inv.invoice_number} — ${date} — ${Number(inv.amount_ttc).toFixed(2)} $
+      <button class="btn btn-small" type="button" data-invoice-id="${inv.id}">Télécharger</button></div>`;
+  }).join('');
+  listEl.querySelectorAll('button[data-invoice-id]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        const { data, error: fnError } = await window.LayerPitchSupabaseClient.getClient()
+          .functions.invoke('get-invoice-download-url', { body: { invoiceId: btn.getAttribute('data-invoice-id') } });
+        if (fnError || !data || !data.url) {
+          alert('Erreur : ' + (fnError ? await window.LayerPitchAuth.describeFunctionError(fnError) : (data && data.error) || 'inconnue'));
+        } else {
+          window.open(data.url, '_blank', 'noopener');
+        }
+      } catch (e) { alert('Erreur : ' + e.message); }
+      btn.disabled = false;
+    });
+  });
 }
 function renderPgAuthStatus(session) {
   const el = document.getElementById('pgAuthStatus');
@@ -1469,6 +1677,48 @@ async function initPgAuthUi() {
       btn.disabled = false;
     });
   });
+  // Profil de facturation compositeur (mandat de facturation, chantier 4 septembre).
+  const saveBillingBtn = document.getElementById('btnSaveBillingProfile');
+  if (saveBillingBtn) {
+    saveBillingBtn.addEventListener('click', async () => {
+      const msg = document.getElementById('billingMsg');
+      const status = document.getElementById('billingStatusSelect').value;
+      if (!status) { msg.textContent = 'Choisis un statut (professionnel ou particulier).'; return; }
+      const legalName = document.getElementById('billingLegalName').value.trim();
+      const address = document.getElementById('billingAddress').value.trim();
+      if (!legalName || !address) { msg.textContent = 'Raison sociale/nom et adresse sont requis.'; return; }
+      saveBillingBtn.disabled = true; msg.textContent = '…';
+      try {
+        await loadPostgresReadScripts();
+        const { ok, error } = await window.LayerPitchConnect.saveMyBillingProfile({
+          status, legalName, address,
+          siret: document.getElementById('billingSiret').value.trim(),
+          vatNumber: document.getElementById('billingVatNumber').value.trim(),
+          vatApplicable: document.getElementById('billingVatApplicable').checked,
+        });
+        msg.textContent = ok ? 'Enregistré.' : 'Erreur : ' + error;
+        if (ok) renderBillingProfilePanel((await window.LayerPitchAuth.getSession()).session);
+      } catch (e) { msg.textContent = 'Erreur : ' + e.message; }
+      saveBillingBtn.disabled = false;
+    });
+  }
+  // Connexion Stripe Connect (versement automatique à la vente, chantier 4 septembre).
+  const connectBtn = document.getElementById('btnConnectOnboard');
+  if (connectBtn) {
+    connectBtn.addEventListener('click', async () => {
+      const msg = document.getElementById('connectMsg');
+      connectBtn.disabled = true; msg.textContent = '…';
+      try {
+        await loadPostgresReadScripts();
+        const returnUrl = window.location.origin + '/layerpitch-backstage.html?connect=return';
+        const refreshUrl = window.location.origin + '/layerpitch-backstage.html?connect=refresh';
+        const { ok, error } = await window.LayerPitchConnect.startConnectOnboarding({ returnUrl, refreshUrl });
+        if (!ok) msg.textContent = 'Erreur : ' + error;
+        // Si ok, déjà redirigé vers Stripe -- rien d'autre à faire ici.
+      } catch (e) { msg.textContent = 'Erreur : ' + e.message; }
+      connectBtn.disabled = false;
+    });
+  }
   // Si la page vient d'un lien magique (fragment #access_token=...), le SDK Supabase détecte et
   // établit la session automatiquement dès sa création (detectSessionInUrl, comportement par défaut) —
   // il suffit de charger les scripts et de s'abonner pour le refléter dans l'UI.
@@ -1478,6 +1728,7 @@ async function initPgAuthUi() {
   if (window.LayerPitchAuth) {
     window.LayerPitchAuth.onAuthStateChange((_event, session) => {
       renderPgAuthStatus(session); refreshMyComposerHandle(session); renderSubscriptionPanel(session);
+      renderBillingProfilePanel(session); renderConnectPanel(session); renderIssuedInvoicesPanel(session);
     });
   }
 }
@@ -1556,6 +1807,29 @@ const APPEARANCE_FIELDS = [
   { key: 'bgImage', label: 'themeBgImageLabel', type: 'image' },
   { key: 'bgImageOpacity', label: 'themeBgImageOpacityLabel', type: 'opacity' }
 ];
+// Presets Free (Chantier Apparence Phase 3, 4 septembre) : le palier Free n'a plus accès aux réglages
+// fins (couleurs/police/séparateurs libres) -- seulement le choix d'un des 6 presets ci-dessous, qui
+// fige tout (fond, titres, contenu, police, séparateur) en un clic. Stocké comme un identifiant
+// (profile.theme.presetId / pack.presetId / collection.presetId), jamais dupliqué en valeurs de
+// couleur dans les données du compositeur -- la résolution id -> valeurs se fait ici et, à l'identique
+// (copié tel quel), côté chacune des 3 pages publiques. Contraste vérifié WCAG AA (voir changelog) :
+// pire ratio observé 4.29:1 (titre Ambre, réservé au grand texte du header -> seuil AA 3:1, large marge).
+const THEME_PRESETS = [
+  { id: 'default', labelKey: 'themePresetDefault', bgColor: '#FAFAF8', titleColor: '#1A1A1A', contentColor: '#333333', font: 'default', separator: { visible: true, color: '#E0E0DC', thickness: 1 } },
+  { id: 'night', labelKey: 'themePresetNight', bgColor: '#121212', titleColor: '#FFFFFF', contentColor: '#C9C9CE', font: 'default', separator: { visible: true, color: '#3A3A40', thickness: 1 } },
+  { id: 'amber', labelKey: 'themePresetAmber', bgColor: '#F5EDE0', titleColor: '#A85C1E', contentColor: '#5C4530', font: 'google:Fraunces', separator: { visible: true, color: '#C99A6B', thickness: 3 } },
+  { id: 'neon', labelKey: 'themePresetNeon', bgColor: '#1B1035', titleColor: '#FF3EA5', contentColor: '#D9CFFF', font: 'google:Space Grotesk', separator: { visible: true, color: '#7A5FFF', thickness: 1 } },
+  { id: 'forest', labelKey: 'themePresetForest', bgColor: '#16321F', titleColor: '#D4AF37', contentColor: '#EDE6D6', font: 'google:Zilla Slab', separator: { visible: true, color: '#8C7A3D', thickness: 1 } },
+  { id: 'minimal', labelKey: 'themePresetMinimal', bgColor: '#FFFFFF', titleColor: '#000000', contentColor: '#4D4D4D', font: 'google:Manrope', separator: { visible: false, color: '#E0E0DC', thickness: 1 } }
+];
+function resolveThemePreset(presetId) {
+  return THEME_PRESETS.find(p => p.id === presetId) || THEME_PRESETS[0];
+}
+// Réglage des séparateurs entre blocs/sections, indépendant du reste du thème général -- palier Starter
+// et au-dessus uniquement (le palier Free suit le séparateur imposé par son preset). Absent tant que le
+// compositeur n'y touche pas -> aucun changement visuel pour les AdReels/Packs/Collections déjà publiés
+// (il n'existe aucun séparateur visuel aujourd'hui, seulement du margin entre blocs/sections).
+const DEFAULT_SEPARATOR = { visible: false, color: '#E4E1DA', thickness: 1 };
 // Reconstruit un thème complet à partir d'un profil quelconque : profile.theme s'il existe déjà, sinon
 // dérivé des anciens champs bgColor/textColor s'ils existent (une seule teinte de texte à l'époque,
 // reprise à la fois pour titleColor et contentColor faute de mieux), sinon les valeurs par défaut.
@@ -6328,7 +6602,13 @@ function buildCardForBlock(block) {
   const card = builder(block);
   const body = card.querySelector('.block-editor-body');
   if (body) {
-    appendBlockAppearanceSection(body, block);
+    // Palier Free (Chantier Apparence Phase 3) : plus de personnalisation par bloc, seulement la galerie
+    // de presets au niveau général -- masqué ici plutôt que dans chacun des ~9 builders, même choke
+    // point que l'injection elle-même. Les réglages déjà enregistrés par un compositeur passé ensuite en
+    // Free restent en base (block.appearance n'est jamais touché ici), juste plus montrés/appliqués.
+    if (currentEffectivePlan !== 'free') {
+      appendBlockAppearanceSection(body, block);
+    }
     body.insertAdjacentHTML('beforeend', collapseFooterHtml('toggle-collapse', {}));
   }
   return card;
@@ -6667,7 +6947,26 @@ function renderPacks() {
     } else if (entrySel === 'appearance') {
       // Regroupe désormais couleurs, police ET les deux images (illustration, filigrane) -- tout ce qui
       // relève du rendu visuel du pack, plutôt que de son texte (20/08).
-      detailEl.innerHTML = `
+      // Palier Free (Chantier Apparence Phase 3) : galerie de presets à la place des réglages fins,
+      // même bascule que le panneau Apparence de l'AdReel.
+      const packIsFree = currentEffectivePlan === 'free';
+      const packSep = Object.assign({}, DEFAULT_SEPARATOR, pack.separator || {});
+      detailEl.innerHTML = packIsFree ? `
+        <label data-help="packAppearance">${tr('packAppearanceLabel')}</label>
+        <div class="hint-inline">${tr('themePresetFreeHint')}</div>
+        <div class="theme-preset-gallery">
+          ${THEME_PRESETS.map(p => `
+            <button type="button" class="theme-preset-card${(pack.presetId || 'default') === p.id ? ' active' : ''}"
+              data-action="select-pack-preset" data-pi="${pi}" data-preset-id="${p.id}"
+              style="background:${p.bgColor};color:${p.titleColor}">${tr(p.labelKey)}</button>
+          `).join('')}
+        </div>
+        <label data-help="packIllustration" style="margin-top:14px">${tr('illustrationLabel')}</label>
+        <div data-role="illustrationCtrl"></div>
+        <label data-help="packWatermark" style="margin-top:10px">${tr('watermarkLabel')}</label>
+        <div data-role="watermarkCtrl"></div>
+        <div class="hint-inline">${tr('watermarkHint')}</div>
+      ` : `
         <label data-help="packAppearance">${tr('packAppearanceLabel')}</label>
         <div class="row">
           <div>
@@ -6681,6 +6980,21 @@ function renderPacks() {
         </div>
         <label data-help="packFont" style="margin-top:14px">${tr('themeFontLabel')}</label>
         <select data-pack-field="font" data-pi="${pi}">${buildFontSelectOptionsHtml(pack.font)}</select>
+        <label data-i18n="separatorsLegend" style="margin-top:14px;display:block">${tr('separatorsLegend')}</label>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <input type="checkbox" data-pack-field="separatorVisible" data-pi="${pi}" ${packSep.visible ? 'checked' : ''} style="width:auto;margin:0;">
+          <span data-i18n="separatorVisibleLabel">${tr('separatorVisibleLabel')}</span>
+        </label>
+        <div class="row" style="margin-top:10px">
+          <div>
+            <label data-i18n="separatorColorLabel">${tr('separatorColorLabel')}</label>
+            <input type="color" data-pack-field="separatorColor" data-pi="${pi}" value="${packSep.color}">
+          </div>
+          <div>
+            <label data-i18n="separatorThicknessLabel">${tr('separatorThicknessLabel')}</label>
+            <input type="number" data-pack-field="separatorThickness" data-pi="${pi}" min="1" max="10" step="1" value="${packSep.thickness}">
+          </div>
+        </div>
         <label data-help="packIllustration" style="margin-top:14px">${tr('illustrationLabel')}</label>
         <div data-role="illustrationCtrl"></div>
         <label data-help="packWatermark" style="margin-top:10px">${tr('watermarkLabel')}</label>
@@ -6791,6 +7105,14 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
     if (url) { openSharePopup(url); trackBackstageEvent('social_publish_click', {}); }
     return;
   }
+  const presetBtn = e.target.closest('[data-action="select-pack-preset"]');
+  if (presetBtn) {
+    const pi = parseInt(presetBtn.dataset.pi, 10);
+    packs[pi].presetId = presetBtn.dataset.presetId;
+    hasUnsavedEdits = true;
+    renderPacks();
+    return;
+  }
   const btn = e.target.closest('[data-action="remove-pack"]');
   if (!btn) return;
   const pi = parseInt(btn.dataset.pi, 10);
@@ -6806,6 +7128,13 @@ document.getElementById('packsContainer').addEventListener('input', e => {
   hasUnsavedEdits = true;
   if (field === 'buyable') { packs[pi].buyable = e.target.checked; renderPacks(); return; }
   if (field === 'videoTestModeEnabled') { packs[pi].videoTestModeEnabled = e.target.checked; return; }
+  if (field === 'separatorVisible' || field === 'separatorColor' || field === 'separatorThickness') {
+    if (!packs[pi].separator) packs[pi].separator = Object.assign({}, DEFAULT_SEPARATOR);
+    if (field === 'separatorVisible') packs[pi].separator.visible = e.target.checked;
+    else if (field === 'separatorColor') packs[pi].separator.color = e.target.value;
+    else packs[pi].separator.thickness = Math.max(1, parseInt(e.target.value, 10) || 1);
+    return;
+  }
   packs[pi][field] = e.target.value;
   if (field === 'title') {
     // Le titre est éditable à deux endroits (en-tête de carte + entrée Présentation), synchronisés en
@@ -6877,7 +7206,23 @@ function renderCollections() {
     } else if (entrySel === 'appearance') {
       // Nouvelle entrée (20/08) : par symétrie avec le Pack, mêmes réglages -- couleurs, police,
       // illustration. Pas de filigrane ici, Collections n'en a jamais eu (pas demandé).
-      detailEl.innerHTML = `
+      // Palier Free (Chantier Apparence Phase 3) : galerie de presets à la place des réglages fins,
+      // même bascule que le Pack et l'AdReel.
+      const collIsFree = currentEffectivePlan === 'free';
+      const collSep = Object.assign({}, DEFAULT_SEPARATOR, coll.separator || {});
+      detailEl.innerHTML = collIsFree ? `
+        <label data-help="collectionAppearance">${tr('packAppearanceLabel')}</label>
+        <div class="hint-inline">${tr('themePresetFreeHint')}</div>
+        <div class="theme-preset-gallery">
+          ${THEME_PRESETS.map(p => `
+            <button type="button" class="theme-preset-card${(coll.presetId || 'default') === p.id ? ' active' : ''}"
+              data-action="select-collection-preset" data-ci="${ci}" data-preset-id="${p.id}"
+              style="background:${p.bgColor};color:${p.titleColor}">${tr(p.labelKey)}</button>
+          `).join('')}
+        </div>
+        <label data-help="collectionIllustration" style="margin-top:14px">${tr('illustrationLabel')}</label>
+        <div data-role="illustrationCtrl"></div>
+      ` : `
         <label data-help="collectionAppearance">${tr('packAppearanceLabel')}</label>
         <div class="row">
           <div>
@@ -6891,6 +7236,21 @@ function renderCollections() {
         </div>
         <label data-help="collectionFont" style="margin-top:14px">${tr('themeFontLabel')}</label>
         <select data-collection-field="font" data-ci="${ci}">${buildFontSelectOptionsHtml(coll.font)}</select>
+        <label data-i18n="separatorsLegend" style="margin-top:14px;display:block">${tr('separatorsLegend')}</label>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <input type="checkbox" data-collection-field="separatorVisible" data-ci="${ci}" ${collSep.visible ? 'checked' : ''} style="width:auto;margin:0;">
+          <span data-i18n="separatorVisibleLabel">${tr('separatorVisibleLabel')}</span>
+        </label>
+        <div class="row" style="margin-top:10px">
+          <div>
+            <label data-i18n="separatorColorLabel">${tr('separatorColorLabel')}</label>
+            <input type="color" data-collection-field="separatorColor" data-ci="${ci}" value="${collSep.color}">
+          </div>
+          <div>
+            <label data-i18n="separatorThicknessLabel">${tr('separatorThicknessLabel')}</label>
+            <input type="number" data-collection-field="separatorThickness" data-ci="${ci}" min="1" max="10" step="1" value="${collSep.thickness}">
+          </div>
+        </div>
         <label data-help="collectionIllustration" style="margin-top:14px">${tr('illustrationLabel')}</label>
         <div data-role="illustrationCtrl"></div>
       `;
@@ -7002,6 +7362,14 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
     if (url) { openSharePopup(url); trackBackstageEvent('social_publish_click', {}); }
     return;
   }
+  const presetBtn = e.target.closest('[data-action="select-collection-preset"]');
+  if (presetBtn) {
+    const ci = parseInt(presetBtn.dataset.ci, 10);
+    collections[ci].presetId = presetBtn.dataset.presetId;
+    hasUnsavedEdits = true;
+    renderCollections();
+    return;
+  }
   const btn = e.target.closest('[data-action="remove-collection"]');
   if (!btn) return;
   const ci = parseInt(btn.dataset.ci, 10);
@@ -7016,6 +7384,13 @@ document.getElementById('collectionsContainer').addEventListener('input', e => {
   const ci = parseInt(e.target.dataset.ci, 10);
   hasUnsavedEdits = true;
   if (field === 'buyable') { collections[ci].buyable = e.target.checked; renderCollections(); return; }
+  if (field === 'separatorVisible' || field === 'separatorColor' || field === 'separatorThickness') {
+    if (!collections[ci].separator) collections[ci].separator = Object.assign({}, DEFAULT_SEPARATOR);
+    if (field === 'separatorVisible') collections[ci].separator.visible = e.target.checked;
+    else if (field === 'separatorColor') collections[ci].separator.color = e.target.value;
+    else collections[ci].separator.thickness = Math.max(1, parseInt(e.target.value, 10) || 1);
+    return;
+  }
   collections[ci][field] = e.target.value;
   if (field === 'title') {
     // Même principe que pour les Packs (20/08) : synchronisation directe sans re-rendu pour préserver le
@@ -7044,6 +7419,60 @@ function fillAppearanceFields() {
   document.getElementById('appThemeBgImageOpacityValue').textContent = Math.round(opacityVal * 100) + '%';
   const ar = adReels.find(a => a.id === currentAdReelId);
   document.getElementById('appLang').value = (ar && ar.lang) || 'fr';
+  const sep = Object.assign({}, DEFAULT_SEPARATOR, profile.theme.separator || {});
+  document.getElementById('appSeparatorVisible').checked = !!sep.visible;
+  document.getElementById('appSeparatorColor').value = sep.color;
+  document.getElementById('appSeparatorThickness').value = sep.thickness;
+  renderAppearancePanelForTier();
+}
+// Réglage des séparateurs (Starter et au-dessus) : au même niveau que le thème général, jamais par bloc.
+function handleSeparatorFieldChange(field, value) {
+  if (!profile.theme) profile.theme = Object.assign({}, DEFAULT_THEME);
+  if (!profile.theme.separator) profile.theme.separator = Object.assign({}, DEFAULT_SEPARATOR);
+  profile.theme.separator[field] = value;
+  hasUnsavedEdits = true;
+}
+document.getElementById('appSeparatorVisible').addEventListener('change', e => handleSeparatorFieldChange('visible', e.target.checked));
+document.getElementById('appSeparatorColor').addEventListener('input', e => handleSeparatorFieldChange('color', e.target.value));
+document.getElementById('appSeparatorThickness').addEventListener('input', e => handleSeparatorFieldChange('thickness', Math.max(1, parseInt(e.target.value, 10) || 1)));
+// Galerie de presets (palier Free) : sélectionner un preset écrit UNIQUEMENT profile.theme.presetId,
+// jamais les autres champs de profile.theme -- non-destructif si le compositeur repasse Starter plus
+// tard (ses éventuels anciens réglages fins dorment intacts, voir migrateProfileTheme/repli Free côté
+// page publique).
+function renderThemePresetGallery() {
+  const host = document.getElementById('themePresetGallery');
+  if (!host) return;
+  const currentId = (profile.theme && profile.theme.presetId) || 'default';
+  host.innerHTML = THEME_PRESETS.map(p => `
+    <button type="button" class="theme-preset-card${p.id === currentId ? ' active' : ''}" data-preset-id="${p.id}"
+      style="background:${p.bgColor};color:${p.titleColor}">
+      ${tr(p.labelKey)}
+    </button>
+  `).join('');
+  host.querySelectorAll('.theme-preset-card').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!profile.theme) profile.theme = Object.assign({}, DEFAULT_THEME);
+      profile.theme.presetId = btn.dataset.presetId;
+      hasUnsavedEdits = true;
+      renderThemePresetGallery();
+    });
+  });
+}
+// Bascule le panneau Apparence de l'AdReel entre galerie de presets (Free) et réglages fins (Starter et
+// au-dessus) selon currentEffectivePlan -- rappelée par fillAppearanceFields() (donc à chaque bascule
+// d'AdReel/rechargement) et par renderSubscriptionPanel() (donc à chaque résolution/changement de
+// palier). Recalcule aussi les cartes de bloc : la case "Personnaliser" par bloc doit disparaître avec
+// le palier Free et réapparaître si le compositeur repasse Starter.
+function renderAppearancePanelForTier() {
+  const isFree = currentEffectivePlan === 'free';
+  const gallery = document.getElementById('appThemeFreeGallery');
+  const fullControls = document.getElementById('appThemeFullControls');
+  if (gallery) gallery.style.display = isFree ? '' : 'none';
+  if (fullControls) fullControls.style.display = isFree ? 'none' : '';
+  if (isFree) renderThemePresetGallery();
+  if (typeof rebuildAllCards === 'function') rebuildAllCards();
+  if (typeof renderPacks === 'function') renderPacks();
+  if (typeof renderCollections === 'function') renderCollections();
 }
 // Valeur effective d'un champ d'apparence pour le thème général actuel — sert de point de départ quand
 // on active une personnalisation par bloc (plutôt que de partir d'une couleur arbitraire). Vérifie
@@ -7885,6 +8314,21 @@ async function publishAll() {
   log(tr('publicationHeader'));
   saveWorkingPendingIntoCurrent();
   try {
+    // Palier effectif figé une fois pour toute cette publication (Chantier Apparence Phase 3, 4
+    // septembre) : les pages publiques (index.html/pack.html/collection.html) sont statiques, sans
+    // appel serveur au chargement -- impossible d'y résoudre le palier à la volée. Résolu ici plutôt que
+    // dans chacune des 3 boucles ci-dessous (un seul composer_profiles.plan pour tout le compositeur).
+    // Bloque la publication plutôt que de deviner un palier si la session/RPC échoue -- même logique que
+    // le garde-fou dataLoadOk ci-dessus, jamais de publication avec un palier incertain.
+    log(tr('resolvingEffectivePlan'));
+    await loadPostgresReadScripts();
+    const { status: planStatus, error: planError } = await window.LayerPitchSubscriptions.getTrialStatus();
+    if (planError || !planStatus) {
+      throw new Error(tr('publishBlockedNoPlanMsg', { error: planError || 'aucun profil compositeur' }));
+    }
+    const effectivePlan = effectiveTierFromTrialStatus(planStatus);
+    currentEffectivePlan = effectivePlan;
+    log(tr('resolvedEffectivePlan', { plan: effectivePlan }), 'ok');
     for (const ar of adReels) {
       if (ar.logoPendingFile) {
         log(tr('uploadingLogo', { id: ar.id }));
@@ -8236,10 +8680,10 @@ async function publishAll() {
       // choisie, url ou non.
       socials: socials.map(s => ({ id: s.id, platform: s.platform, url: s.url || '' })),
       adReelFolders: adReelFolders.map(f => ({ id: f.id, label: f.label || '' })),
-      packs: packs.map(p => ({ id: p.id, title: p.title, illustration: p.illustration || null, illustrationOriginalName: p.illustrationOriginalName || null, watermark: p.watermark || null, watermarkOriginalName: p.watermarkOriginalName || null, presentationFr: p.presentationFr || '', presentationEn: p.presentationEn || '', buyable: !!p.buyable, buyUrl: p.buyUrl || '', freeDownloadEnabled: !!p.freeDownloadEnabled, videoTestModeEnabled: !!p.videoTestModeEnabled, bgColor: p.bgColor || '#f6f5f3', textColor: p.textColor || '#262521', font: p.font || 'default', trackIds: p.trackIds || [], sfxIds: p.sfxIds || [], linkedAdReelId: p.linkedAdReelId || null })),
+      packs: packs.map(p => ({ id: p.id, title: p.title, illustration: p.illustration || null, illustrationOriginalName: p.illustrationOriginalName || null, watermark: p.watermark || null, watermarkOriginalName: p.watermarkOriginalName || null, presentationFr: p.presentationFr || '', presentationEn: p.presentationEn || '', buyable: !!p.buyable, buyUrl: p.buyUrl || '', freeDownloadEnabled: !!p.freeDownloadEnabled, videoTestModeEnabled: !!p.videoTestModeEnabled, bgColor: p.bgColor || '#f6f5f3', textColor: p.textColor || '#262521', font: p.font || 'default', presetId: p.presetId || null, separator: p.separator || null, effectivePlan, trackIds: p.trackIds || [], sfxIds: p.sfxIds || [], linkedAdReelId: p.linkedAdReelId || null })),
       implementationSkills: { wwise: !!implementationSkills.wwise, fmod: !!implementationSkills.fmod, unity: !!implementationSkills.unity, unreal: !!implementationSkills.unreal },
       noAiCertifiedGlobal: !!noAiCertifiedGlobal,
-      collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
+      collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', presetId: c.presetId || null, separator: c.separator || null, effectivePlan, buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
       customFonts: customFonts.filter(f => f.remoteFile).map(f => ({ id: f.id, name: f.name || '', file: f.remoteFile, originalFileName: f.originalFileName || null })),
       adReels: adReels.map(ar => ({
         id: ar.id,
@@ -8259,7 +8703,7 @@ async function publishAll() {
           if (b.appearance && Object.keys(b.appearance).length) out.appearance = Object.assign({}, b.appearance);
           return out;
         }),
-        profile: ar.profile,
+        profile: Object.assign({}, ar.profile, { effectivePlan }),
         testimonials: ar.testimonials,
         trackIds: ar.trackIds || [],
         trackOverrides: ar.trackOverrides || {},
