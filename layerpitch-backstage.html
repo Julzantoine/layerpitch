@@ -1102,7 +1102,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1788440725621"></script>
+<script src="layerpitch-i18n.js?v=1788507137642"></script>
 <script src="layerpitch-help.js?v=1788440725621"></script>
 <script src="player.js?v=1788440725621"></script>
 <script>
@@ -1309,6 +1309,7 @@ function loadPostgresReadScripts() {
     await loadScript('./api/adreels.js');
     await loadScript('./api/site-data.js');
     await loadScript('./api/subscriptions.js');
+    await loadScript('./api/admin.js');
   })();
   return postgresReadScriptsLoaded;
 }
@@ -7163,11 +7164,44 @@ document.getElementById('noAiCertifiedGlobal').addEventListener('change', e => {
 });
 fillNoAiCertifiedGlobalField();
 
-/* ---------------- Bandeau d'alerte (déclenché à la main depuis layerpitch-beta-sync.js, commande
-   "notify") ---------------- */
-// Le champ data.backstageNotice est la SEULE exception délibérée à la règle "on ne touche jamais au
-// data.json du testeur" — une fusion ciblée d'un seul champ technique, jamais un remplacement de contenu,
-// et toujours déclenchée explicitement (jamais automatique). Voir layerpitch-beta-sync.js, commande notify.
+/* ---------------- Bandeau d'annonce bêta (Postgres, panneau admin — docs/infrastructure.md,
+   "Rôle admin... actée le 3 septembre") ---------------- */
+async function loadPlatformNotice() {
+  const banner = document.getElementById('backstageNoticeBanner');
+  const textEl = document.getElementById('backstageNoticeText');
+  if (!banner || !textEl || !window.LayerPitchAdmin) { if (banner) banner.style.display = 'none'; return; }
+  const { notice } = await window.LayerPitchAdmin.getPlatformNotice();
+  const { profile } = await window.LayerPitchAuth.getMyProfile();
+  const dismissedAt = profile ? profile.noticeDismissedAt : null;
+  // Un nouveau message (notice_updated_at plus récent que le dernier "J'ai vu") réaffiche le
+  // bandeau même si le compte avait déjà accusé réception d'un message précédent.
+  const shouldShow = notice && notice.message &&
+    (!dismissedAt || (notice.updatedAt && new Date(dismissedAt) < new Date(notice.updatedAt)));
+  if (shouldShow) {
+    textEl.textContent = notice.message;
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+async function dismissPlatformNotice() {
+  const btn = document.getElementById('backstageNoticeDismissBtn');
+  const banner = document.getElementById('backstageNoticeBanner');
+  btn.disabled = true;
+  try {
+    await window.LayerPitchAuth.dismissNotice();
+    banner.style.display = 'none';
+  } finally {
+    btn.disabled = false;
+  }
+}
+document.getElementById('backstageNoticeDismissBtn').addEventListener('click', dismissPlatformNotice);
+
+// ---- Dormant depuis le 3 septembre : ancien bandeau GitHub (data.backstageNotice), alimenté par
+// admin-beta-console.html — remplacé ci-dessus par le bandeau Postgres (platform_settings). Déjà
+// mort en pratique en mode lecture Postgres (loadSiteDataFromPostgres() ne renvoie pas ce champ) ;
+// laissé en place sans appelant, pas de suppression sans besoin (même logique que la dormance
+// d'admin-beta-console.html, docs/infrastructure.md).
 function showBackstageNoticeIfAny(data) {
   const banner = document.getElementById('backstageNoticeBanner');
   const textEl = document.getElementById('backstageNoticeText');
@@ -7200,7 +7234,6 @@ async function dismissBackstageNotice() {
     btn.disabled = false;
   }
 }
-document.getElementById('backstageNoticeDismissBtn').addEventListener('click', dismissBackstageNotice);
 
 /* ---------------- Chargement (auto + manuel) ---------------- */
 async function loadData(silent) {
@@ -7209,7 +7242,7 @@ async function loadData(silent) {
     const data = await fetchSiteData();
     if (!data) {
       log(tr('dataNotFoundMsg'));
-      showBackstageNoticeIfAny(null);
+      loadPlatformNotice();
       library = []; packs = []; collections = []; customFonts = []; sfxLibrary = []; socials = []; adReelFolders = [];
       implementationSkills = { wwise: false, fmod: false, unity: false, unreal: false };
       noAiCertifiedGlobal = false;
@@ -7224,7 +7257,7 @@ async function loadData(silent) {
       document.getElementById('btnPublish').disabled = false;
       return;
     }
-    showBackstageNoticeIfAny(data);
+    loadPlatformNotice();
 
     library = (data.library || []).map(t => {
       const legacyMode = t.mode || 'vertical';

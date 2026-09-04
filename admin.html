@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LayerPitch — Panneau admin</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-card: #fafafa;
+    --text-dim: #555;
+    --text-dimmer: #999;
+    --border: #e2e2e6;
+    --accent: #2f80c0;
+    --accent-soft: #e6eef8;
+    --backstage-bg: #f7f6f3;
+    --bg-sidebar: #efeee9;
+    --text: #24262b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--backstage-bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; padding: 32px 20px 80px; }
+  .page { max-width: min(900px, 92vw); margin: 0 auto; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .subtitle { color: var(--text-dim); font-size: 13px; margin: 0 0 24px; }
+  .card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; }
+  .card h2 { font-size: 14px; margin: 0 0 14px; }
+  input, textarea { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; box-sizing: border-box; }
+  textarea { min-height: 70px; resize: vertical; }
+  button { padding: 8px 14px; border: none; border-radius: 6px; background: var(--accent); color: #fff; font-size: 13px; cursor: pointer; }
+  button:disabled { background: #ccc; cursor: not-allowed; }
+  button.secondary { background: var(--bg-sidebar); color: var(--text); }
+  button.danger { background: #b5442e; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row + .row { margin-top: 10px; }
+  .msg { font-size: 12px; margin-top: 8px; }
+  .msg.err { color: #b5442e; }
+  .msg.ok { color: #2a7; }
+  #accessDeniedSection { display: none; text-align: center; padding: 60px 20px; }
+  #adminContent { display: none; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .stat-tile { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .stat-tile .n { font-size: 20px; font-weight: 600; }
+  .stat-tile .l { font-size: 11px; color: var(--text-dim); }
+  .stat-block + .stat-block { margin-top: 16px; }
+  .stat-block h3 { font-size: 12px; color: var(--text-dim); margin: 0 0 8px; text-transform: uppercase; letter-spacing: .03em; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-dim); font-weight: 500; }
+  .badge { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); margin-right: 4px; }
+  .badge.suspended { background: #fbe4e0; color: #b5442e; }
+  .duration-input { width: 70px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 data-i18n="pageTitle">Panneau admin</h1>
+  <p class="subtitle" data-i18n="subtitle">Réservé aux comptes admin.</p>
+
+  <div id="signedOutSection" class="card">
+    <div class="row">
+      <input type="email" id="emailInput" data-i18n-placeholder="emailPlaceholder" placeholder="ton@email.com">
+      <button id="sendLinkBtn" data-i18n="sendLinkBtn">Envoyer le lien magique</button>
+    </div>
+    <div id="signInMsg" class="msg"></div>
+  </div>
+
+  <div id="signedInBar" class="row" style="display:none;margin-bottom:16px;">
+    <span id="signedInAsLabel"></span>
+    <button id="signOutBtn" class="secondary" data-i18n="signOutBtn">Se déconnecter</button>
+  </div>
+
+  <div id="accessDeniedSection">
+    <h2 data-i18n="accessDeniedTitle">Accès refusé</h2>
+    <p data-i18n="accessDeniedMsg">Ce compte n'a pas les droits admin.</p>
+  </div>
+
+  <div id="adminContent">
+    <div class="card">
+      <h2 data-i18n="statsTitle">Statistiques</h2>
+      <div id="statsLoading" data-i18n="loadingLabel">Chargement…</div>
+      <div id="statsBody" style="display:none;">
+        <div class="stat-block">
+          <h3 data-i18n="statsAccountsTitle">Comptes</h3>
+          <div class="stat-grid" id="statsAccounts"></div>
+        </div>
+        <div class="stat-block">
+          <h3 data-i18n="statsContentTitle">Contenu</h3>
+          <div class="stat-grid" id="statsContent"></div>
+        </div>
+        <div class="stat-block">
+          <h3 data-i18n="statsAveragesTitle">Moyennes par compositeur</h3>
+          <div class="stat-grid" id="statsAverages"></div>
+        </div>
+      </div>
+      <div id="statsMsg" class="msg err"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="suspensionTitle">Comptes</h2>
+      <div class="row">
+        <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="Rechercher par email ou handle…">
+        <button id="searchBtn" data-i18n="searchBtn">Rechercher</button>
+      </div>
+      <table id="accountsTable">
+        <thead>
+          <tr>
+            <th data-i18n="tableEmail">Email</th>
+            <th data-i18n="tableCreatedAt">Créé le</th>
+            <th data-i18n="tableProfiles">Profils</th>
+            <th data-i18n="tableStatus">Statut</th>
+            <th data-i18n="tableAction">Action</th>
+          </tr>
+        </thead>
+        <tbody id="accountsBody"></tbody>
+      </table>
+      <div id="accountsMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="noticeTitle">Bandeau d'annonce (backstage)</h2>
+      <p class="subtitle" data-i18n="noticeHint" style="margin-bottom:10px;">Affiché à tous les compositeurs connectés.</p>
+      <textarea id="noticeTextarea" data-i18n-placeholder="noticePlaceholder" placeholder="Message à afficher dans le backstage…"></textarea>
+      <div class="row" style="margin-top:10px;">
+        <button id="noticeSaveBtn" data-i18n="noticeSaveBtn">Enregistrer</button>
+        <button id="noticeClearBtn" class="secondary" data-i18n="noticeClearBtn">Effacer</button>
+      </div>
+      <div id="noticeMsg" class="msg"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="api/supabase-client.js"></script>
+<script src="api/auth.js"></script>
+<script src="api/admin.js"></script>
+<script src="layerpitch-i18n.js?v=1788507137642"></script>
+<script>
+// i18n minimal (zone "admin" + repli "shared") — même patron que layerpitch-backstage.html.
+function currentLang() { return localStorage.getItem('layerpitch_lang') || 'fr'; }
+function tr(key, vars) {
+  const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, admin: {} }, en: { shared: {}, admin: {} } };
+  const dict = I18N[currentLang()] || I18N.fr;
+  const dictFr = I18N.fr;
+  let str = (dict.admin && dict.admin[key]) || (dict.shared && dict.shared[key])
+    || (dictFr.admin && dictFr.admin[key]) || (dictFr.shared && dictFr.shared[key]) || key;
+  if (vars) Object.keys(vars).forEach(k => { str = str.replace('{' + k + '}', vars[k]); });
+  return str;
+}
+function applyI18n() {
+  document.documentElement.lang = currentLang();
+  document.querySelectorAll('[data-i18n]').forEach(el => { const v = tr(el.dataset.i18n); if (v) el.textContent = v; });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => { const v = tr(el.dataset.i18nTitle); if (v) el.title = v; });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { const v = tr(el.dataset.i18nPlaceholder); if (v) el.placeholder = v; });
+}
+applyI18n();
+
+const signedOutSection = document.getElementById('signedOutSection');
+const signedInBar = document.getElementById('signedInBar');
+const accessDeniedSection = document.getElementById('accessDeniedSection');
+const adminContent = document.getElementById('adminContent');
+
+async function render(session) {
+  if (!session) {
+    signedOutSection.style.display = 'block';
+    signedInBar.style.display = 'none';
+    accessDeniedSection.style.display = 'none';
+    adminContent.style.display = 'none';
+    return;
+  }
+  signedOutSection.style.display = 'none';
+  signedInBar.style.display = 'flex';
+  document.getElementById('signedInAsLabel').textContent = tr('signedInAs', { email: session.user.email });
+
+  // Vérification is_admin() côté client — confort d'affichage uniquement, jamais la vraie
+  // barrière (chaque RPC/Edge Function ci-dessous la revérifie elle-même côté serveur).
+  const { data: isAdmin } = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin');
+  if (!isAdmin) {
+    accessDeniedSection.style.display = 'block';
+    adminContent.style.display = 'none';
+    return;
+  }
+  accessDeniedSection.style.display = 'none';
+  adminContent.style.display = 'block';
+  loadStats();
+  loadAccounts();
+  loadNotice();
+}
+
+window.LayerPitchAuth.onAuthStateChange((_event, session) => render(session));
+
+document.getElementById('sendLinkBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  const msg = document.getElementById('signInMsg');
+  if (!email) { msg.textContent = tr('emailPlaceholder'); msg.className = 'msg err'; return; }
+  msg.textContent = tr('sendingStatus'); msg.className = 'msg';
+  const { ok, error } = await window.LayerPitchAuth.signInWithMagicLink(email, window.location.href);
+  msg.textContent = ok ? tr('linkSentStatus') : (tr('signInErrorPrefix') + error);
+  msg.className = ok ? 'msg ok' : 'msg err';
+});
+
+document.getElementById('signOutBtn').addEventListener('click', async () => {
+  await window.LayerPitchAuth.signOut();
+});
+
+// ---- Statistiques ----
+async function loadStats() {
+  const loading = document.getElementById('statsLoading');
+  const body = document.getElementById('statsBody');
+  const msg = document.getElementById('statsMsg');
+  loading.style.display = 'block'; body.style.display = 'none'; msg.textContent = '';
+  const { stats, error } = await window.LayerPitchAdmin.getStats();
+  loading.style.display = 'none';
+  if (error || !stats) { msg.textContent = tr('statsLoadErrorPrefix') + (error || ''); return; }
+  body.style.display = 'block';
+  renderStatGrid('statsAccounts', [
+    ['statsAccountsTotal', stats.accounts.total],
+    ['statsAccountsSuspended', stats.accounts.suspended],
+    ['statsAccountsComposers', stats.accounts.composers],
+    ['statsAccountsStudios', stats.accounts.studios],
+    ['statsAccountsFans', stats.accounts.fans],
+  ]);
+  renderStatGrid('statsContent', [
+    ['statsContentAdReels', stats.content.adReels],
+    ['statsContentPacks', stats.content.packs],
+    ['statsContentTracks', stats.content.tracks],
+    ['statsContentSfx', stats.content.sfx],
+    ['statsContentCollections', stats.content.collections],
+    ['statsContentAlbums', stats.content.albums],
+  ]);
+  renderStatGrid('statsAverages', [
+    ['statsAveragesTracksPerComposer', stats.composerAverages.tracksPerComposer],
+    ['statsAveragesPacksPerComposer', stats.composerAverages.packsPerComposer],
+    ['statsAveragesAdReelsPerComposer', stats.composerAverages.adReelsPerComposer],
+  ]);
+}
+function renderStatGrid(elId, entries) {
+  const el = document.getElementById(elId);
+  el.innerHTML = entries.map(([labelKey, n]) =>
+    `<div class="stat-tile"><div class="n">${n}</div><div class="l">${tr(labelKey)}</div></div>`
+  ).join('');
+}
+
+// ---- Comptes / suspension ----
+async function loadAccounts(search) {
+  const tbody = document.getElementById('accountsBody');
+  const msg = document.getElementById('accountsMsg');
+  msg.textContent = '';
+  const { accounts, error } = await window.LayerPitchAdmin.listAccounts(search);
+  if (error || !accounts) { msg.textContent = tr('actionErrorPrefix') + (error || ''); return; }
+  tbody.innerHTML = accounts.map(acc => {
+    const badges = [
+      acc.isComposer ? `<span class="badge">${acc.composerHandle || 'compositeur'}</span>` : '',
+      acc.isStudio ? '<span class="badge">studio</span>' : '',
+      acc.isFan ? '<span class="badge">fan</span>' : '',
+    ].join('');
+    const statusBadge = acc.suspended
+      ? `<span class="badge suspended">${tr('statusSuspended')}</span>`
+      : `<span class="badge">${tr('statusActive')}</span>`;
+    const actionCell = acc.suspended
+      ? `<button class="secondary reinstate-btn" data-id="${acc.profileId}" data-email="${acc.email}">${tr('reinstateBtn')}</button>`
+      : `<input type="number" class="duration-input" value="720" data-id="${acc.profileId}"> <button class="danger suspend-btn" data-id="${acc.profileId}" data-email="${acc.email}">${tr('suspendBtn')}</button>`;
+    return `<tr>
+      <td>${acc.email}</td>
+      <td>${new Date(acc.createdAt).toLocaleDateString()}</td>
+      <td>${badges}</td>
+      <td>${statusBadge}</td>
+      <td>${actionCell}</td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('.suspend-btn').forEach(btn => btn.addEventListener('click', async () => {
+    const id = btn.dataset.id, email = btn.dataset.email;
+    if (!confirm(tr('suspendConfirm', { email }))) return;
+    const durationInput = tbody.querySelector(`.duration-input[data-id="${id}"]`);
+    const hours = durationInput ? Number(durationInput.value) : undefined;
+    btn.disabled = true;
+    const { ok, error } = await window.LayerPitchAuth.suspendAccount(id, hours);
+    msg.textContent = ok ? tr('actionSuccessSuspended') : (tr('actionErrorPrefix') + error);
+    msg.className = ok ? 'msg ok' : 'msg err';
+    if (ok) loadAccounts(document.getElementById('searchInput').value.trim());
+    else btn.disabled = false;
+  }));
+  tbody.querySelectorAll('.reinstate-btn').forEach(btn => btn.addEventListener('click', async () => {
+    const id = btn.dataset.id, email = btn.dataset.email;
+    if (!confirm(tr('reinstateConfirm', { email }))) return;
+    btn.disabled = true;
+    const { ok, error } = await window.LayerPitchAuth.reinstateAccount(id);
+    msg.textContent = ok ? tr('actionSuccessReinstated') : (tr('actionErrorPrefix') + error);
+    msg.className = ok ? 'msg ok' : 'msg err';
+    if (ok) loadAccounts(document.getElementById('searchInput').value.trim());
+    else btn.disabled = false;
+  }));
+}
+document.getElementById('searchBtn').addEventListener('click', () => {
+  loadAccounts(document.getElementById('searchInput').value.trim());
+});
+document.getElementById('searchInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') loadAccounts(document.getElementById('searchInput').value.trim());
+});
+
+// ---- Bandeau d'annonce ----
+async function loadNotice() {
+  const { notice } = await window.LayerPitchAdmin.getPlatformNotice();
+  document.getElementById('noticeTextarea').value = (notice && notice.message) || '';
+}
+document.getElementById('noticeSaveBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('noticeMsg');
+  const text = document.getElementById('noticeTextarea').value;
+  const { ok, error } = await window.LayerPitchAdmin.setPlatformNotice(text);
+  msg.textContent = ok ? tr('noticeSavedStatus') : (tr('noticeErrorPrefix') + error);
+  msg.className = ok ? 'msg ok' : 'msg err';
+});
+document.getElementById('noticeClearBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('noticeMsg');
+  document.getElementById('noticeTextarea').value = '';
+  const { ok, error } = await window.LayerPitchAdmin.setPlatformNotice('');
+  msg.textContent = ok ? tr('noticeClearedStatus') : (tr('noticeErrorPrefix') + error);
+  msg.className = ok ? 'msg ok' : 'msg err';
+});
+</script>
+</body>
+</html>

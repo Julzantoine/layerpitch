@@ -52,11 +52,9 @@
     return () => data.subscription.unsubscribe();
   }
 
-  // Invite un·e testeur·euse par email (compte créé, email d'invitation envoyé). Réservé à
-  // Jules-Antoine : l'Edge Function vérifie elle-même que l'appelant est authentifié ET que son
-  // adresse correspond à ADMIN_EMAIL (secret de la fonction) — pas de table `profiles`/rôle
-  // disponible à ce stade (arrive à l'étape 3, base Postgres), donc vérification par email en
-  // dur côté serveur en attendant. À durcir une fois `profiles` en place.
+  // Invite un·e testeur·euse par email (compte créé, email d'invitation envoyé). Réservé aux
+  // admins : l'Edge Function vérifie elle-même que l'appelant est authentifié ET que son compte
+  // figure dans la table `admins` (RPC is_admin(), supabase/migrations/20260901190000_admin_role.sql).
   // Vigilance opérationnelle (Décision 4) : limite par défaut de 2 emails/heure côté Supabase —
   // espacer les invitations en rafale, ou configurer un SMTP personnalisé.
   // redirectTo : URL de retour après clic sur le lien d'invitation (même exigence que
@@ -133,15 +131,18 @@
     return { studioId: data, error: null };
   }
 
-  // profiles.onboarding_completed (docs/infrastructure.md, chantier "flux d'inscription") —
-  // lecture/écriture directe sur la table, pas de RPC nécessaire (policies RLS "own profile"/"own
-  // profile update" déjà en place, supabase/migrations/20260831102636_rls_policies.sql).
+  // profiles.onboarding_completed/notice_dismissed_at (docs/infrastructure.md, chantiers "flux
+  // d'inscription" et "panneau admin") — lecture directe sur la table, pas de RPC nécessaire
+  // (policy RLS "own profile" déjà en place, supabase/migrations/20260831102636_rls_policies.sql).
   async function getMyProfile() {
     const { data: userData } = await getClient().auth.getUser();
     if (!userData || !userData.user) return { profile: null, error: null };
-    const { data, error } = await getClient().from('profiles').select('onboarding_completed').maybeSingle();
+    const { data, error } = await getClient().from('profiles').select('onboarding_completed, notice_dismissed_at').maybeSingle();
     if (error) return { profile: null, error: error.message };
-    return { profile: data ? { onboardingCompleted: !!data.onboarding_completed } : null, error: null };
+    return {
+      profile: data ? { onboardingCompleted: !!data.onboarding_completed, noticeDismissedAt: data.notice_dismissed_at } : null,
+      error: null,
+    };
   }
 
   // RPC plutôt qu'un update direct sur profiles : aucun GRANT UPDATE de base n'existe sur cette
@@ -153,10 +154,39 @@
     return { ok: true, error: null };
   }
 
+  // Suspension/réintégration de compte (docs/infrastructure.md, "Rôle admin... actée le 3
+  // septembre") — réservé aux admins, l'Edge Function vérifie is_admin() elle-même. Réversible par
+  // défaut, jamais présentée comme un "ban" : durationHours optionnel (30 jours par défaut côté
+  // Edge Function).
+  async function suspendAccount(profileId, durationHours) {
+    const { data, error } = await getClient().functions.invoke('suspend-account', {
+      body: { profileId, action: 'suspend', durationHours },
+    });
+    if (error) return { ok: false, error: await describeFunctionError(error) };
+    return { ok: true, data };
+  }
+
+  async function reinstateAccount(profileId) {
+    const { data, error } = await getClient().functions.invoke('suspend-account', {
+      body: { profileId, action: 'reinstate' },
+    });
+    if (error) return { ok: false, error: await describeFunctionError(error) };
+    return { ok: true, data };
+  }
+
+  // Bandeau d'annonce bêta (platform_settings.notice_message) : accusé de réception pour le
+  // compte connecté — utilisable par n'importe qui, pas admin-only (RPC dismiss_notice()).
+  async function dismissNotice() {
+    const { error } = await getClient().rpc('dismiss_notice');
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, error: null };
+  }
+
   window.LayerPitchAuth = {
     signInWithMagicLink, signOut, getSession, onAuthStateChange, inviteTester,
     getMyComposerId, getMyComposerHandle, ensureMyComposerProfile,
     getMyStudioId, ensureMyStudioProfile, getMyProfile, markOnboardingComplete,
+    suspendAccount, reinstateAccount, dismissNotice,
     describeFunctionError,
   };
 })();
