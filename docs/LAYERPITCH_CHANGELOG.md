@@ -8,6 +8,20 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-04e] — Rétablit l'upload média pour les compositeurs non-admin
+
+**Fichiers touchés** : `layerpitch-backstage.html`, nouveau `supabase/functions/create-media-signed-url/index.ts`.
+
+**Contexte** : conséquence directe de [2026-09-04d] (masquage du panneau "Stockage média"), acceptée à ce moment-là comme lacune ouverte plutôt que résolue dans l'urgence. Jules-Antoine a demandé de la combler avant de passer à la suite.
+
+**Changement** :
+- Nouvelle Edge Function `create-media-signed-url` : vérifie l'identité du compositeur (`ensure_composer_profile()`) puis génère une URL R2 pré-signée à courte durée de vie (5 minutes, `aws4fetch`, même mécanisme que `get-invoice-download-url` — `X-Amz-Expires` posé avant signature, sinon 24h par défaut) pour un seul objet et un seul verbe (PUT ou DELETE). Chemin validé (préfixe `images/`/`audio/` uniquement, pas de remontée de répertoire) mais **pas d'entité vérifiée propriétaire de l'appelant** — lacune connue, notée ci-dessous.
+- `r2PutFile()`/`r2DeleteFile()` (`layerpitch-backstage.html`) basculent automatiquement sur ce chemin dès qu'aucun identifiant R2 local n'est saisi (cas de tout compositeur non-admin depuis [2026-09-04d]) — aucun des 19 points d'appel existants n'a dû changer, le repli est interne aux deux fonctions.
+
+**Lacune restante, documentée plutôt que devinée** : le chemin R2 demandé n'est pas vérifié comme appartenant réellement au compositeur appelant (juste son préfixe) — un compositeur qui connaîtrait/devinerait l'identifiant d'AdReel/morceau d'un autre pourrait théoriquement écraser son fichier média. Amélioration nette malgré tout : avant ce chantier, chaque testeur détenait la clé secrète complète du bucket R2 entier (lecture/écriture/suppression de tout, y compris `data.json`/`player.js`), pas seulement d'un objet précis à la fois. À durcir (vérification `owner_id` par type d'entité) si un abus réel est constaté.
+
+---
+
 ## [2026-09-04d] — Masque les panneaux admin/debug du backstage pour les non-admins
 
 **Fichiers touchés** : `layerpitch-backstage.html`.
