@@ -8,6 +8,29 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-03k] — Panneau admin : statistiques, suspension de compte, bandeau d'annonce bilingue
+
+**Fichiers touchés** : nouveaux `admin.html`, `api/admin.js`, `supabase/functions/suspend-account/index.ts`, `scripts/test-admin-rpcs.js`, `supabase/migrations/20260903220000_admin_platform_settings.sql`, `20260903220100_admin_rpcs.sql`, `20260903230000_platform_notice_bilingual.sql` ; `api/auth.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `docs/infrastructure.md`
+
+**Contexte** : cinquième chantier du plan de séquencement (`docs/infrastructure.md`, "Décision complémentaire — Rôle admin..."), indépendant des quatre autres. Exploration réelle du code avant d'écrire quoi que ce soit (trois recherches en parallèle) : a trouvé que le mécanisme admin décrit dans le texte de décision (`profiles.is_admin`) était en fait déjà couvert par `admins`/`is_admin()`, déployés le 1er septembre et déjà utilisés par `invite-tester` — évité de dupliquer. Même erreur trouvée et corrigée en parallèle dans le chantier Stripe ([2026-09-03j]), coordination faite en direct entre les deux sessions actives sur ce checkout. Vérification de non-collision faite avant de committer (deux autres sessions actives sur le même dépôt, aucune ne touchait aux mêmes fichiers/tables).
+
+**Changement** :
+- `platform_settings` (nouvelle table, singleton) + `profiles.suspended`/`notice_dismissed_at` (nouvelles colonnes).
+- Quatre RPC `security definer` gated `is_admin()` (sauf `dismiss_notice()`, utilisable par tout compte) : `admin_get_stats()` (comptages/moyennes agrégées — volontairement limité en v1, pas de "tendances de modes de lecture", aucune table d'événements aujourd'hui), `admin_list_accounts(p_search)`, `set_platform_notice(p_message_fr, p_message_en)`, `dismiss_notice()`.
+- `suspend-account` (nouvelle Edge Function, calquée sur `invite-tester`) : bannissement Supabase Auth réversible (30 jours par défaut, ajustable) + écriture `profiles.suspended` — directement via `service_role` plutôt qu'une RPC (le `service_role` n'a pas d'`auth.uid()`, la vraie barrière est déjà la vérification `is_admin()` faite une fois côté appelant, même principe qu'`invite-tester`). Garde-fou : un admin ne peut pas se suspendre lui-même. UI copy imposée : "Suspendre"/"Réintégrer", jamais "bannir"/"ban".
+- `admin.html` (nouvelle page, calquée sur `auth-test.html` pour la structure, sur les variables CSS de `layerpitch-backstage.html` pour le style — pas sur `admin-beta-console.html`, resté dormant) : trois blocs (statistiques, recherche + suspension de compte, bandeau d'annonce).
+- `layerpitch-backstage.html` : bandeau reconnecté à Postgres (`loadPlatformNotice()`/`dismissPlatformNotice()`), ancien mécanisme GitHub (`data.backstageNotice`, alimenté par `admin-beta-console.html`) laissé en place sans appelant — déjà mort en pratique en mode lecture Postgres.
+
+**Bug trouvé et corrigé pendant le test** : `admin_list_accounts()` échouait ("structure of query does not match function result type") — `auth.users.email` est `character varying`, pas `text` ; la fonction déclarait `email text` sans caster la colonne. Corrigé (`u.email::text`), reconfirmé par le script de test.
+
+**Retour de Jules-Antoine après premier test réel** : le bandeau doit afficher un message différent selon la langue du backstage de chaque compte (FR/EN), pas un seul message pour tout le monde. `platform_settings.notice_message` (un seul champ) remplacé par `notice_message_fr`/`notice_message_en` (migration `20260903230000`, appliquée le jour même — aucun message réel n'avait encore été publié en production, pas de backfill nécessaire) ; `set_platform_notice()` prend désormais deux paramètres ; `layerpitch-backstage.html` choisit le champ selon `currentLang()`, avec repli sur l'autre langue si l'admin n'en a rempli qu'une.
+
+**Vérifié** : migrations appliquées en base réelle, `scripts/test-admin-rpcs.js` (7/7 OK, y compris après le passage bilingue). `admin.html` et `layerpitch-backstage.html` rechargés en local, aucune erreur console. `suspend-account` et le redéploiement d'`invite-tester` (jamais reconfirmé depuis un incident de fusion du 1er septembre, levé au passage) faits manuellement par Jules-Antoine via le dashboard Supabase. Panneau testé en conditions réelles par Jules-Antoine sur le site déployé (`beta.layerpitch.com/admin.html`) : statistiques et accès visibles avec son vrai compte, confirmé fonctionnel.
+
+**Non couvert ici, à dessein** : "tendances de modes de lecture" (aucune table d'événements, chantier futur séparé) ; suppression définitive de compte (hors périmètre acté).
+
+---
+
 ## [2026-09-03j] — Vérification du chantier Stripe Billing : tarification EUR, oubli du cas admin, liens trompeurs retirés
 
 **Fichiers touchés** : nouveaux `supabase/migrations/20260903200000_plan_quotas_prices_eur.sql`, `20260903210000_effective_plan_quotas_admin_case.sql` ; `supabase/functions/create-subscription-checkout-session/index.ts`, `bienvenue.html`, `library.html`, `layerpitch-i18n.js`, `docs/infrastructure.md`
