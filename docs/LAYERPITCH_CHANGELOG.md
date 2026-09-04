@@ -8,6 +8,47 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-04d] — Masque les panneaux admin/debug du backstage pour les non-admins
+
+**Fichiers touchés** : `layerpitch-backstage.html`.
+
+**Contexte** : signalé par Jules-Antoine avant de s'absenter, sujet déjà documenté (`docs/infrastructure.md`, "À trancher") — les panneaux "Dépôt GitHub" (token), "Lecture/Écriture Postgres (test)", "Inviter un testeur (admin)" et "Stockage média (Cloudflare R2)" étaient visibles à quiconque atteint la page, seule la liste d'emails Cloudflare Access limitant qui l'atteint. Le mécanisme `admins`/`is_admin()` existait déjà (1er septembre, utilisé par `admin.html`) mais n'était jamais branché à l'affichage de ces panneaux.
+
+**Vérifié avant de masquer, pas supposé** : `publishAll()` a déjà (2 septembre) un repli "compositeur hébergé sans repo GitHub personnel → écriture Postgres forcée, indépendamment de la case #pgWriteToggle". Aucun repli équivalent côté lecture n'existait — `pgReadEnabled()` dépendait uniquement de la case #pgReadToggle. Masquer #panelPgRead sans corriger ça aurait laissé la bibliothèque d'un compositeur hébergé vide au premier chargement (plus aucun moyen d'activer la case, invisible). Pire : masquer #panelPgWrite/#panelGithubRepo aurait aussi supprimé l'unique déclencheur de chargement des scripts Postgres pour un compositeur n'ayant jamais coché ces cases — cassant silencieusement tous les autres panneaux (abonnement, facturation, Connect) faute d'un autre point d'entrée.
+
+**Changement** :
+- `pgReadEnabled()` corrigé pour appliquer le même repli que `publishAll()` : bascule automatique sur Postgres si `state.token()` est vide, indépendamment de la case.
+- Six panneaux (`panelGithubRepo`, `panelPgRead`, `panelPgWrite`, `panelInviteTester`, `panelR2Storage`, `panelAdminLink`) portent désormais `hidden` par défaut, retiré uniquement si `is_admin()` renvoie vrai (`renderAdminOnlyPanels()`, même vérification client que `admin.html` — confort d'affichage, la vraie barrière reste côté serveur, RLS/RPC).
+
+**Conséquence à surveiller, pas résolue ici** : les identifiants R2 (`Stockage média`) sont aujourd'hui le seul moyen d'uploader un logo/photo/image de fond ou un nouveau fichier audio — masqués, un compositeur non-admin ne peut plus le faire (pas de repli serveur existant, contrairement à GitHub/Postgres). Accepté tel quel sur demande explicite de Jules-Antoine, à rouvrir s'il veut que les testeurs puissent uploader leurs propres médias avant l'ouverture réelle.
+
+---
+
+## [2026-09-04c] — Stripe Connect compositeur + facturation légale automatisée
+
+**Fichiers touchés** : nouveaux `supabase/migrations/20260904120000_composer_stripe_connect.sql`, `20260904130000_composer_billing_profile.sql`, `supabase/functions/create-connect-onboarding-link/index.ts`, `supabase/functions/get-invoice-download-url/index.ts`, `api/connect.js`, `api/invoices.js` ; `supabase/functions/create-checkout-session/index.ts`, `supabase/functions/stripe-webhook/index.ts`, `api/purchases.js`, `layerpitch-backstage.html`.
+
+**Contexte** : question de Jules-Antoine sur le fonctionnement réel de la commission par palier (`plan_quotas.commission_rate`, posée le 3 septembre, jamais lue par aucun code de paiement — vérifié). Recherche du modèle Bandcamp (Stripe Connect Standard, l'artiste crée/relie son propre compte, aucune facture émise par la plateforme) + comparaison eBay/Amazon Marketplace/Leboncoin Pro (modèle "agence", mandat de facturation) vs Etsy (contre-exemple : TVA absente des documents, vendeurs contraints de tout reconstruire) a mené à une architecture en deux volets, actée en plan-mode avec Jules-Antoine.
+
+**Versement (Stripe Connect Standard, charges de destination)** :
+- `composer_profiles.stripe_connect_account_id`/`charges_enabled`/`payouts_enabled`. `stripe_connect_account_id` est la seule exception au principe "webhook seul écrivain de l'état Stripe dérivé" (aucun événement webhook n'existe pour "un compte vient d'être créé") — les deux booléens restent, eux, écrits uniquement par `stripe-webhook` (`account.updated`).
+- `create-checkout-session` : commission calculée via `effective_plan_quotas()` (jamais `plan_quotas.commission_rate` en direct, pour respecter les dérogations essai/admin/étudiant déjà en place), `application_fee_amount`/`transfer_data.destination` sur la Checkout Session. Achat bloqué sans repli si le compositeur n'a pas de compte Connect actif.
+- `stripe-webhook` : second secret de signature (`STRIPE_CONNECT_WEBHOOK_SECRET`) essayé en repli du premier — Stripe exige deux endpoints séparés (portées différentes) pour recevoir les événements "compte" et "Connect", mais les deux peuvent pointer vers cette même fonction.
+
+**Facturation légale (mandat de facturation, art. 289 CGI — LayerPitch mandataire, le compositeur reste seul redevable de la TVA)** :
+- Profil de facturation déclaratif sur `composer_profiles` (statut pro/particulier, SIRET, TVA) — déclaratif plutôt que lu depuis l'API Stripe Connect : pour un compte Standard, la plateforme perd l'accès à l'objet `persons` une fois l'onboarding lancé, et la lisibilité de `business_profile`/`company` dans ce cas n'est pas garantie avec certitude par la documentation Stripe.
+- Nouvelle table `invoices` (snapshot vendeur/acheteur au moment de la vente, jamais un JOIN vivant — l'identité légale peut changer après coup, le document doit rester figé). Numérotation séquentielle **par compositeur** (`next_invoice_number()`, `UPDATE ... RETURNING` atomique), cohérent avec la pratique du mandat de facturation.
+- `stripe-webhook` génère la facture/attestation de vente (`pdf-lib`) après un achat réellement nouveau (jamais sur un renvoi Stripe du même événement — vérifié via le retour de l'upsert `pack_purchases`, `RETURNING` ne renvoie rien sur un conflit ignoré), upload R2, sans jamais faire échouer le webhook si la génération échoue (paiement acquis malgré tout, erreur seulement loggée).
+- Calcul de TVA volontairement simplifié (France 20% par défaut, autoliquidation B2B intracommunautaire si TVA acheteur présente, exonération hors UE — pas de validation VIES, pas de taux OSS par pays de destination) : à valider par un expert-comptable avant toute mise en production réelle, explicitement noté comme tel dans le code.
+- Nouvelle Edge Function `get-invoice-download-url` : les factures portent des données personnelles réelles — jamais d'URL R2 publique permanente comme pour les médias (sécurité par obscurité jugée insuffisante ici). Vérifie l'autorisation via la RLS de la table `invoices` (le client appelant fait le SELECT, pas `service_role`) puis génère un lien R2 pré-signé de 5 minutes (`aws4fetch`, `X-Amz-Expires` posé avant signature — le défaut de la librairie est 24h, bien trop long pour ce cas).
+- `api/purchases.js` : `myPurchases()` embarque désormais la facture liée ; `buyPack()` corrigé pour afficher le vrai message d'erreur (même correctif que `invite-tester`, le SDK masque le corps JSON d'une Edge Function en échec derrière un message générique).
+
+**Non couvert ici, à dessein** : remboursements (`reverse_transfer`/facture rectificative — aucun flux de remboursement n'existe nulle part dans ce projet, pas un manque introduit ici) ; bascule de `PURCHASES_ENABLED` (reste une décision séparée, prix des packs encore des valeurs de test) ; `account.application.deauthorized` (compositeur qui déconnecte son compte Stripe) ; DAC7 et facturation électronique structurée (Factur-X), différées à un volume réel de ventes / à l'approche de l'échéance réglementaire de 2027 ; validation experte du montage mandat de facturation avant production réelle.
+
+**Vérifié** : migrations appliquées, 4 fonctions Edge déployées et testées par Jules-Antoine en mode test réel — essai reverse trial affiché correctement pour la partie abonnement (chantier voisin), reste à tester en conditions réelles côté Connect/facturation (`PURCHASES_ENABLED` à activer temporairement en local pour ce test, pas encore fait au moment de cette entrée).
+
+---
+
 ## [2026-09-04b] — Coordination Cloudflare Access / invitation testeur
 
 **Fichiers touchés** : `supabase/functions/invite-tester/index.ts`, `layerpitch-backstage.html`.
