@@ -924,11 +924,17 @@ async function init() {
       renderRealPurchaseWidget(purchaseWrap, pack).catch(e => console.error('LayerPitch — widget achat :', e));
     }
 
+    // handleParam ici aussi (avant sa déclaration principale plus bas) : sans lui, ce lien vers une
+    // collection perdrait le handle du compositeur non-défaut, même bug que "← Retour" ci-dessous.
+    const containingCollectionsHandleParam = (() => {
+      const h = new URLSearchParams(location.search).get('u');
+      return h ? `&u=${encodeURIComponent(h)}` : '';
+    })();
     const containingCollections = (data.collections || []).filter(c => (c.packIds || []).includes(pack.id));
     if (containingCollections.length) {
       const collEl = document.createElement('div');
       collEl.className = 'pack-link';
-      collEl.innerHTML = containingCollections.map(c => `<a href="./collection.html?id=${encodeURIComponent(c.id)}&lang=${pageLang}">${tr('partOfCollectionMention').replace('{title}', escapeHtml(c.title))}</a>`).join('<br>');
+      collEl.innerHTML = containingCollections.map(c => `<a href="./collection.html?id=${encodeURIComponent(c.id)}&lang=${pageLang}${containingCollectionsHandleParam}">${tr('partOfCollectionMention').replace('{title}', escapeHtml(c.title))}</a>`).join('<br>');
       container.appendChild(collEl);
     }
 
@@ -947,13 +953,35 @@ async function init() {
     // (même bug que adReelFromParam(), player.js, corrigé au même moment).
     const handle = new URLSearchParams(location.search).get('u');
     const handleParam = handle ? `&u=${encodeURIComponent(handle)}` : '';
+    const fromParam = fromAdReelId ? `&from=${encodeURIComponent(fromAdReelId)}` : '';
     const linkedAdReel = (fromAdReelId && (data.adReels || []).find(a => a.id === fromAdReelId))
       || (pack.linkedAdReelId ? (data.adReels || []).find(a => a.id === pack.linkedAdReelId) : null);
+    // fromCollection (même chantier, extension aux collections) : priorité sur l'AdReel pour le
+    // SEUL bouton "← Retour" -- un pack ouvert via une collection doit revenir à cette collection
+    // (un pas en arrière), pas sauter directement à l'AdReel qui avait ouvert la collection. `from`/
+    // `u` sont propagés vers collection.html pour qu'elle puisse continuer la chaîne jusqu'à
+    // l'AdReel si SON "← Retour" est cliqué à son tour. Vérifié que la collection existe ET contient
+    // bien ce pack (même nettoyage défensif que linkedAdReel) avant de faire confiance au paramètre.
+    const fromCollectionId = new URLSearchParams(location.search).get('fromCollection');
+    const linkedCollection = fromCollectionId
+      ? (data.collections || []).find(c => c.id === fromCollectionId && (c.packIds || []).includes(pack.id))
+      : null;
     // ← Retour (haut de page) : par défaut un lien générique vers index.html (repli faute de vraie
-    // page d'accueil multi-compositeurs, docs/infrastructure.md), remplacé ci-dessous dès qu'un
-    // AdReel d'origine est résolu -- "Retour" doit suivre celui par lequel CE visiteur est
+    // page d'accueil multi-compositeurs, docs/infrastructure.md), remplacé ci-dessous dès qu'une
+    // collection ou un AdReel d'origine est résolu -- "Retour" doit suivre par où CE visiteur est
     // réellement arrivé, jamais un choix figé (même raisonnement que "Voir l'œuvre complète").
     const backLinkEl = document.querySelector('.back-link');
+    if (linkedCollection) {
+      if (backLinkEl) backLinkEl.href = `./collection.html?id=${encodeURIComponent(linkedCollection.id)}&lang=${pageLang}${fromParam}${handleParam}`;
+    } else if (linkedAdReel) {
+      if (backLinkEl) backLinkEl.href = (linkedAdReel.id === 'main' ? `./index.html?lang=${pageLang}` : `./index.html?adreel=${encodeURIComponent(linkedAdReel.id)}&lang=${pageLang}`) + handleParam;
+    } else if (backLinkEl && window.history.length > 1) {
+      // Aucune collection ni AdReel d'origine résolvable (visite directe, lien du pack partagé
+      // isolément) -- retour navigateur plutôt que de forcer index.html (retomberait sur
+      // DEFAULT_OWNER_ID faute de vraie page d'accueil générique). Lien statique laissé tel quel en
+      // tout dernier recours si aucun historique n'existe (onglet ouvert directement sur ce pack).
+      backLinkEl.addEventListener('click', (e) => { e.preventDefault(); window.history.back(); });
+    }
     if (linkedAdReel) {
       const composerName = (linkedAdReel.profile && linkedAdReel.profile.title) || tr('linkedAdReelFallbackName');
       const adReelHref = (linkedAdReel.id === 'main' ? `./index.html?lang=${pageLang}` : `./index.html?adreel=${encodeURIComponent(linkedAdReel.id)}&lang=${pageLang}`) + handleParam;
@@ -961,13 +989,6 @@ async function init() {
       adReelLinkEl.className = 'pack-link';
       adReelLinkEl.innerHTML = `<a href="${adReelHref}">${tr('viewFullWorkLink').replace('{name}', escapeHtml(composerName))}</a>`;
       container.appendChild(adReelLinkEl);
-      if (backLinkEl) backLinkEl.href = adReelHref;
-    } else if (backLinkEl && window.history.length > 1) {
-      // Aucun AdReel d'origine résolvable (visite directe, lien du pack partagé isolément) --
-      // retour navigateur plutôt que de forcer index.html (retomberait sur DEFAULT_OWNER_ID faute
-      // de vraie page d'accueil générique). Lien statique laissé tel quel en tout dernier recours
-      // si aucun historique n'existe (onglet ouvert directement sur ce pack).
-      backLinkEl.addEventListener('click', (e) => { e.preventDefault(); window.history.back(); });
     }
 
     // Filigrane "propulsé par LayerPitch" (Chantier Apparence Phase 3) : affiché sur Free et Starter,
