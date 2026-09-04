@@ -87,15 +87,16 @@ async function asProfile(client, profileId, fn) {
 
     // ---- set_platform_notice() : chemin non-admin rejeté ----
     try {
-      await asProfile(client, NON_ADMIN_AUTH_ID, () => client.query("select set_platform_notice('devrait échouer', 'should fail')"));
+      await asProfile(client, NON_ADMIN_AUTH_ID, () => client.query('select set_platform_notice($1::jsonb)', [JSON.stringify({ fr: 'devrait échouer', en: 'should fail' })]));
       check('set_platform_notice() rejeté pour un compte non-admin', false);
     } catch (e) { check('set_platform_notice() rejeté pour un compte non-admin', /réservé aux admins/i.test(e.message)); }
 
-    // ---- set_platform_notice() : chemin admin, bilingue, vérifié en lecture brute ----
+    // ---- set_platform_notice() : chemin admin, structure multilingue, vérifié en lecture brute ----
     try {
-      await asProfile(client, adminId, () => client.query("select set_platform_notice('message de test — script automatisé', 'test message — automated script')"));
-      const { rows } = await client.query('select notice_message_fr, notice_message_en, notice_updated_at from platform_settings where id = true');
-      check('set_platform_notice() écrit bien les deux messages', rows[0].notice_message_fr === 'message de test — script automatisé' && rows[0].notice_message_en === 'test message — automated script' && rows[0].notice_updated_at !== null);
+      const testMessages = { fr: 'message de test — script automatisé', en: 'test message — automated script' };
+      await asProfile(client, adminId, () => client.query('select set_platform_notice($1::jsonb)', [JSON.stringify(testMessages)]));
+      const { rows } = await client.query('select notice_messages, notice_updated_at from platform_settings where id = true');
+      check('set_platform_notice() écrit bien la carte de messages', rows[0].notice_messages.fr === testMessages.fr && rows[0].notice_messages.en === testMessages.en && rows[0].notice_updated_at !== null);
     } catch (e) { check('set_platform_notice() pour l\'admin (' + e.message + ')', false); }
 
     // ---- dismiss_notice() : utilisable par le compte non-admin ----
@@ -106,7 +107,7 @@ async function asProfile(client, profileId, fn) {
     } catch (e) { check('dismiss_notice() pour un compte non-admin (' + e.message + ')', false); }
 
     // ---- nettoyage : remet le bandeau à vide, supprime le compte de test ----
-    await asProfile(client, adminId, () => client.query("select set_platform_notice('', '')"));
+    await asProfile(client, adminId, () => client.query("select set_platform_notice('{}'::jsonb)"));
     await client.query('delete from auth.users where id = $1', [NON_ADMIN_AUTH_ID]); // cascade -> profiles
 
     console.log(`\n${passed} OK, ${failed} FAIL`);

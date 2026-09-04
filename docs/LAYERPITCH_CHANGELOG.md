@@ -8,6 +8,22 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-03l] — Bandeau d'annonce : structure ouverte au nombre de langues, lien vers le panneau admin depuis le backstage
+
+**Fichiers touchés** : nouveau `supabase/migrations/20260903240000_platform_notice_extensible_languages.sql` ; `api/admin.js`, `admin.html`, `layerpitch-backstage.html`, `scripts/test-admin-rpcs.js`
+
+**Contexte** : suite immédiate de [2026-09-03k]. Jules-Antoine, en apprenant que le bandeau venait d'être construit avec deux colonnes fixes (`notice_message_fr`/`notice_message_en`), a fait remarquer qu'un jour le backstage pourrait s'ouvrir à d'autres langues (espagnol, allemand — mentionné comme piste, pas une décision ni un calendrier) et que ça méritait d'être anticipé. Distinction faite avant d'agir : le bandeau (tout neuf, sans contenu réel encore publié) est bon marché à corriger maintenant ; refaire `layerpitch-i18n.js` (chargé par 6 fichiers, sélecteur de langue, zones de traduction) serait un vrai chantier sans troisième langue réellement décidée à ce jour — Jules-Antoine a tranché : corriger le bandeau, documenter la même approche pour `layerpitch-i18n.js` le jour où ce chantier sera lancé pour de vrai.
+
+**Changement** : `notice_message_fr`/`notice_message_en` (deux colonnes) remplacées par `notice_messages` (`jsonb`, une clé par code langue — ajouter une langue devient un ajout de clé, plus jamais une migration de schéma). `set_platform_notice()` prend désormais un seul paramètre `jsonb`. `admin.html` génère ses champs de saisie depuis une liste `NOTICE_LANGS` (actuellement `fr`/`en`) plutôt que deux champs figés dans le HTML — ajouter une langue à l'écran de saisie devient une ligne dans cette liste + une clé i18n, pas une restructuration. `layerpitch-backstage.html` : repli sur la clé `fr` si la langue du compte n'a pas de message (même convention que `tr()`/`applyI18n()`, qui retombe toujours sur le français).
+
+**Ajouté au passage** : lien "Ouvrir le panneau admin" dans `layerpitch-backstage.html` (fieldset à côté d'"Inviter un testeur"), suite à la question de Jules-Antoine après son premier test — il n'avait accédé à `admin.html` qu'en tapant l'URL directement, aucun lien n'existait encore depuis le backstage.
+
+**Vérifié** : migration appliquée en base réelle, `scripts/test-admin-rpcs.js` mis à jour et repassé (7/7 OK). `admin.html` rechargé en local (nouvel onglet, le premier étant resté épinglé sur un aperçu `data:` sans accès à `localStorage`) — aucune erreur console, les deux champs de langue s'affichent correctement, générés dynamiquement.
+
+**Non couvert ici, à dessein** : `layerpitch-i18n.js` reste structuré `{ fr: {...}, en: {...} }` — si un futur chantier ouvre le backstage à une troisième langue, reprendre le même principe (carte extensible plutôt que zones figées par langue) plutôt que d'ajouter une troisième zone en dur.
+
+---
+
 ## [2026-09-03k] — Panneau admin : statistiques, suspension de compte, bandeau d'annonce bilingue
 
 **Fichiers touchés** : nouveaux `admin.html`, `api/admin.js`, `supabase/functions/suspend-account/index.ts`, `scripts/test-admin-rpcs.js`, `supabase/migrations/20260903220000_admin_platform_settings.sql`, `20260903220100_admin_rpcs.sql`, `20260903230000_platform_notice_bilingual.sql` ; `api/auth.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `docs/infrastructure.md`

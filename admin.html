@@ -119,10 +119,7 @@
     <div class="card">
       <h2 data-i18n="noticeTitle">Bandeau d'annonce (backstage)</h2>
       <p class="subtitle" data-i18n="noticeHint" style="margin-bottom:10px;">Affiché à tous les compositeurs connectés.</p>
-      <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;" data-i18n="noticeFrLabel">Français</label>
-      <textarea id="noticeTextareaFr" data-i18n-placeholder="noticePlaceholder" placeholder="Message à afficher dans le backstage…"></textarea>
-      <label style="font-size:11px;color:var(--text-dim);display:block;margin:10px 0 4px;" data-i18n="noticeEnLabel">Anglais</label>
-      <textarea id="noticeTextareaEn" data-i18n-placeholder="noticePlaceholderEn" placeholder="Message to show in the backstage…"></textarea>
+      <div id="noticeLangsContainer"></div>
       <div class="row" style="margin-top:10px;">
         <button id="noticeSaveBtn" data-i18n="noticeSaveBtn">Enregistrer</button>
         <button id="noticeClearBtn" class="secondary" data-i18n="noticeClearBtn">Effacer</button>
@@ -301,25 +298,44 @@ document.getElementById('searchInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') loadAccounts(document.getElementById('searchInput').value.trim());
 });
 
-// ---- Bandeau d'annonce (bilingue — un message par langue de backstage) ----
+// ---- Bandeau d'annonce (structure ouverte au nombre de langues — docs/infrastructure.md,
+// "aller chercher la solution là" pour layerpitch-i18n.js le jour où une 3e langue est décidée).
+// Ajouter une langue au bandeau : une ligne ici + une clé noticeXxLabel/noticePlaceholderXx dans
+// layerpitch-i18n.js — rien d'autre à changer dans ce fichier.
+const NOTICE_LANGS = [
+  { code: 'fr', labelKey: 'noticeFrLabel', placeholderKey: 'noticePlaceholder' },
+  { code: 'en', labelKey: 'noticeEnLabel', placeholderKey: 'noticePlaceholderEn' },
+];
+const noticeLangsContainer = document.getElementById('noticeLangsContainer');
+noticeLangsContainer.innerHTML = NOTICE_LANGS.map(({ code, labelKey, placeholderKey }) => `
+  <label style="font-size:11px;color:var(--text-dim);display:block;margin:10px 0 4px;" data-i18n="${labelKey}">${tr(labelKey)}</label>
+  <textarea id="noticeTextarea-${code}" data-i18n-placeholder="${placeholderKey}" placeholder="${tr(placeholderKey)}"></textarea>
+`).join('');
+
 async function loadNotice() {
   const { notice } = await window.LayerPitchAdmin.getPlatformNotice();
-  document.getElementById('noticeTextareaFr').value = (notice && notice.messageFr) || '';
-  document.getElementById('noticeTextareaEn').value = (notice && notice.messageEn) || '';
+  const messages = (notice && notice.messages) || {};
+  NOTICE_LANGS.forEach(({ code }) => {
+    document.getElementById('noticeTextarea-' + code).value = messages[code] || '';
+  });
+}
+function collectNoticeMessages() {
+  const messages = {};
+  NOTICE_LANGS.forEach(({ code }) => {
+    messages[code] = document.getElementById('noticeTextarea-' + code).value;
+  });
+  return messages;
 }
 document.getElementById('noticeSaveBtn').addEventListener('click', async () => {
   const msg = document.getElementById('noticeMsg');
-  const fr = document.getElementById('noticeTextareaFr').value;
-  const en = document.getElementById('noticeTextareaEn').value;
-  const { ok, error } = await window.LayerPitchAdmin.setPlatformNotice(fr, en);
+  const { ok, error } = await window.LayerPitchAdmin.setPlatformNotice(collectNoticeMessages());
   msg.textContent = ok ? tr('noticeSavedStatus') : (tr('noticeErrorPrefix') + error);
   msg.className = ok ? 'msg ok' : 'msg err';
 });
 document.getElementById('noticeClearBtn').addEventListener('click', async () => {
   const msg = document.getElementById('noticeMsg');
-  document.getElementById('noticeTextareaFr').value = '';
-  document.getElementById('noticeTextareaEn').value = '';
-  const { ok, error } = await window.LayerPitchAdmin.setPlatformNotice('', '');
+  NOTICE_LANGS.forEach(({ code }) => { document.getElementById('noticeTextarea-' + code).value = ''; });
+  const { ok, error } = await window.LayerPitchAdmin.setPlatformNotice(collectNoticeMessages());
   msg.textContent = ok ? tr('noticeClearedStatus') : (tr('noticeErrorPrefix') + error);
   msg.className = ok ? 'msg ok' : 'msg err';
 });
