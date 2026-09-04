@@ -467,6 +467,7 @@ function loadPostgresReadScripts() {
     await loadScript('./api/adreels.js');
     await loadScript('./api/site-data.js');
     await loadScript('./api/composers.js');
+    await loadScript('./api/analytics.js');
   })();
   return postgresReadScriptsLoaded;
 }
@@ -479,11 +480,20 @@ function loadPostgresReadScripts() {
 // Un handle identifie directement le compositeur (résolu via api/composers.js) : plus besoin de la
 // double lecture d'avant ce chantier ("charger un AdReel pour découvrir son propriétaire, puis tout
 // recharger scopé à lui") — l'ownerId est connu avant le premier appel Postgres.
+// Dernier ownerId résolu par loadSiteData() -- lu par init() juste après l'attente, pour porter
+// l'identité du compositeur jusque dans window.__lpTrackContext (voir plus bas). Ajouté le 4
+// septembre : l'id d'AdReel seul ('main' notamment, valeur par défaut tant qu'il n'est pas renommé)
+// n'est unique que PAR compositeur, pas globalement -- sans ownerId, deux compositeurs différents
+// avec un AdReel 'main' produiraient des événements Umami indiscernables (tableau de bord
+// analytique, docs/LAYERPITCH_CHANGELOG.md). Variable plutôt que changer le type de retour de
+// loadSiteData() -- ses autres appelants éventuels restent inchangés.
+let lastResolvedOwnerId = DEFAULT_OWNER_ID;
 async function loadSiteData() {
   const params = new URLSearchParams(location.search);
   const handle = params.get('u');
   const usePostgres = !!handle || params.get('dataSource') === 'postgres';
   if (!usePostgres) {
+    lastResolvedOwnerId = DEFAULT_OWNER_ID;
     const res = await fetch('./data.json?v=' + Date.now());
     return res.json();
   }
@@ -494,6 +504,7 @@ async function loadSiteData() {
     if (error) throw new Error(error);
     ownerId = resolvedId || DEFAULT_OWNER_ID; // handle inconnu -> repli plutôt qu'une page cassée
   }
+  lastResolvedOwnerId = ownerId;
   return window.LayerPitchSiteData.loadSiteDataFromPostgres(ownerId);
 }
 
@@ -905,9 +916,16 @@ function applyTrackOverride(track, ov) {
 async function init() {
   const container = document.getElementById('blocksContainer');
   const adreelId = new URLSearchParams(location.search).get('adreel') || 'main';
-  window.__lpTrackContext = { type: 'adreel', id: adreelId };
+  // sessionId : identifiant local à ce chargement de page, regroupe les événements d'une même visite
+  // pour le tableau de bord analytique compositeur (5 septembre) -- crypto.randomUUID() avec repli
+  // pour les environnements qui ne l'exposent pas (anciens navigateurs, certains harnais de test).
+  window.__lpTrackContext = {
+    type: 'adreel', id: adreelId,
+    sessionId: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)),
+  };
   try {
     const data = await loadSiteData();
+    window.__lpTrackContext.ownerId = lastResolvedOwnerId;
     const adReel = (data.adReels || []).find(a => a.id === adreelId);
     if (!adReel) {
       container.innerHTML = `<div class="empty">${tr('adreelNotFound')}</div>`;

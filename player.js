@@ -34,6 +34,14 @@ function resumeAudioContext() {
   unlockIOSSilentSwitch();
 }
 
+// Appareil approximatif (mobile/desktop uniquement, simplification actée pour le tableau de bord
+// analytique compositeur, grille du 4 septembre) -- seuil 768px, cohérent avec le point de bascule
+// déjà utilisé ailleurs dans le produit pour distinguer mobile/desktop.
+function lpDeviceType() {
+  try { return (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) ? 'mobile' : 'desktop'; }
+  catch (e) { return null; }
+}
+
 // Dupliqué à l'identique dans index.html et pack.html : chaque script a sa propre closure, pas d'accès
 // croisé possible. Jamais bloquant, silencieux si Umami n'est pas chargé.
 // Le contexte (quel AdReel ou quel Pack a généré l'événement) est déposé sur `window.__lpTrackContext`
@@ -44,10 +52,23 @@ function trackPublicEvent(name, detail) {
     if (!window.umami) return;
     const ctx = window.__lpTrackContext || {};
     // ownerId (identité du compositeur) ajouté le 4 septembre, à part du couple type/id ci-dessus :
-    // un id d'AdReel/Pack seul ('main' notamment) n'est unique que PAR compositeur, pas globalement --
-    // le tableau de bord analytique compositeur (Edge Function get-composer-analytics) en a besoin
-    // pour ne jamais mélanger les événements de deux compositeurs différents.
+    // un id d'AdReel/Pack seul ('main' notamment) n'est unique que PAR compositeur, pas globalement.
+    // Umami lui-même ne sert plus qu'à la vue globale plateforme de Jules-Antoine (chantier du 5
+    // septembre, tableau de bord compositeur basculé sur un système Postgres propriétaire, voir
+    // logAnalyticsEvent ci-dessous) -- conservé ici pour une éventuelle inspection manuelle par
+    // compositeur dans son propre tableau de bord Umami, bénéfice mineur mais inoffensif.
     window.umami.track(name, Object.assign({}, detail, ctx.type ? { [ctx.type]: ctx.id } : {}, ctx.ownerId ? { ownerId: ctx.ownerId } : {}));
+  } catch (e) { /* jamais bloquant */ }
+  // Tableau de bord analytique compositeur (chantier du 5 septembre, système Postgres propriétaire --
+  // supabase/migrations/20260905010000_composer_analytics_events.sql) : distinct d'Umami ci-dessus.
+  // Silencieux si api/analytics.js n'est pas chargé (chemin historique sans handle, data.json
+  // statique) ou si le type de contexte n'est ni 'adreel' ni 'pack' (collections hors périmètre) --
+  // jamais bloquant pour la lecture, mêmes garanties que trackPublicEvent lui-même.
+  try {
+    const ctx = window.__lpTrackContext || {};
+    if (window.LayerPitchAnalytics && (ctx.type === 'adreel' || ctx.type === 'pack') && ctx.sessionId) {
+      window.LayerPitchAnalytics.logAnalyticsEvent(ctx.type, ctx.id, ctx.sessionId, name, detail, lpDeviceType(), ctx.ownerId || null);
+    }
   } catch (e) { /* jamais bloquant */ }
 }
 

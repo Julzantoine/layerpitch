@@ -145,12 +145,16 @@ function loadPostgresReadScripts() {
   })();
   return postgresReadScriptsLoaded;
 }
+// Dernier ownerId résolu par loadSiteData() — voir le commentaire équivalent dans index.html
+// (ajouté le 4 septembre pour le tableau de bord analytique compositeur).
+let lastResolvedOwnerId = DEFAULT_OWNER_ID;
 // Identité de compositeur par handle — voir le commentaire équivalent dans index.html.
 async function loadSiteData() {
   const params = new URLSearchParams(location.search);
   const handle = params.get('u');
   const usePostgres = !!handle || params.get('dataSource') === 'postgres';
   if (!usePostgres) {
+    lastResolvedOwnerId = DEFAULT_OWNER_ID;
     const res = await fetch('./data.json?v=' + Date.now());
     return res.json();
   }
@@ -161,6 +165,7 @@ async function loadSiteData() {
     if (error) throw new Error(error);
     ownerId = resolvedId || DEFAULT_OWNER_ID;
   }
+  lastResolvedOwnerId = ownerId;
   return window.LayerPitchSiteData.loadSiteDataFromPostgres(ownerId);
 }
 
@@ -253,6 +258,7 @@ async function init() {
   window.__lpTrackContext = { type: 'collection', id: id };
   try {
     const data = await loadSiteData();
+    window.__lpTrackContext.ownerId = lastResolvedOwnerId;
     const collection = (data.collections || []).find(c => c.id === id);
     if (!collection) {
       container.innerHTML = `<div class="empty">${tr('collectionNotFound')}</div>`;
