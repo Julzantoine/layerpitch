@@ -661,7 +661,10 @@ function renderCollectionsBlockItem(container, block, collectionsById) {
   selected.forEach(c => {
     const a = document.createElement('a');
     a.className = 'packs-list-item';
-    a.href = `./collection.html?id=${encodeURIComponent(c.id)}&lang=${pageLang}`;
+    // adReelFromParam() (déjà utilisée pour les packs juste au-dessus) : trouvée manquante ici le
+    // 4 septembre en étendant le correctif "← Retour" aux collections -- sans elle, collection.html
+    // ne savait jamais depuis quel AdReel elle avait été ouverte.
+    a.href = `./collection.html?id=${encodeURIComponent(c.id)}&lang=${pageLang}${window.LayerPlayerCore.adReelFromParam()}`;
     a.innerHTML = `${c.illustration ? `<img class="packs-list-item-thumb" src="${IMAGES_BASE}${c.illustration}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(c.title)}</span><span class="packs-list-item-arrow">→</span>`;
     list.appendChild(a);
   });

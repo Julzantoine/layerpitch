@@ -89,7 +89,7 @@
   </svg>
 </button>
 <div class="page">
-  <a class="back-link" href="./index.html" data-i18n="backLink">← Retour</a>
+  <a class="back-link" href="./index.html" id="backLinkEl" data-i18n="backLink">← Retour</a>
   <div id="content"></div>
   <label class="contrast-toggle"><input type="checkbox" id="nightModeToggle"> <span data-i18n="nightMode">Mode nuit</span></label>
   <label class="contrast-toggle"><input type="checkbox" id="contrastToggle"> <span data-i18n="highContrast">Contraste renforcé</span></label>
@@ -280,6 +280,28 @@ async function init() {
     (data.packs || []).forEach(p => { packsById[p.id] = p; });
     const includedPacks = (collection.packIds || []).map(pid => packsById[pid]).filter(Boolean);
 
+    // ← Retour + chaînage vers les packs (4 septembre, même chantier que pack.html) : une collection
+    // n'a pas d'équivalent de pack.linkedAdReelId (pas configurée en backstage) -- seul le paramètre
+    // `from` dynamique (déposé par adReelFromParam(), index.html) permet de savoir par quel AdReel
+    // cette collection a été ouverte. handleParam et fromParam sont propagés vers chaque pack listé
+    // pour que SON "← Retour" revienne ici (fromCollection) plutôt que de sauter directement à
+    // l'AdReel -- la collection reste elle-même capable de continuer la chaîne jusqu'à l'AdReel.
+    const fromAdReelId = new URLSearchParams(location.search).get('from');
+    const handle = new URLSearchParams(location.search).get('u');
+    const handleParam = handle ? `&u=${encodeURIComponent(handle)}` : '';
+    const fromParam = fromAdReelId ? `&from=${encodeURIComponent(fromAdReelId)}` : '';
+    const linkedAdReel = fromAdReelId ? (data.adReels || []).find(a => a.id === fromAdReelId) : null;
+    const backLinkEl = document.getElementById('backLinkEl');
+    if (linkedAdReel) {
+      const adReelHref = (linkedAdReel.id === 'main' ? `./index.html?lang=${pageLang}` : `./index.html?adreel=${encodeURIComponent(linkedAdReel.id)}&lang=${pageLang}`) + handleParam;
+      if (backLinkEl) backLinkEl.href = adReelHref;
+    } else if (backLinkEl && window.history.length > 1) {
+      // Aucun AdReel d'origine résolvable (visite directe, lien de collection partagé isolément) --
+      // retour navigateur plutôt que de forcer index.html (retomberait sur DEFAULT_OWNER_ID faute de
+      // vraie page d'accueil générique, docs/infrastructure.md).
+      backLinkEl.addEventListener('click', (e) => { e.preventDefault(); window.history.back(); });
+    }
+
     container.innerHTML = `
       <div class="pub-section">
         ${collection.illustration ? `<img class="pack-illustration" src="${IMAGES_BASE}${collection.illustration}" alt="">` : `<div class="pack-illustration empty"></div>`}
@@ -288,7 +310,7 @@ async function init() {
         <div class="section-label">${tr('packsInCollectionLabel')}</div>
         <div class="collection-pack-list">
           ${includedPacks.length ? includedPacks.map(p => `
-            <a class="collection-pack-row" href="./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}">
+            <a class="collection-pack-row" href="./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}&fromCollection=${encodeURIComponent(id)}${fromParam}${handleParam}">
               ${p.illustration ? `<img class="collection-pack-thumb" src="${IMAGES_BASE}${p.illustration}" alt="" loading="lazy">` : `<div class="collection-pack-thumb empty"></div>`}
               <span class="collection-pack-row-title">${escapeHtml(p.title)}</span>
             </a>
