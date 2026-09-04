@@ -8,6 +8,18 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-04f] — Message personnalisé sur les invitations testeur
+
+**Fichiers touchés** : `supabase/functions/invite-tester/index.ts`, `api/auth.js`, `layerpitch-backstage.html`.
+
+**Contexte** : sujet évoqué le 3 septembre avec la durée des liens magiques et le spam (résolus ce jour-là), resté en suspens — Jules-Antoine voulait pouvoir adresser un mot personnalisé à chaque testeur plutôt qu'un simple lien.
+
+**Changement** : `invite-tester` n'utilise plus `auth.admin.inviteUserByEmail()` (template Supabase fixe, aucun champ personnalisable) mais `auth.admin.generateLink({type:'invite'})` — crée le compte et renvoie le lien d'action sans envoyer d'email — puis envoie l'email lui-même via l'API Resend (déjà le SMTP configuré pour les autres emails Supabase, ici appelé directement en HTTP) avec le message de Jules-Antoine inséré dans un template maison. Nouveau champ "Message personnalisé (optionnel)" dans le panneau "Inviter un testeur". Nouveaux secrets requis, pas encore renseignés au moment de cette entrée : `RESEND_API_KEY`, `RESEND_FROM_ADDRESS`.
+
+**Repli en cas d'échec partiel** : si l'envoi Resend échoue une fois le compte déjà créé (effet de bord de `generateLink()`, pas d'annulation fiable disponible côté Supabase), la fonction renvoie quand même le lien d'action dans l'erreur — affiché dans l'alerte du backstage pour que Jules-Antoine puisse le transmettre lui-même plutôt que de perdre l'invitation.
+
+---
+
 ## [2026-09-04e] — Rétablit l'upload média pour les compositeurs non-admin
 
 **Fichiers touchés** : `layerpitch-backstage.html`, nouveau `supabase/functions/create-media-signed-url/index.ts`.
