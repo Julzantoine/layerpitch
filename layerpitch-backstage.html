@@ -1051,6 +1051,8 @@
     <div class="row" style="margin-top:8px;">
       <div><label>Email du testeur</label><input type="email" id="inviteTesterEmail" placeholder="testeur@exemple.com"></div>
     </div>
+    <label>Message personnalisé (optionnel)</label>
+    <textarea id="inviteTesterMessage" rows="3" placeholder="Un petit mot pour ce testeur — laisse vide pour un message par défaut."></textarea>
     <div class="actions">
       <button class="btn" id="btnInviteTester" type="button">Envoyer l'invitation</button>
     </div>
@@ -1655,6 +1657,7 @@ async function initPgAuthUi() {
   if (inviteBtn) {
     inviteBtn.addEventListener('click', async () => {
       const email = document.getElementById('inviteTesterEmail').value.trim();
+      const personalMessage = document.getElementById('inviteTesterMessage').value.trim();
       if (!email) { alert('Renseigne l\'email du testeur.'); return; }
       inviteBtn.disabled = true;
       try {
@@ -1662,19 +1665,24 @@ async function initPgAuthUi() {
         // Redirige vers bienvenue.html (flux d'inscription, docs/infrastructure.md), pas vers le
         // backstage lui-même -- sinon tout nouvel invité atterrit directement dans l'outil
         // compositeur sans jamais voir l'écran d'accueil.
-        const { ok, error, data } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html');
+        const { ok, error, data, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html', personalMessage);
         if (ok) {
           if (data && data.cloudflareWarning) {
             alert(
-              'Invitation Supabase envoyée à ' + email + '.\n\n' +
+              'Invitation envoyée à ' + email + '.\n\n' +
               '⚠️ Mais l\'ajout automatique à la liste Cloudflare Access a échoué :\n' + data.cloudflareWarning + '\n\n' +
               'Sans cet ajout manuel, ce testeur restera bloqué au mur Cloudflare et ne pourra jamais utiliser son lien.\n' +
               'Dashboard Cloudflare → Zero Trust → Access → Applications → "beta" → Policies → ajoute son email à la règle "Include".'
             );
           } else {
-            alert('Invitation envoyée à ' + email + ' (ajouté aussi à la liste Cloudflare Access — plus de geste manuel à faire).');
+            alert('Invitation envoyée à ' + email + ' (email personnalisé + ajout à la liste Cloudflare Access — plus de geste manuel à faire).');
           }
           document.getElementById('inviteTesterEmail').value = '';
+          document.getElementById('inviteTesterMessage').value = '';
+        } else if (actionLink) {
+          // Compte créé mais email jamais parti (Resend en échec) -- le lien de secours doit être
+          // transmis à la main plutôt que de perdre l'invitation.
+          alert('Erreur : ' + error + '\n\nLien à transmettre toi-même à ' + email + ' :\n' + actionLink);
         } else {
           alert('Erreur : ' + error);
         }

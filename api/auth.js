@@ -61,9 +61,27 @@
   // signInWithMagicLink — doit être dans la liste d'URLs autorisées du projet Supabase). Sans ça,
   // Supabase retombe sur la Site URL par défaut du projet, jamais configurée pour ce cas (trouvé
   // le 1er septembre, lien d'invitation cassé au premier vrai essai).
-  async function inviteTester(email, redirectTo) {
-    const { data, error } = await getClient().functions.invoke('invite-tester', { body: { email, redirectTo } });
-    if (error) return { ok: false, error: await describeFunctionError(error) };
+  // personalMessage (4 septembre) : inséré dans l'email d'invitation envoyé via Resend (invite-tester
+  // n'utilise plus le template fixe de Supabase) -- optionnel, un message par défaut est utilisé si
+  // absent. Sur échec APRÈS création du compte (email jamais parti), la fonction renvoie quand même
+  // actionLink dans le corps JSON de l'erreur -- describeFunctionError() ne renverrait que le message
+  // texte, donc on relit ce corps ici pour ne pas perdre ce lien de secours.
+  async function inviteTester(email, redirectTo, personalMessage) {
+    const { data, error } = await getClient().functions.invoke('invite-tester', { body: { email, redirectTo, personalMessage } });
+    if (error) {
+      // Lu une seule fois ici (le corps de error.context ne peut être consommé qu'une fois) --
+      // describeFunctionError() n'est volontairement pas réutilisée pour ce cas précis, elle
+      // relirait un flux déjà consommé et retomberait sur le message générique du SDK.
+      let message = error.message, actionLink = null;
+      if (error.context && typeof error.context.json === 'function') {
+        try {
+          const body = await error.context.json();
+          if (body && body.error) message = body.error;
+          if (body && body.actionLink) actionLink = body.actionLink;
+        } catch (e) { /* corps non-JSON ou déjà consommé : repli sur error.message */ }
+      }
+      return { ok: false, error: message, actionLink };
+    }
     return { ok: true, data };
   }
 
