@@ -13,13 +13,22 @@
 // lui-même l'appel PUT/DELETE directement vers R2 avec cette URL (pas de transfert de fichier via
 // cette fonction -- évite toute limite de taille de requête côté Edge Function).
 //
-// Validation du chemin volontairement simple (préfixe autorisé + pas de remontée de répertoire),
-// PAS de vérification que l'entité visée (AdReel/morceau/Sfx) appartient bien à l'appelant --
-// lacune connue, notée dans docs/infrastructure.md comme point à durcir si un vrai abus est
-// constaté (un compositeur pourrait aujourd'hui écraser le fichier d'un autre s'il devine/connaît
-// son identifiant, exposé dans les URLs publiques). Reste une amélioration nette : avant ce
-// correctif, chaque testeur détenait la clé secrète complète du bucket entier (lecture/écriture/
-// suppression de tout, y compris data.json/player.js), pas seulement d'un objet précis.
+// Validation du chemin : préfixe autorisé + pas de remontée de répertoire, PLUS (4 septembre,
+// durcissement) vérification que l'entité visée appartient réellement à l'appelant, pour les
+// formats de chemin dont l'entité est une table avec owner_id connue (ad_reels/packs/collections/
+// tracks/sfx_library -- toutes les cinq confirmées le 31 août). Deux formats restent NON vérifiés
+// et volontairement laissés passer : les images de bloc (`${b.id}-*`, un bloc vit en JSONB à
+// l'intérieur d'un ad_reel, pas une table interrogeable séparément) et les polices personnalisées
+// (`${font.id}`, table non confirmée) -- même comportement qu'avant ce durcissement pour ces deux
+// cas plutôt que de deviner un schéma et casser un vrai upload.
+//
+// Vérifié avant d'écrire cette version, pas supposé : publishAll() (layerpitch-backstage.html)
+// uploade TOUT le média avant d'appeler les RPC upsert_ad_reel/upsert_track/etc. qui créent
+// réellement la ligne Postgres -- donc pour tout contenu publié pour la première fois, l'entité
+// n'existe pas encore en base au moment de l'upload. verifyOwnership() traite "entité introuvable"
+// comme autorisé (seul un vrai conflit avec une entité EXISTANTE appartenant à quelqu'un d'autre
+// est bloqué) -- un rejet sur "introuvable" aurait cassé la toute première publication de tout
+// compositeur, pas un cas limite.
 
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -30,6 +39,32 @@ const corsHeaders = {
 };
 
 const ALLOWED_PREFIXES = ['images/', 'audio/'];
+
+// Renvoie true si le chemin est autorisé pour ce compositeur -- soit parce que l'entité visée lui
+// appartient (vérifié), soit parce que le format de chemin n'est pas rattachable à une table
+// interrogeable (voir commentaire d'en-tête) et reste donc non vérifié, comme avant ce durcissement.
+async function verifyOwnership(adminClient: ReturnType<typeof createClient>, path: string, composerId: string): Promise<boolean> {
+  const checks: Array<{ pattern: RegExp; table: string }> = [
+    { pattern: /^images\/(?:logo|photo|theme-bg)-([^./]+)\.[^./]+$/, table: 'ad_reels' },
+    { pattern: /^images\/pack(?:-watermark)?-([^./]+)\.[^./]+$/, table: 'packs' },
+    { pattern: /^images\/collection-([^./]+)\.[^./]+$/, table: 'collections' },
+    { pattern: /^audio\/sfx-([^/]+)\//, table: 'sfx_library' },
+    { pattern: /^audio\/([^/]+)\//, table: 'tracks' },
+  ];
+  for (const { pattern, table } of checks) {
+    const m = path.match(pattern);
+    if (!m) continue;
+    const { data } = await adminClient.from(table).select('owner_id').eq('id', m[1]).maybeSingle();
+    // Entité pas encore créée : autorisé -- publishAll() (layerpitch-backstage.html) uploade tout
+    // le média AVANT d'appeler les RPC upsert_* qui créent réellement la ligne Postgres. Rejeter
+    // ici casserait la toute première publication de tout nouveau contenu, pas seulement un cas
+    // limite. Seul un vrai conflit (entité existante appartenant à quelqu'un d'autre) est bloqué.
+    if (!data) return true;
+    return data.owner_id === composerId;
+  }
+  // Format non reconnu (bloc, police...) -- non vérifiable, laissé passer.
+  return true;
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -71,6 +106,17 @@ Deno.serve(async (req) => {
     if (method !== 'PUT' && method !== 'DELETE') {
       return new Response(JSON.stringify({ error: 'method invalide (PUT ou DELETE attendu).' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // service_role pour la vérification de propriété -- même raisonnement que create-checkout-session
+    // (seul point de vérité, jamais soumis à la RLS "lecture publique" qui s'applique par ailleurs à
+    // ces tables).
+    const adminClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const owned = await verifyOwnership(adminClient, path, composerId as string);
+    if (!owned) {
+      return new Response(JSON.stringify({ error: 'Ce fichier ne t\'appartient pas.' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
