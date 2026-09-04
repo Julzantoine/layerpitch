@@ -217,6 +217,15 @@
   .backstage-panel.active { display: block; }
   .empty-panel-placeholder { border: 1px dashed #d8d8dc; border-radius: 8px; padding: 30px; text-align: center; color: #999; font-size: 12px; }
 
+  .analytics-date-input { background: #fafafa; border: 1px solid #d8d8dc; border-radius: 4px; color: #24262b; padding: 6px 8px; font-size: 12px; font-family: inherit; }
+  .analytics-session { border: 1px solid #e2e2e6; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: var(--bg); }
+  .analytics-session-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; font-size: 12px; color: #444; }
+  .analytics-session-head strong { color: #222; }
+  .analytics-session-detail { margin-top: 8px; font-size: 11.5px; color: #666; }
+  .analytics-session-detail ul { margin: 4px 0 8px 18px; padding: 0; }
+  .analytics-track-skipped { color: #b25b2c; }
+  .analytics-track-reached { color: #2c7a4b; }
+
   .block-editor-card { border: 1px solid #e2e2e6; border-radius: 8px; margin-bottom: 14px; overflow: hidden; background: var(--bg); }
   .block-editor-head {
     display: flex; align-items: center; justify-content: space-between;
@@ -664,6 +673,12 @@
           <span data-i18n="navManageAdreels">Gérer les AdReels</span>
         </span>
       </button>
+      <button class="nav-item" data-tab="analytics" type="button">
+        <span class="nav-item-label">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V11M12 20V4M20 20v-7"/></svg>
+          <span data-i18n="navAnalytics">Analytics</span>
+        </span>
+      </button>
       <button class="nav-item" data-tab="projects" type="button" disabled>
         <span class="nav-item-label">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="1.6"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" stroke-linecap="round"/></svg>
@@ -774,6 +789,31 @@
             <div class="seq-master-list" id="manageAdreelsMaster"></div>
             <div class="seq-detail-col" id="manageAdreelsDetail"></div>
           </div>
+        </div>
+      </div>
+
+      <div class="backstage-panel" data-panel="analytics">
+        <h2 data-i18n="navAnalytics">Analytics</h2>
+        <div class="sub" data-i18n="analyticsPanelSub">Qui écoute tes AdReels et packs, et comment — ouvertures de lien, morceaux joués, réglages ajustés en direct. Filtré sur tes propres AdReels/Packs uniquement.</div>
+        <div id="analyticsLocked" class="empty-panel-placeholder" hidden>
+          <div data-i18n="analyticsLockedMsg">Le tableau de bord analytique fait partie des paliers payants — passe en Starter pour voir les ouvertures de lien, ou en Pro pour le détail complet (morceau par morceau, interactions adaptatives).</div>
+          <div class="actions" style="margin-top:12px;justify-content:center;">
+            <a class="btn" href="mon-compte.html" target="_blank" rel="noopener" data-i18n="analyticsUpgradeCta">Voir les paliers</a>
+          </div>
+        </div>
+        <div id="analyticsUnlocked" hidden>
+          <div id="analyticsDateFilter" class="actions" style="margin-bottom:14px;" hidden>
+            <label class="hint" data-i18n="analyticsFromLabel">Du</label>
+            <input type="date" id="analyticsFromInput" class="analytics-date-input">
+            <label class="hint" data-i18n="analyticsToLabel">Au</label>
+            <input type="date" id="analyticsToInput" class="analytics-date-input">
+            <button class="btn btn-small" id="btnAnalyticsFilterApply" type="button" data-i18n="analyticsApplyFilter">Appliquer</button>
+          </div>
+          <div id="analyticsMeta" class="hint" style="margin-bottom:12px;"></div>
+          <div id="analyticsLoading" class="hint" data-i18n="analyticsLoadingMsg" hidden>Chargement…</div>
+          <div id="analyticsError" class="hint" hidden></div>
+          <div id="analyticsEmpty" class="empty-panel-placeholder" data-i18n="analyticsEmptyMsg" hidden>Aucune donnée pour l'instant — reviens une fois que ton lien aura été ouvert au moins une fois.</div>
+          <div id="analyticsSessions"></div>
         </div>
       </div>
 
@@ -1438,6 +1478,7 @@ function loadPostgresReadScripts() {
     await loadScript('./api/admin.js');
     await loadScript('./api/connect.js');
     await loadScript('./api/invoices.js');
+    await loadScript('./api/analytics.js');
   })();
   return postgresReadScriptsLoaded;
 }
@@ -1508,10 +1549,12 @@ async function renderSubscriptionPanel(session) {
     statusEl.textContent = 'Aucun profil compositeur pour l\'instant — publie une première fois pour en créer un.';
     currentEffectivePlan = 'free';
     renderAppearancePanelForTier();
+    renderAnalyticsPanelForTier();
     return;
   }
   currentEffectivePlan = effectiveTierFromTrialStatus(status);
   renderAppearancePanelForTier();
+  renderAnalyticsPanelForTier();
   const planLabel = { free: 'Free', starter: 'Starter', pro: 'Pro' }[status.plan] || status.plan;
   const trialEndsAt = status.trialEndsAt ? new Date(status.trialEndsAt) : null;
   const trialActive = trialEndsAt && trialEndsAt > new Date();
@@ -1776,6 +1819,20 @@ async function initPgAuthUi() {
       connectBtn.disabled = false;
     });
   }
+  // Filtre par plage de dates du tableau de bord Analytics (Pro uniquement, grille validée du 4
+  // septembre) -- ne redéclenche un appel à get_my_analytics() que sur clic explicite, pas à
+  // chaque changement de champ de date.
+  const analyticsFilterBtn = document.getElementById('btnAnalyticsFilterApply');
+  if (analyticsFilterBtn) {
+    analyticsFilterBtn.addEventListener('click', () => {
+      const fromEl = document.getElementById('analyticsFromInput');
+      const toEl = document.getElementById('analyticsToInput');
+      fetchAndRenderAnalytics({
+        from: fromEl && fromEl.value ? fromEl.value : null,
+        to: toEl && toEl.value ? toEl.value : null,
+      });
+    });
+  }
   // Si la page vient d'un lien magique (fragment #access_token=...), le SDK Supabase détecte et
   // établit la session automatiquement dès sa création (detectSessionInUrl, comportement par défaut) —
   // il suffit de charger les scripts et de s'abonner pour le refléter dans l'UI.
@@ -1836,7 +1893,13 @@ function switchTab(tabName) {
 }
 document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
-    if (!btn.disabled) { switchTab(btn.dataset.tab); trackBackstageEvent('tab_switch', { tab: btn.dataset.tab }); }
+    if (!btn.disabled) {
+      switchTab(btn.dataset.tab);
+      trackBackstageEvent('tab_switch', { tab: btn.dataset.tab });
+      // Chargement à la demande (appel RPC get_my_analytics()) -- jamais au chargement du
+      // backstage, seulement quand le compositeur ouvre vraiment l'onglet.
+      if (btn.dataset.tab === 'analytics') loadAnalyticsIfNeeded();
+    }
   });
 });
 
@@ -7531,6 +7594,111 @@ function renderAppearancePanelForTier() {
   if (typeof rebuildAllCards === 'function') rebuildAllCards();
   if (typeof renderPacks === 'function') renderPacks();
   if (typeof renderCollections === 'function') renderCollections();
+}
+
+// ---- Tableau de bord Analytics (chantier 4-5 septembre) ----------------------------------------
+// Palier Free : écran verrouillé, aucun appel réseau. Starter/Pro : chargé à la demande (pas au
+// chargement du backstage) via la RPC Postgres get_my_analytics() (système propriétaire, remplace
+// une première piste envisagée -- l'API Umami Cloud -- abandonnée avant d'être codée, voir
+// docs/LAYERPITCH_CHANGELOG.md), qui applique déjà elle-même le gating par palier -- ce qui suit
+// n'est qu'un affichage de ce qu'elle renvoie, jamais un masquage de données qui auraient autrement
+// été reçues en clair.
+let analyticsData = null;
+let analyticsLoadedForTier = null;
+
+function analyticsEscapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Rappelée par renderSubscriptionPanel() (donc à chaque résolution/changement de palier) -- bascule
+// juste la visibilité verrouillé/déverrouillé et le filtre de dates (Pro seulement) ; le chargement
+// réseau lui-même est déclenché séparément par loadAnalyticsIfNeeded() (clic sur l'onglet).
+function renderAnalyticsPanelForTier() {
+  const lockedEl = document.getElementById('analyticsLocked');
+  const unlockedEl = document.getElementById('analyticsUnlocked');
+  const dateFilterEl = document.getElementById('analyticsDateFilter');
+  const isFree = currentEffectivePlan === 'free';
+  if (lockedEl) lockedEl.hidden = !isFree;
+  if (unlockedEl) unlockedEl.hidden = isFree;
+  if (dateFilterEl) dateFilterEl.hidden = currentEffectivePlan !== 'pro';
+  if (isFree) { analyticsData = null; analyticsLoadedForTier = null; return; }
+  if (analyticsData && analyticsLoadedForTier === currentEffectivePlan) renderAnalyticsSessions();
+}
+
+async function loadAnalyticsIfNeeded() {
+  if (currentEffectivePlan === 'free') return;
+  if (analyticsData && analyticsLoadedForTier === currentEffectivePlan) { renderAnalyticsSessions(); return; }
+  await fetchAndRenderAnalytics();
+}
+
+async function fetchAndRenderAnalytics(range) {
+  const loadingEl = document.getElementById('analyticsLoading');
+  const errorEl = document.getElementById('analyticsError');
+  const emptyEl = document.getElementById('analyticsEmpty');
+  const sessionsEl = document.getElementById('analyticsSessions');
+  if (loadingEl) loadingEl.hidden = false;
+  if (errorEl) errorEl.hidden = true;
+  if (emptyEl) emptyEl.hidden = true;
+  if (sessionsEl) sessionsEl.innerHTML = '';
+  await loadPostgresReadScripts();
+  const { analytics, error } = await window.LayerPitchAnalytics.getMyAnalytics(range || {});
+  if (loadingEl) loadingEl.hidden = true;
+  if (error) {
+    if (errorEl) { errorEl.hidden = false; errorEl.textContent = tr('analyticsErrorPrefix') + ' ' + error; }
+    return;
+  }
+  analyticsData = analytics;
+  analyticsLoadedForTier = currentEffectivePlan;
+  renderAnalyticsSessions();
+}
+
+function renderAnalyticsSessionCard(s) {
+  const typeLabel = s.type === 'pack' ? tr('analyticsTypePack') : tr('analyticsTypeAdreel');
+  const opened = s.openedAt ? new Date(s.openedAt).toLocaleString(currentLang() === 'en' ? 'en-US' : 'fr-FR') : '—';
+  const device = s.device || tr('analyticsUnknownDevice');
+  let detail = '';
+  if (currentEffectivePlan === 'pro') {
+    const tracks = s.tracks || [];
+    const interactions = s.interactions || [];
+    const trackItems = tracks.map(t => {
+      const cls = t.skipped ? 'analytics-track-skipped' : (t.reachedEnd ? 'analytics-track-reached' : '');
+      const stateLabel = t.reachedEnd ? tr('analyticsTrackReachedEnd') : (t.skipped ? tr('analyticsTrackSkipped') : tr('analyticsTrackPartial'));
+      return `<li class="${cls}">${analyticsEscapeHtml(t.trackId)} — ${analyticsEscapeHtml(stateLabel)}</li>`;
+    }).join('');
+    const interactionItems = interactions.map(i => `<li>${analyticsEscapeHtml(i.name)}</li>`).join('');
+    detail = `
+      <div class="analytics-session-detail">
+        <div>${analyticsEscapeHtml(tr('analyticsTracksHeading'))} <span class="hint">(${tr('analyticsTrackDetailApprox')})</span></div>
+        <ul>${trackItems || '<li>' + analyticsEscapeHtml(tr('analyticsNoTracks')) + '</li>'}</ul>
+        <div>${analyticsEscapeHtml(tr('analyticsInteractionsHeading'))} (${interactions.length})</div>
+        <ul>${interactionItems || '<li>' + analyticsEscapeHtml(tr('analyticsNoInteractions')) + '</li>'}</ul>
+      </div>`;
+  }
+  return `
+    <div class="analytics-session">
+      <div class="analytics-session-head">
+        <strong>${analyticsEscapeHtml(typeLabel)} — ${analyticsEscapeHtml(s.entityId)}</strong>
+        <span>${analyticsEscapeHtml(opened)}</span>
+        <span>${analyticsEscapeHtml(device)}</span>
+      </div>
+      ${detail}
+    </div>`;
+}
+
+function renderAnalyticsSessions() {
+  const sessionsEl = document.getElementById('analyticsSessions');
+  const emptyEl = document.getElementById('analyticsEmpty');
+  const metaEl = document.getElementById('analyticsMeta');
+  if (!sessionsEl || !analyticsData) return;
+  const sessions = analyticsData.sessions || [];
+  if (metaEl) metaEl.textContent = tr('analyticsRetentionNote', { days: analyticsData.retentionDays });
+  if (!sessions.length) {
+    if (emptyEl) emptyEl.hidden = false;
+    sessionsEl.innerHTML = '';
+    return;
+  }
+  if (emptyEl) emptyEl.hidden = true;
+  sessionsEl.innerHTML = sessions.map(renderAnalyticsSessionCard).join('');
 }
 // Valeur effective d'un champ d'apparence pour le thème général actuel — sert de point de départ quand
 // on active une personnalisation par bloc (plutôt que de partir d'une couleur arbitraire). Vérifie

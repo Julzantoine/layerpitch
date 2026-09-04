@@ -8,7 +8,33 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
-## [2026-09-05] — La boucle quittée ducke immédiatement pendant une transition d'embranchement-vertical
+## [2026-09-05b] — Tableau de bord analytique compositeur, basculé sur un système Postgres propriétaire
+
+**Fichiers touchés** : nouveau `supabase/migrations/20260905010000_composer_analytics_events.sql`, nouveau `supabase/migrations/20260905020000_analytics_log_event_owner_hint.sql`, nouveau `scripts/test-analytics-rpcs.js`, réécrit `api/analytics.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `index.html`, `pack.html`, `player.js` ; renommé `test_umami_owner_context.js` → `test_analytics_tracking_context.js` (élargi) ; supprimés `supabase/functions/get-composer-analytics/` et `test_composer_analytics_gating.js` (piste Umami, jamais déployée).
+
+**Contexte** : remplace la piste `[2026-09-04h]` (API Umami Cloud) — abandonnée en essayant concrètement de générer une clé API : l'accès programmatique d'Umami Cloud est réservé à son plan payant (~20$/mois), une dépense récurrente indépendante du nombre de compositeurs, pour une dépendance externe hors de la philosophie du reste du produit (Postgres/RPC, pas de serveur API dédié). Décision prise avec Jules-Antoine : système de tracking propriétaire, entièrement en Postgres. Grille (Free/Starter/Pro, rétention 1 mois/1 an) inchangée dans son contenu. Umami reste installé tel quel sur le site, mais devient un outil réservé à Jules-Antoine (vue globale plateforme : trafic total, provenance, y compris les pages sans propriétaire comme `bienvenue.html`) — sans lien avec ce tableau de bord.
+
+**Simplification actée** : appareil capturé en "mobile"/"desktop" uniquement (seuil 768px), pas de navigateur/OS précis — la grille validée ne demandait que l'appareil approximatif.
+
+**Point technique trouvé en codant (signalé, pas deviné)** : le prompt de ce chantier suggérait `effective_plan_quotas()` pour résoudre le palier effectif ("cohérent avec le reste du produit"). Vérifié : sa colonne `plan` ne reflète JAMAIS un essai reverse trial actif (documenté explicitement dans sa propre migration, `20260903190000`) — l'utiliser aurait cassé "essai actif = accès Pro pendant l'essai". `composer_effective_tier()` (nouvelle fonction SQL, utilisée à la fois par la lecture et la purge pour ne jamais diverger) reproduit à la place la logique déjà éprouvée côté client (`effectiveTierFromTrialStatus()`) : essai actif → 'pro', sinon le palier brut. Rôle admin délibérément pas pris en compte, même limite documentée partout ailleurs dans le produit.
+
+**Vrai bug trouvé en testant contre la base réelle** (`scripts/test-analytics-rpcs.js`, deux compositeurs de test avec un AdReel `'main'` chacun — reproduit volontairement le cas historique de `20260903120000_ad_reels_owner_scoped_id.sql`) : la première version de `log_analytics_event()` résolvait le propriétaire uniquement par `entity_id` (`select owner_id from ad_reels where id = p_entity_id`) — `ad_reels.id` n'étant unique que PAR compositeur (contrairement à `packs.id`, clé primaire simple), cette requête attrapait arbitrairement L'UN des deux compositeurs partageant `'main'`. Exactement le même problème que celui déjà corrigé côté tracking Umami, réapparu ici sous une autre forme. Corrigé (migration `20260905020000`) : la fonction accepte désormais un `p_owner_id` optionnel — un INDICE vérifié contre une vraie ligne `(id, owner_id)`, jamais pris tel quel — réutilisant `window.__lpTrackContext.ownerId`, déjà résolu et propagé depuis le chantier du 4 septembre (qui s'avère donc toujours utile, pas seulement vestigial comme supposé un temps). Un indice erroné ou combiné à un id non réellement possédé fait échouer silencieusement l'insertion, jamais une fausse confiance.
+
+**Changement** :
+- **Table `analytics_events`** (RLS activée sans policy — accès exclusivement via les deux fonctions SECURITY DEFINER ci-dessous) + table `analytics_write_rate_limit` (compteurs de limite de fréquence, à part, aucune IP stockée dans la table de faits).
+- **`log_analytics_event(...)`** (écriture, `anon`+`authenticated`) : résout le vrai propriétaire côté base (jamais une valeur du client, voir bug ci-dessus), limite de fréquence par IP (`current_setting('request.headers')::json->>'x-forwarded-for'`, repli sur `session_id` hors PostgREST) à 60/minute par clé, rejet silencieux sur toute entrée invalide ou entité inexistante — jamais une erreur qui casserait la page publique.
+- **`get_my_analytics(p_from, p_to)`** (lecture, `authenticated`) : gating par palier fait EN SQL, pas seulement à l'affichage — un Starter ne sélectionne jamais les colonnes `detail`/par-événement (agrégé en sessions directement dans la requête), un Free n'a structurellement aucun chemin vers une donnée réelle. "Jusqu'où, sauté ou non" (Pro) reste une **inférence** (fenêtrage `LEAD()` sur les `track_play` d'une session + présence d'un `go_to_end_click`), pas une mesure continue de progression — même limite déjà documentée côté UI.
+- **`purge_old_analytics_events()`** : suppression réelle (pas un simple filtre de lecture) des lignes au-delà de la rétention du palier ACTUEL du compositeur (tranché : pas celui en vigueur au moment de l'événement — comportement le plus simple). Planifiée quotidiennement à 3h via `pg_cron` (activé sans accroc sur ce projet).
+- `api/analytics.js` : `getMyAnalytics()`/`logAnalyticsEvent()` appellent directement les RPC ci-dessus — plus d'Edge Function, plus de secret à gérer.
+- `index.html`/`pack.html`/`player.js` : `sessionId` (`crypto.randomUUID()`) ajouté à `window.__lpTrackContext`, `trackPublicEvent` appelle désormais aussi `logAnalyticsEvent()` (silencieux si `api/analytics.js` non chargé ou hors périmètre AdReel/Pack) en plus d'Umami.
+- `layerpitch-backstage.html` : l'onglet Analytics construit le 4 septembre change à peine — `getMyAnalytics()` garde exactement la même forme de réponse, seul le "tuyau" change. Concept `truncated` retiré (plus de pagination d'API externe à border).
+- **Migrations appliquées et testées contre la vraie base de ce projet dans cette session** (`node scripts/apply-migrations.js`, `node scripts/test-analytics-rpcs.js`, 18/18 OK) : isolation stricte entre deux compositeurs (y compris collision `'main'`), refus Free, contenu exact Starter vs Pro, essai actif, indice de propriétaire falsifié rejeté, limite de fréquence, purge par rétention.
+
+**Reste à faire** : rien côté configuration — plus de secret, plus de déploiement manuel d'Edge Function. Le déclenchement réel de la tâche planifiée (`pg_cron`, 3h du matin) n'a pas pu être observé en conditions réelles dans cette session (délai trop long) ; la fonction `purge_old_analytics_events()` elle-même est vérifiée directement (appel manuel dans le test).
+
+---
+
+## [2026-09-05a] — La boucle quittée ducke immédiatement pendant une transition d'embranchement-vertical
 
 **Fichiers touchés** : `player.js`.
 
@@ -23,6 +49,8 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 ---
 
 ## [2026-09-04h] — Tableau de bord analytique compositeur, par palier
+
+**Amendement du 5 septembre : cette piste (API Umami Cloud) a été abandonnée avant tout déploiement réel — voir l'entrée `[2026-09-05b]` plus haut pour le système finalement construit (Postgres propriétaire).** Entrée conservée telle quelle pour l'historique (raisonnement/limites trouvées à ce moment-là, dont certaines restent vraies pour le nouveau système).
 
 **Fichiers touchés** : nouveau `supabase/functions/get-composer-analytics/index.ts`, nouveau `api/analytics.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `index.html`, `pack.html`, `collection.html`, `player.js` ; nouveaux `test_composer_analytics_gating.js`, `test_umami_owner_context.js`.
 

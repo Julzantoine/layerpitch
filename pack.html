@@ -436,6 +436,7 @@ function loadPostgresReadScripts() {
     await loadScript('./api/adreels.js');
     await loadScript('./api/site-data.js');
     await loadScript('./api/composers.js');
+    await loadScript('./api/analytics.js');
   })();
   return postgresReadScriptsLoaded;
 }
@@ -807,7 +808,11 @@ function openInPanel(parsed) {
 async function init() {
   const container = document.getElementById('content');
   const id = new URLSearchParams(location.search).get('id');
-  window.__lpTrackContext = { type: 'pack', id: id };
+  // sessionId : voir le commentaire équivalent dans index.html.
+  window.__lpTrackContext = {
+    type: 'pack', id: id,
+    sessionId: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)),
+  };
   try {
     const data = await loadSiteData();
     window.__lpTrackContext.ownerId = lastResolvedOwnerId;
