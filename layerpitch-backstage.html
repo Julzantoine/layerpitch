@@ -8177,11 +8177,31 @@ async function r2HmacRaw(keyData, data) {
 function r2UriEncodeSegment(segment) {
   return encodeURIComponent(segment).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
 }
+// URL R2 pré-signée via la nouvelle Edge Function create-media-signed-url (4 septembre) --
+// utilisée en repli quand aucun identifiant R2 local n'est saisi (panneau "Stockage média" masqué
+// aux non-admins depuis ce même jour, voir docs/infrastructure.md). Le compositeur n'a jamais accès
+// aux clés secrètes R2 elles-mêmes dans ce chemin, contrairement au panneau admin.
+async function r2SignedUrl(path, method) {
+  await loadPostgresReadScripts();
+  const { data, error } = await window.LayerPitchSupabaseClient.getClient()
+    .functions.invoke('create-media-signed-url', { body: { path, method } });
+  if (error) throw new Error(await window.LayerPitchAuth.describeFunctionError(error));
+  if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
+  return data.url;
+}
 async function r2PutFile(key, bytes, contentType) {
   const accountId = state.r2AccountId(), bucket = state.r2Bucket();
   const accessKey = state.r2AccessKeyId(), secretKey = state.r2SecretAccessKey();
   if (!accountId || !bucket || !accessKey || !secretKey) {
-    throw new Error('Identifiants R2 manquants — remplis le bloc "Stockage média (Cloudflare R2)" avant de publier de l\'audio.');
+    // Pas d'identifiants R2 locaux (cas normal pour tout compositeur non-admin depuis que ce
+    // panneau est masqué) -- repli sur une URL pré-signée à usage unique plutôt que de bloquer.
+    const url = await r2SignedUrl(key, 'PUT');
+    const res = await fetch(url, { method: 'PUT', headers: { 'content-type': contentType }, body: bytes });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
+    }
+    return;
   }
   const host = `${accountId}.r2.cloudflarestorage.com`;
   const region = 'auto', service = 's3';
@@ -8222,7 +8242,14 @@ async function r2DeleteFile(key) {
   const accountId = state.r2AccountId(), bucket = state.r2Bucket();
   const accessKey = state.r2AccessKeyId(), secretKey = state.r2SecretAccessKey();
   if (!accountId || !bucket || !accessKey || !secretKey) {
-    throw new Error('Identifiants R2 manquants — remplis le bloc "Stockage média (Cloudflare R2)" avant de supprimer un fichier audio.');
+    // Même repli que r2PutFile -- voir ce commentaire pour le contexte.
+    const url = await r2SignedUrl(key, 'DELETE');
+    const res = await fetch(url, { method: 'DELETE' });
+    if (!res.ok && res.status !== 404) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`DELETE R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
+    }
+    return;
   }
   const host = `${accountId}.r2.cloudflarestorage.com`;
   const region = 'auto', service = 's3';
