@@ -13,28 +13,33 @@
   }
 
   // Démarre un achat : ouvre une session Stripe Checkout pour ce pack et redirige le navigateur.
-  // successUrl/cancelUrl optionnels (défauts côté Edge Function).
+  // successUrl/cancelUrl optionnels (défauts côté Edge Function). describeFunctionError() (api/
+  // auth.js) : sans ça, les erreurs de blocage Stripe Connect/facturation (create-checkout-session,
+  // chantier 4 septembre) resteraient masquées derrière le message générique du SDK.
   async function buyPack(packId, { successUrl, cancelUrl } = {}) {
     const { data, error } = await getClient().functions.invoke('create-checkout-session', {
       body: { packId, successUrl, cancelUrl },
     });
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: await window.LayerPitchAuth.describeFunctionError(error) };
     if (!data || !data.url) return { ok: false, error: data && data.error ? data.error : 'Réponse inattendue.' };
     window.location.href = data.url; // redirection vers Stripe Checkout
     return { ok: true };
   }
 
   // Bibliothèque acheteur : packs achetés par l'utilisateur connecté (RLS : own purchases only).
+  // invoice_id/invoices embarqués (chantier facturation, 4 septembre) : évite un second aller-
+  // retour pour savoir si la facture est prête et afficher son lien de téléchargement.
   async function myPurchases() {
     const { data, error } = await getClient()
       .from('pack_purchases')
-      .select('id, pack_id, purchased_at, price_paid, packs(id, title, illustration)')
+      .select('id, pack_id, purchased_at, price_paid, invoice_id, packs(id, title, illustration), invoices(id, invoice_number, document_type)')
       .order('purchased_at', { ascending: false });
     if (error) return { purchases: null, error: error.message };
     return {
       purchases: data.map(r => ({
         purchaseId: r.id, packId: r.pack_id, purchasedAt: r.purchased_at, pricePaid: r.price_paid,
         pack: r.packs ? { id: r.packs.id, title: r.packs.title, illustration: r.packs.illustration } : null,
+        invoice: r.invoices ? { id: r.invoices.id, number: r.invoices.invoice_number, documentType: r.invoices.document_type } : null,
       })),
       error: null,
     };
