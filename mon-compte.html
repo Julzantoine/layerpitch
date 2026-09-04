@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LayerPitch — Mon compte</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root {
+    --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
+    --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --accent: #c9713c; --font-body: 'Inter', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); padding: 40px 20px 60px; }
+  .page { max-width: 560px; margin: 0 auto; }
+  a { color: var(--accent); }
+  .back-link { display: inline-block; margin-bottom: 20px; font-size: 13px; }
+  h1 { font-family: 'Space Grotesk', sans-serif; font-size: 24px; margin-bottom: 24px; }
+  h2 { font-family: 'Space Grotesk', sans-serif; font-size: 15px; margin: 0 0 6px; }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; margin-bottom: 16px; }
+  .hint { font-size: 12.5px; line-height: 1.6; color: var(--text-dim); margin-bottom: 10px; }
+  .status { font-size: 13px; margin: 8px 0; }
+  label { display: block; font-size: 12px; color: var(--text-dim); margin: 10px 0 4px; }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; font-family: 'Inter', sans-serif; font-size: 13px; }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .btn { padding: 9px 18px; border: none; border-radius: 4px; background: var(--accent); color: #fff; cursor: pointer; font-size: 13px; }
+  .btn:disabled { opacity: 0.6; cursor: default; }
+  .btn-small { padding: 5px 12px; font-size: 12px; }
+  .msg { font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-top: 8px; }
+  .msg.err { color: #b5442e; }
+  .msg.ok { color: #2a7; }
+  .invoice-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 12.5px; border-top: 1px solid var(--border); }
+  .invoice-row:first-child { border-top: none; }
+  .signin-box input { margin-bottom: 12px; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .checkbox-row input { width: auto; }
+  .checkbox-row span { font-size: 12px; color: var(--text-dim); }
+</style>
+</head>
+<body>
+<div class="page">
+  <a class="back-link" href="./layerpitch-backstage.html">← Retour au backstage</a>
+  <h1>Mon compte</h1>
+  <div id="content"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="api/supabase-client.js"></script>
+<script src="api/auth.js"></script>
+<script src="api/subscriptions.js"></script>
+<script src="api/connect.js"></script>
+<script src="api/invoices.js"></script>
+<script>
+const content = document.getElementById('content');
+
+function planLabel(plan) { return { free: 'Free', starter: 'Starter', pro: 'Pro' }[plan] || plan; }
+
+async function subscriptionCardHtml() {
+  const { status, error } = await LayerPitchSubscriptions.getTrialStatus();
+  if (error) return `<div class="card"><h2>Mon abonnement</h2><div class="msg err">Erreur : ${error}</div></div>`;
+  let statusText = 'Aucun profil compositeur pour l\'instant — publie une première fois pour en créer un.';
+  if (status) {
+    const trialEndsAt = status.trialEndsAt ? new Date(status.trialEndsAt) : null;
+    const trialActive = trialEndsAt && trialEndsAt > new Date();
+    if (trialActive) {
+      const daysLeft = Math.max(1, Math.ceil((trialEndsAt - new Date()) / 86400000));
+      statusText = `Palier réel : ${planLabel(status.plan)}. Essai Pro complet actif — encore ${daysLeft} jour(s), sans carte.`;
+    } else if (trialEndsAt && status.plan === 'free') {
+      statusText = 'Ton essai Pro est terminé, tu es maintenant sur Free — choisis un palier payant ci-dessous pour retrouver l\'accès complet.';
+    } else {
+      statusText = `Palier actuel : ${planLabel(status.plan)}.`;
+    }
+  }
+  return `
+    <div class="card">
+      <h2>Mon abonnement</h2>
+      <div class="hint">Palier gratuit, essai Pro complet de 30 jours sans carte à l'inscription (retombe automatiquement sur Free à l'expiration si tu ne choisis rien), ou un vrai palier payant mensuel/annuel.</div>
+      <div class="status" id="subscriptionStatus">${statusText}</div>
+      <div class="actions">
+        <button class="btn" id="btnPlanFree" type="button">Passer en Free</button>
+        <button class="btn" id="btnPlanStarterMonth" type="button">Starter — mensuel</button>
+        <button class="btn" id="btnPlanStarterYear" type="button">Starter — annuel</button>
+        <button class="btn" id="btnPlanProMonth" type="button">Pro — mensuel</button>
+        <button class="btn" id="btnPlanProYear" type="button">Pro — annuel</button>
+      </div>
+      <div class="msg" id="subscriptionMsg"></div>
+    </div>`;
+}
+
+async function billingCardHtml() {
+  const { profile, error } = await LayerPitchConnect.getMyBillingProfile();
+  if (error) return `<div class="card"><h2>Mes informations de facturation</h2><div class="msg err">Erreur : ${error}</div></div>`;
+  const p = profile || {};
+  const statusText = p.billing_status ? 'Profil de facturation complet.' : 'Profil de facturation incomplet — tes packs ne peuvent pas encore être achetés.';
+  return `
+    <div class="card">
+      <h2>Mes informations de facturation</h2>
+      <div class="hint">LayerPitch émet la facture (ou l'attestation de vente si tu es un particulier) au nom de tes ventes de packs, en ton nom (mandat de facturation, art. 289 du CGI) — ces informations doivent être complètes avant qu'un de tes packs ne devienne achetable.</div>
+      <div class="status" id="billingStatus">${statusText}</div>
+      <label>Statut</label>
+      <select id="billingStatusSelect">
+        <option value="">— Choisis —</option>
+        <option value="professionnel" ${p.billing_status === 'professionnel' ? 'selected' : ''}>Professionnel (facture avec ou sans TVA)</option>
+        <option value="particulier" ${p.billing_status === 'particulier' ? 'selected' : ''}>Particulier (attestation de vente, jamais de TVA)</option>
+      </select>
+      <label>Raison sociale / Nom complet</label>
+      <input type="text" id="billingLegalName" value="${p.billing_legal_name || ''}" placeholder="Ton nom ou celui de ta structure">
+      <label>Adresse complète</label>
+      <input type="text" id="billingAddress" value="${p.billing_address || ''}" placeholder="Numéro, rue, code postal, ville, pays">
+      <div class="row">
+        <div><label>SIRET (si professionnel)</label><input type="text" id="billingSiret" value="${p.billing_siret || ''}" placeholder="14 chiffres"></div>
+        <div><label>N° TVA intracommunautaire (si applicable)</label><input type="text" id="billingVatNumber" value="${p.billing_vat_number || ''}" placeholder="FRxx xxxxxxxxx"></div>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="billingVatApplicable" ${p.billing_vat_applicable ? 'checked' : ''}>
+        <span>Je facture la TVA (décoche si tu es en franchise en base, art. 293 B du CGI)</span>
+      </div>
+      <div class="actions"><button class="btn" id="btnSaveBillingProfile" type="button">Enregistrer</button></div>
+      <div class="msg" id="billingMsg"></div>
+    </div>`;
+}
+
+async function connectCardHtml() {
+  const { status, error } = await LayerPitchConnect.myConnectStatus();
+  if (error) return `<div class="card"><h2>Recevoir mes ventes</h2><div class="msg err">Erreur : ${error}</div></div>`;
+  let statusText = 'Aucun compte Stripe connecté — tes packs ne peuvent pas encore être achetés.';
+  let btnLabel = 'Connecter mon compte Stripe';
+  if (status && status.connected) {
+    if (status.chargesEnabled) { statusText = 'Compte Stripe connecté et actif — tu reçois automatiquement ta part à chaque vente.'; btnLabel = 'Gérer mon compte Stripe'; }
+    else { statusText = 'Compte Stripe créé, mais l\'inscription n\'est pas terminée côté Stripe — reprends-la pour pouvoir recevoir des paiements.'; btnLabel = 'Terminer la connexion Stripe'; }
+  }
+  return `
+    <div class="card">
+      <h2>Recevoir mes ventes</h2>
+      <div class="hint">Chaque vente d'un de tes packs verse automatiquement ta part sur ton propre compte Stripe — LayerPitch garde sa commission au même moment, aucun virement manuel de notre côté. Nécessite un compte Stripe ET tes informations de facturation ci-dessus, complètes.</div>
+      <div class="status" id="connectStatus">${statusText}</div>
+      <div class="actions"><button class="btn" id="btnConnectOnboard" type="button">${btnLabel}</button></div>
+      <div class="msg" id="connectMsg"></div>
+    </div>`;
+}
+
+async function invoicesCardHtml() {
+  const { invoices, error } = await LayerPitchInvoices.getMyIssuedInvoices();
+  if (error) return `<div class="card"><h2>Mes factures émises</h2><div class="msg err">Erreur : ${error}</div></div>`;
+  const rows = invoices.length
+    ? invoices.map(inv => {
+        const label = inv.document_type === 'facture' ? 'Facture' : 'Attestation de vente';
+        const date = new Date(inv.created_at).toLocaleDateString('fr-FR');
+        return `<div class="invoice-row"><span>${label} ${inv.invoice_number} — ${date} — ${Number(inv.amount_ttc).toFixed(2)} $</span><button class="btn btn-small" type="button" data-invoice-id="${inv.id}">Télécharger</button></div>`;
+      }).join('')
+    : '<div class="hint">Aucune facture émise pour l\'instant.</div>';
+  return `
+    <div class="card">
+      <h2>Mes factures émises</h2>
+      <div class="hint">Copie des factures/attestations de vente émises pour tes ventes — à conserver de ton côté, LayerPitch les garde aussi.</div>
+      <div id="issuedInvoicesList">${rows}</div>
+    </div>`;
+}
+
+function wireSubscriptionCard() {
+  const planButtons = [
+    { id: 'btnPlanFree', plan: 'free', interval: null },
+    { id: 'btnPlanStarterMonth', plan: 'starter', interval: 'month' },
+    { id: 'btnPlanStarterYear', plan: 'starter', interval: 'year' },
+    { id: 'btnPlanProMonth', plan: 'pro', interval: 'month' },
+    { id: 'btnPlanProYear', plan: 'pro', interval: 'year' },
+  ];
+  planButtons.forEach(({ id, plan, interval }) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      const msg = document.getElementById('subscriptionMsg');
+      btn.disabled = true; msg.textContent = '…';
+      try {
+        if (plan === 'free') {
+          const { ok, error } = await LayerPitchSubscriptions.choosePlanFree();
+          msg.textContent = ok ? 'Palier Free activé.' : 'Erreur : ' + error;
+          if (ok) render();
+        } else {
+          const successUrl = window.location.origin + '/mon-compte.html?subscribed=1';
+          const cancelUrl = window.location.origin + '/mon-compte.html?subscribed=0';
+          const { ok, error } = await LayerPitchSubscriptions.subscribeToPlan(plan, interval, { successUrl, cancelUrl });
+          if (!ok) msg.textContent = 'Erreur : ' + error;
+        }
+      } catch (e) { msg.textContent = 'Erreur : ' + e.message; }
+      btn.disabled = false;
+    });
+  });
+}
+
+function wireBillingCard() {
+  const btn = document.getElementById('btnSaveBillingProfile');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const msg = document.getElementById('billingMsg');
+    const status = document.getElementById('billingStatusSelect').value;
+    if (!status) { msg.textContent = 'Choisis un statut (professionnel ou particulier).'; return; }
+    const legalName = document.getElementById('billingLegalName').value.trim();
+    const address = document.getElementById('billingAddress').value.trim();
+    if (!legalName || !address) { msg.textContent = 'Raison sociale/nom et adresse sont requis.'; return; }
+    btn.disabled = true; msg.textContent = '…';
+    try {
+      const { ok, error } = await LayerPitchConnect.saveMyBillingProfile({
+        status, legalName, address,
+        siret: document.getElementById('billingSiret').value.trim(),
+        vatNumber: document.getElementById('billingVatNumber').value.trim(),
+        vatApplicable: document.getElementById('billingVatApplicable').checked,
+      });
+      msg.textContent = ok ? 'Enregistré.' : 'Erreur : ' + error;
+      if (ok) render();
+    } catch (e) { msg.textContent = 'Erreur : ' + e.message; }
+    btn.disabled = false;
+  });
+}
+
+function wireConnectCard() {
+  const btn = document.getElementById('btnConnectOnboard');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const msg = document.getElementById('connectMsg');
+    btn.disabled = true; msg.textContent = '…';
+    try {
+      const returnUrl = window.location.origin + '/mon-compte.html?connect=return';
+      const refreshUrl = window.location.origin + '/mon-compte.html?connect=refresh';
+      const { ok, error } = await LayerPitchConnect.startConnectOnboarding({ returnUrl, refreshUrl });
+      if (!ok) msg.textContent = 'Erreur : ' + error;
+    } catch (e) { msg.textContent = 'Erreur : ' + e.message; }
+    btn.disabled = false;
+  });
+}
+
+function wireInvoicesCard() {
+  document.querySelectorAll('button[data-invoice-id]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        const { data, error } = await LayerPitchSupabaseClient.getClient()
+          .functions.invoke('get-invoice-download-url', { body: { invoiceId: btn.getAttribute('data-invoice-id') } });
+        if (error || !data || !data.url) alert('Erreur : ' + (error ? await LayerPitchAuth.describeFunctionError(error) : (data && data.error) || 'inconnue'));
+        else window.open(data.url, '_blank', 'noopener');
+      } catch (e) { alert('Erreur : ' + e.message); }
+      btn.disabled = false;
+    });
+  });
+}
+
+async function render() {
+  const { session } = await LayerPitchAuth.getSession();
+  if (!session) {
+    content.innerHTML = `
+      <div class="card">
+        <div class="hint">Connecte-toi pour voir ton compte.</div>
+        <div class="signin-box">
+          <input type="email" id="email" placeholder="ton@email.com">
+          <button class="btn" id="sendBtn" type="button">Recevoir le lien de connexion</button>
+          <div class="msg" id="msg"></div>
+        </div>
+      </div>`;
+    document.getElementById('sendBtn').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim();
+      const msg = document.getElementById('msg');
+      if (!email) return;
+      msg.textContent = '…'; msg.className = 'msg';
+      const { ok, error } = await LayerPitchAuth.signInWithMagicLink(email, window.location.href);
+      msg.textContent = ok ? 'Lien envoyé — vérifie ta boîte mail.' : 'Erreur : ' + error;
+      msg.className = 'msg ' + (ok ? 'ok' : 'err');
+    });
+    return;
+  }
+
+  // Retour de Stripe Checkout après une souscription payante (même principe que
+  // bienvenue.html?subscribed=1) : le webhook Stripe écrit composer_profiles.plan de façon
+  // asynchrone, pas forcément déjà fait au moment où Stripe redirige ici.
+  if (new URLSearchParams(location.search).get('subscribed') === '1') {
+    content.innerHTML = `<div class="card"><div class="hint">Confirmation de ton abonnement…</div></div>`;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const { status } = await LayerPitchSubscriptions.getTrialStatus();
+      if (status && status.plan !== 'free') break;
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+
+  content.innerHTML = (await subscriptionCardHtml()) + (await billingCardHtml()) + (await connectCardHtml()) + (await invoicesCardHtml());
+  wireSubscriptionCard(); wireBillingCard(); wireConnectCard(); wireInvoicesCard();
+}
+
+LayerPitchAuth.onAuthStateChange(() => render());
+</script>
+</body>
+</html>
