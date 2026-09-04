@@ -8,6 +8,22 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-05c] — "Carte des chemins" masquée pour les pistes séquentielles à un seul emplacement
+
+**Fichiers touchés** : `player.js` (déjà présent dans le commit `ae1ed9f`, voir note ci-dessous — documenté séparément ici).
+
+**Contexte** : retour direct de Jules-Antoine (capture d'écran) sur la piste démo "The Last Door" : la section "Carte des chemins" s'affichait avec un unique nœud, au libellé non traduit ("slotFallback") — "le slot carte des chemins n'a rien à faire là".
+
+**Diagnostic** : `seqMapHtml` (`buildTrackRow`) ne conditionnait l'affichage qu'à `isSequential && supported`, sans regarder le nombre réel d'emplacements de la piste. "The Last Door" n'a qu'UN seul `segmentSlot` (4 alternatives tirées au hasard en son sein, pas un enchaînement de plusieurs emplacements) — la carte n'avait donc rien à représenter : un unique nœud, sans arête, sans intérêt. Le composant a été conçu (chantier du 02/09) pour les vraies ramifications à plusieurs emplacements, pas pour ce cas.
+
+**Changement** : condition étendue à `(track.segmentSlots || []).length > 1` — la carte ne s'affiche plus que lorsqu'il y a réellement plus d'un emplacement à enchaîner. `updateSeqMap()` se protège déjà (`if (!seqMapNodesEl || !seqMapCanvasEl) return;`) quand le bloc n'est pas rendu, aucun autre garde nécessaire ailleurs.
+
+**Vérification** : `node --check player.js` OK. `test_seq_map.js` (34/34, aucune fixture à un seul emplacement) + `test_seq_branching.js`/`test_seq_transitions.js`/`test_backstage_seq_transitions.js` rejouées sans modification, toutes vertes. Vérifié en navigateur réel (serveur local temporaire) : "The Last Door" (1 emplacement) n'a plus de bloc `[data-role="seqMap"]` dans le DOM une fois développée ; "Robot Adventure" (plusieurs emplacements, vraie ramification) l'a toujours.
+
+**Note (session concurrente)** : ce correctif a été codé et vérifié dans une session distincte de celle ayant produit le reste du commit `ae1ed9f` (ducking embranchement-vertical, entrée `[2026-09-05a]` ci-dessous) — les deux modifications de `player.js`, faites en parallèle dans le même dossier de travail, se sont retrouvées committées et poussées ensemble avant qu'un commit séparé ait pu être fait ici. Documenté après coup pour cette raison.
+
+---
+
 ## [2026-09-05b] — Tableau de bord analytique compositeur, basculé sur un système Postgres propriétaire
 
 **Fichiers touchés** : nouveau `supabase/migrations/20260905010000_composer_analytics_events.sql`, nouveau `supabase/migrations/20260905020000_analytics_log_event_owner_hint.sql`, nouveau `scripts/test-analytics-rpcs.js`, réécrit `api/analytics.js`, `layerpitch-backstage.html`, `layerpitch-i18n.js`, `index.html`, `pack.html`, `player.js` ; renommé `test_umami_owner_context.js` → `test_analytics_tracking_context.js` (élargi) ; supprimés `supabase/functions/get-composer-analytics/` et `test_composer_analytics_gating.js` (piste Umami, jamais déployée).
