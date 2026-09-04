@@ -8,6 +8,18 @@ Journal des modifications de code et sessions de débogage. Entrées classées d
 
 ---
 
+## [2026-09-04g] — Nouvelle page "Mon compte" (abonnement/facturation/Connect regroupés)
+
+**Fichiers touchés** : nouveau `mon-compte.html` ; `layerpitch-backstage.html`.
+
+**Contexte** : dernier point d'une liste de chantiers autonomes demandés par Jules-Antoine avant de s'absenter ("upload média pour compositeur non-admin", "message personnalisé sur les invitations", "vraie page Mon compte/Settings" — les trois premiers listés comme réalisables sans attendre d'autre décision). Les panneaux "Mon abonnement", "Mes informations de facturation", "Recevoir mes ventes" et "Mes factures émises" étaient dispersés dans la longue liste de fieldsets du backstage (déjà notée comme limite dans `docs/infrastructure.md`, "À trancher").
+
+**Changement** : nouvelle page `mon-compte.html`, même patron déjà établi pour le panneau admin (page séparée, simple lien "Ouvrir Mon compte" ajouté au backstage) plutôt qu'une nouvelle convention. Réutilise telles quelles les fonctions `api/subscriptions.js`/`api/connect.js`/`api/invoices.js` déjà construites — même logique de rendu que les panneaux du backstage, juste réorganisée sur une page dédiée au style visuel de `bienvenue.html` (carte centrée) plutôt que la grille dense du backstage.
+
+**Décision volontairement pas prise en l'absence de Jules-Antoine** : les 4 panneaux du backstage ne sont **pas retirés** — laissés en place, dupliqués avec la nouvelle page, en attendant sa validation. Retrait à faire une fois confirmé que cette page lui convient (peut aussi révéler des soucis d'organisation).
+
+---
+
 ## [2026-09-04f] — Message personnalisé sur les invitations testeur
 
 **Fichiers touchés** : `supabase/functions/invite-tester/index.ts`, `api/auth.js`, `layerpitch-backstage.html`.
