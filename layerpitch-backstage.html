@@ -7173,12 +7173,16 @@ async function loadPlatformNotice() {
   const { notice } = await window.LayerPitchAdmin.getPlatformNotice();
   const { profile } = await window.LayerPitchAuth.getMyProfile();
   const dismissedAt = profile ? profile.noticeDismissedAt : null;
+  // Message dans la langue du backstage de ce compte (même réglage que currentLang()/tr()) —
+  // repli sur l'autre langue si l'admin n'a rempli que l'une des deux (mieux vaut un message
+  // dans la mauvaise langue que pas de message du tout).
+  const message = notice ? (currentLang() === 'en' ? (notice.messageEn || notice.messageFr) : (notice.messageFr || notice.messageEn)) : null;
   // Un nouveau message (notice_updated_at plus récent que le dernier "J'ai vu") réaffiche le
   // bandeau même si le compte avait déjà accusé réception d'un message précédent.
-  const shouldShow = notice && notice.message &&
+  const shouldShow = message &&
     (!dismissedAt || (notice.updatedAt && new Date(dismissedAt) < new Date(notice.updatedAt)));
   if (shouldShow) {
-    textEl.textContent = notice.message;
+    textEl.textContent = message;
     banner.style.display = 'flex';
   } else {
     banner.style.display = 'none';

@@ -119,7 +119,10 @@
     <div class="card">
       <h2 data-i18n="noticeTitle">Bandeau d'annonce (backstage)</h2>
       <p class="subtitle" data-i18n="noticeHint" style="margin-bottom:10px;">Affiché à tous les compositeurs connectés.</p>
-      <textarea id="noticeTextarea" data-i18n-placeholder="noticePlaceholder" placeholder="Message à afficher dans le backstage…"></textarea>
+      <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;" data-i18n="noticeFrLabel">Français</label>
+      <textarea id="noticeTextareaFr" data-i18n-placeholder="noticePlaceholder" placeholder="Message à afficher dans le backstage…"></textarea>
+      <label style="font-size:11px;color:var(--text-dim);display:block;margin:10px 0 4px;" data-i18n="noticeEnLabel">Anglais</label>
+      <textarea id="noticeTextareaEn" data-i18n-placeholder="noticePlaceholderEn" placeholder="Message to show in the backstage…"></textarea>
       <div class="row" style="margin-top:10px;">
         <button id="noticeSaveBtn" data-i18n="noticeSaveBtn">Enregistrer</button>
         <button id="noticeClearBtn" class="secondary" data-i18n="noticeClearBtn">Effacer</button>
@@ -298,22 +301,25 @@ document.getElementById('searchInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') loadAccounts(document.getElementById('searchInput').value.trim());
 });
 
-// ---- Bandeau d'annonce ----
+// ---- Bandeau d'annonce (bilingue — un message par langue de backstage) ----
 async function loadNotice() {
   const { notice } = await window.LayerPitchAdmin.getPlatformNotice();
-  document.getElementById('noticeTextarea').value = (notice && notice.message) || '';
+  document.getElementById('noticeTextareaFr').value = (notice && notice.messageFr) || '';
+  document.getElementById('noticeTextareaEn').value = (notice && notice.messageEn) || '';
 }
 document.getElementById('noticeSaveBtn').addEventListener('click', async () => {
   const msg = document.getElementById('noticeMsg');
-  const text = document.getElementById('noticeTextarea').value;
-  const { ok, error } = await window.LayerPitchAdmin.setPlatformNotice(text);
+  const fr = document.getElementById('noticeTextareaFr').value;
+  const en = document.getElementById('noticeTextareaEn').value;
+  const { ok, error } = await window.LayerPitchAdmin.setPlatformNotice(fr, en);
   msg.textContent = ok ? tr('noticeSavedStatus') : (tr('noticeErrorPrefix') + error);
   msg.className = ok ? 'msg ok' : 'msg err';
 });
 document.getElementById('noticeClearBtn').addEventListener('click', async () => {
   const msg = document.getElementById('noticeMsg');
-  document.getElementById('noticeTextarea').value = '';
-  const { ok, error } = await window.LayerPitchAdmin.setPlatformNotice('');
+  document.getElementById('noticeTextareaFr').value = '';
+  document.getElementById('noticeTextareaEn').value = '';
+  const { ok, error } = await window.LayerPitchAdmin.setPlatformNotice('', '');
   msg.textContent = ok ? tr('noticeClearedStatus') : (tr('noticeErrorPrefix') + error);
   msg.className = ok ? 'msg ok' : 'msg err';
 });
