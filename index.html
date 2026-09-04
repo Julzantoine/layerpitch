@@ -371,6 +371,11 @@
 
   .contact { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); letter-spacing: 0.03em; line-height: 1.8; padding-top: 24px; border-top: 1px solid var(--border); }
   .layerpitch-credit { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--text-dimmer); opacity: 0.55; letter-spacing: 0.04em; margin-top: 16px; }
+  .layerpitch-credit a { color: inherit; text-decoration: none; }
+  .layerpitch-credit a:hover { text-decoration: underline; }
+  /* Séparateurs entre blocs (Chantier Apparence Phase 3, palier Free via preset ou Starter via
+     profile.theme.separator) -- désactivé par défaut (pas de classe show-separators posée). */
+  #blocksContainer.show-separators > .block + .block { border-top: var(--separator-width, 1px) solid var(--separator-color, transparent); padding-top: 32px; }
   .contrast-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 14px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); cursor: pointer; user-select: none; }
   .contrast-toggle input { width: auto; margin: 0; cursor: pointer; }
   body.high-contrast .contrast-toggle { color: var(--text); font-weight: 600; }
@@ -396,6 +401,7 @@
   <div id="blocksContainer"></div>
   <div class="contact" id="contact"></div>
   <div class="layerpitch-credit" id="layerpitchCredit"></div>
+  <label class="contrast-toggle"><input type="checkbox" id="nightModeToggle"> <span data-i18n="nightMode">Mode nuit</span></label>
   <label class="contrast-toggle"><input type="checkbox" id="contrastToggle"> <span data-i18n="highContrast">Contraste renforcé</span></label>
 </div>
 
@@ -405,7 +411,7 @@
 <script src="layerpitch-i18n.js?v=1788440725621"></script>
 <script src="player.js?v=1788440725621"></script>
 <script>
-const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle } = window.LayerPlayerCore;
+const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
 
 // Images migrées vers Cloudflare R2 (docs/infrastructure.md, Partie B, Décision 3) — chemins
 // conservés à l'identique (images/<filename>), seul le domaine de base change.
@@ -671,6 +677,21 @@ function renderSfxBlockItem(container, block, sfxById) {
   container.appendChild(el);
 }
 
+// Presets du palier Free (Chantier Apparence Phase 3, 4 septembre) — copiés tel quel depuis
+// layerpitch-backstage.html, même encodage, même logique, pas de duplication de concept. resolveThemePreset
+// applique le même repli silencieux sur "Défaut" que côté backstage si presetId est absent/inconnu.
+const THEME_PRESETS = [
+  { id: 'default', labelKey: 'themePresetDefault', bgColor: '#FAFAF8', titleColor: '#1A1A1A', contentColor: '#333333', font: 'default', separator: { visible: true, color: '#E0E0DC', thickness: 1 } },
+  { id: 'night', labelKey: 'themePresetNight', bgColor: '#121212', titleColor: '#FFFFFF', contentColor: '#C9C9CE', font: 'default', separator: { visible: true, color: '#3A3A40', thickness: 1 } },
+  { id: 'amber', labelKey: 'themePresetAmber', bgColor: '#F5EDE0', titleColor: '#A85C1E', contentColor: '#5C4530', font: 'google:Fraunces', separator: { visible: true, color: '#C99A6B', thickness: 3 } },
+  { id: 'neon', labelKey: 'themePresetNeon', bgColor: '#1B1035', titleColor: '#FF3EA5', contentColor: '#D9CFFF', font: 'google:Space Grotesk', separator: { visible: true, color: '#7A5FFF', thickness: 1 } },
+  { id: 'forest', labelKey: 'themePresetForest', bgColor: '#16321F', titleColor: '#D4AF37', contentColor: '#EDE6D6', font: 'google:Zilla Slab', separator: { visible: true, color: '#8C7A3D', thickness: 1 } },
+  { id: 'minimal', labelKey: 'themePresetMinimal', bgColor: '#FFFFFF', titleColor: '#000000', contentColor: '#4D4D4D', font: 'google:Manrope', separator: { visible: false, color: '#E0E0DC', thickness: 1 } }
+];
+function resolveThemePreset(presetId) {
+  return THEME_PRESETS.find(p => p.id === presetId) || THEME_PRESETS[0];
+}
+const DEFAULT_SEPARATOR = { visible: false, color: '#E4E1DA', thickness: 1 };
 // Résout une valeur de police ('default' | 'google:Nom' | 'custom:id') en une déclaration font-family CSS
 // utilisable. Retourne null pour 'default' (aucun override — le body garde son font-family de base).
 function fontCssFamily(fontValue, customFonts) {
@@ -894,24 +915,44 @@ async function init() {
     applyI18n();
     const blocks = migrateBlocks(adReel);
     const profile = adReel.profile || {};
+    // profile.effectivePlan est figé une fois pour toutes à la publication (publishAll(), Chantier
+    // Apparence Phase 3) -- cette page est statique, sans appel serveur au chargement, donc jamais
+    // recalculé ici. Absent = AdReel publié avant cette Phase 3 -> traité comme Starter (comportement
+    // plein, identique à avant, jamais de régression sur un AdReel déjà en ligne).
+    const tier = profile.effectivePlan || 'starter';
     // profile.theme remplace les anciens champs bgColor/textColor (gardés en lecture seule pour les
     // AdReels publiés avant ce changement, tant qu'ils n'ont pas été republiés depuis le backstage).
-    const theme = profile.theme
-      ? Object.assign({ bgColor: '#f6f5f3', titleColor: '#262521', contentColor: '#262521', font: 'default', bgImage: null, bgImageOpacity: 1 }, profile.theme)
-      : { bgColor: profile.bgColor || '#f6f5f3', titleColor: profile.textColor || '#262521', contentColor: profile.textColor || '#262521', font: 'default', bgImage: null, bgImageOpacity: 1 };
+    // Palier Free : le thème fin (couleurs/police/bgImage/réglages par bloc) n'est jamais appliqué, même
+    // s'il reste enregistré en base -- seul le preset choisi (repli silencieux sur "Défaut") compte.
+    const theme = tier === 'free'
+      ? resolveThemePreset(profile.theme && profile.theme.presetId)
+      : (profile.theme
+        ? Object.assign({ bgColor: '#f6f5f3', titleColor: '#262521', contentColor: '#262521', font: 'default', bgImage: null, bgImageOpacity: 1 }, profile.theme)
+        : { bgColor: profile.bgColor || '#f6f5f3', titleColor: profile.textColor || '#262521', contentColor: profile.textColor || '#262521', font: 'default', bgImage: null, bgImageOpacity: 1 });
     document.documentElement.style.setProperty('--bg', theme.bgColor);
     document.documentElement.style.setProperty('--text', theme.contentColor);
     document.documentElement.style.setProperty('--text-title', theme.titleColor);
+    // Séparateurs entre blocs : imposés par le preset sur Free, réglables indépendamment du reste du
+    // thème sur Starter et au-dessus (profile.theme.separator, absent -> désactivé par défaut).
+    const separator = tier === 'free' ? theme.separator : Object.assign({}, DEFAULT_SEPARATOR, profile.theme && profile.theme.separator || {});
+    document.documentElement.style.setProperty('--separator-color', separator.color);
+    document.documentElement.style.setProperty('--separator-width', separator.thickness + 'px');
+    container.classList.toggle('show-separators', !!separator.visible);
     // Polices : n'injecte (lien Google Fonts / @font-face) que ce qui est réellement utilisé par ce
     // thème général et les éventuels réglages par bloc de CET AdReel — jamais toute la bibliothèque de
     // polices personnalisées du compositeur, pour ne pas charger des fichiers inutiles à ce visiteur.
+    // Palier Free : les réglages par bloc (block.appearance) ne sont jamais pris en compte, ils
+    // n'existent tout simplement plus pour ce palier -- seule la police du preset compte.
     const usedFontValues = new Set([theme.font].filter(Boolean));
-    (adReel.blocks || []).forEach(b => { if (b.appearance && b.appearance.font) usedFontValues.add(b.appearance.font); });
+    if (tier !== 'free') {
+      (adReel.blocks || []).forEach(b => { if (b.appearance && b.appearance.font) usedFontValues.add(b.appearance.font); });
+    }
     injectFontAssets(usedFontValues, data.customFonts || []);
     document.documentElement.style.setProperty('--font-body', fontCssFamily(theme.font, data.customFonts || []) || "'Inter', sans-serif");
     setupContrastToggle('contrastToggle', theme.bgColor, theme.contentColor, theme.titleColor);
+    setupNightModeToggle('nightModeToggle', theme.bgColor, theme.contentColor, theme.titleColor);
     // Image de fond générale : calque plein écran fixe, sous le contenu — reste indépendante de l'opacité
-    // du texte, qui n'est jamais affectée par ce réglage.
+    // du texte, qui n'est jamais affectée par ce réglage. N'existe pas côté preset Free.
     if (theme.bgImage) {
       const bgLayer = document.createElement('div');
       bgLayer.style.cssText = `position:fixed;inset:0;z-index:-1;background-image:url('${IMAGES_BASE}${theme.bgImage}');background-size:cover;background-position:center;opacity:${theme.bgImageOpacity != null ? theme.bgImageOpacity : 1};`;
@@ -956,7 +997,8 @@ async function init() {
       }
       // Un bloc peut ne rien avoir ajouté au DOM (contenu vide — cf. les nombreux early-return des
       // fonctions render*BlockItem) : dans ce cas, container.children n'a pas grandi, rien à styliser.
-      if (container.children.length > beforeCount) {
+      // Palier Free : block.appearance n'est jamais appliqué (voir résolution du thème plus haut).
+      if (tier !== 'free' && container.children.length > beforeCount) {
         applyBlockAppearance(container.children[container.children.length - 1], block, data.customFonts || []);
       }
     });
@@ -967,7 +1009,15 @@ async function init() {
         profile.contactEmail ? `<a href="mailto:${profile.contactEmail}">${profile.contactEmail}</a>` : ''
       ].filter(Boolean).join(' &nbsp;/&nbsp; ');
     }
-    document.getElementById('layerpitchCredit').textContent = tr('creditLine').replace('{label}', adReel.label || adReel.id);
+    // Filigrane "propulsé par LayerPitch" (Chantier Apparence Phase 3) : affiché sur Free et Starter,
+    // retiré sur Pro (aucun composant Pro n'existe encore -- tout le monde le voit pour l'instant, mais
+    // la logique est prête). Cliquable vers la landing LayerPitch (docs/infrastructure.md).
+    const creditEl = document.getElementById('layerpitchCredit');
+    if (tier === 'pro') {
+      creditEl.style.display = 'none';
+    } else {
+      creditEl.innerHTML = `<a href="https://layerpitch.com" target="_blank" rel="noopener">${escapeHtml(tr('creditLine').replace('{label}', adReel.label || adReel.id))}</a>`;
+    }
   } catch (e) {
     container.innerHTML = `<div class="empty">${tr('loadError')}</div>`;
   }

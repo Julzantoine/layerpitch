@@ -60,6 +60,10 @@
 
   .empty { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dimmer); padding: 60px 0; text-align: center; }
   .layerpitch-credit { margin-top: 56px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dimmer); text-align: center; }
+  .layerpitch-credit a { color: inherit; text-decoration: none; }
+  .layerpitch-credit a:hover { text-decoration: underline; }
+  /* Séparateurs entre sections (Chantier Apparence Phase 3) -- désactivé par défaut. */
+  #content.show-separators > .pub-section + .pub-section { border-top: var(--separator-width, 1px) solid var(--separator-color, transparent); padding-top: 32px; }
   .contrast-toggle { display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); margin-top: 40px; cursor: pointer; }
   .contrast-toggle input { width: auto; }
 
@@ -87,6 +91,7 @@
 <div class="page">
   <a class="back-link" href="./index.html" data-i18n="backLink">← Retour</a>
   <div id="content"></div>
+  <label class="contrast-toggle"><input type="checkbox" id="nightModeToggle"> <span data-i18n="nightMode">Mode nuit</span></label>
   <label class="contrast-toggle"><input type="checkbox" id="contrastToggle"> <span data-i18n="highContrast">Contraste renforcé</span></label>
 </div>
 
@@ -94,7 +99,7 @@
 <script src="layerpitch-help.js?v=1788440725621"></script>
 <script src="player.js?v=1788440725621"></script>
 <script>
-const { escapeHtml, linkify, setupContrastToggle } = window.LayerPlayerCore;
+const { escapeHtml, linkify, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
 
 // Images migrées vers Cloudflare R2 (docs/infrastructure.md, Partie B, Décision 3) — chemins
 // conservés à l'identique (images/<filename>), seul le domaine de base change.
@@ -159,6 +164,20 @@ async function loadSiteData() {
   return window.LayerPitchSiteData.loadSiteDataFromPostgres(ownerId);
 }
 
+// Presets du palier Free (Chantier Apparence Phase 3, 4 septembre) -- copiés tel quel depuis
+// layerpitch-backstage.html/index.html/pack.html, même encodage, même logique.
+const THEME_PRESETS = [
+  { id: 'default', labelKey: 'themePresetDefault', bgColor: '#FAFAF8', titleColor: '#1A1A1A', contentColor: '#333333', font: 'default', separator: { visible: true, color: '#E0E0DC', thickness: 1 } },
+  { id: 'night', labelKey: 'themePresetNight', bgColor: '#121212', titleColor: '#FFFFFF', contentColor: '#C9C9CE', font: 'default', separator: { visible: true, color: '#3A3A40', thickness: 1 } },
+  { id: 'amber', labelKey: 'themePresetAmber', bgColor: '#F5EDE0', titleColor: '#A85C1E', contentColor: '#5C4530', font: 'google:Fraunces', separator: { visible: true, color: '#C99A6B', thickness: 3 } },
+  { id: 'neon', labelKey: 'themePresetNeon', bgColor: '#1B1035', titleColor: '#FF3EA5', contentColor: '#D9CFFF', font: 'google:Space Grotesk', separator: { visible: true, color: '#7A5FFF', thickness: 1 } },
+  { id: 'forest', labelKey: 'themePresetForest', bgColor: '#16321F', titleColor: '#D4AF37', contentColor: '#EDE6D6', font: 'google:Zilla Slab', separator: { visible: true, color: '#8C7A3D', thickness: 1 } },
+  { id: 'minimal', labelKey: 'themePresetMinimal', bgColor: '#FFFFFF', titleColor: '#000000', contentColor: '#4D4D4D', font: 'google:Manrope', separator: { visible: false, color: '#E0E0DC', thickness: 1 } }
+];
+function resolveThemePreset(presetId) {
+  return THEME_PRESETS.find(p => p.id === presetId) || THEME_PRESETS[0];
+}
+const DEFAULT_SEPARATOR = { visible: false, color: '#E4E1DA', thickness: 1 };
 // Résout une valeur de police ('default' | 'google:Nom' | 'custom:id') en une déclaration font-family CSS
 // utilisable. Retourne null pour 'default' (aucun override -- le body garde son font-family de base).
 // Copié tel quel depuis index.html/pack.html (19/08) : même encodage, même logique, pas de duplication.
@@ -235,33 +254,46 @@ async function init() {
   try {
     const data = await loadSiteData();
     const collection = (data.collections || []).find(c => c.id === id);
-    if (collection && collection.bgColor) document.documentElement.style.setProperty('--bg', collection.bgColor);
-    if (collection && collection.textColor) document.documentElement.style.setProperty('--text', collection.textColor);
-    if (collection && collection.font) {
-      injectFontAssets([collection.font], data.customFonts || []);
-      document.documentElement.style.setProperty('--font-body', fontCssFamily(collection.font, data.customFonts || []) || "'Inter', sans-serif");
-    }
-    setupContrastToggle('contrastToggle', collection && collection.bgColor, collection && collection.textColor);
     if (!collection) {
       container.innerHTML = `<div class="empty">${tr('collectionNotFound')}</div>`;
       return;
     }
+    // collection.effectivePlan est figé une fois pour toutes à la publication (Chantier Apparence Phase
+    // 3) -- absent = collection publiée avant cette Phase 3 -> traité comme Starter.
+    const tier = collection.effectivePlan || 'starter';
+    const theme = tier === 'free'
+      ? resolveThemePreset(collection.presetId)
+      : { bgColor: collection.bgColor, titleColor: collection.textColor, contentColor: collection.textColor, font: collection.font };
+    if (theme.bgColor) document.documentElement.style.setProperty('--bg', theme.bgColor);
+    if (theme.contentColor) document.documentElement.style.setProperty('--text', theme.contentColor);
+    if (theme.font) {
+      injectFontAssets([theme.font], data.customFonts || []);
+      document.documentElement.style.setProperty('--font-body', fontCssFamily(theme.font, data.customFonts || []) || "'Inter', sans-serif");
+    }
+    const separator = tier === 'free' ? theme.separator : Object.assign({}, DEFAULT_SEPARATOR, collection.separator || {});
+    document.documentElement.style.setProperty('--separator-color', separator.color);
+    document.documentElement.style.setProperty('--separator-width', separator.thickness + 'px');
+    container.classList.toggle('show-separators', !!separator.visible);
+    setupContrastToggle('contrastToggle', theme.bgColor, theme.contentColor);
+    setupNightModeToggle('nightModeToggle', theme.bgColor, theme.contentColor);
     const packsById = {};
     (data.packs || []).forEach(p => { packsById[p.id] = p; });
     const includedPacks = (collection.packIds || []).map(pid => packsById[pid]).filter(Boolean);
 
     container.innerHTML = `
-      ${collection.illustration ? `<img class="pack-illustration" src="${IMAGES_BASE}${collection.illustration}" alt="">` : `<div class="pack-illustration empty"></div>`}
-      <div class="pack-title">${escapeHtml(collection.title)}</div>
-      <div class="pack-presentation">${pickBilingualText(collection.presentationFr, collection.presentationEn).split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('')}</div>
-      <div class="section-label">${tr('packsInCollectionLabel')}</div>
-      <div class="collection-pack-list">
-        ${includedPacks.length ? includedPacks.map(p => `
-          <a class="collection-pack-row" href="./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}">
-            ${p.illustration ? `<img class="collection-pack-thumb" src="${IMAGES_BASE}${p.illustration}" alt="" loading="lazy">` : `<div class="collection-pack-thumb empty"></div>`}
-            <span class="collection-pack-row-title">${escapeHtml(p.title)}</span>
-          </a>
-        `).join('') : `<div class="empty">${tr('noPacksInCollectionYet')}</div>`}
+      <div class="pub-section">
+        ${collection.illustration ? `<img class="pack-illustration" src="${IMAGES_BASE}${collection.illustration}" alt="">` : `<div class="pack-illustration empty"></div>`}
+        <div class="pack-title">${escapeHtml(collection.title)}</div>
+        <div class="pack-presentation">${pickBilingualText(collection.presentationFr, collection.presentationEn).split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('')}</div>
+        <div class="section-label">${tr('packsInCollectionLabel')}</div>
+        <div class="collection-pack-list">
+          ${includedPacks.length ? includedPacks.map(p => `
+            <a class="collection-pack-row" href="./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}">
+              ${p.illustration ? `<img class="collection-pack-thumb" src="${IMAGES_BASE}${p.illustration}" alt="" loading="lazy">` : `<div class="collection-pack-thumb empty"></div>`}
+              <span class="collection-pack-row-title">${escapeHtml(p.title)}</span>
+            </a>
+          `).join('') : `<div class="empty">${tr('noPacksInCollectionYet')}</div>`}
+        </div>
       </div>
     `;
 
@@ -279,7 +311,7 @@ async function init() {
     }));
 
     const buySection = document.createElement('div');
-    buySection.className = 'buy-section';
+    buySection.className = 'buy-section pub-section';
     // Même principe que pack.html : téléchargement gratuit réel dès aujourd'hui, vente toujours affichée
     // grisée pendant la bêta (quel que soit buyUrl), pour ne jamais laisser croire à un vrai système de
     // paiement qui n'existe pas encore.
@@ -308,10 +340,19 @@ async function init() {
       });
     }
 
-    const credit = document.createElement('div');
-    credit.className = 'layerpitch-credit';
-    credit.textContent = tr('creditLine').replace('{title}', collection.title);
-    document.getElementById('content').appendChild(credit);
+    // Filigrane "propulsé par LayerPitch" (Chantier Apparence Phase 3) : affiché sur Free et Starter,
+    // retiré sur Pro, cliquable vers la landing LayerPitch -- même logique que index.html/pack.html.
+    if (tier !== 'pro') {
+      const credit = document.createElement('div');
+      credit.className = 'layerpitch-credit';
+      const creditLink = document.createElement('a');
+      creditLink.href = 'https://layerpitch.com';
+      creditLink.target = '_blank';
+      creditLink.rel = 'noopener';
+      creditLink.textContent = tr('creditLine').replace('{title}', collection.title);
+      credit.appendChild(creditLink);
+      document.getElementById('content').appendChild(credit);
+    }
   } catch (e) {
     console.error('LayerPitch — échec du chargement de la collection :', e);
     container.innerHTML = `<div class="empty">${tr('loadError')}</div>`;
