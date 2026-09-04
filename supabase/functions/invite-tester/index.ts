@@ -6,15 +6,26 @@
 // exposée côté client. Appelée depuis api/auth.js (inviteTester()), jamais directement.
 //
 // Réservée aux admins : vérifie que l'appelant est authentifié ET que son compte figure dans la
-// table `admins` (RPC `is_admin()`, supabase/migrations/20260901190000_admin_role.sql). Remplace
-// l'ancienne vérification par email en dur sur le secret ADMIN_EMAIL (intérim posé le 31 août, en
-// l'absence de `profiles`/rôle à ce moment — `profiles`/`composer_profiles` existent réellement
-// depuis, ADMIN_EMAIL n'est donc plus utilisé par cette fonction ni nécessaire dans ses secrets).
+// table `admins` (RPC `is_admin()`, supabase/migrations/20260901190000_admin_role.sql).
+//
+// Message personnalisé (4 septembre) : le template d'invitation fixe de Supabase
+// (auth.admin.inviteUserByEmail) ne permet aucun texte personnalisé par destinataire. Remplacé par
+// auth.admin.generateLink({type:'invite'}) — crée le compte et renvoie le lien d'action SANS
+// envoyer d'email (contrairement à inviteUserByEmail) — puis l'email est envoyé nous-mêmes via
+// l'API Resend (déjà le SMTP configuré côté Supabase Auth pour les autres emails, ici appelé
+// directement en HTTP), avec le message de Jules-Antoine inséré dans un template qu'on contrôle
+// entièrement. Nouveaux secrets requis : RESEND_API_KEY, RESEND_FROM_ADDRESS (ex.
+// "LayerPitch <bonjour@layerpitch.com>", adresse sur le domaine layerpitch.com déjà vérifié).
+//
+// Si l'envoi Resend échoue APRÈS que le compte a été créé (generateLink a déjà l'effet de bord),
+// l'erreur renvoyée inclut quand même actionLink -- pour que Jules-Antoine puisse transmettre le
+// lien à la main plutôt que de perdre l'invitation. Pas de contournement fiable pour "annuler" la
+// création du compte à ce stade (aucune API Supabase simple pour ça) -- même compromis que d'autres
+// écritures de ce projet qui ne roll back jamais un effet de bord Stripe/GitHub déjà survenu.
 //
 // Vigilance opérationnelle (Décision 4) : limite par défaut de 2 emails d'invitation/heure côté
-// Supabase — cette fonction n'en fait pas plus (un appel = une invitation), mais des appels en
-// rafale échoueront côté Supabase au-delà de la limite. Espacer manuellement ou configurer un
-// SMTP personnalisé pour un rollout bêta groupé.
+// Supabase — ne s'applique plus directement puisque Resend envoie l'email lui-même désormais, mais
+// generateLink() reste soumis aux limites Supabase Auth générales (création de compte).
 //
 // Cloudflare Access (4 septembre) : le site bêta est aussi protégé par un mur Cloudflare Access
 // séparé (docs/infrastructure.md, Partie C) — une liste d'emails autorisés totalement indépendante
@@ -22,11 +33,11 @@
 // mur Cloudflare et ne peut jamais utiliser son lien magique. addEmailToCloudflareAccess() ajoute
 // donc l'email à la policy Access ("Backstage — accès compositeur", policy réutilisable — pas une
 // policy imbriquée dans une Application, ce compte Cloudflare utilise le nouveau modèle) avant
-// l'invitation Supabase, via l'API Cloudflare (secrets CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID
-// / CLOUDFLARE_ACCESS_POLICY_ID — jeton scopé à "Access: Apps and Policies", jamais "Full access").
-// Échec Cloudflare non bloquant : l'invitation Supabase part quand même (comportement identique à
-// avant si les secrets manquent), mais la réponse porte `cloudflareWarning` pour que l'admin sache
-// qu'il doit ajouter l'email à la main.
+// l'invitation, via l'API Cloudflare (secrets CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID /
+// CLOUDFLARE_ACCESS_POLICY_ID — jeton scopé à "Access: Apps and Policies", jamais "Full access").
+// Échec Cloudflare non bloquant : l'invitation part quand même (comportement identique à avant si
+// les secrets manquent), mais la réponse porte `cloudflareWarning` pour que l'admin sache qu'il
+// doit ajouter l'email à la main.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -78,6 +89,50 @@ async function addEmailToCloudflareAccess(email: string): Promise<{ ok: true } |
   }
 }
 
+// Échappement HTML minimal -- personalMessage vient directement de la saisie de Jules-Antoine dans
+// le backstage, jamais d'un visiteur non authentifié, mais on ne prend pas le risque d'injecter du
+// HTML non échappé dans un email envoyé sous le nom de LayerPitch.
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function sendInviteEmail(email: string, actionLink: string, personalMessage: string | null): Promise<{ ok: true } | { ok: false; error: string }> {
+  const apiKey = Deno.env.get('RESEND_API_KEY');
+  const fromAddress = Deno.env.get('RESEND_FROM_ADDRESS');
+  if (!apiKey || !fromAddress) {
+    return { ok: false, error: 'Secrets Resend non configurés côté Supabase (RESEND_API_KEY / RESEND_FROM_ADDRESS).' };
+  }
+  const messageHtml = personalMessage
+    ? `<p>${escapeHtml(personalMessage).replace(/\n/g, '<br>')}</p>`
+    : '<p>Tu es invité·e à rejoindre la bêta LayerPitch.</p>';
+  const html = `
+    <div style="font-family:sans-serif;color:#262521;max-width:480px;">
+      <h2 style="font-family:sans-serif;">Bienvenue sur LayerPitch</h2>
+      ${messageHtml}
+      <p><a href="${actionLink}" style="display:inline-block;padding:10px 24px;background:#c9713c;color:#fff;text-decoration:none;border-radius:4px;">Rejoindre la bêta</a></p>
+      <p style="font-size:12px;color:#6f6b62;">Si le bouton ne fonctionne pas, copie ce lien dans ton navigateur :<br>${actionLink}</p>
+    </div>`;
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: fromAddress,
+        to: email,
+        subject: 'Invitation à la bêta LayerPitch',
+        html,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      return { ok: false, error: `Resend a refusé l'envoi (${res.status}) : ${body.slice(0, 300)}` };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: 'Appel à l\'API Resend échoué : ' + String(e && e.message || e) };
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -113,16 +168,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, redirectTo } = await req.json();
+    const { email, redirectTo, personalMessage } = await req.json();
     if (!email || typeof email !== 'string') {
       return new Response(JSON.stringify({ error: 'email manquant ou invalide.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Ajout à la liste Cloudflare Access avant l'invitation Supabase (voir commentaire d'en-tête) —
-    // non bloquant : un échec ici n'empêche pas l'invitation Supabase de partir, il est juste
-    // rapporté à l'appelant via cloudflareWarning.
+    // Ajout à la liste Cloudflare Access avant l'invitation (voir commentaire d'en-tête) — non
+    // bloquant : un échec ici n'empêche pas l'invitation de partir, il est juste rapporté à
+    // l'appelant via cloudflareWarning.
     const cfResult = await addEmailToCloudflareAccess(email);
 
     // Client Admin (clé service_role) : seul point du système à s'en servir.
@@ -132,10 +187,35 @@ Deno.serve(async (req) => {
     // projet (Authentication > URL Configuration), même exigence que emailRedirectTo côté
     // signInWithMagicLink.
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, redirectTo ? { redirectTo } : undefined);
+    const { data, error } = await adminClient.auth.admin.generateLink({
+      type: 'invite',
+      email,
+      options: redirectTo ? { redirectTo } : undefined,
+    });
     if (error) {
       return new Response(JSON.stringify({ error: error.message, cloudflareWarning: cfResult.ok ? null : cfResult.error }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const actionLink = data.properties?.action_link;
+    if (!actionLink) {
+      return new Response(JSON.stringify({ error: 'Compte créé mais aucun lien d\'action renvoyé par Supabase (cas inattendu).' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const emailResult = await sendInviteEmail(email, actionLink, typeof personalMessage === 'string' && personalMessage.trim() ? personalMessage.trim() : null);
+    if (!emailResult.ok) {
+      // Le compte existe déjà à ce stade (generateLink a déjà eu son effet de bord) -- on renvoie
+      // actionLink pour que Jules-Antoine puisse transmettre le lien à la main plutôt que de perdre
+      // l'invitation, plutôt que de faire comme si rien ne s'était passé.
+      return new Response(JSON.stringify({
+        error: 'Compte créé, mais l\'envoi de l\'email a échoué : ' + emailResult.error,
+        actionLink,
+        cloudflareWarning: cfResult.ok ? null : cfResult.error,
+      }), {
+        status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
