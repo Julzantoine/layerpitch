@@ -26,6 +26,7 @@
         implementationSkills: data.implementation_skills,
         noAiCertifiedGlobal: data.no_ai_certified_global,
         customFonts: data.custom_fonts,
+        waveformStyle: data.waveform_style,
       },
       error: null,
     };
@@ -38,7 +39,7 @@
     return { socials: data.map(row => ({ id: row.id, platform: row.platform, url: row.url })), error: null };
   }
 
-  // payload : { publishedAt, implementationSkills, noAiCertifiedGlobal, customFonts } — même forme
+  // payload : { publishedAt, implementationSkills, noAiCertifiedGlobal, customFonts, waveformStyle } — même forme
   // que la partie correspondante de data.json.
   async function upsertSettings(payload) {
     const { data, error } = await getClient().rpc('upsert_settings', { payload });

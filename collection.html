@@ -267,6 +267,10 @@ async function init() {
     // collection.effectivePlan est figé une fois pour toutes à la publication (Chantier Apparence Phase
     // 3) -- absent = collection publiée avant cette Phase 3 -> traité comme Starter.
     const tier = collection.effectivePlan || 'starter';
+    // Style de forme d'onde (Chantier Apparence, palier Pro, 05/09) : réglage global du compositeur
+    // (data.waveformStyle), pas un champ de collection -- gating identique au reste de l'apparence Pro
+    // (voir player.js et index.html, même logique).
+    window.LayerPlayerCore.setWaveformStyle(tier === 'pro' ? (data.waveformStyle || 'bars') : 'bars');
     const theme = tier === 'free'
       ? resolveThemePreset(collection.presetId)
       : { bgColor: collection.bgColor, titleColor: collection.textColor, contentColor: collection.textColor, font: collection.font };
