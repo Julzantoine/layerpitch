@@ -984,11 +984,23 @@ async function init() {
       if (backLinkEl) backLinkEl.href = `./collection.html?id=${encodeURIComponent(linkedCollection.id)}&lang=${pageLang}${fromParam}${handleParam}`;
     } else if (linkedAdReel) {
       if (backLinkEl) backLinkEl.href = (linkedAdReel.id === 'main' ? `./index.html?lang=${pageLang}` : `./index.html?adreel=${encodeURIComponent(linkedAdReel.id)}&lang=${pageLang}`) + handleParam;
-    } else if (backLinkEl && window.history.length > 1) {
+    } else if (backLinkEl && handle) {
       // Aucune collection ni AdReel d'origine résolvable (visite directe, lien du pack partagé
-      // isolément) -- retour navigateur plutôt que de forcer index.html (retomberait sur
-      // DEFAULT_OWNER_ID faute de vraie page d'accueil générique). Lien statique laissé tel quel en
-      // tout dernier recours si aucun historique n'existe (onglet ouvert directement sur ce pack).
+      // isolément), mais le handle du compositeur est connu (URL du pack lui-même, ?u=<handle>) --
+      // "Retour" n'a alors plus de sens (ce visiteur n'est jamais passé par le site du compositeur),
+      // remplacé par un vrai lien vers son AdReel principal plutôt qu'un retour arrière trompeur ou
+      // un repli navigateur qui pourrait renvoyer n'importe où. Retrouve le nom via l'AdReel 'main'
+      // (même AdReel que celui utilisé par défaut quand index.html n'a pas de paramètre ?adreel=).
+      const mainAdReel = (data.adReels || []).find(a => a.id === 'main');
+      const composerName = (mainAdReel && mainAdReel.profile && mainAdReel.profile.title) || tr('linkedAdReelFallbackName');
+      backLinkEl.href = `./index.html?lang=${pageLang}${handleParam}`;
+      backLinkEl.textContent = tr('backToComposerLink').replace('{name}', composerName);
+    } else if (backLinkEl && window.history.length > 1) {
+      // Handle totalement inconnu (visite directe sans ?u=, cas hérité pré-multi-compositeur) --
+      // rien de fiable vers quoi pointer, retour navigateur plutôt que de forcer index.html
+      // (retomberait sur DEFAULT_OWNER_ID faute de vraie page d'accueil générique). Lien statique
+      // laissé tel quel en tout dernier recours si aucun historique n'existe (onglet ouvert
+      // directement sur ce pack).
       backLinkEl.addEventListener('click', (e) => { e.preventDefault(); window.history.back(); });
     }
     if (linkedAdReel) {
