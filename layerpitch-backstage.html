@@ -2116,6 +2116,101 @@ function resolveThemePreset(presetId) {
 // compositeur n'y touche pas -> aucun changement visuel pour les AdReels/Packs/Collections déjà publiés
 // (il n'existe aucun séparateur visuel aujourd'hui, seulement du margin entre blocs/sections).
 const DEFAULT_SEPARATOR = { visible: false, color: '#E4E1DA', thickness: 1 };
+
+// ---- Utilitaires couleur (Chantier Apparence, réglage par élément, palier Pro, 05/09) --------------
+// Contraste WCAG AA (formule officielle W3C) -- aucune fonction de ce genre n'existait avant ce chantier
+// dans tout le projet (la vérification des 6 THEME_PRESETS avait été faite via un script Node ponctuel,
+// jamais committé, voir docs/LAYERPITCH_CHANGELOG.md). Utilisée ici pour un avertissement EN DIRECT
+// pendant l'édition (pas un blocage : le compositeur reste libre de son choix, juste informé).
+function hexToRgb(hex) {
+  const clean = (hex || '').replace('#', '');
+  const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean;
+  const num = parseInt(full, 16);
+  if (full.length !== 6 || isNaN(num)) return { r: 0, g: 0, b: 0 };
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+function relativeLuminance({ r, g, b }) {
+  const chan = v => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  return 0.2126 * chan(r) + 0.7152 * chan(g) + 0.0722 * chan(b);
+}
+function contrastRatio(hexA, hexB) {
+  const lA = relativeLuminance(hexToRgb(hexA));
+  const lB = relativeLuminance(hexToRgb(hexB));
+  const lighter = Math.max(lA, lB), darker = Math.min(lA, lB);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+const WCAG_AA_TEXT_RATIO = 4.5; // seuil AA texte normal (le plus strict des deux seuils AA -- volontairement pas 3:1 "grand texte", plus prudent sans distinguer la taille réelle de chaque élément)
+// Variante atténuée d'une couleur -- mélange à 55% vers un gris neutre (148,148,148). Utilisée comme
+// couleur "à jouer" par défaut (forme d'onde/barre de progression) avant toute personnalisation : point
+// d'architecture 2 du chantier ("ne pas livrer un état visuellement cassé tant que le compositeur n'a
+// rien réglé").
+function mutedVariant(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  const mix = c => Math.round(c * 0.45 + 148 * 0.55);
+  return '#' + [mix(r), mix(g), mix(b)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+// Registre déclaratif des éléments personnalisables par type de bloc -- copie exacte de celui d'index.html
+// (même principe de duplication que THEME_PRESETS/DEFAULT_SEPARATOR déjà dupliqués entre backstage et
+// pages publiques, pas de module JS partagé dans ce projet). `selector` n'est pas utilisé ici (l'UI
+// d'édition ne rend pas le DOM public), gardé pour éviter toute divergence de structure entre les deux
+// copies. type 'text' -> {color, font} ; 'simple' -> {color} ; 'twostate' -> {playedColor, unplayedColor}.
+const ELEMENT_APPEARANCE_REGISTRY = {
+  header: [
+    { key: 'title', type: 'text', labelKey: 'elHeaderTitle', selector: '.header-title' },
+    { key: 'subtitle', type: 'text', labelKey: 'elHeaderSubtitle', selector: '.header-subtitle' },
+    { key: 'logo', type: 'simple', simpleKind: 'frame', labelKey: 'elHeaderLogo', selector: '.logo-img' }
+  ],
+  bio: [
+    { key: 'title', type: 'text', labelKey: 'elBioTitle', selector: '.section-label' },
+    { key: 'body', type: 'text', labelKey: 'elBioBody', selector: '.bio-text p' }
+  ],
+  testimonials: [
+    { key: 'quote', type: 'text', labelKey: 'elTestimonialQuote', selector: '.testimonial p' },
+    { key: 'author', type: 'text', labelKey: 'elTestimonialAuthor', selector: '.testimonial cite' },
+    { key: 'role', type: 'text', labelKey: 'elTestimonialRole', selector: '.testimonial-role' },
+    { key: 'avatar', type: 'simple', simpleKind: 'frame', labelKey: 'elTestimonialAvatar', selector: '.testimonial-avatar' }
+  ],
+  tracks: [
+    { key: 'title', type: 'text', labelKey: 'elTrackTitle', selector: '.track-row-title .name' },
+    { key: 'description', type: 'text', labelKey: 'elTrackDescription', selector: '.track-desc' },
+    { key: 'tags', type: 'text', labelKey: 'elTrackTags', selector: '.track-tags .tag' },
+    { key: 'waveform', type: 'twostate', labelKey: 'elTrackWaveform' },
+    { key: 'progressBar', type: 'twostate', labelKey: 'elTrackProgressBar' },
+    { key: 'playButton', type: 'simple', simpleKind: 'icon', labelKey: 'elTrackPlayButton', selector: '.play-btn' }
+  ],
+  text: [
+    { key: 'title', type: 'text', labelKey: 'elTextTitle', selector: '.text-block-title' },
+    { key: 'body', type: 'text', labelKey: 'elTextBody', selector: '.text-block p' }
+  ],
+  photo: [
+    { key: 'caption', type: 'text', labelKey: 'elPhotoCaption', selector: '.photo-block-caption' },
+    { key: 'border', type: 'simple', simpleKind: 'border', labelKey: 'elPhotoBorder', selector: '.photo-block-single img, .photo-grid img' }
+  ],
+  video: [
+    { key: 'title', type: 'text', labelKey: 'elVideoTitle', selector: '.vt' },
+    { key: 'caption', type: 'text', labelKey: 'elVideoCaption', selector: '.video-comment' }
+  ],
+  packs: [
+    { key: 'title', type: 'text', labelKey: 'elPacksTitle', selector: '.packs-list-item-title' },
+    { key: 'presentation', type: 'text', labelKey: 'elPacksPresentation', selector: '.block-presentation' },
+    { key: 'illustration', type: 'simple', simpleKind: 'border', labelKey: 'elPacksIllustration', selector: '.packs-list-item-thumb' }
+  ],
+  collections: [
+    { key: 'title', type: 'text', labelKey: 'elCollectionsTitle', selector: '.packs-list-item-title' },
+    { key: 'presentation', type: 'text', labelKey: 'elCollectionsPresentation', selector: '.block-presentation' },
+    { key: 'illustration', type: 'simple', simpleKind: 'border', labelKey: 'elCollectionsIllustration', selector: '.packs-list-item-thumb' }
+  ],
+  sfx: [
+    { key: 'title', type: 'text', labelKey: 'elSfxTitle', selector: '.track-row-title .name' },
+    { key: 'tag', type: 'text', labelKey: 'elSfxTag', selector: '.track-tags .tag' }
+  ],
+  contact: [
+    { key: 'buttonLabel', type: 'text', labelKey: 'elContactButtonLabel', selector: '.contact-form button' },
+    { key: 'formFields', type: 'simple', simpleKind: 'border', labelKey: 'elContactFormFields', selector: '.contact-form input, .contact-form textarea' }
+  ]
+};
+
 // Reconstruit un thème complet à partir d'un profil quelconque : profile.theme s'il existe déjà, sinon
 // dérivé des anciens champs bgColor/textColor s'ils existent (une seule teinte de texte à l'époque,
 // reprise à la fois pour titleColor et contentColor faute de mieux), sinon les valeurs par défaut.
@@ -3545,6 +3640,7 @@ function buildPreviewTrack(track) {
     id: 'preview-' + track.id,
     title: track.title || tr('previewFallbackTitle'),
     description: track.description || '',
+    tags: track.tags || '',
     mode: track.mode,
     loopable: track.loopable,
     loopEngine: track.loopEngine,
@@ -4078,6 +4174,9 @@ function renderLibrary() {
           ` : ''}
           <label data-help="trackDescription" style="margin-top:14px">${tr('descriptionLabel')}</label>
           <textarea class="linkable" data-field="description" data-ti="${ti}">${track.description}</textarea>
+          <label style="margin-top:14px">${tr('trackTagsLabel')}</label>
+          <input type="text" data-field="tags" data-ti="${ti}" value="${escapeAttr(track.tags || '')}">
+          <div class="hint-inline">${tr('trackTagsHint')}</div>
           <label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
             <input type="checkbox" data-field="normalizeVolume" data-ti="${ti}" ${track.normalizeVolume ? 'checked' : ''} style="width:auto;margin:0;">
             <span data-help="normalizeVolume" style="color:#444;font-size:12px;">${tr('normalizeVolumeLabel')}</span>
@@ -4654,6 +4753,9 @@ function renderLibrary() {
           <div class="hint-inline">${tr('maxChainLoopsHint')}</div>
           <label data-help="trackDescription" style="margin-top:14px">${tr('descriptionLabel')}</label>
           <textarea class="linkable" data-field="description" data-ti="${ti}">${track.description}</textarea>
+          <label style="margin-top:14px">${tr('trackTagsLabel')}</label>
+          <input type="text" data-field="tags" data-ti="${ti}" value="${escapeAttr(track.tags || '')}">
+          <div class="hint-inline">${tr('trackTagsHint')}</div>
           <label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
             <input type="checkbox" data-field="normalizeVolume" data-ti="${ti}" ${track.normalizeVolume ? 'checked' : ''} style="width:auto;margin:0;">
             <span data-help="normalizeVolume" style="color:#444;font-size:12px;">${tr('normalizeVolumeLabel')}</span>
@@ -5154,6 +5256,8 @@ function renderSfxLibrary() {
       <textarea data-sfx-field="descriptionFr" data-si="${si}" rows="3">${escapeAttr(sfx.descriptionFr)}</textarea>
       <label>${tr('descriptionLabelEn')}</label>
       <textarea data-sfx-field="descriptionEn" data-si="${si}" rows="3">${escapeAttr(sfx.descriptionEn)}</textarea>
+      <label>${tr('sfxTagLabel')}</label>
+      <input type="text" data-sfx-field="tag" data-si="${si}" value="${escapeAttr(sfx.tag || '')}">
     `;
   } else if (entrySel === 'behavior') {
     entryDetailHost.innerHTML = `
@@ -5608,6 +5712,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     else if (field === 'outroDescriptionEn') { library[ti].outro.descriptionEn = e.target.value; }
     else if (field === 'randomizeSections') { library[ti].randomizeSections = e.target.checked; }
     else if (field === 'description') library[ti].description = e.target.value;
+    else if (field === 'tags') library[ti].tags = e.target.value;
     else if (field === 'implementationNote') library[ti].implementationNote = e.target.value;
     else if (field === 'noAiOverride') {
       library[ti].noAiOverride = e.target.value === '' ? null : (e.target.value === 'true');
@@ -6509,11 +6614,19 @@ function buildTestimonialsCard(block) {
         <label>${tr('textFieldLabel')}</label><textarea class="linkable" data-field="text" data-i="${i}">${tm.text}</textarea>
         <div class="hint-inline">${tr('linkHint')}</div>
         <label>${tr('authorLabel')}</label><input type="text" data-field="author" data-i="${i}" value="${escapeAttr(tm.author)}">
+        <label>${tr('testimonialRoleLabel')}</label><input type="text" data-field="role" data-i="${i}" value="${escapeAttr(tm.role || '')}">
+        <label>${tr('testimonialAvatarLabel')}</label>
+        <div data-role="avatarCtrl" data-i="${i}"></div>
       `;
+      const avatarHost = el.querySelector('[data-role="avatarCtrl"]');
+      avatarHost.innerHTML = fileCtrlHtml(tr('chooseImage'));
+      wireFileControl(avatarHost, 'image/*',
+        () => tm.avatarPendingFile, () => tm.avatar,
+        f => { tm.avatarPendingFile = f; hasUnsavedEdits = true; }, () => tm.avatarOriginalName);
       listEl.appendChild(el);
     });
   }
-  body.querySelector('[data-role="addBtn"]').addEventListener('click', () => { testimonials.push({ text: '', author: '' }); hasUnsavedEdits = true; renderList(); refreshAllBlockSummaries(); });
+  body.querySelector('[data-role="addBtn"]').addEventListener('click', () => { testimonials.push({ text: '', author: '', role: '', avatar: null, avatarPendingFile: null }); hasUnsavedEdits = true; renderList(); refreshAllBlockSummaries(); });
   listEl.addEventListener('click', e => {
     const btn = e.target.closest('[data-action="remove"]');
     if (!btn) return;
@@ -6544,6 +6657,8 @@ function buildTracksCard(block) {
 function buildTextCard(block) {
   const { card, body } = makeCardShell(block);
   body.innerHTML = `
+    <label>${tr('textBlockTitleLabel')}</label>
+    <input type="text" data-role="title" value="${escapeAttr(block.title || '')}">
     <label>${tr('bioTextLabel')}</label>
     <textarea class="linkable" data-role="content" rows="4">${block.content || ''}</textarea>
     <div class="hint-inline">${tr('linkHint')}</div>
@@ -6555,6 +6670,7 @@ function buildTextCard(block) {
     </select>
   `;
   body.querySelector('[data-role="align"]').value = block.align || 'left';
+  body.querySelector('[data-role="title"]').addEventListener('input', e => { block.title = e.target.value; hasUnsavedEdits = true; refreshAllBlockSummaries(); });
   body.querySelector('[data-role="content"]').addEventListener('input', e => { block.content = e.target.value; hasUnsavedEdits = true; refreshAllBlockSummaries(); });
   body.querySelector('[data-role="align"]').addEventListener('change', e => { block.align = e.target.value; hasUnsavedEdits = true; });
   return card;
@@ -6570,11 +6686,14 @@ function buildPhotoCard(block) {
       <option value="right">${tr('alignRight')}</option>
     </select>
     <div class="hint-inline">${tr('photoAlignHint')}</div>
+    <label>${tr('photoBlockCaptionLabel')}</label>
+    <input type="text" data-role="caption" value="${escapeAttr(block.caption || '')}">
     <div data-role="list" style="margin-top:10px"></div>
     <div class="actions"><button class="btn btn-small" data-role="addBtn">${tr('addImageBtn')}</button></div>
   `;
   body.querySelector('[data-role="align"]').value = block.align || 'left';
   body.querySelector('[data-role="align"]').addEventListener('change', e => { block.align = e.target.value; hasUnsavedEdits = true; });
+  body.querySelector('[data-role="caption"]').addEventListener('input', e => { block.caption = e.target.value; hasUnsavedEdits = true; });
   const listEl = body.querySelector('[data-role="list"]');
   function renderList() {
     listEl.innerHTML = '';
@@ -6666,7 +6785,14 @@ function buildPackSelectorWidget(hostEl, selectedIds, onChange) {
 }
 function buildPacksBlockCard(block) {
   const { card, body } = makeCardShell(block);
-  body.innerHTML = `<div class="hint" style="margin-bottom:10px">${tr('packsBlockHint')}</div><div data-role="selector"></div>`;
+  body.innerHTML = `
+    <div class="hint" style="margin-bottom:10px">${tr('packsBlockHint')}</div>
+    <label>${tr('blockPresentationLabel')}</label>
+    <textarea class="linkable" data-role="presentation" rows="3">${block.presentation || ''}</textarea>
+    <div class="hint-inline">${tr('linkHint')}</div>
+    <div data-role="selector" style="margin-top:10px"></div>
+  `;
+  body.querySelector('[data-role="presentation"]').addEventListener('input', e => { block.presentation = e.target.value; hasUnsavedEdits = true; });
   const host = body.querySelector('[data-role="selector"]');
   if (!block.packIds) block.packIds = [];
   buildPackSelectorWidget(host, block.packIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); });
@@ -6731,7 +6857,14 @@ function buildCollectionSelectorWidget(hostEl, selectedIds, onChange) {
 }
 function buildCollectionsBlockCard(block) {
   const { card, body } = makeCardShell(block);
-  body.innerHTML = `<div class="hint" style="margin-bottom:10px">${tr('collectionsBlockHint')}</div><div data-role="selector"></div>`;
+  body.innerHTML = `
+    <div class="hint" style="margin-bottom:10px">${tr('collectionsBlockHint')}</div>
+    <label>${tr('blockPresentationLabel')}</label>
+    <textarea class="linkable" data-role="presentation" rows="3">${block.presentation || ''}</textarea>
+    <div class="hint-inline">${tr('linkHint')}</div>
+    <div data-role="selector" style="margin-top:10px"></div>
+  `;
+  body.querySelector('[data-role="presentation"]').addEventListener('input', e => { block.presentation = e.target.value; hasUnsavedEdits = true; });
   const host = body.querySelector('[data-role="selector"]');
   if (!block.collectionIds) block.collectionIds = [];
   buildCollectionSelectorWidget(host, block.collectionIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); });
@@ -6916,6 +7049,7 @@ function buildCardForBlock(block) {
     // Free restent en base (block.appearance n'est jamais touché ici), juste plus montrés/appliqués.
     if (currentEffectivePlan !== 'free') {
       appendBlockAppearanceSection(body, block);
+      appendElementAppearanceSection(body, block);
     }
     body.insertAdjacentHTML('beforeend', collapseFooterHtml('toggle-collapse', {}));
   }
@@ -7059,6 +7193,147 @@ function renderBlockAppearanceFields(host, block) {
       () => block[pendingKey], () => (block.appearance ? block.appearance[field] : null),
       f2 => { block[pendingKey] = f2; hasUnsavedEdits = true; });
   });
+}
+
+// ---- Réglage par élément (Chantier Apparence, palier Pro, 05/09) ------------------------------------
+// Même mécanisme de bascule "Personnaliser" que appendBlockAppearanceSection/renderBlockAppearanceFields
+// ci-dessus, un cran plus bas (par élément à l'intérieur d'un bloc plutôt que par bloc) -- réutilisé tel
+// quel plutôt que dupliqué : case cochée = fige une valeur de départ dans block.elementAppearance[clé],
+// décochée = supprime la clé (hérite du thème du bloc/AdReel, cascade inchangée). Strictement Pro
+// (imbriqué DANS une section déjà visible dès Starter côté bloc) -- Starter voit un message verrouillé,
+// jamais les contrôles ; Free ne voit rien du tout (toute la zone "Apparence de ce bloc" est masquée pour
+// lui, voir buildCardForBlock). Les données déjà enregistrées par un compositeur repassé ensuite
+// Starter/Free restent en base (jamais touchées ici), simplement plus montrées/appliquées -- même repli
+// non destructif que le reste du système d'apparence.
+const expandedElementAppearanceIds = new Set();
+function appendElementAppearanceSection(body, block) {
+  const registry = ELEMENT_APPEARANCE_REGISTRY[block.type];
+  if (!registry || !registry.length) return; // aucun élément personnalisable listé pour ce type de bloc
+  const expanded = expandedElementAppearanceIds.has(block.id);
+  const isPro = currentEffectivePlan === 'pro';
+  const wrap = document.createElement('div');
+  wrap.className = 'block-appearance-section';
+  wrap.innerHTML = `
+    <div class="list-block-head" style="margin-bottom:0;cursor:pointer" data-role="elAppearanceToggleHead">
+      <div class="list-block-head-left">
+        <button class="btn btn-icon btn-toggle-collapse" type="button" data-role="elAppearanceToggleBtn">${expanded ? '▾' : '▸'}</button>
+        <strong>${tr('elementAppearanceTitle')}</strong>
+      </div>
+    </div>
+    <div class="list-block-body${expanded ? '' : ' collapsed'}" data-role="elAppearanceBody">
+      ${isPro
+        ? `<div class="hint-inline">${tr('elementAppearanceHint')}</div><div data-role="elementAppearanceFields"></div>`
+        : `<div class="hint-inline">${tr('elementAppearanceLockedMsg')}</div>`}
+    </div>
+  `;
+  body.appendChild(wrap);
+  const toggleBtn = wrap.querySelector('[data-role="elAppearanceToggleBtn"]');
+  const sectionBody = wrap.querySelector('[data-role="elAppearanceBody"]');
+  const toggle = () => {
+    const collapsed = sectionBody.classList.toggle('collapsed');
+    toggleBtn.textContent = collapsed ? '▸' : '▾';
+    if (collapsed) expandedElementAppearanceIds.delete(block.id); else expandedElementAppearanceIds.add(block.id);
+  };
+  wrap.querySelector('[data-role="elAppearanceToggleHead"]').addEventListener('click', toggle);
+  if (isPro) renderElementAppearanceFields(wrap.querySelector('[data-role="elementAppearanceFields"]'), block, registry);
+}
+// Avertissement de contraste WCAG AA en direct (pas un blocage) pour un élément de type 'text' -- compare
+// la couleur choisie à la couleur de fond effective du thème (AdReel ou preset Free, cf. effectiveThemeValue).
+function updateElementContrastWarning(host, block, key) {
+  const warnEl = host.querySelector(`[data-role="elContrastWarning"][data-el-key="${key}"]`);
+  if (!warnEl) return;
+  const ov = block.elementAppearance && block.elementAppearance[key];
+  if (!ov || !ov.color) { warnEl.textContent = ''; return; }
+  const ratio = contrastRatio(ov.color, effectiveThemeValue('bgColor'));
+  if (ratio < WCAG_AA_TEXT_RATIO) {
+    warnEl.textContent = tr('elementContrastWarning', { ratio: ratio.toFixed(2) });
+    warnEl.style.color = '#c0392b';
+  } else {
+    warnEl.textContent = '';
+  }
+}
+function renderElementAppearanceFields(host, block, registry) {
+  host.innerHTML = registry.map(entry => {
+    const ov = block.elementAppearance && block.elementAppearance[entry.key];
+    const has = !!ov;
+    let control;
+    if (entry.type === 'text') {
+      const color = has ? ov.color : effectiveThemeValue('contentColor');
+      const font = has ? (ov.font || 'default') : effectiveThemeValue('font');
+      control = `
+        <div class="row" style="margin-top:6px">
+          <div><label class="hint-inline">${tr('elementColorLabel')}</label><input type="color" data-el-field="color" data-el-key="${entry.key}" value="${color}" ${has ? '' : 'disabled'}></div>
+          <div><label class="hint-inline">${tr('elementFontLabel')}</label><select data-el-field="font" data-el-key="${entry.key}" ${has ? '' : 'disabled'}>${buildFontSelectOptionsHtml(font)}</select></div>
+        </div>
+        <div class="hint-inline" data-role="elContrastWarning" data-el-key="${entry.key}"></div>
+      `;
+    } else if (entry.type === 'simple') {
+      const color = has ? ov.color : effectiveThemeValue('contentColor');
+      control = `<input type="color" data-el-field="color" data-el-key="${entry.key}" value="${color}" ${has ? '' : 'disabled'}>`;
+    } else { // twostate : forme d'onde / barre de progression -- deux couleurs, jamais une seule
+      const titleColor = effectiveThemeValue('titleColor');
+      const played = has ? ov.playedColor : titleColor;
+      const unplayed = has ? ov.unplayedColor : mutedVariant(titleColor);
+      control = `
+        <div class="row" style="margin-top:6px">
+          <div><label class="hint-inline">${tr('elementPlayedColorLabel')}</label><input type="color" data-el-field="playedColor" data-el-key="${entry.key}" value="${played}" ${has ? '' : 'disabled'}></div>
+          <div><label class="hint-inline">${tr('elementUnplayedColorLabel')}</label><input type="color" data-el-field="unplayedColor" data-el-key="${entry.key}" value="${unplayed}" ${has ? '' : 'disabled'}></div>
+        </div>
+      `;
+    }
+    return `
+      <div class="block-appearance-row">
+        <label>
+          <input type="checkbox" data-el-toggle="${entry.key}" ${has ? 'checked' : ''}>
+          <span>${tr(entry.labelKey)}</span>
+        </label>
+        ${control}
+      </div>
+    `;
+  }).join('');
+  host.querySelectorAll('[data-el-toggle]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const key = cb.dataset.elToggle;
+      const entry = registry.find(e => e.key === key);
+      if (cb.checked) {
+        block.elementAppearance = block.elementAppearance || {};
+        if (entry.type === 'twostate') {
+          const played = effectiveThemeValue('titleColor');
+          block.elementAppearance[key] = { playedColor: played, unplayedColor: mutedVariant(played) };
+        } else if (entry.type === 'text') {
+          block.elementAppearance[key] = { color: effectiveThemeValue('contentColor'), font: effectiveThemeValue('font') };
+        } else {
+          block.elementAppearance[key] = { color: effectiveThemeValue('contentColor') };
+        }
+      } else if (block.elementAppearance) {
+        delete block.elementAppearance[key];
+        if (!Object.keys(block.elementAppearance).length) delete block.elementAppearance;
+      }
+      hasUnsavedEdits = true;
+      renderElementAppearanceFields(host, block, registry);
+    });
+  });
+  host.querySelectorAll('[data-el-field="color"], [data-el-field="playedColor"], [data-el-field="unplayedColor"]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const key = inp.dataset.elKey;
+      const field = inp.dataset.elField;
+      block.elementAppearance = block.elementAppearance || {};
+      block.elementAppearance[key] = block.elementAppearance[key] || {};
+      block.elementAppearance[key][field] = inp.value;
+      hasUnsavedEdits = true;
+      if (field === 'color') updateElementContrastWarning(host, block, key);
+    });
+  });
+  host.querySelectorAll('[data-el-field="font"]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const key = sel.dataset.elKey;
+      block.elementAppearance = block.elementAppearance || {};
+      block.elementAppearance[key] = block.elementAppearance[key] || {};
+      block.elementAppearance[key].font = sel.value;
+      hasUnsavedEdits = true;
+    });
+  });
+  registry.forEach(entry => { if (entry.type === 'text' && block.elementAppearance && block.elementAppearance[entry.key]) updateElementContrastWarning(host, block, entry.key); });
 }
 
 document.getElementById('btnAddHeaderBlock').addEventListener('click', () => {
@@ -8210,7 +8485,7 @@ async function loadData(silent) {
       }
 
       return {
-        id: t.id, title: t.title, description: t.description || '', mode,
+        id: t.id, title: t.title, description: t.description || '', tags: t.tags || '', mode,
         implementationNote: t.implementationNote || '',
         noAiOverride: (t.noAiOverride === true || t.noAiOverride === false) ? t.noAiOverride : null,
         duration: t.duration || 0, base: t.base || '', loopable: !!t.loopable,
@@ -8305,6 +8580,7 @@ async function loadData(silent) {
       // lu une fois ici, jamais réécrit dans l'ancien champ ensuite (même principe que tagline -> title/subtitle).
       descriptionFr: s.descriptionFr != null ? s.descriptionFr : (s.description || ''),
       descriptionEn: s.descriptionEn || '',
+      tag: s.tag || '',
       rrMode: s.rrMode === 'sequential' ? 'sequential' : 'random',
       duckMainTrack: !!s.duckMainTrack,
       alternatives: (s.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file, originalFileName: a.originalFileName || null, pendingFile: null })),
@@ -8831,6 +9107,16 @@ async function publishAll() {
         ar.profile.theme.bgImage = fileName; ar.profile.theme.bgImageOriginalName = ar.themeBgImagePendingFile.name; ar.themeBgImagePendingFile = null;
         log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
       }
+      for (let i = 0; i < (ar.testimonials || []).length; i++) {
+        const tm = ar.testimonials[i];
+        if (!tm.avatarPendingFile) continue;
+        log(tr('uploadingTestimonialAvatar', { id: ar.id, n: i + 1 }));
+        const bytes = new Uint8Array(await tm.avatarPendingFile.arrayBuffer());
+        const fileName = `${ar.id}-testimonial-avatar-${i}.${extOf(tm.avatarPendingFile.name)}`;
+        await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
+        tm.avatar = fileName; tm.avatarOriginalName = tm.avatarPendingFile.name; tm.avatarPendingFile = null;
+        log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
+      }
       for (const b of ar.blocks) {
         if (b.type === 'photo') {
           for (let i = 0; i < b.images.length; i++) {
@@ -9073,7 +9359,7 @@ async function publishAll() {
     const data = {
       publishedAt: buildVersion,
       library: library.map(t => ({
-        id: t.id, title: t.title, description: t.description, mode: t.mode, loopable: !!t.loopable,
+        id: t.id, title: t.title, description: t.description, tags: t.tags || '', mode: t.mode, loopable: !!t.loopable,
         implementationNote: t.implementationNote || '',
         noAiOverride: (t.noAiOverride === true || t.noAiOverride === false) ? t.noAiOverride : null,
         loopEngine: t.loopEngine || 'simple',
@@ -9141,7 +9427,7 @@ async function publishAll() {
       })),
       libraryFolders: libraryFolders.map(f => ({ id: f.id, label: f.label || '' })),
       sfxLibrary: sfxLibrary.map(s => ({
-        id: s.id, title: s.title || '', descriptionFr: s.descriptionFr || '', descriptionEn: s.descriptionEn || '',
+        id: s.id, title: s.title || '', descriptionFr: s.descriptionFr || '', descriptionEn: s.descriptionEn || '', tag: s.tag || '',
         rrMode: s.rrMode === 'sequential' ? 'sequential' : 'random',
         duckMainTrack: !!s.duckMainTrack, base: s.base || '',
         alternatives: (s.alternatives || []).filter(a => a.remoteFile).map(a => ({ label: a.label || '', file: a.remoteFile, originalFileName: a.originalFileName || null })),
@@ -9168,16 +9454,21 @@ async function publishAll() {
         lang: ar.lang || 'fr',
         blocks: ar.blocks.map(b => {
           let out;
-          if (b.type === 'text') out = { id: b.id, type: 'text', content: b.content || '', align: b.align || 'left' };
-          else if (b.type === 'photo') out = { id: b.id, type: 'photo', align: b.align || 'left', images: b.images.filter(i => i.file).map(i => ({ file: i.file, originalFileName: i.originalFileName || null })) };
+          if (b.type === 'text') out = { id: b.id, type: 'text', title: b.title || '', content: b.content || '', align: b.align || 'left' };
+          else if (b.type === 'photo') out = { id: b.id, type: 'photo', align: b.align || 'left', caption: b.caption || '', images: b.images.filter(i => i.file).map(i => ({ file: i.file, originalFileName: i.originalFileName || null })) };
           else if (b.type === 'video') out = { id: b.id, type: 'video', videos: b.videos.map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null })) };
-          else if (b.type === 'packs') out = { id: b.id, type: 'packs', packIds: b.packIds || [] };
-          else if (b.type === 'collections') out = { id: b.id, type: 'collections', collectionIds: b.collectionIds || [] };
+          else if (b.type === 'packs') out = { id: b.id, type: 'packs', presentation: b.presentation || '', packIds: b.packIds || [] };
+          else if (b.type === 'collections') out = { id: b.id, type: 'collections', presentation: b.presentation || '', collectionIds: b.collectionIds || [] };
           else if (b.type === 'sfx') out = { id: b.id, type: 'sfx', sfxIds: b.sfxIds || [] };
           else out = { id: b.id, type: b.type };
           // Champ commun à tous les types de bloc, sans exception (décision : réglages par bloc partout) —
           // ajouté une seule fois ici plutôt que dupliqué dans chacune des branches ci-dessus.
           if (b.appearance && Object.keys(b.appearance).length) out.appearance = Object.assign({}, b.appearance);
+          // Réglage par élément (Chantier Apparence, palier Pro, 05/09) : toujours écrit tel quel, même si
+          // le compositeur n'est plus Pro au moment de PUBLIER -- le gating à l'application se fait côté
+          // runtime (index.html, sur le tier figé ci-dessous), jamais en omettant la donnée à l'écriture
+          // (cohérent avec block.appearance qui reste, lui aussi, toujours écrit indépendamment du palier).
+          if (b.elementAppearance && Object.keys(b.elementAppearance).length) out.elementAppearance = Object.assign({}, b.elementAppearance);
           return out;
         }),
         profile: Object.assign({}, ar.profile, { effectivePlan }),

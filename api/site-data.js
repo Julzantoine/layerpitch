@@ -59,6 +59,7 @@
       noAiCertifiedGlobal: !!settings.noAiCertifiedGlobal,
       collections: collectionsRes.collections,
       customFonts: settings.customFonts || [],
+      waveformStyle: settings.waveformStyle || 'bars',
       adReels: adReelsRes.adReels,
       adReelFolders: adReelFoldersRes.folders,
     };

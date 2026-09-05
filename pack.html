@@ -824,6 +824,10 @@ async function init() {
     // profile.effectivePlan / ici pack.effectivePlan est figé une fois pour toutes à la publication
     // (Chantier Apparence Phase 3) -- absent = pack publié avant cette Phase 3 -> traité comme Starter.
     const tier = pack.effectivePlan || 'starter';
+    // Style de forme d'onde (Chantier Apparence, palier Pro, 05/09) : réglage global du compositeur
+    // (data.waveformStyle), pas un champ de pack -- gating identique au reste de l'apparence Pro (voir
+    // player.js et index.html, même logique).
+    window.LayerPlayerCore.setWaveformStyle(tier === 'pro' ? (data.waveformStyle || 'bars') : 'bars');
     const theme = tier === 'free'
       ? resolveThemePreset(pack.presetId)
       : { bgColor: pack.bgColor, titleColor: pack.textColor, contentColor: pack.textColor, font: pack.font };

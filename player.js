@@ -110,6 +110,15 @@ function setLang(lang) { CURRENT_LANG = (lang === 'en') ? 'en' : 'fr'; }
 // travers toute la chaîne d'appel (renderTracksBlock -> buildTrackRow -> initTrackPlayer).
 let SFX_LIBRARY_BY_ID = {};
 function setSfxLibrary(byId) { SFX_LIBRARY_BY_ID = byId || {}; }
+// Style de forme d'onde (Chantier Apparence, palier Pro, 05/09) : réglage global par compositeur (pas
+// par bloc, pas par AdReel), résolu une fois par la page hôte (index.html/pack.html/collection.html,
+// palier Pro effectif + réglage global du compositeur) et imposé via setWaveformStyle() avant tout rendu
+// de piste -- même principe que setLang() ci-dessus. Free/Starter n'appellent jamais cette fonction avec
+// autre chose que 'bars' (voir resolveEffectiveWaveformStyle plus bas pour le repli d'espace, séparé).
+const WAVEFORM_STYLES = ['bars', 'mirror', 'dots', 'layers'];
+let CURRENT_WAVEFORM_STYLE = 'bars';
+function setWaveformStyle(style) { CURRENT_WAVEFORM_STYLE = WAVEFORM_STYLES.includes(style) ? style : 'bars'; }
+function currentWaveformStyle() { return CURRENT_WAVEFORM_STYLE; }
 /* ---------------- Téléchargement gratuit (zip généré côté navigateur) ----------------
  * Partagée entre pack.html et collection.html (un pack télécharge ses morceaux, une collection ceux de
  * tous ses packs) — un seul endroit pour cette logique plutôt que dupliquée dans les deux pages.
@@ -296,14 +305,25 @@ function computeWaveformPeaks(buffer, bucketCount, maxDurationSec) {
     return v * 0.6 + prev * 0.2 + next * 0.2;
   });
 }
-// Nombre de barres calculé à partir de la largeur réellement affichée plutôt qu'un nombre fixe choisi à
-// l'aveugle : trop grossier sur un grand format (waveform statique pleine largeur), ou au contraire plus
-// de barres que de pixels physiques disponibles sur un petit format (nœud du graphe vertical-random).
-const WAVEFORM_BAR_PITCH_PX = 4; // largeur barre + espace visés, en px CSS
-function bucketCountForWidth(cssWidthPx) {
-  return Math.max(24, Math.min(320, Math.round(cssWidthPx / WAVEFORM_BAR_PITCH_PX)));
+// Nombre de colonnes calculé à partir de la largeur réellement affichée plutôt qu'un nombre fixe choisi
+// à l'aveugle : trop grossier sur un grand format (waveform statique pleine largeur), ou au contraire
+// plus de colonnes que de pixels physiques disponibles sur un petit format (nœud du graphe
+// vertical-random). Miroir plein/Vagues superposées (styles "lissés") visent un contour continu plutôt
+// que des colonnes visibles : ils ont besoin d'un pas bien plus fin que Barres/Pointillé pour ne pas
+// paraître anguleux une fois lissés au dessin (voir traceSmoothCurveThrough plus bas) — computeWaveformPeaks
+// n'a pas besoin de changer pour ça, seul le bucketCount qu'on lui demande diffère selon le style.
+const WAVEFORM_BAR_PITCH_PX = 4; // largeur colonne + espace visés, en px CSS (Barres/Pointillé)
+const WAVEFORM_SMOOTH_PITCH_PX = 1.5; // pas visé, en px CSS (Miroir plein/Vagues superposées)
+function bucketCountForWidth(cssWidthPx, style) {
+  const smooth = style === 'mirror' || style === 'layers';
+  const pitch = smooth ? WAVEFORM_SMOOTH_PITCH_PX : WAVEFORM_BAR_PITCH_PX;
+  const maxBuckets = smooth ? 800 : 320;
+  return Math.max(24, Math.min(maxBuckets, Math.round(cssWidthPx / pitch)));
 }
-function drawWaveformCanvas(canvas, peaks, color) {
+// Style Barres (existant depuis toujours, jamais renommé côté appelants) : reste le style par défaut et
+// le repli de tous les autres — aucune régression pour les AdReels déjà publiés qui n'auront pas choisi
+// de style explicitement (voir resolveEffectiveWaveformStyle).
+function drawBarsWaveform(canvas, peaks, color) {
   if (!canvas || !peaks) return;
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -330,17 +350,154 @@ function drawWaveformCanvas(canvas, peaks, color) {
     else { c2d.fillRect(x, y, barWidth, barH); }
   }
 }
+// Style Pointillé : chaque colonne devient une pile de petits points de part et d'autre de l'axe
+// central, leur nombre reflétant l'intensité — plutôt qu'un rectangle plein. Même grille de colonnes que
+// Barres (slot), donc tout aussi lisible aux petits formats (pas de seuil de repli, contrairement à
+// Miroir plein/Vagues superposées ci-dessous).
+function drawDotsWaveform(canvas, peaks, color) {
+  if (!canvas || !peaks) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.round(rect.width * dpr));
+  const h = Math.max(1, Math.round(rect.height * dpr));
+  if (w < 2 || h < 2) return;
+  canvas.width = w; canvas.height = h;
+  const c2d = canvas.getContext('2d');
+  c2d.clearRect(0, 0, w, h);
+  c2d.fillStyle = color;
+  const colCount = peaks.length;
+  const slot = w / colCount;
+  const mid = h / 2;
+  const dotRadius = Math.max(1, Math.min(slot * 0.28, 2.2 * dpr));
+  const dotPitch = dotRadius * 2.4; // espace entre centres de deux points empilés successifs
+  const maxDots = Math.max(1, Math.floor(mid / dotPitch));
+  for (let i = 0; i < colCount; i++) {
+    const amp = Math.max(0.04, peaks[i]);
+    const count = Math.max(1, Math.round(amp * maxDots));
+    const x = i * slot + slot / 2;
+    for (let d = 0; d < count; d++) {
+      const offset = (d + 0.5) * dotPitch;
+      c2d.beginPath(); c2d.arc(x, mid - offset, dotRadius, 0, Math.PI * 2); c2d.fill();
+      c2d.beginPath(); c2d.arc(x, mid + offset, dotRadius, 0, Math.PI * 2); c2d.fill();
+    }
+  }
+}
+// Trace une courbe lissée à travers `pts` (au moins 2 points), en supposant que le point courant du
+// tracé est déjà pts[0] (le moveTo/lineTo initial reste à la charge de l'appelant) — partagé entre
+// Miroir plein et Vagues superposées, qui construisent des polygones différents autour de la même
+// technique de lissage (courbe quadratique passant par le milieu de chaque paire de points consécutifs).
+function traceSmoothCurveThrough(c2d, pts) {
+  const n = pts.length;
+  for (let i = 1; i < n - 1; i++) {
+    const xc = (pts[i].x + pts[i + 1].x) / 2;
+    const yc = (pts[i].y + pts[i + 1].y) / 2;
+    c2d.quadraticCurveTo(pts[i].x, pts[i].y, xc, yc);
+  }
+  if (n > 1) c2d.quadraticCurveTo(pts[n - 2].x, pts[n - 2].y, pts[n - 1].x, pts[n - 1].y);
+}
+// Style Miroir plein : contour plein et continu, symétrique au-dessus/en dessous de l'axe central (rendu
+// classique des DAW pro). h - y donne exactement le point miroir d'un point (x, y) puisque l'axe central
+// est à h/2 — pas besoin de recalculer une seconde courbe, juste de réutiliser celle du haut retournée.
+function drawMirrorWaveform(canvas, peaks, color) {
+  if (!canvas || !peaks || peaks.length < 2) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.round(rect.width * dpr));
+  const h = Math.max(1, Math.round(rect.height * dpr));
+  if (w < 2 || h < 2) return;
+  canvas.width = w; canvas.height = h;
+  const c2d = canvas.getContext('2d');
+  c2d.clearRect(0, 0, w, h);
+  const mid = h / 2;
+  const n = peaks.length;
+  const top = peaks.map((v, i) => ({ x: (i / (n - 1)) * w, y: mid - (Math.max(0.04, v) * h) / 2 }));
+  // Même contour reflété sous l'axe central, parcouru de droite à gauche pour fermer le tracé sans lever
+  // le stylet : bottom[0] tombe verticalement sous top[n-1] (fin du haut), bottom[n-1] sous top[0].
+  const bottom = top.map(p => ({ x: p.x, y: h - p.y })).reverse();
+  c2d.fillStyle = color;
+  c2d.beginPath();
+  c2d.moveTo(top[0].x, top[0].y);
+  traceSmoothCurveThrough(c2d, top);
+  c2d.lineTo(bottom[0].x, bottom[0].y);
+  traceSmoothCurveThrough(c2d, bottom);
+  c2d.closePath();
+  c2d.fill();
+}
+// Style Vagues superposées ("Layers") : plusieurs courbes arrondies semi-transparentes empilées, chacune
+// une version réduite des mêmes pics (pas de hasard/bruit ajouté — dérivées des pics réels, comme les
+// trois autres styles). Une seule couleur reçue (voir en-tête de fichier drawWaveformCanvas) : la
+// distinction entre couches se fait par opacité (globalAlpha), jamais par teinte, pour rester compatible
+// avec les couleurs "jouée"/"à jouer" par élément (chantier séparé) quel que soit celui codé en premier.
+function drawLayersWaveform(canvas, peaks, color) {
+  if (!canvas || !peaks || peaks.length < 2) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.round(rect.width * dpr));
+  const h = Math.max(1, Math.round(rect.height * dpr));
+  if (w < 2 || h < 2) return;
+  canvas.width = w; canvas.height = h;
+  const c2d = canvas.getContext('2d');
+  c2d.clearRect(0, 0, w, h);
+  const n = peaks.length;
+  const layers = [
+    { scale: 0.55, baseline: h * 0.92, alpha: 0.35 },
+    { scale: 0.78, baseline: h * 0.85, alpha: 0.55 },
+    { scale: 1.00, baseline: h * 0.78, alpha: 0.90 }
+  ];
+  c2d.fillStyle = color;
+  layers.forEach(layer => {
+    const top = peaks.map((v, i) => {
+      const amp = Math.max(0.04, v) * layer.scale;
+      return { x: (i / (n - 1)) * w, y: layer.baseline - amp * layer.baseline };
+    });
+    c2d.globalAlpha = layer.alpha;
+    c2d.beginPath();
+    c2d.moveTo(top[0].x, layer.baseline);
+    c2d.lineTo(top[0].x, top[0].y);
+    traceSmoothCurveThrough(c2d, top);
+    c2d.lineTo(top[n - 1].x, layer.baseline);
+    c2d.closePath();
+    c2d.fill();
+  });
+  c2d.globalAlpha = 1;
+}
+const WAVEFORM_DRAWERS = { bars: drawBarsWaveform, mirror: drawMirrorWaveform, dots: drawDotsWaveform, layers: drawLayersWaveform };
+// Hauteur CSS (px) en dessous de laquelle Miroir plein/Vagues superposées redeviennent illisibles (contour
+// trop fin, courbes qui se chevauchent) : repli silencieux sur Barres plutôt qu'un rendu cassé dans un
+// petit espace. Barres/Pointillé n'ont pas ce problème (même grille de colonnes aux deux tailles) et ne
+// sont jamais repliés. Seuil choisi en observant les hauteurs réellement utilisées par le lecteur (voir
+// docs/LAYERPITCH_CHANGELOG.md) : le plancher des boutons de boucle en embranchement-vertical (20px, 5-7
+// boucles) et le nœud vertical-random (30px) tombent sous ce seuil ; le bloc séquentiel (34px) et les
+// lecteurs principal/Sfx (40-44px) restent au-dessus.
+const WAVEFORM_TALL_STYLE_MIN_HEIGHT_CSS_PX = 32;
+const WAVEFORM_TALL_STYLES = new Set(['mirror', 'layers']);
+// Pure (ne touche à aucun canvas) : résout le style réellement à dessiner pour une hauteur donnée, en
+// appliquant le repli d'espace ci-dessus. Exportée séparément pour rester testable sans canvas réel.
+function resolveEffectiveWaveformStyle(style, heightCssPx) {
+  const requested = WAVEFORM_DRAWERS[style] ? style : 'bars';
+  if (WAVEFORM_TALL_STYLES.has(requested) && heightCssPx > 0 && heightCssPx < WAVEFORM_TALL_STYLE_MIN_HEIGHT_CSS_PX) return 'bars';
+  return requested;
+}
+function drawWaveformCanvas(canvas, peaks, color, style) {
+  if (!canvas || !peaks) return;
+  const heightCssPx = canvas.getBoundingClientRect().height;
+  const effectiveStyle = resolveEffectiveWaveformStyle(style, heightCssPx);
+  (WAVEFORM_DRAWERS[effectiveStyle] || drawBarsWaveform)(canvas, peaks, color);
+}
 // Point d'entrée commun : mesure la largeur une seule fois (bg/fg partagent la même taille), calcule les
-// pics une seule fois pour les deux calques plutôt que de dupliquer le travail.
+// pics une seule fois pour les deux calques plutôt que de dupliquer le travail. Style lu depuis
+// currentWaveformStyle() (réglage global imposé par la page hôte via setWaveformStyle()) -- aucun appelant
+// n'a besoin de connaître le style choisi, exactement comme aucun n'a besoin de connaître la langue.
 function renderWaveformPair(bgCanvas, fgCanvas, buffer, bgColor, fgColor, maxDurationSec) {
   if (!buffer) return;
   const refCanvas = bgCanvas || fgCanvas;
   if (!refCanvas) return;
   const cssWidth = refCanvas.getBoundingClientRect().width;
   if (cssWidth < 2) return;
-  const peaks = computeWaveformPeaks(buffer, bucketCountForWidth(cssWidth), maxDurationSec);
-  if (bgCanvas) drawWaveformCanvas(bgCanvas, peaks, bgColor);
-  if (fgCanvas) drawWaveformCanvas(fgCanvas, peaks, fgColor);
+  const style = currentWaveformStyle();
+  const peaks = computeWaveformPeaks(buffer, bucketCountForWidth(cssWidth, style), maxDurationSec);
+  if (bgCanvas) drawWaveformCanvas(bgCanvas, peaks, bgColor, style);
+  if (fgCanvas) drawWaveformCanvas(fgCanvas, peaks, fgColor, style);
 }
 
 /* ---------------- État partagé entre toutes les pistes de la page (une seule instance par page chargée) ---------------- */
@@ -378,7 +535,12 @@ function noAiBadgeSvg() {
 function infoBadgeSvg() {
   return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="7.6" r="0.6" fill="currentColor" stroke="none"/></svg>`;
 }
-function renderTracksBlock(container, tracks, packsByTrackId, globalNoAiCertified) {
+// elementColors (optionnel, Chantier Apparence par élément, palier Pro, 05/09) : { waveform: {playedColor,
+// unplayedColor}, progressBar: {playedColor, unplayedColor} } -- résolu côté page hôte (index.html) à
+// partir de block.elementAppearance, jamais recalculé ici. Absent = comportement inchangé (couleurs
+// cssVar('--border')/cssVar('--accent') existantes), appliqué uniformément à TOUTES les pistes de ce
+// bloc (réglage par élément = par bloc, pas par morceau individuel).
+function renderTracksBlock(container, tracks, packsByTrackId, globalNoAiCertified, elementColors) {
   // Si TOUT le lot rendu ici est certifié (que ce soit via le réglage global ou une exception explicite
   // par morceau), un seul badge discret à côté du titre "Musique" suffit — pas la peine de répéter la
   // même icône sur chaque ligne. Sinon, chaque morceau certifié garde son propre badge individuel.
@@ -398,7 +560,7 @@ function renderTracksBlock(container, tracks, packsByTrackId, globalNoAiCertifie
     const packsForTrack = (packsByTrackId && packsByTrackId[track.id]) || [];
     const row = buildTrackRow(track, packsForTrack, globalNoAiCertified, allCertified);
     el.appendChild(row);
-    initTrackPlayer(track, row);
+    initTrackPlayer(track, row, elementColors);
   });
 }
 
@@ -857,6 +1019,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
     <div class="track-row-details" data-role="details">
      <div class="track-row-details-inner">
       <div class="track-desc" data-role="trackDesc">${linkify(track.description || '')}</div>
+      ${track.tags ? `<div class="track-tags">${track.tags.split(',').map(s => s.trim()).filter(Boolean).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
       ${packsForTrack && packsForTrack.length ? `<div class="pack-link">${packsForTrack.map(p => `<a href="./pack.html?id=${encodeURIComponent(p.id)}${adReelFromParam()}">${t('partOfPack', { title: escapeHtml(p.title) })}</a>`).join('<br>')}</div>` : ''}
       ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
         !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : (
@@ -869,7 +1032,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
             <canvas class="waveform-bg" data-role="waveformBg"></canvas>
             <canvas class="waveform-fg" data-role="waveformFg"></canvas>
           ` : `
-            <div class="progress-track"></div>
+            <div class="progress-track" data-role="progressTrack"></div>
             <div class="progress-fill" data-role="progressFill"></div>
             <div class="progress-head" data-role="progressHead"></div>
           `}
@@ -912,7 +1075,20 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   return wrapper;
 }
 
-function initTrackPlayer(track, wrapper) {
+// Résout la paire de couleurs bg/fg à utiliser pour la forme d'onde d'un morceau, à partir d'un éventuel
+// réglage par élément (Chantier Apparence, palier Pro, réglage par élément, 05/09) -- pure (aucun DOM/
+// canvas), donc testable directement sans les limites de jsdom sur le rendu canvas réel. Repli sur les
+// couleurs générales existantes (cssVar) si non réglé, exactement comme avant ce chantier -- compatible
+// avec N'IMPORTE QUEL style choisi par ailleurs (Chantier Apparence "style de forme d'onde") puisqu'un
+// style ne fait jamais que redessiner avec la couleur reçue, quelle qu'elle soit.
+function resolveWaveformColors(elementColors) {
+  return {
+    bg: (elementColors && elementColors.waveform && elementColors.waveform.unplayedColor) || cssVar('--border', '#ccc'),
+    fg: (elementColors && elementColors.waveform && elementColors.waveform.playedColor) || cssVar('--accent', '#c9713c')
+  };
+}
+function initTrackPlayer(track, wrapper, elementColors) {
+  const { bg: waveBgColor, fg: waveFgColor } = resolveWaveformColors(elementColors);
   const isStatic = track.mode === 'static';
   const isVerticalRandom = track.mode === 'vertical-random';
   const isSequential = track.mode === 'sequential';
@@ -1051,8 +1227,19 @@ function initTrackPlayer(track, wrapper) {
   const details = wrapper.querySelector('[data-role="details"]');
   const statusEl = wrapper.querySelector('[data-role="status"]');
   const wrap = wrapper.querySelector('[data-role="progressWrap"]');
+  const progressTrackEl = wrapper.querySelector('[data-role="progressTrack"]');
   const fill = wrapper.querySelector('[data-role="progressFill"]');
   const head = wrapper.querySelector('[data-role="progressHead"]');
+  // Barre de progression "à deux états" (Chantier Apparence par élément, palier Pro, 05/09) : simple
+  // barre CSS (pas un canvas), donc appliquée une seule fois en style inline plutôt que reconstruite à
+  // chaque tick -- même repli que la forme d'onde si non réglée (couleurs générales inchangées).
+  if (elementColors && elementColors.progressBar) {
+    if (progressTrackEl && elementColors.progressBar.unplayedColor) progressTrackEl.style.background = elementColors.progressBar.unplayedColor;
+    if (elementColors.progressBar.playedColor) {
+      if (fill) fill.style.background = elementColors.progressBar.playedColor;
+      if (head) head.style.background = elementColors.progressBar.playedColor;
+    }
+  }
   // Recale max-height si le contenu change de taille pendant que la piste est dépliée (ex. le statut
   // qui passe de "Chargement…" à "Prêt", ou une waveform qui apparaît) — sinon la hauteur mesurée au
   // moment du dépli deviendrait obsolète et couperait ou laisserait un vide sous le contenu.
@@ -1068,7 +1255,7 @@ function initTrackPlayer(track, wrapper) {
   const waveformFg = wrapper.querySelector('[data-role="waveformFg"]');
   let waveformBuffer = null;
   function redrawWaveforms() {
-    renderWaveformPair(waveformBg, waveformFg, waveformBuffer, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+    renderWaveformPair(waveformBg, waveformFg, waveformBuffer, waveBgColor, waveFgColor);
   }
   if (waveformBg && waveformFg) {
     // Redessine si le contraste renforcé change (couleurs différentes) ou si le conteneur change de taille
@@ -1098,7 +1285,7 @@ function initTrackPlayer(track, wrapper) {
   // fond/avant-plan que la waveform du mode statique et les blocs du mode séquentiel.
   function drawVoiceWave(els, buffer) {
     if (!els || !els.bg || !els.fg || !buffer) return;
-    renderWaveformPair(els.bg, els.fg, buffer, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+    renderWaveformPair(els.bg, els.fg, buffer, waveBgColor, waveFgColor);
   }
   // Graphe de nœuds façon Wwise (Voice Graph) pour vertical-random : source -> une voix par emplacement
   // de pool -> bus de sortie, reliés par des connecteurs courbes dessinés en SVG. Le nombre d'emplacements
@@ -1485,7 +1672,7 @@ function initTrackPlayer(track, wrapper) {
     seqLastCropSec[kind] = (maxDurationSec != null) ? maxDurationSec : seqLastCropSec[kind];
     const els = seqWaveEls[kind];
     if (!els || !els.bg || !els.fg || !buffer) return;
-    renderWaveformPair(els.bg, els.fg, buffer, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'), seqLastCropSec[kind]);
+    renderWaveformPair(els.bg, els.fg, buffer, waveBgColor, waveFgColor, seqLastCropSec[kind]);
   }
   // État du bloc actuellement en cours de lecture, retenu pour permettre le seek (glisser sur sa waveform) :
   // sans ça, impossible de savoir quel buffer/gain relancer, ni à quelle position on se trouve réellement
@@ -2607,7 +2794,7 @@ function initTrackPlayer(track, wrapper) {
     picker.appendChild(row);
     embrTransitionRowEl = row;
     const bg = row.querySelector('.embr-wave-bg'), fg = row.querySelector('.embr-wave-fg');
-    renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+    renderWaveformPair(bg, fg, buf, waveBgColor, waveFgColor);
     fg.style.animation = 'none';
     fg.style.transition = 'none';
     fg.style.clipPath = 'inset(0 100% 0 0)';
@@ -2637,7 +2824,7 @@ function initTrackPlayer(track, wrapper) {
     picker.appendChild(row);
     embrDetourRowEl = row;
     const bg = row.querySelector('.embr-wave-bg'), fg = row.querySelector('.embr-wave-fg');
-    renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+    renderWaveformPair(bg, fg, buf, waveBgColor, waveFgColor);
     if (isLooping) {
       fg.style.animationDuration = buf.duration + 's';
       fg.style.animationDelay = '0s';
@@ -3810,7 +3997,7 @@ function initTrackPlayer(track, wrapper) {
         const idx = parseInt(btn.dataset.loopIdx, 10);
         const buf = embrLoopBuffers[idx];
         const bg = btn.querySelector('.embr-wave-bg'), fg = btn.querySelector('.embr-wave-fg');
-        if (buf && bg && fg) renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+        if (buf && bg && fg) renderWaveformPair(bg, fg, buf, waveBgColor, waveFgColor);
       });
       // Fichiers de transition (24/08) -- optionnels, un par boucle. Une transition manquante/en échec ne
       // bloque jamais la boucle elle-même : la bascule se fait juste sans overlay, comme si aucune
@@ -4021,6 +4208,7 @@ function buildSfxPlayer(sfxDef) {
     </div>
     <div class="track-row-details" data-role="details">
       <div class="track-row-details-inner">
+        ${sfxDef.tag ? `<div class="track-tags"><span class="tag">${escapeHtml(sfxDef.tag)}</span></div>` : ''}
         ${description ? `<div class="track-desc">${linkify(description)}</div>` : ''}
         ${alts.length ? `
           <div class="progress-wrap waveform-mode" data-role="mainWaveWrap">
@@ -4214,7 +4402,14 @@ window.LayerPlayerCore = {
   shareOrCopy,
   downloadTracksAsZip,
   createSectionPlaybackScheduler,
-  PLAYABLE_MODES
+  PLAYABLE_MODES,
+  WAVEFORM_STYLES,
+  setWaveformStyle,
+  currentWaveformStyle,
+  computeWaveformPeaks,
+  drawWaveformCanvas,
+  resolveEffectiveWaveformStyle,
+  resolveWaveformColors
 };
 
 })();
