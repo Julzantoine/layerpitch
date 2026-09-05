@@ -1068,87 +1068,11 @@
   <fieldset>
     <legend>Mon compte</legend>
     <div class="hint">
-      Abonnement, informations de facturation, réception des ventes et factures émises, regroupés
-      sur une page dédiée plutôt que dispersés dans le backstage — les panneaux ci-dessous
-      (identiques) restent en place pour l'instant, à retirer une fois que tu as confirmé que cette
-      page te convient.
+      Abonnement, informations de facturation, réception des ventes et factures émises — regroupés
+      sur une page dédiée (validée le 5 septembre, les panneaux qui étaient ici auparavant ont été
+      retirés).
     </div>
     <div class="actions"><a class="btn" href="mon-compte.html" target="_blank" rel="noopener">Ouvrir Mon compte</a></div>
-  </fieldset>
-
-  <fieldset>
-    <legend>Mon abonnement</legend>
-    <div class="hint">
-      Palier gratuit, essai Pro complet de 30 jours sans carte à l'inscription (retombe
-      automatiquement sur Free à l'expiration si tu ne choisis rien), ou un vrai palier payant
-      mensuel/annuel — voir docs/infrastructure.md, décisions du 3 septembre.
-    </div>
-    <div id="subscriptionStatus" class="hint" style="margin-top:8px;">Chargement…</div>
-    <div class="hint" data-i18n="betaPlansDisabledHint">Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.</div>
-    <div class="actions" style="margin-top:8px;flex-wrap:wrap;">
-      <button class="btn" id="btnPlanFree" type="button" disabled data-i18n-title="betaPlansDisabledHint" title="Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.">Passer en Free</button>
-      <button class="btn" id="btnPlanStarterMonth" type="button" disabled data-i18n-title="betaPlansDisabledHint" title="Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.">Starter — mensuel</button>
-      <button class="btn" id="btnPlanStarterYear" type="button" disabled data-i18n-title="betaPlansDisabledHint" title="Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.">Starter — annuel</button>
-      <button class="btn" id="btnPlanProMonth" type="button" disabled data-i18n-title="betaPlansDisabledHint" title="Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.">Pro — mensuel</button>
-      <button class="btn" id="btnPlanProYear" type="button" disabled data-i18n-title="betaPlansDisabledHint" title="Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.">Pro — annuel</button>
-    </div>
-    <div class="hint" id="subscriptionMsg"></div>
-  </fieldset>
-
-  <fieldset>
-    <legend>Mes informations de facturation</legend>
-    <div class="hint">
-      LayerPitch émet la facture (ou l'attestation de vente si tu es un particulier) au nom de tes
-      ventes de packs, en ton nom (mandat de facturation, art. 289 du CGI) — ces informations
-      doivent être complètes avant qu'un de tes packs ne devienne achetable.
-    </div>
-    <div id="billingStatus" class="hint" style="margin-top:8px;">Chargement…</div>
-    <label>Statut</label>
-    <select id="billingStatusSelect">
-      <option value="">— Choisis —</option>
-      <option value="professionnel">Professionnel (facture avec ou sans TVA)</option>
-      <option value="particulier">Particulier (attestation de vente, jamais de TVA)</option>
-    </select>
-    <label>Raison sociale / Nom complet</label>
-    <input type="text" id="billingLegalName" placeholder="Ton nom ou celui de ta structure">
-    <label>Adresse complète</label>
-    <input type="text" id="billingAddress" placeholder="Numéro, rue, code postal, ville, pays">
-    <div class="row" style="margin-top:8px;">
-      <div><label>SIRET (si professionnel)</label><input type="text" id="billingSiret" placeholder="14 chiffres"></div>
-      <div><label>N° TVA intracommunautaire (si applicable)</label><input type="text" id="billingVatNumber" placeholder="FRxx xxxxxxxxx"></div>
-    </div>
-    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
-      <input type="checkbox" id="billingVatApplicable" style="width:auto;margin:0;">
-      <span style="font-size:12px;color:#444;">Je facture la TVA (décoche si tu es en franchise en base, art. 293 B du CGI)</span>
-    </label>
-    <div class="actions" style="margin-top:12px;">
-      <button class="btn" id="btnSaveBillingProfile" type="button">Enregistrer</button>
-    </div>
-    <div class="hint" id="billingMsg"></div>
-  </fieldset>
-
-  <fieldset>
-    <legend>Recevoir mes ventes</legend>
-    <div class="hint">
-      Chaque vente d'un de tes packs verse automatiquement ta part sur ton propre compte Stripe —
-      LayerPitch garde sa commission au même moment, aucun virement manuel de notre côté. Nécessite
-      un compte Stripe (le tien si tu en as déjà un, sinon Stripe t'aide à en créer un) ET tes
-      informations de facturation ci-dessus, complètes.
-    </div>
-    <div id="connectStatus" class="hint" style="margin-top:8px;">Chargement…</div>
-    <div class="actions" style="margin-top:8px;">
-      <button class="btn" id="btnConnectOnboard" type="button">Connecter mon compte Stripe</button>
-    </div>
-    <div class="hint" id="connectMsg"></div>
-  </fieldset>
-
-  <fieldset>
-    <legend>Mes factures émises</legend>
-    <div class="hint">
-      Copie des factures/attestations de vente émises pour tes ventes — à conserver de ton côté,
-      LayerPitch les garde aussi.
-    </div>
-    <div id="issuedInvoicesList" class="hint" style="margin-top:8px;">Chargement…</div>
   </fieldset>
 
   <fieldset id="panelInviteTester" hidden>
@@ -1539,8 +1463,6 @@ function loadPostgresReadScripts() {
     await loadScript('./api/site-data.js');
     await loadScript('./api/subscriptions.js');
     await loadScript('./api/admin.js');
-    await loadScript('./api/connect.js');
-    await loadScript('./api/invoices.js');
     await loadScript('./api/analytics.js');
   })();
   return postgresReadScriptsLoaded;
@@ -1596,20 +1518,18 @@ function effectiveTierFromTrialStatus(status) {
 // en cache pour ça -- voir plan de chantier).
 let currentEffectivePlan = 'starter';
 
-// Panneau "Mon abonnement" (docs/infrastructure.md, chantier 4b — décisions du 3 septembre :
-// essai reverse trial de 30 jours sans carte, retombée automatique sur Free à l'expiration).
+// Calcule le palier effectif du compositeur connecté (docs/infrastructure.md, chantier 4b —
+// décisions du 3 septembre : essai reverse trial de 30 jours sans carte, retombée automatique sur
+// Free à l'expiration) -- currentEffectivePlan gate l'apparence par palier, l'onglet Analytics et le
+// style de forme d'onde (voir plus bas), donc calculé ici même sans plus aucun panneau "Mon
+// abonnement" dans le backstage (retiré le 5 septembre, remplacé par mon-compte.html) : ne JAMAIS
+// faire dépendre ce calcul de l'existence d'un élément du DOM.
 async function renderSubscriptionPanel(session) {
-  const statusEl = document.getElementById('subscriptionStatus');
-  if (!statusEl) return;
-  if (!session || !session.user) {
-    statusEl.textContent = 'Connecte-toi pour voir ton abonnement.';
-    return;
-  }
+  if (!session || !session.user) return;
   await loadPostgresReadScripts();
   const { status, error } = await window.LayerPitchSubscriptions.getTrialStatus();
-  if (error) { statusEl.textContent = 'Erreur : ' + error; return; }
+  if (error) return;
   if (!status) {
-    statusEl.textContent = 'Aucun profil compositeur pour l\'instant — publie une première fois pour en créer un.';
     currentEffectivePlan = 'free';
     renderAppearancePanelForTier();
     renderAnalyticsPanelForTier();
@@ -1618,102 +1538,6 @@ async function renderSubscriptionPanel(session) {
   currentEffectivePlan = effectiveTierFromTrialStatus(status);
   renderAppearancePanelForTier();
   renderAnalyticsPanelForTier();
-  const planLabel = { free: 'Free', starter: 'Starter', pro: 'Pro' }[status.plan] || status.plan;
-  const trialEndsAt = status.trialEndsAt ? new Date(status.trialEndsAt) : null;
-  const trialActive = trialEndsAt && trialEndsAt > new Date();
-  if (trialActive) {
-    const daysLeft = Math.max(1, Math.ceil((trialEndsAt - new Date()) / 86400000));
-    statusEl.textContent = `Palier réel : ${planLabel}. Essai Pro complet actif — encore ${daysLeft} jour(s), sans carte.`;
-  } else if (trialEndsAt && status.plan === 'free') {
-    statusEl.textContent = `Ton essai Pro est terminé, tu es maintenant sur Free — choisis un palier payant ci-dessous pour retrouver l'accès complet.`;
-  } else {
-    statusEl.textContent = `Palier actuel : ${planLabel}.`;
-  }
-}
-// Profil de facturation compositeur (mandat de facturation, art. 289 CGI — chantier 4 septembre).
-// Remplit le formulaire depuis la valeur existante plutôt que de le laisser vide à chaque
-// rechargement -- évite au compositeur de tout retaper s'il vient juste corriger un champ.
-async function renderBillingProfilePanel(session) {
-  const statusEl = document.getElementById('billingStatus');
-  if (!statusEl) return;
-  if (!session || !session.user) {
-    statusEl.textContent = 'Connecte-toi pour voir tes informations de facturation.';
-    return;
-  }
-  await loadPostgresReadScripts();
-  const { profile, error } = await window.LayerPitchConnect.getMyBillingProfile();
-  if (error) { statusEl.textContent = 'Erreur : ' + error; return; }
-  if (!profile || !profile.billing_status) {
-    statusEl.textContent = 'Profil de facturation incomplet — tes packs ne peuvent pas encore être achetés.';
-  } else {
-    statusEl.textContent = 'Profil de facturation complet.';
-  }
-  document.getElementById('billingStatusSelect').value = (profile && profile.billing_status) || '';
-  document.getElementById('billingLegalName').value = (profile && profile.billing_legal_name) || '';
-  document.getElementById('billingAddress').value = (profile && profile.billing_address) || '';
-  document.getElementById('billingSiret').value = (profile && profile.billing_siret) || '';
-  document.getElementById('billingVatNumber').value = (profile && profile.billing_vat_number) || '';
-  document.getElementById('billingVatApplicable').checked = !!(profile && profile.billing_vat_applicable);
-}
-// Statut de connexion Stripe Connect (versement automatique à la vente — chantier 4 septembre).
-async function renderConnectPanel(session) {
-  const statusEl = document.getElementById('connectStatus');
-  const btn = document.getElementById('btnConnectOnboard');
-  if (!statusEl) return;
-  if (!session || !session.user) {
-    statusEl.textContent = 'Connecte-toi pour voir ton statut de paiement.';
-    return;
-  }
-  await loadPostgresReadScripts();
-  const { status, error } = await window.LayerPitchConnect.myConnectStatus();
-  if (error) { statusEl.textContent = 'Erreur : ' + error; return; }
-  if (!status || !status.connected) {
-    statusEl.textContent = 'Aucun compte Stripe connecté — tes packs ne peuvent pas encore être achetés.';
-    if (btn) btn.textContent = 'Connecter mon compte Stripe';
-  } else if (!status.chargesEnabled) {
-    statusEl.textContent = 'Compte Stripe créé, mais l\'inscription n\'est pas terminée côté Stripe — reprends-la pour pouvoir recevoir des paiements.';
-    if (btn) btn.textContent = 'Terminer la connexion Stripe';
-  } else {
-    statusEl.textContent = 'Compte Stripe connecté et actif — tu reçois automatiquement ta part à chaque vente.';
-    if (btn) btn.textContent = 'Gérer mon compte Stripe';
-  }
-}
-// Factures/attestations de vente déjà émises pour les ventes de ce compositeur.
-async function renderIssuedInvoicesPanel(session) {
-  const listEl = document.getElementById('issuedInvoicesList');
-  if (!listEl) return;
-  if (!session || !session.user) {
-    listEl.textContent = 'Connecte-toi pour voir tes factures.';
-    return;
-  }
-  await loadPostgresReadScripts();
-  const { invoices, error } = await window.LayerPitchInvoices.getMyIssuedInvoices();
-  if (error) { listEl.textContent = 'Erreur : ' + error; return; }
-  if (!invoices.length) {
-    listEl.textContent = 'Aucune facture émise pour l\'instant.';
-    return;
-  }
-  listEl.innerHTML = invoices.map((inv) => {
-    const label = inv.document_type === 'facture' ? 'Facture' : 'Attestation de vente';
-    const date = new Date(inv.created_at).toLocaleDateString('fr-FR');
-    return `<div style="margin-top:4px;">${label} ${inv.invoice_number} — ${date} — ${Number(inv.amount_ttc).toFixed(2)} $
-      <button class="btn btn-small" type="button" data-invoice-id="${inv.id}">Télécharger</button></div>`;
-  }).join('');
-  listEl.querySelectorAll('button[data-invoice-id]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      try {
-        const { data, error: fnError } = await window.LayerPitchSupabaseClient.getClient()
-          .functions.invoke('get-invoice-download-url', { body: { invoiceId: btn.getAttribute('data-invoice-id') } });
-        if (fnError || !data || !data.url) {
-          alert('Erreur : ' + (fnError ? await window.LayerPitchAuth.describeFunctionError(fnError) : (data && data.error) || 'inconnue'));
-        } else {
-          window.open(data.url, '_blank', 'noopener');
-        }
-      } catch (e) { alert('Erreur : ' + e.message); }
-      btn.disabled = false;
-    });
-  });
 }
 // Masque les panneaux de debug/admin (dépôt GitHub, tests Postgres, invitation testeur, stockage
 // R2, lien vers le panneau admin) pour tout compte non-admin -- trouvé le 4 septembre, jamais
@@ -1909,81 +1733,6 @@ async function initPgAuthUi() {
       inviteBtn.disabled = false;
     });
   }
-  // Panneau "Mon abonnement" — un seul gestionnaire de clic générique pour les 5 boutons plutôt que
-  // cinq blocs quasi identiques, plan/interval lus sur chaque bouton lui-même.
-  const planButtons = [
-    { id: 'btnPlanFree', plan: 'free', interval: null },
-    { id: 'btnPlanStarterMonth', plan: 'starter', interval: 'month' },
-    { id: 'btnPlanStarterYear', plan: 'starter', interval: 'year' },
-    { id: 'btnPlanProMonth', plan: 'pro', interval: 'month' },
-    { id: 'btnPlanProYear', plan: 'pro', interval: 'year' },
-  ];
-  planButtons.forEach(({ id, plan, interval }) => {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-    btn.addEventListener('click', async () => {
-      const msg = document.getElementById('subscriptionMsg');
-      btn.disabled = true;
-      msg.textContent = '…';
-      try {
-        await loadPostgresReadScripts();
-        if (plan === 'free') {
-          const { ok, error } = await window.LayerPitchSubscriptions.choosePlanFree();
-          msg.textContent = ok ? 'Palier Free activé.' : 'Erreur : ' + error;
-          if (ok) renderSubscriptionPanel((await window.LayerPitchAuth.getSession()).session);
-        } else {
-          const successUrl = window.location.origin + '/bienvenue.html?subscribed=1';
-          const cancelUrl = window.location.origin + '/bienvenue.html?subscribed=0';
-          const { ok, error } = await window.LayerPitchSubscriptions.subscribeToPlan(plan, interval, { successUrl, cancelUrl });
-          if (!ok) msg.textContent = 'Erreur : ' + error;
-          // Si ok, subscribeToPlan() a déjà redirigé vers Stripe Checkout — rien d'autre à faire ici.
-        }
-      } catch (e) { msg.textContent = 'Erreur : ' + e.message; }
-      btn.disabled = false;
-    });
-  });
-  // Profil de facturation compositeur (mandat de facturation, chantier 4 septembre).
-  const saveBillingBtn = document.getElementById('btnSaveBillingProfile');
-  if (saveBillingBtn) {
-    saveBillingBtn.addEventListener('click', async () => {
-      const msg = document.getElementById('billingMsg');
-      const status = document.getElementById('billingStatusSelect').value;
-      if (!status) { msg.textContent = 'Choisis un statut (professionnel ou particulier).'; return; }
-      const legalName = document.getElementById('billingLegalName').value.trim();
-      const address = document.getElementById('billingAddress').value.trim();
-      if (!legalName || !address) { msg.textContent = 'Raison sociale/nom et adresse sont requis.'; return; }
-      saveBillingBtn.disabled = true; msg.textContent = '…';
-      try {
-        await loadPostgresReadScripts();
-        const { ok, error } = await window.LayerPitchConnect.saveMyBillingProfile({
-          status, legalName, address,
-          siret: document.getElementById('billingSiret').value.trim(),
-          vatNumber: document.getElementById('billingVatNumber').value.trim(),
-          vatApplicable: document.getElementById('billingVatApplicable').checked,
-        });
-        msg.textContent = ok ? 'Enregistré.' : 'Erreur : ' + error;
-        if (ok) renderBillingProfilePanel((await window.LayerPitchAuth.getSession()).session);
-      } catch (e) { msg.textContent = 'Erreur : ' + e.message; }
-      saveBillingBtn.disabled = false;
-    });
-  }
-  // Connexion Stripe Connect (versement automatique à la vente, chantier 4 septembre).
-  const connectBtn = document.getElementById('btnConnectOnboard');
-  if (connectBtn) {
-    connectBtn.addEventListener('click', async () => {
-      const msg = document.getElementById('connectMsg');
-      connectBtn.disabled = true; msg.textContent = '…';
-      try {
-        await loadPostgresReadScripts();
-        const returnUrl = window.location.origin + '/layerpitch-backstage.html?connect=return';
-        const refreshUrl = window.location.origin + '/layerpitch-backstage.html?connect=refresh';
-        const { ok, error } = await window.LayerPitchConnect.startConnectOnboarding({ returnUrl, refreshUrl });
-        if (!ok) msg.textContent = 'Erreur : ' + error;
-        // Si ok, déjà redirigé vers Stripe -- rien d'autre à faire ici.
-      } catch (e) { msg.textContent = 'Erreur : ' + e.message; }
-      connectBtn.disabled = false;
-    });
-  }
   // Filtre par plage de dates du tableau de bord Analytics (Pro uniquement, grille validée du 4
   // septembre) -- ne redéclenche un appel à get_my_analytics() que sur clic explicite, pas à
   // chaque changement de champ de date.
@@ -2007,7 +1756,6 @@ async function initPgAuthUi() {
   if (window.LayerPitchAuth) {
     window.LayerPitchAuth.onAuthStateChange((_event, session) => {
       renderPgAuthStatus(session); refreshMyComposerHandle(session); renderSubscriptionPanel(session);
-      renderBillingProfilePanel(session); renderConnectPanel(session); renderIssuedInvoicesPanel(session);
       renderAdminOnlyPanels(session); renderAccountMenu(session); renderNotifBell(session);
     });
   }
