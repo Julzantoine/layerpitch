@@ -567,7 +567,35 @@
      évidence, signe que la régression était déjà en place au moment où ce bloc a été écrit. Restauré à
      min(1400px, 92vw). */
   .page-top-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; position: sticky; top: 12px; z-index: 400; background: var(--backstage-bg); padding: 4px 0 8px; margin: -4px 0 0; }
-  .global-actions-bar { display: flex; gap: 8px; flex-shrink: 0; }
+  .global-actions-bar { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+
+  /* Menu compte (icône réglage, en haut à droite -- norme des autres sites : tout ce qui concerne
+     le compte connecté -- identité, accès à Mon compte, déconnexion -- se trouve là plutôt que
+     dispersé dans la page, 05/09) */
+  .account-menu { position: relative; }
+  .account-menu-dropdown {
+    position: absolute; top: calc(100% + 6px); right: 0; min-width: 230px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.14); padding: 6px; z-index: 500;
+  }
+  .account-menu-email { font-size: 11.5px; color: var(--text-dim); padding: 6px 10px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); word-break: break-all; }
+  .account-menu-item {
+    display: block; width: 100%; text-align: left; background: none; border: none;
+    padding: 8px 10px; font-size: 12.5px; border-radius: 5px; cursor: pointer;
+    color: inherit; text-decoration: none; font-family: inherit;
+  }
+  .account-menu-item:hover { background: var(--backstage-bg); }
+  .account-menu-item[hidden] { display: none; }
+  .account-menu-signout { color: #b5442e; }
+  .account-menu-dropdown-wide { min-width: 300px; max-width: 360px; max-height: 320px; overflow-y: auto; }
+  #btnNotifBell { position: relative; }
+  .notif-badge {
+    position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%;
+    background: #c0392b; border: 1.5px solid var(--bg);
+  }
+  .notif-item { padding: 8px 10px; border-radius: 5px; font-size: 12.5px; line-height: 1.5; }
+  .notif-item:not(:last-child) { border-bottom: 1px solid var(--border); }
+  .notif-item-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
   .global-actions-bar .btn { white-space: nowrap; }
 
   /* ---------------- Bulles d'aide contextuelle (data-help) ---------------- */
@@ -598,6 +626,26 @@
       <button class="btn" id="btnPreview" type="button" disabled data-i18n-title="previewComingSoonHint" data-i18n="previewComingSoonBtn" title="Bientôt disponible : un aperçu en direct de tes modifications non encore publiées, sans avoir à sauvegarder d'abord.">Prévisualiser</button>
       <button class="btn btn-primary" id="btnPublish" disabled data-i18n-title="publishDisabledUntilLoadHint" data-i18n="publishBtn" title="Désactivé tant que le chargement initial n'a pas réussi, pour éviter d'écraser les données déjà publiées.">Sauvegarder / publier</button>
       <button class="btn" id="btnView" data-i18n="viewResultBtn">Visualiser le résultat ↗</button>
+      <div class="account-menu">
+        <button class="btn btn-icon" id="btnNotifBell" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="notifBellTitle" title="Notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 10a6 6 0 1 1 12 0c0 4 1.4 5.4 1.4 5.4H4.6S6 14 6 10z"/><path d="M10.3 18.5a1.9 1.9 0 0 0 3.4 0"/></svg>
+          <span class="notif-badge" id="notifBellBadge" hidden></span>
+        </button>
+        <div class="account-menu-dropdown account-menu-dropdown-wide" id="notifBellDropdown" hidden>
+          <div class="account-menu-email" id="notifBellEmpty" data-i18n="notifBellEmpty">Aucun message pour l'instant.</div>
+          <div id="notifBellList"></div>
+        </div>
+      </div>
+      <div class="account-menu">
+        <button class="btn btn-icon" id="btnAccountMenu" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="accountMenuTitle" title="Compte">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M19.4 13.6c.06-.53.06-1.07 0-1.6l1.9-1.3-1.5-2.6-2.2.7a7.4 7.4 0 0 0-1.4-.8L15.8 5.8h-3l-.4 2.2a7.4 7.4 0 0 0-1.4.8l-2.2-.7-1.5 2.6 1.9 1.3c-.06.53-.06 1.07 0 1.6l-1.9 1.3 1.5 2.6 2.2-.7c.43.34.9.62 1.4.8l.4 2.2h3l.4-2.2c.5-.18.97-.46 1.4-.8l2.2.7 1.5-2.6-1.9-1.3z"/></svg>
+        </button>
+        <div class="account-menu-dropdown" id="accountMenuDropdown" hidden>
+          <div class="account-menu-email" id="accountMenuEmail" data-i18n="accountMenuNotConnected">Non connecté</div>
+          <a class="account-menu-item" href="mon-compte.html" target="_blank" rel="noopener" data-i18n="accountMenuMyAccount">Mon compte</a>
+          <button class="account-menu-item account-menu-signout" id="btnAccountSignOut" type="button" hidden data-i18n="accountMenuSignOut">Se déconnecter</button>
+        </div>
+      </div>
     </div>
   </div>
   <div class="sub" data-i18n="introText">Outil local. Ton contenu se charge automatiquement à l'ouverture (lecture publique, pas besoin de token). Le token n'est demandé qu'au moment de publier — ne partage jamais ce fichier une fois rempli.</div>
@@ -925,6 +973,12 @@
             <div id="customFontsContainer"></div>
             <div class="actions" style="margin-bottom:6px"><button class="btn btn-small" id="btnAddCustomFont" data-i18n="addCustomFont">+ Police personnalisée</button></div>
           </fieldset>
+          <fieldset style="margin-top:16px" data-help="waveformStyle">
+            <legend data-i18n="waveformStyleLegend">Style de forme d'onde</legend>
+            <div class="sub" data-i18n="waveformStyleHint">Réglage global, pour tout le site — pas par bloc ni par AdReel. S'applique partout où une forme d'onde apparaît (lecteur de morceau, Sfx, boutons de boucle en embranchement-vertical). Repli automatique sur "Barres" dans les espaces trop petits pour rester lisible.</div>
+            <div id="waveformStyleLocked" class="hint-inline" data-i18n="waveformStyleLockedMsg" hidden>Le choix du style de forme d'onde fait partie du palier Pro — le style "Barres" reste utilisé sur les autres paliers.</div>
+            <select id="waveformStyleSelect"></select>
+          </fieldset>
         </div>
       </div>
 
@@ -999,6 +1053,12 @@
       <button class="btn" id="btnPgSendMagicLink" type="button">Envoyer le lien magique</button>
       <button class="btn" id="btnPgSignOut" type="button" style="display:none;">Se déconnecter</button>
     </div>
+    <div class="row" style="margin-top:8px;">
+      <div><label>Code reçu par email (si lien magique lu sur un autre appareil)</label><input type="text" id="pgAuthCode" placeholder="123456" inputmode="numeric" autocomplete="one-time-code"></div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btnPgVerifyCode" type="button">Valider le code</button>
+    </div>
     <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
       <input type="checkbox" id="pgWriteToggle" style="width:auto;margin:0;">
       <span style="font-size:12px;color:#444;">Écriture double vers Postgres à la publication (test)</span>
@@ -1024,12 +1084,13 @@
       mensuel/annuel — voir docs/infrastructure.md, décisions du 3 septembre.
     </div>
     <div id="subscriptionStatus" class="hint" style="margin-top:8px;">Chargement…</div>
+    <div class="hint" data-i18n="betaPlansDisabledHint">Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.</div>
     <div class="actions" style="margin-top:8px;flex-wrap:wrap;">
-      <button class="btn" id="btnPlanFree" type="button">Passer en Free</button>
-      <button class="btn" id="btnPlanStarterMonth" type="button">Starter — mensuel</button>
-      <button class="btn" id="btnPlanStarterYear" type="button">Starter — annuel</button>
-      <button class="btn" id="btnPlanProMonth" type="button">Pro — mensuel</button>
-      <button class="btn" id="btnPlanProYear" type="button">Pro — annuel</button>
+      <button class="btn" id="btnPlanFree" type="button" disabled data-i18n-title="betaPlansDisabledHint" title="Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.">Passer en Free</button>
+      <button class="btn" id="btnPlanStarterMonth" type="button" disabled data-i18n-title="betaPlansDisabledHint" title="Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.">Starter — mensuel</button>
+      <button class="btn" id="btnPlanStarterYear" type="button" disabled data-i18n-title="betaPlansDisabledHint" title="Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.">Starter — annuel</button>
+      <button class="btn" id="btnPlanProMonth" type="button" disabled data-i18n-title="betaPlansDisabledHint" title="Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.">Pro — mensuel</button>
+      <button class="btn" id="btnPlanProYear" type="button" disabled data-i18n-title="betaPlansDisabledHint" title="Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.">Pro — annuel</button>
     </div>
     <div class="hint" id="subscriptionMsg"></div>
   </fieldset>
@@ -1395,6 +1456,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   initPgAuthUi();
+  initAccountMenuUi();
+  initNotifBellUi();
 });
 const state = {
   owner: () => document.getElementById('ghOwner').value.trim(),
@@ -1686,6 +1749,93 @@ function renderPgAuthStatus(session) {
     if (signOutBtn) signOutBtn.style.display = 'none';
   }
 }
+function renderAccountMenu(session) {
+  const emailEl = document.getElementById('accountMenuEmail');
+  const signOutBtn = document.getElementById('btnAccountSignOut');
+  if (!emailEl) return;
+  if (session && session.user) {
+    emailEl.textContent = session.user.email;
+    if (signOutBtn) signOutBtn.hidden = false;
+  } else {
+    emailEl.textContent = tr('accountMenuNotConnected');
+    if (signOutBtn) signOutBtn.hidden = true;
+  }
+}
+function initAccountMenuUi() {
+  const menuBtn = document.getElementById('btnAccountMenu');
+  const dropdown = document.getElementById('accountMenuDropdown');
+  const signOutBtn = document.getElementById('btnAccountSignOut');
+  if (!menuBtn || !dropdown) return;
+  const closeMenu = () => { dropdown.hidden = true; menuBtn.setAttribute('aria-expanded', 'false'); };
+  menuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = dropdown.hidden;
+    dropdown.hidden = !willOpen;
+    menuBtn.setAttribute('aria-expanded', String(willOpen));
+  });
+  document.addEventListener('click', (e) => {
+    if (!dropdown.hidden && !dropdown.contains(e.target) && e.target !== menuBtn) closeMenu();
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+  if (signOutBtn) {
+    signOutBtn.addEventListener('click', async () => {
+      closeMenu();
+      await loadPostgresReadScripts();
+      await window.LayerPitchAuth.signOut();
+    });
+  }
+}
+// Cloche de notification (messages du bloc "Contact" public, relayés par submit-contact-message —
+// 5 septembre) : lecture directe sur contact_messages (RLS "own contact messages", même patron que
+// getMyIssuedInvoices()) plutôt qu'une RPC dédiée, aucun gating par palier payant volontairement
+// (recevoir un message n'est pas une métrique d'analytics, voir la migration pour le détail).
+async function renderNotifBell(session) {
+  const badge = document.getElementById('notifBellBadge');
+  const emptyEl = document.getElementById('notifBellEmpty');
+  const listEl = document.getElementById('notifBellList');
+  if (!badge || !listEl) return;
+  if (!session || !session.user) { badge.hidden = true; listEl.innerHTML = ''; emptyEl.hidden = false; return; }
+  await loadPostgresReadScripts();
+  const { data, error } = await window.LayerPitchSupabaseClient.getClient()
+    .from('contact_messages')
+    .select('id, ad_reel_label, sender_name, sender_email, created_at, seen_at')
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (error || !data || data.length === 0) { badge.hidden = true; listEl.innerHTML = ''; emptyEl.hidden = false; return; }
+  badge.hidden = data.every(m => m.seen_at);
+  emptyEl.hidden = true;
+  listEl.innerHTML = data.map(m => `
+    <div class="notif-item">
+      ${tr('notifBellMessage', { name: escapeHtml(m.sender_name), adreel: escapeHtml(m.ad_reel_label) })}
+      <div class="notif-item-meta">${escapeHtml(m.sender_email)} — ${new Date(m.created_at).toLocaleString('fr-FR')}</div>
+    </div>`).join('');
+}
+function initNotifBellUi() {
+  const bellBtn = document.getElementById('btnNotifBell');
+  const dropdown = document.getElementById('notifBellDropdown');
+  if (!bellBtn || !dropdown) return;
+  const closeMenu = () => { dropdown.hidden = true; bellBtn.setAttribute('aria-expanded', 'false'); };
+  bellBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const willOpen = dropdown.hidden;
+    dropdown.hidden = !willOpen;
+    bellBtn.setAttribute('aria-expanded', String(willOpen));
+    // Marqué vu à l'ouverture (pas avant) : le badge doit rester visible tant que le compositeur n'a
+    // pas effectivement regardé la cloche, même s'il a rechargé la page entretemps.
+    if (willOpen) {
+      const badge = document.getElementById('notifBellBadge');
+      if (badge && !badge.hidden) {
+        await loadPostgresReadScripts();
+        await window.LayerPitchSupabaseClient.getClient().rpc('mark_contact_messages_seen');
+        badge.hidden = true;
+      }
+    }
+  });
+  document.addEventListener('click', (e) => {
+    if (!dropdown.hidden && !dropdown.contains(e.target) && e.target !== bellBtn) closeMenu();
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+}
 async function initPgAuthUi() {
   const sendBtn = document.getElementById('btnPgSendMagicLink');
   const signOutBtn = document.getElementById('btnPgSignOut');
@@ -1701,6 +1851,21 @@ async function initPgAuthUi() {
     } catch (e) { alert('Erreur : ' + e.message); }
     sendBtn.disabled = false;
   });
+  const verifyCodeBtn = document.getElementById('btnPgVerifyCode');
+  if (verifyCodeBtn) {
+    verifyCodeBtn.addEventListener('click', async () => {
+      const email = document.getElementById('pgAuthEmail').value.trim();
+      const code = document.getElementById('pgAuthCode').value.trim();
+      if (!email || !code) { alert('Renseigne ton email et le code reçu.'); return; }
+      verifyCodeBtn.disabled = true;
+      try {
+        await loadPostgresReadScripts();
+        const { ok, error } = await window.LayerPitchAuth.verifyEmailOtp(email, code);
+        if (!ok) alert('Erreur : ' + error);
+      } catch (e) { alert('Erreur : ' + e.message); }
+      verifyCodeBtn.disabled = false;
+    });
+  }
   if (signOutBtn) {
     signOutBtn.addEventListener('click', async () => {
       await loadPostgresReadScripts();
@@ -1843,7 +2008,7 @@ async function initPgAuthUi() {
     window.LayerPitchAuth.onAuthStateChange((_event, session) => {
       renderPgAuthStatus(session); refreshMyComposerHandle(session); renderSubscriptionPanel(session);
       renderBillingProfilePanel(session); renderConnectPanel(session); renderIssuedInvoicesPanel(session);
-      renderAdminOnlyPanels(session);
+      renderAdminOnlyPanels(session); renderAccountMenu(session); renderNotifBell(session);
     });
   }
 }
@@ -1971,7 +2136,7 @@ function migrateProfileTheme(rawProfile) {
 
 let blocks = [];        // [{id, type, ...content pour text/photo/video}] — de l'AdReel en cours d'édition
 let blockCards = {};    // id -> DOM element (card)
-let profile = { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', formspreeEndpoint: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) };
+let profile = { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) };
 let logoPendingFile = null, photoPendingFile = null;
 // Image de fond générale de l'AdReel en cours d'édition — même principe de va-et-vient que logo/photo
 // (fichier en attente hors de profile.theme lui-même, pour ne jamais contaminer la sérialisation de
@@ -2199,6 +2364,12 @@ let implementationSkills = { wwise: false, fmod: false, unity: false, unreal: fa
 // catalogue — chaque morceau peut individuellement suivre ce réglage (track.noAiOverride === null,
 // valeur par défaut) ou faire explicitement exception (true/false), voir effectiveNoAiCertified().
 let noAiCertifiedGlobal = false;
+// Réglage global (pas par AdReel, pas par bloc), palier Pro uniquement (Chantier Apparence, 05/09) :
+// style de la forme d'onde partout où elle apparaît (lecteur de morceau, Sfx, boutons de boucle en
+// embranchement-vertical). Stocké au même endroit que implementationSkills/customFonts (table settings,
+// une ligne par compositeur) -- pas dans profile.theme, qui est par-AdReel. Valeurs valides :
+// window.LayerPlayerCore.WAVEFORM_STYLES ('bars' par défaut/repli).
+let waveformStyle = 'bars';
 function effectiveNoAiCertified(track) {
   return (track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : noAiCertifiedGlobal;
 }
@@ -2229,6 +2400,9 @@ function slug(str) {
   return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'item';
 }
 function escapeAttr(s) { return (s || '').replace(/"/g, '&quot;'); }
+// Nécessaire dès qu'un texte affiché vient d'un visiteur non authentifié (ex. sender_name des
+// messages de contact, cloche de notification) -- escapeAttr() seul ne protège que les attributs.
+function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function extOf(filename) { const m = /\.([a-zA-Z0-9]+)$/.exec(filename || ''); return m ? m[1].toLowerCase() : 'jpg'; }
 // Content-Type pour l'upload R2 des images (ghPutFile/GitHub n'en avait jamais eu besoin, S3/R2 le
 // veut pour servir le bon en-tête -- voir MIME dans scripts/migrate-media-to-r2.js pour la même liste).
@@ -3245,14 +3419,13 @@ document.getElementById('newAdReelOk').addEventListener('click', () => {
   let id = slug(label);
   if (!id || adReels.some(a => a.id === id)) id = genId();
 
-  const profile = { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', formspreeEndpoint: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) };
+  const profile = { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) };
   if (imp.header && source) {
     profile.title = source.profile.title || '';
     profile.subtitle = (source.profile.subtitle != null) ? source.profile.subtitle : (source.profile.tagline || '');
     profile.logo = source.profile.logo || null;
     profile.contactEmail = source.profile.contactEmail || '';
     profile.contactUrl = source.profile.contactUrl || '';
-    profile.formspreeEndpoint = source.profile.formspreeEndpoint || '';
   }
   if (imp.bio && source) {
     profile.bio = source.profile.bio || '';
@@ -6031,7 +6204,7 @@ function trCount(n, singularKey, pluralKey) {
 // Formulaire de contact configuré ou non -- même condition utilisée par buildContactBlockCard (avertissement
 // dans le corps du bloc) et blockSummaryText (résumé compact de l'en-tête) : un seul point de vérité.
 function hasContactFormEndpoint() {
-  return !!(profile.formspreeEndpoint && profile.formspreeEndpoint.trim());
+  return !!(profile.contactEmail && profile.contactEmail.trim());
 }
 function blockSummaryText(block) {
   switch (block.type) {
@@ -6279,18 +6452,14 @@ function buildHeaderCard(block) {
     ${sectionEyebrow(tr('sectionContact'))}
     <label data-help="headerContactEmail">${tr('contactEmailLabel')}</label>
     <input type="text" data-role="email" placeholder="julzantoine@yahoo.com">
+    <div class="hint-inline">${tr('formspreeHint')}</div>
     <label data-help="headerWebsite">${tr('websiteLabel')}</label>
     <input type="text" data-role="url" placeholder="https://www.julzantoine.fr">
-    ${sectionEyebrow(tr('sectionForm'))}
-    <label data-help="formspreeEndpoint">${tr('formspreeLabel')}</label>
-    <input type="text" data-role="formspreeEndpoint" placeholder="https://formspree.io/f/xxxxxxxx">
-    <div class="hint-inline">${tr('formspreeHint')}</div>
   `;
   const titleEl = body.querySelector('[data-role="title"]');
   const subtitleEl = body.querySelector('[data-role="subtitle"]');
   const emailEl = body.querySelector('[data-role="email"]');
   const urlEl = body.querySelector('[data-role="url"]');
-  const formspreeEl = body.querySelector('[data-role="formspreeEndpoint"]');
   // Rétrocompatibilité : un AdReel publié avant ce changement n'a qu'un profile.tagline (jamais de
   // subtitle) — repris ici comme valeur de départ du sous-titre, une seule fois, à l'ouverture. Une fois
   // subtitle édité ou republié, c'est lui qui fait foi ; tagline n'est plus jamais réécrit.
@@ -6298,12 +6467,10 @@ function buildHeaderCard(block) {
   subtitleEl.value = (profile.subtitle != null) ? profile.subtitle : (profile.tagline || '');
   emailEl.value = profile.contactEmail || '';
   urlEl.value = profile.contactUrl || '';
-  formspreeEl.value = profile.formspreeEndpoint || '';
   titleEl.addEventListener('input', e => { profile.title = e.target.value; hasUnsavedEdits = true; refreshAllBlockSummaries(); });
   subtitleEl.addEventListener('input', e => { profile.subtitle = e.target.value; hasUnsavedEdits = true; refreshAllBlockSummaries(); });
-  emailEl.addEventListener('input', e => { profile.contactEmail = e.target.value; hasUnsavedEdits = true; });
+  emailEl.addEventListener('input', e => { profile.contactEmail = e.target.value; hasUnsavedEdits = true; refreshAllBlockSummaries(); });
   urlEl.addEventListener('input', e => { profile.contactUrl = e.target.value; hasUnsavedEdits = true; });
-  formspreeEl.addEventListener('input', e => { profile.formspreeEndpoint = e.target.value; hasUnsavedEdits = true; });
   wireFileControl(body.querySelector('[data-role="logoCtrl"]'), 'image/*',
     () => logoPendingFile, () => profile.logo,
     f => { logoPendingFile = f; hasUnsavedEdits = true; }, () => profile.logoOriginalName);
@@ -6638,10 +6805,30 @@ function buildSfxBlockCard(block) {
 
 function buildContactBlockCard(block) {
   const { card, body } = makeCardShell(block);
-  const hasEndpoint = hasContactFormEndpoint();
   body.innerHTML = `
-    ${!hasEndpoint ? `<div class="hint-inline" style="color:#b45309">${tr('noFormspreeWarning')}</div>` : `<div class="hint-inline">${tr('formspreeOkHint')}</div>`}
+    <label data-help="headerContactEmail">${tr('contactEmailLabel')}</label>
+    <input type="text" data-role="email" placeholder="julzantoine@yahoo.com">
+    <div data-role="endpointHint"></div>
   `;
+  const emailEl = body.querySelector('[data-role="email"]');
+  const hintEl = body.querySelector('[data-role="endpointHint"]');
+  function renderHint() {
+    hintEl.innerHTML = hasContactFormEndpoint()
+      ? `<div class="hint-inline">${tr('formspreeOkHint')}</div>`
+      : `<div class="hint-inline" style="color:#b45309">${tr('noFormspreeWarning')}</div>`;
+  }
+  // Même propriété que le champ "Email de contact" du bloc Header (profile.contactEmail) --
+  // affiché ici aussi (5 septembre, retour de Jules-Antoine : configurer le destinataire du bloc
+  // Contact en éditant un tout autre bloc n'était pas intuitif) plutôt que dupliqué en deux valeurs
+  // distinctes, pour rester la même adresse partout (mailto public du Header ET relais du formulaire).
+  emailEl.value = profile.contactEmail || '';
+  renderHint();
+  emailEl.addEventListener('input', e => {
+    profile.contactEmail = e.target.value;
+    hasUnsavedEdits = true;
+    renderHint();
+    refreshAllBlockSummaries();
+  });
   return card;
 }
 
@@ -7529,6 +7716,7 @@ function fillAppearanceFields() {
   document.getElementById('appThemeContentColor').value = profile.theme.contentColor || DEFAULT_THEME.contentColor;
   document.getElementById('appThemeFont').innerHTML = buildFontSelectOptionsHtml(profile.theme.font || DEFAULT_THEME.font);
   renderCustomFontsList();
+  fillWaveformStyleField();
   const bgImageCtrl = document.getElementById('appThemeBgImageCtrl');
   bgImageCtrl.innerHTML = fileCtrlHtml(tr('chooseBgImageFile'));
   wireFileControl(bgImageCtrl, 'image/*',
@@ -7591,6 +7779,7 @@ function renderAppearancePanelForTier() {
   if (gallery) gallery.style.display = isFree ? '' : 'none';
   if (fullControls) fullControls.style.display = isFree ? 'none' : '';
   if (isFree) renderThemePresetGallery();
+  renderWaveformStyleForTier();
   if (typeof rebuildAllCards === 'function') rebuildAllCards();
   if (typeof renderPacks === 'function') renderPacks();
   if (typeof renderCollections === 'function') renderCollections();
@@ -7830,6 +8019,38 @@ document.getElementById('noAiCertifiedGlobal').addEventListener('change', e => {
 });
 fillNoAiCertifiedGlobalField();
 
+/* ---------------- Style de forme d'onde (réglage global, palier Pro) ---------------- */
+// Clé i18n dérivée du nom du style ('mirror' -> 'waveformStyleMirror') plutôt qu'une table de
+// correspondance à part -- fillAppearanceFields() étant appelée dès le chargement du script (avant même
+// currentAdReelId), une const déclarée plus bas dans ce fichier serait encore dans sa zone morte
+// temporelle au premier appel.
+function fillWaveformStyleField() {
+  const select = document.getElementById('waveformStyleSelect');
+  const styles = window.LayerPlayerCore.WAVEFORM_STYLES;
+  if (!styles.includes(waveformStyle)) waveformStyle = 'bars';
+  select.innerHTML = styles.map(s => `<option value="${s}">${tr('waveformStyle' + s[0].toUpperCase() + s.slice(1))}</option>`).join('');
+  select.value = waveformStyle;
+  window.LayerPlayerCore.setWaveformStyle(currentEffectivePlan === 'pro' ? waveformStyle : 'bars');
+}
+document.getElementById('waveformStyleSelect').addEventListener('change', e => {
+  waveformStyle = window.LayerPlayerCore.WAVEFORM_STYLES.includes(e.target.value) ? e.target.value : 'bars';
+  hasUnsavedEdits = true;
+  window.LayerPlayerCore.setWaveformStyle(currentEffectivePlan === 'pro' ? waveformStyle : 'bars');
+  if (typeof rebuildAllCards === 'function') rebuildAllCards(); // reflète le nouveau style dans les aperçus déjà à l'écran
+});
+// Bascule le réglage entre verrouillé (Free/Starter -- message + select masqué, "Barres" imposé) et
+// modifiable (Pro) -- rappelée par renderAppearancePanelForTier(), donc à chaque bascule d'AdReel et à
+// chaque résolution/changement de palier, même mécanisme que le filtre de dates de l'onglet Analytics.
+function renderWaveformStyleForTier() {
+  const isPro = currentEffectivePlan === 'pro';
+  const lockedEl = document.getElementById('waveformStyleLocked');
+  const selectEl = document.getElementById('waveformStyleSelect');
+  if (lockedEl) lockedEl.hidden = isPro;
+  if (selectEl) selectEl.hidden = !isPro;
+  window.LayerPlayerCore.setWaveformStyle(isPro ? waveformStyle : 'bars');
+}
+fillWaveformStyleField();
+
 /* ---------------- Bandeau d'annonce bêta (Postgres, panneau admin — docs/infrastructure.md,
    "Rôle admin... actée le 3 septembre") ---------------- */
 async function loadPlatformNotice() {
@@ -7918,7 +8139,8 @@ async function loadData(silent) {
       library = []; packs = []; collections = []; customFonts = []; sfxLibrary = []; socials = []; adReelFolders = [];
       implementationSkills = { wwise: false, fmod: false, unity: false, unreal: false };
       noAiCertifiedGlobal = false;
-      adReels = [{ id: 'main', label: tr('defaultAdreelLabel'), lang: 'fr', blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', formspreeEndpoint: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null }];
+      waveformStyle = 'bars';
+      adReels = [{ id: 'main', label: tr('defaultAdreelLabel'), lang: 'fr', blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null }];
       currentAdReelId = 'main';
       const cur = adReels[0];
       blocks = cur.blocks; profile = cur.profile; testimonials = cur.testimonials; trackIds = cur.trackIds; trackOverrides = cur.trackOverrides;
@@ -8135,6 +8357,7 @@ async function loadData(silent) {
     }));
     implementationSkills = Object.assign({ wwise: false, fmod: false, unity: false, unreal: false }, data.implementationSkills || {});
     noAiCertifiedGlobal = !!data.noAiCertifiedGlobal;
+    waveformStyle = window.LayerPlayerCore.WAVEFORM_STYLES.includes(data.waveformStyle) ? data.waveformStyle : 'bars';
     collections = (data.collections || []).map(c => ({
       id: c.id, title: c.title || '', illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, pendingIllustration: null,
       presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '',
@@ -8147,7 +8370,7 @@ async function loadData(silent) {
       id: a.id, label: a.label || a.id,
       lang: a.lang || 'fr',
       profile: Object.assign(
-        { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', formspreeEndpoint: '', logo: null, photo: null },
+        { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null },
         a.profile || {},
         { theme: migrateProfileTheme(a.profile) }
       ),
@@ -8167,7 +8390,7 @@ async function loadData(silent) {
     // introuvable dans la liste maître.
     adReels.forEach(a => { if (a.folderId && !adReelFolders.some(f => f.id === a.folderId)) a.folderId = null; });
     if (adReels.length === 0) {
-      adReels.push({ id: 'main', label: tr('defaultAdreelLabel'), lang: 'fr', blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', formspreeEndpoint: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null });
+      adReels.push({ id: 'main', label: tr('defaultAdreelLabel'), lang: 'fr', blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null });
     }
     currentAdReelId = adReels.some(a => a.id === 'main') ? 'main' : adReels[0].id;
     const cur = adReels.find(a => a.id === currentAdReelId);
@@ -8936,6 +9159,7 @@ async function publishAll() {
       packs: packs.map(p => ({ id: p.id, title: p.title, illustration: p.illustration || null, illustrationOriginalName: p.illustrationOriginalName || null, watermark: p.watermark || null, watermarkOriginalName: p.watermarkOriginalName || null, presentationFr: p.presentationFr || '', presentationEn: p.presentationEn || '', buyable: !!p.buyable, buyUrl: p.buyUrl || '', freeDownloadEnabled: !!p.freeDownloadEnabled, videoTestModeEnabled: !!p.videoTestModeEnabled, bgColor: p.bgColor || '#f6f5f3', textColor: p.textColor || '#262521', font: p.font || 'default', presetId: p.presetId || null, separator: p.separator || null, effectivePlan, trackIds: p.trackIds || [], sfxIds: p.sfxIds || [], linkedAdReelId: p.linkedAdReelId || null })),
       implementationSkills: { wwise: !!implementationSkills.wwise, fmod: !!implementationSkills.fmod, unity: !!implementationSkills.unity, unreal: !!implementationSkills.unreal },
       noAiCertifiedGlobal: !!noAiCertifiedGlobal,
+      waveformStyle: window.LayerPlayerCore.WAVEFORM_STYLES.includes(waveformStyle) ? waveformStyle : 'bars',
       collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', presetId: c.presetId || null, separator: c.separator || null, effectivePlan, buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
       customFonts: customFonts.filter(f => f.remoteFile).map(f => ({ id: f.id, name: f.name || '', file: f.remoteFile, originalFileName: f.originalFileName || null })),
       adReels: adReels.map(ar => ({
@@ -9032,6 +9256,7 @@ async function publishAll() {
       const settingsRes = await window.LayerPitchSettings.upsertSettings({
         publishedAt: data.publishedAt, implementationSkills: data.implementationSkills,
         noAiCertifiedGlobal: data.noAiCertifiedGlobal, customFonts: data.customFonts,
+        waveformStyle: data.waveformStyle,
       });
       if (!settingsRes.ok) {
         throw new Error('Écriture Postgres échouée pour les réglages — publication arrêtée avant GitHub :\n' + settingsRes.error);

@@ -30,6 +30,8 @@ window.LayerPlayerCore = {
   setLang: () => {},
   setSfxLibrary: () => {},
   shareOrCopy: async () => true,
+  WAVEFORM_STYLES: ['bars', 'mirror', 'dots', 'layers'],
+  setWaveformStyle: () => {},
 };
 window.fetch = () => Promise.reject(new Error('network disabled in test'));
 window.__failures = [];
@@ -62,15 +64,15 @@ check('position affichee au format compact "01"', document.querySelector('.block
 check('resume Header = titre - sous-titre', document.querySelector('.block-editor-card[data-id="b1"] .block-summary').textContent === 'Julzantoine — Game Music Composer');
 check('resume Musique = "3 morceaux"', document.querySelector('.block-editor-card[data-id="b2"] .block-summary').textContent === '3 morceaux');
 check('resume Temoignages = "2 citations"', document.querySelector('.block-editor-card[data-id="b3"] .block-summary').textContent === '2 citations');
-check('resume Contact signale le formulaire manquant par defaut', document.querySelector('.block-editor-card[data-id="b4"] .block-summary').textContent === 'Formulaire non configuré');
+check('resume Contact signale email manquant par defaut', document.querySelector('.block-editor-card[data-id="b4"] .block-summary').textContent === 'Email de contact manquant');
 
 trackIds = ['t1'];
 refreshAllBlockSummaries();
 check('resume au singulier ("1 morceau")', document.querySelector('.block-editor-card[data-id="b2"] .block-summary').textContent === '1 morceau');
 
-profile.formspreeEndpoint = 'https://formspree.io/f/xxxx';
+profile.contactEmail = 'julzantoine@yahoo.com';
 refreshAllBlockSummaries();
-check('resume Contact passe a "Email + formulaire" une fois configure', document.querySelector('.block-editor-card[data-id="b4"] .block-summary').textContent === 'Email + formulaire');
+check('resume Contact passe a "Email de contact configuré" une fois configure', document.querySelector('.block-editor-card[data-id="b4"] .block-summary').textContent === 'Email de contact configuré');
 
 // 3) Tout replier / Tout deplier.
 const collapseAllBtn = () => document.getElementById('btnToggleCollapseAllBlocks');
@@ -136,10 +138,12 @@ container.dispatchEvent(emptySpaceDrop);
 check('drop sur l espace vide du conteneur deplace le bloc en fin de liste', blocks.map(b => b.id).join(',') === 'y2,y3,y1');
 
 // 8) Audit du 16/08 -- hasContactFormEndpoint() : un seul point de vérité pour le statut du formulaire.
-profile.formspreeEndpoint = '';
-check('hasContactFormEndpoint() = false sans endpoint', hasContactFormEndpoint() === false);
-profile.formspreeEndpoint = 'https://formspree.io/f/abcd';
-check('hasContactFormEndpoint() = true avec un endpoint renseigné', hasContactFormEndpoint() === true);
+// Mis à jour le 5/09 : le bloc Contact relaie désormais vers l'email de contact du compositeur
+// (submit-contact-message, plus de Formspree tiers) -- même fonction, même rôle, autre champ testé.
+profile.contactEmail = '';
+check('hasContactFormEndpoint() = false sans email de contact', hasContactFormEndpoint() === false);
+profile.contactEmail = 'julzantoine@yahoo.com';
+check('hasContactFormEndpoint() = true avec un email de contact renseigné', hasContactFormEndpoint() === true);
 
 // 9) Régression signalée par Jules-Antoine (16/08) -- header avec tagline héritée (pas de subtitle) :
 // le champ affiché à l'écran utilise déjà ce fallback (buildHeaderCard), le résumé doit faire pareil.
