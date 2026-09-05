@@ -55,10 +55,16 @@ async function render() {
   if (!session) {
     content.innerHTML = `
       <p>${tr('notSignedIn')}</p>
+      <p>${tr('otpExplainer')}</p>
       <div class="signin-box">
         <input type="email" id="email" placeholder="${tr('emailPlaceholder')}">
         <button class="btn" id="sendBtn" type="button">${tr('sendMagicLinkBtn')}</button>
         <div class="msg" id="msg"></div>
+      </div>
+      <div class="signin-box" id="codeBox" style="display:none">
+        <input type="text" id="code" placeholder="${tr('codePlaceholder')}" inputmode="numeric" autocomplete="one-time-code">
+        <button class="btn" id="verifyCodeBtn" type="button">${tr('verifyCodeBtn')}</button>
+        <div class="msg" id="codeMsg"></div>
       </div>`;
     document.getElementById('sendBtn').addEventListener('click', async () => {
       const email = document.getElementById('email').value.trim();
@@ -68,6 +74,16 @@ async function render() {
       const { ok, error } = await LayerPitchAuth.signInWithMagicLink(email, window.location.href);
       msg.textContent = ok ? tr('magicLinkSentMsg') : tr('errorMsg').replace('{error}', error);
       msg.className = 'msg ' + (ok ? 'ok' : 'err');
+      document.getElementById('codeBox').style.display = ok ? '' : 'none';
+    });
+    document.getElementById('verifyCodeBtn').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim();
+      const code = document.getElementById('code').value.trim();
+      const msg = document.getElementById('codeMsg');
+      if (!email || !code) return;
+      msg.textContent = '…'; msg.className = 'msg';
+      const { ok, error } = await LayerPitchAuth.verifyEmailOtp(email, code);
+      if (!ok) { msg.textContent = tr('errorMsg').replace('{error}', error); msg.className = 'msg err'; }
     });
     return;
   }

@@ -782,9 +782,16 @@ function applyBlockAppearance(el, block, customFonts) {
   }
 }
 
+// LAYERPITCH_FUNCTIONS_URL/ANON_KEY : mêmes valeurs publiques que api/supabase-client.js (clé
+// "publishable", pas un secret) — appelées ici en fetch() brut plutôt que de charger tout le SDK
+// Supabase + loadPostgresReadScripts() (api/tracks.js, api/packs.js...) juste pour ce formulaire,
+// alors qu'un compositeur hébergé sur GitHub (data.json, pas Postgres) n'en a par ailleurs pas besoin.
+const LAYERPITCH_FUNCTIONS_URL = 'https://ypygllyjfynrnvapufow.supabase.co/functions/v1';
+const LAYERPITCH_ANON_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
+
 function renderContactBlockItem(container, profile) {
-  const endpoint = profile && profile.formspreeEndpoint && profile.formspreeEndpoint.trim();
-  if (!endpoint) return; // pas configuré côté backstage : ce bloc ne s'affiche simplement pas
+  const hasContactEmail = profile && profile.contactEmail && profile.contactEmail.trim();
+  if (!hasContactEmail) return; // pas configuré côté backstage : ce bloc ne s'affiche simplement pas
   const el = section(tr('contactSection'), '');
   el.innerHTML += `
     <form data-role="contactForm" class="contact-form">
@@ -808,17 +815,24 @@ function renderContactBlockItem(container, profile) {
     statusEl.textContent = tr('sending');
     statusEl.className = 'contact-form-status';
     try {
-      const res = await fetch(endpoint, {
+      const adReelId = (window.__lpTrackContext && window.__lpTrackContext.id) || 'main';
+      const formData = new FormData(form);
+      const res = await fetch(`${LAYERPITCH_FUNCTIONS_URL}/submit-contact-message`, {
         method: 'POST',
-        headers: { Accept: 'application/json' },
-        body: new FormData(form)
+        headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
+        body: JSON.stringify({
+          adReelId,
+          name: formData.get('name'),
+          email: formData.get('email'),
+          message: formData.get('message'),
+        }),
       });
       if (res.ok) {
         trackPublicEvent('contact_submit', {});
         form.innerHTML = `<div class="contact-form-status success">${tr('sent')}</div>`;
       } else {
         const data = await res.json().catch(() => ({}));
-        statusEl.textContent = (data.errors && data.errors.map(er => er.message).join(', ')) || tr('genericError');
+        statusEl.textContent = data.error || tr('genericError');
         statusEl.className = 'contact-form-status error';
         submitBtn.disabled = false;
       }
@@ -941,6 +955,10 @@ async function init() {
     // recalculé ici. Absent = AdReel publié avant cette Phase 3 -> traité comme Starter (comportement
     // plein, identique à avant, jamais de régression sur un AdReel déjà en ligne).
     const tier = profile.effectivePlan || 'starter';
+    // Style de forme d'onde (Chantier Apparence, palier Pro, 05/09) : réglage global du compositeur
+    // (data.waveformStyle, pas profile.theme -- ce n'est pas un réglage par AdReel), gating identique au
+    // reste de l'apparence Pro -- Free/Starter gardent silencieusement "Barres" (voir player.js).
+    window.LayerPlayerCore.setWaveformStyle(tier === 'pro' ? (data.waveformStyle || 'bars') : 'bars');
     // profile.theme remplace les anciens champs bgColor/textColor (gardés en lecture seule pour les
     // AdReels publiés avant ce changement, tant qu'ils n'ont pas été republiés depuis le backstage).
     // Palier Free : le thème fin (couleurs/police/bgImage/réglages par bloc) n'est jamais appliqué, même

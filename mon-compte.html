@@ -58,6 +58,18 @@ const content = document.getElementById('content');
 
 function planLabel(plan) { return { free: 'Free', starter: 'Starter', pro: 'Pro' }[plan] || plan; }
 
+// LayerPitch n'a aucun mot de passe (connexion par lien magique + code à 6 chiffres uniquement,
+// voir api/auth.js) — rien à "retrouver" ni à changer. Section volontairement simple : le but est
+// d'éviter la confusion ("où est mon mot de passe ?"), pas de proposer un vrai changement d'identifiants.
+function identifiantsCardHtml(session) {
+  return `
+    <div class="card">
+      <h2>Identifiants</h2>
+      <div class="hint">Email connecté : <strong>${session.user.email}</strong></div>
+      <div class="hint">LayerPitch fonctionne sans mot de passe : la connexion se fait par un lien envoyé par email (+ un code à 6 chiffres utilisable si tu lis cet email sur un autre appareil). Rien à retenir, rien à changer ici.</div>
+    </div>`;
+}
+
 async function subscriptionCardHtml() {
   const { status, error } = await LayerPitchSubscriptions.getTrialStatus();
   if (error) return `<div class="card"><h2>Mon abonnement</h2><div class="msg err">Erreur : ${error}</div></div>`;
@@ -79,12 +91,13 @@ async function subscriptionCardHtml() {
       <h2>Mon abonnement</h2>
       <div class="hint">Palier gratuit, essai Pro complet de 30 jours sans carte à l'inscription (retombe automatiquement sur Free à l'expiration si tu ne choisis rien), ou un vrai palier payant mensuel/annuel.</div>
       <div class="status" id="subscriptionStatus">${statusText}</div>
+      <div class="hint">Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.</div>
       <div class="actions">
-        <button class="btn" id="btnPlanFree" type="button">Passer en Free</button>
-        <button class="btn" id="btnPlanStarterMonth" type="button">Starter — mensuel</button>
-        <button class="btn" id="btnPlanStarterYear" type="button">Starter — annuel</button>
-        <button class="btn" id="btnPlanProMonth" type="button">Pro — mensuel</button>
-        <button class="btn" id="btnPlanProYear" type="button">Pro — annuel</button>
+        <button class="btn" id="btnPlanFree" type="button" disabled title="Choix de palier désactivé pendant la bêta.">Passer en Free</button>
+        <button class="btn" id="btnPlanStarterMonth" type="button" disabled title="Choix de palier désactivé pendant la bêta.">Starter — mensuel</button>
+        <button class="btn" id="btnPlanStarterYear" type="button" disabled title="Choix de palier désactivé pendant la bêta.">Starter — annuel</button>
+        <button class="btn" id="btnPlanProMonth" type="button" disabled title="Choix de palier désactivé pendant la bêta.">Pro — mensuel</button>
+        <button class="btn" id="btnPlanProYear" type="button" disabled title="Choix de palier désactivé pendant la bêta.">Pro — annuel</button>
       </div>
       <div class="msg" id="subscriptionMsg"></div>
     </div>`;
@@ -253,10 +266,17 @@ async function render() {
     content.innerHTML = `
       <div class="card">
         <div class="hint">Connecte-toi pour voir ton compte.</div>
+        <div class="hint">On t'envoie un email avec un lien de connexion ET un code à 6 chiffres — utilise le code si tu consultes cet email sur un autre appareil que celui-ci (ordinateur partagé, poste qui n'est pas le tien).</div>
         <div class="signin-box">
           <input type="email" id="email" placeholder="ton@email.com">
           <button class="btn" id="sendBtn" type="button">Recevoir le lien de connexion</button>
           <div class="msg" id="msg"></div>
+        </div>
+        <div class="signin-box" id="codeBox" hidden>
+          <label>Code reçu par email</label>
+          <input type="text" id="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code">
+          <button class="btn" id="verifyCodeBtn" type="button">Valider le code</button>
+          <div class="msg" id="codeMsg"></div>
         </div>
       </div>`;
     document.getElementById('sendBtn').addEventListener('click', async () => {
@@ -267,6 +287,16 @@ async function render() {
       const { ok, error } = await LayerPitchAuth.signInWithMagicLink(email, window.location.href);
       msg.textContent = ok ? 'Lien envoyé — vérifie ta boîte mail.' : 'Erreur : ' + error;
       msg.className = 'msg ' + (ok ? 'ok' : 'err');
+      document.getElementById('codeBox').hidden = !ok;
+    });
+    document.getElementById('verifyCodeBtn').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim();
+      const code = document.getElementById('code').value.trim();
+      const msg = document.getElementById('codeMsg');
+      if (!email || !code) return;
+      msg.textContent = '…'; msg.className = 'msg';
+      const { ok, error } = await LayerPitchAuth.verifyEmailOtp(email, code);
+      if (!ok) { msg.textContent = 'Erreur : ' + error; msg.className = 'msg err'; }
     });
     return;
   }
@@ -284,7 +314,7 @@ async function render() {
     window.history.replaceState({}, '', window.location.pathname);
   }
 
-  content.innerHTML = (await subscriptionCardHtml()) + (await billingCardHtml()) + (await connectCardHtml()) + (await invoicesCardHtml());
+  content.innerHTML = identifiantsCardHtml(session) + (await subscriptionCardHtml()) + (await billingCardHtml()) + (await connectCardHtml()) + (await invoicesCardHtml());
   wireSubscriptionCard(); wireBillingCard(); wireConnectCard(); wireInvoicesCard();
 }
 
