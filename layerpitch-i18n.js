@@ -58,6 +58,7 @@ window.LAYERPITCH_I18N = {
       packNotFound: 'Pack introuvable.',
       partOfCollectionMention: 'Fait partie de la collection : {title}',
       viewFullWorkLink: 'Voir le travail complet de {name} →',
+      backToComposerLink: '← Voir le travail de {name}',
       linkedAdReelFallbackName: 'ce compositeur',
       videoTestTriggerBtn: '🎮 Tester en jeu',
       videoTestTriggerBtnHelp: 'Importe une vidéo de ton gameplay pour entendre ce pack en situation réelle.',
@@ -98,6 +99,8 @@ window.LAYERPITCH_I18N = {
       downloadError: 'Le téléchargement a échoué — réessaie, ou vérifie ta connexion.',
       comingSoon: 'Bientôt disponible',
       notForSaleYet: 'Cette collection n\'est pas encore proposée à l\'achat.',
+      backToComposerLink: '← Voir le travail de {name}',
+      linkedAdReelFallbackName: 'ce compositeur',
     },
     library: {
       pageTitle: 'LayerPitch — Ma bibliothèque',
@@ -979,6 +982,7 @@ window.LAYERPITCH_I18N = {
       packNotFound: 'Pack not found.',
       partOfCollectionMention: 'Part of the collection: {title}',
       viewFullWorkLink: "View {name}'s full work →",
+      backToComposerLink: "← See {name}'s work",
       linkedAdReelFallbackName: 'this composer',
       videoTestTriggerBtn: '🎮 Test in-game',
       videoTestTriggerBtnHelp: 'Upload a video of your gameplay to hear this pack in action.',
@@ -1019,6 +1023,8 @@ window.LAYERPITCH_I18N = {
       downloadError: 'The download failed — try again, or check your connection.',
       comingSoon: 'Coming soon',
       notForSaleYet: 'This collection is not for sale yet.',
+      backToComposerLink: "← See {name}'s work",
+      linkedAdReelFallbackName: 'this composer',
     },
     library: {
       pageTitle: 'LayerPitch — My library',

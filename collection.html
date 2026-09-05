@@ -305,8 +305,17 @@ async function init() {
     if (linkedAdReel) {
       const adReelHref = (linkedAdReel.id === 'main' ? `./index.html?lang=${pageLang}` : `./index.html?adreel=${encodeURIComponent(linkedAdReel.id)}&lang=${pageLang}`) + handleParam;
       if (backLinkEl) backLinkEl.href = adReelHref;
+    } else if (backLinkEl && handle) {
+      // Aucun AdReel d'origine résolvable (visite directe, lien de collection partagé isolément),
+      // mais le handle du compositeur est connu (URL de la collection elle-même, ?u=<handle>) --
+      // même raisonnement que pack.html : "Retour" n'a pas de sens ici, remplacé par un lien vers
+      // l'AdReel principal du compositeur.
+      const mainAdReel = (data.adReels || []).find(a => a.id === 'main');
+      const composerName = (mainAdReel && mainAdReel.profile && mainAdReel.profile.title) || tr('linkedAdReelFallbackName');
+      backLinkEl.href = `./index.html?lang=${pageLang}${handleParam}`;
+      backLinkEl.textContent = tr('backToComposerLink').replace('{name}', composerName);
     } else if (backLinkEl && window.history.length > 1) {
-      // Aucun AdReel d'origine résolvable (visite directe, lien de collection partagé isolément) --
+      // Handle totalement inconnu (visite directe sans ?u=, cas hérité pré-multi-compositeur) --
       // retour navigateur plutôt que de forcer index.html (retomberait sur DEFAULT_OWNER_ID faute de
       // vraie page d'accueil générique, docs/infrastructure.md).
       backLinkEl.addEventListener('click', (e) => { e.preventDefault(); window.history.back(); });
