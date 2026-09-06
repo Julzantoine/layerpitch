@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LayerPitch — Interactive music for your game pitches</title>
+<meta name="description" content="An MP3 tells how your music sounds. LayerPitch shows how it works. Build an AdReel: your music system, playable live by the studio reading you.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root {
+    --bg: #f6f5f3; --bg-card: #ffffff; --bg-dark: #201e1b; --border: #e4e1da;
+    --text: #262521; --text-title: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --text-on-dark: #f6f5f3; --text-on-dark-dim: #b6b1a7;
+    --accent: #2f6fe0; --accent-soft: #dce7fb; --accent-dark: #1f4fb0;
+    --accent-2: #1f9e6b; --accent-2-soft: #d7f0e3;
+    --font-body: 'Inter', sans-serif; --font-title: 'Space Grotesk', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+    --shadow-card: 0 1px 2px rgba(38,37,33,0.04), 0 8px 24px rgba(38,37,33,0.06);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); line-height: 1.6; overflow-x: hidden; }
+  a { color: var(--accent); text-decoration: none; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+  .eyebrow {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .eyebrow::before { content: ''; width: 16px; height: 1.5px; background: var(--accent); display: inline-block; }
+  h1, h2 { font-family: var(--font-title); color: var(--text-title); margin: 0; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 30px; border-radius: 8px;
+    font-family: var(--font-title); font-weight: 600; font-size: 15px; cursor: pointer; border: none; text-align: center;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 4px 14px rgba(47,111,224,0.35); }
+  .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(47,111,224,0.4); }
+  .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-on-dark { background: transparent; color: var(--text-on-dark); border: 1px solid rgba(246,245,243,0.28); }
+  .btn-on-dark:hover { border-color: var(--text-on-dark); background: rgba(246,245,243,0.06); }
+
+  /* ---- Nav ---- */
+  .nav {
+    display: flex; align-items: center; justify-content: space-between; padding: 18px 24px;
+    max-width: 760px; margin: 0 auto; position: sticky; top: 0; z-index: 20;
+    background: rgba(246,245,243,0.82); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  .nav-logo { font-family: var(--font-title); font-weight: 700; font-size: 18px; font-style: italic; color: var(--text-title); }
+  .nav-account { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.04em; color: var(--text-dim); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; transition: border-color 0.15s ease, color 0.15s ease; }
+  .nav-account:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-right { display: flex; align-items: center; gap: 14px; }
+  .nav-lang { font-family: var(--font-mono); font-size: 12px; color: var(--text-dimmer); }
+  .nav-lang a { color: var(--text-dim); }
+  .nav-lang a.active { color: var(--text); font-weight: 600; }
+
+  /* ---- Hero ---- */
+  .hero {
+    position: relative; padding: 56px 0 16px; text-align: center; overflow: hidden;
+    background: radial-gradient(ellipse 640px 320px at 50% 0%, var(--accent-soft) 0%, rgba(220,231,251,0) 70%);
+  }
+  .hero h1 { font-size: clamp(30px, 6vw, 48px); font-weight: 700; font-style: italic; line-height: 1.22; position: relative; }
+  .hero .sub { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; color: var(--text-dim); margin-top: 20px; position: relative; }
+
+  /* ---- Path map (compact reproduction, in HTML/SVG rather than an image, of the backstage's
+       actual path map for the branching-sequential mode): Intro played -> Exploration in
+       progress -> 3 branches waiting on a choice -> convergence. Sub-branches deliberately
+       omitted to stay legible at landing-hero size -- full diagram supplied by Jules-Antoine
+       Sept 6, screenshot of the real backstage feature. ---- */
+  .path-map {
+    position: relative; margin: 32px auto 0; max-width: 620px; background: var(--bg-dark);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 20px 18px 14px;
+    box-shadow: var(--shadow-card); text-align: left;
+  }
+  .path-map-title { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-on-dark-dim); margin-bottom: 12px; }
+  .path-map svg { display: block; width: 100%; height: auto; }
+  .path-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+  .path-legend-item { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-on-dark-dim); }
+  .path-legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  /* ---- Demo ---- */
+  .demo { text-align: center; padding: 16px 0 56px; }
+  .demo p { max-width: 560px; margin: 0 auto 32px; color: var(--text-dim); font-size: 14.5px; }
+  .demo .eyebrow { justify-content: center; }
+
+  /* ---- Social proof ---- */
+  .proof { padding: 12px 0 60px; }
+  .proof-grid { display: grid; gap: 16px; }
+  .testimonial {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px 22px 20px; box-shadow: var(--shadow-card); position: relative;
+  }
+  .testimonial::before {
+    content: '“'; font-family: var(--font-title); font-size: 42px; color: var(--accent-soft);
+    position: absolute; top: 6px; left: 16px; line-height: 1; z-index: 0;
+  }
+  .testimonial p { margin: 0 0 10px; font-size: 15px; font-style: italic; position: relative; z-index: 1; }
+  .testimonial cite { font-family: var(--font-mono); font-style: normal; font-size: 11px; color: var(--text); font-weight: 600; }
+  .testimonial .role { font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); }
+
+  /* ---- Sections ---- */
+  section.block { padding: 48px 0; border-top: 1px solid var(--border); }
+  .block h2 { font-size: clamp(20px, 3.5vw, 26px); margin-bottom: 18px; }
+  .block p { color: var(--text); font-size: 15px; }
+  .block p + p { margin-top: 14px; }
+  .block .lede { color: var(--text-dim); }
+
+  .backstory { display: flex; gap: 26px; align-items: flex-start; }
+  .backstory-photo { width: 140px; height: 140px; border-radius: 12px; object-fit: cover; object-position: center 15%; flex-shrink: 0; background: var(--border); }
+  .backstory-text { flex: 1; min-width: 0; }
+  @media (max-width: 480px) {
+    .backstory { flex-direction: column; }
+    .backstory-photo { width: 96px; height: 96px; }
+  }
+
+  ul.features { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+  ul.features li { display: flex; align-items: flex-start; gap: 14px; font-size: 15px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .feature-icon {
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft);
+    color: var(--accent-dark); display: flex; align-items: center; justify-content: center;
+  }
+  .feature-icon.alt { background: var(--accent-2-soft); color: var(--accent-2); }
+  .feature-icon svg { width: 16px; height: 16px; }
+  ul.features strong { font-family: var(--font-title); display: block; margin-bottom: 2px; }
+  ul.features span.desc { color: var(--text-dim); font-size: 14px; }
+
+  .tracking-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 28px; box-shadow: var(--shadow-card); }
+  .tracking-box ul { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 12px; }
+  .tracking-box li { display: flex; align-items: flex-start; gap: 10px; font-size: 14.5px; }
+  .tracking-box .check {
+    flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-2);
+    color: #fff; display: flex; align-items: center; justify-content: center; margin-top: 1px;
+  }
+  .tracking-box .check svg { width: 11px; height: 11px; }
+
+  /* ---- CTA final ---- */
+  .cta-band { background: var(--bg-dark); padding: 56px 0 60px; margin-top: 4px; }
+  .cta { text-align: center; }
+  .cta h2 { font-size: clamp(22px, 4vw, 30px); color: var(--text-on-dark); }
+  .cta-form { display: flex; flex-direction: column; gap: 12px; max-width: 380px; margin: 28px auto 0; }
+  .cta-form input[type=email] {
+    padding: 14px 16px; border: 1px solid rgba(246,245,243,0.22); border-radius: 8px; font-family: var(--font-body);
+    font-size: 14px; background: rgba(246,245,243,0.06); color: var(--text-on-dark);
+  }
+  .cta-form input[type=email]::placeholder { color: var(--text-on-dark-dim); }
+  .cta-buttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .cta-buttons .btn { flex: 1; min-width: 160px; }
+  .cta-note { font-size: 12px; color: var(--text-on-dark-dim); margin-top: 16px; }
+  .cta-msg { font-family: var(--font-mono); font-size: 12px; margin-top: 12px; min-height: 16px; color: var(--text-on-dark-dim); }
+  .cta-msg.ok { color: #6fd39a; }
+  .cta-msg.err { color: #e08a72; }
+
+  footer { text-align: center; padding: 26px 24px 34px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); background: var(--bg-dark); }
+  footer, .cta-band { color: var(--text-on-dark-dim); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-logo">LayerPitch</span>
+  <div class="nav-right">
+    <span class="nav-lang"><a href="./landing.html">FR</a> / <a class="active" href="./landing-en.html">EN</a></span>
+    <!-- TODO once hosted on its own domain: keep this an absolute URL (the app lives on a
+         different domain than the landing page, see docs/infrastructure.md, Sept 6). -->
+    <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html?lang=en">Log in / Create an account</a>
+  </div>
+</nav>
+
+<header class="hero wrap">
+  <h1>MP3 vs LayerPitch:<br>wooden sword vs full gear.</h1>
+  <div class="sub">To level up in the game, you need to be geared up.</div>
+  <div class="path-map" aria-hidden="true">
+    <div class="path-map-title">Path map — branching sequential mode</div>
+    <svg viewBox="0 0 630 224" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrowGrayEn" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#7a766f"/></marker>
+        <marker id="arrowAmberEn" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#eab308"/></marker>
+      </defs>
+      <!-- Edges -->
+      <path d="M94,110 L136,110" stroke="#7a766f" stroke-width="1.5" fill="none" marker-end="url(#arrowGrayEn)"/>
+      <path d="M270,92 L340,32" stroke="#eab308" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#arrowAmberEn)"/>
+      <path d="M270,110 L340,110" stroke="#eab308" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#arrowAmberEn)"/>
+      <path d="M270,128 L340,190" stroke="#eab308" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#arrowAmberEn)"/>
+      <path d="M448,30 Q490,30 508,92" stroke="#7a766f" stroke-width="1.5" fill="none" marker-end="url(#arrowGrayEn)"/>
+      <path d="M448,110 L508,110" stroke="#7a766f" stroke-width="1.5" fill="none" marker-end="url(#arrowGrayEn)"/>
+      <path d="M448,190 Q490,190 508,128" stroke="#7a766f" stroke-width="1.5" fill="none" marker-end="url(#arrowGrayEn)"/>
+      <!-- Branch labels -->
+      <text x="300" y="56" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#eab308" text-anchor="middle">Branch 1</text>
+      <text x="305" y="102" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#eab308" text-anchor="middle">Branch 2</text>
+      <text x="300" y="168" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#eab308" text-anchor="middle">Branch 3</text>
+      <!-- Intro (already played) -->
+      <rect x="8" y="88" width="86" height="44" rx="8" fill="rgba(255,255,255,0.03)" stroke="#1f9e6b" stroke-width="1.5"/>
+      <text x="51" y="106" font-family="Space Grotesk, sans-serif" font-weight="700" font-size="12" fill="#f3f1ee" text-anchor="middle">Intro</text>
+      <text x="51" y="120" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#1f9e6b" text-anchor="middle">✓ already played</text>
+      <!-- Exploration (in progress) -->
+      <rect x="140" y="72" width="130" height="76" rx="10" fill="rgba(47,111,224,0.08)" stroke="#2f6fe0" stroke-width="2"/>
+      <text x="205" y="98" font-family="Space Grotesk, sans-serif" font-weight="700" font-size="13" fill="#2f6fe0" text-anchor="middle">Exploration</text>
+      <text x="205" y="113" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#8fb4f2" text-anchor="middle">● in progress</text>
+      <g fill="#2f6fe0"><rect x="178" y="126" width="3" height="10" rx="1"/><rect x="184" y="122" width="3" height="14" rx="1"/><rect x="190" y="128" width="3" height="8" rx="1"/><rect x="196" y="118" width="3" height="18" rx="1"/><rect x="202" y="124" width="3" height="12" rx="1"/><rect x="208" y="120" width="3" height="16" rx="1"/><rect x="214" y="127" width="3" height="9" rx="1"/><rect x="220" y="123" width="3" height="13" rx="1"/><rect x="226" y="129" width="3" height="7" rx="1"/></g>
+      <!-- Village / Temple / Combat (not reached yet) -->
+      <rect x="340" y="8" width="104" height="44" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.16)" stroke-width="1.5"/>
+      <text x="392" y="27" font-family="Space Grotesk, sans-serif" font-weight="700" font-size="12" fill="#f3f1ee" text-anchor="middle">Village</text>
+      <text x="392" y="41" font-family="JetBrains Mono, monospace" font-size="8" fill="#8b8781" text-anchor="middle">not reached yet</text>
+      <rect x="340" y="88" width="104" height="44" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.16)" stroke-width="1.5"/>
+      <text x="392" y="107" font-family="Space Grotesk, sans-serif" font-weight="700" font-size="12" fill="#f3f1ee" text-anchor="middle">Temple</text>
+      <text x="392" y="121" font-family="JetBrains Mono, monospace" font-size="8" fill="#8b8781" text-anchor="middle">not reached yet</text>
+      <rect x="340" y="168" width="104" height="44" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.16)" stroke-width="1.5"/>
+      <text x="392" y="187" font-family="Space Grotesk, sans-serif" font-weight="700" font-size="12" fill="#f3f1ee" text-anchor="middle">Combat</text>
+      <text x="392" y="201" font-family="JetBrains Mono, monospace" font-size="8" fill="#8b8781" text-anchor="middle">not reached yet</text>
+      <!-- Exploration 2 (convergence, not reached yet) -->
+      <rect x="512" y="72" width="102" height="76" rx="10" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.16)" stroke-width="1.5"/>
+      <text x="563" y="105" font-family="Space Grotesk, sans-serif" font-weight="700" font-size="12" fill="#f3f1ee" text-anchor="middle">Exploration 2</text>
+      <text x="563" y="120" font-family="JetBrains Mono, monospace" font-size="8" fill="#8b8781" text-anchor="middle">not reached yet</text>
+    </svg>
+    <div class="path-legend">
+      <div class="path-legend-item"><span class="path-legend-swatch" style="background:#1f9e6b"></span>Already-played location</div>
+      <div class="path-legend-item"><span class="path-legend-swatch" style="background:#2f6fe0"></span>Currently playing location</div>
+      <div class="path-legend-item"><span class="path-legend-swatch" style="background:#eab308"></span>Branch waiting on a choice</div>
+    </div>
+  </div>
+</header>
+
+<section class="demo wrap">
+  <p>With an AdReel (Adaptive Reel), your music isn't passive. Move the slider, bring layers in and out, test the fight, the exploration, the boss battle. It's your system, for real, and it's easy to share.</p>
+  <!-- Access behavior actually verified 09/06 (private window): this page loads with no account,
+       only layerpitch-backstage.html sits behind Cloudflare Access. -->
+  <a class="btn btn-primary" href="https://Julzantoine.github.io/layerpitch/?adreel=demo-trusted-people" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_demo_click')">Try an AdReel yourself →</a>
+</section>
+
+<section class="proof wrap">
+  <div class="proof-grid">
+    <div class="testimonial">
+      <p>"The branching music system really has the ability to wow someone!"</p>
+      <cite>Michael W.</cite> <span class="role">— video game composer / MA Composition for Video Game instructor</span>
+    </div>
+    <div class="testimonial">
+      <p>"That's genuinely cool for game composers' reel!"</p>
+      <cite>Giorgio V.</cite> <span class="role">— sound designer / MA Sound Design for Video Games instructor</span>
+    </div>
+    <div class="testimonial">
+      <p>"This is the first time I've seen a tool for presenting interactive music like this."</p>
+      <cite>William R.</cite> <span class="role">— PhD candidate in ludomusicology</span>
+    </div>
+  </div>
+  <!-- ⚠️ accuracy note (content doc, 09/06): William R.'s quote was gathered spontaneously, before
+       a guided demo — reconfirm with him before real publication if there's any doubt. Translated
+       from his original French wording for this English page. -->
+</section>
+
+<section class="block wrap">
+  <span class="eyebrow">The problem</span>
+  <p class="lede">Your job is to make the player's experience smoother. Not to make the studio's job harder by handing them new problems.</p>
+  <p>An MP3 tells you how your music sounds. It says nothing about how it works — the layers, the transitions, the logic behind it.</p>
+  <p>The game dev/studio has no way of knowing what it would sound like in the middle of a fight, during quiet exploration, or in a boss fight at 10% health.</p>
+  <p>A lot of game devs don't actually have a clear picture of what interactive music even is, or what it could bring to their game — as long as they can't touch it, it stays abstract.</p>
+  <p>With LayerPitch, you show them a whole music system, in a way that's simple and approachable — and you let the person on the other side picture your music in their game. Result: better odds of winning the gig.</p>
+</section>
+
+<section class="block wrap">
+  <span class="eyebrow">What changes</span>
+  <ul class="features">
+    <li>
+      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 18V8M9 18V4M14 18v-9M19 18v-6"/></svg></span>
+      <span><strong>5 adaptive playback modes</strong><span class="desc">From classic vertical layering to player-driven branching.</span></span>
+    </li>
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M12 3v3M12 18v3M4.5 12h3M16.5 12h3"/></svg></span>
+      <span><strong>Live control</strong><span class="desc">The person on the other end plays with your music, adjusting intensity, muting layers, exploring the branches themselves.</span></span>
+    </li>
+    <li>
+      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a4 4 0 0 1 4-4h4a4 4 0 0 1 0 8h-1"/><path d="M15 12a4 4 0 0 1-4 4H7a4 4 0 0 1 0-8h1"/></svg></span>
+      <span><strong>Just a link</strong><span class="desc">No install, no zip file to warily unpack. It opens like a web page.</span></span>
+    </li>
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5.5L20 10l-4.4 3.6L17 19l-5-3.2L7 19l1.4-5.4L4 10l5.6-1.5z"/></svg></span>
+      <span><strong>Fully customizable</strong><span class="desc">Every AdReel can be styled entirely to your image, or to the studio you're targeting.</span></span>
+    </li>
+  </ul>
+</section>
+
+<section class="block wrap">
+  <span class="eyebrow">The follow-up</span>
+  <div class="tracking-box">
+    <h2 style="font-size:18px;margin-bottom:8px;">Once it's sent, you're not left guessing.</h2>
+    <p class="lede" style="margin:0;">Every AdReel tells you who opened it, which layers they tried, how long they stayed. No more wondering whether the studio actually played with your system — or just skimmed the page.</p>
+    <ul>
+      <li><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></span><span><strong>Follow up while it's fresh</strong> — a link opened this morning is a follow-up email that lands at exactly the right time.</span></li>
+      <li><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></span><span><strong>See what landed</strong> — which layer they muted, which mode they explored the longest.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="block wrap">
+  <!-- ⚠️ accuracy note (content doc, 09/06): this text assumes a confirmed admission, while the
+       real status is an informal verbal agreement from the startup manager, not yet a formal
+       communicated decision. DO NOT publish this block as-is before explicit official
+       confirmation from Take Off Inspiration. -->
+  <div class="backstory">
+    <!-- TODO: swap in Jules-Antoine's real photo (assets/jules-photo.jpg or similar) -- gray
+         placeholder until the file is provided. -->
+    <img class="backstory-photo" src="./landing-assets/jules-photo.jpg" alt="Jules, LayerPitch founder">
+    <div class="backstory-text">
+      <p>Hi, I'm Jules and I'm a composer.</p>
+      <p>Recently, I pitched music to a video game studio. I wanted to go all in and present adaptive music directly — but I couldn't find any technical solution that actually worked for that... and I didn't want to flatten all my work into some dumb MP3.</p>
+      <p>LayerPitch was born from that frustration. One thing led to another, and the idea took shape — to the point of now being supported by Plaine Images / Take Off Inspiration, the music-tech incubator partnered with Sacem.</p>
+    </div>
+  </div>
+</section>
+
+<div class="cta-band">
+  <section class="cta wrap">
+    <h2>LayerPitch is currently in closed beta, with composers already pitching their first AdReels.</h2>
+    <!-- TODO: swap the form action for a real Formspree endpoint (dedicated to this landing page,
+         not the backstage beta-feedback one nor a composer's) once created, or the native form of
+         whichever hosting tool is chosen -- see docs/infrastructure.md, Sept 6. -->
+    <form class="cta-form" id="waitlistForm" action="https://formspree.io/f/REPLACE_ME" method="POST">
+      <input type="email" name="email" placeholder="you@email.com" required>
+      <input type="hidden" name="intent" id="intentField" value="beta">
+      <div class="cta-buttons">
+        <button type="submit" class="btn btn-primary" data-intent="beta">I want to join the beta</button>
+        <button type="submit" class="btn btn-on-dark" data-intent="waitlist">Just keep me posted</button>
+      </div>
+      <div class="cta-msg" id="ctaMsg"></div>
+    </form>
+    <div class="cta-note">No spam, no commitment.</div>
+  </section>
+  <footer>LayerPitch — interactive music for your game pitches</footer>
+</div>
+
+<script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
+<script>
+  const form = document.getElementById('waitlistForm');
+  const msg = document.getElementById('ctaMsg');
+  const intentField = document.getElementById('intentField');
+  form.querySelectorAll('button[data-intent]').forEach((btn) => {
+    btn.addEventListener('click', () => { intentField.value = btn.dataset.intent; });
+  });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msg.textContent = 'Sending…'; msg.className = 'cta-msg';
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: new FormData(form),
+      });
+      if (res.ok) {
+        window.umami && window.umami.track('landing_signup', { intent: intentField.value });
+        form.innerHTML = '<div class="cta-msg ok">Thanks — we\'ll keep you posted ✓</div>';
+      } else {
+        msg.textContent = 'Something went wrong — try again.';
+        msg.className = 'cta-msg err';
+      }
+    } catch (err) {
+      msg.textContent = 'Couldn\'t send (connection?) — try again.';
+      msg.className = 'cta-msg err';
+    }
+  });
+</script>
+</body>
+</html>
