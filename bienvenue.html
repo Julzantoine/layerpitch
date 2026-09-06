@@ -37,6 +37,7 @@
 <script src="api/supabase-client.js"></script>
 <script src="api/auth.js"></script>
 <script src="api/subscriptions.js"></script>
+<script src="api/access-requests.js"></script>
 <script>
 const pageLang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'fr';
 function currentLang() { return pageLang; }
@@ -72,9 +73,29 @@ async function render() {
       if (!email) return;
       msg.textContent = '…'; msg.className = 'msg';
       const { ok, error } = await LayerPitchAuth.signInWithMagicLink(email, window.location.href);
-      msg.textContent = ok ? tr('magicLinkSentMsg') : tr('errorMsg').replace('{error}', error);
-      msg.className = 'msg ' + (ok ? 'ok' : 'err');
       document.getElementById('codeBox').style.display = ok ? '' : 'none';
+      if (ok) {
+        msg.textContent = tr('magicLinkSentMsg');
+        msg.className = 'msg ok';
+        return;
+      }
+      // "Signups not allowed for this instance" (Supabase) : personne n'a jamais créé de compte à
+      // cette adresse et les inscriptions publiques sont désactivées (Décision 4, invite-only) --
+      // remplacé par un vrai chemin de sortie plutôt que l'erreur technique brute, même mécanisme
+      // que le CTA de la landing page (submit_access_request, panneau admin du backstage).
+      if (/signups not allowed/i.test(error)) {
+        msg.innerHTML = `<span>${tr('notInvitedMsg')}</span> <button class="btn" style="padding:5px 12px;font-size:12px;" id="requestAccessBtn" type="button">${tr('requestAccessBtn')}</button>`;
+        msg.className = 'msg err';
+        document.getElementById('requestAccessBtn').addEventListener('click', async (e) => {
+          e.target.disabled = true;
+          const { ok: reqOk } = await LayerPitchAccessRequests.submitAccessRequest(email, 'blocked_signin');
+          msg.textContent = reqOk ? tr('accessRequestSentMsg') : tr('errorMsg').replace('{error}', 'inconnue');
+          msg.className = 'msg ' + (reqOk ? 'ok' : 'err');
+        });
+      } else {
+        msg.textContent = tr('errorMsg').replace('{error}', error);
+        msg.className = 'msg err';
+      }
     });
     document.getElementById('verifyCodeBtn').addEventListener('click', async () => {
       const email = document.getElementById('email').value.trim();

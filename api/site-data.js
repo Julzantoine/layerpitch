@@ -60,6 +60,7 @@
       collections: collectionsRes.collections,
       customFonts: settings.customFonts || [],
       waveformStyle: settings.waveformStyle || 'bars',
+      seqMapTheme: settings.seqMapTheme || 'light',
       adReels: adReelsRes.adReels,
       adReelFolders: adReelFoldersRes.folders,
     };

@@ -429,6 +429,15 @@
   .seq-map-nodes.compact { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
   .seq-map-nodes.compact .seq-map-node { position: static; width: auto; height: auto; padding: 3px 8px; border-radius: 10px; }
   .seq-map-nodes.compact .seq-map-node-label { position: static; text-shadow: none; }
+  /* Thème sombre de la carte des chemins (Chantier Apparence, palier Pro, 06/09) : redéfinit localement
+     les variables de couleur consommées par .seq-map-node/.seq-map-edge/etc. ci-dessus -- un panneau
+     sombre autonome plutôt qu'un thème de page entière, cohérent quel que soit le thème du site hôte.
+     Palette reprise de la maquette validée par Jules-Antoine. */
+  .seq-map.seq-map-dark {
+    --bg-card: #26231f; --border: #3a352d; --accent: #4f8ff0; --accent-soft: #22314a;
+    --text: #f6f5f3; --text-dim: #a89f92; --text-dimmer: #726a5e;
+    background: #1c1a17; border-top: none; border-radius: 12px; padding: 16px;
+  }
   .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
   .intensity-picker { display: flex; flex-wrap: wrap; gap: 6px; }
   .intensity-chip {
@@ -979,6 +988,12 @@
             <div id="waveformStyleLocked" class="hint-inline" data-i18n="waveformStyleLockedMsg" hidden>Le choix du style de forme d'onde fait partie du palier Pro — le style "Barres" reste utilisé sur les autres paliers.</div>
             <select id="waveformStyleSelect"></select>
           </fieldset>
+          <fieldset style="margin-top:16px" data-help="seqMapTheme">
+            <legend data-i18n="seqMapThemeLegend">Thème de la carte des chemins</legend>
+            <div class="sub" data-i18n="seqMapThemeHint">Réglage global, pour tout le site — pas par bloc ni par AdReel. S'applique à la carte des chemins des morceaux en mode séquentiel à embranchement, ici et sur le site public.</div>
+            <div id="seqMapThemeLocked" class="hint-inline" data-i18n="seqMapThemeLockedMsg" hidden>Le choix du thème de la carte des chemins fait partie du palier Pro — le thème "Clair" reste utilisé sur les autres paliers.</div>
+            <select id="seqMapThemeSelect"></select>
+          </fieldset>
         </div>
       </div>
 
@@ -1073,6 +1088,17 @@
       retirés).
     </div>
     <div class="actions"><a class="btn" href="mon-compte.html" target="_blank" rel="noopener">Ouvrir Mon compte</a></div>
+  </fieldset>
+
+  <fieldset id="panelAccessRequests" hidden>
+    <legend>Demandes d'accès en attente (admin)</legend>
+    <div class="hint">
+      Regroupe deux sources : les boutons "Je veux rejoindre la bêta"/"Tenez-moi juste au courant"
+      de la landing page, et bienvenue.html quand quelqu'un tente de se connecter sans avoir été
+      invité. Cliquer "Inviter" pré-remplit le champ ci-dessous — la demande n'est marquée traitée
+      qu'une fois l'invitation réellement envoyée.
+    </div>
+    <div id="accessRequestsList" class="hint" style="margin-top:8px;">Chargement…</div>
   </fieldset>
 
   <fieldset id="panelInviteTester" hidden>
@@ -1464,6 +1490,7 @@ function loadPostgresReadScripts() {
     await loadScript('./api/subscriptions.js');
     await loadScript('./api/admin.js');
     await loadScript('./api/analytics.js');
+    await loadScript('./api/access-requests.js');
   })();
   return postgresReadScriptsLoaded;
 }
@@ -1548,7 +1575,7 @@ async function renderSubscriptionPanel(session) {
 // fetchSiteData()/pgReadEnabled() basculent déjà seuls sur Postgres pour un compositeur sans token
 // GitHub configuré (comme publishAll() le fait déjà côté écriture) -- sinon un compositeur hébergé
 // aurait vu sa bibliothèque vide, ce panneau étant jusqu'ici le seul moyen de l'activer à la main.
-const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelInviteTester', 'panelR2Storage', 'panelAdminLink'];
+const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelR2Storage', 'panelAdminLink'];
 async function renderAdminOnlyPanels(session) {
   let isAdmin = false;
   if (session && session.user) {
@@ -1559,6 +1586,36 @@ async function renderAdminOnlyPanels(session) {
   ADMIN_ONLY_PANEL_IDS.forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.hidden = !isAdmin;
+  });
+  if (isAdmin) renderAccessRequestsList();
+}
+// Demandes d'accès en attente (bloc "Inviter un testeur" ci-dessous, 6 septembre) -- une seule
+// fonction de rendu réutilisée après chaque invitation réussie pour retirer la ligne traitée.
+async function renderAccessRequestsList() {
+  const listEl = document.getElementById('accessRequestsList');
+  if (!listEl) return;
+  const { requests, error } = await window.LayerPitchAccessRequests.getPendingAccessRequests();
+  if (error) { listEl.textContent = 'Erreur : ' + error; return; }
+  if (!requests.length) { listEl.textContent = 'Aucune demande en attente pour l\'instant.'; return; }
+  const sourceLabel = (r) => r.source === 'blocked_signin'
+    ? 'connexion refusée (pas encore invité)'
+    : (r.intent === 'waitlist' ? 'landing — "Tenez-moi au courant"' : 'landing — "Rejoindre la bêta"');
+  listEl.innerHTML = requests.map((r) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #e2e2e6;">
+      <div style="flex:1;">
+        <div>${escapeHtml(r.email)}</div>
+        <div style="font-size:11px;color:#999;">${sourceLabel(r)} — ${new Date(r.created_at).toLocaleString('fr-FR')}</div>
+      </div>
+      <button class="btn btn-small" type="button" data-request-id="${r.id}" data-request-email="${escapeAttr(r.email)}">Inviter</button>
+    </div>`).join('');
+  listEl.querySelectorAll('button[data-request-id]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const emailField = document.getElementById('inviteTesterEmail');
+      emailField.value = btn.dataset.requestEmail;
+      emailField.dataset.pendingRequestId = btn.dataset.requestId;
+      emailField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      emailField.focus();
+    });
   });
 }
 function renderPgAuthStatus(session) {
@@ -1720,7 +1777,16 @@ async function initPgAuthUi() {
           } else {
             alert('Invitation envoyée à ' + email + ' (email personnalisé + ajout à la liste Cloudflare Access — plus de geste manuel à faire).');
           }
-          document.getElementById('inviteTesterEmail').value = '';
+          // Si cette invitation part d'une demande d'accès en attente (bouton "Inviter" de la
+          // liste ci-dessus), la marquer traitée maintenant que l'envoi a réellement réussi --
+          // jamais avant, pour ne pas perdre une demande si l'envoi avait échoué.
+          const emailField = document.getElementById('inviteTesterEmail');
+          if (emailField.dataset.pendingRequestId) {
+            await window.LayerPitchAccessRequests.markAccessRequestInvited(Number(emailField.dataset.pendingRequestId));
+            delete emailField.dataset.pendingRequestId;
+            renderAccessRequestsList();
+          }
+          emailField.value = '';
           document.getElementById('inviteTesterMessage').value = '';
         } else if (actionLink) {
           // Compte créé mais email jamais parti (Resend en échec) -- le lien de secours doit être
@@ -2213,6 +2279,10 @@ let noAiCertifiedGlobal = false;
 // une ligne par compositeur) -- pas dans profile.theme, qui est par-AdReel. Valeurs valides :
 // window.LayerPlayerCore.WAVEFORM_STYLES ('bars' par défaut/repli).
 let waveformStyle = 'bars';
+// Réglage global (pas par AdReel, pas par bloc), palier Pro uniquement (Chantier Apparence, 06/09) :
+// thème (Clair/Sombre) de la carte des chemins, même principe que waveformStyle ci-dessus. Valeurs
+// valides : window.LayerPlayerCore.SEQ_MAP_THEMES ('light' par défaut/repli).
+let seqMapTheme = 'light';
 function effectiveNoAiCertified(track) {
   return (track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : noAiCertifiedGlobal;
 }
@@ -7803,6 +7873,7 @@ function renderAppearancePanelForTier() {
   if (fullControls) fullControls.style.display = isFree ? 'none' : '';
   if (isFree) renderThemePresetGallery();
   renderWaveformStyleForTier();
+  renderSeqMapThemeForTier();
   if (typeof rebuildAllCards === 'function') rebuildAllCards();
   if (typeof renderPacks === 'function') renderPacks();
   if (typeof renderCollections === 'function') renderCollections();
@@ -8074,6 +8145,34 @@ function renderWaveformStyleForTier() {
 }
 fillWaveformStyleField();
 
+/* ---------------- Thème de la carte des chemins (réglage global, palier Pro) ---------------- */
+// Même principe que fillWaveformStyleField() ci-dessus (clé i18n dérivée du nom du thème, 'dark' ->
+// 'seqMapThemeDark').
+function fillSeqMapThemeField() {
+  const select = document.getElementById('seqMapThemeSelect');
+  const themes = window.LayerPlayerCore.SEQ_MAP_THEMES;
+  if (!themes.includes(seqMapTheme)) seqMapTheme = 'light';
+  select.innerHTML = themes.map(s => `<option value="${s}">${tr('seqMapTheme' + s[0].toUpperCase() + s.slice(1))}</option>`).join('');
+  select.value = seqMapTheme;
+  window.LayerPlayerCore.setSeqMapTheme(currentEffectivePlan === 'pro' ? seqMapTheme : 'light');
+}
+document.getElementById('seqMapThemeSelect').addEventListener('change', e => {
+  seqMapTheme = window.LayerPlayerCore.SEQ_MAP_THEMES.includes(e.target.value) ? e.target.value : 'light';
+  hasUnsavedEdits = true;
+  window.LayerPlayerCore.setSeqMapTheme(currentEffectivePlan === 'pro' ? seqMapTheme : 'light');
+  if (typeof rebuildAllCards === 'function') rebuildAllCards(); // reflète le nouveau thème dans les aperçus déjà à l'écran
+});
+// Même bascule verrouillé/modifiable que renderWaveformStyleForTier() ci-dessus.
+function renderSeqMapThemeForTier() {
+  const isPro = currentEffectivePlan === 'pro';
+  const lockedEl = document.getElementById('seqMapThemeLocked');
+  const selectEl = document.getElementById('seqMapThemeSelect');
+  if (lockedEl) lockedEl.hidden = isPro;
+  if (selectEl) selectEl.hidden = !isPro;
+  window.LayerPlayerCore.setSeqMapTheme(isPro ? seqMapTheme : 'light');
+}
+fillSeqMapThemeField();
+
 /* ---------------- Bandeau d'annonce bêta (Postgres, panneau admin — docs/infrastructure.md,
    "Rôle admin... actée le 3 septembre") ---------------- */
 async function loadPlatformNotice() {
@@ -8163,6 +8262,7 @@ async function loadData(silent) {
       implementationSkills = { wwise: false, fmod: false, unity: false, unreal: false };
       noAiCertifiedGlobal = false;
       waveformStyle = 'bars';
+      seqMapTheme = 'light';
       adReels = [{ id: 'main', label: tr('defaultAdreelLabel'), lang: 'fr', blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null }];
       currentAdReelId = 'main';
       const cur = adReels[0];
@@ -8382,6 +8482,7 @@ async function loadData(silent) {
     implementationSkills = Object.assign({ wwise: false, fmod: false, unity: false, unreal: false }, data.implementationSkills || {});
     noAiCertifiedGlobal = !!data.noAiCertifiedGlobal;
     waveformStyle = window.LayerPlayerCore.WAVEFORM_STYLES.includes(data.waveformStyle) ? data.waveformStyle : 'bars';
+    seqMapTheme = window.LayerPlayerCore.SEQ_MAP_THEMES.includes(data.seqMapTheme) ? data.seqMapTheme : 'light';
     collections = (data.collections || []).map(c => ({
       id: c.id, title: c.title || '', illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, pendingIllustration: null,
       presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '',
@@ -9194,6 +9295,7 @@ async function publishAll() {
       implementationSkills: { wwise: !!implementationSkills.wwise, fmod: !!implementationSkills.fmod, unity: !!implementationSkills.unity, unreal: !!implementationSkills.unreal },
       noAiCertifiedGlobal: !!noAiCertifiedGlobal,
       waveformStyle: window.LayerPlayerCore.WAVEFORM_STYLES.includes(waveformStyle) ? waveformStyle : 'bars',
+      seqMapTheme: window.LayerPlayerCore.SEQ_MAP_THEMES.includes(seqMapTheme) ? seqMapTheme : 'light',
       collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', presetId: c.presetId || null, separator: c.separator || null, effectivePlan, buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
       customFonts: customFonts.filter(f => f.remoteFile).map(f => ({ id: f.id, name: f.name || '', file: f.remoteFile, originalFileName: f.originalFileName || null })),
       adReels: adReels.map(ar => ({
@@ -9295,7 +9397,7 @@ async function publishAll() {
       const settingsRes = await window.LayerPitchSettings.upsertSettings({
         publishedAt: data.publishedAt, implementationSkills: data.implementationSkills,
         noAiCertifiedGlobal: data.noAiCertifiedGlobal, customFonts: data.customFonts,
-        waveformStyle: data.waveformStyle,
+        waveformStyle: data.waveformStyle, seqMapTheme: data.seqMapTheme,
       });
       if (!settingsRes.ok) {
         throw new Error('Écriture Postgres échouée pour les réglages — publication arrêtée avant GitHub :\n' + settingsRes.error);

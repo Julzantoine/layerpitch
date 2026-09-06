@@ -27,6 +27,7 @@
         noAiCertifiedGlobal: data.no_ai_certified_global,
         customFonts: data.custom_fonts,
         waveformStyle: data.waveform_style,
+        seqMapTheme: data.seq_map_theme,
       },
       error: null,
     };
@@ -39,8 +40,8 @@
     return { socials: data.map(row => ({ id: row.id, platform: row.platform, url: row.url })), error: null };
   }
 
-  // payload : { publishedAt, implementationSkills, noAiCertifiedGlobal, customFonts, waveformStyle } — même forme
-  // que la partie correspondante de data.json.
+  // payload : { publishedAt, implementationSkills, noAiCertifiedGlobal, customFonts, waveformStyle,
+  // seqMapTheme } — même forme que la partie correspondante de data.json.
   async function upsertSettings(payload) {
     const { data, error } = await getClient().rpc('upsert_settings', { payload });
     if (error) return { ok: false, error: error.message };

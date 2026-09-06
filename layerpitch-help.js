@@ -83,6 +83,7 @@ window.LAYERPITCH_HELP = {
       bgImageAppearance: "Image de fond de la page publique de cet AdReel. Réglage général — chaque bloc peut avoir sa propre image de fond, indépendante de celle-ci.",
       bgImageOpacityAppearance: "Opacité de l'image de fond générale (0 = invisible, 1 = pleinement visible). N'affecte pas la lisibilité du texte, qui reste régie par les couleurs de police choisies.",
       waveformStyle: "Réglage global pour tout le site, pas par bloc ni par AdReel — palier Pro uniquement. S'applique à toutes les formes d'onde (lecteur de morceau, Sfx, boutons de boucle en embranchement-vertical). Repli automatique sur \"Barres\" dans les espaces trop petits pour rester lisible (ex. beaucoup de boutons de boucle côte à côte).",
+      seqMapTheme: "Réglage global pour tout le site, pas par bloc ni par AdReel — palier Pro uniquement. S'applique à la carte des chemins des morceaux en mode séquentiel à embranchement, ici et sur le site public.",
     },
     github: {
       ghOwner: "Ton nom d'utilisateur ou d'organisation GitHub — visible dans l'URL de ton repo (github.com/OWNER/repo).",
@@ -186,6 +187,7 @@ window.LAYERPITCH_HELP = {
       bgImageAppearance: "Background image for this AdReel's public page. General setting — any block can have its own background image, independent from this one.",
       bgImageOpacityAppearance: "Opacity of the general background image (0 = invisible, 1 = fully visible). Doesn't affect text readability, which stays governed by the chosen text colors.",
       waveformStyle: "Global setting for the whole site, not per block or per AdReel — Pro tier only. Applies to every waveform (track player, Sfx, loop buttons in vertical-branching mode). Automatically falls back to \"Bars\" in spaces too small to stay readable (e.g. many loop buttons side by side).",
+      seqMapTheme: "Global setting for the whole site, not per block or per AdReel — Pro tier only. Applies to the path map of tracks in sequential-branching mode, here and on the public site.",
     },
     github: {
       ghOwner: "Your GitHub username or organization — visible in your repo's URL (github.com/OWNER/repo).",

@@ -119,6 +119,14 @@ const WAVEFORM_STYLES = ['bars', 'mirror', 'dots', 'layers'];
 let CURRENT_WAVEFORM_STYLE = 'bars';
 function setWaveformStyle(style) { CURRENT_WAVEFORM_STYLE = WAVEFORM_STYLES.includes(style) ? style : 'bars'; }
 function currentWaveformStyle() { return CURRENT_WAVEFORM_STYLE; }
+// Thème (Clair/Sombre) de la carte des chemins (Chantier Apparence, palier Pro, 06/09) : même principe
+// que le style de forme d'onde ci-dessus -- réglage global par compositeur, résolu une fois par la page
+// hôte et imposé via setSeqMapTheme() avant tout rendu de piste séquentielle. Free/Starter n'appellent
+// jamais cette fonction avec autre chose que 'light'.
+const SEQ_MAP_THEMES = ['light', 'dark'];
+let CURRENT_SEQ_MAP_THEME = 'light';
+function setSeqMapTheme(theme) { CURRENT_SEQ_MAP_THEME = SEQ_MAP_THEMES.includes(theme) ? theme : 'light'; }
+function currentSeqMapTheme() { return CURRENT_SEQ_MAP_THEME; }
 /* ---------------- Téléchargement gratuit (zip généré côté navigateur) ----------------
  * Partagée entre pack.html et collection.html (un pack télécharge ses morceaux, une collection ceux de
  * tous ses packs) — un seul endroit pour cette logique plutôt que dupliquée dans les deux pages.
@@ -949,7 +957,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   let seqMapHtml = '';
   if (isSequential && supported && (track.segmentSlots || []).length > 1) {
     seqMapHtml = `
-      <div class="seq-map" data-role="seqMap">
+      <div class="seq-map${currentSeqMapTheme() === 'dark' ? ' seq-map-dark' : ''}" data-role="seqMap">
         <div class="voice-graph-label">${t('seqMapLabel')}</div>
         <div class="seq-map-graph" data-role="seqMapGraph">
           <div class="seq-map-canvas" data-role="seqMapCanvas">
@@ -1964,7 +1972,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const svgNS = 'http://www.w3.org/2000/svg';
     const rightOf = idx => ({ x: layout.col[idx] * colW + nodeW, y: layout.row[idx] * rowH + nodeH / 2 });
     const leftOf = idx => ({ x: layout.col[idx] * colW, y: layout.row[idx] * rowH + nodeH / 2 });
-    const bottomOf = idx => ({ x: layout.col[idx] * colW + nodeW / 2, y: layout.row[idx] * rowH + nodeH });
+    const bottomOf = (idx, offsetX) => ({ x: layout.col[idx] * colW + nodeW / 2 + (offsetX || 0), y: layout.row[idx] * rowH + nodeH });
     const visibleSet = new Set(visibleIdx);
     const gridBottom = layout.maxRows * rowH - SEQ_MAP_ROW_GAP;
     // Flèches de sens (03/09, retour direct : "ajoute une flèche pour bien expliciter le sens de
@@ -2011,6 +2019,39 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // arête en arrière rencontrée) -- sans ça, deux boucles de retour finissaient à la même hauteur et se
     // confondaient visuellement. updateSeqMap() réserve la marge verticale correspondante dans totalH,
     // avec les mêmes constantes (SEQ_MAP_LOOP_MARGIN/SEQ_MAP_LOOP_STAGGER).
+    //
+    // Ancrages horizontaux (06/09, suite au fouillis signalé par Jules-Antoine sur un morceau à
+    // plusieurs boucles) : quand plusieurs boucles de retour partagent le même nœud en départ ou en
+    // arrivée, les ancrer toutes au centre du nœud les faisait converger exactement au même point --
+    // réparties ici le long du bas du nœud, une par boucle. Calculé en une passe préalable (avant tout
+    // tracé) car le nombre d'arêtes partageant un nœud n'est connu qu'une fois toutes les arêtes
+    // recensées.
+    const backEdgePairs = [];
+    visibleIdx.forEach(idx => {
+      if (!slots[idx]) return;
+      seqMapForwardTargets(idx, visibleSet).forEach(ti => {
+        if (layout.col[ti] <= layout.col[idx]) backEdgePairs.push({ from: idx, to: ti });
+      });
+    });
+    const ANCHOR_SPACING = 12;
+    const fromTotals = {}, toTotals = {}, fromSeen = {}, toSeen = {};
+    backEdgePairs.forEach(e => {
+      fromTotals[e.from] = (fromTotals[e.from] || 0) + 1;
+      toTotals[e.to] = (toTotals[e.to] || 0) + 1;
+    });
+    function spreadOffset(seenMap, totalsMap, key) {
+      const total = totalsMap[key] || 1;
+      const seen = seenMap[key] || 0;
+      seenMap[key] = seen + 1;
+      return total > 1 ? (seen - (total - 1) / 2) * ANCHOR_SPACING : 0;
+    }
+    const backEdgeAnchors = new Map();
+    backEdgePairs.forEach(e => {
+      backEdgeAnchors.set(e.from + '>' + e.to, {
+        fromOffset: spreadOffset(fromSeen, fromTotals, e.from),
+        toOffset: spreadOffset(toSeen, toTotals, e.to),
+      });
+    });
     let backEdgeIndex = 0;
     const drawEdge = (fromIdx, toIdx, cls, label, hasTransition) => {
       const isBack = layout.col[toIdx] <= layout.col[fromIdx];
@@ -2022,7 +2063,8 @@ function initTrackPlayer(track, wrapper, elementColors) {
         // l'horizontale, remonte tout droit. Aucune ambiguïté de lecture même avec plusieurs boucles
         // imbriquées, contrairement à des courbes qui peuvent se confondre visuellement dans un graphe
         // chargé.
-        a = bottomOf(fromIdx); b = bottomOf(toIdx);
+        const anchor = backEdgeAnchors.get(fromIdx + '>' + toIdx) || {};
+        a = bottomOf(fromIdx, anchor.fromOffset); b = bottomOf(toIdx, anchor.toOffset);
         const loopY = gridBottom + SEQ_MAP_LOOP_MARGIN + backEdgeIndex * SEQ_MAP_LOOP_STAGGER;
         backEdgeIndex++;
         d = `M ${a.x} ${a.y} L ${a.x} ${loopY} L ${b.x} ${loopY} L ${b.x} ${b.y}`;
@@ -4406,6 +4448,9 @@ window.LayerPlayerCore = {
   WAVEFORM_STYLES,
   setWaveformStyle,
   currentWaveformStyle,
+  SEQ_MAP_THEMES,
+  setSeqMapTheme,
+  currentSeqMapTheme,
   computeWaveformPeaks,
   drawWaveformCanvas,
   resolveEffectiveWaveformStyle,
