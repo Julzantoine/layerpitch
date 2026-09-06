@@ -308,10 +308,10 @@
 <div class="cta-band">
   <section class="cta wrap">
     <h2>LayerPitch is currently in closed beta, with composers already pitching their first AdReels.</h2>
-    <!-- TODO: swap the form action for a real Formspree endpoint (dedicated to this landing page,
-         not the backstage beta-feedback one nor a composer's) once created, or the native form of
-         whichever hosting tool is chosen -- see docs/infrastructure.md, Sept 6. -->
-    <form class="cta-form" id="waitlistForm" action="https://formspree.io/f/REPLACE_ME" method="POST">
+    <!-- Sends to submit_access_request() (Supabase RPC, supabase/migrations/20260906010000_access_requests.sql)
+         -- same table as bienvenue.html's access request, visible in the backstage admin panel
+         next to "Inviter un testeur". -->
+    <form class="cta-form" id="waitlistForm">
       <input type="email" name="email" placeholder="you@email.com" required>
       <input type="hidden" name="intent" id="intentField" value="beta">
       <div class="cta-buttons">
@@ -327,6 +327,11 @@
 
 <script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
 <script>
+  // Same public values as api/supabase-client.js (a "publishable" key, not a secret) -- raw
+  // fetch() rather than the full SDK, this page is hosted on a separate domain
+  // (www.layerpitch.com) without the rest of the app's api/*.js scripts.
+  const LAYERPITCH_SUPABASE_URL = 'https://ypygllyjfynrnvapufow.supabase.co';
+  const LAYERPITCH_ANON_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
   const form = document.getElementById('waitlistForm');
   const msg = document.getElementById('ctaMsg');
   const intentField = document.getElementById('intentField');
@@ -337,10 +342,10 @@
     e.preventDefault();
     msg.textContent = 'Sending…'; msg.className = 'cta-msg';
     try {
-      const res = await fetch(form.action, {
+      const res = await fetch(`${LAYERPITCH_SUPABASE_URL}/rest/v1/rpc/submit_access_request`, {
         method: 'POST',
-        headers: { Accept: 'application/json' },
-        body: new FormData(form),
+        headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
+        body: JSON.stringify({ p_email: form.email.value.trim(), p_source: 'landing', p_intent: intentField.value }),
       });
       if (res.ok) {
         window.umami && window.umami.track('landing_signup', { intent: intentField.value });

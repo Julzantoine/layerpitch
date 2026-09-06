@@ -204,6 +204,15 @@
   .seq-map-nodes.compact { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
   .seq-map-nodes.compact .seq-map-node { position: static; width: auto; height: auto; padding: 3px 8px; border-radius: 10px; }
   .seq-map-nodes.compact .seq-map-node-label { position: static; text-shadow: none; }
+  /* Thème sombre de la carte des chemins (Chantier Apparence, palier Pro, 06/09) : redéfinit localement
+     les variables de couleur consommées par .seq-map-node/.seq-map-edge/etc. ci-dessus -- un panneau
+     sombre autonome plutôt qu'un thème de page entière, cohérent quel que soit le thème du site hôte.
+     Palette reprise de la maquette validée par Jules-Antoine. */
+  .seq-map.seq-map-dark {
+    --bg-card: #26231f; --border: #3a352d; --accent: #4f8ff0; --accent-soft: #22314a;
+    --text: #f6f5f3; --text-dim: #a89f92; --text-dimmer: #726a5e;
+    background: #1c1a17; border-top: none; border-radius: 12px; padding: 16px;
+  }
 
   .loop-count-block { margin-top: 14px; }
   .loop-count-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
@@ -828,6 +837,9 @@ async function init() {
     // (data.waveformStyle), pas un champ de pack -- gating identique au reste de l'apparence Pro (voir
     // player.js et index.html, même logique).
     window.LayerPlayerCore.setWaveformStyle(tier === 'pro' ? (data.waveformStyle || 'bars') : 'bars');
+    // Thème de la carte des chemins (Chantier Apparence, palier Pro, 06/09) : réglage global du
+    // compositeur (data.seqMapTheme), même gating que le reste de l'apparence Pro ci-dessus.
+    window.LayerPlayerCore.setSeqMapTheme(tier === 'pro' ? (data.seqMapTheme || 'light') : 'light');
     const theme = tier === 'free'
       ? resolveThemePreset(pack.presetId)
       : { bgColor: pack.bgColor, titleColor: pack.textColor, contentColor: pack.textColor, font: pack.font };

@@ -32,6 +32,8 @@ window.LayerPlayerCore = {
   shareOrCopy: async () => true,
   WAVEFORM_STYLES: ['bars', 'mirror', 'dots', 'layers'],
   setWaveformStyle: () => {},
+  SEQ_MAP_THEMES: ['light', 'dark'],
+  setSeqMapTheme: () => {},
 };
 window.fetch = () => Promise.reject(new Error('network disabled in test'));
 window.__failures = [];

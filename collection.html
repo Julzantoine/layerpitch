@@ -271,6 +271,9 @@ async function init() {
     // (data.waveformStyle), pas un champ de collection -- gating identique au reste de l'apparence Pro
     // (voir player.js et index.html, même logique).
     window.LayerPlayerCore.setWaveformStyle(tier === 'pro' ? (data.waveformStyle || 'bars') : 'bars');
+    // Thème de la carte des chemins (Chantier Apparence, palier Pro, 06/09) : réglage global du
+    // compositeur (data.seqMapTheme), même gating que le reste de l'apparence Pro ci-dessus.
+    window.LayerPlayerCore.setSeqMapTheme(tier === 'pro' ? (data.seqMapTheme || 'light') : 'light');
     const theme = tier === 'free'
       ? resolveThemePreset(collection.presetId)
       : { bgColor: collection.bgColor, titleColor: collection.textColor, contentColor: collection.textColor, font: collection.font };
