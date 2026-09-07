@@ -51,6 +51,11 @@
   .nav-lang { font-family: var(--font-mono); font-size: 12px; color: var(--text-dimmer); }
   .nav-lang a { color: var(--text-dim); }
   .nav-lang a.active { color: var(--text); font-weight: 600; }
+  /* Branchement Studio/Fan (7 septembre) : réserve la place dans la nav pour les deux futures
+     landings dédiées (chantier "bascule bêta fermée -> lancement public", architecture actée le
+     même jour -- Compositeurs reste à la racine, Studio/Fan en pages sœurs). Grisé/non cliquable
+     tant que leur contenu n'est pas construit -- pas de lien vers une page vide. */
+  .nav-persona-teaser { font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); opacity: 0.6; cursor: default; user-select: none; }
 
   /* ---- Hero ---- */
   .hero {
@@ -159,6 +164,7 @@
   <span class="nav-logo">LayerPitch</span>
   <div class="nav-right">
     <span class="nav-lang"><a class="active" href="./landing.html">FR</a> / <a href="./landing-en.html">EN</a></span>
+    <span class="nav-persona-teaser" title="Bientôt disponible">Studio · Fan — bientôt</span>
     <!-- TODO une fois hébergé sur son propre domaine : garder cette URL absolue (l'app vit sur un
          domaine différent de la landing, voir docs/infrastructure.md, 6 septembre). -->
     <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html">Se connecter / Créer un compte</a>

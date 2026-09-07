@@ -51,6 +51,8 @@
   .nav-lang { font-family: var(--font-mono); font-size: 12px; color: var(--text-dimmer); }
   .nav-lang a { color: var(--text-dim); }
   .nav-lang a.active { color: var(--text); font-weight: 600; }
+  /* Studio/Fan nav placeholder (7 septembre) -- see landing.html for the full rationale. */
+  .nav-persona-teaser { font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); opacity: 0.6; cursor: default; user-select: none; }
 
   /* ---- Hero ---- */
   .hero {
@@ -158,6 +160,7 @@
   <span class="nav-logo">LayerPitch</span>
   <div class="nav-right">
     <span class="nav-lang"><a href="./landing.html">FR</a> / <a class="active" href="./landing-en.html">EN</a></span>
+    <span class="nav-persona-teaser" title="Coming soon">Studio · Fan — coming soon</span>
     <!-- TODO once hosted on its own domain: keep this an absolute URL (the app lives on a
          different domain than the landing page, see docs/infrastructure.md, Sept 6). -->
     <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html?lang=en">Log in / Create an account</a>
