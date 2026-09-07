@@ -1,17 +1,25 @@
 // api/access-requests.js — LayerPitch, demandes d'accès à la bêta fermée (6 septembre).
 //
-// submitAccessRequest() : appelable sans session (RPC anon), utilisée à la fois par bienvenue.html
-// (tentative de connexion refusée faute d'invitation) et par le panneau admin du backstage pour la
-// lecture/traitement des demandes en attente. Voir supabase/migrations/20260906010000_access_requests.sql.
+// submitAccessRequest() : appelle l'Edge Function submit-access-request (pas la RPC
+// submit_access_request seule -- toujours en base mais plus appelée par le front) : l'insertion
+// seule ne suffit plus, un email de confirmation part aussi à la personne qui demande l'accès,
+// dans sa langue (lang), ce qu'une simple fonction SQL ne peut pas faire (pas de secret Resend
+// accessible depuis là). Utilisée par bienvenue.html (connexion refusée faute d'invitation) et,
+// pour la lecture/traitement des demandes en attente, par le panneau admin du backstage.
+// Voir supabase/migrations/20260906010000_access_requests.sql et
+// supabase/functions/submit-access-request/index.ts.
 
 (function () {
   function getClient() {
     return window.LayerPitchSupabaseClient.getClient();
   }
 
-  async function submitAccessRequest(email, source, intent) {
-    const { error } = await getClient().rpc('submit_access_request', { p_email: email, p_source: source, p_intent: intent || null });
-    return { ok: !error, error: error ? error.message : null };
+  async function submitAccessRequest(email, source, intent, lang) {
+    const { data, error } = await getClient().functions.invoke('submit-access-request', {
+      body: { email, source, intent: intent || null, lang: lang || 'fr' },
+    });
+    if (error) return { ok: false, error: await window.LayerPitchAuth.describeFunctionError(error) };
+    return { ok: !!(data && data.ok), error: data && data.error ? data.error : null };
   }
 
   // Admin uniquement (is_admin(), vérifié côté RPC) -- renvoie [] silencieusement pour un compte

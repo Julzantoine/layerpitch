@@ -1765,18 +1765,9 @@ async function initPgAuthUi() {
         // Redirige vers bienvenue.html (flux d'inscription, docs/infrastructure.md), pas vers le
         // backstage lui-même -- sinon tout nouvel invité atterrit directement dans l'outil
         // compositeur sans jamais voir l'écran d'accueil.
-        const { ok, error, data, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html', personalMessage);
+        const { ok, error, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html', personalMessage);
         if (ok) {
-          if (data && data.cloudflareWarning) {
-            alert(
-              'Invitation envoyée à ' + email + '.\n\n' +
-              '⚠️ Mais l\'ajout automatique à la liste Cloudflare Access a échoué :\n' + data.cloudflareWarning + '\n\n' +
-              'Sans cet ajout manuel, ce testeur restera bloqué au mur Cloudflare et ne pourra jamais utiliser son lien.\n' +
-              'Dashboard Cloudflare → Zero Trust → Access → Applications → "beta" → Policies → ajoute son email à la règle "Include".'
-            );
-          } else {
-            alert('Invitation envoyée à ' + email + ' (email personnalisé + ajout à la liste Cloudflare Access — plus de geste manuel à faire).');
-          }
+          alert('Invitation envoyée à ' + email + '.');
           // Si cette invitation part d'une demande d'accès en attente (bouton "Inviter" de la
           // liste ci-dessus), la marquer traitée maintenant que l'envoi a réellement réussi --
           // jamais avant, pour ne pas perdre une demande si l'envoi avait échoué.

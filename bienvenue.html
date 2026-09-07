@@ -82,13 +82,13 @@ async function render() {
       // "Signups not allowed for this instance" (Supabase) : personne n'a jamais créé de compte à
       // cette adresse et les inscriptions publiques sont désactivées (Décision 4, invite-only) --
       // remplacé par un vrai chemin de sortie plutôt que l'erreur technique brute, même mécanisme
-      // que le CTA de la landing page (submit_access_request, panneau admin du backstage).
+      // que le CTA de la landing page (submit-access-request, panneau admin du backstage).
       if (/signups not allowed/i.test(error)) {
         msg.innerHTML = `<span>${tr('notInvitedMsg')}</span> <button class="btn" style="padding:5px 12px;font-size:12px;" id="requestAccessBtn" type="button">${tr('requestAccessBtn')}</button>`;
         msg.className = 'msg err';
         document.getElementById('requestAccessBtn').addEventListener('click', async (e) => {
           e.target.disabled = true;
-          const { ok: reqOk } = await LayerPitchAccessRequests.submitAccessRequest(email, 'blocked_signin');
+          const { ok: reqOk } = await LayerPitchAccessRequests.submitAccessRequest(email, 'blocked_signin', null, pageLang);
           msg.textContent = reqOk ? tr('accessRequestSentMsg') : tr('errorMsg').replace('{error}', 'inconnue');
           msg.className = 'msg ' + (reqOk ? 'ok' : 'err');
         });

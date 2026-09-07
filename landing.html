@@ -222,7 +222,8 @@
 <section class="demo wrap">
   <p>Avec un AdReel (Adaptive Reel), votre musique n'est pas passive. Bougez le curseur, faites entrer et sortir les couches, testez la baston, l'exploration, le boss fight. C'est votre système, en vrai, et vous pouvez facilement le partager.</p>
   <!-- Comportement d'accès réellement vérifié le 6 septembre (fenêtre privée) : cette page se
-       charge sans compte, seul layerpitch-backstage.html est derrière Cloudflare Access. -->
+       charge sans compte. Cloudflare Access a été retiré de layerpitch-backstage.html le
+       7 septembre (docs/infrastructure.md, Partie C) -- seul admin.html reste derrière ce mur. -->
   <a class="btn btn-primary" href="https://beta.layerpitch.com/?adreel=demo-fr" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_demo_click')">Manipulez un AdReel vous-même →</a>
 </section>
 
@@ -308,9 +309,9 @@
 <div class="cta-band">
   <section class="cta wrap">
     <h2>LayerPitch est actuellement en bêta fermée, avec des compositeurs qui pitchent déjà leurs premiers AdReels.</h2>
-    <!-- Envoie vers submit_access_request() (RPC Supabase, supabase/migrations/20260906010000_access_requests.sql)
-         -- même table que la demande d'accès de bienvenue.html, visible dans le panneau admin du
-         backstage à côté de "Inviter un testeur". -->
+    <!-- Envoie vers l'Edge Function submit-access-request (supabase/functions/submit-access-request,
+         insertion + email de confirmation) -- même table que la demande d'accès de bienvenue.html,
+         visible dans le panneau admin du backstage à côté de "Inviter un testeur". -->
     <form class="cta-form" id="waitlistForm">
       <input type="email" name="email" placeholder="ton@email.com" required>
       <input type="hidden" name="intent" id="intentField" value="beta">
@@ -342,10 +343,10 @@
     e.preventDefault();
     msg.textContent = 'Envoi…'; msg.className = 'cta-msg';
     try {
-      const res = await fetch(`${LAYERPITCH_SUPABASE_URL}/rest/v1/rpc/submit_access_request`, {
+      const res = await fetch(`${LAYERPITCH_SUPABASE_URL}/functions/v1/submit-access-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
-        body: JSON.stringify({ p_email: form.email.value.trim(), p_source: 'landing', p_intent: intentField.value }),
+        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: intentField.value, lang: 'fr' }),
       });
       if (res.ok) {
         window.umami && window.umami.track('landing_signup', { intent: intentField.value });
