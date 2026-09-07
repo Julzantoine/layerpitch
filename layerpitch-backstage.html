@@ -1625,6 +1625,13 @@ async function renderSubscriptionPanel(session) {
 // GitHub configuré (comme publishAll() le fait déjà côté écriture) -- sinon un compositeur hébergé
 // aurait vu sa bibliothèque vide, ce panneau étant jusqu'ici le seul moyen de l'activer à la main.
 const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelR2Storage', 'panelAdminLink'];
+// Statut admin mis en cache une fois par session (7 septembre) -- lu par renderPacks() pour
+// désactiver la case "en vente" (voir plus bas, un compositeur ordinaire ne doit pas pouvoir mettre
+// son propre pack en vente). Confort d'affichage uniquement : la vraie barrière est désormais
+// dans upsert_pack lui-même (supabase/migrations/20260907090000_upsert_pack_buyable_admin_only.sql),
+// pas cette variable -- un appel RPC direct contournant l'UI reste bloqué même si ce flag est faux
+// à tort.
+let currentUserIsAdmin = false;
 async function renderAdminOnlyPanels(session) {
   let isAdmin = false;
   if (session && session.user) {
@@ -1632,6 +1639,7 @@ async function renderAdminOnlyPanels(session) {
     const { data } = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin');
     isAdmin = !!data;
   }
+  currentUserIsAdmin = isAdmin;
   ADMIN_ONLY_PANEL_IDS.forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.hidden = !isAdmin;
@@ -1712,6 +1720,7 @@ function initAccountMenuUi() {
       closeMenu();
       await loadPostgresReadScripts();
       await window.LayerPitchAuth.signOut();
+      window.location.replace('bienvenue.html');
     });
   }
 }
@@ -1856,6 +1865,7 @@ async function initPgAuthUi() {
     signOutBtn.addEventListener('click', async () => {
       await loadPostgresReadScripts();
       await window.LayerPitchAuth.signOut();
+      window.location.replace('bienvenue.html');
     });
   }
   const inviteBtn = document.getElementById('btnInviteTester');
@@ -7409,9 +7419,10 @@ function renderPacks() {
           <span data-help="packFreeDownload" style="color:#444;font-size:12px;">${tr('freeDownloadLabel')}</span>
         </label>
         <label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
-          <input type="checkbox" data-pack-field="buyable" data-pi="${pi}" ${pack.buyable ? 'checked' : ''} style="width:auto;margin:0;">
+          <input type="checkbox" data-pack-field="buyable" data-pi="${pi}" ${pack.buyable ? 'checked' : ''} ${currentUserIsAdmin ? '' : 'disabled'} style="width:auto;margin:0;">
           <span data-help="packBuyable" style="color:#444;font-size:12px;">${tr('buyableLabel')}</span>
         </label>
+        ${!currentUserIsAdmin ? `<div class="hint-inline">${tr('buyableAdminOnlyHint')}</div>` : ''}
         ${pack.buyable ? `
           <label>${tr('buyUrlLabel')}</label>
           <input type="text" data-pack-field="buyUrl" data-pi="${pi}" value="${escapeAttr(pack.buyUrl)}" placeholder="https://...">

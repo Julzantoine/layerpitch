@@ -70,6 +70,22 @@ function identifiantsCardHtml(session) {
     </div>`;
 }
 
+// Branchement pour le futur Annuaire des compositeurs (opt-in) -- carte volontairement grisée/non
+// interactive tant que le contenu et le fonctionnement réel de l'annuaire ne sont pas construits
+// (7 septembre). Pas de lecture de composer_profiles.directory_opt_in ici : rien à afficher tant
+// que la case ne peut pas vraiment être cochée.
+function directoryCardHtml() {
+  return `
+    <div class="card">
+      <h2>Annuaire des compositeurs</h2>
+      <div class="hint">Apparaître dans un futur annuaire public, consultable par les studios et les fans. Fonctionnalité pas encore construite — bientôt disponible.</div>
+      <div class="checkbox-row">
+        <input type="checkbox" disabled>
+        <span>Être visible dans l'annuaire (bientôt disponible)</span>
+      </div>
+    </div>`;
+}
+
 async function subscriptionCardHtml() {
   const { status, error } = await LayerPitchSubscriptions.getTrialStatus();
   if (error) return `<div class="card"><h2>Mon abonnement</h2><div class="msg err">Erreur : ${error}</div></div>`;
@@ -314,7 +330,7 @@ async function render() {
     window.history.replaceState({}, '', window.location.pathname);
   }
 
-  content.innerHTML = identifiantsCardHtml(session) + (await subscriptionCardHtml()) + (await billingCardHtml()) + (await connectCardHtml()) + (await invoicesCardHtml());
+  content.innerHTML = identifiantsCardHtml(session) + (await subscriptionCardHtml()) + (await billingCardHtml()) + (await connectCardHtml()) + (await invoicesCardHtml()) + directoryCardHtml();
   wireSubscriptionCard(); wireBillingCard(); wireConnectCard(); wireInvoicesCard();
 }
 
