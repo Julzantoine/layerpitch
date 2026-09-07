@@ -956,6 +956,10 @@
                 <label data-i18n="themeContentColorLabel" data-help="contentColorAppearance">Couleur police du contenu</label>
                 <input type="color" id="appThemeContentColor">
               </div>
+              <div>
+                <label data-i18n="themeSectionLabelColorLabel" data-help="sectionLabelColorAppearance">Couleur des titres de blocs</label>
+                <input type="color" id="appThemeSectionLabelColor">
+              </div>
             </div>
             <div style="margin-top:14px">
               <label data-i18n="themeFontLabel" data-help="fontAppearance">Police</label>
@@ -1994,7 +1998,7 @@ const KNOWN_TYPES = ['header', 'bio', 'testimonials', 'tracks', 'text', 'photo',
 
 // Thème général d'un AdReel : remplace les anciens champs profile.bgColor/textColor (gardés en lecture
 // seule pour la rétrocompatibilité — jamais réécrits, seul profile.theme est publié désormais).
-const DEFAULT_THEME = { bgColor: '#f6f5f3', titleColor: '#262521', contentColor: '#262521', font: 'default', bgImage: null, bgImageOpacity: 1 };
+const DEFAULT_THEME = { bgColor: '#f6f5f3', titleColor: '#262521', contentColor: '#262521', sectionLabelColor: '#c9713c', font: 'default', bgImage: null, bgImageOpacity: 1 };
 // Liste de polices Google Fonts pré-intégrées — mélange délibéré sans-serif/serif/display pour couvrir
 // différents styles de pitch (neutre/technique vs plus éditorial), sans imposer d'upload personnalisé.
 const GOOGLE_FONTS_PRESET = [
@@ -2009,6 +2013,7 @@ const APPEARANCE_FIELDS = [
   { key: 'bgColor', label: 'themeBgColorLabel', type: 'color' },
   { key: 'titleColor', label: 'themeTitleColorLabel', type: 'color' },
   { key: 'contentColor', label: 'themeContentColorLabel', type: 'color' },
+  { key: 'sectionLabelColor', label: 'themeSectionLabelColorLabel', type: 'color' },
   { key: 'font', label: 'themeFontLabel', type: 'font' },
   { key: 'bgImage', label: 'themeBgImageLabel', type: 'image' },
   { key: 'bgImageOpacity', label: 'themeBgImageOpacityLabel', type: 'opacity' }
@@ -7914,6 +7919,7 @@ function fillAppearanceFields() {
   document.getElementById('appThemeBgColor').value = profile.theme.bgColor || DEFAULT_THEME.bgColor;
   document.getElementById('appThemeTitleColor').value = profile.theme.titleColor || DEFAULT_THEME.titleColor;
   document.getElementById('appThemeContentColor').value = profile.theme.contentColor || DEFAULT_THEME.contentColor;
+  document.getElementById('appThemeSectionLabelColor').value = profile.theme.sectionLabelColor || DEFAULT_THEME.sectionLabelColor;
   document.getElementById('appThemeFont').innerHTML = buildFontSelectOptionsHtml(profile.theme.font || DEFAULT_THEME.font);
   renderCustomFontsList();
   fillWaveformStyleField();
@@ -8131,6 +8137,7 @@ function showThemeConflictModal(field, affectedBlocks) {
 document.getElementById('appThemeBgColor').addEventListener('input', e => handleThemeFieldChange('bgColor', e.target.value));
 document.getElementById('appThemeTitleColor').addEventListener('input', e => handleThemeFieldChange('titleColor', e.target.value));
 document.getElementById('appThemeContentColor').addEventListener('input', e => handleThemeFieldChange('contentColor', e.target.value));
+document.getElementById('appThemeSectionLabelColor').addEventListener('input', e => handleThemeFieldChange('sectionLabelColor', e.target.value));
 document.getElementById('appThemeFont').addEventListener('change', e => handleThemeFieldChange('font', e.target.value));
 document.getElementById('appThemeBgImageOpacity').addEventListener('input', e => {
   document.getElementById('appThemeBgImageOpacityValue').textContent = Math.round(parseFloat(e.target.value) * 100) + '%';

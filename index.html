@@ -31,7 +31,7 @@
   .block { margin-bottom: 56px; }
   .section-label {
     font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--accent); margin-bottom: 18px;
+    text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 18px;
   }
   .info-badge {
     display: inline-flex; align-items: center; color: var(--accent); opacity: 0.75; cursor: help;
@@ -782,6 +782,7 @@ function applyBlockAppearance(el, block, customFonts) {
   }
   if (ov.titleColor) el.style.setProperty('--text-title', ov.titleColor);
   if (ov.contentColor) el.style.setProperty('--text', ov.contentColor);
+  if (ov.sectionLabelColor) el.style.setProperty('--section-label-color', ov.sectionLabelColor);
   if (ov.font) {
     const family = fontCssFamily(ov.font, customFonts);
     if (family) el.style.setProperty('--font-body', family);
@@ -1103,6 +1104,10 @@ async function init() {
     document.documentElement.style.setProperty('--bg', theme.bgColor);
     document.documentElement.style.setProperty('--text', theme.contentColor);
     document.documentElement.style.setProperty('--text-title', theme.titleColor);
+    // Couleur des petits titres de bloc (MUSIQUE, À PROPOS, TÉMOIGNAGES...) -- réglage ajouté le 7
+    // septembre, absent -> repli sur --accent (comportement inchangé pour tout AdReel publié avant ce
+    // changement, jamais republié depuis).
+    if (theme.sectionLabelColor) document.documentElement.style.setProperty('--section-label-color', theme.sectionLabelColor);
     // Séparateurs entre blocs : imposés par le preset sur Free, réglables indépendamment du reste du
     // thème sur Starter et au-dessus (profile.theme.separator, absent -> désactivé par défaut).
     const separator = tier === 'free' ? theme.separator : Object.assign({}, DEFAULT_SEPARATOR, profile.theme && profile.theme.separator || {});
