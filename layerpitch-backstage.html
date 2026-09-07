@@ -26,6 +26,14 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--backstage-bg); color: #24262b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 32px 20px 80px; font-size: 13px; }
   .page { max-width: min(1400px, 92vw); margin: 0 auto; }
+  /* Verrou de connexion (7 septembre) : couvre tout l'outil tant qu'aucune session Supabase n'est
+     confirmée -- sans ça, un visiteur non connecté voyait l'intégralité de l'interface compositeur
+     (formulaires, panneaux) avant que la lecture Postgres échoue silencieusement en arrière-plan.
+     Retiré par JS dès qu'une session est confirmée ; sinon la page redirige vers bienvenue.html
+     avant que ce voile ne soit jamais levé. Même principe que #adminContent dans admin.html, sauf
+     que ce dernier a son propre formulaire de connexion sur place -- ici on redirige vers
+     bienvenue.html, le seul point d'entrée déjà construit pour l'inscription/connexion. */
+  #authGateOverlay { position: fixed; inset: 0; z-index: 9999; background: var(--backstage-bg); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--text-dim); }
   /* Disposition maître-détail (18/08, incrément 1 : séquentiel uniquement -- étendue le 18/08 à tous les
      modes de lecture : vertical, vertical-random, statique, embranchement-vertical réutilisent désormais
      le même squelette structurel .seq-two-col/.seq-master-item/.seq-detail-col). */
@@ -627,6 +635,7 @@
 </style>
 </head>
 <body>
+<div id="authGateOverlay" data-i18n="authGateCheckingText">Vérification de la session…</div>
 <div id="helpTooltip"></div>
 <div class="page">
   <div class="page-top-row">
@@ -1277,6 +1286,34 @@
 <script src="player.js?v=1788440725621"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
+
+/* ---------------- Verrou de connexion (7 septembre) ----------------
+ * Avant ce verrou, n'importe qui pouvait charger cette page et voir tout l'outil compositeur
+ * (formulaires, panneaux) sans être connecté -- seule la lecture Postgres échouait ensuite en
+ * silence (ensureMyComposerProfile() sans session). Cloudflare Access masquait ce problème tant
+ * qu'il protégeait ce chemin ; son retrait (docs/infrastructure.md, Partie C) l'a rendu visible.
+ * Ce verrou bloque désormais l'appel à loadData(true) (seul point d'entrée qui charge du contenu
+ * réel, voir plus bas) tant qu'aucune session Supabase n'est confirmée, et redirige sinon vers
+ * bienvenue.html -- le point d'entrée déjà construit pour la connexion/l'inscription, jamais
+ * dupliqué ici. #authGateOverlay (CSS, en tête de fichier) reste affiché par-dessus tout le reste
+ * pendant la vérification, pour qu'aucun panneau ne soit visible avant la décision.
+ */
+const backstageAuthGateReady = (async function enforceBackstageAuthGate() {
+  try {
+    await loadPostgresReadScripts();
+    const { session } = await window.LayerPitchAuth.getSession();
+    if (session && session.user) {
+      const overlay = document.getElementById('authGateOverlay');
+      if (overlay) overlay.remove();
+      return true;
+    }
+  } catch (e) {
+    // Panne réseau/Supabase pendant la vérification : traité comme non connecté plutôt que de
+    // laisser le voile levé sans certitude -- même repli que l'absence de session.
+  }
+  window.location.replace('bienvenue.html');
+  return false;
+})();
 
 // Traductions de l'habillage du backstage (pas le contenu que Jules-Antoine ou les bêta-testeurs
 // saisissent — titres de morceaux, textes de blocs, etc., qui restent dans leur langue d'origine).
@@ -8549,7 +8586,10 @@ async function loadData(silent) {
     }
   }
 }
-loadData(true);
+// Attend la décision du verrou de connexion (voir en tête de script) avant de charger quoi que ce
+// soit -- si le visiteur n'a pas de session valide, backstageAuthGateReady a déjà déclenché la
+// redirection vers bienvenue.html et ne se résout jamais à `true`.
+backstageAuthGateReady.then((authOk) => { if (authOk) loadData(true); });
 
 document.getElementById('btnLoad').addEventListener('click', () => {
   if (hasUnsavedEdits) {
