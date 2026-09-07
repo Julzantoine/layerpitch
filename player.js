@@ -2002,19 +2002,12 @@ function initTrackPlayer(track, wrapper, elementColors) {
       markerIds[key] = id;
       return id;
     }
-    // Couleur aléatoire par boucle de retour (03/09, retour direct : "donne-leur une couleur à chacun
-    // choisie aléatoirement") -- dérivée d'un hash stable de la paire source/cible plutôt que d'un vrai
-    // Math.random() : la carte est redessinée à chaque changement d'état (activateSeqStage), un vrai
-    // aléatoire ferait changer la couleur d'une boucle à chaque bascule, illisible. Même paire = toujours
-    // la même couleur, "aléatoire" seulement en ce sens qu'elle n'est pas choisie à la main. Orange
-    // volontairement absent de la palette (déjà réservé à var(--accent), l'état "courant").
-    const SEQ_MAP_LOOP_COLORS = ['#4e79a7', '#59a14f', '#b07aa1', '#e15759', '#499894', '#d4a72c'];
-    function colorForLoop(fromIdx, toIdx) {
-      const key = fromIdx + '>' + toIdx;
-      let hash = 0;
-      for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) | 0;
-      return SEQ_MAP_LOOP_COLORS[Math.abs(hash) % SEQ_MAP_LOOP_COLORS.length];
-    }
+    // Couleur unique pour toutes les boucles de retour (07/09, retour direct de Jules-Antoine : "plus
+    // besoin des couleurs sur les trajets de retour" une fois leur tracé fiabilisé -- voir écartement
+    // minimal ci-dessous) -- même teinte neutre que les arêtes "en avant", les boucles se distinguent
+    // déjà par leur tracé en U et leur étalement vertical/horizontal, pas besoin d'un code couleur en
+    // plus. Remplace la palette aléatoire par paire source/cible utilisée jusqu'ici.
+    const SEQ_MAP_LOOP_COLOR = cssVar('--text-dimmer', '#a8a399');
     // Étale chaque boucle de retour un peu plus bas que la précédente (backEdgeIndex incrémenté à chaque
     // arête en arrière rencontrée) -- sans ça, deux boucles de retour finissaient à la même hauteur et se
     // confondaient visuellement. updateSeqMap() réserve la marge verticale correspondante dans totalH,
@@ -2047,10 +2040,23 @@ function initTrackPlayer(track, wrapper, elementColors) {
     }
     const backEdgeAnchors = new Map();
     backEdgePairs.forEach(e => {
-      backEdgeAnchors.set(e.from + '>' + e.to, {
+      const anchor = {
         fromOffset: spreadOffset(fromSeen, fromTotals, e.from),
         toOffset: spreadOffset(toSeen, toTotals, e.to),
-      });
+      };
+      // Deux nœuds de la MÊME colonne (07/09, retour direct de Jules-Antoine après avoir réordonné des
+      // embranchements : "c'est tout écrasé") : leur centre partage le même x, donc la boucle qui les
+      // relie s'effondrait en un simple trait vertical (largeur nulle) au lieu d'un rectangle, quel que
+      // soit l'écartement ci-dessus (qui ne sépare que des arêtes partageant un même nœud, pas deux
+      // nœuds distincts alignés par hasard). Écartement minimal forcé dans ce cas précis.
+      if (layout.col[e.from] === layout.col[e.to]) {
+        const minGap = ANCHOR_SPACING * 2;
+        if (Math.abs(anchor.fromOffset - anchor.toOffset) < minGap) {
+          anchor.fromOffset -= minGap / 2;
+          anchor.toOffset += minGap / 2;
+        }
+      }
+      backEdgeAnchors.set(e.from + '>' + e.to, anchor);
     });
     let backEdgeIndex = 0;
     const drawEdge = (fromIdx, toIdx, cls, label, hasTransition) => {
@@ -2069,9 +2075,8 @@ function initTrackPlayer(track, wrapper, elementColors) {
         backEdgeIndex++;
         d = `M ${a.x} ${a.y} L ${a.x} ${loopY} L ${b.x} ${loopY} L ${b.x} ${b.y}`;
         mid = { x: (a.x + b.x) / 2, y: loopY };
-        const color = colorForLoop(fromIdx, toIdx);
-        path.style.stroke = color;
-        markerId = ensureArrowMarker(color, color.replace('#', ''));
+        path.style.stroke = SEQ_MAP_LOOP_COLOR;
+        markerId = ensureArrowMarker(SEQ_MAP_LOOP_COLOR, 'loop');
       } else {
         a = rightOf(fromIdx); b = leftOf(toIdx);
         const midX = (a.x + b.x) / 2;
