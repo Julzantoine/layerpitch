@@ -121,6 +121,21 @@
   .share-btn:active { transform: scale(0.94); }
   .share-btn svg { width: 18px; height: 18px; }
   .share-btn.copied { color: #2a7; border-color: #2a7; }
+  /* Bouton "Intégrer" public (?embed=1, liste de morceaux d'AdReel uniquement) : voir le commentaire
+     équivalent dans pack.html. Ne s'affiche que si data.allowEmbedding ET au moins un bloc "Morceaux". */
+  .embed-public-btn { right: 68px; }
+  .embed-public-btn[hidden] { display: none; }
+  body.has-preview-banner .embed-public-btn { top: 56px; }
+  #publicEmbedModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
+  #publicEmbedModal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; width: 480px; max-width: 90vw; box-shadow: 0 8px 24px rgba(0,0,0,0.16); }
+  #publicEmbedModal h3 { font-size: 14px; margin-bottom: 4px; }
+  #publicEmbedModal .sub { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
+  #publicEmbedModal textarea { width: 100%; box-sizing: border-box; min-height: 100px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: 'JetBrains Mono', monospace; resize: vertical; background: var(--bg); color: var(--text); }
+  #publicEmbedModal .actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; }
+  #publicEmbedModal .actions button { padding: 8px 16px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text); font-size: 12px; cursor: pointer; font-family: inherit; }
+  #publicEmbedModal .actions button:hover { border-color: var(--accent); color: var(--accent); }
+  #publicEmbedCopyStatus { font-size: 11px; color: #2a7; margin-right: auto; opacity: 0; transition: opacity 0.2s; }
+  #publicEmbedCopyStatus.visible { opacity: 1; }
   .contact-form { display: flex; flex-direction: column; max-width: 480px; }
   .contact-form label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-top: 14px; margin-bottom: 5px; }
   .contact-form input, .contact-form textarea {
@@ -287,7 +302,7 @@
      superposée aux nœuds intermédiaires, contrairement à la première version. Côté Backstage (aperçu
      "Écouter"), track.seqMapFullReveal affiche TOUS les emplacements d'emblée (outil de vérification de
      sa propre structure) ; côté public, révélation progressive uniquement. */
-  .seq-map { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .seq-map { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: rgba(0,0,0,.025); }
   .seq-map-graph { position: relative; overflow-x: auto; overflow-y: hidden; }
   .seq-map-canvas { position: relative; }
   .seq-map-lines { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
@@ -328,7 +343,7 @@
   .seq-map.seq-map-dark {
     --bg-card: #26231f; --border: #3a352d; --accent: #4f8ff0; --accent-soft: #22314a;
     --text: #f6f5f3; --text-dim: #a89f92; --text-dimmer: #726a5e;
-    background: #1c1a17; border-top: none; border-radius: 12px; padding: 16px;
+    background: #1c1a17;
   }
 
   .loop-count-block { margin-top: 14px; }
@@ -425,6 +440,24 @@
     <path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/>
   </svg>
 </button>
+<button id="embedPublicBtn" class="share-btn embed-public-btn" type="button" aria-label="Embed" hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 6L2 12L8 18"/>
+    <path d="M16 6L22 12L16 18"/>
+  </svg>
+</button>
+<div id="publicEmbedModalOverlay">
+  <div id="publicEmbedModal">
+    <h3 data-i18n="embedModalTitle">Code d'intégration</h3>
+    <div class="sub" data-i18n="publicEmbedHint"></div>
+    <textarea id="publicEmbedCodeArea" readonly></textarea>
+    <div class="actions">
+      <span id="publicEmbedCopyStatus" data-i18n="copiedStatus">Copié ✓</span>
+      <button id="publicEmbedCopyBtn" type="button" data-i18n="embedCopyBtn">Copier le code</button>
+      <button id="publicEmbedCloseBtn" type="button" data-i18n="cancel">Fermer</button>
+    </div>
+  </div>
+</div>
 <div id="lightboxOverlay" class="lightbox-overlay">
   <button class="lightbox-close" type="button" aria-label="Fermer">✕</button>
   <button class="lightbox-prev" type="button" aria-label="Précédent">‹</button>
@@ -1236,6 +1269,14 @@ async function init() {
         profile.contactEmail ? `<a href="mailto:${profile.contactEmail}">${profile.contactEmail}</a>` : ''
       ].filter(Boolean).join(' &nbsp;/&nbsp; ');
     }
+    // Bouton "Intégrer" public (data.allowEmbedding, liste de morceaux d'AdReel uniquement) : voir le
+    // commentaire équivalent dans pack.html. Absent si cet AdReel n'a aucun bloc "Morceaux" (rien à
+    // proposer aux visiteurs), même garde que côté backstage (btnEmbedAdReelTracks).
+    if (!embedMode && data.allowEmbedding && blocks.some(b => b.type === 'tracks')) {
+      const baseUrl = `${location.origin}${location.pathname}` + (adreelId !== 'main' ? `?adreel=${encodeURIComponent(adreelId)}` : '');
+      const publicEmbedUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'embed=1';
+      showPublicEmbedButton(publicEmbedUrl);
+    }
     // Bouton d'intégration (embedMode) : toujours vers l'AdReel PRINCIPAL, même si c'est un autre AdReel
     // qui est intégré ici -- voir le commentaire équivalent dans pack.html.
     if (embedMode) {
@@ -1266,6 +1307,31 @@ async function init() {
 // Bouton "Partager" : Web Share API si le navigateur la propose (menu natif — WhatsApp, Discord,
 // Messages...), repli sur la copie du lien sinon (essentiellement desktop). Câblé une seule fois, pas
 // besoin d'attendre init() puisque le bouton partage toujours l'URL courante de la page.
+function showPublicEmbedButton(url) {
+  const btn = document.getElementById('embedPublicBtn');
+  btn.hidden = false;
+  btn.setAttribute('aria-label', tr('embedBtn'));
+  btn.title = tr('embedBtn');
+  btn.addEventListener('click', () => {
+    document.getElementById('publicEmbedCodeArea').value = `<iframe src="${url}" width="100%" height="700" style="border:0;border-radius:8px;max-width:640px;" allow="autoplay" loading="lazy" title="${escapeHtml(document.title)}"></iframe>`;
+    document.getElementById('publicEmbedModalOverlay').style.display = 'flex';
+  });
+}
+document.getElementById('publicEmbedCloseBtn').addEventListener('click', () => {
+  document.getElementById('publicEmbedModalOverlay').style.display = 'none';
+});
+document.getElementById('publicEmbedCopyBtn').addEventListener('click', async () => {
+  const area = document.getElementById('publicEmbedCodeArea');
+  try {
+    await navigator.clipboard.writeText(area.value);
+  } catch (e) {
+    area.select();
+    document.execCommand('copy');
+  }
+  const statusEl = document.getElementById('publicEmbedCopyStatus');
+  statusEl.classList.add('visible');
+  setTimeout(() => statusEl.classList.remove('visible'), 1500);
+});
 (function setupShareButton() {
   const btn = document.getElementById('shareBtn');
   if (!btn) return;

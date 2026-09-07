@@ -84,6 +84,20 @@
   .share-btn:active { transform: scale(0.94); }
   .share-btn svg { width: 18px; height: 18px; }
   .share-btn.copied { color: #2a7; border-color: #2a7; }
+  /* Bouton "Intégrer" public (?embed=1) : voir le commentaire équivalent dans pack.html. */
+  .embed-public-btn { right: 68px; }
+  .embed-public-btn[hidden] { display: none; }
+  body.has-preview-banner .embed-public-btn { top: 56px; }
+  #publicEmbedModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
+  #publicEmbedModal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; width: 480px; max-width: 90vw; box-shadow: 0 8px 24px rgba(0,0,0,0.16); }
+  #publicEmbedModal h3 { font-size: 14px; margin-bottom: 4px; }
+  #publicEmbedModal .sub { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
+  #publicEmbedModal textarea { width: 100%; box-sizing: border-box; min-height: 100px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: 'JetBrains Mono', monospace; resize: vertical; background: var(--bg); color: var(--text); }
+  #publicEmbedModal .actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; }
+  #publicEmbedModal .actions button { padding: 8px 16px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text); font-size: 12px; cursor: pointer; font-family: inherit; }
+  #publicEmbedModal .actions button:hover { border-color: var(--accent); color: var(--accent); }
+  #publicEmbedCopyStatus { font-size: 11px; color: #2a7; margin-right: auto; opacity: 0; transition: opacity 0.2s; }
+  #publicEmbedCopyStatus.visible { opacity: 1; }
 </style>
 </head>
 <body>
@@ -94,6 +108,24 @@
     <path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/>
   </svg>
 </button>
+<button id="embedPublicBtn" class="share-btn embed-public-btn" type="button" aria-label="Embed" hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 6L2 12L8 18"/>
+    <path d="M16 6L22 12L16 18"/>
+  </svg>
+</button>
+<div id="publicEmbedModalOverlay">
+  <div id="publicEmbedModal">
+    <h3 data-i18n="embedModalTitle">Code d'intégration</h3>
+    <div class="sub" data-i18n="publicEmbedHint"></div>
+    <textarea id="publicEmbedCodeArea" readonly></textarea>
+    <div class="actions">
+      <span id="publicEmbedCopyStatus" data-i18n="copiedStatus">Copié ✓</span>
+      <button id="publicEmbedCopyBtn" type="button" data-i18n="embedCopyBtn">Copier le code</button>
+      <button id="publicEmbedCloseBtn" type="button" data-i18n="cancel">Fermer</button>
+    </div>
+  </div>
+</div>
 <div class="page">
   <a class="back-link" href="./index.html" id="backLinkEl" data-i18n="backLink">← Retour</a>
   <div id="content"></div>
@@ -344,6 +376,11 @@ async function init() {
       // vraie page d'accueil générique, docs/infrastructure.md).
       backLinkEl.addEventListener('click', (e) => { e.preventDefault(); window.history.back(); });
     }
+    // Bouton "Intégrer" public (data.allowEmbedding) : voir le commentaire équivalent dans pack.html.
+    if (!embedMode && data.allowEmbedding) {
+      const publicEmbedUrl = `${location.origin}${location.pathname}?id=${encodeURIComponent(id)}&lang=${pageLang}${handleParam}&embed=1`;
+      showPublicEmbedButton(publicEmbedUrl);
+    }
     // Bouton d'intégration (embedMode) : voir le commentaire équivalent dans pack.html.
     if (embedMode && backLinkEl) {
       const mainAdReel = (data.adReels || []).find(a => a.id === 'main');
@@ -433,6 +470,31 @@ async function init() {
     container.innerHTML = `<div class="empty">${tr('loadError')}</div>`;
   }
 }
+function showPublicEmbedButton(url) {
+  const btn = document.getElementById('embedPublicBtn');
+  btn.hidden = false;
+  btn.setAttribute('aria-label', tr('embedBtn'));
+  btn.title = tr('embedBtn');
+  btn.addEventListener('click', () => {
+    document.getElementById('publicEmbedCodeArea').value = `<iframe src="${url}" width="100%" height="700" style="border:0;border-radius:8px;max-width:640px;" allow="autoplay" loading="lazy" title="${escapeHtml(document.title)}"></iframe>`;
+    document.getElementById('publicEmbedModalOverlay').style.display = 'flex';
+  });
+}
+document.getElementById('publicEmbedCloseBtn').addEventListener('click', () => {
+  document.getElementById('publicEmbedModalOverlay').style.display = 'none';
+});
+document.getElementById('publicEmbedCopyBtn').addEventListener('click', async () => {
+  const area = document.getElementById('publicEmbedCodeArea');
+  try {
+    await navigator.clipboard.writeText(area.value);
+  } catch (e) {
+    area.select();
+    document.execCommand('copy');
+  }
+  const statusEl = document.getElementById('publicEmbedCopyStatus');
+  statusEl.classList.add('visible');
+  setTimeout(() => statusEl.classList.remove('visible'), 1500);
+});
 (function setupShareButton() {
   const btn = document.getElementById('shareBtn');
   if (!btn) return;

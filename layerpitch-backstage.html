@@ -410,7 +410,7 @@
      superposée aux nœuds intermédiaires, contrairement à la première version. Ici même (aperçu "Écouter"
      du Backstage), track.seqMapFullReveal affiche TOUS les emplacements d'emblée (outil de vérification
      de sa propre structure pendant qu'on la construit) ; côté public, révélation progressive uniquement. */
-  .seq-map { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .seq-map { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: rgba(0,0,0,.025); }
   .seq-map-graph { position: relative; overflow-x: auto; overflow-y: hidden; }
   .seq-map-canvas { position: relative; }
   .seq-map-lines { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
@@ -451,7 +451,7 @@
   .seq-map.seq-map-dark {
     --bg-card: #26231f; --border: #3a352d; --accent: #4f8ff0; --accent-soft: #22314a;
     --text: #f6f5f3; --text-dim: #a89f92; --text-dimmer: #726a5e;
-    background: #1c1a17; border-top: none; border-radius: 12px; padding: 16px;
+    background: #1c1a17;
   }
   .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
   .intensity-picker { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -852,6 +852,14 @@
       <div class="backstage-panel" data-panel="socials">
         <h2 data-i18n="navSocials">Réseaux sociaux</h2>
         <div class="sub" data-i18n="socialsPanelSub">Ajoute un réseau pour faire apparaître un bouton "Publier" pré-rempli sur tes packs et collections (onglet Contenu de chacun) — X, Facebook, LinkedIn, WhatsApp et Telegram ouvrent leur fenêtre de publication avec le texte et le lien déjà prêts, il ne reste qu'à valider chez eux. Instagram, TikTok, YouTube et SoundCloud n'offrent aucun mécanisme de ce genre — gardés ici uniquement comme aide-mémoire de tes liens.</div>
+
+        <div style="margin-bottom:18px" data-help="allowEmbedding">
+          <label style="display:flex;align-items:flex-start;gap:8px;margin:0;">
+            <input type="checkbox" id="allowEmbeddingCheckbox" style="width:auto;margin:2px 0 0 0;">
+            <span style="font-size:11px;color:#888;line-height:1.5;" data-i18n="allowEmbeddingLabel">Autoriser les visiteurs à intégrer eux-mêmes tes packs, collections et listes de morceaux d'AdReel sur leur propre site (bouton "Intégrer" affiché sur les pages publiques). Décoché par défaut — toi seul peux alors générer un code d'intégration, depuis chaque onglet Distribution ou le sélecteur d'AdReel.</span>
+          </label>
+        </div>
+
         <div id="socialsContainer"></div>
         <div class="actions" style="margin-bottom:20px"><button class="btn btn-small" id="btnAddSocial" data-i18n="addSocial">+ Réseau</button></div>
       </div>
@@ -2415,6 +2423,11 @@ let waveformStyle = 'bars';
 // thème (Clair/Sombre) de la carte des chemins, même principe que waveformStyle ci-dessus. Valeurs
 // valides : window.LayerPlayerCore.SEQ_MAP_THEMES ('light' par défaut/repli).
 let seqMapTheme = 'light';
+// Réglage global (pas par pack/collection/AdReel), tous paliers : autorise ou non les VISITEURS des
+// pages publiques (pack.html/collection.html/index.html) à générer eux-mêmes un code d'intégration
+// depuis un bouton public -- ne bloque jamais un lien ?embed=1 déjà généré par le compositeur lui-même
+// ici, dans le backstage, toujours disponible quel que soit ce réglage. Faux par défaut (opt-in).
+let allowEmbedding = false;
 function effectiveNoAiCertified(track) {
   return (track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : noAiCertifiedGlobal;
 }
@@ -8315,6 +8328,15 @@ document.getElementById('noAiCertifiedGlobal').addEventListener('change', e => {
 });
 fillNoAiCertifiedGlobalField();
 
+function fillAllowEmbeddingField() {
+  document.getElementById('allowEmbeddingCheckbox').checked = !!allowEmbedding;
+}
+document.getElementById('allowEmbeddingCheckbox').addEventListener('change', e => {
+  allowEmbedding = e.target.checked;
+  hasUnsavedEdits = true;
+});
+fillAllowEmbeddingField();
+
 /* ---------------- Style de forme d'onde (réglage global, palier Pro) ---------------- */
 // Clé i18n dérivée du nom du style ('mirror' -> 'waveformStyleMirror') plutôt qu'une table de
 // correspondance à part -- fillAppearanceFields() étant appelée dès le chargement du script (avant même
@@ -8387,13 +8409,14 @@ async function loadData(silent) {
       noAiCertifiedGlobal = false;
       waveformStyle = 'bars';
       seqMapTheme = 'light';
+      allowEmbedding = false;
       adReels = [{ id: 'main', label: tr('defaultAdreelLabel'), lang: 'fr', blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null }];
       currentAdReelId = 'main';
       const cur = adReels[0];
       blocks = cur.blocks; profile = cur.profile; testimonials = cur.testimonials; trackIds = cur.trackIds; trackOverrides = cur.trackOverrides;
       logoPendingFile = null; photoPendingFile = null;
       collapsedPackIds.clear(); collapsedBlockIds.clear(); collapsedCollectionIds.clear();
-      renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); rebuildAllCards();
+      renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); rebuildAllCards();
       dataLoadOk = true; // absence légitime de data.json (premier lancement) -- pas un échec, publier est sûr
       document.getElementById('btnPublish').disabled = false;
       return;
@@ -8606,6 +8629,7 @@ async function loadData(silent) {
     noAiCertifiedGlobal = !!data.noAiCertifiedGlobal;
     waveformStyle = window.LayerPlayerCore.WAVEFORM_STYLES.includes(data.waveformStyle) ? data.waveformStyle : 'bars';
     seqMapTheme = window.LayerPlayerCore.SEQ_MAP_THEMES.includes(data.seqMapTheme) ? data.seqMapTheme : 'light';
+    allowEmbedding = !!data.allowEmbedding;
     collections = (data.collections || []).map(c => ({
       id: c.id, title: c.title || '', illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, pendingIllustration: null,
       presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '',
@@ -8662,6 +8686,7 @@ async function loadData(silent) {
     fillAppearanceFields();
     fillImplementationSkillsFields();
     fillNoAiCertifiedGlobalField();
+    fillAllowEmbeddingField();
     rebuildAllCards();
     hasUnsavedEdits = false;
     dataLoadOk = true;
@@ -9116,6 +9141,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
     noAiCertifiedGlobal: !!noAiCertifiedGlobal,
     waveformStyle: window.LayerPlayerCore.WAVEFORM_STYLES.includes(waveformStyle) ? waveformStyle : 'bars',
     seqMapTheme: window.LayerPlayerCore.SEQ_MAP_THEMES.includes(seqMapTheme) ? seqMapTheme : 'light',
+    allowEmbedding: !!allowEmbedding,
     collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', presetId: c.presetId || null, separator: c.separator || null, effectivePlan, buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
     customFonts: customFonts.filter(f => f.remoteFile).map(f => ({ id: f.id, name: f.name || '', file: f.remoteFile, originalFileName: f.originalFileName || null })),
     adReels: adReels.map(ar => ({
@@ -9560,6 +9586,7 @@ async function publishAll() {
         publishedAt: data.publishedAt, implementationSkills: data.implementationSkills,
         noAiCertifiedGlobal: data.noAiCertifiedGlobal, customFonts: data.customFonts,
         waveformStyle: data.waveformStyle, seqMapTheme: data.seqMapTheme,
+        allowEmbedding: data.allowEmbedding,
       });
       if (!settingsRes.ok) {
         throw new Error('Écriture Postgres échouée pour les réglages — publication arrêtée avant GitHub :\n' + settingsRes.error);
