@@ -149,15 +149,11 @@ function loadPostgresReadScripts() {
 // (ajouté le 4 septembre pour le tableau de bord analytique compositeur).
 let lastResolvedOwnerId = DEFAULT_OWNER_ID;
 // Identité de compositeur par handle — voir le commentaire équivalent dans index.html.
+// Postgres seule source de vérité (7 septembre, Décision 5 close) -- data.json plus jamais lu, voir
+// index.html pour le pourquoi (backstage hébergé multi-compositeur).
 async function loadSiteData() {
   const params = new URLSearchParams(location.search);
   const handle = params.get('u');
-  const usePostgres = !!handle || params.get('dataSource') === 'postgres';
-  if (!usePostgres) {
-    lastResolvedOwnerId = DEFAULT_OWNER_ID;
-    const res = await fetch('./data.json?v=' + Date.now());
-    return res.json();
-  }
   await loadPostgresReadScripts();
   let ownerId = DEFAULT_OWNER_ID;
   if (handle) {

@@ -40,6 +40,17 @@
 <script src="api/access-requests.js"></script>
 <script>
 const pageLang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'fr';
+// Branchement flux d'inscription persona (7 septembre) : connu silencieusement via le lien cliqué
+// sur la landing d'origine (?persona=studio), jamais redemandé à l'utilisateur -- cohérent avec la
+// décision "pas d'écran de choix" (architecture racine actée le même jour). Studio est la seule
+// branche construite pour l'instant : la landing Studio elle-même reste grisée/non liée
+// (docs/infrastructure.md), donc personne ne peut réellement atteindre ce chemin encore -- construit
+// en avance, dormant. Fan délibérément non géré ici (voir note plus bas, ensureMyFanProfile()
+// n'existe pas) : aucune destination Fan n'existe encore (Marketplace/Annuaire toujours grisés),
+// donc pas de branche à construire tant que ça reste vrai. Toute autre valeur (absente, 'composer',
+// non reconnue) garde le comportement composer-only inchangé, seul chemin réellement utilisé en
+// production aujourd'hui.
+const signupPersona = new URLSearchParams(location.search).get('persona') === 'studio' ? 'studio' : 'composer';
 function currentLang() { return pageLang; }
 function tr(key) {
   const I18N = window.LAYERPITCH_I18N || { fr: { welcome: {} }, en: { welcome: {} } };
@@ -138,20 +149,25 @@ async function render() {
     return;
   }
 
-  // Bêta réservée aux compositeurs (docs/infrastructure.md, chantier "flux d'inscription") --
-  // pas d'écran à trois choix Compositeur/Studio/Fan tant que la bêta n'est pas ouverte au-delà
-  // des compositeurs. Un seul bouton, aucune option grisée.
+  // Bêta réservée aux compositeurs pour le chemin par défaut (docs/infrastructure.md, chantier
+  // "flux d'inscription") -- pas d'écran à trois choix Compositeur/Studio/Fan, la persona vient du
+  // lien cliqué (signupPersona plus haut), jamais redemandée ici. Studio ajouté le 7 septembre :
+  // même schéma exact (un seul bouton, un seul message), juste le profil provisionné et la
+  // destination finale qui changent.
+  const isStudio = signupPersona === 'studio';
   content.innerHTML = `
-    <p>${tr('betaComposersOnly')}</p>
+    <p>${tr(isStudio ? 'welcomeStudioMsg' : 'betaComposersOnly')}</p>
     <button class="btn" id="continueBtn" type="button">${tr('continueBtn')}</button>
     <div class="msg" id="continueMsg"></div>`;
   document.getElementById('continueBtn').addEventListener('click', async () => {
     const btn = document.getElementById('continueBtn');
     const msg = document.getElementById('continueMsg');
     btn.disabled = true;
-    const { error: composerError } = await LayerPitchAuth.ensureMyComposerProfile();
-    if (composerError) {
-      msg.textContent = tr('errorMsg').replace('{error}', composerError);
+    const { error: profileError } = isStudio
+      ? await LayerPitchAuth.ensureMyStudioProfile()
+      : await LayerPitchAuth.ensureMyComposerProfile();
+    if (profileError) {
+      msg.textContent = tr('errorMsg').replace('{error}', profileError);
       msg.className = 'msg err';
       btn.disabled = false;
       return;
@@ -163,7 +179,7 @@ async function render() {
       btn.disabled = false;
       return;
     }
-    window.location.href = './layerpitch-backstage.html';
+    window.location.href = isStudio ? './library.html' : './layerpitch-backstage.html';
   });
 }
 
