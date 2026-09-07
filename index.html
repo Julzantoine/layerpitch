@@ -20,6 +20,9 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   img { max-width: 100%; height: auto; display: block; }
   body { background: var(--bg); color: var(--text); font-family: var(--font-body); padding: 56px 24px 60px; }
+  body.has-preview-banner { padding-top: 92px; }
+  .preview-mode-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #262521; color: #f6f5f3; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 8px 16px; letter-spacing: 0.02em; }
+  body.has-preview-banner .share-btn { top: 56px; }
   .page { max-width: 1100px; margin: 0 auto; }
   a { color: var(--accent); }
 
@@ -399,7 +402,17 @@
   body.high-contrast .contrast-toggle { color: var(--text); font-weight: 600; }
   .empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 20px 0; }
 </style>
-<script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
+<script>
+  // Umami chargé dynamiquement et sauté en mode aperçu (?preview=1) -- voir le commentaire équivalent
+  // dans pack.html.
+  if (new URLSearchParams(location.search).get('preview') !== '1') {
+    const s = document.createElement('script');
+    s.defer = true;
+    s.src = 'https://cloud.umami.is/script.js';
+    s.setAttribute('data-website-id', '2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f');
+    document.head.appendChild(s);
+  }
+</script>
 </head>
 <body>
 <button id="shareBtn" class="share-btn" type="button" aria-label="Partager">
@@ -513,8 +526,16 @@ let lastResolvedOwnerId = DEFAULT_OWNER_ID;
 // (toi), donc tant qu'il restait la source par défaut, aucun autre compositeur ne pouvait jamais
 // être visible publiquement, même en publiant sans erreur. Cas "aucun paramètre" : identique à avant
 // (DEFAULT_OWNER_ID), juste résolu via Postgres au lieu du fichier statique.
+// Mode aperçu (?preview=1) : voir le commentaire équivalent dans pack.html.
+let previewActive = false;
 async function loadSiteData() {
   const params = new URLSearchParams(location.search);
+  if (params.get('preview') === '1') {
+    try {
+      const raw = localStorage.getItem('layerpitch_preview_data');
+      if (raw) { previewActive = true; return JSON.parse(raw); }
+    } catch (e) { /* dépôt corrompu/absent -- repli silencieux sur le chargement Postgres normal */ }
+  }
   const handle = params.get('u');
   await loadPostgresReadScripts();
   let ownerId = DEFAULT_OWNER_ID;
@@ -525,6 +546,14 @@ async function loadSiteData() {
   }
   lastResolvedOwnerId = ownerId;
   return window.LayerPitchSiteData.loadSiteDataFromPostgres(ownerId);
+}
+// Bandeau "Mode aperçu" -- voir le commentaire équivalent dans pack.html.
+function showPreviewModeBanner() {
+  const banner = document.createElement('div');
+  banner.className = 'preview-mode-banner';
+  banner.textContent = tr('previewModeBanner');
+  document.body.prepend(banner);
+  document.body.classList.add('has-preview-banner');
 }
 
 // Traductions de l'habillage LayerPitch (pas le contenu des AdReels/morceaux, qui reste dans sa langue
@@ -1069,6 +1098,7 @@ async function init() {
   };
   try {
     const data = await loadSiteData();
+    if (previewActive) showPreviewModeBanner();
     window.__lpTrackContext.ownerId = lastResolvedOwnerId;
     const adReel = (data.adReels || []).find(a => a.id === adreelId);
     if (!adReel) {

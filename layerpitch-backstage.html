@@ -330,6 +330,14 @@
   #implSheetModal .actions { justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; }
   #implSheetModal .impl-copy-status { font-size: 11px; color: #2a7; margin-right: auto; opacity: 0; transition: opacity 0.2s; }
   #implSheetModal .impl-copy-status.visible { opacity: 1; }
+  #embedModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
+  #embedModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 480px; max-width: 90vw; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  #embedModal h3 { font-size: 13px; margin-bottom: 4px; color: #222; }
+  #embedModal .sub { margin-bottom: 12px; }
+  #embedModal textarea { width: 100%; box-sizing: border-box; min-height: 110px; padding: 10px; border: 1px solid #d8d8dc; border-radius: 6px; font-size: 12px; font-family: 'JetBrains Mono', monospace; resize: vertical; }
+  #embedModal .actions { justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; }
+  #embedModal .impl-copy-status { font-size: 11px; color: #2a7; margin-right: auto; opacity: 0; transition: opacity 0.2s; }
+  #embedModal .impl-copy-status.visible { opacity: 1; }
   #newAdReelImportOptions.disabled { opacity: 0.4; pointer-events: none; }
   /* --- Styles du lecteur d'aperçu (bouton Écouter), repris à l'identique d'index.html/pack.html --- */
   .track-intensity-block { margin-top: 16px; }
@@ -641,7 +649,7 @@
   <div class="page-top-row">
     <h1 data-i18n="pageTitle">LayerPitch — Backstage</h1>
     <div class="global-actions-bar">
-      <button class="btn" id="btnPreview" type="button" disabled data-i18n-title="previewComingSoonHint" data-i18n="previewComingSoonBtn" title="Bientôt disponible : un aperçu en direct de tes modifications non encore publiées, sans avoir à sauvegarder d'abord.">Prévisualiser</button>
+      <button class="btn" id="btnPreview" type="button" data-i18n-title="previewHint" data-i18n="previewBtn" title="Ouvre un aperçu en direct de tes modifications non publiées.">Prévisualiser</button>
       <button class="btn btn-primary" id="btnPublish" disabled data-i18n-title="publishDisabledUntilLoadHint" data-i18n="publishBtn" title="Désactivé tant que le chargement initial n'a pas réussi, pour éviter d'écraser les données déjà publiées.">Sauvegarder / publier</button>
       <button class="btn" id="btnView" data-i18n="viewResultBtn">Visualiser le résultat ↗</button>
       <div class="account-menu">
@@ -1282,6 +1290,19 @@
       <button class="btn btn-small" id="implSheetCopyBtn" type="button" data-i18n="implSheetCopyBtn">Copier</button>
       <button class="btn btn-small" id="implSheetDownloadBtn" type="button" data-i18n="implSheetDownloadBtn">Télécharger</button>
       <button class="btn btn-small btn-primary" id="implSheetCloseBtn" type="button" data-i18n="cancel">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div id="embedModalOverlay">
+  <div id="embedModal">
+    <h3 data-i18n="embedModalTitle">Code d'intégration</h3>
+    <div class="sub" id="embedModalSub"></div>
+    <textarea id="embedCodeArea" readonly></textarea>
+    <div class="actions">
+      <span class="impl-copy-status" id="embedCopyStatus" data-i18n="implSheetCopiedStatus">Copié ✓</span>
+      <button class="btn btn-small" id="embedCopyBtn" type="button" data-i18n="embedCopyBtn">Copier le code</button>
+      <button class="btn btn-small btn-primary" id="embedCloseBtn" type="button" data-i18n="cancel">Fermer</button>
     </div>
   </div>
 </div>
@@ -3173,6 +3194,32 @@ function computeCollectionUrl(collectionId) {
   const repo = state.repo() || tr('yourRepo');
   return `https://${owner}.github.io/${repo}/collection.html?id=${encodeURIComponent(collectionId)}`;
 }
+// Code d'intégration (iframe) : même URL publique que "Copier le lien", avec &embed=1 en plus --
+// pack.html/collection.html s'en servent pour remplacer le discret "← Retour" par un vrai bouton
+// visible ramenant l'auditeur vers l'AdReel principal (voir embedMode, pack.html/collection.html).
+function buildEmbedSnippet(url, title) {
+  return `<iframe src="${url}" width="100%" height="700" style="border:0;border-radius:8px;max-width:640px;" allow="autoplay" loading="lazy" title="${escapeAttr(title)}"></iframe>`;
+}
+function openEmbedModal(url, itemTitle, hintKey) {
+  document.getElementById('embedModalSub').textContent = tr(hintKey);
+  document.getElementById('embedCodeArea').value = buildEmbedSnippet(url, itemTitle || 'LayerPitch');
+  document.getElementById('embedModalOverlay').style.display = 'flex';
+}
+document.getElementById('embedCloseBtn').addEventListener('click', () => {
+  document.getElementById('embedModalOverlay').style.display = 'none';
+});
+document.getElementById('embedCopyBtn').addEventListener('click', async () => {
+  const area = document.getElementById('embedCodeArea');
+  try {
+    await navigator.clipboard.writeText(area.value);
+  } catch (e) {
+    area.select();
+    document.execCommand('copy');
+  }
+  const statusEl = document.getElementById('embedCopyStatus');
+  statusEl.classList.add('visible');
+  setTimeout(() => statusEl.classList.remove('visible'), 1500);
+});
 function renderAdReelSelect() {
   const sel = document.getElementById('adReelSelect');
   sel.innerHTML = adReels.map(a => `<option value="${a.id}"${a.id === currentAdReelId ? ' selected' : ''}>${escapeAttr(a.label || a.id)} (${escapeAttr(a.id)})</option>`).join('');
@@ -7446,10 +7493,11 @@ function renderPacks() {
         <div class="hint-inline">${tr('packLinkedAdReelHint')}</div>
         <label style="margin-top:14px">${tr('packDirectLinkLabel')}</label>
         <div id="packUrlBox_${pack.id}" class="hint-inline"></div>
-        <div style="display:flex; gap:6px; margin-top:4px;">
-          <button class="btn btn-small" disabled title="${escapeAttr(tr('previewComingSoonHint'))}" type="button" style="flex:1">${tr('previewComingSoonBtn')}</button>
+        <div style="display:flex; gap:6px; margin-top:4px; flex-wrap:wrap;">
+          <button class="btn btn-small" data-action="preview-pack" data-pi="${pi}" type="button" title="${escapeAttr(tr('previewHint'))}" style="flex:1">${tr('previewBtn')}</button>
           <button class="btn btn-small" data-action="copy-pack-url" data-pi="${pi}" type="button" style="flex:1">${tr('copyLink')}</button>
           <button class="btn btn-small" data-action="share-pack-url" data-pi="${pi}" type="button" style="flex:1">${tr('shareBtn')}</button>
+          <button class="btn btn-small" data-action="embed-pack" data-pi="${pi}" type="button" style="flex:1">${tr('embedBtn')}</button>
         </div>
         <label data-help="publishToSocial" style="margin-top:14px">${tr('publishToSocialLabel')}</label>
         <div style="display:flex; gap:6px; flex-wrap:wrap;">${publishButtonsHtml('publish-pack-social', 'pi', pi)}</div>
@@ -7594,6 +7642,18 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
     } else {
       alert(tr('copyFailedAlert'));
     }
+    return;
+  }
+  const embedBtn = e.target.closest('[data-action="embed-pack"]');
+  if (embedBtn) {
+    const pi = parseInt(embedBtn.dataset.pi, 10);
+    openEmbedModal(`${computePackUrl(packs[pi].id)}&embed=1`, packs[pi].title, 'embedModalHintPack');
+    return;
+  }
+  const previewBtn = e.target.closest('[data-action="preview-pack"]');
+  if (previewBtn) {
+    const pi = parseInt(previewBtn.dataset.pi, 10);
+    openPreview(`./pack.html?preview=1&id=${encodeURIComponent(packs[pi].id)}&lang=${currentLang()}`);
     return;
   }
   const shareBtn = e.target.closest('[data-action="share-pack-url"]');
@@ -7784,10 +7844,11 @@ function renderCollections() {
         ` : ''}
         <label style="margin-top:14px">${tr('packDirectLinkLabel')}</label>
         <div id="collectionUrlBox_${coll.id}" class="hint-inline"></div>
-        <div style="display:flex; gap:6px; margin-top:4px;">
-          <button class="btn btn-small" disabled title="${escapeAttr(tr('previewComingSoonHint'))}" type="button" style="flex:1">${tr('previewComingSoonBtn')}</button>
+        <div style="display:flex; gap:6px; margin-top:4px; flex-wrap:wrap;">
+          <button class="btn btn-small" data-action="preview-collection" data-ci="${ci}" type="button" title="${escapeAttr(tr('previewHint'))}" style="flex:1">${tr('previewBtn')}</button>
           <button class="btn btn-small" data-action="copy-collection-url" data-ci="${ci}" type="button" style="flex:1">${tr('copyLink')}</button>
           <button class="btn btn-small" data-action="share-collection-url" data-ci="${ci}" type="button" style="flex:1">${tr('shareBtn')}</button>
+          <button class="btn btn-small" data-action="embed-collection" data-ci="${ci}" type="button" style="flex:1">${tr('embedBtn')}</button>
         </div>
         <label data-help="publishToSocial" style="margin-top:14px">${tr('publishToSocialLabel')}</label>
         <div style="display:flex; gap:6px; flex-wrap:wrap;">${publishButtonsHtml('publish-collection-social', 'ci', ci)}</div>
@@ -7851,6 +7912,18 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
     } else {
       alert(tr('copyFailedAlert'));
     }
+    return;
+  }
+  const embedBtn = e.target.closest('[data-action="embed-collection"]');
+  if (embedBtn) {
+    const ci = parseInt(embedBtn.dataset.ci, 10);
+    openEmbedModal(`${computeCollectionUrl(collections[ci].id)}&embed=1`, collections[ci].title, 'embedModalHintCollection');
+    return;
+  }
+  const previewBtn = e.target.closest('[data-action="preview-collection"]');
+  if (previewBtn) {
+    const ci = parseInt(previewBtn.dataset.ci, 10);
+    openPreview(`./collection.html?preview=1&id=${encodeURIComponent(collections[ci].id)}&lang=${currentLang()}`);
     return;
   }
   const shareBtn = e.target.closest('[data-action="share-collection-url"]');
@@ -8928,6 +9001,164 @@ async function updateScriptVersions(owner, repo, branch, token, path, version) {
 }
 
 /* ---------------- Publication ---------------- */
+// Assemblage de l'objet au format data.json/Postgres à partir de l'état en mémoire (extrait de
+// publishAll() le 7 septembre pour être réutilisable par la prévisualisation -- lecture pure, aucun
+// effet de bord, aucun appel réseau : les fichiers en attente (pendingXxxFile) n'ont pas encore de
+// remoteFile/illustration publiés, ils ressortent donc naturellement en null/absents ici, exactement
+// comme pour un morceau/pack jamais encore publié. C'est voulu : la prévisualisation ne peut montrer
+// que ce qui a déjà été publié une fois pour l'audio et les images (voir openPreview()) -- tout le
+// reste (textes, organisation, tracklists, prix, couleurs...) est en revanche toujours à jour ici,
+// puisque lu directement depuis l'état en mémoire du backstage, pas depuis une copie publiée.
+function buildDataSnapshot(effectivePlan, publishedAt) {
+  return {
+    publishedAt,
+    library: library.map(t => ({
+      id: t.id, title: t.title, description: t.description, tags: t.tags || '', mode: t.mode, loopable: !!t.loopable,
+      implementationNote: t.implementationNote || '',
+      noAiOverride: (t.noAiOverride === true || t.noAiOverride === false) ? t.noAiOverride : null,
+      loopEngine: t.loopEngine || 'simple',
+      bpm: t.bpm || 120, beatsPerBar: t.beatsPerBar || 4, loopGridUnit: t.loopGridUnit || 'bars',
+      loopInBeat: t.loopInBeat || 0, loopOutBeat: t.loopOutBeat || (t.beatsPerBar || 4) * 4,
+      startTrackBeat: t.startTrackBeat || 0,
+      maxLoops: (t.maxLoops !== undefined && t.maxLoops !== null) ? t.maxLoops : null,
+      maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
+      normalizeVolume: !!t.normalizeVolume,
+      duration: Math.round(t.duration * 100) / 100, base: t.base,
+      layers: (t.mode === 'static' ? (t.layers || []).slice(0, 1) : (t.layers || [])).map(l => ({ label: l.label, file: l.remoteFile, originalFileName: l.originalFileName || null, gain: l.gain || 1, duration: Math.round((l.duration || 0) * 100) / 100 })),
+      intro: (t.intro && t.intro.remoteFile) ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, file: t.intro.remoteFile, originalFileName: t.intro.originalFileName || null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '' } : null,
+      outro: (t.outro && t.outro.remoteFile) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile, originalFileName: t.outro.originalFileName || null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,
+      segmentSlots: (t.segmentSlots || []).map(sl => ({
+        id: sl.id, label: sl.label || '', avoidImmediateRepeat: sl.avoidImmediateRepeat !== false,
+        referencesSlotId: sl.referencesSlotId || null, repeatCount: sl.repeatCount || 1,
+        quantization: sl.quantization || 'bar', cutStyle: sl.cutStyle || 'fade', customCutFadeSec: sl.customCutFadeSec,
+        bpm: sl.bpm, beatsPerBar: sl.beatsPerBar,
+        descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
+        nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
+          targetId: opt.targetId, label: opt.label || '',
+          transition: (opt.transition && opt.transition.remoteFile) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile, originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null
+        })) : null,
+        alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, originalFileName: a.originalFileName || null, gain: a.gain || 1 }))
+      })),
+      // Embranchement-vertical : une entrée par boucle déclarée (même les boucles sans fichier — voir
+      // note dans buildPreviewTrackObject, l'index doit rester aligné avec data-loop-idx côté lecteur).
+      loops: (t.loops || []).map(l => ({
+        id: l.id, label: l.label || '', bars: l.bars || 8, isInitial: !!l.isInitial,
+        file: l.remoteFile || null, gain: l.gain || 1,
+        switchQuantize: l.switchQuantize || 'immediate',
+        autoReturnEnabled: !!l.autoReturnEnabled, autoReturnValue: l.autoReturnValue || 4, autoReturnUnit: l.autoReturnUnit || 'bars',
+        detourMode: l.detourMode || 'once', endLoopButtonLabel: l.endLoopButtonLabel || '',
+        startTrackBeat: l.startTrackBeat || 0, loopInBeat: l.loopInBeat || 0, loopOutBeat: l.loopOutBeat || null,
+        duration: Math.round((l.duration || 0) * 100) / 100,
+        isDetour: !!l.isDetour, bpm: l.bpm || null, beatsPerBar: l.beatsPerBar || null,
+        cutStyle: l.cutStyle || 'fade', customCutFadeSec: l.customCutFadeSec,
+        transition: (l.transition && l.transition.remoteFile) ? {
+          label: l.transition.label || '', durationUnit: l.transition.durationUnit || null,
+          bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
+          bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
+          file: l.transition.remoteFile, originalFileName: l.transition.originalFileName || null
+        } : null
+      })),
+      randomizeSections: !!t.randomizeSections,
+      // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : chaque section porte
+      // désormais son propre tempo/timeline, comme un vrai segment Wwise indépendant — plus de
+      // fixedLayers/randomGroups au niveau du morceau, tout vit dans sections[].pools[].
+      sections: (t.sections || []).map(sec => ({
+        id: sec.id, label: sec.label || '',
+        referencesSectionId: sec.referencesSectionId || null,
+        bpm: sec.bpm || 120, beatsPerBar: sec.beatsPerBar || 4,
+        startTrackBeat: sec.startTrackBeat || 0,
+        loopInBeat: sec.loopInBeat || 0, loopOutBeat: sec.loopOutBeat || (sec.beatsPerBar || 4) * 4,
+        maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
+        duration: Math.round((sec.duration || 0) * 100) / 100,
+        pools: sec.referencesSectionId ? [] : (sec.pools || []).map(p => ({
+          id: p.id, label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
+          referencesPoolId: p.referencesPoolId || null,
+          alternatives: p.referencesPoolId ? [] : (p.alternatives || []).map(a => ({ label: a.label || '', file: a.remoteFile || null, originalFileName: a.originalFileName || null, gain: a.gain || 1 }))
+        }))
+      })),
+      sfxIds: t.sfxIds || [],
+      folderId: t.folderId || null
+    })),
+    libraryFolders: libraryFolders.map(f => ({ id: f.id, label: f.label || '' })),
+    sfxLibrary: sfxLibrary.map(s => ({
+      id: s.id, title: s.title || '', descriptionFr: s.descriptionFr || '', descriptionEn: s.descriptionEn || '', tag: s.tag || '',
+      rrMode: s.rrMode === 'sequential' ? 'sequential' : 'random',
+      duckMainTrack: !!s.duckMainTrack, base: s.base || '',
+      alternatives: (s.alternatives || []).filter(a => a.remoteFile).map(a => ({ label: a.label || '', file: a.remoteFile, originalFileName: a.originalFileName || null })),
+      folderId: s.folderId || null
+    })),
+    sfxFolders: sfxFolders.map(f => ({ id: f.id, label: f.label || '' })),
+    // Le lien de référence (url) est explicitement optionnel dans l'UI ("pour ta propre référence") et
+    // n'est jamais utilisé pour construire l'URL de partage pré-remplie (buildSocialShareUrl ne s'appuie
+    // que sur platform) -- filtrer sur sa présence faisait disparaître silencieusement à la publication
+    // tout réseau choisi sans lien de référence renseigné (20/08, bug remonté par Jules-Antoine : LinkedIn
+    // configuré mais jamais retrouvé au rechargement). On persiste désormais dès qu'une plateforme est
+    // choisie, url ou non.
+    socials: socials.map(s => ({ id: s.id, platform: s.platform, url: s.url || '' })),
+    adReelFolders: adReelFolders.map(f => ({ id: f.id, label: f.label || '' })),
+    packs: packs.map(p => ({ id: p.id, title: p.title, illustration: p.illustration || null, illustrationOriginalName: p.illustrationOriginalName || null, watermark: p.watermark || null, watermarkOriginalName: p.watermarkOriginalName || null, presentationFr: p.presentationFr || '', presentationEn: p.presentationEn || '', buyable: !!p.buyable, buyUrl: p.buyUrl || '', freeDownloadEnabled: !!p.freeDownloadEnabled, videoTestModeEnabled: !!p.videoTestModeEnabled, bgColor: p.bgColor || '#f6f5f3', textColor: p.textColor || '#262521', font: p.font || 'default', presetId: p.presetId || null, separator: p.separator || null, effectivePlan, trackIds: p.trackIds || [], sfxIds: p.sfxIds || [], linkedAdReelId: p.linkedAdReelId || null })),
+    implementationSkills: { wwise: !!implementationSkills.wwise, fmod: !!implementationSkills.fmod, unity: !!implementationSkills.unity, unreal: !!implementationSkills.unreal },
+    noAiCertifiedGlobal: !!noAiCertifiedGlobal,
+    waveformStyle: window.LayerPlayerCore.WAVEFORM_STYLES.includes(waveformStyle) ? waveformStyle : 'bars',
+    seqMapTheme: window.LayerPlayerCore.SEQ_MAP_THEMES.includes(seqMapTheme) ? seqMapTheme : 'light',
+    collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', presetId: c.presetId || null, separator: c.separator || null, effectivePlan, buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
+    customFonts: customFonts.filter(f => f.remoteFile).map(f => ({ id: f.id, name: f.name || '', file: f.remoteFile, originalFileName: f.originalFileName || null })),
+    adReels: adReels.map(ar => ({
+      id: ar.id,
+      label: ar.label || ar.id,
+      lang: ar.lang || 'fr',
+      blocks: ar.blocks.map(b => {
+        let out;
+        if (b.type === 'text') out = { id: b.id, type: 'text', title: b.title || '', content: b.content || '', align: b.align || 'left' };
+        else if (b.type === 'photo') out = { id: b.id, type: 'photo', align: b.align || 'left', caption: b.caption || '', images: b.images.filter(i => i.file).map(i => ({ file: i.file, originalFileName: i.originalFileName || null })) };
+        else if (b.type === 'video') out = { id: b.id, type: 'video', videos: b.videos.map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null })) };
+        else if (b.type === 'packs') out = { id: b.id, type: 'packs', presentation: b.presentation || '', packIds: b.packIds || [] };
+        else if (b.type === 'collections') out = { id: b.id, type: 'collections', presentation: b.presentation || '', collectionIds: b.collectionIds || [] };
+        else if (b.type === 'sfx') out = { id: b.id, type: 'sfx', sfxIds: b.sfxIds || [] };
+        else out = { id: b.id, type: b.type };
+        // Champ commun à tous les types de bloc, sans exception (décision : réglages par bloc partout) —
+        // ajouté une seule fois ici plutôt que dupliqué dans chacune des branches ci-dessus.
+        if (b.appearance && Object.keys(b.appearance).length) out.appearance = Object.assign({}, b.appearance);
+        // Réglage par élément (Chantier Apparence, palier Pro, 05/09) : toujours écrit tel quel, même si
+        // le compositeur n'est plus Pro au moment de PUBLIER -- le gating à l'application se fait côté
+        // runtime (index.html, sur le tier figé ci-dessous), jamais en omettant la donnée à l'écriture
+        // (cohérent avec block.appearance qui reste, lui aussi, toujours écrit indépendamment du palier).
+        if (b.elementAppearance && Object.keys(b.elementAppearance).length) out.elementAppearance = Object.assign({}, b.elementAppearance);
+        return out;
+      }),
+      profile: Object.assign({}, ar.profile, { effectivePlan }),
+      testimonials: ar.testimonials,
+      trackIds: ar.trackIds || [],
+      trackOverrides: ar.trackOverrides || {},
+      folderId: ar.folderId || null
+    }))
+  };
+}
+// Prévisualisation (aperçu en direct des modifications non publiées) : dépose l'état en mémoire dans
+// localStorage (partagé entre onglets de même origine, contrairement à sessionStorage -- l'aperçu
+// s'ouvre dans un nouvel onglet) puis ouvre la page publique concernée avec ?preview=1 -- son
+// loadSiteData() lit alors ce dépôt local au lieu d'interroger Postgres. Audio et images tout juste
+// ajoutés/remplacés ressortent en null (voir buildDataSnapshot) : seule la dernière version déjà
+// publiée peut s'afficher, d'où le bandeau "Mode aperçu" côté page publique pour que ça ne passe pas
+// pour un bug (décision du 7 septembre avec Jules-Antoine, plutôt que de retoucher tous les endroits
+// des pages publiques qui vont chercher l'audio/les images en ligne -- risque jugé trop élevé pour ce
+// chantier).
+const PREVIEW_STORAGE_KEY = 'layerpitch_preview_data';
+function openPreview(relativeUrl) {
+  saveWorkingPendingIntoCurrent();
+  try {
+    const snapshot = buildDataSnapshot(currentEffectivePlan, Date.now());
+    localStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(snapshot));
+  } catch (e) {
+    log(tr('previewFailedMsg', { message: e.message }), 'err');
+    return;
+  }
+  window.open(relativeUrl, '_blank');
+}
+document.getElementById('btnPreview').addEventListener('click', () => {
+  const adreelParam = currentAdReelId === 'main' ? '' : `&adreel=${encodeURIComponent(currentAdReelId)}`;
+  openPreview(`./index.html?preview=1${adreelParam}`);
+});
 async function publishAll() {
   const owner = state.owner(), repo = state.repo(), branch = state.branch(), token = state.token();
   // Repo GitHub personnel optionnel (2 septembre, docs/infrastructure.md -- chantier "backstage
@@ -9243,129 +9474,7 @@ async function publishAll() {
       }
     }
 
-    const data = {
-      publishedAt: buildVersion,
-      library: library.map(t => ({
-        id: t.id, title: t.title, description: t.description, tags: t.tags || '', mode: t.mode, loopable: !!t.loopable,
-        implementationNote: t.implementationNote || '',
-        noAiOverride: (t.noAiOverride === true || t.noAiOverride === false) ? t.noAiOverride : null,
-        loopEngine: t.loopEngine || 'simple',
-        bpm: t.bpm || 120, beatsPerBar: t.beatsPerBar || 4, loopGridUnit: t.loopGridUnit || 'bars',
-        loopInBeat: t.loopInBeat || 0, loopOutBeat: t.loopOutBeat || (t.beatsPerBar || 4) * 4,
-        startTrackBeat: t.startTrackBeat || 0,
-        maxLoops: (t.maxLoops !== undefined && t.maxLoops !== null) ? t.maxLoops : null,
-        maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
-        normalizeVolume: !!t.normalizeVolume,
-        duration: Math.round(t.duration * 100) / 100, base: t.base,
-        layers: (t.mode === 'static' ? (t.layers || []).slice(0, 1) : (t.layers || [])).map(l => ({ label: l.label, file: l.remoteFile, originalFileName: l.originalFileName || null, gain: l.gain || 1, duration: Math.round((l.duration || 0) * 100) / 100 })),
-        intro: (t.intro && t.intro.remoteFile) ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, file: t.intro.remoteFile, originalFileName: t.intro.originalFileName || null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '' } : null,
-        outro: (t.outro && t.outro.remoteFile) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile, originalFileName: t.outro.originalFileName || null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,
-        segmentSlots: (t.segmentSlots || []).map(sl => ({
-          id: sl.id, label: sl.label || '', avoidImmediateRepeat: sl.avoidImmediateRepeat !== false,
-          referencesSlotId: sl.referencesSlotId || null, repeatCount: sl.repeatCount || 1,
-          quantization: sl.quantization || 'bar', cutStyle: sl.cutStyle || 'fade', customCutFadeSec: sl.customCutFadeSec,
-          bpm: sl.bpm, beatsPerBar: sl.beatsPerBar,
-          descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
-          nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
-            targetId: opt.targetId, label: opt.label || '',
-            transition: (opt.transition && opt.transition.remoteFile) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile, originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null
-          })) : null,
-          alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, originalFileName: a.originalFileName || null, gain: a.gain || 1 }))
-        })),
-        // Embranchement-vertical : une entrée par boucle déclarée (même les boucles sans fichier — voir
-        // note dans buildPreviewTrackObject, l'index doit rester aligné avec data-loop-idx côté lecteur).
-        loops: (t.loops || []).map(l => ({
-          id: l.id, label: l.label || '', bars: l.bars || 8, isInitial: !!l.isInitial,
-          file: l.remoteFile || null, gain: l.gain || 1,
-          switchQuantize: l.switchQuantize || 'immediate',
-          autoReturnEnabled: !!l.autoReturnEnabled, autoReturnValue: l.autoReturnValue || 4, autoReturnUnit: l.autoReturnUnit || 'bars',
-          detourMode: l.detourMode || 'once', endLoopButtonLabel: l.endLoopButtonLabel || '',
-          startTrackBeat: l.startTrackBeat || 0, loopInBeat: l.loopInBeat || 0, loopOutBeat: l.loopOutBeat || null,
-          duration: Math.round((l.duration || 0) * 100) / 100,
-          isDetour: !!l.isDetour, bpm: l.bpm || null, beatsPerBar: l.beatsPerBar || null,
-          cutStyle: l.cutStyle || 'fade', customCutFadeSec: l.customCutFadeSec,
-          transition: (l.transition && l.transition.remoteFile) ? {
-            label: l.transition.label || '', durationUnit: l.transition.durationUnit || null,
-            bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
-            bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
-            file: l.transition.remoteFile, originalFileName: l.transition.originalFileName || null
-          } : null
-        })),
-        randomizeSections: !!t.randomizeSections,
-        // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : chaque section porte
-        // désormais son propre tempo/timeline, comme un vrai segment Wwise indépendant — plus de
-        // fixedLayers/randomGroups au niveau du morceau, tout vit dans sections[].pools[].
-        sections: (t.sections || []).map(sec => ({
-          id: sec.id, label: sec.label || '',
-          referencesSectionId: sec.referencesSectionId || null,
-          bpm: sec.bpm || 120, beatsPerBar: sec.beatsPerBar || 4,
-          startTrackBeat: sec.startTrackBeat || 0,
-          loopInBeat: sec.loopInBeat || 0, loopOutBeat: sec.loopOutBeat || (sec.beatsPerBar || 4) * 4,
-          maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
-          duration: Math.round((sec.duration || 0) * 100) / 100,
-          pools: sec.referencesSectionId ? [] : (sec.pools || []).map(p => ({
-            id: p.id, label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
-            referencesPoolId: p.referencesPoolId || null,
-            alternatives: p.referencesPoolId ? [] : (p.alternatives || []).map(a => ({ label: a.label || '', file: a.remoteFile || null, originalFileName: a.originalFileName || null, gain: a.gain || 1 }))
-          }))
-        })),
-        sfxIds: t.sfxIds || [],
-        folderId: t.folderId || null
-      })),
-      libraryFolders: libraryFolders.map(f => ({ id: f.id, label: f.label || '' })),
-      sfxLibrary: sfxLibrary.map(s => ({
-        id: s.id, title: s.title || '', descriptionFr: s.descriptionFr || '', descriptionEn: s.descriptionEn || '', tag: s.tag || '',
-        rrMode: s.rrMode === 'sequential' ? 'sequential' : 'random',
-        duckMainTrack: !!s.duckMainTrack, base: s.base || '',
-        alternatives: (s.alternatives || []).filter(a => a.remoteFile).map(a => ({ label: a.label || '', file: a.remoteFile, originalFileName: a.originalFileName || null })),
-        folderId: s.folderId || null
-      })),
-      sfxFolders: sfxFolders.map(f => ({ id: f.id, label: f.label || '' })),
-      // Le lien de référence (url) est explicitement optionnel dans l'UI ("pour ta propre référence") et
-      // n'est jamais utilisé pour construire l'URL de partage pré-remplie (buildSocialShareUrl ne s'appuie
-      // que sur platform) -- filtrer sur sa présence faisait disparaître silencieusement à la publication
-      // tout réseau choisi sans lien de référence renseigné (20/08, bug remonté par Jules-Antoine : LinkedIn
-      // configuré mais jamais retrouvé au rechargement). On persiste désormais dès qu'une plateforme est
-      // choisie, url ou non.
-      socials: socials.map(s => ({ id: s.id, platform: s.platform, url: s.url || '' })),
-      adReelFolders: adReelFolders.map(f => ({ id: f.id, label: f.label || '' })),
-      packs: packs.map(p => ({ id: p.id, title: p.title, illustration: p.illustration || null, illustrationOriginalName: p.illustrationOriginalName || null, watermark: p.watermark || null, watermarkOriginalName: p.watermarkOriginalName || null, presentationFr: p.presentationFr || '', presentationEn: p.presentationEn || '', buyable: !!p.buyable, buyUrl: p.buyUrl || '', freeDownloadEnabled: !!p.freeDownloadEnabled, videoTestModeEnabled: !!p.videoTestModeEnabled, bgColor: p.bgColor || '#f6f5f3', textColor: p.textColor || '#262521', font: p.font || 'default', presetId: p.presetId || null, separator: p.separator || null, effectivePlan, trackIds: p.trackIds || [], sfxIds: p.sfxIds || [], linkedAdReelId: p.linkedAdReelId || null })),
-      implementationSkills: { wwise: !!implementationSkills.wwise, fmod: !!implementationSkills.fmod, unity: !!implementationSkills.unity, unreal: !!implementationSkills.unreal },
-      noAiCertifiedGlobal: !!noAiCertifiedGlobal,
-      waveformStyle: window.LayerPlayerCore.WAVEFORM_STYLES.includes(waveformStyle) ? waveformStyle : 'bars',
-      seqMapTheme: window.LayerPlayerCore.SEQ_MAP_THEMES.includes(seqMapTheme) ? seqMapTheme : 'light',
-      collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', presetId: c.presetId || null, separator: c.separator || null, effectivePlan, buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
-      customFonts: customFonts.filter(f => f.remoteFile).map(f => ({ id: f.id, name: f.name || '', file: f.remoteFile, originalFileName: f.originalFileName || null })),
-      adReels: adReels.map(ar => ({
-        id: ar.id,
-        label: ar.label || ar.id,
-        lang: ar.lang || 'fr',
-        blocks: ar.blocks.map(b => {
-          let out;
-          if (b.type === 'text') out = { id: b.id, type: 'text', title: b.title || '', content: b.content || '', align: b.align || 'left' };
-          else if (b.type === 'photo') out = { id: b.id, type: 'photo', align: b.align || 'left', caption: b.caption || '', images: b.images.filter(i => i.file).map(i => ({ file: i.file, originalFileName: i.originalFileName || null })) };
-          else if (b.type === 'video') out = { id: b.id, type: 'video', videos: b.videos.map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null })) };
-          else if (b.type === 'packs') out = { id: b.id, type: 'packs', presentation: b.presentation || '', packIds: b.packIds || [] };
-          else if (b.type === 'collections') out = { id: b.id, type: 'collections', presentation: b.presentation || '', collectionIds: b.collectionIds || [] };
-          else if (b.type === 'sfx') out = { id: b.id, type: 'sfx', sfxIds: b.sfxIds || [] };
-          else out = { id: b.id, type: b.type };
-          // Champ commun à tous les types de bloc, sans exception (décision : réglages par bloc partout) —
-          // ajouté une seule fois ici plutôt que dupliqué dans chacune des branches ci-dessus.
-          if (b.appearance && Object.keys(b.appearance).length) out.appearance = Object.assign({}, b.appearance);
-          // Réglage par élément (Chantier Apparence, palier Pro, 05/09) : toujours écrit tel quel, même si
-          // le compositeur n'est plus Pro au moment de PUBLIER -- le gating à l'application se fait côté
-          // runtime (index.html, sur le tier figé ci-dessous), jamais en omettant la donnée à l'écriture
-          // (cohérent avec block.appearance qui reste, lui aussi, toujours écrit indépendamment du palier).
-          if (b.elementAppearance && Object.keys(b.elementAppearance).length) out.elementAppearance = Object.assign({}, b.elementAppearance);
-          return out;
-        }),
-        profile: Object.assign({}, ar.profile, { effectivePlan }),
-        testimonials: ar.testimonials,
-        trackIds: ar.trackIds || [],
-        trackOverrides: ar.trackOverrides || {},
-        folderId: ar.folderId || null
-      }))
-    };
+    const data = buildDataSnapshot(effectivePlan, buildVersion);
     // Écriture double Postgres (test — Session B) : AVANT GitHub, volontairement. Si ça échoue, on
     // s'arrête ici (l'exception remonte au catch de publishAll()) sans jamais toucher GitHub — pour
     // qu'une publication réussie garantisse toujours les deux en phase, jamais un état à moitié fait.

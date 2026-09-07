@@ -19,11 +19,18 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   img { max-width: 100%; height: auto; display: block; }
   body { background: var(--bg); color: var(--text); font-family: var(--font-body); padding: 56px 24px 60px; }
+  body.has-preview-banner { padding-top: 92px; }
+  .preview-mode-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #262521; color: #f6f5f3; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 8px 16px; letter-spacing: 0.02em; }
+  body.has-preview-banner .share-btn { top: 56px; }
   .page { max-width: 760px; margin: 0 auto; }
   a { color: var(--accent); }
 
   .back-link { display: inline-block; margin-bottom: 32px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); text-decoration: none; }
   .back-link:hover { color: var(--accent); }
+  /* Bouton d'intégration (?embed=1) : remplace le discret "← Retour" par un vrai bouton visible, seul
+     moyen pour l'auditeur de rejoindre le site du compositeur depuis une iframe sur un site tiers. */
+  .back-link.embed-cta-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em; }
+  .back-link.embed-cta-btn:hover { opacity: 0.88; color: #fff; }
 
   .pack-illustration { display: block; max-width: 100%; max-height: 380px; width: auto; height: auto; margin: 0 auto 28px; border-radius: 8px; border: 1px solid var(--border); }
   .pack-illustration.empty { width: 100%; max-height: none; aspect-ratio: 16/7; background: linear-gradient(135deg, #2a2822, #423b30); }
@@ -364,7 +371,18 @@
   #content.show-separators > .pub-section + .pub-section { border-top: var(--separator-width, 1px) solid var(--separator-color, transparent); padding-top: 32px; }
   .pack-watermark { position: fixed; inset: 0; z-index: -1; background-position: center; background-repeat: no-repeat; background-size: cover; opacity: 0.15; pointer-events: none; }
 </style>
-<script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
+<script>
+  // Umami chargé dynamiquement (pas une balise <script> statique) et sauté entièrement en mode
+  // aperçu (?preview=1, backstage) -- sans ça, chaque clic sur "Prévisualiser" compterait comme une
+  // vraie visite dans les statistiques publiques de Jules-Antoine, faussant ses chiffres réels.
+  if (new URLSearchParams(location.search).get('preview') !== '1') {
+    const s = document.createElement('script');
+    s.defer = true;
+    s.src = 'https://cloud.umami.is/script.js';
+    s.setAttribute('data-website-id', '2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f');
+    document.head.appendChild(s);
+  }
+</script>
 </head>
 <body>
 <button id="shareBtn" class="share-btn" type="button" aria-label="Share">
@@ -455,8 +473,22 @@ let lastResolvedOwnerId = DEFAULT_OWNER_ID;
 // Identité de compositeur par handle — voir le commentaire équivalent dans index.html.
 // Postgres seule source de vérité (7 septembre, Décision 5 close) -- data.json plus jamais lu, voir
 // index.html pour le pourquoi (backstage hébergé multi-compositeur).
+// Mode aperçu (?preview=1, backstage -- bouton "Prévisualiser") : mis à vrai seulement si un dépôt
+// local valide a réellement été utilisé ci-dessous -- lu par init() pour afficher le bandeau "Mode
+// aperçu", jamais affiché sur un ?preview=1 sans dépôt valide (page rechargée après expiration du
+// stockage local, par exemple), qui retombe alors sur le chargement Postgres normal, silencieusement.
+let previewActive = false;
 async function loadSiteData() {
   const params = new URLSearchParams(location.search);
+  // localStorage (pas sessionStorage, cf. commentaire de openPreview() côté backstage) : partagé
+  // entre onglets de même origine, seul moyen pour cet onglet fraîchement ouvert de lire le dépôt
+  // écrit par l'onglet backstage juste avant. Aucun appel réseau, aucune écriture ici.
+  if (params.get('preview') === '1') {
+    try {
+      const raw = localStorage.getItem('layerpitch_preview_data');
+      if (raw) { previewActive = true; return JSON.parse(raw); }
+    } catch (e) { /* dépôt corrompu/absent -- repli silencieux sur le chargement Postgres normal */ }
+  }
   const handle = params.get('u');
   await loadPostgresReadScripts();
   let ownerId = DEFAULT_OWNER_ID;
@@ -467,6 +499,16 @@ async function loadSiteData() {
   }
   lastResolvedOwnerId = ownerId;
   return window.LayerPitchSiteData.loadSiteDataFromPostgres(ownerId);
+}
+// Bandeau "Mode aperçu" -- seul indice visible que ce chargement vient du backstage (localStorage)
+// et non de Postgres, pour que l'absence d'un fichier tout juste ajouté/remplacé (voir
+// buildDataSnapshot(), backstage) ne passe pas pour un bug.
+function showPreviewModeBanner() {
+  const banner = document.createElement('div');
+  banner.className = 'preview-mode-banner';
+  banner.textContent = tr('previewModeBanner');
+  document.body.prepend(banner);
+  document.body.classList.add('has-preview-banner');
 }
 
 // Achat réel de packs (Décision 5, étape 4 — backend Stripe/Postgres construit et vérifié le
@@ -672,6 +714,12 @@ function injectFontAssets(usedFontValues, customFonts) {
 // visiteur. 'fr' par défaut si le pack est ouvert directement (lien ancien, accès direct sans AdReel).
 const pageLang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'fr';
 function currentLang() { return pageLang; }
+// Intégration externe (?embed=1, généré par le backstage — bouton "Code d'intégration") : ce pack
+// tourne dans une iframe sur le site d'un tiers, pas sur layerpitch.com -- le lien "← Retour" n'a
+// alors plus aucun sens (l'auditeur n'est jamais passé par le site du compositeur), remplacé par un
+// vrai bouton qui ouvre l'AdReel PRINCIPAL du compositeur dans un nouvel onglet (jamais dans
+// l'iframe elle-même, qui resterait minuscule et coincée sur le site tiers).
+const embedMode = new URLSearchParams(location.search).get('embed') === '1';
 // Texte bilingue (présentation de pack/collection) : montre la version qui correspond à la langue de
 // la page ; si elle n'a jamais été remplie par le compositeur, on préfère montrer l'autre langue plutôt
 // que rien du tout.
@@ -820,6 +868,7 @@ async function init() {
   };
   try {
     const data = await loadSiteData();
+    if (previewActive) showPreviewModeBanner();
     window.__lpTrackContext.ownerId = lastResolvedOwnerId;
     const pack = (data.packs || []).find(p => p.id === id);
     if (!pack) {
@@ -1010,6 +1059,18 @@ async function init() {
       // laissé tel quel en tout dernier recours si aucun historique n'existe (onglet ouvert
       // directement sur ce pack).
       backLinkEl.addEventListener('click', (e) => { e.preventDefault(); window.history.back(); });
+    }
+    // Bouton d'intégration (embedMode) : écrase tout ce qui précède, toujours vers l'AdReel principal
+    // (jamais un AdReel/collection d'origine ponctuel -- il n'y en a pas ici, l'iframe est chargée
+    // directement depuis le site tiers) et toujours dans un nouvel onglet.
+    if (embedMode && backLinkEl) {
+      const mainAdReel = (data.adReels || []).find(a => a.id === 'main');
+      const composerName = (mainAdReel && mainAdReel.profile && mainAdReel.profile.title) || tr('linkedAdReelFallbackName');
+      backLinkEl.href = `./index.html?lang=${pageLang}${handleParam}`;
+      backLinkEl.target = '_blank';
+      backLinkEl.rel = 'noopener';
+      backLinkEl.textContent = tr('embedCtaLink').replace('{name}', composerName);
+      backLinkEl.classList.add('embed-cta-btn');
     }
     if (linkedAdReel) {
       const composerName = (linkedAdReel.profile && linkedAdReel.profile.title) || tr('linkedAdReelFallbackName');
