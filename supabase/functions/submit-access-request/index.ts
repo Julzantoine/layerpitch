@@ -113,6 +113,9 @@ Deno.serve(async (req) => {
     // l'email de confirmation échoue (secrets manquants, Resend indisponible) -- jamais perdre une
     // vraie demande pour un souci d'email de courtoisie.
     const emailResult = await sendConfirmationEmail(v_email, v_lang);
+    if (!emailResult.ok) {
+      console.error('submit-access-request: email de confirmation non envoyé —', emailResult.error);
+    }
 
     return new Response(JSON.stringify({ ok: true, emailSent: emailResult.ok }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
