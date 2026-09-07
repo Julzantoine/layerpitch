@@ -29,10 +29,14 @@
   // Bibliothèque acheteur : packs achetés par l'utilisateur connecté (RLS : own purchases only).
   // invoice_id/invoices embarqués (chantier facturation, 4 septembre) : évite un second aller-
   // retour pour savoir si la facture est prête et afficher son lien de téléchargement.
+  // invoices!pack_purchases_invoice_id_fkey : hint explicite obligatoire depuis que invoices a
+  // AUSSI sa propre FK vers pack_purchases (purchase_id, sens inverse) -- PostgREST refuse de
+  // deviner laquelle des deux relations utiliser sans ça (trouvé le 7 septembre, "more than one
+  // relationship was found for 'pack_purchases' and 'invoices'").
   async function myPurchases() {
     const { data, error } = await getClient()
       .from('pack_purchases')
-      .select('id, pack_id, purchased_at, price_paid, invoice_id, packs(id, title, illustration), invoices(id, invoice_number, document_type)')
+      .select('id, pack_id, purchased_at, price_paid, invoice_id, packs(id, title, illustration), invoices!pack_purchases_invoice_id_fkey(id, invoice_number, document_type)')
       .order('purchased_at', { ascending: false });
     if (error) return { purchases: null, error: error.message };
     return {
