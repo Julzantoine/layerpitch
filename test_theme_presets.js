@@ -10,8 +10,10 @@ const fs = require('fs');
 const path = require('path');
 
 function extractInlineScript(html) {
-  const matches = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m => m[1]).filter(s => s.trim());
-  if (matches.length !== 1) throw new Error('index.html : ' + matches.length + ' bloc(s) <script> inline trouvés, 1 attendu -- ajuster ce test.');
+  // Exclut le chargeur Umami (bloc inline dynamique, voir index.html/pack.html) qui n'est pas le
+  // code applicatif visé par ce test.
+  const matches = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m => m[1]).filter(s => s.trim() && !s.includes('cloud.umami.is'));
+  if (matches.length !== 1) throw new Error('index.html : ' + matches.length + ' bloc(s) <script> inline trouvés (hors chargeur Umami), 1 attendu -- ajuster ce test.');
   return matches[0];
 }
 
@@ -60,6 +62,11 @@ async function runIndexInit(adreelId, adReels, customFonts) {
     }
   });
   const { window } = dom;
+  // Depuis le 7 septembre, loadSiteData() charge Postgres via de vraies balises <script src>
+  // (loadPostgresReadScripts()) que JSDOM ne charge jamais -- sans ce court-circuit, window.init()
+  // reste éternellement en attente.
+  window.loadPostgresReadScripts = () => Promise.resolve();
+  window.LayerPitchSiteData = { loadSiteDataFromPostgres: () => Promise.resolve({ publishedAt: 1, adReels, customFonts: customFonts || [] }) };
   await new Promise(resolve => setTimeout(resolve, 30));
   await window.init();
   await new Promise(resolve => setTimeout(resolve, 30));

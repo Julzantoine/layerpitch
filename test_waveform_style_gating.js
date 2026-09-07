@@ -9,8 +9,10 @@ const fs = require('fs');
 const path = require('path');
 
 function extractInlineScript(html, file) {
-  const matches = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m => m[1]).filter(s => s.trim());
-  if (matches.length !== 1) throw new Error(file + ' : ' + matches.length + ' bloc(s) <script> inline trouvés, 1 attendu -- ajuster ce test.');
+  // Exclut le chargeur Umami (bloc inline dynamique, voir index.html/pack.html) qui n'est pas le
+  // code applicatif visé par ce test.
+  const matches = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m => m[1]).filter(s => s.trim() && !s.includes('cloud.umami.is'));
+  if (matches.length !== 1) throw new Error(file + ' : ' + matches.length + ' bloc(s) <script> inline trouvés (hors chargeur Umami), 1 attendu -- ajuster ce test.');
   return matches[0];
 }
 function fakeAudioContextHooks(win) {
@@ -42,6 +44,11 @@ async function runIndexInit(adreelId, adReels, waveformStyle) {
     runScripts: 'dangerously', pretendToBeVisual: true,
     beforeParse(win) { fakeAudioContextHooks(win); win.fetch = () => Promise.resolve({ json: () => Promise.resolve({ publishedAt: 1, adReels, customFonts: [], waveformStyle }) }); }
   });
+  // Depuis le 7 septembre, loadSiteData() charge Postgres via de vraies balises <script src>
+  // (loadPostgresReadScripts()) que JSDOM ne charge jamais -- sans ce court-circuit, dom.window.init()
+  // reste éternellement en attente.
+  dom.window.loadPostgresReadScripts = () => Promise.resolve();
+  dom.window.LayerPitchSiteData = { loadSiteDataFromPostgres: () => Promise.resolve({ publishedAt: 1, adReels, customFonts: [], waveformStyle }) };
   await new Promise(resolve => setTimeout(resolve, 30));
   await dom.window.init();
   await new Promise(resolve => setTimeout(resolve, 30));
@@ -59,6 +66,8 @@ async function runPackInit(packId, packs, waveformStyle) {
     runScripts: 'dangerously', pretendToBeVisual: true,
     beforeParse(win) { fakeAudioContextHooks(win); win.fetch = () => Promise.resolve({ json: () => Promise.resolve({ publishedAt: 1, packs, collections: [], adReels: [], customFonts: [], waveformStyle }) }); }
   });
+  dom.window.loadPostgresReadScripts = () => Promise.resolve();
+  dom.window.LayerPitchSiteData = { loadSiteDataFromPostgres: () => Promise.resolve({ publishedAt: 1, packs, collections: [], adReels: [], customFonts: [], waveformStyle }) };
   await new Promise(resolve => setTimeout(resolve, 30));
   await dom.window.init();
   await new Promise(resolve => setTimeout(resolve, 30));
@@ -76,6 +85,8 @@ async function runCollectionInit(collId, collections, waveformStyle) {
     runScripts: 'dangerously', pretendToBeVisual: true,
     beforeParse(win) { fakeAudioContextHooks(win); win.fetch = () => Promise.resolve({ json: () => Promise.resolve({ publishedAt: 1, collections, packs: [], adReels: [], customFonts: [], waveformStyle }) }); }
   });
+  dom.window.loadPostgresReadScripts = () => Promise.resolve();
+  dom.window.LayerPitchSiteData = { loadSiteDataFromPostgres: () => Promise.resolve({ publishedAt: 1, collections, packs: [], adReels: [], customFonts: [], waveformStyle }) };
   await new Promise(resolve => setTimeout(resolve, 30));
   await dom.window.init();
   await new Promise(resolve => setTimeout(resolve, 30));
