@@ -34,7 +34,7 @@
     text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 18px;
   }
   .info-badge {
-    display: inline-flex; align-items: center; color: var(--accent); opacity: 0.75; cursor: help;
+    display: inline-flex; align-items: center; color: var(--section-label-color, var(--accent)); opacity: 0.75; cursor: help;
     flex-shrink: 0; vertical-align: middle; margin-left: 6px;
   }
   .info-badge:hover { opacity: 1; }
@@ -351,7 +351,7 @@
     border: 1px dashed var(--border); border-radius: 4px; padding: 1px 6px; flex-shrink: 0; white-space: nowrap;
   }
   .no-ai-badge {
-    display: inline-flex; align-items: center; color: var(--accent); opacity: 0.75; cursor: help; flex-shrink: 0;
+    display: inline-flex; align-items: center; color: var(--section-label-color, var(--accent)); opacity: 0.75; cursor: help; flex-shrink: 0;
   }
   .no-ai-badge:hover { opacity: 1; }
   .no-ai-badge-collective { margin-left: 6px; }
