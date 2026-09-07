@@ -393,6 +393,10 @@
   .layerpitch-credit { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--text-dimmer); opacity: 0.55; letter-spacing: 0.04em; margin-top: 16px; }
   .layerpitch-credit a { color: inherit; text-decoration: none; }
   .layerpitch-credit a:hover { text-decoration: underline; }
+  /* Bouton d'intégration (?embed=1) : voir le commentaire équivalent dans pack.html. */
+  .embed-cta-btn { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px; padding: 9px 18px; border-radius: 999px; background: var(--accent); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em; text-decoration: none; }
+  .embed-cta-btn:hover { opacity: 0.88; color: #fff; }
+  .embed-cta-btn[hidden] { display: none; }
   /* Séparateurs entre blocs (Chantier Apparence Phase 3, palier Free via preset ou Starter via
      profile.theme.separator) -- désactivé par défaut (pas de classe show-separators posée). */
   #blocksContainer.show-separators > .block + .block { border-top: var(--separator-width, 1px) solid var(--separator-color, transparent); padding-top: 32px; }
@@ -428,6 +432,7 @@
   <button class="lightbox-next" type="button" aria-label="Suivant">›</button>
 </div>
 <div class="page">
+  <a id="embedCtaLink" class="embed-cta-btn" hidden></a>
   <div id="blocksContainer"></div>
   <div class="contact" id="contact"></div>
   <div class="layerpitch-credit" id="layerpitchCredit"></div>
@@ -561,6 +566,11 @@ function showPreviewModeBanner() {
 // visiteur — déterminée une fois l'AdReel trouvé, voir init(). 'fr' tant que rien n'est encore connu.
 let pageLang = 'fr';
 function currentLang() { return pageLang; }
+// Intégration externe (?embed=1, généré par le backstage -- bouton "Code d'intégration" sur un AdReel) :
+// n'affiche que les blocs "Morceaux" de cet AdReel (bio/témoignages/packs/collections/contact/etc. sont
+// aussi des blocs de ce même tableau, donc naturellement exclus par le filtre) -- voir embedMode plus
+// bas dans init(). Même bouton de retour vers l'AdReel principal que pack.html/collection.html.
+const embedMode = new URLSearchParams(location.search).get('embed') === '1';
 // tr('clé') pour le texte généré en JS ; data-i18n pour le HTML statique. Un même dictionnaire pour les
 // deux. Ordre de repli : zone index -> zone shared -> même chose en français -> la clé elle-même.
 function tr(key) {
@@ -1107,7 +1117,7 @@ async function init() {
     pageLang = adReel.lang || 'fr';
     window.LayerPlayerCore.setLang(pageLang);
     applyI18n();
-    const blocks = migrateBlocks(adReel);
+    const blocks = embedMode ? migrateBlocks(adReel).filter(b => b.type === 'tracks') : migrateBlocks(adReel);
     const profile = adReel.profile || {};
     // profile.effectivePlan est figé une fois pour toutes à la publication (publishAll(), Chantier
     // Apparence Phase 3) -- cette page est statique, sans appel serveur au chargement, donc jamais
@@ -1220,11 +1230,25 @@ async function init() {
       }
     });
 
-    if (profile.contactUrl || profile.contactEmail) {
+    if (!embedMode && (profile.contactUrl || profile.contactEmail)) {
       document.getElementById('contact').innerHTML = [
         profile.contactUrl ? `<a href="${profile.contactUrl}" target="_blank">${profile.contactUrl.replace(/^https?:\/\//, '')}</a>` : '',
         profile.contactEmail ? `<a href="mailto:${profile.contactEmail}">${profile.contactEmail}</a>` : ''
       ].filter(Boolean).join(' &nbsp;/&nbsp; ');
+    }
+    // Bouton d'intégration (embedMode) : toujours vers l'AdReel PRINCIPAL, même si c'est un autre AdReel
+    // qui est intégré ici -- voir le commentaire équivalent dans pack.html.
+    if (embedMode) {
+      const mainAdReel = (data.adReels || []).find(a => a.id === 'main');
+      const composerName = (mainAdReel && mainAdReel.profile && mainAdReel.profile.title) || tr('linkedAdReelFallbackName');
+      const embedCta = document.getElementById('embedCtaLink');
+      const handle = new URLSearchParams(location.search).get('u');
+      const handleParam = handle ? `&u=${encodeURIComponent(handle)}` : '';
+      embedCta.href = `./index.html?lang=${pageLang}${handleParam}`;
+      embedCta.target = '_blank';
+      embedCta.rel = 'noopener';
+      embedCta.textContent = tr('embedCtaLink').replace('{name}', composerName);
+      embedCta.hidden = false;
     }
     // Filigrane "propulsé par LayerPitch" (Chantier Apparence Phase 3) : affiché sur Free et Starter,
     // retiré sur Pro (aucun composant Pro n'existe encore -- tout le monde le voit pour l'instant, mais

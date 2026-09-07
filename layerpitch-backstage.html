@@ -697,9 +697,10 @@
           </div>
           <div class="hint" style="font-size:10px; margin-top:6px;" data-i18n="publicLinkLabel">Lien public de cet AdReel :</div>
           <div id="adReelUrlBox" style="font-size:10px; word-break:break-all; margin-top:2px;"></div>
-          <div style="display:flex; gap:6px; margin-top:4px;">
+          <div style="display:flex; gap:6px; margin-top:4px; flex-wrap:wrap;">
             <button class="btn btn-small" id="btnCopyAdReelUrl" type="button" style="flex:1; font-size:11px;" data-i18n="copyLink">Copier le lien</button>
             <button class="btn btn-small" id="btnShareAdReelUrl" type="button" style="flex:1; font-size:11px;" data-i18n="shareBtn">Partager</button>
+            <button class="btn btn-small" id="btnEmbedAdReelTracks" type="button" style="flex:1; font-size:11px;" data-i18n="embedBtn">Code d'intégration</button>
           </div>
         </div>
         <div class="content-appearance-toggle">
@@ -3226,6 +3227,13 @@ function renderAdReelSelect() {
   const box = document.getElementById('adReelUrlBox');
   box.innerHTML = `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>`;
   document.getElementById('btnDeleteAdReel').disabled = (currentAdReelId === 'main' || adReels.length <= 1);
+  // Code d'intégration (liste de morceaux uniquement, voir embedMode côté index.html) : désactivé si
+  // cet AdReel n'a aucun bloc "Morceaux" -- rien à intégrer, plutôt qu'un lecteur vide et déroutant.
+  const ar = adReels.find(a => a.id === currentAdReelId);
+  const hasTracksBlock = !!(ar && (ar.blocks || []).some(b => b.type === 'tracks'));
+  const embedBtn = document.getElementById('btnEmbedAdReelTracks');
+  embedBtn.disabled = !hasTracksBlock;
+  embedBtn.title = hasTracksBlock ? '' : tr('embedAdreelTracksDisabledHint');
 }
 function renderManageAdreels() {
   const masterHost = document.getElementById('manageAdreelsMaster');
@@ -3350,6 +3358,14 @@ document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
   } else {
     alert(tr('copyFailedAlert'));
   }
+});
+document.getElementById('btnEmbedAdReelTracks').addEventListener('click', () => {
+  const ar = adReels.find(a => a.id === currentAdReelId);
+  // computeAdReelUrl('main') ne contient pas encore de "?" (juste la racine) -- &embed=1 supposerait à
+  // tort un "?" déjà présent, contrairement à computePackUrl/computeCollectionUrl (toujours "?id=...").
+  const baseUrl = computeAdReelUrl(currentAdReelId);
+  const url = baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'embed=1';
+  openEmbedModal(url, (ar && ar.label) || 'LayerPitch', 'embedModalHintAdreelTracks');
 });
 document.getElementById('btnShareAdReelUrl').addEventListener('click', async () => {
   const btn = document.getElementById('btnShareAdReelUrl');
