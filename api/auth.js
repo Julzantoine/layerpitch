@@ -161,16 +161,16 @@
     return { studioId: data, error: null };
   }
 
-  // profiles.onboarding_completed/notice_dismissed_at (docs/infrastructure.md, chantiers "flux
-  // d'inscription" et "panneau admin") — lecture directe sur la table, pas de RPC nécessaire
-  // (policy RLS "own profile" déjà en place, supabase/migrations/20260831102636_rls_policies.sql).
+  // profiles.onboarding_completed (docs/infrastructure.md, chantier "flux d'inscription") —
+  // lecture directe sur la table, pas de RPC nécessaire (policy RLS "own profile" déjà en place,
+  // supabase/migrations/20260831102636_rls_policies.sql).
   async function getMyProfile() {
     const { data: userData } = await getClient().auth.getUser();
     if (!userData || !userData.user) return { profile: null, error: null };
-    const { data, error } = await getClient().from('profiles').select('onboarding_completed, notice_dismissed_at').maybeSingle();
+    const { data, error } = await getClient().from('profiles').select('onboarding_completed').maybeSingle();
     if (error) return { profile: null, error: error.message };
     return {
-      profile: data ? { onboardingCompleted: !!data.onboarding_completed, noticeDismissedAt: data.notice_dismissed_at } : null,
+      profile: data ? { onboardingCompleted: !!data.onboarding_completed } : null,
       error: null,
     };
   }
@@ -204,10 +204,12 @@
     return { ok: true, data };
   }
 
-  // Bandeau d'annonce bêta (platform_settings.notice_message) : accusé de réception pour le
-  // compte connecté — utilisable par n'importe qui, pas admin-only (RPC dismiss_notice()).
-  async function dismissNotice() {
-    const { error } = await getClient().rpc('dismiss_notice');
+  // Boîte de réception admin_messages (remplace l'ancien dismissNotice()/bandeau plein écran —
+  // 7 septembre) : marque comme vus tous les messages admin pas encore accusés par ce compte,
+  // utilisable par n'importe quel compositeur connecté, pas admin-only (RPC
+  // mark_admin_messages_seen()).
+  async function markAdminMessagesSeen() {
+    const { error } = await getClient().rpc('mark_admin_messages_seen');
     if (error) return { ok: false, error: error.message };
     return { ok: true, error: null };
   }
@@ -216,7 +218,7 @@
     signInWithMagicLink, verifyEmailOtp, signOut, getSession, onAuthStateChange, inviteTester,
     getMyComposerId, getMyComposerHandle, ensureMyComposerProfile,
     getMyStudioId, ensureMyStudioProfile, getMyProfile, markOnboardingComplete,
-    suspendAccount, reinstateAccount, dismissNotice,
+    suspendAccount, reinstateAccount, markAdminMessagesSeen,
     describeFunctionError,
   };
 })();

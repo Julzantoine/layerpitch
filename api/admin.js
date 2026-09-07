@@ -1,7 +1,7 @@
-// api/admin.js — LayerPitch, lecture agrégée admin (statistiques, liste de comptes, bandeau
-// d'annonce) via RPC SECURITY DEFINER gated is_admin() (docs/infrastructure.md, "Rôle admin...
-// actée le 3 septembre). Écritures de suspension : voir api/auth.js (Edge Function dédiée) —
-// service_role bypass RLS, pas de RPC pour cette partie-là.
+// api/admin.js — LayerPitch, lecture agrégée admin (statistiques, liste de comptes, boîte de
+// réception des compositeurs) via RPC SECURITY DEFINER gated is_admin() (docs/infrastructure.md,
+// "Rôle admin... actée le 3 septembre"). Écritures de suspension : voir api/auth.js (Edge Function
+// dédiée) — service_role bypass RLS, pas de RPC pour cette partie-là.
 
 (function () {
   // Client Supabase partagé (api/supabase-client.js) — voir ce fichier pour le pourquoi.
@@ -32,24 +32,34 @@
     };
   }
 
-  // Bandeau multilingue, structure ouverte au nombre de langues (docs/infrastructure.md, retour du
-  // 3 septembre après premier test réel) : messages = { <code langue>: <texte> }, une clé par
-  // langue — ajouter une langue au bandeau plus tard n'a pas besoin de toucher ce fichier.
-  async function getPlatformNotice() {
-    const { data, error } = await getClient().from('platform_settings').select('notice_messages, notice_updated_at').eq('id', true).maybeSingle();
-    if (error) return { notice: null, error: error.message };
+  // Boîte de réception des compositeurs (admin_messages, remplace l'ancien bandeau plein écran
+  // platform_settings — 7 septembre, retour de Jules-Antoine : une boîte qui déclenche une notif
+  // plutôt qu'un bandeau qui écrase le message précédent). Historique complet, broadcast à tous les
+  // compositeurs (pas de ciblage individuel — décision actée le 7 septembre). Lecture directe (RLS
+  // "public read", même convention que platform_settings) : pas besoin de RPC, is_admin() n'entre
+  // en jeu que pour l'écriture.
+  async function listAdminMessages() {
+    const { data, error } = await getClient().from('admin_messages').select('id, body, created_at').order('created_at', { ascending: false }).limit(50);
+    if (error) return { messages: null, error: error.message };
     return {
-      notice: data ? { messages: data.notice_messages || {}, updatedAt: data.notice_updated_at } : null,
+      messages: (data || []).map(m => ({ id: m.id, body: m.body || {}, createdAt: m.created_at })),
       error: null,
     };
   }
 
-  // messages : { <code langue>: <texte> }, ex. { fr: '...', en: '...' }.
-  async function setPlatformNotice(messages) {
-    const { error } = await getClient().rpc('set_platform_notice', { p_messages: messages });
+  // messages : { <code langue>: <texte> }, ex. { fr: '...', en: '...' } — même structure ouverte au
+  // nombre de langues que l'ancien bandeau.
+  async function sendAdminMessage(messages) {
+    const { error } = await getClient().rpc('admin_send_message', { p_messages: messages });
     if (error) return { ok: false, error: error.message };
     return { ok: true, error: null };
   }
 
-  window.LayerPitchAdmin = { getStats, listAccounts, getPlatformNotice, setPlatformNotice };
+  async function deleteAdminMessage(id) {
+    const { error } = await getClient().rpc('admin_delete_message', { p_id: id });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, error: null };
+  }
+
+  window.LayerPitchAdmin = { getStats, listAccounts, listAdminMessages, sendAdminMessage, deleteAdminMessage };
 })();

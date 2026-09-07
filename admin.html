@@ -117,14 +117,14 @@
     </div>
 
     <div class="card">
-      <h2 data-i18n="noticeTitle">Bandeau d'annonce (backstage)</h2>
-      <p class="subtitle" data-i18n="noticeHint" style="margin-bottom:10px;">Affiché à tous les compositeurs connectés.</p>
-      <div id="noticeLangsContainer"></div>
+      <h2 data-i18n="adminMsgTitle">Message aux compositeurs</h2>
+      <p class="subtitle" data-i18n="adminMsgHint" style="margin-bottom:10px;">Envoyé à tous les compositeurs connectés — ils le retrouvent dans leur boîte de réception (cloche du backstage).</p>
+      <div id="adminMsgLangsContainer"></div>
       <div class="row" style="margin-top:10px;">
-        <button id="noticeSaveBtn" data-i18n="noticeSaveBtn">Enregistrer</button>
-        <button id="noticeClearBtn" class="secondary" data-i18n="noticeClearBtn">Effacer</button>
+        <button id="adminMsgSendBtn" data-i18n="adminMsgSendBtn">Envoyer</button>
       </div>
-      <div id="noticeMsg" class="msg"></div>
+      <div id="adminMsgStatus" class="msg"></div>
+      <div id="adminMsgHistory" style="margin-top:16px;"></div>
     </div>
   </div>
 </div>
@@ -146,6 +146,7 @@ function tr(key, vars) {
   if (vars) Object.keys(vars).forEach(k => { str = str.replace('{' + k + '}', vars[k]); });
   return str;
 }
+function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function applyI18n() {
   document.documentElement.lang = currentLang();
   document.querySelectorAll('[data-i18n]').forEach(el => { const v = tr(el.dataset.i18n); if (v) el.textContent = v; });
@@ -183,7 +184,7 @@ async function render(session) {
   adminContent.style.display = 'block';
   loadStats();
   loadAccounts();
-  loadNotice();
+  loadAdminMsgHistory();
 }
 
 window.LayerPitchAuth.onAuthStateChange((_event, session) => render(session));
@@ -298,46 +299,60 @@ document.getElementById('searchInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') loadAccounts(document.getElementById('searchInput').value.trim());
 });
 
-// ---- Bandeau d'annonce (structure ouverte au nombre de langues — docs/infrastructure.md,
+// ---- Message aux compositeurs (structure ouverte au nombre de langues — docs/infrastructure.md,
 // "aller chercher la solution là" pour layerpitch-i18n.js le jour où une 3e langue est décidée).
-// Ajouter une langue au bandeau : une ligne ici + une clé noticeXxLabel/noticePlaceholderXx dans
-// layerpitch-i18n.js — rien d'autre à changer dans ce fichier.
-const NOTICE_LANGS = [
-  { code: 'fr', labelKey: 'noticeFrLabel', placeholderKey: 'noticePlaceholder' },
-  { code: 'en', labelKey: 'noticeEnLabel', placeholderKey: 'noticePlaceholderEn' },
+// Boîte de réception historisée (admin_messages, remplace l'ancien bandeau plein écran
+// platform_settings — 7 septembre : Jules-Antoine préfère une boîte qui déclenche une notif à un
+// bandeau qui écrase le message précédent). Broadcast à tous les compositeurs, pas de ciblage
+// individuel (décision actée le 7 septembre).
+const ADMIN_MSG_LANGS = [
+  { code: 'fr', labelKey: 'adminMsgFrLabel', placeholderKey: 'adminMsgPlaceholder' },
+  { code: 'en', labelKey: 'adminMsgEnLabel', placeholderKey: 'adminMsgPlaceholderEn' },
 ];
-const noticeLangsContainer = document.getElementById('noticeLangsContainer');
-noticeLangsContainer.innerHTML = NOTICE_LANGS.map(({ code, labelKey, placeholderKey }) => `
+const adminMsgLangsContainer = document.getElementById('adminMsgLangsContainer');
+adminMsgLangsContainer.innerHTML = ADMIN_MSG_LANGS.map(({ code, labelKey, placeholderKey }) => `
   <label style="font-size:11px;color:var(--text-dim);display:block;margin:10px 0 4px;" data-i18n="${labelKey}">${tr(labelKey)}</label>
-  <textarea id="noticeTextarea-${code}" data-i18n-placeholder="${placeholderKey}" placeholder="${tr(placeholderKey)}"></textarea>
+  <textarea id="adminMsgTextarea-${code}" data-i18n-placeholder="${placeholderKey}" placeholder="${tr(placeholderKey)}"></textarea>
 `).join('');
 
-async function loadNotice() {
-  const { notice } = await window.LayerPitchAdmin.getPlatformNotice();
-  const messages = (notice && notice.messages) || {};
-  NOTICE_LANGS.forEach(({ code }) => {
-    document.getElementById('noticeTextarea-' + code).value = messages[code] || '';
+async function loadAdminMsgHistory() {
+  const historyEl = document.getElementById('adminMsgHistory');
+  const { messages, error } = await window.LayerPitchAdmin.listAdminMessages();
+  if (error || !messages || messages.length === 0) {
+    historyEl.innerHTML = `<p class="subtitle" data-i18n="adminMsgHistoryEmpty">${tr('adminMsgHistoryEmpty')}</p>`;
+    return;
+  }
+  historyEl.innerHTML = `<h3 style="font-size:13px;margin-bottom:8px;" data-i18n="adminMsgHistoryTitle">${tr('adminMsgHistoryTitle')}</h3>` +
+    messages.map(m => `
+      <div class="row" style="align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:1;font-size:12.5px;">
+          <div>${escapeHtml((m.body && m.body.fr) || (m.body && m.body.en) || '')}</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${new Date(m.createdAt).toLocaleString('fr-FR')}</div>
+        </div>
+        <button class="secondary" data-admin-msg-delete="${m.id}" data-i18n="adminMsgDeleteBtn">${tr('adminMsgDeleteBtn')}</button>
+      </div>
+    `).join('');
+  historyEl.querySelectorAll('[data-admin-msg-delete]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(tr('adminMsgDeleteConfirm'))) return;
+      btn.disabled = true;
+      const { ok, error: delError } = await window.LayerPitchAdmin.deleteAdminMessage(Number(btn.dataset.adminMsgDelete));
+      if (!ok) { alert(tr('adminMsgErrorPrefix') + delError); btn.disabled = false; return; }
+      loadAdminMsgHistory();
+    });
   });
 }
-function collectNoticeMessages() {
+document.getElementById('adminMsgSendBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('adminMsgStatus');
   const messages = {};
-  NOTICE_LANGS.forEach(({ code }) => {
-    messages[code] = document.getElementById('noticeTextarea-' + code).value;
-  });
-  return messages;
-}
-document.getElementById('noticeSaveBtn').addEventListener('click', async () => {
-  const msg = document.getElementById('noticeMsg');
-  const { ok, error } = await window.LayerPitchAdmin.setPlatformNotice(collectNoticeMessages());
-  msg.textContent = ok ? tr('noticeSavedStatus') : (tr('noticeErrorPrefix') + error);
+  ADMIN_MSG_LANGS.forEach(({ code }) => { messages[code] = document.getElementById('adminMsgTextarea-' + code).value; });
+  const { ok, error } = await window.LayerPitchAdmin.sendAdminMessage(messages);
+  msg.textContent = ok ? tr('adminMsgSentStatus') : (tr('adminMsgErrorPrefix') + error);
   msg.className = ok ? 'msg ok' : 'msg err';
-});
-document.getElementById('noticeClearBtn').addEventListener('click', async () => {
-  const msg = document.getElementById('noticeMsg');
-  NOTICE_LANGS.forEach(({ code }) => { document.getElementById('noticeTextarea-' + code).value = ''; });
-  const { ok, error } = await window.LayerPitchAdmin.setPlatformNotice(collectNoticeMessages());
-  msg.textContent = ok ? tr('noticeClearedStatus') : (tr('noticeErrorPrefix') + error);
-  msg.className = ok ? 'msg ok' : 'msg err';
+  if (ok) {
+    ADMIN_MSG_LANGS.forEach(({ code }) => { document.getElementById('adminMsgTextarea-' + code).value = ''; });
+    loadAdminMsgHistory();
+  }
 });
 </script>
 </body>

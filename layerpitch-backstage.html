@@ -645,6 +645,16 @@
       <button class="btn btn-primary" id="btnPublish" disabled data-i18n-title="publishDisabledUntilLoadHint" data-i18n="publishBtn" title="Désactivé tant que le chargement initial n'a pas réussi, pour éviter d'écraser les données déjà publiées.">Sauvegarder / publier</button>
       <button class="btn" id="btnView" data-i18n="viewResultBtn">Visualiser le résultat ↗</button>
       <div class="account-menu">
+        <button class="btn btn-icon" id="btnAdminMsgBell" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="adminMsgBellTitle" title="Messages de LayerPitch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/></svg>
+          <span class="notif-badge" id="adminMsgBellBadge" hidden></span>
+        </button>
+        <div class="account-menu-dropdown account-menu-dropdown-wide" id="adminMsgBellDropdown" hidden>
+          <div class="account-menu-email" id="adminMsgBellEmpty" data-i18n="adminMsgBellEmpty">Aucun message pour l'instant.</div>
+          <div id="adminMsgBellList"></div>
+        </div>
+      </div>
+      <div class="account-menu">
         <button class="btn btn-icon" id="btnNotifBell" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="notifBellTitle" title="Notifications">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 10a6 6 0 1 1 12 0c0 4 1.4 5.4 1.4 5.4H4.6S6 14 6 10z"/><path d="M10.3 18.5a1.9 1.9 0 0 0 3.4 0"/></svg>
           <span class="notif-badge" id="notifBellBadge" hidden></span>
@@ -667,12 +677,6 @@
     </div>
   </div>
   <div class="sub" data-i18n="introText">Outil local. Ton contenu se charge automatiquement à l'ouverture (lecture publique, pas besoin de token). Le token n'est demandé qu'au moment de publier — ne partage jamais ce fichier une fois rempli.</div>
-
-  <div id="backstageNoticeBanner" style="display:none;align-items:flex-start;gap:12px;background:#fff3cd;border:1px solid #f0dda0;border-radius:8px;padding:14px 16px;margin-bottom:20px;">
-    <span style="font-size:16px;line-height:1;">⚠️</span>
-    <span id="backstageNoticeText" style="flex:1;font-size:13px;color:#5c4b1e;line-height:1.5;"></span>
-    <button class="btn btn-small" id="backstageNoticeDismissBtn" type="button" data-i18n="noticeDismissBtn">J'ai vu</button>
-  </div>
 
   <div class="backstage-layout">
     <nav class="backstage-sidebar">
@@ -1445,6 +1449,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initPgAuthUi();
   initAccountMenuUi();
   initNotifBellUi();
+  initAdminMsgBellUi();
 });
 const state = {
   owner: () => document.getElementById('ghOwner').value.trim(),
@@ -1496,7 +1501,14 @@ function pgWriteEnabled() {
   const cb = document.getElementById('pgWriteToggle');
   return cb ? cb.checked : (localStorage.getItem(PG_WRITE_KEY) === '1');
 }
-let postgresReadScriptsLoaded = null;
+// var (pas let) : enforceBackstageAuthGate() (plus haut dans ce même script) appelle
+// loadPostgresReadScripts() dès le chargement de la page, donc avant que l'exécution linéaire du
+// script n'atteigne cette ligne -- avec let, ça lève "Cannot access before initialization" (zone
+// morte temporelle) pour absolument tout le monde, la connexion étant alors toujours traitée comme
+// absente. var est hissée avec une valeur undefined dès le début du script, donc sans ce piège.
+// Trouvé le 7 septembre en testant la boîte de réception des messages admin (bug indépendant,
+// présent depuis 56ed331 "Ajoute un verrou de connexion sur le backstage compositeur").
+var postgresReadScriptsLoaded = null;
 function loadPostgresReadScripts() {
   if (postgresReadScriptsLoaded) return postgresReadScriptsLoaded;
   // Cache-busting sur les fichiers locaux (api/*.js) uniquement — voir le commentaire équivalent
@@ -1754,6 +1766,62 @@ function initNotifBellUi() {
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
 }
+// Cloche "Messages de LayerPitch" (boîte de réception admin_messages, remplace l'ancien bandeau
+// d'annonce plein écran platform_settings — 7 septembre : Jules-Antoine préfère une boîte qui
+// déclenche une notif à un bandeau qui écrase le message précédent). Broadcast : lecture publique
+// sur admin_messages (RLS "public read") + lignes de lecture propres au compositeur
+// (admin_message_reads, RLS "own admin message reads") — deux tables plutôt qu'un flag seen_at
+// unique comme contact_messages, parce qu'un message ici n'a pas un seul destinataire.
+async function renderAdminMsgBell(session) {
+  const badge = document.getElementById('adminMsgBellBadge');
+  const emptyEl = document.getElementById('adminMsgBellEmpty');
+  const listEl = document.getElementById('adminMsgBellList');
+  if (!badge || !listEl) return;
+  if (!session || !session.user) { badge.hidden = true; listEl.innerHTML = ''; emptyEl.hidden = false; return; }
+  await loadPostgresReadScripts();
+  const client = window.LayerPitchSupabaseClient.getClient();
+  const [{ data: messages, error }, { data: reads }] = await Promise.all([
+    client.from('admin_messages').select('id, body, created_at').order('created_at', { ascending: false }).limit(20),
+    client.from('admin_message_reads').select('message_id'),
+  ]);
+  if (error || !messages || messages.length === 0) { badge.hidden = true; listEl.innerHTML = ''; emptyEl.hidden = false; return; }
+  const seenIds = new Set((reads || []).map(r => r.message_id));
+  emptyEl.hidden = true;
+  badge.hidden = messages.every(m => seenIds.has(m.id));
+  listEl.innerHTML = messages.map(m => {
+    const text = (m.body && (m.body[currentLang()] || m.body.fr)) || '';
+    return `
+    <div class="notif-item">
+      ${escapeHtml(text)}
+      <div class="notif-item-meta">${new Date(m.created_at).toLocaleString('fr-FR')}</div>
+    </div>`;
+  }).join('');
+}
+function initAdminMsgBellUi() {
+  const bellBtn = document.getElementById('btnAdminMsgBell');
+  const dropdown = document.getElementById('adminMsgBellDropdown');
+  if (!bellBtn || !dropdown) return;
+  const closeMenu = () => { dropdown.hidden = true; bellBtn.setAttribute('aria-expanded', 'false'); };
+  bellBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const willOpen = dropdown.hidden;
+    dropdown.hidden = !willOpen;
+    bellBtn.setAttribute('aria-expanded', String(willOpen));
+    // Marqué vu à l'ouverture (pas avant), même convention que la cloche des messages de contact.
+    if (willOpen) {
+      const badge = document.getElementById('adminMsgBellBadge');
+      if (badge && !badge.hidden) {
+        await loadPostgresReadScripts();
+        await window.LayerPitchSupabaseClient.getClient().rpc('mark_admin_messages_seen');
+        badge.hidden = true;
+      }
+    }
+  });
+  document.addEventListener('click', (e) => {
+    if (!dropdown.hidden && !dropdown.contains(e.target) && e.target !== bellBtn) closeMenu();
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+}
 async function initPgAuthUi() {
   const sendBtn = document.getElementById('btnPgSendMagicLink');
   const signOutBtn = document.getElementById('btnPgSignOut');
@@ -1850,7 +1918,7 @@ async function initPgAuthUi() {
   if (window.LayerPitchAuth) {
     window.LayerPitchAuth.onAuthStateChange((_event, session) => {
       renderPgAuthStatus(session); refreshMyComposerHandle(session); renderSubscriptionPanel(session);
-      renderAdminOnlyPanels(session); renderAccountMenu(session); renderNotifBell(session);
+      renderAdminOnlyPanels(session); renderAccountMenu(session); renderNotifBell(session); renderAdminMsgBell(session);
     });
   }
 }
@@ -8201,83 +8269,6 @@ function renderSeqMapThemeForTier() {
 }
 fillSeqMapThemeField();
 
-/* ---------------- Bandeau d'annonce bêta (Postgres, panneau admin — docs/infrastructure.md,
-   "Rôle admin... actée le 3 septembre") ---------------- */
-async function loadPlatformNotice() {
-  const banner = document.getElementById('backstageNoticeBanner');
-  const textEl = document.getElementById('backstageNoticeText');
-  if (!banner || !textEl || !window.LayerPitchAdmin) { if (banner) banner.style.display = 'none'; return; }
-  const { notice } = await window.LayerPitchAdmin.getPlatformNotice();
-  const { profile } = await window.LayerPitchAuth.getMyProfile();
-  const dismissedAt = profile ? profile.noticeDismissedAt : null;
-  // Message dans la langue du backstage de ce compte (même réglage que currentLang()/tr()) —
-  // repli sur le français si l'admin n'a pas rempli la langue courante (même convention que
-  // tr()/applyI18n(), qui retombe toujours sur le français). Structure ouverte au nombre de
-  // langues (notice_messages, une clé par code langue) — voir docs/infrastructure.md.
-  const messages = (notice && notice.messages) || {};
-  const message = messages[currentLang()] || messages.fr;
-  // Un nouveau message (notice_updated_at plus récent que le dernier "J'ai vu") réaffiche le
-  // bandeau même si le compte avait déjà accusé réception d'un message précédent.
-  const shouldShow = message &&
-    (!dismissedAt || (notice.updatedAt && new Date(dismissedAt) < new Date(notice.updatedAt)));
-  if (shouldShow) {
-    textEl.textContent = message;
-    banner.style.display = 'flex';
-  } else {
-    banner.style.display = 'none';
-  }
-}
-async function dismissPlatformNotice() {
-  const btn = document.getElementById('backstageNoticeDismissBtn');
-  const banner = document.getElementById('backstageNoticeBanner');
-  btn.disabled = true;
-  try {
-    await window.LayerPitchAuth.dismissNotice();
-    banner.style.display = 'none';
-  } finally {
-    btn.disabled = false;
-  }
-}
-document.getElementById('backstageNoticeDismissBtn').addEventListener('click', dismissPlatformNotice);
-
-// ---- Dormant depuis le 3 septembre : ancien bandeau GitHub (data.backstageNotice), alimenté par
-// admin-beta-console.html — remplacé ci-dessus par le bandeau Postgres (platform_settings). Déjà
-// mort en pratique en mode lecture Postgres (loadSiteDataFromPostgres() ne renvoie pas ce champ) ;
-// laissé en place sans appelant, pas de suppression sans besoin (même logique que la dormance
-// d'admin-beta-console.html, docs/infrastructure.md).
-function showBackstageNoticeIfAny(data) {
-  const banner = document.getElementById('backstageNoticeBanner');
-  const textEl = document.getElementById('backstageNoticeText');
-  if (!banner || !textEl) return;
-  if (data && data.backstageNotice && data.backstageNotice.message) {
-    textEl.textContent = data.backstageNotice.message;
-    banner.style.display = 'flex';
-  } else {
-    banner.style.display = 'none';
-  }
-}
-async function dismissBackstageNotice() {
-  const btn = document.getElementById('backstageNoticeDismissBtn');
-  const banner = document.getElementById('backstageNoticeBanner');
-  const owner = state.owner(), repo = state.repo(), branch = state.branch(), token = state.token();
-  if (!token) { alert(tr('noticeNeedsTokenMsg')); return; }
-  btn.disabled = true;
-  try {
-    // Lecture fraîche depuis GitHub au moment du clic (pas la copie en mémoire) : on ne touche qu'au champ
-    // backstageNotice, tout le reste du data.json publié entre-temps par le testeur est préservé intact.
-    const content = await ghGetContent(owner, repo, 'data.json', branch, token);
-    if (!content) { banner.style.display = 'none'; return; }
-    const freshData = JSON.parse(new TextDecoder().decode(base64ToUint8(content.content.replace(/\n/g, ''))));
-    delete freshData.backstageNotice;
-    await ghPutFile(owner, repo, 'data.json', branch, token, textToBase64(JSON.stringify(freshData, null, 2)), 'Backstage : accusé de réception du bandeau d\'alerte');
-    banner.style.display = 'none';
-  } catch (e) {
-    alert(tr('noticeDismissErrorMsg') + ' ' + e.message);
-  } finally {
-    btn.disabled = false;
-  }
-}
-
 /* ---------------- Chargement (auto + manuel) ---------------- */
 async function loadData(silent) {
   if (!silent) log(tr('loadingDataMsg'));
@@ -8285,7 +8276,6 @@ async function loadData(silent) {
     const data = await fetchSiteData();
     if (!data) {
       log(tr('dataNotFoundMsg'));
-      loadPlatformNotice();
       library = []; packs = []; collections = []; customFonts = []; sfxLibrary = []; socials = []; adReelFolders = [];
       implementationSkills = { wwise: false, fmod: false, unity: false, unreal: false };
       noAiCertifiedGlobal = false;
@@ -8302,7 +8292,6 @@ async function loadData(silent) {
       document.getElementById('btnPublish').disabled = false;
       return;
     }
-    loadPlatformNotice();
 
     library = (data.library || []).map(t => {
       const legacyMode = t.mode || 'vertical';

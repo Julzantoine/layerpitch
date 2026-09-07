@@ -4,10 +4,11 @@
  * connexion Postgres directe, en simulant le JWT que PostgREST injecterait normalement — même
  * contournement que scripts/test-is-admin.js / scripts/test-rpc-upserts.js.
  *
- * Vérifie admin_get_stats(), admin_list_accounts(), set_platform_notice() (chemin admin + chemin
- * non-admin rejeté) et dismiss_notice() (utilisable par n'importe quel compte). Ne teste pas
- * l'Edge Function suspend-account (nécessite un vrai appel HTTP après déploiement manuel) : voir
- * la checklist manuelle décrite dans le plan.
+ * Vérifie admin_get_stats(), admin_list_accounts(), admin_send_message()/admin_delete_message()
+ * (chemin admin + chemin non-admin rejeté, boîte de réception qui a remplacé le bandeau
+ * platform_settings/set_platform_notice() le 7 septembre) et mark_admin_messages_seen()
+ * (utilisable par n'importe quel compte). Ne teste pas l'Edge Function suspend-account (nécessite
+ * un vrai appel HTTP après déploiement manuel) : voir la checklist manuelle décrite dans le plan.
  *
  * Usage : node scripts/test-admin-rpcs.js
  * Nécessite SUPABASE_DB_URL dans .env et que 20260903220000/20260903220100 aient été appliquées.
@@ -85,29 +86,37 @@ async function asProfile(client, profileId, fn) {
       check('admin_list_accounts() rejeté pour un compte non-admin', false);
     } catch (e) { check('admin_list_accounts() rejeté pour un compte non-admin', /réservé aux admins/i.test(e.message)); }
 
-    // ---- set_platform_notice() : chemin non-admin rejeté ----
+    // ---- admin_send_message() : chemin non-admin rejeté ----
     try {
-      await asProfile(client, NON_ADMIN_AUTH_ID, () => client.query('select set_platform_notice($1::jsonb)', [JSON.stringify({ fr: 'devrait échouer', en: 'should fail' })]));
-      check('set_platform_notice() rejeté pour un compte non-admin', false);
-    } catch (e) { check('set_platform_notice() rejeté pour un compte non-admin', /réservé aux admins/i.test(e.message)); }
+      await asProfile(client, NON_ADMIN_AUTH_ID, () => client.query('select admin_send_message($1::jsonb)', [JSON.stringify({ fr: 'devrait échouer', en: 'should fail' })]));
+      check('admin_send_message() rejeté pour un compte non-admin', false);
+    } catch (e) { check('admin_send_message() rejeté pour un compte non-admin', /réservé aux admins/i.test(e.message)); }
 
-    // ---- set_platform_notice() : chemin admin, structure multilingue, vérifié en lecture brute ----
+    // ---- admin_send_message() : chemin admin, structure multilingue, vérifié en lecture brute ----
+    let testMessageId = null;
     try {
       const testMessages = { fr: 'message de test — script automatisé', en: 'test message — automated script' };
-      await asProfile(client, adminId, () => client.query('select set_platform_notice($1::jsonb)', [JSON.stringify(testMessages)]));
-      const { rows } = await client.query('select notice_messages, notice_updated_at from platform_settings where id = true');
-      check('set_platform_notice() écrit bien la carte de messages', rows[0].notice_messages.fr === testMessages.fr && rows[0].notice_messages.en === testMessages.en && rows[0].notice_updated_at !== null);
-    } catch (e) { check('set_platform_notice() pour l\'admin (' + e.message + ')', false); }
+      const { rows: sendRows } = await asProfile(client, adminId, () => client.query('select admin_send_message($1::jsonb) as id', [JSON.stringify(testMessages)]));
+      testMessageId = sendRows[0].id;
+      const { rows } = await client.query('select body from admin_messages where id = $1', [testMessageId]);
+      check('admin_send_message() écrit bien la carte de messages', rows[0].body.fr === testMessages.fr && rows[0].body.en === testMessages.en);
+    } catch (e) { check('admin_send_message() pour l\'admin (' + e.message + ')', false); }
 
-    // ---- dismiss_notice() : utilisable par le compte non-admin ----
+    // ---- mark_admin_messages_seen() : utilisable par le compte non-admin (silencieux, ce compte
+    // de test n'a pas de composer_profiles — même garde que mark_contact_messages_seen()) ----
     try {
-      await asProfile(client, NON_ADMIN_AUTH_ID, () => client.query('select dismiss_notice()'));
-      const { rows } = await client.query('select notice_dismissed_at from profiles where id = $1', [NON_ADMIN_AUTH_ID]);
-      check('dismiss_notice() renseigne notice_dismissed_at', rows[0].notice_dismissed_at !== null);
-    } catch (e) { check('dismiss_notice() pour un compte non-admin (' + e.message + ')', false); }
+      await asProfile(client, NON_ADMIN_AUTH_ID, () => client.query('select mark_admin_messages_seen()'));
+      check('mark_admin_messages_seen() ne lève pas d\'erreur pour un compte sans composer_profiles', true);
+    } catch (e) { check('mark_admin_messages_seen() pour un compte non-admin (' + e.message + ')', false); }
 
-    // ---- nettoyage : remet le bandeau à vide, supprime le compte de test ----
-    await asProfile(client, adminId, () => client.query("select set_platform_notice('{}'::jsonb)"));
+    // ---- admin_delete_message() : chemin non-admin rejeté, puis nettoyage par l'admin ----
+    try {
+      await asProfile(client, NON_ADMIN_AUTH_ID, () => client.query('select admin_delete_message($1::bigint)', [testMessageId]));
+      check('admin_delete_message() rejeté pour un compte non-admin', false);
+    } catch (e) { check('admin_delete_message() rejeté pour un compte non-admin', /réservé aux admins/i.test(e.message)); }
+
+    // ---- nettoyage : supprime le message de test et le compte de test ----
+    if (testMessageId) await asProfile(client, adminId, () => client.query('select admin_delete_message($1::bigint)', [testMessageId]));
     await client.query('delete from auth.users where id = $1', [NON_ADMIN_AUTH_ID]); // cascade -> profiles
 
     console.log(`\n${passed} OK, ${failed} FAIL`);
