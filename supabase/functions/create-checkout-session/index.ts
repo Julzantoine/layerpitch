@@ -133,6 +133,15 @@ Deno.serve(async (req) => {
       // celle qui avait révélé l'incompatibilité payment_method_types en son temps).
       billing_address_collection: 'required',
       tax_id_collection: { enabled: true },
+      // Stripe Tax (10 septembre, remplace le calcul TVA fait main dans stripe-webhook) --
+      // activé UNIQUEMENT si ce compositeur a déclaré être assujetti à la TVA
+      // (billing_vat_applicable). Stripe Tax calcule selon l'enregistrement fiscal du compte
+      // LayerPitch lui-même, pas celui du compositeur vendeur -- un compositeur en franchise en
+      // base (art. 293 B du CGI, très courant chez les compositeurs freelance débutants) ne doit
+      // légalement facturer aucune TVA, quel que soit le pays de l'acheteur ; l'activer pour lui
+      // produirait une facture fausse. Voir generateInvoiceForPurchase (stripe-webhook) pour la
+      // branche miroir côté facturation.
+      automatic_tax: { enabled: !!owner.billing_vat_applicable },
       line_items: [{
         price_data: {
           currency: 'usd',
@@ -141,6 +150,11 @@ Deno.serve(async (req) => {
           // (pack audio téléchargé, achat unitaire, accès permanent).
           product_data: { name: pack.title, tax_code: 'txcd_10401100' },
           unit_amount: pack.price_usd_cents,
+          // 'inclusive' : le prix affiché (price_usd_cents) reste le montant total payé par
+          // l'acheteur, TVA comprise dedans -- comportement inchangé pour l'acheteur, Stripe Tax ne
+          // fait que déterminer la part de TVA à l'intérieur de ce montant, jamais l'ajouter
+          // par-dessus. Sans objet quand automatic_tax est désactivé (franchise en base).
+          tax_behavior: 'inclusive',
         },
         quantity: 1,
       }],

@@ -32,28 +32,49 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
 
-// ---- Facturation légale : calcul TVA (simplification volontaire, à valider par un expert-
-// comptable avant mise en production réelle -- voir docs/infrastructure.md/le plan de ce chantier
-// pour le détail. Ne valide pas le n° de TVA intracommunautaire auprès de VIES, ne gère pas les
-// taux OSS par pays de destination pour un B2C hors France -- suffisant pour un premier passage
-// technique, pas une garantie de conformité fiscale exhaustive). ----
-const EU_COUNTRIES = new Set([
-  'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV',
-  'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
-]);
-const FRANCE_VAT_RATE = 0.20;
+// ---- Facturation légale : calcul TVA. Depuis le 10 septembre, hybride : Stripe Tax pour les
+// compositeurs assujettis (voir resolveStripeComputedVat plus bas), franchise en base gérée à part
+// pour les autres -- remplace l'ancien calcul EU/autoliquidation fait main (jamais validé par un
+// expert-comptable, conservé nulle part, voir git history si besoin de le retrouver). ----
 
-function computeVat(sellerVatApplicable: boolean, buyerCountry: string | null, buyerHasValidVatId: boolean) {
-  if (!sellerVatApplicable) {
-    return { rate: null as number | null, mention: 'TVA non applicable, art. 293 B du CGI (franchise en base)' };
+// Franchise en base (art. 293 B du CGI) : jamais de TVA, quel que soit l'acheteur -- décision
+// déclarée par le compositeur lui-même (composer_profiles.billing_vat_applicable), indépendante de
+// Stripe Tax (voir plus bas, hybride acté le 10 septembre).
+function franchiseEnBaseVat() {
+  return { rate: null as number | null, mention: 'TVA non applicable, art. 293 B du CGI (franchise en base)' };
+}
+
+// Compositeur assujetti à la TVA : lit le calcul déjà fait par Stripe Tax (automatic_tax, activé
+// côté create-checkout-session UNIQUEMENT pour ces compositeurs-là) plutôt que de le refaire à la
+// main -- remplace l'ancien computeVat() (règles EU/autoliquidation approximatives, jamais validées
+// par un comptable). total_details.breakdown n'est pas inclus par défaut dans la charge utile du
+// webhook, d'où le rechargement explicite avec expand.
+//
+// À VÉRIFIER avec un vrai achat test Stripe avant mise en production réelle (comme le reste de ce
+// chantier) : la forme exacte de tax_rate_details/taxability_reason ci-dessous est écrite d'après
+// la documentation Stripe, pas rejouée contre un vrai événement reçu par ce projet. Le repli
+// (breakdown absent/vide, ou taxability_reason non reconnu) affiche la TVA telle que Stripe l'a
+// calculée sans mention légale particulière plutôt que de deviner -- à corriger si un vrai test
+// révèle une valeur non couverte ici.
+async function resolveStripeComputedVat(stripe: Stripe, sessionId: string): Promise<{ rate: number | null; mention: string | null }> {
+  const expanded = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['total_details.breakdown'] });
+  // deno-lint-ignore no-explicit-any -- forme exacte non garantie par les types du SDK stripe npm
+  // pour ce champ imbriqué (total_details.breakdown.taxes[]), voir note ci-dessus sur la
+  // vérification à faire contre un vrai événement.
+  const tax = (expanded.total_details as any)?.breakdown?.taxes?.[0] as
+    { amount: number; tax_rate_details?: { percentage_decimal?: string }; taxability_reason?: string } | undefined;
+  if (!tax || !tax.tax_rate_details) {
+    return { rate: 0, mention: 'Aucune TVA calculée par Stripe pour cette vente (à vérifier manuellement si inattendu)' };
   }
-  if (!buyerCountry || !EU_COUNTRIES.has(buyerCountry)) {
-    return { rate: 0, mention: 'Exonération de TVA — exportation hors Union européenne' };
-  }
-  if (buyerCountry !== 'FR' && buyerHasValidVatId) {
+  const rate = tax.tax_rate_details.percentage_decimal != null ? Number(tax.tax_rate_details.percentage_decimal) / 100 : 0;
+  const reason = tax.taxability_reason || '';
+  if (reason === 'reverse_charge') {
     return { rate: 0, mention: 'Autoliquidation par le preneur — art. 283-2 du CGI (livraison intracommunautaire B2B)' };
   }
-  return { rate: FRANCE_VAT_RATE, mention: null as string | null };
+  if (['zero_rated', 'not_subject_to_tax', 'product_exempt', 'customer_exempt', 'not_collecting'].includes(reason)) {
+    return { rate: 0, mention: 'Exonération de TVA (calcul Stripe Tax — hors Union européenne ou cas assimilé)' };
+  }
+  return { rate, mention: null };
 }
 
 // ---- Facturation légale : génération du PDF (mentions minimales art. 242 nonies A CGI annexe
@@ -141,6 +162,7 @@ async function generateInvoiceForPurchase(
   adminClient: ReturnType<typeof createClient>,
   purchase: { id: string; pack_id: string; price_paid: number },
   session: Stripe.Checkout.Session,
+  stripe: Stripe,
 ) {
   const { data: pack, error: packError } = await adminClient
     .from('packs')
@@ -160,9 +182,13 @@ async function generateInvoiceForPurchase(
   }
 
   const buyerDetails = session.customer_details;
-  const buyerCountry = buyerDetails?.address?.country || null;
   const buyerVatId = (buyerDetails?.tax_ids || []).find((t) => t.value)?.value || null;
-  const vat = computeVat(!!seller.billing_vat_applicable, buyerCountry, !!buyerVatId);
+  // Hybride (10 septembre) : Stripe Tax uniquement pour un compositeur assujetti (automatic_tax
+  // activé côté create-checkout-session seulement dans ce cas) -- la franchise en base reste gérée
+  // indépendamment de Stripe, jamais influencée par le pays/statut de l'acheteur.
+  const vat = seller.billing_vat_applicable
+    ? await resolveStripeComputedVat(stripe, session.id)
+    : franchiseEnBaseVat();
 
   const amountTtc = purchase.price_paid;
   const amountHt = vat.rate != null ? amountTtc / (1 + vat.rate) : null;
@@ -300,7 +326,7 @@ Deno.serve(async (req) => {
       const newPurchase = purchaseRows && purchaseRows[0];
       if (newPurchase) {
         try {
-          await generateInvoiceForPurchase(adminClient, newPurchase, session);
+          await generateInvoiceForPurchase(adminClient, newPurchase, session, stripe);
         } catch (invoiceErr) {
           // Ne fait volontairement PAS échouer le webhook : le paiement a eu lieu, l'achat est
           // acquis même si la facture doit être régénérée manuellement plus tard (mécanisme de
