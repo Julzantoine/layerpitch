@@ -2050,7 +2050,11 @@ function initTrackPlayer(track, wrapper, elementColors) {
       // soit l'écartement ci-dessus (qui ne sépare que des arêtes partageant un même nœud, pas deux
       // nœuds distincts alignés par hasard). Écartement minimal forcé dans ce cas précis.
       if (layout.col[e.from] === layout.col[e.to]) {
-        const minGap = ANCHOR_SPACING * 2;
+        // 24px (2x ANCHOR_SPACING) restait trop discret à la taille réelle des nœuds -- toujours "un
+        // peu écrasé" au retour de Jules-Antoine. Proportionnel à la largeur du nœud (moitié de nodeW)
+        // plutôt qu'une valeur fixe : les deux points d'ancrage se retrouvent nettement dans les
+        // tiers gauche/droit du nœud, jamais juste "un peu" séparés du centre.
+        const minGap = Math.max(ANCHOR_SPACING * 2, nodeW * 0.5);
         if (Math.abs(anchor.fromOffset - anchor.toOffset) < minGap) {
           anchor.fromOffset -= minGap / 2;
           anchor.toOffset += minGap / 2;
