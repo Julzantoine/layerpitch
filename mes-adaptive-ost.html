@@ -458,11 +458,13 @@ function wirePlaylistsCard() {
       const playlist = playlists.find(p => p.id === id);
       // Synchronise l'état de mix EN DIRECT (moteur player.js, jamais persisté tout seul) vers
       // playlist_tracks.settings avant de figer — freeze_playlist() construit son snapshot à
-      // partir de cette colonne, pas depuis ce que le navigateur a en mémoire.
-      for (const pt of (playlist ? playlist.tracks : [])) {
+      // partir de cette colonne, pas depuis ce que le navigateur a en mémoire. En parallèle : ces
+      // appels sont indépendants (une piste à la fois), pas de raison d'attendre l'un pour lancer
+      // le suivant.
+      await Promise.all((playlist ? playlist.tracks : []).map(pt => {
         const live = Core.getTrackSettings(pt.trackId);
-        if (live) await window.LayerPitchPlaylists.setPlaylistTrackSettings(id, pt.trackId, live);
-      }
+        return live ? window.LayerPitchPlaylists.setPlaylistTrackSettings(id, pt.trackId, live) : null;
+      }));
       const { freezeId, error } = await window.LayerPitchPlaylists.freezePlaylist(id, nameInput.value.trim());
       submitBtn.disabled = false;
       if (error) { alert('Erreur : ' + error); return; }

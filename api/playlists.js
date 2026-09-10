@@ -13,6 +13,13 @@
     return window.LayerPitchSupabaseClient.getClient();
   }
 
+  // Partagé par myPlaylists()/myAlbumPurchases() ci-dessous -- les deux embarquent une liste de
+  // pistes triée par position depuis PostgREST (playlist_tracks / album_tracks), jamais garantie
+  // triée par la requête elle-même.
+  function sortByPosition(rows) {
+    return [...(rows || [])].sort((a, b) => a.position - b.position);
+  }
+
   // Playlists du compte connecté, avec leurs pistes (settings = état de mix courant, cf.
   // player.js getTrackSettings/applyTrackSettings — pas les objets tracks complets : à hydrater
   // séparément via LayerPitchTracks.listTracksByIds(), les pistes d'une playlist cross-albums
@@ -26,9 +33,7 @@
     return {
       playlists: data.map(p => ({
         id: p.id, name: p.name, createdAt: p.created_at, updatedAt: p.updated_at,
-        tracks: [...(p.playlist_tracks || [])]
-          .sort((a, b) => a.position - b.position)
-          .map(t => ({ trackId: t.track_id, position: t.position, settings: t.settings || {} })),
+        tracks: sortByPosition(p.playlist_tracks).map(t => ({ trackId: t.track_id, position: t.position, settings: t.settings || {} })),
       })),
       error: null,
     };
@@ -49,7 +54,7 @@
         purchaseId: r.id, albumId: r.album_id, purchasedAt: r.purchased_at, pricePaid: r.price_paid,
         album: r.albums ? {
           id: r.albums.id, title: r.albums.title, illustration: r.albums.illustration,
-          trackIds: [...(r.albums.album_tracks || [])].sort((a, b) => a.position - b.position).map(t => t.track_id),
+          trackIds: sortByPosition(r.albums.album_tracks).map(t => t.track_id),
         } : null,
       })),
       error: null,

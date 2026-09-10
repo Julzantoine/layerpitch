@@ -1500,6 +1500,12 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // minutage réel de la performance enregistrée pour la reproduire fidèlement.
   let embrPlannedSwitches = [];
   let embrPlannedSwitchIndex = 0;
+  // Décalage cumulé (secondes) à ajouter à ctx.currentTime - embrReferenceStartCtxTime pour obtenir
+  // le temps réellement écoulé du point de vue du plan -- nécessaire parce que
+  // embrReferenceStartCtxTime est remis à "maintenant" à chaque reprise après mise en veille
+  // (resumeEmbrVerticalAfterBackground), ce qui romprait sinon le minutage des bascules pas encore
+  // consommées. Remis à zéro uniquement à un vrai redémarrage (playEmbrVertical).
+  let embrPlanTimeOffset = 0;
   let embrRecordingPath = false;
   let embrRecordedSwitches = [];
   let embrSchedulerTimer = null;
@@ -3397,8 +3403,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // contrairement au séquentiel : une bascule ratée n'empêche jamais les suivantes de s'exécuter à
     // leur tour, chacune ne dépend que du minutage, pas d'un état de graphe.
     if (!embrRecordingPath) {
+      const planElapsedSec = (ctx.currentTime - embrReferenceStartCtxTime) + embrPlanTimeOffset;
       while (embrPlannedSwitchIndex < embrPlannedSwitches.length
-        && (ctx.currentTime - embrReferenceStartCtxTime) >= embrPlannedSwitches[embrPlannedSwitchIndex].atSec) {
+        && planElapsedSec >= embrPlannedSwitches[embrPlannedSwitchIndex].atSec) {
         selectEmbrLoop(embrPlannedSwitches[embrPlannedSwitchIndex].loopIdx);
         embrPlannedSwitchIndex++;
       }
@@ -3468,6 +3475,13 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // arrière-plan est un compromis acceptable plutôt que de tenter de reconstituer sa position exacte.
   function resumeEmbrVerticalAfterBackground() {
     const preservedIdx = embrActiveLoopIdx >= 0 ? embrActiveLoopIdx : embrReferenceIdx;
+    // Chemin pré-écrit : embrReferenceStartCtxTime va être remis à "maintenant" juste en dessous
+    // (même mécanisme que le reste de cette fonction, aucun repère de phase fiable après une mise
+    // en veille) -- sans cette accumulation, les bascules planifiées PAS ENCORE consommées
+    // dérailleraient (mesurées depuis un nouveau zéro sans tenir compte du temps déjà écoulé avant
+    // la mise en veille), un plan figé rejouerait alors à un rythme différent de l'original. Capturé
+    // AVANT tout changement d'état (currentTime lu une seule fois, sur l'ancienne référence).
+    embrPlanTimeOffset += ctx.currentTime - embrReferenceStartCtxTime;
     stopEmbrVertical();
     embrActiveLoopIdx = preservedIdx;
     const now = ctx.currentTime;
@@ -3482,6 +3496,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     stopEmbrVertical();
     embrActiveLoopIdx = embrReferenceIdx;
     embrPlannedSwitchIndex = 0; // chemin pré-écrit : repart du début à chaque vrai démarrage
+    embrPlanTimeOffset = 0; // idem : aucun décalage accumulé à reporter, ce redémarrage EST le nouveau zéro
     const now = ctx.currentTime;
     embrReferenceStartCtxTime = now; // point zéro de l'horloge de phase, utilisé par embrQuantizeDelaySec()
     scheduleEmbrGeneration(now, true); // seul appel avec isFirst=true -- démarre à "Départ", pas "Entrée"
@@ -3736,7 +3751,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // la bascule devient réellement audible -- rejouer selectEmbrLoop(idx) au même instant relatif
     // réappliquera le même délai de quantification, résultat équivalent sans dupliquer cette logique.
     if (embrRecordingPath) {
-      embrRecordedSwitches.push({ atSec: ctx.currentTime - embrReferenceStartCtxTime, loopIdx: idx });
+      embrRecordedSwitches.push({ atSec: (ctx.currentTime - embrReferenceStartCtxTime) + embrPlanTimeOffset, loopIdx: idx });
       updateEmbrPathStatus();
     }
     if (embrPendingSwitchTimeout) { clearTimeout(embrPendingSwitchTimeout); embrPendingSwitchTimeout = null; }
