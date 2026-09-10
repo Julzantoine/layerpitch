@@ -3,3 +3,6 @@
 !.env.example
 node_modules/
 .claude/
+# Doc interne migrée vers le dépôt privé layerpitch-docs (7 sept. 2026) —
+# ne doit plus revivre ici. Voir layerpitch-docs/SPLIT_REPOS_NOTE.md.
+docs/
