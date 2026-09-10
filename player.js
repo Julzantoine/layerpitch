@@ -848,10 +848,26 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       }
       return `<button type="button" class="embr-loop-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="${isShort ? '1' : '0'}">${label}</button>`;
     }).join('');
+    // Chemin pré-écrit (embranchement-vertical, 10/09) : n'a de sens qu'avec au moins 2 boucles à
+    // basculer entre elles -- même raisonnement/mécanisme que le séquentiel à embranchement
+    // (enregistrer un déroulé plutôt que le forcer manuellement à chaque lecture), adapté ici à un
+    // moteur sans point de décision naturel (boucles phase-verrouillées en continu) : le plan
+    // enregistre AUSSI l'instant de chaque bascule (secondes depuis le début de la lecture), pas
+    // seulement son ordre. Pas de t('...') ici, même raisonnement que les autres contrôles ajoutés
+    // ce jour-là : l'i18n de ce fichier passe par un outil dédié, jamais à la main.
+    const pathRecorderHtml = loopsList.length > 1 ? `
+      <div class="loop-count-block">
+        <div class="loop-count-label">Chemin pré-écrit</div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button type="button" class="voice-refresh-btn" data-role="embrPathRecordBtn">⏺ Enregistrer un chemin</button>
+          <span class="voice-row-current" data-role="embrPathStatus">aucun chemin enregistré</span>
+        </div>
+      </div>` : '';
     embrVertBlockHtml = `
       <div class="track-intensity-block">
         <div class="track-intensity-label">${t('embrLoopsLabel')}</div>
         <div class="intensity-picker" data-role="embrLoopPicker"${embrRichMode ? ` style="--embr-row-h:${embrRowH}px"` : ''}>${buttons}</div>
+        ${pathRecorderHtml}
       </div>
     `;
   }
@@ -1347,6 +1363,14 @@ function initTrackPlayer(track, wrapper, elementColors) {
   const timeTotal = wrapper.querySelector('[data-role="timeTotal"]');
   const notchDots = [...wrapper.querySelectorAll('.intensity-chip')];
   const embrLoopBtns = [...wrapper.querySelectorAll('.embr-loop-btn')];
+  const embrPathRecordBtn = wrapper.querySelector('[data-role="embrPathRecordBtn"]');
+  const embrPathStatusEl = wrapper.querySelector('[data-role="embrPathStatus"]');
+  function updateEmbrPathStatus() {
+    if (!embrPathStatusEl) return;
+    if (embrRecordingPath) embrPathStatusEl.textContent = 'enregistrement… (' + embrRecordedSwitches.length + ' bascule' + (embrRecordedSwitches.length === 1 ? '' : 's') + ')';
+    else if (embrPlannedSwitches.length) embrPathStatusEl.textContent = 'chemin enregistré (' + embrPlannedSwitches.length + ' bascule' + (embrPlannedSwitches.length === 1 ? '' : 's') + ')';
+    else embrPathStatusEl.textContent = 'aucun chemin enregistré';
+  }
   const stingerBtns = [...wrapper.querySelectorAll('.stinger-btn')];
   const loopCountSelect = wrapper.querySelector('[data-role="loopCountSelect"]');
   const chainLoopCountSelect = wrapper.querySelector('[data-role="chainLoopCountSelect"]');
@@ -1468,6 +1492,16 @@ function initTrackPlayer(track, wrapper, elementColors) {
   let embrActiveTransitionSources = []; // sources de transition actuellement en train de sonner -- suivies pour pouvoir les couper sur Stop (voir stopEmbrVertical)
   let embrActiveGenSources = []; // {src, gain, loopIdx} des générations "pairs" (même longueur que la référence) en cours
   let embrActiveLoopIdx = -1; // index (dans track.loops) de la boucle actuellement AUDIBLE
+  // Chemin pré-écrit (embranchement-vertical, 10/09) : [{atSec, loopIdx}, ...] -- atSec = secondes
+  // écoulées depuis embrReferenceStartCtxTime au moment du clic original (voir selectEmbrLoop),
+  // rejoué en appelant selectEmbrLoop(loopIdx) au même instant relatif (voir embrSchedulerTick) --
+  // pas seulement l'ORDRE des bascules (contrairement au plan séquentiel) : ce moteur n'a aucun
+  // point de décision naturel qui rythme la consommation du plan, il faut donc conserver le
+  // minutage réel de la performance enregistrée pour la reproduire fidèlement.
+  let embrPlannedSwitches = [];
+  let embrPlannedSwitchIndex = 0;
+  let embrRecordingPath = false;
+  let embrRecordedSwitches = [];
   let embrSchedulerTimer = null;
   let embrNextStartCtxTime = 0;
   let embrDetourTimeout = null; // minuterie du retour auto à la référence après une boucle courte
@@ -2828,7 +2862,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
       // plannedPath : séquentiel à embranchement uniquement -- liste ordonnée d'id de cibles, voir
       // le commentaire de plannedPath plus haut. Capture le plan enregistré, jamais l'enregistrement
       // en cours (un enregistrement inachevé ne veut rien dire une fois rejoué).
-      ...(hasBranchingSlots ? { plannedPath: [...plannedPath] } : {})
+      ...(hasBranchingSlots ? { plannedPath: [...plannedPath] } : {}),
+      // embrPlannedSwitches : embranchement-vertical uniquement -- voir le commentaire de
+      // embrPlannedSwitches plus haut (minutage réel, pas seulement l'ordre).
+      ...(embrPathRecordBtn ? { embrPlannedSwitches: embrPlannedSwitches.map(s => ({ ...s })) } : {})
     }),
     apply: (settings) => {
       if (typeof settings.level === 'number' && notchDots.length) {
@@ -2865,6 +2902,14 @@ function initTrackPlayer(track, wrapper, elementColors) {
         recordingPath = false;
         if (seqPathRecordBtn) { seqPathRecordBtn.classList.remove('active'); seqPathRecordBtn.textContent = '⏺ Enregistrer un chemin'; }
         updateSeqPathStatus();
+      }
+      if (embrPathRecordBtn && Array.isArray(settings.embrPlannedSwitches)) {
+        embrPlannedSwitches = settings.embrPlannedSwitches.map(s => ({ ...s }));
+        embrPlannedSwitchIndex = 0;
+        embrRecordingPath = false;
+        embrPathRecordBtn.classList.remove('active');
+        embrPathRecordBtn.textContent = '⏺ Enregistrer un chemin';
+        updateEmbrPathStatus();
       }
       mutedVoices.clear();
       (settings.mutedVoices || []).forEach(k => mutedVoices.add(k));
@@ -3345,6 +3390,19 @@ function initTrackPlayer(track, wrapper, elementColors) {
       scheduleEmbrGeneration(embrNextStartCtxTime, false); // jamais "Départ" ici, uniquement au tout premier lancement (playEmbrVertical)
       embrNextStartCtxTime += embrCycleLengthSec();
     }
+    // Chemin pré-écrit : ce tick (200ms, voir playEmbrVertical) tient lieu d'horloge de vérification
+    // -- pas besoin d'un timer dédié. Une bascule planifiée dont la cible n'a plus de fichier chargé
+    // (piste modifiée depuis l'enregistrement) est simplement ignorée puis consommée (selectEmbrLoop
+    // lui-même ne fait rien sans buffer) -- pas de notion de "plan abandonné" à afficher ici,
+    // contrairement au séquentiel : une bascule ratée n'empêche jamais les suivantes de s'exécuter à
+    // leur tour, chacune ne dépend que du minutage, pas d'un état de graphe.
+    if (!embrRecordingPath) {
+      while (embrPlannedSwitchIndex < embrPlannedSwitches.length
+        && (ctx.currentTime - embrReferenceStartCtxTime) >= embrPlannedSwitches[embrPlannedSwitchIndex].atSec) {
+        selectEmbrLoop(embrPlannedSwitches[embrPlannedSwitchIndex].loopIdx);
+        embrPlannedSwitchIndex++;
+      }
+    }
   }
   // Recalcule en direct le gain de toutes les sources "paires" actuellement audibles ou en train de finir
   // (queue) — sans ça, un clic ne prendrait effet qu'à la prochaine génération programmée. Reprend
@@ -3423,6 +3481,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   function playEmbrVertical() {
     stopEmbrVertical();
     embrActiveLoopIdx = embrReferenceIdx;
+    embrPlannedSwitchIndex = 0; // chemin pré-écrit : repart du début à chaque vrai démarrage
     const now = ctx.currentTime;
     embrReferenceStartCtxTime = now; // point zéro de l'horloge de phase, utilisé par embrQuantizeDelaySec()
     scheduleEmbrGeneration(now, true); // seul appel avec isFirst=true -- démarre à "Départ", pas "Entrée"
@@ -3673,6 +3732,13 @@ function initTrackPlayer(track, wrapper, elementColors) {
   function selectEmbrLoop(idx) {
     if (!playing) return;
     if (!embrLoopBuffers[idx]) return;
+    // Enregistrement d'un chemin (10/09) : capturé au moment du clic (l'intention), pas au moment où
+    // la bascule devient réellement audible -- rejouer selectEmbrLoop(idx) au même instant relatif
+    // réappliquera le même délai de quantification, résultat équivalent sans dupliquer cette logique.
+    if (embrRecordingPath) {
+      embrRecordedSwitches.push({ atSec: ctx.currentTime - embrReferenceStartCtxTime, loopIdx: idx });
+      updateEmbrPathStatus();
+    }
     if (embrPendingSwitchTimeout) { clearTimeout(embrPendingSwitchTimeout); embrPendingSwitchTimeout = null; }
     const loopDef = (track.loops || [])[idx];
     const delaySec = embrQuantizeDelaySec(loopDef && loopDef.switchQuantize);
@@ -3685,6 +3751,22 @@ function initTrackPlayer(track, wrapper, elementColors) {
   embrLoopBtns.forEach(btn => {
     btn.addEventListener('click', () => selectEmbrLoop(parseInt(btn.dataset.loopIdx, 10)));
   });
+
+  // Chemin pré-écrit (embranchement-vertical) : même bascule enregistrement/arrêt que le
+  // séquentiel à embranchement (voir seqPathRecordBtn) -- arrêter l'enregistrement fixe le plan,
+  // effectif à la PROCHAINE lecture depuis le début (embrPlannedSwitchIndex remis à zéro par
+  // playEmbrVertical), pas rétroactivement en cours de route.
+  if (embrPathRecordBtn) {
+    embrPathRecordBtn.addEventListener('click', () => {
+      embrRecordingPath = !embrRecordingPath;
+      embrPathRecordBtn.classList.toggle('active', embrRecordingPath);
+      embrPathRecordBtn.textContent = embrRecordingPath ? '⏹ Arrêter l’enregistrement' : '⏺ Enregistrer un chemin';
+      if (embrRecordingPath) { embrRecordedSwitches = []; }
+      else if (embrRecordedSwitches.length) { embrPlannedSwitches = embrRecordedSwitches.slice(); embrPlannedSwitchIndex = 0; }
+      updateEmbrPathStatus();
+      trackPublicEvent('embr_path_recording_toggle', { trackId: track.id, recording: embrRecordingPath });
+    });
+  }
 
   /* ---- Moteur vertical-random : sections chaînées, chacune avec ses pools simultanés et son propre
      tempo/timeline (30/07). La décision "quoi jouer ensuite" vient entièrement de
