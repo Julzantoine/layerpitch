@@ -690,6 +690,10 @@
         <div class="account-menu-dropdown" id="accountMenuDropdown" hidden>
           <div class="account-menu-email" id="accountMenuEmail" data-i18n="accountMenuNotConnected">Non connecté</div>
           <a class="account-menu-item" href="mon-compte.html" target="_blank" rel="noopener" data-i18n="accountMenuMyAccount">Mon compte</a>
+          <!-- Pas de data-i18n ici (chantier Adaptive OST, 10/09) : l'i18n de ce fichier passe par un
+               outil dédié, jamais à la main -- texte français en dur en attendant, comme d'autres
+               pages plus récentes du site (ex. mon-compte.html directoryCardHtml). -->
+          <a class="account-menu-item" href="backstage-adaptive-ost.html" target="_blank" rel="noopener">Adaptive OST (bêta)</a>
           <button class="account-menu-item account-menu-signout" id="btnAccountSignOut" type="button" hidden data-i18n="accountMenuSignOut">Se déconnecter</button>
         </div>
       </div>

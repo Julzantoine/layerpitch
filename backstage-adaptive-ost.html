@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LayerPitch — Adaptive OST (studio)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
+    --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --accent: #c9713c; --accent-soft: #f3e4d6;
+    --seq-map-success: #2f8f5b; --seq-map-choice: #b8862e;
+    --font-body: 'Inter', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  img { max-width: 100%; height: auto; display: block; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); padding: 40px 20px 60px; }
+  .page { max-width: 760px; margin: 0 auto; }
+  a { color: var(--accent); }
+  .back-link { display: inline-block; margin-bottom: 20px; font-size: 13px; text-decoration: none; color: var(--text-dim); }
+  .back-link:hover { color: var(--accent); }
+  h1 { font-family: 'Space Grotesk', sans-serif; font-size: 24px; margin-bottom: 24px; }
+  h2 { font-family: 'Space Grotesk', sans-serif; font-size: 15px; margin: 0 0 6px; }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; margin-bottom: 16px; }
+  .hint { font-size: 12.5px; line-height: 1.6; color: var(--text-dim); margin-bottom: 10px; }
+  label { display: block; font-size: 12px; color: var(--text-dim); margin: 10px 0 4px; }
+  input, select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; font-family: 'Inter', sans-serif; font-size: 13px; background: var(--bg); color: var(--text); }
+  .btn { padding: 9px 18px; border: none; border-radius: 4px; background: var(--accent); color: #fff; cursor: pointer; font-size: 13px; }
+  .btn:disabled { opacity: 0.6; cursor: default; }
+  .btn-small { padding: 5px 12px; font-size: 12px; }
+  .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .msg { font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-top: 8px; }
+  .msg.err { color: #b5442e; }
+  .msg.ok { color: #2a7; }
+  .signin-box input { margin-bottom: 12px; width: 100%; }
+
+  .album-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border); }
+  .album-row:first-child { border-top: none; }
+  .album-illustration { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; background: var(--border); flex-shrink: 0; }
+  .album-row .name { font-family: 'Space Grotesk', sans-serif; font-size: 13.5px; }
+
+  .new-playlist-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .new-playlist-form input { flex: 1; }
+  .track-checklist { max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; margin: 4px 0 10px; background: var(--bg); }
+  .track-checklist label { display: block; font-size: 12.5px; color: var(--text); margin: 4px 0; font-weight: normal; }
+  .track-checklist input { width: auto; margin-right: 6px; }
+  .playlist-row { border-top: 1px solid var(--border); padding: 12px 0; }
+  .playlist-row:first-child { border-top: none; }
+  .playlist-header { display: flex; align-items: center; gap: 10px; }
+  .playlist-header .name { font-family: 'Space Grotesk', sans-serif; font-size: 14.5px; cursor: pointer; flex: 1; min-width: 0; }
+  .playlist-header .count { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); flex-shrink: 0; }
+  .playlist-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .playlist-body { margin-top: 14px; padding-left: 4px; }
+  .remove-track-row { text-align: right; margin: -4px 0 4px; }
+
+  /* ---- Rendu des pistes (player.js) — repris tel quel de pack.html/index.html, seuls les
+     éléments réellement générés par buildTrackRow/initTrackPlayer sont ici. ---- */
+  .track { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); padding: 26px; margin-bottom: 16px; }
+  .track-intensity-block { margin-top: 16px; }
+  .voice-graph { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .voice-graph-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 8px; }
+  .voice-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; }
+  .voice-row-label { color: var(--text-dim); min-width: 130px; flex-shrink: 0; }
+  .voice-row-current { font-family: 'JetBrains Mono', monospace; color: var(--text-dim); font-style: italic; min-width: 130px; flex-shrink: 0; }
+  .voice-meter { width: 20px; height: 8px; border-radius: 2px; background: var(--border); flex-shrink: 0; }
+  .voice-meter-bar { position: relative; width: 70px; height: 8px; border-radius: 2px; background: var(--border); overflow: hidden; flex-shrink: 0; }
+  .voice-meter-bar-fill { position: absolute; inset: 0; width: 0%; background: var(--accent); transition: width 0.18s ease-out; }
+  .wwise-graph { position: relative; display: flex; align-items: stretch; gap: 24px; padding: 12px 4px 6px; min-height: 60px; }
+  .wwise-graph-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .wwise-line { fill: none; stroke: var(--border); stroke-width: 1.5px; }
+  .wwise-col { display: flex; flex-direction: column; justify-content: center; gap: 10px; position: relative; z-index: 1; }
+  .wwise-col-voices { justify-content: space-around; align-items: center; flex: 1; }
+  .wwise-node { background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dim); white-space: nowrap; text-align: center; }
+  .wwise-node-source, .wwise-node-bus { font-weight: 600; color: var(--text); }
+  .wwise-node-voice { display: flex; flex-direction: column; gap: 5px; align-items: center; width: 220px; flex-shrink: 0; }
+  .wwise-node-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+  .wwise-node-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; text-align: left; }
+  .wwise-node-controls { display: flex; gap: 3px; flex-shrink: 0; }
+  .voice-ctrl-btn { width: 18px; height: 18px; border-radius: 3px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dimmer); font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; line-height: 1; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; }
+  .voice-ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .voice-ctrl-btn[data-voice-action="solo"].active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .voice-ctrl-btn[data-voice-action="mute"].active { background: #b5442e; border-color: #b5442e; color: #fff; }
+  .voice-row-wrap { padding: 3px 0; }
+  .voice-row-wrap .voice-row { padding: 0; }
+  .voice-volume-row { display: flex; align-items: center; gap: 6px; padding-left: 138px; }
+  .wwise-node-voice .voice-volume-row { padding-left: 0; margin-top: 2px; }
+  .voice-volume-row input[type="range"] { flex: 1; max-width: 160px; -webkit-appearance: none; appearance: none; height: 3px; border-radius: 2px; background: var(--border); outline: none; cursor: pointer; }
+  .voice-volume-row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  .voice-volume-row input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer; }
+  .voice-volume-value { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--text-dimmer); min-width: 32px; text-align: right; flex-shrink: 0; }
+  .wwise-node-wave { position: relative; width: 100%; height: 30px; border-radius: 3px; overflow: hidden; background: var(--bg); }
+  .wwise-wave-bg, .wwise-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .wwise-wave-fg { clip-path: inset(0 100% 0 0); }
+  .voice-meter.pulse { background: var(--accent); animation: voice-meter-fade 0.5s ease-out forwards; }
+  @keyframes voice-meter-fade { 0% { opacity: 1; } 100% { opacity: 0.35; } }
+  .voice-refresh-btn { margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; padding: 3px 9px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; }
+  .voice-refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .voice-refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .seq-blocks { display: flex; gap: 6px; margin-top: 8px; margin-bottom: 4px; }
+  .seq-block { flex: 1; height: 34px; border-radius: 4px; border: 1px solid var(--border); position: relative; overflow: hidden; background: transparent; touch-action: none; }
+  .seq-block-wave-bg, .seq-block-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .seq-block-wave-fg { clip-path: inset(0 100% 0 0); }
+  .vr-block-fill { position: absolute; inset: 0; width: 0%; background: var(--accent); opacity: 0.28; }
+  .seq-block.active { border-color: var(--accent); cursor: pointer; }
+  .seq-block-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.03em; color: var(--text-dim); z-index: 1; padding: 0 4px; text-align: center; text-shadow: 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff); }
+  .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
+  .intensity-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+  .intensity-chip {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 10px;
+    border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; line-height: 1.6;
+  }
+  .intensity-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .intensity-chip.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
+  .intensity-chip-num { opacity: 0.55; margin-right: 5px; }
+  .embr-loop-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 10px;
+    border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; line-height: 1.6;
+  }
+  .embr-loop-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .embr-loop-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
+  .embr-loop-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  [data-role="embrLoopPicker"] { position: relative; }
+  .embr-wave-btn { position: relative; display: block; width: 100%; height: var(--embr-row-h, 34px); border-radius: 4px; overflow: hidden; text-align: left; padding: 0; }
+  .embr-wave-bg, .embr-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .embr-wave-fg { clip-path: inset(0 100% 0 0); opacity: 0.35; animation: embrWaveFill 1s linear infinite; animation-play-state: paused; }
+  .embr-wave-btn.active .embr-wave-fg { opacity: 1; }
+  .embr-wave-btn.embr-transition-dim { opacity: 0.5; }
+  .embr-wave-btn.active { background: transparent; color: var(--text); }
+  .embr-wave-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.03em; z-index: 1; padding: 0 8px; text-align: center; pointer-events: none; text-shadow: 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff); }
+  @keyframes embrWaveFill { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
+  .embr-transition-row { position: absolute; top: 50%; left: 10%; right: 10%; transform: translateY(-50%); height: 34px; border-radius: 4px; overflow: hidden; border: 1px solid var(--accent); background: var(--bg-card); box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 3; }
+  .embr-detour-wave-row { position: relative; display: block; width: 100%; height: var(--embr-row-h, 34px); border-radius: 4px; overflow: hidden; margin-top: 4px; border: 1px solid var(--accent); }
+  .embr-transition-row .embr-wave-fg, .embr-detour-wave-row .embr-wave-fg { opacity: 1; }
+  .seq-pending-indicator { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.04em; color: var(--accent); margin-top: 6px; font-style: italic; }
+  .seq-map { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: rgba(0,0,0,.045); }
+  .seq-map-graph { position: relative; overflow-x: auto; overflow-y: hidden; }
+  .seq-map-canvas { position: relative; }
+  .seq-map-lines { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+  .seq-map-nodes { position: absolute; inset: 0; }
+  .seq-map-node { position: absolute; width: var(--seq-map-node-w, 96px); height: var(--seq-map-node-h, 40px); border-radius: 6px; border: 1px solid var(--border); overflow: hidden; background: var(--bg-card); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .seq-map-node.current { border-color: var(--accent); border-width: 2px; background: var(--accent-soft); }
+  .seq-map-node.selectable { cursor: pointer; border-color: var(--seq-map-choice, var(--accent)); }
+  .seq-map-node.selectable:hover { border-color: var(--accent); }
+  .seq-map-node.pending { border-color: var(--accent); border-style: dashed; }
+  .seq-map-node-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 6px; font-family: 'JetBrains Mono', monospace; font-size: var(--seq-map-node-font, 10px); text-align: center; z-index: 1; color: var(--text-dim); }
+  .seq-map-node.current .seq-map-node-label { color: var(--text); font-weight: 600; }
+  .seq-map-node-check { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--seq-map-success, var(--accent)); color: #fff; display: flex; align-items: center; justify-content: center; z-index: 2; font-size: 8px; line-height: 1; }
+  .seq-map-edge { fill: none; stroke: var(--border); stroke-width: 1.5px; cursor: default; }
+  .seq-map-transition-dot { fill: var(--accent); stroke: var(--bg-card); stroke-width: 2px; cursor: default; }
+  .seq-map-transition-dot.playing { animation: seqMapTransitionDotPulse 0.8s ease-in-out infinite; }
+  @keyframes seqMapTransitionDotPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .seq-map-nodes.compact { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
+  .seq-map-nodes.compact .seq-map-node { position: static; width: auto; height: auto; padding: 3px 8px; border-radius: 10px; }
+  .seq-map-nodes.compact .seq-map-node-label { position: static; text-shadow: none; }
+  .loop-count-block { margin-top: 14px; }
+  .loop-count-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
+  .loop-count-block select { font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 5px 8px; }
+  .track-row-wrapper { border-bottom: 1px solid var(--border); }
+  .track-row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; padding: 12px 0; }
+  .play-btn {
+    width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); background: transparent;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; padding: 0; color: var(--text-dim);
+  }
+  .play-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .play-btn svg { width: 12px; height: 12px; }
+  .play-btn svg.loading-icon { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; animation: layerpitch-spin 0.8s linear infinite; transform-origin: center; }
+  .play-btn svg.error-icon { fill: none; stroke: currentColor; stroke-width: 2; }
+  @keyframes layerpitch-spin { to { transform: rotate(360deg); } }
+  .track-row-title { display: flex; align-items: center; gap: 8px; min-width: 0; cursor: pointer; }
+  .track-row-title .name { font-family: 'Space Grotesk', sans-serif; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mode-tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.04em; color: var(--text-dimmer);
+    border: 1px dashed var(--border); border-radius: 4px; padding: 1px 6px; flex-shrink: 0; white-space: nowrap;
+  }
+  .no-ai-badge { display: inline-flex; align-items: center; color: var(--accent); opacity: 0.75; cursor: help; flex-shrink: 0; }
+  .no-ai-badge:hover { opacity: 1; }
+  .no-ai-badge-collective { margin-left: 6px; }
+  .loop-icon { display: inline-flex; flex-shrink: 0; color: var(--text-dimmer); }
+  .loop-icon svg { width: 11px; height: 11px; }
+  .track-row-details { max-height: 0; overflow: hidden; transition: max-height 0.28s ease; }
+  .track-row-details-inner { padding: 0 0 18px 38px; }
+  .track-desc { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 16px; white-space: pre-wrap; }
+  .status { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); margin-bottom: 10px; min-height: 14px; }
+  .progress-wrap { position: relative; height: 24px; margin-bottom: 6px; cursor: pointer; touch-action: none; }
+  .progress-wrap.waveform-mode { height: 44px; }
+  .waveform-bg, .waveform-fg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .waveform-fg { clip-path: inset(0 100% 0 0); }
+  .progress-track { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--border); border-radius: 2px; pointer-events: none; }
+  .progress-fill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--accent); border-radius: 2px; width: 0%; pointer-events: none; }
+  .progress-head { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 9px; height: 9px; background: var(--accent); border-radius: 50%; pointer-events: none; }
+  .time-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); }
+  .track-sfx-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .stinger-btn {
+    display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px;
+    border: 1px solid var(--border); background: transparent; color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; cursor: pointer;
+  }
+  .stinger-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .stinger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .stinger-btn svg { width: 10px; height: 10px; }
+  .placeholder-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dimmer); border: 1px dashed var(--border); border-radius: 4px; padding: 8px 12px; display: inline-block; }
+  .empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 20px 0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <a class="back-link" href="./layerpitch-backstage.html">← Backstage</a>
+  <h1>Adaptive OST (studio)</h1>
+  <div id="content"></div>
+</div>
+
+<script src="layerpitch-i18n.js?v=1788788478049"></script>
+<script src="player.js?v=1788788478049"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="api/supabase-client.js"></script>
+<script src="api/auth.js"></script>
+<script src="api/tracks.js"></script>
+<script src="api/albums.js"></script>
+<script>
+const Core = window.LayerPlayerCore;
+const content = document.getElementById('content');
+
+function genId() { return 'alb' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+// Même principe que mes-adaptive-ost.html côté fan : chaque action mutante recharge tout depuis la
+// base plutôt que de recalculer localement. myTracksList/tracksById viennent tous les deux de
+// LayerPitchTracks.listTracks({ownerId}) -- contrairement à la page fan (pistes de plusieurs
+// compositeurs différents, listTracksByIds nécessaire), un album ne peut contenir QUE les pistes de
+// ce même compositeur (vérifié par upsert_album), donc listTracks({ownerId}) suffit à tout hydrater.
+let myComposerId = null;
+let myTracksList = [];   // pistes du compositeur (forme player.js complète)
+let tracksById = {};
+let myAlbumsList = [];   // [{id, title, illustration, tracks:[{trackId, position, defaultSettings}]}]
+let expandedAlbumId = null;
+let editingAlbumId = null; // null = formulaire de création ; sinon id de l'album en cours d'édition
+
+async function loadData() {
+  const { composerId } = await window.LayerPitchAuth.getMyComposerId();
+  myComposerId = composerId;
+  if (!composerId) { myTracksList = []; tracksById = {}; myAlbumsList = []; return; }
+  const [tracksRes, albumsRes] = await Promise.all([
+    window.LayerPitchTracks.listTracks({ ownerId: composerId }),
+    window.LayerPitchAlbums.myAlbums(composerId),
+  ]);
+  if (tracksRes.error) throw new Error(tracksRes.error);
+  if (albumsRes.error) throw new Error(albumsRes.error);
+  myTracksList = tracksRes.tracks;
+  tracksById = {};
+  myTracksList.forEach(t => { tracksById[t.id] = t; });
+  myAlbumsList = albumsRes.albums;
+}
+
+async function refreshAndRender() {
+  await loadData();
+  renderSignedIn();
+}
+
+function albumFormHtml() {
+  const existing = editingAlbumId ? myAlbumsList.find(a => a.id === editingAlbumId) : null;
+  const includedIds = new Set(existing ? existing.tracks.map(t => t.trackId) : []);
+  const checklist = myTracksList.length
+    ? `<div class="track-checklist">${myTracksList.map(t => `
+        <label><input type="checkbox" value="${Core.escapeHtml(t.id)}"${includedIds.has(t.id) ? ' checked' : ''}> ${Core.escapeHtml(t.title || t.id)}</label>
+      `).join('')}</div>`
+    : `<div class="hint">Aucune piste dans ta bibliothèque pour l'instant.</div>`;
+  return `
+    <form class="new-playlist-form" id="albumForm" data-album-id="${existing ? Core.escapeHtml(existing.id) : ''}">
+      <label>Titre de l'Adaptive OST</label>
+      <input type="text" id="albumTitle" value="${existing ? Core.escapeHtml(existing.title) : ''}" placeholder="Titre" required>
+      <label>Pistes incluses (uniquement ta bibliothèque)</label>
+      ${checklist}
+      <div style="display:flex;gap:8px;">
+        <button type="submit" class="btn">${existing ? 'Enregistrer' : 'Créer l’album'}</button>
+        ${existing ? `<button type="button" class="btn btn-ghost" id="cancelEditAlbum">Annuler</button>` : ''}
+      </div>
+    </form>`;
+}
+
+function albumRowHtml(album) {
+  const expanded = album.id === expandedAlbumId;
+  const body = !expanded ? '' : `<div class="playlist-body" id="albumTracksContainer-${album.id}"></div>`;
+  return `
+    <div class="playlist-row">
+      <div class="playlist-header">
+        <div class="name" data-toggle-album="${album.id}">${Core.escapeHtml(album.title || '(sans titre)')}</div>
+        <div class="count">${album.tracks.length} piste${album.tracks.length === 1 ? '' : 's'}</div>
+        <div class="playlist-actions">
+          <button type="button" class="btn btn-small btn-ghost" data-edit-album="${album.id}">Modifier</button>
+        </div>
+      </div>
+      ${body}
+    </div>`;
+}
+
+function albumsCardHtml() {
+  const rows = myAlbumsList.length ? myAlbumsList.map(albumRowHtml).join('') : `<div class="hint">Aucune Adaptive OST créée pour l'instant.</div>`;
+  return `
+    <div class="card">
+      <h2>${editingAlbumId ? 'Modifier l’Adaptive OST' : 'Créer une Adaptive OST'}</h2>
+      <div class="hint">Choisis les défauts (mix, intensité, nombre de boucles...) que les fans recevront avant toute personnalisation — écoute et règle chaque piste ci-dessous comme le ferait un fan, puis "Enregistrer comme défaut".</div>
+      ${albumFormHtml()}
+    </div>
+    <div class="card">
+      <h2>Mes Adaptive OST</h2>
+      ${rows}
+    </div>`;
+}
+
+function mountExpandedAlbumTracks() {
+  if (!expandedAlbumId) return;
+  const album = myAlbumsList.find(a => a.id === expandedAlbumId);
+  const container = document.getElementById('albumTracksContainer-' + expandedAlbumId);
+  if (!album || !container) return;
+  container.innerHTML = '';
+  album.tracks.forEach(at => {
+    const track = tracksById[at.trackId];
+    if (!track) {
+      container.insertAdjacentHTML('beforeend', `<div class="placeholder-tag">Piste indisponible</div>`);
+      return;
+    }
+    const row = Core.buildTrackRow(track, null, false);
+    const saveWrap = document.createElement('div');
+    saveWrap.className = 'remove-track-row';
+    saveWrap.innerHTML = `<button type="button" class="btn btn-small">Enregistrer comme défaut</button><span class="msg" style="margin-left:8px;"></span>`;
+    const saveBtn = saveWrap.querySelector('button');
+    const saveMsg = saveWrap.querySelector('.msg');
+    saveBtn.addEventListener('click', async () => {
+      const live = Core.getTrackSettings(track.id) || {};
+      saveBtn.disabled = true;
+      const { ok, error } = await window.LayerPitchAlbums.setAlbumTrackDefaultSettings(expandedAlbumId, track.id, live);
+      saveBtn.disabled = false;
+      if (!ok) { saveMsg.textContent = 'Erreur : ' + error; saveMsg.className = 'msg err'; return; }
+      at.defaultSettings = live;
+      saveMsg.textContent = 'Enregistré.';
+      saveMsg.className = 'msg ok';
+    });
+    container.appendChild(saveWrap);
+    container.appendChild(row);
+    Core.initTrackPlayer(track, row);
+    Core.applyTrackSettings(track.id, at.defaultSettings);
+  });
+}
+
+function wireAlbumsCard() {
+  const form = document.getElementById('albumForm');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = form.getAttribute('data-album-id') || genId();
+    const title = document.getElementById('albumTitle').value.trim();
+    const trackIds = [...form.querySelectorAll('.track-checklist input:checked')].map(el => el.value);
+    const { ok, error } = await window.LayerPitchAlbums.upsertAlbum({ id, title, trackIds });
+    if (!ok) { alert('Erreur : ' + error); return; }
+    editingAlbumId = null;
+    await refreshAndRender();
+  });
+  const cancelBtn = document.getElementById('cancelEditAlbum');
+  if (cancelBtn) cancelBtn.addEventListener('click', () => { editingAlbumId = null; renderSignedIn(); });
+
+  document.querySelectorAll('[data-toggle-album]').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.getAttribute('data-toggle-album');
+      expandedAlbumId = (expandedAlbumId === id) ? null : id;
+      renderSignedIn();
+    });
+  });
+  document.querySelectorAll('[data-edit-album]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      editingAlbumId = btn.getAttribute('data-edit-album');
+      renderSignedIn();
+      document.getElementById('albumForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+}
+
+function renderSignedIn() {
+  if (!myComposerId) {
+    content.innerHTML = `<div class="card"><div class="hint">Aucun profil compositeur associé à ce compte — l'espace Adaptive OST n'est accessible qu'aux compositeurs.</div></div>`;
+    return;
+  }
+  content.innerHTML = albumsCardHtml();
+  wireAlbumsCard();
+  mountExpandedAlbumTracks();
+}
+
+function renderSignInForm() {
+  content.innerHTML = `
+    <div class="card">
+      <div class="hint">Connecte-toi pour gérer tes Adaptive OST.</div>
+      <div class="hint">On t'envoie un email avec un lien de connexion ET un code à 6 chiffres — utilise le code si tu consultes cet email sur un autre appareil que celui-ci.</div>
+      <div class="signin-box">
+        <input type="email" id="email" placeholder="ton@email.com">
+        <button class="btn" id="sendBtn" type="button">Recevoir le lien de connexion</button>
+        <div class="msg" id="msg"></div>
+      </div>
+      <div class="signin-box" id="codeBox" hidden>
+        <label>Code reçu par email</label>
+        <input type="text" id="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code">
+        <button class="btn" id="verifyCodeBtn" type="button">Valider le code</button>
+        <div class="msg" id="codeMsg"></div>
+      </div>
+    </div>`;
+  document.getElementById('sendBtn').addEventListener('click', async () => {
+    const email = document.getElementById('email').value.trim();
+    const msg = document.getElementById('msg');
+    if (!email) return;
+    msg.textContent = '…'; msg.className = 'msg';
+    const { ok, error } = await window.LayerPitchAuth.signInWithMagicLink(email, window.location.href);
+    msg.textContent = ok ? 'Lien envoyé — vérifie ta boîte mail.' : 'Erreur : ' + error;
+    msg.className = 'msg ' + (ok ? 'ok' : 'err');
+    document.getElementById('codeBox').hidden = !ok;
+  });
+  document.getElementById('verifyCodeBtn').addEventListener('click', async () => {
+    const email = document.getElementById('email').value.trim();
+    const code = document.getElementById('code').value.trim();
+    const msg = document.getElementById('codeMsg');
+    if (!email || !code) return;
+    msg.textContent = '…'; msg.className = 'msg';
+    const { ok, error } = await window.LayerPitchAuth.verifyEmailOtp(email, code);
+    if (!ok) { msg.textContent = 'Erreur : ' + error; msg.className = 'msg err'; }
+  });
+}
+
+async function render() {
+  const { session } = await window.LayerPitchAuth.getSession();
+  if (!session) { renderSignInForm(); return; }
+  content.innerHTML = `<div class="card"><div class="hint">Chargement…</div></div>`;
+  try {
+    await loadData();
+    renderSignedIn();
+  } catch (e) {
+    content.innerHTML = `<div class="card"><div class="msg err">Erreur : ${Core.escapeHtml(e.message)}</div></div>`;
+  }
+}
+
+window.LayerPitchAuth.onAuthStateChange(() => render());
+</script>
+</body>
+</html>
