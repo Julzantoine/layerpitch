@@ -662,6 +662,10 @@ function createSectionPlaybackScheduler(playableSections, options) {
   const randomize = !!(options && options.randomize);
   const hasIntro = !!(options && options.hasIntro);
   const hasOutro = !!(options && options.hasOutro);
+  // random : source de tirage injectable (chantier graine déterministe, 10/09) — par défaut
+  // Math.random(), comportement historique inchangé pour tout appelant qui ne fournit pas
+  // options.random (y compris les tests qui appellent cette fonction directement).
+  const random = (options && options.random) || Math.random;
   const n = playableSections.length;
 
   function buildOrder() {
@@ -671,7 +675,7 @@ function createSectionPlaybackScheduler(playableSections, options) {
     // passage, seul l'ORDRE est mélangé (une section dupliquée plusieurs fois dans la liste pèse donc
     // plus lourd, sans jamais être "perdue" — voir discussion du 30/07 sur le choix brassage vs pioche).
     for (let i = base.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(random() * (i + 1));
       const tmp = base[i]; base[i] = base[j]; base[j] = tmp;
     }
     return base;
@@ -1034,6 +1038,27 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
     `;
   }
 
+  // Graine de tirage (vertical-random uniquement) : vide = comportement historique, tirage
+  // Math.random() direct, différent à chaque lecture. Une graine fixée rend le brassage des
+  // sections ET le choix des alternatives par pool reproductibles à l'identique à chaque lecture
+  // depuis le début (voir rand()/seededRandom() plus bas) -- c'est ce qui permet de "figer" un
+  // déroulé précis d'un morceau génératif plutôt que de devoir écrire un chemin à la main.
+  // Pas de t('...') ici : l'i18n de ce fichier passe par un outil dédié, jamais à la main (même
+  // raisonnement que le lien "Adaptive OST" ajouté au backstage le 10/09) -- texte français en dur
+  // en attendant que ces clés soient ajoutées par cet outil.
+  let randomSeedHtml = '';
+  if (isVerticalRandom && supported) {
+    randomSeedHtml = `
+      <div class="loop-count-block">
+        <div class="loop-count-label">Graine aléatoire (fige le tirage)</div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="number" data-role="vrSeedInput" placeholder="aléatoire" style="width:120px;">
+          <button type="button" data-role="vrSeedRandomBtn" class="voice-refresh-btn" title="Tirer une nouvelle graine">🎲</button>
+        </div>
+      </div>
+    `;
+  }
+
   wrapper.innerHTML = `
     <div class="track-row">
       <button class="play-btn" data-role="playBtn" disabled aria-label="${t('loadingAriaLabel')}">
@@ -1087,6 +1112,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       ${embrVertBlockHtml}
       ${loopCountHtml}
       ${chainLoopCountHtml}
+      ${randomSeedHtml}
       ${voiceGraphHtml}
       ${vertGraphHtml}
       ${seqGraphHtml}
@@ -1306,6 +1332,8 @@ function initTrackPlayer(track, wrapper, elementColors) {
   const stingerBtns = [...wrapper.querySelectorAll('.stinger-btn')];
   const loopCountSelect = wrapper.querySelector('[data-role="loopCountSelect"]');
   const chainLoopCountSelect = wrapper.querySelector('[data-role="chainLoopCountSelect"]');
+  const vrSeedInput = wrapper.querySelector('[data-role="vrSeedInput"]');
+  const vrSeedRandomBtn = wrapper.querySelector('[data-role="vrSeedRandomBtn"]');
   // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : le graphe affiche des
   // "emplacements de voix" génériques (pool-0, pool-1, ...), dimensionnés au plus grand nombre de pools
   // parmi toutes les sections — quand la section en cours en a moins, les emplacements excédentaires sont
@@ -1460,6 +1488,24 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // identifiant canonique (l'id du pool réellement porteur du contenu), pas par index brut.
   let sectionBuffers = [];
   let lastPickedPoolIndex = {}; // lastPickedPoolIndex[canonicalPoolId] = index de la dernière alternative tirée pour ce pool
+
+  // Graine de tirage (chantier "graine déterministe", 10/09) — baseSeed null = comportement
+  // historique inchangé (Math.random() direct, différent à chaque lecture). baseSeed fixé :
+  // rngState est remis à baseSeed au début de CHAQUE lecture depuis le début (voir
+  // playVerticalRandom), donc le brassage des sections ET le choix des alternatives par pool
+  // rejouent exactement la même séquence à chaque lecture -- c'est ce qui rend un morceau génératif
+  // "figeable" sans avoir à écrire un chemin à la main.
+  let baseSeed = null;
+  let rngState = 0;
+  // mulberry32 : PRNG déterministe minimal (pas de dépendance externe), suffisant ici -- aucune
+  // exigence cryptographique, juste une séquence reproductible à partir d'un entier.
+  function seededRandom() {
+    rngState |= 0; rngState = (rngState + 0x6D2B79F5) | 0;
+    let x = Math.imul(rngState ^ (rngState >>> 15), 1 | rngState);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  }
+  function rand() { return baseSeed == null ? Math.random() : seededRandom(); }
   // playableSectionOriginalIndex[i] = index RÉEL dans track.sections pour la i-ème section jouable — le
   // scheduler pur (createSectionPlaybackScheduler) ne connaît que des positions 0..N-1 parmi les sections
   // jouables, il faut donc toujours repasser par cette table pour retrouver la vraie section (et ses
@@ -1478,9 +1524,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const n = bufs.length;
     if (n === 0) return -1;
     const key = canonicalPoolKey(secIdx, poolIdx);
-    let idx = Math.floor(Math.random() * n);
+    let idx = Math.floor(rand() * n);
     if (pool && pool.avoidImmediateRepeat && n > 1) {
-      while (idx === lastPickedPoolIndex[key]) idx = Math.floor(Math.random() * n);
+      while (idx === lastPickedPoolIndex[key]) idx = Math.floor(rand() * n);
     }
     lastPickedPoolIndex[key] = idx;
     return idx;
@@ -2711,7 +2757,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
           const resolved = resolveVRSection(track, i);
           return resolved && resolved.maxLoops != null ? resolved.maxLoops : null;
         })
-      } : {})
+      } : {}),
+      // randomSeed : vertical-random uniquement (vrSeedInput n'existe pas pour les autres modes) —
+      // null = comportement historique (tirage non reproductible), voir rand()/seededRandom() plus haut.
+      ...(vrSeedInput ? { randomSeed: baseSeed } : {})
     }),
     apply: (settings) => {
       if (typeof settings.level === 'number' && notchDots.length) {
@@ -2736,6 +2785,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
           const sel = vrSectionLoopSelectEls[i];
           if (sel) sel.value = value == null ? '' : String(value);
         });
+      }
+      if (vrSeedInput && 'randomSeed' in settings) {
+        baseSeed = settings.randomSeed;
+        vrSeedInput.value = baseSeed == null ? '' : String(baseSeed);
       }
       mutedVoices.clear();
       (settings.mutedVoices || []).forEach(k => mutedVoices.add(k));
@@ -3701,11 +3754,16 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // (rebrassé si "randomiser" est coché), intro rejouée si présente. Une reprise continue la chaîne là
     // où elle en était — même convention que playSequential(isContinuation) pour le séquentiel.
     if (!isContinuation || !sectionScheduler) {
+      // Graine remise à sa valeur de départ à CHAQUE vrai démarrage (jamais sur une reprise, comme
+      // le reste de ce bloc) -- c'est ce qui garantit qu'une graine figée rejoue le même déroulé à
+      // chaque lecture depuis le début, pas seulement la première fois.
+      if (baseSeed != null) rngState = baseSeed;
       vrPlayableSectionRefs = playableSectionOriginalIndex.map(origIdx => ({ maxLoops: resolveVRSection(track, origIdx).maxLoops }));
       sectionScheduler = createSectionPlaybackScheduler(
         vrPlayableSectionRefs,
         {
           randomize: !!track.randomizeSections, hasIntro: !!introBuffer, hasOutro: !!outroBuffer,
+          random: rand,
           // Getter plutôt qu'une valeur figée à la création : le sélecteur visiteur mute track.maxChainLoops
           // directement (voir plus bas), donc chaque cycle voit la valeur à jour sans recréer le scheduler.
           get maxChainLoops() { return track.maxChainLoops || null; }
@@ -4228,6 +4286,24 @@ function initTrackPlayer(track, wrapper, elementColors) {
       // cycle — dans les deux cas, pas besoin de relancer la piste pour que le changement s'applique.
       track.maxChainLoops = chainLoopCountSelect.value === '' ? null : parseInt(chainLoopCountSelect.value, 10);
       trackPublicEvent('track_chain_loop_change', { trackId: track.id, maxChainLoops: track.maxChainLoops });
+    });
+  }
+
+  // Graine de tirage (vertical-random) : voir baseSeed/rand() plus haut. Vide/NaN = repli sur le
+  // comportement historique (Math.random() direct), pas d'erreur affichée -- un champ vidé par
+  // erreur ne doit pas planter, juste redevenir "aléatoire".
+  if (vrSeedInput) {
+    vrSeedInput.addEventListener('change', () => {
+      const parsed = parseInt(vrSeedInput.value, 10);
+      baseSeed = vrSeedInput.value.trim() === '' || Number.isNaN(parsed) ? null : parsed;
+      trackPublicEvent('track_random_seed_change', { trackId: track.id, seed: baseSeed });
+    });
+  }
+  if (vrSeedRandomBtn) {
+    vrSeedRandomBtn.addEventListener('click', () => {
+      baseSeed = Math.floor(Math.random() * 2147483647);
+      if (vrSeedInput) vrSeedInput.value = String(baseSeed);
+      trackPublicEvent('track_random_seed_change', { trackId: track.id, seed: baseSeed });
     });
   }
 
