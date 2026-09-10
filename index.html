@@ -15,6 +15,7 @@
     --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
     --text: #262521; --text-title: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
     --accent: #c9713c; --accent-soft: #f3e4d6;
+    --seq-map-success: #2f8f5b; --seq-map-choice: #b8862e;
     --font-body: 'Inter', sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -302,22 +303,22 @@
      superposée aux nœuds intermédiaires, contrairement à la première version. Côté Backstage (aperçu
      "Écouter"), track.seqMapFullReveal affiche TOUS les emplacements d'emblée (outil de vérification de
      sa propre structure) ; côté public, révélation progressive uniquement. */
-  .seq-map { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: rgba(0,0,0,.025); }
+  .seq-map { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: rgba(0,0,0,.045); }
   .seq-map-graph { position: relative; overflow-x: auto; overflow-y: hidden; }
   .seq-map-canvas { position: relative; }
   .seq-map-lines { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
   .seq-map-nodes { position: absolute; inset: 0; }
-  .seq-map-node { position: absolute; width: var(--seq-map-node-w, 96px); height: var(--seq-map-node-h, 40px); border-radius: 6px; border: 1px solid var(--border); overflow: hidden; background: var(--bg-card); }
+  .seq-map-node { position: absolute; width: var(--seq-map-node-w, 96px); height: var(--seq-map-node-h, 40px); border-radius: 6px; border: 1px solid var(--border); overflow: hidden; background: var(--bg-card); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
   .seq-map-node.current { border-color: var(--accent); border-width: 2px; background: var(--accent-soft); }
   /* Nœuds cliquables (04/09) : uniquement ceux qui sont une vraie option depuis l'emplacement courant --
      voir updateSeqMap(). .pending (bordure en tirets, couleur accent) est la seule façon de signaler un
      choix en attente depuis le retrait des boutons de destination le 05/09. */
-  .seq-map-node.selectable { cursor: pointer; }
+  .seq-map-node.selectable { cursor: pointer; border-color: var(--seq-map-choice, var(--accent)); }
   .seq-map-node.selectable:hover { border-color: var(--accent); }
   .seq-map-node.pending { border-color: var(--accent); border-style: dashed; }
-  .seq-map-node-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; text-align: center; z-index: 1; color: var(--text-dim); }
+  .seq-map-node-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 6px; font-family: 'JetBrains Mono', monospace; font-size: var(--seq-map-node-font, 10px); text-align: center; z-index: 1; color: var(--text-dim); }
   .seq-map-node.current .seq-map-node-label { color: var(--text); font-weight: 600; }
-  .seq-map-node-check { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; z-index: 2; font-size: 8px; line-height: 1; }
+  .seq-map-node-check { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--seq-map-success, var(--accent)); color: #fff; display: flex; align-items: center; justify-content: center; z-index: 2; font-size: 8px; line-height: 1; }
   .seq-map-edge { fill: none; stroke: var(--border); stroke-width: 1.5px; cursor: default; }
   /* .seq-map-edge.transition n'a plus de règle de couleur (03/09, retour direct : "oublie la couleur du
      liseré bleu") -- l'indicateur de transition est désormais uniquement le disque .seq-map-transition-dot
@@ -343,8 +344,18 @@
   .seq-map.seq-map-dark {
     --bg-card: #26231f; --border: #3a352d; --accent: #4f8ff0; --accent-soft: #22314a;
     --text: #f6f5f3; --text-dim: #a89f92; --text-dimmer: #726a5e;
+    --seq-map-success: #3ecf8e; --seq-map-choice: #d9a441;
     background: #1c1a17;
   }
+  /* Densité 'roomy' (pages publiques, 10/09) : cartes nettement plus grandes/aérées que le panneau
+     Backstage par défaut ('compact', non modifié) -- la taille exacte des nœuds reste pilotée par JS
+     (--seq-map-node-w/h/font, voir updateSeqMap() dans player.js), ce bloc ne touche qu'à ce que CSS
+     seul peut faire : respiration du panneau et arrondis plus prononcés, cohérents avec des cartes plus
+     grandes. */
+  .seq-map.seq-map-roomy { padding: 24px; border-radius: 16px; }
+  .seq-map-roomy .voice-graph-label { font-size: 11px; margin-bottom: 14px; }
+  .seq-map-roomy .seq-map-node { border-radius: 12px; box-shadow: inset 4px 0 0 var(--seq-map-node-accent, transparent), 0 1px 3px rgba(0,0,0,.06); }
+  .seq-map-roomy .seq-map-node-check { width: 18px; height: 18px; font-size: 11px; top: 6px; left: 6px; }
 
   .loop-count-block { margin-top: 14px; }
   .loop-count-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
@@ -1164,6 +1175,11 @@ async function init() {
     // Thème de la carte des chemins (Chantier Apparence, palier Pro, 06/09) : réglage global du
     // compositeur (data.seqMapTheme), même gating que le reste de l'apparence Pro ci-dessus.
     window.LayerPlayerCore.setSeqMapTheme(tier === 'pro' ? (data.seqMapTheme || 'light') : 'light');
+    // Densité 'roomy' (10/09) : pas un réglage de palier, contrairement au thème ci-dessus -- posé
+    // inconditionnellement sur cette page publique (voir le commentaire de SEQ_MAP_DENSITIES dans
+    // player.js). Le Backstage, lui, n'appelle jamais cette fonction et reste en 'compact' (valeur
+    // par défaut).
+    window.LayerPlayerCore.setSeqMapDensity('roomy');
     // profile.theme remplace les anciens champs bgColor/textColor (gardés en lecture seule pour les
     // AdReels publiés avant ce changement, tant qu'ils n'ont pas été republiés depuis le backstage).
     // Palier Free : le thème fin (couleurs/police/bgImage/réglages par bloc) n'est jamais appliqué, même

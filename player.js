@@ -127,6 +127,19 @@ const SEQ_MAP_THEMES = ['light', 'dark'];
 let CURRENT_SEQ_MAP_THEME = 'light';
 function setSeqMapTheme(theme) { CURRENT_SEQ_MAP_THEME = SEQ_MAP_THEMES.includes(theme) ? theme : 'light'; }
 function currentSeqMapTheme() { return CURRENT_SEQ_MAP_THEME; }
+// Densité de la carte des chemins (10/09, retour direct : la maquette montrée était "agréable à
+// regarder", le vrai composant "tristounet" en comparaison) -- PAS un réglage de palier (contrairement
+// au thème ci-dessus) : un simple choix de mise en page par TYPE de page, posé une fois par la page
+// hôte avant tout rendu. 'compact' (par défaut, comportement historique) reste utilisé par le
+// Backstage, qui a besoin de voir un maximum d'emplacements à la fois dans un panneau étroit pendant
+// qu'on construit la structure. 'roomy' (pages publiques) vise l'inverse : cartes nettement plus
+// grandes et aérées, quitte à afficher moins d'étapes d'un coup d'œil -- voir updateSeqMap() pour le
+// calcul de taille, qui devient sensible à la largeur réelle disponible en mode 'roomy' (pas seulement
+// au nombre d'emplacements comme en 'compact').
+const SEQ_MAP_DENSITIES = ['compact', 'roomy'];
+let CURRENT_SEQ_MAP_DENSITY = 'compact';
+function setSeqMapDensity(density) { CURRENT_SEQ_MAP_DENSITY = SEQ_MAP_DENSITIES.includes(density) ? density : 'compact'; }
+function currentSeqMapDensity() { return CURRENT_SEQ_MAP_DENSITY; }
 /* ---------------- Téléchargement gratuit (zip généré côté navigateur) ----------------
  * Partagée entre pack.html et collection.html (un pack télécharge ses morceaux, une collection ceux de
  * tous ses packs) — un seul endroit pour cette logique plutôt que dupliquée dans les deux pages.
@@ -957,7 +970,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   let seqMapHtml = '';
   if (isSequential && supported && (track.segmentSlots || []).length > 1) {
     seqMapHtml = `
-      <div class="seq-map${currentSeqMapTheme() === 'dark' ? ' seq-map-dark' : ''}" data-role="seqMap">
+      <div class="seq-map${currentSeqMapTheme() === 'dark' ? ' seq-map-dark' : ''}${currentSeqMapDensity() === 'roomy' ? ' seq-map-roomy' : ''}" data-role="seqMap">
         <div class="voice-graph-label">${t('seqMapLabel')}</div>
         <div class="seq-map-graph" data-role="seqMapGraph">
           <div class="seq-map-canvas" data-role="seqMapCanvas">
@@ -1354,10 +1367,16 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // Carte globale des chemins (02/09) -- voir updateSeqMap()/drawSeqMapLines() plus bas.
   // Carte globale des chemins (02/09) : .seq-map-graph est la fenêtre défilable (overflow-x:auto),
   // .seq-map-canvas le contenu dimensionné par JS (voir updateSeqMap()), .seq-map-lines/.seq-map-nodes
-  // deux calques superposés à l'intérieur de ce contenu. Positions calculées en JS (pas de mesure
-  // getBoundingClientRect), donc pas besoin de ResizeObserver ici -- contrairement au graphe Wwise voisin
-  // (drawWwiseLines), qui lui mesure le DOM et doit être rappelé au redimensionnement.
+  // deux calques superposés à l'intérieur de ce contenu. Positions calculées en JS, sans mesure DOM en
+  // mode 'compact' (pas besoin de ResizeObserver, contrairement au graphe Wwise voisin/drawWwiseLines) --
+  // MAIS le mode 'roomy' (10/09, pages publiques) mesure bel et bien seqMapGraphEl.clientWidth pour
+  // s'adapter à la largeur réelle disponible (voir updateSeqMap()), donc redessiné au redimensionnement
+  // comme le graphe Wwise, dans ce mode uniquement -- en 'compact', la taille ne dépend que du nombre
+  // d'emplacements, ce ResizeObserver n'aurait rien à faire.
   const seqMapGraphEl = wrapper.querySelector('[data-role="seqMapGraph"]');
+  if (seqMapGraphEl && window.ResizeObserver && currentSeqMapDensity() === 'roomy') {
+    new ResizeObserver(() => { updateSeqMap(seqMapLastCurrentIdx); }).observe(seqMapGraphEl);
+  }
   const seqMapCanvasEl = wrapper.querySelector('[data-role="seqMapCanvas"]');
   const seqMapLinesEl = wrapper.querySelector('[data-role="seqMapLines"]');
   const seqMapNodesEl = wrapper.querySelector('[data-role="seqMapNodes"]');
@@ -1505,6 +1524,11 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // sans devoir faire remonter cet index jusqu'ici depuis performSeqBranchCut().
   let currentTransitionEdge = null;
   let seqMapLastCurrentIdx = -1;
+  // Amorçage à chaud de la disposition "à ressorts" (mode 'roomy', 10/09) -- positions du dernier calcul,
+  // par emplacement, réutilisées comme point de départ du suivant plutôt que recalculées de zéro à chaque
+  // updateSeqMap() (révélation progressive publique : la carte s'étend en douceur au lieu de sauter à
+  // chaque nouvel emplacement révélé). Voir seqMapForceLayout().
+  let seqMapForcePositions = {};
   let chainState = { cyclesCompleted: 0, capReached: false }; // compteur de cycles complets pour maxChainLoops — voir advanceChainIndex(), remis à zéro à chaque vrai redémarrage (pas une reprise)
   let seqSchedulerTimer = null;
   let seqNextStartCtxTime = 0;
@@ -1788,10 +1812,130 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // une simple liste de puces en flux, sans position ni arêtes (même principe que le repli compact déjà
   // utilisé côté embr-vertical). ----
   const SEQ_MAP_FULL_SIZE_MAX = 6, SEQ_MAP_DEGRADE_MAX = 14;
-  const SEQ_MAP_COL_GAP = 40, SEQ_MAP_ROW_GAP = 16;
+  // Écarts entre colonnes/lignes, et marges des boucles de retour, dépendants de la densité (10/09) --
+  // fonctions plutôt que constantes fixes car currentSeqMapDensity() peut différer d'une page hôte à
+  // l'autre (Backstage vs public) mais jamais PENDANT la vie d'une page (posé une fois par la page hôte
+  // avant tout rendu, comme currentSeqMapTheme()) -- lues à chaque appel plutôt que figées une fois pour
+  // ne pas dupliquer cette logique entre updateSeqMap() et seqMapDrawEdges(), qui en ont toutes deux besoin.
+  function seqMapColGap() { return currentSeqMapDensity() === 'roomy' ? 56 : 40; }
+  function seqMapRowGap() { return currentSeqMapDensity() === 'roomy' ? 24 : 16; }
   // Boucles de retour (03/09, retour direct "elles sont tracées un peu aléatoirement") : marge sous TOUTE
   // la grille avant la première boucle, puis un écart entre boucles successives -- voir seqMapDrawEdges.
-  const SEQ_MAP_LOOP_MARGIN = 22, SEQ_MAP_LOOP_STAGGER = 18;
+  function seqMapLoopMargin() { return currentSeqMapDensity() === 'roomy' ? 32 : 22; }
+  function seqMapLoopStagger() { return currentSeqMapDensity() === 'roomy' ? 26 : 18; }
+  // Taille des nœuds en mode 'roomy' (pages publiques, 10/09) : "pleine" taille visée quand la place ne
+  // manque pas, jamais dépassée même sur un très grand écran (un unique nœud géant serait absurde) --
+  // plancher en dessous duquel .seq-map-graph prend le relais en défilement horizontal plutôt que des
+  // cartes ratatinées. Largeur de repli si le conteneur n'est pas encore mesurable (ex. carte construite
+  // avant d'être visible/dépliée, clientWidth encore à 0) : une largeur de carte plausible, pas 0.
+  const SEQ_MAP_ROOMY_FULL_W = 168, SEQ_MAP_ROOMY_FULL_H = 64;
+  const SEQ_MAP_ROOMY_MIN_W = 112, SEQ_MAP_ROOMY_MIN_H = 46;
+  const SEQ_MAP_ROOMY_FALLBACK_WIDTH = 640;
+  // Une couleur par case (10/09, retour direct : "essayons une par case ?") -- identité stable de
+  // l'emplacement (dérivée de son index dans segmentSlots, pas de l'ordre de révélation qui change en
+  // cours de lecture), pas un indicateur d'état -- les états (courant/visité/sélectionnable) restent
+  // portés par la bordure existante, cette couleur-ci n'apparaît qu'en filet sur le bord gauche (voir
+  // CSS .seq-map-roomy .seq-map-node) pour ne jamais entrer en conflit visuel avec eux. Palette reprise
+  // de l'ancienne palette des boucles de retour (retirée le 07/09, réutilisée ici pour un usage différent
+  // -- identité de case, pas type d'arête).
+  const SEQ_MAP_NODE_PALETTE = ['#4e79a7', '#59a14f', '#b07aa1', '#e15759', '#499894', '#d4a72c'];
+  // Point sur le pourtour d'un nœud rectangulaire (centré en `from`, largeur/hauteur nodeW/nodeH), à
+  // l'intersection avec le segment reliant `from` à `to` -- utilisé uniquement par la disposition "à
+  // ressorts" ci-dessous (seqMapForceLayout), où les nœuds ne sont plus alignés en grille et une arête
+  // peut arriver de n'importe quelle direction (contrairement à rightOf/leftOf/bottomOf, qui supposent un
+  // flux strictement gauche-à-droite/haut-en-bas).
+  function seqMapEdgePoint(from, to, nodeW, nodeH) {
+    const dx = to.x - from.x, dy = to.y - from.y;
+    if (!dx && !dy) return { x: from.x, y: from.y };
+    const halfW = nodeW / 2, halfH = nodeH / 2;
+    const scale = Math.min(dx ? halfW / Math.abs(dx) : Infinity, dy ? halfH / Math.abs(dy) : Infinity);
+    return { x: from.x + dx * scale, y: from.y + dy * scale };
+  }
+  // Disposition "à ressorts" (10/09 -- la disposition en triangle qui la précédait, limitée à 3
+  // emplacements, ne réglait qu'un cas précis ; retour direct : "essaie de résoudre la mise en
+  // visualisation" pour des suites d'embranchements générées au hasard, avec ou sans retours). Algorithme
+  // général type Fruchterman-Reingold : tous les nœuds se repoussent entre eux (jamais superposés, jamais
+  // entassés), chaque arête tire ses deux extrémités l'une vers l'autre (jamais trop éloignées), relaxé
+  // sur plusieurs itérations jusqu'à un arrangement stable -- se généralise naturellement au triangle pour
+  // 3 nœuds mutuellement reliés, sans avoir besoin d'un cas particulier dédié. Les arêtes se tracent en
+  // lignes directes entre pourtours de nœuds (seqMapEdgePoint), plus jamais en U sous la grille (qui n'a
+  // plus de sens dès que les nœuds ne sont plus alignés en colonnes/lignes strictes) -- voir seqMapDrawEdges.
+  //
+  // Amorçage à chaud (seedPositions = seqMapForcePositions, persisté par instance de piste) : un
+  // emplacement déjà positionné à l'appel précédent repart de LÀ, pas d'un point neutre -- sans ça, chaque
+  // nouvel emplacement révélé (lecture publique, révélation progressive) aurait fait sauter TOUTE la
+  // disposition existante au lieu de l'étendre en douceur. Un emplacement jamais vu est amorcé sur la
+  // grille classique (layout.col/row) à l'échelle `k`, pas au hasard -- garde une tendance de lecture
+  // gauche-à-droite cohérente avec le reste de la carte, la simulation affine ensuite depuis ce point de
+  // départ plutôt que d'ignorer complètement la topologie.
+  function seqMapForceLayout(visibleIdx, layout, w, h, seedPositions) {
+    const k = Math.max(w, h) * 1.9; // distance "au repos" visée entre deux nœuds reliés par une arête
+    const pos = {};
+    visibleIdx.forEach(idx => {
+      pos[idx] = seedPositions[idx] ? { x: seedPositions[idx].x, y: seedPositions[idx].y } : { x: (layout.col[idx] || 0) * k, y: (layout.row[idx] || 0) * k };
+    });
+    const visibleSet = new Set(visibleIdx);
+    const edges = [];
+    visibleIdx.forEach(idx => {
+      seqMapForwardTargets(idx, visibleSet).forEach(ti => { if (ti !== idx) edges.push({ from: idx, to: ti }); });
+    });
+    const n = visibleIdx.length;
+    let temp = k / 2;
+    for (let iter = 0; iter < 220; iter++) {
+      const disp = {};
+      visibleIdx.forEach(idx => { disp[idx] = { x: 0, y: 0 }; });
+      // Répulsion : chaque PAIRE de nœuds s'écarte, proportionnellement à k²/distance (classique
+      // Fruchterman-Reingold) -- c'est ce terme, appliqué à TOUTE paire (pas seulement les nœuds reliés),
+      // qui garantit qu'aucun couple ne finit jamais superposé ni collé, contrairement à la grille où deux
+      // nœuds non reliés directement pouvaient partager la même colonne sans aucune force les séparant.
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          const a = visibleIdx[i], b = visibleIdx[j];
+          const dx = pos[a].x - pos[b].x, dy = pos[a].y - pos[b].y;
+          const dist = Math.hypot(dx, dy) || 0.01;
+          const force = (k * k) / dist;
+          const ux = dx / dist, uy = dy / dist;
+          disp[a].x += ux * force; disp[a].y += uy * force;
+          disp[b].x -= ux * force; disp[b].y -= uy * force;
+        }
+      }
+      // Attraction : chaque arête rapproche ses deux extrémités, proportionnellement à distance²/k --
+      // équilibre la répulsion ci-dessus pour que les nœuds RELIÉS restent proches malgré tout.
+      edges.forEach(e => {
+        const dx = pos[e.from].x - pos[e.to].x, dy = pos[e.from].y - pos[e.to].y;
+        const dist = Math.hypot(dx, dy) || 0.01;
+        const force = (dist * dist) / k;
+        const ux = dx / dist, uy = dy / dist;
+        disp[e.from].x -= ux * force; disp[e.from].y -= uy * force;
+        disp[e.to].x += ux * force; disp[e.to].y += uy * force;
+      });
+      // Déplacement limité par la "température" (refroidie à chaque itération, recuit simulé classique) --
+      // grands pas au début (échappe vite un mauvais point de départ), pas de plus en plus fins ensuite
+      // (converge sans osciller indéfiniment autour de l'équilibre).
+      visibleIdx.forEach(idx => {
+        const dx = disp[idx].x, dy = disp[idx].y;
+        const dist = Math.hypot(dx, dy) || 0.01;
+        const lim = Math.min(dist, temp);
+        pos[idx].x += (dx / dist) * lim;
+        pos[idx].y += (dy / dist) * lim;
+      });
+      temp *= 0.965;
+    }
+    visibleIdx.forEach(idx => { seedPositions[idx] = { x: pos[idx].x, y: pos[idx].y }; });
+    // Normalise en coordonnées positives (coin haut-gauche de chaque nœud), avec une marge constante --
+    // même principe que l'ancienne disposition en triangle qu'elle remplace.
+    const pad = Math.max(w, h) * 0.6;
+    const minX = Math.min(...visibleIdx.map(idx => pos[idx].x)), minY = Math.min(...visibleIdx.map(idx => pos[idx].y));
+    const positions = {};
+    let maxRight = 0, maxBottom = 0;
+    visibleIdx.forEach(idx => {
+      const p = { x: pos[idx].x - minX + pad - w / 2, y: pos[idx].y - minY + pad - h / 2 };
+      positions[idx] = p;
+      maxRight = Math.max(maxRight, p.x + w);
+      maxBottom = Math.max(maxBottom, p.y + h);
+    });
+    return { positions, totalW: maxRight + pad, totalH: maxBottom + pad };
+  }
   // Ensemble des index d'emplacements à révéler pour l'état courant -- toujours tout en mode
   // seqMapFullReveal (Backstage), sinon déjà-visités + courant + options immédiates depuis le courant
   // (effet de découverte demandé le 1er septembre).
@@ -1903,22 +2047,55 @@ function initTrackPlayer(track, wrapper, elementColors) {
       attachSeqMapNodeClicks(currentSlot);
       return;
     }
-    const span = SEQ_MAP_DEGRADE_MAX - SEQ_MAP_FULL_SIZE_MAX;
-    const over = Math.max(0, Math.min(n, SEQ_MAP_DEGRADE_MAX) - SEQ_MAP_FULL_SIZE_MAX);
-    const w = Math.round(96 - over * (36 / span));
-    const h = Math.round(40 - over * (12 / span));
+    const layout = seqMapComputeLayout(visibleIdx, currentIdx);
+    const roomy = currentSeqMapDensity() === 'roomy';
+    let w, h;
+    if (roomy) {
+      // Mode 'roomy' (pages publiques, 10/09, retour direct : la maquette montrée était "agréable à
+      // regarder", le vrai composant "tristounet" en comparaison, et devait pouvoir "s'adapter à la
+      // fois à la taille de l'écran et au nombre d'embranchements") : contrairement au mode 'compact'
+      // ci-dessous, la taille des nœuds dépend de la largeur RÉELLEMENT disponible -- seule mesure
+      // DOM (clientWidth) de toute cette carte, dérogation volontaire au principe "tout en JS pur" du
+      // commentaire plus haut, nécessaire ici car "s'adapter à l'écran" ne peut pas se déduire de la
+      // seule topologie du graphe.
+      const availableWidth = (seqMapGraphEl && seqMapGraphEl.clientWidth) || SEQ_MAP_ROOMY_FALLBACK_WIDTH;
+      const cols = layout.maxCol + 1;
+      const idealW = (availableWidth - (cols - 1) * seqMapColGap()) / cols;
+      w = Math.max(SEQ_MAP_ROOMY_MIN_W, Math.min(SEQ_MAP_ROOMY_FULL_W, Math.round(idealW)));
+      h = Math.max(SEQ_MAP_ROOMY_MIN_H, Math.round(SEQ_MAP_ROOMY_FULL_H * (w / SEQ_MAP_ROOMY_FULL_W)));
+    } else {
+      const span = SEQ_MAP_DEGRADE_MAX - SEQ_MAP_FULL_SIZE_MAX;
+      const over = Math.max(0, Math.min(n, SEQ_MAP_DEGRADE_MAX) - SEQ_MAP_FULL_SIZE_MAX);
+      w = Math.round(96 - over * (36 / span));
+      h = Math.round(40 - over * (12 / span));
+    }
     seqMapNodesEl.style.setProperty('--seq-map-node-w', w + 'px');
     seqMapNodesEl.style.setProperty('--seq-map-node-h', h + 'px');
-    const layout = seqMapComputeLayout(visibleIdx, currentIdx);
-    const colW = w + SEQ_MAP_COL_GAP, rowH = h + SEQ_MAP_ROW_GAP;
-    const totalW = (layout.maxCol + 1) * colW - SEQ_MAP_COL_GAP;
-    // Marge verticale supplémentaire si des arêtes de retour existent -- chacune plonge volontairement
-    // sous TOUTE la grille (voir seqMapDrawEdges), une par une, en s'étalant verticalement pour rester
-    // distinctes. Sans cette marge elles seraient coupées par overflow-y:hidden sur .seq-map-graph (bug
-    // trouvé en vérification visuelle réelle : la boucle existait bien dans le SVG mais restait invisible,
-    // coupée sous le bord de la carte).
-    const backEdgeCount = visibleIdx.reduce((n, idx) => n + seqMapForwardTargets(idx, new Set(visibleIdx)).filter(ti => layout.col[ti] <= layout.col[idx]).length, 0);
-    const totalH = layout.maxRows * rowH - SEQ_MAP_ROW_GAP + (backEdgeCount > 0 ? SEQ_MAP_LOOP_MARGIN + (backEdgeCount - 1) * SEQ_MAP_LOOP_STAGGER + Math.round(h / 2) + 6 : 0);
+    // Police proportionnelle uniquement en mode 'roomy' -- en 'compact', 10px fixe reste approprié même
+    // au node le plus large (96px, taille "pleine" de ce mode), jamais aussi grand qu'un node 'roomy'.
+    if (roomy) seqMapNodesEl.style.setProperty('--seq-map-node-font', Math.max(12, Math.round(w / 9)) + 'px');
+    // Disposition "à ressorts" (10/09) en mode 'roomy' -- voir seqMapForceLayout ci-dessus pour le
+    // pourquoi. Sinon (mode 'compact'), grille habituelle (colonnes/lignes déjà calculées par
+    // seqMapComputeLayout) convertie en positions ABSOLUES une fois pour toutes ici -- seqMapDrawEdges ne
+    // connaît plus que ces positions, ce qui lui permet de tracer des arêtes correctement quelle que soit
+    // la disposition (grille ou ressorts) sans savoir laquelle des deux l'a produite.
+    let positions, totalW, totalH;
+    if (roomy) {
+      ({ positions, totalW, totalH } = seqMapForceLayout(visibleIdx, layout, w, h, seqMapForcePositions));
+    } else {
+      const colGap = seqMapColGap(), rowGap = seqMapRowGap();
+      const colW = w + colGap, rowH = h + rowGap;
+      positions = {};
+      visibleIdx.forEach(idx => { positions[idx] = { x: layout.col[idx] * colW, y: layout.row[idx] * rowH }; });
+      totalW = (layout.maxCol + 1) * colW - colGap;
+      // Marge verticale supplémentaire si des arêtes de retour existent -- chacune plonge volontairement
+      // sous TOUTE la grille (voir seqMapDrawEdges), une par une, en s'étalant verticalement pour rester
+      // distinctes. Sans cette marge elles seraient coupées par overflow-y:hidden sur .seq-map-graph (bug
+      // trouvé en vérification visuelle réelle : la boucle existait bien dans le SVG mais restait invisible,
+      // coupée sous le bord de la carte).
+      const backEdgeCount = visibleIdx.reduce((n, idx) => n + seqMapForwardTargets(idx, new Set(visibleIdx)).filter(ti => layout.col[ti] <= layout.col[idx]).length, 0);
+      totalH = layout.maxRows * rowH - rowGap + (backEdgeCount > 0 ? seqMapLoopMargin() + (backEdgeCount - 1) * seqMapLoopStagger() + Math.round(h / 2) + 6 : 0);
+    }
     // Taille explicite sur le conteneur défilable (pas sur .seq-map-graph, qui reste la fenêtre visible) --
     // permet un défilement horizontal si le graphe est plus large que la carte, plutôt que l'effondrement
     // en une seule colonne trouvé en situation réelle avec la première version (nœuds superposés, arêtes
@@ -1929,16 +2106,18 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // réelle -- en plus de ne pas être demandée ici, elle ne reflétait pas fidèlement le fichier : Corridor
     // et Battle s'arrêtaient visiblement à mi-chemin). L'état (courant/visité/pas encore atteint) se lit
     // uniquement via la bordure (voir CSS .seq-map-node.current/.visited) -- aucune donnée audio à charger
-    // ni dessiner ici, juste le libellé.
+    // ni dessiner ici, juste le libellé. Couleur par case (10/09) : identité stable de l'emplacement (voir
+    // SEQ_MAP_NODE_PALETTE) posée en filet CSS, uniquement consommée en 'roomy' -- inoffensive ailleurs.
     seqMapNodesEl.innerHTML = visibleIdx.map(idx => {
       const slot = slots[idx] || {};
       const label = slot.label || t('slotFallback', { n: idx + 1 });
       const cls = 'seq-map-node' + nodeStateCls(idx, slot);
       const check = (seqVisitedSlotIds.has(idx) && idx !== currentIdx) ? '<span class="seq-map-node-check">✓</span>' : '';
-      const x = layout.col[idx] * colW, y = layout.row[idx] * rowH;
-      return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}" style="left:${x}px;top:${y}px"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
+      const accent = roomy ? SEQ_MAP_NODE_PALETTE[idx % SEQ_MAP_NODE_PALETTE.length] : null;
+      const style = `left:${positions[idx].x}px;top:${positions[idx].y}px` + (accent ? `;--seq-map-node-accent:${accent}` : '');
+      return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}" style="${style}"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
     }).join('');
-    seqMapDrawEdges(layout, visibleIdx, colW, rowH, w, h, totalW, totalH);
+    seqMapDrawEdges(layout, visibleIdx, positions, w, h, totalW, totalH, roomy);
     attachSeqMapNodeClicks(currentSlot);
   }
   // Attache le clic sur les nœuds sélectionnables -- rappelée à chaque reconstruction de seqMapNodesEl,
@@ -1962,7 +2141,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // le viewBox du SVG corresponde exactement à .seq-map-canvas, marge des boucles de retour comprise --
   // sinon une boucle qui dépasse la dernière ligne de nœuds serait coupée par overflow-y:hidden (bug
   // trouvé en vérification visuelle réelle).
-  function seqMapDrawEdges(layout, visibleIdx, colW, rowH, nodeW, nodeH, totalW, totalH) {
+  function seqMapDrawEdges(layout, visibleIdx, positions, nodeW, nodeH, totalW, totalH, freeform) {
     if (!seqMapLinesEl) return;
     const slots = track.segmentSlots || [];
     seqMapLinesEl.setAttribute('viewBox', `0 0 ${totalW} ${totalH}`);
@@ -1970,11 +2149,18 @@ function initTrackPlayer(track, wrapper, elementColors) {
     seqMapLinesEl.setAttribute('height', totalH);
     seqMapLinesEl.innerHTML = '';
     const svgNS = 'http://www.w3.org/2000/svg';
-    const rightOf = idx => ({ x: layout.col[idx] * colW + nodeW, y: layout.row[idx] * rowH + nodeH / 2 });
-    const leftOf = idx => ({ x: layout.col[idx] * colW, y: layout.row[idx] * rowH + nodeH / 2 });
-    const bottomOf = (idx, offsetX) => ({ x: layout.col[idx] * colW + nodeW / 2 + (offsetX || 0), y: layout.row[idx] * rowH + nodeH });
+    // Coordonnées dérivées de `positions` (calculées une fois par updateSeqMap(), grille ou triangle
+    // selon le cas -- voir seqMapForceLayout) plutôt que recalculées ici depuis colonne/ligne :
+    // cette fonction n'a plus besoin de savoir QUELLE disposition a produit ces positions.
+    const centerOf = idx => ({ x: positions[idx].x + nodeW / 2, y: positions[idx].y + nodeH / 2 });
+    const rightOf = idx => ({ x: positions[idx].x + nodeW, y: positions[idx].y + nodeH / 2 });
+    const leftOf = idx => ({ x: positions[idx].x, y: positions[idx].y + nodeH / 2 });
+    const bottomOf = (idx, offsetX) => ({ x: positions[idx].x + nodeW / 2 + (offsetX || 0), y: positions[idx].y + nodeH });
     const visibleSet = new Set(visibleIdx);
-    const gridBottom = layout.maxRows * rowH - SEQ_MAP_ROW_GAP;
+    // gridBottom (mode grille uniquement, voir plus bas) : bas du nœud le plus bas parmi ceux visibles --
+    // équivalent de l'ancien layout.maxRows*rowH, mais dérivé des positions réelles, pas du nombre de
+    // lignes de la grille (qui n'a plus de sens uniforme si une future disposition n'était plus en grille).
+    const gridBottom = Math.max(0, ...visibleIdx.map(idx => positions[idx].y)) + nodeH;
     // Flèches de sens (03/09, retour direct : "ajoute une flèche pour bien expliciter le sens de
     // lecture") -- une définition <marker> par couleur utilisée (le gris par défaut des arêtes "en avant",
     // plus une par couleur de la palette des boucles de retour ci-dessous), réutilisées par toutes les
@@ -2011,7 +2197,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // Étale chaque boucle de retour un peu plus bas que la précédente (backEdgeIndex incrémenté à chaque
     // arête en arrière rencontrée) -- sans ça, deux boucles de retour finissaient à la même hauteur et se
     // confondaient visuellement. updateSeqMap() réserve la marge verticale correspondante dans totalH,
-    // avec les mêmes constantes (SEQ_MAP_LOOP_MARGIN/SEQ_MAP_LOOP_STAGGER).
+    // avec les mêmes fonctions (seqMapLoopMargin()/seqMapLoopStagger()).
     //
     // Ancrages horizontaux (06/09, suite au fouillis signalé par Jules-Antoine sur un morceau à
     // plusieurs boucles) : quand plusieurs boucles de retour partagent le même nœud en départ ou en
@@ -2019,55 +2205,79 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // réparties ici le long du bas du nœud, une par boucle. Calculé en une passe préalable (avant tout
     // tracé) car le nombre d'arêtes partageant un nœud n'est connu qu'une fois toutes les arêtes
     // recensées.
-    const backEdgePairs = [];
-    visibleIdx.forEach(idx => {
-      if (!slots[idx]) return;
-      seqMapForwardTargets(idx, visibleSet).forEach(ti => {
-        if (layout.col[ti] <= layout.col[idx]) backEdgePairs.push({ from: idx, to: ti });
-      });
-    });
-    const ANCHOR_SPACING = 12;
-    const fromTotals = {}, toTotals = {}, fromSeen = {}, toSeen = {};
-    backEdgePairs.forEach(e => {
-      fromTotals[e.from] = (fromTotals[e.from] || 0) + 1;
-      toTotals[e.to] = (toTotals[e.to] || 0) + 1;
-    });
-    function spreadOffset(seenMap, totalsMap, key) {
-      const total = totalsMap[key] || 1;
-      const seen = seenMap[key] || 0;
-      seenMap[key] = seen + 1;
-      return total > 1 ? (seen - (total - 1) / 2) * ANCHOR_SPACING : 0;
-    }
+    // Tout ce bloc de précalcul (ancrages/écartement des boucles de retour en grille) ne concerne QUE le
+    // tracé orthogonal en U du mode grille -- inutile et sauté en disposition "à ressorts" (roomy), qui
+    // trace des lignes directes entre pourtours de nœuds (voir seqMapEdgePoint) sans jamais avoir besoin
+    // de plonger sous la grille.
     const backEdgeAnchors = new Map();
-    backEdgePairs.forEach(e => {
-      const anchor = {
-        fromOffset: spreadOffset(fromSeen, fromTotals, e.from),
-        toOffset: spreadOffset(toSeen, toTotals, e.to),
-      };
-      // Deux nœuds de la MÊME colonne (07/09, retour direct de Jules-Antoine après avoir réordonné des
-      // embranchements : "c'est tout écrasé") : leur centre partage le même x, donc la boucle qui les
-      // relie s'effondrait en un simple trait vertical (largeur nulle) au lieu d'un rectangle, quel que
-      // soit l'écartement ci-dessus (qui ne sépare que des arêtes partageant un même nœud, pas deux
-      // nœuds distincts alignés par hasard). Écartement minimal forcé dans ce cas précis.
-      if (layout.col[e.from] === layout.col[e.to]) {
-        // 24px (2x ANCHOR_SPACING) restait trop discret à la taille réelle des nœuds -- toujours "un
-        // peu écrasé" au retour de Jules-Antoine. Proportionnel à la largeur du nœud (moitié de nodeW)
-        // plutôt qu'une valeur fixe : les deux points d'ancrage se retrouvent nettement dans les
-        // tiers gauche/droit du nœud, jamais juste "un peu" séparés du centre.
-        const minGap = Math.max(ANCHOR_SPACING * 2, nodeW * 0.5);
-        if (Math.abs(anchor.fromOffset - anchor.toOffset) < minGap) {
-          anchor.fromOffset -= minGap / 2;
-          anchor.toOffset += minGap / 2;
-        }
+    if (!freeform) {
+      const backEdgePairs = [];
+      visibleIdx.forEach(idx => {
+        if (!slots[idx]) return;
+        seqMapForwardTargets(idx, visibleSet).forEach(ti => {
+          if (layout.col[ti] <= layout.col[idx]) backEdgePairs.push({ from: idx, to: ti });
+        });
+      });
+      const ANCHOR_SPACING = 12;
+      const fromTotals = {}, toTotals = {}, fromSeen = {}, toSeen = {};
+      backEdgePairs.forEach(e => {
+        fromTotals[e.from] = (fromTotals[e.from] || 0) + 1;
+        toTotals[e.to] = (toTotals[e.to] || 0) + 1;
+      });
+      function spreadOffset(seenMap, totalsMap, key) {
+        const total = totalsMap[key] || 1;
+        const seen = seenMap[key] || 0;
+        seenMap[key] = seen + 1;
+        return total > 1 ? (seen - (total - 1) / 2) * ANCHOR_SPACING : 0;
       }
-      backEdgeAnchors.set(e.from + '>' + e.to, anchor);
-    });
+      backEdgePairs.forEach(e => {
+        const anchor = {
+          fromOffset: spreadOffset(fromSeen, fromTotals, e.from),
+          toOffset: spreadOffset(toSeen, toTotals, e.to),
+        };
+        // Deux nœuds de la MÊME colonne (07/09, retour direct de Jules-Antoine après avoir réordonné des
+        // embranchements : "c'est tout écrasé") : leur centre partage le même x, donc la boucle qui les
+        // relie s'effondrait en un simple trait vertical (largeur nulle) au lieu d'un rectangle, quel que
+        // soit l'écartement ci-dessus (qui ne sépare que des arêtes partageant un même nœud, pas deux
+        // nœuds distincts alignés par hasard). Écartement minimal forcé dans ce cas précis -- ce bloc ne
+        // s'exécute qu'en mode 'compact' (voir `if (!freeform)` plus haut) : en 'roomy', la disposition à
+        // ressorts est le VRAI correctif (deux nœuds qui n'ont plus de raison de partager le même x) ;
+        // cet écartement minimal reste le filet de sécurité pour le Backstage, qui reste en grille.
+        if (layout.col[e.from] === layout.col[e.to]) {
+          const minGap = Math.max(ANCHOR_SPACING * 2, nodeW * 0.5);
+          if (Math.abs(anchor.fromOffset - anchor.toOffset) < minGap) {
+            anchor.fromOffset -= minGap / 2;
+            anchor.toOffset += minGap / 2;
+          }
+        }
+        backEdgeAnchors.set(e.from + '>' + e.to, anchor);
+      });
+    }
     let backEdgeIndex = 0;
     const drawEdge = (fromIdx, toIdx, cls, label, hasTransition) => {
       const isBack = layout.col[toIdx] <= layout.col[fromIdx];
       const path = document.createElementNS(svgNS, 'path');
       let d, a, b, mid, markerId;
-      if (isBack) {
+      if (freeform) {
+        // Disposition "à ressorts" (10/09) : plus de notion "en avant"/"en arrière" pour le TRACÉ -- une
+        // simple ligne courbe entre les pourtours des deux nœuds, dans n'importe quelle direction. isBack (calculé
+        // plus haut) ne sert plus qu'à choisir la couleur (neutre "boucle" ou neutre "en avant" -- déjà
+        // la même teinte depuis le 07/09, gardé séparé ici seulement pour rester cohérent avec le reste
+        // du fichier si l'un des deux devait un jour redevenir distinct). Léger arc plutôt qu'une droite
+        // pure : une paire de nœuds reliée dans les deux sens (aller ET retour) doit rester lisible comme
+        // deux arêtes distinctes, pas une seule ligne se chevauchant elle-même.
+        const cA = centerOf(fromIdx), cB = centerOf(toIdx);
+        a = seqMapEdgePoint(cA, cB, nodeW, nodeH);
+        b = seqMapEdgePoint(cB, cA, nodeW, nodeH);
+        const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+        const bow = Math.max(10, nodeW * 0.12);
+        const mx = (a.x + b.x) / 2 + (-dy / len) * bow, my = (a.y + b.y) / 2 + (dx / len) * bow;
+        d = `M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`;
+        mid = { x: mx, y: my };
+        const color = isBack ? SEQ_MAP_LOOP_COLOR : cssVar('--text-dimmer', '#a8a399');
+        path.style.stroke = color;
+        markerId = ensureArrowMarker(color, isBack ? 'loop' : 'default');
+      } else if (isBack) {
         // Tracé orthogonal (droites + angles droits, 03/09 sur retour direct : "plus clair, notamment
         // dans les systèmes complexes") plutôt qu'une courbe -- descend tout droit, traverse à
         // l'horizontale, remonte tout droit. Aucune ambiguïté de lecture même avec plusieurs boucles
@@ -2075,7 +2285,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         // chargé.
         const anchor = backEdgeAnchors.get(fromIdx + '>' + toIdx) || {};
         a = bottomOf(fromIdx, anchor.fromOffset); b = bottomOf(toIdx, anchor.toOffset);
-        const loopY = gridBottom + SEQ_MAP_LOOP_MARGIN + backEdgeIndex * SEQ_MAP_LOOP_STAGGER;
+        const loopY = gridBottom + seqMapLoopMargin() + backEdgeIndex * seqMapLoopStagger();
         backEdgeIndex++;
         d = `M ${a.x} ${a.y} L ${a.x} ${loopY} L ${b.x} ${loopY} L ${b.x} ${b.y}`;
         mid = { x: (a.x + b.x) / 2, y: loopY };
@@ -4579,6 +4789,9 @@ window.LayerPlayerCore = {
   SEQ_MAP_THEMES,
   setSeqMapTheme,
   currentSeqMapTheme,
+  SEQ_MAP_DENSITIES,
+  setSeqMapDensity,
+  currentSeqMapDensity,
   computeWaveformPeaks,
   drawWaveformCanvas,
   resolveEffectiveWaveformStyle,

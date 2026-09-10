@@ -327,6 +327,11 @@ async function init() {
     // Thème de la carte des chemins (Chantier Apparence, palier Pro, 06/09) : réglage global du
     // compositeur (data.seqMapTheme), même gating que le reste de l'apparence Pro ci-dessus.
     window.LayerPlayerCore.setSeqMapTheme(tier === 'pro' ? (data.seqMapTheme || 'light') : 'light');
+    // Densité 'roomy' (10/09) : pas un réglage de palier, contrairement au thème ci-dessus -- posé
+    // inconditionnellement sur cette page publique (voir le commentaire de SEQ_MAP_DENSITIES dans
+    // player.js). Le Backstage, lui, n'appelle jamais cette fonction et reste en 'compact' (valeur
+    // par défaut).
+    window.LayerPlayerCore.setSeqMapDensity('roomy');
     const theme = tier === 'free'
       ? resolveThemePreset(collection.presetId)
       : { bgColor: collection.bgColor, titleColor: collection.textColor, contentColor: collection.textColor, font: collection.font };
