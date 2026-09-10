@@ -526,6 +526,21 @@ const trackCollapsers = {};
 const trackStingerKillers = {};
 let activeTrackId = null;
 
+// Réglages de mix par piste (mute/solo/volume par voix, intensité) — capturés/restaurés pour le
+// chantier Adaptive OST (Figer/playlists fan) : chaque initTrackPlayer() enregistre ici un accès à
+// son propre état interne (mutedVoices/soloedVoices/layerVolumes/level, jusqu'ici en mémoire
+// seulement). Ne couvre pas les branches séquentielles/embranchement-vertical, dont la progression
+// est générée en direct plutôt que choisie une fois pour toutes.
+const trackSettingsHandles = {};
+function getTrackSettings(trackId) {
+  const handle = trackSettingsHandles[trackId];
+  return handle ? handle.get() : null;
+}
+function applyTrackSettings(trackId, settings) {
+  const handle = trackSettingsHandles[trackId];
+  if (handle) handle.apply(settings || {});
+}
+
 // Empêche l'écran de se verrouiller pendant qu'une piste joue (sinon le tél s'éteint "comme si de rien
 // n'était" pendant une écoute) — best-effort, l'API n'existe pas partout, et le verrou se relâche de
 // toute façon automatiquement si l'onglet passe en arrière-plan (voir la reprise après veille plus bas).
@@ -2673,6 +2688,39 @@ function initTrackPlayer(track, wrapper, elementColors) {
   }
   trackCollapsers[track.id] = () => { setDetailsExpanded(details, false); updateStingerAvailability(); };
   trackStingerKillers[track.id] = killStingers;
+  trackSettingsHandles[track.id] = {
+    get: () => ({
+      level,
+      mutedVoices: [...mutedVoices],
+      soloedVoices: [...soloedVoices],
+      layerVolumes: Object.fromEntries(layerVolumes)
+    }),
+    apply: (settings) => {
+      if (typeof settings.level === 'number' && notchDots.length) {
+        level = settings.level;
+        notchDots.forEach(d => d.classList.toggle('active', parseInt(d.dataset.level, 10) === level));
+      }
+      mutedVoices.clear();
+      (settings.mutedVoices || []).forEach(k => mutedVoices.add(k));
+      soloedVoices.clear();
+      (settings.soloedVoices || []).forEach(k => soloedVoices.add(k));
+      layerVolumes.clear();
+      Object.entries(settings.layerVolumes || {}).forEach(([k, v]) => layerVolumes.set(k, v));
+      wrapper.querySelectorAll('[data-voice-action]').forEach(btn => {
+        const key = btn.dataset.voiceKey;
+        const active = (btn.dataset.voiceAction === 'solo' ? soloedVoices : mutedVoices).has(key);
+        btn.classList.toggle('active', active);
+      });
+      wrapper.querySelectorAll('.voice-volume-slider').forEach(slider => {
+        const key = slider.dataset.voiceKey;
+        const value = getLayerVolume(key);
+        slider.value = value;
+        const valueEl = wrapper.querySelector(`[data-role="volumeValue-${key}"]`);
+        if (valueEl) valueEl.textContent = Math.round(value * 100) + '%';
+      });
+      refreshVoiceGains();
+    }
+  };
 
   function updateProgressAt(elapsed) {
     if (!wrap) return;
@@ -4773,6 +4821,8 @@ window.LayerPlayerCore = {
   buildTrackRow,
   initTrackPlayer,
   renderTracksBlock,
+  getTrackSettings,
+  applyTrackSettings,
   buildSfxPlayer,
   setupContrastToggle,
   setupNightModeToggle,
