@@ -80,6 +80,16 @@
     return { folders: data.map(f => ({ id: f.id, label: f.label })), error: null };
   }
 
+  // Chantier Adaptive OST (bibliothèque fan, mes-adaptive-ost.html) : une playlist mélange des
+  // pistes venant de plusieurs albums/compositeurs différents (playlists cross-albums, façon
+  // Bandcamp Playlists) — listTracks({ownerId}) ne convient pas, il n'y a pas UN propriétaire ici.
+  async function listTracksByIds(ids) {
+    if (!ids || !ids.length) return { tracks: [], error: null };
+    const { data, error } = await getClient().from('tracks').select(TRACK_SELECT).in('id', ids);
+    if (error) return { tracks: null, error: error.message };
+    return { tracks: data.map(reshapeTrack), error: null };
+  }
+
   async function getTrack(id) {
     const { data, error } = await getClient().from('tracks').select(TRACK_SELECT).eq('id', id).maybeSingle();
     if (error) return { track: null, error: error.message };
@@ -94,5 +104,5 @@
     return { ok: true, data };
   }
 
-  window.LayerPitchTracks = { listTracks, getTrack, upsertTrack, listTrackFolders };
+  window.LayerPitchTracks = { listTracks, getTrack, upsertTrack, listTrackFolders, listTracksByIds };
 })();
