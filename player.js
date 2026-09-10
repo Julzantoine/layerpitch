@@ -2693,12 +2693,21 @@ function initTrackPlayer(track, wrapper, elementColors) {
       level,
       mutedVoices: [...mutedVoices],
       soloedVoices: [...soloedVoices],
-      layerVolumes: Object.fromEntries(layerVolumes)
+      layerVolumes: Object.fromEntries(layerVolumes),
+      // maxChainLoops : séquentiel/vertical-random uniquement (chainLoopCountSelect n'existe pas
+      // pour les autres modes) — track.maxChainLoops est muté directement par ce sélecteur
+      // (voir plus bas), lu au vol par le moteur, donc la valeur courante est toujours sur
+      // l'objet track lui-même, pas dans une variable à part à recopier ici.
+      ...(chainLoopCountSelect ? { maxChainLoops: track.maxChainLoops != null ? track.maxChainLoops : null } : {})
     }),
     apply: (settings) => {
       if (typeof settings.level === 'number' && notchDots.length) {
         level = settings.level;
         notchDots.forEach(d => d.classList.toggle('active', parseInt(d.dataset.level, 10) === level));
+      }
+      if (chainLoopCountSelect && 'maxChainLoops' in settings) {
+        track.maxChainLoops = settings.maxChainLoops;
+        chainLoopCountSelect.value = settings.maxChainLoops == null ? '' : String(settings.maxChainLoops);
       }
       mutedVoices.clear();
       (settings.mutedVoices || []).forEach(k => mutedVoices.add(k));

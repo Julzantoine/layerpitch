@@ -113,6 +113,40 @@ const path = require('path');
   const targetSlider = targetRow.querySelector('.voice-volume-slider[data-voice-key="layer-1"]');
   check('applyTrackSettings: le DOM reflète le slider de volume restauré', targetSlider && parseFloat(targetSlider.value) === 0.5);
 
+  // ---- séquentiel/vertical-random : maxChainLoops (nombre de cycles de la chaîne avant transition
+  // automatique, cf. player.js chainLoopCountSelect) capturé/restauré comme les autres réglages ----
+  function makeSequentialTrack(id, maxChainLoops) {
+    return {
+      id, title: 'Sequential test', mode: 'sequential', description: '', duration: 0, base: '', publishedAt: 1,
+      bpm: 150, beatsPerBar: 1, maxChainLoops,
+      intro: { label: 'Intro', bars: 1, localFile: fakeFile('intro.wav') },
+      outro: { label: 'Outro', localFile: fakeFile('outro.wav') },
+      segmentSlots: [
+        { id: 'slotA', label: 'A', avoidImmediateRepeat: true, repeatCount: 1, alternatives: [{ label: 'A1', bars: 1, localFile: fakeFile('a1.wav') }] }
+      ],
+      sfxIds: []
+    };
+  }
+  const seqSourceTrack = makeSequentialTrack('seq-src', 3);
+  const seqSourceRow = Core.buildTrackRow(seqSourceTrack, null, false);
+  doc.getElementById('host').appendChild(seqSourceRow);
+  Core.initTrackPlayer(seqSourceTrack, seqSourceRow);
+  await sleep(150);
+  const seqCaptured = Core.getTrackSettings('seq-src');
+  check('getTrackSettings (séquentiel): capture maxChainLoops', seqCaptured && seqCaptured.maxChainLoops === 3);
+
+  const seqTargetTrack = makeSequentialTrack('seq-target', null);
+  const seqTargetRow = Core.buildTrackRow(seqTargetTrack, null, false);
+  doc.getElementById('host').appendChild(seqTargetRow);
+  Core.initTrackPlayer(seqTargetTrack, seqTargetRow);
+  await sleep(150);
+  check('avant applyTrackSettings (séquentiel): maxChainLoops par défaut (null)', Core.getTrackSettings('seq-target').maxChainLoops === null);
+  Core.applyTrackSettings('seq-target', seqCaptured);
+  await sleep(50);
+  check('applyTrackSettings (séquentiel): restaure maxChainLoops sur track.maxChainLoops', Core.getTrackSettings('seq-target').maxChainLoops === 3);
+  const seqSelect = seqTargetRow.querySelector('[data-role="chainLoopCountSelect"]');
+  check('applyTrackSettings (séquentiel): le DOM reflète la valeur restaurée', seqSelect && seqSelect.value === '3');
+
   // ---- applyTrackSettings sur une piste inconnue ou avec un settings vide : ne doit pas planter ----
   try {
     Core.applyTrackSettings('nope', captured);
