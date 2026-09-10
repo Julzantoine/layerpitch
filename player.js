@@ -2514,8 +2514,8 @@ function initTrackPlayer(track, wrapper, elementColors) {
 
   /* ---- Moteur simple (bouclage natif, comportement existant inchangé) ---- */
   function stopSimple(keepPosition) {
-    if (loops && keepPosition !== false) {
-      offsetAt = (ctx.currentTime - startedAt) % track.duration;
+    if (keepPosition !== false) {
+      offsetAt = computeElapsed();
     }
     sources.forEach(s => { if (s) { try { s.stop(); } catch(e){} } });
     sources = []; gains = [];
@@ -3444,6 +3444,123 @@ function initTrackPlayer(track, wrapper, elementColors) {
     vrSchedulerTimer = setInterval(sectionSchedulerTick, 200);
   }
 
+  // État nécessaire pour qu'un vrai Pause manuel (bouton Lecture/Pause) reprenne EXACTEMENT où la lecture
+  // en était, plutôt que de repartir du tout début (bug signalé le 07/09 par Jules-Antoine : "pause"
+  // stoppait complètement la lecture au lieu de la mettre en pause). Pour le séquentiel, l'embranchement
+  // vertical et le vertical-random, les fonctions stop* ci-dessous réinitialisent volontairement l'identité
+  // du bloc/de la boucle/de la section en cours (comportement voulu pour un vrai Stop, ou pour la reprise
+  // après veille qui a ses propres mécanismes dédiés, voir seekSequential/seekVerticalRandom/
+  // resumeEmbrVerticalAfterBackground) — donc capturé ICI, AVANT l'appel au stop du moteur. Pour le moteur
+  // simple/quantifié, rien à faire : offsetAt (mis à jour par stopSimple/stopQuantized) suffit déjà.
+  let pausedResume = null;
+  function captureResumeState() {
+    if (isSequential) {
+      const b = currentSeqBlockInfo;
+      if (!b) { pausedResume = null; return; }
+      pausedResume = {
+        kind: 'sequential',
+        blockKind: b.kind, buffer: b.buffer, gain: b.gain, totalSec: b.totalSec, terminal: b.terminal, slotIdx: b.slotIdx,
+        offsetSec: Math.max(0, Math.min(b.totalSec - 0.05, ctx.currentTime - b.virtualZero)),
+        label: seqCurrentEl ? seqCurrentEl.textContent : '',
+        descHtml: trackDescEl ? trackDescEl.innerHTML : '',
+        goToEndRequested, pendingNextSegmentId
+      };
+    } else if (isEmbrVert) {
+      pausedResume = { kind: 'embrVert', embrLoopIdx: embrActiveLoopIdx >= 0 ? embrActiveLoopIdx : embrReferenceIdx };
+    } else if (isVerticalRandom) {
+      if (vrCurrentSectionOriginalIndex < 0) { pausedResume = null; return; }
+      const origIdx = vrCurrentSectionOriginalIndex;
+      const section = resolveVRSection(track, origIdx);
+      const timing = sectionTiming(section);
+      const elapsed = currentPlaybackOffset();
+      const frac = timing.cycleLength > 0 ? Math.min(1, Math.max(0, (elapsed - timing.loopInSec) / timing.cycleLength)) : 0;
+      pausedResume = { kind: 'verticalRandom', origIdx, frac };
+    } else {
+      pausedResume = null;
+    }
+  }
+  // Reprend précisément l'état capturé par captureResumeState() ci-dessus. Appelée par playThisTrack() une
+  // fois que playing/activeTrackId/etc. sont déjà remis à jour — reprend le rôle que jouerait normalement
+  // playSequential()/playEmbrVertical()/playVerticalRandom() pour un vrai (re)démarrage.
+  function resumeFromPause() {
+    const r = pausedResume; pausedResume = null;
+    if (!r) return false;
+    if (r.kind === 'sequential') {
+      goToEndRequested = r.goToEndRequested;
+      pendingNextSegmentId = r.pendingNextSegmentId;
+      const now = ctx.currentTime;
+      const remaining = Math.max(0.05, r.totalSec - r.offsetSec);
+      // `remaining` transmis TOUJOURS (jamais null), y compris pour un bloc terminal (l'outro) — même
+      // raison que seekSequential() ci-dessus : passer null ferait recaler le remplissage visuel sur
+      // buffer.duration (durée totale) plutôt que ce qu'il en reste après la reprise.
+      scheduleSeqGeneration(now, r.buffer, r.label, r.blockKind, remaining, r.gain, r.offsetSec, r.totalSec, r.terminal, r.slotIdx);
+      if (trackDescEl) trackDescEl.innerHTML = r.descHtml;
+      if (r.terminal) {
+        armSeqFinalEnd();
+        if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = t('endingWithOutro'); }
+      } else {
+        seqNextStartCtxTime = now + remaining;
+        seqSchedulerTimer = setInterval(seqSchedulerTick, 200);
+        if (goToEndBtn) {
+          if (goToEndRequested) {
+            goToEndBtn.disabled = true;
+            goToEndBtn.textContent = track.outro ? t('endingWithOutro') : t('endingLastSegment');
+          } else {
+            goToEndBtn.disabled = false;
+          }
+        }
+      }
+    } else if (r.kind === 'embrVert') {
+      embrActiveLoopIdx = r.embrLoopIdx;
+      const now = ctx.currentTime;
+      embrReferenceStartCtxTime = now;
+      scheduleEmbrGeneration(now, true);
+      embrNextStartCtxTime = now + embrCycleLengthSec();
+      embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
+      updateEmbrButtonsUI();
+      applyEmbrWaveAnimation();
+    } else if (r.kind === 'verticalRandom') {
+      vrCurrentSectionOriginalIndex = r.origIdx;
+      const declaredSection = (track.sections || [])[r.origIdx];
+      if (sectionCurrentEl) sectionCurrentEl.textContent = (declaredSection && declaredSection.label) || t('sectionFallback', { n: r.origIdx + 1 });
+      vrBlockEls.forEach((el, i) => { if (el) el.classList.toggle('active', i === r.origIdx); });
+      seekVerticalRandom(r.frac);
+    }
+    return true;
+  }
+  // Repeint par-dessus l'UI que stopAllSources() vient de remettre à plat (libellé "—", bloc/boucle/section
+  // désactivés) avec l'état figé au moment de la pause, capturé juste avant par captureResumeState() —
+  // pour qu'une pause manuelle donne l'impression de vraiment "geler" l'affichage plutôt que de l'effacer
+  // puis de le faire réapparaître à la reprise (peaufinage demandé le 10/09 par Jules-Antoine). Purement
+  // visuel : aucune de ces valeurs ne relance quoi que ce soit tant que playing reste false.
+  function applyPausedUI() {
+    const r = pausedResume;
+    if (!r) return;
+    if (r.kind === 'sequential') {
+      if (seqCurrentEl) seqCurrentEl.textContent = r.label;
+      if (trackDescEl) trackDescEl.innerHTML = r.descHtml;
+      const block = seqBlockEls[r.blockKind], els = seqWaveEls[r.blockKind];
+      if (block) { block.classList.remove('done'); block.classList.add('active'); }
+      if (els && els.fg) {
+        const frac = r.totalSec > 0 ? Math.max(0, Math.min(1, r.offsetSec / r.totalSec)) : 0;
+        els.fg.style.transition = 'none';
+        els.fg.style.clipPath = `inset(0 ${(1 - frac) * 100}% 0 0)`;
+      }
+      if (r.slotIdx != null && r.slotIdx >= 0) updateSeqMap(r.slotIdx);
+    } else if (r.kind === 'embrVert') {
+      embrLoopBtns.forEach(btn => { btn.classList.toggle('active', parseInt(btn.dataset.loopIdx, 10) === r.embrLoopIdx); });
+    } else if (r.kind === 'verticalRandom') {
+      const declaredSection = (track.sections || [])[r.origIdx];
+      if (sectionCurrentEl) sectionCurrentEl.textContent = (declaredSection && declaredSection.label) || t('sectionFallback', { n: r.origIdx + 1 });
+      vrBlockEls.forEach((el, i) => { if (el) el.classList.toggle('active', i === r.origIdx); });
+      if (vrBlockFillEls[r.origIdx]) vrBlockFillEls[r.origIdx].style.width = (r.frac * 100) + '%';
+    }
+  }
+  function pauseThisTrack() {
+    captureResumeState();
+    stopAllSources();
+    applyPausedUI();
+  }
   function stopAllSources(keepPosition) {
     playing = false;
     playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
@@ -3499,7 +3616,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     playing = true;
     playingTrackIds.add(track.id); requestWakeLock();
     if (!isContinuation) trackPublicEvent('track_play', { trackId: track.id, mode: track.mode });
-    if (isSequential) {
+    if (pausedResume && resumeFromPause()) {
+      // Reprise exacte après un vrai Pause manuel — voir captureResumeState()/resumeFromPause() ci-dessus.
+    } else if (isSequential) {
       playSequential(isContinuation);
     } else if (isEmbrVert) {
       playEmbrVertical();
@@ -3689,7 +3808,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     offsetAt = resumeFrom;
     playThisTrack(false, true);
   });
-  playBtn.addEventListener('click', () => { playing ? stopAllSources() : playThisTrack(true); });
+  playBtn.addEventListener('click', () => { playing ? pauseThisTrack() : playThisTrack(true); });
 
   // Vertical-random (fusionné le 30/07) : pas de recherche par glissement — avec plusieurs sections
   // potentiellement enchaînées dans un ordre mélangé, "une position dans le temps" n'a plus de sens
