@@ -2086,6 +2086,25 @@ const THEME_PRESETS = [
 function resolveThemePreset(presetId) {
   return THEME_PRESETS.find(p => p.id === presetId) || THEME_PRESETS[0];
 }
+// 6 thèmes supplémentaires, réservés au départ rapide du palier Pro (10 septembre) -- jamais proposés
+// dans la galerie Free, jamais résolus par resolveThemePreset() ci-dessus (qui reste la lecture utilisée
+// par le rendu public pour le palier Free, inchangée). Contraste WCAG AA vérifié via contrastRatio()
+// ci-dessous, pire ratio observé 4.22:1 (titre Sakura, grand texte du header -> seuil AA 3:1, large
+// marge) ; tous les autres ratios de contenu ≥ 4.5:1 (texte normal, seuil le plus strict).
+const THEME_PRESETS_PRO = [
+  { id: 'ocean', labelKey: 'themePresetOcean', bgColor: '#0A2E36', titleColor: '#4ECDC4', contentColor: '#B8E3E0', font: 'google:Sora', separator: { visible: true, color: '#1F5A63', thickness: 1 } },
+  { id: 'crimson', labelKey: 'themePresetCrimson', bgColor: '#1A0A0A', titleColor: '#E63946', contentColor: '#D9B8B8', font: 'google:DM Serif Display', separator: { visible: true, color: '#5C1A1A', thickness: 2 } },
+  { id: 'sakura', labelKey: 'themePresetSakura', bgColor: '#FDF2F4', titleColor: '#D6336C', contentColor: '#6B4650', font: 'google:Poppins', separator: { visible: true, color: '#F3C6D3', thickness: 1 } },
+  { id: 'steel', labelKey: 'themePresetSteel', bgColor: '#1C1F26', titleColor: '#A8B5C4', contentColor: '#8E9AAC', font: 'google:IBM Plex Mono', separator: { visible: true, color: '#3A4150', thickness: 1 } },
+  { id: 'royal', labelKey: 'themePresetRoyal', bgColor: '#2E0F1D', titleColor: '#D4AF37', contentColor: '#E8DCC8', font: 'google:Playfair Display', separator: { visible: true, color: '#6B4A8C', thickness: 2 } },
+  { id: 'dune', labelKey: 'themePresetDune', bgColor: '#EDE0C8', titleColor: '#A64B2A', contentColor: '#6B5842', font: 'google:Spectral', separator: { visible: true, color: '#C9A876', thickness: 1 } }
+];
+// Résolution pour le départ rapide Pro uniquement : cherche dans les 12 (6 Free + 6 Pro). Ne remplace
+// PAS resolveThemePreset() -- celle-ci reste la lecture Free/rendu public, jamais étendue aux 6 Pro
+// puisque le palier Pro ne stocke jamais de presetId (voir applyThemePresetQuickFill).
+function resolveAnyThemePreset(presetId) {
+  return THEME_PRESETS.concat(THEME_PRESETS_PRO).find(p => p.id === presetId) || THEME_PRESETS[0];
+}
 // Réglage des séparateurs entre blocs/sections, indépendant du reste du thème général -- palier Starter
 // et au-dessus uniquement (le palier Free suit le séparateur imposé par son preset). Absent tant que le
 // compositeur n'y touche pas -> aucun changement visuel pour les AdReels/Packs/Collections déjà publiés
@@ -7568,7 +7587,7 @@ function renderPacks() {
       const packProQuickStartHtml = packIsPro ? `
         <div class="hint-inline">${tr('themePresetProHint')}</div>
         <div class="theme-preset-gallery">
-          ${THEME_PRESETS.map(p => `
+          ${THEME_PRESETS.concat(THEME_PRESETS_PRO).map(p => `
             <button type="button" class="theme-preset-card" data-action="apply-pack-preset-quickfill" data-pi="${pi}" data-preset-id="${p.id}"
               style="background:${p.bgColor};color:${p.titleColor}">${tr(p.labelKey)}</button>
           `).join('')}
@@ -7752,7 +7771,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   const quickFillBtn = e.target.closest('[data-action="apply-pack-preset-quickfill"]');
   if (quickFillBtn) {
     const pi = parseInt(quickFillBtn.dataset.pi, 10);
-    const preset = resolveThemePreset(quickFillBtn.dataset.presetId);
+    const preset = resolveAnyThemePreset(quickFillBtn.dataset.presetId);
     packs[pi].bgColor = preset.bgColor;
     packs[pi].textColor = preset.contentColor;
     packs[pi].font = preset.font;
@@ -7863,7 +7882,7 @@ function renderCollections() {
       const collProQuickStartHtml = collIsPro ? `
         <div class="hint-inline">${tr('themePresetProHint')}</div>
         <div class="theme-preset-gallery">
-          ${THEME_PRESETS.map(p => `
+          ${THEME_PRESETS.concat(THEME_PRESETS_PRO).map(p => `
             <button type="button" class="theme-preset-card" data-action="apply-collection-preset-quickfill" data-ci="${ci}" data-preset-id="${p.id}"
               style="background:${p.bgColor};color:${p.titleColor}">${tr(p.labelKey)}</button>
           `).join('')}
@@ -8046,7 +8065,7 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
   const quickFillBtn = e.target.closest('[data-action="apply-collection-preset-quickfill"]');
   if (quickFillBtn) {
     const ci = parseInt(quickFillBtn.dataset.ci, 10);
-    const preset = resolveThemePreset(quickFillBtn.dataset.presetId);
+    const preset = resolveAnyThemePreset(quickFillBtn.dataset.presetId);
     collections[ci].bgColor = preset.bgColor;
     collections[ci].textColor = preset.contentColor;
     collections[ci].font = preset.font;
@@ -8152,7 +8171,7 @@ function renderThemePresetGallery() {
 // s'il avait choisi ces couleurs à la main. Ne touche pas sectionLabelColor/bgImage (les presets ne les
 // définissent pas, même logique que --accent jamais touché par un preset côté page publique).
 function applyThemePresetQuickFill(presetId) {
-  const preset = resolveThemePreset(presetId);
+  const preset = resolveAnyThemePreset(presetId);
   if (!profile.theme) profile.theme = Object.assign({}, DEFAULT_THEME);
   profile.theme.bgColor = preset.bgColor;
   profile.theme.titleColor = preset.titleColor;
@@ -8165,7 +8184,7 @@ function applyThemePresetQuickFill(presetId) {
 function renderThemeProQuickStartGallery() {
   const host = document.getElementById('themeProQuickStartGallery');
   if (!host) return;
-  host.innerHTML = THEME_PRESETS.map(p => `
+  host.innerHTML = THEME_PRESETS.concat(THEME_PRESETS_PRO).map(p => `
     <button type="button" class="theme-preset-card" data-preset-id="${p.id}"
       style="background:${p.bgColor};color:${p.titleColor}">
       ${tr(p.labelKey)}
