@@ -960,10 +960,23 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
     `;
   }
 
+  // Chemin pré-écrit (chantier "embranchement séquentiel", 10/09) : n'a de sens que si ce morceau a
+  // au moins un embranchement (nextOptions) -- un séquentiel purement linéaire n'a jamais de choix
+  // à enregistrer. Pas de t('...') ici, même raisonnement que le contrôle de graine vertical-random
+  // (10/09) : l'i18n de ce fichier passe par un outil dédié, jamais à la main.
+  const hasBranchingSlots = (track.segmentSlots || []).some(sl => sl.nextOptions && sl.nextOptions.length);
   let seqGraphHtml = '';
   if (isSequential && supported) {
     const hasIntro = layerHasSource(track.intro);
     const hasOutro = layerHasSource(track.outro);
+    const pathRecorderHtml = hasBranchingSlots ? `
+        <div class="loop-count-block">
+          <div class="loop-count-label">Chemin pré-écrit</div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button type="button" class="voice-refresh-btn" data-role="seqPathRecordBtn">⏺ Enregistrer un chemin</button>
+            <span class="voice-row-current" data-role="seqPathStatus">aucun chemin enregistré</span>
+          </div>
+        </div>` : '';
     seqGraphHtml = `
       <div class="voice-graph" data-role="seqGraph">
         <div class="voice-graph-label">${t('inProgressLabel')}</div>
@@ -978,6 +991,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
         </div>
         <div class="seq-pending-indicator" data-role="seqPendingIndicator" style="display:none">${t('pendingBranchLabel')}</div>
         <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled ${hasOutro ? '' : 'style="display:none"'}>${t('goToEndBtn')}</button>
+        ${pathRecorderHtml}
       </div>
     `;
   }
@@ -1156,6 +1170,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
   const isSequential = track.mode === 'sequential';
   const isEmbrVert = track.mode === 'embranchement-vertical';
   const supported = PLAYABLE_MODES.includes(track.mode);
+  // Recalculé ici (pas partagé avec buildTrackRow, qui a sa propre copie de ce même calcul plus
+  // haut dans ce fichier -- deux fonctions distinctes, chacune ne reçoit que `track` en paramètre,
+  // aucune fermeture commune entre elles).
+  const hasBranchingSlots = (track.segmentSlots || []).some(sl => sl.nextOptions && sl.nextOptions.length);
   // Harmonisation des volumes : décision du compositeur (case à cocher dans le backstage), jamais
   // automatique — sinon un fichier qui sonne différemment de ce qu'il a exporté serait déroutant.
   // Le gain mesuré à la conversion reste stocké dans tous les cas ; ce n'est que son application à la
@@ -1407,6 +1425,14 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // règle "ne jamais écraser par du vide" sans cas particulier à coder).
   const trackDescEl = wrapper.querySelector('[data-role="trackDesc"]');
   const seqPendingIndicatorEl = wrapper.querySelector('[data-role="seqPendingIndicator"]');
+  const seqPathRecordBtn = wrapper.querySelector('[data-role="seqPathRecordBtn"]');
+  const seqPathStatusEl = wrapper.querySelector('[data-role="seqPathStatus"]');
+  function updateSeqPathStatus() {
+    if (!seqPathStatusEl) return;
+    if (recordingPath) seqPathStatusEl.textContent = 'enregistrement… (' + recordedPath.length + ' choix)';
+    else if (plannedPath.length) seqPathStatusEl.textContent = 'chemin enregistré (' + plannedPath.length + ' choix)' + (planExhausted ? ' — abandonné (graphe modifié)' : '');
+    else seqPathStatusEl.textContent = 'aucun chemin enregistré';
+  }
   // Carte globale des chemins (02/09) -- voir updateSeqMap()/drawSeqMapLines() plus bas.
   // Carte globale des chemins (02/09) : .seq-map-graph est la fenêtre défilable (overflow-x:auto),
   // .seq-map-canvas le contenu dimensionné par JS (voir updateSeqMap()), .seq-map-lines/.seq-map-nodes
@@ -1570,6 +1596,23 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // choisi par le visiteur, en attente d'être consommé par performSeqBranchCut(). Un nouveau clic écrase
   // la valeur précédente (dernier clic gagne) ; remis à null une fois consommé.
   let pendingNextSegmentId = null;
+  // Chemin pré-écrit (chantier "embranchement séquentiel", 10/09) : plannedPath est une liste
+  // ordonnée d'id d'emplacements-cibles, un par embranchement rencontré, dans l'ordre où ils seront
+  // rencontrés -- pas indexée par emplacement (une boucle dans le graphe peut faire revisiter le
+  // même embranchement plusieurs fois, avec un choix différent chaque fois). Consommée un cran à
+  // chaque VRAIE arrivée sur un embranchement (voir activateSeqStage, lastArrivedSlotIdx) tant que
+  // recordingPath est faux -- si la cible planifiée n'est plus une option valide à cet endroit
+  // (graphe modifié par le compositeur depuis), le plan est abandonné pour le reste de cette lecture
+  // et le comportement redevient manuel (clic en direct), plutôt que de planter ou de boucler.
+  let plannedPath = [];
+  let plannedPathIndex = 0;
+  let planExhausted = false;
+  let lastArrivedSlotIdx = -1;
+  // Enregistrement : pendant que recordingPath est vrai, chaque choix RÉEL (clic en direct) est
+  // ajouté à recordedPath au lieu d'être consommé depuis plannedPath -- arrêter l'enregistrement
+  // remplace plannedPath par ce qui vient d'être joué, prêt à être figé (Figer/playlists) ou rejoué.
+  let recordingPath = false;
+  let recordedPath = [];
   // Carte globale des chemins (02/09) : historique des emplacements déjà devenus audibles depuis le
   // (re)démarrage -- rien de tel n'existait avant ce chantier (aucun état de ce genre à réutiliser), voir
   // activateSeqStage() pour l'alimentation. seqMapFullReveal (posé par buildPreviewTrack() côté Backstage
@@ -1817,6 +1860,18 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (slot && slot.nextOptions && slot.nextOptions.length && (slot.quantization || 'bar') !== 'immediate') {
         armNextSeqBranchBoundary(seqBranchEpoch);
       }
+      // Chemin pré-écrit : consommé un cran seulement à une VRAIE nouvelle arrivée sur cet
+      // emplacement (pas à chaque répétition en boucle en attendant un choix, ce que ce même appel
+      // activateSeqStage() déclenche aussi -- slotIdx === lastArrivedSlotIdx dans ce cas).
+      if (slotIdx !== lastArrivedSlotIdx) {
+        lastArrivedSlotIdx = slotIdx;
+        if (!recordingPath && !planExhausted && slot && slot.nextOptions && slot.nextOptions.length && plannedPathIndex < plannedPath.length) {
+          const nextTargetId = plannedPath[plannedPathIndex];
+          const stillValid = slot.nextOptions.some(o => o.targetId === nextTargetId);
+          if (stillValid) { plannedPathIndex++; handleSeqBranchChoice(nextTargetId, slot); }
+          else { planExhausted = true; updateSeqPathStatus(); } // graphe modifié depuis (cible disparue) -- reste manuel pour le reste de cette lecture
+        }
+      }
     }
     if (block) {
       block.classList.remove('done'); block.classList.add('active');
@@ -1846,6 +1901,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // été retirés le 05/09, retour direct : "plus besoin des boutons de destination non plus, la carte se
   // suffit également à elle-même" -- la carte couvrait déjà exactement les mêmes cibles).
   function handleSeqBranchChoice(targetId, currentSlot) {
+    // Enregistrement d'un chemin (chantier 10/09) : pendant que recordingPath est vrai, l'auto-
+    // consommation d'un plan existant est désactivée (voir activateSeqStage) -- tout appel ici
+    // pendant l'enregistrement vient donc forcément d'un vrai clic, jamais d'une relecture.
+    if (recordingPath) { recordedPath.push(targetId); updateSeqPathStatus(); }
     // Dernier clic gagne (validé le 31/07) : un second clic sur une autre option remplace simplement le
     // choix précédent, il n'y a jamais de verrou sur le premier clic.
     pendingNextSegmentId = targetId;
@@ -2628,7 +2687,12 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // Un vrai démarrage (pas une reprise après pause/veille) repart du premier emplacement de la chaîne —
     // la reprise, elle, continue le cycle là où il en était plutôt que de tout redémarrer. La carte globale
     // suit la même règle : un vrai redémarrage efface l'historique de découverte, une reprise le conserve.
-    if (!isContinuation) { currentSlotIndex = 0; chainState = { cyclesCompleted: 0, capReached: false }; seqVisitedSlotIds = new Set(); }
+    if (!isContinuation) {
+      currentSlotIndex = 0; chainState = { cyclesCompleted: 0, capReached: false }; seqVisitedSlotIds = new Set();
+      // Chemin pré-écrit : repart du début à chaque VRAI redémarrage, jamais sur une reprise --
+      // même convention que le reste de ce bloc.
+      plannedPathIndex = 0; planExhausted = false; lastArrivedSlotIdx = -1;
+    }
     const now = ctx.currentTime;
     let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain, firstDesc, firstSlotIdx = -1;
     if (!isContinuation && introBuffer) {
@@ -2760,7 +2824,11 @@ function initTrackPlayer(track, wrapper, elementColors) {
       } : {}),
       // randomSeed : vertical-random uniquement (vrSeedInput n'existe pas pour les autres modes) —
       // null = comportement historique (tirage non reproductible), voir rand()/seededRandom() plus haut.
-      ...(vrSeedInput ? { randomSeed: baseSeed } : {})
+      ...(vrSeedInput ? { randomSeed: baseSeed } : {}),
+      // plannedPath : séquentiel à embranchement uniquement -- liste ordonnée d'id de cibles, voir
+      // le commentaire de plannedPath plus haut. Capture le plan enregistré, jamais l'enregistrement
+      // en cours (un enregistrement inachevé ne veut rien dire une fois rejoué).
+      ...(hasBranchingSlots ? { plannedPath: [...plannedPath] } : {})
     }),
     apply: (settings) => {
       if (typeof settings.level === 'number' && notchDots.length) {
@@ -2789,6 +2857,14 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (vrSeedInput && 'randomSeed' in settings) {
         baseSeed = settings.randomSeed;
         vrSeedInput.value = baseSeed == null ? '' : String(baseSeed);
+      }
+      if (hasBranchingSlots && Array.isArray(settings.plannedPath)) {
+        plannedPath = settings.plannedPath.slice();
+        plannedPathIndex = 0;
+        planExhausted = false;
+        recordingPath = false;
+        if (seqPathRecordBtn) { seqPathRecordBtn.classList.remove('active'); seqPathRecordBtn.textContent = '⏺ Enregistrer un chemin'; }
+        updateSeqPathStatus();
       }
       mutedVoices.clear();
       (settings.mutedVoices || []).forEach(k => mutedVoices.add(k));
@@ -4286,6 +4362,21 @@ function initTrackPlayer(track, wrapper, elementColors) {
       // cycle — dans les deux cas, pas besoin de relancer la piste pour que le changement s'applique.
       track.maxChainLoops = chainLoopCountSelect.value === '' ? null : parseInt(chainLoopCountSelect.value, 10);
       trackPublicEvent('track_chain_loop_change', { trackId: track.id, maxChainLoops: track.maxChainLoops });
+    });
+  }
+
+  // Chemin pré-écrit (séquentiel à embranchement) : bascule enregistrement/arrêt. Arrêter
+  // l'enregistrement remplace le plan existant par ce qui vient d'être joué -- effectif à la
+  // PROCHAINE lecture depuis le début (voir playSequential), pas rétroactivement en cours de route.
+  if (seqPathRecordBtn) {
+    seqPathRecordBtn.addEventListener('click', () => {
+      recordingPath = !recordingPath;
+      seqPathRecordBtn.classList.toggle('active', recordingPath);
+      seqPathRecordBtn.textContent = recordingPath ? '⏹ Arrêter l’enregistrement' : '⏺ Enregistrer un chemin';
+      if (recordingPath) { recordedPath = []; }
+      else if (recordedPath.length) { plannedPath = recordedPath.slice(); plannedPathIndex = 0; planExhausted = false; }
+      updateSeqPathStatus();
+      trackPublicEvent('seq_path_recording_toggle', { trackId: track.id, recording: recordingPath });
     });
   }
 
