@@ -2698,7 +2698,20 @@ function initTrackPlayer(track, wrapper, elementColors) {
       // pour les autres modes) — track.maxChainLoops est muté directement par ce sélecteur
       // (voir plus bas), lu au vol par le moteur, donc la valeur courante est toujours sur
       // l'objet track lui-même, pas dans une variable à part à recopier ici.
-      ...(chainLoopCountSelect ? { maxChainLoops: track.maxChainLoops != null ? track.maxChainLoops : null } : {})
+      ...(chainLoopCountSelect ? { maxChainLoops: track.maxChainLoops != null ? track.maxChainLoops : null } : {}),
+      // sectionMaxLoops : vertical-random uniquement, un nombre par section (indexé comme
+      // track.sections, pas comme les seules sections jouables) — le sélecteur visiteur
+      // (vrSectionLoopSelectEls) mute vrPlayableSectionRefs[j] directement s'il est déjà en jeu
+      // (voir plus bas), donc c'est la valeur à lire en priorité tant qu'elle existe ; sinon on
+      // retombe sur la section résolue elle-même (avant toute lecture, ou piste jamais jouée).
+      ...(vrSectionLoopSelectEls.length ? {
+        sectionMaxLoops: (track.sections || []).map((s, i) => {
+          const j = playableSectionOriginalIndex.indexOf(i);
+          if (j >= 0 && vrPlayableSectionRefs[j]) return vrPlayableSectionRefs[j].maxLoops != null ? vrPlayableSectionRefs[j].maxLoops : null;
+          const resolved = resolveVRSection(track, i);
+          return resolved && resolved.maxLoops != null ? resolved.maxLoops : null;
+        })
+      } : {})
     }),
     apply: (settings) => {
       if (typeof settings.level === 'number' && notchDots.length) {
@@ -2708,6 +2721,21 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (chainLoopCountSelect && 'maxChainLoops' in settings) {
         track.maxChainLoops = settings.maxChainLoops;
         chainLoopCountSelect.value = settings.maxChainLoops == null ? '' : String(settings.maxChainLoops);
+      }
+      // Écrit à la fois sur la section résolue (persiste pour toute FUTURE lecture depuis le
+      // début, relue via resolveVRSection par playVerticalRandom) et sur vrPlayableSectionRefs si
+      // la piste est déjà en cours de lecture (effet immédiat, sans la relancer) — même double
+      // écriture que nécessaire pour rester cohérent avec la mutation du sélecteur natif
+      // (vrSectionLoopSelectEls ci-dessous), qui ne touche que vrPlayableSectionRefs.
+      if (vrSectionLoopSelectEls.length && Array.isArray(settings.sectionMaxLoops)) {
+        settings.sectionMaxLoops.forEach((value, i) => {
+          const resolved = resolveVRSection(track, i);
+          if (resolved) resolved.maxLoops = value;
+          const j = playableSectionOriginalIndex.indexOf(i);
+          if (j >= 0 && vrPlayableSectionRefs[j]) vrPlayableSectionRefs[j].maxLoops = value;
+          const sel = vrSectionLoopSelectEls[i];
+          if (sel) sel.value = value == null ? '' : String(value);
+        });
       }
       mutedVoices.clear();
       (settings.mutedVoices || []).forEach(k => mutedVoices.add(k));

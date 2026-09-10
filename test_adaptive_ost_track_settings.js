@@ -147,6 +147,43 @@ const path = require('path');
   const seqSelect = seqTargetRow.querySelector('[data-role="chainLoopCountSelect"]');
   check('applyTrackSettings (séquentiel): le DOM reflète la valeur restaurée', seqSelect && seqSelect.value === '3');
 
+  // ---- vertical-random : sectionMaxLoops (nombre de boucles par section, cf. player.js
+  // vrSectionLoopSelectEls/resolveVRSection) capturé/restauré comme les autres réglages ----
+  function makeVRTrack(id, sectionMaxLoops) {
+    return {
+      id, title: 'VR test', mode: 'vertical-random', description: '', duration: 0, base: '', publishedAt: 1,
+      randomizeSections: false,
+      sections: [
+        { id: 'secA', label: 'A', bpm: 150, beatsPerBar: 1, loopInBeat: 0, loopOutBeat: 1, maxLoops: sectionMaxLoops[0],
+          pools: [{ id: 'poolA', label: 'A', alternatives: [{ label: 'A1', localFile: fakeFile('a1.wav') }] }] },
+        { id: 'secB', label: 'B', bpm: 150, beatsPerBar: 1, loopInBeat: 0, loopOutBeat: 1, maxLoops: sectionMaxLoops[1],
+          pools: [{ id: 'poolB', label: 'B', alternatives: [{ label: 'B1', localFile: fakeFile('b1.wav') }] }] },
+      ],
+      sfxIds: []
+    };
+  }
+  const vrSourceTrack = makeVRTrack('vr-src', [2, null]);
+  const vrSourceRow = Core.buildTrackRow(vrSourceTrack, null, false);
+  doc.getElementById('host').appendChild(vrSourceRow);
+  Core.initTrackPlayer(vrSourceTrack, vrSourceRow);
+  await sleep(150);
+  const vrCaptured = Core.getTrackSettings('vr-src');
+  check('getTrackSettings (vertical-random): capture le nombre de boucles par section (avant toute lecture)', vrCaptured && JSON.stringify(vrCaptured.sectionMaxLoops) === JSON.stringify([2, null]));
+
+  const vrTargetTrack = makeVRTrack('vr-target', [null, null]);
+  const vrTargetRow = Core.buildTrackRow(vrTargetTrack, null, false);
+  doc.getElementById('host').appendChild(vrTargetRow);
+  Core.initTrackPlayer(vrTargetTrack, vrTargetRow);
+  await sleep(150);
+  check('avant applyTrackSettings (vertical-random): boucles par section par défaut', JSON.stringify(Core.getTrackSettings('vr-target').sectionMaxLoops) === JSON.stringify([null, null]));
+  Core.applyTrackSettings('vr-target', vrCaptured);
+  await sleep(50);
+  check('applyTrackSettings (vertical-random): restaure le nombre de boucles par section', JSON.stringify(Core.getTrackSettings('vr-target').sectionMaxLoops) === JSON.stringify([2, null]));
+  const vrSelect0 = vrTargetRow.querySelector('[data-role="vrSectionLoop-0"]');
+  check('applyTrackSettings (vertical-random): le DOM de la section 0 reflète la valeur restaurée', vrSelect0 && vrSelect0.value === '2');
+  const vrSelect1 = vrTargetRow.querySelector('[data-role="vrSectionLoop-1"]');
+  check('applyTrackSettings (vertical-random): le DOM de la section 1 reflète "infini" (null)', vrSelect1 && vrSelect1.value === '');
+
   // ---- applyTrackSettings sur une piste inconnue ou avec un settings vide : ne doit pas planter ----
   try {
     Core.applyTrackSettings('nope', captured);
