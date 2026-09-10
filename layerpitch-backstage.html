@@ -966,6 +966,15 @@
           <div id="themePresetGallery" class="theme-preset-gallery"></div>
         </div>
 
+        <!-- Palier Pro (10 septembre) : les mêmes 6 presets, mais en simple départ rapide -- un clic
+             pré-remplit les champs ci-dessous avec les valeurs du preset (pas de profile.theme.presetId,
+             pas de mode à part), puis le compositeur personnalise librement, y compris par bloc/élément. -->
+        <div id="appThemeProQuickStart" style="display:none">
+          <div class="nav-section-label track-section-label" data-i18n="sectionTheme">Thème</div>
+          <div class="hint-inline" data-i18n="themePresetProHint">Départ rapide : clique sur un thème pour pré-remplir les champs ci-dessous, puis personnalise-les librement (couleurs, police, séparateurs, et par bloc/élément).</div>
+          <div id="themeProQuickStartGallery" class="theme-preset-gallery"></div>
+        </div>
+
         <!-- Starter et au-dessus : réglages fins existants + nouveau réglage des séparateurs. -->
         <div id="appThemeFullControls">
           <fieldset>
@@ -7551,7 +7560,20 @@ function renderPacks() {
       // Palier Free (Chantier Apparence Phase 3) : galerie de presets à la place des réglages fins,
       // même bascule que le panneau Apparence de l'AdReel.
       const packIsFree = currentEffectivePlan === 'free';
+      const packIsPro = currentEffectivePlan === 'pro';
       const packSep = Object.assign({}, DEFAULT_SEPARATOR, pack.separator || {});
+      // Palier Pro (10 septembre) : départ rapide par preset au-dessus des réglages fins -- copie les
+      // valeurs concrètes dans bgColor/textColor/font/separator, aucun presetId conservé (voir
+      // applyThemePresetQuickFill côté AdReel, même principe).
+      const packProQuickStartHtml = packIsPro ? `
+        <div class="hint-inline">${tr('themePresetProHint')}</div>
+        <div class="theme-preset-gallery">
+          ${THEME_PRESETS.map(p => `
+            <button type="button" class="theme-preset-card" data-action="apply-pack-preset-quickfill" data-pi="${pi}" data-preset-id="${p.id}"
+              style="background:${p.bgColor};color:${p.titleColor}">${tr(p.labelKey)}</button>
+          `).join('')}
+        </div>
+      ` : '';
       detailEl.innerHTML = packIsFree ? `
         <label data-help="packAppearance">${tr('packAppearanceLabel')}</label>
         <div class="hint-inline">${tr('themePresetFreeHint')}</div>
@@ -7569,6 +7591,7 @@ function renderPacks() {
         <div class="hint-inline">${tr('watermarkHint')}</div>
       ` : `
         <label data-help="packAppearance">${tr('packAppearanceLabel')}</label>
+        ${packProQuickStartHtml}
         <div class="row">
           <div>
             <label>${tr('bgColorLabel')}</label>
@@ -7726,6 +7749,18 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
     renderPacks();
     return;
   }
+  const quickFillBtn = e.target.closest('[data-action="apply-pack-preset-quickfill"]');
+  if (quickFillBtn) {
+    const pi = parseInt(quickFillBtn.dataset.pi, 10);
+    const preset = resolveThemePreset(quickFillBtn.dataset.presetId);
+    packs[pi].bgColor = preset.bgColor;
+    packs[pi].textColor = preset.contentColor;
+    packs[pi].font = preset.font;
+    packs[pi].separator = Object.assign({}, preset.separator);
+    hasUnsavedEdits = true;
+    renderPacks();
+    return;
+  }
   const btn = e.target.closest('[data-action="remove-pack"]');
   if (!btn) return;
   const pi = parseInt(btn.dataset.pi, 10);
@@ -7822,7 +7857,18 @@ function renderCollections() {
       // Palier Free (Chantier Apparence Phase 3) : galerie de presets à la place des réglages fins,
       // même bascule que le Pack et l'AdReel.
       const collIsFree = currentEffectivePlan === 'free';
+      const collIsPro = currentEffectivePlan === 'pro';
       const collSep = Object.assign({}, DEFAULT_SEPARATOR, coll.separator || {});
+      // Palier Pro (10 septembre) : même départ rapide par preset que le Pack.
+      const collProQuickStartHtml = collIsPro ? `
+        <div class="hint-inline">${tr('themePresetProHint')}</div>
+        <div class="theme-preset-gallery">
+          ${THEME_PRESETS.map(p => `
+            <button type="button" class="theme-preset-card" data-action="apply-collection-preset-quickfill" data-ci="${ci}" data-preset-id="${p.id}"
+              style="background:${p.bgColor};color:${p.titleColor}">${tr(p.labelKey)}</button>
+          `).join('')}
+        </div>
+      ` : '';
       detailEl.innerHTML = collIsFree ? `
         <label data-help="collectionAppearance">${tr('packAppearanceLabel')}</label>
         <div class="hint-inline">${tr('themePresetFreeHint')}</div>
@@ -7837,6 +7883,7 @@ function renderCollections() {
         <div data-role="illustrationCtrl"></div>
       ` : `
         <label data-help="collectionAppearance">${tr('packAppearanceLabel')}</label>
+        ${collProQuickStartHtml}
         <div class="row">
           <div>
             <label>${tr('bgColorLabel')}</label>
@@ -7996,6 +8043,18 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
     renderCollections();
     return;
   }
+  const quickFillBtn = e.target.closest('[data-action="apply-collection-preset-quickfill"]');
+  if (quickFillBtn) {
+    const ci = parseInt(quickFillBtn.dataset.ci, 10);
+    const preset = resolveThemePreset(quickFillBtn.dataset.presetId);
+    collections[ci].bgColor = preset.bgColor;
+    collections[ci].textColor = preset.contentColor;
+    collections[ci].font = preset.font;
+    collections[ci].separator = Object.assign({}, preset.separator);
+    hasUnsavedEdits = true;
+    renderCollections();
+    return;
+  }
   const btn = e.target.closest('[data-action="remove-collection"]');
   if (!btn) return;
   const ci = parseInt(btn.dataset.ci, 10);
@@ -8086,18 +8145,53 @@ function renderThemePresetGallery() {
     });
   });
 }
-// Bascule le panneau Apparence de l'AdReel entre galerie de presets (Free) et réglages fins (Starter et
-// au-dessus) selon currentEffectivePlan -- rappelée par fillAppearanceFields() (donc à chaque bascule
-// d'AdReel/rechargement) et par renderSubscriptionPanel() (donc à chaque résolution/changement de
-// palier). Recalcule aussi les cartes de bloc : la case "Personnaliser" par bloc doit disparaître avec
-// le palier Free et réapparaître si le compositeur repasse Starter.
+// Départ rapide par preset pour le palier Pro (10 septembre) : contrairement à la galerie Free
+// (renderThemePresetGallery, ci-dessus), qui écrit UNIQUEMENT profile.theme.presetId, ici on copie les
+// valeurs concrètes du preset directement dans les champs éditables normaux -- aucune notion de
+// "preset actif" à part, le compositeur peut ensuite tout retoucher (y compris par bloc/élément) comme
+// s'il avait choisi ces couleurs à la main. Ne touche pas sectionLabelColor/bgImage (les presets ne les
+// définissent pas, même logique que --accent jamais touché par un preset côté page publique).
+function applyThemePresetQuickFill(presetId) {
+  const preset = resolveThemePreset(presetId);
+  if (!profile.theme) profile.theme = Object.assign({}, DEFAULT_THEME);
+  profile.theme.bgColor = preset.bgColor;
+  profile.theme.titleColor = preset.titleColor;
+  profile.theme.contentColor = preset.contentColor;
+  profile.theme.font = preset.font;
+  profile.theme.separator = Object.assign({}, preset.separator);
+  hasUnsavedEdits = true;
+  fillAppearanceFields();
+}
+function renderThemeProQuickStartGallery() {
+  const host = document.getElementById('themeProQuickStartGallery');
+  if (!host) return;
+  host.innerHTML = THEME_PRESETS.map(p => `
+    <button type="button" class="theme-preset-card" data-preset-id="${p.id}"
+      style="background:${p.bgColor};color:${p.titleColor}">
+      ${tr(p.labelKey)}
+    </button>
+  `).join('');
+  host.querySelectorAll('.theme-preset-card').forEach(btn => {
+    btn.addEventListener('click', () => applyThemePresetQuickFill(btn.dataset.presetId));
+  });
+}
+// Bascule le panneau Apparence de l'AdReel entre galerie de presets (Free), réglages fins seuls
+// (Starter), ou réglages fins + départ rapide par preset (Pro, 10 septembre) selon currentEffectivePlan
+// -- rappelée par fillAppearanceFields() (donc à chaque bascule d'AdReel/rechargement) et par
+// renderSubscriptionPanel() (donc à chaque résolution/changement de palier). Recalcule aussi les cartes
+// de bloc : la case "Personnaliser" par bloc doit disparaître avec le palier Free et réapparaître si le
+// compositeur repasse Starter.
 function renderAppearancePanelForTier() {
   const isFree = currentEffectivePlan === 'free';
+  const isPro = currentEffectivePlan === 'pro';
   const gallery = document.getElementById('appThemeFreeGallery');
+  const proQuickStart = document.getElementById('appThemeProQuickStart');
   const fullControls = document.getElementById('appThemeFullControls');
   if (gallery) gallery.style.display = isFree ? '' : 'none';
+  if (proQuickStart) proQuickStart.style.display = isPro ? '' : 'none';
   if (fullControls) fullControls.style.display = isFree ? 'none' : '';
   if (isFree) renderThemePresetGallery();
+  if (isPro) renderThemeProQuickStartGallery();
   renderWaveformStyleForTier();
   renderSeqMapThemeForTier();
   if (typeof rebuildAllCards === 'function') rebuildAllCards();
