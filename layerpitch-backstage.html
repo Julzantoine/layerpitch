@@ -1075,8 +1075,8 @@
   <fieldset id="panelGithubRepo" hidden>
     <legend data-i18n="githubRepoLegend">Dépôt GitHub</legend>
     <div class="row">
-      <div><label data-i18n="ownerLabel" data-help="ghOwner">Propriétaire (owner)</label><input type="text" id="ghOwner" value="Julzantoine"></div>
-      <div><label data-i18n="repoLabel" data-help="ghRepo">Dépôt (repo)</label><input type="text" id="ghRepo" value="layerpitch"></div>
+      <div><label data-i18n="ownerLabel" data-help="ghOwner">Propriétaire (owner)</label><input type="text" id="ghOwner"></div>
+      <div><label data-i18n="repoLabel" data-help="ghRepo">Dépôt (repo)</label><input type="text" id="ghRepo"></div>
       <div><label data-i18n="branchLabel" data-help="ghBranch">Branche</label><input type="text" id="ghBranch" value="main"></div>
     </div>
     <label data-i18n="tokenLabel" data-help="ghToken">Token d'accès personnel — requis seulement pour publier</label>
@@ -1604,6 +1604,10 @@ async function refreshMyComposerHandle(session) {
   if (!session || !session.user) { myComposerHandle = null; return; }
   const { handle } = await window.LayerPitchAuth.getMyComposerHandle();
   myComposerHandle = handle || null;
+  // computeAdReelUrl() dépend de myComposerHandle, chargé de façon asynchrone ici -- si le lien public
+  // a déjà été affiché avant que cet appel réseau revienne (course avec loadData()), le rafraîchir
+  // maintenant pour ne pas laisser affiché un lien absent/périmé (bug remonté le 11 septembre).
+  if (adReels.length) renderAdReelSelect();
 }
 
 // Palier effectif du compositeur pour le gating de l'apparence (Chantier Apparence Phase 3, 4
@@ -3204,15 +3208,21 @@ function computeAdReelUrl(adReelId) {
   // passe par le chemin joli du handle sur beta.layerpitch.com (voir 404.html, docs/infrastructure.md).
   // Comportement de Jules-Antoine inchangé : il garde toujours son repo configuré, donc toujours
   // l'URL github.io d'avant ce chantier.
+  // IMPORTANT : ne jamais retomber sur un owner/repo de substitution ici -- owner/repo n'ont plus de
+  // valeur par défaut en dur (bug remonté le 11 septembre : un compositeur sans repo GitHub configuré
+  // voyait le lien github.io de Jules-Antoine). Sans owner+repo+token ET sans handle, il n'y a
+  // simplement pas encore de lien public à afficher (myComposerHandle se charge de façon asynchrone
+  // après connexion -- voir refreshMyComposerHandle -- donc null ici est un état transitoire normal).
   const hasGithub = !!(state.owner() && state.repo() && state.token());
-  if (!hasGithub && myComposerHandle) {
+  if (hasGithub) {
+    const base = `https://${state.owner()}.github.io/${state.repo()}/`;
+    return adReelId === 'main' ? base : `${base}?adreel=${encodeURIComponent(adReelId)}`;
+  }
+  if (myComposerHandle) {
     const base = `https://beta.layerpitch.com/${encodeURIComponent(myComposerHandle)}/`;
     return adReelId === 'main' ? base : `${base}?adreel=${encodeURIComponent(adReelId)}`;
   }
-  const owner = state.owner() || tr('yourAccount');
-  const repo = state.repo() || tr('yourRepo');
-  const base = `https://${owner}.github.io/${repo}/`;
-  return adReelId === 'main' ? base : `${base}?adreel=${encodeURIComponent(adReelId)}`;
+  return null;
 }
 function computePackUrl(packId) {
   const owner = state.owner() || tr('yourAccount');
@@ -3255,7 +3265,9 @@ function renderAdReelSelect() {
   sel.innerHTML = adReels.map(a => `<option value="${a.id}"${a.id === currentAdReelId ? ' selected' : ''}>${escapeAttr(a.label || a.id)} (${escapeAttr(a.id)})</option>`).join('');
   const url = computeAdReelUrl(currentAdReelId);
   const box = document.getElementById('adReelUrlBox');
-  box.innerHTML = `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>`;
+  box.innerHTML = url
+    ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>`
+    : escapeAttr(tr('adreelUrlPending'));
   document.getElementById('btnDeleteAdReel').disabled = (currentAdReelId === 'main' || adReels.length <= 1);
   // Code d'intégration (liste de morceaux uniquement, voir embedMode côté index.html) : désactivé si
   // cet AdReel n'a aucun bloc "Morceaux" -- rien à intégrer, plutôt qu'un lecteur vide et déroutant.
@@ -3300,7 +3312,7 @@ function renderManageAdreels() {
       </div>
       <span class="hint-inline" style="font-family:monospace;white-space:nowrap;">${escapeAttr(selected.id)}</span>
     </div>
-    <div class="hint-inline" style="margin-top:6px;word-break:break-all;"><a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a></div>
+    <div class="hint-inline" style="margin-top:6px;word-break:break-all;">${url ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>` : escapeAttr(tr('adreelUrlPending'))}</div>
     <div class="actions" style="margin-top:10px;flex-wrap:wrap;">
       <button class="btn btn-small" data-action="edit-adreel" data-id="${selected.id}" type="button">${tr('editAdreelBtn')}</button>
       <button class="btn btn-small" data-action="duplicate-adreel" data-id="${selected.id}" type="button">${tr('duplicateAdreelBtn')}</button>
@@ -3360,6 +3372,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   const copyBtn = e.target.closest('[data-action="copy-adreel-url-manage"]');
   if (copyBtn) {
     const url = computeAdReelUrl(copyBtn.dataset.id);
+    if (!url) { alert(tr('adreelUrlPending')); return; }
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done).catch(() => { alert(tr('copyFailedAlert')); });
@@ -3368,8 +3381,10 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   }
   const shareBtn = e.target.closest('[data-action="share-adreel-url-manage"]');
   if (shareBtn) {
+    const shareUrl = computeAdReelUrl(shareBtn.dataset.id);
+    if (!shareUrl) { alert(tr('adreelUrlPending')); return; }
     const ar = adReels.find(a => a.id === shareBtn.dataset.id);
-    const result = await shareViaSocialsOrFallback(computeAdReelUrl(shareBtn.dataset.id), (ar && ar.label) || 'LayerPitch');
+    const result = await shareViaSocialsOrFallback(shareUrl, (ar && ar.label) || 'LayerPitch');
     if (result === 'copied') {
       const original = shareBtn.textContent;
       shareBtn.textContent = tr('copiedStatus');
@@ -3381,6 +3396,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
 document.getElementById('adReelSelect').addEventListener('change', e => switchAdReel(e.target.value));
 document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
   const url = computeAdReelUrl(currentAdReelId);
+  if (!url) { alert(tr('adreelUrlPending')); return; }
   const btn = document.getElementById('btnCopyAdReelUrl');
   const done = () => { const original = btn.textContent; btn.textContent = tr('copiedStatus'); setTimeout(() => { btn.textContent = original; }, 1500); };
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -3390,17 +3406,20 @@ document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
   }
 });
 document.getElementById('btnEmbedAdReelTracks').addEventListener('click', () => {
+  const baseUrl = computeAdReelUrl(currentAdReelId);
+  if (!baseUrl) { alert(tr('adreelUrlPending')); return; }
   const ar = adReels.find(a => a.id === currentAdReelId);
   // computeAdReelUrl('main') ne contient pas encore de "?" (juste la racine) -- &embed=1 supposerait à
   // tort un "?" déjà présent, contrairement à computePackUrl/computeCollectionUrl (toujours "?id=...").
-  const baseUrl = computeAdReelUrl(currentAdReelId);
   const url = baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'embed=1';
   openEmbedModal(url, (ar && ar.label) || 'LayerPitch', 'embedModalHintAdreelTracks');
 });
 document.getElementById('btnShareAdReelUrl').addEventListener('click', async () => {
+  const shareUrl = computeAdReelUrl(currentAdReelId);
+  if (!shareUrl) { alert(tr('adreelUrlPending')); return; }
   const btn = document.getElementById('btnShareAdReelUrl');
   const ar = adReels.find(a => a.id === currentAdReelId);
-  const result = await shareViaSocialsOrFallback(computeAdReelUrl(currentAdReelId), (ar && ar.label) || 'LayerPitch');
+  const result = await shareViaSocialsOrFallback(shareUrl, (ar && ar.label) || 'LayerPitch');
   if (result === 'copied') {
     const original = btn.textContent;
     btn.textContent = tr('copiedStatus');
@@ -3444,6 +3463,20 @@ document.getElementById('btnShareAdReelUrl').addEventListener('click', async () 
     try { localStorage.setItem(STORAGE_KEY, input.value); } catch (e) { /* stockage plein ou bloqué : le token reste utilisable pour la session en cours, juste pas mémorisé */ }
   });
 })();
+
+// Owner/repo GitHub — pas de valeur par défaut en dur dans le HTML (ça faisait fuiter le compte de
+// Jules-Antoine vers n'importe quel autre compositeur sans dépôt GitHub configuré, cf. bug remonté
+// le 11 septembre). Mémorisé en localStorage comme le token ci-dessus, pour ne pas avoir à retaper
+// sa propre config à chaque session sur son propre navigateur.
+['ghOwner', 'ghRepo'].forEach((id) => {
+  const STORAGE_KEY = `layerpitch_backstage_${id}`;
+  const input = document.getElementById(id);
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) input.value = saved;
+  input.addEventListener('input', () => {
+    try { localStorage.setItem(STORAGE_KEY, input.value); } catch (e) { /* stockage plein ou bloqué : le champ reste utilisable pour la session en cours, juste pas mémorisé */ }
+  });
+});
 
 // Purge ponctuelle (11 septembre, audit sécurité) : le panneau "Stockage média (Cloudflare R2)" qui
 // stockait les clés secrètes R2 maîtresses en clair dans localStorage a été retiré — create-media-signed-url
@@ -8817,7 +8850,9 @@ document.getElementById('btnPublish').addEventListener('click', publishAll);
 document.getElementById('btnView').addEventListener('click', () => {
   const owner = state.owner(), repo = state.repo();
   if (!owner || !repo) { log(tr('needOwnerRepoMsg'), 'err'); return; }
-  window.open(computeAdReelUrl(currentAdReelId), '_blank');
+  const url = computeAdReelUrl(currentAdReelId);
+  if (!url) { alert(tr('adreelUrlPending')); return; }
+  window.open(url, '_blank');
 });
 
 async function checkPublicSiteFreshness() {
