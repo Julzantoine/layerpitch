@@ -59,6 +59,7 @@ function tr(key) {
   return (dict.welcome && dict.welcome[key]) || (dictFr.welcome && dictFr.welcome[key]) || key;
 }
 document.documentElement.lang = currentLang();
+document.querySelectorAll('[data-i18n]').forEach(el => { const v = tr(el.dataset.i18n); if (v) el.textContent = v; });
 
 const content = document.getElementById('content');
 
