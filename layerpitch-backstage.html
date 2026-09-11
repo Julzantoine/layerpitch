@@ -629,7 +629,7 @@
     position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%;
     background: #c0392b; border: 1.5px solid var(--bg);
   }
-  .notif-item { padding: 8px 10px; border-radius: 5px; font-size: 12.5px; line-height: 1.5; }
+  .notif-item { padding: 8px 10px; border-radius: 5px; font-size: 12.5px; line-height: 1.5; white-space: pre-line; }
   .notif-item:not(:last-child) { border-bottom: 1px solid var(--border); }
   .notif-item-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
   .global-actions-bar .btn { white-space: nowrap; }
@@ -1152,7 +1152,7 @@
       invité. Cliquer "Inviter" pré-remplit le champ ci-dessous — la demande n'est marquée traitée
       qu'une fois l'invitation réellement envoyée.
     </div>
-    <div id="accessRequestsList" class="hint" style="margin-top:8px;">Chargement…</div>
+    <div id="accessRequestsList" class="hint" style="margin-top:8px;max-height:420px;overflow-y:auto;">Chargement…</div>
   </fieldset>
 
   <fieldset id="panelInviteTester" hidden>
@@ -1166,6 +1166,12 @@
     </div>
     <div class="row" style="margin-top:8px;">
       <div><label>Email du testeur</label><input type="email" id="inviteTesterEmail" placeholder="testeur@exemple.com"></div>
+      <div><label>Langue</label>
+        <select id="inviteTesterLang">
+          <option value="fr">Français</option>
+          <option value="en">English</option>
+        </select>
+      </div>
     </div>
     <label>Message personnalisé (optionnel)</label>
     <textarea id="inviteTesterMessage" rows="3" placeholder="Un petit mot pour ce testeur — laisse vide pour un message par défaut."></textarea>
@@ -1699,6 +1705,7 @@ async function renderAccessRequestsList() {
         <div style="font-size:11px;color:#999;">${sourceLabel(r)} — ${new Date(r.created_at).toLocaleString('fr-FR')}</div>
       </div>
       <button class="btn btn-small" type="button" data-request-id="${r.id}" data-request-email="${escapeAttr(r.email)}">Inviter</button>
+      <button class="btn btn-small" type="button" data-delete-request-id="${r.id}" title="Écarter sans inviter">Supprimer</button>
     </div>`).join('');
   listEl.querySelectorAll('button[data-request-id]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -1707,6 +1714,16 @@ async function renderAccessRequestsList() {
       emailField.dataset.pendingRequestId = btn.dataset.requestId;
       emailField.scrollIntoView({ behavior: 'smooth', block: 'center' });
       emailField.focus();
+    });
+  });
+  // Écarte une demande sans l'inviter (doublon, spam, déjà traitée autrement) -- retour de
+  // Jules-Antoine le 11 septembre : sans ça, la liste ne fait que grossir.
+  listEl.querySelectorAll('button[data-delete-request-id]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { ok, error } = await window.LayerPitchAccessRequests.deleteAccessRequest(Number(btn.dataset.deleteRequestId));
+      if (!ok) { alert('Erreur : ' + error); btn.disabled = false; return; }
+      renderAccessRequestsList();
     });
   });
 }
@@ -1907,6 +1924,7 @@ async function initPgAuthUi() {
   if (inviteBtn) {
     inviteBtn.addEventListener('click', async () => {
       const email = document.getElementById('inviteTesterEmail').value.trim();
+      const lang = document.getElementById('inviteTesterLang').value === 'en' ? 'en' : 'fr';
       const personalMessage = document.getElementById('inviteTesterMessage').value.trim();
       if (!email) { alert('Renseigne l\'email du testeur.'); return; }
       inviteBtn.disabled = true;
@@ -1914,8 +1932,11 @@ async function initPgAuthUi() {
         await loadPostgresReadScripts();
         // Redirige vers bienvenue.html (flux d'inscription, docs/infrastructure.md), pas vers le
         // backstage lui-même -- sinon tout nouvel invité atterrit directement dans l'outil
-        // compositeur sans jamais voir l'écran d'accueil.
-        const { ok, error, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html', personalMessage);
+        // compositeur sans jamais voir l'écran d'accueil. ?lang= : bienvenue.html le lit et le
+        // propage à localStorage.layerpitch_lang (voir currentLang() plus haut dans ce fichier),
+        // donc à l'écran d'accueil ET au message de bienvenue personnel -- sans ce paramètre,
+        // tout le monde recevait la version française par défaut (11 septembre).
+        const { ok, error, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html?lang=' + lang, personalMessage);
         if (ok) {
           alert('Invitation envoyée à ' + email + '.');
           // Si cette invitation part d'une demande d'accès en attente (bouton "Inviter" de la
@@ -1929,6 +1950,7 @@ async function initPgAuthUi() {
           }
           emailField.value = '';
           document.getElementById('inviteTesterMessage').value = '';
+          document.getElementById('inviteTesterLang').value = 'fr';
         } else if (actionLink) {
           // Compte créé mais email jamais parti (Resend en échec) -- le lien de secours doit être
           // transmis à la main plutôt que de perdre l'invitation.

@@ -35,5 +35,12 @@
     return { ok: !error, error: error ? error.message : null };
   }
 
-  window.LayerPitchAccessRequests = { submitAccessRequest, getPendingAccessRequests, markAccessRequestInvited };
+  // Écarte une demande sans l'inviter (doublon, spam, déjà traitée autrement) -- distinct de
+  // markAccessRequestInvited(), qui garde la ligne (invited_at) plutôt que de la supprimer.
+  async function deleteAccessRequest(id) {
+    const { error } = await getClient().rpc('admin_delete_access_request', { p_id: id });
+    return { ok: !error, error: error ? error.message : null };
+  }
+
+  window.LayerPitchAccessRequests = { submitAccessRequest, getPendingAccessRequests, markAccessRequestInvited, deleteAccessRequest };
 })();
