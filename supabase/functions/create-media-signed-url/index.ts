@@ -13,14 +13,19 @@
 // lui-même l'appel PUT/DELETE directement vers R2 avec cette URL (pas de transfert de fichier via
 // cette fonction -- évite toute limite de taille de requête côté Edge Function).
 //
-// Validation du chemin : préfixe autorisé + pas de remontée de répertoire, PLUS (4 septembre,
-// durcissement) vérification que l'entité visée appartient réellement à l'appelant, pour les
-// formats de chemin dont l'entité est une table avec owner_id connue (ad_reels/packs/collections/
-// tracks/sfx_library -- toutes les cinq confirmées le 31 août). Deux formats restent NON vérifiés
-// et volontairement laissés passer : les images de bloc (`${b.id}-*`, un bloc vit en JSONB à
-// l'intérieur d'un ad_reel, pas une table interrogeable séparément) et les polices personnalisées
-// (`${font.id}`, table non confirmée) -- même comportement qu'avant ce durcissement pour ces deux
-// cas plutôt que de deviner un schéma et casser un vrai upload.
+// Validation du chemin : préfixe autorisé + pas de remontée de répertoire, PLUS vérification que
+// l'entité visée appartient réellement à l'appelant. Couvre maintenant tous les formats de chemin
+// réels utilisés par publishAll() : les cinq tables avec owner_id direct (ad_reels/packs/collections/
+// tracks/sfx_library), l'avatar de témoignage (`${ar.id}-testimonial-avatar-N`, rattaché à ad_reels
+// comme logo/photo/theme-bg), et les images de bloc (`${b.id}-N`, `${b.id}-thumb-N`, `${b.id}-bg`,
+// un bloc vit en JSONB dans la colonne `blocks` d'un ad_reel, résolu ici par containment JSONB plutôt
+// que par une table dédiée). Durci le 11 septembre (audit sécurité) : tout chemin qui ne correspond
+// à AUCUN de ces formats est désormais REFUSÉ par défaut (c'était auparavant autorisé par défaut --
+// un compositeur authentifié pouvait alors obtenir une URL signée PUT/DELETE pour n'importe quel
+// fichier sous images/ ou audio/ sans aucune vérification de propriété, y compris ceux d'un autre
+// compositeur, tant que le nom de fichier ne matchait aucun des formats connus). Les polices
+// personnalisées passent par ghPutFile (GitHub), pas par cette fonction -- un chemin en forme de
+// police ne devrait donc jamais arriver ici ; le refus par défaut le couvre sans cas particulier.
 //
 // Vérifié avant d'écrire cette version, pas supposé : publishAll() (layerpitch-backstage.html)
 // uploade TOUT le média avant d'appeler les RPC upsert_ad_reel/upsert_track/etc. qui créent
@@ -33,19 +38,34 @@
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Autorise uniquement les origines LayerPitch connues plutôt que '*' -- ces fonctions manipulent
+// paiement/facturation/média/admin ; un JWT qui fuit ailleurs ne doit pas pouvoir être rejoué
+// depuis n'importe quel site (durci 11 septembre, audit sécurité). Ne s'appuie sur aucun cookie
+// (auth par Authorization: Bearer uniquement) -- ce durcissement est une défense en profondeur,
+// pas la protection principale.
+const ALLOWED_ORIGINS = new Set([
+  'https://beta.layerpitch.com',
+  'https://layerpitch.com',
+  'https://www.layerpitch.com',
+  'http://localhost:8420',
+]);
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') || '';
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://beta.layerpitch.com',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+}
 
 const ALLOWED_PREFIXES = ['images/', 'audio/'];
 
-// Renvoie true si le chemin est autorisé pour ce compositeur -- soit parce que l'entité visée lui
-// appartient (vérifié), soit parce que le format de chemin n'est pas rattachable à une table
-// interrogeable (voir commentaire d'en-tête) et reste donc non vérifié, comme avant ce durcissement.
+// Renvoie true si le chemin est autorisé pour ce compositeur -- l'entité visée doit lui appartenir
+// (ou ne pas encore exister, voir plus bas). Tout chemin qui ne correspond à aucun format connu est
+// refusé (voir commentaire d'en-tête).
 async function verifyOwnership(adminClient: ReturnType<typeof createClient>, path: string, composerId: string): Promise<boolean> {
   const checks: Array<{ pattern: RegExp; table: string }> = [
     { pattern: /^images\/(?:logo|photo|theme-bg)-([^./]+)\.[^./]+$/, table: 'ad_reels' },
+    { pattern: /^images\/([^./]+)-testimonial-avatar-\d+\.[^./]+$/, table: 'ad_reels' },
     { pattern: /^images\/pack(?:-watermark)?-([^./]+)\.[^./]+$/, table: 'packs' },
     { pattern: /^images\/collection-([^./]+)\.[^./]+$/, table: 'collections' },
     { pattern: /^audio\/sfx-([^/]+)\//, table: 'sfx_library' },
@@ -62,11 +82,23 @@ async function verifyOwnership(adminClient: ReturnType<typeof createClient>, pat
     if (!data) return true;
     return data.owner_id === composerId;
   }
-  // Format non reconnu (bloc, police...) -- non vérifiable, laissé passer.
-  return true;
+  // Image de bloc : `${b.id}-N`, `${b.id}-thumb-N` ou `${b.id}-bg` -- le bloc vit dans la colonne
+  // jsonb `ad_reels.blocks` (tableau d'objets {id, type, ...}), pas dans une table à part. Résolu par
+  // containment jsonb (`@>`, via .contains()) : trouve l'ad_reel dont le tableau blocks contient un
+  // objet avec cet id, peu importe ses autres champs.
+  const blockMatch = path.match(/^images\/([^./]+?)(?:-\d+|-thumb-\d+|-bg)\.[^./]+$/);
+  if (blockMatch) {
+    const { data } = await adminClient.from('ad_reels').select('owner_id').contains('blocks', [{ id: blockMatch[1] }]).maybeSingle();
+    if (!data) return true; // bloc pas encore publié -- même raisonnement que ci-dessus.
+    return data.owner_id === composerId;
+  }
+  // Tout le reste (y compris un chemin en forme de police -- jamais censé arriver ici, voir
+  // commentaire d'en-tête) : refusé par défaut plutôt qu'autorisé (durci 11 septembre).
+  return false;
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
@@ -141,7 +173,11 @@ Deno.serve(async (req) => {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e && e.message || e) }), {
+    // Erreur interne inattendue : détail loggé côté serveur, jamais renvoyé au client (durci 11
+    // septembre, audit sécurité -- évite de fuir un nom de colonne/contrainte Postgres ou un autre
+    // détail interne).
+    console.error('create-media-signed-url:', e);
+    return new Response(JSON.stringify({ error: 'Erreur interne. Réessaie dans un instant.' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

@@ -1185,25 +1185,6 @@
     </div>
   </fieldset>
 
-  <fieldset id="panelR2Storage" hidden>
-    <legend>Stockage média (Cloudflare R2)</legend>
-    <div class="hint">
-      L'audio est servi depuis media.layerpitch.com (bucket R2), pas depuis GitHub — voir
-      docs/infrastructure.md, Décision 3. Ces identifiants ne sont requis que pour publier un
-      morceau/Sfx avec un fichier audio nouveau ou remplacé ; les autres publications (textes,
-      images, réorganisation) n'en ont pas besoin.
-    </div>
-    <div class="row">
-      <div><label>Account ID</label><input type="text" id="r2AccountId" placeholder="a1b2c3d4..."></div>
-      <div><label>Bucket</label><input type="text" id="r2Bucket" value="layerpitch-media"></div>
-    </div>
-    <label>Access Key ID</label>
-    <input type="password" id="r2AccessKeyId" placeholder="ex4mpleAccessKey...">
-    <label>Secret Access Key</label>
-    <input type="password" id="r2SecretAccessKey" placeholder="ex4mpleSecretKey...">
-    <div class="hint">Mémorisés sur cet ordinateur (localStorage), même principe que le token GitHub ci-dessus — jamais publiés, jamais transmis ailleurs qu'à R2.</div>
-  </fieldset>
-
   <div class="actions-top">
     <button class="btn" id="btnCheckFresh" data-i18n="checkFreshBtn">Vérifier si le site public est à jour</button>
   </div>
@@ -1510,10 +1491,6 @@ const state = {
   repo: () => document.getElementById('ghRepo').value.trim(),
   branch: () => document.getElementById('ghBranch').value.trim(),
   token: () => document.getElementById('ghToken').value.trim(),
-  r2AccountId: () => document.getElementById('r2AccountId').value.trim(),
-  r2Bucket: () => document.getElementById('r2Bucket').value.trim(),
-  r2AccessKeyId: () => document.getElementById('r2AccessKeyId').value.trim(),
-  r2SecretAccessKey: () => document.getElementById('r2SecretAccessKey').value.trim(),
 };
 
 /* ---------------- Tracking d'usage (bêta) ---------------- */
@@ -1678,7 +1655,7 @@ async function renderSubscriptionPanel(session) {
 // fetchSiteData()/pgReadEnabled() basculent déjà seuls sur Postgres pour un compositeur sans token
 // GitHub configuré (comme publishAll() le fait déjà côté écriture) -- sinon un compositeur hébergé
 // aurait vu sa bibliothèque vide, ce panneau étant jusqu'ici le seul moyen de l'activer à la main.
-const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelR2Storage', 'panelAdminLink'];
+const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelAdminLink'];
 // Statut admin mis en cache une fois par session (7 septembre) -- lu par renderPacks() pour
 // désactiver la case "en vente" (voir plus bas, un compositeur ordinaire ne doit pas pouvoir mettre
 // son propre pack en vente). Confort d'affichage uniquement : la vraie barrière est désormais
@@ -3468,24 +3445,16 @@ document.getElementById('btnShareAdReelUrl').addEventListener('click', async () 
   });
 })();
 
-// Identifiants R2 (upload audio/Sfx — Décision 3) — même principe de persistance locale que le
-// token GitHub ci-dessus, mêmes garanties (fichier jamais publié, jamais servi).
-(function initR2Credentials() {
-  const FIELDS = {
-    r2AccountId: 'layerpitch_backstage_r2_account_id',
-    r2Bucket: 'layerpitch_backstage_r2_bucket',
-    r2AccessKeyId: 'layerpitch_backstage_r2_access_key_id',
-    r2SecretAccessKey: 'layerpitch_backstage_r2_secret_access_key',
-  };
-  Object.entries(FIELDS).forEach(([id, storageKey]) => {
-    const input = document.getElementById(id);
-    const saved = localStorage.getItem(storageKey);
-    if (saved) input.value = saved;
-    input.addEventListener('input', () => {
-      try { localStorage.setItem(storageKey, input.value); } catch (e) { /* voir initBackstageToken */ }
-    });
-  });
-})();
+// Purge ponctuelle (11 septembre, audit sécurité) : le panneau "Stockage média (Cloudflare R2)" qui
+// stockait les clés secrètes R2 maîtresses en clair dans localStorage a été retiré — create-media-signed-url
+// couvre déjà tous les cas d'usage avec des URLs signées à courte durée de vie, sans jamais exposer
+// ces clés au navigateur. Si une session précédente les avait mémorisées ici, on les efface au
+// prochain chargement plutôt que de les laisser traîner indéfiniment sur le disque.
+try {
+  ['layerpitch_backstage_r2_account_id', 'layerpitch_backstage_r2_bucket',
+   'layerpitch_backstage_r2_access_key_id', 'layerpitch_backstage_r2_secret_access_key']
+    .forEach((k) => localStorage.removeItem(k));
+} catch (e) { /* stockage bloqué : rien à purger de toute façon */ }
 
 function buildBlocksForNewAdReel(source, importExtraBlocks) {
   // Bug corrigé (16 juillet) : l'ancienne version partait toujours de freshBlocks() (ordre figé
@@ -8968,30 +8937,16 @@ async function ghPutFile(owner, repo, path, branch, token, base64Content, messag
  * L'audio n'est plus servi depuis GitHub mais depuis media.layerpitch.com (bucket R2) — trouvé le
  * 31 août : track.base/sfx.base étaient réécrits vers github.io à CHAQUE publication, ce qui
  * cassait silencieusement le site en production dès la publication suivante (games déjà migrés
- * vers R2 remis sur l'ancienne URL). Corrigé ici : base pointe désormais vers R2, et les fichiers
- * audio/Sfx uploadés sont envoyés directement à R2 depuis le navigateur (signature AWS SigV4 en
- * Web Crypto API — pas de module Node ici). Fonctionne car le bucket a une policy CORS ouverte en
- * écriture (AllowedMethods inclut PUT, AllowedOrigins "*", y compris depuis une origine "null" —
- * ce fichier ouvert en file://). Testé réellement contre le bucket avant intégration.
+ * vers R2 remis sur l'ancienne URL). Corrigé ici : base pointe désormais vers R2.
+ *
+ * Écriture/suppression toujours via l'Edge Function create-media-signed-url (4 septembre) : une URL
+ * R2 pré-signée à usage unique et courte durée de vie (5 min), jamais les clés secrètes R2
+ * elles-mêmes. Avant le 11 septembre, un panneau admin permettait de coller les clés R2 maîtresses
+ * en clair dans le navigateur (persistées en localStorage) pour signer les requêtes soi-même en
+ * repli -- retiré (audit sécurité) : ces clés donnent un accès total au bucket, y compris aux
+ * factures, et l'Edge Function couvre déjà tous les cas d'usage sans ce risque.
  */
 const MEDIA_BASE = 'https://media.layerpitch.com/';
-async function r2Sha256Hex(data) {
-  const buf = typeof data === 'string' ? new TextEncoder().encode(data) : data;
-  const hash = await crypto.subtle.digest('SHA-256', buf);
-  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
-async function r2HmacRaw(keyData, data) {
-  const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const sig = await crypto.subtle.sign('HMAC', key, typeof data === 'string' ? new TextEncoder().encode(data) : data);
-  return new Uint8Array(sig);
-}
-function r2UriEncodeSegment(segment) {
-  return encodeURIComponent(segment).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
-}
-// URL R2 pré-signée via la nouvelle Edge Function create-media-signed-url (4 septembre) --
-// utilisée en repli quand aucun identifiant R2 local n'est saisi (panneau "Stockage média" masqué
-// aux non-admins depuis ce même jour, voir docs/infrastructure.md). Le compositeur n'a jamais accès
-// aux clés secrètes R2 elles-mêmes dans ce chemin, contrairement au panneau admin.
 async function r2SignedUrl(path, method) {
   await loadPostgresReadScripts();
   const { data, error } = await window.LayerPitchSupabaseClient.getClient()
@@ -9001,92 +8956,19 @@ async function r2SignedUrl(path, method) {
   return data.url;
 }
 async function r2PutFile(key, bytes, contentType) {
-  const accountId = state.r2AccountId(), bucket = state.r2Bucket();
-  const accessKey = state.r2AccessKeyId(), secretKey = state.r2SecretAccessKey();
-  if (!accountId || !bucket || !accessKey || !secretKey) {
-    // Pas d'identifiants R2 locaux (cas normal pour tout compositeur non-admin depuis que ce
-    // panneau est masqué) -- repli sur une URL pré-signée à usage unique plutôt que de bloquer.
-    const url = await r2SignedUrl(key, 'PUT');
-    const res = await fetch(url, { method: 'PUT', headers: { 'content-type': contentType }, body: bytes });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
-    }
-    return;
-  }
-  const host = `${accountId}.r2.cloudflarestorage.com`;
-  const region = 'auto', service = 's3';
-  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-  const dateStamp = amzDate.slice(0, 8);
-  const payloadHash = await r2Sha256Hex(bytes);
-  const canonicalUri = '/' + bucket + '/' + key.split('/').map(r2UriEncodeSegment).join('/');
-  const headers = { host, 'content-type': contentType, 'x-amz-content-sha256': payloadHash, 'x-amz-date': amzDate };
-  const sortedKeys = Object.keys(headers).sort();
-  const canonicalHeaders = sortedKeys.map(k => `${k}:${headers[k]}\n`).join('');
-  const signedHeaders = sortedKeys.join(';');
-  const canonicalRequest = ['PUT', canonicalUri, '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
-  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
-  const stringToSign = ['AWS4-HMAC-SHA256', amzDate, credentialScope, await r2Sha256Hex(canonicalRequest)].join('\n');
-  const kDate = await r2HmacRaw(new TextEncoder().encode('AWS4' + secretKey), dateStamp);
-  const kRegion = await r2HmacRaw(kDate, region);
-  const kService = await r2HmacRaw(kRegion, service);
-  const kSigning = await r2HmacRaw(kService, 'aws4_request');
-  const sigBytes = await r2HmacRaw(kSigning, stringToSign);
-  const signature = [...sigBytes].map(b => b.toString(16).padStart(2, '0')).join('');
-  const authorization = `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-  const res = await fetch(`https://${host}${canonicalUri}`, {
-    method: 'PUT',
-    headers: { ...headers, Authorization: authorization },
-    body: bytes,
-  });
+  const url = await r2SignedUrl(key, 'PUT');
+  const res = await fetch(url, { method: 'PUT', headers: { 'content-type': contentType }, body: bytes });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
   }
 }
-// Supprime un fichier sur R2 (même schéma de signature que r2PutFile, méthode DELETE, corps vide) —
-// ajouté le 01/09 pour que la suppression d'un morceau/Sfx/couche/alternative dans le backstage supprime
-// aussi le fichier distant, plutôt que de le laisser orphelin sur R2 (voir docs/LAYERPITCH_CHANGELOG.md).
-// Nécessite que la policy CORS du bucket autorise DELETE (AllowedMethods) -- pas garanti tant que
-// Jules-Antoine n'a pas ajouté "DELETE" dans le dashboard Cloudflare R2 > layerpitch-media > Settings.
+// Supprime un fichier sur R2 — ajouté le 01/09 pour que la suppression d'un morceau/Sfx/couche/
+// alternative dans le backstage supprime aussi le fichier distant, plutôt que de le laisser
+// orphelin sur R2 (voir docs/LAYERPITCH_CHANGELOG.md).
 async function r2DeleteFile(key) {
-  const accountId = state.r2AccountId(), bucket = state.r2Bucket();
-  const accessKey = state.r2AccessKeyId(), secretKey = state.r2SecretAccessKey();
-  if (!accountId || !bucket || !accessKey || !secretKey) {
-    // Même repli que r2PutFile -- voir ce commentaire pour le contexte.
-    const url = await r2SignedUrl(key, 'DELETE');
-    const res = await fetch(url, { method: 'DELETE' });
-    if (!res.ok && res.status !== 404) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`DELETE R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
-    }
-    return;
-  }
-  const host = `${accountId}.r2.cloudflarestorage.com`;
-  const region = 'auto', service = 's3';
-  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-  const dateStamp = amzDate.slice(0, 8);
-  const payloadHash = await r2Sha256Hex(new Uint8Array(0));
-  const canonicalUri = '/' + bucket + '/' + key.split('/').map(r2UriEncodeSegment).join('/');
-  const headers = { host, 'x-amz-content-sha256': payloadHash, 'x-amz-date': amzDate };
-  const sortedKeys = Object.keys(headers).sort();
-  const canonicalHeaders = sortedKeys.map(k => `${k}:${headers[k]}\n`).join('');
-  const signedHeaders = sortedKeys.join(';');
-  const canonicalRequest = ['DELETE', canonicalUri, '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
-  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
-  const stringToSign = ['AWS4-HMAC-SHA256', amzDate, credentialScope, await r2Sha256Hex(canonicalRequest)].join('\n');
-  const kDate = await r2HmacRaw(new TextEncoder().encode('AWS4' + secretKey), dateStamp);
-  const kRegion = await r2HmacRaw(kDate, region);
-  const kService = await r2HmacRaw(kRegion, service);
-  const kSigning = await r2HmacRaw(kService, 'aws4_request');
-  const sigBytes = await r2HmacRaw(kSigning, stringToSign);
-  const signature = [...sigBytes].map(b => b.toString(16).padStart(2, '0')).join('');
-  const authorization = `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-  const res = await fetch(`https://${host}${canonicalUri}`, {
-    method: 'DELETE',
-    headers: { ...headers, Authorization: authorization },
-  });
-  // S3 renvoie 204 même si l'objet n'existait déjà plus -- seul un vrai échec (droits, CORS...) doit remonter.
+  const url = await r2SignedUrl(key, 'DELETE');
+  const res = await fetch(url, { method: 'DELETE' });
   if (!res.ok && res.status !== 404) {
     const text = await res.text().catch(() => '');
     throw new Error(`DELETE R2 ${key} → ${res.status} ${text.slice(0, 300)}`);

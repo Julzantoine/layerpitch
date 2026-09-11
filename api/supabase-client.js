@@ -14,7 +14,7 @@
 // Doit être chargé en premier, juste après le SDK Supabase (CDN) et avant tout autre api/*.js,
 // partout où loadPostgresReadScripts()/loadPurchaseScripts() (ou des <script> statiques)
 // chargent ces modules — voir index.html/pack.html/collection.html/layerpitch-backstage.html/
-// library.html/auth-test.html.
+// library.html.
 
 (function () {
   const SUPABASE_URL = 'https://ypygllyjfynrnvapufow.supabase.co';

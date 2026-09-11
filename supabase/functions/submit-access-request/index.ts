@@ -12,10 +12,24 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Autorise uniquement les origines LayerPitch connues plutôt que '*' -- ces fonctions manipulent
+// paiement/facturation/média/admin ; un JWT qui fuit ailleurs ne doit pas pouvoir être rejoué
+// depuis n'importe quel site (durci 11 septembre, audit sécurité). Ne s'appuie sur aucun cookie
+// (auth par Authorization: Bearer uniquement) -- ce durcissement est une défense en profondeur,
+// pas la protection principale.
+const ALLOWED_ORIGINS = new Set([
+  'https://beta.layerpitch.com',
+  'https://layerpitch.com',
+  'https://www.layerpitch.com',
+  'http://localhost:8420',
+]);
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') || '';
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://beta.layerpitch.com',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+}
 
 function isValidEmail(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
@@ -67,6 +81,7 @@ async function sendConfirmationEmail(to: string, lang: string) {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
@@ -91,7 +106,11 @@ Deno.serve(async (req) => {
     // Limite de fréquence par IP, même fonction/fenêtre qu'avant (bump_access_request_rate_limit,
     // supabase/migrations/20260906010000_access_requests.sql) -- réutilisée via RPC plutôt que
     // dupliquée, la fonction reste appelable par service_role même si son GRANT vise anon/authenticated.
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || v_email;
+    // Dernier segment de x-forwarded-for (posé par le proxy de confiance le plus proche), pas le
+    // premier (falsifiable par l'appelant qui peut fixer sa propre valeur sur la requête) -- corrigé
+    // 11 septembre, audit sécurité, même raisonnement que log_analytics_event() côté SQL.
+    const xff = req.headers.get('x-forwarded-for');
+    const ip = (xff ? xff.split(',').map((s) => s.trim()).filter(Boolean).pop() : null) || v_email;
     const bucketKey = `access_request:${ip}:${Math.floor(Date.now() / 60000)}`;
     const { data: withinLimit } = await adminClient.rpc('bump_access_request_rate_limit', { p_bucket_key: bucketKey });
     if (withinLimit === false) {
@@ -121,7 +140,11 @@ Deno.serve(async (req) => {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e && e.message || e) }), {
+    // Erreur interne inattendue : détail loggé côté serveur, jamais renvoyé au client (durci 11
+    // septembre, audit sécurité -- évite de fuir un nom de colonne/contrainte Postgres ou un autre
+    // détail interne).
+    console.error('submit-access-request:', e);
+    return new Response(JSON.stringify({ error: 'Erreur interne. Réessaie dans un instant.' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

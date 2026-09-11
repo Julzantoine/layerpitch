@@ -11,10 +11,24 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Autorise uniquement les origines LayerPitch connues plutôt que '*' -- ces fonctions manipulent
+// paiement/facturation/média/admin ; un JWT qui fuit ailleurs ne doit pas pouvoir être rejoué
+// depuis n'importe quel site (durci 11 septembre, audit sécurité). Ne s'appuie sur aucun cookie
+// (auth par Authorization: Bearer uniquement) -- ce durcissement est une défense en profondeur,
+// pas la protection principale.
+const ALLOWED_ORIGINS = new Set([
+  'https://beta.layerpitch.com',
+  'https://layerpitch.com',
+  'https://www.layerpitch.com',
+  'http://localhost:8420',
+]);
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') || '';
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://beta.layerpitch.com',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+}
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -60,6 +74,7 @@ async function sendContactEmail(to: string, senderName: string, senderEmail: str
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
@@ -83,7 +98,11 @@ Deno.serve(async (req) => {
 
     // Limite de fréquence par IP, fenêtre d'une minute — même principe que log_analytics_event(),
     // repli sur l'email du visiteur si l'en-tête n'est pas exposé (jamais un rejet total faute d'IP).
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || senderEmail;
+    // Dernier segment de x-forwarded-for (posé par le proxy de confiance le plus proche), pas le
+    // premier (falsifiable par l'appelant qui peut fixer sa propre valeur sur la requête) -- corrigé
+    // 11 septembre, audit sécurité, même raisonnement que log_analytics_event() côté SQL.
+    const xff = req.headers.get('x-forwarded-for');
+    const ip = (xff ? xff.split(',').map((s) => s.trim()).filter(Boolean).pop() : null) || senderEmail;
     const bucketKey = `contact:${ip}:${Math.floor(Date.now() / 60000)}`;
     const { data: withinLimit } = await adminClient.rpc('bump_contact_rate_limit', { p_bucket_key: bucketKey });
     if (withinLimit === false) {
@@ -131,7 +150,11 @@ Deno.serve(async (req) => {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e && e.message || e) }), {
+    // Erreur interne inattendue : détail loggé côté serveur, jamais renvoyé au client (durci 11
+    // septembre, audit sécurité -- évite de fuir un nom de colonne/contrainte Postgres ou un autre
+    // détail interne).
+    console.error('submit-contact-message:', e);
+    return new Response(JSON.stringify({ error: 'Erreur interne. Réessaie dans un instant.' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

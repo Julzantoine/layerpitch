@@ -13,12 +13,27 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Autorise uniquement les origines LayerPitch connues plutôt que '*' -- ces fonctions manipulent
+// paiement/facturation/média/admin ; un JWT qui fuit ailleurs ne doit pas pouvoir être rejoué
+// depuis n'importe quel site (durci 11 septembre, audit sécurité). Ne s'appuie sur aucun cookie
+// (auth par Authorization: Bearer uniquement) -- ce durcissement est une défense en profondeur,
+// pas la protection principale.
+const ALLOWED_ORIGINS = new Set([
+  'https://beta.layerpitch.com',
+  'https://layerpitch.com',
+  'https://www.layerpitch.com',
+  'http://localhost:8420',
+]);
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') || '';
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://beta.layerpitch.com',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+}
 
 Deno.serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
@@ -75,7 +90,11 @@ Deno.serve(async (req) => {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e && e.message || e) }), {
+    // Erreur interne inattendue : détail loggé côté serveur, jamais renvoyé au client (durci 11
+    // septembre, audit sécurité -- évite de fuir un nom de colonne/contrainte Postgres ou un autre
+    // détail interne).
+    console.error('get-invoice-download-url:', e);
+    return new Response(JSON.stringify({ error: 'Erreur interne. Réessaie dans un instant.' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

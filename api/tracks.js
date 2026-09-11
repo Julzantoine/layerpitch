@@ -87,7 +87,9 @@
   }
 
   // payload : même forme qu'un morceau de data.json (voir reshapeTrack ci-dessus pour le mapping
-  // inverse). Réservé à l'admin — la RPC elle-même refuse tout autre appelant (voir migrations).
+  // inverse). Réservé au compositeur propriétaire du morceau — la RPC elle-même vérifie
+  // l'appartenance (current_composer_id(), voir 20260901150000_fix_upsert_track_null_next_options.sql)
+  // et refuse toute tentative sur un morceau appartenant à quelqu'un d'autre.
   async function upsertTrack(payload) {
     const { data, error } = await getClient().rpc('upsert_track', { payload });
     if (error) return { ok: false, error: error.message };
