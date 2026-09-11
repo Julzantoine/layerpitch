@@ -39,7 +39,17 @@
 <script src="api/subscriptions.js"></script>
 <script src="api/access-requests.js"></script>
 <script>
-const pageLang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'fr';
+const urlLang = new URLSearchParams(location.search).get('lang');
+const pageLang = urlLang === 'en' ? 'en' : 'fr';
+// Le Backstage (et les autres pages qui partagent ce même réglage) ne lit jamais ?lang= dans l'URL --
+// seulement layerpitch_lang en localStorage, français par défaut. Sans ce pont, un visiteur arrivant
+// ici via landing-en.html?lang=en retombait en français dès qu'il cliquait vers le Backstage. On ne
+// touche au localStorage que si l'URL porte explicitement ?lang=, pour ne jamais écraser une
+// préférence déjà choisie (ex: via le sélecteur de langue du Backstage) chez un visiteur qui revient
+// ici sans paramètre.
+if (urlLang) {
+  try { localStorage.setItem('layerpitch_lang', pageLang); } catch (e) { /* stockage bloqué : la langue reste correcte pour cette page, juste pas transmise au Backstage */ }
+}
 // Branchement flux d'inscription persona (7 septembre) : connu silencieusement via le lien cliqué
 // sur la landing d'origine (?persona=studio), jamais redemandé à l'utilisateur -- cohérent avec la
 // décision "pas d'écran de choix" (architecture racine actée le même jour). Studio est la seule
@@ -145,7 +155,7 @@ async function render() {
       <p>${tr('alreadyOnboarded')}</p>
       <div class="links">
         <a href="./layerpitch-backstage.html">${tr('linkBackstage')}</a>
-        <a href="./library.html">${tr('linkLibrary')}</a>
+        <a href="./library.html?lang=${pageLang}">${tr('linkLibrary')}</a>
       </div>`;
     return;
   }
@@ -180,7 +190,7 @@ async function render() {
       btn.disabled = false;
       return;
     }
-    window.location.href = isStudio ? './library.html' : './layerpitch-backstage.html';
+    window.location.href = isStudio ? `./library.html?lang=${pageLang}` : './layerpitch-backstage.html';
   });
 }
 
