@@ -4242,6 +4242,14 @@ function renderLibrary() {
               if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) { track.title = titleFromFilename(f.name); renderLibrary(); }
               probeAudioDuration(f).then(dur => { layer0.duration = dur; recomputeTrackDuration(track); renderLibrary(); });
             }, () => layer0.originalFileName);
+          wireBatchDrop(staticCtrlHost, files => {
+            const f = files[0];
+            layer0.pendingFile = f;
+            hasUnsavedEdits = true;
+            if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilename(f.name);
+            renderLibrary();
+            probeAudioDuration(f).then(dur => { layer0.duration = dur; recomputeTrackDuration(track); renderLibrary(); });
+          });
         }
         if (track.loopEngine === 'quantized' && !isVerticalRandom && !isEmbrVert) {
           const timelineHost = infoEl.querySelector('[data-role="loopTimelineHost"]');
@@ -4683,6 +4691,19 @@ function renderLibrary() {
               }
               probeAudioDuration(f).then(dur => { layer.duration = dur; recomputeTrackDuration(track); renderLibrary(); });
             }, () => layer.originalFileName);
+        });
+        wireBatchDrop(modeMasterHost, files => {
+          const pushedLayers = files.map(f => {
+            const newLayer = { id: genId(), label: titleFromFilename(f.name), remoteFile: null, pendingFile: f };
+            track.layers.push(newLayer);
+            return newLayer;
+          });
+          hasUnsavedEdits = true;
+          if ((!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) && files[0]) track.title = titleFromFilename(files[0].name);
+          renderLibrary();
+          pushedLayers.forEach((newLayer, i) => {
+            probeAudioDuration(files[i]).then(dur => { newLayer.duration = dur; recomputeTrackDuration(track); renderLibrary(); });
+          });
         });
         wireArrayDragReorder(modeMasterHost, 'seq-master-item', () => track.layers, () => renderLibrary());
         // "+ Couche" vit désormais à la suite des couches, même correctif (20/08).
