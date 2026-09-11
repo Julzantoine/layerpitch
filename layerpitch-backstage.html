@@ -118,7 +118,7 @@
   .row { display: flex; gap: 12px; }
   .row > div { flex: 1; }
   .hint-inline { color: #999; font-size: 10px; margin-top: 3px; }
-  [data-role="poolAlternatives"], [data-role="slotAlternatives"], [data-role="allBlocksDrop"] { border-radius: 6px; transition: background 0.15s, outline 0.15s; }
+  [data-role="poolAlternatives"], [data-role="slotAlternatives"], [data-role="allBlocksDrop"], [data-role="staticFileCtrl"], [data-role="modeMaster"] { border-radius: 6px; transition: background 0.15s, outline 0.15s; }
   [data-role="poolAlternatives"]:empty, [data-role="slotAlternatives"]:empty {
     border: 1px dashed #d5d5da; min-height: 44px; display: flex; align-items: center; justify-content: center;
   }
@@ -129,7 +129,7 @@
     border: 1px dashed #d5d5da; min-height: 44px; display: flex; align-items: center; justify-content: center;
   }
   [data-role="allBlocksDrop"]::before { content: var(--drop-all-hint-text, 'Dépose tous tes fichiers ici'); color: #aaa; font-size: 11px; }
-  [data-role="poolAlternatives"].drag-over, [data-role="slotAlternatives"].drag-over, [data-role="allBlocksDrop"].drag-over { background: #eef6ff; outline: 2px dashed #2f80c0; outline-offset: 2px; }
+  [data-role="poolAlternatives"].drag-over, [data-role="slotAlternatives"].drag-over, [data-role="allBlocksDrop"].drag-over, [data-role="staticFileCtrl"].drag-over, [data-role="modeMaster"].drag-over { background: #eef6ff; outline: 2px dashed #2f80c0; outline-offset: 2px; }
   .hint { color: #888; font-size: 11px; margin-top: 4px; }
   .lang-toggle { display: flex; gap: 6px; margin: 14px 0; }
   .lang-toggle button { font-size: 11px; padding: 4px 10px; border-radius: 10px; border: 1px solid #d8d8dc; background: transparent; color: #888; cursor: pointer; }
@@ -4177,8 +4177,9 @@ function renderLibrary() {
         infoEl.innerHTML = `
           ${isStatic ? `
             <label data-help="layersVertical">${tr('audioTrackLabel')}</label>
-            <div data-role="staticFileCtrl" style="margin-top:6px;margin-bottom:10px"></div>
-            <label style="display:flex;align-items:center;gap:8px;">
+            <div data-role="staticFileCtrl" style="margin-top:6px;margin-bottom:4px"></div>
+            <div class="hint-inline">${tr('staticDropHint')}</div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:6px">
               <input type="checkbox" data-field="loopable" data-ti="${ti}" ${track.loopable ? 'checked' : ''} style="width:auto;margin:0;">
               <span data-help="loopableStatic" style="color:#888;font-size:12px;">${tr('loopableHint')}</span>
             </label>
@@ -4708,6 +4709,11 @@ function renderLibrary() {
         wireArrayDragReorder(modeMasterHost, 'seq-master-item', () => track.layers, () => renderLibrary());
         // "+ Couche" vit désormais à la suite des couches, même correctif (20/08).
         appendMasterAddButton(modeMasterHost, 'add-layer', ti, 'addLayerBtn');
+        const layersDropHintEl = document.createElement('div');
+        layersDropHintEl.className = 'hint-inline';
+        layersDropHintEl.style.marginTop = '6px';
+        layersDropHintEl.textContent = tr('layersDropHint');
+        modeMasterHost.appendChild(layersDropHintEl);
       }
       // -- "Sfx" et "Infos additionnelles" : mêmes deux entrées, mêmes data-field, que le séquentiel.
       modeMasterHost.appendChild(modeMasterItem('sfx', `
