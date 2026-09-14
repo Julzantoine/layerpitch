@@ -1390,9 +1390,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1789398697271"></script>
+<script src="layerpitch-i18n.js?v=1789412242868"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1789398697271"></script>
+<script src="player.js?v=1789412242868"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3603,7 +3603,7 @@ function buildBlocksForNewAdReel(source, importExtraBlocks) {
     const clone = { ...b, id: genId() };
     if (b.appearance) clone.appearance = Object.assign({}, b.appearance); // copie indépendante, pas la même référence que le bloc source
     if (b.type === 'photo') clone.images = (b.images || []).map(img => ({ file: img.file || null, originalFileName: img.originalFileName || null, pendingFile: null }));
-    if (b.type === 'video') clone.videos = (b.videos || []).map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, pendingThumbnail: null }));
+    if (b.type === 'video') clone.videos = (b.videos || []).map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, pendingThumbnail: null, source: v.source === 'library' ? 'library' : 'url', libraryVideoId: v.libraryVideoId || null }));
     if (b.type === 'packs') clone.packIds = (b.packIds || []).slice();
     if (b.type === 'collections') clone.collectionIds = (b.collectionIds || []).slice();
     if (b.type === 'sfx') clone.sfxIds = (b.sfxIds || []).slice();
@@ -7146,9 +7146,14 @@ function buildVideoCard(block) {
   const { card, body } = makeCardShell(block);
   body.innerHTML = `<div data-role="list"></div><div class="actions"><button class="btn btn-small" data-role="addBtn">${tr('addVideoBtn')}</button></div>`;
   const listEl = body.querySelector('[data-role="list"]');
+  // Bibliothèque vidéo (composer_videos, Postgres) chargée à part de data.json -- pas préchargée au
+  // niveau de l'app comme sfxLibrary/packs/collections, donc récupérée à l'ouverture de ce bloc.
+  let libraryVideos = [];
+  let libraryLoaded = false;
   function renderList() {
     listEl.innerHTML = '';
     block.videos.forEach((v, i) => {
+      const source = v.source === 'library' ? 'library' : 'url';
       const el = document.createElement('div');
       el.className = 'list-block';
       el.innerHTML = `
@@ -7156,7 +7161,22 @@ function buildVideoCard(block) {
         <label data-help="videoThumbnail">${tr('thumbnailLabel')}</label>
         <div data-role="thumbCtrl"></div>
         <label style="margin-top:8px">${tr('titleLabel')}</label><input type="text" data-field="title" data-i="${i}" value="${escapeAttr(v.title)}">
-        <label data-help="videoLink">${tr('videoLinkLabel')}</label><input type="text" data-field="url" data-i="${i}" value="${escapeAttr(v.url)}">
+        <label>${tr('videoSourceLabel')}</label>
+        <div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">
+          <label style="display:flex;align-items:center;gap:4px;font-weight:normal"><input type="radio" name="videoSource-${block.id}-${i}" data-role="sourceRadio" data-i="${i}" value="url" style="width:auto;margin:0" ${source === 'url' ? 'checked' : ''}> ${tr('videoSourceUrl')}</label>
+          <label style="display:flex;align-items:center;gap:4px;font-weight:normal"><input type="radio" name="videoSource-${block.id}-${i}" data-role="sourceRadio" data-i="${i}" value="library" style="width:auto;margin:0" ${source === 'library' ? 'checked' : ''}> ${tr('videoSourceLibrary')}</label>
+        </div>
+        <div data-role="urlWrap" ${source === 'library' ? 'style="display:none"' : ''}>
+          <label data-help="videoLink">${tr('videoLinkLabel')}</label><input type="text" data-field="url" data-i="${i}" value="${escapeAttr(source === 'url' ? (v.url || '') : '')}">
+        </div>
+        <div data-role="libraryWrap" ${source === 'library' ? '' : 'style="display:none"'}>
+          <label>${tr('videoLibrarySelectLabel')}</label>
+          <select data-role="librarySelect" data-i="${i}">
+            <option value="">${tr('videoLibrarySelectPlaceholder')}</option>
+            ${libraryVideos.map(lv => `<option value="${lv.id}" ${v.libraryVideoId === lv.id ? 'selected' : ''}>${escapeAttr(lv.title || lv.originalName || lv.file)}</option>`).join('')}
+          </select>
+          ${libraryLoaded && !libraryVideos.length ? `<div class="hint-inline">${tr('videoLibrarySelectEmpty')}</div>` : ''}
+        </div>
         <label>${tr('commentLabel')}</label><textarea data-field="comment" data-i="${i}" rows="2">${escapeAttr(v.comment || '')}</textarea>
       `;
       const ctrlHost = el.querySelector('[data-role="thumbCtrl"]');
@@ -7167,8 +7187,13 @@ function buildVideoCard(block) {
       listEl.appendChild(el);
     });
   }
+  loadMyVideos().then(({ videos }) => {
+    libraryVideos = videos || [];
+    libraryLoaded = true;
+    renderList();
+  });
   body.querySelector('[data-role="addBtn"]').addEventListener('click', () => {
-    block.videos.push({ title: '', url: '', comment: '', thumbnail: null, pendingThumbnail: null });
+    block.videos.push({ title: '', url: '', comment: '', thumbnail: null, pendingThumbnail: null, source: 'url', libraryVideoId: null });
     hasUnsavedEdits = true;
     renderList();
     refreshAllBlockSummaries();
@@ -7186,6 +7211,27 @@ function buildVideoCard(block) {
     if (!field) return;
     hasUnsavedEdits = true;
     block.videos[parseInt(e.target.dataset.i, 10)][field] = e.target.value;
+  });
+  listEl.addEventListener('change', e => {
+    const radio = e.target.closest('[data-role="sourceRadio"]');
+    if (radio) {
+      const v = block.videos[parseInt(radio.dataset.i, 10)];
+      v.source = radio.value;
+      if (v.source === 'library') { v.url = ''; } else { v.libraryVideoId = null; }
+      hasUnsavedEdits = true;
+      renderList();
+      refreshAllBlockSummaries();
+      return;
+    }
+    const sel = e.target.closest('[data-role="librarySelect"]');
+    if (sel) {
+      const v = block.videos[parseInt(sel.dataset.i, 10)];
+      const chosen = libraryVideos.find(lv => lv.id === sel.value);
+      v.libraryVideoId = sel.value || null;
+      v.url = chosen ? (chosen.base + chosen.file) : '';
+      hasUnsavedEdits = true;
+      refreshAllBlockSummaries();
+    }
   });
   renderList();
   return card;
@@ -8909,7 +8955,7 @@ async function loadData(silent) {
       trackOverrides: a.trackOverrides ? JSON.parse(JSON.stringify(a.trackOverrides)) : {},
       blocks: migrateBlocks(a).map(b => {
         if (b.type === 'photo') return { ...b, images: (b.images || []).map(img => ({ file: img.file, originalFileName: img.originalFileName || null, pendingFile: null })) };
-        if (b.type === 'video') return { ...b, videos: (b.videos || []).map(v => ({ title: v.title, url: v.url, comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, pendingThumbnail: null })) };
+        if (b.type === 'video') return { ...b, videos: (b.videos || []).map(v => ({ title: v.title, url: v.url, comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, pendingThumbnail: null, source: v.source === 'library' ? 'library' : 'url', libraryVideoId: v.libraryVideoId || null })) };
         return b;
       }),
       logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null,
@@ -9529,7 +9575,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         let out;
         if (b.type === 'text') out = { id: b.id, type: 'text', title: b.title || '', content: b.content || '', align: b.align || 'left' };
         else if (b.type === 'photo') out = { id: b.id, type: 'photo', align: b.align || 'left', caption: b.caption || '', images: b.images.filter(i => i.file).map(i => ({ file: i.file, originalFileName: i.originalFileName || null })) };
-        else if (b.type === 'video') out = { id: b.id, type: 'video', videos: b.videos.map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null })) };
+        else if (b.type === 'video') out = { id: b.id, type: 'video', videos: b.videos.map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, source: v.source === 'library' ? 'library' : 'url' })) };
         else if (b.type === 'packs') out = { id: b.id, type: 'packs', presentation: b.presentation || '', packIds: b.packIds || [] };
         else if (b.type === 'collections') out = { id: b.id, type: 'collections', presentation: b.presentation || '', collectionIds: b.collectionIds || [] };
         else if (b.type === 'sfx') out = { id: b.id, type: 'sfx', sfxIds: b.sfxIds || [] };

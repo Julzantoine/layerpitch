@@ -67,6 +67,8 @@
   .video-card.disabled { pointer-events: none; opacity: 0.4; color: var(--text-dim); background: repeating-linear-gradient(45deg, #ddd8cf, #ddd8cf 6px, #e8e4dd 6px, #e8e4dd 12px); }
   .video-card.disabled .vt { color: var(--text-dim); }
   .video-embed-frame { width: 100%; aspect-ratio: 16/9; border-radius: 6px; border: 1px solid var(--border); }
+  .video-card-native { display: block; aspect-ratio: 16/9; padding: 0; background: #000; }
+  .video-embed-native { width: 100%; height: 100%; aspect-ratio: 16/9; border-radius: 6px; display: block; background: #000; }
 
   .photo-block-single { display: flex; }
   .photo-block-single img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
@@ -487,8 +489,8 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1789398697271"></script>
-<script src="player.js?v=1789398697271"></script>
+<script src="layerpitch-i18n.js?v=1789412242868"></script>
+<script src="player.js?v=1789412242868"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
 
@@ -1059,6 +1061,22 @@ function renderContactBlockItem(container, profile) {
 function renderVideoBlockItem(container, block) {
   if (!block.videos || block.videos.length === 0) return;
   const makeCard = (v) => {
+    // Vidéo de la bibliothèque du compositeur (composer_videos, voir layerpitch-backstage.html) :
+    // v.url pointe déjà vers un .mp4 hébergé sur R2 (résolu à la sélection côté Backstage, jamais une
+    // page YouTube/Vimeo) -- lu directement avec <video>, pas d'iframe externe à charger.
+    if (v.source === 'library' && v.url) {
+      const wrap = document.createElement('div');
+      wrap.className = 'video-card video-card-native';
+      const video = document.createElement('video');
+      video.className = 'video-embed-native';
+      video.src = v.url;
+      video.controls = true;
+      video.preload = 'metadata';
+      if (v.thumbnail) video.poster = `${IMAGES_BASE}${v.thumbnail}`;
+      wrap.appendChild(video);
+      return wrap;
+    }
+
     const ytId = extractYouTubeId(v.url);
     const thumbUrl = v.thumbnail ? `${IMAGES_BASE}${v.thumbnail}` : (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null);
     const bg = thumbUrl ? `background-image:url('${thumbUrl}'); background-size:cover; background-position:center;` : '';
