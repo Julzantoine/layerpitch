@@ -1892,11 +1892,11 @@ async function loadVideoCapture(id) {
 // morceaux), portée ici pour tourner directement dans le navigateur -- fichiers servis en local
 // (vendor/ffmpeg/) plutôt que depuis un CDN : le Worker que la librairie construit en interne doit
 // être de même origine que la page, un CDN cross-origin le fait échouer silencieusement (SecurityError).
-// Coeur multi-thread réactivé -- voir le même flag dans layerpitch-backstage.html pour le pourquoi :
-// deadlock connu du pool de threads de ffmpeg.wasm core-mt
-// (https://github.com/ffmpegwasm/ffmpeg.wasm/issues/772), mitigé ici via -threads 2 explicite
-// (voir l'appel exec() plus bas). Rebasculer les deux fichiers ensemble si besoin.
-const FFMPEG_MULTITHREAD_ENABLED = true;
+// Coeur multi-thread DÉFINITIVEMENT désactivé -- voir le même flag dans layerpitch-backstage.html pour
+// le détail : plusieurs tentatives le 16 septembre (dont -threads 2 pour éviter le deadlock connu,
+// https://github.com/ffmpegwasm/ffmpeg.wasm/issues/772), aucune n'a résolu le blocage. Ne pas repasser
+// à true sans une piste nouvelle et vérifiable.
+const FFMPEG_MULTITHREAD_ENABLED = false;
 let ffmpegSingleton = null;
 async function loadFfmpegWasm(onProgress) {
   if (ffmpegSingleton) return ffmpegSingleton;

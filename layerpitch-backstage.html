@@ -9212,15 +9212,15 @@ function r2DeleteFileLogged(key) {
 // abaissé depuis 1080p/2 Mbps le même jour, la compression restait bien trop lente sinon (voir
 // compressVideoForLibrary ci-dessous pour le pourquoi précis : coeur ffmpeg.wasm mono-thread).
 // ============================================================================
-// Coeur multi-thread réactivé (16 septembre, même jour que sa première activation puis désactivation) :
-// exec() restait bloqué indéfiniment sans erreur -- identifié comme un deadlock connu et documenté du
-// pool de threads de ffmpeg.wasm core-mt (https://github.com/ffmpegwasm/ffmpeg.wasm/issues/772), pas un
-// bug de notre code. Mitigation appliquée : -threads 2 explicite en décodage ET en encodage (voir
-// l'appel exec() plus bas) pour rester sous la taille du pool plutôt que de laisser ffmpeg deviner un
-// nombre de threads basé sur le nombre de coeurs de la machine. Repasser à false si ça rebloque quand
-// même -- vendor/ffmpeg/core-mt/ est aussi désormais aligné en version (0.12.6) avec vendor/ffmpeg/core/
-// (voir loadFfmpegWasm dans pack.html, même bascule à faire là-bas en même temps).
-const FFMPEG_MULTITHREAD_ENABLED = true;
+// Coeur multi-thread DÉFINITIVEMENT désactivé pour l'instant (16 septembre -- plusieurs tentatives le
+// même jour : activation simple, alignement de version 0.12.6, -threads 2 explicite pour éviter le
+// deadlock connu du pool -- https://github.com/ffmpegwasm/ffmpeg.wasm/issues/772). Aucune n'a résolu le
+// blocage chez Jules-Antoine (Firefox). Conclusion : bug amont pas fiable à corriger sans reconstruire
+// le binaire ffmpeg.wasm nous-mêmes (hors scope). Alternative de fond si la vitesse redevient
+// bloquante : compression côté serveur (ex. Cloudflare Stream, ~10-15$/mois à l'échelle actuelle,
+// discuté le même jour) plutôt que continuer à chasser ce bug côté client. Ne pas repasser à true sans
+// une piste nouvelle et vérifiable.
+const FFMPEG_MULTITHREAD_ENABLED = false;
 let videoLibraryFfmpegSingleton = null;
 async function loadVideoLibraryFfmpeg() {
   if (videoLibraryFfmpegSingleton) return videoLibraryFfmpegSingleton;
