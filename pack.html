@@ -421,6 +421,7 @@
   }
   .video-capture-title-input { width: 200px; }
   .video-capture-load-select:disabled, .video-capture-title-input:disabled { opacity: 0.4; }
+  .video-capture-export-opt { display: flex; align-items: center; gap: 5px; color: #999; white-space: nowrap; }
   /* Frise d'édition (cible finale, schéma papier de Jules-Antoine 2026-09-14) : une piste horizontale par
      calque du morceau + une piste SFX, blocs positionnés en pourcentage de la durée totale (pas de pixel
      fixe -- pas de défilement horizontal à gérer, suffisant pour les prises courtes de ce prototype). */
@@ -1910,9 +1911,19 @@ async function fetchAsUint8Array(url) {
 
 // Reprend exactement la logique de conversion de render-from-capture.js (mode "vertical" -- calques en
 // parallèle -- + stingers). Les embranchements/séquentiel ne sont pas encore gérés ici non plus.
-async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides) {
+async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, exportOptions) {
   onProgress = onProgress || (() => {});
   laneOverrides = laneOverrides || {};
+  // Filigrane + crédit compositeur (2026-09-16, decisions/2026-09-16-capture-watermark-composer-credit.md,
+  // docs privés) : `tier` reste un réglage manuel du panneau tant que Rookie/Warrior/Boss n'existe nulle
+  // part ailleurs dans le produit -- une fois ce palier réel, remplacer par le vrai palier du compositeur
+  // qui capture. `showComposerCredit` reste coché par défaut côté UI (voir openCapturePanel) : sans
+  // vérification d'achat automatisée, mieux vaut créditer par défaut que l'omettre par erreur.
+  exportOptions = exportOptions || {};
+  const exportTier = exportOptions.tier || 'boss';
+  const showWatermark = exportTier !== 'boss';
+  const showComposerCredit = exportOptions.showComposerCredit !== false;
+  const composerName = (window.__lpCaptureLibrary && window.__lpCaptureLibrary.composerName) || '';
   const ffmpeg = await loadFfmpegWasm(onProgress);
   const TAIL = 2;
 
@@ -2208,6 +2219,25 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides) 
       `enable='between(t,${s.t},${s.t + flashDur})'`
     );
   }
+  // Filigrane "powered by LayerPitch" (Rookie/Warrior, voir tout en haut de la fonction) -- permanent,
+  // pas de fenêtre `enable`, coin bas-droit pour ne jamais chevaucher les libellés de calque/boucle/
+  // emplacement (toujours en bas-gauche ci-dessus).
+  if (showWatermark) {
+    drawtexts.push(
+      `drawtext=fontfile=font.ttf:text='Powered by LayerPitch':x=w-tw-16:y=h-32:fontsize=16:` +
+      `fontcolor=white@0.75:box=1:boxcolor=0x000000AA:boxborderw=5`
+    );
+  }
+  // Crédit compositeur (tant que le pack n'a pas été acheté par la personne qui exporte -- voir le
+  // commentaire tout en haut de la fonction) -- permanent, coin haut-droit, distinct du flash stinger
+  // (toujours en haut-gauche ci-dessus).
+  if (showComposerCredit && composerName) {
+    const creditLabel = composerName.replace(/['\\:]/g, '');
+    drawtexts.push(
+      `drawtext=fontfile=font.ttf:text='Musique\\: ${creditLabel}':x=w-tw-16:y=16:fontsize=18:` +
+      `fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6`
+    );
+  }
   videoChain += (drawtexts.length ? drawtexts.join(',') : 'null') + '[vout]';
   filterParts.push(videoChain);
 
@@ -2266,6 +2296,17 @@ function openCapturePanel(file) {
       <button type="button" class="video-capture-download-btn" id="videoCaptureDownloadBtn" disabled>Télécharger le JSON</button>
     </div>
     <div class="video-capture-bar">
+      <label class="video-capture-export-opt" title="Palier de capture simulé -- aucun gating réel n'existe encore, sert à prévisualiser le filigrane que verrait un compositeur Rookie/Warrior (voir decisions/2026-09-16-capture-watermark-composer-credit.md, docs privés)">
+        Palier :
+        <select class="video-capture-load-select" id="videoCaptureTierSelect">
+          <option value="rookie">Rookie</option>
+          <option value="warrior">Warrior</option>
+          <option value="boss" selected>Boss</option>
+        </select>
+      </label>
+      <label class="video-capture-export-opt" title="Affiche le nom du compositeur sur l'export -- à laisser coché tant que la personne qui exporte n'a pas acheté ce pack (aucune vérification d'achat automatique pour l'instant)">
+        <input type="checkbox" id="videoCaptureCreditCheckbox" checked> Crédit compositeur
+      </label>
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>Exporter la vidéo (.mp4)</button>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
@@ -2288,6 +2329,8 @@ function openCapturePanel(file) {
   const downloadBtn = document.getElementById('videoCaptureDownloadBtn');
   const exportBtn = document.getElementById('videoCaptureExportBtn');
   const exportStatus = document.getElementById('videoCaptureExportStatus');
+  const tierSelect = document.getElementById('videoCaptureTierSelect');
+  const creditCheckbox = document.getElementById('videoCaptureCreditCheckbox');
   const titleInput = document.getElementById('videoCaptureTitleInput');
   const saveBtn = document.getElementById('videoCaptureSaveBtn');
   const loadSelect = document.getElementById('videoCaptureLoadSelect');
@@ -2362,7 +2405,8 @@ function openCapturePanel(file) {
   exportBtn.addEventListener('click', async () => {
     exportBtn.disabled = true;
     try {
-      const blob = await exportCaptureVideo(lastEvents, file, (msg) => { exportStatus.textContent = msg; }, laneOverrides);
+      const exportOptions = { tier: tierSelect.value, showComposerCredit: creditCheckbox.checked };
+      const blob = await exportCaptureVideo(lastEvents, file, (msg) => { exportStatus.textContent = msg; }, laneOverrides, exportOptions);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -2540,7 +2584,14 @@ async function init() {
     if (previewActive) showPreviewModeBanner();
     window.__lpTrackContext.ownerId = lastResolvedOwnerId;
     // Référence pour le mode Capture (résolution trackId/sfxId -> fichier réel, voir exportCaptureVideo).
-    window.__lpCaptureLibrary = { library: data.library || [], sfxLibrary: data.sfxLibrary || [] };
+    // composerName : même source que le lien "← Retour" plus bas (data.adReels 'main'.profile.title) --
+    // seul nom de compositeur déjà disponible côté client, réutilisé pour le crédit compositeur sur
+    // l'export (2026-09-16, voir decisions/2026-09-16-capture-watermark-composer-credit.md, docs privés).
+    const mainAdReelForCapture = (data.adReels || []).find(a => a.id === 'main');
+    window.__lpCaptureLibrary = {
+      library: data.library || [], sfxLibrary: data.sfxLibrary || [],
+      composerName: (mainAdReelForCapture && mainAdReelForCapture.profile && mainAdReelForCapture.profile.title) || '',
+    };
     const pack = (data.packs || []).find(p => p.id === id);
     if (!pack) {
       container.innerHTML = `<div class="empty">${tr('packNotFound')}</div>`;
