@@ -4729,7 +4729,7 @@ function renderLibrary() {
           const emptyLayers = track.layers.filter(l => !l.pendingFile && !l.remoteFile);
           const touchedLayers = files.map((f, idx) => {
             const target = emptyLayers[idx];
-            if (target) { target.pendingFile = f; return target; }
+            if (target) { target.pendingFile = f; target.label = titleFromFilename(f.name); return target; }
             const newLayer = { id: genId(), label: titleFromFilename(f.name), remoteFile: null, pendingFile: f };
             track.layers.push(newLayer);
             return newLayer;
