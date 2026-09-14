@@ -1898,9 +1898,15 @@ async function loadFfmpegWasm(onProgress) {
   onProgress && onProgress(tr('captureFfmpegLoading'));
   const { FFmpeg } = await import('./vendor/ffmpeg/ffmpeg/index.js');
   const ffmpeg = new FFmpeg();
+  // Coeur multi-thread (vendor/ffmpeg/core-mt/) uniquement si la page est servie avec les en-têtes
+  // d'isolation (window.crossOriginIsolated) -- le Worker Cloudflare mis en place le 16 septembre ne
+  // les envoie que pour pack.html?capture=1, jamais pour une visite normale d'un pack. Repli
+  // silencieux sur le coeur mono-thread existant sinon.
+  const useMultiThread = typeof SharedArrayBuffer !== 'undefined' && self.crossOriginIsolated;
+  const coreDir = useMultiThread ? 'core-mt' : 'core';
   await ffmpeg.load({
-    coreURL: new URL('./vendor/ffmpeg/core/ffmpeg-core.js', location.href).href,
-    wasmURL: new URL('./vendor/ffmpeg/core/ffmpeg-core.wasm', location.href).href,
+    coreURL: new URL(`./vendor/ffmpeg/${coreDir}/ffmpeg-core.js`, location.href).href,
+    wasmURL: new URL(`./vendor/ffmpeg/${coreDir}/ffmpeg-core.wasm`, location.href).href,
   });
   ffmpegSingleton = ffmpeg;
   return ffmpeg;

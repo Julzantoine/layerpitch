@@ -9215,9 +9215,17 @@ async function loadVideoLibraryFfmpeg() {
   if (videoLibraryFfmpegSingleton) return videoLibraryFfmpegSingleton;
   const { FFmpeg } = await import('./vendor/ffmpeg/ffmpeg/index.js');
   const ffmpeg = new FFmpeg();
+  // Coeur multi-thread (vendor/ffmpeg/core-mt/) si la page est servie avec les en-têtes d'isolation
+  // (window.crossOriginIsolated -- voir le Worker Cloudflare mis en place le 16 septembre pour
+  // beta.layerpitch.com/layerpitch-backstage.html, seule page où ils sont envoyés). Repli silencieux
+  // sur le coeur mono-thread existant sinon (Worker désactivé/en échec, ou page visitée par un autre
+  // chemin) -- ne jamais transformer un problème de vitesse en un plantage complet de la compression.
+  const useMultiThread = typeof SharedArrayBuffer !== 'undefined' && self.crossOriginIsolated;
+  const coreDir = useMultiThread ? 'core-mt' : 'core';
+  log(`Compression vidéo : coeur ffmpeg ${useMultiThread ? 'multi-coeur' : 'mono-coeur'} chargé.`, 'info');
   await ffmpeg.load({
-    coreURL: new URL('./vendor/ffmpeg/core/ffmpeg-core.js', location.href).href,
-    wasmURL: new URL('./vendor/ffmpeg/core/ffmpeg-core.wasm', location.href).href,
+    coreURL: new URL(`./vendor/ffmpeg/${coreDir}/ffmpeg-core.js`, location.href).href,
+    wasmURL: new URL(`./vendor/ffmpeg/${coreDir}/ffmpeg-core.wasm`, location.href).href,
   });
   videoLibraryFfmpegSingleton = ffmpeg;
   return ffmpeg;
