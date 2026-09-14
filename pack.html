@@ -2388,15 +2388,26 @@ function openCapturePanel(file) {
       const additive = additiveCheckbox.checked && lastEvents.length > 0;
       pendingBaseEvents = additive ? lastEvents.slice() : [];
       startCapture(videoEl);
-      // Piste armée (2026-09-15, boutons ⏺ posés à côté du lecteur du morceau -- voir
-      // setupCaptureTrigger) : générique, quel que soit le mode -- "comme si on appuyait sur lecture au
-      // début de la capture" (confirmé par Jules-Antoine), pas besoin de connaître le niveau d'intensité
-      // ni quoi que ce soit de propre à un mode. On se contente de déposer un repère track_play à t=0 ;
-      // c'est à materializeLayerSegments (et, plus tard, à l'équivalent séquentiel) de décider ce que
-      // "vient de démarrer" veut dire pour son propre mode (niveau 0 par défaut pour le vertical --
-      // l'embranchement-vertical, lui, part déjà de sa boucle de référence sans avoir besoin de ce repère).
+      // Démarrer la capture doit vraiment lancer la vidéo ET la piste armée (2026-09-16, retour direct
+      // de Jules-Antoine en testant : "Start capture doit lancer la vidéo et la musique qui est armée.
+      // Ça ne fait ni l'un ni l'autre") -- avant, seul un repère track_play SYNTHÉTIQUE était injecté
+      // dans les événements, sans jamais vraiment démarrer quoi que ce soit à l'écran ni au casque.
+      // videoEl.play() ET un vrai clic simulé sur le bouton de lecture réel de la piste armée, tous les
+      // deux SYNCHRONES dans le même geste utilisateur que le clic sur "Démarrer la capture" (nécessaire
+      // pour que les navigateurs autorisent la lecture -- un geste différé, même de quelques
+      // millisecondes via un timeout, serait refusé). Le clic réel traverse toute la vraie logique de
+      // player.js (choix initial selon le mode, vraie télémétrie track_play...) -- capturée normalement
+      // par l'interception déjà active (startCapture ci-dessus) -- pas besoin de réimplémenter "démarrer
+      // une piste" ni de deviner ce que "niveau 0"/"boucle de référence" veut dire selon le mode.
+      videoEl.play().catch(() => {}); // ignore un refus navigateur (rare -- ex. vidéo déjà en lecture)
       if (armedTrackId) {
-        videoCaptureState.events.push({ t: 0, name: 'track_play', detail: { trackId: armedTrackId } });
+        const armedPlayBtn = document.querySelector(`[data-track-id="${armedTrackId}"] [data-role="playBtn"]`);
+        if (armedPlayBtn) {
+          armedPlayBtn.click();
+        } else {
+          // Repli si le bouton n'est plus dans le DOM (cas limite) -- au moins un repère, comme avant.
+          videoCaptureState.events.push({ t: 0, name: 'track_play', detail: { trackId: armedTrackId } });
+        }
       }
       recordBtn.classList.add('recording');
       recordLabel.textContent = tr('captureStopBtn');
