@@ -9212,13 +9212,15 @@ function r2DeleteFileLogged(key) {
 // abaissé depuis 1080p/2 Mbps le même jour, la compression restait bien trop lente sinon (voir
 // compressVideoForLibrary ci-dessous pour le pourquoi précis : coeur ffmpeg.wasm mono-thread).
 // ============================================================================
-// Coeur multi-thread DÉSACTIVÉ pour l'instant (16 septembre, même jour que son activation) : reproduit
-// en isolation (hors session de Jules-Antoine, voir scratchpad de la session pour le harnais de repro)
-// un blocage de exec() qui ne se termine jamais avec vendor/ffmpeg/core-mt/ -- probable bug connu de
-// libx264 en environnement pthread WASM, pas encore élucidé avec certitude. Repasser à true une fois
-// la cause confirmée et un correctif testé (voir loadFfmpegWasm dans pack.html, même bascule à faire
-// là-bas en même temps -- les deux chemins utilisent le même coeur core-mt).
-const FFMPEG_MULTITHREAD_ENABLED = false;
+// Coeur multi-thread réactivé (16 septembre, même jour que sa première activation puis désactivation) :
+// exec() restait bloqué indéfiniment sans erreur -- identifié comme un deadlock connu et documenté du
+// pool de threads de ffmpeg.wasm core-mt (https://github.com/ffmpegwasm/ffmpeg.wasm/issues/772), pas un
+// bug de notre code. Mitigation appliquée : -threads 2 explicite en décodage ET en encodage (voir
+// l'appel exec() plus bas) pour rester sous la taille du pool plutôt que de laisser ffmpeg deviner un
+// nombre de threads basé sur le nombre de coeurs de la machine. Repasser à false si ça rebloque quand
+// même -- vendor/ffmpeg/core-mt/ est aussi désormais aligné en version (0.12.6) avec vendor/ffmpeg/core/
+// (voir loadFfmpegWasm dans pack.html, même bascule à faire là-bas en même temps).
+const FFMPEG_MULTITHREAD_ENABLED = true;
 let videoLibraryFfmpegSingleton = null;
 async function loadVideoLibraryFfmpeg() {
   if (videoLibraryFfmpegSingleton) return videoLibraryFfmpegSingleton;
@@ -9281,7 +9283,14 @@ async function compressVideoForLibrary(file, onProgress) {
   const elapsedTickerId = setInterval(renderProgress, 1000);
   try {
     await ffmpeg.exec([
-      '-i', inName,
+      // -threads 2 en entrée ET en sortie (16 septembre, bug connu du coeur multi-thread -- voir
+      // FFMPEG_MULTITHREAD_ENABLED ci-dessus) : sans plafond explicite, le décodeur ET l'encodeur
+      // réclament chacun un nombre de threads déduit automatiquement du nombre de coeurs de la machine
+      // -- si leur somme dépasse la taille (fixe, décidée à la compilation du .wasm) du pool de threads
+      // du coeur core-mt, pthread_create reste bloqué indéfiniment, sans la moindre erreur ni log
+      // (https://github.com/ffmpegwasm/ffmpeg.wasm/issues/772). Sans effet quand FFMPEG_MULTITHREAD_ENABLED
+      // est false (coeur mono-thread, ignore silencieusement -threads > 1).
+      '-threads', '2', '-i', inName,
       // Plafonné à 720p, pas 1080p (2026-09-16, second retour le même jour : même en 'veryfast', un
       // encodage 1080p prenait encore ~8x la durée réelle de la vidéo) -- réduire le nombre de pixels à
       // encoder reste utile même avec le coeur multi-thread (core-mt) activé depuis, voir
@@ -9292,7 +9301,7 @@ async function compressVideoForLibrary(file, onProgress) {
       // sur le taux de compression optimal ici (coût de stockage R2 négligeable, voir
       // decisions/2026-09-16, docs privés) -- le débit est aussi baissé en conséquence (720p n'a pas
       // besoin de 2 Mbps).
-      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1200k', '-maxrate', '1400k', '-bufsize', '2800k',
+      '-c:v', 'libx264', '-threads', '2', '-preset', 'ultrafast', '-b:v', '1200k', '-maxrate', '1400k', '-bufsize', '2800k',
       '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart',
       'out.mp4',
     ]);
