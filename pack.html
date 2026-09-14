@@ -2224,7 +2224,11 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // libre, vendor/fonts/).
   onProgress(tr('captureFetchFont'));
   await ffmpeg.writeFile('font.ttf', await fetchAsUint8Array(new URL('./vendor/fonts/JetBrainsMono-Regular.ttf', location.href).href));
-  let videoChain = `[${videoIdx}:v]`;
+  // Plafonné à 720p (16 septembre, retour direct : un export de 3 min prenait ~10 min -- cet export
+  // encodait la vidéo source à sa résolution d'origine, souvent 1080p+, SANS le plafond déjà appliqué
+  // côté bibliothèque vidéo -- voir compressVideoForLibrary dans layerpitch-backstage.html). Le
+  // drawtext qui suit coûte aussi moins cher sur moins de pixels.
+  let videoChain = `[${videoIdx}:v]scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease`;
   const drawtexts = [];
   // Un calque = une hauteur d'incrustation qui lui est propre (dérivée de son layerIndex) -- plusieurs
   // calques pouvant désormais être actifs en même temps (segments indépendants), superposer leurs
@@ -2295,7 +2299,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
       `fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6`
     );
   }
-  videoChain += (drawtexts.length ? drawtexts.join(',') : 'null') + '[vout]';
+  videoChain += (drawtexts.length ? ',' + drawtexts.join(',') : '') + '[vout]';
   filterParts.push(videoChain);
 
   const filterComplex = filterParts.join(';');
