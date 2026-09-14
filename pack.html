@@ -1673,6 +1673,11 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     const trackEl = el.closest('.vct-lane-track');
     const trackRect = trackEl.getBoundingClientRect();
     const startX = pointerDownEvent.clientX;
+    // Document COURANT de l'élément, pas le `document` global figé à l'ouverture du script (2026-09-16,
+    // nécessaire pour la fenêtre détachée -- voir detachCapturePanel) : une fois le panneau déplacé dans
+    // une autre fenêtre via appendChild, ses éléments changent réellement d'ownerDocument, mais les
+    // mouvements de souris dans CETTE fenêtre-là ne sont jamais reçus par l'ancien document.
+    const doc = pointerDownEvent.currentTarget.ownerDocument || document;
     const e = events[idx];
     const startT = e.t;
     const startDuration = hasIndependentDuration(e) ? getEventDuration(e) : 1;
@@ -1714,8 +1719,8 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       rerender();
     }
     function onUp() {
-      document.removeEventListener('pointermove', onMove);
-      document.removeEventListener('pointerup', onUp);
+      doc.removeEventListener('pointermove', onMove);
+      doc.removeEventListener('pointerup', onUp);
       if (!moved) {
         // Pas de vrai glisser : un simple clic, on rouvre juste le détail du bloc.
         const freshEl = container.querySelector(`.vct-block[data-idx="${idx}"]`);
@@ -1726,8 +1731,8 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       rerender();
       onChange && onChange();
     }
-    document.addEventListener('pointermove', onMove);
-    document.addEventListener('pointerup', onUp);
+    doc.addEventListener('pointermove', onMove);
+    doc.addEventListener('pointerup', onUp);
   }
   container.querySelectorAll('.vct-block:not(.vct-block-group)').forEach(el => {
     const idx = parseInt(el.dataset.idx, 10);
@@ -1746,6 +1751,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     pointerDownEvent.stopPropagation();
     const trackRect = pointerDownEvent.currentTarget.closest('.vct-lane-track').getBoundingClientRect();
     const startX = pointerDownEvent.clientX;
+    const doc = pointerDownEvent.currentTarget.ownerDocument || document; // voir startDrag ci-dessus
     const members = groupMembers(key);
     if (!members.length) return;
     const startTs = members.map(m => m.t);
@@ -1760,15 +1766,15 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       rerender();
     }
     function onUp() {
-      document.removeEventListener('pointermove', onMove);
-      document.removeEventListener('pointerup', onUp);
+      doc.removeEventListener('pointermove', onMove);
+      doc.removeEventListener('pointerup', onUp);
       if (!moved) return;
       events.sort((a, b) => a.t - b.t);
       rerender();
       onChange && onChange();
     }
-    document.addEventListener('pointermove', onMove);
-    document.addEventListener('pointerup', onUp);
+    doc.addEventListener('pointermove', onMove);
+    doc.addEventListener('pointerup', onUp);
   }
   container.querySelectorAll('.vct-block-group').forEach(el => {
     el.addEventListener('pointerdown', (ev) => startGroupDrag(ev, el.dataset.groupKey));
@@ -2270,12 +2276,50 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   return new Blob([data.buffer], { type: 'video/mp4' });
 }
 
+// Fenêtre du panneau de capture détaché (2026-09-16, retour direct de Jules-Antoine : "il faut pouvoir
+// détacher la fenêtre de capture"), si actif -- null sinon. Voir detachCapturePanel() plus bas.
+let capturePanelDetachedWindow = null;
+
 function closeCapturePanel() {
   if (videoCaptureState) stopCapture();
   const panel = document.getElementById('videoTestPanel');
   panel.classList.remove('active');
   document.body.classList.remove('video-panel-active');
   panel.innerHTML = ''; // libère l'URL objet de la vidéo en vidant le <video>, pas juste en le masquant
+  const detached = capturePanelDetachedWindow;
+  capturePanelDetachedWindow = null;
+  if (detached && !detached.closed) detached.close();
+}
+
+// Déplace le VRAI contenu du panneau (pas une copie) dans une fenêtre séparée -- conserve tous les
+// écouteurs déjà posés dessus (bouton d'enregistrement, glisser sur la frise, etc.), puisque déplacer
+// un nœud DOM via appendChild ne détruit jamais ses écouteurs. Les feuilles <style> de la page sont
+// recopiées (cloneNode) pour que le contenu déplacé garde son apparence -- le reste (polices Google)
+// est chargé via un @import DANS cette même feuille, donc suit automatiquement.
+function detachCapturePanel() {
+  const panel = document.getElementById('videoTestPanel');
+  if (!panel.firstChild || capturePanelDetachedWindow) return; // rien à détacher, ou déjà détaché
+  const win = window.open('', '_blank', 'width=980,height=760');
+  if (!win) return; // popup bloqué par le navigateur -- on reste comme avant, sans erreur bruyante
+  capturePanelDetachedWindow = win;
+  win.document.title = document.title;
+  document.querySelectorAll('style').forEach(styleEl => win.document.head.appendChild(styleEl.cloneNode(true)));
+  win.document.body.style.cssText = 'margin:0;background:#0d0d0d;';
+  const wrapper = win.document.createElement('div');
+  wrapper.className = 'video-test-panel active';
+  wrapper.style.cssText = 'max-width:none;width:100%;';
+  while (panel.firstChild) wrapper.appendChild(panel.firstChild); // déplace les vrais nœuds, pas une copie
+  win.document.body.appendChild(wrapper);
+  panel.classList.remove('active');
+  document.body.classList.remove('video-panel-active');
+  // Fermeture de la fenêtre détachée PAR L'UTILISATEUR (croix du navigateur, pas notre bouton ✕, qui
+  // passe déjà par closeCapturePanel() ci-dessus et vide capturePanelDetachedWindow avant d'appeler
+  // .close() -- ce garde évite donc un double nettoyage dans ce cas).
+  win.addEventListener('pagehide', () => {
+    if (capturePanelDetachedWindow !== win) return;
+    capturePanelDetachedWindow = null;
+    if (videoCaptureState) stopCapture();
+  });
 }
 
 function openCapturePanel(file) {
@@ -2285,6 +2329,7 @@ function openCapturePanel(file) {
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
       <div class="video-test-panel-actions">
+        <button type="button" class="video-test-panel-btn" id="videoCaptureDetachBtn" title="${tr('detachBtn')}" aria-label="${tr('detachBtn')}">⤢</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
       </div>
     </div>
@@ -2551,6 +2596,7 @@ function openCapturePanel(file) {
     URL.revokeObjectURL(objectUrl);
     closeCapturePanel();
   });
+  document.getElementById('videoCaptureDetachBtn').addEventListener('click', detachCapturePanel);
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
