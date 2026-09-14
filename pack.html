@@ -2371,6 +2371,15 @@ function openCapturePanel(file) {
       const newPassEvents = stopCapture();
       lastEvents = materializeLayerSegments(pendingBaseEvents.concat(newPassEvents));
       pendingBaseEvents = [];
+      // Arrêter la capture doit vraiment arrêter la musique en cours (2026-09-16, même retour direct de
+      // Jules-Antoine que pour Démarrer). 'stop-track' est l'événement global que player.js écoute déjà
+      // pour arrêter n'importe quelle piste (mécanisme "une seule piste à la fois" de playThisTrack) --
+      // réutilisé tel quel plutôt que de deviner l'état interne (playing) depuis l'extérieur du closure
+      // de player.js, qu'aucun signal DOM fiable n'expose. Sans effet si la piste n'était déjà plus en
+      // train de jouer. Ne couvre que la piste ARMÉE -- si le compositeur a manuellement démarré une
+      // AUTRE piste sans l'armer, celle-là continue (limite connue, cas rare vu le flux armer/capturer).
+      if (armedTrackId) document.dispatchEvent(new CustomEvent('stop-track', { detail: armedTrackId }));
+      videoEl.pause();
       recordBtn.classList.remove('recording');
       recordLabel.textContent = tr('captureStartBtn');
       countEl.textContent = captureCountText(lastEvents.length);
