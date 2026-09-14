@@ -2284,6 +2284,9 @@ function openCapturePanel(file) {
     <div class="video-test-panel-frame-wrap"><video id="videoCaptureEl" src="${objectUrl}" controls muted></video></div>
     <div class="video-capture-bar">
       <button type="button" class="video-capture-record-btn" id="videoCaptureRecordBtn"><span class="dot"></span><span id="videoCaptureRecordLabel">${tr('captureStartBtn')}</span></button>
+      <label class="video-capture-export-opt" id="videoCaptureAdditiveLabel" title="${tr('captureAdditiveHelp')}" hidden>
+        <input type="checkbox" id="videoCaptureAdditiveCheckbox"> ${tr('captureAdditiveLabel')}
+      </label>
       <span class="video-capture-armed-status" id="videoCaptureArmedStatus" title="${tr('captureArmedHelp')}"></span>
       <span class="video-capture-count" id="videoCaptureCount"></span>
     </div>
@@ -2320,6 +2323,8 @@ function openCapturePanel(file) {
   const countEl = document.getElementById('videoCaptureCount');
   const exportBtn = document.getElementById('videoCaptureExportBtn');
   const exportStatus = document.getElementById('videoCaptureExportStatus');
+  const additiveLabel = document.getElementById('videoCaptureAdditiveLabel');
+  const additiveCheckbox = document.getElementById('videoCaptureAdditiveCheckbox');
   const tierSelect = document.getElementById('videoCaptureTierSelect');
   const creditCheckbox = document.getElementById('videoCaptureCreditCheckbox');
   const titleInput = document.getElementById('videoCaptureTitleInput');
@@ -2342,23 +2347,46 @@ function openCapturePanel(file) {
   // Groupes repliés (par clé "track:<id>" ou "sfx:<id>") -- persistent tant que ce panneau reste ouvert,
   // même logique que laneOverrides ci-dessus.
   let collapsedGroups = {};
+  // Écraser ou passe additive (2026-09-16, demande explicite de Jules-Antoine : "la possibilité d'écraser
+  // ou de faire des passes additives") -- pendingBaseEvents porte les événements de la prise précédente à
+  // fusionner au prochain arrêt de capture, vide = la prochaine capture remplace tout (comportement
+  // d'origine). Réglé au moment où l'enregistrement DÉMARRE (voir recordBtn ci-dessous), pas à l'arrêt --
+  // la case à cocher ne doit plus pouvoir changer d'avis une fois l'enregistrement en cours.
+  let pendingBaseEvents = [];
   function refreshActionButtons() {
     exportBtn.disabled = lastEvents.length === 0;
     saveBtn.disabled = lastEvents.length === 0;
+    // La case "Passe additive" n'a de sens que s'il existe déjà quelque chose à préserver.
+    additiveLabel.hidden = lastEvents.length === 0;
+    if (lastEvents.length === 0) additiveCheckbox.checked = false;
   }
   function captureCountText(n) { return tr('captureEventCount').replace('{n}', n); }
   recordBtn.addEventListener('click', () => {
     if (videoCaptureState) {
-      lastEvents = materializeLayerSegments(stopCapture());
+      // Fusionne avec la prise précédente (passe additive) si demandé à l'armement de CET enregistrement
+      // -- voir la branche "else" ci-dessous. materializeLayerSegments accepte sans problème un mélange
+      // d'événements déjà matérialisés (layer_segment de la passe précédente) et bruts (intensity_change/
+      // track_play de la passe qui vient de s'arrêter) : seuls ces derniers sont (re)convertis, le reste
+      // traverse tel quel -- voir son propre commentaire plus haut dans le fichier.
+      const newPassEvents = stopCapture();
+      lastEvents = materializeLayerSegments(pendingBaseEvents.concat(newPassEvents));
+      pendingBaseEvents = [];
       recordBtn.classList.remove('recording');
       recordLabel.textContent = tr('captureStartBtn');
       countEl.textContent = captureCountText(lastEvents.length);
+      additiveCheckbox.disabled = false;
       refreshActionButtons();
       renderCaptureTimeline(timelineEl, lastEvents, true, () => {
         countEl.textContent = captureCountText(lastEvents.length);
         refreshActionButtons();
       }, laneOverrides, collapsedGroups, videoEl);
     } else {
+      // Écraser ou passe additive : décidé ICI, au démarrage -- la case reste figée pendant tout
+      // l'enregistrement (voir additiveCheckbox.disabled ci-dessous), pas de changement d'avis en cours
+      // de route. Décochée ou rien à préserver (lastEvents vide) : comportement d'origine, la nouvelle
+      // capture remplacera tout à l'arrêt.
+      const additive = additiveCheckbox.checked && lastEvents.length > 0;
+      pendingBaseEvents = additive ? lastEvents.slice() : [];
       startCapture(videoEl);
       // Piste armée (2026-09-15, boutons ⏺ posés à côté du lecteur du morceau -- voir
       // setupCaptureTrigger) : générique, quel que soit le mode -- "comme si on appuyait sur lecture au
@@ -2375,16 +2403,27 @@ function openCapturePanel(file) {
       countEl.textContent = tr('captureInProgress');
       exportBtn.disabled = true;
       saveBtn.disabled = true;
+      additiveCheckbox.disabled = true;
       exportStatus.textContent = '';
-      // Une nouvelle capture = une nouvelle prise à sauvegarder (jamais un écrasement silencieux d'une
-      // sauvegarde précédente) -- currentCaptureId reparti à zéro, un nouveau clic sur Sauvegarder créera
-      // une ligne distincte plutôt que de mettre à jour l'ancienne.
-      currentCaptureId = null;
-      saveStatus.textContent = '';
+      // Une nouvelle capture EN MODE ÉCRASEMENT = une nouvelle prise à sauvegarder (jamais un écrasement
+      // silencieux d'une sauvegarde précédente) -- currentCaptureId reparti à zéro, un nouveau clic sur
+      // Sauvegarder créera une ligne distincte plutôt que de mettre à jour l'ancienne. Une passe ADDITIVE,
+      // elle, continue de construire la MÊME prise -- currentCaptureId (et son titre) sont conservés, un
+      // Sauvegarder après coup met à jour la même ligne.
+      if (!additive) {
+        currentCaptureId = null;
+        saveStatus.textContent = '';
+      }
       const tick = setInterval(() => {
         if (!videoCaptureState) { clearInterval(tick); return; }
-        countEl.textContent = captureCountText(videoCaptureState.events.length);
-        renderCaptureTimeline(timelineEl, videoCaptureState.events, false, null, laneOverrides, collapsedGroups, videoEl);
+        // En passe additive, on affiche la prise précédente (déjà matérialisée) ET les événements bruts
+        // de la passe en cours superposés -- pour une piste touchée uniquement dans la passe précédente,
+        // la frise reste fidèle à ce qui est déjà acquis ; limite connue : une piste retouchée dans LES
+        // DEUX passes ne montre pas encore l'aperçu en direct de la seconde tant qu'elle n'est pas
+        // matérialisée à l'arrêt (le résultat final, lui, est toujours correct).
+        const liveEvents = pendingBaseEvents.concat(videoCaptureState.events);
+        countEl.textContent = captureCountText(liveEvents.length);
+        renderCaptureTimeline(timelineEl, liveEvents, false, null, laneOverrides, collapsedGroups, videoEl);
       }, 500);
     }
   });
