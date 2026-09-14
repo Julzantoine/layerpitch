@@ -12,12 +12,16 @@
 --
 -- Gating actuel : is_admin() uniquement (même situation que video_captures et le reste du chantier
 -- capture vidéo -- aucun palier Rookie/Warrior/Boss n'existe encore ailleurs dans le produit).
--- POINT OUVERT signalé à Jules-Antoine, pas tranché seul : `plan_quotas.max_video_storage_gb`
--- existe déjà depuis le 3 septembre (0 Go free / 20 Go starter / 100 Go pro) et est réutilisé
--- ci-dessous comme quota de stockage dès que le gating par palier existera -- mais Jules-Antoine a
--- dit le 16 septembre que SEUL le palier Boss (= 'pro' dans l'ancien nommage) devrait pouvoir
--- stocker/uploader des vidéos, ce qui contredit starter=20 Go déjà en base. Ne pas corriger cette
--- valeur unilatéralement ici -- à trancher avec lui avant d'activer le vrai gating par palier.
+--
+-- Clarifié le 16 septembre (après une confusion de ma part entre deux mécanismes distincts) :
+-- `plan_quotas.max_video_storage_gb` (0 Go free/Rookie, 20 Go starter/Warrior, 100 Go pro/Boss,
+-- posé le 3 septembre) régit CETTE bibliothèque-ci (composer_videos, uploads + exports rangés) --
+-- Warrior peut bien y stocker des vidéos (des reels notamment). Ce que Warrior N'A PAS le droit de
+-- faire, c'est sauvegarder une PRISE DE CAPTURE d'une session à l'autre (video_captures, chantier
+-- séparé, voir decisions/2026-09-15-capture-tiers-sauvegarde.md -- réservé à Boss). Les deux tables
+-- ont des règles de palier différentes et ne doivent pas être confondues : composer_videos =
+-- stockage vidéo général (dès Warrior), video_captures = persistance du projet de montage capturé
+-- (Boss uniquement). Le quota ci-dessous reste donc correct tel quel, aucune valeur à changer.
 
 create table public.composer_videos (
   id text primary key,
