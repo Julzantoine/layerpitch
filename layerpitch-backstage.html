@@ -9206,8 +9206,9 @@ function r2DeleteFileLogged(key) {
 // Compression systématique côté client via ffmpeg.wasm (même bibliothèque vendorée que pack.html,
 // vendor/ffmpeg/) avant l'envoi -- jamais le fichier brut importé, pour ne pas exploser le quota de
 // stockage (Jules-Antoine, 16 septembre : "un algorithme comme celui de youtube... pour ne pas
-// exploser le compteur"). Réencodée en H.264/AAC à débit plafonné (~2 Mbps @1080p), plafonnée à
-// 1080p (jamais agrandie) -- à peu près l'échelle que vise YouTube lui-même pour cette résolution.
+// exploser le compteur"). Réencodée en H.264/AAC, plafonnée à 720p/~1,2 Mbps (jamais agrandie) --
+// abaissé depuis 1080p/2 Mbps le même jour, la compression restait bien trop lente sinon (voir
+// compressVideoForLibrary ci-dessous pour le pourquoi précis : coeur ffmpeg.wasm mono-thread).
 // ============================================================================
 let videoLibraryFfmpegSingleton = null;
 async function loadVideoLibraryFfmpeg() {
@@ -9250,12 +9251,18 @@ async function compressVideoForLibrary(file, onProgress) {
   try {
     await ffmpeg.exec([
       '-i', inName,
-      '-vf', "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease",
-      // 'veryfast' plutôt que 'fast' (2026-09-16, même retour) : ffmpeg.wasm tourne sur un seul cœur,
-      // sans accélération matérielle -- une compression réellement rapide compte davantage ici qu'un
-      // taux de compression optimal, d'autant que le coût de stockage R2 reste négligeable de toute
-      // façon (voir decisions/2026-09-16, docs privés).
-      '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2000k', '-maxrate', '2200k', '-bufsize', '4000k',
+      // Plafonné à 720p, pas 1080p (2026-09-16, second retour le même jour : même en 'veryfast', un
+      // encodage 1080p prenait encore ~8x la durée réelle de la vidéo -- le coeur ffmpeg.wasm vendoré
+      // ici est la build MONO-thread (pas de pthread, voir vendor/ffmpeg/core/), donc un seul coeur CPU
+      // quel que soit l'ordinateur ; réduire le nombre de pixels à encoder est le seul levier réel sans
+      // changer d'hébergement (une build multi-thread demanderait des en-têtes COOP/COEP, indisponibles
+      // sur GitHub Pages -- lié au chantier de départ de GitHub Pages, pas traité ici).
+      '-vf', "scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease",
+      // 'ultrafast' plutôt que 'veryfast' : même raisonnement que ci-dessus, la vitesse prime largement
+      // sur le taux de compression optimal ici (coût de stockage R2 négligeable, voir
+      // decisions/2026-09-16, docs privés) -- le débit est aussi baissé en conséquence (720p n'a pas
+      // besoin de 2 Mbps).
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1200k', '-maxrate', '1400k', '-bufsize', '2800k',
       '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart',
       'out.mp4',
     ]);
