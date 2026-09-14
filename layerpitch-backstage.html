@@ -9192,13 +9192,30 @@ async function compressVideoForLibrary(file, onProgress) {
   const ffmpeg = await loadVideoLibraryFfmpeg();
   const inName = 'in' + (file.name.slice(file.name.lastIndexOf('.')) || '.mp4');
   await ffmpeg.writeFile(inName, new Uint8Array(await file.arrayBuffer()));
-  await ffmpeg.exec([
-    '-i', inName,
-    '-vf', "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease",
-    '-c:v', 'libx264', '-preset', 'fast', '-b:v', '2000k', '-maxrate', '2200k', '-bufsize', '4000k',
-    '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart',
-    'out.mp4',
-  ]);
+  // Vraie progression (2026-09-16, retour direct de Jules-Antoine : une compression sans aucun repère
+  // ne se distingue pas d'un plantage quand elle prend plusieurs minutes) -- ffmpeg.wasm remonte un
+  // événement 'progress' ({progress: 0-1}) pendant exec(), écouteur retiré après coup (off()) pour ne
+  // pas s'accumuler d'un upload à l'autre sur cette même instance singleton.
+  const onFfmpegProgress = ({ progress }) => {
+    const pct = Math.max(0, Math.min(100, Math.round((progress || 0) * 100)));
+    onProgress && onProgress(tr('videoLibraryCompressingProgress', { pct }));
+  };
+  ffmpeg.on('progress', onFfmpegProgress);
+  try {
+    await ffmpeg.exec([
+      '-i', inName,
+      '-vf', "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease",
+      // 'veryfast' plutôt que 'fast' (2026-09-16, même retour) : ffmpeg.wasm tourne sur un seul cœur,
+      // sans accélération matérielle -- une compression réellement rapide compte davantage ici qu'un
+      // taux de compression optimal, d'autant que le coût de stockage R2 reste négligeable de toute
+      // façon (voir decisions/2026-09-16, docs privés).
+      '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '2000k', '-maxrate', '2200k', '-bufsize', '4000k',
+      '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart',
+      'out.mp4',
+    ]);
+  } finally {
+    ffmpeg.off('progress', onFfmpegProgress);
+  }
   const outData = await ffmpeg.readFile('out.mp4');
   return new Blob([outData.buffer], { type: 'video/mp4' });
 }

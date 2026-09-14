@@ -1393,22 +1393,29 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // ensemble, en préservant leur espacement relatif -- demandé par Jules-Antoine 2026-09-15) + les pistes
   // enfants indentées en dessous, même gabarit pour les morceaux (calques ou boucles) et les Sfx
   // (variations round-robin) -- voir les usages ci-dessous.
+  // Nom du groupe ET bloc-résumé glissable sur UNE SEULE ligne (2026-09-16, retour direct de
+  // Jules-Antoine : "la section parente doit être sur la même ligne que le bloc général", même principe
+  // que l'affichage d'un track stack dans Logic Pro X -- le nom + le résumé replié restent visibles sur
+  // une seule rangée, jamais deux lignes empilées). L'étiquette (nom + chevron) occupe la même colonne
+  // que .vct-lane-label des autres pistes (96px), le bloc-résumé la même colonne que .vct-lane-track --
+  // cette ligne reste donc visible même repliée (c'est justement le principe d'un résumé replié),
+  // seules les pistes enfants (nestedLanesHtml) disparaissent alors.
   function renderGroup(key, headerLabel, colorClass, nestedLanesHtml) {
     const collapsed = !!collapsedGroups[key];
     const members = groupMembers(key);
-    let summaryHtml = '';
+    let blockHtml = '';
     if (editable && members.length) {
       const isMusic = key.indexOf('track:') === 0;
       const start = isMusic ? 0 : Math.min(...members.map(m => m.t));
       const end = isMusic ? total : Math.max(...members.map(m => m.t + (m.detail.durationOverride || 1)));
-      summaryHtml = `<div class="vct-lane vct-group-summary"><div class="vct-lane-label"></div>` +
-        `<div class="vct-lane-track"><div class="vct-block vct-block-group" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}" ` +
-        `title="${tr('captureGroupDragHint')}" style="left:${pct(start)}%;width:${pct(end) - pct(start)}%"></div></div></div>`;
+      blockHtml = `<div class="vct-block vct-block-group" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}" ` +
+        `title="${tr('captureGroupDragHint')}" style="left:${pct(start)}%;width:${pct(end) - pct(start)}%"></div>`;
     }
-    return `<div class="vct-track-group ${colorClass}">` +
-      `<div class="vct-track-group-header" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}">` +
+    const headerRow = `<div class="vct-lane vct-group-summary">` +
+      `<div class="vct-lane-label vct-track-group-header" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}">` +
       `<span class="vct-group-chevron">${collapsed ? '▸' : '▾'}</span>${window.LayerPlayerCore.escapeHtml(headerLabel)}</div>` +
-      (collapsed ? '' : summaryHtml + nestedLanesHtml) + `</div>`;
+      `<div class="vct-lane-track">${blockHtml}</div></div>`;
+    return `<div class="vct-track-group ${colorClass}">` + headerRow + (collapsed ? '' : nestedLanesHtml) + `</div>`;
   }
 
   // SFX : un groupe par son déclenché, une piste enfant par variation round-robin réellement tirée dans
@@ -2291,14 +2298,6 @@ function openCapturePanel(file) {
       <span class="video-capture-count" id="videoCaptureCount"></span>
     </div>
     <div class="video-capture-bar">
-      <label class="video-capture-export-opt" title="${tr('captureTierHelp')}">
-        ${tr('captureTierLabel')}
-        <select class="video-capture-load-select" id="videoCaptureTierSelect">
-          <option value="rookie">Rookie</option>
-          <option value="warrior">Warrior</option>
-          <option value="boss" selected>Boss</option>
-        </select>
-      </label>
       <label class="video-capture-export-opt" title="${tr('captureCreditHelp')}">
         <input type="checkbox" id="videoCaptureCreditCheckbox" checked> ${tr('captureCreditLabel')}
       </label>
@@ -2325,7 +2324,6 @@ function openCapturePanel(file) {
   const exportStatus = document.getElementById('videoCaptureExportStatus');
   const additiveLabel = document.getElementById('videoCaptureAdditiveLabel');
   const additiveCheckbox = document.getElementById('videoCaptureAdditiveCheckbox');
-  const tierSelect = document.getElementById('videoCaptureTierSelect');
   const creditCheckbox = document.getElementById('videoCaptureCreditCheckbox');
   const titleInput = document.getElementById('videoCaptureTitleInput');
   const saveBtn = document.getElementById('videoCaptureSaveBtn');
@@ -2460,7 +2458,12 @@ function openCapturePanel(file) {
   exportBtn.addEventListener('click', async () => {
     exportBtn.disabled = true;
     try {
-      const exportOptions = { tier: tierSelect.value, showComposerCredit: creditCheckbox.checked };
+      // Sélecteur de palier retiré du panneau le 16 septembre (retour direct de Jules-Antoine : "ça ne
+      // sert à rien" -- confusion en testant, aucun palier réel n'existe encore pour lui donner du
+      // sens) -- "on le garde pour les vrais réglages que personne ne verra". La mécanique de filigrane
+      // dans exportCaptureVideo reste intacte, juste plus exposée en UI : figé sur 'boss' (aucun
+      // filigrane) en attendant un vrai palier compositeur à brancher ici, invisible pour l'instant.
+      const exportOptions = { tier: 'boss', showComposerCredit: creditCheckbox.checked };
       const blob = await exportCaptureVideo(lastEvents, file, (msg) => { exportStatus.textContent = msg; }, laneOverrides, exportOptions);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
