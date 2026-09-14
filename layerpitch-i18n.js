@@ -164,6 +164,10 @@ window.LAYERPITCH_I18N = {
       captureFetchVideo: 'Préparation de la vidéo importée…',
       captureFetchFont: 'Préparation de la police d\'incrustation…',
       captureRendering: 'Rendu en cours (peut prendre une minute)…',
+      captureAddToLibraryBtn: 'Ajouter à la bibliothèque vidéo',
+      captureAddingToLibrary: 'Ajout à la bibliothèque…',
+      captureAddedToLibrary: 'Ajouté à la bibliothèque vidéo.',
+      captureAddToLibraryFailed: 'Échec de l\'ajout à la bibliothèque : {error}',
     },
     collection: {
       pageTitle: 'LayerPitch — Collection',
@@ -1221,6 +1225,10 @@ window.LAYERPITCH_I18N = {
       captureFetchVideo: 'Preparing the imported video…',
       captureFetchFont: 'Preparing the overlay font…',
       captureRendering: 'Rendering (can take up to a minute)…',
+      captureAddToLibraryBtn: 'Add to video library',
+      captureAddingToLibrary: 'Adding to library…',
+      captureAddedToLibrary: 'Added to video library.',
+      captureAddToLibraryFailed: 'Failed to add to library: {error}',
     },
     collection: {
       pageTitle: 'LayerPitch — Collection',

@@ -1915,6 +1915,46 @@ async function fetchAsUint8Array(url) {
   return new Uint8Array(await res.arrayBuffer());
 }
 
+// --- Bibliothèque vidéo (2026-09-16) -- déposer un export du moteur de capture dans composer_videos,
+// voir supabase/migrations/20260916020000_composer_videos.sql et 20260916040000_open_capture_video_to_
+// composers.sql. Même mécanisme d'URL R2 pré-signée que layerpitch-backstage.html (create-media-signed-
+// url), jamais utilisé jusqu'ici dans pack.html -- dupliqué ici plutôt que partagé entre les deux
+// fichiers (aucun module commun entre eux, même raisonnement que trackPublicEvent()).
+const MEDIA_BASE = 'https://media.layerpitch.com/';
+async function r2SignedUrl(path, method) {
+  const { data, error } = await window.LayerPitchSupabaseClient.getClient()
+    .functions.invoke('create-media-signed-url', { body: { path, method } });
+  if (error) throw new Error(await window.LayerPitchAuth.describeFunctionError(error));
+  if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
+  return data.url;
+}
+async function r2PutFile(key, bytes, contentType) {
+  const url = await r2SignedUrl(key, 'PUT');
+  const res = await fetch(url, { method: 'PUT', headers: { 'content-type': contentType }, body: bytes });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
+  }
+}
+// Envoie un export terminé (Blob mp4) dans la bibliothèque vidéo du compositeur -- kind:'capture_export'
+// pour le distinguer d'un simple import (voir composer_videos.kind), pack_id relie l'export à CE pack.
+// Pas de recompression ffmpeg ici (contrairement à un import dans le Backstage) : le fichier sort déjà
+// de exportCaptureVideo en H.264, faire subir une deuxième passe ffmpeg.wasm juste après l'export
+// initial (déjà long) serait une attente supplémentaire dont le gain resterait marginal.
+async function saveExportToVideoLibrary(blob, packId, title, durationSeconds) {
+  const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+  const base = `${MEDIA_BASE}video/${id}/`;
+  await r2PutFile(`video/${id}/export.mp4`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+  const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
+    payload: {
+      id, kind: 'capture_export', packId, title: title || '', base, file: 'export.mp4',
+      mimeType: 'video/mp4', sizeBytes: blob.size, durationSeconds: durationSeconds || null,
+    },
+  });
+  if (error) throw error;
+  return id;
+}
+
 // Reprend exactement la logique de conversion de render-from-capture.js (mode "vertical" -- calques en
 // parallèle -- + stingers). Les embranchements/séquentiel ne sont pas encore gérés ici non plus.
 async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, exportOptions) {
@@ -2347,6 +2387,7 @@ function openCapturePanel(file) {
         <input type="checkbox" id="videoCaptureCreditCheckbox" checked> ${tr('captureCreditLabel')}
       </label>
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>${tr('captureExportBtn')}</button>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
     <div class="video-capture-bar">
@@ -2366,6 +2407,7 @@ function openCapturePanel(file) {
   const recordLabel = document.getElementById('videoCaptureRecordLabel');
   const countEl = document.getElementById('videoCaptureCount');
   const exportBtn = document.getElementById('videoCaptureExportBtn');
+  const addToLibraryBtn = document.getElementById('videoCaptureAddToLibraryBtn');
   const exportStatus = document.getElementById('videoCaptureExportStatus');
   const additiveLabel = document.getElementById('videoCaptureAdditiveLabel');
   const additiveCheckbox = document.getElementById('videoCaptureAdditiveCheckbox');
@@ -2377,6 +2419,7 @@ function openCapturePanel(file) {
   const saveStatus = document.getElementById('videoCaptureSaveStatus');
   const timelineEl = document.getElementById('videoCaptureTimeline');
   let lastEvents = [];
+  let lastExportBlob = null; // dernier export réussi, en attente d'un envoi optionnel vers la bibliothèque
   // Identifiant de la prise sauvegardée en cours (null tant qu'aucune sauvegarde n'a encore été faite
   // pour CETTE prise -- généré au premier clic sur Sauvegarder, réutilisé ensuite pour que les
   // sauvegardes successives mettent à jour la même ligne plutôt que d'en créer une nouvelle à chaque
@@ -2475,6 +2518,9 @@ function openCapturePanel(file) {
       saveBtn.disabled = true;
       additiveCheckbox.disabled = true;
       exportStatus.textContent = '';
+      // Un nouvel export sera nécessaire pour la nouvelle prise -- l'ancien Blob n'a plus de sens.
+      lastExportBlob = null;
+      addToLibraryBtn.hidden = true;
       // Une nouvelle capture EN MODE ÉCRASEMENT = une nouvelle prise à sauvegarder (jamais un écrasement
       // silencieux d'une sauvegarde précédente) -- currentCaptureId reparti à zéro, un nouveau clic sur
       // Sauvegarder créera une ligne distincte plutôt que de mettre à jour l'ancienne. Une passe ADDITIVE,
@@ -2519,11 +2565,34 @@ function openCapturePanel(file) {
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
       exportStatus.textContent = tr('captureExportDone');
+      // Garde le Blob pour un envoi optionnel vers la bibliothèque vidéo (voir addToLibraryBtn
+      // ci-dessous) -- distinct du téléchargement local ci-dessus, jamais automatique (2026-09-16).
+      lastExportBlob = blob;
+      addToLibraryBtn.hidden = false;
     } catch (e) {
       console.error(e);
       exportStatus.textContent = tr('captureExportFailed').replace('{error}', e.message);
     } finally {
       exportBtn.disabled = false;
+    }
+  });
+  // Dépose l'export dans la bibliothèque vidéo du compositeur (2026-09-16, voir composer_videos) --
+  // action séparée et volontaire, jamais automatique après un export (un compositeur peut vouloir
+  // exporter plusieurs essais avant de choisir lequel garder). Réutilise le champ "Nom de la prise"
+  // déjà présent pour Sauvegarder -- même prise, même nom.
+  addToLibraryBtn.addEventListener('click', async () => {
+    if (!lastExportBlob || !packId) return;
+    addToLibraryBtn.disabled = true;
+    exportStatus.textContent = tr('captureAddingToLibrary');
+    try {
+      await saveExportToVideoLibrary(lastExportBlob, packId, titleInput.value, videoEl.duration || null);
+      exportStatus.textContent = tr('captureAddedToLibrary');
+      addToLibraryBtn.hidden = true; // évite un second envoi du même export
+    } catch (e) {
+      console.error(e);
+      exportStatus.textContent = tr('captureAddToLibraryFailed').replace('{error}', e.message);
+    } finally {
+      addToLibraryBtn.disabled = false;
     }
   });
   // Sauvegarde/reprise côté serveur (2026-09-16) -- voir saveVideoCapture/listVideoCaptures/loadVideoCapture
