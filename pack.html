@@ -567,11 +567,11 @@
   </div>
 </dialog>
 
-<!-- Admin uniquement -- traduit FR/EN comme le reste du site (2026-09-16, nécessaire pour pouvoir
-     filmer un tutoriel en anglais malgré un outil interne jamais vu par un compositeur ordinaire). -->
+<!-- Réservé à l'admin ET au compositeur propriétaire du pack (élargi le 16 septembre, voir
+     setupCaptureTrigger) -- traduit FR/EN comme le reste du site. -->
 <dialog id="videoCaptureDialog" class="video-test-dialog">
   <div class="video-test-form">
-    <div class="video-test-dialog-title" data-i18n="captureDialogTitle">Capturer une prise (admin)</div>
+    <div class="video-test-dialog-title" data-i18n="captureDialogTitle">Capturer une prise</div>
     <p class="video-test-dialog-hint" data-i18n="captureDialogHint">Importe ta propre vidéo de gameplay (fichier local -- un lien YouTube/Vimeo ne peut pas être réutilisé dans un export). Le lecteur ci-dessous enregistrera l'horodatage de chaque déclenchement pendant que tu joues.</p>
     <div class="video-capture-dropzone" id="videoCaptureDropzone" data-i18n="captureDropzoneHint">Glisse un fichier vidéo ici, ou clique pour en choisir un</div>
     <input type="file" id="videoCaptureFileInput" accept="video/*" hidden>
@@ -2524,19 +2524,33 @@ function openCapturePanel(file) {
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// Éligibilité : réservé aux comptes admin (même barrière d'affichage que le Backstage, is_admin() RPC --
-// la vraie barrière de sécurité serait de toute façon côté serveur le jour où cette capture écrit
-// quelque part, ici on ne fait qu'afficher/masquer un bouton). Ne charge les scripts d'auth que si
-// nécessaire, comme le fait déjà loadPurchaseScripts() pour l'achat -- page publique, rien de tout ça
-// ne doit ralentir un visiteur ordinaire.
+// Éligibilité (élargie le 16 septembre) : admin OU le compositeur propriétaire de CE pack --
+// auparavant is_admin() uniquement. `lastResolvedOwnerId` est déjà le composer_id propriétaire des
+// données affichées (résolu par loadSiteData()) -- comparé à l'id du compositeur connecté
+// (ensure_composer_profile(), même RPC que le reste du produit pour "mon propre id"). Barrière
+// d'AFFICHAGE seulement (même remarque qu'avant) -- la vraie barrière de sécurité vit dans les RPC
+// SECURITY DEFINER elles-mêmes (save_video_capture/upsert_video, etc.), voir
+// supabase/migrations/20260916040000_open_capture_video_to_composers.sql. POINT EXPLICITEMENT
+// TEMPORAIRE (dit par Jules-Antoine) : à filtrer par palier d'abonnement (Rookie/Warrior/Boss) au
+// lancement -- pas construit par anticipation ici, rien à quoi le rattacher n'existe encore. Ne
+// charge les scripts d'auth que si nécessaire, comme le fait déjà loadPurchaseScripts() pour l'achat
+// -- page publique, rien de tout ça ne doit ralentir un visiteur ordinaire.
 async function setupCaptureTrigger(pack, container) {
   if (!pack.videoTestModeEnabled) return;
+  let eligible = false;
   try {
     await loadPurchaseScripts();
     const { session } = await window.LayerPitchAuth.getSession();
     if (!session) return;
-    const { data: isAdmin } = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin');
-    if (!isAdmin) return;
+    const client = window.LayerPitchSupabaseClient.getClient();
+    const { data: isAdmin } = await client.rpc('is_admin');
+    if (isAdmin) {
+      eligible = true;
+    } else {
+      const { data: myComposerId } = await client.rpc('ensure_composer_profile');
+      eligible = !!myComposerId && myComposerId === lastResolvedOwnerId;
+    }
+    if (!eligible) return;
   } catch (e) { return; } // jamais bloquant pour le reste de la page
 
   const captureBtn = document.createElement('button');
@@ -2545,6 +2559,11 @@ async function setupCaptureTrigger(pack, container) {
   captureBtn.textContent = tr('captureDialogTitle');
   captureBtn.addEventListener('click', () => document.getElementById('videoCaptureDialog').showModal());
   container.insertBefore(captureBtn, container.firstChild);
+  // Lien direct depuis le Backstage (bibliothèque vidéo, sous-onglet "Capture", ?capture=1) : ouvre le
+  // dialogue tout de suite, sans clic supplémentaire depuis la liste des packs du compositeur.
+  if (new URLSearchParams(location.search).get('capture') === '1') {
+    document.getElementById('videoCaptureDialog').showModal();
+  }
 
   // Boutons ⏺ "Armer" -- un par morceau, posés directement à côté de son propre bouton de lecture dans
   // le VRAI lecteur du pack (pas un sélecteur séparé dans le panneau de capture) : plus logique puisque

@@ -200,6 +200,10 @@
     border: 1px solid var(--border); color: var(--text-dim); flex: none;
   }
   .video-library-empty { padding: 18px 4px; color: var(--text-dimmer); font-size: 13px; }
+  .video-subpanel { display: none; margin-top: 6px; }
+  .video-subpanel.active { display: block; }
+  .video-capture-pack-row-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
+  .video-capture-pack-row-hint { font-size: 11.5px; color: var(--text-dimmer); margin-top: 2px; }
 
   .backstage-layout { display: flex; gap: 28px; align-items: flex-start; margin-top: 20px; }
   .backstage-sidebar { width: 196px; flex-shrink: 0; position: sticky; top: 20px; background: var(--bg-sidebar); border-radius: 10px; padding: 16px 14px; }
@@ -758,10 +762,10 @@
           <span data-i18n="navSfxLibrary">Bibliothèque Sfx</span>
         </span>
       </button>
-      <!-- Réservé aux comptes admin pour l'instant (16 septembre) -- même barrière d'affichage que les
-           panneaux debug (ADMIN_ONLY_PANEL_IDS ci-dessous) : aucun palier Rookie/Warrior/Boss n'existe
-           encore ailleurs dans le produit pour gater réellement cette fonctionnalité. -->
-      <button class="nav-item" data-tab="videoLibrary" type="button" id="navItemVideoLibrary" hidden>
+      <!-- Ouvert à tout compositeur connecté depuis le 16 septembre (voir ADMIN_ONLY_PANEL_IDS et
+           supabase/migrations/20260916040000_open_capture_video_to_composers.sql) -- point
+           explicitement temporaire, à filtrer par palier d'abonnement au lancement. -->
+      <button class="nav-item" data-tab="videoLibrary" type="button" id="navItemVideoLibrary">
         <span class="nav-item-label">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="6" width="13" height="12" rx="1.6"/><path d="M16.5 10l4-2.5v9l-4-2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span data-i18n="navVideoLibrary">Vidéo</span>
@@ -862,12 +866,28 @@
         <h2 data-i18n="navVideoLibrary">Vidéo</h2>
         <div class="sub" data-i18n="videoLibraryPanelSub">Tes vidéos importées et les exports du moteur de capture vivent ici, indépendamment des AdReels et des Packs. Compressées automatiquement à l'import pour ne pas exploser le stockage.</div>
 
-        <div class="video-library-dropzone" id="videoLibraryDropzone" data-i18n="videoLibraryDropHint">Glisse un fichier vidéo ici, ou clique pour en choisir un</div>
-        <input type="file" id="videoLibraryFileInput" accept="video/*" hidden>
-        <div class="video-library-status" id="videoLibraryStatus"></div>
-        <div class="video-library-quota" id="videoLibraryQuota"></div>
+        <div class="content-appearance-toggle">
+          <button class="nav-item active" data-video-subtab="library" type="button"><span data-i18n="videoSubtabLibrary">Bibliothèque</span></button>
+          <button class="nav-item" data-video-subtab="capture" type="button"><span data-i18n="videoSubtabCapture">Capture</span></button>
+        </div>
 
-        <div id="videoLibraryList" class="video-library-list"></div>
+        <div class="video-subpanel active" data-video-subpanel="library">
+          <div class="video-library-dropzone" id="videoLibraryDropzone" data-i18n="videoLibraryDropHint">Glisse un fichier vidéo ici, ou clique pour en choisir un</div>
+          <input type="file" id="videoLibraryFileInput" accept="video/*" hidden>
+          <div class="video-library-status" id="videoLibraryStatus"></div>
+          <div class="video-library-quota" id="videoLibraryQuota"></div>
+          <div id="videoLibraryList" class="video-library-list"></div>
+        </div>
+
+        <!-- Sous-onglet Capture (16 septembre) : ouvre le moteur de capture/rescore de chaque pack --
+             le panneau lui-même vit dans pack.html (impraticable à dupliquer ici, la logique de capture
+             fait plusieurs milliers de lignes), donc ce sous-onglet se contente de lister les packs du
+             compositeur et d'ouvrir la page en direct du pack choisi, dialogue de capture pré-ouvert
+             (?capture=1, voir setupCaptureTrigger dans pack.html). -->
+        <div class="video-subpanel" data-video-subpanel="capture">
+          <div class="sub" data-i18n="videoCaptureSubtabHint">Rejoue la musique adaptative d'un de tes packs en direct sur une vidéo de gameplay, édite la prise, exporte-la ou sauvegarde-la. Ouvre la page en direct du pack choisi, dans un nouvel onglet.</div>
+          <div id="videoCapturePacksList" class="video-library-list"></div>
+        </div>
       </div>
 
       <div class="backstage-panel" data-panel="packs">
@@ -1709,7 +1729,11 @@ async function renderSubscriptionPanel(session) {
 // fetchSiteData()/pgReadEnabled() basculent déjà seuls sur Postgres pour un compositeur sans token
 // GitHub configuré (comme publishAll() le fait déjà côté écriture) -- sinon un compositeur hébergé
 // aurait vu sa bibliothèque vide, ce panneau étant jusqu'ici le seul moyen de l'activer à la main.
-const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelAdminLink', 'navItemVideoLibrary', 'panelVideoLibrary'];
+const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelAdminLink'];
+// La bibliothèque vidéo / capture (navItemVideoLibrary, panelVideoLibrary) n'est PLUS admin-only
+// depuis le 16 septembre -- ouverte à tout compositeur connecté (voir
+// supabase/migrations/20260916040000_open_capture_video_to_composers.sql). Point explicitement
+// temporaire (Jules-Antoine) : à filtrer par palier d'abonnement au lancement.
 // Statut admin mis en cache une fois par session (7 septembre) -- lu par renderPacks() pour
 // désactiver la case "en vente" (voir plus bas, un compositeur ordinaire ne doit pas pouvoir mettre
 // son propre pack en vente). Confort d'affichage uniquement : la vraie barrière est désormais
@@ -9274,6 +9298,44 @@ async function uploadLibraryVideo(file) {
     handleFile(e.dataTransfer.files[0]);
   });
 })();
+
+// Sous-onglets Bibliothèque/Capture du panneau Vidéo (16 septembre) -- toggle purement local, pas le
+// switchTab() global (réservé aux panneaux de premier niveau). Le sous-onglet Capture ne réimplémente
+// pas le moteur de capture ici : il liste les packs du compositeur et ouvre la page en direct du pack
+// choisi (pack.html?...&capture=1), dialogue de capture pré-ouvert -- voir setupCaptureTrigger dans
+// pack.html, élargi le même jour de is_admin() uniquement à "admin OU propriétaire du pack".
+function switchVideoSubtab(name) {
+  document.querySelectorAll('#panelVideoLibrary .video-subpanel').forEach(p => p.classList.toggle('active', p.dataset.videoSubpanel === name));
+  document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(b => b.classList.toggle('active', b.dataset.videoSubtab === name));
+  if (name === 'capture') renderVideoCapturePacksList();
+}
+document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(btn => {
+  btn.addEventListener('click', () => switchVideoSubtab(btn.dataset.videoSubtab));
+});
+function renderVideoCapturePacksList() {
+  const listEl = document.getElementById('videoCapturePacksList');
+  if (!listEl) return;
+  if (!packs.length) {
+    listEl.innerHTML = `<div class="video-library-empty">${tr('videoCaptureNoPacks')}</div>`;
+    return;
+  }
+  listEl.innerHTML = packs.map(p => {
+    const enabled = !!p.videoTestModeEnabled;
+    const url = `./pack.html?id=${encodeURIComponent(p.id)}&lang=${encodeURIComponent(currentLang())}&capture=1`;
+    return `
+      <div class="video-library-item">
+        <div class="video-library-item-main">
+          <div class="video-capture-pack-row-title">${escapeHtml(p.title || tr('defaultPackTitle'))}</div>
+          ${enabled ? '' : `<div class="video-capture-pack-row-hint">${escapeHtml(tr('videoCaptureNeedsTestMode'))}</div>`}
+        </div>
+        ${enabled
+          ? `<a class="btn btn-small" href="${url}" target="_blank" rel="noopener">${tr('videoCaptureOpenBtn')}</a>`
+          : `<span class="btn btn-small" style="opacity:.4;pointer-events:none;">${tr('videoCaptureOpenBtn')}</span>`}
+      </div>
+    `;
+  }).join('');
+}
+
 // Construit la liste des clés R2 (audio/<trackId>/<fichier>) de tous les fichiers déjà publiés
 // (remoteFile non nul -- un pendingFile jamais uploadé n'existe pas sur R2, rien à supprimer) d'un
 // morceau, sur tous ses points de stockage possibles (mêmes parcours que la boucle de publication
