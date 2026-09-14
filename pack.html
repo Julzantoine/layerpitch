@@ -1892,6 +1892,10 @@ async function loadVideoCapture(id) {
 // morceaux), portée ici pour tourner directement dans le navigateur -- fichiers servis en local
 // (vendor/ffmpeg/) plutôt que depuis un CDN : le Worker que la librairie construit en interne doit
 // être de même origine que la page, un CDN cross-origin le fait échouer silencieusement (SecurityError).
+// Coeur multi-thread DÉSACTIVÉ pour l'instant -- voir le même flag dans layerpitch-backstage.html
+// (FFMPEG_MULTITHREAD_ENABLED) pour le pourquoi : exec() ne se termine jamais avec vendor/ffmpeg/core-mt/,
+// reproduit en isolation, pas encore élucidé. Rebasculer les deux en même temps.
+const FFMPEG_MULTITHREAD_ENABLED = false;
 let ffmpegSingleton = null;
 async function loadFfmpegWasm(onProgress) {
   if (ffmpegSingleton) return ffmpegSingleton;
@@ -1902,7 +1906,7 @@ async function loadFfmpegWasm(onProgress) {
   // d'isolation (window.crossOriginIsolated) -- le Worker Cloudflare mis en place le 16 septembre ne
   // les envoie que pour pack.html?capture=1, jamais pour une visite normale d'un pack. Repli
   // silencieux sur le coeur mono-thread existant sinon.
-  const useMultiThread = typeof SharedArrayBuffer !== 'undefined' && self.crossOriginIsolated;
+  const useMultiThread = FFMPEG_MULTITHREAD_ENABLED && typeof SharedArrayBuffer !== 'undefined' && self.crossOriginIsolated;
   const coreDir = useMultiThread ? 'core-mt' : 'core';
   await ffmpeg.load({
     coreURL: new URL(`./vendor/ffmpeg/${coreDir}/ffmpeg-core.js`, location.href).href,
