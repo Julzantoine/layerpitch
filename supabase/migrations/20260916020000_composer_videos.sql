@@ -14,14 +14,17 @@
 -- capture vidéo -- aucun palier Rookie/Warrior/Boss n'existe encore ailleurs dans le produit).
 --
 -- Clarifié le 16 septembre (après une confusion de ma part entre deux mécanismes distincts) :
--- `plan_quotas.max_video_storage_gb` (0 Go free/Rookie, 20 Go starter/Warrior, 100 Go pro/Boss,
--- posé le 3 septembre) régit CETTE bibliothèque-ci (composer_videos, uploads + exports rangés) --
--- Warrior peut bien y stocker des vidéos (des reels notamment). Ce que Warrior N'A PAS le droit de
--- faire, c'est sauvegarder une PRISE DE CAPTURE d'une session à l'autre (video_captures, chantier
--- séparé, voir decisions/2026-09-15-capture-tiers-sauvegarde.md -- réservé à Boss). Les deux tables
--- ont des règles de palier différentes et ne doivent pas être confondues : composer_videos =
--- stockage vidéo général (dès Warrior), video_captures = persistance du projet de montage capturé
--- (Boss uniquement). Le quota ci-dessous reste donc correct tel quel, aucune valeur à changer.
+-- `plan_quotas.max_video_storage_gb` régit CETTE bibliothèque-ci (composer_videos, uploads + exports
+-- rangés) -- Warrior peut bien y stocker des vidéos (des reels notamment), mais en quantité modeste :
+-- 5 Go (voir 20260916030000_warrior_video_storage_5gb.sql -- filet de sécurité pour le cas vécu par
+-- Jules-Antoine d'un rescore refusé par YouTube, bloquant l'exposition du Reel faute de repli
+-- hébergé -- pas un vrai stockage de bibliothèque comme Boss). Rookie/free reste à 0 Go, Boss/pro à
+-- 100 Go. Ce que Warrior N'A PAS le droit de faire, c'est sauvegarder une PRISE DE CAPTURE d'une
+-- session à l'autre (video_captures, chantier séparé, voir
+-- decisions/2026-09-15-capture-tiers-sauvegarde.md -- réservé à Boss). Les deux tables ont des règles
+-- de palier différentes et ne doivent pas être confondues : composer_videos = stockage vidéo général
+-- (5 Go dès Warrior, 100 Go Boss), video_captures = persistance du projet de montage capturé (Boss
+-- uniquement).
 
 create table public.composer_videos (
   id text primary key,
