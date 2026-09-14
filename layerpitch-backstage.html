@@ -9251,20 +9251,33 @@ async function compressVideoForLibrary(file, onProgress) {
   // ne se distingue pas d'un plantage quand elle prend plusieurs minutes) -- ffmpeg.wasm remonte un
   // événement 'progress' ({progress: 0-1}) pendant exec(), écouteur retiré après coup (off()) pour ne
   // pas s'accumuler d'un upload à l'autre sur cette même instance singleton.
+  // Repli sur un temps écoulé (même jour, découvert juste après avoir activé le coeur multi-thread) :
+  // l'événement 'progress' ne remonte plus du tout quand ffmpeg.wasm tourne sur le coeur core-mt (le
+  // calcul se fait dans le sous-thread pthread qui fait le vrai travail, qui ne le relaie jamais vers
+  // la page -- limitation connue de la lib, pas un bug introduit ici). Un chrono qui avance reste un
+  // repère "ça tourne toujours" même sans pourcentage exact ; écrasé par le vrai pourcentage dès qu'un
+  // événement 'progress' arrive (donc toujours le plus précis des deux affiché).
+  const compressionStartedAt = Date.now();
+  let lastKnownPct = null;
+  const renderProgress = () => {
+    if (lastKnownPct != null) { onProgress && onProgress(tr('videoLibraryCompressingProgress', { pct: lastKnownPct })); return; }
+    const sec = Math.round((Date.now() - compressionStartedAt) / 1000);
+    onProgress && onProgress(tr('videoLibraryCompressingElapsed', { sec }));
+  };
   const onFfmpegProgress = ({ progress }) => {
-    const pct = Math.max(0, Math.min(100, Math.round((progress || 0) * 100)));
-    onProgress && onProgress(tr('videoLibraryCompressingProgress', { pct }));
+    lastKnownPct = Math.max(0, Math.min(100, Math.round((progress || 0) * 100)));
+    renderProgress();
   };
   ffmpeg.on('progress', onFfmpegProgress);
+  const elapsedTickerId = setInterval(renderProgress, 1000);
   try {
     await ffmpeg.exec([
       '-i', inName,
       // Plafonné à 720p, pas 1080p (2026-09-16, second retour le même jour : même en 'veryfast', un
-      // encodage 1080p prenait encore ~8x la durée réelle de la vidéo -- le coeur ffmpeg.wasm vendoré
-      // ici est la build MONO-thread (pas de pthread, voir vendor/ffmpeg/core/), donc un seul coeur CPU
-      // quel que soit l'ordinateur ; réduire le nombre de pixels à encoder est le seul levier réel sans
-      // changer d'hébergement (une build multi-thread demanderait des en-têtes COOP/COEP, indisponibles
-      // sur GitHub Pages -- lié au chantier de départ de GitHub Pages, pas traité ici).
+      // encodage 1080p prenait encore ~8x la durée réelle de la vidéo) -- réduire le nombre de pixels à
+      // encoder reste utile même avec le coeur multi-thread (core-mt) activé depuis, voir
+      // loadVideoLibraryFfmpeg ci-dessus (repli sur le coeur mono-thread si la page n'est pas isolée
+      // COOP/COEP, ex. Worker Cloudflare désactivé).
       '-vf', "scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease",
       // 'ultrafast' plutôt que 'veryfast' : même raisonnement que ci-dessus, la vitesse prime largement
       // sur le taux de compression optimal ici (coût de stockage R2 négligeable, voir
@@ -9276,6 +9289,7 @@ async function compressVideoForLibrary(file, onProgress) {
     ]);
   } finally {
     ffmpeg.off('progress', onFfmpegProgress);
+    clearInterval(elapsedTickerId);
   }
   const outData = await ffmpeg.readFile('out.mp4');
   return new Blob([outData.buffer], { type: 'video/mp4' });
