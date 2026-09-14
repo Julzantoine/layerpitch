@@ -567,16 +567,17 @@
   </div>
 </dialog>
 
-<!-- Admin uniquement -- pas de data-i18n, outil interne jamais vu par un compositeur ordinaire. -->
+<!-- Admin uniquement -- traduit FR/EN comme le reste du site (2026-09-16, nécessaire pour pouvoir
+     filmer un tutoriel en anglais malgré un outil interne jamais vu par un compositeur ordinaire). -->
 <dialog id="videoCaptureDialog" class="video-test-dialog">
   <div class="video-test-form">
-    <div class="video-test-dialog-title">Capturer une prise (admin)</div>
-    <p class="video-test-dialog-hint">Importe ta propre vidéo de gameplay (fichier local -- un lien YouTube/Vimeo ne peut pas être réutilisé dans un export). Le lecteur ci-dessous enregistrera l'horodatage de chaque déclenchement pendant que tu joues.</p>
-    <div class="video-capture-dropzone" id="videoCaptureDropzone">Glisse un fichier vidéo ici, ou clique pour en choisir un</div>
+    <div class="video-test-dialog-title" data-i18n="captureDialogTitle">Capturer une prise (admin)</div>
+    <p class="video-test-dialog-hint" data-i18n="captureDialogHint">Importe ta propre vidéo de gameplay (fichier local -- un lien YouTube/Vimeo ne peut pas être réutilisé dans un export). Le lecteur ci-dessous enregistrera l'horodatage de chaque déclenchement pendant que tu joues.</p>
+    <div class="video-capture-dropzone" id="videoCaptureDropzone" data-i18n="captureDropzoneHint">Glisse un fichier vidéo ici, ou clique pour en choisir un</div>
     <input type="file" id="videoCaptureFileInput" accept="video/*" hidden>
     <div class="video-test-dialog-error" id="videoCaptureError"></div>
     <div class="video-test-dialog-actions">
-      <button type="button" class="video-test-btn-secondary" id="videoCaptureCancelBtn">Annuler</button>
+      <button type="button" class="video-test-btn-secondary" id="videoCaptureCancelBtn" data-i18n="cancel">Annuler</button>
     </div>
   </div>
 </dialog>
@@ -1045,10 +1046,10 @@ let armedTrackId = null;
 function updateArmedStatusDisplay() {
   const statusEl = document.getElementById('videoCaptureArmedStatus');
   if (!statusEl) return; // panneau de capture pas encore ouvert
-  if (!armedTrackId) { statusEl.textContent = 'Aucune piste armée'; return; }
+  if (!armedTrackId) { statusEl.textContent = tr('captureArmedNone'); return; }
   const row = document.querySelector(`[data-track-id="${armedTrackId}"]`);
   const titleEl = row && row.querySelector('[data-role="titleToggle"]');
-  statusEl.textContent = 'Armée : ' + (titleEl ? titleEl.textContent.trim() : armedTrackId);
+  statusEl.textContent = tr('captureArmedLabel').replace('{name}', titleEl ? titleEl.textContent.trim() : armedTrackId);
 }
 
 function startCapture(videoEl) {
@@ -1208,32 +1209,32 @@ function captureVRWindowLabel(track, w) {
 function describeCaptureEvent(e, laneOverrides) {
   if (e.name === 'layer_segment') {
     const track = findCaptureTrack(e.detail.trackId);
-    const label = track ? captureLaneLabel(track, e.detail.layerIndex, laneOverrides) : 'calque ' + e.detail.layerIndex;
-    return 'Calque : ' + label + ' (' + e.detail.duration.toFixed(2) + 's)';
+    const label = track ? captureLaneLabel(track, e.detail.layerIndex, laneOverrides) : tr('captureLayerFallback').replace('{n}', e.detail.layerIndex);
+    return tr('captureLayerDesc').replace('{label}', label).replace('{duration}', e.detail.duration.toFixed(2));
   }
   if (e.name === 'embr_loop_select') {
     const track = findCaptureTrack(e.detail.trackId);
-    return 'Boucle → ' + (track ? captureLoopLaneLabel(track, e.detail.loopId, laneOverrides) : e.detail.loopId);
+    return tr('captureLoopDesc').replace('{label}', track ? captureLoopLaneLabel(track, e.detail.loopId, laneOverrides) : e.detail.loopId);
   }
   if (e.name === 'seq_slot_start') {
     const track = findCaptureTrack(e.detail.trackId);
-    return 'Emplacement → ' + (track ? captureSlotLaneLabel(track, e.detail.slotId, laneOverrides) : e.detail.slotId);
+    return tr('captureSlotDesc').replace('{label}', track ? captureSlotLaneLabel(track, e.detail.slotId, laneOverrides) : e.detail.slotId);
   }
   if (e.name === 'seq_intro_start') return 'Intro';
   if (e.name === 'seq_outro_start') return 'Outro';
   if (e.name === 'seq_transition_start') {
     const track = findCaptureTrack(e.detail.trackId);
-    return 'Transition → ' + (track ? captureSeqTransitionLaneLabel(track, e.detail.fromSlotId, e.detail.targetId, laneOverrides) : 'Transition');
+    return tr('captureTransitionDesc').replace('{label}', track ? captureSeqTransitionLaneLabel(track, e.detail.fromSlotId, e.detail.targetId, laneOverrides) : 'Transition');
   }
   if (e.name === 'vr_intro_start') return 'Intro';
   if (e.name === 'vr_outro_start') return 'Outro';
   if (e.name === 'vr_section_start') {
     const track = findCaptureTrack(e.detail.trackId);
-    return 'Section → ' + captureVRWindowLabel(track, { kind: 'section', sectionIndex: e.detail.sectionIndex });
+    return tr('captureSectionDesc').replace('{label}', captureVRWindowLabel(track, { kind: 'section', sectionIndex: e.detail.sectionIndex }));
   }
   if (e.name === 'stinger_play') {
     const sfx = findCaptureSfx(e.detail.sfxId);
-    const base = 'Stinger : ' + (sfx ? sfx.title : e.detail.sfxId);
+    const base = tr('captureStingerDesc').replace('{title}', sfx ? sfx.title : e.detail.sfxId);
     return e.detail.durationOverride ? base + ' (' + e.detail.durationOverride.toFixed(2) + 's)' : base;
   }
   return e.name;
@@ -1353,7 +1354,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   laneOverrides = laneOverrides || {};
   collapsedGroups = collapsedGroups || {};
   if (!events.length) {
-    container.innerHTML = '<div class="vct-empty">Aucun événement pour l’instant.</div>';
+    container.innerHTML = `<div class="vct-empty">${tr('captureTimelineEmpty')}</div>`;
     return;
   }
   const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl);
@@ -1402,7 +1403,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       const end = isMusic ? total : Math.max(...members.map(m => m.t + (m.detail.durationOverride || 1)));
       summaryHtml = `<div class="vct-lane vct-group-summary"><div class="vct-lane-label"></div>` +
         `<div class="vct-lane-track"><div class="vct-block vct-block-group" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}" ` +
-        `title="Glisser pour déplacer tout le groupe" style="left:${pct(start)}%;width:${pct(end) - pct(start)}%"></div></div></div>`;
+        `title="${tr('captureGroupDragHint')}" style="left:${pct(start)}%;width:${pct(end) - pct(start)}%"></div></div></div>`;
     }
     return `<div class="vct-track-group ${colorClass}">` +
       `<div class="vct-track-group-header" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}">` +
@@ -1430,10 +1431,10 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         const dur = e.detail.durationOverride || 1;
         const idx = events.indexOf(e);
         blocksHtml += `<div class="vct-block vct-sfx" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + dur) - pct(e.t)}%">` +
-          (editable ? '<div class="vct-resize-handle" title="Glisser pour régler la durée"></div>' : '') + `</div>`;
+          (editable ? `<div class="vct-resize-handle" title="${tr('captureResizeHint')}"></div>` : '') + `</div>`;
       });
       const sfxAddAttrs = editable ? ` data-addable="sfx" data-add-sfx-id="${sid}" data-add-variation="${vi}"` : '';
-      groupLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label">RR${vi + 1}</div><div class="vct-lane-track"${sfxAddAttrs} title="${editable ? 'Cliquer une zone vide pour ajouter un déclenchement' : ''}">${blocksHtml}</div></div>`;
+      groupLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label">RR${vi + 1}</div><div class="vct-lane-track"${sfxAddAttrs} title="${editable ? tr('captureAddSfxHint') : ''}">${blocksHtml}</div></div>`;
     });
     lanesHtml += renderGroup('sfx:' + sid, (sfx && sfx.title) || sid, 'vct-track-group-sfx', groupLanesHtml);
   });
@@ -1475,7 +1476,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         });
         const laneLabel = captureLoopLaneLabel(track, loopId, laneOverrides);
         const loopAddAttrs = editable ? ` data-addable="loop" data-add-track-id="${trackId}" data-add-loop-id="${loopId}"` : '';
-        nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" data-lane-kind="loop" data-track-id="${trackId}" data-loop-id="${loopId}" title="${editable ? 'Cliquer pour renommer' : ''}">${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${loopAddAttrs} title="${editable ? 'Cliquer une zone vide pour ajouter une bascule' : ''}">${blocksHtml}</div></div>`;
+        nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" data-lane-kind="loop" data-track-id="${trackId}" data-loop-id="${loopId}" title="${editable ? tr('captureRenameHint') : ''}">${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${loopAddAttrs} title="${editable ? tr('captureAddLoopHint') : ''}">${blocksHtml}</div></div>`;
       });
     } else if (track.mode === 'vertical-random') {
       // Une seule piste "Section" (2026-09-16), volontairement pas détaillée par pool (demande explicite de
@@ -1518,9 +1519,9 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
           blocksHtml += `<div class="vct-block vct-layer" data-idx="${w.idx}" style="left:${pct(w.start)}%;width:${pct(w.end) - pct(w.start)}%"></div>`;
         });
         const laneLabel = captureSeqWindowLabel(track, first, laneOverrides);
-        const renameAttrs = first.kind === 'slot' ? ` data-lane-kind="slot" data-track-id="${trackId}" data-slot-id="${first.slotId}" title="${editable ? 'Cliquer pour renommer' : ''}"` : '';
+        const renameAttrs = first.kind === 'slot' ? ` data-lane-kind="slot" data-track-id="${trackId}" data-slot-id="${first.slotId}" title="${editable ? tr('captureRenameHint') : ''}"` : '';
         const addAttrs = first.kind === 'slot' && editable ? ` data-addable="slot" data-add-track-id="${trackId}" data-add-slot-id="${first.slotId}"` : '';
-        nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label"${renameAttrs}>${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${addAttrs} title="${editable && first.kind === 'slot' ? 'Cliquer une zone vide pour ajouter un passage' : ''}">${blocksHtml}</div></div>`;
+        nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label"${renameAttrs}>${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${addAttrs} title="${editable && first.kind === 'slot' ? tr('captureAddSlotHint') : ''}">${blocksHtml}</div></div>`;
       });
     } else {
       const trackLayerEvents = events.filter(e => e.name === 'layer_segment' && e.detail.trackId === trackId);
@@ -1537,11 +1538,11 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
             const idx = events.indexOf(e);
             const end = e.t + e.detail.duration;
             blocksHtml += `<div class="vct-block vct-layer" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(end) - pct(e.t)}%">` +
-              (editable ? '<div class="vct-resize-handle" title="Glisser pour régler la durée"></div>' : '') + `</div>`;
+              (editable ? `<div class="vct-resize-handle" title="${tr('captureResizeHint')}"></div>` : '') + `</div>`;
           });
           const laneLabel = captureLaneLabel(track, levelIdx, laneOverrides);
           const addAttrs = editable ? ` data-addable="layer" data-add-track-id="${trackId}" data-add-level="${levelIdx}"` : '';
-          nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" data-lane-kind="layer" data-track-id="${trackId}" data-level="${levelIdx}" title="${editable ? 'Cliquer pour renommer' : ''}">${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${addAttrs} title="${editable ? 'Cliquer une zone vide pour ajouter un segment' : ''}">${blocksHtml}</div></div>`;
+          nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" data-lane-kind="layer" data-track-id="${trackId}" data-level="${levelIdx}" title="${editable ? tr('captureRenameHint') : ''}">${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddLayerHint') : ''}">${blocksHtml}</div></div>`;
         });
       } else {
         // Pas encore matérialisé : aperçu en direct pendant l'enregistrement (toujours en lecture seule,
@@ -1573,7 +1574,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     <div class="vct-ruler">${ticksHtml}</div>
     <div class="vct-lanes">${lanesHtml}</div>
     <div class="vct-playhead" id="vctPlayhead"></div>
-    <div class="vct-detail" id="vctDetail"><span class="vct-detail-empty">${editable ? 'Clique un bloc pour le retoucher, glisse-le pour le déplacer, un nom de piste pour le renommer, ou un en-tête pour replier.' : ''}</span></div>
+    <div class="vct-detail" id="vctDetail"><span class="vct-detail-empty">${editable ? tr('captureTimelineHint') : ''}</span></div>
   `;
   positionCapturePlayhead(container, videoEl);
   container.querySelectorAll('.vct-track-group-header').forEach(headerEl => {
@@ -1610,10 +1611,10 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     const detailEl = container.querySelector('#vctDetail');
     detailEl.innerHTML = `
       <span class="vct-detail-label">${window.LayerPlayerCore.escapeHtml(describeCaptureEvent(e, laneOverrides))}</span>
-      <input type="number" step="0.1" min="0" value="${e.t.toFixed(2)}" class="video-capture-event-time" title="Entrée (IN)">
-      ${editableDuration ? `<input type="number" step="0.1" min="0" placeholder="${isSfx ? 'durée d’origine' : ''}" value="${isSfx ? (e.detail.durationOverride ? e.detail.durationOverride.toFixed(2) : '') : e.detail.duration.toFixed(2)}" class="video-capture-event-duration" title="Durée / sortie (OUT)">` : ''}
-      ${isSfx ? `<label class="video-capture-duck-label" title="Baisse le volume de la musique pendant ce stinger"><input type="checkbox" class="video-capture-event-duck" ${duckChecked ? 'checked' : ''}> Duck</label>` : ''}
-      <button type="button" class="video-capture-event-del" title="Supprimer" aria-label="Supprimer">✕</button>
+      <input type="number" step="0.1" min="0" value="${e.t.toFixed(2)}" class="video-capture-event-time" title="${tr('captureTimeInputTitle')}">
+      ${editableDuration ? `<input type="number" step="0.1" min="0" placeholder="${isSfx ? tr('captureDurationPlaceholder') : ''}" value="${isSfx ? (e.detail.durationOverride ? e.detail.durationOverride.toFixed(2) : '') : e.detail.duration.toFixed(2)}" class="video-capture-event-duration" title="${tr('captureDurationInputTitle')}">` : ''}
+      ${isSfx ? `<label class="video-capture-duck-label" title="${tr('captureDuckHint')}"><input type="checkbox" class="video-capture-event-duck" ${duckChecked ? 'checked' : ''}> Duck</label>` : ''}
+      <button type="button" class="video-capture-event-del" title="${tr('captureDeleteBtn')}" aria-label="${tr('captureDeleteBtn')}">✕</button>
     `;
     detailEl.querySelector('.video-capture-event-time').addEventListener('change', (ev) => {
       const v = parseFloat(ev.target.value);
@@ -1838,19 +1839,6 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   });
 }
 
-function downloadCaptureEvents(events, videoFileName) {
-  const payload = { capturedAt: new Date().toISOString(), video: videoFileName, events };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `capture-${Date.now()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 // --- Sauvegarde côté serveur (2026-09-16) --------------------------------------------------------
 // Décidé le 16 septembre : Jules-Antoine a explicitement écarté le JSON à télécharger/réimporter (trop
 // de friction) au profit d'une sauvegarde hébergée dans le Backstage -- voir supabase/migrations/
@@ -1859,6 +1847,11 @@ function downloadCaptureEvents(events, videoFileName) {
 // son nom est conservé pour que le compositeur s'y retrouve, il doit réimporter le même fichier local
 // à chaque reprise. Gating réel côté serveur (is_admin(), palier Boss pas encore implémenté) -- ces
 // fonctions ne font que relayer l'appel, aucune vérification client à dupliquer ici.
+// Le bouton "Télécharger le JSON" (v1 de la fonctionnalité, avant la sauvegarde serveur) a été retiré
+// le 16 septembre : un export JSON en libre accès contournerait entièrement le futur gating par palier
+// (Rookie/Warrior sans persistance, Boss avec) -- n'importe qui pourrait "sauvegarder" gratuitement en
+// téléchargeant le fichier, rendant le futur verrou Boss sans objet. Toute persistance doit passer par
+// ces RPC, jamais par un fichier que le client peut simplement garder.
 async function saveVideoCapture(packId, id, title, videoFilename, events, laneOverrides, collapsedGroups) {
   const client = window.LayerPitchSupabaseClient.getClient();
   const { data, error } = await client.rpc('save_video_capture', {
@@ -1889,7 +1882,7 @@ async function loadVideoCapture(id) {
 let ffmpegSingleton = null;
 async function loadFfmpegWasm(onProgress) {
   if (ffmpegSingleton) return ffmpegSingleton;
-  onProgress && onProgress('Chargement du moteur ffmpeg (~30 Mo, une seule fois)…');
+  onProgress && onProgress(tr('captureFfmpegLoading'));
   const { FFmpeg } = await import('./vendor/ffmpeg/ffmpeg/index.js');
   const ffmpeg = new FFmpeg();
   await ffmpeg.load({
@@ -1905,7 +1898,7 @@ function findCaptureSfx(sfxId) { return (window.__lpCaptureLibrary.sfxLibrary ||
 
 async function fetchAsUint8Array(url) {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Échec de récupération: ${url}`);
+  if (!res.ok) throw new Error(tr('captureFetchError').replace('{url}', url));
   return new Uint8Array(await res.arrayBuffer());
 }
 
@@ -1935,7 +1928,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
     ...layerSegmentEvents.map(e => e.t + e.detail.duration));
   const total = lastT + TAIL;
 
-  onProgress(`Préparation : ${layerSegmentEvents.length} segment(s) de calque, ${embrEvents.length} bascule(s) de boucle, ${stingerEvents.length} stinger(s)…`);
+  onProgress(tr('captureExportPreparing').replace('{n}', layerSegmentEvents.length).replace('{m}', embrEvents.length).replace('{k}', stingerEvents.length));
 
   const inputs = [];
   const filterParts = [];
@@ -1960,7 +1953,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
     const track = findCaptureTrack(seg.detail.trackId);
     const layer = track && track.layers[seg.detail.layerIndex];
     if (!layer || !layer.file) { console.warn('Calque introuvable', seg); continue; }
-    onProgress(`Récupération du calque "${layer.label}"…`);
+    onProgress(tr('captureFetchLayer').replace('{label}', layer.label));
     const idx = await addInputFromUrl(track.base + layer.file);
     const label = `seg${segN++}`;
     const delayMs = Math.round(seg.t * 1000);
@@ -1996,7 +1989,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
     for (const w of windows) {
       const loop = (track.loops || []).find(l => l.id === w.loopId);
       if (!loop || !loop.file) { console.warn('Boucle introuvable', w); continue; }
-      onProgress(`Récupération de la boucle "${loop.label}"…`);
+      onProgress(tr('captureFetchLoop').replace('{label}', loop.label));
       const idx = await addInputFromUrl(track.base + loop.file);
       const label = `seg${segN++}`;
       const delayMs = Math.round(w.start * 1000);
@@ -2009,7 +2002,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
       );
       mixLabels.push(`[${label}]`);
       if (w.isSwitch && loop.transition && loop.transition.file) {
-        onProgress(`Récupération de la transition de "${loop.label}"…`);
+        onProgress(tr('captureFetchTransition').replace('{label}', loop.label));
         const tIdx = await addInputFromUrl(track.base + loop.transition.file);
         const tLabel = `seg${segN++}`;
         filterParts.push(`[${tIdx}:a]aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${tLabel}]`);
@@ -2041,7 +2034,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
       else { const resolved = resolveCaptureSeqAlternative(track, w.slotId, w.altIndex); file = resolved && resolved.alt.file; }
       if (!file) { console.warn('Fichier séquentiel introuvable', w); continue; }
       const wLabel = captureSeqWindowLabel(track, w, laneOverrides);
-      onProgress(`Récupération de "${wLabel}"…`);
+      onProgress(tr('captureFetchGeneric').replace('{label}', wLabel));
       const idx = await addInputFromUrl(track.base + file);
       const label = `seg${segN++}`;
       const delayMs = Math.round(w.start * 1000);
@@ -2080,7 +2073,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
       if (w.kind === 'intro' || w.kind === 'outro') {
         const file = w.kind === 'intro' ? (track.intro && track.intro.file) : (track.outro && track.outro.file);
         if (!file) { console.warn('Fichier vertical-random introuvable', w); continue; }
-        onProgress(`Récupération de "${wLabel}"…`);
+        onProgress(tr('captureFetchGeneric').replace('{label}', wLabel));
         const idx = await addInputFromUrl(track.base + file);
         const label = `seg${segN++}`;
         filterParts.push(
@@ -2093,7 +2086,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
       }
       const section = resolveCaptureVRSection(track, w.sectionIndex);
       if (!section) { console.warn('Section vertical-random introuvable', w); continue; }
-      onProgress(`Récupération de "${wLabel}"…`);
+      onProgress(tr('captureFetchGeneric').replace('{label}', wLabel));
       for (const pick of w.picks) {
         if (pick.altIndex == null || pick.altIndex < 0) continue; // silence tiré pour ce pool à ce cycle
         const pool = (section.pools || [])[pick.poolIndex];
@@ -2120,7 +2113,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
     const sfx = findCaptureSfx(s.detail.sfxId);
     const alt = sfx && sfx.alternatives && sfx.alternatives[s.detail.variationIndex];
     if (!alt) { console.warn('Sfx introuvable', s); continue; }
-    onProgress(`Récupération du stinger "${sfx.title}"…`);
+    onProgress(tr('captureFetchStinger').replace('{title}', sfx.title));
     const idx = await addInputFromUrl(sfx.base + alt.file);
     const label = `seg${segN++}`;
     const delayMs = Math.round(s.t * 1000);
@@ -2153,7 +2146,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   const finalMixLabels = (musicBusLabel ? [`[${musicBusLabel}]`] : []).concat(stingerMixLabels);
   filterParts.push(`${finalMixLabels.join('')}amix=inputs=${finalMixLabels.length}:normalize=0:duration=longest[aout]`);
 
-  onProgress('Préparation de la vidéo importée…');
+  onProgress(tr('captureFetchVideo'));
   const videoExt = videoFile.name.slice(videoFile.name.lastIndexOf('.')) || '.mp4';
   const videoName = `bg${videoExt}`;
   await ffmpeg.writeFile(videoName, new Uint8Array(await videoFile.arrayBuffer()));
@@ -2165,7 +2158,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // l'intérêt de la démo. Le moteur ffmpeg.wasm n'a aucune police embarquée par défaut (drawtext échoue
   // sans fontfile) -- on lui fournit celle déjà utilisée par le reste du site (JetBrains Mono, licence
   // libre, vendor/fonts/).
-  onProgress('Préparation de la police d\u2019incrustation…');
+  onProgress(tr('captureFetchFont'));
   await ffmpeg.writeFile('font.ttf', await fetchAsUint8Array(new URL('./vendor/fonts/JetBrainsMono-Regular.ttf', location.href).href));
   let videoChain = `[${videoIdx}:v]`;
   const drawtexts = [];
@@ -2253,7 +2246,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
     'out.mp4'
   );
 
-  onProgress('Rendu en cours (peut prendre une minute)…');
+  onProgress(tr('captureRendering'));
   const logs = [];
   const onLog = ({ message }) => logs.push(message);
   ffmpeg.on('log', onLog);
@@ -2283,38 +2276,37 @@ function openCapturePanel(file) {
   const objectUrl = URL.createObjectURL(file);
   panel.innerHTML = `
     <div class="video-test-panel-header">
-      <span class="video-test-panel-title">CAPTURE — ${window.LayerPlayerCore.escapeHtml(file.name)}</span>
+      <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
       <div class="video-test-panel-actions">
-        <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="Fermer" aria-label="Fermer">✕</button>
+        <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
       </div>
     </div>
     <div class="video-test-panel-frame-wrap"><video id="videoCaptureEl" src="${objectUrl}" controls muted></video></div>
     <div class="video-capture-bar">
-      <button type="button" class="video-capture-record-btn" id="videoCaptureRecordBtn"><span class="dot"></span><span id="videoCaptureRecordLabel">Démarrer la capture</span></button>
-      <span class="video-capture-armed-status" id="videoCaptureArmedStatus" title="Se règle depuis le bouton ⏺ à côté du lecteur du morceau, pas ici"></span>
+      <button type="button" class="video-capture-record-btn" id="videoCaptureRecordBtn"><span class="dot"></span><span id="videoCaptureRecordLabel">${tr('captureStartBtn')}</span></button>
+      <span class="video-capture-armed-status" id="videoCaptureArmedStatus" title="${tr('captureArmedHelp')}"></span>
       <span class="video-capture-count" id="videoCaptureCount"></span>
-      <button type="button" class="video-capture-download-btn" id="videoCaptureDownloadBtn" disabled>Télécharger le JSON</button>
     </div>
     <div class="video-capture-bar">
-      <label class="video-capture-export-opt" title="Palier de capture simulé -- aucun gating réel n'existe encore, sert à prévisualiser le filigrane que verrait un compositeur Rookie/Warrior (voir decisions/2026-09-16-capture-watermark-composer-credit.md, docs privés)">
-        Palier :
+      <label class="video-capture-export-opt" title="${tr('captureTierHelp')}">
+        ${tr('captureTierLabel')}
         <select class="video-capture-load-select" id="videoCaptureTierSelect">
           <option value="rookie">Rookie</option>
           <option value="warrior">Warrior</option>
           <option value="boss" selected>Boss</option>
         </select>
       </label>
-      <label class="video-capture-export-opt" title="Affiche le nom du compositeur sur l'export -- à laisser coché tant que la personne qui exporte n'a pas acheté ce pack (aucune vérification d'achat automatique pour l'instant)">
-        <input type="checkbox" id="videoCaptureCreditCheckbox" checked> Crédit compositeur
+      <label class="video-capture-export-opt" title="${tr('captureCreditHelp')}">
+        <input type="checkbox" id="videoCaptureCreditCheckbox" checked> ${tr('captureCreditLabel')}
       </label>
-      <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>Exporter la vidéo (.mp4)</button>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>${tr('captureExportBtn')}</button>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
     <div class="video-capture-bar">
-      <input type="text" class="video-capture-title-input" id="videoCaptureTitleInput" placeholder="Nom de la prise (optionnel)">
-      <button type="button" class="video-capture-download-btn" id="videoCaptureSaveBtn" disabled>Sauvegarder</button>
-      <select class="video-capture-load-select" id="videoCaptureLoadSelect" disabled><option value="">Charger une prise…</option></select>
-      <button type="button" class="video-capture-download-btn" id="videoCaptureLoadBtn" disabled>Charger</button>
+      <input type="text" class="video-capture-title-input" id="videoCaptureTitleInput" placeholder="${tr('captureTitleInputPlaceholder')}">
+      <button type="button" class="video-capture-download-btn" id="videoCaptureSaveBtn" disabled>${tr('captureSaveBtn')}</button>
+      <select class="video-capture-load-select" id="videoCaptureLoadSelect" disabled><option value="">${tr('captureLoadOptionDefault')}</option></select>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureLoadBtn" disabled>${tr('captureLoadBtn')}</button>
       <span class="video-capture-count" id="videoCaptureSaveStatus"></span>
     </div>
     <div class="video-capture-timeline" id="videoCaptureTimeline"></div>
@@ -2326,7 +2318,6 @@ function openCapturePanel(file) {
   const recordBtn = document.getElementById('videoCaptureRecordBtn');
   const recordLabel = document.getElementById('videoCaptureRecordLabel');
   const countEl = document.getElementById('videoCaptureCount');
-  const downloadBtn = document.getElementById('videoCaptureDownloadBtn');
   const exportBtn = document.getElementById('videoCaptureExportBtn');
   const exportStatus = document.getElementById('videoCaptureExportStatus');
   const tierSelect = document.getElementById('videoCaptureTierSelect');
@@ -2352,19 +2343,19 @@ function openCapturePanel(file) {
   // même logique que laneOverrides ci-dessus.
   let collapsedGroups = {};
   function refreshActionButtons() {
-    downloadBtn.disabled = lastEvents.length === 0;
     exportBtn.disabled = lastEvents.length === 0;
     saveBtn.disabled = lastEvents.length === 0;
   }
+  function captureCountText(n) { return tr('captureEventCount').replace('{n}', n); }
   recordBtn.addEventListener('click', () => {
     if (videoCaptureState) {
       lastEvents = materializeLayerSegments(stopCapture());
       recordBtn.classList.remove('recording');
-      recordLabel.textContent = 'Démarrer la capture';
-      countEl.textContent = `${lastEvents.length} événement(s) capturé(s)`;
+      recordLabel.textContent = tr('captureStartBtn');
+      countEl.textContent = captureCountText(lastEvents.length);
       refreshActionButtons();
       renderCaptureTimeline(timelineEl, lastEvents, true, () => {
-        countEl.textContent = `${lastEvents.length} événement(s) capturé(s)`;
+        countEl.textContent = captureCountText(lastEvents.length);
         refreshActionButtons();
       }, laneOverrides, collapsedGroups, videoEl);
     } else {
@@ -2380,9 +2371,8 @@ function openCapturePanel(file) {
         videoCaptureState.events.push({ t: 0, name: 'track_play', detail: { trackId: armedTrackId } });
       }
       recordBtn.classList.add('recording');
-      recordLabel.textContent = 'Arrêter la capture';
-      countEl.textContent = 'Capture en cours…';
-      downloadBtn.disabled = true;
+      recordLabel.textContent = tr('captureStopBtn');
+      countEl.textContent = tr('captureInProgress');
       exportBtn.disabled = true;
       saveBtn.disabled = true;
       exportStatus.textContent = '';
@@ -2393,7 +2383,7 @@ function openCapturePanel(file) {
       saveStatus.textContent = '';
       const tick = setInterval(() => {
         if (!videoCaptureState) { clearInterval(tick); return; }
-        countEl.textContent = `${videoCaptureState.events.length} événement(s) capturé(s)`;
+        countEl.textContent = captureCountText(videoCaptureState.events.length);
         renderCaptureTimeline(timelineEl, videoCaptureState.events, false, null, laneOverrides, collapsedGroups, videoEl);
       }, 500);
     }
@@ -2401,7 +2391,6 @@ function openCapturePanel(file) {
   // Tête de lecture en continu pendant que la vidéo avance -- repositionne juste la ligne (pas de
   // ré-affichage complet de la frise, trop coûteux à chaque frame).
   videoEl.addEventListener('timeupdate', () => positionCapturePlayhead(timelineEl, videoEl));
-  downloadBtn.addEventListener('click', () => downloadCaptureEvents(lastEvents, file.name));
   exportBtn.addEventListener('click', async () => {
     exportBtn.disabled = true;
     try {
@@ -2415,10 +2404,10 @@ function openCapturePanel(file) {
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
-      exportStatus.textContent = 'Export terminé.';
+      exportStatus.textContent = tr('captureExportDone');
     } catch (e) {
       console.error(e);
-      exportStatus.textContent = 'Échec de l’export : ' + e.message;
+      exportStatus.textContent = tr('captureExportFailed').replace('{error}', e.message);
     } finally {
       exportBtn.disabled = false;
     }
@@ -2428,17 +2417,17 @@ function openCapturePanel(file) {
   saveBtn.addEventListener('click', async () => {
     if (!packId || !lastEvents.length) return;
     saveBtn.disabled = true;
-    saveStatus.textContent = 'Sauvegarde…';
+    saveStatus.textContent = tr('captureSaving');
     try {
       if (!currentCaptureId) {
         currentCaptureId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
       }
       await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups);
-      saveStatus.textContent = 'Sauvegardé.';
+      saveStatus.textContent = tr('captureSaved');
       refreshLoadOptions();
     } catch (e) {
       console.error(e);
-      saveStatus.textContent = 'Échec de la sauvegarde : ' + e.message;
+      saveStatus.textContent = tr('captureSaveFailed').replace('{error}', e.message);
     } finally {
       saveBtn.disabled = lastEvents.length === 0;
     }
@@ -2447,7 +2436,7 @@ function openCapturePanel(file) {
   loadBtn.addEventListener('click', async () => {
     if (!loadSelect.value) return;
     loadBtn.disabled = true;
-    saveStatus.textContent = 'Chargement…';
+    saveStatus.textContent = tr('captureLoading');
     try {
       const capture = await loadVideoCapture(loadSelect.value);
       currentCaptureId = capture.id;
@@ -2455,20 +2444,20 @@ function openCapturePanel(file) {
       laneOverrides = capture.laneOverrides || {};
       collapsedGroups = capture.collapsedGroups || {};
       titleInput.value = capture.title || '';
-      countEl.textContent = `${lastEvents.length} événement(s) capturé(s)`;
+      countEl.textContent = captureCountText(lastEvents.length);
       refreshActionButtons();
       renderCaptureTimeline(timelineEl, lastEvents, true, () => {
-        countEl.textContent = `${lastEvents.length} événement(s) capturé(s)`;
+        countEl.textContent = captureCountText(lastEvents.length);
         refreshActionButtons();
       }, laneOverrides, collapsedGroups, videoEl);
       // La vidéo elle-même n'est jamais sauvegardée (voir la migration) -- seul son nom d'origine permet
       // de vérifier qu'on a bien réimporté le bon fichier avant de faire confiance aux horaires chargés.
       saveStatus.textContent = capture.videoFilename && capture.videoFilename !== file.name
-        ? `Chargé (capturée à l'origine sur "${capture.videoFilename}", vérifie que c'est la bonne vidéo).`
-        : 'Chargé.';
+        ? tr('captureLoadedVideoMismatch').replace('{video}', capture.videoFilename)
+        : tr('captureLoaded');
     } catch (e) {
       console.error(e);
-      saveStatus.textContent = 'Échec du chargement : ' + e.message;
+      saveStatus.textContent = tr('captureLoadFailed').replace('{error}', e.message);
     } finally {
       loadBtn.disabled = false;
     }
@@ -2478,8 +2467,8 @@ function openCapturePanel(file) {
     try {
       const captures = await listVideoCaptures(packId);
       const current = loadSelect.value;
-      loadSelect.innerHTML = '<option value="">Charger une prise…</option>' + captures.map(c =>
-        `<option value="${c.id}">${window.LayerPlayerCore.escapeHtml(c.title || 'Sans titre')} — ${new Date(c.updatedAt).toLocaleString()}</option>`
+      loadSelect.innerHTML = `<option value="">${tr('captureLoadOptionDefault')}</option>` + captures.map(c =>
+        `<option value="${c.id}">${window.LayerPlayerCore.escapeHtml(c.title || tr('captureUntitled'))} — ${new Date(c.updatedAt).toLocaleString()}</option>`
       ).join('');
       loadSelect.value = captures.some(c => c.id === current) ? current : '';
       loadSelect.disabled = captures.length === 0;
@@ -2514,7 +2503,7 @@ async function setupCaptureTrigger(pack, container) {
   const captureBtn = document.createElement('button');
   captureBtn.type = 'button';
   captureBtn.className = 'video-capture-trigger-btn';
-  captureBtn.textContent = 'Capturer une prise (admin)';
+  captureBtn.textContent = tr('captureDialogTitle');
   captureBtn.addEventListener('click', () => document.getElementById('videoCaptureDialog').showModal());
   container.insertBefore(captureBtn, container.firstChild);
 
@@ -2530,7 +2519,7 @@ async function setupCaptureTrigger(pack, container) {
     armBtn.type = 'button';
     armBtn.className = 'video-capture-arm-track-btn';
     armBtn.textContent = '⏺';
-    armBtn.title = 'Armer cette piste pour la capture (admin)';
+    armBtn.title = tr('captureArmBtnTitle');
     armBtn.addEventListener('click', () => {
       const trackId = row.dataset.trackId;
       armedTrackId = (armedTrackId === trackId) ? null : trackId; // reclique = désarme
@@ -2551,7 +2540,7 @@ async function setupCaptureTrigger(pack, container) {
   if (!dialog) return;
   function handleFile(file) {
     if (!file || !file.type.startsWith('video/')) {
-      errorEl.textContent = 'Choisis un fichier vidéo.';
+      errorEl.textContent = tr('captureChooseVideoError');
       return;
     }
     errorEl.textContent = '';
