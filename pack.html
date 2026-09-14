@@ -372,7 +372,116 @@
   .video-test-panel-btn { width: 26px; height: 26px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc; cursor: pointer; font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center; }
   .video-test-panel-btn:hover { border-color: #666; color: #fff; }
   .video-test-panel-frame-wrap { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
-  .video-test-panel-frame-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .video-test-panel-frame-wrap iframe, .video-test-panel-frame-wrap video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+  /* Mode Capture (admin uniquement, prototype moteur vidéo) : import d'un fichier local plutôt qu'un
+     lien YouTube/Vimeo (impossible d'en extraire les images pour l'export final), et enregistrement
+     horodaté des interactions du lecteur pendant la lecture -- voir video-engine-prototype/. */
+  .video-capture-trigger-btn {
+    display: block; margin: 0 auto 12px; padding: 12px 24px; border-radius: 6px; border: 1px dashed var(--text-dim);
+    background: transparent; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer;
+  }
+  .video-capture-trigger-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .video-capture-dropzone {
+    border: 2px dashed var(--border); border-radius: 8px; padding: 32px 16px; text-align: center;
+    font-size: 13px; color: var(--text-dim); cursor: pointer; margin-top: 4px;
+  }
+  .video-capture-dropzone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+  .video-capture-bar {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: #1a1a1a;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #ccc; flex-wrap: wrap;
+  }
+  .video-capture-record-btn {
+    display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 5px;
+    border: 1px solid #3a3a3a; background: #222; color: #eee; cursor: pointer; font-size: 11px;
+  }
+  .video-capture-record-btn .dot { width: 9px; height: 9px; border-radius: 50%; background: #e74c3c; }
+  .video-capture-record-btn.recording { border-color: #e74c3c; }
+  .video-capture-record-btn.recording .dot { animation: video-capture-pulse 1s infinite; }
+  @keyframes video-capture-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  .video-capture-count { flex: 1; }
+  .video-capture-armed-status { color: #e74c3c; }
+  /* Bouton ⏺ posé à côté du VRAI bouton de lecture d'un morceau (pas dans le panneau de capture) --
+     discret par défaut, coloré quand la piste est armée. */
+  .video-capture-arm-track-btn {
+    width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); cursor: pointer; font-size: 10px; line-height: 1; margin-left: 4px;
+  }
+  .video-capture-arm-track-btn:hover { border-color: #e74c3c; color: #e74c3c; }
+  .video-capture-arm-track-btn.armed { background: #e74c3c; border-color: #e74c3c; color: #fff; }
+  .video-capture-download-btn {
+    padding: 6px 12px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc;
+    cursor: pointer; font-size: 11px;
+  }
+  .video-capture-download-btn:disabled { opacity: 0.4; cursor: default; }
+  .video-capture-title-input, .video-capture-load-select {
+    padding: 5px 8px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  }
+  .video-capture-title-input { width: 200px; }
+  .video-capture-load-select:disabled, .video-capture-title-input:disabled { opacity: 0.4; }
+  /* Frise d'édition (cible finale, schéma papier de Jules-Antoine 2026-09-14) : une piste horizontale par
+     calque du morceau + une piste SFX, blocs positionnés en pourcentage de la durée totale (pas de pixel
+     fixe -- pas de défilement horizontal à gérer, suffisant pour les prises courtes de ce prototype). */
+  .video-capture-timeline {
+    background: #1a1a1a; border-top: 1px solid #2a2a2a; padding: 10px 10px 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #ccc; position: relative;
+  }
+  .vct-empty { padding: 10px; color: #777; }
+  .vct-playhead { position: absolute; top: 20px; bottom: 34px; width: 1px; background: #ff4444; pointer-events: none; z-index: 20; }
+  .vct-playhead::before {
+    content: ''; position: absolute; top: -4px; left: -3px; border: 4px solid transparent;
+    border-top-color: #ff4444;
+  }
+  .vct-ruler { position: relative; height: 16px; margin-left: 96px; }
+  .vct-tick { position: absolute; top: 0; height: 100%; border-left: 1px solid #333; padding-left: 3px; color: #777; font-size: 9px; white-space: nowrap; }
+  .vct-lane { display: flex; align-items: stretch; height: 26px; margin-bottom: 3px; }
+  /* Le repère visuel du groupe (bordure + titre) ne doit pas décaler .vct-lane-track, sous peine de ne
+     plus s'aligner avec la frise temporelle (.vct-ruler, margin-left fixe) -- seule l'étiquette de piste
+     est indentée, jamais la largeur réservée au label lui-même. */
+  .vct-track-group { border-left: 2px solid #3a5f8a; margin-top: 6px; padding-left: 0; }
+  .vct-track-group-sfx { border-left-color: #8a5a2f; }
+  .vct-track-group-header {
+    font-size: 10px; font-weight: 600; color: #7fb0e8; padding: 2px 0 4px 6px; text-transform: uppercase;
+    letter-spacing: 0.03em; cursor: pointer; user-select: none;
+  }
+  .vct-track-group-sfx .vct-track-group-header { color: #d69a5c; }
+  .vct-track-group-header:hover { color: #fff; }
+  .vct-group-chevron { display: inline-block; width: 12px; font-size: 8px; }
+  .vct-lane-nested .vct-lane-label { padding-left: 14px; }
+  .vct-lane-label { width: 96px; flex-shrink: 0; display: flex; align-items: center; padding-right: 6px; color: #aaa; font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vct-lane-label[data-lane-kind="layer"] { cursor: text; }
+  .vct-lane-label[data-lane-kind="layer"]:hover { color: #fff; text-decoration: underline dotted; }
+  .vct-lane-rename-input {
+    width: 96px; flex-shrink: 0; background: #222; border: 1px solid var(--accent); border-radius: 3px;
+    color: #fff; font-family: inherit; font-size: 9.5px; padding: 2px 4px;
+  }
+  .vct-lane-track { position: relative; flex: 1; background: #101010; border-radius: 3px; border: 1px solid #232323; }
+  .vct-block { position: absolute; top: 2px; bottom: 2px; min-width: 4px; border-radius: 3px; cursor: grab; border: 1px solid transparent; overflow: hidden; touch-action: none; }
+  .vct-block.vct-layer { background: #2f5d8a; }
+  .vct-block.vct-sfx { background: #8a5a2f; }
+  .vct-block-implicit { opacity: 0.45; cursor: default; }
+  .vct-block.vct-selected { border-color: #fff; }
+  .vct-block-label { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); font-size: 9px; color: #fff; white-space: nowrap; pointer-events: none; }
+  .vct-resize-handle { position: absolute; top: 0; right: 0; bottom: 0; width: 6px; cursor: ew-resize; background: rgba(255,255,255,0.15); }
+  .vct-resize-handle:hover { background: rgba(255,255,255,0.35); }
+  .vct-detail { display: flex; align-items: center; gap: 8px; padding: 8px 0 4px; margin-top: 4px; border-top: 1px solid #2a2a2a; min-height: 30px; }
+  .vct-detail-empty { color: #666; font-size: 10px; }
+  .vct-detail-label { flex: 1; color: #ddd; }
+  .video-capture-event-time, .video-capture-event-duration {
+    width: 56px; background: #222; border: 1px solid #3a3a3a; border-radius: 4px; color: #ccc;
+    font-family: inherit; font-size: 11px; padding: 2px 4px;
+  }
+  .video-capture-event-duration { width: 78px; }
+  .video-capture-event-duration::placeholder { color: #666; font-size: 9.5px; }
+  .video-capture-duck-label { display: flex; align-items: center; gap: 3px; color: #aaa; cursor: pointer; user-select: none; }
+  .video-capture-duck-label input { margin: 0; cursor: pointer; }
+  .video-capture-event-del {
+    border: none; background: transparent; color: #888; cursor: pointer; font-size: 13px; line-height: 1;
+    padding: 2px 4px;
+  }
+  .video-capture-event-del:hover { color: #e74c3c; }
 
   /* Empilé par défaut (mobile, laptop pas assez large) : vidéo au-dessus, contenu de la page en dessous
      — ordre du DOM (le panneau est déclaré avant .page dans le body). À partir de 1280px, on passe
@@ -453,6 +562,20 @@
     <div class="video-test-dialog-actions">
       <button type="button" class="video-test-btn-secondary" id="videoTestCancelBtn" data-i18n="cancel">Annuler</button>
       <button type="button" class="video-test-btn-primary" id="videoTestOpenBtn" data-i18n="openWindow">Ouvrir la fenêtre</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Admin uniquement -- pas de data-i18n, outil interne jamais vu par un compositeur ordinaire. -->
+<dialog id="videoCaptureDialog" class="video-test-dialog">
+  <div class="video-test-form">
+    <div class="video-test-dialog-title">Capturer une prise (admin)</div>
+    <p class="video-test-dialog-hint">Importe ta propre vidéo de gameplay (fichier local -- un lien YouTube/Vimeo ne peut pas être réutilisé dans un export). Le lecteur ci-dessous enregistrera l'horodatage de chaque déclenchement pendant que tu joues.</p>
+    <div class="video-capture-dropzone" id="videoCaptureDropzone">Glisse un fichier vidéo ici, ou clique pour en choisir un</div>
+    <input type="file" id="videoCaptureFileInput" accept="video/*" hidden>
+    <div class="video-test-dialog-error" id="videoCaptureError"></div>
+    <div class="video-test-dialog-actions">
+      <button type="button" class="video-test-btn-secondary" id="videoCaptureCancelBtn">Annuler</button>
     </div>
   </div>
 </dialog>
@@ -902,6 +1025,1508 @@ function openInPanel(parsed) {
   dialog.addEventListener('close', () => { errorEl.textContent = ''; });
 })();
 
+// --- Mode Capture (admin, prototype moteur vidéo) --------------------------------------------
+// Enregistre l'horodatage (vs. la vidéo importée) de chaque interaction du lecteur adaptatif pendant
+// une "prise" -- calques (intensity_change), stingers (stinger_play), embranchements (seq_branch_select,
+// embr_loop_select), etc. Plutôt que de raccorder ces déclencheurs un par un (5 modes de lecture,
+// logique interne à player.js), on intercepte le point de passage déjà unique par lequel TOUTE
+// interaction transite : trackPublicEvent() y appelle systématiquement window.umami.track(name, detail)
+// (voir player.js). On substitue temporairement window.umami par un objet qui journalise avant de
+// relayer au vrai umami s'il existe déjà -- aucune modification de player.js nécessaire.
+let videoCaptureState = null; // { events, prevUmami, videoEl }
+
+// Piste armée pour la capture (2026-09-15) -- réglée depuis un bouton ⏺ posé à côté du lecteur de CHAQUE
+// morceau (voir setupCaptureTrigger), exclusif (armer une piste désarme l'ancienne). Persiste tant que la
+// page reste ouverte, indépendamment du panneau de capture -- on arme d'abord dans le lecteur du pack,
+// avant même d'ouvrir "Capturer une prise" (confirmé par Jules-Antoine 2026-09-15 : "on va d'abord
+// s'intéresser au lecteur du pack, avant d'aller dans l'éditeur vidéo").
+let armedTrackId = null;
+function updateArmedStatusDisplay() {
+  const statusEl = document.getElementById('videoCaptureArmedStatus');
+  if (!statusEl) return; // panneau de capture pas encore ouvert
+  if (!armedTrackId) { statusEl.textContent = 'Aucune piste armée'; return; }
+  const row = document.querySelector(`[data-track-id="${armedTrackId}"]`);
+  const titleEl = row && row.querySelector('[data-role="titleToggle"]');
+  statusEl.textContent = 'Armée : ' + (titleEl ? titleEl.textContent.trim() : armedTrackId);
+}
+
+function startCapture(videoEl) {
+  const prevUmami = window.umami;
+  const prevTrack = (prevUmami && typeof prevUmami.track === 'function') ? prevUmami.track.bind(prevUmami) : null;
+  const events = [];
+  window.umami = Object.assign({}, prevUmami, {
+    track: (name, detail) => {
+      events.push({ t: videoEl.currentTime, name, detail: detail || {} });
+      if (prevTrack) { try { prevTrack(name, detail); } catch (e) { /* jamais bloquant */ } }
+    }
+  });
+  videoCaptureState = { events, prevUmami, videoEl };
+}
+
+function stopCapture() {
+  if (!videoCaptureState) return [];
+  window.umami = videoCaptureState.prevUmami;
+  const events = videoCaptureState.events;
+  videoCaptureState = null;
+  return events;
+}
+
+// Libellé humain d'un événement capturé (calques/sfx résolus depuis window.__lpCaptureLibrary) --
+// utilisé à la fois par la liste affichée dans le panneau et implicitement par l'incrustation vidéo
+// de exportCaptureVideo (mêmes données sources, cohérent entre ce que le compositeur voit ici et ce qui
+// finit à l'écran dans l'export).
+// laneOverrides : renomme l'affichage d'un calque pour CETTE prise uniquement (ex. "Ca va, c'est cool"
+// -> "Intensité basse") -- ne touche jamais au vrai `layer.label` du morceau (ça resterait le nom parlant
+// pour l'AdReel), voir exportCaptureVideo qui utilise le même nom pour l'incrustation vidéo. Clé :
+// `${trackId}:${levelIdx}`.
+function captureLaneLabel(track, levelIdx, laneOverrides) {
+  const key = track.id + ':' + levelIdx;
+  const layer = track.layers[levelIdx];
+  return (laneOverrides && laneOverrides[key]) || (layer && layer.label) || ('Niveau ' + levelIdx);
+}
+
+// Même principe que captureLaneLabel ci-dessus, pour une piste de boucle (mode embranchement-vertical) --
+// clé `${trackId}:loop:${loopId}` pour ne jamais entrer en collision avec les clés `${trackId}:${levelIdx}`
+// des calques (un morceau ne peut de toute façon pas être les deux modes à la fois, mais autant garder
+// les espaces de clés distincts).
+function captureLoopLaneLabel(track, loopId, laneOverrides) {
+  const key = track.id + ':loop:' + loopId;
+  const loop = (track.loops || []).find(l => l.id === loopId);
+  return (laneOverrides && laneOverrides[key]) || (loop && loop.label) || loopId;
+}
+
+// Même principe, pour une piste d'emplacement (mode séquentiel) -- clé `${trackId}:slot:${slotId}`.
+function captureSlotLaneLabel(track, slotId, laneOverrides) {
+  const key = track.id + ':slot:' + slotId;
+  const slot = (track.segmentSlots || []).find(s => s.id === slotId);
+  return (laneOverrides && laneOverrides[key]) || (slot && slot.label) || slotId;
+}
+
+// Résout le fichier réel d'une variation d'emplacement séquentiel -- un emplacement qui "référence" un
+// autre (referencesSlotId) n'a pas ses propres alternatives, le vrai contenu vit chez la source (même
+// logique que resolveSlotAlternative() dans player.js, dupliquée ici car privée à sa fermeture).
+function resolveCaptureSeqAlternative(track, slotId, altIndex) {
+  const slot = (track.segmentSlots || []).find(s => s.id === slotId);
+  if (!slot) return null;
+  const sourceSlot = slot.referencesSlotId ? (track.segmentSlots || []).find(s => s.id === slot.referencesSlotId) : slot;
+  const alt = sourceSlot && (sourceSlot.alternatives || [])[altIndex];
+  return alt ? { slot, alt } : null;
+}
+
+// Résout le fichier de transition déclaré pour UN embranchement précis (fromSlotId -> targetId), pas pour
+// tout l'emplacement source -- un même emplacement peut avoir des transitions différentes selon la cible
+// (nextOptions[].transition, même schéma que player.js). Renvoie null si l'embranchement ou son fichier
+// de transition n'existe pas (peut arriver si la piste a été retouchée depuis la capture).
+function resolveCaptureSeqTransition(track, fromSlotId, targetId) {
+  const sourceSlot = (track.segmentSlots || []).find(s => s.id === fromSlotId);
+  const opt = sourceSlot && (sourceSlot.nextOptions || []).find(o => o.targetId === targetId);
+  return (opt && opt.transition && opt.transition.file) ? opt.transition : null;
+}
+
+// Même principe que captureSlotLaneLabel, pour la piste d'UNE transition séquentielle précise -- clé
+// `${trackId}:seqtransition:${fromSlotId}>${targetId}` pour distinguer chaque embranchement (un même
+// emplacement source peut avoir plusieurs transitions vers des cibles différentes).
+function captureSeqTransitionLaneLabel(track, fromSlotId, targetId, laneOverrides) {
+  const key = track.id + ':seqtransition:' + fromSlotId + '>' + targetId;
+  const transition = resolveCaptureSeqTransition(track, fromSlotId, targetId);
+  return (laneOverrides && laneOverrides[key]) || (transition && transition.label) || 'Transition';
+}
+
+// Libellé d'une fenêtre séquentielle (voir buildSeqTimelineWindows plus bas) quel que soit son type --
+// partagé entre la frise, l'export (incrustation vidéo) et describeCaptureEvent pour ne jamais diverger.
+function captureSeqWindowLabel(track, w, laneOverrides) {
+  if (w.kind === 'intro') return (track && track.intro && track.intro.label) || 'Intro';
+  if (w.kind === 'outro') return (track && track.outro && track.outro.label) || 'Outro';
+  if (w.kind === 'transition') return track ? captureSeqTransitionLaneLabel(track, w.fromSlotId, w.targetId, laneOverrides) : 'Transition';
+  return track ? captureSlotLaneLabel(track, w.slotId, laneOverrides) : w.slotId;
+}
+
+// Fusionne les 4 types d'événements du mode séquentiel (seq_intro_start, seq_slot_start,
+// seq_transition_start, seq_outro_start) en une seule chronologie par morceau -- une seule variation
+// audible à la fois (comme les boucles d'embranchement-vertical), chaque événement ferme la fenêtre
+// précédente et en ouvre une nouvelle. Les transitions sont insérées SÉQUENTIELLEMENT (contrairement aux
+// transitions d'embranchement-vertical, jouées en overlay) -- fidèle au vrai moteur, voir l'investigation
+// du 2026-09-15 : seq_transition_start marque la fin du segment source et le début du fichier de
+// transition lui-même, qui joue jusqu'au seq_slot_start suivant (le segment cible). `laneKey` regroupe les
+// fenêtres du même emplacement/de la même transition/de l'intro/de l'outro sur une seule piste de frise.
+// Partagé entre renderCaptureTimeline et exportCaptureVideo pour ne jamais diverger entre édition et rendu.
+const SEQ_TIMELINE_EVENT_NAMES = ['seq_intro_start', 'seq_slot_start', 'seq_transition_start', 'seq_outro_start'];
+function buildSeqTimelineWindows(events, trackId, total) {
+  const trackEvents = events.filter(e => SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 && e.detail.trackId === trackId).sort((a, b) => a.t - b.t);
+  return trackEvents.map((e, i) => {
+    const w = { start: e.t, end: i + 1 < trackEvents.length ? trackEvents[i + 1].t : total, idx: events.indexOf(e) };
+    if (e.name === 'seq_intro_start') { w.kind = 'intro'; w.laneKey = 'intro'; }
+    else if (e.name === 'seq_outro_start') { w.kind = 'outro'; w.laneKey = 'outro'; }
+    else if (e.name === 'seq_transition_start') {
+      w.kind = 'transition'; w.fromSlotId = e.detail.fromSlotId; w.targetId = e.detail.targetId;
+      w.laneKey = 'transition:' + e.detail.fromSlotId + '>' + e.detail.targetId;
+    } else { w.kind = 'slot'; w.slotId = e.detail.slotId; w.altIndex = e.detail.altIndex; w.laneKey = 'slot:' + e.detail.slotId; }
+    return w;
+  });
+}
+
+// Même principe que buildSeqTimelineWindows, pour le mode vertical-random : vr_intro_start/vr_section_start/
+// vr_outro_start (player.js, 2026-09-16) fusionnés en une seule chronologie -- un cycle de section = une
+// fenêtre autonome (le moteur retire au hasard une alternative par pool à CHAQUE cycle, voir le commentaire
+// de scheduleSectionGeneration dans player.js), capturée avec ses tirages (`picks`) et son décalage dans les
+// fichiers (`bufferOffset`) pour une reproduction fidèle à l'export -- mais volontairement PAS éclatée en
+// plusieurs pistes par pool dans la frise (une seule piste "Section", demande explicite de Jules-Antoine
+// 2026-09-16 : "dans l'éditeur, on ne détaille pas le contenu du pool"). `picks`/`bufferOffset` ne sont
+// utilisés que par exportCaptureVideo, jamais affichés.
+const VR_TIMELINE_EVENT_NAMES = ['vr_intro_start', 'vr_section_start', 'vr_outro_start'];
+// Résout une section vertical-random qui duplique une autre (referencesSectionId) vers sa section source
+// réelle -- les pools/alternatives vivent chez la source, même principe que resolveVRSection() dans
+// player.js (dupliquée ici car privée à sa fermeture, comme resolveCaptureSeqAlternative pour le séquentiel).
+function resolveCaptureVRSection(track, sectionIndex) {
+  const sections = track.sections || [];
+  const sec = sections[sectionIndex];
+  if (!sec) return null;
+  if (sec.referencesSectionId) {
+    const src = sections.find(s => s.id === sec.referencesSectionId);
+    return src || sec;
+  }
+  return sec;
+}
+function buildVRTimelineWindows(events, trackId, total) {
+  const trackEvents = events.filter(e => VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 && e.detail.trackId === trackId).sort((a, b) => a.t - b.t);
+  return trackEvents.map((e, i) => {
+    const w = { start: e.t, end: i + 1 < trackEvents.length ? trackEvents[i + 1].t : total, idx: events.indexOf(e) };
+    if (e.name === 'vr_intro_start') { w.kind = 'intro'; }
+    else if (e.name === 'vr_outro_start') { w.kind = 'outro'; }
+    else { w.kind = 'section'; w.sectionIndex = e.detail.sectionIndex; w.bufferOffset = e.detail.bufferOffset; w.picks = e.detail.picks || []; }
+    return w;
+  });
+}
+function captureVRWindowLabel(track, w) {
+  if (w.kind === 'intro') return (track && track.intro && track.intro.label) || 'Intro';
+  if (w.kind === 'outro') return (track && track.outro && track.outro.label) || 'Outro';
+  const section = track && (track.sections || [])[w.sectionIndex];
+  return (section && section.label) || ('Section ' + (w.sectionIndex + 1));
+}
+
+function describeCaptureEvent(e, laneOverrides) {
+  if (e.name === 'layer_segment') {
+    const track = findCaptureTrack(e.detail.trackId);
+    const label = track ? captureLaneLabel(track, e.detail.layerIndex, laneOverrides) : 'calque ' + e.detail.layerIndex;
+    return 'Calque : ' + label + ' (' + e.detail.duration.toFixed(2) + 's)';
+  }
+  if (e.name === 'embr_loop_select') {
+    const track = findCaptureTrack(e.detail.trackId);
+    return 'Boucle → ' + (track ? captureLoopLaneLabel(track, e.detail.loopId, laneOverrides) : e.detail.loopId);
+  }
+  if (e.name === 'seq_slot_start') {
+    const track = findCaptureTrack(e.detail.trackId);
+    return 'Emplacement → ' + (track ? captureSlotLaneLabel(track, e.detail.slotId, laneOverrides) : e.detail.slotId);
+  }
+  if (e.name === 'seq_intro_start') return 'Intro';
+  if (e.name === 'seq_outro_start') return 'Outro';
+  if (e.name === 'seq_transition_start') {
+    const track = findCaptureTrack(e.detail.trackId);
+    return 'Transition → ' + (track ? captureSeqTransitionLaneLabel(track, e.detail.fromSlotId, e.detail.targetId, laneOverrides) : 'Transition');
+  }
+  if (e.name === 'vr_intro_start') return 'Intro';
+  if (e.name === 'vr_outro_start') return 'Outro';
+  if (e.name === 'vr_section_start') {
+    const track = findCaptureTrack(e.detail.trackId);
+    return 'Section → ' + captureVRWindowLabel(track, { kind: 'section', sectionIndex: e.detail.sectionIndex });
+  }
+  if (e.name === 'stinger_play') {
+    const sfx = findCaptureSfx(e.detail.sfxId);
+    const base = 'Stinger : ' + (sfx ? sfx.title : e.detail.sfxId);
+    return e.detail.durationOverride ? base + ' (' + e.detail.durationOverride.toFixed(2) + 's)' : base;
+  }
+  return e.name;
+}
+
+// Convertit les intensity_change de chaque morceau (mode vertical) -- un seul réglage partagé "niveau N"
+// qui allume plusieurs calques à la fois -- en segments de calque INDÉPENDANTS layer_segment (un par
+// calque, par plage continue où il est actif). Clarifié par Jules-Antoine le 2026-09-15 : "niveau 1" ne
+// s'éteint jamais quand on passe à "niveau 2", il continue de jouer -- chaque calque doit donc avoir son
+// propre interrupteur (début + durée, comme un stinger), pas un réglage commun qui les lie tous ensemble
+// et les fait bouger en bloc au moindre glisser. Appelée une seule fois, à l'arrêt d'une capture -- après
+// ça, plus aucun intensity_change ne subsiste, tout le monde (frise, export) ne connaît plus que
+// layer_segment pour les morceaux en mode vertical.
+function materializeLayerSegments(events) {
+  const intensityEvents = events.filter(e => e.name === 'intensity_change');
+  const playEvents = events.filter(e => e.name === 'track_play');
+  if (!intensityEvents.length && !playEvents.length) return events;
+  const byTrack = {};
+  intensityEvents.forEach(e => (byTrack[e.detail.trackId] = byTrack[e.detail.trackId] || []).push(e));
+  // Piste armée (track_play, voir le bouton ⏺ à côté du lecteur -- 2026-09-15) sans intensity_change
+  // avant elle : équivaut à un déclenchement au niveau 0, comme si le compositeur avait cliqué sur ce
+  // niveau pile au moment où la piste a démarré. N'a d'effet que si RIEN ne couvre déjà ce moment --
+  // n'écrase jamais un vrai clic.
+  playEvents.forEach(pe => {
+    const list = (byTrack[pe.detail.trackId] = byTrack[pe.detail.trackId] || []);
+    if (!list.some(e => e.t <= pe.t)) list.push({ t: pe.t, name: 'intensity_change', detail: { trackId: pe.detail.trackId, level: 0 } });
+  });
+  const total = Math.max(0, ...events.map(e => e.t)) + 2; // même marge (TAIL) que le reste du pipeline
+  const layerSegmentEvents = [];
+  const consumedStaticTrackIds = [];
+  Object.keys(byTrack).forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    if (!track || track.mode !== 'vertical') return; // seul le mode vertical se matérialise en segments ici
+    const sorted = byTrack[trackId].slice().sort((a, b) => a.t - b.t);
+    const numLayers = (track.layers || []).length;
+    const cumulative = window.LayerPlayerCore.cumulativeProfiles(numLayers);
+    const windows = sorted.map((e, i) => ({
+      level: e.detail.level,
+      start: e.t,
+      end: i + 1 < sorted.length ? sorted[i + 1].t : total,
+    }));
+    for (let layerIndex = 0; layerIndex < numLayers; layerIndex++) {
+      let run = null;
+      windows.forEach(w => {
+        const profile = cumulative[w.level] || cumulative[0];
+        const active = profile && !!profile[layerIndex];
+        if (active && run && run.end === w.start) { run.end = w.end; return; }
+        if (run) layerSegmentEvents.push({ t: run.start, name: 'layer_segment', detail: { trackId, layerIndex, duration: run.end - run.start } });
+        run = active ? { start: w.start, end: w.end } : null;
+      });
+      if (run) layerSegmentEvents.push({ t: run.start, name: 'layer_segment', detail: { trackId, layerIndex, duration: run.end - run.start } });
+    }
+  });
+  // Mode statique : un seul calque, jamais de dial d'intensité, donc aucun intensity_change ne peut
+  // exister pour lui -- track_play (clic réel OU armé) est la SEULE donnée disponible. Réutilise
+  // directement layer_segment (layerIndex 0) : mêmes blocs indépendants, mêmes poignées de
+  // glisser/redimensionner/renommer, aucun nouveau code d'édition ou d'export nécessaire. Plusieurs
+  // track_play sur la même piste (stop puis relance) donnent plusieurs segments distincts.
+  const staticByTrack = {};
+  playEvents.forEach(pe => {
+    const track = findCaptureTrack(pe.detail.trackId);
+    if (!track || track.mode !== 'static') return;
+    (staticByTrack[pe.detail.trackId] = staticByTrack[pe.detail.trackId] || []).push(pe.t);
+  });
+  Object.keys(staticByTrack).forEach(trackId => {
+    consumedStaticTrackIds.push(trackId);
+    const times = staticByTrack[trackId].slice().sort((a, b) => a - b);
+    times.forEach((t, i) => {
+      const end = i + 1 < times.length ? times[i + 1] : total;
+      layerSegmentEvents.push({ t, name: 'layer_segment', detail: { trackId, layerIndex: 0, duration: end - t } });
+    });
+  });
+  // track_play n'est retiré que pour les morceaux en mode vertical OU statique (consommé ci-dessus,
+  // replié en layer_segment dans les deux cas) -- gardé tel quel pour les autres modes (vertical-random
+  // notamment, qui n'a pas encore d'équivalent "segment", voir renderCaptureTimeline).
+  return events.filter(e => {
+    if (e.name === 'intensity_change') return false;
+    if (e.name === 'track_play') {
+      const t = findCaptureTrack(e.detail.trackId);
+      return !(t && (t.mode === 'vertical' || consumedStaticTrackIds.indexOf(e.detail.trackId) !== -1));
+    }
+    return true;
+  }).concat(layerSegmentEvents).sort((a, b) => a.t - b.t);
+}
+
+// Frise d'édition -- cible finale d'après le schéma papier de Jules-Antoine (2026-09-14) : une piste par
+// calque du morceau (dans l'ordre de leur niveau d'intensité) + une piste SFX au-dessus, blocs positionnés
+// sur une frise temporelle commune, déplaçables/redimensionnables à la souris comme dans un DAW. Les
+// changements d'intensité restent des points sous le capot (fidèle au moteur réel -- les calques tournent
+// en permanence, on ne fait qu'un fondu à un instant précis, déjà réglé par le morceau lui-même) : chaque
+// bloc de calque est juste la fenêtre entre deux points consécutifs, dérivée à l'affichage -- glisser le
+// CORPS d'un bloc de calque déplace donc son point de départ (qui est aussi la fin du bloc précédent, sur
+// N'IMPORTE QUELLE piste) ; il n'y a pas de poignée de redimensionnement sur ces blocs, leur fin appartient
+// au bloc suivant. Les stingers, eux, ont un vrai IN + OUT/durée (façon cue sheet) : glisser le corps
+// déplace le IN, une poignée sur le bord droit redimensionne la durée. En lecture seule pendant
+// l'enregistrement (pas d'interaction), éditable une fois arrêté. `events` est mutée en place
+// (splice/tri) pour que la référence déjà fermée par les autres gestionnaires (lastEvents) reste à jour.
+// Positionne la tête de lecture (ligne verticale) sur la frise, à la position actuelle de la vidéo --
+// appelée à chaque nouveau rendu ET en continu pendant la lecture (timeupdate, câblé une seule fois dans
+// openCapturePanel plutôt qu'à chaque re-rendu, pour ne pas empiler les écouteurs). Calcule en pixels
+// réels (pas en %) à partir de .vct-ruler, qui a toujours le même repère que les pistes (margin-left 96px
+// aligné sur les étiquettes) -- fonctionne donc même à travers les groupes imbriqués.
+function positionCapturePlayhead(container, videoEl) {
+  if (!videoEl) return;
+  const ph = container.querySelector('#vctPlayhead');
+  const ruler = container.querySelector('.vct-ruler');
+  if (!ph || !ruler) return;
+  const containerRect = container.getBoundingClientRect();
+  const rulerRect = ruler.getBoundingClientRect();
+  const total = container.__vctTotal || videoEl.duration || 1;
+  const t = videoEl.currentTime || 0;
+  const leftPx = (rulerRect.left - containerRect.left) + Math.min(1, Math.max(0, t / total)) * rulerRect.width;
+  ph.style.left = leftPx + 'px';
+}
+
+function renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl) {
+  laneOverrides = laneOverrides || {};
+  collapsedGroups = collapsedGroups || {};
+  if (!events.length) {
+    container.innerHTML = '<div class="vct-empty">Aucun événement pour l’instant.</div>';
+    return;
+  }
+  const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl);
+  const intensityEvents = events.filter(e => e.name === 'intensity_change').sort((a, b) => a.t - b.t);
+  const embrEvents = events.filter(e => e.name === 'embr_loop_select').sort((a, b) => a.t - b.t);
+  const stingerEvents = events.filter(e => e.name === 'stinger_play');
+  const layerSegmentEvents = events.filter(e => e.name === 'layer_segment');
+  const lastT = Math.max(0, ...events.map(e => e.t),
+    ...stingerEvents.map(e => e.t + (e.detail.durationOverride || 1)),
+    ...layerSegmentEvents.map(e => e.t + e.detail.duration));
+  const total = Math.max(lastT + 1, 5); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement
+  const tickStep = total <= 20 ? 1 : (total <= 60 ? 5 : 10);
+  const pct = (t) => Math.min(100, Math.max(0, t / total * 100));
+
+  let ticksHtml = '';
+  for (let t = 0; t <= total; t += tickStep) {
+    ticksHtml += `<div class="vct-tick" style="left:${pct(t)}%">${t}s</div>`;
+  }
+
+  // Tous les événements qui appartiennent à un groupe donné (même morceau ou même Sfx) -- utilisé à la
+  // fois pour calculer l'étendue du bloc-résumé ci-dessous et pour savoir quoi déplacer ensemble au
+  // glisser-déposer du groupe entier (voir startGroupDrag plus bas).
+  function groupMembers(key) {
+    if (key.indexOf('track:') === 0) {
+      const trackId = key.slice(6);
+      return events.filter(e => (e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || e.name === 'track_play') && e.detail.trackId === trackId);
+    }
+    if (key.indexOf('sfx:') === 0) {
+      const sfxId = key.slice(4);
+      return events.filter(e => e.name === 'stinger_play' && e.detail.sfxId === sfxId);
+    }
+    return [];
+  }
+
+  // Un groupe = un en-tête cliquable (repliable) + un bloc-résumé glissable (déplace TOUS les enfants
+  // ensemble, en préservant leur espacement relatif -- demandé par Jules-Antoine 2026-09-15) + les pistes
+  // enfants indentées en dessous, même gabarit pour les morceaux (calques ou boucles) et les Sfx
+  // (variations round-robin) -- voir les usages ci-dessous.
+  function renderGroup(key, headerLabel, colorClass, nestedLanesHtml) {
+    const collapsed = !!collapsedGroups[key];
+    const members = groupMembers(key);
+    let summaryHtml = '';
+    if (editable && members.length) {
+      const isMusic = key.indexOf('track:') === 0;
+      const start = isMusic ? 0 : Math.min(...members.map(m => m.t));
+      const end = isMusic ? total : Math.max(...members.map(m => m.t + (m.detail.durationOverride || 1)));
+      summaryHtml = `<div class="vct-lane vct-group-summary"><div class="vct-lane-label"></div>` +
+        `<div class="vct-lane-track"><div class="vct-block vct-block-group" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}" ` +
+        `title="Glisser pour déplacer tout le groupe" style="left:${pct(start)}%;width:${pct(end) - pct(start)}%"></div></div></div>`;
+    }
+    return `<div class="vct-track-group ${colorClass}">` +
+      `<div class="vct-track-group-header" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}">` +
+      `<span class="vct-group-chevron">${collapsed ? '▸' : '▾'}</span>${window.LayerPlayerCore.escapeHtml(headerLabel)}</div>` +
+      (collapsed ? '' : summaryHtml + nestedLanesHtml) + `</div>`;
+  }
+
+  // SFX : un groupe par son déclenché, une piste enfant par variation round-robin réellement tirée dans
+  // cette prise (pas toutes celles de la bibliothèque -- sinon un Sfx à 6 variations dont une seule sert
+  // laisserait 5 pistes vides). Plusieurs sons différents déclenchés dans la même prise donnent donc
+  // plusieurs groupes SFX côte à côte (2026-09-15).
+  const sfxGroups = {}; // sfxId -> { variationIndex: [events] }
+  stingerEvents.forEach(e => {
+    const sid = e.detail.sfxId;
+    const vi = e.detail.variationIndex;
+    (sfxGroups[sid] = sfxGroups[sid] || {})[vi] = (sfxGroups[sid][vi] || []).concat(e);
+  });
+  let lanesHtml = '';
+  Object.keys(sfxGroups).forEach(sid => {
+    const sfx = findCaptureSfx(sid);
+    let groupLanesHtml = '';
+    Object.keys(sfxGroups[sid]).map(Number).sort((a, b) => a - b).forEach(vi => {
+      let blocksHtml = '';
+      sfxGroups[sid][vi].forEach(e => {
+        const dur = e.detail.durationOverride || 1;
+        const idx = events.indexOf(e);
+        blocksHtml += `<div class="vct-block vct-sfx" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + dur) - pct(e.t)}%">` +
+          (editable ? '<div class="vct-resize-handle" title="Glisser pour régler la durée"></div>' : '') + `</div>`;
+      });
+      const sfxAddAttrs = editable ? ` data-addable="sfx" data-add-sfx-id="${sid}" data-add-variation="${vi}"` : '';
+      groupLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label">RR${vi + 1}</div><div class="vct-lane-track"${sfxAddAttrs} title="${editable ? 'Cliquer une zone vide pour ajouter un déclenchement' : ''}">${blocksHtml}</div></div>`;
+    });
+    lanesHtml += renderGroup('sfx:' + sid, (sfx && sfx.title) || sid, 'vct-track-group-sfx', groupLanesHtml);
+  });
+
+  // Musique : un groupe par morceau référencé (mode vertical -- calques cumulatifs -- ou
+  // embranchement-vertical -- boucles exclusives), dans l'ordre de première apparition. Plusieurs
+  // morceaux différents dans la même prise donnent plusieurs groupes "Musique" côte à côte (schéma
+  // papier "Musique #1"/"Musique #2", 2026-09-14/15).
+  const musicTrackIds = [];
+  events.forEach(e => {
+    if ((e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'track_play' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1) && musicTrackIds.indexOf(e.detail.trackId) === -1) {
+      musicTrackIds.push(e.detail.trackId);
+    }
+  });
+  musicTrackIds.forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    if (!track) return;
+    let nestedLanesHtml = '';
+    if (track.mode === 'embranchement-vertical') {
+      // Une seule boucle audible à la fois (contrairement à l'empilage cumulatif du mode vertical) --
+      // chaque bascule embr_loop_select ferme la fenêtre précédente et en ouvre une nouvelle. La toute
+      // première fenêtre (la boucle de référence, avant le premier clic) n'a aucun événement associé --
+      // rien n'est capturé pour l'état de départ implicite du moteur -- donc pas de point à éditer/glisser
+      // pour elle (idx -1, bloc non interactif, distingué visuellement).
+      const trackEmbrEvents = embrEvents.filter(e => e.detail.trackId === trackId);
+      const initialLoop = (track.loops || []).find(l => l.isInitial) || (track.loops || [])[0];
+      const windows = [];
+      if (initialLoop) windows.push({ loopId: initialLoop.id, start: 0, idx: -1 });
+      trackEmbrEvents.forEach(e => windows.push({ loopId: e.detail.loopId, start: e.t, idx: events.indexOf(e) }));
+      windows.forEach((w, i) => { w.end = i + 1 < windows.length ? windows[i + 1].start : total; });
+      const usedLoopIds = [];
+      windows.forEach(w => { if (usedLoopIds.indexOf(w.loopId) === -1) usedLoopIds.push(w.loopId); });
+      usedLoopIds.forEach(loopId => {
+        let blocksHtml = '';
+        windows.forEach(w => {
+          if (w.loopId !== loopId) return;
+          const cls = 'vct-block vct-layer' + (w.idx < 0 ? ' vct-block-implicit' : '');
+          blocksHtml += `<div class="${cls}" data-idx="${w.idx}" style="left:${pct(w.start)}%;width:${pct(w.end) - pct(w.start)}%"></div>`;
+        });
+        const laneLabel = captureLoopLaneLabel(track, loopId, laneOverrides);
+        const loopAddAttrs = editable ? ` data-addable="loop" data-add-track-id="${trackId}" data-add-loop-id="${loopId}"` : '';
+        nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" data-lane-kind="loop" data-track-id="${trackId}" data-loop-id="${loopId}" title="${editable ? 'Cliquer pour renommer' : ''}">${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${loopAddAttrs} title="${editable ? 'Cliquer une zone vide pour ajouter une bascule' : ''}">${blocksHtml}</div></div>`;
+      });
+    } else if (track.mode === 'vertical-random') {
+      // Une seule piste "Section" (2026-09-16), volontairement pas détaillée par pool (demande explicite de
+      // Jules-Antoine : "dans l'éditeur, on ne détaille pas le contenu du pool") -- mais chaque bloc
+      // correspond maintenant à un vrai cycle capturé (vr_intro_start/vr_section_start/vr_outro_start, voir
+      // buildVRTimelineWindows), déplaçable comme les autres blocs chaînés, avec ses tirages de pool réels
+      // conservés dans l'événement pour un export fidèle -- plus le simple repère "ce morceau jouait ici"
+      // d'avant, qui ne portait aucune donnée exportable.
+      const vrWindows = buildVRTimelineWindows(events, trackId, total);
+      let blocksHtml = '';
+      if (vrWindows.length) {
+        vrWindows.forEach(w => {
+          blocksHtml += `<div class="vct-block vct-layer" data-idx="${w.idx}" style="left:${pct(w.start)}%;width:${pct(w.end) - pct(w.start)}%"></div>`;
+        });
+      } else {
+        // Repli (capture très courte, arrêtée avant le premier cycle réel) : simple repère non interactif,
+        // comme le comportement d'origine.
+        const trackPlayEvents = events.filter(e => e.name === 'track_play' && e.detail.trackId === trackId).sort((a, b) => a.t - b.t);
+        trackPlayEvents.forEach((e, i) => {
+          const end = i + 1 < trackPlayEvents.length ? trackPlayEvents[i + 1].t : total;
+          blocksHtml += `<div class="vct-block vct-layer vct-block-implicit" data-idx="-1" style="left:${pct(e.t)}%;width:${pct(end) - pct(e.t)}%"></div>`;
+        });
+      }
+      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label">Section</div><div class="vct-lane-track">${blocksHtml}</div></div>`;
+    } else if (track.mode === 'sequential') {
+      // Une seule variation audible à la fois -- chaque événement (emplacement, transition, intro, outro)
+      // ferme la fenêtre précédente et en ouvre une nouvelle, exactement comme pour les boucles. Les
+      // transitions ont leur propre piste (une par embranchement source->cible distinct, comme les
+      // emplacements) ; intro/outro sont des pistes uniques puisqu'un morceau n'en a qu'une de chaque.
+      // Seuls les emplacements restent renommables/ajoutables au clic (intro/outro/transitions sont des
+      // fichiers "cachets" du morceau lui-même, pas des passages composés pour cette prise -- 2026-09-16).
+      const windows = buildSeqTimelineWindows(events, trackId, total);
+      const laneKeys = [];
+      windows.forEach(w => { if (laneKeys.indexOf(w.laneKey) === -1) laneKeys.push(w.laneKey); });
+      laneKeys.forEach(laneKey => {
+        const first = windows.find(w => w.laneKey === laneKey);
+        let blocksHtml = '';
+        windows.forEach(w => {
+          if (w.laneKey !== laneKey) return;
+          blocksHtml += `<div class="vct-block vct-layer" data-idx="${w.idx}" style="left:${pct(w.start)}%;width:${pct(w.end) - pct(w.start)}%"></div>`;
+        });
+        const laneLabel = captureSeqWindowLabel(track, first, laneOverrides);
+        const renameAttrs = first.kind === 'slot' ? ` data-lane-kind="slot" data-track-id="${trackId}" data-slot-id="${first.slotId}" title="${editable ? 'Cliquer pour renommer' : ''}"` : '';
+        const addAttrs = first.kind === 'slot' && editable ? ` data-addable="slot" data-add-track-id="${trackId}" data-add-slot-id="${first.slotId}"` : '';
+        nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label"${renameAttrs}>${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${addAttrs} title="${editable && first.kind === 'slot' ? 'Cliquer une zone vide pour ajouter un passage' : ''}">${blocksHtml}</div></div>`;
+      });
+    } else {
+      const trackLayerEvents = events.filter(e => e.name === 'layer_segment' && e.detail.trackId === trackId);
+      const layers = track.layers || [];
+      if (trackLayerEvents.length) {
+        // Calques indépendants (matérialisés une fois pour toutes à l'arrêt de la capture par
+        // materializeLayerSegments -- voir ce commentaire pour le raisonnement) : chaque layer_segment a
+        // son propre début + durée, comme un stinger, sans lien avec les autres calques ni avec un
+        // quelconque "niveau". Se déplace/se redimensionne seul (voir startDrag), sans jamais bouger un
+        // autre bloc.
+        layers.forEach((layer, levelIdx) => {
+          let blocksHtml = '';
+          trackLayerEvents.filter(e => e.detail.layerIndex === levelIdx).forEach(e => {
+            const idx = events.indexOf(e);
+            const end = e.t + e.detail.duration;
+            blocksHtml += `<div class="vct-block vct-layer" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(end) - pct(e.t)}%">` +
+              (editable ? '<div class="vct-resize-handle" title="Glisser pour régler la durée"></div>' : '') + `</div>`;
+          });
+          const laneLabel = captureLaneLabel(track, levelIdx, laneOverrides);
+          const addAttrs = editable ? ` data-addable="layer" data-add-track-id="${trackId}" data-add-level="${levelIdx}"` : '';
+          nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" data-lane-kind="layer" data-track-id="${trackId}" data-level="${levelIdx}" title="${editable ? 'Cliquer pour renommer' : ''}">${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${addAttrs} title="${editable ? 'Cliquer une zone vide pour ajouter un segment' : ''}">${blocksHtml}</div></div>`;
+        });
+      } else {
+        // Pas encore matérialisé : aperçu en direct pendant l'enregistrement (toujours en lecture seule,
+        // `editable` est déjà à false à ce stade) -- calcul par empilage cumulatif à partir des points
+        // intensity_change bruts, avant leur conversion en segments indépendants à l'arrêt.
+        const trackIntensityEvents = intensityEvents.filter(e => e.detail.trackId === trackId);
+        const cumulative = window.LayerPlayerCore.cumulativeProfiles(layers.length);
+        layers.forEach((layer, levelIdx) => {
+          let blocksHtml = '';
+          trackIntensityEvents.forEach((e, i) => {
+            const profile = cumulative[e.detail.level] || cumulative[0];
+            if (!profile || !profile[levelIdx]) return;
+            const end = i + 1 < trackIntensityEvents.length ? trackIntensityEvents[i + 1].t : total;
+            const idx = events.indexOf(e);
+            blocksHtml += `<div class="vct-block vct-layer" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(end) - pct(e.t)}%"></div>`;
+          });
+          const laneLabel = captureLaneLabel(track, levelIdx, laneOverrides);
+          nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" data-lane-kind="layer" data-track-id="${trackId}" data-level="${levelIdx}">${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track">${blocksHtml}</div></div>`;
+        });
+      }
+    }
+    // Regroupe les pistes sous le nom du morceau qui les possède (2026-09-15) -- le titre lui-même n'est
+    // pas éditable ici, c'est le vrai nom du morceau, pas un libellé de prise.
+    lanesHtml += renderGroup('track:' + trackId, track.title || 'Morceau', 'vct-track-group-music', nestedLanesHtml);
+  });
+
+  container.__vctTotal = total;
+  container.innerHTML = `
+    <div class="vct-ruler">${ticksHtml}</div>
+    <div class="vct-lanes">${lanesHtml}</div>
+    <div class="vct-playhead" id="vctPlayhead"></div>
+    <div class="vct-detail" id="vctDetail"><span class="vct-detail-empty">${editable ? 'Clique un bloc pour le retoucher, glisse-le pour le déplacer, un nom de piste pour le renommer, ou un en-tête pour replier.' : ''}</span></div>
+  `;
+  positionCapturePlayhead(container, videoEl);
+  container.querySelectorAll('.vct-track-group-header').forEach(headerEl => {
+    headerEl.addEventListener('click', () => {
+      const key = headerEl.dataset.groupKey;
+      collapsedGroups[key] = !collapsedGroups[key];
+      rerender();
+    });
+  });
+  if (!editable) return;
+
+  // Les stingers ET les segments de calque ont chacun un vrai IN + OUT/durée, indépendant de tout autre
+  // bloc (façon cue sheet) -- seul le nom du champ diffère (durationOverride vs duration, ce dernier
+  // toujours défini puisque matérialisé, jamais "d'origine" à retrouver). Ces deux petits accesseurs
+  // évitent de dupliquer la logique d'édition/glisser pour les deux types.
+  function hasIndependentDuration(e) { return e.name === 'stinger_play' || e.name === 'layer_segment'; }
+  function getEventDuration(e) { return e.name === 'layer_segment' ? e.detail.duration : (e.detail.durationOverride || 1); }
+  function setEventDuration(e, v) {
+    if (e.name === 'layer_segment') e.detail.duration = Math.max(0.1, v);
+    else e.detail.durationOverride = (v == null || v <= 0) ? null : v;
+  }
+
+  function selectBlock(idx, el) {
+    container.querySelectorAll('.vct-block').forEach(b => b.classList.remove('vct-selected'));
+    el.classList.add('vct-selected');
+    const e = events[idx];
+    const editableDuration = hasIndependentDuration(e);
+    const isSfx = e.name === 'stinger_play';
+    // Duck (2026-09-15) : baisse le volume de la musique pendant que le stinger joue, comme le fait déjà
+    // le vrai moteur pour les Sfx marqués duckMainTrack -- pré-coché selon ce réglage d'origine du son,
+    // mais modifiable pour cette prise (e.detail.duck, undefined tant qu'intact = suit le réglage du son).
+    const sfxForDuck = isSfx ? findCaptureSfx(e.detail.sfxId) : null;
+    const duckChecked = isSfx && (e.detail.duck !== undefined ? e.detail.duck : !!(sfxForDuck && sfxForDuck.duckMainTrack));
+    const detailEl = container.querySelector('#vctDetail');
+    detailEl.innerHTML = `
+      <span class="vct-detail-label">${window.LayerPlayerCore.escapeHtml(describeCaptureEvent(e, laneOverrides))}</span>
+      <input type="number" step="0.1" min="0" value="${e.t.toFixed(2)}" class="video-capture-event-time" title="Entrée (IN)">
+      ${editableDuration ? `<input type="number" step="0.1" min="0" placeholder="${isSfx ? 'durée d’origine' : ''}" value="${isSfx ? (e.detail.durationOverride ? e.detail.durationOverride.toFixed(2) : '') : e.detail.duration.toFixed(2)}" class="video-capture-event-duration" title="Durée / sortie (OUT)">` : ''}
+      ${isSfx ? `<label class="video-capture-duck-label" title="Baisse le volume de la musique pendant ce stinger"><input type="checkbox" class="video-capture-event-duck" ${duckChecked ? 'checked' : ''}> Duck</label>` : ''}
+      <button type="button" class="video-capture-event-del" title="Supprimer" aria-label="Supprimer">✕</button>
+    `;
+    detailEl.querySelector('.video-capture-event-time').addEventListener('change', (ev) => {
+      const v = parseFloat(ev.target.value);
+      e.t = isNaN(v) ? e.t : Math.max(0, v);
+      events.sort((a, b) => a.t - b.t); // garde l'ordre chronologique après une retouche manuelle
+      rerender();
+      onChange && onChange();
+    });
+    const durationInput = detailEl.querySelector('.video-capture-event-duration');
+    if (durationInput) {
+      durationInput.addEventListener('change', (ev) => {
+        const v = parseFloat(ev.target.value);
+        setEventDuration(e, isNaN(v) ? null : v);
+        rerender();
+        onChange && onChange();
+      });
+    }
+    const duckInput = detailEl.querySelector('.video-capture-event-duck');
+    if (duckInput) {
+      duckInput.addEventListener('change', (ev) => {
+        e.detail.duck = ev.target.checked;
+        onChange && onChange();
+      });
+    }
+    detailEl.querySelector('.video-capture-event-del').addEventListener('click', () => {
+      events.splice(idx, 1);
+      rerender();
+      onChange && onChange();
+    });
+  }
+
+  // Glisser-déposer façon DAW : écouteurs posés sur `document` (pas sur le bloc lui-même) pour survivre
+  // au réaffichage complet de la frise à chaque mouvement -- un bloc recréé en plein geste perdrait sinon
+  // la capture du pointeur. `kind` distingue déplacer (IN) de redimensionner (durée, uniquement depuis la
+  // poignée -- stingers et segments de calque seulement, jamais les boucles). Un mouvement sous 3px au
+  // relâché est traité comme un simple clic (ouvre le détail).
+  //
+  // Bornes de glisser (signalé par Jules-Antoine 2026-09-15) : SEULES les boucles (embr_loop_select)
+  // partagent encore un point avec leur voisine -- on ne doit jamais les faire se croiser (fenêtres
+  // inversées, rendu incohérent), calculé une fois au début du geste à partir des voisines ORIGINALES
+  // pour un comportement stable pendant tout le glisser. Les segments de calque et les stingers, eux,
+  // sont indépendants (matérialisés/toujours-été autonomes) : aucune borne de voisinage, on ne fait que
+  // les déplacer comme un bloc entier -- jamais "rogner" leur début, exactement ce que demandait
+  // Jules-Antoine (le bloc entier glisse, sa durée propre ne change jamais au déplacement).
+  function startDrag(pointerDownEvent, idx, kind) {
+    pointerDownEvent.preventDefault();
+    pointerDownEvent.stopPropagation();
+    const el = pointerDownEvent.currentTarget.closest('.vct-block');
+    const trackEl = el.closest('.vct-lane-track');
+    const trackRect = trackEl.getBoundingClientRect();
+    const startX = pointerDownEvent.clientX;
+    const e = events[idx];
+    const startT = e.t;
+    const startDuration = hasIndependentDuration(e) ? getEventDuration(e) : 1;
+    const EPS = 0.05;
+    // Boucles (embranchement-vertical), les 4 types d'événements du séquentiel (emplacement, transition,
+    // intro, outro -- une seule chronologie partagée, voir buildSeqTimelineWindows) ET les 3 types du
+    // vertical-random (intro, section, outro -- voir buildVRTimelineWindows) gardent encore un point avec
+    // leur voisin (une seule variation audible à la fois, la fenêtre suivante démarre pile où celle-ci
+    // finit) -- jamais les laisser se croiser. Un emplacement séquentiel doit donc être borné par SES
+    // voisins immédiats quel que soit LEUR type précis (ex. une transition qui le suit), pas seulement par
+    // d'autres emplacements -- pareil pour une section vertical-random face à l'intro/outro -- d'où un
+    // groupe de chaînage par famille plutôt qu'une simple égalité de nom. Calques et stingers, eux, sont
+    // totalement indépendants (voir hasIndependentDuration).
+    const isChainPoint = e.name === 'embr_loop_select' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1;
+    const chainGroupNames = SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 ? SEQ_TIMELINE_EVENT_NAMES
+      : VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 ? VR_TIMELINE_EVENT_NAMES : null;
+    let minT = 0, maxT = total;
+    if (kind === 'move' && isChainPoint) {
+      let minNeighbor = 0, maxNeighbor = total;
+      events.forEach(o => {
+        if (o === e || o.detail.trackId !== e.detail.trackId) return;
+        const sameChain = chainGroupNames ? chainGroupNames.indexOf(o.name) !== -1 : o.name === e.name;
+        if (!sameChain) return;
+        if (o.t < startT && o.t > minNeighbor) minNeighbor = o.t;
+        if (o.t > startT && o.t < maxNeighbor) maxNeighbor = o.t;
+      });
+      minT = minNeighbor + EPS; maxT = maxNeighbor - EPS;
+    }
+    let moved = false;
+    function onMove(ev) {
+      const dx = ev.clientX - startX;
+      if (Math.abs(dx) > 3) moved = true;
+      const dt = dx / trackRect.width * total;
+      if (kind === 'move') {
+        e.t = isChainPoint ? Math.min(Math.max(startT + dt, minT), maxT) : Math.max(0, startT + dt);
+      } else {
+        setEventDuration(e, startDuration + dt);
+      }
+      rerender();
+    }
+    function onUp() {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      if (!moved) {
+        // Pas de vrai glisser : un simple clic, on rouvre juste le détail du bloc.
+        const freshEl = container.querySelector(`.vct-block[data-idx="${idx}"]`);
+        if (freshEl) selectBlock(idx, freshEl);
+        return;
+      }
+      if (kind === 'move') events.sort((a, b) => a.t - b.t); // garde l'ordre chronologique après le glisser
+      rerender();
+      onChange && onChange();
+    }
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  }
+  container.querySelectorAll('.vct-block:not(.vct-block-group)').forEach(el => {
+    const idx = parseInt(el.dataset.idx, 10);
+    if (idx < 0) return; // fenêtre implicite de départ (avant le premier vrai clic) -- pas interactive
+    el.addEventListener('pointerdown', (ev) => startDrag(ev, idx, 'move'));
+    const handle = el.querySelector('.vct-resize-handle');
+    if (handle) handle.addEventListener('pointerdown', (ev) => startDrag(ev, idx, 'resize'));
+  });
+
+  // Glisser le bloc-résumé d'un groupe entier : décale TOUS ses membres (mêmes trackId/sfxId) du même
+  // delta, ce qui préserve automatiquement leur espacement relatif -- pas besoin de borner contre des
+  // voisins internes (l'ordre entre membres du même groupe ne change jamais), seulement d'empêcher le
+  // membre le plus tôt de passer sous 0.
+  function startGroupDrag(pointerDownEvent, key) {
+    pointerDownEvent.preventDefault();
+    pointerDownEvent.stopPropagation();
+    const trackRect = pointerDownEvent.currentTarget.closest('.vct-lane-track').getBoundingClientRect();
+    const startX = pointerDownEvent.clientX;
+    const members = groupMembers(key);
+    if (!members.length) return;
+    const startTs = members.map(m => m.t);
+    const minStartT = Math.min(...startTs);
+    let moved = false;
+    function onMove(ev) {
+      const dx = ev.clientX - startX;
+      if (Math.abs(dx) > 3) moved = true;
+      let dt = dx / trackRect.width * total;
+      dt = Math.max(dt, -minStartT); // n'autorise jamais un membre à passer sous 0
+      members.forEach((m, i) => { m.t = startTs[i] + dt; });
+      rerender();
+    }
+    function onUp() {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      if (!moved) return;
+      events.sort((a, b) => a.t - b.t);
+      rerender();
+      onChange && onChange();
+    }
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  }
+  container.querySelectorAll('.vct-block-group').forEach(el => {
+    el.addEventListener('pointerdown', (ev) => startGroupDrag(ev, el.dataset.groupKey));
+  });
+
+  // Clic sur une zone vide d'une piste = crée un nouveau bloc à cet endroit (calque, boucle ou stinger --
+  // même geste partout, seul le type d'événement créé change selon la piste) -- pour les cas où rien n'a
+  // été cliqué pendant la prise (silence réel au début, par exemple) mais où quelque chose doit en fait
+  // se jouer là (2026-09-15, à la demande de Jules-Antoine : le silence par défaut reste correct, mais il
+  // doit pouvoir ajouter du son là où il en veut plutôt que subir une hypothèse automatique). Durée de
+  // départ 3s pour les calques/boucles (ajustable ensuite) ; les stingers gardent leur longueur d'origine
+  // tant qu'on ne retouche pas leur durée. `ev.target !== trackEl` exclut les clics qui viennent en fait
+  // d'un bloc existant (déjà géré par startDrag/selectBlock).
+  container.querySelectorAll('.vct-lane-track[data-addable]').forEach(trackEl => {
+    trackEl.addEventListener('click', (ev) => {
+      if (ev.target !== trackEl) return;
+      const rect = trackEl.getBoundingClientRect();
+      const t = Math.max(0, (ev.clientX - rect.left) / rect.width * total);
+      const kind = trackEl.dataset.addable;
+      if (kind === 'layer') {
+        events.push({ t, name: 'layer_segment', detail: { trackId: trackEl.dataset.addTrackId, layerIndex: parseInt(trackEl.dataset.addLevel, 10), duration: 3 } });
+      } else if (kind === 'loop') {
+        events.push({ t, name: 'embr_loop_select', detail: { trackId: trackEl.dataset.addTrackId, loopId: trackEl.dataset.addLoopId } });
+      } else if (kind === 'sfx') {
+        events.push({ t, name: 'stinger_play', detail: { sfxId: trackEl.dataset.addSfxId, variationIndex: parseInt(trackEl.dataset.addVariation, 10) } });
+      } else if (kind === 'slot') {
+        events.push({ t, name: 'seq_slot_start', detail: { trackId: trackEl.dataset.addTrackId, slotId: trackEl.dataset.addSlotId, altIndex: 0 } });
+      } else {
+        return;
+      }
+      events.sort((a, b) => a.t - b.t);
+      rerender();
+      onChange && onChange();
+    });
+  });
+
+  // Renommage d'une piste pour cette prise -- calques (vertical), boucles (embranchement-vertical) ou
+  // emplacements (séquentiel), même mécanique : clic sur le nom, remplacé par un champ texte, validé par
+  // Entrée ou en cliquant ailleurs. Le morceau concerné est résolu via data-track-id porté par
+  // l'étiquette (plusieurs morceaux possibles dans la même prise, voir ci-dessus).
+  container.querySelectorAll('.vct-lane-label[data-lane-kind="layer"], .vct-lane-label[data-lane-kind="loop"], .vct-lane-label[data-lane-kind="slot"]').forEach(labelEl => {
+    labelEl.addEventListener('click', () => {
+      const kind = labelEl.dataset.laneKind;
+      const trk = findCaptureTrack(labelEl.dataset.trackId);
+      if (!trk) return;
+      const levelIdx = kind === 'layer' ? parseInt(labelEl.dataset.level, 10) : null;
+      const loopId = kind === 'loop' ? labelEl.dataset.loopId : null;
+      const slotId = kind === 'slot' ? labelEl.dataset.slotId : null;
+      const key = kind === 'loop' ? (trk.id + ':loop:' + loopId) : kind === 'slot' ? (trk.id + ':slot:' + slotId) : (trk.id + ':' + levelIdx);
+      const current = kind === 'loop' ? captureLoopLaneLabel(trk, loopId, laneOverrides)
+        : kind === 'slot' ? captureSlotLaneLabel(trk, slotId, laneOverrides)
+        : captureLaneLabel(trk, levelIdx, laneOverrides);
+      const realDefault = kind === 'loop' ? (((trk.loops || []).find(l => l.id === loopId) || {}).label || '')
+        : kind === 'slot' ? (((trk.segmentSlots || []).find(s => s.id === slotId) || {}).label || '')
+        : ((trk.layers[levelIdx] || {}).label || '');
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'vct-lane-rename-input';
+      input.value = current;
+      labelEl.replaceWith(input);
+      input.focus();
+      input.select();
+      function commit() {
+        const v = input.value.trim();
+        if (v && v !== realDefault) laneOverrides[key] = v;
+        else delete laneOverrides[key];
+        rerender();
+      }
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+        if (ev.key === 'Escape') { ev.preventDefault(); rerender(); }
+      });
+      input.addEventListener('blur', commit);
+    });
+  });
+}
+
+function downloadCaptureEvents(events, videoFileName) {
+  const payload = { capturedAt: new Date().toISOString(), video: videoFileName, events };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `capture-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// --- Sauvegarde côté serveur (2026-09-16) --------------------------------------------------------
+// Décidé le 16 septembre : Jules-Antoine a explicitement écarté le JSON à télécharger/réimporter (trop
+// de friction) au profit d'une sauvegarde hébergée dans le Backstage -- voir supabase/migrations/
+// 20260916010000_video_captures.sql et decisions/2026-09-15-capture-tiers-sauvegarde.md (docs privés).
+// La vidéo importée elle-même n'est PAS envoyée au serveur (choix délibéré, voir la migration) : seul
+// son nom est conservé pour que le compositeur s'y retrouve, il doit réimporter le même fichier local
+// à chaque reprise. Gating réel côté serveur (is_admin(), palier Boss pas encore implémenté) -- ces
+// fonctions ne font que relayer l'appel, aucune vérification client à dupliquer ici.
+async function saveVideoCapture(packId, id, title, videoFilename, events, laneOverrides, collapsedGroups) {
+  const client = window.LayerPitchSupabaseClient.getClient();
+  const { data, error } = await client.rpc('save_video_capture', {
+    p_id: id, p_pack_id: packId, p_title: title || '', p_video_filename: videoFilename || null,
+    p_events: events, p_lane_overrides: laneOverrides, p_collapsed_groups: collapsedGroups,
+  });
+  if (error) throw error;
+  return data;
+}
+async function listVideoCaptures(packId) {
+  const client = window.LayerPitchSupabaseClient.getClient();
+  const { data, error } = await client.rpc('list_my_video_captures', { p_pack_id: packId });
+  if (error) throw error;
+  return data || [];
+}
+async function loadVideoCapture(id) {
+  const client = window.LayerPitchSupabaseClient.getClient();
+  const { data, error } = await client.rpc('get_video_capture', { p_id: id });
+  if (error) throw error;
+  return data;
+}
+
+// --- Export vidéo (ffmpeg.wasm) ---------------------------------------------------------------
+// Même logique que video-engine-prototype/render-from-capture.js (validée côté Node avec de vrais
+// morceaux), portée ici pour tourner directement dans le navigateur -- fichiers servis en local
+// (vendor/ffmpeg/) plutôt que depuis un CDN : le Worker que la librairie construit en interne doit
+// être de même origine que la page, un CDN cross-origin le fait échouer silencieusement (SecurityError).
+let ffmpegSingleton = null;
+async function loadFfmpegWasm(onProgress) {
+  if (ffmpegSingleton) return ffmpegSingleton;
+  onProgress && onProgress('Chargement du moteur ffmpeg (~30 Mo, une seule fois)…');
+  const { FFmpeg } = await import('./vendor/ffmpeg/ffmpeg/index.js');
+  const ffmpeg = new FFmpeg();
+  await ffmpeg.load({
+    coreURL: new URL('./vendor/ffmpeg/core/ffmpeg-core.js', location.href).href,
+    wasmURL: new URL('./vendor/ffmpeg/core/ffmpeg-core.wasm', location.href).href,
+  });
+  ffmpegSingleton = ffmpeg;
+  return ffmpeg;
+}
+
+function findCaptureTrack(trackId) { return (window.__lpCaptureLibrary.library || []).find(t => t.id === trackId); }
+function findCaptureSfx(sfxId) { return (window.__lpCaptureLibrary.sfxLibrary || []).find(s => s.id === sfxId); }
+
+async function fetchAsUint8Array(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Échec de récupération: ${url}`);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+// Reprend exactement la logique de conversion de render-from-capture.js (mode "vertical" -- calques en
+// parallèle -- + stingers). Les embranchements/séquentiel ne sont pas encore gérés ici non plus.
+async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides) {
+  onProgress = onProgress || (() => {});
+  laneOverrides = laneOverrides || {};
+  const ffmpeg = await loadFfmpegWasm(onProgress);
+  const TAIL = 2;
+
+  const stingerEvents = events.filter(e => e.name === 'stinger_play');
+  const layerSegmentEvents = events.filter(e => e.name === 'layer_segment');
+  const embrEvents = events.filter(e => e.name === 'embr_loop_select').sort((a, b) => a.t - b.t);
+  const lastT = Math.max(0, ...events.map(e => e.t),
+    ...stingerEvents.map(e => e.t + (e.detail.durationOverride || 1)),
+    ...layerSegmentEvents.map(e => e.t + e.detail.duration));
+  const total = lastT + TAIL;
+
+  onProgress(`Préparation : ${layerSegmentEvents.length} segment(s) de calque, ${embrEvents.length} bascule(s) de boucle, ${stingerEvents.length} stinger(s)…`);
+
+  const inputs = [];
+  const filterParts = [];
+  const mixLabels = [];
+  let inIdx = 0;
+  let segN = 0;
+  const inputIdxByUrl = {};
+  async function addInputFromUrl(url) {
+    if (inputIdxByUrl[url] !== undefined) return inputIdxByUrl[url];
+    const name = `in${inIdx}${url.slice(url.lastIndexOf('.'))}`;
+    await ffmpeg.writeFile(name, await fetchAsUint8Array(url));
+    inputs.push(name);
+    return (inputIdxByUrl[url] = inIdx++);
+  }
+
+  // Segments de calque (mode vertical) : chaque layer_segment est déjà une plage autonome (IN + durée),
+  // matérialisée une fois pour toutes à l'arrêt de la capture -- voir materializeLayerSegments. Plus besoin
+  // de fusionner quoi que ce soit ici (contrairement à l'ancienne version basée sur intensity_change) :
+  // chaque segment devient directement sa propre prise ffmpeg, toujours lue en absolu depuis le fichier
+  // (calque phase-lock, joue en continu depuis t=0 -- fidèle au vrai moteur).
+  for (const seg of layerSegmentEvents) {
+    const track = findCaptureTrack(seg.detail.trackId);
+    const layer = track && track.layers[seg.detail.layerIndex];
+    if (!layer || !layer.file) { console.warn('Calque introuvable', seg); continue; }
+    onProgress(`Récupération du calque "${layer.label}"…`);
+    const idx = await addInputFromUrl(track.base + layer.file);
+    const label = `seg${segN++}`;
+    const delayMs = Math.round(seg.t * 1000);
+    const dur = seg.detail.duration;
+    const fade = Math.min(0.3, dur / 2);
+    filterParts.push(
+      `[${idx}:a]atrim=start=${seg.t}:end=${seg.t + dur},asetpts=PTS-STARTPTS,` +
+      `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
+      `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`
+    );
+    mixLabels.push(`[${label}]`);
+  }
+
+  // Embranchement-vertical : une seule boucle audible à la fois (fenêtres reconstituées comme dans la
+  // frise -- la boucle de référence joue de 0 jusqu'à la première bascule, chaque embr_loop_select ferme
+  // la fenêtre précédente). Conservées dans embrWindowsByTrack pour être réutilisées par l'incrustation
+  // vidéo plus bas (mêmes libellés, mêmes horaires). Une transition, si la boucle CIBLE en déclare une,
+  // joue en overlay superposé au moment de la bascule -- jamais insérée entre les deux boucles (comme le
+  // vrai moteur, voir l'investigation du 2026-09-15).
+  const embrWindowsByTrack = {};
+  const embrTrackIds = [];
+  embrEvents.forEach(e => { if (embrTrackIds.indexOf(e.detail.trackId) === -1) embrTrackIds.push(e.detail.trackId); });
+  for (const trackId of embrTrackIds) {
+    const track = findCaptureTrack(trackId);
+    if (!track) continue;
+    const trackEmbrEvents = embrEvents.filter(e => e.detail.trackId === trackId);
+    const initialLoop = (track.loops || []).find(l => l.isInitial) || (track.loops || [])[0];
+    const windows = [];
+    if (initialLoop) windows.push({ loopId: initialLoop.id, start: 0, isSwitch: false });
+    trackEmbrEvents.forEach(e => windows.push({ loopId: e.detail.loopId, start: e.t, isSwitch: true }));
+    windows.forEach((w, i) => { w.end = i + 1 < windows.length ? windows[i + 1].start : total; });
+    embrWindowsByTrack[trackId] = windows;
+    for (const w of windows) {
+      const loop = (track.loops || []).find(l => l.id === w.loopId);
+      if (!loop || !loop.file) { console.warn('Boucle introuvable', w); continue; }
+      onProgress(`Récupération de la boucle "${loop.label}"…`);
+      const idx = await addInputFromUrl(track.base + loop.file);
+      const label = `seg${segN++}`;
+      const delayMs = Math.round(w.start * 1000);
+      const dur = w.end - w.start;
+      const fade = Math.min(0.3, dur / 2);
+      filterParts.push(
+        `[${idx}:a]atrim=start=${w.start}:end=${w.end},asetpts=PTS-STARTPTS,` +
+        `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
+        `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`
+      );
+      mixLabels.push(`[${label}]`);
+      if (w.isSwitch && loop.transition && loop.transition.file) {
+        onProgress(`Récupération de la transition de "${loop.label}"…`);
+        const tIdx = await addInputFromUrl(track.base + loop.transition.file);
+        const tLabel = `seg${segN++}`;
+        filterParts.push(`[${tIdx}:a]aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${tLabel}]`);
+        mixLabels.push(`[${tLabel}]`);
+      }
+    }
+  }
+
+  // Séquentiel : une seule variation audible à la fois (comme l'embranchement-vertical), mais chaque
+  // fichier (emplacement, transition, intro, outro) est AUTONOME -- pas phase-locké depuis t=0 comme les
+  // calques verticaux -- donc toujours coupé depuis le DÉBUT de son propre fichier (atrim=start=0), jamais
+  // en position absolue sur le morceau. Les transitions sont insérées SÉQUENTIELLEMENT entre deux
+  // emplacements (pas en overlay comme celles de l'embranchement-vertical) : buildSeqTimelineWindows leur
+  // donne leur propre fenêtre, bornée par le seq_slot_start suivant -- fidèle à la durée réellement
+  // capturée en jeu (2026-09-16, ferme la limite connue signalée le 2026-09-15).
+  const seqWindowsByTrack = {};
+  const seqTrackIds = [];
+  events.forEach(e => { if (SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 && seqTrackIds.indexOf(e.detail.trackId) === -1) seqTrackIds.push(e.detail.trackId); });
+  for (const trackId of seqTrackIds) {
+    const track = findCaptureTrack(trackId);
+    if (!track) continue;
+    const windows = buildSeqTimelineWindows(events, trackId, total);
+    seqWindowsByTrack[trackId] = windows;
+    for (const w of windows) {
+      let file = null;
+      if (w.kind === 'intro') file = track.intro && track.intro.file;
+      else if (w.kind === 'outro') file = track.outro && track.outro.file;
+      else if (w.kind === 'transition') { const tr = resolveCaptureSeqTransition(track, w.fromSlotId, w.targetId); file = tr && tr.file; }
+      else { const resolved = resolveCaptureSeqAlternative(track, w.slotId, w.altIndex); file = resolved && resolved.alt.file; }
+      if (!file) { console.warn('Fichier séquentiel introuvable', w); continue; }
+      const wLabel = captureSeqWindowLabel(track, w, laneOverrides);
+      onProgress(`Récupération de "${wLabel}"…`);
+      const idx = await addInputFromUrl(track.base + file);
+      const label = `seg${segN++}`;
+      const delayMs = Math.round(w.start * 1000);
+      const dur = w.end - w.start;
+      const fade = Math.min(0.3, dur / 2);
+      filterParts.push(
+        `[${idx}:a]atrim=start=0:end=${dur},asetpts=PTS-STARTPTS,` +
+        `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
+        `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`
+      );
+      mixLabels.push(`[${label}]`);
+    }
+  }
+
+  // Vertical-random : une fenêtre "section" peut avoir PLUSIEURS voix simultanées, un pick par pool
+  // (comme les calques du mode vertical), contrairement au séquentiel où une seule variation est audible à
+  // la fois. Chaque pick est phase-locké à son PROPRE bufferOffset (capturé dans l'événement par
+  // scheduleSectionGeneration, player.js) -- un point fixe DANS LE FICHIER (le début du cycle de boucle de
+  // cette section), pas une position absolue sur la frise -- donc atrim=start=bufferOffset, jamais
+  // atrim=start=0 comme pour un emplacement séquentiel. Intro/outro restent des fichiers uniques joués
+  // depuis leur tout début, comme en séquentiel. `picks` reste un détail interne à l'événement (jamais
+  // affiché dans la frise, voir buildVRTimelineWindows) -- seul l'export s'en sert.
+  const vrWindowsByTrack = {};
+  const vrTrackIds = [];
+  events.forEach(e => { if (VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 && vrTrackIds.indexOf(e.detail.trackId) === -1) vrTrackIds.push(e.detail.trackId); });
+  for (const trackId of vrTrackIds) {
+    const track = findCaptureTrack(trackId);
+    if (!track) continue;
+    const windows = buildVRTimelineWindows(events, trackId, total);
+    vrWindowsByTrack[trackId] = windows;
+    for (const w of windows) {
+      const dur = w.end - w.start;
+      const fade = Math.min(0.3, dur / 2);
+      const delayMs = Math.round(w.start * 1000);
+      const wLabel = captureVRWindowLabel(track, w);
+      if (w.kind === 'intro' || w.kind === 'outro') {
+        const file = w.kind === 'intro' ? (track.intro && track.intro.file) : (track.outro && track.outro.file);
+        if (!file) { console.warn('Fichier vertical-random introuvable', w); continue; }
+        onProgress(`Récupération de "${wLabel}"…`);
+        const idx = await addInputFromUrl(track.base + file);
+        const label = `seg${segN++}`;
+        filterParts.push(
+          `[${idx}:a]atrim=start=0:end=${dur},asetpts=PTS-STARTPTS,` +
+          `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
+          `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`
+        );
+        mixLabels.push(`[${label}]`);
+        continue;
+      }
+      const section = resolveCaptureVRSection(track, w.sectionIndex);
+      if (!section) { console.warn('Section vertical-random introuvable', w); continue; }
+      onProgress(`Récupération de "${wLabel}"…`);
+      for (const pick of w.picks) {
+        if (pick.altIndex == null || pick.altIndex < 0) continue; // silence tiré pour ce pool à ce cycle
+        const pool = (section.pools || [])[pick.poolIndex];
+        const alt = pool && (pool.alternatives || [])[pick.altIndex];
+        if (!alt || !alt.file) continue;
+        const idx = await addInputFromUrl(track.base + alt.file);
+        const label = `seg${segN++}`;
+        const off = w.bufferOffset || 0;
+        filterParts.push(
+          `[${idx}:a]atrim=start=${off}:end=${off + dur},asetpts=PTS-STARTPTS,` +
+          `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
+          `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`
+        );
+        mixLabels.push(`[${label}]`);
+      }
+    }
+  }
+
+  // Stingers dans un bus séparé (pas mixLabels directement) : un stinger marqué "duck" doit faire baisser
+  // le volume de la MUSIQUE pendant qu'il joue, pas de lui-même -- voir la combinaison finale plus bas.
+  const stingerMixLabels = [];
+  const duckWindows = [];
+  for (const s of stingerEvents) {
+    const sfx = findCaptureSfx(s.detail.sfxId);
+    const alt = sfx && sfx.alternatives && sfx.alternatives[s.detail.variationIndex];
+    if (!alt) { console.warn('Sfx introuvable', s); continue; }
+    onProgress(`Récupération du stinger "${sfx.title}"…`);
+    const idx = await addInputFromUrl(sfx.base + alt.file);
+    const label = `seg${segN++}`;
+    const delayMs = Math.round(s.t * 1000);
+    // Sans durée retouchée : le stinger joue tel quel, longueur d'origine du fichier (comportement
+    // historique). Avec une durée retouchée (édition façon cue sheet, OUT), on le raccourcit à la volée --
+    // une durée plus longue que le fichier n'a aucun effet, atrim ne peut pas inventer du son.
+    const trim = s.detail.durationOverride ? `atrim=start=0:end=${s.detail.durationOverride},` : '';
+    filterParts.push(`[${idx}:a]${trim}aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`);
+    stingerMixLabels.push(`[${label}]`);
+    // Duck (2026-09-15, case à cocher dans le panneau de détail) : suit le réglage d'origine du son
+    // (duckMainTrack) sauf retouche explicite pour cette prise (e.detail.duck).
+    const duck = s.detail.duck !== undefined ? s.detail.duck : !!(sfx && sfx.duckMainTrack);
+    if (duck) duckWindows.push({ start: s.t, end: s.t + (s.detail.durationOverride || 1) });
+  }
+
+  // Combine la musique (calques + boucles) séparément d'abord, avec un creux de volume pendant chaque
+  // fenêtre "duck" -- reproduit le comportement du vrai moteur (duckMainTrack) sans quoi la musique
+  // resterait à plein volume sous les stingers concernés. Puis mixe ce bus (éventuellement creusé) avec
+  // les stingers eux-mêmes (jamais duckés par leur propre passage) pour le mix final.
+  let musicBusLabel = null;
+  if (mixLabels.length) {
+    filterParts.push(`${mixLabels.join('')}amix=inputs=${mixLabels.length}:normalize=0:duration=longest[musicmix]`);
+    musicBusLabel = 'musicmix';
+    duckWindows.forEach((w, i) => {
+      const next = `duck${i}`;
+      filterParts.push(`[${musicBusLabel}]volume=0.35:enable='between(t,${w.start},${w.end})'[${next}]`);
+      musicBusLabel = next;
+    });
+  }
+  const finalMixLabels = (musicBusLabel ? [`[${musicBusLabel}]`] : []).concat(stingerMixLabels);
+  filterParts.push(`${finalMixLabels.join('')}amix=inputs=${finalMixLabels.length}:normalize=0:duration=longest[aout]`);
+
+  onProgress('Préparation de la vidéo importée…');
+  const videoExt = videoFile.name.slice(videoFile.name.lastIndexOf('.')) || '.mp4';
+  const videoName = `bg${videoExt}`;
+  await ffmpeg.writeFile(videoName, new Uint8Array(await videoFile.arrayBuffer()));
+  inputs.push(videoName);
+  const videoIdx = inIdx++;
+
+  // Incrustation à l'écran (libellé du niveau d'intensité actif + flash sur stinger) : volontaire dans le
+  // vrai export, pas juste un aide-debug -- montrer concrètement l'adaptativité de la musique est tout
+  // l'intérêt de la démo. Le moteur ffmpeg.wasm n'a aucune police embarquée par défaut (drawtext échoue
+  // sans fontfile) -- on lui fournit celle déjà utilisée par le reste du site (JetBrains Mono, licence
+  // libre, vendor/fonts/).
+  onProgress('Préparation de la police d\u2019incrustation…');
+  await ffmpeg.writeFile('font.ttf', await fetchAsUint8Array(new URL('./vendor/fonts/JetBrainsMono-Regular.ttf', location.href).href));
+  let videoChain = `[${videoIdx}:v]`;
+  const drawtexts = [];
+  // Un calque = une hauteur d'incrustation qui lui est propre (dérivée de son layerIndex) -- plusieurs
+  // calques pouvant désormais être actifs en même temps (segments indépendants), superposer leurs
+  // libellés à la même hauteur les rendrait illisibles.
+  for (const seg of layerSegmentEvents) {
+    const track = findCaptureTrack(seg.detail.trackId);
+    const label = (track ? captureLaneLabel(track, seg.detail.layerIndex, laneOverrides) : 'calque ' + seg.detail.layerIndex).replace(/['\\:]/g, '');
+    drawtexts.push(
+      `drawtext=fontfile=font.ttf:text='${label}':x=24:y=h-56-${seg.detail.layerIndex * 30}:fontsize=22:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6:` +
+      `enable='between(t,${seg.t},${seg.t + seg.detail.duration})'`
+    );
+  }
+  Object.keys(embrWindowsByTrack).forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    embrWindowsByTrack[trackId].forEach(w => {
+      const label = (track ? captureLoopLaneLabel(track, w.loopId, laneOverrides) : w.loopId).replace(/['\\:]/g, '');
+      drawtexts.push(
+        `drawtext=fontfile=font.ttf:text='${label}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:` +
+        `enable='between(t,${w.start},${w.end})'`
+      );
+    });
+  });
+  Object.keys(seqWindowsByTrack).forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    seqWindowsByTrack[trackId].forEach(w => {
+      const label = captureSeqWindowLabel(track, w, laneOverrides).replace(/['\\:]/g, '');
+      drawtexts.push(
+        `drawtext=fontfile=font.ttf:text='${label}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:` +
+        `enable='between(t,${w.start},${w.end})'`
+      );
+    });
+  });
+  Object.keys(vrWindowsByTrack).forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    vrWindowsByTrack[trackId].forEach(w => {
+      const label = captureVRWindowLabel(track, w).replace(/['\\:]/g, '');
+      drawtexts.push(
+        `drawtext=fontfile=font.ttf:text='${label}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:` +
+        `enable='between(t,${w.start},${w.end})'`
+      );
+    });
+  });
+  for (const s of stingerEvents) {
+    const sfx = findCaptureSfx(s.detail.sfxId);
+    const label = ((sfx && sfx.title) || 'stinger').toUpperCase().replace(/['\\:]/g, '');
+    const flashDur = s.detail.durationOverride || 1; // sans retouche, flash d'1s par défaut (durée réelle inconnue sans sonder le fichier)
+    drawtexts.push(
+      `drawtext=fontfile=font.ttf:text='${label} !':x=24:y=24:fontsize=26:fontcolor=0xffaa55:box=1:boxcolor=0x000000AA:boxborderw=8:` +
+      `enable='between(t,${s.t},${s.t + flashDur})'`
+    );
+  }
+  videoChain += (drawtexts.length ? drawtexts.join(',') : 'null') + '[vout]';
+  filterParts.push(videoChain);
+
+  const filterComplex = filterParts.join(';');
+  const args = [];
+  inputs.forEach(name => args.push('-i', name));
+  args.push(
+    '-filter_complex', filterComplex,
+    '-map', '[vout]', '-map', '[aout]',
+    '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac',
+    '-shortest',
+    'out.mp4'
+  );
+
+  onProgress('Rendu en cours (peut prendre une minute)…');
+  const logs = [];
+  const onLog = ({ message }) => logs.push(message);
+  ffmpeg.on('log', onLog);
+  let exitCode;
+  try {
+    exitCode = await ffmpeg.exec(args);
+  } finally {
+    ffmpeg.off('log', onLog);
+  }
+  if (exitCode !== 0) {
+    throw new Error('ffmpeg a échoué : ' + logs.slice(-6).join(' | '));
+  }
+  const data = await ffmpeg.readFile('out.mp4');
+  return new Blob([data.buffer], { type: 'video/mp4' });
+}
+
+function closeCapturePanel() {
+  if (videoCaptureState) stopCapture();
+  const panel = document.getElementById('videoTestPanel');
+  panel.classList.remove('active');
+  document.body.classList.remove('video-panel-active');
+  panel.innerHTML = ''; // libère l'URL objet de la vidéo en vidant le <video>, pas juste en le masquant
+}
+
+function openCapturePanel(file) {
+  const panel = document.getElementById('videoTestPanel');
+  const objectUrl = URL.createObjectURL(file);
+  panel.innerHTML = `
+    <div class="video-test-panel-header">
+      <span class="video-test-panel-title">CAPTURE — ${window.LayerPlayerCore.escapeHtml(file.name)}</span>
+      <div class="video-test-panel-actions">
+        <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="Fermer" aria-label="Fermer">✕</button>
+      </div>
+    </div>
+    <div class="video-test-panel-frame-wrap"><video id="videoCaptureEl" src="${objectUrl}" controls muted></video></div>
+    <div class="video-capture-bar">
+      <button type="button" class="video-capture-record-btn" id="videoCaptureRecordBtn"><span class="dot"></span><span id="videoCaptureRecordLabel">Démarrer la capture</span></button>
+      <span class="video-capture-armed-status" id="videoCaptureArmedStatus" title="Se règle depuis le bouton ⏺ à côté du lecteur du morceau, pas ici"></span>
+      <span class="video-capture-count" id="videoCaptureCount"></span>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureDownloadBtn" disabled>Télécharger le JSON</button>
+    </div>
+    <div class="video-capture-bar">
+      <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>Exporter la vidéo (.mp4)</button>
+      <span class="video-capture-count" id="videoCaptureExportStatus"></span>
+    </div>
+    <div class="video-capture-bar">
+      <input type="text" class="video-capture-title-input" id="videoCaptureTitleInput" placeholder="Nom de la prise (optionnel)">
+      <button type="button" class="video-capture-download-btn" id="videoCaptureSaveBtn" disabled>Sauvegarder</button>
+      <select class="video-capture-load-select" id="videoCaptureLoadSelect" disabled><option value="">Charger une prise…</option></select>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureLoadBtn" disabled>Charger</button>
+      <span class="video-capture-count" id="videoCaptureSaveStatus"></span>
+    </div>
+    <div class="video-capture-timeline" id="videoCaptureTimeline"></div>
+  `;
+  panel.classList.add('active');
+  document.body.classList.add('video-panel-active');
+  updateArmedStatusDisplay(); // reflète tout de suite une piste déjà armée avant l'ouverture du panneau
+  const videoEl = document.getElementById('videoCaptureEl');
+  const recordBtn = document.getElementById('videoCaptureRecordBtn');
+  const recordLabel = document.getElementById('videoCaptureRecordLabel');
+  const countEl = document.getElementById('videoCaptureCount');
+  const downloadBtn = document.getElementById('videoCaptureDownloadBtn');
+  const exportBtn = document.getElementById('videoCaptureExportBtn');
+  const exportStatus = document.getElementById('videoCaptureExportStatus');
+  const titleInput = document.getElementById('videoCaptureTitleInput');
+  const saveBtn = document.getElementById('videoCaptureSaveBtn');
+  const loadSelect = document.getElementById('videoCaptureLoadSelect');
+  const loadBtn = document.getElementById('videoCaptureLoadBtn');
+  const saveStatus = document.getElementById('videoCaptureSaveStatus');
+  const timelineEl = document.getElementById('videoCaptureTimeline');
+  let lastEvents = [];
+  // Identifiant de la prise sauvegardée en cours (null tant qu'aucune sauvegarde n'a encore été faite
+  // pour CETTE prise -- généré au premier clic sur Sauvegarder, réutilisé ensuite pour que les
+  // sauvegardes successives mettent à jour la même ligne plutôt que d'en créer une nouvelle à chaque
+  // fois). Remplacé par l'id chargé si le compositeur reprend une prise existante via "Charger".
+  let currentCaptureId = null;
+  const packId = window.__lpTrackContext && window.__lpTrackContext.id;
+  // Noms de piste retouchés pour cette prise (ex. "Ca va, c'est cool" -> "Intensité basse") -- persistent
+  // tant que ce panneau reste ouvert (plusieurs prises successives sur la même vidéo gardent les mêmes
+  // noms), remis à zéro à la prochaine ouverture d'un nouveau fichier. Voir captureLaneLabel().
+  let laneOverrides = {};
+  // Groupes repliés (par clé "track:<id>" ou "sfx:<id>") -- persistent tant que ce panneau reste ouvert,
+  // même logique que laneOverrides ci-dessus.
+  let collapsedGroups = {};
+  function refreshActionButtons() {
+    downloadBtn.disabled = lastEvents.length === 0;
+    exportBtn.disabled = lastEvents.length === 0;
+    saveBtn.disabled = lastEvents.length === 0;
+  }
+  recordBtn.addEventListener('click', () => {
+    if (videoCaptureState) {
+      lastEvents = materializeLayerSegments(stopCapture());
+      recordBtn.classList.remove('recording');
+      recordLabel.textContent = 'Démarrer la capture';
+      countEl.textContent = `${lastEvents.length} événement(s) capturé(s)`;
+      refreshActionButtons();
+      renderCaptureTimeline(timelineEl, lastEvents, true, () => {
+        countEl.textContent = `${lastEvents.length} événement(s) capturé(s)`;
+        refreshActionButtons();
+      }, laneOverrides, collapsedGroups, videoEl);
+    } else {
+      startCapture(videoEl);
+      // Piste armée (2026-09-15, boutons ⏺ posés à côté du lecteur du morceau -- voir
+      // setupCaptureTrigger) : générique, quel que soit le mode -- "comme si on appuyait sur lecture au
+      // début de la capture" (confirmé par Jules-Antoine), pas besoin de connaître le niveau d'intensité
+      // ni quoi que ce soit de propre à un mode. On se contente de déposer un repère track_play à t=0 ;
+      // c'est à materializeLayerSegments (et, plus tard, à l'équivalent séquentiel) de décider ce que
+      // "vient de démarrer" veut dire pour son propre mode (niveau 0 par défaut pour le vertical --
+      // l'embranchement-vertical, lui, part déjà de sa boucle de référence sans avoir besoin de ce repère).
+      if (armedTrackId) {
+        videoCaptureState.events.push({ t: 0, name: 'track_play', detail: { trackId: armedTrackId } });
+      }
+      recordBtn.classList.add('recording');
+      recordLabel.textContent = 'Arrêter la capture';
+      countEl.textContent = 'Capture en cours…';
+      downloadBtn.disabled = true;
+      exportBtn.disabled = true;
+      saveBtn.disabled = true;
+      exportStatus.textContent = '';
+      // Une nouvelle capture = une nouvelle prise à sauvegarder (jamais un écrasement silencieux d'une
+      // sauvegarde précédente) -- currentCaptureId reparti à zéro, un nouveau clic sur Sauvegarder créera
+      // une ligne distincte plutôt que de mettre à jour l'ancienne.
+      currentCaptureId = null;
+      saveStatus.textContent = '';
+      const tick = setInterval(() => {
+        if (!videoCaptureState) { clearInterval(tick); return; }
+        countEl.textContent = `${videoCaptureState.events.length} événement(s) capturé(s)`;
+        renderCaptureTimeline(timelineEl, videoCaptureState.events, false, null, laneOverrides, collapsedGroups, videoEl);
+      }, 500);
+    }
+  });
+  // Tête de lecture en continu pendant que la vidéo avance -- repositionne juste la ligne (pas de
+  // ré-affichage complet de la frise, trop coûteux à chaque frame).
+  videoEl.addEventListener('timeupdate', () => positionCapturePlayhead(timelineEl, videoEl));
+  downloadBtn.addEventListener('click', () => downloadCaptureEvents(lastEvents, file.name));
+  exportBtn.addEventListener('click', async () => {
+    exportBtn.disabled = true;
+    try {
+      const blob = await exportCaptureVideo(lastEvents, file, (msg) => { exportStatus.textContent = msg; }, laneOverrides);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `export-${Date.now()}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      exportStatus.textContent = 'Export terminé.';
+    } catch (e) {
+      console.error(e);
+      exportStatus.textContent = 'Échec de l’export : ' + e.message;
+    } finally {
+      exportBtn.disabled = false;
+    }
+  });
+  // Sauvegarde/reprise côté serveur (2026-09-16) -- voir saveVideoCapture/listVideoCaptures/loadVideoCapture
+  // plus haut. `packId` vient de window.__lpTrackContext.id (déjà résolu par init()), jamais redemandé ici.
+  saveBtn.addEventListener('click', async () => {
+    if (!packId || !lastEvents.length) return;
+    saveBtn.disabled = true;
+    saveStatus.textContent = 'Sauvegarde…';
+    try {
+      if (!currentCaptureId) {
+        currentCaptureId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+      }
+      await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups);
+      saveStatus.textContent = 'Sauvegardé.';
+      refreshLoadOptions();
+    } catch (e) {
+      console.error(e);
+      saveStatus.textContent = 'Échec de la sauvegarde : ' + e.message;
+    } finally {
+      saveBtn.disabled = lastEvents.length === 0;
+    }
+  });
+  loadSelect.addEventListener('change', () => { loadBtn.disabled = !loadSelect.value; });
+  loadBtn.addEventListener('click', async () => {
+    if (!loadSelect.value) return;
+    loadBtn.disabled = true;
+    saveStatus.textContent = 'Chargement…';
+    try {
+      const capture = await loadVideoCapture(loadSelect.value);
+      currentCaptureId = capture.id;
+      lastEvents = capture.events || [];
+      laneOverrides = capture.laneOverrides || {};
+      collapsedGroups = capture.collapsedGroups || {};
+      titleInput.value = capture.title || '';
+      countEl.textContent = `${lastEvents.length} événement(s) capturé(s)`;
+      refreshActionButtons();
+      renderCaptureTimeline(timelineEl, lastEvents, true, () => {
+        countEl.textContent = `${lastEvents.length} événement(s) capturé(s)`;
+        refreshActionButtons();
+      }, laneOverrides, collapsedGroups, videoEl);
+      // La vidéo elle-même n'est jamais sauvegardée (voir la migration) -- seul son nom d'origine permet
+      // de vérifier qu'on a bien réimporté le bon fichier avant de faire confiance aux horaires chargés.
+      saveStatus.textContent = capture.videoFilename && capture.videoFilename !== file.name
+        ? `Chargé (capturée à l'origine sur "${capture.videoFilename}", vérifie que c'est la bonne vidéo).`
+        : 'Chargé.';
+    } catch (e) {
+      console.error(e);
+      saveStatus.textContent = 'Échec du chargement : ' + e.message;
+    } finally {
+      loadBtn.disabled = false;
+    }
+  });
+  async function refreshLoadOptions() {
+    if (!packId) return;
+    try {
+      const captures = await listVideoCaptures(packId);
+      const current = loadSelect.value;
+      loadSelect.innerHTML = '<option value="">Charger une prise…</option>' + captures.map(c =>
+        `<option value="${c.id}">${window.LayerPlayerCore.escapeHtml(c.title || 'Sans titre')} — ${new Date(c.updatedAt).toLocaleString()}</option>`
+      ).join('');
+      loadSelect.value = captures.some(c => c.id === current) ? current : '';
+      loadSelect.disabled = captures.length === 0;
+      loadBtn.disabled = !loadSelect.value;
+    } catch (e) {
+      console.error('Échec de la liste des prises sauvegardées', e);
+    }
+  }
+  refreshLoadOptions();
+  document.getElementById('videoCaptureCloseBtn').addEventListener('click', () => {
+    URL.revokeObjectURL(objectUrl);
+    closeCapturePanel();
+  });
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Éligibilité : réservé aux comptes admin (même barrière d'affichage que le Backstage, is_admin() RPC --
+// la vraie barrière de sécurité serait de toute façon côté serveur le jour où cette capture écrit
+// quelque part, ici on ne fait qu'afficher/masquer un bouton). Ne charge les scripts d'auth que si
+// nécessaire, comme le fait déjà loadPurchaseScripts() pour l'achat -- page publique, rien de tout ça
+// ne doit ralentir un visiteur ordinaire.
+async function setupCaptureTrigger(pack, container) {
+  if (!pack.videoTestModeEnabled) return;
+  try {
+    await loadPurchaseScripts();
+    const { session } = await window.LayerPitchAuth.getSession();
+    if (!session) return;
+    const { data: isAdmin } = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin');
+    if (!isAdmin) return;
+  } catch (e) { return; } // jamais bloquant pour le reste de la page
+
+  const captureBtn = document.createElement('button');
+  captureBtn.type = 'button';
+  captureBtn.className = 'video-capture-trigger-btn';
+  captureBtn.textContent = 'Capturer une prise (admin)';
+  captureBtn.addEventListener('click', () => document.getElementById('videoCaptureDialog').showModal());
+  container.insertBefore(captureBtn, container.firstChild);
+
+  // Boutons ⏺ "Armer" -- un par morceau, posés directement à côté de son propre bouton de lecture dans
+  // le VRAI lecteur du pack (pas un sélecteur séparé dans le panneau de capture) : plus logique puisque
+  // c'est là que le compositeur manipule déjà les morceaux (confirmé par Jules-Antoine 2026-09-15).
+  // Exclusif -- en armer un désarme automatiquement l'ancien. `[data-track-id]` posé par
+  // renderTracksBlock (player.js, décoratif) permet de retrouver quel bloc correspond à quel morceau.
+  document.querySelectorAll('[data-track-id]').forEach(row => {
+    const playBtn = row.querySelector('[data-role="playBtn"]');
+    if (!playBtn || row.querySelector('.video-capture-arm-track-btn')) return;
+    const armBtn = document.createElement('button');
+    armBtn.type = 'button';
+    armBtn.className = 'video-capture-arm-track-btn';
+    armBtn.textContent = '⏺';
+    armBtn.title = 'Armer cette piste pour la capture (admin)';
+    armBtn.addEventListener('click', () => {
+      const trackId = row.dataset.trackId;
+      armedTrackId = (armedTrackId === trackId) ? null : trackId; // reclique = désarme
+      document.querySelectorAll('.video-capture-arm-track-btn').forEach(b => b.classList.remove('armed'));
+      if (armedTrackId === trackId) armBtn.classList.add('armed');
+      updateArmedStatusDisplay();
+    });
+    playBtn.insertAdjacentElement('afterend', armBtn);
+  });
+}
+
+(function setupVideoCaptureDialog() {
+  const dialog = document.getElementById('videoCaptureDialog');
+  const dropzone = document.getElementById('videoCaptureDropzone');
+  const fileInput = document.getElementById('videoCaptureFileInput');
+  const errorEl = document.getElementById('videoCaptureError');
+  const cancelBtn = document.getElementById('videoCaptureCancelBtn');
+  if (!dialog) return;
+  function handleFile(file) {
+    if (!file || !file.type.startsWith('video/')) {
+      errorEl.textContent = 'Choisis un fichier vidéo.';
+      return;
+    }
+    errorEl.textContent = '';
+    dialog.close();
+    openCapturePanel(file);
+  }
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    handleFile(e.dataTransfer.files[0]);
+  });
+  cancelBtn.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('close', () => { errorEl.textContent = ''; fileInput.value = ''; });
+})();
+
 async function init() {
   const container = document.getElementById('content');
   const id = new URLSearchParams(location.search).get('id');
@@ -914,6 +2539,8 @@ async function init() {
     const data = await loadSiteData();
     if (previewActive) showPreviewModeBanner();
     window.__lpTrackContext.ownerId = lastResolvedOwnerId;
+    // Référence pour le mode Capture (résolution trackId/sfxId -> fichier réel, voir exportCaptureVideo).
+    window.__lpCaptureLibrary = { library: data.library || [], sfxLibrary: data.sfxLibrary || [] };
     const pack = (data.packs || []).find(p => p.id === id);
     if (!pack) {
       container.innerHTML = `<div class="empty">${tr('packNotFound')}</div>`;
@@ -972,6 +2599,7 @@ async function init() {
       triggerBtn.title = tr('videoTestTriggerBtnHelp');
       triggerBtn.addEventListener('click', () => document.getElementById('videoTestDialog').showModal());
       container.appendChild(triggerBtn);
+      setupCaptureTrigger(pack, container); // async, ne bloque pas le rendu -- s'insère seule si admin
     }
     container.appendChild(musicContainer);
     const libraryById = {};

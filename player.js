@@ -580,6 +580,9 @@ function renderTracksBlock(container, tracks, packsByTrackId, globalNoAiCertifie
   tracks.forEach(track => {
     const packsForTrack = (packsByTrackId && packsByTrackId[track.id]) || [];
     const row = buildTrackRow(track, packsForTrack, globalNoAiCertified, allCertified);
+    // Repère purement décoratif (aucun effet sur la lecture) -- permet à un outil externe de retrouver
+    // quelle ligne correspond à quel morceau sans deviner par l'ordre du DOM (mode Capture, pack.html).
+    row.dataset.trackId = track.id;
     el.appendChild(row);
     initTrackPlayer(track, row, elementColors);
   });
@@ -2437,6 +2440,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
     });
     seqTimeouts.forEach(id => clearTimeout(id)); seqTimeouts = [];
     if (transitionBuf) {
+      // Repère pour le mode Capture (pack.html, 2026-09-15), même principe que seq_slot_start : contrairement
+      // à une génération normale (programmée jusqu'à 1s à l'avance), une coupure part quasi immédiatement --
+      // pas de décalage d'anticipation à corriger ici.
+      trackPublicEvent('seq_transition_start', { trackId: track.id, fromSlotId: sourceSlot.id, targetId });
       forcedNextBlock = {
         buffer: transitionBuf, label: (opt.transition && opt.transition.label) || t('transitionFallbackLabel'),
         durationSec: transitionDurationSec, terminal: false, kind: 'transition',
@@ -2494,13 +2501,28 @@ function initTrackPlayer(track, wrapper, elementColors) {
     if (forcedNextBlock) { const b = forcedNextBlock; forcedNextBlock = null; return b; }
     if (goToEndRequested) {
       goToEndRequested = false;
-      if (outroBuffer) return { buffer: outroBuffer, label: (track.outro && track.outro.label) || 'Outro', durationSec: null, terminal: true, kind: 'outro', gain: effGain(track.outro), desc: pickStageDescription(track.outro) };
+      if (outroBuffer) {
+        // Repère pour le mode Capture -- l'outro est terminale (rien après), donc sa durée réelle n'a pas
+        // besoin d'être anticipée par materializeLayerSegments : elle va jusqu'à la fin de la prise.
+        trackPublicEvent('seq_outro_start', { trackId: track.id });
+        return { buffer: outroBuffer, label: (track.outro && track.outro.label) || 'Outro', durationSec: null, terminal: true, kind: 'outro', gain: effGain(track.outro), desc: pickStageDescription(track.outro) };
+      }
       return null;
     }
     const picked = pickNextSegmentSlot();
     if (!picked) return null;
     const slot = track.segmentSlots[picked.slotIdx];
     const alt = resolveSlotAlternative(picked.slotIdx, picked.altIdx);
+    // Repère générique pour le mode Capture (pack.html, 2026-09-15) : contrairement à seq_branch_select
+    // (qui ne fire que sur un clic manuel d'embranchement), ce point de passage voit TOUJOURS un nouveau
+    // segment, qu'il vienne d'un enchaînement automatique ou d'une coupure -- même principe que
+    // embr_loop_select pour l'embranchement-vertical. altIndex précise quelle variation a été tirée au
+    // sort, indispensable pour rejouer fidèlement ce qui a vraiment été entendu. Purement une nouvelle
+    // ligne d'analytics, silencieuse si personne ne l'écoute -- aucun effet sur la lecture elle-même.
+    // Note : programmé jusqu'à `lookahead` (1s) avant de devenir réellement audible (voir seqSchedulerTick
+    // plus bas), donc légèrement en avance sur le son perçu -- acceptable pour une capture, pas pour un
+    // minutage sample-accurate.
+    trackPublicEvent('seq_slot_start', { trackId: track.id, slotId: slot.id, altIndex: picked.altIdx });
     return { buffer: slotBuffers[picked.slotIdx][picked.altIdx], label: (alt && alt.label) || (slot.label || ('Emplacement ' + (picked.slotIdx + 1))), durationSec: blockSeconds(alt && alt.bars, slot), terminal: false, kind: 'segment', gain: effGain(alt), slotIdx: picked.slotIdx, desc: pickStageDescription(slot) };
   }
   function armSeqFinalEnd() {
@@ -2576,11 +2598,17 @@ function initTrackPlayer(track, wrapper, elementColors) {
       // l'intro suit le tempo de la première section jouable.
       const firstSlot = (track.segmentSlots || [])[0];
       firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars, firstSlot); firstKind = 'intro'; firstGain = effGain(track.intro); firstDesc = pickStageDescription(track.intro);
+      // Repère pour le mode Capture -- l'intro ne passe jamais par decideNextSeqBlock() (voir son
+      // commentaire pour seq_slot_start), donc pas couverte par ce repère-là : son propre événement.
+      trackPublicEvent('seq_intro_start', { trackId: track.id });
     } else {
       const picked = pickNextSegmentSlot();
       if (!picked) { if (statusEl) statusEl.textContent = t('noSegmentAvailable'); return; }
       const slot = track.segmentSlots[picked.slotIdx];
       const alt = resolveSlotAlternative(picked.slotIdx, picked.altIdx);
+      // Même repère que dans decideNextSeqBlock() ci-dessus, pour le tout premier segment (celui-ci ne
+      // passe jamais par decideNextSeqBlock() -- voir le commentaire là-bas pour le raisonnement complet).
+      trackPublicEvent('seq_slot_start', { trackId: track.id, slotId: slot.id, altIndex: picked.altIdx });
       firstBuffer = slotBuffers[picked.slotIdx][picked.altIdx]; firstLabel = (alt && alt.label) || (slot.label || ('Emplacement ' + (picked.slotIdx + 1))); firstDurationSec = blockSeconds(alt && alt.bars, slot); firstKind = 'segment'; firstGain = effGain(alt); firstSlotIdx = picked.slotIdx; firstDesc = pickStageDescription(slot);
     }
     scheduleSeqGeneration(now, firstBuffer, firstLabel, firstKind, firstDurationSec, firstGain, 0, null, false, firstSlotIdx, firstDesc);
@@ -3482,16 +3510,23 @@ function initTrackPlayer(track, wrapper, elementColors) {
   let vrCurrentSectionOriginalIndex = -1; // pour savoir quand la section affichée doit changer (rebuild du graphe)
   function scheduleSectionGeneration(ctxStartTime, secIdx, isFirstEverForThisSection, offsetOverride) {
     const section = resolveVRSection(track, secIdx);
+    const declaredSection = (track.sections || [])[secIdx];
     const timing = sectionTiming(section);
     const bufferOffset = offsetOverride != null ? offsetOverride : (isFirstEverForThisSection ? timing.startTrackSec : timing.loopInSec);
     const pools = section.pools || [];
     const poolPicks = [];
+    const telemetryPicks = []; // { poolIndex, altIndex } par pool réellement tiré CE cycle -- seule donnée qui
+    // permette de reproduire fidèlement l'audio à l'export (moteur de capture, pack.html) sans pour autant
+    // détailler le pool dans l'éditeur de frise lui-même (demande explicite de Jules-Antoine le 2026-09-16 :
+    // "dans l'éditeur, on ne détaille pas le contenu du pool" -- ce champ reste un détail interne à
+    // l'événement, jamais affiché comme une piste séparée).
     pools.forEach((pool, poolIdx) => {
       const displaySlot = poolIdx; // les sections d'un même morceau ont chacune leur propre liste de pools,
       // affichée dans les mêmes emplacements visuels 0..N-1 (voir vrMaxPoolCount) — une section avec moins
       // de pools laisse simplement les emplacements suivants masqués.
       const bufs = (sectionBuffers[secIdx] && sectionBuffers[secIdx][poolIdx]) || [];
       const idx = pickPoolAlternativeIndex(secIdx, poolIdx);
+      telemetryPicks.push({ poolIndex: displaySlot, altIndex: idx });
       let label = '—', silent = true, pickedBuf = null;
       if (idx >= 0) {
         const alt = (pool.alternatives || [])[idx];
@@ -3519,6 +3554,15 @@ function initTrackPlayer(track, wrapper, elementColors) {
     scheduleVoiceGraphUpdate(ctxStartTime, poolPicks, secIdx);
     lastGenSources = activeGenSources.slice(-Math.max(1, pools.length)).map(s => s.src);
     scheduledGens.push({ ctxStartTime, bufferOffset });
+    // Capture/export (2026-09-16, voir pack.html) : un cycle de section = une fenêtre autonome à reproduire
+    // fidèlement (mêmes tirages, même offset dans les fichiers) -- déclenché à CHAQUE appel de cette
+    // fonction, donc aussi bien un vrai changement de section qu'un simple bouclage de la section courante
+    // OU un seek manuel (seekVerticalRandom réutilise ce même point d'entrée) : les trois sont des moments
+    // où de nouvelles sources démarrent réellement, donc trois moments valides à capturer.
+    trackPublicEvent('vr_section_start', {
+      trackId: track.id, sectionId: (declaredSection && declaredSection.id) || null, sectionIndex: secIdx,
+      bufferOffset, picks: telemetryPicks,
+    });
     const roughCutoffWindow = 8; // les sections n'ont pas de cycleLength unique commun, fenêtre fixe raisonnable
     const cutoff = ctx.currentTime - roughCutoffWindow;
     if (scheduledGens.length > 12) scheduledGens = scheduledGens.filter(g => g.ctxStartTime >= cutoff);
@@ -3544,6 +3588,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         activeGenSources.push({ src, gain: g, voiceKey: 'intro', baseGain: effGain(track.intro) });
         lastGenSources = [src];
         scheduledGens.push({ ctxStartTime: vrNextStartCtxTime, bufferOffset: 0 });
+        trackPublicEvent('vr_intro_start', { trackId: track.id });
         // Durée nominale de l'intro : mesures déclarées, au tempo de la PREMIÈRE section jouable (elle
         // seule a un sens ici, l'intro n'appartenant à aucune section) — la partie du fichier qui dépasse
         // cette durée nominale forme la queue de chevauchement, exactement comme en séquentiel.
@@ -3566,6 +3611,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         activeGenSources.push({ src, gain: g, voiceKey: 'outro', baseGain: effGain(track.outro) });
         lastGenSources = [src];
         scheduledGens.push({ ctxStartTime: vrNextStartCtxTime, bufferOffset: 0 });
+        trackPublicEvent('vr_outro_start', { trackId: track.id });
         clearInterval(vrSchedulerTimer); vrSchedulerTimer = null;
         armVRFinalEnd();
         return;
