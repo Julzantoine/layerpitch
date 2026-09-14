@@ -2937,7 +2937,13 @@ function wireBatchDrop(hostEl, onFiles) {
   hostEl.addEventListener('drop', e => {
     e.preventDefault();
     hostEl.classList.remove('drag-over');
-    const files = [...(e.dataTransfer.files || [])].filter(f => /\.(wav|mp3)$/i.test(f.name));
+    // L'ordre fourni par dataTransfer.files n'est pas garanti par la spec (varie selon navigateur/OS lors
+    // d'un dépôt multi-fichiers) -- on retrie par nom (tri naturel : "#2" avant "#10") pour que l'ordre
+    // affiché corresponde à celui attendu par le compositeur, quel que soit l'ordre de dépôt réel (14/09,
+    // retour de Jules-Antoine).
+    const files = [...(e.dataTransfer.files || [])]
+      .filter(f => /\.(wav|mp3)$/i.test(f.name))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
     if (files.length) onFiles(files);
   });
 }
@@ -4716,7 +4722,14 @@ function renderLibrary() {
             }, () => layer.originalFileName);
         });
         wireBatchDrop(modeMasterHost, files => {
-          const pushedLayers = files.map(f => {
+          // Les couches déjà présentes mais sans fichier (ex. "Niveau 1" par défaut d'un morceau tout
+          // neuf) reçoivent en priorité les premiers fichiers déposés, dans l'ordre, au lieu de rester
+          // vides pendant que tout le lot crée des couches supplémentaires à la suite (14/09, retour de
+          // Jules-Antoine).
+          const emptyLayers = track.layers.filter(l => !l.pendingFile && !l.remoteFile);
+          const touchedLayers = files.map((f, idx) => {
+            const target = emptyLayers[idx];
+            if (target) { target.pendingFile = f; return target; }
             const newLayer = { id: genId(), label: titleFromFilename(f.name), remoteFile: null, pendingFile: f };
             track.layers.push(newLayer);
             return newLayer;
@@ -4724,8 +4737,8 @@ function renderLibrary() {
           hasUnsavedEdits = true;
           if ((!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) && files[0]) track.title = titleFromFilename(files[0].name);
           renderLibrary();
-          pushedLayers.forEach((newLayer, i) => {
-            probeAudioDuration(files[i]).then(dur => { newLayer.duration = dur; recomputeTrackDuration(track); renderLibrary(); });
+          touchedLayers.forEach((layer, i) => {
+            probeAudioDuration(files[i]).then(dur => { layer.duration = dur; recomputeTrackDuration(track); renderLibrary(); });
           });
         });
         wireArrayDragReorder(modeMasterHost, 'seq-master-item', () => track.layers, () => renderLibrary());
