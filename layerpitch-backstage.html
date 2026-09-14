@@ -764,14 +764,18 @@
           <span data-i18n="navSfxLibrary">Bibliothèque Sfx</span>
         </span>
       </button>
-      <!-- Ouvert à tout compositeur connecté depuis le 16 septembre (voir ADMIN_ONLY_PANEL_IDS et
-           supabase/migrations/20260916040000_open_capture_video_to_composers.sql) -- point
-           explicitement temporaire, à filtrer par palier d'abonnement au lancement. -->
+      <!-- Grisé pour tout compositeur non-admin depuis le 16 septembre (voir
+           renderAdminOnlyPanels/navVideoLibraryBadge) -- la compression vidéo côté navigateur reste
+           bien trop lente pour un vrai usage (moteur multi-coeur essayé et abandonné le même jour, voir
+           layerpitch_video_compression_single_thread_limit.md) ; ré-ouvert à tout compositeur une fois
+           passé sur une compression côté serveur, prévu quand il y aura des abonnés payants. Toujours
+           utilisable pour l'admin (moi) -- pas caché, juste désactivé/grisé pour les autres. -->
       <button class="nav-item" data-tab="videoLibrary" type="button" id="navItemVideoLibrary">
         <span class="nav-item-label">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="6" width="13" height="12" rx="1.6"/><path d="M16.5 10l4-2.5v9l-4-2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span data-i18n="navVideoLibrary">Vidéo</span>
         </span>
+        <span class="nav-badge" data-i18n="comingSoonBadge" id="navVideoLibraryBadge" hidden>bientôt</span>
       </button>
       <button class="nav-item" data-tab="packs" type="button">
         <span class="nav-item-label">
@@ -1732,10 +1736,15 @@ async function renderSubscriptionPanel(session) {
 // GitHub configuré (comme publishAll() le fait déjà côté écriture) -- sinon un compositeur hébergé
 // aurait vu sa bibliothèque vide, ce panneau étant jusqu'ici le seul moyen de l'activer à la main.
 const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelAdminLink'];
-// La bibliothèque vidéo / capture (navItemVideoLibrary, panelVideoLibrary) n'est PLUS admin-only
-// depuis le 16 septembre -- ouverte à tout compositeur connecté (voir
-// supabase/migrations/20260916040000_open_capture_video_to_composers.sql). Point explicitement
-// temporaire (Jules-Antoine) : à filtrer par palier d'abonnement au lancement.
+// La bibliothèque vidéo / capture (navItemVideoLibrary, panelVideoLibrary) avait été ouverte à tout
+// compositeur connecté le 16 septembre (voir
+// supabase/migrations/20260916040000_open_capture_video_to_composers.sql, toujours en place côté
+// RPC) puis regrisée pour tout le monde SAUF l'admin le même jour, une fois la compression vidéo
+// côté navigateur confirmée trop lente pour un vrai usage (moteur multi-coeur essayé et abandonné,
+// voir layerpitch_video_compression_single_thread_limit.md) -- pas une régression de sécurité, un
+// simple bouton nav désactivé (navVideoLibraryBadge) ; le RPC reste ouvert, donc à re-durcir en base
+// aussi si jamais ça devait rester fermé pour de bon. Prévu : rouvrir la compression côté serveur
+// avant de rouvrir cette zone à tout le monde.
 // Statut admin mis en cache une fois par session (7 septembre) -- lu par renderPacks() pour
 // désactiver la case "en vente" (voir plus bas, un compositeur ordinaire ne doit pas pouvoir mettre
 // son propre pack en vente). Confort d'affichage uniquement : la vraie barrière est désormais
@@ -1755,6 +1764,10 @@ async function renderAdminOnlyPanels(session) {
     const el = document.getElementById(id);
     if (el) el.hidden = !isAdmin;
   });
+  const videoNavBtn = document.getElementById('navItemVideoLibrary');
+  const videoNavBadge = document.getElementById('navVideoLibraryBadge');
+  if (videoNavBtn) videoNavBtn.disabled = !isAdmin;
+  if (videoNavBadge) videoNavBadge.hidden = isAdmin;
   if (isAdmin) renderAccessRequestsList();
 }
 // Demandes d'accès en attente (bloc "Inviter un testeur" ci-dessous, 6 septembre) -- une seule
