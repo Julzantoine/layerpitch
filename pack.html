@@ -2396,6 +2396,13 @@ function openCapturePanel(file) {
       // capture remplacera tout à l'arrêt.
       const additive = additiveCheckbox.checked && lastEvents.length > 0;
       pendingBaseEvents = additive ? lastEvents.slice() : [];
+      // Une passe additive DOIT repartir du tout début de la vidéo (2026-09-16, Jules-Antoine) : les
+      // horaires de la passe précédente (pendingBaseEvents) sont comptés depuis t=0 -- si la nouvelle
+      // passe démarrait ailleurs (ex. la vidéo laissée en cours de lecture après la passe précédente),
+      // ses propres événements seraient décalés par rapport à ceux déjà acquis, et la fusion produirait
+      // une frise incohérente. Pas de remise à zéro en mode écrasement -- rien à réaligner puisqu'il n'y
+      // a alors qu'une seule passe.
+      if (additive) videoEl.currentTime = 0;
       startCapture(videoEl);
       // Démarrer la capture doit vraiment lancer la vidéo ET la piste armée (2026-09-16, retour direct
       // de Jules-Antoine en testant : "Start capture doit lancer la vidéo et la musique qui est armée.
