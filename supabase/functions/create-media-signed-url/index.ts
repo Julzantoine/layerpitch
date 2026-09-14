@@ -57,7 +57,7 @@ function corsHeadersFor(req: Request): Record<string, string> {
   };
 }
 
-const ALLOWED_PREFIXES = ['images/', 'audio/'];
+const ALLOWED_PREFIXES = ['images/', 'audio/', 'video/'];
 
 // Renvoie true si le chemin est autorisé pour ce compositeur -- l'entité visée doit lui appartenir
 // (ou ne pas encore exister, voir plus bas). Tout chemin qui ne correspond à aucun format connu est
@@ -70,6 +70,9 @@ async function verifyOwnership(adminClient: ReturnType<typeof createClient>, pat
     { pattern: /^images\/collection-([^./]+)\.[^./]+$/, table: 'collections' },
     { pattern: /^audio\/sfx-([^/]+)\//, table: 'sfx_library' },
     { pattern: /^audio\/([^/]+)\//, table: 'tracks' },
+    // Bibliothèque vidéo compositeur (16 septembre, composer_videos) -- même forme que l'audio
+    // (base + fichier, id de la vidéo dans le premier segment du chemin).
+    { pattern: /^video\/([^/]+)\//, table: 'composer_videos' },
   ];
   for (const { pattern, table } of checks) {
     const m = path.match(pattern);
@@ -126,7 +129,7 @@ Deno.serve(async (req) => {
 
     const { path, method } = await req.json();
     if (!path || typeof path !== 'string' || !ALLOWED_PREFIXES.some((p) => path.startsWith(p))) {
-      return new Response(JSON.stringify({ error: 'Chemin invalide (doit commencer par images/ ou audio/).' }), {
+      return new Response(JSON.stringify({ error: 'Chemin invalide (doit commencer par images/, audio/ ou video/).' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

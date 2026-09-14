@@ -182,6 +182,25 @@
   .actions-top { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
   .add-block-row { display: flex; gap: 8px; margin: 20px 0 28px; flex-wrap: wrap; }
 
+  /* Bibliothèque vidéo compositeur (16 septembre) */
+  .video-library-dropzone {
+    border: 2px dashed var(--border); border-radius: 8px; padding: 28px 16px; text-align: center;
+    font-size: 13px; color: var(--text-dimmer); cursor: pointer; margin: 14px 0 6px;
+  }
+  .video-library-dropzone.dragover { border-color: var(--accent); background: rgba(47,128,192,0.06); }
+  .video-library-status { font-size: 12px; color: var(--text-dim); min-height: 16px; margin-bottom: 4px; }
+  .video-library-quota { font-size: 11px; color: var(--text-dimmer); margin-bottom: 18px; }
+  .video-library-list { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .video-library-item { background: #fff; padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
+  .video-library-item-main { flex: 1; min-width: 0; }
+  .video-library-item-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
+  .video-library-item-meta { font-size: 11.5px; color: var(--text-dimmer); margin-top: 2px; }
+  .video-library-kind-badge {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 100px;
+    border: 1px solid var(--border); color: var(--text-dim); flex: none;
+  }
+  .video-library-empty { padding: 18px 4px; color: var(--text-dimmer); font-size: 13px; }
+
   .backstage-layout { display: flex; gap: 28px; align-items: flex-start; margin-top: 20px; }
   .backstage-sidebar { width: 196px; flex-shrink: 0; position: sticky; top: 20px; background: var(--bg-sidebar); border-radius: 10px; padding: 16px 14px; }
   .nav-section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #999; margin: 20px 0 8px; }
@@ -739,6 +758,15 @@
           <span data-i18n="navSfxLibrary">Bibliothèque Sfx</span>
         </span>
       </button>
+      <!-- Réservé aux comptes admin pour l'instant (16 septembre) -- même barrière d'affichage que les
+           panneaux debug (ADMIN_ONLY_PANEL_IDS ci-dessous) : aucun palier Rookie/Warrior/Boss n'existe
+           encore ailleurs dans le produit pour gater réellement cette fonctionnalité. -->
+      <button class="nav-item" data-tab="videoLibrary" type="button" id="navItemVideoLibrary" hidden>
+        <span class="nav-item-label">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="6" width="13" height="12" rx="1.6"/><path d="M16.5 10l4-2.5v9l-4-2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span data-i18n="navVideoLibrary">Vidéo</span>
+        </span>
+      </button>
       <button class="nav-item" data-tab="packs" type="button">
         <span class="nav-item-label">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l7.5 3.9v9.2L12 20.5l-7.5-3.9V7.4L12 3.5z"/><path d="M4.5 7.4L12 11.3l7.5-3.9M12 11.3v9.2"/></svg>
@@ -824,6 +852,22 @@
           </div>
         </div>
         <div class="actions" style="margin-bottom:20px"><button class="btn btn-small" id="btnAddSfx" type="button" data-i18n="addSfx">+ Sfx</button></div>
+      </div>
+
+      <!-- Bibliothèque vidéo compositeur (16 septembre) -- volontairement PAS le patron
+           bibliothèque/Sfx/packs ci-dessus (édition différée, publiée via publishAll()) : l'upload
+           agit tout de suite (compression + envoi R2 + upsert_video), même logique immédiate que la
+           sauvegarde de prise dans pack.html (video_captures). Rien à "publier" séparément ici. -->
+      <div class="backstage-panel" data-panel="videoLibrary" id="panelVideoLibrary">
+        <h2 data-i18n="navVideoLibrary">Vidéo</h2>
+        <div class="sub" data-i18n="videoLibraryPanelSub">Tes vidéos importées et les exports du moteur de capture vivent ici, indépendamment des AdReels et des Packs. Compressées automatiquement à l'import pour ne pas exploser le stockage.</div>
+
+        <div class="video-library-dropzone" id="videoLibraryDropzone" data-i18n="videoLibraryDropHint">Glisse un fichier vidéo ici, ou clique pour en choisir un</div>
+        <input type="file" id="videoLibraryFileInput" accept="video/*" hidden>
+        <div class="video-library-status" id="videoLibraryStatus"></div>
+        <div class="video-library-quota" id="videoLibraryQuota"></div>
+
+        <div id="videoLibraryList" class="video-library-list"></div>
       </div>
 
       <div class="backstage-panel" data-panel="packs">
@@ -1665,7 +1709,7 @@ async function renderSubscriptionPanel(session) {
 // fetchSiteData()/pgReadEnabled() basculent déjà seuls sur Postgres pour un compositeur sans token
 // GitHub configuré (comme publishAll() le fait déjà côté écriture) -- sinon un compositeur hébergé
 // aurait vu sa bibliothèque vide, ce panneau étant jusqu'ici le seul moyen de l'activer à la main.
-const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelAdminLink'];
+const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelAdminLink', 'navItemVideoLibrary', 'panelVideoLibrary'];
 // Statut admin mis en cache une fois par session (7 septembre) -- lu par renderPacks() pour
 // désactiver la case "en vente" (voir plus bas, un compositeur ordinaire ne doit pas pouvoir mettre
 // son propre pack en vente). Confort d'affichage uniquement : la vraie barrière est désormais
@@ -2041,6 +2085,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
       // Chargement à la demande (appel RPC get_my_analytics()) -- jamais au chargement du
       // backstage, seulement quand le compositeur ouvre vraiment l'onglet.
       if (btn.dataset.tab === 'analytics') loadAnalyticsIfNeeded();
+      if (btn.dataset.tab === 'videoLibrary') renderVideoLibrary();
     }
   });
 });
@@ -9080,6 +9125,155 @@ function r2DeleteFileLogged(key) {
     .then(() => log(`Suppression R2 : ${key}`, 'ok'))
     .catch(err => log(`Suppression R2 échouée pour ${key} : ${err.message}`, 'warn'));
 }
+
+// ============================================================================
+// Bibliothèque vidéo compositeur (16 septembre) -- composer_videos / list_my_videos / upsert_video /
+// delete_video (supabase/migrations/20260916020000_composer_videos.sql). Contrairement à la
+// bibliothèque musicale/Sfx/packs ci-dessus (édition différée, publiée via publishAll()), l'upload
+// agit tout de suite : compression, envoi R2, puis upsert_video -- rien à "publier" séparément,
+// même logique immédiate que la sauvegarde de prise dans pack.html (video_captures).
+//
+// Compression systématique côté client via ffmpeg.wasm (même bibliothèque vendorée que pack.html,
+// vendor/ffmpeg/) avant l'envoi -- jamais le fichier brut importé, pour ne pas exploser le quota de
+// stockage (Jules-Antoine, 16 septembre : "un algorithme comme celui de youtube... pour ne pas
+// exploser le compteur"). Réencodée en H.264/AAC à débit plafonné (~2 Mbps @1080p), plafonnée à
+// 1080p (jamais agrandie) -- à peu près l'échelle que vise YouTube lui-même pour cette résolution.
+// ============================================================================
+let videoLibraryFfmpegSingleton = null;
+async function loadVideoLibraryFfmpeg() {
+  if (videoLibraryFfmpegSingleton) return videoLibraryFfmpegSingleton;
+  const { FFmpeg } = await import('./vendor/ffmpeg/ffmpeg/index.js');
+  const ffmpeg = new FFmpeg();
+  await ffmpeg.load({
+    coreURL: new URL('./vendor/ffmpeg/core/ffmpeg-core.js', location.href).href,
+    wasmURL: new URL('./vendor/ffmpeg/core/ffmpeg-core.wasm', location.href).href,
+  });
+  videoLibraryFfmpegSingleton = ffmpeg;
+  return ffmpeg;
+}
+// Durée d'un fichier vidéo local, lue via un <video> hors-DOM plutôt qu'en parsant les logs ffmpeg --
+// sur le fichier ORIGINAL, avant compression (plus rapide, pas besoin d'attendre le réencodage).
+function readVideoLibraryDuration(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve(v.duration || null); };
+    v.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    v.src = url;
+  });
+}
+async function compressVideoForLibrary(file, onProgress) {
+  onProgress && onProgress(tr('videoLibraryCompressing'));
+  const ffmpeg = await loadVideoLibraryFfmpeg();
+  const inName = 'in' + (file.name.slice(file.name.lastIndexOf('.')) || '.mp4');
+  await ffmpeg.writeFile(inName, new Uint8Array(await file.arrayBuffer()));
+  await ffmpeg.exec([
+    '-i', inName,
+    '-vf', "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease",
+    '-c:v', 'libx264', '-preset', 'fast', '-b:v', '2000k', '-maxrate', '2200k', '-bufsize', '4000k',
+    '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart',
+    'out.mp4',
+  ]);
+  const outData = await ffmpeg.readFile('out.mp4');
+  return new Blob([outData.buffer], { type: 'video/mp4' });
+}
+
+async function loadMyVideos() {
+  const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_videos');
+  if (error) { log('Échec du chargement de la bibliothèque vidéo : ' + error.message, 'warn'); return { videos: [], quotaGb: null }; }
+  return data || { videos: [], quotaGb: null };
+}
+function formatVideoBytes(n) { return n ? (n / (1024 * 1024)).toFixed(1) + ' Mo' : ''; }
+function formatVideoDuration(sec) {
+  if (!sec) return '';
+  const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+async function renderVideoLibrary() {
+  const listEl = document.getElementById('videoLibraryList');
+  const quotaEl = document.getElementById('videoLibraryQuota');
+  if (!listEl) return;
+  const { videos, quotaGb } = await loadMyVideos();
+  if (!videos.length) {
+    listEl.innerHTML = `<div class="video-library-empty">${tr('videoLibraryEmpty')}</div>`;
+  } else {
+    listEl.innerHTML = videos.map(v => `
+      <div class="video-library-item">
+        <div class="video-library-item-main">
+          <div class="video-library-item-title">${escapeHtml(v.title || v.originalName || v.file)}</div>
+          <div class="video-library-item-meta">${[formatVideoBytes(v.sizeBytes), formatVideoDuration(v.durationSeconds), new Date(v.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ')}</div>
+        </div>
+        <span class="video-library-kind-badge">${v.kind === 'capture_export' ? tr('videoLibraryKindExport') : tr('videoLibraryKindUpload')}</span>
+        <button type="button" class="btn btn-small video-library-delete-btn" data-id="${v.id}">${tr('deleteBtn')}</button>
+      </div>
+    `).join('');
+    listEl.querySelectorAll('.video-library-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteLibraryVideo(btn.dataset.id, videos));
+    });
+  }
+  const usedGb = (videos.reduce((s, v) => s + (v.sizeBytes || 0), 0) / (1024 * 1024 * 1024)).toFixed(2);
+  quotaEl.textContent = quotaGb == null
+    ? tr('videoLibraryQuotaUnlimited', { used: usedGb })
+    : tr('videoLibraryQuotaHint', { used: usedGb, quota: quotaGb });
+}
+
+async function deleteLibraryVideo(id, knownVideos) {
+  if (!confirm(tr('videoLibraryDeleteConfirm'))) return;
+  const v = (knownVideos || []).find(x => x.id === id);
+  try {
+    const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('delete_video', { p_id: id });
+    if (error) throw error;
+    if (v && v.base && v.file) r2DeleteFileLogged(v.base.replace(MEDIA_BASE, '') + v.file);
+    renderVideoLibrary();
+  } catch (e) {
+    alert(tr('videoLibraryDeleteFailed', { error: e.message }));
+  }
+}
+
+async function uploadLibraryVideo(file) {
+  const statusEl = document.getElementById('videoLibraryStatus');
+  const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+  try {
+    const duration = await readVideoLibraryDuration(file);
+    const blob = await compressVideoForLibrary(file, (msg) => { statusEl.textContent = msg; });
+    statusEl.textContent = tr('videoLibraryUploading');
+    const base = `${MEDIA_BASE}video/${id}/`;
+    await r2PutFile(`video/${id}/source.mp4`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
+      payload: {
+        id, kind: 'upload', title: file.name.replace(/\.[^.]+$/, ''), base, file: 'source.mp4',
+        originalName: file.name, mimeType: 'video/mp4', sizeBytes: blob.size, durationSeconds: duration,
+      },
+    });
+    if (error) throw error;
+    statusEl.textContent = tr('videoLibraryUploadDone');
+    renderVideoLibrary();
+  } catch (e) {
+    console.error(e);
+    statusEl.textContent = tr('videoLibraryUploadFailed', { error: e.message });
+  }
+}
+
+(function setupVideoLibraryDropzone() {
+  const dropzone = document.getElementById('videoLibraryDropzone');
+  const fileInput = document.getElementById('videoLibraryFileInput');
+  if (!dropzone || !fileInput) return;
+  function handleFile(file) {
+    if (!file || !file.type.startsWith('video/')) return;
+    uploadLibraryVideo(file);
+  }
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => { handleFile(fileInput.files[0]); fileInput.value = ''; });
+  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    handleFile(e.dataTransfer.files[0]);
+  });
+})();
 // Construit la liste des clés R2 (audio/<trackId>/<fichier>) de tous les fichiers déjà publiés
 // (remoteFile non nul -- un pendingFile jamais uploadé n'existe pas sur R2, rien à supprimer) d'un
 // morceau, sur tous ses points de stockage possibles (mêmes parcours que la boucle de publication
