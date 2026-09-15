@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LayerPitch — Mon compte</title>
+<title data-i18n="pageTitle">LayerPitch — Mon compte</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
   :root {
@@ -42,11 +42,12 @@
 </head>
 <body>
 <div class="page">
-  <a class="back-link" href="./layerpitch-backstage.html">← Retour au backstage</a>
-  <h1>Mon compte</h1>
+  <a class="back-link" href="./layerpitch-backstage.html" data-i18n="backLink">← Retour au backstage</a>
+  <h1 data-i18n="h1">Mon compte</h1>
   <div id="content"></div>
 </div>
 
+<script src="layerpitch-i18n.js?v=1789468176634"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="api/supabase-client.js"></script>
 <script src="api/auth.js"></script>
@@ -56,7 +57,29 @@
 <script>
 const content = document.getElementById('content');
 
-function planLabel(plan) { return { free: 'Free', starter: 'Starter', pro: 'Pro' }[plan] || plan; }
+// Suit la langue d'affichage choisie côté Backstage (15/09, retour direct de Jules-Antoine : cette
+// page était intégralement en français en dur, quelle que soit la langue du Backstage) -- même clé
+// localStorage que layerpitch-backstage.html/currentLang(), page atteinte depuis lui via
+// "← Retour au backstage", donc même origine/storage.
+function currentLang() { return localStorage.getItem('layerpitch_lang') || 'fr'; }
+function tr(key, vars) {
+  const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, monCompte: {} }, en: { shared: {}, monCompte: {} } };
+  const dict = I18N[currentLang()] || I18N.fr;
+  const dictFr = I18N.fr;
+  let str = (dict.monCompte && dict.monCompte[key]) || (dict.shared && dict.shared[key])
+    || (dictFr.monCompte && dictFr.monCompte[key]) || (dictFr.shared && dictFr.shared[key]) || key;
+  if (vars) Object.keys(vars).forEach(k => { str = str.replace('{' + k + '}', vars[k]); });
+  return str;
+}
+function applyI18n() {
+  document.documentElement.lang = currentLang();
+  document.title = tr('pageTitle');
+  document.querySelectorAll('[data-i18n]').forEach(el => { const v = tr(el.dataset.i18n); if (v) el.textContent = v; });
+}
+applyI18n();
+
+function planLabel(plan) { return { free: tr('planLabelFree'), starter: tr('planLabelStarter'), pro: tr('planLabelPro') }[plan] || plan; }
+function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
 // LayerPitch n'a aucun mot de passe (connexion par lien magique + code à 6 chiffres uniquement,
 // voir api/auth.js) — rien à "retrouver" ni à changer. Section volontairement simple : le but est
@@ -64,9 +87,9 @@ function planLabel(plan) { return { free: 'Free', starter: 'Starter', pro: 'Pro'
 function identifiantsCardHtml(session) {
   return `
     <div class="card">
-      <h2>Identifiants</h2>
-      <div class="hint">Email connecté : <strong>${session.user.email}</strong></div>
-      <div class="hint">LayerPitch fonctionne sans mot de passe : la connexion se fait par un lien envoyé par email (+ un code à 6 chiffres utilisable si tu lis cet email sur un autre appareil). Rien à retenir, rien à changer ici.</div>
+      <h2>${tr('credentialsTitle')}</h2>
+      <div class="hint">${tr('connectedEmailLine', { email: escapeHtml(session.user.email) })}</div>
+      <div class="hint">${tr('noPasswordHint')}</div>
     </div>`;
 }
 
@@ -77,43 +100,44 @@ function identifiantsCardHtml(session) {
 function directoryCardHtml() {
   return `
     <div class="card">
-      <h2>Annuaire des compositeurs</h2>
-      <div class="hint">Apparaître dans un futur annuaire public, consultable par les studios et les fans. Fonctionnalité pas encore construite — bientôt disponible.</div>
+      <h2>${tr('directoryTitle')}</h2>
+      <div class="hint">${tr('directoryHint')}</div>
       <div class="checkbox-row">
         <input type="checkbox" disabled>
-        <span>Être visible dans l'annuaire (bientôt disponible)</span>
+        <span>${tr('directoryCheckboxLabel')}</span>
       </div>
     </div>`;
 }
 
 async function subscriptionCardHtml() {
   const { status, error } = await LayerPitchSubscriptions.getTrialStatus();
-  if (error) return `<div class="card"><h2>Mon abonnement</h2><div class="msg err">Erreur : ${error}</div></div>`;
-  let statusText = 'Aucun profil compositeur pour l\'instant — publie une première fois pour en créer un.';
+  if (error) return `<div class="card"><h2>${tr('subscriptionTitle')}</h2><div class="msg err">${tr('errorPrefix', { message: error })}</div></div>`;
+  let statusText = tr('noProfileYet');
   if (status) {
     const trialEndsAt = status.trialEndsAt ? new Date(status.trialEndsAt) : null;
     const trialActive = trialEndsAt && trialEndsAt > new Date();
     if (trialActive) {
       const daysLeft = Math.max(1, Math.ceil((trialEndsAt - new Date()) / 86400000));
-      statusText = `Palier réel : ${planLabel(status.plan)}. Essai Pro complet actif — encore ${daysLeft} jour(s), sans carte.`;
+      statusText = tr('trialActiveStatus', { plan: planLabel(status.plan), days: daysLeft });
     } else if (trialEndsAt && status.plan === 'free') {
-      statusText = 'Ton essai Pro est terminé, tu es maintenant sur Free — choisis un palier payant ci-dessous pour retrouver l\'accès complet.';
+      statusText = tr('trialEndedStatus');
     } else {
-      statusText = `Palier actuel : ${planLabel(status.plan)}.`;
+      statusText = tr('currentPlanStatus', { plan: planLabel(status.plan) });
     }
   }
+  const disabledTitle = tr('planDisabledTitle');
   return `
     <div class="card">
-      <h2>Mon abonnement</h2>
-      <div class="hint">Palier gratuit, essai Pro complet de 30 jours sans carte à l'inscription (retombe automatiquement sur Free à l'expiration si tu ne choisis rien), ou un vrai palier payant mensuel/annuel.</div>
+      <h2>${tr('subscriptionTitle')}</h2>
+      <div class="hint">${tr('subscriptionHint')}</div>
       <div class="status" id="subscriptionStatus">${statusText}</div>
-      <div class="hint">Choix de palier désactivé pendant la bêta — tout le monde reste sur l'essai Pro/Free pour l'instant.</div>
+      <div class="hint">${tr('betaChoiceDisabledHint')}</div>
       <div class="actions">
-        <button class="btn" id="btnPlanFree" type="button" disabled title="Choix de palier désactivé pendant la bêta.">Passer en Free</button>
-        <button class="btn" id="btnPlanStarterMonth" type="button" disabled title="Choix de palier désactivé pendant la bêta.">Starter — mensuel</button>
-        <button class="btn" id="btnPlanStarterYear" type="button" disabled title="Choix de palier désactivé pendant la bêta.">Starter — annuel</button>
-        <button class="btn" id="btnPlanProMonth" type="button" disabled title="Choix de palier désactivé pendant la bêta.">Pro — mensuel</button>
-        <button class="btn" id="btnPlanProYear" type="button" disabled title="Choix de palier désactivé pendant la bêta.">Pro — annuel</button>
+        <button class="btn" id="btnPlanFree" type="button" disabled title="${disabledTitle}">${tr('planFreeBtn')}</button>
+        <button class="btn" id="btnPlanStarterMonth" type="button" disabled title="${disabledTitle}">${tr('planStarterMonthBtn')}</button>
+        <button class="btn" id="btnPlanStarterYear" type="button" disabled title="${disabledTitle}">${tr('planStarterYearBtn')}</button>
+        <button class="btn" id="btnPlanProMonth" type="button" disabled title="${disabledTitle}">${tr('planProMonthBtn')}</button>
+        <button class="btn" id="btnPlanProYear" type="button" disabled title="${disabledTitle}">${tr('planProYearBtn')}</button>
       </div>
       <div class="msg" id="subscriptionMsg"></div>
     </div>`;
@@ -121,50 +145,50 @@ async function subscriptionCardHtml() {
 
 async function billingCardHtml() {
   const { profile, error } = await LayerPitchConnect.getMyBillingProfile();
-  if (error) return `<div class="card"><h2>Mes informations de facturation</h2><div class="msg err">Erreur : ${error}</div></div>`;
+  if (error) return `<div class="card"><h2>${tr('billingTitle')}</h2><div class="msg err">${tr('errorPrefix', { message: error })}</div></div>`;
   const p = profile || {};
-  const statusText = p.billing_status ? 'Profil de facturation complet.' : 'Profil de facturation incomplet — tes packs ne peuvent pas encore être achetés.';
+  const statusText = p.billing_status ? tr('billingCompleteStatus') : tr('billingIncompleteStatus');
   return `
     <div class="card">
-      <h2>Mes informations de facturation</h2>
-      <div class="hint">LayerPitch émet la facture (ou l'attestation de vente si tu es un particulier) au nom de tes ventes de packs, en ton nom (mandat de facturation, art. 289 du CGI) — ces informations doivent être complètes avant qu'un de tes packs ne devienne achetable.</div>
+      <h2>${tr('billingTitle')}</h2>
+      <div class="hint">${tr('billingHint')}</div>
       <div class="status" id="billingStatus">${statusText}</div>
-      <label>Statut</label>
+      <label>${tr('statusLabel')}</label>
       <select id="billingStatusSelect">
-        <option value="">— Choisis —</option>
-        <option value="professionnel" ${p.billing_status === 'professionnel' ? 'selected' : ''}>Professionnel (facture avec ou sans TVA)</option>
-        <option value="particulier" ${p.billing_status === 'particulier' ? 'selected' : ''}>Particulier (attestation de vente, jamais de TVA)</option>
+        <option value="">${tr('statusPlaceholderOption')}</option>
+        <option value="professionnel" ${p.billing_status === 'professionnel' ? 'selected' : ''}>${tr('statusProOption')}</option>
+        <option value="particulier" ${p.billing_status === 'particulier' ? 'selected' : ''}>${tr('statusParticulierOption')}</option>
       </select>
-      <label>Raison sociale / Nom complet</label>
-      <input type="text" id="billingLegalName" value="${p.billing_legal_name || ''}" placeholder="Ton nom ou celui de ta structure">
-      <label>Adresse complète</label>
-      <input type="text" id="billingAddress" value="${p.billing_address || ''}" placeholder="Numéro, rue, code postal, ville, pays">
+      <label>${tr('legalNameLabel')}</label>
+      <input type="text" id="billingLegalName" value="${escapeHtml(p.billing_legal_name || '')}" placeholder="${tr('legalNamePlaceholder')}">
+      <label>${tr('addressLabel')}</label>
+      <input type="text" id="billingAddress" value="${escapeHtml(p.billing_address || '')}" placeholder="${tr('addressPlaceholder')}">
       <div class="row">
-        <div><label>SIRET (si professionnel)</label><input type="text" id="billingSiret" value="${p.billing_siret || ''}" placeholder="14 chiffres"></div>
-        <div><label>N° TVA intracommunautaire (si applicable)</label><input type="text" id="billingVatNumber" value="${p.billing_vat_number || ''}" placeholder="FRxx xxxxxxxxx"></div>
+        <div><label>${tr('siretLabel')}</label><input type="text" id="billingSiret" value="${escapeHtml(p.billing_siret || '')}" placeholder="${tr('siretPlaceholder')}"></div>
+        <div><label>${tr('vatNumberLabel')}</label><input type="text" id="billingVatNumber" value="${escapeHtml(p.billing_vat_number || '')}" placeholder="${tr('vatNumberPlaceholder')}"></div>
       </div>
       <div class="checkbox-row">
         <input type="checkbox" id="billingVatApplicable" ${p.billing_vat_applicable ? 'checked' : ''}>
-        <span>Je facture la TVA (décoche si tu es en franchise en base, art. 293 B du CGI)</span>
+        <span>${tr('vatApplicableLabel')}</span>
       </div>
-      <div class="actions"><button class="btn" id="btnSaveBillingProfile" type="button">Enregistrer</button></div>
+      <div class="actions"><button class="btn" id="btnSaveBillingProfile" type="button">${tr('saveBtn')}</button></div>
       <div class="msg" id="billingMsg"></div>
     </div>`;
 }
 
 async function connectCardHtml() {
   const { status, error } = await LayerPitchConnect.myConnectStatus();
-  if (error) return `<div class="card"><h2>Recevoir mes ventes</h2><div class="msg err">Erreur : ${error}</div></div>`;
-  let statusText = 'Aucun compte Stripe connecté — tes packs ne peuvent pas encore être achetés.';
-  let btnLabel = 'Connecter mon compte Stripe';
+  if (error) return `<div class="card"><h2>${tr('connectTitle')}</h2><div class="msg err">${tr('errorPrefix', { message: error })}</div></div>`;
+  let statusText = tr('noStripeStatus');
+  let btnLabel = tr('connectBtnDefault');
   if (status && status.connected) {
-    if (status.chargesEnabled) { statusText = 'Compte Stripe connecté et actif — tu reçois automatiquement ta part à chaque vente.'; btnLabel = 'Gérer mon compte Stripe'; }
-    else { statusText = 'Compte Stripe créé, mais l\'inscription n\'est pas terminée côté Stripe — reprends-la pour pouvoir recevoir des paiements.'; btnLabel = 'Terminer la connexion Stripe'; }
+    if (status.chargesEnabled) { statusText = tr('stripeActiveStatus'); btnLabel = tr('manageBtnLabel'); }
+    else { statusText = tr('stripeIncompleteStatus'); btnLabel = tr('resumeBtnLabel'); }
   }
   return `
     <div class="card">
-      <h2>Recevoir mes ventes</h2>
-      <div class="hint">Chaque vente d'un de tes packs verse automatiquement ta part sur ton propre compte Stripe — LayerPitch garde sa commission au même moment, aucun virement manuel de notre côté. Nécessite un compte Stripe ET tes informations de facturation ci-dessus, complètes.</div>
+      <h2>${tr('connectTitle')}</h2>
+      <div class="hint">${tr('connectHint')}</div>
       <div class="status" id="connectStatus">${statusText}</div>
       <div class="actions"><button class="btn" id="btnConnectOnboard" type="button">${btnLabel}</button></div>
       <div class="msg" id="connectMsg"></div>
@@ -173,18 +197,18 @@ async function connectCardHtml() {
 
 async function invoicesCardHtml() {
   const { invoices, error } = await LayerPitchInvoices.getMyIssuedInvoices();
-  if (error) return `<div class="card"><h2>Mes factures émises</h2><div class="msg err">Erreur : ${error}</div></div>`;
+  if (error) return `<div class="card"><h2>${tr('invoicesTitle')}</h2><div class="msg err">${tr('errorPrefix', { message: error })}</div></div>`;
   const rows = invoices.length
     ? invoices.map(inv => {
-        const label = inv.document_type === 'facture' ? 'Facture' : 'Attestation de vente';
-        const date = new Date(inv.created_at).toLocaleDateString('fr-FR');
-        return `<div class="invoice-row"><span>${label} ${inv.invoice_number} — ${date} — ${Number(inv.amount_ttc).toFixed(2)} $</span><button class="btn btn-small" type="button" data-invoice-id="${inv.id}">Télécharger</button></div>`;
+        const label = inv.document_type === 'facture' ? tr('invoiceTypeFacture') : tr('invoiceTypeAttestation');
+        const date = new Date(inv.created_at).toLocaleDateString(tr('dateLocale'));
+        return `<div class="invoice-row"><span>${label} ${inv.invoice_number} — ${date} — ${Number(inv.amount_ttc).toFixed(2)} $</span><button class="btn btn-small" type="button" data-invoice-id="${inv.id}">${tr('downloadBtn')}</button></div>`;
       }).join('')
-    : '<div class="hint">Aucune facture émise pour l\'instant.</div>';
+    : `<div class="hint">${tr('noInvoicesYet')}</div>`;
   return `
     <div class="card">
-      <h2>Mes factures émises</h2>
-      <div class="hint">Copie des factures/attestations de vente émises pour tes ventes — à conserver de ton côté, LayerPitch les garde aussi.</div>
+      <h2>${tr('invoicesTitle')}</h2>
+      <div class="hint">${tr('invoicesHint')}</div>
       <div id="issuedInvoicesList">${rows}</div>
     </div>`;
 }
@@ -206,15 +230,15 @@ function wireSubscriptionCard() {
       try {
         if (plan === 'free') {
           const { ok, error } = await LayerPitchSubscriptions.choosePlanFree();
-          msg.textContent = ok ? 'Palier Free activé.' : 'Erreur : ' + error;
+          msg.textContent = ok ? tr('planFreeActivated') : tr('errorPrefix', { message: error });
           if (ok) render();
         } else {
           const successUrl = window.location.origin + '/mon-compte.html?subscribed=1';
           const cancelUrl = window.location.origin + '/mon-compte.html?subscribed=0';
           const { ok, error } = await LayerPitchSubscriptions.subscribeToPlan(plan, interval, { successUrl, cancelUrl });
-          if (!ok) msg.textContent = 'Erreur : ' + error;
+          if (!ok) msg.textContent = tr('errorPrefix', { message: error });
         }
-      } catch (e) { msg.textContent = 'Erreur : ' + e.message; }
+      } catch (e) { msg.textContent = tr('errorPrefix', { message: e.message }); }
       btn.disabled = false;
     });
   });
@@ -226,10 +250,10 @@ function wireBillingCard() {
   btn.addEventListener('click', async () => {
     const msg = document.getElementById('billingMsg');
     const status = document.getElementById('billingStatusSelect').value;
-    if (!status) { msg.textContent = 'Choisis un statut (professionnel ou particulier).'; return; }
+    if (!status) { msg.textContent = tr('chooseStatusAlert'); return; }
     const legalName = document.getElementById('billingLegalName').value.trim();
     const address = document.getElementById('billingAddress').value.trim();
-    if (!legalName || !address) { msg.textContent = 'Raison sociale/nom et adresse sont requis.'; return; }
+    if (!legalName || !address) { msg.textContent = tr('nameAddressRequiredAlert'); return; }
     btn.disabled = true; msg.textContent = '…';
     try {
       const { ok, error } = await LayerPitchConnect.saveMyBillingProfile({
@@ -238,9 +262,9 @@ function wireBillingCard() {
         vatNumber: document.getElementById('billingVatNumber').value.trim(),
         vatApplicable: document.getElementById('billingVatApplicable').checked,
       });
-      msg.textContent = ok ? 'Enregistré.' : 'Erreur : ' + error;
+      msg.textContent = ok ? tr('savedMsg') : tr('errorPrefix', { message: error });
       if (ok) render();
-    } catch (e) { msg.textContent = 'Erreur : ' + e.message; }
+    } catch (e) { msg.textContent = tr('errorPrefix', { message: e.message }); }
     btn.disabled = false;
   });
 }
@@ -255,8 +279,8 @@ function wireConnectCard() {
       const returnUrl = window.location.origin + '/mon-compte.html?connect=return';
       const refreshUrl = window.location.origin + '/mon-compte.html?connect=refresh';
       const { ok, error } = await LayerPitchConnect.startConnectOnboarding({ returnUrl, refreshUrl });
-      if (!ok) msg.textContent = 'Erreur : ' + error;
-    } catch (e) { msg.textContent = 'Erreur : ' + e.message; }
+      if (!ok) msg.textContent = tr('errorPrefix', { message: error });
+    } catch (e) { msg.textContent = tr('errorPrefix', { message: e.message }); }
     btn.disabled = false;
   });
 }
@@ -268,9 +292,9 @@ function wireInvoicesCard() {
       try {
         const { data, error } = await LayerPitchSupabaseClient.getClient()
           .functions.invoke('get-invoice-download-url', { body: { invoiceId: btn.getAttribute('data-invoice-id') } });
-        if (error || !data || !data.url) alert('Erreur : ' + (error ? await LayerPitchAuth.describeFunctionError(error) : (data && data.error) || 'inconnue'));
+        if (error || !data || !data.url) alert(tr('errorPrefix', { message: error ? await LayerPitchAuth.describeFunctionError(error) : (data && data.error) || 'unknown' }));
         else window.open(data.url, '_blank', 'noopener');
-      } catch (e) { alert('Erreur : ' + e.message); }
+      } catch (e) { alert(tr('errorPrefix', { message: e.message })); }
       btn.disabled = false;
     });
   });
@@ -281,17 +305,17 @@ async function render() {
   if (!session) {
     content.innerHTML = `
       <div class="card">
-        <div class="hint">Connecte-toi pour voir ton compte.</div>
-        <div class="hint">On t'envoie un email avec un lien de connexion ET un code à 6 chiffres — utilise le code si tu consultes cet email sur un autre appareil que celui-ci (ordinateur partagé, poste qui n'est pas le tien).</div>
+        <div class="hint">${tr('signInPrompt')}</div>
+        <div class="hint">${tr('signInHint')}</div>
         <div class="signin-box">
-          <input type="email" id="email" placeholder="ton@email.com">
-          <button class="btn" id="sendBtn" type="button">Recevoir le lien de connexion</button>
+          <input type="email" id="email" placeholder="${tr('emailPlaceholder')}">
+          <button class="btn" id="sendBtn" type="button">${tr('sendLinkBtn')}</button>
           <div class="msg" id="msg"></div>
         </div>
         <div class="signin-box" id="codeBox" hidden>
-          <label>Code reçu par email</label>
-          <input type="text" id="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code">
-          <button class="btn" id="verifyCodeBtn" type="button">Valider le code</button>
+          <label>${tr('codeReceivedLabel')}</label>
+          <input type="text" id="code" placeholder="${tr('codePlaceholder')}" inputmode="numeric" autocomplete="one-time-code">
+          <button class="btn" id="verifyCodeBtn" type="button">${tr('verifyCodeBtn')}</button>
           <div class="msg" id="codeMsg"></div>
         </div>
       </div>`;
@@ -301,7 +325,7 @@ async function render() {
       if (!email) return;
       msg.textContent = '…'; msg.className = 'msg';
       const { ok, error } = await LayerPitchAuth.signInWithMagicLink(email, window.location.href);
-      msg.textContent = ok ? 'Lien envoyé — vérifie ta boîte mail.' : 'Erreur : ' + error;
+      msg.textContent = ok ? tr('linkSentMsg') : tr('errorPrefix', { message: error });
       msg.className = 'msg ' + (ok ? 'ok' : 'err');
       document.getElementById('codeBox').hidden = !ok;
     });
@@ -312,7 +336,7 @@ async function render() {
       if (!email || !code) return;
       msg.textContent = '…'; msg.className = 'msg';
       const { ok, error } = await LayerPitchAuth.verifyEmailOtp(email, code);
-      if (!ok) { msg.textContent = 'Erreur : ' + error; msg.className = 'msg err'; }
+      if (!ok) { msg.textContent = tr('errorPrefix', { message: error }); msg.className = 'msg err'; }
     });
     return;
   }
@@ -321,7 +345,7 @@ async function render() {
   // bienvenue.html?subscribed=1) : le webhook Stripe écrit composer_profiles.plan de façon
   // asynchrone, pas forcément déjà fait au moment où Stripe redirige ici.
   if (new URLSearchParams(location.search).get('subscribed') === '1') {
-    content.innerHTML = `<div class="card"><div class="hint">Confirmation de ton abonnement…</div></div>`;
+    content.innerHTML = `<div class="card"><div class="hint">${tr('confirmingSubscription')}</div></div>`;
     for (let attempt = 0; attempt < 10; attempt++) {
       const { status } = await LayerPitchSubscriptions.getTrialStatus();
       if (status && status.plan !== 'free') break;
