@@ -7168,7 +7168,11 @@ function buildVideoCard(block) {
   function renderList() {
     listEl.innerHTML = '';
     block.videos.forEach((v, i) => {
-      const source = v.source === 'library' ? 'library' : 'url';
+      // Le choix "Bibliothèque vidéo" n'a de sens que pour l'admin : l'onglet Vidéo du Backstage est
+      // grisé pour tout autre compositeur (16 septembre, compression trop lente pour un vrai usage --
+      // voir layerpitch_video_compression_single_thread_limit.md), donc aucun non-admin ne peut avoir
+      // de bibliothèque à piocher dedans. Pas de bascule à montrer dans ce cas, juste le lien externe.
+      const source = currentUserIsAdmin && v.source === 'library' ? 'library' : 'url';
       const el = document.createElement('div');
       el.className = 'list-block';
       el.innerHTML = `
@@ -7176,14 +7180,16 @@ function buildVideoCard(block) {
         <label data-help="videoThumbnail">${tr('thumbnailLabel')}</label>
         <div data-role="thumbCtrl"></div>
         <label style="margin-top:8px">${tr('titleLabel')}</label><input type="text" data-field="title" data-i="${i}" value="${escapeAttr(v.title)}">
+        ${currentUserIsAdmin ? `
         <label>${tr('videoSourceLabel')}</label>
         <div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">
           <label style="display:flex;align-items:center;gap:4px;font-weight:normal"><input type="radio" name="videoSource-${block.id}-${i}" data-role="sourceRadio" data-i="${i}" value="url" style="width:auto;margin:0" ${source === 'url' ? 'checked' : ''}> ${tr('videoSourceUrl')}</label>
           <label style="display:flex;align-items:center;gap:4px;font-weight:normal"><input type="radio" name="videoSource-${block.id}-${i}" data-role="sourceRadio" data-i="${i}" value="library" style="width:auto;margin:0" ${source === 'library' ? 'checked' : ''}> ${tr('videoSourceLibrary')}</label>
-        </div>
+        </div>` : ''}
         <div data-role="urlWrap" ${source === 'library' ? 'style="display:none"' : ''}>
           <label data-help="videoLink">${tr('videoLinkLabel')}</label><input type="text" data-field="url" data-i="${i}" value="${escapeAttr(source === 'url' ? (v.url || '') : '')}">
         </div>
+        ${currentUserIsAdmin ? `
         <div data-role="libraryWrap" ${source === 'library' ? '' : 'style="display:none"'}>
           <label>${tr('videoLibrarySelectLabel')}</label>
           <select data-role="librarySelect" data-i="${i}">
@@ -7191,7 +7197,7 @@ function buildVideoCard(block) {
             ${libraryVideos.map(lv => `<option value="${lv.id}" ${v.libraryVideoId === lv.id ? 'selected' : ''}>${escapeAttr(lv.title || lv.originalName || lv.file)}</option>`).join('')}
           </select>
           ${libraryLoaded && !libraryVideos.length ? `<div class="hint-inline">${tr('videoLibrarySelectEmpty')}</div>` : ''}
-        </div>
+        </div>` : ''}
         <label>${tr('commentLabel')}</label><textarea data-field="comment" data-i="${i}" rows="2">${escapeAttr(v.comment || '')}</textarea>
       `;
       const ctrlHost = el.querySelector('[data-role="thumbCtrl"]');
@@ -7202,7 +7208,7 @@ function buildVideoCard(block) {
       listEl.appendChild(el);
     });
   }
-  loadMyVideos().then(({ videos }) => {
+  if (currentUserIsAdmin) loadMyVideos().then(({ videos }) => {
     libraryVideos = videos || [];
     libraryLoaded = true;
     renderList();
