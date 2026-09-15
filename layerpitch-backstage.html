@@ -79,16 +79,31 @@
      accepte n'importe quelle classe d'item, mais ce CSS n'est câblé que pour celle-ci pour l'instant --
      à étendre si un jour une autre liste (ex. .list-block) en a besoin. */
   .seq-master-item .block-drag-handle { margin-right: 2px; }
+  .seq-master-item { position: relative; }
   .seq-master-item.dragging { opacity: 0.4; }
-  .seq-master-item.drag-over-top { box-shadow: inset 0 3px 0 var(--accent); background: var(--accent-soft); }
-  .seq-master-item.drag-over-bottom { box-shadow: inset 0 -3px 0 var(--accent); background: var(--accent-soft); }
+  /* Ligne ENTRE deux éléments (pas de overflow:hidden ici, contrairement à .block-editor-card --
+     peut donc réellement déborder dans le gap de 6px de .seq-master-list plutôt que rester collée au
+     bord). Même correctif de fond que .block-editor-card, voir son commentaire pour le pourquoi. */
+  .seq-master-item.drag-over-top::before, .seq-master-item.drag-over-bottom::after {
+    content: ''; position: absolute; left: 0; right: 0; height: 3px; border-radius: 2px;
+    background: var(--accent); z-index: 5; pointer-events: none;
+  }
+  .seq-master-item.drag-over-top::before { top: -4.5px; }
+  .seq-master-item.drag-over-bottom::after { bottom: -4.5px; }
   .seq-master-item[draggable="true"] .block-drag-handle { cursor: grabbing; }
   /* Extension (29/08) au sélecteur de morceaux d'un AdReel (liste plate d'identifiants, pas une liste
      maître de piste) -- même mécanisme JS (wireArrayDragReorder généralisé), même style visuel. */
   .sel-track-item .block-drag-handle { margin-right: 2px; }
+  .sel-track-item { position: relative; }
   .sel-track-item.dragging { opacity: 0.4; }
-  .sel-track-item.drag-over-top { box-shadow: inset 0 3px 0 var(--accent); background: var(--accent-soft); }
-  .sel-track-item.drag-over-bottom { box-shadow: inset 0 -3px 0 var(--accent); background: var(--accent-soft); }
+  /* Ligne ENTRE deux éléments (pas de overflow:hidden ici, contrairement à .block-editor-card). Même
+     correctif de fond que .block-editor-card, voir son commentaire pour le pourquoi. */
+  .sel-track-item.drag-over-top::before, .sel-track-item.drag-over-bottom::after {
+    content: ''; position: absolute; left: 0; right: 0; height: 3px; border-radius: 2px;
+    background: var(--accent); z-index: 5; pointer-events: none;
+  }
+  .sel-track-item.drag-over-top::before { top: -5px; }
+  .sel-track-item.drag-over-bottom::after { bottom: -5px; }
   .sel-track-item[draggable="true"] .block-drag-handle { cursor: grabbing; }
   /* Cartes de sortie d'embranchement + interrupteur "Embranchements" + repère Variations (18/08, suite de
      l'incrément 1 -- toujours purement visuel : aucun data-* renommé, aucun gestionnaire déplacé). */
@@ -277,7 +292,7 @@
   .analytics-track-skipped { color: #b25b2c; }
   .analytics-track-reached { color: #2c7a4b; }
 
-  .block-editor-card { border: 1px solid #e2e2e6; border-radius: 8px; margin-bottom: 14px; overflow: hidden; background: var(--bg); }
+  .block-editor-card { position: relative; border: 1px solid #e2e2e6; border-radius: 8px; margin-bottom: 14px; overflow: hidden; background: var(--bg); }
   .block-editor-head {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 14px; background: var(--bg-card); border-bottom: 1px solid #e2e2e6;
@@ -293,12 +308,20 @@
   .block-drag-handle:hover { color: var(--text-dimmer); }
   .block-editor-card[draggable="true"] .block-drag-handle { cursor: grabbing; }
   .block-editor-card.dragging { opacity: 0.4; }
-  .block-editor-card.drag-over-top { box-shadow: inset 0 3px 0 var(--accent); background: var(--accent-soft); }
-  .block-editor-card.drag-over-bottom { box-shadow: inset 0 -3px 0 var(--accent); background: var(--accent-soft); }
-  /* .block-editor-head a son propre fond opaque (var(--bg-card)) qui recouvre entièrement la carte --
-     sans ça la teinte drag-over du parent ci-dessus ne se voit jamais quand le bloc est replié (cas
-     le plus fréquent depuis que les blocs se replient par défaut à la création, 15/09). */
-  .block-editor-card.drag-over-top .block-editor-head, .block-editor-card.drag-over-bottom .block-editor-head { background: var(--accent-soft); }
+  /* Ligne d'insertion franche plutôt qu'un liseré fin + teinte de toute la ligne (15/09, retour direct
+     de Jules-Antoine sur une capture d'écran : l'ancien liseré de 3px + le fond teinté se perdaient
+     dans l'aperçu de glisser natif du navigateur qui flotte par-dessus, illisible -- "on ne sait pas
+     ce qu'il se passe"). Essayé en positionnant la ligne hors de la boîte, dans l'espace entre deux
+     cartes (top/bottom négatifs) : invisible, `.block-editor-card` a overflow:hidden (nécessaire pour
+     que .block-editor-head épouse les coins arrondis) qui rogne tout pseudo-élément dépassant sa
+     propre boîte -- retenu à la place : une barre pleine, épaisse, à même le bord de la carte
+     concernée (jamais rognée puisqu'à l'intérieur), sans plus aucune teinte de fond ambiguë. */
+  .block-editor-card.drag-over-top::before, .block-editor-card.drag-over-bottom::after {
+    content: ''; position: absolute; left: 0; right: 0; height: 5px;
+    background: var(--accent); z-index: 5; pointer-events: none;
+  }
+  .block-editor-card.drag-over-top::before { top: 0; }
+  .block-editor-card.drag-over-bottom::after { bottom: 0; }
   .blocks-list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
   .blocks-list-header-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .blocks-list-header-left strong { font-size: 13px; }
@@ -355,9 +378,16 @@
   .org-folder-empty-hint { padding: 6px 8px; font-size: 11px; }
   .org-row { display: flex; align-items: center; gap: 6px; }
   .org-row .seq-master-item-label { flex: 1; }
+  .org-folder-group { position: relative; }
   .org-folder-group.dragging { opacity: 0.4; }
-  .org-folder-group.drag-over-top { box-shadow: inset 0 3px 0 var(--accent); background: var(--accent-soft); }
-  .org-folder-group.drag-over-bottom { box-shadow: inset 0 -3px 0 var(--accent); background: var(--accent-soft); }
+  /* Ligne ENTRE deux éléments (pas de overflow:hidden ici, contrairement à .block-editor-card). Même
+     correctif de fond que .block-editor-card, voir son commentaire pour le pourquoi. */
+  .org-folder-group.drag-over-top::before, .org-folder-group.drag-over-bottom::after {
+    content: ''; position: absolute; left: 0; right: 0; height: 3px; border-radius: 2px;
+    background: var(--accent); z-index: 5; pointer-events: none;
+  }
+  .org-folder-group.drag-over-top::before { top: -6.5px; }
+  .org-folder-group.drag-over-bottom::after { bottom: -6.5px; }
   #themeConflictModal h3 { font-size: 13px; margin-bottom: 10px; color: var(--text); }
   #themeConflictModal .sub { margin-bottom: 4px; }
   #themeConflictModal .actions { justify-content: flex-end; margin-top: 16px; }
