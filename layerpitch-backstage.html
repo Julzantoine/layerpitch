@@ -43,7 +43,17 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--backstage-bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 32px 20px 80px; font-size: 13px; }
-  .page { max-width: min(1400px, 92vw); margin: 0 auto; }
+  .page { position: relative; max-width: min(1400px, 92vw); margin: 0 auto; }
+  /* Filigrane décoratif du Backstage (15/09, local à cet ordinateur -- même esprit que la couleur de
+     fond) : premier enfant de .page, en position absolue sans z-index -- se peint donc naturellement
+     sous tout le reste (ordre du DOM), pas besoin de calculer un mélange avec la couleur de fond
+     (--backstage-bg peut être une couleur perso OU la palette du thème Nuit). inset:0 se dimensionne
+     sur la hauteur réelle de .page (contenu inclus), pas seulement la fenêtre visible. */
+  #backstageWatermarkLayer {
+    position: absolute; inset: 0; pointer-events: none;
+    background-repeat: no-repeat; background-position: center top;
+    background-size: contain; opacity: 0.08;
+  }
   /* Verrou de connexion (7 septembre) : couvre tout l'outil tant qu'aucune session Supabase n'est
      confirmée -- sans ça, un visiteur non connecté voyait l'intégralité de l'interface compositeur
      (formulaires, panneaux) avant que la lecture Postgres échoue silencieusement en arrière-plan.
@@ -744,6 +754,7 @@
 <div id="authGateOverlay" data-i18n="authGateCheckingText">Vérification de la session…</div>
 <div id="helpTooltip"></div>
 <div class="page">
+  <div id="backstageWatermarkLayer"></div>
   <div class="page-top-row">
     <h1 data-i18n="pageTitle">LayerPitch — Backstage</h1>
     <div class="global-actions-bar">
@@ -1235,6 +1246,17 @@
     <label data-help="backstageBgColor">Couleur de fond de cet outil</label>
     <input type="color" id="backstageBgColor" value="#ffffff">
     <div class="hint" id="backstageBgColorHint">Ne change rien à ce que voient tes visiteurs — c'est uniquement le confort visuel de cet écran d'édition, mémorisé sur cet ordinateur.</div>
+    <label style="margin-top:12px">Image de fond en filigrane</label>
+    <div class="actions" style="margin-bottom:6px;">
+      <button class="btn btn-small" id="btnBackstageWatermarkPick" type="button">Choisir une image</button>
+      <button class="btn btn-small btn-danger" id="btnBackstageWatermarkClear" type="button" hidden>Retirer</button>
+    </div>
+    <input type="file" id="backstageWatermarkInput" accept="image/*" hidden>
+    <div id="backstageWatermarkOpacityRow" hidden>
+      <label for="backstageWatermarkOpacity">Opacité</label>
+      <input type="range" id="backstageWatermarkOpacity" min="2" max="40" step="1" value="8">
+    </div>
+    <div class="hint">Purement décorative, locale à cet ordinateur — les visiteurs ne la voient jamais.</div>
   </fieldset>
 
   <fieldset id="panelGithubRepo" hidden>
@@ -3686,6 +3708,59 @@ document.getElementById('btnShareAdReelUrl').addEventListener('click', async () 
   bgInput.addEventListener('input', () => {
     document.documentElement.style.setProperty('--backstage-bg', bgInput.value);
     try { localStorage.setItem(BG_KEY, bgInput.value); } catch (e) { /* stockage plein ou bloqué : le réglage reste appliqué pour la session en cours, juste pas mémorisé */ }
+  });
+})();
+
+// Image de fond en filigrane du Backstage (15/09, même réglage local à cet ordinateur que le thème
+// et la couleur de fond ci-dessus) -- purement décorative, jamais vue par un visiteur. Stockée en
+// data URL dans localStorage (comme le token GitHub plus bas) : fichier ouvert localement, aucune
+// fuite possible. Pas de redimensionnement côté client avant stockage (complexité jugée disproportionnée
+// pour un simple confort visuel) -- si l'image est trop grosse pour localStorage, le réglage reste
+// appliqué pour la session en cours, juste pas mémorisé (même filet que les autres réglages locaux).
+(function initBackstageWatermark() {
+  const IMAGE_KEY = 'layerpitch_backstage_watermark_image';
+  const OPACITY_KEY = 'layerpitch_backstage_watermark_opacity';
+  const layer = document.getElementById('backstageWatermarkLayer');
+  const pickBtn = document.getElementById('btnBackstageWatermarkPick');
+  const clearBtn = document.getElementById('btnBackstageWatermarkClear');
+  const fileInput = document.getElementById('backstageWatermarkInput');
+  const opacityRow = document.getElementById('backstageWatermarkOpacityRow');
+  const opacityInput = document.getElementById('backstageWatermarkOpacity');
+
+  function applyImage(dataUrl) {
+    layer.style.backgroundImage = dataUrl ? `url(${dataUrl})` : 'none';
+    clearBtn.hidden = !dataUrl;
+    opacityRow.hidden = !dataUrl;
+  }
+  function applyOpacity(percent) {
+    layer.style.opacity = String(percent / 100);
+  }
+
+  const savedImage = localStorage.getItem(IMAGE_KEY);
+  const savedOpacity = localStorage.getItem(OPACITY_KEY);
+  if (savedOpacity) opacityInput.value = savedOpacity;
+  applyOpacity(parseInt(opacityInput.value, 10));
+  if (savedImage) applyImage(savedImage);
+
+  pickBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      applyImage(reader.result);
+      try { localStorage.setItem(IMAGE_KEY, reader.result); } catch (e) { /* image trop grosse pour localStorage : reste appliquée pour la session en cours, juste pas mémorisée */ }
+    };
+    reader.readAsDataURL(file);
+  });
+  clearBtn.addEventListener('click', () => {
+    applyImage(null);
+    fileInput.value = '';
+    try { localStorage.removeItem(IMAGE_KEY); } catch (e) {}
+  });
+  opacityInput.addEventListener('input', () => {
+    applyOpacity(parseInt(opacityInput.value, 10));
+    try { localStorage.setItem(OPACITY_KEY, opacityInput.value); } catch (e) { /* stockage plein ou bloqué : le réglage reste appliqué pour la session en cours, juste pas mémorisé */ }
   });
 })();
 
