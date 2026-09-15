@@ -21,6 +21,7 @@
     return {
       id: row.id, ownerId: row.owner_id, folderId: row.folder_id, label: row.label, lang: row.lang, blocks: row.blocks,
       profile: row.profile, testimonials: row.testimonials, trackIds, trackOverrides: row.track_overrides,
+      allowIndexing: row.allow_indexing !== false,
     };
   }
 

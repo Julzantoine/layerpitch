@@ -489,7 +489,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1789414952182"></script>
+<script src="layerpitch-i18n.js?v=1789460889807"></script>
 <script src="player.js?v=1789414952182"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
@@ -596,6 +596,21 @@ async function loadSiteData() {
   }
   lastResolvedOwnerId = ownerId;
   return window.LayerPitchSiteData.loadSiteDataFromPostgres(ownerId);
+}
+// Indexation par les moteurs de recherche (15/09, réglage "Partage" du Backstage, par AdReel --
+// ad_reels.allow_indexing, migration 20260916050000). Cette page ne fait aucun rendu serveur : la
+// balise doit être injectée en JS une fois l'AdReel résolu, avant que quoi que ce soit d'autre
+// s'affiche. Fiable pour Google (exécute le JS avant d'indexer) -- pas garanti à 100% pour tous les
+// moteurs moins bons en JS, acceptable à cette échelle. Rien injecté quand allowIndexing est true
+// (valeur par défaut) : un AdReel normal ne doit jamais gagner de balise robots qu'il n'avait pas
+// avant ce chantier.
+function applyIndexingMeta(adReel) {
+  if (adReel.allowIndexing === false) {
+    const meta = document.createElement('meta');
+    meta.name = 'robots';
+    meta.content = 'noindex';
+    document.head.appendChild(meta);
+  }
 }
 // Bandeau "Mode aperçu" -- voir le commentaire équivalent dans pack.html.
 function showPreviewModeBanner() {
@@ -1176,6 +1191,7 @@ async function init() {
       container.innerHTML = `<div class="empty">${tr('adreelNotFound')}</div>`;
       return;
     }
+    applyIndexingMeta(adReel);
     pageLang = adReel.lang || 'fr';
     window.LayerPlayerCore.setLang(pageLang);
     applyI18n();

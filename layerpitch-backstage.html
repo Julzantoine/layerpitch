@@ -640,16 +640,28 @@
     box-shadow: 0 8px 24px rgba(0,0,0,0.14); padding: 6px; z-index: 500;
   }
   .account-menu-email { font-size: 11.5px; color: var(--text-dim); padding: 6px 10px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); word-break: break-all; }
+  /* Palier affiché juste sous l'email (15/09, même chantier de regroupement que le menu Compte
+     ci-dessus) : simple lecture, aucune action -- reprend le style discret de account-menu-email
+     plutôt qu'un account-menu-item cliquable. */
+  .account-menu-plan { font-size: 11.5px; color: var(--text-dim); padding: 0 10px 10px; margin-top: -4px; }
   .account-menu-item {
-    display: block; width: 100%; text-align: left; background: none; border: none;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    width: 100%; text-align: left; background: none; border: none;
     padding: 8px 10px; font-size: 12.5px; border-radius: 5px; cursor: pointer;
     color: inherit; text-decoration: none; font-family: inherit;
   }
-  .account-menu-item:hover { background: var(--backstage-bg); }
+  .account-menu-item:hover:not(:disabled) { background: var(--backstage-bg); }
   .account-menu-item[hidden] { display: none; }
+  .account-menu-item:disabled { color: #bbb; cursor: default; }
   .account-menu-signout { color: #b5442e; }
   .account-menu-dropdown-wide { min-width: 300px; max-width: 360px; max-height: 320px; overflow-y: auto; }
-  #btnNotifBell { position: relative; }
+  /* Fusion des deux cloches "Messages de LayerPitch" / "Notifications" en une seule boîte de
+     réception à deux sections (15/09, retour direct de Jules-Antoine : les deux icônes séparées lui
+     semblaient redondantes côte à côte) -- les entêtes de section restent visibles même quand une
+     section est vide, pour que le compositeur comprenne qu'il y a bien deux catégories distinctes. */
+  .account-menu-inbox-section:not(:last-child) { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .account-menu-inbox-heading { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-dim); padding: 4px 10px 2px; }
+  #btnInboxBell { position: relative; }
   .notif-badge {
     position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%;
     background: #c0392b; border: 1.5px solid var(--bg);
@@ -689,23 +701,21 @@
       <button class="btn btn-primary" id="btnPublish" disabled data-i18n-title="publishDisabledUntilLoadHint" data-i18n="publishBtn" title="Désactivé tant que le chargement initial n'a pas réussi, pour éviter d'écraser les données déjà publiées.">Sauvegarder / publier</button>
       <button class="btn" id="btnView" data-i18n="viewResultBtn">Visualiser le résultat ↗</button>
       <div class="account-menu">
-        <button class="btn btn-icon" id="btnAdminMsgBell" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="adminMsgBellTitle" title="Messages de LayerPitch">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/></svg>
-          <span class="notif-badge" id="adminMsgBellBadge" hidden></span>
-        </button>
-        <div class="account-menu-dropdown account-menu-dropdown-wide" id="adminMsgBellDropdown" hidden>
-          <div class="account-menu-email" id="adminMsgBellEmpty" data-i18n="adminMsgBellEmpty">Aucun message pour l'instant.</div>
-          <div id="adminMsgBellList"></div>
-        </div>
-      </div>
-      <div class="account-menu">
-        <button class="btn btn-icon" id="btnNotifBell" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="notifBellTitle" title="Notifications">
+        <button class="btn btn-icon" id="btnInboxBell" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="inboxBellTitle" title="Boîte de réception">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 10a6 6 0 1 1 12 0c0 4 1.4 5.4 1.4 5.4H4.6S6 14 6 10z"/><path d="M10.3 18.5a1.9 1.9 0 0 0 3.4 0"/></svg>
-          <span class="notif-badge" id="notifBellBadge" hidden></span>
+          <span class="notif-badge" id="inboxBellBadge" hidden></span>
         </button>
-        <div class="account-menu-dropdown account-menu-dropdown-wide" id="notifBellDropdown" hidden>
-          <div class="account-menu-email" id="notifBellEmpty" data-i18n="notifBellEmpty">Aucun message pour l'instant.</div>
-          <div id="notifBellList"></div>
+        <div class="account-menu-dropdown account-menu-dropdown-wide" id="inboxBellDropdown" hidden>
+          <div class="account-menu-inbox-section">
+            <div class="account-menu-inbox-heading" data-i18n="inboxSectionAnnouncements">Annonces LayerPitch</div>
+            <div class="account-menu-email" id="adminMsgBellEmpty" data-i18n="adminMsgBellEmpty">Aucun message pour l'instant.</div>
+            <div id="adminMsgBellList"></div>
+          </div>
+          <div class="account-menu-inbox-section">
+            <div class="account-menu-inbox-heading" data-i18n="inboxSectionNotifications">Notifications</div>
+            <div class="account-menu-email" id="notifBellEmpty" data-i18n="notifBellEmpty">Aucun message pour l'instant.</div>
+            <div id="notifBellList"></div>
+          </div>
         </div>
       </div>
       <div class="account-menu">
@@ -714,7 +724,20 @@
         </button>
         <div class="account-menu-dropdown" id="accountMenuDropdown" hidden>
           <div class="account-menu-email" id="accountMenuEmail" data-i18n="accountMenuNotConnected">Non connecté</div>
+          <div class="account-menu-plan" id="accountMenuPlan" hidden></div>
           <a class="account-menu-item" href="mon-compte.html" target="_blank" rel="noopener" data-i18n="accountMenuMyAccount">Mon compte</a>
+          <!-- FAQ : entrée visible mais désactivée (même convention que le nav-item "Projet(s)" plus
+               haut dans ce fichier) -- aucune FAQ rédigée nulle part, pas question de pointer vers une
+               page vide pour donner une fausse impression de fonctionnalité manquante/cassée. -->
+          <button class="account-menu-item" type="button" disabled>
+            <span data-i18n="accountMenuFaq">FAQ</span>
+            <span class="nav-badge" data-i18n="comingSoonBadge">bientôt</span>
+          </button>
+          <!-- Tutoriels (15/09) : playlist YouTube "LayerPitch_Tutorials" (Julzantoine), confirmée
+               réelle et déjà alimentée (2 vidéos) -- lien direct, pas de page intermédiaire à
+               construire côté LayerPitch. -->
+          <a class="account-menu-item" href="https://www.youtube.com/playlist?list=PLUEGG1IiDkp0" target="_blank" rel="noopener" data-i18n="accountMenuTutorials">Tutoriels</a>
+          <a class="account-menu-item" href="mailto:contact@layerpitch.com" data-i18n="accountMenuContact">Nous contacter</a>
           <button class="account-menu-item account-menu-signout" id="btnAccountSignOut" type="button" hidden data-i18n="accountMenuSignOut">Se déconnecter</button>
         </div>
       </div>
@@ -1027,6 +1050,23 @@
             <option value="en" data-i18n="publishLangEn">Anglais</option>
           </select>
           <div class="hint-inline" data-i18n="publishLangHint">S'applique à l'habillage de la page (boutons, libellés) — pas au contenu que tu as toi-même rédigé (titres, textes, témoignages), qui reste dans la langue où tu l'as écrit. Fixe pour tes visiteurs, pas un choix qu'ils peuvent changer. Les packs liés depuis cet AdReel héritent automatiquement de la même langue.</div>
+        </fieldset>
+
+        <!-- Partage (15/09, décidé et construit avec Jules-Antoine) : par AdReel, pas par compositeur
+             ni sur packs/collections -- un pack peut être rattaché à plusieurs AdReels (voir
+             upsert_ad_reel), son indexation ne doit donc jamais dépendre du réglage d'UN SEUL des
+             AdReels qui le montrent. Coché par défaut (colonne ad_reels.allow_indexing, migration
+             20260916050000) pour ne rien changer à ce qui est déjà publié. Application réelle : balise
+             <meta name="robots" content="noindex"> injectée par index.html quand décoché (voir
+             applyIndexingMeta() dans index.html) -- fiable pour Google (exécute le JS avant
+             indexation), pas garanti à 100% pour tous les moteurs moins bons en JS. -->
+        <fieldset>
+          <div class="nav-section-label track-section-label" data-i18n="sectionSharing">Partage</div>
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="appAllowIndexing" style="width:auto;margin:0;">
+            <span data-i18n="allowIndexingLabel">Indexable par les moteurs de recherche</span>
+          </label>
+          <div class="hint-inline" data-i18n="allowIndexingHint">Décoche pour retirer cet AdReel des résultats Google (utile pour un AdReel de démo envoyé à un seul prospect) sans le rendre privé — le lien restera ouvert à qui le reçoit. N'affecte pas les packs/collections qu'il montre, qui peuvent être partagés par d'autres AdReels.</div>
         </fieldset>
 
         <!-- Palier Free (Chantier Apparence Phase 3) : galerie de presets à la place des réglages fins. -->
@@ -1396,7 +1436,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1789414952182"></script>
+<script src="layerpitch-i18n.js?v=1789460889807"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
 <script src="player.js?v=1789414952182"></script>
 <script>
@@ -1559,8 +1599,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   initPgAuthUi();
   initAccountMenuUi();
-  initNotifBellUi();
-  initAdminMsgBellUi();
+  initInboxBellUi();
 });
 const state = {
   owner: () => document.getElementById('ghOwner').value.trim(),
@@ -1822,16 +1861,33 @@ function renderPgAuthStatus(session) {
     if (signOutBtn) signOutBtn.style.display = 'none';
   }
 }
-function renderAccountMenu(session) {
+// Libellés courts, même mapping que planLabel() dans mon-compte.html -- pas mutualisé dans un
+// module partagé pour un objet de trois entrées utilisé à un seul endroit ici.
+const ACCOUNT_MENU_PLAN_LABELS = { free: 'Free', starter: 'Starter', pro: 'Pro' };
+async function renderAccountMenu(session) {
   const emailEl = document.getElementById('accountMenuEmail');
+  const planEl = document.getElementById('accountMenuPlan');
   const signOutBtn = document.getElementById('btnAccountSignOut');
   if (!emailEl) return;
   if (session && session.user) {
     emailEl.textContent = session.user.email;
     if (signOutBtn) signOutBtn.hidden = false;
+    // Palier affiché directement dans le menu (15/09, chantier de regroupement des réglages de
+    // compte) : évite d'ouvrir "Mon compte" juste pour savoir où on en est.
+    if (planEl) {
+      await loadPostgresReadScripts();
+      const { status } = await window.LayerPitchSubscriptions.getTrialStatus();
+      if (status && status.plan) {
+        planEl.textContent = tr('accountMenuPlanLabel', { plan: ACCOUNT_MENU_PLAN_LABELS[status.plan] || status.plan });
+        planEl.hidden = false;
+      } else {
+        planEl.hidden = true;
+      }
+    }
   } else {
     emailEl.textContent = tr('accountMenuNotConnected');
     if (signOutBtn) signOutBtn.hidden = true;
+    if (planEl) planEl.hidden = true;
   }
 }
 function initAccountMenuUi() {
@@ -1859,34 +1915,66 @@ function initAccountMenuUi() {
     });
   }
 }
-// Cloche de notification (messages du bloc "Contact" public, relayés par submit-contact-message —
-// 5 septembre) : lecture directe sur contact_messages (RLS "own contact messages", même patron que
-// getMyIssuedInvoices()) plutôt qu'une RPC dédiée, aucun gating par palier payant volontairement
-// (recevoir un message n'est pas une métrique d'analytics, voir la migration pour le détail).
-async function renderNotifBell(session) {
-  const badge = document.getElementById('notifBellBadge');
-  const emptyEl = document.getElementById('notifBellEmpty');
-  const listEl = document.getElementById('notifBellList');
-  if (!badge || !listEl) return;
-  if (!session || !session.user) { badge.hidden = true; listEl.innerHTML = ''; emptyEl.hidden = false; return; }
+// Boîte de réception unique (15 septembre, fusion des deux cloches précédentes "Messages de
+// LayerPitch" et "Notifications" — Jules-Antoine les trouvait redondantes côte à côte). Les deux
+// sources de données restent distinctes en base (admin_messages/admin_message_reads pour les
+// annonces plateforme -- lecture publique + lignes de lecture propres au compositeur, un message
+// n'a pas un seul destinataire ; contact_messages pour les messages du bloc "Contact" public --
+// simple flag seen_at, un message ici a exactement un destinataire) : seule la présentation est
+// unifiée, dans deux sections du même menu déroulant, avec un badge commun.
+async function renderInboxBell(session) {
+  const badge = document.getElementById('inboxBellBadge');
+  const adminEmptyEl = document.getElementById('adminMsgBellEmpty');
+  const adminListEl = document.getElementById('adminMsgBellList');
+  const notifEmptyEl = document.getElementById('notifBellEmpty');
+  const notifListEl = document.getElementById('notifBellList');
+  if (!badge || !adminListEl || !notifListEl) return;
+  if (!session || !session.user) {
+    badge.hidden = true;
+    adminListEl.innerHTML = ''; adminEmptyEl.hidden = false;
+    notifListEl.innerHTML = ''; notifEmptyEl.hidden = false;
+    return;
+  }
   await loadPostgresReadScripts();
-  const { data, error } = await window.LayerPitchSupabaseClient.getClient()
-    .from('contact_messages')
-    .select('id, ad_reel_label, sender_name, sender_email, created_at, seen_at')
-    .order('created_at', { ascending: false })
-    .limit(20);
-  if (error || !data || data.length === 0) { badge.hidden = true; listEl.innerHTML = ''; emptyEl.hidden = false; return; }
-  badge.hidden = data.every(m => m.seen_at);
-  emptyEl.hidden = true;
-  listEl.innerHTML = data.map(m => `
-    <div class="notif-item">
-      ${tr('notifBellMessage', { name: escapeHtml(m.sender_name), adreel: escapeHtml(m.ad_reel_label) })}
-      <div class="notif-item-meta">${escapeHtml(m.sender_email)} — ${new Date(m.created_at).toLocaleString('fr-FR')}</div>
-    </div>`).join('');
+  const client = window.LayerPitchSupabaseClient.getClient();
+  const [{ data: adminMessages, error: adminError }, { data: adminReads }, { data: contactMessages, error: contactError }] = await Promise.all([
+    client.from('admin_messages').select('id, body, created_at').order('created_at', { ascending: false }).limit(20),
+    client.from('admin_message_reads').select('message_id'),
+    client.from('contact_messages').select('id, ad_reel_label, sender_name, sender_email, created_at, seen_at').order('created_at', { ascending: false }).limit(20),
+  ]);
+  let adminUnread = false;
+  if (adminError || !adminMessages || adminMessages.length === 0) {
+    adminListEl.innerHTML = ''; adminEmptyEl.hidden = false;
+  } else {
+    const seenIds = new Set((adminReads || []).map(r => r.message_id));
+    adminUnread = adminMessages.some(m => !seenIds.has(m.id));
+    adminEmptyEl.hidden = true;
+    adminListEl.innerHTML = adminMessages.map(m => {
+      const text = (m.body && (m.body[currentLang()] || m.body.fr)) || '';
+      return `
+      <div class="notif-item">
+        ${escapeHtml(text)}
+        <div class="notif-item-meta">${new Date(m.created_at).toLocaleString('fr-FR')}</div>
+      </div>`;
+    }).join('');
+  }
+  let contactUnread = false;
+  if (contactError || !contactMessages || contactMessages.length === 0) {
+    notifListEl.innerHTML = ''; notifEmptyEl.hidden = false;
+  } else {
+    contactUnread = contactMessages.some(m => !m.seen_at);
+    notifEmptyEl.hidden = true;
+    notifListEl.innerHTML = contactMessages.map(m => `
+      <div class="notif-item">
+        ${tr('notifBellMessage', { name: escapeHtml(m.sender_name), adreel: escapeHtml(m.ad_reel_label) })}
+        <div class="notif-item-meta">${escapeHtml(m.sender_email)} — ${new Date(m.created_at).toLocaleString('fr-FR')}</div>
+      </div>`).join('');
+  }
+  badge.hidden = !(adminUnread || contactUnread);
 }
-function initNotifBellUi() {
-  const bellBtn = document.getElementById('btnNotifBell');
-  const dropdown = document.getElementById('notifBellDropdown');
+function initInboxBellUi() {
+  const bellBtn = document.getElementById('btnInboxBell');
+  const dropdown = document.getElementById('inboxBellDropdown');
   if (!bellBtn || !dropdown) return;
   const closeMenu = () => { dropdown.hidden = true; bellBtn.setAttribute('aria-expanded', 'false'); };
   bellBtn.addEventListener('click', async (e) => {
@@ -1895,68 +1983,17 @@ function initNotifBellUi() {
     dropdown.hidden = !willOpen;
     bellBtn.setAttribute('aria-expanded', String(willOpen));
     // Marqué vu à l'ouverture (pas avant) : le badge doit rester visible tant que le compositeur n'a
-    // pas effectivement regardé la cloche, même s'il a rechargé la page entretemps.
+    // pas effectivement regardé la boîte, même s'il a rechargé la page entretemps. Les deux RPC de
+    // "vu" restent séparées (une par source) même si le badge, lui, est désormais commun.
     if (willOpen) {
-      const badge = document.getElementById('notifBellBadge');
+      const badge = document.getElementById('inboxBellBadge');
       if (badge && !badge.hidden) {
         await loadPostgresReadScripts();
-        await window.LayerPitchSupabaseClient.getClient().rpc('mark_contact_messages_seen');
-        badge.hidden = true;
-      }
-    }
-  });
-  document.addEventListener('click', (e) => {
-    if (!dropdown.hidden && !dropdown.contains(e.target) && e.target !== bellBtn) closeMenu();
-  });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
-}
-// Cloche "Messages de LayerPitch" (boîte de réception admin_messages, remplace l'ancien bandeau
-// d'annonce plein écran platform_settings — 7 septembre : Jules-Antoine préfère une boîte qui
-// déclenche une notif à un bandeau qui écrase le message précédent). Broadcast : lecture publique
-// sur admin_messages (RLS "public read") + lignes de lecture propres au compositeur
-// (admin_message_reads, RLS "own admin message reads") — deux tables plutôt qu'un flag seen_at
-// unique comme contact_messages, parce qu'un message ici n'a pas un seul destinataire.
-async function renderAdminMsgBell(session) {
-  const badge = document.getElementById('adminMsgBellBadge');
-  const emptyEl = document.getElementById('adminMsgBellEmpty');
-  const listEl = document.getElementById('adminMsgBellList');
-  if (!badge || !listEl) return;
-  if (!session || !session.user) { badge.hidden = true; listEl.innerHTML = ''; emptyEl.hidden = false; return; }
-  await loadPostgresReadScripts();
-  const client = window.LayerPitchSupabaseClient.getClient();
-  const [{ data: messages, error }, { data: reads }] = await Promise.all([
-    client.from('admin_messages').select('id, body, created_at').order('created_at', { ascending: false }).limit(20),
-    client.from('admin_message_reads').select('message_id'),
-  ]);
-  if (error || !messages || messages.length === 0) { badge.hidden = true; listEl.innerHTML = ''; emptyEl.hidden = false; return; }
-  const seenIds = new Set((reads || []).map(r => r.message_id));
-  emptyEl.hidden = true;
-  badge.hidden = messages.every(m => seenIds.has(m.id));
-  listEl.innerHTML = messages.map(m => {
-    const text = (m.body && (m.body[currentLang()] || m.body.fr)) || '';
-    return `
-    <div class="notif-item">
-      ${escapeHtml(text)}
-      <div class="notif-item-meta">${new Date(m.created_at).toLocaleString('fr-FR')}</div>
-    </div>`;
-  }).join('');
-}
-function initAdminMsgBellUi() {
-  const bellBtn = document.getElementById('btnAdminMsgBell');
-  const dropdown = document.getElementById('adminMsgBellDropdown');
-  if (!bellBtn || !dropdown) return;
-  const closeMenu = () => { dropdown.hidden = true; bellBtn.setAttribute('aria-expanded', 'false'); };
-  bellBtn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const willOpen = dropdown.hidden;
-    dropdown.hidden = !willOpen;
-    bellBtn.setAttribute('aria-expanded', String(willOpen));
-    // Marqué vu à l'ouverture (pas avant), même convention que la cloche des messages de contact.
-    if (willOpen) {
-      const badge = document.getElementById('adminMsgBellBadge');
-      if (badge && !badge.hidden) {
-        await loadPostgresReadScripts();
-        await window.LayerPitchSupabaseClient.getClient().rpc('mark_admin_messages_seen');
+        const client = window.LayerPitchSupabaseClient.getClient();
+        await Promise.all([
+          client.rpc('mark_admin_messages_seen'),
+          client.rpc('mark_contact_messages_seen'),
+        ]);
         badge.hidden = true;
       }
     }
@@ -2068,7 +2105,7 @@ async function initPgAuthUi() {
   if (window.LayerPitchAuth) {
     window.LayerPitchAuth.onAuthStateChange((_event, session) => {
       renderPgAuthStatus(session); refreshMyComposerHandle(session); renderSubscriptionPanel(session);
-      renderAdminOnlyPanels(session); renderAccountMenu(session); renderNotifBell(session); renderAdminMsgBell(session);
+      renderAdminOnlyPanels(session); renderAccountMenu(session); renderInboxBell(session);
     });
   }
 }
@@ -3064,9 +3101,8 @@ function migrateBlocks(data) {
 function freshBlocks() {
   return [
     { id: genId(), type: 'header' },
-    { id: genId(), type: 'bio' },
-    { id: genId(), type: 'testimonials' },
-    { id: genId(), type: 'tracks' }
+    { id: genId(), type: 'tracks' },
+    { id: genId(), type: 'bio' }
   ];
 }
 
@@ -3698,10 +3734,19 @@ document.getElementById('newAdReelOk').addEventListener('click', () => {
     testimonials: (imp.testimonials && source) ? source.testimonials.map(t => ({ ...t })) : [],
     trackIds: (imp.tracks && source) ? source.trackIds.slice() : [],
     trackOverrides: (imp.tracks && source) ? JSON.parse(JSON.stringify(source.trackOverrides || {})) : {},
+    // Toujours indexé par défaut à la création, même en dupliquant un AdReel non-indexé -- décision
+    // volontaire (15/09) : rien à "importer" ici, chaque AdReel démarre visible et c'est au
+    // compositeur de le décocher explicitement s'il s'agit d'une démo.
+    allowIndexing: true,
     logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null,
     folderId: null
   };
   adReels.push(newAdReel);
+  // Repliés par défaut (15/09, retour direct de Jules-Antoine) -- même convention que le chargement
+  // initial de la page (voir plus bas, tous les blocs de tous les AdReels rejoignent
+  // collapsedBlockIds à chaque chargement) : sans cet ajout explicite, un AdReel créé ou dupliqué
+  // SANS recharger la page restait déplié, ses ids n'ayant jamais rejoint l'ensemble.
+  newAdReel.blocks.forEach(b => collapsedBlockIds.add(b.id));
   hasUnsavedEdits = true;
   trackBackstageEvent('adreel_add', { imported: !!source });
   document.getElementById('newAdReelModalOverlay').style.display = 'none';
@@ -8325,6 +8370,7 @@ function fillAppearanceFields() {
   document.getElementById('appThemeBgImageOpacityValue').textContent = Math.round(opacityVal * 100) + '%';
   const ar = adReels.find(a => a.id === currentAdReelId);
   document.getElementById('appLang').value = (ar && ar.lang) || 'fr';
+  document.getElementById('appAllowIndexing').checked = !ar || ar.allowIndexing !== false;
   const sep = Object.assign({}, DEFAULT_SEPARATOR, profile.theme.separator || {});
   document.getElementById('appSeparatorVisible').checked = !!sep.visible;
   document.getElementById('appSeparatorColor').value = sep.color;
@@ -8573,6 +8619,10 @@ document.getElementById('appLang').addEventListener('change', e => {
   const ar = adReels.find(a => a.id === currentAdReelId);
   if (ar) { ar.lang = e.target.value; hasUnsavedEdits = true; }
 });
+document.getElementById('appAllowIndexing').addEventListener('change', e => {
+  const ar = adReels.find(a => a.id === currentAdReelId);
+  if (ar) { ar.allowIndexing = e.target.checked; hasUnsavedEdits = true; }
+});
 fillAppearanceFields();
 
 /* ---------------- Polices personnalisées (portée globale, réutilisables par tout AdReel/bloc) ---------------- */
@@ -8735,12 +8785,13 @@ async function loadData(silent) {
       waveformStyle = 'bars';
       seqMapTheme = 'light';
       allowEmbedding = false;
-      adReels = [{ id: 'main', label: tr('defaultAdreelLabel'), lang: 'fr', blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null }];
+      adReels = [{ id: 'main', label: tr('defaultAdreelLabel'), lang: 'fr', blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, allowIndexing: true, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null }];
       currentAdReelId = 'main';
       const cur = adReels[0];
       blocks = cur.blocks; profile = cur.profile; testimonials = cur.testimonials; trackIds = cur.trackIds; trackOverrides = cur.trackOverrides;
       logoPendingFile = null; photoPendingFile = null;
       collapsedPackIds.clear(); collapsedBlockIds.clear(); collapsedCollectionIds.clear();
+      cur.blocks.forEach(b => collapsedBlockIds.add(b.id));
       renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); rebuildAllCards();
       dataLoadOk = true; // absence légitime de data.json (premier lancement) -- pas un échec, publier est sûr
       document.getElementById('btnPublish').disabled = false;
@@ -8974,6 +9025,7 @@ async function loadData(silent) {
       testimonials: a.testimonials || [],
       trackIds: a.trackIds ? a.trackIds.slice() : [],
       trackOverrides: a.trackOverrides ? JSON.parse(JSON.stringify(a.trackOverrides)) : {},
+      allowIndexing: a.allowIndexing !== false,
       blocks: migrateBlocks(a).map(b => {
         if (b.type === 'photo') return { ...b, images: (b.images || []).map(img => ({ file: img.file, originalFileName: img.originalFileName || null, pendingFile: null })) };
         if (b.type === 'video') return { ...b, videos: (b.videos || []).map(v => ({ title: v.title, url: v.url, comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, pendingThumbnail: null, source: v.source === 'library' ? 'library' : 'url', libraryVideoId: v.libraryVideoId || null })) };
@@ -8987,7 +9039,7 @@ async function loadData(silent) {
     // introuvable dans la liste maître.
     adReels.forEach(a => { if (a.folderId && !adReelFolders.some(f => f.id === a.folderId)) a.folderId = null; });
     if (adReels.length === 0) {
-      adReels.push({ id: 'main', label: tr('defaultAdreelLabel'), lang: 'fr', blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null });
+      adReels.push({ id: 'main', label: tr('defaultAdreelLabel'), lang: 'fr', blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, allowIndexing: true, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null });
     }
     currentAdReelId = adReels.some(a => a.id === 'main') ? 'main' : adReels[0].id;
     const cur = adReels.find(a => a.id === currentAdReelId);
@@ -9677,6 +9729,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       testimonials: ar.testimonials,
       trackIds: ar.trackIds || [],
       trackOverrides: ar.trackOverrides || {},
+      allowIndexing: ar.allowIndexing !== false,
       folderId: ar.folderId || null
     }))
   };
