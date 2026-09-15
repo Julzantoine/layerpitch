@@ -1262,30 +1262,30 @@
   </div>
 
   <fieldset>
-    <legend>Apparence du backstage (local à cet ordinateur)</legend>
-    <label>Thème</label>
+    <legend data-i18n="backstageAppearanceLegend">Apparence du backstage (local à cet ordinateur)</legend>
+    <label data-i18n="backstageThemeLabel">Thème</label>
     <div class="actions" style="margin-bottom:10px;">
-      <button class="btn btn-small" id="btnBackstageThemeLight" type="button">☀ Jour</button>
-      <button class="btn btn-small" id="btnBackstageThemeDark" type="button">☾ Nuit</button>
+      <button class="btn btn-small" id="btnBackstageThemeLight" type="button" data-i18n="backstageThemeLightBtn">☀ Jour</button>
+      <button class="btn btn-small" id="btnBackstageThemeDark" type="button" data-i18n="backstageThemeDarkBtn">☾ Nuit</button>
     </div>
-    <label data-help="backstageBgColor">Couleur de fond de cet outil</label>
+    <label data-help="backstageBgColor" data-i18n="backstageBgColorLabel">Couleur de fond de cet outil</label>
     <input type="color" id="backstageBgColor" value="#ffffff">
-    <div class="hint" id="backstageBgColorHint">Ne change rien à ce que voient tes visiteurs — c'est uniquement le confort visuel de cet écran d'édition, mémorisé sur cet ordinateur.</div>
-    <label style="margin-top:12px">Image de fond en filigrane</label>
+    <div class="hint" id="backstageBgColorHint" data-i18n="backstageBgColorHint">Ne change rien à ce que voient tes visiteurs — c'est uniquement le confort visuel de cet écran d'édition, mémorisé sur cet ordinateur.</div>
+    <label style="margin-top:12px" data-i18n="backstageWatermarkLabel">Image de fond en filigrane</label>
     <div class="actions" style="margin-bottom:6px;">
-      <button class="btn btn-small" id="btnBackstageWatermarkPick" type="button">Choisir une image</button>
-      <button class="btn btn-small btn-danger" id="btnBackstageWatermarkClear" type="button" hidden>Retirer</button>
+      <button class="btn btn-small" id="btnBackstageWatermarkPick" type="button" data-i18n="backstageWatermarkPickBtn">Choisir une image</button>
+      <button class="btn btn-small btn-danger" id="btnBackstageWatermarkClear" type="button" hidden data-i18n="backstageWatermarkClearBtn">Retirer</button>
     </div>
     <input type="file" id="backstageWatermarkInput" accept="image/*" hidden>
     <div id="backstageWatermarkOpacityRow" hidden>
-      <label for="backstageWatermarkOpacity">Opacité</label>
+      <label for="backstageWatermarkOpacity" data-i18n="backstageWatermarkOpacityLabel">Opacité</label>
       <input type="range" id="backstageWatermarkOpacity" min="0" max="100" step="1" value="8">
       <label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
         <input type="checkbox" id="backstageWatermarkFixed" checked style="width:auto;margin:0;">
-        <span>Reste fixe pendant le défilement</span>
+        <span data-i18n="backstageWatermarkFixedLabel">Reste fixe pendant le défilement</span>
       </label>
     </div>
-    <div class="hint">Purement décorative, locale à cet ordinateur — les visiteurs ne la voient jamais.</div>
+    <div class="hint" data-i18n="backstageWatermarkHint">Purement décorative, locale à cet ordinateur — les visiteurs ne la voient jamais.</div>
   </fieldset>
 
   <fieldset id="panelGithubRepo" hidden>
@@ -1532,7 +1532,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1789468863323"></script>
+<script src="layerpitch-i18n.js?v=1789472678805"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
 <script src="player.js?v=1789414952182"></script>
 <script>
@@ -3706,9 +3706,7 @@ document.getElementById('btnShareAdReelUrl').addEventListener('click', async () 
     btnLight.classList.toggle('btn-primary', theme === 'light');
     btnDark.classList.toggle('btn-primary', theme === 'dark');
     bgInput.disabled = theme === 'dark';
-    bgHint.textContent = theme === 'dark'
-      ? 'Désactivé en thème Nuit (qui fixe déjà son propre fond) — repasse en Jour pour choisir une couleur.'
-      : 'Ne change rien à ce que voient tes visiteurs — c\'est uniquement le confort visuel de cet écran d\'édition, mémorisé sur cet ordinateur.';
+    bgHint.textContent = theme === 'dark' ? tr('backstageBgColorHintDark') : tr('backstageBgColorHint');
     if (theme === 'dark') {
       document.documentElement.style.removeProperty('--backstage-bg');
     } else {
