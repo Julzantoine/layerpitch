@@ -52,13 +52,22 @@
      l'image choisie, quitte à en rogner les bords -- cohérent avec "toute l'écran" plutôt que "toute
      visible". Case "Reste fixe pendant le défilement" (retour direct le même jour) : décochée, passe
      en absolute -- ancré sur .page (position:relative), défile donc avec le contenu au lieu de rester
-     plaqué à l'écran. */
+     plaqué à l'écran.
+
+     Bug réel trouvé et corrigé le même jour (capture d'écran : image cadrée trop serrée, "coupée") :
+     en mode défilant, .scrolls-with-page héritait inset:0, donc une hauteur égale à TOUTE la page
+     (potentiellement des milliers de pixels avec tout le contenu du Backstage) au lieu de la hauteur
+     de l'écran -- avec cover, ce rapport largeur/hauteur totalement déformé (mesuré 430×657 pour une
+     image 1600×400 lors du diagnostic) force un zoom énorme, ne laissant voir qu'une bande étroite et
+     floue. Corrigé en fixant sa hauteur à 100vh (celle de l'écran, comme en mode fixe) plutôt que de
+     suivre la hauteur de .page -- même cover, même cadrage que le mode fixe, seule la position change
+     (défile avec le contenu au lieu de rester plaquée). */
   #backstageWatermarkLayer {
     position: fixed; inset: 0; z-index: -1; pointer-events: none;
     background-repeat: no-repeat; background-position: center center;
     background-size: cover; opacity: 0.08;
   }
-  #backstageWatermarkLayer.scrolls-with-page { position: absolute; }
+  #backstageWatermarkLayer.scrolls-with-page { position: absolute; top: 0; left: 0; right: 0; bottom: auto; height: 100vh; }
   /* Verrou de connexion (7 septembre) : couvre tout l'outil tant qu'aucune session Supabase n'est
      confirmée -- sans ça, un visiteur non connecté voyait l'intégralité de l'interface compositeur
      (formulaires, panneaux) avant que la lecture Postgres échoue silencieusement en arrière-plan.
@@ -796,6 +805,13 @@
           <div class="account-menu-email" id="accountMenuEmail" data-i18n="accountMenuNotConnected">Non connecté</div>
           <div class="account-menu-plan" id="accountMenuPlan" hidden></div>
           <a class="account-menu-item" href="mon-compte.html" target="_blank" rel="noopener" data-i18n="accountMenuMyAccount">Mon compte</a>
+          <!-- Annuaire des compositeurs (15/09, retour direct : "doit être directement dans ce
+               dossier" -- même chantier que la carte grisée déjà présente dans mon-compte.html)
+               -- même convention "bientôt" que FAQ ci-dessous, rien de construit derrière. -->
+          <button class="account-menu-item" type="button" disabled>
+            <span data-i18n="accountMenuDirectory">Annuaire des compositeurs</span>
+            <span class="nav-badge" data-i18n="comingSoonBadge">bientôt</span>
+          </button>
           <!-- FAQ : entrée visible mais désactivée (même convention que le nav-item "Projet(s)" plus
                haut dans ce fichier) -- aucune FAQ rédigée nulle part, pas question de pointer vers une
                page vide pour donner une fausse impression de fonctionnalité manquante/cassée. -->
@@ -1516,7 +1532,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1789468176634"></script>
+<script src="layerpitch-i18n.js?v=1789468863323"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
 <script src="player.js?v=1789414952182"></script>
 <script>
