@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, redirectTo, personalMessage } = await req.json();
+    const { email, redirectTo, personalMessage, accessRequestId } = await req.json();
     if (!email || typeof email !== 'string') {
       return new Response(JSON.stringify({ error: 'email manquant ou invalide.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -176,6 +176,16 @@ Deno.serve(async (req) => {
         status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Trace de l'invitation (16 septembre) : best-effort, ne doit jamais faire échouer la réponse
+    // -- l'invitation elle-même a déjà réussi (compte créé, email parti) à ce stade.
+    const { error: recordError } = await callerClient.rpc('record_invite', {
+      p_email: email,
+      p_user_id: data.user ? data.user.id : null,
+      p_access_request_id: typeof accessRequestId === 'number' ? accessRequestId : null,
+      p_personal_message: typeof personalMessage === 'string' && personalMessage.trim() ? personalMessage.trim() : null,
+    });
+    if (recordError) console.error('invite-tester: record_invite a échoué', recordError);
 
     return new Response(JSON.stringify({
       ok: true,

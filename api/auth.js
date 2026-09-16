@@ -78,8 +78,12 @@
   // absent. Sur échec APRÈS création du compte (email jamais parti), la fonction renvoie quand même
   // actionLink dans le corps JSON de l'erreur -- describeFunctionError() ne renverrait que le message
   // texte, donc on relit ce corps ici pour ne pas perdre ce lien de secours.
-  async function inviteTester(email, redirectTo, personalMessage) {
-    const { data, error } = await getClient().functions.invoke('invite-tester', { body: { email, redirectTo, personalMessage } });
+  // accessRequestId (16 septembre) : si cette invitation part de la liste "Demandes d'accès en
+  // attente", l'Edge Function l'enregistre dans invites.access_request_id (purement informatif,
+  // voir supabase/migrations/20260916070000_invites.sql) -- aucun effet sur access_requests
+  // lui-même, toujours marqué via markAccessRequestInvited() séparément.
+  async function inviteTester(email, redirectTo, personalMessage, accessRequestId) {
+    const { data, error } = await getClient().functions.invoke('invite-tester', { body: { email, redirectTo, personalMessage, accessRequestId: accessRequestId || null } });
     if (error) {
       // Lu une seule fois ici (le corps de error.context ne peut être consommé qu'une fois) --
       // describeFunctionError() n'est volontairement pas réutilisée pour ce cas précis, elle

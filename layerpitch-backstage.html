@@ -1386,6 +1386,16 @@
     </div>
   </fieldset>
 
+  <fieldset id="panelInvitesSent" hidden>
+    <legend>Invitations envoyées (admin)</legend>
+    <div class="hint">
+      Historique des invitations bêta envoyées depuis ce panneau, qu'elles partent d'une demande
+      d'accès ou d'une saisie directe. "Inscrit·e" apparaît dès que la personne s'est réellement
+      connectée au moins une fois (pas seulement le clic sur le lien de l'email).
+    </div>
+    <div id="invitesSentList" class="hint" style="margin-top:8px;max-height:420px;overflow-y:auto;">Chargement…</div>
+  </fieldset>
+
   <fieldset id="panelAdminLink" hidden>
     <legend>Panneau admin (statistiques, suspension de compte, bandeau d'annonce)</legend>
     <div class="hint">
@@ -1782,6 +1792,7 @@ function loadPostgresReadScripts() {
     await loadScript('./api/admin.js');
     await loadScript('./api/analytics.js');
     await loadScript('./api/access-requests.js');
+    await loadScript('./api/invites.js');
   })();
   return postgresReadScriptsLoaded;
 }
@@ -1870,7 +1881,7 @@ async function renderSubscriptionPanel(session) {
 // fetchSiteData()/pgReadEnabled() basculent déjà seuls sur Postgres pour un compositeur sans token
 // GitHub configuré (comme publishAll() le fait déjà côté écriture) -- sinon un compositeur hébergé
 // aurait vu sa bibliothèque vide, ce panneau étant jusqu'ici le seul moyen de l'activer à la main.
-const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelAdminLink'];
+const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelInvitesSent', 'panelAdminLink'];
 // La bibliothèque vidéo / capture (navItemVideoLibrary, panelVideoLibrary) avait été ouverte à tout
 // compositeur connecté le 16 septembre (voir
 // supabase/migrations/20260916040000_open_capture_video_to_composers.sql, toujours en place côté
@@ -1903,7 +1914,7 @@ async function renderAdminOnlyPanels(session) {
   const videoNavBadge = document.getElementById('navVideoLibraryBadge');
   if (videoNavBtn) videoNavBtn.disabled = !isAdmin;
   if (videoNavBadge) videoNavBadge.hidden = isAdmin;
-  if (isAdmin) renderAccessRequestsList();
+  if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); }
 }
 // Demandes d'accès en attente (bloc "Inviter un testeur" ci-dessous, 6 septembre) -- une seule
 // fonction de rendu réutilisée après chaque invitation réussie pour retirer la ligne traitée.
@@ -1944,6 +1955,28 @@ async function renderAccessRequestsList() {
       renderAccessRequestsList();
     });
   });
+}
+// Invitations envoyées (bloc "Invitations envoyées" ci-dessous, 16 septembre) -- réutilisée après
+// chaque invitation réussie pour faire apparaître la nouvelle ligne sans recharger la page.
+async function renderInvitesSentList() {
+  const listEl = document.getElementById('invitesSentList');
+  if (!listEl) return;
+  const { invites, error } = await window.LayerPitchInvites.getInvites();
+  if (error) { listEl.textContent = 'Erreur : ' + error; return; }
+  if (!invites.length) { listEl.textContent = 'Aucune invitation envoyée pour l\'instant.'; return; }
+  listEl.innerHTML = invites.map((inv) => {
+    const status = inv.accepted_at
+      ? 'Inscrit·e le ' + new Date(inv.accepted_at).toLocaleString('fr-FR')
+      : 'En attente';
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #e2e2e6;">
+      <div style="flex:1;">
+        <div>${escapeHtml(inv.email)}</div>
+        <div style="font-size:11px;color:var(--text-dimmer);">Invité·e le ${new Date(inv.created_at).toLocaleString('fr-FR')}</div>
+      </div>
+      <div style="font-size:12px;${inv.accepted_at ? 'color:var(--text-dim);' : 'color:var(--text-dimmer);'}">${status}</div>
+    </div>`;
+  }).join('');
 }
 function renderPgAuthStatus(session) {
   const el = document.getElementById('pgAuthStatus');
@@ -2152,7 +2185,10 @@ async function initPgAuthUi() {
         // propage à localStorage.layerpitch_lang (voir currentLang() plus haut dans ce fichier),
         // donc à l'écran d'accueil ET au message de bienvenue personnel -- sans ce paramètre,
         // tout le monde recevait la version française par défaut (11 septembre).
-        const { ok, error, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html?lang=' + lang, personalMessage);
+        const emailFieldForRequestId = document.getElementById('inviteTesterEmail');
+        const pendingRequestId = emailFieldForRequestId.dataset.pendingRequestId
+          ? Number(emailFieldForRequestId.dataset.pendingRequestId) : null;
+        const { ok, error, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html?lang=' + lang, personalMessage, pendingRequestId);
         if (ok) {
           alert('Invitation envoyée à ' + email + '.');
           // Si cette invitation part d'une demande d'accès en attente (bouton "Inviter" de la
@@ -2164,6 +2200,7 @@ async function initPgAuthUi() {
             delete emailField.dataset.pendingRequestId;
             renderAccessRequestsList();
           }
+          renderInvitesSentList();
           emailField.value = '';
           document.getElementById('inviteTesterMessage').value = '';
           document.getElementById('inviteTesterLang').value = 'fr';
