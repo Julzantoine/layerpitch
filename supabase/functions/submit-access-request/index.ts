@@ -7,8 +7,9 @@
 // depuis là) -- même raisonnement que submit-contact-message la veille. Insertion faite ici
 // directement via service_role (contourne RLS), pas besoin de rappeler la RPC.
 //
-// Confirmation immédiate à la personne qui demande l'accès (pas à Jules-Antoine — lui la voit dans
-// le panneau admin du backstage) : retour rapide sur son intérêt, dans sa langue.
+// Confirmation immédiate à la personne qui demande l'accès, dans sa langue -- ET notification à
+// Jules-Antoine (16 septembre, sur sa demande : jusqu'ici il fallait penser à aller voir le
+// panneau admin du backstage, une demande pouvait facilement passer inaperçue plusieurs jours).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -80,6 +81,40 @@ async function sendConfirmationEmail(to: string, lang: string) {
   }
 }
 
+// Adresse admin fixe plutôt qu'une recherche en base (table admins) -- une seule admin aujourd'hui,
+// même valeur que le seed de la table admins (20260901190000_admin_role.sql) ; pas de secret
+// supplémentaire à configurer côté Supabase pour ça.
+const ADMIN_NOTIFICATION_EMAIL = 'julzantoine@yahoo.com';
+
+async function sendAdminNotification(requesterEmail: string, source: string, intent: string | null) {
+  const apiKey = Deno.env.get('RESEND_API_KEY');
+  const fromAddress = Deno.env.get('RESEND_FROM_ADDRESS');
+  if (!apiKey || !fromAddress) return { ok: false, error: 'Secrets Resend non configurés côté Supabase.' };
+  const sourceLabel = source === 'blocked_signin'
+    ? 'connexion refusée (pas encore invité)'
+    : (intent === 'waitlist' ? 'landing — "Tenez-moi au courant"' : 'landing — "Rejoindre la bêta"');
+  const html = `
+    <div style="font-family:sans-serif;color:#262521;max-width:480px;">
+      <p>Nouvelle demande d'accès à la bêta LayerPitch :</p>
+      <p><strong>${requesterEmail}</strong><br>${sourceLabel}</p>
+      <p><a href="https://beta.layerpitch.com/layerpitch-backstage.html">Voir dans le Backstage</a></p>
+    </div>`;
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: fromAddress, to: ADMIN_NOTIFICATION_EMAIL, subject: 'Nouvelle demande d\'accès — ' + requesterEmail, html }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      return { ok: false, error: `Resend a refusé l'envoi (${res.status}) : ${body.slice(0, 300)}` };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: 'Appel à l\'API Resend échoué : ' + String(e && e.message || e) };
+  }
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = corsHeadersFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -134,6 +169,10 @@ Deno.serve(async (req) => {
     const emailResult = await sendConfirmationEmail(v_email, v_lang);
     if (!emailResult.ok) {
       console.error('submit-access-request: email de confirmation non envoyé —', emailResult.error);
+    }
+    const adminNotifyResult = await sendAdminNotification(v_email, source, v_intent);
+    if (!adminNotifyResult.ok) {
+      console.error('submit-access-request: notification admin non envoyée —', adminNotifyResult.error);
     }
 
     return new Response(JSON.stringify({ ok: true, emailSent: emailResult.ok }), {
