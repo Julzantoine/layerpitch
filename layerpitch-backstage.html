@@ -162,6 +162,8 @@
   .sub { color: var(--text-dimmer); margin-bottom: 28px; font-size: 12px; }
   fieldset { border: 1px solid #e2e2e6; border-radius: 6px; padding: 16px 18px; margin-bottom: 20px; background: var(--bg); }
   legend { padding: 0 8px; color: var(--text-dimmer); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  fieldset > details > summary { padding: 0 8px; margin: -2px 0 0 -8px; color: var(--text-dimmer); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; }
+  fieldset > details[open] > summary { margin-bottom: 10px; }
   label { display: block; color: var(--text-dimmer); font-size: 11px; margin-bottom: 4px; margin-top: 10px; }
   label:first-of-type { margin-top: 0; }
   input[type=text], input[type=password], select, textarea {
@@ -1301,65 +1303,71 @@
   </fieldset>
 
   <fieldset id="panelGithubRepo" hidden>
-    <legend data-i18n="githubRepoLegend">Dépôt GitHub</legend>
-    <div class="row">
-      <div><label data-i18n="ownerLabel" data-help="ghOwner">Propriétaire (owner)</label><input type="text" id="ghOwner"></div>
-      <div><label data-i18n="repoLabel" data-help="ghRepo">Dépôt (repo)</label><input type="text" id="ghRepo"></div>
-      <div><label data-i18n="branchLabel" data-help="ghBranch">Branche</label><input type="text" id="ghBranch" value="main"></div>
-    </div>
-    <label data-i18n="tokenLabel" data-help="ghToken">Token d'accès personnel — requis seulement pour publier</label>
-    <input type="password" id="ghToken" placeholder="ghp_...">
-    <div class="hint" data-i18n="tokenHint">Jamais sauvegardé — à recoller à chaque session, seulement au moment de publier.</div>
-    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
-      <input type="checkbox" id="modeTestToggle" style="width:auto;margin:0;">
-      <span data-help="modeTestToggle" data-i18n="modeTestLabel" style="font-size:12px;color:var(--text-dim);">Mode test (mes propres essais, exclus des statistiques d'usage)</span>
-    </label>
-    <div class="actions"><button class="btn" id="btnLoad" data-i18n="reloadDataBtn">Recharger data.json (écrase les modifs en cours)</button></div>
+    <details>
+      <summary data-i18n="githubRepoLegend">Dépôt GitHub</summary>
+      <div class="row">
+        <div><label data-i18n="ownerLabel" data-help="ghOwner">Propriétaire (owner)</label><input type="text" id="ghOwner"></div>
+        <div><label data-i18n="repoLabel" data-help="ghRepo">Dépôt (repo)</label><input type="text" id="ghRepo"></div>
+        <div><label data-i18n="branchLabel" data-help="ghBranch">Branche</label><input type="text" id="ghBranch" value="main"></div>
+      </div>
+      <label data-i18n="tokenLabel" data-help="ghToken">Token d'accès personnel — requis seulement pour publier</label>
+      <input type="password" id="ghToken" placeholder="ghp_...">
+      <div class="hint" data-i18n="tokenHint">Jamais sauvegardé — à recoller à chaque session, seulement au moment de publier.</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+        <input type="checkbox" id="modeTestToggle" style="width:auto;margin:0;">
+        <span data-help="modeTestToggle" data-i18n="modeTestLabel" style="font-size:12px;color:var(--text-dim);">Mode test (mes propres essais, exclus des statistiques d'usage)</span>
+      </label>
+      <div class="actions"><button class="btn" id="btnLoad" data-i18n="reloadDataBtn">Recharger data.json (écrase les modifs en cours)</button></div>
+    </details>
   </fieldset>
 
   <fieldset id="panelPgRead" hidden>
-    <legend>Lecture Postgres (test — Session B, docs/infrastructure.md)</legend>
-    <div class="hint">
-      Écriture toujours vers GitHub/data.json uniquement (inchangé) — cette case ne change que la
-      LECTURE au rechargement, pour valider que la bibliothèque/les packs/les AdReels se comportent
-      identiquement une fois lus depuis Postgres. Décochée par défaut, comportement strictement
-      inchangé tant qu'elle ne l'est pas.
-    </div>
-    <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-      <input type="checkbox" id="pgReadToggle" style="width:auto;margin:0;">
-      <span style="font-size:12px;color:var(--text-dim);">Lire depuis Postgres au lieu de data.json (test)</span>
-    </label>
+    <details>
+      <summary>Lecture Postgres (test — Session B, docs/infrastructure.md)</summary>
+      <div class="hint">
+        Écriture toujours vers GitHub/data.json uniquement (inchangé) — cette case ne change que la
+        LECTURE au rechargement, pour valider que la bibliothèque/les packs/les AdReels se comportent
+        identiquement une fois lus depuis Postgres. Décochée par défaut, comportement strictement
+        inchangé tant qu'elle ne l'est pas.
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        <input type="checkbox" id="pgReadToggle" style="width:auto;margin:0;">
+        <span style="font-size:12px;color:var(--text-dim);">Lire depuis Postgres au lieu de data.json (test)</span>
+      </label>
+    </details>
   </fieldset>
 
   <fieldset id="panelPgWrite" hidden>
-    <legend>Écriture Postgres (test — Session B, docs/infrastructure.md)</legend>
-    <div class="hint">
-      Écriture double : à la publication, les morceaux, les packs, les AdReels, les Sfx, les
-      collections et les réglages personnels (certification, réseaux sociaux) sont écrits vers
-      Postgres (RPC upsert_*) EN PLUS de data.json/GitHub (chemin existant, inchangé) — jamais à
-      la place. Si l'écriture Postgres échoue, la publication s'arrête avant de toucher GitHub
-      (rien de partiellement publié).
-      Décochée par défaut, comportement strictement inchangé tant qu'elle ne l'est pas.
-      Nécessite une connexion (les RPC exigent un compte compositeur authentifié).
-    </div>
-    <div id="pgAuthStatus" style="font-size:12px;color:var(--text-dim);margin-top:8px;">Non connecté.</div>
-    <div class="row" style="margin-top:8px;">
-      <div><label>Email</label><input type="email" id="pgAuthEmail" placeholder="toi@exemple.com"></div>
-    </div>
-    <div class="actions">
-      <button class="btn" id="btnPgSendMagicLink" type="button">Envoyer le lien magique</button>
-      <button class="btn" id="btnPgSignOut" type="button" style="display:none;">Se déconnecter</button>
-    </div>
-    <div class="row" style="margin-top:8px;">
-      <div><label>Code reçu par email (si lien magique lu sur un autre appareil)</label><input type="text" id="pgAuthCode" placeholder="123456" inputmode="numeric" autocomplete="one-time-code"></div>
-    </div>
-    <div class="actions">
-      <button class="btn" id="btnPgVerifyCode" type="button">Valider le code</button>
-    </div>
-    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
-      <input type="checkbox" id="pgWriteToggle" style="width:auto;margin:0;">
-      <span style="font-size:12px;color:var(--text-dim);">Écriture double vers Postgres à la publication (test)</span>
-    </label>
+    <details>
+      <summary>Écriture Postgres (test — Session B, docs/infrastructure.md)</summary>
+      <div class="hint">
+        Écriture double : à la publication, les morceaux, les packs, les AdReels, les Sfx, les
+        collections et les réglages personnels (certification, réseaux sociaux) sont écrits vers
+        Postgres (RPC upsert_*) EN PLUS de data.json/GitHub (chemin existant, inchangé) — jamais à
+        la place. Si l'écriture Postgres échoue, la publication s'arrête avant de toucher GitHub
+        (rien de partiellement publié).
+        Décochée par défaut, comportement strictement inchangé tant qu'elle ne l'est pas.
+        Nécessite une connexion (les RPC exigent un compte compositeur authentifié).
+      </div>
+      <div id="pgAuthStatus" style="font-size:12px;color:var(--text-dim);margin-top:8px;">Non connecté.</div>
+      <div class="row" style="margin-top:8px;">
+        <div><label>Email</label><input type="email" id="pgAuthEmail" placeholder="toi@exemple.com"></div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="btnPgSendMagicLink" type="button">Envoyer le lien magique</button>
+        <button class="btn" id="btnPgSignOut" type="button" style="display:none;">Se déconnecter</button>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <div><label>Code reçu par email (si lien magique lu sur un autre appareil)</label><input type="text" id="pgAuthCode" placeholder="123456" inputmode="numeric" autocomplete="one-time-code"></div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="btnPgVerifyCode" type="button">Valider le code</button>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+        <input type="checkbox" id="pgWriteToggle" style="width:auto;margin:0;">
+        <span style="font-size:12px;color:var(--text-dim);">Écriture double vers Postgres à la publication (test)</span>
+      </label>
+    </details>
   </fieldset>
 
   <fieldset id="panelAccessRequests" hidden>
