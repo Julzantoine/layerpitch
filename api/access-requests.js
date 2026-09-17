@@ -14,9 +14,9 @@
     return window.LayerPitchSupabaseClient.getClient();
   }
 
-  async function submitAccessRequest(email, source, intent, lang) {
+  async function submitAccessRequest(email, source, intent, lang, message) {
     const { data, error } = await getClient().functions.invoke('submit-access-request', {
-      body: { email, source, intent: intent || null, lang: lang || 'fr' },
+      body: { email, source, intent: intent || null, lang: lang || 'fr', message: message || null },
     });
     if (error) return { ok: false, error: await window.LayerPitchAuth.describeFunctionError(error) };
     return { ok: !!(data && data.ok), error: data && data.error ? data.error : null };

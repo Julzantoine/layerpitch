@@ -86,17 +86,25 @@ async function sendConfirmationEmail(to: string, lang: string) {
 // supplémentaire à configurer côté Supabase pour ça.
 const ADMIN_NOTIFICATION_EMAIL = 'julzantoine@yahoo.com';
 
-async function sendAdminNotification(requesterEmail: string, source: string, intent: string | null) {
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function sendAdminNotification(requesterEmail: string, source: string, intent: string | null, message: string | null) {
   const apiKey = Deno.env.get('RESEND_API_KEY');
   const fromAddress = Deno.env.get('RESEND_FROM_ADDRESS');
   if (!apiKey || !fromAddress) return { ok: false, error: 'Secrets Resend non configurés côté Supabase.' };
   const sourceLabel = source === 'blocked_signin'
     ? 'connexion refusée (pas encore invité)'
     : (intent === 'waitlist' ? 'landing — "Tenez-moi au courant"' : 'landing — "Rejoindre la bêta"');
+  const messageHtml = message
+    ? `<p style="white-space:pre-wrap;border-left:2px solid #ddd;padding-left:10px;">${escapeHtml(message)}</p>`
+    : '';
   const html = `
     <div style="font-family:sans-serif;color:#262521;max-width:480px;">
       <p>Nouvelle demande d'accès à la bêta LayerPitch :</p>
       <p><strong>${requesterEmail}</strong><br>${sourceLabel}</p>
+      ${messageHtml}
       <p><a href="https://beta.layerpitch.com/layerpitch-backstage.html">Voir dans le Backstage</a></p>
     </div>`;
   try {
@@ -120,13 +128,14 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { email, source, intent, lang } = await req.json();
+    const { email, source, intent, lang, message } = await req.json();
     const v_email = typeof email === 'string' ? email.trim().slice(0, 200) : '';
     if (!isValidEmail(v_email)) {
       return new Response(JSON.stringify({ error: 'Email invalide.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    const v_message = typeof message === 'string' && message.trim() ? message.trim().slice(0, 500) : null;
     if (source !== 'landing' && source !== 'blocked_signin') {
       return new Response(JSON.stringify({ error: 'source invalide.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -155,7 +164,7 @@ Deno.serve(async (req) => {
     }
 
     const { error: insertError } = await adminClient.from('access_requests').insert({
-      email: v_email, source, intent: v_intent,
+      email: v_email, source, intent: v_intent, message: v_message,
     });
     if (insertError) {
       return new Response(JSON.stringify({ error: insertError.message }), {
@@ -170,7 +179,7 @@ Deno.serve(async (req) => {
     if (!emailResult.ok) {
       console.error('submit-access-request: email de confirmation non envoyé —', emailResult.error);
     }
-    const adminNotifyResult = await sendAdminNotification(v_email, source, v_intent);
+    const adminNotifyResult = await sendAdminNotification(v_email, source, v_intent, v_message);
     if (!adminNotifyResult.ok) {
       console.error('submit-access-request: notification admin non envoyée —', adminNotifyResult.error);
     }

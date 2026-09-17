@@ -1952,6 +1952,7 @@ async function renderAccessRequestsList() {
       <div style="flex:1;">
         <div>${escapeHtml(r.email)}</div>
         <div style="font-size:11px;color:var(--text-dimmer);">${sourceLabel(r)} — ${new Date(r.created_at).toLocaleString('fr-FR')}</div>
+        ${r.message ? `<div style="font-size:12px;margin-top:4px;padding:6px 8px;background:#f4f4f6;border-radius:6px;white-space:pre-wrap;">${escapeHtml(r.message)}</div>` : ''}
       </div>
       <button class="btn btn-small" type="button" data-request-id="${r.id}" data-request-email="${escapeAttr(r.email)}">Inviter</button>
       <button class="btn btn-small" type="button" data-delete-request-id="${r.id}" title="Écarter sans inviter">Supprimer</button>

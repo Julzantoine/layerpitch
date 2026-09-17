@@ -138,11 +138,12 @@
   .cta { text-align: center; }
   .cta h2 { font-size: clamp(22px, 4vw, 30px); color: var(--text-on-dark); }
   .cta-form { display: flex; flex-direction: column; gap: 12px; max-width: 380px; margin: 28px auto 0; }
-  .cta-form input[type=email] {
+  .cta-form input[type=email], .cta-form textarea {
     padding: 14px 16px; border: 1px solid rgba(246,245,243,0.22); border-radius: 8px; font-family: var(--font-body);
     font-size: 14px; background: rgba(246,245,243,0.06); color: var(--text-on-dark);
   }
-  .cta-form input[type=email]::placeholder { color: var(--text-on-dark-dim); }
+  .cta-form textarea { resize: vertical; min-height: 64px; }
+  .cta-form input[type=email]::placeholder, .cta-form textarea::placeholder { color: var(--text-on-dark-dim); }
   .cta-buttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
   .cta-buttons .btn { flex: 1; min-width: 160px; }
   .cta-note { font-size: 12px; color: var(--text-on-dark-dim); margin-top: 16px; }
@@ -317,6 +318,7 @@
          the backstage admin panel next to "Inviter un testeur". -->
     <form class="cta-form" id="waitlistForm">
       <input type="email" name="email" placeholder="you@email.com" required>
+      <textarea name="message" maxlength="500" rows="8" placeholder="Hi, thanks for your interest in LayerPitch… To join the beta all you need is your email, but I'd love to know a bit more about who's landing here 🙂 Feel free to tell me a bit about what you do, etc. Your invite will arrive within the day (heads up, it's only valid for 24h). Once you're in, have fun, push the app around, and send me your feedback! — Jules-Antoine"></textarea>
       <input type="hidden" name="intent" id="intentField" value="beta">
       <div class="cta-buttons">
         <button type="submit" class="btn btn-primary" data-intent="beta">I want to join the beta</button>
@@ -349,7 +351,7 @@
       const res = await fetch(`${LAYERPITCH_SUPABASE_URL}/functions/v1/submit-access-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
-        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: intentField.value, lang: 'en' }),
+        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: intentField.value, lang: 'en', message: form.message.value.trim() || null }),
       });
       if (res.ok) {
         window.umami && window.umami.track('landing_signup', { intent: intentField.value });
