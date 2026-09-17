@@ -768,21 +768,60 @@
     font-family: inherit; font-size: 13px; font-weight: 600; text-align: center;
   }
   .theme-preset-card.active { border-color: currentColor; box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
+  /* Bandeau de consentement cookies (Microsoft Clarity -- 17 septembre), voir le commentaire au
+     niveau du script plus bas pour le raisonnement RGPD/CNIL. */
+  .cookie-banner { position: fixed; left: 0; right: 0; bottom: 0; z-index: 500; display: flex; justify-content: center; padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .cookie-banner[hidden] { display: none; }
+  .cookie-card { width: 100%; max-width: 620px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; box-shadow: 0 12px 32px rgba(20,18,14,0.16); display: flex; flex-direction: column; gap: 14px; color: var(--text); }
+  .cookie-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .cookie-head h2 { font-weight: 600; font-size: 15px; margin: 0; }
+  .cookie-head .tag { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; }
+  .cookie-text { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin: 0; }
+  .cookie-text a { color: var(--text); }
+  .cookie-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .cookie-btn { font-size: 13.5px; font-weight: 600; padding: 10px 20px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; flex: 1; min-width: 140px; font-family: inherit; }
+  .cookie-btn.accept { background: var(--accent); color: #fff; }
+  .cookie-btn.accept:hover { opacity: 0.9; }
+  .cookie-btn.refuse { background: transparent; color: var(--text); border-color: var(--border); }
+  .cookie-btn.refuse:hover { border-color: var(--text-dimmer); }
+  .cookie-detail-toggle { align-self: flex-start; font-size: 11px; color: var(--text-dimmer); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; font-family: inherit; }
+  .cookie-detail { font-size: 12.5px; color: var(--text-dim); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+  .cookie-detail[hidden] { display: none; }
+  .cookie-detail ul { margin: 6px 0 0; padding-left: 18px; }
+  .cookie-reopen { position: fixed; left: 20px; bottom: 20px; z-index: 490; display: inline-flex; align-items: center; gap: 7px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px 8px 10px; font-size: 11px; color: var(--text-dim); cursor: pointer; box-shadow: 0 4px 14px rgba(20,18,14,0.1); }
+  .cookie-reopen[hidden] { display: none; }
+  .cookie-reopen:hover { color: var(--text); border-color: var(--text-dimmer); }
 </style>
-<script type="text/javascript">
-  // Microsoft Clarity (heatmaps/enregistrements de session -- 16 septembre) : ici pour comprendre
-  // l'usage réel du backstage par les compositeurs (où ils bloquent, quelles fonctions restent
-  // ignorées) -- outil réservé à Jules-Antoine, sans lien avec le tableau de bord analytique
-  // compositeur (Postgres propriétaire, 5 septembre, qui suit lui le trafic PUBLIC des AdReels/packs,
-  // pas l'usage du backstage). Champs de saisie/emails masqués par défaut côté Clarity.
-  (function(c,l,a,r,i,t,y){
-      c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-      t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-      y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-  })(window, document, "clarity", "script", "yjd22i9kce");
-</script>
 </head>
 <body>
+<!-- Bandeau de consentement cookies (Microsoft Clarity uniquement). Masqué par défaut le temps que
+     le script sache s'il y a déjà un choix mémorisé (voir initCookieBanner()) -- évite un flash
+     visible sur un compositeur qui a déjà répondu. -->
+<div class="cookie-banner" id="cookieBanner" hidden>
+  <div class="cookie-card">
+    <div class="cookie-head">
+      <h2 data-i18n="cookieBannerTitle">Ton choix sur les cookies</h2>
+      <span class="tag">Microsoft Clarity</span>
+    </div>
+    <p class="cookie-text" data-i18n="cookieBannerTextBackstage">On utilise Microsoft Clarity pour comprendre comment le backstage est utilisé (où on clique, quelles fonctions restent ignorées) -- ça nous aide à l'améliorer. Rien n'est activé sans ton accord.</p>
+    <button class="cookie-detail-toggle" id="cookieDetailToggle" type="button" data-i18n="cookieBannerDetailToggle">Voir le détail</button>
+    <div class="cookie-detail" id="cookieDetail" hidden>
+      <ul>
+        <li data-i18n="cookieBannerDetailCookies">Cookies déposés si tu acceptes : _clck, _clsk (12 mois)</li>
+        <li data-i18n="cookieBannerDetailUsage">Usage : heatmaps et rejeu de session, jamais de publicité ni de revente de données</li>
+        <li data-i18n="cookieBannerDetailRefuse">Refuser n'empêche pas d'utiliser le lecteur -- juste de nous aider à l'améliorer</li>
+      </ul>
+    </div>
+    <div class="cookie-actions">
+      <button class="cookie-btn refuse" id="cookieRefuseBtn" type="button" data-i18n="cookieBannerRefuse">Refuser</button>
+      <button class="cookie-btn accept" id="cookieAcceptBtn" type="button" data-i18n="cookieBannerAccept">Tout accepter</button>
+    </div>
+  </div>
+</div>
+<button class="cookie-reopen" id="cookieReopenBtn" type="button" hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="14" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1" fill="currentColor" stroke="none"/><circle cx="10" cy="15" r="1" fill="currentColor" stroke="none"/></svg>
+  <span data-i18n="cookieReopenLabel">Cookies</span>
+</button>
 <div id="authGateOverlay" data-i18n="authGateCheckingText">Vérification de la session…</div>
 <div id="helpTooltip"></div>
 <div class="page">
@@ -1562,9 +1601,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1789633266862"></script>
+<script src="layerpitch-i18n.js?v=1789650135374"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1789414952182"></script>
+<script src="player.js?v=1789640195970"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -10447,6 +10486,68 @@ async function publishAll() {
     document.getElementById('btnPublish').disabled = false;
   }
 }
+</script>
+<script type="text/javascript">
+  // Bandeau de consentement cookies (Microsoft Clarity uniquement -- 17 septembre). RGPD/CNIL,
+  // vérifié avant de coder : les heatmaps/enregistrements de session sont explicitement exclus de
+  // l'exemption de consentement pour la mesure d'audience -- vrai aussi pour l'usage du backstage
+  // par un compositeur connecté, pas seulement le trafic public des AdReels/packs (la nature de
+  // l'outil compte, pas le public). Le script Clarity n'est donc JAMAIS chargé tant qu'un choix
+  // "accepted" n'est pas mémorisé -- volontairement plus strict que le "mode sans consentement" de
+  // Clarity lui-même (qui continue de collecter un minimum même sans cookie, docs Microsoft
+  // consent-mode -- pas la garantie qu'on veut ici).
+  // Prérequis côté compte Clarity, fait par Jules-Antoine (pas automatisable depuis le code) :
+  // Settings > Setup > désactiver "Cookies" (Consent Mode) -- sinon Clarity poserait ses cookies dès
+  // le chargement du script, indépendamment de ce mécanisme.
+  const COOKIE_CONSENT_KEY = 'layerpitch_cookie_consent';
+  function getCookieConsent() {
+    try { const raw = localStorage.getItem(COOKIE_CONSENT_KEY); return raw ? JSON.parse(raw) : null; }
+    catch (e) { return null; }
+  }
+  function setCookieConsent(choice) {
+    try { localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify({ choice, at: new Date().toISOString() })); }
+    catch (e) { /* stockage bloqué -- le choix ne sera pas mémorisé, rebandeau à la prochaine visite */ }
+  }
+  function loadClarityScript() {
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "yjd22i9kce");
+  }
+  function signalClarityConsent(granted) {
+    try {
+      if (typeof window.clarity !== 'function') return;
+      if (granted) window.clarity('consentv2', { ad_Storage: 'denied', analytics_Storage: 'granted' });
+      else window.clarity('consent', false);
+    } catch (e) { /* jamais bloquant */ }
+  }
+  function initCookieBanner() {
+    const banner = document.getElementById('cookieBanner');
+    if (!banner) return;
+    const reopenBtn = document.getElementById('cookieReopenBtn');
+    const detailToggle = document.getElementById('cookieDetailToggle');
+    const detail = document.getElementById('cookieDetail');
+    function apply(choice) {
+      if (choice === 'accepted') {
+        if (typeof window.clarity !== 'function') loadClarityScript();
+        signalClarityConsent(true);
+      } else if (choice === 'refused') {
+        signalClarityConsent(false);
+      }
+    }
+    function hide() { banner.hidden = true; if (reopenBtn) reopenBtn.hidden = false; }
+    function show() { banner.hidden = false; if (reopenBtn) reopenBtn.hidden = true; }
+    const consent = getCookieConsent();
+    if (consent) { apply(consent.choice); hide(); } else { show(); }
+    const acceptBtn = document.getElementById('cookieAcceptBtn');
+    const refuseBtn = document.getElementById('cookieRefuseBtn');
+    if (acceptBtn) acceptBtn.addEventListener('click', () => { setCookieConsent('accepted'); apply('accepted'); hide(); });
+    if (refuseBtn) refuseBtn.addEventListener('click', () => { setCookieConsent('refused'); apply('refused'); hide(); });
+    if (detailToggle && detail) detailToggle.addEventListener('click', () => { detail.hidden = !detail.hidden; });
+    if (reopenBtn) reopenBtn.addEventListener('click', show);
+  }
+  initCookieBanner();
 </script>
 </body>
 </html>
