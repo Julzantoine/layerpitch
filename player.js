@@ -1377,8 +1377,21 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // comme le graphe Wwise, dans ce mode uniquement -- en 'compact', la taille ne dépend que du nombre
   // d'emplacements, ce ResizeObserver n'aurait rien à faire.
   const seqMapGraphEl = wrapper.querySelector('[data-role="seqMapGraph"]');
+  // seqMapLastRoomyWidth : garde-fou contre une boucle de ResizeObserver observée en usage réel (Clarity,
+  // 17/09) -- en mode 'roomy', updateSeqMap() dimensionne .seq-map-canvas selon seqMapGraphEl.clientWidth ;
+  // si ce canvas devient plus large que l'espace dispo, la barre de défilement horizontale qui apparaît
+  // (.seq-map-graph a overflow-x:auto) grignote sa hauteur, ce que la même ResizeObserver détecte aussi
+  // (elle observe toute la content-box, pas juste la largeur) et redéclenche updateSeqMap() -- alors même
+  // que la largeur, seule dimension qui nous intéresse ici, n'a pas changé. On ne relance donc que si elle
+  // a effectivement bougé.
+  let seqMapLastRoomyWidth = -1;
   if (seqMapGraphEl && window.ResizeObserver && currentSeqMapDensity() === 'roomy') {
-    new ResizeObserver(() => { updateSeqMap(seqMapLastCurrentIdx); }).observe(seqMapGraphEl);
+    new ResizeObserver(() => {
+      const w = seqMapGraphEl.clientWidth;
+      if (w === seqMapLastRoomyWidth) return;
+      seqMapLastRoomyWidth = w;
+      updateSeqMap(seqMapLastCurrentIdx);
+    }).observe(seqMapGraphEl);
   }
   const seqMapCanvasEl = wrapper.querySelector('[data-role="seqMapCanvas"]');
   const seqMapLinesEl = wrapper.querySelector('[data-role="seqMapLines"]');
