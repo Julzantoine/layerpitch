@@ -2028,15 +2028,27 @@ async function renderInvitesSentList() {
     const status = inv.accepted_at
       ? 'Inscrit·e le ' + new Date(inv.accepted_at).toLocaleString('fr-FR')
       : 'En attente';
+    const langBadge = (inv.lang === 'en' ? 'EN' : 'FR');
     return `
-    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #e2e2e6;">
+    <div style="position:relative;display:flex;align-items:center;gap:10px;padding:6px 22px 6px 0;border-top:1px solid #e2e2e6;">
       <div style="flex:1;">
-        <div>${escapeHtml(inv.email)}</div>
+        <div>${escapeHtml(inv.email)} <span style="font-size:10px;color:var(--text-dimmer);border:1px solid #e2e2e6;border-radius:3px;padding:0 4px;">${langBadge}</span></div>
         <div style="font-size:11px;color:var(--text-dimmer);">Invité·e le ${new Date(inv.created_at).toLocaleString('fr-FR')}</div>
       </div>
       <div style="font-size:12px;${inv.accepted_at ? 'color:var(--text-dim);' : 'color:var(--text-dimmer);'}">${status}</div>
+      <button type="button" class="btn-invite-delete" data-invite-id="${inv.id}" title="Effacer" aria-label="Effacer" style="position:absolute;top:4px;right:0;border:none;background:none;color:var(--text-dimmer);font-size:14px;line-height:1;cursor:pointer;padding:2px 4px;">×</button>
     </div>`;
   }).join('');
+  // Petite croix de suppression (17 septembre, demande de Jules-Antoine) -- suppression libre
+  // (pending ou inscrit·e), voir supabase/migrations/20260917010000_delete_invite.sql.
+  listEl.querySelectorAll('.btn-invite-delete').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { ok, error } = await window.LayerPitchInvites.deleteInvite(Number(btn.dataset.inviteId));
+      if (!ok) { alert('Erreur : ' + error); btn.disabled = false; return; }
+      renderInvitesSentList();
+    });
+  });
 }
 function renderPgAuthStatus(session) {
   const el = document.getElementById('pgAuthStatus');
@@ -2248,7 +2260,7 @@ async function initPgAuthUi() {
         const emailFieldForRequestId = document.getElementById('inviteTesterEmail');
         const pendingRequestId = emailFieldForRequestId.dataset.pendingRequestId
           ? Number(emailFieldForRequestId.dataset.pendingRequestId) : null;
-        const { ok, error, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html?lang=' + lang, personalMessage, pendingRequestId);
+        const { ok, error, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html?lang=' + lang, personalMessage, pendingRequestId, lang);
         if (ok) {
           alert('Invitation envoyée à ' + email + '.');
           // Si cette invitation part d'une demande d'accès en attente (bouton "Inviter" de la

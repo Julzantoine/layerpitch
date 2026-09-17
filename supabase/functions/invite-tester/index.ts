@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, redirectTo, personalMessage, accessRequestId } = await req.json();
+    const { email, redirectTo, personalMessage, accessRequestId, lang } = await req.json();
     if (!email || typeof email !== 'string') {
       return new Response(JSON.stringify({ error: 'email manquant ou invalide.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -178,12 +178,17 @@ Deno.serve(async (req) => {
     }
 
     // Trace de l'invitation (16 septembre) : best-effort, ne doit jamais faire échouer la réponse
-    // -- l'invitation elle-même a déjà réussi (compte créé, email parti) à ce stade.
+    // -- l'invitation elle-même a déjà réussi (compte créé, email parti) à ce stade. p_lang (17
+    // septembre) : enregistre la valeur du sélecteur "Langue" du formulaire -- ne change toujours
+    // rien à l'email lui-même (Jules-Antoine ne voulait pas de traduction), juste une trace pour
+    // pouvoir répondre "cette invitation était en FR ou EN ?" plus tard, ce qui était jusqu'ici
+    // irrécupérable (ni stocké, ni dans le journal d'audit Supabase, vérifié le 17 septembre).
     const { error: recordError } = await callerClient.rpc('record_invite', {
       p_email: email,
       p_user_id: data.user ? data.user.id : null,
       p_access_request_id: typeof accessRequestId === 'number' ? accessRequestId : null,
       p_personal_message: typeof personalMessage === 'string' && personalMessage.trim() ? personalMessage.trim() : null,
+      p_lang: lang === 'en' ? 'en' : 'fr',
     });
     if (recordError) console.error('invite-tester: record_invite a échoué', recordError);
 

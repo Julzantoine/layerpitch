@@ -18,5 +18,12 @@
     return { invites: data || [], error: null };
   }
 
-  window.LayerPitchInvites = { getInvites };
+  // Efface une ligne du panneau (17 septembre) -- suppression libre, pending ou inscrit·e, cf.
+  // supabase/migrations/20260917010000_delete_invite.sql.
+  async function deleteInvite(id) {
+    const { error } = await getClient().rpc('delete_invite', { p_id: id });
+    return { ok: !error, error: error ? error.message : null };
+  }
+
+  window.LayerPitchInvites = { getInvites, deleteInvite };
 })();

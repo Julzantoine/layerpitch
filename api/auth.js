@@ -82,8 +82,12 @@
   // attente", l'Edge Function l'enregistre dans invites.access_request_id (purement informatif,
   // voir supabase/migrations/20260916070000_invites.sql) -- aucun effet sur access_requests
   // lui-même, toujours marqué via markAccessRequestInvited() séparément.
-  async function inviteTester(email, redirectTo, personalMessage, accessRequestId) {
-    const { data, error } = await getClient().functions.invoke('invite-tester', { body: { email, redirectTo, personalMessage, accessRequestId: accessRequestId || null } });
+  // lang (17 septembre) : valeur du sélecteur "Langue" du formulaire, enregistrée dans invites.lang
+  // à titre purement informatif -- ne change rien à l'email envoyé (toujours en français), juste
+  // une trace pour pouvoir répondre plus tard "cette invitation était en FR ou EN ?"
+  // (supabase/migrations/20260917020000_invites_lang.sql).
+  async function inviteTester(email, redirectTo, personalMessage, accessRequestId, lang) {
+    const { data, error } = await getClient().functions.invoke('invite-tester', { body: { email, redirectTo, personalMessage, accessRequestId: accessRequestId || null, lang: lang || 'fr' } });
     if (error) {
       // Lu une seule fois ici (le corps de error.context ne peut être consommé qu'une fois) --
       // describeFunctionError() n'est volontairement pas réutilisée pour ce cas précis, elle
