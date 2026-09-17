@@ -12,8 +12,8 @@
   // Statistiques agrégées v1 (docs/infrastructure.md, correction du 3 septembre) : comptages et
   // moyennes sur les tables catalogue existantes uniquement — pas de "tendances de modes de
   // lecture" (reporté, aucune table d'événements aujourd'hui).
-  async function getStats() {
-    const { data, error } = await getClient().rpc('admin_get_stats');
+  async function getStats(period) {
+    const { data, error } = await getClient().rpc('admin_get_stats', { p_period: period || null });
     if (error) return { stats: null, error: error.message };
     return { stats: data, error: null };
   }

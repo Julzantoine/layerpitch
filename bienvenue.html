@@ -43,7 +43,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1789589138117"></script>
+<script src="layerpitch-i18n.js?v=1789633266862"></script>
 <script src="api/supabase-client.js"></script>
 <script src="api/auth.js"></script>
 <script src="api/subscriptions.js"></script>
@@ -94,11 +94,27 @@ async function render() {
         <button class="btn" id="sendBtn" type="button">${tr('sendMagicLinkBtn')}</button>
         <div class="msg" id="msg"></div>
       </div>
+      <p style="font-size:13px;">${tr('notInvitedHint')} <button type="button" id="requestAccessUpfrontBtn" style="background:none;border:none;color:var(--accent);text-decoration:underline;cursor:pointer;font-size:13px;padding:0;font-family:inherit;">${tr('requestAccessBtn')}</button></p>
       <div class="signin-box" id="codeBox" style="display:none">
         <input type="text" id="code" placeholder="${tr('codePlaceholder')}" inputmode="numeric" autocomplete="one-time-code">
         <button class="btn" id="verifyCodeBtn" type="button">${tr('verifyCodeBtn')}</button>
         <div class="msg" id="codeMsg"></div>
       </div>`;
+    document.getElementById('requestAccessUpfrontBtn').addEventListener('click', async (e) => {
+      const email = document.getElementById('email').value.trim();
+      const msg = document.getElementById('msg');
+      if (!email) {
+        msg.textContent = tr('enterEmailFirstMsg');
+        msg.className = 'msg err';
+        document.getElementById('email').focus();
+        return;
+      }
+      e.target.disabled = true;
+      const { ok: reqOk } = await LayerPitchAccessRequests.submitAccessRequest(email, 'blocked_signin', null, pageLang);
+      msg.textContent = reqOk ? tr('accessRequestSentMsg') : tr('errorMsg').replace('{error}', 'inconnue');
+      msg.className = 'msg ' + (reqOk ? 'ok' : 'err');
+      e.target.disabled = false;
+    });
     document.getElementById('sendBtn').addEventListener('click', async () => {
       const email = document.getElementById('email').value.trim();
       const msg = document.getElementById('msg');

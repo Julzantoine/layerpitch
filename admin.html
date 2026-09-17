@@ -99,6 +99,18 @@
           <h3 data-i18n="statsAveragesTitle">Moyennes par compositeur</h3>
           <div class="stat-grid" id="statsAverages"></div>
         </div>
+        <div class="stat-block">
+          <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span data-i18n="statsNewInPeriodTitle">Nouveaux sur la période</span>
+            <select id="statsPeriod" style="font-size:12px;padding:4px 6px;">
+              <option value="24h" data-i18n="statsPeriod24h">Dernières 24h</option>
+              <option value="7d" selected data-i18n="statsPeriod7d">7 derniers jours</option>
+              <option value="30d" data-i18n="statsPeriod30d">Dernier mois</option>
+              <option value="1y" data-i18n="statsPeriod1y">Dernière année</option>
+            </select>
+          </h3>
+          <div class="stat-grid" id="statsNewInPeriod"></div>
+        </div>
       </div>
       <div id="statsMsg" class="msg err"></div>
     </div>
@@ -141,7 +153,7 @@
 <script src="api/supabase-client.js"></script>
 <script src="api/auth.js"></script>
 <script src="api/admin.js"></script>
-<script src="layerpitch-i18n.js?v=1789589138117"></script>
+<script src="layerpitch-i18n.js?v=1789633266862"></script>
 <script>
 // i18n minimal (zone "admin" + repli "shared") — même patron que layerpitch-backstage.html.
 function currentLang() { return localStorage.getItem('layerpitch_lang') || 'fr'; }
@@ -216,8 +228,9 @@ async function loadStats() {
   const loading = document.getElementById('statsLoading');
   const body = document.getElementById('statsBody');
   const msg = document.getElementById('statsMsg');
+  const period = document.getElementById('statsPeriod').value;
   loading.style.display = 'block'; body.style.display = 'none'; msg.textContent = '';
-  const { stats, error } = await window.LayerPitchAdmin.getStats();
+  const { stats, error } = await window.LayerPitchAdmin.getStats(period);
   loading.style.display = 'none';
   if (error || !stats) { msg.textContent = tr('statsLoadErrorPrefix') + (error || ''); return; }
   body.style.display = 'block';
@@ -241,7 +254,20 @@ async function loadStats() {
     ['statsAveragesPacksPerComposer', stats.composerAverages.packsPerComposer],
     ['statsAveragesAdReelsPerComposer', stats.composerAverages.adReelsPerComposer],
   ]);
+  renderStatGrid('statsNewInPeriod', stats.newInPeriod ? [
+    ['statsAccountsTotal', stats.newInPeriod.accounts],
+    ['statsAccountsComposers', stats.newInPeriod.composers],
+    ['statsAccountsStudios', stats.newInPeriod.studios],
+    ['statsAccountsFans', stats.newInPeriod.fans],
+    ['statsContentAdReels', stats.newInPeriod.adReels],
+    ['statsContentPacks', stats.newInPeriod.packs],
+    ['statsContentTracks', stats.newInPeriod.tracks],
+    ['statsContentSfx', stats.newInPeriod.sfx],
+    ['statsContentCollections', stats.newInPeriod.collections],
+    ['statsContentAlbums', stats.newInPeriod.albums],
+  ] : []);
 }
+document.getElementById('statsPeriod').addEventListener('change', loadStats);
 function renderStatGrid(elId, entries) {
   const el = document.getElementById(elId);
   el.innerHTML = entries.map(([labelKey, n]) =>
