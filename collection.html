@@ -195,6 +195,9 @@ const { escapeHtml, linkify, setupContrastToggle, setupNightModeToggle } = windo
 const IMAGES_BASE = 'https://media.layerpitch.com/images/';
 
 // Chemin joli par compositeur — voir le commentaire équivalent dans index.html.
+// Capturé AVANT le replaceState ci-dessous (même bug que index.html, corrigé le 18/09) : __pretty ne
+// contient jamais ?u=<handle>, donc restaurer la barre d'adresse dessus efface u de location.search.
+const composerHandleFromUrl = new URLSearchParams(location.search).get('u');
 (function restorePrettyUrl() {
   const pretty = new URLSearchParams(location.search).get('__pretty');
   if (pretty) history.replaceState(null, '', pretty);
@@ -250,7 +253,7 @@ async function loadSiteData() {
       if (raw) { previewActive = true; return JSON.parse(raw); }
     } catch (e) { /* dépôt corrompu/absent -- repli silencieux sur le chargement Postgres normal */ }
   }
-  const handle = params.get('u');
+  const handle = composerHandleFromUrl;
   await loadPostgresReadScripts();
   let ownerId = DEFAULT_OWNER_ID;
   if (handle) {
@@ -409,7 +412,7 @@ async function init() {
     // pour que SON "← Retour" revienne ici (fromCollection) plutôt que de sauter directement à
     // l'AdReel -- la collection reste elle-même capable de continuer la chaîne jusqu'à l'AdReel.
     const fromAdReelId = new URLSearchParams(location.search).get('from');
-    const handle = new URLSearchParams(location.search).get('u');
+    const handle = composerHandleFromUrl;
     const handleParam = handle ? `&u=${encodeURIComponent(handle)}` : '';
     const fromParam = fromAdReelId ? `&from=${encodeURIComponent(fromAdReelId)}` : '';
     const linkedAdReel = fromAdReelId ? (data.adReels || []).find(a => a.id === fromAdReelId) : null;

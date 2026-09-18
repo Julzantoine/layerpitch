@@ -553,6 +553,16 @@ const IMAGES_BASE = 'https://media.layerpitch.com/images/';
 // chemin /<handle>/... vers ce fichier avec ?u=<handle>&__pretty=<chemin original>. Restaure l'URL
 // jolie dans la barre d'adresse avant tout le reste (history.replaceState, pas de rechargement) —
 // aucun effet pour un visiteur arrivé normalement (aucun __pretty dans ce cas).
+//
+// Capturé AVANT ce replaceState (bug remonté le 18/09 par un bêta-testeur : un AdReel autre que
+// "main" affichait "introuvable") : __pretty ne contient jamais ?u=<handle> (c'est le chemin joli
+// D'ORIGINE, /<handle>/..., pas l'URL réécrite par 404.html) -- restaurer la barre d'adresse dessus
+// EFFACE u de location.search. Tout code lisant ?u= après ce point (loadSiteData ci-dessous, le lien
+// "voir chez le compositeur" en mode embed plus bas) doit utiliser cette capture, pas relire
+// location.search, sous peine de retomber silencieusement sur DEFAULT_OWNER_ID (Jules-Antoine) --
+// l'AdReel "main" de secours existe presque toujours, donc l'erreur ne se voit que sur un AdReel dont
+// l'id n'existe pas chez lui, d'où le symptôme trompeur "seul le AdReel principal marche".
+const composerHandleFromUrl = new URLSearchParams(location.search).get('u');
 (function restorePrettyUrl() {
   const pretty = new URLSearchParams(location.search).get('__pretty');
   if (pretty) history.replaceState(null, '', pretty);
@@ -637,7 +647,7 @@ async function loadSiteData() {
       if (raw) { previewActive = true; return JSON.parse(raw); }
     } catch (e) { /* dépôt corrompu/absent -- repli silencieux sur le chargement Postgres normal */ }
   }
-  const handle = params.get('u');
+  const handle = composerHandleFromUrl;
   await loadPostgresReadScripts();
   let ownerId = DEFAULT_OWNER_ID;
   if (handle) {
@@ -1384,8 +1394,7 @@ async function init() {
       const mainAdReel = (data.adReels || []).find(a => a.id === 'main');
       const composerName = (mainAdReel && mainAdReel.profile && mainAdReel.profile.title) || tr('linkedAdReelFallbackName');
       const embedCta = document.getElementById('embedCtaLink');
-      const handle = new URLSearchParams(location.search).get('u');
-      const handleParam = handle ? `&u=${encodeURIComponent(handle)}` : '';
+      const handleParam = composerHandleFromUrl ? `&u=${encodeURIComponent(composerHandleFromUrl)}` : '';
       embedCta.href = `./index.html?lang=${pageLang}${handleParam}`;
       embedCta.target = '_blank';
       embedCta.rel = 'noopener';

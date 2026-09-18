@@ -646,6 +646,9 @@ const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightM
 const IMAGES_BASE = 'https://media.layerpitch.com/images/';
 
 // Chemin joli par compositeur — voir le commentaire équivalent dans index.html.
+// Capturé AVANT le replaceState ci-dessous (même bug que index.html, corrigé le 18/09) : __pretty ne
+// contient jamais ?u=<handle>, donc restaurer la barre d'adresse dessus efface u de location.search.
+const composerHandleFromUrl = new URLSearchParams(location.search).get('u');
 (function restorePrettyUrl() {
   const pretty = new URLSearchParams(location.search).get('__pretty');
   if (pretty) history.replaceState(null, '', pretty);
@@ -709,7 +712,7 @@ async function loadSiteData() {
       if (raw) { previewActive = true; return JSON.parse(raw); }
     } catch (e) { /* dépôt corrompu/absent -- repli silencieux sur le chargement Postgres normal */ }
   }
-  const handle = params.get('u');
+  const handle = composerHandleFromUrl;
   await loadPostgresReadScripts();
   let ownerId = DEFAULT_OWNER_ID;
   if (handle) {
@@ -2983,10 +2986,7 @@ async function init() {
 
     // handleParam ici aussi (avant sa déclaration principale plus bas) : sans lui, ce lien vers une
     // collection perdrait le handle du compositeur non-défaut, même bug que "← Retour" ci-dessous.
-    const containingCollectionsHandleParam = (() => {
-      const h = new URLSearchParams(location.search).get('u');
-      return h ? `&u=${encodeURIComponent(h)}` : '';
-    })();
+    const containingCollectionsHandleParam = composerHandleFromUrl ? `&u=${encodeURIComponent(composerHandleFromUrl)}` : '';
     const containingCollections = (data.collections || []).filter(c => (c.packIds || []).includes(pack.id));
     if (containingCollections.length) {
       const collEl = document.createElement('div');
@@ -3008,8 +3008,7 @@ async function init() {
     // "← Retour" -- sans lui, ce lien ET le "← Retour" ci-dessous seraient retombés sur
     // DEFAULT_OWNER_ID (le compte de Jules-Antoine) au clic, quel que soit le vrai compositeur
     // (même bug que adReelFromParam(), player.js, corrigé au même moment).
-    const handle = new URLSearchParams(location.search).get('u');
-    const handleParam = handle ? `&u=${encodeURIComponent(handle)}` : '';
+    const handleParam = composerHandleFromUrl ? `&u=${encodeURIComponent(composerHandleFromUrl)}` : '';
     const fromParam = fromAdReelId ? `&from=${encodeURIComponent(fromAdReelId)}` : '';
     const linkedAdReel = (fromAdReelId && (data.adReels || []).find(a => a.id === fromAdReelId))
       || (pack.linkedAdReelId ? (data.adReels || []).find(a => a.id === pack.linkedAdReelId) : null);
@@ -3032,7 +3031,7 @@ async function init() {
       if (backLinkEl) backLinkEl.href = `./collection.html?id=${encodeURIComponent(linkedCollection.id)}&lang=${pageLang}${fromParam}${handleParam}`;
     } else if (linkedAdReel) {
       if (backLinkEl) backLinkEl.href = (linkedAdReel.id === 'main' ? `./index.html?lang=${pageLang}` : `./index.html?adreel=${encodeURIComponent(linkedAdReel.id)}&lang=${pageLang}`) + handleParam;
-    } else if (backLinkEl && handle) {
+    } else if (backLinkEl && composerHandleFromUrl) {
       // Aucune collection ni AdReel d'origine résolvable (visite directe, lien du pack partagé
       // isolément), mais le handle du compositeur est connu (URL du pack lui-même, ?u=<handle>) --
       // "Retour" n'a alors plus de sens (ce visiteur n'est jamais passé par le site du compositeur),
