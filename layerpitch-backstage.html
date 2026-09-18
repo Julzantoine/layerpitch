@@ -381,6 +381,9 @@
   #feedbackModal h3 { font-size: 13px; margin-bottom: 4px; color: var(--text); }
   #feedbackModal .sub { margin-bottom: 12px; }
   #feedbackModal textarea { width: 100%; box-sizing: border-box; min-height: 110px; padding: 8px 10px; border: 1px solid #d8d8dc; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; margin-bottom: 10px; }
+  #feedbackModal .feedback-attach-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  #feedbackModal #feedbackAttachInfo { font-size: 11px; color: var(--text-dimmer); display: flex; align-items: center; gap: 6px; }
+  #feedbackModal #feedbackAttachInfo button { border: none; background: none; cursor: pointer; color: var(--text-dimmer); font-size: 13px; line-height: 1; padding: 0; }
   #feedbackModal .actions { justify-content: flex-end; align-items: center; gap: 10px; }
   #feedbackModalStatus { font-size: 11px; color: var(--text-dimmer); margin-right: auto; }
   #feedbackModalStatus.ok { color: #2a7; }
@@ -1554,6 +1557,11 @@
     <h3 data-i18n="feedbackModalTitle">Faire un retour sur la version</h3>
     <div class="sub" data-i18n="feedbackModalSub">Ce que tu écris ici part directement à Jules-Antoine — pas besoin de rapport structuré, un retour brut suffit amplement.</div>
     <textarea id="feedbackMessage" data-i18n-placeholder="feedbackMessagePlaceholder" placeholder="Ce qui a été fluide, ce qui t'a bloqué, ce que tu aurais aimé pouvoir faire…"></textarea>
+    <div class="feedback-attach-row">
+      <label class="btn btn-small" id="feedbackAttachLabel" for="feedbackScreenshot" data-i18n="feedbackAttachBtn">+ Capture d'écran</label>
+      <input type="file" id="feedbackScreenshot" accept="image/*" hidden>
+      <span id="feedbackAttachInfo"></span>
+    </div>
     <div class="actions">
       <span id="feedbackModalStatus"></span>
       <button class="btn btn-small" id="feedbackCancel" type="button" data-i18n="cancel">Annuler</button>
@@ -1601,7 +1609,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1789650135374"></script>
+<script src="layerpitch-i18n.js?v=1789727601833"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
 <script src="player.js?v=1789640195970"></script>
 <script>
@@ -6515,8 +6523,49 @@ document.getElementById('linkModalOk').addEventListener('click', () => {
 // dans la boîte mail via le sujet auto-généré ci-dessous (repo/testeur).
 const BETA_FEEDBACK_ENDPOINT = 'https://formspree.io/f/mojognrj';
 
+// Capture d'écran jointe au retour en cours (18/09) : un seul fichier à la fois, choisi via le champ
+// fichier ou collé (Cmd/Ctrl+V) directement dans le textarea -- geste naturel pour un bug visuel.
+let feedbackScreenshotFile = null;
+function setFeedbackScreenshot(file) {
+  feedbackScreenshotFile = file || null;
+  const info = document.getElementById('feedbackAttachInfo');
+  const fileInput = document.getElementById('feedbackScreenshot');
+  if (feedbackScreenshotFile) {
+    info.innerHTML = '';
+    const name = document.createElement('span');
+    name.textContent = feedbackScreenshotFile.name;
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.textContent = '×';
+    removeBtn.title = tr('feedbackAttachRemove');
+    removeBtn.addEventListener('click', () => setFeedbackScreenshot(null));
+    info.append(name, removeBtn);
+  } else {
+    info.innerHTML = '';
+    if (fileInput) fileInput.value = '';
+  }
+}
+document.getElementById('feedbackScreenshot').addEventListener('change', (e) => {
+  setFeedbackScreenshot(e.target.files[0] || null);
+});
+// Collage d'une capture directement dans le champ de message (ex. Cmd+Shift+4 puis Cmd+V sur Mac) :
+// évite l'aller-retour par le Finder pour le cas d'usage le plus courant (bug visuel constaté à l'instant).
+document.getElementById('feedbackMessage').addEventListener('paste', (e) => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type && item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if (file) setFeedbackScreenshot(file);
+      e.preventDefault();
+      break;
+    }
+  }
+});
+
 function openFeedbackModal() {
   document.getElementById('feedbackMessage').value = '';
+  setFeedbackScreenshot(null);
   const statusEl = document.getElementById('feedbackModalStatus');
   statusEl.textContent = '';
   statusEl.className = '';
@@ -6536,11 +6585,20 @@ document.getElementById('feedbackSend').addEventListener('click', async () => {
   statusEl.className = '';
   statusEl.textContent = tr('feedbackSendingStatus');
   try {
+    // Email du compte connecté (Supabase) : identifie qui écrit de façon fiable, contrairement au
+    // champ repo ci-dessous qui reste vide tant que le testeur n'a pas rempli owner/repo à la main.
+    let testerEmail = '';
+    try {
+      const { session } = await window.LayerPitchAuth.getSession();
+      if (session && session.user) testerEmail = session.user.email || '';
+    } catch (e) { /* session indisponible : on envoie quand même le retour, sans email */ }
     const body = new FormData();
     body.append('message', message);
+    body.append('email', testerEmail);
     // Contexte auto-inclus : quel repo (donc quel testeur) envoie ce retour, sans avoir à le redemander.
     body.append('repo', `${state.owner()}/${state.repo()}`);
-    body.append('_subject', `Retour LayerPitch — ${state.owner()}/${state.repo()}`);
+    body.append('_subject', `Retour LayerPitch — ${testerEmail || `${state.owner()}/${state.repo()}`}`);
+    if (feedbackScreenshotFile) body.append('attachment', feedbackScreenshotFile, feedbackScreenshotFile.name);
     const res = await fetch(BETA_FEEDBACK_ENDPOINT, {
       method: 'POST',
       headers: { Accept: 'application/json' },
@@ -6550,6 +6608,7 @@ document.getElementById('feedbackSend').addEventListener('click', async () => {
       statusEl.className = 'ok';
       statusEl.textContent = tr('feedbackSentStatus');
       document.getElementById('feedbackMessage').value = '';
+      setFeedbackScreenshot(null);
       setTimeout(() => { document.getElementById('feedbackModalOverlay').style.display = 'none'; }, 1200);
     } else {
       statusEl.className = 'err';
