@@ -607,7 +607,7 @@ function getModeLabel(mode, track) {
 }
 const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential', 'embranchement-vertical'];
 
-function layerHasSource(l) { return !!(l && (l.localFile || l.file)); }
+function layerHasSource(l) { return !!(l && (l.localFile || l.localUrl || l.file)); }
 
 // Résout une section vertical-random qui duplique une autre (referencesSectionId) vers sa section
 // source réelle — pools ET tempo/timeline viennent tous de la source (mêmes fichiers, même minutage),
@@ -1191,7 +1191,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // Sfx attachés à ce morceau (ex-"stingers") — résolus depuis la Bibliothèque Sfx partagée, chacun
   // pouvant porter plusieurs variations round robin (contrairement à l'ancien stinger, un seul fichier).
   const attachedSfx = (track.sfxIds || []).map(id => SFX_LIBRARY_BY_ID[id]).filter(Boolean);
-  const totalSfxFilesToLoad = attachedSfx.reduce((n, sfx) => n + (sfx.alternatives || []).filter(a => a.file || a.localFile).length, 0);
+  const totalSfxFilesToLoad = attachedSfx.reduce((n, sfx) => n + (sfx.alternatives || []).filter(a => a.file || a.localFile || a.localUrl).length, 0);
   // Gain maître de CE morceau : tout ce qui sonne pour lui (une seule couche statique, plusieurs couches
   // vertical/vertical-random simultanées, ou les générations successives du moteur séquentiel) route par
   // ici plutôt que directement vers la destination — point d'accroche unique pour le ducking (Phase 4),
@@ -4222,12 +4222,18 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // cours côté GitHub Pages (fichiers fraîchement publiés, pas encore servis par le CDN — jusqu'à 10
   // minutes, voir docs/infrastructure.md) : si TOUTES les requêtes réseau tentées pour cette piste ont
   // échoué en 404/non-ok, plutôt qu'un mélange d'échecs ordinaires, c'est le signe le plus probable d'une
-  // publication toute récente. Ne compte que les vrais fichiers distants (item.localFile ignoré, aperçu
-  // local du backstage jamais concerné par ce problème).
+  // publication toute récente. Ne compte que les vrais fichiers distants (item.localFile/localUrl
+  // ignorés, aperçu local du backstage jamais concerné par ce problème).
   let remoteFetchAttempts = 0;
   let remoteFetchNotFound = 0;
   async function loadArrayBuffer(item) {
     if (item.localFile) return await item.localFile.arrayBuffer();
+    // localUrl (18/09) : variante de localFile pour l'Aperçu public (?preview=1, nouvel onglet) -- un
+    // fichier pas encore publié y arrive en URL locale temporaire (blob:, voir pendingPreviewUrl() côté
+    // backstage) plutôt qu'en objet File directement utilisable, un objet File ne survivant pas au
+    // passage par localStorage (JSON) entre le backstage et cet onglet. fetch() sait lire une URL blob:
+    // aussi bien qu'une URL distante, d'où ce simple embranchement plutôt qu'un chemin de code séparé.
+    if (item.localUrl) return await (await fetch(item.localUrl)).arrayBuffer();
     remoteFetchAttempts++;
     const v = track.publishedAt ? ('?v=' + encodeURIComponent(track.publishedAt)) : '';
     const res = await fetch(track.base + encodeURIComponent(item.file) + v);
@@ -4470,7 +4476,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       }
     }
     for (const sfx of attachedSfx) {
-      const alts = (sfx.alternatives || []).filter(a => a.file || a.localFile);
+      const alts = (sfx.alternatives || []).filter(a => a.file || a.localFile || a.localUrl);
       sfxBuffersById[sfx.id] = new Array(alts.length).fill(null);
       for (let ai = 0; ai < alts.length; ai++) {
         try {
@@ -4479,6 +4485,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
           const alt = alts[ai];
           let ab;
           if (alt.localFile) ab = await alt.localFile.arrayBuffer();
+          else if (alt.localUrl) ab = await (await fetch(alt.localUrl)).arrayBuffer(); // voir loadArrayBuffer() plus haut
           else {
             const v = sfx.publishedAt ? ('?v=' + encodeURIComponent(sfx.publishedAt)) : '';
             const res = await fetch(sfx.base + encodeURIComponent(alt.file) + v);

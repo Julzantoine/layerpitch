@@ -1609,9 +1609,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1789727601833"></script>
+<script src="layerpitch-i18n.js?v=1789728871498"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1789640195970"></script>
+<script src="player.js?v=1789728713949"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -9967,14 +9967,22 @@ async function updateScriptVersions(owner, repo, branch, token, path, version) {
 }
 
 /* ---------------- Publication ---------------- */
+// URL locale temporaire (blob:) pour un fichier tout juste choisi mais pas encore publié -- utilisée
+// UNIQUEMENT par pendingPreviewUrl() ci-dessous (images d'AdReel en Aperçu, 18/09). Sans effet en
+// vraie publication : publishAll() a déjà uploadé puis vidé tous les pendingXxxFile avant d'appeler
+// buildDataSnapshot() (voir plus bas), ce repli est donc systématiquement un no-op à ce moment-là --
+// jamais de blob: dans les données réellement publiées.
+function pendingPreviewUrl(file) {
+  return file ? URL.createObjectURL(file) : null;
+}
 // Assemblage de l'objet au format data.json/Postgres à partir de l'état en mémoire (extrait de
 // publishAll() le 7 septembre pour être réutilisable par la prévisualisation -- lecture pure, aucun
-// effet de bord, aucun appel réseau : les fichiers en attente (pendingXxxFile) n'ont pas encore de
-// remoteFile/illustration publiés, ils ressortent donc naturellement en null/absents ici, exactement
-// comme pour un morceau/pack jamais encore publié. C'est voulu : la prévisualisation ne peut montrer
-// que ce qui a déjà été publié une fois pour l'audio et les images (voir openPreview()) -- tout le
-// reste (textes, organisation, tracklists, prix, couleurs...) est en revanche toujours à jour ici,
-// puisque lu directement depuis l'état en mémoire du backstage, pas depuis une copie publiée.
+// effet de bord, aucun appel réseau. Images d'AdReel tout juste choisies mais pas encore publiées :
+// remplacées par une URL locale temporaire (pendingPreviewUrl() ci-dessus, 18/09) plutôt que null --
+// valable seulement le temps que CET onglet backstage (qui a créé l'URL) reste ouvert, jamais persisté
+// ni publié. L'audio suit le même principe mais via un mécanisme différent (localFile/localUrl,
+// consommé directement par player.js -- voir plus loin dans cette fonction). Pistes/packs/collections
+// jamais encore publiés une seule fois restent, eux, en null/absents ici comme avant ce changement.
 function buildDataSnapshot(effectivePlan, publishedAt) {
   return {
     publishedAt,
@@ -9990,9 +9998,14 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
       normalizeVolume: !!t.normalizeVolume,
       duration: Math.round(t.duration * 100) / 100, base: t.base,
-      layers: (t.mode === 'static' ? (t.layers || []).slice(0, 1) : (t.layers || [])).map(l => ({ label: l.label, file: l.remoteFile, originalFileName: l.originalFileName || null, gain: l.gain || 1, duration: Math.round((l.duration || 0) * 100) / 100 })),
-      intro: (t.intro && t.intro.remoteFile) ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, file: t.intro.remoteFile, originalFileName: t.intro.originalFileName || null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '' } : null,
-      outro: (t.outro && t.outro.remoteFile) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile, originalFileName: t.outro.originalFileName || null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,
+      // file/localUrl (18/09) : un fichier tout juste choisi mais pas encore publié n'a pas de
+      // remoteFile -- localUrl porte alors une URL locale temporaire (pendingPreviewUrl(), blob:),
+      // lue directement par player.js (loadArrayBuffer()) sans jamais passer par track.base. file
+      // reste null dans ce cas (jamais un blob: -- track.base+file resterait un vrai chemin distant
+      // invalide). Même repli partout ci-dessous (layers/intro/outro/segmentSlots/loops/sections).
+      layers: (t.mode === 'static' ? (t.layers || []).slice(0, 1) : (t.layers || [])).map(l => ({ label: l.label, file: l.remoteFile || null, localUrl: l.remoteFile ? null : pendingPreviewUrl(l.pendingFile), originalFileName: l.originalFileName || null, gain: l.gain || 1, duration: Math.round((l.duration || 0) * 100) / 100 })),
+      intro: (t.intro && (t.intro.remoteFile || t.intro.pendingFile)) ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, file: t.intro.remoteFile || null, localUrl: t.intro.remoteFile ? null : pendingPreviewUrl(t.intro.pendingFile), originalFileName: t.intro.originalFileName || null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '' } : null,
+      outro: (t.outro && (t.outro.remoteFile || t.outro.pendingFile)) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile || null, localUrl: t.outro.remoteFile ? null : pendingPreviewUrl(t.outro.pendingFile), originalFileName: t.outro.originalFileName || null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,
       segmentSlots: (t.segmentSlots || []).map(sl => ({
         id: sl.id, label: sl.label || '', avoidImmediateRepeat: sl.avoidImmediateRepeat !== false,
         referencesSlotId: sl.referencesSlotId || null, repeatCount: sl.repeatCount || 1,
@@ -10001,15 +10014,15 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
         nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
           targetId: opt.targetId, label: opt.label || '',
-          transition: (opt.transition && opt.transition.remoteFile) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile, originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null
+          transition: (opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile)) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile || null, localUrl: opt.transition.remoteFile ? null : pendingPreviewUrl(opt.transition.pendingFile), originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null
         })) : null,
-        alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, originalFileName: a.originalFileName || null, gain: a.gain || 1 }))
+        alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1 }))
       })),
       // Embranchement-vertical : une entrée par boucle déclarée (même les boucles sans fichier — voir
       // note dans buildPreviewTrackObject, l'index doit rester aligné avec data-loop-idx côté lecteur).
       loops: (t.loops || []).map(l => ({
         id: l.id, label: l.label || '', bars: l.bars || 8, isInitial: !!l.isInitial,
-        file: l.remoteFile || null, gain: l.gain || 1,
+        file: l.remoteFile || null, localUrl: l.remoteFile ? null : pendingPreviewUrl(l.pendingFile), gain: l.gain || 1,
         switchQuantize: l.switchQuantize || 'immediate',
         autoReturnEnabled: !!l.autoReturnEnabled, autoReturnValue: l.autoReturnValue || 4, autoReturnUnit: l.autoReturnUnit || 'bars',
         detourMode: l.detourMode || 'once', endLoopButtonLabel: l.endLoopButtonLabel || '',
@@ -10017,11 +10030,11 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         duration: Math.round((l.duration || 0) * 100) / 100,
         isDetour: !!l.isDetour, bpm: l.bpm || null, beatsPerBar: l.beatsPerBar || null,
         cutStyle: l.cutStyle || 'fade', customCutFadeSec: l.customCutFadeSec,
-        transition: (l.transition && l.transition.remoteFile) ? {
+        transition: (l.transition && (l.transition.remoteFile || l.transition.pendingFile)) ? {
           label: l.transition.label || '', durationUnit: l.transition.durationUnit || null,
           bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
           bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
-          file: l.transition.remoteFile, originalFileName: l.transition.originalFileName || null
+          file: l.transition.remoteFile || null, localUrl: l.transition.remoteFile ? null : pendingPreviewUrl(l.transition.pendingFile), originalFileName: l.transition.originalFileName || null
         } : null
       })),
       randomizeSections: !!t.randomizeSections,
@@ -10039,7 +10052,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         pools: sec.referencesSectionId ? [] : (sec.pools || []).map(p => ({
           id: p.id, label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
           referencesPoolId: p.referencesPoolId || null,
-          alternatives: p.referencesPoolId ? [] : (p.alternatives || []).map(a => ({ label: a.label || '', file: a.remoteFile || null, originalFileName: a.originalFileName || null, gain: a.gain || 1 }))
+          alternatives: p.referencesPoolId ? [] : (p.alternatives || []).map(a => ({ label: a.label || '', file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1 }))
         }))
       })),
       sfxIds: t.sfxIds || [],
@@ -10050,7 +10063,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       id: s.id, title: s.title || '', descriptionFr: s.descriptionFr || '', descriptionEn: s.descriptionEn || '', tag: s.tag || '',
       rrMode: s.rrMode === 'sequential' ? 'sequential' : 'random',
       duckMainTrack: !!s.duckMainTrack, base: s.base || '',
-      alternatives: (s.alternatives || []).filter(a => a.remoteFile).map(a => ({ label: a.label || '', file: a.remoteFile, originalFileName: a.originalFileName || null })),
+      alternatives: (s.alternatives || []).filter(a => a.remoteFile || a.pendingFile).map(a => ({ label: a.label || '', file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null })),
       folderId: s.folderId || null
     })),
     sfxFolders: sfxFolders.map(f => ({ id: f.id, label: f.label || '' })),
@@ -10077,15 +10090,21 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       blocks: ar.blocks.map(b => {
         let out;
         if (b.type === 'text') out = { id: b.id, type: 'text', title: b.title || '', content: b.content || '', align: b.align || 'left' };
-        else if (b.type === 'photo') out = { id: b.id, type: 'photo', align: b.align || 'left', caption: b.caption || '', images: b.images.filter(i => i.file).map(i => ({ file: i.file, originalFileName: i.originalFileName || null })) };
-        else if (b.type === 'video') out = { id: b.id, type: 'video', videos: b.videos.map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, source: v.source === 'library' ? 'library' : 'url' })) };
+        else if (b.type === 'photo') out = { id: b.id, type: 'photo', align: b.align || 'left', caption: b.caption || '', images: b.images.filter(i => i.file || i.pendingFile).map(i => ({ file: i.file || pendingPreviewUrl(i.pendingFile), originalFileName: i.originalFileName || null })) };
+        else if (b.type === 'video') out = { id: b.id, type: 'video', videos: b.videos.map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || pendingPreviewUrl(v.pendingThumbnail) || null, thumbnailOriginalName: v.thumbnailOriginalName || null, source: v.source === 'library' ? 'library' : 'url' })) };
         else if (b.type === 'packs') out = { id: b.id, type: 'packs', presentation: b.presentation || '', packIds: b.packIds || [] };
         else if (b.type === 'collections') out = { id: b.id, type: 'collections', presentation: b.presentation || '', collectionIds: b.collectionIds || [] };
         else if (b.type === 'sfx') out = { id: b.id, type: 'sfx', sfxIds: b.sfxIds || [] };
         else out = { id: b.id, type: b.type };
         // Champ commun à tous les types de bloc, sans exception (décision : réglages par bloc partout) —
-        // ajouté une seule fois ici plutôt que dupliqué dans chacune des branches ci-dessus.
+        // ajouté une seule fois ici plutôt que dupliqué dans chacune des branches ci-dessus. Image de
+        // fond par bloc : le fichier en attente vit hors de b.appearance (b._pending_bgImage, voir
+        // publishAll()), jamais lu par ce Object.assign générique -- ajouté à part juste après.
         if (b.appearance && Object.keys(b.appearance).length) out.appearance = Object.assign({}, b.appearance);
+        if (b._pending_bgImage) {
+          if (!out.appearance) out.appearance = {};
+          out.appearance.bgImage = out.appearance.bgImage || pendingPreviewUrl(b._pending_bgImage);
+        }
         // Réglage par élément (Chantier Apparence, palier Pro, 05/09) : toujours écrit tel quel, même si
         // le compositeur n'est plus Pro au moment de PUBLIER -- le gating à l'application se fait côté
         // runtime (index.html, sur le tier figé ci-dessous), jamais en omettant la donnée à l'écriture
@@ -10093,8 +10112,19 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         if (b.elementAppearance && Object.keys(b.elementAppearance).length) out.elementAppearance = Object.assign({}, b.elementAppearance);
         return out;
       }),
-      profile: Object.assign({}, ar.profile, { effectivePlan }),
-      testimonials: ar.testimonials,
+      profile: Object.assign({}, ar.profile, {
+        effectivePlan,
+        logo: ar.profile.logo || pendingPreviewUrl(ar.logoPendingFile),
+        photo: ar.profile.photo || pendingPreviewUrl(ar.photoPendingFile),
+        theme: ar.profile.theme
+          ? Object.assign({}, ar.profile.theme, { bgImage: ar.profile.theme.bgImage || pendingPreviewUrl(ar.themeBgImagePendingFile) })
+          : ar.profile.theme
+      }),
+      testimonials: ar.testimonials.map(tm => {
+        const out = Object.assign({}, tm, { avatar: tm.avatar || pendingPreviewUrl(tm.avatarPendingFile) });
+        delete out.avatarPendingFile;
+        return out;
+      }),
       trackIds: ar.trackIds || [],
       trackOverrides: ar.trackOverrides || {},
       allowIndexing: ar.allowIndexing !== false,
