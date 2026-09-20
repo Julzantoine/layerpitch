@@ -95,6 +95,8 @@ async function sendInviteEmail(email: string, actionLink: string, personalMessag
         subject: 'Invitation à la bêta LayerPitch',
         html,
         text,
+        // Réponses des testeurs vers la boîte contact, pas vers l'adresse d'envoi (20 septembre).
+        reply_to: 'contact@layerpitch.com',
       }),
     });
     if (!res.ok) {
