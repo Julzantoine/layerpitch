@@ -39,18 +39,20 @@
   // "public read", même convention que platform_settings) : pas besoin de RPC, is_admin() n'entre
   // en jeu que pour l'écriture.
   async function listAdminMessages() {
-    const { data, error } = await getClient().from('admin_messages').select('id, body, created_at').order('created_at', { ascending: false }).limit(50);
+    const { data, error } = await getClient().from('admin_messages').select('id, body, created_at, existing_accounts_only').order('created_at', { ascending: false }).limit(50);
     if (error) return { messages: null, error: error.message };
     return {
-      messages: (data || []).map(m => ({ id: m.id, body: m.body || {}, createdAt: m.created_at })),
+      messages: (data || []).map(m => ({ id: m.id, body: m.body || {}, createdAt: m.created_at, existingAccountsOnly: !!m.existing_accounts_only })),
       error: null,
     };
   }
 
   // messages : { <code langue>: <texte> }, ex. { fr: '...', en: '...' } — même structure ouverte au
-  // nombre de langues que l'ancien bandeau.
-  async function sendAdminMessage(messages) {
-    const { error } = await getClient().rpc('admin_send_message', { p_messages: messages });
+  // nombre de langues que l'ancien bandeau. existingAccountsOnly (20 septembre) : le message reste
+  // une seule ligne diffusée mais n'est visible que des comptes créés avant l'envoi (voir
+  // supabase/migrations/20260920010000_admin_messages_existing_accounts_only.sql).
+  async function sendAdminMessage(messages, existingAccountsOnly) {
+    const { error } = await getClient().rpc('admin_send_message', { p_messages: messages, p_existing_accounts_only: !!existingAccountsOnly });
     if (error) return { ok: false, error: error.message };
     return { ok: true, error: null };
   }
