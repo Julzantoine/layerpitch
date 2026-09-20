@@ -75,6 +75,16 @@ async function sendInviteEmail(email: string, actionLink: string, personalMessag
       <p><a href="${actionLink}" style="display:inline-block;padding:10px 24px;background:#c9713c;color:#fff;text-decoration:none;border-radius:4px;">Rejoindre la bêta</a></p>
       <p style="font-size:12px;color:#6f6b62;">Si le bouton ne fonctionne pas, copie ce lien dans ton navigateur :<br>${actionLink}</p>
     </div>`;
+  // Version texte brut (20 septembre) : un email HTML seul, sans alternative texte, est un signal
+  // spam classique -- un testeur (Fastmail) a vu son invitation classée en spam.
+  const text = [
+    'Bienvenue sur LayerPitch',
+    '',
+    personalMessage || 'Tu es invité·e à rejoindre la bêta LayerPitch.',
+    '',
+    'Rejoindre la bêta :',
+    actionLink,
+  ].join('\n');
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -84,6 +94,7 @@ async function sendInviteEmail(email: string, actionLink: string, personalMessag
         to: email,
         subject: 'Invitation à la bêta LayerPitch',
         html,
+        text,
       }),
     });
     if (!res.ok) {
