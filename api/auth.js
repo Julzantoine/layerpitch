@@ -34,7 +34,7 @@
     return { ok: !error, error: error ? error.message : null };
   }
 
-  // Vérifie le code à 6 chiffres reçu dans le même email que le lien magique (même appel
+  // Vérifie le code à 8 chiffres reçu dans le même email que le lien magique (même appel
   // signInWithOtp() ci-dessus, Supabase envoie les deux dans un seul email dès que le template
   // "Magic Link" du dashboard inclut {{ .Token }} — réglage à faire une fois côté dashboard, pas
   // dans ce code). Pensé pour le cas "je lis mon email sur un autre appareil que celui où je veux
