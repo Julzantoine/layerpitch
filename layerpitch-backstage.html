@@ -718,15 +718,22 @@
      dispersé dans la page, 05/09) */
   .account-menu { position: relative; }
   .account-menu-dropdown {
-    position: absolute; top: calc(100% + 6px); right: 0; min-width: 230px;
+    position: absolute; top: calc(100% + 6px); right: 0; min-width: 290px;
     background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.14); padding: 6px; z-index: 500;
   }
-  .account-menu-email { font-size: 11.5px; color: var(--text-dim); padding: 6px 10px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); word-break: break-all; }
-  /* Palier affiché juste sous l'email (15/09, même chantier de regroupement que le menu Compte
-     ci-dessus) : simple lecture, aucune action -- reprend le style discret de account-menu-email
-     plutôt qu'un account-menu-item cliquable. */
-  .account-menu-plan { font-size: 11.5px; color: var(--text-dim); padding: 0 10px 10px; margin-top: -4px; }
+  /* Refonte façon YouTube (21/09, retour direct de Jules-Antoine : "s'inspirer de YT") : en-tête avec
+     pastille d'initiale + email + palier, icône devant chaque entrée, groupes séparés par un filet. */
+  .account-menu-who { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
+  .account-menu-avatar {
+    width: 36px; height: 36px; border-radius: 50%; flex: none;
+    background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600;
+  }
+  .account-menu-who-text { min-width: 0; }
+  .account-menu-email { font-size: 13px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+  .account-menu-plan { font-size: 11.5px; color: var(--text-dim); margin-top: 1px; }
+  .account-menu-sep { height: 1px; background: var(--border); margin: 6px 0; }
   .account-menu-item {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
     width: 100%; text-align: left; background: none; border: none;
@@ -737,21 +744,36 @@
   .account-menu-item[hidden] { display: none; }
   .account-menu-item:disabled { color: var(--text-dimmer); cursor: default; }
   .account-menu-signout { color: #b5442e; }
-  .account-menu-dropdown-wide { min-width: 300px; max-width: 360px; max-height: 320px; overflow-y: auto; }
-  /* Fusion des deux cloches "Messages de LayerPitch" / "Notifications" en une seule boîte de
-     réception à deux sections (15/09, retour direct de Jules-Antoine : les deux icônes séparées lui
-     semblaient redondantes côte à côte) -- les entêtes de section restent visibles même quand une
-     section est vide, pour que le compositeur comprenne qu'il y a bien deux catégories distinctes. */
-  .account-menu-inbox-section:not(:last-child) { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-  .account-menu-inbox-heading { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-dim); padding: 4px 10px 2px; }
+  .account-menu-signout .account-menu-icon { color: inherit; }
+  .account-menu-item-label { display: flex; align-items: center; gap: 12px; }
+  .account-menu-icon { width: 18px; height: 18px; flex: none; color: var(--text-dim); }
+  .account-menu-item:disabled .account-menu-icon { color: var(--text-dimmer); }
+  .account-menu-ext { width: 13px; height: 13px; flex: none; color: var(--text-dimmer); }
+  .account-menu-dropdown-wide { width: 360px; max-width: calc(100vw - 24px); max-height: min(70vh, 480px); overflow-y: auto; padding: 0; }
+  /* Boîte de réception (21/09, retour direct : "s'inspirer de YT") -- une seule liste chronologique
+     (annonces LayerPitch et messages du bloc Contact mêlés), icône ronde à gauche, texte replié sur
+     deux lignes avec "Lire la suite", heure relative, point bleu sur les non lus. */
+  .inbox-header { font-size: 14px; font-weight: 600; padding: 12px 14px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 1; }
+  .inbox-empty { font-size: 12.5px; color: var(--text-dim); padding: 16px 14px; }
+  .inbox-empty[hidden] { display: none; }
+  .inbox-item { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; }
+  .inbox-item:not(:last-child) { border-bottom: 1px solid var(--border); }
+  .inbox-icon { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); flex: none; display: flex; align-items: center; justify-content: center; color: var(--text-dim); }
+  .inbox-icon svg { width: 17px; height: 17px; }
+  .inbox-body { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.45; }
+  .inbox-title { font-weight: 600; font-size: 13px; }
+  .inbox-text { color: var(--text-dim); white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+  .inbox-text.expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
+  .inbox-more { background: none; border: none; padding: 0; margin-top: 2px; font: inherit; font-size: 12px; color: var(--accent); cursor: pointer; }
+  .inbox-more[hidden] { display: none; }
+  .inbox-time { font-size: 11.5px; color: var(--text-dimmer); margin-top: 3px; }
+  .inbox-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-top: 6px; background: transparent; }
+  .inbox-item.unread .inbox-dot { background: var(--accent); }
   #btnInboxBell { position: relative; }
   .notif-badge {
     position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%;
     background: #c0392b; border: 1.5px solid var(--bg);
   }
-  .notif-item { padding: 8px 10px; border-radius: 5px; font-size: 12.5px; line-height: 1.5; white-space: pre-line; }
-  .notif-item:not(:last-child) { border-bottom: 1px solid var(--border); }
-  .notif-item-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
   .global-actions-bar .btn { white-space: nowrap; }
 
   /* ---------------- Bulles d'aide contextuelle (data-help) ---------------- */
@@ -841,16 +863,9 @@
           <span class="notif-badge" id="inboxBellBadge" hidden></span>
         </button>
         <div class="account-menu-dropdown account-menu-dropdown-wide" id="inboxBellDropdown" hidden>
-          <div class="account-menu-inbox-section">
-            <div class="account-menu-inbox-heading" data-i18n="inboxSectionAnnouncements">Annonces LayerPitch</div>
-            <div class="account-menu-email" id="adminMsgBellEmpty" data-i18n="adminMsgBellEmpty">Aucun message pour l'instant.</div>
-            <div id="adminMsgBellList"></div>
-          </div>
-          <div class="account-menu-inbox-section">
-            <div class="account-menu-inbox-heading" data-i18n="inboxSectionNotifications">Notifications</div>
-            <div class="account-menu-email" id="notifBellEmpty" data-i18n="notifBellEmpty">Aucun message pour l'instant.</div>
-            <div id="notifBellList"></div>
-          </div>
+          <div class="inbox-header" data-i18n="inboxSectionNotifications">Notifications</div>
+          <div class="inbox-empty" id="inboxEmpty" data-i18n="notifBellEmpty">Aucun message pour l'instant.</div>
+          <div id="inboxList"></div>
         </div>
       </div>
       <div class="account-menu">
@@ -858,29 +873,52 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M19.4 13.6c.06-.53.06-1.07 0-1.6l1.9-1.3-1.5-2.6-2.2.7a7.4 7.4 0 0 0-1.4-.8L15.8 5.8h-3l-.4 2.2a7.4 7.4 0 0 0-1.4.8l-2.2-.7-1.5 2.6 1.9 1.3c-.06.53-.06 1.07 0 1.6l-1.9 1.3 1.5 2.6 2.2-.7c.43.34.9.62 1.4.8l.4 2.2h3l.4-2.2c.5-.18.97-.46 1.4-.8l2.2.7 1.5-2.6-1.9-1.3z"/></svg>
         </button>
         <div class="account-menu-dropdown" id="accountMenuDropdown" hidden>
-          <div class="account-menu-email" id="accountMenuEmail" data-i18n="accountMenuNotConnected">Non connecté</div>
-          <div class="account-menu-plan" id="accountMenuPlan" hidden></div>
-          <a class="account-menu-item" href="mon-compte.html" target="_blank" rel="noopener" data-i18n="accountMenuMyAccount">Mon compte</a>
+          <div class="account-menu-who">
+            <div class="account-menu-avatar" id="accountMenuAvatar" aria-hidden="true">?</div>
+            <div class="account-menu-who-text">
+              <div class="account-menu-email" id="accountMenuEmail" data-i18n="accountMenuNotConnected">Non connecté</div>
+              <div class="account-menu-plan" id="accountMenuPlan" hidden></div>
+            </div>
+          </div>
+          <div class="account-menu-sep"></div>
+          <a class="account-menu-item" href="mon-compte.html" target="_blank" rel="noopener">
+            <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.2 18.2a6.5 6.5 0 0 1 11.6 0"/></svg><span data-i18n="accountMenuMyAccount">Mon compte</span></span>
+            <svg class="account-menu-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 5h5v5"/><path d="M19 5l-8 8"/><path d="M17 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h4"/></svg>
+          </a>
           <!-- Annuaire des compositeurs (15/09, retour direct : "doit être directement dans ce
                dossier" -- même chantier que la carte grisée déjà présente dans mon-compte.html)
                -- même convention "bientôt" que FAQ ci-dessous, rien de construit derrière. -->
           <button class="account-menu-item" type="button" disabled>
-            <span data-i18n="accountMenuDirectory">Annuaire des compositeurs</span>
+            <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6.3a3 3 0 0 1 0 5.4"/><path d="M17.5 14a5.5 5.5 0 0 1 3 5"/></svg><span data-i18n="accountMenuDirectory">Annuaire des compositeurs</span></span>
             <span class="nav-badge" data-i18n="comingSoonBadge">bientôt</span>
           </button>
+          <div class="account-menu-sep"></div>
           <!-- FAQ : entrée visible mais désactivée (même convention que le nav-item "Projet(s)" plus
                haut dans ce fichier) -- aucune FAQ rédigée nulle part, pas question de pointer vers une
                page vide pour donner une fausse impression de fonctionnalité manquante/cassée. -->
           <button class="account-menu-item" type="button" disabled>
-            <span data-i18n="accountMenuFaq">FAQ</span>
+            <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg><span data-i18n="accountMenuFaq">FAQ</span></span>
             <span class="nav-badge" data-i18n="comingSoonBadge">bientôt</span>
           </button>
           <!-- Tutoriels (15/09) : playlist YouTube "LayerPitch_Tutorials" (Julzantoine), confirmée
                réelle et déjà alimentée (2 vidéos) -- lien direct, pas de page intermédiaire à
                construire côté LayerPitch. -->
-          <a class="account-menu-item" href="https://www.youtube.com/playlist?list=PLUEGG1IiDkp0" target="_blank" rel="noopener" data-i18n="accountMenuTutorials">Tutoriels</a>
-          <a class="account-menu-item" href="mailto:contact@layerpitch.com" data-i18n="accountMenuContact">Nous contacter</a>
-          <button class="account-menu-item account-menu-signout" id="btnAccountSignOut" type="button" hidden data-i18n="accountMenuSignOut">Se déconnecter</button>
+          <a class="account-menu-item" href="https://www.youtube.com/playlist?list=PLUEGG1IiDkp0" target="_blank" rel="noopener">
+            <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="3"/><path d="M10.5 9.5v5l4.2-2.5z"/></svg><span data-i18n="accountMenuTutorials">Tutoriels</span></span>
+            <svg class="account-menu-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 5h5v5"/><path d="M19 5l-8 8"/><path d="M17 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h4"/></svg>
+          </a>
+          <!-- Même action que le bouton de la barre latérale (btnOpenFeedback) : ouvre la même fenêtre
+               de retour, gardé aux deux endroits volontairement (21/09, retour direct). -->
+          <button class="account-menu-item" id="btnAccountFeedback" type="button">
+            <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1H9.5l-4 4V16H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1z"/></svg><span data-i18n="feedbackNavLabel">Faire un retour sur la version</span></span>
+          </button>
+          <a class="account-menu-item" href="mailto:contact@layerpitch.com">
+            <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></svg><span data-i18n="accountMenuContact">Nous contacter</span></span>
+          </a>
+          <div class="account-menu-sep"></div>
+          <button class="account-menu-item account-menu-signout" id="btnAccountSignOut" type="button" hidden>
+            <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/></svg><span data-i18n="accountMenuSignOut">Se déconnecter</span></span>
+          </button>
         </div>
       </div>
     </div>
@@ -2076,10 +2114,12 @@ const ACCOUNT_MENU_PLAN_LABELS = { free: 'Free', starter: 'Starter', pro: 'Pro' 
 async function renderAccountMenu(session) {
   const emailEl = document.getElementById('accountMenuEmail');
   const planEl = document.getElementById('accountMenuPlan');
+  const avatarEl = document.getElementById('accountMenuAvatar');
   const signOutBtn = document.getElementById('btnAccountSignOut');
   if (!emailEl) return;
   if (session && session.user) {
     emailEl.textContent = session.user.email;
+    if (avatarEl) avatarEl.textContent = (session.user.email || '?').trim().charAt(0).toUpperCase() || '?';
     if (signOutBtn) signOutBtn.hidden = false;
     // Palier affiché directement dans le menu (15/09, chantier de regroupement des réglages de
     // compte) : évite d'ouvrir "Mon compte" juste pour savoir où on en est.
@@ -2095,6 +2135,7 @@ async function renderAccountMenu(session) {
     }
   } else {
     emailEl.textContent = tr('accountMenuNotConnected');
+    if (avatarEl) avatarEl.textContent = '?';
     if (signOutBtn) signOutBtn.hidden = true;
     if (planEl) planEl.hidden = true;
   }
@@ -2123,6 +2164,8 @@ function initAccountMenuUi() {
       window.location.replace('bienvenue.html');
     });
   }
+  const feedbackBtn = document.getElementById('btnAccountFeedback');
+  if (feedbackBtn) feedbackBtn.addEventListener('click', () => { closeMenu(); openFeedbackModal(); });
 }
 // Boîte de réception unique (15 septembre, fusion des deux cloches précédentes "Messages de
 // LayerPitch" et "Notifications" — Jules-Antoine les trouvait redondantes côte à côte). Les deux
@@ -2130,18 +2173,29 @@ function initAccountMenuUi() {
 // annonces plateforme -- lecture publique + lignes de lecture propres au compositeur, un message
 // n'a pas un seul destinataire ; contact_messages pour les messages du bloc "Contact" public --
 // simple flag seen_at, un message ici a exactement un destinataire) : seule la présentation est
-// unifiée, dans deux sections du même menu déroulant, avec un badge commun.
+// unifiée. Depuis le 21 septembre (retour direct : "s'inspirer de YT"), une seule liste
+// chronologique mêle les deux sources au lieu de deux sections empilées.
+const INBOX_ICON_ANNOUNCEMENT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 9a4 4 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>';
+const INBOX_ICON_MESSAGE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1H9.5l-4 4V16H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1z"/></svg>';
+function formatRelativeTime(iso) {
+  const lang = currentLang() === 'en' ? 'en' : 'fr';
+  const diffSec = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
+  const abs = Math.abs(diffSec);
+  const rtf = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
+  if (abs < 60) return rtf.format(0, 'second');
+  if (abs < 3600) return rtf.format(Math.round(diffSec / 60), 'minute');
+  if (abs < 86400) return rtf.format(Math.round(diffSec / 3600), 'hour');
+  if (abs < 30 * 86400) return rtf.format(Math.round(diffSec / 86400), 'day');
+  return new Date(iso).toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR');
+}
 async function renderInboxBell(session) {
   const badge = document.getElementById('inboxBellBadge');
-  const adminEmptyEl = document.getElementById('adminMsgBellEmpty');
-  const adminListEl = document.getElementById('adminMsgBellList');
-  const notifEmptyEl = document.getElementById('notifBellEmpty');
-  const notifListEl = document.getElementById('notifBellList');
-  if (!badge || !adminListEl || !notifListEl) return;
+  const emptyEl = document.getElementById('inboxEmpty');
+  const listEl = document.getElementById('inboxList');
+  if (!badge || !emptyEl || !listEl) return;
   if (!session || !session.user) {
     badge.hidden = true;
-    adminListEl.innerHTML = ''; adminEmptyEl.hidden = false;
-    notifListEl.innerHTML = ''; notifEmptyEl.hidden = false;
+    listEl.innerHTML = ''; emptyEl.hidden = false;
     return;
   }
   await loadPostgresReadScripts();
@@ -2151,66 +2205,94 @@ async function renderInboxBell(session) {
     client.from('admin_message_reads').select('message_id'),
     client.from('contact_messages').select('id, ad_reel_label, sender_name, sender_email, created_at, seen_at').order('created_at', { ascending: false }).limit(20),
   ]);
-  let adminUnread = false;
-  if (adminError || !adminMessages || adminMessages.length === 0) {
-    adminListEl.innerHTML = ''; adminEmptyEl.hidden = false;
-  } else {
-    const seenIds = new Set((adminReads || []).map(r => r.message_id));
-    adminUnread = adminMessages.some(m => !seenIds.has(m.id));
-    adminEmptyEl.hidden = true;
-    adminListEl.innerHTML = adminMessages.map(m => {
-      const text = (m.body && (m.body[currentLang()] || m.body.fr)) || '';
-      return `
-      <div class="notif-item">
-        ${escapeHtml(text)}
-        <div class="notif-item-meta">${new Date(m.created_at).toLocaleString('fr-FR')}</div>
-      </div>`;
-    }).join('');
+  const seenIds = new Set((adminReads || []).map(r => r.message_id));
+  // title/text sont déjà du HTML sûr : tout contenu venant d'un visiteur ou d'un admin passe par
+  // escapeHtml() avant d'arriver ici.
+  const items = [];
+  if (!adminError && adminMessages) {
+    adminMessages.forEach(m => items.push({
+      kind: 'announcement', createdAt: m.created_at, unread: !seenIds.has(m.id),
+      title: tr('inboxAnnouncementTitle'),
+      text: escapeHtml((m.body && (m.body[currentLang()] || m.body.fr)) || ''),
+    }));
   }
-  let contactUnread = false;
-  if (contactError || !contactMessages || contactMessages.length === 0) {
-    notifListEl.innerHTML = ''; notifEmptyEl.hidden = false;
-  } else {
-    contactUnread = contactMessages.some(m => !m.seen_at);
-    notifEmptyEl.hidden = true;
-    notifListEl.innerHTML = contactMessages.map(m => `
-      <div class="notif-item">
-        ${tr('notifBellMessage', { name: escapeHtml(m.sender_name), adreel: escapeHtml(m.ad_reel_label) })}
-        <div class="notif-item-meta">${escapeHtml(m.sender_email)} — ${new Date(m.created_at).toLocaleString('fr-FR')}</div>
-      </div>`).join('');
+  if (!contactError && contactMessages) {
+    contactMessages.forEach(m => items.push({
+      kind: 'contact', createdAt: m.created_at, unread: !m.seen_at,
+      title: tr('inboxContactTitle', { name: escapeHtml(m.sender_name) }),
+      text: tr('inboxContactBody', { adreel: escapeHtml(m.ad_reel_label), email: escapeHtml(m.sender_email) }),
+    }));
   }
-  badge.hidden = !(adminUnread || contactUnread);
+  items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const shown = items.slice(0, 20);
+  listEl.innerHTML = shown.map(it => `
+    <div class="inbox-item${it.unread ? ' unread' : ''}">
+      <div class="inbox-icon">${it.kind === 'announcement' ? INBOX_ICON_ANNOUNCEMENT : INBOX_ICON_MESSAGE}</div>
+      <div class="inbox-body">
+        <div class="inbox-title">${it.title}</div>
+        <div class="inbox-text">${it.text}</div>
+        <button class="inbox-more" type="button" hidden>${tr('inboxReadMore')}</button>
+        <div class="inbox-time">${formatRelativeTime(it.createdAt)}</div>
+      </div>
+      <div class="inbox-dot"></div>
+    </div>`).join('');
+  emptyEl.hidden = shown.length > 0;
+  badge.hidden = !shown.some(it => it.unread);
 }
 function initInboxBellUi() {
   const bellBtn = document.getElementById('btnInboxBell');
   const dropdown = document.getElementById('inboxBellDropdown');
   if (!bellBtn || !dropdown) return;
-  const closeMenu = () => { dropdown.hidden = true; bellBtn.setAttribute('aria-expanded', 'false'); };
+  // Le bouton "Lire la suite" n'a de sens que si le texte est réellement tronqué : mesurable
+  // seulement une fois le menu affiché (hidden = aucune dimension), donc à chaque ouverture.
+  const refreshClamps = () => {
+    dropdown.querySelectorAll('.inbox-item').forEach(item => {
+      const text = item.querySelector('.inbox-text');
+      const more = item.querySelector('.inbox-more');
+      if (!text || !more) return;
+      const expanded = text.classList.contains('expanded');
+      more.hidden = !(expanded || text.scrollHeight > text.clientHeight + 1);
+      more.textContent = tr(expanded ? 'inboxReadLess' : 'inboxReadMore');
+    });
+  };
+  const closeMenu = () => {
+    dropdown.hidden = true; bellBtn.setAttribute('aria-expanded', 'false');
+    // Les points "non lu" ont servi pendant cette ouverture (les messages sont marqués vus à
+    // l'ouverture) : plus la peine de les remontrer si on rouvre sans recharger la page.
+    dropdown.querySelectorAll('.inbox-item.unread').forEach(el => el.classList.remove('unread'));
+  };
+  dropdown.addEventListener('click', (e) => {
+    const more = e.target.closest('.inbox-more');
+    if (!more) return;
+    more.parentElement.querySelector('.inbox-text').classList.toggle('expanded');
+    refreshClamps();
+  });
   bellBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     const willOpen = dropdown.hidden;
-    dropdown.hidden = !willOpen;
-    bellBtn.setAttribute('aria-expanded', String(willOpen));
+    if (!willOpen) { closeMenu(); return; }
+    dropdown.hidden = false;
+    bellBtn.setAttribute('aria-expanded', 'true');
+    refreshClamps();
+    requestAnimationFrame(refreshClamps);
     // Marqué vu à l'ouverture (pas avant) : le badge doit rester visible tant que le compositeur n'a
     // pas effectivement regardé la boîte, même s'il a rechargé la page entretemps. Les deux RPC de
     // "vu" restent séparées (une par source) même si le badge, lui, est désormais commun.
-    if (willOpen) {
-      const badge = document.getElementById('inboxBellBadge');
-      if (badge && !badge.hidden) {
-        await loadPostgresReadScripts();
-        const client = window.LayerPitchSupabaseClient.getClient();
-        await Promise.all([
-          client.rpc('mark_admin_messages_seen'),
-          client.rpc('mark_contact_messages_seen'),
-        ]);
-        badge.hidden = true;
-      }
+    const badge = document.getElementById('inboxBellBadge');
+    if (badge && !badge.hidden) {
+      await loadPostgresReadScripts();
+      const client = window.LayerPitchSupabaseClient.getClient();
+      await Promise.all([
+        client.rpc('mark_admin_messages_seen'),
+        client.rpc('mark_contact_messages_seen'),
+      ]);
+      badge.hidden = true;
     }
   });
   document.addEventListener('click', (e) => {
     if (!dropdown.hidden && !dropdown.contains(e.target) && e.target !== bellBtn) closeMenu();
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !dropdown.hidden) closeMenu(); });
 }
 async function initPgAuthUi() {
   const sendBtn = document.getElementById('btnPgSendMagicLink');
