@@ -39,10 +39,10 @@
   // "public read", même convention que platform_settings) : pas besoin de RPC, is_admin() n'entre
   // en jeu que pour l'écriture.
   async function listAdminMessages() {
-    const { data, error } = await getClient().from('admin_messages').select('id, body, created_at, existing_accounts_only').order('created_at', { ascending: false }).limit(50);
+    const { data, error } = await getClient().from('admin_messages').select('id, body, title, created_at, existing_accounts_only').order('created_at', { ascending: false }).limit(50);
     if (error) return { messages: null, error: error.message };
     return {
-      messages: (data || []).map(m => ({ id: m.id, body: m.body || {}, createdAt: m.created_at, existingAccountsOnly: !!m.existing_accounts_only })),
+      messages: (data || []).map(m => ({ id: m.id, body: m.body || {}, title: m.title || {}, createdAt: m.created_at, existingAccountsOnly: !!m.existing_accounts_only })),
       error: null,
     };
   }
@@ -51,8 +51,15 @@
   // nombre de langues que l'ancien bandeau. existingAccountsOnly (20 septembre) : le message reste
   // une seule ligne diffusée mais n'est visible que des comptes créés avant l'envoi (voir
   // supabase/migrations/20260920010000_admin_messages_existing_accounts_only.sql).
-  async function sendAdminMessage(messages, existingAccountsOnly) {
-    const { error } = await getClient().rpc('admin_send_message', { p_messages: messages, p_existing_accounts_only: !!existingAccountsOnly });
+  // titles (21 septembre, optionnel) : même forme { <code langue>: <titre> } ; les langues laissées
+  // vides sont écartées, et si aucune n'est renseignée le paramètre n'est pas envoyé du tout (le
+  // message retombe sur le titre générique côté backstage).
+  async function sendAdminMessage(messages, existingAccountsOnly, titles) {
+    const params = { p_messages: messages, p_existing_accounts_only: !!existingAccountsOnly };
+    const cleanTitles = {};
+    Object.keys(titles || {}).forEach(code => { const t = String(titles[code] || '').trim(); if (t) cleanTitles[code] = t; });
+    if (Object.keys(cleanTitles).length > 0) params.p_titles = cleanTitles;
+    const { error } = await getClient().rpc('admin_send_message', params);
     if (error) return { ok: false, error: error.message };
     return { ok: true, error: null };
   }

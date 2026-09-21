@@ -76,6 +76,21 @@
 
   <div id="adminContent">
     <div class="card">
+      <h2 data-i18n="adminMsgTitle">Message aux compositeurs</h2>
+      <p class="subtitle" data-i18n="adminMsgHint" style="margin-bottom:10px;">Envoyé à tous les compositeurs connectés — ils le retrouvent dans leur boîte de réception (cloche du backstage).</p>
+      <div id="adminMsgLangsContainer"></div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--text-dim);">
+        <input type="checkbox" id="adminMsgExistingOnly" style="width:auto;margin:0;">
+        <span data-i18n="adminMsgExistingOnlyLabel">Uniquement les comptes déjà existants</span>
+      </label>
+      <div class="row" style="margin-top:10px;">
+        <button id="adminMsgSendBtn" data-i18n="adminMsgSendBtn">Envoyer</button>
+      </div>
+      <div id="adminMsgStatus" class="msg"></div>
+      <div id="adminMsgHistory" style="margin-top:16px;"></div>
+    </div>
+
+    <div class="card">
       <h2 data-i18n="clarityTitle">Microsoft Clarity</h2>
       <p class="subtitle" data-i18n="clarityHint" style="margin-bottom:10px;">Heatmaps et enregistrements de session -- vue globale de la plateforme, sans lien avec le tableau de bord analytique par compositeur. Consultation uniquement sur le site de Clarity, pas rapatriée ici.</p>
       <div class="row">
@@ -136,20 +151,6 @@
       <div id="accountsMsg" class="msg"></div>
     </div>
 
-    <div class="card">
-      <h2 data-i18n="adminMsgTitle">Message aux compositeurs</h2>
-      <p class="subtitle" data-i18n="adminMsgHint" style="margin-bottom:10px;">Envoyé à tous les compositeurs connectés — ils le retrouvent dans leur boîte de réception (cloche du backstage).</p>
-      <div id="adminMsgLangsContainer"></div>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--text-dim);">
-        <input type="checkbox" id="adminMsgExistingOnly" style="width:auto;margin:0;">
-        <span data-i18n="adminMsgExistingOnlyLabel">Uniquement les comptes déjà existants</span>
-      </label>
-      <div class="row" style="margin-top:10px;">
-        <button id="adminMsgSendBtn" data-i18n="adminMsgSendBtn">Envoyer</button>
-      </div>
-      <div id="adminMsgStatus" class="msg"></div>
-      <div id="adminMsgHistory" style="margin-top:16px;"></div>
-    </div>
   </div>
 </div>
 
@@ -157,7 +158,7 @@
 <script src="api/supabase-client.js"></script>
 <script src="api/auth.js"></script>
 <script src="api/admin.js?v=1789934352612"></script>
-<script src="layerpitch-i18n.js?v=1789934352612"></script>
+<script src="layerpitch-i18n.js?v=1789983899146"></script>
 <script>
 // i18n minimal (zone "admin" + repli "shared") — même patron que layerpitch-backstage.html.
 function currentLang() { return localStorage.getItem('layerpitch_lang') || 'fr'; }
@@ -350,6 +351,7 @@ const ADMIN_MSG_LANGS = [
 const adminMsgLangsContainer = document.getElementById('adminMsgLangsContainer');
 adminMsgLangsContainer.innerHTML = ADMIN_MSG_LANGS.map(({ code, labelKey, placeholderKey }) => `
   <label style="font-size:11px;color:var(--text-dim);display:block;margin:10px 0 4px;" data-i18n="${labelKey}">${tr(labelKey)}</label>
+  <input type="text" id="adminMsgTitleInput-${code}" maxlength="120" style="width:100%;margin-bottom:6px;" data-i18n-placeholder="adminMsgTitlePlaceholder" placeholder="${tr('adminMsgTitlePlaceholder')}">
   <textarea id="adminMsgTextarea-${code}" data-i18n-placeholder="${placeholderKey}" placeholder="${tr(placeholderKey)}"></textarea>
 `).join('');
 
@@ -361,15 +363,45 @@ async function loadAdminMsgHistory() {
     return;
   }
   historyEl.innerHTML = `<h3 style="font-size:13px;margin-bottom:8px;" data-i18n="adminMsgHistoryTitle">${tr('adminMsgHistoryTitle')}</h3>` +
-    messages.map(m => `
-      <div class="row" style="align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
-        <div style="flex:1;font-size:12.5px;">
-          <div>${escapeHtml((m.body && m.body.fr) || (m.body && m.body.en) || '')}</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${new Date(m.createdAt).toLocaleString('fr-FR')}${m.existingAccountsOnly ? ' — ' + escapeHtml(tr('adminMsgExistingOnlyTag')) : ''}</div>
+    messages.map(m => {
+      // Un bloc par langue renseignée (structure ouverte, comme ADMIN_MSG_LANGS) : replié, seule la
+      // première langue est montrée sur deux lignes ; déplié, toutes les langues en entier.
+      const langBlocks = ADMIN_MSG_LANGS
+        .filter(({ code }) => (m.body && m.body[code]) || (m.title && m.title[code]))
+        .map(({ code, labelKey }) => ({ label: tr(labelKey), title: (m.title && m.title[code]) || '', text: (m.body && m.body[code]) || '' }));
+      const first = langBlocks[0] || { title: '', text: '' };
+      return `
+      <div class="row admin-msg-item" style="align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:1;min-width:0;font-size:12.5px;">
+          <div class="admin-msg-collapsed">
+            ${first.title ? `<div style="font-weight:600;">${escapeHtml(first.title)}</div>` : ''}
+            <div style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line;">${escapeHtml(first.text)}</div>
+          </div>
+          <div class="admin-msg-full" hidden>
+            ${langBlocks.map(b => `
+              <div style="margin-top:6px;">
+                <div style="font-size:11px;color:var(--text-dim);">${escapeHtml(b.label)}</div>
+                ${b.title ? `<div style="font-weight:600;">${escapeHtml(b.title)}</div>` : ''}
+                <div style="white-space:pre-line;">${escapeHtml(b.text)}</div>
+              </div>`).join('')}
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">${new Date(m.createdAt).toLocaleString('fr-FR')} — ${escapeHtml(tr(m.existingAccountsOnly ? 'adminMsgExistingOnlyTag' : 'adminMsgAudienceAllTag'))}</div>
+          <button class="secondary" type="button" data-admin-msg-toggle style="padding:3px 8px;font-size:11px;margin-top:4px;">${escapeHtml(tr('adminMsgExpandBtn'))}</button>
         </div>
         <button class="secondary" data-admin-msg-delete="${m.id}" data-i18n="adminMsgDeleteBtn">${tr('adminMsgDeleteBtn')}</button>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
+  historyEl.querySelectorAll('[data-admin-msg-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.admin-msg-item');
+      const full = item.querySelector('.admin-msg-full');
+      const collapsed = item.querySelector('.admin-msg-collapsed');
+      const willExpand = full.hidden;
+      full.hidden = !willExpand;
+      collapsed.hidden = willExpand;
+      btn.textContent = tr(willExpand ? 'adminMsgCollapseBtn' : 'adminMsgExpandBtn');
+    });
+  });
   historyEl.querySelectorAll('[data-admin-msg-delete]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!confirm(tr('adminMsgDeleteConfirm'))) return;
@@ -385,11 +417,16 @@ document.getElementById('adminMsgSendBtn').addEventListener('click', async () =>
   const messages = {};
   ADMIN_MSG_LANGS.forEach(({ code }) => { messages[code] = document.getElementById('adminMsgTextarea-' + code).value; });
   const existingOnlyEl = document.getElementById('adminMsgExistingOnly');
-  const { ok, error } = await window.LayerPitchAdmin.sendAdminMessage(messages, existingOnlyEl.checked);
+  const titles = {};
+  ADMIN_MSG_LANGS.forEach(({ code }) => { titles[code] = document.getElementById('adminMsgTitleInput-' + code).value; });
+  const { ok, error } = await window.LayerPitchAdmin.sendAdminMessage(messages, existingOnlyEl.checked, titles);
   msg.textContent = ok ? tr('adminMsgSentStatus') : (tr('adminMsgErrorPrefix') + error);
   msg.className = ok ? 'msg ok' : 'msg err';
   if (ok) {
-    ADMIN_MSG_LANGS.forEach(({ code }) => { document.getElementById('adminMsgTextarea-' + code).value = ''; });
+    ADMIN_MSG_LANGS.forEach(({ code }) => {
+      document.getElementById('adminMsgTextarea-' + code).value = '';
+      document.getElementById('adminMsgTitleInput-' + code).value = '';
+    });
     existingOnlyEl.checked = false;
     loadAdminMsgHistory();
   }

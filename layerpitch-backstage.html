@@ -761,7 +761,12 @@
   .inbox-icon { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); flex: none; display: flex; align-items: center; justify-content: center; color: var(--text-dim); }
   .inbox-icon svg { width: 17px; height: 17px; }
   .inbox-body { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.45; }
+  .inbox-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
   .inbox-title { font-weight: 600; font-size: 13px; }
+  .inbox-collapse { background: none; border: none; padding: 2px; margin: -2px -4px 0 0; cursor: pointer; color: var(--text-dim); line-height: 0; border-radius: 4px; flex: none; }
+  .inbox-collapse:hover { color: var(--text); background: var(--backstage-bg); }
+  .inbox-collapse[hidden] { display: none; }
+  .inbox-collapse svg { width: 16px; height: 16px; }
   .inbox-text { color: var(--text-dim); white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
   .inbox-text.expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
   .inbox-more { background: none; border: none; padding: 0; margin-top: 2px; font: inherit; font-size: 12px; color: var(--accent); cursor: pointer; }
@@ -1379,6 +1384,7 @@
         <span data-i18n="backstageWatermarkFixedLabel">Reste fixe pendant le défilement</span>
       </label>
     </div>
+    <div class="hint" id="backstageWatermarkStatus" style="color:#b23" hidden></div>
     <div class="hint" data-i18n="backstageWatermarkHint">Purement décorative, locale à cet ordinateur — les visiteurs ne la voient jamais.</div>
   </fieldset>
 
@@ -1647,7 +1653,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1789934352612"></script>
+<script src="layerpitch-i18n.js?v=1789983899146"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
 <script src="player.js?v=1789728713949"></script>
 <script>
@@ -2151,7 +2157,11 @@ function initAccountMenuUi() {
     const willOpen = dropdown.hidden;
     dropdown.hidden = !willOpen;
     menuBtn.setAttribute('aria-expanded', String(willOpen));
+    if (willOpen) document.dispatchEvent(new CustomEvent('lp-header-menu-open', { detail: 'account' }));
   });
+  // stopPropagation() ci-dessus empêche le clic sur ce bouton d'atteindre le gestionnaire "clic
+  // ailleurs" de la boîte de réception : les deux menus s'excluent donc via cet événement dédié.
+  document.addEventListener('lp-header-menu-open', (e) => { if (e.detail !== 'account' && !dropdown.hidden) closeMenu(); });
   document.addEventListener('click', (e) => {
     if (!dropdown.hidden && !dropdown.contains(e.target) && e.target !== menuBtn) closeMenu();
   });
@@ -2177,6 +2187,7 @@ function initAccountMenuUi() {
 // chronologique mêle les deux sources au lieu de deux sections empilées.
 const INBOX_ICON_ANNOUNCEMENT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 9a4 4 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>';
 const INBOX_ICON_MESSAGE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1H9.5l-4 4V16H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1z"/></svg>';
+const INBOX_ICON_COLLAPSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>';
 function formatRelativeTime(iso) {
   const lang = currentLang() === 'en' ? 'en' : 'fr';
   const diffSec = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
@@ -2201,18 +2212,19 @@ async function renderInboxBell(session) {
   await loadPostgresReadScripts();
   const client = window.LayerPitchSupabaseClient.getClient();
   const [{ data: adminMessages, error: adminError }, { data: adminReads }, { data: contactMessages, error: contactError }] = await Promise.all([
-    client.from('admin_messages').select('id, body, created_at').order('created_at', { ascending: false }).limit(20),
+    client.from('admin_messages').select('id, body, title, created_at').order('created_at', { ascending: false }).limit(20),
     client.from('admin_message_reads').select('message_id'),
     client.from('contact_messages').select('id, ad_reel_label, sender_name, sender_email, created_at, seen_at').order('created_at', { ascending: false }).limit(20),
   ]);
   const seenIds = new Set((adminReads || []).map(r => r.message_id));
   // title/text sont déjà du HTML sûr : tout contenu venant d'un visiteur ou d'un admin passe par
-  // escapeHtml() avant d'arriver ici.
+  // escapeHtml() avant d'arriver ici. Titre d'une annonce : celui saisi par l'admin (admin.html) dans
+  // la langue du compositeur, sinon le titre générique.
   const items = [];
   if (!adminError && adminMessages) {
     adminMessages.forEach(m => items.push({
       kind: 'announcement', createdAt: m.created_at, unread: !seenIds.has(m.id),
-      title: tr('inboxAnnouncementTitle'),
+      title: escapeHtml((m.title && (m.title[currentLang()] || m.title.fr)) || tr('inboxAnnouncementTitle')),
       text: escapeHtml((m.body && (m.body[currentLang()] || m.body.fr)) || ''),
     }));
   }
@@ -2229,7 +2241,10 @@ async function renderInboxBell(session) {
     <div class="inbox-item${it.unread ? ' unread' : ''}">
       <div class="inbox-icon">${it.kind === 'announcement' ? INBOX_ICON_ANNOUNCEMENT : INBOX_ICON_MESSAGE}</div>
       <div class="inbox-body">
-        <div class="inbox-title">${it.title}</div>
+        <div class="inbox-title-row">
+          <div class="inbox-title">${it.title}</div>
+          <button class="inbox-collapse" type="button" hidden title="${tr('inboxReadLess')}" aria-label="${tr('inboxReadLess')}">${INBOX_ICON_COLLAPSE}</button>
+        </div>
         <div class="inbox-text">${it.text}</div>
         <button class="inbox-more" type="button" hidden>${tr('inboxReadMore')}</button>
         <div class="inbox-time">${formatRelativeTime(it.createdAt)}</div>
@@ -2249,10 +2264,14 @@ function initInboxBellUi() {
     dropdown.querySelectorAll('.inbox-item').forEach(item => {
       const text = item.querySelector('.inbox-text');
       const more = item.querySelector('.inbox-more');
+      const collapse = item.querySelector('.inbox-collapse');
       if (!text || !more) return;
       const expanded = text.classList.contains('expanded');
       more.hidden = !(expanded || text.scrollHeight > text.clientHeight + 1);
       more.textContent = tr(expanded ? 'inboxReadLess' : 'inboxReadMore');
+      // Bouton de repli en haut du message (21/09) : un long message déplié met "Réduire" tout en
+      // bas, hors de vue -- la flèche à côté du titre reste toujours à portée.
+      if (collapse) collapse.hidden = !expanded;
     });
   };
   const closeMenu = () => {
@@ -2263,9 +2282,14 @@ function initInboxBellUi() {
   };
   dropdown.addEventListener('click', (e) => {
     const more = e.target.closest('.inbox-more');
-    if (!more) return;
-    more.parentElement.querySelector('.inbox-text').classList.toggle('expanded');
+    const collapse = e.target.closest('.inbox-collapse');
+    if (!more && !collapse) return;
+    const item = (more || collapse).closest('.inbox-item');
+    const text = item.querySelector('.inbox-text');
+    if (collapse) text.classList.remove('expanded'); else text.classList.toggle('expanded');
     refreshClamps();
+    // Après un repli, le message peut se retrouver hors de vue (la liste défile dans le menu).
+    if (!text.classList.contains('expanded')) item.scrollIntoView({ block: 'nearest' });
   });
   bellBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -2273,6 +2297,7 @@ function initInboxBellUi() {
     if (!willOpen) { closeMenu(); return; }
     dropdown.hidden = false;
     bellBtn.setAttribute('aria-expanded', 'true');
+    document.dispatchEvent(new CustomEvent('lp-header-menu-open', { detail: 'inbox' }));
     refreshClamps();
     requestAnimationFrame(refreshClamps);
     // Marqué vu à l'ouverture (pas avant) : le badge doit rester visible tant que le compositeur n'a
@@ -2289,6 +2314,7 @@ function initInboxBellUi() {
       badge.hidden = true;
     }
   });
+  document.addEventListener('lp-header-menu-open', (e) => { if (e.detail !== 'inbox' && !dropdown.hidden) closeMenu(); });
   document.addEventListener('click', (e) => {
     if (!dropdown.hidden && !dropdown.contains(e.target) && e.target !== bellBtn) closeMenu();
   });
@@ -3930,9 +3956,10 @@ document.getElementById('btnShareAdReelUrl').addEventListener('click', async () 
 // Image de fond en filigrane du Backstage (15/09, même réglage local à cet ordinateur que le thème
 // et la couleur de fond ci-dessus) -- purement décorative, jamais vue par un visiteur. Stockée en
 // data URL dans localStorage (comme le token GitHub plus bas) : fichier ouvert localement, aucune
-// fuite possible. Pas de redimensionnement côté client avant stockage (complexité jugée disproportionnée
-// pour un simple confort visuel) -- si l'image est trop grosse pour localStorage, le réglage reste
-// appliqué pour la session en cours, juste pas mémorisé (même filet que les autres réglages locaux).
+// fuite possible. Réduite avant stockage depuis le 21/09 : une photo brute dépasse vite les ~5 Mo de
+// localStorage et l'enregistrement échouait alors SILENCIEUSEMENT (image visible sur le moment, puis
+// disparue à la connexion suivante -- signalé trois fois de suite par Jules-Antoine). Si même la
+// version la plus réduite ne tient pas, un message explicite le dit au lieu de se taire.
 (function initBackstageWatermark() {
   const IMAGE_KEY = 'layerpitch_backstage_watermark_image';
   const OPACITY_KEY = 'layerpitch_backstage_watermark_opacity';
@@ -3966,19 +3993,54 @@ document.getElementById('btnShareAdReelUrl').addEventListener('click', async () 
   applyFixed(fixedInput.checked);
   if (savedImage) applyImage(savedImage);
 
+  const statusEl = document.getElementById('backstageWatermarkStatus');
+  function setStatus(text) { statusEl.textContent = text || ''; statusEl.hidden = !text; }
+  const MAX_SIDES = [1920, 1280, 800];
+  function loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image illisible')); };
+      img.src = url;
+    });
+  }
+  function encodeScaled(img, maxSide, mime) {
+    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL(mime, 0.82);
+  }
+  // JPEG pour une photo JPEG ; WebP sinon (garde la transparence d'un PNG/logo -- Safari, qui ne sait
+  // pas encoder du WebP, retombe de lui-même sur du PNG, toujours réduit en dimensions).
+  async function saveWatermark(file) {
+    setStatus('');
+    let img;
+    try { img = await loadImage(file); } catch (e) { setStatus(tr('backstageWatermarkUnreadable')); return; }
+    if (!img.naturalWidth || !img.naturalHeight) { setStatus(tr('backstageWatermarkUnreadable')); return; }
+    const mime = /jpe?g/i.test(file.type) ? 'image/jpeg' : 'image/webp';
+    for (const side of MAX_SIDES) {
+      const dataUrl = encodeScaled(img, side, mime);
+      applyImage(dataUrl);
+      try { localStorage.setItem(IMAGE_KEY, dataUrl); return; } catch (e) { /* trop lourde pour le stockage : on retente en plus petit */ }
+    }
+    // Aucune taille ne tient : l'ancienne image mémorisée est retirée pour ne pas réapparaître à la
+    // place de celle-ci à la prochaine ouverture.
+    try { localStorage.removeItem(IMAGE_KEY); } catch (e) {}
+    setStatus(tr('backstageWatermarkNotSaved'));
+  }
+
   pickBtn.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', () => {
     const file = fileInput.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      applyImage(reader.result);
-      try { localStorage.setItem(IMAGE_KEY, reader.result); } catch (e) { /* image trop grosse pour localStorage : reste appliquée pour la session en cours, juste pas mémorisée */ }
-    };
-    reader.readAsDataURL(file);
+    saveWatermark(file);
   });
   clearBtn.addEventListener('click', () => {
     applyImage(null);
+    setStatus('');
     fileInput.value = '';
     try { localStorage.removeItem(IMAGE_KEY); } catch (e) {}
   });
