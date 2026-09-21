@@ -36,6 +36,20 @@ function isValidEmail(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 }
 
+// Version texte brut dérivée du HTML (21 septembre) : un email HTML sans alternative texte est un
+// signal spam classique -- les notifications admin arrivaient dans les spams de Yahoo, comme
+// l'invitation de Thomas chez Fastmail (voir invite-tester).
+function htmlToText(html: string): string {
+  return html
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/g, '$2 : $1')
+    .replace(/<br\s*\/?>/g, '\n')
+    .replace(/<\/p>/g, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n')
+    .split('\n').map((l) => l.trim()).join('\n').trim();
+}
+
 const CONFIRMATION_COPY: Record<string, { subject: string; html: string }> = {
   fr: {
     subject: 'Merci pour ton intérêt pour LayerPitch !',
@@ -69,7 +83,7 @@ async function sendConfirmationEmail(to: string, lang: string) {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: fromAddress, to, subject: copy.subject, html: copy.html }),
+      body: JSON.stringify({ from: fromAddress, to, subject: copy.subject, html: copy.html, text: htmlToText(copy.html), reply_to: 'contact@layerpitch.com' }),
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
@@ -103,7 +117,7 @@ async function sendAdminNotification(requesterEmail: string, source: string, int
   const html = `
     <div style="font-family:sans-serif;color:#262521;max-width:480px;">
       <p>Nouvelle demande d'accès à la bêta LayerPitch :</p>
-      <p><strong>${requesterEmail}</strong><br>${sourceLabel}</p>
+      <p><strong>${escapeHtml(requesterEmail)}</strong><br>${sourceLabel}</p>
       ${messageHtml}
       <p><a href="https://beta.layerpitch.com/layerpitch-backstage.html">Voir dans le Backstage</a></p>
     </div>`;
@@ -111,7 +125,7 @@ async function sendAdminNotification(requesterEmail: string, source: string, int
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: fromAddress, to: ADMIN_NOTIFICATION_EMAIL, subject: 'Nouvelle demande d\'accès — ' + requesterEmail, html }),
+      body: JSON.stringify({ from: fromAddress, to: ADMIN_NOTIFICATION_EMAIL, subject: 'Nouvelle demande d\'accès — ' + requesterEmail, html, text: htmlToText(html), reply_to: requesterEmail }),
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
