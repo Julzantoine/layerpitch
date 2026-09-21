@@ -32,16 +32,19 @@ function extractMapBody(startMarker) {
 
 // Fonction fictive nécessaire dans le scope eval (utilisée par le mapping de chargement pour un id manquant).
 function genId() { return 'test-id'; }
+// Idem pour le mapping de publication (fichiers pas encore publiés, 18/09) : sans effet sur ce qui est testé ici.
+function pendingPreviewUrl() { return null; }
 
 let failures = 0;
 function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; }
 
 // ---- Publication (library -> data.json), ligne ~5619 : anchor unique juste avant ce mapping précis ----
 {
-  // Marqueur mis à jour le 07/09 : réindentation de ce mapping (6 espaces avant segmentSlots, avant
-  // 8) depuis la dernière synchro du 01/09 -- texte littéral ajusté en conséquence, logique testée
+  // Marqueur mis à jour le 07/09 (réindentation) puis le 21/09 : ce mapping est désormais dans
+  // buildDataSnapshot() et gère aussi les fichiers pas encore publiés (pendingFile/localUrl, 18/09)
+  // -- texte littéral ajusté en conséquence, logique testée (customCutFadeSec/bpm/descriptions)
   // inchangée.
-  const mapPublish = extractMapBody("outro: (t.outro && t.outro.remoteFile) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile, originalFileName: t.outro.originalFileName || null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,\n      segmentSlots:");
+  const mapPublish = extractMapBody("outro: (t.outro && (t.outro.remoteFile || t.outro.pendingFile)) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile || null, localUrl: t.outro.remoteFile ? null : pendingPreviewUrl(t.outro.pendingFile), originalFileName: t.outro.originalFileName || null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,\n      segmentSlots:");
   const slot = { id: 's1', label: 'A', cutStyle: 'custom', customCutFadeSec: 2.5, bpm: 90, beatsPerBar: 3, descriptionFr: 'Texte FR', descriptionEn: 'Text EN', alternatives: [] };
   const out = mapPublish(slot);
   check('publication : customCutFadeSec transmis à data.json', out.customCutFadeSec === 2.5);

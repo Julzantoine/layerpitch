@@ -104,15 +104,18 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
 }
 
 // ---- index.html/pack.html/collection.html : loadSiteData() résout lastResolvedOwnerId ----
-function testLoadSiteDataOwnerId(file) {
+// `composerHandleFromUrl` est calculé une seule fois au chargement de la page (const de haut niveau,
+// d30edb8) : le ?u= doit donc être fixé AVANT d'évaluer ce const, pas après la création du sandbox.
+function testLoadSiteDataOwnerId(file, search) {
   const src = fs.readFileSync(path.join(__dirname, file), 'utf-8');
   const defaultOwnerConst = extractConst(src, 'DEFAULT_OWNER_ID', file);
   const lastResolvedLet = extractLet(src, 'lastResolvedOwnerId', file);
+  const handleConst = extractConst(src, 'composerHandleFromUrl', file);
   const loadSiteDataFn = extractFn(src, 'loadSiteData', file);
 
   const sandbox = {
     console,
-    location: { search: '' },
+    location: { search },
     URLSearchParams,
     window: {
       LayerPitchComposers: { resolveHandle: async (h) => ({ ownerId: 'resolved-' + h, error: null }) },
@@ -122,7 +125,7 @@ function testLoadSiteDataOwnerId(file) {
     loadPostgresReadScripts: async () => {},
   };
   vm.createContext(sandbox);
-  vm.runInContext(defaultOwnerConst + lastResolvedLet + loadSiteDataFn, sandbox);
+  vm.runInContext(defaultOwnerConst + lastResolvedLet + handleConst + loadSiteDataFn, sandbox);
 
   return sandbox;
 }
@@ -133,16 +136,14 @@ async function runOwnerIdChecks() {
     // (`let`/`const` de haut niveau ne deviennent pas des propriétés de l'objet sandbox dans un
     // contexte vm -- relues via une expression runInContext, pas un accès direct à sandbox.xxx.)
     {
-      const sandbox = testLoadSiteDataOwnerId(file);
-      sandbox.location.search = '';
+      const sandbox = testLoadSiteDataOwnerId(file, '');
       await vm.runInContext('loadSiteData()', sandbox);
       const [resolved, def] = [vm.runInContext('lastResolvedOwnerId', sandbox), vm.runInContext('DEFAULT_OWNER_ID', sandbox)];
       check(`${file} : loadSiteData() sans ?u= laisse lastResolvedOwnerId = DEFAULT_OWNER_ID`, resolved === def);
     }
     // Chemin par handle (?u=somehandle) -- ownerId doit être résolu via resolveHandle(), pas rester au défaut.
     {
-      const sandbox = testLoadSiteDataOwnerId(file);
-      sandbox.location.search = '?u=somehandle';
+      const sandbox = testLoadSiteDataOwnerId(file, '?u=somehandle');
       await vm.runInContext('loadSiteData()', sandbox);
       const resolved = vm.runInContext('lastResolvedOwnerId', sandbox);
       check(`${file} : loadSiteData() avec ?u= résout lastResolvedOwnerId via resolveHandle()`,
