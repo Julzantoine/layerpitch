@@ -1,10 +1,10 @@
 // supabase/functions/notify-admin-message/index.ts — LayerPitch, email envoyé aux testeurs quand
 // une annonce admin arrive dans leur cloche (21 septembre).
 //
-// Appelée par un Database Webhook (dashboard Supabase > Database > Webhooks, événement INSERT sur
-// admin_messages) -- jamais depuis un navigateur. Le corps du webhook n'est PAS cru sur parole :
-// seul l'identifiant du message en est retiré, le message et la liste des destinataires sont relus
-// en base (service_role). L'appelant doit présenter le secret partagé NOTIFY_WEBHOOK_SECRET
+// Appelée par le déclencheur SQL notify_admin_message_email (pg_net, à chaque INSERT d'une annonce
+// diffusée dans admin_messages, supabase/migrations/20260921050000) -- jamais depuis un navigateur.
+// Le corps de l'appel n'est PAS cru sur parole : seul l'identifiant du message en est retiré, le
+// message et la liste des destinataires sont relus en base (service_role). L'appelant doit présenter le secret partagé NOTIFY_WEBHOOK_SECRET
 // (en-tête x-webhook-secret) : la clé anonyme Supabase est publique, sans ce secret n'importe qui
 // pourrait déclencher un envoi en rafale.
 //

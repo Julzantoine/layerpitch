@@ -4,12 +4,17 @@
 -- Périmètre : uniquement les annonces admin_messages diffusées (recipient_id null) -- les messages
 -- des visiteurs du bloc "Contact" envoient déjà un email (submit-contact-message), et le message de
 -- bienvenue (recipient_id renseigné, inséré par mark_onboarding_complete) ne doit pas en envoyer.
--- L'envoi lui-même est fait par l'Edge Function notify-admin-message, appelée par un Database
--- Webhook (dashboard Supabase) à chaque INSERT dans admin_messages.
+-- L'envoi lui-même est fait par l'Edge Function notify-admin-message, appelée à chaque INSERT dans
+-- admin_messages par le déclencheur SQL de 20260921050000 (un Database Webhook du dashboard avait
+-- d'abord été tenté : il a échoué, l'infrastructure webhooks n'étant pas activée sur ce projet).
 --
 -- Trois choix confirmés par Jules-Antoine : déclenchement automatique côté base, langue de l'email
 -- = langue du backstage du compte (stockée côté serveur, jusqu'ici uniquement en localStorage),
--- désinscription possible depuis "Mon compte".
+-- désinscription possible depuis "Mon compte". L'email ne contient ensuite AUCUN extrait du
+-- message (voir notify-admin-message) : il prévient seulement qu'une notification attend.
+--
+-- Note : le paramètre p_include_admins de get_announcement_recipients (ci-dessous) a été retiré par
+-- 20260921060000 -- prévu pour des essais, jamais utilisé (le mode essai passe par test_email).
 
 alter table public.profiles add column lang text check (lang in ('fr', 'en'));
 comment on column public.profiles.lang is 'Langue du backstage du compte (fr/en), synchronisée par le backstage à chaque ouverture (set_my_lang). NULL tant qu''il n''a jamais été ouvert -- l''email d''annonce est alors bilingue.';
