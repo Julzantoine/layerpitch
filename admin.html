@@ -49,6 +49,13 @@
   .badge { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); margin-right: 4px; }
   .badge.suspended { background: #fbe4e0; color: #b5442e; }
   .duration-input { width: 70px; }
+  .growth-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+  .growth-tile { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .growth-tile-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .growth-tile-label { font-size: 11px; color: var(--text-dim); }
+  .growth-tile-total { font-size: 16px; font-weight: 600; }
+  .growth-svg { width: 100%; height: 40px; display: block; }
+  .growth-tile-range { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dimmer); margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -131,6 +138,19 @@
     </div>
 
     <div class="card">
+      <h2 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span data-i18n="growthTitle">Évolution dans le temps</span>
+        <select id="growthGranularity" style="font-size:12px;padding:4px 6px;">
+          <option value="week" selected data-i18n="growthWeek">Par semaine</option>
+          <option value="month" data-i18n="growthMonth">Par mois</option>
+        </select>
+      </h2>
+      <div id="growthLoading" data-i18n="loadingLabel">Chargement…</div>
+      <div id="growthBody" style="display:none;"></div>
+      <div id="growthMsg" class="msg err"></div>
+    </div>
+
+    <div class="card">
       <h2 data-i18n="suspensionTitle">Comptes</h2>
       <div class="row">
         <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="Rechercher par email ou handle…">
@@ -158,7 +178,7 @@
 <script src="api/supabase-client.js"></script>
 <script src="api/auth.js"></script>
 <script src="api/admin.js?v=1789934352612"></script>
-<script src="layerpitch-i18n.js?v=1790018040773"></script>
+<script src="layerpitch-i18n.js?v=1790070388422"></script>
 <script>
 // i18n minimal (zone "admin" + repli "shared") — même patron que layerpitch-backstage.html.
 function currentLang() { return localStorage.getItem('layerpitch_lang') || 'fr'; }
@@ -208,6 +228,7 @@ async function render(session) {
   accessDeniedSection.style.display = 'none';
   adminContent.style.display = 'block';
   loadStats();
+  loadGrowthSeries();
   loadAccounts();
   loadAdminMsgHistory();
 }
@@ -278,6 +299,76 @@ function renderStatGrid(elId, entries) {
   el.innerHTML = entries.map(([labelKey, n]) =>
     `<div class="stat-tile"><div class="n">${n}</div><div class="l">${tr(labelKey)}</div></div>`
   ).join('');
+}
+
+// ---- Évolution dans le temps (courbes par métrique, semaine/mois) ----
+// Petits multiples en SVG dessiné à la main — pas de librairie de graphiques (le site reste 100%
+// statique, sans dépendance lourde, même principe que le reste du projet).
+const GROWTH_METRICS = [
+  ['accounts', 'statsAccountsTotal'],
+  ['composers', 'statsAccountsComposers'],
+  ['studios', 'statsAccountsStudios'],
+  ['fans', 'statsAccountsFans'],
+  ['adReels', 'statsContentAdReels'],
+  ['packs', 'statsContentPacks'],
+  ['tracks', 'statsContentTracks'],
+  ['sfx', 'statsContentSfx'],
+  ['collections', 'statsContentCollections'],
+  ['albums', 'statsContentAlbums'],
+];
+
+async function loadGrowthSeries() {
+  const loading = document.getElementById('growthLoading');
+  const body = document.getElementById('growthBody');
+  const msg = document.getElementById('growthMsg');
+  const granularity = document.getElementById('growthGranularity').value;
+  loading.style.display = 'block'; body.style.display = 'none'; msg.textContent = '';
+  const { growth, error } = await window.LayerPitchAdmin.getGrowthSeries(granularity, granularity === 'week' ? 12 : 12);
+  loading.style.display = 'none';
+  if (error || !growth) { msg.textContent = tr('statsLoadErrorPrefix') + (error || ''); return; }
+  body.style.display = 'block';
+  body.innerHTML = '<div class="growth-grid">' + GROWTH_METRICS.map(([key, labelKey]) =>
+    renderGrowthTile(tr(labelKey), growth.series[key] || [], growth.buckets || [])
+  ).join('') + '</div>';
+}
+document.getElementById('growthGranularity').addEventListener('change', loadGrowthSeries);
+
+function renderGrowthTile(label, values, buckets) {
+  const total = values.reduce((a, b) => a + b, 0);
+  return `<div class="growth-tile">
+    <div class="growth-tile-head"><span class="growth-tile-label">${label}</span><span class="growth-tile-total">${total}</span></div>
+    ${buildSparklineSVG(values)}
+    <div class="growth-tile-range"><span>${formatBucketLabel(buckets[0])}</span><span>${formatBucketLabel(buckets[buckets.length - 1])}</span></div>
+  </div>`;
+}
+function formatBucketLabel(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { day: '2-digit', month: 'short' });
+}
+// Ligne + points, échelle min-max locale à chaque métrique (des ordres de grandeur très différents
+// d'une métrique à l'autre — pas de sens à partager un seul axe). Un seul point (ou tout à zéro) :
+// ligne plate au milieu plutôt qu'une division par zéro.
+function buildSparklineSVG(values) {
+  const w = 240, h = 56, pad = 4;
+  if (!values.length) return `<svg viewBox="0 0 ${w} ${h}" class="growth-svg"></svg>`;
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = max - min || 1;
+  const stepX = values.length > 1 ? (w - pad * 2) / (values.length - 1) : 0;
+  const points = values.map((v, i) => {
+    const x = pad + i * stepX;
+    const y = pad + (h - pad * 2) * (1 - (v - min) / range);
+    return [x, y];
+  });
+  const linePath = points.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const areaPath = linePath + ` L${points[points.length - 1][0].toFixed(1)},${h - pad} L${points[0][0].toFixed(1)},${h - pad} Z`;
+  const dots = points.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2" fill="var(--accent)" />`).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" class="growth-svg">
+    <path d="${areaPath}" fill="var(--accent-soft)" stroke="none" />
+    <path d="${linePath}" fill="none" stroke="var(--accent)" stroke-width="1.5" />
+    ${dots}
+  </svg>`;
 }
 
 // ---- Comptes / suspension ----

@@ -18,6 +18,18 @@
     return { stats: data, error: null };
   }
 
+  // Courbe d'evolution dans le temps (22 septembre) : mêmes métriques que "nouveaux sur la
+  // période" ci-dessus, mais regroupées par semaine/mois plutôt qu'un seul total — voir
+  // admin_get_growth_series() (aucune table d'événements, uniquement created_at déjà existant).
+  async function getGrowthSeries(granularity, periods) {
+    const { data, error } = await getClient().rpc('admin_get_growth_series', {
+      p_granularity: granularity || 'week',
+      p_periods: periods || 12,
+    });
+    if (error) return { growth: null, error: error.message };
+    return { growth: data, error: null };
+  }
+
   async function listAccounts(search) {
     const { data, error } = await getClient().rpc('admin_list_accounts', { p_search: search || null });
     if (error) return { accounts: null, error: error.message };
@@ -70,5 +82,5 @@
     return { ok: true, error: null };
   }
 
-  window.LayerPitchAdmin = { getStats, listAccounts, listAdminMessages, sendAdminMessage, deleteAdminMessage };
+  window.LayerPitchAdmin = { getStats, getGrowthSeries, listAccounts, listAdminMessages, sendAdminMessage, deleteAdminMessage };
 })();
