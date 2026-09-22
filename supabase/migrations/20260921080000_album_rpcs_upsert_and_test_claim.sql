@@ -36,6 +36,12 @@ begin
   if v_seller_id is null then
     raise exception 'Non autorisé : connexion requise';
   end if;
+  -- VERROU BÊTA (21 septembre, décision de Jules-Antoine) : la fonction album n'est ouverte qu'aux
+  -- comptes admin pour l'instant. À RETIRER quand les albums s'ouvrent aux compositeurs — même
+  -- logique que le verrou « pack buyable » (20260907090000), un rappel de lancement à part entière.
+  if not public.is_admin() then
+    raise exception 'Non autorisé : la fonction album est réservée aux administrateurs pendant la bêta';
+  end if;
   if v_composer_id is null then
     raise exception 'Non autorisé : aucun profil compositeur associé à ce compte (la vente d''album côté studio n''est pas encore disponible)';
   end if;
@@ -135,6 +141,10 @@ declare
 begin
   if v_buyer is null then
     raise exception 'Non autorisé : connexion requise';
+  end if;
+  -- VERROU BÊTA, jumeau de celui d'upsert_album : réservé aux admins (à retirer au même moment).
+  if not public.is_admin() then
+    raise exception 'Non autorisé : la fonction album est réservée aux administrateurs pendant la bêta';
   end if;
   if not coalesce((select test_purchases_enabled from public.platform_flags where id), false) then
     raise exception 'Les achats de test ne sont plus disponibles';

@@ -280,6 +280,7 @@
     display: flex; align-items: center; justify-content: space-between; gap: 9px; width: 100%; text-align: left; background: none; border: none;
     padding: 7px 10px; margin-bottom: 2px; border-radius: 6px; font-size: 13px; color: var(--text); cursor: pointer; font-family: inherit;
   }
+  .nav-item[hidden] { display: none; }
   .nav-item:hover:not(:disabled) { background: var(--bg); }
   .nav-item.active { background: #262521; color: #fff; }
   .nav-item:disabled { color: var(--text-dimmer); cursor: default; }
@@ -1057,6 +1058,14 @@
           <span data-i18n="navPacks">Packs</span>
         </span>
       </button>
+      <!-- Réservé aux admins pendant la bêta (21 septembre) : masqué par défaut, affiché par
+           renderAdminOnlyPanels(). Vraie barrière côté serveur (upsert_album / claim_test_album). -->
+      <button class="nav-item" data-tab="albums" type="button" id="navItemAlbums" hidden>
+        <span class="nav-item-label">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.5"/></svg>
+          <span data-i18n="navAlbums">Albums</span>
+        </span>
+      </button>
       <button class="nav-item" data-tab="collections" type="button">
         <span class="nav-item-label">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8.5" width="11" height="11" rx="2"/><rect x="9.5" y="4.5" width="11" height="11" rx="2"/></svg>
@@ -1195,6 +1204,19 @@
             <input type="checkbox" id="skillUnreal" style="width:auto;margin:0;">
             <span style="font-size:12px;color:var(--text-dim);" data-i18n="skillUnreal">Unreal</span>
           </label>
+        </div>
+      </div>
+
+      <div class="backstage-panel" data-panel="albums">
+        <h2 data-i18n="navAlbums">Albums</h2>
+        <div class="sub" data-i18n="albumsPanelSub">Des albums d'OST adaptative que les fans pourront obtenir.</div>
+        <div id="albumsContainer"></div>
+        <div class="actions" style="margin-bottom:20px"><button class="btn btn-small" id="btnAddAlbum" data-i18n="addAlbum">+ Album</button></div>
+
+        <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+          <h3 style="margin:0 0 6px;font-size:14px" data-i18n="albumsLibraryTitle">Albums obtenus</h3>
+          <div class="sub" data-i18n="albumsLibrarySub">Les albums que ton compte a obtenus.</div>
+          <div id="albumsLibraryContainer"></div>
         </div>
       </div>
 
@@ -1751,7 +1773,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790264259000"></script>
+<script src="layerpitch-i18n.js?v=1790278925045"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
 <script src="player.js?v=1790194832844"></script>
 <script>
@@ -1992,6 +2014,7 @@ function loadPostgresReadScripts() {
     await loadScript('./api/auth.js');
     await loadScript('./api/tracks.js');
     await loadScript('./api/packs.js');
+    await loadScript('./api/albums.js');
     await loadScript('./api/collections.js');
     await loadScript('./api/sfx.js');
     await loadScript('./api/settings.js');
@@ -2162,6 +2185,10 @@ async function renderAdminOnlyPanels(session) {
   const videoNavBadge = document.getElementById('navVideoLibraryBadge');
   if (videoNavBtn) videoNavBtn.disabled = !isAdmin;
   if (videoNavBadge) videoNavBadge.hidden = isAdmin;
+  // Onglet Albums : admin seulement pendant la bêta (à rouvrir aux compositeurs au lancement, voir
+  // le verrou jumeau dans upsert_album / claim_test_album).
+  const albumsNavBtn = document.getElementById('navItemAlbums');
+  if (albumsNavBtn) albumsNavBtn.hidden = !isAdmin;
   if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); }
 }
 // Demandes d'accès en attente (bloc "Inviter un testeur" ci-dessous, 6 septembre) -- une seule
@@ -2641,6 +2668,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
       // backstage, seulement quand le compositeur ouvre vraiment l'onglet.
       if (btn.dataset.tab === 'analytics') loadAnalyticsIfNeeded();
       if (btn.dataset.tab === 'videoLibrary') renderVideoLibrary();
+      if (btn.dataset.tab === 'albums') loadAlbums();
     }
   });
 });
@@ -9245,6 +9273,199 @@ function renderAnalyticsPanelForTier() {
   renderAnalyticsPresets();
   if (analyticsOverview && analyticsLoadedForTier === currentEffectivePlan) renderAnalyticsView();
 }
+
+/* ---------------- Onglet Albums : vente d'Adaptive OST (21 septembre) ----------------
+ * Volontairement autonome (pas branché sur l'état `packs`/`publishAll()`) : un album s'enregistre
+ * directement en base par la RPC upsert_album (api/albums.js), pas via la publication GitHub que
+ * Jules-Antoine prévoit de quitter. Conséquence assumée : un album ne peut contenir que des morceaux
+ * DÉJÀ publiés en base (les morceaux n'y arrivent qu'à la publication) -- d'où l'indice
+ * albumTracksNotPublishedHint quand l'enregistrement est refusé pour cette raison.
+ * Bêta : le paiement n'est pas branché, « Obtenir (test) » (claim_test_album) simule l'achat.
+ * Vendeur compositeur seulement ici (décision du 21 septembre : le côté studio reste à concevoir). */
+const albumsState = { loaded: false, loading: false, albums: [], purchases: [], testEnabled: false, messages: {} };
+
+function newAlbumId() {
+  // Identifiant aléatoire : albums.id est unique sur TOUTE la base (pas par compositeur), un titre
+  // slugifié risquerait de collisionner avec l'album d'un autre compositeur.
+  const rand = (window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, '').slice(0, 16) : Math.random().toString(36).slice(2, 12);
+  return 'alb_' + rand;
+}
+
+function albumFromApi(a) {
+  return {
+    id: a.id, title: a.title || '', presentationFr: a.presentationFr || '', presentationEn: a.presentationEn || '',
+    priceInput: a.priceUsdCents == null ? '' : (a.priceUsdCents / 100).toFixed(2),
+    buyable: !!a.buyable, trackIds: a.trackIds || [], saved: true, savedBuyable: !!a.buyable,
+  };
+}
+
+async function loadAlbums() {
+  if (albumsState.loaded || albumsState.loading) return;
+  const box = document.getElementById('albumsContainer');
+  albumsState.loading = true;
+  box.innerHTML = `<div class="sub">${tr('albumsLoading')}</div>`;
+  try {
+    await loadPostgresReadScripts();
+    const { session } = await window.LayerPitchAuth.getSession();
+    if (!session || !session.user) throw new Error(tr('albumsNoSession'));
+    const A = window.LayerPitchAlbums;
+    const [al, pu, fl] = await Promise.all([A.listAlbums({ sellerId: session.user.id }), A.listMyPurchases(), A.getPlatformFlags()]);
+    if (al.error) throw new Error(al.error);
+    // Les brouillons pas encore enregistrés (+ Album cliqué avant la fin du chargement) sont gardés.
+    const drafts = albumsState.albums.filter(x => !x.saved);
+    albumsState.albums = al.albums.map(albumFromApi).concat(drafts);
+    albumsState.purchases = pu.purchases || [];
+    albumsState.testEnabled = !!(fl.flags && fl.flags.testPurchasesEnabled);
+    albumsState.loaded = true;
+    renderAlbums();
+    renderAlbumsLibrary();
+  } catch (e) {
+    box.innerHTML = `<div class="sub" style="color:#c0392b">${escapeHtml(tr('albumsLoadError', { error: e.message }))}</div>`;
+  } finally {
+    albumsState.loading = false;
+  }
+}
+
+function renderAlbums() {
+  const box = document.getElementById('albumsContainer');
+  box.innerHTML = '';
+  if (!albumsState.albums.length) { box.innerHTML = `<div class="sub">${tr('albumsEmpty')}</div>`; return; }
+  const rowStyle = 'display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text-dim);';
+  albumsState.albums.forEach((al, ai) => {
+    const libIds = new Set(library.map(t => t.id));
+    const trackRows = library.map(t => {
+      const pos = al.trackIds.indexOf(t.id);
+      return `<label style="${rowStyle}"><input type="checkbox" style="width:auto;margin:0" data-album-track="${escapeAttr(t.id)}" data-ai="${ai}"${pos >= 0 ? ' checked' : ''}><span>${pos >= 0 ? (pos + 1) + '. ' : ''}${escapeHtml(t.title || t.id)}</span></label>`;
+    });
+    // Piste de l'album absente de la bibliothèque locale (ex. supprimée) : on la montre quand même,
+    // décochable, plutôt que de la perdre en silence au prochain enregistrement.
+    al.trackIds.filter(id => !libIds.has(id)).forEach(id => {
+      trackRows.push(`<label style="${rowStyle}"><input type="checkbox" style="width:auto;margin:0" data-album-track="${escapeAttr(id)}" data-ai="${ai}" checked><span>${al.trackIds.indexOf(id) + 1}. ${escapeHtml(id)}</span></label>`);
+    });
+    const msg = albumsState.messages[al.id];
+    const canClaim = albumsState.testEnabled && al.saved && al.savedBuyable;
+    const el = document.createElement('div');
+    el.className = 'list-block';
+    el.innerHTML = `
+      <div class="list-block-head">
+        <div class="list-block-head-left">
+          <input type="text" class="seq-header-title" data-album-field="title" data-ai="${ai}" value="${escapeAttr(al.title)}" placeholder="${escapeAttr(tr('albumFallback', { n: ai + 1 }))}">
+          ${al.saved ? '' : `<span class="badge">${tr('albumUnsavedBadge')}</span>`}
+        </div>
+      </div>
+      <div class="list-block-body">
+        <label>${tr('albumPresentationFrLabel')}</label>
+        <textarea data-album-field="presentationFr" data-ai="${ai}">${escapeHtml(al.presentationFr)}</textarea>
+        <label>${tr('albumPresentationEnLabel')}</label>
+        <textarea data-album-field="presentationEn" data-ai="${ai}">${escapeHtml(al.presentationEn)}</textarea>
+        <label>${tr('albumMinPriceLabel')}</label>
+        <input type="text" inputmode="decimal" data-album-field="priceInput" data-ai="${ai}" value="${escapeAttr(al.priceInput)}" placeholder="3.00" style="max-width:140px">
+        <div class="sub" style="margin-top:4px">${tr('albumMinPriceHint')}</div>
+        <label style="${rowStyle}margin-top:12px"><input type="checkbox" style="width:auto;margin:0" data-album-field="buyable" data-ai="${ai}"${al.buyable ? ' checked' : ''}><span>${tr('albumBuyableLabel')}</span></label>
+        <label>${tr('albumTracksLabel')}</label>
+        ${trackRows.length ? trackRows.join('') : `<div class="sub">${tr('albumNoTracksInLibrary')}</div>`}
+        <div class="actions" style="margin-top:14px">
+          <button class="btn btn-small btn-primary" data-action="save-album" data-ai="${ai}" type="button">${tr('albumSaveBtn')}</button>
+          ${canClaim ? `<button class="btn btn-small" data-action="claim-test-album" data-ai="${ai}" type="button">${tr('albumClaimTestBtn')}</button>` : ''}
+        </div>
+        ${msg ? `<div class="sub" style="margin-top:8px;${msg.kind === 'error' ? 'color:#c0392b' : 'color:#2e8b57'}">${escapeHtml(msg.text)}</div>` : ''}
+      </div>`;
+    box.appendChild(el);
+  });
+}
+
+function renderAlbumsLibrary() {
+  const box = document.getElementById('albumsLibraryContainer');
+  if (!albumsState.purchases.length) { box.innerHTML = `<div class="sub">${tr('albumsLibraryEmpty')}</div>`; return; }
+  box.innerHTML = albumsState.purchases.map(p =>
+    `<div style="${'display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text-dim);'}">
+      <span>${escapeHtml(p.title || p.albumId)}</span>
+      ${p.isTest ? `<span class="badge">${tr('albumTestBadge')}</span>` : ''}
+      <span style="color:var(--text-dimmer)">${escapeHtml(new Date(p.purchasedAt).toLocaleDateString(currentLang()))}</span>
+    </div>`).join('');
+}
+
+function setAlbumMessage(al, text, kind) {
+  albumsState.messages[al.id] = { text, kind };
+  renderAlbums();
+}
+
+async function saveAlbum(ai) {
+  const al = albumsState.albums[ai];
+  // Prix saisi en dollars (« 3.5 », « 3,50 »), envoyé en centimes. Vide = pas de prix (refusé si en vente).
+  const raw = al.priceInput.trim().replace(',', '.');
+  let cents = null;
+  if (raw !== '') {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) { setAlbumMessage(al, tr('albumPriceInvalid'), 'error'); return; }
+    cents = Math.round(n * 100);
+  }
+  if (al.buyable && cents === null) { setAlbumMessage(al, tr('albumSellingNeedsPrice'), 'error'); return; }
+  setAlbumMessage(al, tr('albumSaving'), 'info');
+  try {
+    await loadPostgresReadScripts();
+    const { ok, error } = await window.LayerPitchAlbums.upsertAlbum({
+      id: al.id, title: al.title, presentationFr: al.presentationFr, presentationEn: al.presentationEn,
+      priceUsdCents: cents, buyable: al.buyable, trackIds: al.trackIds,
+    });
+    if (!ok) {
+      const hint = /pistes/i.test(error || '') ? ' ' + tr('albumTracksNotPublishedHint') : '';
+      setAlbumMessage(al, tr('albumSaveError', { error }) + hint, 'error');
+      return;
+    }
+    al.saved = true;
+    al.savedBuyable = al.buyable;
+    setAlbumMessage(al, tr('albumSaved'), 'ok');
+  } catch (e) {
+    setAlbumMessage(al, tr('albumSaveError', { error: e.message }), 'error');
+  }
+}
+
+async function claimTestAlbumFromUi(ai) {
+  const al = albumsState.albums[ai];
+  try {
+    const { ok, error, alreadyOwned } = await window.LayerPitchAlbums.claimTestAlbum(al.id);
+    if (!ok) { setAlbumMessage(al, tr('albumClaimError', { error }), 'error'); return; }
+    const pu = await window.LayerPitchAlbums.listMyPurchases();
+    if (pu.purchases) albumsState.purchases = pu.purchases;
+    renderAlbumsLibrary();
+    setAlbumMessage(al, tr(alreadyOwned ? 'albumAlreadyOwned' : 'albumClaimed'), 'ok');
+  } catch (e) {
+    setAlbumMessage(al, tr('albumClaimError', { error: e.message }), 'error');
+  }
+}
+
+(function wireAlbumsPanel() {
+  const box = document.getElementById('albumsContainer');
+  // Saisie : on met à jour l'état sans re-rendre (sinon le champ perdrait le focus à chaque frappe).
+  box.addEventListener('input', e => {
+    const field = e.target.dataset.albumField;
+    if (!field || field === 'buyable') return;
+    albumsState.albums[Number(e.target.dataset.ai)][field] = e.target.value;
+  });
+  box.addEventListener('change', e => {
+    const ai = Number(e.target.dataset.ai);
+    if (e.target.dataset.albumField === 'buyable') {
+      albumsState.albums[ai].buyable = e.target.checked;
+    } else if (e.target.dataset.albumTrack) {
+      const al = albumsState.albums[ai];
+      const id = e.target.dataset.albumTrack;
+      al.trackIds = e.target.checked ? al.trackIds.concat(id) : al.trackIds.filter(t => t !== id);
+      renderAlbums(); // les numéros d'ordre (1., 2., …) suivent l'ordre de cochage
+    }
+  });
+  box.addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const ai = Number(btn.dataset.ai);
+    if (btn.dataset.action === 'save-album') saveAlbum(ai);
+    if (btn.dataset.action === 'claim-test-album') claimTestAlbumFromUi(ai);
+  });
+  document.getElementById('btnAddAlbum').addEventListener('click', () => {
+    albumsState.albums.push({ id: newAlbumId(), title: '', presentationFr: '', presentationEn: '', priceInput: '', buyable: false, trackIds: [], saved: false, savedBuyable: false });
+    renderAlbums();
+  });
+})();
 
 async function loadAnalyticsIfNeeded() {
   renderAnalyticsPresets();
