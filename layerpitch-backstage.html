@@ -2163,6 +2163,11 @@ async function renderAdminOnlyPanels(session) {
   if (videoNavBtn) videoNavBtn.disabled = !isAdmin;
   if (videoNavBadge) videoNavBadge.hidden = isAdmin;
   if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); }
+  // Le statut admin peut se résoudre après un premier rendu de la Bibliothèque (session déjà en cache
+  // vs RPC is_admin() encore en vol) -- redessine pour refléter le grisage pitch correctement, sans quoi
+  // un admin verrait le pitch grisé jusqu'au prochain clic (renderLibrary() no-op si le panneau n'est pas
+  // monté, voir sa garde en tête de fonction).
+  renderLibrary();
 }
 // Demandes d'accès en attente (bloc "Inviter un testeur" ci-dessous, 6 septembre) -- une seule
 // fonction de rendu réutilisée après chaque invitation réussie pour retirer la ligne traitée.
@@ -3152,6 +3157,144 @@ function dragHandleHtml(extraClass) {
 function deleteIconBtnHtml(action, dataAttrs, label) {
   const attrs = Object.entries(dataAttrs).map(([k, v]) => `data-${k}="${v}"`).join(' ');
   return `<button type="button" class="btn btn-icon btn-danger" data-action="${action}" ${attrs} title="${label}" aria-label="${label}">${TRASH_ICON_SVG}</button>`;
+}
+// Réglages posés à l'activation d'un effet (data-fx-param="enabled") -- valeurs de départ raisonnables,
+// pas des zéros muets, pour qu'activer une case coche produise un effet audible immédiatement.
+const FX_DEFAULTS = {
+  filter: () => ({ type: 'lowpass', frequency: 1000, q: 1 }),
+  reverb: () => ({ decay: 2, wet: 0.3 }),
+  delay: () => ({ time: 0.3, feedback: 0.35, wet: 0.25 }),
+  bitcrush: () => ({ bits: 8, reduction: 1 }),
+  // "rate" retiré des valeurs par défaut par élément (22/09) : devenu un réglage de morceau entier, voir
+  // FX_TRACK_DEFAULTS ci-dessous et trackPitchFxHtml() -- ici, "shift" reste le seul mode par couche/
+  // boucle/emplacement/pool, puisqu'il ne pose pas de problème de synchro (durée inchangée).
+  pitch: () => ({ mode: 'shift', semitones: 0 })
+};
+// Pitch de morceau entier (mode "rate" implicite, pas de champ mode -- un seul sens possible à ce niveau).
+const FX_TRACK_DEFAULTS = { pitch: () => ({ semitones: 0 }) };
+// Effets audio par couche (chantier "effets dynamiques", 22/09) -- filtre/reverb/écho/bitcrusher,
+// réglages fixes pour l'instant (pas d'automatisation/déclenchement -- prévu dans un second temps,
+// cf. discussion produit). Un seul point de vérité pour ne pas dupliquer le markup entre le mode
+// statique (une seule couche, li=null) et le mode vertical (une couche par li).
+// fxBlockHtml : cœur générique, indépendant du mode de lecture -- extraAttrs porte les data-* qui disent
+// à quel objet appliquer le réglage (couche, boucle, emplacement séquentiel, pool vertical-random). Les
+// 4 fonctions fooFxHtml ci-dessous ne sont que des façades qui fixent extraAttrs pour chaque cas, pour
+// ne jamais dupliquer le markup des 4 effets à chaque nouveau mode qui les gagne.
+function fxBlockHtml(fx, extraAttrs) {
+  fx = fx || {};
+  const f = fx.filter, r = fx.reverb, d = fx.delay, b = fx.bitcrush;
+  // Pitch grisé pour tout compte non-admin (22/09, demande de Jules-Antoine) tant que la synchro
+  // "vitesse" avec le planificateur n'a pas été testée en conditions réelles -- même patron que la
+  // bibliothèque vidéo (currentUserIsAdmin, confort d'affichage client, cf. renderAdminOnlyPanels()).
+  // Pas de barrière serveur pour l'instant (à durcir dans upsert_track si un jour nécessaire) : un
+  // réglage qualité propre au compositeur, pas un enjeu de sécurité/business comme "pack en vente".
+  const pitchDisabled = !currentUserIsAdmin;
+  function num(effect, param, value, labelKey, step, min, max, disabled) {
+    return `<div style="margin-top:4px"><label style="font-size:0.85em">${tr(labelKey)}</label>
+      <input type="number" step="${step}" min="${min}" max="${max}" ${disabled ? 'disabled' : ''}
+        data-field="fx" data-fx-effect="${effect}" data-fx-param="${param}" ${extraAttrs} value="${value}"></div>`;
+  }
+  // Champ de fondu optionnel (filtre/pitch) : vide par défaut (= pas de fondu), pas de min/max forcé --
+  // une case vidée par le compositeur redevient "pas de fondu" (voir le handler, qui stocke null plutôt
+  // que NaN dans ce cas), pas une valeur à zéro.
+  function numOptional(effect, param, value, labelKey, step, disabled) {
+    return `<div style="margin-top:4px"><label style="font-size:0.85em">${tr(labelKey)}</label>
+      <input type="number" step="${step}" ${disabled ? 'disabled' : ''}
+        data-field="fx" data-fx-effect="${effect}" data-fx-param="${param}" ${extraAttrs} value="${value != null ? value : ''}"></div>`;
+  }
+  function toggle(effect, enabled, labelKey, extraFields, disabled) {
+    return `
+      <div style="margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:6px${disabled ? ';opacity:0.55' : ''}">
+        <label style="display:flex;align-items:center;gap:6px;margin:0">
+          <input type="checkbox" data-field="fx" data-fx-effect="${effect}" data-fx-param="enabled" ${extraAttrs} ${enabled ? 'checked' : ''} ${disabled ? 'disabled' : ''} style="width:auto;margin:0">
+          ${tr(labelKey)}${disabled ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}
+        </label>
+        ${enabled ? `<div style="margin-top:6px">${extraFields}</div>` : ''}
+      </div>
+    `;
+  }
+  return `
+    <div style="margin-top:10px">
+      <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxSectionTitle')}</div>
+      ${toggle('filter', !!f, 'fxFilterLabel', `
+        <select data-field="fx" data-fx-effect="filter" data-fx-param="type" ${extraAttrs}>
+          <option value="lowpass" ${!f || f.type === 'lowpass' ? 'selected' : ''}>${tr('fxFilterTypeLowpass')}</option>
+          <option value="highpass" ${f && f.type === 'highpass' ? 'selected' : ''}>${tr('fxFilterTypeHighpass')}</option>
+          <option value="bandpass" ${f && f.type === 'bandpass' ? 'selected' : ''}>${tr('fxFilterTypeBandpass')}</option>
+        </select>
+        ${num('filter', 'frequency', f ? f.frequency : 1000, 'fxFrequencyLabel', 10, 20, 20000)}
+        ${num('filter', 'q', f ? f.q : 1, 'fxResonanceLabel', 0.1, 0.1, 20)}
+        ${numOptional('filter', 'fadeFromFrequency', f ? f.fadeFromFrequency : null, 'fxFadeFromFreqLabel', 10)}
+        ${numOptional('filter', 'fadeDurationSec', f ? f.fadeDurationSec : null, 'fxFadeDurationLabel', 0.1)}
+      `)}
+      ${toggle('pitch', !!fx.pitch, 'fxPitchLabel', `
+        <div class="hint-inline">${tr('fxPitchModeShiftHint')}</div>
+        ${num('pitch', 'semitones', fx.pitch ? fx.pitch.semitones : 0, 'fxSemitonesLabel', 1, -24, 24, pitchDisabled)}
+      `, pitchDisabled)}
+      ${toggle('reverb', !!r, 'fxReverbLabel', `
+        ${num('reverb', 'decay', r ? r.decay : 2, 'fxDecayLabel', 0.1, 0.1, 10)}
+        ${num('reverb', 'wet', r ? r.wet : 0.3, 'fxWetLabel', 0.05, 0, 1)}
+      `)}
+      ${toggle('delay', !!d, 'fxDelayLabel', `
+        ${num('delay', 'time', d ? d.time : 0.3, 'fxDelayTimeLabel', 0.01, 0.01, 2)}
+        ${num('delay', 'feedback', d ? d.feedback : 0.35, 'fxFeedbackLabel', 0.05, 0, 0.9)}
+        ${num('delay', 'wet', d ? d.wet : 0.25, 'fxWetLabel', 0.05, 0, 1)}
+      `)}
+      ${toggle('bitcrush', !!b, 'fxBitcrushLabel', `
+        ${num('bitcrush', 'bits', b ? b.bits : 8, 'fxBitsLabel', 1, 1, 16)}
+        ${num('bitcrush', 'reduction', b ? b.reduction : 1, 'fxReductionLabel', 1, 1, 50)}
+      `)}
+    </div>
+  `;
+}
+// Couche (mode vertical) ou l'unique couche du mode statique (li=null).
+function layerFxHtml(layer, ti, li) {
+  const liAttr = li != null ? `data-li="${li}"` : '';
+  return fxBlockHtml(layer.fx, `data-fx-target="layer" data-ti="${ti}" ${liAttr}`);
+}
+// Boucle nommée (mode embranchement-vertical) -- fx par boucle, exact équivalent d'une couche.
+function loopFxHtml(loop, ti, li) {
+  return fxBlockHtml(loop.fx, `data-fx-target="loop" data-ti="${ti}" data-li="${li}"`);
+}
+// Emplacement séquentiel (mode séquentiel) -- fx porté par l'EMPLACEMENT, pas par chaque alternative :
+// un emplacement est une position fixe de la timeline, l'effet doit s'appliquer quel que soit le tirage
+// qui le remplit (anti-répétition), pas être reconfiguré alternative par alternative.
+function slotFxHtml(slot, ti, si) {
+  return fxBlockHtml(slot.fx, `data-fx-target="slot" data-ti="${ti}" data-si="${si}"`);
+}
+// Pool (mode vertical-random) -- même raisonnement que l'emplacement séquentiel : le pool est la "voix"
+// fixe (façon Wwise Voice Graph), l'effet lui appartient plutôt qu'à l'alternative tirée au sort.
+function poolFxHtml(pool, ti, si, pi) {
+  return fxBlockHtml(pool.fx, `data-fx-target="pool" data-ti="${ti}" data-si="${si}" data-pi="${pi}"`);
+}
+// Pitch "vitesse" de morceau ENTIER (22/09) -- distinct de fxBlockHtml/layerFxHtml & co, volontairement
+// pas un simple appel à fxBlockHtml : un seul effet ici (pas de filtre/reverb/écho/bitcrush au niveau
+// morceau), pas de champ mode (toujours "rate", implicite -- voir buildLayerFxChain/applyTrackPitchRate
+// dans player.js). Rendu une fois dans le panneau "Infos du morceau", commun à tous les modes.
+function trackPitchFxHtml(track, ti) {
+  const pitchDisabled = !currentUserIsAdmin;
+  const p = (track.fx && track.fx.pitch) || null;
+  const attrs = `data-fx-target="track" data-ti="${ti}"`;
+  return `
+    <div style="margin-top:14px">
+      <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxPitchLabel')}</div>
+      <div style="padding:8px;border:1px solid var(--border);border-radius:6px${pitchDisabled ? ';opacity:0.55' : ''}">
+        <label style="display:flex;align-items:center;gap:6px;margin:0">
+          <input type="checkbox" data-field="fx" data-fx-effect="pitch" data-fx-param="enabled" ${attrs} ${p ? 'checked' : ''} ${pitchDisabled ? 'disabled' : ''} style="width:auto;margin:0">
+          ${tr('fxPitchModeRate')}${pitchDisabled ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}
+        </label>
+        <div class="hint-inline">${tr('fxTrackPitchHint')}</div>
+        ${p ? `
+          <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxSemitonesLabel')}</label>
+            <input type="number" step="1" min="-24" max="24" ${pitchDisabled ? 'disabled' : ''} data-field="fx" data-fx-effect="pitch" data-fx-param="semitones" ${attrs} value="${p.semitones || 0}"></div>
+          <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxFadeFromSemitonesLabel')}</label>
+            <input type="number" step="1" ${pitchDisabled ? 'disabled' : ''} data-field="fx" data-fx-effect="pitch" data-fx-param="fadeFromSemitones" ${attrs} value="${p.fadeFromSemitones != null ? p.fadeFromSemitones : ''}"></div>
+          <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxFadeDurationLabel')}</label>
+            <input type="number" step="0.1" ${pitchDisabled ? 'disabled' : ''} data-field="fx" data-fx-effect="pitch" data-fx-param="fadeDurationSec" ${attrs} value="${p.fadeDurationSec != null ? p.fadeDurationSec : ''}"></div>
+        ` : ''}
+      </div>
+    </div>
+  `;
 }
 // Bouton "+" inséré directement à la fin d'une liste maître de morceau (20/08, relecture de nettoyage) --
 // factorise les 4 boutons d'ajout (+ Emplacement, + Section, + Boucle, + Couche) qui n'étaient que des
@@ -4426,8 +4569,11 @@ function buildPreviewTrack(track) {
   const repo = state.repo() || 'preview';
   const mapItem = (item) => {
     if (!item) return null;
-    if (item.pendingFile) return { label: item.label, localFile: item.pendingFile };
-    if (item.remoteFile) return { label: item.label, file: item.remoteFile, gain: item.gain || 1 };
+    // fx (chantier "effets dynamiques", 22/09) : porté ici plutôt que dans un mapper dédié aux couches,
+    // pour que l'aperçu local reflète les effets même si un futur type d'item (intro/outro...) en gagne un
+    // jour -- absence du champ chez tous les autres types aujourd'hui, donc sans effet ailleurs.
+    if (item.pendingFile) return { label: item.label, localFile: item.pendingFile, fx: item.fx || null };
+    if (item.remoteFile) return { label: item.label, file: item.remoteFile, gain: item.gain || 1, fx: item.fx || null };
     return null;
   };
   // Pour les alternatives d'un groupe : un slot vide reste un choix possible du tirage (silence),
@@ -4482,6 +4628,9 @@ function buildPreviewTrack(track) {
     // piste -- sa prévisualisation affiche donc la structure complète telle que configurée (outil de
     // vérification de son propre travail), contrairement à la révélation progressive du lecteur public.
     seqMapFullReveal: true,
+    // fx de morceau entier (pitch "vitesse", 22/09) -- distinct de layers[].fx/loops[].fx/etc., voir
+    // applyTrackPitchRate() dans player.js.
+    fx: track.fx || null,
     layers: (track.layers || []).map(mapItem).filter(Boolean),
     intro: mapBlockWithBars(track.intro),
     // L'outro n'a pas de "bars" (mapItem, pas mapBlockWithBars — pas de durée programmée après elle, elle
@@ -4496,7 +4645,8 @@ function buildPreviewTrack(track) {
       bpm: sl.bpm, beatsPerBar: sl.beatsPerBar,
       descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
       nextOptions: sl.nextOptions ? sl.nextOptions.map(opt => ({ targetId: opt.targetId, label: opt.label || '', transition: opt.transition ? mapTransition(opt.transition) : null })) : null,
-      alternatives: (sl.alternatives || []).map(mapAlternativeWithBars)
+      alternatives: (sl.alternatives || []).map(mapAlternativeWithBars),
+      fx: sl.fx || null
     })),
     // Une entrée par boucle déclarée, y compris sans fichier — l'index doit rester aligné avec celui
     // utilisé par les boutons nommés du lecteur (data-loop-idx), contrairement à `layers` ci-dessus qui,
@@ -4532,7 +4682,8 @@ function buildPreviewTrack(track) {
           bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
           bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
           ...mapItem(l.transition)
-        } : null
+        } : null,
+        fx: l.fx || null
       };
     }),
     // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : le moteur de lecture
@@ -4546,7 +4697,8 @@ function buildPreviewTrack(track) {
       maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
       pools: (sec.pools || []).map(p => ({
         id: p.id, label: p.label, avoidImmediateRepeat: p.avoidImmediateRepeat,
-        alternatives: (p.alternatives || []).map(mapAlternative)
+        alternatives: (p.alternatives || []).map(mapAlternative),
+        fx: p.fx || null
       }))
     })),
     sfxIds: track.sfxIds || []
@@ -4955,6 +5107,7 @@ function renderLibrary() {
             <label data-help="layersVertical">${tr('audioTrackLabel')}</label>
             <div data-role="staticFileCtrl" style="margin-top:6px;margin-bottom:4px"></div>
             <div class="hint-inline">${tr('staticDropHint')}</div>
+            <div data-role="staticFxHost"></div>
             <label style="display:flex;align-items:center;gap:8px;margin-top:6px">
               <input type="checkbox" data-field="loopable" data-ti="${ti}" ${track.loopable ? 'checked' : ''} style="width:auto;margin:0;">
               <span data-help="loopableStatic" style="color:var(--text-dimmer);font-size:12px;">${tr('loopableHint')}</span>
@@ -5004,6 +5157,7 @@ function renderLibrary() {
             <input type="checkbox" data-field="normalizeVolume" data-ti="${ti}" ${track.normalizeVolume ? 'checked' : ''} style="width:auto;margin:0;">
             <span data-help="normalizeVolume" style="color:var(--text-dim);font-size:12px;">${tr('normalizeVolumeLabel')}</span>
           </label>
+          ${trackPitchFxHtml(track, ti)}
         `;
         modeDetailHost.appendChild(infoEl);
         if (isStatic) {
@@ -5011,6 +5165,8 @@ function renderLibrary() {
           const staticCtrlHost = infoEl.querySelector('[data-role="staticFileCtrl"]');
           const layer0 = track.layers[0];
           staticCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'));
+          const staticFxHost = infoEl.querySelector('[data-role="staticFxHost"]');
+          if (staticFxHost) staticFxHost.innerHTML = layerFxHtml(layer0, ti, null);
           wireFileControl(staticCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
             () => layer0.pendingFile, () => layer0.remoteFile,
             f => {
@@ -5169,6 +5325,7 @@ function renderLibrary() {
                 <div data-role="poolAlternatives"></div>
                 <div class="actions"><button class="btn btn-small" data-action="add-pool-alt" data-ti="${ti}" data-si="${sci}" data-pi="${pi}">${tr('addAlternativeBtn')}</button></div>
               </div>
+              ${poolFxHtml(pool, ti, sci, pi)}
             `;
             wireAltPoolToggle(poolEl);
             const altsHost = poolEl.querySelector('[data-role="poolAlternatives"]');
@@ -5381,6 +5538,7 @@ function renderLibrary() {
               ` : ''}
             ` : ''}
             ${loop.isInitial ? `<div data-role="embrLoopTimelineHost" style="margin-top:14px"></div>` : ''}
+            ${loopFxHtml(loop, ti, li)}
           `;
           modeDetailHost.appendChild(loopEl);
           const ctrlHost = loopEl.querySelector('[data-role="embrLoopFileCtrl"]');
@@ -5453,6 +5611,7 @@ function renderLibrary() {
           row.innerHTML = `
             <div data-role="layerFileCtrl"></div>
             <label style="margin-top:8px">${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('layerLabelPlaceholder')}" data-field="label" data-ti="${ti}" data-li="${li}" value="${escapeAttr(layer.label)}">
+            ${layerFxHtml(layer, ti, li)}
           `;
           modeDetailHost.appendChild(row);
           const ctrlHost = row.querySelector('[data-role="layerFileCtrl"]');
@@ -5616,6 +5775,7 @@ function renderLibrary() {
             <input type="checkbox" data-field="normalizeVolume" data-ti="${ti}" ${track.normalizeVolume ? 'checked' : ''} style="width:auto;margin:0;">
             <span data-help="normalizeVolume" style="color:var(--text-dim);font-size:12px;">${tr('normalizeVolumeLabel')}</span>
           </label>
+          ${trackPitchFxHtml(track, ti)}
         `;
         slotsDetailHost.appendChild(infoEl);
       }
@@ -5800,6 +5960,7 @@ function renderLibrary() {
               </div>
             </div>
           `}
+          ${slotFxHtml(slot, ti, si)}
         `;
         // Les options d'embranchement dépendent des libellés de TOUS les emplacements (qui peuvent changer
         // à tout moment) : construites dynamiquement ici plutôt que figées dans le gabarit HTML statique
@@ -6575,6 +6736,39 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       renderLibrary(); // le libellé de l'option "suivre le réglage global" affiche l'état effectif (oui/non)
     }
     else if (field === 'label') library[ti].layers[li].label = e.target.value;
+    else if (field === 'fx') {
+      // data-fx-target dit à quel objet appliquer le réglage -- une seule chaîne de gestion pour les 4
+      // modes plutôt qu'un bloc par mode (voir fxBlockHtml/layerFxHtml/loopFxHtml/slotFxHtml/poolFxHtml).
+      const fxTarget = e.target.dataset.fxTarget || 'layer';
+      let target;
+      if (fxTarget === 'loop') target = library[ti].loops[li];
+      else if (fxTarget === 'slot') target = library[ti].segmentSlots[parseInt(e.target.dataset.si, 10)];
+      else if (fxTarget === 'pool') target = library[ti].sections[parseInt(e.target.dataset.si, 10)].pools[parseInt(e.target.dataset.pi, 10)];
+      else if (fxTarget === 'track') target = library[ti];
+      else target = li != null ? library[ti].layers[li] : library[ti].layers[0];
+      const effect = e.target.dataset.fxEffect;
+      const param = e.target.dataset.fxParam;
+      if (param === 'enabled') {
+        if (e.target.checked) {
+          target.fx = target.fx || {};
+          // Le pitch de morceau entier (mode "rate" implicite) a ses propres valeurs de départ, distinctes
+          // du pitch par élément ("shift") -- voir FX_TRACK_DEFAULTS.
+          target.fx[effect] = (fxTarget === 'track' && FX_TRACK_DEFAULTS[effect]) ? FX_TRACK_DEFAULTS[effect]() : FX_DEFAULTS[effect]();
+        } else if (target.fx) {
+          delete target.fx[effect];
+          if (!Object.keys(target.fx).length) delete target.fx;
+        }
+        renderLibrary();
+        return;
+      }
+      if (!target.fx || !target.fx[effect]) return;
+      // Champ numérique vidé volontairement (ex. "fadeFrom..." optionnel) : null plutôt que NaN --
+      // un champ de fondu vide veut dire "pas de fondu", pas "fondu vers zéro".
+      target.fx[effect][param] = (e.target.tagName === 'SELECT') ? e.target.value : (e.target.value === '' ? null : parseFloat(e.target.value));
+      // Changer le mode du pitch affecte quels champs sont affichés (le fondu n'a de sens qu'en mode
+      // "rate", cf. fxBlockHtml) -- seul cas de la chaîne fx qui a besoin d'un re-rendu complet.
+      if (effect === 'pitch' && param === 'mode') renderLibrary();
+    }
   } else if (e.target.dataset.slotField) {
     const ti = parseInt(e.target.dataset.ti, 10);
     const si = parseInt(e.target.dataset.si, 10);
@@ -9771,7 +9965,8 @@ async function loadData(silent) {
           pools: (sec.pools || []).map(p => ({
             id: p.id || genId(), label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
             referencesPoolId: p.referencesPoolId || null,
-            alternatives: (p.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1 }))
+            alternatives: (p.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1 })),
+            fx: p.fx || null
           }))
         }));
       } else if (mode === 'vertical-random' && (t.fixedLayers || t.fixedLayer || (t.randomGroups && t.randomGroups.length))) {
@@ -9815,7 +10010,8 @@ async function loadData(silent) {
         maxLoops: (t.maxLoops !== undefined && t.maxLoops !== null) ? t.maxLoops : null,
         maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
         normalizeVolume: !!t.normalizeVolume,
-        layers: (t.layers || []).map(l => ({ label: l.label, remoteFile: l.file, pendingFile: null, gain: l.gain || 1, duration: l.duration || 0 })),
+        fx: t.fx || null,
+        layers: (t.layers || []).map(l => ({ label: l.label, remoteFile: l.file, pendingFile: null, gain: l.gain || 1, duration: l.duration || 0, fx: l.fx || null })),
         intro: t.intro ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, remoteFile: t.intro.file || null, pendingFile: null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '' } : null,
         outro: t.outro ? { label: t.outro.label || 'Outro', remoteFile: t.outro.file || null, pendingFile: null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,
         // Migration douce : les morceaux séquentiels publiés avant l'architecture à emplacements avaient un
@@ -9832,7 +10028,8 @@ async function loadData(silent) {
             targetId: opt.targetId, label: opt.label || '',
             transition: opt.transition ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, remoteFile: opt.transition.file || null, originalFileName: opt.transition.originalFileName || null, pendingFile: null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null
           })) : null,
-          alternatives: (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1 }))
+          alternatives: (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1 })),
+          fx: sl.fx || null
         })) : ((t.segments && t.segments.length) ? [{
           id: genId(), label: '', avoidImmediateRepeat: t.avoidImmediateRepeat !== false, repeatCount: 1,
           alternatives: t.segments.map(s => ({ label: s.label || '', bars: s.bars || 8, remoteFile: s.file || null, pendingFile: null, gain: s.gain || 1 }))
@@ -9873,7 +10070,8 @@ async function loadData(silent) {
               bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
               bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
               remoteFile: l.transition.file || null, originalFileName: l.transition.originalFileName || null, pendingFile: null
-            } : null
+            } : null,
+            fx: l.fx || null
           }));
         })(),
         stingers: (t.stingers || []).map(s => ({ label: s.label, remoteFile: s.file, pendingFile: null, gain: s.gain || 1 })),
@@ -10584,13 +10782,14 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       maxLoops: (t.maxLoops !== undefined && t.maxLoops !== null) ? t.maxLoops : null,
       maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
       normalizeVolume: !!t.normalizeVolume,
+      fx: t.fx || null,
       duration: Math.round(t.duration * 100) / 100, base: t.base,
       // file/localUrl (18/09) : un fichier tout juste choisi mais pas encore publié n'a pas de
       // remoteFile -- localUrl porte alors une URL locale temporaire (pendingPreviewUrl(), blob:),
       // lue directement par player.js (loadArrayBuffer()) sans jamais passer par track.base. file
       // reste null dans ce cas (jamais un blob: -- track.base+file resterait un vrai chemin distant
       // invalide). Même repli partout ci-dessous (layers/intro/outro/segmentSlots/loops/sections).
-      layers: (t.mode === 'static' ? (t.layers || []).slice(0, 1) : (t.layers || [])).map(l => ({ label: l.label, file: l.remoteFile || null, localUrl: l.remoteFile ? null : pendingPreviewUrl(l.pendingFile), originalFileName: l.originalFileName || null, gain: l.gain || 1, duration: Math.round((l.duration || 0) * 100) / 100 })),
+      layers: (t.mode === 'static' ? (t.layers || []).slice(0, 1) : (t.layers || [])).map(l => ({ label: l.label, file: l.remoteFile || null, localUrl: l.remoteFile ? null : pendingPreviewUrl(l.pendingFile), originalFileName: l.originalFileName || null, gain: l.gain || 1, duration: Math.round((l.duration || 0) * 100) / 100, fx: l.fx || null })),
       intro: (t.intro && (t.intro.remoteFile || t.intro.pendingFile)) ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, file: t.intro.remoteFile || null, localUrl: t.intro.remoteFile ? null : pendingPreviewUrl(t.intro.pendingFile), originalFileName: t.intro.originalFileName || null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '' } : null,
       outro: (t.outro && (t.outro.remoteFile || t.outro.pendingFile)) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile || null, localUrl: t.outro.remoteFile ? null : pendingPreviewUrl(t.outro.pendingFile), originalFileName: t.outro.originalFileName || null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,
       segmentSlots: (t.segmentSlots || []).map(sl => ({
@@ -10603,7 +10802,8 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
           targetId: opt.targetId, label: opt.label || '',
           transition: (opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile)) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile || null, localUrl: opt.transition.remoteFile ? null : pendingPreviewUrl(opt.transition.pendingFile), originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null
         })) : null,
-        alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1 }))
+        alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1 })),
+        fx: sl.fx || null
       })),
       // Embranchement-vertical : une entrée par boucle déclarée (même les boucles sans fichier — voir
       // note dans buildPreviewTrackObject, l'index doit rester aligné avec data-loop-idx côté lecteur).
@@ -10622,7 +10822,8 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
           bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
           bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
           file: l.transition.remoteFile || null, localUrl: l.transition.remoteFile ? null : pendingPreviewUrl(l.transition.pendingFile), originalFileName: l.transition.originalFileName || null
-        } : null
+        } : null,
+        fx: l.fx || null
       })),
       randomizeSections: !!t.randomizeSections,
       // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : chaque section porte
@@ -10639,7 +10840,8 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         pools: sec.referencesSectionId ? [] : (sec.pools || []).map(p => ({
           id: p.id, label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
           referencesPoolId: p.referencesPoolId || null,
-          alternatives: p.referencesPoolId ? [] : (p.alternatives || []).map(a => ({ label: a.label || '', file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1 }))
+          alternatives: p.referencesPoolId ? [] : (p.alternatives || []).map(a => ({ label: a.label || '', file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1 })),
+          fx: p.fx || null
         }))
       })),
       sfxIds: t.sfxIds || [],

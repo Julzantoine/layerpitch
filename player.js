@@ -1111,6 +1111,209 @@ function resolveWaveformColors(elementColors) {
     fg: (elementColors && elementColors.waveform && elementColors.waveform.playedColor) || cssVar('--accent', '#c9713c')
   };
 }
+// ---- Effets par couche (filtre/reverb/écho/bitcrusher) — chantier "effets dynamiques" (22/09) ----
+// Réglages fixes posés par le compositeur (layer.fx dans data.json/Postgres), pas encore automatisés ni
+// déclenchables en direct — ça viendra dans un second temps (cascades de triggers, cf. discussion
+// produit), qui réutilisera cette même chaîne plutôt que d'en construire une autre. buildLayerFxChain
+// renvoie { input, output, nodes } avec des références NOMMÉES à chaque nœud créé (nodes.filter,
+// nodes.delay, ...) plutôt que des closures anonymes : ça ne sert à rien aujourd'hui, mais évite une
+// réécriture le jour où un contrôle en direct (ex. depuis un futur Espace Projet) devra retrouver ces
+// nœuds pour les piloter plutôt que reconstruire toute la chaîne.
+const _impulseResponseCache = new Map();
+function getOrBuildImpulseResponse(ctx, decaySeconds) {
+  const decay = Math.min(Math.max(decaySeconds || 2, 0.1), 10);
+  const key = ctx.sampleRate + ':' + decay;
+  if (_impulseResponseCache.has(key)) return _impulseResponseCache.get(key);
+  // Reverb synthétique (bruit blanc + décroissance exponentielle) plutôt qu'un fichier de réponse
+  // impulsionnelle à héberger : évite d'ajouter un nouveau type d'asset/upload pour ce chantier, qualité
+  // suffisante pour l'usage démo/pitch visé ici.
+  const length = Math.max(1, Math.floor(ctx.sampleRate * decay));
+  const buffer = ctx.createBuffer(2, length, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const data = buffer.getChannelData(ch);
+    for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
+  }
+  _impulseResponseCache.set(key, buffer);
+  return buffer;
+}
+// Bitcrusher via ScriptProcessorNode (déprécié mais universellement supporté) plutôt qu'un AudioWorklet :
+// un AudioWorklet ne fonctionne pas en contexte file:// (contrainte non négociable de l'outil, voir
+// docs/architecture.md), un ScriptProcessorNode si. Combine quantification de bits (résolution réduite)
+// et échantillonnage-blocage (réduction de fréquence d'échantillonnage perçue).
+function buildBitcrushNode(ctx, bits, reduction) {
+  const node = ctx.createScriptProcessor(4096, 2, 2);
+  const step = Math.pow(0.5, Math.max(1, Math.min(16, bits || 8)));
+  const red = Math.max(1, Math.min(50, Math.round(reduction || 1)));
+  let sampleCounter = 0;
+  const held = [0, 0];
+  node.onaudioprocess = (e) => {
+    const chCount = e.outputBuffer.numberOfChannels;
+    const frames = e.outputBuffer.length;
+    for (let i = 0; i < frames; i++) {
+      const hold = (sampleCounter % red) === 0;
+      for (let ch = 0; ch < chCount; ch++) {
+        const inData = e.inputBuffer.getChannelData(ch);
+        if (hold) held[ch] = Math.round(inData[i] / step) * step;
+        e.outputBuffer.getChannelData(ch)[i] = held[ch];
+      }
+      sampleCounter++;
+    }
+  };
+  return node;
+}
+// Pitch-shift granulaire (chantier 2, 22/09) — deux "grains" en lecture superposée dans un buffer
+// circulaire alimenté en continu, fenêtrés en Hann et décalés d'une demi-fenêtre : la fenêtre de chacun
+// avance à un rythme FIXE (horloge de sortie, indépendante du pitch) tandis que sa position de LECTURE
+// avance à `pitchRatio` échantillons par échantillon de sortie — c'est ce découplage qui change la
+// hauteur sans changer la durée. Chaque grain se repositionne "grainSize échantillons dans le passé" au
+// moment précis où sa fenêtre repasse par zéro (quasi silencieuse à cet instant, ce qui masque le saut).
+// Technique granulaire classique (façon PSOLA simplifié), pas un vrai vocodeur de phase : justesse de
+// hauteur vérifiée numériquement (écart <6% sur ±1 octave, voir session du 22/09), mais plus d'artefacts
+// qu'une librairie dédiée sur de grands écarts — qualité perçue non validée à l'oreille, à confirmer par
+// une vraie écoute avant de le considérer prêt pour une démo (cf. le même type de réserve déjà posée sur
+// l'ambisonic dans `docs/extensions-roadmap.md`, en moins critique ici).
+function buildPitchShiftNode(ctx, semitones) {
+  const grainSize = 2048;
+  const pitchRatio = Math.pow(2, (semitones || 0) / 12);
+  const numChannels = 2;
+  const node = ctx.createScriptProcessor(4096, numChannels, numChannels);
+  const bufLen = grainSize * 4;
+  const state = [];
+  for (let ch = 0; ch < numChannels; ch++) {
+    state.push({ buffer: new Float32Array(bufLen), writePos: 0, outputPhase: 0, windowPhase: [0, 0.5], readPos: [-grainSize, -grainSize / 2] });
+  }
+  function hann(x) { return 0.5 * (1 - Math.cos(2 * Math.PI * x)); }
+  node.onaudioprocess = (e) => {
+    const chCount = e.outputBuffer.numberOfChannels;
+    const frames = e.outputBuffer.length;
+    for (let ch = 0; ch < chCount; ch++) {
+      const st = state[ch];
+      const inData = e.inputBuffer.getChannelData(ch);
+      const outData = e.outputBuffer.getChannelData(ch);
+      for (let i = 0; i < frames; i++) {
+        st.buffer[st.writePos % bufLen] = inData[i];
+        st.writePos++;
+        st.outputPhase = (st.outputPhase + 1 / grainSize) % 1;
+        let out = 0, winSum = 0;
+        for (let g = 0; g < 2; g++) {
+          const prevPhase = st.windowPhase[g];
+          const newPhase = (st.outputPhase + g * 0.5) % 1;
+          if (newPhase < prevPhase) st.readPos[g] = st.writePos - grainSize;
+          st.windowPhase[g] = newPhase;
+          const win = hann(newPhase);
+          const idx = Math.floor(st.readPos[g]);
+          const frac = st.readPos[g] - idx;
+          const i0 = ((idx % bufLen) + bufLen) % bufLen;
+          const i1 = (i0 + 1) % bufLen;
+          const s = st.buffer[i0] * (1 - frac) + st.buffer[i1] * frac;
+          out += s * win;
+          winSum += win;
+          st.readPos[g] += pitchRatio;
+        }
+        outData[i] = winSum > 0.0001 ? out / winSum : 0;
+      }
+    }
+  };
+  return node;
+}
+// includeBitcrush (défaut vrai) : un ScriptProcessorNode continue de traiter du silence tant qu'il reste
+// connecté, contrairement à un filtre/reverb/écho natifs (coût négligeable une fois la source arrêtée,
+// laissés tels quels au ramasse-miettes). Chaque appelant qui active un fx potentiellement bitcrush doit
+// donc prévoir sa propre déconnexion explicite au bon moment (voir stopSimple() et le src.onended de
+// scheduleGeneration() dans player.js) — includeBitcrush=false reste disponible pour un futur appelant
+// qui ne pourrait pas garantir ce nettoyage, plutôt que de risquer une fuite silencieuse.
+//
+// src/startTime (chantier 2, 22/09) : un fondu (filtre ou pitch) doit démarrer sa rampe au moment RÉEL où
+// la source devient audible, pas au moment où cette fonction est appelée -- pour les moteurs programmés à
+// l'avance (quantifié, séquentiel, vertical-random, embranchement-vertical, jusqu'à 1s de lookahead), ces
+// deux instants diffèrent : utiliser ctx.currentTime aurait démarré le fondu en silence, avant que le son
+// ne soit seulement audible. src lui-même n'est plus utilisé ici depuis que le pitch "rate" est devenu un
+// réglage de morceau entier (voir applyTrackPitchRate() dans initTrackPlayer) -- gardé au cas où un futur
+// effet ici aurait aussi besoin d'agir directement sur la source plutôt que sur la chaîne de nœuds.
+function buildLayerFxChain(ctx, fx, src, startTime, includeBitcrush) {
+  if (!fx || (!fx.filter && !fx.reverb && !fx.delay && !fx.bitcrush && !fx.pitch)) return null;
+  const nodes = {};
+  const input = ctx.createGain(); // point d'entrée neutre (gain 1), toujours présent même chaîne courte
+  let chainEnd = input;
+  const when = startTime != null ? startTime : ctx.currentTime;
+
+  // Pitch "shift" : vrai changement de hauteur, durée inchangée -- voir buildPitchShiftNode. Pas de fondu
+  // pris en charge ici pour l'instant (le ratio n'est pas un AudioParam natif automatisable ; l'interpoler
+  // à la main dans le callback du processeur est possible mais pas construit dans ce premier passage).
+  if (fx.pitch && fx.pitch.mode === 'shift') {
+    const shifter = buildPitchShiftNode(ctx, fx.pitch.semitones || 0);
+    chainEnd.connect(shifter);
+    chainEnd = shifter;
+    nodes.pitchShift = shifter;
+  }
+
+  if (fx.filter) {
+    const f = ctx.createBiquadFilter();
+    f.type = fx.filter.type || 'lowpass';
+    const targetFreq = fx.filter.frequency || 1000;
+    if (fx.filter.fadeFromFrequency != null && fx.filter.fadeDurationSec > 0) {
+      f.frequency.setValueAtTime(fx.filter.fadeFromFrequency, when);
+      f.frequency.linearRampToValueAtTime(targetFreq, when + fx.filter.fadeDurationSec);
+    } else {
+      f.frequency.value = targetFreq;
+    }
+    f.Q.value = fx.filter.q != null ? fx.filter.q : 1;
+    chainEnd.connect(f);
+    chainEnd = f;
+    nodes.filter = f;
+  }
+
+  if (fx.bitcrush && includeBitcrush !== false) {
+    const crusher = buildBitcrushNode(ctx, fx.bitcrush.bits, fx.bitcrush.reduction);
+    chainEnd.connect(crusher);
+    chainEnd = crusher;
+    nodes.bitcrush = crusher;
+  }
+
+  if (fx.delay) {
+    const wetOut = ctx.createGain();
+    const wetAmount = fx.delay.wet != null ? fx.delay.wet : 0.25;
+    const dry = ctx.createGain(); dry.gain.value = 1 - wetAmount;
+    const wet = ctx.createGain(); wet.gain.value = wetAmount;
+    const delayNode = ctx.createDelay(2.0);
+    delayNode.delayTime.value = Math.min(Math.max(fx.delay.time || 0.3, 0.01), 2);
+    const feedback = ctx.createGain();
+    feedback.gain.value = Math.min(Math.max(fx.delay.feedback != null ? fx.delay.feedback : 0.35, 0), 0.9);
+    chainEnd.connect(dry); dry.connect(wetOut);
+    chainEnd.connect(delayNode);
+    delayNode.connect(feedback); feedback.connect(delayNode); // boucle de feedback de l'écho
+    delayNode.connect(wet); wet.connect(wetOut);
+    chainEnd = wetOut;
+    nodes.delay = { delayNode, feedback, wet, dry };
+  }
+
+  if (fx.reverb) {
+    const wetOut = ctx.createGain();
+    const wetAmount = fx.reverb.wet != null ? fx.reverb.wet : 0.3;
+    const dry = ctx.createGain(); dry.gain.value = 1 - wetAmount;
+    const wet = ctx.createGain(); wet.gain.value = wetAmount;
+    const convolver = ctx.createConvolver();
+    convolver.normalize = true;
+    convolver.buffer = getOrBuildImpulseResponse(ctx, fx.reverb.decay);
+    chainEnd.connect(dry); dry.connect(wetOut);
+    chainEnd.connect(convolver); convolver.connect(wet); wet.connect(wetOut);
+    chainEnd = wetOut;
+    nodes.reverb = { convolver, wet, dry };
+  }
+
+  return { input, output: chainEnd, nodes };
+}
+// Un ScriptProcessorNode (bitcrusher ET pitch-shift "shift", chantier 2) continue de tourner tant qu'il
+// reste connecté -- un seul point de nettoyage pour les deux plutôt que de dupliquer la même paire de
+// lignes à chacun des neuf appels concernés (voir les commentaires "onended" plus bas dans ce fichier).
+function disconnectLeakyFxNodes(fxChain) {
+  if (!fxChain) return;
+  if (fxChain.nodes.bitcrush) { try { fxChain.nodes.bitcrush.disconnect(); } catch (e) {} }
+  if (fxChain.nodes.pitchShift) { try { fxChain.nodes.pitchShift.disconnect(); } catch (e) {} }
+}
+function fxChainHasLeakyNode(fxChain) {
+  return !!(fxChain && (fxChain.nodes.bitcrush || fxChain.nodes.pitchShift));
+}
 function initTrackPlayer(track, wrapper, elementColors) {
   const { bg: waveBgColor, fg: waveFgColor } = resolveWaveformColors(elementColors);
   const isStatic = track.mode === 'static';
@@ -1118,6 +1321,31 @@ function initTrackPlayer(track, wrapper, elementColors) {
   const isSequential = track.mode === 'sequential';
   const isEmbrVert = track.mode === 'embranchement-vertical';
   const supported = PLAYABLE_MODES.includes(track.mode);
+  // Pitch "vitesse" (chantier 2, 22/09) — réglage de MORCEAU ENTIER, jamais par couche/boucle/emplacement/
+  // pool : change la durée de lecture en plus de la hauteur, donc tout ce qui doit rester ensemble (couches
+  // simultanées d'un vertical, boucles jumelles d'un embranchement-vertical, pools d'une même section)
+  // doit bouger à EXACTEMENT la même vitesse, sous peine de dérive relative. Le pitch "traditionnel"
+  // (fx.pitch.mode==='shift' porté par couche/boucle/emplacement/pool, voir buildLayerFxChain) ne change
+  // pas la durée -- lui n'a pas ce problème, reste réglable indépendamment par élément.
+  // Admin-only pour l'instant (voir fxBlockHtml, currentUserIsAdmin côté backstage) : correctif appliqué
+  // aux boucles de planification "au fil de l'eau" des 4 moteurs (vérifié), PAS encore aux chemins de
+  // reprise après pause/veille ni au seek pendant qu'un pitch est actif -- portée volontairement réduite
+  // tant que ce n'est pas testé en conditions réelles, pas un oubli silencieux.
+  const trackPitchRatio = (track.fx && track.fx.pitch) ? Math.pow(2, (track.fx.pitch.semitones || 0) / 12) : 1;
+  // Applique le pitch de morceau entier à UNE source -- appelé à chaque création de BufferSource, quel
+  // que soit le moteur. No-op si aucun pitch actif (trackPitchRatio===1), donc sans coût pour l'immense
+  // majorité des morceaux qui n'utilisent pas ce réglage.
+  function applyTrackPitchRate(src, startTime) {
+    if (trackPitchRatio === 1) return;
+    const p = track.fx.pitch;
+    const when = startTime != null ? startTime : ctx.currentTime;
+    if (p.fadeFromSemitones != null && p.fadeDurationSec > 0) {
+      src.playbackRate.setValueAtTime(Math.pow(2, p.fadeFromSemitones / 12), when);
+      src.playbackRate.linearRampToValueAtTime(trackPitchRatio, when + p.fadeDurationSec);
+    } else {
+      src.playbackRate.value = trackPitchRatio;
+    }
+  }
   // Harmonisation des volumes : décision du compositeur (case à cocher dans le backstage), jamais
   // automatique — sinon un fichier qui sonne différemment de ce qu'il a exporté serait déroutant.
   // Le gain mesuré à la conversion reste stocké dans tous les cas ; ce n'est que son application à la
@@ -1407,7 +1635,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // scheduler ni interrompre la lecture en cours (même principe que track.maxLoops pour le moteur quantifié).
   let vrPlayableSectionRefs = [];
 
-  let buffers = [], sources = [], gains = []; // moteur simple
+  let buffers = [], sources = [], gains = [], layerFxChains = []; // moteur simple
   let activeGenSources = []; // moteur quantifié : [{src, gain}], toutes générations (dont queues) confondues
   // ---- État moteur embranchement-vertical (voir bloc dédié plus bas pour la logique) ----
   let embrLoopBuffers = []; // un buffer par boucle déclarée (même ordre que track.loops), null si manquante
@@ -2497,9 +2725,23 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const total = totalDurationSec != null ? totalDurationSec : ((fillDurationSec != null) ? fillDurationSec + off : buffer.duration);
     const src = ctx.createBufferSource();
     src.buffer = buffer;
+    applyTrackPitchRate(src, ctxStartTime);
     const g = ctx.createGain();
     g.gain.setValueAtTime(gainValue != null ? gainValue : 1, ctxStartTime);
-    src.connect(g); g.connect(trackMasterGain);
+    // fx : porté par l'emplacement (segmentSlot) pour un segment -- même chaîne quel que soit le tirage
+    // qui le remplit, cf. la logique retenue pour vertical-random (pool) -- ou par intro/outro directement
+    // pour ces deux cas particuliers, qui n'ont qu'un seul fichier chacun.
+    const fxSource = kind === 'segment' ? (slotIdx != null ? (track.segmentSlots || [])[slotIdx] : null)
+      : kind === 'intro' ? track.intro : kind === 'outro' ? track.outro : null;
+    const fxChain = buildLayerFxChain(ctx, fxSource && fxSource.fx, src, ctxStartTime);
+    if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
+    g.connect(trackMasterGain);
+    // Chaque bloc rejoue une fois sans boucle -- onended est un point de nettoyage fiable pour le
+    // bitcrusher, comme pour les autres moteurs. armSeqFinalEnd() (bloc terminal) CHAÎNE sur ce handler
+    // plutôt que de l'écraser -- voir son commentaire.
+    if (fxChainHasLeakyNode(fxChain)) {
+      src.onended = () => { disconnectLeakyFxNodes(fxChain); };
+    }
     src.start(ctxStartTime, off);
     seqActiveSources.push({ src, gain: g, ctxStartTime });
     seqLastGenSources = [src];
@@ -2542,7 +2784,12 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const marker = seqLastGenSources[0];
     if (!marker) return;
     seqFinalMarkerSrc = marker;
+    // Chaîne sur un éventuel onended déjà posé par scheduleSeqGeneration (nettoyage du bitcrusher, voir
+    // plus haut) plutôt que de l'écraser -- affecter .onended REMPLACE tout gestionnaire précédent, pas
+    // un addEventListener -- l'écraser aurait fait fuir le ScriptProcessorNode du bloc terminal.
+    const previousOnEnded = marker.onended;
     marker.onended = () => {
+      if (previousOnEnded) previousOnEnded();
       if (seqFinalMarkerSrc !== marker) return; // piste arrêtée/relancée entretemps : on ignore
       seqActiveSources = [];
       playing = false;
@@ -2567,7 +2814,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         armSeqFinalEnd();
         return;
       }
-      seqNextStartCtxTime += next.durationSec;
+      seqNextStartCtxTime += next.durationSec / trackPitchRatio;
     }
   }
   function stopSequential() {
@@ -2625,7 +2872,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       firstBuffer = slotBuffers[picked.slotIdx][picked.altIdx]; firstLabel = (alt && alt.label) || (slot.label || ('Emplacement ' + (picked.slotIdx + 1))); firstDurationSec = blockSeconds(alt && alt.bars, slot); firstKind = 'segment'; firstGain = effGain(alt); firstSlotIdx = picked.slotIdx; firstDesc = pickStageDescription(slot);
     }
     scheduleSeqGeneration(now, firstBuffer, firstLabel, firstKind, firstDurationSec, firstGain, 0, null, false, firstSlotIdx, firstDesc);
-    seqNextStartCtxTime = now + firstDurationSec;
+    seqNextStartCtxTime = now + firstDurationSec / trackPitchRatio;
     seqSchedulerTimer = setInterval(seqSchedulerTick, 200);
     if (goToEndBtn) goToEndBtn.disabled = false;
   }
@@ -2671,7 +2918,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       armSeqFinalEnd();
       if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = t('endingWithOutro'); }
     } else {
-      seqNextStartCtxTime = now + remaining;
+      seqNextStartCtxTime = now + remaining / trackPitchRatio;
       seqSchedulerTimer = setInterval(seqSchedulerTick, 200);
       // Le bouton doit refléter l'état réel : si la demande est encore en attente (restaurée ci-dessus),
       // il doit rester désactivé avec son texte "en cours de fin", pas se réactiver comme si de rien n'était.
@@ -2769,23 +3016,39 @@ function initTrackPlayer(track, wrapper, elementColors) {
       offsetAt = computeElapsed();
     }
     sources.forEach(s => { if (s) { try { s.stop(); } catch(e){} } });
-    sources = []; gains = [];
+    // Un ScriptProcessorNode fx (bitcrusher/pitch-shift) continue de traiter du silence tant qu'il reste
+    // connecté -- déconnexion explicite ici, contrairement aux autres nœuds fx (coût négligeable une fois
+    // la source arrêtée, laissés au ramasse-miettes comme le reste du graphe).
+    layerFxChains.forEach(chain => disconnectLeakyFxNodes(chain));
+    sources = []; gains = []; layerFxChains = [];
   }
   function playSimple() {
     startedAt = ctx.currentTime - offsetAt;
     const p = profiles[level] || profiles[0];
+    const nowStart = ctx.currentTime;
     for (let i = 0; i < buffers.length; i++) {
       const src = ctx.createBufferSource();
       src.buffer = buffers[i];
       if (loops) { src.loop = true; src.loopStart = 0; src.loopEnd = track.duration; }
+      // Moteur simple : le bouclage natif (loopStart/loopEnd, en temps de BUFFER) reste correct quel que
+      // soit playbackRate -- pas besoin de diviser une durée programmée par ailleurs, contrairement aux
+      // moteurs qui calculent eux-mêmes "dans x secondes réelles" en JS (voir plus bas dans ce fichier).
+      applyTrackPitchRate(src, nowStart);
       const g = ctx.createGain();
       g.gain.setValueAtTime((p[i] || 0) * effGain(layersToLoad[i]) * voiceGain('layer-' + i), ctx.currentTime);
-      src.connect(g); g.connect(trackMasterGain);
+      const fxChain = buildLayerFxChain(ctx, layersToLoad[i] && layersToLoad[i].fx, src, nowStart);
+      if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
+      g.connect(trackMasterGain);
       src.start(0, offsetAt % track.duration);
-      sources[i] = src; gains[i] = g;
+      sources[i] = src; gains[i] = g; layerFxChains[i] = fxChain;
       if (isStatic && !loops) {
         const layerIndex = i;
         src.onended = () => {
+          // Un morceau statique non bouclable finit ici SANS jamais passer par stopSimple() -- sans ce
+          // nettoyage propre, un fx à ScriptProcessorNode (s'il y en a un) continuerait de tourner
+          // indéfiniment après une fin naturelle (trouvé le 22/09, en écho au même souci déjà réglé pour
+          // le moteur quantifié -- même risque, chemin de code différent, pas détecté au premier passage).
+          disconnectLeakyFxNodes(fxChain);
           // Si cette source a depuis été remplacée ou arrêtée manuellement (seek, stop, changement de piste),
           // sources[layerIndex] ne pointe plus vers elle -> ce n'est pas une vraie fin naturelle, on ignore.
           if (sources[layerIndex] !== src) return;
@@ -2851,11 +3114,24 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (!buffers[i]) continue;
       const src = ctx.createBufferSource();
       src.buffer = buffers[i];
+      applyTrackPitchRate(src, ctxStartTime);
       const g = ctx.createGain();
       const key = 'layer-' + i;
       const base = (p[i] || 0) * effGain(layersToLoad[i]);
       g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
-      src.connect(g); g.connect(trackMasterGain);
+      const fxChain = buildLayerFxChain(ctx, layersToLoad[i] && layersToLoad[i].fx, src, ctxStartTime);
+      if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
+      g.connect(trackMasterGain);
+      // Ce moteur régénère une chaîne à chaque nouvelle génération sans jamais les déconnecter -- sans
+      // conséquence pour les nœuds fx natifs (filtre/reverb/écho, coût quasi nul une fois la source
+      // arrêtée), mais un bitcrusher (ScriptProcessorNode) continuerait de traiter du silence en boucle
+      // indéfiniment si on le laissait connecté. src.onended se déclenche de façon fiable à la fin
+      // naturelle de CETTE génération (chaque source ici joue une fois, sans loop -- la suivante prend le
+      // relais) et aussi si stopSimple()-équivalent l'arrête manuellement (.stop() déclenche onended) --
+      // point de nettoyage correct dans les deux cas, jamais de fuite à accumuler sur une session longue.
+      if (fxChainHasLeakyNode(fxChain)) {
+        src.onended = () => { disconnectLeakyFxNodes(fxChain); };
+      }
       src.start(ctxStartTime, bufferOffset);
       activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
       thisGenSources.push(src);
@@ -2878,7 +3154,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
       }
       scheduleGeneration(nextGenStartCtxTime, nextGenBufferOffset);
       loopsPlayed++;
-      nextGenStartCtxTime += cycleLength;
+      // /trackPitchRatio : cycleLength reste la durée MUSICALE nominale (réutilisée telle quelle ailleurs,
+      // ex. affichage) -- seul l'avancement du planificateur en temps RÉEL doit en tenir compte, puisqu'un
+      // buffer joué à trackPitchRatio défile trackPitchRatio fois plus vite que sa durée nominale.
+      nextGenStartCtxTime += cycleLength / trackPitchRatio;
       nextGenBufferOffset = loopInSec;
     }
   }
@@ -2889,7 +3168,11 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const marker = lastGenSources[0];
     if (!marker) return;
     finalGenerationMarkerSrc = marker;
+    // Chaîne sur un éventuel onended déjà posé par scheduleGeneration (nettoyage du bitcrusher) plutôt
+    // que de l'écraser -- même risque et même correctif que armSeqFinalEnd()/armVRFinalEnd().
+    const previousOnEnded = marker.onended;
     marker.onended = () => {
+      if (previousOnEnded) previousOnEnded();
       if (finalGenerationMarkerSrc !== marker) return; // piste arrêtée/relancée entretemps : on ignore
       activeGenSources = [];
       playing = false;
@@ -2920,7 +3203,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       const positionInLoop = (fromOffsetSec - loopInSec) % cycleLength;
       timeUntilNext = cycleLength - positionInLoop;
     }
-    nextGenStartCtxTime = now + Math.max(0.02, timeUntilNext);
+    nextGenStartCtxTime = now + Math.max(0.02, timeUntilNext / trackPitchRatio);
     nextGenBufferOffset = loopInSec;
     schedulerTimer = setInterval(schedulerTick, 200);
   }
@@ -3155,9 +3438,18 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (!buf) return;
       const src = ctx.createBufferSource();
       src.buffer = buf;
+      applyTrackPitchRate(src, ctxStartTime);
       const g = ctx.createGain();
       g.gain.setValueAtTime(idx === embrActiveLoopIdx ? 1 : 0, ctxStartTime);
-      src.connect(g); g.connect(trackMasterGain);
+      const loopDef = (track.loops || [])[idx];
+      const fxChain = buildLayerFxChain(ctx, loopDef && loopDef.fx, src, ctxStartTime);
+      if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
+      g.connect(trackMasterGain);
+      // Même raisonnement que scheduleGeneration() (moteur quantifié) : cette génération rejoue une fois
+      // sans boucle, son onended est donc un point de nettoyage fiable pour le bitcrusher.
+      if (fxChainHasLeakyNode(fxChain)) {
+        src.onended = () => { disconnectLeakyFxNodes(fxChain); };
+      }
       src.start(ctxStartTime, bufferOffset);
       embrActiveGenSources.push({ src, gain: g, loopIdx: idx, ctxStartTime });
     });
@@ -3170,7 +3462,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const lookahead = 1.0;
     while (embrNextStartCtxTime < ctx.currentTime + lookahead) {
       scheduleEmbrGeneration(embrNextStartCtxTime, false); // jamais "Départ" ici, uniquement au tout premier lancement (playEmbrVertical)
-      embrNextStartCtxTime += embrCycleLengthSec();
+      embrNextStartCtxTime += embrCycleLengthSec() / trackPitchRatio;
     }
   }
   // Recalcule en direct le gain de toutes les sources "paires" actuellement audibles ou en train de finir
@@ -3242,7 +3534,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const now = ctx.currentTime;
     embrReferenceStartCtxTime = now;
     scheduleEmbrGeneration(now, true); // fixe déjà le bon gain (1) sur preservedIdx via embrActiveLoopIdx ci-dessus
-    embrNextStartCtxTime = now + embrCycleLengthSec();
+    embrNextStartCtxTime = now + embrCycleLengthSec() / trackPitchRatio;
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
     updateEmbrButtonsUI();
     applyEmbrWaveAnimation();
@@ -3253,7 +3545,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const now = ctx.currentTime;
     embrReferenceStartCtxTime = now; // point zéro de l'horloge de phase, utilisé par embrQuantizeDelaySec()
     scheduleEmbrGeneration(now, true); // seul appel avec isFirst=true -- démarre à "Départ", pas "Entrée"
-    embrNextStartCtxTime = now + embrCycleLengthSec();
+    embrNextStartCtxTime = now + embrCycleLengthSec() / trackPitchRatio;
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
     updateEmbrButtonsUI();
     applyEmbrWaveAnimation();
@@ -3461,7 +3753,16 @@ function initTrackPlayer(track, wrapper, elementColors) {
         src.buffer = buf;
         const loopsUntilButton = loopDef && loopDef.detourMode === 'loop';
         if (loopsUntilButton) { src.loop = true; src.loopStart = 0; src.loopEnd = buf.duration; }
-        src.connect(g); g.connect(trackMasterGain);
+        applyTrackPitchRate(src, now);
+        const fxChain = buildLayerFxChain(ctx, loopDef && loopDef.fx, src, now);
+        if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
+        g.connect(trackMasterGain);
+        // onended se déclenche aussi bien à la fin naturelle (détour non bouclé) qu'à l'arrêt manuel
+        // (stopEmbrVertical()/fadeOutCurrentDetour() appellent .stop(), qui déclenche onended) -- un seul
+        // point de nettoyage couvre les deux cas.
+        if (fxChainHasLeakyNode(fxChain)) {
+          src.onended = () => { disconnectLeakyFxNodes(fxChain); };
+        }
         src.start(now, 0);
         embrDetourSource = { src, gain: g };
         embrDetourBtn = btn;
@@ -3550,11 +3851,22 @@ function initTrackPlayer(track, wrapper, elementColors) {
         if (buf) {
           const src = ctx.createBufferSource();
           src.buffer = buf;
+          applyTrackPitchRate(src, ctxStartTime);
           const g = ctx.createGain();
           const key = 'pool-' + displaySlot;
           const base = effGain(alt);
           g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
-          src.connect(g); g.connect(trackMasterGain);
+          // fx : porté par le pool (la "voix"/l'emplacement), pas par l'alternative tirée au sort -- même
+          // chaîne quel que soit le tirage, cf. la logique retenue pour les emplacements séquentiels.
+          const fxChain = buildLayerFxChain(ctx, pool.fx, src, ctxStartTime);
+          if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
+          g.connect(trackMasterGain);
+          // Chaque génération de pool rejoue une fois sans boucle -- onended fiable pour le nettoyage du
+          // bitcrusher, comme pour les autres moteurs. armVRFinalEnd() chaîne sur ce handler plutôt que de
+          // l'écraser -- voir son commentaire.
+          if (fxChainHasLeakyNode(fxChain)) {
+            src.onended = () => { disconnectLeakyFxNodes(fxChain); };
+          }
           src.start(ctxStartTime, bufferOffset);
           activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
         }
@@ -3594,9 +3906,15 @@ function initTrackPlayer(track, wrapper, elementColors) {
         if (!introBuffer) continue; // pas de fichier intro chargé : ignoré, on redemande immédiatement la suite
         const src = ctx.createBufferSource();
         src.buffer = introBuffer;
+        applyTrackPitchRate(src, vrNextStartCtxTime);
         const g = ctx.createGain();
         g.gain.setValueAtTime(effGain(track.intro), vrNextStartCtxTime);
-        src.connect(g); g.connect(trackMasterGain);
+        const fxChain = buildLayerFxChain(ctx, track.intro && track.intro.fx, src, vrNextStartCtxTime);
+        if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
+        g.connect(trackMasterGain);
+        if (fxChainHasLeakyNode(fxChain)) {
+          src.onended = () => { disconnectLeakyFxNodes(fxChain); };
+        }
         src.start(vrNextStartCtxTime, 0);
         activeGenSources.push({ src, gain: g, voiceKey: 'intro', baseGain: effGain(track.intro) });
         lastGenSources = [src];
@@ -3610,16 +3928,22 @@ function initTrackPlayer(track, wrapper, elementColors) {
         const introBpm = (firstSection && firstSection.bpm) || 120;
         const introBeatsPerBar = (firstSection && firstSection.beatsPerBar) || 4;
         const introDurationSec = ((track.intro && track.intro.bars) || introBeatsPerBar) * introBeatsPerBar * (60 / introBpm);
-        vrNextStartCtxTime += introDurationSec;
+        vrNextStartCtxTime += introDurationSec / trackPitchRatio;
         continue;
       }
       if (next.type === 'outro') {
         if (!outroBuffer) { clearInterval(vrSchedulerTimer); vrSchedulerTimer = null; armVRFinalEnd(); return; }
         const src = ctx.createBufferSource();
         src.buffer = outroBuffer;
+        applyTrackPitchRate(src, vrNextStartCtxTime);
         const g = ctx.createGain();
         g.gain.setValueAtTime(effGain(track.outro), vrNextStartCtxTime);
-        src.connect(g); g.connect(trackMasterGain);
+        const fxChain = buildLayerFxChain(ctx, track.outro && track.outro.fx, src, vrNextStartCtxTime);
+        if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
+        g.connect(trackMasterGain);
+        if (fxChainHasLeakyNode(fxChain)) {
+          src.onended = () => { disconnectLeakyFxNodes(fxChain); };
+        }
         src.start(vrNextStartCtxTime, 0);
         activeGenSources.push({ src, gain: g, voiceKey: 'outro', baseGain: effGain(track.outro) });
         lastGenSources = [src];
@@ -3632,14 +3956,18 @@ function initTrackPlayer(track, wrapper, elementColors) {
       // next.type === 'section'
       const origIdx = playableSectionOriginalIndex[next.index];
       const timing = scheduleSectionGeneration(vrNextStartCtxTime, origIdx, next.isFirstEverForThisSection);
-      vrNextStartCtxTime += next.isFirstEverForThisSection ? (timing.loopOutSec - timing.startTrackSec) : timing.cycleLength;
+      vrNextStartCtxTime += (next.isFirstEverForThisSection ? (timing.loopOutSec - timing.startTrackSec) : timing.cycleLength) / trackPitchRatio;
     }
   }
   function armVRFinalEnd() {
     const marker = lastGenSources[0];
     if (!marker) return;
     finalGenerationMarkerSrc = marker;
+    // Chaîne sur un éventuel onended déjà posé (nettoyage du bitcrusher, voir scheduleSectionGeneration et
+    // le bloc outro plus haut) plutôt que de l'écraser -- même raisonnement que armSeqFinalEnd().
+    const previousOnEnded = marker.onended;
     marker.onended = () => {
+      if (previousOnEnded) previousOnEnded();
       if (finalGenerationMarkerSrc !== marker) return;
       activeGenSources = [];
       playing = false;
@@ -3709,7 +4037,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const now = ctx.currentTime;
     scheduleSectionGeneration(now, origIdx, false, offset);
     const timeUntilNext = timing.cycleLength - (fraction * timing.cycleLength);
-    vrNextStartCtxTime = now + Math.max(0.02, timeUntilNext);
+    vrNextStartCtxTime = now + Math.max(0.02, timeUntilNext / trackPitchRatio);
     vrSchedulerTimer = setInterval(sectionSchedulerTick, 200);
   }
 
@@ -3768,7 +4096,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         armSeqFinalEnd();
         if (goToEndBtn) { goToEndBtn.disabled = true; goToEndBtn.textContent = t('endingWithOutro'); }
       } else {
-        seqNextStartCtxTime = now + remaining;
+        seqNextStartCtxTime = now + remaining / trackPitchRatio;
         seqSchedulerTimer = setInterval(seqSchedulerTick, 200);
         if (goToEndBtn) {
           if (goToEndRequested) {
@@ -3784,7 +4112,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       const now = ctx.currentTime;
       embrReferenceStartCtxTime = now;
       scheduleEmbrGeneration(now, true);
-      embrNextStartCtxTime = now + embrCycleLengthSec();
+      embrNextStartCtxTime = now + embrCycleLengthSec() / trackPitchRatio;
       embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
       updateEmbrButtonsUI();
       applyEmbrWaveAnimation();
@@ -3926,7 +4254,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     voiceGraphTimeouts = [];
     const now = ctx.currentTime;
     const timing = scheduleSectionGeneration(now, origIdx, false);
-    vrNextStartCtxTime = now + timing.cycleLength;
+    vrNextStartCtxTime = now + timing.cycleLength / trackPitchRatio;
     vrSchedulerTimer = setInterval(sectionSchedulerTick, 200);
   }
 
