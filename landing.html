@@ -3,8 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LayerPitch — Musique interactive pour vos pitchs de jeu vidéo</title>
+<title>LayerPitch — Interactive stories need interactive music</title>
 <meta name="description" content="Un MP3 dit comment votre musique sonne. LayerPitch montre comment elle marche. Créez un AdReel : votre système musical, manipulable en direct par le studio qui vous lit.">
+<!-- Vérification Google Search Console (7 septembre) -- portée uniquement par la page racine
+     www.layerpitch.com, jamais retirée d'ici : présente seulement dans landing.html/index.html,
+     jamais dans landing-en.html/en.html (même choix que la mise en place d'origine). Si cette
+     balise disparaît d'une resynchronisation vers Julzantoine.github.io, c'est que ce commentaire
+     a été perdu -- ne jamais la retirer de ce fichier. -->
+<meta name="google-site-verification" content="asmoDiQgqSSZdCIJshXwRicbE9wsdtSAWed4oKUukRU" />
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
   :root {
@@ -227,7 +233,7 @@
 </header>
 
 <section class="demo wrap">
-  <p>Avec un AdReel (Adaptive Reel), votre musique n'est pas passive. Bougez le curseur, faites entrer et sortir les couches, testez la baston, l'exploration, le boss fight. C'est votre système, en vrai, et vous pouvez facilement le partager.</p>
+  <p>Avec un AdReel (Adaptive Reel), vous présentez de la musique qui n'est pas linéaire : changement d'état, embranchements, changement d'intensité, pools aléatoires. Le studio qui reçoit l'AdReel peut jouer avec vos compositions et comprendre ce que la musique peut apporter à son jeu. Partagez un AdReel avec un simple lien et laissez la magie opérer.</p>
   <!-- Comportement d'accès réellement vérifié le 6 septembre (fenêtre privée) : cette page se
        charge sans compte. Cloudflare Access a été retiré de layerpitch-backstage.html le
        7 septembre (docs/infrastructure.md, Partie C) -- seul admin.html reste derrière ce mur. -->
@@ -254,12 +260,8 @@
 </section>
 
 <section class="block wrap">
-  <span class="eyebrow">Le problème</span>
-  <p class="lede">Votre métier, c'est de fluidifier l'expérience du joueur. Pas de compliquer celle du studio en lui apportant de nouvelles problématiques.</p>
-  <p>Un MP3 dit comment votre musique sonne. Il ne dit rien sur comment elle marche — les couches, les transitions, la logique derrière.</p>
-  <p>Le gamedev/studio ne peut pas savoir ce que ça donnerait en pleine bagarre, en exploration tranquille, ou pendant un boss fight à 10% de vie.</p>
-  <p>Beaucoup de gamedev n'ont d'ailleurs pas une vision claire de ce qu'est la musique interactive, ni de ce qu'elle peut apporter à leur jeu — tant qu'on ne peut pas y toucher, ça reste abstrait.</p>
-  <p>Avec LayerPitch, vous leur montrez tout un système musical, de façon simple et abordable — et vous permettez à votre interlocuteur de se projeter dans le jeu grâce à votre musique. Résultat : vous augmentez vos chances de remporter le gig.</p>
+  <span class="eyebrow">Notre approche</span>
+  <p>En tant que compositeurs de musique de jeu vidéo, notre métier consiste à apporter des solutions créatives aux problématiques de musique et de sound design, et à fluidifier le rapport qu'entretiennent les studios avec le son. En phase de pitch ou de préproduction, la musique linéaire oblige le studio à imaginer ce que ça donnerait une fois implémentée, avec le risque que ça ne sonne pas et qu'il faille reprendre tout le cycle proposition, implémentation, test, et la perte de temps qui va avec. Avec LayerPitch, tout ça, c'est de l'histoire ancienne. Le système est pensé pour fluidifier la collaboration entre le compositeur et le studio tout au long du process. La musique est déjà interactive, le versionning n'a jamais été aussi simple, et même les SFX ont leur petite section dédiée. Tester en conditions, essayer plusieurs reverbs sur des footsteps, expérimenter autour de la spatialisation, travailler à plusieurs sur un projet pour avancer plus vite et de manière plus fluide, c'est ce que propose LayerPitch.</p>
 </section>
 
 <section class="block wrap">
@@ -267,15 +269,15 @@
   <ul class="features">
     <li>
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 18V8M9 18V4M14 18v-9M19 18v-6"/></svg></span>
-      <span><strong>5 modes de lecture adaptative</strong><span class="desc">Du layering vertical classique au branchement piloté par le joueur.</span></span>
+      <span><strong>5 modes de lecture adaptative</strong><span class="desc">Statique bouclable, layering vertical, layering randomisé, séquentiel à embranchement, séquentiel aléatoire.</span></span>
     </li>
     <li>
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M12 3v3M12 18v3M4.5 12h3M16.5 12h3"/></svg></span>
-      <span><strong>Contrôle en direct</strong><span class="desc">Votre interlocuteur joue avec votre musique en ajustant l'intensité, en coupant des couches, en explorant les embranchements lui-même.</span></span>
+      <span><strong>Contrôle en direct</strong><span class="desc">Le studio qui reçoit votre AdReel joue avec la musique en ajustant l'intensité, en coupant des couches, en explorant les embranchements lui-même. C'est simple, visuel et fascinant.</span></span>
     </li>
     <li>
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a4 4 0 0 1 4-4h4a4 4 0 0 1 0 8h-1"/><path d="M15 12a4 4 0 0 1-4 4H7a4 4 0 0 1 0-8h1"/></svg></span>
-      <span><strong>Un lien, point barre</strong><span class="desc">Aucune install, aucun fichier à dézipper avec méfiance. Ça s'ouvre comme une page web.</span></span>
+      <span><strong>Un lien, point barre</strong><span class="desc">Aucune installation. Ça s'ouvre comme une page web.</span></span>
     </li>
     <li>
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5.5L20 10l-4.4 3.6L17 19l-5-3.2L7 19l1.4-5.4L4 10l5.6-1.5z"/></svg></span>
@@ -287,13 +289,14 @@
 <section class="block wrap">
   <span class="eyebrow">Le suivi</span>
   <div class="tracking-box">
-    <h2 style="font-size:18px;margin-bottom:8px;">Après l'envoi, vous n'êtes plus dans le flou.</h2>
-    <p class="lede" style="margin:0;">Chaque AdReel vous dit qui a ouvert, quelles couches ils ont testées, combien de temps ils sont restés. Fini de deviner si le studio a vraiment joué avec votre système — ou juste zappé la page.</p>
-    <ul>
-      <li><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></span><span><strong>Relancez pendant que c'est chaud</strong> — un lien ouvert ce matin, c'est une relance qui tombe pile au bon moment.</span></li>
-      <li><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></span><span><strong>Voyez ce qui a accroché</strong> — quelle couche ils ont coupée, quel mode ils ont exploré le plus longtemps.</span></li>
-    </ul>
+    <p class="lede" style="margin:0;">En phase de pitch, après l'envoi, vous n'êtes plus dans le flou. Chaque AdReel vous fait remonter les infos qui vont bien : qui a ouvert, quelles couches ont été testées, combien de temps votre interlocuteur est-il resté sur la page. Fini de deviner si le studio a vraiment joué avec la musique ou juste zappé la page. Un lien ouvert ce matin, c'est une relance qui tombe pile au bon moment, il n'y a plus qu'à relancer pendant que c'est chaud.</p>
   </div>
+</section>
+
+<section class="block wrap">
+  <span class="eyebrow">Et bientôt</span>
+  <p>En phase de préprod, travaillez à plusieurs sur le moodboard pour tracer une ligne directrice claire et économiser ainsi des allers-retours, du temps (et de l'argent !) lors des phases ultérieures. Utilisez l'outil de versioning vidéo pour tester rapidement quelle musique/triggers/sfx marchent le mieux pour le niveau qui vient d'être construit. Plus besoin de sortir la grosse armada et de partager un build à chaque test.</p>
+  <p>Une fois le jeu sorti, valorisez sa musique, et vendez une Adaptive OST !</p>
 </section>
 
 <section class="block wrap">
