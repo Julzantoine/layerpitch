@@ -54,8 +54,14 @@
   .growth-tile-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
   .growth-tile-label { font-size: 11px; color: var(--text-dim); }
   .growth-tile-total { font-size: 16px; font-weight: 600; }
-  .growth-svg { width: 100%; height: 40px; display: block; }
-  .growth-tile-range { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dimmer); margin-top: 2px; }
+  .growth-chart { display: flex; gap: 4px; height: 72px; margin: 12px 0 6px; }
+  .growth-yaxis { position: relative; width: 22px; flex: none; }
+  .growth-yaxis span { position: absolute; right: 0; transform: translateY(-50%); font-size: 10px; line-height: 1; color: var(--text-dimmer); }
+  .growth-plot { position: relative; flex: 1; }
+  .growth-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .growth-dot { position: absolute; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: var(--accent); }
+  .growth-dot::after { content: ''; position: absolute; inset: -5px; }
+  .growth-tile-range { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dimmer); margin: 0 0 0 26px; }
 </style>
 </head>
 <body>
@@ -335,10 +341,12 @@ document.getElementById('growthGranularity').addEventListener('change', loadGrow
 
 function renderGrowthTile(label, values, buckets) {
   const total = values.reduce((a, b) => a + b, 0);
+  const n = buckets.length;
+  const midBucket = n > 2 ? buckets[Math.floor((n - 1) / 2)] : null;
   return `<div class="growth-tile">
     <div class="growth-tile-head"><span class="growth-tile-label">${label}</span><span class="growth-tile-total">${total}</span></div>
-    ${buildSparklineSVG(values)}
-    <div class="growth-tile-range"><span>${formatBucketLabel(buckets[0])}</span><span>${formatBucketLabel(buckets[buckets.length - 1])}</span></div>
+    ${buildGrowthChart(values, buckets)}
+    <div class="growth-tile-range"><span>${formatBucketLabel(buckets[0])}</span>${midBucket ? `<span>${formatBucketLabel(midBucket)}</span>` : ''}<span>${formatBucketLabel(buckets[n - 1])}</span></div>
   </div>`;
 }
 function formatBucketLabel(iso) {
@@ -346,29 +354,36 @@ function formatBucketLabel(iso) {
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { day: '2-digit', month: 'short' });
 }
-// Ligne + points, échelle min-max locale à chaque métrique (des ordres de grandeur très différents
-// d'une métrique à l'autre — pas de sens à partager un seul axe). Un seul point (ou tout à zéro) :
-// ligne plate au milieu plutôt qu'une division par zéro.
-function buildSparklineSVG(values) {
-  const w = 240, h = 56, pad = 4;
-  if (!values.length) return `<svg viewBox="0 0 ${w} ${h}" class="growth-svg"></svg>`;
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values, 0);
-  const range = max - min || 1;
-  const stepX = values.length > 1 ? (w - pad * 2) / (values.length - 1) : 0;
-  const points = values.map((v, i) => {
-    const x = pad + i * stepX;
-    const y = pad + (h - pad * 2) * (1 - (v - min) / range);
-    return [x, y];
-  });
-  const linePath = points.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-  const areaPath = linePath + ` L${points[points.length - 1][0].toFixed(1)},${h - pad} L${points[0][0].toFixed(1)},${h - pad} Z`;
-  const dots = points.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2" fill="var(--accent)" />`).join('');
-  return `<svg viewBox="0 0 ${w} ${h}" class="growth-svg">
-    <path d="${areaPath}" fill="var(--accent-soft)" stroke="none" />
-    <path d="${linePath}" fill="none" stroke="var(--accent)" stroke-width="1.5" />
-    ${dots}
-  </svg>`;
+// Courbe + axe des ordonnées (repères 0 / moitié / max) + valeur exacte de chaque point au survol.
+// Échelle propre à chaque métrique (des ordres de grandeur très différents d'une métrique à
+// l'autre — pas de sens à partager un seul axe), toujours à partir de 0. Le max est arrondi au
+// pair supérieur pour que le repère du milieu reste un entier. Ligne/aire en SVG étiré (traits
+// non déformés via non-scaling-stroke), points en HTML pour rester ronds à toute largeur.
+function buildGrowthChart(values, buckets) {
+  if (!values.length) return '<div class="growth-chart"></div>';
+  const top = Math.max(...values, 1);
+  const niceMax = top > 1 && top % 2 === 1 ? top + 1 : top;
+  const ticks = niceMax >= 2 ? [niceMax, niceMax / 2, 0] : [niceMax, 0];
+  const n = values.length;
+  const xPct = i => (n > 1 ? (i / (n - 1)) * 100 : 50);
+  const yPct = v => (1 - v / niceMax) * 100;
+  const pts = values.map((v, i) => [xPct(i), yPct(v)]);
+  const linePath = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' ');
+  const areaPath = linePath + ` L${pts[n - 1][0].toFixed(2)},100 L${pts[0][0].toFixed(2)},100 Z`;
+  const grid = ticks.map(t => `<line x1="0" x2="100" y1="${yPct(t).toFixed(2)}" y2="${yPct(t).toFixed(2)}" stroke="var(--border)" stroke-width="1" vector-effect="non-scaling-stroke" />`).join('');
+  const yLabels = ticks.map(t => `<span style="top:${yPct(t).toFixed(2)}%">${t}</span>`).join('');
+  const dots = values.map((v, i) => `<span class="growth-dot" style="left:${pts[i][0].toFixed(2)}%;top:${pts[i][1].toFixed(2)}%" title="${formatBucketLabel(buckets[i])} : ${v}"></span>`).join('');
+  return `<div class="growth-chart">
+    <div class="growth-yaxis">${yLabels}</div>
+    <div class="growth-plot">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+        ${grid}
+        <path d="${areaPath}" fill="var(--accent-soft)" stroke="none" />
+        <path d="${linePath}" fill="none" stroke="var(--accent)" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+      </svg>
+      ${dots}
+    </div>
+  </div>`;
 }
 
 // ---- Comptes / suspension ----
