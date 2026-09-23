@@ -1201,7 +1201,36 @@ function normalizeSpatial(sp) {
   const room = SPATIAL_ROOMS[sp && sp.room] ? sp.room : 'room';
   const [hx, hy] = spatialFieldHalfExtent(room);
   const clamp = (v, h) => Math.max(-h, Math.min(h, Number.isFinite(+v) ? +v : 0));
-  return { enabled: !!(sp && sp.enabled), room, x: clamp(sp && sp.x, hx), y: clamp(sp && sp.y, hy), binaural: !!(sp && sp.binaural) };
+  // Trajectoire (23/09) : 'glide' = le son se déplace le long du chemin PENDANT sa lecture ; 'steps' = chaque
+  // déclenchement se joue au point suivant (des pas qui avancent). Sans au moins 2 points, retombe sur 'fixed'.
+  const P = sp && sp.path;
+  const pts = (P && Array.isArray(P.points) ? P.points : []).slice(0, SPATIAL_MAX_PATH_POINTS).map(q => ({ x: clamp(q && q.x, hx), y: clamp(q && q.y, hy) }));
+  const mode = (P && (P.mode === 'glide' || P.mode === 'steps') && pts.length >= 2) ? P.mode : 'fixed';
+  const loop = P && ['loop', 'pingpong', 'random', 'stop'].indexOf(P.loop) >= 0 ? P.loop : 'loop';
+  const durationSec = P && +P.durationSec > 0 ? +P.durationSec : null;
+  return { enabled: !!(sp && sp.enabled), room, x: clamp(sp && sp.x, hx), y: clamp(sp && sp.y, hy), binaural: !!(sp && sp.binaural),
+    path: { mode, points: pts, loop, durationSec } };
+}
+const SPATIAL_MAX_PATH_POINTS = 16;
+// Prochain point d'un trajet "pas à pas" : l'état (où on en est) est gardé par définition de Sfx, dans un
+// WeakMap, pour que le bloc Sfx d'un AdReel et les boutons Sfx d'un morceau avancent chacun de leur côté.
+const _spatialStepState = new WeakMap();
+function pickSpatialStepIndex(key, n, loop) {
+  const st = _spatialStepState.get(key) || { next: 0, dir: 1, last: -1 };
+  let idx;
+  if (n <= 1) idx = 0;
+  else if (loop === 'random') { do { idx = Math.floor(Math.random() * n); } while (idx === st.last); }
+  else if (loop === 'pingpong') {
+    idx = Math.max(0, Math.min(n - 1, st.next));
+    let np = idx + st.dir;
+    if (np >= n || np < 0) { st.dir *= -1; np = idx + st.dir; }
+    st.next = np;
+  }
+  else if (loop === 'stop') { idx = Math.min(st.next, n - 1); st.next++; }
+  else { idx = st.next % n; st.next++; }
+  st.last = idx;
+  _spatialStepState.set(key, st);
+  return idx;
 }
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -1314,22 +1343,65 @@ function getRoomBus(ctx, roomKey) {
 // -> PannerNode (pan + volume en 1/distance) -> sortie. Reverb : prélèvement AVANT le panner (donc sans
 // atténuation de distance ni pan : la queue de la salle est la même où que soit la source) -> bus de la
 // salle. Résultat physiquement juste : plus la source s'éloigne, plus la part de reverb domine.
-function buildSpatialVoice(ctx, spatial) {
+// opts (trajectoires, 23/09) : { duration (s, durée du son -- pour "glide"), stepKey (clé de l'état "pas à pas"),
+// startTime }. Sans opts : position fixe, comme à l'étape 1.
+function buildSpatialVoice(ctx, spatial, opts) {
+  opts = opts || {};
   const sp = normalizeSpatial(spatial);
   const room = SPATIAL_ROOMS[sp.room];
+  const path = sp.path;
+  let pos = { x: sp.x, y: sp.y };
+  if (path.mode === 'steps') pos = path.points[pickSpatialStepIndex(opts.stepKey || sp, path.points.length, path.loop)];
+  else if (path.mode === 'glide') pos = path.points[0];
+  sp.x = pos.x; sp.y = pos.y;
+  const cutoffAt = d => Math.max(1500, Math.min(ctx.sampleRate / 2 - 100, 20000 / (1 + d * room.airK)));
   const input = ctx.createGain();
   const air = ctx.createBiquadFilter();
   air.type = 'lowpass';
   const dist = Math.hypot(sp.x, sp.y);
-  air.frequency.value = Math.max(1500, Math.min(ctx.sampleRate / 2 - 100, 20000 / (1 + dist * room.airK)));
   air.Q.value = 0.5;
+  // Glissement : les positions du panner et le passe-bas suivent le chemin (vitesse constante), sur la durée
+  // du trajet (réglée, sinon celle du son). Le passe-bas n'a pas de .value posé ici : une courbe ne peut pas
+  // chevaucher un évènement déjà programmé sur le même paramètre.
+  let glide = null;
+  if (path.mode === 'glide') {
+    const pts = path.points;
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+    const total = cum[cum.length - 1];
+    const dur = path.durationSec || opts.duration || 2;
+    if (total > 1e-6 && dur > 0) glide = { pts, cum, total, dur };
+  }
+  if (glide) {
+    const at = (a) => { // position à la distance parcourue a
+      let i = 1; while (i < glide.cum.length - 1 && glide.cum[i] < a) i++;
+      const seg = glide.cum[i] - glide.cum[i - 1] || 1, f = Math.max(0, Math.min(1, (a - glide.cum[i - 1]) / seg));
+      return { x: glide.pts[i - 1].x + (glide.pts[i].x - glide.pts[i - 1].x) * f, y: glide.pts[i - 1].y + (glide.pts[i].y - glide.pts[i - 1].y) * f };
+    };
+    const curve = new Float32Array(48);
+    for (let k = 0; k < 48; k++) { const q = at(glide.total * k / 47); curve[k] = cutoffAt(Math.hypot(q.x, q.y)); }
+    glide.at = at; glide.curve = curve;
+    glide.t0 = opts.startTime != null ? opts.startTime : ctx.currentTime;
+    air.frequency.setValueCurveAtTime(curve, glide.t0, glide.dur);
+  } else {
+    air.frequency.value = cutoffAt(dist);
+  }
   const panner = ctx.createPanner();
   panner.panningModel = sp.binaural ? 'HRTF' : 'equalpower';
   panner.distanceModel = 'inverse';
   panner.refDistance = 1;
   panner.rolloffFactor = 1;
-  if (panner.positionX) { panner.positionX.value = sp.x; panner.positionY.value = 0; panner.positionZ.value = -sp.y; }
-  else if (panner.setPosition) panner.setPosition(sp.x, 0, -sp.y); // anciens Safari
+  if (panner.positionX) {
+    panner.positionX.value = sp.x; panner.positionY.value = 0; panner.positionZ.value = -sp.y;
+    if (glide) {
+      panner.positionX.setValueAtTime(glide.pts[0].x, glide.t0); panner.positionZ.setValueAtTime(-glide.pts[0].y, glide.t0);
+      for (let i = 1; i < glide.pts.length; i++) {
+        const tt = glide.t0 + glide.dur * glide.cum[i] / glide.total;
+        panner.positionX.linearRampToValueAtTime(glide.pts[i].x, tt); panner.positionZ.linearRampToValueAtTime(-glide.pts[i].y, tt);
+      }
+    }
+  }
+  else if (panner.setPosition) panner.setPosition(sp.x, 0, -sp.y); // anciens Safari : position de départ seulement
   input.connect(air); air.connect(panner); panner.connect(ctx.destination);
   const nodes = [input, air, panner];
   const bus = room.wet > 0 ? getRoomBus(ctx, sp.room) : null;
@@ -1348,7 +1420,10 @@ function connectSfxSource(src, sfxDef) {
   const sp = sfxDef && sfxDef.spatial;
   if (!sp || !sp.enabled) { src.connect(ctx.destination); return; }
   try {
-    const voice = buildSpatialVoice(ctx, sp);
+    const voice = buildSpatialVoice(ctx, sp, {
+      duration: src.buffer ? src.buffer.duration / ((src.playbackRate && src.playbackRate.value) || 1) : 0,
+      stepKey: sfxDef
+    });
     src.connect(voice.input);
     src.addEventListener('ended', () => setTimeout(() => voice.dispose(), 250));
   } catch (e) {
