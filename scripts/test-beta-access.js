@@ -63,7 +63,12 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
     // ---- collecte : rien en Free, tout en Pro (bêta comptée comme Pro) ----
     const { rows: ent } = await c.query(`select id from public.ad_reels where owner_id = $1 limit 1`, [composerId]);
     if (ent.length) {
-      const logIt = (sid) => c.query(`select public.log_analytics_event('adreel', $1, $2, 'test', '{}'::jsonb, 'desktop', $3)`, [ent[0].id, sid, composerId]);
+      // Visiteur anonyme par défaut : les claims posés plus haut (get_trial_status) portent l'identité du
+      // compositeur, dont les visites sont exclues depuis 20260923060000.
+      const logIt = async (sid) => {
+        await c.query(`set local request.jwt.claims = '{}'`);
+        return c.query(`select public.log_analytics_event('adreel', $1, $2, 'test', '{}'::jsonb, 'desktop', $3)`, [ent[0].id, sid, composerId]);
+      };
       const count = async (sid) => Number((await c.query('select count(*) n from public.analytics_events where session_id = $1', [sid])).rows[0].n);
       await logIt('collect-free');            // bêta coupée (état courant) : compte Free
       check('collecte : compte Free = aucun événement enregistré', (await count('collect-free')) === 0);
@@ -71,6 +76,19 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
       await logIt('collect-beta');
       check('collecte : bêta active = événement enregistré avec le palier pro',
         (await c.query("select tier from public.analytics_events where session_id = 'collect-beta'")).rows[0]?.tier === 'pro');
+      // Visites du compositeur lui-même : exclues ; un autre compte connecté ou un anonyme : comptées.
+      const asOwner = async (sub, sid) => {
+        await c.query(`set local request.jwt.claims = '${sub ? JSON.stringify({ sub }) : '{}'}'`);
+        await c.query(`select public.log_analytics_event('adreel', $1, $2, 'test', '{}'::jsonb, 'desktop', $3)`, [ent[0].id, sid, composerId]);
+        await c.query(`set local request.jwt.claims = '{}'`);
+      };
+      const { rows: other } = await c.query('select id from auth.users where id <> $1 limit 1', [profileId]);
+      await asOwner(profileId, 'own-visit');
+      await asOwner(other[0].id, 'other-visit');
+      await asOwner(null, 'anon-visit');
+      check('visite du compositeur lui-même : NON comptée', (await count('own-visit')) === 0);
+      check('visite d\'un autre compte connecté : comptée', (await count('other-visit')) === 1);
+      check('visite anonyme : comptée', (await count('anon-visit')) === 1);
       await c.query('update public.beta_program set full_access = false where id');
     } else {
       console.log('SKIP - ce compositeur n\'a aucun AdReel, tests de collecte ignorés');
