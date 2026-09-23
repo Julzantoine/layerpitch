@@ -100,6 +100,23 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
     const ef = await entity();
     check('Free : le détail d\'un élément reste verrouillé', ef.locked === true && ef.totals === undefined);
 
+    // ---- Aperçu "en tant que" : réservé aux admins ----
+    await c.query('update public.beta_program set full_access = true where id');
+    await c.query(`update public.composer_profiles set plan = 'pro' where id = $1`, [composerId]);
+    const asPreview = async (sub, tier) => {
+      await c.query(`set local request.jwt.claims = '${JSON.stringify({ sub })}'`);
+      return (await c.query(`select public.get_my_analytics_overview(now() - interval '30 days', now(), 'day', 'Europe/Paris', $1) v`, [tier])).rows[0].v;
+    };
+    let pv = await asPreview(profileId, 'free');
+    check('Aperçu : un compte NON admin ne peut pas simuler un autre palier (paramètre ignoré)', pv.tier === 'pro' && pv.teaser === undefined);
+    const { rows: adm } = await c.query(`select cp.id, cp.profile_id from public.composer_profiles cp join public.admins a on a.profile_id = cp.profile_id limit 1`);
+    if (adm.length) {
+      pv = await asPreview(adm[0].profile_id, 'free');
+      check('Aperçu : un admin peut voir le rendu Free (aperçu flouté, aucun chiffre)', pv.tier === 'free' && pv.teaser === true && pv.totals.visits === null);
+      pv = await asPreview(adm[0].profile_id, 'starter');
+      check('Aperçu : un admin peut voir le rendu Starter (pas de lectures)', pv.tier === 'starter' && pv.totals.plays === null);
+    }
+
     await c.query('ROLLBACK');
     console.log(`\n${passed} OK, ${failed} FAIL (tout annulé par ROLLBACK)`);
     process.exitCode = failed ? 1 : 0;

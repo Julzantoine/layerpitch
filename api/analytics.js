@@ -45,17 +45,17 @@
   function localTimeZone() {
     try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (e) { return 'UTC'; }
   }
-  async function getMyAnalyticsOverview({ from, to, bucket, tz } = {}) {
+  async function getMyAnalyticsOverview({ from, to, bucket, tz, previewTier } = {}) {
     const { data, error } = await getClient().rpc('get_my_analytics_overview', {
-      p_from: from || null, p_to: to || null, p_bucket: bucket || 'day', p_tz: tz || localTimeZone(),
+      p_from: from || null, p_to: to || null, p_bucket: bucket || 'day', p_tz: tz || localTimeZone(), p_preview_tier: previewTier || null,
     });
     if (error) return { overview: null, error: error.message };
     if (!data || !data.ok) return { overview: null, error: 'Réponse inattendue.' };
     return { overview: data, error: null };
   }
-  async function getMyAnalyticsEntity(type, id, { from, to, bucket, tz } = {}) {
+  async function getMyAnalyticsEntity(type, id, { from, to, bucket, tz, previewTier } = {}) {
     const { data, error } = await getClient().rpc('get_my_analytics_entity', {
-      p_type: type, p_id: id, p_from: from || null, p_to: to || null, p_bucket: bucket || 'day', p_tz: tz || localTimeZone(),
+      p_type: type, p_id: id, p_from: from || null, p_to: to || null, p_bucket: bucket || 'day', p_tz: tz || localTimeZone(), p_preview_tier: previewTier || null,
     });
     if (error) return { entity: null, error: error.message };
     if (!data || !data.ok) return { entity: null, error: 'Réponse inattendue.' };

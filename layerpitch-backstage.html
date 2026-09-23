@@ -351,6 +351,9 @@
   .an-row { cursor: pointer; } .an-row:hover, .an-row:focus { background: var(--accent-soft); outline: none; }
   .an-type { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
   .an-lock { font-size: 11px; color: var(--text-dimmer); }
+  .an-preview { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: var(--text-dim); }
+  .an-preview[hidden] { display: none; }
+  .an-preview select { font-size: 12px; padding: 4px 6px; }
   .an-blur { filter: blur(6px); user-select: none; pointer-events: none; }
   .an-teaser-banner { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; background: var(--accent-soft); border: 1px solid #cfe0f2; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; }
   .an-row.teaser { cursor: default; } .an-row.teaser:hover { background: transparent; }
@@ -1230,6 +1233,15 @@
               <button type="button" class="analytics-preset" data-preset="6m" data-i18n="analyticsPreset6m">6 mois</button>
               <button type="button" class="analytics-preset" data-preset="1y" data-i18n="analyticsPreset1y">1 an</button>
             </div>
+            <label class="an-preview" id="analyticsPreviewWrap" hidden>
+              <span data-i18n="analyticsPreviewLabel">Voir en tant que (admin)</span>
+              <select id="analyticsPreviewTier">
+                <option value="" data-i18n="analyticsPreviewActual">Réel</option>
+                <option value="free">Free</option>
+                <option value="starter">Starter</option>
+                <option value="pro">Pro</option>
+              </select>
+            </label>
             <details class="analytics-custom" id="analyticsCustomDetails">
               <summary data-i18n="analyticsCustomRange">Période personnalisée</summary>
               <div class="actions" style="margin-top:8px;">
@@ -1715,7 +1727,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790194832844"></script>
+<script src="layerpitch-i18n.js?v=1790195128331"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
 <script src="player.js?v=1790194832844"></script>
 <script>
@@ -2055,7 +2067,7 @@ async function renderSubscriptionPanel(session) {
 // fetchSiteData()/pgReadEnabled() basculent déjà seuls sur Postgres pour un compositeur sans token
 // GitHub configuré (comme publishAll() le fait déjà côté écriture) -- sinon un compositeur hébergé
 // aurait vu sa bibliothèque vide, ce panneau étant jusqu'ici le seul moyen de l'activer à la main.
-const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelInvitesSent', 'panelAdminLink'];
+const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelInvitesSent', 'panelAdminLink', 'analyticsPreviewWrap'];
 // La bibliothèque vidéo / capture (navItemVideoLibrary, panelVideoLibrary) avait été ouverte à tout
 // compositeur connecté le 16 septembre (voir
 // supabase/migrations/20260916040000_open_capture_video_to_composers.sql, toujours en place côté
@@ -2491,6 +2503,15 @@ async function initPgAuthUi() {
         from: fromEl && fromEl.value ? new Date(fromEl.value + 'T00:00:00').toISOString() : new Date(Date.now() - analyticsRetentionDays() * 864e5).toISOString(),
         to: toEl && toEl.value ? new Date(toEl.value + 'T23:59:59').toISOString() : new Date().toISOString(),
       };
+      renderAnalyticsPresets();
+      loadAnalyticsDashboard();
+    });
+  }
+  const analyticsPreviewSelect = document.getElementById('analyticsPreviewTier');
+  if (analyticsPreviewSelect) {
+    analyticsPreviewSelect.addEventListener('change', () => {
+      analyticsPreviewTier = analyticsPreviewSelect.value || null;
+      analyticsSelected = null; analyticsEntityData = null;
       renderAnalyticsPresets();
       loadAnalyticsDashboard();
     });
@@ -9116,6 +9137,7 @@ let analyticsSelected = null;      // { type, id } de l'AdReel/pack ouvert en d�
 let analyticsEntityData = null;    // réponse de get_my_analytics_entity pour cet élément
 let analyticsPreset = '7d';
 let analyticsCustomRange = null;   // { from, to } (ISO) quand une période personnalisée est appliquée
+let analyticsPreviewTier = null;   // admin seulement : simule Free/Starter/Pro (le serveur ignore ce paramètre pour tout autre compte)
 
 function analyticsEscapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -9134,16 +9156,16 @@ const ANALYTICS_PRESETS = {
 };
 // Rétention côté affichage : sert seulement à griser les presets trop longs ; la vraie limite est
 // appliquée par les fonctions SQL (analytics_retention_days).
-function analyticsRetentionDays() { return currentEffectivePlan === 'pro' ? 365 : 30; }
+function analyticsRetentionDays() { return (analyticsPreviewTier || currentEffectivePlan) === 'pro' ? 365 : 30; }
 
 function analyticsRange() {
   if (analyticsCustomRange) {
     const spanDays = (new Date(analyticsCustomRange.to) - new Date(analyticsCustomRange.from)) / 864e5;
-    return { from: analyticsCustomRange.from, to: analyticsCustomRange.to, bucket: spanDays <= 2 ? 'hour' : (spanDays <= 62 ? 'day' : 'week') };
+    return { from: analyticsCustomRange.from, to: analyticsCustomRange.to, bucket: spanDays <= 2 ? 'hour' : (spanDays <= 62 ? 'day' : 'week'), previewTier: analyticsPreviewTier };
   }
   const p = ANALYTICS_PRESETS[analyticsPreset] || ANALYTICS_PRESETS['7d'];
   const ms = p.hours ? p.hours * 3600e3 : p.days * 864e5;
-  return { from: new Date(Date.now() - ms).toISOString(), to: null, bucket: p.bucket };
+  return { from: new Date(Date.now() - ms).toISOString(), to: null, bucket: p.bucket, previewTier: analyticsPreviewTier };
 }
 
 function renderAnalyticsPresets() {
