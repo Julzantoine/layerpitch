@@ -1172,6 +1172,191 @@ function getOrBuildImpulseResponse(ctx, decaySeconds) {
   _impulseResponseCache.set(key, buffer);
   return buffer;
 }
+// ---- Spatialisation d'un Sfx : matrice "salle + auditeur au centre" (23/09) ----
+// Idée de Jules-Antoine (façon vue "stage" de Damage 2/Heavyocity) : le compositeur place un Sfx (ex. des
+// bruits de pas) dans une salle, à une position relative à l'auditeur qui reste au centre ; LayerPitch fait
+// le travail de volume, pan, atténuation des aigus et reverb. sfxDef.spatial = { enabled, room, x, y, binaural }
+// (x = mètres vers la droite, y = mètres vers l'avant, l'auditeur est en (0,0) et regarde vers l'avant).
+// Quatre salles seulement, sans réglage de taille en direct (choix de Jules-Antoine) : chacune est une
+// réponse impulsionnelle FABRIQUÉE ICI, pas un fichier -- premières réflexions calculées d'après la
+// géométrie de la salle (méthode des sources-images) + queue diffuse dont la durée dépend de la fréquence
+// (les aigus s'éteignent plus vite, comme dans une vraie salle). Avantage : rien à héberger, aucune licence
+// à vérifier ; limite connue : la réponse ne dépend pas de la position de la source, seuls la part de reverb
+// et le volume direct en dépendent (à départager à l'oreille avec de vraies réponses impulsionnelles si le
+// rendu ne suffit pas).
+const SPATIAL_ROOMS = {
+  //           largeur, profondeur, hauteur (m) | RT60 graves/médiums/aigus (s) | niveau de reverb | pré-délai (s) | absorption de l'air
+  room:      { dims: [5, 4, 2.8],   rt60: [0.55, 0.42, 0.26], wet: 0.45, preDelay: 0.004, airK: 0.08 },
+  hall:      { dims: [26, 17, 10],  rt60: [2.3, 1.8, 1.0],    wet: 0.30, preDelay: 0.020, airK: 0.08 },
+  cathedral: { dims: [50, 24, 26],  rt60: [7.0, 5.5, 2.8],    wet: 0.22, preDelay: 0.040, airK: 0.08 },
+  // Plein air : pas de murs, donc pas de queue -- seulement la distance (volume + aigus absorbés plus vite).
+  outside:   { dims: null,          rt60: null,               wet: 0,    preDelay: 0,     airK: 0.15 }
+};
+const SPATIAL_OUTSIDE_FIELD = 50; // côté (m) du terrain affiché pour "plein air"
+function spatialFieldHalfExtent(roomKey) {
+  const r = SPATIAL_ROOMS[roomKey] || SPATIAL_ROOMS.room;
+  return r.dims ? [r.dims[0] / 2, r.dims[1] / 2] : [SPATIAL_OUTSIDE_FIELD / 2, SPATIAL_OUTSIDE_FIELD / 2];
+}
+function normalizeSpatial(sp) {
+  const room = SPATIAL_ROOMS[sp && sp.room] ? sp.room : 'room';
+  const [hx, hy] = spatialFieldHalfExtent(room);
+  const clamp = (v, h) => Math.max(-h, Math.min(h, Number.isFinite(+v) ? +v : 0));
+  return { enabled: !!(sp && sp.enabled), room, x: clamp(sp && sp.x, hx), y: clamp(sp && sp.y, hy), binaural: !!(sp && sp.binaural) };
+}
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Réponse impulsionnelle stéréo d'une salle : (1) premières réflexions par sources-images (boîte à
+// chaussures, ordre <= 4, gain = (coef. de réflexion)^ordre / distance, délai = distance / 343 m/s, réparties
+// gauche/droite selon leur direction), (2) queue diffuse = bruit indépendant à gauche et à droite, découpé en
+// 3 bandes (graves/médiums/aigus) qui s'éteignent chacune à leur propre RT60. Déterministe (graine fixe par
+// salle) : une même salle sonne pareil à chaque visite.
+const _roomImpulseCache = new Map();
+function buildRoomImpulse(ctx, roomKey) {
+  const room = SPATIAL_ROOMS[roomKey];
+  if (!room || !room.dims) return null;
+  const key = ctx.sampleRate + ':' + roomKey;
+  if (_roomImpulseCache.has(key)) return _roomImpulseCache.get(key);
+  const sr = ctx.sampleRate;
+  const [W, D, H] = room.dims;
+  const [rtLo, rtMid, rtHi] = room.rt60;
+  const len = Math.ceil(sr * Math.min(rtLo * 1.05, 8));
+  const buffer = ctx.createBuffer(2, len, sr);
+  const chan = [buffer.getChannelData(0), buffer.getChannelData(1)];
+  const rand = mulberry32(roomKey.split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7));
+
+  // -- Queue diffuse --
+  const aLo = Math.exp(-2 * Math.PI * 300 / sr), aHi = Math.exp(-2 * Math.PI * 4000 / sr);
+  const ramp = 0.03 + room.preDelay; // la densité monte progressivement, comme dans une vraie salle
+  let tailEnergy = 0;
+  for (let ch = 0; ch < 2; ch++) {
+    const out = chan[ch];
+    let lpLo = 0, lpHi = 0;
+    for (let i = 0; i < len; i++) {
+      const t = i / sr;
+      const n = (rand() + rand() + rand() - 1.5) * 2;
+      lpLo = (1 - aLo) * n + aLo * lpLo;
+      lpHi = (1 - aHi) * n + aHi * lpHi;
+      const lo = lpLo, mid = lpHi - lpLo, hi = n - lpHi;
+      const eLo = Math.pow(10, -3 * t / rtLo), eMid = Math.pow(10, -3 * t / rtMid), eHi = Math.pow(10, -3 * t / rtHi);
+      const gate = t < room.preDelay ? 0 : Math.min(1, (t - room.preDelay) / ramp);
+      const v = (lo * 3 * eLo + mid * 1.3 * eMid + hi * eHi) * gate;
+      out[i] = v;
+      tailEnergy += v * v;
+    }
+  }
+
+  // -- Premières réflexions (sources-images d'une boîte, auditeur au centre, source nominale à mi-distance) --
+  const V = W * D * H, S = 2 * (W * D + D * H + W * H);
+  const alpha = Math.min(0.9, 0.161 * V / (S * rtMid)); // absorption moyenne des parois (formule de Sabine)
+  const refl = Math.sqrt(1 - alpha);
+  const earH = Math.min(1.6, H * 0.6);
+  const L = [W / 2, D / 2, earH];
+  const src = [W / 2 + Math.min(W * 0.12, 3), D / 2 + Math.min(D * 0.18, 4), Math.min(1.2, H * 0.4)];
+  const d0 = Math.hypot(src[0] - L[0], src[1] - L[1], src[2] - L[2]);
+  const early = [[], []];
+  let earlyEnergy = 0;
+  const N = 3;
+  for (let nx = -N; nx <= N; nx++) for (let ny = -N; ny <= N; ny++) for (let nz = -N; nz <= N; nz++) {
+    for (let p = 0; p < 2; p++) for (let q = 0; q < 2; q++) for (let r = 0; r < 2; r++) {
+      const order = Math.abs(2 * nx - p) + Math.abs(2 * ny - q) + Math.abs(2 * nz - r);
+      if (order < 1 || order > 4) continue;
+      const ix = (1 - 2 * p) * src[0] + 2 * nx * W, iy = (1 - 2 * q) * src[1] + 2 * ny * D, iz = (1 - 2 * r) * src[2] + 2 * nz * H;
+      const dx = ix - L[0], dy = iy - L[1], dz = iz - L[2];
+      const dist = Math.hypot(dx, dy, dz);
+      const delay = dist / 343;
+      const idx = delay * sr;
+      if (delay < room.preDelay * 0.25 || idx >= len - 2) continue;
+      const g = Math.pow(refl, order) * (d0 / dist);
+      const pan = Math.max(-1, Math.min(1, dx / Math.max(1e-6, Math.hypot(dx, dy))));
+      const gL = Math.cos((pan + 1) * Math.PI / 4), gR = Math.sin((pan + 1) * Math.PI / 4);
+      const i0 = Math.floor(idx), fr = idx - i0;
+      [[0, gL], [1, gR]].forEach(([ch, gc]) => {
+        early[ch].push([i0, g * gc * (1 - fr)], [i0 + 1, g * gc * fr]);
+      });
+    }
+  }
+  early.forEach(list => list.forEach(([, v]) => { earlyEnergy += v * v; }));
+  // Les premières réflexions pèsent ~25 % de l'énergie de la queue : assez pour donner la "taille" de la
+  // pièce, pas assez pour un rendu métallique de peigne.
+  const earlyScale = earlyEnergy > 0 ? Math.sqrt(0.25 * tailEnergy / earlyEnergy) : 0;
+  for (let ch = 0; ch < 2; ch++) early[ch].forEach(([i, v]) => { chan[ch][i] += v * earlyScale; });
+
+  _roomImpulseCache.set(key, buffer);
+  return buffer;
+}
+// Un seul convolueur PAR SALLE et par contexte audio, partagé par tous les Sfx qui y sont placés : chaque
+// source lui envoie un niveau (le "send"), comme sur une vraie console -- un convolueur par source (un par
+// pas, par exemple) serait bien trop lourd pour le processeur.
+const _roomBuses = new WeakMap();
+function getRoomBus(ctx, roomKey) {
+  let byRoom = _roomBuses.get(ctx);
+  if (!byRoom) { byRoom = new Map(); _roomBuses.set(ctx, byRoom); }
+  if (byRoom.has(roomKey)) return byRoom.get(roomKey);
+  const ir = buildRoomImpulse(ctx, roomKey);
+  if (!ir) { byRoom.set(roomKey, null); return null; }
+  const convolver = ctx.createConvolver();
+  convolver.normalize = true;
+  convolver.buffer = ir;
+  convolver.connect(ctx.destination);
+  const bus = { convolver };
+  byRoom.set(roomKey, bus);
+  return bus;
+}
+// Chaîne d'une source placée dans une salle. Direct : passe-bas (l'air absorbe les aigus avec la distance)
+// -> PannerNode (pan + volume en 1/distance) -> sortie. Reverb : prélèvement AVANT le panner (donc sans
+// atténuation de distance ni pan : la queue de la salle est la même où que soit la source) -> bus de la
+// salle. Résultat physiquement juste : plus la source s'éloigne, plus la part de reverb domine.
+function buildSpatialVoice(ctx, spatial) {
+  const sp = normalizeSpatial(spatial);
+  const room = SPATIAL_ROOMS[sp.room];
+  const input = ctx.createGain();
+  const air = ctx.createBiquadFilter();
+  air.type = 'lowpass';
+  const dist = Math.hypot(sp.x, sp.y);
+  air.frequency.value = Math.max(1500, Math.min(ctx.sampleRate / 2 - 100, 20000 / (1 + dist * room.airK)));
+  air.Q.value = 0.5;
+  const panner = ctx.createPanner();
+  panner.panningModel = sp.binaural ? 'HRTF' : 'equalpower';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = 1;
+  panner.rolloffFactor = 1;
+  if (panner.positionX) { panner.positionX.value = sp.x; panner.positionY.value = 0; panner.positionZ.value = -sp.y; }
+  else if (panner.setPosition) panner.setPosition(sp.x, 0, -sp.y); // anciens Safari
+  input.connect(air); air.connect(panner); panner.connect(ctx.destination);
+  const nodes = [input, air, panner];
+  const bus = room.wet > 0 ? getRoomBus(ctx, sp.room) : null;
+  if (bus) {
+    const send = ctx.createGain();
+    send.gain.value = room.wet;
+    input.connect(send); send.connect(bus.convolver);
+    nodes.push(send);
+  }
+  return { input, nodes, distance: dist, dispose() { nodes.forEach(n => { try { n.disconnect(); } catch (e) {} }); } };
+}
+// Branche une source de Sfx à la sortie : directement, ou à travers sa chaîne spatiale si le compositeur
+// en a réglé une. addEventListener('ended') et non .onended : les appelants posent déjà leur propre
+// gestionnaire (leçon des fuites de chaîne d'effets, voir buildLayerFxChain).
+function connectSfxSource(src, sfxDef) {
+  const sp = sfxDef && sfxDef.spatial;
+  if (!sp || !sp.enabled) { src.connect(ctx.destination); return; }
+  try {
+    const voice = buildSpatialVoice(ctx, sp);
+    src.connect(voice.input);
+    src.addEventListener('ended', () => setTimeout(() => voice.dispose(), 250));
+  } catch (e) {
+    console.error('Spatialisation Sfx — repli sur la sortie directe :', e);
+    try { src.disconnect(); } catch (e2) {}
+    src.connect(ctx.destination);
+  }
+}
 // Bitcrusher via ScriptProcessorNode (déprécié mais universellement supporté) plutôt qu'un AudioWorklet :
 // un AudioWorklet ne fonctionne pas en contexte file:// (contrainte non négociable de l'outil, voir
 // docs/architecture.md), un ScriptProcessorNode si. Combine quantification de bits (résolution réduite)
@@ -4736,7 +4921,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (sfx.duckMainTrack) duckMainTrack(buf.duration);
       const src = ctx.createBufferSource();
       src.buffer = buf;
-      src.connect(ctx.destination);
+      connectSfxSource(src, sfx);
       src.start(0);
       activeStingerSources.push(src);
       src.onended = () => { activeStingerSources = activeStingerSources.filter(s => s !== src); };
@@ -5313,10 +5498,15 @@ function buildSfxPlayer(sfxDef) {
     if (loadPromises[i]) return loadPromises[i];
     loadPromises[i] = (async () => {
       const alt = alts[i];
-      if (!alt.file || !sfxDef.base) return null;
-      const v = sfxDef.publishedAt ? ('?v=' + encodeURIComponent(sfxDef.publishedAt)) : '';
-      const res = await fetch(sfxDef.base + encodeURIComponent(alt.file) + v);
-      const ab = await res.arrayBuffer();
+      let ab;
+      if (alt.localFile) ab = await alt.localFile.arrayBuffer(); // fichier choisi mais pas encore publié (test dans le Backstage)
+      else if (alt.localUrl) ab = await (await fetch(alt.localUrl)).arrayBuffer();
+      else {
+        if (!alt.file || !sfxDef.base) return null;
+        const v = sfxDef.publishedAt ? ('?v=' + encodeURIComponent(sfxDef.publishedAt)) : '';
+        const res = await fetch(sfxDef.base + encodeURIComponent(alt.file) + v);
+        ab = await res.arrayBuffer();
+      }
       const buf = await decodeAudioDataCompat(ab);
       buffers[i] = buf;
       drawRrWave(i);
@@ -5349,7 +5539,7 @@ function buildSfxPlayer(sfxDef) {
     animateMainWaveProgress(buf.duration);
     const src = ctx.createBufferSource();
     src.buffer = buf;
-    src.connect(ctx.destination);
+    connectSfxSource(src, sfxDef);
     src.start();
     activeSource = src;
     src.onended = () => {
@@ -5398,6 +5588,11 @@ window.LayerPlayerCore = {
   initTrackPlayer,
   renderTracksBlock,
   buildSfxPlayer,
+  SPATIAL_ROOMS,
+  spatialFieldHalfExtent,
+  normalizeSpatial,
+  buildRoomImpulse,
+  buildSpatialVoice,
   setupContrastToggle,
   setupNightModeToggle,
   getModeLabel,

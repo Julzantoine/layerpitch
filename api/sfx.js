@@ -18,6 +18,7 @@
       descriptionFr: row.description_fr, descriptionEn: row.description_en,
       rrMode: row.rr_mode, duckMainTrack: row.duck_main_track, base: row.base,
       alternatives: row.alternatives,
+      spatial: row.spatial || null,
     };
   }
 

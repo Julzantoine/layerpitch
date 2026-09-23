@@ -1751,9 +1751,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790264259000"></script>
+<script src="layerpitch-i18n.js?v=1790194491173"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1790194832844"></script>
+<script src="player.js?v=1790194491173"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2168,6 +2168,7 @@ async function renderAdminOnlyPanels(session) {
   // un admin verrait le pitch grisé jusqu'au prochain clic (renderLibrary() no-op si le panneau n'est pas
   // monté, voir sa garde en tête de fonction).
   renderLibrary();
+  if (typeof renderSfxLibrary === 'function') renderSfxLibrary(); // même raison : l'entrée "Espace" des Sfx est réservée à l'admin
 }
 // Demandes d'accès en attente (bloc "Inviter un testeur" ci-dessous, 6 septembre) -- une seule
 // fonction de rendu réutilisée après chaque invitation réussie pour retirer la ligne traitée.
@@ -3189,8 +3190,12 @@ function fxBlockHtml(fx, extraAttrs) {
   // bibliothèque vidéo (currentUserIsAdmin, confort d'affichage client, cf. renderAdminOnlyPanels()).
   // Pas de barrière serveur pour l'instant (à durcir dans upsert_track si un jour nécessaire) : un
   // réglage qualité propre au compositeur, pas un enjeu de sécurité/business comme "pack en vente".
+  // 23/09 (demande de Jules-Antoine) : TOUS les effets (volume, filtre, reverb, écho, bitcrusher, pitch) sont
+  // désormais grisés pour tout compte non-admin, en attendant son feu vert -- pas seulement le pitch.
   const pitchDisabled = !currentUserIsAdmin;
+  const gated = !currentUserIsAdmin;
   function num(effect, param, value, labelKey, step, min, max, disabled) {
+    if (disabled === undefined) disabled = gated;
     return `<div style="margin-top:4px"><label style="font-size:0.85em">${tr(labelKey)}</label>
       <input type="number" step="${step}" min="${min}" max="${max}" ${disabled ? 'disabled' : ''}
         data-field="fx" data-fx-effect="${effect}" data-fx-param="${param}" ${extraAttrs} value="${value}"></div>`;
@@ -3199,11 +3204,13 @@ function fxBlockHtml(fx, extraAttrs) {
   // une case vidée par le compositeur redevient "pas de fondu" (voir le handler, qui stocke null plutôt
   // que NaN dans ce cas), pas une valeur à zéro.
   function numOptional(effect, param, value, labelKey, step, disabled) {
+    if (disabled === undefined) disabled = gated;
     return `<div style="margin-top:4px"><label style="font-size:0.85em">${tr(labelKey)}</label>
       <input type="number" step="${step}" ${disabled ? 'disabled' : ''}
         data-field="fx" data-fx-effect="${effect}" data-fx-param="${param}" ${extraAttrs} value="${value != null ? value : ''}"></div>`;
   }
   function toggle(effect, enabled, labelKey, extraFields, disabled) {
+    if (disabled === undefined) disabled = gated;
     return `
       <div style="margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:6px${disabled ? ';opacity:0.55' : ''}">
         <label style="display:flex;align-items:center;gap:6px;margin:0">
@@ -3222,7 +3229,7 @@ function fxBlockHtml(fx, extraAttrs) {
         <div class="hint-inline">${tr('fxVolumeHint')}</div>
       `)}
       ${toggle('filter', !!f, 'fxFilterLabel', `
-        <select data-field="fx" data-fx-effect="filter" data-fx-param="type" ${extraAttrs}>
+        <select data-field="fx" data-fx-effect="filter" data-fx-param="type" ${extraAttrs} ${gated ? 'disabled' : ''}>
           <option value="lowpass" ${!f || f.type === 'lowpass' ? 'selected' : ''}>${tr('fxFilterTypeLowpass')}</option>
           <option value="highpass" ${f && f.type === 'highpass' ? 'selected' : ''}>${tr('fxFilterTypeHighpass')}</option>
           <option value="bandpass" ${f && f.type === 'bandpass' ? 'selected' : ''}>${tr('fxFilterTypeBandpass')}</option>
@@ -4836,7 +4843,7 @@ function togglePreview(ti, cardEl) {
   const previewSfxById = {};
   sfxLibrary.forEach(sfx => {
     previewSfxById[sfx.id] = {
-      id: sfx.id, title: sfx.title, rrMode: sfx.rrMode,
+      id: sfx.id, title: sfx.title, rrMode: sfx.rrMode, spatial: sfx.spatial || null,
       base: `${MEDIA_BASE}audio/sfx-${sfx.id}/`,
       publishedAt: Date.now(),
       alternatives: (sfx.alternatives || []).map(a => a.pendingFile ? { label: a.label, localFile: a.pendingFile }
@@ -6366,6 +6373,7 @@ function renderSfxLibrary() {
   entryMasterHost.appendChild(simpleMasterItemEl('select-sfx-entry', 'si', si, 'identity', entrySel === 'identity', `<div class="seq-master-item-label">${tr('trackSectionIdentity')}</div>`));
   entryMasterHost.appendChild(simpleMasterItemEl('select-sfx-entry', 'si', si, 'behavior', entrySel === 'behavior', `<div class="seq-master-item-label">${tr('sectionBehavior')}</div>`));
   entryMasterHost.appendChild(simpleMasterItemEl('select-sfx-entry', 'si', si, 'variations', entrySel === 'variations', `<div class="seq-master-item-label">${tr('sfxVariationsShortLabel')}</div>`));
+  entryMasterHost.appendChild(simpleMasterItemEl('select-sfx-entry', 'si', si, 'space', entrySel === 'space', `<div class="seq-master-item-label">${tr('sfxEntrySpace')}</div>`));
 
   if (entrySel === 'identity') {
     // Titre éditable ici aussi (en plus de l'en-tête ci-dessus) -- synchronisé en direct sans re-rendu,
@@ -6398,6 +6406,8 @@ function renderSfxLibrary() {
         </div>
       </div>
     `;
+  } else if (entrySel === 'space') {
+    renderSfxSpaceEditor(entryDetailHost, sfx);
   } else if (entrySel === 'variations') {
     // Le double niveau de repli (entrée "Variations" + bouton "N variations" à l'intérieur) est conservé
     // tel quel (décision explicite, 20/08) même si la sélection d'entrée masque déjà tout le reste --
@@ -6442,6 +6452,128 @@ function renderSfxLibrary() {
       renderSfxLibrary();
     });
   }
+}
+
+// ---- Spatialisation d'un Sfx : matrice "salle + auditeur au centre" (23/09) -- réservée à l'admin ----
+// sfx.spatial = { enabled, room, x, y, binaural } ; x = mètres vers la droite, y = vers l'avant, l'auditeur est
+// en (0,0). Le moteur (buildSpatialVoice dans player.js) lit sfx.spatial à CHAQUE lecture : le lecteur de test
+// ci-dessous reflète donc instantanément chaque déplacement du point, sans republier.
+function sfxSpaceDefaults() { return { enabled: true, room: 'room', x: 0, y: 3, binaural: false }; }
+function renderSfxSpaceEditor(host, sfx) {
+  if (!currentUserIsAdmin) {
+    host.innerHTML = `<div style="opacity:0.55"><div style="font-weight:600;margin-bottom:2px">${tr('sfxSpaceTitle')}</div><div class="hint-inline">${tr('sfxSpaceAdminOnly')}</div></div>`;
+    return;
+  }
+  const core = window.LayerPlayerCore;
+  const sp = sfx.spatial;
+  const on = !!(sp && sp.enabled);
+  host.innerHTML = `
+    <div style="font-weight:600;margin-bottom:2px">${tr('sfxSpaceTitle')}</div>
+    <div class="hint-inline">${tr('sfxSpaceHint')}</div>
+    <label class="switch-row" style="margin-top:8px">
+      <input type="checkbox" data-sfx-space="enabled" ${on ? 'checked' : ''}>
+      <span class="switch-row-label">${tr('sfxSpaceEnable')}</span>
+    </label>
+    <div data-role="spaceBody"></div>
+  `;
+  const body = host.querySelector('[data-role="spaceBody"]');
+  host.querySelector('[data-sfx-space="enabled"]').addEventListener('change', e => {
+    if (e.target.checked) sfx.spatial = Object.assign(sfxSpaceDefaults(), sfx.spatial || {}, { enabled: true });
+    else if (sfx.spatial) sfx.spatial.enabled = false;
+    hasUnsavedEdits = true;
+    renderSfxSpaceEditor(host, sfx);
+  });
+  if (!on) return;
+
+  const room = core.SPATIAL_ROOMS[sp.room] ? sp.room : 'room';
+  const [hx, hy] = core.spatialFieldHalfExtent(room);
+  const SIZE = 320, C = SIZE / 2, PAD = 14;
+  const ppm = (C - PAD) / Math.max(hx, hy); // pixels par mètre
+  const gridStep = Math.max(hx, hy) <= 5 ? 1 : (Math.max(hx, hy) <= 15 ? 2 : 5);
+  let grid = '';
+  for (let m = gridStep; m <= Math.max(hx, hy) + 1e-6; m += gridStep) {
+    if (m <= hx + 1e-6) grid += `<line x1="${C + m * ppm}" y1="${C - hy * ppm}" x2="${C + m * ppm}" y2="${C + hy * ppm}"/><line x1="${C - m * ppm}" y1="${C - hy * ppm}" x2="${C - m * ppm}" y2="${C + hy * ppm}"/>`;
+    if (m <= hy + 1e-6) grid += `<line x1="${C - hx * ppm}" y1="${C - m * ppm}" x2="${C + hx * ppm}" y2="${C - m * ppm}"/><line x1="${C - hx * ppm}" y1="${C + m * ppm}" x2="${C + hx * ppm}" y2="${C + m * ppm}"/>`;
+  }
+  body.innerHTML = `
+    <div class="row" style="margin-top:8px">
+      <div>
+        <label>${tr('sfxSpaceRoomLabel')}</label>
+        <select data-sfx-space="room">${Object.keys(core.SPATIAL_ROOMS).map(k => `<option value="${k}" ${k === room ? 'selected' : ''}>${tr('sfxSpaceRoom_' + k)}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div style="margin-top:10px;max-width:${SIZE}px">
+      <svg data-role="spaceMatrix" viewBox="0 0 ${SIZE} ${SIZE}" width="100%" style="touch-action:none;cursor:crosshair;background:var(--bg-elev, transparent);border:1px solid var(--border);border-radius:8px;display:block">
+        <rect x="${C - hx * ppm}" y="${C - hy * ppm}" width="${2 * hx * ppm}" height="${2 * hy * ppm}" fill="none" stroke="var(--text-dimmer, #888)" stroke-width="1.5"/>
+        <g stroke="var(--border)" stroke-width="0.5">${grid}</g>
+        <line x1="${C - hx * ppm}" y1="${C}" x2="${C + hx * ppm}" y2="${C}" stroke="var(--border)" stroke-width="0.8" stroke-dasharray="3 3"/>
+        <line x1="${C}" y1="${C - hy * ppm}" x2="${C}" y2="${C + hy * ppm}" stroke="var(--border)" stroke-width="0.8" stroke-dasharray="3 3"/>
+        <polygon points="${C},${C - 11} ${C - 8},${C + 8} ${C + 8},${C + 8}" fill="var(--text-dimmer, #888)"><title>${tr('sfxSpaceListener')}</title></polygon>
+        <line data-role="spaceLink" x1="${C}" y1="${C}" x2="${C}" y2="${C}" stroke="var(--accent)" stroke-width="1" stroke-dasharray="2 3"/>
+        <circle data-role="spaceDot" r="9" cx="${C}" cy="${C}" fill="var(--accent)" stroke="#fff" stroke-width="2" style="cursor:grab"/>
+        <text x="${C - hx * ppm + 4}" y="${C + hy * ppm - 5}" font-size="10" fill="var(--text-dimmer, #888)">${tr('sfxSpaceGrid', { n: gridStep })}</text>
+      </svg>
+      <div class="hint-inline" data-role="spaceReadout" style="margin-top:4px"></div>
+    </div>
+    <label class="switch-row" style="margin-top:10px">
+      <input type="checkbox" data-sfx-space="binaural" ${sp.binaural ? 'checked' : ''}>
+      <span class="switch-row-label">${tr('sfxSpaceBinaural')}</span>
+    </label>
+    <div class="hint-inline">${tr('sfxSpaceBinauralHint')}</div>
+    <div style="margin-top:12px;font-weight:600;font-size:0.9em">${tr('sfxSpaceTestLabel')}</div>
+    <div data-role="spaceTest" style="margin-top:6px"></div>
+  `;
+  body.querySelector('[data-sfx-space="room"]').addEventListener('change', e => {
+    const [nx, ny] = core.spatialFieldHalfExtent(e.target.value);
+    sfx.spatial.room = e.target.value;
+    sfx.spatial.x = Math.max(-nx, Math.min(nx, sfx.spatial.x || 0));
+    sfx.spatial.y = Math.max(-ny, Math.min(ny, sfx.spatial.y || 0));
+    hasUnsavedEdits = true;
+    renderSfxSpaceEditor(host, sfx);
+  });
+  body.querySelector('[data-sfx-space="binaural"]').addEventListener('change', e => { sfx.spatial.binaural = e.target.checked; hasUnsavedEdits = true; });
+
+  const svg = body.querySelector('[data-role="spaceMatrix"]');
+  const dot = svg.querySelector('[data-role="spaceDot"]');
+  const link = svg.querySelector('[data-role="spaceLink"]');
+  const readout = body.querySelector('[data-role="spaceReadout"]');
+  const round1 = v => Math.round(v * 10) / 10;
+  function paint() {
+    const px = C + sfx.spatial.x * ppm, py = C - sfx.spatial.y * ppm;
+    dot.setAttribute('cx', px); dot.setAttribute('cy', py);
+    link.setAttribute('x2', px); link.setAttribute('y2', py);
+    readout.textContent = tr('sfxSpaceReadout', { x: round1(sfx.spatial.x), y: round1(sfx.spatial.y), d: round1(Math.hypot(sfx.spatial.x, sfx.spatial.y)) });
+  }
+  function moveTo(ev) {
+    const r = svg.getBoundingClientRect();
+    const k = SIZE / r.width;
+    const mx = ((ev.clientX - r.left) * k - C) / ppm, my = -((ev.clientY - r.top) * k - C) / ppm;
+    sfx.spatial.x = round1(Math.max(-hx, Math.min(hx, mx)));
+    sfx.spatial.y = round1(Math.max(-hy, Math.min(hy, my)));
+    hasUnsavedEdits = true;
+    paint();
+  }
+  let dragging = false;
+  svg.addEventListener('pointerdown', ev => { dragging = true; try { svg.setPointerCapture(ev.pointerId); } catch (e) {} moveTo(ev); });
+  svg.addEventListener('pointermove', ev => { if (dragging) moveTo(ev); });
+  const endDrag = () => { dragging = false; };
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', endDrag);
+  paint();
+
+  // Lecteur de test : le vrai lecteur de Sfx du site (mêmes variations, même moteur), branché sur les fichiers
+  // du Sfx -- même ceux pas encore publiés -- et sur sfx.spatial EN DIRECT (getter), pour entendre chaque
+  // déplacement du point dès le clic suivant.
+  const testHost = body.querySelector('[data-role="spaceTest"]');
+  const alts = (sfx.alternatives || []).map(a => a.pendingFile ? { label: a.label, localFile: a.pendingFile }
+    : a.remoteFile ? { label: a.label, file: a.remoteFile } : null).filter(Boolean);
+  if (!alts.length) { testHost.innerHTML = `<div class="hint-inline">${tr('sfxSpaceTestNoFile')}</div>`; return; }
+  const previewDef = {
+    id: 'spacetest-' + sfx.id, title: sfx.title || '', rrMode: sfx.rrMode,
+    base: `${MEDIA_BASE}audio/sfx-${sfx.id}/`, publishedAt: Date.now(), alternatives: alts,
+    get spatial() { return sfx.spatial; }
+  };
+  testHost.appendChild(window.LayerPlayerCore.buildSfxPlayer(previewDef));
 }
 
 /* ---------------- Réseaux sociaux ---------------- */
@@ -10241,6 +10373,7 @@ async function loadData(silent) {
       tag: s.tag || '',
       rrMode: s.rrMode === 'sequential' ? 'sequential' : 'random',
       duckMainTrack: !!s.duckMainTrack,
+      spatial: s.spatial || null,
       alternatives: (s.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file, originalFileName: a.originalFileName || null, pendingFile: null })),
       folderId: s.folderId || null
     }));
@@ -10999,6 +11132,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       id: s.id, title: s.title || '', descriptionFr: s.descriptionFr || '', descriptionEn: s.descriptionEn || '', tag: s.tag || '',
       rrMode: s.rrMode === 'sequential' ? 'sequential' : 'random',
       duckMainTrack: !!s.duckMainTrack, base: s.base || '',
+      spatial: s.spatial || null,
       alternatives: (s.alternatives || []).filter(a => a.remoteFile || a.pendingFile).map(a => ({ label: a.label || '', file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null })),
       folderId: s.folderId || null
     })),
