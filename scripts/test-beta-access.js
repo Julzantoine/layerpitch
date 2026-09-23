@@ -52,7 +52,13 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
     check('bêta coupée : retour au palier réel (free)', (await tier()) === 'free');
     check('bêta coupée : get_trial_status renvoie free', (await trialPlan()) === 'free');
     const gbFree = await videoGb();
-    check('quota vidéo : Pro (bêta) > Free (bêta coupée)', Number(gbBeta) > Number(gbFree));
+    check('quota vidéo (import réservé aux admins pendant la bêta) : 0 Go pour un non-admin, bêta active', Number(gbBeta) === 0);
+    check('quota vidéo : bêta coupée = règles normales du palier (Free = 0 Go)', Number(gbFree) === 0);
+    const { rows: adm } = await c.query(`select cp.id from public.composer_profiles cp join public.admins a on a.profile_id = cp.profile_id limit 1`);
+    if (adm.length) {
+      const gbAdmin = (await c.query('select max_video_storage_gb g from public.effective_plan_quotas($1)', [adm[0].id])).rows[0].g;
+      check('quota vidéo : un admin garde le quota Pro (import autorisé)', gbAdmin === null || Number(gbAdmin) > 0);
+    }
 
     // ---- collecte : rien en Free, tout en Pro (bêta comptée comme Pro) ----
     const { rows: ent } = await c.query(`select id from public.ad_reels where owner_id = $1 limit 1`, [composerId]);
