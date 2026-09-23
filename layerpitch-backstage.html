@@ -351,6 +351,9 @@
   .an-row { cursor: pointer; } .an-row:hover, .an-row:focus { background: var(--accent-soft); outline: none; }
   .an-type { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
   .an-lock { font-size: 11px; color: var(--text-dimmer); }
+  .an-blur { filter: blur(6px); user-select: none; pointer-events: none; }
+  .an-teaser-banner { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; background: var(--accent-soft); border: 1px solid #cfe0f2; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; }
+  .an-row.teaser { cursor: default; } .an-row.teaser:hover { background: transparent; }
   .an-locked-box { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 80px; color: var(--text-dimmer); font-size: 12px; border: 1px dashed #d8d8dc; border-radius: 6px; }
   .an-entity-title { font-size: 16px; margin: 12px 0; }
   .an-devices { display: flex; gap: 18px; font-size: 12px; }
@@ -1712,9 +1715,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790193534650"></script>
+<script src="layerpitch-i18n.js?v=1790194832844"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1789728713949"></script>
+<script src="player.js?v=1790194832844"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -9158,18 +9161,17 @@ function renderAnalyticsPresets() {
 // Rappelée par renderSubscriptionPanel() (donc à chaque résolution/changement de palier) -- bascule
 // verrouillé/déverrouillé ; le chargement réseau est déclenché séparément (clic sur l'onglet).
 function renderAnalyticsPanelForTier() {
+  // Free : plus d'écran verrouillé (23 septembre) -- un aperçu flouté (voir renderAnalyticsView).
+  // analyticsLocked ne s'affiche plus que si le serveur répond "verrouillé" (aucun profil compositeur).
   const lockedEl = document.getElementById('analyticsLocked');
   const unlockedEl = document.getElementById('analyticsUnlocked');
-  const isFree = currentEffectivePlan === 'free';
-  if (lockedEl) lockedEl.hidden = !isFree;
-  if (unlockedEl) unlockedEl.hidden = isFree;
-  if (isFree) { analyticsData = null; analyticsOverview = null; analyticsLoadedForTier = null; analyticsRawLoadedForTier = null; analyticsSelected = null; return; }
+  if (lockedEl) lockedEl.hidden = true;
+  if (unlockedEl) unlockedEl.hidden = false;
   renderAnalyticsPresets();
   if (analyticsOverview && analyticsLoadedForTier === currentEffectivePlan) renderAnalyticsView();
 }
 
 async function loadAnalyticsIfNeeded() {
-  if (currentEffectivePlan === 'free') return;
   renderAnalyticsPresets();
   if (analyticsOverview && analyticsLoadedForTier === currentEffectivePlan) { renderAnalyticsView(); return; }
   await loadAnalyticsDashboard();
@@ -9187,6 +9189,9 @@ async function loadAnalyticsDashboard() {
     if (errorEl) { errorEl.hidden = false; errorEl.textContent = tr('analyticsErrorPrefix') + ' ' + error; }
     return;
   }
+  const lockedEl = document.getElementById('analyticsLocked');
+  const unlockedEl = document.getElementById('analyticsUnlocked');
+  if (overview.locked) { if (lockedEl) lockedEl.hidden = false; if (unlockedEl) unlockedEl.hidden = true; return; }
   analyticsOverview = overview;
   analyticsLoadedForTier = currentEffectivePlan;
   analyticsRawLoadedForTier = null; // la liste brute dépend aussi de la période : à recharger si ouverte
@@ -9226,13 +9231,17 @@ function analyticsBuildChart(values, buckets, bucket, opts) {
       <path d="${linePath}" fill="none" stroke="#2f80c0" stroke-width="1.5" vector-effect="non-scaling-stroke" />
     </svg>`;
   if (opts.compact) return `<div class="an-spark">${svg}</div>`;
-  const dots = values.map((v, i) => `<span class="an-dot" style="left:${pts[i][0].toFixed(2)}%;top:${pts[i][1].toFixed(2)}%" title="${analyticsEscapeHtml(analyticsFormatBucket(buckets[i], bucket))} : ${v}"></span>`).join('');
-  const yLabels = ticks.map(t => `<span style="top:${yPct(t).toFixed(2)}%">${t}</span>`).join('');
+  const dots = values.map((v, i) => `<span class="an-dot" style="left:${pts[i][0].toFixed(2)}%;top:${pts[i][1].toFixed(2)}%"${opts.blur ? '' : ` title="${analyticsEscapeHtml(analyticsFormatBucket(buckets[i], bucket))} : ${v}"`}></span>`).join('');
+  const yLabels = ticks.map(t => `<span${opts.blur ? ' class="an-blur"' : ''} style="top:${yPct(t).toFixed(2)}%">${t}</span>`).join('');
   const mid = n > 2 ? buckets[Math.floor((n - 1) / 2)] : null;
   return `<div class="an-chart" style="height:${opts.height || 120}px"><div class="an-yaxis">${yLabels}</div><div class="an-plot">${svg}${dots}</div></div>
     <div class="an-xaxis"><span>${analyticsEscapeHtml(analyticsFormatBucket(buckets[0], bucket))}</span>${mid ? `<span>${analyticsEscapeHtml(analyticsFormatBucket(mid, bucket))}</span>` : ''}<span>${analyticsEscapeHtml(analyticsFormatBucket(buckets[n - 1], bucket))}</span></div>`;
 }
 
+function analyticsTypeLabel(type) {
+  return tr(type === 'pack' ? 'analyticsTypePack' : (type === 'collection' ? 'analyticsTypeCollection' : 'analyticsTypeAdreel'));
+}
+function analyticsBlur(txt) { return `<span class="an-blur" aria-hidden="true">${txt}</span>`; }
 function analyticsKpi(label, value) {
   return `<div class="an-kpi"><div class="an-kpi-n">${value}</div><div class="an-kpi-l">${analyticsEscapeHtml(label)}</div></div>`;
 }
@@ -9249,41 +9258,47 @@ function renderAnalyticsView() {
   entityEl.hidden = true; overviewEl.hidden = false;
   const o = analyticsOverview;
   const isPro = o.tier === 'pro';
+  const isFree = o.tier === 'free';
   if (metaEl) metaEl.textContent = tr('analyticsWindowNote', {
     from: analyticsFormatBucket(o.windowStart, 'day'), to: analyticsFormatBucket(o.windowEnd, 'day'), days: o.retentionDays,
   });
-  const hasData = o.totals.visits > 0;
+  const hasData = isFree ? (o.entities || []).length > 0 : o.totals.visits > 0;
+  const rawEl = document.getElementById('analyticsRawDetails');
+  if (rawEl) rawEl.hidden = isFree; // la liste détaillée des visites n'existe pas en aperçu
   if (emptyEl) emptyEl.hidden = hasData;
   const kpis = [
-    analyticsKpi(tr('analyticsKpiVisits'), o.totals.visits),
-    analyticsKpi(tr('analyticsKpiPlays'), isPro ? o.totals.plays : analyticsLockedBadge()),
-    analyticsKpi(tr('analyticsKpiMobile'), o.totals.mobileShare == null ? '—' : o.totals.mobileShare + ' %'),
-    analyticsKpi(tr('analyticsKpiItems'), o.totals.items),
+    analyticsKpi(tr('analyticsKpiVisits'), isFree ? analyticsBlur('128') : o.totals.visits),
+    analyticsKpi(tr('analyticsKpiPlays'), isFree ? analyticsBlur('347') : (isPro ? o.totals.plays : analyticsLockedBadge())),
+    analyticsKpi(tr('analyticsKpiMobile'), isFree ? analyticsBlur('64 %') : (o.totals.mobileShare == null ? '—' : o.totals.mobileShare + ' %')),
+    analyticsKpi(tr('analyticsKpiItems'), isFree ? analyticsBlur('5') : o.totals.items),
   ].join('');
-  const chartVisits = `<div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsChartVisits'))}</div>${analyticsBuildChart(o.series.visits || [], o.buckets, o.bucket)}</div>`;
+  const teaserBanner = isFree ? `<div class="an-teaser-banner"><span>🔒 ${analyticsEscapeHtml(tr('analyticsFreeBanner'))}</span> <a class="btn btn-small" href="mon-compte.html" target="_blank" rel="noopener">${analyticsEscapeHtml(tr('analyticsUpgradeCta'))}</a></div>` : '';
+  const chartVisits = `<div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsChartVisits'))}</div>${analyticsBuildChart(o.series.visits || [], o.buckets, o.bucket, { blur: isFree })}</div>`;
   const chartPlays = `<div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsChartPlays'))}</div>${isPro
     ? analyticsBuildChart(o.series.plays || [], o.buckets, o.bucket)
     : `<div class="an-locked-box">${analyticsLockedBadge()}</div>`}</div>`;
   const rows = (o.entities || []).map(e => `
-    <tr class="an-row" data-type="${analyticsEscapeHtml(e.type)}" data-id="${analyticsEscapeHtml(e.id)}" tabindex="0">
+    <tr class="an-row${isFree ? ' teaser' : ''}" data-type="${analyticsEscapeHtml(e.type)}" data-id="${analyticsEscapeHtml(e.id)}"${isFree ? '' : ' tabindex="0"'}>
       <td>${analyticsEscapeHtml(e.name)}</td>
-      <td><span class="an-type">${analyticsEscapeHtml(e.type === 'pack' ? tr('analyticsTypePack') : tr('analyticsTypeAdreel'))}</span></td>
-      <td>${e.visits}</td>
-      <td>${isPro ? e.plays : analyticsLockedBadge()}</td>
-      <td>${e.lastVisit ? analyticsEscapeHtml(new Date(e.lastVisit).toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR')) : '—'}</td>
+      <td><span class="an-type">${analyticsEscapeHtml(analyticsTypeLabel(e.type))}</span></td>
+      <td>${isFree ? analyticsBlur('42') : e.visits}</td>
+      <td>${isFree ? analyticsBlur('97') : (isPro ? e.plays : analyticsLockedBadge())}</td>
+      <td>${isFree ? analyticsBlur('12/09/2026') : (e.lastVisit ? analyticsEscapeHtml(new Date(e.lastVisit).toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR')) : '—')}</td>
       <td class="an-trend">${analyticsBuildChart(e.series || [], o.buckets, o.bucket, { compact: true })}</td>
     </tr>`).join('');
   overviewEl.innerHTML = `
+    ${teaserBanner}
     <div class="an-kpis">${kpis}</div>
     <div class="an-charts">${chartVisits}${chartPlays}</div>
     <div class="an-card">
-      <div class="an-card-title">${analyticsEscapeHtml(tr('analyticsItemsTitle'))} <span class="hint">${analyticsEscapeHtml(tr('analyticsItemsHint'))}</span></div>
+      <div class="an-card-title">${analyticsEscapeHtml(tr('analyticsItemsTitle'))} ${isFree ? '' : `<span class="hint">${analyticsEscapeHtml(tr('analyticsItemsHint'))}</span>`}</div>
       ${hasData ? `<table class="an-table"><thead><tr>
         <th>${analyticsEscapeHtml(tr('analyticsColName'))}</th><th>${analyticsEscapeHtml(tr('analyticsColType'))}</th>
         <th>${analyticsEscapeHtml(tr('analyticsColVisits'))}</th><th>${analyticsEscapeHtml(tr('analyticsColPlays'))}</th>
         <th>${analyticsEscapeHtml(tr('analyticsColLast'))}</th><th>${analyticsEscapeHtml(tr('analyticsColTrend'))}</th>
       </tr></thead><tbody>${rows}</tbody></table>` : `<div class="hint">${analyticsEscapeHtml(tr('analyticsNoItems'))}</div>`}
     </div>`;
+  if (isFree) return; // aperçu : lignes non cliquables (le détail est verrouillé côté serveur)
   overviewEl.querySelectorAll('.an-row').forEach(row => {
     const open = () => openAnalyticsEntity(row.dataset.type, row.dataset.id);
     row.addEventListener('click', open);
@@ -9349,7 +9364,7 @@ function renderAnalyticsEntity() {
   const recent = (e.recentSessions || []).map(s => `<li>${analyticsEscapeHtml(new Date(s.openedAt).toLocaleString(currentLang() === 'en' ? 'en-GB' : 'fr-FR'))} — ${analyticsEscapeHtml(s.device || tr('analyticsUnknownDevice'))}${isPro && s.plays != null ? ' — ' + s.plays + ' ' + analyticsEscapeHtml(tr('analyticsColPlays').toLowerCase()) : ''}</li>`).join('');
   entityEl.innerHTML = `
     <button type="button" class="btn btn-small" id="btnAnalyticsBack">${analyticsEscapeHtml(tr('analyticsBackToList'))}</button>
-    <h3 class="an-entity-title">${analyticsEscapeHtml(e.entity.name)} <span class="an-type">${analyticsEscapeHtml(e.entity.type === 'pack' ? tr('analyticsTypePack') : tr('analyticsTypeAdreel'))}</span></h3>
+    <h3 class="an-entity-title">${analyticsEscapeHtml(e.entity.name)} <span class="an-type">${analyticsEscapeHtml(analyticsTypeLabel(e.entity.type))}</span></h3>
     <div class="an-kpis">${kpis}</div>
     <div class="an-charts">
       <div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsChartVisits'))}</div>${analyticsBuildChart(e.series.visits || [], e.buckets, e.bucket)}</div>
@@ -9378,7 +9393,7 @@ async function loadAnalyticsRawSessions() {
 }
 
 function renderAnalyticsSessionCard(s) {
-  const typeLabel = s.type === 'pack' ? tr('analyticsTypePack') : tr('analyticsTypeAdreel');
+  const typeLabel = analyticsTypeLabel(s.type);
   const opened = s.openedAt ? new Date(s.openedAt).toLocaleString(currentLang() === 'en' ? 'en-US' : 'fr-FR') : '—';
   const device = s.device || tr('analyticsUnknownDevice');
   let detail = '';

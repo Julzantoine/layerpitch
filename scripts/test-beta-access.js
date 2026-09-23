@@ -71,7 +71,8 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
       };
       const count = async (sid) => Number((await c.query('select count(*) n from public.analytics_events where session_id = $1', [sid])).rows[0].n);
       await logIt('collect-free');            // bêta coupée (état courant) : compte Free
-      check('collecte : compte Free = aucun événement enregistré', (await count('collect-free')) === 0);
+      check('collecte : compte Free = événement enregistré avec le palier free (rétention 30 jours)',
+        (await c.query("select tier from public.analytics_events where session_id = 'collect-free'")).rows[0]?.tier === 'free');
       await c.query('update public.beta_program set full_access = true where id');
       await logIt('collect-beta');
       check('collecte : bêta active = événement enregistré avec le palier pro',
@@ -100,13 +101,17 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
       ($1,'adreel','t','pro-100','test','pro', now() - interval '100 days'),
       ($1,'adreel','t','pro-400','test','pro', now() - interval '400 days'),
       ($1,'adreel','t','st-100','test','starter', now() - interval '100 days'),
-      ($1,'adreel','t','st-10','test','starter', now() - interval '10 days')`, [composerId]);
+      ($1,'adreel','t','st-10','test','starter', now() - interval '10 days'),
+      ($1,'adreel','t','fr-40','test','free', now() - interval '40 days'),
+      ($1,'adreel','t','fr-10','test','free', now() - interval '10 days')`, [composerId]);
     await c.query('select public.purge_old_analytics_events()');
-    const left = (await c.query("select session_id from public.analytics_events where session_id like 'pro-%' or session_id like 'st-%'")).rows.map(r => r.session_id);
+    const left = (await c.query("select session_id from public.analytics_events where session_id like 'pro-%' or session_id like 'st-%' or session_id like 'fr-%'")).rows.map(r => r.session_id);
     check('nettoyage : événement collecté en Pro à 100 jours CONSERVÉ malgré le passage en Free', left.includes('pro-100'));
     check('nettoyage : événement collecté en Pro à 400 jours supprimé (au-delà d\'un an)', !left.includes('pro-400'));
     check('nettoyage : événement collecté en Starter à 100 jours supprimé (rétention Starter = 30 jours)', !left.includes('st-100'));
     check('nettoyage : événement collecté en Starter à 10 jours conservé', left.includes('st-10'));
+    check('nettoyage : événement collecté en Free à 40 jours supprimé (rétention Free = 30 jours)', !left.includes('fr-40'));
+    check('nettoyage : événement collecté en Free à 10 jours conservé', left.includes('fr-10'));
 
     await c.query('ROLLBACK');
     console.log(`\n${passed} OK, ${failed} FAIL (tout annulé par ROLLBACK)`);

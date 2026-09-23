@@ -184,9 +184,9 @@
   <label class="contrast-toggle"><input type="checkbox" id="contrastToggle"> <span data-i18n="highContrast">Contraste renforcé</span></label>
 </div>
 
-<script src="layerpitch-i18n.js?v=1790193534650"></script>
+<script src="layerpitch-i18n.js?v=1790194832844"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1789728713949"></script>
+<script src="player.js?v=1790194832844"></script>
 <script>
 const { escapeHtml, linkify, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
 
@@ -234,6 +234,7 @@ function loadPostgresReadScripts() {
     await loadScript('./api/adreels.js');
     await loadScript('./api/site-data.js');
     await loadScript('./api/composers.js');
+    await loadScript('./api/analytics.js');
   })();
   return postgresReadScriptsLoaded;
 }
@@ -361,7 +362,11 @@ function trackPublicEvent(name, detail) {
 async function init() {
   const container = document.getElementById('content');
   const id = new URLSearchParams(location.search).get('id');
-  window.__lpTrackContext = { type: 'collection', id: id };
+  // sessionId : voir index.html. Suivi des collections ajouté le 23 septembre (avant : Umami seulement).
+  window.__lpTrackContext = {
+    type: 'collection', id: id,
+    sessionId: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)),
+  };
   try {
     const data = await loadSiteData();
     if (previewActive) showPreviewModeBanner();
@@ -371,6 +376,13 @@ async function init() {
       container.innerHTML = `<div class="empty">${tr('collectionNotFound')}</div>`;
       return;
     }
+    // Ouverture de la collection (23 septembre) : voir index.html. Pas d'enregistrement en mode aperçu.
+    try {
+      const lpCtx = window.__lpTrackContext || {};
+      if (!previewActive && window.LayerPitchAnalytics && lpCtx.sessionId) {
+        window.LayerPitchAnalytics.logAnalyticsEvent(lpCtx.type, lpCtx.id, lpCtx.sessionId, 'page_open', {}, lpDeviceType(), lpCtx.ownerId || null);
+      }
+    } catch (e) { /* jamais bloquant */ }
     // collection.effectivePlan est figé une fois pour toutes à la publication (Chantier Apparence Phase
     // 3) -- absent = collection publiée avant cette Phase 3 -> traité comme Starter.
     const tier = collection.effectivePlan || 'starter';

@@ -66,7 +66,7 @@ function trackPublicEvent(name, detail) {
   // jamais bloquant pour la lecture, mêmes garanties que trackPublicEvent lui-même.
   try {
     const ctx = window.__lpTrackContext || {};
-    if (window.LayerPitchAnalytics && (ctx.type === 'adreel' || ctx.type === 'pack') && ctx.sessionId) {
+    if (window.LayerPitchAnalytics && (ctx.type === 'adreel' || ctx.type === 'pack' || ctx.type === 'collection') && ctx.sessionId) {
       window.LayerPitchAnalytics.logAnalyticsEvent(ctx.type, ctx.id, ctx.sessionId, name, detail, lpDeviceType(), ctx.ownerId || null);
     }
   } catch (e) { /* jamais bloquant */ }

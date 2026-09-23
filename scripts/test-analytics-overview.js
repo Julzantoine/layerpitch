@@ -67,12 +67,23 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
     await c.query('rollback to savepoint too_many');
     check('Pro : trop de périodes refusé (heures sur 30 jours)', refused);
 
+    // ---- Collections ----
+    await c.query(`insert into public.collections (id, title, owner_id) values ('t-coll-1', 'Ma collection test', $1)`, [composerId]);
+    await c.query(`set local request.jwt.claims = '{}'`); // visiteur anonyme (les visites du propriétaire sont exclues)
+    await c.query(`select public.log_analytics_event('collection', 't-coll-1', 'c1', 'page_open', '{}'::jsonb, 'desktop', $1)`, [composerId]);
+    await c.query(`select public.log_analytics_event('collection', 't-coll-1', 'c1', 'track_play', '{"trackId":"A"}'::jsonb, 'desktop', $1)`, [composerId]);
+    o = await overview();
+    const coll = o.entities.find(x => x.type === 'collection');
+    check('Collection : listée avec son nom, 1 visite et 1 lecture', coll && coll.name === 'Ma collection test' && coll.visits === 1 && coll.plays === 1);
+    const ec = (await as(() => c.query(`select public.get_my_analytics_entity('collection', 't-coll-1', now() - interval '30 days', now(), 'day', 'Europe/Paris') v`))).rows[0].v;
+    check('Collection : détail disponible (Pro)', ec.entity.name === 'Ma collection test' && ec.totals.visits === 1);
+
     // ---- Starter : visites seulement ----
     await c.query('update public.beta_program set full_access = false where id');
     await c.query(`update public.composer_profiles set plan = 'starter', trial_ends_at = null where id = $1`, [composerId]);
     o = await overview();
-    check('Starter : visites présentes', o.tier === 'starter' && o.totals.visits === 3);
-    check('Starter : ni lectures, ni série de lectures', o.totals.plays === null && o.series.plays === null && o.entities[0].plays === null);
+    check('Starter : visites présentes (3 AdReel + 1 collection)', o.tier === 'starter' && o.totals.visits === 4);
+    check('Starter : ni lectures, ni série de lectures', o.totals.plays === null && o.series.plays === null && o.entities.every(x => x.plays === null));
     const es = await entity();
     check('Starter détail : pas de morceaux ni d\'interactions', es.tracks === null && es.interactions === null && es.totals.plays === null);
     o = await overview('day', "now() - interval '1 year'");
@@ -81,7 +92,13 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
     // ---- Free : verrouillé, rien ----
     await c.query(`update public.composer_profiles set plan = 'free' where id = $1`, [composerId]);
     o = await overview();
-    check('Free : verrouillé, aucune donnée', o.locked === true && o.totals === undefined && o.entities === undefined);
+    check('Free : aperçu (pas verrouillé)', o.locked === false && o.teaser === true && o.tier === 'free');
+    check('Free : AUCUN chiffre réel (totaux et dates de visite nuls)', o.totals.visits === null && o.totals.plays === null && o.totals.mobileShare === null && o.totals.items === null && o.entities.every(x => x.visits === null && x.plays === null && x.lastVisit === null));
+    check('Free : courbe ramenée à 0-100, forme conservée (max = 100, aucune valeur réelle)',
+      Math.max(...o.series.visits) === 100 && o.series.visits.every(v => v >= 0 && v <= 100) && o.entities[0].series.length === o.buckets.length);
+    check('Free : nom de l\'AdReel conservé', typeof o.entities[0].name === 'string' && o.entities[0].name.length > 0);
+    const ef = await entity();
+    check('Free : le détail d\'un élément reste verrouillé', ef.locked === true && ef.totals === undefined);
 
     await c.query('ROLLBACK');
     console.log(`\n${passed} OK, ${failed} FAIL (tout annulé par ROLLBACK)`);
