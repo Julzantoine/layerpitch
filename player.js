@@ -1356,7 +1356,12 @@ function buildSpatialVoice(ctx, spatial, opts) {
   const room = SPATIAL_ROOMS[sp.room];
   const path = sp.path;
   let pos = { x: sp.x, y: sp.y };
-  if (path.mode === 'steps') pos = path.points[pickSpatialStepIndex(opts.stepKey || sp, path.points.length, path.loop)];
+  let stepIndex = null;
+  if (path.mode === 'steps') {
+    // stepIndex imposé (outil vidéo : le point réellement joué pendant la prise) ou tiré selon la boucle du chemin
+    stepIndex = opts.stepIndex != null ? (opts.stepIndex % path.points.length) : pickSpatialStepIndex(opts.stepKey || sp, path.points.length, path.loop);
+    pos = path.points[stepIndex];
+  }
   else if (path.mode === 'glide') pos = path.points[0];
   sp.x = pos.x; sp.y = pos.y;
   const cutoffAt = d => Math.max(1500, Math.min(ctx.sampleRate / 2 - 100, 20000 / (1 + d * room.airK)));
@@ -1420,18 +1425,18 @@ function buildSpatialVoice(ctx, spatial, opts) {
     input.connect(tone); tone.connect(send); send.connect(bus.convolver);
     nodes.push(tone, send);
   }
-  return { input, nodes, distance: dist, dispose() { nodes.forEach(n => { try { n.disconnect(); } catch (e) {} }); } };
+  return { input, nodes, distance: dist, stepIndex, dispose() { nodes.forEach(n => { try { n.disconnect(); } catch (e) {} }); } };
 }
 // ---- Orientation de la tête de l'auditeur ("tourner la tête", 23/09) ----
 // Un seul auditeur par contexte audio (ctx.listener) : tourner sa direction fait pivoter TOUS les Sfx placés
 // autour de lui, y compris ceux qui jouent déjà -- aucun ambisonique nécessaire pour nos sources séparées.
 // yaw en degrés : 0 = face à l'avant de la matrice, +90 = tête tournée vers la droite (sens horaire vu du dessus).
 let _listenerYawDeg = 0;
-function applyListenerYaw(audioCtx, deg) {
+function applyListenerYaw(audioCtx, deg, atTime) {
   const r = deg * Math.PI / 180, fx = Math.sin(r), fz = -Math.cos(r);
   const L = audioCtx.listener;
   if (L.forwardX) {
-    const t = audioCtx.currentTime;
+    const t = atTime != null ? atTime : audioCtx.currentTime; // atTime : rendu hors-ligne (outil vidéo)
     // Petite constante de temps : évite les craquements quand on fait glisser le curseur
     L.forwardX.setTargetAtTime(fx, t, 0.02); L.forwardY.setTargetAtTime(0, t, 0.02); L.forwardZ.setTargetAtTime(fz, t, 0.02);
     L.upX.setTargetAtTime(0, t, 0.02); L.upY.setTargetAtTime(1, t, 0.02); L.upZ.setTargetAtTime(0, t, 0.02);
@@ -1469,7 +1474,7 @@ function buildHeadTurnControl() {
 // gestionnaire (leçon des fuites de chaîne d'effets, voir buildLayerFxChain).
 function connectSfxSource(src, sfxDef) {
   const sp = sfxDef && sfxDef.spatial;
-  if (!sp || !sp.enabled) { src.connect(ctx.destination); return; }
+  if (!sp || !sp.enabled) { src.connect(ctx.destination); return null; }
   try {
     const voice = buildSpatialVoice(ctx, sp, {
       duration: src.buffer ? src.buffer.duration / ((src.playbackRate && src.playbackRate.value) || 1) : 0,
@@ -1477,10 +1482,12 @@ function connectSfxSource(src, sfxDef) {
     });
     src.connect(voice.input);
     src.addEventListener('ended', () => setTimeout(() => voice.dispose(), 250));
+    return voice;
   } catch (e) {
     console.error('Spatialisation Sfx — repli sur la sortie directe :', e);
     try { src.disconnect(); } catch (e2) {}
     src.connect(ctx.destination);
+    return null;
   }
 }
 // Bitcrusher via ScriptProcessorNode (déprécié mais universellement supporté) plutôt qu'un AudioWorklet :
@@ -1489,15 +1496,59 @@ function connectSfxSource(src, sfxDef) {
 // et échantillonnage-blocage (réduction de fréquence d'échantillonnage perçue).
 // node.params (23/09, triggers d'effets) : réglages lus à CHAQUE bloc, donc modifiables en direct --
 // enabled=false : recopie pure de l'entrée (un trigger peut ainsi l'activer/le couper sans reconstruire).
+// Rendu hors-ligne (outil vidéo "Test in game", 23/09) : blocs de 256 échantillons au lieu de 4096 -- la latence
+// propre à un ScriptProcessor (un bloc) passe de ~85 ms à ~5 ms, donc une voix bitcrushée/pitchée reste calée
+// sur les autres dans le mixage exporté, et un changement programmé (node.schedule) tombe à quelques ms près.
+function isOfflineAudioContext(c) { return typeof OfflineAudioContext !== 'undefined' && c instanceof OfflineAudioContext; }
+// Latence des nœuds à ScriptProcessor (23/09, MESURÉE : 185,8 ms pour un bloc de 4096 à 44,1 kHz, soit exactement
+// 2 blocs -- Chrome double-tamponne entrée et sortie). Une voix passant par un bitcrusher ou un pitch-shift arrivait
+// donc en retard sur les autres voix du même morceau, donc désynchronisée alors que les couches sont censées
+// rester calées à l'échantillon près. Deux remèdes combinés : (1) des blocs plus petits -- 1024 en direct (~46 ms),
+// 256 en rendu hors-ligne (~11 ms) ; (2) toutes les autres voix d'un morceau qui utilise ces effets reçoivent un
+// DelayNode de même durée (withLatencyComp) -- tout reste aligné, pour un retard d'ensemble de ~46 ms seulement sur
+// ces morceaux-là. Formule vérifiée sur Chrome ; Firefox/Safari non mesurés.
+function fxSpBlockSize(c) { return isOfflineAudioContext(c) ? 256 : 1024; }
+function fxSpLatencySec(c) { return 2 * fxSpBlockSize(c) / c.sampleRate; }
+// Ce morceau peut-il faire passer une voix par un ScriptProcessor (bitcrusher/pitch-shift, de base ou via un trigger) ?
+function trackNeedsLatencyComp(track) {
+  if (!track) return false;
+  const spFx = fx => !!(fx && (fx.bitcrush || (fx.pitch && fx.pitch.mode !== 'rate')));
+  const anyFx = arr => (arr || []).some(x => x && spFx(x.fx));
+  if (anyFx(track.layers) || anyFx(track.loops) || anyFx(track.segmentSlots)) return true;
+  if (spFx(track.intro && track.intro.fx) || spFx(track.outro && track.outro.fx)) return true;
+  if ((track.sections || []).some(sec => sec && anyFx(sec.pools))) return true;
+  return (track.fxTriggers || []).some(d => d && d.fx && (d.fx.bitcrush || d.fx.pitch));
+}
+// Ajoute à une chaîne d'effets (ou en crée une réduite au seul retard) le DelayNode de compensation, sauf si la
+// chaîne contient déjà un ScriptProcessor (qui apporte naturellement le même retard).
+function withLatencyComp(c, chain) {
+  if (chain && chain.nodes && (chain.nodes.bitcrush || chain.nodes.pitchShift)) return chain;
+  const d = c.createDelay(0.5);
+  d.delayTime.value = fxSpLatencySec(c);
+  if (!chain) return { input: d, output: d, nodes: { latencyComp: d } };
+  chain.output.connect(d);
+  chain.output = d;
+  chain.nodes.latencyComp = d;
+  return chain;
+}
+// Réglages en vigueur à l'instant t d'un nœud à ScriptProcessor : node.schedule = [{t, params}] trié, rempli par
+// applyFxToChain en mode programmé ; sans planning, les réglages vivants (node.params) comme avant.
+function fxNodeParamsAt(node, t) {
+  const sch = node.schedule;
+  if (!sch || !sch.length) return node.params;
+  let p = node.params;
+  for (let i = 0; i < sch.length; i++) { if (sch[i].t <= t) p = sch[i].params; else break; }
+  return p;
+}
 function buildBitcrushNode(ctx, bits, reduction) {
-  const node = ctx.createScriptProcessor(4096, 2, 2);
+  const node = ctx.createScriptProcessor(fxSpBlockSize(ctx), 2, 2);
   node.params = { enabled: true, bits: bits || 8, reduction: reduction || 1 };
   let sampleCounter = 0;
   const held = [0, 0];
   node.onaudioprocess = (e) => {
     const chCount = e.outputBuffer.numberOfChannels;
     const frames = e.outputBuffer.length;
-    const p = node.params;
+    const p = fxNodeParamsAt(node, e.playbackTime);
     if (!p.enabled) {
       for (let ch = 0; ch < chCount; ch++) e.outputBuffer.getChannelData(ch).set(e.inputBuffer.getChannelData(ch));
       return;
@@ -1533,7 +1584,7 @@ function buildBitcrushNode(ctx, bits, reduction) {
 function buildPitchShiftNode(ctx, semitones) {
   const grainSize = 2048;
   const numChannels = 2;
-  const node = ctx.createScriptProcessor(4096, numChannels, numChannels);
+  const node = ctx.createScriptProcessor(fxSpBlockSize(ctx), numChannels, numChannels);
   node.params = { enabled: true, semitones: semitones || 0 };
   const bufLen = grainSize * 4;
   const state = [];
@@ -1544,7 +1595,7 @@ function buildPitchShiftNode(ctx, semitones) {
   node.onaudioprocess = (e) => {
     const chCount = e.outputBuffer.numberOfChannels;
     const frames = e.outputBuffer.length;
-    const p = node.params;
+    const p = fxNodeParamsAt(node, e.playbackTime);
     const pitchRatio = Math.pow(2, (p.semitones || 0) / 12);
     for (let ch = 0; ch < chCount; ch++) {
       const st = state[ch];
@@ -1587,16 +1638,24 @@ function buildPitchShiftNode(ctx, semitones) {
 // ouvert, wet à 0, bitcrusher/pitch en recopie, volume à 0 dB) plutôt que retiré : la topologie de la chaîne
 // ne change jamais en cours de lecture, seuls des paramètres bougent. Rampes via setTargetAtTime (lissées,
 // pas de clic) ; filtre/effets à type discret (type de filtre) appliqués tout de suite.
-function applyFxToChain(ctx, chain, fx, rampSec) {
+// atTime (23/09, outil vidéo) : changement PROGRAMMÉ à un instant précis de la ligne de temps d'un contexte
+// hors-ligne, au lieu d'un changement "maintenant". Les rampes repartent alors de la valeur que l'automation a
+// déjà à cet instant (pas de param.value, qui ne reflèterait pas l'automation d'un contexte qui ne tourne pas).
+function applyFxToChain(ctx, chain, fx, rampSec, atTime) {
   fx = fx || {};
   const n = chain.nodes;
-  const now = ctx.currentTime;
+  const sched = atTime != null;
+  const now = sched ? atTime : ctx.currentTime;
   const ramp = rampSec || 0;
   function set(param, v, rampOverride) {
     const r = rampOverride != null ? rampOverride : ramp;
-    param.cancelScheduledValues(now);
+    if (!sched) param.cancelScheduledValues(now);
     if (!(r > 0)) param.setValueAtTime(v, now);
-    else { param.setValueAtTime(param.value, now); param.setTargetAtTime(v, now, Math.max(0.001, r / 3)); }
+    else { if (!sched) param.setValueAtTime(param.value, now); param.setTargetAtTime(v, now, Math.max(0.001, r / 3)); }
+  }
+  function setNodeParams(node, params) {
+    if (sched) { (node.schedule = node.schedule || []).push({ t: now, params: Object.assign({}, params) }); }
+    else Object.assign(node.params, params);
   }
   if (n.filter) {
     const c = fx.filter;
@@ -1627,20 +1686,18 @@ function applyFxToChain(ctx, chain, fx, rampSec) {
     const wetAmount = c ? (c.wet != null ? c.wet : 0.3) : 0;
     if (c) {
       const decay = Math.min(Math.max(c.decay || 2, 0.1), 10);
-      if (n.reverb.decay !== decay) { try { n.reverb.convolver.buffer = getOrBuildImpulseResponse(ctx, decay); n.reverb.decay = decay; } catch (e) {} }
+      if (!sched && n.reverb.decay !== decay) { try { n.reverb.convolver.buffer = getOrBuildImpulseResponse(ctx, decay); n.reverb.decay = decay; } catch (e) {} }
     }
     set(n.reverb.wet.gain, wetAmount);
     set(n.reverb.dry.gain, 1 - wetAmount);
   }
   if (n.bitcrush) {
     const c = fx.bitcrush;
-    n.bitcrush.params.enabled = !!c;
-    if (c) { n.bitcrush.params.bits = c.bits || 8; n.bitcrush.params.reduction = c.reduction || 1; }
+    setNodeParams(n.bitcrush, { enabled: !!c, bits: c ? (c.bits || 8) : n.bitcrush.params.bits, reduction: c ? (c.reduction || 1) : n.bitcrush.params.reduction });
   }
   if (n.pitchShift) {
     const c = fx.pitch;
-    n.pitchShift.params.enabled = !!(c && c.mode === 'shift');
-    if (c) n.pitchShift.params.semitones = c.semitones || 0;
+    setNodeParams(n.pitchShift, { enabled: !!(c && c.mode === 'shift'), semitones: c ? (c.semitones || 0) : n.pitchShift.params.semitones });
   }
   if (n.volume) {
     const c = fx.volume;
@@ -1743,6 +1800,38 @@ function buildLayerFxChain(ctx, fx, src, startTime, includeBitcrush, forceKeys) 
   }
   return chain;
 }
+// ---- Aides pour le rendu hors-ligne (outil vidéo "Test in game", 23/09) ----
+// Mêmes règles que initTrackPlayer (registre de triggers) mais sans état vivant : l'export rejoue une prise
+// enregistrée sur un OfflineAudioContext en réutilisant EXACTEMENT les mêmes chaînes d'effets et la même
+// fusion des triggers que le lecteur -- c'est ce qui garantit que le son exporté est celui qu'on teste en jeu.
+function fxTargetKeyFromTarget(target) {
+  if (!target) return null;
+  if (target.type === 'layer') return 'layer:' + (target.li || 0);
+  if (target.type === 'loop') return 'loop:' + target.li;
+  if (target.type === 'slot') return 'slot:' + target.si;
+  if (target.type === 'pool') return 'pool:' + target.si + ':' + target.pi;
+  return null;
+}
+// fx de base porté par une cible ('layer:i', 'loop:i', 'slot:i', 'pool:s:p', 'intro', 'outro') -- même
+// source que les buildTargetFxChain de initTrackPlayer.
+function baseFxForTarget(track, key) {
+  if (!track || !key) return null;
+  const p = key.split(':');
+  if (p[0] === 'layer') { const l = (track.layers || [])[+p[1]]; return l && l.fx || null; }
+  if (p[0] === 'loop') { const l = (track.loops || [])[+p[1]]; return l && l.fx || null; }
+  if (p[0] === 'slot') { const l = (track.segmentSlots || [])[+p[1]]; return l && l.fx || null; }
+  if (p[0] === 'pool') { const sec = (track.sections || [])[+p[1]]; const pl = sec && (sec.pools || [])[+p[2]]; return pl && pl.fx || null; }
+  if (p[0] === 'intro') return track.intro && track.intro.fx || null;
+  if (p[0] === 'outro') return track.outro && track.outro.fx || null;
+  return null;
+}
+// Fusion d'un fx de base avec les triggers ACTIFS de sa cible, dans l'ordre d'activation (le dernier activé
+// l'emporte, clé par clé).
+function mergeTriggerFx(baseFx, activeTriggerDefs) {
+  const out = baseFx ? Object.assign({}, baseFx) : {};
+  (activeTriggerDefs || []).forEach(d => { Object.keys(d.fx || {}).forEach(k => { out[k] = Object.assign({}, out[k], d.fx[k]); }); });
+  return out;
+}
 // Un ScriptProcessorNode (bitcrusher ET pitch-shift "shift", chantier 2) continue de tourner tant qu'il
 // reste connecté -- un seul point de nettoyage pour les deux plutôt que de dupliquer la même paire de
 // lignes à chacun des neuf appels concernés (voir les commentaires "onended" plus bas dans ce fichier).
@@ -1830,9 +1919,14 @@ function initTrackPlayer(track, wrapper, elementColors) {
     });
     return out;
   }
+  // Compensation de latence (voir withLatencyComp) : calculée une fois par morceau.
+  const fxNeedsComp = trackNeedsLatencyComp(track);
   function buildTargetFxChain(targetKey, baseFx, src, startTime) {
     const force = fxTriggerDefs.size ? fxForceKeysFor(targetKey) : [];
-    if (!force.length) return buildLayerFxChain(ctx, baseFx, src, startTime);
+    if (!force.length) {
+      const plain = buildLayerFxChain(ctx, baseFx, src, startTime);
+      return fxNeedsComp ? withLatencyComp(ctx, plain) : plain;
+    }
     const chain = buildLayerFxChain(ctx, fxEffectiveFor(targetKey, baseFx), src, startTime, undefined, force);
     if (chain) {
       chain.baseFx = baseFx; chain.targetKey = targetKey;
@@ -1843,7 +1937,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       // (nettoyage du bitcrusher, marqueurs de fin de morceau) -- jamais d'écrasement possible.
       src.addEventListener('ended', () => { set.delete(chain); });
     }
-    return chain;
+    return fxNeedsComp ? withLatencyComp(ctx, chain) : chain;
   }
   const fxTriggerBtns = [...wrapper.querySelectorAll('[data-fx-trigger]')];
   function updateFxTriggerButtons() {
@@ -1876,7 +1970,11 @@ function initTrackPlayer(track, wrapper, elementColors) {
   }
   fxTriggerBtns.forEach(b => b.addEventListener('click', () => {
     const id = b.dataset.fxTrigger;
-    setFxTrigger(id, fxActiveTriggerIds.indexOf(id) < 0);
+    const willBeActive = fxActiveTriggerIds.indexOf(id) < 0;
+    setFxTrigger(id, willBeActive);
+    // Seuls les appuis de bouton sont un geste du visiteur (les activations liées à un embranchement se déduisent
+    // des bascules, déjà capturées) -- l'outil vidéo les enregistre et les rejoue.
+    trackPublicEvent('fx_trigger', { trackId: track.id, triggerId: id, active: willBeActive });
   }));
   // Harmonisation des volumes : décision du compositeur (case à cocher dans le backstage), jamais
   // automatique — sinon un fichier qui sonne différemment de ce qu'il a exporté serait déroutant.
@@ -3814,7 +3912,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const src = ctx.createBufferSource();
     src.buffer = buf;
     applyTrackPitchRate(src, ctxStartTime);
-    src.connect(trackMasterGain);
+    // Un morceau qui utilise bitcrusher/pitch-shift retarde ses voix d'effet : la transition (overlay) suit le même retard.
+    if (fxNeedsComp) { const comp = withLatencyComp(ctx, null); src.connect(comp.input); comp.output.connect(trackMasterGain); }
+    else src.connect(trackMasterGain);
     src.start(ctxStartTime, 0);
     embrActiveTransitionSources.push(src);
     src.onended = () => {
@@ -5047,11 +5147,13 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (sfx.duckMainTrack) duckMainTrack(buf.duration);
       const src = ctx.createBufferSource();
       src.buffer = buf;
-      connectSfxSource(src, sfx);
+      const spatialVoice = connectSfxSource(src, sfx);
       src.start(0);
       activeStingerSources.push(src);
       src.onended = () => { activeStingerSources = activeStingerSources.filter(s => s !== src); };
-      trackPublicEvent('stinger_play', { trackId: track.id, sfxId: sfx.id, variationIndex: idx });
+      // spatialStep : point de trajectoire réellement joué (mode "pas à pas") -- l'outil vidéo le rejoue à l'identique.
+      trackPublicEvent('stinger_play', Object.assign({ trackId: track.id, sfxId: sfx.id, variationIndex: idx },
+        spatialVoice && spatialVoice.stepIndex != null ? { spatialStep: spatialVoice.stepIndex } : {}));
     });
   });
 
@@ -5721,6 +5823,14 @@ window.LayerPlayerCore = {
   normalizeSpatial,
   buildRoomImpulse,
   buildSpatialVoice,
+  pickSpatialStepIndex,
+  buildLayerFxChain,
+  applyFxToChain,
+  trackNeedsLatencyComp,
+  withLatencyComp,
+  fxTargetKeyFromTarget,
+  baseFxForTarget,
+  mergeTriggerFx,
   setListenerYaw,
   getListenerYaw,
   applyListenerYaw,

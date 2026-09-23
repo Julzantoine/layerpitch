@@ -462,6 +462,10 @@
   .vct-block { position: absolute; top: 2px; bottom: 2px; min-width: 4px; border-radius: 3px; cursor: grab; border: 1px solid transparent; overflow: hidden; touch-action: none; }
   .vct-block.vct-layer { background: #2f5d8a; }
   .vct-block.vct-sfx { background: #8a5a2f; }
+  .vct-block.vct-fx { background: #7a4d9c; }
+  .vct-block.vct-head { background: #3d8a6e; min-width: 10px; }
+  .vct-track-group-head { border-left-color: #3d8a6e; }
+  .vct-track-group-head .vct-track-group-header { color: #6fd4ae; }
   .vct-block-implicit { opacity: 0.45; cursor: default; }
   .vct-block.vct-selected { border-color: #fff; }
   .vct-block-label { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); font-size: 9px; color: #fff; white-space: nowrap; pointer-events: none; }
@@ -470,7 +474,7 @@
   .vct-detail { display: flex; align-items: center; gap: 8px; padding: 8px 0 4px; margin-top: 4px; border-top: 1px solid #2a2a2a; min-height: 30px; }
   .vct-detail-empty { color: #666; font-size: 10px; }
   .vct-detail-label { flex: 1; color: #ddd; }
-  .video-capture-event-time, .video-capture-event-duration {
+  .video-capture-event-time, .video-capture-event-duration, .video-capture-event-yaw {
     width: 56px; background: #222; border: 1px solid #3a3a3a; border-radius: 4px; color: #ccc;
     font-family: inherit; font-size: 11px; padding: 2px 4px;
   }
@@ -636,8 +640,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790195677014"></script>
-<script src="player.js?v=1790195677014"></script>
+<script src="layerpitch-i18n.js?v=1790197016800"></script>
+<script src="player.js?v=1790197016800"></script>
+<script src="capture-render.js?v=1790197016800"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1116,12 +1121,20 @@ function startCapture(videoEl) {
       if (prevTrack) { try { prevTrack(name, detail); } catch (e) { /* jamais bloquant */ } }
     }
   });
-  videoCaptureState = { events, prevUmami, videoEl };
+  // Tête de l'auditeur (23/09) : pas un évènement de télémétrie (le curseur en émettrait des dizaines par
+  // seconde, au-delà de la limite du serveur d'analytique) mais un évènement DOM du moteur -- écouté ici
+  // seulement pendant la prise. L'orientation déjà réglée avant de démarrer est enregistrée comme point de départ.
+  const headHandler = (e) => events.push({ t: videoEl.currentTime, name: 'head_turn', detail: { yaw: e.detail } });
+  document.addEventListener('layerpitch-head-yaw', headHandler);
+  const yaw0 = window.LayerPlayerCore && window.LayerPlayerCore.getListenerYaw ? window.LayerPlayerCore.getListenerYaw() : 0;
+  if (yaw0) events.push({ t: videoEl.currentTime, name: 'head_turn', detail: { yaw: yaw0 } });
+  videoCaptureState = { events, prevUmami, videoEl, headHandler };
 }
 
 function stopCapture() {
   if (!videoCaptureState) return [];
   window.umami = videoCaptureState.prevUmami;
+  document.removeEventListener('layerpitch-head-yaw', videoCaptureState.headHandler);
   const events = videoCaptureState.events;
   videoCaptureState = null;
   return events;
@@ -1286,6 +1299,12 @@ function describeCaptureEvent(e, laneOverrides) {
     const track = findCaptureTrack(e.detail.trackId);
     return tr('captureSectionDesc').replace('{label}', captureVRWindowLabel(track, { kind: 'section', sectionIndex: e.detail.sectionIndex }));
   }
+  if (e.name === 'fx_segment') {
+    const track = findCaptureTrack(e.detail.trackId);
+    const trg = track && (track.fxTriggers || []).find(d => d.id === e.detail.triggerId);
+    return tr('captureFxSegDesc').replace('{label}', (trg && trg.label) || e.detail.triggerId).replace('{duration}', e.detail.duration.toFixed(2));
+  }
+  if (e.name === 'head_turn') return tr('captureHeadDesc').replace('{yaw}', Math.round(e.detail.yaw));
   if (e.name === 'stinger_play') {
     const sfx = findCaptureSfx(e.detail.sfxId);
     const base = tr('captureStingerDesc').replace('{title}', sfx ? sfx.title : e.detail.sfxId);
@@ -1374,6 +1393,49 @@ function materializeLayerSegments(events) {
   }).concat(layerSegmentEvents).sort((a, b) => a.t - b.t);
 }
 
+// Prend les évènements de l'outil vidéo issus des nouveaux effets (23/09) et les rend ÉDITABLES, comme
+// materializeLayerSegments le fait pour les calques : (1) chaque appui sur un bouton d'effet (fx_trigger
+// activé/coupé) devient un bloc autonome fx_segment { trackId, triggerId, duration } déplaçable et
+// redimensionnable sur la frise -- les activations liées à un embranchement, elles, ne sont PAS capturées : elles
+// se déduisent des bascules au moment du rendu (voir LayerCaptureRender.deriveBranchChanges), donc elles suivent
+// une bascule que l'on déplace ; (2) les gestes de "tourner la tête" (head_turn), enregistrés à chaque mouvement
+// du curseur, sont éclaircis en points-clés (un point tous les >= 3° et >= 80 ms, et toujours le dernier d'un
+// geste) pour rester éditables à la main. Idempotent : peut traverser des évènements déjà traités (passe additive).
+function decimateHeadTurns(heads) {
+  const sorted = heads.slice().sort((a, b) => a.t - b.t);
+  const out = [];
+  let last = null, pending = null;
+  sorted.forEach(h => {
+    if (pending && h.t - pending.t > 0.25) { out.push(pending); last = pending; pending = null; }
+    if (!last || (Math.abs(h.detail.yaw - last.detail.yaw) >= 3 && h.t - last.t >= 0.08)) { out.push(h); last = h; pending = null; }
+    else pending = h;
+  });
+  if (pending) out.push(pending);
+  return out;
+}
+function materializeCaptureExtras(events) {
+  const rawTriggers = events.filter(e => e.name === 'fx_trigger').sort((a, b) => a.t - b.t);
+  const heads = events.filter(e => e.name === 'head_turn');
+  if (!rawTriggers.length && !heads.length) return events;
+  const total = Math.max(0, ...events.map(e => e.t)) + 2; // même marge que materializeLayerSegments
+  const segments = [];
+  const open = {}; // trackId|triggerId -> début du segment en cours
+  rawTriggers.forEach(e => {
+    const k = e.detail.trackId + '|' + e.detail.triggerId;
+    if (e.detail.active) { if (open[k] === undefined) open[k] = e.t; }
+    else if (open[k] !== undefined) {
+      segments.push({ t: open[k], name: 'fx_segment', detail: { trackId: e.detail.trackId, triggerId: e.detail.triggerId, duration: Math.max(0.1, e.t - open[k]) } });
+      delete open[k];
+    }
+  });
+  Object.keys(open).forEach(k => {
+    const [trackId, triggerId] = k.split('|');
+    segments.push({ t: open[k], name: 'fx_segment', detail: { trackId, triggerId, duration: Math.max(0.1, total - open[k]) } });
+  });
+  return events.filter(e => e.name !== 'fx_trigger' && e.name !== 'head_turn')
+    .concat(segments, decimateHeadTurns(heads)).sort((a, b) => a.t - b.t);
+}
+
 // Frise d'édition -- cible finale d'après le schéma papier de Jules-Antoine (2026-09-14) : une piste par
 // calque du morceau (dans l'ordre de leur niveau d'intensité) + une piste SFX au-dessus, blocs positionnés
 // sur une frise temporelle commune, déplaçables/redimensionnables à la souris comme dans un DAW. Les
@@ -1416,9 +1478,11 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   const embrEvents = events.filter(e => e.name === 'embr_loop_select').sort((a, b) => a.t - b.t);
   const stingerEvents = events.filter(e => e.name === 'stinger_play');
   const layerSegmentEvents = events.filter(e => e.name === 'layer_segment');
+  const fxSegmentEvents = events.filter(e => e.name === 'fx_segment');
   const lastT = Math.max(0, ...events.map(e => e.t),
     ...stingerEvents.map(e => e.t + (e.detail.durationOverride || 1)),
-    ...layerSegmentEvents.map(e => e.t + e.detail.duration));
+    ...layerSegmentEvents.map(e => e.t + e.detail.duration),
+    ...fxSegmentEvents.map(e => e.t + e.detail.duration));
   const total = Math.max(lastT + 1, 5); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement
   const tickStep = total <= 20 ? 1 : (total <= 60 ? 5 : 10);
   const pct = (t) => Math.min(100, Math.max(0, t / total * 100));
@@ -1434,8 +1498,9 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   function groupMembers(key) {
     if (key.indexOf('track:') === 0) {
       const trackId = key.slice(6);
-      return events.filter(e => (e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || e.name === 'track_play') && e.detail.trackId === trackId);
+      return events.filter(e => (e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'fx_segment' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || e.name === 'track_play') && e.detail.trackId === trackId);
     }
+    if (key === 'head:') return events.filter(e => e.name === 'head_turn');
     if (key.indexOf('sfx:') === 0) {
       const sfxId = key.slice(4);
       return events.filter(e => e.name === 'stinger_play' && e.detail.sfxId === sfxId);
@@ -1461,7 +1526,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     if (editable && members.length) {
       const isMusic = key.indexOf('track:') === 0;
       const start = isMusic ? 0 : Math.min(...members.map(m => m.t));
-      const end = isMusic ? total : Math.max(...members.map(m => m.t + (m.detail.durationOverride || 1)));
+      const end = isMusic ? total : Math.max(...members.map(m => m.t + (m.name === 'head_turn' ? 0.5 : (m.detail.durationOverride || 1))));
       blockHtml = `<div class="vct-block vct-block-group" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}" ` +
         `title="${tr('captureGroupDragHint')}" style="left:${pct(start)}%;width:${pct(end) - pct(start)}%"></div>`;
     }
@@ -1506,7 +1571,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // papier "Musique #1"/"Musique #2", 2026-09-14/15).
   const musicTrackIds = [];
   events.forEach(e => {
-    if ((e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'track_play' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1) && musicTrackIds.indexOf(e.detail.trackId) === -1) {
+    if ((e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'fx_segment' || e.name === 'track_play' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1) && musicTrackIds.indexOf(e.detail.trackId) === -1) {
       musicTrackIds.push(e.detail.trackId);
     }
   });
@@ -1625,10 +1690,39 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         });
       }
     }
+    // Effets déclenchables par bouton (23/09) : une piste par trigger défini sur le morceau, blocs = les
+    // moments où le bouton était enfoncé (fx_segment) -- déplaçables, redimensionnables, ajoutables au clic,
+    // comme les segments de calque. Rejoués à l'export par le moteur du lecteur (capture-render.js).
+    (track.fxTriggers || []).filter(d => d && d.id && d.fx).forEach(d => {
+      let blocksHtml = '';
+      events.filter(e => e.name === 'fx_segment' && e.detail.trackId === trackId && e.detail.triggerId === d.id).forEach(e => {
+        const idx = events.indexOf(e);
+        blocksHtml += `<div class="vct-block vct-fx" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + e.detail.duration) - pct(e.t)}%">` +
+          (editable ? `<div class="vct-resize-handle" title="${tr('captureResizeHint')}"></div>` : '') + `</div>`;
+      });
+      const addAttrs = editable ? ` data-addable="fxseg" data-add-track-id="${trackId}" data-add-trigger-id="${window.LayerPlayerCore.escapeHtml(d.id)}"` : '';
+      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(d.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureFxLaneLabel').replace('{label}', d.label || d.id))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddFxHint') : ''}">${blocksHtml}</div></div>`;
+    });
     // Regroupe les pistes sous le nom du morceau qui les possède (2026-09-15) -- le titre lui-même n'est
     // pas éditable ici, c'est le vrai nom du morceau, pas un libellé de prise.
     lanesHtml += renderGroup('track:' + trackId, track.title || 'Morceau', 'vct-track-group-music', nestedLanesHtml);
   });
+
+  // Auditeur (23/09) : les gestes de "tourner la tête" enregistrés pendant la prise, en points-clés (chaque
+  // point = l'orientation à cet instant, en degrés, éditable dans le détail) -- affiché dès qu'il y en a, ou
+  // dès qu'un Sfx spatialisé joue (pour pouvoir en ajouter un au clic).
+  const headEvents = events.filter(e => e.name === 'head_turn');
+  const hasSpatialSfx = stingerEvents.some(e => { const sf = findCaptureSfx(e.detail.sfxId); return !!(sf && sf.spatial && sf.spatial.enabled); });
+  if (headEvents.length || hasSpatialSfx) {
+    let blocksHtml = '';
+    headEvents.forEach(e => {
+      const idx = events.indexOf(e);
+      blocksHtml += `<div class="vct-block vct-head" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.5) - pct(e.t)}%" title="${Math.round(e.detail.yaw)}°"><span class="vct-block-label">${Math.round(e.detail.yaw)}°</span></div>`;
+    });
+    const addAttrs = editable ? ` data-addable="head"` : '';
+    const headLane = `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label">${tr('captureHeadLane')}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddHeadHint') : ''}">${blocksHtml}</div></div>`;
+    lanesHtml += renderGroup('head:', tr('captureHeadGroup'), 'vct-track-group-head', headLane);
+  }
 
   container.__vctTotal = total;
   container.innerHTML = `
@@ -1651,10 +1745,10 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // bloc (façon cue sheet) -- seul le nom du champ diffère (durationOverride vs duration, ce dernier
   // toujours défini puisque matérialisé, jamais "d'origine" à retrouver). Ces deux petits accesseurs
   // évitent de dupliquer la logique d'édition/glisser pour les deux types.
-  function hasIndependentDuration(e) { return e.name === 'stinger_play' || e.name === 'layer_segment'; }
-  function getEventDuration(e) { return e.name === 'layer_segment' ? e.detail.duration : (e.detail.durationOverride || 1); }
+  function hasIndependentDuration(e) { return e.name === 'stinger_play' || e.name === 'layer_segment' || e.name === 'fx_segment'; }
+  function getEventDuration(e) { return (e.name === 'layer_segment' || e.name === 'fx_segment') ? e.detail.duration : (e.detail.durationOverride || 1); }
   function setEventDuration(e, v) {
-    if (e.name === 'layer_segment') e.detail.duration = Math.max(0.1, v);
+    if (e.name === 'layer_segment' || e.name === 'fx_segment') e.detail.duration = Math.max(0.1, v);
     else e.detail.durationOverride = (v == null || v <= 0) ? null : v;
   }
 
@@ -1674,6 +1768,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       <span class="vct-detail-label">${window.LayerPlayerCore.escapeHtml(describeCaptureEvent(e, laneOverrides))}</span>
       <input type="number" step="0.1" min="0" value="${e.t.toFixed(2)}" class="video-capture-event-time" title="${tr('captureTimeInputTitle')}">
       ${editableDuration ? `<input type="number" step="0.1" min="0" placeholder="${isSfx ? tr('captureDurationPlaceholder') : ''}" value="${isSfx ? (e.detail.durationOverride ? e.detail.durationOverride.toFixed(2) : '') : e.detail.duration.toFixed(2)}" class="video-capture-event-duration" title="${tr('captureDurationInputTitle')}">` : ''}
+      ${e.name === 'head_turn' ? `<input type="number" step="1" min="-180" max="180" value="${Math.round(e.detail.yaw)}" class="video-capture-event-yaw" title="${tr('captureYawInputTitle')}">` : ''}
       ${isSfx ? `<label class="video-capture-duck-label" title="${tr('captureDuckHint')}"><input type="checkbox" class="video-capture-event-duck" ${duckChecked ? 'checked' : ''}> Duck</label>` : ''}
       <button type="button" class="video-capture-event-del" title="${tr('captureDeleteBtn')}" aria-label="${tr('captureDeleteBtn')}">✕</button>
     `;
@@ -1689,6 +1784,15 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       durationInput.addEventListener('change', (ev) => {
         const v = parseFloat(ev.target.value);
         setEventDuration(e, isNaN(v) ? null : v);
+        rerender();
+        onChange && onChange();
+      });
+    }
+    const yawInput = detailEl.querySelector('.video-capture-event-yaw');
+    if (yawInput) {
+      yawInput.addEventListener('change', (ev) => {
+        const v = parseFloat(ev.target.value);
+        if (!isNaN(v)) e.detail.yaw = Math.max(-180, Math.min(180, v));
         rerender();
         onChange && onChange();
       });
@@ -1856,6 +1960,10 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         events.push({ t, name: 'stinger_play', detail: { sfxId: trackEl.dataset.addSfxId, variationIndex: parseInt(trackEl.dataset.addVariation, 10) } });
       } else if (kind === 'slot') {
         events.push({ t, name: 'seq_slot_start', detail: { trackId: trackEl.dataset.addTrackId, slotId: trackEl.dataset.addSlotId, altIndex: 0 } });
+      } else if (kind === 'fxseg') {
+        events.push({ t, name: 'fx_segment', detail: { trackId: trackEl.dataset.addTrackId, triggerId: trackEl.dataset.addTriggerId, duration: 3 } });
+      } else if (kind === 'head') {
+        events.push({ t, name: 'head_turn', detail: { yaw: 0 } });
       } else {
         return;
       }
@@ -2040,11 +2148,23 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
 
   const stingerEvents = events.filter(e => e.name === 'stinger_play');
   const layerSegmentEvents = events.filter(e => e.name === 'layer_segment');
+  const fxSegmentEvents = events.filter(e => e.name === 'fx_segment');
   const embrEvents = events.filter(e => e.name === 'embr_loop_select').sort((a, b) => a.t - b.t);
   const lastT = Math.max(0, ...events.map(e => e.t),
     ...stingerEvents.map(e => e.t + (e.detail.durationOverride || 1)),
-    ...layerSegmentEvents.map(e => e.t + e.detail.duration));
+    ...layerSegmentEvents.map(e => e.t + e.detail.duration),
+    ...fxSegmentEvents.map(e => e.t + e.detail.duration));
   const total = lastT + TAIL;
+  // Moteur de rendu (23/09) : dès que la prise touche un morceau avec des effets/du pitch/des triggers ou un Sfx
+  // spatialisé, l'audio n'est plus mixé par des filtres ffmpeg mais rejoué par le moteur du lecteur dans un
+  // OfflineAudioContext (capture-render.js) -- même son que celui testé en jeu. Sinon : mixage ffmpeg historique.
+  const useEngine = window.LayerCaptureRender.needsEngineRender(events, findCaptureTrack, findCaptureSfx);
+  const plan = {
+    total, segments: [], sfxHits: [], duckWindows: [],
+    triggerChanges: window.LayerCaptureRender.fxSegmentsToChanges(events),
+    headEvents: events.filter(e => e.name === 'head_turn').map(e => ({ t: e.t, yaw: e.detail.yaw }))
+  };
+  const trackRate = track => (track && track.fx && track.fx.pitch) ? Math.pow(2, (track.fx.pitch.semitones || 0) / 12) : 1;
 
   onProgress(tr('captureExportPreparing').replace('{n}', layerSegmentEvents.length).replace('{m}', embrEvents.length).replace('{k}', stingerEvents.length));
 
@@ -2061,6 +2181,23 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
     inputs.push(name);
     return (inputIdxByUrl[url] = inIdx++);
   }
+  // Un segment de musique : soit une entrée + un filtre ffmpeg (mixage historique, `legacyBuild` fabrique la chaîne
+  // de filtres exactement comme avant), soit une entrée du plan de rendu du moteur (voir capture-render.js).
+  // fileStart : position dans le fichier ; phaseLocked : vrai si cette position suit la ligne de temps (calques,
+  // boucles d'embranchement -- le fichier tourne en continu depuis t=0), auquel cas elle est mise à l'échelle par
+  // le pitch "vitesse" du morceau. baseFx : fx de la voix si différent de celui de sa cible (pool d'une section
+  // qui en référence une autre).
+  async function addMusic(o, legacyBuild) {
+    if (useEngine) {
+      plan.segments.push({ url: o.url, track: o.track, trackId: o.track && o.track.id, targetKey: o.targetKey || null, baseFx: o.baseFx,
+        start: o.start, dur: o.dur, fileStart: o.fileStart || 0, phaseLocked: !!o.phaseLocked, fade: o.fade || 0, rate: trackRate(o.track) });
+      return;
+    }
+    const idx = await addInputFromUrl(o.url);
+    const label = `seg${segN++}`;
+    filterParts.push(legacyBuild(idx, label));
+    mixLabels.push(`[${label}]`);
+  }
 
   // Segments de calque (mode vertical) : chaque layer_segment est déjà une plage autonome (IN + durée),
   // matérialisée une fois pour toutes à l'arrêt de la capture -- voir materializeLayerSegments. Plus besoin
@@ -2072,17 +2209,13 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
     const layer = track && track.layers[seg.detail.layerIndex];
     if (!layer || !layer.file) { console.warn('Calque introuvable', seg); continue; }
     onProgress(tr('captureFetchLayer').replace('{label}', layer.label));
-    const idx = await addInputFromUrl(track.base + layer.file);
-    const label = `seg${segN++}`;
     const delayMs = Math.round(seg.t * 1000);
     const dur = seg.detail.duration;
     const fade = Math.min(0.3, dur / 2);
-    filterParts.push(
-      `[${idx}:a]atrim=start=${seg.t}:end=${seg.t + dur},asetpts=PTS-STARTPTS,` +
-      `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
-      `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`
-    );
-    mixLabels.push(`[${label}]`);
+    await addMusic({ url: track.base + layer.file, track, targetKey: 'layer:' + seg.detail.layerIndex, start: seg.t, dur, fileStart: seg.t, phaseLocked: true, fade },
+      (idx, label) => `[${idx}:a]atrim=start=${seg.t}:end=${seg.t + dur},asetpts=PTS-STARTPTS,` +
+        `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
+        `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`);
   }
 
   // Embranchement-vertical : une seule boucle audible à la fois (fenêtres reconstituées comme dans la
@@ -2108,23 +2241,17 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
       const loop = (track.loops || []).find(l => l.id === w.loopId);
       if (!loop || !loop.file) { console.warn('Boucle introuvable', w); continue; }
       onProgress(tr('captureFetchLoop').replace('{label}', loop.label));
-      const idx = await addInputFromUrl(track.base + loop.file);
-      const label = `seg${segN++}`;
       const delayMs = Math.round(w.start * 1000);
       const dur = w.end - w.start;
       const fade = Math.min(0.3, dur / 2);
-      filterParts.push(
-        `[${idx}:a]atrim=start=${w.start}:end=${w.end},asetpts=PTS-STARTPTS,` +
-        `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
-        `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`
-      );
-      mixLabels.push(`[${label}]`);
+      await addMusic({ url: track.base + loop.file, track, targetKey: 'loop:' + (track.loops || []).indexOf(loop), start: w.start, dur, fileStart: w.start, phaseLocked: true, fade },
+        (idx, label) => `[${idx}:a]atrim=start=${w.start}:end=${w.end},asetpts=PTS-STARTPTS,` +
+          `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
+          `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`);
       if (w.isSwitch && loop.transition && loop.transition.file) {
         onProgress(tr('captureFetchTransition').replace('{label}', loop.label));
-        const tIdx = await addInputFromUrl(track.base + loop.transition.file);
-        const tLabel = `seg${segN++}`;
-        filterParts.push(`[${tIdx}:a]aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${tLabel}]`);
-        mixLabels.push(`[${tLabel}]`);
+        await addMusic({ url: track.base + loop.transition.file, track, targetKey: null, start: w.start, dur: null, fileStart: 0, phaseLocked: false, fade: 0 },
+          (tIdx, tLabel) => `[${tIdx}:a]aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${tLabel}]`);
       }
     }
   }
@@ -2153,17 +2280,14 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
       if (!file) { console.warn('Fichier séquentiel introuvable', w); continue; }
       const wLabel = captureSeqWindowLabel(track, w, laneOverrides);
       onProgress(tr('captureFetchGeneric').replace('{label}', wLabel));
-      const idx = await addInputFromUrl(track.base + file);
-      const label = `seg${segN++}`;
       const delayMs = Math.round(w.start * 1000);
       const dur = w.end - w.start;
       const fade = Math.min(0.3, dur / 2);
-      filterParts.push(
-        `[${idx}:a]atrim=start=0:end=${dur},asetpts=PTS-STARTPTS,` +
-        `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
-        `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`
-      );
-      mixLabels.push(`[${label}]`);
+      const seqTarget = w.kind === 'intro' ? 'intro' : w.kind === 'outro' ? 'outro' : w.kind === 'slot' ? 'slot:' + (track.segmentSlots || []).findIndex(sl => sl.id === w.slotId) : null;
+      await addMusic({ url: track.base + file, track, targetKey: seqTarget, start: w.start, dur, fileStart: 0, phaseLocked: false, fade },
+        (idx, label) => `[${idx}:a]atrim=start=0:end=${dur},asetpts=PTS-STARTPTS,` +
+          `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
+          `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`);
     }
   }
 
@@ -2192,14 +2316,10 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
         const file = w.kind === 'intro' ? (track.intro && track.intro.file) : (track.outro && track.outro.file);
         if (!file) { console.warn('Fichier vertical-random introuvable', w); continue; }
         onProgress(tr('captureFetchGeneric').replace('{label}', wLabel));
-        const idx = await addInputFromUrl(track.base + file);
-        const label = `seg${segN++}`;
-        filterParts.push(
-          `[${idx}:a]atrim=start=0:end=${dur},asetpts=PTS-STARTPTS,` +
-          `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
-          `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`
-        );
-        mixLabels.push(`[${label}]`);
+        await addMusic({ url: track.base + file, track, targetKey: w.kind, start: w.start, dur, fileStart: 0, phaseLocked: false, fade },
+          (idx, label) => `[${idx}:a]atrim=start=0:end=${dur},asetpts=PTS-STARTPTS,` +
+            `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
+            `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`);
         continue;
       }
       const section = resolveCaptureVRSection(track, w.sectionIndex);
@@ -2210,15 +2330,14 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
         const pool = (section.pools || [])[pick.poolIndex];
         const alt = pool && (pool.alternatives || [])[pick.altIndex];
         if (!alt || !alt.file) continue;
-        const idx = await addInputFromUrl(track.base + alt.file);
-        const label = `seg${segN++}`;
         const off = w.bufferOffset || 0;
-        filterParts.push(
-          `[${idx}:a]atrim=start=${off}:end=${off + dur},asetpts=PTS-STARTPTS,` +
-          `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
-          `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`
-        );
-        mixLabels.push(`[${label}]`);
+        // Même clé que le lecteur : index de la section JOUÉE (peut en référencer une autre), fx lu sur le pool
+        // de la section réelle.
+        await addMusic({ url: track.base + alt.file, track, targetKey: 'pool:' + w.sectionIndex + ':' + pick.poolIndex, baseFx: (pool && pool.fx) || null,
+          start: w.start, dur, fileStart: off, phaseLocked: false, fade },
+          (idx, label) => `[${idx}:a]atrim=start=${off}:end=${off + dur},asetpts=PTS-STARTPTS,` +
+            `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +
+            `aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`);
       }
     }
   }
@@ -2232,15 +2351,20 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
     const alt = sfx && sfx.alternatives && sfx.alternatives[s.detail.variationIndex];
     if (!alt) { console.warn('Sfx introuvable', s); continue; }
     onProgress(tr('captureFetchStinger').replace('{title}', sfx.title));
-    const idx = await addInputFromUrl(sfx.base + alt.file);
-    const label = `seg${segN++}`;
-    const delayMs = Math.round(s.t * 1000);
-    // Sans durée retouchée : le stinger joue tel quel, longueur d'origine du fichier (comportement
-    // historique). Avec une durée retouchée (édition façon cue sheet, OUT), on le raccourcit à la volée --
-    // une durée plus longue que le fichier n'a aucun effet, atrim ne peut pas inventer du son.
-    const trim = s.detail.durationOverride ? `atrim=start=0:end=${s.detail.durationOverride},` : '';
-    filterParts.push(`[${idx}:a]${trim}aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`);
-    stingerMixLabels.push(`[${label}]`);
+    if (useEngine) {
+      // spatialStep : le point de trajectoire réellement joué pendant la prise (mode "pas à pas").
+      plan.sfxHits.push({ t: s.t, url: sfx.base + alt.file, sfx, durationOverride: s.detail.durationOverride || null, stepIndex: s.detail.spatialStep });
+    } else {
+      const idx = await addInputFromUrl(sfx.base + alt.file);
+      const label = `seg${segN++}`;
+      const delayMs = Math.round(s.t * 1000);
+      // Sans durée retouchée : le stinger joue tel quel, longueur d'origine du fichier (comportement
+      // historique). Avec une durée retouchée (édition façon cue sheet, OUT), on le raccourcit à la volée --
+      // une durée plus longue que le fichier n'a aucun effet, atrim ne peut pas inventer du son.
+      const trim = s.detail.durationOverride ? `atrim=start=0:end=${s.detail.durationOverride},` : '';
+      filterParts.push(`[${idx}:a]${trim}aformat=channel_layouts=stereo,adelay=delays=${delayMs}:all=1[${label}]`);
+      stingerMixLabels.push(`[${label}]`);
+    }
     // Duck (2026-09-15, case à cocher dans le panneau de détail) : suit le réglage d'origine du son
     // (duckMainTrack) sauf retouche explicite pour cette prise (e.detail.duck).
     const duck = s.detail.duck !== undefined ? s.detail.duck : !!(sfx && sfx.duckMainTrack);
@@ -2251,6 +2375,28 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // fenêtre "duck" -- reproduit le comportement du vrai moteur (duckMainTrack) sans quoi la musique
   // resterait à plein volume sous les stingers concernés. Puis mixe ce bus (éventuellement creusé) avec
   // les stingers eux-mêmes (jamais duckés par leur propre passage) pour le mix final.
+  let audioMap = '[aout]';
+  if (useEngine) {
+    // Rendu par le moteur du lecteur (capture-render.js) : effets par voix, pitch, triggers (boutons ET déduits des
+    // embranchements), Sfx spatialisés, tête de l'auditeur, duck -- puis simple assemblage avec l'image par ffmpeg.
+    Object.keys(embrWindowsByTrack).forEach(trackId => {
+      const track = findCaptureTrack(trackId);
+      if (track) plan.triggerChanges.push(...window.LayerCaptureRender.deriveBranchChanges(track, 'embr', embrWindowsByTrack[trackId]));
+    });
+    Object.keys(seqWindowsByTrack).forEach(trackId => {
+      const track = findCaptureTrack(trackId);
+      if (track) plan.triggerChanges.push(...window.LayerCaptureRender.deriveBranchChanges(track, 'seq', seqWindowsByTrack[trackId]));
+    });
+    plan.duckWindows = duckWindows;
+    onProgress(tr('captureEngineRendering'));
+    const rendered = await window.LayerCaptureRender.render(plan, {
+      fetchBytes: fetchAsUint8Array,
+      onProgress: (i, n) => onProgress(tr('captureEngineProgress').replace('{i}', i).replace('{n}', n))
+    });
+    await ffmpeg.writeFile('mix.wav', window.LayerCaptureRender.encodeWav(rendered));
+    inputs.push('mix.wav');
+    audioMap = `${inIdx++}:a`;
+  } else {
   let musicBusLabel = null;
   if (mixLabels.length) {
     filterParts.push(`${mixLabels.join('')}amix=inputs=${mixLabels.length}:normalize=0:duration=longest[musicmix]`);
@@ -2263,6 +2409,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   }
   const finalMixLabels = (musicBusLabel ? [`[${musicBusLabel}]`] : []).concat(stingerMixLabels);
   filterParts.push(`${finalMixLabels.join('')}amix=inputs=${finalMixLabels.length}:normalize=0:duration=longest[aout]`);
+  }
 
   onProgress(tr('captureFetchVideo'));
   const videoExt = videoFile.name.slice(videoFile.name.lastIndexOf('.')) || '.mp4';
@@ -2334,6 +2481,18 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
       `enable='between(t,${s.t},${s.t + flashDur})'`
     );
   }
+  // Effets déclenchés par bouton : un libellé violet sous le flash Sfx pendant que le bouton est enfoncé (une ligne
+  // par trigger pour que plusieurs effets simultanés restent lisibles).
+  for (const fs of fxSegmentEvents) {
+    const track = findCaptureTrack(fs.detail.trackId);
+    const list = ((track && track.fxTriggers) || []).filter(d => d && d.id && d.fx);
+    const ti = Math.max(0, list.findIndex(d => d.id === fs.detail.triggerId));
+    const label = (((list[ti] && list[ti].label) || 'FX')).replace(/['\\:]/g, '');
+    drawtexts.push(
+      `drawtext=fontfile=font.ttf:text='FX ${label}':x=24:y=${64 + ti * 30}:fontsize=22:fontcolor=0xc9a0ff:box=1:boxcolor=0x000000AA:boxborderw=6:` +
+      `enable='between(t,${fs.t},${fs.t + fs.detail.duration})'`
+    );
+  }
   // Filigrane "powered by LayerPitch" (Rookie/Warrior, voir tout en haut de la fonction) -- permanent,
   // pas de fenêtre `enable`, coin bas-droit pour ne jamais chevaucher les libellés de calque/boucle/
   // emplacement (toujours en bas-gauche ci-dessus).
@@ -2366,7 +2525,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   inputs.forEach(name => args.push('-i', name));
   args.push(
     '-filter_complex', filterComplex,
-    '-map', '[vout]', '-map', '[aout]',
+    '-map', '[vout]', '-map', audioMap,
     '-c:v', 'libx264', '-threads', '2', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac',
     '-shortest',
@@ -2529,7 +2688,7 @@ function openCapturePanel(file) {
       // track_play de la passe qui vient de s'arrêter) : seuls ces derniers sont (re)convertis, le reste
       // traverse tel quel -- voir son propre commentaire plus haut dans le fichier.
       const newPassEvents = stopCapture();
-      lastEvents = materializeLayerSegments(pendingBaseEvents.concat(newPassEvents));
+      lastEvents = materializeCaptureExtras(materializeLayerSegments(pendingBaseEvents.concat(newPassEvents)));
       pendingBaseEvents = [];
       // Arrêter la capture doit vraiment arrêter la musique en cours (2026-09-16, même retour direct de
       // Jules-Antoine que pour Démarrer). 'stop-track' est l'événement global que player.js écoute déjà
