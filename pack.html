@@ -640,7 +640,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790197708634"></script>
+<script src="layerpitch-i18n.js?v=1790197906834"></script>
 <script src="player.js?v=1790197016800"></script>
 <script src="capture-render.js?v=1790197016800"></script>
 <script>
@@ -2143,7 +2143,13 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   const showWatermark = exportTier !== 'boss';
   const showComposerCredit = exportOptions.showComposerCredit !== false;
   const composerName = (window.__lpCaptureLibrary && window.__lpCaptureLibrary.composerName) || '';
-  const ffmpeg = await loadFfmpegWasm(onProgress);
+  // Modes d'export (23/09). 'video' : l'export complet (image ré-encodée + incrustations -- long, ffmpeg.wasm
+  // n'utilise qu'un seul coeur). 'audio' : seulement le son, rendu par le moteur du lecteur, en fichier WAV --
+  // quelques secondes, ffmpeg n'est même pas chargé. 'copy' : l'image d'origine recopiée SANS ré-encodage avec le
+  // nouveau son (pas d'incrustations) -- quelques secondes aussi. Les deux modes rapides passent toujours par le
+  // moteur de rendu, même sans effet.
+  const exportMode = exportOptions.mode === 'audio' || exportOptions.mode === 'copy' ? exportOptions.mode : 'video';
+  const ffmpeg = exportMode === 'audio' ? null : await loadFfmpegWasm(onProgress);
   const TAIL = 2;
 
   const stingerEvents = events.filter(e => e.name === 'stinger_play');
@@ -2158,7 +2164,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // Moteur de rendu (23/09) : dès que la prise touche un morceau avec des effets/du pitch/des triggers ou un Sfx
   // spatialisé, l'audio n'est plus mixé par des filtres ffmpeg mais rejoué par le moteur du lecteur dans un
   // OfflineAudioContext (capture-render.js) -- même son que celui testé en jeu. Sinon : mixage ffmpeg historique.
-  const useEngine = window.LayerCaptureRender.needsEngineRender(events, findCaptureTrack, findCaptureSfx);
+  const useEngine = exportMode !== 'video' || window.LayerCaptureRender.needsEngineRender(events, findCaptureTrack, findCaptureSfx);
   const plan = {
     total, segments: [], sfxHits: [], duckWindows: [],
     triggerChanges: window.LayerCaptureRender.fxSegmentsToChanges(events),
@@ -2393,7 +2399,27 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
       fetchBytes: fetchAsUint8Array,
       onProgress: (i, n) => onProgress(tr('captureEngineProgress').replace('{i}', i).replace('{n}', n))
     });
-    await ffmpeg.writeFile('mix.wav', window.LayerCaptureRender.encodeWav(rendered));
+    const wavBytes = window.LayerCaptureRender.encodeWav(rendered);
+    if (exportMode === 'audio') return new Blob([wavBytes], { type: 'audio/wav' });
+    await ffmpeg.writeFile('mix.wav', wavBytes);
+    if (exportMode === 'copy') {
+      // Image d'origine recopiée telle quelle (-c:v copy : aucun ré-encodage, donc rapide) + nouveau son ; le son
+      // d'origine de la vidéo est écarté. Pas d'incrustations (elles exigent de ré-encoder l'image).
+      onProgress(tr('captureFetchVideo'));
+      const copyExt = videoFile.name.slice(videoFile.name.lastIndexOf('.')) || '.mp4';
+      await ffmpeg.writeFile('bg' + copyExt, new Uint8Array(await videoFile.arrayBuffer()));
+      onProgress(tr('captureCopying'));
+      const copyLogs = [];
+      const onCopyLog = ({ message }) => copyLogs.push(message);
+      ffmpeg.on('log', onCopyLog);
+      let copyCode;
+      try {
+        copyCode = await ffmpeg.exec(['-i', 'bg' + copyExt, '-i', 'mix.wav', '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-c:a', 'aac', '-shortest', 'out.mp4']);
+      } finally { ffmpeg.off('log', onCopyLog); }
+      if (copyCode !== 0) throw new Error('ffmpeg a échoué : ' + copyLogs.slice(-6).join(' | '));
+      const copyData = await ffmpeg.readFile('out.mp4');
+      return new Blob([copyData.buffer], { type: 'video/mp4' });
+    }
     inputs.push('mix.wav');
     audioMap = `${inIdx++}:a`;
   } else {
@@ -2620,6 +2646,8 @@ function openCapturePanel(file) {
         <input type="checkbox" id="videoCaptureCreditCheckbox" checked> ${tr('captureCreditLabel')}
       </label>
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>${tr('captureExportBtn')}</button>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureExportAudioBtn" disabled title="${tr('captureExportAudioHelp')}">${tr('captureExportAudioBtn')}</button>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureExportCopyBtn" disabled title="${tr('captureExportCopyHelp')}">${tr('captureExportCopyBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
@@ -2640,6 +2668,9 @@ function openCapturePanel(file) {
   const recordLabel = document.getElementById('videoCaptureRecordLabel');
   const countEl = document.getElementById('videoCaptureCount');
   const exportBtn = document.getElementById('videoCaptureExportBtn');
+  const exportAudioBtn = document.getElementById('videoCaptureExportAudioBtn');
+  const exportCopyBtn = document.getElementById('videoCaptureExportCopyBtn');
+  const setExportButtonsDisabled = (v) => { exportBtn.disabled = v; exportAudioBtn.disabled = v; exportCopyBtn.disabled = v; };
   const addToLibraryBtn = document.getElementById('videoCaptureAddToLibraryBtn');
   const exportStatus = document.getElementById('videoCaptureExportStatus');
   const additiveLabel = document.getElementById('videoCaptureAdditiveLabel');
@@ -2673,7 +2704,7 @@ function openCapturePanel(file) {
   // la case à cocher ne doit plus pouvoir changer d'avis une fois l'enregistrement en cours.
   let pendingBaseEvents = [];
   function refreshActionButtons() {
-    exportBtn.disabled = lastEvents.length === 0;
+    setExportButtonsDisabled(lastEvents.length === 0);
     saveBtn.disabled = lastEvents.length === 0;
     // La case "Passe additive" n'a de sens que s'il existe déjà quelque chose à préserver.
     additiveLabel.hidden = lastEvents.length === 0;
@@ -2747,7 +2778,7 @@ function openCapturePanel(file) {
       recordBtn.classList.add('recording');
       recordLabel.textContent = tr('captureStopBtn');
       countEl.textContent = tr('captureInProgress');
-      exportBtn.disabled = true;
+      setExportButtonsDisabled(true);
       saveBtn.disabled = true;
       additiveCheckbox.disabled = true;
       exportStatus.textContent = '';
@@ -2779,36 +2810,40 @@ function openCapturePanel(file) {
   // Tête de lecture en continu pendant que la vidéo avance -- repositionne juste la ligne (pas de
   // ré-affichage complet de la frise, trop coûteux à chaque frame).
   videoEl.addEventListener('timeupdate', () => positionCapturePlayhead(timelineEl, videoEl));
-  exportBtn.addEventListener('click', async () => {
-    exportBtn.disabled = true;
+  async function runExport(mode) {
+    setExportButtonsDisabled(true);
     try {
       // Sélecteur de palier retiré du panneau le 16 septembre (retour direct de Jules-Antoine : "ça ne
       // sert à rien" -- confusion en testant, aucun palier réel n'existe encore pour lui donner du
       // sens) -- "on le garde pour les vrais réglages que personne ne verra". La mécanique de filigrane
       // dans exportCaptureVideo reste intacte, juste plus exposée en UI : figé sur 'boss' (aucun
       // filigrane) en attendant un vrai palier compositeur à brancher ici, invisible pour l'instant.
-      const exportOptions = { tier: 'boss', showComposerCredit: creditCheckbox.checked };
+      const exportOptions = { tier: 'boss', showComposerCredit: creditCheckbox.checked, mode };
       const blob = await exportCaptureVideo(lastEvents, file, (msg) => { exportStatus.textContent = msg; }, laneOverrides, exportOptions);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `export-${Date.now()}.mp4`;
+      a.download = `export-${Date.now()}.${mode === 'audio' ? 'wav' : 'mp4'}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
-      exportStatus.textContent = tr('captureExportDone');
+      exportStatus.textContent = tr(mode === 'audio' ? 'captureAudioDone' : 'captureExportDone');
       // Garde le Blob pour un envoi optionnel vers la bibliothèque vidéo (voir addToLibraryBtn
       // ci-dessous) -- distinct du téléchargement local ci-dessus, jamais automatique (2026-09-16).
-      lastExportBlob = blob;
-      addToLibraryBtn.hidden = false;
+      // Un export audio seul n'est pas une vidéo : rien à envoyer à la bibliothèque.
+      if (mode === 'audio') { lastExportBlob = null; addToLibraryBtn.hidden = true; }
+      else { lastExportBlob = blob; addToLibraryBtn.hidden = false; }
     } catch (e) {
       console.error(e);
       exportStatus.textContent = tr('captureExportFailed').replace('{error}', e.message);
     } finally {
-      exportBtn.disabled = false;
+      setExportButtonsDisabled(lastEvents.length === 0);
     }
-  });
+  }
+  exportBtn.addEventListener('click', () => runExport('video'));
+  exportAudioBtn.addEventListener('click', () => runExport('audio'));
+  exportCopyBtn.addEventListener('click', () => runExport('copy'));
   // Dépose l'export dans la bibliothèque vidéo du compositeur (2026-09-16, voir composer_videos) --
   // action séparée et volontaire, jamais automatique après un export (un compositeur peut vouloir
   // exporter plusieurs essais avant de choisir lequel garder). Réutilise le champ "Nom de la prise"
