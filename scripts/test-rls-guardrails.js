@@ -36,7 +36,7 @@ loadEnv();
 const SENSITIVE_TABLES = [
   'pack_purchases', 'album_purchases', 'invoices', 'admins', 'access_requests',
   'contact_messages', 'analytics_events', 'analytics_write_rate_limit', 'composer_profiles',
-  'studio_profiles', 'fan_profiles', 'profiles',
+  'studio_profiles', 'fan_profiles', 'profiles', 'beta_program',
 ];
 
 let passed = 0, failed = 0;
