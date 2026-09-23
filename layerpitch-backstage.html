@@ -1751,9 +1751,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790195165930"></script>
+<script src="layerpitch-i18n.js?v=1790195677014"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1790195165930"></script>
+<script src="player.js?v=1790195677014"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -6514,6 +6514,13 @@ function renderSfxSpaceEditor(host, sfx) {
         </select>
       </div>
     </div>
+    ${room !== 'outside' ? `
+      <div class="row" style="margin-top:6px">
+        <div><label>${tr('sfxSpaceReverbDb')} : <span data-role="reverbDbVal">${sp.reverbDb != null ? sp.reverbDb : 0}</span></label>
+          <input type="range" min="-18" max="6" step="1" data-sfx-space="reverbDb" value="${sp.reverbDb != null ? sp.reverbDb : 0}"></div>
+        <div><label>${tr('sfxSpaceBrightness')}</label>
+          <input type="range" min="-1" max="1" step="0.1" data-sfx-space="brightness" value="${sp.brightness != null ? sp.brightness : 0}"></div>
+      </div>` : ''}
     ${isPath ? `<div class="hint-inline">${tr(path.mode === 'steps' ? 'sfxSpacePathStepsHint' : 'sfxSpacePathGlideHint')}</div>` : ''}
     ${path.mode === 'steps' ? `
       <div style="margin-top:6px"><label>${tr('sfxSpacePathLoopLabel')}</label>
@@ -6529,7 +6536,7 @@ function renderSfxSpaceEditor(host, sfx) {
         <g stroke="var(--border)" stroke-width="0.5">${grid}</g>
         <line x1="${C - hx * ppm}" y1="${C}" x2="${C + hx * ppm}" y2="${C}" stroke="var(--border)" stroke-width="0.8" stroke-dasharray="3 3"/>
         <line x1="${C}" y1="${C - hy * ppm}" x2="${C}" y2="${C + hy * ppm}" stroke="var(--border)" stroke-width="0.8" stroke-dasharray="3 3"/>
-        <polygon points="${C},${C - 11} ${C - 8},${C + 8} ${C + 8},${C + 8}" fill="var(--text-dimmer, #888)"><title>${tr('sfxSpaceListener')}</title></polygon>
+        <g data-role="spaceListener"><polygon points="${C},${C - 11} ${C - 8},${C + 8} ${C + 8},${C + 8}" fill="var(--text-dimmer, #888)"><title>${tr('sfxSpaceListener')}</title></polygon></g>
         <g data-role="spaceDynamic"></g>
         <text x="${C - hx * ppm + 4}" y="${C + hy * ppm - 5}" font-size="10" fill="var(--text-dimmer, #888)">${tr('sfxSpaceGrid', { n: gridStep })}</text>
       </svg>
@@ -6574,6 +6581,10 @@ function renderSfxSpaceEditor(host, sfx) {
   const durInp = body.querySelector('[data-sfx-space="pathDuration"]');
   if (durInp) durInp.addEventListener('input', e => { const v = parseFloat(e.target.value); path.durationSec = v > 0 ? v : null; hasUnsavedEdits = true; });
   body.querySelector('[data-sfx-space="binaural"]').addEventListener('change', e => { sfx.spatial.binaural = e.target.checked; hasUnsavedEdits = true; });
+  const rvDb = body.querySelector('[data-sfx-space="reverbDb"]');
+  if (rvDb) rvDb.addEventListener('input', e => { sfx.spatial.reverbDb = parseFloat(e.target.value); body.querySelector('[data-role="reverbDbVal"]').textContent = e.target.value; hasUnsavedEdits = true; });
+  const brt = body.querySelector('[data-sfx-space="brightness"]');
+  if (brt) brt.addEventListener('input', e => { sfx.spatial.brightness = parseFloat(e.target.value); hasUnsavedEdits = true; });
 
   const svg = body.querySelector('[data-role="spaceMatrix"]');
   const dyn = svg.querySelector('[data-role="spaceDynamic"]');
@@ -6655,6 +6666,13 @@ function renderSfxSpaceEditor(host, sfx) {
     renderSfxSpaceEditor(host, sfx);
   });
   paint();
+  // Le triangle "auditeur" suit l'orientation de la tête réglée dans le lecteur de test (évènement du moteur).
+  const listenerG = svg.querySelector('[data-role="spaceListener"]');
+  const setTri = deg => listenerG.setAttribute('transform', `rotate(${deg} ${C} ${C})`);
+  setTri(core.getListenerYaw());
+  if (window.__sfxSpaceYawHandler) document.removeEventListener('layerpitch-head-yaw', window.__sfxSpaceYawHandler);
+  window.__sfxSpaceYawHandler = e => { if (listenerG.isConnected) setTri(e.detail); };
+  document.addEventListener('layerpitch-head-yaw', window.__sfxSpaceYawHandler);
 
   // Lecteur de test : le vrai lecteur de Sfx du site (mêmes variations, même moteur), branché sur les fichiers
   // du Sfx -- même ceux pas encore publiés -- et sur sfx.spatial EN DIRECT (getter), pour entendre chaque

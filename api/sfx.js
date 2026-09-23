@@ -16,6 +16,7 @@
     return {
       id: row.id, folderId: row.folder_id, title: row.title,
       descriptionFr: row.description_fr, descriptionEn: row.description_en,
+      tag: row.tag || '',
       rrMode: row.rr_mode, duckMainTrack: row.duck_main_track, base: row.base,
       alternatives: row.alternatives,
       spatial: row.spatial || null,

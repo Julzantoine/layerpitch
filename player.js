@@ -1208,7 +1208,12 @@ function normalizeSpatial(sp) {
   const mode = (P && (P.mode === 'glide' || P.mode === 'steps') && pts.length >= 2) ? P.mode : 'fixed';
   const loop = P && ['loop', 'pingpong', 'random', 'stop'].indexOf(P.loop) >= 0 ? P.loop : 'loop';
   const durationSec = P && +P.durationSec > 0 ? +P.durationSec : null;
+  // Niveau de reverb (dB, par rapport au réglage de la salle) et brillance de la queue (-1 sombre .. +1 clair) :
+  // inspirés des curseurs "Brightness"/niveau de retour de FabFilter Pro-R et du filtrage de la reverb de
+  // Cinematic Rooms (LiquidSonics) -- la reverb d'un Sfx doit pouvoir se doser sans changer de salle.
+  const num = (v, lo, hi, d) => Number.isFinite(+v) ? Math.max(lo, Math.min(hi, +v)) : d;
   return { enabled: !!(sp && sp.enabled), room, x: clamp(sp && sp.x, hx), y: clamp(sp && sp.y, hy), binaural: !!(sp && sp.binaural),
+    reverbDb: num(sp && sp.reverbDb, -18, 6, 0), brightness: num(sp && sp.brightness, -1, 1, 0),
     path: { mode, points: pts, loop, durationSec } };
 }
 const SPATIAL_MAX_PATH_POINTS = 16;
@@ -1407,11 +1412,57 @@ function buildSpatialVoice(ctx, spatial, opts) {
   const bus = room.wet > 0 ? getRoomBus(ctx, sp.room) : null;
   if (bus) {
     const send = ctx.createGain();
-    send.gain.value = room.wet;
-    input.connect(send); send.connect(bus.convolver);
-    nodes.push(send);
+    send.gain.value = room.wet * Math.pow(10, sp.reverbDb / 20);
+    const tone = ctx.createBiquadFilter(); // brillance de la reverb : passe-bas de 5 kHz (sombre) à pleine bande (clair)
+    tone.type = 'lowpass';
+    tone.frequency.value = Math.min(ctx.sampleRate / 2 - 100, 20000 * Math.pow(2, Math.min(0, sp.brightness) * 2));
+    tone.Q.value = 0.5;
+    input.connect(tone); tone.connect(send); send.connect(bus.convolver);
+    nodes.push(tone, send);
   }
   return { input, nodes, distance: dist, dispose() { nodes.forEach(n => { try { n.disconnect(); } catch (e) {} }); } };
+}
+// ---- Orientation de la tête de l'auditeur ("tourner la tête", 23/09) ----
+// Un seul auditeur par contexte audio (ctx.listener) : tourner sa direction fait pivoter TOUS les Sfx placés
+// autour de lui, y compris ceux qui jouent déjà -- aucun ambisonique nécessaire pour nos sources séparées.
+// yaw en degrés : 0 = face à l'avant de la matrice, +90 = tête tournée vers la droite (sens horaire vu du dessus).
+let _listenerYawDeg = 0;
+function applyListenerYaw(audioCtx, deg) {
+  const r = deg * Math.PI / 180, fx = Math.sin(r), fz = -Math.cos(r);
+  const L = audioCtx.listener;
+  if (L.forwardX) {
+    const t = audioCtx.currentTime;
+    // Petite constante de temps : évite les craquements quand on fait glisser le curseur
+    L.forwardX.setTargetAtTime(fx, t, 0.02); L.forwardY.setTargetAtTime(0, t, 0.02); L.forwardZ.setTargetAtTime(fz, t, 0.02);
+    L.upX.setTargetAtTime(0, t, 0.02); L.upY.setTargetAtTime(1, t, 0.02); L.upZ.setTargetAtTime(0, t, 0.02);
+  } else if (L.setOrientation) L.setOrientation(fx, 0, fz, 0, 1, 0); // anciens Safari
+}
+function setListenerYaw(deg) {
+  deg = ((((+deg || 0) % 360) + 540) % 360) - 180;
+  _listenerYawDeg = deg;
+  try { applyListenerYaw(ctx, deg); } catch (e) {}
+  // Évènement DOM : l'éditeur du Backstage y branche la rotation du triangle "auditeur", et l'outil vidéo
+  // pourra y enregistrer le geste en direct (mode "write") sans toucher au moteur.
+  try { document.dispatchEvent(new CustomEvent('layerpitch-head-yaw', { detail: deg })); } catch (e) {}
+}
+function getListenerYaw() { return _listenerYawDeg; }
+// Rangée de contrôle de l'orientation, ajoutée aux lecteurs de Sfx spatialisés (curseur + recentrage).
+function buildHeadTurnControl() {
+  const row = document.createElement('div');
+  row.className = 'head-turn-row';
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:10px;font-size:0.85em;flex-wrap:wrap';
+  row.innerHTML = `
+    <label style="margin:0">${t('headTurnLabel')}</label>
+    <input type="range" min="-180" max="180" step="1" value="${Math.round(_listenerYawDeg)}" style="flex:1;min-width:120px;max-width:260px" aria-label="${t('headTurnLabel')}">
+    <span data-role="yawVal" style="min-width:3.2em;text-align:right"></span>
+    <button type="button" class="btn btn-small" data-role="yawReset">${t('headTurnReset')}</button>`;
+  const slider = row.querySelector('input'), val = row.querySelector('[data-role="yawVal"]');
+  const paint = deg => { val.textContent = Math.round(deg) + '°'; slider.value = Math.round(deg); };
+  paint(_listenerYawDeg);
+  slider.addEventListener('input', () => setListenerYaw(+slider.value));
+  row.querySelector('[data-role="yawReset"]').addEventListener('click', () => setListenerYaw(0));
+  document.addEventListener('layerpitch-head-yaw', e => paint(e.detail));
+  return row;
 }
 // Branche une source de Sfx à la sortie : directement, ou à travers sa chaîne spatiale si le compositeur
 // en a réglé une. addEventListener('ended') et non .onended : les appelants posent déjà leur propre
@@ -5497,6 +5548,8 @@ function buildSfxPlayer(sfxDef) {
     const details = wrapper.querySelector('[data-role="details"]');
     setDetailsExpanded(details, !details.classList.contains('expanded'));
   });
+  // Sfx spatialisé : l'auditeur peut tourner la tête (curseur d'orientation) sous les variations.
+  if (sfxDef.spatial && sfxDef.spatial.enabled) wrapper.querySelector('.track-row-details-inner').appendChild(buildHeadTurnControl());
 
   if (!alts.length) return wrapper; // Sfx sans variation uploadée : titre/description seuls, pas de lecteur
 
@@ -5668,6 +5721,9 @@ window.LayerPlayerCore = {
   normalizeSpatial,
   buildRoomImpulse,
   buildSpatialVoice,
+  setListenerYaw,
+  getListenerYaw,
+  applyListenerYaw,
   setupContrastToggle,
   setupNightModeToggle,
   getModeLabel,
