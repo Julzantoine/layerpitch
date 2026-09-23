@@ -351,9 +351,6 @@
   .an-row { cursor: pointer; } .an-row:hover, .an-row:focus { background: var(--accent-soft); outline: none; }
   .an-type { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
   .an-lock { font-size: 11px; color: var(--text-dimmer); }
-  .an-preview { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: var(--text-dim); }
-  .an-preview[hidden] { display: none; }
-  .an-preview select { font-size: 12px; padding: 4px 6px; }
   .an-blur { filter: blur(6px); user-select: none; pointer-events: none; }
   .an-teaser-banner { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; background: var(--accent-soft); border: 1px solid #cfe0f2; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; }
   .an-row.teaser { cursor: default; } .an-row.teaser:hover { background: transparent; }
@@ -822,6 +819,13 @@
   .inbox-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-top: 6px; background: transparent; }
   .inbox-item.unread .inbox-dot { background: var(--accent); }
   #btnInboxBell { position: relative; }
+  .admin-preview-banner { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; background: #fff3cd; border-bottom: 1px solid #f0dda0; padding: 8px 12px; font-size: 12px; color: #5c4b1e; margin: -32px -20px 16px; }
+  .admin-preview-banner[hidden] { display: none; }
+  .account-menu-item-static { padding: 6px 12px; font-size: 12px; }
+  .account-menu-item-static[hidden] { display: none; }
+  .admin-preview-label { display: flex; flex-direction: column; gap: 4px; color: var(--text-dim); }
+  .admin-preview-label select { font-size: 12px; padding: 4px 6px; }
+
   .notif-badge {
     position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%;
     background: #c0392b; border: 1.5px solid var(--bg);
@@ -903,6 +907,10 @@
 <div id="helpTooltip"></div>
 <div class="page">
   <div id="backstageWatermarkLayer"></div>
+  <div id="adminPreviewBanner" class="admin-preview-banner" hidden>
+    <span id="adminPreviewBannerLabel"></span>
+    <button class="btn btn-small" id="btnAdminPreviewReset" type="button" data-i18n="adminPreviewReset">Revenir en Admin</button>
+  </div>
   <div class="page-top-row">
     <h1 data-i18n="pageTitle">LayerPitch — Backstage</h1>
     <div class="global-actions-bar">
@@ -931,6 +939,17 @@
               <div class="account-menu-email" id="accountMenuEmail" data-i18n="accountMenuNotConnected">Non connecté</div>
               <div class="account-menu-plan" id="accountMenuPlan" hidden></div>
             </div>
+          </div>
+          <div class="account-menu-item-static" id="adminPreviewMenuWrap" hidden>
+            <label class="admin-preview-label">
+              <span data-i18n="adminPreviewLabel">Voir en tant que (admin)</span>
+              <select id="adminPreviewTier" data-i18n-title="adminPreviewHint" title="">
+                <option value="" data-i18n="adminPreviewActual">Admin (accès complet)</option>
+                <option value="free">Free</option>
+                <option value="starter">Starter</option>
+                <option value="pro">Pro</option>
+              </select>
+            </label>
           </div>
           <div class="account-menu-sep"></div>
           <a class="account-menu-item" href="mon-compte.html" target="_blank" rel="noopener">
@@ -1233,15 +1252,6 @@
               <button type="button" class="analytics-preset" data-preset="6m" data-i18n="analyticsPreset6m">6 mois</button>
               <button type="button" class="analytics-preset" data-preset="1y" data-i18n="analyticsPreset1y">1 an</button>
             </div>
-            <label class="an-preview" id="analyticsPreviewWrap" data-i18n-title="analyticsPreviewHint" hidden>
-              <span data-i18n="analyticsPreviewLabel">Voir en tant que (admin)</span>
-              <select id="analyticsPreviewTier">
-                <option value="" data-i18n="analyticsPreviewActual">Réel</option>
-                <option value="free">Free</option>
-                <option value="starter">Starter</option>
-                <option value="pro">Pro</option>
-              </select>
-            </label>
             <details class="analytics-custom" id="analyticsCustomDetails">
               <summary data-i18n="analyticsCustomRange">Période personnalisée</summary>
               <div class="actions" style="margin-top:8px;">
@@ -1326,6 +1336,20 @@
             <span data-i18n="allowIndexingLabel">Indexable par les moteurs de recherche</span>
           </label>
           <div class="hint-inline" data-i18n="allowIndexingHint">Décoche pour retirer cet AdReel des résultats Google (utile pour un AdReel de démo envoyé à un seul prospect) sans le rendre privé — le lien restera ouvert à qui le reçoit. N'affecte pas les packs/collections qu'il montre, qui peuvent être partagés par d'autres AdReels.</div>
+        </fieldset>
+
+        <!-- Admin seulement (23 septembre) : palier de publication forcé pour CET AdReel, pour vérifier son
+             rendu public sous un autre palier. Enregistré dans profile.adminTierOverride ; sans effet
+             (ni visible) pour un compte non admin. -->
+        <fieldset id="appAdminTierOverrideWrap" hidden>
+          <div class="nav-section-label track-section-label" data-i18n="adminTierOverrideTitle">Palier de publication (admin)</div>
+          <select id="appAdminTierOverride" style="max-width:280px;">
+            <option value="" data-i18n="adminTierOverrideAuto">Mon vrai palier (Admin)</option>
+            <option value="free">Free</option>
+            <option value="starter">Starter</option>
+            <option value="pro">Pro</option>
+          </select>
+          <div class="hint-inline" data-i18n="adminTierOverrideHint">Sert à vérifier le rendu public de CET AdReel sous un autre palier (filigrane, apparence...). Ne concerne que lui ; visible des seuls admins. Remets « Mon vrai palier » pour un AdReel définitif.</div>
         </fieldset>
 
         <!-- Palier Free (Chantier Apparence Phase 3) : galerie de presets à la place des réglages fins. -->
@@ -1727,7 +1751,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790195721212"></script>
+<script src="layerpitch-i18n.js?v=1790196240578"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
 <script src="player.js?v=1790194832844"></script>
 <script>
@@ -2027,9 +2051,19 @@ async function refreshMyComposerHandle(session) {
 // pris en compte ici -- chantier de gating admin séparé, pas encore fini ailleurs dans le backstage.
 function effectiveTierFromTrialStatus(status) {
   if (!status) return 'free';
+  // Aperçu admin actif ("Voir en tant que") : le serveur renvoie déjà le palier simulé dans `plan`.
+  if (status.previewActive) return status.plan || 'free';
   const trialEndsAt = status.trialEndsAt ? new Date(status.trialEndsAt) : null;
   if (trialEndsAt && trialEndsAt > new Date()) return 'pro';
   return status.plan || 'free';
+}
+// Palier RÉEL (jamais simulé) : sert uniquement à figer le palier dans ce qui est PUBLIÉ -- une
+// publication faite pendant un aperçu admin garde le vrai palier (décision du 23 septembre).
+function realTierFromTrialStatus(status) {
+  if (!status) return 'free';
+  const trialEndsAt = status.trialEndsAt ? new Date(status.trialEndsAt) : null;
+  if (trialEndsAt && trialEndsAt > new Date()) return 'pro';
+  return status.realPlan || status.plan || 'free';
 }
 // Optimiste avant la première résolution (évite un flash de galerie Free le temps que la
 // session/RPC réponde) -- recalculé par renderSubscriptionPanel() à chaque connexion/changement de
@@ -2055,8 +2089,36 @@ async function renderSubscriptionPanel(session) {
     return;
   }
   currentEffectivePlan = effectiveTierFromTrialStatus(status);
+  syncAdminPreviewUi(status);
   renderAppearancePanelForTier();
   renderAnalyticsPanelForTier();
+}
+
+// Sélecteur admin "Voir en tant que" (23 septembre) : le palier simulé est mémorisé côté serveur
+// (admins.preview_tier) et appliqué par get_trial_status / composer_effective_tier /
+// effective_plan_quotas pour le SEUL compte admin concerné. Bandeau permanent tant qu'il est actif.
+function syncAdminPreviewUi(status) {
+  const active = !!(status && status.previewActive);
+  const select = document.getElementById('adminPreviewTier');
+  const banner = document.getElementById('adminPreviewBanner');
+  const label = document.getElementById('adminPreviewBannerLabel');
+  if (select) select.value = active ? status.plan : '';
+  if (banner) banner.hidden = !active;
+  if (label && active) label.textContent = tr('adminPreviewBanner', { plan: (ACCOUNT_MENU_PLAN_LABELS[status.plan] || status.plan) });
+}
+async function setAdminPreviewTier(tier) {
+  if (typeof hasUnsavedEdits !== 'undefined' && hasUnsavedEdits && !confirm(tr('adminPreviewUnsavedConfirm'))) {
+    const { session } = await window.LayerPitchAuth.getSession();
+    await renderSubscriptionPanel(session); // remet le sélecteur sur l'état réel
+    return;
+  }
+  await loadPostgresReadScripts();
+  const { ok, error } = await window.LayerPitchSubscriptions.setMyPreviewTier(tier);
+  if (!ok) { alert(tr('adminPreviewError') + ' ' + error); return; }
+  // Rechargement : tout ce qui dépend du palier (apparence, forme d'onde, quotas, analytique...) est
+  // évalué à des dizaines d'endroits -- plus fiable que de tous les redessiner un par un. Le choix
+  // est mémorisé côté serveur, il survit au rechargement.
+  location.reload();
 }
 // Masque les panneaux de debug/admin (dépôt GitHub, tests Postgres, invitation testeur, stockage
 // R2, lien vers le panneau admin) pour tout compte non-admin -- trouvé le 4 septembre, jamais
@@ -2067,7 +2129,7 @@ async function renderSubscriptionPanel(session) {
 // fetchSiteData()/pgReadEnabled() basculent déjà seuls sur Postgres pour un compositeur sans token
 // GitHub configuré (comme publishAll() le fait déjà côté écriture) -- sinon un compositeur hébergé
 // aurait vu sa bibliothèque vide, ce panneau étant jusqu'ici le seul moyen de l'activer à la main.
-const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelInvitesSent', 'panelAdminLink', 'analyticsPreviewWrap'];
+const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelInvitesSent', 'panelAdminLink', 'adminPreviewMenuWrap', 'appAdminTierOverrideWrap'];
 // La bibliothèque vidéo / capture (navItemVideoLibrary, panelVideoLibrary) avait été ouverte à tout
 // compositeur connecté le 16 septembre (voir
 // supabase/migrations/20260916040000_open_capture_video_to_composers.sql, toujours en place côté
@@ -2503,15 +2565,6 @@ async function initPgAuthUi() {
         from: fromEl && fromEl.value ? new Date(fromEl.value + 'T00:00:00').toISOString() : new Date(Date.now() - analyticsRetentionDays() * 864e5).toISOString(),
         to: toEl && toEl.value ? new Date(toEl.value + 'T23:59:59').toISOString() : new Date().toISOString(),
       };
-      renderAnalyticsPresets();
-      loadAnalyticsDashboard();
-    });
-  }
-  const analyticsPreviewSelect = document.getElementById('analyticsPreviewTier');
-  if (analyticsPreviewSelect) {
-    analyticsPreviewSelect.addEventListener('change', () => {
-      analyticsPreviewTier = analyticsPreviewSelect.value || null;
-      analyticsSelected = null; analyticsEntityData = null;
       renderAnalyticsPresets();
       loadAnalyticsDashboard();
     });
@@ -9029,6 +9082,7 @@ function fillAppearanceFields() {
   const ar = adReels.find(a => a.id === currentAdReelId);
   document.getElementById('appLang').value = (ar && ar.lang) || 'fr';
   document.getElementById('appAllowIndexing').checked = !ar || ar.allowIndexing !== false;
+  document.getElementById('appAdminTierOverride').value = profile.adminTierOverride || '';
   const sep = Object.assign({}, DEFAULT_SEPARATOR, profile.theme.separator || {});
   document.getElementById('appSeparatorVisible').checked = !!sep.visible;
   document.getElementById('appSeparatorColor').value = sep.color;
@@ -9137,7 +9191,6 @@ let analyticsSelected = null;      // { type, id } de l'AdReel/pack ouvert en d�
 let analyticsEntityData = null;    // réponse de get_my_analytics_entity pour cet élément
 let analyticsPreset = '7d';
 let analyticsCustomRange = null;   // { from, to } (ISO) quand une période personnalisée est appliquée
-let analyticsPreviewTier = null;   // admin seulement : simule Free/Starter/Pro (le serveur ignore ce paramètre pour tout autre compte)
 
 function analyticsEscapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -9156,16 +9209,16 @@ const ANALYTICS_PRESETS = {
 };
 // Rétention côté affichage : sert seulement à griser les presets trop longs ; la vraie limite est
 // appliquée par les fonctions SQL (analytics_retention_days).
-function analyticsRetentionDays() { return (analyticsPreviewTier || currentEffectivePlan) === 'pro' ? 365 : 30; }
+function analyticsRetentionDays() { return currentEffectivePlan === 'pro' ? 365 : 30; }
 
 function analyticsRange() {
   if (analyticsCustomRange) {
     const spanDays = (new Date(analyticsCustomRange.to) - new Date(analyticsCustomRange.from)) / 864e5;
-    return { from: analyticsCustomRange.from, to: analyticsCustomRange.to, bucket: spanDays <= 2 ? 'hour' : (spanDays <= 62 ? 'day' : 'week'), previewTier: analyticsPreviewTier };
+    return { from: analyticsCustomRange.from, to: analyticsCustomRange.to, bucket: spanDays <= 2 ? 'hour' : (spanDays <= 62 ? 'day' : 'week') };
   }
   const p = ANALYTICS_PRESETS[analyticsPreset] || ANALYTICS_PRESETS['7d'];
   const ms = p.hours ? p.hours * 3600e3 : p.days * 864e5;
-  return { from: new Date(Date.now() - ms).toISOString(), to: null, bucket: p.bucket, previewTier: analyticsPreviewTier };
+  return { from: new Date(Date.now() - ms).toISOString(), to: null, bucket: p.bucket };
 }
 
 function renderAnalyticsPresets() {
@@ -9504,6 +9557,14 @@ document.getElementById('appLang').addEventListener('change', e => {
   const ar = adReels.find(a => a.id === currentAdReelId);
   if (ar) { ar.lang = e.target.value; hasUnsavedEdits = true; }
 });
+document.getElementById('appAdminTierOverride').addEventListener('change', e => {
+  // Admin seulement (le fieldset est masqué pour les autres) : palier de publication forcé pour cet
+  // AdReel, stocké dans son profile ; vide = pas d'override.
+  if (e.target.value) profile.adminTierOverride = e.target.value; else delete profile.adminTierOverride;
+  hasUnsavedEdits = true;
+});
+document.getElementById('adminPreviewTier').addEventListener('change', e => setAdminPreviewTier(e.target.value));
+document.getElementById('btnAdminPreviewReset').addEventListener('click', () => setAdminPreviewTier(''));
 document.getElementById('appAllowIndexing').addEventListener('change', e => {
   const ar = adReels.find(a => a.id === currentAdReelId);
   if (ar) { ar.allowIndexing = e.target.checked; hasUnsavedEdits = true; }
@@ -10639,7 +10700,9 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         return out;
       }),
       profile: Object.assign({}, ar.profile, {
-        effectivePlan,
+        // Admin seulement : palier de publication forcé pour CET AdReel (vérifier son rendu public sous un
+        // autre palier). Sans override : le palier passé en paramètre (réel à la publication, affiché à l'aperçu).
+        effectivePlan: (currentUserIsAdmin && ar.profile && ar.profile.adminTierOverride) || effectivePlan,
         logo: ar.profile.logo || pendingPreviewUrl(ar.logoPendingFile),
         photo: ar.profile.photo || pendingPreviewUrl(ar.photoPendingFile),
         theme: ar.profile.theme
@@ -10720,8 +10783,10 @@ async function publishAll() {
     if (planError || !planStatus) {
       throw new Error(tr('publishBlockedNoPlanMsg', { error: planError || 'aucun profil compositeur' }));
     }
-    const effectivePlan = effectiveTierFromTrialStatus(planStatus);
-    currentEffectivePlan = effectivePlan;
+    // Palier figé dans ce qui est publié = le VRAI palier, jamais l'aperçu admin ("Voir en tant que") ;
+    // currentEffectivePlan (l'affichage) garde, lui, le palier simulé s'il y en a un.
+    const effectivePlan = realTierFromTrialStatus(planStatus);
+    currentEffectivePlan = effectiveTierFromTrialStatus(planStatus);
     log(tr('resolvedEffectivePlan', { plan: effectivePlan }), 'ok');
     for (const ar of adReels) {
       if (ar.logoPendingFile) {

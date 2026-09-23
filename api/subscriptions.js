@@ -40,10 +40,18 @@
     if (error) return { status: null, error: error.message };
     const row = Array.isArray(data) ? data[0] : data;
     return {
-      status: row ? { plan: row.plan, trialEndsAt: row.trial_ends_at } : null,
+      status: row ? { plan: row.plan, trialEndsAt: row.trial_ends_at, realPlan: row.real_plan, previewActive: !!row.preview_active } : null,
       error: null,
     };
   }
 
-  window.LayerPitchSubscriptions = { subscribeToPlan, choosePlanFree, getTrialStatus };
+  // Sélecteur admin "Voir en tant que" (23 septembre) : mémorise côté serveur le palier simulé de
+  // l'admin connecté (tier vide/null = retour au mode admin normal). Refusé pour un non-admin.
+  async function setMyPreviewTier(tier) {
+    const { error } = await getClient().rpc('set_my_preview_tier', { p_tier: tier || null });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, error: null };
+  }
+
+  window.LayerPitchSubscriptions = { subscribeToPlan, choosePlanFree, getTrialStatus, setMyPreviewTier };
 })();
