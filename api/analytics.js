@@ -36,5 +36,31 @@
     } catch (e) { /* jamais bloquant */ }
   }
 
-  window.LayerPitchAnalytics = { getMyAnalytics, logAnalyticsEvent };
+
+  // Vue d'ensemble dans le temps + détail d'un AdReel/pack (23 septembre, refonte de la page
+  // Analytics du backstage). Le gating par palier est fait dans les fonctions SQL (Free : verrouillé ;
+  // Starter : visites seulement ; Pro : lectures, morceaux, interactions) -- ce module relaie.
+  // bucket : 'hour' | 'day' | 'week' | 'month' ; tz : fuseau IANA du navigateur (jours alignés sur
+  // l'heure locale du compositeur).
+  function localTimeZone() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (e) { return 'UTC'; }
+  }
+  async function getMyAnalyticsOverview({ from, to, bucket, tz } = {}) {
+    const { data, error } = await getClient().rpc('get_my_analytics_overview', {
+      p_from: from || null, p_to: to || null, p_bucket: bucket || 'day', p_tz: tz || localTimeZone(),
+    });
+    if (error) return { overview: null, error: error.message };
+    if (!data || !data.ok) return { overview: null, error: 'Réponse inattendue.' };
+    return { overview: data, error: null };
+  }
+  async function getMyAnalyticsEntity(type, id, { from, to, bucket, tz } = {}) {
+    const { data, error } = await getClient().rpc('get_my_analytics_entity', {
+      p_type: type, p_id: id, p_from: from || null, p_to: to || null, p_bucket: bucket || 'day', p_tz: tz || localTimeZone(),
+    });
+    if (error) return { entity: null, error: error.message };
+    if (!data || !data.ok) return { entity: null, error: 'Réponse inattendue.' };
+    return { entity: data, error: null };
+  }
+
+  window.LayerPitchAnalytics = { getMyAnalytics, getMyAnalyticsOverview, getMyAnalyticsEntity, logAnalyticsEvent };
 })();

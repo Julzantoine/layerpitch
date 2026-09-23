@@ -318,6 +318,43 @@
   .empty-panel-placeholder { border: 1px dashed #d8d8dc; border-radius: 8px; padding: 30px; text-align: center; color: var(--text-dimmer); font-size: 12px; }
 
   .analytics-date-input { background: var(--bg-card); border: 1px solid #d8d8dc; border-radius: 4px; color: var(--text); padding: 6px 8px; font-size: 12px; font-family: inherit; }
+  .analytics-toolbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-start; margin-bottom: 14px; }
+  .analytics-presets { display: inline-flex; border: 1px solid #d8d8dc; border-radius: 6px; overflow: hidden; background: var(--bg-card); }
+  .analytics-preset { border: 0; background: transparent; padding: 6px 12px; font-size: 12px; cursor: pointer; color: var(--text); font-family: inherit; }
+  .analytics-preset + .analytics-preset { border-left: 1px solid #d8d8dc; }
+  .analytics-preset.active { background: var(--accent); color: #fff; }
+  .analytics-preset.locked { color: var(--text-dimmer); cursor: not-allowed; }
+  .analytics-preset.locked::after { content: ' \1F512'; font-size: 10px; }
+  .analytics-custom summary, .analytics-raw summary { cursor: pointer; font-size: 12px; color: var(--text-dim); padding: 6px 0; }
+  .analytics-raw { margin-top: 18px; }
+  .an-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .an-kpi { background: var(--bg); border: 1px solid #e2e2e6; border-radius: 8px; padding: 12px 14px; }
+  .an-kpi-n { font-size: 24px; font-weight: 600; }
+  .an-kpi-l { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .an-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .an-card { background: var(--bg); border: 1px solid #e2e2e6; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+  .an-charts .an-card { margin-bottom: 0; }
+  .an-card-title { font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+  .an-card-title .hint { font-weight: 400; margin-left: 6px; }
+  .an-chart { display: flex; gap: 4px; margin: 12px 0 6px; }
+  .an-yaxis { position: relative; width: 26px; flex: none; }
+  .an-yaxis span { position: absolute; right: 0; transform: translateY(-50%); font-size: 10px; line-height: 1; color: var(--text-dimmer); }
+  .an-plot { position: relative; flex: 1; }
+  .an-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .an-dot { position: absolute; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: var(--accent); }
+  .an-dot::after { content: ''; position: absolute; inset: -5px; }
+  .an-xaxis { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dimmer); margin-left: 30px; }
+  .an-spark { width: 90px; height: 24px; } .an-spark svg { width: 100%; height: 100%; display: block; }
+  .an-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .an-table th, .an-table td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #eee; }
+  .an-table th { color: var(--text-dim); font-weight: 500; }
+  .an-row { cursor: pointer; } .an-row:hover, .an-row:focus { background: var(--accent-soft); outline: none; }
+  .an-type { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
+  .an-lock { font-size: 11px; color: var(--text-dimmer); }
+  .an-locked-box { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 80px; color: var(--text-dimmer); font-size: 12px; border: 1px dashed #d8d8dc; border-radius: 6px; }
+  .an-entity-title { font-size: 16px; margin: 12px 0; }
+  .an-devices { display: flex; gap: 18px; font-size: 12px; }
+  .an-ix { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.7; }
   .analytics-session { border: 1px solid #e2e2e6; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: var(--bg); }
   .analytics-session-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; font-size: 12px; color: var(--text-dim); }
   .analytics-session-head strong { color: var(--text); }
@@ -1182,18 +1219,35 @@
           </div>
         </div>
         <div id="analyticsUnlocked" hidden>
-          <div id="analyticsDateFilter" class="actions" style="margin-bottom:14px;" hidden>
-            <label class="hint" data-i18n="analyticsFromLabel">Du</label>
-            <input type="date" id="analyticsFromInput" class="analytics-date-input">
-            <label class="hint" data-i18n="analyticsToLabel">Au</label>
-            <input type="date" id="analyticsToInput" class="analytics-date-input">
-            <button class="btn btn-small" id="btnAnalyticsFilterApply" type="button" data-i18n="analyticsApplyFilter">Appliquer</button>
+          <div class="analytics-toolbar">
+            <div class="analytics-presets" id="analyticsPresets" role="group">
+              <button type="button" class="analytics-preset" data-preset="24h" data-i18n="analyticsPreset24h">24 h</button>
+              <button type="button" class="analytics-preset active" data-preset="7d" data-i18n="analyticsPreset7d">7 jours</button>
+              <button type="button" class="analytics-preset" data-preset="1m" data-i18n="analyticsPreset1m">1 mois</button>
+              <button type="button" class="analytics-preset" data-preset="6m" data-i18n="analyticsPreset6m">6 mois</button>
+              <button type="button" class="analytics-preset" data-preset="1y" data-i18n="analyticsPreset1y">1 an</button>
+            </div>
+            <details class="analytics-custom" id="analyticsCustomDetails">
+              <summary data-i18n="analyticsCustomRange">Période personnalisée</summary>
+              <div class="actions" style="margin-top:8px;">
+                <label class="hint" data-i18n="analyticsFromLabel">Du</label>
+                <input type="date" id="analyticsFromInput" class="analytics-date-input">
+                <label class="hint" data-i18n="analyticsToLabel">Au</label>
+                <input type="date" id="analyticsToInput" class="analytics-date-input">
+                <button class="btn btn-small" id="btnAnalyticsFilterApply" type="button" data-i18n="analyticsApplyFilter">Appliquer</button>
+              </div>
+            </details>
           </div>
           <div id="analyticsMeta" class="hint" style="margin-bottom:12px;"></div>
           <div id="analyticsLoading" class="hint" data-i18n="analyticsLoadingMsg" hidden>Chargement…</div>
           <div id="analyticsError" class="hint" hidden></div>
           <div id="analyticsEmpty" class="empty-panel-placeholder" data-i18n="analyticsEmptyMsg" hidden>Aucune donnée pour l'instant — reviens une fois que ton lien aura été ouvert au moins une fois.</div>
-          <div id="analyticsSessions"></div>
+          <div id="analyticsOverview"></div>
+          <div id="analyticsEntityDetail" hidden></div>
+          <details class="analytics-raw" id="analyticsRawDetails">
+            <summary data-i18n="analyticsRawSessionsTitle">Liste détaillée des visites</summary>
+            <div id="analyticsSessions"></div>
+          </details>
         </div>
       </div>
 
@@ -1657,7 +1711,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790192322690"></script>
+<script src="layerpitch-i18n.js?v=1790192877680"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
 <script src="player.js?v=1789728713949"></script>
 <script>
@@ -2412,18 +2466,35 @@ async function initPgAuthUi() {
       inviteBtn.disabled = false;
     });
   }
-  // Filtre par plage de dates du tableau de bord Analytics (Pro uniquement, grille validée du 4
-  // septembre) -- ne redéclenche un appel à get_my_analytics() que sur clic explicite, pas à
-  // chaque changement de champ de date.
+  // Presets de période + période personnalisée du tableau de bord Analytics (refonte du 23
+  // septembre). Un preset plus long que la rétention du palier est grisé (cadenas) et ne fait rien.
+  document.querySelectorAll('#analyticsPresets .analytics-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('locked')) return;
+      analyticsPreset = btn.dataset.preset;
+      analyticsCustomRange = null;
+      renderAnalyticsPresets();
+      loadAnalyticsDashboard();
+    });
+  });
   const analyticsFilterBtn = document.getElementById('btnAnalyticsFilterApply');
   if (analyticsFilterBtn) {
     analyticsFilterBtn.addEventListener('click', () => {
       const fromEl = document.getElementById('analyticsFromInput');
       const toEl = document.getElementById('analyticsToInput');
-      fetchAndRenderAnalytics({
-        from: fromEl && fromEl.value ? fromEl.value : null,
-        to: toEl && toEl.value ? toEl.value : null,
-      });
+      if (!(fromEl && fromEl.value) && !(toEl && toEl.value)) return;
+      analyticsCustomRange = {
+        from: fromEl && fromEl.value ? new Date(fromEl.value + 'T00:00:00').toISOString() : new Date(Date.now() - analyticsRetentionDays() * 864e5).toISOString(),
+        to: toEl && toEl.value ? new Date(toEl.value + 'T23:59:59').toISOString() : new Date().toISOString(),
+      };
+      renderAnalyticsPresets();
+      loadAnalyticsDashboard();
+    });
+  }
+  const analyticsRawDetails = document.getElementById('analyticsRawDetails');
+  if (analyticsRawDetails) {
+    analyticsRawDetails.addEventListener('toggle', () => {
+      if (analyticsRawDetails.open && analyticsRawLoadedForTier !== currentEffectivePlan) loadAnalyticsRawSessions();
     });
   }
   // Si la page vient d'un lien magique (fragment #access_token=...), le SDK Supabase détecte et
@@ -9033,52 +9104,275 @@ function renderAppearancePanelForTier() {
 // docs/LAYERPITCH_CHANGELOG.md), qui applique déjà elle-même le gating par palier -- ce qui suit
 // n'est qu'un affichage de ce qu'elle renvoie, jamais un masquage de données qui auraient autrement
 // été reçues en clair.
-let analyticsData = null;
+let analyticsData = null;          // liste brute des visites (get_my_analytics), chargée à la demande
+let analyticsRawLoadedForTier = null;
+let analyticsOverview = null;      // vue d'ensemble (get_my_analytics_overview)
 let analyticsLoadedForTier = null;
+let analyticsSelected = null;      // { type, id } de l'AdReel/pack ouvert en détail
+let analyticsEntityData = null;    // réponse de get_my_analytics_entity pour cet élément
+let analyticsPreset = '7d';
+let analyticsCustomRange = null;   // { from, to } (ISO) quand une période personnalisée est appliquée
 
 function analyticsEscapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// ---- Refonte de la page (23 septembre) : vue d'ensemble dans le temps, liste des AdReels/packs
+// cliquables, détail par élément, presets de période. Les fonctions SQL get_my_analytics_overview /
+// get_my_analytics_entity appliquent le gating par palier ; ce qui suit n'affiche que ce qu'elles
+// renvoient (Starter : visites ; Pro : lectures, morceaux, réglages ajustés).
+const ANALYTICS_PRESETS = {
+  '24h': { hours: 24, days: 1, bucket: 'hour' },
+  '7d': { days: 7, bucket: 'day' },
+  '1m': { days: 30, bucket: 'day' },
+  '6m': { days: 183, bucket: 'week' },
+  '1y': { days: 365, bucket: 'week' },
+};
+// Rétention côté affichage : sert seulement à griser les presets trop longs ; la vraie limite est
+// appliquée par les fonctions SQL (analytics_retention_days).
+function analyticsRetentionDays() { return currentEffectivePlan === 'pro' ? 365 : 30; }
+
+function analyticsRange() {
+  if (analyticsCustomRange) {
+    const spanDays = (new Date(analyticsCustomRange.to) - new Date(analyticsCustomRange.from)) / 864e5;
+    return { from: analyticsCustomRange.from, to: analyticsCustomRange.to, bucket: spanDays <= 2 ? 'hour' : (spanDays <= 62 ? 'day' : 'week') };
+  }
+  const p = ANALYTICS_PRESETS[analyticsPreset] || ANALYTICS_PRESETS['7d'];
+  const ms = p.hours ? p.hours * 3600e3 : p.days * 864e5;
+  return { from: new Date(Date.now() - ms).toISOString(), to: null, bucket: p.bucket };
+}
+
+function renderAnalyticsPresets() {
+  const retention = analyticsRetentionDays();
+  document.querySelectorAll('#analyticsPresets .analytics-preset').forEach(btn => {
+    const p = ANALYTICS_PRESETS[btn.dataset.preset];
+    const locked = p && p.days > retention;
+    btn.classList.toggle('locked', !!locked);
+    btn.classList.toggle('active', !analyticsCustomRange && btn.dataset.preset === analyticsPreset);
+    btn.setAttribute('aria-disabled', locked ? 'true' : 'false');
+    btn.title = locked ? tr('analyticsPresetLocked', { days: retention }) : '';
+  });
+}
+
 // Rappelée par renderSubscriptionPanel() (donc à chaque résolution/changement de palier) -- bascule
-// juste la visibilité verrouillé/déverrouillé et le filtre de dates (Pro seulement) ; le chargement
-// réseau lui-même est déclenché séparément par loadAnalyticsIfNeeded() (clic sur l'onglet).
+// verrouillé/déverrouillé ; le chargement réseau est déclenché séparément (clic sur l'onglet).
 function renderAnalyticsPanelForTier() {
   const lockedEl = document.getElementById('analyticsLocked');
   const unlockedEl = document.getElementById('analyticsUnlocked');
-  const dateFilterEl = document.getElementById('analyticsDateFilter');
   const isFree = currentEffectivePlan === 'free';
   if (lockedEl) lockedEl.hidden = !isFree;
   if (unlockedEl) unlockedEl.hidden = isFree;
-  if (dateFilterEl) dateFilterEl.hidden = currentEffectivePlan !== 'pro';
-  if (isFree) { analyticsData = null; analyticsLoadedForTier = null; return; }
-  if (analyticsData && analyticsLoadedForTier === currentEffectivePlan) renderAnalyticsSessions();
+  if (isFree) { analyticsData = null; analyticsOverview = null; analyticsLoadedForTier = null; analyticsRawLoadedForTier = null; analyticsSelected = null; return; }
+  renderAnalyticsPresets();
+  if (analyticsOverview && analyticsLoadedForTier === currentEffectivePlan) renderAnalyticsView();
 }
 
 async function loadAnalyticsIfNeeded() {
   if (currentEffectivePlan === 'free') return;
-  if (analyticsData && analyticsLoadedForTier === currentEffectivePlan) { renderAnalyticsSessions(); return; }
-  await fetchAndRenderAnalytics();
+  renderAnalyticsPresets();
+  if (analyticsOverview && analyticsLoadedForTier === currentEffectivePlan) { renderAnalyticsView(); return; }
+  await loadAnalyticsDashboard();
 }
 
-async function fetchAndRenderAnalytics(range) {
+async function loadAnalyticsDashboard() {
   const loadingEl = document.getElementById('analyticsLoading');
   const errorEl = document.getElementById('analyticsError');
-  const emptyEl = document.getElementById('analyticsEmpty');
-  const sessionsEl = document.getElementById('analyticsSessions');
   if (loadingEl) loadingEl.hidden = false;
   if (errorEl) errorEl.hidden = true;
-  if (emptyEl) emptyEl.hidden = true;
-  if (sessionsEl) sessionsEl.innerHTML = '';
   await loadPostgresReadScripts();
-  const { analytics, error } = await window.LayerPitchAnalytics.getMyAnalytics(range || {});
+  const { overview, error } = await window.LayerPitchAnalytics.getMyAnalyticsOverview(analyticsRange());
   if (loadingEl) loadingEl.hidden = true;
   if (error) {
     if (errorEl) { errorEl.hidden = false; errorEl.textContent = tr('analyticsErrorPrefix') + ' ' + error; }
     return;
   }
-  analyticsData = analytics;
+  analyticsOverview = overview;
   analyticsLoadedForTier = currentEffectivePlan;
+  analyticsRawLoadedForTier = null; // la liste brute dépend aussi de la période : à recharger si ouverte
+  const rawDetails = document.getElementById('analyticsRawDetails');
+  if (rawDetails && rawDetails.open) loadAnalyticsRawSessions();
+  if (analyticsSelected) await openAnalyticsEntity(analyticsSelected.type, analyticsSelected.id);
+  else renderAnalyticsView();
+}
+
+function analyticsFormatBucket(iso, bucket) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const loc = currentLang() === 'en' ? 'en-GB' : 'fr-FR';
+  if (bucket === 'hour') return d.toLocaleString(loc, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  if (bucket === 'month') return d.toLocaleDateString(loc, { month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(loc, { day: '2-digit', month: 'short' });
+}
+
+// Courbe avec axe des ordonnées (0 / moitié / max), grille et valeur exacte de chaque point au
+// survol -- même construction que le panneau admin (admin.html), dupliquée ici faute de module
+// commun. compact = mini-courbe sans axes (colonne "Tendance" de la liste).
+function analyticsBuildChart(values, buckets, bucket, opts) {
+  opts = opts || {};
+  const n = values.length;
+  if (!n) return '';
+  const top = Math.max(...values, 1);
+  const niceMax = top > 1 && top % 2 === 1 ? top + 1 : top;
+  const ticks = niceMax >= 2 ? [niceMax, niceMax / 2, 0] : [niceMax, 0];
+  const xPct = i => (n > 1 ? (i / (n - 1)) * 100 : 50);
+  const yPct = v => (1 - v / niceMax) * 100;
+  const pts = values.map((v, i) => [xPct(i), yPct(v)]);
+  const linePath = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' ');
+  const areaPath = linePath + ` L${pts[n - 1][0].toFixed(2)},100 L${pts[0][0].toFixed(2)},100 Z`;
+  const svg = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">
+      ${opts.compact ? '' : ticks.map(t => `<line x1="0" x2="100" y1="${yPct(t).toFixed(2)}" y2="${yPct(t).toFixed(2)}" stroke="#e2e2e6" stroke-width="1" vector-effect="non-scaling-stroke" />`).join('')}
+      <path d="${areaPath}" fill="#e6eef8" stroke="none" />
+      <path d="${linePath}" fill="none" stroke="#2f80c0" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+    </svg>`;
+  if (opts.compact) return `<div class="an-spark">${svg}</div>`;
+  const dots = values.map((v, i) => `<span class="an-dot" style="left:${pts[i][0].toFixed(2)}%;top:${pts[i][1].toFixed(2)}%" title="${analyticsEscapeHtml(analyticsFormatBucket(buckets[i], bucket))} : ${v}"></span>`).join('');
+  const yLabels = ticks.map(t => `<span style="top:${yPct(t).toFixed(2)}%">${t}</span>`).join('');
+  const mid = n > 2 ? buckets[Math.floor((n - 1) / 2)] : null;
+  return `<div class="an-chart" style="height:${opts.height || 120}px"><div class="an-yaxis">${yLabels}</div><div class="an-plot">${svg}${dots}</div></div>
+    <div class="an-xaxis"><span>${analyticsEscapeHtml(analyticsFormatBucket(buckets[0], bucket))}</span>${mid ? `<span>${analyticsEscapeHtml(analyticsFormatBucket(mid, bucket))}</span>` : ''}<span>${analyticsEscapeHtml(analyticsFormatBucket(buckets[n - 1], bucket))}</span></div>`;
+}
+
+function analyticsKpi(label, value) {
+  return `<div class="an-kpi"><div class="an-kpi-n">${value}</div><div class="an-kpi-l">${analyticsEscapeHtml(label)}</div></div>`;
+}
+function analyticsLockedBadge() { return `<span class="an-lock" title="${analyticsEscapeHtml(tr('analyticsProLocked'))}">🔒 Pro</span>`; }
+function analyticsPct(part, total) { return total > 0 ? Math.round(100 * part / total) + ' %' : '—'; }
+
+function renderAnalyticsView() {
+  const overviewEl = document.getElementById('analyticsOverview');
+  const entityEl = document.getElementById('analyticsEntityDetail');
+  const emptyEl = document.getElementById('analyticsEmpty');
+  const metaEl = document.getElementById('analyticsMeta');
+  if (!overviewEl || !entityEl || !analyticsOverview) return;
+  if (analyticsSelected && analyticsEntityData) { overviewEl.hidden = true; entityEl.hidden = false; return; }
+  entityEl.hidden = true; overviewEl.hidden = false;
+  const o = analyticsOverview;
+  const isPro = o.tier === 'pro';
+  if (metaEl) metaEl.textContent = tr('analyticsWindowNote', {
+    from: analyticsFormatBucket(o.windowStart, 'day'), to: analyticsFormatBucket(o.windowEnd, 'day'), days: o.retentionDays,
+  });
+  const hasData = o.totals.visits > 0;
+  if (emptyEl) emptyEl.hidden = hasData;
+  const kpis = [
+    analyticsKpi(tr('analyticsKpiVisits'), o.totals.visits),
+    analyticsKpi(tr('analyticsKpiPlays'), isPro ? o.totals.plays : analyticsLockedBadge()),
+    analyticsKpi(tr('analyticsKpiMobile'), o.totals.mobileShare == null ? '—' : o.totals.mobileShare + ' %'),
+    analyticsKpi(tr('analyticsKpiItems'), o.totals.items),
+  ].join('');
+  const chartVisits = `<div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsChartVisits'))}</div>${analyticsBuildChart(o.series.visits || [], o.buckets, o.bucket)}</div>`;
+  const chartPlays = `<div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsChartPlays'))}</div>${isPro
+    ? analyticsBuildChart(o.series.plays || [], o.buckets, o.bucket)
+    : `<div class="an-locked-box">${analyticsLockedBadge()}</div>`}</div>`;
+  const rows = (o.entities || []).map(e => `
+    <tr class="an-row" data-type="${analyticsEscapeHtml(e.type)}" data-id="${analyticsEscapeHtml(e.id)}" tabindex="0">
+      <td>${analyticsEscapeHtml(e.name)}</td>
+      <td><span class="an-type">${analyticsEscapeHtml(e.type === 'pack' ? tr('analyticsTypePack') : tr('analyticsTypeAdreel'))}</span></td>
+      <td>${e.visits}</td>
+      <td>${isPro ? e.plays : analyticsLockedBadge()}</td>
+      <td>${e.lastVisit ? analyticsEscapeHtml(new Date(e.lastVisit).toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR')) : '—'}</td>
+      <td class="an-trend">${analyticsBuildChart(e.series || [], o.buckets, o.bucket, { compact: true })}</td>
+    </tr>`).join('');
+  overviewEl.innerHTML = `
+    <div class="an-kpis">${kpis}</div>
+    <div class="an-charts">${chartVisits}${chartPlays}</div>
+    <div class="an-card">
+      <div class="an-card-title">${analyticsEscapeHtml(tr('analyticsItemsTitle'))} <span class="hint">${analyticsEscapeHtml(tr('analyticsItemsHint'))}</span></div>
+      ${hasData ? `<table class="an-table"><thead><tr>
+        <th>${analyticsEscapeHtml(tr('analyticsColName'))}</th><th>${analyticsEscapeHtml(tr('analyticsColType'))}</th>
+        <th>${analyticsEscapeHtml(tr('analyticsColVisits'))}</th><th>${analyticsEscapeHtml(tr('analyticsColPlays'))}</th>
+        <th>${analyticsEscapeHtml(tr('analyticsColLast'))}</th><th>${analyticsEscapeHtml(tr('analyticsColTrend'))}</th>
+      </tr></thead><tbody>${rows}</tbody></table>` : `<div class="hint">${analyticsEscapeHtml(tr('analyticsNoItems'))}</div>`}
+    </div>`;
+  overviewEl.querySelectorAll('.an-row').forEach(row => {
+    const open = () => openAnalyticsEntity(row.dataset.type, row.dataset.id);
+    row.addEventListener('click', open);
+    row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+  });
+}
+
+async function openAnalyticsEntity(type, id) {
+  const errorEl = document.getElementById('analyticsError');
+  const loadingEl = document.getElementById('analyticsLoading');
+  if (loadingEl) loadingEl.hidden = false;
+  if (errorEl) errorEl.hidden = true;
+  await loadPostgresReadScripts();
+  const { entity, error } = await window.LayerPitchAnalytics.getMyAnalyticsEntity(type, id, analyticsRange());
+  if (loadingEl) loadingEl.hidden = true;
+  if (error || !entity) {
+    if (errorEl) { errorEl.hidden = false; errorEl.textContent = tr('analyticsErrorPrefix') + ' ' + (error || ''); }
+    return;
+  }
+  analyticsSelected = { type, id };
+  analyticsEntityData = entity;
+  renderAnalyticsEntity();
+}
+
+function renderAnalyticsEntity() {
+  const overviewEl = document.getElementById('analyticsOverview');
+  const entityEl = document.getElementById('analyticsEntityDetail');
+  const e = analyticsEntityData;
+  if (!overviewEl || !entityEl || !e) return;
+  const isPro = e.tier === 'pro';
+  const t = e.totals;
+  const known = t.mobile + t.desktop;
+  const kpis = [
+    analyticsKpi(tr('analyticsKpiVisits'), t.visits),
+    analyticsKpi(tr('analyticsKpiPlays'), isPro ? t.plays : analyticsLockedBadge()),
+    analyticsKpi(tr('analyticsKpiMobile'), analyticsPct(t.mobile, known)),
+  ].join('');
+  const devices = `<div class="an-devices">
+      <span>${analyticsEscapeHtml(tr('analyticsDeviceMobile'))} <strong>${t.mobile}</strong></span>
+      <span>${analyticsEscapeHtml(tr('analyticsDeviceDesktop'))} <strong>${t.desktop}</strong></span>
+      ${t.unknownDevice ? `<span>${analyticsEscapeHtml(tr('analyticsDeviceUnknown'))} <strong>${t.unknownDevice}</strong></span>` : ''}
+    </div>`;
+  let proBlocks;
+  if (isPro) {
+    const trackRows = (e.tracks || []).map(k => `<tr>
+        <td>${analyticsEscapeHtml(k.title)}</td><td>${k.plays}</td>
+        <td>${analyticsPct(k.reachedEnd, k.plays)}</td><td>${analyticsPct(k.skipped, k.plays)}</td></tr>`).join('');
+    const ix = (e.interactions || []).map(i => {
+      const key = 'analyticsIx_' + i.name;
+      const label = tr(key) === key ? i.name : tr(key);
+      return `<li>${analyticsEscapeHtml(label)} <strong>${i.count}</strong></li>`;
+    }).join('');
+    proBlocks = `
+      <div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsTracksTitle'))} <span class="hint">${analyticsEscapeHtml(tr('analyticsTracksNote'))}</span></div>
+        ${trackRows ? `<table class="an-table"><thead><tr><th>${analyticsEscapeHtml(tr('analyticsTracksTitle'))}</th><th>${analyticsEscapeHtml(tr('analyticsColPlays'))}</th><th>${analyticsEscapeHtml(tr('analyticsTrackColEnd'))}</th><th>${analyticsEscapeHtml(tr('analyticsTrackColSkipped'))}</th></tr></thead><tbody>${trackRows}</tbody></table>` : `<div class="hint">${analyticsEscapeHtml(tr('analyticsNoTracks'))}</div>`}
+      </div>
+      <div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsInteractionsTitle'))}</div>
+        ${ix ? `<ul class="an-ix">${ix}</ul>` : `<div class="hint">${analyticsEscapeHtml(tr('analyticsNoInteractionsShort'))}</div>`}
+      </div>`;
+  } else {
+    proBlocks = `<div class="an-card"><div class="an-locked-box">${analyticsLockedBadge()} <span>${analyticsEscapeHtml(tr('analyticsProDetailLocked'))}</span></div></div>`;
+  }
+  const recent = (e.recentSessions || []).map(s => `<li>${analyticsEscapeHtml(new Date(s.openedAt).toLocaleString(currentLang() === 'en' ? 'en-GB' : 'fr-FR'))} — ${analyticsEscapeHtml(s.device || tr('analyticsUnknownDevice'))}${isPro && s.plays != null ? ' — ' + s.plays + ' ' + analyticsEscapeHtml(tr('analyticsColPlays').toLowerCase()) : ''}</li>`).join('');
+  entityEl.innerHTML = `
+    <button type="button" class="btn btn-small" id="btnAnalyticsBack">${analyticsEscapeHtml(tr('analyticsBackToList'))}</button>
+    <h3 class="an-entity-title">${analyticsEscapeHtml(e.entity.name)} <span class="an-type">${analyticsEscapeHtml(e.entity.type === 'pack' ? tr('analyticsTypePack') : tr('analyticsTypeAdreel'))}</span></h3>
+    <div class="an-kpis">${kpis}</div>
+    <div class="an-charts">
+      <div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsChartVisits'))}</div>${analyticsBuildChart(e.series.visits || [], e.buckets, e.bucket)}</div>
+      <div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsChartPlays'))}</div>${isPro ? analyticsBuildChart(e.series.plays || [], e.buckets, e.bucket) : `<div class="an-locked-box">${analyticsLockedBadge()}</div>`}</div>
+    </div>
+    <div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsDevicesTitle'))}</div>${devices}</div>
+    ${proBlocks}
+    <div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsRecentSessionsTitle'))}</div><ul class="an-ix">${recent || `<li class="hint">${analyticsEscapeHtml(tr('analyticsNoItems'))}</li>`}</ul></div>`;
+  overviewEl.hidden = true; entityEl.hidden = false;
+  document.getElementById('btnAnalyticsBack').addEventListener('click', () => {
+    analyticsSelected = null; analyticsEntityData = null; renderAnalyticsView();
+  });
+}
+
+// Liste brute des visites (ancienne vue) : gardée dans un bloc replié, chargée à l'ouverture.
+async function loadAnalyticsRawSessions() {
+  const sessionsEl = document.getElementById('analyticsSessions');
+  if (sessionsEl) sessionsEl.innerHTML = '';
+  await loadPostgresReadScripts();
+  const r = analyticsRange();
+  const { analytics, error } = await window.LayerPitchAnalytics.getMyAnalytics({ from: r.from, to: r.to });
+  if (error) { if (sessionsEl) sessionsEl.innerHTML = `<div class="hint">${analyticsEscapeHtml(tr('analyticsErrorPrefix') + ' ' + error)}</div>`; return; }
+  analyticsData = analytics;
+  analyticsRawLoadedForTier = currentEffectivePlan;
   renderAnalyticsSessions();
 }
 
@@ -9117,18 +9411,9 @@ function renderAnalyticsSessionCard(s) {
 
 function renderAnalyticsSessions() {
   const sessionsEl = document.getElementById('analyticsSessions');
-  const emptyEl = document.getElementById('analyticsEmpty');
-  const metaEl = document.getElementById('analyticsMeta');
   if (!sessionsEl || !analyticsData) return;
   const sessions = analyticsData.sessions || [];
-  if (metaEl) metaEl.textContent = tr('analyticsRetentionNote', { days: analyticsData.retentionDays });
-  if (!sessions.length) {
-    if (emptyEl) emptyEl.hidden = false;
-    sessionsEl.innerHTML = '';
-    return;
-  }
-  if (emptyEl) emptyEl.hidden = true;
-  sessionsEl.innerHTML = sessions.map(renderAnalyticsSessionCard).join('');
+  sessionsEl.innerHTML = sessions.length ? sessions.map(renderAnalyticsSessionCard).join('') : `<div class="hint">${analyticsEscapeHtml(tr('analyticsNoItems'))}</div>`;
 }
 // Valeur effective d'un champ d'apparence pour le thème général actuel — sert de point de départ quand
 // on active une personnalisation par bloc (plutôt que de partir d'une couleur arbitraire). Vérifie
