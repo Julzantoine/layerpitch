@@ -3165,6 +3165,7 @@ const FX_DEFAULTS = {
   reverb: () => ({ decay: 2, wet: 0.3 }),
   delay: () => ({ time: 0.3, feedback: 0.35, wet: 0.25 }),
   bitcrush: () => ({ bits: 8, reduction: 1 }),
+  volume: () => ({ db: 0 }),
   // "rate" retiré des valeurs par défaut par élément (22/09) : devenu un réglage de morceau entier, voir
   // FX_TRACK_DEFAULTS ci-dessous et trackPitchFxHtml() -- ici, "shift" reste le seul mode par couche/
   // boucle/emplacement/pool, puisqu'il ne pose pas de problème de synchro (durée inchangée).
@@ -3216,6 +3217,10 @@ function fxBlockHtml(fx, extraAttrs) {
   return `
     <div style="margin-top:10px">
       <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxSectionTitle')}</div>
+      ${toggle('volume', !!fx.volume, 'fxVolumeLabel', `
+        ${num('volume', 'db', fx.volume ? fx.volume.db : 0, 'fxVolumeDbLabel', 0.5, -60, 12)}
+        <div class="hint-inline">${tr('fxVolumeHint')}</div>
+      `)}
       ${toggle('filter', !!f, 'fxFilterLabel', `
         <select data-field="fx" data-fx-effect="filter" data-fx-param="type" ${extraAttrs}>
           <option value="lowpass" ${!f || f.type === 'lowpass' ? 'selected' : ''}>${tr('fxFilterTypeLowpass')}</option>
@@ -3275,6 +3280,9 @@ function trackPitchFxHtml(track, ti) {
   const pitchDisabled = !currentUserIsAdmin;
   const p = (track.fx && track.fx.pitch) || null;
   const attrs = `data-fx-target="track" data-ti="${ti}"`;
+  // Fondu de pitch : seulement avec le moteur simple (statique/vertical sans boucle quantifiée), voir
+  // applyTrackPitchRate() dans player.js.
+  const fadeSupported = (track.mode === 'static' || track.mode === 'vertical') && track.loopEngine !== 'quantized';
   return `
     <div style="margin-top:14px">
       <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxPitchLabel')}</div>
@@ -3287,10 +3295,12 @@ function trackPitchFxHtml(track, ti) {
         ${p ? `
           <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxSemitonesLabel')}</label>
             <input type="number" step="1" min="-24" max="24" ${pitchDisabled ? 'disabled' : ''} data-field="fx" data-fx-effect="pitch" data-fx-param="semitones" ${attrs} value="${p.semitones || 0}"></div>
+          ${fadeSupported ? `
           <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxFadeFromSemitonesLabel')}</label>
             <input type="number" step="1" ${pitchDisabled ? 'disabled' : ''} data-field="fx" data-fx-effect="pitch" data-fx-param="fadeFromSemitones" ${attrs} value="${p.fadeFromSemitones != null ? p.fadeFromSemitones : ''}"></div>
           <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxFadeDurationLabel')}</label>
             <input type="number" step="0.1" ${pitchDisabled ? 'disabled' : ''} data-field="fx" data-fx-effect="pitch" data-fx-param="fadeDurationSec" ${attrs} value="${p.fadeDurationSec != null ? p.fadeDurationSec : ''}"></div>
+          ` : `<div class="hint-inline">${tr('fxTrackPitchNoFadeHint')}</div>`}
         ` : ''}
       </div>
     </div>
