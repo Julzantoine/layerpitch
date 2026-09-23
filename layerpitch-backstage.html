@@ -3306,6 +3306,94 @@ function trackPitchFxHtml(track, ti) {
     </div>
   `;
 }
+// ---- Triggers d'effets (23/09) -- réservés à l'admin pour l'instant, comme le pitch ----
+// Un trigger = { id, label, target:{type,li|si|pi}, fx:{...}, visible, fadeSec } : un jeu d'effets qui se
+// fusionne par-dessus ceux de sa cible tant qu'il est actif (voir initTrackPlayer() dans player.js). Actionné
+// par un bouton public (visible) ou par des embranchements (fxActions sur une option de bascule séquentielle
+// ou sur une boucle d'embranchement-vertical).
+function fxTriggerTargetChoices(track) {
+  const out = [];
+  if (track.mode === 'static') out.push({ value: 'layer:0', label: tr('fxTargetStaticTrack') });
+  else if (track.mode === 'vertical') (track.layers || []).forEach((l, i) => out.push({ value: 'layer:' + i, label: l.label || tr('layerFallback', { n: i + 1 }) }));
+  else if (track.mode === 'embranchement-vertical') (track.loops || []).forEach((l, i) => out.push({ value: 'loop:' + i, label: l.label || tr('embrLoopFallback', { n: i + 1 }) }));
+  else if (track.mode === 'sequential') (track.segmentSlots || []).forEach((sl, i) => out.push({ value: 'slot:' + i, label: '#' + (i + 1) + ' ' + (sl.label || tr('slotFallback', { n: i + 1 })) }));
+  else if (track.mode === 'vertical-random') (track.sections || []).forEach((sec, si) => (sec.pools || []).forEach((p, pi) => out.push({ value: 'pool:' + si + ':' + pi, label: (sec.label || ('S' + (si + 1))) + ' / ' + (p.label || ('P' + (pi + 1))) })));
+  return out;
+}
+function fxTriggerTargetToValue(t) {
+  if (!t) return '';
+  if (t.type === 'layer') return 'layer:' + (t.li || 0);
+  if (t.type === 'loop') return 'loop:' + t.li;
+  if (t.type === 'slot') return 'slot:' + t.si;
+  if (t.type === 'pool') return 'pool:' + t.si + ':' + t.pi;
+  return '';
+}
+function parseFxTriggerTarget(v) {
+  const p = String(v || '').split(':');
+  if (p[0] === 'layer') return { type: 'layer', li: parseInt(p[1], 10) || 0 };
+  if (p[0] === 'loop') return { type: 'loop', li: parseInt(p[1], 10) || 0 };
+  if (p[0] === 'slot') return { type: 'slot', si: parseInt(p[1], 10) || 0 };
+  if (p[0] === 'pool') return { type: 'pool', si: parseInt(p[1], 10) || 0, pi: parseInt(p[2], 10) || 0 };
+  return null;
+}
+function fxTriggersEditorHtml(track, ti) {
+  const triggers = track.fxTriggers || [];
+  if (!currentUserIsAdmin) {
+    return `
+      <div style="margin-top:14px;opacity:0.55">
+        <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}</div>
+        <div class="hint-inline">${tr('fxTriggersAdminOnly')}${triggers.length ? ' (' + triggers.length + ')' : ''}</div>
+      </div>`;
+  }
+  const choices = fxTriggerTargetChoices(track);
+  const cards = triggers.map((trg, i) => {
+    const curValue = fxTriggerTargetToValue(trg.target);
+    const opts = choices.map(c => `<option value="${escapeAttr(c.value)}" ${c.value === curValue ? 'selected' : ''}>${escapeAttr(c.label)}</option>`).join('');
+    const attrs = `data-ti="${ti}" data-tri="${i}"`;
+    return `
+      <div class="list-block" style="margin-top:8px">
+        <div class="row">
+          <div><label>${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('fxTriggerLabelPlaceholder')}" data-field="fxTrigger" data-fxt-prop="label" ${attrs} value="${escapeAttr(trg.label)}"></div>
+          <button class="btn btn-icon btn-danger" data-action="remove-fx-trigger" ${attrs} title="${tr('removeFxTriggerBtn')}" style="align-self:flex-end">×</button>
+        </div>
+        <label style="margin-top:6px">${tr('fxTriggerTargetLabel')}</label>
+        <select data-field="fxTrigger" data-fxt-prop="target" ${attrs}>${opts || '<option value="">—</option>'}</select>
+        <label class="switch-row" style="margin-top:8px">
+          <input type="checkbox" data-field="fxTrigger" data-fxt-prop="visible" ${attrs} ${trg.visible ? 'checked' : ''}>
+          <span class="switch-row-label">${tr('fxTriggerVisibleLabel')}</span>
+        </label>
+        <div class="hint-inline">${tr('fxTriggerVisibleHint')}</div>
+        <div style="margin-top:6px"><label style="font-size:0.85em">${tr('fxTriggerFadeLabel')}</label>
+          <input type="number" step="0.05" min="0" max="5" data-field="fxTrigger" data-fxt-prop="fadeSec" ${attrs} value="${trg.fadeSec != null ? trg.fadeSec : ''}"></div>
+        ${fxBlockHtml(trg.fx, `data-fx-target="trigger" ${attrs}`)}
+      </div>`;
+  }).join('');
+  return `
+    <div style="margin-top:14px">
+      <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}</div>
+      <div class="hint-inline">${tr('fxTriggersHint')}</div>
+      ${cards}
+      <div class="actions" style="margin-top:8px"><button class="btn btn-small" data-action="add-fx-trigger" data-ti="${ti}">${tr('addFxTriggerBtn')}</button></div>
+    </div>`;
+}
+// Actions liées à un embranchement : pour chaque trigger défini sur le morceau, "activer" / "couper" /
+// "ne rien faire" quand CETTE option de bascule (séquentiel) ou CETTE boucle (embranchement-vertical) est prise.
+function fxActionsHtml(actions, track, ownerAttrs) {
+  const triggers = (track.fxTriggers || []).filter(x => x && x.id);
+  if (!currentUserIsAdmin || !triggers.length) return '';
+  const rows = triggers.map(trg => {
+    const a = (actions || []).find(x => x.triggerId === trg.id);
+    const v = a ? (a.active === false ? 'off' : 'on') : '';
+    return `<div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+      <span style="flex:1;font-size:12px">${escapeAttr(trg.label) || tr('fxTriggerLabelPlaceholder')}</span>
+      <select data-field="fxAction" data-fx-trigger-id="${escapeAttr(trg.id)}" ${ownerAttrs} style="width:auto">
+        <option value="" ${v === '' ? 'selected' : ''}>${tr('fxActionNone')}</option>
+        <option value="on" ${v === 'on' ? 'selected' : ''}>${tr('fxActionOn')}</option>
+        <option value="off" ${v === 'off' ? 'selected' : ''}>${tr('fxActionOff')}</option>
+      </select></div>`;
+  }).join('');
+  return `<div style="margin-top:10px"><div style="font-weight:600;font-size:0.85em">${tr('fxActionsTitle')}</div>${rows}</div>`;
+}
 // Bouton "+" inséré directement à la fin d'une liste maître de morceau (20/08, relecture de nettoyage) --
 // factorise les 4 boutons d'ajout (+ Emplacement, + Section, + Boucle, + Couche) qui n'étaient que des
 // copies quasi identiques les unes des autres. Vit désormais à la suite de la Structure plutôt que sous
@@ -4641,6 +4729,7 @@ function buildPreviewTrack(track) {
     // fx de morceau entier (pitch "vitesse", 22/09) -- distinct de layers[].fx/loops[].fx/etc., voir
     // applyTrackPitchRate() dans player.js.
     fx: track.fx || null,
+    fxTriggers: (track.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null })),
     layers: (track.layers || []).map(mapItem).filter(Boolean),
     intro: mapBlockWithBars(track.intro),
     // L'outro n'a pas de "bars" (mapItem, pas mapBlockWithBars — pas de durée programmée après elle, elle
@@ -4654,7 +4743,7 @@ function buildPreviewTrack(track) {
       quantization: sl.quantization || 'bar', cutStyle: sl.cutStyle || 'fade', customCutFadeSec: sl.customCutFadeSec,
       bpm: sl.bpm, beatsPerBar: sl.beatsPerBar,
       descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
-      nextOptions: sl.nextOptions ? sl.nextOptions.map(opt => ({ targetId: opt.targetId, label: opt.label || '', transition: opt.transition ? mapTransition(opt.transition) : null })) : null,
+      nextOptions: sl.nextOptions ? sl.nextOptions.map(opt => ({ targetId: opt.targetId, label: opt.label || '', transition: opt.transition ? mapTransition(opt.transition) : null, fxActions: opt.fxActions || null })) : null,
       alternatives: (sl.alternatives || []).map(mapAlternativeWithBars),
       fx: sl.fx || null
     })),
@@ -4693,7 +4782,8 @@ function buildPreviewTrack(track) {
           bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
           ...mapItem(l.transition)
         } : null,
-        fx: l.fx || null
+        fx: l.fx || null,
+        fxActions: l.fxActions || null
       };
     }),
     // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : le moteur de lecture
@@ -5168,6 +5258,7 @@ function renderLibrary() {
             <span data-help="normalizeVolume" style="color:var(--text-dim);font-size:12px;">${tr('normalizeVolumeLabel')}</span>
           </label>
           ${trackPitchFxHtml(track, ti)}
+          ${fxTriggersEditorHtml(track, ti)}
         `;
         modeDetailHost.appendChild(infoEl);
         if (isStatic) {
@@ -5549,6 +5640,7 @@ function renderLibrary() {
             ` : ''}
             ${loop.isInitial ? `<div data-role="embrLoopTimelineHost" style="margin-top:14px"></div>` : ''}
             ${loopFxHtml(loop, ti, li)}
+            ${fxActionsHtml(loop.fxActions, track, `data-fx-owner="loop" data-ti="${ti}" data-li="${li}"`)}
           `;
           modeDetailHost.appendChild(loopEl);
           const ctrlHost = loopEl.querySelector('[data-role="embrLoopFileCtrl"]');
@@ -5786,6 +5878,7 @@ function renderLibrary() {
             <span data-help="normalizeVolume" style="color:var(--text-dim);font-size:12px;">${tr('normalizeVolumeLabel')}</span>
           </label>
           ${trackPitchFxHtml(track, ti)}
+          ${fxTriggersEditorHtml(track, ti)}
         `;
         slotsDetailHost.appendChild(infoEl);
       }
@@ -6044,6 +6137,7 @@ function renderLibrary() {
                   </div>
                 </div>
               ` : ''}
+              ${fxActionsHtml(opt.fxActions, track, `data-fx-owner="opt" data-ti="${ti}" data-si="${si}" data-bi="${bi}"`)}
             `;
             branchOptionsHost.appendChild(wrap);
             if (opt.transition) {
@@ -6559,6 +6653,7 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
   const fli = btn.dataset.fli !== undefined ? parseInt(btn.dataset.fli, 10) : null;
   const pi = btn.dataset.pi !== undefined ? parseInt(btn.dataset.pi, 10) : null;
   const bi = btn.dataset.bi !== undefined ? parseInt(btn.dataset.bi, 10) : null;
+  const tri = btn.dataset.tri !== undefined ? parseInt(btn.dataset.tri, 10) : null;
   if (btn.dataset.action === 'select-seq-slot') {
     // Pure sélection d'affichage (colonne de droite) -- ne touche à aucune donnée du morceau.
     // dataset.seqKey porte les 3 entrées virtuelles ('trackinfo'/'sfx'/'infos'), dataset.si (déjà
@@ -6580,6 +6675,21 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
     adReels.forEach(a => { a.trackIds = a.trackIds.filter(id => id !== removedId); });
     packs.forEach(p => { p.trackIds = (p.trackIds || []).filter(id => id !== removedId); });
     trackBackstageEvent('track_delete', {});
+  }
+  else if (btn.dataset.action === 'add-fx-trigger') {
+    const tk = library[ti];
+    if (!tk.fxTriggers) tk.fxTriggers = [];
+    const first = fxTriggerTargetChoices(tk)[0];
+    tk.fxTriggers.push({ id: genId(), label: '', target: first ? parseFxTriggerTarget(first.value) : null, fx: {}, visible: false, fadeSec: null });
+  }
+  else if (btn.dataset.action === 'remove-fx-trigger') {
+    const tk = library[ti];
+    const removed = tk.fxTriggers[tri];
+    tk.fxTriggers.splice(tri, 1);
+    // Plus aucune action ne doit pointer vers un trigger supprimé.
+    const purge = o => { if (o && o.fxActions) { o.fxActions = o.fxActions.filter(a => a.triggerId !== removed.id); if (!o.fxActions.length) o.fxActions = null; } };
+    (tk.loops || []).forEach(purge);
+    (tk.segmentSlots || []).forEach(sl => (sl.nextOptions || []).forEach(purge));
   }
   else if (btn.dataset.action === 'add-layer') library[ti].layers.push({ id: genId(), label: '', remoteFile: null, pendingFile: null });
   else if (btn.dataset.action === 'remove-layer') {
@@ -6746,6 +6856,26 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       renderLibrary(); // le libellé de l'option "suivre le réglage global" affiche l'état effectif (oui/non)
     }
     else if (field === 'label') library[ti].layers[li].label = e.target.value;
+    else if (field === 'fxTrigger') {
+      const trg = (library[ti].fxTriggers || [])[parseInt(e.target.dataset.tri, 10)];
+      const prop = e.target.dataset.fxtProp;
+      if (trg) {
+        if (prop === 'label') trg.label = e.target.value;
+        else if (prop === 'visible') trg.visible = e.target.checked;
+        else if (prop === 'fadeSec') trg.fadeSec = e.target.value === '' ? null : parseFloat(e.target.value);
+        else if (prop === 'target') trg.target = parseFxTriggerTarget(e.target.value);
+      }
+    }
+    else if (field === 'fxAction') {
+      const owner = e.target.dataset.fxOwner;
+      const obj = owner === 'loop' ? library[ti].loops[li] : library[ti].segmentSlots[parseInt(e.target.dataset.si, 10)].nextOptions[parseInt(e.target.dataset.bi, 10)];
+      const id = e.target.dataset.fxTriggerId;
+      if (obj) {
+        obj.fxActions = (obj.fxActions || []).filter(a => a.triggerId !== id);
+        if (e.target.value) obj.fxActions.push({ triggerId: id, active: e.target.value === 'on' });
+        if (!obj.fxActions.length) obj.fxActions = null;
+      }
+    }
     else if (field === 'fx') {
       // data-fx-target dit à quel objet appliquer le réglage -- une seule chaîne de gestion pour les 4
       // modes plutôt qu'un bloc par mode (voir fxBlockHtml/layerFxHtml/loopFxHtml/slotFxHtml/poolFxHtml).
@@ -6755,6 +6885,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       else if (fxTarget === 'slot') target = library[ti].segmentSlots[parseInt(e.target.dataset.si, 10)];
       else if (fxTarget === 'pool') target = library[ti].sections[parseInt(e.target.dataset.si, 10)].pools[parseInt(e.target.dataset.pi, 10)];
       else if (fxTarget === 'track') target = library[ti];
+      else if (fxTarget === 'trigger') target = library[ti].fxTriggers[parseInt(e.target.dataset.tri, 10)];
       else target = li != null ? library[ti].layers[li] : library[ti].layers[0];
       const effect = e.target.dataset.fxEffect;
       const param = e.target.dataset.fxParam;
@@ -10021,6 +10152,7 @@ async function loadData(silent) {
         maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
         normalizeVolume: !!t.normalizeVolume,
         fx: t.fx || null,
+        fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null })),
         layers: (t.layers || []).map(l => ({ label: l.label, remoteFile: l.file, pendingFile: null, gain: l.gain || 1, duration: l.duration || 0, fx: l.fx || null })),
         intro: t.intro ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, remoteFile: t.intro.file || null, pendingFile: null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '' } : null,
         outro: t.outro ? { label: t.outro.label || 'Outro', remoteFile: t.outro.file || null, pendingFile: null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,
@@ -10036,7 +10168,8 @@ async function loadData(silent) {
           descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
           nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
             targetId: opt.targetId, label: opt.label || '',
-            transition: opt.transition ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, remoteFile: opt.transition.file || null, originalFileName: opt.transition.originalFileName || null, pendingFile: null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null
+            transition: opt.transition ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, remoteFile: opt.transition.file || null, originalFileName: opt.transition.originalFileName || null, pendingFile: null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null,
+            fxActions: opt.fxActions || null
           })) : null,
           alternatives: (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1 })),
           fx: sl.fx || null
@@ -10081,7 +10214,8 @@ async function loadData(silent) {
               bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
               remoteFile: l.transition.file || null, originalFileName: l.transition.originalFileName || null, pendingFile: null
             } : null,
-            fx: l.fx || null
+            fx: l.fx || null,
+            fxActions: l.fxActions || null
           }));
         })(),
         stingers: (t.stingers || []).map(s => ({ label: s.label, remoteFile: s.file, pendingFile: null, gain: s.gain || 1 })),
@@ -10793,6 +10927,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
       normalizeVolume: !!t.normalizeVolume,
       fx: t.fx || null,
+      fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null })),
       duration: Math.round(t.duration * 100) / 100, base: t.base,
       // file/localUrl (18/09) : un fichier tout juste choisi mais pas encore publié n'a pas de
       // remoteFile -- localUrl porte alors une URL locale temporaire (pendingPreviewUrl(), blob:),
@@ -10810,7 +10945,8 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
         nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
           targetId: opt.targetId, label: opt.label || '',
-          transition: (opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile)) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile || null, localUrl: opt.transition.remoteFile ? null : pendingPreviewUrl(opt.transition.pendingFile), originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null
+          transition: (opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile)) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile || null, localUrl: opt.transition.remoteFile ? null : pendingPreviewUrl(opt.transition.pendingFile), originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null,
+          fxActions: opt.fxActions || null
         })) : null,
         alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1 })),
         fx: sl.fx || null
@@ -10833,7 +10969,8 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
           bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
           file: l.transition.remoteFile || null, localUrl: l.transition.remoteFile ? null : pendingPreviewUrl(l.transition.pendingFile), originalFileName: l.transition.originalFileName || null
         } : null,
-        fx: l.fx || null
+        fx: l.fx || null,
+        fxActions: l.fxActions || null
       })),
       randomizeSections: !!t.randomizeSections,
       // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : chaque section porte

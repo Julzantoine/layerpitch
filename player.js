@@ -751,6 +751,23 @@ function advanceChainIndex(index, n, chainState, maxChainLoops) {
   return nextIndex;
 }
 
+// Style des boutons de triggers d'effets, injecté une seule fois par le lecteur lui-même plutôt que copié
+// dans index.html/pack.html/collection.html (chacun a sa propre feuille de style, déjà dupliquée) -- ne
+// s'appuie que sur les variables CSS déjà définies par toutes les pages hôtes (--accent, --border...).
+function ensureFxTriggerStyle() {
+  if (document.getElementById('lp-fx-trigger-style')) return;
+  const st = document.createElement('style');
+  st.id = 'lp-fx-trigger-style';
+  st.textContent = `
+    .fx-trigger-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .fx-trigger-btn { font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 6px 12px; border-radius: 999px;
+      border: 1px solid var(--border, #ccc); background: transparent; color: var(--text-dim, #555); cursor: pointer; }
+    .fx-trigger-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .fx-trigger-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
+    .fx-trigger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  `;
+  document.head.appendChild(st);
+}
 function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndividualBadge) {
   packsForTrack = packsForTrack || [];
   // Même logique qu'effectiveNoAiCertified() côté Backstage : une exception explicite par morceau
@@ -985,6 +1002,24 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
     `;
   }
 
+  // Boutons de triggers d'effets (23/09) : uniquement ceux que le compositeur a choisi d'exposer (visible),
+  // ou tous dans l'aperçu du Backstage (seqMapFullReveal, même drapeau que la carte des chemins) pour qu'il
+  // puisse les essayer avant de les publier. Désactivés jusqu'à ce que la ligne soit dépliée et prête
+  // (même règle que les boutons Sfx, voir setStingerButtonsEnabled). Un trigger sans cible valide n'apparaît pas.
+  let fxTriggersHtml = '';
+  const publicFxTriggers = supported ? (track.fxTriggers || []).filter(d => d && d.id && d.fx && d.target && (d.visible || track.seqMapFullReveal)) : [];
+  if (publicFxTriggers.length) {
+    ensureFxTriggerStyle();
+    fxTriggersHtml = `
+      <div class="track-intensity-block">
+        <div class="track-intensity-label">${t('fxTriggersRowLabel')}</div>
+        <div class="fx-trigger-row">
+          ${publicFxTriggers.map(d => `<button type="button" class="fx-trigger-btn" data-fx-trigger="${escapeHtml(d.id)}" aria-pressed="false" disabled>${escapeHtml(d.label || d.id)}</button>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
   // Sélecteur de boucles : uniquement pour les pistes qui utilisent le moteur quantifié (seul moteur
   // qui connaît la notion de cycle et donc de "nombre de boucles"). Valeur par défaut = celle choisie
   // par le compositeur, modifiable ici par le visiteur — la piste applique le changement au vol.
@@ -1079,6 +1114,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       ${vertGraphHtml}
       ${seqGraphHtml}
       ${seqMapHtml}
+      ${fxTriggersHtml}
       ${(isSequential || isVerticalRandom || isEmbrVert) && track.sfxIds && track.sfxIds.length ? `
         <div class="track-intensity-block">
           <div class="track-intensity-label">${t('sfxRowLabel')}</div>
@@ -1140,15 +1176,23 @@ function getOrBuildImpulseResponse(ctx, decaySeconds) {
 // un AudioWorklet ne fonctionne pas en contexte file:// (contrainte non négociable de l'outil, voir
 // docs/architecture.md), un ScriptProcessorNode si. Combine quantification de bits (résolution réduite)
 // et échantillonnage-blocage (réduction de fréquence d'échantillonnage perçue).
+// node.params (23/09, triggers d'effets) : réglages lus à CHAQUE bloc, donc modifiables en direct --
+// enabled=false : recopie pure de l'entrée (un trigger peut ainsi l'activer/le couper sans reconstruire).
 function buildBitcrushNode(ctx, bits, reduction) {
   const node = ctx.createScriptProcessor(4096, 2, 2);
-  const step = Math.pow(0.5, Math.max(1, Math.min(16, bits || 8)));
-  const red = Math.max(1, Math.min(50, Math.round(reduction || 1)));
+  node.params = { enabled: true, bits: bits || 8, reduction: reduction || 1 };
   let sampleCounter = 0;
   const held = [0, 0];
   node.onaudioprocess = (e) => {
     const chCount = e.outputBuffer.numberOfChannels;
     const frames = e.outputBuffer.length;
+    const p = node.params;
+    if (!p.enabled) {
+      for (let ch = 0; ch < chCount; ch++) e.outputBuffer.getChannelData(ch).set(e.inputBuffer.getChannelData(ch));
+      return;
+    }
+    const step = Math.pow(0.5, Math.max(1, Math.min(16, p.bits || 8)));
+    const red = Math.max(1, Math.min(50, Math.round(p.reduction || 1)));
     for (let i = 0; i < frames; i++) {
       const hold = (sampleCounter % red) === 0;
       for (let ch = 0; ch < chCount; ch++) {
@@ -1172,11 +1216,14 @@ function buildBitcrushNode(ctx, bits, reduction) {
 // qu'une librairie dédiée sur de grands écarts — qualité perçue non validée à l'oreille, à confirmer par
 // une vraie écoute avant de le considérer prêt pour une démo (cf. le même type de réserve déjà posée sur
 // l'ambisonic dans `docs/extensions-roadmap.md`, en moins critique ici).
+// node.params (23/09) : semitones lu à chaque bloc ; enabled=false -> recopie pure (latence nulle), tout en
+// continuant d'alimenter le buffer circulaire et de recaler les têtes de lecture pour qu'une activation en
+// direct démarre proprement.
 function buildPitchShiftNode(ctx, semitones) {
   const grainSize = 2048;
-  const pitchRatio = Math.pow(2, (semitones || 0) / 12);
   const numChannels = 2;
   const node = ctx.createScriptProcessor(4096, numChannels, numChannels);
+  node.params = { enabled: true, semitones: semitones || 0 };
   const bufLen = grainSize * 4;
   const state = [];
   for (let ch = 0; ch < numChannels; ch++) {
@@ -1186,10 +1233,17 @@ function buildPitchShiftNode(ctx, semitones) {
   node.onaudioprocess = (e) => {
     const chCount = e.outputBuffer.numberOfChannels;
     const frames = e.outputBuffer.length;
+    const p = node.params;
+    const pitchRatio = Math.pow(2, (p.semitones || 0) / 12);
     for (let ch = 0; ch < chCount; ch++) {
       const st = state[ch];
       const inData = e.inputBuffer.getChannelData(ch);
       const outData = e.outputBuffer.getChannelData(ch);
+      if (!p.enabled) {
+        for (let i = 0; i < frames; i++) { st.buffer[st.writePos % bufLen] = inData[i]; st.writePos++; outData[i] = inData[i]; }
+        st.readPos[0] = st.writePos - grainSize; st.readPos[1] = st.writePos - grainSize / 2;
+        continue;
+      }
       for (let i = 0; i < frames; i++) {
         st.buffer[st.writePos % bufLen] = inData[i];
         st.writePos++;
@@ -1205,8 +1259,8 @@ function buildPitchShiftNode(ctx, semitones) {
           const frac = st.readPos[g] - idx;
           const i0 = ((idx % bufLen) + bufLen) % bufLen;
           const i1 = (i0 + 1) % bufLen;
-          const s = st.buffer[i0] * (1 - frac) + st.buffer[i1] * frac;
-          out += s * win;
+          const smp = st.buffer[i0] * (1 - frac) + st.buffer[i1] * frac;
+          out += smp * win;
           winSum += win;
           st.readPos[g] += pitchRatio;
         }
@@ -1216,6 +1270,72 @@ function buildPitchShiftNode(ctx, semitones) {
   };
   return node;
 }
+// Applique une configuration fx (complète, déjà fusionnée avec les triggers actifs) à une chaîne DÉJÀ
+// construite -- point d'entrée unique pour la construction initiale (rampSec=0) ET pour les changements en
+// direct (trigger activé/coupé, rampSec>0). Un effet absent de `fx` est ramené à son état NEUTRE (filtre
+// ouvert, wet à 0, bitcrusher/pitch en recopie, volume à 0 dB) plutôt que retiré : la topologie de la chaîne
+// ne change jamais en cours de lecture, seuls des paramètres bougent. Rampes via setTargetAtTime (lissées,
+// pas de clic) ; filtre/effets à type discret (type de filtre) appliqués tout de suite.
+function applyFxToChain(ctx, chain, fx, rampSec) {
+  fx = fx || {};
+  const n = chain.nodes;
+  const now = ctx.currentTime;
+  const ramp = rampSec || 0;
+  function set(param, v, rampOverride) {
+    const r = rampOverride != null ? rampOverride : ramp;
+    param.cancelScheduledValues(now);
+    if (!(r > 0)) param.setValueAtTime(v, now);
+    else { param.setValueAtTime(param.value, now); param.setTargetAtTime(v, now, Math.max(0.001, r / 3)); }
+  }
+  if (n.filter) {
+    const c = fx.filter;
+    if (c) {
+      const type = c.type || 'lowpass';
+      const typeChanged = n.filter.type !== type;
+      n.filter.type = type;
+      set(n.filter.frequency, c.frequency || 1000, typeChanged ? 0 : null);
+      set(n.filter.Q, c.q != null ? c.q : 1);
+    } else {
+      n.filter.type = 'lowpass';
+      set(n.filter.frequency, ctx.sampleRate / 2);
+      set(n.filter.Q, 1);
+    }
+  }
+  if (n.delay) {
+    const c = fx.delay;
+    const wetAmount = c ? (c.wet != null ? c.wet : 0.25) : 0;
+    if (c) {
+      set(n.delay.delayNode.delayTime, Math.min(Math.max(c.time || 0.3, 0.01), 2));
+      set(n.delay.feedback.gain, Math.min(Math.max(c.feedback != null ? c.feedback : 0.35, 0), 0.9));
+    }
+    set(n.delay.wet.gain, wetAmount);
+    set(n.delay.dry.gain, 1 - wetAmount);
+  }
+  if (n.reverb) {
+    const c = fx.reverb;
+    const wetAmount = c ? (c.wet != null ? c.wet : 0.3) : 0;
+    if (c) {
+      const decay = Math.min(Math.max(c.decay || 2, 0.1), 10);
+      if (n.reverb.decay !== decay) { try { n.reverb.convolver.buffer = getOrBuildImpulseResponse(ctx, decay); n.reverb.decay = decay; } catch (e) {} }
+    }
+    set(n.reverb.wet.gain, wetAmount);
+    set(n.reverb.dry.gain, 1 - wetAmount);
+  }
+  if (n.bitcrush) {
+    const c = fx.bitcrush;
+    n.bitcrush.params.enabled = !!c;
+    if (c) { n.bitcrush.params.bits = c.bits || 8; n.bitcrush.params.reduction = c.reduction || 1; }
+  }
+  if (n.pitchShift) {
+    const c = fx.pitch;
+    n.pitchShift.params.enabled = !!(c && c.mode === 'shift');
+    if (c) n.pitchShift.params.semitones = c.semitones || 0;
+  }
+  if (n.volume) {
+    const c = fx.volume;
+    set(n.volume.gain, c && Number.isFinite(c.db) ? Math.pow(10, Math.min(Math.max(c.db, -60), 12) / 20) : 1);
+  }
+}
 // includeBitcrush (défaut vrai) : un ScriptProcessorNode continue de traiter du silence tant qu'il reste
 // connecté, contrairement à un filtre/reverb/écho natifs (coût négligeable une fois la source arrêtée,
 // laissés tels quels au ramasse-miettes). Chaque appelant qui active un fx potentiellement bitcrush doit
@@ -1223,62 +1343,53 @@ function buildPitchShiftNode(ctx, semitones) {
 // scheduleGeneration() dans player.js) — includeBitcrush=false reste disponible pour un futur appelant
 // qui ne pourrait pas garantir ce nettoyage, plutôt que de risquer une fuite silencieuse.
 //
-// src/startTime (chantier 2, 22/09) : un fondu (filtre ou pitch) doit démarrer sa rampe au moment RÉEL où
-// la source devient audible, pas au moment où cette fonction est appelée -- pour les moteurs programmés à
-// l'avance (quantifié, séquentiel, vertical-random, embranchement-vertical, jusqu'à 1s de lookahead), ces
-// deux instants diffèrent : utiliser ctx.currentTime aurait démarré le fondu en silence, avant que le son
-// ne soit seulement audible. src lui-même n'est plus utilisé ici depuis que le pitch "rate" est devenu un
-// réglage de morceau entier (voir applyTrackPitchRate() dans initTrackPlayer) -- gardé au cas où un futur
-// effet ici aurait aussi besoin d'agir directement sur la source plutôt que sur la chaîne de nœuds.
-function buildLayerFxChain(ctx, fx, src, startTime, includeBitcrush) {
-  if (!fx || (!fx.filter && !fx.reverb && !fx.delay && !fx.bitcrush && !fx.pitch && !fx.volume)) return null;
+// startTime (chantier 2, 22/09) : un fondu de filtre doit démarrer sa rampe au moment RÉEL où la source
+// devient audible, pas au moment où cette fonction est appelée -- pour les moteurs programmés à l'avance
+// (jusqu'à 1s de lookahead), ces deux instants diffèrent. `src` n'est plus utilisé ici (le pitch "vitesse"
+// est un réglage de morceau, voir applyTrackPitchRate()) -- gardé pour la signature.
+//
+// forceKeys (23/09, triggers d'effets) : effets à construire même s'ils sont absents de `fx` (à leur état
+// neutre) -- un trigger qui active plus tard un bitcrusher sur une voix qui n'en avait pas a besoin que le
+// nœud existe déjà, la topologie ne pouvant pas changer en cours de lecture. Sans forceKeys, comportement
+// strictement inchangé (une chaîne par voix ne contient que ce que sa configuration demande).
+function buildLayerFxChain(ctx, fx, src, startTime, includeBitcrush, forceKeys) {
+  fx = fx || {};
+  const force = forceKeys || [];
+  const wants = k => !!fx[k] || force.indexOf(k) >= 0;
+  if (!wants('filter') && !wants('reverb') && !wants('delay') && !wants('bitcrush') && !wants('pitch') && !wants('volume')) return null;
   const nodes = {};
   const input = ctx.createGain(); // point d'entrée neutre (gain 1), toujours présent même chaîne courte
   let chainEnd = input;
   const when = startTime != null ? startTime : ctx.currentTime;
 
-  // Pitch "shift" : vrai changement de hauteur, durée inchangée -- voir buildPitchShiftNode. Pas de fondu
-  // pris en charge ici pour l'instant (le ratio n'est pas un AudioParam natif automatisable ; l'interpoler
-  // à la main dans le callback du processeur est possible mais pas construit dans ce premier passage).
-  if (fx.pitch && fx.pitch.mode === 'shift') {
-    const shifter = buildPitchShiftNode(ctx, fx.pitch.semitones || 0);
+  // Pitch "shift" : vrai changement de hauteur, durée inchangée -- voir buildPitchShiftNode.
+  if (wants('pitch') && (!fx.pitch || fx.pitch.mode === 'shift')) {
+    const shifter = buildPitchShiftNode(ctx, fx.pitch ? fx.pitch.semitones : 0);
     chainEnd.connect(shifter);
     chainEnd = shifter;
     nodes.pitchShift = shifter;
   }
 
-  if (fx.filter) {
+  if (wants('filter')) {
     const f = ctx.createBiquadFilter();
-    f.type = fx.filter.type || 'lowpass';
-    const targetFreq = fx.filter.frequency || 1000;
-    if (fx.filter.fadeFromFrequency != null && fx.filter.fadeDurationSec > 0) {
-      f.frequency.setValueAtTime(fx.filter.fadeFromFrequency, when);
-      f.frequency.linearRampToValueAtTime(targetFreq, when + fx.filter.fadeDurationSec);
-    } else {
-      f.frequency.value = targetFreq;
-    }
-    f.Q.value = fx.filter.q != null ? fx.filter.q : 1;
     chainEnd.connect(f);
     chainEnd = f;
     nodes.filter = f;
   }
 
-  if (fx.bitcrush && includeBitcrush !== false) {
-    const crusher = buildBitcrushNode(ctx, fx.bitcrush.bits, fx.bitcrush.reduction);
+  if (wants('bitcrush') && includeBitcrush !== false) {
+    const crusher = buildBitcrushNode(ctx, fx.bitcrush ? fx.bitcrush.bits : 8, fx.bitcrush ? fx.bitcrush.reduction : 1);
     chainEnd.connect(crusher);
     chainEnd = crusher;
     nodes.bitcrush = crusher;
   }
 
-  if (fx.delay) {
+  if (wants('delay')) {
     const wetOut = ctx.createGain();
-    const wetAmount = fx.delay.wet != null ? fx.delay.wet : 0.25;
-    const dry = ctx.createGain(); dry.gain.value = 1 - wetAmount;
-    const wet = ctx.createGain(); wet.gain.value = wetAmount;
+    const dry = ctx.createGain();
+    const wet = ctx.createGain();
     const delayNode = ctx.createDelay(2.0);
-    delayNode.delayTime.value = Math.min(Math.max(fx.delay.time || 0.3, 0.01), 2);
     const feedback = ctx.createGain();
-    feedback.gain.value = Math.min(Math.max(fx.delay.feedback != null ? fx.delay.feedback : 0.35, 0), 0.9);
     chainEnd.connect(dry); dry.connect(wetOut);
     chainEnd.connect(delayNode);
     delayNode.connect(feedback); feedback.connect(delayNode); // boucle de feedback de l'écho
@@ -1287,32 +1398,39 @@ function buildLayerFxChain(ctx, fx, src, startTime, includeBitcrush) {
     nodes.delay = { delayNode, feedback, wet, dry };
   }
 
-  if (fx.reverb) {
+  if (wants('reverb')) {
     const wetOut = ctx.createGain();
-    const wetAmount = fx.reverb.wet != null ? fx.reverb.wet : 0.3;
-    const dry = ctx.createGain(); dry.gain.value = 1 - wetAmount;
-    const wet = ctx.createGain(); wet.gain.value = wetAmount;
+    const dry = ctx.createGain();
+    const wet = ctx.createGain();
     const convolver = ctx.createConvolver();
     convolver.normalize = true;
-    convolver.buffer = getOrBuildImpulseResponse(ctx, fx.reverb.decay);
+    const decay = Math.min(Math.max((fx.reverb && fx.reverb.decay) || 2, 0.1), 10);
+    convolver.buffer = getOrBuildImpulseResponse(ctx, decay);
     chainEnd.connect(dry); dry.connect(wetOut);
     chainEnd.connect(convolver); convolver.connect(wet); wet.connect(wetOut);
     chainEnd = wetOut;
-    nodes.reverb = { convolver, wet, dry };
+    nodes.reverb = { convolver, wet, dry, decay };
   }
 
   // Volume (correction de niveau a posteriori, 23/09) : fader de sortie de la chaîne, placé APRÈS tous les
   // autres effets -- sémantique "curseur de console" : il règle le niveau final de la voix, sans changer
   // la façon dont un bitcrusher ou une reverb réagissent au signal qui les précède.
-  if (fx.volume && Number.isFinite(fx.volume.db)) {
+  if (wants('volume')) {
     const vol = ctx.createGain();
-    vol.gain.value = Math.pow(10, Math.min(Math.max(fx.volume.db, -60), 12) / 20);
     chainEnd.connect(vol);
     chainEnd = vol;
     nodes.volume = vol;
   }
 
-  return { input, output: chainEnd, nodes };
+  const chain = { input, output: chainEnd, nodes };
+  applyFxToChain(ctx, chain, fx, 0);
+  // Fondu d'entrée du filtre (chantier 2) : après l'application initiale, depuis la fréquence de départ.
+  if (nodes.filter && fx.filter && fx.filter.fadeFromFrequency != null && fx.filter.fadeDurationSec > 0) {
+    nodes.filter.frequency.cancelScheduledValues(0);
+    nodes.filter.frequency.setValueAtTime(fx.filter.fadeFromFrequency, when);
+    nodes.filter.frequency.linearRampToValueAtTime(fx.filter.frequency || 1000, when + fx.filter.fadeDurationSec);
+  }
+  return chain;
 }
 // Un ScriptProcessorNode (bitcrusher ET pitch-shift "shift", chantier 2) continue de tourner tant qu'il
 // reste connecté -- un seul point de nettoyage pour les deux plutôt que de dupliquer la même paire de
@@ -1361,6 +1479,94 @@ function initTrackPlayer(track, wrapper, elementColors) {
       src.playbackRate.value = trackPitchRatio;
     }
   }
+  /* ---- Triggers d'effets (23/09) ----
+     track.fxTriggers[] : { id, label, target:{type:'layer'|'loop'|'slot'|'pool', li|si|pi}, fx:{...},
+     visible, fadeSec? }. Un trigger ACTIF fusionne son `fx` PAR-DESSUS celui de sa cible (clé par clé) ;
+     inactif, la cible retrouve sa configuration de base. Deux façons de l'actionner : un bouton public
+     (visible=true, choisi par le compositeur) ou une option de branchement / une boucle qui porte
+     fxActions:[{triggerId, active}] (séquentiel : nextOptions[] ; embranchement-vertical : loops[]).
+     Les chaînes d'effets vivantes de chaque cible sont tenues dans un registre pour pouvoir être
+     modifiées EN DIRECT (applyFxToChain) -- seules les cibles visées par au moins un trigger y sont
+     inscrites et construites avec tous les effets que ces triggers peuvent toucher (forceKeys), pour
+     qu'aucune reconstruction ne soit jamais nécessaire en cours de lecture. */
+  const fxTriggerDefs = new Map();
+  const fxTriggerTargetKey = new Map();
+  function fxTargetKeyOf(target) {
+    if (!target) return null;
+    if (target.type === 'layer') return 'layer:' + (target.li || 0);
+    if (target.type === 'loop') return 'loop:' + target.li;
+    if (target.type === 'slot') return 'slot:' + target.si;
+    if (target.type === 'pool') return 'pool:' + target.si + ':' + target.pi;
+    return null;
+  }
+  (track.fxTriggers || []).forEach(d => {
+    const key = d && d.id && d.fx ? fxTargetKeyOf(d.target) : null;
+    if (key) { fxTriggerDefs.set(d.id, d); fxTriggerTargetKey.set(d.id, key); }
+  });
+  const fxActiveTriggerIds = []; // dans l'ordre d'activation : le dernier activé l'emporte sur un même paramètre
+  const fxChainsByTarget = new Map();
+  function fxForceKeysFor(targetKey) {
+    const keys = new Set();
+    fxTriggerDefs.forEach((d, id) => { if (fxTriggerTargetKey.get(id) === targetKey) Object.keys(d.fx).forEach(k => keys.add(k)); });
+    return [...keys];
+  }
+  function fxEffectiveFor(targetKey, baseFx) {
+    const out = baseFx ? Object.assign({}, baseFx) : {};
+    fxActiveTriggerIds.forEach(id => {
+      if (fxTriggerTargetKey.get(id) !== targetKey) return;
+      const d = fxTriggerDefs.get(id);
+      Object.keys(d.fx).forEach(k => { out[k] = Object.assign({}, out[k], d.fx[k]); });
+    });
+    return out;
+  }
+  function buildTargetFxChain(targetKey, baseFx, src, startTime) {
+    const force = fxTriggerDefs.size ? fxForceKeysFor(targetKey) : [];
+    if (!force.length) return buildLayerFxChain(ctx, baseFx, src, startTime);
+    const chain = buildLayerFxChain(ctx, fxEffectiveFor(targetKey, baseFx), src, startTime, undefined, force);
+    if (chain) {
+      chain.baseFx = baseFx; chain.targetKey = targetKey;
+      let set = fxChainsByTarget.get(targetKey);
+      if (!set) { set = new Set(); fxChainsByTarget.set(targetKey, set); }
+      set.add(chain);
+      // addEventListener (pas .onended) : plusieurs gestionnaires de fin coexistent déjà sur ces sources
+      // (nettoyage du bitcrusher, marqueurs de fin de morceau) -- jamais d'écrasement possible.
+      src.addEventListener('ended', () => { set.delete(chain); });
+    }
+    return chain;
+  }
+  const fxTriggerBtns = [...wrapper.querySelectorAll('[data-fx-trigger]')];
+  function updateFxTriggerButtons() {
+    fxTriggerBtns.forEach(b => {
+      const on = fxActiveTriggerIds.indexOf(b.dataset.fxTrigger) >= 0;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+  function setFxTrigger(id, active, rampSec) {
+    const d = fxTriggerDefs.get(id);
+    if (!d) return;
+    const i = fxActiveTriggerIds.indexOf(id);
+    if (active && i < 0) fxActiveTriggerIds.push(id);
+    else if (!active && i >= 0) fxActiveTriggerIds.splice(i, 1);
+    else return; // déjà dans l'état demandé
+    const key = fxTriggerTargetKey.get(id);
+    const chains = fxChainsByTarget.get(key);
+    const ramp = rampSec != null ? rampSec : (d.fadeSec != null ? d.fadeSec : 0.1);
+    if (chains) chains.forEach(ch => applyFxToChain(ctx, ch, fxEffectiveFor(key, ch.baseFx), ramp));
+    updateFxTriggerButtons();
+  }
+  function applyFxActions(actions) {
+    if (Array.isArray(actions)) actions.forEach(a => { if (a && a.triggerId) setFxTrigger(a.triggerId, a.active !== false); });
+  }
+  // Un vrai démarrage à froid repart de l'état de base : sans ça, un bouton "low life" resté enfoncé (ou une
+  // bascule qui l'avait activé) survivrait à un arrêt alors que le morceau repart du début.
+  function resetFxTriggers() {
+    [...fxActiveTriggerIds].forEach(id => setFxTrigger(id, false, 0.05));
+  }
+  fxTriggerBtns.forEach(b => b.addEventListener('click', () => {
+    const id = b.dataset.fxTrigger;
+    setFxTrigger(id, fxActiveTriggerIds.indexOf(id) < 0);
+  }));
   // Harmonisation des volumes : décision du compositeur (case à cocher dans le backstage), jamais
   // automatique — sinon un fichier qui sonne différemment de ce qu'il a exporté serait déroutant.
   // Le gain mesuré à la conversion reste stocké dans tous les cas ; ce n'est que son application à la
@@ -2662,6 +2868,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const now = ctx.currentTime;
     const opt = (sourceSlot.nextOptions || []).find(o => o.targetId === targetId);
     const oi = opt ? sourceSlot.nextOptions.indexOf(opt) : -1;
+    applyFxActions(opt && opt.fxActions); // triggers d'effets liés à cette bascule (23/09)
     const transitionBuf = (oi >= 0 && transitionBuffers[sourceSlotIdx]) ? transitionBuffers[sourceSlotIdx][oi] : null;
     const transitionDurationSec = transitionBuf ? transitionDurationSecFor(opt, sourceSlot) : null;
     // Trois styles de coupure : "hard" (fin nette), "fade" (fondu court fixe, 0.15s — même durée que les
@@ -2748,7 +2955,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // pour ces deux cas particuliers, qui n'ont qu'un seul fichier chacun.
     const fxSource = kind === 'segment' ? (slotIdx != null ? (track.segmentSlots || [])[slotIdx] : null)
       : kind === 'intro' ? track.intro : kind === 'outro' ? track.outro : null;
-    const fxChain = buildLayerFxChain(ctx, fxSource && fxSource.fx, src, ctxStartTime);
+    const fxChain = buildTargetFxChain(kind === 'segment' && slotIdx != null ? 'slot:' + slotIdx : kind, fxSource && fxSource.fx, src, ctxStartTime);
     if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
     g.connect(trackMasterGain);
     // Chaque bloc rejoue une fois sans boucle -- onended est un point de nettoyage fiable pour le
@@ -2969,6 +3176,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
 
   function setStingerButtonsEnabled(enabled) {
     stingerBtns.forEach(b => { b.disabled = !enabled; });
+    fxTriggerBtns.forEach(b => { b.disabled = !enabled; });
   }
   function killStingers() {
     activeStingerSources.forEach(s => { try { s.stop(); } catch(e){} });
@@ -3051,7 +3259,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       applyTrackPitchRate(src, nowStart, true);
       const g = ctx.createGain();
       g.gain.setValueAtTime((p[i] || 0) * effGain(layersToLoad[i]) * voiceGain('layer-' + i), ctx.currentTime);
-      const fxChain = buildLayerFxChain(ctx, layersToLoad[i] && layersToLoad[i].fx, src, nowStart);
+      const fxChain = buildTargetFxChain('layer:' + i, layersToLoad[i] && layersToLoad[i].fx, src, nowStart);
       if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
       g.connect(trackMasterGain);
       src.start(0, offsetAt % track.duration);
@@ -3134,7 +3342,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       const key = 'layer-' + i;
       const base = (p[i] || 0) * effGain(layersToLoad[i]);
       g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
-      const fxChain = buildLayerFxChain(ctx, layersToLoad[i] && layersToLoad[i].fx, src, ctxStartTime);
+      const fxChain = buildTargetFxChain('layer:' + i, layersToLoad[i] && layersToLoad[i].fx, src, ctxStartTime);
       if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
       g.connect(trackMasterGain);
       // Ce moteur régénère une chaîne à chaque nouvelle génération sans jamais les déconnecter -- sans
@@ -3458,7 +3666,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       const g = ctx.createGain();
       g.gain.setValueAtTime(idx === embrActiveLoopIdx ? 1 : 0, ctxStartTime);
       const loopDef = (track.loops || [])[idx];
-      const fxChain = buildLayerFxChain(ctx, loopDef && loopDef.fx, src, ctxStartTime);
+      const fxChain = buildTargetFxChain('loop:' + idx, loopDef && loopDef.fx, src, ctxStartTime);
       if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
       g.connect(trackMasterGain);
       // Même raisonnement que scheduleGeneration() (moteur quantifié) : cette génération rejoue une fois
@@ -3558,6 +3766,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   function playEmbrVertical() {
     stopEmbrVertical();
     embrActiveLoopIdx = embrReferenceIdx;
+    applyFxActions(((track.loops || [])[embrReferenceIdx] || {}).fxActions); // état de départ = celui de la boucle de référence
     const now = ctx.currentTime;
     embrReferenceStartCtxTime = now; // point zéro de l'horloge de phase, utilisé par embrQuantizeDelaySec()
     scheduleEmbrGeneration(now, true); // seul appel avec isFirst=true -- démarre à "Départ", pas "Entrée"
@@ -3723,6 +3932,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (transBuf) showEmbrTransitionOverlay(embrActiveLoopIdx, idx, transBuf, transDelay);
       const doSwitch = () => {
         removeEmbrTransitionOverlay();
+        applyFxActions(loopDef && loopDef.fxActions); // triggers d'effets liés à cette boucle (23/09)
         embrActiveLoopIdx = idx;
         refreshEmbrGains(idx);
         updateEmbrButtonsUI();
@@ -3759,6 +3969,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (transBuf) showEmbrTransitionOverlay(embrActiveLoopIdx, idx, transBuf, transDelay);
       const startDetour = () => {
         removeEmbrTransitionOverlay();
+        applyFxActions(loopDef && loopDef.fxActions); // triggers d'effets liés à ce détour (23/09)
         embrActiveLoopIdx = -1; // plus aucune voix "paire" n'est active pendant le détour
         refreshEmbrGains(-1);
         const now = ctx.currentTime;
@@ -3772,7 +3983,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         const loopsUntilButton = loopDef && loopDef.detourMode === 'loop';
         if (loopsUntilButton) { src.loop = true; src.loopStart = 0; src.loopEnd = buf.duration; }
         applyTrackPitchRate(src, now);
-        const fxChain = buildLayerFxChain(ctx, loopDef && loopDef.fx, src, now);
+        const fxChain = buildTargetFxChain('loop:' + idx, loopDef && loopDef.fx, src, now);
         if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
         g.connect(trackMasterGain);
         // onended se déclenche aussi bien à la fin naturelle (détour non bouclé) qu'à l'arrêt manuel
@@ -3876,7 +4087,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
           g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
           // fx : porté par le pool (la "voix"/l'emplacement), pas par l'alternative tirée au sort -- même
           // chaîne quel que soit le tirage, cf. la logique retenue pour les emplacements séquentiels.
-          const fxChain = buildLayerFxChain(ctx, pool.fx, src, ctxStartTime);
+          const fxChain = buildTargetFxChain('pool:' + secIdx + ':' + poolIdx, pool.fx, src, ctxStartTime);
           if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
           g.connect(trackMasterGain);
           // Chaque génération de pool rejoue une fois sans boucle -- onended fiable pour le nettoyage du
@@ -3927,7 +4138,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         applyTrackPitchRate(src, vrNextStartCtxTime);
         const g = ctx.createGain();
         g.gain.setValueAtTime(effGain(track.intro), vrNextStartCtxTime);
-        const fxChain = buildLayerFxChain(ctx, track.intro && track.intro.fx, src, vrNextStartCtxTime);
+        const fxChain = buildTargetFxChain('intro', track.intro && track.intro.fx, src, vrNextStartCtxTime);
         if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
         g.connect(trackMasterGain);
         if (fxChainHasLeakyNode(fxChain)) {
@@ -3956,7 +4167,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         applyTrackPitchRate(src, vrNextStartCtxTime);
         const g = ctx.createGain();
         g.gain.setValueAtTime(effGain(track.outro), vrNextStartCtxTime);
-        const fxChain = buildLayerFxChain(ctx, track.outro && track.outro.fx, src, vrNextStartCtxTime);
+        const fxChain = buildTargetFxChain('outro', track.outro && track.outro.fx, src, vrNextStartCtxTime);
         if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
         g.connect(trackMasterGain);
         if (fxChainHasLeakyNode(fxChain)) {
@@ -4231,6 +4442,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     playing = true;
     playingTrackIds.add(track.id); requestWakeLock();
     if (!isContinuation) trackPublicEvent('track_play', { trackId: track.id, mode: track.mode });
+    if (!isContinuation && !pausedResume) resetFxTriggers();
     if (pausedResume && resumeFromPause()) {
       // Reprise exacte après un vrai Pause manuel — voir captureResumeState()/resumeFromPause() ci-dessus.
     } else if (isSequential) {
