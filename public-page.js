@@ -103,7 +103,10 @@ function injectFontAssets(usedFontValues, customFonts) {
       const font = (customFonts || []).find(f => f.id === val.slice(7));
       if (!font || !font.file) return;
       const style = document.createElement('style');
-      style.textContent = `@font-face { font-family: '${lpCssString(font.name)}'; src: url('./fonts/${encodeURIComponent(font.file)}'); font-display: swap; }`;
+      // Stockage média (R2), dossier du compositeur : font.file = "<id compositeur>/<id police>.<ext>" (24/09 ; avant,
+      // ./fonts/ sur GitHub Pages -- aucune police n'y avait jamais été publiée).
+      const url = 'https://media.layerpitch.com/fonts/' + String(font.file).split('/').map(encodeURIComponent).join('/');
+      style.textContent = `@font-face { font-family: '${lpCssString(font.name)}'; src: url('${url}'); font-display: swap; }`;
       document.head.appendChild(style);
     }
   });

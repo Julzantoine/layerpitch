@@ -87,10 +87,6 @@ window.LAYERPITCH_HELP = {
       seqMapTheme: "Réglage global pour tout le site, pas par bloc ni par AdReel — palier Pro uniquement. S'applique à la carte des chemins des morceaux en mode séquentiel à embranchement, ici et sur le site public.",
     },
     github: {
-      ghOwner: "Ton nom d'utilisateur ou d'organisation GitHub — visible dans l'URL de ton repo (github.com/OWNER/repo).",
-      ghRepo: "Le nom du dépôt GitHub où ce site est hébergé — visible dans l'URL (github.com/owner/REPO).",
-      ghBranch: "La branche du dépôt à lire et publier — \"main\" dans la grande majorité des cas, à ne changer que si ton repo utilise un nom de branche différent.",
-      ghToken: "Un token d'accès personnel GitHub (\"Fine-grained\", limité à ce seul dépôt) qui autorise ce backstage à publier à ta place. Retenu localement sur cet ordinateur (fichier ouvert en local, jamais servi ni publié) — à recoller seulement si tu changes d'ordinateur ou vides ton navigateur.",
     },
     content: {
       formspreeEndpoint: "L'URL de ton formulaire Formspree — nécessaire uniquement si tu ajoutes un bloc \"Contact\" à une page. Sans ça, ce bloc n'affichera rien côté public.",
@@ -192,10 +188,6 @@ window.LAYERPITCH_HELP = {
       seqMapTheme: "Global setting for the whole site, not per block or per AdReel — Pro tier only. Applies to the path map of tracks in sequential-branching mode, here and on the public site.",
     },
     github: {
-      ghOwner: "Your GitHub username or organization — visible in your repo's URL (github.com/OWNER/repo).",
-      ghRepo: "The name of the GitHub repository hosting this site — visible in the URL (github.com/owner/REPO).",
-      ghBranch: "The repo branch to read from and publish to — \"main\" in the vast majority of cases, only change it if your repo uses a different branch name.",
-      ghToken: "A GitHub personal access token (\"Fine-grained\", scoped to this one repository) that lets this backstage publish on your behalf. Kept locally on this computer (a file opened locally, never served or published) — only needs re-pasting if you switch computers or clear your browser data.",
     },
     content: {
       formspreeEndpoint: "Your Formspree form URL — only needed if you add a \"Contact\" block to a page. Without it, that block will show nothing on the public side.",

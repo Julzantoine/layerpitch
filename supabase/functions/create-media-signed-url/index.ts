@@ -23,9 +23,9 @@
 // à AUCUN de ces formats est désormais REFUSÉ par défaut (c'était auparavant autorisé par défaut --
 // un compositeur authentifié pouvait alors obtenir une URL signée PUT/DELETE pour n'importe quel
 // fichier sous images/ ou audio/ sans aucune vérification de propriété, y compris ceux d'un autre
-// compositeur, tant que le nom de fichier ne matchait aucun des formats connus). Les polices
-// personnalisées passent par ghPutFile (GitHub), pas par cette fonction -- un chemin en forme de
-// police ne devrait donc jamais arriver ici ; le refus par défaut le couvre sans cas particulier.
+// compositeur, tant que le nom de fichier ne matchait aucun des formats connus). Polices personnalisées
+// (24/09, fin de la publication via GitHub) : rangées sous fonts/<id du compositeur>/, la propriété se lit
+// donc directement dans le chemin, sans requête.
 //
 // Vérifié avant d'écrire cette version, pas supposé : publishAll() (layerpitch-backstage.html)
 // uploade TOUT le média avant d'appeler les RPC upsert_ad_reel/upsert_track/etc. qui créent
@@ -57,12 +57,15 @@ function corsHeadersFor(req: Request): Record<string, string> {
   };
 }
 
-const ALLOWED_PREFIXES = ['images/', 'audio/', 'video/'];
+const ALLOWED_PREFIXES = ['images/', 'audio/', 'video/', 'fonts/'];
 
 // Renvoie true si le chemin est autorisé pour ce compositeur -- l'entité visée doit lui appartenir
 // (ou ne pas encore exister, voir plus bas). Tout chemin qui ne correspond à aucun format connu est
 // refusé (voir commentaire d'en-tête).
 async function verifyOwnership(adminClient: ReturnType<typeof createClient>, path: string, composerId: string): Promise<boolean> {
+  // Police personnalisée : fonts/<id du compositeur>/<id de la police>.<ext> -- à lui seul, et à personne d'autre.
+  const fontMatch = path.match(/^fonts\/([^/]+)\/[^/]+\.[^./]+$/);
+  if (path.startsWith('fonts/')) return !!fontMatch && fontMatch[1] === composerId;
   const checks: Array<{ pattern: RegExp; table: string }> = [
     { pattern: /^images\/(?:logo|photo|theme-bg)-([^./]+)\.[^./]+$/, table: 'ad_reels' },
     { pattern: /^images\/([^./]+)-testimonial-avatar-\d+\.[^./]+$/, table: 'ad_reels' },
@@ -95,8 +98,7 @@ async function verifyOwnership(adminClient: ReturnType<typeof createClient>, pat
     if (!data) return true; // bloc pas encore publié -- même raisonnement que ci-dessus.
     return data.owner_id === composerId;
   }
-  // Tout le reste (y compris un chemin en forme de police -- jamais censé arriver ici, voir
-  // commentaire d'en-tête) : refusé par défaut plutôt qu'autorisé (durci 11 septembre).
+  // Tout le reste : refusé par défaut plutôt qu'autorisé (durci 11 septembre).
   return false;
 }
 
@@ -129,7 +131,7 @@ Deno.serve(async (req) => {
 
     const { path, method } = await req.json();
     if (!path || typeof path !== 'string' || !ALLOWED_PREFIXES.some((p) => path.startsWith(p))) {
-      return new Response(JSON.stringify({ error: 'Chemin invalide (doit commencer par images/, audio/ ou video/).' }), {
+      return new Response(JSON.stringify({ error: 'Chemin invalide (doit commencer par images/, audio/, video/ ou fonts/).' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

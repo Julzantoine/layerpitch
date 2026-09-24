@@ -1509,52 +1509,23 @@
     <div class="hint" data-i18n="backstageWatermarkHint">Purement décorative, locale à cet ordinateur — les visiteurs ne la voient jamais.</div>
   </fieldset>
 
-  <fieldset id="panelGithubRepo" hidden>
+  <fieldset id="panelAdminTools" hidden>
     <details>
-      <summary data-i18n="githubRepoLegend">Dépôt GitHub</summary>
-      <div class="row">
-        <div><label data-i18n="ownerLabel" data-help="ghOwner">Propriétaire (owner)</label><input type="text" id="ghOwner"></div>
-        <div><label data-i18n="repoLabel" data-help="ghRepo">Dépôt (repo)</label><input type="text" id="ghRepo"></div>
-        <div><label data-i18n="branchLabel" data-help="ghBranch">Branche</label><input type="text" id="ghBranch" value="main"></div>
-      </div>
-      <label data-i18n="tokenLabel" data-help="ghToken">Token d'accès personnel — requis seulement pour publier</label>
-      <input type="password" id="ghToken" placeholder="ghp_...">
-      <div class="hint" data-i18n="tokenHint">Jamais sauvegardé — à recoller à chaque session, seulement au moment de publier.</div>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+      <summary data-i18n="adminToolsLegend">Outils de test</summary>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:4px;">
         <input type="checkbox" id="modeTestToggle" style="width:auto;margin:0;">
         <span data-help="modeTestToggle" data-i18n="modeTestLabel" style="font-size:12px;color:var(--text-dim);">Mode test (mes propres essais, exclus des statistiques d'usage)</span>
       </label>
-      <div class="actions"><button class="btn" id="btnLoad" data-i18n="reloadDataBtn">Recharger data.json (écrase les modifs en cours)</button></div>
-    </details>
-  </fieldset>
-
-  <fieldset id="panelPgRead" hidden>
-    <details>
-      <summary>Lecture Postgres (test — Session B, docs/infrastructure.md)</summary>
-      <div class="hint">
-        Écriture toujours vers GitHub/data.json uniquement (inchangé) — cette case ne change que la
-        LECTURE au rechargement, pour valider que la bibliothèque/les packs/les AdReels se comportent
-        identiquement une fois lus depuis Postgres. Décochée par défaut, comportement strictement
-        inchangé tant qu'elle ne l'est pas.
-      </div>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-        <input type="checkbox" id="pgReadToggle" style="width:auto;margin:0;">
-        <span style="font-size:12px;color:var(--text-dim);">Lire depuis Postgres au lieu de data.json (test)</span>
-      </label>
+      <div class="actions"><button class="btn" id="btnLoad" data-i18n="reloadDataBtn">Recharger depuis la base (écrase les modifs en cours)</button></div>
     </details>
   </fieldset>
 
   <fieldset id="panelPgWrite" hidden>
     <details>
-      <summary>Écriture Postgres (test — Session B, docs/infrastructure.md)</summary>
+      <summary>Connexion (lien magique)</summary>
       <div class="hint">
-        Écriture double : à la publication, les morceaux, les packs, les AdReels, les Sfx, les
-        collections et les réglages personnels (certification, réseaux sociaux) sont écrits vers
-        Postgres (RPC upsert_*) EN PLUS de data.json/GitHub (chemin existant, inchangé) — jamais à
-        la place. Si l'écriture Postgres échoue, la publication s'arrête avant de toucher GitHub
-        (rien de partiellement publié).
-        Décochée par défaut, comportement strictement inchangé tant qu'elle ne l'est pas.
-        Nécessite une connexion (les RPC exigent un compte compositeur authentifié).
+        Connexion de secours au compte compositeur, pour ce navigateur. La connexion normale passe par
+        bienvenue.html ; la publication écrit toujours dans la base (plus aucune écriture GitHub depuis le 24/09).
       </div>
       <div id="pgAuthStatus" style="font-size:12px;color:var(--text-dim);margin-top:8px;">Non connecté.</div>
       <div class="row" style="margin-top:8px;">
@@ -1570,10 +1541,6 @@
       <div class="actions">
         <button class="btn" id="btnPgVerifyCode" type="button">Valider le code</button>
       </div>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
-        <input type="checkbox" id="pgWriteToggle" style="width:auto;margin:0;">
-        <span style="font-size:12px;color:var(--text-dim);">Écriture double vers Postgres à la publication (test)</span>
-      </label>
     </details>
   </fieldset>
 
@@ -1633,10 +1600,6 @@
       <a class="btn" href="admin.html" target="_blank" rel="noopener">Ouvrir le panneau admin</a>
     </div>
   </fieldset>
-
-  <div class="actions-top">
-    <button class="btn" id="btnCheckFresh" data-i18n="checkFreshBtn">Vérifier si le site public est à jour</button>
-  </div>
 
   <div class="lang-toggle">
     <button type="button" data-lang="fr">FR</button>
@@ -1774,9 +1737,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790282257000"></script>
-<script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1790282257000"></script>
+<script src="layerpitch-i18n.js?v=1790285986688"></script>
+<script src="layerpitch-help.js?v=1790285986688"></script>
+<script src="player.js?v=1790285986688"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -1921,30 +1884,18 @@ document.addEventListener('DOMContentLoaded', () => {
       try { localStorage.setItem(MODE_TEST_KEY, modeTestCb.checked ? '1' : '0'); } catch (e) {}
     });
   }
-  const pgReadCb = document.getElementById('pgReadToggle');
-  if (pgReadCb) {
-    try { pgReadCb.checked = localStorage.getItem(PG_READ_KEY) === '1'; } catch (e) {}
-    pgReadCb.addEventListener('change', () => {
-      try { localStorage.setItem(PG_READ_KEY, pgReadCb.checked ? '1' : '0'); } catch (e) {}
-    });
-  }
-  const pgWriteCb = document.getElementById('pgWriteToggle');
-  if (pgWriteCb) {
-    try { pgWriteCb.checked = localStorage.getItem(PG_WRITE_KEY) === '1'; } catch (e) {}
-    pgWriteCb.addEventListener('change', () => {
-      try { localStorage.setItem(PG_WRITE_KEY, pgWriteCb.checked ? '1' : '0'); } catch (e) {}
-    });
-  }
   initPgAuthUi();
   initAccountMenuUi();
   initInboxBellUi();
 });
-const state = {
-  owner: () => document.getElementById('ghOwner').value.trim(),
-  repo: () => document.getElementById('ghRepo').value.trim(),
-  branch: () => document.getElementById('ghBranch').value.trim(),
-  token: () => document.getElementById('ghToken').value.trim(),
-};
+// Fin de la publication via GitHub (24/09, revue de code) : le Backstage lit et écrit uniquement dans la base. On efface
+// une fois pour toutes ce que les anciennes versions gardaient dans ce navigateur -- dont un jeton d'accès GitHub
+// personnel, qui n'avait rien à faire en stockage local -- et le tampon d'usage qui n'était plus jamais envoyé.
+try {
+  ['layerpitch_backstage_gh_token', 'layerpitch_backstage_ghOwner', 'layerpitch_backstage_ghRepo',
+   'layerpitch_backstage_pg_read', 'layerpitch_backstage_pg_write', 'layerpitch_backstage_events_buffer']
+    .forEach(k => localStorage.removeItem(k));
+} catch (e) { /* stockage bloqué : rien à nettoyer */ }
 
 /* ---------------- Tracking d'usage (bêta) ---------------- */
 // Vocabulaire fermé, volontairement limité pour rester lisible dans la console admin (Analytics,
@@ -1952,39 +1903,15 @@ const state = {
 // collection_add, collection_delete, adreel_add, adreel_delete, block_add, sfx_add, sfx_remove,
 // custom_font_add, custom_font_delete, publish_click, publish_success, preview_play. Erreurs captées
 // automatiquement.
-// Tamponné en localStorage (jamais son propre appel réseau — aucune latence perçue, aucune
-// dépendance à un service tiers), envoyé dans events.json du repo courant à la publication.
-const EVENT_BUFFER_KEY = 'layerpitch_backstage_events_buffer';
+// Envoyé à Umami (déjà chargé par cette page), comme les statistiques globales de la plateforme -- jamais bloquant.
+// Avant le 24/09 : tamponné en localStorage et envoyé dans events.json d'un dépôt GitHub, que plus rien ne lisait.
 const MODE_TEST_KEY = 'layerpitch_backstage_mode_test';
-const PG_READ_KEY = 'layerpitch_backstage_pg_read';
-const PG_WRITE_KEY = 'layerpitch_backstage_pg_write';
 
 function isModeTest() {
   const cb = document.getElementById('modeTestToggle');
   return cb ? cb.checked : (localStorage.getItem(MODE_TEST_KEY) === '1');
 }
 
-/* ---------------- Lecture/écriture Postgres (test — Session B, docs/infrastructure.md) ----------------
- * Écriture GitHub/data.json toujours inchangée (voir publishAll() / ghPutFile plus bas) — Postgres
- * s'ajoute EN PLUS (écriture double), jamais à la place, derrière #pgWriteToggle, décochée par
- * défaut. Même principe pour la lecture (#pgReadToggle). SDK + api/*.js chargés à la demande
- * seulement, jamais si les deux cases restent décochées.
- */
-function pgReadEnabled() {
-  // Repo GitHub personnel optionnel (même principe que publishAll(), 2 septembre) : un compositeur
-  // SANS token configuré (le cas visé par le backstage hébergé) n'a pas de data.json GitHub à lire
-  // -- forcer la lecture Postgres pour lui, indépendamment de la case #pgReadToggle (pensée à
-  // l'origine comme un simple interrupteur de test pour Jules-Antoine). Sans ce repli, un
-  // compositeur hébergé verrait sa bibliothèque vide au premier chargement -- trouvé le 4
-  // septembre en vérifiant avant de masquer ce panneau aux bêta-testeurs (voir #pgReadToggle).
-  if (!state.token()) return true;
-  const cb = document.getElementById('pgReadToggle');
-  return cb ? cb.checked : (localStorage.getItem(PG_READ_KEY) === '1');
-}
-function pgWriteEnabled() {
-  const cb = document.getElementById('pgWriteToggle');
-  return cb ? cb.checked : (localStorage.getItem(PG_WRITE_KEY) === '1');
-}
 // var (pas let) : enforceBackstageAuthGate() (plus haut dans ce même script) appelle
 // loadPostgresReadScripts() dès le chargement de la page, donc avant que l'exécution linéaire du
 // script n'atteigne cette ligne -- avec let, ça lève "Cannot access before initialization" (zone
@@ -2021,18 +1948,12 @@ function loadPostgresReadScripts() {
 // Retourne exactement la même forme que le data.json parsé (voir api/site-data.js) — null si aucun
 // contenu trouvé (premier lancement), pour que loadData() garde sa logique de repli existante.
 async function fetchSiteData() {
-  if (pgReadEnabled()) {
-    await loadPostgresReadScripts();
-    // Isolation multi-compositeur (1er septembre) : la lecture Postgres exige désormais une
-    // session (auto-provisionne le composer_profile s'il n'existe pas encore, cf. la connexion
-    // minimale du bloc "Écriture Postgres") — sans ça, impossible de savoir quel catalogue charger.
-    const { composerId, error } = await window.LayerPitchAuth.ensureMyComposerProfile();
-    if (error) throw new Error('Lecture Postgres activée mais aucune session active — connecte-toi via lien magique avant de recharger (' + error + ').');
-    return window.LayerPitchSiteData.loadSiteDataFromPostgres(composerId);
-  }
-  const content = await ghGetContent(state.owner(), state.repo(), 'data.json', state.branch(), '');
-  if (!content) return null;
-  return JSON.parse(new TextDecoder().decode(base64ToUint8(content.content.replace(/\n/g, ''))));
+  await loadPostgresReadScripts();
+  // Isolation multi-compositeur (1er septembre) : la lecture exige une session (auto-provisionne le
+  // composer_profile s'il n'existe pas encore) -- sans ça, impossible de savoir quel catalogue charger.
+  const { composerId, error } = await window.LayerPitchAuth.ensureMyComposerProfile();
+  if (error) throw new Error('Aucune session active — connecte-toi avant de recharger (' + error + ').');
+  return window.LayerPitchSiteData.loadSiteDataFromPostgres(composerId);
 }
 
 /* ---------------- Connexion Postgres (lien magique) — minimum nécessaire pour débloquer les RPC
@@ -2132,16 +2053,13 @@ async function setAdminPreviewTier(tier) {
   // est mémorisé côté serveur, il survit au rechargement.
   location.reload();
 }
-// Masque les panneaux de debug/admin (dépôt GitHub, tests Postgres, invitation testeur, stockage
-// R2, lien vers le panneau admin) pour tout compte non-admin -- trouvé le 4 septembre, jamais
+// Masque les panneaux de debug/admin (outils de test, connexion de secours, invitation testeur,
+// lien vers le panneau admin) pour tout compte non-admin -- trouvé le 4 septembre, jamais
 // filtré jusqu'ici (seule la liste d'emails Cloudflare Access limitait qui atteint la page du
 // tout, docs/infrastructure.md). Confort d'affichage uniquement, comme dans admin.html : la vraie
 // barrière reste is_admin() côté serveur (RPC SECURITY DEFINER, RLS) sur chaque action, jamais
-// cette vérification client seule. Avant de masquer #panelPgRead/#panelGithubRepo, vérifié que
-// fetchSiteData()/pgReadEnabled() basculent déjà seuls sur Postgres pour un compositeur sans token
-// GitHub configuré (comme publishAll() le fait déjà côté écriture) -- sinon un compositeur hébergé
-// aurait vu sa bibliothèque vide, ce panneau étant jusqu'ici le seul moyen de l'activer à la main.
-const ADMIN_ONLY_PANEL_IDS = ['panelGithubRepo', 'panelPgRead', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelInvitesSent', 'panelAdminLink', 'adminPreviewMenuWrap', 'appAdminTierOverrideWrap'];
+// cette vérification client seule.
+const ADMIN_ONLY_PANEL_IDS = ['panelAdminTools', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelInvitesSent', 'panelAdminLink', 'adminPreviewMenuWrap', 'appAdminTierOverrideWrap'];
 // La bibliothèque vidéo / capture (navItemVideoLibrary, panelVideoLibrary) avait été ouverte à tout
 // compositeur connecté le 16 septembre (voir
 // supabase/migrations/20260916040000_open_capture_video_to_composers.sql, toujours en place côté
@@ -2600,9 +2518,7 @@ async function initPgAuthUi() {
   // Si la page vient d'un lien magique (fragment #access_token=...), le SDK Supabase détecte et
   // établit la session automatiquement dès sa création (detectSessionInUrl, comportement par défaut) —
   // il suffit de charger les scripts et de s'abonner pour le refléter dans l'UI.
-  if (location.hash.includes('access_token') || pgReadEnabled() || pgWriteEnabled()) {
-    await loadPostgresReadScripts();
-  }
+  await loadPostgresReadScripts();
   if (window.LayerPitchAuth) {
     window.LayerPitchAuth.onAuthStateChange((_event, session) => {
       renderPgAuthStatus(session); refreshMyComposerHandle(session); renderSubscriptionPanel(session);
@@ -2612,10 +2528,9 @@ async function initPgAuthUi() {
 }
 function pushEvent(entry) {
   try {
-    const buf = JSON.parse(localStorage.getItem(EVENT_BUFFER_KEY) || '[]');
-    buf.push(entry);
-    localStorage.setItem(EVENT_BUFFER_KEY, JSON.stringify(buf));
-  } catch (e) { /* tampon plein ou bloqué : événement perdu, jamais bloquant pour l'utilisateur */ }
+    if (entry.context === 'test' || !window.umami || typeof window.umami.track !== 'function') return;
+    window.umami.track('backstage_' + entry.type, Object.assign({ name: String(entry.name).slice(0, 200) }, entry.detail));
+  } catch (e) { /* jamais bloquant pour l'utilisateur */ }
 }
 function trackBackstageEvent(name, detail) {
   pushEvent({ type: 'action', name, ts: new Date().toISOString(), context: isModeTest() ? 'test' : 'real', detail: detail || {} });
@@ -2629,26 +2544,6 @@ window.addEventListener('error', (e) => {
 window.addEventListener('unhandledrejection', (e) => {
   trackBackstageError((e.reason && e.reason.message) || String(e.reason), { unhandledRejection: true });
 });
-// Fusionne le tampon local avec l'events.json existant du repo (jamais un simple écrasement —
-// plusieurs sessions/navigateurs pourraient sinon se marcher dessus), puis vide le tampon une fois
-// publié avec succès. Silencieux en cas d'échec : ne doit jamais faire capoter une publication réelle.
-async function flushEventBuffer(owner, repo, branch, token) {
-  const buffered = JSON.parse(localStorage.getItem(EVENT_BUFFER_KEY) || '[]');
-  if (!buffered.length) return;
-  let remoteEvents = [];
-  try {
-    const existing = await ghGetContent(owner, repo, 'events.json', branch, token);
-    if (existing) {
-      const parsed = JSON.parse(new TextDecoder().decode(base64ToUint8(existing.content.replace(/\n/g, ''))));
-      remoteEvents = parsed.events || [];
-    }
-  } catch (e) { /* events.json illisible ou absent : on repart d'une liste vide plutôt que de bloquer la publication */ }
-  try {
-    const merged = { testerId: repo, events: remoteEvents.concat(buffered) };
-    await ghPutFile(owner, repo, 'events.json', branch, token, textToBase64(JSON.stringify(merged)), 'Mise à jour events.json (LayerPitch, usage bêta)');
-    localStorage.setItem(EVENT_BUFFER_KEY, '[]');
-  } catch (e) { /* échec silencieux — le tampon reste intact, retenté à la prochaine publication */ }
-}
 
 function switchTab(tabName) {
   document.querySelectorAll('.backstage-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === tabName));
@@ -3133,7 +3028,7 @@ function slug(str) {
 function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function escapeAttr(s) { return escapeHtml(s); }
 function extOf(filename) { const m = /\.([a-zA-Z0-9]+)$/.exec(filename || ''); return m ? m[1].toLowerCase() : 'jpg'; }
-// Content-Type pour l'upload R2 des images (ghPutFile/GitHub n'en avait jamais eu besoin, S3/R2 le
+// Content-Type pour l'upload R2 des images (S3/R2 le
 // veut pour servir le bon en-tête -- voir MIME dans scripts/migrate-media-to-r2.js pour la même liste).
 function imageContentType(ext) {
   const map = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', avif: 'image/avif', gif: 'image/gif', svg: 'image/svg+xml' };
@@ -4361,35 +4256,26 @@ function switchAdReel(newId) {
   renderManageAdreels();
 }
 function computeAdReelUrl(adReelId) {
-  // Sans repo GitHub personnel (backstage hébergé), l'URL github.io n'existe pas -- le lien public
-  // passe par le chemin joli du handle sur beta.layerpitch.com (voir 404.html, docs/infrastructure.md).
-  // Comportement de Jules-Antoine inchangé : il garde toujours son repo configuré, donc toujours
-  // l'URL github.io d'avant ce chantier.
-  // IMPORTANT : ne jamais retomber sur un owner/repo de substitution ici -- owner/repo n'ont plus de
-  // valeur par défaut en dur (bug remonté le 11 septembre : un compositeur sans repo GitHub configuré
-  // voyait le lien github.io de Jules-Antoine). Sans owner+repo+token ET sans handle, il n'y a
-  // simplement pas encore de lien public à afficher (myComposerHandle se charge de façon asynchrone
-  // après connexion -- voir refreshMyComposerHandle -- donc null ici est un état transitoire normal).
-  const hasGithub = !!(state.owner() && state.repo() && state.token());
-  if (hasGithub) {
-    const base = `https://${state.owner()}.github.io/${state.repo()}/`;
-    return adReelId === 'main' ? base : `${base}?adreel=${encodeURIComponent(adReelId)}`;
-  }
+  // Lien public = chemin joli du handle sur beta.layerpitch.com (voir 404.html). Jamais de lien de substitution :
+  // tant que le handle n'est pas chargé (asynchrone, voir refreshMyComposerHandle), il n'y a simplement pas encore
+  // de lien à afficher -- null est un état transitoire normal. (Le lien github.io des dépôts personnels a disparu
+  // avec la publication via GitHub, le 24/09.)
   if (myComposerHandle) {
     const base = `https://beta.layerpitch.com/${encodeURIComponent(myComposerHandle)}/`;
     return adReelId === 'main' ? base : `${base}?adreel=${encodeURIComponent(adReelId)}`;
   }
   return null;
 }
+// Pack et collection : même adresse publique que l'AdReel (handle du compositeur). Avant le 24/09, toujours
+// construite sur github.io -- faux pour tout compositeur sans dépôt GitHub (« ton-compte.github.io/… »). null tant
+// que le handle n'est pas chargé, comme computeAdReelUrl.
 function computePackUrl(packId) {
-  const owner = state.owner() || tr('yourAccount');
-  const repo = state.repo() || tr('yourRepo');
-  return `https://${owner}.github.io/${repo}/pack.html?id=${encodeURIComponent(packId)}`;
+  if (!myComposerHandle) return null;
+  return `https://beta.layerpitch.com/${encodeURIComponent(myComposerHandle)}/pack.html?id=${encodeURIComponent(packId)}`;
 }
 function computeCollectionUrl(collectionId) {
-  const owner = state.owner() || tr('yourAccount');
-  const repo = state.repo() || tr('yourRepo');
-  return `https://${owner}.github.io/${repo}/collection.html?id=${encodeURIComponent(collectionId)}`;
+  if (!myComposerHandle) return null;
+  return `https://beta.layerpitch.com/${encodeURIComponent(myComposerHandle)}/collection.html?id=${encodeURIComponent(collectionId)}`;
 }
 // Code d'intégration (iframe) : même URL publique que "Copier le lien", avec &embed=1 en plus --
 // pack.html/collection.html s'en servent pour remplacer le discret "← Retour" par un vrai bouton
@@ -4585,10 +4471,6 @@ document.getElementById('btnShareAdReelUrl').addEventListener('click', async () 
     alert(tr('copyFailedAlert'));
   }
 });
-// L'URL affichée dépend aussi de owner/repo : la rafraîchir si ces champs changent.
-['ghOwner', 'ghRepo'].forEach(id => {
-  document.getElementById(id).addEventListener('input', () => { if (adReels.length) renderAdReelSelect(); });
-});
 
 // Thème jour/nuit + couleur de fond du backstage lui-même — réglages locaux à cet ordinateur, sans
 // rapport avec l'apparence publique (profil.bgColor). localStorage légitime ici : fichier ouvert
@@ -4643,8 +4525,8 @@ document.getElementById('btnShareAdReelUrl').addEventListener('click', async () 
 
 // Image de fond en filigrane du Backstage (15/09, même réglage local à cet ordinateur que le thème
 // et la couleur de fond ci-dessus) -- purement décorative, jamais vue par un visiteur. Stockée en
-// data URL dans localStorage (comme le token GitHub plus bas) : fichier ouvert localement, aucune
-// fuite possible. Réduite avant stockage depuis le 21/09 : une photo brute dépasse vite les ~5 Mo de
+// data URL dans localStorage : réglage local, jamais envoyé nulle part. Réduite avant stockage depuis
+// le 21/09 : une photo brute dépasse vite les ~5 Mo de
 // localStorage et l'enregistrement échouait alors SILENCIEUSEMENT (image visible sur le moment, puis
 // disparue à la connexion suivante -- signalé trois fois de suite par Jules-Antoine). Si même la
 // version la plus réduite ne tient pas, un message explicite le dit au lieu de se taire.
@@ -4741,34 +4623,6 @@ document.getElementById('btnShareAdReelUrl').addEventListener('click', async () 
     try { localStorage.setItem(FIXED_KEY, fixedInput.checked ? '1' : '0'); } catch (e) { /* stockage plein ou bloqué : le réglage reste appliqué pour la session en cours, juste pas mémorisé */ }
   });
 })();
-
-// Token d'accès personnel GitHub — même principe que la couleur de fond ci-dessus : fichier ouvert
-// localement (jamais publié, jamais servi sur un serveur), donc le laisser en localStorage évite de le
-// recoller à chaque session sans exposer quoi que ce soit à un tiers. Différent du contexte d'un
-// artifact Claude hébergé, où localStorage est à proscrire.
-(function initBackstageToken() {
-  const STORAGE_KEY = 'layerpitch_backstage_gh_token';
-  const input = document.getElementById('ghToken');
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) input.value = saved;
-  input.addEventListener('input', () => {
-    try { localStorage.setItem(STORAGE_KEY, input.value); } catch (e) { /* stockage plein ou bloqué : le token reste utilisable pour la session en cours, juste pas mémorisé */ }
-  });
-})();
-
-// Owner/repo GitHub — pas de valeur par défaut en dur dans le HTML (ça faisait fuiter le compte de
-// Jules-Antoine vers n'importe quel autre compositeur sans dépôt GitHub configuré, cf. bug remonté
-// le 11 septembre). Mémorisé en localStorage comme le token ci-dessus, pour ne pas avoir à retaper
-// sa propre config à chaque session sur son propre navigateur.
-['ghOwner', 'ghRepo'].forEach((id) => {
-  const STORAGE_KEY = `layerpitch_backstage_${id}`;
-  const input = document.getElementById(id);
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) input.value = saved;
-  input.addEventListener('input', () => {
-    try { localStorage.setItem(STORAGE_KEY, input.value); } catch (e) { /* stockage plein ou bloqué : le champ reste utilisable pour la session en cours, juste pas mémorisé */ }
-  });
-});
 
 // Purge ponctuelle (11 septembre, audit sécurité) : le panneau "Stockage média (Cloudflare R2)" qui
 // stockait les clés secrètes R2 maîtresses en clair dans localStorage a été retiré — create-media-signed-url
@@ -4952,8 +4806,6 @@ function guessSequentialRole(filename) {
 }
 
 function buildPreviewTrack(track) {
-  const owner = state.owner() || 'preview';
-  const repo = state.repo() || 'preview';
   const mapItem = (item) => {
     if (!item) return null;
     // fx (chantier "effets dynamiques", 22/09) : porté ici plutôt que dans un mapper dédié aux couches,
@@ -7967,8 +7819,8 @@ document.getElementById('feedbackSend').addEventListener('click', async () => {
     body.append('message', message);
     body.append('email', testerEmail);
     // Contexte auto-inclus : quel repo (donc quel testeur) envoie ce retour, sans avoir à le redemander.
-    body.append('repo', `${state.owner()}/${state.repo()}`);
-    body.append('_subject', `Retour LayerPitch — ${testerEmail || `${state.owner()}/${state.repo()}`}`);
+    body.append('handle', myComposerHandle || '');
+    body.append('_subject', `Retour LayerPitch — ${testerEmail || myComposerHandle || 'compositeur'}`);
     if (feedbackScreenshotFile) body.append('attachment', feedbackScreenshotFile, feedbackScreenshotFile.name);
     const res = await fetch(BETA_FEEDBACK_ENDPOINT, {
       method: 'POST',
@@ -9653,7 +9505,7 @@ function renderPacks() {
     if (entrySel === 'distribution') {
       const packUrlBox = detailEl.querySelector(`#packUrlBox_${pack.id}`);
       const packUrl = computePackUrl(pack.id);
-      packUrlBox.innerHTML = `<a href="${packUrl}" target="_blank" rel="noopener">${escapeAttr(packUrl)}</a>`;
+      packUrlBox.innerHTML = packUrl ? `<a href="${escapeAttr(packUrl)}" target="_blank" rel="noopener">${escapeHtml(packUrl)}</a>` : escapeHtml(tr('adreelUrlPending'));
     }
     if (entrySel === 'content') {
       const selectorHost = detailEl.querySelector('[data-role="trackSelector"]');
@@ -9702,6 +9554,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   if (copyBtn) {
     const pi = parseInt(copyBtn.dataset.pi, 10);
     const url = computePackUrl(packs[pi].id);
+    if (!url) { alert(tr('adreelUrlPending')); return; }
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done).catch(() => { alert(tr('copyFailedAlert')); });
@@ -9713,7 +9566,9 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   const embedBtn = e.target.closest('[data-action="embed-pack"]');
   if (embedBtn) {
     const pi = parseInt(embedBtn.dataset.pi, 10);
-    openEmbedModal(`${computePackUrl(packs[pi].id)}&embed=1`, packs[pi].title, 'embedModalHintPack');
+    const embedUrl = computePackUrl(packs[pi].id);
+    if (!embedUrl) { alert(tr('adreelUrlPending')); return; }
+    openEmbedModal(`${embedUrl}&embed=1`, packs[pi].title, 'embedModalHintPack');
     return;
   }
   const previewBtn = e.target.closest('[data-action="preview-pack"]');
@@ -9725,7 +9580,9 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   const shareBtn = e.target.closest('[data-action="share-pack-url"]');
   if (shareBtn) {
     const pi = parseInt(shareBtn.dataset.pi, 10);
-    const result = await shareViaSocialsOrFallback(computePackUrl(packs[pi].id), packs[pi].title || 'LayerPitch');
+    const shareUrl = computePackUrl(packs[pi].id);
+    if (!shareUrl) { alert(tr('adreelUrlPending')); return; }
+    const result = await shareViaSocialsOrFallback(shareUrl, packs[pi].title || 'LayerPitch');
     if (result === 'copied') {
       const original = shareBtn.textContent;
       shareBtn.textContent = tr('copiedStatus');
@@ -9740,7 +9597,9 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
     const pi = parseInt(publishBtn.dataset.pi, 10);
     const social = socials.find(s => s.id === publishBtn.dataset.socialId);
     if (!social) return;
-    const url = buildSocialShareUrl(social.platform, computePackUrl(packs[pi].id), tr('publishPackText', { title: packs[pi].title || '' }));
+    const publicUrl = computePackUrl(packs[pi].id);
+    if (!publicUrl) { alert(tr('adreelUrlPending')); return; }
+    const url = buildSocialShareUrl(social.platform, publicUrl, tr('publishPackText', { title: packs[pi].title || '' }));
     if (url) { openSharePopup(url); trackBackstageEvent('social_publish_click', {}); }
     return;
   }
@@ -9961,7 +9820,7 @@ function renderCollections() {
     if (entrySel === 'distribution') {
       const collUrlBox = detailEl.querySelector(`#collectionUrlBox_${coll.id}`);
       const collUrl = computeCollectionUrl(coll.id);
-      collUrlBox.innerHTML = `<a href="${collUrl}" target="_blank" rel="noopener">${escapeAttr(collUrl)}</a>`;
+      collUrlBox.innerHTML = collUrl ? `<a href="${escapeAttr(collUrl)}" target="_blank" rel="noopener">${escapeHtml(collUrl)}</a>` : escapeHtml(tr('adreelUrlPending'));
     }
     container.appendChild(el);
   });
@@ -9996,6 +9855,7 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
   if (copyBtn) {
     const ci = parseInt(copyBtn.dataset.ci, 10);
     const url = computeCollectionUrl(collections[ci].id);
+    if (!url) { alert(tr('adreelUrlPending')); return; }
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done).catch(() => { alert(tr('copyFailedAlert')); });
@@ -10007,7 +9867,9 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
   const embedBtn = e.target.closest('[data-action="embed-collection"]');
   if (embedBtn) {
     const ci = parseInt(embedBtn.dataset.ci, 10);
-    openEmbedModal(`${computeCollectionUrl(collections[ci].id)}&embed=1`, collections[ci].title, 'embedModalHintCollection');
+    const embedUrl = computeCollectionUrl(collections[ci].id);
+    if (!embedUrl) { alert(tr('adreelUrlPending')); return; }
+    openEmbedModal(`${embedUrl}&embed=1`, collections[ci].title, 'embedModalHintCollection');
     return;
   }
   const previewBtn = e.target.closest('[data-action="preview-collection"]');
@@ -10019,7 +9881,9 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
   const shareBtn = e.target.closest('[data-action="share-collection-url"]');
   if (shareBtn) {
     const ci = parseInt(shareBtn.dataset.ci, 10);
-    const result = await shareViaSocialsOrFallback(computeCollectionUrl(collections[ci].id), collections[ci].title || 'LayerPitch');
+    const shareUrl = computeCollectionUrl(collections[ci].id);
+    if (!shareUrl) { alert(tr('adreelUrlPending')); return; }
+    const result = await shareViaSocialsOrFallback(shareUrl, collections[ci].title || 'LayerPitch');
     if (result === 'copied') {
       const original = shareBtn.textContent;
       shareBtn.textContent = tr('copiedStatus');
@@ -10034,7 +9898,9 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
     const ci = parseInt(publishBtn.dataset.ci, 10);
     const social = socials.find(s => s.id === publishBtn.dataset.socialId);
     if (!social) return;
-    const url = buildSocialShareUrl(social.platform, computeCollectionUrl(collections[ci].id), tr('publishCollectionText', { title: collections[ci].title || '' }));
+    const publicUrl = computeCollectionUrl(collections[ci].id);
+    if (!publicUrl) { alert(tr('adreelUrlPending')); return; }
+    const url = buildSocialShareUrl(social.platform, publicUrl, tr('publishCollectionText', { title: collections[ci].title || '' }));
     if (url) { openSharePopup(url); trackBackstageEvent('social_publish_click', {}); }
     return;
   }
@@ -11199,32 +11065,6 @@ async function loadData(silent) {
     socials = (data.socials || []).map(s => ({ id: s.id, platform: s.platform || 'twitter', url: s.url || '' }));
     adReelFolders = (data.adReelFolders || []).map(f => ({ id: f.id, label: f.label || '' }));
     adReelFolders.forEach(f => collapsedAdReelFolderIds.add(f.id)); // fermés par défaut à l'ouverture (29/08), même principe que libraryFolders ci-dessus
-    // Migration automatique des anciens stingers (upload direct par morceau, jamais de round robin) vers
-    // la Sfx Library : chaque stinger déjà publié devient une entrée à une seule variation, le fichier
-    // audio restant physiquement à son emplacement d'origine jusqu'à la prochaine publication (copié vers
-    // le nouveau dossier de la Sfx Library à ce moment-là — voir la boucle "migratedFromPath" dans
-    // publishAll). Ne s'exécute qu'une fois par morceau : dès que sfxIds existe (non null), qu'il soit
-    // vide ou non, le morceau est considéré comme déjà migré et n'est plus retouché.
-    let migratedStingerCount = 0;
-    library.forEach(track => {
-      if (track.sfxIds !== null) return; // déjà migré (ou déjà un morceau neuf, jamais eu de stingers)
-      const publishedStingers = (track.stingers || []).filter(s => s.remoteFile);
-      track.sfxIds = publishedStingers.map(st => {
-        const id = genId();
-        sfxLibrary.push({
-          id, title: st.label || tr('sfxFallback', { n: sfxLibrary.length + 1 }), description: '',
-          rrMode: 'random', duckMainTrack: false,
-          alternatives: [{ label: '', remoteFile: st.remoteFile, pendingFile: null, migratedFromPath: `audio/${track.id}/${st.remoteFile}` }]
-        });
-        migratedStingerCount++;
-        return id;
-      });
-      track.stingers = []; // vidé : le morceau ne repasse plus jamais par ce chemin de migration
-    });
-    if (migratedStingerCount > 0) {
-      hasUnsavedEdits = true;
-      log(tr('stingersMigratedNotice', { n: migratedStingerCount }), 'warn');
-    }
     packs = (data.packs || []).map(p => ({
       id: p.id, title: p.title || '', illustration: p.illustration || null, illustrationOriginalName: p.illustrationOriginalName || null, pendingIllustration: null,
       watermark: p.watermark || null, watermarkOriginalName: p.watermarkOriginalName || null, pendingWatermark: null,
@@ -11344,43 +11184,6 @@ document.getElementById('btnView').addEventListener('click', () => {
   window.open(url, '_blank');
 });
 
-async function checkPublicSiteFreshness() {
-  const owner = state.owner(), repo = state.repo(), branch = state.branch();
-  if (!owner || !repo) { log(tr('needOwnerRepoBeforeCheck'), 'err'); return; }
-  const btn = document.getElementById('btnCheckFresh');
-  btn.disabled = true;
-  log(tr('freshnessCheckHeader'));
-  try {
-    log(tr('readingViaApi'));
-    const apiContent = await ghGetContent(owner, repo, 'data.json', branch, '');
-    if (!apiContent) { log(tr('dataNotFoundApi'), 'err'); return; }
-    const apiJson = JSON.parse(new TextDecoder().decode(base64ToUint8(apiContent.content.replace(/\n/g, ''))));
-
-    log(tr('readingViaPublicSite'));
-    const publicUrl = `https://${owner}.github.io/${repo}/data.json?_=${Date.now()}`;
-    let publicJson;
-    try {
-      const res = await fetch(publicUrl, { cache: 'no-store' });
-      if (!res.ok) { log(tr('publicSiteRespondedError', { status: res.status }), 'err'); return; }
-      publicJson = await res.json();
-    } catch (fetchErr) {
-      log(tr('cantReachPublicSite', { message: fetchErr.message }), 'err');
-      return;
-    }
-
-    const same = JSON.stringify(apiJson) === JSON.stringify(publicJson);
-    if (same) {
-      log(tr('siteUpToDate'), 'ok');
-    } else {
-      log(tr('siteOutdated'), 'err');
-    }
-  } catch (err) {
-    log(tr('errorDuringCheck', { message: err.message }), 'err');
-  } finally {
-    btn.disabled = false;
-  }
-}
-document.getElementById('btnCheckFresh').addEventListener('click', checkPublicSiteFreshness);
 
 /* ---------------- Conversion WAV -> OGG ---------------- */
 // Harmonisation des volumes : mesure RMS à la conversion (approximation raisonnable de l'intensité perçue —
@@ -11427,34 +11230,6 @@ async function wavFileToOgg(file) {
   let o = 0;
   for (const p of parts) { out.set(p, o); o += p.length; }
   return { bytes: out, duration: audioBuf.duration, gain };
-}
-
-/* ---------------- Helpers GitHub API ---------------- */
-async function ghGetContent(owner, repo, path, branch, token) {
-  const headers = { Accept: 'application/vnd.github+json' };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`, { headers, cache: 'no-store' });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
-  return res.json();
-}
-async function ghPutFile(owner, repo, path, branch, token, base64Content, message) {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const existing = await ghGetContent(owner, repo, path, branch, token);
-    const body = { message, content: base64Content, branch };
-    if (existing) body.sha = existing.sha;
-    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (res.ok) return res.json();
-    // 409 = conflit de version (sha périmé) — probablement un résidu de cache malgré le no-store ci-dessus,
-    // ou une publication concurrente. On retente une seule fois avec un sha tout juste re-vérifié avant d'abandonner.
-    if (res.status === 409 && attempt === 0) continue;
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`PUT ${path} → ${res.status} ${err.message || ''}`);
-  }
 }
 
 /* ---------------- Upload R2 (audio/Sfx — Décision 3, docs/infrastructure.md) ----------------
@@ -11807,45 +11582,6 @@ function sfxRemoteFileKeys(sfx) {
   return (sfx.alternatives || []).filter(a => a.remoteFile).map(a => `audio/sfx-${sfx.id}/${a.remoteFile}`);
 }
 
-function uint8ToBase64(bytes) {
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-  return btoa(binary);
-}
-function base64ToUint8(b64) {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-function textToBase64(str) { return uint8ToBase64(new TextEncoder().encode(str)); }
-// Réécrit les balises <script src="..."> des scripts moteur partagés (player.js, layerpitch-i18n.js,
-// layerpitch-help.js) d'un fichier déjà publié pour y inscrire la version de cette publication (remplace
-// une éventuelle ancienne version) — sans ça, un navigateur ou le cache CDN GitHub Pages (10 min, non
-// configurable) continuerait de servir l'ancienne version de ces scripts même quand data.json est à jour.
-// Historiquement ne couvrait que player.js (trou trouvé le 13/08 : layerpitch-i18n.js et
-// layerpitch-help.js n'étaient jamais versionnés, alors qu'ils sont chargés par les mêmes pages) — un
-// seul fetch + une seule écriture par fichier, quel que soit le nombre de balises concernées PRÉSENTES
-// dans CE fichier précis (tous les fichiers ne chargent pas les mêmes scripts, ex. video-test.html n'a
-// ni player.js ni layerpitch-help.js).
-const VERSIONED_SCRIPTS = ['player.js', 'layerpitch-i18n.js', 'layerpitch-help.js', 'capture-render.js'];
-async function updateScriptVersions(owner, repo, branch, token, path, version) {
-  const existing = await ghGetContent(owner, repo, path, branch, token);
-  if (!existing) { log(tr('fileNotFoundVersionUpdate', { path }), 'err'); return; }
-  let updatedText = new TextDecoder().decode(base64ToUint8(existing.content.replace(/\n/g, '')));
-  let touched = 0;
-  VERSIONED_SCRIPTS.forEach(script => {
-    const escaped = script.replace(/\./g, '\\.');
-    const re = new RegExp(`(<script src="${escaped})(\\?v=[^"]*)?(")`);
-    const next = updatedText.replace(re, `$1?v=${version}$3`);
-    if (next !== updatedText) { updatedText = next; touched++; }
-  });
-  if (!touched) { log(tr('scriptTagNotFound', { path }), 'err'); return; }
-  await ghPutFile(owner, repo, path, branch, token, textToBase64(updatedText), 'Mise à jour version des scripts moteur (LayerPitch)');
-  log(tr('versionUpdatedLog', { path }), 'ok');
-}
-
 /* ---------------- Publication ---------------- */
 // URL locale temporaire (blob:) pour un fichier tout juste choisi mais pas encore publié -- utilisée
 // UNIQUEMENT par pendingPreviewUrl() ci-dessous (images d'AdReel en Aperçu, 18/09). Sans effet en
@@ -12049,26 +11785,13 @@ document.getElementById('btnPreview').addEventListener('click', () => {
   openPreview(`./index.html?preview=1${adreelParam}&lang=${currentLang()}`);
 });
 async function publishAll() {
-  const owner = state.owner(), repo = state.repo(), branch = state.branch(), token = state.token();
-  // Repo GitHub personnel optionnel (2 septembre, docs/infrastructure.md -- chantier "backstage
-  // hébergé") : un compositeur avec owner/repo/token configurés garde le comportement exact
-  // d'avant (écriture double Postgres+GitHub, GitHub obligatoire). Un compositeur SANS repo
-  // personnel (le cas visé par le backstage hébergé, pas de modèle "un compositeur = son repo")
-  // publie uniquement vers Postgres -- writeToPg est alors forcé à vrai, indépendamment de la case
-  // #pgWriteToggle (pensée à l'origine comme un simple interrupteur de test pour Jules-Antoine
-  // pendant la double écriture, pas comme un réglage que ce nouveau public devrait connaître).
-  const githubConfigured = !!(owner && repo && token);
-  // Toujours vrai sans repo GitHub configuré (seul chemin d'écriture qui reste) -- une session
-  // Postgres absente ou invalide se révèle plus bas, au premier appel RPC (ensureMyComposerProfile()),
-  // avec un message explicite plutôt qu'un blocage prématuré ici.
-  const writeToPg = githubConfigured ? pgWriteEnabled() : true;
   // Garde-fou (29/08, défense en profondeur -- le bouton est déjà désactivé dans ce cas, voir loadData(),
   // mais on protège aussi la fonction elle-même contre un déclenchement par un autre chemin). Scénario réel
   // vécu par Jules-Antoine : échec du chargement initial (403), puis clic sur Publier en mode panique,
-  // écrasant les vraies données sur GitHub par une bibliothèque restée vide.
+  // écrasant les vraies données par une bibliothèque restée vide.
   if (!dataLoadOk) { log(tr('publishBlockedNoLoadMsg'), 'err'); return; }
   trackBackstageEvent('publish_click', {});
-  const buildVersion = Date.now(); // identifiant unique de cette publication — contourne le cache de GitHub Pages (10 min, non configurable) sur data.json, les fichiers audio, et le script player.js
+  const buildVersion = Date.now(); // identifiant unique de cette publication (date de publication figée dans le snapshot)
   document.getElementById('btnPublish').disabled = true;
   log(tr('publicationHeader'));
   saveWorkingPendingIntoCurrent();
@@ -12090,6 +11813,10 @@ async function publishAll() {
     const effectivePlan = realTierFromTrialStatus(planStatus);
     currentEffectivePlan = effectiveTierFromTrialStatus(planStatus);
     log(tr('resolvedEffectivePlan', { plan: effectivePlan }), 'ok');
+    // Identité du compositeur, résolue avant tout envoi de fichier (les polices sont rangées sous fonts/<son id>/) et
+    // avant les écritures en base -- un seul message clair si la session manque ou a expiré.
+    const { composerId: myComposerId, error: composerError } = await window.LayerPitchAuth.ensureMyComposerProfile();
+    if (composerError) throw new Error('Aucune session active — connecte-toi avant de publier (' + composerError + ').');
     for (const ar of adReels) {
       if (ar.logoPendingFile) {
         log(tr('uploadingLogo', { id: ar.id }));
@@ -12196,12 +11923,11 @@ async function publishAll() {
       if (!font.pendingFile) continue;
       log(tr('uploadingCustomFont', { name: font.name || font.id }));
       const bytes = new Uint8Array(await font.pendingFile.arrayBuffer());
-      const fileName = `${font.id}.${extOf(font.pendingFile.name)}`;
-      // Volontairement laissé sur GitHub (2 septembre, contrairement aux images ci-dessus) : contrairement
-      // à IMAGES_BASE, index.html/pack.html/collection.html chargent encore les polices custom en relatif
-      // (`./fonts/${file}`, même origine que le site) -- migrer l'upload vers R2 sans aussi ajouter une
-      // FONTS_BASE dans ces trois fichiers publics casserait le chargement des polices déjà publiées.
-      await ghPutFile(owner, repo, `fonts/${fileName}`, branch, token, uint8ToBase64(bytes), `Ajout police ${font.name || font.id} (LayerPitch)`);
+      // Stockage média (R2) comme les images et l'audio, dans le dossier du compositeur (24/09 : avant, envoyé sur GitHub,
+      // ce qui échouait pour tout compositeur sans dépôt GitHub). Chargé par public-page.js depuis media.layerpitch.com.
+      const ext = extOf(font.pendingFile.name);
+      const fileName = `${myComposerId}/${font.id}.${ext}`;
+      await r2PutFile(`fonts/${fileName}`, bytes, { woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf' }[ext] || 'application/octet-stream');
       font.remoteFile = fileName; font.originalFileName = font.pendingFile.name; font.pendingFile = null;
       log(tr('uploadedFontGeneric', { file: fileName }), 'ok');
     }
@@ -12345,126 +12071,83 @@ async function publishAll() {
           await r2PutFile(path, bytes, 'audio/ogg');
           alt.remoteFile = fileName; alt.originalFileName = alt.pendingFile.name; alt.pendingFile = null;
           log(tr('uploadedPath', { path }), 'ok');
-        } else if (alt.migratedFromPath) {
-          // Stinger migré automatiquement à l'ouverture (voir plus haut) : le fichier source existe
-          // encore sur GitHub à son ancien emplacement (la migration R2 de l'étape 1 a copié, jamais
-          // supprimé — voir docs/infrastructure.md Décision 3). Lu depuis GitHub (source inchangée)
-          // puis écrit sur R2 (31 août — la destination réelle de sfx.base désormais), pas sur GitHub :
-          // sinon la référence pointerait dans le vide, même bug que track.base/sfx.base corrigé plus haut.
-          log(tr('copyingMigratedSfx', { label: sfx.title }));
-          const existing = await ghGetContent(owner, repo, alt.migratedFromPath, branch, token);
-          if (existing) {
-            const newPath = `audio/sfx-${sfx.id}/${alt.remoteFile}`;
-            await r2PutFile(newPath, base64ToUint8(existing.content.replace(/\n/g, '')), 'audio/ogg');
-            log(tr('uploadedPath', { path: newPath }), 'ok');
-          } else {
-            log(tr('migratedSfxSourceMissing', { path: alt.migratedFromPath }), 'warn');
-          }
-          delete alt.migratedFromPath;
         }
       }
     }
 
     const data = buildDataSnapshot(effectivePlan, buildVersion);
-    // Écriture double Postgres (test — Session B) : AVANT GitHub, volontairement. Si ça échoue, on
-    // s'arrête ici (l'exception remonte au catch de publishAll()) sans jamais toucher GitHub — pour
-    // qu'une publication réussie garantisse toujours les deux en phase, jamais un état à moitié fait.
-    if (writeToPg) {
-      log('Écriture double Postgres : morceaux...');
-      await loadPostgresReadScripts();
-      // ensureMyComposerProfile() couvre à la fois "pas de session" et "session valide mais
-      // composer_profile pas encore provisionné" (premier testeur connecté) — même mécanisme que
-      // la lecture (fetchSiteData()), un seul message d'erreur clair avant tout appel RPC.
-      const { error: composerError } = await window.LayerPitchAuth.ensureMyComposerProfile();
-      if (composerError) throw new Error('Écriture double Postgres activée mais aucune session active — connecte-toi via lien magique avant de publier (' + composerError + ').');
-      const pgErrors = [];
-      for (const track of data.library) {
-        const { ok, error } = await window.LayerPitchTracks.upsertTrack(track);
-        if (!ok) pgErrors.push(`${track.title || track.id} : ${error}`);
-      }
-      if (pgErrors.length) {
-        throw new Error('Écriture Postgres échouée pour ' + pgErrors.length + ' morceau(x) — publication arrêtée avant GitHub :\n' + pgErrors.join('\n'));
-      }
-      log(`Écriture double Postgres : ${data.library.length} morceau(x) OK.`, 'ok');
-
-      log('Écriture double Postgres : packs...');
-      const pgPackErrors = [];
-      for (const pack of data.packs) {
-        const { ok, error } = await window.LayerPitchPacks.upsertPack(pack);
-        if (!ok) pgPackErrors.push(`${pack.title || pack.id} : ${error}`);
-      }
-      if (pgPackErrors.length) {
-        throw new Error('Écriture Postgres échouée pour ' + pgPackErrors.length + ' pack(s) — publication arrêtée avant GitHub :\n' + pgPackErrors.join('\n'));
-      }
-      log(`Écriture double Postgres : ${data.packs.length} pack(s) OK.`, 'ok');
-
-      log('Écriture double Postgres : AdReels...');
-      const pgAdReelErrors = [];
-      for (const adReel of data.adReels) {
-        const { ok, error } = await window.LayerPitchAdReels.upsertAdReel(adReel);
-        if (!ok) pgAdReelErrors.push(`${adReel.label || adReel.id} : ${error}`);
-      }
-      if (pgAdReelErrors.length) {
-        throw new Error('Écriture Postgres échouée pour ' + pgAdReelErrors.length + ' AdReel(s) — publication arrêtée avant GitHub :\n' + pgAdReelErrors.join('\n'));
-      }
-      log(`Écriture double Postgres : ${data.adReels.length} AdReel(s) OK.`, 'ok');
-
-      log('Écriture double Postgres : Sfx...');
-      const pgSfxErrors = [];
-      for (const sfx of data.sfxLibrary) {
-        const { ok, error } = await window.LayerPitchSfx.upsertSfx(sfx);
-        if (!ok) pgSfxErrors.push(`${sfx.title || sfx.id} : ${error}`);
-      }
-      if (pgSfxErrors.length) {
-        throw new Error('Écriture Postgres échouée pour ' + pgSfxErrors.length + ' Sfx — publication arrêtée avant GitHub :\n' + pgSfxErrors.join('\n'));
-      }
-      log(`Écriture double Postgres : ${data.sfxLibrary.length} Sfx OK.`, 'ok');
-
-      log('Écriture double Postgres : collections...');
-      const pgCollectionErrors = [];
-      for (const collection of data.collections) {
-        const { ok, error } = await window.LayerPitchCollections.upsertCollection(collection);
-        if (!ok) pgCollectionErrors.push(`${collection.title || collection.id} : ${error}`);
-      }
-      if (pgCollectionErrors.length) {
-        throw new Error('Écriture Postgres échouée pour ' + pgCollectionErrors.length + ' collection(s) — publication arrêtée avant GitHub :\n' + pgCollectionErrors.join('\n'));
-      }
-      log(`Écriture double Postgres : ${data.collections.length} collection(s) OK.`, 'ok');
-
-      log('Écriture double Postgres : réglages...');
-      const settingsRes = await window.LayerPitchSettings.upsertSettings({
-        publishedAt: data.publishedAt, implementationSkills: data.implementationSkills,
-        noAiCertifiedGlobal: data.noAiCertifiedGlobal, customFonts: data.customFonts,
-        waveformStyle: data.waveformStyle, seqMapTheme: data.seqMapTheme,
-        allowEmbedding: data.allowEmbedding,
-      });
-      if (!settingsRes.ok) {
-        throw new Error('Écriture Postgres échouée pour les réglages — publication arrêtée avant GitHub :\n' + settingsRes.error);
-      }
-      const socialsRes = await window.LayerPitchSettings.upsertSocials({ socials: data.socials });
-      if (!socialsRes.ok) {
-        throw new Error('Écriture Postgres échouée pour les réseaux sociaux — publication arrêtée avant GitHub :\n' + socialsRes.error);
-      }
-      log('Écriture double Postgres : réglages et réseaux sociaux OK.', 'ok');
+    // Écriture en base : la seule source de vérité du site public. Si une écriture échoue, la publication s'arrête
+    // là (l'exception remonte au catch de publishAll()) avec la liste des éléments en échec.
+    log('Écriture en base : morceaux...');
+    const pgErrors = [];
+    for (const track of data.library) {
+      const { ok, error } = await window.LayerPitchTracks.upsertTrack(track);
+      if (!ok) pgErrors.push(`${track.title || track.id} : ${error}`);
     }
-
-    // Écriture GitHub entièrement optionnelle : un compositeur du backstage hébergé, sans repo
-    // personnel, s'arrête ici -- l'écriture double Postgres ci-dessus est déjà sa seule source de
-    // vérité. Ne change rien pour Jules-Antoine (githubConfigured toujours vrai chez lui tant qu'il
-    // garde son repo renseigné).
-    if (githubConfigured) {
-      log(tr('updatingDataJson'));
-      await ghPutFile(owner, repo, 'data.json', branch, token, textToBase64(JSON.stringify(data, null, 2)), 'Mise à jour data.json (LayerPitch)');
-      log(tr('dataJsonPublished'), 'ok');
-
-      log(tr('updatingPlayerVersion'));
-      await updateScriptVersions(owner, repo, branch, token, 'index.html', buildVersion);
-      await updateScriptVersions(owner, repo, branch, token, 'pack.html', buildVersion);
-      await updateScriptVersions(owner, repo, branch, token, 'collection.html', buildVersion);
-      await updateScriptVersions(owner, repo, branch, token, 'video-test.html', buildVersion);
-      await updateScriptVersions(owner, repo, branch, token, 'layerpitch-backstage.html', buildVersion);
-      await flushEventBuffer(owner, repo, branch, token);
+    if (pgErrors.length) {
+      throw new Error('Écriture Postgres échouée pour ' + pgErrors.length + ' morceau(x) — publication arrêtée :\n' + pgErrors.join('\n'));
     }
+    log(`Écriture en base : ${data.library.length} morceau(x) OK.`, 'ok');
+
+    log('Écriture en base : packs...');
+    const pgPackErrors = [];
+    for (const pack of data.packs) {
+      const { ok, error } = await window.LayerPitchPacks.upsertPack(pack);
+      if (!ok) pgPackErrors.push(`${pack.title || pack.id} : ${error}`);
+    }
+    if (pgPackErrors.length) {
+      throw new Error('Écriture Postgres échouée pour ' + pgPackErrors.length + ' pack(s) — publication arrêtée :\n' + pgPackErrors.join('\n'));
+    }
+    log(`Écriture en base : ${data.packs.length} pack(s) OK.`, 'ok');
+
+    log('Écriture en base : AdReels...');
+    const pgAdReelErrors = [];
+    for (const adReel of data.adReels) {
+      const { ok, error } = await window.LayerPitchAdReels.upsertAdReel(adReel);
+      if (!ok) pgAdReelErrors.push(`${adReel.label || adReel.id} : ${error}`);
+    }
+    if (pgAdReelErrors.length) {
+      throw new Error('Écriture Postgres échouée pour ' + pgAdReelErrors.length + ' AdReel(s) — publication arrêtée :\n' + pgAdReelErrors.join('\n'));
+    }
+    log(`Écriture en base : ${data.adReels.length} AdReel(s) OK.`, 'ok');
+
+    log('Écriture en base : Sfx...');
+    const pgSfxErrors = [];
+    for (const sfx of data.sfxLibrary) {
+      const { ok, error } = await window.LayerPitchSfx.upsertSfx(sfx);
+      if (!ok) pgSfxErrors.push(`${sfx.title || sfx.id} : ${error}`);
+    }
+    if (pgSfxErrors.length) {
+      throw new Error('Écriture Postgres échouée pour ' + pgSfxErrors.length + ' Sfx — publication arrêtée :\n' + pgSfxErrors.join('\n'));
+    }
+    log(`Écriture en base : ${data.sfxLibrary.length} Sfx OK.`, 'ok');
+
+    log('Écriture en base : collections...');
+    const pgCollectionErrors = [];
+    for (const collection of data.collections) {
+      const { ok, error } = await window.LayerPitchCollections.upsertCollection(collection);
+      if (!ok) pgCollectionErrors.push(`${collection.title || collection.id} : ${error}`);
+    }
+    if (pgCollectionErrors.length) {
+      throw new Error('Écriture Postgres échouée pour ' + pgCollectionErrors.length + ' collection(s) — publication arrêtée :\n' + pgCollectionErrors.join('\n'));
+    }
+    log(`Écriture en base : ${data.collections.length} collection(s) OK.`, 'ok');
+
+    log('Écriture en base : réglages...');
+    const settingsRes = await window.LayerPitchSettings.upsertSettings({
+      publishedAt: data.publishedAt, implementationSkills: data.implementationSkills,
+      noAiCertifiedGlobal: data.noAiCertifiedGlobal, customFonts: data.customFonts,
+      waveformStyle: data.waveformStyle, seqMapTheme: data.seqMapTheme,
+      allowEmbedding: data.allowEmbedding,
+    });
+    if (!settingsRes.ok) {
+      throw new Error('Écriture Postgres échouée pour les réglages — publication arrêtée :\n' + settingsRes.error);
+    }
+    const socialsRes = await window.LayerPitchSettings.upsertSocials({ socials: data.socials });
+    if (!socialsRes.ok) {
+      throw new Error('Écriture Postgres échouée pour les réseaux sociaux — publication arrêtée :\n' + socialsRes.error);
+    }
+    log('Écriture en base : réglages et réseaux sociaux OK.', 'ok');
 
     log(tr('publicationComplete'), 'ok');
     trackBackstageEvent('publish_success', {});

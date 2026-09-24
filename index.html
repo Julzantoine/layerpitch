@@ -541,9 +541,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790282257000"></script>
-<script src="public-page.js?v=1790282257000"></script>
-<script src="player.js?v=1790282257000"></script>
+<script src="layerpitch-i18n.js?v=1790285986688"></script>
+<script src="public-page.js?v=1790285986688"></script>
+<script src="player.js?v=1790285986688"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
 
@@ -583,14 +583,9 @@ const composerHandleFromUrl = new URLSearchParams(location.search).get('u');
 // continuent de fonctionner à l'identique (voir docs/infrastructure.md, chantier backstage hébergé).
 const DEFAULT_OWNER_ID = 'd7b26934-2f7d-43d4-a69e-52611bf4c141';
 
-// Charge les mêmes données qu'aujourd'hui (data.json), depuis Postgres si ?dataSource=postgres ou
-// un handle de compositeur (?u=<handle>, natif ou via le chemin joli /<handle>/... — voir
-// 404.html) est présent dans l'URL, sinon data.json comme toujours — comportement par défaut
-// inchangé pour tout lien déjà partagé (voir DEFAULT_OWNER_ID plus haut).
-//
-// Un handle identifie directement le compositeur (résolu via api/composers.js) : plus besoin de la
-// double lecture d'avant ce chantier ("charger un AdReel pour découvrir son propriétaire, puis tout
-// recharger scopé à lui") — l'ownerId est connu avant le premier appel Postgres.
+// Données de la page : toujours lues dans la base. Un handle de compositeur (?u=<handle>, natif ou via le chemin
+// joli /<handle>/... -- voir 404.html) identifie directement le compositeur (api/composers.js) ; sans handle, repli
+// sur DEFAULT_OWNER_ID pour que les liens déjà partagés continuent de fonctionner.
 // Dernier ownerId résolu par loadSiteData() -- lu par init() juste après l'attente, pour porter
 // l'identité du compositeur jusque dans window.__lpTrackContext (voir plus bas). Ajouté le 4
 // septembre : l'id d'AdReel seul ('main' notamment, valeur par défaut tant qu'il n'est pas renommé)
@@ -998,8 +993,7 @@ function applyElementAppearance(container, block, tier, customFonts) {
 
 // LAYERPITCH_FUNCTIONS_URL/ANON_KEY : mêmes valeurs publiques que api/supabase-client.js (clé
 // "publishable", pas un secret) — appelées ici en fetch() brut plutôt que de charger tout le SDK
-// Supabase + loadPostgresReadScripts() (api/tracks.js, api/packs.js...) juste pour ce formulaire,
-// alors qu'un compositeur hébergé sur GitHub (data.json, pas Postgres) n'en a par ailleurs pas besoin.
+// Supabase + loadPostgresReadScripts() (api/tracks.js, api/packs.js...) juste pour ce formulaire.
 const LAYERPITCH_FUNCTIONS_URL = 'https://ypygllyjfynrnvapufow.supabase.co/functions/v1';
 const LAYERPITCH_ANON_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
 
