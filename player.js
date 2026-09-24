@@ -3336,6 +3336,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const pos = {};
     visibleIdx.forEach(idx => {
       pos[idx] = seedPositions[idx] ? { x: seedPositions[idx].x, y: seedPositions[idx].y } : { x: (layout.col[idx] || 0) * k, y: (layout.row[idx] || 0) * k };
+      // Départ légèrement décalé (24/09) : deux nœuds de même colonne/ligne (ex. deux emplacements seulement, reliés dans les
+      // deux sens) partaient exactement au même point -- direction de répulsion nulle, ils restaient superposés pour toujours.
+      if (!seedPositions[idx]) { pos[idx].x += Math.cos(idx * 2.4) * 2; pos[idx].y += Math.sin(idx * 2.4) * 2; }
     });
     const visibleSet = new Set(visibleIdx);
     const edges = [];

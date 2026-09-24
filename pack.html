@@ -82,7 +82,7 @@
   .track { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); padding: 26px; margin-bottom: 16px; }
   .track-intensity-block { margin-top: 16px; }
   .voice-graph { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
-  .voice-graph-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 8px; }
+  .voice-graph-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 8px; }
   .voice-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; }
   .voice-row-label { color: var(--text-dim); min-width: 130px; flex-shrink: 0; }
   .voice-row-current { font-family: 'JetBrains Mono', monospace; color: var(--text-dim); font-style: italic; min-width: 130px; flex-shrink: 0; }
@@ -130,7 +130,7 @@
   .vr-block-fill { position: absolute; inset: 0; width: 0%; background: var(--accent); opacity: 0.28; }
   .seq-block.active { border-color: var(--accent); cursor: pointer; }
   .seq-block-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.03em; color: var(--text-dim); z-index: 1; padding: 0 4px; text-align: center; text-shadow: 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff); }
-  .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
+  .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 6px; }
   .intensity-picker { display: flex; flex-wrap: wrap; gap: 6px; }
   .intensity-chip {
     font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 10px;
@@ -244,11 +244,12 @@
      grandes. */
   .seq-map.seq-map-roomy { padding: 24px; border-radius: 16px; }
   .seq-map-roomy .voice-graph-label { font-size: 11px; margin-bottom: 14px; }
+  .seq-map .voice-graph-label { color: color-mix(in srgb, var(--text) 78%, transparent); }
   .seq-map-roomy .seq-map-node { border-radius: 12px; box-shadow: inset 4px 0 0 var(--seq-map-node-accent, transparent), 0 1px 3px rgba(0,0,0,.06); }
   .seq-map-roomy .seq-map-node-check { width: 18px; height: 18px; font-size: 11px; top: 6px; left: 6px; }
 
   .loop-count-block { margin-top: 14px; }
-  .loop-count-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
+  .loop-count-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 6px; }
   .loop-count-block select { font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dim); }
 
   .track-row-wrapper { border-bottom: 1px solid var(--border); }
@@ -642,9 +643,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790276005851"></script>
-<script src="player.js?v=1790276005851"></script>
-<script src="capture-render.js?v=1790276005851"></script>
+<script src="layerpitch-i18n.js?v=1790276194760"></script>
+<script src="player.js?v=1790276194760"></script>
+<script src="capture-render.js?v=1790276194760"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
