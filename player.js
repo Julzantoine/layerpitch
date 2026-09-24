@@ -1437,8 +1437,10 @@ function buildSpatialVoice(ctx, spatial, opts) {
   input.connect(air); air.connect(panner); panner.connect(ctx.destination);
   const nodes = [input, air, panner];
   const bus = room.wet > 0 ? getRoomBus(ctx, sp.room) : null;
+  let sendNode = null;
   if (bus) {
     const send = ctx.createGain();
+    sendNode = send;
     send.gain.value = room.wet * Math.pow(10, sp.reverbDb / 20);
     const tone = ctx.createBiquadFilter(); // brillance de la reverb : passe-bas de 5 kHz (sombre) à pleine bande (clair)
     tone.type = 'lowpass';
@@ -1447,7 +1449,26 @@ function buildSpatialVoice(ctx, spatial, opts) {
     input.connect(tone); tone.connect(send); send.connect(bus.convolver);
     nodes.push(tone, send);
   }
-  return { input, nodes, distance: dist, stepIndex, dispose() { nodes.forEach(n => { try { n.disconnect(); } catch (e) {} }); } };
+  // Un curseur de paramètre (24/09) peut déplacer une source EN COURS DE LECTURE ou changer sa reverb : seules les
+  // sources à position fixe le permettent (un chemin "pas à pas" ou "glissement" décide lui-même de la position).
+  // atTime : changement programmé (rendu hors-ligne de l'outil vidéo) ; sinon "maintenant".
+  const [halfX, halfY] = spatialFieldHalfExtent(sp.room);
+  const fixed = path.mode === 'fixed';
+  return { input, nodes, distance: dist, stepIndex, fixed,
+    setPosition(x, y, rampSec, atTime) {
+      if (!fixed) return;
+      x = Math.max(-halfX, Math.min(halfX, +x || 0)); y = Math.max(-halfY, Math.min(halfY, +y || 0));
+      const t0 = atTime != null ? atTime : ctx.currentTime, tc = Math.max(0.001, (rampSec || 0) / 3);
+      if (panner.positionX) { panner.positionX.setTargetAtTime(x, t0, tc); panner.positionZ.setTargetAtTime(-y, t0, tc); }
+      else if (panner.setPosition) panner.setPosition(x, 0, -y);
+      air.frequency.setTargetAtTime(cutoffAt(Math.hypot(x, y)), t0, tc);
+    },
+    setReverbDb(db, rampSec, atTime) {
+      if (!sendNode) return;
+      const t0 = atTime != null ? atTime : ctx.currentTime, tc = Math.max(0.001, (rampSec || 0) / 3);
+      sendNode.gain.setTargetAtTime(room.wet * Math.pow(10, Math.max(-18, Math.min(6, +db || 0)) / 20), t0, tc);
+    },
+    dispose() { nodes.forEach(n => { try { n.disconnect(); } catch (e) {} }); } };
 }
 // ---- Orientation de la tête de l'auditeur ("tourner la tête", 23/09) ----
 // Un seul auditeur par contexte audio (ctx.listener) : tourner sa direction fait pivoter TOUS les Sfx placés
@@ -1494,11 +1515,12 @@ function buildHeadTurnControl() {
 // Branche une source de Sfx à la sortie : directement, ou à travers sa chaîne spatiale si le compositeur
 // en a réglé une. addEventListener('ended') et non .onended : les appelants posent déjà leur propre
 // gestionnaire (leçon des fuites de chaîne d'effets, voir buildLayerFxChain).
-function connectSfxSource(src, sfxDef) {
+function connectSfxSource(src, sfxDef, spatialOverride) {
   const sp = sfxDef && sfxDef.spatial;
   if (!sp || !sp.enabled) { src.connect(ctx.destination); return null; }
   try {
-    const voice = buildSpatialVoice(ctx, sp, {
+    // spatialOverride : position / reverb imposées par un curseur de paramètre au moment où le son démarre.
+    const voice = buildSpatialVoice(ctx, spatialOverride ? fxSpatialWithOverride(sp, spatialOverride) : sp, {
       duration: src.buffer ? src.buffer.duration / ((src.playbackRate && src.playbackRate.value) || 1) : 0,
       stepKey: sfxDef
     });
@@ -1984,8 +2006,41 @@ const FX_SLIDER_PARAMS = {
   'delay.wet': { fx: 'delay', key: 'wet', min: 0, max: 1 },
   'delay.feedback': { fx: 'delay', key: 'feedback', min: 0, max: 0.9 },
   'bitcrush.bits': { fx: 'bitcrush', key: 'bits', min: 1, max: 16, round: true },
-  'pitch.semitones': { fx: 'pitch', key: 'semitones', min: -24, max: 24 }
+  'pitch.semitones': { fx: 'pitch', key: 'semitones', min: -24, max: 24 },
+  // Paramètres de spatialisation d'un Sfx attaché au morceau (kind 'sfx' : la cible est un Sfx, pas une voix) --
+  // position en mètres (x vers la droite, y vers l'avant), OU distance/angle polaires (0° = devant, +90° = à droite),
+  // et niveau de reverb. Valables pour les Sfx à position fixe.
+  'spatial.x': { kind: 'sfx', key: 'x', min: -50, max: 50 },
+  'spatial.y': { kind: 'sfx', key: 'y', min: -50, max: 50 },
+  'spatial.distance': { kind: 'sfx', key: 'distance', min: 0, max: 50 },
+  'spatial.angle': { kind: 'sfx', key: 'angle', min: -180, max: 180 },
+  'spatial.reverbDb': { kind: 'sfx', key: 'reverbDb', min: -18, max: 6 }
 };
+// Courbe libre d'une liaison (24/09) : points {x, y} de 0 à 1 -- x = position du curseur, y = avancement entre la
+// valeur « à 0 % » et la valeur « à 100 % » -- reliés par des segments. Sans courbe : la droite (0,0) -> (1,1).
+function fxCurveSanitize(raw) {
+  if (!Array.isArray(raw)) return null;
+  const c = v => Math.max(0, Math.min(1, +v));
+  const pts = raw.filter(q => q && Number.isFinite(+q.x) && Number.isFinite(+q.y)).map(q => ({ x: c(q.x), y: c(q.y) })).sort((a, b) => a.x - b.x);
+  if (pts.length < 2) return null;
+  pts[0].x = 0; pts[pts.length - 1].x = 1; // les extrémités sont toujours aux bords du curseur
+  return pts;
+}
+function fxCurveEval(curve, v) {
+  if (!curve || curve.length < 2) return v;
+  if (v <= curve[0].x) return curve[0].y;
+  for (let i = 1; i < curve.length; i++) {
+    if (v <= curve[i].x) {
+      const a = curve[i - 1], b = curve[i], span = b.x - a.x;
+      return span > 1e-9 ? a.y + (b.y - a.y) * (v - a.x) / span : b.y;
+    }
+  }
+  return curve[curve.length - 1].y;
+}
+function fxSliderTargetKey(target) {
+  if (target && target.type === 'sfx' && target.id) return 'sfx:' + target.id;
+  return fxTargetKeyFromTarget(target);
+}
 // Valeurs par défaut des autres réglages d'un effet que le curseur fait apparaître sans qu'il soit configuré ailleurs.
 const FX_SLIDER_DEFAULT_FX = { filter: { type: 'lowpass', q: 1 }, reverb: { decay: 2 }, delay: { time: 0.3, feedback: 0.35 }, bitcrush: { reduction: 1 }, pitch: { mode: 'shift' }, volume: {} };
 function fxSlidersValid(track) {
@@ -1994,13 +2049,18 @@ function fxSlidersValid(track) {
     id: d.id, label: d.label || '', visible: !!d.visible,
     def: clamp01(d.defaultValue),
     smoothSec: Number.isFinite(+d.smoothSec) && +d.smoothSec >= 0 ? +d.smoothSec : 0.15,
-    bindings: (d.bindings || []).filter(b => b && FX_SLIDER_PARAMS[b.param] && fxTargetKeyFromTarget(b.target) && Number.isFinite(+b.from) && Number.isFinite(+b.to))
-      .map(b => ({ key: fxTargetKeyFromTarget(b.target), param: b.param, from: +b.from, to: +b.to })),
+    bindings: (d.bindings || []).filter(b => {
+      if (!b || !FX_SLIDER_PARAMS[b.param] || !Number.isFinite(+b.from) || !Number.isFinite(+b.to)) return false;
+      const key = fxSliderTargetKey(b.target);
+      // Un paramètre de spatialisation ne se lie qu'à un Sfx, un paramètre d'effet qu'à une voix.
+      return !!key && ((FX_SLIDER_PARAMS[b.param].kind === 'sfx') === (key.indexOf('sfx:') === 0));
+    }).map(b => ({ key: fxSliderTargetKey(b.target), param: b.param, from: +b.from, to: +b.to, curve: fxCurveSanitize(b.curve) })),
     thresholds: (d.thresholds || []).filter(x => x && x.triggerId && Number.isFinite(+x.at)).map(x => ({ at: clamp01(x.at), mode: x.mode === 'above' ? 'above' : 'below', triggerId: x.triggerId }))
   })).filter(sl => sl.bindings.length || sl.thresholds.length);
 }
-function fxSliderBindingValue(b, v) {
+function fxSliderBindingValue(b, v0) {
   const meta = FX_SLIDER_PARAMS[b.param];
+  const v = b.curve ? fxCurveEval(b.curve, v0) : v0; // courbe libre éventuelle, puis interpolation from -> to
   let p = (meta.log && b.from > 0 && b.to > 0) ? b.from * Math.pow(b.to / b.from, v) : b.from + (b.to - b.from) * v;
   p = Math.max(meta.min, Math.min(meta.max, p));
   return meta.round ? Math.round(p) : p;
@@ -2013,6 +2073,30 @@ function fxSliderOverrides(sliders, valueOf, targetKey) {
     const meta = FX_SLIDER_PARAMS[b.param];
     (out[meta.fx] = out[meta.fx] || {})[meta.key] = fxSliderBindingValue(b, valueOf(sl.id));
   }));
+  return out;
+}
+// Réglages imposés à UN Sfx par les curseurs : { x?, y?, distance?, angle?, reverbDb? } (null si aucune liaison).
+function fxSliderSfxOverrides(sliders, valueOf, sfxId) {
+  let out = null;
+  sliders.forEach(sl => sl.bindings.forEach(b => {
+    if (b.key !== 'sfx:' + sfxId) return;
+    (out = out || {})[FX_SLIDER_PARAMS[b.param].key] = fxSliderBindingValue(b, valueOf(sl.id));
+  }));
+  return out;
+}
+// Position/reverb finales d'un Sfx : réglage de base + réglages des curseurs (cartésien d'abord, puis polaire).
+function fxSpatialWithOverride(sp, ov) {
+  const out = Object.assign({}, sp);
+  if (!ov) return out;
+  if (ov.x != null) out.x = ov.x;
+  if (ov.y != null) out.y = ov.y;
+  if (ov.distance != null || ov.angle != null) {
+    const bx = +out.x || 0, by = +out.y || 0;
+    const d = ov.distance != null ? ov.distance : Math.hypot(bx, by);
+    const a = ov.angle != null ? ov.angle * Math.PI / 180 : Math.atan2(bx, by);
+    out.x = d * Math.sin(a); out.y = d * Math.cos(a);
+  }
+  if (ov.reverbDb != null) out.reverbDb = ov.reverbDb;
   return out;
 }
 function fxSliderForceKeys(sliders, targetKey) {
@@ -2225,11 +2309,24 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (chains) chains.forEach(ch => applyFxToChain(ctx, ch, fxEffectiveFor(key, ch.baseFx), rampSec));
     });
   }
+  // Sfx spatialisés en cours de lecture dans CE morceau : un curseur lié à leur position/reverb les déplace en direct.
+  const activeSfxVoices = new Map(); // sfxId -> Set(voix spatiales)
+  function fxSfxOverrideFor(sfxId) { return fxSliders.length ? fxSliderSfxOverrides(fxSliders, fxSliderValueOf, sfxId) : null; }
+  function applyFxSliderToSfx(sl, rampSec) {
+    new Set(sl.bindings.filter(b => b.key.indexOf('sfx:') === 0).map(b => b.key.slice(4))).forEach(sfxId => {
+      const sfx = SFX_LIBRARY_BY_ID[sfxId];
+      const voices = activeSfxVoices.get(sfxId);
+      if (!sfx || !sfx.spatial || !voices) return;
+      const sp = fxSpatialWithOverride(sfx.spatial, fxSfxOverrideFor(sfxId));
+      voices.forEach(v => { v.setPosition(sp.x, sp.y, rampSec); v.setReverbDb(sp.reverbDb, rampSec); });
+    });
+  }
   function setFxSlider(id, value, emit) {
     const sl = fxSliders.find(x => x.id === id);
     if (!sl) return;
     fxSliderValues.set(id, Math.max(0, Math.min(1, value)));
     applyFxSliderToChains(sl, sl.smoothSec);
+    applyFxSliderToSfx(sl, sl.smoothSec);
     evalFxSliderThresholds(sl, false);
     paintFxSlider(id);
     // Évènement DOM (pas de la télémétrie : un curseur émet des dizaines de valeurs par seconde) -- l'outil vidéo
@@ -5428,7 +5525,15 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (sfx.duckMainTrack) duckMainTrack(buf.duration);
       const src = ctx.createBufferSource();
       src.buffer = buf;
-      const spatialVoice = connectSfxSource(src, sfx);
+      // Curseurs liés à la position / reverb de ce Sfx : le son démarre à la position actuelle du curseur, puis suit ses
+      // déplacements tant qu'il joue (voir applyFxSliderToSfx).
+      const spatialVoice = connectSfxSource(src, sfx, fxSfxOverrideFor(sfx.id));
+      if (spatialVoice && spatialVoice.fixed) {
+        let vs = activeSfxVoices.get(sfx.id);
+        if (!vs) { vs = new Set(); activeSfxVoices.set(sfx.id, vs); }
+        vs.add(spatialVoice);
+        src.addEventListener('ended', () => vs.delete(spatialVoice));
+      }
       src.start(0);
       activeStingerSources.push(src);
       src.onended = () => { activeStingerSources = activeStingerSources.filter(s => s !== src); };
@@ -6117,6 +6222,11 @@ window.LayerPlayerCore = {
   fxSliderForceKeys,
   applyFxSliderOverrides,
   fxSliderThresholdWants,
+  fxSliderSfxOverrides,
+  fxSpatialWithOverride,
+  fxCurveEval,
+  fxCurveSanitize,
+  fxSliderTargetKey,
   fxTargetKeyFromTarget,
   baseFxForTarget,
   mergeTriggerFx,

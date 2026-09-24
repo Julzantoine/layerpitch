@@ -1751,9 +1751,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790263941000"></script>
+<script src="layerpitch-i18n.js?v=1790264396430"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1790263828524"></script>
+<script src="player.js?v=1790264396430"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3329,6 +3329,7 @@ function fxTriggerTargetChoices(track) {
 }
 function fxTriggerTargetToValue(t) {
   if (!t) return '';
+  if (t.type === 'sfx') return 'sfx:' + t.id;
   if (t.type === 'layer') return 'layer:' + (t.li || 0);
   if (t.type === 'loop') return 'loop:' + t.li;
   if (t.type === 'slot') return 'slot:' + t.si;
@@ -3337,6 +3338,7 @@ function fxTriggerTargetToValue(t) {
 }
 function parseFxTriggerTarget(v) {
   const p = String(v || '').split(':');
+  if (p[0] === 'sfx') return { type: 'sfx', id: p.slice(1).join(':') };
   if (p[0] === 'layer') return { type: 'layer', li: parseInt(p[1], 10) || 0 };
   if (p[0] === 'loop') return { type: 'loop', li: parseInt(p[1], 10) || 0 };
   if (p[0] === 'slot') return { type: 'slot', si: parseInt(p[1], 10) || 0 };
@@ -3423,12 +3425,39 @@ function fxTriggersEditorHtml(track, ti) {
 // thresholds:[{at (0..1), mode, triggerId}] }] : un curseur public dont la valeur règle des paramètres d'effets sur des
 // cibles (courbe de `from` à `to`) et active/coupe des triggers selon des seuils. Voir fxSlidersValid dans player.js.
 function fxSliderParamKey(param) { return 'fxSliderParam_' + String(param).replace('.', '_'); }
+// Éditeur de courbe d'une liaison (24/09) : points {x, y} de 0 à 1 (x = position du curseur, y = de la valeur « à 0 % »
+// en bas à la valeur « à 100 % » en haut). Extrémités calées aux bords (seul leur y bouge), points intermédiaires libres.
+const FX_CURVE_W = 220, FX_CURVE_H = 130, FX_CURVE_PAD = 14;
+const fxCurveSelected = {}; // "ti:sri:bi" -> index du point sélectionné
+function fxCurveKey(ti, sri, bi) { return ti + ':' + sri + ':' + bi; }
+function fxCurveInnerSvg(curve, selIdx) {
+  const pts = curve && curve.length >= 2 ? curve : [{ x: 0, y: 0 }, { x: 1, y: 1 }];
+  const X = v => FX_CURVE_PAD + v * (FX_CURVE_W - 2 * FX_CURVE_PAD), Y = v => FX_CURVE_H - FX_CURVE_PAD - v * (FX_CURVE_H - 2 * FX_CURVE_PAD);
+  return `<rect x="${X(0)}" y="${Y(1)}" width="${X(1) - X(0)}" height="${Y(0) - Y(1)}" fill="none" stroke="var(--border)" stroke-width="1"/>
+    <line x1="${X(0)}" y1="${Y(0)}" x2="${X(1)}" y2="${Y(1)}" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3 3"/>
+    <polyline points="${pts.map(q => X(q.x) + ',' + Y(q.y)).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2"/>` +
+    pts.map((q, i) => `<circle cx="${X(q.x)}" cy="${Y(q.y)}" r="${i === selIdx ? 6 : 4.5}" fill="${i === selIdx ? 'var(--accent)' : 'var(--bg, #fff)'}" stroke="var(--accent)" stroke-width="2"/>`).join('');
+}
+function fxCurveEditorHtml(b, ti, sri, bi) {
+  const key = fxCurveKey(ti, sri, bi);
+  const sel = fxCurveSelected[key] != null ? fxCurveSelected[key] : -1;
+  return `
+    <details style="margin-top:6px;width:100%">
+      <summary style="cursor:pointer;font-size:0.85em">${tr('fxSliderCurveTitle')}${b.curve ? ' ✓' : ''}</summary>
+      <div class="hint-inline">${tr('fxSliderCurveHint')}</div>
+      <svg data-curve-editor="1" data-ti="${ti}" data-sri="${sri}" data-bi="${bi}" viewBox="0 0 ${FX_CURVE_W} ${FX_CURVE_H}" width="${FX_CURVE_W}" height="${FX_CURVE_H}" style="touch-action:none;cursor:crosshair;border:1px solid var(--border);border-radius:6px;display:block;margin-top:4px">${fxCurveInnerSvg(b.curve, sel)}</svg>
+      <div class="actions" style="margin-top:4px">
+        <button class="btn btn-small" type="button" data-action="fxsb-curve-remove" data-ti="${ti}" data-sri="${sri}" data-bi="${bi}">${tr('fxSliderCurveRemovePoint')}</button>
+        <button class="btn btn-small" type="button" data-action="fxsb-curve-reset" data-ti="${ti}" data-sri="${sri}" data-bi="${bi}">${tr('fxSliderCurveReset')}</button>
+      </div>
+    </details>`;
+}
 function fxSlidersClean(list) {
   return (list || []).filter(x => x && x.id).map(x => ({
     id: x.id, label: x.label || '', visible: !!x.visible,
     defaultValue: Number.isFinite(+x.defaultValue) ? Math.max(0, Math.min(1, +x.defaultValue)) : 0,
     smoothSec: Number.isFinite(+x.smoothSec) && +x.smoothSec >= 0 ? +x.smoothSec : 0.15,
-    bindings: (x.bindings || []).filter(b => b && b.target && b.param).map(b => ({ target: b.target, param: b.param, from: Number.isFinite(+b.from) ? +b.from : 0, to: Number.isFinite(+b.to) ? +b.to : 1 })),
+    bindings: (x.bindings || []).filter(b => b && b.target && b.param).map(b => { const cv = window.LayerPlayerCore.fxCurveSanitize(b.curve); return Object.assign({ target: b.target, param: b.param, from: Number.isFinite(+b.from) ? +b.from : 0, to: Number.isFinite(+b.to) ? +b.to : 1 }, cv ? { curve: cv } : {}); }),
     thresholds: (x.thresholds || []).filter(t => t && t.triggerId).map(t => ({ at: Number.isFinite(+t.at) ? Math.max(0, Math.min(1, +t.at)) : 0.5, mode: t.mode === 'above' ? 'above' : 'below', triggerId: t.triggerId }))
   }));
 }
@@ -3441,8 +3470,13 @@ function fxSlidersEditorHtml(track, ti) {
         <div class="hint-inline">${tr('fxSlidersAdminOnly')}${sliders.length ? ' (' + sliders.length + ')' : ''}</div>
       </div>`;
   }
-  const choices = fxTriggerTargetChoices(track);
-  const params = Object.keys(window.LayerPlayerCore.FX_SLIDER_PARAMS);
+  const voiceChoices = fxTriggerTargetChoices(track);
+  // Sfx attachés au morceau (boutons Sfx) : cibles possibles pour les paramètres de spatialisation.
+  const sfxChoices = (track.sfxIds || []).map(id => (typeof sfxLibrary !== 'undefined' ? sfxLibrary : []).find(x => x.id === id)).filter(Boolean)
+    .map(x => ({ value: 'sfx:' + x.id, label: tr('fxSliderTargetSfx', { title: x.title || x.id }) }));
+  const choices = voiceChoices.concat(sfxChoices);
+  const paramsAll = window.LayerPlayerCore.FX_SLIDER_PARAMS;
+  const paramsFor = b => Object.keys(paramsAll).filter(pk => (paramsAll[pk].kind === 'sfx') === !!(b.target && b.target.type === 'sfx'));
   const triggers = (track.fxTriggers || []).filter(d => d && d.id);
   const cards = sliders.map((sl, i) => {
     const a = `data-ti="${ti}" data-sri="${i}"`;
@@ -3451,10 +3485,11 @@ function fxSlidersEditorHtml(track, ti) {
       const bAttrs = `data-field="fxSliderBinding" ${a} data-bi="${bi}"`;
       return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:6px;font-size:12px">
         <select ${bAttrs} data-fxsb-prop="target" style="width:auto">${choices.map(c => `<option value="${escapeAttr(c.value)}" ${c.value === cur ? 'selected' : ''}>${escapeAttr(c.label)}</option>`).join('') || '<option value="">—</option>'}</select>
-        <select ${bAttrs} data-fxsb-prop="param" style="width:auto">${params.map(pk => `<option value="${pk}" ${b.param === pk ? 'selected' : ''}>${tr(fxSliderParamKey(pk))}</option>`).join('')}</select>
+        <select ${bAttrs} data-fxsb-prop="param" style="width:auto">${paramsFor(b).map(pk => `<option value="${pk}" ${b.param === pk ? 'selected' : ''}>${tr(fxSliderParamKey(pk))}</option>`).join('')}</select>
         <label style="display:flex;align-items:center;gap:4px;margin:0">${tr('fxSliderFrom')} <input type="number" step="any" ${bAttrs} data-fxsb-prop="from" value="${b.from}" style="width:80px"></label>
         <label style="display:flex;align-items:center;gap:4px;margin:0">${tr('fxSliderTo')} <input type="number" step="any" ${bAttrs} data-fxsb-prop="to" value="${b.to}" style="width:80px"></label>
         <button class="btn btn-icon btn-danger" data-action="remove-fxs-binding" ${a} data-bi="${bi}" title="${tr('deleteBtn')}">×</button>
+        ${fxCurveEditorHtml(b, ti, i, bi)}
       </div>`;
     }).join('');
     const thrRows = (sl.thresholds || []).map((t, thi) => {
@@ -3500,6 +3535,50 @@ function fxSlidersEditorHtml(track, ti) {
       <div class="actions" style="margin-top:8px"><button class="btn btn-small" data-action="add-fx-slider" data-ti="${ti}">${tr('addFxSliderBtn')}</button></div>
     </div>`;
 }
+// Interaction de l'éditeur de courbe (délégation sur le document : le HTML de l'éditeur est régénéré à chaque rendu).
+// Clic sur un point = le sélectionner et le déplacer ; clic dans le vide = nouveau point ; les extrémités ne bougent
+// qu'en hauteur. Repeint le SVG sur place, sans redessiner toute la bibliothèque.
+document.addEventListener('pointerdown', ev => {
+  const svg = ev.target.closest && ev.target.closest('svg[data-curve-editor]');
+  if (!svg) return;
+  const ti = parseInt(svg.dataset.ti, 10), sri = parseInt(svg.dataset.sri, 10), bi = parseInt(svg.dataset.bi, 10);
+  const b = (((library[ti] || {}).fxSliders || [])[sri] || {}).bindings;
+  const binding = b && b[bi];
+  if (!binding) return;
+  if (!binding.curve) binding.curve = [{ x: 0, y: 0 }, { x: 1, y: 1 }];
+  const key = fxCurveKey(ti, sri, bi);
+  const rect = svg.getBoundingClientRect();
+  const k = FX_CURVE_W / rect.width;
+  const toData = e => {
+    const px = (e.clientX - rect.left) * k, py = (e.clientY - rect.top) * k;
+    return { px, py, x: Math.max(0, Math.min(1, (px - FX_CURVE_PAD) / (FX_CURVE_W - 2 * FX_CURVE_PAD))), y: Math.max(0, Math.min(1, (FX_CURVE_H - FX_CURVE_PAD - py) / (FX_CURVE_H - 2 * FX_CURVE_PAD))) };
+  };
+  const scr = q => ({ px: FX_CURVE_PAD + q.x * (FX_CURVE_W - 2 * FX_CURVE_PAD), py: FX_CURVE_H - FX_CURVE_PAD - q.y * (FX_CURVE_H - 2 * FX_CURVE_PAD) });
+  const d0 = toData(ev);
+  let hit = -1, best = 12;
+  binding.curve.forEach((q, i) => { const s2 = scr(q); const d = Math.hypot(s2.px - d0.px, s2.py - d0.py); if (d < best) { best = d; hit = i; } });
+  if (hit < 0) {
+    if (binding.curve.length >= 16) return;
+    // Nouveau point à l'endroit du clic (x trié) : la courbe existante n'est pas modifiée ailleurs.
+    let at = binding.curve.findIndex(q => q.x > d0.x); if (at < 0) at = binding.curve.length - 1;
+    binding.curve.splice(at, 0, { x: d0.x, y: d0.y });
+    hit = at;
+  }
+  fxCurveSelected[key] = hit;
+  hasUnsavedEdits = true;
+  const repaint = () => { svg.innerHTML = fxCurveInnerSvg(binding.curve, hit); };
+  repaint();
+  try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
+  const move = e => {
+    const d = toData(e), last = binding.curve.length - 1;
+    const lo = hit > 0 ? binding.curve[hit - 1].x + 0.005 : 0, hi = hit < last ? binding.curve[hit + 1].x - 0.005 : 1;
+    binding.curve[hit] = { x: (hit === 0 || hit === last) ? binding.curve[hit].x : Math.max(lo, Math.min(hi, d.x)), y: d.y };
+    hasUnsavedEdits = true;
+    repaint();
+  };
+  const up = () => { svg.removeEventListener('pointermove', move); svg.removeEventListener('pointerup', up); svg.removeEventListener('pointercancel', up); };
+  svg.addEventListener('pointermove', move); svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
+});
 // Actions liées à un embranchement : pour chaque trigger défini sur le morceau, "activer" / "couper" /
 // "ne rien faire" quand CETTE option de bascule (séquentiel) ou CETTE boucle (embranchement-vertical) est prise.
 function fxActionsHtml(actions, track, ownerAttrs) {
@@ -7059,6 +7138,16 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
     sl.bindings = sl.bindings || [];
     sl.bindings.push({ target: first ? parseFxTriggerTarget(first.value) : null, param: 'filter.frequency', from: 400, to: 20000 });
   }
+  else if (btn.dataset.action === 'fxsb-curve-reset') {
+    const b = library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].bindings[parseInt(btn.dataset.bi, 10)];
+    delete b.curve; delete fxCurveSelected[fxCurveKey(ti, btn.dataset.sri, btn.dataset.bi)];
+  }
+  else if (btn.dataset.action === 'fxsb-curve-remove') {
+    const k = fxCurveKey(ti, btn.dataset.sri, btn.dataset.bi);
+    const b = library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].bindings[parseInt(btn.dataset.bi, 10)];
+    const i = fxCurveSelected[k];
+    if (b.curve && i != null && i > 0 && i < b.curve.length - 1) { b.curve.splice(i, 1); delete fxCurveSelected[k]; }
+  }
   else if (btn.dataset.action === 'remove-fxs-binding') { library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].bindings.splice(parseInt(btn.dataset.bi, 10), 1); }
   else if (btn.dataset.action === 'add-fxs-threshold') {
     const tk = library[ti], sl = tk.fxSliders[parseInt(btn.dataset.sri, 10)];
@@ -7277,7 +7366,15 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       const b = sl && (sl.bindings || [])[parseInt(e.target.dataset.bi, 10)];
       const prop = e.target.dataset.fxsbProp;
       if (b) {
-        if (prop === 'target') b.target = parseFxTriggerTarget(e.target.value);
+        if (prop === 'target') {
+          const wasSfx = !!(b.target && b.target.type === 'sfx');
+          b.target = parseFxTriggerTarget(e.target.value);
+          const isSfx = b.target && b.target.type === 'sfx';
+          if (wasSfx !== isSfx) { // voix <-> Sfx : le paramètre et les bornes changent de nature
+            if (isSfx) { b.param = 'spatial.distance'; b.from = 2; b.to = 20; } else { b.param = 'filter.frequency'; b.from = 400; b.to = 20000; }
+            hasUnsavedEdits = true; renderLibrary(); return;
+          }
+        }
         else if (prop === 'param') b.param = e.target.value;
         else if (prop === 'from') b.from = parseFloat(e.target.value);
         else if (prop === 'to') b.to = parseFloat(e.target.value);

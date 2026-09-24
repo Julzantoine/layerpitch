@@ -252,8 +252,24 @@
       src.buffer = buf;
       const sp = hit.sfx && hit.sfx.spatial;
       if (sp && sp.enabled) {
-        const voice = C.buildSpatialVoice(oc, sp, { duration: buf.duration, stepKey: hit.sfx, stepIndex: hit.stepIndex, startTime: hit.t });
+        // Curseurs liés à la position / reverb de ce Sfx : le son démarre à la valeur du curseur à cet instant, puis suit
+        // les points-clés enregistrés pendant sa durée (comme en jeu, pour une source à position fixe).
+        const track = hit.track;
+        const sliders = track ? slidersOf(track).filter(sl => sl.bindings.some(b => b.key === 'sfx:' + hit.sfx.id)) : [];
+        const valueOfAt = t => id => { const sl = sliders.find(x => x.id === id); return sl ? sliderValueAt(track.id, sl, t) : 0; };
+        const ov0 = sliders.length ? C.fxSliderSfxOverrides(sliders, valueOfAt(hit.t), hit.sfx.id) : null;
+        const voice = C.buildSpatialVoice(oc, ov0 ? C.fxSpatialWithOverride(sp, ov0) : sp, { duration: buf.duration, stepKey: hit.sfx, stepIndex: hit.stepIndex, startTime: hit.t });
         src.connect(voice.input);
+        if (voice.fixed && sliders.length) {
+          const end = hit.t + (hit.durationOverride || buf.duration);
+          const times = [];
+          sliders.forEach(sl => (keysBySlider[track.id + '|' + sl.id] || []).forEach(k => { if (k.t > hit.t && k.t < end) times.push({ t: k.t, ramp: sl.smoothSec }); }));
+          times.sort((a, b) => a.t - b.t).forEach(kt => {
+            const sp2 = C.fxSpatialWithOverride(sp, C.fxSliderSfxOverrides(sliders, valueOfAt(kt.t), hit.sfx.id));
+            voice.setPosition(sp2.x, sp2.y, kt.ramp, kt.t);
+            voice.setReverbDb(sp2.reverbDb, kt.ramp, kt.t);
+          });
+        }
       } else src.connect(sfxBus);
       src.start(hit.t);
       if (hit.durationOverride) src.stop(hit.t + hit.durationOverride);
