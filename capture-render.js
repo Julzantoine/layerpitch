@@ -183,12 +183,27 @@
     const slidersOf = track => { if (!slidersByTrack.has(track.id)) slidersByTrack.set(track.id, C.fxSlidersValid(track)); return slidersByTrack.get(track.id); };
     const sliderValueAt = (trackId, sl, t) => { let v = sl.def; (keysBySlider[trackId + '|' + sl.id] || []).forEach(k => { if (k.t <= t) v = k.value; }); return v; };
 
+    // Rapport de vitesse du morceau à l'instant t (mêmes règles que le lecteur : base, triggers « Vitesse » actifs, curseur « pitch.speed »).
+    const isSpeedBinding = b => { const m = C.FX_SLIDER_PARAMS[b.param]; return !!(m && m.rate); };
+    const hasDynamicRate = track => (track.fxTriggers || []).some(d => d && d.fx && d.fx.pitch && d.fx.pitch.mode === 'rate' && C.fxTargetKeyFromTarget(d.target) === 'track') || slidersOf(track).some(sl => sl.bindings.some(isSpeedBinding));
+    function trackRateAt(track, t) {
+      const defs = (track.fxTriggers || []).filter(d => d && d.id && d.fx && C.fxTargetKeyFromTarget(d.target) === 'track');
+      const sliders = slidersOf(track);
+      const active = activeAt(track.id, t).map(id => defs.find(d => d.id === id)).filter(Boolean);
+      return C.fxTrackRatio(track, active, sliders, id => { const sl = sliders.find(x => x.id === id); return sl ? sliderValueAt(track.id, sl, t) : 0; });
+    }
+
     // -- Musique --
     let n = 0;
     for (const seg of plan.segments || []) {
       const buf = await getBuf(seg.url);
       progress(++n, (plan.segments || []).length);
-      const rate = seg.rate || 1;
+      // Vitesse du morceau (25/09) : si le morceau peut la changer en cours de route (trigger « Vitesse », curseur « pitch.speed »), le
+      // rapport est celui en vigueur quand le lecteur a CRÉÉ la source -- ~0,9 s avant son démarrage pour un moteur programmé
+      // (lookahead de 1 s), à son démarrage pour une voix qui tourne en continu (calée sur la ligne de temps). Sans ça : rapport de
+      // base du plan (track.fx.pitch).
+      const dynRate = !!(seg.track && hasDynamicRate(seg.track));
+      const rate = dynRate ? trackRateAt(seg.track, seg.phaseLocked ? seg.start : Math.max(0, seg.start - 0.9)) : (seg.rate || 1);
       const offset = Math.max(0, seg.phaseLocked ? seg.fileStart * rate : (seg.fileStart || 0));
       if (offset >= buf.duration) continue;
       const dur = seg.dur != null ? seg.dur : (buf.duration - offset) / rate;
@@ -196,6 +211,13 @@
       const src = oc.createBufferSource();
       src.buffer = buf;
       src.playbackRate.value = rate;
+      // Voix en continu : elle suit les changements de vitesse pendant sa durée, comme le moteur simple du lecteur (glissement).
+      if (dynRate && seg.phaseLocked) {
+        const times = new Set();
+        (changesByTrack[seg.track.id] || []).forEach(c => { if (c.t > seg.start && c.t < seg.start + dur) times.add(c.t); });
+        slidersOf(seg.track).forEach(sl => (keysBySlider[seg.track.id + '|' + sl.id] || []).forEach(k => { if (k.t > seg.start && k.t < seg.start + dur) times.add(k.t); }));
+        [...times].sort((a, b) => a - b).forEach(t => src.playbackRate.setTargetAtTime(trackRateAt(seg.track, t), t, 0.05));
+      }
       const g = oc.createGain();
       const fade = Math.min(seg.fade || 0, dur / 2);
       if (fade > 0) {
@@ -212,7 +234,7 @@
         const defs = (track.fxTriggers || []).filter(d => { if (!d || !d.id || !d.fx) return false; const k = C.fxTargetKeyFromTarget(d.target); return k === seg.targetKey || k === 'track'; });
         const sliders = slidersOf(track);
         const base = seg.baseFx !== undefined ? seg.baseFx : C.baseFxForTarget(track, seg.targetKey);
-        const force = [...new Set(defs.flatMap(d => Object.keys(d.fx)).concat(C.fxSliderForceKeys(sliders, seg.targetKey)))];
+        const force = [...new Set(defs.flatMap(d => Object.keys(d.fx).filter(k => !(k === 'pitch' && d.fx.pitch && d.fx.pitch.mode === 'rate'))).concat(C.fxSliderForceKeys(sliders, seg.targetKey)))];
         const defOf = id => defs.find(d => d.id === id);
         const active = activeAt(track.id, seg.start);
         // fx effectif à l'instant t : base + triggers actifs, puis valeurs des curseurs par-dessus (mêmes règles que le lecteur).

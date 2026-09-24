@@ -1752,9 +1752,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790276194760"></script>
+<script src="layerpitch-i18n.js?v=1790279210349"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1790276194760"></script>
+<script src="player.js?v=1790279210349"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3176,7 +3176,7 @@ const FX_DEFAULTS = {
   // "rate" retiré des valeurs par défaut par élément (22/09) : devenu un réglage de morceau entier, voir
   // FX_TRACK_DEFAULTS ci-dessous et trackPitchFxHtml() -- ici, "shift" reste le seul mode par couche/
   // boucle/emplacement/pool, puisqu'il ne pose pas de problème de synchro (durée inchangée).
-  pitch: () => ({ mode: 'shift', semitones: 0 })
+  pitch: () => ({ mode: 'shift', semitones: 3 }) // départ audible (0 demi-ton ne changeait rien, 25/09)
 };
 // Pitch de morceau entier (mode "rate" implicite, pas de champ mode -- un seul sens possible à ce niveau).
 const FX_TRACK_DEFAULTS = { pitch: () => ({ semitones: 0 }) };
@@ -3252,7 +3252,13 @@ function fxBlockHtml(fx, extraAttrs) {
       `);
       }).join('')}
       ${toggle('pitch', !!fx.pitch, 'fxPitchLabel', `
-        <div class="hint-inline">${tr('fxPitchModeShiftHint')}</div>
+        ${isTriggerBlock ? `
+        <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxPitchModeLabel')}</label>
+          <select data-field="fx" data-fx-effect="pitch" data-fx-param="mode" ${extraAttrs} ${pitchDisabled ? 'disabled' : ''}>
+            <option value="shift" ${!fx.pitch || fx.pitch.mode !== 'rate' ? 'selected' : ''}>${tr('fxPitchModeShift')}</option>
+            <option value="rate" ${fx.pitch && fx.pitch.mode === 'rate' ? 'selected' : ''}>${tr('fxPitchModeRate')}</option>
+          </select></div>
+        <div class="hint-inline">${tr(fx.pitch && fx.pitch.mode === 'rate' ? 'fxPitchModeRateTriggerHint' : 'fxPitchModeShiftHint')}</div>` : `<div class="hint-inline">${tr('fxPitchModeShiftHint')}</div>`}
         ${num('pitch', 'semitones', fx.pitch ? fx.pitch.semitones : 0, 'fxSemitonesLabel', 1, -24, 24, pitchDisabled)}
       `, pitchDisabled)}
       ${toggle('reverb', !!r, 'fxReverbLabel', `
@@ -3393,6 +3399,13 @@ function fxRelationsEditorHtml(triggers, i, trg, attrs) {
 }
 // Volet « Effets » d'un trigger : ouvert par défaut, repliable ; l'état (par identifiant de trigger) survit aux
 // reconstructions de la liste, le temps que la page reste ouverte.
+// Bornes proposées (curseur à 0 % -> 100 %) quand on choisit un paramètre pour une liaison de curseur.
+const FX_SLIDER_DEFAULT_RANGE = {
+  'lowcut.frequency': [20, 400], 'highcut.frequency': [400, 20000], 'volume.db': [-30, 0], 'reverb.wet': [0, 0.6],
+  'delay.wet': [0, 0.5], 'delay.feedback': [0.2, 0.7], 'bitcrush.bits': [16, 4], 'bitcrush.reduction': [1, 20],
+  'pitch.semitones': [0, 7], 'pitch.speed': [0, -12],
+  'spatial.x': [-5, 5], 'spatial.y': [0, 10], 'spatial.distance': [2, 20], 'spatial.angle': [-90, 90], 'spatial.reverbDb': [-12, 0]
+};
 const fxTriggerEffectsCollapsed = new Set();
 document.addEventListener('toggle', e => {
   const d = e.target, k = d && d.dataset && d.dataset.fxtEffectsKey;
@@ -7489,7 +7502,13 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
             hasUnsavedEdits = true; renderLibrary(); return;
           }
         }
-        else if (prop === 'param') b.param = e.target.value;
+        else if (prop === 'param') {
+          // Changer de paramètre remet des bornes « 0 % -> 100 % » adaptées à sa nature (400 -> 20000 n'a aucun sens pour des demi-tons).
+          b.param = e.target.value;
+          const r = FX_SLIDER_DEFAULT_RANGE[b.param];
+          if (r) { b.from = r[0]; b.to = r[1]; delete b.curve; }
+          hasUnsavedEdits = true; renderLibrary(); return;
+        }
         else if (prop === 'from') b.from = parseFloat(e.target.value);
         else if (prop === 'to') b.to = parseFloat(e.target.value);
       }

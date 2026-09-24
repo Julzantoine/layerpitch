@@ -1736,7 +1736,7 @@ function trackNeedsLatencyComp(track) {
   if (anyFx(track.layers) || anyFx(track.loops) || anyFx(track.segmentSlots)) return true;
   if (spFx(track.intro && track.intro.fx) || spFx(track.outro && track.outro.fx)) return true;
   if ((track.sections || []).some(sec => sec && anyFx(sec.pools))) return true;
-  if ((track.fxTriggers || []).some(d => d && d.fx && (d.fx.bitcrush || d.fx.pitch))) return true;
+  if ((track.fxTriggers || []).some(d => d && d.fx && (d.fx.bitcrush || (d.fx.pitch && d.fx.pitch.mode !== 'rate')))) return true;
   return ((track.fxSliders || []).some(d => d && (d.bindings || []).some(b => b && (b.param === 'bitcrush.bits' || b.param === 'bitcrush.reduction' || b.param === 'pitch.semitones'))));
 }
 // Ajoute à une chaîne d'effets (ou en crée une réduite au seul retard) le DelayNode de compensation, sauf si la
@@ -2209,6 +2209,9 @@ const FX_SLIDER_PARAMS = {
   'bitcrush.bits': { fx: 'bitcrush', key: 'bits', min: 1, max: 16, round: true },
   'bitcrush.reduction': { fx: 'bitcrush', key: 'reduction', min: 1, max: 50, round: true },
   'pitch.semitones': { fx: 'pitch', key: 'semitones', min: -24, max: 24 },
+  // Pitch en mode « vitesse » (25/09) : règle la vitesse de TOUT le morceau (change aussi la durée) -- pas un réglage de
+  // chaîne d'effets par voix (rate:true) : il alimente le rapport de vitesse du lecteur, voir fxSliderRateSemitones.
+  'pitch.speed': { fx: 'pitch', key: 'semitones', min: -24, max: 24, rate: true },
   // Paramètres de spatialisation d'un Sfx attaché au morceau (kind 'sfx' : la cible est un Sfx, pas une voix) --
   // position en mètres (x vers la droite, y vers l'avant), OU distance/angle polaires (0° = devant, +90° = à droite),
   // et niveau de reverb. Valables pour les Sfx à position fixe.
@@ -2273,6 +2276,7 @@ function fxSliderOverrides(sliders, valueOf, targetKey) {
   sliders.forEach(sl => sl.bindings.forEach(b => {
     if (b.key !== targetKey && b.key !== 'track') return; // une liaison « tout le morceau » vise chaque voix
     const meta = FX_SLIDER_PARAMS[b.param];
+    if (meta.rate) return; // la vitesse du morceau n'est pas un réglage de voix
     (out[meta.fx] = out[meta.fx] || {})[meta.key] = fxSliderBindingValue(b, valueOf(sl.id));
   }));
   return out;
@@ -2303,8 +2307,30 @@ function fxSpatialWithOverride(sp, ov) {
 }
 function fxSliderForceKeys(sliders, targetKey) {
   const keys = new Set();
-  sliders.forEach(sl => sl.bindings.forEach(b => { if (b.key === targetKey || b.key === 'track') keys.add(FX_SLIDER_PARAMS[b.param].fx); }));
+  sliders.forEach(sl => sl.bindings.forEach(b => { if ((b.key === targetKey || b.key === 'track') && !FX_SLIDER_PARAMS[b.param].rate) keys.add(FX_SLIDER_PARAMS[b.param].fx); }));
   return [...keys];
+}
+// Vitesse du morceau imposée par les curseurs (25/09) : demi-tons de la dernière liaison « pitch.speed » sur tout le morceau,
+// ou null si aucune. Fonction pure, partagée avec l'export de l'outil vidéo.
+function fxSliderRateSemitones(sliders, valueOf) {
+  let out = null;
+  sliders.forEach(sl => sl.bindings.forEach(b => {
+    if (b.key !== 'track' || !FX_SLIDER_PARAMS[b.param].rate) return;
+    out = fxSliderBindingValue(b, valueOf(sl.id));
+  }));
+  return out;
+}
+// Rapport de vitesse EFFECTIF d'un morceau (25/09) : réglage de base (track.fx.pitch, mode « vitesse » implicite) ; par-dessus,
+// les triggers actifs qui portent un pitch en mode « rate » (dans l'ordre d'activation, le dernier l'emporte) ; par-dessus, un
+// curseur « pitch.speed ». activeDefs = définitions des triggers ACTIFS visant tout le morceau. Pure : le lecteur et l'export
+// vidéo l'appellent avec leur propre état.
+function fxTrackRatio(track, activeDefs, sliders, valueOf) {
+  const base = track && track.fx && track.fx.pitch && track.fx.pitch.mode !== 'shift' ? track.fx.pitch : null;
+  let st = base ? (base.semitones || 0) : 0, on = !!base;
+  (activeDefs || []).forEach(d => { const q = d && d.fx && d.fx.pitch; if (q && q.mode === 'rate') { st = q.semitones || 0; on = true; } });
+  const sv = sliders && sliders.length ? fxSliderRateSemitones(sliders, valueOf) : null;
+  if (sv != null) { st = sv; on = true; }
+  return on ? Math.pow(2, st / 12) : 1;
 }
 // Applique les réglages des curseurs PAR-DESSUS un fx déjà fusionné (base + triggers).
 function applyFxSliderOverrides(fx, overrides) {
@@ -2344,7 +2370,11 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // aux boucles de planification "au fil de l'eau" des 4 moteurs (vérifié), PAS encore aux chemins de
   // reprise après pause/veille ni au seek pendant qu'un pitch est actif -- portée volontairement réduite
   // tant que ce n'est pas testé en conditions réelles, pas un oubli silencieux.
-  const trackPitchRatio = (track.fx && track.fx.pitch) ? Math.pow(2, (track.fx.pitch.semitones || 0) / 12) : 1;
+  // 25/09 : devenu VARIABLE -- un trigger ou un curseur peut changer la vitesse du morceau en cours de lecture (voir
+  // refreshTrackRate plus bas). Les moteurs programmés le lisent à chaque génération : le changement s'applique à la prochaine
+  // boucle / au prochain segment ; le moteur simple (bouclage natif) le suit en direct.
+  const trackBaseRatio = (track.fx && track.fx.pitch && track.fx.pitch.mode !== 'shift') ? Math.pow(2, (track.fx.pitch.semitones || 0) / 12) : 1;
+  let trackPitchRatio = trackBaseRatio;
   // Applique le pitch de morceau entier à UNE source -- appelé à chaque création de BufferSource, quel
   // que soit le moteur. No-op si aucun pitch actif (trackPitchRatio===1), donc sans coût pour l'immense
   // majorité des morceaux qui n'utilisent pas ce réglage.
@@ -2354,9 +2384,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // le fondu y est donc ignoré (ratio cible constant), voir trackPitchFxHtml() côté Backstage.
   function applyTrackPitchRate(src, startTime, allowFade) {
     if (trackPitchRatio === 1) return;
-    const p = track.fx.pitch;
+    const p = track.fx && track.fx.pitch || {};
     const when = startTime != null ? startTime : ctx.currentTime;
-    if (allowFade && p.fadeFromSemitones != null && p.fadeDurationSec > 0) {
+    if (allowFade && trackPitchRatio === trackBaseRatio && p.fadeFromSemitones != null && p.fadeDurationSec > 0) {
       src.playbackRate.setValueAtTime(Math.pow(2, p.fadeFromSemitones / 12), when);
       src.playbackRate.linearRampToValueAtTime(trackPitchRatio, when + p.fadeDurationSec);
     } else {
@@ -2397,7 +2427,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   const fxSliderValueOf = id => (fxSliderValues.has(id) ? fxSliderValues.get(id) : 0);
   function fxForceKeysFor(targetKey) {
     const keys = new Set(fxSliderForceKeys(fxSliders, targetKey));
-    fxTriggerDefs.forEach((d, id) => { const k = fxTriggerTargetKey.get(id); if (k === targetKey || k === 'track') Object.keys(d.fx).forEach(x => keys.add(x)); });
+    fxTriggerDefs.forEach((d, id) => { const k = fxTriggerTargetKey.get(id); if (k === targetKey || k === 'track') Object.keys(d.fx).forEach(x => { if (x === 'pitch' && d.fx.pitch && d.fx.pitch.mode === 'rate') return; keys.add(x); }); });
     return [...keys];
   }
   // Chaînes vivantes concernées par une clé de cible : 'track' = TOUTES les voix du morceau.
@@ -2472,7 +2502,33 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const fadeIn = d.fadeSec != null ? d.fadeSec : 0.1;
     const ramp = fxRampOverride != null ? fxRampOverride : (active ? fadeIn : (d.fadeOutSec != null ? d.fadeOutSec : fadeIn));
     chains.forEach(ch => applyFxToChain(ctx, ch, fxEffectiveFor(ch.targetKey, ch.baseFx), ramp));
+    refreshTrackRate(ramp);
     updateFxTriggerButtons();
+  }
+  // Vitesse du morceau (25/09) : recalculée après chaque changement de trigger ou de curseur (voir fxTrackRatio). Moteurs
+  // programmés : seule la variable change -- chaque nouvelle génération (boucle / segment) la lira, les sons déjà programmés
+  // gardent leur vitesse jusqu'au bout, donc tout reste synchrone. Moteur simple (bouclage natif) : les sources en cours
+  // glissent vers la nouvelle vitesse et l'origine de la position est recalée pour que la tête de lecture ne saute pas.
+  function fxComputeTrackRatio() {
+    const defs = fxActiveTriggerIds.map(id => (fxTriggerTargetKey.get(id) === 'track' ? fxTriggerDefs.get(id) : null)).filter(Boolean);
+    return fxTrackRatio(track, defs, fxSliders, fxSliderValueOf);
+  }
+  function refreshTrackRate(rampSec) {
+    const next = fxComputeTrackRatio();
+    if (!(next > 0) || Math.abs(next - trackPitchRatio) < 1e-9) return;
+    const prev = trackPitchRatio;
+    trackPitchRatio = next;
+    const simple = !(useQuantizedLoop || isVerticalRandom || isSequential || isEmbrVert);
+    if (!playing || !simple) return;
+    const now = ctx.currentTime;
+    startedAt = now - ((now - startedAt) * prev) / next;
+    const tc = Math.max(0.005, (rampSec || 0.1) / 3);
+    sources.forEach(sn => {
+      if (!sn) return;
+      sn.playbackRate.cancelScheduledValues(now);
+      sn.playbackRate.setValueAtTime(sn.playbackRate.value, now);
+      sn.playbackRate.setTargetAtTime(next, now, tc);
+    });
   }
   const fxRules = createTriggerRuleEngine([...fxTriggerDefs.values()], {
     schedule: (d, fn) => setTimeout(fn, d * 1000),
@@ -2539,6 +2595,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     fxSliderValues.set(id, Math.max(0, Math.min(1, value)));
     applyFxSliderToChains(sl, sl.smoothSec);
     applyFxSliderToSfx(sl, sl.smoothSec);
+    refreshTrackRate(sl.smoothSec);
     evalFxSliderThresholds(sl, false);
     paintFxSlider(id);
     // Évènement DOM (pas de la télémétrie : un curseur émet des dizaines de valeurs par seconde) -- l'outil vidéo
@@ -2551,6 +2608,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       applyFxSliderToChains(sl, 0.05);
       paintFxSlider(sl.id);
     });
+    refreshTrackRate(0.05);
     fxSliderLastWant.clear();
     fxSliders.forEach(sl => evalFxSliderThresholds(sl, true));
   }
@@ -2890,7 +2948,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (g.ctxStartTime <= ctx.currentTime && (!chosen || g.ctxStartTime > chosen.ctxStartTime)) chosen = g;
     }
     if (!chosen) return 0;
-    return Math.min(chosen.bufferOffset + (ctx.currentTime - chosen.ctxStartTime) * trackPitchRatio, progressMaxSec());
+    return Math.min(chosen.bufferOffset + (ctx.currentTime - chosen.ctxStartTime) * (chosen.ratio || trackPitchRatio), progressMaxSec());
   }
   // Nombre de boucles (moteur quantifié) : loopsPlayed compte les passages programmés par le scheduler
   // récurrent (pas le tout premier, déclenché directement par playQuantized). Une fois track.maxLoops
@@ -4381,7 +4439,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     }
     currentGainNodes = gensThisRound;
     lastGenSources = thisGenSources;
-    scheduledGens.push({ ctxStartTime, bufferOffset });
+    scheduledGens.push({ ctxStartTime, bufferOffset, ratio: trackPitchRatio });
     const cutoff = ctx.currentTime - Math.max(cycleLength / trackPitchRatio, 4) * 2;
     if (scheduledGens.length > 6) scheduledGens = scheduledGens.filter(g => g.ctxStartTime >= cutoff);
   }
@@ -5128,7 +5186,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     for (let pi = pools.length; pi < vrMaxPoolCount; pi++) poolPicks.push({ pi, label: '—', silent: true, buf: null });
     scheduleVoiceGraphUpdate(ctxStartTime, poolPicks, secIdx);
     lastGenSources = activeGenSources.slice(-Math.max(1, pools.length)).map(s => s.src);
-    scheduledGens.push({ ctxStartTime, bufferOffset });
+    scheduledGens.push({ ctxStartTime, bufferOffset, ratio: trackPitchRatio });
     // Capture/export (2026-09-16, voir pack.html) : un cycle de section = une fenêtre autonome à reproduire
     // fidèlement (mêmes tirages, même offset dans les fichiers) -- déclenché à CHAQUE appel de cette
     // fonction, donc aussi bien un vrai changement de section qu'un simple bouclage de la section courante
@@ -5168,7 +5226,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         src.start(vrNextStartCtxTime, 0);
         activeGenSources.push({ src, gain: g, voiceKey: 'intro', baseGain: effGain(track.intro) });
         lastGenSources = [src];
-        scheduledGens.push({ ctxStartTime: vrNextStartCtxTime, bufferOffset: 0 });
+        scheduledGens.push({ ctxStartTime: vrNextStartCtxTime, bufferOffset: 0, ratio: trackPitchRatio });
         trackPublicEvent('vr_intro_start', { trackId: track.id });
         // Durée nominale de l'intro : mesures déclarées, au tempo de la PREMIÈRE section jouable (elle
         // seule a un sens ici, l'intro n'appartenant à aucune section) — la partie du fichier qui dépasse
@@ -5197,7 +5255,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         src.start(vrNextStartCtxTime, 0);
         activeGenSources.push({ src, gain: g, voiceKey: 'outro', baseGain: effGain(track.outro) });
         lastGenSources = [src];
-        scheduledGens.push({ ctxStartTime: vrNextStartCtxTime, bufferOffset: 0 });
+        scheduledGens.push({ ctxStartTime: vrNextStartCtxTime, bufferOffset: 0, ratio: trackPitchRatio });
         trackPublicEvent('vr_outro_start', { trackId: track.id });
         clearInterval(vrSchedulerTimer); vrSchedulerTimer = null;
         armVRFinalEnd();
@@ -6485,6 +6543,8 @@ window.LayerPlayerCore = {
   pickSpatialStepIndex,
   buildLayerFxChain,
   applyFxToChain,
+  fxTrackRatio,
+  fxSliderRateSemitones,
   trackNeedsLatencyComp,
   withLatencyComp,
   createTriggerRuleEngine,
