@@ -1751,7 +1751,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790267708592"></script>
+<script src="layerpitch-i18n.js?v=1790267932822"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
 <script src="player.js?v=1790267708592"></script>
 <script>
@@ -3586,6 +3586,26 @@ document.addEventListener('pointerdown', ev => {
   };
   const up = () => { svg.removeEventListener('pointermove', move); svg.removeEventListener('pointerup', up); svg.removeEventListener('pointercancel', up); };
   svg.addEventListener('pointermove', move); svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
+});
+// Double-clic sur un point INTERMÉDIAIRE de la courbe = le supprimer (les deux extrémités restent).
+document.addEventListener('dblclick', ev => {
+  const svg = ev.target.closest && ev.target.closest('svg[data-curve-editor]');
+  if (!svg) return;
+  const ti = parseInt(svg.dataset.ti, 10), sri = parseInt(svg.dataset.sri, 10), bi = parseInt(svg.dataset.bi, 10);
+  const binding = ((((library[ti] || {}).fxSliders || [])[sri] || {}).bindings || [])[bi];
+  if (!binding || !binding.curve) return;
+  const rect = svg.getBoundingClientRect(), k = FX_CURVE_W / rect.width;
+  const px = (ev.clientX - rect.left) * k, py = (ev.clientY - rect.top) * k;
+  let hit = -1, best = 12;
+  binding.curve.forEach((q, i) => {
+    const d = Math.hypot(FX_CURVE_PAD + q.x * (FX_CURVE_W - 2 * FX_CURVE_PAD) - px, FX_CURVE_H - FX_CURVE_PAD - q.y * (FX_CURVE_H - 2 * FX_CURVE_PAD) - py);
+    if (d < best) { best = d; hit = i; }
+  });
+  if (hit <= 0 || hit >= binding.curve.length - 1) return;
+  binding.curve.splice(hit, 1);
+  delete fxCurveSelected[fxCurveKey(ti, sri, bi)];
+  hasUnsavedEdits = true;
+  svg.innerHTML = fxCurveInnerSvg(binding.curve, -1);
 });
 // Actions liées à un embranchement : pour chaque trigger défini sur le morceau, "activer" / "couper" /
 // "ne rien faire" quand CETTE option de bascule (séquentiel) ou CETTE boucle (embranchement-vertical) est prise.
@@ -6857,6 +6877,19 @@ function renderSfxSpaceEditor(host, sfx) {
   const endDrag = () => { dragging = false; };
   svg.addEventListener('pointerup', endDrag);
   svg.addEventListener('pointercancel', endDrag);
+  // Double-clic sur un point du chemin = le supprimer (24/09, demande de Jules-Antoine) ; jamais sous 2 points.
+  svg.addEventListener('dblclick', ev => {
+    if (!isPath) return;
+    const e = eventPos(ev);
+    let hit = -1, best = 16;
+    path.points.forEach((q, i) => { const d = Math.hypot(X(q.x) - e.px, Y(q.y) - e.py); if (d < best) { best = d; hit = i; } });
+    if (hit < 0 || path.points.length <= 2) return;
+    path.points.splice(hit, 1);
+    sfxSpaceSelectedPoint = Math.max(0, Math.min(sfxSpaceSelectedPoint, path.points.length - 1));
+    sp.x = path.points[0].x; sp.y = path.points[0].y;
+    hasUnsavedEdits = true;
+    renderSfxSpaceEditor(host, sfx);
+  });
   const rmBtn = body.querySelector('[data-role="pathRemove"]');
   if (rmBtn) rmBtn.addEventListener('click', () => {
     if (path.points.length <= 2) return; // un chemin a besoin d'au moins 2 points
