@@ -1,0 +1,14 @@
+{
+  "name": "layerpitch",
+  "private": true,
+  "description": "LayerPitch — site statique (GitHub Pages) ; ce fichier ne sert qu'aux outils de développement (tests, scripts).",
+  "scripts": {
+    "test": "node scripts/run-tests.js",
+    "bump-version": "node scripts/bump-version.js",
+    "migrate": "node scripts/apply-migrations.js"
+  },
+  "devDependencies": {
+    "jsdom": "^30.0.1",
+    "pg": "^8.23.0"
+  }
+}

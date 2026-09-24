@@ -644,6 +644,7 @@
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="layerpitch-i18n.js?v=1790282257000"></script>
+<script src="public-page.js?v=1790282257000"></script>
 <script src="player.js?v=1790282257000"></script>
 <script src="capture-render.js?v=1790279210349"></script>
 <script>
@@ -663,41 +664,6 @@ const composerHandleFromUrl = new URLSearchParams(location.search).get('u');
 })();
 const DEFAULT_OWNER_ID = 'd7b26934-2f7d-43d4-a69e-52611bf4c141';
 
-// Lecture Postgres (Décision 5, séquençage "site public → Postgres", docs/infrastructure.md) —
-// validation de parité en isolation, jamais activée par défaut. Même principe que
-// loadPurchaseScripts() plus bas, mais pour la lecture seule : aucun SDK chargé, aucune requête
-// Postgres, tant que ?dataSource=postgres n'est pas explicitement présent dans l'URL.
-let postgresReadScriptsLoaded = null;
-function loadPostgresReadScripts() {
-  if (postgresReadScriptsLoaded) return postgresReadScriptsLoaded;
-  // Cache-busting sur les fichiers locaux (api/*.js) uniquement — voir le commentaire équivalent
-  // dans index.html (trouvé le 1er septembre, docs/LAYERPITCH_CHANGELOG.md).
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src.startsWith('http') ? src : src + '?v=' + Date.now();
-      // s.onerror reçoit un Event DOM (pas de .message) -- reject() explicite avec une vraie Error
-      // pour nommer le script en cause plutôt que d'afficher "undefined" (trouvé le 1er septembre).
-      s.onload = resolve;
-      s.onerror = () => reject(new Error('Échec du chargement de ' + s.src));
-      document.head.appendChild(s);
-    });
-  }
-  postgresReadScriptsLoaded = (async () => {
-    await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js');
-    await loadScript('./api/supabase-client.js');
-    await loadScript('./api/tracks.js');
-    await loadScript('./api/packs.js');
-    await loadScript('./api/collections.js');
-    await loadScript('./api/sfx.js');
-    await loadScript('./api/settings.js');
-    await loadScript('./api/adreels.js');
-    await loadScript('./api/site-data.js');
-    await loadScript('./api/composers.js');
-    await loadScript('./api/analytics.js');
-  })();
-  return postgresReadScriptsLoaded;
-}
 // Dernier ownerId résolu par loadSiteData() — voir le commentaire équivalent dans index.html
 // (ajouté le 4 septembre pour le tableau de bord analytique compositeur).
 let lastResolvedOwnerId = DEFAULT_OWNER_ID;
@@ -754,26 +720,15 @@ const PURCHASES_ENABLED = false;
 let purchaseScriptsLoaded = null;
 function loadPurchaseScripts() {
   if (purchaseScriptsLoaded) return purchaseScriptsLoaded;
-  // Cache-busting sur les fichiers locaux (api/*.js) uniquement, jamais sur le SDK CDN (déjà
-  // versionné dans son URL) — même correctif que loadPostgresReadScripts() plus haut dans ce
-  // fichier (trouvé le 1er septembre, voir docs/LAYERPITCH_CHANGELOG.md), étendu ici le
-  // 1er septembre pour éviter la même classe de bug une fois PURCHASES_ENABLED activé.
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src.startsWith('http') ? src : src + '?v=' + Date.now();
-      s.onload = resolve;
-      s.onerror = () => reject(new Error('Échec du chargement de ' + s.src));
-      document.head.appendChild(s);
-    });
-  }
-  purchaseScriptsLoaded = (async () => {
-    await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js');
-    await loadScript('./api/supabase-client.js');
-    await loadScript('./api/auth.js');
-    await loadScript('./api/packs.js');
-    await loadScript('./api/purchases.js');
-  })();
+  // Même chargeur que loadPostgresReadScripts() (public-page.js) : téléchargement parallèle, exécution dans l'ordre,
+  // version du déploiement.
+  purchaseScriptsLoaded = lpLoadScriptsInOrder([
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
+    './api/supabase-client.js',
+    './api/auth.js',
+    './api/packs.js',
+    './api/purchases.js',
+  ]);
   return purchaseScriptsLoaded;
 }
 
@@ -903,41 +858,6 @@ function resolveThemePreset(presetId) {
   return THEME_PRESETS.find(p => p.id === presetId) || THEME_PRESETS[0];
 }
 const DEFAULT_SEPARATOR = { visible: false, color: '#E4E1DA', thickness: 1 };
-// Résout une valeur de police ('default' | 'google:Nom' | 'custom:id') en une déclaration font-family CSS
-// utilisable. Retourne null pour 'default' (aucun override -- le body garde son font-family de base).
-// Copié tel quel depuis index.html (19/08) : même encodage, même logique, pas de duplication de concept.
-function fontCssFamily(fontValue, customFonts) {
-  if (!fontValue || fontValue === 'default') return null;
-  if (fontValue.startsWith('google:')) return `'${fontValue.slice(7)}', sans-serif`;
-  if (fontValue.startsWith('custom:')) {
-    const id = fontValue.slice(7);
-    const font = (customFonts || []).find(f => f.id === id);
-    return font ? `'${font.name}', sans-serif` : null;
-  }
-  return null;
-}
-// Injecte uniquement l'asset nécessaire à la police effectivement utilisée par ce pack -- jamais toute la
-// bibliothèque de polices du compositeur.
-const injectedFontAssets = new Set();
-function injectFontAssets(usedFontValues, customFonts) {
-  usedFontValues.forEach(val => {
-    if (!val || val === 'default' || injectedFontAssets.has(val)) return;
-    injectedFontAssets.add(val);
-    if (val.startsWith('google:')) {
-      const family = val.slice(7);
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, '+')}:wght@400;500;600;700&display=swap`;
-      document.head.appendChild(link);
-    } else if (val.startsWith('custom:')) {
-      const font = (customFonts || []).find(f => f.id === val.slice(7));
-      if (!font || !font.file) return;
-      const style = document.createElement('style');
-      style.textContent = `@font-face { font-family: '${font.name}'; src: url('./fonts/${font.file}'); font-display: swap; }`;
-      document.head.appendChild(style);
-    }
-  });
-}
 
 // Traductions de l'habillage LayerPitch (pas le contenu des packs/morceaux, qui reste dans sa langue
 // d'origine). Vit dans layerpitch-i18n.js (zones "shared" + "pack"), édité via l'outil dédié.
@@ -972,18 +892,6 @@ function applyI18n() {
 }
 window.LayerPlayerCore.setLang(pageLang);
 applyI18n();
-
-// Dupliqué à l'identique dans player.js et index.html : chaque script a sa propre closure, pas d'accès
-// croisé possible. Jamais bloquant, silencieux si Umami n'est pas chargé.
-// Contexte déposé sur window.__lpTrackContext une fois le Pack identifié plus bas — voir player.js
-// pour l'explication complète du mécanisme.
-function trackPublicEvent(name, detail) {
-  try {
-    if (!window.umami) return;
-    const ctx = window.__lpTrackContext || {};
-    window.umami.track(name, Object.assign({}, detail, ctx.type ? { [ctx.type]: ctx.id } : {}));
-  } catch (e) { /* jamais bloquant */ }
-}
 
 // Reconnaît une URL YouTube ou Vimeo et en extrait l'identifiant — gère les formats courants de chaque
 // service (watch?v=, youtu.be, /embed/, /shorts/ pour YouTube ; vimeo.com/ID et player.vimeo.com/video/ID).
@@ -2250,7 +2158,9 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
     headEvents: events.filter(e => e.name === 'head_turn').map(e => ({ t: e.t, yaw: e.detail.yaw })),
     sliderKeys: events.filter(e => e.name === 'fx_slider').map(e => ({ t: e.t, trackId: e.detail.trackId, sliderId: e.detail.sliderId, value: e.detail.value }))
   };
-  const trackRate = track => (track && track.fx && track.fx.pitch) ? Math.pow(2, (track.fx.pitch.semitones || 0) / 12) : 1;
+  // Vitesse de base du morceau : la même règle que le lecteur (fxTrackRatio, sans trigger ni curseur actifs), jamais
+  // recodée ici -- les variations en cours de prise sont rejouées par capture-render.js.
+  const trackRate = track => window.LayerPlayerCore.fxTrackRatio(track, [], null);
 
   onProgress(tr('captureExportPreparing').replace('{n}', layerSegmentEvents.length).replace('{m}', embrEvents.length).replace('{k}', stingerEvents.length));
 
@@ -3440,71 +3350,6 @@ document.getElementById('publicEmbedCopyBtn').addEventListener('click', async ()
   });
 })();
 window.addEventListener('load', init);
-</script>
-<script type="text/javascript">
-  // Bandeau de consentement cookies (Microsoft Clarity uniquement -- 17 septembre). RGPD/CNIL,
-  // vérifié avant de coder : les heatmaps/enregistrements de session sont explicitement exclus de
-  // l'exemption de consentement pour la mesure d'audience (contrairement à Umami, déjà sans cookie,
-  // pas concerné, pas touché ici). Le script Clarity n'est donc JAMAIS chargé tant qu'un choix
-  // "accepted" n'est pas mémorisé -- volontairement plus strict que le "mode sans consentement" de
-  // Clarity lui-même (qui continue de collecter un minimum même sans cookie, docs Microsoft
-  // consent-mode -- pas la garantie qu'on veut ici).
-  // Prérequis côté compte Clarity, fait par Jules-Antoine (pas automatisable depuis le code) :
-  // Settings > Setup > désactiver "Cookies" (Consent Mode) -- sinon Clarity poserait ses cookies dès
-  // le chargement du script, indépendamment de ce mécanisme.
-  // Sauté entièrement en mode aperçu (?preview=1) -- ni bandeau, ni Clarity, même raison qu'Umami.
-  const COOKIE_CONSENT_KEY = 'layerpitch_cookie_consent';
-  function getCookieConsent() {
-    try { const raw = localStorage.getItem(COOKIE_CONSENT_KEY); return raw ? JSON.parse(raw) : null; }
-    catch (e) { return null; }
-  }
-  function setCookieConsent(choice) {
-    try { localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify({ choice, at: new Date().toISOString() })); }
-    catch (e) { /* stockage bloqué -- le choix ne sera pas mémorisé, rebandeau à la prochaine visite */ }
-  }
-  function loadClarityScript() {
-    (function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "yjd22i9kce");
-  }
-  // consentv2 : API recommandée par Microsoft (remplace l'ancienne consent(), en dépréciation).
-  // ad_Storage toujours "denied" -- aucune publicité sur LayerPitch -- analytics_Storage reflète le
-  // choix réel. Refus : efface les cookies déjà posés si Clarity avait déjà été chargé auparavant.
-  function signalClarityConsent(granted) {
-    try {
-      if (typeof window.clarity !== 'function') return;
-      if (granted) window.clarity('consentv2', { ad_Storage: 'denied', analytics_Storage: 'granted' });
-      else window.clarity('consent', false);
-    } catch (e) { /* jamais bloquant */ }
-  }
-  function initCookieBanner() {
-    const banner = document.getElementById('cookieBanner');
-    if (!banner) return;
-    const reopenBtn = document.getElementById('cookieReopenBtn');
-    const detailToggle = document.getElementById('cookieDetailToggle');
-    const detail = document.getElementById('cookieDetail');
-    function apply(choice) {
-      if (choice === 'accepted') {
-        if (typeof window.clarity !== 'function') loadClarityScript();
-        signalClarityConsent(true);
-      } else if (choice === 'refused') {
-        signalClarityConsent(false);
-      }
-    }
-    function hide() { banner.hidden = true; if (reopenBtn) reopenBtn.hidden = false; }
-    function show() { banner.hidden = false; if (reopenBtn) reopenBtn.hidden = true; }
-    const consent = getCookieConsent();
-    if (consent) { apply(consent.choice); hide(); } else { show(); }
-    const acceptBtn = document.getElementById('cookieAcceptBtn');
-    const refuseBtn = document.getElementById('cookieRefuseBtn');
-    if (acceptBtn) acceptBtn.addEventListener('click', () => { setCookieConsent('accepted'); apply('accepted'); hide(); });
-    if (refuseBtn) refuseBtn.addEventListener('click', () => { setCookieConsent('refused'); apply('refused'); hide(); });
-    if (detailToggle && detail) detailToggle.addEventListener('click', () => { detail.hidden = !detail.hidden; });
-    if (reopenBtn) reopenBtn.addEventListener('click', show);
-  }
-  if (new URLSearchParams(location.search).get('preview') !== '1') initCookieBanner();
 </script>
 </body>
 </html>

@@ -283,7 +283,7 @@ function section(label, innerHTML) {
   el.innerHTML = (label ? `<div class="section-label">${label}</div>` : '') + innerHTML;
   return el;
 }
-function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function linkify(s) { return escapeHtml(s).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>'); }
 
 /* ---------------- Waveform (fonctions pures, niveau module) ----------------

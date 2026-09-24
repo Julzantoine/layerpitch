@@ -54,6 +54,9 @@
       // Effets audio (22-23/09) : fx de morceau entier (pitch "vitesse") et triggers d'effets -- colonnes
       // ajoutées par 20260923010000_track_fx_persistence.sql, jamais présentes avant.
       fx: row.fx || null, fxTriggers: row.fx_triggers || [], fxSliders: row.fx_sliders || [],
+      // Tags (24/09, 20260924230000) : stockés en liste, rendus au Backstage et au lecteur sous la forme texte
+      // "a, b, c" qu'ils ont toujours manipulée. Absents (migration pas encore appliquée) : chaîne vide.
+      tags: Array.isArray(row.tags) ? row.tags.join(', ') : (row.tags || ''),
     };
   }
 

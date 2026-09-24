@@ -14,7 +14,7 @@
 //    supabase/migrations/20260905020000_analytics_log_event_owner_hint.sql).
 // 2. Le câblage du 5 septembre : trackPublicEvent (player.js) appelle bien
 //    window.LayerPitchAnalytics.logAnalyticsEvent() avec le sessionId/ownerId du contexte, pour les
-//    seuls types 'adreel'/'pack' (les collections restent hors périmètre du tableau de bord),
+//    types 'adreel'/'pack'/'collection' (collections suivies depuis le 23/09),
 //    jamais si sessionId est absent ou si api/analytics.js n'est pas chargé.
 //
 // Extrait les vraies fonctions sources par regex (même pattern que test_publish_effective_plan.js)
@@ -73,9 +73,14 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
   check('player.js trackPublicEvent : logAnalyticsEvent() jamais appelé sans sessionId', rpcLogged === null);
 
   rpcLogged = null;
-  sandbox.window.__lpTrackContext = { type: 'collection', id: 'c1', sessionId: 'sess-2' }; // hors périmètre du tableau de bord
+  sandbox.window.__lpTrackContext = { type: 'collection', id: 'c1', sessionId: 'sess-2' }; // suivie depuis le 23/09
   sandbox.trackPublicEvent('some_event', {});
-  check('player.js trackPublicEvent : logAnalyticsEvent() jamais appelé pour une collection (hors périmètre)', rpcLogged === null);
+  check('player.js trackPublicEvent : logAnalyticsEvent() appelé aussi pour une collection (suivie depuis le 23/09)', rpcLogged !== null);
+
+  rpcLogged = null;
+  sandbox.window.__lpTrackContext = { type: 'autre', id: 'x', sessionId: 'sess-2' };
+  sandbox.trackPublicEvent('some_event', {});
+  check('player.js trackPublicEvent : logAnalyticsEvent() jamais appelé pour un type inconnu', rpcLogged === null);
 
   rpcLogged = null;
   delete sandbox.window.LayerPitchAnalytics; // api/analytics.js non chargé (chemin sans handle)
@@ -85,12 +90,12 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
   check('player.js trackPublicEvent : silencieux (jamais bloquant) si LayerPitchAnalytics absent', !threw && rpcLogged === null);
 }
 
-// ---- collection.html trackPublicEvent (copie inline distincte, spread direct de __lpTrackContext) ----
-// Conservé pour Umami uniquement -- les collections restent hors périmètre du tableau de bord
-// Postgres, aucun appel logAnalyticsEvent attendu de ce côté.
+// ---- public-page.js trackPublicEvent (événements de PAGE, Umami uniquement) ----
+// Anciennement trois copies inline (index/pack/collection), dont celle de la collection avait divergé ; regroupées
+// dans public-page.js le 24/09. Même forme de contexte que player.js : { [type]: id, ownerId }.
 {
-  const src = fs.readFileSync(path.join(__dirname, 'collection.html'), 'utf-8');
-  const fnSrc = extractFn(src, 'trackPublicEvent', 'collection.html');
+  const src = fs.readFileSync(path.join(__dirname, 'public-page.js'), 'utf-8');
+  const fnSrc = extractFn(src, 'trackPublicEvent', 'public-page.js');
   const sandbox = { window: {}, console };
   vm.createContext(sandbox);
   vm.runInContext(fnSrc + '\nthis.trackPublicEvent = trackPublicEvent;', sandbox);
@@ -99,8 +104,10 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
   sandbox.window.umami = { track: (name, data) => { tracked = { name, data }; } };
   sandbox.window.__lpTrackContext = { type: 'collection', id: 'c1', ownerId: 'composer-A' };
   sandbox.trackPublicEvent('some_event', { foo: 'bar' });
-  check('collection.html trackPublicEvent : ownerId propagé à Umami (même correctif que player.js)',
+  check('public-page.js trackPublicEvent : ownerId propagé à Umami (même forme que player.js)',
     tracked && tracked.data.ownerId === 'composer-A');
+  check('public-page.js trackPublicEvent : contexte sous la forme { collection: id }, comme player.js',
+    tracked && tracked.data.collection === 'c1' && !('type' in tracked.data));
 }
 
 // ---- index.html/pack.html/collection.html : loadSiteData() résout lastResolvedOwnerId ----

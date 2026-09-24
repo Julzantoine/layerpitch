@@ -34,6 +34,10 @@ window.LayerPlayerCore = {
   setWaveformStyle: () => {},
   SEQ_MAP_THEMES: ['light', 'dark'],
   setSeqMapTheme: () => {},
+  SEQ_MAP_DENSITIES: ['compact', 'roomy'],
+  setSeqMapDensity: () => {},
+  FX_SLIDER_PARAMS: {},
+  fxCurveSanitize: c => c,
 };
 window.fetch = () => Promise.reject(new Error('network disabled in test'));
 window.__failures = [];

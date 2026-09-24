@@ -80,7 +80,7 @@ function applyI18n() {
 applyI18n();
 
 function planLabel(plan) { return { free: tr('planLabelFree'), starter: tr('planLabelStarter'), pro: tr('planLabelPro') }[plan] || plan; }
-function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 // LayerPitch n'a aucun mot de passe (connexion par lien magique + code à 8 chiffres uniquement,
 // voir api/auth.js) — rien à "retrouver" ni à changer. Section volontairement simple : le but est

@@ -11,7 +11,8 @@ function extractInlineScript(html, file) {
   // code applicatif visé par ce test.
   const matches = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m => m[1]).filter(s => s.trim() && !s.includes('cloud.umami.is') && !s.includes('clarity.ms'));
   if (matches.length !== 1) throw new Error(file + ' : ' + matches.length + ' bloc(s) <script> inline trouvés (hors chargeur Umami), 1 attendu -- ajuster ce test.');
-  return matches[0];
+  // public-page.js (24/09) : briques communes aux pages publiques, chargées par le navigateur juste avant ce script.
+  return fs.readFileSync(path.join(__dirname, 'public-page.js'), 'utf-8') + '\n' + matches[0];
 }
 
 function fakeAudioContextHooks(win) {

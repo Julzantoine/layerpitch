@@ -199,7 +199,7 @@ function tr(key, vars) {
   if (vars) Object.keys(vars).forEach(k => { str = str.replace('{' + k + '}', vars[k]); });
   return str;
 }
-function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function applyI18n() {
   document.documentElement.lang = currentLang();
   document.querySelectorAll('[data-i18n]').forEach(el => { const v = tr(el.dataset.i18n); if (v) el.textContent = v; });

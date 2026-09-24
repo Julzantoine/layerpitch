@@ -5,7 +5,11 @@
 -- correction sur disque n'a pas été rejouée automatiquement. Ce fichier répare l'écart : retire les
 -- deux colonnes façon lien externe, ajoute le prix natif (même mécanique que packs.price_usd_cents).
 -- `buyable` et `tags` restent inchangés, corrects dans les deux versions.
+--
+-- Rendu idempotent le 24/09 (revue de code) : sur une base NEUVE, 20260907060000 est rejoué dans sa version corrigée
+-- (sans buy_url ni free_download_enabled), et ce correctif échouait -- impossible de reconstruire la base depuis zéro.
+-- `if exists` / `if not exists` : aucun effet sur la base de production (déjà corrigée), reconstruction possible.
 alter table public.albums
-  drop column buy_url,
-  drop column free_download_enabled,
-  add column price_usd_cents int;
+  drop column if exists buy_url,
+  drop column if exists free_download_enabled,
+  add column if not exists price_usd_cents int;

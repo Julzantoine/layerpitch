@@ -1995,39 +1995,27 @@ function pgWriteEnabled() {
 var postgresReadScriptsLoaded = null;
 function loadPostgresReadScripts() {
   if (postgresReadScriptsLoaded) return postgresReadScriptsLoaded;
-  // Cache-busting sur les fichiers locaux (api/*.js) uniquement — voir le commentaire équivalent
-  // dans index.html (trouvé le 1er septembre, docs/LAYERPITCH_CHANGELOG.md).
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src.startsWith('http') ? src : src + '?v=' + Date.now();
-      // s.onerror reçoit un Event DOM, pas une Error (pas de .message) -- toute erreur affichée plus
-      // haut dans la chaîne ("Erreur : " + e.message) tombait donc systématiquement sur "undefined",
-      // sans dire QUEL script avait échoué à charger. Trouvé le 1er septembre.
-      s.onload = resolve;
-      s.onerror = () => reject(new Error('Échec du chargement de ' + s.src));
-      document.head.appendChild(s);
-    });
-  }
-  postgresReadScriptsLoaded = (async () => {
-    await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js');
-    await loadScript('./api/supabase-client.js');
-    await loadScript('./api/auth.js');
-    await loadScript('./api/tracks.js');
-    await loadScript('./api/packs.js');
-    await loadScript('./api/albums.js');
-    await loadScript('./api/collections.js');
-    await loadScript('./api/sfx.js');
-    await loadScript('./api/settings.js');
-    await loadScript('./api/adreels.js');
-    await loadScript('./api/site-data.js');
-    await loadScript('./api/subscriptions.js');
-    await loadScript('./api/admin.js');
-    await loadScript('./api/analytics.js');
-    await loadScript('./api/access-requests.js');
-    await loadScript('./api/invites.js');
-    await loadScript('./api/notification-prefs.js');
-  })();
+  // Même principe que public-page.js (pages publiques) : téléchargement en parallèle mais exécution DANS L'ORDRE
+  // (async = false), et version du déploiement -- celle de la balise layerpitch-i18n.js de cette page, montée par
+  // scripts/bump-version.js -- au lieu de Date.now(), qui interdisait tout cache. Une vraie Error en cas d'échec
+  // pour que le message affiché nomme le script en cause.
+  const v = (document.querySelector('script[src*="layerpitch-i18n.js?v="]') || {}).src;
+  const version = v ? new URL(v).searchParams.get('v') : '';
+  const srcs = [
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
+    './api/supabase-client.js', './api/auth.js', './api/tracks.js', './api/packs.js', './api/albums.js',
+    './api/collections.js', './api/sfx.js', './api/settings.js', './api/adreels.js', './api/site-data.js',
+    './api/subscriptions.js', './api/admin.js', './api/analytics.js', './api/access-requests.js', './api/invites.js',
+    './api/notification-prefs.js',
+  ];
+  postgresReadScriptsLoaded = Promise.all(srcs.map(src => new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = (src.startsWith('http') || !version) ? src : src + '?v=' + version;
+    s.async = false;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Échec du chargement de ' + s.src));
+    document.head.appendChild(s);
+  })));
   return postgresReadScriptsLoaded;
 }
 // Retourne exactement la même forme que le data.json parsé (voir api/site-data.js) — null si aucun
@@ -3139,10 +3127,11 @@ function log(msg, cls) {
 function slug(str) {
   return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'item';
 }
-function escapeAttr(s) { return (s || '').replace(/"/g, '&quot;'); }
-// Nécessaire dès qu'un texte affiché vient d'un visiteur non authentifié (ex. sender_name des
-// messages de contact, cloche de notification) -- escapeAttr() seul ne protège que les attributs.
-function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+// Échappement complet (& < > " ') valable à la fois pour le texte et pour les attributs HTML (revue du 24/09 : l'ancienne
+// version n'échappait pas les guillemets, et escapeAttr ne protégeait que les attributs). escapeAttr garde son nom
+// historique (100+ appels) mais fait désormais exactement la même chose.
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function escapeAttr(s) { return escapeHtml(s); }
 function extOf(filename) { const m = /\.([a-zA-Z0-9]+)$/.exec(filename || ''); return m ? m[1].toLowerCase() : 'jpg'; }
 // Content-Type pour l'upload R2 des images (ghPutFile/GitHub n'en avait jamais eu besoin, S3/R2 le
 // veut pour servir le bon en-tête -- voir MIME dans scripts/migrate-media-to-r2.js pour la même liste).
@@ -10231,9 +10220,6 @@ let analyticsEntityData = null;    // réponse de get_my_analytics_entity pour c
 let analyticsPreset = '7d';
 let analyticsCustomRange = null;   // { from, to } (ISO) quand une période personnalisée est appliquée
 
-function analyticsEscapeHtml(s) {
-  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
 
 // ---- Refonte de la page (23 septembre) : vue d'ensemble dans le temps, liste des AdReels/packs
 // cliquables, détail par élément, presets de période. Les fonctions SQL get_my_analytics_overview /
@@ -10538,11 +10524,11 @@ function analyticsBuildChart(values, buckets, bucket, opts) {
       <path d="${linePath}" fill="none" stroke="#2f80c0" stroke-width="1.5" vector-effect="non-scaling-stroke" />
     </svg>`;
   if (opts.compact) return `<div class="an-spark">${svg}</div>`;
-  const dots = values.map((v, i) => `<span class="an-dot" style="left:${pts[i][0].toFixed(2)}%;top:${pts[i][1].toFixed(2)}%"${opts.blur ? '' : ` title="${analyticsEscapeHtml(analyticsFormatBucket(buckets[i], bucket))} : ${v}"`}></span>`).join('');
+  const dots = values.map((v, i) => `<span class="an-dot" style="left:${pts[i][0].toFixed(2)}%;top:${pts[i][1].toFixed(2)}%"${opts.blur ? '' : ` title="${escapeHtml(analyticsFormatBucket(buckets[i], bucket))} : ${v}"`}></span>`).join('');
   const yLabels = ticks.map(t => `<span${opts.blur ? ' class="an-blur"' : ''} style="top:${yPct(t).toFixed(2)}%">${t}</span>`).join('');
   const mid = n > 2 ? buckets[Math.floor((n - 1) / 2)] : null;
   return `<div class="an-chart" style="height:${opts.height || 120}px"><div class="an-yaxis">${yLabels}</div><div class="an-plot">${svg}${dots}</div></div>
-    <div class="an-xaxis"><span>${analyticsEscapeHtml(analyticsFormatBucket(buckets[0], bucket))}</span>${mid ? `<span>${analyticsEscapeHtml(analyticsFormatBucket(mid, bucket))}</span>` : ''}<span>${analyticsEscapeHtml(analyticsFormatBucket(buckets[n - 1], bucket))}</span></div>`;
+    <div class="an-xaxis"><span>${escapeHtml(analyticsFormatBucket(buckets[0], bucket))}</span>${mid ? `<span>${escapeHtml(analyticsFormatBucket(mid, bucket))}</span>` : ''}<span>${escapeHtml(analyticsFormatBucket(buckets[n - 1], bucket))}</span></div>`;
 }
 
 function analyticsTypeLabel(type) {
@@ -10550,9 +10536,9 @@ function analyticsTypeLabel(type) {
 }
 function analyticsBlur(txt) { return `<span class="an-blur" aria-hidden="true">${txt}</span>`; }
 function analyticsKpi(label, value) {
-  return `<div class="an-kpi"><div class="an-kpi-n">${value}</div><div class="an-kpi-l">${analyticsEscapeHtml(label)}</div></div>`;
+  return `<div class="an-kpi"><div class="an-kpi-n">${value}</div><div class="an-kpi-l">${escapeHtml(label)}</div></div>`;
 }
-function analyticsLockedBadge() { return `<span class="an-lock" title="${analyticsEscapeHtml(tr('analyticsProLocked'))}">🔒 Pro</span>`; }
+function analyticsLockedBadge() { return `<span class="an-lock" title="${escapeHtml(tr('analyticsProLocked'))}">🔒 Pro</span>`; }
 function analyticsPct(part, total) { return total > 0 ? Math.round(100 * part / total) + ' %' : '—'; }
 
 function renderAnalyticsView() {
@@ -10579,18 +10565,18 @@ function renderAnalyticsView() {
     analyticsKpi(tr('analyticsKpiMobile'), isFree ? analyticsBlur('64 %') : (o.totals.mobileShare == null ? '—' : o.totals.mobileShare + ' %')),
     analyticsKpi(tr('analyticsKpiItems'), isFree ? analyticsBlur('5') : o.totals.items),
   ].join('');
-  const teaserBanner = isFree ? `<div class="an-teaser-banner"><span>🔒 ${analyticsEscapeHtml(tr('analyticsFreeBanner'))}</span> <a class="btn btn-small" href="mon-compte.html" target="_blank" rel="noopener">${analyticsEscapeHtml(tr('analyticsUpgradeCta'))}</a></div>` : '';
-  const chartVisits = `<div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsChartVisits'))}</div>${analyticsBuildChart(o.series.visits || [], o.buckets, o.bucket, { blur: isFree })}</div>`;
-  const chartPlays = `<div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsChartPlays'))}</div>${isPro
+  const teaserBanner = isFree ? `<div class="an-teaser-banner"><span>🔒 ${escapeHtml(tr('analyticsFreeBanner'))}</span> <a class="btn btn-small" href="mon-compte.html" target="_blank" rel="noopener">${escapeHtml(tr('analyticsUpgradeCta'))}</a></div>` : '';
+  const chartVisits = `<div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsChartVisits'))}</div>${analyticsBuildChart(o.series.visits || [], o.buckets, o.bucket, { blur: isFree })}</div>`;
+  const chartPlays = `<div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsChartPlays'))}</div>${isPro
     ? analyticsBuildChart(o.series.plays || [], o.buckets, o.bucket)
     : `<div class="an-locked-box">${analyticsLockedBadge()}</div>`}</div>`;
   const rows = (o.entities || []).map(e => `
-    <tr class="an-row${isFree ? ' teaser' : ''}" data-type="${analyticsEscapeHtml(e.type)}" data-id="${analyticsEscapeHtml(e.id)}"${isFree ? '' : ' tabindex="0"'}>
-      <td>${analyticsEscapeHtml(e.name)}</td>
-      <td><span class="an-type">${analyticsEscapeHtml(analyticsTypeLabel(e.type))}</span></td>
+    <tr class="an-row${isFree ? ' teaser' : ''}" data-type="${escapeHtml(e.type)}" data-id="${escapeHtml(e.id)}"${isFree ? '' : ' tabindex="0"'}>
+      <td>${escapeHtml(e.name)}</td>
+      <td><span class="an-type">${escapeHtml(analyticsTypeLabel(e.type))}</span></td>
       <td>${isFree ? analyticsBlur('42') : e.visits}</td>
       <td>${isFree ? analyticsBlur('97') : (isPro ? e.plays : analyticsLockedBadge())}</td>
-      <td>${isFree ? analyticsBlur('12/09/2026') : (e.lastVisit ? analyticsEscapeHtml(new Date(e.lastVisit).toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR')) : '—')}</td>
+      <td>${isFree ? analyticsBlur('12/09/2026') : (e.lastVisit ? escapeHtml(new Date(e.lastVisit).toLocaleDateString(currentLang() === 'en' ? 'en-GB' : 'fr-FR')) : '—')}</td>
       <td class="an-trend">${analyticsBuildChart(e.series || [], o.buckets, o.bucket, { compact: true })}</td>
     </tr>`).join('');
   overviewEl.innerHTML = `
@@ -10598,12 +10584,12 @@ function renderAnalyticsView() {
     <div class="an-kpis">${kpis}</div>
     <div class="an-charts">${chartVisits}${chartPlays}</div>
     <div class="an-card">
-      <div class="an-card-title">${analyticsEscapeHtml(tr('analyticsItemsTitle'))} ${isFree ? '' : `<span class="hint">${analyticsEscapeHtml(tr('analyticsItemsHint'))}</span>`}</div>
+      <div class="an-card-title">${escapeHtml(tr('analyticsItemsTitle'))} ${isFree ? '' : `<span class="hint">${escapeHtml(tr('analyticsItemsHint'))}</span>`}</div>
       ${hasData ? `<table class="an-table"><thead><tr>
-        <th>${analyticsEscapeHtml(tr('analyticsColName'))}</th><th>${analyticsEscapeHtml(tr('analyticsColType'))}</th>
-        <th>${analyticsEscapeHtml(tr('analyticsColVisits'))}</th><th>${analyticsEscapeHtml(tr('analyticsColPlays'))}</th>
-        <th>${analyticsEscapeHtml(tr('analyticsColLast'))}</th><th>${analyticsEscapeHtml(tr('analyticsColTrend'))}</th>
-      </tr></thead><tbody>${rows}</tbody></table>` : `<div class="hint">${analyticsEscapeHtml(tr('analyticsNoItems'))}</div>`}
+        <th>${escapeHtml(tr('analyticsColName'))}</th><th>${escapeHtml(tr('analyticsColType'))}</th>
+        <th>${escapeHtml(tr('analyticsColVisits'))}</th><th>${escapeHtml(tr('analyticsColPlays'))}</th>
+        <th>${escapeHtml(tr('analyticsColLast'))}</th><th>${escapeHtml(tr('analyticsColTrend'))}</th>
+      </tr></thead><tbody>${rows}</tbody></table>` : `<div class="hint">${escapeHtml(tr('analyticsNoItems'))}</div>`}
     </div>`;
   if (isFree) return; // aperçu : lignes non cliquables (le détail est verrouillé côté serveur)
   overviewEl.querySelectorAll('.an-row').forEach(row => {
@@ -10644,42 +10630,42 @@ function renderAnalyticsEntity() {
     analyticsKpi(tr('analyticsKpiMobile'), analyticsPct(t.mobile, known)),
   ].join('');
   const devices = `<div class="an-devices">
-      <span>${analyticsEscapeHtml(tr('analyticsDeviceMobile'))} <strong>${t.mobile}</strong></span>
-      <span>${analyticsEscapeHtml(tr('analyticsDeviceDesktop'))} <strong>${t.desktop}</strong></span>
-      ${t.unknownDevice ? `<span>${analyticsEscapeHtml(tr('analyticsDeviceUnknown'))} <strong>${t.unknownDevice}</strong></span>` : ''}
+      <span>${escapeHtml(tr('analyticsDeviceMobile'))} <strong>${t.mobile}</strong></span>
+      <span>${escapeHtml(tr('analyticsDeviceDesktop'))} <strong>${t.desktop}</strong></span>
+      ${t.unknownDevice ? `<span>${escapeHtml(tr('analyticsDeviceUnknown'))} <strong>${t.unknownDevice}</strong></span>` : ''}
     </div>`;
   let proBlocks;
   if (isPro) {
     const trackRows = (e.tracks || []).map(k => `<tr>
-        <td>${analyticsEscapeHtml(k.title)}</td><td>${k.plays}</td>
+        <td>${escapeHtml(k.title)}</td><td>${k.plays}</td>
         <td>${analyticsPct(k.reachedEnd, k.plays)}</td><td>${analyticsPct(k.skipped, k.plays)}</td></tr>`).join('');
     const ix = (e.interactions || []).map(i => {
       const key = 'analyticsIx_' + i.name;
       const label = tr(key) === key ? i.name : tr(key);
-      return `<li>${analyticsEscapeHtml(label)} <strong>${i.count}</strong></li>`;
+      return `<li>${escapeHtml(label)} <strong>${i.count}</strong></li>`;
     }).join('');
     proBlocks = `
-      <div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsTracksTitle'))} <span class="hint">${analyticsEscapeHtml(tr('analyticsTracksNote'))}</span></div>
-        ${trackRows ? `<table class="an-table"><thead><tr><th>${analyticsEscapeHtml(tr('analyticsTracksTitle'))}</th><th>${analyticsEscapeHtml(tr('analyticsColPlays'))}</th><th>${analyticsEscapeHtml(tr('analyticsTrackColEnd'))}</th><th>${analyticsEscapeHtml(tr('analyticsTrackColSkipped'))}</th></tr></thead><tbody>${trackRows}</tbody></table>` : `<div class="hint">${analyticsEscapeHtml(tr('analyticsNoTracks'))}</div>`}
+      <div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsTracksTitle'))} <span class="hint">${escapeHtml(tr('analyticsTracksNote'))}</span></div>
+        ${trackRows ? `<table class="an-table"><thead><tr><th>${escapeHtml(tr('analyticsTracksTitle'))}</th><th>${escapeHtml(tr('analyticsColPlays'))}</th><th>${escapeHtml(tr('analyticsTrackColEnd'))}</th><th>${escapeHtml(tr('analyticsTrackColSkipped'))}</th></tr></thead><tbody>${trackRows}</tbody></table>` : `<div class="hint">${escapeHtml(tr('analyticsNoTracks'))}</div>`}
       </div>
-      <div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsInteractionsTitle'))}</div>
-        ${ix ? `<ul class="an-ix">${ix}</ul>` : `<div class="hint">${analyticsEscapeHtml(tr('analyticsNoInteractionsShort'))}</div>`}
-      </div>`;
+      <div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsInteractionsTitle'))}</div>
+        ${ix ? `<ul class="an-ix">${ix}</ul>` : `<div class="hint">${escapeHtml(tr('analyticsNoInteractionsShort'))}</div>`}
+      </div>${analyticsFxButtonsCard(e.fxButtons)}`;
   } else {
-    proBlocks = `<div class="an-card"><div class="an-locked-box">${analyticsLockedBadge()} <span>${analyticsEscapeHtml(tr('analyticsProDetailLocked'))}</span></div></div>`;
+    proBlocks = `<div class="an-card"><div class="an-locked-box">${analyticsLockedBadge()} <span>${escapeHtml(tr('analyticsProDetailLocked'))}</span></div></div>`;
   }
-  const recent = (e.recentSessions || []).map(s => `<li>${analyticsEscapeHtml(new Date(s.openedAt).toLocaleString(currentLang() === 'en' ? 'en-GB' : 'fr-FR'))} — ${analyticsEscapeHtml(s.device || tr('analyticsUnknownDevice'))}${isPro && s.plays != null ? ' — ' + s.plays + ' ' + analyticsEscapeHtml(tr('analyticsColPlays').toLowerCase()) : ''}</li>`).join('');
+  const recent = (e.recentSessions || []).map(s => `<li>${escapeHtml(new Date(s.openedAt).toLocaleString(currentLang() === 'en' ? 'en-GB' : 'fr-FR'))} — ${escapeHtml(s.device || tr('analyticsUnknownDevice'))}${isPro && s.plays != null ? ' — ' + s.plays + ' ' + escapeHtml(tr('analyticsColPlays').toLowerCase()) : ''}</li>`).join('');
   entityEl.innerHTML = `
-    <button type="button" class="btn btn-small" id="btnAnalyticsBack">${analyticsEscapeHtml(tr('analyticsBackToList'))}</button>
-    <h3 class="an-entity-title">${analyticsEscapeHtml(e.entity.name)} <span class="an-type">${analyticsEscapeHtml(analyticsTypeLabel(e.entity.type))}</span></h3>
+    <button type="button" class="btn btn-small" id="btnAnalyticsBack">${escapeHtml(tr('analyticsBackToList'))}</button>
+    <h3 class="an-entity-title">${escapeHtml(e.entity.name)} <span class="an-type">${escapeHtml(analyticsTypeLabel(e.entity.type))}</span></h3>
     <div class="an-kpis">${kpis}</div>
     <div class="an-charts">
-      <div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsChartVisits'))}</div>${analyticsBuildChart(e.series.visits || [], e.buckets, e.bucket)}</div>
-      <div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsChartPlays'))}</div>${isPro ? analyticsBuildChart(e.series.plays || [], e.buckets, e.bucket) : `<div class="an-locked-box">${analyticsLockedBadge()}</div>`}</div>
+      <div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsChartVisits'))}</div>${analyticsBuildChart(e.series.visits || [], e.buckets, e.bucket)}</div>
+      <div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsChartPlays'))}</div>${isPro ? analyticsBuildChart(e.series.plays || [], e.buckets, e.bucket) : `<div class="an-locked-box">${analyticsLockedBadge()}</div>`}</div>
     </div>
-    <div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsDevicesTitle'))}</div>${devices}</div>
+    <div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsDevicesTitle'))}</div>${devices}</div>
     ${proBlocks}
-    <div class="an-card"><div class="an-card-title">${analyticsEscapeHtml(tr('analyticsRecentSessionsTitle'))}</div><ul class="an-ix">${recent || `<li class="hint">${analyticsEscapeHtml(tr('analyticsNoItems'))}</li>`}</ul></div>`;
+    <div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsRecentSessionsTitle'))}</div><ul class="an-ix">${recent || `<li class="hint">${escapeHtml(tr('analyticsNoItems'))}</li>`}</ul></div>`;
   overviewEl.hidden = true; entityEl.hidden = false;
   document.getElementById('btnAnalyticsBack').addEventListener('click', () => {
     analyticsSelected = null; analyticsEntityData = null; renderAnalyticsView();
@@ -10693,7 +10679,7 @@ async function loadAnalyticsRawSessions() {
   await loadPostgresReadScripts();
   const r = analyticsRange();
   const { analytics, error } = await window.LayerPitchAnalytics.getMyAnalytics({ from: r.from, to: r.to });
-  if (error) { if (sessionsEl) sessionsEl.innerHTML = `<div class="hint">${analyticsEscapeHtml(tr('analyticsErrorPrefix') + ' ' + error)}</div>`; return; }
+  if (error) { if (sessionsEl) sessionsEl.innerHTML = `<div class="hint">${escapeHtml(tr('analyticsErrorPrefix') + ' ' + error)}</div>`; return; }
   analyticsData = analytics;
   analyticsRawLoadedForTier = currentEffectivePlan;
   renderAnalyticsSessions();
@@ -10706,6 +10692,16 @@ function analyticsFxTriggerInfo(detail) {
   const trg = track && (track.fxTriggers || []).find(d => d.id === detail.triggerId);
   const idx = track ? (track.fxTriggers || []).findIndex(d => d.id === detail.triggerId) : -1;
   return { trackTitle: track ? (track.title || track.id) : detail.trackId, label: (trg && trg.label) || (idx >= 0 ? tr('fxTriggerFallbackLabel', { n: idx + 1 }) : detail.triggerId) };
+}
+// Boutons d'effet dans la vue détaillée (24/09, champ fxButtons de get_my_analytics_entity) : nom lisible du bouton et
+// du morceau retrouvé dans la bibliothèque. Carte masquée tant qu'aucun appui n'a été enregistré sur cette page.
+function analyticsFxButtonsCard(fxButtons) {
+  if (!fxButtons || !fxButtons.length) return '';
+  const rows = fxButtons.map(b => {
+    const info = analyticsFxTriggerInfo({ trackId: b.trackId, triggerId: b.triggerId });
+    return `<li>${escapeHtml(info.label)} <span class="hint">(${escapeHtml(info.trackTitle)})</span> <strong>${escapeHtml(tr('analyticsFxPresses', { n: b.presses, s: b.sessions }))}</strong></li>`;
+  }).join('');
+  return `<div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsFxSummaryTitle'))} <span class="hint">${escapeHtml(tr('analyticsFxEntityHint'))}</span></div><ul class="an-ix">${rows}</ul></div>`;
 }
 function analyticsInteractionLabel(i) {
   if (i.name === 'fx_trigger' && i.detail) {
@@ -10738,13 +10734,13 @@ function renderAnalyticsFxSummary(sessions) {
   if (!stats.size) return '';
   const rows = [...stats.values()].sort((a, b) => b.presses - a.presses).map(st => {
     const info = analyticsFxTriggerInfo(st.detail);
-    return `<li>${analyticsEscapeHtml(info.label)} <span class="hint">(${analyticsEscapeHtml(info.trackTitle)})</span> — ${analyticsEscapeHtml(tr('analyticsFxPresses', { n: st.presses, s: st.sessions }))}</li>`;
+    return `<li>${escapeHtml(info.label)} <span class="hint">(${escapeHtml(info.trackTitle)})</span> — ${escapeHtml(tr('analyticsFxPresses', { n: st.presses, s: st.sessions }))}</li>`;
   }).join('');
   return `
     <div class="analytics-session">
-      <div class="analytics-session-head"><strong>${analyticsEscapeHtml(tr('analyticsFxSummaryTitle'))}</strong></div>
+      <div class="analytics-session-head"><strong>${escapeHtml(tr('analyticsFxSummaryTitle'))}</strong></div>
       <div class="analytics-session-detail">
-        <div class="hint">${analyticsEscapeHtml(tr('analyticsFxSummaryHint'))}</div>
+        <div class="hint">${escapeHtml(tr('analyticsFxSummaryHint'))}</div>
         <ul>${rows}</ul>
       </div>
     </div>`;
@@ -10761,23 +10757,23 @@ function renderAnalyticsSessionCard(s) {
     const trackItems = tracks.map(t => {
       const cls = t.skipped ? 'analytics-track-skipped' : (t.reachedEnd ? 'analytics-track-reached' : '');
       const stateLabel = t.reachedEnd ? tr('analyticsTrackReachedEnd') : (t.skipped ? tr('analyticsTrackSkipped') : tr('analyticsTrackPartial'));
-      return `<li class="${cls}">${analyticsEscapeHtml(t.trackId)} — ${analyticsEscapeHtml(stateLabel)}</li>`;
+      return `<li class="${cls}">${escapeHtml(t.trackId)} — ${escapeHtml(stateLabel)}</li>`;
     }).join('');
-    const interactionItems = interactions.map(i => `<li>${analyticsEscapeHtml(analyticsInteractionLabel(i))}</li>`).join('');
+    const interactionItems = interactions.map(i => `<li>${escapeHtml(analyticsInteractionLabel(i))}</li>`).join('');
     detail = `
       <div class="analytics-session-detail">
-        <div>${analyticsEscapeHtml(tr('analyticsTracksHeading'))} <span class="hint">(${tr('analyticsTrackDetailApprox')})</span></div>
-        <ul>${trackItems || '<li>' + analyticsEscapeHtml(tr('analyticsNoTracks')) + '</li>'}</ul>
-        <div>${analyticsEscapeHtml(tr('analyticsInteractionsHeading'))} (${interactions.length})</div>
-        <ul>${interactionItems || '<li>' + analyticsEscapeHtml(tr('analyticsNoInteractions')) + '</li>'}</ul>
+        <div>${escapeHtml(tr('analyticsTracksHeading'))} <span class="hint">(${tr('analyticsTrackDetailApprox')})</span></div>
+        <ul>${trackItems || '<li>' + escapeHtml(tr('analyticsNoTracks')) + '</li>'}</ul>
+        <div>${escapeHtml(tr('analyticsInteractionsHeading'))} (${interactions.length})</div>
+        <ul>${interactionItems || '<li>' + escapeHtml(tr('analyticsNoInteractions')) + '</li>'}</ul>
       </div>`;
   }
   return `
     <div class="analytics-session">
       <div class="analytics-session-head">
-        <strong>${analyticsEscapeHtml(typeLabel)} — ${analyticsEscapeHtml(s.entityId)}</strong>
-        <span>${analyticsEscapeHtml(opened)}</span>
-        <span>${analyticsEscapeHtml(device)}</span>
+        <strong>${escapeHtml(typeLabel)} — ${escapeHtml(s.entityId)}</strong>
+        <span>${escapeHtml(opened)}</span>
+        <span>${escapeHtml(device)}</span>
       </div>
       ${detail}
     </div>`;
@@ -10787,7 +10783,7 @@ function renderAnalyticsSessions() {
   const sessionsEl = document.getElementById('analyticsSessions');
   if (!sessionsEl || !analyticsData) return;
   const sessions = analyticsData.sessions || [];
-  sessionsEl.innerHTML = sessions.length ? renderAnalyticsFxSummary(sessions) + sessions.map(renderAnalyticsSessionCard).join('') : `<div class="hint">${analyticsEscapeHtml(tr('analyticsNoItems'))}</div>`;
+  sessionsEl.innerHTML = sessions.length ? renderAnalyticsFxSummary(sessions) + sessions.map(renderAnalyticsSessionCard).join('') : `<div class="hint">${escapeHtml(tr('analyticsNoItems'))}</div>`;
 }
 // Valeur effective d'un champ d'apparence pour le thème général actuel — sert de point de départ quand
 // on active une personnalisation par bloc (plutôt que de partir d'une couleur arbitraire). Vérifie
