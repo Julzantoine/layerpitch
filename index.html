@@ -540,7 +540,7 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790196240578"></script>
+<script src="layerpitch-i18n.js?v=1790264259000"></script>
 <script src="player.js?v=1790194832844"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
@@ -682,10 +682,12 @@ function applyIndexingMeta(adReel) {
   }
 }
 // Bandeau "Mode aperçu" -- voir le commentaire équivalent dans pack.html.
-function showPreviewModeBanner() {
+// publishedLang : langue que verront réellement les visiteurs -- rappelée dans le bandeau quand l'aperçu
+// s'affiche dans une autre langue (celle du Backstage, voir init()).
+function showPreviewModeBanner(publishedLang) {
   const banner = document.createElement('div');
   banner.className = 'preview-mode-banner';
-  banner.textContent = tr('previewModeBanner');
+  banner.textContent = tr('previewModeBanner') + (publishedLang && publishedLang !== pageLang ? ' ' + tr('previewVisitorLang_' + publishedLang) : '');
   document.body.prepend(banner);
   document.body.classList.add('has-preview-banner');
 }
@@ -1253,7 +1255,6 @@ async function init() {
   };
   try {
     const data = await loadSiteData();
-    if (previewActive) showPreviewModeBanner();
     window.__lpTrackContext.ownerId = lastResolvedOwnerId;
     const adReel = (data.adReels || []).find(a => a.id === adreelId);
     if (!adReel) {
@@ -1270,9 +1271,15 @@ async function init() {
       }
     } catch (e) { /* jamais bloquant */ }
     applyIndexingMeta(adReel);
-    pageLang = adReel.lang || 'fr';
+    // Aperçu depuis le Backstage (?preview=1&lang=) : l'habillage suit la langue du Backstage, pour que
+    // le compositeur ne bascule jamais de langue en cours de route (même règle que les aperçus de
+    // pack/collection) ; la langue de publication reste rappelée dans le bandeau d'aperçu.
+    const publishedLang = adReel.lang || 'fr';
+    const previewLang = previewActive ? new URLSearchParams(location.search).get('lang') : null;
+    pageLang = (previewLang === 'en' || previewLang === 'fr') ? previewLang : publishedLang;
     window.LayerPlayerCore.setLang(pageLang);
     applyI18n();
+    if (previewActive) showPreviewModeBanner(publishedLang);
     const blocks = embedMode ? migrateBlocks(adReel).filter(b => b.type === 'tracks') : migrateBlocks(adReel);
     const profile = adReel.profile || {};
     // profile.effectivePlan est figé une fois pour toutes à la publication (publishAll(), Chantier
