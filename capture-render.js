@@ -20,7 +20,7 @@
   function hasKeys(o) { return !!o && typeof o === 'object' && Object.keys(o).length > 0; }
   function trackHasFx(track) {
     if (!track) return false;
-    if (hasKeys(track.fx) || (track.fxTriggers && track.fxTriggers.length)) return true;
+    if (hasKeys(track.fx) || (track.fxTriggers && track.fxTriggers.length) || (track.fxSliders && track.fxSliders.length)) return true;
     const any = arr => (arr || []).some(x => x && hasKeys(x.fx));
     if (any(track.layers) || any(track.loops) || any(track.segmentSlots)) return true;
     if ((track.intro && hasKeys(track.intro.fx)) || (track.outro && hasKeys(track.outro.fx))) return true;
@@ -93,6 +93,26 @@
     return out;
   }
 
+  // Seuils des curseurs -> demandes de triggers « du compositeur » : pour chaque curseur, l'état voulu de chaque trigger
+  // relié (en dessous / au-dessus d'un seuil) à sa position de départ puis après chaque point-clé enregistré ; une
+  // demande n'est émise que lorsque l'état voulu CHANGE (comme le lecteur : un choix manuel n'est pas écrasé).
+  function deriveSliderTriggerChanges(track, sliderKeys) {
+    const C = core();
+    const out = [];
+    C.fxSlidersValid(track).forEach(sl => {
+      if (!sl.thresholds.length) return;
+      const last = new Map();
+      const evalAt = (t, v) => C.fxSliderThresholdWants(sl, v).forEach(w => {
+        if (last.get(w.triggerId) === w.want) return;
+        last.set(w.triggerId, w.want);
+        out.push({ t, trackId: track.id, triggerId: w.triggerId, active: w.want });
+      });
+      evalAt(0, sl.def);
+      (sliderKeys || []).filter(k => k.trackId === track.id && k.sliderId === sl.id).sort((a, b) => a.t - b.t).forEach(k => evalAt(Math.max(0, k.t), k.value));
+    });
+    return out;
+  }
+
   // Demandes du visiteur (boutons enregistrés) et des embranchements (déduites) -> changements d'état RÉELS après
   // application des règles entre triggers (cascades temporisées, exclusions, conditions, coupures automatiques), avec
   // les mêmes règles que le lecteur (LayerPlayerCore.simulateTriggerRules). À instant égal, l'embranchement passe
@@ -156,6 +176,12 @@
       (changesByTrack[trackId] || []).forEach(c => { if (c.t <= t) applyChange(list, c); });
       return list;
     }
+    // Curseurs : points-clés enregistrés par (morceau, curseur), triés ; valeur en vigueur à l'instant t.
+    const keysBySlider = {};
+    (plan.sliderKeys || []).slice().sort((a, b) => a.t - b.t).forEach(k => (keysBySlider[k.trackId + '|' + k.sliderId] = keysBySlider[k.trackId + '|' + k.sliderId] || []).push(k));
+    const slidersByTrack = new Map();
+    const slidersOf = track => { if (!slidersByTrack.has(track.id)) slidersByTrack.set(track.id, C.fxSlidersValid(track)); return slidersByTrack.get(track.id); };
+    const sliderValueAt = (trackId, sl, t) => { let v = sl.def; (keysBySlider[trackId + '|' + sl.id] || []).forEach(k => { if (k.t <= t) v = k.value; }); return v; };
 
     // -- Musique --
     let n = 0;
@@ -184,18 +210,26 @@
       const track = seg.track;
       if (track && seg.targetKey) {
         const defs = (track.fxTriggers || []).filter(d => d && d.id && d.fx && C.fxTargetKeyFromTarget(d.target) === seg.targetKey);
+        const sliders = slidersOf(track);
         const base = seg.baseFx !== undefined ? seg.baseFx : C.baseFxForTarget(track, seg.targetKey);
-        const force = [...new Set(defs.flatMap(d => Object.keys(d.fx)))];
+        const force = [...new Set(defs.flatMap(d => Object.keys(d.fx)).concat(C.fxSliderForceKeys(sliders, seg.targetKey)))];
         const defOf = id => defs.find(d => d.id === id);
         const active = activeAt(track.id, seg.start);
-        chain = C.buildLayerFxChain(oc, C.mergeTriggerFx(base, active.map(defOf).filter(Boolean)), src, seg.start, undefined, force);
-        if (chain && defs.length) {
-          (changesByTrack[track.id] || []).forEach(c => {
-            if (!(c.t > seg.start && c.t < seg.start + dur)) return;
-            const d = defOf(c.triggerId);
-            applyChange(active, c);
-            if (!d) return;
-            C.applyFxToChain(oc, chain, C.mergeTriggerFx(base, active.map(defOf).filter(Boolean)), d.fadeSec != null ? d.fadeSec : 0.1, c.t);
+        // fx effectif à l'instant t : base + triggers actifs, puis valeurs des curseurs par-dessus (mêmes règles que le lecteur).
+        const sliderVals = new Map(sliders.map(sl => [sl.id, sliderValueAt(track.id, sl, seg.start)]));
+        const effective = () => C.applyFxSliderOverrides(C.mergeTriggerFx(base, active.map(defOf).filter(Boolean)), C.fxSliderOverrides(sliders, id => sliderVals.get(id), seg.targetKey));
+        chain = C.buildLayerFxChain(oc, effective(), src, seg.start, undefined, force);
+        if (chain && (defs.length || force.length)) {
+          // Tous les changements pendant la voix, dans l'ordre : appuis/états de triggers ET points-clés de curseurs.
+          const timeline = [];
+          (changesByTrack[track.id] || []).forEach(c => { if (c.t > seg.start && c.t < seg.start + dur) timeline.push({ t: c.t, c }); });
+          sliders.forEach(sl => (keysBySlider[track.id + '|' + sl.id] || []).forEach(k => { if (k.t > seg.start && k.t < seg.start + dur) timeline.push({ t: k.t, k, sl }); }));
+          timeline.sort((a, b) => a.t - b.t);
+          timeline.forEach(ev => {
+            let ramp = 0.1;
+            if (ev.c) { const d = defOf(ev.c.triggerId); applyChange(active, ev.c); if (!d && !force.length) return; ramp = d && d.fadeSec != null ? d.fadeSec : 0.1; }
+            else { sliderVals.set(ev.sl.id, ev.k.value); ramp = ev.sl.smoothSec; }
+            C.applyFxToChain(oc, chain, effective(), ramp, ev.t);
           });
         }
       }
@@ -246,5 +280,5 @@
     return bytes;
   }
 
-  window.LayerCaptureRender = { render, encodeWav, needsEngineRender, trackHasFx, fxSegmentsToChanges, deriveBranchChanges, resolveTriggerChanges, SR };
+  window.LayerCaptureRender = { render, encodeWav, needsEngineRender, trackHasFx, fxSegmentsToChanges, deriveBranchChanges, deriveSliderTriggerChanges, resolveTriggerChanges, SR };
 })();

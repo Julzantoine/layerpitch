@@ -766,6 +766,12 @@ function ensureFxTriggerStyle() {
     .fx-trigger-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
     .fx-trigger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
     .fx-trigger-btn.fx-locked { opacity: 0.4; cursor: not-allowed; border-style: dashed; }
+    .fx-slider-row { display: flex; flex-direction: column; gap: 8px; }
+    .fx-slider { display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim, #555); }
+    .fx-slider span { min-width: 110px; }
+    .fx-slider input[type=range] { flex: 1; max-width: 260px; accent-color: var(--accent); }
+    .fx-slider input[type=range]:disabled { opacity: 0.4; }
+    .fx-slider output { min-width: 3.2em; text-align: right; }
   `;
   document.head.appendChild(st);
 }
@@ -1016,6 +1022,21 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
         <div class="track-intensity-label">${t('fxTriggersRowLabel')}</div>
         <div class="fx-trigger-row">
           ${publicFxTriggers.map(d => `<button type="button" class="fx-trigger-btn" data-fx-trigger="${escapeHtml(d.id)}" aria-pressed="false" disabled>${escapeHtml(d.label || d.id)}</button>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // Curseurs de paramètre (24/09) : même règle de visibilité que les boutons d'effet (visible, ou tous dans l'aperçu
+  // du Backstage), désactivés jusqu'à ce que la ligne soit prête.
+  const publicFxSliders = supported ? fxSlidersValid(track).filter(sl => sl.visible || track.seqMapFullReveal) : [];
+  if (publicFxSliders.length) {
+    ensureFxTriggerStyle();
+    fxTriggersHtml += `
+      <div class="track-intensity-block">
+        <div class="track-intensity-label">${t('fxSlidersRowLabel')}</div>
+        <div class="fx-slider-row">
+          ${publicFxSliders.map(sl => `<label class="fx-slider"><span>${escapeHtml(sl.label || sl.id)}</span><input type="range" min="0" max="100" step="1" value="${Math.round(sl.def * 100)}" data-fx-slider="${escapeHtml(sl.id)}" disabled><output>${Math.round(sl.def * 100)}%</output></label>`).join('')}
         </div>
       </div>
     `;
@@ -1518,7 +1539,8 @@ function trackNeedsLatencyComp(track) {
   if (anyFx(track.layers) || anyFx(track.loops) || anyFx(track.segmentSlots)) return true;
   if (spFx(track.intro && track.intro.fx) || spFx(track.outro && track.outro.fx)) return true;
   if ((track.sections || []).some(sec => sec && anyFx(sec.pools))) return true;
-  return (track.fxTriggers || []).some(d => d && d.fx && (d.fx.bitcrush || d.fx.pitch));
+  if ((track.fxTriggers || []).some(d => d && d.fx && (d.fx.bitcrush || d.fx.pitch))) return true;
+  return ((track.fxSliders || []).some(d => d && (d.bindings || []).some(b => b && (b.param === 'bitcrush.bits' || b.param === 'pitch.semitones'))));
 }
 // Ajoute à une chaîne d'effets (ou en crée une réduite au seul retard) le DelayNode de compensation, sauf si la
 // chaîne contient déjà un ScriptProcessor (qui apporte naturellement le même retard).
@@ -1947,6 +1969,67 @@ function simulateTriggerRules(defs, requests) {
   }
   return changes;
 }
+// ---- Curseurs de paramètre (24/09) -- l'équivalent d'un RTPC de Wwise / d'un "game parameter" de FMOD ----
+// track.fxSliders = [{ id, label, defaultValue (0..1), smoothSec, visible,
+//   bindings:[{ target:{type,li|si|pi}, param:'filter.frequency'|..., from, to }],
+//   thresholds:[{ at (0..1), mode:'below'|'above', triggerId }] }]
+// Un curseur public de 0 à 100 % : chaque liaison convertit sa valeur en un réglage d'effet sur une cible (couche,
+// boucle, emplacement, pool) -- de `from` (curseur à 0) à `to` (curseur à 100 %), exponentiellement pour une
+// fréquence -- et les seuils activent/coupent des triggers ("santé < 25 % => Low life"). Le réglage est LISSÉ (smoothSec,
+// le « seek speed » de FMOD) : rien ne change brutalement. Fonctions pures, partagées avec l'export de l'outil vidéo.
+const FX_SLIDER_PARAMS = {
+  'filter.frequency': { fx: 'filter', key: 'frequency', log: true, min: 20, max: 20000 },
+  'volume.db': { fx: 'volume', key: 'db', min: -60, max: 12 },
+  'reverb.wet': { fx: 'reverb', key: 'wet', min: 0, max: 1 },
+  'delay.wet': { fx: 'delay', key: 'wet', min: 0, max: 1 },
+  'delay.feedback': { fx: 'delay', key: 'feedback', min: 0, max: 0.9 },
+  'bitcrush.bits': { fx: 'bitcrush', key: 'bits', min: 1, max: 16, round: true },
+  'pitch.semitones': { fx: 'pitch', key: 'semitones', min: -24, max: 24 }
+};
+// Valeurs par défaut des autres réglages d'un effet que le curseur fait apparaître sans qu'il soit configuré ailleurs.
+const FX_SLIDER_DEFAULT_FX = { filter: { type: 'lowpass', q: 1 }, reverb: { decay: 2 }, delay: { time: 0.3, feedback: 0.35 }, bitcrush: { reduction: 1 }, pitch: { mode: 'shift' }, volume: {} };
+function fxSlidersValid(track) {
+  const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(+v) ? +v : 0));
+  return ((track && track.fxSliders) || []).filter(d => d && d.id).map(d => ({
+    id: d.id, label: d.label || '', visible: !!d.visible,
+    def: clamp01(d.defaultValue),
+    smoothSec: Number.isFinite(+d.smoothSec) && +d.smoothSec >= 0 ? +d.smoothSec : 0.15,
+    bindings: (d.bindings || []).filter(b => b && FX_SLIDER_PARAMS[b.param] && fxTargetKeyFromTarget(b.target) && Number.isFinite(+b.from) && Number.isFinite(+b.to))
+      .map(b => ({ key: fxTargetKeyFromTarget(b.target), param: b.param, from: +b.from, to: +b.to })),
+    thresholds: (d.thresholds || []).filter(x => x && x.triggerId && Number.isFinite(+x.at)).map(x => ({ at: clamp01(x.at), mode: x.mode === 'above' ? 'above' : 'below', triggerId: x.triggerId }))
+  })).filter(sl => sl.bindings.length || sl.thresholds.length);
+}
+function fxSliderBindingValue(b, v) {
+  const meta = FX_SLIDER_PARAMS[b.param];
+  let p = (meta.log && b.from > 0 && b.to > 0) ? b.from * Math.pow(b.to / b.from, v) : b.from + (b.to - b.from) * v;
+  p = Math.max(meta.min, Math.min(meta.max, p));
+  return meta.round ? Math.round(p) : p;
+}
+// Réglages imposés à UNE cible par les curseurs, valeurs = getter (id -> 0..1) : { effet: { paramètre: valeur } }.
+function fxSliderOverrides(sliders, valueOf, targetKey) {
+  const out = {};
+  sliders.forEach(sl => sl.bindings.forEach(b => {
+    if (b.key !== targetKey) return;
+    const meta = FX_SLIDER_PARAMS[b.param];
+    (out[meta.fx] = out[meta.fx] || {})[meta.key] = fxSliderBindingValue(b, valueOf(sl.id));
+  }));
+  return out;
+}
+function fxSliderForceKeys(sliders, targetKey) {
+  const keys = new Set();
+  sliders.forEach(sl => sl.bindings.forEach(b => { if (b.key === targetKey) keys.add(FX_SLIDER_PARAMS[b.param].fx); }));
+  return [...keys];
+}
+// Applique les réglages des curseurs PAR-DESSUS un fx déjà fusionné (base + triggers).
+function applyFxSliderOverrides(fx, overrides) {
+  const out = Object.assign({}, fx);
+  Object.keys(overrides).forEach(k => { out[k] = Object.assign({}, FX_SLIDER_DEFAULT_FX[k], out[k], overrides[k]); });
+  return out;
+}
+// État voulu des triggers reliés par les seuils d'un curseur pour la valeur v.
+function fxSliderThresholdWants(sl, v) {
+  return sl.thresholds.map(x => ({ triggerId: x.triggerId, want: x.mode === 'above' ? v >= x.at : v < x.at }));
+}
 // Un ScriptProcessorNode (bitcrusher ET pitch-shift "shift", chantier 2) continue de tourner tant qu'il
 // reste connecté -- un seul point de nettoyage pour les deux plutôt que de dupliquer la même paire de
 // lignes à chacun des neuf appels concernés (voir les commentaires "onended" plus bas dans ce fichier).
@@ -2020,24 +2103,30 @@ function initTrackPlayer(track, wrapper, elementColors) {
   });
   const fxActiveTriggerIds = []; // dans l'ordre d'activation : le dernier activé l'emporte sur un même paramètre
   const fxChainsByTarget = new Map();
+  // Curseurs de paramètre (24/09) : leurs effets liés font partie des « clés forcées » (nœuds construits d'emblée) et
+  // leurs valeurs s'appliquent PAR-DESSUS base + triggers.
+  const fxSliders = fxSlidersValid(track);
+  const fxSliderValues = new Map(fxSliders.map(sl => [sl.id, sl.def]));
+  const fxSliderValueOf = id => (fxSliderValues.has(id) ? fxSliderValues.get(id) : 0);
   function fxForceKeysFor(targetKey) {
-    const keys = new Set();
+    const keys = new Set(fxSliderForceKeys(fxSliders, targetKey));
     fxTriggerDefs.forEach((d, id) => { if (fxTriggerTargetKey.get(id) === targetKey) Object.keys(d.fx).forEach(k => keys.add(k)); });
     return [...keys];
   }
   function fxEffectiveFor(targetKey, baseFx) {
-    const out = baseFx ? Object.assign({}, baseFx) : {};
+    let out = baseFx ? Object.assign({}, baseFx) : {};
     fxActiveTriggerIds.forEach(id => {
       if (fxTriggerTargetKey.get(id) !== targetKey) return;
       const d = fxTriggerDefs.get(id);
       Object.keys(d.fx).forEach(k => { out[k] = Object.assign({}, out[k], d.fx[k]); });
     });
+    if (fxSliders.length) out = applyFxSliderOverrides(out, fxSliderOverrides(fxSliders, fxSliderValueOf, targetKey));
     return out;
   }
   // Compensation de latence (voir withLatencyComp) : calculée une fois par morceau.
   const fxNeedsComp = trackNeedsLatencyComp(track);
   function buildTargetFxChain(targetKey, baseFx, src, startTime) {
-    const force = fxTriggerDefs.size ? fxForceKeysFor(targetKey) : [];
+    const force = (fxTriggerDefs.size || fxSliders.length) ? fxForceKeysFor(targetKey) : [];
     if (!force.length) {
       const plain = buildLayerFxChain(ctx, baseFx, src, startTime);
       return fxNeedsComp ? withLatencyComp(ctx, plain) : plain;
@@ -2109,7 +2198,54 @@ function initTrackPlayer(track, wrapper, elementColors) {
     fxRampOverride = 0.05;
     try { fxRules.reset(); } finally { fxRampOverride = null; }
     updateFxTriggerButtons();
+    resetFxSliders();
   }
+  // ---- Curseurs (24/09) : exécution ----
+  const fxSliderInputs = [...wrapper.querySelectorAll('[data-fx-slider]')];
+  const fxSliderLastWant = new Map(); // triggerId -> dernier état voulu par un seuil (ne redemande que sur franchissement)
+  function paintFxSlider(id) {
+    fxSliderInputs.forEach(inp => {
+      if (inp.dataset.fxSlider !== id) return;
+      inp.value = Math.round(fxSliderValueOf(id) * 100);
+      const out = inp.parentElement && inp.parentElement.querySelector('output');
+      if (out) out.textContent = Math.round(fxSliderValueOf(id) * 100) + '%';
+    });
+  }
+  function evalFxSliderThresholds(sl, force) {
+    fxSliderThresholdWants(sl, fxSliderValueOf(sl.id)).forEach(w => {
+      if (!force && fxSliderLastWant.get(sl.id + '|' + w.triggerId) === w.want) return;
+      fxSliderLastWant.set(sl.id + '|' + w.triggerId, w.want);
+      fxRules.request(w.triggerId, w.want, 'composer'); // décision du compositeur : ne subit pas « Nécessite »
+    });
+  }
+  function applyFxSliderToChains(sl, rampSec) {
+    const keys = new Set(sl.bindings.map(b => b.key));
+    keys.forEach(key => {
+      const chains = fxChainsByTarget.get(key);
+      if (chains) chains.forEach(ch => applyFxToChain(ctx, ch, fxEffectiveFor(key, ch.baseFx), rampSec));
+    });
+  }
+  function setFxSlider(id, value, emit) {
+    const sl = fxSliders.find(x => x.id === id);
+    if (!sl) return;
+    fxSliderValues.set(id, Math.max(0, Math.min(1, value)));
+    applyFxSliderToChains(sl, sl.smoothSec);
+    evalFxSliderThresholds(sl, false);
+    paintFxSlider(id);
+    // Évènement DOM (pas de la télémétrie : un curseur émet des dizaines de valeurs par seconde) -- l'outil vidéo
+    // l'enregistre pendant une prise, comme "tourner la tête".
+    if (emit) { try { document.dispatchEvent(new CustomEvent('layerpitch-fx-slider', { detail: { trackId: track.id, sliderId: id, value: fxSliderValueOf(id) } })); } catch (e) {} }
+  }
+  function resetFxSliders() {
+    fxSliders.forEach(sl => {
+      fxSliderValues.set(sl.id, sl.def);
+      applyFxSliderToChains(sl, 0.05);
+      paintFxSlider(sl.id);
+    });
+    fxSliderLastWant.clear();
+    fxSliders.forEach(sl => evalFxSliderThresholds(sl, true));
+  }
+  fxSliderInputs.forEach(inp => inp.addEventListener('input', () => setFxSlider(inp.dataset.fxSlider, (+inp.value) / 100, true)));
   fxTriggerBtns.forEach(b => b.addEventListener('click', () => {
     const id = b.dataset.fxTrigger;
     const willBeActive = !fxRules.isActive(id);
@@ -3730,6 +3866,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   function setStingerButtonsEnabled(enabled) {
     stingerBtns.forEach(b => { b.disabled = !enabled; });
     fxTriggerBtns.forEach(b => { b.disabled = !enabled; });
+    fxSliderInputs.forEach(i => { i.disabled = !enabled; });
   }
   function killStingers() {
     activeStingerSources.forEach(s => { try { s.stop(); } catch(e){} });
@@ -5974,6 +6111,12 @@ window.LayerPlayerCore = {
   withLatencyComp,
   createTriggerRuleEngine,
   simulateTriggerRules,
+  FX_SLIDER_PARAMS,
+  fxSlidersValid,
+  fxSliderOverrides,
+  fxSliderForceKeys,
+  applyFxSliderOverrides,
+  fxSliderThresholdWants,
   fxTargetKeyFromTarget,
   baseFxForTarget,
   mergeTriggerFx,

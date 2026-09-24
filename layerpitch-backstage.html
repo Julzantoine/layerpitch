@@ -1751,9 +1751,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790243504548"></script>
+<script src="layerpitch-i18n.js?v=1790263828524"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1790243504548"></script>
+<script src="player.js?v=1790263828524"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3418,6 +3418,88 @@ function fxTriggersEditorHtml(track, ti) {
       <div class="actions" style="margin-top:8px"><button class="btn btn-small" data-action="add-fx-trigger" data-ti="${ti}">${tr('addFxTriggerBtn')}</button></div>
     </div>`;
 }
+// ---- Curseurs de paramètre (24/09) -- réservés à l'admin, comme les triggers ----
+// track.fxSliders = [{ id, label, defaultValue (0..1), smoothSec, visible, bindings:[{target, param, from, to}],
+// thresholds:[{at (0..1), mode, triggerId}] }] : un curseur public dont la valeur règle des paramètres d'effets sur des
+// cibles (courbe de `from` à `to`) et active/coupe des triggers selon des seuils. Voir fxSlidersValid dans player.js.
+function fxSliderParamKey(param) { return 'fxSliderParam_' + String(param).replace('.', '_'); }
+function fxSlidersClean(list) {
+  return (list || []).filter(x => x && x.id).map(x => ({
+    id: x.id, label: x.label || '', visible: !!x.visible,
+    defaultValue: Number.isFinite(+x.defaultValue) ? Math.max(0, Math.min(1, +x.defaultValue)) : 0,
+    smoothSec: Number.isFinite(+x.smoothSec) && +x.smoothSec >= 0 ? +x.smoothSec : 0.15,
+    bindings: (x.bindings || []).filter(b => b && b.target && b.param).map(b => ({ target: b.target, param: b.param, from: Number.isFinite(+b.from) ? +b.from : 0, to: Number.isFinite(+b.to) ? +b.to : 1 })),
+    thresholds: (x.thresholds || []).filter(t => t && t.triggerId).map(t => ({ at: Number.isFinite(+t.at) ? Math.max(0, Math.min(1, +t.at)) : 0.5, mode: t.mode === 'above' ? 'above' : 'below', triggerId: t.triggerId }))
+  }));
+}
+function fxSlidersEditorHtml(track, ti) {
+  const sliders = track.fxSliders || [];
+  if (!currentUserIsAdmin) {
+    return `
+      <div style="margin-top:14px;opacity:0.55">
+        <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxSlidersTitle')}</div>
+        <div class="hint-inline">${tr('fxSlidersAdminOnly')}${sliders.length ? ' (' + sliders.length + ')' : ''}</div>
+      </div>`;
+  }
+  const choices = fxTriggerTargetChoices(track);
+  const params = Object.keys(window.LayerPlayerCore.FX_SLIDER_PARAMS);
+  const triggers = (track.fxTriggers || []).filter(d => d && d.id);
+  const cards = sliders.map((sl, i) => {
+    const a = `data-ti="${ti}" data-sri="${i}"`;
+    const bindRows = (sl.bindings || []).map((b, bi) => {
+      const cur = fxTriggerTargetToValue(b.target);
+      const bAttrs = `data-field="fxSliderBinding" ${a} data-bi="${bi}"`;
+      return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:6px;font-size:12px">
+        <select ${bAttrs} data-fxsb-prop="target" style="width:auto">${choices.map(c => `<option value="${escapeAttr(c.value)}" ${c.value === cur ? 'selected' : ''}>${escapeAttr(c.label)}</option>`).join('') || '<option value="">—</option>'}</select>
+        <select ${bAttrs} data-fxsb-prop="param" style="width:auto">${params.map(pk => `<option value="${pk}" ${b.param === pk ? 'selected' : ''}>${tr(fxSliderParamKey(pk))}</option>`).join('')}</select>
+        <label style="display:flex;align-items:center;gap:4px;margin:0">${tr('fxSliderFrom')} <input type="number" step="any" ${bAttrs} data-fxsb-prop="from" value="${b.from}" style="width:80px"></label>
+        <label style="display:flex;align-items:center;gap:4px;margin:0">${tr('fxSliderTo')} <input type="number" step="any" ${bAttrs} data-fxsb-prop="to" value="${b.to}" style="width:80px"></label>
+        <button class="btn btn-icon btn-danger" data-action="remove-fxs-binding" ${a} data-bi="${bi}" title="${tr('deleteBtn')}">×</button>
+      </div>`;
+    }).join('');
+    const thrRows = (sl.thresholds || []).map((t, thi) => {
+      const tAttrs = `data-field="fxSliderThreshold" ${a} data-thi="${thi}"`;
+      return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:6px;font-size:12px">
+        <span>${tr('fxSliderThresholdWhen')}</span>
+        <select ${tAttrs} data-fxst-prop="mode" style="width:auto"><option value="below" ${t.mode !== 'above' ? 'selected' : ''}>${tr('fxSliderBelow')}</option><option value="above" ${t.mode === 'above' ? 'selected' : ''}>${tr('fxSliderAbove')}</option></select>
+        <input type="number" min="0" max="100" step="1" ${tAttrs} data-fxst-prop="at" value="${Math.round((t.at || 0) * 100)}" style="width:64px"> %
+        <span>${tr('fxSliderThresholdThen')}</span>
+        <select ${tAttrs} data-fxst-prop="triggerId" style="width:auto">${triggers.map(d => `<option value="${escapeAttr(d.id)}" ${d.id === t.triggerId ? 'selected' : ''}>${escapeAttr(d.label) || tr('fxTriggerLabelPlaceholder')}</option>`).join('')}</select>
+        <button class="btn btn-icon btn-danger" data-action="remove-fxs-threshold" ${a} data-thi="${thi}" title="${tr('deleteBtn')}">×</button>
+      </div>`;
+    }).join('');
+    return `
+      <div class="list-block" style="margin-top:8px">
+        <div class="row">
+          <div><label>${tr('labelFieldLabel')}</label><input type="text" data-field="fxSlider" data-fxs-prop="label" ${a} placeholder="${tr('fxSliderLabelPlaceholder')}" value="${escapeAttr(sl.label)}"></div>
+          <button class="btn btn-icon btn-danger" data-action="remove-fx-slider" ${a} title="${tr('removeFxSliderBtn')}" style="align-self:flex-end">×</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <div><label style="font-size:0.85em">${tr('fxSliderDefaultLabel')}</label><input type="number" min="0" max="100" step="1" data-field="fxSlider" data-fxs-prop="defaultValue" ${a} value="${Math.round((sl.defaultValue || 0) * 100)}"></div>
+          <div><label style="font-size:0.85em">${tr('fxSliderSmoothLabel')}</label><input type="number" min="0" max="5" step="0.05" data-field="fxSlider" data-fxs-prop="smoothSec" ${a} value="${sl.smoothSec != null ? sl.smoothSec : 0.15}"></div>
+        </div>
+        <label class="switch-row" style="margin-top:8px">
+          <input type="checkbox" data-field="fxSlider" data-fxs-prop="visible" ${a} ${sl.visible ? 'checked' : ''}>
+          <span class="switch-row-label">${tr('fxSliderVisibleLabel')}</span>
+        </label>
+        <div style="margin-top:8px;font-weight:600;font-size:0.85em">${tr('fxSliderBindingsTitle')}</div>
+        <div class="hint-inline">${tr('fxSliderBindingsHint')}</div>
+        ${bindRows}
+        <div class="actions" style="margin-top:6px"><button class="btn btn-small" data-action="add-fxs-binding" ${a} ${choices.length ? '' : 'disabled'}>${tr('addFxSliderBindingBtn')}</button></div>
+        <div style="margin-top:10px;font-weight:600;font-size:0.85em">${tr('fxSliderThresholdsTitle')}</div>
+        <div class="hint-inline">${tr('fxSliderThresholdsHint')}</div>
+        ${thrRows}
+        <div class="actions" style="margin-top:6px"><button class="btn btn-small" data-action="add-fxs-threshold" ${a} ${triggers.length ? '' : 'disabled'}>${tr('addFxSliderThresholdBtn')}</button></div>
+      </div>`;
+  }).join('');
+  return `
+    <div style="margin-top:14px">
+      <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxSlidersTitle')}</div>
+      <div class="hint-inline">${tr('fxSlidersHint')}</div>
+      ${cards}
+      <div class="actions" style="margin-top:8px"><button class="btn btn-small" data-action="add-fx-slider" data-ti="${ti}">${tr('addFxSliderBtn')}</button></div>
+    </div>`;
+}
 // Actions liées à un embranchement : pour chaque trigger défini sur le morceau, "activer" / "couper" /
 // "ne rien faire" quand CETTE option de bascule (séquentiel) ou CETTE boucle (embranchement-vertical) est prise.
 function fxActionsHtml(actions, track, ownerAttrs) {
@@ -4772,6 +4854,7 @@ function buildPreviewTrack(track) {
     // applyTrackPitchRate() dans player.js.
     fx: track.fx || null,
     fxTriggers: (track.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, relations: fxRelationsClean(x.relations) })),
+    fxSliders: fxSlidersClean(track.fxSliders),
     layers: (track.layers || []).map(mapItem).filter(Boolean),
     intro: mapBlockWithBars(track.intro),
     // L'outro n'a pas de "bars" (mapItem, pas mapBlockWithBars — pas de durée programmée après elle, elle
@@ -5301,6 +5384,7 @@ function renderLibrary() {
           </label>
           ${trackPitchFxHtml(track, ti)}
           ${fxTriggersEditorHtml(track, ti)}
+          ${fxSlidersEditorHtml(track, ti)}
         `;
         modeDetailHost.appendChild(infoEl);
         if (isStatic) {
@@ -5921,6 +6005,7 @@ function renderLibrary() {
           </label>
           ${trackPitchFxHtml(track, ti)}
           ${fxTriggersEditorHtml(track, ti)}
+          ${fxSlidersEditorHtml(track, ti)}
         `;
         slotsDetailHost.appendChild(infoEl);
       }
@@ -6962,6 +7047,26 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
     const first = fxTriggerTargetChoices(tk)[0];
     tk.fxTriggers.push({ id: genId(), label: '', target: first ? parseFxTriggerTarget(first.value) : null, fx: {}, visible: false, fadeSec: null });
   }
+  else if (btn.dataset.action === 'add-fx-slider') {
+    const tk = library[ti];
+    if (!tk.fxSliders) tk.fxSliders = [];
+    tk.fxSliders.push({ id: genId(), label: '', defaultValue: 1, smoothSec: 0.15, visible: false, bindings: [], thresholds: [] });
+  }
+  else if (btn.dataset.action === 'remove-fx-slider') { library[ti].fxSliders.splice(parseInt(btn.dataset.sri, 10), 1); }
+  else if (btn.dataset.action === 'add-fxs-binding') {
+    const tk = library[ti], sl = tk.fxSliders[parseInt(btn.dataset.sri, 10)];
+    const first = fxTriggerTargetChoices(tk)[0];
+    sl.bindings = sl.bindings || [];
+    sl.bindings.push({ target: first ? parseFxTriggerTarget(first.value) : null, param: 'filter.frequency', from: 400, to: 20000 });
+  }
+  else if (btn.dataset.action === 'remove-fxs-binding') { library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].bindings.splice(parseInt(btn.dataset.bi, 10), 1); }
+  else if (btn.dataset.action === 'add-fxs-threshold') {
+    const tk = library[ti], sl = tk.fxSliders[parseInt(btn.dataset.sri, 10)];
+    const firstTrg = (tk.fxTriggers || []).find(d => d && d.id);
+    sl.thresholds = sl.thresholds || [];
+    if (firstTrg) sl.thresholds.push({ at: 0.25, mode: 'below', triggerId: firstTrg.id });
+  }
+  else if (btn.dataset.action === 'remove-fxs-threshold') { library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].thresholds.splice(parseInt(btn.dataset.thi, 10), 1); }
   else if (btn.dataset.action === 'remove-fx-trigger') {
     const tk = library[ti];
     const removed = tk.fxTriggers[tri];
@@ -6970,6 +7075,8 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
     const purge = o => { if (o && o.fxActions) { o.fxActions = o.fxActions.filter(a => a.triggerId !== removed.id); if (!o.fxActions.length) o.fxActions = null; } };
     (tk.loops || []).forEach(purge);
     (tk.segmentSlots || []).forEach(sl => (sl.nextOptions || []).forEach(purge));
+    // ... ni aucun seuil de curseur.
+    (tk.fxSliders || []).forEach(sl => { if (sl.thresholds) sl.thresholds = sl.thresholds.filter(t => t.triggerId !== removed.id); });
     // ... ni aucune relation d'un autre trigger.
     (tk.fxTriggers || []).forEach(o => {
       const r = o.relations;
@@ -7153,6 +7260,37 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
         else if (prop === 'fadeSec') trg.fadeSec = e.target.value === '' ? null : parseFloat(e.target.value);
         else if (prop === 'target') trg.target = parseFxTriggerTarget(e.target.value);
         else if (prop === 'autoOffSec') { trg.relations = trg.relations || {}; trg.relations.autoOffSec = e.target.value === '' ? null : parseFloat(e.target.value); }
+      }
+    }
+    else if (field === 'fxSlider') {
+      const sl = (library[ti].fxSliders || [])[parseInt(e.target.dataset.sri, 10)];
+      const prop = e.target.dataset.fxsProp;
+      if (sl) {
+        if (prop === 'label') sl.label = e.target.value;
+        else if (prop === 'visible') sl.visible = e.target.checked;
+        else if (prop === 'defaultValue') sl.defaultValue = Math.max(0, Math.min(1, (parseFloat(e.target.value) || 0) / 100));
+        else if (prop === 'smoothSec') sl.smoothSec = e.target.value === '' ? 0.15 : Math.max(0, parseFloat(e.target.value) || 0);
+      }
+    }
+    else if (field === 'fxSliderBinding') {
+      const sl = (library[ti].fxSliders || [])[parseInt(e.target.dataset.sri, 10)];
+      const b = sl && (sl.bindings || [])[parseInt(e.target.dataset.bi, 10)];
+      const prop = e.target.dataset.fxsbProp;
+      if (b) {
+        if (prop === 'target') b.target = parseFxTriggerTarget(e.target.value);
+        else if (prop === 'param') b.param = e.target.value;
+        else if (prop === 'from') b.from = parseFloat(e.target.value);
+        else if (prop === 'to') b.to = parseFloat(e.target.value);
+      }
+    }
+    else if (field === 'fxSliderThreshold') {
+      const sl = (library[ti].fxSliders || [])[parseInt(e.target.dataset.sri, 10)];
+      const t = sl && (sl.thresholds || [])[parseInt(e.target.dataset.thi, 10)];
+      const prop = e.target.dataset.fxstProp;
+      if (t) {
+        if (prop === 'mode') t.mode = e.target.value;
+        else if (prop === 'at') t.at = Math.max(0, Math.min(1, (parseFloat(e.target.value) || 0) / 100));
+        else if (prop === 'triggerId') t.triggerId = e.target.value;
       }
     }
     else if (field === 'fxRel') {
@@ -10511,6 +10649,7 @@ async function loadData(silent) {
         normalizeVolume: !!t.normalizeVolume,
         fx: t.fx || null,
         fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, relations: fxRelationsClean(x.relations) })),
+        fxSliders: fxSlidersClean(t.fxSliders),
         layers: (t.layers || []).map(l => ({ label: l.label, remoteFile: l.file, pendingFile: null, gain: l.gain || 1, duration: l.duration || 0, fx: l.fx || null })),
         intro: t.intro ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, remoteFile: t.intro.file || null, pendingFile: null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '' } : null,
         outro: t.outro ? { label: t.outro.label || 'Outro', remoteFile: t.outro.file || null, pendingFile: null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,
@@ -11287,6 +11426,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       normalizeVolume: !!t.normalizeVolume,
       fx: t.fx || null,
       fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, relations: fxRelationsClean(x.relations) })),
+      fxSliders: fxSlidersClean(t.fxSliders),
       duration: Math.round(t.duration * 100) / 100, base: t.base,
       // file/localUrl (18/09) : un fichier tout juste choisi mais pas encore publié n'a pas de
       // remoteFile -- localUrl porte alors une URL locale temporaire (pendingPreviewUrl(), blob:),

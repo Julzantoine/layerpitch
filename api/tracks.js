@@ -53,7 +53,7 @@
       segmentSlots, loops: row.loops, randomizeSections: row.randomize_sections, sections: row.sections, sfxIds,
       // Effets audio (22-23/09) : fx de morceau entier (pitch "vitesse") et triggers d'effets -- colonnes
       // ajoutées par 20260923010000_track_fx_persistence.sql, jamais présentes avant.
-      fx: row.fx || null, fxTriggers: row.fx_triggers || [],
+      fx: row.fx || null, fxTriggers: row.fx_triggers || [], fxSliders: row.fx_sliders || [],
     };
   }
 

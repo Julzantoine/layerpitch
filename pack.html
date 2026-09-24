@@ -465,6 +465,7 @@
   .vct-block.vct-fx { background: #7a4d9c; }
   .vct-block.vct-fx-cut { background: repeating-linear-gradient(45deg, #7a4d9c, #7a4d9c 3px, #3d2650 3px, #3d2650 6px); min-width: 10px; }
   .vct-block.vct-head { background: #3d8a6e; min-width: 10px; }
+  .vct-block.vct-slider { background: #a0742f; min-width: 12px; }
   .vct-track-group-head { border-left-color: #3d8a6e; }
   .vct-track-group-head .vct-track-group-header { color: #6fd4ae; }
   .vct-block-implicit { opacity: 0.45; cursor: default; }
@@ -475,7 +476,7 @@
   .vct-detail { display: flex; align-items: center; gap: 8px; padding: 8px 0 4px; margin-top: 4px; border-top: 1px solid #2a2a2a; min-height: 30px; }
   .vct-detail-empty { color: #666; font-size: 10px; }
   .vct-detail-label { flex: 1; color: #ddd; }
-  .video-capture-event-time, .video-capture-event-duration, .video-capture-event-yaw {
+  .video-capture-event-time, .video-capture-event-duration, .video-capture-event-yaw, .video-capture-event-slidervalue {
     width: 56px; background: #222; border: 1px solid #3a3a3a; border-radius: 4px; color: #ccc;
     font-family: inherit; font-size: 11px; padding: 2px 4px;
   }
@@ -641,9 +642,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790243504548"></script>
-<script src="player.js?v=1790243504548"></script>
-<script src="capture-render.js?v=1790243504548"></script>
+<script src="layerpitch-i18n.js?v=1790263828524"></script>
+<script src="player.js?v=1790263828524"></script>
+<script src="capture-render.js?v=1790263828524"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1129,13 +1130,19 @@ function startCapture(videoEl) {
   document.addEventListener('layerpitch-head-yaw', headHandler);
   const yaw0 = window.LayerPlayerCore && window.LayerPlayerCore.getListenerYaw ? window.LayerPlayerCore.getListenerYaw() : 0;
   if (yaw0) events.push({ t: videoEl.currentTime, name: 'head_turn', detail: { yaw: yaw0 } });
-  videoCaptureState = { events, prevUmami, videoEl, headHandler };
+  // Curseurs de paramètre (24/09) : même principe, évènement DOM du lecteur (un curseur émet des dizaines de valeurs par
+  // seconde). Au démarrage d'une piste armée, le lecteur remet les curseurs à leur position de départ SANS émettre :
+  // l'état initial d'une prise est donc toujours la valeur par défaut.
+  const sliderHandler = (e) => events.push({ t: videoEl.currentTime, name: 'fx_slider', detail: { trackId: e.detail.trackId, sliderId: e.detail.sliderId, value: e.detail.value } });
+  document.addEventListener('layerpitch-fx-slider', sliderHandler);
+  videoCaptureState = { events, prevUmami, videoEl, headHandler, sliderHandler };
 }
 
 function stopCapture() {
   if (!videoCaptureState) return [];
   window.umami = videoCaptureState.prevUmami;
   document.removeEventListener('layerpitch-head-yaw', videoCaptureState.headHandler);
+  document.removeEventListener('layerpitch-fx-slider', videoCaptureState.sliderHandler);
   const events = videoCaptureState.events;
   videoCaptureState = null;
   return events;
@@ -1310,6 +1317,11 @@ function describeCaptureEvent(e, laneOverrides) {
     const trg = track && (track.fxTriggers || []).find(d => d.id === e.detail.triggerId);
     return tr('captureFxCutDesc').replace('{label}', (trg && trg.label) || e.detail.triggerId);
   }
+  if (e.name === 'fx_slider') {
+    const track = findCaptureTrack(e.detail.trackId);
+    const sl = track && (track.fxSliders || []).find(d => d.id === e.detail.sliderId);
+    return tr('captureSliderDesc').replace('{label}', (sl && sl.label) || e.detail.sliderId).replace('{value}', Math.round(e.detail.value * 100));
+  }
   if (e.name === 'head_turn') return tr('captureHeadDesc').replace('{yaw}', Math.round(e.detail.yaw));
   if (e.name === 'stinger_play') {
     const sfx = findCaptureSfx(e.detail.sfxId);
@@ -1419,10 +1431,28 @@ function decimateHeadTurns(heads) {
   if (pending) out.push(pending);
   return out;
 }
+// Même éclaircissement pour les curseurs, par (morceau, curseur) : un point tous les >= 2 % et >= 80 ms, et toujours le
+// dernier d'un geste.
+function decimateSliderKeys(keys) {
+  const groups = {};
+  keys.slice().sort((a, b) => a.t - b.t).forEach(k => (groups[k.detail.trackId + '|' + k.detail.sliderId] = groups[k.detail.trackId + '|' + k.detail.sliderId] || []).push(k));
+  const out = [];
+  Object.keys(groups).forEach(g => {
+    let last = null, pending = null;
+    groups[g].forEach(k => {
+      if (pending && k.t - pending.t > 0.25) { out.push(pending); last = pending; pending = null; }
+      if (!last || (Math.abs(k.detail.value - last.detail.value) >= 0.02 && k.t - last.t >= 0.08)) { out.push(k); last = k; pending = null; }
+      else pending = k;
+    });
+    if (pending) out.push(pending);
+  });
+  return out;
+}
 function materializeCaptureExtras(events) {
   const rawTriggers = events.filter(e => e.name === 'fx_trigger').sort((a, b) => a.t - b.t);
   const heads = events.filter(e => e.name === 'head_turn');
-  if (!rawTriggers.length && !heads.length) return events;
+  const sliderKeys = events.filter(e => e.name === 'fx_slider');
+  if (!rawTriggers.length && !heads.length && !sliderKeys.length) return events;
   const total = Math.max(0, ...events.map(e => e.t)) + 2; // même marge que materializeLayerSegments
   const segments = [];
   const cuts = [];
@@ -1447,8 +1477,8 @@ function materializeCaptureExtras(events) {
     const [trackId, triggerId] = k.split('|');
     segments.push({ t: open[k], name: 'fx_segment', detail: { trackId, triggerId, duration: Math.max(0.1, total - open[k]) } });
   });
-  return events.filter(e => e.name !== 'fx_trigger' && e.name !== 'head_turn')
-    .concat(segments, cuts, decimateHeadTurns(heads)).sort((a, b) => a.t - b.t);
+  return events.filter(e => e.name !== 'fx_trigger' && e.name !== 'head_turn' && e.name !== 'fx_slider')
+    .concat(segments, cuts, decimateHeadTurns(heads), decimateSliderKeys(sliderKeys)).sort((a, b) => a.t - b.t);
 }
 
 // Frise d'édition -- cible finale d'après le schéma papier de Jules-Antoine (2026-09-14) : une piste par
@@ -1513,7 +1543,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   function groupMembers(key) {
     if (key.indexOf('track:') === 0) {
       const trackId = key.slice(6);
-      return events.filter(e => (e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'fx_segment' || e.name === 'fx_cut' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || e.name === 'track_play') && e.detail.trackId === trackId);
+      return events.filter(e => (e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'fx_segment' || e.name === 'fx_cut' || e.name === 'fx_slider' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || e.name === 'track_play') && e.detail.trackId === trackId);
     }
     if (key === 'head:') return events.filter(e => e.name === 'head_turn');
     if (key.indexOf('sfx:') === 0) {
@@ -1586,7 +1616,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // papier "Musique #1"/"Musique #2", 2026-09-14/15).
   const musicTrackIds = [];
   events.forEach(e => {
-    if ((e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'fx_segment' || e.name === 'fx_cut' || e.name === 'track_play' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1) && musicTrackIds.indexOf(e.detail.trackId) === -1) {
+    if ((e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'fx_segment' || e.name === 'fx_cut' || e.name === 'fx_slider' || e.name === 'track_play' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1) && musicTrackIds.indexOf(e.detail.trackId) === -1) {
       musicTrackIds.push(e.detail.trackId);
     }
   });
@@ -1723,6 +1753,17 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       const addAttrs = editable ? ` data-addable="fxseg" data-add-track-id="${trackId}" data-add-trigger-id="${window.LayerPlayerCore.escapeHtml(d.id)}"` : '';
       nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(d.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureFxLaneLabel').replace('{label}', d.label || d.id))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddFxHint') : ''}">${blocksHtml}</div></div>`;
     });
+    // Curseurs de paramètre (24/09) : une piste par curseur, un point-clé par valeur enregistrée (déplaçable, valeur
+    // éditable dans le détail, ajout d'un clic). Rejoués à l'export par le moteur du lecteur.
+    window.LayerPlayerCore.fxSlidersValid(track).forEach(sl => {
+      let blocksHtml = '';
+      events.filter(e => e.name === 'fx_slider' && e.detail.trackId === trackId && e.detail.sliderId === sl.id).forEach(e => {
+        const idx = events.indexOf(e);
+        blocksHtml += `<div class="vct-block vct-slider" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.5) - pct(e.t)}%" title="${Math.round(e.detail.value * 100)}%"><span class="vct-block-label">${Math.round(e.detail.value * 100)}%</span></div>`;
+      });
+      const addAttrs = editable ? ` data-addable="fxslider" data-add-track-id="${trackId}" data-add-slider-id="${window.LayerPlayerCore.escapeHtml(sl.id)}"` : '';
+      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(sl.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureSliderLaneLabel').replace('{label}', sl.label || sl.id))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddSliderHint') : ''}">${blocksHtml}</div></div>`;
+    });
     // Regroupe les pistes sous le nom du morceau qui les possède (2026-09-15) -- le titre lui-même n'est
     // pas éditable ici, c'est le vrai nom du morceau, pas un libellé de prise.
     lanesHtml += renderGroup('track:' + trackId, track.title || 'Morceau', 'vct-track-group-music', nestedLanesHtml);
@@ -1789,6 +1830,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       <input type="number" step="0.1" min="0" value="${e.t.toFixed(2)}" class="video-capture-event-time" title="${tr('captureTimeInputTitle')}">
       ${editableDuration ? `<input type="number" step="0.1" min="0" placeholder="${isSfx ? tr('captureDurationPlaceholder') : ''}" value="${isSfx ? (e.detail.durationOverride ? e.detail.durationOverride.toFixed(2) : '') : e.detail.duration.toFixed(2)}" class="video-capture-event-duration" title="${tr('captureDurationInputTitle')}">` : ''}
       ${e.name === 'head_turn' ? `<input type="number" step="1" min="-180" max="180" value="${Math.round(e.detail.yaw)}" class="video-capture-event-yaw" title="${tr('captureYawInputTitle')}">` : ''}
+      ${e.name === 'fx_slider' ? `<input type="number" step="1" min="0" max="100" value="${Math.round(e.detail.value * 100)}" class="video-capture-event-slidervalue" title="${tr('captureSliderValueTitle')}">` : ''}
       ${isSfx ? `<label class="video-capture-duck-label" title="${tr('captureDuckHint')}"><input type="checkbox" class="video-capture-event-duck" ${duckChecked ? 'checked' : ''}> Duck</label>` : ''}
       <button type="button" class="video-capture-event-del" title="${tr('captureDeleteBtn')}" aria-label="${tr('captureDeleteBtn')}">✕</button>
     `;
@@ -1804,6 +1846,15 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       durationInput.addEventListener('change', (ev) => {
         const v = parseFloat(ev.target.value);
         setEventDuration(e, isNaN(v) ? null : v);
+        rerender();
+        onChange && onChange();
+      });
+    }
+    const sliderValInput = detailEl.querySelector('.video-capture-event-slidervalue');
+    if (sliderValInput) {
+      sliderValInput.addEventListener('change', (ev) => {
+        const v = parseFloat(ev.target.value);
+        if (!isNaN(v)) e.detail.value = Math.max(0, Math.min(1, v / 100));
         rerender();
         onChange && onChange();
       });
@@ -1982,6 +2033,13 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         events.push({ t, name: 'seq_slot_start', detail: { trackId: trackEl.dataset.addTrackId, slotId: trackEl.dataset.addSlotId, altIndex: 0 } });
       } else if (kind === 'fxseg') {
         events.push({ t, name: 'fx_segment', detail: { trackId: trackEl.dataset.addTrackId, triggerId: trackEl.dataset.addTriggerId, duration: 3 } });
+      } else if (kind === 'fxslider') {
+        // Nouveau point-clé : reprend la valeur du point précédent de ce curseur (ou sa position de départ).
+        const tId = trackEl.dataset.addTrackId, sId = trackEl.dataset.addSliderId;
+        const prev = events.filter(o => o.name === 'fx_slider' && o.detail.trackId === tId && o.detail.sliderId === sId && o.t <= t).sort((a, b) => b.t - a.t)[0];
+        const trk = findCaptureTrack(tId);
+        const def = trk ? window.LayerPlayerCore.fxSlidersValid(trk).find(x => x.id === sId) : null;
+        events.push({ t, name: 'fx_slider', detail: { trackId: tId, sliderId: sId, value: prev ? prev.detail.value : (def ? def.def : 0) } });
       } else if (kind === 'head') {
         events.push({ t, name: 'head_turn', detail: { yaw: 0 } });
       } else {
@@ -2188,7 +2246,8 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   const plan = {
     total, segments: [], sfxHits: [], duckWindows: [],
     triggerChanges: window.LayerCaptureRender.fxSegmentsToChanges(events),
-    headEvents: events.filter(e => e.name === 'head_turn').map(e => ({ t: e.t, yaw: e.detail.yaw }))
+    headEvents: events.filter(e => e.name === 'head_turn').map(e => ({ t: e.t, yaw: e.detail.yaw })),
+    sliderKeys: events.filter(e => e.name === 'fx_slider').map(e => ({ t: e.t, trackId: e.detail.trackId, sliderId: e.detail.sliderId, value: e.detail.value }))
   };
   const trackRate = track => (track && track.fx && track.fx.pitch) ? Math.pow(2, (track.fx.pitch.semitones || 0) / 12) : 1;
 
@@ -2413,6 +2472,13 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
     Object.keys(seqWindowsByTrack).forEach(trackId => {
       const track = findCaptureTrack(trackId);
       if (track) derivedTriggerChanges.push(...window.LayerCaptureRender.deriveBranchChanges(track, 'seq', seqWindowsByTrack[trackId]));
+    });
+    // Seuils des curseurs : demandes de triggers « du compositeur » déduites des valeurs (position de départ + points-clés).
+    const sliderTrackIds = [];
+    events.forEach(e => { if (e.detail && e.detail.trackId && sliderTrackIds.indexOf(e.detail.trackId) === -1) sliderTrackIds.push(e.detail.trackId); });
+    sliderTrackIds.forEach(trackId => {
+      const track = findCaptureTrack(trackId);
+      if (track && (track.fxSliders || []).length) derivedTriggerChanges.push(...window.LayerCaptureRender.deriveSliderTriggerChanges(track, plan.sliderKeys));
     });
     // Demandes du visiteur (boutons enregistrés) + embranchements -> états réels APRÈS les règles entre triggers
     // (cascades temporisées, exclusions, conditions, coupures automatiques) -- mêmes règles que le lecteur.
