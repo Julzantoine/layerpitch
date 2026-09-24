@@ -5994,7 +5994,31 @@ function pickStageDescription(obj) {
 // titre), un seul repli qui laisse apparaître tout ce qu'il y a à voir — description, la forme d'onde de
 // la SEULE variation effectivement jouée (pas les N en même temps comme avant), et les variations RR
 // juste en dessous pour en choisir une précise. Pas de second niveau de repli imbriqué.
+// Style des variations round robin d'un Sfx (24/09) : injecté par le lecteur lui-même plutôt que copié dans chaque page
+// hôte. index.html en avait sa propre copie, mais pack.html (qui affiche pourtant des Sfx) et le Backstage (lecteur de
+// test de l'entrée « Espace ») n'avaient rien -- les blocs y étaient énormes, avec les deux formes d'onde côte à côte au
+// lieu d'être superposées. `:where()` = spécificité nulle : toute règle de la page hôte (index.html, ses thèmes) reste prioritaire.
+function ensureSfxPlayerStyle() {
+  if (document.getElementById('lp-sfx-player-style')) return;
+  const st = document.createElement('style');
+  st.id = 'lp-sfx-player-style';
+  st.textContent = `
+    :where(.sfx-rr-row) { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+    :where(.sfx-rr-block) { position: relative; flex: 1 1 64px; min-width: 64px; height: 40px; border-radius: 6px;
+      border: 1px solid var(--border, #ccc); background: transparent; cursor: pointer; overflow: hidden; padding: 0; font-family: inherit; }
+    :where(.sfx-rr-block.active) { border-color: var(--accent, #c9713c); }
+    :where(.sfx-rr-wave-bg, .sfx-rr-wave-fg) { position: absolute; inset: 0; width: 100%; height: 100%; }
+    :where(.sfx-rr-wave-fg) { opacity: 0; transition: opacity 0.15s ease; }
+    :where(.sfx-rr-block.active .sfx-rr-wave-fg) { opacity: 1; }
+    :where(.sfx-rr-label) { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.03em; color: var(--text-dim, #555);
+      z-index: 1; padding: 0 4px; text-align: center;
+      text-shadow: 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff); }
+  `;
+  document.head.appendChild(st);
+}
 function buildSfxPlayer(sfxDef) {
+  ensureSfxPlayerStyle();
   const alts = sfxDef.alternatives || [];
   const description = pickSfxDescription(sfxDef);
   const wrapper = document.createElement('div');
