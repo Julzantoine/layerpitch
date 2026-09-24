@@ -1751,9 +1751,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790275491563"></script>
+<script src="layerpitch-i18n.js?v=1790275913938"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1790275491563"></script>
+<script src="player.js?v=1790275913938"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3086,6 +3086,10 @@ let packTracksRefreshers = [];    // fonctions de re-rendu des sélecteurs de mo
 let packSfxRefreshers = [];       // fonctions de re-rendu des sélecteurs de Sfx de chaque pack
 let oggEncoder = null;
 let hasUnsavedEdits = false;
+// Garde-fou (24/09) : un trigger ou un réglage non publié disparaissait au rechargement de la page (aucun brouillon
+// automatique) -- le navigateur demande maintenant confirmation avant de quitter/recharger tant que des modifications
+// n'ont pas été enregistrées.
+window.addEventListener('beforeunload', e => { if (hasUnsavedEdits) { e.preventDefault(); e.returnValue = ''; } });
 // dataLoadOk (29/08, garde-fou contre une publication "en mode panique" après un échec de chargement --
 // scénario réel vécu par Jules-Antoine : erreur 403 au chargement automatique, puis clic sur Publier sur
 // une bibliothèque restée vide, écrasant les vraies données sur GitHub). Vrai UNE FOIS un chargement
@@ -3166,7 +3170,7 @@ const FX_DEFAULTS = {
   highcut: () => ({ frequency: 3000, slope: 24 }),
   reverb: () => ({ decay: 2, wet: 0.3 }),
   delay: () => ({ time: 0.3, feedback: 0.35, wet: 0.25 }),
-  bitcrush: () => ({ bits: 8, reduction: 1 }),
+  bitcrush: () => ({ bits: 6, reduction: 6 }), // départ nettement audible (8 bits sans réduction ne s'entendait presque pas, 24/09)
   volume: () => ({ db: 0 }),
   // "rate" retiré des valeurs par défaut par élément (22/09) : devenu un réglage de morceau entier, voir
   // FX_TRACK_DEFAULTS ci-dessous et trackPitchFxHtml() -- ici, "shift" reste le seul mode par couche/
@@ -10744,6 +10748,9 @@ function renderSeqMapThemeForTier() {
   window.LayerPlayerCore.setSeqMapTheme(isPro ? seqMapTheme : 'light');
 }
 fillSeqMapThemeField();
+// Carte des chemins de l'aperçu : même disposition « aérée » que sur les pages publiques (24/09, « toute moche » en grille compacte) --
+// l'aperçu montre ainsi ce que verra le visiteur ; la carte s'ajuste seule à la largeur du panneau (voir updateSeqMap).
+window.LayerPlayerCore.setSeqMapDensity('roomy');
 
 /* ---------------- Chargement (auto + manuel) ---------------- */
 async function loadData(silent) {

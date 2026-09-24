@@ -130,9 +130,9 @@ function currentSeqMapTheme() { return CURRENT_SEQ_MAP_THEME; }
 // Densité de la carte des chemins (10/09, retour direct : la maquette montrée était "agréable à
 // regarder", le vrai composant "tristounet" en comparaison) -- PAS un réglage de palier (contrairement
 // au thème ci-dessus) : un simple choix de mise en page par TYPE de page, posé une fois par la page
-// hôte avant tout rendu. 'compact' (par défaut, comportement historique) reste utilisé par le
-// Backstage, qui a besoin de voir un maximum d'emplacements à la fois dans un panneau étroit pendant
-// qu'on construit la structure. 'roomy' (pages publiques) vise l'inverse : cartes nettement plus
+// hôte avant tout rendu. 'compact' (par défaut, comportement historique) n'est plus utilisé par le
+// Backstage depuis le 24/09 (grille jugée « toute moche » dans l'aperçu : il prend 'roomy' comme les pages
+// publiques, la carte se réduisant seule à la largeur du panneau). 'roomy' (pages publiques) vise l'inverse : cartes nettement plus
 // grandes et aérées, quitte à afficher moins d'étapes d'un coup d'œil -- voir updateSeqMap() pour le
 // calcul de taille, qui devient sensible à la largeur réelle disponible en mode 'roomy' (pas seulement
 // au nombre d'emplacements comme en 'compact').
@@ -1737,7 +1737,7 @@ function trackNeedsLatencyComp(track) {
   if (spFx(track.intro && track.intro.fx) || spFx(track.outro && track.outro.fx)) return true;
   if ((track.sections || []).some(sec => sec && anyFx(sec.pools))) return true;
   if ((track.fxTriggers || []).some(d => d && d.fx && (d.fx.bitcrush || d.fx.pitch))) return true;
-  return ((track.fxSliders || []).some(d => d && (d.bindings || []).some(b => b && (b.param === 'bitcrush.bits' || b.param === 'pitch.semitones'))));
+  return ((track.fxSliders || []).some(d => d && (d.bindings || []).some(b => b && (b.param === 'bitcrush.bits' || b.param === 'bitcrush.reduction' || b.param === 'pitch.semitones'))));
 }
 // Ajoute à une chaîne d'effets (ou en crée une réduite au seul retard) le DelayNode de compensation, sauf si la
 // chaîne contient déjà un ScriptProcessor (qui apporte naturellement le même retard).
@@ -2207,6 +2207,7 @@ const FX_SLIDER_PARAMS = {
   'delay.wet': { fx: 'delay', key: 'wet', min: 0, max: 1 },
   'delay.feedback': { fx: 'delay', key: 'feedback', min: 0, max: 0.9 },
   'bitcrush.bits': { fx: 'bitcrush', key: 'bits', min: 1, max: 16, round: true },
+  'bitcrush.reduction': { fx: 'bitcrush', key: 'reduction', min: 1, max: 50, round: true },
   'pitch.semitones': { fx: 'pitch', key: 'semitones', min: -24, max: 24 },
   // Paramètres de spatialisation d'un Sfx attaché au morceau (kind 'sfx' : la cible est un Sfx, pas une voix) --
   // position en mètres (x vers la droite, y vers l'avant), OU distance/angle polaires (0° = devant, +90° = à droite),
@@ -2243,7 +2244,7 @@ function fxSliderTargetKey(target) {
   return fxTargetKeyFromTarget(target);
 }
 // Valeurs par défaut des autres réglages d'un effet que le curseur fait apparaître sans qu'il soit configuré ailleurs.
-const FX_SLIDER_DEFAULT_FX = { lowcut: { slope: 24 }, highcut: { slope: 24 }, reverb: { decay: 2 }, delay: { time: 0.3, feedback: 0.35 }, bitcrush: { reduction: 1 }, pitch: { mode: 'shift' }, volume: {} };
+const FX_SLIDER_DEFAULT_FX = { lowcut: { slope: 24 }, highcut: { slope: 24 }, reverb: { decay: 2 }, delay: { time: 0.3, feedback: 0.35 }, bitcrush: { bits: 16, reduction: 1 }, pitch: { mode: 'shift' }, volume: {} };
 function fxSlidersValid(track) {
   const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(+v) ? +v : 0));
   return ((track && track.fxSliders) || []).filter(d => d && d.id).map(d => ({
@@ -3572,6 +3573,15 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // que la carte ; sans marges automatiques il restait collé à gauche. Sans effet s'il déborde (défilement).
     seqMapCanvasEl.style.marginLeft = 'auto';
     seqMapCanvasEl.style.marginRight = 'auto';
+    // Ajusté à la largeur disponible (24/09, carte de l'aperçu du Backstage, panneau étroit) : en 'roomy', un graphe de plusieurs
+    // nœuds dépasse la carte et obligeait à faire défiler horizontalement -- il est réduit d'un bloc (nœuds, flèches, texte)
+    // jusqu'à 60 % au plus ; en dessous, le défilement reste le repli.
+    if (roomy && seqMapGraphEl) {
+      const cs = getComputedStyle(seqMapGraphEl);
+      const avail = seqMapGraphEl.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+      const k = avail > 0 && totalW > avail ? Math.max(0.6, avail / totalW) : 1;
+      seqMapCanvasEl.style.zoom = k < 1 ? String(k) : '';
+    }
     // Pas de forme d'onde sur les nœuds (retiré le 03/09 sur retour direct de Jules-Antoine en situation
     // réelle -- en plus de ne pas être demandée ici, elle ne reflétait pas fidèlement le fichier : Corridor
     // et Battle s'arrêtaient visiblement à mi-chemin). L'état (courant/visité/pas encore atteint) se lit
