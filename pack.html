@@ -642,9 +642,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790264396430"></script>
-<script src="player.js?v=1790266852788"></script>
-<script src="capture-render.js?v=1790264396430"></script>
+<script src="layerpitch-i18n.js?v=1790267708592"></script>
+<script src="player.js?v=1790267708592"></script>
+<script src="capture-render.js?v=1790267708592"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2368,7 +2368,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
       const delayMs = Math.round(w.start * 1000);
       const dur = w.end - w.start;
       const fade = Math.min(0.3, dur / 2);
-      const seqTarget = w.kind === 'intro' ? 'intro' : w.kind === 'outro' ? 'outro' : w.kind === 'slot' ? 'slot:' + (track.segmentSlots || []).findIndex(sl => sl.id === w.slotId) : null;
+      const seqTarget = w.kind === 'intro' ? 'intro' : w.kind === 'outro' ? 'outro' : w.kind === 'slot' ? 'slot:' + (track.segmentSlots || []).findIndex(sl => sl.id === w.slotId) : 'transition'; // comme le lecteur : les transitions séquentielles ont aussi une chaîne (effets « tout le morceau »)
       await addMusic({ url: track.base + file, track, targetKey: seqTarget, start: w.start, dur, fileStart: 0, phaseLocked: false, fade },
         (idx, label) => `[${idx}:a]atrim=start=0:end=${dur},asetpts=PTS-STARTPTS,` +
           `afade=t=in:st=0:d=${fade},afade=t=out:st=${Math.max(0, dur - fade)}:d=${fade},` +

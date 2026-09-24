@@ -1851,6 +1851,10 @@ function buildLayerFxChain(ctx, fx, src, startTime, includeBitcrush, forceKeys) 
 // fusion des triggers que le lecteur -- c'est ce qui garantit que le son exporté est celui qu'on teste en jeu.
 function fxTargetKeyFromTarget(target) {
   if (!target) return null;
+  // 'track' (24/09, décision de Jules-Antoine) : le trigger / la liaison agit sur TOUT le morceau, quelle que soit la
+  // section ou le moment -- plus de bouton « par section » (usine à gaz). Les cibles précises (couche, boucle,
+  // emplacement, pool) restent comprises pour les données déjà créées, mais l'éditeur ne les propose plus.
+  if (target.type === 'track') return 'track';
   if (target.type === 'layer') return 'layer:' + (target.li || 0);
   if (target.type === 'loop') return 'loop:' + target.li;
   if (target.type === 'slot') return 'slot:' + target.si;
@@ -2069,7 +2073,7 @@ function fxSliderBindingValue(b, v0) {
 function fxSliderOverrides(sliders, valueOf, targetKey) {
   const out = {};
   sliders.forEach(sl => sl.bindings.forEach(b => {
-    if (b.key !== targetKey) return;
+    if (b.key !== targetKey && b.key !== 'track') return; // une liaison « tout le morceau » vise chaque voix
     const meta = FX_SLIDER_PARAMS[b.param];
     (out[meta.fx] = out[meta.fx] || {})[meta.key] = fxSliderBindingValue(b, valueOf(sl.id));
   }));
@@ -2101,7 +2105,7 @@ function fxSpatialWithOverride(sp, ov) {
 }
 function fxSliderForceKeys(sliders, targetKey) {
   const keys = new Set();
-  sliders.forEach(sl => sl.bindings.forEach(b => { if (b.key === targetKey) keys.add(FX_SLIDER_PARAMS[b.param].fx); }));
+  sliders.forEach(sl => sl.bindings.forEach(b => { if (b.key === targetKey || b.key === 'track') keys.add(FX_SLIDER_PARAMS[b.param].fx); }));
   return [...keys];
 }
 // Applique les réglages des curseurs PAR-DESSUS un fx déjà fusionné (base + triggers).
@@ -2175,6 +2179,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   const fxTriggerTargetKey = new Map();
   function fxTargetKeyOf(target) {
     if (!target) return null;
+    if (target.type === 'track') return 'track';
     if (target.type === 'layer') return 'layer:' + (target.li || 0);
     if (target.type === 'loop') return 'loop:' + target.li;
     if (target.type === 'slot') return 'slot:' + target.si;
@@ -2194,13 +2199,21 @@ function initTrackPlayer(track, wrapper, elementColors) {
   const fxSliderValueOf = id => (fxSliderValues.has(id) ? fxSliderValues.get(id) : 0);
   function fxForceKeysFor(targetKey) {
     const keys = new Set(fxSliderForceKeys(fxSliders, targetKey));
-    fxTriggerDefs.forEach((d, id) => { if (fxTriggerTargetKey.get(id) === targetKey) Object.keys(d.fx).forEach(k => keys.add(k)); });
+    fxTriggerDefs.forEach((d, id) => { const k = fxTriggerTargetKey.get(id); if (k === targetKey || k === 'track') Object.keys(d.fx).forEach(x => keys.add(x)); });
     return [...keys];
+  }
+  // Chaînes vivantes concernées par une clé de cible : 'track' = TOUTES les voix du morceau.
+  function fxChainsFor(key) {
+    if (key !== 'track') return [...(fxChainsByTarget.get(key) || [])];
+    const all = [];
+    fxChainsByTarget.forEach(set => set.forEach(ch => all.push(ch)));
+    return all;
   }
   function fxEffectiveFor(targetKey, baseFx) {
     let out = baseFx ? Object.assign({}, baseFx) : {};
     fxActiveTriggerIds.forEach(id => {
-      if (fxTriggerTargetKey.get(id) !== targetKey) return;
+      const tk = fxTriggerTargetKey.get(id);
+      if (tk !== targetKey && tk !== 'track') return;
       const d = fxTriggerDefs.get(id);
       Object.keys(d.fx).forEach(k => { out[k] = Object.assign({}, out[k], d.fx[k]); });
     });
@@ -2255,10 +2268,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     if (active && i < 0) fxActiveTriggerIds.push(id);
     else if (!active && i >= 0) fxActiveTriggerIds.splice(i, 1);
     else return;
-    const key = fxTriggerTargetKey.get(id);
-    const chains = fxChainsByTarget.get(key);
+    const chains = fxChainsFor(fxTriggerTargetKey.get(id));
     const ramp = fxRampOverride != null ? fxRampOverride : (d.fadeSec != null ? d.fadeSec : 0.1);
-    if (chains) chains.forEach(ch => applyFxToChain(ctx, ch, fxEffectiveFor(key, ch.baseFx), ramp));
+    chains.forEach(ch => applyFxToChain(ctx, ch, fxEffectiveFor(ch.targetKey, ch.baseFx), ramp));
     updateFxTriggerButtons();
   }
   const fxRules = createTriggerRuleEngine([...fxTriggerDefs.values()], {
@@ -2305,8 +2317,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   function applyFxSliderToChains(sl, rampSec) {
     const keys = new Set(sl.bindings.map(b => b.key));
     keys.forEach(key => {
-      const chains = fxChainsByTarget.get(key);
-      if (chains) chains.forEach(ch => applyFxToChain(ctx, ch, fxEffectiveFor(key, ch.baseFx), rampSec));
+      fxChainsFor(key).forEach(ch => applyFxToChain(ctx, ch, fxEffectiveFor(ch.targetKey, ch.baseFx), rampSec));
     });
   }
   // Sfx spatialisés en cours de lecture dans CE morceau : un curseur lié à leur position/reverb les déplace en direct.

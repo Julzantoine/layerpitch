@@ -209,7 +209,7 @@
       let chain = null;
       const track = seg.track;
       if (track && seg.targetKey) {
-        const defs = (track.fxTriggers || []).filter(d => d && d.id && d.fx && C.fxTargetKeyFromTarget(d.target) === seg.targetKey);
+        const defs = (track.fxTriggers || []).filter(d => { if (!d || !d.id || !d.fx) return false; const k = C.fxTargetKeyFromTarget(d.target); return k === seg.targetKey || k === 'track'; });
         const sliders = slidersOf(track);
         const base = seg.baseFx !== undefined ? seg.baseFx : C.baseFxForTarget(track, seg.targetKey);
         const force = [...new Set(defs.flatMap(d => Object.keys(d.fx)).concat(C.fxSliderForceKeys(sliders, seg.targetKey)))];
