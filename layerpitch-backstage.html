@@ -1751,9 +1751,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790267932822"></script>
+<script src="layerpitch-i18n.js?v=1790268070086"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1790267708592"></script>
+<script src="player.js?v=1790268070086"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -6834,9 +6834,12 @@ function renderSfxSpaceEditor(host, sfx) {
       const p1 = [X(b.x) - L * Math.cos(ang - 0.45), Y(b.y) - L * Math.sin(ang - 0.45)], p2 = [X(b.x) - L * Math.cos(ang + 0.45), Y(b.y) - L * Math.sin(ang + 0.45)];
       return `<polyline points="${p1.join(',')} ${X(b.x)},${Y(b.y)} ${p2.join(',')}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
     })() : '';
+    // Bleu PLEIN = le point en train de jouer (pas à pas) ; anneau épais = le point sélectionné pour l'édition ;
+    // anneau fin = les autres. Une pastille bleue suit le chemin pendant un glissement.
+    const glideDot = playing.glide && playing.glidePos ? `<circle cx="${X(playing.glidePos.x)}" cy="${Y(playing.glidePos.y)}" r="7" fill="var(--accent)" stroke="#fff" stroke-width="2" style="pointer-events:none"/>` : '';
     dyn.innerHTML = `<polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="${path.mode === 'steps' ? '3 4' : '0'}"/>${arrow}` +
-      pts.map((q, i) => `<circle r="${i === sfxSpaceSelectedPoint ? 10 : 8}" cx="${X(q.x)}" cy="${Y(q.y)}" fill="${i === sfxSpaceSelectedPoint ? 'var(--accent)' : 'var(--bg, #fff)'}" stroke="var(--accent)" stroke-width="2"/>
-        <text x="${X(q.x)}" y="${Y(q.y) + 4}" text-anchor="middle" font-size="10" font-weight="700" fill="${i === sfxSpaceSelectedPoint ? '#fff' : 'var(--accent)'}" style="pointer-events:none">${i + 1}</text>`).join('');
+      pts.map((q, i) => { const isPlaying = i === playing.idx, isSel = i === sfxSpaceSelectedPoint; return `<circle r="${isSel ? 10 : 8}" cx="${X(q.x)}" cy="${Y(q.y)}" fill="${isPlaying ? 'var(--accent)' : 'var(--bg, #fff)'}" stroke="var(--accent)" stroke-width="${isSel ? 3.5 : 2}"/>
+        <text x="${X(q.x)}" y="${Y(q.y) + 4}" text-anchor="middle" font-size="10" font-weight="700" fill="${isPlaying ? '#fff' : 'var(--accent)'}" style="pointer-events:none">${i + 1}</text>`; }).join('') + glideDot;
     const q = pts[sfxSpaceSelectedPoint] || pts[0];
     let len = 0; for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
     readout.textContent = tr('sfxSpacePathReadout', { n: sfxSpaceSelectedPoint + 1, x: round1(q.x), y: round1(q.y), len: round1(len) });
@@ -6847,6 +6850,38 @@ function renderSfxSpaceEditor(host, sfx) {
     const px = (ev.clientX - r.left) * k, py = (ev.clientY - r.top) * k;
     return { px, py, x: round1(Math.max(-hx, Math.min(hx, (px - C) / ppm))), y: round1(Math.max(-hy, Math.min(hy, -(py - C) / ppm))) };
   }
+  // Lecture en cours dans le lecteur de test : point « qui joue » (pas à pas) / position suivie (glissement).
+  const playing = { idx: -1, glide: false, glidePos: null, token: 0 };
+  const pathPos = (frac) => { // position à la fraction frac (0..1) de la longueur du chemin
+    const pts = path.points; let total = 0; const cum = [0];
+    for (let i = 1; i < pts.length; i++) { total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); cum.push(total); }
+    if (total <= 0) return pts[0];
+    const a = frac * total; let i = 1; while (i < cum.length - 1 && cum[i] < a) i++;
+    const seg = cum[i] - cum[i - 1] || 1, f = Math.max(0, Math.min(1, (a - cum[i - 1]) / seg));
+    return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * f, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * f };
+  };
+  if (window.__sfxSpacePlayHandler) document.removeEventListener('layerpitch-sfx-spatial', window.__sfxSpacePlayHandler);
+  window.__sfxSpacePlayHandler = e => {
+    if (!svg.isConnected || !isPath || e.detail.sfxId !== 'spacetest-' + sfx.id) return;
+    const token = ++playing.token, dur = Math.max(0.2, e.detail.glideDuration || e.detail.duration || 1);
+    if (e.detail.mode === 'steps' && e.detail.stepIndex != null) {
+      playing.idx = e.detail.stepIndex; playing.glide = false;
+      paint();
+      setTimeout(() => { if (playing.token === token) { playing.idx = -1; paint(); } }, Math.max(300, (e.detail.duration || 1) * 1000));
+    } else if (e.detail.mode === 'glide') {
+      playing.idx = -1; playing.glide = true;
+      const t0 = performance.now();
+      const step = () => {
+        if (playing.token !== token || !svg.isConnected) return;
+        const f = (performance.now() - t0) / 1000 / dur;
+        if (f >= 1) { playing.glide = false; playing.glidePos = null; paint(); return; }
+        playing.glidePos = pathPos(f); paint();
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
+  };
+  document.addEventListener('layerpitch-sfx-spatial', window.__sfxSpacePlayHandler);
   let dragging = false;
   svg.addEventListener('pointerdown', ev => {
     const e = eventPos(ev);
@@ -11021,8 +11056,10 @@ document.getElementById('btnLoad').addEventListener('click', () => {
 
 document.getElementById('btnPublish').addEventListener('click', publishAll);
 document.getElementById('btnView').addEventListener('click', () => {
-  const owner = state.owner(), repo = state.repo();
-  if (!owner || !repo) { log(tr('needOwnerRepoMsg'), 'err'); return; }
+  // 24/09 : ne plus exiger owner/repo GitHub ici (signalé par Jules-Antoine : le bouton ne faisait RIEN sur
+  // http://localhost, où ces champs -- gardés dans le stockage local de chaque adresse -- sont vides ; le message
+  // « Renseigne owner / repo » n'allait que dans le journal, invisible). C'était aussi vrai pour tout compositeur
+  // sans dépôt GitHub personnel, alors que computeAdReelUrl sait déjà retomber sur le lien public de son handle.
   const url = computeAdReelUrl(currentAdReelId);
   if (!url) { alert(tr('adreelUrlPending')); return; }
   window.open(url, '_blank');

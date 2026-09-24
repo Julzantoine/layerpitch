@@ -1454,7 +1454,7 @@ function buildSpatialVoice(ctx, spatial, opts) {
   // atTime : changement programmé (rendu hors-ligne de l'outil vidéo) ; sinon "maintenant".
   const [halfX, halfY] = spatialFieldHalfExtent(sp.room);
   const fixed = path.mode === 'fixed';
-  return { input, nodes, distance: dist, stepIndex, fixed,
+  return { input, nodes, distance: dist, stepIndex, fixed, pathMode: path.mode, glideDuration: glide ? glide.dur : null,
     setPosition(x, y, rampSec, atTime) {
       if (!fixed) return;
       x = Math.max(-halfX, Math.min(halfX, +x || 0)); y = Math.max(-halfY, Math.min(halfY, +y || 0));
@@ -1526,6 +1526,13 @@ function connectSfxSource(src, sfxDef, spatialOverride) {
     });
     src.connect(voice.input);
     src.addEventListener('ended', () => setTimeout(() => voice.dispose(), 250));
+    // Évènement DOM (24/09) : l'éditeur de la matrice (Backstage) y montre en bleu le point « en train de jouer »
+    // (pas à pas) ou une pastille qui suit le chemin (glissement).
+    try {
+      document.dispatchEvent(new CustomEvent('layerpitch-sfx-spatial', { detail: {
+        sfxId: sfxDef.id, mode: voice.pathMode, stepIndex: voice.stepIndex, glideDuration: voice.glideDuration,
+        duration: src.buffer ? src.buffer.duration / ((src.playbackRate && src.playbackRate.value) || 1) : 0 } }));
+    } catch (e) {}
     return voice;
   } catch (e) {
     console.error('Spatialisation Sfx — repli sur la sortie directe :', e);
