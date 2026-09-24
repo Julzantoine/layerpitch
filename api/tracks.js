@@ -29,7 +29,7 @@
       .map(s => {
         const nextOptions = [...(s.segment_slot_transitions || [])]
           .sort((a, b) => a.position - b.position)
-          .map(tr => ({ targetId: tr.target_slot_id, label: tr.label, transition: tr.transition }));
+          .map(tr => ({ targetId: tr.target_slot_id, label: tr.label, transition: tr.transition, fxActions: tr.fx_actions || null }));
         return {
           id: s.id, label: s.label, avoidImmediateRepeat: s.avoid_immediate_repeat,
           referencesSlotId: s.references_slot_id, repeatCount: s.repeat_count, quantization: s.quantization,
@@ -37,6 +37,7 @@
           alternatives: s.alternatives, nextOptions: nextOptions.length ? nextOptions : null,
           bpm: s.bpm != null ? Number(s.bpm) : null, beatsPerBar: s.beats_per_bar,
           customCutFadeSec: s.custom_cut_fade_sec != null ? Number(s.custom_cut_fade_sec) : null,
+          fx: s.fx || null,
         };
       });
     const sfxIds = [...(row.track_sfx || [])].sort((a, b) => a.position - b.position).map(r => r.sfx_id);
@@ -50,6 +51,9 @@
       maxLoops: row.max_loops, maxChainLoops: row.max_chain_loops, normalizeVolume: row.normalize_volume,
       duration: Number(row.duration), base: row.base, layers: row.layers, intro: row.intro, outro: row.outro,
       segmentSlots, loops: row.loops, randomizeSections: row.randomize_sections, sections: row.sections, sfxIds,
+      // Effets audio (22-23/09) : fx de morceau entier (pitch "vitesse") et triggers d'effets -- colonnes
+      // ajoutées par 20260923010000_track_fx_persistence.sql, jamais présentes avant.
+      fx: row.fx || null, fxTriggers: row.fx_triggers || [], fxSliders: row.fx_sliders || [],
     };
   }
 

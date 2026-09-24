@@ -497,7 +497,7 @@
   /* --- Styles du lecteur d'aperçu (bouton Écouter), repris à l'identique d'index.html/pack.html --- */
   .track-intensity-block { margin-top: 16px; }
   .voice-graph { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
-  .voice-graph-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 8px; }
+  .voice-graph-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 8px; }
   .voice-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; }
   .voice-row-label { color: var(--text-dim); min-width: 130px; flex-shrink: 0; }
   .voice-row-current { font-family: 'JetBrains Mono', monospace; color: var(--text-dim); font-style: italic; min-width: 130px; flex-shrink: 0; }
@@ -616,9 +616,10 @@
      grandes. */
   .seq-map.seq-map-roomy { padding: 24px; border-radius: 16px; }
   .seq-map-roomy .voice-graph-label { font-size: 11px; margin-bottom: 14px; }
+  .seq-map .voice-graph-label { color: color-mix(in srgb, var(--text) 78%, transparent); }
   .seq-map-roomy .seq-map-node { border-radius: 12px; box-shadow: inset 4px 0 0 var(--seq-map-node-accent, transparent), 0 1px 3px rgba(0,0,0,.06); }
   .seq-map-roomy .seq-map-node-check { width: 18px; height: 18px; font-size: 11px; top: 6px; left: 6px; }
-  .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
+  .track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 6px; }
   .intensity-picker { display: flex; flex-wrap: wrap; gap: 6px; }
   .intensity-chip {
     font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 10px;
@@ -668,7 +669,7 @@
   .embr-transition-row .embr-wave-fg, .embr-detour-wave-row .embr-wave-fg { opacity: 1; }
 
   .loop-count-block { margin-top: 14px; }
-  .loop-count-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 6px; }
+  .loop-count-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 6px; }
   .loop-count-block select { font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dim); }
 
   /* --- Timeline des points de boucle (StartTrackPoint / StartLoopPoint / ExitLoopPoint) --- */
@@ -1773,9 +1774,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790278925045"></script>
+<script src="layerpitch-i18n.js?v=1790282257000"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1790194832844"></script>
+<script src="player.js?v=1790282257000"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2190,6 +2191,12 @@ async function renderAdminOnlyPanels(session) {
   const albumsNavBtn = document.getElementById('navItemAlbums');
   if (albumsNavBtn) albumsNavBtn.hidden = !isAdmin;
   if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); }
+  // Le statut admin peut se résoudre après un premier rendu de la Bibliothèque (session déjà en cache
+  // vs RPC is_admin() encore en vol) -- redessine pour refléter le grisage pitch correctement, sans quoi
+  // un admin verrait le pitch grisé jusqu'au prochain clic (renderLibrary() no-op si le panneau n'est pas
+  // monté, voir sa garde en tête de fonction).
+  renderLibrary();
+  if (typeof renderSfxLibrary === 'function') renderSfxLibrary(); // même raison : l'entrée "Espace" des Sfx est réservée à l'admin
 }
 // Demandes d'accès en attente (bloc "Inviter un testeur" ci-dessous, 6 septembre) -- une seule
 // fonction de rendu réutilisée après chaque invitation réussie pour retirer la ligne traitée.
@@ -3108,6 +3115,10 @@ let packTracksRefreshers = [];    // fonctions de re-rendu des sélecteurs de mo
 let packSfxRefreshers = [];       // fonctions de re-rendu des sélecteurs de Sfx de chaque pack
 let oggEncoder = null;
 let hasUnsavedEdits = false;
+// Garde-fou (24/09) : un trigger ou un réglage non publié disparaissait au rechargement de la page (aucun brouillon
+// automatique) -- le navigateur demande maintenant confirmation avant de quitter/recharger tant que des modifications
+// n'ont pas été enregistrées.
+window.addEventListener('beforeunload', e => { if (hasUnsavedEdits) { e.preventDefault(); e.returnValue = ''; } });
 // dataLoadOk (29/08, garde-fou contre une publication "en mode panique" après un échec de chargement --
 // scénario réel vécu par Jules-Antoine : erreur 403 au chargement automatique, puis clic sur Publier sur
 // une bibliothèque restée vide, écrasant les vraies données sur GitHub). Vrai UNE FOIS un chargement
@@ -3180,6 +3191,508 @@ function dragHandleHtml(extraClass) {
 function deleteIconBtnHtml(action, dataAttrs, label) {
   const attrs = Object.entries(dataAttrs).map(([k, v]) => `data-${k}="${v}"`).join(' ');
   return `<button type="button" class="btn btn-icon btn-danger" data-action="${action}" ${attrs} title="${label}" aria-label="${label}">${TRASH_ICON_SVG}</button>`;
+}
+// Réglages posés à l'activation d'un effet (data-fx-param="enabled") -- valeurs de départ raisonnables,
+// pas des zéros muets, pour qu'activer une case coche produise un effet audible immédiatement.
+const FX_DEFAULTS = {
+  lowcut: () => ({ frequency: 150, slope: 24 }),
+  highcut: () => ({ frequency: 3000, slope: 24 }),
+  reverb: () => ({ decay: 2, wet: 0.3 }),
+  delay: () => ({ time: 0.3, feedback: 0.35, wet: 0.25 }),
+  bitcrush: () => ({ bits: 6, reduction: 6 }), // départ nettement audible (8 bits sans réduction ne s'entendait presque pas, 24/09)
+  volume: () => ({ db: 0 }),
+  // "rate" retiré des valeurs par défaut par élément (22/09) : devenu un réglage de morceau entier, voir
+  // FX_TRACK_DEFAULTS ci-dessous et trackPitchFxHtml() -- ici, "shift" reste le seul mode par couche/
+  // boucle/emplacement/pool, puisqu'il ne pose pas de problème de synchro (durée inchangée).
+  pitch: () => ({ mode: 'shift', semitones: 3 }) // départ audible (0 demi-ton ne changeait rien, 25/09)
+};
+// Pitch de morceau entier (mode "rate" implicite, pas de champ mode -- un seul sens possible à ce niveau).
+const FX_TRACK_DEFAULTS = { pitch: () => ({ semitones: 0 }) };
+// Effets audio par couche (chantier "effets dynamiques", 22/09) -- filtre/reverb/écho/bitcrusher,
+// réglages fixes pour l'instant (pas d'automatisation/déclenchement -- prévu dans un second temps,
+// cf. discussion produit). Un seul point de vérité pour ne pas dupliquer le markup entre le mode
+// statique (une seule couche, li=null) et le mode vertical (une couche par li).
+// fxBlockHtml : cœur générique, indépendant du mode de lecture -- extraAttrs porte les data-* qui disent
+// à quel objet appliquer le réglage (couche, boucle, emplacement séquentiel, pool vertical-random). Les
+// 4 fonctions fooFxHtml ci-dessous ne sont que des façades qui fixent extraAttrs pour chaque cas, pour
+// ne jamais dupliquer le markup des 4 effets à chaque nouveau mode qui les gagne.
+function fxBlockHtml(fx, extraAttrs) {
+  fx = fx || {};
+  const lc = fx.lowcut, hc = fx.highcut, r = fx.reverb, d = fx.delay, b = fx.bitcrush;
+  // Pitch grisé pour tout compte non-admin (22/09, demande de Jules-Antoine) tant que la synchro
+  // "vitesse" avec le planificateur n'a pas été testée en conditions réelles -- même patron que la
+  // bibliothèque vidéo (currentUserIsAdmin, confort d'affichage client, cf. renderAdminOnlyPanels()).
+  // Pas de barrière serveur pour l'instant (à durcir dans upsert_track si un jour nécessaire) : un
+  // réglage qualité propre au compositeur, pas un enjeu de sécurité/business comme "pack en vente".
+  // 23/09 (demande de Jules-Antoine) : TOUS les effets (volume, filtre, reverb, écho, bitcrusher, pitch) sont
+  // désormais grisés pour tout compte non-admin, en attendant son feu vert -- pas seulement le pitch.
+  const pitchDisabled = !currentUserIsAdmin;
+  const gated = !currentUserIsAdmin;
+  // Dans la carte d'un TRIGGER, le fondu se règle par les deux champs « entrée / sortie » du trigger lui-même : les champs de
+  // fondu propres au filtre (utiles à l'apparition d'une voix, pas à l'appui d'un bouton) sont masqués pour éviter la confusion.
+  const isTriggerBlock = /data-fx-target="trigger"/.test(extraAttrs || '');
+  function num(effect, param, value, labelKey, step, min, max, disabled) {
+    if (disabled === undefined) disabled = gated;
+    return `<div style="margin-top:4px"><label style="font-size:0.85em">${tr(labelKey)}</label>
+      <input type="number" step="${step}" min="${min}" max="${max}" ${disabled ? 'disabled' : ''}
+        data-field="fx" data-fx-effect="${effect}" data-fx-param="${param}" ${extraAttrs} value="${value}"></div>`;
+  }
+  // Champ de fondu optionnel (filtre/pitch) : vide par défaut (= pas de fondu), pas de min/max forcé --
+  // une case vidée par le compositeur redevient "pas de fondu" (voir le handler, qui stocke null plutôt
+  // que NaN dans ce cas), pas une valeur à zéro.
+  function numOptional(effect, param, value, labelKey, step, disabled) {
+    if (disabled === undefined) disabled = gated;
+    return `<div style="margin-top:4px"><label style="font-size:0.85em">${tr(labelKey)}</label>
+      <input type="number" step="${step}" ${disabled ? 'disabled' : ''}
+        data-field="fx" data-fx-effect="${effect}" data-fx-param="${param}" ${extraAttrs} value="${value != null ? value : ''}"></div>`;
+  }
+  function toggle(effect, enabled, labelKey, extraFields, disabled) {
+    if (disabled === undefined) disabled = gated;
+    return `
+      <div style="margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:6px${disabled ? ';opacity:0.55' : ''}">
+        <label style="display:flex;align-items:center;gap:6px;margin:0">
+          <input type="checkbox" data-field="fx" data-fx-effect="${effect}" data-fx-param="enabled" ${extraAttrs} ${enabled ? 'checked' : ''} ${disabled ? 'disabled' : ''} style="width:auto;margin:0">
+          ${tr(labelKey)}${disabled ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}
+        </label>
+        ${enabled ? `<div style="margin-top:6px">${extraFields}</div>` : ''}
+      </div>
+    `;
+  }
+  return `
+    <div style="margin-top:10px">
+      ${isTriggerBlock ? '' : `<div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxSectionTitle')}</div>`}
+      ${toggle('volume', !!fx.volume, 'fxVolumeLabel', `
+        ${num('volume', 'db', fx.volume ? fx.volume.db : 0, 'fxVolumeDbLabel', 0.5, -60, 12)}
+        <div class="hint-inline">${tr('fxVolumeHint')}</div>
+      `)}
+      ${['lowcut', 'highcut'].map(k => {
+        const c = k === 'lowcut' ? lc : hc;
+        const slopeVal = c && (+c.slope === 12 || +c.slope === 48) ? +c.slope : 24;
+        return toggle(k, !!c, k === 'lowcut' ? 'fxLowcutLabel' : 'fxHighcutLabel', `
+        <div class="hint-inline">${tr(k === 'lowcut' ? 'fxLowcutHint' : 'fxHighcutHint')}</div>
+        ${num(k, 'frequency', c ? c.frequency : (k === 'lowcut' ? 150 : 3000), 'fxFrequencyLabel', 10, 20, 20000)}
+        <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxSlopeLabel')}</label>
+          <select data-field="fx" data-fx-effect="${k}" data-fx-param="slope" ${extraAttrs} ${gated ? 'disabled' : ''}>
+            ${[12, 24, 48].map(v => `<option value="${v}" ${slopeVal === v ? 'selected' : ''}>${tr('fxSlopeOption', { db: v })}</option>`).join('')}
+          </select></div>
+        ${isTriggerBlock ? '' : numOptional(k, 'fadeFromFrequency', c ? c.fadeFromFrequency : null, 'fxFadeFromFreqLabel', 10)}
+        ${isTriggerBlock ? '' : numOptional(k, 'fadeDurationSec', c ? c.fadeDurationSec : null, 'fxFadeDurationLabel', 0.1)}
+      `);
+      }).join('')}
+      ${toggle('pitch', !!fx.pitch, 'fxPitchLabel', `
+        ${isTriggerBlock ? `
+        <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxPitchModeLabel')}</label>
+          <select data-field="fx" data-fx-effect="pitch" data-fx-param="mode" ${extraAttrs} ${pitchDisabled ? 'disabled' : ''}>
+            <option value="shift" ${!fx.pitch || fx.pitch.mode !== 'rate' ? 'selected' : ''}>${tr('fxPitchModeShift')}</option>
+            <option value="rate" ${fx.pitch && fx.pitch.mode === 'rate' ? 'selected' : ''}>${tr('fxPitchModeRate')}</option>
+          </select></div>
+        <div class="hint-inline">${tr(fx.pitch && fx.pitch.mode === 'rate' ? 'fxPitchModeRateTriggerHint' : 'fxPitchModeShiftHint')}</div>` : `<div class="hint-inline">${tr('fxPitchModeShiftHint')}</div>`}
+        ${num('pitch', 'semitones', fx.pitch ? fx.pitch.semitones : 0, 'fxSemitonesLabel', 1, -24, 24, pitchDisabled)}
+      `, pitchDisabled)}
+      ${toggle('reverb', !!r, 'fxReverbLabel', `
+        ${num('reverb', 'decay', r ? r.decay : 2, 'fxDecayLabel', 0.1, 0.1, 10)}
+        ${num('reverb', 'wet', r ? r.wet : 0.3, 'fxWetLabel', 0.05, 0, 1)}
+      `)}
+      ${toggle('delay', !!d, 'fxDelayLabel', `
+        ${num('delay', 'time', d ? d.time : 0.3, 'fxDelayTimeLabel', 0.01, 0.01, 2)}
+        ${num('delay', 'feedback', d ? d.feedback : 0.35, 'fxFeedbackLabel', 0.05, 0, 0.9)}
+        ${num('delay', 'wet', d ? d.wet : 0.25, 'fxWetLabel', 0.05, 0, 1)}
+      `)}
+      ${toggle('bitcrush', !!b, 'fxBitcrushLabel', `
+        ${num('bitcrush', 'bits', b ? b.bits : 8, 'fxBitsLabel', 1, 1, 16)}
+        ${num('bitcrush', 'reduction', b ? b.reduction : 1, 'fxReductionLabel', 1, 1, 50)}
+      `)}
+    </div>
+  `;
+}
+// Couche (mode vertical) ou l'unique couche du mode statique (li=null).
+function layerFxHtml(layer, ti, li) {
+  const liAttr = li != null ? `data-li="${li}"` : '';
+  return fxBlockHtml(layer.fx, `data-fx-target="layer" data-ti="${ti}" ${liAttr}`);
+}
+// Boucle nommée (mode embranchement-vertical) -- fx par boucle, exact équivalent d'une couche.
+function loopFxHtml(loop, ti, li) {
+  return fxBlockHtml(loop.fx, `data-fx-target="loop" data-ti="${ti}" data-li="${li}"`);
+}
+// Emplacement séquentiel (mode séquentiel) -- fx porté par l'EMPLACEMENT, pas par chaque alternative :
+// un emplacement est une position fixe de la timeline, l'effet doit s'appliquer quel que soit le tirage
+// qui le remplit (anti-répétition), pas être reconfiguré alternative par alternative.
+function slotFxHtml(slot, ti, si) {
+  return fxBlockHtml(slot.fx, `data-fx-target="slot" data-ti="${ti}" data-si="${si}"`);
+}
+// Pool (mode vertical-random) -- même raisonnement que l'emplacement séquentiel : le pool est la "voix"
+// fixe (façon Wwise Voice Graph), l'effet lui appartient plutôt qu'à l'alternative tirée au sort.
+function poolFxHtml(pool, ti, si, pi) {
+  return fxBlockHtml(pool.fx, `data-fx-target="pool" data-ti="${ti}" data-si="${si}" data-pi="${pi}"`);
+}
+// Pitch "vitesse" de morceau ENTIER (22/09) -- distinct de fxBlockHtml/layerFxHtml & co, volontairement
+// pas un simple appel à fxBlockHtml : un seul effet ici (pas de filtre/reverb/écho/bitcrush au niveau
+// morceau), pas de champ mode (toujours "rate", implicite -- voir buildLayerFxChain/applyTrackPitchRate
+// dans player.js). Rendu une fois dans le panneau "Infos du morceau", commun à tous les modes.
+function trackPitchFxHtml(track, ti) {
+  const pitchDisabled = !currentUserIsAdmin;
+  const p = (track.fx && track.fx.pitch) || null;
+  const attrs = `data-fx-target="track" data-ti="${ti}"`;
+  // Fondu de pitch : seulement avec le moteur simple (statique/vertical sans boucle quantifiée), voir
+  // applyTrackPitchRate() dans player.js.
+  const fadeSupported = (track.mode === 'static' || track.mode === 'vertical') && track.loopEngine !== 'quantized';
+  return `
+    <div style="margin-top:14px">
+      <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxPitchLabel')}</div>
+      <div style="padding:8px;border:1px solid var(--border);border-radius:6px${pitchDisabled ? ';opacity:0.55' : ''}">
+        <label style="display:flex;align-items:center;gap:6px;margin:0">
+          <input type="checkbox" data-field="fx" data-fx-effect="pitch" data-fx-param="enabled" ${attrs} ${p ? 'checked' : ''} ${pitchDisabled ? 'disabled' : ''} style="width:auto;margin:0">
+          ${tr('fxPitchModeRate')}${pitchDisabled ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}
+        </label>
+        <div class="hint-inline">${tr('fxTrackPitchHint')}</div>
+        ${p ? `
+          <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxSemitonesLabel')}</label>
+            <input type="number" step="1" min="-24" max="24" ${pitchDisabled ? 'disabled' : ''} data-field="fx" data-fx-effect="pitch" data-fx-param="semitones" ${attrs} value="${p.semitones || 0}"></div>
+          ${fadeSupported ? `
+          <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxFadeFromSemitonesLabel')}</label>
+            <input type="number" step="1" ${pitchDisabled ? 'disabled' : ''} data-field="fx" data-fx-effect="pitch" data-fx-param="fadeFromSemitones" ${attrs} value="${p.fadeFromSemitones != null ? p.fadeFromSemitones : ''}"></div>
+          <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxFadeDurationLabel')}</label>
+            <input type="number" step="0.1" ${pitchDisabled ? 'disabled' : ''} data-field="fx" data-fx-effect="pitch" data-fx-param="fadeDurationSec" ${attrs} value="${p.fadeDurationSec != null ? p.fadeDurationSec : ''}"></div>
+          ` : `<div class="hint-inline">${tr('fxTrackPitchNoFadeHint')}</div>`}
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+// ---- Triggers d'effets (23/09) -- réservés à l'admin pour l'instant, comme le pitch ----
+// Un trigger = { id, label, target:{type,li|si|pi}, fx:{...}, visible, fadeSec } : un jeu d'effets qui se
+// fusionne par-dessus ceux de sa cible tant qu'il est actif (voir initTrackPlayer() dans player.js). Actionné
+// par un bouton public (visible) ou par des embranchements (fxActions sur une option de bascule séquentielle
+// ou sur une boucle d'embranchement-vertical).
+function fxTriggerTargetChoices(track) {
+  const out = [];
+  if (track.mode === 'static') out.push({ value: 'layer:0', label: tr('fxTargetStaticTrack') });
+  else if (track.mode === 'vertical') (track.layers || []).forEach((l, i) => out.push({ value: 'layer:' + i, label: l.label || tr('layerFallback', { n: i + 1 }) }));
+  else if (track.mode === 'embranchement-vertical') (track.loops || []).forEach((l, i) => out.push({ value: 'loop:' + i, label: l.label || tr('embrLoopFallback', { n: i + 1 }) }));
+  else if (track.mode === 'sequential') (track.segmentSlots || []).forEach((sl, i) => out.push({ value: 'slot:' + i, label: '#' + (i + 1) + ' ' + (sl.label || tr('slotFallback', { n: i + 1 })) }));
+  else if (track.mode === 'vertical-random') (track.sections || []).forEach((sec, si) => (sec.pools || []).forEach((p, pi) => out.push({ value: 'pool:' + si + ':' + pi, label: (sec.label || ('S' + (si + 1))) + ' / ' + (p.label || ('P' + (pi + 1))) })));
+  return out;
+}
+function fxTriggerTargetToValue(t) {
+  if (!t) return '';
+  if (t.type === 'track') return 'track';
+  if (t.type === 'sfx') return 'sfx:' + t.id;
+  if (t.type === 'layer') return 'layer:' + (t.li || 0);
+  if (t.type === 'loop') return 'loop:' + t.li;
+  if (t.type === 'slot') return 'slot:' + t.si;
+  if (t.type === 'pool') return 'pool:' + t.si + ':' + t.pi;
+  return '';
+}
+function parseFxTriggerTarget(v) {
+  if (v === 'track') return { type: 'track' };
+  const p = String(v || '').split(':');
+  if (p[0] === 'sfx') return { type: 'sfx', id: p.slice(1).join(':') };
+  if (p[0] === 'layer') return { type: 'layer', li: parseInt(p[1], 10) || 0 };
+  if (p[0] === 'loop') return { type: 'loop', li: parseInt(p[1], 10) || 0 };
+  if (p[0] === 'slot') return { type: 'slot', si: parseInt(p[1], 10) || 0 };
+  if (p[0] === 'pool') return { type: 'pool', si: parseInt(p[1], 10) || 0, pi: parseInt(p[2], 10) || 0 };
+  return null;
+}
+// Relations entre triggers (24/09) : { activates:[{triggerId, delaySec}], cuts:[id], requires:[id], autoOffSec } --
+// nettoyées à la sérialisation (rien d'inutile n'est publié). Règles décrites dans createTriggerRuleEngine (player.js).
+function fxRelationsClean(rel) {
+  if (!rel) return null;
+  const out = {};
+  if (rel.activates && rel.activates.length) out.activates = rel.activates.map(a => ({ triggerId: a.triggerId, delaySec: +a.delaySec > 0 ? +a.delaySec : 0 }));
+  if (rel.cuts && rel.cuts.length) out.cuts = rel.cuts.slice();
+  if (rel.requires && rel.requires.length) out.requires = rel.requires.slice();
+  if (+rel.autoOffSec > 0) out.autoOffSec = +rel.autoOffSec;
+  return Object.keys(out).length ? out : null;
+}
+function fxRelationsEditorHtml(triggers, i, trg, attrs) {
+  const rel = trg.relations || {};
+  const others = triggers.filter((o, j) => j !== i && o && o.id);
+  const rows = others.map(o => {
+    const rAttrs = `data-field="fxRel" ${attrs} data-rel-other="${escapeAttr(o.id)}"`;
+    const act = (rel.activates || []).find(a => a.triggerId === o.id);
+    return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:4px;font-size:12px">
+      <span style="min-width:110px;font-weight:600">${escapeAttr(o.label) || tr('fxTriggerLabelPlaceholder')}</span>
+      <label style="display:flex;align-items:center;gap:4px;margin:0"><input type="checkbox" ${rAttrs} data-rel-kind="activates" ${act ? 'checked' : ''} style="width:auto;margin:0"> ${tr('fxRelActivates')}</label>
+      ${act ? `<label style="display:flex;align-items:center;gap:4px;margin:0">${tr('fxRelDelay')} <input type="number" step="0.1" min="0" ${rAttrs} data-rel-kind="delay" value="${act.delaySec || 0}" style="width:64px"> s</label>` : ''}
+      <label style="display:flex;align-items:center;gap:4px;margin:0"><input type="checkbox" ${rAttrs} data-rel-kind="cuts" ${(rel.cuts || []).indexOf(o.id) >= 0 ? 'checked' : ''} style="width:auto;margin:0"> ${tr('fxRelCuts')}</label>
+      <label style="display:flex;align-items:center;gap:4px;margin:0"><input type="checkbox" ${rAttrs} data-rel-kind="requires" ${(rel.requires || []).indexOf(o.id) >= 0 ? 'checked' : ''} style="width:auto;margin:0"> ${tr('fxRelRequires')}</label>
+    </div>`;
+  }).join('');
+  return `
+    <div style="margin-top:10px;padding:8px;border:1px solid var(--border);border-radius:6px">
+      <div style="font-weight:600;font-size:0.85em">${tr('fxRelTitle')}</div>
+      <div class="hint-inline">${tr('fxRelHint')}</div>
+      ${rows || `<div class="hint-inline">${tr('fxRelNoOthers')}</div>`}
+    </div>`;
+}
+// Volet « Effets » d'un trigger : ouvert par défaut, repliable ; l'état (par identifiant de trigger) survit aux
+// reconstructions de la liste, le temps que la page reste ouverte.
+// Bornes proposées (curseur à 0 % -> 100 %) quand on choisit un paramètre pour une liaison de curseur.
+const FX_SLIDER_DEFAULT_RANGE = {
+  'lowcut.frequency': [20, 400], 'highcut.frequency': [400, 20000], 'volume.db': [-30, 0], 'reverb.wet': [0, 0.6],
+  'delay.wet': [0, 0.5], 'delay.feedback': [0.2, 0.7], 'bitcrush.bits': [16, 4], 'bitcrush.reduction': [1, 20],
+  'pitch.semitones': [0, 7], 'pitch.speed': [0, -12],
+  'spatial.x': [-5, 5], 'spatial.y': [0, 10], 'spatial.distance': [2, 20], 'spatial.angle': [-90, 90], 'spatial.reverbDb': [-12, 0]
+};
+const fxTriggerEffectsCollapsed = new Set();
+document.addEventListener('toggle', e => {
+  const d = e.target, k = d && d.dataset && d.dataset.fxtEffectsKey;
+  if (!k) return;
+  if (d.open) fxTriggerEffectsCollapsed.delete(k); else fxTriggerEffectsCollapsed.add(k);
+}, true);
+function fxTriggersEditorHtml(track, ti) {
+  const triggers = track.fxTriggers || [];
+  if (!currentUserIsAdmin) {
+    return `
+      <div style="margin-top:14px;opacity:0.55">
+        <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}</div>
+        <div class="hint-inline">${tr('fxTriggersAdminOnly')}${triggers.length ? ' (' + triggers.length + ')' : ''}</div>
+      </div>`;
+  }
+  const choices = fxTriggerTargetChoices(track);
+  const cards = triggers.map((trg, i) => {
+    const curValue = fxTriggerTargetToValue(trg.target);
+    const opts = choices.map(c => `<option value="${escapeAttr(c.value)}" ${c.value === curValue ? 'selected' : ''}>${escapeAttr(c.label)}</option>`).join('');
+    const attrs = `data-ti="${ti}" data-tri="${i}"`;
+    return `
+      <div class="list-block" style="margin-top:8px">
+        <div class="row">
+          <div><label>${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('fxTriggerLabelPlaceholder')}" data-field="fxTrigger" data-fxt-prop="label" ${attrs} value="${escapeAttr(trg.label)}"></div>
+          <button class="btn btn-icon btn-danger" data-action="remove-fx-trigger" ${attrs} title="${tr('removeFxTriggerBtn')}" style="align-self:flex-end">×</button>
+        </div>
+        ${trg.target && trg.target.type !== 'track' ? `
+          <div class="hint-inline" style="margin-top:6px">${tr('fxTriggerLegacyTarget', { name: escapeAttr((choices.find(c => c.value === curValue) || {}).label || curValue) })}
+            <button class="btn btn-small" type="button" data-action="fx-trigger-to-track" ${attrs}>${tr('fxTriggerToWholeTrackBtn')}</button></div>
+        ` : `<div class="hint-inline" style="margin-top:6px">${tr('fxTriggerWholeTrackNote')}</div>`}
+        <details data-fxt-effects-key="${escapeAttr(trg.id)}" ${fxTriggerEffectsCollapsed.has(trg.id) ? '' : 'open'} style="margin-top:10px">
+          <summary style="cursor:pointer;font-weight:600;font-size:0.9em">${tr('fxSectionTitle')} <span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggerEffectsCount', { n: Object.keys(trg.fx || {}).length })}</span></summary>
+  ${fxBlockHtml(trg.fx, `data-fx-target="trigger" ${attrs}`)}
+        </details>
+        <label class="switch-row" style="margin-top:8px">
+          <input type="checkbox" data-field="fxTrigger" data-fxt-prop="visible" ${attrs} ${trg.visible ? 'checked' : ''}>
+          <span class="switch-row-label">${tr('fxTriggerVisibleLabel')}</span>
+        </label>
+        <div class="hint-inline">${tr('fxTriggerVisibleHint')}</div>
+        <div class="row" style="margin-top:6px">
+          <div><label style="font-size:0.85em">${tr('fxTriggerFadeLabel')}</label>
+            <input type="number" step="0.05" min="0" max="10" data-field="fxTrigger" data-fxt-prop="fadeSec" style="width:100%" ${attrs} value="${trg.fadeSec != null ? trg.fadeSec : ''}"></div>
+          <div><label style="font-size:0.85em">${tr('fxTriggerFadeOutLabel')}</label>
+            <input type="number" step="0.05" min="0" max="10" placeholder="${tr('fxTriggerFadeOutPlaceholder')}" data-field="fxTrigger" data-fxt-prop="fadeOutSec" style="width:100%" ${attrs} value="${trg.fadeOutSec != null ? trg.fadeOutSec : ''}"></div>
+        </div>
+        <div style="margin-top:8px"><label style="font-size:0.85em">${tr('fxAutoOffLabel')}</label>
+          <input type="number" step="0.5" min="0" placeholder="${tr('fxAutoOffPlaceholder')}" data-field="fxTrigger" data-fxt-prop="autoOffSec" style="width:100%" ${attrs} value="${trg.relations && trg.relations.autoOffSec != null ? trg.relations.autoOffSec : ''}"></div>
+        <div class="hint-inline">${tr('fxAutoOffHint')}</div>
+        ${fxRelationsEditorHtml(triggers, i, trg, attrs)}
+      </div>`;
+  }).join('');
+  return `
+    <div style="margin-top:14px">
+      <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}</div>
+      <div class="hint-inline">${tr('fxTriggersHint')}</div>
+      ${cards}
+      <div class="actions" style="margin-top:8px"><button class="btn btn-small" data-action="add-fx-trigger" data-ti="${ti}">${tr('addFxTriggerBtn')}</button></div>
+    </div>`;
+}
+// ---- Curseurs de paramètre (24/09) -- réservés à l'admin, comme les triggers ----
+// track.fxSliders = [{ id, label, defaultValue (0..1), smoothSec, visible, bindings:[{target, param, from, to}],
+// thresholds:[{at (0..1), mode, triggerId}] }] : un curseur public dont la valeur règle des paramètres d'effets sur des
+// cibles (courbe de `from` à `to`) et active/coupe des triggers selon des seuils. Voir fxSlidersValid dans player.js.
+function fxSliderParamKey(param) { return 'fxSliderParam_' + String(param).replace('.', '_'); }
+// Éditeur de courbe d'une liaison (24/09) : points {x, y} de 0 à 1 (x = position du curseur, y = de la valeur « à 0 % »
+// en bas à la valeur « à 100 % » en haut). Extrémités calées aux bords (seul leur y bouge), points intermédiaires libres.
+const FX_CURVE_W = 220, FX_CURVE_H = 130, FX_CURVE_PAD = 14;
+const fxCurveSelected = {}; // "ti:sri:bi" -> index du point sélectionné
+function fxCurveKey(ti, sri, bi) { return ti + ':' + sri + ':' + bi; }
+function fxCurveInnerSvg(curve, selIdx) {
+  const pts = curve && curve.length >= 2 ? curve : [{ x: 0, y: 0 }, { x: 1, y: 1 }];
+  const X = v => FX_CURVE_PAD + v * (FX_CURVE_W - 2 * FX_CURVE_PAD), Y = v => FX_CURVE_H - FX_CURVE_PAD - v * (FX_CURVE_H - 2 * FX_CURVE_PAD);
+  return `<rect x="${X(0)}" y="${Y(1)}" width="${X(1) - X(0)}" height="${Y(0) - Y(1)}" fill="none" stroke="var(--border)" stroke-width="1"/>
+    <line x1="${X(0)}" y1="${Y(0)}" x2="${X(1)}" y2="${Y(1)}" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3 3"/>
+    <polyline points="${pts.map(q => X(q.x) + ',' + Y(q.y)).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2"/>` +
+    pts.map((q, i) => `<circle cx="${X(q.x)}" cy="${Y(q.y)}" r="${i === selIdx ? 6 : 4.5}" fill="${i === selIdx ? 'var(--accent)' : 'var(--bg, #fff)'}" stroke="var(--accent)" stroke-width="2"/>`).join('');
+}
+function fxCurveEditorHtml(b, ti, sri, bi) {
+  const key = fxCurveKey(ti, sri, bi);
+  const sel = fxCurveSelected[key] != null ? fxCurveSelected[key] : -1;
+  return `
+    <details style="margin-top:6px;width:100%">
+      <summary style="cursor:pointer;font-size:0.85em">${tr('fxSliderCurveTitle')}${b.curve ? ' ✓' : ''}</summary>
+      <div class="hint-inline">${tr('fxSliderCurveHint')}</div>
+      <svg data-curve-editor="1" data-ti="${ti}" data-sri="${sri}" data-bi="${bi}" viewBox="0 0 ${FX_CURVE_W} ${FX_CURVE_H}" width="${FX_CURVE_W}" height="${FX_CURVE_H}" style="touch-action:none;cursor:crosshair;border:1px solid var(--border);border-radius:6px;display:block;margin-top:4px">${fxCurveInnerSvg(b.curve, sel)}</svg>
+      <div class="actions" style="margin-top:4px">
+        <button class="btn btn-small" type="button" data-action="fxsb-curve-remove" data-ti="${ti}" data-sri="${sri}" data-bi="${bi}">${tr('fxSliderCurveRemovePoint')}</button>
+        <button class="btn btn-small" type="button" data-action="fxsb-curve-reset" data-ti="${ti}" data-sri="${sri}" data-bi="${bi}">${tr('fxSliderCurveReset')}</button>
+      </div>
+    </details>`;
+}
+function fxSlidersClean(list) {
+  return (list || []).filter(x => x && x.id).map(x => ({
+    id: x.id, label: x.label || '', visible: !!x.visible,
+    defaultValue: Number.isFinite(+x.defaultValue) ? Math.max(0, Math.min(1, +x.defaultValue)) : 0,
+    smoothSec: Number.isFinite(+x.smoothSec) && +x.smoothSec >= 0 ? +x.smoothSec : 0.15,
+    bindings: (x.bindings || []).filter(b => b && b.target && b.param).map(b => { const cv = window.LayerPlayerCore.fxCurveSanitize(b.curve); return Object.assign({ target: b.target, param: b.param, from: Number.isFinite(+b.from) ? +b.from : 0, to: Number.isFinite(+b.to) ? +b.to : 1 }, cv ? { curve: cv } : {}); }),
+    thresholds: (x.thresholds || []).filter(t => t && t.triggerId).map(t => ({ at: Number.isFinite(+t.at) ? Math.max(0, Math.min(1, +t.at)) : 0.5, mode: t.mode === 'above' ? 'above' : 'below', triggerId: t.triggerId }))
+  }));
+}
+function fxSlidersEditorHtml(track, ti) {
+  const sliders = track.fxSliders || [];
+  if (!currentUserIsAdmin) {
+    return `
+      <div style="margin-top:14px;opacity:0.55">
+        <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxSlidersTitle')}</div>
+        <div class="hint-inline">${tr('fxSlidersAdminOnly')}${sliders.length ? ' (' + sliders.length + ')' : ''}</div>
+      </div>`;
+  }
+  // Décision du 24/09 : plus de cible par section -- une liaison agit sur TOUT le morceau, ou sur un Sfx attaché. Une
+  // ancienne cible précise (déjà enregistrée) reste listée pour ne rien perdre.
+  const voiceChoices = [{ value: 'track', label: tr('fxTargetWholeTrack') }];
+  const legacyChoices = fxTriggerTargetChoices(track);
+  // Sfx attachés au morceau (boutons Sfx) : cibles possibles pour les paramètres de spatialisation.
+  const sfxChoices = (track.sfxIds || []).map(id => (typeof sfxLibrary !== 'undefined' ? sfxLibrary : []).find(x => x.id === id)).filter(Boolean)
+    .map(x => ({ value: 'sfx:' + x.id, label: tr('fxSliderTargetSfx', { title: x.title || x.id }) }));
+  const choices = voiceChoices.concat(sfxChoices);
+  const paramsAll = window.LayerPlayerCore.FX_SLIDER_PARAMS;
+  const paramsFor = b => Object.keys(paramsAll).filter(pk => (paramsAll[pk].kind === 'sfx') === !!(b.target && b.target.type === 'sfx'));
+  const triggers = (track.fxTriggers || []).filter(d => d && d.id);
+  const cards = sliders.map((sl, i) => {
+    const a = `data-ti="${ti}" data-sri="${i}"`;
+    const bindRows = (sl.bindings || []).map((b, bi) => {
+      const cur = fxTriggerTargetToValue(b.target);
+      const rowChoices = choices.some(c => c.value === cur) ? choices : choices.concat([{ value: cur, label: tr('fxSliderLegacyTargetOption', { name: (legacyChoices.find(c => c.value === cur) || {}).label || cur }) }]);
+      const bAttrs = `data-field="fxSliderBinding" ${a} data-bi="${bi}"`;
+      return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:6px;font-size:12px">
+        <select ${bAttrs} data-fxsb-prop="target" style="width:auto">${rowChoices.map(c => `<option value="${escapeAttr(c.value)}" ${c.value === cur ? 'selected' : ''}>${escapeAttr(c.label)}</option>`).join('')}</select>
+        <select ${bAttrs} data-fxsb-prop="param" style="width:auto">${paramsFor(b).map(pk => `<option value="${pk}" ${b.param === pk ? 'selected' : ''}>${tr(fxSliderParamKey(pk))}</option>`).join('')}</select>
+        <label style="display:flex;align-items:center;gap:4px;margin:0">${tr('fxSliderFrom')} <input type="number" step="any" ${bAttrs} data-fxsb-prop="from" value="${b.from}" style="width:80px"></label>
+        <label style="display:flex;align-items:center;gap:4px;margin:0">${tr('fxSliderTo')} <input type="number" step="any" ${bAttrs} data-fxsb-prop="to" value="${b.to}" style="width:80px"></label>
+        <button class="btn btn-icon btn-danger" data-action="remove-fxs-binding" ${a} data-bi="${bi}" title="${tr('deleteBtn')}">×</button>
+        ${fxCurveEditorHtml(b, ti, i, bi)}
+      </div>`;
+    }).join('');
+    const thrRows = (sl.thresholds || []).map((t, thi) => {
+      const tAttrs = `data-field="fxSliderThreshold" ${a} data-thi="${thi}"`;
+      return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:6px;font-size:12px">
+        <span>${tr('fxSliderThresholdWhen')}</span>
+        <select ${tAttrs} data-fxst-prop="mode" style="width:auto"><option value="below" ${t.mode !== 'above' ? 'selected' : ''}>${tr('fxSliderBelow')}</option><option value="above" ${t.mode === 'above' ? 'selected' : ''}>${tr('fxSliderAbove')}</option></select>
+        <input type="number" min="0" max="100" step="1" ${tAttrs} data-fxst-prop="at" value="${Math.round((t.at || 0) * 100)}" style="width:64px"> %
+        <span>${tr('fxSliderThresholdThen')}</span>
+        <select ${tAttrs} data-fxst-prop="triggerId" style="width:auto">${triggers.map(d => `<option value="${escapeAttr(d.id)}" ${d.id === t.triggerId ? 'selected' : ''}>${escapeAttr(d.label) || tr('fxTriggerLabelPlaceholder')}</option>`).join('')}</select>
+        <button class="btn btn-icon btn-danger" data-action="remove-fxs-threshold" ${a} data-thi="${thi}" title="${tr('deleteBtn')}">×</button>
+      </div>`;
+    }).join('');
+    return `
+      <div class="list-block" style="margin-top:8px">
+        <div class="row">
+          <div><label>${tr('labelFieldLabel')}</label><input type="text" data-field="fxSlider" data-fxs-prop="label" ${a} placeholder="${tr('fxSliderLabelPlaceholder')}" value="${escapeAttr(sl.label)}"></div>
+          <button class="btn btn-icon btn-danger" data-action="remove-fx-slider" ${a} title="${tr('removeFxSliderBtn')}" style="align-self:flex-end">×</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <div><label style="font-size:0.85em">${tr('fxSliderDefaultLabel')}</label><input type="number" min="0" max="100" step="1" data-field="fxSlider" data-fxs-prop="defaultValue" ${a} value="${Math.round((sl.defaultValue || 0) * 100)}"></div>
+          <div><label style="font-size:0.85em">${tr('fxSliderSmoothLabel')}</label><input type="number" min="0" max="5" step="0.05" data-field="fxSlider" data-fxs-prop="smoothSec" ${a} value="${sl.smoothSec != null ? sl.smoothSec : 0.15}"></div>
+        </div>
+        <label class="switch-row" style="margin-top:8px">
+          <input type="checkbox" data-field="fxSlider" data-fxs-prop="visible" ${a} ${sl.visible ? 'checked' : ''}>
+          <span class="switch-row-label">${tr('fxSliderVisibleLabel')}</span>
+        </label>
+        <div style="margin-top:8px;font-weight:600;font-size:0.85em">${tr('fxSliderBindingsTitle')}</div>
+        <div class="hint-inline">${tr('fxSliderBindingsHint')}</div>
+        ${bindRows}
+        <div class="actions" style="margin-top:6px"><button class="btn btn-small" data-action="add-fxs-binding" ${a}>${tr('addFxSliderBindingBtn')}</button></div>
+        <div style="margin-top:10px;font-weight:600;font-size:0.85em">${tr('fxSliderThresholdsTitle')}</div>
+        <div class="hint-inline">${tr('fxSliderThresholdsHint')}</div>
+        ${thrRows}
+        <div class="actions" style="margin-top:6px"><button class="btn btn-small" data-action="add-fxs-threshold" ${a} ${triggers.length ? '' : 'disabled'}>${tr('addFxSliderThresholdBtn')}</button></div>
+      </div>`;
+  }).join('');
+  return `
+    <div style="margin-top:14px">
+      <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxSlidersTitle')}</div>
+      <div class="hint-inline">${tr('fxSlidersHint')}</div>
+      ${cards}
+      <div class="actions" style="margin-top:8px"><button class="btn btn-small" data-action="add-fx-slider" data-ti="${ti}">${tr('addFxSliderBtn')}</button></div>
+    </div>`;
+}
+// Interaction de l'éditeur de courbe (délégation sur le document : le HTML de l'éditeur est régénéré à chaque rendu).
+// Clic sur un point = le sélectionner et le déplacer ; clic dans le vide = nouveau point ; les extrémités ne bougent
+// qu'en hauteur. Repeint le SVG sur place, sans redessiner toute la bibliothèque.
+document.addEventListener('pointerdown', ev => {
+  const svg = ev.target.closest && ev.target.closest('svg[data-curve-editor]');
+  if (!svg) return;
+  const ti = parseInt(svg.dataset.ti, 10), sri = parseInt(svg.dataset.sri, 10), bi = parseInt(svg.dataset.bi, 10);
+  const b = (((library[ti] || {}).fxSliders || [])[sri] || {}).bindings;
+  const binding = b && b[bi];
+  if (!binding) return;
+  if (!binding.curve) binding.curve = [{ x: 0, y: 0 }, { x: 1, y: 1 }];
+  const key = fxCurveKey(ti, sri, bi);
+  const rect = svg.getBoundingClientRect();
+  const k = FX_CURVE_W / rect.width;
+  const toData = e => {
+    const px = (e.clientX - rect.left) * k, py = (e.clientY - rect.top) * k;
+    return { px, py, x: Math.max(0, Math.min(1, (px - FX_CURVE_PAD) / (FX_CURVE_W - 2 * FX_CURVE_PAD))), y: Math.max(0, Math.min(1, (FX_CURVE_H - FX_CURVE_PAD - py) / (FX_CURVE_H - 2 * FX_CURVE_PAD))) };
+  };
+  const scr = q => ({ px: FX_CURVE_PAD + q.x * (FX_CURVE_W - 2 * FX_CURVE_PAD), py: FX_CURVE_H - FX_CURVE_PAD - q.y * (FX_CURVE_H - 2 * FX_CURVE_PAD) });
+  const d0 = toData(ev);
+  let hit = -1, best = 12;
+  binding.curve.forEach((q, i) => { const s2 = scr(q); const d = Math.hypot(s2.px - d0.px, s2.py - d0.py); if (d < best) { best = d; hit = i; } });
+  if (hit < 0) {
+    if (binding.curve.length >= 16) return;
+    // Nouveau point à l'endroit du clic (x trié) : la courbe existante n'est pas modifiée ailleurs.
+    let at = binding.curve.findIndex(q => q.x > d0.x); if (at < 0) at = binding.curve.length - 1;
+    binding.curve.splice(at, 0, { x: d0.x, y: d0.y });
+    hit = at;
+  }
+  fxCurveSelected[key] = hit;
+  hasUnsavedEdits = true;
+  const repaint = () => { svg.innerHTML = fxCurveInnerSvg(binding.curve, hit); };
+  repaint();
+  try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
+  const move = e => {
+    const d = toData(e), last = binding.curve.length - 1;
+    const lo = hit > 0 ? binding.curve[hit - 1].x + 0.005 : 0, hi = hit < last ? binding.curve[hit + 1].x - 0.005 : 1;
+    binding.curve[hit] = { x: (hit === 0 || hit === last) ? binding.curve[hit].x : Math.max(lo, Math.min(hi, d.x)), y: d.y };
+    hasUnsavedEdits = true;
+    repaint();
+  };
+  const up = () => { svg.removeEventListener('pointermove', move); svg.removeEventListener('pointerup', up); svg.removeEventListener('pointercancel', up); };
+  svg.addEventListener('pointermove', move); svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
+});
+// Double-clic sur un point INTERMÉDIAIRE de la courbe = le supprimer (les deux extrémités restent).
+document.addEventListener('dblclick', ev => {
+  const svg = ev.target.closest && ev.target.closest('svg[data-curve-editor]');
+  if (!svg) return;
+  const ti = parseInt(svg.dataset.ti, 10), sri = parseInt(svg.dataset.sri, 10), bi = parseInt(svg.dataset.bi, 10);
+  const binding = ((((library[ti] || {}).fxSliders || [])[sri] || {}).bindings || [])[bi];
+  if (!binding || !binding.curve) return;
+  const rect = svg.getBoundingClientRect(), k = FX_CURVE_W / rect.width;
+  const px = (ev.clientX - rect.left) * k, py = (ev.clientY - rect.top) * k;
+  let hit = -1, best = 12;
+  binding.curve.forEach((q, i) => {
+    const d = Math.hypot(FX_CURVE_PAD + q.x * (FX_CURVE_W - 2 * FX_CURVE_PAD) - px, FX_CURVE_H - FX_CURVE_PAD - q.y * (FX_CURVE_H - 2 * FX_CURVE_PAD) - py);
+    if (d < best) { best = d; hit = i; }
+  });
+  if (hit <= 0 || hit >= binding.curve.length - 1) return;
+  binding.curve.splice(hit, 1);
+  delete fxCurveSelected[fxCurveKey(ti, sri, bi)];
+  hasUnsavedEdits = true;
+  svg.innerHTML = fxCurveInnerSvg(binding.curve, -1);
+});
+// Actions liées à un embranchement : pour chaque trigger défini sur le morceau, "activer" / "couper" /
+// "ne rien faire" quand CETTE option de bascule (séquentiel) ou CETTE boucle (embranchement-vertical) est prise.
+function fxActionsHtml(actions, track, ownerAttrs) {
+  const triggers = (track.fxTriggers || []).filter(x => x && x.id);
+  if (!currentUserIsAdmin || !triggers.length) return '';
+  const rows = triggers.map(trg => {
+    const a = (actions || []).find(x => x.triggerId === trg.id);
+    const v = a ? (a.active === false ? 'off' : 'on') : '';
+    return `<div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+      <span style="flex:1;font-size:12px">${escapeAttr(trg.label) || tr('fxTriggerLabelPlaceholder')}</span>
+      <select data-field="fxAction" data-fx-trigger-id="${escapeAttr(trg.id)}" ${ownerAttrs} style="width:auto">
+        <option value="" ${v === '' ? 'selected' : ''}>${tr('fxActionNone')}</option>
+        <option value="on" ${v === 'on' ? 'selected' : ''}>${tr('fxActionOn')}</option>
+        <option value="off" ${v === 'off' ? 'selected' : ''}>${tr('fxActionOff')}</option>
+      </select></div>`;
+  }).join('');
+  return `<div style="margin-top:10px"><div style="font-weight:600;font-size:0.85em">${tr('fxActionsTitle')}</div>${rows}</div>`;
 }
 // Bouton "+" inséré directement à la fin d'une liste maître de morceau (20/08, relecture de nettoyage) --
 // factorise les 4 boutons d'ajout (+ Emplacement, + Section, + Boucle, + Couche) qui n'étaient que des
@@ -4454,8 +4967,11 @@ function buildPreviewTrack(track) {
   const repo = state.repo() || 'preview';
   const mapItem = (item) => {
     if (!item) return null;
-    if (item.pendingFile) return { label: item.label, localFile: item.pendingFile };
-    if (item.remoteFile) return { label: item.label, file: item.remoteFile, gain: item.gain || 1 };
+    // fx (chantier "effets dynamiques", 22/09) : porté ici plutôt que dans un mapper dédié aux couches,
+    // pour que l'aperçu local reflète les effets même si un futur type d'item (intro/outro...) en gagne un
+    // jour -- absence du champ chez tous les autres types aujourd'hui, donc sans effet ailleurs.
+    if (item.pendingFile) return { label: item.label, localFile: item.pendingFile, fx: item.fx || null };
+    if (item.remoteFile) return { label: item.label, file: item.remoteFile, gain: item.gain || 1, fx: item.fx || null };
     return null;
   };
   // Pour les alternatives d'un groupe : un slot vide reste un choix possible du tirage (silence),
@@ -4510,6 +5026,11 @@ function buildPreviewTrack(track) {
     // piste -- sa prévisualisation affiche donc la structure complète telle que configurée (outil de
     // vérification de son propre travail), contrairement à la révélation progressive du lecteur public.
     seqMapFullReveal: true,
+    // fx de morceau entier (pitch "vitesse", 22/09) -- distinct de layers[].fx/loops[].fx/etc., voir
+    // applyTrackPitchRate() dans player.js.
+    fx: track.fx || null,
+    fxTriggers: (track.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations) })),
+    fxSliders: fxSlidersClean(track.fxSliders),
     layers: (track.layers || []).map(mapItem).filter(Boolean),
     intro: mapBlockWithBars(track.intro),
     // L'outro n'a pas de "bars" (mapItem, pas mapBlockWithBars — pas de durée programmée après elle, elle
@@ -4523,8 +5044,9 @@ function buildPreviewTrack(track) {
       quantization: sl.quantization || 'bar', cutStyle: sl.cutStyle || 'fade', customCutFadeSec: sl.customCutFadeSec,
       bpm: sl.bpm, beatsPerBar: sl.beatsPerBar,
       descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
-      nextOptions: sl.nextOptions ? sl.nextOptions.map(opt => ({ targetId: opt.targetId, label: opt.label || '', transition: opt.transition ? mapTransition(opt.transition) : null })) : null,
-      alternatives: (sl.alternatives || []).map(mapAlternativeWithBars)
+      nextOptions: sl.nextOptions ? sl.nextOptions.map(opt => ({ targetId: opt.targetId, label: opt.label || '', transition: opt.transition ? mapTransition(opt.transition) : null, fxActions: opt.fxActions || null })) : null,
+      alternatives: (sl.alternatives || []).map(mapAlternativeWithBars),
+      fx: sl.fx || null
     })),
     // Une entrée par boucle déclarée, y compris sans fichier — l'index doit rester aligné avec celui
     // utilisé par les boutons nommés du lecteur (data-loop-idx), contrairement à `layers` ci-dessus qui,
@@ -4560,7 +5082,9 @@ function buildPreviewTrack(track) {
           bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
           bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
           ...mapItem(l.transition)
-        } : null
+        } : null,
+        fx: l.fx || null,
+        fxActions: l.fxActions || null
       };
     }),
     // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : le moteur de lecture
@@ -4574,7 +5098,8 @@ function buildPreviewTrack(track) {
       maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
       pools: (sec.pools || []).map(p => ({
         id: p.id, label: p.label, avoidImmediateRepeat: p.avoidImmediateRepeat,
-        alternatives: (p.alternatives || []).map(mapAlternative)
+        alternatives: (p.alternatives || []).map(mapAlternative),
+        fx: p.fx || null
       }))
     })),
     sfxIds: track.sfxIds || []
@@ -4612,7 +5137,7 @@ function togglePreview(ti, cardEl) {
   const previewSfxById = {};
   sfxLibrary.forEach(sfx => {
     previewSfxById[sfx.id] = {
-      id: sfx.id, title: sfx.title, rrMode: sfx.rrMode,
+      id: sfx.id, title: sfx.title, rrMode: sfx.rrMode, spatial: sfx.spatial || null,
       base: `${MEDIA_BASE}audio/sfx-${sfx.id}/`,
       publishedAt: Date.now(),
       alternatives: (sfx.alternatives || []).map(a => a.pendingFile ? { label: a.label, localFile: a.pendingFile }
@@ -4983,6 +5508,7 @@ function renderLibrary() {
             <label data-help="layersVertical">${tr('audioTrackLabel')}</label>
             <div data-role="staticFileCtrl" style="margin-top:6px;margin-bottom:4px"></div>
             <div class="hint-inline">${tr('staticDropHint')}</div>
+            <div data-role="staticFxHost"></div>
             <label style="display:flex;align-items:center;gap:8px;margin-top:6px">
               <input type="checkbox" data-field="loopable" data-ti="${ti}" ${track.loopable ? 'checked' : ''} style="width:auto;margin:0;">
               <span data-help="loopableStatic" style="color:var(--text-dimmer);font-size:12px;">${tr('loopableHint')}</span>
@@ -5032,6 +5558,9 @@ function renderLibrary() {
             <input type="checkbox" data-field="normalizeVolume" data-ti="${ti}" ${track.normalizeVolume ? 'checked' : ''} style="width:auto;margin:0;">
             <span data-help="normalizeVolume" style="color:var(--text-dim);font-size:12px;">${tr('normalizeVolumeLabel')}</span>
           </label>
+          ${trackPitchFxHtml(track, ti)}
+          ${fxTriggersEditorHtml(track, ti)}
+          ${fxSlidersEditorHtml(track, ti)}
         `;
         modeDetailHost.appendChild(infoEl);
         if (isStatic) {
@@ -5039,6 +5568,8 @@ function renderLibrary() {
           const staticCtrlHost = infoEl.querySelector('[data-role="staticFileCtrl"]');
           const layer0 = track.layers[0];
           staticCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'));
+          const staticFxHost = infoEl.querySelector('[data-role="staticFxHost"]');
+          if (staticFxHost) staticFxHost.innerHTML = layerFxHtml(layer0, ti, null);
           wireFileControl(staticCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
             () => layer0.pendingFile, () => layer0.remoteFile,
             f => {
@@ -5197,6 +5728,7 @@ function renderLibrary() {
                 <div data-role="poolAlternatives"></div>
                 <div class="actions"><button class="btn btn-small" data-action="add-pool-alt" data-ti="${ti}" data-si="${sci}" data-pi="${pi}">${tr('addAlternativeBtn')}</button></div>
               </div>
+              ${poolFxHtml(pool, ti, sci, pi)}
             `;
             wireAltPoolToggle(poolEl);
             const altsHost = poolEl.querySelector('[data-role="poolAlternatives"]');
@@ -5409,6 +5941,8 @@ function renderLibrary() {
               ` : ''}
             ` : ''}
             ${loop.isInitial ? `<div data-role="embrLoopTimelineHost" style="margin-top:14px"></div>` : ''}
+            ${loopFxHtml(loop, ti, li)}
+            ${fxActionsHtml(loop.fxActions, track, `data-fx-owner="loop" data-ti="${ti}" data-li="${li}"`)}
           `;
           modeDetailHost.appendChild(loopEl);
           const ctrlHost = loopEl.querySelector('[data-role="embrLoopFileCtrl"]');
@@ -5481,6 +6015,7 @@ function renderLibrary() {
           row.innerHTML = `
             <div data-role="layerFileCtrl"></div>
             <label style="margin-top:8px">${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('layerLabelPlaceholder')}" data-field="label" data-ti="${ti}" data-li="${li}" value="${escapeAttr(layer.label)}">
+            ${layerFxHtml(layer, ti, li)}
           `;
           modeDetailHost.appendChild(row);
           const ctrlHost = row.querySelector('[data-role="layerFileCtrl"]');
@@ -5644,6 +6179,9 @@ function renderLibrary() {
             <input type="checkbox" data-field="normalizeVolume" data-ti="${ti}" ${track.normalizeVolume ? 'checked' : ''} style="width:auto;margin:0;">
             <span data-help="normalizeVolume" style="color:var(--text-dim);font-size:12px;">${tr('normalizeVolumeLabel')}</span>
           </label>
+          ${trackPitchFxHtml(track, ti)}
+          ${fxTriggersEditorHtml(track, ti)}
+          ${fxSlidersEditorHtml(track, ti)}
         `;
         slotsDetailHost.appendChild(infoEl);
       }
@@ -5828,6 +6366,7 @@ function renderLibrary() {
               </div>
             </div>
           `}
+          ${slotFxHtml(slot, ti, si)}
         `;
         // Les options d'embranchement dépendent des libellés de TOUS les emplacements (qui peuvent changer
         // à tout moment) : construites dynamiquement ici plutôt que figées dans le gabarit HTML statique
@@ -5901,6 +6440,7 @@ function renderLibrary() {
                   </div>
                 </div>
               ` : ''}
+              ${fxActionsHtml(opt.fxActions, track, `data-fx-owner="opt" data-ti="${ti}" data-si="${si}" data-bi="${bi}"`)}
             `;
             branchOptionsHost.appendChild(wrap);
             if (opt.transition) {
@@ -6129,6 +6669,7 @@ function renderSfxLibrary() {
   entryMasterHost.appendChild(simpleMasterItemEl('select-sfx-entry', 'si', si, 'identity', entrySel === 'identity', `<div class="seq-master-item-label">${tr('trackSectionIdentity')}</div>`));
   entryMasterHost.appendChild(simpleMasterItemEl('select-sfx-entry', 'si', si, 'behavior', entrySel === 'behavior', `<div class="seq-master-item-label">${tr('sectionBehavior')}</div>`));
   entryMasterHost.appendChild(simpleMasterItemEl('select-sfx-entry', 'si', si, 'variations', entrySel === 'variations', `<div class="seq-master-item-label">${tr('sfxVariationsShortLabel')}</div>`));
+  entryMasterHost.appendChild(simpleMasterItemEl('select-sfx-entry', 'si', si, 'space', entrySel === 'space', `<div class="seq-master-item-label">${tr('sfxEntrySpace')}</div>`));
 
   if (entrySel === 'identity') {
     // Titre éditable ici aussi (en plus de l'en-tête ci-dessus) -- synchronisé en direct sans re-rendu,
@@ -6161,6 +6702,8 @@ function renderSfxLibrary() {
         </div>
       </div>
     `;
+  } else if (entrySel === 'space') {
+    renderSfxSpaceEditor(entryDetailHost, sfx);
   } else if (entrySel === 'variations') {
     // Le double niveau de repli (entrée "Variations" + bouton "N variations" à l'intérieur) est conservé
     // tel quel (décision explicite, 20/08) même si la sélection d'entrée masque déjà tout le reste --
@@ -6205,6 +6748,299 @@ function renderSfxLibrary() {
       renderSfxLibrary();
     });
   }
+}
+
+// ---- Spatialisation d'un Sfx : matrice "salle + auditeur au centre" (23/09) -- réservée à l'admin ----
+// sfx.spatial = { enabled, room, x, y, binaural } ; x = mètres vers la droite, y = vers l'avant, l'auditeur est
+// en (0,0). Le moteur (buildSpatialVoice dans player.js) lit sfx.spatial à CHAQUE lecture : le lecteur de test
+// ci-dessous reflète donc instantanément chaque déplacement du point, sans republier.
+function sfxSpaceDefaults() { return { enabled: true, room: 'room', x: 0, y: 3, binaural: false, path: { mode: 'fixed', points: [], loop: 'loop', durationSec: null } }; }
+let sfxSpaceSelectedPoint = 0; // point de trajectoire sélectionné (index) dans l'éditeur ouvert
+function renderSfxSpaceEditor(host, sfx) {
+  if (!currentUserIsAdmin) {
+    host.innerHTML = `<div style="opacity:0.55"><div style="font-weight:600;margin-bottom:2px">${tr('sfxSpaceTitle')}</div><div class="hint-inline">${tr('sfxSpaceAdminOnly')}</div></div>`;
+    return;
+  }
+  const core = window.LayerPlayerCore;
+  const sp = sfx.spatial;
+  const on = !!(sp && sp.enabled);
+  host.innerHTML = `
+    <div style="font-weight:600;margin-bottom:2px">${tr('sfxSpaceTitle')}</div>
+    <div class="hint-inline">${tr('sfxSpaceHint')}</div>
+    <label class="switch-row" style="margin-top:8px">
+      <input type="checkbox" data-sfx-space="enabled" ${on ? 'checked' : ''}>
+      <span class="switch-row-label">${tr('sfxSpaceEnable')}</span>
+    </label>
+    <div data-role="spaceBody"></div>
+  `;
+  const body = host.querySelector('[data-role="spaceBody"]');
+  host.querySelector('[data-sfx-space="enabled"]').addEventListener('change', e => {
+    if (e.target.checked) sfx.spatial = Object.assign(sfxSpaceDefaults(), sfx.spatial || {}, { enabled: true });
+    else if (sfx.spatial) sfx.spatial.enabled = false;
+    hasUnsavedEdits = true;
+    renderSfxSpaceEditor(host, sfx);
+  });
+  if (!on) return;
+
+  if (!sp.path) sp.path = sfxSpaceDefaults().path;
+  const path = sp.path;
+  const room = core.SPATIAL_ROOMS[sp.room] ? sp.room : 'room';
+  const [hx, hy] = core.spatialFieldHalfExtent(room);
+  const SIZE = 320, C = SIZE / 2, PAD = 14, MAXPTS = 16;
+  const ppm = (C - PAD) / Math.max(hx, hy); // pixels par mètre
+  const gridStep = Math.max(hx, hy) <= 5 ? 1 : (Math.max(hx, hy) <= 15 ? 2 : 5);
+  let grid = '';
+  for (let m = gridStep; m <= Math.max(hx, hy) + 1e-6; m += gridStep) {
+    if (m <= hx + 1e-6) grid += `<line x1="${C + m * ppm}" y1="${C - hy * ppm}" x2="${C + m * ppm}" y2="${C + hy * ppm}"/><line x1="${C - m * ppm}" y1="${C - hy * ppm}" x2="${C - m * ppm}" y2="${C + hy * ppm}"/>`;
+    if (m <= hy + 1e-6) grid += `<line x1="${C - hx * ppm}" y1="${C - m * ppm}" x2="${C + hx * ppm}" y2="${C - m * ppm}"/><line x1="${C - hx * ppm}" y1="${C + m * ppm}" x2="${C + hx * ppm}" y2="${C + m * ppm}"/>`;
+  }
+  const isPath = path.mode === 'glide' || path.mode === 'steps';
+  body.innerHTML = `
+    <div class="row" style="margin-top:8px">
+      <div>
+        <label>${tr('sfxSpaceRoomLabel')}</label>
+        <select data-sfx-space="room">${Object.keys(core.SPATIAL_ROOMS).map(k => `<option value="${k}" ${k === room ? 'selected' : ''}>${tr('sfxSpaceRoom_' + k)}</option>`).join('')}</select>
+      </div>
+      <div>
+        <label>${tr('sfxSpacePathModeLabel')}</label>
+        <select data-sfx-space="pathMode">
+          <option value="fixed" ${!isPath ? 'selected' : ''}>${tr('sfxSpacePathFixed')}</option>
+          <option value="steps" ${path.mode === 'steps' ? 'selected' : ''}>${tr('sfxSpacePathSteps')}</option>
+          <option value="glide" ${path.mode === 'glide' ? 'selected' : ''}>${tr('sfxSpacePathGlide')}</option>
+        </select>
+      </div>
+    </div>
+    ${room !== 'outside' ? `
+      <div class="row" style="margin-top:6px">
+        <div><label>${tr('sfxSpaceReverbDb')} : <span data-role="reverbDbVal">${sp.reverbDb != null ? sp.reverbDb : 0}</span></label>
+          <input type="range" min="-18" max="6" step="1" data-sfx-space="reverbDb" value="${sp.reverbDb != null ? sp.reverbDb : 0}"></div>
+        <div><label>${tr('sfxSpaceBrightness')}</label>
+          <input type="range" min="-1" max="1" step="0.1" data-sfx-space="brightness" value="${sp.brightness != null ? sp.brightness : 0}"></div>
+      </div>` : ''}
+    ${isPath ? `<div class="hint-inline">${tr(path.mode === 'steps' ? 'sfxSpacePathStepsHint' : 'sfxSpacePathGlideHint')}</div>` : ''}
+    ${path.mode === 'steps' ? `
+      <div style="margin-top:6px"><label>${tr('sfxSpacePathLoopLabel')}</label>
+        <select data-sfx-space="pathLoop">
+          ${['loop', 'pingpong', 'random', 'stop'].map(k => `<option value="${k}" ${path.loop === k ? 'selected' : ''}>${tr('sfxSpacePathLoop_' + k)}</option>`).join('')}
+        </select></div>` : ''}
+    ${path.mode === 'glide' ? `
+      <div style="margin-top:6px"><label>${tr('sfxSpacePathDurationLabel')}</label>
+        <input type="number" min="0.1" step="0.1" data-sfx-space="pathDuration" value="${path.durationSec != null ? path.durationSec : ''}"></div>` : ''}
+    <div style="margin-top:10px;max-width:${SIZE}px">
+      <svg data-role="spaceMatrix" viewBox="0 0 ${SIZE} ${SIZE}" width="100%" style="touch-action:none;cursor:crosshair;background:var(--bg-elev, transparent);border:1px solid var(--border);border-radius:8px;display:block">
+        <rect x="${C - hx * ppm}" y="${C - hy * ppm}" width="${2 * hx * ppm}" height="${2 * hy * ppm}" fill="none" stroke="var(--text-dimmer, #888)" stroke-width="1.5"/>
+        <g stroke="var(--border)" stroke-width="0.5">${grid}</g>
+        <line x1="${C - hx * ppm}" y1="${C}" x2="${C + hx * ppm}" y2="${C}" stroke="var(--border)" stroke-width="0.8" stroke-dasharray="3 3"/>
+        <line x1="${C}" y1="${C - hy * ppm}" x2="${C}" y2="${C + hy * ppm}" stroke="var(--border)" stroke-width="0.8" stroke-dasharray="3 3"/>
+        <g data-role="spaceListener"><polygon points="${C},${C - 11} ${C - 8},${C + 8} ${C + 8},${C + 8}" fill="var(--text-dimmer, #888)"><title>${tr('sfxSpaceListener')}</title></polygon></g>
+        <g data-role="spaceDynamic"></g>
+        <text x="${C - hx * ppm + 4}" y="${C + hy * ppm - 5}" font-size="10" fill="var(--text-dimmer, #888)">${tr('sfxSpaceGrid', { n: gridStep })}</text>
+      </svg>
+      <div class="hint-inline" data-role="spaceReadout" style="margin-top:4px"></div>
+      ${isPath ? `<div class="actions" style="margin-top:6px">
+        <button class="btn btn-small" type="button" data-role="pathRemove">${tr('sfxSpacePathRemovePoint')}</button>
+        <button class="btn btn-small" type="button" data-role="pathClear">${tr('sfxSpacePathReset')}</button>
+      </div>` : ''}
+    </div>
+    <label class="switch-row" style="margin-top:10px">
+      <input type="checkbox" data-sfx-space="binaural" ${sp.binaural ? 'checked' : ''}>
+      <span class="switch-row-label">${tr('sfxSpaceBinaural')}</span>
+    </label>
+    <div class="hint-inline">${tr('sfxSpaceBinauralHint')}</div>
+    <div style="margin-top:12px;padding:8px;border:1px solid var(--border);border-radius:6px">
+      <label style="font-weight:600">${tr('sfxSpacePublicModeLabel')}</label>
+      <select data-sfx-space="publicMode">
+        <option value="free" ${(sp.publicMode || 'free') === 'free' ? 'selected' : ''}>${tr('sfxSpacePublicFree')}</option>
+        <option value="frozen" ${sp.publicMode === 'frozen' ? 'selected' : ''}>${tr('sfxSpacePublicFrozen')}</option>
+        <option value="hidden" ${sp.publicMode === 'hidden' ? 'selected' : ''}>${tr('sfxSpacePublicHidden')}</option>
+      </select>
+      <div class="hint-inline">${tr('sfxSpacePublicHint')}</div>
+    </div>
+    <div style="margin-top:12px;font-weight:600;font-size:0.9em">${tr('sfxSpaceTestLabel')}</div>
+    <div data-role="spaceTest" style="margin-top:6px"></div>
+  `;
+  const clampPt = (q) => ({ x: Math.max(-hx, Math.min(hx, q.x || 0)), y: Math.max(-hy, Math.min(hy, q.y || 0)) });
+  body.querySelector('[data-sfx-space="room"]').addEventListener('change', e => {
+    sfx.spatial.room = e.target.value;
+    const [nx, ny] = core.spatialFieldHalfExtent(e.target.value);
+    const cl = (q) => ({ x: Math.max(-nx, Math.min(nx, q.x || 0)), y: Math.max(-ny, Math.min(ny, q.y || 0)) });
+    Object.assign(sfx.spatial, cl(sfx.spatial));
+    sfx.spatial.path.points = sfx.spatial.path.points.map(cl);
+    hasUnsavedEdits = true;
+    renderSfxSpaceEditor(host, sfx);
+  });
+  body.querySelector('[data-sfx-space="pathMode"]').addEventListener('change', e => {
+    const mode = e.target.value;
+    path.mode = mode;
+    if (mode !== 'fixed' && path.points.length < 2) {
+      // Amorce : départ = position actuelle, arrivée = son symétrique (ou 4 m à droite si on est au centre).
+      const a = clampPt({ x: sp.x, y: sp.y });
+      path.points = [a, clampPt({ x: Math.abs(a.x) > 0.5 ? -a.x : a.x + 4, y: a.y })];
+    }
+    sfxSpaceSelectedPoint = 0;
+    hasUnsavedEdits = true;
+    renderSfxSpaceEditor(host, sfx);
+  });
+  const loopSel = body.querySelector('[data-sfx-space="pathLoop"]');
+  if (loopSel) loopSel.addEventListener('change', e => { path.loop = e.target.value; hasUnsavedEdits = true; });
+  const durInp = body.querySelector('[data-sfx-space="pathDuration"]');
+  if (durInp) durInp.addEventListener('input', e => { const v = parseFloat(e.target.value); path.durationSec = v > 0 ? v : null; hasUnsavedEdits = true; });
+  body.querySelector('[data-sfx-space="binaural"]').addEventListener('change', e => { sfx.spatial.binaural = e.target.checked; hasUnsavedEdits = true; });
+  body.querySelector('[data-sfx-space="publicMode"]').addEventListener('change', e => { sfx.spatial.publicMode = e.target.value; hasUnsavedEdits = true; });
+  const rvDb = body.querySelector('[data-sfx-space="reverbDb"]');
+  if (rvDb) rvDb.addEventListener('input', e => { sfx.spatial.reverbDb = parseFloat(e.target.value); body.querySelector('[data-role="reverbDbVal"]').textContent = e.target.value; hasUnsavedEdits = true; });
+  const brt = body.querySelector('[data-sfx-space="brightness"]');
+  if (brt) brt.addEventListener('input', e => { sfx.spatial.brightness = parseFloat(e.target.value); hasUnsavedEdits = true; });
+
+  const svg = body.querySelector('[data-role="spaceMatrix"]');
+  const dyn = svg.querySelector('[data-role="spaceDynamic"]');
+  const readout = body.querySelector('[data-role="spaceReadout"]');
+  const round1 = v => Math.round(v * 10) / 10;
+  const X = m => C + m * ppm, Y = m => C - m * ppm;
+  if (sfxSpaceSelectedPoint >= path.points.length) sfxSpaceSelectedPoint = Math.max(0, path.points.length - 1);
+  function paint() {
+    if (!isPath) {
+      dyn.innerHTML = `<line x1="${C}" y1="${C}" x2="${X(sp.x)}" y2="${Y(sp.y)}" stroke="var(--accent)" stroke-width="1" stroke-dasharray="2 3"/>
+        <circle r="9" cx="${X(sp.x)}" cy="${Y(sp.y)}" fill="var(--accent)" stroke="#fff" stroke-width="2"/>`;
+      readout.textContent = tr('sfxSpaceReadout', { x: round1(sp.x), y: round1(sp.y), d: round1(Math.hypot(sp.x, sp.y)) });
+      return;
+    }
+    const pts = path.points;
+    const line = pts.map(q => X(q.x) + ',' + Y(q.y)).join(' ');
+    const arrow = path.mode === 'glide' && pts.length >= 2 ? (() => { // flèche de sens à la fin du chemin
+      const a = pts[pts.length - 2], b = pts[pts.length - 1];
+      const ang = Math.atan2(-(b.y - a.y), b.x - a.x), L = 11;
+      const p1 = [X(b.x) - L * Math.cos(ang - 0.45), Y(b.y) - L * Math.sin(ang - 0.45)], p2 = [X(b.x) - L * Math.cos(ang + 0.45), Y(b.y) - L * Math.sin(ang + 0.45)];
+      return `<polyline points="${p1.join(',')} ${X(b.x)},${Y(b.y)} ${p2.join(',')}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
+    })() : '';
+    // Bleu PLEIN = le point en train de jouer (pas à pas) ; anneau épais = le point sélectionné pour l'édition ;
+    // anneau fin = les autres. Une pastille bleue suit le chemin pendant un glissement.
+    const glideDot = playing.glide && playing.glidePos ? `<circle cx="${X(playing.glidePos.x)}" cy="${Y(playing.glidePos.y)}" r="7" fill="var(--accent)" stroke="#fff" stroke-width="2" style="pointer-events:none"/>` : '';
+    dyn.innerHTML = `<polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="${path.mode === 'steps' ? '3 4' : '0'}"/>${arrow}` +
+      pts.map((q, i) => { const isPlaying = i === playing.idx, isSel = i === sfxSpaceSelectedPoint; return `<circle r="${isSel ? 10 : 8}" cx="${X(q.x)}" cy="${Y(q.y)}" fill="${isPlaying ? 'var(--accent)' : 'var(--bg, #fff)'}" stroke="var(--accent)" stroke-width="${isSel ? 3.5 : 2}"/>
+        <text x="${X(q.x)}" y="${Y(q.y) + 4}" text-anchor="middle" font-size="10" font-weight="700" fill="${isPlaying ? '#fff' : 'var(--accent)'}" style="pointer-events:none">${i + 1}</text>`; }).join('') + glideDot;
+    const q = pts[sfxSpaceSelectedPoint] || pts[0];
+    let len = 0; for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    readout.textContent = tr('sfxSpacePathReadout', { n: sfxSpaceSelectedPoint + 1, x: round1(q.x), y: round1(q.y), len: round1(len) });
+  }
+  function eventPos(ev) {
+    const r = svg.getBoundingClientRect();
+    const k = SIZE / r.width;
+    const px = (ev.clientX - r.left) * k, py = (ev.clientY - r.top) * k;
+    return { px, py, x: round1(Math.max(-hx, Math.min(hx, (px - C) / ppm))), y: round1(Math.max(-hy, Math.min(hy, -(py - C) / ppm))) };
+  }
+  // Lecture en cours dans le lecteur de test : point « qui joue » (pas à pas) / position suivie (glissement).
+  const playing = { idx: -1, glide: false, glidePos: null, token: 0 };
+  const pathPos = (frac) => { // position à la fraction frac (0..1) de la longueur du chemin
+    const pts = path.points; let total = 0; const cum = [0];
+    for (let i = 1; i < pts.length; i++) { total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); cum.push(total); }
+    if (total <= 0) return pts[0];
+    const a = frac * total; let i = 1; while (i < cum.length - 1 && cum[i] < a) i++;
+    const seg = cum[i] - cum[i - 1] || 1, f = Math.max(0, Math.min(1, (a - cum[i - 1]) / seg));
+    return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * f, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * f };
+  };
+  if (window.__sfxSpacePlayHandler) document.removeEventListener('layerpitch-sfx-spatial', window.__sfxSpacePlayHandler);
+  window.__sfxSpacePlayHandler = e => {
+    if (!svg.isConnected || !isPath || e.detail.sfxId !== 'spacetest-' + sfx.id) return;
+    const token = ++playing.token, dur = Math.max(0.2, e.detail.glideDuration || e.detail.duration || 1);
+    if (e.detail.mode === 'steps' && e.detail.stepIndex != null) {
+      playing.idx = e.detail.stepIndex; playing.glide = false;
+      paint();
+      setTimeout(() => { if (playing.token === token) { playing.idx = -1; paint(); } }, Math.max(300, (e.detail.duration || 1) * 1000));
+    } else if (e.detail.mode === 'glide') {
+      playing.idx = -1; playing.glide = true;
+      const t0 = performance.now();
+      const step = () => {
+        if (playing.token !== token || !svg.isConnected) return;
+        const f = (performance.now() - t0) / 1000 / dur;
+        if (f >= 1) { playing.glide = false; playing.glidePos = null; paint(); return; }
+        playing.glidePos = pathPos(f); paint();
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
+  };
+  document.addEventListener('layerpitch-sfx-spatial', window.__sfxSpacePlayHandler);
+  let dragging = false;
+  svg.addEventListener('pointerdown', ev => {
+    const e = eventPos(ev);
+    if (!isPath) { sp.x = e.x; sp.y = e.y; }
+    else {
+      // Point existant à portée : on le sélectionne et on le déplace. Sinon : nouveau point en fin de chemin.
+      let hit = -1, best = 16;
+      path.points.forEach((q, i) => { const d = Math.hypot(X(q.x) - e.px, Y(q.y) - e.py); if (d < best) { best = d; hit = i; } });
+      if (hit < 0) {
+        if (path.points.length >= MAXPTS) return;
+        path.points.push({ x: e.x, y: e.y }); hit = path.points.length - 1;
+        if (path.mode === 'steps' || path.mode === 'glide') { sp.x = path.points[0].x; sp.y = path.points[0].y; }
+      }
+      sfxSpaceSelectedPoint = hit;
+    }
+    dragging = true; hasUnsavedEdits = true;
+    try { svg.setPointerCapture(ev.pointerId); } catch (err) {}
+    paint();
+  });
+  svg.addEventListener('pointermove', ev => {
+    if (!dragging) return;
+    const e = eventPos(ev);
+    if (!isPath) { sp.x = e.x; sp.y = e.y; }
+    else { path.points[sfxSpaceSelectedPoint] = { x: e.x, y: e.y }; sp.x = path.points[0].x; sp.y = path.points[0].y; }
+    hasUnsavedEdits = true;
+    paint();
+  });
+  const endDrag = () => { dragging = false; };
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', endDrag);
+  // Double-clic sur un point du chemin = le supprimer (24/09, demande de Jules-Antoine) ; jamais sous 2 points.
+  svg.addEventListener('dblclick', ev => {
+    if (!isPath) return;
+    const e = eventPos(ev);
+    let hit = -1, best = 16;
+    path.points.forEach((q, i) => { const d = Math.hypot(X(q.x) - e.px, Y(q.y) - e.py); if (d < best) { best = d; hit = i; } });
+    if (hit < 0 || path.points.length <= 2) return;
+    path.points.splice(hit, 1);
+    sfxSpaceSelectedPoint = Math.max(0, Math.min(sfxSpaceSelectedPoint, path.points.length - 1));
+    sp.x = path.points[0].x; sp.y = path.points[0].y;
+    hasUnsavedEdits = true;
+    renderSfxSpaceEditor(host, sfx);
+  });
+  const rmBtn = body.querySelector('[data-role="pathRemove"]');
+  if (rmBtn) rmBtn.addEventListener('click', () => {
+    if (path.points.length <= 2) return; // un chemin a besoin d'au moins 2 points
+    path.points.splice(sfxSpaceSelectedPoint, 1);
+    sfxSpaceSelectedPoint = Math.max(0, sfxSpaceSelectedPoint - 1);
+    hasUnsavedEdits = true;
+    renderSfxSpaceEditor(host, sfx);
+  });
+  const clrBtn = body.querySelector('[data-role="pathClear"]');
+  if (clrBtn) clrBtn.addEventListener('click', () => {
+    const a = clampPt({ x: sp.x, y: sp.y });
+    path.points = [a, clampPt({ x: Math.abs(a.x) > 0.5 ? -a.x : a.x + 4, y: a.y })];
+    sfxSpaceSelectedPoint = 0; hasUnsavedEdits = true;
+    renderSfxSpaceEditor(host, sfx);
+  });
+  paint();
+  // Le triangle "auditeur" suit l'orientation de la tête réglée dans le lecteur de test (évènement du moteur).
+  const listenerG = svg.querySelector('[data-role="spaceListener"]');
+  const setTri = deg => listenerG.setAttribute('transform', `rotate(${deg} ${C} ${C})`);
+  setTri(core.getListenerYaw());
+  if (window.__sfxSpaceYawHandler) document.removeEventListener('layerpitch-head-yaw', window.__sfxSpaceYawHandler);
+  window.__sfxSpaceYawHandler = e => { if (listenerG.isConnected) setTri(e.detail); };
+  document.addEventListener('layerpitch-head-yaw', window.__sfxSpaceYawHandler);
+
+  // Lecteur de test : le vrai lecteur de Sfx du site (mêmes variations, même moteur), branché sur les fichiers
+  // du Sfx -- même ceux pas encore publiés -- et sur sfx.spatial EN DIRECT (getter), pour entendre chaque
+  // déplacement du point dès le clic suivant. En mode "pas à pas", chaque clic sur Lecture avance d'un point.
+  const testHost = body.querySelector('[data-role="spaceTest"]');
+  const alts = (sfx.alternatives || []).map(a => a.pendingFile ? { label: a.label, localFile: a.pendingFile }
+    : a.remoteFile ? { label: a.label, file: a.remoteFile } : null).filter(Boolean);
+  if (!alts.length) { testHost.innerHTML = `<div class="hint-inline">${tr('sfxSpaceTestNoFile')}</div>`; return; }
+  const previewDef = {
+    id: 'spacetest-' + sfx.id, title: sfx.title || '', rrMode: sfx.rrMode,
+    base: `${MEDIA_BASE}audio/sfx-${sfx.id}/`, publishedAt: Date.now(), alternatives: alts, hideSpatialView: true,
+    get spatial() { return sfx.spatial; }
+  };
+  testHost.appendChild(window.LayerPlayerCore.buildSfxPlayer(previewDef));
 }
 
 /* ---------------- Réseaux sociaux ---------------- */
@@ -6416,6 +7252,7 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
   const fli = btn.dataset.fli !== undefined ? parseInt(btn.dataset.fli, 10) : null;
   const pi = btn.dataset.pi !== undefined ? parseInt(btn.dataset.pi, 10) : null;
   const bi = btn.dataset.bi !== undefined ? parseInt(btn.dataset.bi, 10) : null;
+  const tri = btn.dataset.tri !== undefined ? parseInt(btn.dataset.tri, 10) : null;
   if (btn.dataset.action === 'select-seq-slot') {
     // Pure sélection d'affichage (colonne de droite) -- ne touche à aucune donnée du morceau.
     // dataset.seqKey porte les 3 entrées virtuelles ('trackinfo'/'sfx'/'infos'), dataset.si (déjà
@@ -6437,6 +7274,60 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
     adReels.forEach(a => { a.trackIds = a.trackIds.filter(id => id !== removedId); });
     packs.forEach(p => { p.trackIds = (p.trackIds || []).filter(id => id !== removedId); });
     trackBackstageEvent('track_delete', {});
+  }
+  else if (btn.dataset.action === 'add-fx-trigger') {
+    const tk = library[ti];
+    if (!tk.fxTriggers) tk.fxTriggers = [];
+    tk.fxTriggers.push({ id: genId(), label: tr('fxTriggerFallbackLabel', { n: tk.fxTriggers.length + 1 }), target: { type: 'track' }, fx: {}, visible: true, fadeSec: null }); // agit sur tout le morceau ; bouton public par défaut
+  }
+  else if (btn.dataset.action === 'add-fx-slider') {
+    const tk = library[ti];
+    if (!tk.fxSliders) tk.fxSliders = [];
+    tk.fxSliders.push({ id: genId(), label: tr('fxSliderFallbackLabel', { n: tk.fxSliders.length + 1 }), defaultValue: 1, smoothSec: 0.15, visible: false, bindings: [], thresholds: [] });
+  }
+  else if (btn.dataset.action === 'remove-fx-slider') { library[ti].fxSliders.splice(parseInt(btn.dataset.sri, 10), 1); }
+  else if (btn.dataset.action === 'add-fxs-binding') {
+    const tk = library[ti], sl = tk.fxSliders[parseInt(btn.dataset.sri, 10)];
+    sl.bindings = sl.bindings || [];
+    sl.bindings.push({ target: { type: 'track' }, param: 'highcut.frequency', from: 400, to: 20000 });
+  }
+  else if (btn.dataset.action === 'fxsb-curve-reset') {
+    const b = library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].bindings[parseInt(btn.dataset.bi, 10)];
+    delete b.curve; delete fxCurveSelected[fxCurveKey(ti, btn.dataset.sri, btn.dataset.bi)];
+  }
+  else if (btn.dataset.action === 'fxsb-curve-remove') {
+    const k = fxCurveKey(ti, btn.dataset.sri, btn.dataset.bi);
+    const b = library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].bindings[parseInt(btn.dataset.bi, 10)];
+    const i = fxCurveSelected[k];
+    if (b.curve && i != null && i > 0 && i < b.curve.length - 1) { b.curve.splice(i, 1); delete fxCurveSelected[k]; }
+  }
+  else if (btn.dataset.action === 'remove-fxs-binding') { library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].bindings.splice(parseInt(btn.dataset.bi, 10), 1); }
+  else if (btn.dataset.action === 'add-fxs-threshold') {
+    const tk = library[ti], sl = tk.fxSliders[parseInt(btn.dataset.sri, 10)];
+    const firstTrg = (tk.fxTriggers || []).find(d => d && d.id);
+    sl.thresholds = sl.thresholds || [];
+    if (firstTrg) sl.thresholds.push({ at: 0.25, mode: 'below', triggerId: firstTrg.id });
+  }
+  else if (btn.dataset.action === 'remove-fxs-threshold') { library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].thresholds.splice(parseInt(btn.dataset.thi, 10), 1); }
+  else if (btn.dataset.action === 'fx-trigger-to-track') { library[ti].fxTriggers[tri].target = { type: 'track' }; }
+  else if (btn.dataset.action === 'remove-fx-trigger') {
+    const tk = library[ti];
+    const removed = tk.fxTriggers[tri];
+    tk.fxTriggers.splice(tri, 1);
+    // Plus aucune action ne doit pointer vers un trigger supprimé.
+    const purge = o => { if (o && o.fxActions) { o.fxActions = o.fxActions.filter(a => a.triggerId !== removed.id); if (!o.fxActions.length) o.fxActions = null; } };
+    (tk.loops || []).forEach(purge);
+    (tk.segmentSlots || []).forEach(sl => (sl.nextOptions || []).forEach(purge));
+    // ... ni aucun seuil de curseur.
+    (tk.fxSliders || []).forEach(sl => { if (sl.thresholds) sl.thresholds = sl.thresholds.filter(t => t.triggerId !== removed.id); });
+    // ... ni aucune relation d'un autre trigger.
+    (tk.fxTriggers || []).forEach(o => {
+      const r = o.relations;
+      if (!r) return;
+      if (r.activates) r.activates = r.activates.filter(a => a.triggerId !== removed.id);
+      if (r.cuts) r.cuts = r.cuts.filter(x => x !== removed.id);
+      if (r.requires) r.requires = r.requires.filter(x => x !== removed.id);
+    });
   }
   else if (btn.dataset.action === 'add-layer') library[ti].layers.push({ id: genId(), label: '', remoteFile: null, pendingFile: null });
   else if (btn.dataset.action === 'remove-layer') {
@@ -6603,6 +7494,126 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       renderLibrary(); // le libellé de l'option "suivre le réglage global" affiche l'état effectif (oui/non)
     }
     else if (field === 'label') library[ti].layers[li].label = e.target.value;
+    else if (field === 'fxTrigger') {
+      const trg = (library[ti].fxTriggers || [])[parseInt(e.target.dataset.tri, 10)];
+      const prop = e.target.dataset.fxtProp;
+      if (trg) {
+        if (prop === 'label') trg.label = e.target.value;
+        else if (prop === 'visible') trg.visible = e.target.checked;
+        else if (prop === 'fadeSec') trg.fadeSec = e.target.value === '' ? null : parseFloat(e.target.value);
+        else if (prop === 'fadeOutSec') trg.fadeOutSec = e.target.value === '' ? null : parseFloat(e.target.value);
+        else if (prop === 'target') trg.target = parseFxTriggerTarget(e.target.value);
+        else if (prop === 'autoOffSec') { trg.relations = trg.relations || {}; trg.relations.autoOffSec = e.target.value === '' ? null : parseFloat(e.target.value); }
+      }
+    }
+    else if (field === 'fxSlider') {
+      const sl = (library[ti].fxSliders || [])[parseInt(e.target.dataset.sri, 10)];
+      const prop = e.target.dataset.fxsProp;
+      if (sl) {
+        if (prop === 'label') sl.label = e.target.value;
+        else if (prop === 'visible') sl.visible = e.target.checked;
+        else if (prop === 'defaultValue') sl.defaultValue = Math.max(0, Math.min(1, (parseFloat(e.target.value) || 0) / 100));
+        else if (prop === 'smoothSec') sl.smoothSec = e.target.value === '' ? 0.15 : Math.max(0, parseFloat(e.target.value) || 0);
+      }
+    }
+    else if (field === 'fxSliderBinding') {
+      const sl = (library[ti].fxSliders || [])[parseInt(e.target.dataset.sri, 10)];
+      const b = sl && (sl.bindings || [])[parseInt(e.target.dataset.bi, 10)];
+      const prop = e.target.dataset.fxsbProp;
+      if (b) {
+        if (prop === 'target') {
+          const wasSfx = !!(b.target && b.target.type === 'sfx');
+          b.target = parseFxTriggerTarget(e.target.value);
+          const isSfx = b.target && b.target.type === 'sfx';
+          if (wasSfx !== isSfx) { // voix <-> Sfx : le paramètre et les bornes changent de nature
+            if (isSfx) { b.param = 'spatial.distance'; b.from = 2; b.to = 20; } else { b.param = 'highcut.frequency'; b.from = 400; b.to = 20000; }
+            hasUnsavedEdits = true; renderLibrary(); return;
+          }
+        }
+        else if (prop === 'param') {
+          // Changer de paramètre remet des bornes « 0 % -> 100 % » adaptées à sa nature (400 -> 20000 n'a aucun sens pour des demi-tons).
+          b.param = e.target.value;
+          const r = FX_SLIDER_DEFAULT_RANGE[b.param];
+          if (r) { b.from = r[0]; b.to = r[1]; delete b.curve; }
+          hasUnsavedEdits = true; renderLibrary(); return;
+        }
+        else if (prop === 'from') b.from = parseFloat(e.target.value);
+        else if (prop === 'to') b.to = parseFloat(e.target.value);
+      }
+    }
+    else if (field === 'fxSliderThreshold') {
+      const sl = (library[ti].fxSliders || [])[parseInt(e.target.dataset.sri, 10)];
+      const t = sl && (sl.thresholds || [])[parseInt(e.target.dataset.thi, 10)];
+      const prop = e.target.dataset.fxstProp;
+      if (t) {
+        if (prop === 'mode') t.mode = e.target.value;
+        else if (prop === 'at') t.at = Math.max(0, Math.min(1, (parseFloat(e.target.value) || 0) / 100));
+        else if (prop === 'triggerId') t.triggerId = e.target.value;
+      }
+    }
+    else if (field === 'fxRel') {
+      const trg = (library[ti].fxTriggers || [])[parseInt(e.target.dataset.tri, 10)];
+      const other = e.target.dataset.relOther, kind = e.target.dataset.relKind;
+      if (trg && other) {
+        const rel = trg.relations = trg.relations || {};
+        if (kind === 'activates') {
+          rel.activates = (rel.activates || []).filter(a => a.triggerId !== other);
+          if (e.target.checked) rel.activates.push({ triggerId: other, delaySec: 0 });
+          hasUnsavedEdits = true; renderLibrary(); // la case « après N s » apparaît/disparaît
+          return;
+        } else if (kind === 'delay') {
+          const a = (rel.activates || []).find(x => x.triggerId === other);
+          if (a) a.delaySec = e.target.value === '' ? 0 : (parseFloat(e.target.value) || 0);
+        } else if (kind === 'cuts' || kind === 'requires') {
+          rel[kind] = (rel[kind] || []).filter(x => x !== other);
+          if (e.target.checked) rel[kind].push(other);
+        }
+      }
+    }
+    else if (field === 'fxAction') {
+      const owner = e.target.dataset.fxOwner;
+      const obj = owner === 'loop' ? library[ti].loops[li] : library[ti].segmentSlots[parseInt(e.target.dataset.si, 10)].nextOptions[parseInt(e.target.dataset.bi, 10)];
+      const id = e.target.dataset.fxTriggerId;
+      if (obj) {
+        obj.fxActions = (obj.fxActions || []).filter(a => a.triggerId !== id);
+        if (e.target.value) obj.fxActions.push({ triggerId: id, active: e.target.value === 'on' });
+        if (!obj.fxActions.length) obj.fxActions = null;
+      }
+    }
+    else if (field === 'fx') {
+      // data-fx-target dit à quel objet appliquer le réglage -- une seule chaîne de gestion pour les 4
+      // modes plutôt qu'un bloc par mode (voir fxBlockHtml/layerFxHtml/loopFxHtml/slotFxHtml/poolFxHtml).
+      const fxTarget = e.target.dataset.fxTarget || 'layer';
+      let target;
+      if (fxTarget === 'loop') target = library[ti].loops[li];
+      else if (fxTarget === 'slot') target = library[ti].segmentSlots[parseInt(e.target.dataset.si, 10)];
+      else if (fxTarget === 'pool') target = library[ti].sections[parseInt(e.target.dataset.si, 10)].pools[parseInt(e.target.dataset.pi, 10)];
+      else if (fxTarget === 'track') target = library[ti];
+      else if (fxTarget === 'trigger') target = library[ti].fxTriggers[parseInt(e.target.dataset.tri, 10)];
+      else target = li != null ? library[ti].layers[li] : library[ti].layers[0];
+      const effect = e.target.dataset.fxEffect;
+      const param = e.target.dataset.fxParam;
+      if (param === 'enabled') {
+        if (e.target.checked) {
+          target.fx = target.fx || {};
+          // Le pitch de morceau entier (mode "rate" implicite) a ses propres valeurs de départ, distinctes
+          // du pitch par élément ("shift") -- voir FX_TRACK_DEFAULTS.
+          target.fx[effect] = (fxTarget === 'track' && FX_TRACK_DEFAULTS[effect]) ? FX_TRACK_DEFAULTS[effect]() : FX_DEFAULTS[effect]();
+        } else if (target.fx) {
+          delete target.fx[effect];
+          if (!Object.keys(target.fx).length) delete target.fx;
+        }
+        renderLibrary();
+        return;
+      }
+      if (!target.fx || !target.fx[effect]) return;
+      // Champ numérique vidé volontairement (ex. "fadeFrom..." optionnel) : null plutôt que NaN --
+      // un champ de fondu vide veut dire "pas de fondu", pas "fondu vers zéro".
+      target.fx[effect][param] = (e.target.tagName === 'SELECT') ? (param === 'slope' ? parseInt(e.target.value, 10) : e.target.value) : (e.target.value === '' ? null : parseFloat(e.target.value));
+      // Changer le mode du pitch affecte quels champs sont affichés (le fondu n'a de sens qu'en mode
+      // "rate", cf. fxBlockHtml) -- seul cas de la chaîne fx qui a besoin d'un re-rendu complet.
+      if (effect === 'pitch' && param === 'mode') renderLibrary();
+    }
   } else if (e.target.dataset.slotField) {
     const ti = parseInt(e.target.dataset.ti, 10);
     const si = parseInt(e.target.dataset.si, 10);
@@ -9688,6 +10699,57 @@ async function loadAnalyticsRawSessions() {
   renderAnalyticsSessions();
 }
 
+// Boutons d'effet (23/09) : nom lisible du morceau et du bouton, retrouvés dans la bibliothèque locale (repli sur les
+// identifiants si le morceau ou le bouton a été supprimé depuis).
+function analyticsFxTriggerInfo(detail) {
+  const track = library.find(t => t.id === detail.trackId);
+  const trg = track && (track.fxTriggers || []).find(d => d.id === detail.triggerId);
+  const idx = track ? (track.fxTriggers || []).findIndex(d => d.id === detail.triggerId) : -1;
+  return { trackTitle: track ? (track.title || track.id) : detail.trackId, label: (trg && trg.label) || (idx >= 0 ? tr('fxTriggerFallbackLabel', { n: idx + 1 }) : detail.triggerId) };
+}
+function analyticsInteractionLabel(i) {
+  if (i.name === 'fx_trigger' && i.detail) {
+    const info = analyticsFxTriggerInfo(i.detail);
+    return tr('analyticsFxInteraction', { label: info.label, track: info.trackTitle, state: tr(i.detail.active ? 'analyticsFxOn' : 'analyticsFxOff') });
+  }
+  return i.name;
+}
+// Synthèse « boutons d'effet les plus utilisés » : nombre d'appuis d'ACTIVATION par bouton sur toute la période
+// chargée, et dans combien de sessions. Les boutons visibles du compositeur sans aucun appui figurent quand même
+// (à zéro) : c'est justement ce qui dit qu'un bouton n'est jamais utilisé. Détail par interaction = Pro seulement.
+function renderAnalyticsFxSummary(sessions) {
+  if (currentEffectivePlan !== 'pro') return '';
+  const stats = new Map();
+  const key = d => d.trackId + '|' + d.triggerId;
+  library.forEach(t => (t.fxTriggers || []).forEach(d => {
+    if (d && d.id && d.visible !== false) stats.set(key({ trackId: t.id, triggerId: d.id }), { detail: { trackId: t.id, triggerId: d.id }, presses: 0, sessions: 0 });
+  }));
+  sessions.forEach(sess => {
+    const seen = new Set();
+    (sess.interactions || []).forEach(i => {
+      if (i.name !== 'fx_trigger' || !i.detail || !i.detail.active) return;
+      const k = key(i.detail);
+      if (!stats.has(k)) stats.set(k, { detail: { trackId: i.detail.trackId, triggerId: i.detail.triggerId }, presses: 0, sessions: 0 });
+      const st = stats.get(k);
+      st.presses++;
+      if (!seen.has(k)) { seen.add(k); st.sessions++; }
+    });
+  });
+  if (!stats.size) return '';
+  const rows = [...stats.values()].sort((a, b) => b.presses - a.presses).map(st => {
+    const info = analyticsFxTriggerInfo(st.detail);
+    return `<li>${analyticsEscapeHtml(info.label)} <span class="hint">(${analyticsEscapeHtml(info.trackTitle)})</span> — ${analyticsEscapeHtml(tr('analyticsFxPresses', { n: st.presses, s: st.sessions }))}</li>`;
+  }).join('');
+  return `
+    <div class="analytics-session">
+      <div class="analytics-session-head"><strong>${analyticsEscapeHtml(tr('analyticsFxSummaryTitle'))}</strong></div>
+      <div class="analytics-session-detail">
+        <div class="hint">${analyticsEscapeHtml(tr('analyticsFxSummaryHint'))}</div>
+        <ul>${rows}</ul>
+      </div>
+    </div>`;
+}
+
 function renderAnalyticsSessionCard(s) {
   const typeLabel = analyticsTypeLabel(s.type);
   const opened = s.openedAt ? new Date(s.openedAt).toLocaleString(currentLang() === 'en' ? 'en-US' : 'fr-FR') : '—';
@@ -9701,7 +10763,7 @@ function renderAnalyticsSessionCard(s) {
       const stateLabel = t.reachedEnd ? tr('analyticsTrackReachedEnd') : (t.skipped ? tr('analyticsTrackSkipped') : tr('analyticsTrackPartial'));
       return `<li class="${cls}">${analyticsEscapeHtml(t.trackId)} — ${analyticsEscapeHtml(stateLabel)}</li>`;
     }).join('');
-    const interactionItems = interactions.map(i => `<li>${analyticsEscapeHtml(i.name)}</li>`).join('');
+    const interactionItems = interactions.map(i => `<li>${analyticsEscapeHtml(analyticsInteractionLabel(i))}</li>`).join('');
     detail = `
       <div class="analytics-session-detail">
         <div>${analyticsEscapeHtml(tr('analyticsTracksHeading'))} <span class="hint">(${tr('analyticsTrackDetailApprox')})</span></div>
@@ -9725,7 +10787,7 @@ function renderAnalyticsSessions() {
   const sessionsEl = document.getElementById('analyticsSessions');
   if (!sessionsEl || !analyticsData) return;
   const sessions = analyticsData.sessions || [];
-  sessionsEl.innerHTML = sessions.length ? sessions.map(renderAnalyticsSessionCard).join('') : `<div class="hint">${analyticsEscapeHtml(tr('analyticsNoItems'))}</div>`;
+  sessionsEl.innerHTML = sessions.length ? renderAnalyticsFxSummary(sessions) + sessions.map(renderAnalyticsSessionCard).join('') : `<div class="hint">${analyticsEscapeHtml(tr('analyticsNoItems'))}</div>`;
 }
 // Valeur effective d'un champ d'apparence pour le thème général actuel — sert de point de départ quand
 // on active une personnalisation par bloc (plutôt que de partir d'une couleur arbitraire). Vérifie
@@ -9938,6 +11000,9 @@ function renderSeqMapThemeForTier() {
   window.LayerPlayerCore.setSeqMapTheme(isPro ? seqMapTheme : 'light');
 }
 fillSeqMapThemeField();
+// Carte des chemins de l'aperçu : même disposition « aérée » que sur les pages publiques (24/09, « toute moche » en grille compacte) --
+// l'aperçu montre ainsi ce que verra le visiteur ; la carte s'ajuste seule à la largeur du panneau (voir updateSeqMap).
+window.LayerPlayerCore.setSeqMapDensity('roomy');
 
 /* ---------------- Chargement (auto + manuel) ---------------- */
 async function loadData(silent) {
@@ -9992,7 +11057,8 @@ async function loadData(silent) {
           pools: (sec.pools || []).map(p => ({
             id: p.id || genId(), label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
             referencesPoolId: p.referencesPoolId || null,
-            alternatives: (p.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1 }))
+            alternatives: (p.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1 })),
+            fx: p.fx || null
           }))
         }));
       } else if (mode === 'vertical-random' && (t.fixedLayers || t.fixedLayer || (t.randomGroups && t.randomGroups.length))) {
@@ -10036,7 +11102,10 @@ async function loadData(silent) {
         maxLoops: (t.maxLoops !== undefined && t.maxLoops !== null) ? t.maxLoops : null,
         maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
         normalizeVolume: !!t.normalizeVolume,
-        layers: (t.layers || []).map(l => ({ label: l.label, remoteFile: l.file, pendingFile: null, gain: l.gain || 1, duration: l.duration || 0 })),
+        fx: t.fx || null,
+        fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations) })),
+        fxSliders: fxSlidersClean(t.fxSliders),
+        layers: (t.layers || []).map(l => ({ label: l.label, remoteFile: l.file, pendingFile: null, gain: l.gain || 1, duration: l.duration || 0, fx: l.fx || null })),
         intro: t.intro ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, remoteFile: t.intro.file || null, pendingFile: null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '' } : null,
         outro: t.outro ? { label: t.outro.label || 'Outro', remoteFile: t.outro.file || null, pendingFile: null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,
         // Migration douce : les morceaux séquentiels publiés avant l'architecture à emplacements avaient un
@@ -10051,9 +11120,11 @@ async function loadData(silent) {
           descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
           nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
             targetId: opt.targetId, label: opt.label || '',
-            transition: opt.transition ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, remoteFile: opt.transition.file || null, originalFileName: opt.transition.originalFileName || null, pendingFile: null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null
+            transition: opt.transition ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, remoteFile: opt.transition.file || null, originalFileName: opt.transition.originalFileName || null, pendingFile: null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null,
+            fxActions: opt.fxActions || null
           })) : null,
-          alternatives: (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1 }))
+          alternatives: (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1 })),
+          fx: sl.fx || null
         })) : ((t.segments && t.segments.length) ? [{
           id: genId(), label: '', avoidImmediateRepeat: t.avoidImmediateRepeat !== false, repeatCount: 1,
           alternatives: t.segments.map(s => ({ label: s.label || '', bars: s.bars || 8, remoteFile: s.file || null, pendingFile: null, gain: s.gain || 1 }))
@@ -10094,7 +11165,9 @@ async function loadData(silent) {
               bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
               bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
               remoteFile: l.transition.file || null, originalFileName: l.transition.originalFileName || null, pendingFile: null
-            } : null
+            } : null,
+            fx: l.fx || null,
+            fxActions: l.fxActions || null
           }));
         })(),
         stingers: (t.stingers || []).map(s => ({ label: s.label, remoteFile: s.file, pendingFile: null, gain: s.gain || 1 })),
@@ -10120,6 +11193,7 @@ async function loadData(silent) {
       tag: s.tag || '',
       rrMode: s.rrMode === 'sequential' ? 'sequential' : 'random',
       duckMainTrack: !!s.duckMainTrack,
+      spatial: s.spatial || null,
       alternatives: (s.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file, originalFileName: a.originalFileName || null, pendingFile: null })),
       folderId: s.folderId || null
     }));
@@ -10265,8 +11339,10 @@ document.getElementById('btnLoad').addEventListener('click', () => {
 
 document.getElementById('btnPublish').addEventListener('click', publishAll);
 document.getElementById('btnView').addEventListener('click', () => {
-  const owner = state.owner(), repo = state.repo();
-  if (!owner || !repo) { log(tr('needOwnerRepoMsg'), 'err'); return; }
+  // 24/09 : ne plus exiger owner/repo GitHub ici (signalé par Jules-Antoine : le bouton ne faisait RIEN sur
+  // http://localhost, où ces champs -- gardés dans le stockage local de chaque adresse -- sont vides ; le message
+  // « Renseigne owner / repo » n'allait que dans le journal, invisible). C'était aussi vrai pour tout compositeur
+  // sans dépôt GitHub personnel, alors que computeAdReelUrl sait déjà retomber sur le lien public de son handle.
   const url = computeAdReelUrl(currentAdReelId);
   if (!url) { alert(tr('adreelUrlPending')); return; }
   window.open(url, '_blank');
@@ -10757,7 +11833,7 @@ function textToBase64(str) { return uint8ToBase64(new TextEncoder().encode(str))
 // seul fetch + une seule écriture par fichier, quel que soit le nombre de balises concernées PRÉSENTES
 // dans CE fichier précis (tous les fichiers ne chargent pas les mêmes scripts, ex. video-test.html n'a
 // ni player.js ni layerpitch-help.js).
-const VERSIONED_SCRIPTS = ['player.js', 'layerpitch-i18n.js', 'layerpitch-help.js'];
+const VERSIONED_SCRIPTS = ['player.js', 'layerpitch-i18n.js', 'layerpitch-help.js', 'capture-render.js'];
 async function updateScriptVersions(owner, repo, branch, token, path, version) {
   const existing = await ghGetContent(owner, repo, path, branch, token);
   if (!existing) { log(tr('fileNotFoundVersionUpdate', { path }), 'err'); return; }
@@ -10805,13 +11881,16 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       maxLoops: (t.maxLoops !== undefined && t.maxLoops !== null) ? t.maxLoops : null,
       maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
       normalizeVolume: !!t.normalizeVolume,
+      fx: t.fx || null,
+      fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations) })),
+      fxSliders: fxSlidersClean(t.fxSliders),
       duration: Math.round(t.duration * 100) / 100, base: t.base,
       // file/localUrl (18/09) : un fichier tout juste choisi mais pas encore publié n'a pas de
       // remoteFile -- localUrl porte alors une URL locale temporaire (pendingPreviewUrl(), blob:),
       // lue directement par player.js (loadArrayBuffer()) sans jamais passer par track.base. file
       // reste null dans ce cas (jamais un blob: -- track.base+file resterait un vrai chemin distant
       // invalide). Même repli partout ci-dessous (layers/intro/outro/segmentSlots/loops/sections).
-      layers: (t.mode === 'static' ? (t.layers || []).slice(0, 1) : (t.layers || [])).map(l => ({ label: l.label, file: l.remoteFile || null, localUrl: l.remoteFile ? null : pendingPreviewUrl(l.pendingFile), originalFileName: l.originalFileName || null, gain: l.gain || 1, duration: Math.round((l.duration || 0) * 100) / 100 })),
+      layers: (t.mode === 'static' ? (t.layers || []).slice(0, 1) : (t.layers || [])).map(l => ({ label: l.label, file: l.remoteFile || null, localUrl: l.remoteFile ? null : pendingPreviewUrl(l.pendingFile), originalFileName: l.originalFileName || null, gain: l.gain || 1, duration: Math.round((l.duration || 0) * 100) / 100, fx: l.fx || null })),
       intro: (t.intro && (t.intro.remoteFile || t.intro.pendingFile)) ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, file: t.intro.remoteFile || null, localUrl: t.intro.remoteFile ? null : pendingPreviewUrl(t.intro.pendingFile), originalFileName: t.intro.originalFileName || null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '' } : null,
       outro: (t.outro && (t.outro.remoteFile || t.outro.pendingFile)) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile || null, localUrl: t.outro.remoteFile ? null : pendingPreviewUrl(t.outro.pendingFile), originalFileName: t.outro.originalFileName || null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,
       segmentSlots: (t.segmentSlots || []).map(sl => ({
@@ -10822,9 +11901,11 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
         nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
           targetId: opt.targetId, label: opt.label || '',
-          transition: (opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile)) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile || null, localUrl: opt.transition.remoteFile ? null : pendingPreviewUrl(opt.transition.pendingFile), originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null
+          transition: (opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile)) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile || null, localUrl: opt.transition.remoteFile ? null : pendingPreviewUrl(opt.transition.pendingFile), originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '' } : null,
+          fxActions: opt.fxActions || null
         })) : null,
-        alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1 }))
+        alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1 })),
+        fx: sl.fx || null
       })),
       // Embranchement-vertical : une entrée par boucle déclarée (même les boucles sans fichier — voir
       // note dans buildPreviewTrackObject, l'index doit rester aligné avec data-loop-idx côté lecteur).
@@ -10843,7 +11924,9 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
           bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
           bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
           file: l.transition.remoteFile || null, localUrl: l.transition.remoteFile ? null : pendingPreviewUrl(l.transition.pendingFile), originalFileName: l.transition.originalFileName || null
-        } : null
+        } : null,
+        fx: l.fx || null,
+        fxActions: l.fxActions || null
       })),
       randomizeSections: !!t.randomizeSections,
       // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : chaque section porte
@@ -10860,7 +11943,8 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         pools: sec.referencesSectionId ? [] : (sec.pools || []).map(p => ({
           id: p.id, label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
           referencesPoolId: p.referencesPoolId || null,
-          alternatives: p.referencesPoolId ? [] : (p.alternatives || []).map(a => ({ label: a.label || '', file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1 }))
+          alternatives: p.referencesPoolId ? [] : (p.alternatives || []).map(a => ({ label: a.label || '', file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1 })),
+          fx: p.fx || null
         }))
       })),
       sfxIds: t.sfxIds || [],
@@ -10871,6 +11955,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       id: s.id, title: s.title || '', descriptionFr: s.descriptionFr || '', descriptionEn: s.descriptionEn || '', tag: s.tag || '',
       rrMode: s.rrMode === 'sequential' ? 'sequential' : 'random',
       duckMainTrack: !!s.duckMainTrack, base: s.base || '',
+      spatial: s.spatial || null,
       alternatives: (s.alternatives || []).filter(a => a.remoteFile || a.pendingFile).map(a => ({ label: a.label || '', file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null })),
       folderId: s.folderId || null
     })),

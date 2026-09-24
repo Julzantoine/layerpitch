@@ -1,0 +1,13 @@
+{
+  "comment": "Simule ce que pack.html exporterait après une vraie session de capture sur le morceau réel 'Goûte donc ma hache, pour voir !' (bmrc8rec1wtahz, mode vertical, 3 calques) + un stinger de la librairie Sfx 'Impacts'.",
+  "capturedAt": "2026-09-13T00:00:00.000Z",
+  "video": "example-gameplay.mp4",
+  "events": [
+    { "t": 0,  "name": "intensity_change", "detail": { "trackId": "bmrc8rec1wtahz", "level": 0 } },
+    { "t": 6,  "name": "intensity_change", "detail": { "trackId": "bmrc8rec1wtahz", "level": 1 } },
+    { "t": 10, "name": "stinger_play", "detail": { "trackId": "bmrc8rec1wtahz", "sfxId": "bms3sf3itgekxm", "variationIndex": 2 } },
+    { "t": 12, "name": "intensity_change", "detail": { "trackId": "bmrc8rec1wtahz", "level": 2 } },
+    { "t": 18, "name": "intensity_change", "detail": { "trackId": "bmrc8rec1wtahz", "level": 0 } },
+    { "t": 24, "name": "intensity_change", "detail": { "trackId": "bmrc8rec1wtahz", "level": 0 } }
+  ]
+}

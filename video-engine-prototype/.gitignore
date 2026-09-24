@@ -1,0 +1,4 @@
+node_modules/
+output*.mp4
+bg-trimmed.mp4
+last-filter-complex*.txt
