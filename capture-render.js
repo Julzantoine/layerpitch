@@ -227,7 +227,12 @@
           timeline.sort((a, b) => a.t - b.t);
           timeline.forEach(ev => {
             let ramp = 0.1;
-            if (ev.c) { const d = defOf(ev.c.triggerId); applyChange(active, ev.c); if (!d && !force.length) return; ramp = d && d.fadeSec != null ? d.fadeSec : 0.1; }
+            if (ev.c) {
+              const d = defOf(ev.c.triggerId); applyChange(active, ev.c); if (!d && !force.length) return;
+              // même règle que le lecteur : fondu d'entrée / fondu de sortie (vide = même durée que l'entrée)
+              const fin = d && d.fadeSec != null ? d.fadeSec : 0.1;
+              ramp = ev.c.active ? fin : (d && d.fadeOutSec != null ? d.fadeOutSec : fin);
+            }
             else { sliderVals.set(ev.sl.id, ev.k.value); ramp = ev.sl.smoothSec; }
             C.applyFxToChain(oc, chain, effective(), ramp, ev.t);
           });

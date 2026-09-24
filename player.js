@@ -1021,7 +1021,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       <div class="track-intensity-block">
         <div class="track-intensity-label">${t('fxTriggersRowLabel')}</div>
         <div class="fx-trigger-row">
-          ${publicFxTriggers.map(d => `<button type="button" class="fx-trigger-btn" data-fx-trigger="${escapeHtml(d.id)}" aria-pressed="false" disabled>${escapeHtml(d.label || d.id)}</button>`).join('')}
+          ${publicFxTriggers.map((d, i) => `<button type="button" class="fx-trigger-btn" data-fx-trigger="${escapeHtml(d.id)}" aria-pressed="false" disabled>${escapeHtml(d.label || t('fxTriggerFallbackLabel', { n: i + 1 }))}</button>`).join('')}
         </div>
       </div>
     `;
@@ -1036,7 +1036,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       <div class="track-intensity-block">
         <div class="track-intensity-label">${t('fxSlidersRowLabel')}</div>
         <div class="fx-slider-row">
-          ${publicFxSliders.map(sl => `<label class="fx-slider"><span>${escapeHtml(sl.label || sl.id)}</span><input type="range" min="0" max="100" step="1" value="${Math.round(sl.def * 100)}" data-fx-slider="${escapeHtml(sl.id)}" disabled><output>${Math.round(sl.def * 100)}%</output></label>`).join('')}
+          ${publicFxSliders.map((sl, i) => `<label class="fx-slider"><span>${escapeHtml(sl.label || t('fxSliderFallbackLabel', { n: i + 1 }))}</span><input type="range" min="0" max="100" step="1" value="${Math.round(sl.def * 100)}" data-fx-slider="${escapeHtml(sl.id)}" disabled><output>${Math.round(sl.def * 100)}%</output></label>`).join('')}
         </div>
       </div>
     `;
@@ -1173,7 +1173,7 @@ function resolveWaveformColors(elementColors) {
 // Réglages fixes posés par le compositeur (layer.fx dans data.json/Postgres), pas encore automatisés ni
 // déclenchables en direct — ça viendra dans un second temps (cascades de triggers, cf. discussion
 // produit), qui réutilisera cette même chaîne plutôt que d'en construire une autre. buildLayerFxChain
-// renvoie { input, output, nodes } avec des références NOMMÉES à chaque nœud créé (nodes.filter,
+// renvoie { input, output, nodes } avec des références NOMMÉES à chaque nœud créé (nodes.lowcut, nodes.highcut,
 // nodes.delay, ...) plutôt que des closures anonymes : ça ne sert à rien aujourd'hui, mais évite une
 // réécriture le jour où un contrôle en direct (ex. depuis un futur Espace Projet) devra retrouver ces
 // nœuds pour les piloter plutôt que reconstruire toute la chaîne.
@@ -1454,7 +1454,8 @@ function buildSpatialVoice(ctx, spatial, opts) {
   // atTime : changement programmé (rendu hors-ligne de l'outil vidéo) ; sinon "maintenant".
   const [halfX, halfY] = spatialFieldHalfExtent(sp.room);
   const fixed = path.mode === 'fixed';
-  return { input, nodes, distance: dist, stepIndex, fixed, pathMode: path.mode, glideDuration: glide ? glide.dur : null,
+  return { input, nodes, distance: dist, stepIndex, fixed, pathMode: path.mode, glideDuration: glide ? glide.dur : null, startX: sp.x, startY: sp.y,
+    setBinaural(b) { panner.panningModel = b ? 'HRTF' : 'equalpower'; },
     setPosition(x, y, rampSec, atTime) {
       if (!fixed) return;
       x = Math.max(-halfX, Math.min(halfX, +x || 0)); y = Math.max(-halfY, Math.min(halfY, +y || 0));
@@ -1512,25 +1513,192 @@ function buildHeadTurnControl() {
   document.addEventListener('layerpitch-head-yaw', e => paint(e.detail));
   return row;
 }
+// ---- Matrice de spatialisation PUBLIQUE (24/09) ----
+// Vue de dessus de la salle d'un Sfx spatialisé, pour le visiteur : l'auditeur (triangle, qu'on fait tourner pour
+// tourner la tête), la source (point) ou la trajectoire (points numérotés / chemin), le point « qui joue » en bleu,
+// et le rendu 3D (casque). MANIPULABLE : on glisse la source (ou un point de la trajectoire) et on entend le
+// changement, même pendant que le son joue ; tout est local au visiteur (voir _sfxVisitorState). Le compositeur choisit
+// dans le Backstage (spatial.publicMode) : 'free' = manipulable (défaut), 'frozen' = visible mais figée (aucun
+// réglage pour le visiteur), 'hidden' = pas de matrice. Le curseur d'orientation de la tête est posé À CÔTÉ de la
+// matrice (colonne de droite, sous elle sur un petit écran).
+function buildSpatialMatrixView(sfxDef) {
+  const wrap = document.createElement('div');
+  wrap.className = 'sfx-space-view';
+  const publicMode = sfxDef.spatial.publicMode || 'free';
+  const sp0 = normalizeSpatial(sfxDef.spatial);
+  const room = sp0.room;
+  const [hx, hy] = spatialFieldHalfExtent(room);
+  const W = 320, PAD = 14, ppm = (W / 2 - PAD) / hx, H = Math.round(2 * hy * ppm + 2 * PAD), cx = W / 2, cy = H / 2;
+  const interactive = publicMode === 'free';
+  const X = v => cx + v * ppm, Y = v => cy - v * ppm;
+  const gridStep = Math.max(hx, hy) <= 5 ? 1 : (Math.max(hx, hy) <= 15 ? 2 : 5);
+  let grid = '';
+  for (let m = gridStep; m <= Math.max(hx, hy) + 1e-6; m += gridStep) {
+    if (m <= hx + 1e-6) grid += `<line x1="${X(m)}" y1="${Y(hy)}" x2="${X(m)}" y2="${Y(-hy)}"/><line x1="${X(-m)}" y1="${Y(hy)}" x2="${X(-m)}" y2="${Y(-hy)}"/>`;
+    if (m <= hy + 1e-6) grid += `<line x1="${X(-hx)}" y1="${Y(m)}" x2="${X(hx)}" y2="${Y(m)}"/><line x1="${X(-hx)}" y1="${Y(-m)}" x2="${X(hx)}" y2="${Y(-m)}"/>`;
+  }
+  wrap.innerHTML = `
+    <div class="sfx-space-title">${t('sfxSpaceViewLabel')}</div>
+    <div class="sfx-space-layout">
+    <div class="sfx-space-map">
+    <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;touch-action:none;display:block;border:1px solid var(--border, #ccc);border-radius:8px;${interactive ? 'cursor:crosshair' : ''}" role="img" aria-label="${escapeHtml(t('sfxSpaceViewLabel'))}">
+      <rect x="${X(-hx)}" y="${Y(hy)}" width="${2 * hx * ppm}" height="${2 * hy * ppm}" fill="none" stroke="var(--text-dimmer, #888)" stroke-width="1.5"/>
+      <g stroke="var(--border, #ccc)" stroke-width="0.5">${grid}</g>
+      <line x1="${X(-hx)}" y1="${cy}" x2="${X(hx)}" y2="${cy}" stroke="var(--border, #ccc)" stroke-width="0.8" stroke-dasharray="3 3"/>
+      <line x1="${cx}" y1="${Y(hy)}" x2="${cx}" y2="${Y(-hy)}" stroke="var(--border, #ccc)" stroke-width="0.8" stroke-dasharray="3 3"/>
+      <g data-role="dynamic"></g>
+      <g data-role="listener"><circle cx="${cx}" cy="${cy}" r="18" fill="transparent" stroke="var(--border, #ccc)" stroke-dasharray="2 3"/><polygon points="${cx},${cy - 11} ${cx - 8},${cy + 8} ${cx + 8},${cy + 8}" fill="var(--text-dimmer, #888)"><title>${escapeHtml(t('sfxSpaceListenerLabel'))}</title></polygon></g>
+      <text x="${X(-hx) + 4}" y="${Y(-hy) - 5}" font-size="10" fill="var(--text-dimmer, #888)">${{ room: 'Room', hall: 'Hall', cathedral: 'Cathedral', outside: 'Outside' }[room]} · ${gridStep} m</text>
+    </svg>
+    <div class="sfx-space-readout" data-role="readout"></div>
+    </div>
+    ${interactive ? `<div class="sfx-space-side" data-role="side">
+      <label class="sfx-space-bin"><input type="checkbox" data-role="binaural"> ${t('sfxSpaceBinauralPublic')}</label>
+      <div class="sfx-space-controls"><button type="button" class="btn btn-small" data-role="reset">${t('sfxSpaceViewReset')}</button></div>
+      <div class="sfx-space-hint">${t('sfxSpaceViewHint')}</div>
+    </div>` : ''}
+    </div>`;
+  const svg = wrap.querySelector('svg'), dyn = wrap.querySelector('[data-role="dynamic"]'), listener = wrap.querySelector('[data-role="listener"]');
+  const readout = wrap.querySelector('[data-role="readout"]'), bin = wrap.querySelector('[data-role="binaural"]') || { checked: false, addEventListener() {} }, resetBtn = wrap.querySelector('[data-role="reset"]');
+  // Orientation de la tête : dans la colonne de droite, À CÔTÉ de la matrice (seulement quand elle est manipulable).
+  if (interactive) wrap.querySelector('[data-role="side"]').insertBefore(buildHeadTurnControl(), wrap.querySelector('.sfx-space-bin'));
+  const round1 = v => Math.round(v * 10) / 10;
+  const state = () => sfxSpatialWithVisitor(sfxDef); // réglage courant (compositeur + visiteur)
+  const playing = { idx: -1, glide: false, glidePos: null, token: 0, pulse: 0 };
+  function current() { const n = normalizeSpatial(state()); return n; }
+  function paintListener() { listener.setAttribute('transform', `rotate(${getListenerYaw()} ${cx} ${cy})`); }
+  function paint() {
+    const n = current(), path = n.path, isPath = path.mode === 'steps' || path.mode === 'glide';
+    let html = '';
+    if (!isPath) {
+      html += `<line x1="${cx}" y1="${cy}" x2="${X(n.x)}" y2="${Y(n.y)}" stroke="var(--accent, #c9713c)" stroke-width="1" stroke-dasharray="2 3"/>`;
+      if (playing.pulse) html += `<circle cx="${X(n.x)}" cy="${Y(n.y)}" r="15" fill="none" stroke="var(--accent, #c9713c)" stroke-width="2" opacity="0.45"/>`;
+      html += `<circle cx="${X(n.x)}" cy="${Y(n.y)}" r="9" fill="var(--accent, #c9713c)" stroke="#fff" stroke-width="2" style="cursor:${interactive ? 'grab' : 'default'}"/>`;
+      readout.textContent = t('sfxSpaceViewReadout', { x: round1(n.x), y: round1(n.y), d: round1(Math.hypot(n.x, n.y)) });
+    } else {
+      const pts = path.points;
+      html += `<polyline points="${pts.map(q => X(q.x) + ',' + Y(q.y)).join(' ')}" fill="none" stroke="var(--accent, #c9713c)" stroke-width="1.5" stroke-dasharray="${path.mode === 'steps' ? '3 4' : '0'}"/>`;
+      html += pts.map((q, i) => { const on = i === playing.idx; return `<circle cx="${X(q.x)}" cy="${Y(q.y)}" r="8" fill="${on ? 'var(--accent, #c9713c)' : 'var(--bg, #fff)'}" stroke="var(--accent, #c9713c)" stroke-width="2"/><text x="${X(q.x)}" y="${Y(q.y) + 4}" text-anchor="middle" font-size="10" font-weight="700" fill="${on ? '#fff' : 'var(--accent, #c9713c)'}" style="pointer-events:none">${i + 1}</text>`; }).join('');
+      if (playing.glide && playing.glidePos) html += `<circle cx="${X(playing.glidePos.x)}" cy="${Y(playing.glidePos.y)}" r="7" fill="var(--accent, #c9713c)" stroke="#fff" stroke-width="2" style="pointer-events:none"/>`;
+      readout.textContent = t(path.mode === 'steps' ? 'sfxSpaceViewSteps' : 'sfxSpaceViewGlide', { n: pts.length });
+    }
+    dyn.innerHTML = html;
+    bin.checked = !!n.binaural;
+    paintListener();
+  }
+  // Mise à jour EN DIRECT des sons déjà en train de jouer (sources à position fixe).
+  function pushToPlayingVoices() {
+    const n = current();
+    (_activeSpatialVoices.get(sfxDef.id) || new Set()).forEach(v => { v.setPosition(n.x, n.y, 0.05); v.setBinaural(n.binaural); });
+  }
+  function visitorState() {
+    let vs = _sfxVisitorState.get(sfxDef.id);
+    if (!vs) { vs = {}; _sfxVisitorState.set(sfxDef.id, vs); }
+    return vs;
+  }
+  bin.addEventListener('change', () => { visitorState().binaural = bin.checked; pushToPlayingVoices(); paint(); });
+  if (resetBtn) resetBtn.addEventListener('click', () => { _sfxVisitorState.delete(sfxDef.id); pushToPlayingVoices(); paint(); });
+  if (interactive) {
+    const pos = ev => {
+      const r = svg.getBoundingClientRect(), k = W / r.width, px = (ev.clientX - r.left) * k, py = (ev.clientY - r.top) * k;
+      return { px, py, x: round1(Math.max(-hx, Math.min(hx, (px - cx) / ppm))), y: round1(Math.max(-hy, Math.min(hy, -(py - cy) / ppm))) };
+    };
+    let drag = null;
+    svg.addEventListener('pointerdown', ev => {
+      const p = pos(ev), n = current(), isPath = n.path.mode === 'steps' || n.path.mode === 'glide';
+      if (Math.hypot(p.px - cx, p.py - cy) <= 22) { drag = { kind: 'yaw' }; } // le triangle : on tourne la tête
+      else if (!isPath) { const vs = visitorState(); vs.x = p.x; vs.y = p.y; drag = { kind: 'source' }; }
+      else {
+        let hit = -1, best = 16;
+        n.path.points.forEach((q, i) => { const d = Math.hypot(X(q.x) - p.px, Y(q.y) - p.py); if (d < best) { best = d; hit = i; } });
+        if (hit < 0) return;
+        const vs = visitorState();
+        if (!vs.points) vs.points = n.path.points.map(q => ({ x: q.x, y: q.y }));
+        drag = { kind: 'point', idx: hit };
+      }
+      try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
+      onMove(ev);
+    });
+    function onMove(ev) {
+      if (!drag) return;
+      const p = pos(ev);
+      if (drag.kind === 'yaw') { setListenerYaw(Math.atan2(p.px - cx, -(p.py - cy)) * 180 / Math.PI); }
+      else if (drag.kind === 'source') { const vs = visitorState(); vs.x = p.x; vs.y = p.y; pushToPlayingVoices(); paint(); }
+      else { visitorState().points[drag.idx] = { x: p.x, y: p.y }; paint(); }
+    }
+    svg.addEventListener('pointermove', onMove);
+    const end = () => { drag = null; };
+    svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+  }
+  // Tête de l'auditeur (curseur d'orientation ou glisser le triangle) + son qui joue.
+  document.addEventListener('layerpitch-head-yaw', () => { if (wrap.isConnected) paintListener(); });
+  document.addEventListener('layerpitch-sfx-spatial', e => {
+    if (!wrap.isConnected || e.detail.sfxId !== sfxDef.id) return;
+    const token = ++playing.token, dur = Math.max(0.2, e.detail.glideDuration || e.detail.duration || 1);
+    if (e.detail.mode === 'steps' && e.detail.stepIndex != null) {
+      playing.idx = e.detail.stepIndex; playing.glide = false; paint();
+      setTimeout(() => { if (playing.token === token) { playing.idx = -1; paint(); } }, Math.max(300, (e.detail.duration || 1) * 1000));
+    } else if (e.detail.mode === 'glide') {
+      playing.idx = -1; playing.glide = true;
+      const pts = current().path.points; const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+      const total = cum[cum.length - 1] || 1, t0 = performance.now();
+      const step = () => {
+        if (playing.token !== token || !wrap.isConnected) return;
+        const f = (performance.now() - t0) / 1000 / dur;
+        if (f >= 1) { playing.glide = false; playing.glidePos = null; paint(); return; }
+        const a = f * total; let i = 1; while (i < cum.length - 1 && cum[i] < a) i++;
+        const sg = cum[i] - cum[i - 1] || 1, ff = Math.max(0, Math.min(1, (a - cum[i - 1]) / sg));
+        playing.glidePos = { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * ff, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * ff };
+        paint(); requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    } else {
+      playing.pulse = 1; paint();
+      setTimeout(() => { if (playing.token === token) { playing.pulse = 0; paint(); } }, Math.max(300, (e.detail.duration || 1) * 1000));
+    }
+  });
+  paint();
+  return wrap;
+}
 // Branche une source de Sfx à la sortie : directement, ou à travers sa chaîne spatiale si le compositeur
 // en a réglé une. addEventListener('ended') et non .onended : les appelants posent déjà leur propre
 // gestionnaire (leçon des fuites de chaîne d'effets, voir buildLayerFxChain).
+// Réglages du VISITEUR sur la matrice publique (24/09) : position de la source, points d'un chemin, rendu 3D. Par
+// identifiant de Sfx (partagés entre le lecteur de Sfx d'un AdReel et les boutons Sfx d'un morceau), en mémoire
+// seulement : rien n'est enregistré, tout revient à l'état du compositeur au rechargement de la page.
+const _sfxVisitorState = new Map(); // sfxId -> { x, y, binaural, points }
+const _activeSpatialVoices = new Map(); // sfxId -> Set(voix spatiales en cours de lecture)
+function sfxSpatialWithVisitor(sfxDef) {
+  const sp = sfxDef.spatial, vs = _sfxVisitorState.get(sfxDef.id);
+  if (!vs) return sp;
+  const out = Object.assign({}, sp);
+  if (vs.x != null && vs.y != null) { out.x = vs.x; out.y = vs.y; }
+  if (vs.binaural != null) out.binaural = vs.binaural;
+  if (vs.points) out.path = Object.assign({}, sp.path, { points: vs.points });
+  return out;
+}
 function connectSfxSource(src, sfxDef, spatialOverride) {
-  const sp = sfxDef && sfxDef.spatial;
-  if (!sp || !sp.enabled) { src.connect(ctx.destination); return null; }
+  const sp0 = sfxDef && sfxDef.spatial;
+  if (!sp0 || !sp0.enabled) { src.connect(ctx.destination); return null; }
   try {
-    // spatialOverride : position / reverb imposées par un curseur de paramètre au moment où le son démarre.
+    // Ordre de priorité : réglage du compositeur < ce que le visiteur a fait à la matrice < curseur de paramètre du
+    // compositeur (spatialOverride : position / reverb imposées au moment où le son démarre).
+    const sp = sfxSpatialWithVisitor(sfxDef);
     const voice = buildSpatialVoice(ctx, spatialOverride ? fxSpatialWithOverride(sp, spatialOverride) : sp, {
       duration: src.buffer ? src.buffer.duration / ((src.playbackRate && src.playbackRate.value) || 1) : 0,
       stepKey: sfxDef
     });
     src.connect(voice.input);
-    src.addEventListener('ended', () => setTimeout(() => voice.dispose(), 250));
+    // Voix en cours de lecture : la matrice publique les déplace / change leur rendu en direct.
+    let vset = _activeSpatialVoices.get(sfxDef.id);
+    if (!vset) { vset = new Set(); _activeSpatialVoices.set(sfxDef.id, vset); }
+    vset.add(voice);
+    src.addEventListener('ended', () => { vset.delete(voice); setTimeout(() => voice.dispose(), 250); });
     // Évènement DOM (24/09) : l'éditeur de la matrice (Backstage) y montre en bleu le point « en train de jouer »
     // (pas à pas) ou une pastille qui suit le chemin (glissement).
     try {
       document.dispatchEvent(new CustomEvent('layerpitch-sfx-spatial', { detail: {
-        sfxId: sfxDef.id, mode: voice.pathMode, stepIndex: voice.stepIndex, glideDuration: voice.glideDuration,
+        sfxId: sfxDef.id, mode: voice.pathMode, stepIndex: voice.stepIndex, glideDuration: voice.glideDuration, x: voice.startX, y: voice.startY,
         duration: src.buffer ? src.buffer.duration / ((src.playbackRate && src.playbackRate.value) || 1) : 0 } }));
     } catch (e) {}
     return voice;
@@ -1684,6 +1852,14 @@ function buildPitchShiftNode(ctx, semitones) {
   };
   return node;
 }
+// Coupures Low cut / High cut : cascade de filtres Butterworth (réponse plate, sans résonance). Q linéaires classiques
+// de chaque étage pour 2, 4 et 8 pôles, convertis en dB (le Q d'un passe-haut/passe-bas Web Audio s'exprime en dB).
+const FX_CUT_STAGES = 4;
+const FX_CUT_Q_DB = (() => {
+  const db = q => 20 * Math.log10(q);
+  return { 12: [0.7071].map(db), 24: [0.5412, 1.3066].map(db), 48: [0.5098, 0.6013, 0.8999, 2.5629].map(db) };
+})();
+function fxCutSlope(c) { const v = +(c && c.slope); return v === 12 || v === 48 ? v : 24; }
 // Applique une configuration fx (complète, déjà fusionnée avec les triggers actifs) à une chaîne DÉJÀ
 // construite -- point d'entrée unique pour la construction initiale (rampSec=0) ET pour les changements en
 // direct (trigger activé/coupé, rampSec>0). Un effet absent de `fx` est ramené à son état NEUTRE (filtre
@@ -1709,20 +1885,21 @@ function applyFxToChain(ctx, chain, fx, rampSec, atTime) {
     if (sched) { (node.schedule = node.schedule || []).push({ t: now, params: Object.assign({}, params) }); }
     else Object.assign(node.params, params);
   }
-  if (n.filter) {
-    const c = fx.filter;
-    if (c) {
-      const type = c.type || 'lowpass';
-      const typeChanged = n.filter.type !== type;
-      n.filter.type = type;
-      set(n.filter.frequency, c.frequency || 1000, typeChanged ? 0 : null);
-      set(n.filter.Q, c.q != null ? c.q : 1);
-    } else {
-      n.filter.type = 'lowpass';
-      set(n.filter.frequency, ctx.sampleRate / 2);
-      set(n.filter.Q, 1);
-    }
-  }
+  // Low cut / High cut (24/09, remplace l'ancien filtre unique) : deux coupures indépendantes, chacune en cascade de
+  // 1, 2 ou 4 biquads Butterworth (12 / 24 / 48 dB par octave). Les 4 étages existent toujours (topologie fixe) ;
+  // ceux qu'une pente plus douce n'utilise pas sont ramenés à leur état neutre (grave à 10 Hz / aigu à Nyquist).
+  ['lowcut', 'highcut'].forEach(k => {
+    if (!n[k]) return;
+    const c = fx[k];
+    const qs = c ? FX_CUT_Q_DB[fxCutSlope(c)] : [];
+    const neutral = k === 'lowcut' ? 10 : ctx.sampleRate / 2;
+    const freq = c ? Math.min(Math.max(+c.frequency || (k === 'lowcut' ? 150 : 3000), 10), ctx.sampleRate / 2) : neutral;
+    n[k].forEach((f, i) => {
+      const on = i < qs.length;
+      set(f.frequency, on ? freq : neutral);
+      set(f.Q, on ? qs[i] : 0);
+    });
+  });
   if (n.delay) {
     const c = fx.delay;
     const wetAmount = c ? (c.wet != null ? c.wet : 0.25) : 0;
@@ -1776,7 +1953,7 @@ function buildLayerFxChain(ctx, fx, src, startTime, includeBitcrush, forceKeys) 
   fx = fx || {};
   const force = forceKeys || [];
   const wants = k => !!fx[k] || force.indexOf(k) >= 0;
-  if (!wants('filter') && !wants('reverb') && !wants('delay') && !wants('bitcrush') && !wants('pitch') && !wants('volume')) return null;
+  if (!wants('lowcut') && !wants('highcut') && !wants('reverb') && !wants('delay') && !wants('bitcrush') && !wants('pitch') && !wants('volume')) return null;
   const nodes = {};
   const input = ctx.createGain(); // point d'entrée neutre (gain 1), toujours présent même chaîne courte
   let chainEnd = input;
@@ -1790,12 +1967,18 @@ function buildLayerFxChain(ctx, fx, src, startTime, includeBitcrush, forceKeys) 
     nodes.pitchShift = shifter;
   }
 
-  if (wants('filter')) {
-    const f = ctx.createBiquadFilter();
-    chainEnd.connect(f);
-    chainEnd = f;
-    nodes.filter = f;
-  }
+  // Low cut avant High cut : ordre sans importance pour deux filtres linéaires, fixé pour rester déterministe.
+  ['lowcut', 'highcut'].forEach(k => {
+    if (!wants(k)) return;
+    nodes[k] = [];
+    for (let i = 0; i < FX_CUT_STAGES; i++) {
+      const f = ctx.createBiquadFilter();
+      f.type = k === 'lowcut' ? 'highpass' : 'lowpass';
+      chainEnd.connect(f);
+      chainEnd = f;
+      nodes[k].push(f);
+    }
+  });
 
   if (wants('bitcrush') && includeBitcrush !== false) {
     const crusher = buildBitcrushNode(ctx, fx.bitcrush ? fx.bitcrush.bits : 8, fx.bitcrush ? fx.bitcrush.reduction : 1);
@@ -1844,12 +2027,18 @@ function buildLayerFxChain(ctx, fx, src, startTime, includeBitcrush, forceKeys) 
 
   const chain = { input, output: chainEnd, nodes };
   applyFxToChain(ctx, chain, fx, 0);
-  // Fondu d'entrée du filtre (chantier 2) : après l'application initiale, depuis la fréquence de départ.
-  if (nodes.filter && fx.filter && fx.filter.fadeFromFrequency != null && fx.filter.fadeDurationSec > 0) {
-    nodes.filter.frequency.cancelScheduledValues(0);
-    nodes.filter.frequency.setValueAtTime(fx.filter.fadeFromFrequency, when);
-    nodes.filter.frequency.linearRampToValueAtTime(fx.filter.frequency || 1000, when + fx.filter.fadeDurationSec);
-  }
+  // Fondu d'entrée de la coupure (chantier 2) : après l'application initiale, depuis la fréquence de départ.
+  ['lowcut', 'highcut'].forEach(k => {
+    const c = fx[k];
+    if (!nodes[k] || !c || c.fadeFromFrequency == null || !(c.fadeDurationSec > 0)) return;
+    const qs = FX_CUT_Q_DB[fxCutSlope(c)];
+    nodes[k].forEach((f, i) => {
+      if (i >= qs.length) return;
+      f.frequency.cancelScheduledValues(0);
+      f.frequency.setValueAtTime(c.fadeFromFrequency, when);
+      f.frequency.linearRampToValueAtTime(c.frequency || (k === 'lowcut' ? 150 : 3000), when + c.fadeDurationSec);
+    });
+  });
   return chain;
 }
 // ---- Aides pour le rendu hors-ligne (outil vidéo "Test in game", 23/09) ----
@@ -2004,14 +2193,15 @@ function simulateTriggerRules(defs, requests) {
 }
 // ---- Curseurs de paramètre (24/09) -- l'équivalent d'un RTPC de Wwise / d'un "game parameter" de FMOD ----
 // track.fxSliders = [{ id, label, defaultValue (0..1), smoothSec, visible,
-//   bindings:[{ target:{type,li|si|pi}, param:'filter.frequency'|..., from, to }],
+//   bindings:[{ target:{type,li|si|pi}, param:'highcut.frequency'|..., from, to }],
 //   thresholds:[{ at (0..1), mode:'below'|'above', triggerId }] }]
 // Un curseur public de 0 à 100 % : chaque liaison convertit sa valeur en un réglage d'effet sur une cible (couche,
 // boucle, emplacement, pool) -- de `from` (curseur à 0) à `to` (curseur à 100 %), exponentiellement pour une
 // fréquence -- et les seuils activent/coupent des triggers ("santé < 25 % => Low life"). Le réglage est LISSÉ (smoothSec,
 // le « seek speed » de FMOD) : rien ne change brutalement. Fonctions pures, partagées avec l'export de l'outil vidéo.
 const FX_SLIDER_PARAMS = {
-  'filter.frequency': { fx: 'filter', key: 'frequency', log: true, min: 20, max: 20000 },
+  'lowcut.frequency': { fx: 'lowcut', key: 'frequency', log: true, min: 20, max: 20000 },
+  'highcut.frequency': { fx: 'highcut', key: 'frequency', log: true, min: 20, max: 20000 },
   'volume.db': { fx: 'volume', key: 'db', min: -60, max: 12 },
   'reverb.wet': { fx: 'reverb', key: 'wet', min: 0, max: 1 },
   'delay.wet': { fx: 'delay', key: 'wet', min: 0, max: 1 },
@@ -2053,7 +2243,7 @@ function fxSliderTargetKey(target) {
   return fxTargetKeyFromTarget(target);
 }
 // Valeurs par défaut des autres réglages d'un effet que le curseur fait apparaître sans qu'il soit configuré ailleurs.
-const FX_SLIDER_DEFAULT_FX = { filter: { type: 'lowpass', q: 1 }, reverb: { decay: 2 }, delay: { time: 0.3, feedback: 0.35 }, bitcrush: { reduction: 1 }, pitch: { mode: 'shift' }, volume: {} };
+const FX_SLIDER_DEFAULT_FX = { lowcut: { slope: 24 }, highcut: { slope: 24 }, reverb: { decay: 2 }, delay: { time: 0.3, feedback: 0.35 }, bitcrush: { reduction: 1 }, pitch: { mode: 'shift' }, volume: {} };
 function fxSlidersValid(track) {
   const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(+v) ? +v : 0));
   return ((track && track.fxSliders) || []).filter(d => d && d.id).map(d => ({
@@ -2261,7 +2451,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
       if (locked) {
         b.setAttribute('aria-disabled', 'true');
-        b.title = t('fxLockedHint', { names: fxRules.missingRequirements(id).map(r => (fxTriggerDefs.get(r) && fxTriggerDefs.get(r).label) || r).join(', ') });
+        b.title = t('fxLockedHint', { names: fxRules.missingRequirements(id).map(r => (fxTriggerDefs.get(r) && fxTriggerDefs.get(r).label) || t('fxTriggerFallbackLabel', { n: [...fxTriggerDefs.keys()].indexOf(r) + 1 })).join(', ') });
       } else { b.removeAttribute('aria-disabled'); b.removeAttribute('title'); }
     });
   }
@@ -2276,7 +2466,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
     else if (!active && i >= 0) fxActiveTriggerIds.splice(i, 1);
     else return;
     const chains = fxChainsFor(fxTriggerTargetKey.get(id));
-    const ramp = fxRampOverride != null ? fxRampOverride : (d.fadeSec != null ? d.fadeSec : 0.1);
+    // Fondu d'ENTRÉE (fadeSec) et fondu de SORTIE, au retour à la normale (fadeOutSec ; vide = même durée que l'entrée) --
+    // demande de Jules-Antoine (24/09).
+    const fadeIn = d.fadeSec != null ? d.fadeSec : 0.1;
+    const ramp = fxRampOverride != null ? fxRampOverride : (active ? fadeIn : (d.fadeOutSec != null ? d.fadeOutSec : fadeIn));
     chains.forEach(ch => applyFxToChain(ctx, ch, fxEffectiveFor(ch.targetKey, ch.baseFx), ramp));
     updateFxTriggerButtons();
   }
@@ -3097,7 +3290,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // plancher en dessous duquel .seq-map-graph prend le relais en défilement horizontal plutôt que des
   // cartes ratatinées. Largeur de repli si le conteneur n'est pas encore mesurable (ex. carte construite
   // avant d'être visible/dépliée, clientWidth encore à 0) : une largeur de carte plausible, pas 0.
-  const SEQ_MAP_ROOMY_FULL_W = 168, SEQ_MAP_ROOMY_FULL_H = 64;
+  const SEQ_MAP_ROOMY_FULL_W = 148, SEQ_MAP_ROOMY_FULL_H = 56; // 24/09 : 168x64 -> 148x56 (« un peu surdimensionnée », Jules-Antoine)
   const SEQ_MAP_ROOMY_MIN_W = 112, SEQ_MAP_ROOMY_MIN_H = 46;
   const SEQ_MAP_ROOMY_FALLBACK_WIDTH = 640;
   // Une couleur par case (10/09, retour direct : "essayons une par case ?") -- identité stable de
@@ -3138,7 +3331,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // gauche-à-droite cohérente avec le reste de la carte, la simulation affine ensuite depuis ce point de
   // départ plutôt que d'ignorer complètement la topologie.
   function seqMapForceLayout(visibleIdx, layout, w, h, seedPositions) {
-    const k = Math.max(w, h) * 1.9; // distance "au repos" visée entre deux nœuds reliés par une arête
+    const k = Math.max(w, h) * 1.6; // distance "au repos" visée entre deux nœuds reliés par une arête (1,9 avant le 24/09 : carte trop grande)
     const pos = {};
     visibleIdx.forEach(idx => {
       pos[idx] = seedPositions[idx] ? { x: seedPositions[idx].x, y: seedPositions[idx].y } : { x: (layout.col[idx] || 0) * k, y: (layout.row[idx] || 0) * k };
@@ -3193,12 +3386,16 @@ function initTrackPlayer(track, wrapper, elementColors) {
     visibleIdx.forEach(idx => { seedPositions[idx] = { x: pos[idx].x, y: pos[idx].y }; });
     // Normalise en coordonnées positives (coin haut-gauche de chaque nœud), avec une marge constante --
     // même principe que l'ancienne disposition en triangle qu'elle remplace.
-    const pad = Math.max(w, h) * 0.6;
-    const minX = Math.min(...visibleIdx.map(idx => pos[idx].x)), minY = Math.min(...visibleIdx.map(idx => pos[idx].y));
+    // Marge égale des quatre côtés autour de la BOÎTE ENGLOBANTE des nœuds (24/09, « toujours mal centrée ») : avant, la marge
+    // de gauche/haut se calculait depuis le CENTRE du premier nœud (- w/2) alors que celle de droite/bas partait de son bord,
+    // ce qui décalait tout le graphe vers la gauche et le haut dans son cadre.
+    const pad = Math.max(w, h) * 0.35;
+    const lefts = visibleIdx.map(idx => pos[idx].x - w / 2), tops = visibleIdx.map(idx => pos[idx].y - h / 2);
+    const minL = Math.min(...lefts), minT = Math.min(...tops);
     const positions = {};
     let maxRight = 0, maxBottom = 0;
     visibleIdx.forEach(idx => {
-      const p = { x: pos[idx].x - minX + pad - w / 2, y: pos[idx].y - minY + pad - h / 2 };
+      const p = { x: pos[idx].x - w / 2 - minL + pad, y: pos[idx].y - h / 2 - minT + pad };
       positions[idx] = p;
       maxRight = Math.max(maxRight, p.x + w);
       maxBottom = Math.max(maxBottom, p.y + h);
@@ -3371,6 +3568,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // invisibles derrière eux, voir CHANGELOG).
     seqMapCanvasEl.style.width = totalW + 'px';
     seqMapCanvasEl.style.height = totalH + 'px';
+    // Centré dans la carte (24/09, « toujours mal centrée ») : le canvas est dimensionné sur le graphe seul, plus petit
+    // que la carte ; sans marges automatiques il restait collé à gauche. Sans effet s'il déborde (défilement).
+    seqMapCanvasEl.style.marginLeft = 'auto';
+    seqMapCanvasEl.style.marginRight = 'auto';
     // Pas de forme d'onde sur les nœuds (retiré le 03/09 sur retour direct de Jules-Antoine en situation
     // réelle -- en plus de ne pas être demandée ici, elle ne reflétait pas fidèlement le fichier : Corridor
     // et Battle s'arrêtaient visiblement à mi-chemin). L'état (courant/visité/pas encore atteint) se lit
@@ -6028,6 +6229,17 @@ function ensureSfxPlayerStyle() {
     :where(.sfx-rr-wave-bg, .sfx-rr-wave-fg) { position: absolute; inset: 0; width: 100%; height: 100%; }
     :where(.sfx-rr-wave-fg) { opacity: 0; transition: opacity 0.15s ease; }
     :where(.sfx-rr-block.active .sfx-rr-wave-fg) { opacity: 1; }
+    :where(.sfx-space-view) { margin-top: 12px; font-size: 12px; }
+    :where(.sfx-space-layout) { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+    :where(.sfx-space-map) { flex: 0 1 320px; min-width: 220px; }
+    :where(.sfx-space-side) { flex: 1 1 200px; min-width: 190px; }
+    :where(.sfx-space-side .head-turn-row) { margin-top: 0 !important; }
+    :where(.sfx-space-bin) { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; cursor: pointer; }
+    :where(.sfx-space-title) { font-weight: 600; margin-bottom: 4px; }
+    :where(.sfx-space-readout) { margin-top: 4px; color: var(--text-dimmer, #888); font-family: 'JetBrains Mono', monospace; font-size: 10.5px; }
+    :where(.sfx-space-controls) { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 6px; }
+    :where(.sfx-space-controls label) { display: flex; align-items: center; gap: 5px; margin: 0; cursor: pointer; }
+    :where(.sfx-space-hint) { margin-top: 4px; color: var(--text-dimmer, #888); font-size: 11px; }
     :where(.sfx-rr-label) { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
       font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.03em; color: var(--text-dim, #555);
       z-index: 1; padding: 0 4px; text-align: center;
@@ -6079,7 +6291,12 @@ function buildSfxPlayer(sfxDef) {
     setDetailsExpanded(details, !details.classList.contains('expanded'));
   });
   // Sfx spatialisé : l'auditeur peut tourner la tête (curseur d'orientation) sous les variations.
-  if (sfxDef.spatial && sfxDef.spatial.enabled) wrapper.querySelector('.track-row-details-inner').appendChild(buildHeadTurnControl());
+  if (sfxDef.spatial && sfxDef.spatial.enabled) {
+    const inner = wrapper.querySelector('.track-row-details-inner');
+    const publicMode = sfxDef.spatial.publicMode || 'free'; // 'free' | 'frozen' | 'hidden' (choix du compositeur)
+    if (sfxDef.hideSpatialView) inner.appendChild(buildHeadTurnControl()); // lecteur de test du Backstage : l'éditeur est déjà juste au-dessus
+    else if (publicMode !== 'hidden') inner.appendChild(buildSpatialMatrixView(sfxDef)); // le curseur d'orientation y est posé à côté de la matrice
+  }
 
   if (!alts.length) return wrapper; // Sfx sans variation uploadée : titre/description seuls, pas de lecteur
 
@@ -6251,6 +6468,7 @@ window.LayerPlayerCore = {
   normalizeSpatial,
   buildRoomImpulse,
   buildSpatialVoice,
+  buildSpatialMatrixView,
   pickSpatialStepIndex,
   buildLayerFxChain,
   applyFxToChain,

@@ -642,9 +642,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790268070086"></script>
-<script src="player.js?v=1790268070086"></script>
-<script src="capture-render.js?v=1790267708592"></script>
+<script src="layerpitch-i18n.js?v=1790275491563"></script>
+<script src="player.js?v=1790275491563"></script>
+<script src="capture-render.js?v=1790275491563"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1738,7 +1738,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     // Effets déclenchables par bouton (23/09) : une piste par trigger défini sur le morceau, blocs = les
     // moments où le bouton était enfoncé (fx_segment) -- déplaçables, redimensionnables, ajoutables au clic,
     // comme les segments de calque. Rejoués à l'export par le moteur du lecteur (capture-render.js).
-    (track.fxTriggers || []).filter(d => d && d.id && d.fx).forEach(d => {
+    (track.fxTriggers || []).filter(d => d && d.id && d.fx).forEach((d, di) => {
       let blocksHtml = '';
       events.filter(e => e.name === 'fx_segment' && e.detail.trackId === trackId && e.detail.triggerId === d.id).forEach(e => {
         const idx = events.indexOf(e);
@@ -1751,18 +1751,18 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         blocksHtml += `<div class="vct-block vct-fx vct-fx-cut" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.4) - pct(e.t)}%" title="${window.LayerPlayerCore.escapeHtml(describeCaptureEvent(e, laneOverrides))}"></div>`;
       });
       const addAttrs = editable ? ` data-addable="fxseg" data-add-track-id="${trackId}" data-add-trigger-id="${window.LayerPlayerCore.escapeHtml(d.id)}"` : '';
-      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(d.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureFxLaneLabel').replace('{label}', d.label || d.id))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddFxHint') : ''}">${blocksHtml}</div></div>`;
+      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(d.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureFxLaneLabel').replace('{label}', d.label || tr('fxTriggerFallbackLabel').replace('{n}', di + 1)))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddFxHint') : ''}">${blocksHtml}</div></div>`;
     });
     // Curseurs de paramètre (24/09) : une piste par curseur, un point-clé par valeur enregistrée (déplaçable, valeur
     // éditable dans le détail, ajout d'un clic). Rejoués à l'export par le moteur du lecteur.
-    window.LayerPlayerCore.fxSlidersValid(track).forEach(sl => {
+    window.LayerPlayerCore.fxSlidersValid(track).forEach((sl, sliderIdx) => {
       let blocksHtml = '';
       events.filter(e => e.name === 'fx_slider' && e.detail.trackId === trackId && e.detail.sliderId === sl.id).forEach(e => {
         const idx = events.indexOf(e);
         blocksHtml += `<div class="vct-block vct-slider" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.5) - pct(e.t)}%" title="${Math.round(e.detail.value * 100)}%"><span class="vct-block-label">${Math.round(e.detail.value * 100)}%</span></div>`;
       });
       const addAttrs = editable ? ` data-addable="fxslider" data-add-track-id="${trackId}" data-add-slider-id="${window.LayerPlayerCore.escapeHtml(sl.id)}"` : '';
-      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(sl.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureSliderLaneLabel').replace('{label}', sl.label || sl.id))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddSliderHint') : ''}">${blocksHtml}</div></div>`;
+      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(sl.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureSliderLaneLabel').replace('{label}', sl.label || tr('fxSliderFallbackLabel').replace('{n}', sliderIdx + 1)))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddSliderHint') : ''}">${blocksHtml}</div></div>`;
     });
     // Regroupe les pistes sous le nom du morceau qui les possède (2026-09-15) -- le titre lui-même n'est
     // pas éditable ici, c'est le vrai nom du morceau, pas un libellé de prise.
