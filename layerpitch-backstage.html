@@ -1751,9 +1751,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790275913938"></script>
+<script src="layerpitch-i18n.js?v=1790276005851"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1790275913938"></script>
+<script src="player.js?v=1790276005851"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3231,7 +3231,7 @@ function fxBlockHtml(fx, extraAttrs) {
   }
   return `
     <div style="margin-top:10px">
-      <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxSectionTitle')}</div>
+      ${isTriggerBlock ? '' : `<div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxSectionTitle')}</div>`}
       ${toggle('volume', !!fx.volume, 'fxVolumeLabel', `
         ${num('volume', 'db', fx.volume ? fx.volume.db : 0, 'fxVolumeDbLabel', 0.5, -60, 12)}
         <div class="hint-inline">${tr('fxVolumeHint')}</div>
@@ -3390,6 +3390,14 @@ function fxRelationsEditorHtml(triggers, i, trg, attrs) {
       ${rows || `<div class="hint-inline">${tr('fxRelNoOthers')}</div>`}
     </div>`;
 }
+// Volet « Effets » d'un trigger : ouvert par défaut, repliable ; l'état (par identifiant de trigger) survit aux
+// reconstructions de la liste, le temps que la page reste ouverte.
+const fxTriggerEffectsCollapsed = new Set();
+document.addEventListener('toggle', e => {
+  const d = e.target, k = d && d.dataset && d.dataset.fxtEffectsKey;
+  if (!k) return;
+  if (d.open) fxTriggerEffectsCollapsed.delete(k); else fxTriggerEffectsCollapsed.add(k);
+}, true);
 function fxTriggersEditorHtml(track, ti) {
   const triggers = track.fxTriggers || [];
   if (!currentUserIsAdmin) {
@@ -3414,6 +3422,10 @@ function fxTriggersEditorHtml(track, ti) {
           <div class="hint-inline" style="margin-top:6px">${tr('fxTriggerLegacyTarget', { name: escapeAttr((choices.find(c => c.value === curValue) || {}).label || curValue) })}
             <button class="btn btn-small" type="button" data-action="fx-trigger-to-track" ${attrs}>${tr('fxTriggerToWholeTrackBtn')}</button></div>
         ` : `<div class="hint-inline" style="margin-top:6px">${tr('fxTriggerWholeTrackNote')}</div>`}
+        <details data-fxt-effects-key="${escapeAttr(trg.id)}" ${fxTriggerEffectsCollapsed.has(trg.id) ? '' : 'open'} style="margin-top:10px">
+          <summary style="cursor:pointer;font-weight:600;font-size:0.9em">${tr('fxSectionTitle')} <span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggerEffectsCount', { n: Object.keys(trg.fx || {}).length })}</span></summary>
+  ${fxBlockHtml(trg.fx, `data-fx-target="trigger" ${attrs}`)}
+        </details>
         <label class="switch-row" style="margin-top:8px">
           <input type="checkbox" data-field="fxTrigger" data-fxt-prop="visible" ${attrs} ${trg.visible ? 'checked' : ''}>
           <span class="switch-row-label">${tr('fxTriggerVisibleLabel')}</span>
@@ -3421,15 +3433,14 @@ function fxTriggersEditorHtml(track, ti) {
         <div class="hint-inline">${tr('fxTriggerVisibleHint')}</div>
         <div class="row" style="margin-top:6px">
           <div><label style="font-size:0.85em">${tr('fxTriggerFadeLabel')}</label>
-            <input type="number" step="0.05" min="0" max="10" data-field="fxTrigger" data-fxt-prop="fadeSec" ${attrs} value="${trg.fadeSec != null ? trg.fadeSec : ''}"></div>
+            <input type="number" step="0.05" min="0" max="10" data-field="fxTrigger" data-fxt-prop="fadeSec" style="width:100%" ${attrs} value="${trg.fadeSec != null ? trg.fadeSec : ''}"></div>
           <div><label style="font-size:0.85em">${tr('fxTriggerFadeOutLabel')}</label>
-            <input type="number" step="0.05" min="0" max="10" placeholder="${tr('fxTriggerFadeOutPlaceholder')}" data-field="fxTrigger" data-fxt-prop="fadeOutSec" ${attrs} value="${trg.fadeOutSec != null ? trg.fadeOutSec : ''}"></div>
+            <input type="number" step="0.05" min="0" max="10" placeholder="${tr('fxTriggerFadeOutPlaceholder')}" data-field="fxTrigger" data-fxt-prop="fadeOutSec" style="width:100%" ${attrs} value="${trg.fadeOutSec != null ? trg.fadeOutSec : ''}"></div>
         </div>
         <div style="margin-top:8px"><label style="font-size:0.85em">${tr('fxAutoOffLabel')}</label>
-          <input type="number" step="0.5" min="0" placeholder="${tr('fxAutoOffPlaceholder')}" data-field="fxTrigger" data-fxt-prop="autoOffSec" ${attrs} value="${trg.relations && trg.relations.autoOffSec != null ? trg.relations.autoOffSec : ''}"></div>
+          <input type="number" step="0.5" min="0" placeholder="${tr('fxAutoOffPlaceholder')}" data-field="fxTrigger" data-fxt-prop="autoOffSec" style="width:100%" ${attrs} value="${trg.relations && trg.relations.autoOffSec != null ? trg.relations.autoOffSec : ''}"></div>
         <div class="hint-inline">${tr('fxAutoOffHint')}</div>
         ${fxRelationsEditorHtml(triggers, i, trg, attrs)}
-        ${fxBlockHtml(trg.fx, `data-fx-target="trigger" ${attrs}`)}
       </div>`;
   }).join('');
   return `
