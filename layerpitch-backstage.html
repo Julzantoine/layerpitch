@@ -4033,7 +4033,7 @@ function buildTrackSelectorWidget(hostEl, selectedIds, onChange, overridesObj) {
     `;
     return `
       ${field('title', tr('titleOverrideLabel'), `<input type="text" data-ov-value="title" data-track-id="${track.id}" value="${escapeAttr(ov.title)}" style="margin-bottom:4px;">`, 'trackOverride')}
-      ${field('description', tr('descOverrideLabel'), `<textarea data-ov-value="description" data-track-id="${track.id}" style="margin-bottom:4px;">${ov.description}</textarea>`)}
+      ${field('description', tr('descOverrideLabel'), `<textarea data-ov-value="description" data-track-id="${track.id}" style="margin-bottom:4px;">${escapeHtml(ov.description)}</textarea>`)}
       ${layerArr.length ? `
         <div style="font-size:11px;color:var(--text-dimmer);margin-top:12px;margin-bottom:2px;">${tr('layersHeading')}</div>
         ${layerArr.map((lyr, li) => `
@@ -5391,7 +5391,7 @@ function renderLibrary() {
             <div class="hint-inline">${tr('maxChainLoopsHintVerticalRandom')}</div>
           ` : ''}
           <label data-help="trackDescription" style="margin-top:14px">${tr('descriptionLabel')}</label>
-          <textarea class="linkable" data-field="description" data-ti="${ti}">${track.description}</textarea>
+          <textarea class="linkable" data-field="description" data-ti="${ti}">${escapeHtml(track.description)}</textarea>
           <label style="margin-top:14px">${tr('trackTagsLabel')}</label>
           <input type="text" data-field="tags" data-ti="${ti}" value="${escapeAttr(track.tags || '')}">
           <div class="hint-inline">${tr('trackTagsHint')}</div>
@@ -5462,8 +5462,8 @@ function renderLibrary() {
               ${collapsibleBlockToggleHtml(`introDesc:${ti}`, tr('stageDescriptionToggleLabel'), 'vrsIntroDescToggle', 'stageDescription')}
               <div class="list-block-body${expandedAltPoolKeys.has(`introDesc:${ti}`) ? '' : ' collapsed'}" data-role="vrsIntroDescBody" style="margin-top:8px">
                 <div class="hint-inline">${tr('stageDescriptionHint')}</div>
-                <div><label>${tr('stageDescriptionFrLabel')}</label><textarea rows="2" data-field="introDescriptionFr" data-ti="${ti}">${track.intro.descriptionFr || ''}</textarea></div>
-                <div><label>${tr('stageDescriptionEnLabel')}</label><textarea rows="2" data-field="introDescriptionEn" data-ti="${ti}">${track.intro.descriptionEn || ''}</textarea></div>
+                <div><label>${tr('stageDescriptionFrLabel')}</label><textarea rows="2" data-field="introDescriptionFr" data-ti="${ti}">${escapeHtml(track.intro.descriptionFr || '')}</textarea></div>
+                <div><label>${tr('stageDescriptionEnLabel')}</label><textarea rows="2" data-field="introDescriptionEn" data-ti="${ti}">${escapeHtml(track.intro.descriptionEn || '')}</textarea></div>
               </div>
             </div>
           `;
@@ -5622,8 +5622,8 @@ function renderLibrary() {
               ${collapsibleBlockToggleHtml(`outroDesc:${ti}`, tr('stageDescriptionToggleLabel'), 'vrsOutroDescToggle', 'stageDescription')}
               <div class="list-block-body${expandedAltPoolKeys.has(`outroDesc:${ti}`) ? '' : ' collapsed'}" data-role="vrsOutroDescBody" style="margin-top:8px">
                 <div class="hint-inline">${tr('stageDescriptionHint')}</div>
-                <div><label>${tr('stageDescriptionFrLabel')}</label><textarea rows="2" data-field="outroDescriptionFr" data-ti="${ti}">${track.outro.descriptionFr || ''}</textarea></div>
-                <div><label>${tr('stageDescriptionEnLabel')}</label><textarea rows="2" data-field="outroDescriptionEn" data-ti="${ti}">${track.outro.descriptionEn || ''}</textarea></div>
+                <div><label>${tr('stageDescriptionFrLabel')}</label><textarea rows="2" data-field="outroDescriptionFr" data-ti="${ti}">${escapeHtml(track.outro.descriptionFr || '')}</textarea></div>
+                <div><label>${tr('stageDescriptionEnLabel')}</label><textarea rows="2" data-field="outroDescriptionEn" data-ti="${ti}">${escapeHtml(track.outro.descriptionEn || '')}</textarea></div>
               </div>
             </div>
           `;
@@ -6012,7 +6012,7 @@ function renderLibrary() {
           </select>
           <div class="hint-inline">${tr('maxChainLoopsHint')}</div>
           <label data-help="trackDescription" style="margin-top:14px">${tr('descriptionLabel')}</label>
-          <textarea class="linkable" data-field="description" data-ti="${ti}">${track.description}</textarea>
+          <textarea class="linkable" data-field="description" data-ti="${ti}">${escapeHtml(track.description)}</textarea>
           <label style="margin-top:14px">${tr('trackTagsLabel')}</label>
           <input type="text" data-field="tags" data-ti="${ti}" value="${escapeAttr(track.tags || '')}">
           <div class="hint-inline">${tr('trackTagsHint')}</div>
@@ -6054,8 +6054,8 @@ function renderLibrary() {
             ${collapsibleBlockToggleHtml(`introDesc:${ti}`, tr('stageDescriptionToggleLabel'), 'introDescToggle', 'stageDescription')}
             <div class="list-block-body${expandedAltPoolKeys.has(`introDesc:${ti}`) ? '' : ' collapsed'}" data-role="introDescBody" style="margin-top:8px">
               <div class="hint-inline">${tr('stageDescriptionHint')}</div>
-              <div><label>${tr('stageDescriptionFrLabel')}</label><textarea rows="2" data-field="introDescriptionFr" data-ti="${ti}">${(track.intro && track.intro.descriptionFr) || ''}</textarea></div>
-              <div><label>${tr('stageDescriptionEnLabel')}</label><textarea rows="2" data-field="introDescriptionEn" data-ti="${ti}">${(track.intro && track.intro.descriptionEn) || ''}</textarea></div>
+              <div><label>${tr('stageDescriptionFrLabel')}</label><textarea rows="2" data-field="introDescriptionFr" data-ti="${ti}">${escapeHtml((track.intro && track.intro.descriptionFr) || '')}</textarea></div>
+              <div><label>${tr('stageDescriptionEnLabel')}</label><textarea rows="2" data-field="introDescriptionEn" data-ti="${ti}">${escapeHtml((track.intro && track.intro.descriptionEn) || '')}</textarea></div>
             </div>
           </div>
         `;
@@ -6145,8 +6145,8 @@ function renderLibrary() {
             ${collapsibleBlockToggleHtml(`slotDesc:${ti}:${si}`, tr('stageDescriptionToggleLabel'), 'slotDescToggle', 'stageDescription')}
             <div class="list-block-body${expandedAltPoolKeys.has(`slotDesc:${ti}:${si}`) ? '' : ' collapsed'}" data-role="slotDescBody" style="margin-top:8px">
               <div class="hint-inline">${tr('stageDescriptionHint')}</div>
-              <div><label>${tr('stageDescriptionFrLabel')}</label><textarea rows="2" data-slot-field="descriptionFr" data-ti="${ti}" data-si="${si}">${slot.descriptionFr || ''}</textarea></div>
-              <div><label>${tr('stageDescriptionEnLabel')}</label><textarea rows="2" data-slot-field="descriptionEn" data-ti="${ti}" data-si="${si}">${slot.descriptionEn || ''}</textarea></div>
+              <div><label>${tr('stageDescriptionFrLabel')}</label><textarea rows="2" data-slot-field="descriptionFr" data-ti="${ti}" data-si="${si}">${escapeHtml(slot.descriptionFr || '')}</textarea></div>
+              <div><label>${tr('stageDescriptionEnLabel')}</label><textarea rows="2" data-slot-field="descriptionEn" data-ti="${ti}" data-si="${si}">${escapeHtml(slot.descriptionEn || '')}</textarea></div>
             </div>
           </div>
           <div class="switch-row">
@@ -6276,8 +6276,8 @@ function renderLibrary() {
                   ${collapsibleBlockToggleHtml(`transDesc:${ti}:${si}:${bi}`, tr('stageDescriptionToggleLabel'), 'transDescToggle', 'stageDescription')}
                   <div class="list-block-body${expandedAltPoolKeys.has(`transDesc:${ti}:${si}:${bi}`) ? '' : ' collapsed'}" data-role="transDescBody" style="margin-top:6px">
                     <div class="hint-inline">${tr('stageDescriptionHint')}</div>
-                    <div><label>${tr('stageDescriptionFrLabel')}</label><textarea rows="2" data-branch-transition-field="descriptionFr" data-ti="${ti}" data-si="${si}" data-bi="${bi}">${opt.transition.descriptionFr || ''}</textarea></div>
-                    <div><label>${tr('stageDescriptionEnLabel')}</label><textarea rows="2" data-branch-transition-field="descriptionEn" data-ti="${ti}" data-si="${si}" data-bi="${bi}">${opt.transition.descriptionEn || ''}</textarea></div>
+                    <div><label>${tr('stageDescriptionFrLabel')}</label><textarea rows="2" data-branch-transition-field="descriptionFr" data-ti="${ti}" data-si="${si}" data-bi="${bi}">${escapeHtml(opt.transition.descriptionFr || '')}</textarea></div>
+                    <div><label>${tr('stageDescriptionEnLabel')}</label><textarea rows="2" data-branch-transition-field="descriptionEn" data-ti="${ti}" data-si="${si}" data-bi="${bi}">${escapeHtml(opt.transition.descriptionEn || '')}</textarea></div>
                   </div>
                 </div>
               ` : ''}
@@ -6374,8 +6374,8 @@ function renderLibrary() {
             ${collapsibleBlockToggleHtml(`outroDesc:${ti}`, tr('stageDescriptionToggleLabel'), 'outroDescToggle', 'stageDescription')}
             <div class="list-block-body${expandedAltPoolKeys.has(`outroDesc:${ti}`) ? '' : ' collapsed'}" data-role="outroDescBody" style="margin-top:8px">
               <div class="hint-inline">${tr('stageDescriptionHint')}</div>
-              <div><label>${tr('stageDescriptionFrLabel')}</label><textarea rows="2" data-field="outroDescriptionFr" data-ti="${ti}">${(track.outro && track.outro.descriptionFr) || ''}</textarea></div>
-              <div><label>${tr('stageDescriptionEnLabel')}</label><textarea rows="2" data-field="outroDescriptionEn" data-ti="${ti}">${(track.outro && track.outro.descriptionEn) || ''}</textarea></div>
+              <div><label>${tr('stageDescriptionFrLabel')}</label><textarea rows="2" data-field="outroDescriptionFr" data-ti="${ti}">${escapeHtml((track.outro && track.outro.descriptionFr) || '')}</textarea></div>
+              <div><label>${tr('stageDescriptionEnLabel')}</label><textarea rows="2" data-field="outroDescriptionEn" data-ti="${ti}">${escapeHtml((track.outro && track.outro.descriptionEn) || '')}</textarea></div>
             </div>
           </div>
         `;
@@ -8439,7 +8439,7 @@ function buildTestimonialsCard(block) {
       el.className = 'list-block';
       el.innerHTML = `
         <div class="list-block-head"><strong>${tr('testimonialFallback', { n: i + 1 })}</strong><button class="btn btn-small btn-danger" data-action="remove" data-i="${i}">${tr('deleteBtn')}</button></div>
-        <label>${tr('textFieldLabel')}</label><textarea class="linkable" data-field="text" data-i="${i}">${tm.text}</textarea>
+        <label>${tr('textFieldLabel')}</label><textarea class="linkable" data-field="text" data-i="${i}">${escapeHtml(tm.text)}</textarea>
         <div class="hint-inline">${tr('linkHint')}</div>
         <label>${tr('authorLabel')}</label><input type="text" data-field="author" data-i="${i}" value="${escapeAttr(tm.author)}">
         <label>${tr('testimonialRoleLabel')}</label><input type="text" data-field="role" data-i="${i}" value="${escapeAttr(tm.role || '')}">
@@ -8488,7 +8488,7 @@ function buildTextCard(block) {
     <label>${tr('textBlockTitleLabel')}</label>
     <input type="text" data-role="title" value="${escapeAttr(block.title || '')}">
     <label>${tr('bioTextLabel')}</label>
-    <textarea class="linkable" data-role="content" rows="4">${block.content || ''}</textarea>
+    <textarea class="linkable" data-role="content" rows="4">${escapeHtml(block.content || '')}</textarea>
     <div class="hint-inline">${tr('linkHint')}</div>
     <label data-help="blockAlign">${tr('alignLabel')}</label>
     <select data-role="align">
@@ -8616,7 +8616,7 @@ function buildPacksBlockCard(block) {
   body.innerHTML = `
     <div class="hint" style="margin-bottom:10px">${tr('packsBlockHint')}</div>
     <label>${tr('blockPresentationLabel')}</label>
-    <textarea class="linkable" data-role="presentation" rows="3">${block.presentation || ''}</textarea>
+    <textarea class="linkable" data-role="presentation" rows="3">${escapeHtml(block.presentation || '')}</textarea>
     <div class="hint-inline">${tr('linkHint')}</div>
     <div data-role="selector" style="margin-top:10px"></div>
   `;
@@ -8688,7 +8688,7 @@ function buildCollectionsBlockCard(block) {
   body.innerHTML = `
     <div class="hint" style="margin-bottom:10px">${tr('collectionsBlockHint')}</div>
     <label>${tr('blockPresentationLabel')}</label>
-    <textarea class="linkable" data-role="presentation" rows="3">${block.presentation || ''}</textarea>
+    <textarea class="linkable" data-role="presentation" rows="3">${escapeHtml(block.presentation || '')}</textarea>
     <div class="hint-inline">${tr('linkHint')}</div>
     <div data-role="selector" style="margin-top:10px"></div>
   `;
@@ -9362,9 +9362,9 @@ function renderPacks() {
         <label>${tr('titleLabel')}</label>
         <input type="text" data-pack-field="title" data-pi="${pi}" value="${escapeAttr(pack.title)}">
         <label data-help="packPresentation" style="margin-top:10px">${tr('presentationLabelFr')}</label>
-        <textarea class="linkable" data-pack-field="presentationFr" data-pi="${pi}" rows="4">${pack.presentationFr || ''}</textarea>
+        <textarea class="linkable" data-pack-field="presentationFr" data-pi="${pi}" rows="4">${escapeHtml(pack.presentationFr || '')}</textarea>
         <label data-help="packPresentationEn">${tr('presentationLabelEn')}</label>
-        <textarea class="linkable" data-pack-field="presentationEn" data-pi="${pi}" rows="4">${pack.presentationEn || ''}</textarea>
+        <textarea class="linkable" data-pack-field="presentationEn" data-pi="${pi}" rows="4">${escapeHtml(pack.presentationEn || '')}</textarea>
         <div class="hint-inline">${tr('linkHint')}</div>
         <div class="hint-inline">${tr('presentationBilingualHint')}</div>
       `;
@@ -9702,9 +9702,9 @@ function renderCollections() {
         <label>${tr('titleLabel')}</label>
         <input type="text" data-collection-field="title" data-ci="${ci}" value="${escapeAttr(coll.title)}">
         <label data-help="collectionPresentation" style="margin-top:10px">${tr('presentationLabelFr')}</label>
-        <textarea class="linkable" data-collection-field="presentationFr" data-ci="${ci}" rows="4">${coll.presentationFr || ''}</textarea>
+        <textarea class="linkable" data-collection-field="presentationFr" data-ci="${ci}" rows="4">${escapeHtml(coll.presentationFr || '')}</textarea>
         <label data-help="collectionPresentationEn">${tr('presentationLabelEn')}</label>
-        <textarea class="linkable" data-collection-field="presentationEn" data-ci="${ci}" rows="4">${coll.presentationEn || ''}</textarea>
+        <textarea class="linkable" data-collection-field="presentationEn" data-ci="${ci}" rows="4">${escapeHtml(coll.presentationEn || '')}</textarea>
         <div class="hint-inline">${tr('linkHint')}</div>
         <div class="hint-inline">${tr('presentationBilingualHint')}</div>
       `;
