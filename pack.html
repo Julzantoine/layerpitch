@@ -463,6 +463,7 @@
   .vct-block.vct-layer { background: #2f5d8a; }
   .vct-block.vct-sfx { background: #8a5a2f; }
   .vct-block.vct-fx { background: #7a4d9c; }
+  .vct-block.vct-fx-cut { background: repeating-linear-gradient(45deg, #7a4d9c, #7a4d9c 3px, #3d2650 3px, #3d2650 6px); min-width: 10px; }
   .vct-block.vct-head { background: #3d8a6e; min-width: 10px; }
   .vct-track-group-head { border-left-color: #3d8a6e; }
   .vct-track-group-head .vct-track-group-header { color: #6fd4ae; }
@@ -640,9 +641,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790241901096"></script>
-<script src="player.js?v=1790197016800"></script>
-<script src="capture-render.js?v=1790197016800"></script>
+<script src="layerpitch-i18n.js?v=1790243504548"></script>
+<script src="player.js?v=1790243504548"></script>
+<script src="capture-render.js?v=1790243504548"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1304,6 +1305,11 @@ function describeCaptureEvent(e, laneOverrides) {
     const trg = track && (track.fxTriggers || []).find(d => d.id === e.detail.triggerId);
     return tr('captureFxSegDesc').replace('{label}', (trg && trg.label) || e.detail.triggerId).replace('{duration}', e.detail.duration.toFixed(2));
   }
+  if (e.name === 'fx_cut') {
+    const track = findCaptureTrack(e.detail.trackId);
+    const trg = track && (track.fxTriggers || []).find(d => d.id === e.detail.triggerId);
+    return tr('captureFxCutDesc').replace('{label}', (trg && trg.label) || e.detail.triggerId);
+  }
   if (e.name === 'head_turn') return tr('captureHeadDesc').replace('{yaw}', Math.round(e.detail.yaw));
   if (e.name === 'stinger_play') {
     const sfx = findCaptureSfx(e.detail.sfxId);
@@ -1419,13 +1425,22 @@ function materializeCaptureExtras(events) {
   if (!rawTriggers.length && !heads.length) return events;
   const total = Math.max(0, ...events.map(e => e.t)) + 2; // même marge que materializeLayerSegments
   const segments = [];
+  const cuts = [];
   const open = {}; // trackId|triggerId -> début du segment en cours
+  const closeSeg = (k, trackId, triggerId, endT) => segments.push({ t: open[k], name: 'fx_segment', detail: { trackId, triggerId, duration: Math.max(0.1, endT - open[k]) } });
   rawTriggers.forEach(e => {
     const k = e.detail.trackId + '|' + e.detail.triggerId;
-    if (e.detail.active) { if (open[k] === undefined) open[k] = e.t; }
-    else if (open[k] !== undefined) {
-      segments.push({ t: open[k], name: 'fx_segment', detail: { trackId: e.detail.trackId, triggerId: e.detail.triggerId, duration: Math.max(0.1, e.t - open[k]) } });
+    if (e.detail.active) {
+      // Un appui d'activation alors qu'un segment est déjà ouvert : le trigger s'est coupé de LUI-MÊME entre-temps
+      // (coupure automatique, exclusion, condition perdue) -- on ferme le segment ici et on en rouvre un.
+      if (open[k] !== undefined) closeSeg(k, e.detail.trackId, e.detail.triggerId, e.t);
+      open[k] = e.t;
+    } else if (open[k] !== undefined) {
+      closeSeg(k, e.detail.trackId, e.detail.triggerId, e.t);
       delete open[k];
+    } else {
+      // Coupure par le visiteur d'un trigger qui n'était actif que par cascade : aucun appui d'activation à fermer.
+      cuts.push({ t: e.t, name: 'fx_cut', detail: { trackId: e.detail.trackId, triggerId: e.detail.triggerId } });
     }
   });
   Object.keys(open).forEach(k => {
@@ -1433,7 +1448,7 @@ function materializeCaptureExtras(events) {
     segments.push({ t: open[k], name: 'fx_segment', detail: { trackId, triggerId, duration: Math.max(0.1, total - open[k]) } });
   });
   return events.filter(e => e.name !== 'fx_trigger' && e.name !== 'head_turn')
-    .concat(segments, decimateHeadTurns(heads)).sort((a, b) => a.t - b.t);
+    .concat(segments, cuts, decimateHeadTurns(heads)).sort((a, b) => a.t - b.t);
 }
 
 // Frise d'édition -- cible finale d'après le schéma papier de Jules-Antoine (2026-09-14) : une piste par
@@ -1498,7 +1513,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   function groupMembers(key) {
     if (key.indexOf('track:') === 0) {
       const trackId = key.slice(6);
-      return events.filter(e => (e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'fx_segment' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || e.name === 'track_play') && e.detail.trackId === trackId);
+      return events.filter(e => (e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'fx_segment' || e.name === 'fx_cut' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || e.name === 'track_play') && e.detail.trackId === trackId);
     }
     if (key === 'head:') return events.filter(e => e.name === 'head_turn');
     if (key.indexOf('sfx:') === 0) {
@@ -1571,7 +1586,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // papier "Musique #1"/"Musique #2", 2026-09-14/15).
   const musicTrackIds = [];
   events.forEach(e => {
-    if ((e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'fx_segment' || e.name === 'track_play' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1) && musicTrackIds.indexOf(e.detail.trackId) === -1) {
+    if ((e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'fx_segment' || e.name === 'fx_cut' || e.name === 'track_play' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1) && musicTrackIds.indexOf(e.detail.trackId) === -1) {
       musicTrackIds.push(e.detail.trackId);
     }
   });
@@ -1699,6 +1714,11 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         const idx = events.indexOf(e);
         blocksHtml += `<div class="vct-block vct-fx" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + e.detail.duration) - pct(e.t)}%">` +
           (editable ? `<div class="vct-resize-handle" title="${tr('captureResizeHint')}"></div>` : '') + `</div>`;
+      });
+      // Coupures faites par le visiteur sur un trigger activé par cascade : simple repère déplaçable.
+      events.filter(e => e.name === 'fx_cut' && e.detail.trackId === trackId && e.detail.triggerId === d.id).forEach(e => {
+        const idx = events.indexOf(e);
+        blocksHtml += `<div class="vct-block vct-fx vct-fx-cut" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.4) - pct(e.t)}%" title="${window.LayerPlayerCore.escapeHtml(describeCaptureEvent(e, laneOverrides))}"></div>`;
       });
       const addAttrs = editable ? ` data-addable="fxseg" data-add-track-id="${trackId}" data-add-trigger-id="${window.LayerPlayerCore.escapeHtml(d.id)}"` : '';
       nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(d.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureFxLaneLabel').replace('{label}', d.label || d.id))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddFxHint') : ''}">${blocksHtml}</div></div>`;
@@ -2385,14 +2405,18 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   if (useEngine) {
     // Rendu par le moteur du lecteur (capture-render.js) : effets par voix, pitch, triggers (boutons ET déduits des
     // embranchements), Sfx spatialisés, tête de l'auditeur, duck -- puis simple assemblage avec l'image par ffmpeg.
+    const derivedTriggerChanges = [];
     Object.keys(embrWindowsByTrack).forEach(trackId => {
       const track = findCaptureTrack(trackId);
-      if (track) plan.triggerChanges.push(...window.LayerCaptureRender.deriveBranchChanges(track, 'embr', embrWindowsByTrack[trackId]));
+      if (track) derivedTriggerChanges.push(...window.LayerCaptureRender.deriveBranchChanges(track, 'embr', embrWindowsByTrack[trackId]));
     });
     Object.keys(seqWindowsByTrack).forEach(trackId => {
       const track = findCaptureTrack(trackId);
-      if (track) plan.triggerChanges.push(...window.LayerCaptureRender.deriveBranchChanges(track, 'seq', seqWindowsByTrack[trackId]));
+      if (track) derivedTriggerChanges.push(...window.LayerCaptureRender.deriveBranchChanges(track, 'seq', seqWindowsByTrack[trackId]));
     });
+    // Demandes du visiteur (boutons enregistrés) + embranchements -> états réels APRÈS les règles entre triggers
+    // (cascades temporisées, exclusions, conditions, coupures automatiques) -- mêmes règles que le lecteur.
+    plan.triggerChanges = window.LayerCaptureRender.resolveTriggerChanges(plan.triggerChanges, derivedTriggerChanges, findCaptureTrack);
     plan.duckWindows = duckWindows;
     onProgress(tr('captureEngineRendering'));
     const rendered = await window.LayerCaptureRender.render(plan, {

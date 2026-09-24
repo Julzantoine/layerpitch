@@ -1751,9 +1751,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790241901096"></script>
+<script src="layerpitch-i18n.js?v=1790243504548"></script>
 <script src="layerpitch-help.js?v=1788788478049"></script>
-<script src="player.js?v=1790197016800"></script>
+<script src="player.js?v=1790243504548"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3343,6 +3343,40 @@ function parseFxTriggerTarget(v) {
   if (p[0] === 'pool') return { type: 'pool', si: parseInt(p[1], 10) || 0, pi: parseInt(p[2], 10) || 0 };
   return null;
 }
+// Relations entre triggers (24/09) : { activates:[{triggerId, delaySec}], cuts:[id], requires:[id], autoOffSec } --
+// nettoyées à la sérialisation (rien d'inutile n'est publié). Règles décrites dans createTriggerRuleEngine (player.js).
+function fxRelationsClean(rel) {
+  if (!rel) return null;
+  const out = {};
+  if (rel.activates && rel.activates.length) out.activates = rel.activates.map(a => ({ triggerId: a.triggerId, delaySec: +a.delaySec > 0 ? +a.delaySec : 0 }));
+  if (rel.cuts && rel.cuts.length) out.cuts = rel.cuts.slice();
+  if (rel.requires && rel.requires.length) out.requires = rel.requires.slice();
+  if (+rel.autoOffSec > 0) out.autoOffSec = +rel.autoOffSec;
+  return Object.keys(out).length ? out : null;
+}
+function fxRelationsEditorHtml(triggers, i, trg, attrs) {
+  const rel = trg.relations || {};
+  const others = triggers.filter((o, j) => j !== i && o && o.id);
+  const rows = others.map(o => {
+    const rAttrs = `data-field="fxRel" ${attrs} data-rel-other="${escapeAttr(o.id)}"`;
+    const act = (rel.activates || []).find(a => a.triggerId === o.id);
+    return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:4px;font-size:12px">
+      <span style="min-width:110px;font-weight:600">${escapeAttr(o.label) || tr('fxTriggerLabelPlaceholder')}</span>
+      <label style="display:flex;align-items:center;gap:4px;margin:0"><input type="checkbox" ${rAttrs} data-rel-kind="activates" ${act ? 'checked' : ''} style="width:auto;margin:0"> ${tr('fxRelActivates')}</label>
+      ${act ? `<label style="display:flex;align-items:center;gap:4px;margin:0">${tr('fxRelDelay')} <input type="number" step="0.1" min="0" ${rAttrs} data-rel-kind="delay" value="${act.delaySec || 0}" style="width:64px"> s</label>` : ''}
+      <label style="display:flex;align-items:center;gap:4px;margin:0"><input type="checkbox" ${rAttrs} data-rel-kind="cuts" ${(rel.cuts || []).indexOf(o.id) >= 0 ? 'checked' : ''} style="width:auto;margin:0"> ${tr('fxRelCuts')}</label>
+      <label style="display:flex;align-items:center;gap:4px;margin:0"><input type="checkbox" ${rAttrs} data-rel-kind="requires" ${(rel.requires || []).indexOf(o.id) >= 0 ? 'checked' : ''} style="width:auto;margin:0"> ${tr('fxRelRequires')}</label>
+    </div>`;
+  }).join('');
+  return `
+    <div style="margin-top:10px;padding:8px;border:1px solid var(--border);border-radius:6px">
+      <div style="font-weight:600;font-size:0.85em">${tr('fxRelTitle')}</div>
+      <div class="hint-inline">${tr('fxRelHint')}</div>
+      ${rows || `<div class="hint-inline">${tr('fxRelNoOthers')}</div>`}
+      <div style="margin-top:8px"><label style="font-size:0.85em">${tr('fxAutoOffLabel')}</label>
+        <input type="number" step="0.1" min="0" data-field="fxTrigger" data-fxt-prop="autoOffSec" ${attrs} value="${rel.autoOffSec != null ? rel.autoOffSec : ''}"></div>
+    </div>`;
+}
 function fxTriggersEditorHtml(track, ti) {
   const triggers = track.fxTriggers || [];
   if (!currentUserIsAdmin) {
@@ -3372,6 +3406,7 @@ function fxTriggersEditorHtml(track, ti) {
         <div class="hint-inline">${tr('fxTriggerVisibleHint')}</div>
         <div style="margin-top:6px"><label style="font-size:0.85em">${tr('fxTriggerFadeLabel')}</label>
           <input type="number" step="0.05" min="0" max="5" data-field="fxTrigger" data-fxt-prop="fadeSec" ${attrs} value="${trg.fadeSec != null ? trg.fadeSec : ''}"></div>
+        ${fxRelationsEditorHtml(triggers, i, trg, attrs)}
         ${fxBlockHtml(trg.fx, `data-fx-target="trigger" ${attrs}`)}
       </div>`;
   }).join('');
@@ -4736,7 +4771,7 @@ function buildPreviewTrack(track) {
     // fx de morceau entier (pitch "vitesse", 22/09) -- distinct de layers[].fx/loops[].fx/etc., voir
     // applyTrackPitchRate() dans player.js.
     fx: track.fx || null,
-    fxTriggers: (track.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null })),
+    fxTriggers: (track.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, relations: fxRelationsClean(x.relations) })),
     layers: (track.layers || []).map(mapItem).filter(Boolean),
     intro: mapBlockWithBars(track.intro),
     // L'outro n'a pas de "bars" (mapItem, pas mapBlockWithBars — pas de durée programmée après elle, elle
@@ -6935,6 +6970,14 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
     const purge = o => { if (o && o.fxActions) { o.fxActions = o.fxActions.filter(a => a.triggerId !== removed.id); if (!o.fxActions.length) o.fxActions = null; } };
     (tk.loops || []).forEach(purge);
     (tk.segmentSlots || []).forEach(sl => (sl.nextOptions || []).forEach(purge));
+    // ... ni aucune relation d'un autre trigger.
+    (tk.fxTriggers || []).forEach(o => {
+      const r = o.relations;
+      if (!r) return;
+      if (r.activates) r.activates = r.activates.filter(a => a.triggerId !== removed.id);
+      if (r.cuts) r.cuts = r.cuts.filter(x => x !== removed.id);
+      if (r.requires) r.requires = r.requires.filter(x => x !== removed.id);
+    });
   }
   else if (btn.dataset.action === 'add-layer') library[ti].layers.push({ id: genId(), label: '', remoteFile: null, pendingFile: null });
   else if (btn.dataset.action === 'remove-layer') {
@@ -7109,6 +7152,26 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
         else if (prop === 'visible') trg.visible = e.target.checked;
         else if (prop === 'fadeSec') trg.fadeSec = e.target.value === '' ? null : parseFloat(e.target.value);
         else if (prop === 'target') trg.target = parseFxTriggerTarget(e.target.value);
+        else if (prop === 'autoOffSec') { trg.relations = trg.relations || {}; trg.relations.autoOffSec = e.target.value === '' ? null : parseFloat(e.target.value); }
+      }
+    }
+    else if (field === 'fxRel') {
+      const trg = (library[ti].fxTriggers || [])[parseInt(e.target.dataset.tri, 10)];
+      const other = e.target.dataset.relOther, kind = e.target.dataset.relKind;
+      if (trg && other) {
+        const rel = trg.relations = trg.relations || {};
+        if (kind === 'activates') {
+          rel.activates = (rel.activates || []).filter(a => a.triggerId !== other);
+          if (e.target.checked) rel.activates.push({ triggerId: other, delaySec: 0 });
+          hasUnsavedEdits = true; renderLibrary(); // la case « après N s » apparaît/disparaît
+          return;
+        } else if (kind === 'delay') {
+          const a = (rel.activates || []).find(x => x.triggerId === other);
+          if (a) a.delaySec = e.target.value === '' ? 0 : (parseFloat(e.target.value) || 0);
+        } else if (kind === 'cuts' || kind === 'requires') {
+          rel[kind] = (rel[kind] || []).filter(x => x !== other);
+          if (e.target.checked) rel[kind].push(other);
+        }
       }
     }
     else if (field === 'fxAction') {
@@ -10447,7 +10510,7 @@ async function loadData(silent) {
         maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
         normalizeVolume: !!t.normalizeVolume,
         fx: t.fx || null,
-        fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null })),
+        fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, relations: fxRelationsClean(x.relations) })),
         layers: (t.layers || []).map(l => ({ label: l.label, remoteFile: l.file, pendingFile: null, gain: l.gain || 1, duration: l.duration || 0, fx: l.fx || null })),
         intro: t.intro ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, remoteFile: t.intro.file || null, pendingFile: null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '' } : null,
         outro: t.outro ? { label: t.outro.label || 'Outro', remoteFile: t.outro.file || null, pendingFile: null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,
@@ -11223,7 +11286,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
       normalizeVolume: !!t.normalizeVolume,
       fx: t.fx || null,
-      fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null })),
+      fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, relations: fxRelationsClean(x.relations) })),
       duration: Math.round(t.duration * 100) / 100, base: t.base,
       // file/localUrl (18/09) : un fichier tout juste choisi mais pas encore publié n'a pas de
       // remoteFile -- localUrl porte alors une URL locale temporaire (pendingPreviewUrl(), blob:),

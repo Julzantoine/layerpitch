@@ -765,6 +765,7 @@ function ensureFxTriggerStyle() {
     .fx-trigger-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
     .fx-trigger-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
     .fx-trigger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .fx-trigger-btn.fx-locked { opacity: 0.4; cursor: not-allowed; border-style: dashed; }
   `;
   document.head.appendChild(st);
 }
@@ -1832,6 +1833,120 @@ function mergeTriggerFx(baseFx, activeTriggerDefs) {
   (activeTriggerDefs || []).forEach(d => { Object.keys(d.fx || {}).forEach(k => { out[k] = Object.assign({}, out[k], d.fx[k]); }); });
   return out;
 }
+// ---- Règles entre triggers (24/09) ----
+// trigger.relations = { activates:[{triggerId, delaySec}], cuts:[triggerId], requires:[triggerId], autoOffSec }.
+//   Active aussi (cascade) : quand ce trigger s'active, les triggers listés s'activent à leur tour, chacun après
+//     son délai ; quand il se coupe, ceux qu'il avait activés se coupent (sauf s'ils ont été repris à la main).
+//   Coupe (exclusion)      : quand ce trigger s'active, les triggers listés sont coupés.
+//   Nécessite (condition)  : ce trigger ne peut être activé QUE tant que les triggers listés sont actifs ; si l'un
+//     d'eux se coupe, celui-ci se coupe aussi. Ne bride que le VISITEUR (source 'visitor') : une bascule ou une
+//     cascade -- décisions du compositeur -- passe outre.
+//   Se coupe seul : autoOffSec secondes après son activation.
+// Fonction PURE : ne connaît ni l'audio ni l'horloge. Le lecteur lui fournit un vrai temps (setTimeout) et applique
+// les effets dans hooks.apply ; l'outil vidéo lui fournit un temps SIMULÉ (simulateTriggerRules) pour que le son
+// exporté suive exactement les mêmes règles qu'en jeu.
+// hooks : { schedule(delaySec, fn) -> handle, cancel(handle), apply(id, active, cause) }
+function createTriggerRuleEngine(defs, hooks) {
+  const byId = new Map();
+  (defs || []).forEach(d => { if (d && d.id) byId.set(d.id, d); });
+  const active = [];             // dans l'ordre d'activation
+  const cascadedBy = new Map();  // id -> Set des triggers dont la cascade le maintient actif
+  const timers = new Map();      // id -> [handles] (coupure auto + cascades en attente ÉMISES par id)
+  let depth = 0;
+  const rel = id => (byId.get(id) && byId.get(id).relations) || {};
+  const isActive = id => active.indexOf(id) >= 0;
+  const requiresMet = id => (rel(id).requires || []).every(r => isActive(r));
+  function addTimer(owner, h) { (timers.get(owner) || timers.set(owner, []).get(owner)).push(h); }
+  function clearTimers(owner) { (timers.get(owner) || []).forEach(h => hooks.cancel(h)); timers.delete(owner); }
+  function activate(id, source) {
+    if (isActive(id) || depth > 25) return; // 25 : garde-fou contre une boucle de cascades mal configurée
+    depth++;
+    active.push(id);
+    hooks.apply(id, true, source);
+    const r = rel(id);
+    (r.cuts || []).forEach(x => { if (x !== id && isActive(x)) deactivate(x, 'cut'); });
+    (r.activates || []).forEach(a => {
+      if (!a || a.triggerId === id || !byId.has(a.triggerId)) return;
+      const fire = () => {
+        if (!isActive(id)) return; // la source s'est coupée avant l'échéance : la cascade n'a plus lieu
+        if (isActive(a.triggerId)) return; // déjà actif (à la main) : reste indépendant de cette cascade
+        let set = cascadedBy.get(a.triggerId);
+        if (!set) { set = new Set(); cascadedBy.set(a.triggerId, set); }
+        set.add(id);
+        activate(a.triggerId, 'cascade');
+      };
+      const d = +a.delaySec > 0 ? +a.delaySec : 0;
+      if (d > 0) addTimer(id, hooks.schedule(d, fire)); else fire();
+    });
+    if (+r.autoOffSec > 0) addTimer(id, hooks.schedule(+r.autoOffSec, () => { if (isActive(id)) deactivate(id, 'auto'); }));
+    depth--;
+  }
+  function deactivate(id, cause) {
+    const i = active.indexOf(id);
+    if (i < 0) return;
+    active.splice(i, 1);
+    clearTimers(id);
+    cascadedBy.delete(id);
+    hooks.apply(id, false, cause);
+    (rel(id).activates || []).forEach(a => {
+      const set = a && cascadedBy.get(a.triggerId);
+      if (set && set.has(id)) {
+        set.delete(id);
+        if (!set.size) { cascadedBy.delete(a.triggerId); if (isActive(a.triggerId)) deactivate(a.triggerId, 'cascade-off'); }
+      }
+    });
+    active.slice().forEach(x => { if ((rel(x).requires || []).indexOf(id) >= 0) deactivate(x, 'requires-lost'); });
+  }
+  return {
+    // source : 'visitor' (bouton public) | 'composer' (bascule) | 'cascade'. Renvoie false si la demande est refusée
+    // (condition « Nécessite » non remplie pour un visiteur), true sinon (y compris si rien ne change).
+    request(id, want, source) {
+      if (!byId.has(id)) return false;
+      source = source || 'composer';
+      if (want) {
+        if (isActive(id)) return true;
+        if (source === 'visitor' && !requiresMet(id)) return false;
+        cascadedBy.delete(id);
+        activate(id, source);
+      } else {
+        if (!isActive(id)) return true;
+        deactivate(id, source);
+      }
+      return true;
+    },
+    isActive,
+    activeList: () => active.slice(),
+    canActivate: id => isActive(id) || requiresMet(id),
+    missingRequirements: id => (rel(id).requires || []).filter(r => !isActive(r)),
+    reset() {
+      [...timers.keys()].forEach(clearTimers);
+      active.splice(0).forEach(id => hooks.apply(id, false, 'reset'));
+      cascadedBy.clear();
+    }
+  };
+}
+// Rejoue une suite de demandes datées [{t, id, active, source}] avec un temps SIMULÉ (aucune horloge réelle) et
+// renvoie tous les changements d'état résultants [{t, id, active}], cascades temporisées et coupures automatiques
+// comprises. Utilisé par l'export de l'outil vidéo (capture-render.js).
+function simulateTriggerRules(defs, requests) {
+  const queue = [];
+  let now = 0, seq = 0;
+  const changes = [];
+  const engine = createTriggerRuleEngine(defs, {
+    schedule: (d, fn) => { const h = { t: now + d, fn, seq: seq++, dead: false }; queue.push(h); return h; },
+    cancel: h => { h.dead = true; },
+    apply: (id, on) => changes.push({ t: now, id, active: on })
+  });
+  (requests || []).forEach(r => queue.push({ t: r.t, seq: seq++, dead: false, fn: () => engine.request(r.id, r.active, r.source) }));
+  while (queue.length) {
+    queue.sort((a, b) => (a.t - b.t) || (a.seq - b.seq));
+    const h = queue.shift();
+    if (h.dead) continue;
+    now = h.t;
+    h.fn();
+  }
+  return changes;
+}
 // Un ScriptProcessorNode (bitcrusher ET pitch-shift "shift", chantier 2) continue de tourner tant qu'il
 // reste connecté -- un seul point de nettoyage pour les deux plutôt que de dupliquer la même paire de
 // lignes à chacun des neuf appels concernés (voir les commentaires "onended" plus bas dans ce fichier).
@@ -1940,42 +2055,71 @@ function initTrackPlayer(track, wrapper, elementColors) {
     return fxNeedsComp ? withLatencyComp(ctx, chain) : chain;
   }
   const fxTriggerBtns = [...wrapper.querySelectorAll('[data-fx-trigger]')];
+  // Boutons : état enfoncé + état « bloqué » (condition « Nécessite » non remplie) -- grisé mais visible, avec en
+  // infobulle ce qui le débloque. Recalculé après CHAQUE changement d'état, la condition d'un bouton dépendant de
+  // l'état des autres.
   function updateFxTriggerButtons() {
     fxTriggerBtns.forEach(b => {
-      const on = fxActiveTriggerIds.indexOf(b.dataset.fxTrigger) >= 0;
+      const id = b.dataset.fxTrigger;
+      const on = fxRules.isActive(id);
+      const locked = !fxRules.canActivate(id);
       b.classList.toggle('active', on);
+      b.classList.toggle('fx-locked', locked);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (locked) {
+        b.setAttribute('aria-disabled', 'true');
+        b.title = t('fxLockedHint', { names: fxRules.missingRequirements(id).map(r => (fxTriggerDefs.get(r) && fxTriggerDefs.get(r).label) || r).join(', ') });
+      } else { b.removeAttribute('aria-disabled'); b.removeAttribute('title'); }
     });
   }
-  function setFxTrigger(id, active, rampSec) {
+  // Application d'un changement d'état DÉJÀ décidé par le moteur de règles (voir createTriggerRuleEngine) : met à jour
+  // la liste des triggers actifs (ordre d'activation = priorité de fusion), reprogramme les chaînes vivantes.
+  let fxRampOverride = null;
+  function applyFxTriggerState(id, active) {
     const d = fxTriggerDefs.get(id);
     if (!d) return;
     const i = fxActiveTriggerIds.indexOf(id);
     if (active && i < 0) fxActiveTriggerIds.push(id);
     else if (!active && i >= 0) fxActiveTriggerIds.splice(i, 1);
-    else return; // déjà dans l'état demandé
+    else return;
     const key = fxTriggerTargetKey.get(id);
     const chains = fxChainsByTarget.get(key);
-    const ramp = rampSec != null ? rampSec : (d.fadeSec != null ? d.fadeSec : 0.1);
+    const ramp = fxRampOverride != null ? fxRampOverride : (d.fadeSec != null ? d.fadeSec : 0.1);
     if (chains) chains.forEach(ch => applyFxToChain(ctx, ch, fxEffectiveFor(key, ch.baseFx), ramp));
     updateFxTriggerButtons();
   }
+  const fxRules = createTriggerRuleEngine([...fxTriggerDefs.values()], {
+    schedule: (d, fn) => setTimeout(fn, d * 1000),
+    cancel: h => clearTimeout(h),
+    apply: (id, active) => applyFxTriggerState(id, active)
+  });
+  function setFxTrigger(id, active, rampSec, source) {
+    fxRampOverride = rampSec != null ? rampSec : null;
+    try { return fxRules.request(id, active, source || 'composer'); } finally { fxRampOverride = null; }
+  }
+  // Activations liées à un embranchement (décision du compositeur) : passent par les mêmes règles (cascade,
+  // exclusion, coupure auto) mais ne sont pas bridées par « Nécessite ».
   function applyFxActions(actions) {
-    if (Array.isArray(actions)) actions.forEach(a => { if (a && a.triggerId) setFxTrigger(a.triggerId, a.active !== false); });
+    if (Array.isArray(actions)) actions.forEach(a => { if (a && a.triggerId) setFxTrigger(a.triggerId, a.active !== false, null, 'composer'); });
   }
   // Un vrai démarrage à froid repart de l'état de base : sans ça, un bouton "low life" resté enfoncé (ou une
-  // bascule qui l'avait activé) survivrait à un arrêt alors que le morceau repart du début.
+  // bascule qui l'avait activé) survivrait à un arrêt alors que le morceau repart du début. Annule aussi les
+  // cascades et coupures automatiques encore en attente.
   function resetFxTriggers() {
-    [...fxActiveTriggerIds].forEach(id => setFxTrigger(id, false, 0.05));
+    fxRampOverride = 0.05;
+    try { fxRules.reset(); } finally { fxRampOverride = null; }
+    updateFxTriggerButtons();
   }
   fxTriggerBtns.forEach(b => b.addEventListener('click', () => {
     const id = b.dataset.fxTrigger;
-    const willBeActive = fxActiveTriggerIds.indexOf(id) < 0;
-    setFxTrigger(id, willBeActive);
+    const willBeActive = !fxRules.isActive(id);
+    const accepted = setFxTrigger(id, willBeActive, null, 'visitor');
+    if (!accepted) return; // bouton bloqué : rien ne se passe, rien n'est enregistré
     // Seuls les appuis de bouton sont un geste du visiteur (les activations liées à un embranchement se déduisent
     // des bascules, déjà capturées) -- l'outil vidéo les enregistre et les rejoue.
     trackPublicEvent('fx_trigger', { trackId: track.id, triggerId: id, active: willBeActive });
   }));
+  updateFxTriggerButtons();
   // Harmonisation des volumes : décision du compositeur (case à cocher dans le backstage), jamais
   // automatique — sinon un fichier qui sonne différemment de ce qu'il a exporté serait déroutant.
   // Le gain mesuré à la conversion reste stocké dans tous les cas ; ce n'est que son application à la
@@ -5828,6 +5972,8 @@ window.LayerPlayerCore = {
   applyFxToChain,
   trackNeedsLatencyComp,
   withLatencyComp,
+  createTriggerRuleEngine,
+  simulateTriggerRules,
   fxTargetKeyFromTarget,
   baseFxForTarget,
   mergeTriggerFx,

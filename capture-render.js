@@ -49,13 +49,17 @@
       (byKey[k] = byKey[k] || { trackId: e.detail.trackId, triggerId: e.detail.triggerId, list: [] }).list.push([e.t, e.t + e.detail.duration]);
     });
     const out = [];
+    // fx_cut : le visiteur a coupé lui-même un trigger qui n'était actif que par cascade (aucun segment à fermer).
+    events.forEach(e => { if (e.name === 'fx_cut') out.push({ t: e.t, trackId: e.detail.trackId, triggerId: e.detail.triggerId, active: false }); });
     Object.keys(byKey).forEach(k => {
       const g = byKey[k];
       const list = g.list.sort((a, b) => a[0] - b[0]);
       const merged = [];
       list.forEach(iv => {
         const last = merged[merged.length - 1];
-        if (last && iv[0] <= last[1]) last[1] = Math.max(last[1], iv[1]); else merged.push(iv.slice());
+        // Strictement chevauchants seulement : deux segments qui se touchent (le trigger s'est coupé de lui-même puis
+        // le visiteur l'a rallumé) restent DEUX demandes, sinon le rallumage serait perdu.
+        if (last && iv[0] < last[1]) last[1] = Math.max(last[1], iv[1]); else merged.push(iv.slice());
       });
       merged.forEach(iv => {
         out.push({ t: iv[0], trackId: g.trackId, triggerId: g.triggerId, active: true });
@@ -86,6 +90,26 @@
         prevSlotIdx = i;
       });
     }
+    return out;
+  }
+
+  // Demandes du visiteur (boutons enregistrés) et des embranchements (déduites) -> changements d'état RÉELS après
+  // application des règles entre triggers (cascades temporisées, exclusions, conditions, coupures automatiques), avec
+  // les mêmes règles que le lecteur (LayerPlayerCore.simulateTriggerRules). À instant égal, l'embranchement passe
+  // avant le visiteur (il peut remplir une condition « Nécessite »). Un morceau sans trigger valide : tel quel.
+  function resolveTriggerChanges(visitorChanges, derivedChanges, findTrack) {
+    const C = core();
+    const byTrack = {};
+    (visitorChanges || []).forEach(c => (byTrack[c.trackId] = byTrack[c.trackId] || []).push({ t: c.t, id: c.triggerId, active: c.active, source: 'visitor' }));
+    (derivedChanges || []).forEach(c => (byTrack[c.trackId] = byTrack[c.trackId] || []).push({ t: c.t, id: c.triggerId, active: c.active, source: 'composer' }));
+    const out = [];
+    Object.keys(byTrack).forEach(trackId => {
+      const track = findTrack(trackId);
+      const defs = track ? (track.fxTriggers || []).filter(d => d && d.id && d.fx && C.fxTargetKeyFromTarget(d.target)) : [];
+      const reqs = byTrack[trackId].sort((a, b) => (a.t - b.t) || ((a.source === 'composer' ? 0 : 1) - (b.source === 'composer' ? 0 : 1)));
+      if (!defs.length) { reqs.forEach(r => out.push({ t: r.t, trackId, triggerId: r.id, active: r.active })); return; }
+      C.simulateTriggerRules(defs, reqs).forEach(c => out.push({ t: c.t, trackId, triggerId: c.id, active: c.active }));
+    });
     return out;
   }
 
@@ -222,5 +246,5 @@
     return bytes;
   }
 
-  window.LayerCaptureRender = { render, encodeWav, needsEngineRender, trackHasFx, fxSegmentsToChanges, deriveBranchChanges, SR };
+  window.LayerCaptureRender = { render, encodeWav, needsEngineRender, trackHasFx, fxSegmentsToChanges, deriveBranchChanges, resolveTriggerChanges, SR };
 })();
