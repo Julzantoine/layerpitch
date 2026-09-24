@@ -1,0 +1,19 @@
+{
+  "comment": "Fausse session de 'test en jeu' capturée à la main : le compositeur regarde une vidéo de gameplay et déclenche des changements de calque + un stinger au bon moment.",
+  "layers": {
+    "calme": { "tone": 220 },
+    "tension": { "tone": 440 }
+  },
+  "stingers": {
+    "impact": { "tone": 880, "duration": 1.2 }
+  },
+  "events": [
+    { "t": 0,   "type": "layer", "id": "calme",   "action": "on" },
+    { "t": 4.5, "type": "layer", "id": "calme",   "action": "off" },
+    { "t": 4.5, "type": "layer", "id": "tension", "action": "on" },
+    { "t": 8,   "type": "stinger", "id": "impact" },
+    { "t": 8,   "type": "layer", "id": "tension", "action": "off" },
+    { "t": 8,   "type": "layer", "id": "calme",   "action": "on" },
+    { "t": 12,  "type": "layer", "id": "calme",   "action": "off" }
+  ]
+}
