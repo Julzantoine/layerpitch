@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Prototype — lecteur d'album</title>
+<!--
+  PROTOTYPE (Adaptive OST, étape A.4, 25/09/2026) -- réservé à l'admin, relié nulle part, jamais indexé.
+  Questions auxquelles il répond avant de construire la vraie page fan :
+    1. Un lecteur PERMANENT (barre du bas) enchaîne des VERSIONS figées -- version du compositeur ou versions du fan --
+       lues en direct à partir de leur journal (LayerCaptureRender.playTake) : départ immédiat, pause, reprise, saut,
+       morceau suivant / précédent, sans rendu préalable.
+    2. L'ATELIER (centre) joue le morceau vivant (le lecteur adaptatif habituel) ; le fan y fige autant de versions qu'il
+       veut. L'atelier et la barre ne jouent jamais en même temps.
+    3. Figer enregistre la version en base (save_my_track_version) ; elle rejoint aussitôt la barre.
+  Mode démo, en local seulement (localhost, ?demo=1&ids=...) : mêmes écrans, versions gardées en mémoire, sans connexion.
+-->
+<style>
+  :root {
+    --p-bg: #f6f4f1; --p-panel: #ffffff; --p-text: #1d1b19; --p-dim: #6f6a64; --p-line: #e4dfd8; --p-accent: #c9713c; --p-accent-soft: #f4e3d7;
+  }
+  :root[data-theme="night"] {
+    --p-bg: #141312; --p-panel: #1e1c1b; --p-text: #eeeae5; --p-dim: #a39d95; --p-line: #33302d; --p-accent: #e08a52; --p-accent-soft: #3a2a20;
+  }
+  /* Le lecteur adaptatif (atelier) suit le même thème : ses propres variables, dérivées de celles de la page. */
+  :root, :root[data-theme] {
+    --bg: var(--p-bg); --bg-card: var(--p-panel); --border: var(--p-line); --text: var(--p-text); --text-title: var(--p-text);
+    --text-dim: var(--p-dim); --text-dimmer: var(--p-dim); --accent: var(--p-accent); --accent-soft: var(--p-accent-soft);
+  }
+  html, body { margin: 0; height: 100%; }
+  body.proto { background: var(--p-bg); color: var(--p-text); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; display: grid; grid-template-rows: auto 1fr auto; }
+  .proto-top { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--p-line); background: var(--p-panel); }
+  .proto-top h1 { font-size: 15px; margin: 0; font-weight: 650; }
+  .proto-top .tag { font-size: 11px; background: var(--p-accent-soft); color: var(--p-accent); padding: 2px 8px; border-radius: 999px; }
+  .proto-top .spacer { flex: 1; }
+  .proto-main { display: grid; grid-template-columns: 240px 1fr; min-height: 0; }
+  .proto-lib { border-right: 1px solid var(--p-line); padding: 12px; overflow: auto; background: var(--p-panel); }
+  .proto-lib h2, .proto-center h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--p-dim); margin: 4px 0 10px; }
+  .proto-album-btn { display: block; width: 100%; text-align: left; border: 0; background: none; color: var(--p-text); padding: 8px 10px; border-radius: 8px; cursor: pointer; font: inherit; }
+  .proto-album-btn:hover, .proto-album-btn.active { background: var(--p-accent-soft); }
+  .proto-center { padding: 16px 20px 24px; overflow: auto; min-width: 0; }
+  .proto-album-title { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+  .proto-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 10px 8px; border-bottom: 1px solid var(--p-line); }
+  .proto-row .num { color: var(--p-dim); font-variant-numeric: tabular-nums; text-align: right; }
+  .proto-row .name { font-weight: 600; }
+  .proto-versions { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 6px; }
+  .proto-chip { border: 1px solid var(--p-line); background: var(--p-panel); color: var(--p-text); border-radius: 999px; padding: 4px 10px; font-size: 13px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+  .proto-chip.official { border-color: var(--p-accent); }
+  .proto-chip.playing { background: var(--p-accent); color: #fff; border-color: var(--p-accent); }
+  .proto-chip .x { opacity: .6; }
+  .proto-btn { border: 1px solid var(--p-line); background: var(--p-panel); color: var(--p-text); border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 13px; }
+  .proto-btn.primary { background: var(--p-accent); border-color: var(--p-accent); color: #fff; }
+  .proto-btn:disabled { opacity: .5; cursor: default; }
+  .proto-atelier { margin-top: 22px; border: 1px solid var(--p-line); border-radius: 12px; background: var(--p-panel); padding: 14px; }
+  .proto-atelier-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .proto-atelier-head input { flex: 1; min-width: 160px; border: 1px solid var(--p-line); border-radius: 8px; padding: 6px 10px; background: var(--p-bg); color: var(--p-text); font: inherit; }
+  .proto-msg { font-size: 13px; color: var(--p-dim); margin-top: 6px; min-height: 1.2em; }
+  .proto-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.4fr); gap: 16px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--p-line); background: var(--p-panel); }
+  .proto-now { min-width: 0; }
+  .proto-now .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .proto-now .v { font-size: 12px; color: var(--p-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .proto-ctrl { display: flex; gap: 6px; }
+  .proto-ctrl button { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--p-line); background: var(--p-panel); color: var(--p-text); cursor: pointer; font-size: 15px; }
+  .proto-ctrl button.main { background: var(--p-accent); color: #fff; border-color: var(--p-accent); }
+  .proto-prog { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; font-size: 12px; color: var(--p-dim); font-variant-numeric: tabular-nums; }
+  .proto-track { height: 6px; background: var(--p-line); border-radius: 3px; position: relative; cursor: pointer; }
+  .proto-fill { position: absolute; inset: 0 auto 0 0; background: var(--p-accent); border-radius: 3px; width: 0; }
+  @media (max-width: 760px) {
+    .proto-main { grid-template-columns: 1fr; }
+    .proto-lib { border-right: 0; border-bottom: 1px solid var(--p-line); max-height: 140px; }
+    .proto-bar { grid-template-columns: 1fr auto; }
+    .proto-prog { grid-column: 1 / 3; }
+  }
+</style>
+</head>
+<body class="proto">
+<header class="proto-top">
+  <h1>Lecteur d'album</h1><span class="tag">prototype · admin</span><span class="spacer"></span>
+  <button type="button" class="proto-btn" id="themeBtn">Nuit</button>
+</header>
+<div class="proto-main">
+  <aside class="proto-lib"><h2>Bibliothèque</h2><div id="lib">Chargement…</div></aside>
+  <main class="proto-center" id="center"><div id="albumView"></div><section class="proto-atelier" id="atelier" hidden></section></main>
+</div>
+<footer class="proto-bar">
+  <div class="proto-now"><div class="t" id="nowTitle">—</div><div class="v" id="nowVersion">Rien en lecture</div></div>
+  <div class="proto-ctrl">
+    <button type="button" id="prevBtn" aria-label="Précédent">⏮</button>
+    <button type="button" id="playBtn" class="main" aria-label="Lecture">▶</button>
+    <button type="button" id="nextBtn" aria-label="Suivant">⏭</button>
+  </div>
+  <div class="proto-prog"><span id="posEl">0:00</span><div class="proto-track" id="progTrack"><div class="proto-fill" id="progFill"></div></div><span id="durEl">0:00</span></div>
+</footer>
+
+<script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="layerpitch-i18n.js?v=1790339581859"></script>
+<script src="player.js?v=1790339581859"></script>
+<script src="capture-render.js?v=1790339581859"></script>
+<script src="api/supabase-client.js?v=1790339581859"></script>
+<script src="api/auth.js?v=1790339581859"></script>
+<script src="api/tracks.js?v=1790339581859"></script>
+<script src="api/sfx.js?v=1790339581859"></script>
+<script src="api/albums.js?v=1790339581859"></script>
+<script>
+(async () => {
+  const P = window.LayerPlayerCore, R = window.LayerCaptureRender;
+  const $ = id => document.getElementById(id);
+  const esc = P.escapeHtml;
+  const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  const fetchBytes = async url => new Uint8Array(await (await fetch(url)).arrayBuffer());
+  const params = new URLSearchParams(location.search);
+
+  // Thème clair / nuit, entièrement par variables (les skins d'album viendront par le même chemin).
+  const setTheme = t => { document.documentElement.dataset.theme = t; $('themeBtn').textContent = t === 'night' ? 'Clair' : 'Nuit'; try { localStorage.setItem('lpProtoTheme', t); } catch (e) {} };
+  try { setTheme(localStorage.getItem('lpProtoTheme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day')); } catch (e) { setTheme('day'); }
+  $('themeBtn').onclick = () => setTheme(document.documentElement.dataset.theme === 'night' ? 'day' : 'night');
+
+  // Styles du lecteur adaptatif : ceux des pages publiques (repris de pack.html au chargement, pour ne pas les recopier
+  // dans un prototype).
+  try {
+    const html = await (await fetch('pack.html')).text();
+    const m = html.match(/<style>([\s\S]*?)<\/style>/);
+    if (m) { const st = document.createElement('style'); st.textContent = m[1]; document.head.insertBefore(st, document.head.querySelector('style')); }
+  } catch (e) {}
+
+  // ---- Données : la base (compte admin) ou, en local seulement, une démo en mémoire ----
+  const demo = params.get('demo') === '1' && ['localhost', '127.0.0.1'].includes(location.hostname);
+  const store = demo ? demoStore(params.get('ids') || '') : dbStore();
+  function dbStore() {
+    const A = window.LayerPitchAlbums;
+    return {
+      async albums() { const r = await A.listMyPurchases(); if (r.error) throw new Error(r.error); return r.purchases.map(p => ({ id: p.albumId, title: p.title })); },
+      async album(id) { const r = await A.getMyAlbumVersions(id); if (r.error) throw new Error(r.error); return r; },
+      async save(albumId, trackId, name, take) { const r = await A.saveMyTrackVersion(albumId, trackId, name, take); if (!r.ok) throw new Error(r.error); return r.id; },
+      async remove(id) { const r = await A.deleteMyTrackVersion(id); if (!r.ok) throw new Error(r.error); },
+      async setOfficial(albumId, trackId, take) { const r = await A.setAlbumTrackOfficialTake(albumId, trackId, take); if (!r.ok) throw new Error(r.error); }
+    };
+  }
+  function demoStore(ids) {
+    const trackIds = ids.split(',').filter(Boolean), versions = [], official = {};
+    return {
+      async albums() { return [{ id: 'demo', title: 'Album de démonstration' }]; },
+      async album() { return { tracks: trackIds.map((t, i) => ({ trackId: t, position: i, official: official[t] || null })), versions: versions.slice().reverse() }; },
+      async save(albumId, trackId, name, take) { const id = 'v' + (versions.length + 1); versions.push({ id, trackId, name, take, createdAt: new Date().toISOString() }); return id; },
+      async remove(id) { const i = versions.findIndex(v => v.id === id); if (i >= 0) versions.splice(i, 1); },
+      async setOfficial(albumId, trackId, take) { official[trackId] = take; }
+    };
+  }
+
+  // ---- Accès : admin seulement (hors démo locale) ----
+  if (!demo) {
+    const { session } = await window.LayerPitchAuth.getSession();
+    if (!session) { $('lib').textContent = ''; $('albumView').innerHTML = '<p>Connecte-toi d\'abord (<a href="bienvenue.html">connexion</a>), puis reviens sur cette page.</p>'; return; }
+    const { data: isAdmin } = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin');
+    if (!isAdmin) { $('lib').textContent = ''; $('albumView').innerHTML = '<p>Page réservée à l\'administrateur.</p>'; return; }
+  }
+
+  P.setTakeRecording(true); // l'atelier enregistre chaque écoute : Figer la garde
+  const trackCache = {};
+  async function loadTrack(id) {
+    if (!trackCache[id]) { const r = await window.LayerPitchTracks.getTrack(id); if (!r.track) throw new Error('Morceau introuvable : ' + id); trackCache[id] = r.track; }
+    return trackCache[id];
+  }
+
+  // ---- État ----
+  let albums = [], album = null; // album = { id, title, tracks:[{track, official}], versions:[...] }
+  let queue = [], qi = -1;       // file de la barre : [{ trackId, label, versionLabel, take, versionId }]
+  let ctrl = null, playing = false, pausedAt = 0, starting = false;
+  let atelierTrackId = null;
+
+  // ---- Bibliothèque ----
+  try { albums = await store.albums(); } catch (e) { $('lib').textContent = 'Erreur : ' + e.message; return; }
+  function renderLib() {
+    $('lib').innerHTML = albums.length ? albums.map(a => `<button type="button" class="proto-album-btn${album && album.id === a.id ? ' active' : ''}" data-album="${esc(a.id)}">${esc(a.title || 'Sans titre')}</button>`).join('') : 'Aucun album obtenu.';
+    $('lib').querySelectorAll('[data-album]').forEach(b => b.onclick = () => openAlbum(b.dataset.album));
+  }
+  renderLib();
+
+  // ---- Album (centre) ----
+  async function openAlbum(id, keepAtelier) {
+    const a = albums.find(x => x.id === id);
+    const data = await store.album(id);
+    const tracks = [];
+    for (const t of data.tracks) tracks.push({ track: await loadTrack(t.trackId), official: t.official });
+    // Sfx attachés à ces morceaux (le lecteur les cherche dans sa bibliothèque).
+    const sfxById = {};
+    for (const t of tracks) for (const sid of (t.track.sfxIds || [])) { if (!sfxById[sid]) { const r = await window.LayerPitchSfx.getSfx(sid); if (r && r.sfx) sfxById[sid] = r.sfx; } }
+    P.setSfxLibrary(Object.assign({}, window.__protoSfx || {}, sfxById));
+    window.__protoSfx = Object.assign({}, window.__protoSfx || {}, sfxById);
+    album = { id, title: a ? a.title : '', tracks, versions: data.versions };
+    renderLib();
+    renderAlbum();
+    if (!keepAtelier) openAtelier(tracks[0] && tracks[0].track.id);
+  }
+  const versionsOf = trackId => album.versions.filter(v => v.trackId === trackId);
+  function renderAlbum() {
+    const playingKey = queue[qi] && (queue[qi].versionId || 'official:' + queue[qi].trackId);
+    $('albumView').innerHTML = `
+      <h2>Album</h2><h3 class="proto-album-title">${esc(album.title || 'Sans titre')}</h3>
+      <div style="margin:10px 0 16px"><button type="button" class="proto-btn primary" id="playAlbumBtn">▶ Écouter l'album</button></div>
+      ${album.tracks.map((t, i) => `
+        <div class="proto-row">
+          <span class="num">${i + 1}</span>
+          <span class="name">${esc(t.track.title)}</span>
+          <button type="button" class="proto-btn" data-atelier="${esc(t.track.id)}">${atelierTrackId === t.track.id ? 'Dans l\'atelier' : 'Jouer en direct'}</button>
+          <div class="proto-versions">
+            ${t.official ? `<button type="button" class="proto-chip official${playingKey === 'official:' + t.track.id ? ' playing' : ''}" data-play-official="${esc(t.track.id)}">★ Version du compositeur · ${fmt(t.official.duration)}</button>` : '<span class="proto-msg">Pas encore de version du compositeur.</span>'}
+            ${versionsOf(t.track.id).map(v => `<span class="proto-chip${playingKey === v.id ? ' playing' : ''}"><span data-play-version="${esc(v.id)}">▶ ${esc(v.name || 'Sans nom')} · ${fmt(v.take.duration)}</span><span class="x" data-del="${esc(v.id)}" title="Supprimer">✕</span></span>`).join('')}
+          </div>
+        </div>`).join('')}`;
+    $('playAlbumBtn').onclick = () => { buildAlbumQueue(); playIndex(0); };
+    document.querySelectorAll('[data-atelier]').forEach(b => b.onclick = () => openAtelier(b.dataset.atelier));
+    document.querySelectorAll('[data-play-official]').forEach(b => b.onclick = () => { buildAlbumQueue(); playIndex(queue.findIndex(q => q.trackId === b.dataset.playOfficial)); });
+    document.querySelectorAll('[data-play-version]').forEach(b => b.onclick = () => playVersionThenAlbum(b.dataset.playVersion));
+    document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { await store.remove(b.dataset.del); await openAlbum(album.id, true); });
+  }
+
+  // ---- File de la barre : l'album tel quel (version du compositeur, sinon la plus récente du fan) ----
+  function entryFor(t, version) {
+    if (version) return { trackId: t.track.id, label: t.track.title, versionLabel: version.name || 'Ma version', take: version.take, versionId: version.id };
+    if (t.official) return { trackId: t.track.id, label: t.track.title, versionLabel: 'Version du compositeur', take: t.official };
+    const mine = versionsOf(t.track.id)[0];
+    return mine ? { trackId: t.track.id, label: t.track.title, versionLabel: (mine.name || 'Ma version') + ' (la plus récente)', take: mine.take, versionId: mine.id } : null;
+  }
+  function buildAlbumQueue() { queue = album.tracks.map(t => entryFor(t)).filter(Boolean); }
+  function playVersionThenAlbum(versionId) {
+    const v = album.versions.find(x => x.id === versionId);
+    const idx = album.tracks.findIndex(t => t.track.id === v.trackId);
+    queue = album.tracks.map((t, i) => i === idx ? entryFor(t, v) : entryFor(t)).filter(Boolean);
+    playIndex(queue.findIndex(q => q.versionId === versionId));
+  }
+
+  // ---- Barre : lecture en direct des versions ----
+  async function playIndex(i, from) {
+    if (i < 0 || i >= queue.length) { stopBar(); qi = -1; $('nowTitle').textContent = '—'; $('nowVersion').textContent = 'Fin de la file'; $('durEl').textContent = '0:00'; if (album) renderAlbum(); return; }
+    stopAtelier();
+    if (ctrl) { ctrl.stop(); ctrl = null; }
+    qi = i; starting = true; playing = true;
+    const q = queue[i];
+    $('nowTitle').textContent = q.label; $('nowVersion').textContent = q.versionLabel + ' · chargement…';
+    $('playBtn').textContent = '⏸';
+    const myTurn = (window.__protoTurn = (window.__protoTurn || 0) + 1);
+    try {
+      const c = await R.playTake(q.take, { from: from || 0, fetchBytes, onEnd: () => { if (window.__protoTurn === myTurn) playIndex(qi + 1); } });
+      if (window.__protoTurn !== myTurn) { c.stop(); return; }
+      ctrl = c;
+    } catch (e) { $('nowVersion').textContent = 'Erreur : ' + e.message; playing = false; starting = false; return; }
+    starting = false;
+    $('nowVersion').textContent = q.versionLabel;
+    $('durEl').textContent = fmt(q.take.duration);
+    if (album) renderAlbum();
+  }
+  function pauseBar() { if (!ctrl) return; pausedAt = ctrl.position(); ctrl.stop(); ctrl = null; playing = false; window.__protoTurn++; $('playBtn').textContent = '▶'; }
+  function stopBar() { if (ctrl) ctrl.stop(); ctrl = null; playing = false; pausedAt = 0; window.__protoTurn = (window.__protoTurn || 0) + 1; $('playBtn').textContent = '▶'; }
+  $('playBtn').onclick = () => {
+    if (starting) { window.__protoTurn++; starting = false; playing = false; pausedAt = 0; $('playBtn').textContent = '▶'; $('nowVersion').textContent = queue[qi] ? queue[qi].versionLabel : ''; return; } // pause pendant le chargement : on annule
+    if (playing) pauseBar();
+    else if (qi >= 0) playIndex(qi, pausedAt);
+    else if (album) { buildAlbumQueue(); playIndex(0); }
+  };
+  $('nextBtn').onclick = () => { if (qi + 1 < queue.length) playIndex(qi + 1); };
+  $('prevBtn').onclick = () => { if (ctrl && ctrl.position() > 3) playIndex(qi); else if (qi > 0) playIndex(qi - 1); };
+  $('progTrack').onclick = e => {
+    if (qi < 0) return;
+    const r = $('progTrack').getBoundingClientRect(), f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    const pos = f * queue[qi].take.duration;
+    if (playing) playIndex(qi, pos); else { pausedAt = pos; paint(pos); }
+  };
+  function paint(pos) {
+    const d = qi >= 0 ? queue[qi].take.duration : 0;
+    $('posEl').textContent = fmt(pos); $('progFill').style.width = d ? (100 * pos / d) + '%' : '0';
+  }
+  (function tick() { paint(ctrl ? ctrl.position() : pausedAt); requestAnimationFrame(tick); })();
+
+  // ---- Atelier : le morceau vivant ; Figer ----
+  function stopAtelier() { if (atelierTrackId) document.dispatchEvent(new CustomEvent('stop-track', { detail: atelierTrackId })); }
+  // L'atelier et la barre ne jouent jamais en même temps : dès que l'atelier démarre, la barre se met en pause.
+  document.addEventListener('layerpitch-capture-mark', e => { if (e.detail && e.detail.name === 'track_play' && playing) pauseBar(); });
+  // L'atelier vit hors de la liste (qui se redessine à chaque changement) : son lecteur n'est reconstruit que lorsqu'on
+  // change de morceau.
+  function openAtelier(trackId) { stopAtelier(); atelierTrackId = trackId || null; renderAlbum(); mountAtelier(); }
+  function mountAtelier() {
+    const box = $('atelier');
+    const t = album.tracks.find(x => x.track.id === atelierTrackId);
+    if (!t) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = `
+      <div class="proto-atelier-head">
+        <strong>Atelier · ${esc(t.track.title)}</strong>
+        <input type="text" id="freezeName" placeholder="Nom de la version (facultatif)">
+        <button type="button" class="proto-btn primary" id="freezeBtn">Figer cette écoute</button>
+        <button type="button" class="proto-btn" id="officialBtn" title="Réservé au vendeur de l'album">Enregistrer comme version de l'album</button>
+      </div>
+      <div id="atelierPlayer"></div>
+      <div class="proto-msg" id="freezeMsg">Joue le morceau (intensité, effets, embranchements…), puis fige ce que tu viens d'entendre.</div>`;
+    const row = P.buildTrackRow(t.track, null, false);
+    $('atelierPlayer').appendChild(row);
+    P.initTrackPlayer(t.track, row);
+    const currentTake = () => { const k = P.getTrackTake(t.track.id); return k && k.voices.length ? k : null; };
+    $('freezeBtn').onclick = async () => {
+      const take = currentTake();
+      if (!take) { $('freezeMsg').textContent = 'Rien à figer : joue d\'abord le morceau.'; return; }
+      if (take.missing) { $('freezeMsg').textContent = 'Ce morceau n\'est pas publié : impossible de le figer.'; return; }
+      $('freezeBtn').disabled = true;
+      try {
+        await store.save(album.id, t.track.id, $('freezeName').value.trim(), take);
+        $('freezeMsg').textContent = `Version figée (${fmt(take.duration)}) : elle est dans la liste ci-dessus et dans la barre.`;
+        await openAlbum(album.id, true);
+      } catch (e) { $('freezeMsg').textContent = 'Erreur : ' + e.message; }
+      finally { const b = $('freezeBtn'); if (b) b.disabled = false; }
+    };
+    $('officialBtn').onclick = async () => {
+      const take = currentTake();
+      if (!take) { $('freezeMsg').textContent = 'Rien à enregistrer : joue d\'abord le morceau.'; return; }
+      try { await store.setOfficial(album.id, t.track.id, take); $('freezeMsg').textContent = 'Version de l\'album enregistrée.'; await openAlbum(album.id, true); }
+      catch (e) { $('freezeMsg').textContent = 'Erreur : ' + e.message; }
+    };
+  }
+
+  if (albums[0]) openAlbum(albums[0].id);
+})();
+</script>
+</body>
+</html>
