@@ -186,12 +186,12 @@
     border: 1px dashed #d5d5da; min-height: 44px; display: flex; align-items: center; justify-content: center;
   }
   [data-role="allBlocksDrop"]::before { content: var(--drop-all-hint-text, 'Dépose tous tes fichiers ici'); color: var(--text-dimmer); font-size: 11px; }
-  [data-role="vrsSectionDrop"] {
+  [data-role="vrsSectionDrop"], [data-role="sfxLibraryDrop"], [data-role="sfxVariationsDrop"] {
     border: 1px dashed #d5d5da; border-radius: 6px; min-height: 44px; display: flex; align-items: center; justify-content: center;
     color: var(--text-dimmer); font-size: 11px; transition: background 0.15s, outline 0.15s;
   }
-  [data-role="vrsSectionDrop"].is-disabled { opacity: 0.45; pointer-events: none; }
-  [data-role="vrsSectionDrop"].drag-over { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: 2px; }
+  [data-role="vrsSectionDrop"].is-disabled, [data-role="sfxLibraryDrop"].is-disabled { opacity: 0.45; cursor: not-allowed; }
+  [data-role="vrsSectionDrop"].drag-over, [data-role="sfxLibraryDrop"].drag-over, [data-role="sfxVariationsDrop"].drag-over { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: 2px; }
   .vrs-batch-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
   .vrs-batch-modal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 560px; max-width: 92vw; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   .vrs-batch-modal h3 { font-size: 13px; margin-bottom: 4px; color: var(--text); }
@@ -1161,6 +1161,11 @@
           <div class="actions" style="margin-bottom:14px">
             <button class="btn btn-small" id="btnAddSfxFolder" type="button" data-i18n="addOrgFolder">+ Dossier</button>
           </div>
+          <!-- Dépôt groupé de Sfx (25/09) : un Sfx par famille de noms, variations round-robin. Admin seulement
+               tant que Jules-Antoine n'a pas donné son feu vert (grisé via renderAdminOnlyPanels). -->
+          <label data-help="sfxBatchDrop"><span data-i18n="batchSfxDropLabel">Dépôt groupé de Sfx</span><span class="hint-inline" id="sfxBatchDropAdminHint" style="margin:0 0 0 6px"></span></label>
+          <div class="hint-inline" data-i18n="batchSfxDropHint"></div>
+          <div data-role="sfxLibraryDrop" id="sfxLibraryDrop" class="is-disabled" style="margin:6px 0 14px" data-i18n="dropAllFilesHint">Dépose tous tes fichiers ici</div>
           <div class="seq-two-col">
             <div class="seq-master-list" id="sfxLibraryMaster"></div>
             <div class="seq-detail-col" id="sfxLibraryDetail"></div>
@@ -1758,9 +1763,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790344340651"></script>
-<script src="layerpitch-help.js?v=1790344340651"></script>
-<script src="player.js?v=1790344340651"></script>
+<script src="layerpitch-i18n.js?v=1790353387386"></script>
+<script src="layerpitch-help.js?v=1790353387386"></script>
+<script src="player.js?v=1790353387386"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2101,8 +2106,22 @@ async function renderAdminOnlyPanels(session) {
   let isAdmin = false;
   if (session && session.user) {
     await loadPostgresReadScripts();
-    const { data } = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin');
-    isAdmin = !!data;
+    // Plusieurs événements d'auth arrivent au chargement (session en cache, puis jeton rafraîchi) et
+    // lancent chacun cette vérification en parallèle. Un appel parti avec un jeton expiré répond en
+    // ERREUR (data null) -- auparavant lu comme "pas admin", et s'il se résolvait en dernier il
+    // regrisait tout pour l'admin (constaté le 25/09 par Jules-Antoine, connecté admin). Désormais :
+    // un nouvel essai, puis une erreur ne change jamais le statut déjà connu.
+    const client = window.LayerPitchSupabaseClient.getClient();
+    let res = await client.rpc('is_admin');
+    if (res.error) {
+      await new Promise(r => setTimeout(r, 1500));
+      res = await client.rpc('is_admin');
+    }
+    if (res.error) {
+      console.warn('is_admin() en erreur, statut admin inchangé :', res.error.message || res.error);
+      return;
+    }
+    isAdmin = !!res.data;
   }
   currentUserIsAdmin = isAdmin;
   ADMIN_ONLY_PANEL_IDS.forEach((id) => {
@@ -2123,6 +2142,10 @@ async function renderAdminOnlyPanels(session) {
   // un admin verrait le pitch grisé jusqu'au prochain clic (renderLibrary() no-op si le panneau n'est pas
   // monté, voir sa garde en tête de fonction).
   renderLibrary();
+  const sfxDrop = document.getElementById('sfxLibraryDrop');
+  if (sfxDrop) sfxDrop.classList.toggle('is-disabled', !isAdmin);
+  const sfxDropHint = document.getElementById('sfxBatchDropAdminHint');
+  if (sfxDropHint) sfxDropHint.textContent = isAdmin ? '' : tr('fxAdminOnlyHint');
   if (typeof renderSfxLibrary === 'function') renderSfxLibrary(); // même raison : l'entrée "Espace" des Sfx est réservée à l'admin
 }
 // Demandes d'accès en attente (bloc "Inviter un testeur" ci-dessous, 6 septembre) -- une seule
@@ -4952,18 +4975,18 @@ function guessSequentialRole(filename) {
   return 'segment';
 }
 
-// ---- Dépôt groupé par section du mode vertical-random (25/09, demande de Jules-Antoine) ----
-// Tous les fichiers d'une section déposés d'un coup : l'intro/outro est reconnue au nom (même règle que
-// le séquentiel, guessSequentialRole), le reste est rangé en pools d'après une racine de nom commune
-// ("Alt Perc 1", "Alt Perc 1.5", "Alt Perc 2" -> pool "Alt Perc"). Rien n'est écrit tant que le
-// compositeur n'a pas validé la fenêtre de vérification (openVrsBatchDropDialog), où il peut déplacer un
-// fichier, renommer un pool et choisir d'ajouter une piste vide (silence) à chaque pool.
-function vrsNormKey(s) {
-  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+// ---- Dépôt groupé "par familles de noms" (25/09, demandes de Jules-Antoine) ----
+// Sert aux pools d'une section vertical-random et à la bibliothèque Sfx (un Sfx par famille, ses fichiers en
+// variations round-robin). L'intro/outro est reconnue au nom (guessSequentialRole) quand c'est pertinent, le
+// reste est rangé par racine de nom commune ("Alt Perc 1", "Alt Perc 1.5" -> "Alt Perc"). Rien n'est écrit
+// tant que le compositeur n'a pas validé la fenêtre de vérification (openGroupedDropDialog) : déplacer un
+// fichier, renommer un groupe, piste vide par pool, tempo/mesures lus dans les noms.
+function nameFamilyKey(s) {
+  return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 // Retire les marques de variante en fin de nom, de façon répétée : "(8th)", "#2", "1.5", "BS1" -> "BS".
 // Si tout le nom y passe (fichier "01.wav"), on garde le nom tel quel.
-function vrsStripVariantSuffix(label) {
+function stripVariantSuffix(label) {
   const orig = (label || '').trim();
   let s = orig, prev;
   do {
@@ -4972,20 +4995,36 @@ function vrsStripVariantSuffix(label) {
   } while (s && s !== prev);
   return s || orig;
 }
-function groupFilesForVrsSection(files) {
+// Variante "large" : retire aussi une lettre isolée finale ("Hit A", "Hit B", "Step v2") -- appliquée
+// seulement si elle réunit vraiment plusieurs fichiers, pour ne pas abîmer un nom comme "Plan B" seul.
+function stripVariantSuffixLoose(label) {
+  const s = stripVariantSuffix(label);
+  const t = s.replace(/\s+(?:v\d*|[a-z])$/i, '').trim();
+  return t ? stripVariantSuffix(t) : s;
+}
+function groupFilesByNameFamily(files, detectIntroOutro) {
   let intro = null, outro = null;
-  const groups = new Map();
+  const rest = [];
   files.forEach(f => {
-    const role = guessSequentialRole(f.name);
-    if (role === 'intro' && !intro) { intro = f; return; }
-    if (role === 'outro' && !outro) { outro = f; return; }
-    const label = vrsStripVariantSuffix(titleFromFilenameStrippingHints(f.name));
-    const key = vrsNormKey(label);
+    const role = detectIntroOutro ? guessSequentialRole(f.name) : 'segment';
+    if (role === 'intro' && !intro) intro = f;
+    else if (role === 'outro' && !outro) outro = f;
+    else rest.push(f);
+  });
+  const strictLabel = f => stripVariantSuffix(titleFromFilenameStrippingHints(f.name));
+  const looseCount = new Map();
+  rest.forEach(f => { const k = nameFamilyKey(stripVariantSuffixLoose(strictLabel(f))); looseCount.set(k, (looseCount.get(k) || 0) + 1); });
+  const groups = new Map();
+  rest.forEach(f => {
+    const strict = strictLabel(f);
+    const loose = stripVariantSuffixLoose(strict);
+    const label = looseCount.get(nameFamilyKey(loose)) >= 2 ? loose : strict;
+    const key = nameFamilyKey(label);
     if (!groups.has(key)) groups.set(key, { label, files: [] });
     groups.get(key).files.push(f);
   });
-  // Un fichier resté seul rejoint le pool dont le nom est le début du sien ("BS SLAP" -> "BS"), à
-  // condition que ce pool soit une vraie famille (au moins 2 fichiers) -- "Main Perc" reste un pool à part.
+  // Un fichier resté seul rejoint le groupe dont le nom est le début du sien ("BS SLAP" -> "BS"), à
+  // condition que ce groupe soit une vraie famille (au moins 2 fichiers) -- "Main Perc" reste à part.
   const familyKeys = [...groups.keys()].filter(k => groups.get(k).files.length >= 2);
   [...groups.keys()].forEach(k => {
     const g = groups.get(k);
@@ -4997,26 +5036,33 @@ function groupFilesForVrsSection(files) {
     }
   });
   const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-  const pools = [...groups.values()].map(g => ({ label: g.label, files: g.files.sort(byName) }));
-  return { intro, outro, pools };
+  return { intro, outro, groups: [...groups.values()].map(g => ({ label: g.label, files: g.files.sort(byName) })) };
+}
+function hintsText(h) {
+  return h ? [h.bpm ? h.bpm + ' BPM' : '', h.bars ? tr('vrsBatchBarsN', { n: h.bars }) : ''].filter(Boolean).join(', ') : '';
+}
+// Premier fichier (hors intro/outro) dont le nom porte un tempo ou un nombre de mesures.
+function firstFilenameHints(files) {
+  const f = files.find(x => { const h = parseAudioFilenameHints(x.name); return guessSequentialRole(x.name) === 'segment' && (h.bpm || h.bars); });
+  return f ? { file: f, hints: parseAudioFilenameHints(f.name) } : null;
 }
 
-function openVrsBatchDropDialog(track, section, files) {
-  const guess = groupFilesForVrsSection(files);
-  const pools = guess.pools.map(p => ({ id: genId(), label: p.label, silent: false }));
-  const dest = new Map(); // fichier -> 'intro' | 'outro' | 'skip' | id de pool
-  if (guess.intro) dest.set(guess.intro, 'intro');
-  if (guess.outro) dest.set(guess.outro, 'outro');
-  guess.pools.forEach((p, i) => p.files.forEach(f => dest.set(f, pools[i].id)));
+// Fenêtre modale commune. opts :
+//   files, title, groups [{ label, files }], intro/outro (fichier ou null), introTaken/outroTaken,
+//   withIntroOutro, withSilent, groupKind ('pool' | 'sfx'), confirmLabel,
+//   checks [{ id, text, checked, note }] -- cases à cocher libres (ex. tempo/mesures repérés),
+//   onConfirm({ groups: [{ label, silent, files }], intro, outro, checks: { id: bool } })
+function openGroupedDropDialog(opts) {
+  const files = opts.files;
+  const groups = opts.groups.map(g => ({ id: genId(), label: g.label, silent: false }));
+  const dest = new Map(); // fichier -> 'intro' | 'outro' | 'skip' | id de groupe
+  if (opts.intro) dest.set(opts.intro, 'intro');
+  if (opts.outro) dest.set(opts.outro, 'outro');
+  opts.groups.forEach((g, i) => g.files.forEach(f => dest.set(f, groups[i].id)));
+  const checks = {};
+  (opts.checks || []).forEach(c => { checks[c.id] = !!c.checked; });
   let silentAll = false;
-  // Tempo/mesures repérés dans un nom ("Main Perc_120BPM_16M.wav") : proposés pour la section, cochés
-  // d'office seulement si la section n'a encore aucun fichier (on n'écrase pas un réglage déjà fait).
-  const sectionHasFile = (section.pools || []).some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile));
-  const hintFile = files.find(f => { const h = parseAudioFilenameHints(f.name); return guessSequentialRole(f.name) === 'segment' && (h.bpm || h.bars); });
-  const hints = hintFile ? parseAudioFilenameHints(hintFile.name) : null;
-  let applyHints = !!hints && !sectionHasFile;
-  const introTaken = !!(track.intro && (track.intro.pendingFile || track.intro.remoteFile));
-  const outroTaken = !!(track.outro && (track.outro.pendingFile || track.outro.remoteFile));
+  const isSfx = opts.groupKind === 'sfx';
 
   const overlay = document.createElement('div');
   overlay.className = 'vrs-batch-overlay';
@@ -5026,141 +5072,195 @@ function openVrsBatchDropDialog(track, section, files) {
   document.body.appendChild(overlay);
   const close = () => overlay.remove();
 
+  const groupName = (g, i) => g.label || tr(isSfx ? 'sfxFallback' : 'vrsBatchPoolFallback', { n: i + 1 });
   function destOptionsHtml(cur) {
     const opt = (v, label) => `<option value="${v}"${cur === v ? ' selected' : ''}>${escapeHtml(label)}</option>`;
-    return opt('intro', tr('introShortLabel')) + opt('outro', tr('outroShortLabel'))
-      + pools.map((p, i) => opt(p.id, tr('vrsBatchPoolOption', { name: p.label || tr('vrsBatchPoolFallback', { n: i + 1 }) }))).join('')
+    return (opts.withIntroOutro ? opt('intro', tr('introShortLabel')) + opt('outro', tr('outroShortLabel')) : '')
+      + groups.map((g, i) => opt(g.id, tr(isSfx ? 'batchSfxOption' : 'vrsBatchPoolOption', { name: groupName(g, i) }))).join('')
       + opt('skip', tr('vrsBatchSkipOption'));
   }
-  function filesFor(key) { return files.filter(f => dest.get(f) === key); }
-  // Tempo/mesures de l'intro lus dans son nom : appliqués à l'intro seule (ils la concernent sans ambiguïté),
-  // mais affichés ici pour que rien ne change sans que le compositeur l'ait vu.
-  function introHintText() {
-    const f = filesFor('intro')[0];
-    const h = f ? parseAudioFilenameHints(f.name) : null;
-    return h ? [h.bpm ? h.bpm + ' BPM' : '', h.bars ? tr('vrsBatchBarsN', { n: h.bars }) : ''].filter(Boolean).join(', ') : '';
-  }
+  const filesFor = key => files.filter(f => dest.get(f) === key);
   function fileRowsHtml(key) {
     const list = filesFor(key);
-    if (!list.length) return `<div class="hint-inline">${tr('vrsBatchEmptyGroup')}</div>`;
+    if (!list.length) return `<div class="hint-inline">${tr(isSfx ? 'batchSfxEmptyGroup' : 'vrsBatchEmptyGroup')}</div>`;
     return list.map(f => `
       <div class="vrs-batch-file">
         <span title="${escapeAttr(f.name)}">${escapeHtml(f.name)}</span>
         <select data-vbd-file="${files.indexOf(f)}">${destOptionsHtml(key)}</select>
       </div>`).join('');
   }
+  // Tempo/mesures de l'intro lus dans son nom : appliqués à l'intro seule (ils la concernent sans ambiguïté),
+  // mais affichés ici pour que rien ne change sans que le compositeur l'ait vu.
+  function introHintText() {
+    const f = filesFor('intro')[0];
+    return f ? hintsText(parseAudioFilenameHints(f.name)) : '';
+  }
+  function fixedGroupHtml(key, title, taken, extra) {
+    if (!filesFor(key).length) return '';
+    return `
+      <div class="vrs-batch-group">
+        <div class="vrs-batch-group-head"><strong>${title}</strong>${taken ? `<span class="hint-inline">${tr('vrsBatchReplacesCurrent')}</span>` : ''}${extra || ''}</div>
+        ${fileRowsHtml(key)}
+      </div>`;
+  }
   function render() {
-    const nIntro = filesFor('intro').length, nOutro = filesFor('outro').length;
-    const filledPools = pools.filter(p => filesFor(p.id).length);
-    const tooMany = nIntro > 1 || nOutro > 1;
+    const filled = groups.filter(g => filesFor(g.id).length);
+    const tooMany = filesFor('intro').length > 1 || filesFor('outro').length > 1;
+    const introHints = introHintText();
     modal.innerHTML = `
-      <h3>${tr('vrsBatchTitle', { section: escapeHtml(section.label || tr('untitledFallback')) })}</h3>
-      <div class="hint-inline">${tr('vrsBatchSummary', { files: files.length, pools: filledPools.length })}</div>
+      <h3>${escapeHtml(opts.title)}</h3>
+      <div class="hint-inline">${tr(isSfx ? 'batchSfxSummary' : 'vrsBatchSummary', { files: files.length, pools: filled.length })}</div>
       <div class="vrs-batch-body">
-        <label class="vrs-batch-check vrs-batch-silent-all">
-          <input type="checkbox" data-vbd="silentAll"${silentAll ? ' checked' : ''}>
-          <span>${tr('vrsBatchSilentAllLabel')}</span>
-        </label>
-        <div class="hint-inline">${tr('vrsBatchSilentHint')}</div>
-        ${hints ? `
-          <label class="vrs-batch-check">
-            <input type="checkbox" data-vbd="applyHints"${applyHints ? ' checked' : ''}>
-            <span>${tr('vrsBatchApplyHintsLabel', { hints: [hints.bpm ? hints.bpm + ' BPM' : '', hints.bars ? tr('vrsBatchBarsN', { n: hints.bars }) : ''].filter(Boolean).join(', '), file: escapeHtml(hintFile.name) })}</span>
+        ${opts.withSilent ? `
+          <label class="vrs-batch-check vrs-batch-silent-all">
+            <input type="checkbox" data-vbd="silentAll"${silentAll ? ' checked' : ''}>
+            <span>${tr('vrsBatchSilentAllLabel')}</span>
           </label>
-          ${sectionHasFile ? `<div class="hint-inline">${tr('vrsBatchHintsSectionHasFiles')}</div>` : ''}
-        ` : ''}
-        ${nIntro ? `
-          <div class="vrs-batch-group">
-            <div class="vrs-batch-group-head"><strong>${tr('introShortLabel')}</strong>${introTaken ? `<span class="hint-inline">${tr('vrsBatchReplacesCurrent')}</span>` : ''}${introHintText() ? `<span class="hint-inline">${tr('vrsBatchIntroHints', { hints: introHintText() })}</span>` : ''}</div>
-            ${fileRowsHtml('intro')}
-          </div>` : ''}
-        ${pools.map((p, i) => `
+          <div class="hint-inline">${tr('vrsBatchSilentHint')}</div>` : ''}
+        ${(opts.checks || []).map(c => `
+          <label class="vrs-batch-check">
+            <input type="checkbox" data-vbd-check="${c.id}"${checks[c.id] ? ' checked' : ''}>
+            <span>${c.text}</span>
+          </label>
+          ${c.note ? `<div class="hint-inline">${c.note}</div>` : ''}`).join('')}
+        ${fixedGroupHtml('intro', tr('introShortLabel'), opts.introTaken, introHints ? `<span class="hint-inline">${tr('vrsBatchIntroHints', { hints: introHints })}</span>` : '')}
+        ${groups.map(g => `
           <div class="vrs-batch-group">
             <div class="vrs-batch-group-head">
-              <input type="text" data-vbd-pool-label="${p.id}" value="${escapeAttr(p.label)}" placeholder="${tr('poolNamePlaceholder')}">
-              <label class="vrs-batch-check"><input type="checkbox" data-vbd-pool-silent="${p.id}"${p.silent ? ' checked' : ''}><span>${tr('vrsBatchSilentPoolLabel')}</span></label>
+              <input type="text" data-vbd-group-label="${g.id}" value="${escapeAttr(g.label)}" placeholder="${tr(isSfx ? 'batchSfxNamePlaceholder' : 'poolNamePlaceholder')}">
+              ${opts.withSilent ? `<label class="vrs-batch-check"><input type="checkbox" data-vbd-group-silent="${g.id}"${g.silent ? ' checked' : ''}><span>${tr('vrsBatchSilentPoolLabel')}</span></label>` : ''}
             </div>
-            ${fileRowsHtml(p.id)}
+            ${fileRowsHtml(g.id)}
           </div>`).join('')}
-        ${nOutro ? `
-          <div class="vrs-batch-group">
-            <div class="vrs-batch-group-head"><strong>${tr('outroShortLabel')}</strong>${outroTaken ? `<span class="hint-inline">${tr('vrsBatchReplacesCurrent')}</span>` : ''}</div>
-            ${fileRowsHtml('outro')}
-          </div>` : ''}
+        ${fixedGroupHtml('outro', tr('outroShortLabel'), opts.outroTaken)}
         ${filesFor('skip').length ? `
           <div class="vrs-batch-group">
             <div class="vrs-batch-group-head"><strong>${tr('vrsBatchSkippedLabel')}</strong></div>
             ${fileRowsHtml('skip')}
           </div>` : ''}
-        <div class="actions"><button class="btn btn-small" type="button" data-vbd="addPool">${tr('addPoolBtn')}</button></div>
+        <div class="actions"><button class="btn btn-small" type="button" data-vbd="addGroup">${tr(isSfx ? 'addSfx' : 'addPoolBtn')}</button></div>
       </div>
       ${tooMany ? `<div class="hint-inline" style="color:#b45309">${tr('vrsBatchTooManyIntroOutro')}</div>` : ''}
       <div class="actions vrs-batch-actions">
         <button class="btn btn-small" type="button" data-vbd="cancel">${tr('cancel')}</button>
-        <button class="btn btn-small btn-primary" type="button" data-vbd="confirm"${tooMany || !files.some(f => dest.get(f) !== 'skip') ? ' disabled' : ''}>${tr('vrsBatchConfirmBtn')}</button>
+        <button class="btn btn-small btn-primary" type="button" data-vbd="confirm"${tooMany || !files.some(f => dest.get(f) !== 'skip') ? ' disabled' : ''}>${opts.confirmLabel}</button>
       </div>
     `;
   }
   modal.addEventListener('change', e => {
     const t = e.target;
     if (t.dataset.vbdFile !== undefined) { dest.set(files[+t.dataset.vbdFile], t.value); render(); }
-    else if (t.dataset.vbd === 'silentAll') { silentAll = t.checked; pools.forEach(p => { p.silent = silentAll; }); render(); }
-    else if (t.dataset.vbd === 'applyHints') applyHints = t.checked;
-    else if (t.dataset.vbdPoolSilent) { const p = pools.find(x => x.id === t.dataset.vbdPoolSilent); if (p) p.silent = t.checked; }
-    else if (t.dataset.vbdPoolLabel) render(); // met à jour les noms dans les menus déroulants
+    else if (t.dataset.vbd === 'silentAll') { silentAll = t.checked; groups.forEach(g => { g.silent = silentAll; }); render(); }
+    else if (t.dataset.vbdCheck) checks[t.dataset.vbdCheck] = t.checked;
+    else if (t.dataset.vbdGroupSilent) { const g = groups.find(x => x.id === t.dataset.vbdGroupSilent); if (g) g.silent = t.checked; }
+    else if (t.dataset.vbdGroupLabel) render(); // met à jour les noms dans les menus déroulants
   });
   modal.addEventListener('input', e => {
-    const id = e.target.dataset.vbdPoolLabel;
-    if (id) { const p = pools.find(x => x.id === id); if (p) p.label = e.target.value; }
+    const id = e.target.dataset.vbdGroupLabel;
+    if (id) { const g = groups.find(x => x.id === id); if (g) g.label = e.target.value; }
   });
   modal.addEventListener('click', e => {
     const a = e.target.closest('[data-vbd]');
     if (!a || a.tagName === 'INPUT') return;
     if (a.dataset.vbd === 'cancel') close();
-    else if (a.dataset.vbd === 'addPool') { pools.push({ id: genId(), label: '', silent: silentAll }); render(); }
-    else if (a.dataset.vbd === 'confirm') { applyVrsBatchDrop(track, section, files, dest, pools, applyHints ? hints : null); close(); }
+    else if (a.dataset.vbd === 'addGroup') { groups.push({ id: genId(), label: '', silent: silentAll }); render(); }
+    else if (a.dataset.vbd === 'confirm') {
+      close();
+      opts.onConfirm({
+        groups: groups.map(g => ({ label: (g.label || '').trim(), silent: !!g.silent, files: filesFor(g.id) })).filter(g => g.files.length),
+        intro: filesFor('intro')[0] || null,
+        outro: filesFor('outro')[0] || null,
+        checks
+      });
+    }
   });
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
   render();
 }
 
-function applyVrsBatchDrop(track, section, files, dest, pools, hints) {
+// Petite fenêtre de confirmation seule (sans regroupement) : tempo/mesures repérés lors d'un dépôt groupé
+// dans les modes Vertical et Vertical branching. checks : [{ id, text, checked }] ; onConfirm({ id: bool }).
+function openHintsConfirmDialog(title, checks, onConfirm) {
+  const state = {};
+  checks.forEach(c => { state[c.id] = c.checked !== false; });
+  const overlay = document.createElement('div');
+  overlay.className = 'vrs-batch-overlay';
+  overlay.innerHTML = `
+    <div class="vrs-batch-modal">
+      <h3>${escapeHtml(title)}</h3>
+      <div class="hint-inline">${tr('hintsConfirmSub')}</div>
+      <div class="vrs-batch-body">
+        ${checks.map(c => `<label class="vrs-batch-check"><input type="checkbox" data-hc="${c.id}"${state[c.id] ? ' checked' : ''}><span>${c.text}</span></label>`).join('')}
+      </div>
+      <div class="actions vrs-batch-actions">
+        <button class="btn btn-small" type="button" data-hc-btn="cancel">${tr('hintsConfirmSkip')}</button>
+        <button class="btn btn-small btn-primary" type="button" data-hc-btn="ok">${tr('hintsConfirmApply')}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('change', e => { if (e.target.dataset.hc) state[e.target.dataset.hc] = e.target.checked; });
+  overlay.addEventListener('click', e => {
+    const b = e.target.closest('[data-hc-btn]');
+    if (e.target === overlay || (b && b.dataset.hcBtn === 'cancel')) { overlay.remove(); return; }
+    if (b && b.dataset.hcBtn === 'ok') { overlay.remove(); onConfirm(state); }
+  });
+}
+
+// -- Pools d'une section vertical-random --
+function openVrsBatchDropDialog(track, section, files) {
+  const guess = groupFilesByNameFamily(files, true);
+  // Tempo/mesures repérés dans un nom ("Main Perc_120BPM_16M.wav") : proposés pour la section, cochés
+  // d'office seulement si la section n'a encore aucun fichier (on n'écrase pas un réglage déjà fait).
+  const sectionHasFile = (section.pools || []).some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile));
+  const found = firstFilenameHints(files);
+  openGroupedDropDialog({
+    files, groupKind: 'pool', withIntroOutro: true, withSilent: true,
+    title: tr('vrsBatchTitle', { section: section.label || tr('untitledFallback') }),
+    groups: guess.groups, intro: guess.intro, outro: guess.outro,
+    introTaken: !!(track.intro && (track.intro.pendingFile || track.intro.remoteFile)),
+    outroTaken: !!(track.outro && (track.outro.pendingFile || track.outro.remoteFile)),
+    checks: found ? [{
+      id: 'hints', checked: !sectionHasFile,
+      text: tr('vrsBatchApplyHintsLabel', { hints: hintsText(found.hints), file: escapeHtml(found.file.name) }),
+      note: sectionHasFile ? tr('vrsBatchHintsSectionHasFiles') : ''
+    }] : [],
+    confirmLabel: tr('vrsBatchConfirmBtn'),
+    onConfirm: res => applyVrsBatchDrop(track, section, files, res, res.checks.hints ? found.hints : null)
+  });
+}
+
+function applyVrsBatchDrop(track, section, files, res, hints) {
   const hasFile = a => !!(a.pendingFile || a.remoteFile);
   if (!section.pools) section.pools = [];
   // Pools "vierges" laissés par la création de la section (+ Section / + Pool : sans nom ni fichier) --
   // retirés pour ne pas laisser un pool fantôme à côté de ceux qu'on crée. Aucun fichier distant en jeu.
   section.pools = section.pools.filter(p => (p.label || '').trim() || (p.alternatives || []).some(hasFile));
   const touched = [];
-  pools.forEach(p => {
-    const list = files.filter(f => dest.get(f) === p.id);
-    if (!list.length) return;
-    const label = (p.label || '').trim();
-    let target = label ? section.pools.find(sp => vrsNormKey(sp.label) === vrsNormKey(label)) : null;
+  res.groups.forEach(g => {
+    let target = g.label ? section.pools.find(sp => nameFamilyKey(sp.label) === nameFamilyKey(g.label)) : null;
     if (target) {
       if (!target.alternatives) target.alternatives = [];
       // Pool nommé à l'avance mais encore sans aucun fichier : ses emplacements vides d'origine sont des
       // attentes de fichier, pas des silences voulus -- remplacés par les fichiers déposés.
       if (!target.alternatives.some(hasFile)) target.alternatives = [];
     } else {
-      target = { id: genId(), label, avoidImmediateRepeat: true, alternatives: [] };
+      target = { id: genId(), label: g.label, avoidImmediateRepeat: true, alternatives: [] };
       section.pools.push(target);
     }
-    list.forEach(f => target.alternatives.push({ label: titleFromFilenameStrippingHints(f.name), remoteFile: null, pendingFile: f }));
-    if (p.silent && !target.alternatives.some(a => !hasFile(a))) target.alternatives.push({ label: tr('vrsSilentAltLabel'), remoteFile: null, pendingFile: null });
-    touched.push(...list);
+    g.files.forEach(f => target.alternatives.push({ label: titleFromFilenameStrippingHints(f.name), remoteFile: null, pendingFile: f }));
+    if (g.silent && !target.alternatives.some(a => !hasFile(a))) target.alternatives.push({ label: tr('vrsSilentAltLabel'), remoteFile: null, pendingFile: null });
+    touched.push(...g.files);
   });
-  const introFile = files.find(f => dest.get(f) === 'intro');
-  if (introFile) {
-    const h = parseAudioFilenameHints(introFile.name);
-    track.intro.pendingFile = introFile;
-    track.intro.label = titleFromFilenameStrippingHints(introFile.name);
+  if (res.intro) {
+    const h = parseAudioFilenameHints(res.intro.name);
+    track.intro.pendingFile = res.intro;
+    track.intro.label = titleFromFilenameStrippingHints(res.intro.name);
     if (h.bars) track.intro.bars = h.bars;
     if (h.bpm) track.intro.bpm = h.bpm;
   }
-  const outroFile = files.find(f => dest.get(f) === 'outro');
-  if (outroFile) {
-    track.outro.pendingFile = outroFile;
-    track.outro.label = titleFromFilenameStrippingHints(outroFile.name);
+  if (res.outro) {
+    track.outro.pendingFile = res.outro;
+    track.outro.label = titleFromFilenameStrippingHints(res.outro.name);
   }
   if (hints) {
     if (hints.bpm) section.bpm = hints.bpm;
@@ -5174,7 +5274,59 @@ function applyVrsBatchDrop(track, section, files, dest, pools, hints) {
     if (maxDur > (section.duration || 0)) { section.duration = maxDur; renderLibrary(); }
     if (maxDur > (track.duration || 0)) track.duration = maxDur;
   });
-  [introFile, outroFile].filter(Boolean).forEach(f => probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } }));
+  [res.intro, res.outro].filter(Boolean).forEach(f => probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } }));
+}
+
+// -- Bibliothèque Sfx : un Sfx par famille de noms, ses fichiers en variations round-robin --
+// Un Sfx déjà présent avec le même titre est complété plutôt que dupliqué.
+function openSfxBatchDropDialog(files) {
+  const guess = groupFilesByNameFamily(files, false);
+  openGroupedDropDialog({
+    files, groupKind: 'sfx', withIntroOutro: false, withSilent: false,
+    title: tr('batchSfxTitle'), groups: guess.groups,
+    confirmLabel: tr('batchSfxConfirmBtn'),
+    onConfirm: res => {
+      let lastId = null;
+      res.groups.forEach((g, i) => {
+        const title = g.label || tr('sfxFallback', { n: sfxLibrary.length + 1 });
+        let sfx = sfxLibrary.find(s => nameFamilyKey(s.title) === nameFamilyKey(title));
+        if (!sfx) {
+          sfx = { id: genId(), title, descriptionFr: '', descriptionEn: '', rrMode: 'random', duckMainTrack: false, alternatives: [], folderId: null };
+          sfxLibrary.push(sfx);
+        }
+        g.files.forEach(f => sfx.alternatives.push({ label: titleFromFilename(f.name), remoteFile: null, pendingFile: f }));
+        lastId = sfx.id;
+      });
+      if (lastId) { manageSfxSelectedId = lastId; sfxSelectedEntry.set(lastId, 'variations'); }
+      hasUnsavedEdits = true;
+      trackBackstageEvent('sfx_batch_add', { count: res.groups.length });
+      renderSfxLibrary();
+    }
+  });
+}
+
+// -- Modes Vertical (couches) et Vertical branching : tempo/mesures repérés dans les noms déposés --
+// Réglages du MORCEAU entier (pas d'un seul fichier) : toujours soumis à confirmation. Admin seulement
+// tant que Jules-Antoine n'a pas donné son feu vert.
+function offerTrackTempoFromFilenames(track, files, withLoopBars) {
+  if (!currentUserIsAdmin) return;
+  const found = firstFilenameHints(files);
+  if (!found) return;
+  const h = found.hints;
+  const checks = [];
+  if (h.bpm && h.bpm !== track.bpm) checks.push({ id: 'bpm', text: tr('hintsConfirmTrackBpm', { bpm: h.bpm, file: escapeHtml(found.file.name) }) });
+  if (withLoopBars && h.bars) checks.push({ id: 'bars', text: tr('hintsConfirmTrackLoopBars', { n: h.bars, file: escapeHtml(found.file.name) }) });
+  if (!checks.length) return;
+  openHintsConfirmDialog(tr('hintsConfirmTitle'), checks, state => {
+    if (state.bpm) { track.bpm = h.bpm; if (!track.beatsPerBar) track.beatsPerBar = 4; }
+    if (state.bars) {
+      track.loopEngine = 'quantized';
+      if (!track.beatsPerBar) track.beatsPerBar = 4;
+      track.loopOutBeat = (track.loopInBeat || 0) + h.bars * track.beatsPerBar;
+    }
+    hasUnsavedEdits = true;
+    renderLibrary();
+  });
 }
 
 function buildPreviewTrack(track) {
@@ -5896,6 +6048,9 @@ function renderLibrary() {
             ${isDuplicate ? `
               <div class="hint-inline">${tr('sectionDuplicateHint', { label: escapeAttr((sourceSection && sourceSection.label) || tr('untitledFallback')) })}</div>
             ` : `
+              <label data-help="vrsSectionBatchDrop" style="margin-top:14px">${tr('vrsSectionBatchDropLabel')}${!currentUserIsAdmin ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}</label>
+              <div class="hint-inline">${tr('vrsSectionBatchDropHint')}</div>
+              <div data-role="vrsSectionDrop" class="${currentUserIsAdmin ? '' : 'is-disabled'}" style="margin-top:6px">${tr('dropAllFilesHint')}</div>
               <label data-help="bpmMeasuresVerticalRandom" style="margin-top:14px">${tr('bpmMeasuresLabel')}</label>
               <div class="row" style="margin-top:8px">
                 <div><label>${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-section-field="bpm" data-ti="${ti}" data-si="${sci}" value="${sectionBpm}"></div>
@@ -5910,9 +6065,6 @@ function renderLibrary() {
                 ${[1,2,3,5,10].map(n => `<option value="${n}"${section.maxLoops === n ? ' selected' : ''}>${n}</option>`).join('')}
               </select>
               <div class="hint-inline">${tr('loopCountVisitorHint')}</div>
-              <label data-help="vrsSectionBatchDrop" style="margin-top:14px">${tr('vrsSectionBatchDropLabel')}${!currentUserIsAdmin ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}</label>
-              <div class="hint-inline">${tr('vrsSectionBatchDropHint')}</div>
-              <div data-role="vrsSectionDrop" class="${currentUserIsAdmin ? '' : 'is-disabled'}" style="margin-top:6px">${tr('dropAllFilesHint')}</div>
               <label data-help="vrsPools" style="margin-top:14px">${tr('vrsPoolsLabel')}</label>
               <div data-role="vrsPools"></div>
               <div class="actions"><button class="btn btn-small" data-action="add-pool" data-ti="${ti}" data-si="${sci}">${tr('addPoolBtn')}</button></div>
@@ -5927,6 +6079,9 @@ function renderLibrary() {
           // Dépôt groupé de la section (25/09) -- réservé à l'admin tant que Jules-Antoine ne l'a pas validé.
           const sectionDropHost = sectionEl.querySelector('[data-role="vrsSectionDrop"]');
           if (sectionDropHost && currentUserIsAdmin) wireBatchDrop(sectionDropHost, files => openVrsBatchDropDialog(track, section, files));
+          // Zone grisée : on avale quand même le dépôt, sinon le navigateur ouvrirait le fichier et quitterait
+          // la page (modifications non enregistrées perdues).
+          else if (sectionDropHost) ['dragover', 'drop'].forEach(ev => sectionDropHost.addEventListener(ev, e => e.preventDefault()));
 
           const poolsHost = sectionEl.querySelector('[data-role="vrsPools"]');
           section.pools.forEach((pool, pi) => {
@@ -6214,8 +6369,12 @@ function renderLibrary() {
           }
         });
         wireBatchDrop(modeMasterHost, files => {
+          // Mesures de chaque boucle lues dans son nom ("_16M", 25/09) : propres à ce fichier, donc appliquées
+          // directement ; le tempo du morceau, lui, passe par une confirmation (offerTrackTempoFromFilenames).
+          // Admin seulement pour l'instant.
           const pushedLoops = files.map((f, idx) => {
-            const newLoop = { id: genId(), label: titleFromFilename(f.name), bars: 8, isInitial: track.loops.length === 0 && idx === 0, remoteFile: null, pendingFile: f, switchQuantize: 'immediate', autoReturnEnabled: false, autoReturnValue: 4, autoReturnUnit: 'bars', detourMode: 'once', endLoopButtonLabel: '', isDetour: false, cutStyle: 'fade', customCutFadeSec: null, transition: null };
+            const fileBars = currentUserIsAdmin ? parseAudioFilenameHints(f.name).bars : null;
+            const newLoop = { id: genId(), label: currentUserIsAdmin ? titleFromFilenameStrippingHints(f.name) : titleFromFilename(f.name), bars: fileBars || 8, isInitial: track.loops.length === 0 && idx === 0, remoteFile: null, pendingFile: f, switchQuantize: 'immediate', autoReturnEnabled: false, autoReturnValue: 4, autoReturnUnit: 'bars', detourMode: 'once', endLoopButtonLabel: '', isDetour: false, cutStyle: 'fade', customCutFadeSec: null, transition: null };
             track.loops.push(newLoop);
             return newLoop;
           });
@@ -6227,6 +6386,7 @@ function renderLibrary() {
           pushedLoops.forEach((newLoop, i) => {
             probeAudioDuration(files[i]).then(dur => { newLoop.duration = dur; renderLibrary(); });
           });
+          offerTrackTempoFromFilenames(track, files, false);
         });
         wireArrayDragReorder(modeMasterHost, 'seq-master-item', () => track.loops, () => renderLibrary());
         // "+ Boucle" vit désormais à la suite des boucles nommées, même correctif (20/08).
@@ -6264,8 +6424,9 @@ function renderLibrary() {
           const emptyLayers = track.layers.filter(l => !l.pendingFile && !l.remoteFile);
           const touchedLayers = files.map((f, idx) => {
             const target = emptyLayers[idx];
-            if (target) { target.pendingFile = f; target.label = titleFromFilename(f.name); return target; }
-            const newLayer = { id: genId(), label: titleFromFilename(f.name), remoteFile: null, pendingFile: f };
+            const layerLabel = currentUserIsAdmin ? titleFromFilenameStrippingHints(f.name) : titleFromFilename(f.name);
+            if (target) { target.pendingFile = f; target.label = layerLabel; return target; }
+            const newLayer = { id: genId(), label: layerLabel, remoteFile: null, pendingFile: f };
             track.layers.push(newLayer);
             return newLayer;
           });
@@ -6275,6 +6436,7 @@ function renderLibrary() {
           touchedLayers.forEach((layer, i) => {
             probeAudioDuration(files[i]).then(dur => { layer.duration = dur; recomputeTrackDuration(track); renderLibrary(); });
           });
+          offerTrackTempoFromFilenames(track, files, true);
         });
         wireArrayDragReorder(modeMasterHost, 'seq-master-item', () => track.layers, () => renderLibrary());
         // "+ Couche" vit désormais à la suite des couches, même correctif (20/08).
@@ -6384,7 +6546,7 @@ function renderLibrary() {
       // montés en en-tête juste au-dessus) -- aucun nouveau champ de données, juste un déplacement.
       slotsMasterHost.appendChild(seqMasterItem('trackinfo', `
         <div class="seq-master-item-label">${tr('seqTrackInfoLabel')}</div>
-        <div class="seq-master-item-tags"><span class="seq-master-item-tag">${bpm} BPM</span><span class="seq-master-item-tag">${track.maxChainLoops ? tr('seqCyclesFinite', { n: track.maxChainLoops }) : tr('seqCyclesInfinite')}</span></div>
+        <div class="seq-master-item-tags"><span class="seq-master-item-tag">${bpm} BPM</span><span class="seq-master-item-tag">${track.maxChainLoops ? tr('seqCyclesFinite', { n: track.maxChainLoops }) : tr('seqCyclesInfinite')}</span>${track.randomizeSections ? `<span class="seq-master-item-tag">${tr('seqSlotOrderRandomTag')}</span>` : ''}</div>
       `));
       if (selectedSi === 'trackinfo') {
         const infoEl = document.createElement('div');
@@ -6393,6 +6555,12 @@ function renderLibrary() {
             <div><label>${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-field="bpm" data-ti="${ti}" value="${bpm}"></div>
             <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" data-field="beatsPerBar" data-ti="${ti}" value="${beatsPerBar}"></div>
           </div>
+          <label data-help="seqSlotOrder" style="margin-top:10px">${tr('seqSlotOrderLabel')}${!currentUserIsAdmin ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}</label>
+          <select data-field="seqSlotOrder" data-ti="${ti}"${currentUserIsAdmin ? '' : ' disabled'}>
+            <option value="ordered"${!track.randomizeSections ? ' selected' : ''}>${tr('seqSlotOrderOrdered')}</option>
+            <option value="random"${track.randomizeSections ? ' selected' : ''}>${tr('seqSlotOrderRandom')}</option>
+          </select>
+          <div class="hint-inline">${tr('seqSlotOrderHint')}</div>
           <label data-help="maxChainLoops" style="margin-top:10px">${tr('maxChainLoopsLabel')}</label>
           <select data-field="maxChainLoops" data-ti="${ti}">
             <option value=""${!track.maxChainLoops ? ' selected' : ''}>${tr('infiniteLoops')}</option>
@@ -6941,6 +7109,7 @@ function renderSfxLibrary() {
       <label data-help="sfxAlternatives">${tr('sfxAlternativesLabel')}</label>
       <div class="hint-inline">${tr('sfxAlternativesHint')}</div>
       <div class="hint-inline">${tr('altDropHint')}</div>
+      <div data-role="sfxVariationsDrop" style="margin-top:8px">${tr('dropAllFilesHint')}</div>
       <div style="margin-top:8px">${altPoolToggleHtml(`sfxpool:${sfx.id}`, sfx.alternatives.length)}</div>
       <div class="list-block-body alt-pool-panel${expandedAltPoolKeys.has(`sfxpool:${sfx.id}`) ? '' : ' collapsed'}" data-role="altPoolBody" style="margin-top:8px">
         <div data-role="sfxAlternatives" data-si="${si}"></div>
@@ -6971,11 +7140,14 @@ function renderSfxLibrary() {
     });
     // Glisser-déposer l'ensemble des variations RR d'un coup — même mécanisme que les groupes
     // vertical-random et les emplacements séquentiels (wireBatchDrop), une alternative créée par fichier.
-    wireBatchDrop(altsHost, files => {
+    const addSfxVariations = files => {
       files.forEach(f => sfx.alternatives.push({ label: titleFromFilename(f.name), remoteFile: null, pendingFile: f }));
       hasUnsavedEdits = true;
       renderSfxLibrary();
-    });
+    };
+    wireBatchDrop(altsHost, addSfxVariations);
+    // Zone toujours visible (25/09) : celle de la liste ci-dessous disparaît quand le panneau est replié.
+    wireBatchDrop(entryDetailHost.querySelector('[data-role="sfxVariationsDrop"]'), addSfxVariations);
   }
 }
 
@@ -7333,6 +7505,15 @@ document.getElementById('btnAddSfx').addEventListener('click', () => {
   trackBackstageEvent('sfx_add', {});
   renderSfxLibrary();
 });
+(function wireSfxLibraryDrop() {
+  const host = document.getElementById('sfxLibraryDrop');
+  if (!host) return;
+  // Le statut admin n'est connu qu'après coup (RPC) : vérifié au moment du dépôt. Pour un non-admin, le
+  // dépôt est avalé sans effet (sinon le navigateur ouvrirait le fichier et quitterait la page).
+  wireBatchDrop(host, files => { if (currentUserIsAdmin) openSfxBatchDropDialog(files); });
+  host.addEventListener('dragover', e => { if (!currentUserIsAdmin) host.classList.remove('drag-over'); });
+  host.addEventListener('drop', e => e.preventDefault());
+})();
 document.getElementById('btnAddSfxFolder').addEventListener('click', () => {
   sfxFolders.push({ id: genId(), label: tr('defaultOrgFolderLabel', { n: sfxFolders.length + 1 }) });
   hasUnsavedEdits = true;
@@ -7718,6 +7899,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     else if (field === 'outroDescriptionFr') { library[ti].outro.descriptionFr = e.target.value; }
     else if (field === 'outroDescriptionEn') { library[ti].outro.descriptionEn = e.target.value; }
     else if (field === 'randomizeSections') { library[ti].randomizeSections = e.target.checked; }
+    else if (field === 'seqSlotOrder') { library[ti].randomizeSections = e.target.value === 'random'; renderLibrary(); }
     else if (field === 'description') library[ti].description = e.target.value;
     else if (field === 'tags') library[ti].tags = e.target.value;
     else if (field === 'implementationNote') library[ti].implementationNote = e.target.value;
@@ -8319,7 +8501,9 @@ function describeSequential(track) {
     ? (allSlots.find(s2 => s2.id === sl.referencesSlotId) || {}).alternatives?.some(a => a.remoteFile || a.pendingFile)
     : (sl.alternatives || []).some(a => a.remoteFile || a.pendingFile));
   if (playableSlots.length) {
-    lines.push(`${playableSlots.length} emplacement(s), enchaînés dans cet ordre, en boucle sur eux-mêmes :`);
+    lines.push(track.randomizeSections
+      ? `${playableSlots.length} emplacement(s), joués à chaque tour dans un ordre mélangé (brassage complet — chacun joue exactement une fois par tour, jamais deux fois de suite à la jonction de deux tours) :`
+      : `${playableSlots.length} emplacement(s), enchaînés dans cet ordre, en boucle sur eux-mêmes :`);
     playableSlots.forEach((sl, si) => {
       const slotLabel = sl.label || `Emplacement ${si + 1}`;
       const repeatNote = (sl.repeatCount && sl.repeatCount > 1) ? ` Rejoue ${sl.repeatCount} fois (nouvelle alternative tirée à chaque fois) avant de passer au suivant.` : '';
@@ -8428,6 +8612,7 @@ function buildTrackSheetJson(track) {
       };
     });
   } else if (track.mode === 'sequential') {
+    json.randomizeSlots = !!track.randomizeSections;
     json.intro = (track.intro && (track.intro.remoteFile || track.intro.pendingFile)) ? { label: track.intro.label || '', bars: track.intro.bars || 8 } : null;
     json.segmentSlots = (track.segmentSlots || []).map((sl, si) => {
       const base = { order: si, label: sl.label || '', repeatCount: sl.repeatCount || 1 };

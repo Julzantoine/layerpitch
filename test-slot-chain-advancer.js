@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const src = fs.readFileSync(path.join(__dirname, 'player.js'), 'utf-8');
-const startMarker = 'function advanceChainIndex(index, n, chainState, maxChainLoops) {';
+const startMarker = 'function advanceChainIndex(index, n, chainState, maxChainLoops, randomize) {';
 const startIdx = src.indexOf(startMarker);
 if (startIdx === -1) throw new Error('advanceChainIndex not found in player.js');
 let depth = 0, i = startIdx, started = false;
@@ -69,6 +69,42 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
   idx = advanceChainIndex(idx, 1, chainState, 1); // capReached devient true dès le 1er pas
   advanceChainIndex(idx, 1, chainState, 1); // un pas de plus sans que l'appelant n'ait remis capReached à false
   check('scénario 5 : capReached reste vrai tant que l\'appelant ne le consomme pas explicitement', chainState.capReached === true);
+}
+
+// ---------------- Scénario 6 : ordre aléatoire (25/09) -- brassage complet par tour ----------------
+{
+  let allToursComplete = true, noJunctionRepeat = true, cyclesOk = true, sawNonNatural = false;
+  for (let run = 0; run < 200; run++) {
+    const chainState = { cyclesCompleted: 0, capReached: false };
+    const n = 4;
+    let idx = advanceChainIndex(-1, n, chainState, null, true);
+    const seq = [idx];
+    for (let k = 1; k < n * 3; k++) { idx = advanceChainIndex(idx, n, chainState, null, true); seq.push(idx); }
+    for (let t = 0; t < 3; t++) {
+      const tour = seq.slice(t * n, t * n + n);
+      if (JSON.stringify(tour.slice().sort()) !== JSON.stringify([0, 1, 2, 3])) allToursComplete = false;
+      if (JSON.stringify(tour) !== JSON.stringify([0, 1, 2, 3])) sawNonNatural = true;
+      if (t > 0 && seq[t * n] === seq[t * n - 1]) noJunctionRepeat = false;
+    }
+    if (chainState.cyclesCompleted !== 2) cyclesOk = false;
+  }
+  check('scénario 6 : chaque tour joue chaque emplacement exactement une fois', allToursComplete);
+  check('scénario 6 : jamais le même emplacement deux fois de suite à la jonction de deux tours', noJunctionRepeat);
+  check('scénario 6 : les tours complets sont comptés (2 jonctions sur 3 tours)', cyclesOk);
+  check('scénario 6 : l\'ordre est bien mélangé (pas toujours 0,1,2,3)', sawNonNatural);
+}
+// ---------------- Scénario 7 : ordre aléatoire + maxChainLoops, et saut d'embranchement ----------------
+{
+  const chainState = { cyclesCompleted: 0, capReached: false };
+  let idx = advanceChainIndex(-1, 3, chainState, 1, true);
+  idx = advanceChainIndex(idx, 3, chainState, 1, true);
+  idx = advanceChainIndex(idx, 3, chainState, 1, true);
+  check('scénario 7 : pas de limite atteinte avant la fin du premier tour', chainState.capReached === false);
+  advanceChainIndex(idx, 3, chainState, 1, true);
+  check('scénario 7 : limite atteinte à la fin du premier tour', chainState.capReached === true);
+  const cs2 = { cyclesCompleted: 0, capReached: false, order: [2, 0, 1] };
+  check('scénario 7 : après un saut direct vers 0, on continue depuis sa place dans le tour', advanceChainIndex(0, 3, cs2, null, true) === 1);
+  check('scénario 7 : sans aléatoire, rien ne change (0 -> 1)', advanceChainIndex(0, 3, { cyclesCompleted: 0 }, null, false) === 1);
 }
 
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));

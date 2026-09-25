@@ -887,13 +887,35 @@ function createSectionPlaybackScheduler(playableSections, options) {
 // la responsabilité du choix d'alternative et du saut des emplacements vides, qui dépendent des buffers
 // audio réels et ne sont donc pas testables de la même façon). Testée isolément dans
 // test-slot-chain-advancer.js.
-function advanceChainIndex(index, n, chainState, maxChainLoops) {
-  const nextIndex = (index + 1) % n;
-  if (nextIndex === 0) {
-    chainState.cyclesCompleted = (chainState.cyclesCompleted || 0) + 1;
-    if (maxChainLoops && chainState.cyclesCompleted >= maxChainLoops) chainState.capReached = true;
+// randomize (25/09, demande de Jules-Antoine -- même réglage track.randomizeSections que le vertical-random) :
+// brassage complet par tour, comme les sections -- chaque emplacement joue une fois par tour, seul l'ordre
+// change. L'ordre du tour en cours vit dans chainState.order ; la position est retrouvée à partir de
+// l'emplacement courant (indexOf) plutôt que stockée, pour rester juste après un saut d'embranchement qui
+// pose currentSlotIndex directement. index = -1 : premier emplacement du tout premier tour (démarrage).
+function advanceChainIndex(index, n, chainState, maxChainLoops, randomize) {
+  if (!randomize) {
+    const nextIndex = (index + 1) % n;
+    if (nextIndex === 0 && index >= 0) {
+      chainState.cyclesCompleted = (chainState.cyclesCompleted || 0) + 1;
+      if (maxChainLoops && chainState.cyclesCompleted >= maxChainLoops) chainState.capReached = true;
+    }
+    return nextIndex;
   }
-  return nextIndex;
+  // Fisher-Yates ; le premier emplacement d'un nouveau tour n'est jamais celui qui vient de finir le
+  // précédent (pas de répétition immédiate à la jonction des tours), dès qu'il y a au moins 2 emplacements.
+  const shuffled = avoidFirst => {
+    const o = Array.from({ length: n }, (_, i) => i);
+    for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = o[i]; o[i] = o[j]; o[j] = t; }
+    if (n > 1 && o[0] === avoidFirst) { const j = 1 + Math.floor(Math.random() * (n - 1)); const t = o[0]; o[0] = o[j]; o[j] = t; }
+    return o;
+  };
+  if (!chainState.order || chainState.order.length !== n) chainState.order = shuffled(-1);
+  const pos = index < 0 ? -1 : chainState.order.indexOf(index);
+  if (pos + 1 < n) return chainState.order[pos + 1];
+  chainState.cyclesCompleted = (chainState.cyclesCompleted || 0) + 1;
+  if (maxChainLoops && chainState.cyclesCompleted >= maxChainLoops) chainState.capReached = true;
+  chainState.order = shuffled(index);
+  return chainState.order[0];
 }
 
 // Style des boutons de triggers d'effets, injecté une seule fois par le lecteur lui-même plutôt que copié
@@ -3399,7 +3421,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       const altIdx = pickSlotAlternativeIndex(slotIdx);
       if (altIdx < 0) {
         // emplacement totalement vide : on l'ignore, on passe au suivant sans consommer de répétition
-        currentSlotIndex = advanceChainIndex(currentSlotIndex, slots.length, chainState, track.maxChainLoops);
+        currentSlotIndex = advanceChainIndex(currentSlotIndex, slots.length, chainState, track.maxChainLoops, !!track.randomizeSections);
         currentSlotRepeatsPlayed = 0;
         continue;
       }
@@ -3413,7 +3435,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       currentSlotRepeatsPlayed++;
       const repeatCount = Math.max(1, slots[slotIdx].repeatCount || 1);
       if (currentSlotRepeatsPlayed >= repeatCount) {
-        currentSlotIndex = advanceChainIndex(currentSlotIndex, slots.length, chainState, track.maxChainLoops);
+        currentSlotIndex = advanceChainIndex(currentSlotIndex, slots.length, chainState, track.maxChainLoops, !!track.randomizeSections);
         currentSlotRepeatsPlayed = 0;
       }
       // Un cycle complet de la chaîne vient d'atteindre la limite maxChainLoops (toutes deux causes
@@ -4419,7 +4441,13 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // Un vrai démarrage (pas une reprise après pause/veille) repart du premier emplacement de la chaîne —
     // la reprise, elle, continue le cycle là où il en était plutôt que de tout redémarrer. La carte globale
     // suit la même règle : un vrai redémarrage efface l'historique de découverte, une reprise le conserve.
-    if (!isContinuation) { currentSlotIndex = 0; chainState = { cyclesCompleted: 0, capReached: false }; seqVisitedSlotIds = new Set(); }
+    if (!isContinuation) {
+      chainState = { cyclesCompleted: 0, capReached: false };
+      // Ordre aléatoire : le premier emplacement est tiré dans le premier tour mélangé, pas forcément le n°1.
+      currentSlotIndex = (track.randomizeSections && (track.segmentSlots || []).length)
+        ? advanceChainIndex(-1, track.segmentSlots.length, chainState, track.maxChainLoops, true) : 0;
+      seqVisitedSlotIds = new Set();
+    }
     const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
     let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain, firstDesc, firstSlotIdx = -1;
     if (!isContinuation && introBuffer) {
