@@ -47,7 +47,23 @@ function lpDeviceType() {
 // Le contexte (quel AdReel ou quel Pack a généré l'événement) est déposé sur `window.__lpTrackContext`
 // par la page hôte (index.html ou pack.html) dès qu'elle connaît son propre identifiant — permet de
 // distinguer dans Umami "le lien envoyé au Studio X" plutôt qu'un compteur global indifférencié.
-function trackPublicEvent(name, detail) {
+// Repères de capture (outil vidéo « Test in game », 25/09) : TOUT ce que l'outil vidéo enregistre passe par cet
+// évènement DOM -- les évènements de télémétrie ci-dessous (trackPublicEvent) ET des repères propres à la capture,
+// jamais envoyés aux statistiques (démarrage de chaque génération d'une boucle, vraie bascule d'un embranchement,
+// reprise après pause...). Chaque repère donne l'instant EXACT (heure du contexte audio) où le son a lieu : `at`, fourni
+// par le moteur quand il programme le son (futur) ou l'annonce après coup (passé), sinon l'heure courante.
+// `at` : heure EXACTE du contexte audio où le son a lieu (horloge du son, pas celle de la page ni de la vidéo) -- l'outil
+// vidéo s'en sert pour caler tous les sons entre eux à l'échantillon près, puis les replace d'un bloc sur la vidéo.
+function captureMark(name, detail) {
+  try {
+    const d = Object.assign({}, detail || {});
+    if (d.at == null) d.at = ctx.currentTime;
+    document.dispatchEvent(new CustomEvent('layerpitch-capture-mark', { detail: { name, detail: d } }));
+  } catch (e) { /* jamais bloquant */ }
+}
+// captureExtra : détails utiles à la seule capture vidéo (jamais envoyés aux statistiques).
+function trackPublicEvent(name, detail, captureExtra) {
+  captureMark(name, captureExtra ? Object.assign({}, detail, captureExtra) : detail);
   try {
     if (!window.umami) return;
     const ctx = window.__lpTrackContext || {};
@@ -526,6 +542,33 @@ const trackCollapsers = {};
 const trackStingerKillers = {};
 let activeTrackId = null;
 
+/* ---------------- Constantes de volume partagées avec le rendu hors-ligne (outil vidéo, 25/09) ----------------
+ * Le rendu d'une capture reproduit les mêmes rampes que le lecteur : elles vivent ici, une seule fois. */
+// Ducking : abaisse brièvement le gain maître du morceau pendant qu'un Sfx réglé pour ça est en train de jouer, puis
+// remonte. Baisse plafonnée à 30 % (DUCK_LEVEL = 0.7) : descente rapide et nette, remontée qui démarre dès la moitié
+// du Sfx et s'étale sur une rampe longue.
+const DUCK_ATTACK_SEC = 0.08;
+const DUCK_RELEASE_SEC = 1.2;
+const DUCK_LEVEL = 0.7;
+const INTENSITY_RAMP_SEC = 1.4; // changement d'intensité (mode vertical)
+const VOICE_RAMP_SEC = 0.15; // muet / solo / volume d'une voix
+// Départ d'un moteur (lecture, reprise, saut, nouveau tirage) : TOUTES ses voix sont programmées sur un même instant, un
+// peu après l'appui (25/09). Lancées « maintenant » une par une, elles partaient en fait décalées de quelques ms entre
+// elles (le temps de préparer les suivantes, l'horloge audio avançait : léger flou rythmique au démarrage).
+const ENGINE_START_LEAD_SEC = 0.03;
+function startSoon() { return ctx.currentTime + ENGINE_START_LEAD_SEC; }
+const SFX_START_LEAD_SEC = 0.02; // départ d'un Sfx de morceau : instant précis, juste après l'appui (voir le bouton Sfx)
+const EMBR_CROSSFADE_SEC = 0.15; // repli par défaut ("fade" standard, sans réglage personnalisé) -- même durée que les voix
+// Durée de fondu à utiliser pour la bascule VERS une boucle d'embranchement (24/08). "hard" = coupure nette (0s,
+// aucune rampe) ; "custom" = valeur réglée sur cette boucle précise ; "fade" (par défaut) ou réglage absent =
+// EMBR_CROSSFADE_SEC.
+function embrCutFadeSec(loopDef) {
+  if (!loopDef) return EMBR_CROSSFADE_SEC;
+  if (loopDef.cutStyle === 'hard') return 0;
+  if (loopDef.cutStyle === 'custom') return loopDef.customCutFadeSec != null ? loopDef.customCutFadeSec : EMBR_CROSSFADE_SEC;
+  return EMBR_CROSSFADE_SEC;
+}
+
 /* ---------------- Journal de prise (Adaptive OST, Figer -- 25/09) ----------------
  * Quand l'enregistrement des prises est activé (setTakeRecording(true) : page fan, onglet Albums -- JAMAIS sur les
  * pages publiques, où rien de tout ceci ne s'exécute), le lecteur note tout ce qu'il fait réellement jouer : chaque
@@ -541,7 +584,8 @@ let takeRecordingEnabled = false;
 const trackTakeReaders = {};
 const _bufferUrls = new WeakMap(); // AudioBuffer décodé -> URL de son fichier publié (rendu hors-ligne)
 const _arrayBufferUrls = new WeakMap(); // octets téléchargés -> URL, le temps du décodage
-const _takeYawLog = []; // [heure du contexte, orientation] -- la tête est commune à toute la page
+const _takeYawLog = [];
+let _hrtfWarmPanner = null; // panoramique binaural créé au chargement, pour que le navigateur charge ses données HRTF d'avance // [heure du contexte, orientation] -- la tête est commune à toute la page
 const TAKE_PARAM_METHODS = { setValueAtTime: 'set', linearRampToValueAtTime: 'lin', exponentialRampToValueAtTime: 'exp', setTargetAtTime: 'tgt', cancelScheduledValues: 'cancel', cancelAndHoldAtTime: 'hold' };
 function journalParam(param) {
   if (!param || param.__lpLog) return;
@@ -1767,7 +1811,7 @@ function sfxSpatialWithVisitor(sfxDef) {
   if (vs.points) out.path = Object.assign({}, sp.path, { points: vs.points });
   return out;
 }
-function connectSfxSource(src, sfxDef, spatialOverride) {
+function connectSfxSource(src, sfxDef, spatialOverride, startTime) {
   const sp0 = sfxDef && sfxDef.spatial;
   if (!sp0 || !sp0.enabled) { src.connect(ctx.destination); return null; }
   try {
@@ -1777,9 +1821,10 @@ function connectSfxSource(src, sfxDef, spatialOverride) {
     const spUsed = spatialOverride ? fxSpatialWithOverride(sp, spatialOverride) : sp;
     const voice = buildSpatialVoice(ctx, spUsed, {
       duration: src.buffer ? src.buffer.duration / ((src.playbackRate && src.playbackRate.value) || 1) : 0,
-      stepKey: sfxDef
+      stepKey: sfxDef, startTime
     });
     src.connect(voice.input);
+    voice.__spUsed = JSON.parse(JSON.stringify(spUsed)); // réglage réellement joué (capture vidéo, journal de prise)
     if (takeRecordingEnabled) journalSpatialVoice(voice, spUsed);
     // Voix en cours de lecture : la matrice publique les déplace / change leur rendu en direct.
     let vset = _activeSpatialVoices.get(sfxDef.id);
@@ -2767,7 +2812,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       const target = base * voiceGain(voiceKey);
       gain.gain.cancelScheduledValues(now);
       gain.gain.setValueAtTime(gain.gain.value, now);
-      gain.gain.linearRampToValueAtTime(target, now + 0.15);
+      gain.gain.linearRampToValueAtTime(target, now + VOICE_RAMP_SEC);
     });
     // Moteur simple (vertical sans moteur quantifié) : les gains vivent dans gains[], pas activeGenSources.
     if (!useQuantizedLoop && gains.length && playing) {
@@ -2777,7 +2822,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         const target = base * voiceGain('layer-' + i);
         g.gain.cancelScheduledValues(now);
         g.gain.setValueAtTime(g.gain.value, now);
-        g.gain.linearRampToValueAtTime(target, now + 0.15);
+        g.gain.linearRampToValueAtTime(target, now + VOICE_RAMP_SEC);
       });
     }
   }
@@ -2887,11 +2932,8 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // Baisse plafonnée à 30% (DUCK_LEVEL = 0.7) : la descente reste rapide et nette, mais la remontée
   // démarre dès la moitié du Sfx et s'étale sur une rampe longue — quitte à se terminer après la fin du
   // Sfx lui-même, plutôt que la remontée courte et collée à la toute fin d'avant.
-  const DUCK_ATTACK_SEC = 0.08;
-  const DUCK_RELEASE_SEC = 1.2;
-  const DUCK_LEVEL = 0.7;
-  function duckMainTrack(sfxDurationSec) {
-    const now = ctx.currentTime;
+  function duckMainTrack(sfxDurationSec, atTime) {
+    const now = atTime != null ? atTime : ctx.currentTime;
     trackMasterGain.gain.cancelScheduledValues(now);
     trackMasterGain.gain.setValueAtTime(trackMasterGain.gain.value, now);
     trackMasterGain.gain.linearRampToValueAtTime(DUCK_LEVEL, now + DUCK_ATTACK_SEC);
@@ -3410,7 +3452,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // sans ça, impossible de savoir quel buffer/gain relancer, ni à quelle position on se trouve réellement
   // dedans (le curseur visuel seul ne suffit pas — il faut aussi la référence temporelle audio exacte).
   let currentSeqBlockInfo = null; // { kind, buffer, gain, totalSec, virtualZero, terminal, slotIdx }
-  function activateSeqStage(kind, remainingSec, totalSec, buffer, gainValue, terminal, slotIdx, gainNode, fromSlotIdx, toSlotIdx) {
+  // startCtxTime : instant AUDIO où ce bloc a démarré (25/09) -- origine exacte de la grille des mesures/temps des
+  // coupures (armNextSeqBranchBoundary). Avant, l'heure de ce rappel (un minuteur, quelques ms en retard) servait
+  // d'origine : les coupures tombaient quelques ms après la vraie barre de mesure.
+  function activateSeqStage(kind, remainingSec, totalSec, buffer, gainValue, terminal, slotIdx, gainNode, fromSlotIdx, toSlotIdx, startCtxTime) {
     // Boule de transition en train de jouer (05/09) : posée uniquement pendant le stade "transition" lui-même,
     // retirée dès que n'importe quel autre stade devient audible (le seul qui suit systématiquement une
     // transition est le "segment" cible, mais un stop/seek peut aussi couper court -- dans tous les cas, plus
@@ -3434,7 +3479,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     });
     const block = seqBlockEls[kind], els = seqWaveEls[kind];
     const startFraction = totalSec > 0 ? Math.max(0, Math.min(1, 1 - (remainingSec / totalSec))) : 0;
-    currentSeqBlockInfo = { kind, buffer, gain: gainValue, gainNode: gainNode || null, totalSec, virtualZero: ctx.currentTime - (startFraction * totalSec), terminal: !!terminal, slotIdx: (slotIdx != null ? slotIdx : -1) };
+    currentSeqBlockInfo = { kind, buffer, gain: gainValue, gainNode: gainNode || null, totalSec, virtualZero: (startCtxTime != null ? startCtxTime : ctx.currentTime) - (startFraction * totalSec), terminal: !!terminal, slotIdx: (slotIdx != null ? slotIdx : -1) };
     // L'indicateur "en attente" reste pertinent quelle que soit la façon dont le choix a été fait (bouton,
     // retiré le 05/09 -- ou nœud de la carte globale) -- rafraîchi à chaque nouveau stade audible.
     updateSeqPendingIndicator();
@@ -4077,7 +4122,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // qu'aucun choix n'est fait). myEpoch protège contre les chaînes héritées d'un passage précédent sur cet
   // emplacement (ou un autre) : si l'epoch global a changé entretemps (nouveau passage, coupure survenue
   // par un autre chemin), cette chaîne s'éteint silencieusement au lieu de continuer à tourner en double.
-  function armNextSeqBranchBoundary(myEpoch) {
+  // afterTime : chercher la frontière qui suit cet instant (au lieu de « maintenant ») -- le minuteur se réveille un peu
+  // AVANT la frontière (ENGINE_START_LEAD_SEC) pour programmer la coupure pile dessus, à l'échantillon près.
+  function armNextSeqBranchBoundary(myEpoch, afterTime) {
     if (myEpoch !== seqBranchEpoch) return;
     if (!currentSeqBlockInfo || currentSeqBlockInfo.kind !== 'segment') return;
     const slotIdx = currentSeqBlockInfo.slotIdx;
@@ -4087,14 +4134,14 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const segStart = currentSeqBlockInfo.virtualZero;
     const timing = slotTiming(slot);
     const unitSec = quant === 'beat' ? timing.secondsPerBeat : (timing.beatsPerBar * timing.secondsPerBeat);
-    const elapsed = Math.max(0, ctx.currentTime - segStart);
+    const elapsed = Math.max(0, (afterTime != null ? afterTime : ctx.currentTime) - segStart);
     const stepsElapsed = Math.floor(elapsed / unitSec + 1e-6);
     const cutTime = segStart + (stepsElapsed + 1) * unitSec; // toujours la PROCHAINE frontière, strictement après maintenant
-    const delayMs = Math.max(0, (cutTime - ctx.currentTime) * 1000);
+    const delayMs = Math.max(0, (cutTime - ENGINE_START_LEAD_SEC - ctx.currentTime) * 1000);
     const id = setTimeout(() => {
       if (myEpoch !== seqBranchEpoch) return; // périmée pendant l'attente (nouveau passage ou coupure survenue par ailleurs)
-      if (pendingNextSegmentId) performSeqBranchCut();
-      else armNextSeqBranchBoundary(myEpoch); // rien choisi à cette frontière : on surveille la suivante
+      if (pendingNextSegmentId) performSeqBranchCut(cutTime);
+      else armNextSeqBranchBoundary(myEpoch, cutTime); // rien choisi à cette frontière : on surveille la suivante
     }, delayMs);
     seqTimeouts.push(id);
   }
@@ -4103,7 +4150,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // de seqActiveSources plus bas), puis bascule vers la cible choisie — via un fichier de transition si l'embranchement
   // en déclare un (rejoue ensuite normalement, chevauchement crossfade-tail classique vers la cible), sinon
   // directement. Schéma "quantization"/"cutStyle"/"transition" validé le 02/08.
-  function performSeqBranchCut() {
+  // atTime : instant exact de la coupure (frontière de mesure / de temps) ; sans lui (quantification « immédiate »), juste
+  // après l'appui.
+  function performSeqBranchCut(atTime) {
     const targetId = pendingNextSegmentId;
     pendingNextSegmentId = null;
     updateSeqPendingIndicator();
@@ -4120,7 +4169,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     goToEndRequested = false;
     if (goToEndBtn) { goToEndBtn.disabled = false; goToEndBtn.textContent = t('goToEndBtn'); }
     const cutStyle = sourceSlot.cutStyle || 'fade';
-    const now = ctx.currentTime;
+    const now = atTime != null ? Math.max(atTime, ctx.currentTime) : startSoon(); // coupure pile sur la frontière (voir armNextSeqBranchBoundary)
     const opt = (sourceSlot.nextOptions || []).find(o => o.targetId === targetId);
     const oi = opt ? sourceSlot.nextOptions.indexOf(opt) : -1;
     applyFxActions(opt && opt.fxActions); // triggers d'effets liés à cette bascule (23/09)
@@ -4131,6 +4180,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // compositeur, `sourceSlot.customCutFadeSec`, en secondes réelles — pas en mesures, un fondu de sortie
     // n'a pas besoin d'être quantifié musicalement comme un segment).
     const fadeOutSec = cutStyle === 'custom' ? (sourceSlot.customCutFadeSec != null ? sourceSlot.customCutFadeSec : 0.15) : 0.15;
+    // Repère de capture : le bloc suivant (transition ou cible) part sur une COUPURE -- l'outil vidéo éteint alors le
+    // bloc quitté comme ici (net ou en fondu), au lieu de le laisser finir sa queue comme dans un enchaînement normal.
+    seqPendingCut = { hard: cutStyle === 'hard', fadeSec: cutStyle === 'hard' ? 0 : fadeOutSec };
     if (currentSeqBlockInfo.gainNode) {
       const g = currentSeqBlockInfo.gainNode;
       g.gain.cancelScheduledValues(now);
@@ -4153,7 +4205,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // (ctxStartTime <= now) n'est jamais concernée ici : elle est déjà en train de s'éteindre via son
     // gainNode juste au-dessus.
     seqActiveSources = seqActiveSources.filter(({ src, ctxStartTime: st }) => {
-      if (st > now) { try { src.stop(); } catch (e) {} return false; }
+      if (st > ctx.currentTime) { try { src.stop(); } catch (e) {} return false; } // pas encore audible : annulé
       return true;
     });
     seqTimeouts.forEach(id => clearTimeout(id)); seqTimeouts = [];
@@ -4161,7 +4213,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       // Repère pour le mode Capture (pack.html, 2026-09-15), même principe que seq_slot_start : contrairement
       // à une génération normale (programmée jusqu'à 1s à l'avance), une coupure part quasi immédiatement --
       // pas de décalage d'anticipation à corriger ici.
-      trackPublicEvent('seq_transition_start', { trackId: track.id, fromSlotId: sourceSlot.id, targetId });
+      seqOutcomeByBuffer.set(transitionBuf, { name: 'seq_transition_start', detail: { trackId: track.id, fromSlotId: sourceSlot.id, targetId } });
       forcedNextBlock = {
         buffer: transitionBuf, label: (opt.transition && opt.transition.label) || t('transitionFallbackLabel'),
         durationSec: transitionDurationSec, terminal: false, kind: 'transition',
@@ -4192,10 +4244,15 @@ function initTrackPlayer(track, wrapper, elementColors) {
       // "" (aucun texte propre à cet élément) laisse volontairement le texte déjà affiché tel quel — voir
       // pickStageDescription().
       if (desc && trackDescEl) trackDescEl.innerHTML = linkify(desc);
-      if (kind) activateSeqStage(kind, (fillDurationSec != null) ? fillDurationSec : buffer.duration, totalDurationSec, buffer, gainValue, terminal, slotIdx, gainNode, fromSlotIdx, toSlotIdx);
+      if (kind) activateSeqStage(kind, (fillDurationSec != null) ? fillDurationSec : buffer.duration, totalDurationSec, buffer, gainValue, terminal, slotIdx, gainNode, fromSlotIdx, toSlotIdx, ctxStartTime);
     }, delayMs);
     seqTimeouts.push(id);
   }
+  // Repères de capture du séquentiel (25/09) : quel évènement annoncer quand un fichier devient audible (renseigné par
+  // celui qui choisit le bloc, relu par scheduleSeqGeneration -- aussi pour une reprise en cours de fichier), et la
+  // coupure en attente d'être signalée par le prochain bloc.
+  const seqOutcomeByBuffer = new Map();
+  let seqPendingCut = null;
   function scheduleSeqGeneration(ctxStartTime, buffer, label, kind, fillDurationSec, gainValue, offsetSec, totalDurationSec, terminal, slotIdx, desc, fromSlotIdx, toSlotIdx) {
     if (!buffer) return;
     const off = offsetSec || 0;
@@ -4222,6 +4279,21 @@ function initTrackPlayer(track, wrapper, elementColors) {
     journalVoice(src, g, fxChain);
     src.start(ctxStartTime, off);
     seqActiveSources.push({ src, gain: g, ctxStartTime });
+    // Télémétrie + repère de capture du bloc, émis au moment où il devient AUDIBLE (pas quand il est programmé,
+    // jusqu'à 1 s plus tôt) : un bloc programmé puis annulé par une coupure (seqTimeouts vidé) n'est jamais annoncé.
+    // Un bloc repris en cours de fichier (saut dans la frise, reprise après pause) n'est qu'un repère de capture :
+    // il ne compte pas une deuxième fois dans les statistiques.
+    const outcome = seqOutcomeByBuffer.get(buffer);
+    const cut = off > 0 ? null : seqPendingCut;
+    if (off <= 0) seqPendingCut = null;
+    if (outcome) {
+      const emitId = setTimeout(() => {
+        const detail = Object.assign({}, outcome.detail, cut ? { cut } : {});
+        if (off > 0) captureMark(outcome.name, Object.assign(detail, { offset: off, resumed: true, at: ctxStartTime }));
+        else trackPublicEvent(outcome.name, detail, { at: ctxStartTime });
+      }, Math.max(0, (ctxStartTime - ctx.currentTime) * 1000));
+      seqTimeouts.push(emitId);
+    }
     seqLastGenSources = [src];
     // Sans durée explicite (cas de l'outro, qui ne programme rien après elle) : on anime le remplissage
     // sur la durée réelle du fichier décodé, seule longueur connue dans ce cas.
@@ -4237,7 +4309,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (outroBuffer) {
         // Repère pour le mode Capture -- l'outro est terminale (rien après), donc sa durée réelle n'a pas
         // besoin d'être anticipée par materializeLayerSegments : elle va jusqu'à la fin de la prise.
-        trackPublicEvent('seq_outro_start', { trackId: track.id });
+        seqOutcomeByBuffer.set(outroBuffer, { name: 'seq_outro_start', detail: { trackId: track.id } });
         return { buffer: outroBuffer, label: (track.outro && track.outro.label) || 'Outro', durationSec: null, terminal: true, kind: 'outro', gain: effGain(track.outro), desc: pickStageDescription(track.outro) };
       }
       return null;
@@ -4255,7 +4327,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // Note : programmé jusqu'à `lookahead` (1s) avant de devenir réellement audible (voir seqSchedulerTick
     // plus bas), donc légèrement en avance sur le son perçu -- acceptable pour une capture, pas pour un
     // minutage sample-accurate.
-    trackPublicEvent('seq_slot_start', { trackId: track.id, slotId: slot.id, altIndex: picked.altIdx });
+    seqOutcomeByBuffer.set(slotBuffers[picked.slotIdx][picked.altIdx], { name: 'seq_slot_start', detail: { trackId: track.id, slotId: slot.id, altIndex: picked.altIdx } });
     return { buffer: slotBuffers[picked.slotIdx][picked.altIdx], label: (alt && alt.label) || (slot.label || ('Emplacement ' + (picked.slotIdx + 1))), durationSec: blockSeconds(alt && alt.bars, slot), terminal: false, kind: 'segment', gain: effGain(alt), slotIdx: picked.slotIdx, desc: pickStageDescription(slot) };
   }
   function armSeqFinalEnd() {
@@ -4296,6 +4368,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     }
   }
   function stopSequential() {
+    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
     seqFinalMarkerSrc = null;
     if (seqSchedulerTimer) { clearInterval(seqSchedulerTimer); seqSchedulerTimer = null; }
     seqActiveSources.forEach(({ src }) => { try { src.stop(); } catch(e){} });
@@ -4328,7 +4401,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // la reprise, elle, continue le cycle là où il en était plutôt que de tout redémarrer. La carte globale
     // suit la même règle : un vrai redémarrage efface l'historique de découverte, une reprise le conserve.
     if (!isContinuation) { currentSlotIndex = 0; chainState = { cyclesCompleted: 0, capReached: false }; seqVisitedSlotIds = new Set(); }
-    const now = ctx.currentTime;
+    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
     let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain, firstDesc, firstSlotIdx = -1;
     if (!isContinuation && introBuffer) {
       // L'intro n'appartient à aucun emplacement — son tempo suit celui du premier emplacement de la
@@ -4338,7 +4411,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars, firstSlot); firstKind = 'intro'; firstGain = effGain(track.intro); firstDesc = pickStageDescription(track.intro);
       // Repère pour le mode Capture -- l'intro ne passe jamais par decideNextSeqBlock() (voir son
       // commentaire pour seq_slot_start), donc pas couverte par ce repère-là : son propre événement.
-      trackPublicEvent('seq_intro_start', { trackId: track.id });
+      seqOutcomeByBuffer.set(introBuffer, { name: 'seq_intro_start', detail: { trackId: track.id } });
     } else {
       const picked = pickNextSegmentSlot();
       if (!picked) { if (statusEl) statusEl.textContent = t('noSegmentAvailable'); return; }
@@ -4346,7 +4419,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       const alt = resolveSlotAlternative(picked.slotIdx, picked.altIdx);
       // Même repère que dans decideNextSeqBlock() ci-dessus, pour le tout premier segment (celui-ci ne
       // passe jamais par decideNextSeqBlock() -- voir le commentaire là-bas pour le raisonnement complet).
-      trackPublicEvent('seq_slot_start', { trackId: track.id, slotId: slot.id, altIndex: picked.altIdx });
+      seqOutcomeByBuffer.set(slotBuffers[picked.slotIdx][picked.altIdx], { name: 'seq_slot_start', detail: { trackId: track.id, slotId: slot.id, altIndex: picked.altIdx } });
       firstBuffer = slotBuffers[picked.slotIdx][picked.altIdx]; firstLabel = (alt && alt.label) || (slot.label || ('Emplacement ' + (picked.slotIdx + 1))); firstDurationSec = blockSeconds(alt && alt.bars, slot); firstKind = 'segment'; firstGain = effGain(alt); firstSlotIdx = picked.slotIdx; firstDesc = pickStageDescription(slot);
     }
     scheduleSeqGeneration(now, firstBuffer, firstLabel, firstKind, firstDurationSec, firstGain, 0, null, false, firstSlotIdx, firstDesc);
@@ -4384,7 +4457,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     goToEndRequested = wasGoToEndRequested;
     pendingNextSegmentId = wasPendingNextSegmentId;
     if (trackDescEl) trackDescEl.innerHTML = descHtml;
-    const now = ctx.currentTime;
+    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
     // Important : on transmet TOUJOURS `remaining` (durée réellement restante après le seek), y compris
     // pour un bloc terminal (l'outro). Le passer à null ici (comme le fait le premier appel normal, sans
     // seek, où l'décalage est de toute façon 0) ferait retomber le calcul du remplissage visuel sur
@@ -4494,6 +4567,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
 
   /* ---- Moteur simple (bouclage natif, comportement existant inchangé) ---- */
   function stopSimple(keepPosition) {
+    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
     if (keepPosition !== false) {
       offsetAt = computeElapsed();
     }
@@ -4505,9 +4579,12 @@ function initTrackPlayer(track, wrapper, elementColors) {
     sources = []; gains = []; layerFxChains = [];
   }
   function playSimple() {
-    startedAt = ctx.currentTime - offsetAt / trackPitchRatio;
+    const nowStart = startSoon(); // toutes les couches sur un même instant (voir startSoon)
+    startedAt = nowStart - offsetAt / trackPitchRatio;
     const p = profiles[level] || profiles[0];
-    const nowStart = ctx.currentTime;
+    // Repère de capture : toutes les couches démarrent ici, à cette position du fichier, en boucle ou non, au niveau
+    // d'intensité en cours (le visiteur a pu le choisir avant d'appuyer sur Lecture).
+    captureMark('layer_run', { trackId: track.id, offset: offsetAt % track.duration, loop: loops ? [0, track.duration] : null, level, at: nowStart });
     for (let i = 0; i < buffers.length; i++) {
       const src = ctx.createBufferSource();
       src.buffer = buffers[i];
@@ -4517,12 +4594,12 @@ function initTrackPlayer(track, wrapper, elementColors) {
       // moteurs qui calculent eux-mêmes "dans x secondes réelles" en JS (voir plus bas dans ce fichier).
       applyTrackPitchRate(src, nowStart, true);
       const g = ctx.createGain();
-      g.gain.setValueAtTime((p[i] || 0) * effGain(layersToLoad[i]) * voiceGain('layer-' + i), ctx.currentTime);
+      g.gain.setValueAtTime((p[i] || 0) * effGain(layersToLoad[i]) * voiceGain('layer-' + i), nowStart);
       const fxChain = buildTargetFxChain('layer:' + i, layersToLoad[i] && layersToLoad[i].fx, src, nowStart);
       if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
       g.connect(trackMasterGain);
       journalVoice(src, g, fxChain);
-      src.start(0, offsetAt % track.duration);
+      src.start(nowStart, offsetAt % track.duration);
       sources[i] = src; gains[i] = g; layerFxChains[i] = fxChain;
       if (isStatic && !loops) {
         const layerIndex = i;
@@ -4590,6 +4667,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
      voir plus bas, puisque son minutage varie section par section plutôt que d'être fixe pour tout le
      morceau. ---- */
   function scheduleGeneration(ctxStartTime, bufferOffset) {
+    // Repère de capture : une nouvelle génération de toutes les couches (moteur quantifié), depuis bufferOffset, au niveau
+    // d'intensité en cours -- programmée jusqu'à 1 s plus tôt (at = son instant de départ). Une génération programmée puis annulée par un
+    // arrêt est effacée par le repère voices_stop qui la précède.
+    captureMark('layer_gen', { trackId: track.id, bufferOffset, level, at: ctxStartTime });
     const thisGenSources = [];
     const p = profiles[level] || profiles[0];
     const gensThisRound = [];
@@ -4669,6 +4750,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     };
   }
   function stopQuantized() {
+    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
     finalGenerationMarkerSrc = null;
     if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
     activeGenSources.forEach(({ src }) => { try { src.stop(); } catch(e){} });
@@ -4678,7 +4760,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   }
   function playQuantized(fromOffsetSec) {
     stopQuantized();
-    const now = ctx.currentTime;
+    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
     scheduleGeneration(now, fromOffsetSec);
     let timeUntilNext;
     if (fromOffsetSec < loopInSec) {
@@ -4716,17 +4798,6 @@ function initTrackPlayer(track, wrapper, elementColors) {
       const l = track.loops[i];
       return 'isDetour' in l ? !l.isDetour : (l.bars === embrRefBars);
     });
-  const EMBR_CROSSFADE_SEC = 0.15; // repli par défaut ("fade" standard, sans réglage personnalisé) -- même durée que refreshVoiceGains()
-  // Durée de fondu à utiliser pour la bascule VERS une boucle donnée (24/08) -- remplace la constante fixe
-  // EMBR_CROSSFADE_SEC utilisée partout jusqu'ici. "hard" = coupure nette (0s, aucune rampe) ; "custom" =
-  // valeur réglée sur cette boucle précise ; "fade" (par défaut) ou réglage absent = repli EMBR_CROSSFADE_SEC,
-  // comportement identique à avant ce changement.
-  function embrCutFadeSec(loopDef) {
-    if (!loopDef) return EMBR_CROSSFADE_SEC;
-    if (loopDef.cutStyle === 'hard') return 0;
-    if (loopDef.cutStyle === 'custom') return loopDef.customCutFadeSec != null ? loopDef.customCutFadeSec : EMBR_CROSSFADE_SEC;
-    return EMBR_CROSSFADE_SEC;
-  }
   // Durée nominale du fichier de transition d'une boucle avant que la boucle cible ne commence réellement
   // à monter (29/08, même mécanisme que transitionDurationSecFor() côté branching séquentiel, décision
   // confirmée par Jules-Antoine, complété le 29/08 avec l'unité "temps" pour rester cohérent avec le
@@ -4769,6 +4840,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     else src.connect(trackMasterGain);
     journalVoice(src, null, fxNeedsComp ? { __lpMeta: { fx: null, force: [], comp: true } } : null);
     src.start(ctxStartTime, 0);
+    embrMark('embr_transition', { loopId: ((track.loops || [])[loopIdx] || {}).id, at: ctxStartTime });
     embrActiveTransitionSources.push(src);
     src.onended = () => {
       const i = embrActiveTransitionSources.indexOf(src);
@@ -4929,6 +5001,11 @@ function initTrackPlayer(track, wrapper, elementColors) {
   function scheduleEmbrGeneration(ctxStartTime, isFirst, offsetOverride) {
     const timing = embrLoopTiming();
     const bufferOffset = offsetOverride != null ? offsetOverride : (isFirst ? timing.startSec : timing.loopInSec);
+    // Repère de capture : nouvelle génération des boucles jumelles (toutes démarrent ensemble, seule la boucle active
+    // est audible).
+    captureMark('embr_gen', { trackId: track.id, bufferOffset, at: ctxStartTime,
+      active: embrActiveLoopIdx >= 0 ? ((track.loops || [])[embrActiveLoopIdx] || {}).id : null,
+      peers: embrPeerIndices.map(i => ((track.loops || [])[i] || {}).id) });
     embrPeerIndices.forEach(idx => {
       const buf = embrLoopBuffers[idx];
       if (!buf) return;
@@ -4977,6 +5054,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const now = ctx.currentTime;
     const activeLoopDef = (track.loops || [])[targetIdx];
     const fadeSec = embrCutFadeSec(activeLoopDef);
+    embrMark('embr_gains', { loopId: activeLoopDef ? activeLoopDef.id : null, fadeSec });
     embrActiveGenSources.forEach(({ gain, loopIdx }) => {
       if (!gain) return;
       gain.gain.cancelScheduledValues(now);
@@ -5005,6 +5083,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     if (sourceIdx < 0) return; // aucune boucle paire active à ce moment (détour en cours, déjà géré par fadeOutCurrentDetour())
     const now = ctx.currentTime;
     const fadeSec = embrCutFadeSec(sourceLoopDef);
+    embrMark('embr_duck', { loopId: sourceLoopDef ? sourceLoopDef.id : null, fadeSec });
     embrActiveGenSources.forEach(({ gain, loopIdx }) => {
       if (!gain || loopIdx !== sourceIdx) return;
       gain.gain.cancelScheduledValues(now);
@@ -5028,7 +5107,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const preservedIdx = embrActiveLoopIdx >= 0 ? embrActiveLoopIdx : embrReferenceIdx;
     stopEmbrVertical();
     embrActiveLoopIdx = preservedIdx;
-    const now = ctx.currentTime;
+    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
     embrReferenceStartCtxTime = now;
     scheduleEmbrGeneration(now, true); // fixe déjà le bon gain (1) sur preservedIdx via embrActiveLoopIdx ci-dessus
     embrNextStartCtxTime = now + embrCycleLengthSec() / trackPitchRatio;
@@ -5049,6 +5128,8 @@ function initTrackPlayer(track, wrapper, elementColors) {
     if (!(cycle > 0) || embrActiveLoopIdx < 0) return;
     const posSec = Math.max(0, Math.min(1, fraction)) * cycle;
     if (embrSchedulerTimer) { clearInterval(embrSchedulerTimer); embrSchedulerTimer = null; }
+    // Repère de capture : seules les générations des boucles jumelles s'arrêtent (transition ou détour éventuels continuent).
+    captureMark('voices_stop', { trackId: track.id, scope: 'embr_gens' });
     embrActiveGenSources.forEach(({ src }) => { try { src.stop(); } catch (e) {} });
     embrActiveGenSources = [];
     // Un seek pendant le segment Départ->Entrée du premier lancement saute directement dans le cycle :
@@ -5057,7 +5138,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       clearTimeout(embrIntroLockTimeout); embrIntroLockTimeout = null;
       embrLoopBtns.forEach(btn => { btn.disabled = false; });
     }
-    const now = ctx.currentTime;
+    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
     embrReferenceStartCtxTime = now - posSec / trackPitchRatio;
     scheduleEmbrGeneration(now, false, timing.loopInSec + posSec);
     embrNextStartCtxTime = now + (cycle - posSec) / trackPitchRatio;
@@ -5068,7 +5149,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     stopEmbrVertical();
     embrActiveLoopIdx = embrReferenceIdx;
     applyFxActions(((track.loops || [])[embrReferenceIdx] || {}).fxActions); // état de départ = celui de la boucle de référence
-    const now = ctx.currentTime;
+    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
     embrReferenceStartCtxTime = now; // point zéro de l'horloge de phase, utilisé par embrQuantizeDelaySec()
     scheduleEmbrGeneration(now, true); // seul appel avec isFirst=true -- démarre à "Départ", pas "Entrée"
     embrNextStartCtxTime = now + embrCycleLengthSec() / trackPitchRatio;
@@ -5091,6 +5172,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     }
   }
   function stopEmbrVertical() {
+    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
     if (embrSchedulerTimer) { clearInterval(embrSchedulerTimer); embrSchedulerTimer = null; }
     if (embrDetourTimeout) { clearTimeout(embrDetourTimeout); embrDetourTimeout = null; }
     if (embrAutoReturnTimeout) { clearTimeout(embrAutoReturnTimeout); embrAutoReturnTimeout = null; }
@@ -5139,6 +5221,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const leavingIdx = embrDetourBtn ? parseInt(embrDetourBtn.dataset.loopIdx, 10) : -1;
     const leavingLoopDef = leavingIdx >= 0 ? (track.loops || [])[leavingIdx] : null;
     const fadeSec = embrCutFadeSec(leavingLoopDef);
+    embrMark('embr_detour_out', { loopId: leavingLoopDef ? leavingLoopDef.id : null, fadeSec });
     dg.gain.cancelScheduledValues(t2);
     dg.gain.setValueAtTime(dg.gain.value, t2);
     if (fadeSec <= 0) dg.gain.setValueAtTime(0, t2);
@@ -5196,7 +5279,26 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // Exécute réellement la bascule vers `idx` -- toute la logique qui existait auparavant directement dans
   // selectEmbrLoop(), désormais appelée soit tout de suite (quantification "immédiat"), soit après le
   // délai calculé par embrQuantizeDelaySec() pour "prochain temps"/"prochaine mesure" (24/08).
+  // Repères de capture de l'embranchement-vertical (25/09) : chaque commande de volume réellement donnée par le moteur
+  // (bascule entre boucles jumelles, baisse de la boucle quittée pendant une transition, entrée/sortie d'un détour,
+  // départ d'une transition) est annoncée à l'outil vidéo au moment où elle a lieu, avec la clé de la bascule qui l'a
+  // provoquée (k) et celle de sa bascule « parente » (pk : un retour automatique suit la bascule qui l'a armé). Déplacer
+  // une bascule sur la frise déplace ainsi tout ce qu'elle a déclenché, et rien d'autre.
+  let embrSwitchSeq = 0, embrMarkKey = null, embrMarkParentKey = null, embrPendingParentKey = null;
+  function embrMark(name, detail) {
+    captureMark(name, Object.assign({ trackId: track.id }, embrMarkKey ? { k: embrMarkKey } : {}, embrMarkParentKey ? { pk: embrMarkParentKey } : {}, detail));
+  }
+  function withEmbrKey(k, pk, fn) {
+    const k0 = embrMarkKey, pk0 = embrMarkParentKey;
+    embrMarkKey = k; embrMarkParentKey = pk;
+    try { return fn(); } finally { embrMarkKey = k0; embrMarkParentKey = pk0; }
+  }
   function performEmbrSwitch(idx) {
+    const swKey = 'sw' + (++embrSwitchSeq), swParent = embrPendingParentKey;
+    embrPendingParentKey = null;
+    return withEmbrKey(swKey, swParent, () => performEmbrSwitchInner(idx, swKey, swParent));
+  }
+  function performEmbrSwitchInner(idx, swKey, swParent) {
     const buf = embrLoopBuffers[idx];
     if (!buf) return;
     const loopDef = (track.loops || [])[idx];
@@ -5231,7 +5333,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       const transDelay = transBuf ? embrTransitionDurationSecFor(loopDef, sourceLoopDef, transBuf) / trackPitchRatio : 0; // temps réel (la transition joue aussi à trackPitchRatio)
       if (transBuf) { playEmbrTransitionIfAny(idx, ctx.currentTime); duckEmbrSourceLoop(embrActiveLoopIdx, sourceLoopDef); }
       if (transBuf) showEmbrTransitionOverlay(embrActiveLoopIdx, idx, transBuf, transDelay);
-      const doSwitch = () => {
+      const doSwitch = () => withEmbrKey(swKey, swParent, () => {
         removeEmbrTransitionOverlay();
         applyFxActions(loopDef && loopDef.fxActions); // triggers d'effets liés à cette boucle (23/09)
         embrActiveLoopIdx = idx;
@@ -5244,11 +5346,12 @@ function initTrackPlayer(track, wrapper, elementColors) {
           if (sec > 0) {
             embrAutoReturnTimeout = setTimeout(() => {
               embrAutoReturnTimeout = null;
+              embrPendingParentKey = swKey; // le retour suit la bascule qui l'a armé (voir embrMark)
               performEmbrSwitch(embrReferenceIdx); // retour direct, sans quantification supplémentaire -- le délai est déjà exprimé en unités musicales
             }, sec * 1000 / trackPitchRatio);
           }
         }
-      };
+      });
       if (transDelay > 0) embrPendingTransitionSwitchTimeout = setTimeout(() => { embrPendingTransitionSwitchTimeout = null; doSwitch(); }, transDelay * 1000);
       else doSwitch();
     } else {
@@ -5268,7 +5371,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       const transDelay = transBuf ? embrTransitionDurationSecFor(loopDef, sourceLoopDef, transBuf) / trackPitchRatio : 0; // temps réel (la transition joue aussi à trackPitchRatio)
       if (transBuf) { playEmbrTransitionIfAny(idx, ctx.currentTime); duckEmbrSourceLoop(embrActiveLoopIdx, sourceLoopDef); }
       if (transBuf) showEmbrTransitionOverlay(embrActiveLoopIdx, idx, transBuf, transDelay);
-      const startDetour = () => {
+      const startDetour = () => withEmbrKey(swKey, swParent, () => {
         removeEmbrTransitionOverlay();
         applyFxActions(loopDef && loopDef.fxActions); // triggers d'effets liés à ce détour (23/09)
         embrActiveLoopIdx = -1; // plus aucune voix "paire" n'est active pendant le détour
@@ -5295,6 +5398,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         }
         journalVoice(src, g, fxChain);
         src.start(now, 0);
+        embrMark('embr_detour_in', { loopId: loopDef && loopDef.id, fadeSec, loop: !!loopsUntilButton });
         embrDetourSource = { src, gain: g };
         embrDetourBtn = btn;
         if (loopsUntilButton) {
@@ -5308,15 +5412,15 @@ function initTrackPlayer(track, wrapper, elementColors) {
           // le même mécanisme que slotTiming()/sectionTiming() ailleurs dans ce fichier, réutilisé tel quel.
           const durationSec = blockSeconds(loopDef && loopDef.bars, loopDef) / trackPitchRatio; // temps réel
           showEmbrDetourWaveRow(buf, durationSec, false);
-          embrDetourTimeout = setTimeout(() => {
+          embrDetourTimeout = setTimeout(() => withEmbrKey(swKey + ':ret', swKey, () => { // fin du détour : suit son départ
             fadeOutCurrentDetour();
             embrActiveLoopIdx = embrReferenceIdx;
             refreshEmbrGains(embrReferenceIdx);
             updateEmbrButtonsUI();
-          }, durationSec * 1000);
+          }), durationSec * 1000);
         }
         updateEmbrButtonsUI();
-      };
+      });
       if (transDelay > 0) embrPendingTransitionSwitchTimeout = setTimeout(() => { embrPendingTransitionSwitchTimeout = null; startDetour(); }, transDelay * 1000);
       else startDetour();
     }
@@ -5408,6 +5512,13 @@ function initTrackPlayer(track, wrapper, elementColors) {
   let vrIsDraggingSeek = false; // pendant un glissement sur le bloc de section actif : le tick() n'écrase pas le remplissage affiché
   let vrSchedulerTimer = null;
   let vrCurrentSectionOriginalIndex = -1; // pour savoir quand la section affichée doit changer (rebuild du graphe)
+  let vrPendingCut = false;
+  function emitVROutcome(name, at, detail) {
+    const cut = vrPendingCut; vrPendingCut = false;
+    voiceGraphTimeouts.push(setTimeout(() => {
+      trackPublicEvent(name, Object.assign({}, detail, cut ? { cut: { hard: true, fadeSec: 0 } } : {}), { at });
+    }, Math.max(0, (at - ctx.currentTime) * 1000)));
+  }
   function scheduleSectionGeneration(ctxStartTime, secIdx, isFirstEverForThisSection, offsetOverride) {
     const section = resolveVRSection(track, secIdx);
     const declaredSection = (track.sections || [])[secIdx];
@@ -5471,7 +5582,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // fonction, donc aussi bien un vrai changement de section qu'un simple bouclage de la section courante
     // OU un seek manuel (seekVerticalRandom réutilise ce même point d'entrée) : les trois sont des moments
     // où de nouvelles sources démarrent réellement, donc trois moments valides à capturer.
-    trackPublicEvent('vr_section_start', {
+    // Émis au moment où le cycle devient AUDIBLE (25/09, comme le séquentiel) : un cycle programmé puis annulé
+    // (nouveau tirage, saut, arrêt -- voiceGraphTimeouts vidé) n'est jamais annoncé. cut : ce cycle remplace net les
+    // sources précédentes (nouveau tirage / saut), au lieu de laisser finir leur queue.
+    emitVROutcome('vr_section_start', ctxStartTime, {
       trackId: track.id, sectionId: (declaredSection && declaredSection.id) || null, sectionIndex: secIdx,
       bufferOffset, picks: telemetryPicks,
     });
@@ -5507,7 +5621,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         activeGenSources.push({ src, gain: g, voiceKey: 'intro', baseGain: effGain(track.intro) });
         lastGenSources = [src];
         scheduledGens.push({ ctxStartTime: vrNextStartCtxTime, bufferOffset: 0, ratio: trackPitchRatio });
-        trackPublicEvent('vr_intro_start', { trackId: track.id });
+        emitVROutcome('vr_intro_start', vrNextStartCtxTime, { trackId: track.id });
         // Durée nominale de l'intro : mesures déclarées, au tempo de la PREMIÈRE section jouable (elle
         // seule a un sens ici, l'intro n'appartenant à aucune section) — la partie du fichier qui dépasse
         // cette durée nominale forme la queue de chevauchement, exactement comme en séquentiel.
@@ -5539,7 +5653,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         activeGenSources.push({ src, gain: g, voiceKey: 'outro', baseGain: effGain(track.outro) });
         lastGenSources = [src];
         scheduledGens.push({ ctxStartTime: vrNextStartCtxTime, bufferOffset: 0, ratio: trackPitchRatio });
-        trackPublicEvent('vr_outro_start', { trackId: track.id });
+        emitVROutcome('vr_outro_start', vrNextStartCtxTime, { trackId: track.id });
         clearInterval(vrSchedulerTimer); vrSchedulerTimer = null;
         armVRFinalEnd();
         return;
@@ -5572,6 +5686,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     };
   }
   function stopVerticalRandom() {
+    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
     finalGenerationMarkerSrc = null;
     if (vrSchedulerTimer) { clearInterval(vrSchedulerTimer); vrSchedulerTimer = null; }
     activeGenSources.forEach(({ src }) => { try { src.stop(); } catch(e){} });
@@ -5605,7 +5720,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         }
       );
     }
-    vrNextStartCtxTime = ctx.currentTime;
+    vrNextStartCtxTime = startSoon(); // toutes les voix du premier cycle sur un même instant (voir startSoon)
     sectionSchedulerTick();
     vrSchedulerTimer = setInterval(sectionSchedulerTick, 200);
     if (goToEndBtn) goToEndBtn.disabled = false;
@@ -5625,7 +5740,8 @@ function initTrackPlayer(track, wrapper, elementColors) {
     activeGenSources = [];
     voiceGraphTimeouts.forEach(id => clearTimeout(id));
     voiceGraphTimeouts = [];
-    const now = ctx.currentTime;
+    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
+    vrPendingCut = true;
     scheduleSectionGeneration(now, origIdx, false, offset);
     const timeUntilNext = timing.cycleLength - (fraction * timing.cycleLength);
     vrNextStartCtxTime = now + Math.max(0.02, timeUntilNext / trackPitchRatio);
@@ -5676,7 +5792,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     if (r.kind === 'sequential') {
       goToEndRequested = r.goToEndRequested;
       pendingNextSegmentId = r.pendingNextSegmentId;
-      const now = ctx.currentTime;
+      const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
       const remaining = Math.max(0.05, r.totalSec - r.offsetSec);
       // `remaining` transmis TOUJOURS (jamais null), y compris pour un bloc terminal (l'outro) — même
       // raison que seekSequential() ci-dessus : passer null ferait recaler le remplissage visuel sur
@@ -5700,7 +5816,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       }
     } else if (r.kind === 'embrVert') {
       embrActiveLoopIdx = r.embrLoopIdx;
-      const now = ctx.currentTime;
+      const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
       embrReferenceStartCtxTime = now;
       scheduleEmbrGeneration(now, true);
       embrNextStartCtxTime = now + embrCycleLengthSec() / trackPitchRatio;
@@ -5824,7 +5940,8 @@ function initTrackPlayer(track, wrapper, elementColors) {
     resumeAudioContext();
     playing = true;
     playingTrackIds.add(track.id); requestWakeLock();
-    if (!isContinuation) trackPublicEvent('track_play', { trackId: track.id, mode: track.mode });
+    // Capture vidéo : niveau d'intensité de départ (le visiteur a pu le choisir avant d'appuyer sur Lecture).
+    if (!isContinuation) trackPublicEvent('track_play', { trackId: track.id, mode: track.mode }, { level });
     if (!isContinuation && !pausedResume) resetFxTriggers();
     // Prise (Figer) : un vrai démarrage en ouvre une nouvelle ; une reprise, un saut ou un retour de veille continue la
     // même (le journal note ce qui est réellement rejoué, quel que soit le chemin pris par le moteur).
@@ -5869,7 +5986,8 @@ function initTrackPlayer(track, wrapper, elementColors) {
     activeGenSources = [];
     voiceGraphTimeouts.forEach(id => clearTimeout(id));
     voiceGraphTimeouts = [];
-    const now = ctx.currentTime;
+    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
+    vrPendingCut = true;
     const timing = scheduleSectionGeneration(now, origIdx, false);
     vrNextStartCtxTime = now + timing.cycleLength / trackPitchRatio;
     vrSchedulerTimer = setInterval(sectionSchedulerTick, 200);
@@ -5900,6 +6018,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const valueEl = wrapper.querySelector(`[data-role="volumeValue-${key}"]`);
     slider.addEventListener('input', () => {
       layerVolumes.set(key, parseFloat(slider.value));
+      // Repère de capture à chaque pas du glisser (le son suit le curseur en direct) ; la statistique, elle, ne
+      // retient que la valeur relâchée (voir 'change').
+      captureMark('voice_volume_change', { trackId: track.id, voice: key, value: parseFloat(slider.value) });
       if (valueEl) valueEl.textContent = Math.round(parseFloat(slider.value) * 100) + '%';
       refreshVoiceGains();
     });
@@ -6096,7 +6217,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         const layerGain = effGain(layersToLoad[i]);
         g.gain.cancelScheduledValues(now);
         g.gain.setValueAtTime(g.gain.value, now);
-        g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain * voiceGain('layer-' + i), now + 1.4);
+        g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain * voiceGain('layer-' + i), now + INTENSITY_RAMP_SEC);
       });
     });
   });
@@ -6121,12 +6242,16 @@ function initTrackPlayer(track, wrapper, elementColors) {
       const buf = bufs[idx];
       if (!buf) return;
       resumeAudioContext();
-      if (sfx.duckMainTrack) duckMainTrack(buf.duration);
+      // Départ à un instant PRÉCIS, 20 ms après l'appui (25/09), plutôt que « dès que possible » (start(0)) : le navigateur
+      // ne dit pas quand tombe ce « dès que possible » (2 à 20 ms plus tard selon sa charge), si bien qu'aucun
+      // enregistrement (outil vidéo, Figer) ne pouvait caler le Sfx exactement sur la musique. Inaudible à l'appui.
+      const startAt = ctx.currentTime + SFX_START_LEAD_SEC;
+      if (sfx.duckMainTrack) duckMainTrack(buf.duration, startAt);
       const src = ctx.createBufferSource();
       src.buffer = buf;
       // Curseurs liés à la position / reverb de ce Sfx : le son démarre à la position actuelle du curseur, puis suit ses
       // déplacements tant qu'il joue (voir applyFxSliderToSfx).
-      const spatialVoice = connectSfxSource(src, sfx, fxSfxOverrideFor(sfx.id));
+      const spatialVoice = connectSfxSource(src, sfx, fxSfxOverrideFor(sfx.id), startAt);
       if (spatialVoice && spatialVoice.fixed) {
         let vs = activeSfxVoices.get(sfx.id);
         if (!vs) { vs = new Set(); activeSfxVoices.set(sfx.id, vs); }
@@ -6134,12 +6259,15 @@ function initTrackPlayer(track, wrapper, elementColors) {
         src.addEventListener('ended', () => vs.delete(spatialVoice));
       }
       journalSfxVoice(src, spatialVoice);
-      src.start(0);
+      src.start(startAt);
       activeStingerSources.push(src);
       src.onended = () => { activeStingerSources = activeStingerSources.filter(s => s !== src); };
       // spatialStep : point de trajectoire réellement joué (mode "pas à pas") -- l'outil vidéo le rejoue à l'identique.
+      // Capture : réglage de salle réellement utilisé (le visiteur a pu déplacer le son sur la matrice publique), et durée
+      // du fichier (le « duck » de la musique en dépend).
       trackPublicEvent('stinger_play', Object.assign({ trackId: track.id, sfxId: sfx.id, variationIndex: idx },
-        spatialVoice && spatialVoice.stepIndex != null ? { spatialStep: spatialVoice.stepIndex } : {}));
+        spatialVoice && spatialVoice.stepIndex != null ? { spatialStep: spatialVoice.stepIndex } : {}),
+        Object.assign({ fileDuration: buf.duration, at: startAt }, spatialVoice && spatialVoice.__spUsed ? { spatial: spatialVoice.__spUsed } : {}));
     });
   });
 
@@ -6465,6 +6593,12 @@ function initTrackPlayer(track, wrapper, elementColors) {
         } catch (e) { /* une variation manquante ne bloque pas la lecture principale */ }
       }
     }
+    // Reverb de salle des Sfx spatialisés préparée dès le chargement (25/09) : la calculer au premier appui bloquait la page
+    // quelques dizaines de ms (accroc audible sur les effets à ScriptProcessor, départ du Sfx en retard).
+    // Même chose pour le rendu 3D au casque : le navigateur ne charge ses données de spatialisation (HRTF) qu'à la création
+    // du premier panoramique binaural, et joue ce premier son en mode dégradé en attendant.
+    attachedSfx.forEach(sfx => { if (sfx.spatial && sfx.spatial.enabled) { try { getRoomBus(ctx, normalizeSpatial(sfx.spatial).room); } catch (e) {} } });
+    if (attachedSfx.some(sfx => sfx.spatial && sfx.spatial.enabled)) { try { if (!_hrtfWarmPanner) { _hrtfWarmPanner = ctx.createPanner(); _hrtfWarmPanner.panningModel = 'HRTF'; } } catch (e) {} }
     // Pour une source locale non encore publiée, la durée réelle n'est connue qu'une fois décodée.
     const allMainBuffers = isVerticalRandom
       ? [introBuffer, outroBuffer, ...sectionBuffers.flat(2)].filter(Boolean)
@@ -6871,6 +7005,12 @@ window.LayerPlayerCore = {
   trackNeedsLatencyComp,
   withLatencyComp,
   fxSpLatencySec,
+  embrCutFadeSec,
+  // Contexte audio de la page : sa fréquence et le retard de ses effets à ScriptProcessor (rendu hors-ligne à l'identique).
+  liveSampleRate: () => ctx.sampleRate,
+  audioNow: () => ctx.currentTime,
+  liveFxLatencySec: () => fxSpLatencySec(ctx),
+  CAPTURE_RAMPS: { intensity: INTENSITY_RAMP_SEC, voice: VOICE_RAMP_SEC, duckLevel: DUCK_LEVEL, duckAttack: DUCK_ATTACK_SEC, duckRelease: DUCK_RELEASE_SEC },
   createTriggerRuleEngine,
   simulateTriggerRules,
   FX_SLIDER_PARAMS,

@@ -50,9 +50,11 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
   const src = fs.readFileSync(path.join(__dirname, 'player.js'), 'utf-8');
   const deviceFnSrc = extractFn(src, 'lpDeviceType', 'player.js');
   const fnSrc = extractFn(src, 'trackPublicEvent', 'player.js');
+  // trackPublicEvent passe aussi par captureMark (repères de l'outil vidéo, 25/09) : sans document ici, silencieux.
+  const markSrc = extractFn(src, 'captureMark', 'player.js');
   const sandbox = { window: {}, console };
   vm.createContext(sandbox);
-  vm.runInContext(deviceFnSrc + '\n' + fnSrc + '\nthis.trackPublicEvent = trackPublicEvent;', sandbox);
+  vm.runInContext(deviceFnSrc + '\n' + markSrc + '\n' + fnSrc + '\nthis.trackPublicEvent = trackPublicEvent;', sandbox);
 
   let umamiTracked = null, rpcLogged = null;
   sandbox.window.umami = { track: (name, data) => { umamiTracked = { name, data }; } };
