@@ -645,6 +645,25 @@ function setTakeRecording(on) {
   }
   takeRecordingEnabled = on;
 }
+// Décodage d'un fichier audio pour la lecture d'une version figée (lecteur d'album, 25/09) : natif d'abord, puis le
+// décodeur Ogg Vorbis de secours (Safari ne sait pas décoder l'Ogg nativement) -- même relais que celui de chaque
+// morceau (voir decodeAudioDataCompat dans initTrackPlayer), avec sa propre instance de décodeur.
+let _takeVorbisDecoder = null;
+async function decodeAudioCompat(arrayBuffer) {
+  try {
+    return await ctx.decodeAudioData(arrayBuffer.slice(0));
+  } catch (nativeError) {
+    if (!window['ogg-vorbis-decoder']) throw nativeError;
+    if (!_takeVorbisDecoder) _takeVorbisDecoder = (async () => { const d = new window['ogg-vorbis-decoder'].OggVorbisDecoder(); await d.ready; return d; })();
+    const decoder = await _takeVorbisDecoder;
+    await decoder.reset();
+    const { channelData, samplesDecoded, sampleRate } = await decoder.decode(new Uint8Array(arrayBuffer));
+    if (!samplesDecoded || !channelData || !channelData.length) throw nativeError;
+    const audioBuffer = ctx.createBuffer(channelData.length, samplesDecoded, sampleRate);
+    for (let ch = 0; ch < channelData.length; ch++) audioBuffer.copyToChannel(channelData[ch], ch);
+    return audioBuffer;
+  }
+}
 // Dernière prise d'un morceau (celle en cours, ou la dernière écoute terminée), en données pures (JSON) -- null si
 // l'enregistrement n'est pas activé ou si le morceau n'a jamais été joué depuis.
 function getTrackTake(trackId) {
@@ -7026,6 +7045,9 @@ window.LayerPlayerCore = {
   embrCutFadeSec,
   // Contexte audio de la page : sa fréquence et le retard de ses effets à ScriptProcessor (rendu hors-ligne à l'identique).
   liveSampleRate: () => ctx.sampleRate,
+  audioContext: () => ctx, // le contexte audio de la page (lecture d'une version figée en direct)
+  decodeAudioCompat,
+  resumeAudio: () => { try { if (ctx.state !== 'running') return ctx.resume(); } catch (e) {} return Promise.resolve(); },
   audioNow: () => ctx.currentTime,
   liveFxLatencySec: () => fxSpLatencySec(ctx),
   CAPTURE_RAMPS: { intensity: INTENSITY_RAMP_SEC, voice: VOICE_RAMP_SEC, duckLevel: DUCK_LEVEL, duckAttack: DUCK_ATTACK_SEC, duckRelease: DUCK_RELEASE_SEC },

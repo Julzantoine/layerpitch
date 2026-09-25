@@ -287,10 +287,13 @@
   // triggers à re-simuler, ni fenêtre à reconstituer -- la version rendue est ce qui a été entendu.
   // opts : fetchBytes(url) -> Uint8Array ; tail (secondes après la fin, pour les queues de reverb ; 2 par défaut) ;
   // fadeOutSec (si la prise est encore en cours : fondu de sortie à partir de sa fin, 1 s par défaut) ; onProgress(i, n).
-  function replayParam(param, log, clampFrom) {
+  // Rejoue un journal de commandes (temps de la prise) sur un paramètre : shift = heure du contexte à laquelle correspond
+  // le temps 0 de la prise ; une commande antérieure à `from` (lecture reprise en cours de prise) s'applique à `from`,
+  // dans l'ordre, pour retrouver l'état du moment.
+  function replayParam(param, log, clampFrom, shift) {
     if (!log) return;
-    const lo = clampFrom || 0;
-    const at = t => Math.max(lo, t);
+    const lo = clampFrom || 0, sh = shift || 0;
+    const at = t => Math.max(lo, t + sh);
     try { param.value = log.init; } catch (e) {}
     (log.auto || []).forEach(e => {
       const tag = e[0], t = at(e[1]);
@@ -301,20 +304,115 @@
         else if (tag === 'tgt') param.setTargetAtTime(e[2], t, e[3]);
         else if (tag === 'cancel') param.cancelScheduledValues(t);
         else if (tag === 'hold') { if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(t); else param.cancelScheduledValues(t); }
-      } catch (err) { /* commande refusée hors ligne (valeur hors bornes) : ignorée, comme le lecteur l'aurait vécu */ }
+      } catch (err) { /* commande refusée (valeur hors bornes) : ignorée, comme le lecteur l'aurait vécu */ }
     });
   }
+
+  // Construit, dans le contexte c, le graphe d'une prise : chaque voix (fichier, position, boucle, arrêt, volume, vitesse,
+  // chaîne d'effets et ses changements), chaque Sfx à sa place dans la salle, le gain maître, la tête. Le temps τ de la
+  // prise correspond à l'heure t0 + τ du contexte ; `from` = position de départ dans la prise (0 pour un rendu complet,
+  // la position de reprise pour le lecteur d'album). Commun au rendu en fichier (OfflineAudioContext) et à la lecture en
+  // direct : le son est le même. Renvoie les sources créées (pour pouvoir tout arrêter) et la sortie.
+  async function buildTakeGraph(c, take, o) {
+    const C = core();
+    const t0 = o.t0, from = o.from || 0;
+    const end = Math.max(0.1, take.duration);
+    const stopAt = o.stopAt; // heure du contexte où tout s'arrête (rendu : fin + queue)
+    const T = tau => t0 + tau;
+    const now0 = T(from);
+    const out = c.createGain();
+    out.connect(c.destination);
+    (take.yaw || []).forEach(([t, yaw]) => C.applyListenerYaw(c, yaw, Math.max(now0, T(t))));
+    const master = c.createGain();
+    master.connect(out);
+    replayParam(master.gain, take.master, now0, t0);
+    const inWindow = v => v.url && v.start != null && v.start < end && !(v.stop != null && (v.stop <= v.start || v.stop <= from));
+    const voices = (take.voices || []).filter(inWindow);
+    const sfx = (take.sfx || []).filter(inWindow);
+    const n = voices.length + sfx.length;
+    const sources = [];
+    let i = 0;
+    // Voix déjà commencée à `from` : on la démarre maintenant, à la position qu'elle aurait atteinte.
+    function placement(v) {
+      if (v.start >= from) return { when: T(v.start), offset: v.offset, dur: v.dur };
+      const rate = (v.rate && v.rate.init) || 1;
+      let off = v.offset + (from - v.start) * rate;
+      if (v.loop && off > v.loop[1]) { const len = v.loop[1] - v.loop[0]; off = v.loop[0] + ((off - v.loop[0]) % len); }
+      return { when: now0, offset: off, dur: v.dur != null ? Math.max(0, v.dur - (from - v.start)) : null };
+    }
+    function makeSource(v, buf) {
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      if (v.loop) { src.loop = true; src.loopStart = v.loop[0]; src.loopEnd = v.loop[1]; }
+      replayParam(src.playbackRate, v.rate, now0, t0);
+      return src;
+    }
+    function startSource(src, v, pl) {
+      if (pl.offset >= src.buffer.duration && !v.loop) return false;
+      if (pl.dur != null) src.start(pl.when, pl.offset, pl.dur); else src.start(pl.when, pl.offset);
+      const stop = Math.min(v.stop != null ? T(v.stop) : Infinity, stopAt != null ? stopAt : Infinity);
+      if (isFinite(stop)) src.stop(Math.max(pl.when, stop));
+      sources.push(src);
+      return true;
+    }
+    for (const v of voices) {
+      const buf = await o.getBuf(v.url);
+      if (o.onProgress) o.onProgress(++i, n);
+      const pl = placement(v);
+      const src = makeSource(v, buf);
+      let chain = null;
+      if (v.fx) {
+        chain = v.fx.fx || (v.fx.force && v.fx.force.length) ? C.buildLayerFxChain(c, v.fx.fx, src, pl.when, undefined, v.fx.force || []) : null;
+        // Changements d'effet : même fonction que le lecteur, en mode programmé (un changement noté avant le démarrage
+        // de la voix prend effet à son démarrage).
+        if (chain) (v.fxLog || []).forEach(([t, fx, ramp]) => C.applyFxToChain(c, chain, fx, ramp, Math.max(T(t), pl.when)));
+        if (v.fx.comp) chain = C.withLatencyComp(c, chain);
+      }
+      let node = src;
+      if (chain) { src.connect(chain.input); node = chain.output; }
+      // Même retard qu'à l'écoute pour les voix qui passent par un effet à ScriptProcessor ou par la compensation : hors
+      // ligne, les blocs sont plus petits, donc le retard natif plus court (en direct : aucune différence).
+      if (chain && chain.nodes && (chain.nodes.bitcrush || chain.nodes.pitchShift || chain.nodes.latencyComp) && take.fxLatencySec) {
+        const extra = take.fxLatencySec - C.fxSpLatencySec(c);
+        if (extra > 0) { const d = c.createDelay(1); d.delayTime.value = extra; node.connect(d); node = d; }
+      }
+      if (v.gain) { const g = c.createGain(); replayParam(g.gain, v.gain, now0, t0); node.connect(g); node = g; }
+      node.connect(master);
+      startSource(src, v, pl);
+    }
+    for (const s of sfx) {
+      const buf = await o.getBuf(s.url);
+      if (o.onProgress) o.onProgress(++i, n);
+      const pl = placement(s);
+      const src = makeSource(s, buf);
+      if (s.spatial) {
+        const playRate = (s.rate && s.rate.init) || 1;
+        const voice = C.buildSpatialVoice(c, s.spatial.sp, { duration: buf.duration / playRate, stepKey: {}, stepIndex: s.spatial.stepIndex, startTime: T(s.start) });
+        src.connect(voice.input);
+        (s.spatial.calls || []).forEach(cl => {
+          const t = Math.max(T(cl[0]), pl.when);
+          if (cl[1] === 'pos') voice.setPosition(cl[2], cl[3], cl[4], t);
+          else if (cl[1] === 'rev') voice.setReverbDb(cl[2], cl[3], t);
+          else if (cl[1] === 'bin') voice.setBinaural(cl[2]); // pas de version programmée : l'état final l'emporte
+        });
+      } else src.connect(out);
+      startSource(src, s, pl);
+    }
+    return { sources, out, end };
+  }
+
+  // Rendu d'une prise en fichier (téléchargement d'une version figée). opts : fetchBytes(url) -> Uint8Array ; tail
+  // (secondes après la fin, pour les queues de reverb ; 2 par défaut) ; fadeOutSec (prise encore en cours : fondu à partir
+  // de sa fin, 1 s par défaut) ; onProgress(i, n).
   async function renderTake(take, opts) {
     opts = opts || {};
-    const C = core();
-    if (!C) throw new Error('LayerPlayerCore introuvable : player.js doit être chargé.');
+    if (!core()) throw new Error('LayerPlayerCore introuvable : player.js doit être chargé.');
     if (!take || take.kind !== 'layerpitch-take') throw new Error('Prise invalide.');
     const tail = opts.tail != null ? opts.tail : 2;
     const end = Math.max(0.1, take.duration);
     const total = end + tail;
     const rate = take.sampleRate || SR;
     const oc = new OfflineAudioContext(2, Math.ceil(total * rate), rate);
-    const progress = opts.onProgress || function () {};
     const bufCache = new Map();
     const getBuf = url => {
       if (!bufCache.has(url)) bufCache.set(url, (async () => {
@@ -323,68 +421,7 @@
       })());
       return bufCache.get(url);
     };
-    (take.yaw || []).forEach(([t, yaw]) => C.applyListenerYaw(oc, yaw, Math.max(0, t)));
-    const master = oc.createGain();
-    master.connect(oc.destination);
-    replayParam(master.gain, take.master);
-
-    const inWindow = v => v.url && v.start != null && v.start < end && !(v.stop != null && v.stop <= v.start);
-    const voices = (take.voices || []).filter(inWindow);
-    const sfx = (take.sfx || []).filter(inWindow);
-    const n = voices.length + sfx.length;
-    let i = 0;
-    function makeSource(v, buf) {
-      const src = oc.createBufferSource();
-      src.buffer = buf;
-      if (v.loop) { src.loop = true; src.loopStart = v.loop[0]; src.loopEnd = v.loop[1]; }
-      replayParam(src.playbackRate, v.rate);
-      return src;
-    }
-    function startSource(src, v) {
-      if (v.dur != null) src.start(v.start, v.offset, v.dur); else src.start(v.start, v.offset);
-      src.stop(Math.min(v.stop != null ? v.stop : Infinity, total));
-    }
-    for (const v of voices) {
-      const buf = await getBuf(v.url);
-      progress(++i, n);
-      const src = makeSource(v, buf);
-      let chain = null;
-      if (v.fx) {
-        chain = v.fx.fx || (v.fx.force && v.fx.force.length) ? C.buildLayerFxChain(oc, v.fx.fx, src, v.start, undefined, v.fx.force || []) : null;
-        // Changements d'effet : même fonction que le lecteur, en mode programmé (un changement noté avant le démarrage
-        // de la voix prend effet à son démarrage).
-        if (chain) (v.fxLog || []).forEach(([t, fx, ramp]) => C.applyFxToChain(oc, chain, fx, ramp, Math.max(t, v.start)));
-        if (v.fx.comp) chain = C.withLatencyComp(oc, chain);
-      }
-      let node = src;
-      if (chain) { src.connect(chain.input); node = chain.output; }
-      // Même retard qu'en direct pour les voix qui passent par un effet à ScriptProcessor ou par la compensation (voir
-      // take.fxLatencySec) : les blocs hors-ligne sont plus petits, donc le retard natif plus court.
-      if (chain && chain.nodes && (chain.nodes.bitcrush || chain.nodes.pitchShift || chain.nodes.latencyComp) && take.fxLatencySec) {
-        const extra = take.fxLatencySec - C.fxSpLatencySec(oc);
-        if (extra > 0) { const d = oc.createDelay(1); d.delayTime.value = extra; node.connect(d); node = d; }
-      }
-      if (v.gain) { const g = oc.createGain(); replayParam(g.gain, v.gain); node.connect(g); node = g; }
-      node.connect(master);
-      startSource(src, v);
-    }
-    for (const s of sfx) {
-      const buf = await getBuf(s.url);
-      progress(++i, n);
-      const src = makeSource(s, buf);
-      if (s.spatial) {
-        const playRate = (s.rate && s.rate.init) || 1;
-        const voice = C.buildSpatialVoice(oc, s.spatial.sp, { duration: buf.duration / playRate, stepKey: {}, stepIndex: s.spatial.stepIndex, startTime: s.start });
-        src.connect(voice.input);
-        (s.spatial.calls || []).forEach(c => {
-          const t = Math.max(c[0], s.start);
-          if (c[1] === 'pos') voice.setPosition(c[2], c[3], c[4], t);
-          else if (c[1] === 'rev') voice.setReverbDb(c[2], c[3], t);
-          else if (c[1] === 'bin') voice.setBinaural(c[2]); // pas de version programmée : l'état final l'emporte
-        });
-      } else src.connect(oc.destination);
-      startSource(src, s);
-    }
+    await buildTakeGraph(oc, take, { t0: 0, from: 0, stopAt: total, getBuf, onProgress: opts.onProgress });
     const rendered = await oc.startRendering();
     // Une prise encore en cours (Figer pendant l'écoute) s'éteint en fondu à partir de sa fin ; une prise terminée
     // (arrêt, pause, fin naturelle) garde sa fin telle quelle, queues de reverb comprises. Appliqué au résultat : le
@@ -392,12 +429,61 @@
     if (!take.complete) {
       const f = opts.fadeOutSec != null ? opts.fadeOutSec : 1;
       const a = Math.floor(end * rate), b = Math.min(rendered.length, Math.floor((end + f) * rate));
-      for (let c = 0; c < rendered.numberOfChannels; c++) {
-        const d = rendered.getChannelData(c);
+      for (let ch = 0; ch < rendered.numberOfChannels; ch++) {
+        const d = rendered.getChannelData(ch);
         for (let k = a; k < d.length; k++) d[k] *= k < b ? 1 - (k - a) / Math.max(1, b - a) : 0;
       }
     }
     return rendered;
+  }
+
+  // Lecture EN DIRECT d'une version figée (lecteur d'album, 25/09) : même graphe que le rendu, dans le contexte audio de
+  // la page, à partir de la position `from` -- démarrage quasi immédiat (aucun rendu préalable), pause / reprise / saut.
+  // Fichiers décodés une fois pour toutes (cache partagé entre les versions : elles réutilisent les mêmes fichiers).
+  // opts : from (secondes), fetchBytes(url), onEnd() (appelé à la fin de la version, queue comprise), fadeOutSec.
+  // Renvoie un contrôleur { stop(), position(), duration }.
+  const _liveBufCache = new Map();
+  async function playTake(take, opts) {
+    opts = opts || {};
+    const C = core();
+    if (!take || take.kind !== 'layerpitch-take') throw new Error('Prise invalide.');
+    const c = C.audioContext();
+    await C.resumeAudio();
+    const getBuf = url => {
+      if (!_liveBufCache.has(url)) _liveBufCache.set(url, (async () => {
+        const bytes = await opts.fetchBytes(url);
+        return await C.decodeAudioCompat(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+      })().catch(e => { _liveBufCache.delete(url); throw e; }));
+      return _liveBufCache.get(url);
+    };
+    // Tous les fichiers d'abord (pour que chaque voix parte à l'heure), puis le graphe calé juste après.
+    await Promise.all([...new Set((take.voices || []).concat(take.sfx || []).map(v => v.url).filter(Boolean))].map(getBuf));
+    const from = Math.max(0, Math.min(opts.from || 0, take.duration));
+    const lead = 0.05;
+    const t0 = c.currentTime + lead - from;
+    const tail = opts.tail != null ? opts.tail : 2;
+    const g = await buildTakeGraph(c, take, { t0, from, stopAt: t0 + take.duration + tail, getBuf });
+    // Version encore en cours au moment où elle a été figée : fondu à sa fin (musique et Sfx non spatialisés).
+    if (!take.complete) {
+      const f = opts.fadeOutSec != null ? opts.fadeOutSec : 1;
+      g.out.gain.setValueAtTime(1, t0 + take.duration);
+      g.out.gain.linearRampToValueAtTime(0, t0 + take.duration + f);
+    }
+    let stopped = false;
+    const endTimer = setTimeout(() => { if (!stopped) { stopped = true; if (opts.onEnd) opts.onEnd(); } }, Math.max(0, (t0 + take.duration + (take.complete ? 0.3 : 1) - c.currentTime) * 1000));
+    return {
+      duration: take.duration,
+      position: () => Math.max(0, Math.min(take.duration, c.currentTime - t0)),
+      stop() {
+        if (stopped) return;
+        stopped = true;
+        clearTimeout(endTimer);
+        const now = c.currentTime;
+        // Fondu court pour éviter un clic, puis arrêt de toutes les sources.
+        try { g.out.gain.cancelScheduledValues(now); g.out.gain.setValueAtTime(g.out.gain.value, now); g.out.gain.linearRampToValueAtTime(0, now + 0.03); } catch (e) {}
+        g.sources.forEach(src => { try { src.stop(now + 0.04); } catch (e) {} });
+      }
+    };
   }
 
   // AudioBuffer -> fichier WAV PCM 16 bits (donné tel quel à ffmpeg).
@@ -419,5 +505,5 @@
     return bytes;
   }
 
-  window.LayerCaptureRender = { render, renderTake, encodeWav, fxSegmentsToChanges, deriveBranchChanges, deriveSliderTriggerChanges, resolveTriggerChanges, SR };
+  window.LayerCaptureRender = { render, renderTake, playTake, encodeWav, fxSegmentsToChanges, deriveBranchChanges, deriveSliderTriggerChanges, resolveTriggerChanges, SR };
 })();
