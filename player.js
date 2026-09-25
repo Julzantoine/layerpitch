@@ -1165,7 +1165,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   if (isSequential && supported && (track.segmentSlots || []).length > 1) {
     seqMapHtml = `
       <div class="seq-map${currentSeqMapTheme() === 'dark' ? ' seq-map-dark' : ''}${currentSeqMapDensity() === 'roomy' ? ' seq-map-roomy' : ''}" data-role="seqMap">
-        <div class="voice-graph-label">${t('seqMapLabel')}</div>
+        <div class="voice-graph-label">${t('seqMapLabel')}${track.randomizeSections ? ` <span class="seq-map-random-note">· ${t('seqMapRandomOrderNote')}</span>` : ''}</div>
         <div class="seq-map-graph" data-role="seqMapGraph">
           <div class="seq-map-canvas" data-role="seqMapCanvas">
             <svg class="seq-map-lines" data-role="seqMapLines"></svg>
@@ -3298,7 +3298,11 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // uniquement) affiche la carte en entier dès le chargement -- outil de vérification de sa propre
   // structure pendant qu'on la construit ; côté public, révélation progressive comme demandé.
   let seqVisitedSlotIds = new Set();
+  // Ordre aléatoire : slots entendus pendant le tour en cours (coches de la carte), tenu à partir de ce qui
+  // est réellement joué -- chainState.order a souvent un tour d'avance (le slot suivant est préparé à l'avance).
+  let seqRoundPlayedIds = new Set(), seqRoundLastIdx = -1;
   const seqMapFullReveal = !!track.seqMapFullReveal;
+  const seqMapRandom = track.mode === 'sequential' && !!track.randomizeSections; // voir seqMapForwardTargets/seqMapComputeLayout
   // Boule de transition "en train de jouer" (05/09, retour direct : "est-ce que la boule qui symbolise la
   // transition peut se colorer lorsqu'elle joue ?") -- currentTransitionEdge identifie l'arête source->cible
   // dont le fichier de transition est actuellement audible (posé/retiré par activateSeqStage(), voir plus
@@ -3756,6 +3760,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     if (!slot) return [];
     const opts = slot.nextOptions || [];
     if (opts.length) return opts.map(o => slots.findIndex(sl => sl.id === o.targetId)).filter(ti => ti >= 0 && revealedSet.has(ti));
+    // Ordre aléatoire (25/09) : aucune flèche "au suivant de la liste", qui annoncerait un ordre qui n'existe
+    // pas -- seuls les embranchements (choix du visiteur, ci-dessus) gardent leurs flèches.
+    if (seqMapRandom) return [];
     const nextIdx = (idx + 1) % slots.length;
     return (nextIdx !== idx && revealedSet.has(nextIdx)) ? [nextIdx] : [];
   }
@@ -3770,6 +3777,17 @@ function initTrackPlayer(track, wrapper, elementColors) {
   function seqMapComputeLayout(visibleIdx, currentIdx) {
     const revealedSet = new Set(visibleIdx);
     const visitedOrder = [...seqVisitedSlotIds];
+    if (seqMapRandom) {
+      // Ordre aléatoire (25/09, validé par Jules-Antoine) : les slots forment un groupe sans ordre -- grille
+      // de 4 de large, remplie dans l'ordre de découverte (un slot révélé s'ajoute au bout, rien ne bouge),
+      // puis par index pour ceux pas encore joués (Backstage, tout révélé).
+      const orderOf = idx => { const p = visitedOrder.indexOf(idx); return p === -1 ? Infinity : p; };
+      const sorted = visibleIdx.slice().sort((a, b) => orderOf(a) - orderOf(b) || a - b);
+      const perRow = Math.min(4, sorted.length);
+      const col = {}, row = {};
+      sorted.forEach((idx, i) => { col[idx] = i % perRow; row[idx] = Math.floor(i / perRow); });
+      return { col, row, maxCol: Math.max(0, perRow - 1), maxRows: Math.max(1, Math.ceil(sorted.length / perRow)) };
+    }
     const startIdx = visitedOrder.find(i => revealedSet.has(i));
     const root = startIdx != null ? startIdx : visibleIdx[0];
     const col = {};
@@ -3814,9 +3832,19 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // lecture (currentIdx < 0, ex. état "Prêt").
     const currentSlot = currentIdx >= 0 ? (slots[currentIdx] || null) : null;
     const selectableIds = new Set(((currentSlot && currentSlot.nextOptions) || []).map(o => o.targetId));
+    // Coche "déjà joué" : en ordre aléatoire, seulement pour le tour en cours -- sinon, dès le 2e tour, tout
+    // resterait coché et la carte ne dirait plus rien. Chaque slot joue une fois par tour : dès qu'un slot déjà
+    // entendu revient, un nouveau tour a commencé. Ailleurs, inchangé : tout emplacement déjà visité.
+    if (seqMapRandom && currentIdx >= 0 && currentIdx !== seqRoundLastIdx) {
+      if (seqRoundLastIdx >= 0) seqRoundPlayedIds.add(seqRoundLastIdx);
+      if (seqRoundPlayedIds.has(currentIdx)) seqRoundPlayedIds = new Set();
+      seqRoundLastIdx = currentIdx;
+    }
+    const playedThisRound = seqMapRandom ? seqRoundPlayedIds : null;
+    const wasPlayed = idx => (playedThisRound ? playedThisRound.has(idx) : seqVisitedSlotIds.has(idx));
     const nodeStateCls = (idx, slot) => {
       const isCurrent = idx === currentIdx;
-      const isVisited = seqVisitedSlotIds.has(idx) && !isCurrent;
+      const isVisited = wasPlayed(idx) && !isCurrent;
       const isSelectable = selectableIds.has(slot.id);
       const isPending = pendingNextSegmentId === slot.id;
       return (isCurrent ? ' current' : '') + (isVisited ? ' visited' : '') + (isSelectable ? ' selectable' : '') + (isPending ? ' pending' : '');
@@ -3834,7 +3862,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         const slot = slots[idx] || {};
         const label = slot.label || t('slotFallback', { n: idx + 1 });
         const cls = 'seq-map-node' + nodeStateCls(idx, slot);
-        const check = (seqVisitedSlotIds.has(idx) && idx !== currentIdx) ? '<span class="seq-map-node-check">✓</span>' : '';
+        const check = (wasPlayed(idx) && idx !== currentIdx) ? '<span class="seq-map-node-check">✓</span>' : '';
         return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
       }).join('');
       attachSeqMapNodeClicks(currentSlot);
@@ -3873,7 +3901,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // connaît plus que ces positions, ce qui lui permet de tracer des arêtes correctement quelle que soit
     // la disposition (grille ou ressorts) sans savoir laquelle des deux l'a produite.
     let positions, totalW, totalH;
-    if (roomy) {
+    if (roomy && !seqMapRandom) { // ordre aléatoire : toujours la grille (sans flèches, les ressorts écarteraient les nœuds sans fin)
       ({ positions, totalW, totalH } = seqMapForceLayout(visibleIdx, layout, w, h, seqMapForcePositions));
     } else {
       const colGap = seqMapColGap(), rowGap = seqMapRowGap();
@@ -3918,7 +3946,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       const slot = slots[idx] || {};
       const label = slot.label || t('slotFallback', { n: idx + 1 });
       const cls = 'seq-map-node' + nodeStateCls(idx, slot);
-      const check = (seqVisitedSlotIds.has(idx) && idx !== currentIdx) ? '<span class="seq-map-node-check">✓</span>' : '';
+      const check = (wasPlayed(idx) && idx !== currentIdx) ? '<span class="seq-map-node-check">✓</span>' : '';
       const accent = roomy ? SEQ_MAP_NODE_PALETTE[idx % SEQ_MAP_NODE_PALETTE.length] : null;
       const style = `left:${positions[idx].x}px;top:${positions[idx].y}px` + (accent ? `;--seq-map-node-accent:${accent}` : '');
       return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}" style="${style}"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
@@ -4151,7 +4179,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
           const label = opt.label || (slots[targetIdx] && slots[targetIdx].label) || '';
           drawEdge(idx, targetIdx, 'branch' + (hasTransition ? ' transition' : ''), label, hasTransition);
         });
-      } else {
+      } else if (!seqMapRandom) { // ordre aléatoire : pas de flèche "au suivant", voir seqMapForwardTargets
         const nextIdx = (idx + 1) % slots.length;
         if (nextIdx !== idx && visibleSet.has(nextIdx)) drawEdge(idx, nextIdx, '', '');
       }
@@ -4447,6 +4475,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       currentSlotIndex = (track.randomizeSections && (track.segmentSlots || []).length)
         ? advanceChainIndex(-1, track.segmentSlots.length, chainState, track.maxChainLoops, true) : 0;
       seqVisitedSlotIds = new Set();
+      seqRoundPlayedIds = new Set(); seqRoundLastIdx = -1;
     }
     const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
     let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain, firstDesc, firstSlotIdx = -1;
