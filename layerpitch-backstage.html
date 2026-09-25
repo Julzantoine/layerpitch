@@ -1737,9 +1737,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790339581859"></script>
-<script src="layerpitch-help.js?v=1790339581859"></script>
-<script src="player.js?v=1790339581859"></script>
+<script src="layerpitch-i18n.js?v=1790339699372"></script>
+<script src="layerpitch-help.js?v=1790339699372"></script>
+<script src="player.js?v=1790339699372"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3010,6 +3010,73 @@ window.addEventListener('beforeunload', e => { if (hasUnsavedEdits) { e.preventD
 // toujours les bonnes (le chargement raté n'y a pas touché, voir catch de loadData()), publier reste donc
 // sûr. Seul le tout premier chargement resté en échec bloque réellement Publier.
 let dataLoadOk = false;
+
+// Suppressions réellement envoyées à la base (25/09). Avant ce correctif, publishAll() ne faisait que des upsert_* :
+// un morceau/Sfx/pack/collection/AdReel retiré ici restait en base et revenait au chargement suivant (vécu sur le
+// compte tuto : deux "My first adaptive track" supprimés qui réapparaissaient sans cesse). publishedCatalog retient
+// ce qui est en base (id -> titre) au dernier chargement ou à la dernière publication réussie ; à la publication,
+// tout ce qui y figure mais n'est plus dans le Backstage est supprimé en base. null tant qu'aucun chargement n'a
+// réussi : rien n'est alors jamais supprimé (même esprit que le garde-fou dataLoadOk).
+let publishedCatalog = null;
+// Fichiers R2 d'un morceau/Sfx retiré : effacés seulement une fois la suppression en base faite -- les effacer au
+// clic (ancien comportement) laissait un morceau muet si on rechargeait sans publier, ou si la base refusait la
+// suppression (élément déjà acheté). Clé 'tracks:<id>' / 'sfx:<id>' -> liste de chemins R2.
+const pendingR2Deletes = new Map();
+function currentCatalog() {
+  const byId = (items, labelOf) => new Map(items.map(x => [x.id, labelOf(x) || x.id]));
+  return {
+    collections: byId(collections, c => c.title),
+    packs: byId(packs, p => p.title),
+    adReels: byId(adReels, a => a.label),
+    tracks: byId(library, t => t.title),
+    sfx: byId(sfxLibrary, s => s.title),
+  };
+}
+function rememberPublishedCatalog() { publishedCatalog = currentCatalog(); }
+// Ordre : d'abord ce qui référence (collections -> packs -> AdReels), puis ce qui est référencé (morceaux, Sfx).
+const CATALOG_DELETE_KINDS = [
+  { kind: 'collections', api: () => window.LayerPitchCollections.deleteCollection },
+  { kind: 'packs', api: () => window.LayerPitchPacks.deletePack, blockedKey: 'deleteBlockedPack' },
+  { kind: 'adReels', api: () => window.LayerPitchAdReels.deleteAdReel },
+  { kind: 'tracks', api: () => window.LayerPitchTracks.deleteTrack, blockedKey: 'deleteBlockedTrack' },
+  { kind: 'sfx', api: () => window.LayerPitchSfx.deleteSfx },
+];
+function removedCatalogItems() {
+  if (!publishedCatalog) return [];
+  const current = currentCatalog();
+  const removed = [];
+  CATALOG_DELETE_KINDS.forEach(k => {
+    publishedCatalog[k.kind].forEach((title, id) => { if (!current[k.kind].has(id)) removed.push({ ...k, id, title }); });
+  });
+  return removed;
+}
+// Supprime en base tout ce qui a été retiré depuis le dernier chargement/publication. Une panne (réseau, droits)
+// lève une erreur qui arrête la publication, comme les écritures upsert -- rien n'est oublié, la prochaine
+// publication réessaie. Un refus volontaire (élément déjà acheté) n'arrête rien : il est renvoyé dans `blocked`.
+async function deleteRemovedCatalogItems() {
+  const removed = removedCatalogItems();
+  const blocked = [], errors = [];
+  for (const item of removed) {
+    const { ok, blocked: isBlocked, error } = await item.api()(item.id);
+    if (ok) {
+      (pendingR2Deletes.get(item.kind + ':' + item.id) || []).forEach(r2DeleteFileLogged);
+      pendingR2Deletes.delete(item.kind + ':' + item.id);
+    } else if (isBlocked) {
+      blocked.push(tr(item.blockedKey, { title: item.title }));
+      pendingR2Deletes.delete(item.kind + ':' + item.id); // l'élément reste en ligne : ses fichiers aussi
+    } else {
+      errors.push(`${item.title} : ${error}`);
+    }
+  }
+  if (errors.length) {
+    throw new Error('Suppression en base échouée pour ' + errors.length + ' élément(s) — publication arrêtée :\n' + errors.join('\n'));
+  }
+  // Fichiers d'éléments jamais arrivés en base (ajoutés puis retirés, publication précédente interrompue après
+  // l'envoi R2) : rien à supprimer en base, leurs fichiers peuvent partir tout de suite.
+  pendingR2Deletes.forEach(keys => keys.forEach(r2DeleteFileLogged));
+  pendingR2Deletes.clear();
+  return { deleted: removed.length - blocked.length, blocked };
+}
 
 function log(msg, cls) {
   const el = document.getElementById('log');
@@ -7041,7 +7108,7 @@ document.getElementById('sfxLibraryContainer').addEventListener('click', e => {
   if (removeBtn) {
     const si = parseInt(removeBtn.dataset.si, 10);
     const removedId = sfxLibrary[si].id;
-    sfxRemoteFileKeys(sfxLibrary[si]).forEach(r2DeleteFileLogged);
+    pendingR2Deletes.set('sfx:' + removedId, sfxRemoteFileKeys(sfxLibrary[si])); // effacés à la publication, voir pendingR2Deletes
     sfxLibrary.splice(si, 1);
     // Nettoie toutes les références à ce Sfx désormais supprimé — morceaux, packs, blocs de contenu —
     // sinon un id orphelin resterait silencieusement ignoré à la publication.
@@ -7171,7 +7238,8 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
   hasUnsavedEdits = true;
   if (btn.dataset.action === 'remove-track') {
     const removedId = library[ti].id;
-    trackRemoteFileKeys(library[ti]).forEach(r2DeleteFileLogged);
+    // Fichiers R2 effacés seulement après la suppression en base, à la publication (voir pendingR2Deletes).
+    pendingR2Deletes.set('tracks:' + removedId, trackRemoteFileKeys(library[ti]));
     library.splice(ti, 1);
     adReels.forEach(a => { a.trackIds = a.trackIds.filter(id => id !== removedId); });
     packs.forEach(p => { p.trackIds = (p.trackIds || []).filter(id => id !== removedId); });
@@ -9689,10 +9757,17 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   const btn = e.target.closest('[data-action="remove-pack"]');
   if (!btn) return;
   const pi = parseInt(btn.dataset.pi, 10);
+  const removedId = packs[pi].id;
   packs.splice(pi, 1);
+  // Même nettoyage que pour un Sfx retiré : sans ça, une collection ou un bloc "packs" garderait l'id d'un pack
+  // désormais supprimé en base, et upsert_collection échouerait à la publication suivante.
+  collections.forEach(c => { if (c.packIds) c.packIds = c.packIds.filter(id => id !== removedId); });
+  adReels.forEach(ar => ar.blocks.forEach(b => { if (b.type === 'packs' && b.packIds) b.packIds = b.packIds.filter(id => id !== removedId); }));
   hasUnsavedEdits = true;
   trackBackstageEvent('pack_delete', {});
   renderPacks();
+  renderCollections();
+  rebuildAllCards();
 });
 document.getElementById('packsContainer').addEventListener('input', e => {
   const field = e.target.dataset.packField;
@@ -10950,6 +11025,8 @@ async function loadData(silent) {
       collapsedPackIds.clear(); collapsedBlockIds.clear(); collapsedCollectionIds.clear();
       cur.blocks.forEach(b => collapsedBlockIds.add(b.id));
       renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); rebuildAllCards();
+      pendingR2Deletes.clear();
+      rememberPublishedCatalog();
       dataLoadOk = true; // absence légitime de data.json (premier lancement) -- pas un échec, publier est sûr
       document.getElementById('btnPublish').disabled = false;
       return;
@@ -11206,6 +11283,9 @@ async function loadData(silent) {
     fillAllowEmbeddingField();
     rebuildAllCards();
     hasUnsavedEdits = false;
+    // Suppressions non publiées abandonnées par ce rechargement : les éléments reviennent, leurs fichiers R2 restent.
+    pendingR2Deletes.clear();
+    rememberPublishedCatalog();
     dataLoadOk = true;
     document.getElementById('btnPublish').disabled = false;
     log(tr('loadedSummary', { adreels: adReels.length, packs: packs.length, tracks: library.length }), 'ok');
@@ -12196,6 +12276,12 @@ async function publishAll() {
     }
     log(`Écriture en base : ${data.collections.length} collection(s) OK.`, 'ok');
 
+    // Après les écritures (les collections/packs mis à jour ne référencent déjà plus ce qui est supprimé ici).
+    log(tr('deletingRemovedItems'));
+    const { deleted: deletedCount, blocked: blockedDeletes } = await deleteRemovedCatalogItems();
+    blockedDeletes.forEach(msg => log(msg, 'warn'));
+    log(tr('deletedRemovedItems', { n: deletedCount }), 'ok');
+
     log('Écriture en base : réglages...');
     const settingsRes = await window.LayerPitchSettings.upsertSettings({
       publishedAt: data.publishedAt, implementationSkills: data.implementationSkills,
@@ -12215,11 +12301,18 @@ async function publishAll() {
     log(tr('publicationComplete'), 'ok');
     trackBackstageEvent('publish_success', {});
     hasUnsavedEdits = false;
+    rememberPublishedCatalog();
     renderLibrary();
     renderSfxLibrary();
     renderSocials();
     rebuildAllCards();
     renderPacks();
+    // Élément déjà acheté, refusé par la base : il est toujours en ligne -- rechargement pour qu'il réapparaisse ici
+    // plutôt que de rester invisible dans le Backstage tout en existant (tout le reste vient d'être publié).
+    if (blockedDeletes.length) {
+      alert(tr('deleteBlockedAlert', { list: blockedDeletes.join('\n') }));
+      await loadData(true);
+    }
   } catch (err) {
     log(tr('errorPrefix', { message: err.message }), 'err');
   } finally {

@@ -103,5 +103,14 @@
     return { ok: true, data };
   }
 
-  window.LayerPitchTracks = { listTracks, getTrack, upsertTrack, listTrackFolders };
+  // Suppression réelle en base (25/09, voir 20260925020000_delete_my_catalog_items.sql) -- appelée par publishAll()
+  // pour chaque élément présent en base au chargement mais retiré depuis dans le Backstage. Idempotente côté
+  // serveur. blocked = true : refus volontaire (élément déjà acheté), pas une panne -- rien n'a été effacé.
+  async function deleteTrack(id) {
+    const { error } = await getClient().rpc('delete_my_track', { p_id: id });
+    if (error) return { ok: false, blocked: error.hint === 'blocked_sold', error: error.message };
+    return { ok: true, blocked: false, error: null };
+  }
+
+  window.LayerPitchTracks = { listTracks, getTrack, upsertTrack, deleteTrack, listTrackFolders };
 })();
