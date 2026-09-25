@@ -186,7 +186,7 @@
     border: 1px dashed #d5d5da; min-height: 44px; display: flex; align-items: center; justify-content: center;
   }
   [data-role="allBlocksDrop"]::before { content: var(--drop-all-hint-text, 'Dépose tous tes fichiers ici'); color: var(--text-dimmer); font-size: 11px; }
-  [data-role="poolAlternatives"].drag-over, [data-role="slotAlternatives"].drag-over, [data-role="allBlocksDrop"].drag-over, [data-role="staticFileCtrl"].drag-over, [data-role="modeMaster"].drag-over, [data-role="segmentSlotsMaster"].drag-over, [data-role="sfxAlternatives"].drag-over { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: 2px; }
+  [data-role="poolAlternatives"].drag-over, [data-role="slotAlternatives"].drag-over, [data-role="allBlocksDrop"].drag-over, [data-role="staticFileCtrl"].drag-over, [data-role="modeMaster"].drag-over, [data-role="segmentSlotsMaster"].drag-over, [data-role="sfxAlternatives"].drag-over, .file-ctrl.drag-over { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: 2px; }
   .hint { color: var(--text-dimmer); font-size: 11px; margin-top: 4px; }
   .lang-toggle { display: flex; gap: 6px; margin: 14px 0; }
   .lang-toggle button { font-size: 11px; padding: 4px 10px; border-radius: 10px; border: 1px solid #d8d8dc; background: transparent; color: var(--text-dimmer); cursor: pointer; }
@@ -1737,9 +1737,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790322053589"></script>
-<script src="layerpitch-help.js?v=1790322053589"></script>
-<script src="player.js?v=1790322053589"></script>
+<script src="layerpitch-i18n.js?v=1790333955591"></script>
+<script src="layerpitch-help.js?v=1790333955591"></script>
+<script src="player.js?v=1790333955591"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3142,9 +3142,18 @@ function fxBlockHtml(fx, extraAttrs) {
       </div>
     `;
   }
+  // Panneau repliable (25/09, demande de Jules-Antoine : la liste des 7 effets allonge beaucoup chaque
+  // couche/pool/boucle) -- replié par défaut, le nombre d'effets actifs reste visible sur le bouton.
+  // L'état ouvert est mémorisé dans expandedAltPoolKeys (clé dérivée de extraAttrs, qui identifie
+  // l'objet porteur) pour survivre aux re-rendus. Pas de repli dans la carte d'un trigger, où les
+  // effets sont le contenu même de la carte.
+  const fxKey = 'fx:' + (extraAttrs || '').replace(/\s+/g, ' ').trim();
+  const expanded = isTriggerBlock || expandedAltPoolKeys.has(fxKey);
+  const activeCount = ['volume', 'lowcut', 'highcut', 'pitch', 'reverb', 'delay', 'bitcrush'].filter(k => fx[k]).length;
   return `
     <div style="margin-top:10px">
-      ${isTriggerBlock ? '' : `<div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxSectionTitle')}</div>`}
+      ${isTriggerBlock ? '' : `<button type="button" class="btn btn-small alt-pool-toggle" data-role="fxBlockToggle" data-fx-key="${escapeAttr(fxKey)}"><span data-role="caret">${expanded ? '▾' : '▸'}</span> ${tr('fxSectionTitle')}${activeCount ? ` <span class="hint-inline" style="margin:0">(${tr('fxActiveCount', { n: activeCount })})</span>` : ''}</button>`}
+      <div class="list-block-body${expanded ? '' : ' collapsed'}" data-role="fxBlockBody">
       ${toggle('volume', !!fx.volume, 'fxVolumeLabel', `
         ${num('volume', 'db', fx.volume ? fx.volume.db : 0, 'fxVolumeDbLabel', 0.5, -60, 12)}
         <div class="hint-inline">${tr('fxVolumeHint')}</div>
@@ -3186,9 +3195,21 @@ function fxBlockHtml(fx, extraAttrs) {
         ${num('bitcrush', 'bits', b ? b.bits : 8, 'fxBitsLabel', 1, 1, 16)}
         ${num('bitcrush', 'reduction', b ? b.reduction : 1, 'fxReductionLabel', 1, 1, 50)}
       `)}
+      </div>
     </div>
   `;
 }
+// Bouton de repli du panneau d'effets (fxBlockHtml) -- délégation unique plutôt qu'un câblage par
+// appelant, le markup étant produit à 4 endroits (couche, boucle, emplacement, pool).
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-role="fxBlockToggle"]');
+  if (!btn) return;
+  const body = btn.parentElement.querySelector(':scope > [data-role="fxBlockBody"]');
+  if (!body) return;
+  const collapsed = body.classList.toggle('collapsed');
+  btn.querySelector('[data-role="caret"]').textContent = collapsed ? '▸' : '▾';
+  if (collapsed) expandedAltPoolKeys.delete(btn.dataset.fxKey); else expandedAltPoolKeys.add(btn.dataset.fxKey);
+});
 // Couche (mode vertical) ou l'unique couche du mode statique (li=null).
 function layerFxHtml(layer, ti, li) {
   const liAttr = li != null ? `data-li="${li}"` : '';
@@ -3954,6 +3975,42 @@ function wireFileControl(root, accept, getPending, getRemote, onSelect, getOrigi
     updateFileStatus(status, f, getRemote(), getOriginalName ? getOriginalName() : null);
   });
   updateFileStatus(status, getPending(), getRemote(), getOriginalName ? getOriginalName() : null);
+  // Glisser-déposer un fichier directement sur la ligne du bouton (25/09, demande de Jules-Antoine pour
+  // l'intro/outro) : même effet qu'un choix via le bouton. Posé ici plutôt qu'au cas par cas, donc valable
+  // pour TOUS les sélecteurs de fichier. stopPropagation seulement si le fichier est accepté : un dépôt
+  // précis sur un sélecteur remplace SON fichier, au lieu d'être aussi capté par une zone de dépôt
+  // multi-fichiers englobante (wireBatchDrop, qui ajoute de nouvelles variations).
+  const dropZone = root.querySelector('.file-ctrl') || root;
+  const acceptsFile = f => fileMatchesAccept(f, accept);
+  dropZone.addEventListener('dragover', e => {
+    if (![...(e.dataTransfer.types || [])].includes('Files')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    dropZone.classList.remove('drag-over');
+    e.preventDefault(); // jamais d'ouverture du fichier par le navigateur (qui quitterait la page sans sauvegarder)
+    const f = [...(e.dataTransfer.files || [])].find(acceptsFile);
+    if (!f) return; // type refusé : on laisse remonter vers une éventuelle zone de dépôt englobante
+    e.stopPropagation();
+    onSelect(f);
+    updateFileStatus(status, f, getRemote(), getOriginalName ? getOriginalName() : null);
+  });
+}
+// Vérifie un fichier contre une chaîne `accept` d'input file (".wav,audio/wav,image/*"...) -- extensions,
+// types MIME exacts et jokers "type/*".
+function fileMatchesAccept(f, accept) {
+  if (!f) return false;
+  if (!accept) return true;
+  const name = (f.name || '').toLowerCase();
+  const type = (f.type || '').toLowerCase();
+  return accept.split(',').map(a => a.trim().toLowerCase()).filter(Boolean).some(a => {
+    if (a.startsWith('.')) return name.endsWith(a);
+    if (a.endsWith('/*')) return type.startsWith(a.slice(0, -1));
+    return type === a;
+  });
 }
 
 function wireBatchDrop(hostEl, onFiles) {
@@ -4829,7 +4886,12 @@ function buildPreviewTrack(track) {
   const mapBlockWithBars = (item) => {
     const m = mapItem(item);
     if (!m) return null;
-    return { ...m, bars: (item && item.bars) || 8, descriptionFr: (item && item.descriptionFr) || '', descriptionEn: (item && item.descriptionEn) || '' };
+    const out = { ...m, bars: (item && item.bars) || 8, descriptionFr: (item && item.descriptionFr) || '', descriptionEn: (item && item.descriptionEn) || '' };
+    // Tempo propre (intro du vertical-random, 25/09) -- seulement s'il a été réglé, sinon le lecteur suit la
+    // première section.
+    if (item && item.bpm) out.bpm = item.bpm;
+    if (item && item.beatsPerBar) out.beatsPerBar = item.beatsPerBar;
+    return out;
   };
   // Comme mapAlternative (ne filtre jamais un slot vide), mais conserve aussi le nombre de mesures —
   // pour les alternatives d'un emplacement séquentiel.
@@ -5299,11 +5361,10 @@ function renderLibrary() {
         if (!track.sections) track.sections = [];
         if (!track.intro) track.intro = { label: 'Intro', bars: 8, remoteFile: null, pendingFile: null };
         if (!track.outro) track.outro = { label: 'Outro', remoteFile: null, pendingFile: null };
-        // Grille de mesures propre à l'intro (18/08, demande explicite) : BPM/temps par mesure dédiés à
-        // l'intro plutôt que dépendants du tempo d'une section -- garde intact le champ `bars` déjà lu par
-        // player.js pour le chevauchement de queue, purement additif.
-        if (!track.intro.bpm) track.intro.bpm = 120;
-        if (!track.intro.beatsPerBar) track.intro.beatsPerBar = 4;
+        // Grille de mesures propre à l'intro (18/08, demande explicite ; enfin enregistrée et lue par
+        // player.js le 25/09) : BPM/temps par mesure dédiés à l'intro. Volontairement PAS de valeur par défaut
+        // écrite dans track.intro : tant que le compositeur n'y touche pas, l'intro suit le tempo de la
+        // première section (comportement historique du lecteur) et les champs affichent ce tempo-là.
       } else if (isEmbrVert) {
         if (!track.loops) track.loops = [];
         track.loops.forEach(l => { if (!l.id) l.id = genId(); });
@@ -5453,8 +5514,8 @@ function renderLibrary() {
               <div><label>${tr('barsLabel')}</label><input type="text" inputmode="numeric" data-field="introBars" data-ti="${ti}" value="${track.intro.bars || 8}"></div>
             </div>
             <div class="row" style="margin-top:8px">
-              <div><label data-help="bpmMeasuresVerticalRandom">${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-field="introBpm" data-ti="${ti}" value="${track.intro.bpm || 120}"></div>
-              <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" data-field="introBeatsPerBar" data-ti="${ti}" value="${track.intro.beatsPerBar || 4}"></div>
+              <div><label data-help="bpmMeasuresVerticalRandom">${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-field="introBpm" data-ti="${ti}" value="${track.intro.bpm || ((track.sections || [])[0] || {}).bpm || 120}"></div>
+              <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" data-field="introBeatsPerBar" data-ti="${ti}" value="${track.intro.beatsPerBar || ((track.sections || [])[0] || {}).beatsPerBar || 4}"></div>
             </div>
             <div class="hint-inline">${tr('introSectionLabel')}</div>
             <div class="hint-inline">${tr('introTailHintVrs')}</div>
@@ -7321,6 +7382,8 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     else if (field === 'normalizeVolume') { library[ti].normalizeVolume = e.target.checked; }
     else if (field === 'introLabel') { library[ti].intro.label = e.target.value; }
     else if (field === 'introBars') { library[ti].intro.bars = parseInt(e.target.value, 10) || 8; }
+    else if (field === 'introBpm') { library[ti].intro.bpm = parseFloat(e.target.value) || null; }
+    else if (field === 'introBeatsPerBar') { library[ti].intro.beatsPerBar = parseInt(e.target.value, 10) || null; }
     else if (field === 'introDescriptionFr') { library[ti].intro.descriptionFr = e.target.value; }
     else if (field === 'introDescriptionEn') { library[ti].intro.descriptionEn = e.target.value; }
     else if (field === 'outroLabel') { library[ti].outro.label = e.target.value; }
@@ -10968,7 +11031,7 @@ async function loadData(silent) {
         fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations) })),
         fxSliders: fxSlidersClean(t.fxSliders),
         layers: (t.layers || []).map(l => ({ label: l.label, remoteFile: l.file, pendingFile: null, gain: l.gain || 1, duration: l.duration || 0, fx: l.fx || null })),
-        intro: t.intro ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, remoteFile: t.intro.file || null, pendingFile: null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '' } : null,
+        intro: t.intro ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, remoteFile: t.intro.file || null, pendingFile: null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '', bpm: t.intro.bpm || null, beatsPerBar: t.intro.beatsPerBar || null } : null,
         outro: t.outro ? { label: t.outro.label || 'Outro', remoteFile: t.outro.file || null, pendingFile: null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,
         // Migration douce : les morceaux séquentiels publiés avant l'architecture à emplacements avaient un
         // pool de segments plat (un seul groupe, anti-répétition au niveau du morceau) — repris tel quel comme
@@ -11623,7 +11686,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       // reste null dans ce cas (jamais un blob: -- track.base+file resterait un vrai chemin distant
       // invalide). Même repli partout ci-dessous (layers/intro/outro/segmentSlots/loops/sections).
       layers: (t.mode === 'static' ? (t.layers || []).slice(0, 1) : (t.layers || [])).map(l => ({ label: l.label, file: l.remoteFile || null, localUrl: l.remoteFile ? null : pendingPreviewUrl(l.pendingFile), originalFileName: l.originalFileName || null, gain: l.gain || 1, duration: Math.round((l.duration || 0) * 100) / 100, fx: l.fx || null })),
-      intro: (t.intro && (t.intro.remoteFile || t.intro.pendingFile)) ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, file: t.intro.remoteFile || null, localUrl: t.intro.remoteFile ? null : pendingPreviewUrl(t.intro.pendingFile), originalFileName: t.intro.originalFileName || null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '' } : null,
+      intro: (t.intro && (t.intro.remoteFile || t.intro.pendingFile)) ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, file: t.intro.remoteFile || null, localUrl: t.intro.remoteFile ? null : pendingPreviewUrl(t.intro.pendingFile), originalFileName: t.intro.originalFileName || null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '', bpm: t.intro.bpm || null, beatsPerBar: t.intro.beatsPerBar || null } : null,
       outro: (t.outro && (t.outro.remoteFile || t.outro.pendingFile)) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile || null, localUrl: t.outro.remoteFile ? null : pendingPreviewUrl(t.outro.pendingFile), originalFileName: t.outro.originalFileName || null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,
       segmentSlots: (t.segmentSlots || []).map(sl => ({
         id: sl.id, label: sl.label || '', avoidImmediateRepeat: sl.avoidImmediateRepeat !== false,

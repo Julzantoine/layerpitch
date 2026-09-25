@@ -1163,9 +1163,14 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
 
   wrapper.innerHTML = `
     <div class="track-row">
-      <button class="play-btn" data-role="playBtn" disabled aria-label="${t('loadingAriaLabel')}">
-        <svg data-role="playIcon" class="loading-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="28 100"/></svg>
-      </button>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="play-btn" data-role="playBtn" disabled aria-label="${t('loadingAriaLabel')}">
+          <svg data-role="playIcon" class="loading-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="28 100"/></svg>
+        </button>
+        <button class="play-btn" data-role="stopBtn" style="display:none" aria-label="${t('stopAriaLabel')}" title="${t('stopAriaLabel')}">
+          <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+        </button>
+      </div>
       <div class="track-row-title" data-role="titleToggle">
         <span class="name">${escapeHtml(track.title)}</span>
         ${isNoAiCertified ? `<span class="no-ai-badge" title="${t('noAiBadgeTitle')}">${noAiBadgeSvg()}</span>` : ''}
@@ -2925,6 +2930,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   const startTrackSec = Math.min((track.startTrackBeat || 0) * secondsPerBeat, loopInSec);
 
   const playBtn = wrapper.querySelector('[data-role="playBtn"]');
+  const stopBtn = wrapper.querySelector('[data-role="stopBtn"]');
   const playIcon = wrapper.querySelector('[data-role="playIcon"]');
   const details = wrapper.querySelector('[data-role="details"]');
   const statusEl = wrapper.querySelector('[data-role="status"]');
@@ -4483,6 +4489,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     pauseTake(); // pause, arrêt ou fin naturelle : le temps d'écoute de la prise s'arrête là
     playIcon.innerHTML = PLAY_SVG;
     if (statusEl) statusEl.textContent = t('pausedStatus');
+    updateStopBtn();
   }
 
   /* ---- Moteur simple (bouclage natif, comportement existant inchangé) ---- */
@@ -5506,8 +5513,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
         // cette durée nominale forme la queue de chevauchement, exactement comme en séquentiel.
         const firstPlayableOrigIdx = playableSectionOriginalIndex[0];
         const firstSection = firstPlayableOrigIdx !== undefined ? resolveVRSection(track, firstPlayableOrigIdx) : null;
-        const introBpm = (firstSection && firstSection.bpm) || 120;
-        const introBeatsPerBar = (firstSection && firstSection.beatsPerBar) || 4;
+        // Tempo propre à l'intro s'il a été réglé dans le Backstage (25/09 : champs BPM/temps par mesure de
+        // l'intro enfin enregistrés) -- sinon repli inchangé sur la première section.
+        const introBpm = (track.intro && track.intro.bpm) || (firstSection && firstSection.bpm) || 120;
+        const introBeatsPerBar = (track.intro && track.intro.beatsPerBar) || (firstSection && firstSection.beatsPerBar) || 4;
         const introDurationSec = ((track.intro && track.intro.bars) || introBeatsPerBar) * introBeatsPerBar * (60 / introBpm);
         vrNextStartCtxTime += introDurationSec / trackPitchRatio;
         continue;
@@ -5735,6 +5744,24 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (vrBlockFillEls[r.origIdx]) vrBlockFillEls[r.origIdx].style.width = (r.frac * 100) + '%';
     }
   }
+  // Stop (25/09, demande de Jules-Antoine) : contrairement à Pause, oublie la position -- la prochaine
+  // lecture est un vrai démarrage (intro, premier emplacement/section, boucle de référence, offset 0) et
+  // ouvre une nouvelle prise. Le bouton n'est visible que lorsqu'il y a quelque chose à arrêter (lecture
+  // en cours ou pause en milieu de morceau).
+  function stopThisTrack() {
+    pausedResume = null;
+    stopAllSources(false);
+    offsetAt = 0;
+    updateProgressAt(0);
+    if (take) take.resumable = false;
+    if (statusEl) statusEl.textContent = t('readyStatus');
+    if (activeTrackId === track.id) activeTrackId = null;
+    trackPublicEvent('track_stop', { trackId: track.id, mode: track.mode });
+    updateStopBtn();
+  }
+  function updateStopBtn() {
+    if (stopBtn) stopBtn.style.display = (playing || pausedResume || offsetAt > 0) ? '' : 'none'; // pas l'attribut hidden : .play-btn impose display:flex
+  }
   function pauseThisTrack() {
     captureResumeState();
     stopAllSources();
@@ -5822,6 +5849,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     }
     playIcon.innerHTML = PAUSE_SVG;
     if (statusEl) statusEl.textContent = t('playingStatus');
+    updateStopBtn();
     tick();
   }
 
@@ -5995,6 +6023,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     playThisTrack(false, true);
   });
   playBtn.addEventListener('click', () => { playing ? pauseThisTrack() : playThisTrack(true); });
+  if (stopBtn) stopBtn.addEventListener('click', stopThisTrack);
 
   // Vertical-random (fusionné le 30/07) : pas de recherche par glissement — avec plusieurs sections
   // potentiellement enchaînées dans un ordre mélangé, "une position dans le temps" n'a plus de sens
