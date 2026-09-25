@@ -2,7 +2,8 @@
 //
 // Lecture directe (RLS "public read" sur albums ; "own album purchases" sur album_purchases : chaque
 // compte ne voit que ses propres achats). Écriture via les RPC upsert_album / claim_test_album
-// (supabase/migrations/20260921080000) — jamais d'INSERT/UPDATE direct, aucun GRANT ne le permet.
+// (supabase/migrations/20260921080000), puis versions figées et réglages du fan (20260925010000, 20260921090000)
+// — jamais d'INSERT/UPDATE direct, aucun GRANT ne le permet.
 
 (function () {
   // Client Supabase partagé (api/supabase-client.js) — voir ce fichier pour le pourquoi.
@@ -71,5 +72,62 @@
     return { flags: { testPurchasesEnabled: !!(data && data.test_purchases_enabled) }, error: null };
   }
 
-  window.LayerPitchAlbums = { listAlbums, upsertAlbum, claimTestAlbum, listMyPurchases, getPlatformFlags };
+  // ---- Côté fan : versions figées (supabase/migrations/20260925010000) ----
+  // Une version = une PRISE d'un morceau (journal du lecteur, LayerPlayerCore.getTrackTake), immuable ; seul son nom
+  // se modifie. Réservé au propriétaire de l'album (vérifié côté serveur).
+
+  // Morceaux de l'album dans l'ordre, avec la version officielle du vendeur (sa prise, ou null), et les versions du
+  // fan, les plus récentes d'abord.
+  async function getMyAlbumVersions(albumId) {
+    const { data, error } = await getClient().rpc('get_my_album_versions', { p_album_id: albumId });
+    if (error) return { tracks: null, versions: null, error: error.message };
+    return { tracks: data.tracks || [], versions: data.versions || [], error: null };
+  }
+
+  async function saveMyTrackVersion(albumId, trackId, name, take) {
+    const { data, error } = await getClient().rpc('save_my_track_version', { p_album_id: albumId, p_track_id: trackId, p_name: name || '', p_take: take });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, id: data };
+  }
+
+  async function renameMyTrackVersion(versionId, name) {
+    const { error } = await getClient().rpc('rename_my_track_version', { p_version_id: versionId, p_name: name || '' });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+
+  async function deleteMyTrackVersion(versionId) {
+    const { error } = await getClient().rpc('delete_my_track_version', { p_version_id: versionId });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+
+  // ---- Côté fan : réglages mémorisés d'une session à l'autre (migration 20260921090000, pour plus tard) ----
+  async function getMyAlbumSettings(albumId) {
+    const { data, error } = await getClient().rpc('get_my_album_settings', { p_album_id: albumId });
+    if (error) return { settings: null, error: error.message };
+    return { settings: data || [], error: null };
+  }
+
+  async function setMyAlbumTrackSettings(albumId, trackId, settings) {
+    const { error } = await getClient().rpc('set_my_album_track_settings', { p_album_id: albumId, p_track_id: trackId, p_settings: settings || {} });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+
+  async function resetMyAlbumTrackSettings(albumId, trackId) {
+    const { error } = await getClient().rpc('reset_my_album_track_settings', { p_album_id: albumId, p_track_id: trackId });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+
+  // ---- Côté vendeur : version officielle d'un morceau dans son album ----
+  // C'est une prise du vendeur (décision du 25/09), rangée dans album_tracks.default_settings. Réservé aux admins
+  // pendant la bêta (verrou serveur de set_album_track_default_settings, à lever au lancement).
+  async function setAlbumTrackOfficialTake(albumId, trackId, take) {
+    const { error } = await getClient().rpc('set_album_track_default_settings', { p_album_id: albumId, p_track_id: trackId, p_settings: take });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+
+  window.LayerPitchAlbums = {
+    listAlbums, upsertAlbum, claimTestAlbum, listMyPurchases, getPlatformFlags,
+    getMyAlbumVersions, saveMyTrackVersion, renameMyTrackVersion, deleteMyTrackVersion,
+    getMyAlbumSettings, setMyAlbumTrackSettings, resetMyAlbumTrackSettings, setAlbumTrackOfficialTake,
+  };
 })();

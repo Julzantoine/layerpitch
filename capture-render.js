@@ -8,36 +8,14 @@
 // d'effets que le lecteur (LayerPlayerCore.buildLayerFxChain, buildSpatialVoice...), plus vite que le temps réel
 // et sans rien émettre. ffmpeg ne sert plus alors qu'à assembler cet audio avec l'image.
 //
-// Entrée : un "plan" neutre construit par pack.html (voir exportCaptureVideo) --
-//   { total, segments:[{url, track, trackId, targetKey, start, dur, fileStart, phaseLocked, fade, rate}],
-//     sfxHits:[{t, url, sfx, durationOverride, stepIndex}], duckWindows:[{start,end}],
-//     triggerChanges:[{t, trackId, triggerId, active}], headEvents:[{t, yaw}] }
+// Deux entrées : render(plan) pour une capture de l'outil vidéo (plan construit par capture-plan.js, qui traduit la
+// frise en voix exactes) et renderTake(take) pour une prise du lecteur (Figer, journal exact de ce qui a été joué).
+// L'export vidéo passe TOUJOURS par ce moteur depuis le 25/09 (l'ancien mixage par filtres ffmpeg, approximatif, a été
+// retiré) ; ffmpeg ne sert plus qu'à assembler ce son avec l'image.
 // Aucune dépendance au DOM de pack.html : testable seul (avec player.js chargé, pour LayerPlayerCore).
 (function () {
   const SR = 48000;
   const core = () => window.LayerPlayerCore;
-
-  function hasKeys(o) { return !!o && typeof o === 'object' && Object.keys(o).length > 0; }
-  function trackHasFx(track) {
-    if (!track) return false;
-    if (hasKeys(track.fx) || (track.fxTriggers && track.fxTriggers.length) || (track.fxSliders && track.fxSliders.length)) return true;
-    const any = arr => (arr || []).some(x => x && hasKeys(x.fx));
-    if (any(track.layers) || any(track.loops) || any(track.segmentSlots)) return true;
-    if ((track.intro && hasKeys(track.intro.fx)) || (track.outro && hasKeys(track.outro.fx))) return true;
-    return (track.sections || []).some(sec => any(sec && sec.pools));
-  }
-  // Faut-il le moteur Web Audio pour cette prise ? Sinon on garde le mixage ffmpeg historique, inchangé (plus
-  // léger, et aucun risque de régression pour les prises sans effets ni spatialisation).
-  function needsEngineRender(events, findTrack, findSfx) {
-    const trackIds = new Set();
-    events.forEach(e => { if (e.detail && e.detail.trackId) trackIds.add(e.detail.trackId); });
-    for (const id of trackIds) if (trackHasFx(findTrack(id))) return true;
-    return events.some(e => {
-      if (e.name !== 'stinger_play') return false;
-      const sfx = findSfx(e.detail.sfxId);
-      return !!(sfx && sfx.spatial && sfx.spatial.enabled);
-    });
-  }
 
   // fx_segment (un bouton d'effet maintenu entre t et t+durée) -> changements d'état on/off, en fusionnant les
   // segments qui se chevauchent pour un même trigger.
@@ -133,38 +111,48 @@
     return out;
   }
 
+  // Rendu d'une capture de l'outil vidéo. Entrée : le plan de LayerCapturePlan.buildPlan --
+  //   { total, voices:[{url, track, targetKey, baseFx, start, offset, loop, stop, continuous, gain:{init, auto}}],
+  //     sfxHits:[{t, url, sfx, track, durationOverride, stepIndex, spatial}], duckHits:[{t, fileDuration, url}],
+  //     triggerChanges:[{t, trackId, triggerId, active}], headEvents:[{t, yaw}], sliderKeys:[{t, trackId, sliderId, value}] }
+  // Chaque voix est un fichier placé exactement comme le lecteur l'a joué (ou le jouerait, pour un bloc retouché) ;
+  // les effets de sa cible suivent les triggers et les curseurs de la capture, mêmes règles que le lecteur.
   async function render(plan, opts) {
     opts = opts || {};
     const progress = opts.onProgress || function () {};
     const C = core();
     if (!C) throw new Error('LayerPlayerCore introuvable : player.js doit être chargé.');
+    const rate = C.liveSampleRate ? C.liveSampleRate() : SR; // même fréquence qu'à l'écoute : mêmes fichiers décodés, mêmes reverbs
+    const liveLatency = C.liveFxLatencySec ? C.liveFxLatencySec() : null;
     const total = Math.max(0.5, plan.total);
-    const oc = new OfflineAudioContext(2, Math.ceil(total * SR), SR);
+    const oc = new OfflineAudioContext(2, Math.ceil(total * rate), rate);
     const bufCache = new Map();
-    async function getBuf(url) {
-      if (bufCache.has(url)) return bufCache.get(url);
-      const p = (async () => {
+    const getBuf = url => {
+      if (!bufCache.has(url)) bufCache.set(url, (async () => {
         const bytes = await opts.fetchBytes(url);
         return await oc.decodeAudioData(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
-      })();
-      bufCache.set(url, p);
-      return p;
-    }
+      })());
+      return bufCache.get(url);
+    };
 
     // Tête de l'auditeur : l'orientation évolue au fil des gestes enregistrés.
     (plan.headEvents || []).slice().sort((a, b) => a.t - b.t).forEach(h => C.applyListenerYaw(oc, h.yaw, Math.max(0, h.t)));
 
-    // Bus musique : creusé sous les Sfx marqués « duck » (mêmes 0,35 que l'export ffmpeg, avec de courtes rampes
-    // pour éviter les clics).
+    // Bus musique (gain maître du morceau) : « duck » sous les Sfx qui le demandent, exactement comme duckMainTrack --
+    // chaque nouveau duck annule la remontée programmée du précédent.
     const musicBus = oc.createGain();
     musicBus.connect(oc.destination);
-    musicBus.gain.setValueAtTime(1, 0);
-    const wins = (plan.duckWindows || []).slice().sort((a, b) => a.start - b.start);
-    const mergedDuck = [];
-    wins.forEach(w => { const l = mergedDuck[mergedDuck.length - 1]; if (l && w.start <= l.end) l.end = Math.max(l.end, w.end); else mergedDuck.push({ start: w.start, end: w.end }); });
-    mergedDuck.forEach(w => { musicBus.gain.setTargetAtTime(0.35, w.start, 0.01); musicBus.gain.setTargetAtTime(1, w.end, 0.05); });
+    const RP = C.CAPTURE_RAMPS;
+    let duckCmds = [];
+    for (const d of (plan.duckHits || []).slice().sort((a, b) => a.t - b.t)) {
+      const dur = d.fileDuration != null ? d.fileDuration : (await getBuf(d.url)).duration;
+      duckCmds = duckCmds.filter(c => c.t <= d.t);
+      const restoreAt = d.t + Math.max(RP.duckAttack, dur / 2);
+      duckCmds.push({ t: d.t, target: RP.duckLevel, ramp: RP.duckAttack }, { t: restoreAt, target: RP.duckLevel, ramp: 0 }, { t: restoreAt, target: 1, ramp: RP.duckRelease });
+    }
+    replayParam(musicBus.gain, window.LayerCapturePlan.automation(1, duckCmds, 0));
 
-    // Changements d'état des triggers, par morceau, triés.
+    // Triggers (états après les règles), par morceau ; curseurs : valeur en vigueur à l'instant t.
     const changesByTrack = {};
     (plan.triggerChanges || []).slice().sort((a, b) => a.t - b.t).forEach(c => (changesByTrack[c.trackId] = changesByTrack[c.trackId] || []).push(c));
     function applyChange(list, c) {
@@ -176,14 +164,12 @@
       (changesByTrack[trackId] || []).forEach(c => { if (c.t <= t) applyChange(list, c); });
       return list;
     }
-    // Curseurs : points-clés enregistrés par (morceau, curseur), triés ; valeur en vigueur à l'instant t.
     const keysBySlider = {};
     (plan.sliderKeys || []).slice().sort((a, b) => a.t - b.t).forEach(k => (keysBySlider[k.trackId + '|' + k.sliderId] = keysBySlider[k.trackId + '|' + k.sliderId] || []).push(k));
     const slidersByTrack = new Map();
     const slidersOf = track => { if (!slidersByTrack.has(track.id)) slidersByTrack.set(track.id, C.fxSlidersValid(track)); return slidersByTrack.get(track.id); };
     const sliderValueAt = (trackId, sl, t) => { let v = sl.def; (keysBySlider[trackId + '|' + sl.id] || []).forEach(k => { if (k.t <= t) v = k.value; }); return v; };
-
-    // Rapport de vitesse du morceau à l'instant t (mêmes règles que le lecteur : base, triggers « Vitesse » actifs, curseur « pitch.speed »).
+    // Vitesse du morceau à l'instant t (base, triggers « Vitesse » actifs, curseur « pitch.speed ») -- mêmes règles que le lecteur.
     const isSpeedBinding = b => { const m = C.FX_SLIDER_PARAMS[b.param]; return !!(m && m.rate); };
     const hasDynamicRate = track => (track.fxTriggers || []).some(d => d && d.fx && d.fx.pitch && d.fx.pitch.mode === 'rate' && C.fxTargetKeyFromTarget(d.target) === 'track') || slidersOf(track).some(sl => sl.bindings.some(isSpeedBinding));
     function trackRateAt(track, t) {
@@ -194,82 +180,71 @@
     }
 
     // -- Musique --
+    const voices = (plan.voices || []).filter(v => v.url && v.start < total);
     let n = 0;
-    for (const seg of plan.segments || []) {
-      const buf = await getBuf(seg.url);
-      progress(++n, (plan.segments || []).length);
-      // Vitesse du morceau (25/09) : si le morceau peut la changer en cours de route (trigger « Vitesse », curseur « pitch.speed »), le
-      // rapport est celui en vigueur quand le lecteur a CRÉÉ la source -- ~0,9 s avant son démarrage pour un moteur programmé
-      // (lookahead de 1 s), à son démarrage pour une voix qui tourne en continu (calée sur la ligne de temps). Sans ça : rapport de
-      // base du plan (track.fx.pitch).
-      const dynRate = !!(seg.track && hasDynamicRate(seg.track));
-      const rate = dynRate ? trackRateAt(seg.track, seg.phaseLocked ? seg.start : Math.max(0, seg.start - 0.9)) : (seg.rate || 1);
-      const offset = Math.max(0, seg.phaseLocked ? seg.fileStart * rate : (seg.fileStart || 0));
-      if (offset >= buf.duration) continue;
-      const dur = seg.dur != null ? seg.dur : (buf.duration - offset) / rate;
-      if (!(dur > 0)) continue;
+    for (const v of voices) {
+      const buf = await getBuf(v.url);
+      progress(++n, voices.length);
+      const track = v.track;
+      // Vitesse : celle en vigueur quand le lecteur a créé la source (juste avant son démarrage pour un moteur programmé) ;
+      // une voix continue (moteur simple) suit les changements pendant qu'elle joue.
+      const dynRate = !!(track && hasDynamicRate(track));
+      const r0 = track ? (dynRate ? trackRateAt(track, v.continuous ? v.start : Math.max(0, v.start - 0.9)) : C.fxTrackRatio(track, [], null)) : 1;
       const src = oc.createBufferSource();
       src.buffer = buf;
-      src.playbackRate.value = rate;
-      // Voix en continu : elle suit les changements de vitesse pendant sa durée, comme le moteur simple du lecteur (glissement).
-      if (dynRate && seg.phaseLocked) {
+      if (v.loop) { src.loop = true; src.loopStart = v.loop[0]; src.loopEnd = v.loop[1]; }
+      src.playbackRate.value = r0;
+      if (dynRate && v.continuous) {
         const times = new Set();
-        (changesByTrack[seg.track.id] || []).forEach(c => { if (c.t > seg.start && c.t < seg.start + dur) times.add(c.t); });
-        slidersOf(seg.track).forEach(sl => (keysBySlider[seg.track.id + '|' + sl.id] || []).forEach(k => { if (k.t > seg.start && k.t < seg.start + dur) times.add(k.t); }));
-        [...times].sort((a, b) => a - b).forEach(t => src.playbackRate.setTargetAtTime(trackRateAt(seg.track, t), t, 0.05));
-      }
-      const g = oc.createGain();
-      const fade = Math.min(seg.fade || 0, dur / 2);
-      if (fade > 0) {
-        g.gain.setValueAtTime(0, seg.start);
-        g.gain.linearRampToValueAtTime(1, seg.start + fade);
-        g.gain.setValueAtTime(1, seg.start + dur - fade);
-        g.gain.linearRampToValueAtTime(0, seg.start + dur);
+        (changesByTrack[track.id] || []).forEach(c => { if (c.t > v.start) times.add(c.t); });
+        slidersOf(track).forEach(sl => (keysBySlider[track.id + '|' + sl.id] || []).forEach(k => { if (k.t > v.start) times.add(k.t); }));
+        [...times].sort((a, b) => a - b).forEach(t => src.playbackRate.setTargetAtTime(trackRateAt(track, t), t, 0.05));
       }
       // Chaîne d'effets de la voix : fx de base de sa cible + triggers actifs à son démarrage, puis changements
-      // programmés pendant sa durée (mêmes règles de fusion que le lecteur).
+      // programmés pendant qu'elle joue (triggers et curseurs), mêmes règles de fusion que le lecteur.
       let chain = null;
-      const track = seg.track;
-      if (track && seg.targetKey) {
-        const defs = (track.fxTriggers || []).filter(d => { if (!d || !d.id || !d.fx) return false; const k = C.fxTargetKeyFromTarget(d.target); return k === seg.targetKey || k === 'track'; });
+      if (track && v.targetKey) {
+        const defs = (track.fxTriggers || []).filter(d => { if (!d || !d.id || !d.fx) return false; const k = C.fxTargetKeyFromTarget(d.target); return k === v.targetKey || k === 'track'; });
         const sliders = slidersOf(track);
-        const base = seg.baseFx !== undefined ? seg.baseFx : C.baseFxForTarget(track, seg.targetKey);
-        const force = [...new Set(defs.flatMap(d => Object.keys(d.fx).filter(k => !(k === 'pitch' && d.fx.pitch && d.fx.pitch.mode === 'rate'))).concat(C.fxSliderForceKeys(sliders, seg.targetKey)))];
+        const base = v.baseFx != null ? v.baseFx : C.baseFxForTarget(track, v.targetKey);
+        const force = [...new Set(defs.flatMap(d => Object.keys(d.fx).filter(k => !(k === 'pitch' && d.fx.pitch && d.fx.pitch.mode === 'rate'))).concat(C.fxSliderForceKeys(sliders, v.targetKey)))];
         const defOf = id => defs.find(d => d.id === id);
-        const active = activeAt(track.id, seg.start);
-        // fx effectif à l'instant t : base + triggers actifs, puis valeurs des curseurs par-dessus (mêmes règles que le lecteur).
-        const sliderVals = new Map(sliders.map(sl => [sl.id, sliderValueAt(track.id, sl, seg.start)]));
-        const effective = () => C.applyFxSliderOverrides(C.mergeTriggerFx(base, active.map(defOf).filter(Boolean)), C.fxSliderOverrides(sliders, id => sliderVals.get(id), seg.targetKey));
-        chain = C.buildLayerFxChain(oc, effective(), src, seg.start, undefined, force);
+        const active = activeAt(track.id, v.start);
+        const sliderVals = new Map(sliders.map(sl => [sl.id, sliderValueAt(track.id, sl, v.start)]));
+        const effective = () => C.applyFxSliderOverrides(C.mergeTriggerFx(base, active.map(defOf).filter(Boolean)), C.fxSliderOverrides(sliders, id => sliderVals.get(id), v.targetKey));
+        chain = C.buildLayerFxChain(oc, effective(), src, v.start, undefined, force);
         if (chain && (defs.length || force.length)) {
-          // Tous les changements pendant la voix, dans l'ordre : appuis/états de triggers ET points-clés de curseurs.
+          const end = v.stop != null ? v.stop : total;
           const timeline = [];
-          (changesByTrack[track.id] || []).forEach(c => { if (c.t > seg.start && c.t < seg.start + dur) timeline.push({ t: c.t, c }); });
-          sliders.forEach(sl => (keysBySlider[track.id + '|' + sl.id] || []).forEach(k => { if (k.t > seg.start && k.t < seg.start + dur) timeline.push({ t: k.t, k, sl }); }));
-          timeline.sort((a, b) => a.t - b.t);
-          timeline.forEach(ev => {
+          (changesByTrack[track.id] || []).forEach(c => { if (c.t > v.start && c.t < end) timeline.push({ t: c.t, c }); });
+          sliders.forEach(sl => (keysBySlider[track.id + '|' + sl.id] || []).forEach(k => { if (k.t > v.start && k.t < end) timeline.push({ t: k.t, k, sl }); }));
+          timeline.sort((a, b) => a.t - b.t).forEach(ev => {
             let ramp = 0.1;
             if (ev.c) {
               const d = defOf(ev.c.triggerId); applyChange(active, ev.c); if (!d && !force.length) return;
-              // même règle que le lecteur : fondu d'entrée / fondu de sortie (vide = même durée que l'entrée)
               const fin = d && d.fadeSec != null ? d.fadeSec : 0.1;
               ramp = ev.c.active ? fin : (d && d.fadeOutSec != null ? d.fadeOutSec : fin);
-            }
-            else { sliderVals.set(ev.sl.id, ev.k.value); ramp = ev.sl.smoothSec; }
+            } else { sliderVals.set(ev.sl.id, ev.k.value); ramp = ev.sl.smoothSec; }
             C.applyFxToChain(oc, chain, effective(), ramp, ev.t);
           });
         }
       }
-      // Même compensation de latence que le lecteur : un morceau qui utilise bitcrusher/pitch-shift retarde ses voix
-      // d'effet, toutes les autres voix du morceau reçoivent le même retard (transitions comprises).
+      // Compensation de latence comme le lecteur (morceau à bitcrusher / pitch-shift), puis le retard propre au direct
+      // (blocs de 1024 à l'écoute contre 256 hors ligne) pour que les Sfx restent calés comme à l'écoute.
       if (track && C.trackNeedsLatencyComp(track)) chain = C.withLatencyComp(oc, chain);
-      if (chain) { src.connect(chain.input); chain.output.connect(g); } else src.connect(g);
-      g.connect(musicBus);
-      src.start(seg.start, offset);
-      src.stop(seg.start + dur);
+      let node = src;
+      if (chain) { src.connect(chain.input); node = chain.output; }
+      if (liveLatency && chain && chain.nodes && (chain.nodes.bitcrush || chain.nodes.pitchShift || chain.nodes.latencyComp)) {
+        const extra = liveLatency - C.fxSpLatencySec(oc);
+        if (extra > 0) { const d = oc.createDelay(1); d.delayTime.value = extra; node.connect(d); node = d; }
+      }
+      if (v.gain) { const g = oc.createGain(); replayParam(g.gain, v.gain); node.connect(g); node = g; }
+      node.connect(musicBus);
+      src.start(v.start, Math.max(0, v.offset || 0));
+      src.stop(Math.min(v.stop != null ? v.stop : Infinity, total));
     }
 
-    // -- Sfx (jamais duckés par leur propre passage) --
+    // -- Sfx (jamais duckés par leur propre passage) : à leur place dans la salle telle que jouée --
     const sfxBus = oc.createGain();
     sfxBus.connect(oc.destination);
     const hits = (plan.sfxHits || []).slice().sort((a, b) => a.t - b.t);
@@ -277,14 +252,14 @@
       const buf = await getBuf(hit.url);
       const src = oc.createBufferSource();
       src.buffer = buf;
-      const sp = hit.sfx && hit.sfx.spatial;
+      const sp = hit.spatial || (hit.sfx && hit.sfx.spatial);
       if (sp && sp.enabled) {
-        // Curseurs liés à la position / reverb de ce Sfx : le son démarre à la valeur du curseur à cet instant, puis suit
-        // les points-clés enregistrés pendant sa durée (comme en jeu, pour une source à position fixe).
+        // Curseurs liés à la position / reverb de ce Sfx : départ à la valeur du curseur à cet instant (déjà comprise dans
+        // hit.spatial pour une capture récente), puis points-clés pendant sa durée (source à position fixe).
         const track = hit.track;
         const sliders = track ? slidersOf(track).filter(sl => sl.bindings.some(b => b.key === 'sfx:' + hit.sfx.id)) : [];
         const valueOfAt = t => id => { const sl = sliders.find(x => x.id === id); return sl ? sliderValueAt(track.id, sl, t) : 0; };
-        const ov0 = sliders.length ? C.fxSliderSfxOverrides(sliders, valueOfAt(hit.t), hit.sfx.id) : null;
+        const ov0 = !hit.spatial && sliders.length ? C.fxSliderSfxOverrides(sliders, valueOfAt(hit.t), hit.sfx.id) : null;
         const voice = C.buildSpatialVoice(oc, ov0 ? C.fxSpatialWithOverride(sp, ov0) : sp, { duration: buf.duration, stepKey: hit.sfx, stepIndex: hit.stepIndex, startTime: hit.t });
         src.connect(voice.input);
         if (voice.fixed && sliders.length) {
@@ -444,5 +419,5 @@
     return bytes;
   }
 
-  window.LayerCaptureRender = { render, renderTake, encodeWav, needsEngineRender, trackHasFx, fxSegmentsToChanges, deriveBranchChanges, deriveSliderTriggerChanges, resolveTriggerChanges, SR };
+  window.LayerCaptureRender = { render, renderTake, encodeWav, fxSegmentsToChanges, deriveBranchChanges, deriveSliderTriggerChanges, resolveTriggerChanges, SR };
 })();
