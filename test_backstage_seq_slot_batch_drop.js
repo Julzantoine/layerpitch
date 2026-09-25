@@ -59,8 +59,9 @@ const path = require('path');
   click(q('[data-action="add-segment-slot"][data-ti="0"]'));
   check('slot créé à la main, avec sa variation vide', track().segmentSlots.length === 1 && track().segmentSlots[0].alternatives.length === 1);
   click(q('[data-action="select-seq-slot"][data-ti="0"][data-si="0"]'));
-  const zone = () => q('#libraryContainer [data-role="seqSlotDrop"]');
-  check('zone "Dépôt groupé du slot" visible dans le slot', !!zone());
+  const zone = () => q('#libraryContainer .seq-slot-drop-panel');
+  check('le panneau du slot est une zone de dépôt', !!zone());
+  check('plus de grande zone de dépôt au niveau du morceau', !q('[data-role="allBlocksDrop"]'));
 
   drop(zone(), ['The Last Door #1.1_120bpm_16M.wav', 'The Last Door #1.2.wav', 'TheLast Door #1.3_8M.wav'].map(F));
   const slot = track().segmentSlots[0];
@@ -74,6 +75,38 @@ const path = require('path');
 
   drop(zone(), [F('The Last Door #1.4.wav')]);
   check('2e dépôt : complète le slot', track().segmentSlots[0].alternatives.length === 4 && track().segmentSlots[0].label === 'The Last Door #1');
+
+  // ---- Fichier lâché sur le sélecteur d'une variation précise : remplace SON fichier, n'ajoute rien ----
+  const altCtrl = q('#libraryContainer [data-role="slotAltFileCtrl"] .file-ctrl');
+  drop(altCtrl, [F('Replacement.wav')]);
+  check('sélecteur d\'une variation : fichier remplacé, pas de variation ajoutée', track().segmentSlots[0].alternatives.length === 4 && track().segmentSlots[0].alternatives[0].pendingFile.name === 'Replacement.wav');
+
+  // ---- Dépôt sur les noms de la liste de gauche ----
+  drop(q('[data-action="select-seq-slot"][data-ti="0"][data-seq-key="seqIntro"]'), [F('Door_Intro_6M_90bpm.wav')]);
+  check('Intro : fichier posé, mesures et tempo lus dans le nom', track().intro.pendingFile && track().intro.bars === 6 && track().intro.bpm === 90);
+  drop(q('[data-action="select-seq-slot"][data-ti="0"][data-seq-key="seqOutro"]'), [F('Door_Outro.wav')]);
+  check('Outro : fichier posé', track().outro.pendingFile && track().outro.pendingFile.name === 'Door_Outro.wav');
+  click(q('[data-action="add-segment-slot"][data-ti="0"]'));
+  drop(q('[data-action="select-seq-slot"][data-ti="0"][data-si="1"]'), ['Door #2.1.wav', 'Door #2.2.wav'].map(F));
+  const s2 = track().segmentSlots[1];
+  check('Slot 2 (nom dans la liste) : 2 variations, nommé "Door #2"', s2.alternatives.length === 2 && s2.label === 'Door #2');
+  check('le slot déposé devient la sélection', !!q('.seq-master-item.active[data-si="1"]'));
+
+  // ---- Vertical-random : toute la carte d'un pool est une zone de dépôt ----
+  click(q('#btnAddLibraryTrack'));
+  const ti = window.eval('library.length - 1');
+  setValue(q(`#libraryContainer select[data-field="mode"][data-ti="${ti}"]`), 'vertical-random');
+  const pools = () => window.eval(`library[${ti}].sections[0] && library[${ti}].sections[0].pools`);
+  if (!window.eval(`(library[${ti}].sections || []).length`)) click(q(`[data-action="add-section"][data-ti="${ti}"]`));
+  click(q(`.seq-master-item[data-action="select-seq-slot"][data-ti="${ti}"][data-si="0"]`)); // sections : clé numérique
+  if (!pools() || !pools().length) { const addPool = q(`[data-action="add-pool"][data-ti="${ti}"]`); if (addPool) click(addPool); }
+  const poolCard = q('#libraryContainer [data-role="vrsPools"] > .list-block');
+  check('carte de pool trouvée', !!poolCard);
+  if (poolCard) {
+    drop(poolCard, ['Perc 1.wav', 'Perc 2.wav'].map(F));
+    const p0 = pools()[0];
+    check('pool : 2 variations ajoutées, la variation vide remplacée', p0.alternatives.length === 2 && p0.alternatives.every(a => a.pendingFile));
+  }
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);

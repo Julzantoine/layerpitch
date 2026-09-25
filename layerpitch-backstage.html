@@ -175,23 +175,21 @@
   .row { display: flex; gap: 12px; }
   .row > div { flex: 1; }
   .hint-inline { color: var(--text-dimmer); font-size: 10px; margin-top: 3px; }
-  [data-role="poolAlternatives"], [data-role="slotAlternatives"], [data-role="allBlocksDrop"], [data-role="staticFileCtrl"], [data-role="modeMaster"] { border-radius: 6px; transition: background 0.15s, outline 0.15s; }
+  [data-role="poolAlternatives"], [data-role="slotAlternatives"], [data-role="staticFileCtrl"], [data-role="modeMaster"] { border-radius: 6px; transition: background 0.15s, outline 0.15s; }
   [data-role="poolAlternatives"]:empty, [data-role="slotAlternatives"]:empty {
     border: 1px dashed #d5d5da; min-height: 44px; display: flex; align-items: center; justify-content: center;
   }
   [data-role="poolAlternatives"]:empty::before, [data-role="slotAlternatives"]:empty::before {
     content: var(--drop-hint-text, 'Glisse des fichiers ici'); color: var(--text-dimmer); font-size: 11px;
   }
-  [data-role="allBlocksDrop"] {
-    border: 1px dashed #d5d5da; min-height: 44px; display: flex; align-items: center; justify-content: center;
-  }
-  [data-role="allBlocksDrop"]::before { content: var(--drop-all-hint-text, 'Dépose tous tes fichiers ici'); color: var(--text-dimmer); font-size: 11px; }
-  [data-role="vrsSectionDrop"], [data-role="sfxLibraryDrop"], [data-role="sfxVariationsDrop"], [data-role="seqSlotDrop"] {
+  .list-block.drag-over, .seq-slot-drop-panel.drag-over { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: 2px; }
+  .seq-master-item.drag-over { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: 2px; }
+  [data-role="vrsSectionDrop"], [data-role="sfxLibraryDrop"], [data-role="sfxVariationsDrop"] {
     border: 1px dashed #d5d5da; border-radius: 6px; min-height: 44px; display: flex; align-items: center; justify-content: center;
     color: var(--text-dimmer); font-size: 11px; transition: background 0.15s, outline 0.15s;
   }
   [data-role="vrsSectionDrop"].is-disabled, [data-role="sfxLibraryDrop"].is-disabled { opacity: 0.45; cursor: not-allowed; }
-  [data-role="vrsSectionDrop"].drag-over, [data-role="sfxLibraryDrop"].drag-over, [data-role="sfxVariationsDrop"].drag-over, [data-role="seqSlotDrop"].drag-over { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: 2px; }
+  [data-role="vrsSectionDrop"].drag-over, [data-role="sfxLibraryDrop"].drag-over, [data-role="sfxVariationsDrop"].drag-over { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: 2px; }
   .vrs-batch-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
   .vrs-batch-modal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 560px; max-width: 92vw; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   .vrs-batch-modal h3 { font-size: 13px; margin-bottom: 4px; color: var(--text); }
@@ -207,7 +205,7 @@
   .vrs-batch-file span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .vrs-batch-file select { width: 170px; flex: none; margin: 0; }
   .vrs-batch-actions { justify-content: flex-end; }
-  [data-role="poolAlternatives"].drag-over, [data-role="slotAlternatives"].drag-over, [data-role="allBlocksDrop"].drag-over, [data-role="staticFileCtrl"].drag-over, [data-role="modeMaster"].drag-over, [data-role="segmentSlotsMaster"].drag-over, [data-role="sfxAlternatives"].drag-over, .file-ctrl.drag-over { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: 2px; }
+  [data-role="poolAlternatives"].drag-over, [data-role="slotAlternatives"].drag-over, [data-role="staticFileCtrl"].drag-over, [data-role="modeMaster"].drag-over, [data-role="sfxAlternatives"].drag-over, .file-ctrl.drag-over { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: 2px; }
   .hint { color: var(--text-dimmer); font-size: 11px; margin-top: 4px; }
   .lang-toggle { display: flex; gap: 6px; margin: 14px 0; }
   .lang-toggle button { font-size: 11px; padding: 4px 10px; border-radius: 10px; border: 1px solid #d8d8dc; background: transparent; color: var(--text-dimmer); cursor: pointer; }
@@ -601,6 +599,9 @@
   .seq-map-node.pending { border-color: var(--accent); border-style: dashed; }
   .seq-map-node-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 6px; font-family: 'JetBrains Mono', monospace; font-size: var(--seq-map-node-font, 10px); text-align: center; z-index: 1; color: var(--text-dim); }
   .seq-map-node.current .seq-map-node-label { color: var(--text); font-weight: 600; }
+  /* Coche "déjà joué" (coin haut-gauche) : marge des deux côtés du libellé pour qu'elle ne recouvre plus la 1re lettre, centrage conservé (25/09). */
+  .seq-map-nodes:not(.compact) .seq-map-node.visited .seq-map-node-label { padding: 0 16px; }
+  .seq-map-roomy .seq-map-nodes:not(.compact) .seq-map-node.visited .seq-map-node-label { padding: 0 26px; }
   .seq-map-node-check { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--seq-map-success, var(--accent)); color: #fff; display: flex; align-items: center; justify-content: center; z-index: 2; font-size: 8px; line-height: 1; }
   .seq-map-edge { fill: none; stroke: var(--border); stroke-width: 1.5px; cursor: default; }
   /* .seq-map-edge.transition n'a plus de règle de couleur (03/09, retour direct : "oublie la couleur du
@@ -1763,9 +1764,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790359996194"></script>
-<script src="layerpitch-help.js?v=1790359996194"></script>
-<script src="player.js?v=1790359996194"></script>
+<script src="layerpitch-i18n.js?v=1790361528445"></script>
+<script src="layerpitch-help.js?v=1790361528445"></script>
+<script src="player.js?v=1790361528445"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -1815,7 +1816,6 @@ function tr(key, vars) {
 function applyI18n() {
   document.documentElement.lang = currentLang();
   document.documentElement.style.setProperty('--drop-hint-text', JSON.stringify(tr('dropFilesHint')));
-  document.documentElement.style.setProperty('--drop-all-hint-text', JSON.stringify(tr('dropAllFilesHint')));
   document.querySelectorAll('[data-i18n]').forEach(el => { const v = tr(el.dataset.i18n); if (v) el.textContent = v; });
   document.querySelectorAll('[data-i18n-title]').forEach(el => { const v = tr(el.dataset.i18nTitle); if (v) el.title = v; });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { const v = tr(el.dataset.i18nPlaceholder); if (v) el.placeholder = v; });
@@ -4124,6 +4124,12 @@ function fileMatchesAccept(f, accept) {
   });
 }
 
+// Filet de sécurité (25/09) : un fichier lâché hors d'une zone de dépôt ne doit jamais être ouvert par le
+// navigateur, qui quitterait le Backstage en perdant les modifications non enregistrées. Les zones de dépôt
+// traitent l'événement avant qu'il n'arrive ici.
+['dragover', 'drop'].forEach(type => document.addEventListener(type, e => {
+  if (e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files')) e.preventDefault();
+}));
 function wireBatchDrop(hostEl, onFiles) {
   hostEl.addEventListener('dragover', e => { e.preventDefault(); hostEl.classList.add('drag-over'); });
   hostEl.addEventListener('dragleave', () => hostEl.classList.remove('drag-over'));
@@ -4137,7 +4143,7 @@ function wireBatchDrop(hostEl, onFiles) {
     const files = [...(e.dataTransfer.files || [])]
       .filter(f => /\.(wav|mp3)$/i.test(f.name))
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-    if (files.length) onFiles(files);
+    if (files.length) { e.stopPropagation(); onFiles(files); } // traité ici : pas une 2e fois par un bloc englobant
   });
 }
 
@@ -4975,6 +4981,50 @@ function guessSequentialRole(filename) {
   return 'segment';
 }
 
+// ---- Dépôts du mode séquentiel (25/09) : partagés entre les zones de dépôt du détail (sélecteur de fichier de
+// l'intro/outro, "Dépôt groupé du slot") et les entrées de la liste de gauche (Intro, #1 Slot 1, Outro), sur
+// lesquelles on peut lâcher les fichiers directement.
+// Intro/outro : un seul fichier ; mesures (intro) et tempo repris du nom quand il en porte.
+function setSeqStageFile(track, stage, f) {
+  const st = track[stage];
+  const h = parseAudioFilenameHints(f.name);
+  st.pendingFile = f;
+  if (stage === 'intro') {
+    if (h.bars) st.bars = h.bars;
+    if (h.bpm) st.bpm = h.bpm;
+    if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilename(f.name);
+  }
+  hasUnsavedEdits = true;
+  renderLibrary();
+  probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } });
+}
+// Slot : chaque fichier devient une variation. Slot encore sans aucun fichier : ses variations vides (celle
+// créée par "+ Slot") sont des attentes de fichier, remplacées par le dépôt plutôt que laissées en silence parasite.
+function addFilesToSeqSlot(track, ti, si, files) {
+  const slot = track.segmentSlots[si];
+  const hasFile = a => !!(a.pendingFile || a.remoteFile);
+  if (!slot.alternatives.some(hasFile)) slot.alternatives = [];
+  files.forEach(f => {
+    const h = parseAudioFilenameHints(f.name);
+    if (h.bpm && !slot.bpm) slot.bpm = h.bpm; // tempo du slot repris du premier nom qui en porte un
+    slot.alternatives.push({ label: titleFromFilenameStrippingHints(f.name), bars: h.bars || 8, remoteFile: null, pendingFile: f });
+  });
+  // Slot sans nom : nommé d'après le 1er fichier, sans son numéro de variation ("Door #1.2" -> "Door #1",
+  // pour que les slots #1 et #2 restent distincts ; "Hit 3" -> "Hit").
+  if (!slot.label || !slot.label.trim()) {
+    const base = titleFromFilenameStrippingHints(files[0].name);
+    const m = base.match(/^(.*\d)\s*[.,]\s*\d+$/);
+    slot.label = m ? m[1].trim() : stripVariantSuffix(base);
+  }
+  expandedAltPoolKeys.add(`slotpool:${ti}:${si}`); // montre les variations qu'on vient d'ajouter
+  hasUnsavedEdits = true;
+  renderLibrary();
+  Promise.all(files.map(probeAudioDuration)).then(durs => {
+    const maxDur = Math.max(0, ...durs);
+    if (maxDur > (track.duration || 0)) { track.duration = maxDur; renderLibrary(); }
+  });
+}
+
 // ---- Dépôt groupé "par familles de noms" (25/09, demandes de Jules-Antoine) ----
 // Sert aux pools d'une section vertical-random et à la bibliothèque Sfx (un Sfx par famille, ses fichiers en
 // variations round-robin). L'intro/outro est reconnue au nom (guessSequentialRole) quand c'est pertinent, le
@@ -5795,13 +5845,9 @@ function renderLibrary() {
       <div data-role="previewHost"></div>
       <div class="list-block-body" data-role="trackBody">
       ${isSequential ? `
-        <label data-help="batchDropSequential" style="margin-top:14px">${tr('batchDropLabel')}</label>
-        <div class="hint-inline">${tr('batchDropHint')}</div>
-        <div data-role="allBlocksDrop" style="margin-top:6px"></div>
         <label data-help="segmentSlotsSection" style="margin-top:14px">${tr('segmentSlotsLabel')}</label>
         ${!(track.segmentSlots && track.segmentSlots.some(sl => (sl.alternatives || []).some(a => a.pendingFile || a.remoteFile))) ? `<div class="hint-inline" style="color:#b45309">${tr('noSegmentWarning')}</div>` : ''}
         <div class="hint-inline">${tr('segmentSlotsOrderHint')}</div>
-        <div class="hint-inline">${tr('segmentsDropHint')}</div>
         <div class="seq-two-col">
           <div class="seq-master-list" data-role="segmentSlotsMaster"></div>
           <div class="seq-detail-col" data-role="segmentSlotsDetail"></div>
@@ -6101,7 +6147,7 @@ function renderLibrary() {
                 <span style="color:var(--text-dim);font-size:12px;">${tr('avoidRepeatAltLabel')}</span>
               </label>
               <div class="hint-inline">${tr('silentAltHint')}</div>
-              <div class="hint-inline">${tr('altDropHint')}</div>
+              <div class="hint-inline">${tr('blockDropHint')}</div>
               <div style="margin-top:10px">${altPoolToggleHtml(`vrspool:${ti}:${sci}:${pi}`, pool.alternatives.length)}</div>
               <div class="list-block-body alt-pool-panel${expandedAltPoolKeys.has(`vrspool:${ti}:${sci}:${pi}`) ? '' : ' collapsed'}" data-role="altPoolBody" style="margin-top:8px">
                 <div data-role="poolAlternatives"></div>
@@ -6134,8 +6180,14 @@ function renderLibrary() {
                 }, () => alt.originalFileName);
               altsHost.appendChild(altRow);
             });
-            wireBatchDrop(altsHost, files => {
-              files.forEach(f => pool.alternatives.push({ label: titleFromFilename(f.name), remoteFile: null, pendingFile: f }));
+            // Toute la carte du pool est une zone de dépôt (25/09, demande de Jules-Antoine) -- plus seulement la
+            // liste des variations, repliée par défaut. Un fichier lâché sur le sélecteur d'une variation précise
+            // remplace toujours SON fichier (wireFileControl arrête l'événement avant qu'il n'arrive ici).
+            wireBatchDrop(poolEl, files => {
+              // Pool encore sans aucun fichier : ses variations vides sont des attentes de fichier, remplacées.
+              if (!pool.alternatives.some(a => a.pendingFile || a.remoteFile)) pool.alternatives = [];
+              files.forEach(f => pool.alternatives.push({ label: titleFromFilenameStrippingHints(f.name), remoteFile: null, pendingFile: f }));
+              expandedAltPoolKeys.add(`vrspool:${ti}:${sci}:${pi}`);
               hasUnsavedEdits = true;
               renderLibrary();
               Promise.all(files.map(probeAudioDuration)).then(durs => {
@@ -6483,36 +6535,9 @@ function renderLibrary() {
       if (!track.intro) track.intro = { label: 'Intro', bars: 8, remoteFile: null, pendingFile: null };
       if (!track.outro) track.outro = { label: 'Outro', bars: 8, remoteFile: null, pendingFile: null };
 
-      const allDropHost = el.querySelector('[data-role="allBlocksDrop"]');
-      if (allDropHost) {
-        allDropHost.innerHTML = '';
-        wireBatchDrop(allDropHost, files => {
-          // bpm/mesures repris du nom de fichier ("..._120bpm_16M.wav", 25/09, demande de Jules-Antoine) --
-          // même règle que le dépôt sur la liste des emplacements plus bas : jetons retirés du libellé, et
-          // chaque valeur reste modifiable ensuite dans le bloc concerné.
-          files.forEach(f => {
-            const guess = guessSequentialRole(f.name);
-            const hints = parseAudioFilenameHints(f.name);
-            const cleanLabel = titleFromFilenameStrippingHints(f.name);
-            const introTaken = !!(track.intro && (track.intro.pendingFile || track.intro.remoteFile));
-            const outroTaken = !!(track.outro && (track.outro.pendingFile || track.outro.remoteFile));
-            if (guess === 'intro' && !introTaken) {
-              track.intro = { label: cleanLabel, bars: hints.bars || (track.intro && track.intro.bars) || 8, remoteFile: null, pendingFile: f };
-            } else if (guess === 'outro' && !outroTaken) {
-              track.outro = { label: cleanLabel, remoteFile: null, pendingFile: f };
-            } else {
-              track.segmentSlots.push({ id: genId(), label: cleanLabel, avoidImmediateRepeat: true, bpm: hints.bpm, alternatives: [{ label: cleanLabel, bars: hints.bars || 8, remoteFile: null, pendingFile: f }] });
-            }
-          });
-          hasUnsavedEdits = true;
-          if ((!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) && files[0]) track.title = titleFromFilename(files[0].name);
-          renderLibrary();
-          Promise.all(files.map(probeAudioDuration)).then(durs => {
-            const maxDur = Math.max(0, ...durs);
-            if (maxDur > (track.duration || 0)) { track.duration = maxDur; renderLibrary(); }
-          });
-        });
-      }
+      // Plus de dépôt groupé au niveau du morceau ni sur la liste des slots (25/09, jugés redondants par
+      // Jules-Antoine) : comme les sections du vertical-random, on crée le slot (+ Slot) puis on dépose ses
+      // fichiers dans sa zone "Dépôt groupé du slot". Intro/outro : dépôt sur leur propre sélecteur de fichier.
 
       // Intro/Outro n'ont plus de bloc replié à part (18/08, alignement sur le principe déjà en place pour
       // les autres modes) : ils sont désormais deux entrées de la liste maître, dans la catégorie
@@ -6588,7 +6613,14 @@ function renderLibrary() {
       seqCatLabel.textContent = tr('trackSectionStructure');
       slotsMasterHost.appendChild(seqCatLabel);
 
-      slotsMasterHost.appendChild(seqMasterItem('seqIntro', `<div class="seq-master-item-label">${tr('introShortLabel')}</div>`, true));
+      // Fichiers lâchés directement sur une entrée de la liste (25/09, demande de Jules-Antoine) : Intro/Outro
+      // prennent le premier fichier, un slot les prend tous en variations. L'entrée est sélectionnée pour
+      // montrer le résultat. Un slot dupliqué n'a pas de fichiers à lui : pas de dépôt (le filet de sécurité
+      // global avale l'événement).
+      const wireStageDrop = (item, stage) => wireBatchDrop(item, files => { seqSelectedSlotIndex.set(track.id, stage === 'intro' ? 'seqIntro' : 'seqOutro'); setSeqStageFile(track, stage, files[0]); });
+      const introMasterItem = seqMasterItem('seqIntro', `<div class="seq-master-item-label">${tr('introShortLabel')}</div>`, true);
+      wireStageDrop(introMasterItem, 'intro');
+      slotsMasterHost.appendChild(introMasterItem);
       if (selectedSi === 'seqIntro') {
         const introEl = document.createElement('div');
         introEl.innerHTML = `
@@ -6619,13 +6651,7 @@ function renderLibrary() {
         introCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'));
         wireFileControl(introCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
           () => track.intro.pendingFile, () => track.intro.remoteFile,
-          f => {
-            track.intro.pendingFile = f;
-            hasUnsavedEdits = true;
-            if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilename(f.name);
-            renderLibrary();
-            probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } });
-          }, () => track.intro.originalFileName);
+          f => setSeqStageFile(track, 'intro', f), () => track.intro.originalFileName);
         wireCollapsibleBlockToggle(introEl.querySelector('[data-role="introDescToggle"]'), introEl.querySelector('[data-role="introDescBody"]'), `introDesc:${ti}`);
       }
       track.segmentSlots.forEach((slot, si) => {
@@ -6644,6 +6670,7 @@ function renderLibrary() {
             ${branchCountForMaster ? `<span class="seq-master-item-tag">${trCount(branchCountForMaster, 'seqOutletsSingular', 'seqOutletsPlural')}</span>` : ''}
           </div>
         `;
+        if (!isDuplicateForMaster) wireBatchDrop(masterItem, files => { seqSelectedSlotIndex.set(track.id, si); addFilesToSeqSlot(track, ti, si, files); });
         slotsMasterHost.appendChild(masterItem);
         if (si !== selectedSi) return; // seule la carte sélectionnée reçoit le détail complet ci-dessous
         const slotEl = document.createElement('div');
@@ -6747,15 +6774,12 @@ function renderLibrary() {
           ${isDuplicate ? `
             <div class="hint-inline">${tr('slotDuplicateHint', { label: escapeAttr((sourceSlot && sourceSlot.label) || tr('untitledFallback')) })}</div>
           ` : `
-            <label data-help="seqSlotBatchDrop" style="margin-top:14px">${tr('seqSlotBatchDropLabel')}</label>
-            <div class="hint-inline">${tr('seqSlotBatchDropHint')}</div>
-            <div data-role="seqSlotDrop" style="margin-top:6px">${tr('dropAllFilesHint')}</div>
             <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
               <input type="checkbox" data-slot-field="avoidImmediateRepeat" data-ti="${ti}" data-si="${si}" ${slot.avoidImmediateRepeat ? 'checked' : ''} style="width:auto;margin:0;">
               <span style="color:var(--text-dim);font-size:12px;">${tr('avoidRepeatAltLabel')}</span>
             </label>
             <div class="hint-inline">${tr('silentAltHint')}</div>
-            <div class="hint-inline">${tr('altDropHint')}</div>
+            <div class="hint-inline">${tr('seqSlotBatchDropHint')}</div>
             <div class="eyebrow-block">
               <div class="eyebrow-block-title">Variations de cet emplacement</div>
               ${altPoolToggleHtml(`slotpool:${ti}:${si}`, slot.alternatives.length)}
@@ -6904,36 +6928,15 @@ function renderLibrary() {
         // main, puis on y dépose tous ses fichiers -- chacun devient une variation). Zone visible en haut du
         // slot, en plus de la liste des variations (repliée par défaut, d'où l'ajout). Ouverte à tous : c'est
         // l'ancien dépôt dans la liste des variations, rendu visible et complété.
-        const dropIntoSlot = files => {
-          const hasFile = a => !!(a.pendingFile || a.remoteFile);
-          // Slot encore sans aucun fichier : ses variations vides (celle créée par "+ Slot") sont des
-          // attentes de fichier, remplacées par le dépôt plutôt que laissées en silence parasite.
-          if (!slot.alternatives.some(hasFile)) slot.alternatives = [];
-          files.forEach(f => {
-            const h = parseAudioFilenameHints(f.name);
-            if (h.bpm && !slot.bpm) slot.bpm = h.bpm; // tempo du slot repris du premier nom qui en porte un
-            slot.alternatives.push({ label: titleFromFilenameStrippingHints(f.name), bars: h.bars || 8, remoteFile: null, pendingFile: f });
-          });
-          // Slot sans nom : nommé d'après le 1er fichier, sans son numéro de variation ("Door #1.2" -> "Door #1",
-          // pour que les slots #1 et #2 restent distincts ; "Hit 3" -> "Hit").
-          if (!slot.label || !slot.label.trim()) {
-            const base = titleFromFilenameStrippingHints(files[0].name);
-            const m = base.match(/^(.*\d)\s*[.,]\s*\d+$/);
-            slot.label = m ? m[1].trim() : stripVariantSuffix(base);
-          }
-          expandedAltPoolKeys.add(`slotpool:${ti}:${si}`); // montre les variations qu'on vient d'ajouter
-          hasUnsavedEdits = true;
-          renderLibrary();
-          Promise.all(files.map(probeAudioDuration)).then(durs => {
-            const maxDur = Math.max(0, ...durs);
-            if (maxDur > (track.duration || 0)) { track.duration = maxDur; renderLibrary(); }
-          });
-        };
-        wireBatchDrop(altsHost, dropIntoSlot);
-        wireBatchDrop(slotEl.querySelector('[data-role="seqSlotDrop"]'), dropIntoSlot);
+        // Tout le panneau du slot est une zone de dépôt (25/09) : chaque fichier devient une variation. Un fichier
+        // lâché sur le sélecteur d'une variation précise remplace toujours SON fichier (wireFileControl).
+        slotEl.classList.add('seq-slot-drop-panel');
+        wireBatchDrop(slotEl, files => addFilesToSeqSlot(track, ti, si, files));
         slotsDetailHost.appendChild(slotEl);
       });
-      slotsMasterHost.appendChild(seqMasterItem('seqOutro', `<div class="seq-master-item-label">${tr('outroShortLabel')}</div>`, true));
+      const outroMasterItem = seqMasterItem('seqOutro', `<div class="seq-master-item-label">${tr('outroShortLabel')}</div>`, true);
+      wireStageDrop(outroMasterItem, 'outro');
+      slotsMasterHost.appendChild(outroMasterItem);
       if (selectedSi === 'seqOutro') {
         const outroEl = document.createElement('div');
         outroEl.innerHTML = `
@@ -6964,12 +6967,7 @@ function renderLibrary() {
         outroCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'));
         wireFileControl(outroCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
           () => track.outro.pendingFile, () => track.outro.remoteFile,
-          f => {
-            track.outro.pendingFile = f;
-            hasUnsavedEdits = true;
-            renderLibrary();
-            probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } });
-          }, () => track.outro.originalFileName);
+          f => setSeqStageFile(track, 'outro', f), () => track.outro.originalFileName);
         wireCollapsibleBlockToggle(outroEl.querySelector('[data-role="outroDescToggle"]'), outroEl.querySelector('[data-role="outroDescBody"]'), `outroDesc:${ti}`);
       }
       // "+ Emplacement" vit désormais à la suite de la Structure (juste après Outro), plutôt que sous
@@ -7012,24 +7010,6 @@ function renderLibrary() {
         `;
         slotsDetailHost.appendChild(notesEl);
       }
-      wireBatchDrop(slotsMasterHost, files => {
-        // Dépôt direct sur la zone "Emplacements" (pas dans un emplacement précis) : chaque fichier crée son
-        // propre emplacement plutôt que de les regrouper comme alternatives d'un même emplacement — l'intérêt
-        // des emplacements, c'est justement de distinguer des parties différentes de la structure.
-        // bpm/mesures repris automatiquement du nom de fichier quand présents (parseAudioFilenameHints,
-        // voir plus haut) — jetons retirés du libellé affiché, qui reste donc lisible.
-        files.forEach(f => {
-          const hints = parseAudioFilenameHints(f.name);
-          const cleanLabel = titleFromFilenameStrippingHints(f.name);
-          track.segmentSlots.push({ id: genId(), label: cleanLabel, avoidImmediateRepeat: true, bpm: hints.bpm, alternatives: [{ label: cleanLabel, bars: hints.bars || 8, remoteFile: null, pendingFile: f }] });
-        });
-        hasUnsavedEdits = true;
-        renderLibrary();
-        Promise.all(files.map(probeAudioDuration)).then(durs => {
-          const maxDur = Math.max(0, ...durs);
-          if (maxDur > (track.duration || 0)) { track.duration = maxDur; renderLibrary(); }
-        });
-      });
     }
     const trackSfxSelectorHost = el.querySelector('[data-role="trackSfxSelector"]');
     if (!track.sfxIds) track.sfxIds = [];

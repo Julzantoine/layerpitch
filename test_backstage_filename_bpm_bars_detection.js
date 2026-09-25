@@ -3,6 +3,7 @@
 // d'écran (3 fichiers : 2 segments à 120 BPM/30 mesures, 1 segment à 160 BPM/40 mesures). Vérifie
 // l'extraction ET l'absence de faux positif.
 //
+// Adapté le 25/09 : fichiers lâchés un par un sur l'entrée de chaque slot (la liste entière n'accepte plus de dépôt).
 // Réécrit le 01/09 : `parseAudioFilenameHints` avait disparu du code (confirmé par grep, aucune trace de
 // suppression volontaire contrairement aux refontes du 18/08) -- restaurée dans layerpitch-backstage.html
 // (près de titleFromFilename) après confirmation explicite de Jules-Antoine que ce n'était pas voulu, et
@@ -67,13 +68,11 @@ const path = require('path');
   modeSelect.value = 'sequential';
   modeSelect.dispatchEvent(new window.Event('input', { bubbles: true }));
 
-  const host = q('[data-role="segmentSlotsMaster"]');
-  check('zone de dépôt (liste maître des emplacements) trouvée', !!host);
-  drop(host, [
-    fakeFile('#1_RobotAdventure_WetDarkCave_120bpm_30M.wav'),
-    fakeFile('#2_RobotAdventure_Corridor_120bpm_30M.wav'),
-    fakeFile('#3_RobotAdventure_BattleFinal_160bpm_40M.wav')
-  ]);
+  // 25/09 : on crée les slots (+ Slot), puis on lâche chaque fichier sur l'entrée de son slot dans la liste.
+  const files = ['#1_RobotAdventure_WetDarkCave_120bpm_30M.wav', '#2_RobotAdventure_Corridor_120bpm_30M.wav', '#3_RobotAdventure_BattleFinal_160bpm_40M.wav'];
+  files.forEach(() => click(q('[data-action="add-segment-slot"][data-ti="0"]')));
+  check('3 slots créés à la main', !!q('[data-action="select-seq-slot"][data-ti="0"][data-si="2"]'));
+  files.forEach((name, si) => drop(q(`[data-action="select-seq-slot"][data-ti="0"][data-si="${si}"]`), [fakeFile(name)]));
 
   const bpms = [], bars = [], labels = [];
   [0, 1, 2].forEach(si => {

@@ -67,13 +67,14 @@ const path = require('path');
   // ---- Backstage (tout révélé) : grille sans flèches, mention "ordre aléatoire" ----
   {
     const track = { id: 'rnd-1', title: 'Random full', mode: 'sequential', description: '', duration: 0, base: '', publishedAt: 1, bpm, beatsPerBar,
-      randomizeSections: true, seqMapFullReveal: true, segmentSlots: [mk('s1', 'A'), mk('s2', 'B'), mk('s3', 'C'), mk('s4', 'D'), mk('s5', 'E')], sfxIds: [] };
+      randomizeSections: true, seqMapFullReveal: true, segmentSlots: [mk('s1', 'A'), mk('s2', 'B'), mk('s3', 'C'), mk('s4', 'D'), mk('s5', '')], sfxIds: [] };
     const row = Core.buildTrackRow(track, null, false);
     doc.getElementById('host').appendChild(row);
     Core.initTrackPlayer(track, row);
     await waitUntil(() => row.querySelectorAll('.seq-map-node').length === 5, 2000);
     const nodes = [...row.querySelectorAll('.seq-map-node')];
     check('5 slots affichés', nodes.length === 5);
+    check('slot sans nom : libellé de repli traduit (pas la clé "slotFallback")', /^(Emplacement|Slot) 5$/.test(nodes.find(n => n.dataset.slotIdx === '4').textContent.trim()));
     check('aucune flèche entre slots en ordre aléatoire', row.querySelectorAll('[data-role="seqMapLines"] .seq-map-edge').length === 0);
     check('mention "ordre aléatoire" à côté du titre de la carte', /aléatoire|random/i.test(row.querySelector('[data-role="seqMap"] .voice-graph-label').textContent));
     const tops = new Set(nodes.map(n => n.style.top)), lefts = new Set(nodes.map(n => n.style.left));
