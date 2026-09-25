@@ -115,6 +115,21 @@
   .seq-master-item.drag-over-top::before { top: -4.5px; }
   .seq-master-item.drag-over-bottom::after { bottom: -4.5px; }
   .seq-master-item[draggable="true"] .block-drag-handle { cursor: grabbing; }
+  /* Pendant un glisser-déposer (25/09, demande de Jules-Antoine) : les espaces ENTRE éléments deviennent visibles
+     (trait pointillé discret dans chaque espace, élargi), pour voir où l'élément va atterrir ; l'espace visé
+     reste marqué par le trait plein ci-dessus. Alt enfoncé = duplication (curseur "copie"). */
+  .is-reordering .seq-master-item[data-drag-id], .is-reordering .sel-track-item[data-drag-id] { margin: 5px 0; }
+  .is-reordering .seq-master-item[data-drag-id]:not(.dragging):not(.drag-over-top)::before,
+  .is-reordering .sel-track-item[data-drag-id]:not(.dragging):not(.drag-over-top)::before {
+    content: ''; position: absolute; left: 10px; right: 10px; top: -8px; height: 0; border-top: 2px dashed color-mix(in srgb, var(--accent) 35%, transparent); pointer-events: none;
+  }
+  .is-reordering .seq-master-item.drag-over-top::before, .is-reordering .sel-track-item.drag-over-top::before { top: -8px; }
+  .is-reordering .seq-master-item.drag-over-bottom::after, .is-reordering .sel-track-item.drag-over-bottom::after { bottom: -8px; }
+  #blocksEditorContainer.is-reordering .block-editor-card { margin-bottom: 20px; }
+  #blocksEditorContainer.is-reordering .block-editor-card:not(.dragging) { outline: 2px dashed color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: 4px; }
+  .is-duplicating .dragging { opacity: 1; }
+  /* Élément sélectionné au clavier (touche Supprimer) : un bloc de contenu n'a pas d'état "actif" à lui. */
+  .block-editor-card.kb-selected { box-shadow: 0 0 0 2px var(--accent); }
   /* Extension (29/08) au sélecteur de morceaux d'un AdReel (liste plate d'identifiants, pas une liste
      maître de piste) -- même mécanisme JS (wireArrayDragReorder généralisé), même style visuel. */
   .sel-track-item .block-drag-handle { margin-right: 2px; }
@@ -1764,9 +1779,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790361528445"></script>
-<script src="layerpitch-help.js?v=1790361528445"></script>
-<script src="player.js?v=1790361528445"></script>
+<script src="layerpitch-i18n.js?v=1790362985866"></script>
+<script src="layerpitch-help.js?v=1790362985866"></script>
+<script src="player.js?v=1790362985866"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3066,6 +3081,19 @@ let publishedCatalog = null;
 // clic (ancien comportement) laissait un morceau muet si on rechargeait sans publier, ou si la base refusait la
 // suppression (élément déjà acheté). Clé 'tracks:<id>' / 'sfx:<id>' -> liste de chemins R2.
 const pendingR2Deletes = new Map();
+// Même principe pour un morceau de morceau (slot, section, pool, couche, boucle, variation, transition) ou une
+// variation de Sfx retirés (25/09) : avant, leurs fichiers partaient au clic -- un rechargement sans publier
+// laissait la version en ligne muette, et depuis la duplication (Alt + glisser) une copie partage les fichiers
+// de l'original. Effacés à la publication, et seulement si plus rien ne les utilise (allReferencedR2Keys).
+const pendingOrphanR2Keys = new Set();
+function queueR2Delete(key) { pendingOrphanR2Keys.add(key); }
+function queueTrackFileDelete(track, obj) { if (obj && obj.remoteFile) queueR2Delete(`audio/${track.id}/${obj.remoteFile}`); }
+function allReferencedR2Keys() {
+  const keys = new Set();
+  library.forEach(t => trackRemoteFileKeys(t).forEach(k => keys.add(k)));
+  sfxLibrary.forEach(sfx => sfxRemoteFileKeys(sfx).forEach(k => keys.add(k)));
+  return keys;
+}
 function currentCatalog() {
   const byId = (items, labelOf) => new Map(items.map(x => [x.id, labelOf(x) || x.id]));
   return {
@@ -3119,6 +3147,10 @@ async function deleteRemovedCatalogItems() {
   // l'envoi R2) : rien à supprimer en base, leurs fichiers peuvent partir tout de suite.
   pendingR2Deletes.forEach(keys => keys.forEach(r2DeleteFileLogged));
   pendingR2Deletes.clear();
+  // Fichiers d'éléments retirés à l'intérieur d'un morceau/Sfx : les morceaux viennent d'être publiés sans eux.
+  const referenced = allReferencedR2Keys();
+  pendingOrphanR2Keys.forEach(k => { if (!referenced.has(k)) r2DeleteFileLogged(k); });
+  pendingOrphanR2Keys.clear();
   return { deleted: removed.length - blocked.length, blocked };
 }
 
@@ -3738,7 +3770,36 @@ function appendMasterAddButton(masterHost, action, ti, labelKey) {
 // empilés sur `document` sans jamais les retirer (fuite). Ils sont donc posés UNE SEULE FOIS plus bas
 // (releaseAllDragHandles), pas à chaque appel -- seuls les écouteurs posés sur containerEl (recréé à
 // chaque rendu, donc jamais dupliqués puisque l'ancien conteneur part avec) restent ici.
-function wireArrayDragReorder(containerEl, itemClass, getArray, onDrop) {
+// ---- Duplication par Alt + glisser (25/09, demande de Jules-Antoine) ----
+// Alt (Option sur Mac) enfoncé au moment de lâcher : l'élément est COPIÉ à l'endroit visé au lieu d'être déplacé.
+// Certains navigateurs ne renseignent pas altKey sur les événements de glisser : on suit aussi la touche au clavier.
+let altKeyHeld = false;
+document.addEventListener('keydown', e => { if (e.key === 'Alt') altKeyHeld = true; });
+document.addEventListener('keyup', e => { if (e.key === 'Alt') altKeyHeld = false; });
+window.addEventListener('blur', () => { altKeyHeld = false; });
+function isDuplicateDrag(e) { return !!(e.altKey || altKeyHeld); }
+// Copie profonde : nouveaux id partout (l'élément et tout ce qu'il contient), fichiers (File) et fichiers déjà en
+// ligne (remoteFile) partagés tels quels -- rien à re-télécharger ; supprimer une copie ne peut plus effacer les
+// fichiers de l'original (voir pendingOrphanR2Keys). Les références vers d'autres éléments (targetId,
+// referencesSlotId, sfxIds...) sont conservées.
+function deepCloneWithNewIds(v) {
+  if (Array.isArray(v)) return v.map(deepCloneWithNewIds);
+  if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) {
+    const o = {};
+    Object.keys(v).forEach(k => { o[k] = k === 'id' ? genId() : deepCloneWithNewIds(v[k]); });
+    return o;
+  }
+  return v;
+}
+function cloneWithCopyLabel(item, labelKey) {
+  const c = deepCloneWithNewIds(item);
+  const k = labelKey || 'label';
+  if (c[k] && String(c[k]).trim()) c[k] = tr('duplicateLabel', { label: c[k] });
+  return c;
+}
+// cloneItem (optionnel) : active la duplication Alt + glisser pour cette liste. onDrop(item) reçoit l'élément
+// déplacé ou la copie créée.
+function wireArrayDragReorder(containerEl, itemClass, getArray, onDrop, cloneItem) {
   // idOf (29/08) : accepte aussi bien un tableau d'objets {id, ...} (usage historique, ex. track.loops)
   // qu'un tableau de simples chaînes d'identifiants (ex. selectedTrackIds d'un AdReel) -- sans dupliquer
   // ce mécanisme de glisser-déposer pour ce second cas de figure.
@@ -3755,14 +3816,18 @@ function wireArrayDragReorder(containerEl, itemClass, getArray, onDrop) {
     if (!item || !item.draggable) return;
     draggedId = item.dataset.dragId;
     item.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
+    containerEl.classList.add('is-reordering');
+    e.dataTransfer.effectAllowed = cloneItem ? 'copyMove' : 'move';
     try { e.dataTransfer.setData('text/plain', draggedId); } catch (err) { /* MIME requis par certains navigateurs, jamais bloquant ici */ }
   });
   containerEl.addEventListener('dragover', (e) => {
     if (!draggedId) return;
     e.preventDefault();
+    const dup = !!cloneItem && isDuplicateDrag(e);
+    e.dataTransfer.dropEffect = dup ? 'copy' : 'move';
+    containerEl.classList.toggle('is-duplicating', dup);
     const item = e.target.closest('.' + itemClass);
-    if (!item || item.dataset.dragId === draggedId) return;
+    if (!item || !item.dataset.dragId || (item.dataset.dragId === draggedId && !dup)) return;
     const rect = item.getBoundingClientRect();
     const before = (e.clientY - rect.top) < rect.height / 2;
     item.classList.toggle('drag-over-top', before);
@@ -3777,11 +3842,22 @@ function wireArrayDragReorder(containerEl, itemClass, getArray, onDrop) {
     e.preventDefault();
     const targetItem = e.target.closest('.' + itemClass);
     containerEl.querySelectorAll('.' + itemClass).forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+    containerEl.classList.remove('is-reordering', 'is-duplicating');
     const arr = getArray();
     const fromIdx = arr.findIndex(x => idOf(x) === draggedId);
     draggedId = null;
     if (fromIdx === -1) return;
-    if (!targetItem) return; // pas de dépôt en fin de liste ici (contrairement aux blocs de contenu) : chaque
+    if (!targetItem || !targetItem.dataset.dragId) return;
+    if (cloneItem && isDuplicateDrag(e)) {
+      const toIdx = arr.findIndex(x => idOf(x) === targetItem.dataset.dragId);
+      if (toIdx === -1) return;
+      const rect = targetItem.getBoundingClientRect();
+      const copy = cloneItem(arr[fromIdx]);
+      arr.splice((e.clientY - rect.top) < rect.height / 2 ? toIdx : toIdx + 1, 0, copy);
+      hasUnsavedEdits = true;
+      onDrop(copy);
+      return;
+    } // pas de dépôt en fin de liste ici (contrairement aux blocs de contenu) : chaque
     // ligne de cette liste maître occupe toute la largeur disponible, il n'y a pas d'espace vide sous la
     // dernière ligne où déposer sans ambiguïté.
     const targetId = targetItem.dataset.dragId;
@@ -3795,12 +3871,13 @@ function wireArrayDragReorder(containerEl, itemClass, getArray, onDrop) {
     const adjustedInsertAt = insertAt > fromIdx ? insertAt - 1 : insertAt;
     arr.splice(adjustedInsertAt, 0, moved);
     hasUnsavedEdits = true;
-    onDrop();
+    onDrop(moved);
   });
   containerEl.addEventListener('dragend', (e) => {
     const item = e.target.closest('.' + itemClass);
     if (item) { item.classList.remove('dragging'); item.draggable = false; }
     containerEl.querySelectorAll('.' + itemClass).forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+    containerEl.classList.remove('is-reordering', 'is-duplicating');
     draggedId = null;
   });
 }
@@ -3863,6 +3940,7 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
     if (!row || !row.draggable) return;
     draggedOrgItemId = row.dataset.dragId;
     row.classList.add('dragging');
+    containerEl.classList.add('is-reordering');
     e.dataTransfer.effectAllowed = 'move';
     try { e.dataTransfer.setData('text/plain', draggedOrgItemId); } catch (err) { /* non bloquant */ }
   });
@@ -3901,6 +3979,7 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
     if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('org-drop-target');
   });
   containerEl.addEventListener('drop', (e) => {
+    containerEl.classList.remove('is-reordering');
     containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target').forEach(el => {
       el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target');
     });
@@ -3965,6 +4044,7 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
     if (group) { group.classList.remove('dragging'); group.draggable = false; }
     const row = e.target.closest('.org-row');
     if (row) { row.classList.remove('dragging'); row.draggable = false; }
+    containerEl.classList.remove('is-reordering');
     containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target').forEach(el => {
       el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target');
     });
@@ -4131,7 +4211,10 @@ function fileMatchesAccept(f, accept) {
   if (e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files')) e.preventDefault();
 }));
 function wireBatchDrop(hostEl, onFiles) {
-  hostEl.addEventListener('dragover', e => { e.preventDefault(); hostEl.classList.add('drag-over'); });
+  hostEl.addEventListener('dragover', e => {
+    if (![...(e.dataTransfer.types || [])].includes('Files')) return; // un glisser interne (réordonner) n'est pas un dépôt de fichiers
+    e.preventDefault(); hostEl.classList.add('drag-over');
+  });
   hostEl.addEventListener('dragleave', () => hostEl.classList.remove('drag-over'));
   hostEl.addEventListener('drop', e => {
     e.preventDefault();
@@ -6231,7 +6314,7 @@ function renderLibrary() {
           wireCollapsibleBlockToggle(outroEl.querySelector('[data-role="vrsOutroDescToggle"]'), outroEl.querySelector('[data-role="vrsOutroDescBody"]'), `outroDesc:${ti}`);
         }
 
-        wireArrayDragReorder(modeMasterHost, 'seq-master-item', () => track.sections, () => renderLibrary());
+        wireArrayDragReorder(modeMasterHost, 'seq-master-item', () => track.sections, item => { seqSelectedSlotIndex.set(track.id, track.sections.indexOf(item)); renderLibrary(); }, item => cloneWithCopyLabel(item)); // Alt + glisser : copie (25/09)
         // "+ Section" vit désormais à la suite de la Structure (juste après Outro), même correctif que
         // pour le séquentiel (20/08).
         appendMasterAddButton(modeMasterHost, 'add-section', ti, 'addSectionBtn');
@@ -6440,7 +6523,7 @@ function renderLibrary() {
           });
           offerTrackTempoFromFilenames(track, files, false);
         });
-        wireArrayDragReorder(modeMasterHost, 'seq-master-item', () => track.loops, () => renderLibrary());
+        wireArrayDragReorder(modeMasterHost, 'seq-master-item', () => track.loops, item => { seqSelectedSlotIndex.set(track.id, track.loops.indexOf(item)); renderLibrary(); }, item => cloneWithCopyLabel(item)); // Alt + glisser : copie (25/09)
         // "+ Boucle" vit désormais à la suite des boucles nommées, même correctif (20/08).
         appendMasterAddButton(modeMasterHost, 'add-embr-loop', ti, 'addEmbrLoopBtn');
       } else if (!isStatic) {
@@ -6490,7 +6573,7 @@ function renderLibrary() {
           });
           offerTrackTempoFromFilenames(track, files, true);
         });
-        wireArrayDragReorder(modeMasterHost, 'seq-master-item', () => track.layers, () => renderLibrary());
+        wireArrayDragReorder(modeMasterHost, 'seq-master-item', () => track.layers, item => { seqSelectedSlotIndex.set(track.id, track.layers.indexOf(item)); renderLibrary(); }, item => cloneWithCopyLabel(item)); // Alt + glisser : copie (25/09)
         // "+ Couche" vit désormais à la suite des couches, même correctif (20/08).
         appendMasterAddButton(modeMasterHost, 'add-layer', ti, 'addLayerBtn');
         const layersDropHintEl = document.createElement('div');
@@ -6663,8 +6746,9 @@ function renderLibrary() {
         masterItem.dataset.action = 'select-seq-slot';
         masterItem.dataset.ti = ti;
         masterItem.dataset.si = si;
+        masterItem.dataset.dragId = slot.id;
         masterItem.innerHTML = `
-          <div class="seq-master-item-label">#${si + 1} ${escapeAttr((slot.label || '').replace(/^#\d+\s*/, '')) || tr('slotFallback', { n: si + 1 })}</div>
+          <div class="seq-master-item-label">${dragHandleHtml()}#${si + 1} ${escapeAttr((slot.label || '').replace(/^#\d+\s*/, '')) || tr('slotFallback', { n: si + 1 })}</div>
           <div class="seq-master-item-tags">
             ${isDuplicateForMaster ? `<span class="seq-master-item-tag">${tr('seqDuplicateTag')}</span>` : ''}
             ${branchCountForMaster ? `<span class="seq-master-item-tag">${trCount(branchCountForMaster, 'seqOutletsSingular', 'seqOutletsPlural')}</span>` : ''}
@@ -6688,11 +6772,7 @@ function renderLibrary() {
         const isReferencedByOthers = track.segmentSlots.some(sl => sl.referencesSlotId === slot.id);
         slotEl.innerHTML = `
           <div class="list-block-head">
-            <div class="list-block-head-left">
-              <button class="btn btn-icon" data-action="move-slot-up" data-ti="${ti}" data-si="${si}" ${si === 0 ? 'disabled' : ''} title="${tr('moveUpBtn')}">↑</button>
-              <button class="btn btn-icon" data-action="move-slot-down" data-ti="${ti}" data-si="${si}" ${si === track.segmentSlots.length - 1 ? 'disabled' : ''} title="${tr('moveDownBtn')}">↓</button>
-            </div>
-            <input type="text" placeholder="${tr('slotNamePlaceholder')}" data-slot-field="label" data-ti="${ti}" data-si="${si}" value="${escapeAttr(slot.label)}" style="flex:1;margin:0 8px;">
+            <input type="text" placeholder="${tr('slotNamePlaceholder')}" data-slot-field="label" data-ti="${ti}" data-si="${si}" value="${escapeAttr(slot.label)}" style="flex:1;margin:0 8px 0 0;">
             <button class="btn btn-small btn-danger" data-action="remove-segment-slot" data-ti="${ti}" data-si="${si}">${tr('removeSegmentSlotBtn')}</button>
           </div>
           ${!hasAnyFile ? `<div class="hint-inline" style="color:#b45309">${tr('noAltFileWarning')}</div>` : ''}
@@ -6974,6 +7054,9 @@ function renderLibrary() {
       // toute la colonne maître (ce qui le plaçait à tort après Contenu additionnel/Infos additionnelles,
       // 20/08 -- retour visuel).
       appendMasterAddButton(slotsMasterHost, 'add-segment-slot', ti, 'addSegmentSlotBtn');
+      // Ordre des slots par poignée (25/09, remplace les flèches ↑/↓), Alt + glisser pour copier. Intro/Outro et les
+      // autres entrées (sans data-drag-id) ne bougent pas et ne servent pas de cible.
+      wireArrayDragReorder(slotsMasterHost, 'seq-master-item', () => track.segmentSlots, item => { seqSelectedSlotIndex.set(track.id, track.segmentSlots.indexOf(item)); renderLibrary(); }, item => cloneWithCopyLabel(item));
       // -- "Contenu additionnel" (Sfx) et "Infos additionnelles" (note d'implémentation + certification) --
       // même principe : entrées virtuelles de la liste maître, contenu déplacé tel quel depuis l'ancien
       // bloc "Réglages avancés" du flux plat (mêmes data-field/data-role, juste un autre emplacement DOM).
@@ -7582,7 +7665,7 @@ document.getElementById('sfxLibraryContainer').addEventListener('click', e => {
     const si = parseInt(removeAltBtn.dataset.si, 10);
     const ai = parseInt(removeAltBtn.dataset.ai, 10);
     const removedAlt = sfxLibrary[si].alternatives[ai];
-    if (removedAlt && removedAlt.remoteFile) r2DeleteFileLogged(`audio/sfx-${sfxLibrary[si].id}/${removedAlt.remoteFile}`);
+    if (removedAlt && removedAlt.remoteFile) queueR2Delete(`audio/sfx-${sfxLibrary[si].id}/${removedAlt.remoteFile}`); // effacé à la publication, voir pendingOrphanR2Keys
     sfxLibrary[si].alternatives.splice(ai, 1);
     hasUnsavedEdits = true;
     renderSfxLibrary();
@@ -7754,7 +7837,7 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
   else if (btn.dataset.action === 'add-layer') library[ti].layers.push({ id: genId(), label: '', remoteFile: null, pendingFile: null });
   else if (btn.dataset.action === 'remove-layer') {
     const removedLayer = library[ti].layers[li];
-    if (removedLayer && removedLayer.remoteFile) r2DeleteFileLogged(`audio/${library[ti].id}/${removedLayer.remoteFile}`);
+    if (removedLayer && removedLayer.remoteFile) queueR2Delete(`audio/${library[ti].id}/${removedLayer.remoteFile}`);
     library[ti].layers.splice(li, 1);
     recomputeTrackDuration(library[ti]);
   }
@@ -7765,25 +7848,17 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
   else if (btn.dataset.action === 'remove-segment-slot') {
     const removedSlot = library[ti].segmentSlots[si];
     const removedId = removedSlot.id;
-    (removedSlot.alternatives || []).forEach(a => { if (a.remoteFile) r2DeleteFileLogged(`audio/${library[ti].id}/${a.remoteFile}`); });
-    (removedSlot.nextOptions || []).forEach(opt => { if (opt.transition && opt.transition.remoteFile) r2DeleteFileLogged(`audio/${library[ti].id}/${opt.transition.remoteFile}`); });
+    (removedSlot.alternatives || []).forEach(a => { if (a.remoteFile) queueR2Delete(`audio/${library[ti].id}/${a.remoteFile}`); });
+    (removedSlot.nextOptions || []).forEach(opt => { if (opt.transition && opt.transition.remoteFile) queueR2Delete(`audio/${library[ti].id}/${opt.transition.remoteFile}`); });
     library[ti].segmentSlots.splice(si, 1);
     // Un emplacement qui dupliquait celui qu'on vient de supprimer revient à un contenu propre (vide)
     // plutôt que de garder une référence pendante vers un emplacement qui n'existe plus.
     library[ti].segmentSlots.forEach(sl => { if (sl.referencesSlotId === removedId) sl.referencesSlotId = null; });
   }
-  else if (btn.dataset.action === 'move-slot-up' && si > 0) {
-    const slots = library[ti].segmentSlots;
-    [slots[si - 1], slots[si]] = [slots[si], slots[si - 1]];
-  }
-  else if (btn.dataset.action === 'move-slot-down' && si < library[ti].segmentSlots.length - 1) {
-    const slots = library[ti].segmentSlots;
-    [slots[si + 1], slots[si]] = [slots[si], slots[si + 1]];
-  }
   else if (btn.dataset.action === 'add-slot-alternative') library[ti].segmentSlots[si].alternatives.push({ label: '', bars: 8, remoteFile: null, pendingFile: null });
   else if (btn.dataset.action === 'remove-slot-alternative') {
     const removedAlt = library[ti].segmentSlots[si].alternatives[ai];
-    if (removedAlt && removedAlt.remoteFile) r2DeleteFileLogged(`audio/${library[ti].id}/${removedAlt.remoteFile}`);
+    if (removedAlt && removedAlt.remoteFile) queueR2Delete(`audio/${library[ti].id}/${removedAlt.remoteFile}`);
     library[ti].segmentSlots[si].alternatives.splice(ai, 1);
   }
   else if (btn.dataset.action === 'add-section') {
@@ -7793,7 +7868,7 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
   else if (btn.dataset.action === 'remove-section') {
     const removedSection = library[ti].sections[si];
     const removedId = removedSection.id;
-    (removedSection.pools || []).forEach(pool => (pool.alternatives || []).forEach(a => { if (a.remoteFile) r2DeleteFileLogged(`audio/${library[ti].id}/${a.remoteFile}`); }));
+    (removedSection.pools || []).forEach(pool => (pool.alternatives || []).forEach(a => { if (a.remoteFile) queueR2Delete(`audio/${library[ti].id}/${a.remoteFile}`); }));
     library[ti].sections.splice(si, 1);
     // Une section qui dupliquait celle qu'on vient de supprimer revient à un contenu propre (vide)
     // plutôt que de garder une référence pendante vers une section qui n'existe plus.
@@ -7802,13 +7877,13 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
   else if (btn.dataset.action === 'add-pool') library[ti].sections[si].pools.push({ id: genId(), label: '', avoidImmediateRepeat: true, alternatives: [{ label: '', remoteFile: null, pendingFile: null }] });
   else if (btn.dataset.action === 'remove-pool') {
     const removedPool = library[ti].sections[si].pools[pi];
-    (removedPool.alternatives || []).forEach(a => { if (a.remoteFile) r2DeleteFileLogged(`audio/${library[ti].id}/${a.remoteFile}`); });
+    (removedPool.alternatives || []).forEach(a => { if (a.remoteFile) queueR2Delete(`audio/${library[ti].id}/${a.remoteFile}`); });
     library[ti].sections[si].pools.splice(pi, 1);
   }
   else if (btn.dataset.action === 'add-pool-alt') library[ti].sections[si].pools[pi].alternatives.push({ label: '', remoteFile: null, pendingFile: null });
   else if (btn.dataset.action === 'remove-pool-alt') {
     const removedAlt = library[ti].sections[si].pools[pi].alternatives[ai];
-    if (removedAlt && removedAlt.remoteFile) r2DeleteFileLogged(`audio/${library[ti].id}/${removedAlt.remoteFile}`);
+    if (removedAlt && removedAlt.remoteFile) queueR2Delete(`audio/${library[ti].id}/${removedAlt.remoteFile}`);
     library[ti].sections[si].pools[pi].alternatives.splice(ai, 1);
   }
   else if (btn.dataset.action === 'add-embr-loop') {
@@ -7817,8 +7892,8 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
   }
   else if (btn.dataset.action === 'remove-embr-loop') {
     const removedLoop = library[ti].loops[li];
-    if (removedLoop && removedLoop.remoteFile) r2DeleteFileLogged(`audio/${library[ti].id}/${removedLoop.remoteFile}`);
-    if (removedLoop && removedLoop.transition && removedLoop.transition.remoteFile) r2DeleteFileLogged(`audio/${library[ti].id}/${removedLoop.transition.remoteFile}`);
+    if (removedLoop && removedLoop.remoteFile) queueR2Delete(`audio/${library[ti].id}/${removedLoop.remoteFile}`);
+    if (removedLoop && removedLoop.transition && removedLoop.transition.remoteFile) queueR2Delete(`audio/${library[ti].id}/${removedLoop.transition.remoteFile}`);
     library[ti].loops.splice(li, 1);
     // La boucle de référence vient d'être supprimée : la première boucle restante en hérite plutôt que
     // de laisser le morceau sans aucune référence (voir garde-fou au rendu, qui ferait la même chose,
@@ -7835,7 +7910,7 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
   }
   else if (btn.dataset.action === 'remove-branch-option') {
     const removedOpt = library[ti].segmentSlots[si].nextOptions[bi];
-    if (removedOpt && removedOpt.transition && removedOpt.transition.remoteFile) r2DeleteFileLogged(`audio/${library[ti].id}/${removedOpt.transition.remoteFile}`);
+    if (removedOpt && removedOpt.transition && removedOpt.transition.remoteFile) queueR2Delete(`audio/${library[ti].id}/${removedOpt.transition.remoteFile}`);
     library[ti].segmentSlots[si].nextOptions.splice(bi, 1);
   }
   renderLibrary();
@@ -8861,6 +8936,67 @@ document.getElementById('blocksEditorContainer').addEventListener('pointerdown',
   const card = handle.closest('.block-editor-card');
   if (card) card.draggable = true;
 });
+// ---- Touche Supprimer (Supp ou ⌫) sur l'élément sélectionné (25/09, demande de Jules-Antoine) ----
+// Sélection = dernier élément cliqué d'une liste (morceau, Sfx, AdReel, slot, section, boucle, couche) ou dernier bloc
+// de contenu cliqué. La touche déclenche le bouton "Supprimer" existant de cet élément -- même nettoyage, mêmes
+// garde-fous (bouton désactivé = rien) -- après confirmation, sauf quand ce bouton demande déjà la sienne.
+// Jamais pendant la saisie dans un champ, ni quand une fenêtre est ouverte.
+let kbSelection = null; // { kind: 'master', dragId, listId } | { kind: 'block', id }
+const KB_DELETE_BY_LIST = { libraryMaster: 'remove-track', sfxLibraryMaster: 'remove-sfx', manageAdreelsMaster: 'delete-adreel-manage' };
+const KB_DELETE_NESTED = ['remove-segment-slot', 'remove-section', 'remove-embr-loop', 'remove-layer'];
+const KB_DELETE_SELF_CONFIRMING = ['remove-track', 'delete-adreel-manage'];
+document.addEventListener('pointerdown', e => {
+  const card = e.target.closest('#blocksEditorContainer .block-editor-card');
+  const item = !card && e.target.closest('.seq-master-item[data-drag-id]');
+  if (!card && !item) return;
+  document.querySelectorAll('.block-editor-card.kb-selected').forEach(c => c.classList.remove('kb-selected'));
+  if (card) { card.classList.add('kb-selected'); kbSelection = { kind: 'block', id: card.dataset.id }; return; }
+  const list = item.closest('.seq-master-list');
+  kbSelection = { kind: 'master', dragId: item.dataset.dragId, listId: (list && list.id) || null };
+}, true);
+function kbDeleteTarget() {
+  if (!kbSelection) return null;
+  if (kbSelection.kind === 'block') {
+    const card = document.querySelector(`#blocksEditorContainer .block-editor-card[data-id="${CSS.escape(kbSelection.id)}"]`);
+    const btn = card && card.querySelector('[data-action="remove-block"]');
+    return btn ? { btn, name: (card.querySelector('.block-editor-head strong') || {}).textContent || '' } : null;
+  }
+  const item = document.querySelector(`.seq-master-item[data-drag-id="${CSS.escape(kbSelection.dragId)}"]`);
+  // Seul l'élément affiché à droite peut être supprimé : c'est lui que montre le détail, et son bouton qu'on déclenche.
+  const panel = item && item.closest('.backstage-panel');
+  if (!item || !item.classList.contains('active') || (panel && !panel.classList.contains('active'))) return null; // onglet affiché seulement
+  const name = ((item.querySelector('.seq-master-item-label') || item).textContent || '').trim();
+  const action = KB_DELETE_BY_LIST[kbSelection.listId];
+  if (action) {
+    const detail = document.getElementById(kbSelection.listId.replace('Master', 'Detail'));
+    const btn = detail && detail.querySelector(`[data-action="${action}"]`);
+    return btn ? { btn, name } : null;
+  }
+  const col = item.closest('.seq-two-col');
+  const detail = col && col.querySelector(':scope > .seq-detail-col');
+  const btn = detail && detail.querySelector(KB_DELETE_NESTED.map(a => `[data-action="${a}"]`).join(','));
+  return btn ? { btn, name } : null;
+}
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const t = e.target;
+  if (t && (t.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]'))) return;
+  if ([...document.querySelectorAll('.vrs-batch-overlay, [id$="Overlay"]')].some(el => getComputedStyle(el).display !== 'none')) return; // fenêtre ouverte
+  const target = kbDeleteTarget();
+  if (!target || target.btn.disabled) return;
+  e.preventDefault();
+  const action = target.btn.dataset.action;
+  if (!KB_DELETE_SELF_CONFIRMING.includes(action) && !confirm(tr('kbDeleteConfirm', { name: target.name || tr('untitledFallback') }))) return;
+  kbSelection = null;
+  target.btn.click();
+});
+// Blocs uniques par nature (Header, Bio, Témoignages, Musique : un seul par AdReel, voir SINGLETON_TYPES) : pas de
+// copie par Alt + glisser, ils restent seulement déplaçables.
+function canDuplicateBlock(id) {
+  const b = blocks.find(x => x.id === id);
+  return !!b && !SINGLETON_TYPES.includes(b.type);
+}
 function releaseDragHandles() {
   document.querySelectorAll('#blocksEditorContainer .block-editor-card[draggable="true"]').forEach(c => { c.draggable = false; });
 }
@@ -8871,7 +9007,8 @@ document.getElementById('blocksEditorContainer').addEventListener('dragstart', (
   if (!card || !card.draggable) return;
   draggedBlockId = card.dataset.id;
   card.classList.add('dragging');
-  e.dataTransfer.effectAllowed = 'move';
+  document.getElementById('blocksEditorContainer').classList.add('is-reordering');
+  e.dataTransfer.effectAllowed = 'copyMove';
   try { e.dataTransfer.setData('text/plain', card.dataset.id); } catch (err) { /* certains navigateurs exigent un type MIME valide, jamais bloquant ici */ }
 });
 document.getElementById('blocksEditorContainer').addEventListener('dragover', (e) => {
@@ -8880,8 +9017,11 @@ document.getElementById('blocksEditorContainer').addEventListener('dragover', (e
   // du conteneur (pas seulement une carte) : sans ça, le navigateur refuse le drop hors des cartes, et
   // il devient impossible de déposer un bloc tout en bas de la liste.
   e.preventDefault();
+  const dup = canDuplicateBlock(draggedBlockId) && isDuplicateDrag(e);
+  e.dataTransfer.dropEffect = dup ? 'copy' : 'move';
+  document.getElementById('blocksEditorContainer').classList.toggle('is-duplicating', dup);
   const card = e.target.closest('.block-editor-card');
-  if (!card || card.dataset.id === draggedBlockId) return;
+  if (!card || (card.dataset.id === draggedBlockId && !dup)) return;
   const rect = card.getBoundingClientRect();
   const before = (e.clientY - rect.top) < rect.height / 2;
   card.classList.toggle('drag-over-top', before);
@@ -8896,8 +9036,26 @@ document.getElementById('blocksEditorContainer').addEventListener('drop', (e) =>
   e.preventDefault();
   const targetCard = e.target.closest('.block-editor-card');
   document.querySelectorAll('#blocksEditorContainer .block-editor-card').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+  document.getElementById('blocksEditorContainer').classList.remove('is-reordering', 'is-duplicating');
   const fromIdx = blocks.findIndex(b => b.id === draggedBlockId);
   if (fromIdx === -1) return;
+  if (canDuplicateBlock(draggedBlockId) && isDuplicateDrag(e)) {
+    // Alt + glisser : copie du bloc à l'endroit visé (en fin de liste si lâché sous le dernier bloc).
+    const copy = deepCloneWithNewIds(blocks[fromIdx]);
+    let insertAt = blocks.length;
+    if (targetCard) {
+      const toIdx = blocks.findIndex(b => b.id === targetCard.dataset.id);
+      const rect = targetCard.getBoundingClientRect();
+      if (toIdx !== -1) insertAt = (e.clientY - rect.top) < rect.height / 2 ? toIdx : toIdx + 1;
+    }
+    blocks.splice(insertAt, 0, copy);
+    if (collapsedBlockIds.has(draggedBlockId)) collapsedBlockIds.add(copy.id); // même état replié que l'original
+    const newCard = buildCardForBlock(copy);
+    if (newCard) blockCards[copy.id] = newCard;
+    hasUnsavedEdits = true;
+    layoutBlocks();
+    return;
+  }
   if (targetCard && targetCard.dataset.id !== draggedBlockId) {
     const toIdx = blocks.findIndex(b => b.id === targetCard.dataset.id);
     if (toIdx === -1) return;
@@ -8922,6 +9080,7 @@ document.getElementById('blocksEditorContainer').addEventListener('dragend', (e)
   const card = e.target.closest('.block-editor-card');
   if (card) { card.classList.remove('dragging'); card.draggable = false; }
   document.querySelectorAll('#blocksEditorContainer .block-editor-card').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+  document.getElementById('blocksEditorContainer').classList.remove('is-reordering', 'is-duplicating');
   draggedBlockId = null;
 });
 
@@ -11481,7 +11640,7 @@ async function loadData(silent) {
       collapsedPackIds.clear(); collapsedBlockIds.clear(); collapsedCollectionIds.clear();
       cur.blocks.forEach(b => collapsedBlockIds.add(b.id));
       renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); rebuildAllCards();
-      pendingR2Deletes.clear();
+      pendingR2Deletes.clear(); pendingOrphanR2Keys.clear();
       rememberPublishedCatalog();
       dataLoadOk = true; // absence légitime de data.json (premier lancement) -- pas un échec, publier est sûr
       document.getElementById('btnPublish').disabled = false;
@@ -11740,7 +11899,7 @@ async function loadData(silent) {
     rebuildAllCards();
     hasUnsavedEdits = false;
     // Suppressions non publiées abandonnées par ce rechargement : les éléments reviennent, leurs fichiers R2 restent.
-    pendingR2Deletes.clear();
+    pendingR2Deletes.clear(); pendingOrphanR2Keys.clear();
     rememberPublishedCatalog();
     dataLoadOk = true;
     document.getElementById('btnPublish').disabled = false;

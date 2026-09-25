@@ -84,19 +84,28 @@ const path = require('path');
   label0 = q('input[data-slot-field="label"][data-ti="0"][data-si="0"]');
   check('en resélectionnant le premier emplacement, sa donnée "WetDarkCave" a bien persisté malgré le va-et-vient', !!label0 && label0.value === 'WetDarkCave');
 
-  // ---- Comportement réel du nouveau design : la sélection suit la POSITION, pas l'identité ----
-  click(q('[data-action="move-slot-down"][data-ti="0"][data-si="0"]')); // échange les positions 0 et 1 (WetDarkCave <-> Corridor)
-  const labelAtPos0 = q('input[data-slot-field="label"][data-ti="0"][data-si="0"]');
-  check('après l\'échange, la sélection (toujours "position 0") affiche désormais Corridor, pas WetDarkCave',
-    !!labelAtPos0 && labelAtPos0.value === 'Corridor');
-  check('la position 1 (désormais WetDarkCave) n\'est plus sélectionnée, donc pas de détail affiché pour elle',
-    !q('input[data-slot-field="label"][data-ti="0"][data-si="1"]'));
+  // ---- Réordonner par la poignée (25/09, remplace les flèches ↑/↓) : la sélection suit le slot déplacé ----
+  {
+    const from = q('.seq-master-item[data-action="select-seq-slot"][data-ti="0"][data-si="0"]');
+    const to = q('.seq-master-item[data-action="select-seq-slot"][data-ti="0"][data-si="1"]');
+    from.querySelector('.block-drag-handle').dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
+    const dt = { types: ['text/plain'], setData() {}, effectAllowed: '', dropEffect: '' };
+    const mk = type => { const e = new window.MouseEvent(type, { bubbles: true, cancelable: true, clientY: 1 }); Object.defineProperty(e, 'dataTransfer', { value: dt }); return e; };
+    from.dispatchEvent(mk('dragstart')); to.dispatchEvent(mk('dragover')); to.dispatchEvent(mk('drop')); from.dispatchEvent(mk('dragend'));
+  }
+  const labelAtPos1 = q('input[data-slot-field="label"][data-ti="0"][data-si="1"]');
+  check('après avoir glissé WetDarkCave sous Corridor, il reste sélectionné (désormais en position 2)',
+    !!labelAtPos1 && labelAtPos1.value === 'WetDarkCave');
+  check('la position 1 (désormais Corridor) n\'est plus sélectionnée, donc pas de détail affiché pour elle',
+    !q('input[data-slot-field="label"][data-ti="0"][data-si="0"]'));
 
   // ---- Persistance de la sélection après un re-rendu complet (changement de mode aller-retour) ----
+  // Position 1 (Corridor) : le mode "vertical" traversé n'a qu'une couche, une sélection en position 2 n'y survivrait pas.
+  click(q('[data-action="select-seq-slot"][data-ti="0"][data-si="0"]'));
   setValue(q('#libraryContainer select[data-field="mode"][data-ti="0"]'), 'vertical');
   setValue(q('#libraryContainer select[data-field="mode"][data-ti="0"]'), 'sequential');
   const labelAfterRerender = q('input[data-slot-field="label"][data-ti="0"][data-si="0"]');
-  check('la sélection (position 0, "Corridor") persiste après un re-rendu complet', !!labelAfterRerender && labelAfterRerender.value === 'Corridor');
+  check('la sélection (position 1, "Corridor") persiste après un re-rendu complet', !!labelAfterRerender && labelAfterRerender.value === 'Corridor');
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
