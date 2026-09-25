@@ -100,7 +100,10 @@
       const list = (byTrack[pe.detail.trackId] = byTrack[pe.detail.trackId] || []);
       if (!list.some(e => e.t <= pe.t)) list.push({ t: pe.t, name: 'intensity_change', detail: { trackId: pe.detail.trackId, level: pe.detail.level || 0 } });
     });
+    // Fin d'une capture : le dernier arrêt des voix du morceau (repère posé à l'arrêt de la prise) ; à défaut (capture
+    // ancienne), le dernier évènement plus la marge.
     const total = Math.max(0, ...events.map(e => e.t)) + TAIL;
+    const endOf = trackId => { const stops = events.filter(e => e.name === 'voices_stop' && e.detail.trackId === trackId && !e.detail.scope).map(e => e.t); return stops.length ? Math.max(...stops) : total; };
     const layerSegmentEvents = [];
     const consumedStatic = [];
     Object.keys(byTrack).forEach(trackId => {
@@ -110,7 +113,8 @@
       // Un changement d'intensité ANTÉRIEUR au premier démarrage règle seulement le niveau de départ.
       const numLayers = (track.layers || []).length;
       const cumulative = C().cumulativeProfiles(numLayers);
-      const windows = sorted.map((e, i) => ({ level: e.detail.level, start: e.t, end: i + 1 < sorted.length ? sorted[i + 1].t : total }));
+      const trackEnd = endOf(trackId);
+      const windows = sorted.map((e, i) => ({ level: e.detail.level, start: e.t, end: i + 1 < sorted.length ? sorted[i + 1].t : Math.max(trackEnd, e.t) }));
       for (let layerIndex = 0; layerIndex < numLayers; layerIndex++) {
         let run = null;
         windows.forEach(w => {
@@ -368,11 +372,14 @@
         // la couche joue en boucle sur la longueur du morceau, calée sur la dernière écoute connue (ou sur le début de la
         // vidéo), le temps du segment.
         const anchor = runs[0] || gens[0] || null;
+        // Écoutes et générations mises bout à bout : un segment couvert par plusieurs générations successives est couvert.
+        const merged = [];
+        covered.slice().sort((x, y) => x[0] - y[0]).forEach(([x, y]) => { const l = merged[merged.length - 1]; if (l && x <= l[1] + 0.05) l[1] = Math.max(l[1], y); else merged.push([x, y]); });
         segs.forEach(s => {
           const i = s.detail.layerIndex, layer = layers[i];
           if (!layer || !layer.file) return;
           const a = s.t, b = s.t + s.detail.duration;
-          if (covered.some(([x, y]) => x <= a + 1e-6 && b <= y + 1e-6)) return;
+          if (merged.some(([x, y]) => x <= a + 0.05 && b <= y + 0.05)) return; // tolérance : le repère de démarrage suit le clic de quelques ms
           const dur = track.duration || 0;
           const phase0 = anchor ? (anchor.detail.offset || anchor.detail.bufferOffset || 0) - anchor.t : 0;
           const offset = dur > 0 ? (((a + phase0) % dur) + dur) % dur : 0;
@@ -519,12 +526,15 @@
     const master = [];
     events.filter(e => e.name === 'stinger_play').sort(byT).forEach(s => {
       const sfx = findSfx(s.detail.sfxId);
-      const alt = sfx && sfx.alternatives && sfx.alternatives[s.detail.variationIndex];
-      if (!alt) { warn('Sfx introuvable', s); return; }
-      sfxHits.push({ t: s.t, url: sfx.base + encodeURIComponent(alt.file), sfx, track: findTrack(s.detail.trackId), durationOverride: s.detail.durationOverride || null,
+      // Même liste que le lecteur : les variations qui ont un fichier (variationIndex est un rang dans cette liste).
+      const alts = sfx ? (sfx.alternatives || []).filter(a => a.file || a.localFile || a.localUrl) : [];
+      const alt = alts[s.detail.variationIndex];
+      if (!alt || !alt.file) { warn('Sfx introuvable', s); return; }
+      const sfxUrl = sfx.base + encodeURIComponent(alt.file) + (sfx.publishedAt ? '?v=' + encodeURIComponent(sfx.publishedAt) : '');
+      sfxHits.push({ t: s.t, url: sfxUrl, sfx, track: findTrack(s.detail.trackId), durationOverride: s.detail.durationOverride || null,
         stepIndex: s.detail.spatialStep, spatial: s.detail.spatial || null });
       const duck = s.detail.duck !== undefined ? s.detail.duck : !!(sfx && sfx.duckMainTrack);
-      if (duck) master.push({ t: s.t, fileDuration: s.detail.fileDuration || null, url: sfx.base + encodeURIComponent(alt.file) });
+      if (duck) master.push({ t: s.t, fileDuration: s.detail.fileDuration || null, url: sfxUrl });
     });
 
     const plan = {
