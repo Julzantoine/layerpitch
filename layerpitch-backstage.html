@@ -186,6 +186,27 @@
     border: 1px dashed #d5d5da; min-height: 44px; display: flex; align-items: center; justify-content: center;
   }
   [data-role="allBlocksDrop"]::before { content: var(--drop-all-hint-text, 'Dépose tous tes fichiers ici'); color: var(--text-dimmer); font-size: 11px; }
+  [data-role="vrsSectionDrop"] {
+    border: 1px dashed #d5d5da; border-radius: 6px; min-height: 44px; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dimmer); font-size: 11px; transition: background 0.15s, outline 0.15s;
+  }
+  [data-role="vrsSectionDrop"].is-disabled { opacity: 0.45; pointer-events: none; }
+  [data-role="vrsSectionDrop"].drag-over { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: 2px; }
+  .vrs-batch-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .vrs-batch-modal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 560px; max-width: 92vw; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  .vrs-batch-modal h3 { font-size: 13px; margin-bottom: 4px; color: var(--text); }
+  .vrs-batch-body { overflow-y: auto; margin: 10px 0; padding-right: 4px; }
+  .vrs-batch-check { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--text-dim); }
+  .vrs-batch-check input { width: auto; margin: 0; }
+  .vrs-batch-silent-all { color: var(--text); font-weight: 600; }
+  .vrs-batch-group { border: 1px solid #e4e4e8; border-radius: 6px; padding: 8px 10px; margin-top: 10px; }
+  .vrs-batch-group-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 12px; }
+  .vrs-batch-group-head input[type="text"] { flex: 1; margin: 0; }
+  .vrs-batch-group-head .vrs-batch-check { margin-top: 0; white-space: nowrap; }
+  .vrs-batch-file { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 2px 0; }
+  .vrs-batch-file span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vrs-batch-file select { width: 170px; flex: none; margin: 0; }
+  .vrs-batch-actions { justify-content: flex-end; }
   [data-role="poolAlternatives"].drag-over, [data-role="slotAlternatives"].drag-over, [data-role="allBlocksDrop"].drag-over, [data-role="staticFileCtrl"].drag-over, [data-role="modeMaster"].drag-over, [data-role="segmentSlotsMaster"].drag-over, [data-role="sfxAlternatives"].drag-over, .file-ctrl.drag-over { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: 2px; }
   .hint { color: var(--text-dimmer); font-size: 11px; margin-top: 4px; }
   .lang-toggle { display: flex; gap: 6px; margin: 14px 0; }
@@ -1737,9 +1758,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790340632242"></script>
-<script src="layerpitch-help.js?v=1790340632242"></script>
-<script src="player.js?v=1790340632242"></script>
+<script src="layerpitch-i18n.js?v=1790344340651"></script>
+<script src="layerpitch-help.js?v=1790344340651"></script>
+<script src="player.js?v=1790344340651"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -4922,11 +4943,238 @@ function titleFromFilenameStrippingHints(filename) {
 }
 // Devine le rôle (intro/segment/outro) d'un fichier déposé en lot dans le mode séquentiel, à partir de
 // son nom. "Segment" par défaut si rien ne correspond — reste ajustable ensuite via le sélecteur "Rôle".
+// Séparateurs explicites plutôt que \b (25/09) : pour \b le tiret bas est une lettre, donc
+// "The_Last_Door_Intro_120bpm_14M.wav" n'était jamais reconnu comme intro.
 function guessSequentialRole(filename) {
-  const n = filename.toLowerCase();
-  if (/\bintro\b/.test(n)) return 'intro';
-  if (/\boutro\b/.test(n)) return 'outro';
+  const n = filename.toLowerCase().replace(/\.[^/.]+$/, '');
+  if (/(?:^|[^a-z0-9])intro(?:$|[^a-z0-9])/.test(n)) return 'intro';
+  if (/(?:^|[^a-z0-9])outro(?:$|[^a-z0-9])/.test(n)) return 'outro';
   return 'segment';
+}
+
+// ---- Dépôt groupé par section du mode vertical-random (25/09, demande de Jules-Antoine) ----
+// Tous les fichiers d'une section déposés d'un coup : l'intro/outro est reconnue au nom (même règle que
+// le séquentiel, guessSequentialRole), le reste est rangé en pools d'après une racine de nom commune
+// ("Alt Perc 1", "Alt Perc 1.5", "Alt Perc 2" -> pool "Alt Perc"). Rien n'est écrit tant que le
+// compositeur n'a pas validé la fenêtre de vérification (openVrsBatchDropDialog), où il peut déplacer un
+// fichier, renommer un pool et choisir d'ajouter une piste vide (silence) à chaque pool.
+function vrsNormKey(s) {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+// Retire les marques de variante en fin de nom, de façon répétée : "(8th)", "#2", "1.5", "BS1" -> "BS".
+// Si tout le nom y passe (fichier "01.wav"), on garde le nom tel quel.
+function vrsStripVariantSuffix(label) {
+  const orig = (label || '').trim();
+  let s = orig, prev;
+  do {
+    prev = s;
+    s = s.replace(/\s*\([^()]*\)\s*$/, '').replace(/\s*#?\s*\d+(?:[.,]\d+)?\s*$/, '').trim();
+  } while (s && s !== prev);
+  return s || orig;
+}
+function groupFilesForVrsSection(files) {
+  let intro = null, outro = null;
+  const groups = new Map();
+  files.forEach(f => {
+    const role = guessSequentialRole(f.name);
+    if (role === 'intro' && !intro) { intro = f; return; }
+    if (role === 'outro' && !outro) { outro = f; return; }
+    const label = vrsStripVariantSuffix(titleFromFilenameStrippingHints(f.name));
+    const key = vrsNormKey(label);
+    if (!groups.has(key)) groups.set(key, { label, files: [] });
+    groups.get(key).files.push(f);
+  });
+  // Un fichier resté seul rejoint le pool dont le nom est le début du sien ("BS SLAP" -> "BS"), à
+  // condition que ce pool soit une vraie famille (au moins 2 fichiers) -- "Main Perc" reste un pool à part.
+  const familyKeys = [...groups.keys()].filter(k => groups.get(k).files.length >= 2);
+  [...groups.keys()].forEach(k => {
+    const g = groups.get(k);
+    if (g.files.length !== 1) return;
+    const words = k.split(' ');
+    for (let n = words.length - 1; n >= 1; n--) {
+      const prefix = words.slice(0, n).join(' ');
+      if (familyKeys.includes(prefix)) { groups.get(prefix).files.push(...g.files); groups.delete(k); break; }
+    }
+  });
+  const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+  const pools = [...groups.values()].map(g => ({ label: g.label, files: g.files.sort(byName) }));
+  return { intro, outro, pools };
+}
+
+function openVrsBatchDropDialog(track, section, files) {
+  const guess = groupFilesForVrsSection(files);
+  const pools = guess.pools.map(p => ({ id: genId(), label: p.label, silent: false }));
+  const dest = new Map(); // fichier -> 'intro' | 'outro' | 'skip' | id de pool
+  if (guess.intro) dest.set(guess.intro, 'intro');
+  if (guess.outro) dest.set(guess.outro, 'outro');
+  guess.pools.forEach((p, i) => p.files.forEach(f => dest.set(f, pools[i].id)));
+  let silentAll = false;
+  // Tempo/mesures repérés dans un nom ("Main Perc_120BPM_16M.wav") : proposés pour la section, cochés
+  // d'office seulement si la section n'a encore aucun fichier (on n'écrase pas un réglage déjà fait).
+  const sectionHasFile = (section.pools || []).some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile));
+  const hintFile = files.find(f => { const h = parseAudioFilenameHints(f.name); return guessSequentialRole(f.name) === 'segment' && (h.bpm || h.bars); });
+  const hints = hintFile ? parseAudioFilenameHints(hintFile.name) : null;
+  let applyHints = !!hints && !sectionHasFile;
+  const introTaken = !!(track.intro && (track.intro.pendingFile || track.intro.remoteFile));
+  const outroTaken = !!(track.outro && (track.outro.pendingFile || track.outro.remoteFile));
+
+  const overlay = document.createElement('div');
+  overlay.className = 'vrs-batch-overlay';
+  const modal = document.createElement('div');
+  modal.className = 'vrs-batch-modal';
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+
+  function destOptionsHtml(cur) {
+    const opt = (v, label) => `<option value="${v}"${cur === v ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+    return opt('intro', tr('introShortLabel')) + opt('outro', tr('outroShortLabel'))
+      + pools.map((p, i) => opt(p.id, tr('vrsBatchPoolOption', { name: p.label || tr('vrsBatchPoolFallback', { n: i + 1 }) }))).join('')
+      + opt('skip', tr('vrsBatchSkipOption'));
+  }
+  function filesFor(key) { return files.filter(f => dest.get(f) === key); }
+  // Tempo/mesures de l'intro lus dans son nom : appliqués à l'intro seule (ils la concernent sans ambiguïté),
+  // mais affichés ici pour que rien ne change sans que le compositeur l'ait vu.
+  function introHintText() {
+    const f = filesFor('intro')[0];
+    const h = f ? parseAudioFilenameHints(f.name) : null;
+    return h ? [h.bpm ? h.bpm + ' BPM' : '', h.bars ? tr('vrsBatchBarsN', { n: h.bars }) : ''].filter(Boolean).join(', ') : '';
+  }
+  function fileRowsHtml(key) {
+    const list = filesFor(key);
+    if (!list.length) return `<div class="hint-inline">${tr('vrsBatchEmptyGroup')}</div>`;
+    return list.map(f => `
+      <div class="vrs-batch-file">
+        <span title="${escapeAttr(f.name)}">${escapeHtml(f.name)}</span>
+        <select data-vbd-file="${files.indexOf(f)}">${destOptionsHtml(key)}</select>
+      </div>`).join('');
+  }
+  function render() {
+    const nIntro = filesFor('intro').length, nOutro = filesFor('outro').length;
+    const filledPools = pools.filter(p => filesFor(p.id).length);
+    const tooMany = nIntro > 1 || nOutro > 1;
+    modal.innerHTML = `
+      <h3>${tr('vrsBatchTitle', { section: escapeHtml(section.label || tr('untitledFallback')) })}</h3>
+      <div class="hint-inline">${tr('vrsBatchSummary', { files: files.length, pools: filledPools.length })}</div>
+      <div class="vrs-batch-body">
+        <label class="vrs-batch-check vrs-batch-silent-all">
+          <input type="checkbox" data-vbd="silentAll"${silentAll ? ' checked' : ''}>
+          <span>${tr('vrsBatchSilentAllLabel')}</span>
+        </label>
+        <div class="hint-inline">${tr('vrsBatchSilentHint')}</div>
+        ${hints ? `
+          <label class="vrs-batch-check">
+            <input type="checkbox" data-vbd="applyHints"${applyHints ? ' checked' : ''}>
+            <span>${tr('vrsBatchApplyHintsLabel', { hints: [hints.bpm ? hints.bpm + ' BPM' : '', hints.bars ? tr('vrsBatchBarsN', { n: hints.bars }) : ''].filter(Boolean).join(', '), file: escapeHtml(hintFile.name) })}</span>
+          </label>
+          ${sectionHasFile ? `<div class="hint-inline">${tr('vrsBatchHintsSectionHasFiles')}</div>` : ''}
+        ` : ''}
+        ${nIntro ? `
+          <div class="vrs-batch-group">
+            <div class="vrs-batch-group-head"><strong>${tr('introShortLabel')}</strong>${introTaken ? `<span class="hint-inline">${tr('vrsBatchReplacesCurrent')}</span>` : ''}${introHintText() ? `<span class="hint-inline">${tr('vrsBatchIntroHints', { hints: introHintText() })}</span>` : ''}</div>
+            ${fileRowsHtml('intro')}
+          </div>` : ''}
+        ${pools.map((p, i) => `
+          <div class="vrs-batch-group">
+            <div class="vrs-batch-group-head">
+              <input type="text" data-vbd-pool-label="${p.id}" value="${escapeAttr(p.label)}" placeholder="${tr('poolNamePlaceholder')}">
+              <label class="vrs-batch-check"><input type="checkbox" data-vbd-pool-silent="${p.id}"${p.silent ? ' checked' : ''}><span>${tr('vrsBatchSilentPoolLabel')}</span></label>
+            </div>
+            ${fileRowsHtml(p.id)}
+          </div>`).join('')}
+        ${nOutro ? `
+          <div class="vrs-batch-group">
+            <div class="vrs-batch-group-head"><strong>${tr('outroShortLabel')}</strong>${outroTaken ? `<span class="hint-inline">${tr('vrsBatchReplacesCurrent')}</span>` : ''}</div>
+            ${fileRowsHtml('outro')}
+          </div>` : ''}
+        ${filesFor('skip').length ? `
+          <div class="vrs-batch-group">
+            <div class="vrs-batch-group-head"><strong>${tr('vrsBatchSkippedLabel')}</strong></div>
+            ${fileRowsHtml('skip')}
+          </div>` : ''}
+        <div class="actions"><button class="btn btn-small" type="button" data-vbd="addPool">${tr('addPoolBtn')}</button></div>
+      </div>
+      ${tooMany ? `<div class="hint-inline" style="color:#b45309">${tr('vrsBatchTooManyIntroOutro')}</div>` : ''}
+      <div class="actions vrs-batch-actions">
+        <button class="btn btn-small" type="button" data-vbd="cancel">${tr('cancel')}</button>
+        <button class="btn btn-small btn-primary" type="button" data-vbd="confirm"${tooMany || !files.some(f => dest.get(f) !== 'skip') ? ' disabled' : ''}>${tr('vrsBatchConfirmBtn')}</button>
+      </div>
+    `;
+  }
+  modal.addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset.vbdFile !== undefined) { dest.set(files[+t.dataset.vbdFile], t.value); render(); }
+    else if (t.dataset.vbd === 'silentAll') { silentAll = t.checked; pools.forEach(p => { p.silent = silentAll; }); render(); }
+    else if (t.dataset.vbd === 'applyHints') applyHints = t.checked;
+    else if (t.dataset.vbdPoolSilent) { const p = pools.find(x => x.id === t.dataset.vbdPoolSilent); if (p) p.silent = t.checked; }
+    else if (t.dataset.vbdPoolLabel) render(); // met à jour les noms dans les menus déroulants
+  });
+  modal.addEventListener('input', e => {
+    const id = e.target.dataset.vbdPoolLabel;
+    if (id) { const p = pools.find(x => x.id === id); if (p) p.label = e.target.value; }
+  });
+  modal.addEventListener('click', e => {
+    const a = e.target.closest('[data-vbd]');
+    if (!a || a.tagName === 'INPUT') return;
+    if (a.dataset.vbd === 'cancel') close();
+    else if (a.dataset.vbd === 'addPool') { pools.push({ id: genId(), label: '', silent: silentAll }); render(); }
+    else if (a.dataset.vbd === 'confirm') { applyVrsBatchDrop(track, section, files, dest, pools, applyHints ? hints : null); close(); }
+  });
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  render();
+}
+
+function applyVrsBatchDrop(track, section, files, dest, pools, hints) {
+  const hasFile = a => !!(a.pendingFile || a.remoteFile);
+  if (!section.pools) section.pools = [];
+  // Pools "vierges" laissés par la création de la section (+ Section / + Pool : sans nom ni fichier) --
+  // retirés pour ne pas laisser un pool fantôme à côté de ceux qu'on crée. Aucun fichier distant en jeu.
+  section.pools = section.pools.filter(p => (p.label || '').trim() || (p.alternatives || []).some(hasFile));
+  const touched = [];
+  pools.forEach(p => {
+    const list = files.filter(f => dest.get(f) === p.id);
+    if (!list.length) return;
+    const label = (p.label || '').trim();
+    let target = label ? section.pools.find(sp => vrsNormKey(sp.label) === vrsNormKey(label)) : null;
+    if (target) {
+      if (!target.alternatives) target.alternatives = [];
+      // Pool nommé à l'avance mais encore sans aucun fichier : ses emplacements vides d'origine sont des
+      // attentes de fichier, pas des silences voulus -- remplacés par les fichiers déposés.
+      if (!target.alternatives.some(hasFile)) target.alternatives = [];
+    } else {
+      target = { id: genId(), label, avoidImmediateRepeat: true, alternatives: [] };
+      section.pools.push(target);
+    }
+    list.forEach(f => target.alternatives.push({ label: titleFromFilenameStrippingHints(f.name), remoteFile: null, pendingFile: f }));
+    if (p.silent && !target.alternatives.some(a => !hasFile(a))) target.alternatives.push({ label: tr('vrsSilentAltLabel'), remoteFile: null, pendingFile: null });
+    touched.push(...list);
+  });
+  const introFile = files.find(f => dest.get(f) === 'intro');
+  if (introFile) {
+    const h = parseAudioFilenameHints(introFile.name);
+    track.intro.pendingFile = introFile;
+    track.intro.label = titleFromFilenameStrippingHints(introFile.name);
+    if (h.bars) track.intro.bars = h.bars;
+    if (h.bpm) track.intro.bpm = h.bpm;
+  }
+  const outroFile = files.find(f => dest.get(f) === 'outro');
+  if (outroFile) {
+    track.outro.pendingFile = outroFile;
+    track.outro.label = titleFromFilenameStrippingHints(outroFile.name);
+  }
+  if (hints) {
+    if (hints.bpm) section.bpm = hints.bpm;
+    if (hints.bars) section.loopOutBeat = (section.loopInBeat || 0) + hints.bars * (section.beatsPerBar || 4);
+  }
+  hasUnsavedEdits = true;
+  if ((!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) && files[0]) track.title = titleFromFilename(files[0].name);
+  renderLibrary();
+  Promise.all(touched.map(probeAudioDuration)).then(durs => {
+    const maxDur = Math.max(0, ...durs);
+    if (maxDur > (section.duration || 0)) { section.duration = maxDur; renderLibrary(); }
+    if (maxDur > (track.duration || 0)) track.duration = maxDur;
+  });
+  [introFile, outroFile].filter(Boolean).forEach(f => probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } }));
 }
 
 function buildPreviewTrack(track) {
@@ -5662,6 +5910,9 @@ function renderLibrary() {
                 ${[1,2,3,5,10].map(n => `<option value="${n}"${section.maxLoops === n ? ' selected' : ''}>${n}</option>`).join('')}
               </select>
               <div class="hint-inline">${tr('loopCountVisitorHint')}</div>
+              <label data-help="vrsSectionBatchDrop" style="margin-top:14px">${tr('vrsSectionBatchDropLabel')}${!currentUserIsAdmin ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}</label>
+              <div class="hint-inline">${tr('vrsSectionBatchDropHint')}</div>
+              <div data-role="vrsSectionDrop" class="${currentUserIsAdmin ? '' : 'is-disabled'}" style="margin-top:6px">${tr('dropAllFilesHint')}</div>
               <label data-help="vrsPools" style="margin-top:14px">${tr('vrsPoolsLabel')}</label>
               <div data-role="vrsPools"></div>
               <div class="actions"><button class="btn btn-small" data-action="add-pool" data-ti="${ti}" data-si="${sci}">${tr('addPoolBtn')}</button></div>
@@ -5672,6 +5923,10 @@ function renderLibrary() {
 
           const timelineHost = sectionEl.querySelector('[data-role="loopTimelineHost"]');
           if (timelineHost) timelineHost.appendChild(buildLoopTimelineEl(section, ti, el));
+
+          // Dépôt groupé de la section (25/09) -- réservé à l'admin tant que Jules-Antoine ne l'a pas validé.
+          const sectionDropHost = sectionEl.querySelector('[data-role="vrsSectionDrop"]');
+          if (sectionDropHost && currentUserIsAdmin) wireBatchDrop(sectionDropHost, files => openVrsBatchDropDialog(track, section, files));
 
           const poolsHost = sectionEl.querySelector('[data-role="vrsPools"]');
           section.pools.forEach((pool, pi) => {
@@ -6070,16 +6325,21 @@ function renderLibrary() {
       if (allDropHost) {
         allDropHost.innerHTML = '';
         wireBatchDrop(allDropHost, files => {
+          // bpm/mesures repris du nom de fichier ("..._120bpm_16M.wav", 25/09, demande de Jules-Antoine) --
+          // même règle que le dépôt sur la liste des emplacements plus bas : jetons retirés du libellé, et
+          // chaque valeur reste modifiable ensuite dans le bloc concerné.
           files.forEach(f => {
             const guess = guessSequentialRole(f.name);
+            const hints = parseAudioFilenameHints(f.name);
+            const cleanLabel = titleFromFilenameStrippingHints(f.name);
             const introTaken = !!(track.intro && (track.intro.pendingFile || track.intro.remoteFile));
             const outroTaken = !!(track.outro && (track.outro.pendingFile || track.outro.remoteFile));
             if (guess === 'intro' && !introTaken) {
-              track.intro = { label: titleFromFilename(f.name), bars: (track.intro && track.intro.bars) || 8, remoteFile: null, pendingFile: f };
+              track.intro = { label: cleanLabel, bars: hints.bars || (track.intro && track.intro.bars) || 8, remoteFile: null, pendingFile: f };
             } else if (guess === 'outro' && !outroTaken) {
-              track.outro = { label: titleFromFilename(f.name), remoteFile: null, pendingFile: f };
+              track.outro = { label: cleanLabel, remoteFile: null, pendingFile: f };
             } else {
-              track.segmentSlots.push({ id: genId(), label: titleFromFilename(f.name), avoidImmediateRepeat: true, alternatives: [{ label: titleFromFilename(f.name), bars: 8, remoteFile: null, pendingFile: f }] });
+              track.segmentSlots.push({ id: genId(), label: cleanLabel, avoidImmediateRepeat: true, bpm: hints.bpm, alternatives: [{ label: cleanLabel, bars: hints.bars || 8, remoteFile: null, pendingFile: f }] });
             }
           });
           hasUnsavedEdits = true;
