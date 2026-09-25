@@ -65,6 +65,7 @@ const path = require('path');
   const slotItem = si => q(`#libraryContainer .seq-master-item[data-action="select-seq-slot"][data-si="${si}"]`);
   const labels = () => ev('library[0].segmentSlots.map(s => s.label).join("|")');
 
+  ev('currentUserIsAdmin = true'); // Alt + glisser et touche Supprimer : réservés à l'admin (voir fin du test)
   click(q('.nav-item[data-tab="library"]')); // la touche Supprimer n'agit que dans l'onglet affiché
   // ---- Morceau séquentiel à 3 slots ----
   click(doc.getElementById('btnAddLibraryTrack'));
@@ -155,6 +156,16 @@ const path = require('path');
   check('bloc sélectionné visible', card(copyId).classList.contains('kb-selected'));
   doc.body.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
   check('Supp sur un bloc : supprimé après confirmation', types() === 'text,header');
+
+  // ---- Hors admin : Alt + glisser déplace, la touche Supprimer ne fait rien ----
+  ev('currentUserIsAdmin = false'); click(q('.nav-item[data-tab="library"]')); ev('manageLibrarySelectedId = library[0].id; renderLibrary()');
+  click(slotItem(0));
+  dragItem(slotItem(0), slotItem(1), true);
+  check('non-admin : Alt + glisser déplace sans copier', labels() === 'C|A');
+  confirmCalls = 0;
+  slotItem(1).dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
+  doc.body.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+  check('non-admin : la touche Supprimer ne fait rien', confirmCalls === 0 && labels() === 'C|A');
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
