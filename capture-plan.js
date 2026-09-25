@@ -296,7 +296,9 @@
     const warn = (msg, o) => { try { console.warn(msg, o); } catch (e) {} };
     const trackIds = [...new Set(events.map(e => e.detail && e.detail.trackId).filter(Boolean))];
     const windows = { embr: {}, seq: {}, vr: {} };
-    const stopsOf = trackId => events.filter(e => e.name === 'voices_stop' && e.detail.trackId === trackId).map(e => e.t).sort((a, b) => a - b);
+    // Arrêts des voix d'un morceau. scope 'embr_gens' (saut dans la boucle d'un embranchement) : seules les générations
+    // des boucles jumelles s'arrêtent ; allOnly = arrêts complets seulement (détours, transitions).
+    const stopsOf = (trackId, allOnly) => events.filter(e => e.name === 'voices_stop' && e.detail.trackId === trackId && !(allOnly && e.detail.scope)).map(e => e.t).sort((a, b) => a - b);
     const firstStopAfter = (stops, t, eps) => { for (const s of stops) if (s > t + (eps || 1e-6)) return s; return null; };
     const voice = o => { const v = Object.assign({ gain: null, loop: null, stop: null, offset: 0, continuous: false }, o); if (v.stop != null && v.stop <= v.start) return; voices.push(v); };
 
@@ -430,12 +432,13 @@
               gain: automation(envAt(initOf(id), cmds, g.t), cmds, g.t) });
           });
         });
+        const fullStops = stopsOf(trackId, true);
         // Détours : lecture fraîche de la boucle courte, fondu d'entrée, puis fondu de sortie à la bascule suivante.
         all.filter(m => m.name === 'embr_detour_in').forEach(m => {
           const loop = loopById(m.detail.loopId);
           if (!loop || !loop.file) return;
           const out = all.find(o => o.name === 'embr_detour_out' && o.t > m.t + 1e-6);
-          const stop = firstStopAfter(stops, m.t);
+          const stop = firstStopAfter(fullStops, m.t);
           const cmds = [{ t: m.t, target: 1, ramp: m.detail.fadeSec || 0 }];
           let end = stop;
           if (out && (stop == null || out.t < stop)) { cmds.push({ t: out.t, target: 0, ramp: out.detail.fadeSec || 0 }); end = out.t + (out.detail.fadeSec || 0) + 0.05; }
@@ -447,7 +450,7 @@
           const loop = loopById(m.detail.loopId);
           const tr = loop && loop.transition;
           if (!tr || !tr.file) return;
-          voice({ url: url(tr.file), track, targetKey: null, start: m.t, offset: 0, stop: firstStopAfter(stops, m.t) });
+          voice({ url: url(tr.file), track, targetKey: null, start: m.t, offset: 0, stop: firstStopAfter(fullStops, m.t) });
         });
         return;
       }

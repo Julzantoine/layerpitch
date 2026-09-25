@@ -4872,14 +4872,22 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // bascule : le verrouillage de phase entre boucles paires ne change pas quand on change laquelle est
   // audible (refreshEmbrGains est une pure rampe de gain, voir son commentaire d'en-tête). N'affecte que
   // les boutons en gabarit riche (classe .embr-wave-btn) -- silencieusement ignoré pour les autres.
-  function applyEmbrWaveAnimation() {
+  // startPosSec (25/09, seek par clic sur la forme d'onde) : position dans le cycle à laquelle l'animation
+  // reprend (délai négatif). L'animation est toujours REDÉMARRÉE (animation: none + reflow) plutôt que
+  // simplement relancée -- sinon elle repartirait de là où elle avait été mise en pause, désynchronisée
+  // de l'audio, et un clip-path posé pendant un glisser resterait masqué par l'animation.
+  function applyEmbrWaveAnimation(startPosSec) {
     const cycle = embrCycleLengthSec();
     if (!(cycle > 0)) return;
     embrLoopBtns.forEach(btn => {
       const fg = btn.querySelector('.embr-wave-fg');
       if (!fg) return;
+      fg.style.animation = 'none';
+      fg.style.clipPath = '';
+      void fg.offsetWidth;
+      fg.style.animation = '';
       fg.style.animationDuration = cycle + 's';
-      fg.style.animationDelay = '0s';
+      fg.style.animationDelay = (-(startPosSec || 0)) + 's';
       fg.style.animationPlayState = 'running';
     });
   }
@@ -4963,9 +4971,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // génération de la lecture démarre à "Départ" (offset embrLoopTiming().startSec) -- toutes les
   // suivantes démarrent à "Entrée" (embrLoopTiming().loopInSec), même principe que le moteur quantifié
   // classique.
-  function scheduleEmbrGeneration(ctxStartTime, isFirst) {
+  function scheduleEmbrGeneration(ctxStartTime, isFirst, offsetOverride) {
     const timing = embrLoopTiming();
-    const bufferOffset = isFirst ? timing.startSec : timing.loopInSec;
+    const bufferOffset = offsetOverride != null ? offsetOverride : (isFirst ? timing.startSec : timing.loopInSec);
     // Repère de capture : nouvelle génération des boucles jumelles (toutes démarrent ensemble, seule la boucle active
     // est audible).
     captureMark('embr_gen', { trackId: track.id, bufferOffset, inSec: Math.max(0, ctxStartTime - ctx.currentTime),
@@ -5079,6 +5087,36 @@ function initTrackPlayer(track, wrapper, elementColors) {
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
     updateEmbrButtonsUI();
     applyEmbrWaveAnimation();
+  }
+  // Seek (25/09, demande directe : "on ne peut pas cliquer dans la barre de lecture pour faire avancer la
+  // tête de lecture") : `fraction` = position dans le cycle Entrée->Sortie, la même échelle que le
+  // remplissage animé des lignes riches. Toutes les boucles paires restant verrouillées en phase, on les
+  // relance TOUTES au même point -- la boucle audible reste la même, seule la position change. Contrairement
+  // à resumeEmbrVerticalAfterBackground(), on ne passe pas par stopEmbrVertical() : un minuteur de retour
+  // auto en cours doit survivre au seek (même raisonnement que seekSequential()). L'horloge de phase est
+  // recalée pour que la quantification des bascules suivantes (embrQuantizeDelaySec) reste juste.
+  function seekEmbrVertical(fraction) {
+    const timing = embrLoopTiming();
+    const cycle = timing.cycleLength;
+    if (!(cycle > 0) || embrActiveLoopIdx < 0) return;
+    const posSec = Math.max(0, Math.min(1, fraction)) * cycle;
+    if (embrSchedulerTimer) { clearInterval(embrSchedulerTimer); embrSchedulerTimer = null; }
+    // Repère de capture : seules les générations des boucles jumelles s'arrêtent (transition ou détour éventuels continuent).
+    captureMark('voices_stop', { trackId: track.id, scope: 'embr_gens' });
+    embrActiveGenSources.forEach(({ src }) => { try { src.stop(); } catch (e) {} });
+    embrActiveGenSources = [];
+    // Un seek pendant le segment Départ->Entrée du premier lancement saute directement dans le cycle :
+    // le verrouillage des boutons propre à ce segment n'a plus lieu d'être.
+    if (embrIntroLockTimeout) {
+      clearTimeout(embrIntroLockTimeout); embrIntroLockTimeout = null;
+      embrLoopBtns.forEach(btn => { btn.disabled = false; });
+    }
+    const now = ctx.currentTime;
+    embrReferenceStartCtxTime = now - posSec / trackPitchRatio;
+    scheduleEmbrGeneration(now, false, timing.loopInSec + posSec);
+    embrNextStartCtxTime = now + (cycle - posSec) / trackPitchRatio;
+    embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
+    applyEmbrWaveAnimation(posSec);
   }
   function playEmbrVertical() {
     stopEmbrVertical();
@@ -5383,6 +5421,61 @@ function initTrackPlayer(track, wrapper, elementColors) {
   embrLoopBtns.forEach(btn => {
     btn.addEventListener('click', () => selectEmbrLoop(parseInt(btn.dataset.loopIdx, 10)));
   });
+  // Cliquer/glisser sur la forme d'onde de la boucle EN COURS (gabarit riche uniquement) déplace la tête
+  // de lecture -- même principe que les blocs séquentiels : position affichée en direct pendant le
+  // glisser, seek audio réel seulement au relâchement. Un clic sur une AUTRE ligne reste une bascule de
+  // boucle (inchangé). Pas de seek pendant un détour, une transition ou une bascule quantifiée en attente :
+  // l'horloge de phase y est déjà engagée vers autre chose.
+  embrLoopBtns.forEach(btn => {
+    if (!btn.classList.contains('embr-wave-btn')) return;
+    const idx = parseInt(btn.dataset.loopIdx, 10);
+    let dragging = false;
+    function fractionFromEvent(e) {
+      const rect = btn.getBoundingClientRect();
+      return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    }
+    function showFraction(frac) {
+      embrLoopBtns.forEach(b => {
+        const fg = b.querySelector('.embr-wave-fg');
+        if (!fg) return;
+        fg.style.animation = 'none';
+        fg.style.clipPath = `inset(0 ${(1 - frac) * 100}% 0 0)`;
+      });
+    }
+    function isSeekable() {
+      return playing && idx === embrActiveLoopIdx && !embrDetourSource
+        && !embrPendingSwitchTimeout && !embrPendingTransitionSwitchTimeout;
+    }
+    btn.addEventListener('pointerdown', (e) => {
+      if (!isSeekable()) return;
+      dragging = true;
+      try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+      showFraction(fractionFromEvent(e));
+    });
+    btn.addEventListener('pointermove', (e) => {
+      if (dragging) showFraction(fractionFromEvent(e));
+    });
+    btn.addEventListener('pointerup', (e) => {
+      if (!dragging) return;
+      dragging = false;
+      if (!isSeekable()) { applyEmbrWaveAnimation(embrCurrentCyclePosSec()); return; }
+      trackPublicEvent('embr_seek', { trackId: track.id });
+      seekEmbrVertical(fractionFromEvent(e));
+    });
+    btn.addEventListener('pointercancel', () => {
+      if (!dragging) return;
+      dragging = false;
+      applyEmbrWaveAnimation(embrCurrentCyclePosSec());
+    });
+  });
+  // Position actuelle dans le cycle (temps nominal du fichier) -- sert à remettre l'animation en place
+  // quand un glisser est annulé sans seek.
+  function embrCurrentCyclePosSec() {
+    const cycle = embrCycleLengthSec();
+    if (!(cycle > 0)) return 0;
+    const elapsed = (ctx.currentTime - embrReferenceStartCtxTime) * trackPitchRatio;
+    return ((elapsed % cycle) + cycle) % cycle;
+  }
 
   /* ---- Moteur vertical-random : sections chaînées, chacune avec ses pools simultanés et son propre
      tempo/timeline (30/07). La décision "quoi jouer ensuite" vient entièrement de
