@@ -6312,9 +6312,22 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // publication toute récente. Ne compte que les vrais fichiers distants (item.localFile/localUrl
   // ignorés, aperçu local du backstage jamais concerné par ce problème).
   let remoteFetchAttempts = 0;
+  // Fichiers locaux (aperçu du Backstage) impossibles à lire ou à décoder -- voir loadArrayBuffer().
+  const unreadableLocalFiles = new Set();
+  const _localFileNames = new WeakMap(); // octets lus -> nom du fichier local, le temps du décodage
   let remoteFetchNotFound = 0;
   async function loadArrayBuffer(item) {
-    if (item.localFile) return await item.localFile.arrayBuffer();
+    if (item.localFile) {
+      // Fichier choisi dans le Backstage mais pas encore publié : le navigateur ne garde qu'un lien vers le fichier
+      // sur le disque. Modifié/réexporté/déplacé depuis sa sélection, il devient illisible (vécu le 25/09 sous
+      // Firefox : "Erreur de chargement (aucune section)" alors que la section avait bien un fichier). Nom retenu
+      // pour que le message d'erreur dise lequel choisir à nouveau, au lieu d'un "aucune section" trompeur.
+      let ab;
+      try { ab = await item.localFile.arrayBuffer(); }
+      catch (e) { unreadableLocalFiles.add(item.localFile.name); throw e; }
+      _localFileNames.set(ab, item.localFile.name);
+      return ab;
+    }
     // localUrl (18/09) : variante de localFile pour l'Aperçu public (?preview=1, nouvel onglet) -- un
     // fichier pas encore publié y arrive en URL locale temporaire (blob:, voir pendingPreviewUrl() côté
     // backstage) plutôt qu'en objet File directement utilisable, un objet File ne survivant pas au
@@ -6336,6 +6349,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     return remoteFetchAttempts > 0 && remoteFetchNotFound === remoteFetchAttempts;
   }
   function loadErrorMessageFor(fallbackKey) {
+    if (unreadableLocalFiles.size) return t('loadErrorLocalFileUnreadable', { files: [...unreadableLocalFiles].map(n => '« ' + n + ' »').join(', ') });
     return t(looksLikePropagationDelay() ? 'loadErrorPropagating' : fallbackKey);
   }
   // Relais de décodage : Safari (Mac et iOS, donc tout navigateur sur iPhone/iPad puisqu'Apple impose
@@ -6359,7 +6373,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     return vorbisDecoderPromise;
   }
   async function decodeAudioDataCompat(arrayBuffer) {
-    const buf = await decodeAudioDataCompatRaw(arrayBuffer);
+    let buf;
+    try { buf = await decodeAudioDataCompatRaw(arrayBuffer); }
+    catch (e) { const localName = _localFileNames.get(arrayBuffer); if (localName) unreadableLocalFiles.add(localName); throw e; }
     const url = _arrayBufferUrls.get(arrayBuffer);
     if (url && buf) _bufferUrls.set(buf, url);
     return buf;
