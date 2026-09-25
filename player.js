@@ -526,6 +526,88 @@ const trackCollapsers = {};
 const trackStingerKillers = {};
 let activeTrackId = null;
 
+/* ---------------- Journal de prise (Adaptive OST, Figer -- 25/09) ----------------
+ * Quand l'enregistrement des prises est activé (setTakeRecording(true) : page fan, onglet Albums -- JAMAIS sur les
+ * pages publiques, où rien de tout ceci ne s'exécute), le lecteur note tout ce qu'il fait réellement jouer : chaque
+ * fichier (instant, position de départ, boucle, vitesse), chaque mouvement de volume (intensité, bascules, fondus,
+ * muet/solo, duck), chaque changement d'effet, chaque Sfx et sa place dans la salle, la tête de l'auditeur. Le rendu
+ * (LayerCaptureRender.renderTake) rejoue ce journal note pour note avec le même moteur : une version figée est
+ * EXACTEMENT ce qui a été entendu -- tirages au sort, embranchements et queues de fin compris -- sans rejouer les
+ * gestes ni rendre le hasard reproductible (voir layerpitch-docs/adaptive-ost-albums-page-fan.md).
+ * Mécanisme : une fois activé, chaque nœud créé par le contexte audio (source, gain) consigne ses commandes avec leur
+ * heure du contexte audio ; chaque moteur signale ensuite quelle source, quel gain et quelle chaîne d'effets forment
+ * une voix (journalVoice). Les heures sont converties en "temps d'écoute" (pauses retirées) à la lecture du journal. */
+let takeRecordingEnabled = false;
+const trackTakeReaders = {};
+const _bufferUrls = new WeakMap(); // AudioBuffer décodé -> URL de son fichier publié (rendu hors-ligne)
+const _arrayBufferUrls = new WeakMap(); // octets téléchargés -> URL, le temps du décodage
+const _takeYawLog = []; // [heure du contexte, orientation] -- la tête est commune à toute la page
+const TAKE_PARAM_METHODS = { setValueAtTime: 'set', linearRampToValueAtTime: 'lin', exponentialRampToValueAtTime: 'exp', setTargetAtTime: 'tgt', cancelScheduledValues: 'cancel', cancelAndHoldAtTime: 'hold' };
+function journalParam(param) {
+  if (!param || param.__lpLog) return;
+  const log = { init: param.value, auto: [] };
+  param.__lpLog = log;
+  Object.keys(TAKE_PARAM_METHODS).forEach(m => {
+    const orig = param[m];
+    if (typeof orig !== 'function') return;
+    const tag = TAKE_PARAM_METHODS[m];
+    param[m] = function () {
+      const a = arguments;
+      if (tag === 'cancel' || tag === 'hold') log.auto.push([tag, a[0]]);
+      else if (tag === 'tgt') log.auto.push([tag, a[1], a[0], a[2]]);
+      else log.auto.push([tag, a[1], a[0]]);
+      return orig.apply(param, a);
+    };
+  });
+  // Affectation directe (param.value = x) : équivaut à un setValueAtTime immédiat.
+  const desc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(param), 'value');
+  if (desc && desc.get && desc.set) {
+    try {
+      Object.defineProperty(param, 'value', { configurable: true, get() { return desc.get.call(param); }, set(v) { log.auto.push(['set', ctx.currentTime, v]); desc.set.call(param, v); } });
+    } catch (e) { /* navigateur qui refuse : seules les affectations directes échappent au journal */ }
+  }
+}
+function journalSourceNode(src) {
+  const info = { starts: [], stops: [] };
+  src.__lpInfo = info;
+  journalParam(src.playbackRate);
+  const start0 = src.start, stop0 = src.stop;
+  src.start = function (when, offset, duration) {
+    info.starts.push({ when: Math.max(when || 0, ctx.currentTime), offset: offset || 0, duration: duration != null ? duration : null,
+      loop: src.loop ? [src.loopStart, src.loopEnd] : null, url: src.buffer ? (_bufferUrls.get(src.buffer) || null) : null });
+    return start0.apply(src, arguments);
+  };
+  src.stop = function (when) { info.stops.push([ctx.currentTime, Math.max(when || 0, ctx.currentTime)]); return stop0.apply(src, arguments); };
+}
+// Voix spatiale d'un Sfx : réglage réellement utilisé au démarrage (compositeur + matrice du visiteur + curseur), point
+// de trajectoire tiré, puis chaque déplacement en direct (matrice, curseur) et chaque bascule du rendu 3D.
+function journalSpatialVoice(voice, spUsed) {
+  const log = { sp: JSON.parse(JSON.stringify(spUsed)), stepIndex: voice.stepIndex, calls: [] };
+  voice.__lpSpatial = log;
+  const setPosition0 = voice.setPosition, setReverbDb0 = voice.setReverbDb, setBinaural0 = voice.setBinaural;
+  voice.setPosition = function (x, y, rampSec, atTime) { log.calls.push([atTime != null ? atTime : ctx.currentTime, 'pos', x, y, rampSec || 0]); return setPosition0.apply(voice, arguments); };
+  voice.setReverbDb = function (db, rampSec, atTime) { log.calls.push([atTime != null ? atTime : ctx.currentTime, 'rev', db, rampSec || 0]); return setReverbDb0.apply(voice, arguments); };
+  voice.setBinaural = function (b) { log.calls.push([ctx.currentTime, 'bin', !!b]); return setBinaural0.apply(voice, arguments); };
+}
+function setTakeRecording(on) {
+  on = !!on;
+  if (on && !ctx.__lpJournaled) {
+    // Posé une seule fois et pour de bon : tout nœud créé ensuite consigne ses commandes (coût négligeable).
+    ctx.__lpJournaled = true;
+    const createGain0 = ctx.createGain.bind(ctx), createSource0 = ctx.createBufferSource.bind(ctx);
+    ctx.createGain = function () { const n = createGain0(); if (takeRecordingEnabled) journalParam(n.gain); return n; };
+    ctx.createBufferSource = function () { const n = createSource0(); if (takeRecordingEnabled) journalSourceNode(n); return n; };
+    document.addEventListener('layerpitch-head-yaw', e => { if (takeRecordingEnabled) _takeYawLog.push([ctx.currentTime, +e.detail || 0]); });
+  }
+  takeRecordingEnabled = on;
+}
+// Dernière prise d'un morceau (celle en cours, ou la dernière écoute terminée), en données pures (JSON) -- null si
+// l'enregistrement n'est pas activé ou si le morceau n'a jamais été joué depuis.
+function getTrackTake(trackId) {
+  const read = trackTakeReaders[trackId];
+  return read ? read() : null;
+}
+
 // Empêche l'écran de se verrouiller pendant qu'une piste joue (sinon le tél s'éteint "comme si de rien
 // n'était" pendant une écoute) — best-effort, l'API n'existe pas partout, et le verrou se relâche de
 // toute façon automatiquement si l'onglet passe en arrière-plan (voir la reprise après veille plus bas).
@@ -1185,11 +1267,14 @@ function getOrBuildImpulseResponse(ctx, decaySeconds) {
   // Reverb synthétique (bruit blanc + décroissance exponentielle) plutôt qu'un fichier de réponse
   // impulsionnelle à héberger : évite d'ajouter un nouveau type d'asset/upload pour ce chantier, qualité
   // suffisante pour l'usage démo/pitch visé ici.
+  // Bruit TIRÉ D'UNE GRAINE fixe (25/09) plutôt que Math.random() : même réponse à chaque chargement et dans le rendu
+  // hors-ligne d'une version figée, qui retrouve ainsi exactement la reverb entendue (même texture de bruit).
   const length = Math.max(1, Math.floor(ctx.sampleRate * decay));
   const buffer = ctx.createBuffer(2, length, ctx.sampleRate);
   for (let ch = 0; ch < 2; ch++) {
     const data = buffer.getChannelData(ch);
-    for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
+    const rand = mulberry32((key + ':' + ch).split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7));
+    for (let i = 0; i < length; i++) data[i] = (rand() * 2 - 1) * Math.pow(1 - i / length, 2);
   }
   _impulseResponseCache.set(key, buffer);
   return buffer;
@@ -1684,11 +1769,13 @@ function connectSfxSource(src, sfxDef, spatialOverride) {
     // Ordre de priorité : réglage du compositeur < ce que le visiteur a fait à la matrice < curseur de paramètre du
     // compositeur (spatialOverride : position / reverb imposées au moment où le son démarre).
     const sp = sfxSpatialWithVisitor(sfxDef);
-    const voice = buildSpatialVoice(ctx, spatialOverride ? fxSpatialWithOverride(sp, spatialOverride) : sp, {
+    const spUsed = spatialOverride ? fxSpatialWithOverride(sp, spatialOverride) : sp;
+    const voice = buildSpatialVoice(ctx, spUsed, {
       duration: src.buffer ? src.buffer.duration / ((src.playbackRate && src.playbackRate.value) || 1) : 0,
       stepKey: sfxDef
     });
     src.connect(voice.input);
+    if (takeRecordingEnabled) journalSpatialVoice(voice, spUsed);
     // Voix en cours de lecture : la matrice publique les déplace / change leur rendu en direct.
     let vset = _activeSpatialVoices.get(sfxDef.id);
     if (!vset) { vset = new Set(); _activeSpatialVoices.set(sfxDef.id, vset); }
@@ -1871,6 +1958,8 @@ function fxCutSlope(c) { const v = +(c && c.slope); return v === 12 || v === 48 
 // déjà à cet instant (pas de param.value, qui ne reflèterait pas l'automation d'un contexte qui ne tourne pas).
 function applyFxToChain(ctx, chain, fx, rampSec, atTime) {
   fx = fx || {};
+  // Journal de prise : chaque changement d'effet d'une voix est consigné (heure du contexte, réglage, rampe).
+  if (chain.__lpFxLog) chain.__lpFxLog.push([atTime != null ? atTime : ctx.currentTime, JSON.parse(JSON.stringify(fx)), rampSec || 0]);
   const n = chain.nodes;
   const sched = atTime != null;
   const now = sched ? atTime : ctx.currentTime;
@@ -2450,13 +2539,20 @@ function initTrackPlayer(track, wrapper, elementColors) {
   }
   // Compensation de latence (voir withLatencyComp) : calculée une fois par morceau.
   const fxNeedsComp = trackNeedsLatencyComp(track);
+  // Journal de prise : la chaîne retient de quoi être reconstruite à l'identique au rendu (réglage de départ, effets
+  // forcés, compensation de latence) et consignera chacun de ses changements (voir applyFxToChain).
+  function journalChain(out, fx, force) {
+    if (takeRecordingEnabled && out) { out.__lpMeta = { fx: fx ? JSON.parse(JSON.stringify(fx)) : null, force: force.slice(), comp: !!fxNeedsComp }; out.__lpFxLog = []; }
+    return out;
+  }
   function buildTargetFxChain(targetKey, baseFx, src, startTime) {
     const force = (fxTriggerDefs.size || fxSliders.length) ? fxForceKeysFor(targetKey) : [];
     if (!force.length) {
       const plain = buildLayerFxChain(ctx, baseFx, src, startTime);
-      return fxNeedsComp ? withLatencyComp(ctx, plain) : plain;
+      return journalChain(fxNeedsComp ? withLatencyComp(ctx, plain) : plain, baseFx, force);
     }
-    const chain = buildLayerFxChain(ctx, fxEffectiveFor(targetKey, baseFx), src, startTime, undefined, force);
+    const effective0 = fxEffectiveFor(targetKey, baseFx);
+    const chain = buildLayerFxChain(ctx, effective0, src, startTime, undefined, force);
     if (chain) {
       chain.baseFx = baseFx; chain.targetKey = targetKey;
       let set = fxChainsByTarget.get(targetKey);
@@ -2466,7 +2562,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       // (nettoyage du bitcrusher, marqueurs de fin de morceau) -- jamais d'écrasement possible.
       src.addEventListener('ended', () => { set.delete(chain); });
     }
-    return fxNeedsComp ? withLatencyComp(ctx, chain) : chain;
+    return journalChain(fxNeedsComp ? withLatencyComp(ctx, chain) : chain, effective0, force);
   }
   const fxTriggerBtns = [...wrapper.querySelectorAll('[data-fx-trigger]')];
   // Boutons : état enfoncé + état « bloqué » (condition « Nécessite » non remplie) -- grisé mais visible, avec en
@@ -2703,6 +2799,83 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // qui doit baisser TOUT le morceau en cours d'un coup, peu importe son mode de lecture.
   const trackMasterGain = ctx.createGain();
   trackMasterGain.connect(ctx.destination);
+
+  // ---- Journal de prise de CE morceau (voir setTakeRecording plus haut) ----
+  // Une prise commence à chaque vrai démarrage (pas une reprise après pause, un saut dans la frise ou un retour de
+  // veille : ceux-là continuent la même prise, et le journal note simplement ce qui a été rejoué). Pendant une pause,
+  // le temps d'écoute s'arrête. Chaque moteur signale ses voix via journalVoice / journalSfxVoice juste avant de les
+  // lancer ; tout le reste (volumes, vitesse, effets) est consigné par les nœuds eux-mêmes.
+  let take = null;
+  function startTake() {
+    if (!takeRecordingEnabled) { take = null; return; }
+    journalParam(trackMasterGain.gain); // morceau initialisé avant l'activation : on rattrape son gain maître
+    take = {
+      startCtx: ctx.currentTime, pauses: [], pausedAt: null, voices: [], sfx: [], recordedAt: new Date().toISOString(),
+      master0: trackMasterGain.gain.value, masterFrom: trackMasterGain.gain.__lpLog ? trackMasterGain.gain.__lpLog.auto.length : 0,
+      yaw0: getListenerYaw(), yawFrom: _takeYawLog.length
+    };
+  }
+  function pauseTake() { if (take && take.pausedAt == null) take.pausedAt = ctx.currentTime; }
+  function resumeTake() {
+    if (!take) return;
+    take.resumable = false;
+    if (take.pausedAt != null) { take.pauses.push([take.pausedAt, ctx.currentTime]); take.pausedAt = null; }
+  }
+  function journalVoice(src, g, chain) {
+    if (take && take.pausedAt == null && src && src.__lpInfo) take.voices.push({ src, g, chain });
+  }
+  function journalSfxVoice(src, spatialVoice) {
+    if (take && take.pausedAt == null && src && src.__lpInfo) take.sfx.push({ src, voice: spatialVoice || null });
+  }
+  trackTakeReaders[track.id] = () => {
+    const J = take;
+    if (!J) return null;
+    const endCtx = J.pausedAt != null ? J.pausedAt : ctx.currentTime;
+    // Heure du contexte audio -> temps d'écoute : on retire les pauses déjà closes, et un instant tombé PENDANT une
+    // pause (ou après la pause en cours) se ramène au moment où elle a commencé.
+    const pauses = J.pausedAt != null ? J.pauses.concat([[J.pausedAt, Infinity]]) : J.pauses;
+    const tt = c => {
+      let t = c - J.startCtx;
+      pauses.forEach(([a, b]) => { if (c >= b) t -= (b - a); else if (c > a) t -= (c - a); });
+      return Math.round(t * 1e6) / 1e6;
+    };
+    const param = log => (log ? { init: log.init, auto: log.auto.map(e => [e[0], tt(e[1])].concat(e.slice(2))) } : null);
+    // Plusieurs stop() : le dernier appel l'emporte, sauf si la source s'était déjà arrêtée avant qu'il arrive.
+    const stopOf = info => {
+      let s = null;
+      info.stops.forEach(([call, when]) => { if (s == null || call < s) s = when; });
+      return s == null ? null : tt(s);
+    };
+    const base = src => {
+      const info = src.__lpInfo, st = info.starts[0];
+      return { url: st.url, start: tt(st.when), offset: st.offset, dur: st.duration, loop: st.loop, stop: stopOf(info), rate: param(src.playbackRate.__lpLog) };
+    };
+    const started = x => x.src.__lpInfo && x.src.__lpInfo.starts.length;
+    const voices = J.voices.filter(started).map(({ src, g, chain }) => Object.assign(base(src), {
+      gain: g ? param(g.gain.__lpLog) : null,
+      fx: chain && chain.__lpMeta ? chain.__lpMeta : null,
+      fxLog: chain && chain.__lpFxLog ? chain.__lpFxLog.map(([c, fx, r]) => [tt(c), fx, r]) : []
+    }));
+    const sfx = J.sfx.filter(started).map(({ src, voice }) => {
+      const sp = voice && voice.__lpSpatial;
+      return Object.assign(base(src), { spatial: sp ? { sp: sp.sp, stepIndex: sp.stepIndex, calls: sp.calls.map(c => [tt(c[0])].concat(c.slice(1))) } : null });
+    });
+    const masterLog = trackMasterGain.gain.__lpLog;
+    const all = voices.concat(sfx);
+    return JSON.parse(JSON.stringify({
+      v: 1, kind: 'layerpitch-take', trackId: track.id, publishedAt: track.publishedAt || null, recordedAt: J.recordedAt,
+      duration: tt(endCtx), complete: J.pausedAt != null, missing: all.filter(x => !x.url).length,
+      // Retard propre aux effets à ScriptProcessor (bitcrusher, pitch-shift) EN DIRECT : le rendu hors-ligne, plus rapide,
+      // en a un plus court -- il ajoute la différence pour que ces voix restent calées comme à l'écoute (Sfx compris).
+      fxLatencySec: fxSpLatencySec(ctx),
+      sampleRate: ctx.sampleRate, // le rendu se fait à la même fréquence : mêmes fichiers décodés, mêmes réverbérations
+      voices, sfx,
+      // Gain maître : commandes passées pendant une pause (autre morceau lancé, remise à 1 d'un arrêt) écartées -- rien
+      // ne sonnait, et elles changeraient une prise déjà close.
+      master: { init: J.master0, auto: masterLog ? masterLog.auto.slice(J.masterFrom).filter(e => !pauses.some(([a, b]) => e[1] > a + 1e-6 && e[1] < b)).map(e => [e[0], tt(e[1])].concat(e.slice(2))) : [] },
+      yaw: [[0, J.yaw0]].concat(_takeYawLog.slice(J.yawFrom).filter(([c]) => c >= J.startCtx && c <= endCtx).map(([c, y]) => [tt(c), y]))
+    }));
+  };
   // Ducking : abaisse brièvement le gain maître du morceau pendant qu'un Sfx réglé pour ça est en train
   // de jouer, pour le mettre en valeur, puis remonte — réglage propre à chaque Sfx (duckMainTrack), pas
   // au morceau. Rampes linéaires plutôt qu'un changement instantané, moins désagréable à l'oreille.
@@ -4040,6 +4213,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     if (fxChainHasLeakyNode(fxChain)) {
       src.onended = () => { disconnectLeakyFxNodes(fxChain); };
     }
+    journalVoice(src, g, fxChain);
     src.start(ctxStartTime, off);
     seqActiveSources.push({ src, gain: g, ctxStartTime });
     seqLastGenSources = [src];
@@ -4306,6 +4480,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     rafId = requestAnimationFrame(tick);
   }
   function setStoppedUI() {
+    pauseTake(); // pause, arrêt ou fin naturelle : le temps d'écoute de la prise s'arrête là
     playIcon.innerHTML = PLAY_SVG;
     if (statusEl) statusEl.textContent = t('pausedStatus');
   }
@@ -4339,6 +4514,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       const fxChain = buildTargetFxChain('layer:' + i, layersToLoad[i] && layersToLoad[i].fx, src, nowStart);
       if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
       g.connect(trackMasterGain);
+      journalVoice(src, g, fxChain);
       src.start(0, offsetAt % track.duration);
       sources[i] = src; gains[i] = g; layerFxChains[i] = fxChain;
       if (isStatic && !loops) {
@@ -4432,6 +4608,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (fxChainHasLeakyNode(fxChain)) {
         src.onended = () => { disconnectLeakyFxNodes(fxChain); };
       }
+      journalVoice(src, g, fxChain);
       src.start(ctxStartTime, bufferOffset);
       activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
       thisGenSources.push(src);
@@ -4583,6 +4760,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // Un morceau qui utilise bitcrusher/pitch-shift retarde ses voix d'effet : la transition (overlay) suit le même retard.
     if (fxNeedsComp) { const comp = withLatencyComp(ctx, null); src.connect(comp.input); comp.output.connect(trackMasterGain); }
     else src.connect(trackMasterGain);
+    journalVoice(src, null, fxNeedsComp ? { __lpMeta: { fx: null, force: [], comp: true } } : null);
     src.start(ctxStartTime, 0);
     embrActiveTransitionSources.push(src);
     src.onended = () => {
@@ -4753,6 +4931,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       if (fxChainHasLeakyNode(fxChain)) {
         src.onended = () => { disconnectLeakyFxNodes(fxChain); };
       }
+      journalVoice(src, g, fxChain);
       src.start(ctxStartTime, bufferOffset);
       embrActiveGenSources.push({ src, gain: g, loopIdx: idx, ctxStartTime });
     });
@@ -5071,6 +5250,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         if (fxChainHasLeakyNode(fxChain)) {
           src.onended = () => { disconnectLeakyFxNodes(fxChain); };
         }
+        journalVoice(src, g, fxChain);
         src.start(now, 0);
         embrDetourSource = { src, gain: g };
         embrDetourBtn = btn;
@@ -5175,6 +5355,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
           if (fxChainHasLeakyNode(fxChain)) {
             src.onended = () => { disconnectLeakyFxNodes(fxChain); };
           }
+          journalVoice(src, g, fxChain);
           src.start(ctxStartTime, bufferOffset);
           activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
         }
@@ -5223,6 +5404,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         if (fxChainHasLeakyNode(fxChain)) {
           src.onended = () => { disconnectLeakyFxNodes(fxChain); };
         }
+        journalVoice(src, g, fxChain);
         src.start(vrNextStartCtxTime, 0);
         activeGenSources.push({ src, gain: g, voiceKey: 'intro', baseGain: effGain(track.intro) });
         lastGenSources = [src];
@@ -5252,6 +5434,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         if (fxChainHasLeakyNode(fxChain)) {
           src.onended = () => { disconnectLeakyFxNodes(fxChain); };
         }
+        journalVoice(src, g, fxChain);
         src.start(vrNextStartCtxTime, 0);
         activeGenSources.push({ src, gain: g, voiceKey: 'outro', baseGain: effGain(track.outro) });
         lastGenSources = [src];
@@ -5465,6 +5648,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     captureResumeState();
     stopAllSources();
     applyPausedUI();
+    // Prise : seule une vraie pause se reprend dans la même prise (une fin naturelle ou un autre morceau lancé entre-temps
+    // en ouvriront une nouvelle au prochain démarrage). Pas pausedResume : le moteur simple reprend sans lui (offsetAt).
+    if (take) take.resumable = true;
   }
   function stopAllSources(keepPosition) {
     playing = false;
@@ -5522,6 +5708,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     playingTrackIds.add(track.id); requestWakeLock();
     if (!isContinuation) trackPublicEvent('track_play', { trackId: track.id, mode: track.mode });
     if (!isContinuation && !pausedResume) resetFxTriggers();
+    // Prise (Figer) : un vrai démarrage en ouvre une nouvelle ; une reprise, un saut ou un retour de veille continue la
+    // même (le journal note ce qui est réellement rejoué, quel que soit le chemin pris par le moteur).
+    if (isContinuation || (take && take.resumable)) resumeTake(); else startTake();
     if (pausedResume && resumeFromPause()) {
       // Reprise exacte après un vrai Pause manuel — voir captureResumeState()/resumeFromPause() ci-dessus.
     } else if (isSequential) {
@@ -5824,6 +6013,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
         vs.add(spatialVoice);
         src.addEventListener('ended', () => vs.delete(spatialVoice));
       }
+      journalSfxVoice(src, spatialVoice);
       src.start(0);
       activeStingerSources.push(src);
       src.onended = () => { activeStingerSources = activeStingerSources.filter(s => s !== src); };
@@ -5883,9 +6073,12 @@ function initTrackPlayer(track, wrapper, elementColors) {
     if (item.localUrl) return await (await fetch(item.localUrl)).arrayBuffer();
     remoteFetchAttempts++;
     const v = track.publishedAt ? ('?v=' + encodeURIComponent(track.publishedAt)) : '';
-    const res = await fetch(track.base + encodeURIComponent(item.file) + v);
+    const url = track.base + encodeURIComponent(item.file) + v;
+    const res = await fetch(url);
     if (!res.ok) remoteFetchNotFound++;
-    return await res.arrayBuffer();
+    const ab = await res.arrayBuffer();
+    _arrayBufferUrls.set(ab, url); // journal de prise : le rendu hors-ligne retéléchargera ce fichier
+    return ab;
   }
   // Vrai uniquement si CHAQUE requête réseau tentée a échoué — un seul fichier chargé avec succès suffit à
   // écarter l'hypothèse "propagation encore en cours" (ce serait alors un vrai fichier manquant/corrompu).
@@ -5916,6 +6109,12 @@ function initTrackPlayer(track, wrapper, elementColors) {
     return vorbisDecoderPromise;
   }
   async function decodeAudioDataCompat(arrayBuffer) {
+    const buf = await decodeAudioDataCompatRaw(arrayBuffer);
+    const url = _arrayBufferUrls.get(arrayBuffer);
+    if (url && buf) _bufferUrls.set(buf, url);
+    return buf;
+  }
+  async function decodeAudioDataCompatRaw(arrayBuffer) {
     try {
       return await ctx.decodeAudioData(arrayBuffer.slice(0));
     } catch (nativeError) {
@@ -6135,8 +6334,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
           else if (alt.localUrl) ab = await (await fetch(alt.localUrl)).arrayBuffer(); // voir loadArrayBuffer() plus haut
           else {
             const v = sfx.publishedAt ? ('?v=' + encodeURIComponent(sfx.publishedAt)) : '';
-            const res = await fetch(sfx.base + encodeURIComponent(alt.file) + v);
+            const sfxUrl = sfx.base + encodeURIComponent(alt.file) + v;
+            const res = await fetch(sfxUrl);
             ab = await res.arrayBuffer();
+            _arrayBufferUrls.set(ab, sfxUrl);
           }
           sfxBuffersById[sfx.id][ai] = await decodeAudioDataCompat(ab);
           loaded++;
@@ -6533,6 +6734,8 @@ window.LayerPlayerCore = {
   buildTrackRow,
   initTrackPlayer,
   renderTracksBlock,
+  setTakeRecording,
+  getTrackTake,
   buildSfxPlayer,
   SPATIAL_ROOMS,
   spatialFieldHalfExtent,
@@ -6547,6 +6750,7 @@ window.LayerPlayerCore = {
   fxSliderRateSemitones,
   trackNeedsLatencyComp,
   withLatencyComp,
+  fxSpLatencySec,
   createTriggerRuleEngine,
   simulateTriggerRules,
   FX_SLIDER_PARAMS,
