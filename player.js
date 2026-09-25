@@ -5867,8 +5867,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
   function stopThisTrack() {
     pausedResume = null;
     stopAllSources(false);
-    offsetAt = 0;
-    updateProgressAt(0);
+    // Moteur quantifié : la position de départ est le point de départ réglé par le compositeur (startTrackBeat), pas
+    // le tout début du fichier -- comme au tout premier chargement et après une fin naturelle.
+    offsetAt = useQuantizedLoop ? startTrackSec : 0;
+    updateProgressAt(offsetAt);
     if (take) take.resumable = false;
     if (statusEl) statusEl.textContent = t('readyStatus');
     if (activeTrackId === track.id) activeTrackId = null;
@@ -5876,7 +5878,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     updateStopBtn();
   }
   function updateStopBtn() {
-    if (stopBtn) stopBtn.style.display = (playing || pausedResume || offsetAt > 0) ? '' : 'none'; // pas l'attribut hidden : .play-btn impose display:flex
+    if (stopBtn) stopBtn.style.display = (playing || pausedResume || offsetAt > (useQuantizedLoop ? startTrackSec : 0)) ? '' : 'none'; // pas l'attribut hidden : .play-btn impose display:flex
   }
   function pauseThisTrack() {
     captureResumeState();

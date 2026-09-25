@@ -89,6 +89,29 @@ const path = require('path');
   check('après Stop, la lecture repart de la boucle de référence (pas de reprise)', btnRef.classList.contains('active') && !btnPeer.classList.contains('active'));
   click(stopBtn); await sleep(50);
 
+  // Morceau vertical en boucle quantifiée avec un point de départ (startTrackBeat) : Stop doit ramener la lecture à ce
+  // point, pas au tout début du fichier -- et le bouton Stop disparaît (rien à arrêter).
+  const qTrack = {
+    id: 'stop-q', title: 'Stop quantifié', mode: 'vertical', description: '', duration: 10, base: '', publishedAt: 1,
+    loopable: true, loopEngine: 'quantized', bpm: 120, beatsPerBar: 4, startTrackBeat: 2, loopInBeat: 4, loopOutBeat: 12,
+    layers: [{ label: 'L1', localFile: fakeFile('q1.wav') }], sfxIds: []
+  };
+  const qRow = Core.buildTrackRow(qTrack, null, false);
+  doc.getElementById('host').appendChild(qRow);
+  Core.initTrackPlayer(qTrack, qRow);
+  await sleep(300);
+  const qPlay = qRow.querySelector('[data-role="playBtn"]'), qStop = qRow.querySelector('[data-role="stopBtn"]');
+  window.__starts = [];
+  click(qPlay); await sleep(50);
+  check('quantifié : la première lecture part du point de départ (1 s)', window.__starts.length && Math.abs(window.__starts[0].offset - 1) < 1e-9);
+  click(qPlay); await sleep(50); // Pause
+  click(qStop); await sleep(50);
+  check('quantifié : après Stop, bouton masqué', qStop.style.display === 'none');
+  window.__starts = [];
+  click(qPlay); await sleep(50);
+  check('quantifié : après Stop, la lecture repart du point de départ (pas du début du fichier)', window.__starts.length && Math.abs(window.__starts[0].offset - 1) < 1e-9);
+  click(qStop); await sleep(50);
+
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : (failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
 })();
