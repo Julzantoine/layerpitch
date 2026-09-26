@@ -55,8 +55,8 @@
     const block = (code, extra) => issues.push(Object.assign({ code, severity: 'block' }, extra));
     const warn = (code, extra) => issues.push(Object.assign({ code, severity: 'warn' }, extra));
     if (!src || !dst) { block('missing'); return { compatible: false, issues }; }
-    if (src.mode !== dst.mode) { block('mode', { from: src.mode, to: dst.mode }); return { compatible: false, issues }; }
-    const count = (code, a, b) => { if (a !== b) block(code, { from: a, to: b }); };
+    if (src.mode !== dst.mode) { block('mode', { a: src.mode, b: dst.mode }); return { compatible: false, issues }; }
+    const count = (code, a, b) => { if (a !== b) block(code, { a, b }); };
     if (src.mode === 'vertical') count('layers', (src.layers || []).length, (dst.layers || []).length);
     if (src.mode === 'sequential') {
       const a = src.segmentSlots || [], b = dst.segmentSlots || [];
@@ -78,7 +78,7 @@
     if (src.mode === 'vertical-random') {
       const a = src.sections || [], b = dst.sections || [];
       count('sections', a.length, b.length);
-      if (a.length === b.length) a.forEach((s, i) => { const pa = vrPools(src, i).length, pb = vrPools(dst, i).length; if (pa !== pb) block('pools', { section: i, from: pa, to: pb }); });
+      if (a.length === b.length) a.forEach((s, i) => { const pa = vrPools(src, i).length, pb = vrPools(dst, i).length; if (pa !== pb) block('pools', { section: i, a: pa, b: pb }); });
       if (hasFile(src.intro) && !hasFile(dst.intro)) warn('intro');
       if (hasFile(src.outro) && !hasFile(dst.outro)) warn('outro');
     }
@@ -92,9 +92,9 @@
       }
     }
     const fa = (src.fxTriggers || []).length, fb = (dst.fxTriggers || []).length;
-    if (fa > fb) warn('fx_triggers', { from: fa, to: fb });
+    if (fa > fb) warn('fx_triggers', { a: fa, b: fb });
     const sa = (src.fxSliders || []).length, sb = (dst.fxSliders || []).length;
-    if (sa > sb) warn('fx_sliders', { from: sa, to: sb });
+    if (sa > sb) warn('fx_sliders', { a: sa, b: sb });
     return { compatible: !issues.some(i => i.severity === 'block'), issues };
   }
 
@@ -542,7 +542,8 @@
       if (dstInUse) { notes.push({ severity: 'block', code: 'target_in_use', trackId: srcId, to: sub.to }); return; }
       const cmp = compareTracks(src, dst);
       if (!cmp.compatible) { notes.push({ severity: 'block', code: 'track_incompatible', trackId: srcId, to: sub.to, issues: cmp.issues }); return; }
-      cmp.issues.forEach(i => notes.push(Object.assign({ trackId: srcId, to: sub.to }, i)));
+      // Intro / outro / transition absentes : signalées plus précisément à l'usage (instant, étape) par la traduction.
+      cmp.issues.filter(i => ['intro', 'outro', 'transition'].indexOf(i.code) < 0).forEach(i => notes.push(Object.assign({}, i, { trackId: srcId, to: sub.to })));
       handled.add(srcId);
       mapTrackId[srcId] = dst.id;
       const note = (severity, code, extra) => notes.push(Object.assign({ severity, code, trackId: srcId, to: dst.id }, extra));

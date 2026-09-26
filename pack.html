@@ -426,6 +426,34 @@
   .video-capture-title-input { width: 200px; }
   .video-capture-load-select:disabled, .video-capture-title-input:disabled { opacity: 0.4; }
   .video-capture-export-opt { display: flex; align-items: center; gap: 5px; color: #999; white-space: nowrap; }
+  /* Versioning (26/09, capture-versioning.js) : versions vidéo d'un montage sauvegardé -- admin seulement pour l'instant. */
+  .video-capture-versioning {
+    background: #161616; border-top: 1px solid #2a2a2a; padding: 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #ccc; display: flex; flex-direction: column; gap: 8px;
+  }
+  .vcv-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .vcv-title { font-weight: 600; color: #eee; font-size: 12px; }
+  .vcv-hint { color: #888; flex: 1; min-width: 180px; }
+  .vcv-empty { color: #888; padding: 2px 0; }
+  .vcv-warn, .vcv-note-warn, .vcv-note-block { color: #f0a050; }
+  .vcv-version, .vcv-batch, .vcv-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .vcv-version { padding: 6px 8px; border: 1px solid #2c2c2c; border-radius: 6px; background: #1c1c1c; }
+  .vcv-name { color: #eee; font-weight: 600; }
+  .vcv-summary { color: #999; flex: 1; min-width: 160px; }
+  .vcv-status { color: #aaa; }
+  .vcv-batch { border-top: 1px dashed #2c2c2c; padding-top: 8px; }
+  .vcv-editor { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid #3a3a3a; border-radius: 6px; background: #1c1c1c; }
+  .vcv-section { color: #eee; font-weight: 600; margin-top: 6px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .vcv-label { color: #999; min-width: 40px; }
+  .vcv-name-input { flex: 1; min-width: 180px; }
+  .vcv-src { min-width: 180px; color: #ddd; }
+  .vcv-src em { color: #888; font-style: normal; margin-left: 4px; }
+  .vcv-arrow { color: #777; }
+  .vcv-row select { max-width: 320px; }
+  .vcv-orange { border-left: 3px solid #f0a050; padding-left: 6px; }
+  .vcv-notes { border-top: 1px dashed #2c2c2c; padding-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+  .vcv-note { color: #aaa; }
+  .vcv-note-info { color: #9ab; }
   /* Frise d'édition (cible finale, schéma papier de Jules-Antoine 2026-09-14) : une piste horizontale par
      calque du morceau + une piste SFX, blocs positionnés en pourcentage de la durée totale (pas de pixel
      fixe -- pas de défilement horizontal à gérer, suffisant pour les prises courtes de ce prototype). */
@@ -646,12 +674,14 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790437824626"></script>
-<script src="layerpitch-notify.js?v=1790437824626"></script>
-<script src="public-page.js?v=1790437824626"></script>
-<script src="player.js?v=1790437824626"></script>
-<script src="capture-plan.js?v=1790437824626"></script>
-<script src="capture-render.js?v=1790437824626"></script>
+<script src="layerpitch-i18n.js?v=1790456136734"></script>
+<script src="layerpitch-notify.js?v=1790456136734"></script>
+<script src="public-page.js?v=1790456136734"></script>
+<script src="player.js?v=1790456136734"></script>
+<script src="capture-plan.js?v=1790456136734"></script>
+<script src="capture-render.js?v=1790456136734"></script>
+<script src="capture-retarget.js?v=1790456136734"></script>
+<script src="capture-versioning.js?v=1790456136734"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2127,9 +2157,11 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
 // Fenêtre du panneau de capture détaché (2026-09-16, retour direct de Jules-Antoine : "il faut pouvoir
 // détacher la fenêtre de capture"), si actif -- null sinon. Voir detachCapturePanel() plus bas.
 let capturePanelDetachedWindow = null;
+let capturePanelVersioning = null; // section Versioning du panneau ouvert (arrêtée à la fermeture : écoute en cours)
 
 function closeCapturePanel() {
   if (videoCaptureState) stopCapture();
+  if (capturePanelVersioning) { capturePanelVersioning.stop(); capturePanelVersioning = null; }
   const panel = document.getElementById('videoTestPanel');
   panel.classList.remove('active');
   document.body.classList.remove('video-panel-active');
@@ -2208,6 +2240,7 @@ function openCapturePanel(file) {
       <span class="video-capture-count" id="videoCaptureSaveStatus"></span>
     </div>
     <div class="video-capture-timeline" id="videoCaptureTimeline"></div>
+    <div class="video-capture-versioning" id="videoCaptureVersioning" hidden></div>
   `;
   panel.classList.add('active');
   document.body.classList.add('video-panel-active');
@@ -2247,6 +2280,10 @@ function openCapturePanel(file) {
   // sauvegardes successives mettent à jour la même ligne plutôt que d'en créer une nouvelle à chaque
   // fois). Remplacé par l'id chargé si le compositeur reprend une prise existante via "Charger".
   let currentCaptureId = null;
+  // Montage réellement présent en base (sauvegarde réussie ou chargement) -- les versions vidéo (Versioning) s'y
+  // rattachent ; null tant que la prise en cours n'a jamais été sauvegardée.
+  let savedCaptureId = null;
+  let versioning = null; // section Versioning (capture-versioning.js), admin seulement -- montée plus bas
   const packId = window.__lpTrackContext && window.__lpTrackContext.id;
   // Noms de piste retouchés pour cette prise (ex. "Ca va, c'est cool" -> "Intensité basse") -- persistent
   // tant que ce panneau reste ouvert (plusieurs prises successives sur la même vidéo gardent les mêmes
@@ -2352,7 +2389,9 @@ function openCapturePanel(file) {
       // Sauvegarder après coup met à jour la même ligne.
       if (!additive) {
         currentCaptureId = null;
+        savedCaptureId = null;
         saveStatus.textContent = '';
+        if (versioning) versioning.refresh();
       }
       const tick = setInterval(() => {
         if (!videoCaptureState) { clearInterval(tick); return; }
@@ -2437,6 +2476,7 @@ function openCapturePanel(file) {
       await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups);
       saveStatus.textContent = tr('captureSaved');
       refreshLoadOptions();
+      if (savedCaptureId !== currentCaptureId) { savedCaptureId = currentCaptureId; if (versioning) versioning.refresh(); }
     } catch (e) {
       console.error(e);
       saveStatus.textContent = tr('captureSaveFailed').replace('{error}', e.message);
@@ -2444,29 +2484,34 @@ function openCapturePanel(file) {
       saveBtn.disabled = lastEvents.length === 0;
     }
   });
+  // Prise chargée (depuis la liste, ou montage « détaché » d'une version vidéo) : elle devient la prise en cours.
+  function applyLoadedCapture(capture) {
+    currentCaptureId = capture.id;
+    savedCaptureId = capture.id;
+    lastEvents = capture.events || [];
+    laneOverrides = capture.laneOverrides || {};
+    collapsedGroups = capture.collapsedGroups || {};
+    titleInput.value = capture.title || '';
+    countEl.textContent = captureCountText(lastEvents);
+    refreshActionButtons();
+    renderCaptureTimeline(timelineEl, lastEvents, true, () => {
+      countEl.textContent = captureCountText(lastEvents);
+      refreshActionButtons();
+    }, laneOverrides, collapsedGroups, videoEl);
+    // La vidéo elle-même n'est jamais sauvegardée (voir la migration) -- seul son nom d'origine permet
+    // de vérifier qu'on a bien réimporté le bon fichier avant de faire confiance aux horaires chargés.
+    saveStatus.textContent = capture.videoFilename && capture.videoFilename !== file.name
+      ? tr('captureLoadedVideoMismatch').replace('{video}', capture.videoFilename)
+      : tr('captureLoaded');
+    if (versioning) versioning.refresh();
+  }
   loadSelect.addEventListener('change', () => { loadBtn.disabled = !loadSelect.value; });
   loadBtn.addEventListener('click', async () => {
     if (!loadSelect.value) return;
     loadBtn.disabled = true;
     saveStatus.textContent = tr('captureLoading');
     try {
-      const capture = await loadVideoCapture(loadSelect.value);
-      currentCaptureId = capture.id;
-      lastEvents = capture.events || [];
-      laneOverrides = capture.laneOverrides || {};
-      collapsedGroups = capture.collapsedGroups || {};
-      titleInput.value = capture.title || '';
-      countEl.textContent = captureCountText(lastEvents);
-      refreshActionButtons();
-      renderCaptureTimeline(timelineEl, lastEvents, true, () => {
-        countEl.textContent = captureCountText(lastEvents);
-        refreshActionButtons();
-      }, laneOverrides, collapsedGroups, videoEl);
-      // La vidéo elle-même n'est jamais sauvegardée (voir la migration) -- seul son nom d'origine permet
-      // de vérifier qu'on a bien réimporté le bon fichier avant de faire confiance aux horaires chargés.
-      saveStatus.textContent = capture.videoFilename && capture.videoFilename !== file.name
-        ? tr('captureLoadedVideoMismatch').replace('{video}', capture.videoFilename)
-        : tr('captureLoaded');
+      applyLoadedCapture(await loadVideoCapture(loadSelect.value));
     } catch (e) {
       console.error(e);
       saveStatus.textContent = tr('captureLoadFailed').replace('{error}', e.message);
@@ -2490,6 +2535,29 @@ function openCapturePanel(file) {
     }
   }
   refreshLoadOptions();
+  // Versioning (26/09) : les versions vidéo du montage sauvegardé -- même montage rejoué sur d'autres morceaux / Sfx
+  // (capture-retarget.js, capture-versioning.js). Admin seulement jusqu'au feu vert (layerpitch-docs/feux-verts-admin.md) ;
+  // les fonctions serveur le vérifient aussi.
+  const versioningHost = document.getElementById('videoCaptureVersioning');
+  if (window.__lpCaptureIsAdmin && window.LayerCaptureVersioning) {
+    versioningHost.hidden = false;
+    versioning = window.LayerCaptureVersioning.mount(versioningHost, {
+      tr, videoEl, fetchBytes: fetchAsUint8Array, fullExportLocked,
+      library: window.__lpCaptureLibrary, findTrack: findCaptureTrack, findSfx: findCaptureSfx,
+      getEvents: () => lastEvents, getCaptureId: () => savedCaptureId, getCaptureTitle: () => titleInput.value,
+      exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: 'boss', showComposerCredit: creditCheckbox.checked, mode }),
+      saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
+      // « Détacher » : la version devient un montage indépendant (sauvegardé tout de suite), ouvert à la place de celui-ci.
+      detach: async (events, title) => {
+        const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+        await saveVideoCapture(packId, id, title, file.name, events, {}, collapsedGroups);
+        applyLoadedCapture({ id, title, videoFilename: file.name, events, laneOverrides: {}, collapsedGroups });
+        saveStatus.textContent = tr('versioningDetachedLoaded');
+        refreshLoadOptions();
+      },
+    });
+    capturePanelVersioning = versioning;
+  }
   document.getElementById('videoCaptureCloseBtn').addEventListener('click', () => {
     URL.revokeObjectURL(objectUrl);
     closeCapturePanel();
@@ -2613,7 +2681,7 @@ async function init() {
     // l'export (2026-09-16, voir decisions/2026-09-16-capture-watermark-composer-credit.md, docs privés).
     const mainAdReelForCapture = (data.adReels || []).find(a => a.id === 'main');
     window.__lpCaptureLibrary = {
-      library: data.library || [], sfxLibrary: data.sfxLibrary || [],
+      library: data.library || [], sfxLibrary: data.sfxLibrary || [], sfxFolders: data.sfxFolders || [],
       composerName: (mainAdReelForCapture && mainAdReelForCapture.profile && mainAdReelForCapture.profile.title) || '',
     };
     const pack = (data.packs || []).find(p => p.id === id);
