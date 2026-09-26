@@ -1,0 +1,232 @@
+/* player.css — styles du lecteur adaptatif (morceau : ligne, forme d'onde, intensité, voix, séquentiel, embranchements).
+   Créé le 26/09/2026 pour la page fan (mes-albums.html), en reprenant tel quel le bloc « lecteur » de pack.html
+   (de `.track` à `.track.disabled`). pack.html, index.html et collection.html gardent pour l'instant leur propre copie
+   (dette : les faire passer par ce fichier, un à la fois, en vérifiant chaque page).
+   Variables attendues de la page hôte : --bg, --bg-card, --border, --text, --text-dim, --text-dimmer, --accent,
+   --accent-soft, --seq-map-success, --seq-map-choice. */
+.track { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); padding: 26px; margin-bottom: 16px; }
+.track-intensity-block { margin-top: 16px; }
+.voice-graph { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.voice-graph-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 8px; }
+.voice-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; }
+.voice-row-label { color: var(--text-dim); min-width: 130px; flex-shrink: 0; }
+.voice-row-current { font-family: 'JetBrains Mono', monospace; color: var(--text-dim); font-style: italic; min-width: 130px; flex-shrink: 0; }
+.voice-meter { width: 20px; height: 8px; border-radius: 2px; background: var(--border); flex-shrink: 0; }
+.voice-meter-bar { position: relative; width: 70px; height: 8px; border-radius: 2px; background: var(--border); overflow: hidden; flex-shrink: 0; }
+.voice-meter-bar-fill { position: absolute; inset: 0; width: 0%; background: var(--accent); transition: width 0.18s ease-out; }
+.wwise-graph { position: relative; display: flex; align-items: stretch; gap: 24px; padding: 12px 4px 6px; min-height: 60px; }
+.wwise-graph-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.wwise-line { fill: none; stroke: var(--border); stroke-width: 1.5px; }
+.wwise-col { display: flex; flex-direction: column; justify-content: center; gap: 10px; position: relative; z-index: 1; }
+.wwise-col-voices { justify-content: space-around; align-items: center; flex: 1; }
+.wwise-node { background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dim); white-space: nowrap; text-align: center; }
+.wwise-node-source, .wwise-node-bus { font-weight: 600; color: var(--text); }
+.wwise-node-voice { display: flex; flex-direction: column; gap: 5px; align-items: center; width: 220px; flex-shrink: 0; }
+.wwise-node-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+.wwise-node-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; text-align: left; }
+.wwise-node-controls { display: flex; gap: 3px; flex-shrink: 0; }
+.voice-ctrl-btn { width: 18px; height: 18px; border-radius: 3px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dimmer); font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; line-height: 1; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; }
+.voice-ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+.voice-ctrl-btn[data-voice-action="solo"].active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.voice-ctrl-btn[data-voice-action="mute"].active { background: #b5442e; border-color: #b5442e; color: #fff; }
+/* Volume par voix : slider continu sous la ligne existante (label + vumètre + S/M en vertical
+   classique, ligne du haut en vertical-random), aligné sous le vumètre pour rester dans le même
+   champ visuel plutôt qu'un ajout qui semblerait étranger au reste du mixer. */
+.voice-row-wrap { padding: 3px 0; }
+.voice-row-wrap .voice-row { padding: 0; }
+.voice-volume-row { display: flex; align-items: center; gap: 6px; padding-left: 138px; }
+.wwise-node-voice .voice-volume-row { padding-left: 0; margin-top: 2px; }
+.voice-volume-row input[type="range"] { flex: 1; max-width: 160px; -webkit-appearance: none; appearance: none; height: 3px; border-radius: 2px; background: var(--border); outline: none; cursor: pointer; }
+.voice-volume-row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+.voice-volume-row input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer; }
+.voice-volume-value { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--text-dimmer); min-width: 32px; text-align: right; flex-shrink: 0; }
+.wwise-node-wave { position: relative; width: 100%; height: 30px; border-radius: 3px; overflow: hidden; background: var(--bg); }
+.wwise-wave-bg, .wwise-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.wwise-wave-fg { clip-path: inset(0 100% 0 0); }
+.voice-meter.pulse { background: var(--accent); animation: voice-meter-fade 0.5s ease-out forwards; }
+@keyframes voice-meter-fade { 0% { opacity: 1; } 100% { opacity: 0.35; } }
+.voice-refresh-btn { margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; padding: 3px 9px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; }
+.voice-refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+.voice-refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.seq-blocks { display: flex; gap: 6px; margin-top: 8px; margin-bottom: 4px; }
+.seq-block { flex: 1; height: 34px; border-radius: 4px; border: 1px solid var(--border); position: relative; overflow: hidden; background: transparent; touch-action: none; }
+.seq-block-wave-bg, .seq-block-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.seq-block-wave-fg { clip-path: inset(0 100% 0 0); }
+.vr-block-fill { position: absolute; inset: 0; width: 0%; background: var(--accent); opacity: 0.28; }
+.seq-block.active { border-color: var(--accent); cursor: pointer; }
+.seq-block-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.03em; color: var(--text-dim); z-index: 1; padding: 0 4px; text-align: center; text-shadow: 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff); }
+.track-intensity-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 6px; }
+.intensity-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.intensity-chip {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 10px;
+  border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; line-height: 1.6;
+}
+.intensity-chip:hover { border-color: var(--accent); color: var(--accent); }
+.intensity-chip.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
+.intensity-chip-num { opacity: 0.55; margin-right: 5px; }
+
+.embr-loop-btn {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 10px;
+  border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; line-height: 1.6;
+}
+.embr-loop-btn:hover { border-color: var(--accent); color: var(--accent); }
+.embr-loop-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
+.embr-loop-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Forme d'onde du mode vertical à embranchement (02/09) : progression continue verrouillée en phase
+   pour les boucles "paires" (voir applyEmbrWaveAnimation() dans player.js), overlay one-shot pour une
+   bascule avec transition ou un détour -- réutilise le mécanisme clip-path déjà en place ailleurs
+   (.seq-block-wave-fg/.sfx-rr-wave-fg), généralisé en boucle CSS infinie pour la progression continue.
+   Un bouton riche prend 100% de la largeur du picker (.intensity-picker en flex-wrap) pour forcer son
+   propre retour à la ligne -- pas besoin de restructurer ce conteneur partagé avec les puces de détour,
+   qui gardent leur largeur de puce normale. Au-delà de 7 boucles paires, repli sur le gabarit compact
+   existant (.embr-loop-btn seul, sans ces règles) -- voir buildTrackRow. */
+[data-role="embrLoopPicker"] { position: relative; }
+.embr-wave-btn { position: relative; display: block; width: 100%; height: var(--embr-row-h, 34px); border-radius: 4px; overflow: hidden; text-align: left; padding: 0; }
+.embr-wave-bg, .embr-wave-fg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.embr-wave-fg { clip-path: inset(0 100% 0 0); opacity: 0.35; animation: embrWaveFill 1s linear infinite; animation-play-state: paused; }
+.embr-wave-btn.active .embr-wave-fg { opacity: 1; }
+.embr-wave-btn.embr-transition-dim { opacity: 0.5; }
+/* Le bouton "actif" en gabarit compact se remplit d'un fond uni accent (.embr-loop-btn.active ci-dessus) --
+   en gabarit riche, les barres de la forme d'onde ELLE-MÊME (couleur accent aussi, .embr-wave-fg) sont déjà
+   le signal "actif" -- même principe que .sfx-rr-block.active, qui ne touche que la bordure. Sans cette
+   ligne le fond uni hérité de .embr-loop-btn.active fait disparaître les barres accent dessus (même
+   couleur), en plus de recouvrir tout le canvas -- bug confirmé le 05/09 en situation réelle, à l'origine
+   du bouton actif qui paraissait entièrement plat malgré la forme d'onde. */
+.embr-wave-btn.active { background: transparent; color: var(--text); }
+.embr-wave-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.03em; z-index: 1; padding: 0 8px; text-align: center; pointer-events: none; text-shadow: 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff), 0 0 4px var(--bg-card, #fff); }
+@keyframes embrWaveFill { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
+.embr-transition-row { position: absolute; top: 50%; left: 10%; right: 10%; transform: translateY(-50%); height: 34px; border-radius: 4px; overflow: hidden; border: 1px solid var(--accent); background: var(--bg-card); box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 3; }
+.embr-detour-wave-row { position: relative; display: block; width: 100%; height: var(--embr-row-h, 34px); border-radius: 4px; overflow: hidden; margin-top: 4px; border: 1px solid var(--accent); }
+.embr-transition-row .embr-wave-fg, .embr-detour-wave-row .embr-wave-fg { opacity: 1; }
+
+/* Choix d'embranchement séquentiel (nextOptions) : "pending" = choix en attente de bascule au prochain
+   point de quantification. Les boutons de destination (.seq-branch-btn) ont été retirés le 05/09 (retour
+   direct : "plus besoin des boutons de destination non plus, la carte se suffit également à elle-même")
+   -- la carte globale ci-dessous (.seq-map-node.selectable/.pending) couvre déjà exactement les mêmes
+   cibles, un seul moyen de choisir plutôt que deux redondants. */
+.seq-pending-indicator { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.04em; color: var(--accent); margin-top: 6px; font-style: italic; }
+
+/* Carte globale des chemins (mode séquentiel à embranchement, 02/09, reprise en flowchart le même jour
+   après un premier essai en grille en flux qui s'effondrait en une colonne illisible dans le panneau
+   étroit du Backstage -- arêtes de retour alors invisibles, superposées derrière les nœuds empilés,
+   signalé par Jules-Antoine en situation réelle). Disposition en couches : .seq-map-graph est la
+   fenêtre défilable (overflow-x:auto), .seq-map-canvas le contenu dimensionné par JS (updateSeqMap()
+   dans player.js) sur lequel .seq-map-lines/.seq-map-nodes se superposent en position absolue --
+   colonnes = distance depuis le premier emplacement découvert, lignes = ordre de première découverte.
+   Une arête de retour (boucle/cycle) est tracée en boucle large plutôt qu'en ligne droite -- jamais
+   superposée aux nœuds intermédiaires, contrairement à la première version. Côté Backstage (aperçu
+   "Écouter"), track.seqMapFullReveal affiche TOUS les emplacements d'emblée (outil de vérification de
+   sa propre structure) ; côté public, révélation progressive uniquement. */
+.seq-map { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: rgba(0,0,0,.045); }
+.seq-map-graph { position: relative; overflow-x: auto; overflow-y: hidden; }
+.seq-map-canvas { position: relative; }
+.seq-map-lines { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.seq-map-nodes { position: absolute; inset: 0; }
+.seq-map-node { position: absolute; width: var(--seq-map-node-w, 96px); height: var(--seq-map-node-h, 40px); border-radius: 6px; border: 1px solid var(--border); overflow: hidden; background: var(--bg-card); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.seq-map-node.current { border-color: var(--accent); border-width: 2px; background: var(--accent-soft); }
+/* Nœuds cliquables (04/09) : uniquement ceux qui sont une vraie option depuis l'emplacement courant --
+   voir updateSeqMap(). .pending (bordure en tirets, couleur accent) est la seule façon de signaler un
+   choix en attente depuis le retrait des boutons de destination le 05/09. */
+.seq-map-node.selectable { cursor: pointer; border-color: var(--seq-map-choice, var(--accent)); }
+.seq-map-node.selectable:hover { border-color: var(--accent); }
+.seq-map-node.pending { border-color: var(--accent); border-style: dashed; }
+.seq-map-node-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 6px; font-family: 'JetBrains Mono', monospace; font-size: var(--seq-map-node-font, 10px); text-align: center; z-index: 1; color: var(--text-dim); }
+.seq-map-node.current .seq-map-node-label { color: var(--text); font-weight: 600; }
+/* Coche "déjà joué" (coin haut-gauche) : marge des deux côtés du libellé pour qu'elle ne recouvre plus la 1re lettre, centrage conservé (25/09). */
+.seq-map-nodes:not(.compact) .seq-map-node.visited .seq-map-node-label { padding: 0 16px; }
+.seq-map-roomy .seq-map-nodes:not(.compact) .seq-map-node.visited .seq-map-node-label { padding: 0 26px; }
+.seq-map-node-check { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--seq-map-success, var(--accent)); color: #fff; display: flex; align-items: center; justify-content: center; z-index: 2; font-size: 8px; line-height: 1; }
+.seq-map-edge { fill: none; stroke: var(--border); stroke-width: 1.5px; cursor: default; }
+/* .seq-map-edge.transition n'a plus de règle de couleur (03/09, retour direct : "oublie la couleur du
+   liseré bleu") -- l'indicateur de transition est désormais uniquement le disque .seq-map-transition-dot
+   ci-dessous, agrandi pour rester bien visible sans l'aide du liseré. */
+/* Repère de transition (03/09) : un disque, forme délibérément différente des nœuds rectangulaires,
+   posé au milieu du chemin -- une simple teinte de trait n'était pas assez visible ("pas très
+   parlant", retour direct). */
+.seq-map-transition-dot { fill: var(--accent); stroke: var(--bg-card); stroke-width: 2px; cursor: default; }
+/* "Est-ce que la boule peut se colorer lorsqu'elle joue ?" (05/09, retour direct) : la teinte de repos
+   reste identique (transition présente sur ce chemin) -- pendant que ce fichier de transition précis est
+   réellement audible, un battement d'opacité la distingue sans changer sa couleur de base. */
+.seq-map-transition-dot.playing { animation: seqMapTransitionDotPulse 0.8s ease-in-out infinite; }
+@keyframes seqMapTransitionDotPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+/* Repli compact au-delà du plancher de lisibilité (voir seuils dans player.js) : simple liste de puces
+   en flux, aucune position ni arête -- même principe de dégradation que le vertical à embranchement. */
+.seq-map-nodes.compact { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
+.seq-map-nodes.compact .seq-map-node { position: static; width: auto; height: auto; padding: 3px 8px; border-radius: 10px; }
+.seq-map-nodes.compact .seq-map-node-label { position: static; text-shadow: none; }
+/* Thème sombre de la carte des chemins (Chantier Apparence, palier Pro, 06/09) : redéfinit localement
+   les variables de couleur consommées par .seq-map-node/.seq-map-edge/etc. ci-dessus -- un panneau
+   sombre autonome plutôt qu'un thème de page entière, cohérent quel que soit le thème du site hôte.
+   Palette reprise de la maquette validée par Jules-Antoine. */
+.seq-map.seq-map-dark {
+  --bg-card: #26231f; --border: #3a352d; --accent: #4f8ff0; --accent-soft: #22314a;
+  --text: #f6f5f3; --text-dim: #a89f92; --text-dimmer: #726a5e;
+  --seq-map-success: #3ecf8e; --seq-map-choice: #d9a441;
+  background: #1c1a17;
+}
+/* Densité 'roomy' (pages publiques, 10/09) : cartes nettement plus grandes/aérées que le panneau
+   Backstage par défaut ('compact', non modifié) -- la taille exacte des nœuds reste pilotée par JS
+   (--seq-map-node-w/h/font, voir updateSeqMap() dans player.js), ce bloc ne touche qu'à ce que CSS
+   seul peut faire : respiration du panneau et arrondis plus prononcés, cohérents avec des cartes plus
+   grandes. */
+.seq-map.seq-map-roomy { padding: 24px; border-radius: 16px; }
+.seq-map-roomy .voice-graph-label { font-size: 11px; margin-bottom: 14px; }
+.seq-map .voice-graph-label { color: color-mix(in srgb, var(--text) 78%, transparent); }
+.seq-map-roomy .seq-map-node { border-radius: 12px; box-shadow: inset 4px 0 0 var(--seq-map-node-accent, transparent), 0 1px 3px rgba(0,0,0,.06); }
+.seq-map-roomy .seq-map-node-check { width: 18px; height: 18px; font-size: 11px; top: 6px; left: 6px; }
+
+.loop-count-block { margin-top: 14px; }
+.loop-count-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 6px; }
+.loop-count-block select { font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dim); }
+
+.track-row-wrapper { border-bottom: 1px solid var(--border); }
+.track-row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; padding: 12px 0; }
+.play-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); background: transparent;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; padding: 0; color: var(--text-dim);
+}
+.play-btn:hover { border-color: var(--accent); color: var(--accent); }
+.play-btn svg { width: 12px; height: 12px; }
+.play-btn svg.loading-icon { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; animation: layerpitch-spin 0.8s linear infinite; transform-origin: center; }
+.play-btn svg.error-icon { fill: none; stroke: currentColor; stroke-width: 2; }
+@keyframes layerpitch-spin { to { transform: rotate(360deg); } }
+.track-row-title { display: flex; align-items: center; gap: 8px; min-width: 0; cursor: pointer; }
+.track-row-title .name { font-family: 'Space Grotesk', sans-serif; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mode-tag {
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.04em; color: var(--text-dimmer);
+  border: 1px dashed var(--border); border-radius: 4px; padding: 1px 6px; flex-shrink: 0; white-space: nowrap;
+}
+.no-ai-badge {
+  display: inline-flex; align-items: center; color: var(--accent); opacity: 0.75; cursor: help; flex-shrink: 0;
+}
+.no-ai-badge:hover { opacity: 1; }
+.no-ai-badge-collective { margin-left: 6px; }
+.loop-icon { display: inline-flex; flex-shrink: 0; color: var(--text-dimmer); }
+.loop-icon svg { width: 11px; height: 11px; }
+.track-row-details { max-height: 0; overflow: hidden; transition: max-height 0.28s ease; }
+.track-row-details-inner { padding: 0 0 18px 38px; }
+.track-desc { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 16px; white-space: pre-wrap; }
+.status { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); margin-bottom: 10px; min-height: 14px; }
+
+.progress-wrap { position: relative; height: 24px; margin-bottom: 6px; cursor: pointer; touch-action: none; }
+.progress-wrap.waveform-mode { height: 44px; }
+.waveform-bg, .waveform-fg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.waveform-fg { clip-path: inset(0 100% 0 0); }
+.progress-track { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--border); border-radius: 2px; pointer-events: none; }
+.progress-fill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--accent); border-radius: 2px; width: 0%; pointer-events: none; }
+.progress-head { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 9px; height: 9px; background: var(--accent); border-radius: 50%; pointer-events: none; }
+.time-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); }
+
+.track-sfx-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.stinger-btn {
+  display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px;
+  border: 1px solid var(--border); background: transparent; color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; cursor: pointer;
+}
+.stinger-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.stinger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.stinger-btn svg { width: 10px; height: 10px; }
+
+.placeholder-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dimmer); border: 1px dashed var(--border); border-radius: 4px; padding: 8px 12px; display: inline-block; }
+.track.disabled { opacity: 0.5; }

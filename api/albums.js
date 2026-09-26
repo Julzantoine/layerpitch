@@ -49,17 +49,20 @@
     return { ok: true, alreadyOwned: !!(data && data.alreadyOwned) };
   }
 
-  // Achats du compte connecté (la RLS filtre déjà sur auth.uid()), avec le titre de l'album.
+  // Achats du compte connecté (la RLS filtre déjà sur auth.uid()), avec le titre, la pochette et la présentation de
+  // l'album (page fan, mes-albums.html).
   async function listMyPurchases() {
     const { data, error } = await getClient()
       .from('album_purchases')
-      .select('album_id, purchased_at, price_paid, is_test, albums(id, title)')
+      .select('album_id, purchased_at, price_paid, is_test, albums(id, title, illustration, presentation_fr, presentation_en)')
       .order('purchased_at', { ascending: false });
     if (error) return { purchases: null, error: error.message };
     return {
       purchases: data.map(r => ({
         albumId: r.album_id, purchasedAt: r.purchased_at, pricePaid: r.price_paid, isTest: r.is_test,
         title: r.albums ? r.albums.title : '',
+        illustration: r.albums ? r.albums.illustration : null,
+        presentationFr: r.albums ? r.albums.presentation_fr || '' : '', presentationEn: r.albums ? r.albums.presentation_en || '' : '',
       })),
       error: null,
     };

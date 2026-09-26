@@ -25,6 +25,10 @@ for (const page of pages) {
   const after = before.replace(/(<script\b[^>]*\bsrc=")(?!https?:|\/\/)([^"?]+\.js)(\?v=[^"]*)?(")/g, (m, a, src, _v, z) => {
     touchedTags++;
     return `${a}${src}?v=${version}${z}`;
+  // Feuilles de style locales partagées (player.css, 26/09) : même numéro, même raison.
+  }).replace(/(<link\b[^>]*\bhref=")(?!https?:|\/\/)([^"?]+\.css)(\?v=[^"]*)?(")/g, (m, a, href, _v, z) => {
+    touchedTags++;
+    return `${a}${href}?v=${version}${z}`;
   });
   if (after !== before) { fs.writeFileSync(file, after); touchedPages++; }
 }

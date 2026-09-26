@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>LayerPitch — Mes albums</title>
+<!--
+  Page fan des Adaptive OST (étape A.5, 26/09/2026) -- réservée à l'admin pendant la bêta (voir layerpitch-docs/feux-verts-admin.md).
+  Une seule page, façon Spotify sans suggestions : bibliothèque à gauche, album au centre (onglets Morceaux / Atelier),
+  lecteur permanent en bas qui continue pendant la navigation.
+    - La BARRE enchaîne des VERSIONS (prises figées) lues en direct depuis leur journal (LayerCaptureRender.playTake) :
+      par défaut la version du compositeur, ou celle que le fan a choisie pour ce morceau (album_track_settings.albumVersion).
+      Un morceau sans aucune version est sauté.
+    - L'ATELIER joue le morceau vivant (lecteur adaptatif habituel). L'enregistrement tourne en permanence : « Figer »
+      garde ce que le fan vient d'entendre (décision du 26/09). L'atelier et la barre ne jouent jamais en même temps.
+  Mode démo, en local seulement (localhost, ?demo=1&ids=t1,t2) : mêmes écrans, versions gardées en mémoire, sans connexion.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="player.css?v=1790457193553">
+<style>
+  :root {
+    --bg: #f6f5f3; --bg-card: #ffffff; --bg-side: #efede9; --border: #e4e1da;
+    --text: #262521; --text-title: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --accent: #c9713c; --accent-soft: #f3e4d6; --on-accent: #ffffff;
+    --seq-map-success: #2f8f5b; --seq-map-choice: #b8862e;
+    --cover-empty: linear-gradient(135deg, #2a2822, #423b30);
+    --font-body: 'Inter', system-ui, sans-serif; --font-title: 'Space Grotesk', 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+    color-scheme: light;
+  }
+  :root[data-theme="night"] {
+    --bg: #141312; --bg-card: #1e1c1b; --bg-side: #191817; --border: #33302d;
+    --text: #eeeae5; --text-title: #f6f2ec; --text-dim: #a39d95; --text-dimmer: #7a746d;
+    --accent: #e08a52; --accent-soft: #3a2a20; --on-accent: #1a1411;
+    --seq-map-success: #4fb57e; --seq-map-choice: #d4a64c;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; }
+  button { font: inherit; color: inherit; }
+  .app { display: grid; grid-template-columns: 264px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; height: 100vh; height: 100dvh; }
+
+  /* ---- Bibliothèque ---- */
+  .side { grid-row: 1; background: var(--bg-side); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+  .side-head { display: flex; align-items: center; gap: 8px; padding: 18px 16px 10px; }
+  .side-head h1 { font-family: var(--font-title); font-size: 18px; margin: 0; color: var(--text-title); }
+  .tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+  .side-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dimmer); padding: 8px 16px 6px; }
+  .lib { overflow: auto; padding: 0 8px 12px; flex: 1; min-height: 0; }
+  .lib-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: none; padding: 7px 8px; border-radius: 8px; cursor: pointer; }
+  .lib-item:hover { background: var(--bg-card); }
+  .lib-item.active { background: var(--accent-soft); }
+  .lib-item .cover { width: 42px; height: 42px; border-radius: 6px; flex: none; }
+  .lib-item-title { font-weight: 600; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lib-item.active .lib-item-title { color: var(--accent); }
+  .side-foot { padding: 10px 16px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+  .cover { background: var(--cover-empty); object-fit: cover; display: block; border: 1px solid var(--border); }
+
+  /* ---- Centre ---- */
+  .main { grid-row: 1; overflow: auto; min-width: 0; }
+  .main-inner { max-width: 980px; margin: 0 auto; padding: 28px 32px 40px; }
+  .album-head { display: flex; gap: 24px; align-items: flex-end; margin-bottom: 22px; }
+  .album-head .cover { width: 184px; height: 184px; border-radius: 10px; flex: none; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+  .album-kicker { font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); }
+  .album-title { font-family: var(--font-title); font-size: clamp(26px, 4vw, 44px); line-height: 1.05; margin: 6px 0 10px; color: var(--text-title); overflow-wrap: anywhere; }
+  .album-pres { color: var(--text-dim); line-height: 1.6; white-space: pre-wrap; margin: 0; max-width: 60ch; }
+  .album-actions { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; }
+  .btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 13px; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .btn.primary:hover:not(:disabled) { color: var(--on-accent); filter: brightness(1.06); }
+  .btn.danger:hover:not(:disabled) { border-color: #d0433a; color: #d0433a; }
+  .play-album { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; font-size: 14px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+  .tab { border: 0; background: none; padding: 10px 14px; cursor: pointer; font-weight: 600; color: var(--text-dim); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  .tab:focus-visible, .btn:focus-visible, .lib-item:focus-visible, .ctrl button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .tracks { width: 100%; border-collapse: collapse; }
+  .tracks th { font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dimmer); text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+  .tracks td { padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .tracks tr.playing .t-title { color: var(--accent); }
+  .t-num { width: 40px; text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .t-play { border: 0; background: none; cursor: pointer; width: 28px; height: 28px; border-radius: 50%; color: var(--text-dim); }
+  .t-play:hover:not(:disabled) { color: var(--accent); background: var(--accent-soft); }
+  .t-play:disabled { opacity: .3; cursor: default; }
+  .t-title { font-weight: 600; }
+  .t-sub { font-size: 12px; color: var(--text-dimmer); margin-top: 2px; }
+  .t-version select { max-width: 100%; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 13px; }
+  .t-dur { width: 60px; text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .t-atelier { width: 1%; white-space: nowrap; }
+
+  .atelier-intro { color: var(--text-dim); line-height: 1.55; margin: 14px 0 16px; max-width: 70ch; }
+  .atelier-pick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .atelier-pick .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .freeze { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 6px; }
+  .freeze input { flex: 1 1 200px; min-width: 0; border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px; background: var(--bg-card); color: var(--text); font: inherit; }
+  .msg { font-size: 13px; color: var(--text-dim); min-height: 1.3em; margin: 4px 0 18px; }
+  .versions h3 { font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dimmer); margin: 22px 0 8px; }
+  .v-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .v-name { flex: 1 1 160px; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+  .v-name input { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; background: var(--bg-card); color: var(--text); font: inherit; }
+  .v-meta { font-size: 12px; color: var(--text-dimmer); font-variant-numeric: tabular-nums; }
+  .v-badge { font-family: var(--font-mono); font-size: 10px; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 2px 8px; }
+  .empty { color: var(--text-dim); padding: 24px 0; }
+  .notice { max-width: 420px; margin: 18vh auto 0; text-align: center; color: var(--text-dim); line-height: 1.6; }
+  .notice a { color: var(--accent); }
+  /* Le lecteur de l'atelier : carte du lecteur public, ouverte d'office. */
+  #atelierPlayer .track { margin-bottom: 0; }
+
+  /* ---- Barre de lecture ---- */
+  .bar { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.3fr); gap: 20px; align-items: center; padding: 10px 18px; border-top: 1px solid var(--border); background: var(--bg-card); }
+  .now { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .now .cover { width: 48px; height: 48px; border-radius: 6px; flex: none; }
+  .now-text { min-width: 0; }
+  .now-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .now-sub { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ctrl { display: flex; align-items: center; gap: 8px; }
+  .ctrl button { width: 36px; height: 36px; border-radius: 50%; border: 0; background: none; cursor: pointer; display: grid; place-items: center; color: var(--text-dim); }
+  .ctrl button:hover:not(:disabled) { color: var(--text); }
+  .ctrl button:disabled { opacity: .35; cursor: default; }
+  .ctrl button.main { width: 42px; height: 42px; background: var(--text); color: var(--bg); }
+  .ctrl button.main:hover { color: var(--bg); transform: scale(1.04); }
+  .ctrl svg { width: 18px; height: 18px; fill: currentColor; }
+  .prog { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .prog-track { height: 16px; display: flex; align-items: center; cursor: pointer; touch-action: none; }
+  .prog-rail { position: relative; height: 4px; width: 100%; background: var(--border); border-radius: 2px; }
+  .prog-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); border-radius: 2px; }
+
+  .side-head .theme-inline { display: none; }
+  @media (max-width: 820px) {
+    .side-head .theme-inline { display: inline-flex; margin-left: auto; }
+    .app { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr) auto; }
+    .side { grid-row: 1; border-right: 0; border-bottom: 1px solid var(--border); }
+    .side-head { padding: 12px 16px 4px; }
+    .side-label { display: none; }
+    .lib { display: flex; gap: 6px; overflow-x: auto; padding: 4px 12px 10px; }
+    .lib-item { flex: none; width: auto; max-width: 220px; }
+    .side-foot { display: none; }
+    .main { grid-row: 2; }
+    .main-inner { padding: 18px 16px 28px; }
+    .album-head { flex-direction: column; align-items: flex-start; gap: 14px; }
+    .album-head .cover { width: 132px; height: 132px; }
+    .t-version, .tracks th.t-version, .t-atelier, .tracks th.t-atelier { display: none; }
+    .bar { grid-row: 3; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 8px 16px 10px; }
+    .prog { grid-column: 1 / -1; grid-row: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side" aria-label="Bibliothèque" id="side">
+    <div class="side-head"><h1 id="heading">Mes albums</h1><span class="tag" id="betaTag">bêta · admin</span><button type="button" class="btn theme-inline" data-theme-toggle></button></div>
+    <div class="side-label" id="libLabel">Bibliothèque</div>
+    <nav class="lib" id="lib"></nav>
+    <div class="side-foot"><button type="button" class="btn" data-theme-toggle></button></div>
+  </aside>
+  <main class="main" id="main"><div class="main-inner" id="center"></div></main>
+  <footer class="bar" id="bar">
+    <div class="now"><div class="cover" id="nowCover"></div><div class="now-text"><div class="now-title" id="nowTitle">—</div><div class="now-sub" id="nowSub"></div></div></div>
+    <div class="ctrl">
+      <button type="button" id="prevBtn"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button type="button" id="playBtn" class="main"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 5v14l12-7z"/></svg></button>
+      <button type="button" id="nextBtn"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+    </div>
+    <div class="prog"><span id="posEl">0:00</span><div class="prog-track" id="progTrack" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"><div class="prog-rail"><div class="prog-fill" id="progFill"></div></div></div><span id="durEl">0:00</span></div>
+  </footer>
+</div>
+
+<script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="layerpitch-i18n.js?v=1790457193553"></script>
+<script src="layerpitch-notify.js?v=1790457193553"></script>
+<script src="player.js?v=1790457193553"></script>
+<script src="capture-render.js?v=1790457193553"></script>
+<script src="api/supabase-client.js?v=1790457193553"></script>
+<script src="api/auth.js?v=1790457193553"></script>
+<script src="api/tracks.js?v=1790457193553"></script>
+<script src="api/sfx.js?v=1790457193553"></script>
+<script src="api/albums.js?v=1790457193553"></script>
+<script>
+(async () => {
+  const P = window.LayerPlayerCore, R = window.LayerCaptureRender;
+  const $ = id => document.getElementById(id);
+  const esc = P.escapeHtml;
+  const params = new URLSearchParams(location.search);
+  const IMAGES_BASE = 'https://media.layerpitch.com/images/';
+
+  // ---- Langue (?lang=en, comme library.html) ----
+  const lang = params.get('lang') === 'en' ? 'en' : 'fr';
+  document.documentElement.lang = lang;
+  function tr(key, vars) {
+    const I = window.LAYERPITCH_I18N || {};
+    const pick = d => d && ((d.fanAlbums && d.fanAlbums[key]) || (d.shared && d.shared[key]));
+    let s = pick(I[lang]) || pick(I.fr) || key;
+    if (vars) for (const k in vars) s = s.split('{' + k + '}').join(vars[k]);
+    return s;
+  }
+  document.title = tr('pageTitle');
+  $('heading').textContent = tr('heading'); $('betaTag').textContent = tr('betaTag'); $('libLabel').textContent = tr('library');
+  $('side').setAttribute('aria-label', tr('library'));
+  $('prevBtn').setAttribute('aria-label', tr('prev')); $('nextBtn').setAttribute('aria-label', tr('next'));
+  const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  const fetchBytes = async url => new Uint8Array(await (await fetch(url)).arrayBuffer());
+  const coverHtml = (illustration, cls) => illustration
+    ? `<img class="cover ${cls || ''}" src="${IMAGES_BASE}${esc(illustration)}" alt="">`
+    : `<div class="cover ${cls || ''}"></div>`;
+
+  // ---- Thème clair / nuit, entièrement par variables (les skins d'album passeront par le même chemin) ----
+  function setTheme(t) {
+    document.documentElement.dataset.theme = t;
+    document.querySelectorAll('[data-theme-toggle]').forEach(b => { b.textContent = t === 'night' ? tr('themeDay') : tr('themeNight'); });
+    try { localStorage.setItem('lpFanTheme', t); } catch (e) {}
+  }
+  let savedTheme = null;
+  try { savedTheme = localStorage.getItem('lpFanTheme'); } catch (e) {}
+  setTheme(savedTheme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day'));
+  document.querySelectorAll('[data-theme-toggle]').forEach(b => b.onclick = () => setTheme(document.documentElement.dataset.theme === 'night' ? 'day' : 'night'));
+
+  const center = $('center');
+  const notice = html => { center.innerHTML = `<div class="notice">${html}</div>`; };
+
+  // ---- Données : la base (compte admin pendant la bêta) ou, en local seulement, une démo en mémoire ----
+  const demo = params.get('demo') === '1' && ['localhost', '127.0.0.1'].includes(location.hostname);
+  const store = demo ? demoStore(params.get('ids') || '') : dbStore();
+  function dbStore() {
+    const A = window.LayerPitchAlbums;
+    const must = r => { if (r.error) throw new Error(r.error); return r; };
+    return {
+      async albums() { return must(await A.listMyPurchases()).purchases.map(p => ({ id: p.albumId, title: p.title, illustration: p.illustration, presentation: lang === 'en' ? (p.presentationEn || p.presentationFr) : (p.presentationFr || p.presentationEn) })); },
+      async album(id) { return must(await A.getMyAlbumVersions(id)); },
+      async choices(id) { return must(await A.getMyAlbumSettings(id)).settings; },
+      async setChoice(albumId, trackId, versionKey) { const r = await A.setMyAlbumTrackSettings(albumId, trackId, { albumVersion: versionKey }); if (!r.ok) throw new Error(r.error); },
+      async save(albumId, trackId, name, take) { const r = await A.saveMyTrackVersion(albumId, trackId, name, take); if (!r.ok) throw new Error(r.error); return r.id; },
+      async rename(id, name) { const r = await A.renameMyTrackVersion(id, name); if (!r.ok) throw new Error(r.error); },
+      async remove(id) { const r = await A.deleteMyTrackVersion(id); if (!r.ok) throw new Error(r.error); },
+      async setOfficial(albumId, trackId, take) { const r = await A.setAlbumTrackOfficialTake(albumId, trackId, take); if (!r.ok) throw new Error(r.error); },
+    };
+  }
+  function demoStore(ids) {
+    const trackIds = ids.split(',').filter(Boolean), versions = [], official = {}, chosen = {};
+    return {
+      async albums() { return [{ id: 'demo', title: 'Album de démonstration', illustration: null, presentation: 'Mode démo local : rien n’est enregistré.' }]; },
+      async album() { return { tracks: trackIds.map((t, i) => ({ trackId: t, position: i, official: official[t] || null })), versions: versions.slice().reverse() }; },
+      async choices() { return trackIds.map(t => ({ trackId: t, settings: chosen[t] ? { albumVersion: chosen[t] } : {}, isCustom: !!chosen[t] })); },
+      async setChoice(albumId, trackId, key) { chosen[trackId] = key; },
+      async save(albumId, trackId, name, take) { const id = 'v' + (versions.length + 1); versions.push({ id, trackId, name, take, createdAt: new Date().toISOString() }); return id; },
+      async rename(id, name) { const v = versions.find(x => x.id === id); if (v) v.name = name; },
+      async remove(id) { const i = versions.findIndex(v => v.id === id); if (i >= 0) versions.splice(i, 1); },
+      async setOfficial(albumId, trackId, take) { official[trackId] = take; },
+    };
+  }
+
+  // ---- Accès : connecté ET admin pendant la bêta (hors démo locale) ----
+  let isAdmin = demo;
+  if (!demo) {
+    const { session } = await window.LayerPitchAuth.getSession();
+    if (!session) { notice(`${esc(tr('signedOut'))}<br><a href="bienvenue.html">${esc(tr('signInLink'))}</a>`); $('bar').hidden = true; return; }
+    const { data } = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin');
+    isAdmin = !!data;
+    if (!isAdmin) { notice(esc(tr('adminOnly'))); $('bar').hidden = true; return; }
+  }
+
+  P.setTakeRecording(true); // l'atelier enregistre en permanence : Figer garde ce qui vient d'être entendu
+  const trackCache = {}, sfxCache = {};
+  async function loadTrack(id) {
+    if (!trackCache[id]) { const r = await window.LayerPitchTracks.getTrack(id); if (!r.track) throw new Error('track ' + id); trackCache[id] = r.track; }
+    return trackCache[id];
+  }
+
+  // ---- État ----
+  let albums = [];
+  let album = null;           // { id, title, illustration, presentation, tracks: [{ track, official, choice }], versions }
+  let tab = 'tracks';
+  let atelierTrackId = null;
+  let queue = [], qi = -1;    // file de la barre : [{ trackId, title, sub, take, key, cover }]
+  let ctrl = null, playing = false, starting = false, pausedAt = 0, turn = 0;
+
+  // ---- Bibliothèque ----
+  try { albums = await store.albums(); } catch (e) { notice(esc(tr('errorMsg', { error: e.message }))); return; }
+  function renderLib() {
+    $('lib').innerHTML = albums.length ? albums.map(a => `
+      <button type="button" class="lib-item${album && album.id === a.id ? ' active' : ''}" data-album="${esc(a.id)}"${album && album.id === a.id ? ' aria-current="true"' : ''}>
+        ${coverHtml(a.illustration)}<span class="lib-item-title">${esc(a.title || '—')}</span>
+      </button>`).join('') : `<div class="empty" style="padding:8px">${esc(tr('libraryEmpty'))}</div>`;
+    $('lib').querySelectorAll('[data-album]').forEach(b => b.onclick = () => openAlbum(b.dataset.album));
+  }
+  renderLib();
+  if (!albums.length) { notice(esc(tr('libraryEmpty'))); return; }
+
+  // ---- Versions ----
+  const versionsOf = trackId => album.versions.filter(v => v.trackId === trackId); // plus récentes d'abord
+  // Nom affiché : le nom donné, sinon « Version n » dans l'ordre de création (1 = la plus ancienne).
+  function versionName(v) {
+    if (v.name) return v.name;
+    const all = versionsOf(v.trackId);
+    return tr('versionN', { n: all.length - all.indexOf(v) });
+  }
+  // Version jouée dans l'album : le choix du fan s'il existe encore, sinon celle du compositeur, sinon la plus récente
+  // du fan. null = aucune version (morceau sauté).
+  function albumEntryKey(t) {
+    const mine = versionsOf(t.track.id);
+    if (t.choice === 'official' && t.official) return 'official';
+    if (t.choice && mine.some(v => v.id === t.choice)) return t.choice;
+    if (t.official) return 'official';
+    return mine[0] ? mine[0].id : null;
+  }
+  function entryFor(t, key) {
+    if (!key) return null;
+    const cover = album.illustration;
+    if (key === 'official') return { trackId: t.track.id, title: t.track.title, sub: tr('officialVersion'), take: t.official, key, cover };
+    const v = album.versions.find(x => x.id === key);
+    return v ? { trackId: t.track.id, title: t.track.title, sub: versionName(v), take: v.take, key, cover } : null;
+  }
+
+  // ---- Album ----
+  async function openAlbum(id, keep) {
+    const a = albums.find(x => x.id === id);
+    if (!keep) { center.innerHTML = `<div class="empty">${esc(tr('loading'))}</div>`; }
+    try {
+      const [data, choices] = await Promise.all([store.album(id), store.choices(id)]);
+      const choiceOf = {};
+      for (const c of choices || []) if (c.isCustom && c.settings && c.settings.albumVersion) choiceOf[c.trackId] = c.settings.albumVersion;
+      const tracks = [];
+      for (const t of data.tracks) tracks.push({ track: await loadTrack(t.trackId), official: t.official, choice: choiceOf[t.trackId] || null });
+      // Sfx des morceaux : le lecteur les cherche dans sa bibliothèque.
+      for (const t of tracks) for (const sid of (t.track.sfxIds || [])) {
+        if (!sfxCache[sid]) { const r = await window.LayerPitchSfx.getSfx(sid); if (r && r.sfx) sfxCache[sid] = r.sfx; }
+      }
+      P.setSfxLibrary(Object.assign({}, sfxCache));
+      const changedAlbum = !album || album.id !== id;
+      album = { id, title: a ? a.title : '', illustration: a ? a.illustration : null, presentation: a ? a.presentation : '', tracks, versions: data.versions };
+      if (changedAlbum) { stopAtelier(); atelierMountedFor = null; atelierTrackId = tracks[0] ? tracks[0].track.id : null; if (!keep) tab = 'tracks'; }
+      renderLib();
+      render();
+    } catch (e) { notice(esc(tr('errorMsg', { error: e.message }))); }
+  }
+
+  function render() {
+    center.innerHTML = `
+      <header class="album-head">
+        ${coverHtml(album.illustration)}
+        <div>
+          <div class="album-kicker">${esc(tr('albumKicker'))}</div>
+          <h2 class="album-title">${esc(album.title || '—')}</h2>
+          ${album.presentation ? `<p class="album-pres">${esc(album.presentation)}</p>` : ''}
+        </div>
+      </header>
+      <div class="album-actions">
+        <button type="button" class="btn primary play-album" id="playAlbumBtn"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M7 5v14l12-7z"/></svg>${esc(tr('playAlbum'))}</button>
+      </div>
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab" role="tab" id="tabTracks" aria-selected="${tab === 'tracks'}" aria-controls="panelTracks">${esc(tr('tabTracks'))}</button>
+        <button type="button" class="tab" role="tab" id="tabAtelier" aria-selected="${tab === 'atelier'}" aria-controls="panelAtelier">${esc(tr('tabAtelier'))}</button>
+      </div>
+      <section id="panelTracks" role="tabpanel" aria-labelledby="tabTracks"${tab === 'tracks' ? '' : ' hidden'}></section>
+      <section id="panelAtelier" role="tabpanel" aria-labelledby="tabAtelier"${tab === 'atelier' ? '' : ' hidden'}></section>`;
+    $('playAlbumBtn').onclick = () => { buildQueue(); playIndex(0); };
+    $('tabTracks').onclick = () => switchTab('tracks');
+    $('tabAtelier').onclick = () => switchTab('atelier');
+    renderTracks();
+    renderAtelier();
+  }
+  function switchTab(t) {
+    tab = t;
+    $('tabTracks').setAttribute('aria-selected', t === 'tracks'); $('tabAtelier').setAttribute('aria-selected', t === 'atelier');
+    $('panelTracks').hidden = t !== 'tracks'; $('panelAtelier').hidden = t !== 'atelier';
+  }
+
+  // ---- Onglet Morceaux ----
+  function renderTracks() {
+    const box = $('panelTracks');
+    if (!box) return;
+    const now = queue[qi];
+    box.innerHTML = `<table class="tracks">
+      <thead><tr><th class="t-num">#</th><th></th><th>${esc(tr('colTitle'))}</th><th class="t-version">${esc(tr('colVersion'))}</th><th class="t-dur"></th><th class="t-atelier"></th></tr></thead>
+      <tbody>${album.tracks.map((t, i) => {
+        const key = albumEntryKey(t), e = entryFor(t, key), mine = versionsOf(t.track.id);
+        const options = [t.official ? `<option value="official"${key === 'official' ? ' selected' : ''}>★ ${esc(tr('officialVersion'))}</option>` : '']
+          .concat(mine.map(v => `<option value="${esc(v.id)}"${key === v.id ? ' selected' : ''}>${esc(versionName(v))} · ${fmt(v.take.duration)}</option>`)).join('');
+        return `<tr class="${now && now.trackId === t.track.id ? 'playing' : ''}">
+          <td class="t-num">${i + 1}</td>
+          <td><button type="button" class="t-play" data-play="${esc(t.track.id)}" aria-label="${esc(tr('playThis'))} · ${esc(t.track.title)}"${e ? '' : ' disabled'}><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M7 5v14l12-7z"/></svg></button></td>
+          <td><div class="t-title">${esc(t.track.title)}</div>${e ? `<div class="t-sub">${esc(e.sub)}</div>` : `<div class="t-sub">${esc(tr('noVersionYet'))}</div>`}</td>
+          <td class="t-version">${options ? `<select data-choice="${esc(t.track.id)}" aria-label="${esc(tr('colVersion'))}">${options}</select>` : ''}</td>
+          <td class="t-dur">${e ? fmt(e.take.duration) : ''}</td>
+          <td class="t-atelier"><button type="button" class="btn" data-atelier="${esc(t.track.id)}">${esc(tr('openInAtelier'))}</button></td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+    box.querySelectorAll('[data-play]').forEach(b => b.onclick = () => { buildQueue(); playIndex(queue.findIndex(q => q.trackId === b.dataset.play)); });
+    box.querySelectorAll('[data-choice]').forEach(s => s.onchange = () => chooseVersion(s.dataset.choice, s.value));
+    box.querySelectorAll('[data-atelier]').forEach(b => b.onclick = () => { openAtelier(b.dataset.atelier); switchTab('atelier'); });
+  }
+  async function chooseVersion(trackId, key) {
+    const t = album.tracks.find(x => x.track.id === trackId);
+    try { await store.setChoice(album.id, trackId, key); t.choice = key; }
+    catch (e) { window.LayerPitchNotify.error(tr('errorMsg', { error: e.message })); }
+    refreshQueue();
+    renderTracks(); renderAtelierVersions();
+  }
+
+  // ---- Onglet Atelier : le morceau vivant, Figer, mes versions ----
+  // Le lecteur vivant n'est reconstruit que lorsqu'on change de morceau (un rendu de la liste ne le coupe pas).
+  let atelierMountedFor = null;
+  function renderAtelier() {
+    const box = $('panelAtelier');
+    const t = album.tracks.find(x => x.track.id === atelierTrackId);
+    if (!t) { box.innerHTML = ''; return; }
+    box.innerHTML = `
+      <p class="atelier-intro">${esc(tr('atelierIntro'))}</p>
+      <div class="atelier-pick" role="group" aria-label="${esc(tr('atelierTrack'))}">${album.tracks.map(x => `<button type="button" class="btn" data-pick="${esc(x.track.id)}" aria-pressed="${x.track.id === atelierTrackId}">${esc(x.track.title)}</button>`).join('')}</div>
+      <div id="atelierPlayer"></div>
+      <div class="freeze" style="margin-top:14px">
+        <input type="text" id="freezeName" maxlength="120" placeholder="${esc(tr('freezeNamePlaceholder'))}" aria-label="${esc(tr('freezeNamePlaceholder'))}">
+        <button type="button" class="btn primary" id="freezeBtn">${esc(tr('freezeBtn'))}</button>
+        ${isAdmin ? `<button type="button" class="btn" id="officialBtn">${esc(tr('officialBtn'))}</button>` : ''}
+      </div>
+      <div class="msg" id="freezeMsg" role="status"></div>
+      <div class="versions" id="atelierVersions"></div>`;
+    box.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => openAtelier(b.dataset.pick));
+    // Le lecteur vivant garde son état : on déplace son nœud existant au lieu de le reconstruire.
+    if (atelierMountedFor && atelierMountedFor.trackId === atelierTrackId) $('atelierPlayer').appendChild(atelierMountedFor.row);
+    else mountAtelierPlayer(t);
+    $('freezeBtn').onclick = () => freeze(t);
+    if ($('officialBtn')) $('officialBtn').onclick = () => saveOfficial(t);
+    renderAtelierVersions();
+  }
+  function mountAtelierPlayer(t) {
+    const row = P.buildTrackRow(t.track, null, false);
+    $('atelierPlayer').appendChild(row);
+    P.initTrackPlayer(t.track, row);
+    atelierMountedFor = { trackId: t.track.id, row };
+  }
+  function openAtelier(trackId) {
+    if (trackId !== atelierTrackId) { stopAtelier(); atelierTrackId = trackId; atelierMountedFor = null; }
+    renderAtelier();
+  }
+  function stopAtelier() { if (atelierTrackId) document.dispatchEvent(new CustomEvent('stop-track', { detail: atelierTrackId })); }
+  const currentTake = t => { const k = P.getTrackTake(t.track.id); return k && k.voices.length ? k : null; };
+  const say = text => { const m = $('freezeMsg'); if (m) m.textContent = text; };
+  async function freeze(t) {
+    const take = currentTake(t);
+    if (!take) { say(tr('freezeNothing')); return; }
+    if (take.missing) { say(tr('freezeUnpublished')); return; }
+    const btn = $('freezeBtn'); btn.disabled = true;
+    try {
+      await store.save(album.id, t.track.id, $('freezeName').value.trim(), take);
+      await reloadVersions();
+      $('freezeName').value = '';
+      say(tr('freezeDone', { duration: fmt(take.duration) }));
+    } catch (e) { say(tr('errorMsg', { error: e.message })); }
+    finally { btn.disabled = false; }
+  }
+  async function saveOfficial(t) {
+    const take = currentTake(t);
+    if (!take) { say(tr('freezeNothing')); return; }
+    try { await store.setOfficial(album.id, t.track.id, take); await reloadVersions(); say(tr('officialDone')); }
+    catch (e) { say(tr('errorMsg', { error: e.message })); }
+  }
+  // Recharge versions et version officielle sans toucher au lecteur vivant.
+  async function reloadVersions() {
+    const data = await store.album(album.id);
+    album.versions = data.versions;
+    for (const t of album.tracks) { const d = data.tracks.find(x => x.trackId === t.track.id); t.official = d ? d.official : null; }
+    refreshQueue();
+    renderTracks(); renderAtelierVersions();
+  }
+  function renderAtelierVersions() {
+    const box = $('atelierVersions');
+    if (!box) return;
+    const t = album.tracks.find(x => x.track.id === atelierTrackId);
+    const key = albumEntryKey(t), mine = versionsOf(t.track.id), now = queue[qi];
+    const row = (id, name, meta, canEdit) => `
+      <div class="v-row" data-vrow="${esc(id)}">
+        <button type="button" class="t-play" data-vplay="${esc(id)}" aria-label="${esc(tr('playThis'))} · ${esc(name)}"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M7 5v14l12-7z"/></svg></button>
+        <span class="v-name" style="${now && now.key === id && now.trackId === t.track.id ? 'color:var(--accent)' : ''}">${esc(name)}</span>
+        <span class="v-meta">${meta}</span>
+        ${key === id ? `<span class="v-badge">${esc(tr('usedInAlbum'))}</span>` : `<button type="button" class="btn" data-vuse="${esc(id)}">${esc(tr('useInAlbum'))}</button>`}
+        ${canEdit ? `<button type="button" class="btn" data-vrename="${esc(id)}">${esc(tr('renameBtn'))}</button><button type="button" class="btn danger" data-vdel="${esc(id)}">${esc(tr('deleteBtn'))}</button>` : ''}
+      </div>`;
+    box.innerHTML = (t.official ? row('official', '★ ' + tr('officialVersion'), fmt(t.official.duration), false) : '')
+      + `<h3>${esc(tr('myVersions'))}</h3>`
+      + (mine.length ? mine.map(v => row(v.id, versionName(v), `${fmt(v.take.duration)} · ${new Date(v.createdAt).toLocaleString(lang, { dateStyle: 'short', timeStyle: 'short' })}`, true)).join('')
+        : `<div class="empty" style="padding:8px 0">${esc(tr('noMyVersions'))}</div>`);
+    box.querySelectorAll('[data-vplay]').forEach(b => b.onclick = () => playVersionInAlbum(t, b.dataset.vplay));
+    box.querySelectorAll('[data-vuse]').forEach(b => b.onclick = () => chooseVersion(t.track.id, b.dataset.vuse));
+    box.querySelectorAll('[data-vdel]').forEach(b => b.onclick = () => deleteVersion(b.dataset.vdel));
+    box.querySelectorAll('[data-vrename]').forEach(b => b.onclick = () => startRename(b.dataset.vrename));
+  }
+  function startRename(id) {
+    const v = album.versions.find(x => x.id === id);
+    const cell = document.querySelector(`[data-vrow="${CSS.escape(id)}"] .v-name`);
+    cell.innerHTML = `<input type="text" maxlength="120" value="${esc(v.name || '')}" placeholder="${esc(versionName(v))}" aria-label="${esc(tr('renameBtn'))}">`;
+    const input = cell.querySelector('input');
+    input.focus(); input.select();
+    let done = false;
+    const commit = async save => {
+      if (done) return; done = true;
+      const name = input.value.trim();
+      if (save && name !== (v.name || '')) {
+        try { await store.rename(id, name); v.name = name; } catch (e) { window.LayerPitchNotify.error(tr('errorMsg', { error: e.message })); }
+      }
+      refreshQueue(); renderTracks(); renderAtelierVersions();
+    };
+    input.onkeydown = e => { if (e.key === 'Enter') commit(true); else if (e.key === 'Escape') commit(false); };
+    input.onblur = () => commit(true);
+  }
+  async function deleteVersion(id) {
+    const v = album.versions.find(x => x.id === id);
+    if (!await window.LayerPitchNotify.confirm(tr('deleteConfirm', { name: versionName(v) }), { danger: true, okLabel: tr('deleteBtn') })) return;
+    if (queue[qi] && queue[qi].key === id) { stopBar(); qi = -1; showNow(null); }
+    try { await store.remove(id); await reloadVersions(); }
+    catch (e) { window.LayerPitchNotify.error(tr('errorMsg', { error: e.message })); }
+  }
+
+  // ---- File de la barre : l'album tel que le fan l'a choisi ----
+  function buildQueue(override) {
+    queue = album.tracks.map(t => entryFor(t, override && override.trackId === t.track.id ? override.key : albumEntryKey(t))).filter(Boolean);
+  }
+  // Après un changement de choix, de nom ou une suppression : la file suit, sans couper ce qui joue.
+  function refreshQueue() {
+    if (qi < 0 || !queue[qi]) return;
+    const cur = queue[qi];
+    buildQueue();
+    const i = queue.findIndex(q => q.trackId === cur.trackId);
+    if (i >= 0) { queue[i] = Object.assign({}, cur, { sub: (entryFor(album.tracks.find(t => t.track.id === cur.trackId), cur.key) || cur).sub }); qi = i; }
+    else { queue.splice(Math.min(qi, queue.length), 0, cur); }
+    showNow(queue[qi]);
+  }
+  function playVersionInAlbum(t, key) { buildQueue({ trackId: t.track.id, key }); playIndex(queue.findIndex(q => q.trackId === t.track.id)); }
+
+  // ---- Barre : lecture en direct des versions ----
+  const ICON_PLAY = '<path d="M7 5v14l12-7z"/>', ICON_PAUSE = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+  function setPlayIcon(isPlaying) { $('playIcon').innerHTML = isPlaying ? ICON_PAUSE : ICON_PLAY; $('playBtn').setAttribute('aria-label', tr(isPlaying ? 'pause' : 'play')); }
+  function showNow(q, sub) {
+    $('nowTitle').textContent = q ? q.title : '—';
+    $('nowSub').textContent = sub != null ? sub : (q ? q.sub : tr('nothingPlaying'));
+    $('nowCover').outerHTML = q && q.cover ? `<img class="cover" id="nowCover" src="${IMAGES_BASE}${esc(q.cover)}" alt="">` : '<div class="cover" id="nowCover"></div>';
+    $('durEl').textContent = fmt(q ? q.take.duration : 0);
+    $('progTrack').setAttribute('aria-valuemax', String(Math.round(q ? q.take.duration : 0)));
+    $('prevBtn').disabled = !q; $('nextBtn').disabled = !q || qi + 1 >= queue.length;
+  }
+  async function playIndex(i, from) {
+    if (i < 0 || i >= queue.length) { stopBar(); qi = -1; showNow(null, tr('queueEnd')); renderTracks(); renderAtelierVersions(); return; }
+    stopAtelier();
+    if (ctrl) { ctrl.stop(); ctrl = null; }
+    qi = i; starting = true; playing = true; pausedAt = from || 0;
+    const q = queue[i], myTurn = ++turn;
+    showNow(q, q.sub + ' · ' + tr('loadingVersion'));
+    setPlayIcon(true);
+    renderTracks(); renderAtelierVersions();
+    try {
+      const c = await R.playTake(q.take, { from: from || 0, fetchBytes, onEnd: () => { if (turn === myTurn) playIndex(qi + 1); } });
+      if (turn !== myTurn) { c.stop(); return; }
+      ctrl = c;
+    } catch (e) { if (turn === myTurn) { showNow(q, tr('errorMsg', { error: e.message })); playing = false; starting = false; setPlayIcon(false); } return; }
+    starting = false;
+    showNow(q);
+  }
+  function pauseBar() { if (ctrl) { pausedAt = ctrl.position(); ctrl.stop(); ctrl = null; } playing = false; starting = false; turn++; setPlayIcon(false); if (queue[qi]) showNow(queue[qi]); }
+  function stopBar() { if (ctrl) ctrl.stop(); ctrl = null; playing = false; starting = false; pausedAt = 0; turn++; setPlayIcon(false); }
+  $('playBtn').onclick = () => {
+    if (playing) pauseBar();
+    else if (qi >= 0) playIndex(qi, pausedAt);
+    else if (album) { buildQueue(); playIndex(0); }
+  };
+  $('nextBtn').onclick = () => { if (qi + 1 < queue.length) playIndex(qi + 1); };
+  $('prevBtn').onclick = () => { if ((ctrl ? ctrl.position() : pausedAt) > 3 || qi === 0) playIndex(qi); else if (qi > 0) playIndex(qi - 1); };
+  function seekTo(pos) {
+    if (qi < 0) return;
+    pos = Math.max(0, Math.min(queue[qi].take.duration, pos));
+    if (playing) playIndex(qi, pos); else { pausedAt = pos; paint(pos); }
+  }
+  $('progTrack').onclick = e => {
+    if (qi < 0) return;
+    const r = $('progTrack').getBoundingClientRect();
+    seekTo(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * queue[qi].take.duration);
+  };
+  $('progTrack').onkeydown = e => {
+    if (qi < 0) return;
+    const cur = ctrl ? ctrl.position() : pausedAt;
+    if (e.key === 'ArrowRight') { seekTo(cur + 5); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft') { seekTo(cur - 5); e.preventDefault(); }
+  };
+  function paint(pos) {
+    const d = qi >= 0 && queue[qi] ? queue[qi].take.duration : 0;
+    $('posEl').textContent = fmt(pos);
+    $('progFill').style.width = d ? Math.min(100, 100 * pos / d) + '%' : '0';
+    $('progTrack').setAttribute('aria-valuenow', String(Math.round(pos)));
+  }
+  (function tick() { paint(ctrl ? ctrl.position() : pausedAt); requestAnimationFrame(tick); })();
+  // Barre d'espace = lecture / pause de la barre (hors saisie et hors lecteur de l'atelier).
+  document.addEventListener('keydown', e => {
+    if (e.code !== 'Space' || e.target.closest('input, textarea, select, button, [contenteditable], #atelierPlayer')) return;
+    e.preventDefault(); $('playBtn').click();
+  });
+  // L'atelier et la barre ne jouent jamais en même temps : dès que l'atelier démarre, la barre se met en pause.
+  document.addEventListener('layerpitch-capture-mark', e => { if (e.detail && e.detail.name === 'track_play' && (playing || starting)) pauseBar(); });
+
+  showNow(null);
+  setPlayIcon(false);
+  openAlbum(albums[0].id);
+})();
+</script>
+</body>
+</html>
