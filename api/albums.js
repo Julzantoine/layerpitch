@@ -11,17 +11,22 @@
     return window.LayerPitchSupabaseClient.getClient();
   }
 
-  const ALBUM_SELECT = `*, album_tracks(track_id, position)`;
+  // Version du compositeur de chaque morceau : seulement son type et sa durée (la prise entière peut peser plusieurs
+  // centaines de Ko ; elle se lit à part, getAlbumTrackOfficialTake, quand on veut l'écouter).
+  const ALBUM_SELECT = `*, album_tracks(track_id, position, official_kind:default_settings->>kind, official_duration:default_settings->>duration)`;
 
   function reshapeAlbum(row) {
     if (!row) return null;
     const trackIds = [...(row.album_tracks || [])].sort((a, b) => a.position - b.position).map(r => r.track_id);
+    // Morceaux qui ont leur version du compositeur -> durée en secondes (condition de mise en vente, 26/09).
+    const officialDurations = {};
+    (row.album_tracks || []).forEach(r => { if (r.official_kind === 'layerpitch-take') officialDurations[r.track_id] = Number(r.official_duration) || 0; });
     return {
       id: row.id, sellerId: row.seller_id, sellerRole: row.seller_role, title: row.title,
       illustration: row.illustration, illustrationOriginalName: row.illustration_original_name,
       presentationFr: row.presentation_fr, presentationEn: row.presentation_en,
       // Prix MINIMUM en centimes USD (prix libre : le fan peut payer davantage) — null = pas de prix.
-      priceUsdCents: row.price_usd_cents, buyable: row.buyable, tags: row.tags, trackIds,
+      priceUsdCents: row.price_usd_cents, buyable: row.buyable, tags: row.tags, trackIds, officialDurations,
     };
   }
 
@@ -128,9 +133,18 @@
     return error ? { ok: false, error: error.message } : { ok: true };
   }
 
+  // Prise complète de la version du compositeur (pour l'écouter dans le Backstage) ; null s'il n'y en a pas.
+  async function getAlbumTrackOfficialTake(albumId, trackId) {
+    const { data, error } = await getClient().from('album_tracks').select('default_settings')
+      .eq('album_id', albumId).eq('track_id', trackId).maybeSingle();
+    if (error) return { take: null, error: error.message };
+    const t = data && data.default_settings;
+    return { take: t && t.kind === 'layerpitch-take' ? t : null, error: null };
+  }
+
   window.LayerPitchAlbums = {
     listAlbums, upsertAlbum, claimTestAlbum, listMyPurchases, getPlatformFlags,
     getMyAlbumVersions, saveMyTrackVersion, renameMyTrackVersion, deleteMyTrackVersion,
-    getMyAlbumSettings, setMyAlbumTrackSettings, resetMyAlbumTrackSettings, setAlbumTrackOfficialTake,
+    getMyAlbumSettings, setMyAlbumTrackSettings, resetMyAlbumTrackSettings, setAlbumTrackOfficialTake, getAlbumTrackOfficialTake,
   };
 })();

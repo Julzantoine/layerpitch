@@ -1780,10 +1780,10 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790457193553"></script>
-<script src="layerpitch-notify.js?v=1790457193553"></script>
-<script src="layerpitch-help.js?v=1790457193553"></script>
-<script src="player.js?v=1790457193553"></script>
+<script src="layerpitch-i18n.js?v=1790457926036"></script>
+<script src="layerpitch-notify.js?v=1790457926036"></script>
+<script src="layerpitch-help.js?v=1790457926036"></script>
+<script src="player.js?v=1790457926036"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -10906,7 +10906,9 @@ function renderAnalyticsPanelForTier() {
  * albumTracksNotPublishedHint quand l'enregistrement est refusé pour cette raison.
  * Bêta : le paiement n'est pas branché, « Obtenir (test) » (claim_test_album) simule l'achat.
  * Vendeur compositeur seulement ici (décision du 21 septembre : le côté studio reste à concevoir). */
-const albumsState = { loaded: false, loading: false, albums: [], purchases: [], testEnabled: false, messages: {} };
+const albumsState = { loaded: false, loading: false, albums: [], purchases: [], testEnabled: false, messages: {},
+  recorder: null,   // enregistreur de version du compositeur ouvert : { albumId, trackId, el } (un seul à la fois)
+  playback: null }; // version du compositeur en écoute : { key, ctrl }
 
 function newAlbumId() {
   // Identifiant aléatoire : albums.id est unique sur TOUTE la base (pas par compositeur), un titre
@@ -10920,6 +10922,8 @@ function albumFromApi(a) {
     id: a.id, title: a.title || '', presentationFr: a.presentationFr || '', presentationEn: a.presentationEn || '',
     priceInput: a.priceUsdCents == null ? '' : (a.priceUsdCents / 100).toFixed(2),
     buyable: !!a.buyable, trackIds: a.trackIds || [], saved: true, savedBuyable: !!a.buyable,
+    // Morceaux enregistrés en base (seuls eux peuvent recevoir une version du compositeur) et durée de leur version.
+    savedTrackIds: (a.trackIds || []).slice(), officialDurations: Object.assign({}, a.officialDurations || {}),
   };
 }
 
@@ -10988,6 +10992,7 @@ function renderAlbums() {
         <label style="${rowStyle}margin-top:12px"><input type="checkbox" style="width:auto;margin:0" data-album-field="buyable" data-ai="${ai}"${al.buyable ? ' checked' : ''}><span>${tr('albumBuyableLabel')}</span></label>
         <label>${tr('albumTracksLabel')}</label>
         ${trackRows.length ? trackRows.join('') : `<div class="sub">${tr('albumNoTracksInLibrary')}</div>`}
+        ${renderAlbumOfficialVersions(al, ai)}
         <div class="actions" style="margin-top:14px">
           <button class="btn btn-small btn-primary" data-action="save-album" data-ai="${ai}" type="button">${tr('albumSaveBtn')}</button>
           ${canClaim ? `<button class="btn btn-small" data-action="claim-test-album" data-ai="${ai}" type="button">${tr('albumClaimTestBtn')}</button>` : ''}
@@ -10996,7 +11001,150 @@ function renderAlbums() {
       </div>`;
     box.appendChild(el);
   });
+  // L'enregistreur ouvert (lecteur vivant) survit aux re-rendus : on replace son nœud, sans le reconstruire.
+  const rec = albumsState.recorder;
+  if (rec) {
+    const host = [...box.querySelectorAll('[data-official-host]')].find(h => h.dataset.officialHost === rec.albumId + '|' + rec.trackId);
+    if (host) host.appendChild(rec.el); else closeOfficialRecorder();
+  }
 }
+
+// ---- Version du compositeur de chaque morceau (Adaptive OST, étape A.7, 26/09) ----
+// C'est une PRISE du vendeur (journal du lecteur, comme les versions du fan), rangée dans album_tracks.default_settings
+// (set_album_track_default_settings). Obligatoire pour chaque morceau avant la mise en vente (contrôle serveur dans
+// upsert_album, migration 20260926020000 ; contrôle client dans saveAlbum pour un message clair).
+const fmtAlbumDuration = sec => { sec = Math.max(0, Math.round(sec || 0)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
+function albumTrackTitle(id) { const t = library.find(x => x.id === id); return (t && t.title) || id; }
+function renderAlbumOfficialVersions(al, ai) {
+  const head = `<label style="margin-top:16px">${tr('albumOfficialTitle')}</label><div class="sub" style="margin-bottom:4px">${tr('albumOfficialHint')}</div>`;
+  if (!al.saved || !al.savedTrackIds.length) return head + `<div class="sub">${tr('albumOfficialSaveFirst')}</div>`;
+  const rowStyle = 'display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text-dim);';
+  const pending = al.trackIds.join('|') !== al.savedTrackIds.join('|');
+  return head + al.savedTrackIds.map(id => {
+    const has = Object.prototype.hasOwnProperty.call(al.officialDurations, id);
+    const key = al.id + '|' + id;
+    const playing = albumsState.playback && albumsState.playback.key === key;
+    return `<div style="${rowStyle}">
+        <span style="min-width:0;flex:1 1 160px;color:var(--text)">${escapeHtml(albumTrackTitle(id))}</span>
+        ${has ? `<span>✓ ${fmtAlbumDuration(al.officialDurations[id])}</span>` : `<span class="badge" style="color:#c0392b;border-color:#c0392b">${tr('albumOfficialMissing')}</span>`}
+        ${has ? `<button class="btn btn-small" type="button" data-action="official-play" data-ai="${ai}" data-track="${escapeAttr(id)}">${tr(playing ? 'albumOfficialStopBtn' : 'albumOfficialListenBtn')}</button>` : ''}
+        <button class="btn btn-small${has ? '' : ' btn-primary'}" type="button" data-action="official-record" data-ai="${ai}" data-track="${escapeAttr(id)}">${tr(has ? 'albumOfficialRedoBtn' : 'albumOfficialRecordBtn')}</button>
+      </div>
+      <div data-official-host="${escapeAttr(key)}"></div>`;
+  }).join('') + (pending ? `<div class="sub" style="margin-top:6px">${tr('albumOfficialSaveFirst')}</div>` : '');
+}
+
+// capture-render.js (lecture d'une prise) n'est chargé qu'à la première écoute, avec le numéro de version de la page.
+let captureRenderLoaded = null;
+function loadCaptureRenderScript() {
+  if (window.LayerCaptureRender) return Promise.resolve();
+  if (captureRenderLoaded) return captureRenderLoaded;
+  const v = (document.querySelector('script[src*="layerpitch-i18n.js?v="]') || {}).src;
+  const version = v ? new URL(v).searchParams.get('v') : '';
+  captureRenderLoaded = new Promise((resolve, reject) => {
+    const sc = document.createElement('script');
+    sc.src = './capture-render.js' + (version ? '?v=' + version : '');
+    sc.onload = resolve;
+    sc.onerror = () => { captureRenderLoaded = null; reject(new Error('Échec du chargement de ' + sc.src)); };
+    document.head.appendChild(sc);
+  });
+  return captureRenderLoaded;
+}
+function stopOfficialPlayback() {
+  const pb = albumsState.playback;
+  if (pb) { albumsState.playback = null; if (pb.ctrl) pb.ctrl.stop(); }
+}
+async function toggleOfficialPlayback(ai, trackId) {
+  const al = albumsState.albums[ai];
+  const key = al.id + '|' + trackId;
+  const wasThis = albumsState.playback && albumsState.playback.key === key;
+  stopOfficialPlayback();
+  if (wasThis) { renderAlbums(); return; }
+  // Une seule chose joue à la fois : enregistreur et aperçus « Écouter » s'arrêtent.
+  if (albumsState.recorder) document.dispatchEvent(new CustomEvent('stop-track', { detail: albumsState.recorder.trackId }));
+  activePreviewIds.forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id })));
+  const pb = { key, ctrl: null };
+  albumsState.playback = pb;
+  renderAlbums();
+  try {
+    await loadCaptureRenderScript();
+    const { take, error } = await window.LayerPitchAlbums.getAlbumTrackOfficialTake(al.id, trackId);
+    if (error || !take) throw new Error(error || tr('albumOfficialMissing'));
+    const fetchBytes = async url => new Uint8Array(await (await fetch(url)).arrayBuffer());
+    const ctrl = await window.LayerCaptureRender.playTake(take, { fetchBytes, onEnd: () => { if (albumsState.playback === pb) { albumsState.playback = null; renderAlbums(); } } });
+    if (albumsState.playback !== pb) { ctrl.stop(); return; }
+    pb.ctrl = ctrl;
+  } catch (e) {
+    if (albumsState.playback === pb) albumsState.playback = null;
+    setAlbumMessage(al, tr('albumOfficialError', { error: e.message }), 'error');
+  }
+}
+function closeOfficialRecorder() {
+  const rec = albumsState.recorder;
+  if (!rec) return;
+  albumsState.recorder = null;
+  document.dispatchEvent(new CustomEvent('stop-track', { detail: rec.trackId }));
+  rec.el.remove();
+}
+// Enregistreur : la version PUBLIÉE du morceau (celle que le fan recevra), jouée dans le lecteur habituel, journal de
+// prise actif ; « Enregistrer comme version de l'album » garde tout ce qui a été joué depuis le lancement.
+async function openOfficialRecorder(ai, trackId) {
+  const al = albumsState.albums[ai];
+  closeOfficialRecorder();
+  stopOfficialPlayback();
+  const P = window.LayerPlayerCore;
+  const el = document.createElement('div');
+  el.style.cssText = 'margin:8px 0 12px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg)';
+  el.innerHTML = `<div class="sub">${tr('albumOfficialLoading')}</div>`;
+  const rec = { albumId: al.id, trackId, el };
+  albumsState.recorder = rec;
+  renderAlbums();
+  try {
+    await loadPostgresReadScripts();
+    const r = await window.LayerPitchTracks.getTrack(trackId);
+    if (!r || !r.track) throw new Error(tr('albumOfficialUnpublished'));
+    const track = r.track;
+    const sfxById = {};
+    for (const sid of (track.sfxIds || [])) { const x = await window.LayerPitchSfx.getSfx(sid); if (x && x.sfx) sfxById[sid] = x.sfx; }
+    if (albumsState.recorder !== rec) return;
+    activePreviewIds.forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id })));
+    P.setSfxLibrary(sfxById);
+    P.setTakeRecording(true);
+    el.innerHTML = `<div class="sub" style="margin-bottom:8px">${tr('albumOfficialRecorderHint')}</div><div data-role="recPlayer"></div>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn btn-small btn-primary" type="button" data-role="recSave">${tr('albumOfficialSaveBtn')}</button>
+        <button class="btn btn-small" type="button" data-role="recClose">${tr('albumOfficialCloseBtn')}</button>
+      </div>
+      <div class="sub" data-role="recMsg" style="margin-top:6px"></div>`;
+    const row = P.buildTrackRow(track, null, false);
+    el.querySelector('[data-role="recPlayer"]').appendChild(row);
+    P.initTrackPlayer(track, row);
+    const titleToggle = row.querySelector('[data-role="titleToggle"]');
+    if (titleToggle) titleToggle.click();
+    const say = text => { el.querySelector('[data-role="recMsg"]').textContent = text; };
+    el.querySelector('[data-role="recClose"]').onclick = () => closeOfficialRecorder();
+    el.querySelector('[data-role="recSave"]').onclick = async e => {
+      const take = P.getTrackTake(trackId);
+      if (!take || !take.voices.length) { say(tr('albumOfficialNothing')); return; }
+      if (take.missing) { say(tr('albumOfficialUnpublished')); return; }
+      e.target.disabled = true;
+      try {
+        const res = await window.LayerPitchAlbums.setAlbumTrackOfficialTake(al.id, trackId, take);
+        if (!res.ok) throw new Error(res.error);
+        al.officialDurations[trackId] = take.duration;
+        say(tr('albumOfficialSaved', { duration: fmtAlbumDuration(take.duration) }));
+        renderAlbums();
+      } catch (err) { say(tr('albumOfficialError', { error: err.message })); }
+      finally { e.target.disabled = false; }
+    };
+  } catch (e) {
+    el.innerHTML = `<div class="sub" style="color:#c0392b">${escapeHtml(tr('albumOfficialError', { error: e.message }))}</div>`;
+  }
+}
+// Le lecteur de l'enregistreur démarre : une version du compositeur en écoute s'arrête.
+document.addEventListener('layerpitch-capture-mark', e => {
+  if (e.detail && e.detail.name === 'track_play' && albumsState.playback) { stopOfficialPlayback(); renderAlbums(); }
+});
 
 function renderAlbumsLibrary() {
   const box = document.getElementById('albumsLibraryContainer');
@@ -11027,6 +11175,12 @@ async function saveAlbum(ai) {
     cents = Math.round(n * 100);
   }
   if (al.buyable && cents === null) { setAlbumMessage(al, tr('albumSellingNeedsPrice'), 'error'); return; }
+  // Mise en vente : chaque morceau doit avoir sa version du compositeur (même règle côté serveur).
+  if (al.buyable) {
+    if (!al.trackIds.length) { setAlbumMessage(al, tr('albumSellingNeedsTracks'), 'error'); return; }
+    const missing = al.trackIds.filter(id => !Object.prototype.hasOwnProperty.call(al.officialDurations || {}, id));
+    if (missing.length) { setAlbumMessage(al, tr('albumSellingNeedsVersions', { tracks: missing.map(albumTrackTitle).join(', ') }), 'error'); return; }
+  }
   setAlbumMessage(al, tr('albumSaving'), 'info');
   try {
     await loadPostgresReadScripts();
@@ -11041,6 +11195,9 @@ async function saveAlbum(ai) {
     }
     al.saved = true;
     al.savedBuyable = al.buyable;
+    al.savedTrackIds = al.trackIds.slice();
+    // Un morceau retiré de l'album perd sa version (la ligne album_tracks est supprimée côté serveur).
+    Object.keys(al.officialDurations || {}).forEach(id => { if (!al.trackIds.includes(id)) delete al.officialDurations[id]; });
     setAlbumMessage(al, tr('albumSaved'), 'ok');
   } catch (e) {
     setAlbumMessage(al, tr('albumSaveError', { error: e.message }), 'error');
@@ -11086,9 +11243,11 @@ async function claimTestAlbumFromUi(ai) {
     const ai = Number(btn.dataset.ai);
     if (btn.dataset.action === 'save-album') saveAlbum(ai);
     if (btn.dataset.action === 'claim-test-album') claimTestAlbumFromUi(ai);
+    if (btn.dataset.action === 'official-record') openOfficialRecorder(ai, btn.dataset.track);
+    if (btn.dataset.action === 'official-play') toggleOfficialPlayback(ai, btn.dataset.track);
   });
   document.getElementById('btnAddAlbum').addEventListener('click', () => {
-    albumsState.albums.push({ id: newAlbumId(), title: '', presentationFr: '', presentationEn: '', priceInput: '', buyable: false, trackIds: [], saved: false, savedBuyable: false });
+    albumsState.albums.push({ id: newAlbumId(), title: '', presentationFr: '', presentationEn: '', priceInput: '', buyable: false, trackIds: [], saved: false, savedBuyable: false, savedTrackIds: [], officialDurations: {} });
     renderAlbums();
   });
 })();

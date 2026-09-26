@@ -75,15 +75,16 @@ function makeWindow({ url, session, isAdmin }) {
   }
 
   // ---- Démo locale : trois morceaux ----
-  const { w, state, $ } = makeWindow({ url: 'http://localhost:8420/mes-albums.html?demo=1&ids=t1,t2,t3', session: null, isAdmin: false });
+  const { w, state, $ } = makeWindow({ url: 'http://localhost:8420/mes-albums.html?demo=1&ids=t1,t2,t3&official=t1', session: null, isAdmin: false });
   await wait(50);
   const doc = w.document;
   const rowsText = () => [...doc.querySelectorAll('.tracks tbody tr')].map(r => r.textContent.replace(/\s+/g, ' ').trim());
   check('enregistrement de l’atelier activé en permanence', state.recording === true);
-  check('album ouvert, trois morceaux, aucun avec version', rowsText().length === 3 && rowsText().every(t => /Pas encore de version/.test(t)));
+  check('album ouvert : t1 a la version du compositeur, t2 et t3 aucune', rowsText().length === 3 && /Version du compositeur/.test(rowsText()[0]) && /Pas encore de version/.test(rowsText()[1]) && /Pas encore de version/.test(rowsText()[2]));
 
-  // Figer dans l'atelier (t1), deux fois, puis version officielle (bouton admin présent en démo)
+  // Figer dans l'atelier (t1), deux fois ; la version du compositeur s'enregistre dans le Backstage, jamais ici
   $('tabAtelier').click();
+  check('aucun bouton « version de l’album » sur la page fan', !$('officialBtn'));
   check('onglet Atelier affiché, lecteur vivant du 1er morceau', !$('panelAtelier').hidden && doc.querySelector('#atelierPlayer .track').dataset.track === 't1');
   $('freezeBtn').click(); await wait(10);
   check('Figer sans écoute : message', /Rien à figer/.test($('freezeMsg').textContent));
@@ -93,17 +94,16 @@ function makeWindow({ url, session, isAdmin }) {
   state.liveTakes.t1 = take('t1', 45);
   $('freezeBtn').click(); await wait(20);
   const vnames = () => [...doc.querySelectorAll('#atelierVersions .v-row .v-name')].map(e => e.textContent.trim());
-  check('deux versions, la plus récente d’abord, sans nom = « Version 2 »', JSON.stringify(vnames()) === JSON.stringify(['Version 2', 'Calme']));
+  check('compositeur puis deux versions, la plus récente d’abord, sans nom = « Version 2 »', JSON.stringify(vnames().slice(1)) === JSON.stringify(['Version 2', 'Calme']));
   check('le lecteur vivant n’est pas reconstruit après Figer', doc.querySelectorAll('#atelierPlayer .track').length === 1);
-  check('sans version du compositeur, l’album joue la plus récente du fan', /Jouée dans l’album/.test(doc.querySelector('#atelierVersions .v-row').textContent));
-  $('officialBtn').click(); await wait(20);
-  check('version du compositeur en tête et jouée par défaut', /Version du compositeur/.test(vnames()[0]) && /Jouée dans l’album/.test(doc.querySelector('#atelierVersions .v-row').textContent));
+  check('version du compositeur en tête et jouée par défut', /Version du compositeur/.test(vnames()[0]) && /Jouée dans l’album/.test(doc.querySelector('#atelierVersions .v-row').textContent));
 
   // Atelier sur t3, une version
   doc.querySelector('[data-pick="t3"]').click();
   check('changer de morceau arrête le précédent', state.atelierStops.includes('t1') && doc.querySelector('#atelierPlayer .track').dataset.track === 't3');
   state.liveTakes.t3 = take('t3', 20);
   $('freezeBtn').click(); await wait(20);
+  check('sans version du compositeur, l’album joue la plus récente du fan', /Jouée dans l’album/.test(doc.querySelector('#atelierVersions .v-row').textContent));
 
   // Morceaux : t2 sauté ; choix d'une version pour t1
   $('tabTracks').click();

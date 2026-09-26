@@ -37,7 +37,7 @@ async function scenario({ testEnabled, saveResult, claimResult }) {
   let purchases = [];
   w.LayerPitchAuth = { getSession: async () => ({ session: { user: { id: 'user-1' } } }) };
   w.LayerPitchAlbums = {
-    listAlbums: async ({ sellerId }) => ({ albums: [{ id: 'alb_old', title: 'Déjà là', presentationFr: '', presentationEn: '', priceUsdCents: 300, buyable: true, trackIds: ['t2'] }], error: null, _seller: sellerId }),
+    listAlbums: async ({ sellerId }) => ({ albums: [{ id: 'alb_old', title: 'Déjà là', presentationFr: '', presentationEn: '', priceUsdCents: 300, buyable: true, trackIds: ['t2'], officialDurations: { t2: 30 } }], error: null, _seller: sellerId }),
     listMyPurchases: async () => ({ purchases, error: null }),
     getPlatformFlags: async () => ({ flags: { testPurchasesEnabled: testEnabled }, error: null }),
     upsertAlbum: async p => { calls.upsert.push(p); return saveResult(p); },
@@ -69,6 +69,9 @@ const click = (el) => el.dispatchEvent(new (el.ownerDocument.defaultView.MouseEv
   check('l\'album existant est affiché', cards.length === 1 && s.doc.querySelector('[data-album-field="title"]').value === 'Déjà là');
   check('prix minimum affiché en dollars (300 cts -> 3.00)', s.doc.querySelector('[data-album-field="priceInput"]').value === '3.00');
   check('bouton « Obtenir (test) » visible (album enregistré, en vente, interrupteur actif)', !!s.doc.querySelector('[data-action="claim-test-album"]'));
+  // Version du compositeur (A.7, 26/09) : t2 en a une (✓ 0:30, écoutable) ; bouton « Refaire »
+  const firstCard = () => s.doc.querySelectorAll('#albumsContainer .list-block')[0];
+  check('version du compositeur de t2 : ✓ 0:30, Écouter et Refaire', /✓ 0:30/.test(firstCard().textContent) && !!firstCard().querySelector('[data-action="official-play"][data-track="t2"]') && /Refaire/.test(firstCard().querySelector('[data-action="official-record"][data-track="t2"]').textContent));
   check('bibliothèque « albums obtenus » vide au départ', /Aucun album obtenu/.test(s.doc.getElementById('albumsLibraryContainer').textContent));
 
   click(s.doc.getElementById('btnAddAlbum'));
@@ -96,13 +99,25 @@ const click = (el) => el.dispatchEvent(new (el.ownerDocument.defaultView.MouseEv
   check('prix négatif : refusé côté client', s.calls.upsert.length === 0 && /invalide/i.test(s.doc.getElementById('albumsContainer').textContent));
 
   input(s.w, s.doc.querySelectorAll('[data-album-field="priceInput"]')[1], '3,5');
+  // En vente sans version du compositeur (A.7, 26/09) : refusé côté client, morceaux manquants nommés
+  click(s.doc.querySelectorAll('[data-action="save-album"]')[1]); await tick();
+  check('en vente sans versions du compositeur : refusé, morceaux nommés, aucun appel serveur', s.calls.upsert.length === 0 && /Manquante : Crépuscule, Forêt/.test(s.doc.getElementById('albumsContainer').textContent));
+  check('brouillon : les versions se préparent après l\'enregistrement', /Enregistre d’abord l’album/.test(s.doc.querySelectorAll('#albumsContainer .list-block')[1].textContent));
+  buyable = s.doc.querySelectorAll('[data-album-field="buyable"]')[1]; buyable.checked = false; change(s.w, buyable);
   click(s.doc.querySelectorAll('[data-action="save-album"]')[1]); await tick(); await tick();
   const p = s.calls.upsert[0];
   check('enregistrement : prix converti en centimes (3,5 -> 350)', p && p.priceUsdCents === 350);
-  check('enregistrement : pistes dans l\'ordre de cochage, en vente', p && p.trackIds.join() === 't3,t1' && p.buyable === true && p.title === 'Mon OST');
+  check('enregistrement : pistes dans l\'ordre de cochage, hors vente', p && p.trackIds.join() === 't3,t1' && p.buyable === false && p.title === 'Mon OST');
   check('enregistrement : id aléatoire préfixé alb_', p && /^alb_[a-z0-9]{8,}$/.test(p.id));
   check('après enregistrement : message « Album enregistré » et le badge disparaît', /Album enregistré/.test(s.doc.getElementById('albumsContainer').textContent) && !/non enregistré/.test(s.doc.getElementById('albumsContainer').textContent));
-  check('après enregistrement : le bouton test apparaît sur le nouvel album', s.doc.querySelectorAll('[data-action="claim-test-album"]').length === 2);
+  const newCard = () => s.doc.querySelectorAll('#albumsContainer .list-block')[1];
+  check('après enregistrement : chaque morceau « Manquante » avec « Enregistrer la version »', (newCard().textContent.match(/Manquante/g) || []).length === 2 && newCard().querySelectorAll('[data-action="official-record"]').length === 2 && !newCard().querySelector('[data-action="official-play"]'));
+  // Versions enregistrées (état simulé, comme après l'enregistreur) : la mise en vente passe
+  s.t.albumsState.albums[1].officialDurations = { t3: 61, t1: 42 };
+  buyable = s.doc.querySelectorAll('[data-album-field="buyable"]')[1]; buyable.checked = true; change(s.w, buyable);
+  click(s.doc.querySelectorAll('[data-action="save-album"]')[1]); await tick(); await tick();
+  check('toutes les versions : mise en vente envoyée au serveur', s.calls.upsert.length === 2 && s.calls.upsert[1].buyable === true);
+  check('après mise en vente : le bouton test apparaît sur le nouvel album', s.doc.querySelectorAll('[data-action="claim-test-album"]').length === 2);
 
   click(s.doc.querySelectorAll('[data-action="claim-test-album"]')[0]); await tick(); await tick();
   check('achat de test : appel serveur sur le bon album', s.calls.claim.join() === 'alb_old');

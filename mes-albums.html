@@ -14,11 +14,13 @@
       Un morceau sans aucune version est sauté.
     - L'ATELIER joue le morceau vivant (lecteur adaptatif habituel). L'enregistrement tourne en permanence : « Figer »
       garde ce que le fan vient d'entendre (décision du 26/09). L'atelier et la barre ne jouent jamais en même temps.
-  Mode démo, en local seulement (localhost, ?demo=1&ids=t1,t2) : mêmes écrans, versions gardées en mémoire, sans connexion.
+  La version du compositeur s'enregistre dans le Backstage (onglet Albums, étape A.7), jamais ici.
+  Mode démo, en local seulement (localhost, ?demo=1&ids=t1,t2) : mêmes écrans, versions gardées en mémoire, sans connexion ;
+  &official=t1 donne à t1 une fausse version du compositeur (tests).
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790457193553">
+<link rel="stylesheet" href="player.css?v=1790457926036">
 <style>
   :root {
     --bg: #f6f5f3; --bg-card: #ffffff; --bg-side: #efede9; --border: #e4e1da;
@@ -172,15 +174,15 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790457193553"></script>
-<script src="layerpitch-notify.js?v=1790457193553"></script>
-<script src="player.js?v=1790457193553"></script>
-<script src="capture-render.js?v=1790457193553"></script>
-<script src="api/supabase-client.js?v=1790457193553"></script>
-<script src="api/auth.js?v=1790457193553"></script>
-<script src="api/tracks.js?v=1790457193553"></script>
-<script src="api/sfx.js?v=1790457193553"></script>
-<script src="api/albums.js?v=1790457193553"></script>
+<script src="layerpitch-i18n.js?v=1790457926036"></script>
+<script src="layerpitch-notify.js?v=1790457926036"></script>
+<script src="player.js?v=1790457926036"></script>
+<script src="capture-render.js?v=1790457926036"></script>
+<script src="api/supabase-client.js?v=1790457926036"></script>
+<script src="api/auth.js?v=1790457926036"></script>
+<script src="api/tracks.js?v=1790457926036"></script>
+<script src="api/sfx.js?v=1790457926036"></script>
+<script src="api/albums.js?v=1790457926036"></script>
 <script>
 (async () => {
   const P = window.LayerPlayerCore, R = window.LayerCaptureRender;
@@ -237,11 +239,11 @@
       async save(albumId, trackId, name, take) { const r = await A.saveMyTrackVersion(albumId, trackId, name, take); if (!r.ok) throw new Error(r.error); return r.id; },
       async rename(id, name) { const r = await A.renameMyTrackVersion(id, name); if (!r.ok) throw new Error(r.error); },
       async remove(id) { const r = await A.deleteMyTrackVersion(id); if (!r.ok) throw new Error(r.error); },
-      async setOfficial(albumId, trackId, take) { const r = await A.setAlbumTrackOfficialTake(albumId, trackId, take); if (!r.ok) throw new Error(r.error); },
     };
   }
   function demoStore(ids) {
     const trackIds = ids.split(',').filter(Boolean), versions = [], official = {}, chosen = {};
+    (params.get('official') || '').split(',').filter(Boolean).forEach(t => { official[t] = { v: 1, kind: 'layerpitch-take', trackId: t, duration: 21, voices: [], sfx: [] }; });
     return {
       async albums() { return [{ id: 'demo', title: 'Album de démonstration', illustration: null, presentation: 'Mode démo local : rien n’est enregistré.' }]; },
       async album() { return { tracks: trackIds.map((t, i) => ({ trackId: t, position: i, official: official[t] || null })), versions: versions.slice().reverse() }; },
@@ -250,17 +252,14 @@
       async save(albumId, trackId, name, take) { const id = 'v' + (versions.length + 1); versions.push({ id, trackId, name, take, createdAt: new Date().toISOString() }); return id; },
       async rename(id, name) { const v = versions.find(x => x.id === id); if (v) v.name = name; },
       async remove(id) { const i = versions.findIndex(v => v.id === id); if (i >= 0) versions.splice(i, 1); },
-      async setOfficial(albumId, trackId, take) { official[trackId] = take; },
     };
   }
 
   // ---- Accès : connecté ET admin pendant la bêta (hors démo locale) ----
-  let isAdmin = demo;
   if (!demo) {
     const { session } = await window.LayerPitchAuth.getSession();
     if (!session) { notice(`${esc(tr('signedOut'))}<br><a href="bienvenue.html">${esc(tr('signInLink'))}</a>`); $('bar').hidden = true; return; }
-    const { data } = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin');
-    isAdmin = !!data;
+    const { data: isAdmin } = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin');
     if (!isAdmin) { notice(esc(tr('adminOnly'))); $('bar').hidden = true; return; }
   }
 
@@ -416,7 +415,6 @@
       <div class="freeze" style="margin-top:14px">
         <input type="text" id="freezeName" maxlength="120" placeholder="${esc(tr('freezeNamePlaceholder'))}" aria-label="${esc(tr('freezeNamePlaceholder'))}">
         <button type="button" class="btn primary" id="freezeBtn">${esc(tr('freezeBtn'))}</button>
-        ${isAdmin ? `<button type="button" class="btn" id="officialBtn">${esc(tr('officialBtn'))}</button>` : ''}
       </div>
       <div class="msg" id="freezeMsg" role="status"></div>
       <div class="versions" id="atelierVersions"></div>`;
@@ -425,7 +423,6 @@
     if (atelierMountedFor && atelierMountedFor.trackId === atelierTrackId) $('atelierPlayer').appendChild(atelierMountedFor.row);
     else mountAtelierPlayer(t);
     $('freezeBtn').onclick = () => freeze(t);
-    if ($('officialBtn')) $('officialBtn').onclick = () => saveOfficial(t);
     renderAtelierVersions();
   }
   function mountAtelierPlayer(t) {
@@ -453,12 +450,6 @@
       say(tr('freezeDone', { duration: fmt(take.duration) }));
     } catch (e) { say(tr('errorMsg', { error: e.message })); }
     finally { btn.disabled = false; }
-  }
-  async function saveOfficial(t) {
-    const take = currentTake(t);
-    if (!take) { say(tr('freezeNothing')); return; }
-    try { await store.setOfficial(album.id, t.track.id, take); await reloadVersions(); say(tr('officialDone')); }
-    catch (e) { say(tr('errorMsg', { error: e.message })); }
   }
   // Recharge versions et version officielle sans toucher au lecteur vivant.
   async function reloadVersions() {
