@@ -102,6 +102,42 @@ function check(label, cond) { console.log((cond ? 'OK   ' : 'FAIL ') + label); i
   const cleaned = window.eval('fxSlidersClean')([slIntensity, slHealth]);
   check('enregistrement : zones conservées', JSON.stringify(cleaned[0].intensity) === '{"bounds":[0.3,0.6]}' && !('intensity' in cleaned[1]));
 
+  // ---- Outil vidéo : les calques d'un morceau piloté par curseur suivent les points du curseur ----
+  window.eval(fs.readFileSync(path.join(__dirname, 'capture-plan.js'), 'utf-8'));
+  const P = window.LayerCapturePlan;
+  const capTrack = vertical({ id: 'v3', fxSliders: [slIntensity] });
+  const findTrack = id => (id === 'v3' ? capTrack : null);
+  const segs = evs => evs.filter(e => e.name === 'layer_segment').map(e => e.detail.layerIndex + ':' + (+e.t.toFixed(2)) + '-' + (+(e.t + e.detail.duration).toFixed(2))).sort().join(' ');
+  // Prise : départ à 50 % (intensité 2) à 1 s, curseur à 80 % à 5 s (intensité 3), arrêt à 20 s.
+  const raw = [
+    { t: 1, name: 'track_play', detail: { trackId: 'v3', mode: 'vertical', level: 1 } },
+    { t: 5, name: 'fx_slider', detail: { trackId: 'v3', sliderId: 's1', value: 0.8 } },
+    { t: 5, name: 'intensity_change', detail: { trackId: 'v3', level: 2 } },
+    { t: 20, name: 'voices_stop', detail: { trackId: 'v3' } }
+  ];
+  const cap = P.materialize(raw, findTrack);
+  check('prise : couches 1 et 2 dès 1 s, couche 3 dès 5 s', segs(cap) === '0:1-20 1:1-20 2:5-20');
+  const before = cap.length;
+  P.syncSliderIntensityLayers(cap, findTrack);
+  check('recalcul sans retouche : rien ne bouge (pas de bloc rallongé ni dupliqué)', segs(cap) === '0:1-20 1:1-20 2:5-20' && cap.length === before);
+  cap.find(e => e.name === 'fx_slider').t = 10;
+  P.syncSliderIntensityLayers(cap, findTrack);
+  check('point du curseur déplacé à 10 s : la couche 3 entre à 10 s', segs(cap) === '0:1-20 1:1-20 2:10-20');
+  cap.find(e => e.name === 'fx_slider').detail.value = 0.1;
+  P.syncSliderIntensityLayers(cap, findTrack);
+  check('valeur du point passée à 10 % : retour à l\'intensité 1 à 10 s', segs(cap) === '0:1-20 1:1-10');
+  cap.push({ t: 15, name: 'fx_slider', detail: { trackId: 'v3', sliderId: 's1', value: 0.65 } });
+  P.syncSliderIntensityLayers(cap, findTrack);
+  check('point ajouté à 15 s (65 %) : intensité 3 à 15 s', segs(cap) === '0:1-20 1:1-10 1:15-20 2:15-20');
+  cap.push({ t: 0.5, name: 'fx_slider', detail: { trackId: 'v3', sliderId: 's1', value: 1 } });
+  P.syncSliderIntensityLayers(cap, findTrack);
+  check('point avant le lancement : sans effet (le lecteur repart de la position de départ)', segs(cap) === '0:1-20 1:1-10 1:15-20 2:15-20');
+  const btnTrack = vertical({ id: 'v3', fxSliders: [slHealth] });
+  const capBtn = P.materialize(raw, () => btnTrack);
+  const segBtn = segs(capBtn);
+  P.syncSliderIntensityLayers(capBtn, () => btnTrack);
+  check('morceau à boutons : calques libres, jamais recalculés', segs(capBtn) === segBtn);
+
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est OK');
   process.exit(failures ? 1 : 0);
 })();

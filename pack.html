@@ -646,12 +646,12 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790436407258"></script>
-<script src="layerpitch-notify.js?v=1790436407258"></script>
-<script src="public-page.js?v=1790436407258"></script>
-<script src="player.js?v=1790436407258"></script>
-<script src="capture-plan.js?v=1790436407258"></script>
-<script src="capture-render.js?v=1790436407258"></script>
+<script src="layerpitch-i18n.js?v=1790436862461"></script>
+<script src="layerpitch-notify.js?v=1790436862461"></script>
+<script src="public-page.js?v=1790436862461"></script>
+<script src="player.js?v=1790436862461"></script>
+<script src="capture-plan.js?v=1790436862461"></script>
+<script src="capture-render.js?v=1790436862461"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1230,6 +1230,9 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     return;
   }
   const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl);
+  // Calques d'un morceau dont l'intensité suit un curseur (26/09) : recalculés à partir des points du curseur à chaque
+  // affichage -- donc après chaque retouche d'un point (glisser, valeur, ajout, suppression).
+  if (editable) window.LayerCapturePlan.syncSliderIntensityLayers(events, findCaptureTrack);
   const intensityEvents = events.filter(e => e.name === 'intensity_change').sort((a, b) => a.t - b.t);
   const embrEvents = events.filter(e => e.name === 'embr_loop_select').sort((a, b) => a.t - b.t);
   const stingerEvents = events.filter(e => e.name === 'stinger_play');
@@ -1411,17 +1414,22 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         // son propre début + durée, comme un stinger, sans lien avec les autres calques ni avec un
         // quelconque "niveau". Se déplace/se redimensionne seul (voir startDrag), sans jamais bouger un
         // autre bloc.
+        // Intensité pilotée par un curseur : blocs déduits de ses points (voir syncSliderIntensityLayers), donc non
+        // déplaçables ici -- on retouche le curseur, pas les calques.
+        const intensitySl = window.LayerCapturePlan.intensitySliderOf(track);
+        const layerEditable = editable && !intensitySl;
+        const lockedTitle = intensitySl ? tr('captureLayerFollowsSlider').replace('{label}', intensitySl.label || tr('fxSliderFallbackLabel').replace('{n}', 1)) : '';
         layers.forEach((layer, levelIdx) => {
           let blocksHtml = '';
           trackLayerEvents.filter(e => e.detail.layerIndex === levelIdx).forEach(e => {
-            const idx = events.indexOf(e);
+            const idx = layerEditable ? events.indexOf(e) : -1;
             const end = e.t + e.detail.duration;
-            blocksHtml += `<div class="vct-block vct-layer" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(end) - pct(e.t)}%">` +
-              (editable ? `<div class="vct-resize-handle" title="${tr('captureResizeHint')}"></div>` : '') + `</div>`;
+            blocksHtml += `<div class="vct-block vct-layer" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(end) - pct(e.t)}%${intensitySl ? ';cursor:default' : ''}"${intensitySl ? ` title="${window.LayerPlayerCore.escapeHtml(lockedTitle)}"` : ''}>` +
+              (layerEditable ? `<div class="vct-resize-handle" title="${tr('captureResizeHint')}"></div>` : '') + `</div>`;
           });
           const laneLabel = captureLaneLabel(track, levelIdx, laneOverrides);
-          const addAttrs = editable ? ` data-addable="layer" data-add-track-id="${trackId}" data-add-level="${levelIdx}"` : '';
-          nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" data-lane-kind="layer" data-track-id="${trackId}" data-level="${levelIdx}" title="${editable ? tr('captureRenameHint') : ''}">${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddLayerHint') : ''}">${blocksHtml}</div></div>`;
+          const addAttrs = layerEditable ? ` data-addable="layer" data-add-track-id="${trackId}" data-add-level="${levelIdx}"` : '';
+          nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" data-lane-kind="layer" data-track-id="${trackId}" data-level="${levelIdx}" title="${editable ? tr('captureRenameHint') : ''}">${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${addAttrs} title="${layerEditable ? tr('captureAddLayerHint') : lockedTitle}">${blocksHtml}</div></div>`;
         });
       } else {
         // Pas encore matérialisé : aperçu en direct pendant l'enregistrement (toujours en lecture seule,

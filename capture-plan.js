@@ -88,6 +88,67 @@
   // layer_segment, un par calque et par plage continue où il est actif (Jules-Antoine, 15/09 : chaque calque a son
   // propre interrupteur). Le niveau de départ d'une écoute est celui que le lecteur annonce à son démarrage (repère
   // layer_run / layer_gen), sinon 0. Statique : chaque démarrage donne un segment. track_play est conservé comme repère.
+  // Fin des voix d'un morceau dans une capture : son dernier arrêt (repère posé à l'arrêt de la prise) ; à défaut
+  // (capture ancienne), la fin de la capture.
+  function trackEndOf(events, trackId, total) {
+    const stops = events.filter(e => e.name === 'voices_stop' && e.detail.trackId === trackId && !e.detail.scope).map(e => e.t);
+    return stops.length ? Math.max(...stops) : total;
+  }
+  // Points d'intensité datés [{t, level}] (triés) -> segments de calque layer_segment indépendants, un par calque et
+  // par plage continue où il est actif (empilage cumulatif : l'intensité 2 allume les calques 1 et 2).
+  function layerSegmentsFromLevels(trackId, track, points, trackEnd) {
+    const out = [];
+    const numLayers = (track.layers || []).length;
+    const cumulative = C().cumulativeProfiles(numLayers);
+    const windows = points.map((p, i) => ({ level: p.level, start: p.t, end: i + 1 < points.length ? points[i + 1].t : Math.max(trackEnd, p.t) }));
+    for (let layerIndex = 0; layerIndex < numLayers; layerIndex++) {
+      let run = null;
+      windows.forEach(w => {
+        const profile = cumulative[w.level] || cumulative[0];
+        const active = profile && !!profile[layerIndex];
+        if (active && run && run.end === w.start) { run.end = w.end; return; }
+        if (run) out.push({ t: run.start, name: 'layer_segment', detail: { trackId, layerIndex, duration: run.end - run.start } });
+        run = active ? { start: w.start, end: w.end } : null;
+      });
+      if (run) out.push({ t: run.start, name: 'layer_segment', detail: { trackId, layerIndex, duration: run.end - run.start } });
+    }
+    return out;
+  }
+  // Intensité pilotée par un curseur (26/09) : les calques d'un tel morceau ne sont PAS des blocs libres -- ils se
+  // déduisent des points-clés du curseur, comme les seuils (voir deriveSliderTriggerChanges) : chaque démarrage donne
+  // le niveau annoncé par le lecteur (repère track_play), puis chaque point-clé du curseur donne le niveau de sa zone.
+  // Déplacer ou modifier un point du curseur dans la frise déplace donc aussi le changement d'intensité. Modifie
+  // `events` SUR PLACE (la frise travaille sur ce tableau-là) et ne touche à rien si le résultat est déjà à jour.
+  function intensitySliderOf(track) {
+    if (!track || track.mode !== 'vertical') return null;
+    return C().fxSlidersValid(track).find(sl => sl.intensity) || null;
+  }
+  function syncSliderIntensityLayers(events, findTrack) {
+    // Fin de repli (capture sans repère d'arrêt) : comme à la matérialisation, SANS compter les calques eux-mêmes --
+    // sinon chaque recalcul rallongerait le dernier bloc.
+    const total = Math.max(0, ...events.filter(e => e.name !== 'layer_segment').map(e => e.t)) + TAIL;
+    const trackIds = [...new Set(events.filter(e => e.name === 'track_play').map(e => e.detail.trackId))];
+    trackIds.forEach(trackId => {
+      const track = findTrack(trackId);
+      const sl = intensitySliderOf(track);
+      if (!sl) return;
+      const starts = events.filter(e => e.name === 'track_play' && e.detail.trackId === trackId).map(e => ({ t: e.t, level: e.detail.level || 0, start: true }));
+      const firstStart = Math.min(...starts.map(p => p.t));
+      // Un point du curseur AVANT le premier démarrage est sans effet : le lecteur remet le curseur à sa position de
+      // départ en lançant le morceau (niveau porté par track_play).
+      const keys = events.filter(e => e.name === 'fx_slider' && e.detail.trackId === trackId && e.detail.sliderId === sl.id && e.t >= firstStart)
+        .map(e => ({ t: e.t, level: C().fxSliderIntensityLevel(sl.intensity, e.detail.value) }));
+      const points = starts.concat(keys).sort((a, b) => a.t - b.t || (b.start ? 1 : 0) - (a.start ? 1 : 0));
+      const fresh = layerSegmentsFromLevels(trackId, track, points, trackEndOf(events, trackId, total));
+      const current = events.filter(e => e.name === 'layer_segment' && e.detail.trackId === trackId);
+      const sig = list => list.map(e => e.detail.layerIndex + '@' + e.t.toFixed(3) + '+' + e.detail.duration.toFixed(3)).sort().join('|');
+      if (sig(fresh) === sig(current)) return;
+      current.forEach(e => events.splice(events.indexOf(e), 1));
+      events.push(...fresh);
+      events.sort((a, b) => a.t - b.t);
+    });
+    return events;
+  }
   function materializeLayerSegments(events, findTrack) {
     const intensityEvents = events.filter(e => e.name === 'intensity_change');
     const startEvents = events.filter(e => e.name === 'track_play' || e.name === 'layer_run' || e.name === 'layer_gen');
@@ -103,29 +164,13 @@
     // Fin d'une capture : le dernier arrêt des voix du morceau (repère posé à l'arrêt de la prise) ; à défaut (capture
     // ancienne), le dernier évènement plus la marge.
     const total = Math.max(0, ...events.map(e => e.t)) + TAIL;
-    const endOf = trackId => { const stops = events.filter(e => e.name === 'voices_stop' && e.detail.trackId === trackId && !e.detail.scope).map(e => e.t); return stops.length ? Math.max(...stops) : total; };
     const layerSegmentEvents = [];
     const consumedStatic = [];
     Object.keys(byTrack).forEach(trackId => {
       const track = findTrack(trackId);
       if (!track || track.mode !== 'vertical') return;
       const sorted = byTrack[trackId].slice().sort((a, b) => a.t - b.t);
-      // Un changement d'intensité ANTÉRIEUR au premier démarrage règle seulement le niveau de départ.
-      const numLayers = (track.layers || []).length;
-      const cumulative = C().cumulativeProfiles(numLayers);
-      const trackEnd = endOf(trackId);
-      const windows = sorted.map((e, i) => ({ level: e.detail.level, start: e.t, end: i + 1 < sorted.length ? sorted[i + 1].t : Math.max(trackEnd, e.t) }));
-      for (let layerIndex = 0; layerIndex < numLayers; layerIndex++) {
-        let run = null;
-        windows.forEach(w => {
-          const profile = cumulative[w.level] || cumulative[0];
-          const active = profile && !!profile[layerIndex];
-          if (active && run && run.end === w.start) { run.end = w.end; return; }
-          if (run) layerSegmentEvents.push({ t: run.start, name: 'layer_segment', detail: { trackId, layerIndex, duration: run.end - run.start } });
-          run = active ? { start: w.start, end: w.end } : null;
-        });
-        if (run) layerSegmentEvents.push({ t: run.start, name: 'layer_segment', detail: { trackId, layerIndex, duration: run.end - run.start } });
-      }
+      layerSegmentEvents.push(...layerSegmentsFromLevels(trackId, track, sorted.map(e => ({ t: e.t, level: e.detail.level })), trackEndOf(events, trackId, total)));
     });
     const staticByTrack = {};
     events.filter(e => e.name === 'layer_run' || (e.name === 'track_play' && !events.some(r => r.name === 'layer_run' && r.detail.trackId === e.detail.trackId))).forEach(pe => {
@@ -222,7 +267,7 @@
   }
   // Idempotent : une passe additive mélange des évènements déjà matérialisés et des évènements bruts.
   function materialize(events, findTrack) {
-    return materializeCaptureExtras(materializeEmbrSwitches(materializeLayerSegments(events, findTrack), findTrack));
+    return syncSliderIntensityLayers(materializeCaptureExtras(materializeEmbrSwitches(materializeLayerSegments(events, findTrack), findTrack)), findTrack);
   }
 
   // Repères liés à une bascule d'embranchement (sa clé k et, de proche en proche, les bascules qu'elle a armées) : ils
@@ -294,6 +339,7 @@
   // windows (embr / seq / vr, par morceau) pour les incrustations de l'export vidéo.
   function buildPlan(events, opts) {
     const findTrack = opts.findTrack, findSfx = opts.findSfx;
+    events = syncSliderIntensityLayers(events.slice(), findTrack); // calques pilotés par un curseur : toujours à jour
     const R = C().CAPTURE_RAMPS;
     const total = opts.total != null ? opts.total : captureTotal(events);
     const voices = [];
@@ -557,7 +603,7 @@
     SEQ_TIMELINE_EVENT_NAMES, VR_TIMELINE_EVENT_NAMES, CAPTURE_MARK_NAMES, TAIL,
     resolveSeqAlternative, resolveSeqTransition, resolveVRSection,
     buildSeqTimelineWindows, buildVRTimelineWindows, buildEmbrTimelineWindows,
-    materializeLayerSegments, materializeEmbrSwitches, materializeCaptureExtras, materialize, decimateHeadTurns, decimateSliderKeys,
+    materializeLayerSegments, materializeEmbrSwitches, syncSliderIntensityLayers, intensitySliderOf, materializeCaptureExtras, materialize, decimateHeadTurns, decimateSliderKeys,
     linkedMarks, captureTotal, envAt, automation, mixTimeline, buildPlan
   };
 })();
