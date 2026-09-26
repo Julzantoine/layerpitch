@@ -1779,9 +1779,10 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790367939663"></script>
-<script src="layerpitch-help.js?v=1790367939663"></script>
-<script src="player.js?v=1790367939663"></script>
+<script src="layerpitch-i18n.js?v=1790424521522"></script>
+<script src="layerpitch-notify.js?v=1790424521522"></script>
+<script src="layerpitch-help.js?v=1790424521522"></script>
+<script src="player.js?v=1790424521522"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2081,14 +2082,14 @@ function syncAdminPreviewUi(status) {
   if (label && active) label.textContent = tr('adminPreviewBanner', { plan: (ACCOUNT_MENU_PLAN_LABELS[status.plan] || status.plan) });
 }
 async function setAdminPreviewTier(tier) {
-  if (typeof hasUnsavedEdits !== 'undefined' && hasUnsavedEdits && !confirm(tr('adminPreviewUnsavedConfirm'))) {
+  if (typeof hasUnsavedEdits !== 'undefined' && hasUnsavedEdits && !(await window.LayerPitchNotify.confirm(tr('adminPreviewUnsavedConfirm'), { danger: true }))) {
     const { session } = await window.LayerPitchAuth.getSession();
     await renderSubscriptionPanel(session); // remet le sélecteur sur l'état réel
     return;
   }
   await loadPostgresReadScripts();
   const { ok, error } = await window.LayerPitchSubscriptions.setMyPreviewTier(tier);
-  if (!ok) { alert(tr('adminPreviewError') + ' ' + error); return; }
+  if (!ok) { window.LayerPitchNotify.error(tr('adminPreviewError') + ' ' + error); return; }
   // Rechargement : tout ce qui dépend du palier (apparence, forme d'onde, quotas, analytique...) est
   // évalué à des dizaines d'endroits -- plus fiable que de tous les redessiner un par un. Le choix
   // est mémorisé côté serveur, il survit au rechargement.
@@ -2199,7 +2200,7 @@ async function renderAccessRequestsList() {
     btn.addEventListener('click', async () => {
       btn.disabled = true;
       const { ok, error } = await window.LayerPitchAccessRequests.deleteAccessRequest(Number(btn.dataset.deleteRequestId));
-      if (!ok) { alert('Erreur : ' + error); btn.disabled = false; return; }
+      if (!ok) { window.LayerPitchNotify.error('Erreur : ' + error); btn.disabled = false; return; }
       renderAccessRequestsList();
     });
   });
@@ -2233,7 +2234,7 @@ async function renderInvitesSentList() {
     btn.addEventListener('click', async () => {
       btn.disabled = true;
       const { ok, error } = await window.LayerPitchInvites.deleteInvite(Number(btn.dataset.inviteId));
-      if (!ok) { alert('Erreur : ' + error); btn.disabled = false; return; }
+      if (!ok) { window.LayerPitchNotify.error('Erreur : ' + error); btn.disabled = false; return; }
       renderInvitesSentList();
     });
   });
@@ -2466,13 +2467,13 @@ async function initPgAuthUi() {
   if (!sendBtn) return;
   sendBtn.addEventListener('click', async () => {
     const email = document.getElementById('pgAuthEmail').value.trim();
-    if (!email) { alert('Renseigne ton email.'); return; }
+    if (!email) { window.LayerPitchNotify.info('Renseigne ton email.'); return; }
     sendBtn.disabled = true;
     try {
       await loadPostgresReadScripts();
       const { ok, error } = await window.LayerPitchAuth.signInWithMagicLink(email, window.location.href);
-      alert(ok ? 'Lien envoyé — vérifie ta boîte mail.' : ('Erreur : ' + error));
-    } catch (e) { alert('Erreur : ' + e.message); }
+      if (ok) window.LayerPitchNotify.success('Lien envoyé — vérifie ta boîte mail.'); else window.LayerPitchNotify.error('Erreur : ' + error);
+    } catch (e) { window.LayerPitchNotify.error('Erreur : ' + e.message); }
     sendBtn.disabled = false;
   });
   const verifyCodeBtn = document.getElementById('btnPgVerifyCode');
@@ -2480,13 +2481,13 @@ async function initPgAuthUi() {
     verifyCodeBtn.addEventListener('click', async () => {
       const email = document.getElementById('pgAuthEmail').value.trim();
       const code = document.getElementById('pgAuthCode').value.trim();
-      if (!email || !code) { alert('Renseigne ton email et le code reçu.'); return; }
+      if (!email || !code) { window.LayerPitchNotify.info('Renseigne ton email et le code reçu.'); return; }
       verifyCodeBtn.disabled = true;
       try {
         await loadPostgresReadScripts();
         const { ok, error } = await window.LayerPitchAuth.verifyEmailOtp(email, code);
-        if (!ok) alert('Erreur : ' + error);
-      } catch (e) { alert('Erreur : ' + e.message); }
+        if (!ok) window.LayerPitchNotify.error('Erreur : ' + error);
+      } catch (e) { window.LayerPitchNotify.error('Erreur : ' + e.message); }
       verifyCodeBtn.disabled = false;
     });
   }
@@ -2503,7 +2504,7 @@ async function initPgAuthUi() {
       const email = document.getElementById('inviteTesterEmail').value.trim();
       const lang = document.getElementById('inviteTesterLang').value === 'en' ? 'en' : 'fr';
       const personalMessage = document.getElementById('inviteTesterMessage').value.trim();
-      if (!email) { alert('Renseigne l\'email du testeur.'); return; }
+      if (!email) { window.LayerPitchNotify.info('Renseigne l\'email du testeur.'); return; }
       inviteBtn.disabled = true;
       try {
         await loadPostgresReadScripts();
@@ -2518,7 +2519,7 @@ async function initPgAuthUi() {
           ? Number(emailFieldForRequestId.dataset.pendingRequestId) : null;
         const { ok, error, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html?lang=' + lang, personalMessage, pendingRequestId, lang);
         if (ok) {
-          alert('Invitation envoyée à ' + email + '.');
+          window.LayerPitchNotify.success('Invitation envoyée à ' + email + '.');
           // Si cette invitation part d'une demande d'accès en attente (bouton "Inviter" de la
           // liste ci-dessus), la marquer traitée maintenant que l'envoi a réellement réussi --
           // jamais avant, pour ne pas perdre une demande si l'envoi avait échoué.
@@ -2535,11 +2536,11 @@ async function initPgAuthUi() {
         } else if (actionLink) {
           // Compte créé mais email jamais parti (Resend en échec) -- le lien de secours doit être
           // transmis à la main plutôt que de perdre l'invitation.
-          alert('Erreur : ' + error + '\n\nLien à transmettre toi-même à ' + email + ' :\n' + actionLink);
+          window.LayerPitchNotify.error('Erreur : ' + error + '\n\nLien à transmettre toi-même à ' + email + ' :\n' + actionLink);
         } else {
-          alert('Erreur : ' + error);
+          window.LayerPitchNotify.error('Erreur : ' + error);
         }
-      } catch (e) { alert('Erreur : ' + e.message); }
+      } catch (e) { window.LayerPitchNotify.error('Erreur : ' + e.message); }
       inviteBtn.disabled = false;
     });
   }
@@ -4120,10 +4121,10 @@ function renderOrgMasterList(masterHost, items, folders, collapsedFolderIds, opt
 // Supprime un dossier de façon non destructrice (20/08, généralisé) : demande confirmation seulement s'il
 // contient encore des éléments, et les fait remonter à la racine plutôt que de les supprimer -- un
 // AdReel/Sfx/morceau contient trop de travail pour risquer une perte accidentelle sur un simple clic de
-// dossier. Renvoie true si la suppression a eu lieu (pour laisser l'appelant décider de re-rendre ou non).
-function deleteOrgFolder(folders, items, folderId) {
+// dossier. Renvoie (promesse) true si la suppression a eu lieu (pour laisser l'appelant décider de re-rendre ou non).
+async function deleteOrgFolder(folders, items, folderId) {
   const hasItems = items.some(it => it.folderId === folderId);
-  if (hasItems && !confirm(tr('deleteOrgFolderConfirm'))) return false;
+  if (hasItems && !(await window.LayerPitchNotify.confirm(tr('deleteOrgFolderConfirm')))) return false;
   items.forEach(it => { if (it.folderId === folderId) it.folderId = null; });
   const idx = folders.findIndex(f => f.id === folderId);
   if (idx !== -1) folders.splice(idx, 1);
@@ -4657,7 +4658,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   const folderDeleteBtn = e.target.closest('[data-action="delete-adreel-folder"]');
   if (folderDeleteBtn) {
     const fid = folderDeleteBtn.dataset.folderId;
-    if (deleteOrgFolder(adReelFolders, adReels, fid)) {
+    if (await deleteOrgFolder(adReelFolders, adReels, fid)) {
       collapsedAdReelFolderIds.delete(fid);
       hasUnsavedEdits = true;
       renderManageAdreels();
@@ -4673,42 +4674,42 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   const copyBtn = e.target.closest('[data-action="copy-adreel-url-manage"]');
   if (copyBtn) {
     const url = computeAdReelUrl(copyBtn.dataset.id);
-    if (!url) { alert(tr('adreelUrlPending')); return; }
+    if (!url) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(done).catch(() => { alert(tr('copyFailedAlert')); });
-    } else { alert(tr('copyFailedAlert')); }
+      navigator.clipboard.writeText(url).then(done).catch(() => { window.LayerPitchNotify.error(tr('copyFailedAlert')); });
+    } else { window.LayerPitchNotify.error(tr('copyFailedAlert')); }
     return;
   }
   const shareBtn = e.target.closest('[data-action="share-adreel-url-manage"]');
   if (shareBtn) {
     const shareUrl = computeAdReelUrl(shareBtn.dataset.id);
-    if (!shareUrl) { alert(tr('adreelUrlPending')); return; }
+    if (!shareUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
     const ar = adReels.find(a => a.id === shareBtn.dataset.id);
     const result = await shareViaSocialsOrFallback(shareUrl, (ar && ar.label) || 'LayerPitch');
     if (result === 'copied') {
       const original = shareBtn.textContent;
       shareBtn.textContent = tr('copiedStatus');
       setTimeout(() => { shareBtn.textContent = original; }, 1500);
-    } else if (result === 'unavailable') { alert(tr('copyFailedAlert')); }
+    } else if (result === 'unavailable') { window.LayerPitchNotify.error(tr('copyFailedAlert')); }
     return;
   }
 });
 document.getElementById('adReelSelect').addEventListener('change', e => switchAdReel(e.target.value));
 document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
   const url = computeAdReelUrl(currentAdReelId);
-  if (!url) { alert(tr('adreelUrlPending')); return; }
+  if (!url) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
   const btn = document.getElementById('btnCopyAdReelUrl');
   const done = () => { const original = btn.textContent; btn.textContent = tr('copiedStatus'); setTimeout(() => { btn.textContent = original; }, 1500); };
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(url).then(done).catch(() => { alert(tr('copyFailedAlert')); });
+    navigator.clipboard.writeText(url).then(done).catch(() => { window.LayerPitchNotify.error(tr('copyFailedAlert')); });
   } else {
-    alert(tr('copyFailedAlert'));
+    window.LayerPitchNotify.error(tr('copyFailedAlert'));
   }
 });
 document.getElementById('btnEmbedAdReelTracks').addEventListener('click', () => {
   const baseUrl = computeAdReelUrl(currentAdReelId);
-  if (!baseUrl) { alert(tr('adreelUrlPending')); return; }
+  if (!baseUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
   const ar = adReels.find(a => a.id === currentAdReelId);
   // computeAdReelUrl('main') ne contient pas encore de "?" (juste la racine) -- &embed=1 supposerait à
   // tort un "?" déjà présent, contrairement à computePackUrl/computeCollectionUrl (toujours "?id=...").
@@ -4717,7 +4718,7 @@ document.getElementById('btnEmbedAdReelTracks').addEventListener('click', () => 
 });
 document.getElementById('btnShareAdReelUrl').addEventListener('click', async () => {
   const shareUrl = computeAdReelUrl(currentAdReelId);
-  if (!shareUrl) { alert(tr('adreelUrlPending')); return; }
+  if (!shareUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
   const btn = document.getElementById('btnShareAdReelUrl');
   const ar = adReels.find(a => a.id === currentAdReelId);
   const result = await shareViaSocialsOrFallback(shareUrl, (ar && ar.label) || 'LayerPitch');
@@ -4726,7 +4727,7 @@ document.getElementById('btnShareAdReelUrl').addEventListener('click', async () 
     btn.textContent = tr('copiedStatus');
     setTimeout(() => { btn.textContent = original; }, 1500);
   } else if (result === 'unavailable') {
-    alert(tr('copyFailedAlert'));
+    window.LayerPitchNotify.error(tr('copyFailedAlert'));
   }
 });
 
@@ -4954,7 +4955,7 @@ document.getElementById('newAdReelCancel').addEventListener('click', () => {
 });
 document.getElementById('newAdReelOk').addEventListener('click', () => {
   const label = document.getElementById('newAdReelLabel').value.trim();
-  if (!label) { alert(tr('giveNameAlert')); return; }
+  if (!label) { window.LayerPitchNotify.info(tr('giveNameAlert')); return; }
   const sourceId = document.getElementById('newAdReelSource').value;
   const source = sourceId ? adReels.find(a => a.id === sourceId) : null;
   const imp = {
@@ -5013,9 +5014,10 @@ document.getElementById('newAdReelOk').addEventListener('click', () => {
   document.getElementById('newAdReelModalOverlay').style.display = 'none';
   switchAdReel(id);
 });
-function deleteAdReel(id) {
+async function deleteAdReel(id) {
   if (id === 'main' || adReels.length <= 1) return;
-  if (!confirm(tr('deleteAdreelConfirm', { id }))) return;
+  if (!(await window.LayerPitchNotify.confirm(tr('deleteAdreelConfirm', { id }), { danger: true }))) return;
+  if (!adReels.some(a => a.id === id)) return; // données rechargées pendant la question
   adReels = adReels.filter(a => a.id !== id);
   // Un pack qui renvoyait vers cet AdReel retombe sur "Aucun" plutôt que de garder une référence
   // orpheline silencieusement ignorée à la publication.
@@ -5632,7 +5634,7 @@ function togglePreview(ti, cardEl) {
     hasAnyFile = (track.layers || []).some(hasFile);
   }
   if (!hasAnyFile) {
-    alert(tr('chooseFileBeforeListenAlert'));
+    window.LayerPitchNotify.info(tr('chooseFileBeforeListenAlert'));
     return;
   }
   const previewTrack = buildPreviewTrack(track);
@@ -7607,7 +7609,7 @@ document.getElementById('btnAddSfxFolder').addEventListener('click', () => {
   hasUnsavedEdits = true;
   renderSfxLibrary();
 });
-document.getElementById('sfxLibraryContainer').addEventListener('click', e => {
+document.getElementById('sfxLibraryContainer').addEventListener('click', async e => {
   const selectBtn = e.target.closest('[data-action="select-manage-sfx"]');
   if (selectBtn) { manageSfxSelectedId = selectBtn.dataset.dragId; renderSfxLibrary(); return; }
   const entryBtn = e.target.closest('[data-action="select-sfx-entry"]');
@@ -7626,7 +7628,7 @@ document.getElementById('sfxLibraryContainer').addEventListener('click', e => {
   const folderDeleteBtn = e.target.closest('[data-action="delete-sfx-folder"]');
   if (folderDeleteBtn) {
     const fid = folderDeleteBtn.dataset.folderId;
-    if (deleteOrgFolder(sfxFolders, sfxLibrary, fid)) {
+    if (await deleteOrgFolder(sfxFolders, sfxLibrary, fid)) {
       collapsedSfxFolderIds.delete(fid);
       hasUnsavedEdits = true;
       renderSfxLibrary();
@@ -7720,7 +7722,7 @@ document.getElementById('btnAddLibraryFolder').addEventListener('click', () => {
   hasUnsavedEdits = true;
   renderLibrary();
 });
-document.getElementById('libraryContainer').addEventListener('click', e => {
+document.getElementById('libraryContainer').addEventListener('click', async e => {
   const selectBtn = e.target.closest('[data-action="select-manage-track"]');
   if (selectBtn) { manageLibrarySelectedId = selectBtn.dataset.dragId; renderLibrary(); return; }
   const folderToggleBtn = e.target.closest('[data-action="toggle-library-folder"]');
@@ -7733,7 +7735,7 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
   const folderDeleteBtn = e.target.closest('[data-action="delete-library-folder"]');
   if (folderDeleteBtn) {
     const fid = folderDeleteBtn.dataset.folderId;
-    if (deleteOrgFolder(libraryFolders, library, fid)) {
+    if (await deleteOrgFolder(libraryFolders, library, fid)) {
       collapsedLibraryFolderIds.delete(fid);
       hasUnsavedEdits = true;
       renderLibrary();
@@ -7769,7 +7771,8 @@ document.getElementById('libraryContainer').addEventListener('click', e => {
     const tk = library[ti];
     const usedIn = adReels.filter(a => a.trackIds.includes(tk.id)).length + packs.filter(p => (p.trackIds || []).includes(tk.id)).length;
     const title = tk.title || tr('trackFallback', { n: ti + 1 });
-    if (!confirm(tr(usedIn ? 'deleteTrackConfirmUsed' : 'deleteTrackConfirm', { title, n: usedIn }))) return;
+    if (!(await window.LayerPitchNotify.confirm(tr(usedIn ? 'deleteTrackConfirmUsed' : 'deleteTrackConfirm', { title, n: usedIn }), { danger: true }))) return;
+    if (library[ti] !== tk) return; // données rechargées pendant la question : l'index ne désigne plus ce morceau
   }
   hasUnsavedEdits = true;
   if (btn.dataset.action === 'remove-track') {
@@ -8979,7 +8982,7 @@ function kbDeleteTarget() {
   const btn = detail && detail.querySelector(KB_DELETE_NESTED.map(a => `[data-action="${a}"]`).join(','));
   return btn ? { btn, name } : null;
 }
-document.addEventListener('keydown', e => {
+document.addEventListener('keydown', async e => {
   if (e.key !== 'Delete' && e.key !== 'Backspace') return;
   if (!currentUserIsAdmin) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -8990,7 +8993,8 @@ document.addEventListener('keydown', e => {
   if (!target || target.btn.disabled) return;
   e.preventDefault();
   const action = target.btn.dataset.action;
-  if (!KB_DELETE_SELF_CONFIRMING.includes(action) && !confirm(tr('kbDeleteConfirm', { name: target.name || tr('untitledFallback') }))) return;
+  if (!KB_DELETE_SELF_CONFIRMING.includes(action) && !(await window.LayerPitchNotify.confirm(tr('kbDeleteConfirm', { name: target.name || tr('untitledFallback') }), { danger: true }))) return;
+  if (!target.btn.isConnected) return; // rendu refait pendant la question
   kbSelection = null;
   target.btn.click();
 });
@@ -10303,12 +10307,12 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   if (copyBtn) {
     const pi = parseInt(copyBtn.dataset.pi, 10);
     const url = computePackUrl(packs[pi].id);
-    if (!url) { alert(tr('adreelUrlPending')); return; }
+    if (!url) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(done).catch(() => { alert(tr('copyFailedAlert')); });
+      navigator.clipboard.writeText(url).then(done).catch(() => { window.LayerPitchNotify.error(tr('copyFailedAlert')); });
     } else {
-      alert(tr('copyFailedAlert'));
+      window.LayerPitchNotify.error(tr('copyFailedAlert'));
     }
     return;
   }
@@ -10316,7 +10320,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   if (embedBtn) {
     const pi = parseInt(embedBtn.dataset.pi, 10);
     const embedUrl = computePackUrl(packs[pi].id);
-    if (!embedUrl) { alert(tr('adreelUrlPending')); return; }
+    if (!embedUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
     openEmbedModal(`${embedUrl}&embed=1`, packs[pi].title, 'embedModalHintPack');
     return;
   }
@@ -10330,14 +10334,14 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   if (shareBtn) {
     const pi = parseInt(shareBtn.dataset.pi, 10);
     const shareUrl = computePackUrl(packs[pi].id);
-    if (!shareUrl) { alert(tr('adreelUrlPending')); return; }
+    if (!shareUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
     const result = await shareViaSocialsOrFallback(shareUrl, packs[pi].title || 'LayerPitch');
     if (result === 'copied') {
       const original = shareBtn.textContent;
       shareBtn.textContent = tr('copiedStatus');
       setTimeout(() => { shareBtn.textContent = original; }, 1500);
     } else if (result === 'unavailable') {
-      alert(tr('copyFailedAlert'));
+      window.LayerPitchNotify.error(tr('copyFailedAlert'));
     }
     return;
   }
@@ -10347,7 +10351,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
     const social = socials.find(s => s.id === publishBtn.dataset.socialId);
     if (!social) return;
     const publicUrl = computePackUrl(packs[pi].id);
-    if (!publicUrl) { alert(tr('adreelUrlPending')); return; }
+    if (!publicUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
     const url = buildSocialShareUrl(social.platform, publicUrl, tr('publishPackText', { title: packs[pi].title || '' }));
     if (url) { openSharePopup(url); trackBackstageEvent('social_publish_click', {}); }
     return;
@@ -10611,12 +10615,12 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
   if (copyBtn) {
     const ci = parseInt(copyBtn.dataset.ci, 10);
     const url = computeCollectionUrl(collections[ci].id);
-    if (!url) { alert(tr('adreelUrlPending')); return; }
+    if (!url) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(done).catch(() => { alert(tr('copyFailedAlert')); });
+      navigator.clipboard.writeText(url).then(done).catch(() => { window.LayerPitchNotify.error(tr('copyFailedAlert')); });
     } else {
-      alert(tr('copyFailedAlert'));
+      window.LayerPitchNotify.error(tr('copyFailedAlert'));
     }
     return;
   }
@@ -10624,7 +10628,7 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
   if (embedBtn) {
     const ci = parseInt(embedBtn.dataset.ci, 10);
     const embedUrl = computeCollectionUrl(collections[ci].id);
-    if (!embedUrl) { alert(tr('adreelUrlPending')); return; }
+    if (!embedUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
     openEmbedModal(`${embedUrl}&embed=1`, collections[ci].title, 'embedModalHintCollection');
     return;
   }
@@ -10638,14 +10642,14 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
   if (shareBtn) {
     const ci = parseInt(shareBtn.dataset.ci, 10);
     const shareUrl = computeCollectionUrl(collections[ci].id);
-    if (!shareUrl) { alert(tr('adreelUrlPending')); return; }
+    if (!shareUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
     const result = await shareViaSocialsOrFallback(shareUrl, collections[ci].title || 'LayerPitch');
     if (result === 'copied') {
       const original = shareBtn.textContent;
       shareBtn.textContent = tr('copiedStatus');
       setTimeout(() => { shareBtn.textContent = original; }, 1500);
     } else if (result === 'unavailable') {
-      alert(tr('copyFailedAlert'));
+      window.LayerPitchNotify.error(tr('copyFailedAlert'));
     }
     return;
   }
@@ -10655,7 +10659,7 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
     const social = socials.find(s => s.id === publishBtn.dataset.socialId);
     if (!social) return;
     const publicUrl = computeCollectionUrl(collections[ci].id);
-    if (!publicUrl) { alert(tr('adreelUrlPending')); return; }
+    if (!publicUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
     const url = buildSocialShareUrl(social.platform, publicUrl, tr('publishCollectionText', { title: collections[ci].title || '' }));
     if (url) { openSharePopup(url); trackBackstageEvent('social_publish_click', {}); }
     return;
@@ -11926,9 +11930,9 @@ async function loadData(silent) {
 // redirection vers bienvenue.html et ne se résout jamais à `true`.
 backstageAuthGateReady.then((authOk) => { if (authOk) loadData(true); });
 
-document.getElementById('btnLoad').addEventListener('click', () => {
+document.getElementById('btnLoad').addEventListener('click', async () => {
   if (hasUnsavedEdits) {
-    const proceed = confirm(tr('reloadConfirm'));
+    const proceed = await window.LayerPitchNotify.confirm(tr('reloadConfirm'), { danger: true });
     if (!proceed) return;
   }
   loadData(false);
@@ -11941,7 +11945,7 @@ document.getElementById('btnView').addEventListener('click', () => {
   // « Renseigne owner / repo » n'allait que dans le journal, invisible). C'était aussi vrai pour tout compositeur
   // sans dépôt GitHub personnel, alors que computeAdReelUrl sait déjà retomber sur le lien public de son handle.
   const url = computeAdReelUrl(currentAdReelId);
-  if (!url) { alert(tr('adreelUrlPending')); return; }
+  if (!url) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
   window.open(url, '_blank');
 });
 
@@ -12209,7 +12213,7 @@ async function renderVideoLibrary() {
 }
 
 async function deleteLibraryVideo(id, knownVideos) {
-  if (!confirm(tr('videoLibraryDeleteConfirm'))) return;
+  if (!(await window.LayerPitchNotify.confirm(tr('videoLibraryDeleteConfirm'), { danger: true }))) return;
   const v = (knownVideos || []).find(x => x.id === id);
   try {
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('delete_video', { p_id: id });
@@ -12217,7 +12221,7 @@ async function deleteLibraryVideo(id, knownVideos) {
     if (v && v.base && v.file) r2DeleteFileLogged(v.base.replace(MEDIA_BASE, '') + v.file);
     renderVideoLibrary();
   } catch (e) {
-    alert(tr('videoLibraryDeleteFailed', { error: e.message }));
+    window.LayerPitchNotify.error(tr('videoLibraryDeleteFailed', { error: e.message }));
   }
 }
 
@@ -12928,7 +12932,7 @@ async function publishAll() {
     // Élément déjà acheté, refusé par la base : il est toujours en ligne -- rechargement pour qu'il réapparaisse ici
     // plutôt que de rester invisible dans le Backstage tout en existant (tout le reste vient d'être publié).
     if (blockedDeletes.length) {
-      alert(tr('deleteBlockedAlert', { list: blockedDeletes.join('\n') }));
+      window.LayerPitchNotify.error(tr('deleteBlockedAlert', { list: blockedDeletes.join('\n') }));
       await loadData(true);
     }
   } catch (err) {

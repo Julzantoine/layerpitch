@@ -22,6 +22,7 @@ const path = require('path');
     }).join('\n');
   }
   let html = inlineExactLine(backstageSrc, 'layerpitch-i18n.js', '<script src="layerpitch-i18n.js"></script>');
+  html = inlineExactLine(html, 'layerpitch-notify.js', '<script src="layerpitch-notify.js"></script>');
   html = inlineExactLine(html, 'layerpitch-help.js', '<script src="layerpitch-help.js"></script>');
   html = inlineExactLine(html, 'player.js', '<script src="player.js"></script>');
 
@@ -43,6 +44,16 @@ const path = require('path');
   let failures = 0;
   function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; }
   function click(el) { el.dispatchEvent(new window.MouseEvent('click', { bubbles: true })); }
+  // Vraie fenêtre de confirmation LayerPitchNotify (plus de confirm() natif depuis le 26/09) : on clique "Confirmer".
+  let confirmCalls = 0;
+  const realConfirm = window.LayerPitchNotify.confirm;
+  window.LayerPitchNotify.confirm = (...args) => {
+    confirmCalls++;
+    const answer = realConfirm(...args);
+    setTimeout(() => click(doc.querySelector('#lpConfirmOverlay .lp-confirm-ok')), 0);
+    return answer;
+  };
+  const settle = () => new Promise(resolve => setTimeout(resolve, 20));
   const ev = code => window.eval(code);
 
   // Faux accès base : chaque suppression est enregistrée ; `responses` force une réponse par id.
@@ -77,8 +88,9 @@ const path = require('path');
   const removeGhost = [...doc.querySelectorAll('[data-action="remove-track"]')]
     .find(b => ev('library')[parseInt(b.dataset.ti, 10)].id === 'ghost');
   check('bouton de suppression du morceau présent', !!removeGhost);
-  window.confirm = () => true;
   click(removeGhost);
+  await settle();
+  check('suppression du morceau confirmée dans la fenêtre LayerPitch', confirmCalls === 1 && !doc.getElementById('lpConfirmOverlay'));
   check('morceau retiré du Backstage', ev('library.map(t => t.id).join()') === 'good');
   check('fichiers R2 non effacés au clic', r2Deleted.length === 0);
   check('fichiers R2 mis de côté pour la publication', ev(`(pendingR2Deletes.get('tracks:ghost') || []).join()`) === 'audio/ghost/layer0.ogg');

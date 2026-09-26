@@ -183,10 +183,11 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1790367939663"></script>
-<script src="api/auth.js?v=1790367939663"></script>
-<script src="api/admin.js?v=1790367939663"></script>
-<script src="layerpitch-i18n.js?v=1790367939663"></script>
+<script src="api/supabase-client.js?v=1790424521522"></script>
+<script src="api/auth.js?v=1790424521522"></script>
+<script src="api/admin.js?v=1790424521522"></script>
+<script src="layerpitch-i18n.js?v=1790424521522"></script>
+<script src="layerpitch-notify.js?v=1790424521522"></script>
 <script>
 // i18n minimal (zone "admin" + repli "shared") — même patron que layerpitch-backstage.html.
 function currentLang() { return localStorage.getItem('layerpitch_lang') || 'fr'; }
@@ -418,7 +419,7 @@ async function loadAccounts(search) {
 
   tbody.querySelectorAll('.suspend-btn').forEach(btn => btn.addEventListener('click', async () => {
     const id = btn.dataset.id, email = btn.dataset.email;
-    if (!confirm(tr('suspendConfirm', { email }))) return;
+    if (!(await window.LayerPitchNotify.confirm(tr('suspendConfirm', { email }), { danger: true }))) return;
     const durationInput = tbody.querySelector(`.duration-input[data-id="${id}"]`);
     const hours = durationInput ? Number(durationInput.value) : undefined;
     btn.disabled = true;
@@ -430,7 +431,7 @@ async function loadAccounts(search) {
   }));
   tbody.querySelectorAll('.reinstate-btn').forEach(btn => btn.addEventListener('click', async () => {
     const id = btn.dataset.id, email = btn.dataset.email;
-    if (!confirm(tr('reinstateConfirm', { email }))) return;
+    if (!(await window.LayerPitchNotify.confirm(tr('reinstateConfirm', { email })))) return;
     btn.disabled = true;
     const { ok, error } = await window.LayerPitchAuth.reinstateAccount(id);
     msg.textContent = ok ? tr('actionSuccessReinstated') : (tr('actionErrorPrefix') + error);
@@ -512,10 +513,10 @@ async function loadAdminMsgHistory() {
   });
   historyEl.querySelectorAll('[data-admin-msg-delete]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm(tr('adminMsgDeleteConfirm'))) return;
+      if (!(await window.LayerPitchNotify.confirm(tr('adminMsgDeleteConfirm'), { danger: true }))) return;
       btn.disabled = true;
       const { ok, error: delError } = await window.LayerPitchAdmin.deleteAdminMessage(Number(btn.dataset.adminMsgDelete));
-      if (!ok) { alert(tr('adminMsgErrorPrefix') + delError); btn.disabled = false; return; }
+      if (!ok) { window.LayerPitchNotify.error(tr('adminMsgErrorPrefix') + delError); btn.disabled = false; return; }
       loadAdminMsgHistory();
     });
   });

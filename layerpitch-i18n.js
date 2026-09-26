@@ -43,6 +43,8 @@ window.LAYERPITCH_I18N = {
       embedCopyBtn: 'Copier le code',
       copiedStatus: 'Copié ✓',
       publicEmbedHint: 'Colle ce code sur ton site pour l\'intégrer directement, comme un lecteur audio intégré.',
+      notifyConfirmOk: 'Confirmer',
+      notifyClose: 'Fermer',
     },
     index: {
       pageTitle: 'LayerPitch',
@@ -1538,6 +1540,8 @@ window.LAYERPITCH_I18N = {
       embedCopyBtn: 'Copy code',
       copiedStatus: 'Copied ✓',
       publicEmbedHint: 'Paste this code on your site to embed it directly, like an embedded audio player.',
+      notifyConfirmOk: 'Confirm',
+      notifyClose: 'Close',
     },
     index: {
       pageTitle: 'LayerPitch',

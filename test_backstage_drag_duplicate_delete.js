@@ -15,6 +15,7 @@ const path = require('path');
     }).join('\n');
   }
   let html = inlineExactLine(backstageSrc, 'layerpitch-i18n.js', '<script src="layerpitch-i18n.js"></script>');
+  html = inlineExactLine(html, 'layerpitch-notify.js', '<script src="layerpitch-notify.js"></script>');
   html = inlineExactLine(html, 'layerpitch-help.js', '<script src="layerpitch-help.js"></script>');
   html = inlineExactLine(html, 'player.js', '<script src="player.js"></script>');
 
@@ -44,8 +45,21 @@ const path = require('path');
   const r2Deleted = [];
   window.r2DeleteFileLogged = key => { r2Deleted.push(key); };
   window.LayerPitchTracks = window.LayerPitchPacks = window.LayerPitchSfx = window.LayerPitchCollections = window.LayerPitchAdReels = {};
+  // Vraie fenêtre de confirmation LayerPitchNotify (plus de confirm() natif depuis le 26/09) : chaque demande est
+  // comptée, puis on clique le bouton voulu dans la fenêtre elle-même ; settle() laisse la réponse revenir.
   let confirmAnswer = true, confirmCalls = 0;
-  window.confirm = () => { confirmCalls++; return confirmAnswer; };
+  const realConfirm = window.LayerPitchNotify.confirm;
+  window.LayerPitchNotify.confirm = (...args) => {
+    confirmCalls++;
+    const answer = realConfirm(...args);
+    setTimeout(() => {
+      const overlay = window.document.getElementById('lpConfirmOverlay');
+      overlay.querySelector(confirmAnswer ? '.lp-confirm-ok' : '.lp-confirm-actions button:not(.lp-confirm-ok)')
+        .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    }, 0);
+    return answer;
+  };
+  const settle = () => new Promise(resolve => setTimeout(resolve, 20));
 
   // Glisser interne simulé : poignée pressée, dragstart, dragover puis drop sur la cible (jsdom : rectangles nuls,
   // donc toujours "après la cible").
@@ -95,10 +109,12 @@ const path = require('path');
   slotItem(3).dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
   confirmAnswer = false; confirmCalls = 0;
   pressKey('Delete');
+  await settle();
   check('Supp : confirmation demandée, "Annuler" ne supprime rien', confirmCalls === 1 && labels() === 'B|A|C|C (copie)');
   confirmAnswer = true;
   slotItem(3).dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
   pressKey('Backspace');
+  await settle();
   check('⌫ + confirmation : la copie est supprimée', labels() === 'B|A|C');
   check('fichiers pas effacés au clic', r2Deleted.length === 0);
   check('fichier de la copie mis de côté pour la publication', ev('pendingOrphanR2Keys.has("audio/trk/c.ogg")'));
@@ -109,12 +125,14 @@ const path = require('path');
   const nameInput = q('input[data-slot-field="label"][data-si="0"]');
   confirmCalls = 0;
   pressKey('Backspace', nameInput);
+  await settle();
   check('dans un champ de saisie : aucune suppression', confirmCalls === 0 && labels() === 'B|A|C');
 
   // ---- Publication : le fichier partagé par l'original n'est pas effacé, un fichier vraiment orphelin l'est ----
   ev('rememberPublishedCatalog()');
   slotItem(0).dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
   pressKey('Delete');
+  await settle();
   check('slot B supprimé au clavier', labels() === 'A|C');
   await ev('deleteRemovedCatalogItems()');
   check('à la publication : b.ogg (plus utilisé) effacé, c.ogg (encore utilisé par C) conservé', r2Deleted.join() === 'audio/trk/b.ogg');
@@ -155,6 +173,7 @@ const path = require('path');
   card(copyId).dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
   check('bloc sélectionné visible', card(copyId).classList.contains('kb-selected'));
   doc.body.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+  await settle();
   check('Supp sur un bloc : supprimé après confirmation', types() === 'text,header');
 
   // ---- Hors admin : Alt + glisser déplace, la touche Supprimer ne fait rien ----
@@ -165,6 +184,7 @@ const path = require('path');
   confirmCalls = 0;
   slotItem(1).dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
   doc.body.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+  await settle();
   check('non-admin : la touche Supprimer ne fait rien', confirmCalls === 0 && labels() === 'C|A');
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));

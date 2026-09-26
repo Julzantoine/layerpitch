@@ -47,14 +47,15 @@
   <div id="content"></div>
 </div>
 
-<script src="layerpitch-i18n.js?v=1790367939663"></script>
+<script src="layerpitch-i18n.js?v=1790424521522"></script>
+<script src="layerpitch-notify.js?v=1790424521522"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1790367939663"></script>
-<script src="api/auth.js?v=1790367939663"></script>
-<script src="api/subscriptions.js?v=1790367939663"></script>
-<script src="api/notification-prefs.js?v=1790367939663"></script>
-<script src="api/connect.js?v=1790367939663"></script>
-<script src="api/invoices.js?v=1790367939663"></script>
+<script src="api/supabase-client.js?v=1790424521522"></script>
+<script src="api/auth.js?v=1790424521522"></script>
+<script src="api/subscriptions.js?v=1790424521522"></script>
+<script src="api/notification-prefs.js?v=1790424521522"></script>
+<script src="api/connect.js?v=1790424521522"></script>
+<script src="api/invoices.js?v=1790424521522"></script>
 <script>
 const content = document.getElementById('content');
 
@@ -325,9 +326,9 @@ function wireInvoicesCard() {
       try {
         const { data, error } = await LayerPitchSupabaseClient.getClient()
           .functions.invoke('get-invoice-download-url', { body: { invoiceId: btn.getAttribute('data-invoice-id') } });
-        if (error || !data || !data.url) alert(tr('errorPrefix', { message: error ? await LayerPitchAuth.describeFunctionError(error) : (data && data.error) || 'unknown' }));
+        if (error || !data || !data.url) window.LayerPitchNotify.error(tr('errorPrefix', { message: error ? await LayerPitchAuth.describeFunctionError(error) : (data && data.error) || 'unknown' }));
         else window.open(data.url, '_blank', 'noopener');
-      } catch (e) { alert(tr('errorPrefix', { message: e.message })); }
+      } catch (e) { window.LayerPitchNotify.error(tr('errorPrefix', { message: e.message })); }
       btn.disabled = false;
     });
   });
