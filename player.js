@@ -569,6 +569,132 @@ function embrCutFadeSec(loopDef) {
   return EMBR_CROSSFADE_SEC;
 }
 
+/* ---------------- Minutages musicaux (26/09) ----------------
+ * Formules de tempo d'un morceau, sans aucun état de lecture : le lecteur s'en sert (ses fonctions internes slotTiming,
+ * blockSeconds, sectionTiming, embrLoopTiming... ne font plus que les appeler), et l'outil vidéo aussi, pour rejouer un
+ * montage sur un AUTRE morceau (capture-retarget.js, Versioning) : une seule définition, pour que la traduction tombe
+ * exactement sur la grille qu'aurait suivie une vraie écoute. */
+function trackTempo(track) {
+  const bpm = (track && track.bpm) || 120;
+  const beatsPerBar = (track && track.beatsPerBar) || 4;
+  return { bpm, beatsPerBar, secondsPerBeat: 60 / bpm };
+}
+// Tempo effectif d'un emplacement séquentiel (ou d'une boucle d'embranchement, même convention) : bpm/beatsPerBar
+// propres s'ils sont réglés, sinon ceux du morceau.
+function seqSlotTiming(track, slot) {
+  const tt = trackTempo(track);
+  return { secondsPerBeat: 60 / ((slot && slot.bpm) || tt.bpm), beatsPerBar: (slot && slot.beatsPerBar) || tt.beatsPerBar };
+}
+// Durée nominale d'un bloc de `bars` mesures (défaut : autant de mesures que de temps par mesure) : grille de
+// l'emplacement s'il a un tempo propre, sinon celle du morceau (comportement historique).
+function seqBlockSeconds(track, bars, slot) {
+  if (slot && (slot.bpm || slot.beatsPerBar)) {
+    const timing = seqSlotTiming(track, slot);
+    return (bars || timing.beatsPerBar) * timing.beatsPerBar * timing.secondsPerBeat;
+  }
+  const tt = trackTempo(track);
+  return (bars || tt.beatsPerBar) * tt.beatsPerBar * tt.secondsPerBeat;
+}
+// Tempo d'un fichier de transition : le sien, sinon celui de l'emplacement (ou de la boucle) quitté, sinon le morceau.
+function seqTransitionTiming(track, tr, sourceSlot) {
+  const tt = trackTempo(track);
+  return {
+    secondsPerBeat: 60 / ((tr && tr.bpm) || (sourceSlot && sourceSlot.bpm) || tt.bpm),
+    beatsPerBar: (tr && tr.beatsPerBar) || (sourceSlot && sourceSlot.beatsPerBar) || tt.beatsPerBar
+  };
+}
+// Durée nominale d'une transition séquentielle (nextOptions[].transition) -- voir le détail des quatre cas au-dessus de
+// transitionDurationSecFor() dans initTrackPlayer.
+function seqTransitionDurationSec(track, opt, sourceSlot) {
+  const tr = opt && opt.transition;
+  if (!tr) return null;
+  if (tr.durationUnit === 'seconds') return tr.durationSeconds != null ? tr.durationSeconds : 0;
+  if (tr.durationUnit === 'beats') return (tr.durationBeats || 1) * seqTransitionTiming(track, tr, sourceSlot).secondsPerBeat;
+  if (tr.durationUnit === 'bars') {
+    const timing = seqTransitionTiming(track, tr, sourceSlot);
+    return (tr.bars || timing.beatsPerBar) * timing.beatsPerBar * timing.secondsPerBeat;
+  }
+  return seqBlockSeconds(track, tr.bars, sourceSlot);
+}
+// Durée nominale d'une transition d'embranchement-vertical (boucle CIBLE) : sans unité réglée, la durée réelle du
+// fichier (fileDuration, connue seulement une fois décodé).
+function embrTransitionDurationSec(track, loopDef, sourceLoopDef, fileDuration) {
+  const tr = loopDef && loopDef.transition;
+  if (!tr) return 0;
+  if (tr.durationUnit === 'seconds') return tr.durationSeconds != null ? tr.durationSeconds : (fileDuration || 0);
+  if (tr.durationUnit === 'beats') return (tr.durationBeats || 1) * seqTransitionTiming(track, tr, sourceLoopDef).secondsPerBeat;
+  if (tr.durationUnit === 'bars') {
+    const timing = seqTransitionTiming(track, tr, sourceLoopDef);
+    return (tr.bars || timing.beatsPerBar) * timing.beatsPerBar * timing.secondsPerBeat;
+  }
+  return fileDuration || 0;
+}
+// Moteur quantifié (vertical / statique) : points de boucle du morceau et point de départ de la première lecture.
+function quantizedLoopTiming(track) {
+  const tt = trackTempo(track);
+  const loopInSec = (track.loopInBeat || 0) * tt.secondsPerBeat;
+  const loopOutSec = Math.max(loopInSec + tt.secondsPerBeat, (track.loopOutBeat || tt.beatsPerBar * 4) * tt.secondsPerBeat);
+  const startTrackSec = Math.min((track.startTrackBeat || 0) * tt.secondsPerBeat, loopInSec);
+  return { loopInSec, loopOutSec, cycleLength: loopOutSec - loopInSec, startTrackSec };
+}
+// Vertical-random : minutage d'une section résolue (bpm/mesures/timeline propres à CETTE section, décision du 30/07).
+function vrSectionTiming(section) {
+  const spb = 60 / (section.bpm || 120);
+  const loopInSec = (section.loopInBeat || 0) * spb;
+  const loopOutSec = Math.max(loopInSec + spb, (section.loopOutBeat || (section.beatsPerBar || 4) * 4) * spb);
+  const startTrackSec = Math.min((section.startTrackBeat || 0) * spb, loopInSec);
+  return { loopInSec, loopOutSec, cycleLength: loopOutSec - loopInSec, startTrackSec };
+}
+// Vertical-random : durée nominale de l'intro -- son tempo propre s'il est réglé (25/09), sinon celui de la première
+// section jouable (l'intro n'appartient à aucune section) ; la partie du fichier au-delà forme la queue.
+function vrIntroDurationSec(track, firstSection) {
+  const intro = track.intro;
+  const introBpm = (intro && intro.bpm) || (firstSection && firstSection.bpm) || 120;
+  const introBeatsPerBar = (intro && intro.beatsPerBar) || (firstSection && firstSection.beatsPerBar) || 4;
+  return ((intro && intro.bars) || introBeatsPerBar) * introBeatsPerBar * (60 / introBpm);
+}
+// Embranchement-vertical : boucle de référence, boucles « paires » (verrouillées en phase) et cycle de la référence.
+function embrReferenceIndex(track) {
+  const idx = (track.loops || []).findIndex(l => l && l.isInitial);
+  return idx >= 0 ? idx : 0;
+}
+function embrPeerIndicesOf(track) {
+  const loops = track.loops || [];
+  const refIdx = embrReferenceIndex(track);
+  const refBars = (loops[refIdx] || {}).bars;
+  // Classification explicite (isDetour, 24/08), repli sur la comparaison des mesures pour un morceau publié avant.
+  return loops.map((l, i) => i).filter(i => i === refIdx || ('isDetour' in loops[i] ? !loops[i].isDetour : (loops[i].bars === refBars)));
+}
+function embrLoopTimingOf(track) {
+  const refLoop = (track.loops || [])[embrReferenceIndex(track)] || {};
+  const duration = refLoop.duration || 0;
+  if (!duration) return { startSec: 0, loopInSec: 0, cycleLength: seqBlockSeconds(track, refLoop.bars) };
+  const spb = trackTempo(track).secondsPerBeat;
+  const loopInSec = (refLoop.loopInBeat || 0) * spb;
+  const loopOutSec = refLoop.loopOutBeat != null ? Math.max(loopInSec + spb, refLoop.loopOutBeat * spb) : duration;
+  const startSec = Math.min((refLoop.startTrackBeat || 0) * spb, loopInSec);
+  return { startSec, loopInSec, cycleLength: loopOutSec - loopInSec };
+}
+// Durée d'un minuteur de retour automatique (boucle paire), en temps / mesures / secondes.
+function embrDurationToSec(track, value, unit) {
+  const v = value || 0;
+  const tt = trackTempo(track);
+  if (unit === 'seconds') return v;
+  if (unit === 'beats') return v * tt.secondsPerBeat;
+  return v * tt.beatsPerBar * tt.secondsPerBeat; // 'bars', réglage par défaut
+}
+// Attente avant qu'une bascule demandée ne s'exécute (quantification de la boucle CIBLE), `elapsed` secondes après le
+// point zéro de la référence. Durées en temps nominal ('immediate' ou absent : 0).
+function embrQuantizeDelayAt(track, quantize, elapsed) {
+  if (quantize !== 'beat' && quantize !== 'bar') return 0;
+  const cycle = embrLoopTimingOf(track).cycleLength;
+  if (!(cycle > 0)) return 0;
+  const pos = ((elapsed % cycle) + cycle) % cycle;
+  const tt = trackTempo(track);
+  const unit = quantize === 'beat' ? tt.secondsPerBeat : tt.beatsPerBar * tt.secondsPerBeat;
+  return (unit - (pos % unit)) % unit;
+}
+
 /* ---------------- Journal de prise (Adaptive OST, Figer -- 25/09) ----------------
  * Quand l'enregistrement des prises est activé (setTakeRecording(true) : page fan, onglet Albums -- JAMAIS sur les
  * pages publiques, où rien de tout ceci ne s'exécute), le lecteur note tout ce qu'il fait réellement jouer : chaque
@@ -2984,12 +3110,8 @@ function initTrackPlayer(track, wrapper, elementColors) {
   }
 
   // Paramètres du moteur quantifié (BPM/mesures + queue de fin superposée) — ignorés si useQuantizedLoop est faux
-  const bpm = track.bpm || 120;
-  const beatsPerBar = track.beatsPerBar || 4;
-  const secondsPerBeat = 60 / bpm;
-  const loopInSec = (track.loopInBeat || 0) * secondsPerBeat;
-  const loopOutSec = Math.max(loopInSec + secondsPerBeat, (track.loopOutBeat || beatsPerBar * 4) * secondsPerBeat);
-  const cycleLength = loopOutSec - loopInSec;
+  const { bpm, beatsPerBar, secondsPerBeat } = trackTempo(track);
+  const { loopInSec, loopOutSec, cycleLength, startTrackSec } = quantizedLoopTiming(track);
   // Pour vertical-random, track.duration reflète le fichier le PLUS LONG de tout le pool (couches fixes
   // + toutes les alternatives de tous les groupes), pas la longueur du cycle qui boucle réellement —
   // un seul alternative par groupe joue à la fois, souvent bien plus courte que la plus longue du pool.
@@ -3008,9 +3130,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const section = resolveVRSection(track, origIdx);
     return (section ? sectionTiming(section).loopOutSec : 0) || track.duration;
   }
-  // StartTrackPoint : où démarre la toute première lecture (permet de sauter un silence en tête).
-  // Ne s'applique qu'au moteur quantifié — le moteur simple garde son comportement natif inchangé.
-  const startTrackSec = Math.min((track.startTrackBeat || 0) * secondsPerBeat, loopInSec);
+  // StartTrackPoint (startTrackSec, calculé plus haut par quantizedLoopTiming) : où démarre la toute première lecture
+  // (permet de sauter un silence en tête). Ne s'applique qu'au moteur quantifié — le moteur simple garde son
+  // comportement natif inchangé.
 
   const playBtn = wrapper.querySelector('[data-role="playBtn"]');
   const stopBtn = wrapper.querySelector('[data-role="stopBtn"]');
@@ -3256,13 +3378,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // Minutage d'une section résolue (bpm/mesures/timeline propres à CETTE section — plus un tempo unique
   // partagé par tout le morceau, voir décision du 30/07). Calculé à la demande plutôt que figé une fois,
   // puisque la section "courante" change au fil de la lecture.
-  function sectionTiming(section) {
-    const spb = 60 / (section.bpm || 120);
-    const loopInSec = (section.loopInBeat || 0) * spb;
-    const loopOutSec = Math.max(loopInSec + spb, (section.loopOutBeat || (section.beatsPerBar || 4) * 4) * spb);
-    const startTrackSec = Math.min((section.startTrackBeat || 0) * spb, loopInSec);
-    return { loopInSec, loopOutSec, cycleLength: loopOutSec - loopInSec, startTrackSec };
-  }
+  function sectionTiming(section) { return vrSectionTiming(section); }
 
   // Buffers des Sfx attachés : un tableau de buffers (une entrée par variation round robin) par Sfx,
   // indexé par son id — remplace l'ancien tableau plat "un buffer par stinger".
@@ -3331,30 +3447,16 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // Tempo effectif d'un emplacement séquentiel — même principe que sectionTiming() pour le vertical-random
   // (une seule formule de repli, réutilisée partout plutôt que dupliquée) : slot.bpm/beatsPerBar si réglés
   // sur CET emplacement, sinon le tempo du morceau.
-  function slotTiming(slot) {
-    return { secondsPerBeat: 60 / ((slot && slot.bpm) || bpm), beatsPerBar: (slot && slot.beatsPerBar) || beatsPerBar };
-  }
-  function blockSeconds(bars, slot) {
-    // slot fourni ET porteur d'un tempo propre (bpm ou beatsPerBar) : grille de CET emplacement.
-    // Sinon (pas de slot, ou slot sans réglage propre) : grille du morceau, comportement historique
-    // inchangé — même chaîne de repli que le moteur quantifié classique (track.bpm || 120).
-    if (slot && (slot.bpm || slot.beatsPerBar)) {
-      const timing = slotTiming(slot);
-      return (bars || timing.beatsPerBar) * timing.beatsPerBar * timing.secondsPerBeat;
-    }
-    return (bars || beatsPerBar) * beatsPerBar * secondsPerBeat;
-  }
+  function slotTiming(slot) { return seqSlotTiming(track, slot); }
+  // slot fourni ET porteur d'un tempo propre (bpm ou beatsPerBar) : grille de CET emplacement. Sinon (pas de slot, ou
+  // slot sans réglage propre) : grille du morceau, comportement historique inchangé (track.bpm || 120).
+  function blockSeconds(bars, slot) { return seqBlockSeconds(track, bars, slot); }
   // Tempo effectif d'un fichier de transition (nextOptions[].transition) — même principe de repli que
   // slotTiming(), mais à un niveau de plus : tempo propre à la transition si réglé, sinon celui de
   // l'emplacement source qu'on quitte, sinon celui du morceau. Distinct de slotTiming() car une transition
   // peut délibérément changer de tempo par rapport à l'emplacement qu'elle quitte (impact, riser...), alors
   // qu'un emplacement hérite normalement du morceau.
-  function transitionTiming(tr, sourceSlot) {
-    return {
-      secondsPerBeat: 60 / ((tr && tr.bpm) || (sourceSlot && sourceSlot.bpm) || bpm),
-      beatsPerBar: (tr && tr.beatsPerBar) || (sourceSlot && sourceSlot.beatsPerBar) || beatsPerBar
-    };
-  }
+  function transitionTiming(tr, sourceSlot) { return seqTransitionTiming(track, tr, sourceSlot); }
   // Durée nominale d'un fichier de transition avant que le crossfade-tail classique vers la cible ne prenne
   // le relais (voir schéma "durationUnit" validé le 14/08, complété le 29/08 avec l'unité "temps"). Quatre
   // cas :
@@ -3366,20 +3468,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   //   fin qu'une mesure entière (ex. un stinger d'1.5 temps). Même `transitionTiming()` que 'bars', sans la
   //   multiplication par beatsPerBar puisqu'on compte déjà des temps, pas des mesures.
   // - `durationUnit: 'seconds'` : durée brute en secondes, aucune notion de tempo.
-  function transitionDurationSecFor(opt, sourceSlot) {
-    const tr = opt && opt.transition;
-    if (!tr) return null;
-    if (tr.durationUnit === 'seconds') return tr.durationSeconds != null ? tr.durationSeconds : 0;
-    if (tr.durationUnit === 'beats') {
-      const timing = transitionTiming(tr, sourceSlot);
-      return (tr.durationBeats || 1) * timing.secondsPerBeat;
-    }
-    if (tr.durationUnit === 'bars') {
-      const timing = transitionTiming(tr, sourceSlot);
-      return (tr.bars || timing.beatsPerBar) * timing.beatsPerBar * timing.secondsPerBeat;
-    }
-    return blockSeconds(tr.bars, sourceSlot);
-  }
+  function transitionDurationSecFor(opt, sourceSlot) { return seqTransitionDurationSec(track, opt, sourceSlot); }
   function canonicalSlotKey(s) {
     const slot = (track.segmentSlots || [])[s];
     return (slot && slot.referencesSlotId) || (slot && slot.id) || ('s' + s);
@@ -4858,22 +4947,12 @@ function initTrackPlayer(track, wrapper, elementColors) {
      référence) : au clic, lecture fraîche en fondu d'entrée, puis retour automatique à la référence une
      fois sa durée nominale écoulée (voir schéma validé le 31/07). Réutilise blockSeconds() du moteur
      séquentiel pour rester sur une seule notion de "durée en mesures" dans tout le fichier. ---- */
-  const embrReferenceIdx = (() => {
-    const ls = track.loops || [];
-    const idx = ls.findIndex(l => l && l.isInitial);
-    return idx >= 0 ? idx : 0;
-  })();
-  const embrRefBars = ((track.loops || [])[embrReferenceIdx] || {}).bars;
+  const embrReferenceIdx = embrReferenceIndex(track);
   // Classification paire/détour explicite (isDetour, 24/08) plutôt qu'une comparaison implicite des
   // mesures -- avec repli sur l'ancienne comparaison si le champ est absent du JSON chargé (morceau publié
   // avant ce changement, pas encore republié depuis). Une fois republié via le backstage, `isDetour` est
   // toujours explicitement présent (migré à la volée côté loadData()) et ce repli ne joue plus.
-  const embrPeerIndices = (track.loops || []).map((l, i) => i)
-    .filter(i => {
-      if (i === embrReferenceIdx) return true;
-      const l = track.loops[i];
-      return 'isDetour' in l ? !l.isDetour : (l.bars === embrRefBars);
-    });
+  const embrPeerIndices = embrPeerIndicesOf(track);
   // Durée nominale du fichier de transition d'une boucle avant que la boucle cible ne commence réellement
   // à monter (29/08, même mécanisme que transitionDurationSecFor() côté branching séquentiel, décision
   // confirmée par Jules-Antoine, complété le 29/08 avec l'unité "temps" pour rester cohérent avec le
@@ -4884,20 +4963,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // `bars: 4` par défaut), une transition d'embranchement-vertical n'a par défaut AUCUNE valeur de mesures
   // -- un repli par mesures y donnerait une durée arbitraire (potentiellement plusieurs secondes de silence
   // sur la cible) plutôt que la durée réelle du fichier déposé.
-  function embrTransitionDurationSecFor(loopDef, sourceLoopDef, buf) {
-    const tr = loopDef && loopDef.transition;
-    if (!tr) return 0;
-    if (tr.durationUnit === 'seconds') return tr.durationSeconds != null ? tr.durationSeconds : (buf ? buf.duration : 0);
-    if (tr.durationUnit === 'beats') {
-      const timing = transitionTiming(tr, sourceLoopDef);
-      return (tr.durationBeats || 1) * timing.secondsPerBeat;
-    }
-    if (tr.durationUnit === 'bars') {
-      const timing = transitionTiming(tr, sourceLoopDef);
-      return (tr.bars || timing.beatsPerBar) * timing.beatsPerBar * timing.secondsPerBeat;
-    }
-    return buf ? buf.duration : 0;
-  }
+  function embrTransitionDurationSecFor(loopDef, sourceLoopDef, buf) { return embrTransitionDurationSec(track, loopDef, sourceLoopDef, buf ? buf.duration : 0); }
   // Joue le fichier de transition (24/08) de la boucle CIBLE, s'il en existe un -- en overlay, superposé au
   // fondu de coupure plutôt qu'inséré séquentiellement entre les deux boucles (bien plus simple à
   // synchroniser correctement, et suffisant pour l'usage visé : un whoosh/une texture qui accompagne la
@@ -4931,24 +4997,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // (peut être avant "Entrée"), qui ne joue donc qu'une seule fois -- même principe que le moteur quantifié
   // classique (voir bufferOffset plus haut dans ce fichier). Aucun réglage -> comportement d'origine
   // inchangé (durée = nombre de mesures, démarrage à l'offset 0 pour toutes les générations).
-  function embrLoopTiming() {
-    const refLoop = (track.loops || [])[embrReferenceIdx] || {};
-    const duration = refLoop.duration || 0;
-    if (!duration) {
-      // Pas encore de fichier probé (ou données publiées avant l'ajout de la durée par boucle) -- seul
-      // repère disponible, l'ancien calcul par mesures.
-      return { startSec: 0, loopInSec: 0, cycleLength: blockSeconds(embrRefBars) };
-    }
-    const loopInSec = (refLoop.loopInBeat || 0) * secondsPerBeat;
-    // Pas de Sortie explicitement réglée -> le cycle va jusqu'à la fin réelle du fichier plutôt que de
-    // retomber sur un calcul par mesures déconnecté de l'audio (24/08, retour visuel : "Mesures" est
-    // vestige une fois un fichier chargé, la durée réelle prime toujours).
-    const loopOutSec = refLoop.loopOutBeat != null
-      ? Math.max(loopInSec + secondsPerBeat, refLoop.loopOutBeat * secondsPerBeat)
-      : duration;
-    const startSec = Math.min((refLoop.startTrackBeat || 0) * secondsPerBeat, loopInSec);
-    return { startSec, loopInSec, cycleLength: loopOutSec - loopInSec };
-  }
+  // Pas encore de fichier probé : ancien calcul par mesures. Pas de Sortie réglée : le cycle va jusqu'à la fin réelle du
+  // fichier (24/08, "Mesures" est vestige une fois un fichier chargé). Voir embrLoopTimingOf.
+  function embrLoopTiming() { return embrLoopTimingOf(track); }
   function embrCycleLengthSec() { return embrLoopTiming().cycleLength; }
   // Le bouton d'une boucle EST masqué (pas seulement désactivé) tant qu'elle est celle effectivement
   // audible -- inutile d'afficher un bouton vers ce qui joue déjà (retour de Jules-Antoine, 29/08).
@@ -5307,31 +5358,16 @@ function initTrackPlayer(track, wrapper, elementColors) {
   }
   // Durée en secondes d'un minuteur de retour auto (boucle paire), quelle que soit son unité de réglage
   // (temps/mesures/secondes) -- même conversion bpm/beatsPerBar que le reste du moteur quantifié.
-  function embrDurationToSeconds(value, unit) {
-    const v = value || 0;
-    if (unit === 'seconds') return v;
-    if (unit === 'beats') return v * (60 / bpm);
-    return v * beatsPerBar * (60 / bpm); // 'bars', réglage par défaut
-  }
+  function embrDurationToSeconds(value, unit) { return embrDurationToSec(track, value, unit); }
   // Délai (en secondes) avant qu'une bascule demandée ne s'exécute réellement, selon le réglage de
   // quantification de la boucle CIBLE (24/08) -- calculé par rapport à la phase de la référence, seule
   // horloge qui tourne en continu en arrière-plan (y compris pour déclencher un détour, qui n'a pas
   // encore de cycle propre avant de démarrer). 'immediate' (ou absent) -> 0, aucune attente.
   function embrQuantizeDelaySec(quantize) {
-    if (quantize !== 'beat' && quantize !== 'bar') return 0;
-    // Durées converties en temps RÉEL (÷ trackPitchRatio) : elapsed vient de ctx.currentTime, alors que
-    // le cycle et le temps musical sont exprimés en temps nominal du fichier (pitch "vitesse", 23/09).
-    const cycle = embrCycleLengthSec() / trackPitchRatio;
-    if (!(cycle > 0)) return 0;
-    const elapsed = ((ctx.currentTime - embrReferenceStartCtxTime) % cycle + cycle) % cycle;
-    const beatDuration = 60 / bpm / trackPitchRatio;
-    if (quantize === 'beat') {
-      const positionInBeat = elapsed % beatDuration;
-      return (beatDuration - positionInBeat) % beatDuration;
-    }
-    const barDuration = beatsPerBar * beatDuration;
-    const positionInBar = elapsed % barDuration;
-    return (barDuration - positionInBar) % barDuration;
+    // Temps RÉEL (÷ trackPitchRatio) : elapsed vient de ctx.currentTime, alors que le cycle et le temps musical sont
+    // exprimés en temps nominal du fichier (pitch "vitesse", 23/09).
+    const elapsedNominal = (ctx.currentTime - embrReferenceStartCtxTime) * trackPitchRatio;
+    return embrQuantizeDelayAt(track, quantize, elapsedNominal) / trackPitchRatio;
   }
   // Affiche/retire le bouton "Mettre fin à la boucle" inséré dynamiquement à la suite des boutons de
   // boucle habituels, uniquement pendant qu'un détour en mode "en boucle jusqu'à un bouton" est actif
@@ -5703,11 +5739,8 @@ function initTrackPlayer(track, wrapper, elementColors) {
         // cette durée nominale forme la queue de chevauchement, exactement comme en séquentiel.
         const firstPlayableOrigIdx = playableSectionOriginalIndex[0];
         const firstSection = firstPlayableOrigIdx !== undefined ? resolveVRSection(track, firstPlayableOrigIdx) : null;
-        // Tempo propre à l'intro s'il a été réglé dans le Backstage (25/09 : champs BPM/temps par mesure de
-        // l'intro enfin enregistrés) -- sinon repli inchangé sur la première section.
-        const introBpm = (track.intro && track.intro.bpm) || (firstSection && firstSection.bpm) || 120;
-        const introBeatsPerBar = (track.intro && track.intro.beatsPerBar) || (firstSection && firstSection.beatsPerBar) || 4;
-        const introDurationSec = ((track.intro && track.intro.bars) || introBeatsPerBar) * introBeatsPerBar * (60 / introBpm);
+        // Tempo propre à l'intro s'il a été réglé dans le Backstage (25/09), sinon celui de la première section.
+        const introDurationSec = vrIntroDurationSec(track, firstSection);
         vrNextStartCtxTime += introDurationSec / trackPitchRatio;
         continue;
       }
@@ -7100,6 +7133,9 @@ window.LayerPlayerCore = {
   withLatencyComp,
   fxSpLatencySec,
   embrCutFadeSec,
+  // Minutages musicaux purs (26/09, voir plus haut) -- partagés avec l'outil vidéo (capture-retarget.js).
+  trackTempo, seqSlotTiming, seqBlockSeconds, seqTransitionTiming, seqTransitionDurationSec, embrTransitionDurationSec,
+  quantizedLoopTiming, vrSectionTiming, vrIntroDurationSec, embrReferenceIndex, embrPeerIndicesOf, embrLoopTimingOf, embrDurationToSec, embrQuantizeDelayAt,
   // Contexte audio de la page : sa fréquence et le retard de ses effets à ScriptProcessor (rendu hors-ligne à l'identique).
   liveSampleRate: () => ctx.sampleRate,
   audioContext: () => ctx, // le contexte audio de la page (lecture d'une version figée en direct)
