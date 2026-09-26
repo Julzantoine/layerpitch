@@ -356,6 +356,13 @@
     color: var(--text); font-size: 13px; font-family: inherit;
   }
   .video-test-dialog-error { font-size: 12px; color: #c0392b; min-height: 16px; margin-top: 8px; }
+  /* Ouverture d'un montage depuis le Backstage (Versioning, 26/09) + vidéo prise dans la bibliothèque vidéo. */
+  .video-capture-montage-note { font-size: 12.5px; color: var(--text); background: var(--accent-soft); border-radius: 6px; padding: 8px 10px; margin: 0 0 12px; line-height: 1.5; }
+  .video-capture-library-pick { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .video-capture-library-pick .video-test-dialog-hint { margin: 0; }
+  .video-capture-library-row { display: flex; gap: 8px; align-items: center; }
+  .video-capture-library-row select { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 12.5px; font-family: inherit; }
+  .video-capture-library-status { font-size: 12px; color: var(--text-dim); min-height: 16px; }
   .video-test-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
   .video-test-btn-secondary, .video-test-btn-primary {
     padding: 9px 18px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
@@ -661,9 +668,18 @@
 <dialog id="videoCaptureDialog" class="video-test-dialog">
   <div class="video-test-form">
     <div class="video-test-dialog-title" data-i18n="captureDialogTitle">Capturer une prise</div>
+    <div class="video-capture-montage-note" id="videoCaptureMontageNote" hidden></div>
     <p class="video-test-dialog-hint" data-i18n="captureDialogHint">Importe ta propre vidéo de gameplay (fichier local -- un lien YouTube/Vimeo ne peut pas être réutilisé dans un export). Le lecteur ci-dessous enregistrera l'horodatage de chaque déclenchement pendant que tu joues.</p>
     <div class="video-capture-dropzone" id="videoCaptureDropzone" data-i18n="captureDropzoneHint">Glisse un fichier vidéo ici, ou clique pour en choisir un</div>
     <input type="file" id="videoCaptureFileInput" accept="video/*" hidden>
+    <div class="video-capture-library-pick" id="videoCaptureLibraryPick" hidden>
+      <p class="video-test-dialog-hint" data-i18n="captureLibraryPickHint">Ou prends une vidéo de ta bibliothèque vidéo (Backstage → Vidéo) :</p>
+      <div class="video-capture-library-row">
+        <select id="videoCaptureLibrarySelect"></select>
+        <button type="button" class="video-test-btn-primary" id="videoCaptureLibraryBtn" data-i18n="captureLibraryUseBtn">Utiliser</button>
+      </div>
+      <div class="video-capture-library-status" id="videoCaptureLibraryStatus"></div>
+    </div>
     <div class="video-test-dialog-error" id="videoCaptureError"></div>
     <div class="video-test-dialog-actions">
       <button type="button" class="video-test-btn-secondary" id="videoCaptureCancelBtn" data-i18n="cancel">Annuler</button>
@@ -674,14 +690,14 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790458752941"></script>
-<script src="layerpitch-notify.js?v=1790458752941"></script>
-<script src="public-page.js?v=1790458752941"></script>
-<script src="player.js?v=1790458752941"></script>
-<script src="capture-plan.js?v=1790458752941"></script>
-<script src="capture-render.js?v=1790458752941"></script>
-<script src="capture-retarget.js?v=1790458752941"></script>
-<script src="capture-versioning.js?v=1790458752941"></script>
+<script src="layerpitch-i18n.js?v=1790459398942"></script>
+<script src="layerpitch-notify.js?v=1790459398942"></script>
+<script src="public-page.js?v=1790459398942"></script>
+<script src="player.js?v=1790459398942"></script>
+<script src="capture-plan.js?v=1790459398942"></script>
+<script src="capture-render.js?v=1790459398942"></script>
+<script src="capture-retarget.js?v=1790459398942"></script>
+<script src="capture-versioning.js?v=1790459398942"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2202,7 +2218,8 @@ function detachCapturePanel() {
   });
 }
 
-function openCapturePanel(file) {
+function openCapturePanel(file, opts) {
+  opts = opts || {};
   const panel = document.getElementById('videoTestPanel');
   const objectUrl = URL.createObjectURL(file);
   panel.innerHTML = `
@@ -2558,6 +2575,15 @@ function openCapturePanel(file) {
     });
     capturePanelVersioning = versioning;
   }
+  // Montage demandé à l'ouverture (lien du Backstage) : chargé tout de suite, puis la section Versioning est amenée à l'écran.
+  if (opts.montageId) {
+    saveStatus.textContent = tr('captureLoading');
+    loadVideoCapture(opts.montageId).then(capture => {
+      applyLoadedCapture(capture);
+      loadSelect.value = capture.id;
+      if (versioning) setTimeout(() => versioningHost.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+    }).catch(e => { console.error(e); saveStatus.textContent = tr('captureLoadFailed').replace('{error}', e.message); });
+  }
   document.getElementById('videoCaptureCloseBtn').addEventListener('click', () => {
     URL.revokeObjectURL(objectUrl);
     closeCapturePanel();
@@ -2602,12 +2628,13 @@ async function setupCaptureTrigger(pack, container) {
   captureBtn.type = 'button';
   captureBtn.className = 'video-capture-trigger-btn';
   captureBtn.textContent = tr('captureDialogTitle');
-  captureBtn.addEventListener('click', () => document.getElementById('videoCaptureDialog').showModal());
+  captureBtn.addEventListener('click', () => openVideoCaptureDialog());
   container.insertBefore(captureBtn, container.firstChild);
   // Lien direct depuis le Backstage (bibliothèque vidéo, sous-onglet "Capture", ?capture=1) : ouvre le
   // dialogue tout de suite, sans clic supplémentaire depuis la liste des packs du compositeur.
+  // &montage=<id> (Backstage → Vidéo → Versioning, 26/09) : ce montage sauvegardé s'ouvre dès que la vidéo est choisie.
   if (new URLSearchParams(location.search).get('capture') === '1') {
-    document.getElementById('videoCaptureDialog').showModal();
+    openVideoCaptureDialog(new URLSearchParams(location.search).get('montage'));
   }
 
   // Boutons ⏺ "Armer" -- un par morceau, posés directement à côté de son propre bouton de lecture dans
@@ -2634,13 +2661,23 @@ async function setupCaptureTrigger(pack, container) {
   });
 }
 
+// Montage à ouvrir dès que la vidéo est choisie (lien du Backstage), et sa fiche (titre, nom de la vidéo d'origine).
+let pendingMontageId = null;
+let pendingMontage = null;
+let openVideoCaptureDialog = () => {};
 (function setupVideoCaptureDialog() {
   const dialog = document.getElementById('videoCaptureDialog');
   const dropzone = document.getElementById('videoCaptureDropzone');
   const fileInput = document.getElementById('videoCaptureFileInput');
   const errorEl = document.getElementById('videoCaptureError');
   const cancelBtn = document.getElementById('videoCaptureCancelBtn');
+  const montageNote = document.getElementById('videoCaptureMontageNote');
+  const libPick = document.getElementById('videoCaptureLibraryPick');
+  const libSelect = document.getElementById('videoCaptureLibrarySelect');
+  const libBtn = document.getElementById('videoCaptureLibraryBtn');
+  const libStatus = document.getElementById('videoCaptureLibraryStatus');
   if (!dialog) return;
+  let libraryVideos = [];
   function handleFile(file) {
     if (!file || !file.type.startsWith('video/')) {
       errorEl.textContent = tr('captureChooseVideoError');
@@ -2648,8 +2685,64 @@ async function setupCaptureTrigger(pack, container) {
     }
     errorEl.textContent = '';
     dialog.close();
-    openCapturePanel(file);
+    const montageId = pendingMontageId;
+    pendingMontageId = null;
+    openCapturePanel(file, { montageId });
   }
+  // Ouverture du dialogue ; montageId (facultatif) : montage sauvegardé à ouvrir dans la foulée. La vidéo n'étant jamais
+  // sauvegardée avec le montage (seul son nom), elle se choisit ici -- sur le disque, ou (admin, 26/09) directement dans
+  // la bibliothèque vidéo du compositeur, la vidéo d'origine présélectionnée si elle s'y trouve.
+  openVideoCaptureDialog = async (montageId) => {
+    pendingMontageId = montageId || null;
+    pendingMontage = null;
+    montageNote.hidden = true;
+    libPick.hidden = true;
+    libStatus.textContent = '';
+    dialog.showModal();
+    if (pendingMontageId) {
+      try {
+        pendingMontage = await loadVideoCapture(pendingMontageId);
+        montageNote.textContent = tr('captureMontageToOpen').replace('{title}', pendingMontage.title || tr('captureUntitled'))
+          + (pendingMontage.videoFilename ? ' ' + tr('captureMontageOriginalVideo').replace('{video}', pendingMontage.videoFilename) : '');
+        montageNote.hidden = false;
+      } catch (e) {
+        console.error(e);
+        pendingMontageId = null;
+        errorEl.textContent = tr('captureLoadFailed').replace('{error}', e.message);
+      }
+    }
+    if (!window.__lpCaptureIsAdmin) return; // nouveauté réservée à l'admin jusqu'au feu vert
+    try {
+      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_videos');
+      if (error) throw error;
+      libraryVideos = (data && data.videos) || [];
+    } catch (e) { console.error(e); libraryVideos = []; }
+    if (!libraryVideos.length) return;
+    const wanted = pendingMontage && pendingMontage.videoFilename;
+    const match = wanted ? libraryVideos.find(v => v.originalName === wanted || v.title === wanted || v.file === wanted) : null;
+    libSelect.innerHTML = libraryVideos.map(v => `<option value="${window.LayerPlayerCore.escapeHtml(v.id)}" ${match && match.id === v.id ? 'selected' : ''}>${window.LayerPlayerCore.escapeHtml(v.title || v.originalName || v.file)}${v.kind === 'capture_export' ? ' — ' + window.LayerPlayerCore.escapeHtml(tr('captureLibraryKindExport')) : ''}</option>`).join('');
+    libPick.hidden = false;
+    if (wanted && !match) libStatus.textContent = tr('captureLibraryNoMatch').replace('{video}', wanted);
+  };
+  libBtn.addEventListener('click', async () => {
+    const v = libraryVideos.find(x => x.id === libSelect.value);
+    if (!v) return;
+    libBtn.disabled = true;
+    libStatus.textContent = tr('captureLibraryDownloading');
+    try {
+      const res = await fetch(v.base + encodeURIComponent(v.file));
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const blob = await res.blob();
+      // Nom du fichier d'origine : c'est lui que le montage a retenu (vérification « bonne vidéo » au chargement).
+      const name = v.originalName || v.title || v.file;
+      handleFile(new File([blob], name, { type: v.mimeType || blob.type || 'video/mp4' }));
+    } catch (e) {
+      console.error(e);
+      libStatus.textContent = tr('captureLibraryDownloadFailed').replace('{error}', e.message);
+    } finally {
+      libBtn.disabled = false;
+    }
+  });
   dropzone.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
   dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
@@ -2659,7 +2752,7 @@ async function setupCaptureTrigger(pack, container) {
     dropzone.classList.remove('dragover');
     handleFile(e.dataTransfer.files[0]);
   });
-  cancelBtn.addEventListener('click', () => dialog.close());
+  cancelBtn.addEventListener('click', () => { pendingMontageId = null; dialog.close(); });
   dialog.addEventListener('close', () => { errorEl.textContent = ''; fileInput.value = ''; });
 })();
 

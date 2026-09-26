@@ -305,6 +305,10 @@
   .video-subpanel.active { display: block; }
   .video-capture-pack-row-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
   .video-capture-pack-row-hint { font-size: 11.5px; color: var(--text-dimmer); margin-top: 2px; }
+  /* Sous-onglet Versioning (26/09) : montages sauvegardés et leurs versions vidéo. */
+  .video-versioning-versions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .video-versioning-chip { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); }
+  .video-versioning-chip.exported { border-color: var(--accent); color: var(--accent); }
 
   .backstage-layout { display: flex; gap: 28px; align-items: flex-start; margin-top: 20px; }
   .backstage-sidebar { width: 196px; flex-shrink: 0; position: sticky; top: 20px; background: var(--bg-sidebar); border-radius: 10px; padding: 16px 14px; }
@@ -1201,6 +1205,7 @@
         <div class="content-appearance-toggle">
           <button class="nav-item active" data-video-subtab="library" type="button"><span data-i18n="videoSubtabLibrary">Bibliothèque</span></button>
           <button class="nav-item" data-video-subtab="capture" type="button"><span data-i18n="videoSubtabCapture">Capture</span></button>
+          <button class="nav-item" data-video-subtab="versioning" type="button"><span data-i18n="videoSubtabVersioning">Versioning</span></button>
         </div>
 
         <div class="video-subpanel active" data-video-subpanel="library">
@@ -1219,6 +1224,15 @@
         <div class="video-subpanel" data-video-subpanel="capture">
           <div class="sub" data-i18n="videoCaptureSubtabHint">Rejoue la musique adaptative d'un de tes packs en direct sur une vidéo de gameplay, édite la prise, exporte-la ou sauvegarde-la. Ouvre la page en direct du pack choisi, dans un nouvel onglet.</div>
           <div id="videoCapturePacksList" class="video-library-list"></div>
+        </div>
+
+        <!-- Sous-onglet Versioning (26/09) : tous les montages sauvegardés (video_captures), tous packs confondus, avec
+             leurs versions vidéo (video_capture_versions). « Ouvrir » ouvre l'outil vidéo du pack, montage chargé
+             (pack.html?...&capture=1&montage=<id>) -- l'outil lui-même vit dans pack.html, jamais dupliqué ici. Réservé à
+             l'admin jusqu'au feu vert (les fonctions serveur le vérifient aussi). -->
+        <div class="video-subpanel" data-video-subpanel="versioning">
+          <div class="sub" data-i18n="videoVersioningSubtabHint">Tes montages vidéo sauvegardés et leurs versions (le même montage rejoué avec d'autres morceaux ou d'autres Sfx). Ouvre un montage pour créer, écouter ou rendre ses versions, dans un nouvel onglet.</div>
+          <div id="videoVersioningList" class="video-library-list"></div>
         </div>
       </div>
 
@@ -1780,10 +1794,10 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790458752941"></script>
-<script src="layerpitch-notify.js?v=1790458752941"></script>
-<script src="layerpitch-help.js?v=1790458752941"></script>
-<script src="player.js?v=1790458752941"></script>
+<script src="layerpitch-i18n.js?v=1790459398942"></script>
+<script src="layerpitch-notify.js?v=1790459398942"></script>
+<script src="layerpitch-help.js?v=1790459398942"></script>
+<script src="player.js?v=1790459398942"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -12456,6 +12470,7 @@ function switchVideoSubtab(name) {
   document.querySelectorAll('#panelVideoLibrary .video-subpanel').forEach(p => p.classList.toggle('active', p.dataset.videoSubpanel === name));
   document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(b => b.classList.toggle('active', b.dataset.videoSubtab === name));
   if (name === 'capture') renderVideoCapturePacksList();
+  if (name === 'versioning') renderVideoVersioningList();
 }
 document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(btn => {
   btn.addEventListener('click', () => switchVideoSubtab(btn.dataset.videoSubtab));
@@ -12481,6 +12496,54 @@ function renderVideoCapturePacksList() {
           : `<span class="btn btn-small" style="opacity:.4;pointer-events:none;">${tr('videoCaptureOpenBtn')}</span>`}
       </div>
     `;
+  }).join('');
+}
+
+async function renderVideoVersioningList() {
+  const listEl = document.getElementById('videoVersioningList');
+  if (!listEl) return;
+  if (!currentUserIsAdmin) { listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoVersioningAdminOnly'))}</div>`; return; }
+  listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoVersioningLoading'))}</div>`;
+  const client = window.LayerPitchSupabaseClient.getClient();
+  let captures = [], videos = [];
+  try {
+    const res = await client.rpc('list_my_video_captures', { p_pack_id: null });
+    if (res.error) throw res.error;
+    captures = res.data || [];
+    videos = (await loadMyVideos()).videos || [];
+  } catch (e) {
+    listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoVersioningLoadFailed').replace('{error}', e.message))}</div>`;
+    return;
+  }
+  if (!captures.length) { listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoVersioningEmpty'))}</div>`; return; }
+  // Versions de chaque montage (une lecture par montage, en parallèle).
+  const versionsByCapture = {};
+  await Promise.all(captures.map(async c => {
+    const r = await client.rpc('list_video_capture_versions', { p_capture_id: c.id });
+    versionsByCapture[c.id] = r.error ? null : (r.data || []);
+  }));
+  const videoIds = new Set(videos.map(v => v.id));
+  listEl.innerHTML = captures.map(c => {
+    const pack = packs.find(p => p.id === c.packId);
+    const enabled = !!(pack && pack.videoTestModeEnabled);
+    const url = `./pack.html?id=${encodeURIComponent(c.packId)}&lang=${encodeURIComponent(currentLang())}&capture=1&montage=${encodeURIComponent(c.id)}`;
+    const vs = versionsByCapture[c.id];
+    const meta = [pack ? (pack.title || tr('defaultPackTitle')) : tr('videoVersioningPackMissing'), c.videoFilename ? tr('videoVersioningVideo').replace('{video}', c.videoFilename) : '', new Date(c.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ');
+    const chips = vs === null ? `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningVersionsUnavailable'))}</span>`
+      : vs.length ? vs.map(v => `<span class="video-versioning-chip ${v.lastExportVideoId && videoIds.has(v.lastExportVideoId) ? 'exported' : ''}" title="${escapeHtml(v.lastExportVideoId && videoIds.has(v.lastExportVideoId) ? tr('videoVersioningExported') : '')}">${escapeHtml(v.title || tr('videoVersioningUntitled'))}</span>`).join('')
+      : `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningNoVersion'))}</span>`;
+    return `
+      <div class="video-library-item">
+        <div class="video-library-item-main">
+          <div class="video-capture-pack-row-title">${escapeHtml(c.title || tr('videoVersioningUntitled'))}</div>
+          <div class="video-library-item-meta">${escapeHtml(meta)}</div>
+          ${enabled ? '' : `<div class="video-capture-pack-row-hint">${escapeHtml(tr('videoCaptureNeedsTestMode'))}</div>`}
+          <div class="video-versioning-versions">${chips}</div>
+        </div>
+        ${enabled
+          ? `<a class="btn btn-small" href="${url}" target="_blank" rel="noopener">${escapeHtml(tr('videoVersioningOpenBtn'))}</a>`
+          : `<span class="btn btn-small" style="opacity:.4;pointer-events:none;">${escapeHtml(tr('videoVersioningOpenBtn'))}</span>`}
+      </div>`;
   }).join('');
 }
 
