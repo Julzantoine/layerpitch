@@ -20,7 +20,7 @@
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790457926036">
+<link rel="stylesheet" href="player.css?v=1790458752941">
 <style>
   :root {
     --bg: #f6f5f3; --bg-card: #ffffff; --bg-side: #efede9; --border: #e4e1da;
@@ -50,7 +50,24 @@
   .side-head h1 { font-family: var(--font-title); font-size: 18px; margin: 0; color: var(--text-title); }
   .tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
   .side-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dimmer); padding: 8px 16px 6px; }
-  .lib { overflow: auto; padding: 0 8px 12px; flex: 1; min-height: 0; }
+  .lib-scroll { flex: 1; min-height: 0; overflow: auto; }
+  .lib { padding: 0 8px 8px; }
+  .lib-new { padding: 2px 16px 14px; }
+  .lib-item-sub { display: block; font-size: 11.5px; color: var(--text-dimmer); }
+  .cover.pl-cover { display: grid; place-items: center; color: var(--on-accent); background: linear-gradient(135deg, var(--accent), #7a4a8c); font-size: 18px; border: 0; }
+  .cover.pl-cover-lg { width: 184px; height: 184px; font-size: 64px; }
+  .cover.pl-mosaic { display: grid; overflow: hidden; background: var(--bg-side); }
+  .pl-mosaic.n2, .pl-mosaic.n3, .pl-mosaic.n4 { grid-template-columns: 1fr 1fr; }
+  .pl-mosaic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pl-mosaic.n3 img:first-child { grid-row: span 2; }
+  .album-head .pl-mosaic { width: 184px; height: 184px; border-radius: 10px; flex: none; }
+  .pl-title-input { font: inherit; color: inherit; background: var(--bg-card); border: 1px solid var(--accent); border-radius: 8px; padding: 0 8px; width: 100%; max-width: 560px; }
+  .pl-menu { position: fixed; z-index: 1000; min-width: 220px; max-width: min(320px, calc(100vw - 16px)); max-height: 60vh; overflow: auto; background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,.18); padding: 6px; }
+  .pl-menu-title { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dimmer); padding: 6px 10px 4px; }
+  .pl-menu button { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 6px; cursor: pointer; overflow-wrap: anywhere; }
+  .pl-menu button:hover, .pl-menu button:focus-visible { background: var(--accent-soft); color: var(--accent); outline: none; }
+  .pl-menu-new { color: var(--accent); border-top: 1px solid var(--border) !important; border-radius: 0 0 6px 6px !important; margin-top: 4px; }
+  .t-add, .t-order { width: 1%; white-space: nowrap; }
   .lib-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: none; padding: 7px 8px; border-radius: 8px; cursor: pointer; }
   .lib-item:hover { background: var(--bg-card); }
   .lib-item.active { background: var(--accent-soft); }
@@ -139,7 +156,10 @@
     .side { grid-row: 1; border-right: 0; border-bottom: 1px solid var(--border); }
     .side-head { padding: 12px 16px 4px; }
     .side-label { display: none; }
-    .lib { display: flex; gap: 6px; overflow-x: auto; padding: 4px 12px 10px; }
+    .lib-scroll { display: flex; overflow-x: auto; align-items: center; padding: 4px 12px 10px; gap: 6px; }
+    .lib { display: flex; gap: 6px; padding: 0; }
+    .lib-new { padding: 0; flex: none; }
+    .album-head .pl-mosaic, .album-head .cover.pl-cover-lg { width: 132px; height: 132px; font-size: 44px; }
     .lib-item { flex: none; width: auto; max-width: 220px; }
     .side-foot { display: none; }
     .main { grid-row: 2; }
@@ -156,8 +176,13 @@
 <div class="app">
   <aside class="side" aria-label="Bibliothèque" id="side">
     <div class="side-head"><h1 id="heading">Mes albums</h1><span class="tag" id="betaTag">bêta · admin</span><button type="button" class="btn theme-inline" data-theme-toggle></button></div>
-    <div class="side-label" id="libLabel">Bibliothèque</div>
-    <nav class="lib" id="lib"></nav>
+    <div class="lib-scroll">
+      <div class="side-label" id="libLabel">Albums</div>
+      <nav class="lib" id="lib"></nav>
+      <div class="side-label pl-label"><span id="plLabel">Playlists</span></div>
+      <nav class="lib" id="plList"></nav>
+      <div class="lib-new"><button type="button" class="btn" id="newPlaylistBtn">+ Nouvelle playlist</button></div>
+    </div>
     <div class="side-foot"><button type="button" class="btn" data-theme-toggle></button></div>
   </aside>
   <main class="main" id="main"><div class="main-inner" id="center"></div></main>
@@ -174,15 +199,16 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790457926036"></script>
-<script src="layerpitch-notify.js?v=1790457926036"></script>
-<script src="player.js?v=1790457926036"></script>
-<script src="capture-render.js?v=1790457926036"></script>
-<script src="api/supabase-client.js?v=1790457926036"></script>
-<script src="api/auth.js?v=1790457926036"></script>
-<script src="api/tracks.js?v=1790457926036"></script>
-<script src="api/sfx.js?v=1790457926036"></script>
-<script src="api/albums.js?v=1790457926036"></script>
+<script src="layerpitch-i18n.js?v=1790458752941"></script>
+<script src="layerpitch-notify.js?v=1790458752941"></script>
+<script src="player.js?v=1790458752941"></script>
+<script src="capture-render.js?v=1790458752941"></script>
+<script src="api/supabase-client.js?v=1790458752941"></script>
+<script src="api/auth.js?v=1790458752941"></script>
+<script src="api/tracks.js?v=1790458752941"></script>
+<script src="api/sfx.js?v=1790458752941"></script>
+<script src="api/playlists.js?v=1790458752941"></script>
+<script src="api/albums.js?v=1790458752941"></script>
 <script>
 (async () => {
   const P = window.LayerPlayerCore, R = window.LayerCaptureRender;
@@ -202,7 +228,8 @@
     return s;
   }
   document.title = tr('pageTitle');
-  $('heading').textContent = tr('heading'); $('betaTag').textContent = tr('betaTag'); $('libLabel').textContent = tr('library');
+  $('heading').textContent = tr('heading'); $('betaTag').textContent = tr('betaTag');
+  $('libLabel').textContent = tr('albumsLabel'); $('plLabel').textContent = tr('playlists'); $('newPlaylistBtn').textContent = tr('newPlaylist');
   $('side').setAttribute('aria-label', tr('library'));
   $('prevBtn').setAttribute('aria-label', tr('prev')); $('nextBtn').setAttribute('aria-label', tr('next'));
   const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
@@ -210,6 +237,9 @@
   const coverHtml = (illustration, cls) => illustration
     ? `<img class="cover ${cls || ''}" src="${IMAGES_BASE}${esc(illustration)}" alt="">`
     : `<div class="cover ${cls || ''}"></div>`;
+  const ICON_PLUS = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>';
+  const ICON_PLAY_SM = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M7 5v14l12-7z"/></svg>';
+  const notifyError = e => window.LayerPitchNotify.error(tr('errorMsg', { error: e.message || e }));
 
   // ---- Thème clair / nuit, entièrement par variables (les skins d'album passeront par le même chemin) ----
   function setTheme(t) {
@@ -229,29 +259,50 @@
   const demo = params.get('demo') === '1' && ['localhost', '127.0.0.1'].includes(location.hostname);
   const store = demo ? demoStore(params.get('ids') || '') : dbStore();
   function dbStore() {
-    const A = window.LayerPitchAlbums;
+    const A = window.LayerPitchAlbums, L = window.LayerPitchPlaylists;
     const must = r => { if (r.error) throw new Error(r.error); return r; };
+    const ok = r => { if (!r.ok) throw new Error(r.error); return r; };
     return {
       async albums() { return must(await A.listMyPurchases()).purchases.map(p => ({ id: p.albumId, title: p.title, illustration: p.illustration, presentation: lang === 'en' ? (p.presentationEn || p.presentationFr) : (p.presentationFr || p.presentationEn) })); },
       async album(id) { return must(await A.getMyAlbumVersions(id)); },
       async choices(id) { return must(await A.getMyAlbumSettings(id)).settings; },
-      async setChoice(albumId, trackId, versionKey) { const r = await A.setMyAlbumTrackSettings(albumId, trackId, { albumVersion: versionKey }); if (!r.ok) throw new Error(r.error); },
-      async save(albumId, trackId, name, take) { const r = await A.saveMyTrackVersion(albumId, trackId, name, take); if (!r.ok) throw new Error(r.error); return r.id; },
-      async rename(id, name) { const r = await A.renameMyTrackVersion(id, name); if (!r.ok) throw new Error(r.error); },
-      async remove(id) { const r = await A.deleteMyTrackVersion(id); if (!r.ok) throw new Error(r.error); },
+      async setChoice(albumId, trackId, versionKey) { ok(await A.setMyAlbumTrackSettings(albumId, trackId, { albumVersion: versionKey })); },
+      async save(albumId, trackId, name, take) { return ok(await A.saveMyTrackVersion(albumId, trackId, name, take)).id; },
+      async rename(id, name) { ok(await A.renameMyTrackVersion(id, name)); },
+      async remove(id) { ok(await A.deleteMyTrackVersion(id)); },
+      async playlists() { return must(await L.getMyPlaylists()).playlists; },
+      async createPlaylist(name) { return ok(await L.createMyPlaylist(name)).id; },
+      async renamePlaylist(id, name) { ok(await L.renameMyPlaylist(id, name)); },
+      async deletePlaylist(id) { ok(await L.deleteMyPlaylist(id)); },
+      async addToPlaylist(pid, albumId, trackId, versionId) { return ok(await L.addToMyPlaylist(pid, albumId, trackId, versionId)).id; },
+      async removeFromPlaylist(itemId) { ok(await L.removeFromMyPlaylist(itemId)); },
+      async reorderPlaylist(pid, ids) { ok(await L.reorderMyPlaylist(pid, ids)); },
     };
   }
   function demoStore(ids) {
-    const trackIds = ids.split(',').filter(Boolean), versions = [], official = {}, chosen = {};
+    const trackIds = ids.split(',').filter(Boolean), versions = [], official = {}, chosen = {}, lists = [];
     (params.get('official') || '').split(',').filter(Boolean).forEach(t => { official[t] = { v: 1, kind: 'layerpitch-take', trackId: t, duration: 21, voices: [], sfx: [] }; });
+    let n = 0;
+    const uid = p => p + (++n);
+    const list = id => { const l = lists.find(x => x.id === id); if (!l) throw new Error('Playlist introuvable'); return l; };
     return {
       async albums() { return [{ id: 'demo', title: 'Album de démonstration', illustration: null, presentation: 'Mode démo local : rien n’est enregistré.' }]; },
       async album() { return { tracks: trackIds.map((t, i) => ({ trackId: t, position: i, official: official[t] || null })), versions: versions.slice().reverse() }; },
       async choices() { return trackIds.map(t => ({ trackId: t, settings: chosen[t] ? { albumVersion: chosen[t] } : {}, isCustom: !!chosen[t] })); },
       async setChoice(albumId, trackId, key) { chosen[trackId] = key; },
-      async save(albumId, trackId, name, take) { const id = 'v' + (versions.length + 1); versions.push({ id, trackId, name, take, createdAt: new Date().toISOString() }); return id; },
+      async save(albumId, trackId, name, take) { const id = uid('v'); versions.push({ id, trackId, name, take, createdAt: new Date().toISOString() }); return id; },
       async rename(id, name) { const v = versions.find(x => x.id === id); if (v) v.name = name; },
-      async remove(id) { const i = versions.findIndex(v => v.id === id); if (i >= 0) versions.splice(i, 1); },
+      async remove(id) {
+        const i = versions.findIndex(v => v.id === id); if (i >= 0) versions.splice(i, 1);
+        lists.forEach(l => { l.items = l.items.filter(it => it.versionId !== id); }); // cascade, comme la base
+      },
+      async playlists() { return JSON.parse(JSON.stringify(lists)); },
+      async createPlaylist(name) { const id = uid('p'); lists.push({ id, name, items: [] }); return id; },
+      async renamePlaylist(id, name) { list(id).name = name; },
+      async deletePlaylist(id) { lists.splice(lists.indexOf(list(id)), 1); },
+      async addToPlaylist(pid, albumId, trackId, versionId) { const id = uid('i'); list(pid).items.push({ id, albumId, trackId, versionId: versionId || null }); return id; },
+      async removeFromPlaylist(itemId) { lists.forEach(l => { l.items = l.items.filter(it => it.id !== itemId); }); },
+      async reorderPlaylist(pid, order) { const l = list(pid); l.items = order.map(id => l.items.find(it => it.id === id)); },
     };
   }
 
@@ -271,74 +322,93 @@
   }
 
   // ---- État ----
-  let albums = [];
-  let album = null;           // { id, title, illustration, presentation, tracks: [{ track, official, choice }], versions }
+  let albums = [], playlists = [];
+  const albumCache = {};      // id -> { id, title, illustration, presentation, tracks: [{ track, official, choice }], versions }
+  let view = null;            // { kind: 'album' | 'playlist', id }
+  let album = null;           // album affiché (vue album)
   let tab = 'tracks';
   let atelierTrackId = null;
-  let queue = [], qi = -1;    // file de la barre : [{ trackId, title, sub, take, key, cover }]
+  let queue = [], qi = -1;    // file de la barre : [{ albumId, trackId, title, sub, take, key, cover, itemId? }]
+  let queueSource = null;     // { kind: 'album' | 'playlist', id } : d'où vient la file (pour la tenir à jour)
   let ctrl = null, playing = false, starting = false, pausedAt = 0, turn = 0;
 
-  // ---- Bibliothèque ----
-  try { albums = await store.albums(); } catch (e) { notice(esc(tr('errorMsg', { error: e.message }))); return; }
+  try { [albums, playlists] = await Promise.all([store.albums(), store.playlists()]); }
+  catch (e) { notice(esc(tr('errorMsg', { error: e.message }))); return; }
+
+  // ---- Bibliothèque : albums, puis playlists ----
+  const isView = (kind, id) => view && view.kind === kind && view.id === id;
   function renderLib() {
     $('lib').innerHTML = albums.length ? albums.map(a => `
-      <button type="button" class="lib-item${album && album.id === a.id ? ' active' : ''}" data-album="${esc(a.id)}"${album && album.id === a.id ? ' aria-current="true"' : ''}>
+      <button type="button" class="lib-item${isView('album', a.id) ? ' active' : ''}" data-album="${esc(a.id)}"${isView('album', a.id) ? ' aria-current="true"' : ''}>
         ${coverHtml(a.illustration)}<span class="lib-item-title">${esc(a.title || '—')}</span>
       </button>`).join('') : `<div class="empty" style="padding:8px">${esc(tr('libraryEmpty'))}</div>`;
     $('lib').querySelectorAll('[data-album]').forEach(b => b.onclick = () => openAlbum(b.dataset.album));
+    $('plList').innerHTML = playlists.map(p => `
+      <button type="button" class="lib-item${isView('playlist', p.id) ? ' active' : ''}" data-playlist="${esc(p.id)}"${isView('playlist', p.id) ? ' aria-current="true"' : ''}>
+        <div class="cover pl-cover" aria-hidden="true">♫</div><span><span class="lib-item-title">${esc(p.name || '—')}</span><span class="lib-item-sub">${esc(countLabel(p.items.length))}</span></span>
+      </button>`).join('');
+    $('plList').querySelectorAll('[data-playlist]').forEach(b => b.onclick = () => openPlaylist(b.dataset.playlist));
   }
+  const countLabel = n => n === 1 ? tr('playlistCountOne') : tr('playlistCount', { n });
   renderLib();
-  if (!albums.length) { notice(esc(tr('libraryEmpty'))); return; }
+  $('newPlaylistBtn').onclick = () => createPlaylist(null);
 
-  // ---- Versions ----
-  const versionsOf = trackId => album.versions.filter(v => v.trackId === trackId); // plus récentes d'abord
+  // ---- Albums et versions ----
+  async function loadAlbumData(id) {
+    if (albumCache[id]) return albumCache[id];
+    const a = albums.find(x => x.id === id);
+    if (!a) return null;
+    const [data, choices] = await Promise.all([store.album(id), store.choices(id)]);
+    const choiceOf = {};
+    for (const c of choices || []) if (c.isCustom && c.settings && c.settings.albumVersion) choiceOf[c.trackId] = c.settings.albumVersion;
+    const tracks = [];
+    for (const t of data.tracks) tracks.push({ track: await loadTrack(t.trackId), official: t.official, choice: choiceOf[t.trackId] || null });
+    // Sfx des morceaux : le lecteur les cherche dans sa bibliothèque.
+    for (const t of tracks) for (const sid of (t.track.sfxIds || [])) {
+      if (!sfxCache[sid]) { const r = await window.LayerPitchSfx.getSfx(sid); if (r && r.sfx) sfxCache[sid] = r.sfx; }
+    }
+    P.setSfxLibrary(Object.assign({}, sfxCache));
+    albumCache[id] = { id, title: a.title, illustration: a.illustration, presentation: a.presentation, tracks, versions: data.versions };
+    return albumCache[id];
+  }
+  const versionsOf = (al, trackId) => al.versions.filter(v => v.trackId === trackId); // plus récentes d'abord
   // Nom affiché : le nom donné, sinon « Version n » dans l'ordre de création (1 = la plus ancienne).
-  function versionName(v) {
+  function versionName(al, v) {
     if (v.name) return v.name;
-    const all = versionsOf(v.trackId);
+    const all = versionsOf(al, v.trackId);
     return tr('versionN', { n: all.length - all.indexOf(v) });
   }
   // Version jouée dans l'album : le choix du fan s'il existe encore, sinon celle du compositeur, sinon la plus récente
   // du fan. null = aucune version (morceau sauté).
-  function albumEntryKey(t) {
-    const mine = versionsOf(t.track.id);
+  function albumEntryKey(al, t) {
+    const mine = versionsOf(al, t.track.id);
     if (t.choice === 'official' && t.official) return 'official';
     if (t.choice && mine.some(v => v.id === t.choice)) return t.choice;
     if (t.official) return 'official';
     return mine[0] ? mine[0].id : null;
   }
-  function entryFor(t, key) {
-    if (!key) return null;
-    const cover = album.illustration;
-    if (key === 'official') return { trackId: t.track.id, title: t.track.title, sub: tr('officialVersion'), take: t.official, key, cover };
-    const v = album.versions.find(x => x.id === key);
-    return v ? { trackId: t.track.id, title: t.track.title, sub: versionName(v), take: v.take, key, cover } : null;
+  function entryFor(al, t, key) {
+    if (!key || !t) return null;
+    const base = { albumId: al.id, trackId: t.track.id, title: t.track.title, key, cover: al.illustration, albumTitle: al.title };
+    if (key === 'official') return t.official ? Object.assign(base, { sub: tr('officialVersion'), take: t.official }) : null;
+    const v = al.versions.find(x => x.id === key);
+    return v ? Object.assign(base, { sub: versionName(al, v), take: v.take }) : null;
   }
+  const trackOf = (al, trackId) => al && al.tracks.find(x => x.track.id === trackId);
 
-  // ---- Album ----
   async function openAlbum(id, keep) {
-    const a = albums.find(x => x.id === id);
-    if (!keep) { center.innerHTML = `<div class="empty">${esc(tr('loading'))}</div>`; }
+    if (!keep) center.innerHTML = `<div class="empty">${esc(tr('loading'))}</div>`;
     try {
-      const [data, choices] = await Promise.all([store.album(id), store.choices(id)]);
-      const choiceOf = {};
-      for (const c of choices || []) if (c.isCustom && c.settings && c.settings.albumVersion) choiceOf[c.trackId] = c.settings.albumVersion;
-      const tracks = [];
-      for (const t of data.tracks) tracks.push({ track: await loadTrack(t.trackId), official: t.official, choice: choiceOf[t.trackId] || null });
-      // Sfx des morceaux : le lecteur les cherche dans sa bibliothèque.
-      for (const t of tracks) for (const sid of (t.track.sfxIds || [])) {
-        if (!sfxCache[sid]) { const r = await window.LayerPitchSfx.getSfx(sid); if (r && r.sfx) sfxCache[sid] = r.sfx; }
-      }
-      P.setSfxLibrary(Object.assign({}, sfxCache));
+      const al = await loadAlbumData(id);
       const changedAlbum = !album || album.id !== id;
-      album = { id, title: a ? a.title : '', illustration: a ? a.illustration : null, presentation: a ? a.presentation : '', tracks, versions: data.versions };
-      if (changedAlbum) { stopAtelier(); atelierMountedFor = null; atelierTrackId = tracks[0] ? tracks[0].track.id : null; if (!keep) tab = 'tracks'; }
+      album = al; view = { kind: 'album', id };
+      if (changedAlbum) { stopAtelier(); atelierMountedFor = null; atelierTrackId = al.tracks[0] ? al.tracks[0].track.id : null; if (!keep) tab = 'tracks'; }
       renderLib();
       render();
     } catch (e) { notice(esc(tr('errorMsg', { error: e.message }))); }
   }
-
   function render() {
+    if (view && view.kind === 'playlist') { renderPlaylistView(); return; }
     center.innerHTML = `
       <header class="album-head">
         ${coverHtml(album.illustration)}
@@ -349,7 +419,7 @@
         </div>
       </header>
       <div class="album-actions">
-        <button type="button" class="btn primary play-album" id="playAlbumBtn"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M7 5v14l12-7z"/></svg>${esc(tr('playAlbum'))}</button>
+        <button type="button" class="btn primary play-album" id="playAlbumBtn">${ICON_PLAY_SM.replace('width="14" height="14"', 'width="16" height="16"')}${esc(tr('playAlbum'))}</button>
       </div>
       <div class="tabs" role="tablist">
         <button type="button" class="tab" role="tab" id="tabTracks" aria-selected="${tab === 'tracks'}" aria-controls="panelTracks">${esc(tr('tabTracks'))}</button>
@@ -357,7 +427,7 @@
       </div>
       <section id="panelTracks" role="tabpanel" aria-labelledby="tabTracks"${tab === 'tracks' ? '' : ' hidden'}></section>
       <section id="panelAtelier" role="tabpanel" aria-labelledby="tabAtelier"${tab === 'atelier' ? '' : ' hidden'}></section>`;
-    $('playAlbumBtn').onclick = () => { buildQueue(); playIndex(0); };
+    $('playAlbumBtn').onclick = () => startQueue({ kind: 'album', id: album.id }, 0);
     $('tabTracks').onclick = () => switchTab('tracks');
     $('tabAtelier').onclick = () => switchTab('atelier');
     renderTracks();
@@ -372,31 +442,36 @@
   // ---- Onglet Morceaux ----
   function renderTracks() {
     const box = $('panelTracks');
-    if (!box) return;
+    if (!box || !album) return;
     const now = queue[qi];
     box.innerHTML = `<table class="tracks">
-      <thead><tr><th class="t-num">#</th><th></th><th>${esc(tr('colTitle'))}</th><th class="t-version">${esc(tr('colVersion'))}</th><th class="t-dur"></th><th class="t-atelier"></th></tr></thead>
+      <thead><tr><th class="t-num">#</th><th></th><th>${esc(tr('colTitle'))}</th><th class="t-version">${esc(tr('colVersion'))}</th><th class="t-dur"></th><th class="t-add"></th><th class="t-atelier"></th></tr></thead>
       <tbody>${album.tracks.map((t, i) => {
-        const key = albumEntryKey(t), e = entryFor(t, key), mine = versionsOf(t.track.id);
+        const key = albumEntryKey(album, t), e = entryFor(album, t, key), mine = versionsOf(album, t.track.id);
         const options = [t.official ? `<option value="official"${key === 'official' ? ' selected' : ''}>★ ${esc(tr('officialVersion'))}</option>` : '']
-          .concat(mine.map(v => `<option value="${esc(v.id)}"${key === v.id ? ' selected' : ''}>${esc(versionName(v))} · ${fmt(v.take.duration)}</option>`)).join('');
-        return `<tr class="${now && now.trackId === t.track.id ? 'playing' : ''}">
+          .concat(mine.map(v => `<option value="${esc(v.id)}"${key === v.id ? ' selected' : ''}>${esc(versionName(album, v))} · ${fmt(v.take.duration)}</option>`)).join('');
+        return `<tr class="${now && now.albumId === album.id && now.trackId === t.track.id ? 'playing' : ''}">
           <td class="t-num">${i + 1}</td>
-          <td><button type="button" class="t-play" data-play="${esc(t.track.id)}" aria-label="${esc(tr('playThis'))} · ${esc(t.track.title)}"${e ? '' : ' disabled'}><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M7 5v14l12-7z"/></svg></button></td>
+          <td><button type="button" class="t-play" data-play="${esc(t.track.id)}" aria-label="${esc(tr('playThis'))} · ${esc(t.track.title)}"${e ? '' : ' disabled'}>${ICON_PLAY_SM}</button></td>
           <td><div class="t-title">${esc(t.track.title)}</div>${e ? `<div class="t-sub">${esc(e.sub)}</div>` : `<div class="t-sub">${esc(tr('noVersionYet'))}</div>`}</td>
           <td class="t-version">${options ? `<select data-choice="${esc(t.track.id)}" aria-label="${esc(tr('colVersion'))}">${options}</select>` : ''}</td>
           <td class="t-dur">${e ? fmt(e.take.duration) : ''}</td>
+          <td class="t-add"><button type="button" class="t-play" data-add-track="${esc(t.track.id)}" aria-label="${esc(tr('addToPlaylist'))} · ${esc(t.track.title)}" title="${esc(tr('addToPlaylist'))}"${e ? '' : ' disabled'}>${ICON_PLUS}</button></td>
           <td class="t-atelier"><button type="button" class="btn" data-atelier="${esc(t.track.id)}">${esc(tr('openInAtelier'))}</button></td>
         </tr>`;
       }).join('')}</tbody></table>`;
-    box.querySelectorAll('[data-play]').forEach(b => b.onclick = () => { buildQueue(); playIndex(queue.findIndex(q => q.trackId === b.dataset.play)); });
+    box.querySelectorAll('[data-play]').forEach(b => b.onclick = () => startQueue({ kind: 'album', id: album.id }, null, x => x.trackId === b.dataset.play));
     box.querySelectorAll('[data-choice]').forEach(s => s.onchange = () => chooseVersion(s.dataset.choice, s.value));
+    box.querySelectorAll('[data-add-track]').forEach(b => b.onclick = () => {
+      const t = trackOf(album, b.dataset.addTrack);
+      openAddMenu(b, { albumId: album.id, trackId: t.track.id, key: albumEntryKey(album, t) });
+    });
     box.querySelectorAll('[data-atelier]').forEach(b => b.onclick = () => { openAtelier(b.dataset.atelier); switchTab('atelier'); });
   }
   async function chooseVersion(trackId, key) {
-    const t = album.tracks.find(x => x.track.id === trackId);
+    const t = trackOf(album, trackId);
     try { await store.setChoice(album.id, trackId, key); t.choice = key; }
-    catch (e) { window.LayerPitchNotify.error(tr('errorMsg', { error: e.message })); }
+    catch (e) { notifyError(e); }
     refreshQueue();
     renderTracks(); renderAtelierVersions();
   }
@@ -406,7 +481,7 @@
   let atelierMountedFor = null;
   function renderAtelier() {
     const box = $('panelAtelier');
-    const t = album.tracks.find(x => x.track.id === atelierTrackId);
+    const t = trackOf(album, atelierTrackId);
     if (!t) { box.innerHTML = ''; return; }
     box.innerHTML = `
       <p class="atelier-intro">${esc(tr('atelierIntro'))}</p>
@@ -445,83 +520,226 @@
     const btn = $('freezeBtn'); btn.disabled = true;
     try {
       await store.save(album.id, t.track.id, $('freezeName').value.trim(), take);
-      await reloadVersions();
+      await reloadVersions(album);
       $('freezeName').value = '';
       say(tr('freezeDone', { duration: fmt(take.duration) }));
     } catch (e) { say(tr('errorMsg', { error: e.message })); }
     finally { btn.disabled = false; }
   }
-  // Recharge versions et version officielle sans toucher au lecteur vivant.
-  async function reloadVersions() {
-    const data = await store.album(album.id);
-    album.versions = data.versions;
-    for (const t of album.tracks) { const d = data.tracks.find(x => x.trackId === t.track.id); t.official = d ? d.official : null; }
+  // Recharge versions et version du compositeur d'un album, sans toucher au lecteur vivant.
+  async function reloadVersions(al) {
+    const data = await store.album(al.id);
+    al.versions = data.versions;
+    for (const t of al.tracks) { const d = data.tracks.find(x => x.trackId === t.track.id); t.official = d ? d.official : null; }
     refreshQueue();
     renderTracks(); renderAtelierVersions();
   }
   function renderAtelierVersions() {
     const box = $('atelierVersions');
-    if (!box) return;
-    const t = album.tracks.find(x => x.track.id === atelierTrackId);
-    const key = albumEntryKey(t), mine = versionsOf(t.track.id), now = queue[qi];
+    if (!box || !album) return;
+    const t = trackOf(album, atelierTrackId);
+    const key = albumEntryKey(album, t), mine = versionsOf(album, t.track.id), now = queue[qi];
     const row = (id, name, meta, canEdit) => `
       <div class="v-row" data-vrow="${esc(id)}">
-        <button type="button" class="t-play" data-vplay="${esc(id)}" aria-label="${esc(tr('playThis'))} · ${esc(name)}"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M7 5v14l12-7z"/></svg></button>
-        <span class="v-name" style="${now && now.key === id && now.trackId === t.track.id ? 'color:var(--accent)' : ''}">${esc(name)}</span>
+        <button type="button" class="t-play" data-vplay="${esc(id)}" aria-label="${esc(tr('playThis'))} · ${esc(name)}">${ICON_PLAY_SM}</button>
+        <span class="v-name" style="${now && now.albumId === album.id && now.key === id && now.trackId === t.track.id ? 'color:var(--accent)' : ''}">${esc(name)}</span>
         <span class="v-meta">${meta}</span>
         ${key === id ? `<span class="v-badge">${esc(tr('usedInAlbum'))}</span>` : `<button type="button" class="btn" data-vuse="${esc(id)}">${esc(tr('useInAlbum'))}</button>`}
+        <button type="button" class="btn" data-vadd="${esc(id)}">${ICON_PLUS} ${esc(tr('addToPlaylist'))}</button>
         ${canEdit ? `<button type="button" class="btn" data-vrename="${esc(id)}">${esc(tr('renameBtn'))}</button><button type="button" class="btn danger" data-vdel="${esc(id)}">${esc(tr('deleteBtn'))}</button>` : ''}
       </div>`;
     box.innerHTML = (t.official ? row('official', '★ ' + tr('officialVersion'), fmt(t.official.duration), false) : '')
       + `<h3>${esc(tr('myVersions'))}</h3>`
-      + (mine.length ? mine.map(v => row(v.id, versionName(v), `${fmt(v.take.duration)} · ${new Date(v.createdAt).toLocaleString(lang, { dateStyle: 'short', timeStyle: 'short' })}`, true)).join('')
+      + (mine.length ? mine.map(v => row(v.id, versionName(album, v), `${fmt(v.take.duration)} · ${new Date(v.createdAt).toLocaleString(lang, { dateStyle: 'short', timeStyle: 'short' })}`, true)).join('')
         : `<div class="empty" style="padding:8px 0">${esc(tr('noMyVersions'))}</div>`);
-    box.querySelectorAll('[data-vplay]').forEach(b => b.onclick = () => playVersionInAlbum(t, b.dataset.vplay));
+    box.querySelectorAll('[data-vplay]').forEach(b => b.onclick = () => startQueue({ kind: 'album', id: album.id }, null, x => x.trackId === t.track.id, { trackId: t.track.id, key: b.dataset.vplay }));
     box.querySelectorAll('[data-vuse]').forEach(b => b.onclick = () => chooseVersion(t.track.id, b.dataset.vuse));
+    box.querySelectorAll('[data-vadd]').forEach(b => b.onclick = () => openAddMenu(b, { albumId: album.id, trackId: t.track.id, key: b.dataset.vadd }));
     box.querySelectorAll('[data-vdel]').forEach(b => b.onclick = () => deleteVersion(b.dataset.vdel));
     box.querySelectorAll('[data-vrename]').forEach(b => b.onclick = () => startRename(b.dataset.vrename));
   }
   function startRename(id) {
     const v = album.versions.find(x => x.id === id);
     const cell = document.querySelector(`[data-vrow="${CSS.escape(id)}"] .v-name`);
-    cell.innerHTML = `<input type="text" maxlength="120" value="${esc(v.name || '')}" placeholder="${esc(versionName(v))}" aria-label="${esc(tr('renameBtn'))}">`;
-    const input = cell.querySelector('input');
+    cell.innerHTML = `<input type="text" maxlength="120" value="${esc(v.name || '')}" placeholder="${esc(versionName(album, v))}" aria-label="${esc(tr('renameBtn'))}">`;
+    inlineEdit(cell.querySelector('input'), v.name || '', async name => { await store.rename(id, name); v.name = name; }, () => {
+      refreshQueue(); renderTracks(); renderAtelierVersions(); if (view.kind === 'playlist') renderPlaylistView();
+    });
+  }
+  // Champ de saisie sur place : Entrée ou sortie du champ = enregistrer, Échap = annuler ; `after` redessine.
+  function inlineEdit(input, before, save, after) {
     input.focus(); input.select();
     let done = false;
-    const commit = async save => {
+    const commit = async keep => {
       if (done) return; done = true;
-      const name = input.value.trim();
-      if (save && name !== (v.name || '')) {
-        try { await store.rename(id, name); v.name = name; } catch (e) { window.LayerPitchNotify.error(tr('errorMsg', { error: e.message })); }
-      }
-      refreshQueue(); renderTracks(); renderAtelierVersions();
+      const value = input.value.trim();
+      if (keep && value !== before) { try { await save(value); } catch (e) { notifyError(e); } }
+      after();
     };
     input.onkeydown = e => { if (e.key === 'Enter') commit(true); else if (e.key === 'Escape') commit(false); };
     input.onblur = () => commit(true);
   }
   async function deleteVersion(id) {
     const v = album.versions.find(x => x.id === id);
-    if (!await window.LayerPitchNotify.confirm(tr('deleteConfirm', { name: versionName(v) }), { danger: true, okLabel: tr('deleteBtn') })) return;
+    if (!await window.LayerPitchNotify.confirm(tr('deleteConfirm', { name: versionName(album, v) }), { danger: true, okLabel: tr('deleteBtn') })) return;
     if (queue[qi] && queue[qi].key === id) { stopBar(); qi = -1; showNow(null); }
-    try { await store.remove(id); await reloadVersions(); }
-    catch (e) { window.LayerPitchNotify.error(tr('errorMsg', { error: e.message })); }
+    try {
+      await store.remove(id);
+      playlists = await store.playlists(); // la version quitte aussi les playlists (suppression en cascade)
+      renderLib();
+      await reloadVersions(album);
+    } catch (e) { notifyError(e); }
   }
 
-  // ---- File de la barre : l'album tel que le fan l'a choisi ----
-  function buildQueue(override) {
-    queue = album.tracks.map(t => entryFor(t, override && override.trackId === t.track.id ? override.key : albumEntryKey(t))).filter(Boolean);
+  // ---- Playlists ----
+  const playlistById = id => playlists.find(p => p.id === id);
+  async function reloadPlaylists() { playlists = await store.playlists(); renderLib(); }
+  async function createPlaylist(thenAdd) {
+    try {
+      const id = await store.createPlaylist(tr('playlistDefaultName', { n: playlists.length + 1 }));
+      if (thenAdd) await store.addToPlaylist(id, thenAdd.albumId, thenAdd.trackId, thenAdd.key === 'official' ? null : thenAdd.key);
+      await reloadPlaylists();
+      if (thenAdd) window.LayerPitchNotify.success(tr('addedToPlaylist', { name: playlistById(id).name }));
+      else await openPlaylist(id, true);
+    } catch (e) { notifyError(e); }
   }
-  // Après un changement de choix, de nom ou une suppression : la file suit, sans couper ce qui joue.
-  function refreshQueue() {
-    if (qi < 0 || !queue[qi]) return;
+  // Menu « Ajouter à une playlist » : ses playlists, puis « Nouvelle playlist… » (créée avec ce morceau dedans).
+  function closeAddMenu() { const m = $('plMenu'); if (m) m.remove(); }
+  function openAddMenu(anchor, what) {
+    closeAddMenu();
+    if (!what.key) return;
+    const m = document.createElement('div');
+    m.id = 'plMenu'; m.className = 'pl-menu'; m.setAttribute('role', 'menu');
+    m.innerHTML = `<div class="pl-menu-title">${esc(tr('addToPlaylist'))}</div>`
+      + playlists.map(p => `<button type="button" role="menuitem" data-to="${esc(p.id)}">${esc(p.name || '—')}</button>`).join('')
+      + `<button type="button" role="menuitem" data-to="" class="pl-menu-new">${ICON_PLUS} ${esc(tr('newPlaylistInMenu'))}</button>`;
+    document.body.appendChild(m);
+    const r = anchor.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
+    m.style.left = Math.max(8, Math.min(innerWidth - mw - 8, r.right - mw)) + 'px';
+    m.style.top = (r.bottom + mh + 8 > innerHeight ? Math.max(8, r.top - mh - 4) : r.bottom + 4) + 'px';
+    m.querySelectorAll('[data-to]').forEach(b => b.onclick = async () => {
+      closeAddMenu();
+      if (!b.dataset.to) { await createPlaylist(what); return; }
+      try {
+        await store.addToPlaylist(b.dataset.to, what.albumId, what.trackId, what.key === 'official' ? null : what.key);
+        await reloadPlaylists();
+        window.LayerPitchNotify.success(tr('addedToPlaylist', { name: playlistById(b.dataset.to).name }));
+        if (isView('playlist', b.dataset.to)) renderPlaylistView();
+        refreshQueue();
+      } catch (e) { notifyError(e); }
+    });
+    const first = m.querySelector('button'); if (first) first.focus();
+  }
+  document.addEventListener('click', e => { const m = $('plMenu'); if (m && !m.contains(e.target) && !e.target.closest('[data-add-track], [data-vadd]')) closeAddMenu(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAddMenu(); });
+
+  // Entrées d'une playlist résolues en versions jouables (albums chargés à la demande) ; celles dont la version
+  // n'existe plus sont écartées.
+  async function playlistEntries(p) {
+    const out = [];
+    for (const it of p.items) {
+      const al = await loadAlbumData(it.albumId).catch(() => null);
+      const e = al ? entryFor(al, trackOf(al, it.trackId), it.versionId || 'official') : null;
+      if (e) out.push(Object.assign(e, { itemId: it.id }));
+    }
+    return out;
+  }
+  async function openPlaylist(id, editName) {
+    view = { kind: 'playlist', id };
+    stopAtelier();
+    renderLib();
+    center.innerHTML = `<div class="empty">${esc(tr('loading'))}</div>`;
+    await renderPlaylistView(editName);
+  }
+  async function renderPlaylistView(editName) {
+    const p = playlistById(view.id);
+    if (!p) { view = null; album ? openAlbum(album.id, true) : (albums[0] && openAlbum(albums[0].id)); return; }
+    const entries = await playlistEntries(p);
+    if (!isView('playlist', p.id)) return; // l'utilisateur est parti entre-temps
+    const total = entries.reduce((s, e) => s + (e.take.duration || 0), 0);
+    const covers = [...new Set(entries.map(e => e.cover).filter(Boolean))].slice(0, 4);
+    const now = queue[qi];
+    center.innerHTML = `
+      <header class="album-head">
+        ${covers.length ? `<div class="cover pl-mosaic n${covers.length}">${covers.map(c => `<img src="${IMAGES_BASE}${esc(c)}" alt="">`).join('')}</div>` : '<div class="cover pl-cover pl-cover-lg" aria-hidden="true">♫</div>'}
+        <div>
+          <div class="album-kicker">${esc(tr('playlistKicker'))}</div>
+          <h2 class="album-title" id="plTitle">${esc(p.name || '—')}</h2>
+          <p class="album-pres">${esc(countLabel(entries.length))}${entries.length ? ' · ' + fmt(total) : ''}</p>
+        </div>
+      </header>
+      <div class="album-actions">
+        <button type="button" class="btn primary play-album" id="playPlaylistBtn"${entries.length ? '' : ' disabled'}>${ICON_PLAY_SM.replace('width="14" height="14"', 'width="16" height="16"')}${esc(tr('playPlaylist'))}</button>
+        <button type="button" class="btn" id="renamePlaylistBtn">${esc(tr('renamePlaylist'))}</button>
+        <button type="button" class="btn danger" id="deletePlaylistBtn">${esc(tr('deletePlaylist'))}</button>
+      </div>
+      ${entries.length ? `<table class="tracks"><tbody>${entries.map((e, i) => `
+        <tr class="${now && now.itemId === e.itemId ? 'playing' : ''}">
+          <td class="t-num">${i + 1}</td>
+          <td><button type="button" class="t-play" data-pl-play="${esc(e.itemId)}" aria-label="${esc(tr('playThis'))} · ${esc(e.title)}">${ICON_PLAY_SM}</button></td>
+          <td><div class="t-title">${esc(e.title)}</div><div class="t-sub">${esc(e.albumTitle || '')} · ${esc(e.sub)}</div></td>
+          <td class="t-dur">${fmt(e.take.duration)}</td>
+          <td class="t-order">
+            <button type="button" class="t-play" data-pl-move="${esc(e.itemId)}" data-dir="-1" aria-label="${esc(tr('moveUp'))}" title="${esc(tr('moveUp'))}"${i === 0 ? ' disabled' : ''}>↑</button>
+            <button type="button" class="t-play" data-pl-move="${esc(e.itemId)}" data-dir="1" aria-label="${esc(tr('moveDown'))}" title="${esc(tr('moveDown'))}"${i === entries.length - 1 ? ' disabled' : ''}>↓</button>
+            <button type="button" class="t-play" data-pl-remove="${esc(e.itemId)}" aria-label="${esc(tr('removeFromPlaylist'))}" title="${esc(tr('removeFromPlaylist'))}">✕</button>
+          </td>
+        </tr>`).join('')}</tbody></table>` : `<div class="empty">${esc(tr('playlistEmpty'))}</div>`}`;
+    const src = { kind: 'playlist', id: p.id };
+    $('playPlaylistBtn').onclick = () => startQueue(src, 0);
+    center.querySelectorAll('[data-pl-play]').forEach(b => b.onclick = () => startQueue(src, null, x => x.itemId === b.dataset.plPlay));
+    center.querySelectorAll('[data-pl-remove]').forEach(b => b.onclick = async () => {
+      try { await store.removeFromPlaylist(b.dataset.plRemove); await reloadPlaylists(); refreshQueue(); renderPlaylistView(); } catch (e) { notifyError(e); }
+    });
+    center.querySelectorAll('[data-pl-move]').forEach(b => b.onclick = async () => {
+      const ids = p.items.map(it => it.id), i = ids.indexOf(b.dataset.plMove), j = i + Number(b.dataset.dir);
+      if (i < 0 || j < 0 || j >= ids.length) return;
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      try { await store.reorderPlaylist(p.id, ids); await reloadPlaylists(); refreshQueue(); renderPlaylistView(); } catch (e) { notifyError(e); }
+    });
+    $('renamePlaylistBtn').onclick = () => renamePlaylistInline(p);
+    $('deletePlaylistBtn').onclick = async () => {
+      if (!await window.LayerPitchNotify.confirm(tr('deletePlaylistConfirm', { name: p.name || '—' }), { danger: true, okLabel: tr('deleteBtn') })) return;
+      try {
+        await store.deletePlaylist(p.id);
+        if (queueSource && queueSource.kind === 'playlist' && queueSource.id === p.id) queueSource = null;
+        await reloadPlaylists();
+        view = null;
+        openAlbum(album ? album.id : albums[0].id, !!album);
+      } catch (e) { notifyError(e); }
+    };
+    if (editName) renamePlaylistInline(p);
+  }
+  function renamePlaylistInline(p) {
+    const h = $('plTitle');
+    h.innerHTML = `<input type="text" class="pl-title-input" maxlength="120" value="${esc(p.name || '')}" aria-label="${esc(tr('renamePlaylist'))}">`;
+    inlineEdit(h.querySelector('input'), p.name || '', async name => { await store.renamePlaylist(p.id, name); }, async () => { await reloadPlaylists(); renderPlaylistView(); });
+  }
+
+  // ---- File de la barre : un album (tel que le fan l'a choisi) ou une playlist ----
+  async function queueFor(source, override) {
+    if (source.kind === 'playlist') { const p = playlistById(source.id); return p ? playlistEntries(p) : []; }
+    const al = await loadAlbumData(source.id);
+    return al.tracks.map(t => entryFor(al, t, override && override.trackId === t.track.id ? override.key : albumEntryKey(al, t))).filter(Boolean);
+  }
+  // Démarre la file : à l'index donné, ou à la première entrée qui vérifie `match`.
+  async function startQueue(source, index, match, override) {
+    queueSource = source;
+    queue = await queueFor(source, override);
+    playIndex(match ? queue.findIndex(match) : (index || 0));
+  }
+  const sameEntry = (a, b) => (a.itemId || b.itemId) ? a.itemId === b.itemId : (a.albumId === b.albumId && a.trackId === b.trackId);
+  // Après un changement (choix, nom, ajout, suppression, ordre) : la file suit, sans couper ce qui joue.
+  async function refreshQueue() {
+    if (!queueSource || qi < 0 || !queue[qi]) return;
     const cur = queue[qi];
-    buildQueue();
-    const i = queue.findIndex(q => q.trackId === cur.trackId);
-    if (i >= 0) { queue[i] = Object.assign({}, cur, { sub: (entryFor(album.tracks.find(t => t.track.id === cur.trackId), cur.key) || cur).sub }); qi = i; }
-    else { queue.splice(Math.min(qi, queue.length), 0, cur); }
+    const q = await queueFor(queueSource);
+    const i = q.findIndex(e => sameEntry(e, cur));
+    if (i >= 0) { q[i] = Object.assign({}, cur, { sub: q[i].sub }); qi = i; }
+    else { qi = Math.min(qi, q.length); q.splice(qi, 0, cur); }
+    queue = q;
     showNow(queue[qi]);
   }
-  function playVersionInAlbum(t, key) { buildQueue({ trackId: t.track.id, key }); playIndex(queue.findIndex(q => q.trackId === t.track.id)); }
 
   // ---- Barre : lecture en direct des versions ----
   const ICON_PLAY = '<path d="M7 5v14l12-7z"/>', ICON_PAUSE = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
@@ -534,15 +752,21 @@
     $('progTrack').setAttribute('aria-valuemax', String(Math.round(q ? q.take.duration : 0)));
     $('prevBtn').disabled = !q; $('nextBtn').disabled = !q || qi + 1 >= queue.length;
   }
+  function paintLists() {
+    if (view && view.kind === 'playlist') {
+      const now = queue[qi];
+      center.querySelectorAll('[data-pl-play]').forEach(b => b.closest('tr').classList.toggle('playing', !!now && now.itemId === b.dataset.plPlay));
+    } else { renderTracks(); renderAtelierVersions(); }
+  }
   async function playIndex(i, from) {
-    if (i < 0 || i >= queue.length) { stopBar(); qi = -1; showNow(null, tr('queueEnd')); renderTracks(); renderAtelierVersions(); return; }
+    if (i < 0 || i >= queue.length) { stopBar(); qi = -1; showNow(null, tr('queueEnd')); paintLists(); return; }
     stopAtelier();
     if (ctrl) { ctrl.stop(); ctrl = null; }
     qi = i; starting = true; playing = true; pausedAt = from || 0;
     const q = queue[i], myTurn = ++turn;
     showNow(q, q.sub + ' · ' + tr('loadingVersion'));
     setPlayIcon(true);
-    renderTracks(); renderAtelierVersions();
+    paintLists();
     try {
       const c = await R.playTake(q.take, { from: from || 0, fetchBytes, onEnd: () => { if (turn === myTurn) playIndex(qi + 1); } });
       if (turn !== myTurn) { c.stop(); return; }
@@ -556,7 +780,7 @@
   $('playBtn').onclick = () => {
     if (playing) pauseBar();
     else if (qi >= 0) playIndex(qi, pausedAt);
-    else if (album) { buildQueue(); playIndex(0); }
+    else if (view) startQueue(view, 0);
   };
   $('nextBtn').onclick = () => { if (qi + 1 < queue.length) playIndex(qi + 1); };
   $('prevBtn').onclick = () => { if ((ctrl ? ctrl.position() : pausedAt) > 3 || qi === 0) playIndex(qi); else if (qi > 0) playIndex(qi - 1); };
@@ -593,7 +817,8 @@
 
   showNow(null);
   setPlayIcon(false);
-  openAlbum(albums[0].id);
+  if (albums.length) openAlbum(albums[0].id);
+  else notice(esc(tr('libraryEmpty')));
 })();
 </script>
 </body>
