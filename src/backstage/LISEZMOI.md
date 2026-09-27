@@ -26,7 +26,15 @@ Les fichiers sont des **tranches de la même page**, collées dans l'ordre de le
 | 15-selecteur-de-morceaux.js | sélecteur de morceaux (bibliothèque -> AdReel ou pack) |
 | 16-bibliotheque-de-morceaux.js | bibliothèque de morceaux (liste, dossiers) |
 | 17-duree-auto.js | durée automatique des fichiers |
-| 18-editeur-de-morceaux-et-timeline.js | éditeur de morceau (renderLibrary) et timeline des points de boucle |
+| 18-timeline-des-boucles.js | timeline des points de boucle, saut dans l'aperçu |
+| 18a-editeur-debut-et-mode.js | fiche d'un morceau (renderLibrary) : début, titre, mode de lecture |
+| 18b-modes-couches-liste-et-infos.js | modes vertical / statique / vertical-random / embranchement : liste maître, infos du morceau (triggers, curseurs, vitesse) |
+| 18c-modes-couches-intro-et-sections.js | intro du vertical-random, sections et pools |
+| 18d-modes-couches-outro-couches-boucles.js | outro du vertical-random, couches (vertical/statique), boucles (embranchement-vertical) |
+| 18e-modes-couches-sfx-et-infos.js | Sfx attachés et fiche d'infos (modes non séquentiels) |
+| 18f-sequentiel-liste-et-infos.js | séquentiel : liste maître, infos du morceau |
+| 18g-sequentiel-intro-et-emplacements.js | séquentiel : intro, emplacements, embranchements et transitions |
+| 18h-sequentiel-outro-sfx-infos-et-fin.js | séquentiel : outro, Sfx, infos ; fin de la fiche |
 | 19-bibliotheque-sfx.js | bibliothèque Sfx et son éditeur |
 | 20-reseaux-sociaux.js | réseaux sociaux |
 | 20a-actions-bibliotheque-sfx.js | actions sur la bibliothèque Sfx (clics, saisies) |
