@@ -1,4 +1,4 @@
-// FICHIER GÉNÉRÉ par scripts/build-player.js à partir de src/player/ — ne pas le modifier ici : modifier src/player/, puis `npm run build-player` (voir src/player/LISEZMOI.md).
+// FICHIER GÉNÉRÉ par scripts/build-sources.js à partir de src/player/ — ne pas le modifier ici : modifier src/player/, puis `npm run build` (voir src/player/LISEZMOI.md).
 (function() {
 // player.js — Moteur de lecture partagé entre index.html et pack.html (LayerPitch)
 // Un seul endroit pour le rendu des morceaux et toute la logique audio (bouclage simple + quantifié, stingers, intensité).

@@ -14,8 +14,13 @@ const { execSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
 const version = String(Date.now());
+// Les pages FABRIQUÉES (layerpitch-backstage.html, depuis src/backstage/) ne sont pas touchées directement : leurs balises
+// vivent dans les sources (src/backstage/03-ecran-et-scripts.html, prise ici comme n'importe quel .html suivi), puis la
+// page est reconstruite à la fin -- sinon elle ne correspondrait plus à ses sources.
+const { build, TARGETS } = require('./build-sources.js');
+const GENERATED = Object.values(TARGETS).map(t => t.out);
 const pages = execSync('git ls-files "*.html"', { cwd: root }).toString().split('\n').filter(Boolean)
-  .filter(f => !f.startsWith('vendor/') && !f.startsWith('video-engine-prototype/'));
+  .filter(f => !f.startsWith('vendor/') && !f.startsWith('video-engine-prototype/') && !GENERATED.includes(f));
 
 let touchedPages = 0, touchedTags = 0;
 for (const page of pages) {
@@ -33,3 +38,4 @@ for (const page of pages) {
   if (after !== before) { fs.writeFileSync(file, after); touchedPages++; }
 }
 console.log(`Version ${version} : ${touchedTags} balises dans ${touchedPages} pages.`);
+Object.keys(TARGETS).forEach(n => console.log(build(n, false).msg));

@@ -1,0 +1,65 @@
+</script>
+<script type="text/javascript">
+  // Bandeau de consentement cookies (Microsoft Clarity uniquement -- 17 septembre). RGPD/CNIL,
+  // vérifié avant de coder : les heatmaps/enregistrements de session sont explicitement exclus de
+  // l'exemption de consentement pour la mesure d'audience -- vrai aussi pour l'usage du backstage
+  // par un compositeur connecté, pas seulement le trafic public des AdReels/packs (la nature de
+  // l'outil compte, pas le public). Le script Clarity n'est donc JAMAIS chargé tant qu'un choix
+  // "accepted" n'est pas mémorisé -- volontairement plus strict que le "mode sans consentement" de
+  // Clarity lui-même (qui continue de collecter un minimum même sans cookie, docs Microsoft
+  // consent-mode -- pas la garantie qu'on veut ici).
+  // Prérequis côté compte Clarity, fait par Jules-Antoine (pas automatisable depuis le code) :
+  // Settings > Setup > désactiver "Cookies" (Consent Mode) -- sinon Clarity poserait ses cookies dès
+  // le chargement du script, indépendamment de ce mécanisme.
+  const COOKIE_CONSENT_KEY = 'layerpitch_cookie_consent';
+  function getCookieConsent() {
+    try { const raw = localStorage.getItem(COOKIE_CONSENT_KEY); return raw ? JSON.parse(raw) : null; }
+    catch (e) { return null; }
+  }
+  function setCookieConsent(choice) {
+    try { localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify({ choice, at: new Date().toISOString() })); }
+    catch (e) { /* stockage bloqué -- le choix ne sera pas mémorisé, rebandeau à la prochaine visite */ }
+  }
+  function loadClarityScript() {
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "yjd22i9kce");
+  }
+  function signalClarityConsent(granted) {
+    try {
+      if (typeof window.clarity !== 'function') return;
+      if (granted) window.clarity('consentv2', { ad_Storage: 'denied', analytics_Storage: 'granted' });
+      else window.clarity('consent', false);
+    } catch (e) { /* jamais bloquant */ }
+  }
+  function initCookieBanner() {
+    const banner = document.getElementById('cookieBanner');
+    if (!banner) return;
+    const reopenBtn = document.getElementById('cookieReopenBtn');
+    const detailToggle = document.getElementById('cookieDetailToggle');
+    const detail = document.getElementById('cookieDetail');
+    function apply(choice) {
+      if (choice === 'accepted') {
+        if (typeof window.clarity !== 'function') loadClarityScript();
+        signalClarityConsent(true);
+      } else if (choice === 'refused') {
+        signalClarityConsent(false);
+      }
+    }
+    function hide() { banner.hidden = true; if (reopenBtn) reopenBtn.hidden = false; }
+    function show() { banner.hidden = false; if (reopenBtn) reopenBtn.hidden = true; }
+    const consent = getCookieConsent();
+    if (consent) { apply(consent.choice); hide(); } else { show(); }
+    const acceptBtn = document.getElementById('cookieAcceptBtn');
+    const refuseBtn = document.getElementById('cookieRefuseBtn');
+    if (acceptBtn) acceptBtn.addEventListener('click', () => { setCookieConsent('accepted'); apply('accepted'); hide(); });
+    if (refuseBtn) refuseBtn.addEventListener('click', () => { setCookieConsent('refused'); apply('refused'); hide(); });
+    if (detailToggle && detail) detailToggle.addEventListener('click', () => { detail.hidden = !detail.hidden; });
+    if (reopenBtn) reopenBtn.addEventListener('click', show);
+  }
+  initCookieBanner();
+</script>
+</body>
+</html>

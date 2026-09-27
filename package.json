@@ -6,7 +6,7 @@
     "test": "node scripts/run-tests.js",
     "bump-version": "node scripts/bump-version.js",
     "migrate": "node scripts/apply-migrations.js",
-    "build-player": "node scripts/build-player.js"
+    "build": "node scripts/build-sources.js"
   },
   "devDependencies": {
     "jsdom": "^30.0.1",

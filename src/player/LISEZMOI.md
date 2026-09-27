@@ -1,6 +1,6 @@
 # Lecteur LayerPitch — sources découpées (dette S4, 27/09/2026)
 
-`player.js` (à la racine) est **fabriqué** à partir des fichiers de ce dossier : `npm run build-player`. Ne jamais le modifier à la main — `test_player_build.js` échoue s'il ne correspond plus à ces sources.
+`player.js` (à la racine) est **fabriqué** à partir des fichiers de ce dossier : `npm run build`. Ne jamais le modifier à la main — `test_generated_files.js` échoue s'il ne correspond plus à ces sources.
 
 Les fichiers sont des **tranches du même script**, collées dans l'ordre de leur nom : elles partagent la même portée (une seule fonction englobante, ouverte dans `01-` et fermée dans `61-`). Ce ne sont pas des modules indépendants : une fonction d'un fichier peut utiliser une variable d'un autre. Le découpage sert à s'y retrouver et à relire un thème à la fois.
 
@@ -36,4 +36,4 @@ Les fichiers sont des **tranches du même script**, collées dans l'ordre de leu
 | 60-init-et-modes-visuels.js | initialisation, contraste renforcé, mode nuit |
 | 61-lecteur-sfx-et-exports.js | lecteur de Sfx, exports (window.LayerPlayerCore), fermeture |
 
-Après modification : `npm run build-player`, puis `npm run bump-version` (player.js est servi aux navigateurs).
+Après modification : `npm run build`, puis `npm run bump-version` (player.js est servi aux navigateurs).
