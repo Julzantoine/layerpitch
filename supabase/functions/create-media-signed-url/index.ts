@@ -201,6 +201,25 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Envoi d'une vidéo : quota vérifié et place réservée AVANT de signer (27/09, reserve_video_upload), sur la taille
+    // exacte verrouillée dans la signature -- jamais sur ce que le navigateur annoncera ensuite à upsert_video.
+    if (method === 'PUT' && path.startsWith('video/')) {
+      const { data: refusal, error: reserveError } = await adminClient.rpc('reserve_video_upload', {
+        p_composer_id: composerId, p_path: path, p_size: size,
+      });
+      if (reserveError) {
+        console.error('create-media-signed-url: reserve_video_upload', reserveError);
+        return new Response(JSON.stringify({ error: 'Erreur interne. Réessaie dans un instant.' }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (refusal) {
+        return new Response(JSON.stringify({ error: refusal }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     // Fichier audio utilisé par une version d'album (prise d'un fan ou version du compositeur), ou appartenant à un
     // morceau / Sfx gardé pour des fans (album obtenu, morceau retiré -- 27/09, « le fan garde ce qu'il a acheté ») :
     // jamais effacé, même si le compositeur l'a remplacé ou retiré de son morceau. Réponse

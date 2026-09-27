@@ -7,7 +7,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
-<link rel="stylesheet" href="player.css?v=1790514476301">
+<link rel="stylesheet" href="player.css?v=1790516117322">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -467,14 +467,14 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790514476301"></script>
-<script src="layerpitch-notify.js?v=1790514476301"></script>
-<script src="public-page.js?v=1790514476301"></script>
-<script src="player.js?v=1790514476301"></script>
-<script src="capture-plan.js?v=1790514476301"></script>
-<script src="capture-render.js?v=1790514476301"></script>
-<script src="capture-retarget.js?v=1790514476301"></script>
-<script src="capture-versioning.js?v=1790514476301"></script>
+<script src="layerpitch-i18n.js?v=1790516117322"></script>
+<script src="layerpitch-notify.js?v=1790516117322"></script>
+<script src="public-page.js?v=1790516117322"></script>
+<script src="player.js?v=1790516117322"></script>
+<script src="capture-plan.js?v=1790516117322"></script>
+<script src="capture-render.js?v=1790516117322"></script>
+<script src="capture-retarget.js?v=1790516117322"></script>
+<script src="capture-versioning.js?v=1790516117322"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1736,14 +1736,24 @@ async function r2PutFile(key, bytes, contentType) {
 async function saveExportToVideoLibrary(blob, packId, title, durationSeconds) {
   const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
   const base = `${MEDIA_BASE}video/${id}/`;
-  await r2PutFile(`video/${id}/export.mp4`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
-  const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
-    payload: {
-      id, kind: 'capture_export', packId, title: title || '', base, file: 'export.mp4',
-      mimeType: 'video/mp4', sizeBytes: blob.size, durationSeconds: durationSeconds || null,
-    },
-  });
-  if (error) throw error;
+  let uploaded = false;
+  try {
+    await r2PutFile(`video/${id}/export.mp4`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    uploaded = true;
+    const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
+      payload: {
+        id, kind: 'capture_export', packId, title: title || '', base, file: 'export.mp4',
+        mimeType: 'video/mp4', sizeBytes: blob.size, durationSeconds: durationSeconds || null,
+      },
+    });
+    if (error) throw error;
+  } catch (e) {
+    // Envoi raté après la réservation serveur (27/09, reserve_video_upload) : si le fichier n'est pas arrivé, la ligne
+    // « envoi en cours » est retirée (sans effet si rien n'avait été réservé). S'il est arrivé, elle reste : comptée
+    // dans le quota et supprimable depuis la bibliothèque du Backstage, qui efface aussi le fichier.
+    if (!uploaded) window.LayerPitchSupabaseClient.getClient().rpc('delete_video', { p_id: id }).then(() => {}, () => {});
+    throw e;
+  }
   return id;
 }
 

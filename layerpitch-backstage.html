@@ -1804,10 +1804,10 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790514476301"></script>
-<script src="layerpitch-notify.js?v=1790514476301"></script>
-<script src="layerpitch-help.js?v=1790514476301"></script>
-<script src="player.js?v=1790514476301"></script>
+<script src="layerpitch-i18n.js?v=1790516117322"></script>
+<script src="layerpitch-notify.js?v=1790516117322"></script>
+<script src="layerpitch-help.js?v=1790516117322"></script>
+<script src="player.js?v=1790516117322"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -12626,8 +12626,8 @@ async function compressVideoForLibrary(file, onProgress) {
 
 async function loadMyVideos() {
   const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_videos');
-  if (error) { log('Échec du chargement de la bibliothèque vidéo : ' + error.message, 'warn'); return { videos: [], quotaGb: null }; }
-  return data || { videos: [], quotaGb: null };
+  if (error) { log('Échec du chargement de la bibliothèque vidéo : ' + error.message, 'warn'); return { videos: [], interrupted: [], quotaGb: null }; }
+  return data || { videos: [], interrupted: [], quotaGb: null };
 }
 function formatVideoBytes(n) { return n ? (n / (1024 * 1024)).toFixed(1) + ' Mo' : ''; }
 function formatVideoDuration(sec) {
@@ -12640,11 +12640,21 @@ async function renderVideoLibrary() {
   const listEl = document.getElementById('videoLibraryList');
   const quotaEl = document.getElementById('videoLibraryQuota');
   if (!listEl) return;
-  const { videos, quotaGb } = await loadMyVideos();
-  if (!videos.length) {
+  // interrupted : envois réservés côté serveur mais jamais terminés (27/09, reserve_video_upload) -- comptés dans le
+  // quota, supprimables comme une vidéo (le fichier éventuellement arrivé sur R2 est effacé avec).
+  const { videos, quotaGb, usedBytes, interrupted = [] } = await loadMyVideos();
+  if (!videos.length && !interrupted.length) {
     listEl.innerHTML = `<div class="video-library-empty">${tr('videoLibraryEmpty')}</div>`;
   } else {
-    listEl.innerHTML = videos.map(v => `
+    listEl.innerHTML = interrupted.map(v => `
+      <div class="video-library-item">
+        <div class="video-library-item-main">
+          <div class="video-library-item-title">${escapeHtml(v.file)}</div>
+          <div class="video-library-item-meta">${[formatVideoBytes(v.sizeBytes), tr('videoLibraryInterrupted')].filter(Boolean).join(' · ')}</div>
+        </div>
+        <button type="button" class="btn btn-small video-library-delete-btn" data-id="${v.id}">${tr('deleteBtn')}</button>
+      </div>
+    `).join('') + videos.map(v => `
       <div class="video-library-item">
         <div class="video-library-item-main">
           <div class="video-library-item-title">${escapeHtml(v.title || v.originalName || v.file)}</div>
@@ -12655,10 +12665,10 @@ async function renderVideoLibrary() {
       </div>
     `).join('');
     listEl.querySelectorAll('.video-library-delete-btn').forEach(btn => {
-      btn.addEventListener('click', () => deleteLibraryVideo(btn.dataset.id, videos));
+      btn.addEventListener('click', () => deleteLibraryVideo(btn.dataset.id, interrupted.concat(videos)));
     });
   }
-  const usedGb = (videos.reduce((s, v) => s + (v.sizeBytes || 0), 0) / (1024 * 1024 * 1024)).toFixed(2);
+  const usedGb = ((usedBytes != null ? usedBytes : videos.reduce((s, v) => s + (v.sizeBytes || 0), 0)) / (1024 * 1024 * 1024)).toFixed(2);
   // quotaGb === 0 : import verrouillé (Free, ou bêta = réservé aux admins, voir
   // 20260923040000_video_upload_admin_only_during_beta.sql) ; null = illimité (admin) ; sinon quota en Go.
   const dropzoneEl = document.getElementById('videoLibraryDropzone');
@@ -12693,6 +12703,12 @@ async function deleteLibraryVideo(id, knownVideos) {
 // pas seulement un souci d'affichage). videoLibraryUploadBusy gèle la zone de dépôt tant qu'un upload
 // n'est pas terminé (succès ou échec) -- voir setupVideoLibraryDropzone ci-dessous pour l'affichage.
 let videoLibraryUploadBusy = false;
+// Envoi raté après la réservation serveur (27/09) : retire la ligne « envoi en cours » et le fichier s'il est arrivé,
+// pour ne pas laisser de place comptée dans le quota. Sans effet si rien n'avait été réservé (quota refusé...).
+function discardVideoReservation(id, file) {
+  window.LayerPitchSupabaseClient.getClient().rpc('delete_video', { p_id: id })
+    .then(({ error }) => { if (error) console.warn('delete_video', error.message); else r2DeleteFileLogged(`video/${id}/${file}`); });
+}
 async function uploadLibraryVideo(file) {
   const statusEl = document.getElementById('videoLibraryStatus');
   const dropzone = document.getElementById('videoLibraryDropzone');
@@ -12720,6 +12736,8 @@ async function uploadLibraryVideo(file) {
   } catch (e) {
     console.error(e);
     statusEl.textContent = withName(tr('videoLibraryUploadFailed', { error: e.message }));
+    discardVideoReservation(id, 'source.mp4');
+    renderVideoLibrary();
   } finally {
     videoLibraryUploadBusy = false;
     if (dropzone) dropzone.classList.remove('busy');

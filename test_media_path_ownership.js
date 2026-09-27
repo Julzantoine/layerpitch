@@ -89,6 +89,13 @@ const db = fakeDb({ tracks: { tB: B, tA: A }, sfx_library: { sB: B }, composer_v
   check('vidéo .mp4 de 1 Go acceptée, .mov refusée', !!uploadHeadersFor('video/v1/source.mp4', 1024 ** 3).headers && !!uploadHeadersFor('video/v1/source.mov', 10).error);
   check('police .woff2 acceptée, .html refusée', !!uploadHeadersFor(`fonts/${A}/f.woff2`, 10).headers && !!uploadHeadersFor(`fonts/${A}/f.html`, 10).error);
   check('Edge Function : type et taille verrouillés dans la signature', /allHeaders: true/.test(edge) && /uploadHeadersFor\(path, size\)/.test(edge));
+  const iReserve = edge.indexOf("rpc('reserve_video_upload'");
+  check('Edge Function : quota vidéo réservé sur la taille verrouillée, avant toute signature',
+    iReserve > 0 && iReserve < edge.indexOf('client.sign(') && /p_size: size/.test(edge) && iReserve > edge.indexOf('uploadHeadersFor(path, size)', edge.indexOf('Deno.serve')));
+  const mig = fs.readFileSync(path.join(__dirname, 'supabase/migrations/20260927060000_video_upload_reservation.sql'), 'utf-8');
+  check('migration : réservation réservée au rôle service', /revoke all on function public\.reserve_video_upload\(uuid, text, bigint\) from public, anon, authenticated/.test(mig));
+  check('migration : upsert_video ne reprend plus la taille du navigateur',
+    !/size_bytes = excluded\.size_bytes|nullif\(payload->>'sizeBytes'/.test(mig.slice(mig.indexOf('function public.upsert_video'))));
 
   // Côté navigateur : r2PutFile (vrai code du Backstage et de pack.html) annonce la taille et renvoie les en-têtes imposés.
   for (const file of ['layerpitch-backstage.html', 'pack.html']) {
