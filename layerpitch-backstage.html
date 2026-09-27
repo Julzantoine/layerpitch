@@ -1805,10 +1805,10 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790536763477"></script>
-<script src="layerpitch-notify.js?v=1790536763477"></script>
-<script src="layerpitch-help.js?v=1790536763477"></script>
-<script src="player.js?v=1790536763477"></script>
+<script src="layerpitch-i18n.js?v=1790537201781"></script>
+<script src="layerpitch-notify.js?v=1790537201781"></script>
+<script src="layerpitch-help.js?v=1790537201781"></script>
+<script src="player.js?v=1790537201781"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3591,13 +3591,22 @@ function fxSliderParamKey(param) { return 'fxSliderParam_' + String(param).repla
 const FX_CURVE_W = 220, FX_CURVE_H = 130, FX_CURVE_PAD = 14;
 const fxCurveSelected = {}; // "ti:sri:bi" -> index du point sélectionné
 function fxCurveKey(ti, sri, bi) { return ti + ':' + sri + ':' + bi; }
-function fxCurveInnerSvg(curve, selIdx) {
+// smooth : la courbe lissée est dessinée telle que le lecteur la calcule (mêmes points, même fonction).
+function fxCurveInnerSvg(curve, selIdx, smooth) {
   const pts = curve && curve.length >= 2 ? curve : [{ x: 0, y: 0 }, { x: 1, y: 1 }];
   const X = v => FX_CURVE_PAD + v * (FX_CURVE_W - 2 * FX_CURVE_PAD), Y = v => FX_CURVE_H - FX_CURVE_PAD - v * (FX_CURVE_H - 2 * FX_CURVE_PAD);
+  const line = smooth && pts.length >= 3
+    ? Array.from({ length: 65 }, (_, k) => { const x = k / 64; return X(x) + ',' + Y(window.LayerPlayerCore.fxCurveEval(pts, x, true)); })
+    : pts.map(q => X(q.x) + ',' + Y(q.y));
   return `<rect x="${X(0)}" y="${Y(1)}" width="${X(1) - X(0)}" height="${Y(0) - Y(1)}" fill="none" stroke="var(--border)" stroke-width="1"/>
     <line x1="${X(0)}" y1="${Y(0)}" x2="${X(1)}" y2="${Y(1)}" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3 3"/>
-    <polyline points="${pts.map(q => X(q.x) + ',' + Y(q.y)).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2"/>` +
+    <polyline points="${line.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2"/>` +
     pts.map((q, i) => `<circle cx="${X(q.x)}" cy="${Y(q.y)}" r="${i === selIdx ? 6 : 4.5}" fill="${i === selIdx ? 'var(--accent)' : 'var(--bg, #fff)'}" stroke="var(--accent)" stroke-width="2"/>`).join('');
+}
+// La case « Courbe lissée » n'a de sens qu'à partir de 3 points : suivie en direct quand on ajoute/retire un point.
+function fxCurveSyncSmoothBox(svg, binding) {
+  const box = svg.parentElement && svg.parentElement.querySelector('[data-action="fxsb-curve-smooth"]');
+  if (box) box.disabled = !(binding.curve && binding.curve.length >= 3);
 }
 function fxCurveEditorHtml(b, ti, sri, bi) {
   const key = fxCurveKey(ti, sri, bi);
@@ -3606,8 +3615,9 @@ function fxCurveEditorHtml(b, ti, sri, bi) {
     <details style="margin-top:6px;width:100%">
       <summary style="cursor:pointer;font-size:0.85em">${tr('fxSliderCurveTitle')}${b.curve ? ' ✓' : ''}</summary>
       <div class="hint-inline">${tr('fxSliderCurveHint')}</div>
-      <svg data-curve-editor="1" data-ti="${ti}" data-sri="${sri}" data-bi="${bi}" viewBox="0 0 ${FX_CURVE_W} ${FX_CURVE_H}" width="${FX_CURVE_W}" height="${FX_CURVE_H}" style="touch-action:none;cursor:crosshair;border:1px solid var(--border);border-radius:6px;display:block;margin-top:4px">${fxCurveInnerSvg(b.curve, sel)}</svg>
+      <svg data-curve-editor="1" data-ti="${ti}" data-sri="${sri}" data-bi="${bi}" viewBox="0 0 ${FX_CURVE_W} ${FX_CURVE_H}" width="${FX_CURVE_W}" height="${FX_CURVE_H}" style="touch-action:none;cursor:crosshair;border:1px solid var(--border);border-radius:6px;display:block;margin-top:4px">${fxCurveInnerSvg(b.curve, sel, b.curveSmooth)}</svg>
       <div class="actions" style="margin-top:4px">
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.85em;margin:0"><input type="checkbox" style="width:auto;margin:0" data-action="fxsb-curve-smooth" data-ti="${ti}" data-sri="${sri}" data-bi="${bi}"${b.curveSmooth ? ' checked' : ''}${b.curve && b.curve.length >= 3 ? '' : ' disabled'}>${tr('fxSliderCurveSmooth')}</label>
         <button class="btn btn-small" type="button" data-action="fxsb-curve-remove" data-ti="${ti}" data-sri="${sri}" data-bi="${bi}">${tr('fxSliderCurveRemovePoint')}</button>
         <button class="btn btn-small" type="button" data-action="fxsb-curve-reset" data-ti="${ti}" data-sri="${sri}" data-bi="${bi}">${tr('fxSliderCurveReset')}</button>
       </div>
@@ -3618,7 +3628,7 @@ function fxSlidersClean(list) {
     id: x.id, label: x.label || '', visible: !!x.visible,
     defaultValue: Number.isFinite(+x.defaultValue) ? Math.max(0, Math.min(1, +x.defaultValue)) : 0,
     smoothSec: Number.isFinite(+x.smoothSec) && +x.smoothSec >= 0 ? +x.smoothSec : 0.15,
-    bindings: (x.bindings || []).filter(b => b && b.target && b.param).map(b => { const cv = window.LayerPlayerCore.fxCurveSanitize(b.curve); return Object.assign({ target: b.target, param: b.param, from: Number.isFinite(+b.from) ? +b.from : 0, to: Number.isFinite(+b.to) ? +b.to : 1 }, cv ? { curve: cv } : {}); }),
+    bindings: (x.bindings || []).filter(b => b && b.target && b.param).map(b => { const cv = window.LayerPlayerCore.fxCurveSanitize(b.curve); return Object.assign({ target: b.target, param: b.param, from: Number.isFinite(+b.from) ? +b.from : 0, to: Number.isFinite(+b.to) ? +b.to : 1 }, cv ? { curve: cv } : {}, cv && b.curveSmooth ? { curveSmooth: true } : {}); }),
     thresholds: (x.thresholds || []).filter(t => t && t.triggerId).map(t => ({ at: Number.isFinite(+t.at) ? Math.max(0, Math.min(1, +t.at)) : 0.5, mode: t.mode === 'above' ? 'above' : 'below', triggerId: t.triggerId }))
   }));
 }
@@ -3731,7 +3741,7 @@ document.addEventListener('pointerdown', ev => {
   }
   fxCurveSelected[key] = hit;
   hasUnsavedEdits = true;
-  const repaint = () => { svg.innerHTML = fxCurveInnerSvg(binding.curve, hit); };
+  const repaint = () => { svg.innerHTML = fxCurveInnerSvg(binding.curve, hit, binding.curveSmooth); fxCurveSyncSmoothBox(svg, binding); };
   repaint();
   try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
   const move = e => {
@@ -3762,7 +3772,8 @@ document.addEventListener('dblclick', ev => {
   binding.curve.splice(hit, 1);
   delete fxCurveSelected[fxCurveKey(ti, sri, bi)];
   hasUnsavedEdits = true;
-  svg.innerHTML = fxCurveInnerSvg(binding.curve, -1);
+  svg.innerHTML = fxCurveInnerSvg(binding.curve, -1, binding.curveSmooth);
+  fxCurveSyncSmoothBox(svg, binding);
 });
 // Actions liées à un embranchement : pour chaque trigger défini sur le morceau, "activer" / "couper" /
 // "ne rien faire" quand CETTE option de bascule (séquentiel) ou CETTE boucle (embranchement-vertical) est prise.
@@ -7854,7 +7865,12 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   }
   else if (btn.dataset.action === 'fxsb-curve-reset') {
     const b = library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].bindings[parseInt(btn.dataset.bi, 10)];
-    delete b.curve; delete fxCurveSelected[fxCurveKey(ti, btn.dataset.sri, btn.dataset.bi)];
+    delete b.curve; delete b.curveSmooth; delete fxCurveSelected[fxCurveKey(ti, btn.dataset.sri, btn.dataset.bi)];
+  }
+  else if (btn.dataset.action === 'fxsb-curve-smooth') {
+    // Courbe lissée (27/09) : la case elle-même porte l'action ; son état coché est déjà à jour au moment du clic.
+    const b = library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].bindings[parseInt(btn.dataset.bi, 10)];
+    if (btn.checked) b.curveSmooth = true; else delete b.curveSmooth;
   }
   else if (btn.dataset.action === 'fxsb-curve-remove') {
     const k = fxCurveKey(ti, btn.dataset.sri, btn.dataset.bi);

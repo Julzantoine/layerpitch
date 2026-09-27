@@ -92,7 +92,12 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   }
   else if (btn.dataset.action === 'fxsb-curve-reset') {
     const b = library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].bindings[parseInt(btn.dataset.bi, 10)];
-    delete b.curve; delete fxCurveSelected[fxCurveKey(ti, btn.dataset.sri, btn.dataset.bi)];
+    delete b.curve; delete b.curveSmooth; delete fxCurveSelected[fxCurveKey(ti, btn.dataset.sri, btn.dataset.bi)];
+  }
+  else if (btn.dataset.action === 'fxsb-curve-smooth') {
+    // Courbe lissée (27/09) : la case elle-même porte l'action ; son état coché est déjà à jour au moment du clic.
+    const b = library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].bindings[parseInt(btn.dataset.bi, 10)];
+    if (btn.checked) b.curveSmooth = true; else delete b.curveSmooth;
   }
   else if (btn.dataset.action === 'fxsb-curve-remove') {
     const k = fxCurveKey(ti, btn.dataset.sri, btn.dataset.bi);

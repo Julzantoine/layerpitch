@@ -2538,13 +2538,33 @@ function fxCurveSanitize(raw) {
   pts[0].x = 0; pts[pts.length - 1].x = 1; // les extrémités sont toujours aux bords du curseur
   return pts;
 }
-function fxCurveEval(curve, v) {
+// smooth (27/09) : courbe lissée entre les points au lieu de segments droits -- interpolation cubique MONOTONE
+// (Fritsch-Carlson) : passe par chaque point, sans jamais dépasser ses voisins (pas de bosse ni de creux entre deux
+// points, donc jamais un effet qui s'emballe au-delà de ce que le compositeur a posé).
+function fxCurveTangents(c) {
+  const n = c.length, d = [], m = new Array(n);
+  for (let k = 0; k < n - 1; k++) { const h = c[k + 1].x - c[k].x; d.push(h > 1e-9 ? (c[k + 1].y - c[k].y) / h : 0); }
+  m[0] = d[0]; m[n - 1] = d[n - 2];
+  for (let k = 1; k < n - 1; k++) m[k] = d[k - 1] * d[k] <= 0 ? 0 : (d[k - 1] + d[k]) / 2;
+  for (let k = 0; k < n - 1; k++) {
+    if (d[k] === 0) { m[k] = 0; m[k + 1] = 0; continue; }
+    const al = m[k] / d[k], be = m[k + 1] / d[k], s = al * al + be * be;
+    if (s > 9) { const t = 3 / Math.sqrt(s); m[k] = t * al * d[k]; m[k + 1] = t * be * d[k]; }
+  }
+  return m;
+}
+function fxCurveEval(curve, v, smooth) {
   if (!curve || curve.length < 2) return v;
   if (v <= curve[0].x) return curve[0].y;
   for (let i = 1; i < curve.length; i++) {
     if (v <= curve[i].x) {
       const a = curve[i - 1], b = curve[i], span = b.x - a.x;
-      return span > 1e-9 ? a.y + (b.y - a.y) * (v - a.x) / span : b.y;
+      if (!(span > 1e-9)) return b.y;
+      const t = (v - a.x) / span;
+      if (!smooth || curve.length < 3) return a.y + (b.y - a.y) * t;
+      const m = fxCurveTangents(curve), t2 = t * t, t3 = t2 * t;
+      const y = (2 * t3 - 3 * t2 + 1) * a.y + (t3 - 2 * t2 + t) * span * m[i - 1] + (-2 * t3 + 3 * t2) * b.y + (t3 - t2) * span * m[i];
+      return Math.max(0, Math.min(1, y));
     }
   }
   return curve[curve.length - 1].y;
@@ -2566,13 +2586,13 @@ function fxSlidersValid(track) {
       const key = fxSliderTargetKey(b.target);
       // Un paramètre de spatialisation ne se lie qu'à un Sfx, un paramètre d'effet qu'à une voix.
       return !!key && ((FX_SLIDER_PARAMS[b.param].kind === 'sfx') === (key.indexOf('sfx:') === 0));
-    }).map(b => ({ key: fxSliderTargetKey(b.target), param: b.param, from: +b.from, to: +b.to, curve: fxCurveSanitize(b.curve) })),
+    }).map(b => ({ key: fxSliderTargetKey(b.target), param: b.param, from: +b.from, to: +b.to, curve: fxCurveSanitize(b.curve), curveSmooth: !!b.curveSmooth })),
     thresholds: (d.thresholds || []).filter(x => x && x.triggerId && Number.isFinite(+x.at)).map(x => ({ at: clamp01(x.at), mode: x.mode === 'above' ? 'above' : 'below', triggerId: x.triggerId }))
   })).filter(sl => sl.bindings.length || sl.thresholds.length);
 }
 function fxSliderBindingValue(b, v0) {
   const meta = FX_SLIDER_PARAMS[b.param];
-  const v = b.curve ? fxCurveEval(b.curve, v0) : v0; // courbe libre éventuelle, puis interpolation from -> to
+  const v = b.curve ? fxCurveEval(b.curve, v0, b.curveSmooth) : v0; // courbe libre éventuelle (lissée ou non), puis interpolation from -> to
   let p = (meta.log && b.from > 0 && b.to > 0) ? b.from * Math.pow(b.to / b.from, v) : b.from + (b.to - b.from) * v;
   p = Math.max(meta.min, Math.min(meta.max, p));
   return meta.round ? Math.round(p) : p;
