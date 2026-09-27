@@ -1,0 +1,342 @@
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
+    --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --accent: #c9713c; --accent-soft: #f3e4d6;
+    --seq-map-success: #2f8f5b; --seq-map-choice: #b8862e;
+    --font-body: 'Inter', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  img { max-width: 100%; height: auto; display: block; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); padding: 56px 24px 60px; }
+  body.has-preview-banner { padding-top: 92px; }
+  .preview-mode-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #262521; color: #f6f5f3; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 8px 16px; letter-spacing: 0.02em; }
+  body.has-preview-banner .share-btn { top: 56px; }
+  .page { max-width: 760px; margin: 0 auto; }
+  a { color: var(--accent); }
+
+  .back-link { display: inline-block; margin-bottom: 32px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); text-decoration: none; }
+  .back-link:hover { color: var(--accent); }
+  /* Bouton d'intégration (?embed=1) : remplace le discret "← Retour" par un vrai bouton visible, seul
+     moyen pour l'auditeur de rejoindre le site du compositeur depuis une iframe sur un site tiers. */
+  .back-link.embed-cta-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em; }
+  .back-link.embed-cta-btn:hover { opacity: 0.88; color: #fff; }
+
+  .pack-illustration { display: block; max-width: 100%; max-height: 380px; width: auto; height: auto; margin: 0 auto 28px; border-radius: 8px; border: 1px solid var(--border); }
+  .pack-illustration.empty { width: 100%; max-height: none; aspect-ratio: 16/7; background: linear-gradient(135deg, #2a2822, #423b30); }
+
+  .pack-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 28px; margin-bottom: 16px; }
+  .pack-presentation p { font-size: 14.5px; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; white-space: pre-wrap; }
+
+  .block { margin-bottom: 56px; margin-top: 48px; }
+  .section-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 18px;
+  }
+
+  /* ---------------- Lecteur Sfx ---------------- */
+  /* Ligne compacte + repli : réutilise .track-row-wrapper/.track-row/.track-row-details (déjà défini plus
+     bas pour les morceaux). Seules les variations RR (affichées dans le repli, sous la forme d'onde
+     principale) ont encore besoin de classes propres. */
+  .sfx-rr-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+
+  .share-btn {
+    position: fixed; top: 20px; right: 20px; z-index: 50;
+    width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .share-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .share-btn:active { transform: scale(0.94); }
+  .share-btn svg { width: 18px; height: 18px; }
+  .share-btn.copied { color: #2a7; border-color: #2a7; }
+  /* Bouton "Intégrer" public (composer.allowEmbedding) : même style que .share-btn, juste à sa gauche --
+     seulement visible si le compositeur a explicitement autorisé les visiteurs à générer eux-mêmes un
+     code d'intégration (réglage global, backstage -- réglage "socials"). */
+  .embed-public-btn { right: 68px; }
+  .embed-public-btn[hidden] { display: none; }
+  body.has-preview-banner .embed-public-btn { top: 56px; }
+  #publicEmbedModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
+  #publicEmbedModal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; width: 480px; max-width: 90vw; box-shadow: 0 8px 24px rgba(0,0,0,0.16); }
+  #publicEmbedModal h3 { font-size: 14px; margin-bottom: 4px; }
+  #publicEmbedModal .sub { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
+  #publicEmbedModal textarea { width: 100%; box-sizing: border-box; min-height: 100px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: 'JetBrains Mono', monospace; resize: vertical; background: var(--bg); color: var(--text); }
+  #publicEmbedModal .actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; }
+  #publicEmbedModal .actions button { padding: 8px 16px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text); font-size: 12px; cursor: pointer; font-family: inherit; }
+  #publicEmbedModal .actions button:hover { border-color: var(--accent); color: var(--accent); }
+  #publicEmbedCopyStatus { font-size: 11px; color: #2a7; margin-right: auto; opacity: 0; transition: opacity 0.2s; }
+  #publicEmbedCopyStatus.visible { opacity: 1; }
+
+  .track { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); padding: 26px; margin-bottom: 16px; }
+  .track.disabled { opacity: 0.5; }
+
+  .empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 20px 0; }
+
+  .buy-section { margin-top: 56px; text-align: center; padding: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); }
+  .buy-btn {
+    display: inline-block; padding: 14px 32px; border-radius: 6px; background: var(--accent); color: #fff;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+    text-decoration: none; border: none; cursor: pointer;
+  }
+  .buy-btn:hover { opacity: 0.9; }
+  .buy-btn.disabled, .buy-btn:disabled { background: var(--border); color: var(--text-dimmer); cursor: not-allowed; pointer-events: none; }
+  .buy-hint { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dimmer); margin-top: 10px; }
+  .implementation-help { margin-top: 18px; font-size: 11.5px; color: var(--text-dimmer); text-align: center; font-family: 'JetBrains Mono', monospace; }
+
+  /* Achat réel (Décision 5, étape 4) — masqué en production tant que PURCHASES_ENABLED est faux */
+  .purchase-owned { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
+  .purchase-signin { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .purchase-signin input {
+    font-family: 'Inter', sans-serif; font-size: 13px; padding: 8px 12px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text); width: 240px; text-align: center;
+  }
+  .purchase-msg { font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-top: 8px; }
+  .purchase-msg.err { color: #b5442e; }
+  .purchase-msg.ok { color: #2a7; }
+  .purchase-banner {
+    max-width: 1100px; margin: 0 auto 24px; padding: 12px 20px; border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; text-align: center;
+  }
+  .purchase-banner.ok { background: #e4f5ec; color: #1f7a4d; }
+  .purchase-banner.cancelled { background: #f5efe4; color: #8a6a2f; }
+
+  /* Mode Test Gameplay : bouton déclencheur + boîte de dialogue pour coller une URL vidéo */
+  .video-test-trigger-btn {
+    display: block; margin: 0 auto 28px; padding: 12px 24px; border-radius: 6px; border: 1px solid var(--accent);
+    background: transparent; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer;
+  }
+  .video-test-trigger-btn:hover { background: var(--accent-soft); }
+  .video-test-dialog {
+    border: 1px solid var(--border); border-radius: 10px; padding: 0; max-width: 440px; width: calc(100% - 40px);
+    background: var(--bg-card); color: var(--text); box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+  }
+  .video-test-dialog::backdrop { background: rgba(0,0,0,0.4); }
+  .video-test-form { padding: 24px; display: flex; flex-direction: column; }
+  .video-test-dialog-title { font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+  .video-test-dialog-hint { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin: 0 0 16px; }
+  .video-test-form input[type="text"] {
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg);
+    color: var(--text); font-size: 13px; font-family: inherit;
+  }
+  .video-test-dialog-error { font-size: 12px; color: #c0392b; min-height: 16px; margin-top: 8px; }
+  /* Ouverture d'un montage depuis le Backstage (Versioning, 26/09) + vidéo prise dans la bibliothèque vidéo. */
+  .video-capture-montage-note { font-size: 12.5px; color: var(--text); background: var(--accent-soft); border-radius: 6px; padding: 8px 10px; margin: 0 0 12px; line-height: 1.5; }
+  .video-capture-library-pick { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .video-capture-library-pick .video-test-dialog-hint { margin: 0; }
+  .video-capture-library-row { display: flex; gap: 8px; align-items: center; }
+  .video-capture-library-row select { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 12.5px; font-family: inherit; }
+  .video-capture-library-status { font-size: 12px; color: var(--text-dim); min-height: 16px; }
+  .video-test-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+  .video-test-btn-secondary, .video-test-btn-primary {
+    padding: 9px 18px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+    letter-spacing: 0.03em; cursor: pointer; border: 1px solid var(--border);
+  }
+  .video-test-btn-secondary { background: transparent; color: var(--text-dim); }
+  .video-test-btn-secondary:hover { border-color: var(--text-dim); }
+  .video-test-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .video-test-btn-primary:hover { opacity: 0.9; }
+
+  /* Panneau vidéo intégré (écran unique) — cf. Mode Test Gameplay. Sur multi-écrans détecté
+     (window.screen.isExtended), on passe par une fenêtre séparée à la place, voir openInWindow(). */
+  .video-test-panel { display: none; background: #111; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+  .video-test-panel.active { display: block; }
+  .video-test-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: #1a1a1a; }
+  .video-test-panel-title { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: #ccc; }
+  .video-test-panel-actions { display: flex; gap: 6px; }
+  .video-test-panel-btn { width: 26px; height: 26px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc; cursor: pointer; font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .video-test-panel-btn:hover { border-color: #666; color: #fff; }
+  .video-test-panel-frame-wrap { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
+  .video-test-panel-frame-wrap iframe, .video-test-panel-frame-wrap video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+  /* Mode Capture (admin uniquement, prototype moteur vidéo) : import d'un fichier local plutôt qu'un
+     lien YouTube/Vimeo (impossible d'en extraire les images pour l'export final), et enregistrement
+     horodaté des interactions du lecteur pendant la lecture -- voir video-engine-prototype/. */
+  .video-capture-trigger-btn {
+    display: block; margin: 0 auto 12px; padding: 12px 24px; border-radius: 6px; border: 1px dashed var(--text-dim);
+    background: transparent; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer;
+  }
+  .video-capture-trigger-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .video-capture-dropzone {
+    border: 2px dashed var(--border); border-radius: 8px; padding: 32px 16px; text-align: center;
+    font-size: 13px; color: var(--text-dim); cursor: pointer; margin-top: 4px;
+  }
+  .video-capture-dropzone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+  .video-capture-bar {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: #1a1a1a;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #ccc; flex-wrap: wrap;
+  }
+  .video-capture-record-btn {
+    display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 5px;
+    border: 1px solid #3a3a3a; background: #222; color: #eee; cursor: pointer; font-size: 11px;
+  }
+  .video-capture-record-btn .dot { width: 9px; height: 9px; border-radius: 50%; background: #e74c3c; }
+  .video-capture-record-btn.recording { border-color: #e74c3c; }
+  .video-capture-record-btn.recording .dot { animation: video-capture-pulse 1s infinite; }
+  @keyframes video-capture-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  .video-capture-count { flex: 1; }
+  .video-capture-armed-status { color: #e74c3c; }
+  /* Bouton ⏺ posé à côté du VRAI bouton de lecture d'un morceau (pas dans le panneau de capture) --
+     discret par défaut, coloré quand la piste est armée. */
+  .video-capture-arm-track-btn {
+    width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); cursor: pointer; font-size: 10px; line-height: 1; margin-left: 4px;
+  }
+  .video-capture-arm-track-btn:hover { border-color: #e74c3c; color: #e74c3c; }
+  .video-capture-arm-track-btn.armed { background: #e74c3c; border-color: #e74c3c; color: #fff; }
+  .video-capture-download-btn {
+    padding: 6px 12px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc;
+    cursor: pointer; font-size: 11px;
+  }
+  .video-capture-download-btn:disabled { opacity: 0.4; cursor: default; }
+  .video-capture-title-input, .video-capture-load-select {
+    padding: 5px 8px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  }
+  .video-capture-title-input { width: 200px; }
+  .video-capture-load-select:disabled, .video-capture-title-input:disabled { opacity: 0.4; }
+  .video-capture-export-opt { display: flex; align-items: center; gap: 5px; color: #999; white-space: nowrap; }
+  /* Versioning (26/09, capture-versioning.js) : versions vidéo d'un montage sauvegardé -- admin seulement pour l'instant. */
+  .video-capture-versioning {
+    background: #161616; border-top: 1px solid #2a2a2a; padding: 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #ccc; display: flex; flex-direction: column; gap: 8px;
+  }
+  .vcv-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .vcv-title { font-weight: 600; color: #eee; font-size: 12px; }
+  .vcv-hint { color: #888; flex: 1; min-width: 180px; }
+  .vcv-empty { color: #888; padding: 2px 0; }
+  .vcv-warn, .vcv-note-warn, .vcv-note-block { color: #f0a050; }
+  .vcv-version, .vcv-batch, .vcv-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .vcv-version { padding: 6px 8px; border: 1px solid #2c2c2c; border-radius: 6px; background: #1c1c1c; }
+  .vcv-name { color: #eee; font-weight: 600; }
+  .vcv-summary { color: #999; flex: 1; min-width: 160px; }
+  .vcv-status { color: #aaa; }
+  .vcv-batch { border-top: 1px dashed #2c2c2c; padding-top: 8px; }
+  .vcv-editor { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid #3a3a3a; border-radius: 6px; background: #1c1c1c; }
+  .vcv-section { color: #eee; font-weight: 600; margin-top: 6px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .vcv-label { color: #999; min-width: 40px; }
+  .vcv-name-input { flex: 1; min-width: 180px; }
+  .vcv-src { min-width: 180px; color: #ddd; }
+  .vcv-src em { color: #888; font-style: normal; margin-left: 4px; }
+  .vcv-arrow { color: #777; }
+  .vcv-row select { max-width: 320px; }
+  .vcv-orange { border-left: 3px solid #f0a050; padding-left: 6px; }
+  .vcv-notes { border-top: 1px dashed #2c2c2c; padding-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+  .vcv-note { color: #aaa; }
+  .vcv-note-info { color: #9ab; }
+  /* Frise d'édition (cible finale, schéma papier de Jules-Antoine 2026-09-14) : une piste horizontale par
+     calque du morceau + une piste SFX, blocs positionnés en pourcentage de la durée totale (pas de pixel
+     fixe -- pas de défilement horizontal à gérer, suffisant pour les prises courtes de ce prototype). */
+  .video-capture-timeline {
+    background: #1a1a1a; border-top: 1px solid #2a2a2a; padding: 10px 10px 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #ccc; position: relative;
+  }
+  .vct-empty { padding: 10px; color: #777; }
+  .vct-playhead { position: absolute; top: 20px; bottom: 34px; width: 1px; background: #ff4444; pointer-events: none; z-index: 20; }
+  .vct-playhead::before {
+    content: ''; position: absolute; top: -4px; left: -3px; border: 4px solid transparent;
+    border-top-color: #ff4444;
+  }
+  .vct-ruler { position: relative; height: 16px; margin-left: 96px; }
+  .vct-tick { position: absolute; top: 0; height: 100%; border-left: 1px solid #333; padding-left: 3px; color: #777; font-size: 9px; white-space: nowrap; }
+  .vct-lane { display: flex; align-items: stretch; height: 26px; margin-bottom: 3px; }
+  /* Le repère visuel du groupe (bordure + titre) ne doit pas décaler .vct-lane-track, sous peine de ne
+     plus s'aligner avec la frise temporelle (.vct-ruler, margin-left fixe) -- seule l'étiquette de piste
+     est indentée, jamais la largeur réservée au label lui-même. */
+  .vct-track-group { border-left: 2px solid #3a5f8a; margin-top: 6px; padding-left: 0; }
+  .vct-track-group-sfx { border-left-color: #8a5a2f; }
+  .vct-track-group-header {
+    font-size: 10px; font-weight: 600; color: #7fb0e8; padding: 2px 0 4px 6px; text-transform: uppercase;
+    letter-spacing: 0.03em; cursor: pointer; user-select: none;
+  }
+  .vct-track-group-sfx .vct-track-group-header { color: #d69a5c; }
+  .vct-track-group-header:hover { color: #fff; }
+  .vct-group-chevron { display: inline-block; width: 12px; font-size: 8px; }
+  .vct-lane-nested .vct-lane-label { padding-left: 14px; }
+  .vct-lane-label { width: 96px; flex-shrink: 0; display: flex; align-items: center; padding-right: 6px; color: #aaa; font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vct-lane-label[data-lane-kind="layer"] { cursor: text; }
+  .vct-lane-label[data-lane-kind="layer"]:hover { color: #fff; text-decoration: underline dotted; }
+  .vct-lane-rename-input {
+    width: 96px; flex-shrink: 0; background: #222; border: 1px solid var(--accent); border-radius: 3px;
+    color: #fff; font-family: inherit; font-size: 9.5px; padding: 2px 4px;
+  }
+  .vct-lane-track { position: relative; flex: 1; background: #101010; border-radius: 3px; border: 1px solid #232323; }
+  .vct-block { position: absolute; top: 2px; bottom: 2px; min-width: 4px; border-radius: 3px; cursor: grab; border: 1px solid transparent; overflow: hidden; touch-action: none; }
+  .vct-block.vct-layer { background: #2f5d8a; }
+  .vct-block.vct-sfx { background: #8a5a2f; }
+  .vct-block.vct-fx { background: #7a4d9c; }
+  .vct-block.vct-fx-cut { background: repeating-linear-gradient(45deg, #7a4d9c, #7a4d9c 3px, #3d2650 3px, #3d2650 6px); min-width: 10px; }
+  .vct-block.vct-head { background: #3d8a6e; min-width: 10px; }
+  .vct-block.vct-slider { background: #a0742f; min-width: 12px; }
+  .vct-track-group-head { border-left-color: #3d8a6e; }
+  .vct-track-group-head .vct-track-group-header { color: #6fd4ae; }
+  .vct-block-implicit { opacity: 0.45; cursor: default; }
+  .vct-block.vct-selected { border-color: #fff; }
+  .vct-block-label { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); font-size: 9px; color: #fff; white-space: nowrap; pointer-events: none; }
+  .vct-resize-handle { position: absolute; top: 0; right: 0; bottom: 0; width: 6px; cursor: ew-resize; background: rgba(255,255,255,0.15); }
+  .vct-resize-handle:hover { background: rgba(255,255,255,0.35); }
+  .vct-detail { display: flex; align-items: center; gap: 8px; padding: 8px 0 4px; margin-top: 4px; border-top: 1px solid #2a2a2a; min-height: 30px; }
+  .vct-detail-empty { color: #666; font-size: 10px; }
+  .vct-detail-label { flex: 1; color: #ddd; }
+  .video-capture-event-time, .video-capture-event-duration, .video-capture-event-yaw, .video-capture-event-slidervalue {
+    width: 56px; background: #222; border: 1px solid #3a3a3a; border-radius: 4px; color: #ccc;
+    font-family: inherit; font-size: 11px; padding: 2px 4px;
+  }
+  .video-capture-event-duration { width: 78px; }
+  .video-capture-event-duration::placeholder { color: #666; font-size: 9.5px; }
+  .video-capture-duck-label { display: flex; align-items: center; gap: 3px; color: #aaa; cursor: pointer; user-select: none; }
+  .video-capture-duck-label input { margin: 0; cursor: pointer; }
+  .video-capture-event-del {
+    border: none; background: transparent; color: #888; cursor: pointer; font-size: 13px; line-height: 1;
+    padding: 2px 4px;
+  }
+  .video-capture-event-del:hover { color: #e74c3c; }
+
+  /* Empilé par défaut (mobile, laptop pas assez large) : vidéo au-dessus, contenu de la page en dessous
+     — ordre du DOM (le panneau est déclaré avant .page dans le body). À partir de 1280px, on passe
+     côte à côte pour l'aisance d'interaction (regarder la vidéo tout en cliquant les morceaux), sans
+     que ce soit encore trop serré sur un écran de laptop 13"/14" standard. */
+  body.video-panel-active { display: flex; flex-direction: column; align-items: center; gap: 24px; }
+  body.video-panel-active .page { margin: 0; }
+  body.video-panel-active .video-test-panel { width: 100%; max-width: 640px; }
+  @media (min-width: 1280px) {
+    body.video-panel-active { flex-direction: row; align-items: flex-start; justify-content: center; max-width: 1240px; margin: 0 auto; gap: 28px; }
+    body.video-panel-active .page { order: 1; flex-shrink: 0; }
+    body.video-panel-active .video-test-panel { order: 2; width: 400px; max-width: none; flex-shrink: 0; position: sticky; top: 40px; }
+  }
+  .contrast-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 24px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); cursor: pointer; user-select: none; }
+  .contrast-toggle input { width: auto; margin: 0; cursor: pointer; }
+  body.high-contrast .contrast-toggle { color: var(--text); font-weight: 600; }
+  body.high-contrast .pack-watermark { display: none; }
+  .layerpitch-credit { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--text-dimmer); opacity: 0.55; letter-spacing: 0.04em; margin-top: 32px; }
+  .layerpitch-credit a { color: inherit; text-decoration: none; }
+  .layerpitch-credit a:hover { text-decoration: underline; }
+  /* Séparateurs entre sections (Chantier Apparence Phase 3) -- désactivé par défaut. */
+  #content.show-separators > .pub-section + .pub-section { border-top: var(--separator-width, 1px) solid var(--separator-color, transparent); padding-top: 32px; }
+  .pack-watermark { position: fixed; inset: 0; z-index: -1; background-position: center; background-repeat: no-repeat; background-size: cover; opacity: 0.15; pointer-events: none; }
+  /* Bandeau de consentement cookies (Microsoft Clarity -- 17 septembre), voir le commentaire au
+     niveau du script plus bas pour le raisonnement RGPD/CNIL. */
+  .cookie-banner { position: fixed; left: 0; right: 0; bottom: 0; z-index: 200; display: flex; justify-content: center; padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .cookie-banner[hidden] { display: none; }
+  .cookie-card { width: 100%; max-width: 620px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; box-shadow: 0 12px 32px rgba(20,18,14,0.16); display: flex; flex-direction: column; gap: 14px; }
+  .cookie-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .cookie-head h2 { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px; margin: 0; }
+  .cookie-head .tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; }
+  .cookie-text { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin: 0; }
+  .cookie-text a { color: var(--text); }
+  .cookie-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .cookie-btn { font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 20px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; flex: 1; min-width: 140px; }
+  .cookie-btn.accept { background: var(--accent); color: #fff; }
+  .cookie-btn.accept:hover { opacity: 0.9; }
+  .cookie-btn.refuse { background: transparent; color: var(--text); border-color: var(--border); }
+  .cookie-btn.refuse:hover { border-color: var(--text-dimmer); }
+  .cookie-detail-toggle { align-self: flex-start; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; }
+  .cookie-detail { font-size: 12.5px; color: var(--text-dim); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+  .cookie-detail[hidden] { display: none; }
+  .cookie-detail ul { margin: 6px 0 0; padding-left: 18px; }
+  .cookie-reopen { position: fixed; left: 20px; bottom: 20px; z-index: 190; display: inline-flex; align-items: center; gap: 7px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px 8px 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); cursor: pointer; box-shadow: 0 4px 14px rgba(20,18,14,0.1); }
+  .cookie-reopen[hidden] { display: none; }
+  .cookie-reopen:hover { color: var(--text); border-color: var(--text-dimmer); }

@@ -2,8 +2,8 @@
 // scripts/build-sources.js — fabrique les gros fichiers servis aux navigateurs à partir de leurs sources découpées
 // (dette S4, 27/09).
 //
-//   npm run build                      reconstruit player.js et layerpitch-backstage.html
-//   node scripts/build-sources.js player      (ou backstage)   un seul fichier
+//   npm run build                      reconstruit player.js, layerpitch-backstage.html et pack.html
+//   node scripts/build-sources.js player      (ou backstage, pack)   un seul fichier
 //   node scripts/build-sources.js --check     vérifie seulement qu'ils sont à jour (test_generated_files.js)
 //
 // Pourquoi : player.js (7 000+ lignes) et layerpitch-backstage.html (13 000+ lignes) sont découpés en fichiers par thème
@@ -23,6 +23,8 @@ const TARGETS = {
   // L'avertissement du Backstage est dans src/backstage/01-tete.html (juste après le doctype : un commentaire AVANT le
   // doctype ferait passer la page en mode de compatibilité).
   backstage: { dir: 'src/backstage', out: 'layerpitch-backstage.html', pattern: /^\d\d[a-z]?-.*\.(html|css|js)$/, header: '' },
+  // Page publique d'un pack + outil vidéo « Test in game » (27/09) ; avertissement dans src/pack/01-tete.html.
+  pack: { dir: 'src/pack', out: 'pack.html', pattern: /^\d\d[a-z]?-.*\.(html|css|js)$/, header: '' },
 };
 
 function build(name, check) {
