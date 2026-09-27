@@ -66,6 +66,14 @@ const db = fakeDb({ tracks: { tB: B, tA: A }, sfx_library: { sB: B }, composer_v
   const iId = html.indexOf('ensureMyComposerProfile()', iPub);
   check('Backstage : identité du compositeur résolue avant le premier envoi de la publication', iId > 0 && iId < html.indexOf('r2PutFile(`images/', iPub));
 
+  // Factures : jamais dans le seau média (servi publiquement sur media.layerpitch.com, chemin devinable).
+  const hook = fs.readFileSync(path.join(__dirname, 'supabase/functions/stripe-webhook/index.ts'), 'utf-8');
+  const up = hook.slice(hook.indexOf('async function uploadInvoiceToR2('), hook.indexOf('\n}\n', hook.indexOf('async function uploadInvoiceToR2(')));
+  check('Facture : enregistrée dans le seau privé, sans repli sur le seau public',
+    /Deno\.env\.get\('R2_INVOICES_BUCKET'\)/.test(up) && !/R2_BUCKET'/.test(up) && /if \(!bucket\) throw/.test(up));
+  const dl = fs.readFileSync(path.join(__dirname, 'supabase/functions/get-invoice-download-url/index.ts'), 'utf-8');
+  check('Facture : relue dans le seau privé', /Deno\.env\.get\('R2_INVOICES_BUCKET'\)/.test(dl) && !/R2_BUCKET'/.test(dl));
+
   if (failures) { console.log(`\n${failures} échec(s)`); process.exit(1); }
   console.log('\nTout est OK');
 })();

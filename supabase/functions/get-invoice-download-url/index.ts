@@ -72,7 +72,9 @@ Deno.serve(async (req) => {
     }
 
     const accountId = Deno.env.get('R2_ACCOUNT_ID')!;
-    const bucket = Deno.env.get('R2_BUCKET')!;
+    // Seau privé des factures (27/09, voir uploadInvoiceToR2 dans stripe-webhook), jamais le seau média public.
+    const bucket = Deno.env.get('R2_INVOICES_BUCKET');
+    if (!bucket) throw new Error('Secret R2_INVOICES_BUCKET absent');
     const client = new AwsClient({
       accessKeyId: Deno.env.get('R2_ACCESS_KEY_ID')!,
       secretAccessKey: Deno.env.get('R2_SECRET_ACCESS_KEY')!,

@@ -148,7 +148,11 @@ async function uploadInvoiceToR2(pdfBytes: Uint8Array, storagePath: string) {
     service: 's3',
     region: 'auto',
   });
-  const bucket = Deno.env.get('R2_BUCKET')!;
+  // Seau PRIVÉ réservé aux factures (27/09), jamais R2_BUCKET : ce dernier est servi publiquement sur
+  // media.layerpitch.com, et le chemin d'une facture se devine (id public du compositeur + numéro qui se suit).
+  // Pas de repli sur le seau public si le secret manque : la facture échoue (achat gardé, voir plus bas).
+  const bucket = Deno.env.get('R2_INVOICES_BUCKET');
+  if (!bucket) throw new Error('Secret R2_INVOICES_BUCKET absent : facture non enregistrée (jamais dans le seau public).');
   const url = `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${storagePath}`;
   const res = await client.fetch(url, { method: 'PUT', body: pdfBytes, headers: { 'Content-Type': 'application/pdf' } });
   if (!res.ok) throw new Error(`Upload R2 échoué (${res.status}) : ${await res.text()}`);
