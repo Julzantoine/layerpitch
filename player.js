@@ -2823,7 +2823,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // gardent leur vitesse jusqu'au bout, donc tout reste synchrone. Moteur simple (bouclage natif) : les sources en cours
   // glissent vers la nouvelle vitesse et l'origine de la position est recalée pour que la tête de lecture ne saute pas.
   function fxComputeTrackRatio() {
-    const defs = fxActiveTriggerIds.map(id => (fxTriggerTargetKey.get(id) === 'track' ? fxTriggerDefs.get(id) : null)).filter(Boolean);
+    // Tous les triggers actifs, quelle que soit leur cible : fxTrackRatio ne lit que leur pitch « vitesse », qui vaut
+    // toujours pour le morceau entier (27/09 -- un ancien trigger « vitesse » visant une couche était ignoré).
+    const defs = fxActiveTriggerIds.map(id => fxTriggerDefs.get(id)).filter(Boolean);
     return fxTrackRatio(track, defs, fxSliders, fxSliderValueOf);
   }
   function refreshTrackRate(rampSec) {
@@ -2836,6 +2838,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const now = ctx.currentTime;
     startedAt = now - ((now - startedAt) * prev) / next;
     const tc = Math.max(0.005, (rampSec || 0.1) / 3);
+    captureMark('track_rate', { trackId: track.id, rate: next, tc, at: now }); // glissement des sources en cours (export exact)
     sources.forEach(sn => {
       if (!sn) return;
       sn.playbackRate.cancelScheduledValues(now);
@@ -3311,7 +3314,32 @@ function initTrackPlayer(track, wrapper, elementColors) {
   let embrDetourBtn = null; // bouton désactivé le temps de ce détour, si il y en a un
   // ---- Ajouts 24/08 : timing de bascule quantifié, minuteur de retour pour les boucles paires, mode
   // "en boucle jusqu'à un bouton" pour les boucles détour (voir bloc moteur dédié plus bas) ----
-  let embrReferenceStartCtxTime = 0; // ctx.currentTime du tout premier démarrage de la référence -- horloge de phase pour la quantification
+  // Horloge de phase de l'embranchement-vertical (position dans le cycle, en temps NOMINAL du fichier) : morceaux de droite
+  // { ctx, nominal, ratio }. Un changement de vitesse (27/09) ne s'entend qu'à la génération suivante : l'horloge
+  // change de pente à cet instant-là, pas avant -- sinon la jauge sautait et les bascules quantifiées tombaient à côté
+  // pendant la fin de la boucle en cours.
+  let embrClock = [{ ctx: 0, nominal: 0, ratio: 1 }];
+  function embrClockReset(ctxT, nominal) { embrClock = [{ ctx: ctxT, nominal: nominal || 0, ratio: trackPitchRatio }]; }
+  function embrClockSegAt(t) { let seg = embrClock[0]; for (const x of embrClock) if (x.ctx <= t) seg = x; return seg; }
+  function embrNominalAt(t) { const seg = embrClockSegAt(t); return seg.nominal + (t - seg.ctx) * seg.ratio; }
+  // Une génération démarre à ctxT avec la vitesse en vigueur : nouveau morceau de droite si la vitesse change, et
+  // l'animation des lignes riches reprend sa cadence à l'instant où la nouvelle vitesse devient audible.
+  function embrClockAtGeneration(ctxT) {
+    const last = embrClock[embrClock.length - 1];
+    if (Math.abs(last.ratio - trackPitchRatio) < 1e-9) return;
+    embrClock.push({ ctx: ctxT, nominal: embrNominalAt(ctxT), ratio: trackPitchRatio });
+    const keepFrom = embrClock.findIndex(x => x.ctx > ctx.currentTime);
+    if (keepFrom > 1) embrClock = embrClock.slice(keepFrom - 1);
+    // Position et vitesse lues à l'instant du changement (pas à l'heure du minuteur, qui peut partir un peu avant).
+    const ratioAt = trackPitchRatio;
+    voiceGraphTimeouts.push(setTimeout(() => {
+      if (!playing) return;
+      const cycle = embrCycleLengthSec();
+      const t = Math.max(ctx.currentTime, ctxT);
+      const pos = cycle > 0 ? ((embrNominalAt(t) % cycle) + cycle) % cycle : 0;
+      applyEmbrWaveAnimation(pos, ratioAt);
+    }, Math.max(0, (ctxT - ctx.currentTime) * 1000)));
+  }
   let embrPendingSwitchTimeout = null; // bascule quantifiée en attente (annulée/remplacée si un nouveau clic arrive avant qu'elle ne s'exécute)
   let embrAutoReturnTimeout = null; // minuterie de retour auto d'une boucle PAIRE (différent de embrDetourTimeout, qui concerne les boucles courtes)
   let embrEndLoopBtnEl = null; // bouton "Mettre fin à la boucle" inséré dynamiquement pendant un détour en mode "en boucle jusqu'à un bouton"
@@ -4442,13 +4470,14 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // Un bloc repris en cours de fichier (saut dans la frise, reprise après pause) n'est qu'un repère de capture :
     // il ne compte pas une deuxième fois dans les statistiques.
     const outcome = seqOutcomeByBuffer.get(buffer);
+    const rateAtCreate = trackPitchRatio; // vitesse de CE bloc (programmé jusqu'à 1 s avant d'être audible) -- pour l'export
     const cut = off > 0 ? null : seqPendingCut;
     if (off <= 0) seqPendingCut = null;
     if (outcome) {
       const emitId = setTimeout(() => {
         const detail = Object.assign({}, outcome.detail, cut ? { cut } : {});
-        if (off > 0) captureMark(outcome.name, Object.assign(detail, { offset: off, resumed: true, at: ctxStartTime }));
-        else trackPublicEvent(outcome.name, detail, { at: ctxStartTime });
+        if (off > 0) captureMark(outcome.name, Object.assign(detail, { offset: off, resumed: true, at: ctxStartTime, rate: rateAtCreate }));
+        else trackPublicEvent(outcome.name, detail, { at: ctxStartTime, rate: rateAtCreate });
       }, Math.max(0, (ctxStartTime - ctx.currentTime) * 1000));
       seqTimeouts.push(emitId);
     }
@@ -4749,7 +4778,11 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const p = profiles[level] || profiles[0];
     // Repère de capture : toutes les couches démarrent ici, à cette position du fichier, en boucle ou non, au niveau
     // d'intensité en cours (le visiteur a pu le choisir avant d'appuyer sur Lecture).
-    captureMark('layer_run', { trackId: track.id, offset: offsetAt % track.duration, loop: loops ? [0, track.duration] : null, level, at: nowStart });
+    // rate / rateFade : vitesse réellement donnée aux sources (27/09 -- l'export la reprend telle quelle au lieu de la deviner).
+    const pFx = (track.fx && track.fx.pitch) || {};
+    const rateFade = (trackPitchRatio !== 1 && trackPitchRatio === trackBaseRatio && pFx.fadeFromSemitones != null && pFx.fadeDurationSec > 0)
+      ? { from: Math.pow(2, pFx.fadeFromSemitones / 12), sec: pFx.fadeDurationSec } : null;
+    captureMark('layer_run', { trackId: track.id, offset: offsetAt % track.duration, loop: loops ? [0, track.duration] : null, level, at: nowStart, rate: trackPitchRatio, rateFade });
     for (let i = 0; i < buffers.length; i++) {
       const src = ctx.createBufferSource();
       src.buffer = buffers[i];
@@ -4835,7 +4868,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // Repère de capture : une nouvelle génération de toutes les couches (moteur quantifié), depuis bufferOffset, au niveau
     // d'intensité en cours -- programmée jusqu'à 1 s plus tôt (at = son instant de départ). Une génération programmée puis annulée par un
     // arrêt est effacée par le repère voices_stop qui la précède.
-    captureMark('layer_gen', { trackId: track.id, bufferOffset, level, at: ctxStartTime });
+    captureMark('layer_gen', { trackId: track.id, bufferOffset, level, at: ctxStartTime, rate: trackPitchRatio });
     const thisGenSources = [];
     const p = profiles[level] || profiles[0];
     const gensThisRound = [];
@@ -5021,7 +5054,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     });
   }
   // Anime la progression continue des lignes riches -- calée UNE SEULE FOIS par (re)démarrage de
-  // l'horloge de phase (embrReferenceStartCtxTime vient justement d'être remis à "maintenant" par
+  // l'horloge de phase (embrClockReset vient justement d'être appelé par
   // l'appelant, playEmbrVertical()/resumeEmbrVerticalAfterBackground()), jamais recalculée à chaque
   // bascule : le verrouillage de phase entre boucles paires ne change pas quand on change laquelle est
   // audible (refreshEmbrGains est une pure rampe de gain, voir son commentaire d'en-tête). N'affecte que
@@ -5030,7 +5063,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // reprend (délai négatif). L'animation est toujours REDÉMARRÉE (animation: none + reflow) plutôt que
   // simplement relancée -- sinon elle repartirait de là où elle avait été mise en pause, désynchronisée
   // de l'audio, et un clip-path posé pendant un glisser resterait masqué par l'animation.
-  function applyEmbrWaveAnimation(startPosSec) {
+  function applyEmbrWaveAnimation(startPosSec, ratioOverride) {
     const cycle = embrCycleLengthSec();
     if (!(cycle > 0)) return;
     embrLoopBtns.forEach(btn => {
@@ -5040,8 +5073,11 @@ function initTrackPlayer(track, wrapper, elementColors) {
       fg.style.clipPath = '';
       void fg.offsetWidth;
       fg.style.animation = '';
-      fg.style.animationDuration = cycle + 's';
-      fg.style.animationDelay = (-(startPosSec || 0)) + 's';
+      // Durées RÉELLES : cycle et position sont en temps nominal, joués à la vitesse audible (27/09 -- avant, l'animation
+      // ignorait la vitesse du morceau et se décalait dès qu'elle n'était pas à 1).
+      const r = ratioOverride || embrClockSegAt(ctx.currentTime).ratio || 1;
+      fg.style.animationDuration = (cycle / r) + 's';
+      fg.style.animationDelay = (-(startPosSec || 0) / r) + 's';
       fg.style.animationPlayState = 'running';
     });
   }
@@ -5106,7 +5142,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const bg = row.querySelector('.embr-wave-bg'), fg = row.querySelector('.embr-wave-fg');
     renderWaveformPair(bg, fg, buf, waveBgColor, waveFgColor);
     if (isLooping) {
-      fg.style.animationDuration = buf.duration + 's';
+      // durationSec = durée RÉELLE d'un tour (vitesse du morceau comprise, 27/09) ; avant, la durée du fichier était prise
+      // telle quelle et l'animation se décalait dès que la vitesse n'était pas à 1.
+      fg.style.animationDuration = (durationSec > 0 ? durationSec : buf.duration) + 's';
       fg.style.animationDelay = '0s';
       fg.style.animationPlayState = 'running';
     } else if (durationSec > 0) {
@@ -5130,7 +5168,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const bufferOffset = offsetOverride != null ? offsetOverride : (isFirst ? timing.startSec : timing.loopInSec);
     // Repère de capture : nouvelle génération des boucles jumelles (toutes démarrent ensemble, seule la boucle active
     // est audible).
-    captureMark('embr_gen', { trackId: track.id, bufferOffset, at: ctxStartTime,
+    captureMark('embr_gen', { trackId: track.id, bufferOffset, at: ctxStartTime, rate: trackPitchRatio,
       active: embrActiveLoopIdx >= 0 ? ((track.loops || [])[embrActiveLoopIdx] || {}).id : null,
       peers: embrPeerIndices.map(i => ((track.loops || [])[i] || {}).id) });
     embrPeerIndices.forEach(idx => {
@@ -5162,6 +5200,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   function embrSchedulerTick() {
     const lookahead = 1.0;
     while (embrNextStartCtxTime < ctx.currentTime + lookahead) {
+      embrClockAtGeneration(embrNextStartCtxTime);
       scheduleEmbrGeneration(embrNextStartCtxTime, false); // jamais "Départ" ici, uniquement au tout premier lancement (playEmbrVertical)
       embrNextStartCtxTime += embrCycleLengthSec() / trackPitchRatio;
     }
@@ -5235,7 +5274,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     stopEmbrVertical();
     embrActiveLoopIdx = preservedIdx;
     const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
-    embrReferenceStartCtxTime = now;
+    embrClockReset(now, 0);
     scheduleEmbrGeneration(now, true); // fixe déjà le bon gain (1) sur preservedIdx via embrActiveLoopIdx ci-dessus
     embrNextStartCtxTime = now + embrCycleLengthSec() / trackPitchRatio;
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
@@ -5266,7 +5305,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       embrLoopBtns.forEach(btn => { btn.disabled = false; });
     }
     const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
-    embrReferenceStartCtxTime = now - posSec / trackPitchRatio;
+    embrClockReset(now, posSec);
     scheduleEmbrGeneration(now, false, timing.loopInSec + posSec);
     embrNextStartCtxTime = now + (cycle - posSec) / trackPitchRatio;
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
@@ -5277,7 +5316,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     embrActiveLoopIdx = embrReferenceIdx;
     applyFxActions(((track.loops || [])[embrReferenceIdx] || {}).fxActions); // état de départ = celui de la boucle de référence
     const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
-    embrReferenceStartCtxTime = now; // point zéro de l'horloge de phase, utilisé par embrQuantizeDelaySec()
+    embrClockReset(now, 0); // point zéro de l'horloge de phase, utilisée par embrQuantizeDelaySec()
     scheduleEmbrGeneration(now, true); // seul appel avec isFirst=true -- démarre à "Départ", pas "Entrée"
     embrNextStartCtxTime = now + embrCycleLengthSec() / trackPitchRatio;
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
@@ -5364,10 +5403,10 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // horloge qui tourne en continu en arrière-plan (y compris pour déclencher un détour, qui n'a pas
   // encore de cycle propre avant de démarrer). 'immediate' (ou absent) -> 0, aucune attente.
   function embrQuantizeDelaySec(quantize) {
-    // Temps RÉEL (÷ trackPitchRatio) : elapsed vient de ctx.currentTime, alors que le cycle et le temps musical sont
-    // exprimés en temps nominal du fichier (pitch "vitesse", 23/09).
-    const elapsedNominal = (ctx.currentTime - embrReferenceStartCtxTime) * trackPitchRatio;
-    return embrQuantizeDelayAt(track, quantize, elapsedNominal) / trackPitchRatio;
+    // Temps RÉEL : le cycle et le temps musical sont en temps nominal du fichier (pitch "vitesse", 23/09) ; la conversion
+    // se fait à la vitesse AUDIBLE maintenant (celle de la génération en cours), pas à celle qui vient d'être demandée.
+    const now = ctx.currentTime;
+    return embrQuantizeDelayAt(track, quantize, embrNominalAt(now)) / embrClockSegAt(now).ratio;
   }
   // Affiche/retire le bouton "Mettre fin à la boucle" inséré dynamiquement à la suite des boutons de
   // boucle habituels, uniquement pendant qu'un détour en mode "en boucle jusqu'à un bouton" est actif
@@ -5398,7 +5437,8 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // une bascule sur la frise déplace ainsi tout ce qu'elle a déclenché, et rien d'autre.
   let embrSwitchSeq = 0, embrMarkKey = null, embrMarkParentKey = null, embrPendingParentKey = null;
   function embrMark(name, detail) {
-    captureMark(name, Object.assign({ trackId: track.id }, embrMarkKey ? { k: embrMarkKey } : {}, embrMarkParentKey ? { pk: embrMarkParentKey } : {}, detail));
+    // rate : vitesse des sources créées à ce moment (détour, transition) -- reprise telle quelle par l'export (27/09).
+    captureMark(name, Object.assign({ trackId: track.id, rate: trackPitchRatio }, embrMarkKey ? { k: embrMarkKey } : {}, embrMarkParentKey ? { pk: embrMarkParentKey } : {}, detail));
   }
   function withEmbrKey(k, pk, fn) {
     const k0 = embrMarkKey, pk0 = embrMarkParentKey;
@@ -5612,7 +5652,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   function embrCurrentCyclePosSec() {
     const cycle = embrCycleLengthSec();
     if (!(cycle > 0)) return 0;
-    const elapsed = (ctx.currentTime - embrReferenceStartCtxTime) * trackPitchRatio;
+    const elapsed = embrNominalAt(ctx.currentTime);
     return ((elapsed % cycle) + cycle) % cycle;
   }
 
@@ -5627,8 +5667,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
   let vrPendingCut = false;
   function emitVROutcome(name, at, detail) {
     const cut = vrPendingCut; vrPendingCut = false;
+    const rate = trackPitchRatio; // appelé à la programmation du cycle : vitesse de ses sources (pour l'export)
     voiceGraphTimeouts.push(setTimeout(() => {
-      trackPublicEvent(name, Object.assign({}, detail, cut ? { cut: { hard: true, fadeSec: 0 } } : {}), { at });
+      trackPublicEvent(name, Object.assign({}, detail, cut ? { cut: { hard: true, fadeSec: 0 } } : {}), { at, rate });
     }, Math.max(0, (at - ctx.currentTime) * 1000)));
   }
   function scheduleSectionGeneration(ctxStartTime, secIdx, isFirstEverForThisSection, offsetOverride) {
@@ -5926,7 +5967,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     } else if (r.kind === 'embrVert') {
       embrActiveLoopIdx = r.embrLoopIdx;
       const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
-      embrReferenceStartCtxTime = now;
+      embrClockReset(now, 0);
       scheduleEmbrGeneration(now, true);
       embrNextStartCtxTime = now + embrCycleLengthSec() / trackPitchRatio;
       embrSchedulerTimer = setInterval(embrSchedulerTick, 200);

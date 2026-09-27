@@ -160,6 +160,31 @@ const path = require('path');
     check('ancienne capture : calque en boucle sur toute sa durée (plus de silence après la fin du fichier)', vs.length === 1 && vs[0].loop && vs[0].loop[1] === 8 && near(vs[0].stop, 31.4));
   }
 
+  // ---- Vitesse réelle (27/09) : chaque voix reprend la vitesse notée par le lecteur à sa création ----
+  {
+    const raw = [
+      { t: 1, name: 'layer_run', detail: { trackId: 'v', offset: 0, loop: [0, 8], level: 1, rate: 1.5, rateFade: { from: 1, sec: 2 } } },
+      { t: 3, name: 'track_rate', detail: { trackId: 'v', rate: 2, tc: 0.02 } },
+      { t: 9, name: 'voices_stop', detail: { trackId: 'v' } },
+      { t: 1, name: 'layer_gen', detail: { trackId: 'q', bufferOffset: 0, level: 1, rate: 1.25 } },
+      { t: 9, name: 'voices_stop', detail: { trackId: 'q' } },
+      { t: 1, name: 'seq_slot_start', detail: { trackId: 's', slotId: 'A', altIndex: 0, rate: 0.5 } },
+      { t: 1, name: 'vr_section_start', detail: { trackId: 'r', sectionIndex: 0, bufferOffset: 0, picks: [{ poolIndex: 0, altIndex: 0 }], rate: 0.75 } },
+      { t: 1, name: 'embr_gen', detail: { trackId: 'e', bufferOffset: 0, active: 'L0', peers: ['L0', 'L1'], rate: 1.1 } },
+      { t: 2, name: 'embr_detour_in', detail: { trackId: 'e', loopId: 'D', fadeSec: 0, rate: 1.2 } },
+    ];
+    const p = plan(CP.materialize(raw, findTrack));
+    const of = id => p.voices.filter(v => v.track.id === id);
+    check('vitesse : moteur simple, vitesse de départ et fondu de vitesse repris', of('v').every(v => v.rate === 1.5 && v.rateFade && v.rateFade.sec === 2 && v.continuous));
+    check('vitesse : glissement noté par le lecteur transmis au rendu', p.rateMarks.length === 1 && p.rateMarks[0].rate === 2 && p.rateMarks[0].tc === 0.02 && p.rateMarks[0].trackId === 'v');
+    check('vitesse : moteur quantifié, séquentiel, vertical-random, embranchement (génération et détour)',
+      of('q').every(v => v.rate === 1.25) && of('s')[0].rate === 0.5 && of('r')[0].rate === 0.75
+      && of('e').filter(v => v.targetKey !== 'loop:2').every(v => v.rate === 1.1) && of('e').find(v => v.targetKey === 'loop:2').rate === 1.2);
+    const old = plan([{ t: 0, name: 'layer_segment', detail: { trackId: 'v', layerIndex: 0, duration: 5 } }]);
+    check('vitesse : ancienne capture sans repère -> rate null (le rendu la recalcule comme avant)', old.voices[0].rate === null);
+    check('le repère track_rate fait partie des repères de capture', CP.CAPTURE_MARK_NAMES.indexOf('track_rate') >= 0);
+  }
+
   // ---- Enveloppes ----
   check('envAt : rampe linéaire depuis la valeur du moment', near(CP.envAt(1, [{ t: 1, target: 0, ramp: 2 }], 2), 0.5));
   check('envAt : saut immédiat', CP.envAt(1, [{ t: 1, target: 0.3, ramp: 0 }], 1) === 0.3);

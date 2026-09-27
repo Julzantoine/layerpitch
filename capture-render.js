@@ -171,9 +171,10 @@
     const sliderValueAt = (trackId, sl, t) => { let v = sl.def; (keysBySlider[trackId + '|' + sl.id] || []).forEach(k => { if (k.t <= t) v = k.value; }); return v; };
     // Vitesse du morceau à l'instant t (base, triggers « Vitesse » actifs, curseur « pitch.speed ») -- mêmes règles que le lecteur.
     const isSpeedBinding = b => { const m = C.FX_SLIDER_PARAMS[b.param]; return !!(m && m.rate); };
-    const hasDynamicRate = track => (track.fxTriggers || []).some(d => d && d.fx && d.fx.pitch && d.fx.pitch.mode === 'rate' && C.fxTargetKeyFromTarget(d.target) === 'track') || slidersOf(track).some(sl => sl.bindings.some(isSpeedBinding));
+    // Un trigger « vitesse » vaut pour le morceau entier quelle que soit sa cible (même règle que le lecteur, 27/09).
+    const hasDynamicRate = track => (track.fxTriggers || []).some(d => d && d.fx && d.fx.pitch && d.fx.pitch.mode === 'rate') || slidersOf(track).some(sl => sl.bindings.some(isSpeedBinding));
     function trackRateAt(track, t) {
-      const defs = (track.fxTriggers || []).filter(d => d && d.id && d.fx && C.fxTargetKeyFromTarget(d.target) === 'track');
+      const defs = (track.fxTriggers || []).filter(d => d && d.id && d.fx);
       const sliders = slidersOf(track);
       const active = activeAt(track.id, t).map(id => defs.find(d => d.id === id)).filter(Boolean);
       return C.fxTrackRatio(track, active, sliders, id => { const sl = sliders.find(x => x.id === id); return sl ? sliderValueAt(track.id, sl, t) : 0; });
@@ -188,12 +189,26 @@
       const track = v.track;
       // Vitesse : celle en vigueur quand le lecteur a créé la source (juste avant son démarrage pour un moteur programmé) ;
       // une voix continue (moteur simple) suit les changements pendant qu'elle joue.
-      const dynRate = !!(track && hasDynamicRate(track));
-      const r0 = track ? (dynRate ? trackRateAt(track, v.continuous ? v.start : Math.max(0, v.start - 0.9)) : C.fxTrackRatio(track, [], null)) : 1;
+      // Vitesse exacte quand le lecteur l'a notée (repères du 27/09 : celle donnée à la source à sa création, puis les
+      // glissements des voix continues) ; sinon (capture plus ancienne) recalculée comme avant, à ~0,9 s près.
+      const exactRate = v.rate != null;
+      const dynRate = !exactRate && !!(track && hasDynamicRate(track));
+      const r0 = exactRate ? v.rate : track ? (dynRate ? trackRateAt(track, v.continuous ? v.start : Math.max(0, v.start - 0.9)) : C.fxTrackRatio(track, [], null)) : 1;
       const src = oc.createBufferSource();
       src.buffer = buf;
       if (v.loop) { src.loop = true; src.loopStart = v.loop[0]; src.loopEnd = v.loop[1]; }
       src.playbackRate.value = r0;
+      if (exactRate && v.rateFade) {
+        src.playbackRate.setValueAtTime(v.rateFade.from, v.start);
+        src.playbackRate.linearRampToValueAtTime(v.rate, v.start + v.rateFade.sec);
+      }
+      if (exactRate && v.continuous && track) {
+        (plan.rateMarks || []).forEach(m => {
+          if (m.trackId !== track.id || m.t <= v.start || (v.stop != null && m.t >= v.stop)) return;
+          src.playbackRate.cancelScheduledValues(m.t);
+          src.playbackRate.setTargetAtTime(m.rate, m.t, m.tc || 0.033);
+        });
+      }
       if (dynRate && v.continuous) {
         const times = new Set();
         (changesByTrack[track.id] || []).forEach(c => { if (c.t > v.start) times.add(c.t); });

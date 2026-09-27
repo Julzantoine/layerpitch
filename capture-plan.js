@@ -19,7 +19,7 @@
   const VR_TIMELINE_EVENT_NAMES = ['vr_intro_start', 'vr_section_start', 'vr_outro_start'];
   // Repères propres à la capture : jamais affichés comme blocs, mais membres du groupe de leur morceau (ils suivent un
   // glisser de tout le morceau).
-  const CAPTURE_MARK_NAMES = ['layer_run', 'layer_gen', 'embr_gen', 'embr_gains', 'embr_duck', 'embr_detour_in', 'embr_detour_out', 'embr_transition', 'voices_stop', 'track_play'];
+  const CAPTURE_MARK_NAMES = ['layer_run', 'layer_gen', 'embr_gen', 'embr_gains', 'embr_duck', 'embr_detour_in', 'embr_detour_out', 'embr_transition', 'voices_stop', 'track_play', 'track_rate'];
   const TAIL = 2; // marge de fin : queues de reverb / d'écho, Sfx lancés juste avant la fin
 
   // ---- Résolution des fichiers (mêmes règles que player.js) ----
@@ -141,7 +141,7 @@
         const next = i + 1 < starts.length ? starts[i + 1].t : total;
         const stop = stops.filter(t => t > pe.t && t <= next).sort((a, b) => a - b)[0];
         const end = stop != null ? stop : next;
-        layerSegmentEvents.push({ t: pe.t, name: 'layer_segment', detail: { trackId, layerIndex: 0, duration: end - pe.t, offset: pe.detail.offset || 0 } });
+        layerSegmentEvents.push({ t: pe.t, name: 'layer_segment', detail: { trackId, layerIndex: 0, duration: end - pe.t, offset: pe.detail.offset || 0, rate: pe.detail.rate, rateFade: pe.detail.rateFade || null } });
       });
     });
     return events.filter(e => e.name !== 'intensity_change').concat(layerSegmentEvents).sort((a, b) => a.t - b.t);
@@ -304,7 +304,9 @@
     // des boucles jumelles s'arrêtent ; allOnly = arrêts complets seulement (détours, transitions).
     const stopsOf = (trackId, allOnly) => events.filter(e => e.name === 'voices_stop' && e.detail.trackId === trackId && !(allOnly && e.detail.scope)).map(e => e.t).sort((a, b) => a - b);
     const firstStopAfter = (stops, t, eps) => { for (const s of stops) if (s > t + (eps || 1e-6)) return s; return null; };
-    const voice = o => { const v = Object.assign({ gain: null, loop: null, stop: null, offset: 0, continuous: false }, o); if (v.stop != null && v.stop <= v.start) return; voices.push(v); };
+    // rate : vitesse réellement donnée à la source par le lecteur (repères du 27/09) ; absente = ancienne capture, le rendu
+    // la recalcule comme avant. rateFade : fondu de vitesse au démarrage (moteur simple).
+    const voice = o => { const v = Object.assign({ gain: null, loop: null, stop: null, offset: 0, continuous: false, rate: null, rateFade: null }, o); if (v.rate === undefined) v.rate = null; if (v.stop != null && v.stop <= v.start) return; voices.push(v); };
 
     trackIds.forEach(trackId => {
       const track = findTrack(trackId);
@@ -323,7 +325,7 @@
             const layer = layers[0];
             if (!layer || !layer.file) return;
             const g = effGain(track, layer);
-            voice({ url: url(layer.file), track, targetKey: 'layer:0', start: s.t, offset: s.detail.offset || 0,
+            voice({ url: url(layer.file), track, targetKey: 'layer:0', start: s.t, offset: s.detail.offset || 0, rate: s.detail.rate, rateFade: s.detail.rateFade,
               loop: track.loopable ? [0, track.duration] : null, stop: s.t + s.detail.duration, continuous: true,
               gain: automation(g, [], s.t) });
           });
@@ -351,7 +353,7 @@
             if (!layer || !layer.file) return;
             const init = target(i, r.t);
             voice({ url: url(layer.file), track, targetKey: 'layer:' + i, voiceKey: 'layer-' + i, start: r.t, offset: r.detail.offset || 0,
-              loop: r.detail.loop, stop, continuous: true, gain: automation(init, cmdsFor(i, r.t), r.t) });
+              rate: r.detail.rate, rateFade: r.detail.rateFade, loop: r.detail.loop, stop, continuous: true, gain: automation(init, cmdsFor(i, r.t), r.t) });
           });
         });
         // Moteur quantifié : une génération de toutes les couches à chaque tour, jouée jusqu'au bout du fichier (la
@@ -365,7 +367,7 @@
             const init = target(i, g.t);
             const list = cmdsFor(i, g.t, nextGen).filter(c => c.ramp === R.voice || nextGen == null || c.t < nextGen);
             voice({ url: url(layer.file), track, targetKey: 'layer:' + i, voiceKey: 'layer-' + i, start: g.t, offset: g.detail.bufferOffset || 0,
-              stop, gain: automation(init, list, g.t) });
+              rate: g.detail.rate, stop, gain: automation(init, list, g.t) });
           });
         });
         // Segments hors de toute écoute enregistrée (bloc ajouté à la main sur la frise, ou capture d'avant les repères) :
@@ -434,7 +436,7 @@
             const loop = loopById(id);
             if (!loop || !loop.file) return;
             const cmds = envCmds[id].slice().sort(byT);
-            voice({ url: url(loop.file), track, targetKey: 'loop:' + loops.indexOf(loop), start: g.t, offset: g.detail.bufferOffset || 0,
+            voice({ url: url(loop.file), track, targetKey: 'loop:' + loops.indexOf(loop), start: g.t, offset: g.detail.bufferOffset || 0, rate: g.detail.rate,
               loop: g.legacy && loop.duration ? [0, loop.duration] : null, stop,
               gain: automation(envAt(initOf(id), cmds, g.t), cmds, g.t) });
           });
@@ -449,7 +451,7 @@
           const cmds = [{ t: m.t, target: 1, ramp: m.detail.fadeSec || 0 }];
           let end = stop;
           if (out && (stop == null || out.t < stop)) { cmds.push({ t: out.t, target: 0, ramp: out.detail.fadeSec || 0 }); end = out.t + (out.detail.fadeSec || 0) + 0.05; }
-          voice({ url: url(loop.file), track, targetKey: 'loop:' + loops.indexOf(loop), start: m.t, offset: 0,
+          voice({ url: url(loop.file), track, targetKey: 'loop:' + loops.indexOf(loop), start: m.t, offset: 0, rate: m.detail.rate,
             loop: m.detail.loop && loop.duration ? [0, loop.duration] : null, stop: end, gain: automation(0, cmds, m.t) });
         });
         // Transitions : le fichier de transition de la boucle visée, par-dessus.
@@ -457,7 +459,7 @@
           const loop = loopById(m.detail.loopId);
           const tr = loop && loop.transition;
           if (!tr || !tr.file) return;
-          voice({ url: url(tr.file), track, targetKey: null, start: m.t, offset: 0, stop: firstStopAfter(fullStops, m.t) });
+          voice({ url: url(tr.file), track, targetKey: null, start: m.t, offset: 0, rate: m.detail.rate, stop: firstStopAfter(fullStops, m.t) });
         });
         return;
       }
@@ -485,7 +487,7 @@
             stop = stop == null ? cutEnd : Math.min(stop, cutEnd);
           }
           const targetKey = w.kind === 'intro' ? 'intro' : w.kind === 'outro' ? 'outro' : w.kind === 'slot' ? 'slot:' + (track.segmentSlots || []).findIndex(sl => sl.id === w.slotId) : 'transition';
-          voice({ url: url(src.file), track, targetKey, start: w.start, offset: w.e.detail.offset || 0, stop, gain: automation(g, cmds, w.start) });
+          voice({ url: url(src.file), track, targetKey, start: w.start, offset: w.e.detail.offset || 0, rate: w.e.detail.rate, stop, gain: automation(g, cmds, w.start) });
         });
         return;
       }
@@ -501,7 +503,7 @@
           if (w.kind === 'intro' || w.kind === 'outro') {
             const src = w.kind === 'intro' ? track.intro : track.outro;
             if (!src || !src.file) return;
-            voice({ url: url(src.file), track, targetKey: w.kind, start: w.start, offset: 0, stop, gain: automation(effGain(track, src), [], w.start) });
+            voice({ url: url(src.file), track, targetKey: w.kind, start: w.start, offset: 0, rate: w.e.detail.rate, stop, gain: automation(effGain(track, src), [], w.start) });
             return;
           }
           const section = resolveVRSection(track, w.sectionIndex);
@@ -515,7 +517,7 @@
             const base = effGain(track, alt);
             const cmds = mix.times.filter(t => t > w.start).map(t => ({ t, target: base * mix.gain(key, t + 1e-6), ramp: R.voice }));
             voice({ url: url(alt.file), track, targetKey: 'pool:' + w.sectionIndex + ':' + pick.poolIndex, baseFx: (pool && pool.fx) || null, voiceKey: key,
-              start: w.start, offset: w.bufferOffset || 0, stop, gain: automation(base * mix.gain(key, w.start), cmds, w.start) });
+              start: w.start, offset: w.bufferOffset || 0, rate: w.e.detail.rate, stop, gain: automation(base * mix.gain(key, w.start), cmds, w.start) });
           });
         });
       }
@@ -540,7 +542,9 @@
     const plan = {
       total, voices, sfxHits, duckHits: master,
       headEvents: events.filter(e => e.name === 'head_turn').map(e => ({ t: e.t, yaw: e.detail.yaw })),
-      sliderKeys: events.filter(e => e.name === 'fx_slider').map(e => ({ t: e.t, trackId: e.detail.trackId, sliderId: e.detail.sliderId, value: e.detail.value }))
+      sliderKeys: events.filter(e => e.name === 'fx_slider').map(e => ({ t: e.t, trackId: e.detail.trackId, sliderId: e.detail.sliderId, value: e.detail.value })),
+      // Glissements de vitesse des voix continues (moteur simple), tels que le lecteur les a faits (27/09).
+      rateMarks: events.filter(e => e.name === 'track_rate').map(e => ({ t: e.t, trackId: e.detail.trackId, rate: e.detail.rate, tc: e.detail.tc })).sort(byT)
     };
     // Triggers : boutons enregistrés + activations déduites des embranchements (au moment où le son bascule réellement)
     // et des seuils de curseurs, puis règles entre triggers -- mêmes règles que le lecteur.
