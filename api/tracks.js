@@ -70,7 +70,10 @@
     if (opts && opts.ownerId) query = query.eq('owner_id', opts.ownerId);
     const { data, error } = await query;
     if (error) return { tracks: null, error: error.message };
-    return { tracks: data.map(reshapeTrack), error: null };
+    // Morceau retiré (27/09, supprimé par son compositeur mais gardé pour les fans qui l'ont obtenu) : plus dans le
+    // catalogue. Filtré ici plutôt que dans la requête : la colonne n'existe qu'une fois la migration 20260927020000
+    // appliquée, et getTrack (page fan) doit toujours le trouver.
+    return { tracks: data.filter(r => !r.retired_at).map(reshapeTrack), error: null };
   }
 
   // Organisation propre au backstage — jamais lue par le rendu public (index.html/pack.html/
@@ -107,9 +110,10 @@
   // pour chaque élément présent en base au chargement mais retiré depuis dans le Backstage. Idempotente côté
   // serveur. blocked = true : refus volontaire (élément déjà acheté), pas une panne -- rien n'a été effacé.
   async function deleteTrack(id) {
-    const { error } = await getClient().rpc('delete_my_track', { p_id: id });
-    if (error) return { ok: false, blocked: error.hint === 'blocked_sold', error: error.message };
-    return { ok: true, blocked: false, error: null };
+    const { data, error } = await getClient().rpc('delete_my_track', { p_id: id });
+    if (error) return { ok: false, blocked: error.hint === 'blocked_sold', retired: false, error: error.message };
+    // 'retired' : obtenu par des fans, donc retiré du catalogue mais gardé pour eux (20260927020000).
+    return { ok: true, blocked: false, retired: data === 'retired', error: null };
   }
 
   window.LayerPitchTracks = { listTracks, getTrack, upsertTrack, deleteTrack, listTrackFolders };

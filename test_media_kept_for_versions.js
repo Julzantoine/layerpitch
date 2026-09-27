@@ -15,7 +15,7 @@ check('migration : fonction réservée au rôle service', /revoke all on functio
 check('migration : cherche dans les prises des fans ET dans les versions du compositeur', /album_track_versions/.test(sql) && /default_settings->>'kind' = 'layerpitch-take'/.test(sql));
 
 const edge = fs.readFileSync(path.join(__dirname, 'supabase/functions/create-media-signed-url/index.ts'), 'utf-8');
-const iUse = edge.indexOf("rpc('media_path_used_by_versions'"), iSign = edge.indexOf('client.sign(');
+const iUse = edge.indexOf("rpc('media_path_kept_for_fans'"), iSign = edge.indexOf('client.sign(');
 check('Edge Function : vérification avant toute signature', iUse > 0 && iSign > iUse);
 check('Edge Function : seulement pour un effacement audio', /method === 'DELETE' && path\.startsWith\('audio\/'\)/.test(edge));
 check('Edge Function : chemin brut ET nom de fichier encodé comme le lecteur', /encodeURIComponent\(path\.slice\(cut \+ 1\)\)/.test(edge));

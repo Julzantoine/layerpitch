@@ -157,15 +157,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fichier audio utilisé par une version d'album (prise d'un fan ou version du compositeur, 27/09 -- « le fan garde
-    // ce qu'il a acheté ») : jamais effacé, même si le compositeur l'a remplacé ou retiré de son morceau. Réponse
+    // Fichier audio utilisé par une version d'album (prise d'un fan ou version du compositeur), ou appartenant à un
+    // morceau / Sfx gardé pour des fans (album obtenu, morceau retiré -- 27/09, « le fan garde ce qu'il a acheté ») :
+    // jamais effacé, même si le compositeur l'a remplacé ou retiré de son morceau. Réponse
     // { ok, kept } sans URL : le Backstage garde le fichier et continue. En cas de doute (vérification impossible), on
     // garde aussi -- un fichier conservé à tort coûte un peu de stockage, un fichier effacé à tort rend une version muette.
     if (method === 'DELETE' && path.startsWith('audio/')) {
       const cut = path.lastIndexOf('/');
       const needles = [path, path.slice(0, cut + 1) + encodeURIComponent(path.slice(cut + 1))];
-      const { data: used, error: usedError } = await adminClient.rpc('media_path_used_by_versions', { p_needles: needles });
-      if (usedError) console.error('create-media-signed-url: media_path_used_by_versions', usedError);
+      const { data: used, error: usedError } = await adminClient.rpc('media_path_kept_for_fans', { p_needles: needles });
+      if (usedError) console.error('create-media-signed-url: media_path_kept_for_fans', usedError);
       if (usedError || used) {
         return new Response(JSON.stringify({ ok: true, kept: true }), {
           status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },

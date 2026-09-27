@@ -30,7 +30,8 @@
     if (opts && opts.ownerId) query = query.eq('owner_id', opts.ownerId);
     const { data, error } = await query;
     if (error) return { sfx: null, error: error.message };
-    return { sfx: data.map(reshapeSfx), error: null };
+    // Sfx retiré (attaché à un morceau gardé pour des fans, 27/09) : plus dans le catalogue -- voir api/tracks.js.
+    return { sfx: data.filter(r => !r.retired_at).map(reshapeSfx), error: null };
   }
 
   async function getSfx(id) {
@@ -59,9 +60,9 @@
   // pour chaque élément présent en base au chargement mais retiré depuis dans le Backstage. Idempotente côté
   // serveur. blocked = true : refus volontaire (élément déjà acheté), pas une panne -- rien n'a été effacé.
   async function deleteSfx(id) {
-    const { error } = await getClient().rpc('delete_my_sfx', { p_id: id });
-    if (error) return { ok: false, blocked: error.hint === 'blocked_sold', error: error.message };
-    return { ok: true, blocked: false, error: null };
+    const { data, error } = await getClient().rpc('delete_my_sfx', { p_id: id });
+    if (error) return { ok: false, blocked: error.hint === 'blocked_sold', retired: false, error: error.message };
+    return { ok: true, blocked: false, retired: data === 'retired', error: null };
   }
 
   window.LayerPitchSfx = { listSfx, getSfx, listSfxFolders, upsertSfx, deleteSfx };

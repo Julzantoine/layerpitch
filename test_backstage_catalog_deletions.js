@@ -6,7 +6,8 @@
 // 3) un refus "déjà acheté" n'arrête rien, garde les fichiers et remonte un message lisible ;
 // 4) une panne arrête la publication et la suppression est retentée la fois suivante ;
 // 5) aucun chargement réussi = aucune suppression ;
-// 6) retirer un pack le retire aussi des collections et des blocs "packs".
+// 6) retirer un pack le retire aussi des collections et des blocs "packs" ;
+// 7) un morceau obtenu par des fans est retiré (27/09) : message, fichiers gardés.
 const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
@@ -130,6 +131,16 @@ const path = require('path');
   calls.length = 0;
   res = await ev('deleteRemovedCatalogItems()');
   check('publication suivante : aucune suppression en double', calls.length === 0 && res.deleted === 0);
+
+  // ---- 7) Morceau obtenu par des fans (27/09) : RETIRÉ, pas refusé -- fichiers gardés, message, pas de rechargement ----
+  ev(`library.push({ ...library[0], id: 'owned', title: 'Morceau de l\\'album', layers: [{ label: 'L', remoteFile: 'a.ogg', pendingFile: null, gain: 1 }] });
+      rememberPublishedCatalog(); library = library.filter(t => t.id !== 'owned'); pendingR2Deletes.set('tracks:owned', ['audio/owned/a.ogg']);`);
+  calls.length = 0; r2Deleted.length = 0;
+  responses.owned = { ok: true, blocked: false, retired: true, error: null };
+  res = await ev('deleteRemovedCatalogItems()');
+  check('morceau obtenu : demande envoyée, résultat « retiré »', calls.join() === 'tracks:owned' && res.retired.length === 1 && res.deleted === 0 && res.blocked.length === 0);
+  check('morceau retiré : message qui rassure sur les fans', /reste disponible pour les fans/.test(res.retired[0]) && res.retired[0].includes('Morceau de l'));
+  check('morceau retiré : ses fichiers ne sont pas effacés', r2Deleted.length === 0 && ev('pendingR2Deletes.size') === 0);
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
