@@ -1416,6 +1416,16 @@
             <span data-i18n="allowIndexingLabel">Indexable par les moteurs de recherche</span>
           </label>
           <div class="hint-inline" data-i18n="allowIndexingHint">Décoche pour retirer cet AdReel des résultats Google (utile pour un AdReel de démo envoyé à un seul prospect) sans le rendre privé — le lien restera ouvert à qui le reçoit. N'affecte pas les packs/collections qu'il montre, qui peuvent être partagés par d'autres AdReels.</div>
+          <!-- Adresse personnalisable (27/09) : nom de l'AdReel dans l'adresse publique, enregistré tout de suite (pas à la
+               publication) pour vérifier aussitôt qu'il est libre. Admin seulement pendant la bêta. -->
+          <label style="margin-top:14px" data-i18n="adreelSlugLabel">Adresse de cet AdReel</label>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span class="hint-inline" style="margin:0" id="appSlugPrefix"></span>
+            <input type="text" id="appSlug" maxlength="60" style="flex:1 1 160px;min-width:0" autocomplete="off" spellcheck="false">
+            <button class="btn btn-small" type="button" id="btnSaveSlug" data-i18n="adreelSlugSave">Enregistrer l'adresse</button>
+          </div>
+          <div class="hint-inline" id="appSlugHint"></div>
+          <div class="hint-inline" id="appSlugMsg" role="status"></div>
         </fieldset>
 
         <!-- Admin seulement (23 septembre) : palier de publication forcé pour CET AdReel, pour vérifier son
@@ -1794,10 +1804,10 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790506474250"></script>
-<script src="layerpitch-notify.js?v=1790506474250"></script>
-<script src="layerpitch-help.js?v=1790506474250"></script>
-<script src="player.js?v=1790506474250"></script>
+<script src="layerpitch-i18n.js?v=1790514476301"></script>
+<script src="layerpitch-notify.js?v=1790514476301"></script>
+<script src="layerpitch-help.js?v=1790514476301"></script>
+<script src="player.js?v=1790514476301"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2030,7 +2040,7 @@ async function refreshMyComposerHandle(session) {
   // computeAdReelUrl() dépend de myComposerHandle, chargé de façon asynchrone ici -- si le lien public
   // a déjà été affiché avant que cet appel réseau revienne (course avec loadData()), le rafraîchir
   // maintenant pour ne pas laisser affiché un lien absent/périmé (bug remonté le 11 septembre).
-  if (adReels.length) renderAdReelSelect();
+  if (adReels.length) { renderAdReelSelect(); fillAdReelSlugField(adReels.find(a => a.id === currentAdReelId)); }
 }
 
 // Palier effectif du compositeur pour le gating de l'apparence (Chantier Apparence Phase 3, 4
@@ -2156,6 +2166,7 @@ async function renderAdminOnlyPanels(session) {
     isAdmin = !!res.data;
   }
   currentUserIsAdmin = isAdmin;
+  if (adReels.length) fillAdReelSlugField(adReels.find(a => a.id === currentAdReelId)); // champ d'adresse : admin seulement
   ADMIN_ONLY_PANEL_IDS.forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.hidden = !isAdmin;
@@ -4552,7 +4563,10 @@ function computeAdReelUrl(adReelId) {
   // avec la publication via GitHub, le 24/09.)
   if (myComposerHandle) {
     const base = `https://beta.layerpitch.com/${encodeURIComponent(myComposerHandle)}/`;
-    return adReelId === 'main' ? base : `${base}?adreel=${encodeURIComponent(adReelId)}`;
+    if (adReelId === 'main') return base;
+    // Nom choisi pour l'AdReel (27/09) : /<nom>/<adreel> ; sinon son code, comme avant.
+    const ar = adReels.find(a => a.id === adReelId);
+    return ar && ar.slug ? base + encodeURIComponent(ar.slug) : `${base}?adreel=${encodeURIComponent(adReelId)}`;
   }
   return null;
 }
@@ -10777,6 +10791,7 @@ function fillAppearanceFields() {
   const ar = adReels.find(a => a.id === currentAdReelId);
   document.getElementById('appLang').value = (ar && ar.lang) || 'fr';
   document.getElementById('appAllowIndexing').checked = !ar || ar.allowIndexing !== false;
+  fillAdReelSlugField(ar);
   document.getElementById('appAdminTierOverride').value = profile.adminTierOverride || '';
   const sep = Object.assign({}, DEFAULT_SEPARATOR, profile.theme.separator || {});
   document.getElementById('appSeparatorVisible').checked = !!sep.visible;
@@ -11709,6 +11724,42 @@ document.getElementById('appAdminTierOverride').addEventListener('change', e => 
 });
 document.getElementById('adminPreviewTier').addEventListener('change', e => setAdminPreviewTier(e.target.value));
 document.getElementById('btnAdminPreviewReset').addEventListener('click', () => setAdminPreviewTier(''));
+// Adresse personnalisable d'un AdReel (27/09) : beta.layerpitch.com/<nom>/<adreel>. L'AdReel principal est à la racine.
+function fillAdReelSlugField(ar) {
+  const input = document.getElementById('appSlug'), btn = document.getElementById('btnSaveSlug');
+  const isMain = !ar || ar.id === 'main';
+  document.getElementById('appSlugPrefix').textContent = `beta.layerpitch.com/${myComposerHandle || '…'}/`;
+  input.value = (ar && ar.slug) || '';
+  input.placeholder = isMain ? '' : slugify((ar && ar.label) || '');
+  input.disabled = btn.disabled = isMain || !currentUserIsAdmin;
+  document.getElementById('appSlugHint').textContent = isMain ? tr('adreelSlugMainHint') : (currentUserIsAdmin ? tr('adreelSlugHint') : tr('adreelSlugAdminOnly'));
+  document.getElementById('appSlugMsg').textContent = '';
+}
+// Nom d'adresse : slug() du Backstage, borné à 60 caractères ; vide reste vide (= retirer le nom).
+function slugify(s) {
+  const t = String(s || '').trim();
+  return t ? slug(t).slice(0, 60).replace(/-+$/, '') : '';
+}
+document.getElementById('btnSaveSlug').addEventListener('click', async () => {
+  const ar = adReels.find(a => a.id === currentAdReelId);
+  const msg = document.getElementById('appSlugMsg');
+  if (!ar || ar.id === 'main') return;
+  const input = document.getElementById('appSlug');
+  const wanted = slugify(input.value);
+  input.value = wanted;
+  msg.textContent = '…';
+  try {
+    await loadPostgresReadScripts();
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_my_ad_reel_slug', { p_ad_reel_id: ar.id, p_slug: wanted });
+    if (error) throw error;
+    ar.slug = data || null;
+    input.value = ar.slug || '';
+    msg.textContent = ar.slug ? tr('adreelSlugSaved', { url: computeAdReelUrl(ar.id) }) : tr('adreelSlugCleared');
+    renderAdReelSelect(); renderManageAdreels(); // liens affichés
+  } catch (e) {
+    msg.textContent = e && e.hint === 'unpublished' ? tr('adreelSlugPublishFirst') : tr('errorPrefix', { message: (e && e.message) || String(e) });
+  }
+});
 document.getElementById('appAllowIndexing').addEventListener('change', e => {
   const ar = adReels.find(a => a.id === currentAdReelId);
   if (ar) { ar.allowIndexing = e.target.checked; hasUnsavedEdits = true; }
@@ -12106,6 +12157,7 @@ async function loadData(silent) {
       trackIds: a.trackIds ? a.trackIds.slice() : [],
       trackOverrides: a.trackOverrides ? JSON.parse(JSON.stringify(a.trackOverrides)) : {},
       allowIndexing: a.allowIndexing !== false,
+      slug: a.slug || null,
       blocks: migrateBlocks(a).map(b => {
         if (b.type === 'photo') return { ...b, images: (b.images || []).map(img => ({ file: img.file, originalFileName: img.originalFileName || null, pendingFile: null })) };
         if (b.type === 'video') return { ...b, videos: (b.videos || []).map(v => ({ title: v.title, url: v.url, comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, pendingThumbnail: null, source: v.source === 'library' ? 'library' : 'url', libraryVideoId: v.libraryVideoId || null })) };

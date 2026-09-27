@@ -29,11 +29,16 @@
   // jamais un handle -- un handle est toujours "nu", comme un dossier (trouvé en testant : sans ce
   // garde-fou, /favicon.ico manquant se transformait silencieusement en redirection).
   if (segments.length === 1 && handle.includes('.')) return; // vraie 404
-  const targetFile = segments.length === 2 ? segments[1] : 'index.html';
-  if (segments.length === 2 && !KNOWN_PAGES.includes(targetFile)) return; // vraie 404
+  // /<nom>/<adreel> (27/09, adresses personnalisables) : un second segment SANS extension est le nom d'un AdReel,
+  // résolu par index.html (s=). Avec une extension, ce doit être une des pages publiques connues.
+  const second = segments.length === 2 ? segments[1] : null;
+  const isAdReelSlug = second !== null && !second.includes('.');
+  const targetFile = isAdReelSlug || second === null ? 'index.html' : second;
+  if (second !== null && !isAdReelSlug && !KNOWN_PAGES.includes(targetFile)) return; // vraie 404
 
   const params = new URLSearchParams(location.search);
   params.set('u', handle);
+  if (isAdReelSlug) params.set('s', decodeURIComponent(second));
   params.set('__pretty', path + location.search);
   location.replace('/' + targetFile + '?' + params.toString());
 })();

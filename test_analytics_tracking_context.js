@@ -121,20 +121,27 @@ function testLoadSiteDataOwnerId(file, search) {
   const lastResolvedLet = extractLet(src, 'lastResolvedOwnerId', file);
   const handleConst = extractConst(src, 'composerHandleFromUrl', file);
   const loadSiteDataFn = extractFn(src, 'loadSiteData', file);
+  // index.html (27/09) : nom d'AdReel dans l'adresse (s=) et AdReel résolu par resolve_public_link.
+  const slugDecl = file === 'index.html' ? extractConst(src, 'adReelSlugFromUrl', file) + extractLet(src, 'resolvedAdReelId', file) : '';
 
   const sandbox = {
     console,
     location: { search },
     URLSearchParams,
     window: {
-      LayerPitchComposers: { resolveHandle: async (h) => ({ ownerId: 'resolved-' + h, error: null }) },
+      LayerPitchComposers: {
+        resolveHandle: async (h) => ({ ownerId: 'resolved-' + h, error: null }),
+        // Faux serveur : « old » est l'ancien nom de « new », « oldslug » l'ancien nom de « newslug ».
+        resolvePublicLink: async (h, sl) => ({ link: { ownerId: 'resolved-' + h, handle: h === 'old' ? 'new' : h, adReelId: sl ? 'ar-' + sl : null, slug: sl === 'oldslug' ? 'newslug' : (sl || null) }, error: null }),
+      },
       LayerPitchSiteData: { loadSiteDataFromPostgres: async () => ({ adReels: [], packs: [], collections: [] }) },
     },
     fetch: async () => ({ json: async () => ({ adReels: [], packs: [], collections: [] }) }),
     loadPostgresReadScripts: async () => {},
+    history: { replaceState: (a, b, url) => { sandbox.replaced = url; } },
   };
   vm.createContext(sandbox);
-  vm.runInContext(defaultOwnerConst + lastResolvedLet + handleConst + loadSiteDataFn, sandbox);
+  vm.runInContext(defaultOwnerConst + lastResolvedLet + handleConst + slugDecl + loadSiteDataFn, sandbox);
 
   return sandbox;
 }
@@ -161,7 +168,20 @@ async function runOwnerIdChecks() {
   }
 }
 
-runOwnerIdChecks().then(() => {
+// ---- index.html : adresses personnalisables (27/09) ----
+async function runPublicLinkChecks() {
+  let sb = testLoadSiteDataOwnerId('index.html', '?u=jean&s=pitch');
+  await vm.runInContext('loadSiteData()', sb);
+  check('index.html : /<nom>/<adreel> -> AdReel désigné par son nom', vm.runInContext('resolvedAdReelId', sb) === 'ar-pitch' && vm.runInContext('lastResolvedOwnerId', sb) === 'resolved-jean' && !sb.replaced);
+  sb = testLoadSiteDataOwnerId('index.html', '?u=old&s=oldslug&lang=en');
+  await vm.runInContext('loadSiteData()', sb);
+  check('index.html : anciens noms -> la barre d’adresse montre la nouvelle adresse', sb.replaced === '/new/newslug?lang=en');
+  sb = testLoadSiteDataOwnerId('index.html', '?u=old');
+  await vm.runInContext('loadSiteData()', sb);
+  check('index.html : ancien nom du compositeur seul -> /new/', sb.replaced === '/new/' && vm.runInContext('resolvedAdReelId', sb) === null);
+}
+
+runOwnerIdChecks().then(runPublicLinkChecks).then(() => {
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
 }).catch(e => { console.error('TEST THREW:', e); process.exit(1); });

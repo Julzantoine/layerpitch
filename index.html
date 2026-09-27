@@ -8,7 +8,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch</title>
-<link rel="stylesheet" href="player.css?v=1790506474250">
+<link rel="stylesheet" href="player.css?v=1790514476301">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -320,9 +320,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790506474250"></script>
-<script src="public-page.js?v=1790506474250"></script>
-<script src="player.js?v=1790506474250"></script>
+<script src="layerpitch-i18n.js?v=1790514476301"></script>
+<script src="public-page.js?v=1790514476301"></script>
+<script src="player.js?v=1790514476301"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
 
@@ -352,6 +352,11 @@ function resolveImageUrl(file) {
 // l'AdReel "main" de secours existe presque toujours, donc l'erreur ne se voit que sur un AdReel dont
 // l'id n'existe pas chez lui, d'où le symptôme trompeur "seul le AdReel principal marche".
 const composerHandleFromUrl = new URLSearchParams(location.search).get('u');
+// Nom d'AdReel dans l'adresse (/<nom>/<adreel>, 27/09 -- traduit en s= par 404.html). Capturé avant la remise en
+// place de l'adresse ci-dessous, comme le nom du compositeur.
+const adReelSlugFromUrl = new URLSearchParams(location.search).get('s');
+// AdReel désigné par son nom dans l'adresse (resolve_public_link).
+let resolvedAdReelId = null;
 (function restorePrettyUrl() {
   const pretty = new URLSearchParams(location.search).get('__pretty');
   if (pretty) history.replaceState(null, '', pretty);
@@ -394,9 +399,22 @@ async function loadSiteData() {
   await loadPostgresReadScripts();
   let ownerId = DEFAULT_OWNER_ID;
   if (handle) {
-    const { ownerId: resolvedId, error } = await window.LayerPitchComposers.resolveHandle(handle);
+    // Nom du compositeur et de l'AdReel, actuels ou anciens (un lien déjà partagé ne casse jamais, 27/09).
+    const { link, error } = await window.LayerPitchComposers.resolvePublicLink(handle, adReelSlugFromUrl);
     if (error) throw new Error(error);
-    ownerId = resolvedId || DEFAULT_OWNER_ID; // handle inconnu -> repli plutôt qu'une page cassée
+    ownerId = (link && link.ownerId) || DEFAULT_OWNER_ID; // handle inconnu -> repli plutôt qu'une page cassée
+    if (link) {
+      resolvedAdReelId = link.adReelId || null;
+      // Ancien nom (du compositeur ou de l'AdReel) : la barre d'adresse montre la nouvelle adresse.
+      const wantSlug = adReelSlugFromUrl ? (link.slug || null) : null;
+      if (link.handle && (link.handle !== handle || (adReelSlugFromUrl && wantSlug !== adReelSlugFromUrl))) {
+        const rest = new URLSearchParams(location.search);
+        ['u', 's', '__pretty'].forEach(k => rest.delete(k));
+        if (adReelSlugFromUrl && !wantSlug && link.adReelId) rest.set('adreel', link.adReelId);
+        const q = rest.toString();
+        history.replaceState(null, '', `/${encodeURIComponent(link.handle)}/${wantSlug ? encodeURIComponent(wantSlug) : ''}${q ? '?' + q : ''}`);
+      }
+    }
   }
   lastResolvedOwnerId = ownerId;
   return window.LayerPitchSiteData.loadSiteDataFromPostgres(ownerId);
@@ -932,7 +950,7 @@ function applyTrackOverride(track, ov) {
 }
 async function init() {
   const container = document.getElementById('blocksContainer');
-  const adreelId = new URLSearchParams(location.search).get('adreel') || 'main';
+  let adreelId = new URLSearchParams(location.search).get('adreel') || 'main';
   // sessionId : identifiant local à ce chargement de page, regroupe les événements d'une même visite
   // pour le tableau de bord analytique compositeur (5 septembre) -- crypto.randomUUID() avec repli
   // pour les environnements qui ne l'exposent pas (anciens navigateurs, certains harnais de test).
@@ -943,6 +961,7 @@ async function init() {
   try {
     const data = await loadSiteData();
     window.__lpTrackContext.ownerId = lastResolvedOwnerId;
+    if (resolvedAdReelId) { adreelId = resolvedAdReelId; window.__lpTrackContext.id = adreelId; } // /<nom>/<adreel>
     const adReel = (data.adReels || []).find(a => a.id === adreelId);
     if (!adReel) {
       container.innerHTML = `<div class="empty">${tr('adreelNotFound')}</div>`;
@@ -1095,7 +1114,8 @@ async function init() {
     // commentaire équivalent dans pack.html. Absent si cet AdReel n'a aucun bloc "Morceaux" (rien à
     // proposer aux visiteurs), même garde que côté backstage (btnEmbedAdReelTracks).
     if (!embedMode && data.allowEmbedding && blocks.some(b => b.type === 'tracks')) {
-      const baseUrl = `${location.origin}${location.pathname}` + (adreelId !== 'main' ? `?adreel=${encodeURIComponent(adreelId)}` : '');
+      // Arrivé par /<nom>/<adreel> : l'adresse désigne déjà l'AdReel, pas besoin de ?adreel=.
+      const baseUrl = `${location.origin}${location.pathname}` + (adreelId !== 'main' && !resolvedAdReelId ? `?adreel=${encodeURIComponent(adreelId)}` : '');
       const publicEmbedUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'embed=1';
       showPublicEmbedButton(publicEmbedUrl);
     }

@@ -21,5 +21,13 @@
     return { ownerId: data || null, error: null };
   }
 
-  window.LayerPitchComposers = { resolveHandle };
+  // Adresse publique complète (27/09) : nom du compositeur (actuel ou ancien) + nom d'AdReel (actuel ou ancien) ->
+  // { ownerId, handle (actuel), adReelId (null = AdReel principal), slug (actuel) } ; link null si le nom est inconnu.
+  async function resolvePublicLink(handle, slug) {
+    const { data, error } = await getClient().rpc('resolve_public_link', { p_handle: handle, p_slug: slug || '' });
+    if (error) return { link: null, error: error.message };
+    return { link: data || null, error: null };
+  }
+
+  window.LayerPitchComposers = { resolveHandle, resolvePublicLink };
 })();
