@@ -2526,8 +2526,25 @@ const FX_SLIDER_PARAMS = {
   'spatial.y': { kind: 'sfx', key: 'y', min: -50, max: 50 },
   'spatial.distance': { kind: 'sfx', key: 'distance', min: 0, max: 50 },
   'spatial.angle': { kind: 'sfx', key: 'angle', min: -180, max: 180 },
-  'spatial.reverbDb': { kind: 'sfx', key: 'reverbDb', min: -18, max: 6 }
+  'spatial.reverbDb': { kind: 'sfx', key: 'reverbDb', min: -18, max: 6 },
+  // Position sur la trajectoire (27/09) : 0 = premier point du chemin, 1 = dernier, à vitesse constante le long du chemin.
+  // Le curseur « fait avancer » le son (véhicule qui arrive de loin, passe près de l'auditeur et repart) ; le volume et
+  // la brillance suivent la distance comme pour tout Sfx placé.
+  'spatial.pathPos': { kind: 'sfx', key: 'pathPos', min: 0, max: 1 }
 };
+// Point du chemin à la fraction f (0..1) de sa longueur. null si le chemin a moins de 2 points.
+function spatialPathPointAt(points, f) {
+  const pts = (points || []).filter(q => q && Number.isFinite(+q.x) && Number.isFinite(+q.y)).map(q => ({ x: +q.x, y: +q.y }));
+  if (pts.length < 2) return null;
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+  const total = cum[cum.length - 1];
+  if (!(total > 1e-9)) return { x: pts[0].x, y: pts[0].y };
+  const a = Math.max(0, Math.min(1, +f || 0)) * total;
+  let i = 1; while (i < cum.length - 1 && cum[i] < a) i++;
+  const seg = cum[i] - cum[i - 1] || 1, g = Math.max(0, Math.min(1, (a - cum[i - 1]) / seg));
+  return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * g, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * g };
+}
 // Courbe libre d'une liaison (24/09) : points {x, y} de 0 à 1 -- x = position du curseur, y = avancement entre la
 // valeur « à 0 % » et la valeur « à 100 % » -- reliés par des segments. Sans courbe : la droite (0,0) -> (1,1).
 function fxCurveSanitize(raw) {
@@ -2621,6 +2638,12 @@ function fxSliderSfxOverrides(sliders, valueOf, sfxId) {
 function fxSpatialWithOverride(sp, ov) {
   const out = Object.assign({}, sp);
   if (!ov) return out;
+  // Position sur la trajectoire : le son se place sur son chemin au point voulu, et devient une source « fixe » que le
+  // curseur déplace en direct (le chemin ne décide plus seul de la position). Les autres réglages s'appliquent ensuite.
+  if (ov.pathPos != null && sp && sp.path && (sp.path.mode === 'glide' || sp.path.mode === 'steps')) {
+    const q = spatialPathPointAt(sp.path.points, ov.pathPos);
+    if (q) { out.x = q.x; out.y = q.y; delete out.path; }
+  }
   if (ov.x != null) out.x = ov.x;
   if (ov.y != null) out.y = ov.y;
   if (ov.distance != null || ov.angle != null) {
@@ -7223,6 +7246,7 @@ window.LayerPlayerCore = {
   fxSliderSfxOverrides,
   fxSpatialWithOverride,
   fxCurveEval,
+  spatialPathPointAt,
   fxCurveSanitize,
   fxSliderTargetKey,
   fxTargetKeyFromTarget,

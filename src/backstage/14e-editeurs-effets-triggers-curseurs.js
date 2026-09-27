@@ -248,7 +248,8 @@ const FX_SLIDER_DEFAULT_RANGE = {
   'lowcut.frequency': [20, 400], 'highcut.frequency': [400, 20000], 'volume.db': [-30, 0], 'reverb.wet': [0, 0.6],
   'delay.wet': [0, 0.5], 'delay.feedback': [0.2, 0.7], 'bitcrush.bits': [16, 4], 'bitcrush.reduction': [1, 20],
   'pitch.semitones': [0, 7], 'pitch.speed': [0, -12],
-  'spatial.x': [-5, 5], 'spatial.y': [0, 10], 'spatial.distance': [2, 20], 'spatial.angle': [-90, 90], 'spatial.reverbDb': [-12, 0]
+  'spatial.x': [-5, 5], 'spatial.y': [0, 10], 'spatial.distance': [2, 20], 'spatial.angle': [-90, 90], 'spatial.reverbDb': [-12, 0],
+  'spatial.pathPos': [0, 1]
 };
 const fxTriggerEffectsCollapsed = new Set();
 document.addEventListener('toggle', e => {

@@ -319,6 +319,7 @@ window.LayerPlayerCore = {
   fxSliderSfxOverrides,
   fxSpatialWithOverride,
   fxCurveEval,
+  spatialPathPointAt,
   fxCurveSanitize,
   fxSliderTargetKey,
   fxTargetKeyFromTarget,
