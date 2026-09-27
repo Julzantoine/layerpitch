@@ -3428,6 +3428,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // — chaque embranchement a le sien, contrairement à slotBuffers qui est par emplacement (voir schéma
   // "Embranchement séquentiel avec transitions" validé le 02/08).
   let transitionBuffers = [];
+  const seqTransitionDefByBuffer = new Map(); // fichier de transition décodé -> sa définition (effets propres, 27/09)
   let lastPickedSlotAltIndex = {}; // lastPickedSlotAltIndex[canonicalSlotId] = index de la dernière alternative tirée pour ce pool — partagé entre tous les emplacements qui dupliquent le même pool (ex. structure AABA : les deux "A" évitent la même dernière alternative jouée)
   let currentSlotIndex = 0; // position dans le cycle d'emplacements ; boucle sur elle-même (0,1,...,N-1,0,1,...)
   let currentSlotRepeatsPlayed = 0; // combien de fois l'emplacement courant a déjà rejoué depuis qu'on y est arrivé, pour respecter repeatCount avant de passer au suivant
@@ -4452,7 +4453,8 @@ function initTrackPlayer(track, wrapper, elementColors) {
     // qui le remplit, cf. la logique retenue pour vertical-random (pool) -- ou par intro/outro directement
     // pour ces deux cas particuliers, qui n'ont qu'un seul fichier chacun.
     const fxSource = kind === 'segment' ? (slotIdx != null ? (track.segmentSlots || [])[slotIdx] : null)
-      : kind === 'intro' ? track.intro : kind === 'outro' ? track.outro : null;
+      : kind === 'intro' ? track.intro : kind === 'outro' ? track.outro
+      : kind === 'transition' ? seqTransitionDefByBuffer.get(buffer) : null; // transition : ses propres effets (27/09)
     const fxChain = buildTargetFxChain(kind === 'segment' && slotIdx != null ? 'slot:' + slotIdx : kind, fxSource && fxSource.fx, src, ctxStartTime);
     if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(g); } else { src.connect(g); }
     g.connect(trackMasterGain);
@@ -5010,14 +5012,17 @@ function initTrackPlayer(track, wrapper, elementColors) {
     const src = ctx.createBufferSource();
     src.buffer = buf;
     applyTrackPitchRate(src, ctxStartTime);
-    // Un morceau qui utilise bitcrusher/pitch-shift retarde ses voix d'effet : la transition (overlay) suit le même retard.
-    if (fxNeedsComp) { const comp = withLatencyComp(ctx, null); src.connect(comp.input); comp.output.connect(trackMasterGain); }
-    else src.connect(trackMasterGain);
-    journalVoice(src, null, fxNeedsComp ? { __lpMeta: { fx: null, force: [], comp: true } } : null);
+    // Effets (27/09) : ceux de la transition elle-même, plus les triggers du morceau entier -- même chaîne que les autres
+    // éléments (qui gère aussi le retard des effets à ScriptProcessor, comme avant pour cet overlay).
+    const transDef = ((track.loops || [])[loopIdx] || {}).transition;
+    const fxChain = buildTargetFxChain('transition', transDef && transDef.fx, src, ctxStartTime);
+    if (fxChain) { src.connect(fxChain.input); fxChain.output.connect(trackMasterGain); } else src.connect(trackMasterGain);
+    journalVoice(src, null, fxChain);
     src.start(ctxStartTime, 0);
     embrMark('embr_transition', { loopId: ((track.loops || [])[loopIdx] || {}).id, at: ctxStartTime });
     embrActiveTransitionSources.push(src);
     src.onended = () => {
+      if (fxChainHasLeakyNode(fxChain)) disconnectLeakyFxNodes(fxChain);
       const i = embrActiveTransitionSources.indexOf(src);
       if (i !== -1) embrActiveTransitionSources.splice(i, 1);
     };
@@ -6667,6 +6672,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
           try {
             const ab = await loadArrayBuffer(opts[oi].transition);
             transitionBuffers[si][oi] = await decodeAudioDataCompat(ab);
+            seqTransitionDefByBuffer.set(transitionBuffers[si][oi], opts[oi].transition); // ses effets propres (27/09)
             loaded++;
             if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
           } catch (e) { /* transition manquante : la bascule vers cette cible se fera directement, sans fichier intermédiaire */ }

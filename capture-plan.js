@@ -459,7 +459,7 @@
           const loop = loopById(m.detail.loopId);
           const tr = loop && loop.transition;
           if (!tr || !tr.file) return;
-          voice({ url: url(tr.file), track, targetKey: null, start: m.t, offset: 0, rate: m.detail.rate, stop: firstStopAfter(fullStops, m.t) });
+          voice({ url: url(tr.file), track, targetKey: 'transition', baseFx: tr.fx || null, start: m.t, offset: 0, rate: m.detail.rate, stop: firstStopAfter(fullStops, m.t) });
         });
         return;
       }
@@ -487,7 +487,8 @@
             stop = stop == null ? cutEnd : Math.min(stop, cutEnd);
           }
           const targetKey = w.kind === 'intro' ? 'intro' : w.kind === 'outro' ? 'outro' : w.kind === 'slot' ? 'slot:' + (track.segmentSlots || []).findIndex(sl => sl.id === w.slotId) : 'transition';
-          voice({ url: url(src.file), track, targetKey, start: w.start, offset: w.e.detail.offset || 0, rate: w.e.detail.rate, stop, gain: automation(g, cmds, w.start) });
+          // Transition : ses propres effets (27/09), comme dans le lecteur.
+          voice({ url: url(src.file), track, targetKey, baseFx: w.kind === 'transition' ? (src.fx || null) : undefined, start: w.start, offset: w.e.detail.offset || 0, rate: w.e.detail.rate, stop, gain: automation(g, cmds, w.start) });
         });
         return;
       }
