@@ -130,6 +130,15 @@ const click = (el) => el.dispatchEvent(new (el.ownerDocument.defaultView.MouseEv
   const txt = s.doc.getElementById('albumsContainer').textContent;
   check('refus « pistes » : erreur + indice « Publie d\'abord ta bibliothèque »', /Échec de l'enregistrement/.test(txt) && /Publie d'abord/.test(txt));
 
+  // ---- Scénario 2b : morceau décoché d'un album déjà obtenu -> gardé pour les acheteurs, message au compositeur ----
+  s = await scenario({ testEnabled: true, saveResult: () => ({ ok: true, data: { ok: true, keptForBuyers: ['t2'] } }), claimResult: () => ({ ok: true }) });
+  await s.t.loadAlbums(); await tick();
+  const t2box = s.doc.querySelector('[data-album-track="t2"]'); t2box.checked = false; change(s.w, t2box);
+  const buy2 = s.doc.querySelector('[data-album-field="buyable"]'); buy2.checked = false; change(s.w, buy2);
+  click(s.doc.querySelector('[data-action="save-album"]')); await tick(); await tick();
+  const txt2 = s.doc.getElementById('albumsContainer').textContent;
+  check('morceau décoché d\'un album obtenu : message « Retiré… ceux qui ont déjà l\'album le gardent »', /Album enregistré/.test(txt2) && /Retiré de l’album : Combat/.test(txt2) && /déjà l’album le gardent/.test(txt2));
+
   // ---- Scénario 3 : interrupteur bêta coupé ----
   s = await scenario({ testEnabled: false, saveResult: () => ({ ok: true }), claimResult: () => ({ ok: true }) });
   await s.t.loadAlbums(); await tick();

@@ -37,7 +37,12 @@
     if (opts && opts.sellerId) query = query.eq('seller_id', opts.sellerId);
     const { data, error } = await query;
     if (error) return { albums: null, error: error.message };
-    return { albums: data.map(reshapeAlbum), error: null };
+    // Morceaux retirés d'un album déjà obtenu (27/09, album_tracks.removed_at) : gardés pour les acheteurs existants,
+    // mais plus dans l'album pour le vendeur ni pour les futurs acheteurs. Lus à part et sans bloquer : la colonne
+    // n'existe qu'une fois la migration 20260927030000 appliquée.
+    const removed = await getClient().from('album_tracks').select('album_id, track_id').not('removed_at', 'is', null);
+    const gone = new Set(removed.error ? [] : removed.data.map(r => r.album_id + '|' + r.track_id));
+    return { albums: data.map(row => Object.assign({}, row, { album_tracks: (row.album_tracks || []).filter(t => !gone.has(row.id + '|' + t.track_id)) })).map(reshapeAlbum), error: null };
   }
 
   async function upsertAlbum(payload) {

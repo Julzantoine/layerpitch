@@ -1794,10 +1794,10 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790503095236"></script>
-<script src="layerpitch-notify.js?v=1790503095236"></script>
-<script src="layerpitch-help.js?v=1790503095236"></script>
-<script src="player.js?v=1790503095236"></script>
+<script src="layerpitch-i18n.js?v=1790503432207"></script>
+<script src="layerpitch-notify.js?v=1790503432207"></script>
+<script src="layerpitch-help.js?v=1790503432207"></script>
+<script src="player.js?v=1790503432207"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -11203,7 +11203,7 @@ async function saveAlbum(ai) {
   setAlbumMessage(al, tr('albumSaving'), 'info');
   try {
     await loadPostgresReadScripts();
-    const { ok, error } = await window.LayerPitchAlbums.upsertAlbum({
+    const { ok, error, data: saved } = await window.LayerPitchAlbums.upsertAlbum({
       id: al.id, title: al.title, presentationFr: al.presentationFr, presentationEn: al.presentationEn,
       priceUsdCents: cents, buyable: al.buyable, trackIds: al.trackIds,
     });
@@ -11214,10 +11214,13 @@ async function saveAlbum(ai) {
     }
     al.saved = true;
     al.savedBuyable = al.buyable;
+    // Morceaux décochés d'un album déjà obtenu : gardés pour ceux qui l'ont (27/09) -- on le dit au compositeur.
+    const kept = (saved && saved.keptForBuyers) || [];
+    const savedMessage = kept.length ? tr('albumSaved') + ' ' + tr('albumTracksKeptForBuyers', { tracks: kept.map(albumTrackTitle).join(', ') }) : tr('albumSaved');
     al.savedTrackIds = al.trackIds.slice();
     // Un morceau retiré de l'album perd sa version (la ligne album_tracks est supprimée côté serveur).
     Object.keys(al.officialDurations || {}).forEach(id => { if (!al.trackIds.includes(id)) delete al.officialDurations[id]; });
-    setAlbumMessage(al, tr('albumSaved'), 'ok');
+    setAlbumMessage(al, savedMessage, 'ok');
   } catch (e) {
     setAlbumMessage(al, tr('albumSaveError', { error: e.message }), 'error');
   }
