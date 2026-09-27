@@ -1794,10 +1794,10 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790503432207"></script>
-<script src="layerpitch-notify.js?v=1790503432207"></script>
-<script src="layerpitch-help.js?v=1790503432207"></script>
-<script src="player.js?v=1790503432207"></script>
+<script src="layerpitch-i18n.js?v=1790504320645"></script>
+<script src="layerpitch-notify.js?v=1790504320645"></script>
+<script src="layerpitch-help.js?v=1790504320645"></script>
+<script src="player.js?v=1790504320645"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -10943,6 +10943,7 @@ function albumFromApi(a) {
     buyable: !!a.buyable, trackIds: a.trackIds || [], saved: true, savedBuyable: !!a.buyable,
     // Morceaux enregistrés en base (seuls eux peuvent recevoir une version du compositeur) et durée de leur version.
     savedTrackIds: (a.trackIds || []).slice(), officialDurations: Object.assign({}, a.officialDurations || {}),
+    illustration: a.illustration || null, illustrationOriginalName: a.illustrationOriginalName || null, pendingCover: null, pendingCoverUrl: null,
   };
 }
 
@@ -11005,6 +11006,14 @@ function renderAlbums() {
         <textarea data-album-field="presentationFr" data-ai="${ai}">${escapeHtml(al.presentationFr)}</textarea>
         <label>${tr('albumPresentationEnLabel')}</label>
         <textarea data-album-field="presentationEn" data-ai="${ai}">${escapeHtml(al.presentationEn)}</textarea>
+        <label>${tr('albumCoverLabel')}</label>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          ${al.pendingCoverUrl || al.illustration
+            ? `<img src="${escapeAttr(al.pendingCoverUrl || (MEDIA_BASE + 'images/' + al.illustration))}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">`
+            : `<div style="width:72px;height:72px;border-radius:6px;border:1px dashed var(--border)"></div>`}
+          <div data-role="albumCoverCtrl" data-ai="${ai}"></div>
+        </div>
+        <div class="sub" style="margin-top:4px">${tr('albumCoverHint')}</div>
         <label>${tr('albumMinPriceLabel')}</label>
         <input type="text" inputmode="decimal" data-album-field="priceInput" data-ai="${ai}" value="${escapeAttr(al.priceInput)}" placeholder="3.00" style="max-width:140px">
         <div class="sub" style="margin-top:4px">${tr('albumMinPriceHint')}</div>
@@ -11019,6 +11028,15 @@ function renderAlbums() {
         ${msg ? `<div class="sub" style="margin-top:8px;${msg.kind === 'error' ? 'color:#c0392b' : 'color:#2e8b57'}">${escapeHtml(msg.text)}</div>` : ''}
       </div>`;
     box.appendChild(el);
+    // Pochette (A.9, 27/09) : choisie ici, envoyée à l'enregistrement de l'album (saveAlbum), comme les autres champs.
+    const coverCtrl = el.querySelector('[data-role="albumCoverCtrl"]');
+    coverCtrl.innerHTML = fileCtrlHtml(tr('chooseIllustration'));
+    wireFileControl(coverCtrl, 'image/*', () => al.pendingCover, () => al.illustration, f => {
+      if (al.pendingCoverUrl) URL.revokeObjectURL(al.pendingCoverUrl);
+      al.pendingCover = f || null;
+      al.pendingCoverUrl = f ? URL.createObjectURL(f) : null;
+      renderAlbums();
+    }, () => al.illustrationOriginalName);
   });
   // L'enregistreur ouvert (lecteur vivant) survit aux re-rendus : on replace son nœud, sans le reconstruire.
   const rec = albumsState.recorder;
@@ -11203,9 +11221,17 @@ async function saveAlbum(ai) {
   setAlbumMessage(al, tr('albumSaving'), 'info');
   try {
     await loadPostgresReadScripts();
+    // Nouvelle pochette : envoyée d'abord (images/album-<id>.<ext>), puis enregistrée avec l'album.
+    let cover = null;
+    if (al.pendingCover) {
+      const fileName = `album-${al.id}.${extOf(al.pendingCover.name)}`;
+      await r2PutFile(`images/${fileName}`, new Uint8Array(await al.pendingCover.arrayBuffer()), imageContentType(extOf(fileName)));
+      cover = { illustration: fileName, illustrationOriginalName: al.pendingCover.name };
+    }
     const { ok, error, data: saved } = await window.LayerPitchAlbums.upsertAlbum({
       id: al.id, title: al.title, presentationFr: al.presentationFr, presentationEn: al.presentationEn,
       priceUsdCents: cents, buyable: al.buyable, trackIds: al.trackIds,
+      ...(cover || {}),
     });
     if (!ok) {
       const hint = /pistes/i.test(error || '') ? ' ' + tr('albumTracksNotPublishedHint') : '';
@@ -11214,6 +11240,11 @@ async function saveAlbum(ai) {
     }
     al.saved = true;
     al.savedBuyable = al.buyable;
+    if (cover) {
+      Object.assign(al, cover);
+      if (al.pendingCoverUrl) URL.revokeObjectURL(al.pendingCoverUrl);
+      al.pendingCover = null; al.pendingCoverUrl = null;
+    }
     // Morceaux décochés d'un album déjà obtenu : gardés pour ceux qui l'ont (27/09) -- on le dit au compositeur.
     const kept = (saved && saved.keptForBuyers) || [];
     const savedMessage = kept.length ? tr('albumSaved') + ' ' + tr('albumTracksKeptForBuyers', { tracks: kept.map(albumTrackTitle).join(', ') }) : tr('albumSaved');
@@ -11269,7 +11300,7 @@ async function claimTestAlbumFromUi(ai) {
     if (btn.dataset.action === 'official-play') toggleOfficialPlayback(ai, btn.dataset.track);
   });
   document.getElementById('btnAddAlbum').addEventListener('click', () => {
-    albumsState.albums.push({ id: newAlbumId(), title: '', presentationFr: '', presentationEn: '', priceInput: '', buyable: false, trackIds: [], saved: false, savedBuyable: false, savedTrackIds: [], officialDurations: {} });
+    albumsState.albums.push({ id: newAlbumId(), title: '', presentationFr: '', presentationEn: '', priceInput: '', buyable: false, trackIds: [], saved: false, savedBuyable: false, savedTrackIds: [], officialDurations: {}, illustration: null, illustrationOriginalName: null, pendingCover: null, pendingCoverUrl: null });
     renderAlbums();
   });
 })();

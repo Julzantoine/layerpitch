@@ -45,6 +45,15 @@ async function scenario({ testEnabled, saveResult, claimResult }) {
   };
   w.library = [{ id: 't1', title: 'Forêt' }, { id: 't2', title: 'Combat' }, { id: 't3', title: 'Crépuscule' }];
   w.loadPostgresReadScripts = async () => {};
+  // Pochette (A.9) : sélecteur de fichier et envoi R2 simulés ; onSelect gardé par album pour « choisir » un fichier.
+  calls.put = []; calls.coverSelect = {};
+  w.fileCtrlHtml = () => '<span data-role="fileStatus"></span>';
+  w.wireFileControl = (root, accept, getPending, getRemote, onSelect) => { calls.coverSelect[root.dataset.ai] = onSelect; };
+  w.MEDIA_BASE = 'https://media.layerpitch.com/';
+  w.extOf = n => (/\.([a-z0-9]+)$/i.exec(n || '') || [0, 'jpg'])[1].toLowerCase();
+  w.imageContentType = e => 'image/' + e;
+  w.r2PutFile = async (key, bytes, type) => { calls.put.push({ key, type, n: bytes.length }); };
+  w.URL.createObjectURL = () => 'blob:cover'; w.URL.revokeObjectURL = () => {};
   w.currentLang = () => 'fr';
   w.tr = (key, vars) => {
     let s = (I18N.fr.backstage[key]) || (I18N.fr.shared[key]) || key;
@@ -138,6 +147,21 @@ const click = (el) => el.dispatchEvent(new (el.ownerDocument.defaultView.MouseEv
   click(s.doc.querySelector('[data-action="save-album"]')); await tick(); await tick();
   const txt2 = s.doc.getElementById('albumsContainer').textContent;
   check('morceau décoché d\'un album obtenu : message « Retiré… ceux qui ont déjà l\'album le gardent »', /Album enregistré/.test(txt2) && /Retiré de l’album : Combat/.test(txt2) && /déjà l’album le gardent/.test(txt2));
+
+  // ---- Pochette (A.9, 27/09) : aperçu local, envoi R2 à l'enregistrement, nom enregistré avec l'album ----
+  s = await scenario({ testEnabled: true, saveResult: () => ({ ok: true, data: {} }), claimResult: () => ({ ok: true }) });
+  await s.t.loadAlbums(); await tick();
+  check('pochette : sélecteur présent, pas encore d\'image', !!s.calls.coverSelect['0'] && !s.doc.querySelector('#albumsContainer img'));
+  const coverFile = new s.w.File([new Uint8Array([1, 2, 3])], 'Ma pochette.PNG', { type: 'image/png' });
+  s.calls.coverSelect['0'](coverFile);
+  check('pochette choisie : aperçu local affiché', s.doc.querySelector('#albumsContainer img').getAttribute('src') === 'blob:cover');
+  click(s.doc.querySelector('[data-action="save-album"]')); await tick(); await tick(); await tick();
+  const up = s.calls.upsert[s.calls.upsert.length - 1];
+  check('pochette envoyée sous images/album-<id>.png', s.calls.put.length === 1 && s.calls.put[0].key === 'images/album-alb_old.png' && s.calls.put[0].type === 'image/png' && s.calls.put[0].n === 3);
+  check('pochette enregistrée avec l\'album (nom de fichier + nom d\'origine)', up.illustration === 'album-alb_old.png' && up.illustrationOriginalName === 'Ma pochette.PNG');
+  check('après enregistrement : image servie depuis le stockage', s.doc.querySelector('#albumsContainer img').getAttribute('src') === 'https://media.layerpitch.com/images/album-alb_old.png');
+  click(s.doc.querySelector('[data-action="save-album"]')); await tick(); await tick();
+  check('enregistrement suivant : pas de nouvel envoi, pochette non écrasée', s.calls.put.length === 1 && !('illustration' in s.calls.upsert[s.calls.upsert.length - 1]));
 
   // ---- Scénario 3 : interrupteur bêta coupé ----
   s = await scenario({ testEnabled: false, saveResult: () => ({ ok: true }), claimResult: () => ({ ok: true }) });

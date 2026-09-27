@@ -66,6 +66,16 @@ async function verifyOwnership(adminClient: ReturnType<typeof createClient>, pat
   // Police personnalisée : fonts/<id du compositeur>/<id de la police>.<ext> -- à lui seul, et à personne d'autre.
   const fontMatch = path.match(/^fonts\/([^/]+)\/[^/]+\.[^./]+$/);
   if (path.startsWith('fonts/')) return !!fontMatch && fontMatch[1] === composerId;
+  // Pochette d'album (27/09, A.9) : images/album-<id>.<ext>. La table albums range le COMPTE vendeur (albums.seller_id =
+  // auth.uid(), modèle vendeur du 21/09), pas l'id du profil compositeur (composer_profiles.id, distinct) : on remonte
+  // du profil compositeur à son compte (composer_profiles.profile_id) avant de comparer.
+  const albumMatch = path.match(/^images\/album-([^./]+)\.[^./]+$/);
+  if (albumMatch) {
+    const { data } = await adminClient.from('albums').select('seller_id').eq('id', albumMatch[1]).maybeSingle();
+    if (!data) return true; // album pas encore enregistré : la pochette part avant upsert_album (même raisonnement qu'en bas).
+    const { data: cp } = await adminClient.from('composer_profiles').select('profile_id').eq('id', composerId).maybeSingle();
+    return !!cp && data.seller_id === cp.profile_id;
+  }
   const checks: Array<{ pattern: RegExp; table: string }> = [
     { pattern: /^images\/(?:logo|photo|theme-bg)-([^./]+)\.[^./]+$/, table: 'ad_reels' },
     { pattern: /^images\/([^./]+)-testimonial-avatar-\d+\.[^./]+$/, table: 'ad_reels' },
