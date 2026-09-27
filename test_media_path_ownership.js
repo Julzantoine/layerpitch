@@ -66,6 +66,48 @@ const db = fakeDb({ tracks: { tB: B, tA: A }, sfx_library: { sB: B }, composer_v
   const iId = html.indexOf('ensureMyComposerProfile()', iPub);
   check('Backstage : identité du compositeur résolue avant le premier envoi de la publication', iId > 0 && iId < html.indexOf('r2PutFile(`images/', iPub));
 
+  // Types et tailles acceptés à l'envoi (27/09) : vrai uploadHeadersFor() extrait de la fonction.
+  const r0 = edge.indexOf('const MB = 1024 * 1024;');
+  const r1 = edge.indexOf('\n}\n', edge.indexOf('function uploadHeadersFor(')) + 3;
+  const rulesSrc = edge.slice(r0, r1)
+    .replace(/const MEDIA_RULES: Record<string, \{ types: Record<string, string>; maxBytes: number \}> =/, 'const MEDIA_RULES =')
+    .replace(/\(path: string, size: unknown\): \{ headers: Record<string, string> \} \| \{ error: string \}/, '(path, size)')
+    .replace(/const headers: Record<string, string> =/, 'const headers =');
+  check('uploadHeadersFor extrait', r0 > 0 && !/: string|: unknown|Record</.test(rulesSrc));
+  const uploadHeadersFor = new Function(rulesSrc + '\nreturn uploadHeadersFor;')();
+  const img = (ext, size = 1000) => uploadHeadersFor(`images/${A}/photo-main.${ext}`, size);
+  check('image .jpg : acceptée, servie en image/jpeg', img('jpg').headers && img('jpg').headers['content-type'] === 'image/jpeg');
+  check('image .gif : acceptée (GIF animés)', img('gif').headers && img('gif').headers['content-type'] === 'image/gif');
+  check('image .png/.webp/.avif : acceptées', ['png', 'webp', 'avif'].every(e => img(e).headers));
+  check('image .svg : acceptée mais téléchargée si ouverte directement', img('svg').headers && img('svg').headers['content-disposition'] === 'attachment');
+  check('page .html : refusée', /Type de fichier non accepté \(\.html\)/.test(img('html').error || ''));
+  check('.js / .exe / .pdf : refusés', ['js', 'exe', 'pdf'].every(e => img(e).error));
+  check('taille signée avec le type', img('png', 4242).headers['content-length'] === '4242');
+  check('image de 21 Mo : refusée (max 20 Mo)', /trop lourd/.test(img('png', 21 * 1024 * 1024).error || ''));
+  check('taille absente : refusée', !!uploadHeadersFor(`images/${A}/x.png`, undefined).error && !!uploadHeadersFor(`images/${A}/x.png`, '12').error);
+  check('audio .ogg accepté, .mp3 refusé', !!uploadHeadersFor('audio/tA/0-x.ogg', 10).headers && !!uploadHeadersFor('audio/tA/0-x.mp3', 10).error);
+  check('vidéo .mp4 de 1 Go acceptée, .mov refusée', !!uploadHeadersFor('video/v1/source.mp4', 1024 ** 3).headers && !!uploadHeadersFor('video/v1/source.mov', 10).error);
+  check('police .woff2 acceptée, .html refusée', !!uploadHeadersFor(`fonts/${A}/f.woff2`, 10).headers && !!uploadHeadersFor(`fonts/${A}/f.html`, 10).error);
+  check('Edge Function : type et taille verrouillés dans la signature', /allHeaders: true/.test(edge) && /uploadHeadersFor\(path, size\)/.test(edge));
+
+  // Côté navigateur : r2PutFile (vrai code du Backstage et de pack.html) annonce la taille et renvoie les en-têtes imposés.
+  for (const file of ['layerpitch-backstage.html', 'pack.html']) {
+    const page = fs.readFileSync(path.join(__dirname, file), 'utf-8');
+    const s0 = page.indexOf('async function r2SignedUrl(');
+    const s1 = page.indexOf('\n}\n', page.indexOf('async function r2PutFile(')) + 3;
+    const calls = [];
+    const win = {
+      LayerPitchSupabaseClient: { getClient: () => ({ functions: { invoke: async (_n, { body }) => { calls.push(body); return { data: { url: 'https://r2/x', headers: { 'content-type': 'image/gif' } }, error: null }; } } }) },
+      LayerPitchAuth: { describeFunctionError: async e => String(e) },
+    };
+    const fetches = [];
+    const fn = new Function('window', 'fetch', 'loadPostgresReadScripts', page.slice(s0, s1) + '\nreturn r2PutFile;')(
+      win, async (url, opts) => { fetches.push({ url, opts }); return { ok: true }; }, async () => {});
+    await fn(`images/${A}/x.gif`, new Uint8Array(7), 'image/jpeg');
+    check(`${file} : taille annoncée au serveur`, calls[0] && calls[0].size === 7 && calls[0].method === 'PUT');
+    check(`${file} : en-têtes du serveur renvoyés tels quels à R2`, fetches[0] && fetches[0].opts.headers['content-type'] === 'image/gif');
+  }
+
   // Factures : jamais dans le seau média (servi publiquement sur media.layerpitch.com, chemin devinable).
   const hook = fs.readFileSync(path.join(__dirname, 'supabase/functions/stripe-webhook/index.ts'), 'utf-8');
   const up = hook.slice(hook.indexOf('async function uploadInvoiceToR2('), hook.indexOf('\n}\n', hook.indexOf('async function uploadInvoiceToR2(')));

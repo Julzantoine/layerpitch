@@ -62,6 +62,43 @@ function corsHeadersFor(req: Request): Record<string, string> {
 
 const ALLOWED_PREFIXES = ['images/', 'audio/', 'video/', 'fonts/'];
 
+// Types de fichier acceptés à l'envoi, par dossier, et taille maximale (27/09). Avant, n'importe quel fichier passait
+// (une page .html ou un SVG avec du code, servis sur media.layerpitch.com : hameçonnage sous notre domaine, risque de
+// voir tout le domaine signalé comme dangereux). Le type servi (Content-Type) est décidé ICI d'après l'extension et
+// verrouillé dans la signature avec la taille exacte annoncée : R2 refuse l'envoi si le navigateur envoie autre chose.
+// Les SVG (logos) restent acceptés mais partent avec Content-Disposition: attachment -- affichés normalement dans une
+// balise <img> (où leur code ne s'exécute jamais), téléchargés au lieu d'être ouverts si on visite leur adresse.
+const MB = 1024 * 1024;
+const MEDIA_RULES: Record<string, { types: Record<string, string>; maxBytes: number }> = {
+  'images/': {
+    types: { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', avif: 'image/avif', svg: 'image/svg+xml' },
+    maxBytes: 20 * MB,
+  },
+  'audio/': { types: { ogg: 'audio/ogg' }, maxBytes: 150 * MB },
+  'video/': { types: { mp4: 'video/mp4' }, maxBytes: 2048 * MB },
+  'fonts/': { types: { woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf' }, maxBytes: 10 * MB },
+};
+
+// En-têtes imposés à un envoi (PUT), ou un message d'erreur lisible par le compositeur.
+function uploadHeadersFor(path: string, size: unknown): { headers: Record<string, string> } | { error: string } {
+  const prefix = Object.keys(MEDIA_RULES).find((p) => path.startsWith(p));
+  if (!prefix) return { error: 'Chemin invalide.' };
+  const rule = MEDIA_RULES[prefix];
+  const m = path.match(/\.([a-z0-9]+)$/i);
+  const ext = m ? m[1].toLowerCase() : '';
+  const type = rule.types[ext];
+  if (!type) {
+    return { error: `Type de fichier non accepté (${ext ? '.' + ext : 'sans extension'}). Formats acceptés : ${Object.keys(rule.types).map((e) => '.' + e).join(', ')}.` };
+  }
+  if (typeof size !== 'number' || !Number.isInteger(size) || size <= 0) return { error: 'Taille du fichier manquante.' };
+  if (size > rule.maxBytes) {
+    return { error: `Fichier trop lourd (${Math.ceil(size / MB)} Mo, maximum ${rule.maxBytes / MB} Mo).` };
+  }
+  const headers: Record<string, string> = { 'content-type': type, 'content-length': String(size) };
+  if (ext === 'svg') headers['content-disposition'] = 'attachment';
+  return { headers };
+}
+
 // Renvoie true si le chemin est autorisé pour ce compositeur -- l'entité visée doit lui appartenir
 // (ou ne pas encore exister, voir plus bas). Tout chemin qui ne correspond à aucun format connu est
 // refusé (voir commentaire d'en-tête).
@@ -126,7 +163,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { path, method } = await req.json();
+    const { path, method, size } = await req.json();
     if (!path || typeof path !== 'string' || !ALLOWED_PREFIXES.some((p) => path.startsWith(p))) {
       return new Response(JSON.stringify({ error: 'Chemin invalide (doit commencer par images/, audio/, video/ ou fonts/).' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -141,6 +178,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'method invalide (PUT ou DELETE attendu).' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+    let uploadHeaders: Record<string, string> | null = null;
+    if (method === 'PUT') {
+      const check = uploadHeadersFor(path, size);
+      if ('error' in check) {
+        return new Response(JSON.stringify({ error: check.error }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      uploadHeaders = check.headers;
     }
 
     // service_role pour la vérification de propriété -- même raisonnement que create-checkout-session
@@ -181,14 +228,22 @@ Deno.serve(async (req) => {
     });
     // X-Amz-Expires posé avant signature (voir get-invoice-download-url pour le pourquoi -- le
     // défaut d'aws4fetch est 24h sans ça, bien trop long pour un lien à usage unique).
-    // content-type volontairement PAS inclus dans les en-têtes signés (contrairement à un PUT direct
-    // signé côté client) -- garde la signature simple et fiable pour une URL pré-signée par requête,
-    // le Content-Type envoyé par le client au moment du vrai PUT est stocké tel quel par R2.
+    // Envoi : type, taille (et pour un SVG, Content-Disposition) signés -- allHeaders, sinon aws4fetch laisse
+    // content-type et content-length hors signature. Le client doit renvoyer exactement ces en-têtes (renvoyés
+    // dans la réponse) ; content-length, lui, est posé par le navigateur d'après le fichier réellement envoyé.
     const encodedPath = path.split('/').map(encodeURIComponent).join('/');
     const objectUrl = `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${encodedPath}?X-Amz-Expires=300`;
-    const signedRequest = await client.sign(objectUrl, { method, aws: { signQuery: true } });
+    const signedRequest = await client.sign(objectUrl, {
+      method,
+      ...(uploadHeaders ? { headers: uploadHeaders } : {}),
+      aws: { signQuery: true, allHeaders: true },
+    });
 
-    return new Response(JSON.stringify({ ok: true, url: signedRequest.url }), {
+    // En-têtes que le navigateur doit poser lui-même (content-length est calculé par le navigateur, interdit à poser).
+    const clientHeaders = uploadHeaders
+      ? Object.fromEntries(Object.entries(uploadHeaders).filter(([k]) => k !== 'content-length'))
+      : undefined;
+    return new Response(JSON.stringify({ ok: true, url: signedRequest.url, headers: clientHeaders }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {

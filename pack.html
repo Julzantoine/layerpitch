@@ -1710,16 +1710,19 @@ async function fetchAsUint8Array(url) {
 // url), jamais utilisé jusqu'ici dans pack.html -- dupliqué ici plutôt que partagé entre les deux
 // fichiers (aucun module commun entre eux, même raisonnement que trackPublicEvent()).
 const MEDIA_BASE = 'https://media.layerpitch.com/';
-async function r2SignedUrl(path, method) {
+// size : taille exacte d'un envoi (PUT), vérifiée et verrouillée par le serveur avec le type de fichier (27/09).
+async function r2SignedUrl(path, method, size) {
   const { data, error } = await window.LayerPitchSupabaseClient.getClient()
-    .functions.invoke('create-media-signed-url', { body: { path, method } });
+    .functions.invoke('create-media-signed-url', { body: { path, method, size } });
   if (error) throw new Error(await window.LayerPitchAuth.describeFunctionError(error));
   if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
-  return data.url;
+  return data;
 }
 async function r2PutFile(key, bytes, contentType) {
-  const url = await r2SignedUrl(key, 'PUT');
-  const res = await fetch(url, { method: 'PUT', headers: { 'content-type': contentType }, body: bytes });
+  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength);
+  // En-têtes imposés et signés par le serveur (type, et pour un SVG Content-Disposition) : renvoyés tels quels, sinon
+  // R2 refuse l'envoi. contentType ne sert plus que si le serveur n'en renvoie pas (ancienne version).
+  const res = await fetch(url, { method: 'PUT', headers: headers || { 'content-type': contentType }, body: bytes });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
