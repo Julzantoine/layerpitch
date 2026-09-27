@@ -11239,10 +11239,13 @@ async function saveAlbum(ai) {
   setAlbumMessage(al, tr('albumSaving'), 'info');
   try {
     await loadPostgresReadScripts();
-    // Nouvelle pochette : envoyée d'abord (images/album-<id>.<ext>), puis enregistrée avec l'album.
+    // Nouvelle pochette : envoyée d'abord (images/<id du compositeur>/album-<id>.<ext>, dossier du compositeur comme
+    // toutes les images, voir publishAll), puis enregistrée avec l'album.
     let cover = null;
     if (al.pendingCover) {
-      const fileName = `album-${al.id}.${extOf(al.pendingCover.name)}`;
+      const { composerId, error: composerError } = await window.LayerPitchAuth.ensureMyComposerProfile();
+      if (composerError || !composerId) throw new Error(composerError || 'aucun profil compositeur');
+      const fileName = `${composerId}/album-${al.id}.${extOf(al.pendingCover.name)}`;
       await r2PutFile(`images/${fileName}`, new Uint8Array(await al.pendingCover.arrayBuffer()), imageContentType(extOf(fileName)));
       cover = { illustration: fileName, illustrationOriginalName: al.pendingCover.name };
     }
@@ -13032,11 +13035,15 @@ async function publishAll() {
     // avant les écritures en base -- un seul message clair si la session manque ou a expiré.
     const { composerId: myComposerId, error: composerError } = await window.LayerPitchAuth.ensureMyComposerProfile();
     if (composerError) throw new Error('Aucune session active — connecte-toi avant de publier (' + composerError + ').');
+    // Toutes les images vont dans le dossier du compositeur, images/<son id>/ (27/09) : l'id d'un AdReel n'est unique
+    // que par compositeur ('main' pour tous), un nom à plat (images/photo-main.jpg) était partagé entre comptes -- la
+    // photo de bio d'un bêta-testeur a ainsi remplacé celle d'un autre. Seul ce dossier est accepté par
+    // create-media-signed-url.
     for (const ar of adReels) {
       if (ar.logoPendingFile) {
         log(tr('uploadingLogo', { id: ar.id }));
         const bytes = new Uint8Array(await ar.logoPendingFile.arrayBuffer());
-        const fileName = `logo-${ar.id}.${extOf(ar.logoPendingFile.name)}`;
+        const fileName = `${myComposerId}/logo-${ar.id}.${extOf(ar.logoPendingFile.name)}`;
         await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
         ar.profile.logo = fileName; ar.profile.logoOriginalName = ar.logoPendingFile.name; ar.logoPendingFile = null;
         log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
@@ -13044,7 +13051,7 @@ async function publishAll() {
       if (ar.photoPendingFile) {
         log(tr('uploadingBioPhoto', { id: ar.id }));
         const bytes = new Uint8Array(await ar.photoPendingFile.arrayBuffer());
-        const fileName = `photo-${ar.id}.${extOf(ar.photoPendingFile.name)}`;
+        const fileName = `${myComposerId}/photo-${ar.id}.${extOf(ar.photoPendingFile.name)}`;
         await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
         ar.profile.photo = fileName; ar.profile.photoOriginalName = ar.photoPendingFile.name; ar.photoPendingFile = null;
         log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
@@ -13052,7 +13059,7 @@ async function publishAll() {
       if (ar.themeBgImagePendingFile) {
         log(tr('uploadingThemeBgImage', { id: ar.id }));
         const bytes = new Uint8Array(await ar.themeBgImagePendingFile.arrayBuffer());
-        const fileName = `theme-bg-${ar.id}.${extOf(ar.themeBgImagePendingFile.name)}`;
+        const fileName = `${myComposerId}/theme-bg-${ar.id}.${extOf(ar.themeBgImagePendingFile.name)}`;
         await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
         if (!ar.profile.theme) ar.profile.theme = Object.assign({}, DEFAULT_THEME);
         ar.profile.theme.bgImage = fileName; ar.profile.theme.bgImageOriginalName = ar.themeBgImagePendingFile.name; ar.themeBgImagePendingFile = null;
@@ -13063,7 +13070,7 @@ async function publishAll() {
         if (!tm.avatarPendingFile) continue;
         log(tr('uploadingTestimonialAvatar', { id: ar.id, n: i + 1 }));
         const bytes = new Uint8Array(await tm.avatarPendingFile.arrayBuffer());
-        const fileName = `${ar.id}-testimonial-avatar-${i}.${extOf(tm.avatarPendingFile.name)}`;
+        const fileName = `${myComposerId}/${ar.id}-testimonial-avatar-${i}.${extOf(tm.avatarPendingFile.name)}`;
         await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
         tm.avatar = fileName; tm.avatarOriginalName = tm.avatarPendingFile.name; tm.avatarPendingFile = null;
         log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
@@ -13075,7 +13082,7 @@ async function publishAll() {
             if (!img.pendingFile) continue;
             log(tr('uploadingBlockPhoto', { id: b.id, n: i + 1 }));
             const bytes = new Uint8Array(await img.pendingFile.arrayBuffer());
-            const fileName = `${b.id}-${i}.${extOf(img.pendingFile.name)}`;
+            const fileName = `${myComposerId}/${b.id}-${i}.${extOf(img.pendingFile.name)}`;
             await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
             img.file = fileName; img.originalFileName = img.pendingFile.name; img.pendingFile = null;
             log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
@@ -13087,7 +13094,7 @@ async function publishAll() {
             if (!v.pendingThumbnail) continue;
             log(tr('uploadingThumbnail', { id: b.id, n: i + 1 }));
             const bytes = new Uint8Array(await v.pendingThumbnail.arrayBuffer());
-            const fileName = `${b.id}-thumb-${i}.${extOf(v.pendingThumbnail.name)}`;
+            const fileName = `${myComposerId}/${b.id}-thumb-${i}.${extOf(v.pendingThumbnail.name)}`;
             await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
             v.thumbnail = fileName; v.thumbnailOriginalName = v.pendingThumbnail.name; v.pendingThumbnail = null;
             log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
@@ -13099,7 +13106,7 @@ async function publishAll() {
         if (b._pending_bgImage) {
           log(tr('uploadingBlockBgImage', { id: b.id }));
           const bytes = new Uint8Array(await b._pending_bgImage.arrayBuffer());
-          const fileName = `${b.id}-bg.${extOf(b._pending_bgImage.name)}`;
+          const fileName = `${myComposerId}/${b.id}-bg.${extOf(b._pending_bgImage.name)}`;
           await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
           if (!b.appearance) b.appearance = {};
           b.appearance.bgImage = fileName; b._pending_bgImage = null;
@@ -13111,7 +13118,7 @@ async function publishAll() {
       if (!pack.pendingIllustration) continue;
       log(tr('uploadingPackIllustration', { title: pack.title }));
       const bytes = new Uint8Array(await pack.pendingIllustration.arrayBuffer());
-      const fileName = `pack-${pack.id}.${extOf(pack.pendingIllustration.name)}`;
+      const fileName = `${myComposerId}/pack-${pack.id}.${extOf(pack.pendingIllustration.name)}`;
       await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
       pack.illustration = fileName; pack.illustrationOriginalName = pack.pendingIllustration.name; pack.pendingIllustration = null;
       log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
@@ -13120,7 +13127,7 @@ async function publishAll() {
       if (!pack.pendingWatermark) continue;
       log(tr('uploadingPackWatermark', { title: pack.title }));
       const bytes = new Uint8Array(await pack.pendingWatermark.arrayBuffer());
-      const fileName = `pack-watermark-${pack.id}.${extOf(pack.pendingWatermark.name)}`;
+      const fileName = `${myComposerId}/pack-watermark-${pack.id}.${extOf(pack.pendingWatermark.name)}`;
       await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
       pack.watermark = fileName; pack.watermarkOriginalName = pack.pendingWatermark.name; pack.pendingWatermark = null;
       log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
@@ -13129,7 +13136,7 @@ async function publishAll() {
       if (!coll.pendingIllustration) continue;
       log(tr('uploadingCollectionIllustration', { title: coll.title }));
       const bytes = new Uint8Array(await coll.pendingIllustration.arrayBuffer());
-      const fileName = `collection-${coll.id}.${extOf(coll.pendingIllustration.name)}`;
+      const fileName = `${myComposerId}/collection-${coll.id}.${extOf(coll.pendingIllustration.name)}`;
       await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
       coll.illustration = fileName; coll.illustrationOriginalName = coll.pendingIllustration.name; coll.pendingIllustration = null;
       log(tr('uploadedImageGeneric', { file: fileName }), 'ok');

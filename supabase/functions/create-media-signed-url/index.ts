@@ -14,18 +14,21 @@
 // cette fonction -- évite toute limite de taille de requête côté Edge Function).
 //
 // Validation du chemin : préfixe autorisé + pas de remontée de répertoire, PLUS vérification que
-// l'entité visée appartient réellement à l'appelant. Couvre maintenant tous les formats de chemin
-// réels utilisés par publishAll() : les cinq tables avec owner_id direct (ad_reels/packs/collections/
-// tracks/sfx_library), l'avatar de témoignage (`${ar.id}-testimonial-avatar-N`, rattaché à ad_reels
-// comme logo/photo/theme-bg), et les images de bloc (`${b.id}-N`, `${b.id}-thumb-N`, `${b.id}-bg`,
-// un bloc vit en JSONB dans la colonne `blocks` d'un ad_reel, résolu ici par containment JSONB plutôt
-// que par une table dédiée). Durci le 11 septembre (audit sécurité) : tout chemin qui ne correspond
-// à AUCUN de ces formats est désormais REFUSÉ par défaut (c'était auparavant autorisé par défaut --
-// un compositeur authentifié pouvait alors obtenir une URL signée PUT/DELETE pour n'importe quel
-// fichier sous images/ ou audio/ sans aucune vérification de propriété, y compris ceux d'un autre
-// compositeur, tant que le nom de fichier ne matchait aucun des formats connus). Polices personnalisées
-// (24/09, fin de la publication via GitHub) : rangées sous fonts/<id du compositeur>/, la propriété se lit
-// donc directement dans le chemin, sans requête.
+// l'entité visée appartient réellement à l'appelant. Durci le 11 septembre (audit sécurité) : tout
+// chemin qui ne correspond à AUCUN format connu est REFUSÉ par défaut.
+//
+// Images et polices (27/09) : rangées sous images/<id du compositeur>/ et fonts/<id du compositeur>/,
+// la propriété se lit directement dans le chemin, sans requête. Avant le 27/09, les images étaient à
+// plat (images/photo-<id AdReel>.jpg...) et la propriété se déduisait de l'id de l'AdReel -- or cet id
+// n'est unique que PAR compositeur (le premier AdReel de chacun s'appelle 'main', les suivants
+// reprennent leur libellé). La recherche tombait donc sur plusieurs lignes, échouait, et l'échec était
+// lu comme "AdReel pas encore créé, autorisé" : le 18/09, la photo de bio d'un bêta-testeur a écrasé
+// celle de l'AdReel 'main' de Jules-Antoine (même fichier images/photo-main.jpg pour les deux). Les
+// anciens fichiers à plat restent servis tels quels mais ne peuvent plus être ni écrits ni effacés
+// (le Backstage n'efface jamais d'image, et n'écrit plus que dans le dossier du compositeur).
+//
+// Toute erreur de lecture pendant la vérification REFUSE désormais la demande (jamais "autorisé par
+// défaut" sur une erreur).
 //
 // Vérifié avant d'écrire cette version, pas supposé : publishAll() (layerpitch-backstage.html)
 // uploade TOUT le média avant d'appeler les RPC upsert_ad_reel/upsert_track/etc. qui créent
@@ -63,24 +66,14 @@ const ALLOWED_PREFIXES = ['images/', 'audio/', 'video/', 'fonts/'];
 // (ou ne pas encore exister, voir plus bas). Tout chemin qui ne correspond à aucun format connu est
 // refusé (voir commentaire d'en-tête).
 async function verifyOwnership(adminClient: ReturnType<typeof createClient>, path: string, composerId: string): Promise<boolean> {
-  // Police personnalisée : fonts/<id du compositeur>/<id de la police>.<ext> -- à lui seul, et à personne d'autre.
-  const fontMatch = path.match(/^fonts\/([^/]+)\/[^/]+\.[^./]+$/);
-  if (path.startsWith('fonts/')) return !!fontMatch && fontMatch[1] === composerId;
-  // Pochette d'album (27/09, A.9) : images/album-<id>.<ext>. La table albums range le COMPTE vendeur (albums.seller_id =
-  // auth.uid(), modèle vendeur du 21/09), pas l'id du profil compositeur (composer_profiles.id, distinct) : on remonte
-  // du profil compositeur à son compte (composer_profiles.profile_id) avant de comparer.
-  const albumMatch = path.match(/^images\/album-([^./]+)\.[^./]+$/);
-  if (albumMatch) {
-    const { data } = await adminClient.from('albums').select('seller_id').eq('id', albumMatch[1]).maybeSingle();
-    if (!data) return true; // album pas encore enregistré : la pochette part avant upsert_album (même raisonnement qu'en bas).
-    const { data: cp } = await adminClient.from('composer_profiles').select('profile_id').eq('id', composerId).maybeSingle();
-    return !!cp && data.seller_id === cp.profile_id;
+  // Image ou police : <images|fonts>/<id du compositeur>/<fichier>.<ext> -- à lui seul, et à personne d'autre.
+  // Un chemin images/ ou fonts/ sans ce dossier (anciens fichiers à plat, voir en-tête) est refusé.
+  if (path.startsWith('images/') || path.startsWith('fonts/')) {
+    const m = path.match(/^(?:images|fonts)\/([^/]+)\/[^/]+\.[^./]+$/);
+    return !!m && m[1] === composerId;
   }
+  // Tables à id GLOBALEMENT unique (clé primaire = id seul) : une ligne au plus par id.
   const checks: Array<{ pattern: RegExp; table: string }> = [
-    { pattern: /^images\/(?:logo|photo|theme-bg)-([^./]+)\.[^./]+$/, table: 'ad_reels' },
-    { pattern: /^images\/([^./]+)-testimonial-avatar-\d+\.[^./]+$/, table: 'ad_reels' },
-    { pattern: /^images\/pack(?:-watermark)?-([^./]+)\.[^./]+$/, table: 'packs' },
-    { pattern: /^images\/collection-([^./]+)\.[^./]+$/, table: 'collections' },
     { pattern: /^audio\/sfx-([^/]+)\//, table: 'sfx_library' },
     { pattern: /^audio\/([^/]+)\//, table: 'tracks' },
     // Bibliothèque vidéo compositeur (16 septembre, composer_videos) -- même forme que l'audio
@@ -90,22 +83,16 @@ async function verifyOwnership(adminClient: ReturnType<typeof createClient>, pat
   for (const { pattern, table } of checks) {
     const m = path.match(pattern);
     if (!m) continue;
-    const { data } = await adminClient.from(table).select('owner_id').eq('id', m[1]).maybeSingle();
+    const { data, error } = await adminClient.from(table).select('owner_id').eq('id', m[1]).maybeSingle();
+    if (error) {
+      console.error('create-media-signed-url: verifyOwnership', table, error);
+      return false;
+    }
     // Entité pas encore créée : autorisé -- publishAll() (layerpitch-backstage.html) uploade tout
     // le média AVANT d'appeler les RPC upsert_* qui créent réellement la ligne Postgres. Rejeter
     // ici casserait la toute première publication de tout nouveau contenu, pas seulement un cas
     // limite. Seul un vrai conflit (entité existante appartenant à quelqu'un d'autre) est bloqué.
     if (!data) return true;
-    return data.owner_id === composerId;
-  }
-  // Image de bloc : `${b.id}-N`, `${b.id}-thumb-N` ou `${b.id}-bg` -- le bloc vit dans la colonne
-  // jsonb `ad_reels.blocks` (tableau d'objets {id, type, ...}), pas dans une table à part. Résolu par
-  // containment jsonb (`@>`, via .contains()) : trouve l'ad_reel dont le tableau blocks contient un
-  // objet avec cet id, peu importe ses autres champs.
-  const blockMatch = path.match(/^images\/([^./]+?)(?:-\d+|-thumb-\d+|-bg)\.[^./]+$/);
-  if (blockMatch) {
-    const { data } = await adminClient.from('ad_reels').select('owner_id').contains('blocks', [{ id: blockMatch[1] }]).maybeSingle();
-    if (!data) return true; // bloc pas encore publié -- même raisonnement que ci-dessus.
     return data.owner_id === composerId;
   }
   // Tout le reste : refusé par défaut plutôt qu'autorisé (durci 11 septembre).
