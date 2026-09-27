@@ -44,7 +44,7 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
   // buildDataSnapshot() et gère aussi les fichiers pas encore publiés (pendingFile/localUrl, 18/09)
   // -- texte littéral ajusté en conséquence, logique testée (customCutFadeSec/bpm/descriptions)
   // inchangée.
-  const mapPublish = extractMapBody("outro: (t.outro && (t.outro.remoteFile || t.outro.pendingFile)) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile || null, localUrl: t.outro.remoteFile ? null : pendingPreviewUrl(t.outro.pendingFile), originalFileName: t.outro.originalFileName || null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,\n      segmentSlots:");
+  const mapPublish = extractMapBody("outro: (t.outro && (t.outro.remoteFile || t.outro.pendingFile)) ? { label: t.outro.label || 'Outro', file: t.outro.remoteFile || null, localUrl: t.outro.remoteFile ? null : pendingPreviewUrl(t.outro.pendingFile), originalFileName: t.outro.originalFileName || null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '', fx: t.outro.fx || null } : null,\n      segmentSlots:");
   const slot = { id: 's1', label: 'A', cutStyle: 'custom', customCutFadeSec: 2.5, bpm: 90, beatsPerBar: 3, descriptionFr: 'Texte FR', descriptionEn: 'Text EN', alternatives: [] };
   const out = mapPublish(slot);
   check('publication : customCutFadeSec transmis à data.json', out.customCutFadeSec === 2.5);
@@ -56,7 +56,7 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
 
 // ---- Chargement (data.json -> library éditable), ligne ~5050 : anchor unique juste avant ce mapping précis ----
 {
-  const mapLoad = extractMapBody("outro: t.outro ? { label: t.outro.label || 'Outro', remoteFile: t.outro.file || null, pendingFile: null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '' } : null,");
+  const mapLoad = extractMapBody("outro: t.outro ? { label: t.outro.label || 'Outro', remoteFile: t.outro.file || null, pendingFile: null, gain: t.outro.gain || 1, descriptionFr: t.outro.descriptionFr || '', descriptionEn: t.outro.descriptionEn || '', fx: t.outro.fx || null } : null,");
   const slotFromJson = { id: 's1', label: 'A', cutStyle: 'custom', customCutFadeSec: 2.5, bpm: 90, beatsPerBar: 3, descriptionFr: 'Texte FR', descriptionEn: 'Text EN', alternatives: [] };
   const out = mapLoad(slotFromJson);
   check('chargement : customCutFadeSec repris depuis un data.json déjà publié', out.customCutFadeSec === 2.5);
