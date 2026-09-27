@@ -20,7 +20,7 @@
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790459398942">
+<link rel="stylesheet" href="player.css?v=1790491709042">
 <style>
   :root {
     --bg: #f6f5f3; --bg-card: #ffffff; --bg-side: #efede9; --border: #e4e1da;
@@ -68,6 +68,8 @@
   .pl-menu button:hover, .pl-menu button:focus-visible { background: var(--accent-soft); color: var(--accent); outline: none; }
   .pl-menu-new { color: var(--accent); border-top: 1px solid var(--border) !important; border-radius: 0 0 6px 6px !important; margin-top: 4px; }
   .t-add, .t-order { width: 1%; white-space: nowrap; }
+  .dl-status { position: fixed; right: 16px; bottom: 84px; z-index: 900; max-width: min(420px, calc(100vw - 32px)); background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; padding: 10px 14px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.14); overflow-wrap: anywhere; }
+  .dl-status[hidden] { display: none; }
   .lib-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: none; padding: 7px 8px; border-radius: 8px; cursor: pointer; }
   .lib-item:hover { background: var(--bg-card); }
   .lib-item.active { background: var(--accent-soft); }
@@ -186,6 +188,7 @@
     <div class="side-foot"><button type="button" class="btn" data-theme-toggle></button></div>
   </aside>
   <main class="main" id="main"><div class="main-inner" id="center"></div></main>
+  <div class="dl-status" id="dlStatus" role="status" aria-live="polite" hidden></div>
   <footer class="bar" id="bar">
     <div class="now"><div class="cover" id="nowCover"></div><div class="now-text"><div class="now-title" id="nowTitle">—</div><div class="now-sub" id="nowSub"></div></div></div>
     <div class="ctrl">
@@ -199,16 +202,16 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790459398942"></script>
-<script src="layerpitch-notify.js?v=1790459398942"></script>
-<script src="player.js?v=1790459398942"></script>
-<script src="capture-render.js?v=1790459398942"></script>
-<script src="api/supabase-client.js?v=1790459398942"></script>
-<script src="api/auth.js?v=1790459398942"></script>
-<script src="api/tracks.js?v=1790459398942"></script>
-<script src="api/sfx.js?v=1790459398942"></script>
-<script src="api/playlists.js?v=1790459398942"></script>
-<script src="api/albums.js?v=1790459398942"></script>
+<script src="layerpitch-i18n.js?v=1790491709042"></script>
+<script src="layerpitch-notify.js?v=1790491709042"></script>
+<script src="player.js?v=1790491709042"></script>
+<script src="capture-render.js?v=1790491709042"></script>
+<script src="api/supabase-client.js?v=1790491709042"></script>
+<script src="api/auth.js?v=1790491709042"></script>
+<script src="api/tracks.js?v=1790491709042"></script>
+<script src="api/sfx.js?v=1790491709042"></script>
+<script src="api/playlists.js?v=1790491709042"></script>
+<script src="api/albums.js?v=1790491709042"></script>
 <script>
 (async () => {
   const P = window.LayerPlayerCore, R = window.LayerCaptureRender;
@@ -239,6 +242,7 @@
     : `<div class="cover ${cls || ''}"></div>`;
   const ICON_PLUS = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>';
   const ICON_PLAY_SM = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M7 5v14l12-7z"/></svg>';
+  const ICON_DL = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M11 4h2v9l3.5-3.5 1.4 1.4L12 16.8l-5.9-5.9 1.4-1.4L11 13zM5 18h14v2H5z"/></svg>';
   const notifyError = e => window.LayerPitchNotify.error(tr('errorMsg', { error: e.message || e }));
 
   // ---- Thème clair / nuit, entièrement par variables (les skins d'album passeront par le même chemin) ----
@@ -456,7 +460,7 @@
           <td><div class="t-title">${esc(t.track.title)}</div>${e ? `<div class="t-sub">${esc(e.sub)}</div>` : `<div class="t-sub">${esc(tr('noVersionYet'))}</div>`}</td>
           <td class="t-version">${options ? `<select data-choice="${esc(t.track.id)}" aria-label="${esc(tr('colVersion'))}">${options}</select>` : ''}</td>
           <td class="t-dur">${e ? fmt(e.take.duration) : ''}</td>
-          <td class="t-add"><button type="button" class="t-play" data-add-track="${esc(t.track.id)}" aria-label="${esc(tr('addToPlaylist'))} · ${esc(t.track.title)}" title="${esc(tr('addToPlaylist'))}"${e ? '' : ' disabled'}>${ICON_PLUS}</button></td>
+          <td class="t-add"><button type="button" class="t-play" data-add-track="${esc(t.track.id)}" aria-label="${esc(tr('addToPlaylist'))} · ${esc(t.track.title)}" title="${esc(tr('addToPlaylist'))}"${e ? '' : ' disabled'}>${ICON_PLUS}</button><button type="button" class="t-play" data-dl-track="${esc(t.track.id)}" aria-label="${esc(tr('download'))} · ${esc(t.track.title)}" title="${esc(tr('download'))}"${e ? '' : ' disabled'}>${ICON_DL}</button></td>
           <td class="t-atelier"><button type="button" class="btn" data-atelier="${esc(t.track.id)}">${esc(tr('openInAtelier'))}</button></td>
         </tr>`;
       }).join('')}</tbody></table>`;
@@ -465,6 +469,10 @@
     box.querySelectorAll('[data-add-track]').forEach(b => b.onclick = () => {
       const t = trackOf(album, b.dataset.addTrack);
       openAddMenu(b, { albumId: album.id, trackId: t.track.id, key: albumEntryKey(album, t) });
+    });
+    box.querySelectorAll('[data-dl-track]').forEach(b => b.onclick = () => {
+      const t = trackOf(album, b.dataset.dlTrack);
+      openDownloadMenu(b, entryFor(album, t, albumEntryKey(album, t)));
     });
     box.querySelectorAll('[data-atelier]').forEach(b => b.onclick = () => { openAtelier(b.dataset.atelier); switchTab('atelier'); });
   }
@@ -546,6 +554,7 @@
         <span class="v-meta">${meta}</span>
         ${key === id ? `<span class="v-badge">${esc(tr('usedInAlbum'))}</span>` : `<button type="button" class="btn" data-vuse="${esc(id)}">${esc(tr('useInAlbum'))}</button>`}
         <button type="button" class="btn" data-vadd="${esc(id)}">${ICON_PLUS} ${esc(tr('addToPlaylist'))}</button>
+        <button type="button" class="btn" data-vdl="${esc(id)}">${ICON_DL} ${esc(tr('download'))}</button>
         ${canEdit ? `<button type="button" class="btn" data-vrename="${esc(id)}">${esc(tr('renameBtn'))}</button><button type="button" class="btn danger" data-vdel="${esc(id)}">${esc(tr('deleteBtn'))}</button>` : ''}
       </div>`;
     box.innerHTML = (t.official ? row('official', '★ ' + tr('officialVersion'), fmt(t.official.duration), false) : '')
@@ -555,6 +564,7 @@
     box.querySelectorAll('[data-vplay]').forEach(b => b.onclick = () => startQueue({ kind: 'album', id: album.id }, null, x => x.trackId === t.track.id, { trackId: t.track.id, key: b.dataset.vplay }));
     box.querySelectorAll('[data-vuse]').forEach(b => b.onclick = () => chooseVersion(t.track.id, b.dataset.vuse));
     box.querySelectorAll('[data-vadd]').forEach(b => b.onclick = () => openAddMenu(b, { albumId: album.id, trackId: t.track.id, key: b.dataset.vadd }));
+    box.querySelectorAll('[data-vdl]').forEach(b => b.onclick = () => openDownloadMenu(b, entryFor(album, t, b.dataset.vdl)));
     box.querySelectorAll('[data-vdel]').forEach(b => b.onclick = () => deleteVersion(b.dataset.vdel));
     box.querySelectorAll('[data-vrename]').forEach(b => b.onclick = () => startRename(b.dataset.vrename));
   }
@@ -604,19 +614,27 @@
     } catch (e) { notifyError(e); }
   }
   // Menu « Ajouter à une playlist » : ses playlists, puis « Nouvelle playlist… » (créée avec ce morceau dedans).
-  function closeAddMenu() { const m = $('plMenu'); if (m) m.remove(); }
-  function openAddMenu(anchor, what) {
+  // Petit menu flottant sous (ou au-dessus de) son bouton : un seul ouvert à la fois, fermé par un clic ailleurs ou Échap.
+  function closeAddMenu() { const m = $('plMenu'); if (m) m.remove(); menuAnchor = null; }
+  let menuAnchor = null;
+  function showMenu(anchor, html) {
     closeAddMenu();
-    if (!what.key) return;
     const m = document.createElement('div');
     m.id = 'plMenu'; m.className = 'pl-menu'; m.setAttribute('role', 'menu');
-    m.innerHTML = `<div class="pl-menu-title">${esc(tr('addToPlaylist'))}</div>`
-      + playlists.map(p => `<button type="button" role="menuitem" data-to="${esc(p.id)}">${esc(p.name || '—')}</button>`).join('')
-      + `<button type="button" role="menuitem" data-to="" class="pl-menu-new">${ICON_PLUS} ${esc(tr('newPlaylistInMenu'))}</button>`;
+    m.innerHTML = html;
     document.body.appendChild(m);
+    menuAnchor = anchor;
     const r = anchor.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
     m.style.left = Math.max(8, Math.min(innerWidth - mw - 8, r.right - mw)) + 'px';
     m.style.top = (r.bottom + mh + 8 > innerHeight ? Math.max(8, r.top - mh - 4) : r.bottom + 4) + 'px';
+    const first = m.querySelector('button'); if (first) first.focus();
+    return m;
+  }
+  function openAddMenu(anchor, what) {
+    if (!what.key) return;
+    const m = showMenu(anchor, `<div class="pl-menu-title">${esc(tr('addToPlaylist'))}</div>`
+      + playlists.map(p => `<button type="button" role="menuitem" data-to="${esc(p.id)}">${esc(p.name || '—')}</button>`).join('')
+      + `<button type="button" role="menuitem" data-to="" class="pl-menu-new">${ICON_PLUS} ${esc(tr('newPlaylistInMenu'))}</button>`);
     m.querySelectorAll('[data-to]').forEach(b => b.onclick = async () => {
       closeAddMenu();
       if (!b.dataset.to) { await createPlaylist(what); return; }
@@ -628,9 +646,59 @@
         refreshQueue();
       } catch (e) { notifyError(e); }
     });
-    const first = m.querySelector('button'); if (first) first.focus();
   }
-  document.addEventListener('click', e => { const m = $('plMenu'); if (m && !m.contains(e.target) && !e.target.closest('[data-add-track], [data-vadd]')) closeAddMenu(); });
+  document.addEventListener('click', e => { const m = $('plMenu'); if (m && !m.contains(e.target) && !(menuAnchor && menuAnchor.contains(e.target))) closeAddMenu(); });
+
+  // ---- Téléchargement d'une version (A.8, 27/09) : MP3 (320 kbit/s, étiquettes titre/album) ou WAV (sans perte) ----
+  // Le fichier est fabriqué à la demande dans le navigateur, à partir du journal de la version (rendu identique à
+  // l'écoute) : rien n'est stocké, les fichiers audio qu'une version utilise sont gardés côté serveur pour toujours.
+  function openDownloadMenu(anchor, entry) {
+    if (!entry) return;
+    const m = showMenu(anchor, `<div class="pl-menu-title">${esc(tr('download'))}</div>
+      <button type="button" role="menuitem" data-fmt="mp3">${esc(tr('downloadMp3'))}</button>
+      <button type="button" role="menuitem" data-fmt="wav">${esc(tr('downloadWav'))}</button>`);
+    m.querySelectorAll('[data-fmt]').forEach(b => b.onclick = () => { closeAddMenu(); downloadEntry(entry, b.dataset.fmt); });
+  }
+  let lameLoading = null;
+  function loadLame() {
+    if (window.lamejs) return Promise.resolve();
+    if (!lameLoading) lameLoading = new Promise((resolve, reject) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js';
+      sc.onload = resolve;
+      sc.onerror = () => { lameLoading = null; reject(new Error('lamejs')); };
+      document.head.appendChild(sc);
+    });
+    return lameLoading;
+  }
+  const safeName = s => String(s || '').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120) || 'LayerPitch';
+  let downloading = false;
+  async function downloadEntry(entry, fmt) {
+    if (downloading) { window.LayerPitchNotify.info(tr('downloadBusy')); return; }
+    downloading = true;
+    const label = `${entry.title} (${entry.sub})`;
+    const status = $('dlStatus');
+    const show = text => { status.hidden = false; status.textContent = text; };
+    try {
+      show(tr('downloadRendering', { name: label }));
+      const [buffer] = await Promise.all([R.renderTake(entry.take, { fetchBytes }), fmt === 'mp3' ? loadLame() : null]);
+      let bytes;
+      if (fmt === 'mp3') {
+        bytes = await R.encodeMp3(buffer, { tags: { title: label, album: entry.albumTitle || '' }, onProgress: f => show(tr('downloadEncoding', { name: label, pct: Math.round(f * 100) })) });
+      } else bytes = R.encodeWav(buffer);
+      const file = safeName(`${entry.albumTitle ? entry.albumTitle + ' - ' : ''}${label}`) + '.' + fmt;
+      const url = URL.createObjectURL(new Blob([bytes], { type: fmt === 'mp3' ? 'audio/mpeg' : 'audio/wav' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = file;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      status.hidden = true;
+      window.LayerPitchNotify.success(tr('downloadDone', { file }));
+    } catch (e) {
+      status.hidden = true;
+      notifyError(e);
+    } finally { downloading = false; }
+  }
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAddMenu(); });
 
   // Entrées d'une playlist résolues en versions jouables (albums chargés à la demande) ; celles dont la version
@@ -682,12 +750,14 @@
           <td class="t-order">
             <button type="button" class="t-play" data-pl-move="${esc(e.itemId)}" data-dir="-1" aria-label="${esc(tr('moveUp'))}" title="${esc(tr('moveUp'))}"${i === 0 ? ' disabled' : ''}>↑</button>
             <button type="button" class="t-play" data-pl-move="${esc(e.itemId)}" data-dir="1" aria-label="${esc(tr('moveDown'))}" title="${esc(tr('moveDown'))}"${i === entries.length - 1 ? ' disabled' : ''}>↓</button>
+            <button type="button" class="t-play" data-pl-dl="${esc(e.itemId)}" aria-label="${esc(tr('download'))} · ${esc(e.title)}" title="${esc(tr('download'))}">${ICON_DL}</button>
             <button type="button" class="t-play" data-pl-remove="${esc(e.itemId)}" aria-label="${esc(tr('removeFromPlaylist'))}" title="${esc(tr('removeFromPlaylist'))}">✕</button>
           </td>
         </tr>`).join('')}</tbody></table>` : `<div class="empty">${esc(tr('playlistEmpty'))}</div>`}`;
     const src = { kind: 'playlist', id: p.id };
     $('playPlaylistBtn').onclick = () => startQueue(src, 0);
     center.querySelectorAll('[data-pl-play]').forEach(b => b.onclick = () => startQueue(src, null, x => x.itemId === b.dataset.plPlay));
+    center.querySelectorAll('[data-pl-dl]').forEach(b => b.onclick = () => openDownloadMenu(b, entries.find(e => e.itemId === b.dataset.plDl)));
     center.querySelectorAll('[data-pl-remove]').forEach(b => b.onclick = async () => {
       try { await store.removeFromPlaylist(b.dataset.plRemove); await reloadPlaylists(); refreshQueue(); renderPlaylistView(); } catch (e) { notifyError(e); }
     });

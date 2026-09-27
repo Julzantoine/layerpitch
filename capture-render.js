@@ -417,7 +417,8 @@
     const getBuf = url => {
       if (!bufCache.has(url)) bufCache.set(url, (async () => {
         const bytes = await opts.fetchBytes(url);
-        return await oc.decodeAudioData(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+        // Décodeur du lecteur (27/09) : l'Ogg Vorbis passe aussi sur Safari (repli logiciel), comme en écoute directe.
+        return await core().decodeAudioCompat(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
       })());
       return bufCache.get(url);
     };
@@ -505,5 +506,48 @@
     return bytes;
   }
 
-  window.LayerCaptureRender = { render, renderTake, playTake, encodeWav, fxSegmentsToChanges, deriveBranchChanges, deriveSliderTriggerChanges, resolveTriggerChanges, SR };
+  // AudioBuffer -> MP3 (téléchargement d'une version, 27/09). Nécessite lamejs (window.lamejs, chargé par la page).
+  // opts : kbps (320 par défaut), tags { title, album } (étiquettes ID3 lues par les lecteurs), onProgress(0..1).
+  // Encodage par blocs, en rendant la main au navigateur de temps en temps (la page reste réactive, la progression
+  // s'affiche). Renvoie un Uint8Array.
+  async function encodeMp3(buffer, opts) {
+    opts = opts || {};
+    const lame = window.lamejs;
+    if (!lame) throw new Error('Encodeur MP3 (lamejs) introuvable.');
+    const ch = Math.min(2, buffer.numberOfChannels);
+    const enc = new lame.Mp3Encoder(ch, buffer.sampleRate, opts.kbps || 320);
+    const toI16 = f => { const o = new Int16Array(f.length); for (let i = 0; i < f.length; i++) { const v = Math.max(-1, Math.min(1, f[i])); o[i] = v < 0 ? v * 0x8000 : v * 0x7FFF; } return o; };
+    const L = toI16(buffer.getChannelData(0)), Rt = ch > 1 ? toI16(buffer.getChannelData(1)) : null;
+    const parts = [id3Tag(opts.tags)];
+    const block = 1152 * 32;
+    for (let i = 0, n = 0; i < L.length; i += block, n++) {
+      const b = Rt ? enc.encodeBuffer(L.subarray(i, i + block), Rt.subarray(i, i + block)) : enc.encodeBuffer(L.subarray(i, i + block));
+      if (b.length) parts.push(new Uint8Array(b.buffer, b.byteOffset, b.length));
+      if (n % 16 === 15) { if (opts.onProgress) opts.onProgress(i / L.length); await new Promise(r => setTimeout(r, 0)); }
+    }
+    const end = enc.flush();
+    if (end.length) parts.push(new Uint8Array(end.buffer, end.byteOffset, end.length));
+    if (opts.onProgress) opts.onProgress(1);
+    const out = new Uint8Array(parts.reduce((k, p) => k + p.length, 0));
+    let o = 0; for (const p of parts) { out.set(p, o); o += p.length; }
+    return out;
+  }
+  // Étiquette ID3v2.3 minimale (titre, album), en UTF-16 : accents et caractères non latins lus partout.
+  function id3Tag(tags) {
+    const frames = [];
+    const frame = (id, text) => {
+      if (!text) return;
+      const body = [1, 0xFF, 0xFE]; // encodage UTF-16 avec marque d'ordre des octets (petit-boutiste)
+      for (let i = 0; i < text.length; i++) { const c = text.charCodeAt(i); body.push(c & 0xFF, c >> 8); }
+      const size = body.length;
+      frames.push(...[...id].map(x => x.charCodeAt(0)), (size >>> 24) & 0xFF, (size >>> 16) & 0xFF, (size >>> 8) & 0xFF, size & 0xFF, 0, 0, ...body);
+    };
+    frame('TIT2', tags && tags.title);
+    frame('TALB', tags && tags.album);
+    if (!frames.length) return new Uint8Array(0);
+    const n = frames.length; // taille « synchsafe » : 7 bits par octet
+    return new Uint8Array([0x49, 0x44, 0x33, 3, 0, 0, (n >> 21) & 0x7F, (n >> 14) & 0x7F, (n >> 7) & 0x7F, n & 0x7F, ...frames]);
+  }
+
+  window.LayerCaptureRender = { render, renderTake, playTake, encodeWav, encodeMp3, fxSegmentsToChanges, deriveBranchChanges, deriveSliderTriggerChanges, resolveTriggerChanges, SR };
 })();

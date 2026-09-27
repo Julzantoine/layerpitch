@@ -46,6 +46,16 @@ function makeWindow({ url, session, isAdmin }) {
       return { stop() { p.stopped = true; state.stops++; }, position: () => p.from + (state.clock || 0), duration: tk.duration };
     },
   };
+  // Téléchargement (A.8) : rendu et encodages simulés ; le fichier « enregistré » est capturé.
+  Object.assign(w.LayerCaptureRender, {
+    renderTake: async tk => { state.rendered = tk; return { fake: true }; },
+    encodeWav: () => new Uint8Array([1, 2, 3]),
+    encodeMp3: async (buf, o) => { state.mp3Opts = o; o.onProgress(0.5); return new Uint8Array([4, 5]); },
+  });
+  w.lamejs = {};
+  w.URL.createObjectURL = b => { state.blob = b; return 'blob:x'; };
+  w.URL.revokeObjectURL = () => {};
+  w.HTMLAnchorElement.prototype.click = function () { state.saved = this.download; };
   w.LayerPitchTracks = { getTrack: async id => ({ track: { id, title: 'Titre ' + id, sfxIds: [] } }) };
   w.LayerPitchSfx = { getSfx: async () => null };
   w.LayerPitchAuth = { getSession: async () => ({ session }) };
@@ -154,6 +164,24 @@ function makeWindow({ url, session, isAdmin }) {
   btns[btns.length - 1].click(); await wait(30);
   check('version supprimée', !vnames().includes('Énergique') && vnames().some(n => /Calme/.test(n)));
 
+  const menu = () => doc.getElementById('plMenu');
+  // ---- Téléchargement (A.8, 27/09) : menu MP3 / WAV, rendu de la bonne version, nom de fichier, étiquettes ----
+  $('tabTracks').click();
+  doc.querySelector('[data-dl-track="t1"]').click(); await wait(10);
+  check('menu « Télécharger » : MP3 et WAV', /MP3/.test(menu().textContent) && /WAV/.test(menu().textContent));
+  menu().querySelector('[data-fmt="wav"]').click(); await wait(30);
+  check('WAV : la version jouée dans l’album de t1 (« Calme », 30 s) est rendue', state.rendered && state.rendered.duration === 30);
+  check('WAV : nom « Album - Morceau (Version).wav », type audio/wav', state.saved === 'Album de démonstration - Titre t1 (Calme).wav' && state.blob.type === 'audio/wav');
+  doc.querySelector('[data-dl-track="t1"]').click(); await wait(10);
+  menu().querySelector('[data-fmt="mp3"]').click(); await wait(30);
+  check('MP3 : étiquettes titre et album, fichier .mp3 audio/mpeg', state.mp3Opts.tags.title === 'Titre t1 (Calme)' && state.mp3Opts.tags.album === 'Album de démonstration' && /\.mp3$/.test(state.saved) && state.blob.type === 'audio/mpeg');
+  check('morceau sans version : téléchargement désactivé', doc.querySelector('[data-dl-track="t2"]').disabled);
+  $('tabAtelier').click();
+  doc.querySelector('[data-pick="t1"]').click();
+  doc.querySelector('[data-vdl="official"]').click(); await wait(10);
+  menu().querySelector('[data-fmt="wav"]').click(); await wait(30);
+  check('Atelier : la version du compositeur se télécharge aussi', state.rendered.duration === 21 && /\(Version du compositeur\)\.wav$/.test(state.saved));
+
   // ---- Playlists (26/09) : une entrée = une version précise, morceaux de tous les albums ----
   const plNames = () => [...doc.querySelectorAll('#plList .lib-item-title')].map(e => e.textContent);
   check('aucune playlist au départ', plNames().length === 0);
@@ -169,7 +197,6 @@ function makeWindow({ url, session, isAdmin }) {
   doc.querySelector('#lib [data-album]').click(); await wait(30);
   $('tabTracks').click();
   doc.querySelector('[data-add-track="t1"]').click(); await wait(10);
-  const menu = () => doc.getElementById('plMenu');
   check('menu « Ajouter à une playlist » : la playlist + « Nouvelle playlist… »', !!menu() && /Pour bosser/.test(menu().textContent) && /Nouvelle playlist/.test(menu().textContent));
   [...menu().querySelectorAll('[data-to]')].find(b => b.dataset.to).click(); await wait(30);
   check('ajouté : menu fermé, confirmation, compteur « 1 morceau »', !menu() && /Ajouté à « Pour bosser »/.test(doc.body.textContent) && /1 morceau/.test($('plList').textContent));

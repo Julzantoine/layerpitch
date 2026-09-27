@@ -1794,10 +1794,10 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790459398942"></script>
-<script src="layerpitch-notify.js?v=1790459398942"></script>
-<script src="layerpitch-help.js?v=1790459398942"></script>
-<script src="player.js?v=1790459398942"></script>
+<script src="layerpitch-i18n.js?v=1790491709042"></script>
+<script src="layerpitch-notify.js?v=1790491709042"></script>
+<script src="layerpitch-help.js?v=1790491709042"></script>
+<script src="player.js?v=1790491709042"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -12206,8 +12206,16 @@ async function r2PutFile(key, bytes, contentType) {
 // Supprime un fichier sur R2 — ajouté le 01/09 pour que la suppression d'un morceau/Sfx/couche/
 // alternative dans le backstage supprime aussi le fichier distant, plutôt que de le laisser
 // orphelin sur R2 (voir docs/LAYERPITCH_CHANGELOG.md).
+// Renvoie 'kept' quand le serveur refuse l'effacement parce qu'une version d'album (prise d'un fan ou version du
+// compositeur) utilise encore ce fichier (27/09, create-media-signed-url) : le fichier reste, rien d'anormal.
 async function r2DeleteFile(key) {
-  const url = await r2SignedUrl(key, 'DELETE');
+  await loadPostgresReadScripts();
+  const { data, error } = await window.LayerPitchSupabaseClient.getClient()
+    .functions.invoke('create-media-signed-url', { body: { path: key, method: 'DELETE' } });
+  if (error) throw new Error(await window.LayerPitchAuth.describeFunctionError(error));
+  if (data && data.kept) return 'kept';
+  if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
+  const url = data.url;
   const res = await fetch(url, { method: 'DELETE' });
   if (!res.ok && res.status !== 404) {
     const text = await res.text().catch(() => '');
@@ -12220,7 +12228,7 @@ async function r2DeleteFile(key) {
 function r2DeleteFileLogged(key) {
   if (!key) return;
   r2DeleteFile(key)
-    .then(() => log(`Suppression R2 : ${key}`, 'ok'))
+    .then(r => log(r === 'kept' ? `Fichier gardé (utilisé par des versions d'album) : ${key}` : `Suppression R2 : ${key}`, r === 'kept' ? 'info' : 'ok'))
     .catch(err => log(`Suppression R2 échouée pour ${key} : ${err.message}`, 'warn'));
 }
 
