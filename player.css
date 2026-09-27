@@ -1,10 +1,9 @@
 /* player.css — styles du lecteur adaptatif (morceau : ligne, forme d'onde, intensité, voix, séquentiel, embranchements).
    Créé le 26/09/2026 pour la page fan (mes-albums.html), en reprenant tel quel le bloc « lecteur » de pack.html
-   (de `.track` à `.track.disabled`). pack.html, index.html et collection.html gardent pour l'instant leur propre copie
-   (dette : les faire passer par ce fichier, un à la fois, en vérifiant chaque page).
+   (de `.track` à `.track.disabled`). Depuis le 27/09, pack.html et index.html l'utilisent aussi (leurs copies retirées) ;
+   le cadre de carte (`.track`, `.track.disabled`) reste propre à chaque page (index.html n'en a pas).
    Variables attendues de la page hôte : --bg, --bg-card, --border, --text, --text-dim, --text-dimmer, --accent,
    --accent-soft, --seq-map-success, --seq-map-choice. */
-.track { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); padding: 26px; margin-bottom: 16px; }
 .track-intensity-block { margin-top: 16px; }
 .voice-graph { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
 .voice-graph-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 8px; }
@@ -64,7 +63,6 @@
 .intensity-chip:hover { border-color: var(--accent); color: var(--accent); }
 .intensity-chip.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
 .intensity-chip-num { opacity: 0.55; margin-right: 5px; }
-
 .embr-loop-btn {
   font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 10px;
   border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; line-height: 1.6;
@@ -72,7 +70,6 @@
 .embr-loop-btn:hover { border-color: var(--accent); color: var(--accent); }
 .embr-loop-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
 .embr-loop-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
 /* Forme d'onde du mode vertical à embranchement (02/09) : progression continue verrouillée en phase
    pour les boucles "paires" (voir applyEmbrWaveAnimation() dans player.js), overlay one-shot pour une
    bascule avec transition ou un détour -- réutilise le mécanisme clip-path déjà en place ailleurs
@@ -99,14 +96,12 @@
 .embr-transition-row { position: absolute; top: 50%; left: 10%; right: 10%; transform: translateY(-50%); height: 34px; border-radius: 4px; overflow: hidden; border: 1px solid var(--accent); background: var(--bg-card); box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 3; }
 .embr-detour-wave-row { position: relative; display: block; width: 100%; height: var(--embr-row-h, 34px); border-radius: 4px; overflow: hidden; margin-top: 4px; border: 1px solid var(--accent); }
 .embr-transition-row .embr-wave-fg, .embr-detour-wave-row .embr-wave-fg { opacity: 1; }
-
 /* Choix d'embranchement séquentiel (nextOptions) : "pending" = choix en attente de bascule au prochain
    point de quantification. Les boutons de destination (.seq-branch-btn) ont été retirés le 05/09 (retour
    direct : "plus besoin des boutons de destination non plus, la carte se suffit également à elle-même")
    -- la carte globale ci-dessous (.seq-map-node.selectable/.pending) couvre déjà exactement les mêmes
    cibles, un seul moyen de choisir plutôt que deux redondants. */
 .seq-pending-indicator { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.04em; color: var(--accent); margin-top: 6px; font-style: italic; }
-
 /* Carte globale des chemins (mode séquentiel à embranchement, 02/09, reprise en flowchart le même jour
    après un premier essai en grille en flux qui s'effondrait en une colonne illisible dans le panneau
    étroit du Backstage -- arêtes de retour alors invisibles, superposées derrière les nœuds empilés,
@@ -175,11 +170,9 @@
 .seq-map .voice-graph-label { color: color-mix(in srgb, var(--text) 78%, transparent); }
 .seq-map-roomy .seq-map-node { border-radius: 12px; box-shadow: inset 4px 0 0 var(--seq-map-node-accent, transparent), 0 1px 3px rgba(0,0,0,.06); }
 .seq-map-roomy .seq-map-node-check { width: 18px; height: 18px; font-size: 11px; top: 6px; left: 6px; }
-
 .loop-count-block { margin-top: 14px; }
 .loop-count-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 6px; }
 .loop-count-block select { font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dim); }
-
 .track-row-wrapper { border-bottom: 1px solid var(--border); }
 .track-row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; padding: 12px 0; }
 .play-btn {
@@ -208,7 +201,6 @@
 .track-row-details-inner { padding: 0 0 18px 38px; }
 .track-desc { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 16px; white-space: pre-wrap; }
 .status { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); margin-bottom: 10px; min-height: 14px; }
-
 .progress-wrap { position: relative; height: 24px; margin-bottom: 6px; cursor: pointer; touch-action: none; }
 .progress-wrap.waveform-mode { height: 44px; }
 .waveform-bg, .waveform-fg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -217,7 +209,6 @@
 .progress-fill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--accent); border-radius: 2px; width: 0%; pointer-events: none; }
 .progress-head { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 9px; height: 9px; background: var(--accent); border-radius: 50%; pointer-events: none; }
 .time-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); }
-
 .track-sfx-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .stinger-btn {
   display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px;
@@ -227,6 +218,4 @@
 .stinger-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .stinger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .stinger-btn svg { width: 10px; height: 10px; }
-
 .placeholder-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dimmer); border: 1px dashed var(--border); border-radius: 4px; padding: 8px 12px; display: inline-block; }
-.track.disabled { opacity: 0.5; }
