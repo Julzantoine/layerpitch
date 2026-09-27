@@ -400,9 +400,16 @@ async function loadSiteData() {
   let ownerId = DEFAULT_OWNER_ID;
   if (handle) {
     // Nom du compositeur et de l'AdReel, actuels ou anciens (un lien déjà partagé ne casse jamais, 27/09).
-    const { link, error } = await window.LayerPitchComposers.resolvePublicLink(handle, adReelSlugFromUrl);
-    if (error) throw new Error(error);
-    ownerId = (link && link.ownerId) || DEFAULT_OWNER_ID; // handle inconnu -> repli plutôt qu'une page cassée
+    let { link, error } = await window.LayerPitchComposers.resolvePublicLink(handle, adReelSlugFromUrl);
+    if (error) {
+      // Repli (fonction serveur absente tant que la migration 20260927050000 n'est pas appliquée, ou panne) : résolution
+      // du nom seul, comme avant le 27/09 -- la page s'affiche au lieu de casser.
+      const r = await window.LayerPitchComposers.resolveHandle(handle);
+      if (r.error) throw new Error(r.error);
+      link = null;
+      ownerId = r.ownerId || DEFAULT_OWNER_ID;
+    }
+    if (link || !error) ownerId = (link && link.ownerId) || DEFAULT_OWNER_ID; // handle inconnu -> repli plutôt qu'une page cassée
     if (link) {
       resolvedAdReelId = link.adReelId || null;
       // Ancien nom (du compositeur ou de l'AdReel) : la barre d'adresse montre la nouvelle adresse.

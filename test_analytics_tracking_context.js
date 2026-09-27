@@ -179,6 +179,10 @@ async function runPublicLinkChecks() {
   sb = testLoadSiteDataOwnerId('index.html', '?u=old');
   await vm.runInContext('loadSiteData()', sb);
   check('index.html : ancien nom du compositeur seul -> /new/', sb.replaced === '/new/' && vm.runInContext('resolvedAdReelId', sb) === null);
+  sb = testLoadSiteDataOwnerId('index.html', '?u=jean&s=pitch');
+  sb.window.LayerPitchComposers.resolvePublicLink = async () => ({ link: null, error: 'function resolve_public_link does not exist' });
+  await vm.runInContext('loadSiteData()', sb);
+  check('index.html : fonction serveur absente (migration pas encore appliquée) -> repli sur le nom seul, page affichée', vm.runInContext('lastResolvedOwnerId', sb) === 'resolved-jean' && vm.runInContext('resolvedAdReelId', sb) === null);
 }
 
 runOwnerIdChecks().then(runPublicLinkChecks).then(() => {
