@@ -35,7 +35,7 @@ async function scenario({ testEnabled, saveResult, claimResult }) {
   const w = dom.window;
   const calls = { upsert: [], claim: [] };
   let purchases = [];
-  w.LayerPitchAuth = { getSession: async () => ({ session: { user: { id: 'user-1' } } }) };
+  w.LayerPitchAuth = { getSession: async () => ({ session: { user: { id: 'user-1' } } }), ensureMyComposerProfile: async () => ({ composerId: 'comp-1', error: null }) };
   w.LayerPitchAlbums = {
     listAlbums: async ({ sellerId }) => ({ albums: [{ id: 'alb_old', title: 'Déjà là', presentationFr: '', presentationEn: '', priceUsdCents: 300, buyable: true, trackIds: ['t2'], officialDurations: { t2: 30 } }], error: null, _seller: sellerId }),
     listMyPurchases: async () => ({ purchases, error: null }),
@@ -157,9 +157,9 @@ const click = (el) => el.dispatchEvent(new (el.ownerDocument.defaultView.MouseEv
   check('pochette choisie : aperçu local affiché', s.doc.querySelector('#albumsContainer img').getAttribute('src') === 'blob:cover');
   click(s.doc.querySelector('[data-action="save-album"]')); await tick(); await tick(); await tick();
   const up = s.calls.upsert[s.calls.upsert.length - 1];
-  check('pochette envoyée sous images/album-<id>.png', s.calls.put.length === 1 && s.calls.put[0].key === 'images/album-alb_old.png' && s.calls.put[0].type === 'image/png' && s.calls.put[0].n === 3);
-  check('pochette enregistrée avec l\'album (nom de fichier + nom d\'origine)', up.illustration === 'album-alb_old.png' && up.illustrationOriginalName === 'Ma pochette.PNG');
-  check('après enregistrement : image servie depuis le stockage', s.doc.querySelector('#albumsContainer img').getAttribute('src') === 'https://media.layerpitch.com/images/album-alb_old.png');
+  check('pochette envoyée dans le dossier du compositeur, images/<id compositeur>/album-<id>.png', s.calls.put.length === 1 && s.calls.put[0].key === 'images/comp-1/album-alb_old.png' && s.calls.put[0].type === 'image/png' && s.calls.put[0].n === 3);
+  check('pochette enregistrée avec l\'album (nom de fichier + nom d\'origine)', up.illustration === 'comp-1/album-alb_old.png' && up.illustrationOriginalName === 'Ma pochette.PNG');
+  check('après enregistrement : image servie depuis le stockage', s.doc.querySelector('#albumsContainer img').getAttribute('src') === 'https://media.layerpitch.com/images/comp-1/album-alb_old.png');
   click(s.doc.querySelector('[data-action="save-album"]')); await tick(); await tick();
   check('enregistrement suivant : pas de nouvel envoi, pochette non écrasée', s.calls.put.length === 1 && !('illustration' in s.calls.upsert[s.calls.upsert.length - 1]));
 
