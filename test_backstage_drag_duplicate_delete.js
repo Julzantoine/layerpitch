@@ -176,6 +176,23 @@ const path = require('path');
   await settle();
   check('Supp sur un bloc : supprimé après confirmation', types() === 'text,header');
 
+  // Glisser un morceau DANS le bloc Musique (27/09) : seule la ligne bouge -- le bloc ne doit ni se griser
+  // (classe "dragging" restée collée : la ligne glissée est reconstruite au dépôt, son dragend n'arrive jamais).
+  ev(`trackIds.length = 0; trackIds.push(library[0].id, library[1].id); blocks.length = 0; blocks.push({ id: 'bm', type: 'tracks' }); rebuildAllCards(); layoutBlocks();`);
+  const rowOf = i => card('bm').querySelectorAll('.sel-track-item[data-drag-id]')[i];
+  const firstId = ev('trackIds[0]');
+  {
+    const from = rowOf(0), to = rowOf(1);
+    from.querySelector('.block-drag-handle').dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
+    check('poignée d\'un morceau : le bloc lui-même n\'est pas armé', !card('bm').draggable);
+    const dt = { types: ['text/plain'], setData() {}, effectAllowed: '', dropEffect: '' };
+    const mk = type => { const e = new window.MouseEvent(type, { bubbles: true, cancelable: true, clientY: 1 }); Object.defineProperty(e, 'dataTransfer', { value: dt }); return e; };
+    from.dispatchEvent(mk('dragstart')); to.dispatchEvent(mk('dragover')); to.dispatchEvent(mk('drop')); from.dispatchEvent(mk('dragend'));
+  }
+  check('morceau réordonné dans le bloc Musique', ev('trackIds[1]') === firstId);
+  check('bloc Musique pas grisé après le dépôt', !card('bm').classList.contains('dragging'));
+  check('aucun glisser de bloc resté en cours', ev('draggedBlockId') === null);
+
   // ---- Hors admin : Alt + glisser déplace, la touche Supprimer ne fait rien ----
   ev('currentUserIsAdmin = false'); click(q('.nav-item[data-tab="library"]')); ev('manageLibrarySelectedId = library[0].id; renderLibrary()');
   click(slotItem(0));

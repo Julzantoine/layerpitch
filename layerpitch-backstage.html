@@ -3826,6 +3826,10 @@ function cloneWithCopyLabel(item, labelKey) {
   if (c[k] && String(c[k]).trim()) c[k] = tr('duplicateLabel', { label: c[k] });
   return c;
 }
+// Une poignée n'arme que l'élément qui la porte directement, jamais un élément qui le contient (27/09 : la
+// poignée d'un morceau du bloc Musique armait aussi le bloc entier, resté grisé après le dépôt).
+const DRAG_ITEM_SELECTOR = '[data-drag-id], .block-editor-card';
+function ownsHandle(item, handle) { return handle.closest(DRAG_ITEM_SELECTOR) === item; }
 // cloneItem (optionnel) : active la duplication Alt + glisser pour cette liste. onDrop(item) reçoit l'élément
 // déplacé ou la copie créée.
 function wireArrayDragReorder(containerEl, itemClass, getArray, onDrop, cloneItem) {
@@ -3838,11 +3842,11 @@ function wireArrayDragReorder(containerEl, itemClass, getArray, onDrop, cloneIte
     const handle = e.target.closest('.block-drag-handle');
     if (!handle) return;
     const item = handle.closest('.' + itemClass);
-    if (item) item.draggable = true;
+    if (item && ownsHandle(item, handle)) item.draggable = true;
   });
   containerEl.addEventListener('dragstart', (e) => {
     const item = e.target.closest('.' + itemClass);
-    if (!item || !item.draggable) return;
+    if (!item || e.target !== item || !item.draggable) return; // seul l'élément réellement glissé (27/09)
     draggedId = item.dataset.dragId;
     item.classList.add('dragging');
     containerEl.classList.add('is-reordering');
@@ -3954,11 +3958,11 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
     const rowHandle = e.target.closest('.block-drag-handle');
     if (!rowHandle) return;
     const row = rowHandle.closest('.org-row');
-    if (row) row.draggable = true;
+    if (row && ownsHandle(row, rowHandle)) row.draggable = true;
   });
   containerEl.addEventListener('dragstart', (e) => {
     const group = e.target.closest('.org-folder-group');
-    if (group && group.draggable) {
+    if (group && e.target === group && group.draggable) {
       draggedOrgFolderId = group.dataset.dragId;
       group.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
@@ -3966,7 +3970,7 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
       return;
     }
     const row = e.target.closest('.org-row');
-    if (!row || !row.draggable) return;
+    if (!row || e.target !== row || !row.draggable) return;
     draggedOrgItemId = row.dataset.dragId;
     row.classList.add('dragging');
     containerEl.classList.add('is-reordering');
@@ -8976,7 +8980,7 @@ document.getElementById('blocksEditorContainer').addEventListener('pointerdown',
   const handle = e.target.closest('.block-drag-handle');
   if (!handle) return;
   const card = handle.closest('.block-editor-card');
-  if (card) card.draggable = true;
+  if (card && ownsHandle(card, handle)) card.draggable = true; // pas la poignée d'un morceau du bloc Musique (27/09)
 });
 // ---- Touche Supprimer (Supp ou ⌫) sur l'élément sélectionné (25/09, demande de Jules-Antoine) ----
 // Sélection = dernier élément cliqué d'une liste (morceau, Sfx, AdReel, slot, section, boucle, couche) ou dernier bloc
@@ -9049,7 +9053,7 @@ document.addEventListener('pointerup', releaseDragHandles);
 document.addEventListener('pointercancel', releaseDragHandles);
 document.getElementById('blocksEditorContainer').addEventListener('dragstart', (e) => {
   const card = e.target.closest('.block-editor-card');
-  if (!card || !card.draggable) return;
+  if (!card || e.target !== card || !card.draggable) return; // drag d'une ligne imbriquée : pas le bloc
   draggedBlockId = card.dataset.id;
   card.classList.add('dragging');
   document.getElementById('blocksEditorContainer').classList.add('is-reordering');
@@ -9122,9 +9126,8 @@ document.getElementById('blocksEditorContainer').addEventListener('drop', (e) =>
   }
 });
 document.getElementById('blocksEditorContainer').addEventListener('dragend', (e) => {
-  const card = e.target.closest('.block-editor-card');
-  if (card) { card.classList.remove('dragging'); card.draggable = false; }
-  document.querySelectorAll('#blocksEditorContainer .block-editor-card').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+  if (!draggedBlockId) return;
+  document.querySelectorAll('#blocksEditorContainer .block-editor-card').forEach(c => { c.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom'); c.draggable = false; });
   document.getElementById('blocksEditorContainer').classList.remove('is-reordering', 'is-duplicating');
   draggedBlockId = null;
 });
