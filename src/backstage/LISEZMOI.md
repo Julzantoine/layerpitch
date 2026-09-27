@@ -15,7 +15,14 @@ Les fichiers sont des **tranches de la même page**, collées dans l'ordre de le
 | 11-verrou-de-connexion.js | verrou de connexion (redirection si pas de session) |
 | 12-bulles-d-aide.js | bulles d'aide contextuelle |
 | 13-suivi-d-usage.js | suivi d'usage (bêta) |
-| 14-connexion-comptes-et-outils-communs.js | connexion, abonnement, admin, menu du compte, cloche, onglets, thèmes, partage, outils d'affichage communs |
+| 14-connexion-abonnement-admin.js | connexion, nom public, abonnement et palier, panneaux admin, menu du compte, cloche |
+| 14a-suivi-onglets-themes.js | suivi d'usage, changement d'onglet, préréglages de thème, couleurs |
+| 14b-partage-et-outils-d-affichage.js | partage sur les réseaux, éléments de listes, blocs repliables |
+| 14c-catalogue-et-suppressions.js | catalogue publié, suppressions en base et fichiers à effacer |
+| 14d-utilitaires.js | journal, slug, échappement, identifiants, sélecteurs de fichiers, poignées |
+| 14e-editeurs-effets-triggers-curseurs.js | éditeurs d'effets, de triggers et de curseurs |
+| 14f-glisser-deposer-et-dossiers.js | glisser-déposer (dont Alt + glisser), dossiers des listes |
+| 14g-fichiers-et-blocs.js | fichiers (dépôt, état), migration et création des blocs d'AdReel |
 | 15-selecteur-de-morceaux.js | sélecteur de morceaux (bibliothèque -> AdReel ou pack) |
 | 16-bibliotheque-de-morceaux.js | bibliothèque de morceaux (liste, dossiers) |
 | 17-duree-auto.js | durée automatique des fichiers |
