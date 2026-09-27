@@ -1,34 +1,13 @@
 // Adresse personnalisable d'un AdReel dans le VRAI Backstage (27/09) : champ grisé pour l'AdReel principal et pour un
 // non-admin, nom proposé à partir du titre, enregistrement immédiat par set_my_ad_reel_slug, lien public /<nom>/<adreel>,
 // message clair si l'AdReel n'est pas encore publié. Les règles serveur sont vérifiées sur PGlite (changelog [2026-09-27i]).
-const { JSDOM } = require('jsdom');
+const { loadBackstage } = require('./scripts/test-harness.js');
 const fs = require('fs');
 const path = require('path');
 
 (async () => {
-  const src = fs.readFileSync(path.join(__dirname, 'layerpitch-backstage.html'), 'utf-8').replace(/<script[^>]*src="https:\/\/unpkg\.com[^"]*"[^>]*><\/script>\s*/g, '');
-  function inline(html, filename, tagline) {
-    const content = fs.readFileSync(path.join(__dirname, filename), 'utf-8').replace(/<\/script/gi, '<\\/script');
-    return html.split('\n').map(line => (line.trim().replace(/\.js(\?[^"]*)?"/, '.js"') === tagline ? `<script>${content}</script>` : line)).join('\n');
-  }
-  let html = inline(src, 'layerpitch-i18n.js', '<script src="layerpitch-i18n.js"></script>');
-  html = inline(html, 'layerpitch-notify.js', '<script src="layerpitch-notify.js"></script>');
-  html = inline(html, 'layerpitch-help.js', '<script src="layerpitch-help.js"></script>');
-  html = inline(html, 'player.js', '<script src="player.js"></script>');
-  const dom = new JSDOM(html, {
-    url: 'http://localhost/test_backstage.html', runScripts: 'dangerously', pretendToBeVisual: true,
-    beforeParse(win) {
-      function Ctx() { this.state = 'running'; this.currentTime = 0; this.destination = {}; }
-      Ctx.prototype.resume = () => Promise.resolve();
-      Ctx.prototype.createGain = () => ({ gain: { setValueAtTime() {}, value: 1 }, connect() {}, disconnect() {} });
-      Ctx.prototype.createBufferSource = () => ({ connect() {}, start() {}, stop() {}, buffer: null });
-      Ctx.prototype.decodeAudioData = () => Promise.reject(new Error('no audio'));
-      Ctx.prototype.close = () => {};
-      win.AudioContext = Ctx;
-    }
-  });
+  const dom = await loadBackstage({ scripts: ['layerpitch-i18n.js', 'layerpitch-notify.js', 'layerpitch-help.js', 'player.js'] });
   const w = dom.window;
-  await new Promise(r => w.document.addEventListener('DOMContentLoaded', () => setTimeout(r, 50)));
   const ev = code => w.eval(code);
   let failures = 0;
   const check = (label, cond) => { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; };
