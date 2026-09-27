@@ -24,6 +24,7 @@ feuille de route) est dans le dépôt privé `layerpitch-docs`, jamais ici.
 ```bash
 npm install            # outils de développement uniquement (jsdom, pg)
 npm test               # tous les tests hors base de données
+npm run build-player   # après toute modification de src/player/ : fabrique player.js (ne jamais modifier player.js à la main)
 npm run bump-version   # après toute modification d'un .js servi aux navigateurs : un seul ?v= pour toutes les pages
 npm run migrate        # applique les migrations en attente à la VRAIE base (.env requis)
 python3 -m http.server 8420   # site en local : http://localhost:8420
