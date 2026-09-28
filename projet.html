@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790627284391">
+<link rel="stylesheet" href="player.css?v=1790629048988">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -98,6 +98,20 @@
   .preview-embed { width: 100%; border: 0; border-radius: 6px; background: var(--bg); }
   .preview-meta { font-size: 12px; color: var(--text-dim); overflow-wrap: anywhere; }
   .item-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; }
+  /* Glisser-déposer par poignée (28/09, retour de l'essai : plus de flèches) : même principe que le Backstage. La poignée
+     arme le déplacement ; l'élément déplacé devient transparent ; un trait bleu marque la destination ; pendant le
+     déplacement, les espaces entre éléments sont marqués en pointillés. */
+  .drag-handle { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 26px; color: var(--text-dimmer); cursor: grab; flex: 0 0 auto; border-radius: 4px; }
+  .drag-handle:hover { color: var(--accent); background: var(--accent-soft); }
+  .drag-handle svg { width: 14px; height: 14px; }
+  [data-sortable] > * { position: relative; }
+  [data-sortable] > .dragging { opacity: .4; }
+  [data-sortable].is-reordering > *:not(.dragging) { outline: 2px dashed color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: 3px; }
+  [data-sortable] > .drop-before::before, [data-sortable] > .drop-after::after { content: ''; position: absolute; background: var(--accent); border-radius: 2px; z-index: 5; pointer-events: none; }
+  [data-sortable="list"] > .drop-before::before { left: 0; right: 0; top: -6px; height: 3px; }
+  [data-sortable="list"] > .drop-after::after { left: 0; right: 0; bottom: -6px; height: 3px; }
+  [data-sortable="grid"] > .drop-before::before { top: 0; bottom: 0; left: -8px; width: 3px; }
+  [data-sortable="grid"] > .drop-after::after { top: 0; bottom: 0; right: -8px; width: 3px; }
   .notes { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; display: flex; flex-direction: column; gap: 6px; }
   .note { font-size: 12.5px; }
   .note.resolved { opacity: .55; }
@@ -126,18 +140,18 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790627284391"></script>
-<script src="layerpitch-notify.js?v=1790627284391"></script>
-<script src="player.js?v=1790627284391"></script>
-<script src="api/supabase-client.js?v=1790627284391"></script>
-<script src="api/auth.js?v=1790627284391"></script>
-<script src="layerpitch-shell.js?v=1790627284391"></script>
-<script src="api/tracks.js?v=1790627284391"></script>
-<script src="api/packs.js?v=1790627284391"></script>
-<script src="api/albums.js?v=1790627284391"></script>
-<script src="api/studio.js?v=1790627284391"></script>
-<script src="api/adreels.js?v=1790627284391"></script>
-<script src="api/projects.js?v=1790627284391"></script>
+<script src="layerpitch-i18n.js?v=1790629048988"></script>
+<script src="layerpitch-notify.js?v=1790629048988"></script>
+<script src="player.js?v=1790629048988"></script>
+<script src="api/supabase-client.js?v=1790629048988"></script>
+<script src="api/auth.js?v=1790629048988"></script>
+<script src="layerpitch-shell.js?v=1790629048988"></script>
+<script src="api/tracks.js?v=1790629048988"></script>
+<script src="api/packs.js?v=1790629048988"></script>
+<script src="api/albums.js?v=1790629048988"></script>
+<script src="api/studio.js?v=1790629048988"></script>
+<script src="api/adreels.js?v=1790629048988"></script>
+<script src="api/projects.js?v=1790629048988"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -496,7 +510,7 @@ function wireComposer(aside) {
     const attachments = [];
     for (const f of S.pending) {
       say('threadMsg', tr('uploadingNamed', { name: f.name }), true);
-      const up = await PJ.upload(projectId, f);
+      const up = await uploadOrReuse(f);
       if (up.error) { say('threadMsg', tr('errorPrefix', { message: f.name + ' : ' + up.error })); $('sendBtn').disabled = false; return; }
       attachments.push({ fileId: up.data.fileId, title: f.name });
     }
@@ -576,6 +590,15 @@ async function renderBoard(panel) {
   renderAddForm();
   const grid = $('grid');
   for (const a of pins) grid.appendChild(await assetCard(a, pins));
+  if (pins.length > 1) {
+    grid.dataset.sortable = 'grid';
+    makeSortable(grid, async (f, t) => {
+      const ids = pins.map(x => x.id); ids.splice(t, 0, ids.splice(f, 1)[0]);
+      const r = await PJ.reorderMoodboard(projectId, ids);
+      if (r.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error }));
+      await reloadContent(); renderPanel(); broadcast('content');
+    });
+  }
   $('autoSnap').onchange = async e => {
     const r = await PJ.setAutoSnapshot(projectId, e.target.value);
     if (r.error) return say('snapMsg', tr('errorPrefix', { message: r.error }));
@@ -625,7 +648,7 @@ async function addItem() {
     const file = $('fFile').files[0];
     if (!file) { say('boardMsg', tr('chooseFile')); $('addBtn').disabled = false; return; }
     say('boardMsg', tr('uploading'), true);
-    const up = await PJ.upload(projectId, file);
+    const up = await uploadOrReuse(file);
     if (up.error) { say('boardMsg', tr('errorPrefix', { message: up.error })); $('addBtn').disabled = false; return; }
     const k = file.type.startsWith('image/') ? 'image' : file.type.startsWith('audio/') ? 'audio' : file.type.startsWith('video/') ? 'video' : 'file';
     payload = { kind: k, fileId: up.data.fileId, title: val('fTitle') || file.name, body: val('fBody'), origin: $('fReference').checked ? 'external' : 'own' };
@@ -667,11 +690,68 @@ function playPreview(el, a) {
   if (p.embedHeight) f.style.height = p.embedHeight + 'px'; else f.style.aspectRatio = '16 / 9';
   btn.replaceWith(f);
 }
+// Réordonner par glisser-déposer : host = conteneur des éléments (attribut data-sortable = list | grid), chaque élément
+// porte une poignée .drag-handle ; onMove(de, vers) reçoit les positions (vers = position finale de l'élément).
+const DRAG_HANDLE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
+const dragHandle = () => `<span class="drag-handle" title="${esc(tr('dragToReorder'))}">${DRAG_HANDLE_SVG}</span>`;
+// Petite vignette pour reconnaître un objet dans une liste à cocher (retour de l'essai : deux images au même nom).
+function assetThumbHtml(a) {
+  const box = 'display:inline-flex;align-items:center;justify-content:center;width:44px;height:30px;border-radius:4px;background:var(--bg);border:1px solid var(--border);overflow:hidden;flex:0 0 auto;font-size:14px';
+  const pv = a.preview && a.preview.thumbnail && /^https:\/\//.test(a.preview.thumbnail) ? a.preview.thumbnail : null;
+  const y = youtubeId(a.url);
+  const src = pv || (y ? `https://i.ytimg.com/vi/${y}/default.jpg` : null);
+  if (src) return `<span style="${box}"><img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover"></span>`;
+  if (a.kind === 'image' && a.fileId) return `<span style="${box}"><img data-thumbfile="${esc(a.fileId)}" alt="" style="width:100%;height:100%;object-fit:cover"></span>`;
+  return `<span style="${box}">${a.kind === 'video' ? '🎬' : a.kind === 'audio' ? '🎧' : a.kind === 'track' ? '♪' : a.kind === 'pack' ? '📦' : '•'}</span>`;
+}
+function fillThumbs(root) { root.querySelectorAll('img[data-thumbfile]').forEach(async img => { const u = await fileUrl(img.dataset.thumbfile); if (u) img.src = u; }); }
+// Fichier déjà envoyé dans le Projet (même nom, même taille) : proposer de réutiliser l'objet existant plutôt qu'une copie.
+async function askReuse(file) {
+  const dup = (S.content.assets || []).find(a => a.fileId && a.fileName === file.name && Number(a.fileSize) === file.size);
+  if (!dup) return null;
+  const ok = await window.LayerPitchNotify.confirm(tr('duplicateFileConfirm', { name: file.name }), { okLabel: tr('reuseFile'), cancelLabel: tr('uploadAnyway') });
+  return ok ? dup : null;
+}
+// Envoi d'un fichier, ou réutilisation de celui déjà dans le Projet (même forme de réponse que PJ.upload) : l'objet
+// existant est alors repris partout (add_project_asset et les pièces jointes retrouvent l'objet par son fichier).
+async function uploadOrReuse(file) {
+  const dup = await askReuse(file);
+  if (dup) return { data: { fileId: dup.fileId, reused: true }, error: null };
+  return PJ.upload(projectId, file);
+}
+function makeSortable(host, onMove) {
+  const grid = host.dataset.sortable === 'grid';
+  const items = () => [...host.children].filter(el => el.querySelector(':scope .drag-handle'));
+  let from = -1;
+  const clear = () => items().forEach(el => el.classList.remove('drop-before', 'drop-after'));
+  host.addEventListener('pointerdown', e => { const h = e.target.closest('.drag-handle'); const it = h && items().find(el => el.contains(h)); if (it) it.draggable = true; });
+  host.addEventListener('dragstart', e => {
+    const it = items().find(el => el === e.target); if (!it) return;
+    from = items().indexOf(it); it.classList.add('dragging'); host.classList.add('is-reordering');
+    e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', String(from)); } catch (x) {}
+  });
+  host.addEventListener('dragover', e => {
+    if (from < 0) return;
+    const it = items().find(el => el.contains(e.target)); if (!it) return;
+    e.preventDefault(); clear();
+    const r = it.getBoundingClientRect();
+    const before = grid ? e.clientX < r.left + r.width / 2 : e.clientY < r.top + r.height / 2;
+    it.classList.add(before ? 'drop-before' : 'drop-after');
+  });
+  host.addEventListener('drop', e => {
+    if (from < 0) return; e.preventDefault();
+    const list = items(); const target = list.find(el => el.classList.contains('drop-before') || el.classList.contains('drop-after'));
+    let to = from;
+    if (target) { to = list.indexOf(target) + (target.classList.contains('drop-after') ? 1 : 0); if (to > from) to--; }
+    const f = from; from = -1; clear();
+    if (to !== f) onMove(f, to);
+  });
+  host.addEventListener('dragend', () => { from = -1; clear(); host.classList.remove('is-reordering'); items().forEach(el => { el.classList.remove('dragging'); el.draggable = false; }); });
+}
 function youtubeId(url) { const m = String(url || '').match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/); return m ? m[1] : null; }
 async function assetCard(a, pins) {
   const el = document.createElement('div');
   el.className = 'item' + (a.starred ? ' pitch' : '');
-  const idx = pins.indexOf(a);
   let media = '';
   if (a.kind === 'image') { const u = await fileUrl(a.fileId); media = u ? `<img src="${esc(u)}" alt="">` : ''; }
   if (a.kind === 'audio') { const u = await fileUrl(a.fileId); media = u ? `<audio controls preload="none" src="${esc(u)}"></audio>` : ''; }
@@ -688,8 +768,7 @@ async function assetCard(a, pins) {
     <div class="meta">${esc(a.authorEmail || '')}</div>
     <div class="item-actions">
       <button class="icon-btn${a.starred ? ' on' : ''}" type="button" data-act="star" title="${esc(tr('pitchToggle'))}">★</button>
-      <button class="icon-btn" type="button" data-act="up" ${idx === 0 ? 'disabled' : ''} title="${esc(tr('moveUp'))}">↑</button>
-      <button class="icon-btn" type="button" data-act="down" ${idx === pins.length - 1 ? 'disabled' : ''} title="${esc(tr('moveDown'))}">↓</button>
+      ${pins.length > 1 ? dragHandle() : ''}
       <button class="icon-btn" type="button" data-act="notes" title="${esc(tr('notesToggle'))}">💬${a.notes ? ' ' + esc(a.notes) : ''}</button>
       <button class="icon-btn" type="button" data-act="unpin" title="${esc(tr('unpin'))}">⊖</button>
       <button class="icon-btn" type="button" data-act="del" title="${esc(tr('deleteFromProject'))}">✕</button>
@@ -702,9 +781,6 @@ async function assetCard(a, pins) {
   if (act('watch')) act('watch').onclick = () => openInVideos(a.id);
   if (act('play')) act('play').onclick = () => playPreview(el, a);
   act('star').onclick = async () => after(await PJ.star(a.id, !a.starred));
-  const move = async d => { const ids = pins.map(x => x.id); const j = idx + d; [ids[idx], ids[j]] = [ids[j], ids[idx]]; after(await PJ.reorderMoodboard(projectId, ids)); };
-  act('up').onclick = () => move(-1);
-  act('down').onclick = () => move(1);
   act('unpin').onclick = async () => after(await PJ.pin(a.id, false));
   act('del').onclick = () => deleteAsset(a);
   act('notes').onclick = () => { S.openNotes[a.id] = !S.openNotes[a.id]; const box = el.querySelector('[data-role="notes"]'); box.hidden = !S.openNotes[a.id]; if (!box.hidden) renderNotes(box, 'asset', a.id, mediaFor(el, a)); };
@@ -815,7 +891,7 @@ async function renderImages(panel) {
     $('iUploadBtn').disabled = true;
     for (const f of files) {
       say('iMsg', tr('uploadingNamed', { name: f.name }), true);
-      const up = await PJ.upload(projectId, f);
+      const up = await uploadOrReuse(f);
       if (up.error) { $('iUploadBtn').disabled = false; return say('iMsg', tr('errorPrefix', { message: f.name + ' : ' + up.error })); }
       const r = await PJ.addAsset(projectId, { kind: 'image', fileId: up.data.fileId, title: f.name, origin: $('iReference').checked ? 'external' : 'own' });
       if (r.error) { $('iUploadBtn').disabled = false; return say('iMsg', tr('errorPrefix', { message: r.error })); }
@@ -870,7 +946,7 @@ function renderVideos(panel) {
   $('vUploadBtn').onclick = async () => {
     const file = $('vFile').files[0]; if (!file) return say('vMsg', tr('chooseFile'));
     $('vUploadBtn').disabled = true; say('vMsg', tr('uploading'), true);
-    const up = await PJ.upload(projectId, file);
+    const up = await uploadOrReuse(file);
     if (up.error) { $('vUploadBtn').disabled = false; return say('vMsg', tr('errorPrefix', { message: up.error })); }
     const r = await PJ.addAsset(projectId, { kind: 'video', fileId: up.data.fileId, title: $('vTitle').value.trim() || file.name });
     if (r.error) { $('vUploadBtn').disabled = false; return say('vMsg', tr('errorPrefix', { message: r.error })); }
@@ -1007,11 +1083,11 @@ async function renderMusic(panel) {
 // Plusieurs vitrines par Projet : publique (joueurs, /vitrine/<nom>) ou éditeur (lien secret sans compte). Blocs au format
 // de l'AdReel, qui pointent vers les objets du Projet ; même moteur d'affichage que les AdReels (reel.js). Tous les
 // membres préparent, les administrateurs publient. Fichiers privés autorisés partout, avec un avertissement (Q7).
-const VITRINE_BLOCK_TYPES = ['header', 'text', 'tracks', 'video', 'photo', 'packs', 'links'];
+const VITRINE_BLOCK_TYPES = ['header', 'text', 'tracks', 'video', 'photo', 'packs', 'links', 'contact'];
 const VITRINE_KINDS = { tracks: ['track', 'audio'], video: ['video'], photo: ['image'], packs: ['pack'] };
 const VITRINE_FONTS = ['default', 'google:Space Grotesk', 'google:Fraunces', 'google:Zilla Slab', 'google:Manrope', 'google:Playfair Display', 'google:DM Serif Display', 'google:JetBrains Mono'];
 const vitrineUrl = v => v.audience === 'publisher'
-  ? (v.secretToken ? `${location.origin}/vitrine.html?k=${encodeURIComponent(v.secretToken)}` : '')
+  ? (v.secretToken ? `${location.origin}/vitrine/${encodeURIComponent(v.slug)}?k=${encodeURIComponent(v.secretToken)}` : '') // le lien secret porte aussi le nom du jeu
   : `${location.origin}/vitrine/${encodeURIComponent(v.slug)}`;
 let vitrineBlockSeq = 0;
 const newBlockId = () => 'b' + Date.now().toString(36) + (vitrineBlockSeq++);
@@ -1102,10 +1178,10 @@ async function renderVitrineEditor(panel) {
       <div class="bar" style="justify-content:space-between"><h2 style="margin:0">${esc(tr(v.id ? 'editVitrine' : 'newVitrine'))}</h2><button class="btn" type="button" id="vBack">${esc(tr('backToList'))}</button></div>
       <div class="bar" style="margin-top:10px"><label class="choice" style="margin:0"><input type="radio" name="vAud" value="players" ${v.audience === 'players' ? 'checked' : ''}> ${esc(tr('audience_players'))}</label>
         <label class="choice" style="margin:0"><input type="radio" name="vAud" value="publisher" ${v.audience === 'publisher' ? 'checked' : ''}> ${esc(tr('audience_publisher'))}</label></div>
-      <p class="hint">${esc(tr(v.audience === 'publisher' ? 'audienceHint_publisher' : 'audienceHint_players'))}</p>
+      <p class="hint">${esc(tr(v.audience === 'publisher' ? 'audienceHint_publisher' : 'audienceHint_players'))}${v.audience === 'players' && S.project.ownerKind === 'composer' ? ' ' + esc(tr('publicCountsAsAdReel')) : ''}</p>
       <label>${esc(tr('vitrineTitleLabel'))}</label><input type="text" id="vTitle2" value="${esc(v.title)}" maxlength="200">
       <label>${esc(tr('vitrineSubtitleLabel'))}</label><input type="text" id="vSub" value="${esc(v.subtitle || '')}" maxlength="300">
-      ${v.audience === 'players' ? `<label>${esc(tr('vitrineAddress'))}</label><div class="bar"><span class="meta">${esc(location.origin)}/vitrine/</span><input type="text" id="vSlug" value="${esc(v.slug || '')}" placeholder="${esc(tr('vitrineAddressAuto'))}" style="flex:1 1 180px"></div>` : ''}
+      <label>${esc(tr('vitrineAddress'))}</label><div class="bar"><span class="meta">${esc(location.origin)}/vitrine/</span><input type="text" id="vSlug" value="${esc(v.slug || '')}" placeholder="${esc(tr(v.audience === 'publisher' ? 'vitrineAddressAutoPublisher' : 'vitrineAddressAuto'))}" style="flex:1 1 180px">${v.audience === 'publisher' ? `<span class="meta">?k=…</span>` : ''}</div>
       <label>${esc(tr('vitrineLogo'))}</label><select id="vLogo"><option value="">${esc(tr('none'))}</option>${images.map(a => `<option value="${esc(a.id)}"${v.logoAssetId === a.id ? ' selected' : ''}>${esc(assetTitle(a))}</option>`).join('')}</select>
       <label>${esc(tr('vitrineDisplay'))}</label><select id="vDisplay"><option value="page"${v.display === 'page' ? ' selected' : ''}>${esc(tr('display_page'))}</option><option value="slides"${v.display === 'slides' ? ' selected' : ''}>${esc(tr('display_slides'))}</option></select>
       <label class="choice" style="margin-top:12px"><input type="checkbox" id="vPub" ${v.published ? 'checked' : ''} ${admin ? '' : 'disabled'}> ${esc(tr('vitrinePublishedLabel'))}${admin ? '' : ' — ' + esc(tr('showcaseAdminOnly'))}</label>
@@ -1115,6 +1191,8 @@ async function renderVitrineEditor(panel) {
       <div style="display:flex;flex-wrap:wrap;gap:4px 18px">${color('bgColor', 'themeBg', '#f5f6f8')}${color('titleColor', 'themeTitle', '#24262b')}${color('contentColor', 'themeText', '#24262b')}${color('sectionLabelColor', 'themeLabels', '#2f80c0')}</div>
       <label>${esc(tr('themeFont'))}</label><select id="vFont">${VITRINE_FONTS.map(f => `<option value="${esc(f)}"${(t.font || 'default') === f ? ' selected' : ''}>${esc(f === 'default' ? tr('fontDefault') : f.replace('google:', ''))}</option>`).join('')}</select>
       <label class="choice" style="margin-top:10px"><input type="checkbox" id="vSep" ${t.separator && t.separator.visible ? 'checked' : ''}> ${esc(tr('themeSeparators'))}</label>
+      <label>${esc(tr('vitrineBgImage'))}</label><div class="bar"><select id="vBg" style="flex:1 1 200px"><option value="">${esc(tr('none'))}</option>${images.map(a => `<option value="${esc(a.id)}"${v.bgAssetId === a.id ? ' selected' : ''}>${esc(assetTitle(a))}</option>`).join('')}</select>
+        <label style="display:flex;align-items:center;gap:6px;margin:0">${esc(tr('bgOpacity'))}<input type="range" id="vBgOp" min="0.05" max="1" step="0.05" value="${esc(t.bgImageOpacity != null ? t.bgImageOpacity : 0.35)}" style="width:120px"></label></div>
     </div>
     <div class="card"><h2>${esc(tr('vitrineBlocks'))}</h2><p class="hint">${esc(tr('vitrineBlocksHint'))}</p>
       <div id="vBlocks"></div>
@@ -1125,10 +1203,11 @@ async function renderVitrineEditor(panel) {
     v.audience = (panel.querySelector('[name="vAud"]:checked') || {}).value || v.audience;
     v.title = $('vTitle2').value; v.subtitle = $('vSub').value;
     if ($('vSlug')) v.slug = $('vSlug').value.trim();
-    v.logoAssetId = $('vLogo').value || null; v.display = $('vDisplay').value; v.published = $('vPub').checked;
+    v.logoAssetId = $('vLogo').value || null; v.bgAssetId = $('vBg').value || null; v.display = $('vDisplay').value; v.published = $('vPub').checked;
     v.theme = Object.assign({}, v.theme);
     panel.querySelectorAll('[data-theme]').forEach(i => { v.theme[i.dataset.theme] = i.value; });
     v.theme.font = $('vFont').value;
+    v.theme.bgImageOpacity = Number($('vBgOp').value);
     v.theme.separator = Object.assign({ color: '#E2E2E6', thickness: 1 }, v.theme.separator || {}, { visible: $('vSep').checked });
   };
   panel.querySelectorAll('[name="vAud"]').forEach(r => r.onchange = () => { collect(); renderVitrineEditor(panel); });
@@ -1148,7 +1227,7 @@ async function renderVitrineEditor(panel) {
   $('vSave').onclick = async () => {
     collect(); syncVitrineBlocks(panel);
     $('vSave').disabled = true;
-    const payload = { id: v.id, audience: v.audience, display: v.display, title: v.title, subtitle: v.subtitle, logoAssetId: v.logoAssetId, slug: v.slug,
+    const payload = { id: v.id, audience: v.audience, display: v.display, title: v.title, subtitle: v.subtitle, logoAssetId: v.logoAssetId, bgAssetId: v.bgAssetId, slug: v.slug,
       published: v.published, theme: v.theme, blocks: v.blocks.map(b => b.type === 'links' ? Object.assign({}, b, { links: (b.links || []).filter(l => l.url) }) : b) };
     const r = await PJ.saveVitrine(projectId, payload);
     $('vSave').disabled = false;
@@ -1167,7 +1246,21 @@ function syncVitrineBlocks(panel) {
     if (b.type === 'text') { b.title = row.querySelector('[data-f="title"]').value; b.content = row.querySelector('[data-f="content"]').value; b.align = row.querySelector('[data-f="align"]').value; }
     if (b.type === 'links') b.links = [...row.querySelectorAll('[data-link]')].map(l => ({ label: l.querySelector('[data-f="label"]').value.trim(), url: l.querySelector('[data-f="url"]').value.trim() }));
     if (b.type === 'photo') b.caption = row.querySelector('[data-f="caption"]').value;
+    // Apparence de ce bloc : seulement les réglages cochés (un bloc sans réglage suit le thème de la vitrine).
+    const ap = {};
+    row.querySelectorAll('[data-ap]').forEach(i => { const on = row.querySelector(`[data-apon="${i.dataset.ap}"]`); if (on && on.checked && i.value) ap[i.dataset.ap] = i.value; });
+    if (Object.keys(ap).length) b.appearance = ap; else delete b.appearance;
   });
+}
+// Réglages d'apparence d'UN bloc (même format que l'AdReel : fond, titres, texte, petits titres, police).
+function blockAppearanceHtml(b) {
+  const ap = b.appearance || {};
+  const row = (key, label, def) => `<label class="choice" style="margin:4px 0"><input type="checkbox" data-apon="${key}" ${ap[key] ? 'checked' : ''}> ${esc(tr(label))}
+    <input type="color" data-ap="${key}" value="${esc(ap[key] || def)}" style="width:40px;padding:0;height:24px"></label>`;
+  return `<details style="margin-top:8px"${Object.keys(ap).length ? ' open' : ''}><summary class="meta" style="cursor:pointer">🎨 ${esc(tr('blockAppearance'))}</summary>
+    <div style="display:flex;flex-wrap:wrap;gap:0 16px">${row('bgColor', 'themeBg', '#ffffff')}${row('titleColor', 'themeTitle', '#24262b')}${row('contentColor', 'themeText', '#24262b')}${row('sectionLabelColor', 'themeLabels', '#2f80c0')}</div>
+    <label class="choice" style="margin:4px 0"><input type="checkbox" data-apon="font" ${ap.font ? 'checked' : ''}> ${esc(tr('themeFont'))}
+      <select data-ap="font" style="max-width:200px">${VITRINE_FONTS.filter(f => f !== 'default').map(f => `<option value="${esc(f)}"${ap.font === f ? ' selected' : ''}>${esc(f.replace('google:', ''))}</option>`).join('')}</select></label></details>`;
 }
 function renderVitrineBlocks(panel) {
   const v = S.vitrineDraft;
@@ -1177,26 +1270,32 @@ function renderVitrineBlocks(panel) {
   host.innerHTML = v.blocks.length ? v.blocks.map((b, i) => {
     let body = '';
     if (b.type === 'header') body = `<div class="meta">${esc(tr('vblockHeaderHint'))}</div>`;
+    if (b.type === 'contact') body = `<div class="meta">${esc(tr('vblockContactHint'))}</div>`;
     if (b.type === 'text') body = `<input type="text" data-f="title" placeholder="${esc(tr('itemTitle'))}" value="${esc(b.title || '')}"><textarea data-f="content" style="margin-top:6px">${esc(b.content || '')}</textarea>
       <select data-f="align" style="max-width:160px;margin-top:6px">${['left', 'center', 'right'].map(x => `<option value="${x}"${(b.align || 'left') === x ? ' selected' : ''}>${esc(tr('align_' + x))}</option>`).join('')}</select>`;
     if (VITRINE_KINDS[b.type]) {
       const pool = assets.filter(a => VITRINE_KINDS[b.type].includes(a.kind));
       const chosen = b.assetIds || [];
-      body = pool.length ? pool.map(a => `<label class="choice"><input type="checkbox" data-pick="${esc(a.id)}" ${chosen.includes(a.id) ? 'checked' : ''}> ${esc(assetTitle(a))}
+      body = pool.length ? pool.map(a => `<label class="choice"><input type="checkbox" data-pick="${esc(a.id)}" ${chosen.includes(a.id) ? 'checked' : ''}> ${assetThumbHtml(a)} ${esc(assetTitle(a))}
           ${isPrivate(a) && v.audience === 'players' && chosen.includes(a.id) ? `<span class="meta" style="color:#b8862e">⚠ ${esc(tr('privateInPublicWarning'))}</span>` : isPrivate(a) ? `<span class="meta">· ${esc(tr('privateFile'))}</span>` : ''}</label>`).join('')
         : `<div class="meta">${esc(tr('vblockNothing_' + b.type))}</div>`;
       if (b.type === 'photo') body += `<input type="text" data-f="caption" placeholder="${esc(tr('photoCaption'))}" value="${esc(b.caption || '')}" style="margin-top:6px">`;
     }
+    body += blockAppearanceHtml(b);
     if (b.type === 'links') body = (b.links || []).map((l, j) => `<div class="bar" data-link="${j}" style="margin-bottom:6px"><input type="text" data-f="label" placeholder="${esc(tr('linkLabel'))}" value="${esc(l.label || '')}" style="flex:1 1 140px"><input type="url" data-f="url" placeholder="https://" value="${esc(l.url || '')}" style="flex:2 1 220px"><button class="icon-btn" type="button" data-dellink="${j}">✕</button></div>`).join('')
       + `<button class="btn" type="button" data-addlink>+ ${esc(tr('addLink'))}</button>`;
     return `<div class="card" data-vb="${esc(b.id)}" style="margin-bottom:8px;padding:10px 12px"><div class="bar" style="justify-content:space-between;margin-bottom:6px"><strong>${esc(tr('vblock_' + b.type))}</strong>
-      <span><button class="icon-btn" type="button" data-bup ${i === 0 ? 'disabled' : ''}>↑</button><button class="icon-btn" type="button" data-bdown ${i === v.blocks.length - 1 ? 'disabled' : ''}>↓</button><button class="icon-btn" type="button" data-bdel>✕</button></span></div>${body}</div>`;
+      <span style="display:inline-flex;gap:4px;align-items:center">${v.blocks.length > 1 ? dragHandle() : ''}<button class="icon-btn" type="button" data-bdel title="${esc(tr('delete'))}">✕</button></span></div>${body}</div>`;
   }).join('') : `<div class="meta">${esc(tr('vblockNone'))}</div>`;
+  fillThumbs(host);
+  host.dataset.sortable = 'list';
+  if (!host._sortable) { // une seule fois : le conteneur reste, seul son contenu est redessiné
+    host._sortable = true;
+    makeSortable(host, (f, t) => { syncVitrineBlocks(panel); const bl = S.vitrineDraft.blocks; bl.splice(t, 0, bl.splice(f, 1)[0]); renderVitrineBlocks(panel); });
+  }
   host.querySelectorAll('[data-vb]').forEach(row => {
     const b = v.blocks.find(x => x.id === row.dataset.vb); const i = v.blocks.indexOf(b);
     const redo = () => { syncVitrineBlocks(panel); renderVitrineBlocks(panel); };
-    row.querySelector('[data-bup]').onclick = () => { syncVitrineBlocks(panel); v.blocks.splice(i - 1, 0, v.blocks.splice(i, 1)[0]); renderVitrineBlocks(panel); };
-    row.querySelector('[data-bdown]').onclick = () => { syncVitrineBlocks(panel); v.blocks.splice(i + 1, 0, v.blocks.splice(i, 1)[0]); renderVitrineBlocks(panel); };
     row.querySelector('[data-bdel]').onclick = () => { syncVitrineBlocks(panel); v.blocks.splice(i, 1); renderVitrineBlocks(panel); };
     // Ordre des objets = ordre dans lequel on les coche.
     row.querySelectorAll('[data-pick]').forEach(c => c.onchange = () => { const id = c.dataset.pick; b.assetIds = (b.assetIds || []).filter(x => x !== id); if (c.checked) b.assetIds.push(id); redo(); });

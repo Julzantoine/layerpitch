@@ -51,7 +51,7 @@ function reelApplyTheme(theme, separator, container, opts) {
 
 // Dessine les blocs dans le conteneur, puis applique les réglages d'apparence par bloc (Starter et Pro) et par élément
 // (Pro). ctx : { profile, tier, customFonts, testimonials, trackIds, trackOverrides, libraryById, packsByTrackId,
-// packsById, collectionsById, sfxById, socials, noAiCertifiedGlobal }.
+// packsById, collectionsById, sfxById, socials, noAiCertifiedGlobal, onContactSubmit? }.
 function reelRenderBlocks(container, blocks, ctx) {
   const { profile, tier } = ctx;
   blocks.forEach(block => {
@@ -67,7 +67,7 @@ function reelRenderBlocks(container, blocks, ctx) {
       case 'collections': renderCollectionsBlockItem(container, block, ctx.collectionsById); break;
       case 'sfx': renderSfxBlockItem(container, block, ctx.sfxById); break;
       case 'socials': renderSocialsBlockItem(container, block, ctx.socials); break;
-      case 'contact': renderContactBlockItem(container, profile); break;
+      case 'contact': renderContactBlockItem(container, profile, ctx.onContactSubmit); break;
       case 'links': renderLinksBlockItem(container, block); break;
       case 'audio': renderAudioBlockItem(container, block); break;
       case 'tracks': {

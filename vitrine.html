@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LayerPitch</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="player.css?v=1790627284391">
-<link rel="stylesheet" href="reel.css?v=1790627284391">
+<link rel="stylesheet" href="player.css?v=1790629048988">
+<link rel="stylesheet" href="reel.css?v=1790629048988">
 <style>
   /* Propre aux vitrines (le reste vient de reel.css, comme un AdReel). */
   .vitrine-notice { max-width: 760px; margin: 0 auto 18px; padding: 8px 14px; border-radius: 8px; background: var(--bg-card, #fff); border: 1px dashed var(--border); font-size: 13px; color: var(--text); }
@@ -38,14 +38,14 @@
 <div class="slides-count" id="slidesCount"></div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790627284391"></script>
-<script src="public-page.js?v=1790627284391"></script>
-<script src="player.js?v=1790627284391"></script>
-<script src="layerpitch-social-icons.js?v=1790627284391"></script>
-<script src="reel.js?v=1790627284391"></script>
-<script src="api/supabase-client.js?v=1790627284391"></script>
-<script src="api/tracks.js?v=1790627284391"></script>
-<script src="api/projects.js?v=1790627284391"></script>
+<script src="layerpitch-i18n.js?v=1790629048988"></script>
+<script src="public-page.js?v=1790629048988"></script>
+<script src="player.js?v=1790629048988"></script>
+<script src="layerpitch-social-icons.js?v=1790629048988"></script>
+<script src="reel.js?v=1790629048988"></script>
+<script src="api/supabase-client.js?v=1790629048988"></script>
+<script src="api/tracks.js?v=1790629048988"></script>
+<script src="api/projects.js?v=1790629048988"></script>
 <script>
 // vitrine.html — vitrine d'un Projet (espace Projet, étape 6, 28/09 ; cadrage 2026-09-28-cadrage-reserve-projet-et-vitrines.md
 // §4 et §8). Même moteur d'affichage que les AdReels (reel.js : thème, blocs, apparence), données du Projet :
@@ -110,7 +110,7 @@ async function loadPacks(ids) {
       trackIds.push(...ids);
       if (ids.length) blocks.push({ id, type: 'tracks', trackIds: ids, appearance: b.appearance });
       const files = list.filter(a => a.kind === 'audio' && signedUrls[a.fileId]).map(a => ({ title: a.title, url: signedUrls[a.fileId] }));
-      if (files.length) blocks.push({ id: id + '-audio', type: 'audio', files });
+      if (files.length) blocks.push({ id: id + '-audio', type: 'audio', files, appearance: b.appearance });
     } else if (b.type === 'video') {
       blocks.push({ id, type: 'video', appearance: b.appearance, videos: list.map(a => a.fileId
         ? { title: a.title, source: 'library', url: signedUrls[a.fileId] || '' }
@@ -128,14 +128,22 @@ async function loadPacks(ids) {
   ]);
   const libraryById = Object.fromEntries((tracksRes.tracks || []).map(t => [t.id, t]));
   const logo = v.logoAssetId && assets[v.logoAssetId] && assets[v.logoAssetId].fileId ? 'vf:' + assets[v.logoAssetId].fileId : null;
-  const profile = { title: v.title, subtitle: v.subtitle, logo, theme: v.theme && Object.keys(v.theme).length ? v.theme : null };
+  // Image de fond : une image du Projet (bgAssetId), lue par URL signée comme le logo.
+  const bgFile = v.bgAssetId && assets[v.bgAssetId] && assets[v.bgAssetId].fileId;
+  const themeIn = Object.assign({}, v.theme || {}, bgFile ? { bgImage: 'vf:' + bgFile } : {});
+  const profile = { title: v.title, subtitle: v.subtitle, logo, theme: Object.keys(themeIn).length ? themeIn : null };
   // Apparence complète pour toutes les vitrines (décision Q8 du 28/09) : même rendu que le palier le plus haut.
   const tier = 'pro';
   container.innerHTML = '';
   const { theme, separator } = reelResolveTheme(profile, tier);
   reelApplyTheme(theme, separator, container, { tier, blocks, customFonts: [] });
   window.LayerPlayerCore.setSeqMapDensity('roomy');
-  reelRenderBlocks(container, blocks, { profile, tier, customFonts: [], libraryById, packsByTrackId: {}, packsById, collectionsById: {}, sfxById: {}, socials: [] });
+  // Bloc Contact : le message du visiteur arrive dans la discussion du Projet (submit_vitrine_message).
+  const onContactSubmit = async ({ name, email, message }) => {
+    const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('submit_vitrine_message', { p_vitrine_id: v.id, p_name: name, p_email: email, p_message: message, p_token: token || null });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  };
+  reelRenderBlocks(container, blocks, { profile, tier, customFonts: [], libraryById, packsByTrackId: {}, packsById, collectionsById: {}, sfxById: {}, socials: [], onContactSubmit });
   if (!v.published) document.getElementById('notice').innerHTML = `<div class="vitrine-notice">${escapeHtml(tr(v.audience === 'publisher' ? 'vitrineSecretNotice' : 'showcaseDraftNotice'))}</div>`;
   // Mention « Présenté avec LayerPitch » : toujours, discrète (décision Q9).
   document.getElementById('foot').innerHTML = `${escapeHtml(tr('showcaseFooter'))} <a href="https://layerpitch.com" target="_blank" rel="noopener">LayerPitch</a>`;

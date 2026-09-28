@@ -1,9 +1,11 @@
 const LAYERPITCH_FUNCTIONS_URL = 'https://ypygllyjfynrnvapufow.supabase.co/functions/v1';
 const LAYERPITCH_ANON_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
 
-function renderContactBlockItem(container, profile) {
+// onSubmit (facultatif, vitrines de Projet, 28/09) : la page fournit elle-même l'envoi ({ name, email, message } ->
+// { ok, error }) ; sans lui, comportement de l'AdReel (relais submit-contact-message vers l'e-mail du compositeur).
+function renderContactBlockItem(container, profile, onSubmit) {
   const hasContactEmail = profile && profile.contactEmail && profile.contactEmail.trim();
-  if (!hasContactEmail) return; // pas configuré côté backstage : ce bloc ne s'affiche simplement pas
+  if (!hasContactEmail && !onSubmit) return; // pas configuré côté backstage : ce bloc ne s'affiche simplement pas
   const el = section(tr('contactSection'), '');
   el.innerHTML += `
     <form data-role="contactForm" class="contact-form">
@@ -29,6 +31,12 @@ function renderContactBlockItem(container, profile) {
     try {
       const adReelId = (window.__lpTrackContext && window.__lpTrackContext.id) || 'main';
       const formData = new FormData(form);
+      if (onSubmit) {
+        const r = await onSubmit({ name: formData.get('name'), email: formData.get('email'), message: formData.get('message') });
+        if (r && r.ok) { trackPublicEvent('contact_submit', {}); form.innerHTML = `<div class="contact-form-status success">${tr('sent')}</div>`; }
+        else { statusEl.textContent = (r && r.error) || tr('genericError'); statusEl.className = 'contact-form-status error'; submitBtn.disabled = false; }
+        return;
+      }
       const res = await fetch(`${LAYERPITCH_FUNCTIONS_URL}/submit-contact-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
