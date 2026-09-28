@@ -54,5 +54,25 @@
     return { ok: true, error: null };
   }
 
-  window.LayerPitchSubscriptions = { subscribeToPlan, choosePlanFree, getTrialStatus, setMyPreviewTier };
+  // « Gérer mon abonnement » (28/09) : ouvre le portail client Stripe (résilier, changer de palier, carte, reçus) via
+  // l'Edge Function create-billing-portal-session. role : 'composer' (défaut) ou 'studio' (propriétaire seulement).
+  async function openBillingPortal(role, returnUrl) {
+    const { data, error } = await getClient().functions.invoke('create-billing-portal-session', {
+      body: { role: role === 'studio' ? 'studio' : 'composer', returnUrl: returnUrl || window.location.href },
+    });
+    if (error) return { ok: false, error: await window.LayerPitchAuth.describeFunctionError(error) };
+    if (!data || !data.url) return { ok: false, error: data && data.error ? data.error : 'Réponse inattendue.' };
+    window.location.href = data.url;
+    return { ok: true };
+  }
+
+  // État des abonnements du compte connecté (RPC my_billing) : { composer: {plan, active, cancelAt, canManage} | null,
+  // studio: {plan, active, cancelAt, isOwner, canManage} | null }.
+  async function myBilling() {
+    const { data, error } = await getClient().rpc('my_billing');
+    if (error) return { billing: null, error: error.message };
+    return { billing: data || {}, error: null };
+  }
+
+  window.LayerPitchSubscriptions = { subscribeToPlan, choosePlanFree, getTrialStatus, setMyPreviewTier, openBillingPortal, myBilling };
 })();

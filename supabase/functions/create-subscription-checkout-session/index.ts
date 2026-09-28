@@ -10,12 +10,14 @@
 // base (composer_profiles.trial_ends_at) avant même que Stripe n'entre en jeu -- souscrire ici
 // signifie déjà avoir choisi de payer, l'abonnement facture donc immédiatement.
 //
-// Le prix vient de Postgres (jamais du client), même principe que create-checkout-session --
-// price_data calculé dynamiquement plutôt qu'un Prix Stripe pré-créé, exactement le même
-// mécanisme déjà en place et vérifié en prod pour l'achat unitaire.
+// Le prix vient de Postgres (jamais du client). Depuis le 28/09 (portail client), il passe par un Prix Stripe
+// enregistré, créé ou mis à jour automatiquement depuis la table plans (_shared/stripe-plans.ts) : le portail ne sait
+// changer de palier qu'entre des Prix enregistrés. Un seul abonnement par profil : s'il y en a déjà un actif, la
+// fonction refuse et renvoie vers « Gérer mon abonnement » (sinon un changement de palier en créait un second).
 
 import Stripe from 'npm:stripe@22.6.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { ensurePrice, type PlanRow } from '../_shared/stripe-plans.ts';
 
 // Autorise uniquement les origines LayerPitch connues plutôt que '*' -- ces fonctions manipulent
 // paiement/facturation/média/admin ; un JWT qui fuit ailleurs ne doit pas pouvoir être rejoué
@@ -95,7 +97,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     const { data: quota, error: quotaError } = await adminClient
       .from('plans')
-      .select('code, public_name, price_eur_cents_monthly, price_eur_cents_yearly')
+      .select('code, kind, public_name, price_eur_cents_monthly, price_eur_cents_yearly')
       .eq('code', plan).eq('kind', isStudio ? 'studio' : 'composer')
       .maybeSingle();
     if (quotaError || !quota) {
@@ -114,6 +116,10 @@ Deno.serve(async (req) => {
     // ailleurs dans le parcours d'inscription (bienvenue.html), mais on ne le suppose pas ici :
     // un abonnement doit toujours pouvoir s'associer à un vrai composer_profile.
     let studioId: string | null = null;
+    let customerId: string | null = null; // client Stripe déjà connu : réutilisé (un seul client, un seul historique de reçus)
+    const alreadySubscribed = () => new Response(JSON.stringify({
+      error: 'Tu as déjà un abonnement en cours : pour changer de palier ou résilier, utilise « Gérer mon abonnement ».',
+    }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     if (isStudio) {
       // Seul le PROPRIÉTAIRE du studio paie (D37) : un membre d'équipe ne peut pas souscrire au nom du studio.
       const { data: studio, error: studioError } = await callerClient.rpc('my_studio');
@@ -123,6 +129,9 @@ Deno.serve(async (req) => {
         });
       }
       studioId = studio.id;
+      const { data: sp } = await adminClient.from('studio_profiles').select('subscription_status, stripe_customer_id').eq('id', studioId).maybeSingle();
+      if (sp?.subscription_status === 'active') return alreadySubscribed();
+      customerId = sp?.stripe_customer_id || null;
     } else {
       const { data: composerId, error: composerError } = await callerClient.rpc('ensure_composer_profile');
       if (composerError || !composerId) {
@@ -130,6 +139,9 @@ Deno.serve(async (req) => {
           status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+      const { data: cp } = await adminClient.from('composer_profiles').select('subscription_status, stripe_customer_id').eq('profile_id', composerAuthId).maybeSingle();
+      if (cp?.subscription_status === 'active') return alreadySubscribed();
+      customerId = cp?.stripe_customer_id || null;
     }
     // Bundle (D19) : compositeur à −50 % tant que son compte a un palier studio payant actif. Coupon Stripe créé une fois
     // dans le tableau de bord (50 %, durée « forever »), id dans le secret STRIPE_BUNDLE_COUPON_ID. Stripe refuse de
@@ -147,6 +159,7 @@ Deno.serve(async (req) => {
     // apiVersion explicite requis ≥ 2025-03-31.basil pour Managed Payments -- voir
     // create-checkout-session pour le détail.
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2025-03-31.basil' });
+    const priceId = await ensurePrice(stripe, quota as PlanRow, interval);
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       // Code de taxe vérifié contre la documentation Stripe (catégorie "Software as a service"),
@@ -154,18 +167,8 @@ Deno.serve(async (req) => {
       // numérique définitif, incorrect pour un abonnement récurrent. txcd_10103001 = usage
       // professionnel (les compositeurs utilisent LayerPitch pour leur activité, pas en usage
       // personnel) -- la distinction pro/perso n'a d'effet que sur les ventes US.
-      line_items: [{
-        price_data: {
-          currency: 'eur',
-          product_data: {
-            name: `LayerPitch ${isStudio ? 'Studio' : 'Compositeur'} — ${quota.public_name} (${interval === 'month' ? 'mensuel' : 'annuel'})`,
-            tax_code: 'txcd_10103001',
-          },
-          unit_amount: unitAmount,
-          recurring: { interval },
-        },
-        quantity: 1,
-      }],
+      line_items: [{ price: priceId, quantity: 1 }],
+      ...(customerId ? { customer: customerId } : {}),
       ...(bundle ? { discounts: [{ coupon: bundleCoupon! }] } : { allow_promotion_codes: true }),
       client_reference_id: composerAuthId,
       // Métadonnées sur la SESSION (lues par le webhook à checkout.session.completed) ET sur l'abonnement (relues aux

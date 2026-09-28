@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Espace studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790599608937">
+<link rel="stylesheet" href="player.css?v=1790600326048">
 <style>
   :root {
     --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
@@ -71,16 +71,16 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790599608937"></script>
-<script src="layerpitch-notify.js?v=1790599608937"></script>
-<script src="player.js?v=1790599608937"></script>
-<script src="api/supabase-client.js?v=1790599608937"></script>
-<script src="api/auth.js?v=1790599608937"></script>
-<script src="api/purchases.js?v=1790599608937"></script>
-<script src="api/tracks.js?v=1790599608937"></script>
-<script src="api/sfx.js?v=1790599608937"></script>
-<script src="api/subscriptions.js?v=1790599608937"></script>
-<script src="api/studio.js?v=1790599608937"></script>
+<script src="layerpitch-i18n.js?v=1790600326048"></script>
+<script src="layerpitch-notify.js?v=1790600326048"></script>
+<script src="player.js?v=1790600326048"></script>
+<script src="api/supabase-client.js?v=1790600326048"></script>
+<script src="api/auth.js?v=1790600326048"></script>
+<script src="api/purchases.js?v=1790600326048"></script>
+<script src="api/tracks.js?v=1790600326048"></script>
+<script src="api/sfx.js?v=1790600326048"></script>
+<script src="api/subscriptions.js?v=1790600326048"></script>
+<script src="api/studio.js?v=1790600326048"></script>
 <script>
 // studio.html — Espace studio (chantier profils et permissions, étape 3, 28/09 ; D2, D9, D13, D33 du cadrage
 // layerpitch-docs/2026-09-27-cadrage-profils-permissions.md). Espace DÉDIÉ au studio, distinct du Backstage compositeur ;
@@ -471,14 +471,32 @@ async function renderCredits() {
 // Palier (D16) : Indie / AA en libre-service (propriétaire seulement), AAA sur devis.
 async function renderUpgrade() {
   const box = $('upgradeCard'); if (!box) return;
-  const planEnt = Object.values(state.ent).find(e => e.kind === 'studio');
-  const current = planEnt ? planEnt.plan : 'solodev';
   const team = state.team;
   const isOwner = !team || team.isOwner;
+  const { billing } = await LayerPitchSubscriptions.myBilling();
+  const sub = billing && billing.studio;
+  // Abonnement en cours : un seul abonnement par studio ; changer de palier, résilier, carte et reçus passent par le
+  // portail client Stripe (28/09). Sinon : souscrire (Indie / AA en libre-service, AAA sur devis).
+  if (sub && sub.active) {
+    const cancelLine = sub.cancelAt ? `<p class="hint">${esc(tr('subscriptionEnds', { date: new Date(sub.cancelAt).toLocaleDateString(pageLang) }))}</p>` : '';
+    box.innerHTML = `<h2>${esc(tr('subscriptionCardTitle'))}</h2>
+      <p class="hint">${esc(tr('subscriptionCurrent', { plan: PLAN_NAMES[sub.plan] || sub.plan }))} <a href="./tarifs.html?lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('pricingLink'))}</a></p>
+      ${cancelLine}
+      ${sub.canManage ? `<button class="btn primary" type="button" id="manageBtn">${esc(tr('manageSubscription'))}</button>
+        <p class="hint" style="margin-top:8px">${esc(tr('manageSubscriptionHint'))}</p>` : `<p class="hint">${esc(tr('upgradeOwnerOnly'))}</p>`}
+      <div class="msg" id="upgradeMsg"></div>`;
+    const mb = $('manageBtn');
+    if (mb) mb.onclick = async () => {
+      mb.disabled = true;
+      const r = await LayerPitchSubscriptions.openBillingPortal('studio', location.origin + '/studio.html');
+      if (!r.ok) { $('upgradeMsg').textContent = tr('errorPrefix', { message: r.error }); $('upgradeMsg').className = 'msg err'; mb.disabled = false; }
+    };
+    return;
+  }
   box.innerHTML = `<h2>${esc(tr('upgradeTitle'))}</h2><p class="hint">${esc(tr('upgradeIntro'))} <a href="./tarifs.html?lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('pricingLink'))}</a></p>
     ${isOwner ? `<div style="display:flex;flex-wrap:wrap;gap:8px">
-      ${['indie', 'aa'].map(p => `<button class="btn${p === current ? '' : ' primary'}" type="button" data-plan="${p}" data-interval="month" ${p === current ? 'disabled' : ''}>${esc(tr('upgradeTo', { plan: PLAN_NAMES[p], period: tr('monthly') }))}</button>
-        <button class="btn" type="button" data-plan="${p}" data-interval="year" ${p === current ? 'disabled' : ''}>${esc(tr('upgradeTo', { plan: PLAN_NAMES[p], period: tr('yearly') }))}</button>`).join('')}
+      ${['indie', 'aa'].map(p => `<button class="btn primary" type="button" data-plan="${p}" data-interval="month">${esc(tr('upgradeTo', { plan: PLAN_NAMES[p], period: tr('monthly') }))}</button>
+        <button class="btn" type="button" data-plan="${p}" data-interval="year">${esc(tr('upgradeTo', { plan: PLAN_NAMES[p], period: tr('yearly') }))}</button>`).join('')}
       <a class="btn" href="mailto:contact@layerpitch.com?subject=LayerPitch%20AAA">${esc(tr('aaaContact'))}</a></div>` : `<p class="hint">${esc(tr('upgradeOwnerOnly'))}</p>`}
     <div class="msg" id="upgradeMsg"></div>`;
   box.querySelectorAll('[data-plan]').forEach(b => b.onclick = async () => {

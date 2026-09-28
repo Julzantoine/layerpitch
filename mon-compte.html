@@ -47,15 +47,15 @@
   <div id="content"></div>
 </div>
 
-<script src="layerpitch-i18n.js?v=1790599608937"></script>
-<script src="layerpitch-notify.js?v=1790599608937"></script>
+<script src="layerpitch-i18n.js?v=1790600326048"></script>
+<script src="layerpitch-notify.js?v=1790600326048"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1790599608937"></script>
-<script src="api/auth.js?v=1790599608937"></script>
-<script src="api/subscriptions.js?v=1790599608937"></script>
-<script src="api/notification-prefs.js?v=1790599608937"></script>
-<script src="api/connect.js?v=1790599608937"></script>
-<script src="api/invoices.js?v=1790599608937"></script>
+<script src="api/supabase-client.js?v=1790600326048"></script>
+<script src="api/auth.js?v=1790600326048"></script>
+<script src="api/subscriptions.js?v=1790600326048"></script>
+<script src="api/notification-prefs.js?v=1790600326048"></script>
+<script src="api/connect.js?v=1790600326048"></script>
+<script src="api/invoices.js?v=1790600326048"></script>
 <script>
 const content = document.getElementById('content');
 
@@ -202,6 +202,20 @@ async function subscriptionCardHtml() {
     } else {
       statusText = tr('currentPlanStatus', { plan: planLabel(status.plan) });
     }
+  }
+  // Abonnement payé en cours (28/09) : un seul abonnement ; changer de palier, résilier, carte, reçus = portail Stripe.
+  const { billing } = await LayerPitchSubscriptions.myBilling();
+  const sub = billing && billing.composer;
+  if (sub && sub.active) {
+    return `
+    <div class="card">
+      <h2>${tr('subscriptionTitle')}</h2>
+      <div class="status" id="subscriptionStatus">${tr('currentPlanStatus', { plan: planLabel(sub.plan) })}</div>
+      ${sub.cancelAt ? `<div class="hint">${tr('composerSubscriptionEnds', { date: new Date(sub.cancelAt).toLocaleDateString(currentLang()) })}</div>` : ''}
+      ${sub.canManage ? `<div class="actions"><button class="btn primary" id="btnManageSubscription" type="button">${tr('manageSubscription')}</button></div>
+      <div class="hint">${tr('manageSubscriptionHint')}</div>` : ''}
+      <div class="msg" id="subscriptionMsg"></div>
+    </div>`;
   }
   const disabledTitle = tr('planDisabledTitle');
   return `
@@ -357,6 +371,12 @@ async function invoicesCardHtml() {
 }
 
 function wireSubscriptionCard() {
+  const manage = document.getElementById('btnManageSubscription');
+  if (manage) manage.addEventListener('click', async () => {
+    manage.disabled = true;
+    const { ok, error } = await LayerPitchSubscriptions.openBillingPortal('composer', window.location.origin + '/mon-compte.html');
+    if (!ok) { document.getElementById('subscriptionMsg').textContent = tr('errorPrefix', { message: error }); manage.disabled = false; }
+  });
   const planButtons = [
     { id: 'btnPlanFree', plan: 'free', interval: null },
     { id: 'btnPlanStarterMonth', plan: 'starter', interval: 'month' },

@@ -32,6 +32,7 @@ import Stripe from 'npm:stripe@22.6.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
+import { parseLookupKey, SELF_SERVE } from '../_shared/stripe-plans.ts';
 
 // ---- Facturation légale : calcul TVA. Depuis le 10 septembre, hybride : Stripe Tax pour les
 // compositeurs assujettis (voir resolveStripeComputedVat plus bas), franchise en base gérée à part
@@ -260,7 +261,7 @@ async function applyBundleForStudio(adminClient: ReturnType<typeof createClient>
   const ids = (accounts || []).map((a: { profile_id: string }) => a.profile_id);
   if (!ids.length) return;
   const { data: composers } = await adminClient.from('composer_profiles')
-    .select('id, profile_id, stripe_subscription_id, bundle_discount_active').in('profile_id', ids).not('stripe_subscription_id', 'is', null);
+    .select('id, profile_id, stripe_subscription_id, bundle_discount_active').in('profile_id', ids).eq('subscription_status', 'active').not('stripe_subscription_id', 'is', null);
   for (const c of composers || []) {
     if (!!c.bundle_discount_active === active) continue;
     // Retrait : un autre studio payant ne peut pas exister pour ce compte (un compte = un seul studio), on retire donc.
@@ -435,7 +436,7 @@ Deno.serve(async (req) => {
         if (studioId && (plan === 'indie' || plan === 'aa')) {
           const { error: studioError } = await adminClient.from('studio_profiles').update({
             plan, subscription_status: 'active', stripe_subscription_id: session.subscription as string,
-            stripe_customer_id: session.customer as string,
+            stripe_customer_id: session.customer as string, subscription_cancel_at: null,
           }).eq('id', studioId);
           if (studioError) {
             console.error('studio_profiles plan update failed:', studioError.message);
@@ -450,7 +451,10 @@ Deno.serve(async (req) => {
       if (composerAuthId && (plan === 'starter' || plan === 'pro')) {
         const { error: planError } = await adminClient
           .from('composer_profiles')
-          .update({ plan, stripe_subscription_id: session.subscription as string, bundle_discount_active: session.metadata?.bundle === '1' })
+          .update({
+            plan, stripe_subscription_id: session.subscription as string, bundle_discount_active: session.metadata?.bundle === '1',
+            subscription_status: 'active', stripe_customer_id: session.customer as string, subscription_cancel_at: null,
+          })
           .eq('profile_id', composerAuthId);
         if (planError) {
           console.error('composer_profiles.plan update failed:', planError.message);
@@ -542,6 +546,13 @@ Deno.serve(async (req) => {
         const periodStart = line?.period?.start ? new Date(line.period.start * 1000) : new Date();
         const periodEnd = line?.period?.end ? new Date(line.period.end * 1000) : null;
         await adminClient.from('studio_profiles').update({ subscription_status: 'active', subscription_period_end: periodEnd?.toISOString() || null }).eq('id', studio.id);
+        // Dotation seulement aux vraies échéances (souscription, renouvellement). Un changement de palier dans le portail
+        // produit aussi une facture (prorata) : sans ce filtre, chaque aller-retour Indie ↔ AA redonnerait un mois de
+        // crédits. La montée de palier est traitée à customer.subscription.updated (différence, une fois par période).
+        const reason = (invoice as { billing_reason?: string }).billing_reason;
+        if (reason && reason !== 'subscription_create' && reason !== 'subscription_cycle') {
+          return new Response(JSON.stringify({ received: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
         const { error: grantError } = await adminClient.rpc('grant_studio_credits', { p_studio_id: studio.id, p_period: periodStart.toISOString().slice(0, 10) });
         if (grantError) {
           console.error('grant_studio_credits failed:', grantError.message);
@@ -549,6 +560,50 @@ Deno.serve(async (req) => {
         }
       }
     }
+  }
+
+  // Changement fait dans le portail client (28/09) : palier (prix LayerPitch repéré par sa lookup_key) et résiliation
+  // programmée (l'abonnement reste actif jusqu'à la fin de la période payée, puis customer.subscription.deleted).
+  if (event.type === 'customer.subscription.updated') {
+    const sub = event.data.object as Stripe.Subscription;
+    const item = sub.items?.data?.[0];
+    const kind = sub.metadata?.kind === 'studio' ? 'studio' : sub.metadata?.composerAuthId ? 'composer' : null;
+    const parsed = parseLookupKey(item?.price?.lookup_key);
+    const newPlan = kind && parsed && parsed.kind === kind && SELF_SERVE[kind].includes(parsed.code) ? parsed.code : null;
+    const live = ['active', 'trialing', 'past_due'].includes(sub.status);
+    // deno-lint-ignore no-explicit-any -- l'emplacement des dates de période varie selon la version de l'API
+    const anySub = sub as any;
+    const periodEnd = item?.current_period_end ?? anySub.current_period_end;
+    const periodStart = item?.current_period_start ?? anySub.current_period_start;
+    const cancelAtSec = sub.cancel_at || (sub.cancel_at_period_end ? periodEnd : null);
+    const cancelAt = cancelAtSec ? new Date(cancelAtSec * 1000).toISOString() : null;
+    const fail = (what: string, message: string) => {
+      console.error(`${what} (subscription.updated) failed:`, message);
+      return new Response(JSON.stringify({ error: message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    };
+    if (kind === 'studio') {
+      const { data: sp } = await adminClient.from('studio_profiles').select('id, plan, subscription_status')
+        .eq('id', sub.metadata.studioId).maybeSingle();
+      if (sp) {
+        const { error } = await adminClient.from('studio_profiles').update({
+          subscription_cancel_at: cancelAt, ...(newPlan && live ? { plan: newPlan } : {}),
+        }).eq('id', sp.id);
+        if (error) return fail('studio_profiles', error.message);
+        // Montée de palier (Indie → AA) : la différence de crédits du mois, tout de suite, une fois par période.
+        if (newPlan && live && sp.subscription_status === 'active' && SELF_SERVE.studio.includes(sp.plan) && sp.plan !== newPlan && periodStart) {
+          const { error: upError } = await adminClient.rpc('grant_studio_upgrade_credits', {
+            p_studio_id: sp.id, p_from_plan: sp.plan, p_to_plan: newPlan, p_period: new Date(periodStart * 1000).toISOString().slice(0, 10),
+          });
+          if (upError) return fail('grant_studio_upgrade_credits', upError.message);
+        }
+      }
+    } else if (kind === 'composer') {
+      const { error } = await adminClient.from('composer_profiles').update({
+        subscription_cancel_at: cancelAt, ...(newPlan && live ? { plan: newPlan } : {}),
+      }).eq('profile_id', sub.metadata.composerAuthId);
+      if (error) return fail('composer_profiles', error.message);
+    }
+    return new Response(JSON.stringify({ received: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   }
 
   if (event.type === 'customer.subscription.deleted') {
@@ -559,7 +614,7 @@ Deno.serve(async (req) => {
       // deno-lint-ignore no-explicit-any
       const end = (subscription as any).current_period_end || (subscription as any).items?.data?.[0]?.current_period_end;
       const { error: studioCancelError } = await adminClient.from('studio_profiles').update({
-        plan: 'solodev', subscription_status: 'canceled', subscription_period_end: end ? new Date(end * 1000).toISOString() : new Date().toISOString(),
+        plan: 'solodev', subscription_status: 'canceled', subscription_cancel_at: null, subscription_period_end: end ? new Date(end * 1000).toISOString() : new Date().toISOString(),
       }).eq('id', subscription.metadata.studioId);
       if (studioCancelError) {
         console.error('studio_profiles cancel failed:', studioCancelError.message);
@@ -572,7 +627,7 @@ Deno.serve(async (req) => {
     if (composerAuthId) {
       const { error: cancelError } = await adminClient
         .from('composer_profiles')
-        .update({ plan: 'free' })
+        .update({ plan: 'free', subscription_status: 'canceled', subscription_cancel_at: null, bundle_discount_active: false })
         .eq('profile_id', composerAuthId);
       if (cancelError) {
         console.error('composer_profiles plan reset failed:', cancelError.message);
