@@ -135,6 +135,24 @@
   await q(`select public.mark_project_notifications_read($1)`, [ps]);
   check('notifications marquées lues', (await val(`select public.my_project_notifications(true)`)).length === 0);
 
+  // Tchat (étape 3, migration 20260928150000) : pièces jointes = objets de la réserve, « Ranger dans… »
+  await as(3);
+  const fimg = await val(`select public.reserve_project_file($1, 'croquis.png', 1000)`, [ps]);
+  check('message vide sans pièce jointe : refusé', await fails(`select public.post_project_message($1, '  ')`, [ps], /vide/));
+  check('pièce jointe pas encore envoyée : refusée', await fails(`select public.post_project_message($1, '', $2::jsonb)`, [ps, JSON.stringify([{ fileId: fimg.fileId }])], /introuvable/));
+  await q(`select public.complete_project_file($1)`, [fimg.fileId]);
+  const mImg = await val(`select public.post_project_message($1, '', $2::jsonb)`, [ps, JSON.stringify([{ fileId: fimg.fileId }])]);
+  const lastMsgs = await val(`select public.list_project_messages($1)`, [ps]);
+  const att = lastMsgs.find(m => m.id === mImg).attachments;
+  check('message avec seulement une image : l\'image devient un objet du Projet (ébauche maison, depuis le message)', att.length === 1 && att[0].kind === 'image'
+    && (await val(`select from_message_id from public.project_assets where id = $1`, [att[0].assetId])) === mImg);
+  const mLink = await val(`select public.post_project_message($1, 'Écoute ça https://soundcloud.com/x/y')`, [ps]);
+  const ranged = await val(`select public.add_project_asset($1, $2::jsonb, true)`, [ps, JSON.stringify({ kind: 'link', url: 'https://soundcloud.com/x/y', fromMessageId: mLink })]);
+  check('« Ranger dans : Moodboard » : le lien du message devient un objet épinglé', (await val(`select public.get_project_content($1)`, [ps])).moodboard.includes(ranged.id));
+  check('ranger depuis le message d\'un autre Projet : refusé', await fails(`select public.add_project_asset($1, $2::jsonb)`, [ps, JSON.stringify({ kind: 'link', url: 'https://a.fr/b', fromMessageId: '00000000-0000-0000-0000-000000000999' })], /Message introuvable/));
+  await as(2); await q(`select public.delete_project_message($1)`, [mImg]); await as(3);
+  check('supprimer le message garde la pièce jointe dans le Projet', (await val(`select count(*)::int from public.project_assets where id = $1`, [att[0].assetId])) === 1);
+
   // Versions du Moodboard : les épingles
   const snap = await val(`select public.create_project_snapshot($1, 'Avant refonte')`, [ps]);
   const before = (await val(`select public.get_project_content($1)`, [ps])).moodboard;
@@ -173,7 +191,7 @@
   check('un membre simple ne supprime pas le Projet', await fails(`select public.delete_project($1)`, [ps], /administrateur/));
   await as(2);
   const del = await val(`select public.delete_project($1)`, [ps]);
-  check('suppression par l\'administrateur : chemins des fichiers rendus pour effacement', del.filePaths.length === 1 && (await val(`select count(*)::int from public.project_assets`)) === 0);
+  check('suppression par l\'administrateur : chemins des fichiers rendus pour effacement', del.filePaths.length === 2 && (await val(`select count(*)::int from public.project_assets`)) === 0);
   await db.query(`set role authenticated`);
   check('tables des Projets illisibles directement', (await q(`select * from public.projects`)).length === 0 && (await q(`select * from public.project_messages`)).length === 0);
   await db.query(`reset role`);

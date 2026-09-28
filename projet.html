@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790612259917">
+<link rel="stylesheet" href="player.css?v=1790614529428">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -17,7 +17,7 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 24px 16px 60px; }
-  .page { max-width: 980px; margin: 0 auto; }
+  .page { max-width: 1320px; margin: 0 auto; }
   a { color: var(--accent); }
   .top { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .top-links { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; }
@@ -46,8 +46,38 @@
   .msg.err { color: #b5442e; } .msg.ok { color: #2a7; }
   .empty { color: var(--text-dimmer); text-align: center; padding: 18px 0; }
   .meta { font-size: 11.5px; color: var(--text-dimmer); }
+  /* Discussion : colonne à droite (étape 3), repliable ; panneau plein écran sur téléphone. */
+  .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+  .workspace.chat-closed { grid-template-columns: minmax(0, 1fr) 44px; }
+  .chat { position: sticky; top: 12px; height: calc(100vh - 170px); min-height: 420px; display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-width: 0; }
+  .workspace.chat-closed .chat { padding: 0; border: none; background: transparent; }
+  .chat.drop { outline: 2px dashed var(--accent); outline-offset: -4px; }
+  .chat-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .chat-rail { width: 44px; min-height: 160px; border: 1px solid var(--border); background: var(--bg-card); border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 0; font-size: 16px; color: var(--text); }
+  .chat-rail-label { writing-mode: vertical-rl; font-size: 12.5px; color: var(--text-dim); }
+  .badge { background: var(--accent); color: var(--on-accent); font-size: 10.5px; font-weight: 600; border-radius: 999px; padding: 1px 6px; }
+  .chat-fab { display: none; }
+  .composer { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; }
+  .pending { display: flex; flex-wrap: wrap; gap: 4px; }
+  .pending-chip { font-size: 11.5px; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 2px 4px 2px 9px; }
+  .pending-chip button { border: 0; background: none; color: inherit; cursor: pointer; }
+  .att-img { display: block; max-width: 100%; max-height: 220px; border-radius: 6px; margin-top: 6px; }
+  .att-audio { width: 100%; margin-top: 6px; }
+  .chip-btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer; color: var(--text); margin: 4px 4px 0 0; }
+  .chip-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .rangebar { border-top: 1px dashed var(--border); margin-top: 6px; padding-top: 4px; }
+  .range-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: 12px; }
+  .range-row .chip-btn { margin: 2px 0; }
+  .range-done { font-size: 11.5px; color: #2f8f5b; }
+  @media (max-width: 900px) {
+    .workspace, .workspace.chat-closed { grid-template-columns: minmax(0, 1fr); }
+    .chat { display: none; }
+    .chat.phone-open { display: flex; position: fixed; inset: 0; top: 0; height: 100vh; z-index: 1100; border-radius: 0; }
+    .chat-fab { display: inline-flex; gap: 6px; align-items: center; position: fixed; right: 16px; bottom: 16px; z-index: 1050; border: 0; border-radius: 999px; padding: 10px 16px; background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.2); cursor: pointer; }
+    .chat-fab .badge { background: #fff; color: var(--accent); }
+  }
   /* Fil */
-  .thread { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; padding: 4px; }
+  .thread { display: flex; flex-direction: column; gap: 10px; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px; }
   .bubble { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; max-width: 85%; }
   .bubble.mine { align-self: flex-end; background: var(--accent-soft); border-color: transparent; }
   .bubble-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
@@ -95,17 +125,17 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790612259917"></script>
-<script src="layerpitch-notify.js?v=1790612259917"></script>
-<script src="player.js?v=1790612259917"></script>
-<script src="api/supabase-client.js?v=1790612259917"></script>
-<script src="api/auth.js?v=1790612259917"></script>
-<script src="layerpitch-shell.js?v=1790612259917"></script>
-<script src="api/tracks.js?v=1790612259917"></script>
-<script src="api/packs.js?v=1790612259917"></script>
-<script src="api/albums.js?v=1790612259917"></script>
-<script src="api/studio.js?v=1790612259917"></script>
-<script src="api/projects.js?v=1790612259917"></script>
+<script src="layerpitch-i18n.js?v=1790614529428"></script>
+<script src="layerpitch-notify.js?v=1790614529428"></script>
+<script src="player.js?v=1790614529428"></script>
+<script src="api/supabase-client.js?v=1790614529428"></script>
+<script src="api/auth.js?v=1790614529428"></script>
+<script src="layerpitch-shell.js?v=1790614529428"></script>
+<script src="api/tracks.js?v=1790614529428"></script>
+<script src="api/packs.js?v=1790614529428"></script>
+<script src="api/albums.js?v=1790614529428"></script>
+<script src="api/studio.js?v=1790614529428"></script>
+<script src="api/projects.js?v=1790614529428"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -134,7 +164,7 @@ const $ = id => document.getElementById(id);
 const PJ = window.LayerPitchProjects;
 const clock = s => { s = Math.max(0, Math.floor(Number(s) || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 const content = $('content');
-const S = { tab: 'thread', project: null, content: null, messages: [], query: '', activity: [], snapshots: [], openNotes: {}, notes: {},
+const S = { tab: 'board', project: null, content: null, messages: [], query: '', activity: [], snapshots: [], openNotes: {}, notes: {},
   video: null, videoNotes: [], fileUrls: {}, myComposerId: null, myPacks: [], myAlbums: [], channel: null, me: null };
 
 function say(id, text, ok) { const m = $(id); if (m) { m.textContent = text; m.className = 'msg ' + (ok ? 'ok' : 'err'); } }
@@ -166,6 +196,7 @@ async function load() {
   S.content = c.data || { assets: [], moodboard: [], packs: [], albums: [] };
   S.myComposerId = composer.composerId || null;
   PJ.markRead(projectId);
+  await loadMessages();
   joinChannel();
   render();
 }
@@ -177,7 +208,7 @@ function joinChannel() {
     S.channel = client.channel('project:' + projectId, { config: { presence: { key: S.me.id } } });
     S.channel.on('presence', { event: 'sync' }, renderPresence);
     S.channel.on('broadcast', { event: 'changed' }, async ({ payload }) => {
-      if (payload.what === 'messages' && S.tab === 'thread') { await loadMessages(); renderPanel(); }
+      if (payload.what === 'messages') { await loadMessages(); if (!chatVisible()) S.unread++; renderChat(); }
       else if (payload.what === 'content') { await reloadContent(); if (S.video) S.video = assetById(S.video.id) || null; if (['board', 'videos', 'music', 'showcase'].includes(S.tab)) renderPanel(); }
       else if (payload.what === 'notes' && S.video) { await loadVideoNotes(); renderPanel(); }
     });
@@ -193,7 +224,7 @@ function renderPresence() {
 }
 
 // ---- Rendu ----
-const TABS = ['thread', 'board', 'videos', 'music', 'showcase', 'activity', 'members'];
+const TABS = ['board', 'videos', 'music', 'showcase', 'activity', 'members']; // la Discussion est dans la colonne de droite
 function render() {
   const p = S.project;
   content.innerHTML = `
@@ -204,7 +235,7 @@ function render() {
         <button class="btn danger" id="deleteBtn" type="button">${esc(tr('deleteProject'))}</button>` : ''}</div></div>
     ${p.description ? `<div class="desc">${esc(p.description)}</div>` : ''}
     <div class="tabs" role="tablist">${TABS.map(t => `<button class="tab" role="tab" type="button" data-tab="${t}" aria-selected="${S.tab === t}">${esc(tr('tab_' + t))}${t === 'board' && S.content.openAnnotations ? ' · ' + S.content.openAnnotations : ''}</button>`).join('')}</div>
-    <div id="panel"></div>`;
+    <div class="workspace" id="ws"><div id="panel" style="min-width:0"></div><aside class="chat" id="chat" aria-label="${esc(tr('tab_thread'))}"></aside></div>`;
   content.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; stopMedia(); render(); });
   $('editBtn').onclick = editProject;
   if ($('archiveBtn')) $('archiveBtn').onclick = async () => { await PJ.archive(projectId, !p.archived); await load(); };
@@ -215,11 +246,11 @@ function render() {
     location.href = './projets.html?lang=' + pageLang;
   };
   renderPanel();
+  renderChat();
 }
 async function renderPanel() {
   const panel = $('panel');
   if (!panel) return;
-  if (S.tab === 'thread') { if (!S.messagesLoaded) { await loadMessages(); S.messagesLoaded = true; } return renderThread(panel); }
   if (S.tab === 'board') return renderBoard(panel);
   if (S.tab === 'videos') return renderVideos(panel);
   if (S.tab === 'music') return renderMusic(panel);
@@ -242,7 +273,25 @@ async function editProject() {
   };
 }
 
-// ---- Discussion ----
+// ---- Discussion : colonne à droite (étape 3 du 28/09) ----
+// Toujours visible à côté des onglets, repliable (choix mémorisé par le navigateur, compteur de nouveaux messages quand
+// elle est repliée) ; sur téléphone, un bouton flottant l'ouvre en panneau. Liens cliquables ; pièces jointes (trombone,
+// glisser-déposer, coller une image) qui deviennent des objets du Projet à l'envoi ; sous chaque message qui contient un
+// lien ou une pièce jointe, une barre « Ranger dans : Moodboard / Vidéos » (sur décision d'un membre, jamais automatique).
+const CHAT_KEY = 'layerpitch_project_chat_open';
+const isPhone = () => window.matchMedia('(max-width: 900px)').matches;
+S.chatOpen = (() => { try { return localStorage.getItem(CHAT_KEY) !== '0'; } catch (e) { return true; } })();
+S.chatPhoneOpen = false; S.unread = 0; S.pending = [];
+const VIDEO_URL = /^https:\/\/(www\.|m\.)?(youtube\.com\/watch\?v=|youtu\.be\/|vimeo\.com\/)/i;
+const URL_RE = /https?:\/\/[^\s<>"']+/g;
+const trimUrl = u => u.replace(/[.,;:!?)\]}»”'"]+$/, '');
+function messageUrls(body) { return [...new Set((String(body || '').match(URL_RE) || []).map(trimUrl))]; }
+function linkifyText(body) {
+  return esc(body).replace(/https?:\/\/[^\s<>"']+/g, raw => {
+    const u = trimUrl(raw.replace(/&amp;/g, '&')); const rest = raw.slice(esc(u).length);
+    return `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(u)}</a>${rest}`;
+  });
+}
 async function loadMessages(older) {
   const before = older && S.messages.length ? S.messages[S.messages.length - 1].createdAt : null;
   const r = await PJ.messages(projectId, before, S.query);
@@ -250,55 +299,143 @@ async function loadMessages(older) {
   S.messages = older ? S.messages.concat(list) : list;
   S.moreMessages = list.length === 50;
 }
-function renderThread(panel) {
+function setChatOpen(open) {
+  if (isPhone()) S.chatPhoneOpen = open; else { S.chatOpen = open; try { localStorage.setItem(CHAT_KEY, open ? '1' : '0'); } catch (e) {} }
+  if (open) S.unread = 0;
+  renderChat();
+}
+// Passage ordinateur <-> téléphone (fenêtre redimensionnée) : la colonne devient panneau, et inversement.
+window.matchMedia('(max-width: 900px)').addEventListener('change', () => renderChat());
+function chatVisible() { return isPhone() ? S.chatPhoneOpen : S.chatOpen; }
+function renderChatFab() {
+  let fab = $('chatFab');
+  if (!fab) { fab = document.createElement('button'); fab.id = 'chatFab'; fab.type = 'button'; fab.className = 'chat-fab'; fab.onclick = () => setChatOpen(!S.chatPhoneOpen); document.body.appendChild(fab); }
+  fab.innerHTML = `💬 ${esc(tr('tab_thread'))}${S.unread ? ` <span class="badge">${esc(S.unread)}</span>` : ''}`;
+}
+// Ce qu'on peut ranger depuis un message : ses liens et ses pièces jointes, avec leur état dans le Projet.
+function rangeItems(m) {
+  const assets = S.content.assets || [];
+  const links = messageUrls(m.body).map(url => ({ url, asset: assets.find(a => a.url === url), label: (() => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return url; } })() }));
+  const files = (m.attachments || []).map(x => ({ assetId: x.assetId, asset: assets.find(a => a.id === x.assetId) || { id: x.assetId, kind: x.kind }, label: x.title || x.fileName || '' }));
+  return links.concat(files);
+}
+function rangeBarHtml(m, items) {
+  if (!items.length) return '';
+  return `<div class="rangebar">${items.map((it, i) => {
+    const a = it.asset; const isVideo = (a && a.kind === 'video') || (it.url && VIDEO_URL.test(it.url));
+    const done = [a && a.pinned ? tr('pinnedIn_board') : null, a && a.kind === 'video' ? tr('pinnedIn_videos') : null].filter(Boolean);
+    const btns = [!(a && a.pinned) ? `<button class="chip-btn" type="button" data-range="board" data-i="${i}">${esc(tr('tab_board'))}</button>` : '',
+      isVideo && !a ? `<button class="chip-btn" type="button" data-range="videos" data-i="${i}">${esc(tr('tab_videos'))}</button>` : ''].join('');
+    return `<div class="range-row"><span class="meta">${esc(tr('rangeInto', { what: it.label }))}</span> ${btns}${done.length ? `<span class="range-done">✓ ${esc(done.join(' · '))}</span>` : ''}</div>`;
+  }).join('')}</div>`;
+}
+function attachmentsHtml(m) {
+  return (m.attachments || []).map(x => {
+    if (x.kind === 'image') return `<img class="att-img" data-file="${esc(x.fileId)}" alt="${esc(x.title || x.fileName || '')}">`;
+    if (x.kind === 'audio') return `<audio class="att-audio" controls preload="none" data-file="${esc(x.fileId)}"></audio><div class="meta">${esc(x.title || x.fileName || '')}</div>`;
+    if (x.kind === 'video') return `<button class="chip-btn" type="button" data-watch="${esc(x.assetId)}">🎬 ${esc(x.title || x.fileName || '')} · ${esc(tr('openInVideos'))}</button>`;
+    return `<button class="chip-btn" type="button" data-openfile="${esc(x.fileId)}">📄 ${esc(x.title || x.fileName || '')}</button>`;
+  }).join('');
+}
+function renderChat() {
+  const aside = $('chat'); if (!aside) return;
+  const ws = $('ws');
+  renderChatFab();
+  if (ws) ws.classList.toggle('chat-closed', !S.chatOpen);
+  aside.classList.toggle('phone-open', S.chatPhoneOpen);
+  if (!chatVisible()) {
+    aside.innerHTML = `<button class="chat-rail" id="chatOpenBtn" type="button" title="${esc(tr('chatOpen'))}">💬${S.unread ? `<span class="badge">${esc(S.unread)}</span>` : ''}<span class="chat-rail-label">${esc(tr('tab_thread'))}</span></button>`;
+    $('chatOpenBtn').onclick = () => setChatOpen(true);
+    return;
+  }
   const msgs = S.messages.slice().reverse();
-  panel.innerHTML = `<div class="card">
-    <div class="bar" style="margin-bottom:10px"><input type="search" id="q" placeholder="${esc(tr('searchPlaceholder'))}" value="${esc(S.query)}" style="flex:1 1 240px">
-      <button class="btn" id="searchBtn" type="button">${esc(tr('search'))}</button>
+  aside.innerHTML = `<div class="chat-head"><strong>${esc(tr('tab_thread'))}</strong><button class="icon-btn" id="chatCloseBtn" type="button" title="${esc(tr('chatClose'))}">${isPhone() ? '✕' : '»'}</button></div>
+    <div class="bar" style="margin-bottom:8px"><input type="search" id="q" placeholder="${esc(tr('searchPlaceholder'))}" value="${esc(S.query)}" style="flex:1 1 120px">
       ${S.query ? `<button class="btn" id="clearSearch" type="button">${esc(tr('clearSearch'))}</button>` : ''}</div>
-    ${S.moreMessages ? `<div style="text-align:center;margin-bottom:8px"><button class="btn" id="olderBtn" type="button">${esc(tr('olderMessages'))}</button></div>` : ''}
+    ${S.moreMessages ? `<div style="text-align:center;margin-bottom:6px"><button class="btn" id="olderBtn" type="button">${esc(tr('olderMessages'))}</button></div>` : ''}
     <div class="thread" id="thread">${msgs.length ? msgs.map(m => `<div class="bubble${m.mine ? ' mine' : ''}" data-id="${esc(m.id)}">
         <div class="meta">${esc(m.authorEmail || '')} · ${esc(new Date(m.createdAt).toLocaleString(pageLang))}${m.editedAt ? ' · ' + esc(tr('edited')) : ''}</div>
-        <div class="bubble-body">${esc(m.body)}</div>
+        ${m.body ? `<div class="bubble-body">${linkifyText(m.body)}</div>` : ''}
+        ${attachmentsHtml(m)}
+        ${rangeBarHtml(m, rangeItems(m))}
         ${m.mine ? `<div class="bar" style="margin-top:4px"><button class="icon-btn" data-act="edit" type="button" title="${esc(tr('edit'))}">✎</button><button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button></div>` : ''}
       </div>`).join('') : `<div class="empty">${esc(tr(S.query ? 'noSearchResult' : 'noMessages'))}</div>`}</div>
-    ${S.query ? '' : `<textarea id="newMsg" placeholder="${esc(tr('messagePlaceholder'))}" style="margin-top:10px"></textarea>
-    <div class="bar" style="margin-top:6px"><button class="btn primary" id="sendBtn" type="button">${esc(tr('send'))}</button><span class="meta">${esc(tr('sendHint'))}</span></div>`}
-    <div class="msg" id="threadMsg"></div></div>`;
+    ${S.query ? '' : `<div class="composer" id="composer">
+      <div class="pending" id="pending">${S.pending.map((f, i) => `<span class="pending-chip">${esc(f.name)} <button type="button" data-unpend="${i}" title="${esc(tr('delete'))}">×</button></span>`).join('')}</div>
+      <textarea id="newMsg" placeholder="${esc(tr('messagePlaceholder'))}"></textarea>
+      <div class="bar" style="margin-top:6px"><button class="icon-btn" id="attachBtn" type="button" title="${esc(tr('attachFile'))}">📎</button>
+        <input type="file" id="attachInput" multiple hidden accept="image/jpeg,image/png,image/webp,image/gif,audio/*,video/mp4,video/webm,application/pdf">
+        <button class="btn primary" id="sendBtn" type="button">${esc(tr('send'))}</button><span class="meta">${esc(tr('sendHint'))}</span></div>
+      <div class="msg" id="threadMsg"></div></div>`}`;
   const th = $('thread'); th.scrollTop = th.scrollHeight;
-  const doSearch = async () => { S.query = $('q').value.trim(); await loadMessages(); renderThread(panel); };
-  $('searchBtn').onclick = doSearch;
+  $('chatCloseBtn').onclick = () => setChatOpen(false);
+  const doSearch = async () => { S.query = $('q').value.trim(); await loadMessages(); renderChat(); };
   $('q').onkeydown = e => { if (e.key === 'Enter') doSearch(); };
-  if ($('clearSearch')) $('clearSearch').onclick = async () => { S.query = ''; await loadMessages(); renderThread(panel); };
-  if ($('olderBtn')) $('olderBtn').onclick = async () => { await loadMessages(true); renderThread(panel); };
-  const send = async () => {
-    const body = $('newMsg').value.trim(); if (!body) return;
-    $('sendBtn').disabled = true;
-    const r = await PJ.post(projectId, body);
-    if (r.error) { say('threadMsg', tr('errorPrefix', { message: r.error })); $('sendBtn').disabled = false; return; }
-    await loadMessages(); renderThread(panel); broadcast('messages');
-  };
-  if ($('sendBtn')) { $('sendBtn').onclick = send; $('newMsg').onkeydown = e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(); }; }
-  panel.querySelectorAll('.bubble[data-id]').forEach(b => {
+  if ($('clearSearch')) $('clearSearch').onclick = async () => { S.query = ''; await loadMessages(); renderChat(); };
+  if ($('olderBtn')) $('olderBtn').onclick = async () => { await loadMessages(true); renderChat(); };
+  // Fichiers signés (images, audio) chargés après coup.
+  aside.querySelectorAll('[data-file]').forEach(async el => { const u = await fileUrl(el.dataset.file); if (u) el.src = u; });
+  aside.querySelectorAll('[data-watch]').forEach(b => b.onclick = async () => { await reloadContent(); openInVideos(b.dataset.watch); if (isPhone()) setChatOpen(false); });
+  aside.querySelectorAll('[data-openfile]').forEach(b => b.onclick = async () => { const u = await fileUrl(b.dataset.openfile); if (u) window.open(u, '_blank', 'noopener'); });
+  if ($('composer')) wireComposer(aside);
+  aside.querySelectorAll('.bubble[data-id]').forEach(b => {
     const m = S.messages.find(x => x.id === b.dataset.id);
+    const items = rangeItems(m);
+    b.querySelectorAll('[data-range]').forEach(btn => btn.onclick = async () => {
+      const it = items[Number(btn.dataset.i)]; const where = btn.dataset.range;
+      btn.disabled = true;
+      const r = it.assetId ? await PJ.pin(it.assetId, true)
+        : await PJ.addAsset(projectId, { kind: where === 'videos' ? 'video' : 'link', url: it.url, fromMessageId: m.id }, where === 'board');
+      if (r.error) { btn.disabled = false; return say('threadMsg', tr('errorPrefix', { message: r.error })); }
+      await reloadContent(); renderChat(); if (['board', 'videos', 'music'].includes(S.tab)) renderPanel(); broadcast('content');
+    });
     const ed = b.querySelector('[data-act="edit"]'), del = b.querySelector('[data-act="delete"]');
-    // Modification en place (pas de fenêtre du navigateur) : le texte devient un champ, Enregistrer / Annuler.
+    // Modification en place : le texte devient un champ, Enregistrer / Annuler.
     if (ed) ed.onclick = () => {
-      const bodyEl = b.querySelector('.bubble-body');
-      bodyEl.innerHTML = `<textarea data-role="editBox">${esc(m.body)}</textarea><div class="bar" style="margin-top:4px"><button class="btn primary" type="button" data-role="editSave">${esc(tr('save'))}</button><button class="btn" type="button" data-role="editCancel">${esc(tr('cancel'))}</button></div>`;
-      b.querySelector('[data-role="editCancel"]').onclick = () => renderThread(panel);
-      b.querySelector('[data-role="editSave"]').onclick = async () => {
-        const text = b.querySelector('[data-role="editBox"]').value.trim(); if (!text) return;
+      const holder = document.createElement('div');
+      holder.innerHTML = `<textarea data-role="editBox">${esc(m.body)}</textarea><div class="bar" style="margin-top:4px"><button class="btn primary" type="button" data-role="editSave">${esc(tr('save'))}</button><button class="btn" type="button" data-role="editCancel">${esc(tr('cancel'))}</button></div>`;
+      const bodyEl = b.querySelector('.bubble-body'); if (bodyEl) bodyEl.replaceWith(holder); else b.insertBefore(holder, b.children[1]);
+      holder.querySelector('[data-role="editCancel"]').onclick = () => renderChat();
+      holder.querySelector('[data-role="editSave"]').onclick = async () => {
+        const text = holder.querySelector('[data-role="editBox"]').value.trim(); if (!text) return;
         const r = await PJ.editMessage(m.id, text); if (r.error) return say('threadMsg', tr('errorPrefix', { message: r.error }));
-        await loadMessages(); renderThread(panel); broadcast('messages');
+        await loadMessages(); renderChat(); broadcast('messages');
       };
     };
     if (del) del.onclick = async () => {
       if (!(await window.LayerPitchNotify.confirm(tr('deleteMessageConfirm'), { okLabel: tr('delete'), danger: true }))) return;
       const r = await PJ.deleteMessage(m.id); if (r.error) return say('threadMsg', tr('errorPrefix', { message: r.error }));
-      await loadMessages(); renderThread(panel); broadcast('messages');
+      await loadMessages(); renderChat(); broadcast('messages');
     };
   });
+}
+function wireComposer(aside) {
+  const addFiles = files => { const list = [...files].filter(f => f && f.size); if (!list.length) return; const draft = $('newMsg').value; S.pending = S.pending.concat(list).slice(0, 10); renderChat(); $('newMsg').value = draft; $('newMsg').focus(); };
+  $('attachBtn').onclick = () => $('attachInput').click();
+  $('attachInput').onchange = e => addFiles(e.target.files);
+  aside.querySelectorAll('[data-unpend]').forEach(b => b.onclick = () => { const draft = $('newMsg').value; S.pending.splice(Number(b.dataset.unpend), 1); renderChat(); $('newMsg').value = draft; });
+  $('newMsg').addEventListener('paste', e => { const files = [...(e.clipboardData && e.clipboardData.files || [])]; if (files.length) { e.preventDefault(); addFiles(files); } });
+  aside.ondragover = e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { e.preventDefault(); aside.classList.add('drop'); } };
+  aside.ondragleave = e => { if (!aside.contains(e.relatedTarget)) aside.classList.remove('drop'); };
+  aside.ondrop = e => { e.preventDefault(); aside.classList.remove('drop'); addFiles(e.dataTransfer.files); };
+  const send = async () => {
+    const body = $('newMsg').value.trim(); if (!body && !S.pending.length) return;
+    $('sendBtn').disabled = true;
+    const attachments = [];
+    for (const f of S.pending) {
+      say('threadMsg', tr('uploadingNamed', { name: f.name }), true);
+      const up = await PJ.upload(projectId, f);
+      if (up.error) { say('threadMsg', tr('errorPrefix', { message: f.name + ' : ' + up.error })); $('sendBtn').disabled = false; return; }
+      attachments.push({ fileId: up.data.fileId, title: f.name });
+    }
+    const r = await PJ.post(projectId, body, attachments);
+    if (r.error) { say('threadMsg', tr('errorPrefix', { message: r.error })); $('sendBtn').disabled = false; return; }
+    S.pending = [];
+    await Promise.all([loadMessages(), attachments.length ? reloadContent() : null]);
+    renderChat(); broadcast('messages'); if (attachments.length) broadcast('content');
+  };
+  $('sendBtn').onclick = send;
+  $('newMsg').onkeydown = e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(); };
 }
 
 // ---- Réserve de contenus et Moodboard (étape 1 du 28/09) ----

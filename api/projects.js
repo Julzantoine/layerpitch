@@ -44,7 +44,8 @@
     respondInvitation: (memberId, accept) => rpc('respond_project_invitation', { p_member_id: memberId, p_accept: !!accept }),
     // Discussion, activité, notifications
     messages: (id, before, query) => rpc('list_project_messages', { p_project_id: id, p_before: before || null, p_limit: 50, p_query: query || null }),
-    post: (id, body) => rpc('post_project_message', { p_project_id: id, p_body: body }),
+    // attachments : [{ fileId, title }] — fichiers déjà envoyés (upload), qui deviennent des objets du Projet (étape 3).
+    post: (id, body, attachments) => rpc('post_project_message', { p_project_id: id, p_body: body || '', p_attachments: attachments || [] }),
     editMessage: (messageId, body) => rpc('edit_project_message', { p_message_id: messageId, p_body: body }),
     deleteMessage: messageId => rpc('delete_project_message', { p_message_id: messageId }),
     activity: id => rpc('list_project_activity', { p_project_id: id, p_limit: 150 }),
