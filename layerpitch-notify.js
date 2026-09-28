@@ -27,7 +27,7 @@
 
   const CSS = `
   .lp-toast-stack { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 100000; display: flex; flex-direction: column; align-items: center; gap: 8px; width: max-content; max-width: min(560px, calc(100vw - 32px)); pointer-events: none; }
-  .lp-toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px 10px 14px; border-radius: 8px; border: 1px solid var(--border, #e4e1da); border-left: 4px solid var(--lp-toast-tone, var(--accent, #2f80c0)); background: var(--bg-card, #fff); color: var(--text, #24262b); box-shadow: 0 6px 20px rgba(0,0,0,0.16); font-family: inherit; font-size: 13px; line-height: 1.45; max-width: 100%; box-sizing: border-box; animation: lp-toast-in .18s ease-out; }
+  .lp-toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px 10px 14px; border-radius: 8px; border: 1px solid var(--border, #e2e2e6); border-left: 4px solid var(--lp-toast-tone, var(--accent, #2f80c0)); background: var(--bg-card, #fff); color: var(--text, #24262b); box-shadow: 0 6px 20px rgba(0,0,0,0.16); font-family: inherit; font-size: 13px; line-height: 1.45; max-width: 100%; box-sizing: border-box; animation: lp-toast-in .18s ease-out; }
   .lp-toast.success { --lp-toast-tone: #2e9d5b; }
   .lp-toast.error { --lp-toast-tone: #d0433a; }
   .lp-toast-msg { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
@@ -36,10 +36,10 @@
   .lp-toast.leaving { opacity: 0; transform: translateY(6px); transition: opacity .15s, transform .15s; }
   @keyframes lp-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   #lpConfirmOverlay { position: fixed; inset: 0; z-index: 100001; background: rgba(0,0,0,0.38); display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
-  .lp-confirm { background: var(--bg-card, #fff); color: var(--text, #24262b); border: 1px solid var(--border, #e4e1da); border-radius: 10px; padding: 20px; width: 420px; max-width: 100%; box-sizing: border-box; box-shadow: 0 12px 32px rgba(0,0,0,0.22); font-family: inherit; animation: lp-toast-in .15s ease-out; }
+  .lp-confirm { background: var(--bg-card, #fff); color: var(--text, #24262b); border: 1px solid var(--border, #e2e2e6); border-radius: 10px; padding: 20px; width: 420px; max-width: 100%; box-sizing: border-box; box-shadow: 0 12px 32px rgba(0,0,0,0.22); font-family: inherit; animation: lp-toast-in .15s ease-out; }
   .lp-confirm-msg { font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 18px; }
   .lp-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
-  .lp-confirm-actions button { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-family: inherit; cursor: pointer; border: 1px solid var(--border, #e4e1da); background: transparent; color: var(--text, #24262b); }
+  .lp-confirm-actions button { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-family: inherit; cursor: pointer; border: 1px solid var(--border, #e2e2e6); background: transparent; color: var(--text, #24262b); }
   .lp-confirm-actions button.lp-confirm-ok { border-color: var(--accent, #2f80c0); background: var(--accent, #2f80c0); color: #fff; }
   .lp-confirm-actions button.lp-confirm-ok.danger { border-color: #d0433a; background: #d0433a; }
   .lp-confirm-actions button:focus-visible { outline: 2px solid var(--accent, #2f80c0); outline-offset: 2px; }

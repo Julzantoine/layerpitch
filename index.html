@@ -8,14 +8,14 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch</title>
-<link rel="stylesheet" href="player.css?v=1790600326048">
+<link rel="stylesheet" href="player.css?v=1790600834073">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
   :root {
-    --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
-    --text: #262521; --text-title: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
-    --accent: #c9713c; --accent-soft: #f3e4d6;
+    --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
+    --text: #24262b; --text-title: #24262b; --text-dim: #5f636b; --text-dimmer: #9a9ea6;
+    --accent: #2f80c0; --accent-soft: #e6eef8;
     --seq-map-success: #2f8f5b; --seq-map-choice: #b8862e;
     --font-body: 'Inter', sans-serif;
   }
@@ -23,7 +23,7 @@
   img { max-width: 100%; height: auto; display: block; }
   body { background: var(--bg); color: var(--text); font-family: var(--font-body); padding: 56px 24px 60px; }
   body.has-preview-banner { padding-top: 92px; }
-  .preview-mode-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #262521; color: #f6f5f3; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 8px 16px; letter-spacing: 0.02em; }
+  .preview-mode-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #24262b; color: #f5f6f8; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 8px 16px; letter-spacing: 0.02em; }
   body.has-preview-banner .share-btn { top: 56px; }
   .page { max-width: 1100px; margin: 0 auto; }
   a { color: var(--accent); }
@@ -54,8 +54,8 @@
 
   .video-card {
     position: relative; aspect-ratio: 16/9; border-radius: 6px; border: 1px solid var(--border);
-    background: linear-gradient(135deg, #2a2822, #423b30);
-    display: flex; align-items: flex-end; padding: 14px; color: #f6f5f3;
+    background: linear-gradient(135deg, #23262d, #3a3f48);
+    display: flex; align-items: flex-end; padding: 14px; color: #f5f6f8;
     text-decoration: none; overflow: hidden; transition: transform 0.15s;
   }
   .video-card:hover { transform: translateY(-2px); }
@@ -65,7 +65,7 @@
     border: 1px solid rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center;
   }
   .video-card .play-dot::after { content: ''; border-left: 8px solid #fff; border-top: 5px solid transparent; border-bottom: 5px solid transparent; margin-left: 2px; }
-  .video-card.disabled { pointer-events: none; opacity: 0.4; color: var(--text-dim); background: repeating-linear-gradient(45deg, #ddd8cf, #ddd8cf 6px, #e8e4dd 6px, #e8e4dd 12px); }
+  .video-card.disabled { pointer-events: none; opacity: 0.4; color: var(--text-dim); background: repeating-linear-gradient(45deg, #dcdee3, #dcdee3 6px, #e8e9ed 6px, #e8e9ed 12px); }
   .video-card.disabled .vt { color: var(--text-dim); }
   .video-embed-frame { width: 100%; aspect-ratio: 16/9; border-radius: 6px; border: 1px solid var(--border); }
   .video-card-native { display: block; aspect-ratio: 16/9; padding: 0; background: #000; }
@@ -82,7 +82,7 @@
   .packs-list-item { display: flex; align-items: center; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--border); text-decoration: none; color: var(--text); }
   .packs-list-item:last-child { border-bottom: none; }
   .packs-list-item-thumb { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border); }
-  .packs-list-item-thumb.empty { background: linear-gradient(135deg, #2a2822, #423b30); }
+  .packs-list-item-thumb.empty { background: linear-gradient(135deg, #23262d, #3a3f48); }
   .packs-list-item-title { font-family: 'Space Grotesk', sans-serif; font-size: 15px; flex: 1; }
   .packs-list-item-arrow { color: var(--text-dimmer); font-family: 'JetBrains Mono', monospace; transition: transform 0.15s ease, color 0.15s ease; flex-shrink: 0; }
   .packs-list-item:hover .packs-list-item-arrow { transform: translateX(3px); color: var(--accent); }
@@ -320,9 +320,9 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790600326048"></script>
-<script src="public-page.js?v=1790600326048"></script>
-<script src="player.js?v=1790600326048"></script>
+<script src="layerpitch-i18n.js?v=1790600834073"></script>
+<script src="public-page.js?v=1790600834073"></script>
+<script src="player.js?v=1790600834073"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
 
@@ -649,7 +649,7 @@ const THEME_PRESETS = [
 function resolveThemePreset(presetId) {
   return THEME_PRESETS.find(p => p.id === presetId) || THEME_PRESETS[0];
 }
-const DEFAULT_SEPARATOR = { visible: false, color: '#E4E1DA', thickness: 1 };
+const DEFAULT_SEPARATOR = { visible: false, color: '#E2E2E6', thickness: 1 };
 // Applique le réglage d'apparence par bloc (block.appearance), s'il existe, par-dessus le thème général —
 // un bloc sans override n'est jamais touché (transparent, hérite entièrement du thème). Un bloc avec une
 // couleur de fond personnalisée devient visuellement une "carte" (fond + marge intérieure) puisqu'il se
@@ -1019,8 +1019,8 @@ async function init() {
     const theme = tier === 'free'
       ? resolveThemePreset(profile.theme && profile.theme.presetId)
       : (profile.theme
-        ? Object.assign({ bgColor: '#f6f5f3', titleColor: '#262521', contentColor: '#262521', font: 'default', bgImage: null, bgImageOpacity: 1 }, profile.theme)
-        : { bgColor: profile.bgColor || '#f6f5f3', titleColor: profile.textColor || '#262521', contentColor: profile.textColor || '#262521', font: 'default', bgImage: null, bgImageOpacity: 1 });
+        ? Object.assign({ bgColor: '#f5f6f8', titleColor: '#24262b', contentColor: '#24262b', font: 'default', bgImage: null, bgImageOpacity: 1 }, profile.theme)
+        : { bgColor: profile.bgColor || '#f5f6f8', titleColor: profile.textColor || '#24262b', contentColor: profile.textColor || '#24262b', font: 'default', bgImage: null, bgImageOpacity: 1 });
     document.documentElement.style.setProperty('--bg', theme.bgColor);
     document.documentElement.style.setProperty('--text', theme.contentColor);
     document.documentElement.style.setProperty('--text-title', theme.titleColor);

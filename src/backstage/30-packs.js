@@ -161,11 +161,11 @@ function renderPacks() {
         <div class="row">
           <div>
             <label>${tr('bgColorLabel')}</label>
-            <input type="color" data-pack-field="bgColor" data-pi="${pi}" value="${pack.bgColor || '#f6f5f3'}">
+            <input type="color" data-pack-field="bgColor" data-pi="${pi}" value="${pack.bgColor || '#f5f6f8'}">
           </div>
           <div>
             <label>${tr('textColorLabel')}</label>
-            <input type="color" data-pack-field="textColor" data-pi="${pi}" value="${pack.textColor || '#262521'}">
+            <input type="color" data-pack-field="textColor" data-pi="${pi}" value="${pack.textColor || '#24262b'}">
           </div>
         </div>
         <label data-help="packFont" style="margin-top:14px">${tr('themeFontLabel')}</label>
@@ -246,7 +246,7 @@ function packPriceOptions(current) {
     values.map(c => `<option value="${c}"${c === current ? ' selected' : ''}>${c === 0 ? tr('packPriceFree') : fmt.format(c / 100)}</option>`).join('');
 }
 document.getElementById('btnAddPack').addEventListener('click', () => {
-  packs.push({ id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', priceEurCents: 1000, subscriberCredits: can('subscriber_catalog') ? 1 : null, catalogListed: true, freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f6f5f3', textColor: '#262521', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' });
+  packs.push({ id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', priceEurCents: 1000, subscriberCredits: can('subscriber_catalog') ? 1 : null, catalogListed: true, freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f5f6f8', textColor: '#24262b', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' });
   hasUnsavedEdits = true;
   trackBackstageEvent('pack_add', {});
   renderPacks();

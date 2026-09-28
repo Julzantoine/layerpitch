@@ -41,7 +41,7 @@ const KNOWN_TYPES = ['header', 'bio', 'testimonials', 'tracks', 'text', 'photo',
 
 // Thème général d'un AdReel : remplace les anciens champs profile.bgColor/textColor (gardés en lecture
 // seule pour la rétrocompatibilité — jamais réécrits, seul profile.theme est publié désormais).
-const DEFAULT_THEME = { bgColor: '#f6f5f3', titleColor: '#262521', contentColor: '#262521', sectionLabelColor: '#c9713c', font: 'default', bgImage: null, bgImageOpacity: 1 };
+const DEFAULT_THEME = { bgColor: '#f5f6f8', titleColor: '#24262b', contentColor: '#24262b', sectionLabelColor: '#2f80c0', font: 'default', bgImage: null, bgImageOpacity: 1 };
 // Liste de polices Google Fonts pré-intégrées — mélange délibéré sans-serif/serif/display pour couvrir
 // différents styles de pitch (neutre/technique vs plus éditorial), sans imposer d'upload personnalisé.
 const GOOGLE_FONTS_PRESET = [
@@ -102,7 +102,7 @@ function resolveAnyThemePreset(presetId) {
 // et au-dessus uniquement (le palier Free suit le séparateur imposé par son preset). Absent tant que le
 // compositeur n'y touche pas -> aucun changement visuel pour les AdReels/Packs/Collections déjà publiés
 // (il n'existe aucun séparateur visuel aujourd'hui, seulement du margin entre blocs/sections).
-const DEFAULT_SEPARATOR = { visible: false, color: '#E4E1DA', thickness: 1 };
+const DEFAULT_SEPARATOR = { visible: false, color: '#E2E2E6', thickness: 1 };
 
 // ---- Utilitaires couleur (Chantier Apparence, réglage par élément, palier Pro, 05/09) --------------
 // Contraste WCAG AA (formule officielle W3C) -- aucune fonction de ce genre n'existait avant ce chantier

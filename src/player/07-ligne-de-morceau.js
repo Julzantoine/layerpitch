@@ -394,6 +394,6 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
 function resolveWaveformColors(elementColors) {
   return {
     bg: (elementColors && elementColors.waveform && elementColors.waveform.unplayedColor) || cssVar('--border', '#ccc'),
-    fg: (elementColors && elementColors.waveform && elementColors.waveform.playedColor) || cssVar('--accent', '#c9713c')
+    fg: (elementColors && elementColors.waveform && elementColors.waveform.playedColor) || cssVar('--accent', '#2f80c0')
   };
 }

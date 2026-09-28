@@ -1813,10 +1813,10 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790600326048"></script>
-<script src="layerpitch-notify.js?v=1790600326048"></script>
-<script src="layerpitch-help.js?v=1790600326048"></script>
-<script src="player.js?v=1790600326048"></script>
+<script src="layerpitch-i18n.js?v=1790600834073"></script>
+<script src="layerpitch-notify.js?v=1790600834073"></script>
+<script src="layerpitch-help.js?v=1790600834073"></script>
+<script src="player.js?v=1790600834073"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2695,7 +2695,7 @@ const KNOWN_TYPES = ['header', 'bio', 'testimonials', 'tracks', 'text', 'photo',
 
 // Thème général d'un AdReel : remplace les anciens champs profile.bgColor/textColor (gardés en lecture
 // seule pour la rétrocompatibilité — jamais réécrits, seul profile.theme est publié désormais).
-const DEFAULT_THEME = { bgColor: '#f6f5f3', titleColor: '#262521', contentColor: '#262521', sectionLabelColor: '#c9713c', font: 'default', bgImage: null, bgImageOpacity: 1 };
+const DEFAULT_THEME = { bgColor: '#f5f6f8', titleColor: '#24262b', contentColor: '#24262b', sectionLabelColor: '#2f80c0', font: 'default', bgImage: null, bgImageOpacity: 1 };
 // Liste de polices Google Fonts pré-intégrées — mélange délibéré sans-serif/serif/display pour couvrir
 // différents styles de pitch (neutre/technique vs plus éditorial), sans imposer d'upload personnalisé.
 const GOOGLE_FONTS_PRESET = [
@@ -2756,7 +2756,7 @@ function resolveAnyThemePreset(presetId) {
 // et au-dessus uniquement (le palier Free suit le séparateur imposé par son preset). Absent tant que le
 // compositeur n'y touche pas -> aucun changement visuel pour les AdReels/Packs/Collections déjà publiés
 // (il n'existe aucun séparateur visuel aujourd'hui, seulement du margin entre blocs/sections).
-const DEFAULT_SEPARATOR = { visible: false, color: '#E4E1DA', thickness: 1 };
+const DEFAULT_SEPARATOR = { visible: false, color: '#E2E2E6', thickness: 1 };
 
 // ---- Utilitaires couleur (Chantier Apparence, réglage par élément, palier Pro, 05/09) --------------
 // Contraste WCAG AA (formule officielle W3C) -- aucune fonction de ce genre n'existait avant ce chantier
@@ -10333,11 +10333,11 @@ function renderPacks() {
         <div class="row">
           <div>
             <label>${tr('bgColorLabel')}</label>
-            <input type="color" data-pack-field="bgColor" data-pi="${pi}" value="${pack.bgColor || '#f6f5f3'}">
+            <input type="color" data-pack-field="bgColor" data-pi="${pi}" value="${pack.bgColor || '#f5f6f8'}">
           </div>
           <div>
             <label>${tr('textColorLabel')}</label>
-            <input type="color" data-pack-field="textColor" data-pi="${pi}" value="${pack.textColor || '#262521'}">
+            <input type="color" data-pack-field="textColor" data-pi="${pi}" value="${pack.textColor || '#24262b'}">
           </div>
         </div>
         <label data-help="packFont" style="margin-top:14px">${tr('themeFontLabel')}</label>
@@ -10418,7 +10418,7 @@ function packPriceOptions(current) {
     values.map(c => `<option value="${c}"${c === current ? ' selected' : ''}>${c === 0 ? tr('packPriceFree') : fmt.format(c / 100)}</option>`).join('');
 }
 document.getElementById('btnAddPack').addEventListener('click', () => {
-  packs.push({ id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', priceEurCents: 1000, subscriberCredits: can('subscriber_catalog') ? 1 : null, catalogListed: true, freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f6f5f3', textColor: '#262521', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' });
+  packs.push({ id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', priceEurCents: 1000, subscriberCredits: can('subscriber_catalog') ? 1 : null, catalogListed: true, freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f5f6f8', textColor: '#24262b', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' });
   hasUnsavedEdits = true;
   trackBackstageEvent('pack_add', {});
   renderPacks();
@@ -10663,11 +10663,11 @@ function renderCollections() {
         <div class="row">
           <div>
             <label>${tr('bgColorLabel')}</label>
-            <input type="color" data-collection-field="bgColor" data-ci="${ci}" value="${coll.bgColor || '#f6f5f3'}">
+            <input type="color" data-collection-field="bgColor" data-ci="${ci}" value="${coll.bgColor || '#f5f6f8'}">
           </div>
           <div>
             <label>${tr('textColorLabel')}</label>
-            <input type="color" data-collection-field="textColor" data-ci="${ci}" value="${coll.textColor || '#262521'}">
+            <input type="color" data-collection-field="textColor" data-ci="${ci}" value="${coll.textColor || '#24262b'}">
           </div>
         </div>
         <label data-help="collectionFont" style="margin-top:14px">${tr('themeFontLabel')}</label>
@@ -10740,7 +10740,7 @@ function renderCollections() {
   });
 }
 document.getElementById('btnAddCollection').addEventListener('click', () => {
-  collections.push({ id: genId(), title: tr('defaultCollectionTitle'), illustration: null, pendingIllustration: null, presentationFr: '', presentationEn: '', bgColor: '#f6f5f3', textColor: '#262521', font: 'default', buyable: false, buyUrl: '', freeDownloadEnabled: false, packIds: [] });
+  collections.push({ id: genId(), title: tr('defaultCollectionTitle'), illustration: null, pendingIllustration: null, presentationFr: '', presentationEn: '', bgColor: '#f5f6f8', textColor: '#24262b', font: 'default', buyable: false, buyUrl: '', freeDownloadEnabled: false, packIds: [] });
   hasUnsavedEdits = true;
   trackBackstageEvent('collection_add', {});
   renderCollections();
@@ -12349,7 +12349,7 @@ async function loadData(silent) {
       presentationFr: p.presentationFr || p.presentation || '', presentationEn: p.presentationEn || '',
       buyable: !!p.buyable, buyUrl: p.buyUrl || '', videoTestModeEnabled: !!p.videoTestModeEnabled,
       priceEurCents: p.priceEurCents == null ? null : p.priceEurCents, subscriberCredits: p.subscriberCredits == null ? null : p.subscriberCredits, catalogListed: p.catalogListed !== false,
-      bgColor: p.bgColor || '#f6f5f3', textColor: p.textColor || '#262521', font: p.font || 'default',
+      bgColor: p.bgColor || '#f5f6f8', textColor: p.textColor || '#24262b', font: p.font || 'default',
       trackIds: p.trackIds ? p.trackIds.slice() : [],
       sfxIds: p.sfxIds ? p.sfxIds.slice() : [],
       linkedAdReelId: p.linkedAdReelId || '',
@@ -12363,7 +12363,7 @@ async function loadData(silent) {
     collections = (data.collections || []).map(c => ({
       id: c.id, title: c.title || '', illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, pendingIllustration: null,
       presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '',
-      bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default',
+      bgColor: c.bgColor || '#f5f6f8', textColor: c.textColor || '#24262b', font: c.font || 'default',
       buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled,
       packIds: c.packIds ? c.packIds.slice() : []
     }));

@@ -42,7 +42,7 @@ function ensureSfxPlayerStyle() {
     :where(.sfx-rr-row) { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
     :where(.sfx-rr-block) { position: relative; flex: 1 1 64px; min-width: 64px; height: 40px; border-radius: 6px;
       border: 1px solid var(--border, #ccc); background: transparent; cursor: pointer; overflow: hidden; padding: 0; font-family: inherit; }
-    :where(.sfx-rr-block.active) { border-color: var(--accent, #c9713c); }
+    :where(.sfx-rr-block.active) { border-color: var(--accent, #2f80c0); }
     :where(.sfx-rr-wave-bg, .sfx-rr-wave-fg) { position: absolute; inset: 0; width: 100%; height: 100%; }
     :where(.sfx-rr-wave-fg) { opacity: 0; transition: opacity 0.15s ease; }
     :where(.sfx-rr-block.active .sfx-rr-wave-fg) { opacity: 1; }
@@ -164,7 +164,7 @@ function buildSfxPlayer(sfxDef) {
     const block = rrBlocks[i];
     const bg = block.querySelector('.sfx-rr-wave-bg');
     const fg = block.querySelector('.sfx-rr-wave-fg');
-    renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+    renderWaveformPair(bg, fg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#2f80c0'));
   }
   let currentMainIndex = -1;
   // Forme d'onde principale : reflète uniquement la variation en train de jouer (ou la dernière jouée),
@@ -172,7 +172,7 @@ function buildSfxPlayer(sfxDef) {
   function drawMainWave(i) {
     const buf = buffers[i];
     if (!buf || !mainWaveBg) return;
-    renderWaveformPair(mainWaveBg, mainWaveFg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#c9713c'));
+    renderWaveformPair(mainWaveBg, mainWaveFg, buf, cssVar('--border', '#ccc'), cssVar('--accent', '#2f80c0'));
   }
   // Anime le remplissage de la forme d'onde principale sur la durée réelle du buffer — même mécanisme de
   // transition CSS (clip-path) que le reste du site (cf. activateSeqStage pour le mode séquentiel), plutôt

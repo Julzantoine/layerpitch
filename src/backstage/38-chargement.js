@@ -209,7 +209,7 @@ async function loadData(silent) {
       presentationFr: p.presentationFr || p.presentation || '', presentationEn: p.presentationEn || '',
       buyable: !!p.buyable, buyUrl: p.buyUrl || '', videoTestModeEnabled: !!p.videoTestModeEnabled,
       priceEurCents: p.priceEurCents == null ? null : p.priceEurCents, subscriberCredits: p.subscriberCredits == null ? null : p.subscriberCredits, catalogListed: p.catalogListed !== false,
-      bgColor: p.bgColor || '#f6f5f3', textColor: p.textColor || '#262521', font: p.font || 'default',
+      bgColor: p.bgColor || '#f5f6f8', textColor: p.textColor || '#24262b', font: p.font || 'default',
       trackIds: p.trackIds ? p.trackIds.slice() : [],
       sfxIds: p.sfxIds ? p.sfxIds.slice() : [],
       linkedAdReelId: p.linkedAdReelId || '',
@@ -223,7 +223,7 @@ async function loadData(silent) {
     collections = (data.collections || []).map(c => ({
       id: c.id, title: c.title || '', illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, pendingIllustration: null,
       presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '',
-      bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default',
+      bgColor: c.bgColor || '#f5f6f8', textColor: c.textColor || '#24262b', font: c.font || 'default',
       buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled,
       packIds: c.packIds ? c.packIds.slice() : []
     }));

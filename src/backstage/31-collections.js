@@ -93,11 +93,11 @@ function renderCollections() {
         <div class="row">
           <div>
             <label>${tr('bgColorLabel')}</label>
-            <input type="color" data-collection-field="bgColor" data-ci="${ci}" value="${coll.bgColor || '#f6f5f3'}">
+            <input type="color" data-collection-field="bgColor" data-ci="${ci}" value="${coll.bgColor || '#f5f6f8'}">
           </div>
           <div>
             <label>${tr('textColorLabel')}</label>
-            <input type="color" data-collection-field="textColor" data-ci="${ci}" value="${coll.textColor || '#262521'}">
+            <input type="color" data-collection-field="textColor" data-ci="${ci}" value="${coll.textColor || '#24262b'}">
           </div>
         </div>
         <label data-help="collectionFont" style="margin-top:14px">${tr('themeFontLabel')}</label>
@@ -170,7 +170,7 @@ function renderCollections() {
   });
 }
 document.getElementById('btnAddCollection').addEventListener('click', () => {
-  collections.push({ id: genId(), title: tr('defaultCollectionTitle'), illustration: null, pendingIllustration: null, presentationFr: '', presentationEn: '', bgColor: '#f6f5f3', textColor: '#262521', font: 'default', buyable: false, buyUrl: '', freeDownloadEnabled: false, packIds: [] });
+  collections.push({ id: genId(), title: tr('defaultCollectionTitle'), illustration: null, pendingIllustration: null, presentationFr: '', presentationEn: '', bgColor: '#f5f6f8', textColor: '#24262b', font: 'default', buyable: false, buyUrl: '', freeDownloadEnabled: false, packIds: [] });
   hasUnsavedEdits = true;
   trackBackstageEvent('collection_add', {});
   renderCollections();

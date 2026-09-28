@@ -8,14 +8,14 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
-<link rel="stylesheet" href="player.css?v=1790600326048">
+<link rel="stylesheet" href="player.css?v=1790600834073">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
   :root {
-    --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
-    --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
-    --accent: #c9713c; --accent-soft: #f3e4d6;
+    --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
+    --text: #24262b; --text-dim: #5f636b; --text-dimmer: #9a9ea6;
+    --accent: #2f80c0; --accent-soft: #e6eef8;
     --seq-map-success: #2f8f5b; --seq-map-choice: #b8862e;
     --font-body: 'Inter', sans-serif;
   }
@@ -23,7 +23,7 @@
   img { max-width: 100%; height: auto; display: block; }
   body { background: var(--bg); color: var(--text); font-family: var(--font-body); padding: 56px 24px 60px; }
   body.has-preview-banner { padding-top: 92px; }
-  .preview-mode-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #262521; color: #f6f5f3; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 8px 16px; letter-spacing: 0.02em; }
+  .preview-mode-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #24262b; color: #f5f6f8; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 8px 16px; letter-spacing: 0.02em; }
   body.has-preview-banner .share-btn { top: 56px; }
   .page { max-width: 760px; margin: 0 auto; }
   a { color: var(--accent); }
@@ -36,7 +36,7 @@
   .back-link.embed-cta-btn:hover { opacity: 0.88; color: #fff; }
 
   .pack-illustration { display: block; max-width: 100%; max-height: 380px; width: auto; height: auto; margin: 0 auto 28px; border-radius: 8px; border: 1px solid var(--border); }
-  .pack-illustration.empty { width: 100%; max-height: none; aspect-ratio: 16/7; background: linear-gradient(135deg, #2a2822, #423b30); }
+  .pack-illustration.empty { width: 100%; max-height: none; aspect-ratio: 16/7; background: linear-gradient(135deg, #23262d, #3a3f48); }
 
   .pack-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 28px; margin-bottom: 16px; }
   .pack-presentation p { font-size: 14.5px; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; white-space: pre-wrap; }
@@ -468,14 +468,14 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790600326048"></script>
-<script src="layerpitch-notify.js?v=1790600326048"></script>
-<script src="public-page.js?v=1790600326048"></script>
-<script src="player.js?v=1790600326048"></script>
-<script src="capture-plan.js?v=1790600326048"></script>
-<script src="capture-render.js?v=1790600326048"></script>
-<script src="capture-retarget.js?v=1790600326048"></script>
-<script src="capture-versioning.js?v=1790600326048"></script>
+<script src="layerpitch-i18n.js?v=1790600834073"></script>
+<script src="layerpitch-notify.js?v=1790600834073"></script>
+<script src="public-page.js?v=1790600834073"></script>
+<script src="player.js?v=1790600834073"></script>
+<script src="capture-plan.js?v=1790600834073"></script>
+<script src="capture-render.js?v=1790600834073"></script>
+<script src="capture-retarget.js?v=1790600834073"></script>
+<script src="capture-versioning.js?v=1790600834073"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 

@@ -375,15 +375,15 @@ function buildSpatialMatrixView(sfxDef) {
     const n = current(), path = n.path, isPath = path.mode === 'steps' || path.mode === 'glide';
     let html = '';
     if (!isPath) {
-      html += `<line x1="${cx}" y1="${cy}" x2="${X(n.x)}" y2="${Y(n.y)}" stroke="var(--accent, #c9713c)" stroke-width="1" stroke-dasharray="2 3"/>`;
-      if (playing.pulse) html += `<circle cx="${X(n.x)}" cy="${Y(n.y)}" r="15" fill="none" stroke="var(--accent, #c9713c)" stroke-width="2" opacity="0.45"/>`;
-      html += `<circle cx="${X(n.x)}" cy="${Y(n.y)}" r="9" fill="var(--accent, #c9713c)" stroke="#fff" stroke-width="2" style="cursor:${interactive ? 'grab' : 'default'}"/>`;
+      html += `<line x1="${cx}" y1="${cy}" x2="${X(n.x)}" y2="${Y(n.y)}" stroke="var(--accent, #2f80c0)" stroke-width="1" stroke-dasharray="2 3"/>`;
+      if (playing.pulse) html += `<circle cx="${X(n.x)}" cy="${Y(n.y)}" r="15" fill="none" stroke="var(--accent, #2f80c0)" stroke-width="2" opacity="0.45"/>`;
+      html += `<circle cx="${X(n.x)}" cy="${Y(n.y)}" r="9" fill="var(--accent, #2f80c0)" stroke="#fff" stroke-width="2" style="cursor:${interactive ? 'grab' : 'default'}"/>`;
       readout.textContent = t('sfxSpaceViewReadout', { x: round1(n.x), y: round1(n.y), d: round1(Math.hypot(n.x, n.y)) });
     } else {
       const pts = path.points;
-      html += `<polyline points="${pts.map(q => X(q.x) + ',' + Y(q.y)).join(' ')}" fill="none" stroke="var(--accent, #c9713c)" stroke-width="1.5" stroke-dasharray="${path.mode === 'steps' ? '3 4' : '0'}"/>`;
-      html += pts.map((q, i) => { const on = i === playing.idx; return `<circle cx="${X(q.x)}" cy="${Y(q.y)}" r="8" fill="${on ? 'var(--accent, #c9713c)' : 'var(--bg, #fff)'}" stroke="var(--accent, #c9713c)" stroke-width="2"/><text x="${X(q.x)}" y="${Y(q.y) + 4}" text-anchor="middle" font-size="10" font-weight="700" fill="${on ? '#fff' : 'var(--accent, #c9713c)'}" style="pointer-events:none">${i + 1}</text>`; }).join('');
-      if (playing.glide && playing.glidePos) html += `<circle cx="${X(playing.glidePos.x)}" cy="${Y(playing.glidePos.y)}" r="7" fill="var(--accent, #c9713c)" stroke="#fff" stroke-width="2" style="pointer-events:none"/>`;
+      html += `<polyline points="${pts.map(q => X(q.x) + ',' + Y(q.y)).join(' ')}" fill="none" stroke="var(--accent, #2f80c0)" stroke-width="1.5" stroke-dasharray="${path.mode === 'steps' ? '3 4' : '0'}"/>`;
+      html += pts.map((q, i) => { const on = i === playing.idx; return `<circle cx="${X(q.x)}" cy="${Y(q.y)}" r="8" fill="${on ? 'var(--accent, #2f80c0)' : 'var(--bg, #fff)'}" stroke="var(--accent, #2f80c0)" stroke-width="2"/><text x="${X(q.x)}" y="${Y(q.y) + 4}" text-anchor="middle" font-size="10" font-weight="700" fill="${on ? '#fff' : 'var(--accent, #2f80c0)'}" style="pointer-events:none">${i + 1}</text>`; }).join('');
+      if (playing.glide && playing.glidePos) html += `<circle cx="${X(playing.glidePos.x)}" cy="${Y(playing.glidePos.y)}" r="7" fill="var(--accent, #2f80c0)" stroke="#fff" stroke-width="2" style="pointer-events:none"/>`;
       readout.textContent = t(path.mode === 'steps' ? 'sfxSpaceViewSteps' : 'sfxSpaceViewGlide', { n: pts.length });
     }
     dyn.innerHTML = html;
