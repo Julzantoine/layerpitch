@@ -220,13 +220,13 @@
   await q(`select public.save_project_vitrine($1, $2::jsonb)`, [ps, JSON.stringify({ id: draft.id, title: 'OST', published: true,
     blocks: [{ type: 'header' }, { type: 'tracks', assetIds: [it.id] }, { type: 'video', assetIds: [vlink, vid] }, { type: 'links', links: [{ label: 'Steam', url: 'https://store.steampowered.com/app/1' }] }] })]);
   await as(0); await db.query(`set role anon`);
-  const pub = await val(`select public.get_vitrine('ost')`);
+  const pub = await val(`select public.get_vitrine('ost-officielle')`);
   await db.query(`reset role`);
   check('vitrine publiée lisible sans compte, avec ses seuls objets (capture privée comprise, Q7)', pub && Object.keys(pub.assets).length === 3 && pub.assets[it.id].trackId === 't1' && !('messages' in pub));
   await as(2);
   await q(`select public.save_project_vitrine($1, $2::jsonb)`, [ps, JSON.stringify({ id: draft.id, title: 'OST', published: false })]);
   await as(5);
-  check('vitrine dépubliée : invisible pour un inconnu', (await val(`select public.get_vitrine('ost')`)) === null);
+  check('vitrine dépubliée : invisible pour un inconnu', (await val(`select public.get_vitrine('ost-officielle')`)) === null);
 
   // Départ, suppression, isolation
   await as(1);
