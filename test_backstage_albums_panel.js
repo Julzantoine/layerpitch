@@ -22,7 +22,7 @@ const block = html.slice(start, end);
 // l'affiche (la vraie barrière reste côté serveur, voir les RPC).
 check('bouton Albums masqué par défaut', /<button[^>]*id="navItemAlbums"[^>]*\bhidden\b/.test(html));
 check('règle CSS .nav-item[hidden] présente (sinon hidden est ignoré)', /\.nav-item\[hidden\]\s*\{\s*display:\s*none/.test(html));
-check('renderAdminOnlyPanels affiche le bouton seulement pour un admin', /albumsNavBtn\.hidden\s*=\s*!isAdmin/.test(html));
+check('renderAdminOnlyPanels affiche le bouton selon la matrice (sell_albums : admin seulement tant que le feu vert est fermé)', /albumsNavBtn\.hidden\s*=\s*!can\('sell_albums'\)/.test(html));
 
 // Vraies traductions (mêmes que le navigateur)
 const i18nSandbox = { window: {} };

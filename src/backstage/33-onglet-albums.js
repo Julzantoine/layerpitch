@@ -776,8 +776,9 @@ function fillAdReelSlugField(ar) {
   document.getElementById('appSlugPrefix').textContent = `beta.layerpitch.com/${myComposerHandle || '…'}/`;
   input.value = (ar && ar.slug) || '';
   input.placeholder = isMain ? '' : slugify((ar && ar.label) || '');
-  input.disabled = btn.disabled = isMain || !currentUserIsAdmin;
-  document.getElementById('appSlugHint').textContent = isMain ? tr('adreelSlugMainHint') : (currentUserIsAdmin ? tr('adreelSlugHint') : tr('adreelSlugAdminOnly'));
+  // 28/09 : droit lu dans la matrice (custom_address : Warrior et Boss, feu vert 'custom_address').
+  input.disabled = btn.disabled = isMain || !can('custom_address');
+  document.getElementById('appSlugHint').textContent = isMain ? tr('adreelSlugMainHint') : (can('custom_address') ? tr('adreelSlugHint') : (flagOpen('custom_address') ? tr('adreelSlugTierOnly') : tr('adreelSlugAdminOnly')));
   document.getElementById('appSlugMsg').textContent = '';
 }
 // Nom d'adresse : slug() du Backstage, borné à 60 caractères ; vide reste vide (= retirer le nom).

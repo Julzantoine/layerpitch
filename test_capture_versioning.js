@@ -148,6 +148,23 @@ const path = require('path');
   await V.refresh(); await tick();
   check('migration absente : message clair au lieu d\'une erreur brute', host.textContent.includes(tr('versioningNotReady')));
 
+  // Versions « de la séance » (28/09, palier Warrior) : tout en mémoire, rien envoyé au serveur, pas de « Détacher ».
+  store.missing = false;
+  const callsBefore = store.calls.length;
+  const host2 = doc.createElement('div'); doc.body.appendChild(host2);
+  const V2 = W.LayerCaptureVersioning.mount(host2, Object.assign({}, ctx, { sessionOnly: true, getCaptureId: () => 'session' }));
+  await tick();
+  check('séance : mention « versions de la séance », bouton de création présent sans montage sauvegardé', host2.textContent.includes(tr('versioningSessionNote')) && !!host2.querySelector('[data-act="new"]'));
+  host2.querySelector('[data-act="new"]').click(); await tick();
+  const ts2 = host2.querySelector('[data-track="st1"]'); ts2.value = 'st2'; ts2.dispatchEvent(new W.Event('change')); await tick();
+  host2.querySelector('[data-act="saveDraft"]').click(); await tick(); await tick();
+  check('séance : version créée et listée', host2.querySelectorAll('.vcv-version').length === 1);
+  check('séance : aucun appel serveur', store.calls.length === callsBefore);
+  check('séance : pas de « Détacher » (il enregistrerait un montage)', !host2.querySelector('[data-act="detach"]'));
+  host2.querySelector('[data-act="delete"]').click(); await tick(); await tick();
+  check('séance : suppression en mémoire', host2.querySelectorAll('.vcv-version').length === 0 && store.calls.length === callsBefore);
+  V2.stop();
+
   console.log(failures ? `\n${failures} échec(s)` : '\nTous les tests passent.');
   process.exit(failures ? 1 : 0);
 })();

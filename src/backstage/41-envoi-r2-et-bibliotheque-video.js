@@ -356,7 +356,8 @@ function renderVideoCapturePacksList() {
 async function renderVideoVersioningList() {
   const listEl = document.getElementById('videoVersioningList');
   if (!listEl) return;
-  if (!currentUserIsAdmin) { listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoVersioningAdminOnly'))}</div>`; return; }
+  // 28/09 : liste des versions ENREGISTRÉES = palier Boss (versioning 'saved') ; Warrior versionne pendant la session, dans le pack.
+  if (entitlementLevel('versioning') !== 'saved') { listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr(flagOpen('versioning') ? 'videoVersioningTierOnly' : 'videoVersioningAdminOnly'))}</div>`; return; }
   listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoVersioningLoading'))}</div>`;
   const client = window.LayerPitchSupabaseClient.getClient();
   let captures = [], videos = [];

@@ -141,7 +141,7 @@ function renderSfxLibrary() {
 function sfxSpaceDefaults() { return { enabled: true, room: 'room', x: 0, y: 3, binaural: false, path: { mode: 'fixed', points: [], loop: 'loop', durationSec: null } }; }
 let sfxSpaceSelectedPoint = 0; // point de trajectoire sélectionné (index) dans l'éditeur ouvert
 function renderSfxSpaceEditor(host, sfx) {
-  if (!currentUserIsAdmin) {
+  if (!fxOpen('sfx_spatial')) {
     host.innerHTML = `<div style="opacity:0.55"><div style="font-weight:600;margin-bottom:2px">${tr('sfxSpaceTitle')}</div><div class="hint-inline">${tr('sfxSpaceAdminOnly')}</div></div>`;
     return;
   }

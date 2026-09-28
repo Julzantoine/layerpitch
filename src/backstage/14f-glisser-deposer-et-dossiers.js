@@ -19,7 +19,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Alt') altKeyHeld = tr
 document.addEventListener('keyup', e => { if (e.key === 'Alt') altKeyHeld = false; });
 window.addEventListener('blur', () => { altKeyHeld = false; });
 // Réservé à l'admin tant que Jules-Antoine n'a pas donné son feu vert (25/09) : ailleurs, Alt + glisser déplace simplement.
-function isDuplicateDrag(e) { return currentUserIsAdmin && !!(e.altKey || altKeyHeld); }
+function isDuplicateDrag(e) { return flagOpen('alt_drag_delete') && !!(e.altKey || altKeyHeld); }
 // Copie profonde : nouveaux id partout (l'élément et tout ce qu'il contient), fichiers (File) et fichiers déjà en
 // ligne (remoteFile) partagés tels quels -- rien à re-télécharger ; supprimer une copie ne peut plus effacer les
 // fichiers de l'original (voir pendingOrphanR2Keys). Les références vers d'autres éléments (targetId,

@@ -75,9 +75,9 @@
             ${isDuplicate ? `
               <div class="hint-inline">${tr('sectionDuplicateHint', { label: escapeAttr((sourceSection && sourceSection.label) || tr('untitledFallback')) })}</div>
             ` : `
-              <label data-help="vrsSectionBatchDrop" style="margin-top:14px">${tr('vrsSectionBatchDropLabel')}${!currentUserIsAdmin ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}</label>
+              <label data-help="vrsSectionBatchDrop" style="margin-top:14px">${tr('vrsSectionBatchDropLabel')}${!flagOpen('bulk_drop') ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}</label>
               <div class="hint-inline">${tr('vrsSectionBatchDropHint')}</div>
-              <div data-role="vrsSectionDrop" class="${currentUserIsAdmin ? '' : 'is-disabled'}" style="margin-top:6px">${tr('dropAllFilesHint')}</div>
+              <div data-role="vrsSectionDrop" class="${flagOpen('bulk_drop') ? '' : 'is-disabled'}" style="margin-top:6px">${tr('dropAllFilesHint')}</div>
               <label data-help="bpmMeasuresVerticalRandom" style="margin-top:14px">${tr('bpmMeasuresLabel')}</label>
               <div class="row" style="margin-top:8px">
                 <div><label>${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-section-field="bpm" data-ti="${ti}" data-si="${sci}" value="${sectionBpm}"></div>
@@ -105,7 +105,7 @@
 
           // Dépôt groupé de la section (25/09) -- réservé à l'admin tant que Jules-Antoine ne l'a pas validé.
           const sectionDropHost = sectionEl.querySelector('[data-role="vrsSectionDrop"]');
-          if (sectionDropHost && currentUserIsAdmin) wireBatchDrop(sectionDropHost, files => openVrsBatchDropDialog(track, section, files));
+          if (sectionDropHost && flagOpen('bulk_drop')) wireBatchDrop(sectionDropHost, files => openVrsBatchDropDialog(track, section, files));
           // Zone grisée : on avale quand même le dépôt, sinon le navigateur ouvrirait le fichier et quitterait
           // la page (modifications non enregistrées perdues).
           else if (sectionDropHost) ['dragover', 'drop'].forEach(ev => sectionDropHost.addEventListener(ev, e => e.preventDefault()));

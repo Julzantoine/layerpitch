@@ -32,7 +32,7 @@ const path = require('path');
     packs: [], collections: [], sfxLibrary: [], socials: [], adReels: [], customFonts: [],
   };
   w.fetchSiteData = async () => JSON.parse(JSON.stringify(data));
-  ev('currentUserIsAdmin = true');
+  ev("currentUserIsAdmin = true; myFlags = new Proxy({}, { get: () => true }); myEntitlements = new Proxy({}, { get: () => ({ allowed: true, level: 'saved', amount: null }) });");
   await ev('loadData(true)'); await settle();
   const lib = ev('library');
   check('chargement : effets de l’intro et de l’outro gardés', !!(lib[0].intro.fx && lib[0].intro.fx.reverb) && !!(lib[0].outro.fx && lib[0].outro.fx.delay));

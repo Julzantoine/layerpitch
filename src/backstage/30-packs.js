@@ -68,7 +68,7 @@ function renderPacks() {
           <span data-help="packFreeDownload" style="color:var(--text-dim);font-size:12px;">${tr('freeDownloadLabel')}</span>
         </label>
         <label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
-          <input type="checkbox" data-pack-field="buyable" data-pi="${pi}" ${pack.buyable ? 'checked' : ''} ${currentUserIsAdmin ? '' : 'disabled'} style="width:auto;margin:0;">
+          <input type="checkbox" data-pack-field="buyable" data-pi="${pi}" ${pack.buyable ? 'checked' : ''} ${can('sell_packs') ? '' : 'disabled'} style="width:auto;margin:0;">
           <span data-help="packBuyable" style="color:var(--text-dim);font-size:12px;">${tr('buyableLabel')}</span>
         </label>
         ${!can('sell_packs') ? `<div class="hint-inline">${tr('buyableAdminOnlyHint')}</div>` : ''}

@@ -47,15 +47,15 @@
   <div id="content"></div>
 </div>
 
-<script src="layerpitch-i18n.js?v=1790580561378"></script>
-<script src="layerpitch-notify.js?v=1790580561378"></script>
+<script src="layerpitch-i18n.js?v=1790581475038"></script>
+<script src="layerpitch-notify.js?v=1790581475038"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1790580561378"></script>
-<script src="api/auth.js?v=1790580561378"></script>
-<script src="api/subscriptions.js?v=1790580561378"></script>
-<script src="api/notification-prefs.js?v=1790580561378"></script>
-<script src="api/connect.js?v=1790580561378"></script>
-<script src="api/invoices.js?v=1790580561378"></script>
+<script src="api/supabase-client.js?v=1790581475038"></script>
+<script src="api/auth.js?v=1790581475038"></script>
+<script src="api/subscriptions.js?v=1790581475038"></script>
+<script src="api/notification-prefs.js?v=1790581475038"></script>
+<script src="api/connect.js?v=1790581475038"></script>
+<script src="api/invoices.js?v=1790581475038"></script>
 <script>
 const content = document.getElementById('content');
 
@@ -97,12 +97,18 @@ function identifiantsCardHtml(session) {
 
 // Adresse publique (27/09) : le compositeur choisit son nom dans l'adresse de ses pages (beta.layerpitch.com/<nom>/),
 // jusqu'ici tiré de son email. Les anciennes adresses continuent de mener à ses pages (set_my_handle garde l'ancien nom).
-// Réservé à l'admin pendant la bêta (même verrou côté serveur).
+// Droit : fonction custom_address de la matrice (même règle côté serveur, set_my_handle).
 async function publicAddressCardHtml() {
   const { handle } = await LayerPitchAuth.getMyComposerHandle();
   if (!handle) return '';
-  let isAdmin = false;
-  try { const { data } = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin'); isAdmin = !!data; } catch (e) {}
+  // 28/09 : droit lu dans la matrice (custom_address : Warrior et Boss, feu vert 'custom_address' — admin seulement d'ici là).
+  let isAdmin = false, flagOpen = false;
+  try {
+    const client = window.LayerPitchSupabaseClient.getClient();
+    const [ent, flags] = await Promise.all([client.rpc('my_entitlements'), client.rpc('my_feature_flags')]);
+    isAdmin = !!(ent.data || []).find(r => r.feature === 'custom_address' && r.allowed);
+    flagOpen = !!(flags.data || []).find(r => r.key === 'custom_address' && r.allowed);
+  } catch (e) {}
   const url = `https://beta.layerpitch.com/${encodeURIComponent(handle)}/`;
   return `
     <div class="card">
@@ -117,7 +123,7 @@ async function publicAddressCardHtml() {
         </div>
         <div class="msg" id="handleMsg"></div>
       </div>
-      <div class="hint">${tr(isAdmin ? 'publicAddressHint' : 'publicAddressAdminOnly')}</div>
+      <div class="hint">${tr(isAdmin ? 'publicAddressHint' : (flagOpen ? 'publicAddressTierOnly' : 'publicAddressAdminOnly'))}</div>
     </div>`;
 }
 function wirePublicAddressCard() {

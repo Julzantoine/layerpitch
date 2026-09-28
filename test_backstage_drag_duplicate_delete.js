@@ -53,7 +53,7 @@ const path = require('path');
   const slotItem = si => q(`#libraryContainer .seq-master-item[data-action="select-seq-slot"][data-si="${si}"]`);
   const labels = () => ev('library[0].segmentSlots.map(s => s.label).join("|")');
 
-  ev('currentUserIsAdmin = true'); // Alt + glisser et touche Supprimer : réservés à l'admin (voir fin du test)
+  ev("currentUserIsAdmin = true; myFlags = new Proxy({}, { get: () => true }); myEntitlements = new Proxy({}, { get: () => ({ allowed: true, level: 'saved', amount: null }) });"); // Alt + glisser et touche Supprimer : réservés à l'admin (voir fin du test)
   click(q('.nav-item[data-tab="library"]')); // la touche Supprimer n'agit que dans l'onglet affiché
   // ---- Morceau séquentiel à 3 slots ----
   click(doc.getElementById('btnAddLibraryTrack'));
@@ -168,7 +168,7 @@ const path = require('path');
   check('aucun glisser de bloc resté en cours', ev('draggedBlockId') === null);
 
   // ---- Hors admin : Alt + glisser déplace, la touche Supprimer ne fait rien ----
-  ev('currentUserIsAdmin = false'); click(q('.nav-item[data-tab="library"]')); ev('manageLibrarySelectedId = library[0].id; renderLibrary()');
+  ev("currentUserIsAdmin = false; myFlags = {}; myEntitlements = {};"); click(q('.nav-item[data-tab="library"]')); ev('manageLibrarySelectedId = library[0].id; renderLibrary()');
   click(slotItem(0));
   dragItem(slotItem(0), slotItem(1), true);
   check('non-admin : Alt + glisser déplace sans copier', labels() === 'C|A');

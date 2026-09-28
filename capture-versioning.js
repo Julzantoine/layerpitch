@@ -9,6 +9,10 @@
 // ne monte la section que pour lui ; les fonctions serveur le vérifient aussi, voir
 // supabase/migrations/20260926010000_video_capture_versions.sql).
 //
+// Versions « de la séance » (28/09, palier Warrior, matrice des droits) : ctx.sessionOnly = true -> les versions vivent
+// en mémoire le temps de la séance (écoute, comparaison, rendu en série), rien n'est enregistré côté serveur, et
+// « Détacher » (qui enregistre un nouveau montage) n'est pas proposé. Boss : versions enregistrées, comme avant.
+//
 // mount(host, ctx) -> { refresh() }. ctx, fourni par openCapturePanel :
 //   tr(clé), getEvents(), getCaptureId(), getCaptureTitle(), library { library, sfxLibrary, sfxFolders },
 //   findTrack(id), findSfx(id), videoEl, fetchBytes(url), fullExportLocked,
@@ -35,8 +39,23 @@
   // Fonctions serveur absentes : la migration n'a pas encore été appliquée.
   const isMissingBackend = e => /does not exist|could not find the function|PGRST202|42883|42P01/i.test((e && (e.message || e.code)) || '');
 
+  // Même interface que `api`, en mémoire (versions de la séance, perdues à la fermeture du panneau).
+  function memoryApi() {
+    const rows = new Map(); // id -> version
+    return {
+      list: async () => [...rows.values()].sort((a, b) => a.createdAt - b.createdAt).map(clone),
+      save: async (id, captureId, title, subs) => {
+        const prev = rows.get(id);
+        rows.set(id, { id, captureId, title: title || '', substitutions: clone(subs), lastExportVideoId: prev ? prev.lastExportVideoId : null, createdAt: prev ? prev.createdAt : Date.now() });
+      },
+      setExport: async (id, videoId) => { const v = rows.get(id); if (v) v.lastExportVideoId = videoId; },
+      remove: async id => { rows.delete(id); },
+    };
+  }
+
   function mount(host, ctx) {
     const tr = ctx.tr;
+    const store = ctx.sessionOnly ? memoryApi() : api;
     let versions = [];
     let loadError = null;
     let editing = null; // { id, title, subs, isNew, titleTouched }
@@ -179,7 +198,7 @@
           if (toLibrary && mode !== 'audio') {
             label(tr('captureAddingToLibrary'));
             const videoId = await ctx.saveToLibrary(blob, title);
-            await api.setExport(v.id, videoId);
+            await store.setExport(v.id, videoId);
             v.lastExportVideoId = videoId;
           }
           done++;
@@ -200,7 +219,7 @@
       versions = []; loadError = null;
       if (editing && editing.captureId !== captureId) editing = null;
       if (captureId) {
-        try { versions = await api.list(captureId); }
+        try { versions = await store.list(captureId); }
         catch (e) { console.error(e); loadError = isMissingBackend(e) ? tr('versioningNotReady') : tr('versioningLoadFailed').replace('{error}', e.message); }
       }
       render();
@@ -210,7 +229,7 @@
     function render() {
       const captureId = ctx.getCaptureId();
       const { trackIds, sfxIds } = ingredients();
-      let html = `<div class="vcv-head"><span class="vcv-title">${esc(tr('versioningTitle'))}</span><span class="vcv-hint">${esc(tr('versioningIntro'))}</span>`;
+      let html = `<div class="vcv-head"><span class="vcv-title">${esc(tr('versioningTitle'))}</span><span class="vcv-hint">${esc(tr('versioningIntro'))}${ctx.sessionOnly ? ' ' + esc(tr('versioningSessionNote')) : ''}</span>`;
       if (captureId && !loadError && !editing) html += `<button type="button" class="video-capture-download-btn" data-act="new" ${busy ? 'disabled' : ''}>${esc(tr('versioningNewBtn'))}</button>`;
       html += `</div>`;
       if (!captureId) { host.innerHTML = html + `<div class="vcv-empty">${esc(tr('versioningNeedsSave'))}</div>`; return; }
@@ -227,7 +246,7 @@
           <button type="button" class="video-capture-download-btn" data-act="listen" ${busy ? 'disabled' : ''}>${esc(listening && listening.key === key ? tr('versioningStopListenBtn') : tr('versioningListenBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-act="edit" ${busy ? 'disabled' : ''}>${esc(tr('versioningEditBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-act="duplicate" ${busy ? 'disabled' : ''}>${esc(tr('versioningDuplicateBtn'))}</button>
-          <button type="button" class="video-capture-download-btn" data-act="detach" ${busy ? 'disabled' : ''} title="${esc(tr('versioningDetachHelp'))}">${esc(tr('versioningDetachBtn'))}</button>
+          ${ctx.sessionOnly ? '' : `<button type="button" class="video-capture-download-btn" data-act="detach" ${busy ? 'disabled' : ''} title="${esc(tr('versioningDetachHelp'))}">${esc(tr('versioningDetachBtn'))}</button>`}
           <button type="button" class="video-capture-download-btn" data-act="delete" ${busy ? 'disabled' : ''}>${esc(tr('versioningDeleteBtn'))}</button>
           <span class="vcv-status" data-role="status"></span>
         </div>`;
@@ -377,7 +396,7 @@
         status.textContent = tr('captureSaving');
         try {
           const title = (editing.title || '').trim() || autoTitle(editing.subs);
-          await api.save(editing.id, ctx.getCaptureId(), title, editing.subs);
+          await store.save(editing.id, ctx.getCaptureId(), title, editing.subs);
           editing = null;
           await refresh();
         } catch (e) {
@@ -398,7 +417,8 @@
         row.querySelector('[data-act="listen"]').addEventListener('click', () => listen('v:' + v.id, v.substitutions, status));
         row.querySelector('[data-act="edit"]').addEventListener('click', () => { stopListening(); editing = { id: v.id, captureId: ctx.getCaptureId(), title: v.title, subs: clone(v.substitutions), isNew: false, titleTouched: true }; render(); });
         row.querySelector('[data-act="duplicate"]').addEventListener('click', () => { stopListening(); editing = { id: newId(), captureId: ctx.getCaptureId(), title: tr('versioningCopyOf').replace('{name}', v.title || ''), subs: clone(v.substitutions), isNew: true, titleTouched: true }; render(); });
-        row.querySelector('[data-act="detach"]').addEventListener('click', async () => {
+        const detachBtn = row.querySelector('[data-act="detach"]');
+        if (detachBtn) detachBtn.addEventListener('click', async () => {
           const ok = await window.LayerPitchNotify.confirm(tr('versioningDetachConfirm').replace('{name}', v.title || ''), { okLabel: tr('versioningDetachBtn') });
           if (!ok) return;
           status.textContent = tr('captureSaving');
@@ -410,7 +430,7 @@
         row.querySelector('[data-act="delete"]').addEventListener('click', async () => {
           const ok = await window.LayerPitchNotify.confirm(tr('versioningDeleteConfirm').replace('{name}', v.title || ''), { okLabel: tr('versioningDeleteBtn'), danger: true });
           if (!ok) return;
-          try { await api.remove(v.id); await refresh(); }
+          try { await store.remove(v.id); await refresh(); }
           catch (e) { console.error(e); status.textContent = tr('versioningDeleteFailed').replace('{error}', e.message); }
         });
       });

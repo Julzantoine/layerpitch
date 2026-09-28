@@ -107,7 +107,7 @@ function buildVideoCard(block) {
       // grisé pour tout autre compositeur (16 septembre, compression trop lente pour un vrai usage --
       // voir layerpitch_video_compression_single_thread_limit.md), donc aucun non-admin ne peut avoir
       // de bibliothèque à piocher dedans. Pas de bascule à montrer dans ce cas, juste le lien externe.
-      const source = currentUserIsAdmin && v.source === 'library' ? 'library' : 'url';
+      const source = flagOpen('video_upload') && v.source === 'library' ? 'library' : 'url';
       const el = document.createElement('div');
       el.className = 'list-block';
       el.innerHTML = `
@@ -115,7 +115,7 @@ function buildVideoCard(block) {
         <label data-help="videoThumbnail">${tr('thumbnailLabel')}</label>
         <div data-role="thumbCtrl"></div>
         <label style="margin-top:8px">${tr('titleLabel')}</label><input type="text" data-field="title" data-i="${i}" value="${escapeAttr(v.title)}">
-        ${currentUserIsAdmin ? `
+        ${flagOpen('video_upload') ? `
         <label>${tr('videoSourceLabel')}</label>
         <div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">
           <label style="display:flex;align-items:center;gap:4px;font-weight:normal"><input type="radio" name="videoSource-${block.id}-${i}" data-role="sourceRadio" data-i="${i}" value="url" style="width:auto;margin:0" ${source === 'url' ? 'checked' : ''}> ${tr('videoSourceUrl')}</label>
@@ -124,7 +124,7 @@ function buildVideoCard(block) {
         <div data-role="urlWrap" ${source === 'library' ? 'style="display:none"' : ''}>
           <label data-help="videoLink">${tr('videoLinkLabel')}</label><input type="text" data-field="url" data-i="${i}" value="${escapeAttr(source === 'url' ? (v.url || '') : '')}">
         </div>
-        ${currentUserIsAdmin ? `
+        ${flagOpen('video_upload') ? `
         <div data-role="libraryWrap" ${source === 'library' ? '' : 'style="display:none"'}>
           <label>${tr('videoLibrarySelectLabel')}</label>
           <select data-role="librarySelect" data-i="${i}">
@@ -143,7 +143,7 @@ function buildVideoCard(block) {
       listEl.appendChild(el);
     });
   }
-  if (currentUserIsAdmin) loadMyVideos().then(({ videos }) => {
+  if (flagOpen('video_upload')) loadMyVideos().then(({ videos }) => {
     libraryVideos = videos || [];
     libraryLoaded = true;
     renderList();

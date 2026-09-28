@@ -16,8 +16,9 @@ function fxBlockHtml(fx, extraAttrs) {
   // réglage qualité propre au compositeur, pas un enjeu de sécurité/business comme "pack en vente".
   // 23/09 (demande de Jules-Antoine) : TOUS les effets (volume, filtre, reverb, écho, bitcrusher, pitch) sont
   // désormais grisés pour tout compte non-admin, en attendant son feu vert -- pas seulement le pitch.
-  const pitchDisabled = !currentUserIsAdmin;
-  const gated = !currentUserIsAdmin;
+  // 28/09 : grisage lu dans les feux verts (feature_flags : pitch, fx_per_voice ; 'audio_fx' ouvre tout).
+  const pitchDisabled = !fxOpen('pitch');
+  const gated = !fxOpen('fx_per_voice');
   // Dans la carte d'un TRIGGER, le fondu se règle par les deux champs « entrée / sortie » du trigger lui-même : les champs de
   // fondu propres au filtre (utiles à l'apparition d'une voix, pas à l'appui d'un bouton) sont masqués pour éviter la confusion.
   const isTriggerBlock = /data-fx-target="trigger"/.test(extraAttrs || '');
@@ -146,7 +147,7 @@ function stageFxHtml(stageFx, target, attrs) {
 // morceau), pas de champ mode (toujours "rate", implicite -- voir buildLayerFxChain/applyTrackPitchRate
 // dans player.js). Rendu une fois dans le panneau "Infos du morceau", commun à tous les modes.
 function trackPitchFxHtml(track, ti) {
-  const pitchDisabled = !currentUserIsAdmin;
+  const pitchDisabled = !fxOpen('pitch');
   const p = (track.fx && track.fx.pitch) || null;
   const attrs = `data-fx-target="track" data-ti="${ti}"`;
   // Fondu de pitch : seulement avec le moteur simple (statique/vertical sans boucle quantifiée), voir
@@ -259,7 +260,7 @@ document.addEventListener('toggle', e => {
 }, true);
 function fxTriggersEditorHtml(track, ti) {
   const triggers = track.fxTriggers || [];
-  if (!currentUserIsAdmin) {
+  if (!fxOpen('triggers')) {
     return `
       <div style="margin-top:14px;opacity:0.55">
         <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}</div>
@@ -363,7 +364,7 @@ function fxSlidersClean(list) {
 }
 function fxSlidersEditorHtml(track, ti) {
   const sliders = track.fxSliders || [];
-  if (!currentUserIsAdmin) {
+  if (!fxOpen('rtpc')) {
     return `
       <div style="margin-top:14px;opacity:0.55">
         <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxSlidersTitle')}</div>
@@ -508,7 +509,7 @@ document.addEventListener('dblclick', ev => {
 // "ne rien faire" quand CETTE option de bascule (séquentiel) ou CETTE boucle (embranchement-vertical) est prise.
 function fxActionsHtml(actions, track, ownerAttrs) {
   const triggers = (track.fxTriggers || []).filter(x => x && x.id);
-  if (!currentUserIsAdmin || !triggers.length) return '';
+  if (!fxOpen('triggers') || !triggers.length) return '';
   const rows = triggers.map(trg => {
     const a = (actions || []).find(x => x.triggerId === trg.id);
     const v = a ? (a.active === false ? 'off' : 'on') : '';

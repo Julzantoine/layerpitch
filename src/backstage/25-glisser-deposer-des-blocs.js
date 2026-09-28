@@ -21,7 +21,7 @@ const KB_DELETE_BY_LIST = { libraryMaster: 'remove-track', sfxLibraryMaster: 're
 const KB_DELETE_NESTED = ['remove-segment-slot', 'remove-section', 'remove-embr-loop', 'remove-layer'];
 const KB_DELETE_SELF_CONFIRMING = ['remove-track', 'delete-adreel-manage'];
 document.addEventListener('pointerdown', e => {
-  if (!currentUserIsAdmin) return; // touche Supprimer réservée à l'admin (feu vert en attente, 25/09)
+  if (!flagOpen('alt_drag_delete')) return; // touche Supprimer : feu vert 'alt_drag_delete' (admin seulement d'ici là)
   const card = e.target.closest('#blocksEditorContainer .block-editor-card');
   const item = !card && e.target.closest('.seq-master-item[data-drag-id]');
   if (!card && !item) return;
@@ -55,7 +55,7 @@ function kbDeleteTarget() {
 }
 document.addEventListener('keydown', async e => {
   if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-  if (!currentUserIsAdmin) return;
+  if (!flagOpen('alt_drag_delete')) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const t = e.target;
   if (t && (t.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]'))) return;

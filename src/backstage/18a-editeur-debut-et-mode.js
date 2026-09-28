@@ -61,7 +61,7 @@ function renderLibrary() {
       ${isSequential ? `
         <label data-help="segmentSlotsSection" style="margin-top:14px">${tr('segmentSlotsLabel')}</label>
         ${!(track.segmentSlots && track.segmentSlots.some(sl => (sl.alternatives || []).some(a => a.pendingFile || a.remoteFile))) ? `<div class="hint-inline" style="color:#b45309">${tr('noSegmentWarning')}</div>` : ''}
-        <div class="hint-inline">${tr('segmentSlotsOrderHint')}${currentUserIsAdmin ? ' ' + tr('altDuplicateHint') : ''}</div>
+        <div class="hint-inline">${tr('segmentSlotsOrderHint')}${flagOpen('alt_drag_delete') ? ' ' + tr('altDuplicateHint') : ''}</div>
         <div class="seq-two-col">
           <div class="seq-master-list" data-role="segmentSlotsMaster"></div>
           <div class="seq-detail-col" data-role="segmentSlotsDetail"></div>

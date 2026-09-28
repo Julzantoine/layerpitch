@@ -124,6 +124,11 @@ let currentUserIsAdmin = false;
 // can() répond « non » : rien ne s'ouvre par erreur, et le serveur refuse de toute façon (même matrice).
 let myEntitlements = {};
 function can(feature) { const e = myEntitlements[feature]; return !!(e && e.allowed); }
+// Feux verts (feature_flags) vus par le compte connecté : ouvert si le feu vert est donné OU si le compte est admin.
+let myFlags = {};
+function flagOpen(key) { return !!myFlags[key]; }
+// Fonctions audio : le feu vert global 'audio_fx' ouvre tout, sinon chaque sous-clé (pitch, triggers, rtpc…) séparément.
+function fxOpen(key) { return flagOpen('audio_fx') || flagOpen(key); }
 function entitlementLevel(feature) { const e = myEntitlements[feature]; return e && e.allowed ? e.level : null; }
 async function loadMyEntitlements() {
   const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('my_entitlements');
@@ -131,6 +136,11 @@ async function loadMyEntitlements() {
   const next = {};
   (data || []).forEach(r => { next[r.feature] = { allowed: r.allowed, amount: r.amount == null ? null : Number(r.amount), level: r.level, plan: r.plan, source: r.source }; });
   myEntitlements = next;
+  const flags = await window.LayerPitchSupabaseClient.getClient().rpc('my_feature_flags');
+  if (flags.error) { console.warn('my_feature_flags() en erreur, feux verts inchangés :', flags.error.message || flags.error); return; }
+  const nf = {};
+  (flags.data || []).forEach(r => { nf[r.key] = !!r.allowed; });
+  myFlags = nf;
 }
 async function renderAdminOnlyPanels(session) {
   let isAdmin = false;
@@ -162,12 +172,12 @@ async function renderAdminOnlyPanels(session) {
   });
   const videoNavBtn = document.getElementById('navItemVideoLibrary');
   const videoNavBadge = document.getElementById('navVideoLibraryBadge');
-  if (videoNavBtn) videoNavBtn.disabled = !isAdmin;
-  if (videoNavBadge) videoNavBadge.hidden = isAdmin;
+  if (videoNavBtn) videoNavBtn.disabled = !flagOpen('video_upload');
+  if (videoNavBadge) videoNavBadge.hidden = flagOpen('video_upload');
   // Onglet Albums : admin seulement pendant la bêta (à rouvrir aux compositeurs au lancement, voir
   // le verrou jumeau dans upsert_album / claim_test_album).
   const albumsNavBtn = document.getElementById('navItemAlbums');
-  if (albumsNavBtn) albumsNavBtn.hidden = !isAdmin;
+  if (albumsNavBtn) albumsNavBtn.hidden = !can('sell_albums');
   if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); }
   // Le statut admin peut se résoudre après un premier rendu de la Bibliothèque (session déjà en cache
   // vs RPC is_admin() encore en vol) -- redessine pour refléter le grisage pitch correctement, sans quoi
@@ -175,9 +185,9 @@ async function renderAdminOnlyPanels(session) {
   // monté, voir sa garde en tête de fonction).
   renderLibrary();
   const sfxDrop = document.getElementById('sfxLibraryDrop');
-  if (sfxDrop) sfxDrop.classList.toggle('is-disabled', !isAdmin);
+  if (sfxDrop) sfxDrop.classList.toggle('is-disabled', !flagOpen('bulk_drop'));
   const sfxDropHint = document.getElementById('sfxBatchDropAdminHint');
-  if (sfxDropHint) sfxDropHint.textContent = isAdmin ? '' : tr('fxAdminOnlyHint');
+  if (sfxDropHint) sfxDropHint.textContent = flagOpen('bulk_drop') ? '' : tr('fxAdminOnlyHint');
   if (typeof renderSfxLibrary === 'function') renderSfxLibrary(); // même raison : l'entrée "Espace" des Sfx est réservée à l'admin
   if (typeof renderPacks === 'function') renderPacks(); // prix et catalogue abonnés : droits lus dans la matrice
 }

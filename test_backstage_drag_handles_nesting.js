@@ -50,7 +50,7 @@ const path = require('path');
   }
   let visibleHandlesImpl = null;
 
-  ev('currentUserIsAdmin = true');
+  ev("currentUserIsAdmin = true; myFlags = new Proxy({}, { get: () => true }); myEntitlements = new Proxy({}, { get: () => ({ allowed: true, level: 'saved', amount: null }) });");
   const lib = (mode, extra) => `{ id: 't_${mode}', title: '${mode}', mode: '${mode}', folderId: null, ${extra} }`;
   ev(`library.length = 0; libraryFolders.length = 0;
     libraryFolders.push({ id: 'f1', name: 'Dossier 1' }, { id: 'f2', name: 'Dossier 2' });

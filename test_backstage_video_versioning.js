@@ -33,12 +33,12 @@ const path = require('path');
   const tabBtn = doc.querySelector('#panelVideoLibrary [data-video-subtab="versioning"]');
   check('onglet Vidéo : sous-onglet « Versioning » présent', !!tabBtn);
 
-  ev('currentUserIsAdmin = false');
+  ev("currentUserIsAdmin = false; myFlags = {}; myEntitlements = {};");
   tabBtn.click(); await settle();
   const list = doc.getElementById('videoVersioningList');
   check('non-admin : message « réservé à l\'admin », aucune lecture en base', list.textContent.includes(ev("tr('videoVersioningAdminOnly')")) && !calls.length);
 
-  ev('currentUserIsAdmin = true');
+  ev("currentUserIsAdmin = true; myFlags = new Proxy({}, { get: () => true }); myEntitlements = new Proxy({}, { get: () => ({ allowed: true, level: 'saved', amount: null }) });");
   tabBtn.click(); await settle(); await settle();
   check('admin : tous les montages listés, tous packs confondus (lecture sans filtre de pack)', list.querySelectorAll('.video-library-item').length === 2
     && calls.some(c => c[0] === 'list_my_video_captures' && c[1].p_pack_id === null));

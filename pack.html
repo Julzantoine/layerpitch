@@ -8,7 +8,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
-<link rel="stylesheet" href="player.css?v=1790580561378">
+<link rel="stylesheet" href="player.css?v=1790581475038">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -468,14 +468,14 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790580561378"></script>
-<script src="layerpitch-notify.js?v=1790580561378"></script>
-<script src="public-page.js?v=1790580561378"></script>
-<script src="player.js?v=1790580561378"></script>
-<script src="capture-plan.js?v=1790580561378"></script>
-<script src="capture-render.js?v=1790580561378"></script>
-<script src="capture-retarget.js?v=1790580561378"></script>
-<script src="capture-versioning.js?v=1790580561378"></script>
+<script src="layerpitch-i18n.js?v=1790581475038"></script>
+<script src="layerpitch-notify.js?v=1790581475038"></script>
+<script src="public-page.js?v=1790581475038"></script>
+<script src="player.js?v=1790581475038"></script>
+<script src="capture-plan.js?v=1790581475038"></script>
+<script src="capture-render.js?v=1790581475038"></script>
+<script src="capture-retarget.js?v=1790581475038"></script>
+<script src="capture-versioning.js?v=1790581475038"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2066,6 +2066,11 @@ function openCapturePanel(file, opts) {
   // multicoeur (compression côté serveur, voir la note sur les limites de ffmpeg.wasm). Les deux exports rapides
   // (audio seul, vidéo sans ré-encodage) restent ouverts à tous les éligibles.
   const fullExportLocked = !window.__lpCaptureIsAdmin;
+  // Échelle Test in game (15/09, matrice du 27/09) : Rookie = capture seule (frise non modifiable), Warrior = frise
+  // modifiable mais rien d'enregistré, Boss = modifiable + enregistré. Le serveur refuse aussi l'enregistrement hors Boss.
+  const captureLevel = window.__lpCaptureLevel || 'capture';
+  const captureCanEdit = captureLevel !== 'capture';
+  const captureCanSave = captureLevel === 'saved';
   const setExportButtonsDisabled = (v) => { exportBtn.disabled = v || fullExportLocked; exportAudioBtn.disabled = v; exportCopyBtn.disabled = v; };
   if (fullExportLocked) {
     exportBtn.title = tr('captureExportFullLockedHint');
@@ -2141,7 +2146,7 @@ function openCapturePanel(file, opts) {
       countEl.textContent = captureCountText(lastEvents);
       additiveCheckbox.disabled = false;
       refreshActionButtons();
-      renderCaptureTimeline(timelineEl, lastEvents, true, () => {
+      renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
         countEl.textContent = captureCountText(lastEvents);
         refreshActionButtons();
       }, laneOverrides, collapsedGroups, videoEl);
@@ -2227,7 +2232,7 @@ function openCapturePanel(file, opts) {
       // sens) -- "on le garde pour les vrais réglages que personne ne verra". La mécanique de filigrane
       // dans exportCaptureVideo reste intacte, juste plus exposée en UI : figé sur 'boss' (aucun
       // filigrane) en attendant un vrai palier compositeur à brancher ici, invisible pour l'instant.
-      const exportOptions = { tier: 'boss', showComposerCredit: creditCheckbox.checked, mode };
+      const exportOptions = { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode };
       const blob = await exportCaptureVideo(lastEvents, file, (msg) => { exportStatus.textContent = msg; }, laneOverrides, exportOptions);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2303,7 +2308,7 @@ function openCapturePanel(file, opts) {
     titleInput.value = capture.title || '';
     countEl.textContent = captureCountText(lastEvents);
     refreshActionButtons();
-    renderCaptureTimeline(timelineEl, lastEvents, true, () => {
+    renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
       countEl.textContent = captureCountText(lastEvents);
       refreshActionButtons();
     }, laneOverrides, collapsedGroups, videoEl);
@@ -2343,18 +2348,27 @@ function openCapturePanel(file, opts) {
       console.error('Échec de la liste des prises sauvegardées', e);
     }
   }
-  refreshLoadOptions();
-  // Versioning (26/09) : les versions vidéo du montage sauvegardé -- même montage rejoué sur d'autres morceaux / Sfx
-  // (capture-retarget.js, capture-versioning.js). Admin seulement jusqu'au feu vert (layerpitch-docs/feux-verts-admin.md) ;
-  // les fonctions serveur le vérifient aussi.
+  // Hors Boss : pas d'enregistrement de montage (barre masquée, explication à la place).
+  if (!captureCanSave) {
+    [saveBtn, loadSelect, loadBtn, titleInput].forEach(el => { el.hidden = true; });
+    saveStatus.textContent = tr(captureLevel === 'edit' ? 'captureSaveTierNoteWarrior' : 'captureSaveTierNoteRookie');
+  } else {
+    refreshLoadOptions();
+  }
+  // Versioning (26/09) : les versions vidéo d'un montage -- même montage rejoué sur d'autres morceaux / Sfx
+  // (capture-retarget.js, capture-versioning.js). Droit lu dans la matrice (28/09) : Boss = versions enregistrées
+  // (rattachées au montage sauvegardé) ; Warrior = versions de la séance, gardées en mémoire, perdues à la fermeture.
+  // Feu vert 'versioning' : admin seulement d'ici là ; les fonctions serveur le vérifient aussi.
   const versioningHost = document.getElementById('videoCaptureVersioning');
-  if (window.__lpCaptureIsAdmin && window.LayerCaptureVersioning) {
+  const versioningLevel = window.__lpVersioningLevel;
+  if (versioningLevel && window.LayerCaptureVersioning) {
     versioningHost.hidden = false;
     versioning = window.LayerCaptureVersioning.mount(versioningHost, {
+      sessionOnly: versioningLevel !== 'saved',
       tr, videoEl, fetchBytes: fetchAsUint8Array, fullExportLocked,
       library: window.__lpCaptureLibrary, findTrack: findCaptureTrack, findSfx: findCaptureSfx,
-      getEvents: () => lastEvents, getCaptureId: () => savedCaptureId, getCaptureTitle: () => titleInput.value,
-      exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: 'boss', showComposerCredit: creditCheckbox.checked, mode }),
+      getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
+      exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
       // « Détacher » : la version devient un montage indépendant (sauvegardé tout de suite), ouvert à la place de celui-ci.
       detach: async (events, title) => {
@@ -2414,6 +2428,19 @@ async function setupCaptureTrigger(pack, container) {
       eligible = !!myComposerId && myComposerId === lastResolvedOwnerId;
     }
     if (!eligible) return;
+    // Droits de l'outil vidéo lus dans la matrice (28/09, chantier profils et permissions) : Test in game
+    // (capture / edit / saved), Versioning (session / saved), filigrane. En cas d'erreur : droits Rookie (le serveur
+    // refuse de toute façon ce que la matrice n'accorde pas).
+    window.__lpCaptureLevel = 'capture'; window.__lpVersioningLevel = null; window.__lpNoWatermark = false;
+    try {
+      const { data: ent } = await client.rpc('my_entitlements');
+      const byF = {};
+      (ent || []).forEach(r => { byF[r.feature] = r; });
+      const lvl = f => (byF[f] && byF[f].allowed ? byF[f].level : null);
+      window.__lpCaptureLevel = lvl('test_in_game') || 'capture';
+      window.__lpVersioningLevel = lvl('versioning');
+      window.__lpNoWatermark = !!(byF.no_watermark && byF.no_watermark.allowed);
+    } catch (e) { console.warn('my_entitlements() indisponible, droits Rookie par défaut', e); }
   } catch (e) { return; } // jamais bloquant pour le reste de la page
 
   const captureBtn = document.createElement('button');

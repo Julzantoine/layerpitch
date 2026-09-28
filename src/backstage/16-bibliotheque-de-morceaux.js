@@ -412,7 +412,7 @@ function openSfxBatchDropDialog(files) {
 // Réglages du MORCEAU entier (pas d'un seul fichier) : toujours soumis à confirmation. Admin seulement
 // tant que Jules-Antoine n'a pas donné son feu vert.
 function offerTrackTempoFromFilenames(track, files, withLoopBars) {
-  if (!currentUserIsAdmin) return;
+  if (!flagOpen('bulk_drop')) return;
   const found = firstFilenameHints(files);
   if (!found) return;
   const h = found.hints;

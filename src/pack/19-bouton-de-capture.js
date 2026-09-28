@@ -28,6 +28,19 @@ async function setupCaptureTrigger(pack, container) {
       eligible = !!myComposerId && myComposerId === lastResolvedOwnerId;
     }
     if (!eligible) return;
+    // Droits de l'outil vidéo lus dans la matrice (28/09, chantier profils et permissions) : Test in game
+    // (capture / edit / saved), Versioning (session / saved), filigrane. En cas d'erreur : droits Rookie (le serveur
+    // refuse de toute façon ce que la matrice n'accorde pas).
+    window.__lpCaptureLevel = 'capture'; window.__lpVersioningLevel = null; window.__lpNoWatermark = false;
+    try {
+      const { data: ent } = await client.rpc('my_entitlements');
+      const byF = {};
+      (ent || []).forEach(r => { byF[r.feature] = r; });
+      const lvl = f => (byF[f] && byF[f].allowed ? byF[f].level : null);
+      window.__lpCaptureLevel = lvl('test_in_game') || 'capture';
+      window.__lpVersioningLevel = lvl('versioning');
+      window.__lpNoWatermark = !!(byF.no_watermark && byF.no_watermark.allowed);
+    } catch (e) { console.warn('my_entitlements() indisponible, droits Rookie par défaut', e); }
   } catch (e) { return; } // jamais bloquant pour le reste de la page
 
   const captureBtn = document.createElement('button');

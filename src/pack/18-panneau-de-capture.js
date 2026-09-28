@@ -97,6 +97,11 @@ function openCapturePanel(file, opts) {
   // multicoeur (compression côté serveur, voir la note sur les limites de ffmpeg.wasm). Les deux exports rapides
   // (audio seul, vidéo sans ré-encodage) restent ouverts à tous les éligibles.
   const fullExportLocked = !window.__lpCaptureIsAdmin;
+  // Échelle Test in game (15/09, matrice du 27/09) : Rookie = capture seule (frise non modifiable), Warrior = frise
+  // modifiable mais rien d'enregistré, Boss = modifiable + enregistré. Le serveur refuse aussi l'enregistrement hors Boss.
+  const captureLevel = window.__lpCaptureLevel || 'capture';
+  const captureCanEdit = captureLevel !== 'capture';
+  const captureCanSave = captureLevel === 'saved';
   const setExportButtonsDisabled = (v) => { exportBtn.disabled = v || fullExportLocked; exportAudioBtn.disabled = v; exportCopyBtn.disabled = v; };
   if (fullExportLocked) {
     exportBtn.title = tr('captureExportFullLockedHint');
@@ -172,7 +177,7 @@ function openCapturePanel(file, opts) {
       countEl.textContent = captureCountText(lastEvents);
       additiveCheckbox.disabled = false;
       refreshActionButtons();
-      renderCaptureTimeline(timelineEl, lastEvents, true, () => {
+      renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
         countEl.textContent = captureCountText(lastEvents);
         refreshActionButtons();
       }, laneOverrides, collapsedGroups, videoEl);
@@ -258,7 +263,7 @@ function openCapturePanel(file, opts) {
       // sens) -- "on le garde pour les vrais réglages que personne ne verra". La mécanique de filigrane
       // dans exportCaptureVideo reste intacte, juste plus exposée en UI : figé sur 'boss' (aucun
       // filigrane) en attendant un vrai palier compositeur à brancher ici, invisible pour l'instant.
-      const exportOptions = { tier: 'boss', showComposerCredit: creditCheckbox.checked, mode };
+      const exportOptions = { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode };
       const blob = await exportCaptureVideo(lastEvents, file, (msg) => { exportStatus.textContent = msg; }, laneOverrides, exportOptions);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -334,7 +339,7 @@ function openCapturePanel(file, opts) {
     titleInput.value = capture.title || '';
     countEl.textContent = captureCountText(lastEvents);
     refreshActionButtons();
-    renderCaptureTimeline(timelineEl, lastEvents, true, () => {
+    renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
       countEl.textContent = captureCountText(lastEvents);
       refreshActionButtons();
     }, laneOverrides, collapsedGroups, videoEl);
@@ -374,18 +379,27 @@ function openCapturePanel(file, opts) {
       console.error('Échec de la liste des prises sauvegardées', e);
     }
   }
-  refreshLoadOptions();
-  // Versioning (26/09) : les versions vidéo du montage sauvegardé -- même montage rejoué sur d'autres morceaux / Sfx
-  // (capture-retarget.js, capture-versioning.js). Admin seulement jusqu'au feu vert (layerpitch-docs/feux-verts-admin.md) ;
-  // les fonctions serveur le vérifient aussi.
+  // Hors Boss : pas d'enregistrement de montage (barre masquée, explication à la place).
+  if (!captureCanSave) {
+    [saveBtn, loadSelect, loadBtn, titleInput].forEach(el => { el.hidden = true; });
+    saveStatus.textContent = tr(captureLevel === 'edit' ? 'captureSaveTierNoteWarrior' : 'captureSaveTierNoteRookie');
+  } else {
+    refreshLoadOptions();
+  }
+  // Versioning (26/09) : les versions vidéo d'un montage -- même montage rejoué sur d'autres morceaux / Sfx
+  // (capture-retarget.js, capture-versioning.js). Droit lu dans la matrice (28/09) : Boss = versions enregistrées
+  // (rattachées au montage sauvegardé) ; Warrior = versions de la séance, gardées en mémoire, perdues à la fermeture.
+  // Feu vert 'versioning' : admin seulement d'ici là ; les fonctions serveur le vérifient aussi.
   const versioningHost = document.getElementById('videoCaptureVersioning');
-  if (window.__lpCaptureIsAdmin && window.LayerCaptureVersioning) {
+  const versioningLevel = window.__lpVersioningLevel;
+  if (versioningLevel && window.LayerCaptureVersioning) {
     versioningHost.hidden = false;
     versioning = window.LayerCaptureVersioning.mount(versioningHost, {
+      sessionOnly: versioningLevel !== 'saved',
       tr, videoEl, fetchBytes: fetchAsUint8Array, fullExportLocked,
       library: window.__lpCaptureLibrary, findTrack: findCaptureTrack, findSfx: findCaptureSfx,
-      getEvents: () => lastEvents, getCaptureId: () => savedCaptureId, getCaptureTitle: () => titleInput.value,
-      exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: 'boss', showComposerCredit: creditCheckbox.checked, mode }),
+      getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
+      exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
       // « Détacher » : la version devient un montage indépendant (sauvegardé tout de suite), ouvert à la place de celui-ci.
       detach: async (events, title) => {

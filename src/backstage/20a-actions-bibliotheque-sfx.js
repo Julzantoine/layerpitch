@@ -11,8 +11,8 @@ document.getElementById('btnAddSfx').addEventListener('click', () => {
   if (!host) return;
   // Le statut admin n'est connu qu'après coup (RPC) : vérifié au moment du dépôt. Pour un non-admin, le
   // dépôt est avalé sans effet (sinon le navigateur ouvrirait le fichier et quitterait la page).
-  wireBatchDrop(host, files => { if (currentUserIsAdmin) openSfxBatchDropDialog(files); });
-  host.addEventListener('dragover', e => { if (!currentUserIsAdmin) host.classList.remove('drag-over'); });
+  wireBatchDrop(host, files => { if (flagOpen('bulk_drop')) openSfxBatchDropDialog(files); });
+  host.addEventListener('dragover', e => { if (!flagOpen('bulk_drop')) host.classList.remove('drag-over'); });
   host.addEventListener('drop', e => e.preventDefault());
 })();
 document.getElementById('btnAddSfxFolder').addEventListener('click', () => {

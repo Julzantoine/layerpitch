@@ -224,8 +224,8 @@
           // directement ; le tempo du morceau, lui, passe par une confirmation (offerTrackTempoFromFilenames).
           // Admin seulement pour l'instant.
           const pushedLoops = files.map((f, idx) => {
-            const fileBars = currentUserIsAdmin ? parseAudioFilenameHints(f.name).bars : null;
-            const newLoop = { id: genId(), label: currentUserIsAdmin ? titleFromFilenameStrippingHints(f.name) : titleFromFilename(f.name), bars: fileBars || 8, isInitial: track.loops.length === 0 && idx === 0, remoteFile: null, pendingFile: f, switchQuantize: 'immediate', autoReturnEnabled: false, autoReturnValue: 4, autoReturnUnit: 'bars', detourMode: 'once', endLoopButtonLabel: '', isDetour: false, cutStyle: 'fade', customCutFadeSec: null, transition: null };
+            const fileBars = flagOpen('bulk_drop') ? parseAudioFilenameHints(f.name).bars : null;
+            const newLoop = { id: genId(), label: flagOpen('bulk_drop') ? titleFromFilenameStrippingHints(f.name) : titleFromFilename(f.name), bars: fileBars || 8, isInitial: track.loops.length === 0 && idx === 0, remoteFile: null, pendingFile: f, switchQuantize: 'immediate', autoReturnEnabled: false, autoReturnValue: 4, autoReturnUnit: 'bars', detourMode: 'once', endLoopButtonLabel: '', isDetour: false, cutStyle: 'fade', customCutFadeSec: null, transition: null };
             track.loops.push(newLoop);
             return newLoop;
           });
@@ -275,7 +275,7 @@
           const emptyLayers = track.layers.filter(l => !l.pendingFile && !l.remoteFile);
           const touchedLayers = files.map((f, idx) => {
             const target = emptyLayers[idx];
-            const layerLabel = currentUserIsAdmin ? titleFromFilenameStrippingHints(f.name) : titleFromFilename(f.name);
+            const layerLabel = flagOpen('bulk_drop') ? titleFromFilenameStrippingHints(f.name) : titleFromFilename(f.name);
             if (target) { target.pendingFile = f; target.label = layerLabel; return target; }
             const newLayer = { id: genId(), label: layerLabel, remoteFile: null, pendingFile: f };
             track.layers.push(newLayer);
