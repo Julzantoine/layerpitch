@@ -1536,6 +1536,7 @@ window.LAYERPITCH_I18N = {
     studio: {
       creditsTitle: "Crédits",
       creditsUnavailable: "Aucun crédit pour ce compte.",
+      subscribedNotice: "Abonnement enregistré, merci ! Tes crédits du mois apparaissent ci-dessous (quelques secondes peuvent être nécessaires).",
       creditsIntro: "Chaque période payée ajoute les crédits de ton palier. Ils se reportent tant que ton studio reste abonné, et expirent 28 jours après une résiliation.",
       creditsBalance: "Solde",
       creditsMonthly: "Ajoutés chaque mois",
@@ -3732,6 +3733,7 @@ window.LAYERPITCH_I18N = {
     studio: {
       creditsTitle: "Credits",
       creditsUnavailable: "No credits for this account.",
+      subscribedNotice: "Subscription confirmed, thank you! This month's credits appear below (it can take a few seconds).",
       creditsIntro: "Each paid period adds your plan's credits. They roll over as long as your studio stays subscribed, and expire 28 days after a cancellation.",
       creditsBalance: "Balance",
       creditsMonthly: "Added each month",
