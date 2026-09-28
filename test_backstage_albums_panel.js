@@ -15,7 +15,12 @@ const html = fs.readFileSync(path.join(__dirname, 'layerpitch-backstage.html'), 
 const start = html.indexOf('/* ---------------- Onglet Albums');
 const end = html.indexOf('async function loadAnalyticsIfNeeded()');
 check('bloc Albums trouvé dans le backstage', start > 0 && end > start);
-const block = html.slice(start, end);
+// Section « Droits » (co-ayants droit, étape 4a du chantier profils et permissions, 28/09) : fichier source à part,
+// placé juste après l'onglet Albums dans la page fabriquée.
+const rStart = html.indexOf('/* ---------------- Onglet Albums : co-ayants droit');
+const rEnd = html.indexOf('/* ---------------- Polices personnalisées');
+check('bloc Droits trouvé dans le backstage', rStart > end && rEnd > rStart);
+const block = html.slice(start, end) + html.slice(rStart, rEnd);
 
 // Verrou bêta (21 septembre) : l'onglet Albums est réservé aux admins. Le bouton part masqué, la règle
 // CSS empêche `.nav-item { display:flex }` d'écraser l'attribut hidden, et seul renderAdminOnlyPanels()
@@ -35,12 +40,21 @@ async function scenario({ testEnabled, saveResult, claimResult }) {
   const w = dom.window;
   const calls = { upsert: [], claim: [] };
   let purchases = [];
+  const rights = { declaration: 'sole', holders: [] };
+  const rightsState = () => ({ declaration: rights.declaration, ackAt: rights.declaration === 'shared' ? '2026-09-28' : null, settled: rights.holders.every(h => h.status !== 'pending'), sellerShareBps: 10000 - rights.holders.reduce((a, h) => a + h.shareBps, 0), holders: rights.holders.map(h => Object.assign({}, h)) });
+  w.LayerPitchNotify = { confirm: async () => true };
   w.LayerPitchAuth = { getSession: async () => ({ session: { user: { id: 'user-1' } } }), ensureMyComposerProfile: async () => ({ composerId: 'comp-1', error: null }) };
   w.LayerPitchAlbums = {
     listAlbums: async ({ sellerId }) => ({ albums: [{ id: 'alb_old', title: 'Déjà là', presentationFr: '', presentationEn: '', priceEurCents: 300, buyable: true, trackIds: ['t2'], officialDurations: { t2: 30 } }], error: null, _seller: sellerId }),
     listMyPurchases: async () => ({ purchases, error: null }),
     getPlatformFlags: async () => ({ flags: { testPurchasesEnabled: testEnabled }, error: null }),
     upsertAlbum: async p => { calls.upsert.push(p); return saveResult(p); },
+    getAlbumRights: async () => ({ rights: rightsState(), error: null }),
+    setAlbumRights: async (id, decl, holders, ack) => { calls.setRights = { id, decl, holders, ack }; if (decl === 'shared' && !ack) return { rights: null, error: 'avertissement' };
+      rights.declaration = decl; rights.holders = holders.map((h, i) => ({ id: 'h' + i, email: h.email, shareBps: h.shareBps, status: 'pending' }));
+      return { rights: Object.assign(rightsState(), { toInvite: rights.holders.map(h => h.id), unlisted: true }), error: null }; },
+    inviteRightsHolder: async (albumId, holderId) => { (calls.invites = calls.invites || []).push(holderId); return holderId === 'h1' ? { ok: false, error: 'Resend en panne', actionLink: 'https://lien' } : { ok: true }; },
+    markRightsHolderSelfPay: async holderId => { rights.holders.find(h => h.id === holderId).status = 'self_pay'; return { rights: rightsState(), error: null }; },
     claimTestAlbum: async id => { calls.claim.push(id); const r = claimResult(id); if (r.ok) purchases = [{ albumId: id, title: 'Déjà là', isTest: true, purchasedAt: '2026-09-21T10:00:00Z' }]; return r; },
   };
   w.library = [{ id: 't1', title: 'Forêt' }, { id: 't2', title: 'Combat' }, { id: 't3', title: 'Crépuscule' }];
@@ -76,7 +90,7 @@ const click = (el) => el.dispatchEvent(new (el.ownerDocument.defaultView.MouseEv
   await s.t.loadAlbums(); await tick();
   let cards = s.doc.querySelectorAll('#albumsContainer .list-block');
   check('l\'album existant est affiché', cards.length === 1 && s.doc.querySelector('[data-album-field="title"]').value === 'Déjà là');
-  check('prix minimum affiché en dollars (300 cts -> 3.00)', s.doc.querySelector('[data-album-field="priceInput"]').value === '3.00');
+  check('prix minimum affiché en euros (300 cts -> 3.00)', s.doc.querySelector('[data-album-field="priceInput"]').value === '3.00');
   check('bouton « Obtenir (test) » visible (album enregistré, en vente, interrupteur actif)', !!s.doc.querySelector('[data-action="claim-test-album"]'));
   // Version du compositeur (A.7, 26/09) : t2 en a une (✓ 0:30, écoutable) ; bouton « Refaire »
   const firstCard = () => s.doc.querySelectorAll('#albumsContainer .list-block')[0];
@@ -162,6 +176,30 @@ const click = (el) => el.dispatchEvent(new (el.ownerDocument.defaultView.MouseEv
   check('après enregistrement : image servie depuis le stockage', s.doc.querySelector('#albumsContainer img').getAttribute('src') === 'https://media.layerpitch.com/images/comp-1/album-alb_old.png');
   click(s.doc.querySelector('[data-action="save-album"]')); await tick(); await tick();
   check('enregistrement suivant : pas de nouvel envoi, pochette non écrasée', s.calls.put.length === 1 && !('illustration' in s.calls.upsert[s.calls.upsert.length - 1]));
+
+  // ---- Scénario Droits : co-ayants droit (étape 4a) ----
+  s = await scenario({ testEnabled: false, saveResult: () => ({ ok: true, data: {} }), claimResult: () => ({ ok: true }) });
+  await s.t.loadAlbums(); await tick(); await tick(); await tick();
+  const radios = s.doc.querySelectorAll('[data-rights-field="declaration"]');
+  check('droits : « seul propriétaire » coché par défaut', radios.length === 2 && radios[0].checked);
+  radios[1].checked = true; change(s.w, radios[1]); await tick();
+  input(s.w, s.doc.querySelector('[data-rights-col="email"]'), 'coco@x.test');
+  input(s.w, s.doc.querySelector('[data-rights-col="pct"]'), '30');
+  click(s.doc.querySelector('[data-action="rights-add"]')); await tick();
+  input(s.w, s.doc.querySelectorAll('[data-rights-col="email"]')[1], 'absent@x.test');
+  input(s.w, s.doc.querySelectorAll('[data-rights-col="pct"]')[1], '12,5');
+  click(s.doc.querySelector('[data-action="rights-save"]')); await tick(); await tick();
+  check('droits : sans l\'avertissement coché, le serveur refuse et le message s\'affiche', s.calls.setRights.ack === false && /avertissement/.test(s.doc.getElementById('albumsContainer').textContent));
+  const ack = s.doc.querySelector('[data-rights-field="ack"]'); ack.checked = true; change(s.w, ack);
+  click(s.doc.querySelector('[data-action="rights-save"]')); for (let i = 0; i < 6; i++) await tick();
+  check('droits : parts envoyées en points de base (30 % -> 3000, 12,5 % -> 1250)', s.calls.setRights.holders[0].shareBps === 3000 && s.calls.setRights.holders[1].shareBps === 1250 && s.calls.setRights.ack === true);
+  check('droits : une invitation envoyée par co-ayant droit', (s.calls.invites || []).join(',') === 'h0,h1');
+  const rtxt = s.doc.getElementById('albumsContainer').textContent;
+  check('droits : échec d\'envoi signalé avec le lien à transmettre soi-même', /Resend en panne/.test(rtxt) && /https:\/\/lien/.test(rtxt));
+  check('droits : album retiré de la vente côté écran', s.t.albumsState.albums[0].buyable === false);
+  check('droits : statuts affichés + « Je reverse moi-même » proposé', s.doc.querySelectorAll('[data-action="rights-self-pay"]').length === 2 && /en attente/.test(rtxt));
+  click(s.doc.querySelector('[data-action="rights-self-pay"]')); for (let i = 0; i < 4; i++) await tick();
+  check('droits : injoignable réglé par le vendeur', /je reverse moi-même/.test(s.doc.getElementById('albumsContainer').textContent) && s.doc.querySelectorAll('[data-action="rights-self-pay"]').length === 1);
 
   // ---- Scénario 3 : interrupteur bêta coupé ----
   s = await scenario({ testEnabled: false, saveResult: () => ({ ok: true }), claimResult: () => ({ ok: true }) });

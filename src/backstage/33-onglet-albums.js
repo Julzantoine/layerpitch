@@ -99,6 +99,7 @@ function renderAlbums() {
         <input type="text" inputmode="decimal" data-album-field="priceInput" data-ai="${ai}" value="${escapeAttr(al.priceInput)}" placeholder="3.00" style="max-width:140px">
         <div class="sub" style="margin-top:4px">${tr('albumMinPriceHint')}</div>
         <label style="${rowStyle}margin-top:12px"><input type="checkbox" style="width:auto;margin:0" data-album-field="buyable" data-ai="${ai}"${al.buyable ? ' checked' : ''}><span>${tr('albumBuyableLabel')}</span></label>
+        ${renderAlbumRights(al, ai)}
         <label>${tr('albumTracksLabel')}</label>
         ${trackRows.length ? trackRows.join('') : `<div class="sub">${tr('albumNoTracksInLibrary')}</div>`}
         ${renderAlbumOfficialVersions(al, ai)}
@@ -284,7 +285,7 @@ function setAlbumMessage(al, text, kind) {
 
 async function saveAlbum(ai) {
   const al = albumsState.albums[ai];
-  // Prix saisi en dollars (« 3.5 », « 3,50 »), envoyé en centimes. Vide = pas de prix (refusé si en vente).
+  // Prix saisi en euros (« 3.5 », « 3,50 »), envoyé en centimes. Vide = pas de prix (refusé si en vente).
   const raw = al.priceInput.trim().replace(',', '.');
   let cents = null;
   if (raw !== '') {

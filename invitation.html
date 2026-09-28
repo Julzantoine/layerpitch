@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pageTitle">LayerPitch — Invitation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
+    --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --accent: #c9713c; --accent-soft: #f3e4d6; --on-accent: #ffffff;
+    --font-body: 'Inter', system-ui, sans-serif; --font-title: 'Space Grotesk', 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 32px 16px 60px; }
+  .page { max-width: 600px; margin: 0 auto; }
+  a { color: var(--accent); }
+  h1 { font-family: var(--font-title); font-size: 24px; margin: 0 0 16px; }
+  h2 { font-family: var(--font-title); font-size: 17px; margin: 0 0 6px; overflow-wrap: anywhere; }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+  .hint { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin: 0 0 10px; }
+  .share { font-family: var(--font-mono); font-size: 22px; color: var(--accent); margin: 6px 0 10px; }
+  .status { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; color: var(--accent); background: var(--accent-soft); padding: 3px 9px; border-radius: 999px; }
+  .btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--text); }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  label.choice { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 6px 0; }
+  label.choice input { width: auto; margin: 0; }
+  input[type="email"], input[type="text"] { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; }
+  .msg { font-family: var(--font-mono); font-size: 11.5px; margin-top: 8px; min-height: 1em; }
+  .msg.err { color: #b5442e; } .msg.ok { color: #2a7; }
+  .disclaimer { font-size: 12px; color: var(--text-dimmer); line-height: 1.5; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 data-i18n="h1">Tes invitations de co-ayant droit</h1>
+  <div id="content"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="layerpitch-i18n.js?v=1790581475038"></script>
+<script src="layerpitch-notify.js?v=1790581475038"></script>
+<script src="api/supabase-client.js?v=1790581475038"></script>
+<script src="api/auth.js?v=1790581475038"></script>
+<script src="api/albums.js?v=1790581475038"></script>
+<script>
+// invitation.html — le co-ayant droit d'un album accepte ou refuse sa part (chantier profils et permissions, étape 4a,
+// 28/09 ; D4-D6). Arrivée par le lien de l'e-mail (invite-rights-holder) : compte créé si besoin, connexion automatique.
+// Accepter = choisir la casquette qui reçoit l'argent (compositeur ou studio) ; le versement Stripe s'active dans
+// « Mon compte ». Refuser bloque la vente de l'album. Tout est vérifié côté serveur (respond_rights_invitation).
+const pageLang = (new URLSearchParams(location.search).get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
+function tr(key, vars) {
+  const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, invitation: {} }, en: { shared: {}, invitation: {} } };
+  const dict = I18N[pageLang] || I18N.fr, dictFr = I18N.fr;
+  let str = (dict.invitation && dict.invitation[key]) || (dict.shared && dict.shared[key]) || (dictFr.invitation && dictFr.invitation[key]) || (dictFr.shared && dictFr.shared[key]) || key;
+  if (vars) Object.keys(vars).forEach(k => { str = str.split('{' + k + '}').join(vars[k]); });
+  return str;
+}
+document.documentElement.lang = pageLang;
+document.title = tr('pageTitle');
+document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pct = bps => (bps / 100).toLocaleString(pageLang) + ' %';
+const content = document.getElementById('content');
+
+async function render() {
+  const { session } = await LayerPitchAuth.getSession();
+  if (!session) {
+    content.innerHTML = `<div class="card">
+      <p class="hint">${esc(tr('signInPrompt'))}</p>
+      <input type="email" id="email" placeholder="${esc(tr('emailPlaceholder'))}">
+      <div class="actions"><button class="btn primary" id="sendBtn" type="button">${esc(tr('sendLinkBtn'))}</button></div>
+      <div class="msg" id="msg"></div>
+      <div id="codeBox" hidden>
+        <input type="text" id="code" inputmode="numeric" autocomplete="one-time-code" placeholder="${esc(tr('codePlaceholder'))}" style="margin-top:10px">
+        <div class="actions"><button class="btn primary" id="verifyBtn" type="button">${esc(tr('verifyCodeBtn'))}</button></div>
+        <div class="msg" id="codeMsg"></div>
+      </div></div>`;
+    document.getElementById('sendBtn').onclick = async () => {
+      const email = document.getElementById('email').value.trim(); if (!email) return;
+      const { ok, error } = await LayerPitchAuth.signInWithMagicLink(email, location.href);
+      const m = document.getElementById('msg'); m.textContent = ok ? tr('linkSent') : tr('errorPrefix', { message: error }); m.className = 'msg ' + (ok ? 'ok' : 'err');
+      document.getElementById('codeBox').hidden = !ok;
+    };
+    document.getElementById('verifyBtn').onclick = async () => {
+      const { ok, error } = await LayerPitchAuth.verifyEmailOtp(document.getElementById('email').value.trim(), document.getElementById('code').value.trim());
+      if (!ok) { const m = document.getElementById('codeMsg'); m.textContent = tr('errorPrefix', { message: error }); m.className = 'msg err'; }
+    };
+    return;
+  }
+  content.innerHTML = `<div class="card"><p class="hint">${esc(tr('loading'))}</p></div>`;
+  const [{ invitations, error }, { composerId }, { studioId }] = await Promise.all([
+    LayerPitchAlbums.myRightsInvitations(), LayerPitchAuth.getMyComposerId(), LayerPitchAuth.getMyStudioId()]);
+  if (error) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('errorPrefix', { message: error }))}</p></div>`; return; }
+  if (!invitations.length) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('none'))}</p></div>`; return; }
+  const defaultRole = composerId || !studioId ? 'composer' : 'studio';
+  content.innerHTML = invitations.map(inv => {
+    const open = inv.status === 'pending' || inv.status === 'self_pay';
+    return `<div class="card" data-id="${esc(inv.id)}">
+      <h2>${esc(inv.albumTitle)}</h2>
+      <p class="hint">${esc(tr('from', { name: inv.sellerName || '' }))}</p>
+      <div class="share">${esc(pct(inv.shareBps))}</div>
+      <span class="status">${esc(tr('status_' + inv.status))}</span>
+      ${open ? `
+        <p class="hint" style="margin-top:12px">${esc(tr('explain'))}</p>
+        <div style="margin-top:6px">${esc(tr('roleQuestion'))}</div>
+        <label class="choice"><input type="radio" name="role-${esc(inv.id)}" value="composer"${defaultRole === 'composer' ? ' checked' : ''}> ${esc(tr('roleComposer'))}</label>
+        <label class="choice"><input type="radio" name="role-${esc(inv.id)}" value="studio"${defaultRole === 'studio' ? ' checked' : ''}> ${esc(tr('roleStudio'))}</label>
+        <div class="actions">
+          <button class="btn primary" type="button" data-act="accept">${esc(tr('accept'))}</button>
+          <button class="btn" type="button" data-act="refuse">${esc(tr('refuse'))}</button>
+        </div>` : (inv.status === 'accepted' ? `<p class="hint" style="margin-top:12px">${esc(tr('acceptedNext'))} <a href="./mon-compte.html">${esc(tr('accountLink'))}</a></p>` : '')}
+      <div class="msg" data-role="msg"></div>
+      <p class="disclaimer">${esc(tr('disclaimer'))}</p>
+    </div>`;
+  }).join('');
+  content.querySelectorAll('.card[data-id]').forEach(card => {
+    const id = card.dataset.id;
+    const msg = card.querySelector('[data-role="msg"]');
+    const respond = async accept => {
+      if (!accept) {
+        const ok = await window.LayerPitchNotify.confirm(tr('refuseConfirm'), { okLabel: tr('refuse'), danger: true });
+        if (!ok) return;
+      }
+      const role = (card.querySelector('input[type="radio"]:checked') || {}).value || 'composer';
+      card.querySelectorAll('button').forEach(b => { b.disabled = true; });
+      // Casquette choisie absente : on crée le profil correspondant (même RPC que le reste du produit).
+      if (accept && role === 'composer' && !composerId) await LayerPitchAuth.ensureMyComposerProfile();
+      if (accept && role === 'studio' && !studioId) await LayerPitchAuth.ensureMyStudioProfile();
+      const { ok, error } = await LayerPitchAlbums.respondRightsInvitation(id, accept, role);
+      if (!ok) { msg.textContent = tr('errorPrefix', { message: error }); msg.className = 'msg err'; card.querySelectorAll('button').forEach(b => { b.disabled = false; }); return; }
+      render();
+    };
+    const a = card.querySelector('[data-act="accept"]'); if (a) a.onclick = () => respond(true);
+    const r = card.querySelector('[data-act="refuse"]'); if (r) r.onclick = () => respond(false);
+  });
+}
+LayerPitchAuth.onAuthStateChange(() => render());
+</script>
+</body>
+</html>

@@ -147,7 +147,40 @@
     return { take: t && t.kind === 'layerpitch-take' ? t : null, error: null };
   }
 
+  // ---- Co-ayants droit (étape 4a, 28/09, migration 20260928040000) ----
+  async function getAlbumRights(albumId) {
+    const { data, error } = await getClient().rpc('list_album_rights', { p_album_id: albumId });
+    return error ? { rights: null, error: error.message } : { rights: data, error: null };
+  }
+  async function setAlbumRights(albumId, declaration, holders, ack) {
+    const { data, error } = await getClient().rpc('set_album_rights', { p_album_id: albumId, p_declaration: declaration, p_holders: holders, p_ack: !!ack });
+    return error ? { rights: null, error: error.message } : { rights: data, error: null };
+  }
+  async function markRightsHolderSelfPay(holderId) {
+    const { data, error } = await getClient().rpc('mark_rights_holder_self_pay', { p_holder_id: holderId });
+    return error ? { rights: null, error: error.message } : { rights: data, error: null };
+  }
+  // E-mail d'invitation (Edge Function invite-rights-holder) ; en cas d'échec d'envoi, actionLink permet de transmettre le lien soi-même.
+  async function inviteRightsHolder(albumId, holderId, redirectTo) {
+    const { data, error } = await getClient().functions.invoke('invite-rights-holder', { body: { albumId, holderId, redirectTo } });
+    if (error) {
+      let body = null;
+      try { body = error.context && typeof error.context.json === 'function' ? await error.context.json() : null; } catch (e) {}
+      return { ok: false, error: (body && body.error) || await window.LayerPitchAuth.describeFunctionError(error), actionLink: body && body.actionLink };
+    }
+    return data && data.ok ? { ok: true } : { ok: false, error: (data && data.error) || 'Réponse inattendue.' };
+  }
+  async function myRightsInvitations() {
+    const { data, error } = await getClient().rpc('my_rights_invitations');
+    return error ? { invitations: [], error: error.message } : { invitations: data || [], error: null };
+  }
+  async function respondRightsInvitation(holderId, accept, payoutRole) {
+    const { error } = await getClient().rpc('respond_rights_invitation', { p_holder_id: holderId, p_accept: !!accept, p_payout_role: payoutRole || 'composer' });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+
   window.LayerPitchAlbums = {
+    getAlbumRights, setAlbumRights, markRightsHolderSelfPay, inviteRightsHolder, myRightsInvitations, respondRightsInvitation,
     listAlbums, upsertAlbum, claimTestAlbum, listMyPurchases, getPlatformFlags,
     getMyAlbumVersions, saveMyTrackVersion, renameMyTrackVersion, deleteMyTrackVersion,
     getMyAlbumSettings, setMyAlbumTrackSettings, resetMyAlbumTrackSettings, setAlbumTrackOfficialTake, getAlbumTrackOfficialTake,
