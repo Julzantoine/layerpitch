@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790614889411">
+<link rel="stylesheet" href="player.css?v=1790623508080">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -125,17 +125,17 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790614889411"></script>
-<script src="layerpitch-notify.js?v=1790614889411"></script>
-<script src="player.js?v=1790614889411"></script>
-<script src="api/supabase-client.js?v=1790614889411"></script>
-<script src="api/auth.js?v=1790614889411"></script>
-<script src="layerpitch-shell.js?v=1790614889411"></script>
-<script src="api/tracks.js?v=1790614889411"></script>
-<script src="api/packs.js?v=1790614889411"></script>
-<script src="api/albums.js?v=1790614889411"></script>
-<script src="api/studio.js?v=1790614889411"></script>
-<script src="api/projects.js?v=1790614889411"></script>
+<script src="layerpitch-i18n.js?v=1790623508080"></script>
+<script src="layerpitch-notify.js?v=1790623508080"></script>
+<script src="player.js?v=1790623508080"></script>
+<script src="api/supabase-client.js?v=1790623508080"></script>
+<script src="api/auth.js?v=1790623508080"></script>
+<script src="layerpitch-shell.js?v=1790623508080"></script>
+<script src="api/tracks.js?v=1790623508080"></script>
+<script src="api/packs.js?v=1790623508080"></script>
+<script src="api/albums.js?v=1790623508080"></script>
+<script src="api/studio.js?v=1790623508080"></script>
+<script src="api/projects.js?v=1790623508080"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -209,7 +209,7 @@ function joinChannel() {
     S.channel.on('presence', { event: 'sync' }, renderPresence);
     S.channel.on('broadcast', { event: 'changed' }, async ({ payload }) => {
       if (payload.what === 'messages') { await loadMessages(); if (!chatVisible()) S.unread++; renderChat(); }
-      else if (payload.what === 'content') { await reloadContent(); if (S.video) S.video = assetById(S.video.id) || null; if (['board', 'videos', 'music', 'showcase'].includes(S.tab)) renderPanel(); }
+      else if (payload.what === 'content') { await reloadContent(); if (S.video) S.video = assetById(S.video.id) || null; if (['board', 'videos', 'images', 'music', 'showcase'].includes(S.tab)) renderPanel(); }
       else if (payload.what === 'notes' && S.video) { await loadVideoNotes(); renderPanel(); }
     });
     S.channel.subscribe(status => { if (status === 'SUBSCRIBED') S.channel.track({ email: S.me.email }); });
@@ -224,17 +224,17 @@ function renderPresence() {
 }
 
 // ---- Rendu ----
-const TABS = ['board', 'videos', 'music', 'showcase', 'activity', 'members']; // la Discussion est dans la colonne de droite
+const TABS = ['board', 'videos', 'images', 'music', 'showcase', 'activity', 'members']; // la Discussion est dans la colonne de droite
 function render() {
   const p = S.project;
   content.innerHTML = `
     <div class="top"><h1 id="pTitle">${esc(p.title)}</h1>
-      <div class="bar">${p.archived ? `<span class="pill">${esc(tr('archived'))}</span>` : ''}
+      <div class="bar">${S.content.openAnnotations ? `<span class="pill" title="${esc(tr('openNotesHint'))}">💬 ${esc(tr('openNotes', { n: S.content.openAnnotations }))}</span>` : ''}${p.archived ? `<span class="pill">${esc(tr('archived'))}</span>` : ''}
         <button class="btn" id="editBtn" type="button">${esc(tr('editProject'))}</button>
         ${p.role === 'admin' ? `<button class="btn" id="archiveBtn" type="button">${esc(tr(p.archived ? 'restoreProject' : 'archiveProject'))}</button>
         <button class="btn danger" id="deleteBtn" type="button">${esc(tr('deleteProject'))}</button>` : ''}</div></div>
     ${p.description ? `<div class="desc">${esc(p.description)}</div>` : ''}
-    <div class="tabs" role="tablist">${TABS.map(t => `<button class="tab" role="tab" type="button" data-tab="${t}" aria-selected="${S.tab === t}">${esc(tr('tab_' + t))}${t === 'board' && S.content.openAnnotations ? ' · ' + S.content.openAnnotations : ''}</button>`).join('')}</div>
+    <div class="tabs" role="tablist">${TABS.map(t => `<button class="tab" role="tab" type="button" data-tab="${t}" aria-selected="${S.tab === t}">${esc(tr('tab_' + t))}</button>`).join('')}</div>
     <div class="workspace" id="ws"><div id="panel" style="min-width:0"></div><aside class="chat" id="chat" aria-label="${esc(tr('tab_thread'))}"></aside></div>`;
   content.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; stopMedia(); render(); });
   $('editBtn').onclick = editProject;
@@ -253,6 +253,7 @@ async function renderPanel() {
   if (!panel) return;
   if (S.tab === 'board') return renderBoard(panel);
   if (S.tab === 'videos') return renderVideos(panel);
+  if (S.tab === 'images') return renderImages(panel);
   if (S.tab === 'music') return renderMusic(panel);
   if (S.tab === 'showcase') return renderShowcase(panel);
   if (S.tab === 'activity') { const a = await PJ.activity(projectId); S.activity = a.data || []; return renderActivity(panel); }
@@ -364,7 +365,7 @@ function renderChat() {
       <div class="pending" id="pending">${S.pending.map((f, i) => `<span class="pending-chip">${esc(f.name)} <button type="button" data-unpend="${i}" title="${esc(tr('delete'))}">×</button></span>`).join('')}</div>
       <textarea id="newMsg" placeholder="${esc(tr('messagePlaceholder'))}"></textarea>
       <div class="bar" style="margin-top:6px"><button class="icon-btn" id="attachBtn" type="button" title="${esc(tr('attachFile'))}">📎</button>
-        <input type="file" id="attachInput" multiple hidden accept="image/jpeg,image/png,image/webp,image/gif,audio/*,video/mp4,video/webm,application/pdf">
+        <input type="file" id="attachInput" multiple hidden accept="image/jpeg,image/png,image/webp,image/gif,audio/*,video/mp4,video/webm,video/quicktime,.mov,application/pdf">
         <button class="btn primary" id="sendBtn" type="button">${esc(tr('send'))}</button><span class="meta">${esc(tr('sendHint'))}</span></div>
       <div class="msg" id="threadMsg"></div></div>`}`;
   const th = $('thread'); th.scrollTop = th.scrollHeight;
@@ -491,7 +492,7 @@ async function renderBoard(panel) {
     const f = $('addForm');
     if (kind === 'link') f.innerHTML = `<label>${esc(tr('linkUrl'))}</label><input type="url" id="fUrl" placeholder="https://"><label>${esc(tr('itemTitle'))}</label><input type="text" id="fTitle"><label>${esc(tr('itemBody'))}</label><textarea id="fBody"></textarea>`;
     if (kind === 'note') f.innerHTML = `<label>${esc(tr('itemTitle'))}</label><input type="text" id="fTitle"><label>${esc(tr('itemBody'))}</label><textarea id="fBody"></textarea>`;
-    if (kind === 'upload') f.innerHTML = `<label>${esc(tr('uploadLabel'))}</label><input type="file" id="fFile" accept="image/jpeg,image/png,image/webp,image/gif,audio/*,video/mp4,video/webm,application/pdf">
+    if (kind === 'upload') f.innerHTML = `<label>${esc(tr('uploadLabel'))}</label><input type="file" id="fFile" accept="image/jpeg,image/png,image/webp,image/gif,audio/*,video/mp4,video/webm,video/quicktime,.mov,application/pdf">
       <label class="choice"><input type="checkbox" id="fReference"> ${esc(tr('uploadIsReference'))}</label>
       <label>${esc(tr('itemTitle'))}</label><input type="text" id="fTitle"><label>${esc(tr('itemBody'))}</label><textarea id="fBody"></textarea>`;
     if (kind === 'track') f.innerHTML = `<label>${esc(tr('kind_track'))}</label><select id="fTrack">${S.myTracks.map(t => `<option value="${esc(t.id)}">${esc(t.title)}</option>`).join('')}</select><label>${esc(tr('itemBody'))}</label><textarea id="fBody"></textarea>`;
@@ -720,12 +721,57 @@ function wireNotes(box, list, refresh) {
 }
 
 // ---- Vidéos annotées (façon SoundCloud) ----
+// ---- Images : toutes les images du Projet, d'où qu'elles viennent (Moodboard, discussion, cet onglet) — 28/09 ----
+async function renderImages(panel) {
+  const imgs = (S.content.assets || []).filter(a => a.kind === 'image');
+  panel.innerHTML = `<div class="card"><h2>${esc(tr('imagesTitle'))}</h2><p class="hint">${esc(tr('imagesIntro'))}</p>
+      <div class="bar"><input type="file" id="iFile" multiple accept="image/jpeg,image/png,image/webp,image/gif" style="flex:1 1 240px">
+        <label class="choice" style="margin:0"><input type="checkbox" id="iReference"> ${esc(tr('uploadIsReference'))}</label>
+        <button class="btn" id="iUploadBtn" type="button">${esc(tr('uploadImages'))}</button></div>
+      <div class="msg" id="iMsg"></div></div>
+    <div class="grid" id="imgGrid">${imgs.length ? '' : `<div class="empty" style="grid-column:1/-1">${esc(tr('noImages'))}</div>`}</div>`;
+  $('iUploadBtn').onclick = async () => {
+    const files = [...$('iFile').files]; if (!files.length) return say('iMsg', tr('chooseFile'));
+    $('iUploadBtn').disabled = true;
+    for (const f of files) {
+      say('iMsg', tr('uploadingNamed', { name: f.name }), true);
+      const up = await PJ.upload(projectId, f);
+      if (up.error) { $('iUploadBtn').disabled = false; return say('iMsg', tr('errorPrefix', { message: f.name + ' : ' + up.error })); }
+      const r = await PJ.addAsset(projectId, { kind: 'image', fileId: up.data.fileId, title: f.name, origin: $('iReference').checked ? 'external' : 'own' });
+      if (r.error) { $('iUploadBtn').disabled = false; return say('iMsg', tr('errorPrefix', { message: r.error })); }
+    }
+    await reloadContent(); renderImages(panel); broadcast('content');
+  };
+  const grid = $('imgGrid');
+  for (const a of imgs) {
+    const el = document.createElement('div');
+    el.className = 'item';
+    const u = await fileUrl(a.fileId);
+    el.innerHTML = `<div class="item-kind">${esc(tr('kind_image'))} · ${esc(tr('origin_' + a.origin))}${a.pinned ? ' · ' + esc(tr('pinnedPill')) : ''}</div>
+      <div class="item-title">${esc(assetTitle(a))}</div>
+      ${u ? `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt=""></a>` : ''}
+      ${a.body ? `<div class="item-body">${esc(a.body)}</div>` : ''}
+      <div class="meta">${esc(a.authorEmail || '')}</div>
+      <div class="item-actions">
+        <button class="btn" type="button" data-act="pin">${esc(tr(a.pinned ? 'unpin' : 'pinBtn'))}</button>
+        <button class="icon-btn" type="button" data-act="notes" title="${esc(tr('notesToggle'))}">💬${a.notes ? ' ' + esc(a.notes) : ''}</button>
+        <button class="icon-btn" type="button" data-act="del" title="${esc(tr('deleteFromProject'))}">✕</button>
+      </div>
+      <div class="notes" data-role="notes" ${S.openNotes[a.id] ? '' : 'hidden'}></div>`;
+    el.querySelector('[data-act="pin"]').onclick = async () => { const r = await PJ.pin(a.id, !a.pinned); if (r.error) return say('iMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderImages(panel); broadcast('content'); };
+    el.querySelector('[data-act="del"]').onclick = () => deleteAsset(a);
+    const box = el.querySelector('[data-role="notes"]');
+    el.querySelector('[data-act="notes"]').onclick = () => { S.openNotes[a.id] = !S.openNotes[a.id]; box.hidden = !S.openNotes[a.id]; if (!box.hidden) renderNotes(box, 'asset', a.id); };
+    if (S.openNotes[a.id]) renderNotes(box, 'asset', a.id);
+    grid.appendChild(el);
+  }
+}
 function renderVideos(panel) {
   const vids = (S.content.assets || []).filter(a => a.kind === 'video');
   panel.innerHTML = `<div class="card">
       <h2>${esc(tr('videosTitle'))}</h2><p class="hint">${esc(tr('videosIntro'))}</p>
       <div class="bar"><input type="url" id="vUrl" placeholder="${esc(tr('videoLinkPlaceholder'))}" style="flex:1 1 240px"><button class="btn" id="vLinkBtn" type="button">${esc(tr('addVideoLink'))}</button></div>
-      <div class="bar" style="margin-top:8px"><input type="file" id="vFile" accept="video/mp4,video/webm" style="flex:1 1 240px"><button class="btn" id="vUploadBtn" type="button">${esc(tr('uploadVideo'))}</button></div>
+      <div class="bar" style="margin-top:8px"><input type="file" id="vFile" accept="video/mp4,video/webm,video/quicktime,.mov" style="flex:1 1 240px"><button class="btn" id="vUploadBtn" type="button">${esc(tr('uploadVideo'))}</button></div>
       <label>${esc(tr('itemTitle'))}</label><input type="text" id="vTitle">
       <div class="msg" id="vMsg"></div>
     </div>
@@ -782,6 +828,11 @@ async function renderVideoStage() {
     const u = await fileUrl(v.fileId);
     wrap.innerHTML = `<video controls preload="metadata" src="${esc(u || '')}"></video>`;
     const el = wrap.querySelector('video');
+    // Format que ce navigateur ne sait pas lire (souvent un .mov dans Firefox) : on le dit et on propose de télécharger,
+    // plutôt qu'un cadre noir.
+    el.addEventListener('error', () => {
+      wrap.innerHTML = `<div style="display:grid;place-items:center;color:#fff;text-align:center;padding:16px;line-height:1.6">${esc(tr('videoCannotPlay'))}<br><a class="btn" style="margin-top:8px;background:#fff" href="${esc(u || '')}" target="_blank" rel="noopener" download>${esc(tr('downloadVideo'))}</a></div>`;
+    }, { once: true });
     Object.assign(V, { get: () => el.currentTime, seek: t => { el.currentTime = t; }, duration: () => el.duration || 0, pause: () => el.pause() });
   } else if (/youtu/.test(v.url)) {
     wrap.innerHTML = `<div id="ytHost"></div>`;

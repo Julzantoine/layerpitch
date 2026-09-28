@@ -108,6 +108,8 @@
 
   // Fichiers : quota du propriétaire (studio Indie 20 Go)
   await as(3);
+  check('vidéo .mov acceptée (enregistrement d\'écran du Mac)', (await val(`select public.reserve_project_file($1, 'tuto.mov', 1000)`, [ps])).mimeType === 'video/quicktime');
+  await q(`delete from public.project_files where original_name = 'tuto.mov'`);
   check('type non accepté (.html) refusé', await fails(`select public.reserve_project_file($1, 'page.html', 1000)`, [ps], /non accepté/));
   const f = await val(`select public.reserve_project_file($1, 'capture.mp4', 1000000)`, [ps]);
   check('réservation d\'un fichier : chemin rangé sous projects/<id>/', f.path.startsWith('projects/' + ps + '/') && f.mimeType === 'video/mp4');
