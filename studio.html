@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Espace studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790600834073">
+<link rel="stylesheet" href="player.css?v=1790604012101">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -71,16 +71,16 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790600834073"></script>
-<script src="layerpitch-notify.js?v=1790600834073"></script>
-<script src="player.js?v=1790600834073"></script>
-<script src="api/supabase-client.js?v=1790600834073"></script>
-<script src="api/auth.js?v=1790600834073"></script>
-<script src="api/purchases.js?v=1790600834073"></script>
-<script src="api/tracks.js?v=1790600834073"></script>
-<script src="api/sfx.js?v=1790600834073"></script>
-<script src="api/subscriptions.js?v=1790600834073"></script>
-<script src="api/studio.js?v=1790600834073"></script>
+<script src="layerpitch-i18n.js?v=1790604012101"></script>
+<script src="layerpitch-notify.js?v=1790604012101"></script>
+<script src="player.js?v=1790604012101"></script>
+<script src="api/supabase-client.js?v=1790604012101"></script>
+<script src="api/auth.js?v=1790604012101"></script>
+<script src="api/purchases.js?v=1790604012101"></script>
+<script src="api/tracks.js?v=1790604012101"></script>
+<script src="api/sfx.js?v=1790604012101"></script>
+<script src="api/subscriptions.js?v=1790604012101"></script>
+<script src="api/studio.js?v=1790604012101"></script>
 <script>
 // studio.html — Espace studio (chantier profils et permissions, étape 3, 28/09 ; D2, D9, D13, D33 du cadrage
 // layerpitch-docs/2026-09-27-cadrage-profils-permissions.md). Espace DÉDIÉ au studio, distinct du Backstage compositeur ;
@@ -106,10 +106,14 @@ const IMAGES_BASE = 'https://media.layerpitch.com/images/';
 const eur = cents => new Intl.NumberFormat(pageLang === 'en' ? 'en-GB' : 'fr-FR', { style: 'currency', currency: 'EUR' }).format((Number(cents) || 0) / 100);
 const PLAN_NAMES = { solodev: 'SoloDev', indie: 'Indie', aa: 'AA', aaa: 'AAA' };
 
-// Retour de Stripe après un abonnement (?subscribed=1) : on ouvre directement « Mon palier », avec un message.
-const justSubscribed = new URLSearchParams(location.search).get('subscribed') === '1';
-if (justSubscribed) history.replaceState(null, '', location.pathname + (pageLang === 'en' ? '?lang=en' : ''));
-const state = { tab: justSubscribed ? 'plan' : 'library', ent: {}, flags: {}, purchases: [], owned: [], customPacks: [], editing: null, playing: null };
+// Retour de Stripe : après un abonnement (?subscribed=1, avec un message) ou depuis le portail « Gérer mon abonnement »
+// (?tab=plan&portal=1), on ouvre directement « Mon palier ». ?tab= choisit aussi l'onglet dans les autres cas.
+const startParams = new URLSearchParams(location.search);
+const justSubscribed = startParams.get('subscribed') === '1';
+const fromPortal = startParams.get('portal') === '1';
+const startTab = justSubscribed ? 'plan' : (['library', 'custom', 'team', 'plan'].includes(startParams.get('tab')) ? startParams.get('tab') : 'library');
+if (justSubscribed || fromPortal) history.replaceState(null, '', location.pathname + '?tab=plan' + (pageLang === 'en' ? '&lang=en' : ''));
+const state = { tab: startTab, ent: {}, flags: {}, purchases: [], owned: [], customPacks: [], editing: null, playing: null };
 const content = $('content');
 
 function quotaText(e) {
@@ -475,6 +479,8 @@ async function renderUpgrade() {
   const isOwner = !team || team.isOwner;
   const { billing } = await LayerPitchSubscriptions.myBilling();
   const sub = billing && billing.studio;
+  // Retour du portail : le changement (résiliation, palier) arrive par le webhook Stripe, parfois quelques secondes après.
+  if (fromPortal && !renderUpgrade.retried) { renderUpgrade.retried = true; setTimeout(() => { renderUpgrade(); renderCredits(); }, 5000); }
   // Abonnement en cours : un seul abonnement par studio ; changer de palier, résilier, carte et reçus passent par le
   // portail client Stripe (28/09). Sinon : souscrire (Indie / AA en libre-service, AAA sur devis).
   if (sub && sub.active) {
@@ -488,7 +494,7 @@ async function renderUpgrade() {
     const mb = $('manageBtn');
     if (mb) mb.onclick = async () => {
       mb.disabled = true;
-      const r = await LayerPitchSubscriptions.openBillingPortal('studio', location.origin + '/studio.html');
+      const r = await LayerPitchSubscriptions.openBillingPortal('studio', location.origin + '/studio.html?tab=plan&portal=1' + (pageLang === 'en' ? '&lang=en' : ''));
       if (!r.ok) { $('upgradeMsg').textContent = tr('errorPrefix', { message: r.error }); $('upgradeMsg').className = 'msg err'; mb.disabled = false; }
     };
     return;

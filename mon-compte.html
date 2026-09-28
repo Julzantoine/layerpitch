@@ -47,15 +47,15 @@
   <div id="content"></div>
 </div>
 
-<script src="layerpitch-i18n.js?v=1790600834073"></script>
-<script src="layerpitch-notify.js?v=1790600834073"></script>
+<script src="layerpitch-i18n.js?v=1790604012101"></script>
+<script src="layerpitch-notify.js?v=1790604012101"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1790600834073"></script>
-<script src="api/auth.js?v=1790600834073"></script>
-<script src="api/subscriptions.js?v=1790600834073"></script>
-<script src="api/notification-prefs.js?v=1790600834073"></script>
-<script src="api/connect.js?v=1790600834073"></script>
-<script src="api/invoices.js?v=1790600834073"></script>
+<script src="api/supabase-client.js?v=1790604012101"></script>
+<script src="api/auth.js?v=1790604012101"></script>
+<script src="api/subscriptions.js?v=1790604012101"></script>
+<script src="api/notification-prefs.js?v=1790604012101"></script>
+<script src="api/connect.js?v=1790604012101"></script>
+<script src="api/invoices.js?v=1790604012101"></script>
 <script>
 const content = document.getElementById('content');
 
@@ -371,10 +371,16 @@ async function invoicesCardHtml() {
 }
 
 function wireSubscriptionCard() {
+  // Retour du portail Stripe : le changement arrive par le webhook, parfois quelques secondes après ; on relit une fois.
+  if (new URLSearchParams(location.search).get('portal') === '1' && !wireSubscriptionCard.retried) {
+    wireSubscriptionCard.retried = true;
+    history.replaceState(null, '', location.pathname);
+    setTimeout(() => render(), 5000);
+  }
   const manage = document.getElementById('btnManageSubscription');
   if (manage) manage.addEventListener('click', async () => {
     manage.disabled = true;
-    const { ok, error } = await LayerPitchSubscriptions.openBillingPortal('composer', window.location.origin + '/mon-compte.html');
+    const { ok, error } = await LayerPitchSubscriptions.openBillingPortal('composer', window.location.origin + '/mon-compte.html?portal=1');
     if (!ok) { document.getElementById('subscriptionMsg').textContent = tr('errorPrefix', { message: error }); manage.disabled = false; }
   });
   const planButtons = [
