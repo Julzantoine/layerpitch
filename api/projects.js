@@ -74,9 +74,13 @@
     // Notes : targetType 'asset' (un objet de la réserve, où qu'il soit affiché), 'message' ou 'project' ; atPart = partie
     // d'un morceau adaptatif (« Segment 2 »), à côté de l'instant.
     annotations: (id, targetType, targetId) => rpc('list_project_annotations', { p_project_id: id, p_target_type: targetType || null, p_target_id: targetId || null }),
+    // addresseeId = un membre, null = pour tout le monde, P.PRIVATE = « juste pour moi » (visible par son seul auteur).
+    PRIVATE: '__me',
     async annotate(id, targetType, targetId, atSeconds, body, addresseeId, projectUrl, atPart) {
-      const r = await rpc('add_project_annotation', { p_project_id: id, p_target_type: targetType, p_target_id: targetId, p_at_seconds: atSeconds == null ? null : atSeconds, p_body: body, p_addressee: addresseeId || null, p_at_part: atPart || null });
-      if (!r.error && addresseeId) invoke('project-notify', { action: 'annotation', annotationId: r.data, projectUrl }); // e-mail en arrière-plan
+      const priv = addresseeId === P.PRIVATE;
+      const to = priv ? null : (addresseeId || null);
+      const r = await rpc('add_project_annotation', { p_project_id: id, p_target_type: targetType, p_target_id: targetId, p_at_seconds: atSeconds == null ? null : atSeconds, p_body: body, p_addressee: to, p_at_part: atPart || null, p_private: priv });
+      if (!r.error && to) invoke('project-notify', { action: 'annotation', annotationId: r.data, projectUrl }); // e-mail en arrière-plan
       return r;
     },
     resolve: (annotationId, resolved) => rpc('resolve_project_annotation', { p_annotation_id: annotationId, p_resolved: !!resolved }),

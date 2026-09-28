@@ -155,6 +155,22 @@
   await as(2); await q(`select public.delete_project_message($1)`, [mImg]); await as(3);
   check('supprimer le message garde la pièce jointe dans le Projet', (await val(`select count(*)::int from public.project_assets where id = $1`, [att[0].assetId])) === 1);
 
+  // Notes « juste pour moi » (migration 20260928180000)
+  await as(1);
+  const openBefore = (await val(`select public.get_project_content($1)`, [ps])).openAnnotations;
+  const actCount = async () => val(`select count(*)::int from public.project_activity where project_id = $1 and kind = 'annotation_added'`, [ps]);
+  const actBefore = await actCount();
+  await q(`select public.add_project_annotation($1, 'asset', $2, null, 'Idée perso', null, null, true)`, [ps, it.id]);
+  check('note privée : visible par son auteur', (await val(`select public.list_project_annotations($1, 'asset', $2)`, [ps, it.id])).some(n => n.private && n.body === 'Idée perso'));
+  check('note privée : comptée pour son auteur', (await val(`select public.get_project_content($1)`, [ps])).openAnnotations === openBefore + 1);
+  const privId = (await val(`select public.list_project_annotations($1, 'asset', $2)`, [ps, it.id])).find(n => n.private).id;
+  check('note privée adressée à quelqu\'un : refusée', await fails(`select public.add_project_annotation($1, 'asset', $2, null, 'x', $3, null, true)`, [ps, it.id, U(3)], /adressée à personne/));
+  await as(3);
+  check('note privée : invisible pour les autres membres', !(await val(`select public.list_project_annotations($1, 'asset', $2)`, [ps, it.id])).some(n => n.private));
+  check('note privée : pas dans le compteur des autres', (await val(`select public.get_project_content($1)`, [ps])).openAnnotations === openBefore);
+  check('note privée : un autre membre ne peut pas la résoudre', await fails(`select public.resolve_project_annotation($1, true)`, [privId], /introuvable/));
+  check('note privée : absente du journal d\'activité', (await actCount()) === actBefore);
+
   // Versions du Moodboard : les épingles
   const snap = await val(`select public.create_project_snapshot($1, 'Avant refonte')`, [ps]);
   const before = (await val(`select public.get_project_content($1)`, [ps])).moodboard;
