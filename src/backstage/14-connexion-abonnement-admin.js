@@ -180,6 +180,18 @@ async function renderAdminOnlyPanels(session) {
   if (studioLink) studioLink.hidden = !flagOpen('studio_space');
   const projectsLink = document.getElementById('accountMenuProjects');
   if (projectsLink) projectsLink.hidden = !flagOpen('projects');
+  // Navigation commune de la barre (28/09) : Projets selon le feu vert ; rubrique Studio si le compte a un studio
+  // (le sien ou celui de son équipe, casquette non masquée par « Voir en tant que ») et que l'espace studio est ouvert.
+  const navProjects = document.getElementById('navLinkProjects');
+  if (navProjects) navProjects.hidden = !flagOpen('projects');
+  if (window.LayerPitchAuth && window.LayerPitchAuth.getMyStudioId) {
+    window.LayerPitchAuth.getMyStudioId().then(({ studioId }) => {
+      const show = !!studioId && flagOpen('studio_space');
+      ['navSectionStudio', 'navLinkStudioLibrary', 'navLinkCatalog', 'navLinkStudioTeam', 'navLinkStudioPlan'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.hidden = !show;
+      });
+    });
+  }
   const albumsNavBtn = document.getElementById('navItemAlbums');
   if (albumsNavBtn) albumsNavBtn.hidden = !can('sell_albums');
   if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); }

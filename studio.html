@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Espace studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790604203021">
+<link rel="stylesheet" href="player.css?v=1790605656333">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -63,24 +63,24 @@
 <body>
 <div class="page">
   <div class="top">
-    <h1 data-i18n="h1">Espace studio</h1>
-    <div class="top-links" id="topLinks"></div>
+    <h1 id="pageTitle" data-i18n="h1">Espace studio</h1>
   </div>
   <div id="content"></div>
 </div>
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790604203021"></script>
-<script src="layerpitch-notify.js?v=1790604203021"></script>
-<script src="player.js?v=1790604203021"></script>
-<script src="api/supabase-client.js?v=1790604203021"></script>
-<script src="api/auth.js?v=1790604203021"></script>
-<script src="api/purchases.js?v=1790604203021"></script>
-<script src="api/tracks.js?v=1790604203021"></script>
-<script src="api/sfx.js?v=1790604203021"></script>
-<script src="api/subscriptions.js?v=1790604203021"></script>
-<script src="api/studio.js?v=1790604203021"></script>
+<script src="layerpitch-i18n.js?v=1790605656333"></script>
+<script src="layerpitch-notify.js?v=1790605656333"></script>
+<script src="player.js?v=1790605656333"></script>
+<script src="api/supabase-client.js?v=1790605656333"></script>
+<script src="api/auth.js?v=1790605656333"></script>
+<script src="layerpitch-shell.js?v=1790605656333"></script>
+<script src="api/purchases.js?v=1790605656333"></script>
+<script src="api/tracks.js?v=1790605656333"></script>
+<script src="api/sfx.js?v=1790605656333"></script>
+<script src="api/subscriptions.js?v=1790605656333"></script>
+<script src="api/studio.js?v=1790605656333"></script>
 <script>
 // studio.html — Espace studio (chantier profils et permissions, étape 3, 28/09 ; D2, D9, D13, D33 du cadrage
 // layerpitch-docs/2026-09-27-cadrage-profils-permissions.md). Espace DÉDIÉ au studio, distinct du Backstage compositeur ;
@@ -122,14 +122,22 @@ function quotaText(e) {
   return String(e.amount);
 }
 
-async function renderTopLinks(hasComposer) {
-  const links = [];
-  if (hasComposer) links.push(`<a href="./layerpitch-backstage.html">${esc(tr('switchToComposer'))}</a>`);
-  links.push(`<a href="./projets.html?lang=${pageLang}">${esc(tr('projectsLink'))}</a>`);
-  links.push(`<a href="./catalogue.html?lang=${pageLang}">${esc(tr('catalogLink'))}</a>`);
-  links.push(`<a href="./mon-compte.html">${esc(tr('accountLink'))}</a>`);
-  $('topLinks').innerHTML = links.join('');
+// Barre latérale commune (28/09) : les onglets de l'espace studio sont ses entrées « Studio » ; le fil d'Ariane et
+// le titre suivent l'onglet choisi. Un lien de la barre vers cette même page change d'onglet sans rechargement.
+const STUDIO_TABS = ['library', 'custom', 'team', 'plan'];
+function shellPlaces() {
+  return { active: 'studio.' + state.tab, crumbs: [{ label: tr('h1'), href: 'studio.html?tab=library' }, { label: tr('tab_' + state.tab) }] };
 }
+function selectTab(tab) {
+  if (!STUDIO_TABS.includes(tab)) return false;
+  state.tab = tab; state.editing = null; stopPlayback(); state.playing = null;
+  history.replaceState(null, '', location.pathname + '?tab=' + tab + (pageLang === 'en' ? '&lang=en' : ''));
+  $('pageTitle').textContent = tr('tab_' + tab);
+  if (window.LayerPitchShell) window.LayerPitchShell.update(shellPlaces());
+  if ($('panel')) renderPanel();
+  return true;
+}
+if (window.LayerPitchShell) window.LayerPitchShell.onNavigate(url => selectTab(url.searchParams.get('tab') || 'library'));
 
 function signInHtml() {
   return `<div class="card">
@@ -162,10 +170,16 @@ function wireSignIn() {
 
 async function render() {
   const { session } = await LayerPitchAuth.getSession();
-  if (!session) { renderTopLinks(false); content.innerHTML = signInHtml(); wireSignIn(); return; }
+  if (!session) { $('pageTitle').textContent = tr('h1'); content.innerHTML = signInHtml(); wireSignIn(); return; }
   const [{ composerId }, { studioId }] = await Promise.all([LayerPitchAuth.getMyComposerId(), LayerPitchAuth.getMyStudioId()]);
-  renderTopLinks(!!composerId);
+  $('pageTitle').textContent = studioId ? tr('tab_' + state.tab) : tr('h1');
   if (!studioId) {
+    // Admin en « Voir en tant que » compositeur ou fan : la casquette studio est masquée, pas d'activation proposée.
+    const preview = await LayerPitchAuth.getAdminPreview();
+    if (preview && (preview.role === 'composer' || preview.role === 'fan')) {
+      content.innerHTML = `<div class="card"><p class="hint">${esc(tr('previewMasked'))}</p></div>`;
+      return;
+    }
     content.innerHTML = `<div class="card">
       <h2>${esc(tr('activateTitle'))}</h2>
       <p class="hint">${esc(tr('activateHint'))}</p>
@@ -192,15 +206,7 @@ async function render() {
   const plan = planEnt ? planEnt.plan : 'solodev';
   content.innerHTML = `
     <div class="top" style="margin-bottom:12px"><span class="plan-badge">${esc(tr('planBadge', { plan: PLAN_NAMES[plan] || plan }))}${planEnt && planEnt.source !== 'plan' ? ' · ' + esc(tr('source_' + planEnt.source)) : ''}</span></div>
-    <div class="tabs" role="tablist">
-      ${['library', 'custom', 'team', 'plan'].map(t => `<button type="button" class="tab" role="tab" data-tab="${t}" aria-selected="${state.tab === t}">${esc(tr('tab_' + t))}</button>`).join('')}
-    </div>
     <div id="panel"></div>`;
-  content.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
-    state.tab = b.dataset.tab; state.editing = null; stopPlayback(); state.playing = null;
-    content.querySelectorAll('[data-tab]').forEach(x => x.setAttribute('aria-selected', String(x === b)));
-    renderPanel();
-  });
   await loadData();
   renderPanel();
 }
@@ -512,6 +518,7 @@ async function renderUpgrade() {
   });
 }
 
+window.LayerPitchShell && window.LayerPitchShell.mount(shellPlaces());
 LayerPitchAuth.onAuthStateChange(() => render()); // appelé tout de suite avec l'état courant, puis à chaque changement
 </script>
 </body>

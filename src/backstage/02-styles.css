@@ -311,8 +311,9 @@
     padding: 7px 10px; margin-bottom: 2px; border-radius: 6px; font-size: 13px; color: var(--text); cursor: pointer; font-family: inherit;
   }
   .nav-item[hidden] { display: none; }
+  a.nav-item { text-decoration: none; box-sizing: border-box; }
   .nav-item:hover:not(:disabled) { background: var(--bg); }
-  .nav-item.active { background: #262521; color: #fff; }
+  .nav-item.active { background: #24262b; color: #fff; }
   .nav-item:disabled { color: var(--text-dimmer); cursor: default; }
   .nav-item-label { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; }
   /* Items de la section "Compte" encadrés individuellement (19/08, retour visuel) -- scopé à ce groupe

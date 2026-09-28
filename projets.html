@@ -46,16 +46,17 @@
 </head>
 <body>
 <div class="page">
-  <div class="top"><h1 data-i18n="h1">Mes Projets</h1><div class="top-links" id="topLinks"></div></div>
+  <div class="top"><h1 data-i18n="h1">Mes Projets</h1></div>
   <div id="content"></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790604203021"></script>
-<script src="layerpitch-notify.js?v=1790604203021"></script>
-<script src="api/supabase-client.js?v=1790604203021"></script>
-<script src="api/auth.js?v=1790604203021"></script>
-<script src="api/studio.js?v=1790604203021"></script>
-<script src="api/projects.js?v=1790604203021"></script>
+<script src="layerpitch-i18n.js?v=1790605656333"></script>
+<script src="layerpitch-notify.js?v=1790605656333"></script>
+<script src="api/supabase-client.js?v=1790605656333"></script>
+<script src="api/auth.js?v=1790605656333"></script>
+<script src="layerpitch-shell.js?v=1790605656333"></script>
+<script src="api/studio.js?v=1790605656333"></script>
+<script src="api/projects.js?v=1790605656333"></script>
 <script>
 // projets.html — liste et création des Projets (chantier profils et permissions, étape 5, 28/09 ; D20, D24, D36).
 // Créer : compositeur (Warrior 1, Boss 5) ou studio (Indie 1, AA 5, AAA illimité) ; les invités ne paient jamais.
@@ -79,11 +80,6 @@ let showArchived = false;
 async function render() {
   const { session } = await LayerPitchAuth.getSession();
   const [{ composerId }, { studioId }] = session ? await Promise.all([LayerPitchAuth.getMyComposerId(), LayerPitchAuth.getMyStudioId()]) : [{}, {}];
-  $('topLinks').innerHTML = [
-    composerId ? `<a href="./layerpitch-backstage.html">${esc(tr('backstageLink'))}</a>` : '',
-    studioId ? `<a href="./studio.html?lang=${pageLang}">${esc(tr('studioLink'))}</a>` : '',
-    session ? `<a href="./invitation.html?lang=${pageLang}">${esc(tr('invitationsLink'))}</a>` : '',
-  ].filter(Boolean).join('');
   if (!session) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('signInPrompt'))} <a href="./studio.html?lang=${pageLang}">${esc(tr('signInLink'))}</a></p></div>`; return; }
   const [{ flags }, { entitlements }, list] = await Promise.all([LayerPitchStudio.myFeatureFlags(), LayerPitchStudio.myEntitlements(), LayerPitchProjects.listMine()]);
   if (!flags || !flags.projects) {
@@ -133,6 +129,7 @@ async function render() {
     location.href = './projet.html?id=' + encodeURIComponent(r.data) + '&lang=' + pageLang;
   };
 }
+window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'projects', crumbs: [{ label: tr('h1') }] });
 LayerPitchAuth.onAuthStateChange(() => render());
 </script>
 </body>

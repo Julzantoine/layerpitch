@@ -124,9 +124,29 @@
   // Id de la ligne composer_profiles du compte connecté, null si personne n'est connecté ou si
   // aucun composer_profile n'existe encore pour ce compte (RLS "own composer profile" : lecture de
   // sa propre ligne seulement — voir supabase/migrations pour le détail).
+  // « Voir en tant que » de l'admin (28/09, migration 20260928110000) : { role, composerTier, studioPlan,
+  // hideUnreleased } ou null (compte ordinaire, ou migration pas encore appliquée). Lu une fois par page.
+  let adminPreviewPromise = null;
+  function getAdminPreview() {
+    if (!adminPreviewPromise) {
+      adminPreviewPromise = getClient().rpc('my_admin_preview').then(({ data, error }) => (error ? null : data || null), () => null);
+    }
+    return adminPreviewPromise;
+  }
+  async function setAdminPreview({ role, composerTier, studioPlan, hideUnreleased }) {
+    const { error } = await getClient().rpc('set_my_admin_preview', {
+      p_role: role || '', p_composer_tier: composerTier || '', p_studio_plan: studioPlan || '', p_hide_unreleased: !!hideUnreleased,
+    });
+    adminPreviewPromise = null;
+    return error ? { ok: false, error: error.message } : { ok: true, error: null };
+  }
+
   async function getMyComposerId() {
     const { data: userData } = await getClient().auth.getUser();
     if (!userData || !userData.user) return { composerId: null, error: null };
+    // Casquette simulée par l'admin (affichage seulement) : en « studio » ou « fan », pas de profil compositeur.
+    const preview = await getAdminPreview();
+    if (preview && (preview.role === 'studio' || preview.role === 'fan')) return { composerId: null, error: null };
     const { data, error } = await getClient().from('composer_profiles').select('id').maybeSingle();
     if (error) return { composerId: null, error: error.message };
     return { composerId: data ? data.id : null, error: null };
@@ -156,6 +176,8 @@
     // Studio du compte : le sien OU celui de l'équipe dont il est membre (équipes studio, 28/09) -- RPC my_studio().
     const { data: userData } = await getClient().auth.getUser();
     if (!userData || !userData.user) return { studioId: null, error: null };
+    const preview = await getAdminPreview();
+    if (preview && (preview.role === 'composer' || preview.role === 'fan')) return { studioId: null, error: null };
     const { data, error } = await getClient().rpc('my_studio');
     if (error) {
       // Repli tant que la migration 20260928060000 n'est pas appliquée : lecture directe (propriétaire seulement).
@@ -230,7 +252,7 @@
   }
 
   window.LayerPitchAuth = {
-    signInWithMagicLink, verifyEmailOtp, signOut, getSession, onAuthStateChange, inviteTester,
+    signInWithMagicLink, verifyEmailOtp, signOut, getSession, onAuthStateChange, inviteTester, getAdminPreview, setAdminPreview,
     getMyComposerId, getMyComposerHandle, ensureMyComposerProfile,
     getMyStudioId, ensureMyStudioProfile, getMyProfile, markOnboardingComplete,
     suspendAccount, reinstateAccount, markAdminMessagesSeen,
