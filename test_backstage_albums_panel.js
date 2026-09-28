@@ -37,7 +37,7 @@ async function scenario({ testEnabled, saveResult, claimResult }) {
   let purchases = [];
   w.LayerPitchAuth = { getSession: async () => ({ session: { user: { id: 'user-1' } } }), ensureMyComposerProfile: async () => ({ composerId: 'comp-1', error: null }) };
   w.LayerPitchAlbums = {
-    listAlbums: async ({ sellerId }) => ({ albums: [{ id: 'alb_old', title: 'Déjà là', presentationFr: '', presentationEn: '', priceUsdCents: 300, buyable: true, trackIds: ['t2'], officialDurations: { t2: 30 } }], error: null, _seller: sellerId }),
+    listAlbums: async ({ sellerId }) => ({ albums: [{ id: 'alb_old', title: 'Déjà là', presentationFr: '', presentationEn: '', priceEurCents: 300, buyable: true, trackIds: ['t2'], officialDurations: { t2: 30 } }], error: null, _seller: sellerId }),
     listMyPurchases: async () => ({ purchases, error: null }),
     getPlatformFlags: async () => ({ flags: { testPurchasesEnabled: testEnabled }, error: null }),
     upsertAlbum: async p => { calls.upsert.push(p); return saveResult(p); },
@@ -115,7 +115,7 @@ const click = (el) => el.dispatchEvent(new (el.ownerDocument.defaultView.MouseEv
   buyable = s.doc.querySelectorAll('[data-album-field="buyable"]')[1]; buyable.checked = false; change(s.w, buyable);
   click(s.doc.querySelectorAll('[data-action="save-album"]')[1]); await tick(); await tick();
   const p = s.calls.upsert[0];
-  check('enregistrement : prix converti en centimes (3,5 -> 350)', p && p.priceUsdCents === 350);
+  check('enregistrement : prix converti en centimes (3,5 -> 350)', p && p.priceEurCents === 350);
   check('enregistrement : pistes dans l\'ordre de cochage, hors vente', p && p.trackIds.join() === 't3,t1' && p.buyable === false && p.title === 'Mon OST');
   check('enregistrement : id aléatoire préfixé alb_', p && /^alb_[a-z0-9]{8,}$/.test(p.id));
   check('après enregistrement : message « Album enregistré » et le badge disparaît', /Album enregistré/.test(s.doc.getElementById('albumsContainer').textContent) && !/non enregistré/.test(s.doc.getElementById('albumsContainer').textContent));

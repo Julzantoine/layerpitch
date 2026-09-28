@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     const { data: pack, error: packError } = await adminClient
       .from('packs')
       .select(`
-        id, title, price_usd_cents, buyable, owner_id,
+        id, title, price_eur_cents, buyable, owner_id,
         composer_profiles (
           id, stripe_connect_account_id, stripe_connect_charges_enabled,
           billing_status, billing_legal_name, billing_siret, billing_vat_applicable
@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    if (!pack.buyable || !pack.price_usd_cents) {
+    if (!pack.buyable || !pack.price_eur_cents) {
       return new Response(JSON.stringify({ error: 'Ce pack n\'est pas achetable.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const applicationFeeAmount = Math.round(pack.price_usd_cents * Number(quota.commission_rate));
+    const applicationFeeAmount = Math.round(pack.price_eur_cents * Number(quota.commission_rate));
 
     // apiVersion explicite requis ≥ 2025-03-31.basil pour Managed Payments (activé sur ce compte)
     // — le SDK stripe npm envoie toujours une version figée par défaut (celle de sa propre
@@ -173,13 +173,13 @@ Deno.serve(async (req) => {
       automatic_tax: { enabled: !!owner.billing_vat_applicable },
       line_items: [{
         price_data: {
-          currency: 'usd',
+          currency: 'eur', // tout en euros depuis le 28/09 (D30, pas de frais de change pour LayerPitch ni les compositeurs)
           // txcd_10401100 : "Digital Audio Works - downloaded - non subscription - with permanent
           // rights" — requis par Managed Payments, code Stripe vérifié pour ce cas d'usage exact
           // (pack audio téléchargé, achat unitaire, accès permanent).
           product_data: { name: pack.title, tax_code: 'txcd_10401100' },
-          unit_amount: pack.price_usd_cents,
-          // 'inclusive' : le prix affiché (price_usd_cents) reste le montant total payé par
+          unit_amount: pack.price_eur_cents,
+          // 'inclusive' : le prix affiché (price_eur_cents) reste le montant total payé par
           // l'acheteur, TVA comprise dedans -- comportement inchangé pour l'acheteur, Stripe Tax ne
           // fait que déterminer la part de TVA à l'intérieur de ce montant, jamais l'ajouter
           // par-dessus. Sans objet quand automatic_tax est désactivé (franchise en base).

@@ -20,7 +20,7 @@ function newAlbumId() {
 function albumFromApi(a) {
   return {
     id: a.id, title: a.title || '', presentationFr: a.presentationFr || '', presentationEn: a.presentationEn || '',
-    priceInput: a.priceUsdCents == null ? '' : (a.priceUsdCents / 100).toFixed(2),
+    priceInput: a.priceEurCents == null ? '' : (a.priceEurCents / 100).toFixed(2),
     buyable: !!a.buyable, trackIds: a.trackIds || [], saved: true, savedBuyable: !!a.buyable,
     // Morceaux enregistrés en base (seuls eux peuvent recevoir une version du compositeur) et durée de leur version.
     savedTrackIds: (a.trackIds || []).slice(), officialDurations: Object.assign({}, a.officialDurations || {}),
@@ -314,7 +314,7 @@ async function saveAlbum(ai) {
     }
     const { ok, error, data: saved } = await window.LayerPitchAlbums.upsertAlbum({
       id: al.id, title: al.title, presentationFr: al.presentationFr, presentationEn: al.presentationEn,
-      priceUsdCents: cents, buyable: al.buyable, trackIds: al.trackIds,
+      priceEurCents: cents, buyable: al.buyable, trackIds: al.trackIds,
       ...(cover || {}),
     });
     if (!ok) {

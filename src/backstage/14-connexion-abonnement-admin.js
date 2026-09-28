@@ -118,6 +118,20 @@ const ADMIN_ONLY_PANEL_IDS = ['panelAdminTools', 'panelPgWrite', 'panelAccessReq
 // pas cette variable -- un appel RPC direct contournant l'UI reste bloqué même si ce flag est faux
 // à tort.
 let currentUserIsAdmin = false;
+// Droits du compte connecté lus dans la matrice (chantier profils et permissions, 27-28/09) : my_entitlements()
+// renvoie, pour chaque fonction de chaque profil du compte, { allowed, amount, level } avec les feux verts déjà
+// appliqués. Remplace peu à peu les grisages fondés sur currentUserIsAdmin. Tant que la réponse n'est pas arrivée,
+// can() répond « non » : rien ne s'ouvre par erreur, et le serveur refuse de toute façon (même matrice).
+let myEntitlements = {};
+function can(feature) { const e = myEntitlements[feature]; return !!(e && e.allowed); }
+function entitlementLevel(feature) { const e = myEntitlements[feature]; return e && e.allowed ? e.level : null; }
+async function loadMyEntitlements() {
+  const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('my_entitlements');
+  if (error) { console.warn('my_entitlements() en erreur, droits inchangés :', error.message || error); return; }
+  const next = {};
+  (data || []).forEach(r => { next[r.feature] = { allowed: r.allowed, amount: r.amount == null ? null : Number(r.amount), level: r.level, plan: r.plan, source: r.source }; });
+  myEntitlements = next;
+}
 async function renderAdminOnlyPanels(session) {
   let isAdmin = false;
   if (session && session.user) {
@@ -140,6 +154,7 @@ async function renderAdminOnlyPanels(session) {
     isAdmin = !!res.data;
   }
   currentUserIsAdmin = isAdmin;
+  if (session && session.user) await loadMyEntitlements();
   if (adReels.length) fillAdReelSlugField(adReels.find(a => a.id === currentAdReelId)); // champ d'adresse : admin seulement
   ADMIN_ONLY_PANEL_IDS.forEach((id) => {
     const el = document.getElementById(id);
@@ -164,6 +179,7 @@ async function renderAdminOnlyPanels(session) {
   const sfxDropHint = document.getElementById('sfxBatchDropAdminHint');
   if (sfxDropHint) sfxDropHint.textContent = isAdmin ? '' : tr('fxAdminOnlyHint');
   if (typeof renderSfxLibrary === 'function') renderSfxLibrary(); // même raison : l'entrée "Espace" des Sfx est réservée à l'admin
+  if (typeof renderPacks === 'function') renderPacks(); // prix et catalogue abonnés : droits lus dans la matrice
 }
 // Demandes d'accès en attente (bloc "Inviter un testeur" ci-dessous, 6 septembre) -- une seule
 // fonction de rendu réutilisée après chaque invitation réussie pour retirer la ligne traitée.

@@ -139,11 +139,12 @@ async function renderRealPurchaseWidget(el, pack) {
   }
 
   const { pack: livePack, error: packError } = await window.LayerPitchPacks.getPack(pack.id);
-  if (packError || !livePack || !livePack.buyable || !livePack.priceUsdCents) {
+  if (packError || !livePack || !livePack.buyable || !livePack.priceEurCents) {
     el.innerHTML = `<span class="buy-btn disabled">${tr('comingSoon')}</span><div class="buy-hint">${tr('notForSaleYet')}</div>`;
     return;
   }
-  const priceLabel = '$' + (livePack.priceUsdCents / 100).toFixed(2);
+  // Tout en euros depuis le 28/09 (D30) ; format selon la langue de la page (« 10,00 € » / « €10.00 »).
+  const priceLabel = new Intl.NumberFormat(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { style: 'currency', currency: 'EUR' }).format(livePack.priceEurCents / 100);
 
   const { session } = await window.LayerPitchAuth.getSession();
   if (!session) {

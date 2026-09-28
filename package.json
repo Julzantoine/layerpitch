@@ -9,6 +9,7 @@
     "build": "node scripts/build-sources.js"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "jsdom": "^30.0.1",
     "pg": "^8.23.0"
   }

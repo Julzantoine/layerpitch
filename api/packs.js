@@ -22,7 +22,9 @@
       presentationEn: row.presentation_en, buyable: row.buyable, buyUrl: row.buy_url,
       freeDownloadEnabled: row.free_download_enabled, videoTestModeEnabled: row.video_test_mode_enabled,
       bgColor: row.bg_color, textColor: row.text_color, font: row.font, trackIds, sfxIds,
-      linkedAdReelId: row.linked_ad_reel_id, tags: row.tags, priceUsdCents: row.price_usd_cents,
+      linkedAdReelId: row.linked_ad_reel_id, tags: row.tags,
+      // Prix à l'unité en centimes d'euro (grille, D31) ; coût dans le catalogue abonnés (1/2/4 crédits, null = hors catalogue).
+      priceEurCents: row.price_eur_cents, subscriberCredits: row.subscriber_credits,
     };
   }
 

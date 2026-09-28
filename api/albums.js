@@ -25,8 +25,8 @@
       id: row.id, sellerId: row.seller_id, sellerRole: row.seller_role, title: row.title,
       illustration: row.illustration, illustrationOriginalName: row.illustration_original_name,
       presentationFr: row.presentation_fr, presentationEn: row.presentation_en,
-      // Prix MINIMUM en centimes USD (prix libre : le fan peut payer davantage) — null = pas de prix.
-      priceUsdCents: row.price_usd_cents, buyable: row.buyable, tags: row.tags, trackIds, officialDurations,
+      // Prix MINIMUM en centimes d'euro (prix libre : le fan peut payer davantage) — null = pas de prix.
+      priceEurCents: row.price_eur_cents, buyable: row.buyable, tags: row.tags, trackIds, officialDurations,
     };
   }
 

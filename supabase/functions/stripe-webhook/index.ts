@@ -125,13 +125,13 @@ async function buildInvoicePdf(params: {
   line('Désignation', { f: bold, gap: 16 });
   line(params.packTitle, { gap: 24 });
 
-  if (params.amountHt != null) line(`Montant HT : ${params.amountHt.toFixed(2)} $`, { gap: 16 });
+  if (params.amountHt != null) line(`Montant HT : ${params.amountHt.toFixed(2)} €`, { gap: 16 });
   if (params.vatRate != null) {
-    line(`TVA (${(params.vatRate * 100).toFixed(0)}%) : ${(params.amountVat || 0).toFixed(2)} $`, { gap: 16 });
+    line(`TVA (${(params.vatRate * 100).toFixed(0)}%) : ${(params.amountVat || 0).toFixed(2)} €`, { gap: 16 });
   } else if (params.vatMention) {
     line(params.vatMention, { size: 9, gap: 16 });
   }
-  line(`Total TTC : ${params.amountTtc.toFixed(2)} $`, { f: bold, size: 13, gap: 20 });
+  line(`Total TTC : ${params.amountTtc.toFixed(2)} €`, { f: bold, size: 13, gap: 20 });
 
   return await doc.save();
 }

@@ -71,7 +71,21 @@ function renderPacks() {
           <input type="checkbox" data-pack-field="buyable" data-pi="${pi}" ${pack.buyable ? 'checked' : ''} ${currentUserIsAdmin ? '' : 'disabled'} style="width:auto;margin:0;">
           <span data-help="packBuyable" style="color:var(--text-dim);font-size:12px;">${tr('buyableLabel')}</span>
         </label>
-        ${!currentUserIsAdmin ? `<div class="hint-inline">${tr('buyableAdminOnlyHint')}</div>` : ''}
+        ${!can('sell_packs') ? `<div class="hint-inline">${tr('buyableAdminOnlyHint')}</div>` : ''}
+        <label data-help="packPrice" style="margin-top:12px">${tr('packPriceLabel')}</label>
+        <select data-pack-field="priceEurCents" data-pi="${pi}">
+          ${packPriceOptions(pack.priceEurCents)}
+        </select>
+        <div class="hint-inline">${tr('packPriceHint')}</div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+          <input type="checkbox" data-pack-field="subscriberCatalog" data-pi="${pi}" ${pack.subscriberCredits ? 'checked' : ''} ${can('subscriber_catalog') && pack.priceEurCents ? '' : 'disabled'} style="width:auto;margin:0;">
+          <span data-help="packSubscriberCatalog" style="color:var(--text-dim);font-size:12px;">${tr('packCatalogLabel')}</span>
+        </label>
+        ${pack.subscriberCredits ? `
+          <select data-pack-field="subscriberCredits" data-pi="${pi}" ${can('subscriber_catalog') ? '' : 'disabled'}>
+            ${[1, 2, 4].map(n => `<option value="${n}"${pack.subscriberCredits === n ? ' selected' : ''}>${tr(n === 1 ? 'packCatalogCreditsOne' : 'packCatalogCreditsMany', { n, eur: n * 10 })}</option>`).join('')}
+          </select>` : ''}
+        <div class="hint-inline">${!can('subscriber_catalog') ? tr('packCatalogLockedHint') : (!pack.priceEurCents ? tr('packCatalogFreeHint') : tr('packCatalogHint'))}</div>
         ${pack.buyable ? `
           <label>${tr('buyUrlLabel')}</label>
           <input type="text" data-pack-field="buyUrl" data-pi="${pi}" value="${escapeAttr(pack.buyUrl)}" placeholder="https://...">
@@ -211,8 +225,24 @@ function renderPacks() {
     container.appendChild(el);
   });
 }
+// Grille de prix d'un pack (D31, même règle que is_valid_pack_price en base) : 0 € ; 1-100 € par 1 € ; 110-200 € par 10 € ;
+// 250-500 € par 50 €. Un prix hérité hors grille (ne devrait plus exister après la migration du 28/09) reste affiché.
+function packPriceGrid() {
+  const g = [0];
+  for (let e = 1; e <= 100; e++) g.push(e * 100);
+  for (let e = 110; e <= 200; e += 10) g.push(e * 100);
+  for (let e = 250; e <= 500; e += 50) g.push(e * 100);
+  return g;
+}
+function packPriceOptions(current) {
+  const grid = packPriceGrid();
+  const values = current != null && !grid.includes(current) ? [current].concat(grid) : grid;
+  const fmt = new Intl.NumberFormat(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+  return `<option value=""${current == null ? ' selected' : ''}>${tr('packPriceNone')}</option>` +
+    values.map(c => `<option value="${c}"${c === current ? ' selected' : ''}>${c === 0 ? tr('packPriceFree') : fmt.format(c / 100)}</option>`).join('');
+}
 document.getElementById('btnAddPack').addEventListener('click', () => {
-  packs.push({ id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f6f5f3', textColor: '#262521', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' });
+  packs.push({ id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', priceEurCents: 1000, subscriberCredits: can('subscriber_catalog') ? 1 : null, freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f6f5f3', textColor: '#262521', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' });
   hasUnsavedEdits = true;
   trackBackstageEvent('pack_add', {});
   renderPacks();
@@ -337,6 +367,13 @@ document.getElementById('packsContainer').addEventListener('input', e => {
   const pi = parseInt(e.target.dataset.pi, 10);
   hasUnsavedEdits = true;
   if (field === 'buyable') { packs[pi].buyable = e.target.checked; renderPacks(); return; }
+  if (field === 'priceEurCents') {
+    packs[pi].priceEurCents = e.target.value === '' ? null : parseInt(e.target.value, 10);
+    if (!packs[pi].priceEurCents) packs[pi].subscriberCredits = null; // un pack gratuit n'entre pas dans le catalogue abonnés
+    renderPacks(); return;
+  }
+  if (field === 'subscriberCatalog') { packs[pi].subscriberCredits = e.target.checked ? (packs[pi].subscriberCredits || 1) : null; renderPacks(); return; }
+  if (field === 'subscriberCredits') { packs[pi].subscriberCredits = parseInt(e.target.value, 10); return; }
   if (field === 'videoTestModeEnabled') { packs[pi].videoTestModeEnabled = e.target.checked; return; }
   if (field === 'separatorVisible' || field === 'separatorColor' || field === 'separatorThickness') {
     if (!packs[pi].separator) packs[pi].separator = Object.assign({}, DEFAULT_SEPARATOR);
