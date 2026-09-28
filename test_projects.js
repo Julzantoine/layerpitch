@@ -211,22 +211,22 @@
   check('« Jamais » : aucune version auto', String((await q(`select max(created_at) m from public.project_snapshots where project_id = $1`, [ps]))[0].m) === String(before10));
   await as(3);
 
-  // Vitrine publique
+  // Vitrine publique (vitrines multiples en blocs depuis la migration 20260928200000 ; détail : test_project_vitrines.js)
   const vlink = (await add({ kind: 'link', url: 'https://www.youtube.com/watch?v=xyz', title: 'Trailer' })).id;
   await as(3);
-  check('un membre simple ne publie pas la vitrine', await fails(`select public.save_project_showcase($1, '{"published":true}'::jsonb)`, [ps], /administrateur/));
+  const draft = await val(`select public.save_project_vitrine($1, '{"title":"OST","published":true}'::jsonb)`, [ps]);
+  check('un membre simple prépare la vitrine mais ne la publie pas', draft.published === false);
   await as(2);
-  check('vitrine : une vidéo envoyée (privée) ne peut pas y figurer', await fails(`select public.save_project_showcase($1, $2::jsonb)`, [ps, JSON.stringify({ published: true, entries: [{ assetId: vid }] })], /privé/));
-  await q(`select public.save_project_showcase($1, $2::jsonb)`, [ps, JSON.stringify({ published: true, title: 'OST', steamUrl: 'https://store.steampowered.com/app/1', entries: [{ assetId: it.id }, { assetId: vlink }] })]);
+  await q(`select public.save_project_vitrine($1, $2::jsonb)`, [ps, JSON.stringify({ id: draft.id, title: 'OST', published: true,
+    blocks: [{ type: 'header' }, { type: 'tracks', assetIds: [it.id] }, { type: 'video', assetIds: [vlink, vid] }, { type: 'links', links: [{ label: 'Steam', url: 'https://store.steampowered.com/app/1' }] }] })]);
   await as(0); await db.query(`set role anon`);
-  const pub = await val(`select public.get_project_showcase($1)`, [ps]);
+  const pub = await val(`select public.get_vitrine('ost')`);
   await db.query(`reset role`);
-  check('vitrine publiée lisible sans compte, sans rien d\'autre du Projet', pub && pub.entries.length === 2 && pub.entries[0].title === 'Thème forêt'
-    && pub.entries[0].kind === 'track' && pub.entries[0].refId === 't1' && pub.entries[1].url === 'https://www.youtube.com/watch?v=xyz' && !('assets' in pub));
+  check('vitrine publiée lisible sans compte, avec ses seuls objets (capture privée comprise, Q7)', pub && Object.keys(pub.assets).length === 3 && pub.assets[it.id].trackId === 't1' && !('messages' in pub));
   await as(2);
-  await q(`select public.save_project_showcase($1, '{"published":false}'::jsonb)`, [ps]);
+  await q(`select public.save_project_vitrine($1, $2::jsonb)`, [ps, JSON.stringify({ id: draft.id, title: 'OST', published: false })]);
   await as(5);
-  check('vitrine dépubliée : invisible pour un inconnu', (await val(`select public.get_project_showcase($1)`, [ps])) === null);
+  check('vitrine dépubliée : invisible pour un inconnu', (await val(`select public.get_vitrine('ost')`)) === null);
 
   // Départ, suppression, isolation
   await as(1);
