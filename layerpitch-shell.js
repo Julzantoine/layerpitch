@@ -226,7 +226,7 @@
         role: nav.querySelector('#lpPrevRole').value, composerTier: nav.querySelector('#lpPrevComposer').value,
         studioPlan: nav.querySelector('#lpPrevStudio').value, hideUnreleased: nav.querySelector('#lpPrevHide').checked,
       });
-      if (!ok) { alert(tr('previewError') + ' ' + error); ids.forEach(id => { nav.querySelector('#' + id).disabled = false; }); return; }
+      if (!ok) { if (window.LayerPitchNotify) window.LayerPitchNotify.error(tr('previewError') + ' ' + error); else console.error(tr('previewError'), error); ids.forEach(id => { nav.querySelector('#' + id).disabled = false; }); return; }
       // Tout ce qui dépend de la casquette et du palier est évalué à des dizaines d'endroits : on recharge.
       location.reload();
     };
