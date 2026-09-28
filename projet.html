@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790626962209">
+<link rel="stylesheet" href="player.css?v=1790627284391">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -126,18 +126,18 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790626962209"></script>
-<script src="layerpitch-notify.js?v=1790626962209"></script>
-<script src="player.js?v=1790626962209"></script>
-<script src="api/supabase-client.js?v=1790626962209"></script>
-<script src="api/auth.js?v=1790626962209"></script>
-<script src="layerpitch-shell.js?v=1790626962209"></script>
-<script src="api/tracks.js?v=1790626962209"></script>
-<script src="api/packs.js?v=1790626962209"></script>
-<script src="api/albums.js?v=1790626962209"></script>
-<script src="api/studio.js?v=1790626962209"></script>
-<script src="api/adreels.js?v=1790626962209"></script>
-<script src="api/projects.js?v=1790626962209"></script>
+<script src="layerpitch-i18n.js?v=1790627284391"></script>
+<script src="layerpitch-notify.js?v=1790627284391"></script>
+<script src="player.js?v=1790627284391"></script>
+<script src="api/supabase-client.js?v=1790627284391"></script>
+<script src="api/auth.js?v=1790627284391"></script>
+<script src="layerpitch-shell.js?v=1790627284391"></script>
+<script src="api/tracks.js?v=1790627284391"></script>
+<script src="api/packs.js?v=1790627284391"></script>
+<script src="api/albums.js?v=1790627284391"></script>
+<script src="api/studio.js?v=1790627284391"></script>
+<script src="api/adreels.js?v=1790627284391"></script>
+<script src="api/projects.js?v=1790627284391"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -1033,13 +1033,18 @@ async function renderShowcase(panel) {
             : `<a href="${esc(vitrineUrl(v))}" target="_blank" rel="noopener">${esc(vitrineUrl(v))}</a>${v.published ? '' : ' · ' + esc(tr('vitrineNotYetOnline'))}`}</div></div>
         <button class="btn" type="button" data-edit="${esc(v.id)}">${esc(tr('edit'))}</button>
         <a class="btn" href="vitrine.html?id=${encodeURIComponent(v.id)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('vitrinePreview'))}</a>
+        <button class="btn" type="button" data-stats="${esc(v.id)}">${esc(tr('vitrineStats'))}</button>
         ${admin && v.audience === 'publisher' ? `<button class="btn" type="button" data-copy="${esc(v.id)}">${esc(tr('copyLink'))}</button><button class="btn" type="button" data-renew="${esc(v.id)}">${esc(tr('renewLink'))}</button>` : ''}
         ${admin || !v.published ? `<button class="btn danger" type="button" data-delv="${esc(v.id)}">${esc(tr('delete'))}</button>` : ''}
-      </div></div>`).join('') : `<div class="card"><div class="empty">${esc(tr('noVitrines'))}</div></div>`}`;
+      </div><div data-statsbox="${esc(v.id)}" hidden></div></div>`).join('') : `<div class="card"><div class="empty">${esc(tr('noVitrines'))}</div></div>`}`;
   panel.querySelectorAll('[data-new]').forEach(b => b.onclick = () => {
     S.vitrineDraft = { audience: b.dataset.new, display: b.dataset.new === 'publisher' ? 'slides' : 'page', title: S.project.title, subtitle: '', slug: '', published: false, theme: {},
       blocks: [{ id: newBlockId(), type: 'header' }, { id: newBlockId(), type: 'tracks', assetIds: (S.content.assets || []).filter(a => a.kind === 'track' && a.starred).map(a => a.id) }] };
     renderShowcase(panel);
+  });
+  panel.querySelectorAll('[data-stats]').forEach(b => b.onclick = async () => {
+    const box = panel.querySelector(`[data-statsbox="${b.dataset.stats}"]`);
+    box.hidden = !box.hidden; if (!box.hidden) renderVitrineStats(box, b.dataset.stats);
   });
   panel.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { S.vitrineDraft = JSON.parse(JSON.stringify(S.vitrines.find(v => v.id === b.dataset.edit))); renderShowcase(panel); });
   panel.querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => { const v = S.vitrines.find(x => x.id === b.dataset.copy); try { await navigator.clipboard.writeText(vitrineUrl(v)); say('vitMsg', tr('linkCopied'), true); } catch (e) { say('vitMsg', vitrineUrl(v), true); } });
@@ -1053,6 +1058,32 @@ async function renderShowcase(panel) {
     const r2 = await PJ.deleteVitrine(b.dataset.delv); if (r2.error) return say('vitMsg', tr('errorPrefix', { message: r2.error }));
     renderShowcase(panel); broadcast('content');
   });
+}
+// Statistiques d'une vitrine (étape 6b) : niveau selon le palier du propriétaire du Projet, comme les AdReels. Aperçu
+// (palier bas) : les vrais chiffres, floutés, avec l'invitation à passer au palier supérieur.
+async function renderVitrineStats(box, vitrineId) {
+  box.innerHTML = `<div class="meta" style="margin-top:10px">…</div>`;
+  const r = await PJ.vitrineStats(vitrineId, 30);
+  if (r.error) { box.innerHTML = `<div class="msg err">${esc(tr('errorPrefix', { message: r.error }))}</div>`; return; }
+  const st = r.data;
+  const blur = st.level === 'teaser';
+  const max = Math.max(1, ...(st.byDay || []).map(d => d.opens));
+  const evName = n => tr('vev_' + n) !== 'vev_' + n ? tr('vev_' + n) : n;
+  box.innerHTML = `<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+    <div class="meta">${esc(tr('vitrineStatsPeriod', { n: Math.min(30, st.retentionDays) }))}</div>
+    <div style="${blur ? 'filter:blur(5px);pointer-events:none;user-select:none' : ''}">
+      <div class="bar" style="gap:24px;margin:8px 0"><div><div style="font-size:22px;font-weight:600">${esc(st.opens)}</div><div class="meta">${esc(tr('vitrineOpens'))}</div></div>
+        <div><div style="font-size:22px;font-weight:600">${esc(st.visits)}</div><div class="meta">${esc(tr('vitrineVisits'))}</div></div>
+        <div><div style="font-size:14px;font-weight:600;margin-top:6px">${st.lastOpenAt ? esc(new Date(st.lastOpenAt).toLocaleString(pageLang)) : '—'}</div><div class="meta">${esc(tr('vitrineLastOpen'))}</div></div></div>
+      ${(st.byDay || []).length ? `<div style="display:flex;align-items:flex-end;gap:3px;height:60px">${st.byDay.map(d => `<div title="${esc(d.day)} : ${esc(d.opens)}" style="flex:1;max-width:16px;background:var(--accent);opacity:.8;border-radius:2px 2px 0 0;height:${Math.round(100 * d.opens / max)}%"></div>`).join('')}</div>` : ''}
+      ${st.level === 'advanced' ? `<div class="bar" style="align-items:flex-start;gap:28px;margin-top:10px">
+        <div><strong style="font-size:12.5px">${esc(tr('vitrineActions'))}</strong>${(st.events || []).length ? st.events.map(e => `<div class="meta">${esc(evName(e.name))} : ${esc(e.count)}</div>`).join('') : `<div class="meta">—</div>`}</div>
+        <div><strong style="font-size:12.5px">${esc(tr('vitrineLinks'))}</strong>${(st.links || []).length ? st.links.map(l => `<div class="meta">${esc(l.label || '?')} : ${esc(l.count)}</div>`).join('') : `<div class="meta">—</div>`}</div>
+        <div><strong style="font-size:12.5px">${esc(tr('vitrineDevices'))}</strong>${Object.entries(st.devices || {}).map(([k, n]) => `<div class="meta">${esc(tr('device_' + k) !== 'device_' + k ? tr('device_' + k) : k)} : ${esc(n)}</div>`).join('') || `<div class="meta">—</div>`}</div></div>` : ''}
+    </div>
+    ${blur ? `<p class="hint" style="margin-top:8px">🔒 ${esc(tr('vitrineStatsTeaser'))} <a href="tarifs.html?lang=${pageLang}">${esc(tr('seePricing'))}</a></p>`
+      : st.level === 'basic' ? `<p class="hint" style="margin-top:8px">${esc(tr('vitrineStatsBasic'))} <a href="tarifs.html?lang=${pageLang}">${esc(tr('seePricing'))}</a></p>` : ''}
+  </div>`;
 }
 async function ensureMyAdReels() {
   if (S.myAdReelsLoaded || !S.myComposerId || !window.LayerPitchAdReels) return;

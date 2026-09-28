@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LayerPitch</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="player.css?v=1790626962209">
-<link rel="stylesheet" href="reel.css?v=1790626962209">
+<link rel="stylesheet" href="player.css?v=1790627284391">
+<link rel="stylesheet" href="reel.css?v=1790627284391">
 <style>
   /* Propre aux vitrines (le reste vient de reel.css, comme un AdReel). */
   .vitrine-notice { max-width: 760px; margin: 0 auto 18px; padding: 8px 14px; border-radius: 8px; background: var(--bg-card, #fff); border: 1px dashed var(--border); font-size: 13px; color: var(--text); }
@@ -38,14 +38,14 @@
 <div class="slides-count" id="slidesCount"></div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790626962209"></script>
-<script src="public-page.js?v=1790626962209"></script>
-<script src="player.js?v=1790626962209"></script>
-<script src="layerpitch-social-icons.js?v=1790626962209"></script>
-<script src="reel.js?v=1790626962209"></script>
-<script src="api/supabase-client.js?v=1790626962209"></script>
-<script src="api/tracks.js?v=1790626962209"></script>
-<script src="api/projects.js?v=1790626962209"></script>
+<script src="layerpitch-i18n.js?v=1790627284391"></script>
+<script src="public-page.js?v=1790627284391"></script>
+<script src="player.js?v=1790627284391"></script>
+<script src="layerpitch-social-icons.js?v=1790627284391"></script>
+<script src="reel.js?v=1790627284391"></script>
+<script src="api/supabase-client.js?v=1790627284391"></script>
+<script src="api/tracks.js?v=1790627284391"></script>
+<script src="api/projects.js?v=1790627284391"></script>
 <script>
 // vitrine.html — vitrine d'un Projet (espace Projet, étape 6, 28/09 ; cadrage 2026-09-28-cadrage-reserve-projet-et-vitrines.md
 // §4 et §8). Même moteur d'affichage que les AdReels (reel.js : thème, blocs, apparence), données du Projet :
@@ -140,7 +140,27 @@ async function loadPacks(ids) {
   // Mention « Présenté avec LayerPitch » : toujours, discrète (décision Q9).
   document.getElementById('foot').innerHTML = `${escapeHtml(tr('showcaseFooter'))} <a href="https://layerpitch.com" target="_blank" rel="noopener">LayerPitch</a>`;
   if (v.display === 'slides') setupSlides();
+  startVitrineStats(v.id);
 })();
+
+// Statistiques (étape 6b, décision Q10) : ouverture, écoutes et autres actions du lecteur (mêmes événements que sur un
+// AdReel, relayés par le lecteur via « layerpitch-capture-mark »), clics sur les liens. Identifiant de visite aléatoire,
+// type d'appareil : aucune donnée personnelle. Les visites des membres du Projet ne comptent pas (serveur).
+const VITRINE_EVENTS = new Set(['track_play', 'track_stop', 'intensity_change', 'seq_branch_select', 'go_to_end_click', 'go_to_next_section_click', 'stinger_play', 'fx_trigger', 'social_click']);
+function startVitrineStats(vitrineId) {
+  const ctx = window.__lpTrackContext;
+  const device = typeof lpDeviceType === 'function' ? lpDeviceType() : null;
+  const send = (name, detail) => { try { window.LayerPitchProjects.logVitrineEvent(vitrineId, ctx.sessionId, name, detail || {}, device); } catch (e) { /* jamais bloquant */ } };
+  send('page_open');
+  document.addEventListener('layerpitch-capture-mark', e => {
+    const d = e.detail || {};
+    if (VITRINE_EVENTS.has(d.name)) send(d.name, { trackId: d.detail && d.detail.trackId || null });
+  });
+  container.addEventListener('click', e => {
+    const a = e.target.closest('a.links-list-item');
+    if (a) send('link_click', { label: a.textContent.slice(0, 80) });
+  });
+}
 
 // Diapositives : une page par bloc ; flèches, clavier (↓ ↑, Page suivante/précédente, espace), compteur.
 function setupSlides() {

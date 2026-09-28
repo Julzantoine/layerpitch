@@ -98,6 +98,9 @@
     renewVitrineToken: vitrineId => rpc('renew_vitrine_token', { p_vitrine_id: vitrineId }),
     vitrineFromSnapshot: (snapshotId, audience) => rpc('vitrine_from_snapshot', { p_snapshot_id: snapshotId, p_audience: audience || 'publisher' }),
     // Lecture publique : par adresse (publiée), par lien secret (éditeur) ou par identifiant (aperçu d'un membre).
+    // Statistiques des vitrines (étape 6b) : écriture sans compte (visites des membres ignorées côté serveur), lecture membres.
+    logVitrineEvent: (vitrineId, sessionId, name, detail, device) => rpc('log_vitrine_event', { p_vitrine_id: vitrineId, p_session_id: sessionId, p_event_name: name, p_detail: detail || {}, p_device: device || null }),
+    vitrineStats: (vitrineId, days) => rpc('get_vitrine_stats', { p_vitrine_id: vitrineId, p_days: days || 30 }),
     getVitrine: ({ slug, token, id } = {}) => rpc('get_vitrine', { p_slug: slug || null, p_token: token || null, p_id: id || null }),
     // Fichiers : réservation + envoi (URL signée, type et taille verrouillés), lecture signée, effacement.
     async upload(id, file, onProgress) {
