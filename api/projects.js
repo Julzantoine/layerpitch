@@ -51,6 +51,8 @@
     activity: id => rpc('list_project_activity', { p_project_id: id, p_limit: 150 }),
     notifications: unreadOnly => rpc('my_project_notifications', { p_unread_only: !!unreadOnly }),
     markRead: id => rpc('mark_project_notifications_read', { p_project_id: id || null }),
+    // Dernière visite de ce Projet (cloche commune : « nouveau depuis ta dernière visite », suit d'un appareil à l'autre).
+    markSeen: id => rpc('mark_project_seen', { p_project_id: id }),
     // Réserve de contenus (un objet par chose réelle du Projet) et Moodboard (épingles), étape 1 du 28/09.
     // addAsset renvoie { data: { id, existed } } : existed = la même chose était déjà dans le Projet.
     addAsset: (id, asset, pin) => rpc('add_project_asset', { p_project_id: id, p: asset, p_pin: !!pin }),

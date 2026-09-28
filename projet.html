@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790624129060">
+<link rel="stylesheet" href="player.css?v=1790624968972">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -126,17 +126,17 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790624129060"></script>
-<script src="layerpitch-notify.js?v=1790624129060"></script>
-<script src="player.js?v=1790624129060"></script>
-<script src="api/supabase-client.js?v=1790624129060"></script>
-<script src="api/auth.js?v=1790624129060"></script>
-<script src="layerpitch-shell.js?v=1790624129060"></script>
-<script src="api/tracks.js?v=1790624129060"></script>
-<script src="api/packs.js?v=1790624129060"></script>
-<script src="api/albums.js?v=1790624129060"></script>
-<script src="api/studio.js?v=1790624129060"></script>
-<script src="api/projects.js?v=1790624129060"></script>
+<script src="layerpitch-i18n.js?v=1790624968972"></script>
+<script src="layerpitch-notify.js?v=1790624968972"></script>
+<script src="player.js?v=1790624968972"></script>
+<script src="api/supabase-client.js?v=1790624968972"></script>
+<script src="api/auth.js?v=1790624968972"></script>
+<script src="layerpitch-shell.js?v=1790624968972"></script>
+<script src="api/tracks.js?v=1790624968972"></script>
+<script src="api/packs.js?v=1790624968972"></script>
+<script src="api/albums.js?v=1790624968972"></script>
+<script src="api/studio.js?v=1790624968972"></script>
+<script src="api/projects.js?v=1790624968972"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -197,6 +197,7 @@ async function load() {
   S.content = c.data || { assets: [], moodboard: [], packs: [], albums: [] };
   S.myComposerId = composer.composerId || null;
   PJ.markRead(projectId);
+  markProjectSeen();
   await loadMessages();
   computeUnread();
   joinChannel();
@@ -210,6 +211,7 @@ function joinChannel() {
     S.channel = client.channel('project:' + projectId, { config: { presence: { key: S.me.id } } });
     S.channel.on('presence', { event: 'sync' }, renderPresence);
     S.channel.on('broadcast', { event: 'changed' }, async ({ payload }) => {
+      markProjectSeen();
       if (payload.what === 'messages') {
         await loadMessages();
         if (!chatVisible()) { S.unread++; if (!S.firstUnreadId && S.messages[0] && !S.messages[0].mine) S.firstUnreadId = S.messages[0].id; }
@@ -221,6 +223,16 @@ function joinChannel() {
     S.channel.subscribe(status => { if (status === 'SUBSCRIBED') S.channel.track({ email: S.me.email }); });
   } catch (e) { console.warn('temps réel indisponible', e); }
 }
+// Tant que la page est ouverte et visible, tu vois tout ce qui arrive : ta « dernière visite » avance (la cloche des autres
+// pages ne te signale donc que ce qui s'est passé en ton absence). Mise à jour au plus toutes les 30 s.
+let lastSeenPush = 0;
+function markProjectSeen(force) {
+  if (!S.project || (document.hidden && !force)) return;
+  if (!force && Date.now() - lastSeenPush < 30000) return;
+  lastSeenPush = Date.now(); PJ.markSeen(projectId);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) markProjectSeen(true); else markProjectSeen(); });
+window.addEventListener('pagehide', () => markProjectSeen(true));
 function broadcast(what) { try { if (S.channel) S.channel.send({ type: 'broadcast', event: 'changed', payload: { what } }); } catch (e) {} }
 function renderPresence() {
   if (!S.channel) return;

@@ -1860,12 +1860,12 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790624129060"></script>
-<script src="layerpitch-shell.js?v=1790624129060"></script>
-<script src="layerpitch-social-icons.js?v=1790624129060"></script>
-<script src="layerpitch-notify.js?v=1790624129060"></script>
-<script src="layerpitch-help.js?v=1790624129060"></script>
-<script src="player.js?v=1790624129060"></script>
+<script src="layerpitch-i18n.js?v=1790624968972"></script>
+<script src="layerpitch-shell.js?v=1790624968972"></script>
+<script src="layerpitch-social-icons.js?v=1790624968972"></script>
+<script src="layerpitch-notify.js?v=1790624968972"></script>
+<script src="layerpitch-help.js?v=1790624968972"></script>
+<script src="player.js?v=1790624968972"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2474,58 +2474,45 @@ function formatRelativeTime(iso) {
   if (abs < 30 * 86400) return rtf.format(Math.round(diffSec / 86400), 'day');
   return new Date(iso).toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR');
 }
+// Cloche du Backstage (28/09 soir) : mêmes données que la cloche commune des autres pages (layerpitch-shell.js :
+// annonces, messages de contact, nouveautés des Projets, invitations), vérifiées chaque minute, bandeau à l'arrivée.
+let inboxWired = false;
 async function renderInboxBell(session) {
   const badge = document.getElementById('inboxBellBadge');
   const emptyEl = document.getElementById('inboxEmpty');
   const listEl = document.getElementById('inboxList');
   if (!badge || !emptyEl || !listEl) return;
-  if (!session || !session.user) {
+  if (!session || !session.user || !window.LayerPitchShell) {
     badge.hidden = true;
     listEl.innerHTML = ''; emptyEl.hidden = false;
     return;
   }
   await loadPostgresReadScripts();
-  const client = window.LayerPitchSupabaseClient.getClient();
-  const [{ data: adminMessages, error: adminError }, { data: adminReads }, { data: contactMessages, error: contactError }] = await Promise.all([
-    client.from('admin_messages').select('id, body, title, created_at').order('created_at', { ascending: false }).limit(20),
-    client.from('admin_message_reads').select('message_id'),
-    client.from('contact_messages').select('id, ad_reel_label, sender_name, sender_email, created_at, seen_at').order('created_at', { ascending: false }).limit(20),
-  ]);
-  const seenIds = new Set((adminReads || []).map(r => r.message_id));
-  // title/text sont déjà du HTML sûr : tout contenu venant d'un visiteur ou d'un admin passe par
-  // escapeHtml() avant d'arriver ici. Titre d'une annonce : celui saisi par l'admin (admin.html) dans
-  // la langue du compositeur, sinon le titre générique.
-  const items = [];
-  if (!adminError && adminMessages) {
-    adminMessages.forEach(m => items.push({
-      kind: 'announcement', createdAt: m.created_at, unread: !seenIds.has(m.id),
-      title: escapeHtml((m.title && (m.title[currentLang()] || m.title.fr)) || tr('inboxAnnouncementTitle')),
-      text: escapeHtml((m.body && (m.body[currentLang()] || m.body.fr)) || ''),
-    }));
-  }
-  if (!contactError && contactMessages) {
-    contactMessages.forEach(m => items.push({
-      kind: 'contact', createdAt: m.created_at, unread: !m.seen_at,
-      title: tr('inboxContactTitle', { name: escapeHtml(m.sender_name) }),
-      text: tr('inboxContactBody', { adreel: escapeHtml(m.ad_reel_label), email: escapeHtml(m.sender_email) }),
-    }));
-  }
-  items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (inboxWired) return window.LayerPitchShell.refreshInbox();
+  inboxWired = true;
+  window.LayerPitchShell.onInbox(items => drawInboxBell(items));
+  window.LayerPitchShell.startInbox();
+}
+function drawInboxBell(items) {
+  const badge = document.getElementById('inboxBellBadge');
+  const emptyEl = document.getElementById('inboxEmpty');
+  const listEl = document.getElementById('inboxList');
+  if (!badge || !listEl) return;
   const shown = items.slice(0, 20);
   listEl.innerHTML = shown.map(it => `
-    <div class="inbox-item${it.unread ? ' unread' : ''}">
+    <${it.href ? `a href="${escapeAttr(it.href)}"` : 'div'} class="inbox-item${it.unread ? ' unread' : ''}"${it.href ? ' style="text-decoration:none;color:inherit"' : ''}>
       <div class="inbox-icon">${it.kind === 'announcement' ? INBOX_ICON_ANNOUNCEMENT : INBOX_ICON_MESSAGE}</div>
       <div class="inbox-body">
         <div class="inbox-title-row">
-          <div class="inbox-title">${it.title}</div>
+          <div class="inbox-title">${escapeHtml(it.title)}</div>
           <button class="inbox-collapse" type="button" hidden title="${tr('inboxReadLess')}" aria-label="${tr('inboxReadLess')}">${INBOX_ICON_COLLAPSE}</button>
         </div>
-        <div class="inbox-text">${it.text}</div>
+        <div class="inbox-text">${escapeHtml(it.text || '')}</div>
         <button class="inbox-more" type="button" hidden>${tr('inboxReadMore')}</button>
         <div class="inbox-time">${formatRelativeTime(it.createdAt)}</div>
       </div>
       <div class="inbox-dot"></div>
-    </div>`).join('');
+    </${it.href ? 'a' : 'div'}>`).join('');
   emptyEl.hidden = shown.length > 0;
   badge.hidden = !shown.some(it => it.unread);
 }
@@ -2559,6 +2546,7 @@ function initInboxBellUi() {
     const more = e.target.closest('.inbox-more');
     const collapse = e.target.closest('.inbox-collapse');
     if (!more && !collapse) return;
+    e.preventDefault();
     const item = (more || collapse).closest('.inbox-item');
     const text = item.querySelector('.inbox-text');
     if (collapse) text.classList.remove('expanded'); else text.classList.toggle('expanded');
@@ -2578,16 +2566,9 @@ function initInboxBellUi() {
     // Marqué vu à l'ouverture (pas avant) : le badge doit rester visible tant que le compositeur n'a
     // pas effectivement regardé la boîte, même s'il a rechargé la page entretemps. Les deux RPC de
     // "vu" restent séparées (une par source) même si le badge, lui, est désormais commun.
-    const badge = document.getElementById('inboxBellBadge');
-    if (badge && !badge.hidden) {
-      await loadPostgresReadScripts();
-      const client = window.LayerPitchSupabaseClient.getClient();
-      await Promise.all([
-        client.rpc('mark_admin_messages_seen'),
-        client.rpc('mark_contact_messages_seen'),
-      ]);
-      badge.hidden = true;
-    }
+    // Annonces et messages de contact marqués lus à l'ouverture (les nouveautés d'un Projet, elles, restent jusqu'à ce
+    // qu'on y aille).
+    if (window.LayerPitchShell) { await loadPostgresReadScripts(); await window.LayerPitchShell.markInboxSeen(); }
   });
   document.addEventListener('lp-header-menu-open', (e) => { if (e.detail !== 'inbox' && !dropdown.hidden) closeMenu(); });
   document.addEventListener('click', (e) => {

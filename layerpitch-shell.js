@@ -93,6 +93,26 @@
     html.lp-sidebar-collapsed .lp-nav a.lp-item svg { opacity: 1; }
     html.lp-sidebar-collapsed .lp-badge { position: absolute; top: 2px; right: 2px; margin: 0; font-size: 9px; padding: 0 5px; }
   }
+  .lp-crumbs .lp-bell-host { margin-left: auto; }
+  .lp-preview-banner + .lp-bell-host { margin-left: 8px; }
+  .lp-bell-host { position: relative; }
+  .lp-bell-floating { position: fixed; top: 10px; right: 14px; z-index: 900; }
+  .lp-bell { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--border, #e2e2e6); background: #fff; color: var(--text-dim, #5f636b); cursor: pointer; }
+  .lp-bell:hover, .lp-bell[aria-expanded="true"] { color: var(--accent, #2f80c0); border-color: var(--accent, #2f80c0); }
+  .lp-bell-badge { position: absolute; top: -6px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--accent, #2f80c0);
+    color: #fff; font-size: 10px; font-weight: 700; line-height: 17px; text-align: center; box-sizing: border-box; }
+  .lp-bell-panel { position: absolute; right: 0; top: 40px; width: min(380px, calc(100vw - 32px)); max-height: 70vh; overflow-y: auto; background: #fff;
+    border: 1px solid var(--border, #e2e2e6); border-radius: 12px; box-shadow: 0 12px 32px rgba(20, 22, 30, .16); z-index: 1200; text-align: left; }
+  .lp-bell-head { font-weight: 600; font-size: 13px; padding: 12px 14px; border-bottom: 1px solid var(--border, #e2e2e6); color: var(--text, #24262b); }
+  .lp-bell-item { display: block; padding: 10px 14px 10px 26px; border-bottom: 1px solid var(--border, #e2e2e6); color: var(--text, #24262b); text-decoration: none; position: relative; }
+  a.lp-bell-item:hover { background: rgba(47, 128, 192, .06); }
+  .lp-crumbs a.lp-bell-item, .lp-crumbs a.lp-bell-item:hover { color: var(--text, #24262b); text-decoration: none; }
+  .lp-bell-item.unread::before { content: ''; position: absolute; left: 11px; top: 16px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent, #2f80c0); }
+  .lp-bell-item-title { font-size: 13px; font-weight: 600; line-height: 1.35; }
+  .lp-bell-item-text { font-size: 12.5px; color: var(--text-dim, #5f636b); margin-top: 2px; line-height: 1.4; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .lp-bell-item-time { font-size: 11px; color: var(--text-dimmer, #9a9ea6); margin-top: 4px; }
+  .lp-bell-empty { padding: 18px 14px; font-size: 13px; color: var(--text-dim, #5f636b); text-align: center; }
   .lp-shell.lp-bare .lp-main { padding: 0; }
   .lp-shell.lp-bare .lp-crumbs { display: none; }
   @media (max-width: 820px) {
@@ -157,6 +177,124 @@
     wireCollapsedTooltips(nav, selector || 'a, button');
   }
 
+  // ---- Centre de notifications commun (28/09 soir) ----
+  // Une seule cloche partout : pages d'espace (barre commune, en haut à droite) ET Backstage (sa cloche d'en-tête lit les
+  // mêmes données via LayerPitchShell.startInbox / onInbox). Sources : annonces LayerPitch, messages reçus par le
+  // formulaire de contact des AdReels, nouveautés des Projets depuis ta dernière visite (messages, notes qui te sont
+  // adressées, modifications des autres : my_project_updates, migration 20260928190000), invitations en attente.
+  // Vérifié toutes les minutes (et au retour sur l'onglet) ; ce qui arrive entretemps fait apparaître une pastille et un
+  // petit bandeau (LayerPitchNotify). Rien n'est lu directement dans les tables des Projets : tout passe par les RPC.
+  const INBOX_POLL_MS = 60 * 1000;
+  const inbox = { items: [], started: false, known: null, listeners: [], timer: null };
+  function i18nOf(ns, key, vars) {
+    const I = window.LAYERPITCH_I18N || {};
+    let s = ((I[lang()] || {})[ns] || {})[key] || ((I.fr || {})[ns] || {})[key] || key;
+    if (vars) Object.keys(vars).forEach(k => { s = s.split('{' + k + '}').join(vars[k] == null ? '' : vars[k]); });
+    return s;
+  }
+  function relTime(iso) {
+    try {
+      const diff = Math.round((new Date(iso).getTime() - Date.now()) / 1000), abs = Math.abs(diff);
+      const rtf = new Intl.RelativeTimeFormat(lang(), { numeric: 'auto' });
+      if (abs < 60) return rtf.format(0, 'second');
+      if (abs < 3600) return rtf.format(Math.round(diff / 60), 'minute');
+      if (abs < 86400) return rtf.format(Math.round(diff / 3600), 'hour');
+      if (abs < 30 * 86400) return rtf.format(Math.round(diff / 86400), 'day');
+      return new Date(iso).toLocaleDateString(lang() === 'en' ? 'en-GB' : 'fr-FR');
+    } catch (e) { return ''; }
+  }
+  // Invitations en attente (co-ayants droit, équipe, Projets) : la liste des co-ayants droit contient aussi les invitations
+  // déjà traitées ; équipe et Projets : seulement celles en attente.
+  async function countInvitations(client) {
+    const counts = await Promise.all([client.rpc('my_rights_invitations'), client.rpc('my_team_invitations'), client.rpc('my_project_invitations')]);
+    return counts.reduce((n, r) => n + (Array.isArray(r.data) ? r.data.filter(x => !x.status || x.status === 'pending' || x.status === 'invited').length : 0), 0);
+  }
+  // Résumé d'un Projet : « 3 nouveaux messages · 2 modifications · 1 note pour toi » + le détail le plus récent.
+  function projectItem(u) {
+    const parts = [];
+    if (u.newMessages) parts.push(tr('inboxMessages', { n: u.newMessages }));
+    if (u.addressedNotes) parts.push(tr('inboxNotes', { n: u.addressedNotes }));
+    if (u.changes) parts.push(tr('inboxChanges', { n: u.changes }));
+    const c = (u.lastChanges || [])[0];
+    const detail = u.lastMessage && (!c || u.lastMessage.createdAt >= c.createdAt)
+      ? `${u.lastMessage.authorEmail || ''} : « ${u.lastMessage.excerpt || '📎'} »`
+      : c ? `${c.actorEmail || ''} ${i18nOf('projects', 'act_' + c.kind, { title: (c.payload && (c.payload.title || c.payload.label || c.payload.email)) || '' })}` : '';
+    return { key: 'project:' + u.projectId + ':' + u.latestAt, kind: 'project', unread: true, createdAt: u.latestAt, projectTitle: u.title,
+      title: tr('inboxProjectTitle', { title: u.title, what: parts.join(' · ') }), text: detail, href: 'projet.html?id=' + encodeURIComponent(u.projectId) };
+  }
+  async function fetchInbox() {
+    const client = window.LayerPitchSupabaseClient.getClient();
+    const [ann, reads, contact, updates, invitations] = await Promise.all([
+      client.from('admin_messages').select('id, body, title, created_at').order('created_at', { ascending: false }).limit(20),
+      client.from('admin_message_reads').select('message_id'),
+      client.from('contact_messages').select('id, ad_reel_label, sender_name, sender_email, created_at, seen_at').order('created_at', { ascending: false }).limit(20),
+      client.rpc('my_project_updates'),
+      countInvitations(client).catch(() => 0),
+    ]);
+    const seen = new Set((reads.data || []).map(r => r.message_id));
+    const L = lang();
+    const list = [];
+    (ann.data || []).forEach(m => list.push({ key: 'ann:' + m.id, kind: 'announcement', createdAt: m.created_at, unread: !seen.has(m.id),
+      title: (m.title && (m.title[L] || m.title.fr)) || i18nOf('backstage', 'inboxAnnouncementTitle'), text: (m.body && (m.body[L] || m.body.fr)) || '' }));
+    (contact.data || []).forEach(m => list.push({ key: 'contact:' + m.id, kind: 'contact', createdAt: m.created_at, unread: !m.seen_at,
+      title: i18nOf('backstage', 'inboxContactTitle', { name: m.sender_name }), text: i18nOf('backstage', 'inboxContactBody', { adreel: m.ad_reel_label, email: m.sender_email }) }));
+    (Array.isArray(updates.data) ? updates.data : []).forEach(u => list.push(projectItem(u)));
+    if (invitations) list.push({ key: 'invitations:' + invitations, kind: 'invitation', unread: true, createdAt: new Date().toISOString(),
+      title: tr('inboxInvitations', { n: invitations }), text: '', href: 'invitation.html' });
+    list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return list.slice(0, 30);
+  }
+  async function refreshInbox() {
+    try {
+      const { session } = await window.LayerPitchAuth.getSession();
+      if (!session) return;
+      const list = await fetchInbox();
+      // Petit bandeau pour ce qui vient d'arriver (pas au premier chargement de la page).
+      if (inbox.known && window.LayerPitchNotify) {
+        const fresh = list.filter(it => it.unread && !inbox.known.has(it.key));
+        const head = it => (it.kind === 'project' ? tr('inboxToastProject', { title: it.projectTitle }) : it.title);
+        if (fresh.length) window.LayerPitchNotify.info(fresh.length === 1 ? `${head(fresh[0])}${fresh[0].text ? ' — ' + fresh[0].text : ''}` : tr('inboxSeveral', { n: fresh.length }));
+      }
+      inbox.known = new Set(list.map(it => it.key));
+      inbox.items = list;
+      inbox.listeners.forEach(fn => { try { fn(list); } catch (e) { console.warn(e); } });
+    } catch (e) { console.warn('notifications indisponibles', e); }
+  }
+  function startInbox() {
+    if (inbox.started) return; inbox.started = true;
+    refreshInbox();
+    inbox.timer = setInterval(() => { if (!document.hidden) refreshInbox(); }, INBOX_POLL_MS);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshInbox(); });
+  }
+  function onInbox(fn) { inbox.listeners.push(fn); if (inbox.items.length || inbox.known) fn(inbox.items); }
+  // Ouvrir la cloche vaut lecture des annonces et des messages de contact (les Projets, eux, sont lus en y allant).
+  async function markInboxSeen() {
+    const client = window.LayerPitchSupabaseClient.getClient();
+    const has = k => inbox.items.some(it => it.unread && it.kind === k);
+    await Promise.all([has('announcement') ? client.rpc('mark_admin_messages_seen') : null, has('contact') ? client.rpc('mark_contact_messages_seen') : null]);
+    inbox.items.forEach(it => { if (it.kind === 'announcement' || it.kind === 'contact') it.unread = false; });
+    inbox.listeners.forEach(fn => { try { fn(inbox.items); } catch (e) {} });
+  }
+  const BELL_ICON = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>';
+  function renderBell() {
+    const host = document.getElementById('lpBellHost'); if (!host) return;
+    const list = inbox.items;
+    const unread = list.filter(it => it.unread).length;
+    const open = inbox.open;
+    host.innerHTML = `<button type="button" class="lp-bell" id="lpBell" aria-haspopup="true" aria-expanded="${open ? 'true' : 'false'}" title="${esc(tr('inboxTitle'))}">${BELL_ICON}${unread ? `<span class="lp-bell-badge">${unread > 9 ? '9+' : unread}</span>` : ''}</button>
+      ${open ? `<div class="lp-bell-panel" role="dialog" aria-label="${esc(tr('inboxTitle'))}"><div class="lp-bell-head">${esc(tr('inboxTitle'))}</div>
+        ${list.length ? list.map(it => `<${it.href ? `a href="${esc(withLang(it.href))}"` : 'div'} class="lp-bell-item${it.unread ? ' unread' : ''}">
+          <div class="lp-bell-item-title">${esc(it.title)}</div>${it.text ? `<div class="lp-bell-item-text">${esc(it.text)}</div>` : ''}
+          <div class="lp-bell-item-time">${esc(relTime(it.createdAt))}</div></${it.href ? 'a' : 'div'}>`).join('') : `<div class="lp-bell-empty">${esc(tr('inboxEmpty'))}</div>`}
+      </div>` : ''}`;
+    host.querySelector('#lpBell').onclick = e => {
+      e.stopPropagation(); inbox.open = !inbox.open; renderBell();
+      if (inbox.open && list.some(it => it.unread && (it.kind === 'announcement' || it.kind === 'contact'))) markInboxSeen();
+    };
+  }
+  document.addEventListener('click', e => { if (inbox.open && !e.target.closest('#lpBellHost')) { inbox.open = false; renderBell(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && inbox.open) { inbox.open = false; renderBell(); } });
+
   let state = { active: null, crumbs: [], ctx: null, navHandler: null };
 
   // Session probable (jeton Supabase présent) : on pose la mise en page tout de suite pour éviter un saut à l'affichage.
@@ -200,14 +338,8 @@
     const flags = {};
     (flagsRes.data || []).forEach(f => { flags[f.key] = !!f.allowed; });
     const ctx = { composerId, studioId, flags, isAdmin: !!adminRes.data, preview, invitations: 0 };
-    // Invitations en attente (co-ayants droit, équipe, Projets) : pastille sur « Invitations ».
-    try {
-      const counts = await Promise.all([
-        client.rpc('my_rights_invitations'), client.rpc('my_team_invitations'), client.rpc('my_project_invitations'),
-      ]);
-      // Co-ayants droit : la liste contient aussi les invitations déjà traitées ; équipe et Projets : seulement celles en attente.
-      ctx.invitations = counts.reduce((n, r) => n + (Array.isArray(r.data) ? r.data.filter(x => !x.status || x.status === 'pending' || x.status === 'invited').length : 0), 0);
-    } catch (e) { /* compteur facultatif */ }
+    // Invitations en attente : pastille sur « Invitations ».
+    try { ctx.invitations = await countInvitations(client); } catch (e) { /* compteur facultatif */ }
     return ctx;
   }
 
@@ -330,8 +462,15 @@
     bar.innerHTML = `<button type="button" class="lp-menu-btn" id="lpMenuBtn">☰ ${esc(tr('menu'))}</button>`
       + (back ? `<a class="lp-back" href="${esc(withLang(back))}" aria-label="${esc(tr('back'))}">←</a>` : '')
       + c.map((x, i) => (i ? '<span class="lp-crumb-sep">›</span>' : '') + (x.href && i < c.length - 1 ? `<a href="${esc(withLang(x.href))}">${esc(x.label)}</a>` : `<span>${esc(x.label)}</span>`)).join('')
-      + (state.ctx && state.ctx.isAdmin && previewLabel(state.ctx.preview) ? `<span class="lp-preview-banner">${esc(previewLabel(state.ctx.preview))}</span>` : '');
+      + (state.ctx && state.ctx.isAdmin && previewLabel(state.ctx.preview) ? `<span class="lp-preview-banner">${esc(previewLabel(state.ctx.preview))}</span>` : '')
+      + (state.bare ? '' : '<span class="lp-bell-host" id="lpBellHost"></span>');
     bar.querySelector('#lpMenuBtn').onclick = () => document.querySelector('.lp-shell').classList.toggle('lp-open');
+    // Page plein écran (lecteur) : pas de fil d'Ariane sur ordinateur, la cloche flotte en haut à droite.
+    if (state.bare && state.ctx && !document.getElementById('lpBellHost')) {
+      const host = document.createElement('span'); host.className = 'lp-bell-host lp-bell-floating'; host.id = 'lpBellHost';
+      document.querySelector('.lp-main').appendChild(host);
+    }
+    if (state.ctx) renderBell();
   }
 
   async function mount({ active, crumbs, bare } = {}) {
@@ -342,6 +481,7 @@
     wrap();
     state.ctx = await loadContext();
     renderNav(); renderCrumbs();
+    onInbox(renderBell); startInbox();
     return state.ctx;
   }
   function update({ active, crumbs } = {}) {
@@ -351,5 +491,5 @@
   }
   function onNavigate(fn) { state.navHandler = fn; }
 
-  window.LayerPitchShell = { mount, update, onNavigate, tr, collapsible, isCollapsed, setCollapsed };
+  window.LayerPitchShell = { mount, update, onNavigate, tr, collapsible, isCollapsed, setCollapsed, startInbox, onInbox, refreshInbox, markInboxSeen, relTime };
 })();
