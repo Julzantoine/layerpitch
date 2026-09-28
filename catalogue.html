@@ -26,8 +26,12 @@
   .filters input, .filters select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); }
   .filters input { flex: 1 1 240px; min-width: 0; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
-  .pack { display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; text-decoration: none; color: inherit; transition: border-color .15s; }
-  .pack:hover, .pack:focus-visible { border-color: var(--accent); outline: none; }
+  .pack { display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color .15s; }
+  .pack:hover, .pack:focus-within { border-color: var(--accent); }
+  .pack-link { display: flex; flex-direction: column; flex: 1; text-decoration: none; color: inherit; outline: none; }
+  .take { margin: 0 14px 14px; border: 1px solid var(--accent); background: transparent; color: var(--accent); border-radius: 999px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 12.5px; }
+  .take:disabled { opacity: .5; cursor: default; }
+  .credits-bar { font-size: 13px; color: var(--text-dim); margin: -8px 0 16px; }
   .cover { aspect-ratio: 1 / 1; width: 100%; object-fit: cover; display: block; background: linear-gradient(135deg, #2a2822, #423b30); }
   .pack-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
   .pack-title { font-family: var(--font-title); font-size: 16px; overflow-wrap: anywhere; }
@@ -48,6 +52,7 @@
     <div class="top-links" id="topLinks"></div>
   </div>
   <p class="intro" data-i18n="intro">Musique adaptative et Sfx pour le jeu vidéo. Écoute libre, sans compte ; achat à l'unité.</p>
+  <div class="credits-bar" id="creditsBar" hidden></div>
   <div class="filters">
     <input type="search" id="q" data-i18n-placeholder="searchPlaceholder" aria-label="Recherche">
     <select id="sort" aria-label="Tri">
@@ -60,10 +65,10 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790585135954"></script>
-<script src="api/supabase-client.js?v=1790585135954"></script>
-<script src="api/auth.js?v=1790585135954"></script>
-<script src="api/studio.js?v=1790585135954"></script>
+<script src="layerpitch-i18n.js?v=1790596325605"></script>
+<script src="api/supabase-client.js?v=1790596325605"></script>
+<script src="api/auth.js?v=1790596325605"></script>
+<script src="api/studio.js?v=1790596325605"></script>
 <script>
 // catalogue.html — catalogue PUBLIC des packs (chantier profils et permissions, étape 3, 28/09 ; D34) : visible sans
 // compte (règle « pages publiques jamais verrouillées »), écoute sur la page de chaque pack, achat à l'unité. N'apparaissent
@@ -101,7 +106,8 @@ function renderGrid() {
   grid.innerHTML = list.map(p => {
     const href = `./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}${p.composer_handle ? '&u=' + encodeURIComponent(p.composer_handle) : ''}`;
     const counts = [p.track_count ? tr(p.track_count > 1 ? 'tracksMany' : 'tracksOne', { n: p.track_count }) : '', p.sfx_count ? tr(p.sfx_count > 1 ? 'sfxMany' : 'sfxOne', { n: p.sfx_count }) : ''].filter(Boolean).join(' · ');
-    return `<a class="pack" href="${href}">
+    const canTake = credits && p.subscriber_credits && !taken.has(p.id);
+    return `<div class="pack"><a class="pack-link" href="${href}">
       ${p.illustration ? `<img class="cover" src="${IMAGES_BASE}${esc(p.illustration)}" alt="" loading="lazy">` : `<div class="cover"></div>`}
       <div class="pack-body">
         <div class="pack-title">${esc(p.title)}</div>
@@ -113,8 +119,25 @@ function renderGrid() {
           ${p.subscriber_credits ? `<span class="credits" title="${esc(tr('creditsHelp'))}">${esc(tr(p.subscriber_credits > 1 ? 'creditsMany' : 'creditsOne', { n: p.subscriber_credits }))}</span>` : ''}
         </div>
       </div>
-    </a>`;
+    </a>${canTake ? `<button class="take" type="button" data-take="${esc(p.id)}" ${credits.balance < p.subscriber_credits ? 'disabled' : ''}>${esc(tr('takeWithCredits', { n: p.subscriber_credits }))}</button>` : ''}${taken.has(p.id) ? `<div class="take" style="text-align:center;border-style:dashed">${esc(tr('takenLabel'))}</div>` : ''}</div>`;
   }).join('');
+  grid.querySelectorAll('[data-take]').forEach(b => b.onclick = async () => {
+    const pack = packs.find(x => x.id === b.dataset.take);
+    b.disabled = true;
+    const r = await LayerPitchStudio.takePackWithCredits(pack.id);
+    if (!r.ok) { b.disabled = false; alertMsg(tr('errorPrefix', { message: r.error })); return; }
+    taken.add(pack.id); credits.balance = r.balance; renderCredits(); renderGrid();
+  });
+}
+// Crédits du studio (D15) : seulement pour un compte connecté qui en a (palier Indie et plus). L'écoute reste libre.
+let credits = null;
+const taken = new Set();
+function alertMsg(text) { const bar = document.getElementById('creditsBar'); bar.hidden = false; bar.textContent = text; }
+function renderCredits() {
+  const bar = document.getElementById('creditsBar');
+  if (!credits || credits.monthly == null) { bar.hidden = true; return; }
+  bar.hidden = false;
+  bar.innerHTML = `${esc(tr('creditsBalance', { n: credits.balance }))} — <a href="./studio.html?lang=${pageLang}">${esc(tr('studioLink'))}</a>`;
 }
 
 document.getElementById('q').addEventListener('input', renderGrid);
@@ -124,6 +147,10 @@ document.getElementById('sort').addEventListener('change', renderGrid);
   const { packs: list, error } = await LayerPitchStudio.catalog();
   if (error) { document.getElementById('grid').innerHTML = `<div class="empty" style="grid-column:1/-1">${esc(tr('loadError'))}</div>`; return; }
   packs = list;
+  try {
+    const { session } = await LayerPitchAuth.getSession();
+    if (session) { const c = await LayerPitchStudio.myCredits(); credits = c.credits && c.credits.monthly != null ? c.credits : null; renderCredits(); }
+  } catch (e) {}
   renderGrid();
 })();
 </script>

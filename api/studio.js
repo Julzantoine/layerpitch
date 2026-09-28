@@ -95,6 +95,16 @@
     return error ? { ok: false, error } : { ok: true };
   }
 
-  window.LayerPitchStudio = { myEntitlements, myFeatureFlags, catalog, myOwnedAssets, myCustomPacks, saveCustomPack, deleteCustomPack,
+  // ---- Crédits (étape 6b, 28/09, migration 20260928090000) ----
+  async function myCredits() {
+    const { data, error } = await rpc('my_credits');
+    return { credits: data, error };
+  }
+  async function takePackWithCredits(packId) {
+    const { data, error } = await rpc('take_pack_with_credits', { p_pack_id: packId });
+    return error ? { ok: false, error } : { ok: true, balance: data && data.balance };
+  }
+
+  window.LayerPitchStudio = { myCredits, takePackWithCredits, myEntitlements, myFeatureFlags, catalog, myOwnedAssets, myCustomPacks, saveCustomPack, deleteCustomPack,
     myTeamPurchases, myTeam, inviteTeamMember, resendTeamInvitation, removeTeamMember, transferOwnership, myTeamInvitations, respondTeamInvitation };
 })();

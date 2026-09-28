@@ -250,6 +250,25 @@ async function generateInvoiceForPurchase(
   await adminClient.from('pack_purchases').update({ invoice_id: invoiceRow.id }).eq('id', purchase.id);
 }
 
+// ---- Bundle compositeur + studio (D19, 28/09) ----
+// Studio payant activé : chaque compte de l'équipe qui a un abonnement compositeur reçoit la réduction (coupon
+// STRIPE_BUNDLE_COUPON_ID). Studio résilié : la réduction est retirée. Échecs journalisés, jamais bloquants.
+async function applyBundleForStudio(adminClient: ReturnType<typeof createClient>, stripe: Stripe, studioId: string, active: boolean) {
+  const coupon = Deno.env.get('STRIPE_BUNDLE_COUPON_ID');
+  if (!coupon) return;
+  const { data: accounts } = await adminClient.rpc('studio_accounts', { p_studio_id: studioId });
+  const ids = (accounts || []).map((a: { profile_id: string }) => a.profile_id);
+  if (!ids.length) return;
+  const { data: composers } = await adminClient.from('composer_profiles')
+    .select('id, profile_id, stripe_subscription_id, bundle_discount_active').in('profile_id', ids).not('stripe_subscription_id', 'is', null);
+  for (const c of composers || []) {
+    if (!!c.bundle_discount_active === active) continue;
+    // Retrait : un autre studio payant ne peut pas exister pour ce compte (un compte = un seul studio), on retire donc.
+    await stripe.subscriptions.update(c.stripe_subscription_id, { discounts: active ? [{ coupon }] : [] });
+    await adminClient.from('composer_profiles').update({ bundle_discount_active: active }).eq('id', c.id);
+  }
+}
+
 // ---- Achat d'album partagé (chantier profils et permissions, étape 4b, 28/09) ----
 // Session créée par create-album-checkout-session (metadata.kind = 'album', instantané de la répartition dans
 // metadata.split = « profil|c ou s|parts ; … », commission du palier du vendeur dans metadata.commissionBps).
@@ -408,12 +427,30 @@ Deno.serve(async (req) => {
     const session = event.data.object as Stripe.Checkout.Session;
 
     if (session.mode === 'subscription') {
+      // Abonnement STUDIO (28/09, chantier profils et permissions) : palier, état, ids Stripe ; puis bundle (D19) pour
+      // les comptes de l'équipe qui ont un abonnement compositeur. Les crédits sont donnés à invoice.paid (ci-dessous).
+      if (session.metadata?.kind === 'studio') {
+        const studioId = session.metadata.studioId;
+        const plan = session.metadata.plan;
+        if (studioId && (plan === 'indie' || plan === 'aa')) {
+          const { error: studioError } = await adminClient.from('studio_profiles').update({
+            plan, subscription_status: 'active', stripe_subscription_id: session.subscription as string,
+            stripe_customer_id: session.customer as string,
+          }).eq('id', studioId);
+          if (studioError) {
+            console.error('studio_profiles plan update failed:', studioError.message);
+            return new Response(JSON.stringify({ error: studioError.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+          }
+          await applyBundleForStudio(adminClient, stripe, studioId, true).catch(e => console.error('bundle apply failed:', e?.message || e));
+        }
+        return new Response(JSON.stringify({ received: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
       const composerAuthId = session.metadata?.composerAuthId || session.client_reference_id;
       const plan = session.metadata?.plan;
       if (composerAuthId && (plan === 'starter' || plan === 'pro')) {
         const { error: planError } = await adminClient
           .from('composer_profiles')
-          .update({ plan })
+          .update({ plan, stripe_subscription_id: session.subscription as string, bundle_discount_active: session.metadata?.bundle === '1' })
           .eq('profile_id', composerAuthId);
         if (planError) {
           console.error('composer_profiles.plan update failed:', planError.message);
@@ -472,8 +509,45 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Période payée d'un abonnement STUDIO (première et suivantes) : dotation de crédits (idempotente par période, D18) et
+  // fin de période enregistrée (sert à l'expiration des crédits 28 jours après une résiliation).
+  if (event.type === 'invoice.paid') {
+    const invoice = event.data.object as Stripe.Invoice;
+    // deno-lint-ignore no-explicit-any -- l'emplacement de l'id d'abonnement varie selon la version de l'API
+    const subId = (invoice as any).subscription || (invoice as any).parent?.subscription_details?.subscription;
+    if (subId) {
+      const { data: studio } = await adminClient.from('studio_profiles').select('id').eq('stripe_subscription_id', subId).maybeSingle();
+      if (studio) {
+        const line = invoice.lines?.data?.[0];
+        const periodStart = line?.period?.start ? new Date(line.period.start * 1000) : new Date();
+        const periodEnd = line?.period?.end ? new Date(line.period.end * 1000) : null;
+        await adminClient.from('studio_profiles').update({ subscription_status: 'active', subscription_period_end: periodEnd?.toISOString() || null }).eq('id', studio.id);
+        const { error: grantError } = await adminClient.rpc('grant_studio_credits', { p_studio_id: studio.id, p_period: periodStart.toISOString().slice(0, 10) });
+        if (grantError) {
+          console.error('grant_studio_credits failed:', grantError.message);
+          return new Response(JSON.stringify({ error: grantError.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+        }
+      }
+    }
+  }
+
   if (event.type === 'customer.subscription.deleted') {
     const subscription = event.data.object as Stripe.Subscription;
+    // Abonnement STUDIO résilié : retour à SoloDev, état « résilié » (les crédits expirent 28 jours après la fin de la
+    // dernière période payée, tâche quotidienne), réduction du bundle retirée aux comptes de l'équipe.
+    if (subscription.metadata?.kind === 'studio' && subscription.metadata?.studioId) {
+      // deno-lint-ignore no-explicit-any
+      const end = (subscription as any).current_period_end || (subscription as any).items?.data?.[0]?.current_period_end;
+      const { error: studioCancelError } = await adminClient.from('studio_profiles').update({
+        plan: 'solodev', subscription_status: 'canceled', subscription_period_end: end ? new Date(end * 1000).toISOString() : new Date().toISOString(),
+      }).eq('id', subscription.metadata.studioId);
+      if (studioCancelError) {
+        console.error('studio_profiles cancel failed:', studioCancelError.message);
+        return new Response(JSON.stringify({ error: studioCancelError.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      }
+      await applyBundleForStudio(adminClient, stripe, subscription.metadata.studioId, false).catch(e => console.error('bundle remove failed:', e?.message || e));
+      return new Response(JSON.stringify({ received: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
     const composerAuthId = subscription.metadata?.composerAuthId;
     if (composerAuthId) {
       const { error: cancelError } = await adminClient

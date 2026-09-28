@@ -14,9 +14,10 @@
 
   // Démarre une souscription payante : ouvre une session Stripe Checkout et redirige le
   // navigateur. plan : 'starter' | 'pro'. interval : 'month' | 'year'.
-  async function subscribeToPlan(plan, interval, { successUrl, cancelUrl } = {}) {
+  // role : 'composer' (défaut, starter/pro) ou 'studio' (indie/aa ; 28/09, chantier profils et permissions).
+  async function subscribeToPlan(plan, interval, { successUrl, cancelUrl, role } = {}) {
     const { data, error } = await getClient().functions.invoke('create-subscription-checkout-session', {
-      body: { plan, interval, successUrl, cancelUrl },
+      body: { plan, interval, successUrl, cancelUrl, role: role === 'studio' ? 'studio' : 'composer' },
     });
     // error.message du SDK pour une Edge Function en échec est générique ("Edge Function returned
     // a non-2xx status code") -- describeFunctionError() (api/auth.js) relit le vrai message JSON

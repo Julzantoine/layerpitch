@@ -75,9 +75,13 @@ Deno.serve(async (req) => {
     }
     const composerAuthId = callerData.user.id;
 
-    const { plan, interval, successUrl, cancelUrl } = await req.json();
-    if (plan !== 'starter' && plan !== 'pro') {
-      return new Response(JSON.stringify({ error: 'plan invalide (starter ou pro attendu).' }), {
+    const { plan, interval, successUrl, cancelUrl, role } = await req.json();
+    // Casquette (28/09, chantier profils et permissions) : compositeur (starter/pro, comportement d'avant) ou studio
+    // (indie/aa ; AAA sur devis, jamais en libre-service). Un abonnement par profil (D1).
+    const isStudio = role === 'studio';
+    const allowedPlans = isStudio ? ['indie', 'aa'] : ['starter', 'pro'];
+    if (!allowedPlans.includes(plan)) {
+      return new Response(JSON.stringify({ error: `plan invalide (${allowedPlans.join(' ou ')} attendu).` }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -90,9 +94,9 @@ Deno.serve(async (req) => {
     // Client service_role : seul point de vérité pour le prix, jamais celui fourni par le client.
     const adminClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     const { data: quota, error: quotaError } = await adminClient
-      .from('plan_quotas')
-      .select('plan, price_eur_cents_monthly, price_eur_cents_yearly')
-      .eq('plan', plan)
+      .from('plans')
+      .select('code, public_name, price_eur_cents_monthly, price_eur_cents_yearly')
+      .eq('code', plan).eq('kind', isStudio ? 'studio' : 'composer')
       .maybeSingle();
     if (quotaError || !quota) {
       return new Response(JSON.stringify({ error: 'Palier introuvable.' }), {
@@ -109,12 +113,36 @@ Deno.serve(async (req) => {
     // Le compositeur doit exister avant de souscrire -- ensure_composer_profile() est déjà appelé
     // ailleurs dans le parcours d'inscription (bienvenue.html), mais on ne le suppose pas ici :
     // un abonnement doit toujours pouvoir s'associer à un vrai composer_profile.
-    const { data: composerId, error: composerError } = await callerClient.rpc('ensure_composer_profile');
-    if (composerError || !composerId) {
-      return new Response(JSON.stringify({ error: composerError?.message || 'Impossible de provisionner le profil compositeur.' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    let studioId: string | null = null;
+    if (isStudio) {
+      // Seul le PROPRIÉTAIRE du studio paie (D37) : un membre d'équipe ne peut pas souscrire au nom du studio.
+      const { data: studio, error: studioError } = await callerClient.rpc('my_studio');
+      if (studioError || !studio || !studio.isOwner) {
+        return new Response(JSON.stringify({ error: 'Seul le propriétaire du studio peut choisir son palier.' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      studioId = studio.id;
+    } else {
+      const { data: composerId, error: composerError } = await callerClient.rpc('ensure_composer_profile');
+      if (composerError || !composerId) {
+        return new Response(JSON.stringify({ error: composerError?.message || 'Impossible de provisionner le profil compositeur.' }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
+    // Bundle (D19) : compositeur à −50 % tant que son compte a un palier studio payant actif. Coupon Stripe créé une fois
+    // dans le tableau de bord (50 %, durée « forever »), id dans le secret STRIPE_BUNDLE_COUPON_ID. Stripe refuse de
+    // cumuler une réduction imposée et la saisie d'un code promo : pas de code promo dans ce cas.
+    const bundleCoupon = Deno.env.get('STRIPE_BUNDLE_COUPON_ID');
+    let bundle = false;
+    if (!isStudio && bundleCoupon) {
+      const { data: hasStudio } = await adminClient.rpc('account_has_paid_studio', { p_profile_id: composerAuthId });
+      bundle = !!hasStudio;
+    }
+    const metadata: Record<string, string> = isStudio
+      ? { kind: 'studio', studioId: studioId!, ownerAuthId: composerAuthId, plan, interval }
+      : { kind: 'composer', composerAuthId, plan, interval, bundle: bundle ? '1' : '0' };
 
     // apiVersion explicite requis ≥ 2025-03-31.basil pour Managed Payments -- voir
     // create-checkout-session pour le détail.
@@ -130,7 +158,7 @@ Deno.serve(async (req) => {
         price_data: {
           currency: 'eur',
           product_data: {
-            name: `LayerPitch — ${plan === 'pro' ? 'Pro' : 'Starter'} (${interval === 'month' ? 'mensuel' : 'annuel'})`,
+            name: `LayerPitch ${isStudio ? 'Studio' : 'Compositeur'} — ${quota.public_name} (${interval === 'month' ? 'mensuel' : 'annuel'})`,
             tax_code: 'txcd_10103001',
           },
           unit_amount: unitAmount,
@@ -138,9 +166,13 @@ Deno.serve(async (req) => {
         },
         quantity: 1,
       }],
-      allow_promotion_codes: true,
+      ...(bundle ? { discounts: [{ coupon: bundleCoupon! }] } : { allow_promotion_codes: true }),
       client_reference_id: composerAuthId,
-      subscription_data: { metadata: { composerAuthId, plan, interval } },
+      // Métadonnées sur la SESSION (lues par le webhook à checkout.session.completed) ET sur l'abonnement (relues aux
+      // renouvellements et à la résiliation). Correctif du 28/09 : jusqu'ici seules celles de l'abonnement étaient posées,
+      // et le webhook lisait session.metadata.plan -- le palier compositeur n'aurait jamais été mis à jour après paiement.
+      metadata,
+      subscription_data: { metadata },
       success_url: safeReturnUrl(successUrl, 'http://localhost:8420/bienvenue.html?subscribed=1'),
       cancel_url: safeReturnUrl(cancelUrl, 'http://localhost:8420/bienvenue.html?subscribed=0'),
     });
