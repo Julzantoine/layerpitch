@@ -8,7 +8,7 @@
 //                        PROPRIÉTAIRE) puis URL d'envoi (PUT) avec type et taille verrouillés dans la signature ;
 //   * action 'read'    : { fileId } -> project_file_path_for (membre du Projet) OU image d'une vitrine publiée
 //                        (project_file_is_public, lecture sans compte) -> URL de lecture (GET), 1 h ;
-//   * action 'delete'  : { path } -> le chemin doit avoir été rendu par delete_project_file / delete_project_video /
+//   * action 'delete'  : { path } -> le chemin doit avoir été rendu par delete_project_file / delete_project_asset /
 //                        delete_project (ligne déjà supprimée en base) : on vérifie qu'aucune ligne ne le référence encore
 //                        et qu'il est bien sous projects/ -> URL d'effacement (DELETE).
 // NON TESTÉE EN RÉEL au 28/09 : créer le seau privé, ajouter le secret R2_PROJECTS_BUCKET, déployer

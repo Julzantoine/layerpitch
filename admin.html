@@ -103,6 +103,14 @@
       <div id="adminMsgHistory" style="margin-top:16px;"></div>
     </div>
 
+    <!-- Espace Projet, étape 2 (28/09) : sites collés dans les Projets pour lesquels LayerPitch ne sait pas faire d'aperçu.
+         Liste seulement : ajouter un site = décision manuelle (Edge Function link-preview + project_link_has_preview). -->
+    <div class="card">
+      <h2 data-i18n="linkDomainsTitle">Liens sans aperçu dans les Projets</h2>
+      <p class="subtitle" data-i18n="linkDomainsHint" style="margin-bottom:10px;"></p>
+      <div id="linkDomainsBody"></div>
+    </div>
+
     <div class="card">
       <h2 data-i18n="clarityTitle">Microsoft Clarity</h2>
       <p class="subtitle" data-i18n="clarityHint" style="margin-bottom:10px;">Heatmaps et enregistrements de session -- vue globale de la plateforme, sans lien avec le tableau de bord analytique par compositeur. Consultation uniquement sur le site de Clarity, pas rapatriée ici.</p>
@@ -183,11 +191,11 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1790611862819"></script>
-<script src="api/auth.js?v=1790611862819"></script>
-<script src="api/admin.js?v=1790611862819"></script>
-<script src="layerpitch-i18n.js?v=1790611862819"></script>
-<script src="layerpitch-notify.js?v=1790611862819"></script>
+<script src="api/supabase-client.js?v=1790612259917"></script>
+<script src="api/auth.js?v=1790612259917"></script>
+<script src="api/admin.js?v=1790612259917"></script>
+<script src="layerpitch-i18n.js?v=1790612259917"></script>
+<script src="layerpitch-notify.js?v=1790612259917"></script>
 <script>
 // i18n minimal (zone "admin" + repli "shared") — même patron que layerpitch-backstage.html.
 function currentLang() { return localStorage.getItem('layerpitch_lang') || 'fr'; }
@@ -240,6 +248,17 @@ async function render(session) {
   loadGrowthSeries();
   loadAccounts();
   loadAdminMsgHistory();
+  loadLinkDomains();
+}
+
+// ---- Sites sans aperçu dans les Projets (étape 2 de l'espace Projet) ----
+async function loadLinkDomains() {
+  const box = document.getElementById('linkDomainsBody');
+  const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('admin_link_domains_without_preview', { p_limit: 20 });
+  if (error) { box.innerHTML = `<div class="msg err">${esc(error.message || String(error))}</div>`; return; }
+  const list = data || [];
+  box.innerHTML = list.length ? list.map(d => `<div style="padding:6px 0;border-top:1px solid var(--border);font-size:13px;">${esc(tr('linkDomainsRow', { domain: d.domain, links: d.links, projects: d.projects }))}${d.links >= 5 ? ` <span style="color:var(--accent);">${esc(tr('linkDomainsSuggest'))}</span>` : ''}</div>`).join('')
+    : `<div style="font-size:13px;color:var(--text-dim);">${esc(tr('linkDomainsEmpty'))}</div>`;
 }
 
 window.LayerPitchAuth.onAuthStateChange((_event, session) => render(session));

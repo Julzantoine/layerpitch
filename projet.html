@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790611862819">
+<link rel="stylesheet" href="player.css?v=1790612259917">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -60,6 +60,12 @@
   .item-body { font-size: 13px; color: var(--text-dim); white-space: pre-wrap; overflow-wrap: anywhere; }
   .item img { width: 100%; border-radius: 6px; object-fit: cover; max-height: 200px; }
   .item audio { width: 100%; }
+  /* Aperçu d'un lien (étape 2) : vignette cliquable -> lecteur officiel du service, dans la carte. */
+  .preview-thumb { position: relative; display: block; width: 100%; padding: 0; border: 0; background: #111; border-radius: 6px; overflow: hidden; cursor: pointer; }
+  .preview-thumb img { display: block; width: 100%; max-height: 200px; object-fit: cover; border-radius: 0; }
+  .preview-thumb .play { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 34px; text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+  .preview-embed { width: 100%; border: 0; border-radius: 6px; background: var(--bg); }
+  .preview-meta { font-size: 12px; color: var(--text-dim); overflow-wrap: anywhere; }
   .item-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; }
   .notes { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; display: flex; flex-direction: column; gap: 6px; }
   .note { font-size: 12.5px; }
@@ -89,17 +95,17 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790611862819"></script>
-<script src="layerpitch-notify.js?v=1790611862819"></script>
-<script src="player.js?v=1790611862819"></script>
-<script src="api/supabase-client.js?v=1790611862819"></script>
-<script src="api/auth.js?v=1790611862819"></script>
-<script src="layerpitch-shell.js?v=1790611862819"></script>
-<script src="api/tracks.js?v=1790611862819"></script>
-<script src="api/packs.js?v=1790611862819"></script>
-<script src="api/albums.js?v=1790611862819"></script>
-<script src="api/studio.js?v=1790611862819"></script>
-<script src="api/projects.js?v=1790611862819"></script>
+<script src="layerpitch-i18n.js?v=1790612259917"></script>
+<script src="layerpitch-notify.js?v=1790612259917"></script>
+<script src="player.js?v=1790612259917"></script>
+<script src="api/supabase-client.js?v=1790612259917"></script>
+<script src="api/auth.js?v=1790612259917"></script>
+<script src="layerpitch-shell.js?v=1790612259917"></script>
+<script src="api/tracks.js?v=1790612259917"></script>
+<script src="api/packs.js?v=1790612259917"></script>
+<script src="api/albums.js?v=1790612259917"></script>
+<script src="api/studio.js?v=1790612259917"></script>
+<script src="api/projects.js?v=1790612259917"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -300,7 +306,7 @@ function renderThread(panel) {
 // d'épingles (S.content.moodboard, ordre compris), l'onglet Vidéos montre tous les objets vidéo, d'où qu'ils viennent.
 // Les notes pointent vers l'objet : elles le suivent d'une section à l'autre.
 const assetById = id => (S.content.assets || []).find(a => a.id === id);
-const assetTitle = a => a.title || a.trackTitle || a.packTitle || a.albumTitle || a.fileName || a.url || '';
+const assetTitle = a => a.title || (a.preview && a.preview.title) || a.trackTitle || a.packTitle || a.albumTitle || a.fileName || a.url || '';
 async function ensureMyPacks() {
   if (S.myPacksLoaded || !S.myComposerId) return;
   const r = await LayerPitchPacks.listPacks({ ownerId: S.myComposerId });
@@ -403,6 +409,38 @@ async function addItem() {
   else payload = { kind, packId: val('fPack'), body: val('fBody') };
   done(await PJ.addAsset(projectId, payload, true));
 }
+// Aperçus (étape 2) : services connus seulement, même liste que l'Edge Function link-preview. Le lecteur n'est inséré que
+// si son adresse commence par l'un de ces préfixes (défense en profondeur : link-preview les vérifie déjà).
+const PREVIEW_HOSTS = /^https?:\/\/(www\.|m\.|music\.|on\.|open\.|link\.)?(youtube\.com|youtu\.be|vimeo\.com|soundcloud\.com|spotify\.com|deezer\.com|deezer\.page\.link|[a-z0-9-]+\.bandcamp\.com)\//i;
+const EMBED_PREFIXES = ['https://www.youtube-nocookie.com/embed/', 'https://player.vimeo.com/video/', 'https://w.soundcloud.com/player/', 'https://open.spotify.com/embed/', 'https://widget.deezer.com/widget/', 'https://bandcamp.com/EmbeddedPlayer/'];
+const PROVIDER_NAMES = { youtube: 'YouTube', vimeo: 'Vimeo', soundcloud: 'SoundCloud', spotify: 'Spotify', deezer: 'Deezer', bandcamp: 'Bandcamp' };
+S.previewTried = new Set();
+// Objet avec lien d'un service connu mais sans aperçu : on le demande une fois par visite, puis on rafraîchit.
+function requestPreview(a) {
+  if (!a.url || a.preview || S.previewTried.has(a.id) || !PREVIEW_HOSTS.test(a.url)) return;
+  S.previewTried.add(a.id);
+  PJ.preview(a.id).then(async r => { if (!r.error && r.data && r.data.preview && !r.data.preview.failed) { await reloadContent(); if (S.tab === 'board') renderPanel(); broadcast('content'); } });
+}
+function previewHtml(a) {
+  const p = a.preview;
+  if (!p || p.failed) return '';
+  const embed = p.embedUrl && EMBED_PREFIXES.some(x => p.embedUrl.startsWith(x)) ? p.embedUrl : null;
+  const thumb = p.thumbnail && /^https:\/\//.test(p.thumbnail) ? p.thumbnail : null;
+  const name = PROVIDER_NAMES[p.provider] || '';
+  return (thumb || embed ? `<button class="preview-thumb" type="button" data-act="play" ${embed ? '' : 'disabled'} title="${esc(tr('playHere'))}">${thumb ? `<img src="${esc(thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<div style="height:90px"></div>'}${embed ? '<span class="play">▶</span>' : ''}</button>` : '')
+    + `<div class="preview-meta">${p.author ? esc(p.author) + ' · ' : ''}<a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${esc(tr('openOn', { service: name }))} ↗</a></div>`;
+}
+// Remplace la vignette par le lecteur officiel du service (iframe isolée, sans accès à la page).
+function playPreview(el, a) {
+  const p = a.preview; const btn = el.querySelector('[data-act="play"]');
+  if (!p || !btn || !p.embedUrl || !EMBED_PREFIXES.some(x => p.embedUrl.startsWith(x))) return;
+  const f = document.createElement('iframe');
+  f.className = 'preview-embed'; f.src = p.embedUrl + (p.provider === 'youtube' || p.provider === 'vimeo' ? (p.embedUrl.includes('?') ? '&' : '?') + 'autoplay=1' : '');
+  f.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture'; f.allowFullscreen = true; f.loading = 'lazy'; f.referrerPolicy = 'strict-origin-when-cross-origin';
+  f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-presentation');
+  if (p.embedHeight) f.style.height = p.embedHeight + 'px'; else f.style.aspectRatio = '16 / 9';
+  btn.replaceWith(f);
+}
 function youtubeId(url) { const m = String(url || '').match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/); return m ? m[1] : null; }
 async function assetCard(a, pins) {
   const el = document.createElement('div');
@@ -412,8 +450,9 @@ async function assetCard(a, pins) {
   if (a.kind === 'image') { const u = await fileUrl(a.fileId); media = u ? `<img src="${esc(u)}" alt="">` : ''; }
   if (a.kind === 'audio') { const u = await fileUrl(a.fileId); media = u ? `<audio controls preload="none" src="${esc(u)}"></audio>` : ''; }
   if (a.kind === 'file') media = `<button class="btn" type="button" data-act="open">${esc(tr('openFile'))} (${esc(a.fileName || '')})</button>`;
-  if (a.kind === 'link') media = `<a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${esc(a.url)}</a>`;
-  if (a.kind === 'video') { const y = youtubeId(a.url); media = (y ? `<img src="https://i.ytimg.com/vi/${esc(y)}/hqdefault.jpg" alt="">` : '') + `<button class="btn" type="button" data-act="watch">${esc(tr('openInVideos'))}</button>`; }
+  if (a.kind === 'link') media = previewHtml(a) || `<a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${esc(a.url)}</a>`;
+  if (a.kind === 'video') { const y = youtubeId(a.url); media = (previewHtml(a) || (y ? `<img src="https://i.ytimg.com/vi/${esc(y)}/hqdefault.jpg" alt="">` : '')) + `<button class="btn" type="button" data-act="watch">${esc(tr('openInVideos'))}</button>`; }
+  requestPreview(a);
   if (a.kind === 'pack') media = `<a class="btn" href="./pack.html?id=${encodeURIComponent(a.packId)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('openPack'))}</a>`;
   if (a.kind === 'track') media = `<div data-role="player"></div>`;
   el.innerHTML = `<div class="item-kind">${esc(tr('kind_' + a.kind))} · ${esc(tr('origin_' + a.origin))}${a.starred ? ' · ★ ' + esc(tr('inPitch')) : ''}</div>
@@ -435,6 +474,7 @@ async function assetCard(a, pins) {
   if (a.kind === 'track') mountTrack(el.querySelector('[data-role="player"]'), a.trackId);
   if (act('open')) act('open').onclick = async () => { const u = await fileUrl(a.fileId); if (u) window.open(u, '_blank', 'noopener'); };
   if (act('watch')) act('watch').onclick = () => openInVideos(a.id);
+  if (act('play')) act('play').onclick = () => playPreview(el, a);
   act('star').onclick = async () => after(await PJ.star(a.id, !a.starred));
   const move = async d => { const ids = pins.map(x => x.id); const j = idx + d; [ids[idx], ids[j]] = [ids[j], ids[idx]]; after(await PJ.reorderMoodboard(projectId, ids)); };
   act('up').onclick = () => move(-1);

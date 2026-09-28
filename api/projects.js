@@ -60,6 +60,8 @@
       if (!r.error && r.data) await P.eraseStoredFile(r.data);
       return r;
     },
+    // Aperçu d'un lien (titre, vignette, lecteur intégrable) récupéré côté serveur auprès du service d'origine (étape 2).
+    preview: assetId => invoke('link-preview', { assetId }),
     pin: (assetId, pinned) => rpc('pin_project_asset', { p_asset_id: assetId, p_pinned: !!pinned }),
     star: (assetId, starred) => rpc('star_project_asset', { p_asset_id: assetId, p_starred: !!starred }),
     reorderMoodboard: (id, assetIds) => rpc('reorder_moodboard', { p_project_id: id, p_asset_ids: assetIds }),
