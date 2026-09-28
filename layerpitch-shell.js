@@ -6,6 +6,9 @@
 // en tant que » (casquette, palier compositeur, palier studio, masquer ce qui n'est pas encore ouvert), mémorisé côté
 // serveur (migration 20260928110000) et donc actif sur toutes les pages. Sans session : aucune barre (pages
 // publiques ou écran de connexion). Téléphone : la barre se replie derrière un bouton « Menu ».
+// Ordinateur : la barre se replie en icônes seules (bouton en haut de la barre, choix mémorisé dans le navigateur et
+// commun à toutes les pages). Le Backstage garde sa propre barre mais réutilise ce même bouton :
+//   LayerPitchShell.collapsible(navElement, { selector: '.nav-item' })
 //
 // Utilisation (après supabase-js, layerpitch-i18n.js, api/supabase-client.js, api/auth.js) :
 //   LayerPitchShell.mount({ active: 'studio.team', crumbs: [{ label, href }, { label }] });
@@ -75,6 +78,21 @@
   .lp-crumb-sep { color: var(--text-dimmer, #9a9ea6); }
   .lp-preview-banner { margin-left: auto; font-size: 11.5px; background: #e6eef8; color: var(--accent, #2f80c0); border-radius: 999px; padding: 3px 10px; }
   .lp-menu-btn { display: none; border: 1px solid var(--border, #e2e2e6); background: #fff; border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer; color: var(--text, #24262b); }
+  .lp-nav-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+  .lp-nav, .lp-nav a.lp-item { transition: width .15s ease, flex-basis .15s ease, padding .15s ease; }
+  @media (min-width: 821px) {
+    html.lp-sidebar-collapsed .lp-nav { width: 60px; flex-basis: 60px; padding: 14px 10px 24px; overflow-x: hidden; }
+    html.lp-sidebar-collapsed .lp-nav-top { justify-content: center; margin-bottom: 4px; }
+    html.lp-sidebar-collapsed .lp-nav-brand,
+    html.lp-sidebar-collapsed .lp-nav a.lp-sub,
+    html.lp-sidebar-collapsed .lp-preview,
+    html.lp-sidebar-collapsed .lp-nav-foot,
+    html.lp-sidebar-collapsed .lp-nav a.lp-item > span:not(.lp-badge) { display: none; }
+    html.lp-sidebar-collapsed .lp-nav-section { font-size: 0; height: 1px; margin: 12px 4px; background: var(--border, #e2e2e6); }
+    html.lp-sidebar-collapsed .lp-nav a.lp-item { justify-content: center; padding: 9px 0; position: relative; }
+    html.lp-sidebar-collapsed .lp-nav a.lp-item svg { opacity: 1; }
+    html.lp-sidebar-collapsed .lp-badge { position: absolute; top: 2px; right: 2px; margin: 0; font-size: 9px; padding: 0 5px; }
+  }
   .lp-shell.lp-bare .lp-main { padding: 0; }
   .lp-shell.lp-bare .lp-crumbs { display: none; }
   @media (max-width: 820px) {
@@ -84,6 +102,60 @@
     .lp-main { padding: 14px 16px 50px; }
     .lp-menu-btn { display: inline-block; }
   }`;
+
+  // Barre repliée (28/09, demande de Jules-Antoine) : un seul réglage pour toutes les pages, Backstage compris. La classe
+  // est posée sur <html> dès le chargement du script, avant l'affichage, pour éviter que la barre saute. Sans effet sur
+  // téléphone (la barre y est déjà cachée derrière « Menu »).
+  const COLLAPSE_KEY = 'layerpitch_sidebar_collapsed';
+  function isCollapsed() { try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch (e) { return false; } }
+  function setCollapsed(on) {
+    try { localStorage.setItem(COLLAPSE_KEY, on ? '1' : '0'); } catch (e) { /* stockage indisponible : le temps de la page */ }
+    document.documentElement.classList.toggle('lp-sidebar-collapsed', on);
+    document.querySelectorAll('.lp-collapse-btn').forEach(syncCollapseBtn);
+  }
+  document.documentElement.classList.toggle('lp-sidebar-collapsed', isCollapsed());
+  // Le réglage suit d'un onglet à l'autre.
+  window.addEventListener('storage', e => { if (e.key === COLLAPSE_KEY) setCollapsed(e.newValue === '1'); });
+
+  const COLLAPSE_CSS = `
+  .lp-collapse-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; flex: 0 0 auto;
+    border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--text-dim, #5f636b); cursor: pointer; }
+  .lp-collapse-btn:hover { background: rgba(47, 128, 192, .08); border-color: var(--border, #e2e2e6); color: var(--accent, #2f80c0); }
+  .lp-collapse-btn svg { transition: transform .15s ease; }
+  html.lp-sidebar-collapsed .lp-collapse-btn svg { transform: rotate(180deg); }
+  @media (max-width: 820px) { .lp-collapse-btn { display: none; } }`;
+  function syncCollapseBtn(b) {
+    const label = tr(isCollapsed() ? 'expand' : 'collapse');
+    b.title = label; b.setAttribute('aria-label', label); b.setAttribute('aria-expanded', String(!isCollapsed()));
+  }
+  function collapseButton() {
+    if (!document.getElementById('lpCollapseCss')) {
+      const st = document.createElement('style'); st.id = 'lpCollapseCss'; st.textContent = COLLAPSE_CSS; document.head.appendChild(st);
+    }
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'lp-collapse-btn';
+    b.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>';
+    b.addEventListener('click', () => setCollapsed(!isCollapsed()));
+    syncCollapseBtn(b);
+    return b;
+  }
+  // Barre repliée : le libellé caché d'une rubrique apparaît en infobulle au survol (calculé au moment du survol, pour
+  // suivre la langue affichée ; une infobulle déjà prévue par la page n'est jamais remplacée).
+  function wireCollapsedTooltips(nav, selector) {
+    nav.addEventListener('mouseover', e => {
+      const it = e.target.closest(selector); if (!it || !nav.contains(it)) return;
+      if (isCollapsed()) {
+        if (!it.title || it.dataset.lpAutoTitle) { it.title = it.textContent.replace(/\s+/g, ' ').trim(); it.dataset.lpAutoTitle = '1'; }
+      } else if (it.dataset.lpAutoTitle) { it.removeAttribute('title'); delete it.dataset.lpAutoTitle; }
+    });
+  }
+  // Pour une page qui a sa propre barre (Backstage) : ajoute le bouton en haut de la barre et les infobulles. La page
+  // fournit elle-même l'apparence repliée (règles sous html.lp-sidebar-collapsed).
+  function collapsible(nav, { selector } = {}) {
+    if (!nav || nav.querySelector(':scope > .lp-collapse-btn')) return;
+    const b = collapseButton(); b.classList.add('lp-collapse-btn-own');
+    nav.insertBefore(b, nav.firstChild);
+    wireCollapsedTooltips(nav, selector || 'a, button');
+  }
 
   let state = { active: null, crumbs: [], ctx: null, navHandler: null };
 
@@ -103,6 +175,7 @@
     // Le contenu de la page (hors scripts) passe à droite de la barre.
     [...document.body.childNodes].forEach(n => { if (!(n.nodeType === 1 && n.tagName === 'SCRIPT')) main.appendChild(n); });
     shell.appendChild(nav); shell.appendChild(main);
+    wireCollapsedTooltips(nav, 'a.lp-item');
     if (state.bare) shell.classList.add('lp-bare');
     document.body.insertBefore(shell, document.body.firstChild);
     document.body.classList.add('lp-shell-on');
@@ -181,7 +254,7 @@
     const isActive = id => state.active === id || (state.active || '').startsWith(id + '.');
     const link = (it, sub) => `<a class="lp-item${sub ? ' lp-sub' : ''}" href="${esc(withLang(it.href))}"${state.active === it.id || (!sub && !it.children && isActive(it.id)) ? ' aria-current="page"' : ''}>
         ${sub ? '' : icon(it.icon)}<span>${esc(tr(it.label || 'item_' + it.id))}</span>${it.badge ? `<span class="lp-badge">${esc(it.badge)}</span>` : ''}</a>`;
-    let html = `<a class="lp-nav-brand" href="${esc(withLang(ctx.composerId ? 'layerpitch-backstage.html' : 'mon-compte.html'))}">LayerPitch</a>`;
+    let html = `<div class="lp-nav-top"><a class="lp-nav-brand" href="${esc(withLang(ctx.composerId ? 'layerpitch-backstage.html' : 'mon-compte.html'))}">LayerPitch</a></div>`;
     for (const s of items(ctx)) {
       html += `<div class="lp-nav-section">${esc(tr(s.label))}</div>`;
       for (const it of s.items) {
@@ -193,6 +266,7 @@
     if (ctx.isAdmin) html += previewHtml(ctx.preview || {});
     html += `<div class="lp-nav-foot"><button type="button" id="lpSignOut">${esc(tr('signOut'))}</button></div>`;
     nav.innerHTML = html;
+    nav.querySelector('.lp-nav-top').appendChild(collapseButton());
     nav.querySelectorAll('a.lp-item').forEach(a => a.addEventListener('click', e => {
       const url = new URL(a.href);
       if (state.navHandler && url.pathname === location.pathname && state.navHandler(url) === true) {
@@ -277,5 +351,5 @@
   }
   function onNavigate(fn) { state.navHandler = fn; }
 
-  window.LayerPitchShell = { mount, update, onNavigate, tr };
+  window.LayerPitchShell = { mount, update, onNavigate, tr, collapsible, isCollapsed, setCollapsed };
 })();

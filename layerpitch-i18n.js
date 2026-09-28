@@ -1969,6 +1969,8 @@ window.LAYERPITCH_I18N = {
       previewHiddenShort: "non ouvert masqué",
       previewBanner: "Aperçu : {what}",
       previewError: "Impossible de changer l'aperçu :",
+      collapse: "Replier la barre",
+      expand: "Déplier la barre",
     },
     pricing: {
       pageTitle: "LayerPitch — Tarifs",
@@ -4227,6 +4229,8 @@ window.LAYERPITCH_I18N = {
       previewHiddenShort: "unreleased hidden",
       previewBanner: "Preview: {what}",
       previewError: "Could not change the preview:",
+      collapse: "Collapse sidebar",
+      expand: "Expand sidebar",
     },
     pricing: {
       pageTitle: "LayerPitch — Pricing",

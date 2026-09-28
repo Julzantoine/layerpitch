@@ -345,6 +345,26 @@
   .content-appearance-toggle .nav-item { flex: 1; justify-content: center; margin-bottom: 0; padding: 6px 2px; font-size: 12px; border: 1px solid #e2e2e6; border-radius: 6px; }
   .content-appearance-toggle .nav-item.active { border-color: #262521; }
   .backstage-content { flex: 1; min-width: 0; }
+  /* Barre repliable (28/09) : même bouton et même réglage que les autres pages (layerpitch-shell.js, classe posée sur
+     <html>). Repliée = icônes seules, libellés en infobulle ; le bloc « AdReel en édition » ne garde que Contenu /
+     Apparence (choix de l'AdReel, lien et partage reviennent en dépliant). */
+  .backstage-sidebar { transition: width .15s ease, padding .15s ease; }
+  .backstage-sidebar > .lp-collapse-btn-own { display: flex; margin: -6px -4px 8px auto; }
+  .nav-icon-collapsed-only { display: none; }
+  html.lp-sidebar-collapsed .backstage-sidebar { width: 48px; padding: 12px 6px; }
+  html.lp-sidebar-collapsed .backstage-sidebar > .lp-collapse-btn-own { margin: 0 auto 10px; }
+  html.lp-sidebar-collapsed .backstage-sidebar .nav-item-label > span,
+  html.lp-sidebar-collapsed .backstage-sidebar .nav-badge,
+  html.lp-sidebar-collapsed .backstage-sidebar .sidebar-adreel-selector,
+  html.lp-sidebar-collapsed .backstage-sidebar .sidebar-adreel-group > .nav-section-label,
+  html.lp-sidebar-collapsed .content-appearance-toggle .nav-item > span { display: none; }
+  html.lp-sidebar-collapsed .backstage-sidebar .nav-section-label { font-size: 0; height: 1px; margin: 12px 2px; background: var(--border); }
+  html.lp-sidebar-collapsed .backstage-sidebar .nav-item { justify-content: center; padding: 8px 0; }
+  html.lp-sidebar-collapsed .backstage-sidebar .nav-item-label { flex: 0 0 auto; }
+  html.lp-sidebar-collapsed .sidebar-adreel-group { padding: 6px 3px; margin-bottom: 12px; }
+  html.lp-sidebar-collapsed .content-appearance-toggle { flex-direction: column; margin-top: 0; gap: 4px; }
+  html.lp-sidebar-collapsed .content-appearance-toggle .nav-item { padding: 7px 0; }
+  html.lp-sidebar-collapsed .nav-icon-collapsed-only { display: block; }
   .backstage-panel { display: none; }
   .backstage-panel.active { display: block; }
   .empty-panel-placeholder { border: 1px dashed #d8d8dc; border-radius: 8px; padding: 30px; text-align: center; color: var(--text-dimmer); font-size: 12px; }

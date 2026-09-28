@@ -5,6 +5,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LayerPitch — Backstage</title>
+<!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
+<script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
 <style>
   :root {
@@ -354,6 +356,26 @@
   .content-appearance-toggle .nav-item { flex: 1; justify-content: center; margin-bottom: 0; padding: 6px 2px; font-size: 12px; border: 1px solid #e2e2e6; border-radius: 6px; }
   .content-appearance-toggle .nav-item.active { border-color: #262521; }
   .backstage-content { flex: 1; min-width: 0; }
+  /* Barre repliable (28/09) : même bouton et même réglage que les autres pages (layerpitch-shell.js, classe posée sur
+     <html>). Repliée = icônes seules, libellés en infobulle ; le bloc « AdReel en édition » ne garde que Contenu /
+     Apparence (choix de l'AdReel, lien et partage reviennent en dépliant). */
+  .backstage-sidebar { transition: width .15s ease, padding .15s ease; }
+  .backstage-sidebar > .lp-collapse-btn-own { display: flex; margin: -6px -4px 8px auto; }
+  .nav-icon-collapsed-only { display: none; }
+  html.lp-sidebar-collapsed .backstage-sidebar { width: 48px; padding: 12px 6px; }
+  html.lp-sidebar-collapsed .backstage-sidebar > .lp-collapse-btn-own { margin: 0 auto 10px; }
+  html.lp-sidebar-collapsed .backstage-sidebar .nav-item-label > span,
+  html.lp-sidebar-collapsed .backstage-sidebar .nav-badge,
+  html.lp-sidebar-collapsed .backstage-sidebar .sidebar-adreel-selector,
+  html.lp-sidebar-collapsed .backstage-sidebar .sidebar-adreel-group > .nav-section-label,
+  html.lp-sidebar-collapsed .content-appearance-toggle .nav-item > span { display: none; }
+  html.lp-sidebar-collapsed .backstage-sidebar .nav-section-label { font-size: 0; height: 1px; margin: 12px 2px; background: var(--border); }
+  html.lp-sidebar-collapsed .backstage-sidebar .nav-item { justify-content: center; padding: 8px 0; }
+  html.lp-sidebar-collapsed .backstage-sidebar .nav-item-label { flex: 0 0 auto; }
+  html.lp-sidebar-collapsed .sidebar-adreel-group { padding: 6px 3px; margin-bottom: 12px; }
+  html.lp-sidebar-collapsed .content-appearance-toggle { flex-direction: column; margin-top: 0; gap: 4px; }
+  html.lp-sidebar-collapsed .content-appearance-toggle .nav-item { padding: 7px 0; }
+  html.lp-sidebar-collapsed .nav-icon-collapsed-only { display: block; }
   .backstage-panel { display: none; }
   .backstage-panel.active { display: block; }
   .empty-panel-placeholder { border: 1px dashed #d8d8dc; border-radius: 8px; padding: 30px; text-align: center; color: var(--text-dimmer); font-size: 12px; }
@@ -1069,9 +1091,11 @@
         </div>
         <div class="content-appearance-toggle">
           <button class="nav-item active" data-tab="content" type="button">
+            <svg class="nav-icon nav-icon-collapsed-only" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
             <span data-i18n="navContent">Contenu</span>
           </button>
           <button class="nav-item" data-tab="appearance" type="button">
+            <svg class="nav-icon nav-icon-collapsed-only" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21a9 9 0 1 1 9-9c0 2-1.5 3-3.5 3H15a2 2 0 0 0-1.5 3.3c.4.5.5 1 .5 1.4 0 .8-.9 1.3-2 1.3z"/><circle cx="7.5" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg>
             <span data-i18n="navAppearance">Apparence</span>
           </button>
         </div>
@@ -1834,12 +1858,16 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790607168385"></script>
-<script src="layerpitch-notify.js?v=1790607168385"></script>
-<script src="layerpitch-help.js?v=1790607168385"></script>
-<script src="player.js?v=1790607168385"></script>
+<script src="layerpitch-i18n.js?v=1790610300238"></script>
+<script src="layerpitch-shell.js?v=1790610300238"></script>
+<script src="layerpitch-notify.js?v=1790610300238"></script>
+<script src="layerpitch-help.js?v=1790610300238"></script>
+<script src="player.js?v=1790610300238"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
+
+// Barre latérale repliable (28/09) : même bouton et même réglage que les autres pages (layerpitch-shell.js).
+if (window.LayerPitchShell) window.LayerPitchShell.collapsible(document.querySelector('.backstage-sidebar'), { selector: '.nav-item' });
 
 /* ---------------- Verrou de connexion (7 septembre) ----------------
  * Avant ce verrou, n'importe qui pouvait charger cette page et voir tout l'outil compositeur
