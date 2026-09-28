@@ -1,7 +1,8 @@
 // Étape 5 du chantier profils et permissions (migrations 20260928070000 et 20260928080000) : Projets.
 // Création et quotas (compositeur Warrior 1 / Boss 5, studio Indie 1), accès uniforme, équipe du studio d'office, invités
 // gratuits, discussion + recherche, tableau (coexistence : morceaux et packs par leur propriétaire seulement), fichiers et
-// quota du PROPRIÉTAIRE, vidéos et annotations horodatées adressées (notification), packs partagés / offerts, albums,
+// quota du PROPRIÉTAIRE, réserve de contenus + Moodboard (20260928130000), vidéos et annotations horodatées adressées
+// (notification), packs partagés / offerts, albums,
 // versions, vitrine publique, feu vert, isolation. Base jetable PGlite.
 (async () => {
   process.on('unhandledRejection', e => { console.log('FAIL - erreur inattendue : ' + (e && e.message)); process.exit(1); });
@@ -62,23 +63,41 @@
   check('recherche plein texte : « boss » trouve le bon message', (await val(`select public.list_project_messages($1, null, 50, 'boss')`, [ps])).length === 1);
   check('seul l\'auteur modifie son message', await fails(`select public.edit_project_message($1, 'piraté')`, [m1], /introuvable/));
 
-  // Tableau : coexistence
+  // Réserve + Moodboard : coexistence (étape 1 de l'espace Projet, migration 20260928130000)
   await q(`insert into public.tracks (id, owner_id, title, mode) values ('t1', $1, 'Thème forêt', 'static')`, [c1]);
   await q(`insert into public.packs (id, owner_id, title, price_eur_cents) values ('pk1', $1, 'Pack forêt', 1000)`, [c1]);
   await q(`insert into public.tracks (id, owner_id, title, mode) values ('t9', $1, 'Dans le pack', 'static')`, [c1]);
   await q(`insert into public.pack_tracks (pack_id, track_id, position) values ('pk1', 't9', 0)`);
+  const add = (payload, pin) => val(`select public.add_project_asset($1, $2::jsonb, $3)`, [ps, JSON.stringify(payload), !!pin]);
   await as(3);
-  check('Marie ne peut pas ajouter le morceau d\'un autre', await fails(`select public.add_project_item($1, '{"kind":"track","trackId":"t1"}'::jsonb)`, [ps], /propres morceaux/));
-  await q(`select public.add_project_item($1, '{"kind":"link","url":"https://youtu.be/abc","title":"Référence"}'::jsonb)`, [ps]);
-  check('lien sans http refusé', await fails(`select public.add_project_item($1, '{"kind":"link","url":"javascript:alert(1)"}'::jsonb)`, [ps], /Lien invalide/));
+  check('Marie ne peut pas ajouter le morceau d\'un autre', await fails(`select public.add_project_asset($1, '{"kind":"track","trackId":"t1"}'::jsonb)`, [ps], /propres morceaux/));
+  const yt = await add({ kind: 'link', url: 'https://youtu.be/abc', title: 'Référence' }, true);
+  check('un lien YouTube devient un objet VIDÉO (même objet que dans l\'onglet Vidéos)', (await val(`select kind from public.project_assets where id = $1`, [yt.id])) === 'video');
+  const again = await add({ kind: 'video', url: 'https://youtu.be/abc' });
+  check('pas de doublon : le même lien renvoie l\'objet existant', again.existed === true && again.id === yt.id);
+  check('lien sans http refusé', await fails(`select public.add_project_asset($1, '{"kind":"link","url":"javascript:alert(1)"}'::jsonb)`, [ps], /Lien invalide/));
+  const ref = await add({ kind: 'link', url: 'https://www.artstation.com/x', title: 'Ambiance' }, true);
+  check('un lien ordinaire est une référence externe', (await val(`select origin from public.project_assets where id = $1`, [ref.id])) === 'external');
+  const note = await add({ kind: 'note', title: 'Idée', body: 'Thème en mineur' }, true);
   await as(1);
-  const it = await val(`select public.add_project_item($1, '{"kind":"track","trackId":"t1","title":"Thème"}'::jsonb)`, [ps]);
-  check('le compositeur ajoute son propre morceau (lien, pas de copie)', !!it);
+  const it = await add({ kind: 'track', trackId: 't1', title: 'Thème' }, true);
+  check('le compositeur ajoute son propre morceau (lien, pas de copie, origine LayerPitch)', !!it.id && (await val(`select origin from public.project_assets where id = $1`, [it.id])) === 'layerpitch');
+  let content = await val(`select public.get_project_content($1)`, [ps]);
+  check('Moodboard : les épingles dans l\'ordre d\'ajout', JSON.stringify(content.moodboard) === JSON.stringify([yt.id, ref.id, note.id, it.id]));
+  await q(`select public.reorder_moodboard($1, $2)`, [ps, [it.id, yt.id, ref.id, note.id]]);
+  check('Moodboard réordonné', (await val(`select public.get_project_content($1)`, [ps])).moodboard[0] === it.id);
+  check('ordre incomplet refusé', await fails(`select public.reorder_moodboard($1, $2)`, [ps, [it.id]], /incomplet/));
+  await q(`select public.star_project_asset($1, true)`, [it.id]);
+  await q(`select public.pin_project_asset($1, false)`, [ref.id]);
+  content = await val(`select public.get_project_content($1)`, [ps]);
+  const byId = id => content.assets.find(a => a.id === id);
+  check('« Retirer du Moodboard » garde l\'objet dans le Projet (Q2)', !content.moodboard.includes(ref.id) && byId(ref.id) && byId(ref.id).pinned === false);
+  check('★ sélection pour la pré-vitrine', byId(it.id).starred === true);
 
   // Packs : partager puis offrir au studio
   await q(`select public.share_pack_in_project($1, 'pk1', 'share')`, [ps]);
   await as(3);
-  check('pack partagé : Marie peut l\'épingler au tableau', !!(await val(`select public.add_project_item($1, '{"kind":"pack","packId":"pk1"}'::jsonb)`, [ps])));
+  check('pack partagé : Marie peut l\'épingler au Moodboard', !!(await add({ kind: 'pack', packId: 'pk1' }, true)).id);
   check('Marie ne peut pas « offrir » un pack qui ne lui appartient pas', await fails(`select public.share_pack_in_project($1, 'pk1', 'offer')`, [ps], /propres packs/));
   await as(1);
   await q(`select public.share_pack_in_project($1, 'pk1', 'offer')`, [ps]);
@@ -97,40 +116,49 @@
   check('quota du PROPRIÉTAIRE (studio) dépassé : refusé, même pour un membre qui envoie', await fails(`select public.reserve_project_file($1, 'b.mp4', 500000)`, [ps], /Quota de stockage du propriétaire/));
   await q(`delete from public.account_entitlement_overrides where profile_id = $1`, [U(2)]);
   await q(`select public.complete_project_file($1)`, [f.fileId]);
-  const vid = await val(`select public.add_project_video($1, 'upload', $2, null, 'Gameplay niveau 1')`, [ps, f.fileId]);
-  check('lien vidéo non YouTube/Vimeo refusé', await fails(`select public.add_project_video($1, 'link', null, 'https://exemple.com/v', 'x')`, [ps], /YouTube ou Vimeo/));
+  const vid = (await add({ kind: 'video', fileId: f.fileId, title: 'Gameplay niveau 1' })).id;
+  check('vidéo envoyée : ébauche maison, pas épinglée d\'office', (await val(`select origin from public.project_assets where id = $1`, [vid])) === 'own'
+    && !(await val(`select public.get_project_content($1)`, [ps])).moodboard.includes(vid));
+  check('lien vidéo non YouTube/Vimeo refusé', await fails(`select public.add_project_asset($1, '{"kind":"video","url":"https://exemple.com/v"}'::jsonb)`, [ps], /YouTube ou Vimeo/));
   // Annotation horodatée adressée au compositeur → notification
-  await q(`select public.add_project_annotation($1, 'video', $2, 12.5, 'La musique doit monter ici', $3)`, [ps, vid, U(1)]);
-  check('annotation adressée à un non-membre : refusée', await fails(`select public.add_project_annotation($1, 'video', $2, 3, 'x', $3)`, [ps, vid, U(5)], /destinataire/));
+  await q(`select public.add_project_annotation($1, 'asset', $2, 12.5, 'La musique doit monter ici', $3)`, [ps, vid, U(1)]);
+  check('annotation adressée à un non-membre : refusée', await fails(`select public.add_project_annotation($1, 'asset', $2, 3, 'x', $3)`, [ps, vid, U(5)], /destinataire/));
+  await q(`select public.add_project_annotation($1, 'asset', $2, 42, 'Le combat démarre ici', null, 'Segment 2')`, [ps, it.id]);
+  check('note sur un morceau adaptatif : partie + instant', (await val(`select public.list_project_annotations($1, 'asset', $2)`, [ps, it.id]))[0].atPart === 'Segment 2');
   await as(1);
   const notes = await val(`select public.my_project_notifications(true)`);
   check('le destinataire reçoit une notification (extrait, instant)', notes.length === 1 && notes[0].payload.atSeconds === 12.5);
-  const ann = await val(`select public.list_project_annotations($1, 'video', $2)`, [ps, vid]);
+  const ann = await val(`select public.list_project_annotations($1, 'asset', $2)`, [ps, vid]);
   check('annotations de la vidéo, triées par instant', ann.length === 1 && Number(ann[0].atSeconds) === 12.5);
   await q(`select public.resolve_project_annotation($1, true)`, [ann[0].id]);
-  check('annotation résolue', (await val(`select public.list_project_annotations($1, 'video', $2)`, [ps, vid]))[0].resolved === true);
+  check('annotation résolue', (await val(`select public.list_project_annotations($1, 'asset', $2)`, [ps, vid]))[0].resolved === true);
   await q(`select public.mark_project_notifications_read($1)`, [ps]);
   check('notifications marquées lues', (await val(`select public.my_project_notifications(true)`)).length === 0);
 
-  // Versions du tableau
+  // Versions du Moodboard : les épingles
   const snap = await val(`select public.create_project_snapshot($1, 'Avant refonte')`, [ps]);
-  const before = (await val(`select public.get_project_content($1)`, [ps])).items.length;
-  await q(`select public.delete_project_item($1)`, [it]);
+  const before = (await val(`select public.get_project_content($1)`, [ps])).moodboard;
+  await q(`select public.pin_project_asset($1, false)`, [it.id]);
+  await q(`select public.delete_project_asset($1)`, [note.id]);
   await q(`select public.restore_project_snapshot($1)`, [snap]);
-  const content = await val(`select public.get_project_content($1)`, [ps]);
-  check('retour à une version : le tableau retrouve ses éléments, l\'état d\'avant est figé', content.items.length === before && (await val(`select public.list_project_snapshots($1)`, [ps])).length === 2);
+  content = await val(`select public.get_project_content($1)`, [ps]);
+  check('retour à une version : les épingles reviennent (sauf l\'objet supprimé du Projet), l\'état d\'avant est figé',
+    JSON.stringify(content.moodboard) === JSON.stringify(before.filter(id => id !== note.id)) && content.assets.find(a => a.id === it.id).starred === true
+    && (await val(`select public.list_project_snapshots($1)`, [ps])).length === 2);
+  check('supprimer du Projet efface aussi les notes de l\'objet', (await val(`select count(*)::int from public.project_annotations where target_id = $1`, [note.id])) === 0);
 
   // Vitrine publique
-  const vlink = await val(`select public.add_project_video($1, 'link', null, 'https://www.youtube.com/watch?v=xyz', 'Trailer')`, [ps]);
+  const vlink = (await add({ kind: 'link', url: 'https://www.youtube.com/watch?v=xyz', title: 'Trailer' })).id;
   await as(3);
   check('un membre simple ne publie pas la vitrine', await fails(`select public.save_project_showcase($1, '{"published":true}'::jsonb)`, [ps], /administrateur/));
   await as(2);
-  check('vitrine : une vidéo envoyée (privée) ne peut pas y figurer', await fails(`select public.save_project_showcase($1, $2::jsonb)`, [ps, JSON.stringify({ published: true, entries: [{ kind: 'video', refId: vid }] })], /introuvable/));
-  await q(`select public.save_project_showcase($1, $2::jsonb)`, [ps, JSON.stringify({ published: true, title: 'OST', steamUrl: 'https://store.steampowered.com/app/1', entries: [{ kind: 'track', refId: 't1' }, { kind: 'video', refId: vlink }] })]);
+  check('vitrine : une vidéo envoyée (privée) ne peut pas y figurer', await fails(`select public.save_project_showcase($1, $2::jsonb)`, [ps, JSON.stringify({ published: true, entries: [{ assetId: vid }] })], /privé/));
+  await q(`select public.save_project_showcase($1, $2::jsonb)`, [ps, JSON.stringify({ published: true, title: 'OST', steamUrl: 'https://store.steampowered.com/app/1', entries: [{ assetId: it.id }, { assetId: vlink }] })]);
   await as(0); await db.query(`set role anon`);
   const pub = await val(`select public.get_project_showcase($1)`, [ps]);
   await db.query(`reset role`);
-  check('vitrine publiée lisible sans compte, sans rien d\'autre du Projet', pub && pub.entries.length === 2 && pub.entries[0].title === 'Thème forêt' && !('items' in pub));
+  check('vitrine publiée lisible sans compte, sans rien d\'autre du Projet', pub && pub.entries.length === 2 && pub.entries[0].title === 'Thème forêt'
+    && pub.entries[0].kind === 'track' && pub.entries[0].refId === 't1' && pub.entries[1].url === 'https://www.youtube.com/watch?v=xyz' && !('assets' in pub));
   await as(2);
   await q(`select public.save_project_showcase($1, '{"published":false}'::jsonb)`, [ps]);
   await as(5);
@@ -145,7 +173,7 @@
   check('un membre simple ne supprime pas le Projet', await fails(`select public.delete_project($1)`, [ps], /administrateur/));
   await as(2);
   const del = await val(`select public.delete_project($1)`, [ps]);
-  check('suppression par l\'administrateur : chemins des fichiers rendus pour effacement', del.filePaths.length === 1 && (await val(`select count(*)::int from public.project_items`)) === 0);
+  check('suppression par l\'administrateur : chemins des fichiers rendus pour effacement', del.filePaths.length === 1 && (await val(`select count(*)::int from public.project_assets`)) === 0);
   await db.query(`set role authenticated`);
   check('tables des Projets illisibles directement', (await q(`select * from public.projects`)).length === 0 && (await q(`select * from public.project_messages`)).length === 0);
   await db.query(`reset role`);

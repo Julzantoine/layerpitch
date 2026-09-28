@@ -50,24 +50,27 @@
     activity: id => rpc('list_project_activity', { p_project_id: id, p_limit: 150 }),
     notifications: unreadOnly => rpc('my_project_notifications', { p_unread_only: !!unreadOnly }),
     markRead: id => rpc('mark_project_notifications_read', { p_project_id: id || null }),
-    // Tableau
-    addItem: (id, item) => rpc('add_project_item', { p_project_id: id, p: item }),
-    updateItem: (itemId, patch) => rpc('update_project_item', { p_item_id: itemId, p: patch }),
-    deleteItem: itemId => rpc('delete_project_item', { p_item_id: itemId }),
-    reorder: (id, ids) => rpc('reorder_project_items', { p_project_id: id, p_ids: ids }),
-    snapshot: (id, label) => rpc('create_project_snapshot', { p_project_id: id, p_label: label }),
-    snapshots: id => rpc('list_project_snapshots', { p_project_id: id }),
-    restore: snapshotId => rpc('restore_project_snapshot', { p_snapshot_id: snapshotId }),
-    // Vidéos et annotations
-    addVideo: (id, kind, fileId, url, title) => rpc('add_project_video', { p_project_id: id, p_kind: kind, p_file_id: fileId || null, p_url: url || null, p_title: title || '' }),
-    async deleteVideo(videoId) {
-      const r = await rpc('delete_project_video', { p_video_id: videoId });
+    // Réserve de contenus (un objet par chose réelle du Projet) et Moodboard (épingles), étape 1 du 28/09.
+    // addAsset renvoie { data: { id, existed } } : existed = la même chose était déjà dans le Projet.
+    addAsset: (id, asset, pin) => rpc('add_project_asset', { p_project_id: id, p: asset, p_pin: !!pin }),
+    updateAsset: (assetId, patch) => rpc('update_project_asset', { p_asset_id: assetId, p: patch }),
+    // Supprimer du Projet : la base rend le chemin du fichier envoyé (s'il y en a un), effacé ensuite du stockage.
+    async deleteAsset(assetId) {
+      const r = await rpc('delete_project_asset', { p_asset_id: assetId });
       if (!r.error && r.data) await P.eraseStoredFile(r.data);
       return r;
     },
+    pin: (assetId, pinned) => rpc('pin_project_asset', { p_asset_id: assetId, p_pinned: !!pinned }),
+    star: (assetId, starred) => rpc('star_project_asset', { p_asset_id: assetId, p_starred: !!starred }),
+    reorderMoodboard: (id, assetIds) => rpc('reorder_moodboard', { p_project_id: id, p_asset_ids: assetIds }),
+    snapshot: (id, label) => rpc('create_project_snapshot', { p_project_id: id, p_label: label }),
+    snapshots: id => rpc('list_project_snapshots', { p_project_id: id }),
+    restore: snapshotId => rpc('restore_project_snapshot', { p_snapshot_id: snapshotId }),
+    // Notes : targetType 'asset' (un objet de la réserve, où qu'il soit affiché), 'message' ou 'project' ; atPart = partie
+    // d'un morceau adaptatif (« Segment 2 »), à côté de l'instant.
     annotations: (id, targetType, targetId) => rpc('list_project_annotations', { p_project_id: id, p_target_type: targetType || null, p_target_id: targetId || null }),
-    async annotate(id, targetType, targetId, atSeconds, body, addresseeId, projectUrl) {
-      const r = await rpc('add_project_annotation', { p_project_id: id, p_target_type: targetType, p_target_id: targetId, p_at_seconds: atSeconds == null ? null : atSeconds, p_body: body, p_addressee: addresseeId || null });
+    async annotate(id, targetType, targetId, atSeconds, body, addresseeId, projectUrl, atPart) {
+      const r = await rpc('add_project_annotation', { p_project_id: id, p_target_type: targetType, p_target_id: targetId, p_at_seconds: atSeconds == null ? null : atSeconds, p_body: body, p_addressee: addresseeId || null, p_at_part: atPart || null });
       if (!r.error && addresseeId) invoke('project-notify', { action: 'annotation', annotationId: r.data, projectUrl }); // e-mail en arrière-plan
       return r;
     },
@@ -77,7 +80,7 @@
     sharePack: (id, packId, mode) => rpc('share_pack_in_project', { p_project_id: id, p_pack_id: packId, p_mode: mode }),
     unsharePack: (id, packId) => rpc('unshare_pack_from_project', { p_project_id: id, p_pack_id: packId }),
     linkAlbum: (id, albumId, linked) => rpc('link_album_to_project', { p_project_id: id, p_album_id: albumId, p_linked: linked !== false }),
-    // Vitrine
+    // Vitrine : entries = [{ assetId }] (objets publiables : morceau, image, vidéo YouTube / Vimeo)
     saveShowcase: (id, showcase) => rpc('save_project_showcase', { p_project_id: id, p: showcase }),
     showcase: id => rpc('get_project_showcase', { p_project_id: id }),
     // Fichiers : réservation + envoi (URL signée, type et taille verrouillés), lecture signée, effacement.
