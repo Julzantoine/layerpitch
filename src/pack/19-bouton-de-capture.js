@@ -24,8 +24,17 @@ async function setupCaptureTrigger(pack, container) {
     if (isAdmin) {
       eligible = true;
     } else {
-      const { data: myComposerId } = await client.rpc('ensure_composer_profile');
+      // getMyComposerId (lecture) plutôt qu'ensure_composer_profile : un studio qui visite le pack ne doit pas se voir
+      // créer un profil compositeur au passage.
+      const { composerId: myComposerId } = await window.LayerPitchAuth.getMyComposerId();
       eligible = !!myComposerId && myComposerId === lastResolvedOwnerId;
+    }
+    // Studio qui a ACHETÉ ce pack (D10, 27/09) : capture autorisée. Sans achat, la musique se joue sur sa vidéo
+    // (mode « Tester une vidéo » public) mais ne se capture pas.
+    window.__lpStudioBuyer = false;
+    if (!eligible) {
+      const { data: bought } = await client.from('pack_purchases').select('id').eq('pack_id', pack.id).limit(1);
+      if (bought && bought.length) { eligible = true; window.__lpStudioBuyer = true; }
     }
     if (!eligible) return;
     // Droits de l'outil vidéo lus dans la matrice (28/09, chantier profils et permissions) : Test in game
@@ -37,9 +46,20 @@ async function setupCaptureTrigger(pack, container) {
       const byF = {};
       (ent || []).forEach(r => { byF[r.feature] = r; });
       const lvl = f => (byF[f] && byF[f].allowed ? byF[f].level : null);
-      window.__lpCaptureLevel = lvl('test_in_game') || 'capture';
-      window.__lpVersioningLevel = lvl('versioning');
-      window.__lpNoWatermark = !!(byF.no_watermark && byF.no_watermark.allowed);
+      if (window.__lpStudioBuyer) {
+        // Droits du palier STUDIO (studio_test_in_game, studio_versioning, studio_no_watermark). Les montages et versions
+        // enregistrés côté serveur n'existent aujourd'hui que pour un compositeur (video_captures) : pour un studio,
+        // « enregistré » devient provisoirement « modifiable » et « pendant la séance » (étapes suivantes du chantier).
+        if (!(byF.studio_test_in_game && byF.studio_test_in_game.allowed)) return; // feu vert studio_space fermé
+        const cap = lvl('studio_test_in_game');
+        window.__lpCaptureLevel = cap === 'saved' ? 'edit' : (cap || 'capture');
+        window.__lpVersioningLevel = lvl('studio_versioning') ? 'session' : null;
+        window.__lpNoWatermark = !!(byF.studio_no_watermark && byF.studio_no_watermark.allowed);
+      } else {
+        window.__lpCaptureLevel = lvl('test_in_game') || 'capture';
+        window.__lpVersioningLevel = lvl('versioning');
+        window.__lpNoWatermark = !!(byF.no_watermark && byF.no_watermark.allowed);
+      }
     } catch (e) { console.warn('my_entitlements() indisponible, droits Rookie par défaut', e); }
   } catch (e) { return; } // jamais bloquant pour le reste de la page
 

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pageTitle">LayerPitch — Espace studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="player.css?v=1790581475038">
+<style>
+  :root {
+    --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
+    --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --accent: #c9713c; --accent-soft: #f3e4d6; --on-accent: #ffffff;
+    --seq-map-success: #2f8f5b; --seq-map-choice: #b8862e;
+    --font-body: 'Inter', system-ui, sans-serif; --font-title: 'Space Grotesk', 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 32px 16px 60px; }
+  .page { max-width: 820px; margin: 0 auto; }
+  a { color: var(--accent); }
+  .top { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .top-links { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; }
+  h1 { font-family: var(--font-title); font-size: 26px; margin: 0; }
+  h2 { font-family: var(--font-title); font-size: 16px; margin: 0 0 8px; }
+  .plan-badge { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; color: var(--accent); background: var(--accent-soft); padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+  .hint { font-size: 12.5px; line-height: 1.6; color: var(--text-dim); margin: 0 0 10px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .tab { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text); }
+  .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text); }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .btn.danger:hover:not(:disabled) { border-color: #b5442e; color: #b5442e; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .row:first-child { border-top: none; }
+  .row-main { flex: 1 1 220px; min-width: 0; }
+  .row-title { font-family: var(--font-title); font-size: 15px; overflow-wrap: anywhere; }
+  .row-sub { font-size: 12px; color: var(--text-dimmer); margin-top: 2px; }
+  .row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .thumb { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border); background: linear-gradient(135deg, #2a2822, #423b30); flex-shrink: 0; }
+  .empty { color: var(--text-dimmer); font-size: 13px; padding: 20px 0; text-align: center; }
+  label { display: block; font-size: 12px; color: var(--text-dim); margin: 12px 0 4px; }
+  input[type="text"], input[type="email"], select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); }
+  .msg { font-family: var(--font-mono); font-size: 11.5px; margin-top: 8px; min-height: 1em; }
+  .msg.err { color: #b5442e; } .msg.ok { color: #2a7; }
+  .quota { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: 13px; }
+  .quota dt { color: var(--text-dim); } .quota dd { margin: 0; font-family: var(--font-mono); text-align: right; }
+  .item-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); font-size: 13px; }
+  .item-row:first-child { border-top: none; }
+  .item-kind { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-dimmer); text-transform: uppercase; width: 44px; flex-shrink: 0; }
+  .item-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .item-row input[type="text"] { width: 160px; padding: 4px 8px; font-size: 12px; }
+  .icon-btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: var(--text-dim); }
+  .icon-btn:disabled { opacity: .35; cursor: default; }
+  .player-box { margin-top: 12px; }
+  .section-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dimmer); margin: 16px 0 4px; }
+  @media (max-width: 520px) { .item-row { flex-wrap: wrap; } .item-row input[type="text"] { width: 100%; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top">
+    <h1 data-i18n="h1">Espace studio</h1>
+    <div class="top-links" id="topLinks"></div>
+  </div>
+  <div id="content"></div>
+</div>
+
+<script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="layerpitch-i18n.js?v=1790581475038"></script>
+<script src="layerpitch-notify.js?v=1790581475038"></script>
+<script src="player.js?v=1790581475038"></script>
+<script src="api/supabase-client.js?v=1790581475038"></script>
+<script src="api/auth.js?v=1790581475038"></script>
+<script src="api/purchases.js?v=1790581475038"></script>
+<script src="api/tracks.js?v=1790581475038"></script>
+<script src="api/sfx.js?v=1790581475038"></script>
+<script src="api/studio.js?v=1790581475038"></script>
+<script>
+// studio.html — Espace studio (chantier profils et permissions, étape 3, 28/09 ; D2, D9, D13, D33 du cadrage
+// layerpitch-docs/2026-09-27-cadrage-profils-permissions.md). Espace DÉDIÉ au studio, distinct du Backstage compositeur ;
+// un compte qui a les deux profils passe de l'un à l'autre par les liens du haut. Droits lus dans la matrice
+// (my_entitlements) ; tout contrôle réel est refait côté serveur. Feu vert 'studio_space' : admin seulement pendant la bêta.
+const pageLang = (new URLSearchParams(location.search).get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
+function currentLang() { return pageLang; }
+function tr(key, vars) {
+  const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, studio: {} }, en: { shared: {}, studio: {} } };
+  const dict = I18N[currentLang()] || I18N.fr, dictFr = I18N.fr;
+  let str = (dict.studio && dict.studio[key]) || (dict.shared && dict.shared[key]) || (dictFr.studio && dictFr.studio[key]) || (dictFr.shared && dictFr.shared[key]) || key;
+  if (vars) Object.keys(vars).forEach(k => { str = str.split('{' + k + '}').join(vars[k]); });
+  return str;
+}
+document.documentElement.lang = pageLang;
+document.title = tr('pageTitle');
+document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+if (window.LayerPlayerCore && window.LayerPlayerCore.setLang) window.LayerPlayerCore.setLang(pageLang);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const IMAGES_BASE = 'https://media.layerpitch.com/images/';
+const eur = cents => new Intl.NumberFormat(pageLang === 'en' ? 'en-GB' : 'fr-FR', { style: 'currency', currency: 'EUR' }).format((Number(cents) || 0) / 100);
+const PLAN_NAMES = { solodev: 'SoloDev', indie: 'Indie', aa: 'AA', aaa: 'AAA' };
+
+const state = { tab: 'library', ent: {}, flags: {}, purchases: [], owned: [], customPacks: [], editing: null, playing: null };
+const content = $('content');
+
+function quotaText(e) {
+  if (!e || !e.allowed) return tr('quotaNone');
+  if (e.amount == null) return e.level ? tr('level_' + e.level) : tr('quotaUnlimited');
+  return String(e.amount);
+}
+
+async function renderTopLinks(hasComposer) {
+  const links = [];
+  if (hasComposer) links.push(`<a href="./layerpitch-backstage.html">${esc(tr('switchToComposer'))}</a>`);
+  links.push(`<a href="./catalogue.html?lang=${pageLang}">${esc(tr('catalogLink'))}</a>`);
+  links.push(`<a href="./mon-compte.html">${esc(tr('accountLink'))}</a>`);
+  $('topLinks').innerHTML = links.join('');
+}
+
+function signInHtml() {
+  return `<div class="card">
+    <p class="hint">${esc(tr('signInPrompt'))}</p>
+    <input type="email" id="email" placeholder="${esc(tr('emailPlaceholder'))}">
+    <div style="margin-top:10px"><button class="btn primary" id="sendBtn" type="button">${esc(tr('sendLinkBtn'))}</button></div>
+    <div class="msg" id="msg"></div>
+    <div id="codeBox" hidden>
+      <label>${esc(tr('codeLabel'))}</label>
+      <input type="text" id="code" inputmode="numeric" autocomplete="one-time-code">
+      <div style="margin-top:10px"><button class="btn primary" id="verifyBtn" type="button">${esc(tr('verifyCodeBtn'))}</button></div>
+      <div class="msg" id="codeMsg"></div>
+    </div>
+  </div>`;
+}
+function wireSignIn() {
+  $('sendBtn').onclick = async () => {
+    const email = $('email').value.trim(); if (!email) return;
+    $('msg').textContent = '…';
+    const { ok, error } = await LayerPitchAuth.signInWithMagicLink(email, location.href);
+    $('msg').textContent = ok ? tr('linkSent') : tr('errorPrefix', { message: error });
+    $('msg').className = 'msg ' + (ok ? 'ok' : 'err');
+    $('codeBox').hidden = !ok;
+  };
+  $('verifyBtn').onclick = async () => {
+    const { ok, error } = await LayerPitchAuth.verifyEmailOtp($('email').value.trim(), $('code').value.trim());
+    if (!ok) { $('codeMsg').textContent = tr('errorPrefix', { message: error }); $('codeMsg').className = 'msg err'; }
+  };
+}
+
+async function render() {
+  const { session } = await LayerPitchAuth.getSession();
+  if (!session) { renderTopLinks(false); content.innerHTML = signInHtml(); wireSignIn(); return; }
+  const [{ composerId }, { studioId }] = await Promise.all([LayerPitchAuth.getMyComposerId(), LayerPitchAuth.getMyStudioId()]);
+  renderTopLinks(!!composerId);
+  if (!studioId) {
+    content.innerHTML = `<div class="card">
+      <h2>${esc(tr('activateTitle'))}</h2>
+      <p class="hint">${esc(tr('activateHint'))}</p>
+      <button class="btn primary" id="activateBtn" type="button">${esc(tr('activateBtn'))}</button>
+      <div class="msg" id="activateMsg"></div>
+    </div>`;
+    $('activateBtn').onclick = async () => {
+      $('activateBtn').disabled = true;
+      const { error } = await LayerPitchAuth.ensureMyStudioProfile();
+      if (error) { $('activateMsg').textContent = tr('errorPrefix', { message: error }); $('activateMsg').className = 'msg err'; $('activateBtn').disabled = false; return; }
+      render();
+    };
+    return;
+  }
+  const [ent, flags] = await Promise.all([LayerPitchStudio.myEntitlements(), LayerPitchStudio.myFeatureFlags()]);
+  state.ent = ent.entitlements || {};
+  state.flags = flags.flags || {};
+  if (!state.flags.studio_space) {
+    content.innerHTML = `<div class="card"><h2>${esc(tr('comingSoonTitle'))}</h2><p class="hint">${esc(tr('comingSoonHint'))}</p>
+      <p class="hint"><a href="./catalogue.html?lang=${pageLang}">${esc(tr('catalogLink'))}</a></p></div>`;
+    return;
+  }
+  const planEnt = Object.values(state.ent).find(e => e.kind === 'studio');
+  const plan = planEnt ? planEnt.plan : 'solodev';
+  content.innerHTML = `
+    <div class="top" style="margin-bottom:12px"><span class="plan-badge">${esc(tr('planBadge', { plan: PLAN_NAMES[plan] || plan }))}${planEnt && planEnt.source !== 'plan' ? ' · ' + esc(tr('source_' + planEnt.source)) : ''}</span></div>
+    <div class="tabs" role="tablist">
+      ${['library', 'custom', 'plan'].map(t => `<button type="button" class="tab" role="tab" data-tab="${t}" aria-selected="${state.tab === t}">${esc(tr('tab_' + t))}</button>`).join('')}
+    </div>
+    <div id="panel"></div>`;
+  content.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
+    state.tab = b.dataset.tab; state.editing = null; stopPlayback(); state.playing = null;
+    content.querySelectorAll('[data-tab]').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+    renderPanel();
+  });
+  await loadData();
+  renderPanel();
+}
+
+async function loadData() {
+  const [p, o, c] = await Promise.all([LayerPitchPurchases.myPurchases(), LayerPitchStudio.myOwnedAssets(), LayerPitchStudio.myCustomPacks()]);
+  state.purchases = p.purchases || [];
+  state.owned = o.assets || [];
+  state.customPacks = c.customPacks || [];
+}
+
+function renderPanel() {
+  const panel = $('panel');
+  if (state.tab === 'library') return renderLibrary(panel);
+  if (state.tab === 'custom') return state.editing ? renderEditor(panel) : renderCustomList(panel);
+  return renderPlan(panel);
+}
+
+// ---- Bibliothèque : packs achetés ----
+function renderLibrary(panel) {
+  if (!state.purchases.length) {
+    panel.innerHTML = `<div class="card"><div class="empty">${esc(tr('libraryEmpty'))}</div>
+      <p class="hint" style="text-align:center"><a href="./catalogue.html?lang=${pageLang}">${esc(tr('catalogLink'))}</a></p></div>`;
+    return;
+  }
+  panel.innerHTML = `<div class="card">${state.purchases.map(p => `
+    <div class="row">
+      ${p.pack && p.pack.illustration ? `<img class="thumb" src="${IMAGES_BASE}${esc(p.pack.illustration)}" alt="">` : `<div class="thumb"></div>`}
+      <div class="row-main">
+        <div class="row-title">${esc(p.pack ? p.pack.title : p.packId)}</div>
+        <div class="row-sub">${esc(new Date(p.purchasedAt).toLocaleDateString(pageLang))} — ${esc(eur(Math.round(Number(p.pricePaid || 0) * 100)))}</div>
+      </div>
+      <div class="row-actions"><a class="btn" href="./pack.html?id=${encodeURIComponent(p.packId)}&lang=${pageLang}">${esc(tr('openPack'))}</a></div>
+    </div>`).join('')}</div>
+    <p class="hint">${esc(tr('libraryTestInGameHint'))}</p>`;
+}
+
+// ---- Packs custom ----
+function customQuota() { return state.ent.custom_packs || { allowed: false, amount: 0 }; }
+function renderCustomList(panel) {
+  const q = customQuota();
+  const used = state.customPacks.length;
+  const full = !q.allowed || (q.amount != null && used >= q.amount);
+  let html = `<div class="card">
+    <div class="top" style="margin-bottom:6px">
+      <h2 style="margin:0">${esc(tr('customTitle'))}</h2>
+      <span class="plan-badge">${esc(tr('customUsed', { used, max: q.amount == null ? '∞' : q.amount }))}</span>
+    </div>
+    <p class="hint">${esc(tr('customIntro'))}</p>
+    <button class="btn primary" id="newCustomBtn" type="button" ${full || !state.owned.length ? 'disabled' : ''}>${esc(tr('customNew'))}</button>
+    ${full && q.allowed ? `<p class="hint" style="margin-top:8px">${esc(tr('customLimitHint'))}</p>` : ''}
+    ${!state.owned.length ? `<p class="hint" style="margin-top:8px">${esc(tr('customNeedsPurchase'))}</p>` : ''}
+    <div class="msg" id="customMsg"></div>
+  </div>`;
+  if (state.customPacks.length) {
+    html += `<div class="card">${state.customPacks.map(c => `
+      <div class="row" data-id="${esc(c.id)}">
+        <div class="row-main"><div class="row-title">${esc(c.name || tr('customUntitled'))}</div>
+          <div class="row-sub">${esc(tr('customCount', { n: c.items.length }))}</div></div>
+        <div class="row-actions">
+          <button class="btn" data-act="play" type="button">${esc(state.playing === c.id ? tr('customHide') : tr('customListen'))}</button>
+          <button class="btn" data-act="edit" type="button">${esc(tr('customEdit'))}</button>
+          <button class="btn" data-act="duplicate" type="button" ${full ? 'disabled' : ''}>${esc(tr('customDuplicate'))}</button>
+          <button class="btn danger" data-act="delete" type="button">${esc(tr('customDelete'))}</button>
+        </div>
+        ${state.playing === c.id ? `<div class="player-box" style="flex-basis:100%" id="player-${esc(c.id)}"></div>` : ''}
+      </div>`).join('')}</div>`;
+  }
+  panel.innerHTML = html;
+  $('newCustomBtn').onclick = () => { state.editing = { id: null, name: '', items: [] }; renderPanel(); };
+  panel.querySelectorAll('.row[data-id]').forEach(row => {
+    const c = state.customPacks.find(x => x.id === row.dataset.id);
+    row.querySelector('[data-act="play"]').onclick = () => { stopPlayback(); state.playing = state.playing === c.id ? null : c.id; renderPanel(); if (state.playing) mountPlayers(c); };
+    row.querySelector('[data-act="edit"]').onclick = () => { stopPlayback(); state.editing = JSON.parse(JSON.stringify(c)); renderPanel(); };
+    row.querySelector('[data-act="duplicate"]').onclick = async () => {
+      const r = await LayerPitchStudio.saveCustomPack({ name: tr('customCopyOf', { name: c.name || tr('customUntitled') }), items: c.items });
+      if (!r.ok) { $('customMsg').textContent = tr('errorPrefix', { message: r.error }); $('customMsg').className = 'msg err'; return; }
+      await loadData(); renderPanel();
+    };
+    row.querySelector('[data-act="delete"]').onclick = async () => {
+      const ok = await window.LayerPitchNotify.confirm(tr('customDeleteConfirm', { name: c.name || tr('customUntitled') }), { okLabel: tr('customDelete'), danger: true });
+      if (!ok) return;
+      const r = await LayerPitchStudio.deleteCustomPack(c.id);
+      if (!r.ok) { $('customMsg').textContent = tr('errorPrefix', { message: r.error }); $('customMsg').className = 'msg err'; return; }
+      if (state.playing === c.id) { stopPlayback(); state.playing = null; }
+      await loadData(); renderPanel();
+    };
+  });
+  if (state.playing) { const c = state.customPacks.find(x => x.id === state.playing); if (c) mountPlayers(c); }
+}
+
+const ownedKey = (kind, id) => kind + ':' + id;
+function ownedLabel(kind, id) { const o = state.owned.find(a => a.kind === kind && a.id === id); return o ? o.title : id; }
+function renderEditor(panel) {
+  const ed = state.editing;
+  const inPack = new Set(ed.items.map(i => ownedKey(i.kind, i.refId)));
+  const byPack = {};
+  state.owned.forEach(a => { if (!inPack.has(ownedKey(a.kind, a.id))) (byPack[a.pack_title] = byPack[a.pack_title] || []).push(a); });
+  panel.innerHTML = `<div class="card">
+    <h2>${esc(ed.id ? tr('customEditTitle') : tr('customNewTitle'))}</h2>
+    <label>${esc(tr('customNameLabel'))}</label>
+    <input type="text" id="edName" maxlength="120" value="${esc(ed.name)}" placeholder="${esc(tr('customNamePlaceholder'))}">
+    <div class="section-label">${esc(tr('customItemsLabel'))}</div>
+    <div id="edItems">${ed.items.length ? ed.items.map((it, i) => `
+      <div class="item-row">
+        <span class="item-kind">${esc(tr('kind_' + it.kind))}</span>
+        <span class="item-name">${esc(ownedLabel(it.kind, it.refId))}</span>
+        ${it.kind === 'sfx' ? `<input type="text" data-label="${i}" value="${esc(it.label || '')}" placeholder="${esc(tr('customLabelPlaceholder'))}">` : ''}
+        <button class="icon-btn" data-up="${i}" type="button" ${i === 0 ? 'disabled' : ''} aria-label="${esc(tr('moveUp'))}">↑</button>
+        <button class="icon-btn" data-down="${i}" type="button" ${i === ed.items.length - 1 ? 'disabled' : ''} aria-label="${esc(tr('moveDown'))}">↓</button>
+        <button class="icon-btn" data-remove="${i}" type="button" aria-label="${esc(tr('customRemove'))}">✕</button>
+      </div>`).join('') : `<div class="empty">${esc(tr('customItemsEmpty'))}</div>`}</div>
+    <label>${esc(tr('customAddLabel'))}</label>
+    <select id="edAdd"><option value="">${esc(tr('customAddPlaceholder'))}</option>
+      ${Object.keys(byPack).map(p => `<optgroup label="${esc(p)}">${byPack[p].map(a => `<option value="${esc(ownedKey(a.kind, a.id))}">${esc(tr('kind_' + a.kind))} — ${esc(a.title)}</option>`).join('')}</optgroup>`).join('')}
+    </select>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+      <button class="btn primary" id="edSave" type="button">${esc(tr('customSave'))}</button>
+      <button class="btn" id="edCancel" type="button">${esc(tr('cancel'))}</button>
+    </div>
+    <div class="msg" id="edMsg"></div>
+  </div>`;
+  $('edName').oninput = e => { ed.name = e.target.value; };
+  panel.querySelectorAll('[data-label]').forEach(inp => inp.oninput = e => { ed.items[+inp.dataset.label].label = e.target.value; });
+  const move = (i, d) => { const j = i + d; [ed.items[i], ed.items[j]] = [ed.items[j], ed.items[i]]; renderPanel(); };
+  panel.querySelectorAll('[data-up]').forEach(b => b.onclick = () => move(+b.dataset.up, -1));
+  panel.querySelectorAll('[data-down]').forEach(b => b.onclick = () => move(+b.dataset.down, 1));
+  panel.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => { ed.items.splice(+b.dataset.remove, 1); renderPanel(); });
+  $('edAdd').onchange = e => {
+    const v = e.target.value; if (!v) return;
+    const [kind, ...rest] = v.split(':');
+    ed.items.push({ kind, refId: rest.join(':'), label: '' });
+    renderPanel();
+  };
+  $('edCancel').onclick = () => { state.editing = null; renderPanel(); };
+  $('edSave').onclick = async () => {
+    $('edSave').disabled = true; $('edMsg').textContent = '…'; $('edMsg').className = 'msg';
+    const r = await LayerPitchStudio.saveCustomPack({ id: ed.id || undefined, name: ed.name.trim() || tr('customUntitled'), items: ed.items.map(i => ({ kind: i.kind, refId: i.refId, label: i.label || '' })) });
+    if (!r.ok) { $('edMsg').textContent = tr('errorPrefix', { message: r.error }); $('edMsg').className = 'msg err'; $('edSave').disabled = false; return; }
+    state.editing = null;
+    await loadData(); renderPanel();
+  };
+}
+
+// Écoute d'un pack custom : le lecteur du site public (player.js), morceaux puis Sfx déclenchables à la main
+// (extensions-roadmap.md §5.3 : pas de timeline, les Sfx se jouent librement pendant que la musique tourne).
+function stopPlayback() {
+  if (!state.playing) return;
+  const c = state.customPacks.find(x => x.id === state.playing);
+  if (c) c.items.filter(i => i.kind === 'track').forEach(i => document.dispatchEvent(new CustomEvent('stop-track', { detail: i.refId })));
+}
+async function mountPlayers(c) {
+  const host = $('player-' + c.id);
+  if (!host) return;
+  host.innerHTML = `<div class="empty">${esc(tr('loading'))}</div>`;
+  const trackIds = c.items.filter(i => i.kind === 'track').map(i => i.refId);
+  const sfxIds = c.items.filter(i => i.kind === 'sfx').map(i => i.refId);
+  const [t, s] = await Promise.all([LayerPitchTracks.listTracksByIds(trackIds), LayerPitchSfx.listSfxByIds(sfxIds)]);
+  if (t.error || s.error) { host.innerHTML = `<div class="msg err">${esc(tr('errorPrefix', { message: t.error || s.error }))}</div>`; return; }
+  host.innerHTML = '';
+  const P = window.LayerPlayerCore;
+  if (trackIds.length) host.insertAdjacentHTML('beforeend', `<div class="section-label">${esc(tr('customMusic'))}</div>`);
+  trackIds.forEach(id => {
+    const track = (t.tracks || []).find(x => x.id === id); if (!track) return;
+    const row = P.buildTrackRow(track, null, false);
+    host.appendChild(row);
+    P.initTrackPlayer(track, row);
+  });
+  if (sfxIds.length) host.insertAdjacentHTML('beforeend', `<div class="section-label">${esc(tr('customSfx'))}</div>`);
+  c.items.filter(i => i.kind === 'sfx').forEach(i => {
+    const sfx = (s.sfx || []).find(x => x.id === i.refId); if (!sfx) return;
+    host.appendChild(P.buildSfxPlayer(i.label ? Object.assign({}, sfx, { title: i.label }) : sfx));
+  });
+}
+
+// ---- Mon palier ----
+function renderPlan(panel) {
+  const e = state.ent;
+  const lines = [
+    ['team_members', 'planMembers'], ['monthly_credits', 'planCredits'], ['custom_packs', 'planCustomPacks'],
+    ['studio_test_in_game', 'planTestInGame'], ['saved_montages', 'planMontages'], ['studio_versioning', 'planVersioning'],
+    ['studio_projects', 'planProjects'], ['studio_commission_rate', 'planCommission'],
+  ];
+  panel.innerHTML = `<div class="card">
+    <h2>${esc(tr('planTitle'))}</h2>
+    <p class="hint">${esc(tr('planIntro'))}</p>
+    <dl class="quota">${lines.map(([f, k]) => {
+      const x = e[f];
+      const val = f === 'studio_commission_rate' ? (x && x.amount != null ? Math.round(x.amount * 100) + ' %' : '—')
+        : f === 'studio_no_watermark' ? '' : quotaText(x);
+      return `<dt>${esc(tr(k))}</dt><dd>${esc(val)}</dd>`;
+    }).join('')}
+      <dt>${esc(tr('planWatermark'))}</dt><dd>${esc(e.studio_no_watermark && e.studio_no_watermark.allowed ? tr('no') : tr('yes'))}</dd>
+    </dl>
+    <p class="hint" style="margin-top:14px">${esc(tr('planUpgradeSoon'))}</p>
+  </div>`;
+}
+
+LayerPitchAuth.onAuthStateChange(() => render()); // appelé tout de suite avec l'état courant, puis à chaque changement
+</script>
+</body>
+</html>

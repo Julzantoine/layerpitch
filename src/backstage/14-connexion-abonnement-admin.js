@@ -176,6 +176,8 @@ async function renderAdminOnlyPanels(session) {
   if (videoNavBadge) videoNavBadge.hidden = flagOpen('video_upload');
   // Onglet Albums : admin seulement pendant la bêta (à rouvrir aux compositeurs au lancement, voir
   // le verrou jumeau dans upsert_album / claim_test_album).
+  const studioLink = document.getElementById('accountMenuStudio');
+  if (studioLink) studioLink.hidden = !flagOpen('studio_space');
   const albumsNavBtn = document.getElementById('navItemAlbums');
   if (albumsNavBtn) albumsNavBtn.hidden = !can('sell_albums');
   if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); }

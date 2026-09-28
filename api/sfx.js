@@ -34,6 +34,14 @@
     return { sfx: data.filter(r => !r.retired_at).map(reshapeSfx), error: null };
   }
 
+  // Sfx précis, tous compositeurs confondus (espace studio : voir listTracksByIds, api/tracks.js).
+  async function listSfxByIds(ids) {
+    if (!ids || !ids.length) return { sfx: [], error: null };
+    const { data, error } = await getClient().from('sfx_library').select('*').in('id', ids);
+    if (error) return { sfx: null, error: error.message };
+    return { sfx: data.map(reshapeSfx), error: null };
+  }
+
   async function getSfx(id) {
     const { data, error } = await getClient().from('sfx_library').select('*').eq('id', id).maybeSingle();
     if (error) return { sfx: null, error: error.message };
@@ -65,5 +73,5 @@
     return { ok: true, blocked: false, retired: data === 'retired', error: null };
   }
 
-  window.LayerPitchSfx = { listSfx, getSfx, listSfxFolders, upsertSfx, deleteSfx };
+  window.LayerPitchSfx = { listSfx, getSfx, listSfxFolders, upsertSfx, deleteSfx, listSfxByIds };
 })();

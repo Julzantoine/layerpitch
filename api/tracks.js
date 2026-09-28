@@ -76,6 +76,15 @@
     return { tracks: data.filter(r => !r.retired_at).map(reshapeTrack), error: null };
   }
 
+  // Morceaux précis, tous compositeurs confondus (espace studio : packs achetés, packs custom). Lecture publique,
+  // comme les pages publiques ; un morceau retiré reste lisible ici pour qui l'a déjà acquis.
+  async function listTracksByIds(ids) {
+    if (!ids || !ids.length) return { tracks: [], error: null };
+    const { data, error } = await getClient().from('tracks').select(TRACK_SELECT).in('id', ids);
+    if (error) return { tracks: null, error: error.message };
+    return { tracks: data.map(reshapeTrack), error: null };
+  }
+
   // Organisation propre au backstage — jamais lue par le rendu public (index.html/pack.html/
   // collection.html), mais nécessaire dès qu'un consommateur (ex. le backstage lui-même) reconstruit
   // library.folderId : son garde-fou existant réinitialise à null tout folderId ne correspondant à
@@ -116,5 +125,5 @@
     return { ok: true, blocked: false, retired: data === 'retired', error: null };
   }
 
-  window.LayerPitchTracks = { listTracks, getTrack, upsertTrack, deleteTrack, listTrackFolders };
+  window.LayerPitchTracks = { listTracks, getTrack, upsertTrack, deleteTrack, listTrackFolders, listTracksByIds };
 })();

@@ -208,7 +208,7 @@ async function loadData(silent) {
       // unique — repris tel quel comme version française plutôt que perdu.
       presentationFr: p.presentationFr || p.presentation || '', presentationEn: p.presentationEn || '',
       buyable: !!p.buyable, buyUrl: p.buyUrl || '', videoTestModeEnabled: !!p.videoTestModeEnabled,
-      priceEurCents: p.priceEurCents == null ? null : p.priceEurCents, subscriberCredits: p.subscriberCredits == null ? null : p.subscriberCredits,
+      priceEurCents: p.priceEurCents == null ? null : p.priceEurCents, subscriberCredits: p.subscriberCredits == null ? null : p.subscriberCredits, catalogListed: p.catalogListed !== false,
       bgColor: p.bgColor || '#f6f5f3', textColor: p.textColor || '#262521', font: p.font || 'default',
       trackIds: p.trackIds ? p.trackIds.slice() : [],
       sfxIds: p.sfxIds ? p.sfxIds.slice() : [],

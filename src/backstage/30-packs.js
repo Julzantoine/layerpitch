@@ -72,6 +72,10 @@ function renderPacks() {
           <span data-help="packBuyable" style="color:var(--text-dim);font-size:12px;">${tr('buyableLabel')}</span>
         </label>
         ${!can('sell_packs') ? `<div class="hint-inline">${tr('buyableAdminOnlyHint')}</div>` : ''}
+        <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+          <input type="checkbox" data-pack-field="catalogListed" data-pi="${pi}" ${pack.catalogListed !== false ? 'checked' : ''} style="width:auto;margin:0;">
+          <span data-help="packCatalogListed" style="color:var(--text-dim);font-size:12px;">${tr('packCatalogListedLabel')}</span>
+        </label>
         <label data-help="packPrice" style="margin-top:12px">${tr('packPriceLabel')}</label>
         <select data-pack-field="priceEurCents" data-pi="${pi}">
           ${packPriceOptions(pack.priceEurCents)}
@@ -242,7 +246,7 @@ function packPriceOptions(current) {
     values.map(c => `<option value="${c}"${c === current ? ' selected' : ''}>${c === 0 ? tr('packPriceFree') : fmt.format(c / 100)}</option>`).join('');
 }
 document.getElementById('btnAddPack').addEventListener('click', () => {
-  packs.push({ id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', priceEurCents: 1000, subscriberCredits: can('subscriber_catalog') ? 1 : null, freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f6f5f3', textColor: '#262521', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' });
+  packs.push({ id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', priceEurCents: 1000, subscriberCredits: can('subscriber_catalog') ? 1 : null, catalogListed: true, freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f6f5f3', textColor: '#262521', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' });
   hasUnsavedEdits = true;
   trackBackstageEvent('pack_add', {});
   renderPacks();
@@ -373,6 +377,7 @@ document.getElementById('packsContainer').addEventListener('input', e => {
     renderPacks(); return;
   }
   if (field === 'subscriberCatalog') { packs[pi].subscriberCredits = e.target.checked ? (packs[pi].subscriberCredits || 1) : null; renderPacks(); return; }
+  if (field === 'catalogListed') { packs[pi].catalogListed = e.target.checked; return; }
   if (field === 'subscriberCredits') { packs[pi].subscriberCredits = parseInt(e.target.value, 10); return; }
   if (field === 'videoTestModeEnabled') { packs[pi].videoTestModeEnabled = e.target.checked; return; }
   if (field === 'separatorVisible' || field === 'separatorColor' || field === 'separatorThickness') {

@@ -25,6 +25,7 @@
       linkedAdReelId: row.linked_ad_reel_id, tags: row.tags,
       // Prix à l'unité en centimes d'euro (grille, D31) ; coût dans le catalogue abonnés (1/2/4 crédits, null = hors catalogue).
       priceEurCents: row.price_eur_cents, subscriberCredits: row.subscriber_credits,
+      catalogListed: row.catalog_listed !== false, // « Afficher dans le catalogue » (D34), vrai par défaut
     };
   }
 
