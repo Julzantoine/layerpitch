@@ -165,6 +165,34 @@
     && (await val(`select public.list_project_snapshots($1)`, [ps])).length === 2);
   check('supprimer du Projet efface aussi les notes de l\'objet', (await val(`select count(*)::int from public.project_annotations where target_id = $1`, [note.id])) === 0);
 
+  // Sauvegarde auto du Moodboard (étape 4, migration 20260928160000)
+  check('sauvegarde auto : chaque semaine par défaut', (await val(`select public.get_project_content($1)`, [ps])).autoSnapshot === 'weekly');
+  check('réglage de la sauvegarde auto : administrateur seulement', await fails(`select public.set_project_auto_snapshot($1, 'daily')`, [ps], /administrateur/));
+  const nAuto = async () => val(`select count(*)::int from public.project_snapshots where project_id = $1 and kind = 'auto'`, [ps]);
+  await as(3); await q(`select public.create_project_snapshot($1, 'Référence')`, [ps]);
+  await db.query(`reset role`);
+  await val(`select public.run_project_auto_snapshots()`);
+  check('Moodboard identique à la dernière version : pas de version auto', (await nAuto()) === 0);
+  await as(3); await q(`select public.star_project_asset($1, false)`, [it.id]); await db.query(`reset role`);
+  await val(`select public.run_project_auto_snapshots()`);
+  check('Moodboard modifié : une version auto', (await nAuto()) === 1);
+  await val(`select public.run_project_auto_snapshots()`);
+  check('pas deux versions auto dans la même semaine', (await nAuto()) === 1);
+  for (let k = 0; k < 12; k++) {
+    await q(`update public.project_snapshots set created_at = created_at - interval '8 days' where project_id = $1`, [ps]);
+    await q(`update public.project_moodboard_pins set starred = not starred where project_id = $1 and asset_id = $2`, [ps, it.id]);
+    await val(`select public.run_project_auto_snapshots()`);
+  }
+  check('10 versions auto gardées au plus, les manuelles jamais supprimées', (await nAuto()) === 10
+    && (await val(`select count(*)::int from public.project_snapshots where project_id = $1 and kind = 'manual'`, [ps])) === 3);
+  await as(2); await q(`select public.set_project_auto_snapshot($1, 'off')`, [ps]);
+  await q(`update public.project_snapshots set created_at = created_at - interval '8 days' where project_id = $1`, [ps]);
+  await q(`update public.project_moodboard_pins set starred = not starred where project_id = $1 and asset_id = $2`, [ps, it.id]);
+  await db.query(`reset role`); const before10 = (await q(`select max(created_at) m from public.project_snapshots where project_id = $1`, [ps]))[0].m;
+  await val(`select public.run_project_auto_snapshots()`);
+  check('« Jamais » : aucune version auto', String((await q(`select max(created_at) m from public.project_snapshots where project_id = $1`, [ps]))[0].m) === String(before10));
+  await as(3);
+
   // Vitrine publique
   const vlink = (await add({ kind: 'link', url: 'https://www.youtube.com/watch?v=xyz', title: 'Trailer' })).id;
   await as(3);

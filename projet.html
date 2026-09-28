@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790614529428">
+<link rel="stylesheet" href="player.css?v=1790614889411">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -125,17 +125,17 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790614529428"></script>
-<script src="layerpitch-notify.js?v=1790614529428"></script>
-<script src="player.js?v=1790614529428"></script>
-<script src="api/supabase-client.js?v=1790614529428"></script>
-<script src="api/auth.js?v=1790614529428"></script>
-<script src="layerpitch-shell.js?v=1790614529428"></script>
-<script src="api/tracks.js?v=1790614529428"></script>
-<script src="api/packs.js?v=1790614529428"></script>
-<script src="api/albums.js?v=1790614529428"></script>
-<script src="api/studio.js?v=1790614529428"></script>
-<script src="api/projects.js?v=1790614529428"></script>
+<script src="layerpitch-i18n.js?v=1790614889411"></script>
+<script src="layerpitch-notify.js?v=1790614889411"></script>
+<script src="player.js?v=1790614889411"></script>
+<script src="api/supabase-client.js?v=1790614889411"></script>
+<script src="api/auth.js?v=1790614889411"></script>
+<script src="layerpitch-shell.js?v=1790614889411"></script>
+<script src="api/tracks.js?v=1790614889411"></script>
+<script src="api/packs.js?v=1790614889411"></script>
+<script src="api/albums.js?v=1790614889411"></script>
+<script src="api/studio.js?v=1790614889411"></script>
+<script src="api/projects.js?v=1790614889411"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -481,6 +481,9 @@ async function renderBoard(panel) {
       <h2>${esc(tr('versionsTitle'))}</h2>
       <p class="hint">${esc(tr('versionsIntro'))}</p>
       <div class="bar"><input type="text" id="snapLabel" placeholder="${esc(tr('snapPlaceholder'))}" style="flex:1 1 220px"><button class="btn" id="snapBtn" type="button">${esc(tr('snapBtn'))}</button></div>
+      <div class="bar" style="margin-top:8px"><label for="autoSnap" style="margin:0">${esc(tr('autoSnapLabel'))}</label>
+        <select id="autoSnap" style="max-width:200px" ${S.project.role === 'admin' ? '' : 'disabled'}>${['off', 'daily', 'weekly'].map(m => `<option value="${m}"${(S.content.autoSnapshot || 'weekly') === m ? ' selected' : ''}>${esc(tr('autoSnap_' + m))}</option>`).join('')}</select>
+        <span class="meta">${esc(tr('autoSnapHint'))}</span></div>
       <div id="snapList" style="margin-top:8px"></div><div class="msg" id="snapMsg"></div>
     </div>`;
   const renderAddForm = () => {
@@ -501,6 +504,11 @@ async function renderBoard(panel) {
   renderAddForm();
   const grid = $('grid');
   for (const a of pins) grid.appendChild(await assetCard(a, pins));
+  $('autoSnap').onchange = async e => {
+    const r = await PJ.setAutoSnapshot(projectId, e.target.value);
+    if (r.error) return say('snapMsg', tr('errorPrefix', { message: r.error }));
+    S.content.autoSnapshot = e.target.value; say('snapMsg', tr('autoSnapSaved'), true); broadcast('content');
+  };
   $('snapBtn').onclick = async () => {
     const r = await PJ.snapshot(projectId, $('snapLabel').value.trim());
     if (r.error) return say('snapMsg', tr('errorPrefix', { message: r.error }));
@@ -512,7 +520,7 @@ async function renderSnapshots() {
   const r = await PJ.snapshots(projectId);
   const box = $('snapList'); if (!box) return;
   const list = r.data || [];
-  box.innerHTML = list.length ? list.map(s => `<div class="list-row"><div class="list-main">${esc(s.label)} <span class="meta">· ${esc(tr('snapCount', { n: s.count }))} · ${esc(new Date(s.createdAt).toLocaleString(pageLang))} · ${esc(s.authorEmail || '')}</span></div>
+  box.innerHTML = list.length ? list.map(s => `<div class="list-row"><div class="list-main">${esc(s.label)}${s.kind === 'auto' ? ` <span class="pill">${esc(tr('snapAuto'))}</span>` : ''} <span class="meta">· ${esc(tr('snapCount', { n: s.count }))} · ${esc(new Date(s.createdAt).toLocaleString(pageLang))} · ${esc(s.authorEmail || '')}</span></div>
       <button class="btn" type="button" data-restore="${esc(s.id)}">${esc(tr('snapRestore'))}</button></div>`).join('') : `<div class="meta">${esc(tr('snapNone'))}</div>`;
   box.querySelectorAll('[data-restore]').forEach(b => b.onclick = async () => {
     if (!(await window.LayerPitchNotify.confirm(tr('snapRestoreConfirm'), { okLabel: tr('snapRestore') }))) return;
@@ -618,8 +626,8 @@ async function assetCard(a, pins) {
   act('down').onclick = () => move(1);
   act('unpin').onclick = async () => after(await PJ.pin(a.id, false));
   act('del').onclick = () => deleteAsset(a);
-  act('notes').onclick = () => { S.openNotes[a.id] = !S.openNotes[a.id]; const box = el.querySelector('[data-role="notes"]'); box.hidden = !S.openNotes[a.id]; if (!box.hidden) renderNotes(box, 'asset', a.id); };
-  if (S.openNotes[a.id]) renderNotes(el.querySelector('[data-role="notes"]'), 'asset', a.id);
+  act('notes').onclick = () => { S.openNotes[a.id] = !S.openNotes[a.id]; const box = el.querySelector('[data-role="notes"]'); box.hidden = !S.openNotes[a.id]; if (!box.hidden) renderNotes(box, 'asset', a.id, mediaFor(el, a)); };
+  if (S.openNotes[a.id]) renderNotes(el.querySelector('[data-role="notes"]'), 'asset', a.id, mediaFor(el, a));
   return el;
 }
 // Supprimer du Projet (≠ retirer du Moodboard) : l'objet disparaît de toutes les sections, avec ses notes et son fichier.
@@ -641,28 +649,67 @@ async function mountTrack(host, trackId) {
   host.appendChild(row); P.initTrackPlayer(track, row);
 }
 // Annotations d'un élément (ou d'une vidéo, via renderVideoNotes) : liste + ajout adressé.
-async function renderNotes(box, targetType, targetId) {
+// Notes d'un objet. media (facultatif, étape 4) : { now() -> { seconds, part }, seek(t) } pour noter « à cet instant » un
+// fichier audio ou un morceau : instant (et partie d'un morceau adaptatif, modifiable avant d'enregistrer) ; un clic sur
+// l'instant d'une note y ramène le lecteur quand c'est possible (fichier audio).
+async function renderNotes(box, targetType, targetId, media) {
   const r = await PJ.annotations(projectId, targetType, targetId);
   const list = r.data || [];
-  box.innerHTML = list.map(n => noteHtml(n)).join('') + `
+  box.innerHTML = list.map(n => noteHtml(n, !!media, media && media.seek)).join('') + `
+    ${media ? `<div class="bar"><button class="btn" type="button" data-role="noteHere">${esc(tr('noteHere'))}</button>
+      <span class="meta" data-role="noteAtLabel"></span><input type="text" data-role="notePart" placeholder="${esc(tr('notePartPlaceholder'))}" maxlength="80" hidden style="flex:1 1 120px"></div>` : ''}
     <textarea data-role="noteBody" placeholder="${esc(tr('notePlaceholder'))}" style="min-height:48px"></textarea>
     <div class="bar"><select data-role="noteTo" style="flex:1 1 140px">${memberOptions()}</select><button class="btn" type="button" data-role="noteAdd">${esc(tr('addNote'))}</button></div>`;
-  wireNotes(box, list, () => renderNotes(box, targetType, targetId));
+  wireNotes(box, list, () => renderNotes(box, targetType, targetId, media));
+  let at = null;
+  const here = box.querySelector('[data-role="noteHere"]');
+  if (here) here.onclick = () => {
+    const now = media.now() || {};
+    at = { seconds: Math.round((Number(now.seconds) || 0) * 10) / 10, part: now.part || '' };
+    box.querySelector('[data-role="noteAtLabel"]').textContent = tr('noteAt', { t: clock(at.seconds) });
+    const partInput = box.querySelector('[data-role="notePart"]');
+    if (media.hasParts) { partInput.hidden = false; partInput.value = at.part; }
+    box.querySelector('[data-role="noteBody"]').focus();
+  };
+  box.querySelectorAll('[data-seek]').forEach(b => b.onclick = () => media && media.seek && media.seek(Number(b.dataset.seek)));
   box.querySelector('[data-role="noteAdd"]').onclick = async () => {
     const body = box.querySelector('[data-role="noteBody"]').value.trim(); if (!body) return;
     const to = box.querySelector('[data-role="noteTo"]').value || null;
-    const res = await PJ.annotate(projectId, targetType, targetId, null, body, to, location.href);
+    const part = at && media.hasParts ? box.querySelector('[data-role="notePart"]').value.trim() : null;
+    const res = await PJ.annotate(projectId, targetType, targetId, at ? at.seconds : null, body, to, location.href, part);
     if (res.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: res.error }));
-    renderNotes(box, targetType, targetId); broadcast('notes');
+    renderNotes(box, targetType, targetId, media); broadcast('notes');
   };
 }
-function noteHtml(n, withTime) {
+function noteHtml(n, withTime, canSeek) {
+  const label = [n.atPart, n.atSeconds != null ? clock(n.atSeconds) : null].filter(Boolean).join(' · ');
+  const chip = withTime && label ? ((canSeek === undefined || !!canSeek) && n.atSeconds != null ? `<button class="time-chip" type="button" data-seek="${esc(n.atSeconds)}">${esc(label)}</button>` : `<span class="time-chip">${esc(label)}</span>`) : '';
   return `<div class="note${n.resolved ? ' resolved' : ''}" data-note="${esc(n.id)}">
-    <div class="note-head">${withTime && n.atSeconds != null ? `<button class="time-chip" type="button" data-seek="${esc(n.atSeconds)}">${esc(clock(n.atSeconds))}</button>` : ''}
+    <div class="note-head">${chip}
       <strong>${esc(n.authorEmail || '')}</strong>${n.addresseeEmail ? ` → ${esc(n.addresseeEmail)}` : ''}
       <label class="choice" style="margin:0 0 0 auto"><input type="checkbox" data-role="resolve" ${n.resolved ? 'checked' : ''}> ${esc(tr('resolved'))}</label>
       ${n.mine ? `<button class="icon-btn" type="button" data-role="delNote" title="${esc(tr('delete'))}">✕</button>` : ''}</div>
     <div>${esc(n.body)}</div></div>`;
+}
+// Instant et partie affichés par le lecteur LayerPitch d'un morceau (compteur de temps, partie en cours : carte des
+// chemins, bloc séquentiel ou section active). Lecture de l'affichage : rien à changer dans le lecteur.
+function trackPosition(host) {
+  const t = host && host.querySelector('[data-role="timeCurrent"]');
+  const parts = String(t ? t.textContent : '0:00').trim().split(':').map(Number);
+  const seconds = parts.reduce((acc, x) => acc * 60 + (Number.isFinite(x) ? x : 0), 0);
+  const cur = host && host.querySelector('.seq-map-node.current .seq-map-node-label, .seq-block.active .seq-block-label, .wwise-node.active .wwise-node-label, [class*="vr-block"].active');
+  return { seconds, part: cur ? cur.textContent.replace(/\s+/g, ' ').trim().slice(0, 80) : '' };
+}
+function mediaFor(el, a) {
+  if (a.kind === 'audio') {
+    const au = el.querySelector('audio');
+    return au ? { now: () => ({ seconds: au.currentTime }), seek: t => { au.currentTime = t; au.play().catch(() => {}); }, hasParts: false } : null;
+  }
+  if (a.kind === 'track') {
+    const host = el.querySelector('[data-role="player"]');
+    return { now: () => trackPosition(host), seek: null, hasParts: true };
+  }
+  return null;
 }
 function wireNotes(box, list, refresh) {
   box.querySelectorAll('[data-note]').forEach(row => {

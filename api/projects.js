@@ -66,6 +66,8 @@
     pin: (assetId, pinned) => rpc('pin_project_asset', { p_asset_id: assetId, p_pinned: !!pinned }),
     star: (assetId, starred) => rpc('star_project_asset', { p_asset_id: assetId, p_starred: !!starred }),
     reorderMoodboard: (id, assetIds) => rpc('reorder_moodboard', { p_project_id: id, p_asset_ids: assetIds }),
+    // Sauvegarde auto du Moodboard (étape 4) : 'off' | 'daily' | 'weekly' (administrateur du Projet).
+    setAutoSnapshot: (id, mode) => rpc('set_project_auto_snapshot', { p_project_id: id, p_mode: mode }),
     snapshot: (id, label) => rpc('create_project_snapshot', { p_project_id: id, p_label: label }),
     snapshots: id => rpc('list_project_snapshots', { p_project_id: id }),
     restore: snapshotId => rpc('restore_project_snapshot', { p_snapshot_id: snapshotId }),
