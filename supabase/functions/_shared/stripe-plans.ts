@@ -17,6 +17,11 @@ export type PlanRow = { code: string; kind: Kind; public_name: string; price_eur
 // Paliers payants en libre-service (AAA : sur devis, hors portail).
 export const SELF_SERVE: Record<Kind, string[]> = { composer: ['starter', 'pro'], studio: ['indie', 'aa'] };
 
+// TVA (décision du 28/09) : prix COMPOSITEUR affichés TTC (TVA comprise dans le prix, beaucoup de compositeurs sont en
+// micro-entreprise et ne récupèrent pas la TVA) ; prix STUDIO affichés HT (TVA ajoutée au paiement, usage entre
+// entreprises). Changer ce choix crée de nouveaux Prix au prochain appel (les abonnés existants gardent le leur).
+export const TAX_BEHAVIOR: Record<Kind, 'inclusive' | 'exclusive'> = { composer: 'inclusive', studio: 'exclusive' };
+
 export const lookupKey = (kind: Kind, code: string, interval: Interval) => `lp_${kind}_${code}_${interval}`;
 
 // Palier et intervalle d'un Prix LayerPitch (null si ce n'est pas un des nôtres).
@@ -47,15 +52,16 @@ export async function ensurePrice(stripe: Stripe, plan: PlanRow, interval: Inter
   const key = lookupKey(plan.kind, plan.code, interval);
   const found = await stripe.prices.list({ lookup_keys: [key], limit: 1 });
   const current = found.data[0];
-  if (current && current.active && current.unit_amount === amount && current.currency === 'eur' && current.recurring?.interval === interval) {
+  if (current && current.active && current.unit_amount === amount && current.currency === 'eur' && current.recurring?.interval === interval
+      && current.tax_behavior === TAX_BEHAVIOR[plan.kind]) {
     return current.id;
   }
   const product = await ensureProduct(stripe, plan);
   const created = await stripe.prices.create({
-    product, currency: 'eur', unit_amount: amount, recurring: { interval },
+    product, currency: 'eur', unit_amount: amount, recurring: { interval }, tax_behavior: TAX_BEHAVIOR[plan.kind],
     lookup_key: key, transfer_lookup_key: true,
     metadata: { layerpitch_kind: plan.kind, layerpitch_plan: plan.code, layerpitch_interval: interval },
-  }, { idempotencyKey: `${key}_${amount}_${current?.id || "new"}` });
+  }, { idempotencyKey: `${key}_${amount}_${TAX_BEHAVIOR[plan.kind]}_${current?.id || "new"}` });
   if (current && current.id !== created.id) await stripe.prices.update(current.id, { active: false });
   return created.id;
 }

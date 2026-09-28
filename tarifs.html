@@ -52,8 +52,8 @@
   <p class="note" id="status"></p>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790604012101"></script>
-<script src="api/supabase-client.js?v=1790604012101"></script>
+<script src="layerpitch-i18n.js?v=1790604203021"></script>
+<script src="api/supabase-client.js?v=1790604203021"></script>
 <script>
 // tarifs.html — page publique des paliers (chantier profils et permissions, étape 6, 28/09 ; D1, D8, D12-D19, D24-D29).
 // Les chiffres ne sont PAS écrits dans la page : ils sont lus dans la base (tables plans et plan_entitlements, lecture
@@ -94,7 +94,7 @@ function render() {
     document.getElementById(kind).innerHTML = plans.map((p, i) => {
       const price = period === 'month' ? p.price_eur_cents_monthly : p.price_eur_cents_yearly;
       const priceHtml = p.code === 'aaa' ? `<div class="price">${esc(tr('onQuote'))}</div>`
-        : price ? `<div class="price">${esc(money(price))} <small>${esc(tr(period === 'month' ? 'perMonth' : 'perYear'))}</small></div>`
+        : price ? `<div class="price">${esc(money(price))} <small>${esc(tr(period === 'month' ? 'perMonth' : 'perYear'))} ${esc(tr(kind === 'studio' ? 'exclVat' : 'inclVat'))}</small></div>`
         : `<div class="price">${esc(tr('free'))}</div>`;
       const rows = ROWS[kind].map(f => {
         const e = data.ent.find(x => x.plan === p.code && x.feature === f && x.variant === '');
