@@ -44,6 +44,10 @@ function blockSummaryText(block) {
       return trCount((block.collectionIds || []).length, 'blockSummaryCollectionSingular', 'blockSummaryCollections');
     case 'sfx':
       return trCount((block.sfxIds || []).length, 'blockSummarySfxSingular', 'blockSummarySfx');
+    case 'socials': {
+      const n = socialsShownInBlock(block).length;
+      return n ? trCount(n, 'blockSummarySocialsSingular', 'blockSummarySocials') : tr('blockSummarySocialsNone');
+    }
     case 'contact': {
       return hasContactFormEndpoint() ? tr('blockSummaryContactReady') : tr('blockSummaryContactMissing');
     }

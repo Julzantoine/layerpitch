@@ -1439,6 +1439,8 @@
           <button class="btn btn-small" id="btnAddCollectionsBlock" data-i18n="addCollectionsBlock">+ Bloc collections</button>
           <button class="btn btn-small" id="btnAddSfxBlock" data-i18n="addSfxBlock">+ Bloc Sfx</button>
           <button class="btn btn-small" id="btnAddContactBlock" data-i18n="addContactBlock">+ Bloc contact</button>
+          <!-- Admin seulement jusqu'au feu vert 'adreel_socials' (28/09) : affiché par renderAdminOnlyPanels(). -->
+          <button class="btn btn-small" id="btnAddSocialsBlock" data-i18n="addSocialsBlock" hidden>+ Bloc réseaux sociaux</button>
         </div>
       </div>
 
@@ -1858,11 +1860,12 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790610300238"></script>
-<script src="layerpitch-shell.js?v=1790610300238"></script>
-<script src="layerpitch-notify.js?v=1790610300238"></script>
-<script src="layerpitch-help.js?v=1790610300238"></script>
-<script src="player.js?v=1790610300238"></script>
+<script src="layerpitch-i18n.js?v=1790610900894"></script>
+<script src="layerpitch-shell.js?v=1790610900894"></script>
+<script src="layerpitch-social-icons.js?v=1790610900894"></script>
+<script src="layerpitch-notify.js?v=1790610900894"></script>
+<script src="layerpitch-help.js?v=1790610900894"></script>
+<script src="player.js?v=1790610900894"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2276,6 +2279,10 @@ async function renderAdminOnlyPanels(session) {
       });
     });
   }
+  // Bloc « Réseaux sociaux » des AdReels (28/09) : admin seulement jusqu'au feu vert. Un bloc déjà posé reste
+  // modifiable et s'affiche sur la page publique ; seul l'ajout d'un nouveau bloc est verrouillé.
+  const socialsBlockBtn = document.getElementById('btnAddSocialsBlock');
+  if (socialsBlockBtn) socialsBlockBtn.hidden = !flagOpen('adreel_socials');
   const albumsNavBtn = document.getElementById('navItemAlbums');
   if (albumsNavBtn) albumsNavBtn.hidden = !can('sell_albums');
   if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); }
@@ -2750,7 +2757,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
   });
 });
 
-const BLOCK_LABELS = { header: tr('blockLabelHeader'), bio: tr('blockLabelBio'), testimonials: tr('blockLabelTestimonials'), tracks: tr('blockLabelTracks'), text: tr('blockLabelText'), photo: tr('blockLabelPhoto'), video: tr('blockLabelVideo'), packs: tr('blockLabelPacks'), collections: tr('blockLabelCollections'), sfx: tr('blockLabelSfx'), contact: tr('blockLabelContact') };
+const BLOCK_LABELS = { header: tr('blockLabelHeader'), bio: tr('blockLabelBio'), testimonials: tr('blockLabelTestimonials'), tracks: tr('blockLabelTracks'), text: tr('blockLabelText'), photo: tr('blockLabelPhoto'), video: tr('blockLabelVideo'), packs: tr('blockLabelPacks'), collections: tr('blockLabelCollections'), sfx: tr('blockLabelSfx'), socials: tr('blockLabelSocials'), contact: tr('blockLabelContact') };
 const SINGLETON_TYPES = ['header', 'bio', 'testimonials', 'tracks'];
 const KNOWN_TYPES = ['header', 'bio', 'testimonials', 'tracks', 'text', 'photo', 'video'];
 
@@ -2907,6 +2914,9 @@ const ELEMENT_APPEARANCE_REGISTRY = {
     { key: 'title', type: 'text', labelKey: 'elSfxTitle', selector: '.track-row-title .name' },
     { key: 'tag', type: 'text', labelKey: 'elSfxTag', selector: '.track-tags .tag' }
   ],
+  socials: [
+    { key: 'icons', type: 'text', labelKey: 'elSocialsIcons', selector: '.social-links a' }
+  ],
   contact: [
     { key: 'buttonLabel', type: 'text', labelKey: 'elContactButtonLabel', selector: '.contact-form button' },
     { key: 'formFields', type: 'simple', simpleKind: 'border', labelKey: 'elContactFormFields', selector: '.contact-form input, .contact-form textarea' }
@@ -2975,7 +2985,7 @@ const sfxSelectedEntry = new Map();
 // autres (Instagram, TikTok, YouTube, SoundCloud) n'offrent aucun mécanisme de ce genre, gardées en simple
 // aide-mémoire de lien.
 let socials = [];
-const SOCIAL_PLATFORMS = ['twitter', 'facebook', 'linkedin', 'whatsapp', 'telegram', 'instagram', 'tiktok', 'youtube', 'soundcloud', 'website'];
+const SOCIAL_PLATFORMS = ['twitter', 'facebook', 'linkedin', 'whatsapp', 'telegram', 'instagram', 'tiktok', 'youtube', 'soundcloud', 'bandcamp', 'spotify', 'twitch', 'website'];
 const PUBLISHABLE_SOCIAL_PLATFORMS = ['twitter', 'facebook', 'linkedin', 'whatsapp', 'telegram'];
 // Construit l'URL de partage pré-rempli propre à chaque plateforme — ouverte dans un nouvel onglet, le
 // texte et le lien sont déjà prêts, il ne reste qu'à valider la publication chez eux (aucune plateforme
@@ -5073,6 +5083,7 @@ function buildBlocksForNewAdReel(source, importExtraBlocks) {
     if (b.type === 'packs') clone.packIds = (b.packIds || []).slice();
     if (b.type === 'collections') clone.collectionIds = (b.collectionIds || []).slice();
     if (b.type === 'sfx') clone.sfxIds = (b.sfxIds || []).slice();
+    if (b.type === 'socials') clone.socialIds = (b.socialIds || []).slice();
     return clone;
   }).filter(Boolean);
   // Garde-fou : garantit la présence des 4 blocs obligatoires même si l'un manquait dans la source.
@@ -7739,6 +7750,7 @@ document.getElementById('socialsContainer').addEventListener('click', e => {
   hasUnsavedEdits = true;
   trackBackstageEvent('social_remove', {});
   renderSocials();
+  refreshSocialsBlockCards();
   renderPacks();       // les boutons "Publier" des packs dépendent de cette liste
   renderCollections();  // idem pour les collections
 });
@@ -7749,6 +7761,7 @@ document.getElementById('socialsContainer').addEventListener('input', e => {
   socials[si][field] = e.target.value;
   hasUnsavedEdits = true;
   if (field === 'platform') { renderSocials(); renderPacks(); renderCollections(); }
+  refreshSocialsBlockCards();
 });
 
 document.getElementById('btnAddSfx').addEventListener('click', () => {
@@ -9008,6 +9021,10 @@ function blockSummaryText(block) {
       return trCount((block.collectionIds || []).length, 'blockSummaryCollectionSingular', 'blockSummaryCollections');
     case 'sfx':
       return trCount((block.sfxIds || []).length, 'blockSummarySfxSingular', 'blockSummarySfx');
+    case 'socials': {
+      const n = socialsShownInBlock(block).length;
+      return n ? trCount(n, 'blockSummarySocialsSingular', 'blockSummarySocials') : tr('blockSummarySocialsNone');
+    }
     case 'contact': {
       return hasContactFormEndpoint() ? tr('blockSummaryContactReady') : tr('blockSummaryContactMissing');
     }
@@ -9719,6 +9736,54 @@ function buildContactBlockCard(block) {
   return card;
 }
 
+// Bloc « Réseaux sociaux » (28/09) : pas de nouvelle saisie, les liens viennent de la rubrique Réseaux sociaux
+// (variable socials, une seule liste pour tous les AdReels) ; le bloc garde seulement les identifiants cochés. Changer
+// un lien dans la rubrique change donc tous les AdReels qui l'affichent.
+function socialsShownInBlock(block) {
+  const chosen = new Set(block.socialIds || []);
+  return socials.filter(s => chosen.has(s.id) && window.LayerPitchSocialIcons && window.LayerPitchSocialIcons.safeUrl(s.url));
+}
+function buildSocialsBlockCard(block) {
+  const { card, body } = makeCardShell(block);
+  if (!Array.isArray(block.socialIds)) block.socialIds = [];
+  const Icons = window.LayerPitchSocialIcons;
+  function render() {
+    const chosen = new Set(block.socialIds);
+    const rows = socials.map(s => {
+      const href = Icons ? Icons.safeUrl(s.url) : '';
+      const key = Icons ? Icons.detect(href, s.platform) : 'link';
+      return `<label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin:0 0 6px">
+        <input type="checkbox" data-social-id="${escapeAttr(s.id)}" style="width:auto;margin:0" ${chosen.has(s.id) ? 'checked' : ''} ${href ? '' : 'disabled'}>
+        ${Icons ? Icons.svg(key, 16) : ''}
+        <span>${escapeHtml(tr('socialPlatform_' + s.platform))}</span>
+        <span class="hint-inline" style="margin:0;word-break:break-all">${href ? escapeHtml(href.replace(/^https?:\/\//, '')) : tr('socialsBlockNoUrl')}</span>
+      </label>`;
+    }).join('');
+    body.innerHTML = `<div class="hint-inline" style="margin:0 0 10px">${tr('socialsBlockHint')}</div>
+      ${rows || `<div class="hint-inline" style="margin:0 0 8px">${tr('socialsBlockEmpty')}</div>`}
+      <div class="actions"><button class="btn btn-small" type="button" data-role="goSocials">${tr('socialsBlockGoTo')}</button></div>`;
+  }
+  body.addEventListener('change', e => {
+    const id = e.target.dataset.socialId;
+    if (!id) return;
+    const set = new Set(block.socialIds);
+    if (e.target.checked) set.add(id); else set.delete(id);
+    // Rangés dans l'ordre de la rubrique, pour que la page publique affiche le même ordre.
+    block.socialIds = socials.map(s => s.id).filter(sid => set.has(sid));
+    hasUnsavedEdits = true;
+    refreshAllBlockSummaries();
+  });
+  body.addEventListener('click', e => { if (e.target.closest('[data-role="goSocials"]')) switchTab('socials'); });
+  card._refreshSocials = render;
+  render();
+  return card;
+}
+// La rubrique Réseaux sociaux a changé (ajout, suppression, lien modifié) : les cartes des blocs suivent.
+function refreshSocialsBlockCards() {
+  blocks.forEach(b => { if (b.type === 'socials' && blockCards[b.id] && blockCards[b.id]._refreshSocials) blockCards[b.id]._refreshSocials(); });
+  refreshAllBlockSummaries();
+}
+
 function buildVideoCard(block) {
   const { card, body } = makeCardShell(block);
   body.innerHTML = `<div data-role="list"></div><div class="actions"><button class="btn btn-small" data-role="addBtn">${tr('addVideoBtn')}</button></div>`;
@@ -9820,7 +9885,7 @@ function buildVideoCard(block) {
   return card;
 }
 
-const CARD_BUILDERS = { header: buildHeaderCard, bio: buildBioCard, testimonials: buildTestimonialsCard, tracks: buildTracksCard, text: buildTextCard, photo: buildPhotoCard, video: buildVideoCard, packs: buildPacksBlockCard, collections: buildCollectionsBlockCard, sfx: buildSfxBlockCard, contact: buildContactBlockCard };
+const CARD_BUILDERS = { header: buildHeaderCard, bio: buildBioCard, testimonials: buildTestimonialsCard, tracks: buildTracksCard, text: buildTextCard, photo: buildPhotoCard, video: buildVideoCard, packs: buildPacksBlockCard, collections: buildCollectionsBlockCard, sfx: buildSfxBlockCard, socials: buildSocialsBlockCard, contact: buildContactBlockCard };
 
 function renderImgPreview(el, pendingFile, remoteFile) {
   if (pendingFile) el.innerHTML = `<img src="${URL.createObjectURL(pendingFile)}">`;
@@ -10220,6 +10285,16 @@ document.getElementById('btnAddSfxBlock').addEventListener('click', () => {
   blockCards[b.id] = buildCardForBlock(b);
   hasUnsavedEdits = true;
   trackBackstageEvent('block_add', { blockType: 'sfx' });
+  layoutBlocks();
+});
+document.getElementById('btnAddSocialsBlock').addEventListener('click', () => {
+  if (!flagOpen('adreel_socials')) return;
+  // Par défaut, tous les réseaux déjà renseignés sont cochés : le compositeur décoche ce qu'il ne veut pas montrer.
+  const b = { id: genId(), type: 'socials', socialIds: socials.filter(s => window.LayerPitchSocialIcons && window.LayerPitchSocialIcons.safeUrl(s.url)).map(s => s.id) };
+  blocks.push(b);
+  blockCards[b.id] = buildCardForBlock(b);
+  hasUnsavedEdits = true;
+  trackBackstageEvent('block_add', { blockType: 'socials' });
   layoutBlocks();
 });
 document.getElementById('btnAddContactBlock').addEventListener('click', () => {
@@ -13299,6 +13374,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         else if (b.type === 'packs') out = { id: b.id, type: 'packs', presentation: b.presentation || '', packIds: b.packIds || [] };
         else if (b.type === 'collections') out = { id: b.id, type: 'collections', presentation: b.presentation || '', collectionIds: b.collectionIds || [] };
         else if (b.type === 'sfx') out = { id: b.id, type: 'sfx', sfxIds: b.sfxIds || [] };
+        else if (b.type === 'socials') out = { id: b.id, type: 'socials', socialIds: b.socialIds || [] };
         else out = { id: b.id, type: b.type };
         // Champ commun à tous les types de bloc, sans exception (décision : réglages par bloc partout) —
         // ajouté une seule fois ici plutôt que dupliqué dans chacune des branches ci-dessus. Image de

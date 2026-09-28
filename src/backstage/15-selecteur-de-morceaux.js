@@ -647,6 +647,7 @@ function buildBlocksForNewAdReel(source, importExtraBlocks) {
     if (b.type === 'packs') clone.packIds = (b.packIds || []).slice();
     if (b.type === 'collections') clone.collectionIds = (b.collectionIds || []).slice();
     if (b.type === 'sfx') clone.sfxIds = (b.sfxIds || []).slice();
+    if (b.type === 'socials') clone.socialIds = (b.socialIds || []).slice();
     return clone;
   }).filter(Boolean);
   // Garde-fou : garantit la présence des 4 blocs obligatoires même si l'un manquait dans la source.

@@ -92,6 +92,54 @@ function buildContactBlockCard(block) {
   return card;
 }
 
+// Bloc « Réseaux sociaux » (28/09) : pas de nouvelle saisie, les liens viennent de la rubrique Réseaux sociaux
+// (variable socials, une seule liste pour tous les AdReels) ; le bloc garde seulement les identifiants cochés. Changer
+// un lien dans la rubrique change donc tous les AdReels qui l'affichent.
+function socialsShownInBlock(block) {
+  const chosen = new Set(block.socialIds || []);
+  return socials.filter(s => chosen.has(s.id) && window.LayerPitchSocialIcons && window.LayerPitchSocialIcons.safeUrl(s.url));
+}
+function buildSocialsBlockCard(block) {
+  const { card, body } = makeCardShell(block);
+  if (!Array.isArray(block.socialIds)) block.socialIds = [];
+  const Icons = window.LayerPitchSocialIcons;
+  function render() {
+    const chosen = new Set(block.socialIds);
+    const rows = socials.map(s => {
+      const href = Icons ? Icons.safeUrl(s.url) : '';
+      const key = Icons ? Icons.detect(href, s.platform) : 'link';
+      return `<label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin:0 0 6px">
+        <input type="checkbox" data-social-id="${escapeAttr(s.id)}" style="width:auto;margin:0" ${chosen.has(s.id) ? 'checked' : ''} ${href ? '' : 'disabled'}>
+        ${Icons ? Icons.svg(key, 16) : ''}
+        <span>${escapeHtml(tr('socialPlatform_' + s.platform))}</span>
+        <span class="hint-inline" style="margin:0;word-break:break-all">${href ? escapeHtml(href.replace(/^https?:\/\//, '')) : tr('socialsBlockNoUrl')}</span>
+      </label>`;
+    }).join('');
+    body.innerHTML = `<div class="hint-inline" style="margin:0 0 10px">${tr('socialsBlockHint')}</div>
+      ${rows || `<div class="hint-inline" style="margin:0 0 8px">${tr('socialsBlockEmpty')}</div>`}
+      <div class="actions"><button class="btn btn-small" type="button" data-role="goSocials">${tr('socialsBlockGoTo')}</button></div>`;
+  }
+  body.addEventListener('change', e => {
+    const id = e.target.dataset.socialId;
+    if (!id) return;
+    const set = new Set(block.socialIds);
+    if (e.target.checked) set.add(id); else set.delete(id);
+    // Rangés dans l'ordre de la rubrique, pour que la page publique affiche le même ordre.
+    block.socialIds = socials.map(s => s.id).filter(sid => set.has(sid));
+    hasUnsavedEdits = true;
+    refreshAllBlockSummaries();
+  });
+  body.addEventListener('click', e => { if (e.target.closest('[data-role="goSocials"]')) switchTab('socials'); });
+  card._refreshSocials = render;
+  render();
+  return card;
+}
+// La rubrique Réseaux sociaux a changé (ajout, suppression, lien modifié) : les cartes des blocs suivent.
+function refreshSocialsBlockCards() {
+  blocks.forEach(b => { if (b.type === 'socials' && blockCards[b.id] && blockCards[b.id]._refreshSocials) blockCards[b.id]._refreshSocials(); });
+  refreshAllBlockSummaries();
+}
+
 function buildVideoCard(block) {
   const { card, body } = makeCardShell(block);
   body.innerHTML = `<div data-role="list"></div><div class="actions"><button class="btn btn-small" data-role="addBtn">${tr('addVideoBtn')}</button></div>`;
@@ -193,7 +241,7 @@ function buildVideoCard(block) {
   return card;
 }
 
-const CARD_BUILDERS = { header: buildHeaderCard, bio: buildBioCard, testimonials: buildTestimonialsCard, tracks: buildTracksCard, text: buildTextCard, photo: buildPhotoCard, video: buildVideoCard, packs: buildPacksBlockCard, collections: buildCollectionsBlockCard, sfx: buildSfxBlockCard, contact: buildContactBlockCard };
+const CARD_BUILDERS = { header: buildHeaderCard, bio: buildBioCard, testimonials: buildTestimonialsCard, tracks: buildTracksCard, text: buildTextCard, photo: buildPhotoCard, video: buildVideoCard, packs: buildPacksBlockCard, collections: buildCollectionsBlockCard, sfx: buildSfxBlockCard, socials: buildSocialsBlockCard, contact: buildContactBlockCard };
 
 function renderImgPreview(el, pendingFile, remoteFile) {
   if (pendingFile) el.innerHTML = `<img src="${URL.createObjectURL(pendingFile)}">`;
@@ -593,6 +641,16 @@ document.getElementById('btnAddSfxBlock').addEventListener('click', () => {
   blockCards[b.id] = buildCardForBlock(b);
   hasUnsavedEdits = true;
   trackBackstageEvent('block_add', { blockType: 'sfx' });
+  layoutBlocks();
+});
+document.getElementById('btnAddSocialsBlock').addEventListener('click', () => {
+  if (!flagOpen('adreel_socials')) return;
+  // Par défaut, tous les réseaux déjà renseignés sont cochés : le compositeur décoche ce qu'il ne veut pas montrer.
+  const b = { id: genId(), type: 'socials', socialIds: socials.filter(s => window.LayerPitchSocialIcons && window.LayerPitchSocialIcons.safeUrl(s.url)).map(s => s.id) };
+  blocks.push(b);
+  blockCards[b.id] = buildCardForBlock(b);
+  hasUnsavedEdits = true;
+  trackBackstageEvent('block_add', { blockType: 'socials' });
   layoutBlocks();
 });
 document.getElementById('btnAddContactBlock').addEventListener('click', () => {

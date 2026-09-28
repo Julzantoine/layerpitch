@@ -137,6 +137,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         else if (b.type === 'packs') out = { id: b.id, type: 'packs', presentation: b.presentation || '', packIds: b.packIds || [] };
         else if (b.type === 'collections') out = { id: b.id, type: 'collections', presentation: b.presentation || '', collectionIds: b.collectionIds || [] };
         else if (b.type === 'sfx') out = { id: b.id, type: 'sfx', sfxIds: b.sfxIds || [] };
+        else if (b.type === 'socials') out = { id: b.id, type: 'socials', socialIds: b.socialIds || [] };
         else out = { id: b.id, type: b.type };
         // Champ commun à tous les types de bloc, sans exception (décision : réglages par bloc partout) —
         // ajouté une seule fois ici plutôt que dupliqué dans chacune des branches ci-dessus. Image de

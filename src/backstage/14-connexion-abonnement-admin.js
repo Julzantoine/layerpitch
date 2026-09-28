@@ -192,6 +192,10 @@ async function renderAdminOnlyPanels(session) {
       });
     });
   }
+  // Bloc « Réseaux sociaux » des AdReels (28/09) : admin seulement jusqu'au feu vert. Un bloc déjà posé reste
+  // modifiable et s'affiche sur la page publique ; seul l'ajout d'un nouveau bloc est verrouillé.
+  const socialsBlockBtn = document.getElementById('btnAddSocialsBlock');
+  if (socialsBlockBtn) socialsBlockBtn.hidden = !flagOpen('adreel_socials');
   const albumsNavBtn = document.getElementById('navItemAlbums');
   if (albumsNavBtn) albumsNavBtn.hidden = !can('sell_albums');
   if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); }

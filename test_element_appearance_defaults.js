@@ -75,7 +75,7 @@ check('valeurs par défaut waveform/progressBar : jouée alignée sur titleColor
 check('valeurs par défaut waveform/progressBar : à jouer distincte de jouée (jamais invisible)', defaultUnplayed !== defaultPlayed);
 
 // ---- ELEMENT_APPEARANCE_REGISTRY : structure minimale attendue par le reste du chantier ----
-check('ELEMENT_APPEARANCE_REGISTRY couvre les 11 types de bloc', Object.keys(ELEMENT_APPEARANCE_REGISTRY).length === 11);
+check('ELEMENT_APPEARANCE_REGISTRY couvre les 12 types de bloc (Réseaux sociaux ajouté le 28/09)', Object.keys(ELEMENT_APPEARANCE_REGISTRY).length === 12);
 check('registre "tracks" contient bien les deux éléments à deux états', ELEMENT_APPEARANCE_REGISTRY.tracks.some(e => e.key === 'waveform' && e.type === 'twostate') && ELEMENT_APPEARANCE_REGISTRY.tracks.some(e => e.key === 'progressBar' && e.type === 'twostate'));
 check('aucun élément à deux états en dehors du bloc "tracks" (hors périmètre du chantier ailleurs)', Object.entries(ELEMENT_APPEARANCE_REGISTRY).every(([type, entries]) => type === 'tracks' || entries.every(e => e.type !== 'twostate')));
 `;

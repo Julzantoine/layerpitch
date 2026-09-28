@@ -35,7 +35,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
   });
 });
 
-const BLOCK_LABELS = { header: tr('blockLabelHeader'), bio: tr('blockLabelBio'), testimonials: tr('blockLabelTestimonials'), tracks: tr('blockLabelTracks'), text: tr('blockLabelText'), photo: tr('blockLabelPhoto'), video: tr('blockLabelVideo'), packs: tr('blockLabelPacks'), collections: tr('blockLabelCollections'), sfx: tr('blockLabelSfx'), contact: tr('blockLabelContact') };
+const BLOCK_LABELS = { header: tr('blockLabelHeader'), bio: tr('blockLabelBio'), testimonials: tr('blockLabelTestimonials'), tracks: tr('blockLabelTracks'), text: tr('blockLabelText'), photo: tr('blockLabelPhoto'), video: tr('blockLabelVideo'), packs: tr('blockLabelPacks'), collections: tr('blockLabelCollections'), sfx: tr('blockLabelSfx'), socials: tr('blockLabelSocials'), contact: tr('blockLabelContact') };
 const SINGLETON_TYPES = ['header', 'bio', 'testimonials', 'tracks'];
 const KNOWN_TYPES = ['header', 'bio', 'testimonials', 'tracks', 'text', 'photo', 'video'];
 
@@ -192,6 +192,9 @@ const ELEMENT_APPEARANCE_REGISTRY = {
     { key: 'title', type: 'text', labelKey: 'elSfxTitle', selector: '.track-row-title .name' },
     { key: 'tag', type: 'text', labelKey: 'elSfxTag', selector: '.track-tags .tag' }
   ],
+  socials: [
+    { key: 'icons', type: 'text', labelKey: 'elSocialsIcons', selector: '.social-links a' }
+  ],
   contact: [
     { key: 'buttonLabel', type: 'text', labelKey: 'elContactButtonLabel', selector: '.contact-form button' },
     { key: 'formFields', type: 'simple', simpleKind: 'border', labelKey: 'elContactFormFields', selector: '.contact-form input, .contact-form textarea' }
@@ -260,5 +263,5 @@ const sfxSelectedEntry = new Map();
 // autres (Instagram, TikTok, YouTube, SoundCloud) n'offrent aucun mécanisme de ce genre, gardées en simple
 // aide-mémoire de lien.
 let socials = [];
-const SOCIAL_PLATFORMS = ['twitter', 'facebook', 'linkedin', 'whatsapp', 'telegram', 'instagram', 'tiktok', 'youtube', 'soundcloud', 'website'];
+const SOCIAL_PLATFORMS = ['twitter', 'facebook', 'linkedin', 'whatsapp', 'telegram', 'instagram', 'tiktok', 'youtube', 'soundcloud', 'bandcamp', 'spotify', 'twitch', 'website'];
 const PUBLISHABLE_SOCIAL_PLATFORMS = ['twitter', 'facebook', 'linkedin', 'whatsapp', 'telegram'];

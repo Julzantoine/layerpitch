@@ -39,6 +39,7 @@ document.getElementById('socialsContainer').addEventListener('click', e => {
   hasUnsavedEdits = true;
   trackBackstageEvent('social_remove', {});
   renderSocials();
+  refreshSocialsBlockCards();
   renderPacks();       // les boutons "Publier" des packs dépendent de cette liste
   renderCollections();  // idem pour les collections
 });
@@ -49,5 +50,6 @@ document.getElementById('socialsContainer').addEventListener('input', e => {
   socials[si][field] = e.target.value;
   hasUnsavedEdits = true;
   if (field === 'platform') { renderSocials(); renderPacks(); renderCollections(); }
+  refreshSocialsBlockCards();
 });
 

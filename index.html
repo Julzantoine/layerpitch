@@ -8,7 +8,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch</title>
-<link rel="stylesheet" href="player.css?v=1790610300238">
+<link rel="stylesheet" href="player.css?v=1790610900894">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -140,6 +140,12 @@
   #publicEmbedModal .actions button:hover { border-color: var(--accent); color: var(--accent); }
   #publicEmbedCopyStatus { font-size: 11px; color: #2a7; margin-right: auto; opacity: 0; transition: opacity 0.2s; }
   #publicEmbedCopyStatus.visible { opacity: 1; }
+  /* Bloc « Réseaux sociaux » (28/09) : icônes dessinées dans la page (layerpitch-social-icons.js), couleur du texte de
+     l'AdReel ; réglable par bloc (couleur des icônes) comme les autres éléments. */
+  .social-links { display: flex; flex-wrap: wrap; gap: 10px; }
+  .social-links a { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%;
+    color: var(--text); border: 1px solid var(--border); text-decoration: none; transition: transform 0.15s ease, border-color 0.15s ease; }
+  .social-links a:hover { transform: translateY(-2px); border-color: currentColor; }
   .contact-form { display: flex; flex-direction: column; max-width: 480px; }
   .contact-form label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); margin-top: 14px; margin-bottom: 5px; }
   .contact-form input, .contact-form textarea {
@@ -320,9 +326,10 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790610300238"></script>
-<script src="public-page.js?v=1790610300238"></script>
-<script src="player.js?v=1790610300238"></script>
+<script src="layerpitch-i18n.js?v=1790610900894"></script>
+<script src="public-page.js?v=1790610900894"></script>
+<script src="player.js?v=1790610900894"></script>
+<script src="layerpitch-social-icons.js?v=1790610900894"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
 
@@ -627,6 +634,28 @@ function renderCollectionsBlockItem(container, block, collectionsById) {
   container.appendChild(el);
 }
 
+// Bloc « Réseaux sociaux » (28/09) : les liens viennent de la rubrique Réseaux sociaux du Backstage (data.socials,
+// une seule saisie pour tous les AdReels) ; le bloc ne garde que les identifiants cochés, dans l'ordre de la rubrique.
+// Un lien vide ou inutilisable n'est pas affiché ; aucun lien affichable = pas de bloc.
+function renderSocialsBlockItem(container, block, socials) {
+  const Icons = window.LayerPitchSocialIcons;
+  if (!Icons) return;
+  const chosen = new Set(block.socialIds || []);
+  const links = (socials || []).filter(s => chosen.has(s.id)).map(s => ({ s, href: Icons.safeUrl(s.url) })).filter(x => x.href);
+  if (!links.length) return;
+  const el = section(tr('socialsSection'), '');
+  const row = document.createElement('div');
+  row.className = 'social-links';
+  row.innerHTML = links.map(({ s, href }) => {
+    const key = Icons.detect(href, s.platform);
+    const label = Icons.label(key) || new URL(href).hostname.replace(/^www\./, '');
+    return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">${Icons.svg(key, 20)}</a>`;
+  }).join('');
+  row.querySelectorAll('a').forEach(a => a.addEventListener('click', () => trackPublicEvent('social_click', { platform: a.getAttribute('aria-label') })));
+  el.appendChild(row);
+  container.appendChild(el);
+}
+
 function renderSfxBlockItem(container, block, sfxById) {
   const selected = (block.sfxIds || []).map(id => sfxById[id]).filter(Boolean);
   if (!selected.length) return;
@@ -751,6 +780,9 @@ const ELEMENT_APPEARANCE_REGISTRY = {
   sfx: [
     { key: 'title', type: 'text', labelKey: 'elSfxTitle', selector: '.track-row-title .name' },
     { key: 'tag', type: 'text', labelKey: 'elSfxTag', selector: '.track-tags .tag' }
+  ],
+  socials: [
+    { key: 'icons', type: 'text', labelKey: 'elSocialsIcons', selector: '.social-links a' }
   ],
   contact: [
     { key: 'buttonLabel', type: 'text', labelKey: 'elContactButtonLabel', selector: '.contact-form button' },
@@ -1083,6 +1115,7 @@ async function init() {
         case 'packs': renderPacksBlockItem(container, block, packsById); break;
         case 'collections': renderCollectionsBlockItem(container, block, collectionsById); break;
         case 'sfx': renderSfxBlockItem(container, block, sfxById); break;
+        case 'socials': renderSocialsBlockItem(container, block, data.socials); break;
         case 'contact': renderContactBlockItem(container, profile); break;
         case 'tracks': {
           const orderedTracks = (adReel.trackIds || []).map(id => libraryById[id]).filter(Boolean)
