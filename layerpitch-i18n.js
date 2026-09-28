@@ -1827,6 +1827,8 @@ window.LAYERPITCH_I18N = {
       next: 'Suivant',
     },
     monCompte: {
+      studioPayoutTitle: "Versement et facturation du studio",
+      studioPayoutHint: "Pour vendre l'OST de ton jeu ou recevoir ta part en tant que studio co-ayant droit : l'identité légale du studio (qui figure sur les factures émises en son nom) et son propre compte Stripe, distincts de ton profil compositeur.",
       pageTitle: 'LayerPitch — Mon compte',
       h1: 'Mon compte',
       backLink: '← Retour au backstage',
@@ -3725,6 +3727,8 @@ window.LAYERPITCH_I18N = {
       next: 'Next',
     },
     monCompte: {
+      studioPayoutTitle: "Studio payouts and billing",
+      studioPayoutHint: "To sell your game's OST or receive your share as a co-rights holder studio: the studio's legal identity (shown on invoices issued in its name) and its own Stripe account, separate from your composer profile.",
       pageTitle: 'LayerPitch — My account',
       h1: 'My account',
       backLink: '← Back to backstage',

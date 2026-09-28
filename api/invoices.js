@@ -29,13 +29,15 @@
     return { invoice: invoice || null, error: null };
   }
 
+  // Documents ÉMIS en mon nom (compositeur ou studio, 28/09). La lecture renvoie aussi les documents de mes ACHATS
+  // (politique « acheteur ») : on ne garde que ceux dont je suis le vendeur.
   async function getMyIssuedInvoices() {
-    const { data, error } = await getClient()
-      .from('invoices')
-      .select('id, invoice_number, document_type, pdf_storage_path, amount_ttc, created_at')
-      .order('created_at', { ascending: false });
+    const [{ data, error }, { composerId }, { studioId }] = await Promise.all([
+      getClient().from('invoices').select('id, invoice_number, document_type, pdf_storage_path, amount_ttc, created_at, composer_id, studio_id').order('created_at', { ascending: false }),
+      window.LayerPitchAuth.getMyComposerId(), window.LayerPitchAuth.getMyStudioId(),
+    ]);
     if (error) return { invoices: [], error: error.message };
-    return { invoices: data || [], error: null };
+    return { invoices: (data || []).filter(r => (composerId && r.composer_id === composerId) || (studioId && r.studio_id === studioId)), error: null };
   }
 
   window.LayerPitchInvoices = { getInvoiceForPurchase, getMyIssuedInvoices };

@@ -10,9 +10,10 @@
 (function () {
   function getClient() { return window.LayerPitchSupabaseClient.getClient(); }
 
-  async function startConnectOnboarding({ returnUrl, refreshUrl } = {}) {
+  // role : 'composer' (défaut) ou 'studio' (28/09) -- un compte Stripe par profil.
+  async function startConnectOnboarding({ returnUrl, refreshUrl, role } = {}) {
     const { data, error } = await getClient().functions.invoke('create-connect-onboarding-link', {
-      body: { returnUrl, refreshUrl },
+      body: { returnUrl, refreshUrl, role: role === 'studio' ? 'studio' : 'composer' },
     });
     if (error) return { ok: false, error: await window.LayerPitchAuth.describeFunctionError(error) };
     if (!data || !data.url) return { ok: false, error: data && data.error ? data.error : 'Réponse inattendue.' };
@@ -55,5 +56,28 @@
     return { ok: true };
   }
 
-  window.LayerPitchConnect = { startConnectOnboarding, myConnectStatus, getMyBillingProfile, saveMyBillingProfile };
+  // ---- Côté studio (28/09, chantier profils et permissions) : même chose sur studio_profiles ----
+  async function myStudioConnectStatus() {
+    const { data, error } = await getClient().from('studio_profiles')
+      .select('stripe_connect_account_id, stripe_connect_charges_enabled, stripe_connect_payouts_enabled').maybeSingle();
+    if (error) return { status: null, error: error.message };
+    if (!data) return { status: null, error: null };
+    return { status: { connected: !!data.stripe_connect_account_id, chargesEnabled: !!data.stripe_connect_charges_enabled, payoutsEnabled: !!data.stripe_connect_payouts_enabled }, error: null };
+  }
+  async function getMyStudioBillingProfile() {
+    const { data, error } = await getClient().from('studio_profiles')
+      .select('billing_status, billing_legal_name, billing_address, billing_siret, billing_vat_number, billing_vat_applicable').maybeSingle();
+    if (error) return { profile: null, error: error.message };
+    return { profile: data || null, error: null };
+  }
+  async function saveMyStudioBillingProfile({ status, legalName, address, siret, vatNumber, vatApplicable }) {
+    const { error } = await getClient().rpc('update_my_studio_billing_profile', {
+      p_status: status, p_legal_name: legalName, p_address: address,
+      p_siret: siret || null, p_vat_number: vatNumber || null, p_vat_applicable: !!vatApplicable,
+    });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+
+  window.LayerPitchConnect = { startConnectOnboarding, myConnectStatus, getMyBillingProfile, saveMyBillingProfile,
+    myStudioConnectStatus, getMyStudioBillingProfile, saveMyStudioBillingProfile };
 })();

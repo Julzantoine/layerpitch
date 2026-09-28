@@ -75,21 +75,24 @@ Deno.serve(async (req) => {
     }
     const composerEmail = callerData.user.email;
 
-    const { returnUrl, refreshUrl } = await req.json().catch(() => ({}));
+    const { returnUrl, refreshUrl, role } = await req.json().catch(() => ({}));
+    // Casquette qui reçoit l'argent (28/09, chantier profils et permissions) : compositeur (défaut, comportement
+    // d'avant) ou studio (vente de l'OST de son jeu, co-ayant droit « studio »). Un compte Stripe par profil.
+    const isStudio = role === 'studio';
 
     // Le compositeur doit exister avant de connecter Stripe -- même garde-fou que
     // create-subscription-checkout-session (ensure_composer_profile() déjà appelé ailleurs dans le
     // parcours d'inscription, mais on ne le suppose pas ici).
-    const { data: composerId, error: composerError } = await callerClient.rpc('ensure_composer_profile');
+    const { data: composerId, error: composerError } = await callerClient.rpc(isStudio ? 'ensure_studio_profile' : 'ensure_composer_profile');
     if (composerError || !composerId) {
-      return new Response(JSON.stringify({ error: composerError?.message || 'Impossible de provisionner le profil compositeur.' }), {
+      return new Response(JSON.stringify({ error: composerError?.message || 'Impossible de provisionner le profil.' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const adminClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     const { data: profile, error: profileError } = await adminClient
-      .from('composer_profiles')
+      .from(isStudio ? 'studio_profiles' : 'composer_profiles')
       .select('id, stripe_connect_account_id')
       .eq('id', composerId)
       .maybeSingle();
@@ -111,7 +114,7 @@ Deno.serve(async (req) => {
       const account = await stripe.accounts.create({ type: 'standard', email: composerEmail });
       accountId = account.id;
       const { error: writeError } = await adminClient
-        .from('composer_profiles')
+        .from(isStudio ? 'studio_profiles' : 'composer_profiles')
         .update({ stripe_connect_account_id: accountId })
         .eq('id', composerId);
       if (writeError) {

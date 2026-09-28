@@ -25,7 +25,8 @@
 //   plusieurs tentatives côté Stripe) -- repli sur plan = 'free'. Scope volontairement simple pour
 //   ce premier passage, pas de gestion fine de l'état 'past_due'.
 // - account.updated (Stripe Connect) : synchronise stripe_connect_charges_enabled/payouts_enabled
-//   sur composer_profiles -- seul écrivain de ces deux colonnes (voir migration 20260904120000).
+//   sur composer_profiles ET studio_profiles (28/09) -- seul écrivain de ces colonnes (voir migration 20260904120000).
+// - checkout.session.completed avec metadata.kind = 'album' (28/09) : achat d'album partagé -- voir handleAlbumPurchase.
 
 import Stripe from 'npm:stripe@22.6.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -249,6 +250,129 @@ async function generateInvoiceForPurchase(
   await adminClient.from('pack_purchases').update({ invoice_id: invoiceRow.id }).eq('id', purchase.id);
 }
 
+// ---- Achat d'album partagé (chantier profils et permissions, étape 4b, 28/09) ----
+// Session créée par create-album-checkout-session (metadata.kind = 'album', instantané de la répartition dans
+// metadata.split = « profil|c ou s|parts ; … », commission du palier du vendeur dans metadata.commissionBps).
+// 1. album_purchases (idempotent sur stripe_payment_intent_id) ; 2. seulement si l'achat est nouveau : un transfert
+// Stripe par bénéficiaire (source_transaction = le paiement, clé d'idempotence par bénéficiaire), tracé dans
+// album_payouts ; 3. un document (facture ou attestation) par bénéficiaire, pour SA part du prix payé.
+// Un transfert ou une facture qui échoue ne fait pas échouer le webhook (l'achat est acquis) : l'échec est noté dans
+// album_payouts.status = 'failed' pour reprise manuelle.
+type SplitEntry = { profileId: string; role: 'composer' | 'studio'; shareBps: number };
+function parseSplit(raw: string | undefined): SplitEntry[] {
+  return String(raw || '').split(';').filter(Boolean).map(x => {
+    const [profileId, r, bps] = x.split('|');
+    return { profileId, role: r === 's' ? 'studio' : 'composer', shareBps: Number(bps) } as SplitEntry;
+  }).filter(e => e.profileId && e.shareBps > 0);
+}
+// Montants en centimes : commission sur le total, reste partagé selon les parts ; les centimes d'arrondi vont au vendeur
+// (première entrée de l'instantané).
+function splitAmounts(totalCents: number, commissionBps: number, split: SplitEntry[]) {
+  const commission = Math.round(totalCents * commissionBps / 10000);
+  const distributable = totalCents - commission;
+  const amounts = split.map(e => Math.floor(distributable * e.shareBps / 10000));
+  const rest = distributable - amounts.reduce((a, b) => a + b, 0);
+  if (amounts.length) amounts[0] += rest;
+  return { commission, amounts };
+}
+async function beneficiaryProfile(adminClient: ReturnType<typeof createClient>, e: SplitEntry) {
+  const table = e.role === 'studio' ? 'studio_profiles' : 'composer_profiles';
+  const { data } = await adminClient.from(table)
+    .select('id, stripe_connect_account_id, billing_status, billing_legal_name, billing_address, billing_siret, billing_vat_number, billing_vat_applicable')
+    .eq('profile_id', e.profileId).maybeSingle();
+  return data as null | { id: string; stripe_connect_account_id: string | null; billing_status: string | null; billing_legal_name: string | null;
+    billing_address: string | null; billing_siret: string | null; billing_vat_number: string | null; billing_vat_applicable: boolean | null };
+}
+async function handleAlbumPurchase(adminClient: ReturnType<typeof createClient>, stripe: Stripe, session: Stripe.Checkout.Session): Promise<Response | null> {
+  const md = session.metadata || {};
+  const albumId = md.albumId;
+  const buyerId = md.buyerId || session.client_reference_id;
+  if (!albumId || !buyerId) return null;
+  const totalCents = session.amount_total || 0;
+  const { data: rows, error: insertError } = await adminClient.from('album_purchases').upsert({
+    buyer_id: buyerId, album_id: albumId, price_paid: totalCents / 100,
+    stripe_payment_intent_id: session.payment_intent as string, is_test: false,
+  }, { onConflict: 'stripe_payment_intent_id', ignoreDuplicates: true }).select('id');
+  if (insertError) {
+    console.error('album_purchases upsert failed:', insertError.message);
+    return new Response(JSON.stringify({ error: insertError.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
+  const purchase = rows && rows[0];
+  if (!purchase) return null; // renvoi du même événement : déjà traité
+
+  const split = parseSplit(md.split);
+  const { amounts } = splitAmounts(totalCents, Number(md.commissionBps || 0), split);
+  const pi = await stripe.paymentIntents.retrieve(session.payment_intent as string);
+  const chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id;
+  const { data: album } = await adminClient.from('albums').select('title').eq('id', albumId).maybeSingle();
+  const vatFromStripe = session.automatic_tax?.enabled ? await resolveStripeComputedVat(stripe, session.id).catch(() => null) : null;
+
+  for (let i = 0; i < split.length; i++) {
+    const e = split[i];
+    const amount = amounts[i];
+    const profile = await beneficiaryProfile(adminClient, e);
+    const base = { album_purchase_id: purchase.id, beneficiary_profile_id: e.profileId, beneficiary_role: e.role, share_bps: e.shareBps, amount_cents: amount, stripe_account_id: profile?.stripe_connect_account_id || null };
+    const { data: payoutRows } = await adminClient.from('album_payouts').upsert(base, { onConflict: 'album_purchase_id,beneficiary_profile_id,beneficiary_role', ignoreDuplicates: true }).select('id');
+    const payoutId = payoutRows && payoutRows[0] && payoutRows[0].id;
+    try {
+      if (!profile?.stripe_connect_account_id) throw new Error('compte Stripe du bénéficiaire introuvable');
+      if (!chargeId) throw new Error('paiement Stripe introuvable');
+      if (amount > 0) {
+        const transfer = await stripe.transfers.create({
+          amount, currency: 'eur', destination: profile.stripe_connect_account_id, source_transaction: chargeId,
+          transfer_group: md.transferGroup || undefined,
+          metadata: { albumId, albumPurchaseId: purchase.id, beneficiary: e.profileId, role: e.role },
+        }, { idempotencyKey: `album_${session.payment_intent}_${e.profileId}_${e.role}` });
+        if (payoutId) await adminClient.from('album_payouts').update({ stripe_transfer_id: transfer.id, status: 'transferred' }).eq('id', payoutId);
+      } else if (payoutId) {
+        await adminClient.from('album_payouts').update({ status: 'transferred' }).eq('id', payoutId);
+      }
+    } catch (err) {
+      console.error('album transfer failed:', (err as Error)?.message || err);
+      if (payoutId) await adminClient.from('album_payouts').update({ status: 'failed', error: String((err as Error)?.message || err).slice(0, 500) }).eq('id', payoutId);
+    }
+    // Document du bénéficiaire pour SA part du prix payé (avant commission : la commission est la rémunération du
+    // mandataire, facturée à part). TVA : calcul Stripe si le bénéficiaire est assujetti, sinon franchise en base.
+    try {
+      if (!profile || !profile.billing_status || !profile.billing_legal_name) throw new Error('profil de facturation incomplet');
+      const shareTtc = Math.round(totalCents * e.shareBps / 10000) / 100;
+      const vat = profile.billing_vat_applicable && vatFromStripe ? vatFromStripe : franchiseEnBaseVat();
+      const amountHt = vat.rate != null ? shareTtc / (1 + vat.rate) : null;
+      const amountVat = amountHt != null && vat.rate != null ? shareTtc - amountHt : null;
+      const rpcName = e.role === 'studio' ? 'next_studio_invoice_number' : 'next_invoice_number';
+      const rpcArg = e.role === 'studio' ? { p_studio_id: profile.id } : { p_composer_id: profile.id };
+      const { data: n, error: nError } = await adminClient.rpc(rpcName, rpcArg);
+      if (nError || n == null) throw new Error(nError?.message || 'numérotation impossible');
+      const invoiceNumber = `LP-${profile.id.slice(0, 8)}-${String(n).padStart(5, '0')}`;
+      const documentType: 'facture' | 'attestation_vente' = profile.billing_status === 'professionnel' ? 'facture' : 'attestation_vente';
+      const buyer = session.customer_details;
+      const pdf = await buildInvoicePdf({
+        documentType, invoiceNumber,
+        packTitle: `Album « ${album?.title || albumId} » — part de ${(e.shareBps / 100).toLocaleString('fr-FR')} %`,
+        seller: { legalName: profile.billing_legal_name, address: profile.billing_address, siret: profile.billing_siret, vatNumber: profile.billing_vat_number },
+        buyer: {
+          name: buyer?.name || null, email: buyer?.email || null,
+          address: buyer?.address ? [buyer.address.line1, buyer.address.postal_code, buyer.address.city, buyer.address.country].filter(Boolean).join(', ') : null,
+          vatNumber: (buyer?.tax_ids || []).find((t) => t.value)?.value || null,
+        },
+        amountHt, vatRate: vat.rate, vatMention: vat.mention, amountVat, amountTtc: shareTtc,
+      });
+      const storagePath = `invoices/${profile.id}/${invoiceNumber}.pdf`;
+      await uploadInvoiceToR2(pdf, storagePath);
+      const { error: invError } = await adminClient.from('invoices').insert({
+        album_purchase_id: purchase.id, beneficiary_profile_id: e.profileId,
+        composer_id: e.role === 'composer' ? profile.id : null, studio_id: e.role === 'studio' ? profile.id : null,
+        invoice_number: invoiceNumber, document_type: documentType, pdf_storage_path: storagePath,
+        seller_snapshot: profile, buyer_snapshot: buyer, amount_ht: amountHt, vat_rate: vat.rate, amount_vat: amountVat, amount_ttc: shareTtc,
+      });
+      if (invError) throw new Error(invError.message);
+    } catch (err) {
+      console.error('album invoice failed:', (err as Error)?.message || err);
+    }
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   const signature = req.headers.get('stripe-signature');
   const body = await req.text();
@@ -299,6 +423,12 @@ Deno.serve(async (req) => {
         }
       }
       return new Response(JSON.stringify({ received: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // Achat d'album (partagé entre plusieurs bénéficiaires, étape 4b du chantier profils et permissions, 28/09).
+    if (session.metadata?.kind === 'album') {
+      const albumResponse = await handleAlbumPurchase(adminClient, stripe, session);
+      return albumResponse || new Response(JSON.stringify({ received: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
     // Sinon : achat unitaire studio (mode 'payment').
@@ -361,6 +491,15 @@ Deno.serve(async (req) => {
 
   if (event.type === 'account.updated') {
     const account = event.data.object as Stripe.Account;
+    // Compte Stripe d'un STUDIO (28/09) : même synchronisation (un même compte Stripe n'appartient qu'à un seul profil).
+    const { error: studioConnectError } = await adminClient
+      .from('studio_profiles')
+      .update({ stripe_connect_charges_enabled: !!account.charges_enabled, stripe_connect_payouts_enabled: !!account.payouts_enabled })
+      .eq('stripe_connect_account_id', account.id);
+    if (studioConnectError) {
+      console.error('studio_profiles stripe_connect update failed:', studioConnectError.message);
+      return new Response(JSON.stringify({ error: studioConnectError.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
     const { error: connectError } = await adminClient
       .from('composer_profiles')
       .update({
