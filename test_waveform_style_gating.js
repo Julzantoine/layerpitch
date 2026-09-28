@@ -31,7 +31,8 @@ const i18nSrc = fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf
 const playerSrc = fs.readFileSync(path.join(__dirname, 'player.js'), 'utf-8').replace(/<\/script/gi, '<\\/script');
 
 async function runIndexInit(adreelId, adReels, waveformStyle) {
-  const indexSrc = extractInlineScript(fs.readFileSync(path.join(__dirname, 'index.html'), 'utf-8'), 'index.html').replace(/<\/script/gi, '<\\/script');
+  // reel.js (28/09) : moteur d'affichage des AdReels sorti de la page, chargé par elle juste avant son script inline.
+  const indexSrc = (fs.readFileSync(path.join(__dirname, 'reel.js'), 'utf-8') + '\n' + extractInlineScript(fs.readFileSync(path.join(__dirname, 'index.html'), 'utf-8'), 'index.html')).replace(/<\/script/gi, '<\\/script');
   const html = `<!DOCTYPE html><html><body>
   <div id="lightboxOverlay"><button class="lightbox-close" type="button"></button><button class="lightbox-prev" type="button"></button><img id="lightboxImg" src="" alt=""><button class="lightbox-next" type="button"></button></div>
   <button id="shareBtn"></button>

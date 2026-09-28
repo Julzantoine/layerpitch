@@ -2,7 +2,7 @@
 // scripts/build-sources.js — fabrique les gros fichiers servis aux navigateurs à partir de leurs sources découpées
 // (dette S4, 27/09).
 //
-//   npm run build                      reconstruit player.js, layerpitch-backstage.html et pack.html
+//   npm run build                      reconstruit player.js, layerpitch-backstage.html, pack.html et reel.js
 //   node scripts/build-sources.js player      (ou backstage, pack)   un seul fichier
 //   node scripts/build-sources.js --check     vérifie seulement qu'ils sont à jour (test_generated_files.js)
 //
@@ -25,6 +25,8 @@ const TARGETS = {
   backstage: { dir: 'src/backstage', out: 'layerpitch-backstage.html', pattern: /^\d\d[a-z]?-.*\.(html|css|js)$/, header: '' },
   // Page publique d'un pack + outil vidéo « Test in game » (27/09) ; avertissement dans src/pack/01-tete.html.
   pack: { dir: 'src/pack', out: 'pack.html', pattern: /^\d\d[a-z]?-.*\.(html|css|js)$/, header: '' },
+  // Moteur d'affichage des AdReels, partagé avec les vitrines de Projet (28/09) ; avertissement dans src/reel/01-tete.js.
+  reel: { dir: 'src/reel', out: 'reel.js', pattern: /^\d\d[a-z]?-.*\.js$/, header: '' },
 };
 
 function build(name, check) {

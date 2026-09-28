@@ -11,7 +11,8 @@ function extractInlineScript(html, file) {
   const matches = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m => m[1]).filter(s => s.trim() && !s.includes('cloud.umami.is') && !s.includes('clarity.ms'));
   if (matches.length !== 1) throw new Error(file + ' : ' + matches.length + ' bloc(s) <script> inline trouvés (hors chargeur Umami), 1 attendu -- ajuster ce test.');
   // public-page.js (24/09) : briques communes aux pages publiques, chargées par le navigateur juste avant ce script.
-  return fs.readFileSync(path.join(__dirname, 'public-page.js'), 'utf-8') + '\n' + matches[0];
+  // reel.js (28/09) : moteur d'affichage des AdReels sorti de index.html (seule page qui le charge pour l'instant).
+  return fs.readFileSync(path.join(__dirname, 'public-page.js'), 'utf-8') + '\n' + (file === 'index.html' ? fs.readFileSync(path.join(__dirname, 'reel.js'), 'utf-8') + '\n' : '') + matches[0];
 }
 function fakeAudioContextHooks(win) {
   function FakeAudioContext() { this.destination = {}; }

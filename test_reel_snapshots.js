@@ -63,6 +63,7 @@ async function render(adReel, extra) {
     contact: d.getElementById('contact').innerHTML,
     credit: d.getElementById('layerpitchCredit').outerHTML,
     title: d.title,
+    bodyLayers: [...d.body.children].filter(e => e.style && e.style.position === 'fixed').map(e => e.outerHTML).join('\n'),
   };
   window.close();
   return out;
