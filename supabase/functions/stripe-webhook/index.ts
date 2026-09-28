@@ -516,7 +516,27 @@ Deno.serve(async (req) => {
     // deno-lint-ignore no-explicit-any -- l'emplacement de l'id d'abonnement varie selon la version de l'API
     const subId = (invoice as any).subscription || (invoice as any).parent?.subscription_details?.subscription;
     if (subId) {
-      const { data: studio } = await adminClient.from('studio_profiles').select('id').eq('stripe_subscription_id', subId).maybeSingle();
+      let { data: studio } = await adminClient.from('studio_profiles').select('id').eq('stripe_subscription_id', subId).maybeSingle();
+      if (!studio) {
+        // Stripe ne garantit pas l'ordre des événements : la facture de la PREMIÈRE période peut arriver avant
+        // checkout.session.completed, qui relie l'abonnement au studio. On lit alors les métadonnées de l'abonnement
+        // (posées par create-subscription-checkout-session) et on enregistre palier + ids ici, sinon la dotation du
+        // premier mois serait perdue (le nombre de crédits dépend du palier). checkout.session.completed réécrit ensuite
+        // les mêmes valeurs, sans effet.
+        const sub = await stripe.subscriptions.retrieve(subId as string);
+        const studioId = sub.metadata?.kind === 'studio' ? sub.metadata.studioId : null;
+        const plan = sub.metadata?.plan;
+        if (studioId && (plan === 'indie' || plan === 'aa')) {
+          const { error: linkError } = await adminClient.from('studio_profiles').update({
+            plan, subscription_status: 'active', stripe_subscription_id: subId, stripe_customer_id: sub.customer as string,
+          }).eq('id', studioId);
+          if (linkError) {
+            console.error('studio_profiles link (invoice.paid) failed:', linkError.message);
+            return new Response(JSON.stringify({ error: linkError.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+          }
+          studio = { id: studioId };
+        }
+      }
       if (studio) {
         const line = invoice.lines?.data?.[0];
         const periodStart = line?.period?.start ? new Date(line.period.start * 1000) : new Date();
