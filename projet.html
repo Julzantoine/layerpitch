@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790625660007">
+<link rel="stylesheet" href="player.css?v=1790626962209">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -126,17 +126,18 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790625660007"></script>
-<script src="layerpitch-notify.js?v=1790625660007"></script>
-<script src="player.js?v=1790625660007"></script>
-<script src="api/supabase-client.js?v=1790625660007"></script>
-<script src="api/auth.js?v=1790625660007"></script>
-<script src="layerpitch-shell.js?v=1790625660007"></script>
-<script src="api/tracks.js?v=1790625660007"></script>
-<script src="api/packs.js?v=1790625660007"></script>
-<script src="api/albums.js?v=1790625660007"></script>
-<script src="api/studio.js?v=1790625660007"></script>
-<script src="api/projects.js?v=1790625660007"></script>
+<script src="layerpitch-i18n.js?v=1790626962209"></script>
+<script src="layerpitch-notify.js?v=1790626962209"></script>
+<script src="player.js?v=1790626962209"></script>
+<script src="api/supabase-client.js?v=1790626962209"></script>
+<script src="api/auth.js?v=1790626962209"></script>
+<script src="layerpitch-shell.js?v=1790626962209"></script>
+<script src="api/tracks.js?v=1790626962209"></script>
+<script src="api/packs.js?v=1790626962209"></script>
+<script src="api/albums.js?v=1790626962209"></script>
+<script src="api/studio.js?v=1790626962209"></script>
+<script src="api/adreels.js?v=1790626962209"></script>
+<script src="api/projects.js?v=1790626962209"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -217,7 +218,7 @@ function joinChannel() {
         if (!chatVisible()) { S.unread++; if (!S.firstUnreadId && S.messages[0] && !S.messages[0].mine) S.firstUnreadId = S.messages[0].id; }
         renderChat();
       }
-      else if (payload.what === 'content') { await reloadContent(); if (S.video) S.video = assetById(S.video.id) || null; if (['board', 'videos', 'images', 'music', 'showcase'].includes(S.tab)) renderPanel(); }
+      else if (payload.what === 'content') { await reloadContent(); if (S.video) S.video = assetById(S.video.id) || null; if (['board', 'videos', 'images', 'music', 'showcase'].includes(S.tab) && !(S.tab === 'showcase' && S.vitrineDraft)) renderPanel(); /* jamais pendant l'édition d'une vitrine */ }
       else if (payload.what === 'notes' && S.video) { await loadVideoNotes(); renderPanel(); }
     });
     S.channel.subscribe(status => { if (status === 'SUBSCRIBED') S.channel.track({ email: S.me.email }); });
@@ -592,7 +593,16 @@ async function renderSnapshots() {
   const box = $('snapList'); if (!box) return;
   const list = r.data || [];
   box.innerHTML = list.length ? list.map(s => `<div class="list-row"><div class="list-main">${esc(s.label)}${s.kind === 'auto' ? ` <span class="pill">${esc(tr('snapAuto'))}</span>` : ''} <span class="meta">· ${esc(tr('snapCount', { n: s.count }))} · ${esc(new Date(s.createdAt).toLocaleString(pageLang))} · ${esc(s.authorEmail || '')}</span></div>
+      <button class="btn" type="button" data-tovitrine="${esc(s.id)}">${esc(tr('snapToVitrine'))}</button>
       <button class="btn" type="button" data-restore="${esc(s.id)}">${esc(tr('snapRestore'))}</button></div>`).join('') : `<div class="meta">${esc(tr('snapNone'))}</div>`;
+  // « En faire une vitrine » (retour 12) : une copie en brouillon (vitrine éditeur), qui vit ensuite sa vie.
+  box.querySelectorAll('[data-tovitrine]').forEach(b => b.onclick = async () => {
+    const r2 = await PJ.vitrineFromSnapshot(b.dataset.tovitrine);
+    if (r2.error) return say('snapMsg', tr('errorPrefix', { message: r2.error }));
+    const list = await PJ.vitrines(projectId);
+    S.vitrineDraft = JSON.parse(JSON.stringify((list.data || []).find(v => v.id === r2.data.id) || null));
+    S.tab = 'showcase'; stopMedia(); render(); broadcast('content');
+  });
   box.querySelectorAll('[data-restore]').forEach(b => b.onclick = async () => {
     if (!(await window.LayerPitchNotify.confirm(tr('snapRestoreConfirm'), { okLabel: tr('snapRestore') }))) return;
     const r2 = await PJ.restore(b.dataset.restore);
@@ -993,34 +1003,175 @@ async function renderMusic(panel) {
   panel.querySelectorAll('[data-pin]').forEach(b => b.onclick = async () => { const a = assetById(b.dataset.pin); const r = await PJ.pin(a.id, !a.pinned); if (r.error) return say('musicMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderMusic(panel); broadcast('content'); });
 }
 
-// ---- Vitrine publique (administrateur) ----
+// ---- Vitrines en blocs (étape 6, 28/09 ; cadrage §4 et §8) ----
+// Plusieurs vitrines par Projet : publique (joueurs, /vitrine/<nom>) ou éditeur (lien secret sans compte). Blocs au format
+// de l'AdReel, qui pointent vers les objets du Projet ; même moteur d'affichage que les AdReels (reel.js). Tous les
+// membres préparent, les administrateurs publient. Fichiers privés autorisés partout, avec un avertissement (Q7).
+const VITRINE_BLOCK_TYPES = ['header', 'text', 'tracks', 'video', 'photo', 'packs', 'links'];
+const VITRINE_KINDS = { tracks: ['track', 'audio'], video: ['video'], photo: ['image'], packs: ['pack'] };
+const VITRINE_FONTS = ['default', 'google:Space Grotesk', 'google:Fraunces', 'google:Zilla Slab', 'google:Manrope', 'google:Playfair Display', 'google:DM Serif Display', 'google:JetBrains Mono'];
+const vitrineUrl = v => v.audience === 'publisher'
+  ? (v.secretToken ? `${location.origin}/vitrine.html?k=${encodeURIComponent(v.secretToken)}` : '')
+  : `${location.origin}/vitrine/${encodeURIComponent(v.slug)}`;
+let vitrineBlockSeq = 0;
+const newBlockId = () => 'b' + Date.now().toString(36) + (vitrineBlockSeq++);
 async function renderShowcase(panel) {
-  const sc = (await PJ.showcase(projectId)).data || { published: false, title: '', intro: '', steamUrl: '', entries: [] };
-  const chosen = new Set((sc.entries || []).map(e => e.assetId));
-  const assets = S.content.assets || [];
-  const tracks = assets.filter(a => a.kind === 'track');
-  const images = assets.filter(a => a.kind === 'image');
-  const links = assets.filter(a => a.kind === 'video' && a.url); // une vidéo ENVOYÉE reste privée
+  const r = await PJ.vitrines(projectId);
+  S.vitrines = r.data || [];
+  if (S.vitrineDraft) return renderVitrineEditor(panel);
   const admin = S.project.role === 'admin';
-  const box = (a, label) => `<label class="choice"><input type="checkbox" data-entry="${esc(a.id)}" ${chosen.has(a.id) ? 'checked' : ''} ${admin ? '' : 'disabled'}> ${esc(label)}</label>`;
-  const publicUrl = `${location.origin}/vitrine.html?id=${encodeURIComponent(projectId)}&lang=${pageLang}`;
-  panel.innerHTML = `<div class="card"><h2>${esc(tr('showcaseTitle'))}</h2><p class="hint">${esc(tr('showcaseIntro'))}</p>
-    ${admin ? '' : `<p class="hint">${esc(tr('showcaseAdminOnly'))}</p>`}
-    <label class="choice"><input type="checkbox" id="scPublished" ${sc.published ? 'checked' : ''} ${admin ? '' : 'disabled'}> ${esc(tr('showcasePublished'))}</label>
-    <label>${esc(tr('showcaseName'))}</label><input type="text" id="scTitle" value="${esc(sc.title)}" ${admin ? '' : 'disabled'}>
-    <label>${esc(tr('showcaseText'))}</label><textarea id="scIntro" ${admin ? '' : 'disabled'}>${esc(sc.intro)}</textarea>
-    <label>${esc(tr('showcaseSteam'))}</label><input type="url" id="scSteam" value="${esc(sc.steamUrl || '')}" placeholder="https://store.steampowered.com/app/…" ${admin ? '' : 'disabled'}>
-    <div class="section" style="margin-top:12px"><strong>${esc(tr('showcaseTracks'))}</strong>${tracks.length ? tracks.map(t => box(t, t.trackTitle || t.title)).join('') : `<div class="meta">${esc(tr('showcaseNoTracks'))}</div>`}</div>
-    <div style="margin-top:10px"><strong>${esc(tr('showcaseVideos'))}</strong>${links.length ? links.map(v => box(v, v.title || v.url)).join('') : `<div class="meta">${esc(tr('showcaseNoVideos'))}</div>`}</div>
-    <div style="margin-top:10px"><strong>${esc(tr('showcaseImages'))}</strong>${images.length ? images.map(i => box(i, i.title || i.fileName)).join('') : `<div class="meta">${esc(tr('showcaseNoImages'))}</div>`}</div>
-    ${admin ? `<div class="bar" style="margin-top:12px"><button class="btn primary" id="scSave" type="button">${esc(tr('save'))}</button>
-      <a class="btn" href="${esc(publicUrl)}" target="_blank" rel="noopener">${esc(tr('showcasePreview'))}</a></div>` : ''}
-    <div class="msg" id="scMsg"></div></div>`;
-  if ($('scSave')) $('scSave').onclick = async () => {
-    const entries = [...panel.querySelectorAll('[data-entry]:checked')].map(c => ({ assetId: c.dataset.entry }));
-    const r = await PJ.saveShowcase(projectId, { published: $('scPublished').checked, title: $('scTitle').value, intro: $('scIntro').value, steamUrl: $('scSteam').value.trim(), entries });
-    say('scMsg', r.error ? tr('errorPrefix', { message: r.error }) : tr($('scPublished').checked ? 'showcaseSavedPublic' : 'showcaseSaved', { url: publicUrl }), !r.error);
+  panel.innerHTML = `<div class="card"><h2>${esc(tr('vitrinesTitle'))}</h2><p class="hint">${esc(tr('vitrinesIntro'))}</p>
+      <div class="bar"><button class="btn primary" type="button" data-new="players">${esc(tr('newVitrinePlayers'))}</button>
+        <button class="btn" type="button" data-new="publisher">${esc(tr('newVitrinePublisher'))}</button></div>
+      <div class="msg" id="vitMsg"></div></div>
+    ${S.vitrines.length ? S.vitrines.map(v => `<div class="card"><div class="list-row" style="border:0;padding:0">
+        <div class="list-main"><strong>${esc(v.title || tr('untitledVitrine'))}</strong>
+          <span class="pill">${esc(tr('audience_' + v.audience))}</span>${v.display === 'slides' ? ` <span class="pill">${esc(tr('display_slides'))}</span>` : ''}
+          <span class="pill" style="${v.published ? '' : 'opacity:.6'}">${esc(tr(v.published ? 'vitrinePublished' : 'vitrineDraft'))}</span>
+          <div class="meta" style="margin-top:4px">${v.audience === 'publisher'
+            ? (admin ? esc(tr('vitrineSecretLink')) + ' : ' + `<a href="${esc(vitrineUrl(v))}" target="_blank" rel="noopener">${esc(vitrineUrl(v))}</a>` : esc(tr('vitrineSecretAdminOnly')))
+            : `<a href="${esc(vitrineUrl(v))}" target="_blank" rel="noopener">${esc(vitrineUrl(v))}</a>${v.published ? '' : ' · ' + esc(tr('vitrineNotYetOnline'))}`}</div></div>
+        <button class="btn" type="button" data-edit="${esc(v.id)}">${esc(tr('edit'))}</button>
+        <a class="btn" href="vitrine.html?id=${encodeURIComponent(v.id)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('vitrinePreview'))}</a>
+        ${admin && v.audience === 'publisher' ? `<button class="btn" type="button" data-copy="${esc(v.id)}">${esc(tr('copyLink'))}</button><button class="btn" type="button" data-renew="${esc(v.id)}">${esc(tr('renewLink'))}</button>` : ''}
+        ${admin || !v.published ? `<button class="btn danger" type="button" data-delv="${esc(v.id)}">${esc(tr('delete'))}</button>` : ''}
+      </div></div>`).join('') : `<div class="card"><div class="empty">${esc(tr('noVitrines'))}</div></div>`}`;
+  panel.querySelectorAll('[data-new]').forEach(b => b.onclick = () => {
+    S.vitrineDraft = { audience: b.dataset.new, display: b.dataset.new === 'publisher' ? 'slides' : 'page', title: S.project.title, subtitle: '', slug: '', published: false, theme: {},
+      blocks: [{ id: newBlockId(), type: 'header' }, { id: newBlockId(), type: 'tracks', assetIds: (S.content.assets || []).filter(a => a.kind === 'track' && a.starred).map(a => a.id) }] };
+    renderShowcase(panel);
+  });
+  panel.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { S.vitrineDraft = JSON.parse(JSON.stringify(S.vitrines.find(v => v.id === b.dataset.edit))); renderShowcase(panel); });
+  panel.querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => { const v = S.vitrines.find(x => x.id === b.dataset.copy); try { await navigator.clipboard.writeText(vitrineUrl(v)); say('vitMsg', tr('linkCopied'), true); } catch (e) { say('vitMsg', vitrineUrl(v), true); } });
+  panel.querySelectorAll('[data-renew]').forEach(b => b.onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('renewLinkConfirm'), { okLabel: tr('renewLink') }))) return;
+    const r2 = await PJ.renewVitrineToken(b.dataset.renew); if (r2.error) return say('vitMsg', tr('errorPrefix', { message: r2.error }));
+    renderShowcase(panel);
+  });
+  panel.querySelectorAll('[data-delv]').forEach(b => b.onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('deleteVitrineConfirm'), { okLabel: tr('delete'), danger: true }))) return;
+    const r2 = await PJ.deleteVitrine(b.dataset.delv); if (r2.error) return say('vitMsg', tr('errorPrefix', { message: r2.error }));
+    renderShowcase(panel); broadcast('content');
+  });
+}
+async function ensureMyAdReels() {
+  if (S.myAdReelsLoaded || !S.myComposerId || !window.LayerPitchAdReels) return;
+  const r = await window.LayerPitchAdReels.listAdReels({ ownerId: S.myComposerId });
+  S.myAdReels = (r.adReels || []).filter(a => a.profile && a.profile.theme); S.myAdReelsLoaded = true;
+}
+async function renderVitrineEditor(panel) {
+  await ensureMyAdReels();
+  const v = S.vitrineDraft;
+  const admin = S.project.role === 'admin';
+  const t = v.theme || {};
+  const assets = S.content.assets || [];
+  const images = assets.filter(a => a.kind === 'image');
+  const color = (key, label, def) => `<label style="display:flex;align-items:center;gap:8px;margin:6px 0">${esc(tr(label))}<input type="color" data-theme="${key}" value="${esc(t[key] || def)}" style="width:44px;padding:0;height:28px"></label>`;
+  panel.innerHTML = `<div class="card">
+      <div class="bar" style="justify-content:space-between"><h2 style="margin:0">${esc(tr(v.id ? 'editVitrine' : 'newVitrine'))}</h2><button class="btn" type="button" id="vBack">${esc(tr('backToList'))}</button></div>
+      <div class="bar" style="margin-top:10px"><label class="choice" style="margin:0"><input type="radio" name="vAud" value="players" ${v.audience === 'players' ? 'checked' : ''}> ${esc(tr('audience_players'))}</label>
+        <label class="choice" style="margin:0"><input type="radio" name="vAud" value="publisher" ${v.audience === 'publisher' ? 'checked' : ''}> ${esc(tr('audience_publisher'))}</label></div>
+      <p class="hint">${esc(tr(v.audience === 'publisher' ? 'audienceHint_publisher' : 'audienceHint_players'))}</p>
+      <label>${esc(tr('vitrineTitleLabel'))}</label><input type="text" id="vTitle2" value="${esc(v.title)}" maxlength="200">
+      <label>${esc(tr('vitrineSubtitleLabel'))}</label><input type="text" id="vSub" value="${esc(v.subtitle || '')}" maxlength="300">
+      ${v.audience === 'players' ? `<label>${esc(tr('vitrineAddress'))}</label><div class="bar"><span class="meta">${esc(location.origin)}/vitrine/</span><input type="text" id="vSlug" value="${esc(v.slug || '')}" placeholder="${esc(tr('vitrineAddressAuto'))}" style="flex:1 1 180px"></div>` : ''}
+      <label>${esc(tr('vitrineLogo'))}</label><select id="vLogo"><option value="">${esc(tr('none'))}</option>${images.map(a => `<option value="${esc(a.id)}"${v.logoAssetId === a.id ? ' selected' : ''}>${esc(assetTitle(a))}</option>`).join('')}</select>
+      <label>${esc(tr('vitrineDisplay'))}</label><select id="vDisplay"><option value="page"${v.display === 'page' ? ' selected' : ''}>${esc(tr('display_page'))}</option><option value="slides"${v.display === 'slides' ? ' selected' : ''}>${esc(tr('display_slides'))}</option></select>
+      <label class="choice" style="margin-top:12px"><input type="checkbox" id="vPub" ${v.published ? 'checked' : ''} ${admin ? '' : 'disabled'}> ${esc(tr('vitrinePublishedLabel'))}${admin ? '' : ' — ' + esc(tr('showcaseAdminOnly'))}</label>
+    </div>
+    <div class="card"><h2>${esc(tr('vitrineAppearance'))}</h2>
+      ${S.myAdReels && S.myAdReels.length ? `<div class="bar"><select id="vFromReel" style="flex:1 1 200px"><option value="">${esc(tr('copyAppearanceFrom'))}</option>${S.myAdReels.map(a => `<option value="${esc(a.id)}">${esc(a.label || a.id)}</option>`).join('')}</select><span class="meta">${esc(tr('copyAppearanceHint'))}</span></div>` : ''}
+      <div style="display:flex;flex-wrap:wrap;gap:4px 18px">${color('bgColor', 'themeBg', '#f5f6f8')}${color('titleColor', 'themeTitle', '#24262b')}${color('contentColor', 'themeText', '#24262b')}${color('sectionLabelColor', 'themeLabels', '#2f80c0')}</div>
+      <label>${esc(tr('themeFont'))}</label><select id="vFont">${VITRINE_FONTS.map(f => `<option value="${esc(f)}"${(t.font || 'default') === f ? ' selected' : ''}>${esc(f === 'default' ? tr('fontDefault') : f.replace('google:', ''))}</option>`).join('')}</select>
+      <label class="choice" style="margin-top:10px"><input type="checkbox" id="vSep" ${t.separator && t.separator.visible ? 'checked' : ''}> ${esc(tr('themeSeparators'))}</label>
+    </div>
+    <div class="card"><h2>${esc(tr('vitrineBlocks'))}</h2><p class="hint">${esc(tr('vitrineBlocksHint'))}</p>
+      <div id="vBlocks"></div>
+      <div class="bar" style="margin-top:10px">${VITRINE_BLOCK_TYPES.map(k => `<button class="btn" type="button" data-addblock="${k}">+ ${esc(tr('vblock_' + k))}</button>`).join('')}</div>
+    </div>
+    <div class="card"><div class="bar"><button class="btn primary" type="button" id="vSave">${esc(tr('save'))}</button>${v.id ? `<a class="btn" href="vitrine.html?id=${encodeURIComponent(v.id)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('vitrinePreview'))}</a>` : ''}</div><div class="msg" id="vMsg2"></div></div>`;
+  const collect = () => {
+    v.audience = (panel.querySelector('[name="vAud"]:checked') || {}).value || v.audience;
+    v.title = $('vTitle2').value; v.subtitle = $('vSub').value;
+    if ($('vSlug')) v.slug = $('vSlug').value.trim();
+    v.logoAssetId = $('vLogo').value || null; v.display = $('vDisplay').value; v.published = $('vPub').checked;
+    v.theme = Object.assign({}, v.theme);
+    panel.querySelectorAll('[data-theme]').forEach(i => { v.theme[i.dataset.theme] = i.value; });
+    v.theme.font = $('vFont').value;
+    v.theme.separator = Object.assign({ color: '#E2E2E6', thickness: 1 }, v.theme.separator || {}, { visible: $('vSep').checked });
   };
+  panel.querySelectorAll('[name="vAud"]').forEach(r => r.onchange = () => { collect(); renderVitrineEditor(panel); });
+  $('vBack').onclick = () => { S.vitrineDraft = null; renderShowcase(panel); };
+  if ($('vFromReel')) $('vFromReel').onchange = e => {
+    const a = S.myAdReels.find(x => x.id === e.target.value); if (!a) return;
+    collect(); v.theme = JSON.parse(JSON.stringify(a.profile.theme)); // copie unique, jamais un lien (décision du 28/09)
+    renderVitrineEditor(panel); window.LayerPitchNotify.info(tr('appearanceCopied', { title: a.label || a.id }));
+  };
+  panel.querySelectorAll('[data-addblock]').forEach(b => b.onclick = () => {
+    collect();
+    const k = b.dataset.addblock;
+    v.blocks.push(Object.assign({ id: newBlockId(), type: k }, VITRINE_KINDS[k] ? { assetIds: [] } : {}, k === 'links' ? { links: [{ label: '', url: '' }] } : {}, k === 'text' ? { title: '', content: '', align: 'left' } : {}));
+    renderVitrineEditor(panel);
+  });
+  renderVitrineBlocks(panel);
+  $('vSave').onclick = async () => {
+    collect(); syncVitrineBlocks(panel);
+    $('vSave').disabled = true;
+    const payload = { id: v.id, audience: v.audience, display: v.display, title: v.title, subtitle: v.subtitle, logoAssetId: v.logoAssetId, slug: v.slug,
+      published: v.published, theme: v.theme, blocks: v.blocks.map(b => b.type === 'links' ? Object.assign({}, b, { links: (b.links || []).filter(l => l.url) }) : b) };
+    const r = await PJ.saveVitrine(projectId, payload);
+    $('vSave').disabled = false;
+    if (r.error) return say('vMsg2', tr('errorPrefix', { message: r.error }));
+    v.id = r.data.id; v.slug = r.data.slug;
+    S.vitrineDraft = null; broadcast('content');
+    await renderShowcase(panel);
+    say('vitMsg', tr(r.data.published ? 'vitrineSavedOnline' : 'vitrineSavedDraft'), true);
+  };
+}
+// Lit les champs des blocs (texte, liens) dans le brouillon.
+function syncVitrineBlocks(panel) {
+  const v = S.vitrineDraft;
+  panel.querySelectorAll('[data-vb]').forEach(row => {
+    const b = v.blocks.find(x => x.id === row.dataset.vb); if (!b) return;
+    if (b.type === 'text') { b.title = row.querySelector('[data-f="title"]').value; b.content = row.querySelector('[data-f="content"]').value; b.align = row.querySelector('[data-f="align"]').value; }
+    if (b.type === 'links') b.links = [...row.querySelectorAll('[data-link]')].map(l => ({ label: l.querySelector('[data-f="label"]').value.trim(), url: l.querySelector('[data-f="url"]').value.trim() }));
+    if (b.type === 'photo') b.caption = row.querySelector('[data-f="caption"]').value;
+  });
+}
+function renderVitrineBlocks(panel) {
+  const v = S.vitrineDraft;
+  const host = $('vBlocks');
+  const assets = S.content.assets || [];
+  const isPrivate = a => !!a.fileId; // fichier envoyé dans le Projet : pas public aujourd'hui (Q7 : autorisé, avec avertissement)
+  host.innerHTML = v.blocks.length ? v.blocks.map((b, i) => {
+    let body = '';
+    if (b.type === 'header') body = `<div class="meta">${esc(tr('vblockHeaderHint'))}</div>`;
+    if (b.type === 'text') body = `<input type="text" data-f="title" placeholder="${esc(tr('itemTitle'))}" value="${esc(b.title || '')}"><textarea data-f="content" style="margin-top:6px">${esc(b.content || '')}</textarea>
+      <select data-f="align" style="max-width:160px;margin-top:6px">${['left', 'center', 'right'].map(x => `<option value="${x}"${(b.align || 'left') === x ? ' selected' : ''}>${esc(tr('align_' + x))}</option>`).join('')}</select>`;
+    if (VITRINE_KINDS[b.type]) {
+      const pool = assets.filter(a => VITRINE_KINDS[b.type].includes(a.kind));
+      const chosen = b.assetIds || [];
+      body = pool.length ? pool.map(a => `<label class="choice"><input type="checkbox" data-pick="${esc(a.id)}" ${chosen.includes(a.id) ? 'checked' : ''}> ${esc(assetTitle(a))}
+          ${isPrivate(a) && v.audience === 'players' && chosen.includes(a.id) ? `<span class="meta" style="color:#b8862e">⚠ ${esc(tr('privateInPublicWarning'))}</span>` : isPrivate(a) ? `<span class="meta">· ${esc(tr('privateFile'))}</span>` : ''}</label>`).join('')
+        : `<div class="meta">${esc(tr('vblockNothing_' + b.type))}</div>`;
+      if (b.type === 'photo') body += `<input type="text" data-f="caption" placeholder="${esc(tr('photoCaption'))}" value="${esc(b.caption || '')}" style="margin-top:6px">`;
+    }
+    if (b.type === 'links') body = (b.links || []).map((l, j) => `<div class="bar" data-link="${j}" style="margin-bottom:6px"><input type="text" data-f="label" placeholder="${esc(tr('linkLabel'))}" value="${esc(l.label || '')}" style="flex:1 1 140px"><input type="url" data-f="url" placeholder="https://" value="${esc(l.url || '')}" style="flex:2 1 220px"><button class="icon-btn" type="button" data-dellink="${j}">✕</button></div>`).join('')
+      + `<button class="btn" type="button" data-addlink>+ ${esc(tr('addLink'))}</button>`;
+    return `<div class="card" data-vb="${esc(b.id)}" style="margin-bottom:8px;padding:10px 12px"><div class="bar" style="justify-content:space-between;margin-bottom:6px"><strong>${esc(tr('vblock_' + b.type))}</strong>
+      <span><button class="icon-btn" type="button" data-bup ${i === 0 ? 'disabled' : ''}>↑</button><button class="icon-btn" type="button" data-bdown ${i === v.blocks.length - 1 ? 'disabled' : ''}>↓</button><button class="icon-btn" type="button" data-bdel>✕</button></span></div>${body}</div>`;
+  }).join('') : `<div class="meta">${esc(tr('vblockNone'))}</div>`;
+  host.querySelectorAll('[data-vb]').forEach(row => {
+    const b = v.blocks.find(x => x.id === row.dataset.vb); const i = v.blocks.indexOf(b);
+    const redo = () => { syncVitrineBlocks(panel); renderVitrineBlocks(panel); };
+    row.querySelector('[data-bup]').onclick = () => { syncVitrineBlocks(panel); v.blocks.splice(i - 1, 0, v.blocks.splice(i, 1)[0]); renderVitrineBlocks(panel); };
+    row.querySelector('[data-bdown]').onclick = () => { syncVitrineBlocks(panel); v.blocks.splice(i + 1, 0, v.blocks.splice(i, 1)[0]); renderVitrineBlocks(panel); };
+    row.querySelector('[data-bdel]').onclick = () => { syncVitrineBlocks(panel); v.blocks.splice(i, 1); renderVitrineBlocks(panel); };
+    // Ordre des objets = ordre dans lequel on les coche.
+    row.querySelectorAll('[data-pick]').forEach(c => c.onchange = () => { const id = c.dataset.pick; b.assetIds = (b.assetIds || []).filter(x => x !== id); if (c.checked) b.assetIds.push(id); redo(); });
+    const add = row.querySelector('[data-addlink]'); if (add) add.onclick = () => { syncVitrineBlocks(panel); b.links.push({ label: '', url: '' }); renderVitrineBlocks(panel); };
+    row.querySelectorAll('[data-dellink]').forEach(x => x.onclick = () => { syncVitrineBlocks(panel); b.links.splice(Number(x.dataset.dellink), 1); renderVitrineBlocks(panel); });
+  });
 }
 
 // ---- Activité ----

@@ -152,3 +152,35 @@ function renderSfxBlockItem(container, block, sfxById) {
   container.appendChild(el);
 }
 
+// Blocs propres aux vitrines de Projet (étape 6, 28/09) ; un AdReel n'en a pas, son affichage ne change donc pas.
+// « Liens » (façon Linktree) : { links: [{ label, url }] }, seulement http(s).
+function renderLinksBlockItem(container, block) {
+  const links = (block.links || []).filter(l => l && /^https?:\/\//i.test(l.url || ''));
+  if (!links.length) return;
+  const el = section(tr('linksSection'), '');
+  const list = document.createElement('div');
+  list.className = 'links-list';
+  links.forEach(l => {
+    const a = document.createElement('a');
+    a.className = 'links-list-item';
+    a.href = l.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.textContent = l.label || l.url.replace(/^https?:\/\//, '');
+    list.appendChild(a);
+  });
+  el.appendChild(list);
+  container.appendChild(el);
+}
+// Fichiers audio (ébauches envoyées dans un Projet) : { files: [{ title, url }] }, lecteur du navigateur.
+function renderAudioBlockItem(container, block) {
+  const files = (block.files || []).filter(f => f && f.url);
+  if (!files.length) return;
+  const el = section(tr('audioSection'), '');
+  files.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'audio-file';
+    row.innerHTML = `<div class="audio-file-title">${escapeHtml(f.title || '')}</div><audio controls preload="none" src="${escapeHtml(f.url)}"></audio>`;
+    el.appendChild(row);
+  });
+  container.appendChild(el);
+}
+

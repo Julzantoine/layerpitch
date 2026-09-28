@@ -29,6 +29,14 @@
   // jamais un handle -- un handle est toujours "nu", comme un dossier (trouvé en testant : sans ce
   // garde-fou, /favicon.ico manquant se transformait silencieusement en redirection).
   if (segments.length === 1 && handle.includes('.')) return; // vraie 404
+  // /vitrine/<nom> (28/09, vitrines de Projet) : « vitrine » est un nom réservé (jamais un compositeur).
+  if (handle === 'vitrine' && segments.length === 2 && !segments[1].includes('.')) {
+    const p = new URLSearchParams(location.search);
+    p.set('s', decodeURIComponent(segments[1]));
+    p.set('__pretty', path + location.search);
+    location.replace('/vitrine.html?' + p.toString());
+    return;
+  }
   // /<nom>/<adreel> (27/09, adresses personnalisables) : un second segment SANS extension est le nom d'un AdReel,
   // résolu par index.html (s=). Avec une extension, ce doit être une des pages publiques connues.
   const second = segments.length === 2 ? segments[1] : null;

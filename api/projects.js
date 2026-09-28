@@ -91,9 +91,14 @@
     sharePack: (id, packId, mode) => rpc('share_pack_in_project', { p_project_id: id, p_pack_id: packId, p_mode: mode }),
     unsharePack: (id, packId) => rpc('unshare_pack_from_project', { p_project_id: id, p_pack_id: packId }),
     linkAlbum: (id, albumId, linked) => rpc('link_album_to_project', { p_project_id: id, p_album_id: albumId, p_linked: linked !== false }),
-    // Vitrine : entries = [{ assetId }] (objets publiables : morceau, image, vidéo YouTube / Vimeo)
-    saveShowcase: (id, showcase) => rpc('save_project_showcase', { p_project_id: id, p: showcase }),
-    showcase: id => rpc('get_project_showcase', { p_project_id: id }),
+    // Vitrines (étape 6, 28/09) : plusieurs par Projet, en blocs au format de l'AdReel (voir la migration 20260928200000).
+    vitrines: id => rpc('list_project_vitrines', { p_project_id: id }),
+    saveVitrine: (id, vitrine) => rpc('save_project_vitrine', { p_project_id: id, p: vitrine }),
+    deleteVitrine: vitrineId => rpc('delete_project_vitrine', { p_vitrine_id: vitrineId }),
+    renewVitrineToken: vitrineId => rpc('renew_vitrine_token', { p_vitrine_id: vitrineId }),
+    vitrineFromSnapshot: (snapshotId, audience) => rpc('vitrine_from_snapshot', { p_snapshot_id: snapshotId, p_audience: audience || 'publisher' }),
+    // Lecture publique : par adresse (publiée), par lien secret (éditeur) ou par identifiant (aperçu d'un membre).
+    getVitrine: ({ slug, token, id } = {}) => rpc('get_vitrine', { p_slug: slug || null, p_token: token || null, p_id: id || null }),
     // Fichiers : réservation + envoi (URL signée, type et taille verrouillés), lecture signée, effacement.
     async upload(id, file, onProgress) {
       const signed = await invoke('project-file-url', { action: 'upload', projectId: id, name: file.name, size: file.size });
@@ -107,8 +112,9 @@
       if (onProgress) onProgress(1);
       return done.error ? done : { data: { fileId: signed.data.fileId }, error: null };
     },
-    async fileUrl(fileId) {
-      const r = await invoke('project-file-url', { action: 'read', fileId });
+    // vitrineToken : lien secret d'une vitrine éditeur (lecture sans compte des fichiers qu'elle cite).
+    async fileUrl(fileId, vitrineToken) {
+      const r = await invoke('project-file-url', vitrineToken ? { action: 'read', fileId, vitrineToken } : { action: 'read', fileId });
       return r.error ? { data: null, error: r.error } : { data: r.data.url, error: null };
     },
     async deleteFile(fileId) {

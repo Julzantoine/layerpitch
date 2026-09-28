@@ -27,5 +27,8 @@ check('/nom/pack.html -> pack.html?u=nom', r && r.file === '/pack.html' && r.par
 check('/nom/inconnu.html -> vraie 404', route('/jean/secret.html') === null);
 check('/favicon.ico -> vraie 404', route('/favicon.ico') === null);
 check('trois segments -> vraie 404', route('/a/b/c') === null);
+r = route('/vitrine/ost-foret', '?lang=en');
+check('/vitrine/nom -> vitrine.html?s=nom (vitrine de Projet, 28/09)', r && r.file === '/vitrine.html' && r.params.s === 'ost-foret' && r.params.lang === 'en' && !r.params.u && r.params.__pretty === '/vitrine/ost-foret?lang=en');
+check('/vitrine/fichier.html -> pas une vitrine', !(route('/vitrine/x.html') || {}).file || route('/vitrine/x.html').file !== '/vitrine.html');
 console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
 process.exit(failures ? 1 : 0);

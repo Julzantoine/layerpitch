@@ -6,8 +6,9 @@
 // l'appelant :
 //   * action 'upload'  : { projectId, name, size } -> reserve_project_file (accès au Projet, type, taille, quota du
 //                        PROPRIÉTAIRE) puis URL d'envoi (PUT) avec type et taille verrouillés dans la signature ;
-//   * action 'read'    : { fileId } -> project_file_path_for (membre du Projet) OU image d'une vitrine publiée
-//                        (project_file_is_public, lecture sans compte) -> URL de lecture (GET), 1 h ;
+//   * action 'read'    : { fileId, vitrineToken? } -> project_file_path_for (membre du Projet) OU fichier d'une vitrine
+//                        publiée (project_file_is_public) OU d'une vitrine éditeur dont on présente le lien secret
+//                        (project_file_path_by_vitrine_token), lecture sans compte -> URL de lecture (GET), 1 h ;
 //   * action 'delete'  : { path } -> le chemin doit avoir été rendu par delete_project_file / delete_project_asset /
 //                        delete_project (ligne déjà supprimée en base) : on vérifie qu'aucune ligne ne le référence encore
 //                        et qu'il est bien sous projects/ -> URL d'effacement (DELETE).
@@ -62,6 +63,11 @@ Deno.serve(async (req) => {
       }
       if (!path) {
         const { data } = await adminClient.rpc('project_file_is_public', { p_file_id: body.fileId });
+        path = data || null;
+      }
+      // Vitrine éditeur (lien secret, sans compte) : un fichier qu'elle cite est lisible par qui présente le lien (28/09).
+      if (!path && typeof body.vitrineToken === 'string' && body.vitrineToken.length >= 16) {
+        const { data } = await adminClient.rpc('project_file_path_by_vitrine_token', { p_file_id: body.fileId, p_token: body.vitrineToken });
         path = data || null;
       }
       if (!path) return json({ error: 'Fichier introuvable ou accès non autorisé.' }, 404);

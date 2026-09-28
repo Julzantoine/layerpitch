@@ -68,8 +68,11 @@ function reelRenderBlocks(container, blocks, ctx) {
       case 'sfx': renderSfxBlockItem(container, block, ctx.sfxById); break;
       case 'socials': renderSocialsBlockItem(container, block, ctx.socials); break;
       case 'contact': renderContactBlockItem(container, profile); break;
+      case 'links': renderLinksBlockItem(container, block); break;
+      case 'audio': renderAudioBlockItem(container, block); break;
       case 'tracks': {
-        const orderedTracks = (ctx.trackIds || []).map(id => ctx.libraryById[id]).filter(Boolean)
+        // Un AdReel n'a qu'une liste de morceaux (ctx.trackIds) ; un bloc de vitrine porte la sienne (block.trackIds).
+        const orderedTracks = (block.trackIds || ctx.trackIds || []).map(id => ctx.libraryById[id]).filter(Boolean)
           .map(t => applyTrackOverride(t, (ctx.trackOverrides || {})[t.id]));
         // Éléments à deux états (forme d'onde/barre de progression) : consommés par le moteur JS de
         // player.js à la construction de chaque piste, pas par une simple règle CSS -- doivent donc être
