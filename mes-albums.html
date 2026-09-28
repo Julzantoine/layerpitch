@@ -20,7 +20,7 @@
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790606979878">
+<link rel="stylesheet" href="player.css?v=1790607168385">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --bg-side: #eef0f3; --border: #e2e2e6;
@@ -88,6 +88,9 @@
   .album-title { font-family: var(--font-title); font-size: clamp(26px, 4vw, 44px); line-height: 1.05; margin: 6px 0 10px; color: var(--text-title); overflow-wrap: anywhere; }
   .album-pres { color: var(--text-dim); line-height: 1.6; white-space: pre-wrap; margin: 0; max-width: 60ch; }
   .album-actions { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; }
+  .album-actions { flex-wrap: wrap; }
+  .album-hint { font-size: 12.5px; color: var(--text-dim); max-width: 52ch; line-height: 1.5; }
+  .play-album:disabled { opacity: .45; cursor: default; }
   .btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 13px; }
   .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
   .btn:disabled { opacity: .5; cursor: default; }
@@ -205,20 +208,23 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790606979878"></script>
-<script src="layerpitch-notify.js?v=1790606979878"></script>
-<script src="player.js?v=1790606979878"></script>
-<script src="capture-render.js?v=1790606979878"></script>
-<script src="api/supabase-client.js?v=1790606979878"></script>
-<script src="api/auth.js?v=1790606979878"></script>
-<script src="layerpitch-shell.js?v=1790606979878"></script>
-<script src="api/tracks.js?v=1790606979878"></script>
-<script src="api/sfx.js?v=1790606979878"></script>
-<script src="api/playlists.js?v=1790606979878"></script>
-<script src="api/albums.js?v=1790606979878"></script>
+<script src="layerpitch-i18n.js?v=1790607168385"></script>
+<script src="layerpitch-notify.js?v=1790607168385"></script>
+<script src="player.js?v=1790607168385"></script>
+<script src="capture-render.js?v=1790607168385"></script>
+<script src="api/supabase-client.js?v=1790607168385"></script>
+<script src="api/auth.js?v=1790607168385"></script>
+<script src="layerpitch-shell.js?v=1790607168385"></script>
+<script src="api/tracks.js?v=1790607168385"></script>
+<script src="api/sfx.js?v=1790607168385"></script>
+<script src="api/playlists.js?v=1790607168385"></script>
+<script src="api/albums.js?v=1790607168385"></script>
 <script>
 (async () => {
   const P = window.LayerPlayerCore, R = window.LayerCaptureRender;
+  // Carte des chemins : même disposition « aérée » que les pages publiques (AdReel, pack) -- retour du 28/09, la
+  // disposition compacte par défaut (celle du Backstage) donnait des boucles de flèches sous les nœuds.
+  if (P && P.setSeqMapDensity) P.setSeqMapDensity('roomy');
   const $ = id => document.getElementById(id);
   const esc = P.escapeHtml;
   const params = new URLSearchParams(location.search);
@@ -428,6 +434,7 @@
       </header>
       <div class="album-actions">
         <button type="button" class="btn primary play-album" id="playAlbumBtn">${ICON_PLAY_SM.replace('width="14" height="14"', 'width="16" height="16"')}${esc(tr('playAlbum'))}</button>
+        <span class="album-hint" id="playAlbumHint" hidden>${esc(tr('noPlayableVersion'))}</span>
       </div>
       <div class="tabs" role="tablist">
         <button type="button" class="tab" role="tab" id="tabTracks" aria-selected="${tab === 'tracks'}" aria-controls="panelTracks">${esc(tr('tabTracks'))}</button>
@@ -451,6 +458,11 @@
   function renderTracks() {
     const box = $('panelTracks');
     if (!box || !album) return;
+    // « Écouter l'album » n'enchaîne que les versions enregistrées : sans aucune, le bouton est grisé et on explique
+    // quoi faire (retour du 28/09 : il lançait une file vide et affichait aussitôt « Fin de l'album »).
+    const playable = album.tracks.some(t => entryFor(album, t, albumEntryKey(album, t)));
+    if ($('playAlbumBtn')) $('playAlbumBtn').disabled = !playable;
+    if ($('playAlbumHint')) $('playAlbumHint').hidden = playable;
     const now = queue[qi];
     box.innerHTML = `<table class="tracks">
       <thead><tr><th class="t-num">#</th><th></th><th>${esc(tr('colTitle'))}</th><th class="t-version">${esc(tr('colVersion'))}</th><th class="t-dur"></th><th class="t-add"></th><th class="t-atelier"></th></tr></thead>
