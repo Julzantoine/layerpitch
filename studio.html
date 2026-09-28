@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Espace studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790583302661">
+<link rel="stylesheet" href="player.css?v=1790583714524">
 <style>
   :root {
     --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
@@ -71,15 +71,15 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790583302661"></script>
-<script src="layerpitch-notify.js?v=1790583302661"></script>
-<script src="player.js?v=1790583302661"></script>
-<script src="api/supabase-client.js?v=1790583302661"></script>
-<script src="api/auth.js?v=1790583302661"></script>
-<script src="api/purchases.js?v=1790583302661"></script>
-<script src="api/tracks.js?v=1790583302661"></script>
-<script src="api/sfx.js?v=1790583302661"></script>
-<script src="api/studio.js?v=1790583302661"></script>
+<script src="layerpitch-i18n.js?v=1790583714524"></script>
+<script src="layerpitch-notify.js?v=1790583714524"></script>
+<script src="player.js?v=1790583714524"></script>
+<script src="api/supabase-client.js?v=1790583714524"></script>
+<script src="api/auth.js?v=1790583714524"></script>
+<script src="api/purchases.js?v=1790583714524"></script>
+<script src="api/tracks.js?v=1790583714524"></script>
+<script src="api/sfx.js?v=1790583714524"></script>
+<script src="api/studio.js?v=1790583714524"></script>
 <script>
 // studio.html — Espace studio (chantier profils et permissions, étape 3, 28/09 ; D2, D9, D13, D33 du cadrage
 // layerpitch-docs/2026-09-27-cadrage-profils-permissions.md). Espace DÉDIÉ au studio, distinct du Backstage compositeur ;
@@ -184,7 +184,7 @@ async function render() {
   content.innerHTML = `
     <div class="top" style="margin-bottom:12px"><span class="plan-badge">${esc(tr('planBadge', { plan: PLAN_NAMES[plan] || plan }))}${planEnt && planEnt.source !== 'plan' ? ' · ' + esc(tr('source_' + planEnt.source)) : ''}</span></div>
     <div class="tabs" role="tablist">
-      ${['library', 'custom', 'plan'].map(t => `<button type="button" class="tab" role="tab" data-tab="${t}" aria-selected="${state.tab === t}">${esc(tr('tab_' + t))}</button>`).join('')}
+      ${['library', 'custom', 'team', 'plan'].map(t => `<button type="button" class="tab" role="tab" data-tab="${t}" aria-selected="${state.tab === t}">${esc(tr('tab_' + t))}</button>`).join('')}
     </div>
     <div id="panel"></div>`;
   content.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
@@ -197,8 +197,9 @@ async function render() {
 }
 
 async function loadData() {
-  const [p, o, c] = await Promise.all([LayerPitchPurchases.myPurchases(), LayerPitchStudio.myOwnedAssets(), LayerPitchStudio.myCustomPacks()]);
+  const [p, o, c, t] = await Promise.all([LayerPitchStudio.myTeamPurchases(), LayerPitchStudio.myOwnedAssets(), LayerPitchStudio.myCustomPacks(), LayerPitchStudio.myTeam()]);
   state.purchases = p.purchases || [];
+  state.team = t.team || null;
   state.owned = o.assets || [];
   state.customPacks = c.customPacks || [];
 }
@@ -207,6 +208,7 @@ function renderPanel() {
   const panel = $('panel');
   if (state.tab === 'library') return renderLibrary(panel);
   if (state.tab === 'custom') return state.editing ? renderEditor(panel) : renderCustomList(panel);
+  if (state.tab === 'team') return renderTeam(panel);
   return renderPlan(panel);
 }
 
@@ -222,7 +224,7 @@ function renderLibrary(panel) {
       ${p.pack && p.pack.illustration ? `<img class="thumb" src="${IMAGES_BASE}${esc(p.pack.illustration)}" alt="">` : `<div class="thumb"></div>`}
       <div class="row-main">
         <div class="row-title">${esc(p.pack ? p.pack.title : p.packId)}</div>
-        <div class="row-sub">${esc(new Date(p.purchasedAt).toLocaleDateString(pageLang))} — ${esc(eur(Math.round(Number(p.pricePaid || 0) * 100)))}</div>
+        <div class="row-sub">${esc(new Date(p.purchasedAt).toLocaleDateString(pageLang))} — ${esc(eur(Math.round(Number(p.pricePaid || 0) * 100)))}${p.mine === false && p.boughtBy ? ' — ' + esc(tr('boughtBy', { email: p.boughtBy })) : ''}</div>
       </div>
       <div class="row-actions"><a class="btn" href="./pack.html?id=${encodeURIComponent(p.packId)}&lang=${pageLang}">${esc(tr('openPack'))}</a></div>
     </div>`).join('')}</div>
@@ -364,6 +366,61 @@ async function mountPlayers(c) {
   c.items.filter(i => i.kind === 'sfx').forEach(i => {
     const sfx = (s.sfx || []).find(x => x.id === i.refId); if (!sfx) return;
     host.appendChild(P.buildSfxPlayer(i.label ? Object.assign({}, sfx, { title: i.label }) : sfx));
+  });
+}
+
+// ---- Équipe (étape 5a, 28/09 ; D14, D37) : propriétaire + membres égaux ; seul le propriétaire invite, retire et transfère. ----
+function renderTeam(panel) {
+  const t = state.team;
+  if (!t) { panel.innerHTML = `<div class="card"><div class="empty">${esc(tr('teamUnavailable'))}</div></div>`; return; }
+  const used = 1 + t.members.length;
+  const full = t.quota != null && used >= t.quota;
+  panel.innerHTML = `<div class="card">
+    <div class="top" style="margin-bottom:6px"><h2 style="margin:0">${esc(tr('teamTitle'))}</h2>
+      <span class="plan-badge">${esc(tr('customUsed', { used, max: t.quota == null ? '∞' : t.quota }))}</span></div>
+    <p class="hint">${esc(tr('teamIntro'))}</p>
+    <div class="row"><div class="row-main"><div class="row-title">${esc(t.owner.email || '')}${t.owner.me ? ' ' + esc(tr('teamYou')) : ''}</div><div class="row-sub">${esc(tr('teamOwner'))}</div></div></div>
+    ${t.members.map(m => `<div class="row" data-member="${esc(m.id)}">
+      <div class="row-main"><div class="row-title">${esc(m.email)}${m.me ? ' ' + esc(tr('teamYou')) : ''}</div>
+        <div class="row-sub">${esc(tr(m.status === 'active' ? 'teamActive' : 'teamInvited'))}</div></div>
+      <div class="row-actions">
+        ${t.isOwner && m.status === 'invited' ? `<button class="btn" data-act="resend" type="button">${esc(tr('teamResend'))}</button>` : ''}
+        ${t.isOwner && m.status === 'active' ? `<button class="btn" data-act="transfer" type="button">${esc(tr('teamTransfer'))}</button>` : ''}
+        ${t.isOwner || m.me ? `<button class="btn danger" data-act="remove" type="button">${esc(tr(m.me ? 'teamLeave' : 'teamRemove'))}</button>` : ''}
+      </div></div>`).join('')}
+    ${t.isOwner ? `
+      <label>${esc(tr('teamInviteLabel'))}</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><input type="email" id="teamEmail" placeholder="${esc(tr('emailPlaceholder'))}" style="flex:1 1 220px" ${full || !t.allowed ? 'disabled' : ''}>
+        <button class="btn primary" id="teamInviteBtn" type="button" ${full || !t.allowed ? 'disabled' : ''}>${esc(tr('teamInviteBtn'))}</button></div>
+      ${full ? `<p class="hint" style="margin-top:8px">${esc(tr('teamLimitHint'))}</p>` : ''}` : `<p class="hint" style="margin-top:10px">${esc(tr('teamMemberHint'))}</p>`}
+    <div class="msg" id="teamMsg"></div>
+  </div>`;
+  const msg = (text, ok) => { $('teamMsg').textContent = text; $('teamMsg').className = 'msg ' + (ok ? 'ok' : 'err'); };
+  const redirect = location.origin + '/invitation.html';
+  const reload = async () => { const r = await LayerPitchStudio.myTeam(); state.team = r.team; renderPanel(); };
+  const inviteBtn = $('teamInviteBtn');
+  if (inviteBtn) inviteBtn.onclick = async () => {
+    const email = $('teamEmail').value.trim(); if (!email) return;
+    inviteBtn.disabled = true;
+    const r = await LayerPitchStudio.inviteTeamMember(email, redirect);
+    await reload();
+    if (!r.ok) msg(tr('errorPrefix', { message: r.error }), false);
+    else if (r.emailError) msg(tr('teamInviteNoEmail', { error: r.emailError, link: r.actionLink || '' }), false);
+    else msg(tr('teamInviteSent'), true);
+  };
+  panel.querySelectorAll('[data-member]').forEach(row => {
+    const id = row.dataset.member, m = t.members.find(x => x.id === id);
+    const b = act => row.querySelector(`[data-act="${act}"]`);
+    if (b('resend')) b('resend').onclick = async () => { const r = await LayerPitchStudio.resendTeamInvitation(id, redirect); msg(r.ok ? tr('teamInviteSent') : tr('teamInviteNoEmail', { error: r.error, link: r.actionLink || '' }), r.ok); };
+    if (b('transfer')) b('transfer').onclick = async () => {
+      if (!(await window.LayerPitchNotify.confirm(tr('teamTransferConfirm', { email: m.email }), { okLabel: tr('teamTransfer') }))) return;
+      const r = await LayerPitchStudio.transferOwnership(id); if (!r.ok) return msg(tr('errorPrefix', { message: r.error }), false); render();
+    };
+    if (b('remove')) b('remove').onclick = async () => {
+      if (!(await window.LayerPitchNotify.confirm(tr(m.me ? 'teamLeaveConfirm' : 'teamRemoveConfirm', { email: m.email }), { okLabel: tr(m.me ? 'teamLeave' : 'teamRemove'), danger: true }))) return;
+      const r = await LayerPitchStudio.removeTeamMember(id); if (!r.ok) return msg(tr('errorPrefix', { message: r.error }), false);
+      if (m.me) { render(); return; } await reload();
+    };
   });
 }
 

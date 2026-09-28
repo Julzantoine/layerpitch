@@ -33,8 +33,16 @@ async function setupCaptureTrigger(pack, container) {
     // (mode « Tester une vidéo » public) mais ne se capture pas.
     window.__lpStudioBuyer = false;
     if (!eligible) {
-      const { data: bought } = await client.from('pack_purchases').select('id').eq('pack_id', pack.id).limit(1);
-      if (bought && bought.length) { eligible = true; window.__lpStudioBuyer = true; }
+      // Achat par n'importe quel compte de l'équipe du studio (équipes, 28/09) ; repli sur ses propres achats tant que
+      // la fonction team_owns_pack n'existe pas en base.
+      let owns = false;
+      const teamRes = await client.rpc('team_owns_pack', { p_pack_id: pack.id });
+      if (!teamRes.error) owns = !!teamRes.data;
+      else {
+        const { data: bought } = await client.from('pack_purchases').select('id').eq('pack_id', pack.id).limit(1);
+        owns = !!(bought && bought.length);
+      }
+      if (owns) { eligible = true; window.__lpStudioBuyer = true; }
     }
     if (!eligible) return;
     // Droits de l'outil vidéo lus dans la matrice (28/09, chantier profils et permissions) : Test in game

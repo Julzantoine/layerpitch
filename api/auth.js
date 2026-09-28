@@ -153,12 +153,19 @@
 
   // Id de la ligne studio_profiles du compte connecté — même principe que getMyComposerId().
   async function getMyStudioId() {
+    // Studio du compte : le sien OU celui de l'équipe dont il est membre (équipes studio, 28/09) -- RPC my_studio().
     const { data: userData } = await getClient().auth.getUser();
     if (!userData || !userData.user) return { studioId: null, error: null };
-    const { data, error } = await getClient().from('studio_profiles').select('id').maybeSingle();
-    if (error) return { studioId: null, error: error.message };
-    return { studioId: data ? data.id : null, error: null };
+    const { data, error } = await getClient().rpc('my_studio');
+    if (error) {
+      // Repli tant que la migration 20260928060000 n'est pas appliquée : lecture directe (propriétaire seulement).
+      const direct = await getClient().from('studio_profiles').select('id').maybeSingle();
+      if (direct.error) return { studioId: null, error: direct.error.message };
+      return { studioId: direct.data ? direct.data.id : null, isOwner: true, error: null };
+    }
+    return { studioId: data ? data.id : null, isOwner: !!(data && data.isOwner), error: null };
   }
+
 
   // Crée le studio_profile du compte connecté s'il n'existe pas encore — même principe
   // qu'ensureMyComposerProfile(), RPC ensure_studio_profile() (docs/infrastructure.md, chantier

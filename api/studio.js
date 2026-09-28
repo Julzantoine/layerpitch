@@ -47,5 +47,54 @@
     return error ? { ok: false, error } : { ok: true };
   }
 
-  window.LayerPitchStudio = { myEntitlements, myFeatureFlags, catalog, myOwnedAssets, myCustomPacks, saveCustomPack, deleteCustomPack };
+  // ---- Équipe du studio (étape 5a, 28/09, migration 20260928060000) ----
+  async function myTeamPurchases() {
+    const { data, error } = await rpc('my_team_purchases');
+    return { purchases: data || [], error };
+  }
+  async function myTeam() {
+    const { data, error } = await rpc('my_team');
+    return { team: data, error };
+  }
+  // Invite (quota vérifié par le serveur) puis envoie l'e-mail (Edge Function invite-team-member). En cas d'échec
+  // d'envoi, actionLink permet de transmettre le lien soi-même ; l'invitation reste valable.
+  async function inviteTeamMember(email, redirectTo) {
+    const { data: memberId, error } = await rpc('invite_team_member', { p_email: email });
+    if (error) return { ok: false, error };
+    const res = await getClient().functions.invoke('invite-team-member', { body: { memberId, redirectTo } });
+    if (res.error) {
+      let body = null;
+      try { body = res.error.context && typeof res.error.context.json === 'function' ? await res.error.context.json() : null; } catch (e) {}
+      return { ok: true, emailError: (body && body.error) || 'e-mail non envoyé', actionLink: body && body.actionLink };
+    }
+    return { ok: true };
+  }
+  async function resendTeamInvitation(memberId, redirectTo) {
+    const res = await getClient().functions.invoke('invite-team-member', { body: { memberId, redirectTo } });
+    if (res.error) {
+      let body = null;
+      try { body = res.error.context && typeof res.error.context.json === 'function' ? await res.error.context.json() : null; } catch (e) {}
+      return { ok: false, error: (body && body.error) || 'e-mail non envoyé', actionLink: body && body.actionLink };
+    }
+    return { ok: true };
+  }
+  async function removeTeamMember(memberId) {
+    const { error } = await rpc('remove_team_member', { p_member_id: memberId });
+    return error ? { ok: false, error } : { ok: true };
+  }
+  async function transferOwnership(memberId) {
+    const { error } = await rpc('transfer_studio_ownership', { p_member_id: memberId });
+    return error ? { ok: false, error } : { ok: true };
+  }
+  async function myTeamInvitations() {
+    const { data, error } = await rpc('my_team_invitations');
+    return { invitations: data || [], error };
+  }
+  async function respondTeamInvitation(memberId, accept) {
+    const { error } = await rpc('respond_team_invitation', { p_member_id: memberId, p_accept: !!accept });
+    return error ? { ok: false, error } : { ok: true };
+  }
+
+  window.LayerPitchStudio = { myEntitlements, myFeatureFlags, catalog, myOwnedAssets, myCustomPacks, saveCustomPack, deleteCustomPack,
+    myTeamPurchases, myTeam, inviteTeamMember, resendTeamInvitation, removeTeamMember, transferOwnership, myTeamInvitations, respondTeamInvitation };
 })();
