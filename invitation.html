@@ -42,12 +42,13 @@
   <div id="content"></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790583714524"></script>
-<script src="layerpitch-notify.js?v=1790583714524"></script>
-<script src="api/supabase-client.js?v=1790583714524"></script>
-<script src="api/auth.js?v=1790583714524"></script>
-<script src="api/albums.js?v=1790583714524"></script>
-<script src="api/studio.js?v=1790583714524"></script>
+<script src="layerpitch-i18n.js?v=1790584849299"></script>
+<script src="layerpitch-notify.js?v=1790584849299"></script>
+<script src="api/supabase-client.js?v=1790584849299"></script>
+<script src="api/auth.js?v=1790584849299"></script>
+<script src="api/albums.js?v=1790584849299"></script>
+<script src="api/studio.js?v=1790584849299"></script>
+<script src="api/projects.js?v=1790584849299"></script>
 <script>
 // invitation.html — le co-ayant droit d'un album accepte ou refuse sa part (chantier profils et permissions, étape 4a,
 // 28/09 ; D4-D6). Arrivée par le lien de l'e-mail (invite-rights-holder) : compte créé si besoin, connexion automatique.
@@ -97,9 +98,12 @@ async function render() {
   const [{ invitations, error }, { composerId }, { studioId }, teamRes] = await Promise.all([
     LayerPitchAlbums.myRightsInvitations(), LayerPitchAuth.getMyComposerId(), LayerPitchAuth.getMyStudioId(),
     window.LayerPitchStudio ? LayerPitchStudio.myTeamInvitations() : Promise.resolve({ invitations: [] })]);
+  // Invitations dans un Projet (étape 5, 28/09) : gratuites, accès complet au Projet.
+  const projRes = window.LayerPitchProjects ? await LayerPitchProjects.myInvitations() : { data: [] };
+  const projectInvites = (projRes && projRes.data) || [];
   if (error) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('errorPrefix', { message: error }))}</p></div>`; return; }
   const teamInvites = (teamRes && teamRes.invitations) || [];
-  if (!invitations.length && !teamInvites.length) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('none'))}</p></div>`; return; }
+  if (!invitations.length && !teamInvites.length && !projectInvites.length) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('none'))}</p></div>`; return; }
   // Invitations dans une équipe studio (étape 5a, 28/09) : rejoindre = partager bibliothèque, crédits et Projets.
   const teamHtml = teamInvites.map(t => `<div class="card" data-team="${esc(t.id)}">
       <h2>${esc(tr('teamInviteTitle', { name: t.studioName || t.ownerEmail || '' }))}</h2>
@@ -108,7 +112,13 @@ async function render() {
         <button class="btn" type="button" data-act="decline">${esc(tr('teamDecline'))}</button></div>
       <div class="msg" data-role="msg"></div></div>`).join('');
   const defaultRole = composerId || !studioId ? 'composer' : 'studio';
-  content.innerHTML = teamHtml + invitations.map(inv => {
+  const projectHtml = projectInvites.map(pi => `<div class="card" data-project-invite="${esc(pi.id)}">
+      <h2>${esc(tr('projectInviteTitle', { title: pi.projectTitle || '' }))}</h2>
+      <p class="hint">${esc(tr('projectInviteExplain', { email: pi.inviterEmail || '' }))}</p>
+      <div class="actions"><button class="btn primary" type="button" data-act="join">${esc(tr('projectJoin'))}</button>
+        <button class="btn" type="button" data-act="decline">${esc(tr('teamDecline'))}</button></div>
+      <div class="msg" data-role="msg"></div></div>`).join('');
+  content.innerHTML = projectHtml + teamHtml + invitations.map(inv => {
     const open = inv.status === 'pending' || inv.status === 'self_pay';
     return `<div class="card" data-id="${esc(inv.id)}">
       <h2>${esc(inv.albumTitle)}</h2>
@@ -128,6 +138,18 @@ async function render() {
       <p class="disclaimer">${esc(tr('disclaimer'))}</p>
     </div>`;
   }).join('');
+  content.querySelectorAll('.card[data-project-invite]').forEach(card => {
+    const msg = card.querySelector('[data-role="msg"]');
+    const answer = async accept => {
+      card.querySelectorAll('button').forEach(b => { b.disabled = true; });
+      const r = await LayerPitchProjects.respondInvitation(card.dataset.projectInvite, accept);
+      if (r.error) { msg.textContent = tr('errorPrefix', { message: r.error }); msg.className = 'msg err'; card.querySelectorAll('button').forEach(b => { b.disabled = false; }); return; }
+      if (accept && r.data) { location.href = './projet.html?id=' + encodeURIComponent(r.data) + '&lang=' + pageLang; return; }
+      render();
+    };
+    card.querySelector('[data-act="join"]').onclick = () => answer(true);
+    card.querySelector('[data-act="decline"]').onclick = () => answer(false);
+  });
   content.querySelectorAll('.card[data-team]').forEach(card => {
     const msg = card.querySelector('[data-role="msg"]');
     const answer = async accept => {

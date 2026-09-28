@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pageTitle">LayerPitch — Projet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="player.css?v=1790583302661">
+<style>
+  :root {
+    --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
+    --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --accent: #c9713c; --accent-soft: #f3e4d6; --on-accent: #ffffff;
+    --seq-map-success: #2f8f5b; --seq-map-choice: #b8862e;
+    --font-body: 'Inter', system-ui, sans-serif; --font-title: 'Space Grotesk', 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 24px 16px 60px; }
+  .page { max-width: 980px; margin: 0 auto; }
+  a { color: var(--accent); }
+  .top { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .top-links { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; }
+  h1 { font-family: var(--font-title); font-size: 26px; margin: 0; overflow-wrap: anywhere; }
+  h2 { font-family: var(--font-title); font-size: 16px; margin: 0 0 8px; }
+  .desc { color: var(--text-dim); line-height: 1.6; white-space: pre-wrap; margin: 4px 0 12px; }
+  .presence { display: flex; gap: 4px; align-items: center; font-size: 12px; color: var(--text-dim); }
+  .dot { width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; border: 2px solid #2f8f5b; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 16px; }
+  .tab { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text); }
+  .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; }
+  .hint { font-size: 12.5px; line-height: 1.6; color: var(--text-dim); margin: 0 0 8px; }
+  .btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 6px 13px; cursor: pointer; font-size: 12.5px; color: var(--text); text-decoration: none; display: inline-block; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .btn.danger:hover:not(:disabled) { border-color: #b5442e; color: #b5442e; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .icon-btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 6px; min-width: 28px; height: 28px; cursor: pointer; color: var(--text-dim); font-size: 12px; }
+  .icon-btn.on { color: var(--accent); border-color: var(--accent); }
+  label { display: block; font-size: 12px; color: var(--text-dim); margin: 10px 0 4px; }
+  input[type="text"], input[type="email"], input[type="search"], input[type="url"], textarea, select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); }
+  textarea { min-height: 64px; resize: vertical; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .msg { font-family: var(--font-mono); font-size: 11.5px; margin-top: 8px; min-height: 1em; overflow-wrap: anywhere; }
+  .msg.err { color: #b5442e; } .msg.ok { color: #2a7; }
+  .empty { color: var(--text-dimmer); text-align: center; padding: 18px 0; }
+  .meta { font-size: 11.5px; color: var(--text-dimmer); }
+  /* Fil */
+  .thread { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; padding: 4px; }
+  .bubble { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; max-width: 85%; }
+  .bubble.mine { align-self: flex-end; background: var(--accent-soft); border-color: transparent; }
+  .bubble-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+  /* Tableau */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .item.pitch { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .item-kind { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dimmer); }
+  .item-title { font-family: var(--font-title); font-size: 15px; overflow-wrap: anywhere; }
+  .item-body { font-size: 13px; color: var(--text-dim); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .item img { width: 100%; border-radius: 6px; object-fit: cover; max-height: 200px; }
+  .item audio { width: 100%; }
+  .item-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; }
+  .notes { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+  .note { font-size: 12.5px; }
+  .note.resolved { opacity: .55; }
+  .note-head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .time-chip { font-family: var(--font-mono); font-size: 11px; color: var(--accent); background: var(--accent-soft); border: none; border-radius: 999px; padding: 1px 7px; cursor: pointer; }
+  /* Vidéos */
+  .video-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #111; border-radius: 8px; overflow: hidden; }
+  .video-wrap video, .video-wrap iframe, .video-wrap > div { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .timeline { position: relative; height: 18px; background: var(--bg); border: 1px solid var(--border); border-radius: 999px; margin: 10px 0; cursor: pointer; }
+  .timeline-now { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text-dim); }
+  .marker { position: absolute; top: 2px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg-card); }
+  .marker.resolved { background: var(--text-dimmer); }
+  .list-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .list-row:first-child { border-top: none; }
+  .list-main { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+  .pill { font-family: var(--font-mono); font-size: 10.5px; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .choice { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 5px 0; }
+  .choice input { width: auto; margin: 0; }
+  @media (max-width: 560px) { .bubble { max-width: 100%; } .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top"><a href="./projets.html" id="backLink" data-i18n="backLink">← Mes Projets</a><div class="presence" id="presence"></div></div>
+  <div id="content"></div>
+</div>
+<script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="layerpitch-i18n.js?v=1790583302661"></script>
+<script src="layerpitch-notify.js?v=1790583302661"></script>
+<script src="player.js?v=1790583302661"></script>
+<script src="api/supabase-client.js?v=1790583302661"></script>
+<script src="api/auth.js?v=1790583302661"></script>
+<script src="api/tracks.js?v=1790583302661"></script>
+<script src="api/packs.js?v=1790583302661"></script>
+<script src="api/albums.js?v=1790583302661"></script>
+<script src="api/studio.js?v=1790583302661"></script>
+<script src="api/projects.js?v=1790583302661"></script>
+<script>
+// projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
+// Onglets : Discussion (tchat + recherche), Tableau (préproduction : liens, images, audio, documents, notes, morceaux,
+// packs ; sélection pour la pré-vitrine ; versions), Vidéos (fichier privé ou YouTube/Vimeo, annotations horodatées façon
+// SoundCloud), Musique (packs partagés / offerts, albums), Vitrine (page publique pour les joueurs), Activité, Membres.
+// Présence et mises à jour en direct : canal Supabase Realtime (présence + messages « a changé », sans lire les tables,
+// qui restent fermées : tout passe par les RPC). Tous les droits sont vérifiés côté serveur.
+const params = new URLSearchParams(location.search);
+const projectId = params.get('id');
+const pageLang = (params.get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
+function tr(key, vars) {
+  const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, projects: {} }, en: { shared: {}, projects: {} } };
+  const dict = I18N[pageLang] || I18N.fr, dictFr = I18N.fr;
+  let str = (dict.projects && dict.projects[key]) || (dict.shared && dict.shared[key]) || (dictFr.projects && dictFr.projects[key]) || (dictFr.shared && dictFr.shared[key]) || key;
+  if (vars) Object.keys(vars).forEach(k => { str = str.split('{' + k + '}').join(vars[k]); });
+  return str;
+}
+document.documentElement.lang = pageLang;
+document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+if (window.LayerPlayerCore && window.LayerPlayerCore.setLang) window.LayerPlayerCore.setLang(pageLang);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = id => document.getElementById(id);
+const PJ = window.LayerPitchProjects;
+const clock = s => { s = Math.max(0, Math.floor(Number(s) || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const content = $('content');
+const S = { tab: 'thread', project: null, content: null, messages: [], query: '', activity: [], snapshots: [], openNotes: {}, notes: {},
+  video: null, videoNotes: [], fileUrls: {}, myComposerId: null, myPacks: [], myAlbums: [], channel: null, me: null };
+
+function say(id, text, ok) { const m = $(id); if (m) { m.textContent = text; m.className = 'msg ' + (ok ? 'ok' : 'err'); } }
+function memberOptions(selected) {
+  return `<option value="">${esc(tr('noAddressee'))}</option>` + (S.project.members || []).filter(m => m.profileId && m.status === 'active' && !m.me)
+    .map(m => `<option value="${esc(m.profileId)}"${selected === m.profileId ? ' selected' : ''}>${esc(m.email || '')}</option>`).join('');
+}
+async function fileUrl(fileId) {
+  if (!fileId) return null;
+  const cached = S.fileUrls[fileId];
+  if (cached && cached.until > Date.now()) return cached.url;
+  const r = await PJ.fileUrl(fileId);
+  if (r.error) return null;
+  S.fileUrls[fileId] = { url: r.data, until: Date.now() + 50 * 60 * 1000 };
+  return r.data;
+}
+
+// ---- Chargement et direct ----
+async function load() {
+  const { session } = await LayerPitchAuth.getSession();
+  if (!session) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('signInPrompt'))} <a href="./studio.html?lang=${pageLang}">${esc(tr('signInLink'))}</a></p></div>`; return; }
+  S.me = session.user;
+  const p = await PJ.get(projectId);
+  if (p.error) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('errorPrefix', { message: p.error }))}</p></div>`; return; }
+  S.project = p.data;
+  document.title = tr('pageTitleProject', { title: S.project.title });
+  const [c, composer] = await Promise.all([PJ.content(projectId), LayerPitchAuth.getMyComposerId()]);
+  S.content = c.data || { items: [], videos: [], packs: [], albums: [] };
+  S.myComposerId = composer.composerId || null;
+  PJ.markRead(projectId);
+  joinChannel();
+  render();
+}
+async function reloadContent() { const c = await PJ.content(projectId); if (!c.error) S.content = c.data; }
+function joinChannel() {
+  if (S.channel) return;
+  try {
+    const client = window.LayerPitchSupabaseClient.getClient();
+    S.channel = client.channel('project:' + projectId, { config: { presence: { key: S.me.id } } });
+    S.channel.on('presence', { event: 'sync' }, renderPresence);
+    S.channel.on('broadcast', { event: 'changed' }, async ({ payload }) => {
+      if (payload.what === 'messages' && S.tab === 'thread') { await loadMessages(); renderPanel(); }
+      else if (payload.what === 'content') { await reloadContent(); if (['board', 'videos', 'music', 'showcase'].includes(S.tab)) renderPanel(); }
+      else if (payload.what === 'notes' && S.video) { await loadVideoNotes(); renderPanel(); }
+    });
+    S.channel.subscribe(status => { if (status === 'SUBSCRIBED') S.channel.track({ email: S.me.email }); });
+  } catch (e) { console.warn('temps réel indisponible', e); }
+}
+function broadcast(what) { try { if (S.channel) S.channel.send({ type: 'broadcast', event: 'changed', payload: { what } }); } catch (e) {} }
+function renderPresence() {
+  if (!S.channel) return;
+  const state = S.channel.presenceState();
+  const people = Object.values(state).map(v => v[0]).filter(Boolean);
+  $('presence').innerHTML = people.length ? `<span>${esc(tr('online'))}</span>` + people.map(p => `<span class="dot" title="${esc(p.email || '')}">${esc((p.email || '?').slice(0, 2))}</span>`).join('') : '';
+}
+
+// ---- Rendu ----
+const TABS = ['thread', 'board', 'videos', 'music', 'showcase', 'activity', 'members'];
+function render() {
+  const p = S.project;
+  content.innerHTML = `
+    <div class="top"><h1 id="pTitle">${esc(p.title)}</h1>
+      <div class="bar">${p.archived ? `<span class="pill">${esc(tr('archived'))}</span>` : ''}
+        <button class="btn" id="editBtn" type="button">${esc(tr('editProject'))}</button>
+        ${p.role === 'admin' ? `<button class="btn" id="archiveBtn" type="button">${esc(tr(p.archived ? 'restoreProject' : 'archiveProject'))}</button>
+        <button class="btn danger" id="deleteBtn" type="button">${esc(tr('deleteProject'))}</button>` : ''}</div></div>
+    ${p.description ? `<div class="desc">${esc(p.description)}</div>` : ''}
+    <div class="tabs" role="tablist">${TABS.map(t => `<button class="tab" role="tab" type="button" data-tab="${t}" aria-selected="${S.tab === t}">${esc(tr('tab_' + t))}${t === 'board' && S.content.openAnnotations ? ' · ' + S.content.openAnnotations : ''}</button>`).join('')}</div>
+    <div id="panel"></div>`;
+  content.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; stopMedia(); render(); });
+  $('editBtn').onclick = editProject;
+  if ($('archiveBtn')) $('archiveBtn').onclick = async () => { await PJ.archive(projectId, !p.archived); await load(); };
+  if ($('deleteBtn')) $('deleteBtn').onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('deleteConfirm', { title: p.title }), { okLabel: tr('deleteProject'), danger: true }))) return;
+    const r = await PJ.remove(projectId);
+    if (r.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error }));
+    location.href = './projets.html?lang=' + pageLang;
+  };
+  renderPanel();
+}
+async function renderPanel() {
+  const panel = $('panel');
+  if (!panel) return;
+  if (S.tab === 'thread') { if (!S.messagesLoaded) { await loadMessages(); S.messagesLoaded = true; } return renderThread(panel); }
+  if (S.tab === 'board') return renderBoard(panel);
+  if (S.tab === 'videos') return renderVideos(panel);
+  if (S.tab === 'music') return renderMusic(panel);
+  if (S.tab === 'showcase') return renderShowcase(panel);
+  if (S.tab === 'activity') { const a = await PJ.activity(projectId); S.activity = a.data || []; return renderActivity(panel); }
+  return renderMembers(panel);
+}
+function stopMedia() {
+  document.querySelectorAll('audio, video').forEach(m => { try { m.pause(); } catch (e) {} });
+  (S.content && S.content.items || []).filter(i => i.kind === 'track').forEach(i => document.dispatchEvent(new CustomEvent('stop-track', { detail: i.trackId })));
+}
+async function editProject() {
+  const p = S.project;
+  content.querySelector('#pTitle').outerHTML = `<div style="flex:1 1 300px"><input type="text" id="pTitleInput" value="${esc(p.title)}" maxlength="120"><textarea id="pDescInput" style="margin-top:6px">${esc(p.description)}</textarea>
+    <div class="bar" style="margin-top:6px"><button class="btn primary" id="saveProjectBtn" type="button">${esc(tr('save'))}</button></div></div>`;
+  $('saveProjectBtn').onclick = async () => {
+    const r = await PJ.update(projectId, $('pTitleInput').value, $('pDescInput').value);
+    if (r.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error }));
+    await load();
+  };
+}
+
+// ---- Discussion ----
+async function loadMessages(older) {
+  const before = older && S.messages.length ? S.messages[S.messages.length - 1].createdAt : null;
+  const r = await PJ.messages(projectId, before, S.query);
+  const list = r.data || [];
+  S.messages = older ? S.messages.concat(list) : list;
+  S.moreMessages = list.length === 50;
+}
+function renderThread(panel) {
+  const msgs = S.messages.slice().reverse();
+  panel.innerHTML = `<div class="card">
+    <div class="bar" style="margin-bottom:10px"><input type="search" id="q" placeholder="${esc(tr('searchPlaceholder'))}" value="${esc(S.query)}" style="flex:1 1 240px">
+      <button class="btn" id="searchBtn" type="button">${esc(tr('search'))}</button>
+      ${S.query ? `<button class="btn" id="clearSearch" type="button">${esc(tr('clearSearch'))}</button>` : ''}</div>
+    ${S.moreMessages ? `<div style="text-align:center;margin-bottom:8px"><button class="btn" id="olderBtn" type="button">${esc(tr('olderMessages'))}</button></div>` : ''}
+    <div class="thread" id="thread">${msgs.length ? msgs.map(m => `<div class="bubble${m.mine ? ' mine' : ''}" data-id="${esc(m.id)}">
+        <div class="meta">${esc(m.authorEmail || '')} · ${esc(new Date(m.createdAt).toLocaleString(pageLang))}${m.editedAt ? ' · ' + esc(tr('edited')) : ''}</div>
+        <div class="bubble-body">${esc(m.body)}</div>
+        ${m.mine ? `<div class="bar" style="margin-top:4px"><button class="icon-btn" data-act="edit" type="button" title="${esc(tr('edit'))}">✎</button><button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button></div>` : ''}
+      </div>`).join('') : `<div class="empty">${esc(tr(S.query ? 'noSearchResult' : 'noMessages'))}</div>`}</div>
+    ${S.query ? '' : `<textarea id="newMsg" placeholder="${esc(tr('messagePlaceholder'))}" style="margin-top:10px"></textarea>
+    <div class="bar" style="margin-top:6px"><button class="btn primary" id="sendBtn" type="button">${esc(tr('send'))}</button><span class="meta">${esc(tr('sendHint'))}</span></div>`}
+    <div class="msg" id="threadMsg"></div></div>`;
+  const th = $('thread'); th.scrollTop = th.scrollHeight;
+  const doSearch = async () => { S.query = $('q').value.trim(); await loadMessages(); renderThread(panel); };
+  $('searchBtn').onclick = doSearch;
+  $('q').onkeydown = e => { if (e.key === 'Enter') doSearch(); };
+  if ($('clearSearch')) $('clearSearch').onclick = async () => { S.query = ''; await loadMessages(); renderThread(panel); };
+  if ($('olderBtn')) $('olderBtn').onclick = async () => { await loadMessages(true); renderThread(panel); };
+  const send = async () => {
+    const body = $('newMsg').value.trim(); if (!body) return;
+    $('sendBtn').disabled = true;
+    const r = await PJ.post(projectId, body);
+    if (r.error) { say('threadMsg', tr('errorPrefix', { message: r.error })); $('sendBtn').disabled = false; return; }
+    await loadMessages(); renderThread(panel); broadcast('messages');
+  };
+  if ($('sendBtn')) { $('sendBtn').onclick = send; $('newMsg').onkeydown = e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(); }; }
+  panel.querySelectorAll('.bubble[data-id]').forEach(b => {
+    const m = S.messages.find(x => x.id === b.dataset.id);
+    const ed = b.querySelector('[data-act="edit"]'), del = b.querySelector('[data-act="delete"]');
+    // Modification en place (pas de fenêtre du navigateur) : le texte devient un champ, Enregistrer / Annuler.
+    if (ed) ed.onclick = () => {
+      const bodyEl = b.querySelector('.bubble-body');
+      bodyEl.innerHTML = `<textarea data-role="editBox">${esc(m.body)}</textarea><div class="bar" style="margin-top:4px"><button class="btn primary" type="button" data-role="editSave">${esc(tr('save'))}</button><button class="btn" type="button" data-role="editCancel">${esc(tr('cancel'))}</button></div>`;
+      b.querySelector('[data-role="editCancel"]').onclick = () => renderThread(panel);
+      b.querySelector('[data-role="editSave"]').onclick = async () => {
+        const text = b.querySelector('[data-role="editBox"]').value.trim(); if (!text) return;
+        const r = await PJ.editMessage(m.id, text); if (r.error) return say('threadMsg', tr('errorPrefix', { message: r.error }));
+        await loadMessages(); renderThread(panel); broadcast('messages');
+      };
+    };
+    if (del) del.onclick = async () => {
+      if (!(await window.LayerPitchNotify.confirm(tr('deleteMessageConfirm'), { okLabel: tr('delete'), danger: true }))) return;
+      const r = await PJ.deleteMessage(m.id); if (r.error) return say('threadMsg', tr('errorPrefix', { message: r.error }));
+      await loadMessages(); renderThread(panel); broadcast('messages');
+    };
+  });
+}
+
+// ---- Tableau de préproduction ----
+async function ensureMyPacks() {
+  if (S.myPacksLoaded || !S.myComposerId) return;
+  const r = await LayerPitchPacks.listPacks({ ownerId: S.myComposerId });
+  S.myPacks = r.packs || []; S.myPacksLoaded = true;
+}
+async function ensureMyTracks() {
+  if (S.myTracksLoaded || !S.myComposerId) return;
+  const r = await LayerPitchTracks.listTracks({ ownerId: S.myComposerId });
+  S.myTracks = r.tracks || []; S.myTracksLoaded = true;
+}
+async function renderBoard(panel) {
+  await Promise.all([ensureMyPacks(), ensureMyTracks()]);
+  const items = S.content.items || [];
+  const shared = S.content.packs || [];
+  const packChoices = [...S.myPacks.map(p => ({ id: p.id, title: p.title })), ...shared.filter(s => !S.myPacks.some(p => p.id === s.packId)).map(s => ({ id: s.packId, title: s.title }))];
+  panel.innerHTML = `<div class="card">
+      <h2>${esc(tr('boardTitle'))}</h2>
+      <p class="hint">${esc(tr('boardIntro'))}</p>
+      <div class="bar">
+        <select id="addKind" style="max-width:220px">
+          <option value="link">${esc(tr('kind_link'))}</option><option value="note">${esc(tr('kind_note'))}</option>
+          <option value="upload">${esc(tr('kind_upload'))}</option>
+          ${S.myTracks && S.myTracks.length ? `<option value="track">${esc(tr('kind_track'))}</option>` : ''}
+          ${packChoices.length ? `<option value="pack">${esc(tr('kind_pack'))}</option>` : ''}
+        </select>
+        <span class="meta">${esc(tr('pitchHint'))}</span>
+      </div>
+      <div id="addForm"></div>
+      <div class="msg" id="boardMsg"></div>
+    </div>
+    <div class="grid" id="grid">${items.length ? '' : `<div class="empty" style="grid-column:1/-1">${esc(tr('boardEmpty'))}</div>`}</div>
+    <div class="card" style="margin-top:14px">
+      <h2>${esc(tr('versionsTitle'))}</h2>
+      <p class="hint">${esc(tr('versionsIntro'))}</p>
+      <div class="bar"><input type="text" id="snapLabel" placeholder="${esc(tr('snapPlaceholder'))}" style="flex:1 1 220px"><button class="btn" id="snapBtn" type="button">${esc(tr('snapBtn'))}</button></div>
+      <div id="snapList" style="margin-top:8px"></div><div class="msg" id="snapMsg"></div>
+    </div>`;
+  const renderAddForm = () => {
+    const kind = $('addKind').value;
+    const f = $('addForm');
+    if (kind === 'link') f.innerHTML = `<label>${esc(tr('linkUrl'))}</label><input type="url" id="fUrl" placeholder="https://"><label>${esc(tr('itemTitle'))}</label><input type="text" id="fTitle"><label>${esc(tr('itemBody'))}</label><textarea id="fBody"></textarea>`;
+    if (kind === 'note') f.innerHTML = `<label>${esc(tr('itemTitle'))}</label><input type="text" id="fTitle"><label>${esc(tr('itemBody'))}</label><textarea id="fBody"></textarea>`;
+    if (kind === 'upload') f.innerHTML = `<label>${esc(tr('uploadLabel'))}</label><input type="file" id="fFile" accept="image/jpeg,image/png,image/webp,image/gif,audio/*,application/pdf"><label>${esc(tr('itemTitle'))}</label><input type="text" id="fTitle"><label>${esc(tr('itemBody'))}</label><textarea id="fBody"></textarea>`;
+    if (kind === 'track') f.innerHTML = `<label>${esc(tr('kind_track'))}</label><select id="fTrack">${S.myTracks.map(t => `<option value="${esc(t.id)}">${esc(t.title)}</option>`).join('')}</select><label>${esc(tr('itemBody'))}</label><textarea id="fBody"></textarea>`;
+    if (kind === 'pack') f.innerHTML = `<label>${esc(tr('kind_pack'))}</label><select id="fPack">${packChoices.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('')}</select><label>${esc(tr('itemBody'))}</label><textarea id="fBody"></textarea>`;
+    f.insertAdjacentHTML('beforeend', `<div class="bar" style="margin-top:8px"><button class="btn primary" id="addBtn" type="button">${esc(tr('addToBoard'))}</button></div>`);
+    $('addBtn').onclick = addItem;
+  };
+  $('addKind').onchange = renderAddForm;
+  renderAddForm();
+  const grid = $('grid');
+  for (const it of items) grid.appendChild(await itemCard(it, items));
+  $('snapBtn').onclick = async () => {
+    const r = await PJ.snapshot(projectId, $('snapLabel').value.trim());
+    if (r.error) return say('snapMsg', tr('errorPrefix', { message: r.error }));
+    say('snapMsg', tr('snapDone'), true); $('snapLabel').value = ''; renderSnapshots();
+  };
+  renderSnapshots();
+}
+async function renderSnapshots() {
+  const r = await PJ.snapshots(projectId);
+  const box = $('snapList'); if (!box) return;
+  const list = r.data || [];
+  box.innerHTML = list.length ? list.map(s => `<div class="list-row"><div class="list-main">${esc(s.label)} <span class="meta">· ${esc(tr('snapCount', { n: s.count }))} · ${esc(new Date(s.createdAt).toLocaleString(pageLang))} · ${esc(s.authorEmail || '')}</span></div>
+      <button class="btn" type="button" data-restore="${esc(s.id)}">${esc(tr('snapRestore'))}</button></div>`).join('') : `<div class="meta">${esc(tr('snapNone'))}</div>`;
+  box.querySelectorAll('[data-restore]').forEach(b => b.onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('snapRestoreConfirm'), { okLabel: tr('snapRestore') }))) return;
+    const r2 = await PJ.restore(b.dataset.restore);
+    if (r2.error) return say('snapMsg', tr('errorPrefix', { message: r2.error }));
+    await reloadContent(); renderPanel(); broadcast('content');
+  });
+}
+async function addItem() {
+  const kind = $('addKind').value;
+  const val = id => ($(id) ? $(id).value.trim() : '');
+  $('addBtn').disabled = true;
+  let payload;
+  if (kind === 'upload') {
+    const file = $('fFile').files[0];
+    if (!file) { say('boardMsg', tr('chooseFile')); $('addBtn').disabled = false; return; }
+    say('boardMsg', tr('uploading'), true);
+    const up = await PJ.upload(projectId, file);
+    if (up.error) { say('boardMsg', tr('errorPrefix', { message: up.error })); $('addBtn').disabled = false; return; }
+    const k = file.type.startsWith('image/') ? 'image' : file.type.startsWith('audio/') ? 'audio' : 'file';
+    payload = { kind: k, fileId: up.data.fileId, title: val('fTitle') || file.name, body: val('fBody') };
+  } else if (kind === 'link') payload = { kind, url: val('fUrl'), title: val('fTitle'), body: val('fBody') };
+  else if (kind === 'note') payload = { kind, title: val('fTitle'), body: val('fBody') };
+  else if (kind === 'track') payload = { kind, trackId: val('fTrack'), body: val('fBody') };
+  else payload = { kind, packId: val('fPack'), body: val('fBody') };
+  const r = await PJ.addItem(projectId, payload);
+  if (r.error) { say('boardMsg', tr('errorPrefix', { message: r.error })); $('addBtn').disabled = false; return; }
+  await reloadContent(); renderPanel(); broadcast('content');
+}
+function youtubeId(url) { const m = String(url || '').match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/); return m ? m[1] : null; }
+async function itemCard(it, items) {
+  const el = document.createElement('div');
+  el.className = 'item' + (it.inPitch ? ' pitch' : '');
+  const idx = items.indexOf(it);
+  let media = '';
+  if (it.kind === 'image') { const u = await fileUrl(it.fileId); media = u ? `<img src="${esc(u)}" alt="">` : ''; }
+  if (it.kind === 'audio') { const u = await fileUrl(it.fileId); media = u ? `<audio controls preload="none" src="${esc(u)}"></audio>` : ''; }
+  if (it.kind === 'file') media = `<button class="btn" type="button" data-act="open">${esc(tr('openFile'))} (${esc(it.fileName || '')})</button>`;
+  if (it.kind === 'link') { const y = youtubeId(it.url); media = (y ? `<img src="https://i.ytimg.com/vi/${esc(y)}/hqdefault.jpg" alt="">` : '') + `<a href="${esc(it.url)}" target="_blank" rel="noopener noreferrer">${esc(it.url)}</a>`; }
+  if (it.kind === 'pack') media = `<a class="btn" href="./pack.html?id=${encodeURIComponent(it.packId)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('openPack'))}</a>`;
+  if (it.kind === 'track') media = `<div data-role="player"></div>`;
+  el.innerHTML = `<div class="item-kind">${esc(tr('kind_' + it.kind))}${it.inPitch ? ' · ★ ' + esc(tr('inPitch')) : ''}</div>
+    <div class="item-title">${esc(it.title || it.trackTitle || it.packTitle || '')}</div>
+    ${media}
+    ${it.body ? `<div class="item-body">${esc(it.body)}</div>` : ''}
+    <div class="meta">${esc(it.authorEmail || '')}</div>
+    <div class="item-actions">
+      <button class="icon-btn${it.inPitch ? ' on' : ''}" type="button" data-act="pitch" title="${esc(tr('pitchToggle'))}">★</button>
+      <button class="icon-btn" type="button" data-act="up" ${idx === 0 ? 'disabled' : ''} title="${esc(tr('moveUp'))}">↑</button>
+      <button class="icon-btn" type="button" data-act="down" ${idx === items.length - 1 ? 'disabled' : ''} title="${esc(tr('moveDown'))}">↓</button>
+      <button class="icon-btn" type="button" data-act="notes" title="${esc(tr('notesToggle'))}">💬</button>
+      <button class="icon-btn" type="button" data-act="del" title="${esc(tr('delete'))}">✕</button>
+    </div>
+    <div class="notes" data-role="notes" ${S.openNotes[it.id] ? '' : 'hidden'}></div>`;
+  const act = a => el.querySelector(`[data-act="${a}"]`);
+  if (it.kind === 'track') mountTrack(el.querySelector('[data-role="player"]'), it.trackId);
+  if (act('open')) act('open').onclick = async () => { const u = await fileUrl(it.fileId); if (u) window.open(u, '_blank', 'noopener'); };
+  act('pitch').onclick = async () => { await PJ.updateItem(it.id, { inPitch: !it.inPitch }); await reloadContent(); renderPanel(); broadcast('content'); };
+  const move = async d => { const ids = items.map(x => x.id); const j = idx + d; [ids[idx], ids[j]] = [ids[j], ids[idx]]; await PJ.reorder(projectId, ids); await reloadContent(); renderPanel(); broadcast('content'); };
+  act('up').onclick = () => move(-1);
+  act('down').onclick = () => move(1);
+  act('del').onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('deleteItemConfirm'), { okLabel: tr('delete'), danger: true }))) return;
+    const r = await PJ.deleteItem(it.id); if (r.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error }));
+    if (it.fileId && ['image', 'audio', 'file'].includes(it.kind)) await PJ.deleteFile(it.fileId);
+    await reloadContent(); renderPanel(); broadcast('content');
+  };
+  act('notes').onclick = () => { S.openNotes[it.id] = !S.openNotes[it.id]; const box = el.querySelector('[data-role="notes"]'); box.hidden = !S.openNotes[it.id]; if (!box.hidden) renderNotes(box, 'item', it.id); };
+  if (S.openNotes[it.id]) renderNotes(el.querySelector('[data-role="notes"]'), 'item', it.id);
+  return el;
+}
+async function mountTrack(host, trackId) {
+  const r = await LayerPitchTracks.listTracksByIds([trackId]);
+  const track = r.tracks && r.tracks[0];
+  if (!track) { host.innerHTML = `<div class="meta">${esc(tr('trackUnavailable'))}</div>`; return; }
+  const P = window.LayerPlayerCore;
+  const row = P.buildTrackRow(track, null, false);
+  host.appendChild(row); P.initTrackPlayer(track, row);
+}
+// Annotations d'un élément (ou d'une vidéo, via renderVideoNotes) : liste + ajout adressé.
+async function renderNotes(box, targetType, targetId) {
+  const r = await PJ.annotations(projectId, targetType, targetId);
+  const list = r.data || [];
+  box.innerHTML = list.map(n => noteHtml(n)).join('') + `
+    <textarea data-role="noteBody" placeholder="${esc(tr('notePlaceholder'))}" style="min-height:48px"></textarea>
+    <div class="bar"><select data-role="noteTo" style="flex:1 1 140px">${memberOptions()}</select><button class="btn" type="button" data-role="noteAdd">${esc(tr('addNote'))}</button></div>`;
+  wireNotes(box, list, () => renderNotes(box, targetType, targetId));
+  box.querySelector('[data-role="noteAdd"]').onclick = async () => {
+    const body = box.querySelector('[data-role="noteBody"]').value.trim(); if (!body) return;
+    const to = box.querySelector('[data-role="noteTo"]').value || null;
+    const res = await PJ.annotate(projectId, targetType, targetId, null, body, to, location.href);
+    if (res.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: res.error }));
+    renderNotes(box, targetType, targetId); broadcast('notes');
+  };
+}
+function noteHtml(n, withTime) {
+  return `<div class="note${n.resolved ? ' resolved' : ''}" data-note="${esc(n.id)}">
+    <div class="note-head">${withTime && n.atSeconds != null ? `<button class="time-chip" type="button" data-seek="${esc(n.atSeconds)}">${esc(clock(n.atSeconds))}</button>` : ''}
+      <strong>${esc(n.authorEmail || '')}</strong>${n.addresseeEmail ? ` → ${esc(n.addresseeEmail)}` : ''}
+      <label class="choice" style="margin:0 0 0 auto"><input type="checkbox" data-role="resolve" ${n.resolved ? 'checked' : ''}> ${esc(tr('resolved'))}</label>
+      ${n.mine ? `<button class="icon-btn" type="button" data-role="delNote" title="${esc(tr('delete'))}">✕</button>` : ''}</div>
+    <div>${esc(n.body)}</div></div>`;
+}
+function wireNotes(box, list, refresh) {
+  box.querySelectorAll('[data-note]').forEach(row => {
+    const id = row.dataset.note;
+    row.querySelector('[data-role="resolve"]').onchange = async e => { await PJ.resolve(id, e.target.checked); refresh(); broadcast('notes'); };
+    const d = row.querySelector('[data-role="delNote"]'); if (d) d.onclick = async () => { await PJ.deleteAnnotation(id); refresh(); broadcast('notes'); };
+  });
+}
+
+// ---- Vidéos annotées (façon SoundCloud) ----
+function renderVideos(panel) {
+  const vids = S.content.videos || [];
+  panel.innerHTML = `<div class="card">
+      <h2>${esc(tr('videosTitle'))}</h2><p class="hint">${esc(tr('videosIntro'))}</p>
+      <div class="bar"><input type="url" id="vUrl" placeholder="${esc(tr('videoLinkPlaceholder'))}" style="flex:1 1 240px"><button class="btn" id="vLinkBtn" type="button">${esc(tr('addVideoLink'))}</button></div>
+      <div class="bar" style="margin-top:8px"><input type="file" id="vFile" accept="video/mp4,video/webm" style="flex:1 1 240px"><button class="btn" id="vUploadBtn" type="button">${esc(tr('uploadVideo'))}</button></div>
+      <label>${esc(tr('itemTitle'))}</label><input type="text" id="vTitle">
+      <div class="msg" id="vMsg"></div>
+    </div>
+    <div class="card">${vids.length ? vids.map(v => `<div class="list-row"><div class="list-main">${esc(v.title || tr('untitledVideo'))} <span class="meta">· ${esc(tr(v.kind === 'link' ? 'videoLink' : 'videoFile'))} · ${esc(tr('noteCount', { n: v.annotations }))}</span></div>
+        <button class="btn${S.video && S.video.id === v.id ? ' primary' : ''}" type="button" data-open="${esc(v.id)}">${esc(tr('openVideo'))}</button>
+        <button class="btn danger" type="button" data-delvideo="${esc(v.id)}">${esc(tr('delete'))}</button></div>`).join('') : `<div class="empty">${esc(tr('noVideos'))}</div>`}</div>
+    <div id="videoStage"></div>`;
+  const addLink = async () => {
+    const r = await PJ.addVideo(projectId, 'link', null, $('vUrl').value.trim(), $('vTitle').value.trim());
+    if (r.error) return say('vMsg', tr('errorPrefix', { message: r.error }));
+    await reloadContent(); renderVideos(panel); broadcast('content');
+  };
+  $('vLinkBtn').onclick = addLink;
+  $('vUploadBtn').onclick = async () => {
+    const file = $('vFile').files[0]; if (!file) return say('vMsg', tr('chooseFile'));
+    $('vUploadBtn').disabled = true; say('vMsg', tr('uploading'), true);
+    const up = await PJ.upload(projectId, file);
+    if (up.error) { $('vUploadBtn').disabled = false; return say('vMsg', tr('errorPrefix', { message: up.error })); }
+    const r = await PJ.addVideo(projectId, 'upload', up.data.fileId, null, $('vTitle').value.trim() || file.name);
+    if (r.error) { $('vUploadBtn').disabled = false; return say('vMsg', tr('errorPrefix', { message: r.error })); }
+    await reloadContent(); renderVideos(panel); broadcast('content');
+  };
+  panel.querySelectorAll('[data-open]').forEach(b => b.onclick = async () => { S.video = vids.find(v => v.id === b.dataset.open); await openVideo(); renderVideos(panel); });
+  panel.querySelectorAll('[data-delvideo]').forEach(b => b.onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('deleteVideoConfirm'), { okLabel: tr('delete'), danger: true }))) return;
+    const r = await PJ.deleteVideo(b.dataset.delvideo); if (r.error) return say('vMsg', tr('errorPrefix', { message: r.error }));
+    if (S.video && S.video.id === b.dataset.delvideo) S.video = null;
+    await reloadContent(); renderVideos(panel); broadcast('content');
+  });
+  if (S.video) renderVideoStage();
+}
+// Lecteur : fichier privé (<video>, URL signée) ou YouTube / Vimeo (leurs API donnent l'instant courant).
+const V = { get: () => 0, seek: () => {}, duration: () => 0, pause: () => {} };
+function loadScriptOnce(src, globalName) {
+  if (window[globalName]) return Promise.resolve();
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = () => res(); s.onerror = rej; document.head.appendChild(s); });
+}
+async function openVideo() { await loadVideoNotes(); }
+async function loadVideoNotes() { const r = await PJ.annotations(projectId, 'video', S.video.id); S.videoNotes = r.data || []; }
+async function renderVideoStage() {
+  const stage = $('videoStage'); if (!stage) return;
+  const v = S.video;
+  stage.innerHTML = `<div class="card"><h2>${esc(v.title || tr('untitledVideo'))}</h2>
+    <div class="video-wrap" id="vWrap"></div>
+    <div class="timeline" id="vTimeline" title="${esc(tr('timelineHint'))}"><div class="timeline-now" id="vNow"></div></div>
+    <div class="bar"><button class="btn primary" id="noteHere" type="button">${esc(tr('noteHere'))}</button><span class="meta" id="vClock">0:00</span></div>
+    <div id="noteForm" hidden><textarea id="vNoteBody" placeholder="${esc(tr('notePlaceholder'))}"></textarea>
+      <div class="bar" style="margin-top:6px"><select id="vNoteTo" style="flex:1 1 160px">${memberOptions()}</select><button class="btn primary" id="vNoteSave" type="button">${esc(tr('addNote'))}</button></div></div>
+    <div id="vNotes" style="margin-top:10px"></div></div>`;
+  const wrap = $('vWrap');
+  if (v.kind === 'upload') {
+    const u = await fileUrl(v.fileId);
+    wrap.innerHTML = `<video controls preload="metadata" src="${esc(u || '')}"></video>`;
+    const el = wrap.querySelector('video');
+    Object.assign(V, { get: () => el.currentTime, seek: t => { el.currentTime = t; }, duration: () => el.duration || 0, pause: () => el.pause() });
+  } else if (/youtu/.test(v.url)) {
+    wrap.innerHTML = `<div id="ytHost"></div>`;
+    await loadScriptOnce('https://www.youtube.com/iframe_api', 'YT');
+    await new Promise(res => { if (window.YT && window.YT.Player) return res(); window.onYouTubeIframeAPIReady = res; });
+    const yt = new YT.Player('ytHost', { videoId: youtubeId(v.url), playerVars: { rel: 0 } });
+    Object.assign(V, { get: () => (yt.getCurrentTime ? yt.getCurrentTime() : 0), seek: t => yt.seekTo && yt.seekTo(t, true), duration: () => (yt.getDuration ? yt.getDuration() : 0), pause: () => yt.pauseVideo && yt.pauseVideo() });
+  } else {
+    wrap.innerHTML = `<div id="vmHost"></div>`;
+    await loadScriptOnce('https://player.vimeo.com/api/player.js', 'Vimeo');
+    const vm = new Vimeo.Player('vmHost', { url: v.url, responsive: true });
+    let now = 0, dur = 0;
+    vm.on('timeupdate', d => { now = d.seconds; dur = d.duration; });
+    Object.assign(V, { get: () => now, seek: t => vm.setCurrentTime(t), duration: () => dur, pause: () => vm.pause() });
+  }
+  drawTimeline();
+  clearInterval(S.clockTimer);
+  S.clockTimer = setInterval(() => { if (!$('vClock')) return clearInterval(S.clockTimer); $('vClock').textContent = clock(V.get()); drawNow(); }, 250);
+  $('vTimeline').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); const d = V.duration(); if (d) V.seek(((e.clientX - r.left) / r.width) * d); };
+  $('noteHere').onclick = () => { V.pause(); S.noteAt = V.get(); $('noteForm').hidden = false; $('vNoteBody').focus(); $('noteHere').textContent = tr('noteAt', { t: clock(S.noteAt) }); };
+  $('vNoteSave').onclick = async () => {
+    const body = $('vNoteBody').value.trim(); if (!body) return;
+    const r = await PJ.annotate(projectId, 'video', v.id, Math.round((S.noteAt || 0) * 10) / 10, body, $('vNoteTo').value || null, location.href);
+    if (r.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error }));
+    $('vNoteBody').value = ''; $('noteForm').hidden = true; $('noteHere').textContent = tr('noteHere');
+    await loadVideoNotes(); renderVideoNotes(); drawTimeline(); broadcast('notes');
+  };
+  renderVideoNotes();
+}
+function drawNow() { const d = V.duration(); const n = $('vNow'); if (n && d) n.style.left = (100 * V.get() / d) + '%'; }
+function drawTimeline() {
+  const tl = $('vTimeline'); if (!tl) return;
+  tl.querySelectorAll('.marker').forEach(m => m.remove());
+  const d = V.duration();
+  if (!d) { setTimeout(drawTimeline, 500); return; }
+  S.videoNotes.filter(n => n.atSeconds != null).forEach(n => {
+    const m = document.createElement('span');
+    m.className = 'marker' + (n.resolved ? ' resolved' : '');
+    m.style.left = Math.min(100, 100 * n.atSeconds / d) + '%';
+    m.title = clock(n.atSeconds) + ' — ' + n.body;
+    m.onclick = e => { e.stopPropagation(); V.seek(Number(n.atSeconds)); };
+    tl.appendChild(m);
+  });
+}
+function renderVideoNotes() {
+  const box = $('vNotes'); if (!box) return;
+  box.innerHTML = S.videoNotes.length ? `<div class="notes">${S.videoNotes.map(n => noteHtml(n, true)).join('')}</div>` : `<div class="meta">${esc(tr('noVideoNotes'))}</div>`;
+  box.querySelectorAll('[data-seek]').forEach(b => b.onclick = () => V.seek(Number(b.dataset.seek)));
+  wireNotes(box, S.videoNotes, async () => { await loadVideoNotes(); renderVideoNotes(); drawTimeline(); });
+}
+
+// ---- Musique : packs partagés / offerts, albums ----
+async function renderMusic(panel) {
+  await ensureMyPacks();
+  if (!S.myAlbumsLoaded) { const r = await LayerPitchAlbums.listAlbums({ sellerId: S.me.id }); S.myAlbums = (r.albums || []); S.myAlbumsLoaded = true; }
+  const shared = S.content.packs || [];
+  const albums = S.content.albums || [];
+  const studioProject = S.project.ownerKind === 'studio';
+  panel.innerHTML = `<div class="card"><h2>${esc(tr('packsTitle'))}</h2><p class="hint">${esc(tr('packsIntro'))}</p>
+      ${shared.length ? shared.map(p => `<div class="list-row"><div class="list-main">${esc(p.title)} <span class="pill">${esc(tr('mode_' + p.mode))}</span>
+          <span class="meta">· ${esc(tr('sharedBy', { email: p.sharedByEmail || '' }))}</span></div>
+          <a class="btn" href="./pack.html?id=${encodeURIComponent(p.packId)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('openPack'))}</a>
+          ${p.mode === 'share' && (p.mine || S.project.role === 'admin') ? `<button class="btn" type="button" data-unshare="${esc(p.packId)}">${esc(tr('unshare'))}</button>` : ''}</div>`).join('') : `<div class="empty">${esc(tr('noPacks'))}</div>`}
+      ${S.myPacks.length ? `<label>${esc(tr('bringPack'))}</label><div class="bar"><select id="myPack" style="flex:1 1 200px">${S.myPacks.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('')}</select>
+        <button class="btn" id="shareBtn" type="button">${esc(tr('sharePack'))}</button>
+        ${studioProject ? `<button class="btn" id="offerBtn" type="button" title="${esc(tr('offerHelp'))}">${esc(tr('offerPack'))}</button>` : ''}</div>` : ''}
+      <div class="msg" id="musicMsg"></div></div>
+    <div class="card"><h2>${esc(tr('albumsTitle'))}</h2>
+      ${albums.length ? albums.map(a => `<div class="list-row"><div class="list-main">${esc(a.title)}${a.buyable ? ' <span class="pill">' + esc(tr('onSale')) + '</span>' : ''}</div>
+          ${S.myAlbums.some(m => m.id === a.albumId) ? `<button class="btn" type="button" data-unlink="${esc(a.albumId)}">${esc(tr('unlinkAlbum'))}</button>` : ''}</div>`).join('') : `<div class="empty">${esc(tr('noAlbums'))}</div>`}
+      ${S.myAlbums.filter(m => !albums.some(a => a.albumId === m.id)).length ? `<label>${esc(tr('linkAlbum'))}</label><div class="bar"><select id="myAlbum" style="flex:1 1 200px">${S.myAlbums.filter(m => !albums.some(a => a.albumId === m.id)).map(a => `<option value="${esc(a.id)}">${esc(a.title)}</option>`).join('')}</select><button class="btn" id="linkAlbumBtn" type="button">${esc(tr('link'))}</button></div>` : ''}
+      <div class="msg" id="albumMsg"></div></div>`;
+  const share = async mode => {
+    if (mode === 'offer' && !(await window.LayerPitchNotify.confirm(tr('offerConfirm'), { okLabel: tr('offerPack') }))) return;
+    const r = await PJ.sharePack(projectId, $('myPack').value, mode);
+    if (r.error) return say('musicMsg', tr('errorPrefix', { message: r.error }));
+    await reloadContent(); renderMusic(panel); broadcast('content');
+  };
+  if ($('shareBtn')) $('shareBtn').onclick = () => share('share');
+  if ($('offerBtn')) $('offerBtn').onclick = () => share('offer');
+  panel.querySelectorAll('[data-unshare]').forEach(b => b.onclick = async () => { const r = await PJ.unsharePack(projectId, b.dataset.unshare); if (r.error) return say('musicMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderMusic(panel); broadcast('content'); });
+  if ($('linkAlbumBtn')) $('linkAlbumBtn').onclick = async () => { const r = await PJ.linkAlbum(projectId, $('myAlbum').value, true); if (r.error) return say('albumMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderMusic(panel); broadcast('content'); };
+  panel.querySelectorAll('[data-unlink]').forEach(b => b.onclick = async () => { await PJ.linkAlbum(projectId, b.dataset.unlink, false); await reloadContent(); renderMusic(panel); broadcast('content'); });
+}
+
+// ---- Vitrine publique (administrateur) ----
+async function renderShowcase(panel) {
+  const sc = (await PJ.showcase(projectId)).data || { published: false, title: '', intro: '', steamUrl: '', entries: [] };
+  const chosen = new Set((sc.entries || []).map(e => e.kind + ':' + e.refId));
+  const tracks = (S.content.items || []).filter(i => i.kind === 'track');
+  const images = (S.content.items || []).filter(i => i.kind === 'image');
+  const links = (S.content.videos || []).filter(v => v.kind === 'link');
+  const admin = S.project.role === 'admin';
+  const box = (kind, id, label) => `<label class="choice"><input type="checkbox" data-entry="${esc(kind + ':' + id)}" ${chosen.has(kind + ':' + id) ? 'checked' : ''} ${admin ? '' : 'disabled'}> ${esc(label)}</label>`;
+  const publicUrl = `${location.origin}/vitrine.html?id=${encodeURIComponent(projectId)}&lang=${pageLang}`;
+  panel.innerHTML = `<div class="card"><h2>${esc(tr('showcaseTitle'))}</h2><p class="hint">${esc(tr('showcaseIntro'))}</p>
+    ${admin ? '' : `<p class="hint">${esc(tr('showcaseAdminOnly'))}</p>`}
+    <label class="choice"><input type="checkbox" id="scPublished" ${sc.published ? 'checked' : ''} ${admin ? '' : 'disabled'}> ${esc(tr('showcasePublished'))}</label>
+    <label>${esc(tr('showcaseName'))}</label><input type="text" id="scTitle" value="${esc(sc.title)}" ${admin ? '' : 'disabled'}>
+    <label>${esc(tr('showcaseText'))}</label><textarea id="scIntro" ${admin ? '' : 'disabled'}>${esc(sc.intro)}</textarea>
+    <label>${esc(tr('showcaseSteam'))}</label><input type="url" id="scSteam" value="${esc(sc.steamUrl || '')}" placeholder="https://store.steampowered.com/app/…" ${admin ? '' : 'disabled'}>
+    <div class="section" style="margin-top:12px"><strong>${esc(tr('showcaseTracks'))}</strong>${tracks.length ? tracks.map(t => box('track', t.trackId, t.trackTitle || t.title)).join('') : `<div class="meta">${esc(tr('showcaseNoTracks'))}</div>`}</div>
+    <div style="margin-top:10px"><strong>${esc(tr('showcaseVideos'))}</strong>${links.length ? links.map(v => box('video', v.id, v.title || v.url)).join('') : `<div class="meta">${esc(tr('showcaseNoVideos'))}</div>`}</div>
+    <div style="margin-top:10px"><strong>${esc(tr('showcaseImages'))}</strong>${images.length ? images.map(i => box('image', i.id, i.title || i.fileName)).join('') : `<div class="meta">${esc(tr('showcaseNoImages'))}</div>`}</div>
+    ${admin ? `<div class="bar" style="margin-top:12px"><button class="btn primary" id="scSave" type="button">${esc(tr('save'))}</button>
+      <a class="btn" href="${esc(publicUrl)}" target="_blank" rel="noopener">${esc(tr('showcasePreview'))}</a></div>` : ''}
+    <div class="msg" id="scMsg"></div></div>`;
+  if ($('scSave')) $('scSave').onclick = async () => {
+    const entries = [...panel.querySelectorAll('[data-entry]:checked')].map(c => { const [kind, ...rest] = c.dataset.entry.split(':'); return { kind, refId: rest.join(':') }; });
+    const r = await PJ.saveShowcase(projectId, { published: $('scPublished').checked, title: $('scTitle').value, intro: $('scIntro').value, steamUrl: $('scSteam').value.trim(), entries });
+    say('scMsg', r.error ? tr('errorPrefix', { message: r.error }) : tr($('scPublished').checked ? 'showcaseSavedPublic' : 'showcaseSaved', { url: publicUrl }), !r.error);
+  };
+}
+
+// ---- Activité ----
+function renderActivity(panel) {
+  panel.innerHTML = `<div class="card"><h2>${esc(tr('activityTitle'))}</h2>${S.activity.length ? S.activity.map(a => `<div class="list-row"><div class="list-main">
+      <strong>${esc(a.actorEmail || '')}</strong> ${esc(tr('act_' + a.kind, { title: (a.payload && (a.payload.title || a.payload.label || a.payload.email)) || '' }))}</div>
+      <span class="meta">${esc(new Date(a.createdAt).toLocaleString(pageLang))}</span></div>`).join('') : `<div class="empty">${esc(tr('noActivity'))}</div>`}</div>`;
+}
+
+// ---- Membres ----
+function renderMembers(panel) {
+  const p = S.project;
+  const admin = p.role === 'admin';
+  const redirect = location.origin + '/invitation.html';
+  panel.innerHTML = `<div class="card"><h2>${esc(tr('membersTitle'))}</h2><p class="hint">${esc(tr('membersIntro'))}</p>
+    ${(p.members || []).map(m => `<div class="list-row" ${m.id ? `data-member="${esc(m.id)}"` : ''}><div class="list-main">${esc(m.email || '')}${m.me ? ' ' + esc(tr('you')) : ''}
+        <span class="meta">· ${esc(tr('src_' + m.source))}${m.status === 'invited' ? ' · ' + esc(tr('invitedStatus')) : ''}${m.role === 'admin' ? ' · ' + esc(tr('role_admin')) : ''}</span></div>
+        ${m.id && admin && m.status === 'invited' ? `<button class="btn" type="button" data-act="resend">${esc(tr('resend'))}</button>` : ''}
+        ${m.id && (admin || m.me) ? `<button class="btn danger" type="button" data-act="remove">${esc(tr(m.me ? 'leave' : 'remove'))}</button>` : ''}</div>`).join('')}
+    ${admin ? `<label>${esc(tr('inviteLabel'))}</label><div class="bar"><input type="email" id="invEmail" placeholder="${esc(tr('emailPlaceholder'))}" style="flex:1 1 220px"><button class="btn primary" id="invBtn" type="button">${esc(tr('invite'))}</button></div>
+      <p class="hint" style="margin-top:6px">${esc(tr('inviteFreeHint'))}</p>` : ''}
+    <div class="msg" id="memMsg"></div></div>`;
+  if ($('invBtn')) $('invBtn').onclick = async () => {
+    const email = $('invEmail').value.trim(); if (!email) return;
+    const r = await PJ.invite(projectId, email, redirect);
+    if (r.error) return say('memMsg', tr('errorPrefix', { message: r.error }));
+    say('memMsg', r.emailError ? tr('inviteNoEmail', { error: r.emailError, link: r.actionLink || '' }) : tr('inviteSent'), !r.emailError);
+    const g = await PJ.get(projectId); if (!g.error) { S.project = g.data; setTimeout(() => renderMembers(panel), 1200); }
+  };
+  panel.querySelectorAll('[data-member]').forEach(row => {
+    const id = row.dataset.member, m = p.members.find(x => x.id === id);
+    const b = a => row.querySelector(`[data-act="${a}"]`);
+    if (b('resend')) b('resend').onclick = async () => { const r = await PJ.resendInvite(id, redirect); say('memMsg', r.error ? tr('inviteNoEmail', { error: r.error, link: (r.data && r.data.actionLink) || '' }) : tr('inviteSent'), !r.error); };
+    if (b('remove')) b('remove').onclick = async () => {
+      if (!(await window.LayerPitchNotify.confirm(tr(m.me ? 'leaveConfirm' : 'removeConfirm', { email: m.email }), { okLabel: tr(m.me ? 'leave' : 'remove'), danger: true }))) return;
+      const r = await PJ.removeMember(id); if (r.error) return say('memMsg', tr('errorPrefix', { message: r.error }));
+      if (m.me) { location.href = './projets.html?lang=' + pageLang; return; }
+      const g = await PJ.get(projectId); if (!g.error) { S.project = g.data; renderMembers(panel); }
+    };
+  });
+}
+
+if (!projectId) content.innerHTML = `<div class="card"><p class="hint">${esc(tr('noProject'))}</p></div>`;
+else LayerPitchAuth.onAuthStateChange((event) => { if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || !S.project) load(); });
+</script>
+</body>
+</html>

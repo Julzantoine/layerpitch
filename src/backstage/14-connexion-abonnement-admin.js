@@ -178,6 +178,8 @@ async function renderAdminOnlyPanels(session) {
   // le verrou jumeau dans upsert_album / claim_test_album).
   const studioLink = document.getElementById('accountMenuStudio');
   if (studioLink) studioLink.hidden = !flagOpen('studio_space');
+  const projectsLink = document.getElementById('accountMenuProjects');
+  if (projectsLink) projectsLink.hidden = !flagOpen('projects');
   const albumsNavBtn = document.getElementById('navItemAlbums');
   if (albumsNavBtn) albumsNavBtn.hidden = !can('sell_albums');
   if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); }

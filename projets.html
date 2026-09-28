@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pageTitle">LayerPitch — Mes Projets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #f6f5f3; --bg-card: #ffffff; --border: #e4e1da;
+    --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --accent: #c9713c; --accent-soft: #f3e4d6; --on-accent: #ffffff;
+    --font-body: 'Inter', system-ui, sans-serif; --font-title: 'Space Grotesk', 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 32px 16px 60px; }
+  .page { max-width: 820px; margin: 0 auto; }
+  a { color: var(--accent); }
+  .top { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .top-links { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; }
+  h1 { font-family: var(--font-title); font-size: 26px; margin: 0; }
+  h2 { font-family: var(--font-title); font-size: 16px; margin: 0 0 8px; }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+  .hint { font-size: 12.5px; line-height: 1.6; color: var(--text-dim); margin: 0 0 10px; }
+  .btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text); text-decoration: none; display: inline-block; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  label { display: block; font-size: 12px; color: var(--text-dim); margin: 12px 0 4px; }
+  input[type="text"], input[type="email"], textarea, select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); }
+  textarea { min-height: 70px; resize: vertical; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); text-decoration: none; color: inherit; flex-wrap: wrap; }
+  .row:first-child { border-top: none; }
+  .row:hover .row-title { color: var(--accent); }
+  .row-main { flex: 1 1 240px; min-width: 0; }
+  .row-title { font-family: var(--font-title); font-size: 16px; overflow-wrap: anywhere; }
+  .row-sub { font-size: 12px; color: var(--text-dimmer); margin-top: 2px; }
+  .pill { font-family: var(--font-mono); font-size: 10.5px; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .msg { font-family: var(--font-mono); font-size: 11.5px; margin-top: 8px; min-height: 1em; }
+  .msg.err { color: #b5442e; } .msg.ok { color: #2a7; }
+  .choice { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 6px 0; }
+  .choice input { width: auto; margin: 0; }
+  .empty { color: var(--text-dimmer); text-align: center; padding: 24px 0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top"><h1 data-i18n="h1">Mes Projets</h1><div class="top-links" id="topLinks"></div></div>
+  <div id="content"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="layerpitch-i18n.js?v=1790583302661"></script>
+<script src="layerpitch-notify.js?v=1790583302661"></script>
+<script src="api/supabase-client.js?v=1790583302661"></script>
+<script src="api/auth.js?v=1790583302661"></script>
+<script src="api/studio.js?v=1790583302661"></script>
+<script src="api/projects.js?v=1790583302661"></script>
+<script>
+// projets.html — liste et création des Projets (chantier profils et permissions, étape 5, 28/09 ; D20, D24, D36).
+// Créer : compositeur (Warrior 1, Boss 5) ou studio (Indie 1, AA 5, AAA illimité) ; les invités ne paient jamais.
+// Feu vert 'projects' : admin seulement pendant la bêta. Droits vérifiés côté serveur (create_project, list_my_projects).
+const pageLang = (new URLSearchParams(location.search).get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
+function tr(key, vars) {
+  const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, projects: {} }, en: { shared: {}, projects: {} } };
+  const dict = I18N[pageLang] || I18N.fr, dictFr = I18N.fr;
+  let str = (dict.projects && dict.projects[key]) || (dict.shared && dict.shared[key]) || (dictFr.projects && dictFr.projects[key]) || (dictFr.shared && dictFr.shared[key]) || key;
+  if (vars) Object.keys(vars).forEach(k => { str = str.split('{' + k + '}').join(vars[k]); });
+  return str;
+}
+document.documentElement.lang = pageLang;
+document.title = tr('pageTitle');
+document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = id => document.getElementById(id);
+const content = $('content');
+let showArchived = false;
+
+async function render() {
+  const { session } = await LayerPitchAuth.getSession();
+  const [{ composerId }, { studioId }] = session ? await Promise.all([LayerPitchAuth.getMyComposerId(), LayerPitchAuth.getMyStudioId()]) : [{}, {}];
+  $('topLinks').innerHTML = [
+    composerId ? `<a href="./layerpitch-backstage.html">${esc(tr('backstageLink'))}</a>` : '',
+    studioId ? `<a href="./studio.html?lang=${pageLang}">${esc(tr('studioLink'))}</a>` : '',
+    session ? `<a href="./invitation.html?lang=${pageLang}">${esc(tr('invitationsLink'))}</a>` : '',
+  ].filter(Boolean).join('');
+  if (!session) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('signInPrompt'))} <a href="./studio.html?lang=${pageLang}">${esc(tr('signInLink'))}</a></p></div>`; return; }
+  const [{ flags }, { entitlements }, list] = await Promise.all([LayerPitchStudio.myFeatureFlags(), LayerPitchStudio.myEntitlements(), LayerPitchProjects.listMine()]);
+  if (!flags || !flags.projects) {
+    content.innerHTML = `<div class="card"><h2>${esc(tr('comingSoonTitle'))}</h2><p class="hint">${esc(tr('comingSoonHint'))}</p></div>`;
+    return;
+  }
+  const ent = entitlements || {};
+  const canComposer = !!(ent.projects && ent.projects.allowed);
+  const canStudio = !!(ent.studio_projects && ent.studio_projects.allowed);
+  const projects = (list.data || []).filter(p => showArchived || !p.archived);
+  let html = '';
+  if (canComposer || canStudio) {
+    html += `<div class="card">
+      <h2>${esc(tr('newTitle'))}</h2>
+      <p class="hint">${esc(tr('newHint'))}</p>
+      <label>${esc(tr('titleLabel'))}</label><input type="text" id="newTitle" maxlength="120" placeholder="${esc(tr('titlePlaceholder'))}">
+      <label>${esc(tr('descLabel'))}</label><textarea id="newDesc" maxlength="2000"></textarea>
+      ${canComposer && canStudio ? `
+        <div style="margin-top:10px">${esc(tr('ownerQuestion'))}</div>
+        <label class="choice"><input type="radio" name="owner" value="composer" checked> ${esc(tr('ownerComposer', { quota: ent.projects.amount == null ? '∞' : ent.projects.amount }))}</label>
+        <label class="choice"><input type="radio" name="owner" value="studio"> ${esc(tr('ownerStudio', { quota: ent.studio_projects.amount == null ? '∞' : ent.studio_projects.amount }))}</label>` : ''}
+      <div style="margin-top:12px"><button class="btn primary" id="createBtn" type="button">${esc(tr('createBtn'))}</button></div>
+      <div class="msg" id="createMsg"></div>
+    </div>`;
+  } else {
+    html += `<div class="card"><p class="hint">${esc(tr('cannotCreate'))}</p></div>`;
+  }
+  html += `<div class="card">
+    <div class="top" style="margin-bottom:4px"><h2 style="margin:0">${esc(tr('listTitle'))}</h2>
+      <label class="choice" style="margin:0"><input type="checkbox" id="archivedToggle" ${showArchived ? 'checked' : ''}> ${esc(tr('showArchived'))}</label></div>
+    ${projects.length ? projects.map(p => `<a class="row" href="./projet.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}">
+        <div class="row-main"><div class="row-title">${esc(p.title)}</div>
+          <div class="row-sub">${esc(tr(p.ownerKind === 'studio' ? 'ownedByStudio' : 'ownedByComposer'))} · ${esc(tr('role_' + p.role))}${p.archived ? ' · ' + esc(tr('archived')) : ''}</div></div>
+        ${p.unread ? `<span class="pill">${esc(tr('unread', { n: p.unread }))}</span>` : ''}
+      </a>`).join('') : `<div class="empty">${esc(tr('none'))}</div>`}
+  </div>`;
+  content.innerHTML = html;
+  $('archivedToggle').onchange = e => { showArchived = e.target.checked; render(); };
+  const btn = $('createBtn');
+  if (btn) btn.onclick = async () => {
+    const title = $('newTitle').value.trim();
+    if (!title) { $('createMsg').textContent = tr('titleRequired'); $('createMsg').className = 'msg err'; return; }
+    const owner = (document.querySelector('input[name="owner"]:checked') || {}).value || (canStudio && !canComposer ? 'studio' : 'composer');
+    btn.disabled = true;
+    const r = await LayerPitchProjects.create(title, $('newDesc').value, owner === 'studio');
+    if (r.error) { $('createMsg').textContent = tr('errorPrefix', { message: r.error }); $('createMsg').className = 'msg err'; btn.disabled = false; return; }
+    location.href = './projet.html?id=' + encodeURIComponent(r.data) + '&lang=' + pageLang;
+  };
+}
+LayerPitchAuth.onAuthStateChange(() => render());
+</script>
+</body>
+</html>
