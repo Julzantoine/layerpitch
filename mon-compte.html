@@ -46,16 +46,16 @@
   <div id="content"></div>
 </div>
 
-<script src="layerpitch-i18n.js?v=1790606094102"></script>
-<script src="layerpitch-notify.js?v=1790606094102"></script>
+<script src="layerpitch-i18n.js?v=1790606979878"></script>
+<script src="layerpitch-notify.js?v=1790606979878"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1790606094102"></script>
-<script src="api/auth.js?v=1790606094102"></script>
-<script src="layerpitch-shell.js?v=1790606094102"></script>
-<script src="api/subscriptions.js?v=1790606094102"></script>
-<script src="api/notification-prefs.js?v=1790606094102"></script>
-<script src="api/connect.js?v=1790606094102"></script>
-<script src="api/invoices.js?v=1790606094102"></script>
+<script src="api/supabase-client.js?v=1790606979878"></script>
+<script src="api/auth.js?v=1790606979878"></script>
+<script src="layerpitch-shell.js?v=1790606979878"></script>
+<script src="api/subscriptions.js?v=1790606979878"></script>
+<script src="api/notification-prefs.js?v=1790606979878"></script>
+<script src="api/connect.js?v=1790606979878"></script>
+<script src="api/invoices.js?v=1790606979878"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 const content = document.getElementById('content');
@@ -543,7 +543,7 @@ const accountSection = accountParams.get('subscribed') || accountParams.get('por
 function accountPlaces() {
   const label = shellTr(accountSection === 'sales' ? 'sales' : 'item_account.' + (['profile', 'subscription', 'billing', 'documents'].includes(accountSection) ? accountSection : 'profile'));
   return { active: accountSection === 'sales' ? 'account.sales' : 'account.' + (['subscription', 'billing', 'documents'].includes(accountSection) ? accountSection : 'profile'),
-    crumbs: [{ label: tr('h1'), href: 'mon-compte.html' }, { label }] };
+    crumbs: [{ label: tr('h1') }, { label }] };
 }
 document.getElementById('pageTitle').textContent = accountPlaces().crumbs[1].label;
 window.LayerPitchShell && window.LayerPitchShell.mount(accountPlaces());

@@ -189,7 +189,7 @@
         if (it.children && isActive(it.id)) html += it.children.map(c => link(c, true)).join('');
       }
     }
-    html += `<a class="lp-item" href="${esc(withLang('tarifs.html'))}" style="margin-top:6px">${icon('pricing')}<span>${esc(tr('item_pricing'))}</span></a>`;
+    html += `<a class="lp-item" href="${esc(withLang('tarifs.html'))}" style="margin-top:6px"${state.active === 'pricing' ? ' aria-current="page"' : ''}>${icon('pricing')}<span>${esc(tr('item_pricing'))}</span></a>`;
     if (ctx.isAdmin) html += previewHtml(ctx.preview || {});
     html += `<div class="lp-nav-foot"><button type="button" id="lpSignOut">${esc(tr('signOut'))}</button></div>`;
     nav.innerHTML = html;
@@ -245,7 +245,13 @@
 
   function renderCrumbs() {
     const bar = document.querySelector('.lp-crumbs'); if (!bar) return;
-    const c = state.crumbs || [];
+    // Un lien (ou la flèche de retour) qui ramènerait sur la page affichée n'est pas proposé : il ne ferait rien.
+    const samePage = href => {
+      const u = new URL(href, location.href); u.searchParams.delete('lang');
+      const cur = new URL(location.href); cur.searchParams.delete('lang');
+      return u.pathname === cur.pathname && u.search === cur.search;
+    };
+    const c = (state.crumbs || []).map(x => (x.href && samePage(x.href) ? { label: x.label } : x));
     const back = c.length > 1 && c[c.length - 2].href ? c[c.length - 2].href : null;
     bar.innerHTML = `<button type="button" class="lp-menu-btn" id="lpMenuBtn">☰ ${esc(tr('menu'))}</button>`
       + (back ? `<a class="lp-back" href="${esc(withLang(back))}" aria-label="${esc(tr('back'))}">←</a>` : '')

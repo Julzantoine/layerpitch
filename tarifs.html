@@ -36,10 +36,13 @@
   .note { font-size: 12.5px; color: var(--text-dim); line-height: 1.6; margin-top: 12px; max-width: 80ch; }
   .bundle { background: var(--accent-soft); border-radius: 12px; padding: 16px 18px; margin-top: 30px; line-height: 1.6; }
   a { color: var(--accent); }
+  .home-link { display: inline-block; font-size: 13px; text-decoration: none; margin-bottom: 14px; }
+  body.lp-shell-on .home-link { display: none; } /* connecté : la barre commune et le fil d'Ariane remplacent ce lien */
 </style>
 </head>
 <body>
 <div class="page">
+  <a class="home-link" id="homeLink" href="./landing.html" data-i18n="homeLink">← LayerPitch</a>
   <h1 data-i18n="h1">Tarifs</h1>
   <p class="lead" data-i18n="lead">Un abonnement par profil : compositeur et studio ont chacun leur grille. Écouter les AdReels, les packs et les vitrines reste toujours gratuit, sans compte.</p>
   <div class="switch" role="group"><button type="button" data-period="month" aria-pressed="true" data-i18n="monthly">Mensuel</button><button type="button" data-period="year" aria-pressed="false" data-i18n="yearly">Annuel (2 mois offerts)</button></div>
@@ -52,8 +55,10 @@
   <p class="note" id="status"></p>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790606094102"></script>
-<script src="api/supabase-client.js?v=1790606094102"></script>
+<script src="layerpitch-i18n.js?v=1790606979878"></script>
+<script src="api/supabase-client.js?v=1790606979878"></script>
+<script src="api/auth.js?v=1790606979878"></script>
+<script src="layerpitch-shell.js?v=1790606979878"></script>
 <script>
 // tarifs.html — page publique des paliers (chantier profils et permissions, étape 6, 28/09 ; D1, D8, D12-D19, D24-D29).
 // Les chiffres ne sont PAS écrits dans la page : ils sont lus dans la base (tables plans et plan_entitlements, lecture
@@ -67,6 +72,7 @@ function tr(key, vars) {
   return str;
 }
 document.documentElement.lang = pageLang;
+if (pageLang === 'en') document.getElementById('homeLink').href = './landing-en.html';
 document.title = tr('pageTitle');
 document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -117,6 +123,8 @@ document.querySelectorAll('[data-period]').forEach(b => b.onclick = () => { peri
   data = { plans: plans.data, ent: ent.data, features: Object.fromEntries(feats.data.map(f => [f.key, f])) };
   render();
 })();
+// Connecté : barre commune (Tarifs y est une entrée) ; visiteur : page publique, lien vers l'accueil.
+window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'pricing', crumbs: [{ label: tr('h1') }] });
 </script>
 </body>
 </html>
