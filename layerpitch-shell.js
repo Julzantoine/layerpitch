@@ -215,7 +215,7 @@
   // Invitations en attente (co-ayants droit, équipe, Projets) : la liste des co-ayants droit contient aussi les invitations
   // déjà traitées ; équipe et Projets : seulement celles en attente.
   async function countInvitations(client) {
-    const counts = await Promise.all([client.rpc('my_rights_invitations'), client.rpc('my_team_invitations'), client.rpc('my_project_invitations')]);
+    const counts = await Promise.all([client.rpc('my_rights_invitations'), client.rpc('my_team_invitations'), client.rpc('my_project_invitations'), client.rpc('my_album_invitations')]);
     return counts.reduce((n, r) => n + (Array.isArray(r.data) ? r.data.filter(x => !x.status || x.status === 'pending' || x.status === 'invited').length : 0), 0);
   }
   // Résumé d'un Projet : « 3 nouveaux messages · 2 modifications · 1 note pour toi » + le détail le plus récent.

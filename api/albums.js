@@ -179,7 +179,32 @@
     return error ? { ok: false, error: error.message } : { ok: true };
   }
 
+  // ---- Albums de studio et compositeurs invités (29/09, migration 20260929020000) ----
+  const call = async (name, args) => { const { data, error } = await getClient().rpc(name, args); return error ? { data: null, error: error.message } : { data, error: null }; };
+  const upsertStudioAlbum = async payload => { const r = await call('upsert_studio_album', { payload }); return r.error ? { ok: false, error: r.error } : { ok: true, data: r.data }; };
+  const listAlbumContributors = async albumId => { const r = await call('list_album_contributors', { p_album_id: albumId }); return { contributors: r.data || [], error: r.error }; };
+  // Enregistre l'invité puis envoie l'e-mail (Edge Function invite-album-contributor) ; en cas d'échec d'envoi, actionLink permet de transmettre le lien soi-même.
+  async function inviteAlbumContributor(albumId, email, redirectTo) {
+    const r = await call('invite_album_contributor', { p_album_id: albumId, p_email: email });
+    if (r.error) return { ok: false, error: r.error };
+    const { data, error } = await getClient().functions.invoke('invite-album-contributor', { body: { albumId, contributorId: r.data, redirectTo } });
+    if (error) {
+      let body = null;
+      try { body = error.context && typeof error.context.json === 'function' ? await error.context.json() : null; } catch (e) {}
+      return { ok: false, invited: true, error: (body && body.error) || await window.LayerPitchAuth.describeFunctionError(error), actionLink: body && body.actionLink };
+    }
+    return data && data.ok ? { ok: true } : { ok: false, invited: true, error: (data && data.error) || 'Réponse inattendue.' };
+  }
+  const removeAlbumContributor = async id => { const r = await call('remove_album_contributor', { p_id: id }); return r.error ? { ok: false, error: r.error } : { ok: true, unpublished: !!(r.data && r.data.unpublished) }; };
+  const myAlbumInvitations = async () => { const r = await call('my_album_invitations'); return { invitations: r.data || [], error: r.error }; };
+  const respondAlbumInvitation = async (id, accept) => { const r = await call('respond_album_invitation', { p_id: id, p_accept: !!accept }); return r.error ? { ok: false, error: r.error } : { ok: true }; };
+  const myAlbumContributions = async () => { const r = await call('my_album_contributions'); return { contributions: r.data || [], error: r.error }; };
+  const setAlbumContributorTracks = async (albumId, trackIds) => { const r = await call('set_album_contributor_tracks', { p_album_id: albumId, p_track_ids: trackIds }); return r.error ? { ok: false, error: r.error } : { ok: true, unpublished: !!(r.data && r.data.unpublished) }; };
+  const leaveAlbum = async albumId => { const r = await call('leave_album', { p_album_id: albumId }); return r.error ? { ok: false, error: r.error } : { ok: true, unpublished: !!(r.data && r.data.unpublished) }; };
+
   window.LayerPitchAlbums = {
+    upsertStudioAlbum, listAlbumContributors, inviteAlbumContributor, removeAlbumContributor, myAlbumInvitations, respondAlbumInvitation,
+    myAlbumContributions, setAlbumContributorTracks, leaveAlbum,
     getAlbumRights, setAlbumRights, markRightsHolderSelfPay, inviteRightsHolder, myRightsInvitations, respondRightsInvitation,
     listAlbums, upsertAlbum, claimTestAlbum, listMyPurchases, getPlatformFlags,
     getMyAlbumVersions, saveMyTrackVersion, renameMyTrackVersion, deleteMyTrackVersion,

@@ -35,7 +35,7 @@ vm.createContext(i18nSandbox);
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf-8'), i18nSandbox);
 const I18N = i18nSandbox.window.LAYERPITCH_I18N;
 
-async function scenario({ testEnabled, saveResult, claimResult }) {
+async function scenario({ testEnabled, saveResult, claimResult, contributions }) {
   const dom = new JSDOM(`<div id="albumsContainer"></div><button id="btnAddAlbum"></button><div id="albumsLibraryContainer"></div>`, { runScripts: 'outside-only' });
   const w = dom.window;
   const calls = { upsert: [], claim: [] };
@@ -55,6 +55,9 @@ async function scenario({ testEnabled, saveResult, claimResult }) {
       return { rights: Object.assign(rightsState(), { toInvite: rights.holders.map(h => h.id), unlisted: true }), error: null }; },
     inviteRightsHolder: async (albumId, holderId) => { (calls.invites = calls.invites || []).push(holderId); return holderId === 'h1' ? { ok: false, error: 'Resend en panne', actionLink: 'https://lien' } : { ok: true }; },
     markRightsHolderSelfPay: async holderId => { rights.holders.find(h => h.id === holderId).status = 'self_pay'; return { rights: rightsState(), error: null }; },
+    myAlbumContributions: async () => ({ contributions: contributions || [], error: null }),
+    setAlbumContributorTracks: async (id, ids) => { (calls.contribSave = calls.contribSave || []).push({ id, ids }); return { ok: true, unpublished: ids.length === 0 }; },
+    leaveAlbum: async id => { calls.left = id; return { ok: true }; },
     claimTestAlbum: async id => { calls.claim.push(id); const r = claimResult(id); if (r.ok) purchases = [{ albumId: id, title: 'Déjà là', isTest: true, purchasedAt: '2026-09-21T10:00:00Z' }]; return r; },
   };
   w.library = [{ id: 't1', title: 'Forêt' }, { id: 't2', title: 'Combat' }, { id: 't3', title: 'Crépuscule' }];
@@ -211,6 +214,21 @@ const click = (el) => el.dispatchEvent(new (el.ownerDocument.defaultView.MouseEv
   s.w.library = [{ id: 'x', title: '<img src=x onerror=alert(1)>' }];
   await s.t.loadAlbums(); await tick();
   check('titre de morceau malveillant : échappé, aucune balise injectée', s.doc.querySelector('#albumsContainer img') === null);
+
+  // ---- Compositeur invité sur l'album d'un studio (29/09) ----
+  s = await scenario({ testEnabled: true, saveResult: () => ({ ok: true }), claimResult: () => ({ ok: true }),
+    contributions: [{ albumId: 'alb_studio', title: 'OST du studio', buyable: true, studioEmail: 'studio@x.test', tracks: [{ trackId: 't2', title: 'Combat', hasOfficial: true, duration: 42 }] }] });
+  await s.t.loadAlbums(); await tick();
+  cards = s.doc.querySelectorAll('#albumsContainer .list-block');
+  check('album de studio : carte réduite avec badge « invité », titre en lecture seule', cards.length === 2 && /Album de studio \(invité\)/.test(cards[0].textContent) && cards[0].querySelector('[data-album-field="title"]') === null);
+  check('album de studio : ni prix, ni mise en vente, ni présentation, ni pochette', !cards[0].querySelector('[data-album-field]') && !cards[0].querySelector('[data-role="albumCoverCtrl"]') && !cards[0].querySelector('[data-action="claim-test-album"]'));
+  check('album de studio : nom du studio et mes morceaux cochés (t2)', /studio@x\.test/.test(cards[0].textContent) && cards[0].querySelector('[data-album-track="t2"]').checked && !cards[0].querySelector('[data-album-track="t1"]').checked);
+  check('album de studio : version officielle de t2 (✓ 0:42) et bouton pour l\'enregistrer', /✓ 0:42/.test(cards[0].textContent) && !!cards[0].querySelector('[data-action="official-record"][data-track="t2"]'));
+  const cb = cards[0].querySelector('[data-album-track="t1"]'); cb.checked = true; change(s.w, cb);
+  click(s.doc.querySelector('#albumsContainer [data-action="save-contribution"]')); await tick(); await tick();
+  check('enregistrer : seulement MES morceaux envoyés (t2 puis t1)', JSON.stringify(s.calls.contribSave) === JSON.stringify([{ id: 'alb_studio', ids: ['t2', 't1'] }]) && !s.calls.upsert.length);
+  click(s.doc.querySelector('#albumsContainer [data-action="leave-album"]')); await tick(); await tick();
+  check('quitter l\'album : l\'invité sort, la carte disparaît, l\'autre reste', s.calls.left === 'alb_studio' && s.doc.querySelectorAll('#albumsContainer .list-block').length === 1);
 
   console.log(failures ? `\n${failures} ÉCHEC(S)` : '\nALL CHECKS PASSED');
   process.exit(failures ? 1 : 0);

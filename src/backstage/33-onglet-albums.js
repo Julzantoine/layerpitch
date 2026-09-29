@@ -28,6 +28,20 @@ function albumFromApi(a) {
   };
 }
 
+// Album d'un studio où je suis compositeur invité : je n'y vois et n'y règle que MES morceaux (le prix, la mise en vente et
+// l'argent restent au studio).
+function albumFromContribution(c) {
+  const mine = c.tracks || [];
+  const durations = {};
+  mine.forEach(t => { if (t.hasOfficial) durations[t.trackId] = Number(t.duration) || 0; });
+  return {
+    id: c.albumId, title: c.title || '', contribution: true, studioEmail: c.studioEmail || '', buyable: !!c.buyable,
+    presentationFr: '', presentationEn: '', priceInput: '', trackIds: mine.map(t => t.trackId), saved: true, savedBuyable: !!c.buyable,
+    savedTrackIds: mine.map(t => t.trackId), officialDurations: durations, illustration: c.illustration || null, illustrationOriginalName: null,
+    pendingCover: null, pendingCoverUrl: null,
+  };
+}
+
 async function loadAlbums() {
   if (albumsState.loaded || albumsState.loading) return;
   const box = document.getElementById('albumsContainer');
@@ -38,11 +52,12 @@ async function loadAlbums() {
     const { session } = await window.LayerPitchAuth.getSession();
     if (!session || !session.user) throw new Error(tr('albumsNoSession'));
     const A = window.LayerPitchAlbums;
-    const [al, pu, fl] = await Promise.all([A.listAlbums({ sellerId: session.user.id }), A.listMyPurchases(), A.getPlatformFlags()]);
+    const [al, pu, fl, co] = await Promise.all([A.listAlbums({ sellerId: session.user.id }), A.listMyPurchases(), A.getPlatformFlags(), A.myAlbumContributions()]);
     if (al.error) throw new Error(al.error);
     // Les brouillons pas encore enregistrés (+ Album cliqué avant la fin du chargement) sont gardés.
     const drafts = albumsState.albums.filter(x => !x.saved);
-    albumsState.albums = al.albums.map(albumFromApi).concat(drafts);
+    // Albums de studio où je suis compositeur invité (29/09) : mêmes cartes, réduites à mes morceaux.
+    albumsState.albums = (co.contributions || []).map(albumFromContribution).concat(al.albums.map(albumFromApi), drafts);
     albumsState.purchases = pu.purchases || [];
     albumsState.testEnabled = !!(fl.flags && fl.flags.testPurchasesEnabled);
     albumsState.loaded = true;
@@ -75,6 +90,23 @@ function renderAlbums() {
     const canClaim = albumsState.testEnabled && al.saved && al.savedBuyable;
     const el = document.createElement('div');
     el.className = 'list-block';
+    if (al.contribution) {
+      el.innerHTML = `
+        <div class="list-block-head"><div class="list-block-head-left"><strong>${escapeHtml(al.title || tr('albumFallback', { n: ai + 1 }))}</strong><span class="badge">${tr('albumContribBadge')}</span></div></div>
+        <div class="list-block-body">
+          <div class="sub">${escapeHtml(tr('albumContribFrom', { studio: al.studioEmail }))} ${tr('albumContribHint')}</div>
+          <label>${tr('albumContribTracksLabel')}</label>
+          ${trackRows.length ? trackRows.join('') : `<div class="sub">${tr('albumNoTracksInLibrary')}</div>`}
+          ${renderAlbumOfficialVersions(al, ai)}
+          <div class="actions" style="margin-top:14px">
+            <button class="btn btn-small btn-primary" data-action="save-contribution" data-ai="${ai}" type="button">${tr('albumContribSaveBtn')}</button>
+            <button class="btn btn-small btn-danger" data-action="leave-album" data-ai="${ai}" type="button">${tr('albumContribLeaveBtn')}</button>
+          </div>
+          ${msg ? `<div class="sub" style="margin-top:8px;${msg.kind === 'error' ? 'color:#c0392b' : 'color:#2e8b57'}">${escapeHtml(msg.text)}</div>` : ''}
+        </div>`;
+      box.appendChild(el);
+      return;
+    }
     el.innerHTML = `
       <div class="list-block-head">
         <div class="list-block-head-left">
@@ -342,6 +374,31 @@ async function saveAlbum(ai) {
   }
 }
 
+// Compositeur invité : enregistre MES morceaux de l'album du studio (set_album_contributor_tracks).
+async function saveContribution(ai) {
+  const al = albumsState.albums[ai];
+  setAlbumMessage(al, tr('albumSaving'), 'info');
+  try {
+    await loadPostgresReadScripts();
+    const r = await window.LayerPitchAlbums.setAlbumContributorTracks(al.id, al.trackIds);
+    if (!r.ok) { setAlbumMessage(al, tr('albumSaveError', { error: r.error }) + (/catalogue/i.test(r.error || '') ? ' ' + tr('albumTracksNotPublishedHint') : ''), 'error'); return; }
+    al.savedTrackIds = al.trackIds.slice();
+    Object.keys(al.officialDurations || {}).forEach(id => { if (!al.trackIds.includes(id)) delete al.officialDurations[id]; });
+    if (r.unpublished) al.buyable = false;
+    setAlbumMessage(al, tr(r.unpublished ? 'albumContribUnpublished' : 'albumSaved'), 'ok');
+  } catch (e) {
+    setAlbumMessage(al, tr('albumSaveError', { error: e.message }), 'error');
+  }
+}
+async function leaveContributedAlbum(ai) {
+  const al = albumsState.albums[ai];
+  if (!await window.LayerPitchNotify.confirm(tr('albumContribLeaveConfirm', { title: al.title }), { okLabel: tr('albumContribLeaveBtn'), danger: true })) return;
+  const r = await window.LayerPitchAlbums.leaveAlbum(al.id);
+  if (!r.ok) { setAlbumMessage(al, tr('albumSaveError', { error: r.error }), 'error'); return; }
+  albumsState.albums.splice(ai, 1);
+  renderAlbums();
+}
+
 async function claimTestAlbumFromUi(ai) {
   const al = albumsState.albums[ai];
   try {
@@ -381,6 +438,8 @@ async function claimTestAlbumFromUi(ai) {
     const ai = Number(btn.dataset.ai);
     if (btn.dataset.action === 'save-album') saveAlbum(ai);
     if (btn.dataset.action === 'claim-test-album') claimTestAlbumFromUi(ai);
+    if (btn.dataset.action === 'save-contribution') saveContribution(ai);
+    if (btn.dataset.action === 'leave-album') leaveContributedAlbum(ai);
     if (btn.dataset.action === 'official-record') openOfficialRecorder(ai, btn.dataset.track);
     if (btn.dataset.action === 'official-play') toggleOfficialPlayback(ai, btn.dataset.track);
   });
@@ -813,3 +872,6 @@ document.getElementById('appAllowIndexing').addEventListener('change', e => {
 });
 fillAppearanceFields();
 
+
+// Arrivée depuis une invitation acceptée (invitation.html) : ouvre directement l'onglet Albums.
+if (new URLSearchParams(location.search).get('tab') === 'albums') { switchTab('albums'); loadAlbums(); }
