@@ -183,7 +183,7 @@ async function loadData(silent) {
     libraryFolders.forEach(f => collapsedLibraryFolderIds.add(f.id));
     library.forEach(t => { if (t.folderId && !libraryFolders.some(f => f.id === t.folderId)) t.folderId = null; });
     sfxLibrary = (data.sfxLibrary || []).map(s => ({
-      id: s.id, title: s.title || '',
+      id: s.id, title: s.title || '', protected: !!s.protected,
       // Repli sur l'ancien champ unique "description" pour tout Sfx publié avant le passage au bilingue —
       // lu une fois ici, jamais réécrit dans l'ancien champ ensuite (même principe que tagline -> title/subtitle).
       descriptionFr: s.descriptionFr != null ? s.descriptionFr : (s.description || ''),

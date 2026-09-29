@@ -253,12 +253,15 @@ Deno.serve(async (req) => {
     }
 
     const accountId = Deno.env.get('R2_ACCOUNT_ID')!;
-    // Morceau PROTÉGÉ (29/09) : ses fichiers audio/<id>/… vivent dans le seau privé (R2_PROJECTS_BUCKET), au même chemin.
+    // Morceau ou Sfx PROTÉGÉ (29/09) : ses fichiers audio/<id>/… (audio/sfx-<id>/…) vivent dans le seau privé (R2_PROJECTS_BUCKET), au même chemin.
     // Envoi et effacement y sont donc aiguillés ; la vérification de propriété plus haut reste la même.
     let bucket = Deno.env.get('R2_BUCKET')!;
     const audioMatch = path.match(/^audio\/([^/]+)\//);
-    if (audioMatch && !audioMatch[1].startsWith('sfx-')) {
-      const { data: trk } = await adminClient.from('tracks').select('protected').eq('id', audioMatch[1]).maybeSingle();
+    if (audioMatch) {
+      const isSfxFolder = audioMatch[1].startsWith('sfx-');
+      const { data: trk } = isSfxFolder
+        ? await adminClient.from('sfx_library').select('protected').eq('id', audioMatch[1].slice(4)).maybeSingle()
+        : await adminClient.from('tracks').select('protected').eq('id', audioMatch[1]).maybeSingle();
       if (trk && trk.protected) {
         const privateBucket = Deno.env.get('R2_PROJECTS_BUCKET');
         if (!privateBucket) {
