@@ -27,6 +27,9 @@
   check('album non en vente : rien', (await val(`select public.get_public_album('brouillon')`)) === null);
   check('album inconnu : rien', (await val(`select public.get_public_album('nope')`)) === null);
   check('« album » est un nom réservé', (await val(`select public.handle_is_reserved('album')`)) === true);
+  // Écoute sur la page (album.html) : lecteur habituel, rendu à part pour garder la liste des titres en cas d'erreur.
+  const page = require('fs').readFileSync(require('path').join(__dirname, 'album.html'), 'utf8');
+  check('album.html : lecteur des morceaux (player.js, api/tracks.js) chargé, sans compte demandé', /player\.js\?v=/.test(page) && /api\/tracks\.js\?v=/.test(page) && /renderTracksBlock\(staging/.test(page) && /listTracksByIds/.test(page));
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
   process.exit(failures ? 1 : 0);
 })();

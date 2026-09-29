@@ -7,6 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LayerPitch</title>
 <meta name="robots" content="noindex">
+<link rel="stylesheet" href="player.css?v=1790675749112">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
 <style>
@@ -34,6 +35,8 @@
   .note { font-size: 13px; color: var(--text-dim); margin: 6px 0 0; min-height: 1.2em; }
   .tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 20px; }
   .tags span { font-size: 12px; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--border); color: var(--text-dim); }
+  #players { margin-top: 24px; }
+  #players .section-title, #players h2 { text-transform: none; }
   h2 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); margin: 24px 0 8px; }
   ol.tracks { list-style: none; margin: 0; padding: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
   ol.tracks li { display: flex; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--border); }
@@ -50,8 +53,12 @@
   <div id="root"><div class="empty">…</div></div>
   <div class="foot" id="foot"></div>
 </div>
+<script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1790675365476"></script>
+<script src="layerpitch-i18n.js?v=1790675749112"></script>
+<script src="player.js?v=1790675749112"></script>
+<script src="api/supabase-client.js?v=1790675749112"></script>
+<script src="api/tracks.js?v=1790675749112"></script>
 <script>
 // album.html — page PUBLIQUE d'un album en vente (/album/<id>), sans compte demandé. Données : get_public_album
 // (migration 20260929010000), qui ne renvoie rien pour un album non en vente. « Acheter » : achat factice de la bêta
@@ -86,6 +93,26 @@ async function whoCanBuy(client) {
   return { state: admin ? 'admin' : 'locked' };
 }
 
+// Écoute (29/09) : le lecteur adaptatif habituel de chaque morceau (le même que sur un AdReel : morceaux publics, sans
+// compte). Si le lecteur ou la lecture des morceaux échoue, la simple liste des titres reste affichée.
+async function listen(a) {
+  try {
+    if (!window.LayerPlayerCore || !window.LayerPitchTracks || !(a.tracks || []).length) return;
+    const { tracks, error } = await window.LayerPitchTracks.listTracksByIds(a.tracks.map(t => t.id));
+    if (error || !tracks || !tracks.length) return;
+    const byId = Object.fromEntries(tracks.map(t => [t.id, t]));
+    const ordered = a.tracks.map(t => byId[t.id]).filter(Boolean);
+    if (window.LayerPlayerCore.setLang) window.LayerPlayerCore.setLang(lang);
+    window.LayerPlayerCore.setSfxLibrary({});
+    // Rendu d'abord à part : en cas d'erreur, la liste des titres reste en place.
+    const staging = document.createElement('div');
+    window.LayerPlayerCore.renderTracksBlock(staging, ordered, {}, false);
+    const host = document.getElementById('players');
+    host.innerHTML = '';
+    while (staging.firstChild) host.appendChild(staging.firstChild);
+  } catch (e) { console.error('album: lecteur indisponible', e); }
+}
+
 async function main() {
   const id = params.get('s') || params.get('id') || '';
   const client = window.LayerPitchSupabaseClient.getClient();
@@ -101,7 +128,8 @@ async function main() {
     (pres ? '<p class="pres">' + esc(pres) + '</p>' : '') +
     '<div class="buy"><span class="price">' + priceText(a.priceEurCents) + '</span><button class="buy-btn" id="buyBtn" type="button" disabled>' + T.buy + '</button></div>' +
     '<p class="note" id="buyNote"></p>' +
-    '<h2>' + T.tracks + '</h2><ol class="tracks">' + tracks + '</ol></div></div>';
+    '<div id="players"><h2>' + T.tracks + '</h2><ol class="tracks">' + tracks + '</ol></div></div></div>';
+  listen(a);
 
   const btn = document.getElementById('buyBtn'), note = document.getElementById('buyNote');
   const who = await whoCanBuy(client);
