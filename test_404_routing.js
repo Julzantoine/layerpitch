@@ -33,5 +33,7 @@ check('/vitrine/fichier.html -> pas une vitrine', !(route('/vitrine/x.html') || 
 r = route('/album/mon-ost', '?lang=en');
 check('/album/id -> album.html?s=id (page publique d\'album, 29/09)', r && r.file === '/album.html' && r.params.s === 'mon-ost' && r.params.lang === 'en' && !r.params.u && r.params.__pretty === '/album/mon-ost?lang=en');
 check('/album/fichier.html -> pas une page d\'album', !(route('/album/x.html') || {}).file || route('/album/x.html').file !== '/album.html');
+r = route('/shop', '?tab=ost');
+check('/shop -> shop.html (Shop, 29/09), onglet conservé', r && r.file === '/shop.html' && r.params.tab === 'ost' && !r.params.u && r.params.__pretty === '/shop?tab=ost');
 console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
 process.exit(failures ? 1 : 0);

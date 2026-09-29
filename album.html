@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LayerPitch</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="player.css?v=1790676849844">
+<link rel="stylesheet" href="player.css?v=1790681122135">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
 <style>
@@ -52,14 +52,16 @@
 <body>
 <div class="page">
   <div id="root"><div class="empty">…</div></div>
+  <div id="sellerContact"></div>
   <div class="foot" id="foot"></div>
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790676849844"></script>
-<script src="player.js?v=1790676849844"></script>
-<script src="api/supabase-client.js?v=1790676849844"></script>
-<script src="api/tracks.js?v=1790676849844"></script>
+<script src="layerpitch-i18n.js?v=1790681122135"></script>
+<script src="player.js?v=1790681122135"></script>
+<script src="api/supabase-client.js?v=1790681122135"></script>
+<script src="layerpitch-seller-contact.js?v=1790681122135"></script>
+<script src="api/tracks.js?v=1790681122135"></script>
 <script>
 // album.html — page PUBLIQUE d'un album en vente (/album/<id>), sans compte demandé. Données : get_public_album
 // (migration 20260929010000), qui ne renvoie rien pour un album non en vente. « Acheter » : achat factice de la bêta
@@ -138,6 +140,7 @@ async function main() {
     '<p class="note" id="buyNote"></p>' +
     '<div id="players-wrap"><h2>' + T.tracks + '</h2><div id="players"></div><ol class="tracks" id="trackList">' + tracks + '</ol></div></div></div>';
   listen(a);
+  if (window.LayerPitchSellerContact) window.LayerPitchSellerContact.mount(document.getElementById('sellerContact'), { kind: 'album', id: a.id });
 
   const btn = document.getElementById('buyBtn'), note = document.getElementById('buyNote');
   const who = await whoCanBuy(client);

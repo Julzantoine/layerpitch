@@ -55,6 +55,7 @@ async function scenario({ testEnabled, saveResult, claimResult, contributions })
       return { rights: Object.assign(rightsState(), { toInvite: rights.holders.map(h => h.id), unlisted: true }), error: null }; },
     inviteRightsHolder: async (albumId, holderId) => { (calls.invites = calls.invites || []).push(holderId); return holderId === 'h1' ? { ok: false, error: 'Resend en panne', actionLink: 'https://lien' } : { ok: true }; },
     markRightsHolderSelfPay: async holderId => { rights.holders.find(h => h.id === holderId).status = 'self_pay'; return { rights: rightsState(), error: null }; },
+    setAlbumShopListed: async (id, on) => { calls.shopListed = { id, on }; return { ok: true }; },
     setAlbumListening: async (id, mode, ids) => { calls.listen = { id, mode, ids }; return { ok: true }; },
     myAlbumContributions: async () => ({ contributions: contributions || [], error: null }),
     setAlbumContributorTracks: async (id, ids) => { (calls.contribSave = calls.contribSave || []).push({ id, ids }); return { ok: true, unpublished: ids.length === 0 }; },
@@ -224,6 +225,9 @@ const click = (el) => el.dispatchEvent(new (el.ownerDocument.defaultView.MouseEv
   const free = s.doc.querySelector('input[data-album-free="t2"]'); free.checked = true; change(s.w, free);
   click(s.doc.querySelector('[data-action="save-album"]')); await tick(); await tick(); await tick();
   check('écoute libre : « certains morceaux » (t2) envoyé après l\'enregistrement', JSON.stringify(s.calls.listen) === '{"id":"alb_old","mode":"selected","ids":["t2"]}');
+  const shopBox = s.doc.querySelector('input[data-album-field="shopListed"]'); shopBox.checked = true; change(s.w, shopBox);
+  click(s.doc.querySelector('[data-action="save-album"]')); await tick(); await tick(); await tick();
+  check('Shop : « Afficher dans le Shop » coché puis enregistré avec l\'album', JSON.stringify(s.calls.shopListed) === '{"id":"alb_old","on":true}');
   const all = s.doc.querySelector('input[data-album-listen="all"]'); all.checked = true; change(s.w, all);
   click(s.doc.querySelector('[data-action="save-album"]')); await tick(); await tick(); await tick();
   check('écoute libre : « tout l\'album »', s.calls.listen.mode === 'all');

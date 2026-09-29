@@ -21,7 +21,7 @@ function albumFromApi(a) {
   return {
     id: a.id, title: a.title || '', presentationFr: a.presentationFr || '', presentationEn: a.presentationEn || '',
     priceInput: a.priceEurCents == null ? '' : (a.priceEurCents / 100).toFixed(2),
-    buyable: !!a.buyable, listenMode: a.listenMode || 'none', freeTrackIds: (a.freeTrackIds || []).slice(), trackIds: a.trackIds || [], saved: true, savedBuyable: !!a.buyable,
+    buyable: !!a.buyable, shopListed: !!a.shopListed, listenMode: a.listenMode || 'none', freeTrackIds: (a.freeTrackIds || []).slice(), trackIds: a.trackIds || [], saved: true, savedBuyable: !!a.buyable,
     // Morceaux enregistrés en base (seuls eux peuvent recevoir une version du compositeur) et durée de leur version.
     savedTrackIds: (a.trackIds || []).slice(), officialDurations: Object.assign({}, a.officialDurations || {}),
     illustration: a.illustration || null, illustrationOriginalName: a.illustrationOriginalName || null, pendingCover: null, pendingCoverUrl: null,
@@ -131,6 +131,8 @@ function renderAlbums() {
         <input type="text" inputmode="decimal" data-album-field="priceInput" data-ai="${ai}" value="${escapeAttr(al.priceInput)}" placeholder="3.00" style="max-width:140px">
         <div class="sub" style="margin-top:4px">${tr('albumMinPriceHint')}</div>
         <label style="${rowStyle}margin-top:12px"><input type="checkbox" style="width:auto;margin:0" data-album-field="buyable" data-ai="${ai}"${al.buyable ? ' checked' : ''}><span>${tr('albumBuyableLabel')}</span></label>
+        <label style="${rowStyle}margin-top:6px"><input type="checkbox" style="width:auto;margin:0" data-album-field="shopListed" data-ai="${ai}"${al.shopListed ? ' checked' : ''}><span>${tr('albumShopListedLabel')}</span></label>
+        <div class="sub" style="margin-top:2px">${tr('albumShopListedHint')}</div>
         ${renderAlbumRights(al, ai)}
         <label>${tr('albumTracksLabel')}</label>
         ${trackRows.length ? trackRows.join('') : `<div class="sub">${tr('albumNoTracksInLibrary')}</div>`}
@@ -366,6 +368,8 @@ async function saveAlbum(ai) {
       setAlbumMessage(al, tr('albumSaveError', { error }) + hint, 'error');
       return;
     }
+    const shop = await window.LayerPitchAlbums.setAlbumShopListed(al.id, al.shopListed);
+    if (!shop.ok) { setAlbumMessage(al, tr('albumSaveError', { error: shop.error }), 'error'); return; }
     const listen = await window.LayerPitchAlbums.setAlbumListening(al.id, al.listenMode, al.freeTrackIds.filter(id => al.trackIds.includes(id)));
     if (!listen.ok) { setAlbumMessage(al, tr('albumListenError', { error: listen.error }), 'error'); return; }
     al.saved = true;
@@ -431,13 +435,15 @@ async function claimTestAlbumFromUi(ai) {
   // Saisie : on met à jour l'état sans re-rendre (sinon le champ perdrait le focus à chaque frappe).
   box.addEventListener('input', e => {
     const field = e.target.dataset.albumField;
-    if (!field || field === 'buyable') return;
+    if (!field || field === 'buyable' || field === 'shopListed') return;
     albumsState.albums[Number(e.target.dataset.ai)][field] = e.target.value;
   });
   box.addEventListener('change', e => {
     const ai = Number(e.target.dataset.ai);
     if (e.target.dataset.albumField === 'buyable') {
       albumsState.albums[ai].buyable = e.target.checked;
+    } else if (e.target.dataset.albumField === 'shopListed') {
+      albumsState.albums[ai].shopListed = e.target.checked;
     } else if (e.target.dataset.albumListen) {
       albumsState.albums[ai].listenMode = e.target.dataset.albumListen;
       renderAlbums();
@@ -463,7 +469,7 @@ async function claimTestAlbumFromUi(ai) {
     if (btn.dataset.action === 'official-play') toggleOfficialPlayback(ai, btn.dataset.track);
   });
   document.getElementById('btnAddAlbum').addEventListener('click', () => {
-    albumsState.albums.push({ id: newAlbumId(), title: '', presentationFr: '', presentationEn: '', priceInput: '', buyable: false, listenMode: 'none', freeTrackIds: [], trackIds: [], saved: false, savedBuyable: false, savedTrackIds: [], officialDurations: {}, illustration: null, illustrationOriginalName: null, pendingCover: null, pendingCoverUrl: null });
+    albumsState.albums.push({ id: newAlbumId(), title: '', presentationFr: '', presentationEn: '', priceInput: '', buyable: false, shopListed: false, listenMode: 'none', freeTrackIds: [], trackIds: [], saved: false, savedBuyable: false, savedTrackIds: [], officialDurations: {}, illustration: null, illustrationOriginalName: null, pendingCover: null, pendingCoverUrl: null });
     renderAlbums();
   });
 })();

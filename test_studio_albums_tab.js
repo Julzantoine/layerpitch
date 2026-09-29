@@ -32,6 +32,7 @@ function setup() {
   w.LayerPitchAuth = { getSession: async () => ({ session: { user: { id: 'u1' } } }), getMyStudioId: async () => ({ studioId: 'st1', isOwner: true, name: 'Studio Mousse' }) };
   w.LayerPitchAlbums = {
     listAlbums: async () => ({ albums: albums.map(a => Object.assign({}, a)), error: null }),
+    setAlbumShopListed: async (id, on) => { calls.shop = { id, on }; return { ok: true }; },
     setAlbumListening: async (id, mode, ids) => { calls.listen = { id, mode, ids }; return { ok: true }; },
     upsertStudioAlbum: async p => { calls.upsert.push(p); return { ok: true, data: {} }; },
     listAlbumContributors: async () => ({ contributors: contributors.map(c => Object.assign({}, c)), error: null }),
@@ -85,6 +86,10 @@ const input = (w, el, v) => { el.value = v; el.dispatchEvent(new w.Event('input'
   const free = s.doc.querySelector('[data-free="s1"]'); free.checked = true; change(s.w, free);
   click(s.doc.getElementById('albSave')); await flush();
   check('écoute libre : « certains morceaux » (s1) enregistré avec l\'album', JSON.stringify(s.calls.listen) === '{"id":"a1","mode":"selected","ids":["s1"]}');
+
+  const shopBox = s.doc.getElementById('albShop'); shopBox.checked = true; change(s.w, shopBox);
+  click(s.doc.getElementById('albSave')); await flush();
+  check('Shop : « Afficher dans le Shop » enregistré avec l\'album', JSON.stringify(s.calls.shop) === '{"id":"a1","on":true}');
 
   // Invitation d'un compositeur
   input(s.w, s.doc.getElementById('albInvite'), 'nouveau@x.test'); click(s.doc.getElementById('albInviteBtn')); await flush();

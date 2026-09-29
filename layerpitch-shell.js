@@ -378,13 +378,11 @@
     if (ctx.studioId) {
       const studio = studioSpace ? [
         { id: 'studio.library', icon: 'purchases', href: 'studio.html?tab=library' },
-        { id: 'catalog', icon: 'catalog', href: 'catalogue.html' },
         { id: 'studio.custom', icon: 'custom', href: 'studio.html?tab=custom' },
         { id: 'studio.team', icon: 'team', href: 'studio.html?tab=team' },
         { id: 'studio.plan', icon: 'plan', href: 'studio.html?tab=plan' },
       ] : [
         { id: 'studio.library', icon: 'purchases', href: 'library.html' },
-        { id: 'catalog', icon: 'catalog', href: 'catalogue.html' },
       ];
       // Vente d'OST par un studio (29/09) : même feu vert que la vente d'albums (admin seulement pendant la bêta).
       if (studioSpace && ctx.flags.sell_albums) studio.splice(3, 0, { id: 'studio.albums', icon: 'albums', href: 'studio.html?tab=albums' });
@@ -392,6 +390,8 @@
       sections.push({ label: 'sectionStudio', items: studio });
     }
     const common = [];
+    // Shop public (29/09) : packs et OST adaptive ; remplace l'ancienne entrée « Catalogue ». Feu vert « shop » (admin seulement pendant la bêta).
+    if (ctx.flags.shop) common.push({ id: 'shop', icon: 'catalog', href: 'shop.html' });
     if (ctx.flags.projects) common.push({ id: 'projects', icon: 'projects', href: 'projets.html' });
     common.push({ id: 'invitations', icon: 'invitations', href: 'invitation.html', badge: ctx.invitations });
     if (ctx.isAdmin && !(ctx.preview && ctx.preview.hideUnreleased)) common.push({ id: 'albums', icon: 'albums', href: 'mes-albums.html' });

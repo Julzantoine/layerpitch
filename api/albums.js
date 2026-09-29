@@ -29,7 +29,7 @@
       illustration: row.illustration, illustrationOriginalName: row.illustration_original_name,
       presentationFr: row.presentation_fr, presentationEn: row.presentation_en,
       // Prix MINIMUM en centimes d'euro (prix libre : le fan peut payer davantage) — null = pas de prix.
-      priceEurCents: row.price_eur_cents, buyable: row.buyable, tags: row.tags, trackIds, officialDurations,
+      priceEurCents: row.price_eur_cents, buyable: row.buyable, shopListed: !!row.shop_listed, tags: row.tags, trackIds, officialDurations,
     };
   }
 
@@ -184,6 +184,10 @@
 
   // ---- Albums de studio et compositeurs invités (29/09, migration 20260929020000) ----
   const call = async (name, args) => { const { data, error } = await getClient().rpc(name, args); return error ? { data: null, error: error.message } : { data, error: null }; };
+  // Shop public (29/09, migration 20260929080000).
+  const shopStatus = async () => { const r = await call('shop_status'); return { open: !!(r.data && r.data.open), error: r.error }; };
+  const shopAlbums = async () => { const r = await call('shop_albums'); return { albums: r.data || [], error: r.error }; };
+  const setAlbumShopListed = async (albumId, listed) => { const r = await call('set_album_shop_listed', { p_album_id: albumId, p_listed: !!listed }); return r.error ? { ok: false, error: r.error } : { ok: true }; };
   const setAlbumListening = async (albumId, mode, trackIds) => { const r = await call('set_album_listening', { p_album_id: albumId, p_mode: mode, p_track_ids: trackIds || [] }); return r.error ? { ok: false, error: r.error } : { ok: true }; };
   const upsertStudioAlbum = async payload => { const r = await call('upsert_studio_album', { payload }); return r.error ? { ok: false, error: r.error } : { ok: true, data: r.data }; };
   const listAlbumContributors = async albumId => { const r = await call('list_album_contributors', { p_album_id: albumId }); return { contributors: r.data || [], error: r.error }; };
@@ -207,7 +211,7 @@
   const leaveAlbum = async albumId => { const r = await call('leave_album', { p_album_id: albumId }); return r.error ? { ok: false, error: r.error } : { ok: true, unpublished: !!(r.data && r.data.unpublished) }; };
 
   window.LayerPitchAlbums = {
-    setAlbumListening, upsertStudioAlbum, listAlbumContributors, inviteAlbumContributor, removeAlbumContributor, myAlbumInvitations, respondAlbumInvitation,
+    shopStatus, shopAlbums, setAlbumShopListed, setAlbumListening, upsertStudioAlbum, listAlbumContributors, inviteAlbumContributor, removeAlbumContributor, myAlbumInvitations, respondAlbumInvitation,
     myAlbumContributions, setAlbumContributorTracks, leaveAlbum,
     getAlbumRights, setAlbumRights, markRightsHolderSelfPay, inviteRightsHolder, myRightsInvitations, respondRightsInvitation,
     listAlbums, upsertAlbum, claimTestAlbum, listMyPurchases, getPlatformFlags,

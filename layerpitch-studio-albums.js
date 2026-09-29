@@ -28,7 +28,7 @@
   function fromApi(a) {
     return {
       id: a.id, title: a.title || '', presFr: a.presentationFr || '', presEn: a.presentationEn || '',
-      price: a.priceEurCents == null ? '' : (a.priceEurCents / 100).toFixed(2), buyable: !!a.buyable, saved: true, listenMode: a.listenMode || 'none', freeTrackIds: (a.freeTrackIds || []).slice(),
+      price: a.priceEurCents == null ? '' : (a.priceEurCents / 100).toFixed(2), buyable: !!a.buyable, saved: true, shopListed: !!a.shopListed, listenMode: a.listenMode || 'none', freeTrackIds: (a.freeTrackIds || []).slice(),
       trackIds: (a.trackIds || []).slice(), durations: Object.assign({}, a.officialDurations || {}),
       illustration: a.illustration || null, pendingCover: null, pendingCoverUrl: null, confirmedRights: !!a.buyable,
       contributors: [], rights: null,
@@ -79,7 +79,7 @@
       renderList();
     };
     $('#albNew').onclick = () => {
-      S.editing = { id: newId(), title: '', presFr: '', presEn: '', price: '', buyable: false, listenMode: 'none', freeTrackIds: [], saved: false, trackIds: [], durations: {}, illustration: null,
+      S.editing = { id: newId(), title: '', presFr: '', presEn: '', price: '', buyable: false, shopListed: false, listenMode: 'none', freeTrackIds: [], saved: false, trackIds: [], durations: {}, illustration: null,
         pendingCover: null, pendingCoverUrl: null, confirmedRights: false, contributors: [], rights: null };
       say(null); renderEditor();
     };
@@ -175,6 +175,8 @@
     </div>` : ''}
     <div class="card">
       <label style="display:flex;gap:8px;font-weight:normal;align-items:center"><input type="checkbox" id="albBuyable" style="width:auto;margin:0"${al.buyable ? ' checked' : ''}> ${esc(tr('alb_buyable'))}</label>
+      <label style="display:flex;gap:8px;font-weight:normal;align-items:center;margin-top:8px"><input type="checkbox" id="albShop" style="width:auto;margin:0"${al.shopListed ? ' checked' : ''}> ${esc(tr('alb_shopListed'))}</label>
+      <p class="hint" style="margin:2px 0 0">${esc(tr('alb_shopListedHint'))}</p>
       <label style="display:flex;gap:8px;font-weight:normal;align-items:flex-start;margin-top:8px"><input type="checkbox" id="albConfirm" style="width:auto;margin:3px 0 0"${al.confirmedRights ? ' checked' : ''}> <span class="hint" style="margin:0">${esc(tr('alb_confirmRights'))}</span></label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
         <button class="btn primary" id="albSave" type="button">${esc(tr('alb_save'))}</button>
@@ -193,6 +195,7 @@
     $('#albPresEn').oninput = e => { al.presEn = e.target.value; };
     $('#albPrice').oninput = e => { al.price = e.target.value; };
     $('#albBuyable').onchange = e => { al.buyable = e.target.checked; };
+    $('#albShop').onchange = e => { al.shopListed = e.target.checked; };
     $('#albConfirm').onchange = e => { al.confirmedRights = e.target.checked; };
     $('#albCover').onchange = e => {
       const f = e.target.files[0]; if (!f) return;
@@ -269,6 +272,8 @@
         trackIds: al.trackIds.filter(id => ownIds.has(id)), ...(cover || {}),
       });
       if (!r.ok) { say(tr('alb_error', { error: r.error }), 'error'); return renderEditor(); }
+      const shop = await window.LayerPitchAlbums.setAlbumShopListed(al.id, al.shopListed);
+      if (!shop.ok) { say(tr('alb_error', { error: shop.error }), 'error'); return renderEditor(); }
       const listen = await window.LayerPitchAlbums.setAlbumListening(al.id, al.listenMode, al.freeTrackIds.filter(id => al.trackIds.includes(id)));
       if (!listen.ok) { say(tr('alb_listenError', { error: listen.error }), 'error'); return renderEditor(); }
       const wasSaved = al.saved;

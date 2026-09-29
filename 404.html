@@ -37,6 +37,13 @@
     location.replace('/vitrine.html?' + p.toString());
     return;
   }
+  // /shop (29/09, page Shop) : « shop » est un nom réservé.
+  if (handle === 'shop' && segments.length === 1) {
+    const p = new URLSearchParams(location.search);
+    p.set('__pretty', path + location.search);
+    location.replace('/shop.html?' + p.toString());
+    return;
+  }
   // /album/<id> (29/09, page publique d'un album en vente) : « album » est un nom réservé.
   if (handle === 'album' && segments.length === 2 && !segments[1].includes('.')) {
     const p = new URLSearchParams(location.search);

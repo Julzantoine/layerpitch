@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pageTitle">LayerPitch — Shop</title>
+<meta name="description" content="Assets audio et OST adaptive pour le jeu vidéo : packs de musiques et de Sfx, albums adaptatifs. Écoute libre, achat à l'unité.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
+    --text: #24262b; --text-dim: #5f636b; --text-dimmer: #9a9ea6;
+    --accent: #2f80c0; --accent-soft: #e6eef8; --on-accent: #ffffff;
+    --font-body: 'Inter', system-ui, sans-serif; --font-title: 'Space Grotesk', 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 32px 16px 60px; }
+  .page { max-width: 1040px; margin: 0 auto; }
+  a { color: var(--accent); }
+  .top { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+  h1 { font-family: var(--font-title); font-size: 28px; margin: 0; }
+  .intro { color: var(--text-dim); line-height: 1.6; max-width: 68ch; margin: 6px 0 18px; }
+  .top-links { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .filters input, .filters select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); }
+  .filters input { flex: 1 1 240px; min-width: 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .pack { display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color .15s; }
+  .pack:hover, .pack:focus-within { border-color: var(--accent); }
+  .pack-link { display: flex; flex-direction: column; flex: 1; text-decoration: none; color: inherit; outline: none; }
+  .take { margin: 0 14px 14px; border: 1px solid var(--accent); background: transparent; color: var(--accent); border-radius: 999px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 12.5px; }
+  .take:disabled { opacity: .5; cursor: default; }
+  .credits-bar { font-size: 13px; color: var(--text-dim); margin: -8px 0 16px; }
+  .cover { aspect-ratio: 1 / 1; width: 100%; object-fit: cover; display: block; background: linear-gradient(135deg, #23262d, #3a3f48); }
+  .pack-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .pack-title { font-family: var(--font-title); font-size: 16px; overflow-wrap: anywhere; }
+  .pack-composer { font-size: 12.5px; color: var(--text-dim); }
+  .pack-meta { font-size: 11.5px; color: var(--text-dimmer); }
+  .pack-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 8px; }
+  .price { font-family: var(--font-mono); font-size: 14px; font-weight: 500; }
+  .credits { font-family: var(--font-mono); font-size: 10.5px; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag { font-size: 11px; color: var(--text-dim); border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; }
+  .empty { color: var(--text-dimmer); text-align: center; padding: 60px 0; }
+
+  .tabs { display: flex; gap: 8px; margin: 0 0 16px; flex-wrap: wrap; }
+  .tab { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 7px 16px; cursor: pointer; font: inherit; color: var(--text); }
+  .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .notice { background: var(--bg-card); border: 1px dashed var(--border); border-radius: 10px; padding: 40px 20px; text-align: center; color: var(--text-dim); }
+  .filters select.tagsel { max-width: 200px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top">
+    <h1 data-i18n="h1">Shop</h1>
+  </div>
+  <p class="intro" data-i18n="intro">Musique adaptative pour le jeu vidéo, par des compositeurs indépendants et des studios.</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" type="button" role="tab" id="tabAssets" data-tab="assets" data-i18n="tabAssets">Assets audio</button>
+    <button class="tab" type="button" role="tab" id="tabOst" data-tab="ost" data-i18n="tabOst">OST adaptive</button>
+  </div>
+  <div class="credits-bar" id="creditsBar" hidden></div>
+  <div class="filters" id="filters">
+    <input type="search" id="q" data-i18n-placeholder="searchPlaceholder" aria-label="Recherche">
+    <select id="tagSel" class="tagsel" aria-label="Style"></select>
+    <select id="sort" aria-label="Tri">
+      <option value="recent" data-i18n="sortRecent">Plus récents</option>
+      <option value="priceAsc" data-i18n="sortPriceAsc">Prix croissant</option>
+      <option value="priceDesc" data-i18n="sortPriceDesc">Prix décroissant</option>
+    </select>
+  </div>
+  <div id="grid" class="grid"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="layerpitch-i18n.js?v=1790676849844"></script>
+<script src="api/supabase-client.js?v=1790676849844"></script>
+<script src="api/auth.js?v=1790676849844"></script>
+<script src="layerpitch-appearance.js?v=1790676849844"></script>
+<script src="layerpitch-shell.js?v=1790676849844"></script>
+<script src="api/albums.js?v=1790676849844"></script>
+<script src="api/studio.js?v=1790676849844"></script>
+<script>
+// shop.html — page publique « Shop » (29/09, demande de Jules-Antoine ; migration 20260929080000) : UNE page, DEUX rayons.
+//   « Assets audio » : les packs de musiques et de Sfx (catalog_packs : en vente, payants, « Afficher dans le catalogue »),
+//                      pour les studios et game devs ; prise en crédits pour un studio abonné (ancien catalogue.html) ;
+//   « OST adaptive » : les albums en vente que le vendeur a choisi d'afficher (shop_albums), pour les fans.
+// Remplace catalogue.html (qui redirige ici). Visible sans compte ; tant que le feu vert « shop » n'est pas donné, seul un
+// administrateur voit les rayons (les autres lisent « bientôt »). Chaque carte mène à la page du pack (pack.html) ou de
+// l'album (/album/<id>), où se fait l'écoute et l'achat.
+const pageLang = (new URLSearchParams(location.search).get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
+function tr(key, vars) {
+  const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, catalog: {}, shop: {} }, en: { shared: {}, catalog: {}, shop: {} } };
+  const dict = I18N[pageLang] || I18N.fr, dictFr = I18N.fr;
+  let str = (dict.shop && dict.shop[key]) || (dict.catalog && dict.catalog[key]) || (dict.shared && dict.shared[key])
+    || (dictFr.shop && dictFr.shop[key]) || (dictFr.catalog && dictFr.catalog[key]) || (dictFr.shared && dictFr.shared[key]) || key;
+  if (vars) Object.keys(vars).forEach(k => { str = str.split('{' + k + '}').join(vars[k]); });
+  return str;
+}
+document.documentElement.lang = pageLang;
+document.title = tr('pageTitle');
+document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = tr(el.dataset.i18nPlaceholder); });
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const eur = cents => new Intl.NumberFormat(pageLang === 'en' ? 'en-GB' : 'fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2, minimumFractionDigits: cents % 100 ? 2 : 0 }).format(cents / 100);
+const IMAGES_BASE = 'https://media.layerpitch.com/images/';
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const state = { tab: new URLSearchParams(location.search).get('tab') === 'ost' ? 'ost' : 'assets', packs: [], albums: [], open: false, credits: null, taken: new Set() };
+const $ = id => document.getElementById(id);
+
+window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'shop', crumbs: [{ label: tr('h1') }] });
+
+const gridEmpty = key => `<div class="empty" style="grid-column:1/-1">${esc(tr(key))}</div>`;
+const countsText = (tracks, sfx) => [tracks ? tr(tracks > 1 ? 'tracksMany' : 'tracksOne', { n: tracks }) : '', sfx ? tr(sfx > 1 ? 'sfxMany' : 'sfxOne', { n: sfx }) : ''].filter(Boolean).join(' · ');
+
+function currentItems() { return state.tab === 'ost' ? state.albums : state.packs; }
+function renderTagSelect() {
+  const tags = [...new Set(currentItems().flatMap(x => x.tags || []))].sort((a, b) => a.localeCompare(b));
+  const sel = $('tagSel'), keep = sel.value;
+  sel.innerHTML = `<option value="">${esc(tr('allStyles'))}</option>` + tags.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  sel.value = tags.includes(keep) ? keep : '';
+}
+function packCard(p) {
+  const href = `./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}${p.composer_handle ? '&u=' + encodeURIComponent(p.composer_handle) : ''}`;
+  const canTake = state.credits && p.subscriber_credits && !state.taken.has(p.id);
+  return `<div class="pack"><a class="pack-link" href="${href}">
+    ${p.illustration ? `<img class="cover" src="${IMAGES_BASE}${esc(p.illustration)}" alt="" loading="lazy">` : `<div class="cover"></div>`}
+    <div class="pack-body">
+      <div class="pack-title">${esc(p.title)}</div>
+      <div class="pack-composer">${esc(tr('byComposer', { name: p.composer_name || '' }))}</div>
+      ${countsText(p.track_count, p.sfx_count) ? `<div class="pack-meta">${esc(countsText(p.track_count, p.sfx_count))}</div>` : ''}
+      ${(p.tags || []).length ? `<div class="tags">${p.tags.slice(0, 4).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>` : ''}
+      <div class="pack-foot">
+        <span class="price">${esc(eur(p.price_eur_cents))}</span>
+        ${p.subscriber_credits ? `<span class="credits" title="${esc(tr('creditsHelp'))}">${esc(tr(p.subscriber_credits > 1 ? 'creditsMany' : 'creditsOne', { n: p.subscriber_credits }))}</span>` : ''}
+      </div>
+    </div>
+  </a>${canTake ? `<button class="take" type="button" data-take="${esc(p.id)}" ${state.credits.balance < p.subscriber_credits ? 'disabled' : ''}>${esc(tr('takeWithCredits', { n: p.subscriber_credits }))}</button>` : ''}${state.taken.has(p.id) ? `<div class="take" style="text-align:center;border-style:dashed">${esc(tr('takenLabel'))}</div>` : ''}</div>`;
+}
+function albumCard(a) {
+  const href = `/album/${encodeURIComponent(a.id)}${pageLang === 'en' ? '?lang=en' : ''}`;
+  const free = a.free_track_count ? tr(a.free_track_count > 1 ? 'freeMany' : 'freeOne', { n: a.free_track_count }) : '';
+  return `<div class="pack"><a class="pack-link" href="${href}">
+    ${a.illustration ? `<img class="cover" src="${IMAGES_BASE}${esc(a.illustration)}" alt="" loading="lazy">` : `<div class="cover"></div>`}
+    <div class="pack-body">
+      <div class="pack-title">${esc(a.title)}</div>
+      ${a.seller_name ? `<div class="pack-composer">${esc(tr('byComposer', { name: a.seller_name }))}</div>` : ''}
+      <div class="pack-meta">${esc([countsText(a.track_count, 0), free].filter(Boolean).join(' · '))}</div>
+      ${(a.tags || []).length ? `<div class="tags">${a.tags.slice(0, 4).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>` : ''}
+      <div class="pack-foot"><span class="price">${esc(a.price_eur_cents > 0 ? tr('priceFrom', { price: eur(a.price_eur_cents) }) : tr('priceFree'))}</span></div>
+    </div>
+  </a></div>`;
+}
+function renderGrid() {
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.tab === state.tab ? 'true' : 'false'));
+  $('creditsBar').hidden = state.tab !== 'assets' || !state.credits;
+  const grid = $('grid');
+  if (!state.open) { $('filters').hidden = true; grid.innerHTML = `<div class="notice" style="grid-column:1/-1"><strong>${esc(tr('comingSoonTitle'))}</strong><div>${esc(tr('comingSoonHint'))}</div></div>`; return; }
+  $('filters').hidden = false;
+  const items = currentItems();
+  const q = norm($('q').value), tag = $('tagSel').value, sort = $('sort').value;
+  let list = items.filter(x => (!q || norm([x.title, x.composer_name, x.seller_name, (x.tags || []).join(' ')].join(' ')).includes(q)) && (!tag || (x.tags || []).includes(tag)));
+  if (sort === 'priceAsc') list = list.slice().sort((a, b) => a.price_eur_cents - b.price_eur_cents);
+  if (sort === 'priceDesc') list = list.slice().sort((a, b) => b.price_eur_cents - a.price_eur_cents);
+  if (!list.length) { grid.innerHTML = gridEmpty(items.length ? 'noMatch' : (state.tab === 'ost' ? 'emptyOst' : 'empty')); return; }
+  grid.innerHTML = list.map(state.tab === 'ost' ? albumCard : packCard).join('');
+  grid.querySelectorAll('[data-take]').forEach(b => b.onclick = async () => {
+    const pack = state.packs.find(x => x.id === b.dataset.take);
+    b.disabled = true;
+    const r = await LayerPitchStudio.takePackWithCredits(pack.id);
+    if (!r.ok) { b.disabled = false; alertMsg(tr('errorPrefix', { message: r.error })); return; }
+    state.taken.add(pack.id); state.credits.balance = r.balance; renderCredits(); renderGrid();
+  });
+}
+function alertMsg(text) { const bar = $('creditsBar'); bar.hidden = false; bar.textContent = text; }
+function renderCredits() {
+  const bar = $('creditsBar');
+  if (!state.credits || state.credits.monthly == null) { bar.hidden = true; return; }
+  bar.hidden = state.tab !== 'assets';
+  bar.innerHTML = `${esc(tr('creditsBalance', { n: state.credits.balance }))} — <a href="./studio.html?lang=${pageLang}">${esc(tr('studioLink'))}</a>`;
+}
+function selectTab(tab) {
+  state.tab = tab === 'ost' ? 'ost' : 'assets';
+  history.replaceState(null, '', location.pathname + '?tab=' + state.tab + (pageLang === 'en' ? '&lang=en' : ''));
+  $('q').value = ''; $('tagSel').value = '';
+  renderTagSelect(); renderGrid();
+}
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => selectTab(t.dataset.tab)));
+$('q').addEventListener('input', renderGrid);
+$('tagSel').addEventListener('change', renderGrid);
+$('sort').addEventListener('change', renderGrid);
+
+(async () => {
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.tab === state.tab ? 'true' : 'false'));
+  $('grid').innerHTML = gridEmpty('loading');
+  const status = await LayerPitchAlbums.shopStatus();
+  state.open = !!status.open;
+  if (!state.open) { renderGrid(); return; }
+  const [packsRes, albumsRes] = await Promise.all([LayerPitchStudio.catalog(), LayerPitchAlbums.shopAlbums()]);
+  if (packsRes.error && albumsRes.error) { $('grid').innerHTML = gridEmpty('loadError'); return; }
+  state.packs = packsRes.packs || [];
+  state.albums = albumsRes.albums || [];
+  try {
+    const { session } = await LayerPitchAuth.getSession();
+    if (session) { const c = await LayerPitchStudio.myCredits(); state.credits = c.credits && c.credits.monthly != null ? c.credits : null; renderCredits(); }
+  } catch (e) { /* les crédits sont facultatifs */ }
+  renderTagSelect();
+  renderGrid();
+})();
+</script>
+</body>
+</html>
