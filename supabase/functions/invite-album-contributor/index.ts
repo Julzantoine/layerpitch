@@ -29,11 +29,11 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-async function sendEmail(to: string, albumTitle: string, studioEmail: string, link: string) {
+async function sendEmail(to: string, albumTitle: string, studioName: string, studioEmail: string, link: string) {
   const apiKey = Deno.env.get('RESEND_API_KEY');
   const fromAddress = Deno.env.get('RESEND_FROM_ADDRESS');
   if (!apiKey || !fromAddress) return { ok: false, error: 'Secrets Resend non configurés (RESEND_API_KEY / RESEND_FROM_ADDRESS).' };
-  const intro = `${studioEmail} t'invite à composer l'album « ${albumTitle} » sur LayerPitch : tu y ajoutes tes morceaux et tu fixes leur version officielle. L'album reste celui du studio, qui le met en vente.`;
+  const intro = `${studioName} t'invite à composer l'album « ${albumTitle} » sur LayerPitch : tu y ajoutes tes morceaux et tu fixes leur version officielle. L'album reste celui du studio, qui le met en vente.`;
   const html = `
     <div style="font-family:sans-serif;color:#262521;max-width:520px;">
       <h2 style="font-family:sans-serif;">Un album t'attend sur LayerPitch</h2>
@@ -78,14 +78,15 @@ Deno.serve(async (req) => {
     if (contributor.status !== 'pending') return json({ error: 'Cet invité a déjà répondu.' }, 409);
 
     const adminClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-    const { data: album } = await adminClient.from('albums').select('title').eq('id', albumId).maybeSingle();
+    const { data: album } = await adminClient.from('albums').select('title, seller_id').eq('id', albumId).maybeSingle();
+    const { data: studio } = album ? await adminClient.from('studio_profiles').select('display_name').eq('profile_id', album.seller_id).maybeSingle() : { data: null };
     const target = typeof redirectTo === 'string' && redirectTo ? redirectTo : 'https://beta.layerpitch.com/invitation.html';
     let link = await adminClient.auth.admin.generateLink({ type: 'invite', email: contributor.email, options: { redirectTo: target } });
     if (link.error) link = await adminClient.auth.admin.generateLink({ type: 'magiclink', email: contributor.email, options: { redirectTo: target } });
     const actionLink = link.data?.properties?.action_link;
     if (link.error || !actionLink) return json({ error: 'Lien d\'invitation impossible : ' + (link.error?.message || 'réponse vide') }, 400);
 
-    const sent = await sendEmail(contributor.email, album?.title || 'album', callerData.user.email || 'Un studio', actionLink);
+    const sent = await sendEmail(contributor.email, album?.title || 'album', studio?.display_name || callerData.user.email || 'Un studio', callerData.user.email || '', actionLink);
     if (!sent.ok) return json({ error: 'Invitation prête, mais l\'e-mail n\'est pas parti : ' + sent.error, actionLink }, 502);
     return json({ ok: true });
   } catch (e) {

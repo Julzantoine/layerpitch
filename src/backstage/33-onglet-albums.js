@@ -35,7 +35,7 @@ function albumFromContribution(c) {
   const durations = {};
   mine.forEach(t => { if (t.hasOfficial) durations[t.trackId] = Number(t.duration) || 0; });
   return {
-    id: c.albumId, title: c.title || '', contribution: true, studioEmail: c.studioEmail || '', buyable: !!c.buyable,
+    id: c.albumId, title: c.title || '', contribution: true, studioEmail: c.studioName || c.studioEmail || '', buyable: !!c.buyable,
     presentationFr: '', presentationEn: '', priceInput: '', trackIds: mine.map(t => t.trackId), saved: true, savedBuyable: !!c.buyable,
     savedTrackIds: mine.map(t => t.trackId), officialDurations: durations, illustration: c.illustration || null, illustrationOriginalName: null,
     pendingCover: null, pendingCoverUrl: null,

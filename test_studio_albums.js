@@ -28,18 +28,31 @@
   await q(`insert into public.pack_tracks (pack_id, track_id, position) values ('pk', 's1', 0), ('pk', 's2', 1)`);
   await q(`insert into public.pack_purchases (studio_id, pack_id, price_paid) values ($1, 'pk', 5)`, [U(1)]);
 
+  // ---- Nom du studio (migration 20260929030000) ----
+  await as(1);
+  check('sans nom : pas de nom public, my_studio le dit', (await one(`select public.my_studio()->>'name'`)) === null);
+  check('nom vide refusé', await fails(`select public.set_my_studio_name('   ')`, [], /Donne un nom/));
+  check('nom trop long refusé', await fails(`select public.set_my_studio_name($1)`, ['x'.repeat(81)], /trop long/));
+  check('un compte sans studio ne peut pas nommer', await (async () => { await as(3); const r = await fails(`select public.set_my_studio_name('Pirate')`, [], /propriétaire/); await as(1); return r; })());
+
   // ---- Le studio crée son album avec ses morceaux ----
   await as(1);
   await q(`select public.upsert_studio_album($1::jsonb)`, [J({ id: 'ost', title: 'OST Forêt', priceEurCents: 800, trackIds: ['s1'] })]);
   check('album de studio : vendeur = le compte studio, rôle studio', (await one(`select seller_role from public.albums where id = 'ost'`)) === 'studio' && (await one(`select seller_id from public.albums where id = 'ost'`)) === U(1));
   check('morceau du studio ajouté, marqué comme le sien', (await one(`select added_by from public.album_tracks where album_id = 'ost' and track_id = 's1'`)) === U(1));
   check('un morceau qui n\'est pas dans ses packs : refusé', await fails(`select public.upsert_studio_album($1::jsonb)`, [J({ id: 'ost', title: 'OST Forêt', trackIds: ['s1', 'x1'] })], /ne fait pas partie de tes packs/));
+  check('mise en vente sans nom de studio : refusée', await fails(`select public.upsert_studio_album($1::jsonb)`, [J({ id: 'ost', title: 'OST Forêt', buyable: true })], /nom à ton studio/));
+  check('le nom se règle (espaces nettoyés), my_studio le renvoie', (await one(`select public.set_my_studio_name('  Studio   Mousse  ')`)) === 'Studio Mousse' && (await one(`select public.my_studio()->>'name'`)) === 'Studio Mousse');
   check('mise en vente sans version officielle : refusée', await fails(`select public.upsert_studio_album($1::jsonb)`, [J({ id: 'ost', title: 'OST Forêt', buyable: true })], /version officielle/));
   await q(`select public.set_album_track_default_settings('ost', 's1', $1::jsonb)`, [J({ ...take, trackId: 's1' })]).catch(() => null);
   await q(`update public.album_tracks set default_settings = $1 where album_id = 'ost' and track_id = 's1'`, [J(take)]);
   await q(`select public.upsert_studio_album($1::jsonb)`, [J({ id: 'ost', title: 'OST Forêt', buyable: true })]);
   check('mise en vente possible avec la version officielle', (await one(`select buyable from public.albums where id = 'ost'`)) === true);
 
+  await as(0);
+  const pub = await one(`select public.get_public_album('ost')`);
+  check('page publique : le vendeur est le nom du studio', pub.sellerName === 'Studio Mousse' && pub.sellerRole === 'studio');
+  await as(1);
   // ---- Isolation ----
   await as(3);
   check('un autre compte ne peut pas modifier l\'album du studio', await fails(`select public.upsert_studio_album($1::jsonb)`, [J({ id: 'ost', title: 'Vol' })], /Non autorisé/));
@@ -52,7 +65,7 @@
   check('le studio voit l\'invité en attente', (await one(`select public.list_album_contributors('ost')`))[0].status === 'pending');
   await as(2);
   const inv = await one(`select public.my_album_invitations()`);
-  check('le compositeur voit l\'invitation (e-mail, casse ignorée)', inv.length === 1 && inv[0].albumTitle === 'OST Forêt' && inv[0].studioEmail === 'studio@x.test');
+  check('le compositeur voit l\'invitation (e-mail, casse ignorée) avec le nom du studio', inv.length === 1 && inv[0].albumTitle === 'OST Forêt' && inv[0].studioEmail === 'studio@x.test' && inv[0].studioName === 'Studio Mousse');
   check('avant d\'accepter : il ne peut pas ajouter de morceaux', await fails(`select public.set_album_contributor_tracks('ost', array['c1'])`, [], /pas compositeur invité/));
   await as(3);
   check('un autre compte ne voit pas l\'invitation', (await one(`select public.my_album_invitations()`)).length === 0);
@@ -69,7 +82,7 @@
   check('il ne peut pas fixer la version officielle d\'un morceau du studio', await fails(`select public.set_album_track_default_settings('ost', 's1', $1::jsonb)`, [J({ ...take, trackId: 's1' })], /introuvable|autre compte|take/i));
   check('il ne peut ni changer le prix ni mettre en vente', await fails(`select public.upsert_studio_album($1::jsonb)`, [J({ id: 'ost', title: 'OST Forêt', priceEurCents: 1 })], /Non autorisé/));
   const mine = await one(`select public.my_album_contributions()`);
-  check('ses contributions : l\'album du studio avec ses 2 morceaux', mine.length === 1 && mine[0].tracks.length === 2 && mine[0].studioEmail === 'studio@x.test');
+  check('ses contributions : l\'album du studio avec ses 2 morceaux', mine.length === 1 && mine[0].tracks.length === 2 && mine[0].studioEmail === 'studio@x.test' && mine[0].studioName === 'Studio Mousse');
 
   // ---- Le studio remet en vente, puis sortie libre ----
   await as(1);

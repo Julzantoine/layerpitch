@@ -29,7 +29,7 @@ function setup() {
                 { id: 'autre', sellerId: 'u1', sellerRole: 'composer', title: 'Pas un album de studio', trackIds: [], officialDurations: {} }];
   let contributors = [{ id: 'k1', email: 'coco@x.test', status: 'accepted', trackCount: 1 }, { id: 'k2', email: 'bob@x.test', status: 'pending', trackCount: 0 }];
   w.LayerPitchNotify = { confirm: async () => true };
-  w.LayerPitchAuth = { getSession: async () => ({ session: { user: { id: 'u1' } } }), getMyStudioId: async () => ({ studioId: 'st1' }) };
+  w.LayerPitchAuth = { getSession: async () => ({ session: { user: { id: 'u1' } } }), getMyStudioId: async () => ({ studioId: 'st1', isOwner: true, name: 'Studio Mousse' }) };
   w.LayerPitchAlbums = {
     listAlbums: async () => ({ albums: albums.map(a => Object.assign({}, a)), error: null }),
     upsertStudioAlbum: async p => { calls.upsert.push(p); return { ok: true, data: {} }; },
@@ -40,6 +40,7 @@ function setup() {
     setAlbumRights: async (id, decl, holders, ack) => { calls.rights.push({ decl, holders, ack }); return { rights: { declaration: decl, ackAt: ack ? 'x' : null, settled: false, sellerShareBps: 7000, holders: holders.map((h, i) => ({ id: 'h' + i, email: h.email, shareBps: h.shareBps, status: 'pending' })), toInvite: [], unlisted: false }, error: null }; },
     inviteRightsHolder: async () => ({ ok: true }), markRightsHolderSelfPay: async () => ({ rights: null, error: null }),
   };
+  w.LayerPitchStudio = { setMyStudioName: async n => { calls.name = n; return { ok: true, name: n.trim() }; } };
   w.URL.createObjectURL = () => 'blob:x'; w.URL.revokeObjectURL = () => {};
   w.CSS = { escape: s => String(s) };
   w.eval(src);
@@ -53,6 +54,9 @@ const input = (w, el, v) => { el.value = v; el.dispatchEvent(new w.Event('input'
 (async () => {
   let s = setup();
   await s.mount(); await flush();
+  check('nom du studio affiché en tête de l\'onglet', s.doc.getElementById('albStudioName').value === 'Studio Mousse');
+  input(s.w, s.doc.getElementById('albStudioName'), 'Autre Nom'); click(s.doc.getElementById('albStudioNameSave')); await flush();
+  check('enregistrer le nom : appel API et confirmation', s.calls.name === 'Autre Nom' && /Nom du studio enregistré/.test(s.doc.body.textContent));
   const rows = () => s.doc.querySelectorAll('.row[data-i]');
   check('liste : seulement les albums de STUDIO (pas celui de compositeur)', rows().length === 1 && /OST Forêt/.test(rows()[0].textContent) && /Brouillon/.test(rows()[0].textContent));
   check('liste : « Nouvel album » actif', !s.doc.getElementById('albNew').disabled);

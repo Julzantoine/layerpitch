@@ -185,7 +185,7 @@
       if (direct.error) return { studioId: null, error: direct.error.message };
       return { studioId: direct.data ? direct.data.id : null, isOwner: true, error: null };
     }
-    return { studioId: data ? data.id : null, isOwner: !!(data && data.isOwner), error: null };
+    return { studioId: data ? data.id : null, isOwner: !!(data && data.isOwner), name: (data && data.name) || null, error: null };
   }
 
 

@@ -46,17 +46,18 @@
   <div id="content"></div>
 </div>
 
-<script src="layerpitch-i18n.js?v=1790674884775"></script>
-<script src="layerpitch-notify.js?v=1790674884775"></script>
+<script src="layerpitch-i18n.js?v=1790675365476"></script>
+<script src="layerpitch-notify.js?v=1790675365476"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1790674884775"></script>
-<script src="api/auth.js?v=1790674884775"></script>
-<script src="layerpitch-appearance.js?v=1790674884775"></script>
-<script src="layerpitch-shell.js?v=1790674884775"></script>
-<script src="api/subscriptions.js?v=1790674884775"></script>
-<script src="api/notification-prefs.js?v=1790674884775"></script>
-<script src="api/connect.js?v=1790674884775"></script>
-<script src="api/invoices.js?v=1790674884775"></script>
+<script src="api/supabase-client.js?v=1790675365476"></script>
+<script src="api/auth.js?v=1790675365476"></script>
+<script src="layerpitch-appearance.js?v=1790675365476"></script>
+<script src="layerpitch-shell.js?v=1790675365476"></script>
+<script src="api/subscriptions.js?v=1790675365476"></script>
+<script src="api/notification-prefs.js?v=1790675365476"></script>
+<script src="api/studio.js?v=1790675365476"></script>
+<script src="api/connect.js?v=1790675365476"></script>
+<script src="api/invoices.js?v=1790675365476"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 const content = document.getElementById('content');
@@ -294,7 +295,7 @@ async function connectCardHtml() {
 // par profil : un compositeur freelance et son studio sont deux entités différentes). Affichée seulement si le compte a
 // un profil studio.
 async function studioPayoutCardHtml() {
-  const { studioId } = await LayerPitchAuth.getMyStudioId();
+  const { studioId, name: studioName } = await LayerPitchAuth.getMyStudioId();
   if (!studioId) return '';
   const [{ profile }, { status }] = await Promise.all([LayerPitchConnect.getMyStudioBillingProfile(), LayerPitchConnect.myStudioConnectStatus()]);
   const p = profile || {};
@@ -310,6 +311,11 @@ async function studioPayoutCardHtml() {
         <option value="professionnel" ${p.billing_status === 'professionnel' ? 'selected' : ''}>${tr('statusProOption')}</option>
         <option value="particulier" ${p.billing_status === 'particulier' ? 'selected' : ''}>${tr('statusParticulierOption')}</option>
       </select>
+      <label>${tr('studioNameLabel')}</label>
+      <input type="text" id="studioDisplayName" maxlength="80" value="${escapeHtml(studioName || '')}">
+      <div class="hint">${tr('studioNameHint')}</div>
+      <div class="actions"><button class="btn" id="btnSaveStudioName" type="button">${tr('saveBtn')}</button></div>
+      <div class="msg" id="studioNameMsg"></div>
       <label>${tr('legalNameLabel')}</label>
       <input type="text" id="studioBillingLegalName" value="${escapeHtml(p.billing_legal_name || '')}">
       <label>${tr('addressLabel')}</label>
@@ -327,6 +333,14 @@ async function studioPayoutCardHtml() {
     </div>`;
 }
 function wireStudioPayoutCard() {
+  const saveName = document.getElementById('btnSaveStudioName');
+  if (saveName) saveName.addEventListener('click', async () => {
+    const msg = document.getElementById('studioNameMsg');
+    saveName.disabled = true; msg.textContent = '…';
+    const { ok, error } = await LayerPitchStudio.setMyStudioName(document.getElementById('studioDisplayName').value);
+    msg.textContent = ok ? tr('savedMsg') : tr('errorPrefix', { message: error });
+    saveName.disabled = false;
+  });
   const save = document.getElementById('btnSaveStudioBilling');
   if (!save) return;
   save.addEventListener('click', async () => {

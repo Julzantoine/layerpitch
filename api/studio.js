@@ -47,6 +47,12 @@
     return error ? { ok: false, error } : { ok: true };
   }
 
+  // Nom public du studio (29/09, migration 20260929030000) : propriétaire seulement (vérifié par le serveur).
+  async function setMyStudioName(name) {
+    const { data, error } = await rpc('set_my_studio_name', { p_name: name });
+    return error ? { ok: false, error } : { ok: true, name: data };
+  }
+
   // ---- Équipe du studio (étape 5a, 28/09, migration 20260928060000) ----
   async function myTeamPurchases() {
     const { data, error } = await rpc('my_team_purchases');
@@ -105,6 +111,6 @@
     return error ? { ok: false, error } : { ok: true, balance: data && data.balance };
   }
 
-  window.LayerPitchStudio = { myCredits, takePackWithCredits, myEntitlements, myFeatureFlags, catalog, myOwnedAssets, myCustomPacks, saveCustomPack, deleteCustomPack,
+  window.LayerPitchStudio = { setMyStudioName, myCredits, takePackWithCredits, myEntitlements, myFeatureFlags, catalog, myOwnedAssets, myCustomPacks, saveCustomPack, deleteCustomPack,
     myTeamPurchases, myTeam, inviteTeamMember, resendTeamInvitation, removeTeamMember, transferOwnership, myTeamInvitations, respondTeamInvitation };
 })();

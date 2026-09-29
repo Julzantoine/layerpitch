@@ -12,7 +12,7 @@
 // propres fonctions ; les deux sont à réunir un jour dans un module commun (voir le changelog du 29/09).
 (function () {
   const MEDIA_IMAGES = 'https://media.layerpitch.com/images/';
-  const S = { loaded: false, albums: [], editing: null, msg: null, recorder: null, playback: null, ctx: null, uid: null, studioId: null };
+  const S = { loaded: false, albums: [], editing: null, msg: null, recorder: null, playback: null, ctx: null, uid: null, studioId: null, isOwner: true, studioName: null };
   let panel = null;
 
   const $ = sel => panel.querySelector(sel);
@@ -39,7 +39,7 @@
     const { session } = await window.LayerPitchAuth.getSession();
     S.uid = session && session.user ? session.user.id : null;
     const st = await window.LayerPitchAuth.getMyStudioId();
-    S.studioId = st.studioId;
+    S.studioId = st.studioId; S.isOwner = st.isOwner !== false; S.studioName = st.name || null;
     const r = await window.LayerPitchAlbums.listAlbums({ sellerId: S.uid });
     if (r.error) throw new Error(r.error);
     S.albums = r.albums.filter(a => a.sellerRole === 'studio').map(fromApi);
@@ -50,6 +50,13 @@
   function renderList() {
     stopPlayback(); closeRecorder();
     panel.innerHTML = `<div class="card">
+        <h2 style="margin:0 0 6px">${esc(tr('alb_studioName'))}</h2>
+        <p class="hint">${esc(tr('alb_studioNameHint'))}</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><input type="text" id="albStudioName" maxlength="80" value="${esc(S.studioName || '')}" placeholder="${esc(tr('alb_studioNamePlaceholder'))}" style="flex:1 1 240px;min-width:0" ${S.isOwner ? '' : 'disabled'}>
+          ${S.isOwner ? `<button class="btn" id="albStudioNameSave" type="button">${esc(tr('alb_studioNameSave'))}</button>` : ''}</div>
+        ${S.studioName ? '' : `<p class="hint" style="margin-top:8px">${esc(tr('alb_studioNameNeeded'))}</p>`}
+      </div>
+      <div class="card">
         <h2 style="margin:0 0 6px">${esc(tr('alb_title'))}</h2>
         <p class="hint">${esc(tr('alb_intro'))}</p>
         <button class="btn primary" id="albNew" type="button" ${S.ctx.ownedTracks.length ? '' : 'disabled'}>${esc(tr('alb_new'))}</button>
@@ -65,6 +72,12 @@
             <button class="btn" data-act="edit" type="button">${esc(tr('alb_edit'))}</button>
           </div>
         </div>`).join('')}</div>` : ''}`;
+    const saveName = $('#albStudioNameSave');
+    if (saveName) saveName.onclick = async () => {
+      const r = await window.LayerPitchStudio.setMyStudioName($('#albStudioName').value);
+      if (r.ok) { S.studioName = r.name; say(tr('alb_studioNameSaved')); } else say(tr('alb_error', { error: r.error }), 'error');
+      renderList();
+    };
     $('#albNew').onclick = () => {
       S.editing = { id: newId(), title: '', presFr: '', presEn: '', price: '', buyable: false, saved: false, trackIds: [], durations: {}, illustration: null,
         pendingCover: null, pendingCoverUrl: null, confirmedRights: false, contributors: [], rights: null };
@@ -236,6 +249,7 @@
     let cents = null;
     if (raw !== '') { const n = Number(raw); if (!Number.isFinite(n) || n < 0) { say(tr('alb_priceInvalid'), 'error'); return renderEditor(); } cents = Math.round(n * 100); }
     if (al.buyable && cents === null) { say(tr('alb_needsPrice'), 'error'); return renderEditor(); }
+    if (al.buyable && !S.studioName) { say(tr('alb_needsName'), 'error'); return renderEditor(); }
     if (al.buyable && !al.confirmedRights) { say(tr('alb_needsConfirm'), 'error'); return renderEditor(); }
     say(tr('alb_saving'), 'ok'); renderEditor();
     try {
