@@ -266,7 +266,13 @@
     return error ? { ok: false, error: error.message } : { ok: true };
   }
 
-  window.LayerPitchAuth = { getAccountDeletion, requestAccountDeletion, cancelAccountDeletion,
+  // Onglet Ventes (29/09, migration 20260929090000) : { open, rows, totals } ; open=false tant que le feu vert est fermé.
+  async function getMySales() {
+    const { data, error } = await getClient().rpc('my_sales');
+    return error ? { sales: null, error: error.message } : { sales: data, error: null };
+  }
+
+  window.LayerPitchAuth = { getMySales, getAccountDeletion, requestAccountDeletion, cancelAccountDeletion,
     signInWithMagicLink, verifyEmailOtp, signOut, getSession, onAuthStateChange, inviteTester, getAdminPreview, setAdminPreview,
     getMyComposerId, getMyComposerHandle, ensureMyComposerProfile,
     getMyStudioId, ensureMyStudioProfile, getMyProfile, markOnboardingComplete,
