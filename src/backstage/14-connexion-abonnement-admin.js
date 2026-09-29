@@ -184,10 +184,13 @@ async function renderAdminOnlyPanels(session) {
   // (le sien ou celui de son équipe, casquette non masquée par « Voir en tant que ») et que l'espace studio est ouvert.
   const navProjects = document.getElementById('navLinkProjects');
   if (navProjects) navProjects.hidden = !flagOpen('projects');
+  // Shop public (29/09) : lien dans la rubrique Compte, feu vert « shop » (admin seulement pendant la bêta).
+  const navShop = document.getElementById('navLinkCatalog');
+  if (navShop) navShop.hidden = !flagOpen('shop');
   if (window.LayerPitchAuth && window.LayerPitchAuth.getMyStudioId) {
     window.LayerPitchAuth.getMyStudioId().then(({ studioId }) => {
       const show = !!studioId && flagOpen('studio_space');
-      ['navSectionStudio', 'navLinkStudioLibrary', 'navLinkCatalog', 'navLinkStudioTeam', 'navLinkStudioPlan'].forEach(id => {
+      ['navSectionStudio', 'navLinkStudioLibrary', 'navLinkStudioTeam', 'navLinkStudioPlan'].forEach(id => {
         const el = document.getElementById(id); if (el) el.hidden = !show;
       });
     });

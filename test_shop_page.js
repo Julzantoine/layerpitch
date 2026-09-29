@@ -17,7 +17,7 @@ check('catalogue.html redirige vers le Shop (assets), langue conservée', /shop\
 
 const sb = { window: {} }; vm.createContext(sb); vm.runInContext(i18nSrc, sb);
 const I = sb.window.LAYERPITCH_I18N;
-check('textes du Shop et du contact vendeur présents en FR et EN', ['pageTitle', 'h1', 'tabAssets', 'tabOst', 'searchPlaceholder', 'allStyles', 'priceFrom', 'priceFree', 'freeOne', 'freeMany', 'emptyOst', 'comingSoonTitle', 'comingSoonHint'].every(k => I.fr.shop[k] && I.en.shop[k]) && ['title', 'hint', 'send', 'sent', 'error'].every(k => I.fr.sellerContact[k] && I.en.sellerContact[k]) && !!I.fr.shell.item_shop);
+check('textes du Shop et du contact vendeur présents en FR et EN', ['pageTitle', 'h1', 'tabAssets', 'tabOst', 'searchPlaceholder', 'allStyles', 'priceFrom', 'priceFree', 'freeOne', 'freeMany', 'emptyOst', 'comingSoonTitle', 'comingSoonHint', 'descAssets', 'descOst'].every(k => I.fr.shop[k] && I.en.shop[k]) && ['title', 'hint', 'send', 'sent', 'error'].every(k => I.fr.sellerContact[k] && I.en.sellerContact[k]) && !!I.fr.shell.item_shop);
 
 const PACKS = [
   { id: 'p1', title: 'Pack Forêt', illustration: null, tags: ['ambient'], price_eur_cents: 1500, subscriber_credits: 2, composer_name: 'Jean', composer_handle: 'jean', track_count: 5, sfx_count: 3, updated_at: '2026-09-01' },
@@ -48,6 +48,7 @@ const set = (w, el, v, ev) => { el.value = v; el.dispatchEvent(new w.Event(ev ||
   s = await page({ open: true });
   check('ouvert : rayon « Assets audio » par défaut avec les 2 packs', cards(s.d).length === 2 && s.d.getElementById('tabAssets').getAttribute('aria-selected') === 'true' && /Pack Forêt/.test(s.d.body.textContent));
   check('carte de pack : prix, compositeur, morceaux et Sfx, crédits, lien pack.html (+ identifiant du compositeur)', /15[\s\u00a0\u202f]€/.test(cards(s.d)[0].textContent) && /par Jean/.test(cards(s.d)[0].textContent) && /5 morceaux · 3 Sfx/.test(cards(s.d)[0].textContent) && /2 crédits/.test(cards(s.d)[0].textContent) && /pack\.html\?id=p1&amp;lang=fr&amp;u=jean/.test(cards(s.d)[0].innerHTML));
+  check('description du rayon Assets audio : écoute sans compte, achat à l\'unité, contact avec le vendeur', /prenez contact avec le vendeur/.test(s.d.getElementById('tabIntro').textContent));
   s.d.getElementById('tabOst').click(); await flush();
   check('rayon « OST adaptive » : les 2 albums, adresse mise à jour (?tab=ost)', cards(s.d).length === 2 && /OST Forêt/.test(s.d.body.textContent) && s.w.location.search === '?tab=ost');
   check('carte d\'album : vendeur (nom du studio), morceaux et écoute libre, prix « À partir de », lien /album/<id>', /par Studio Mousse/.test(cards(s.d)[0].textContent) && /8 morceaux · 2 morceaux en écoute libre/.test(cards(s.d)[0].textContent) && /À partir de 5[\s\u00a0\u202f]€/.test(cards(s.d)[0].textContent) && /href="\/album\/a1"/.test(cards(s.d)[0].innerHTML));
