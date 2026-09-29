@@ -1797,13 +1797,13 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790676095317"></script>
-<script src="layerpitch-appearance.js?v=1790676095317"></script>
-<script src="layerpitch-shell.js?v=1790676095317"></script>
-<script src="layerpitch-social-icons.js?v=1790676095317"></script>
-<script src="layerpitch-notify.js?v=1790676095317"></script>
-<script src="layerpitch-help.js?v=1790676095317"></script>
-<script src="player.js?v=1790676095317"></script>
+<script src="layerpitch-i18n.js?v=1790676849844"></script>
+<script src="layerpitch-appearance.js?v=1790676849844"></script>
+<script src="layerpitch-shell.js?v=1790676849844"></script>
+<script src="layerpitch-social-icons.js?v=1790676849844"></script>
+<script src="layerpitch-notify.js?v=1790676849844"></script>
+<script src="layerpitch-help.js?v=1790676849844"></script>
+<script src="player.js?v=1790676849844"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3298,6 +3298,20 @@ const FX_DEFAULTS = {
 };
 // Pitch de morceau entier (mode "rate" implicite, pas de champ mode -- un seul sens possible à ce niveau).
 const FX_TRACK_DEFAULTS = { pitch: () => ({ semitones: 0 }) };
+
+// Protection des fichiers d'un morceau (29/09, « protéger l'album », choix par morceau) : fichiers dans un stockage privé,
+// lus par liens signés ; le morceau reste écoutable là où le compositeur l'a mis en avant (AdReel, écoute libre d'un album,
+// pack en vente). Bloc affiché dans l'onglet « Infos » de chaque morceau ; le déplacement est fait par l'Edge Function
+// set-track-protection (le morceau doit être publié).
+function trackProtectionHtml(track, ti) {
+  const on = !!track.protected;
+  return `<label style="margin-top:14px">${tr('trackProtectionLabel')}</label>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="badge">${tr(on ? 'trackProtectedBadge' : 'trackPublicBadge')}</span>
+      <button class="btn btn-small" type="button" data-action="toggle-track-protection" data-ti="${ti}">${tr(on ? 'trackUnprotectBtn' : 'trackProtectBtn')}</button>
+    </div>
+    <div class="hint-inline">${tr('trackProtectionHint')}</div>`;
+}
 // Effets audio par couche (chantier "effets dynamiques", 22/09) -- filtre/reverb/écho/bitcrusher,
 // réglages fixes pour l'instant (pas d'automatisation/déclenchement -- prévu dans un second temps,
 // cf. discussion produit). Un seul point de vérité pour ne pas dupliquer le markup entre le mode
@@ -6557,6 +6571,7 @@ function renderLibrary() {
             <option value="false" ${track.noAiOverride === false ? 'selected' : ''}>${tr('noAiNeverCertifyOption')}</option>
           </select>
           <div class="hint-inline">${tr('noAiOverrideHint')}</div>
+          ${trackProtectionHtml(track, ti)}
         `;
         modeDetailHost.appendChild(notesEl);
       }
@@ -7040,6 +7055,7 @@ function renderLibrary() {
             <option value="false" ${track.noAiOverride === false ? 'selected' : ''}>${tr('noAiNeverCertifyOption')}</option>
           </select>
           <div class="hint-inline">${tr('noAiOverrideHint')}</div>
+          ${trackProtectionHtml(track, ti)}
         `;
         slotsDetailHost.appendChild(notesEl);
       }
@@ -7708,6 +7724,22 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     // parsé en nombre plus haut) porte l'index d'un vrai emplacement de la Chaîne de lecture.
     seqSelectedSlotIndex.set(library[ti].id, btn.dataset.seqKey !== undefined ? btn.dataset.seqKey : si);
     renderLibrary();
+    return;
+  }
+  if (btn.dataset.action === 'toggle-track-protection') {
+    const track = library[ti];
+    const target = !track.protected;
+    window.LayerPitchNotify.confirm(tr(target ? 'trackProtectConfirm' : 'trackUnprotectConfirm', { title: track.title || track.id }), { okLabel: tr(target ? 'trackProtectBtn' : 'trackUnprotectBtn') }).then(async ok => {
+      if (!ok) return;
+      btn.disabled = true; btn.textContent = tr('trackProtectBusy');
+      try {
+        await loadPostgresReadScripts();
+        const r = await window.LayerPitchTracks.setTrackProtected(track.id, target);
+        if (!r.ok) { window.LayerPitchNotify.error(tr('trackProtectError', { error: r.error })); }
+        else { track.protected = target; window.LayerPitchNotify.info(tr(target ? 'trackProtectDone' : 'trackUnprotectDone')); }
+      } catch (e) { window.LayerPitchNotify.error(tr('trackProtectError', { error: e.message })); }
+      renderLibrary();
+    });
     return;
   }
   if (btn.dataset.action === 'preview-track') {
@@ -11194,7 +11226,7 @@ async function toggleOfficialPlayback(ai, trackId) {
     await loadCaptureRenderScript();
     const { take, error } = await window.LayerPitchAlbums.getAlbumTrackOfficialTake(al.id, trackId);
     if (error || !take) throw new Error(error || tr('albumOfficialMissing'));
-    const fetchBytes = async url => new Uint8Array(await (await fetch(url)).arrayBuffer());
+    const fetchBytes = url => window.LayerPlayerCore.fetchAudioBytes(url);
     const ctrl = await window.LayerCaptureRender.playTake(take, { fetchBytes, onEnd: () => { if (albumsState.playback === pb) { albumsState.playback = null; renderAlbums(); } } });
     if (albumsState.playback !== pb) { ctrl.stop(); return; }
     pb.ctrl = ctrl;
@@ -12214,7 +12246,7 @@ async function loadData(silent) {
       }
 
       return {
-        id: t.id, title: t.title, description: t.description || '', tags: t.tags || '', mode,
+        id: t.id, title: t.title, description: t.description || '', tags: t.tags || '', mode, protected: !!t.protected,
         implementationNote: t.implementationNote || '',
         noAiOverride: (t.noAiOverride === true || t.noAiOverride === false) ? t.noAiOverride : null,
         duration: t.duration || 0, base: t.base || '', loopable: !!t.loopable,

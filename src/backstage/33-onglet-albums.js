@@ -232,7 +232,7 @@ async function toggleOfficialPlayback(ai, trackId) {
     await loadCaptureRenderScript();
     const { take, error } = await window.LayerPitchAlbums.getAlbumTrackOfficialTake(al.id, trackId);
     if (error || !take) throw new Error(error || tr('albumOfficialMissing'));
-    const fetchBytes = async url => new Uint8Array(await (await fetch(url)).arrayBuffer());
+    const fetchBytes = url => window.LayerPlayerCore.fetchAudioBytes(url);
     const ctrl = await window.LayerCaptureRender.playTake(take, { fetchBytes, onEnd: () => { if (albumsState.playback === pb) { albumsState.playback = null; renderAlbums(); } } });
     if (albumsState.playback !== pb) { ctrl.stop(); return; }
     pb.ctrl = ctrl;

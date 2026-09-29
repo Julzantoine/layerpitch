@@ -85,7 +85,7 @@ async function loadData(silent) {
       }
 
       return {
-        id: t.id, title: t.title, description: t.description || '', tags: t.tags || '', mode,
+        id: t.id, title: t.title, description: t.description || '', tags: t.tags || '', mode, protected: !!t.protected,
         implementationNote: t.implementationNote || '',
         noAiOverride: (t.noAiOverride === true || t.noAiOverride === false) ? t.noAiOverride : null,
         duration: t.duration || 0, base: t.base || '', loopable: !!t.loopable,

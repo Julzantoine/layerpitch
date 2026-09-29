@@ -49,6 +49,7 @@
       loopOutBeat: row.loop_out_beat != null ? Number(row.loop_out_beat) : null,
       startTrackBeat: row.start_track_beat != null ? Number(row.start_track_beat) : null,
       maxLoops: row.max_loops, maxChainLoops: row.max_chain_loops, normalizeVolume: row.normalize_volume,
+      protected: !!row.protected,
       duration: Number(row.duration), base: row.base, layers: row.layers, intro: row.intro, outro: row.outro,
       segmentSlots, loops: row.loops, randomizeSections: row.randomize_sections, sections: row.sections, sfxIds,
       // Effets audio (22-23/09) : fx de morceau entier (pitch "vitesse") et triggers d'effets -- colonnes
@@ -125,5 +126,17 @@
     return { ok: true, blocked: false, retired: data === 'retired', error: null };
   }
 
-  window.LayerPitchTracks = { listTracks, getTrack, upsertTrack, deleteTrack, listTrackFolders, listTracksByIds };
+  // Protéger un morceau (fichiers dans le seau privé) ou le rendre public : Edge Function set-track-protection, qui déplace
+  // les fichiers puis règle tracks.protected (29/09, migration 20260929050000). Réservé au compositeur du morceau.
+  async function setTrackProtected(trackId, isProtected) {
+    const { data, error } = await getClient().functions.invoke('set-track-protection', { body: { trackId, protected: !!isProtected } });
+    if (error) {
+      let body = null;
+      try { body = error.context && typeof error.context.json === 'function' ? await error.context.json() : null; } catch (e) {}
+      return { ok: false, error: (body && body.error) || await window.LayerPitchAuth.describeFunctionError(error) };
+    }
+    return data && data.ok ? { ok: true, files: data.files, leftover: data.leftover } : { ok: false, error: (data && data.error) || 'Réponse inattendue.' };
+  }
+
+  window.LayerPitchTracks = { setTrackProtected, listTracks, getTrack, upsertTrack, deleteTrack, listTrackFolders, listTracksByIds };
 })();

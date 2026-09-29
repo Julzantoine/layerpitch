@@ -79,3 +79,17 @@ const FX_DEFAULTS = {
 };
 // Pitch de morceau entier (mode "rate" implicite, pas de champ mode -- un seul sens possible à ce niveau).
 const FX_TRACK_DEFAULTS = { pitch: () => ({ semitones: 0 }) };
+
+// Protection des fichiers d'un morceau (29/09, « protéger l'album », choix par morceau) : fichiers dans un stockage privé,
+// lus par liens signés ; le morceau reste écoutable là où le compositeur l'a mis en avant (AdReel, écoute libre d'un album,
+// pack en vente). Bloc affiché dans l'onglet « Infos » de chaque morceau ; le déplacement est fait par l'Edge Function
+// set-track-protection (le morceau doit être publié).
+function trackProtectionHtml(track, ti) {
+  const on = !!track.protected;
+  return `<label style="margin-top:14px">${tr('trackProtectionLabel')}</label>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="badge">${tr(on ? 'trackProtectedBadge' : 'trackPublicBadge')}</span>
+      <button class="btn btn-small" type="button" data-action="toggle-track-protection" data-ti="${ti}">${tr(on ? 'trackUnprotectBtn' : 'trackProtectBtn')}</button>
+    </div>
+    <div class="hint-inline">${tr('trackProtectionHint')}</div>`;
+}

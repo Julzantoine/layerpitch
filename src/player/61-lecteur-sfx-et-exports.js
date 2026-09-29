@@ -335,6 +335,8 @@ window.LayerPlayerCore = {
   setSfxLibrary,
   shareOrCopy,
   downloadTracksAsZip,
+  fetchAudio,
+  fetchAudioBytes,
   createSectionPlaybackScheduler,
   PLAYABLE_MODES,
   WAVEFORM_STYLES,

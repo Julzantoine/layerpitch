@@ -253,7 +253,20 @@ Deno.serve(async (req) => {
     }
 
     const accountId = Deno.env.get('R2_ACCOUNT_ID')!;
-    const bucket = Deno.env.get('R2_BUCKET')!;
+    // Morceau PROTÉGÉ (29/09) : ses fichiers audio/<id>/… vivent dans le seau privé (R2_PROJECTS_BUCKET), au même chemin.
+    // Envoi et effacement y sont donc aiguillés ; la vérification de propriété plus haut reste la même.
+    let bucket = Deno.env.get('R2_BUCKET')!;
+    const audioMatch = path.match(/^audio\/([^/]+)\//);
+    if (audioMatch && !audioMatch[1].startsWith('sfx-')) {
+      const { data: trk } = await adminClient.from('tracks').select('protected').eq('id', audioMatch[1]).maybeSingle();
+      if (trk && trk.protected) {
+        const privateBucket = Deno.env.get('R2_PROJECTS_BUCKET');
+        if (!privateBucket) {
+          return new Response(JSON.stringify({ error: 'Stockage privé non configuré (R2_PROJECTS_BUCKET).' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        bucket = privateBucket;
+      }
+    }
     const client = new AwsClient({
       accessKeyId: Deno.env.get('R2_ACCESS_KEY_ID')!,
       secretAccessKey: Deno.env.get('R2_SECRET_ACCESS_KEY')!,

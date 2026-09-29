@@ -21,6 +21,7 @@
             <option value="false" ${track.noAiOverride === false ? 'selected' : ''}>${tr('noAiNeverCertifyOption')}</option>
           </select>
           <div class="hint-inline">${tr('noAiOverrideHint')}</div>
+          ${trackProtectionHtml(track, ti)}
         `;
         modeDetailHost.appendChild(notesEl);
       }

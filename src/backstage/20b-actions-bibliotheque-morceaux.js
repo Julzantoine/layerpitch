@@ -51,6 +51,22 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     renderLibrary();
     return;
   }
+  if (btn.dataset.action === 'toggle-track-protection') {
+    const track = library[ti];
+    const target = !track.protected;
+    window.LayerPitchNotify.confirm(tr(target ? 'trackProtectConfirm' : 'trackUnprotectConfirm', { title: track.title || track.id }), { okLabel: tr(target ? 'trackProtectBtn' : 'trackUnprotectBtn') }).then(async ok => {
+      if (!ok) return;
+      btn.disabled = true; btn.textContent = tr('trackProtectBusy');
+      try {
+        await loadPostgresReadScripts();
+        const r = await window.LayerPitchTracks.setTrackProtected(track.id, target);
+        if (!r.ok) { window.LayerPitchNotify.error(tr('trackProtectError', { error: r.error })); }
+        else { track.protected = target; window.LayerPitchNotify.info(tr(target ? 'trackProtectDone' : 'trackUnprotectDone')); }
+      } catch (e) { window.LayerPitchNotify.error(tr('trackProtectError', { error: e.message })); }
+      renderLibrary();
+    });
+    return;
+  }
   if (btn.dataset.action === 'preview-track') {
     togglePreview(ti, btn.closest('.list-block'));
     trackBackstageEvent('preview_play', {});
