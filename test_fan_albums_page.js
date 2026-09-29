@@ -28,6 +28,7 @@ function makeWindow({ url, session, isAdmin }) {
   const dom = new JSDOM(`<!DOCTYPE html><html><head></head><body>${body}</body></html>`, { url, runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window;
   w.matchMedia = () => ({ matches: false });
+  w.LayerPitchAppearance = { getTheme: () => 'light', setTheme() {} }; // apparence commune (layerpitch-appearance.js)
   w.CSS = { escape: s => String(s).replace(/"/g, '\\"') };
   const state = { plays: [], stops: 0, liveTakes: {}, atelierStops: [] };
   w.LayerPlayerCore = {

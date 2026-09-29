@@ -32,7 +32,6 @@
 <div id="authGateOverlay" data-i18n="authGateCheckingText">Vérification de la session…</div>
 <div id="helpTooltip"></div>
 <div class="page">
-  <div id="backstageWatermarkLayer"></div>
   <div id="adminPreviewBanner" class="admin-preview-banner" hidden>
     <span id="adminPreviewBannerLabel"></span>
     <button class="btn btn-small" id="btnAdminPreviewReset" type="button" data-i18n="adminPreviewReset">Revenir en Admin</button>
@@ -665,30 +664,7 @@
 
   <fieldset>
     <legend data-i18n="backstageAppearanceLegend">Apparence du backstage (local à cet ordinateur)</legend>
-    <label data-i18n="backstageThemeLabel">Thème</label>
-    <div class="actions" style="margin-bottom:10px;">
-      <button class="btn btn-small" id="btnBackstageThemeLight" type="button" data-i18n="backstageThemeLightBtn">☀ Jour</button>
-      <button class="btn btn-small" id="btnBackstageThemeDark" type="button" data-i18n="backstageThemeDarkBtn">☾ Nuit</button>
-    </div>
-    <label data-help="backstageBgColor" data-i18n="backstageBgColorLabel">Couleur de fond de cet outil</label>
-    <input type="color" id="backstageBgColor" value="#ffffff">
-    <div class="hint" id="backstageBgColorHint" data-i18n="backstageBgColorHint">Ne change rien à ce que voient tes visiteurs — c'est uniquement le confort visuel de cet écran d'édition, mémorisé sur cet ordinateur.</div>
-    <label style="margin-top:12px" data-i18n="backstageWatermarkLabel">Image de fond en filigrane</label>
-    <div class="actions" style="margin-bottom:6px;">
-      <button class="btn btn-small" id="btnBackstageWatermarkPick" type="button" data-i18n="backstageWatermarkPickBtn">Choisir une image</button>
-      <button class="btn btn-small btn-danger" id="btnBackstageWatermarkClear" type="button" hidden data-i18n="backstageWatermarkClearBtn">Retirer</button>
-    </div>
-    <input type="file" id="backstageWatermarkInput" accept="image/*" hidden>
-    <div id="backstageWatermarkOpacityRow" hidden>
-      <label for="backstageWatermarkOpacity" data-i18n="backstageWatermarkOpacityLabel">Opacité</label>
-      <input type="range" id="backstageWatermarkOpacity" min="0" max="100" step="1" value="8">
-      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
-        <input type="checkbox" id="backstageWatermarkFixed" checked style="width:auto;margin:0;">
-        <span data-i18n="backstageWatermarkFixedLabel">Reste fixe pendant le défilement</span>
-      </label>
-    </div>
-    <div class="hint" id="backstageWatermarkStatus" style="color:#b23" hidden></div>
-    <div class="hint" data-i18n="backstageWatermarkHint">Purement décorative, locale à cet ordinateur — les visiteurs ne la voient jamais.</div>
+    <div id="backstageAppearanceHost"></div>
   </fieldset>
 
   <fieldset id="panelAdminTools" hidden>
@@ -919,10 +895,11 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790629048988"></script>
-<script src="layerpitch-shell.js?v=1790629048988"></script>
-<script src="layerpitch-social-icons.js?v=1790629048988"></script>
-<script src="layerpitch-notify.js?v=1790629048988"></script>
-<script src="layerpitch-help.js?v=1790629048988"></script>
-<script src="player.js?v=1790629048988"></script>
+<script src="layerpitch-i18n.js?v=1790670867897"></script>
+<script src="layerpitch-appearance.js?v=1790670867897"></script>
+<script src="layerpitch-shell.js?v=1790670867897"></script>
+<script src="layerpitch-social-icons.js?v=1790670867897"></script>
+<script src="layerpitch-notify.js?v=1790670867897"></script>
+<script src="layerpitch-help.js?v=1790670867897"></script>
+<script src="player.js?v=1790670867897"></script>
 <script>
