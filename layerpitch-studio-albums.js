@@ -12,14 +12,14 @@
 // propres fonctions ; les deux sont à réunir un jour dans un module commun (voir le changelog du 29/09).
 (function () {
   const MEDIA_IMAGES = 'https://media.layerpitch.com/images/';
-  const S = { loaded: false, albums: [], editing: null, msg: null, recorder: null, playback: null, ctx: null, uid: null, studioId: null, isOwner: true, studioName: null };
+  const S = { loaded: false, albums: [], editing: null, msg: null, recorder: null, ctx: null, uid: null, studioId: null, isOwner: true, studioName: null };
   let panel = null;
 
   const $ = sel => panel.querySelector(sel);
   const tr = (k, v) => S.ctx.tr(k, v);
   const esc = s => S.ctx.esc(s);
   const client = () => window.LayerPitchSupabaseClient.getClient();
-  const fmtDur = sec => { sec = Math.max(0, Math.round(sec || 0)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
+  const fmtDur = sec => window.LayerPitchAlbumShared.fmtDuration(sec);
   const newId = () => 'alb_' + ((window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, '').slice(0, 16) : Math.random().toString(36).slice(2, 12));
   const trackTitle = id => { const t = S.ctx.ownedTracks.find(x => x.id === id); return t ? t.title : id; };
   const say = (text, kind) => { S.msg = text ? { text, kind: kind || 'ok' } : null; };
@@ -135,7 +135,7 @@
         const has = Object.prototype.hasOwnProperty.call(al.durations, id);
         return `<div class="item-row" style="flex-wrap:wrap"><span class="item-name">${esc(trackTitle(id))}</span>
           ${has ? `<span class="hint" style="margin:0">✓ ${esc(fmtDur(al.durations[id]))}</span>` : `<span class="plan-badge" style="color:#c0392b;border-color:#c0392b">${esc(tr('alb_officialMissing'))}</span>`}
-          ${has ? `<button class="btn" type="button" data-play="${esc(id)}">${esc(tr(S.playback && S.playback.id === id ? 'alb_stop' : 'alb_listen'))}</button>` : ''}
+          ${has ? `<button class="btn" type="button" data-play="${esc(id)}">${esc(tr(playback && playback.key() === S.editing.id + '|' + id ? 'alb_stop' : 'alb_listen'))}</button>` : ''}
           <button class="btn${has ? '' : ' primary'}" type="button" data-record="${esc(id)}">${esc(tr(has ? 'alb_redo' : 'alb_record'))}</button>
           <div data-rec-host="${esc(id)}" style="flex-basis:100%"></div></div>`;
       }).join('')}
@@ -316,84 +316,25 @@
     say(tr('alb_rightsInvited')); renderEditor();
   }
 
-  // ---- Version officielle : enregistrer et écouter ----
-  let captureLoaded = null;
-  function loadCaptureRender() {
-    if (window.LayerCaptureRender) return Promise.resolve();
-    if (captureLoaded) return captureLoaded;
-    const v = (document.querySelector('script[src*="layerpitch-i18n.js?v="]') || {}).src;
-    const version = v ? new URL(v).searchParams.get('v') : '';
-    captureLoaded = new Promise((resolve, reject) => {
-      const sc = document.createElement('script');
-      sc.src = './capture-render.js' + (version ? '?v=' + version : '');
-      sc.onload = resolve; sc.onerror = () => { captureLoaded = null; reject(new Error('Échec du chargement de ' + sc.src)); };
-      document.head.appendChild(sc);
-    });
-    return captureLoaded;
-  }
-  function stopPlayback() { const pb = S.playback; S.playback = null; if (pb && pb.ctrl) pb.ctrl.stop(); }
-  async function togglePlay(id) {
-    const al = S.editing;
-    const same = S.playback && S.playback.id === id;
-    stopPlayback();
-    if (same) return renderEditor();
-    closeRecorder();
-    const pb = { id, ctrl: null }; S.playback = pb; renderEditor();
-    try {
-      await loadCaptureRender();
-      const { take, error } = await window.LayerPitchAlbums.getAlbumTrackOfficialTake(al.id, id);
-      if (error || !take) throw new Error(error || tr('alb_officialMissing'));
-      const fetchBytes = url => window.LayerPlayerCore.fetchAudioBytes(url);
-      const ctrl = await window.LayerCaptureRender.playTake(take, { fetchBytes, onEnd: () => { if (S.playback === pb) { S.playback = null; renderEditor(); } } });
-      if (S.playback !== pb) { ctrl.stop(); return; }
-      pb.ctrl = ctrl;
-    } catch (e) { if (S.playback === pb) S.playback = null; say(tr('alb_error', { error: e.message }), 'error'); renderEditor(); }
-  }
+  // ---- Version officielle : enregistrer et écouter (briques communes : layerpitch-album-shared.js) ----
+  const shared = () => window.LayerPitchAlbumShared;
+  let playback = null;
+  const getPlayback = () => playback || (playback = shared().createPlayback({ onChange: () => { if (S.editing) renderEditor(); }, onError: text => { say(text, 'error'); renderEditor(); } }));
+  const stopPlayback = () => { if (playback) playback.stop(); };
+  function togglePlay(id) { return getPlayback().toggle(S.editing.id, id, { beforeStart: closeRecorder }); }
   function closeRecorder() {
     const rec = S.recorder; if (!rec) return;
     S.recorder = null;
-    document.dispatchEvent(new CustomEvent('stop-track', { detail: rec.trackId }));
-    rec.el.remove();
+    rec.close();
   }
-  // La version PUBLIÉE du morceau, jouée dans le lecteur habituel, journal de prise actif ; « Enregistrer » garde tout ce
-  // qui a été joué depuis le lancement (même principe que l'onglet Albums du Backstage).
-  async function openRecorder(trackId) {
-    const al = S.editing, P = window.LayerPlayerCore;
+  function openRecorder(trackId) {
+    const al = S.editing;
     closeRecorder(); stopPlayback();
-    const el = document.createElement('div');
-    el.style.cssText = 'margin:8px 0 12px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg)';
-    el.innerHTML = `<div class="hint">${esc(tr('alb_recLoading'))}</div>`;
-    const rec = { trackId, el }; S.recorder = rec; renderEditor();
-    try {
-      const r = await window.LayerPitchTracks.getTrack(trackId);
-      if (!r || !r.track) throw new Error(tr('alb_recUnpublished'));
-      const track = r.track, sfxById = {};
-      for (const sid of (track.sfxIds || [])) { const x = await window.LayerPitchSfx.getSfx(sid); if (x && x.sfx) sfxById[sid] = x.sfx; }
-      if (S.recorder !== rec) return;
-      P.setSfxLibrary(sfxById); P.setTakeRecording(true);
-      el.innerHTML = `<div class="hint" style="margin-bottom:8px">${esc(tr('alb_recHint'))}</div><div data-role="recPlayer"></div>
-        <div style="display:flex;gap:8px;margin-top:10px"><button class="btn primary" type="button" data-role="recSave">${esc(tr('alb_recSave'))}</button><button class="btn" type="button" data-role="recClose">${esc(tr('alb_recClose'))}</button></div>
-        <div class="msg" data-role="recMsg"></div>`;
-      const row = P.buildTrackRow(track, null, false);
-      el.querySelector('[data-role="recPlayer"]').appendChild(row);
-      P.initTrackPlayer(track, row);
-      const say2 = t => { el.querySelector('[data-role="recMsg"]').textContent = t; };
-      el.querySelector('[data-role="recClose"]').onclick = () => closeRecorder();
-      el.querySelector('[data-role="recSave"]').onclick = async e => {
-        const take = P.getTrackTake(trackId);
-        if (!take || !take.voices.length) return say2(tr('alb_recNothing'));
-        if (take.missing) return say2(tr('alb_recUnpublished'));
-        e.target.disabled = true;
-        try {
-          const res = await window.LayerPitchAlbums.setAlbumTrackOfficialTake(al.id, trackId, take);
-          if (!res.ok) throw new Error(res.error);
-          al.durations[trackId] = take.duration;
-          say(tr('alb_recSaved', { duration: fmtDur(take.duration) }));
-          renderEditor();
-        } catch (err) { say2(tr('alb_error', { error: err.message })); }
-        finally { e.target.disabled = false; }
-      };
-    } catch (e) { el.innerHTML = `<div class="msg err">${esc(tr('alb_error', { error: e.message }))}</div>`; }
+    S.recorder = shared().openRecorder({
+      albumId: al.id, trackId,
+      onSaved: take => { al.durations[trackId] = take.duration; renderEditor(); },
+    });
+    renderEditor();
   }
 
   async function mount(el, ctx) {

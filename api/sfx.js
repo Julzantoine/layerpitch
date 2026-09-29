@@ -14,7 +14,7 @@
   function reshapeSfx(row) {
     if (!row) return null;
     return {
-      id: row.id, folderId: row.folder_id, title: row.title,
+      id: row.id, folderId: row.folder_id, title: row.title, protected: !!row.protected,
       descriptionFr: row.description_fr, descriptionEn: row.description_en,
       tag: row.tag || '',
       rrMode: row.rr_mode, duckMainTrack: row.duck_main_track, base: row.base,
@@ -73,5 +73,16 @@
     return { ok: true, blocked: false, retired: data === 'retired', error: null };
   }
 
-  window.LayerPitchSfx = { listSfx, getSfx, listSfxFolders, upsertSfx, deleteSfx, listSfxByIds };
+  // Protéger un effet sonore ou le rendre public (Edge Function set-track-protection, { sfxId }) : réservé à son compositeur.
+  async function setSfxProtected(sfxId, isProtected) {
+    const { data, error } = await getClient().functions.invoke('set-track-protection', { body: { sfxId, protected: !!isProtected } });
+    if (error) {
+      let body = null;
+      try { body = error.context && typeof error.context.json === 'function' ? await error.context.json() : null; } catch (e) {}
+      return { ok: false, error: (body && body.error) || await window.LayerPitchAuth.describeFunctionError(error) };
+    }
+    return data && data.ok ? { ok: true, files: data.files } : { ok: false, error: (data && data.error) || 'Réponse inattendue.' };
+  }
+
+  window.LayerPitchSfx = { setSfxProtected, listSfx, getSfx, listSfxFolders, upsertSfx, deleteSfx, listSfxByIds };
 })();

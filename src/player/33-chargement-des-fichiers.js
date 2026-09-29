@@ -284,7 +284,7 @@
           else {
             const v = sfx.publishedAt ? ('?v=' + encodeURIComponent(sfx.publishedAt)) : '';
             const sfxUrl = sfx.base + encodeURIComponent(alt.file) + v;
-            const res = await fetch(sfxUrl);
+            const res = await fetchAudio(sfxUrl, sfx.protected);
             ab = await res.arrayBuffer();
             _arrayBufferUrls.set(ab, sfxUrl);
           }

@@ -40,7 +40,8 @@ window.LayerPlayerCore = {
   fxCurveSanitize: c => c,
 };
 window.fetch = () => Promise.reject(new Error('network disabled in test'));
-window.LayerPitchAppearance = { mountPanel() {}, getTheme: () => 'light', setTheme() {} }; // apparence commune (layerpitch-appearance.js), sans intérêt ici
+window.LayerPitchAppearance = { mountPanel() {}, getTheme: () => 'light', setTheme() {} };
+window.LayerPitchAlbumShared = { createPlayback: () => ({ toggle() {}, stop() {}, key: () => null }), openRecorder: () => ({ close() {} }), fmtDuration: s => String(s), loadCaptureRender: async () => {} }; // briques communes des éditeurs d'album, sans intérêt ici // apparence commune (layerpitch-appearance.js), sans intérêt ici
 window.__failures = [];
 window.__log = (ok, label) => { console.log((ok ? 'OK   - ' : 'FAIL - ') + label); if (!ok) window.__failures.push(label); };
 

@@ -45,6 +45,8 @@ function setup() {
   w.LayerPitchStudio = { setMyStudioName: async n => { calls.name = n; return { ok: true, name: n.trim() }; } };
   w.URL.createObjectURL = () => 'blob:x'; w.URL.revokeObjectURL = () => {};
   w.CSS = { escape: s => String(s) };
+  w.LAYERPITCH_I18N = I18N;
+  w.eval(fs.readFileSync(path.join(__dirname, 'layerpitch-album-shared.js'), 'utf8'));
   w.eval(src);
   const ownedTracks = [{ id: 's1', title: 'Lisière', packTitle: 'Pack A' }, { id: 's2', title: 'Clairière', packTitle: 'Pack A' }];
   return { w, doc: w.document, calls, ownedTracks, mount: () => w.LayerPitchStudioAlbums.mount(w.document.getElementById('panel'), { tr, esc, lang: 'fr', ownedTracks, notify: w.LayerPitchNotify }) };

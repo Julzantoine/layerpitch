@@ -93,3 +93,15 @@ function trackProtectionHtml(track, ti) {
     </div>
     <div class="hint-inline">${tr('trackProtectionHint')}</div>`;
 }
+
+// Protection des fichiers d'un effet sonore (29/09) : même principe que les morceaux (voir trackProtectionHtml) ; les packs
+// restent consultables, ce qui est protégé c'est l'accès direct aux fichiers. Bloc de l'onglet « Identité » du Sfx.
+function sfxProtectionHtml(sfx, si) {
+  const on = !!sfx.protected;
+  return `<label style="margin-top:14px">${tr('sfxProtectionLabel')}</label>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="badge">${tr(on ? 'trackProtectedBadge' : 'trackPublicBadge')}</span>
+      <button class="btn btn-small" type="button" data-action="toggle-sfx-protection" data-si="${si}">${tr(on ? 'trackUnprotectBtn' : 'trackProtectBtn')}</button>
+    </div>
+    <div class="hint-inline">${tr('sfxProtectionHint')}</div>`;
+}

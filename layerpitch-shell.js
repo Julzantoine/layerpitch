@@ -79,6 +79,8 @@
   .lp-preview select { width: 100%; font: inherit; padding: 4px 6px; border: 1px solid var(--border, #e2e2e6); border-radius: 6px; background: var(--bg-card, #fff); color: var(--text, #24262b); }
   .lp-preview .lp-check { display: flex; gap: 6px; align-items: flex-start; margin-top: 8px; color: var(--text, #24262b); }
   .lp-preview .lp-check input { margin: 2px 0 0; }
+  .lp-deletion { margin: 0 0 14px; padding: 9px 14px; border-radius: 8px; background: rgba(178, 34, 51, .1); border: 1px solid #b23; color: var(--text, #24262b); font-size: 13px; }
+  .lp-deletion a { color: #b23; font-weight: 600; }
   .lp-main { flex: 1 1 auto; min-width: 0; padding: 22px 28px 60px; box-sizing: border-box; }
   .lp-crumbs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--text-dim, #5f636b); margin: 0 auto 14px; max-width: var(--lp-page-width, 1040px); min-height: 22px; }
   .lp-crumbs a { color: var(--accent, #2f80c0); text-decoration: none; }
@@ -358,9 +360,12 @@
     const [{ composerId }, { studioId }, flagsRes, adminRes, preview] = await Promise.all([
       A.getMyComposerId(), A.getMyStudioId(), client.rpc('my_feature_flags'), client.rpc('is_admin'), A.getAdminPreview(),
     ]);
+    // Suppression de compte demandée (29/09) : bandeau « suppression prévue le … » sur toutes les pages, avec lien pour annuler.
+    let deletion = null;
+    try { const d = await client.rpc('account_deletion_status'); if (d.data && d.data.scheduledFor) deletion = d.data.scheduledFor; } catch (e) { /* facultatif */ }
     const flags = {};
     (flagsRes.data || []).forEach(f => { flags[f.key] = !!f.allowed; });
-    const ctx = { composerId, studioId, flags, isAdmin: !!adminRes.data, preview, invitations: 0 };
+    const ctx = { composerId, studioId, flags, isAdmin: !!adminRes.data, preview, invitations: 0, deletion };
     // Invitations en attente : pastille sur « Invitations ».
     try { ctx.invitations = await countInvitations(client); } catch (e) { /* compteur facultatif */ }
     return ctx;
@@ -499,6 +504,13 @@
       document.querySelector('.lp-main').appendChild(host);
     }
     if (state.ctx) renderBell();
+    // Bandeau de suppression programmée, juste sous le fil d'Ariane.
+    const oldBanner = document.getElementById('lpDeletionBanner'); if (oldBanner) oldBanner.remove();
+    if (state.ctx && state.ctx.deletion && !state.bare) {
+      const b = document.createElement('div'); b.className = 'lp-deletion'; b.id = 'lpDeletionBanner';
+      b.innerHTML = `${esc(tr('deletionBanner', { date: new Date(state.ctx.deletion).toLocaleDateString(lang()) }))} <a href="${esc(withLang('mon-compte.html?section=profile'))}">${esc(tr('deletionCancel'))}</a>`;
+      bar.after(b);
+    }
   }
 
   async function mount({ active, crumbs, bare } = {}) {
