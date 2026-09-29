@@ -35,8 +35,8 @@ async function loadBackstage(opts) {
   opts = opts || {};
   const html = inlineLocalScripts(readLocal('layerpitch-backstage.html')
     .replace(/<script[^>]*src="https:\/\/unpkg\.com[^"]*"[^>]*><\/script>\s*/g, ''),
-    // layerpitch-appearance.js : le Backstage en dépend au démarrage (apparence commune, 29/09), toujours recopié.
-    opts.scripts && opts.scripts.concat('layerpitch-appearance.js'));
+    // layerpitch-appearance.js (apparence commune) et layerpitch-album-shared.js (éditeurs d'album) : le Backstage en dépend au démarrage, toujours recopiés.
+    opts.scripts && opts.scripts.concat('layerpitch-appearance.js', 'layerpitch-album-shared.js'));
   const dom = new JSDOM(html, {
     url: opts.url || 'http://localhost/test_backstage.html', runScripts: 'dangerously', pretendToBeVisual: true,
     beforeParse(win) { installFakeAudio(win); if (opts.beforeParse) opts.beforeParse(win); },

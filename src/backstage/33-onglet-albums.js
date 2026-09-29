@@ -6,9 +6,10 @@
  * albumTracksNotPublishedHint quand l'enregistrement est refusé pour cette raison.
  * Bêta : le paiement n'est pas branché, « Obtenir (test) » (claim_test_album) simule l'achat.
  * Vendeur compositeur seulement ici (décision du 21 septembre : le côté studio reste à concevoir). */
-const albumsState = { loaded: false, loading: false, albums: [], purchases: [], testEnabled: false, messages: {},
+const albumsState = { currentPlaybackAlbum: null, loaded: false, loading: false, albums: [], purchases: [], testEnabled: false, messages: {},
   recorder: null,   // enregistreur de version du compositeur ouvert : { albumId, trackId, el } (un seul à la fois)
-  playback: null }; // version du compositeur en écoute : { key, ctrl }
+  // (l'écoute de version officielle est gérée par officialPlayback, layerpitch-album-shared.js)
+};
 
 function newAlbumId() {
   // Identifiant aléatoire : albums.id est unique sur TOUTE la base (pas par compositeur), un titre
@@ -165,7 +166,7 @@ function renderAlbums() {
 // C'est une PRISE du vendeur (journal du lecteur, comme les versions du fan), rangée dans album_tracks.default_settings
 // (set_album_track_default_settings). Obligatoire pour chaque morceau avant la mise en vente (contrôle serveur dans
 // upsert_album, migration 20260926020000 ; contrôle client dans saveAlbum pour un message clair).
-const fmtAlbumDuration = sec => { sec = Math.max(0, Math.round(sec || 0)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
+const fmtAlbumDuration = sec => window.LayerPitchAlbumShared.fmtDuration(sec);
 // Écoute libre sur la page publique de l'album (29/09) : le vendeur choisit entre aucun morceau, tout l'album, ou certains.
 function renderAlbumListening(al, ai) {
   const rowStyle = 'display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text-dim);';
@@ -185,7 +186,7 @@ function renderAlbumOfficialVersions(al, ai) {
   return head + al.savedTrackIds.map(id => {
     const has = Object.prototype.hasOwnProperty.call(al.officialDurations, id);
     const key = al.id + '|' + id;
-    const playing = albumsState.playback && albumsState.playback.key === key;
+    const playing = officialPlayback.key() === key;
     return `<div style="${rowStyle}">
         <span style="min-width:0;flex:1 1 160px;color:var(--text)">${escapeHtml(albumTrackTitle(id))}</span>
         ${has ? `<span>✓ ${fmtAlbumDuration(al.officialDurations[id])}</span>` : `<span class="badge" style="color:#c0392b;border-color:#c0392b">${tr('albumOfficialMissing')}</span>`}
@@ -196,116 +197,42 @@ function renderAlbumOfficialVersions(al, ai) {
   }).join('') + (pending ? `<div class="sub" style="margin-top:6px">${tr('albumOfficialSaveFirst')}</div>` : '');
 }
 
-// capture-render.js (lecture d'une prise) n'est chargé qu'à la première écoute, avec le numéro de version de la page.
-let captureRenderLoaded = null;
-function loadCaptureRenderScript() {
-  if (window.LayerCaptureRender) return Promise.resolve();
-  if (captureRenderLoaded) return captureRenderLoaded;
-  const v = (document.querySelector('script[src*="layerpitch-i18n.js?v="]') || {}).src;
-  const version = v ? new URL(v).searchParams.get('v') : '';
-  captureRenderLoaded = new Promise((resolve, reject) => {
-    const sc = document.createElement('script');
-    sc.src = './capture-render.js' + (version ? '?v=' + version : '');
-    sc.onload = resolve;
-    sc.onerror = () => { captureRenderLoaded = null; reject(new Error('Échec du chargement de ' + sc.src)); };
-    document.head.appendChild(sc);
-  });
-  return captureRenderLoaded;
-}
-function stopOfficialPlayback() {
-  const pb = albumsState.playback;
-  if (pb) { albumsState.playback = null; if (pb.ctrl) pb.ctrl.stop(); }
-}
-async function toggleOfficialPlayback(ai, trackId) {
-  const al = albumsState.albums[ai];
-  const key = al.id + '|' + trackId;
-  const wasThis = albumsState.playback && albumsState.playback.key === key;
-  stopOfficialPlayback();
-  if (wasThis) { renderAlbums(); return; }
-  // Une seule chose joue à la fois : enregistreur et aperçus « Écouter » s'arrêtent.
+// Écoute et enregistrement de la version officielle : briques communes avec l'espace studio (layerpitch-album-shared.js).
+// Une seule chose joue à la fois : enregistreur, écoute de version et aperçus « Écouter » s'arrêtent mutuellement.
+const albumShared = window.LayerPitchAlbumShared;
+const officialPlayback = albumShared.createPlayback({ onChange: () => renderAlbums(), onError: text => { const al = albumsState.currentPlaybackAlbum; if (al) setAlbumMessage(al, text, 'error'); } });
+const stopPreviewsAndRecorder = () => {
   if (albumsState.recorder) document.dispatchEvent(new CustomEvent('stop-track', { detail: albumsState.recorder.trackId }));
   activePreviewIds.forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id })));
-  const pb = { key, ctrl: null };
-  albumsState.playback = pb;
-  renderAlbums();
-  try {
-    await loadCaptureRenderScript();
-    const { take, error } = await window.LayerPitchAlbums.getAlbumTrackOfficialTake(al.id, trackId);
-    if (error || !take) throw new Error(error || tr('albumOfficialMissing'));
-    const fetchBytes = url => window.LayerPlayerCore.fetchAudioBytes(url);
-    const ctrl = await window.LayerCaptureRender.playTake(take, { fetchBytes, onEnd: () => { if (albumsState.playback === pb) { albumsState.playback = null; renderAlbums(); } } });
-    if (albumsState.playback !== pb) { ctrl.stop(); return; }
-    pb.ctrl = ctrl;
-  } catch (e) {
-    if (albumsState.playback === pb) albumsState.playback = null;
-    setAlbumMessage(al, tr('albumOfficialError', { error: e.message }), 'error');
-  }
+};
+function stopOfficialPlayback() { officialPlayback.stop(); }
+function toggleOfficialPlayback(ai, trackId) {
+  const al = albumsState.albums[ai];
+  albumsState.currentPlaybackAlbum = al;
+  return officialPlayback.toggle(al.id, trackId, { beforeStart: stopPreviewsAndRecorder });
 }
 function closeOfficialRecorder() {
   const rec = albumsState.recorder;
   if (!rec) return;
   albumsState.recorder = null;
-  document.dispatchEvent(new CustomEvent('stop-track', { detail: rec.trackId }));
-  rec.el.remove();
+  rec.close();
 }
-// Enregistreur : la version PUBLIÉE du morceau (celle que le fan recevra), jouée dans le lecteur habituel, journal de
-// prise actif ; « Enregistrer comme version de l'album » garde tout ce qui a été joué depuis le lancement.
 async function openOfficialRecorder(ai, trackId) {
   const al = albumsState.albums[ai];
   closeOfficialRecorder();
   stopOfficialPlayback();
-  const P = window.LayerPlayerCore;
-  const el = document.createElement('div');
-  el.style.cssText = 'margin:8px 0 12px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg)';
-  el.innerHTML = `<div class="sub">${tr('albumOfficialLoading')}</div>`;
-  const rec = { albumId: al.id, trackId, el };
+  await loadPostgresReadScripts();
+  const rec = albumShared.openRecorder({
+    albumId: al.id, trackId,
+    beforeStart: () => activePreviewIds.forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id }))),
+    onSaved: take => { al.officialDurations[trackId] = take.duration; renderAlbums(); },
+  });
   albumsState.recorder = rec;
   renderAlbums();
-  try {
-    await loadPostgresReadScripts();
-    const r = await window.LayerPitchTracks.getTrack(trackId);
-    if (!r || !r.track) throw new Error(tr('albumOfficialUnpublished'));
-    const track = r.track;
-    const sfxById = {};
-    for (const sid of (track.sfxIds || [])) { const x = await window.LayerPitchSfx.getSfx(sid); if (x && x.sfx) sfxById[sid] = x.sfx; }
-    if (albumsState.recorder !== rec) return;
-    activePreviewIds.forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id })));
-    P.setSfxLibrary(sfxById);
-    P.setTakeRecording(true);
-    el.innerHTML = `<div class="sub" style="margin-bottom:8px">${tr('albumOfficialRecorderHint')}</div><div data-role="recPlayer"></div>
-      <div class="actions" style="margin-top:10px">
-        <button class="btn btn-small btn-primary" type="button" data-role="recSave">${tr('albumOfficialSaveBtn')}</button>
-        <button class="btn btn-small" type="button" data-role="recClose">${tr('albumOfficialCloseBtn')}</button>
-      </div>
-      <div class="sub" data-role="recMsg" style="margin-top:6px"></div>`;
-    const row = P.buildTrackRow(track, null, false);
-    el.querySelector('[data-role="recPlayer"]').appendChild(row);
-    P.initTrackPlayer(track, row);
-    const titleToggle = row.querySelector('[data-role="titleToggle"]');
-    if (titleToggle) titleToggle.click();
-    const say = text => { el.querySelector('[data-role="recMsg"]').textContent = text; };
-    el.querySelector('[data-role="recClose"]').onclick = () => closeOfficialRecorder();
-    el.querySelector('[data-role="recSave"]').onclick = async e => {
-      const take = P.getTrackTake(trackId);
-      if (!take || !take.voices.length) { say(tr('albumOfficialNothing')); return; }
-      if (take.missing) { say(tr('albumOfficialUnpublished')); return; }
-      e.target.disabled = true;
-      try {
-        const res = await window.LayerPitchAlbums.setAlbumTrackOfficialTake(al.id, trackId, take);
-        if (!res.ok) throw new Error(res.error);
-        al.officialDurations[trackId] = take.duration;
-        say(tr('albumOfficialSaved', { duration: fmtAlbumDuration(take.duration) }));
-        renderAlbums();
-      } catch (err) { say(tr('albumOfficialError', { error: err.message })); }
-      finally { e.target.disabled = false; }
-    };
-  } catch (e) {
-    el.innerHTML = `<div class="sub" style="color:#c0392b">${escapeHtml(tr('albumOfficialError', { error: e.message }))}</div>`;
-  }
 }
 // Le lecteur de l'enregistreur démarre : une version du compositeur en écoute s'arrête.
 document.addEventListener('layerpitch-capture-mark', e => {
-  if (e.detail && e.detail.name === 'track_play' && albumsState.playback) { stopOfficialPlayback(); renderAlbums(); }
+  if (e.detail && e.detail.name === 'track_play' && officialPlayback.key()) { stopOfficialPlayback(); renderAlbums(); }
 });
 
 function renderAlbumsLibrary() {

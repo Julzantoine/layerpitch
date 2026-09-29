@@ -81,6 +81,10 @@ async function scenario({ testEnabled, saveResult, claimResult, contributions })
   w.escapeHtml = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   w.escapeAttr = s => (s || '').replace(/"/g, '&quot;');
   // const/let de niveau supérieur ne deviennent pas des propriétés de window : on expose ce qu'il faut.
+  // Briques communes (layerpitch-album-shared.js) : le vrai module, avec les vraies traductions.
+  w.LAYERPITCH_I18N = I18N;
+  w.eval(fs.readFileSync(path.join(__dirname, 'layerpitch-album-shared.js'), 'utf-8'));
+  w.activePreviewIds = new Set();
   dom.window.eval(block + '\nwindow.__t = { albumsState, loadAlbums, renderAlbums };');
   return { w, doc: w.document, calls, t: w.__t };
 }
