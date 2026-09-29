@@ -63,6 +63,7 @@ function renderSfxLibrary() {
       <textarea data-sfx-field="descriptionEn" data-si="${si}" rows="3">${escapeAttr(sfx.descriptionEn)}</textarea>
       <label>${tr('sfxTagLabel')}</label>
       <input type="text" data-sfx-field="tag" data-si="${si}" value="${escapeAttr(sfx.tag || '')}">
+      ${sfxProtectionHtml(sfx, si)}
     `;
   } else if (entrySel === 'behavior') {
     entryDetailHost.innerHTML = `

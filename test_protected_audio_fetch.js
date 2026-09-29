@@ -15,7 +15,7 @@ function world({ publicStatus, allowed, expiresIn }) {
     fetch: async url => { log.fetched.push(url); const signed = /signed\.example/.test(url); return { ok: signed || publicStatus === 200, status: signed ? 200 : publicStatus, url }; },
     decodeURIComponent, encodeURIComponent, Set, Map, Promise, Uint8Array, Math, URL,
     window: { LayerPitchSupabaseClient: { getClient: () => ({ functions: { invoke: async (name, { body }) => {
-      log.invoked.push(name + ':' + body.trackId);
+      log.invoked.push(name + ':' + (body.trackId || JSON.stringify(body)));
       return allowed ? { data: { ok: true, protected: true, files: { 'a b.ogg': 'https://signed.example/a', 'l1.ogg': 'https://signed.example/l1' }, expiresIn: expiresIn || 900 }, error: null }
         : { data: null, error: { message: 'refusé' } };
     } } }) } },
@@ -54,8 +54,9 @@ const U = f => 'https://media.layerpitch.com/audio/trk1/' + f;
   check('morceau connu comme protégé (track.protected) : lien signé d\'emblée, aucun essai public', r.url === 'https://signed.example/l1' && !w.log.fetched.some(u => u.includes('media.layerpitch.com')));
 
   w = world({ publicStatus: 404, allowed: true });
-  r = await w.f.fetchAudio('https://media.layerpitch.com/audio/sfx-boom/hit.ogg');
-  check('Sfx : jamais de lien signé', !r.ok && w.log.invoked.length === 0);
+  r = await w.f.fetchAudio('https://media.layerpitch.com/audio/sfx-boom/l1.ogg');
+  check('Sfx protégé : lien signé demandé avec { sfxId } (sans le préfixe sfx-)', r.url === 'https://signed.example/l1' && w.log.invoked.join() === 'track-audio-url:{"sfxId":"boom"}');
+  w = world({ publicStatus: 404, allowed: true });
   r = await w.f.fetchAudio('https://example.com/vendor/fonts/x.ttf');
   check('autre adresse (police, vidéo…) : lecture ordinaire', w.log.invoked.length === 0 && w.log.fetched.pop() === 'https://example.com/vendor/fonts/x.ttf');
   w = world({ publicStatus: 500, allowed: true });
