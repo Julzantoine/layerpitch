@@ -3,14 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LayerPitch — Interactive stories need interactive music</title>
-<meta name="description" content="Un MP3 dit comment votre musique sonne. LayerPitch montre comment elle marche. Créez un AdReel : votre système musical, manipulable en direct par le studio qui vous lit.">
-<!-- Vérification Google Search Console (7 septembre) -- portée uniquement par la page racine
-     www.layerpitch.com, jamais retirée d'ici : présente seulement dans landing.html/index.html,
-     jamais dans landing-en.html/en.html (même choix que la mise en place d'origine). Si cette
-     balise disparaît d'une resynchronisation vers Julzantoine.github.io, c'est que ce commentaire
-     a été perdu -- ne jamais la retirer de ce fichier. -->
-<meta name="google-site-verification" content="asmoDiQgqSSZdCIJshXwRicbE9wsdtSAWed4oKUukRU" />
+<!-- BROUILLON PRIVÉ (29 septembre) : page « Studios » du nouveau site, bâtie sur la trame de compositeurs.html.
+     À la bascule : retirer noindex ; la balise google-site-verification reste sur la page RACINE (index.html), pas ici. -->
+<meta name="robots" content="noindex, nofollow">
+<title>LayerPitch — Studios : une musique qui immerge, un travail qui se fluidifie</title>
+<meta name="description" content="Le son façonne l'immersion du joueur. LayerPitch réunit studio et compositeur dans un même espace pour imaginer, tester et valider la musique du jeu sans allers-retours.">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
   :root {
@@ -61,6 +58,10 @@
      landings dédiées (chantier "bascule bêta fermée -> lancement public", architecture actée le
      même jour -- Compositeurs reste à la racine, Studio/Fan en pages sœurs). Grisé/non cliquable
      tant que leur contenu n'est pas construit -- pas de lien vers une page vide. */
+  .nav-links { display: flex; flex-wrap: wrap; gap: 2px 4px; flex: 1; margin-left: 20px; }
+  .nav-links a { color: var(--text-dim); font-size: 13px; padding: 4px 8px; border-radius: 6px; }
+  .nav-links a:hover { color: var(--accent); }
+  .nav { max-width: 1040px !important; flex-wrap: wrap; }
   .nav-persona-teaser { font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); opacity: 0.6; cursor: default; user-select: none; }
 
   /* ---- Hero ---- */
@@ -163,24 +164,31 @@
 
   footer { text-align: center; padding: 26px 24px 34px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); background: var(--bg-dark); }
   footer, .cta-band { color: var(--text-on-dark-dim); }
+
+
 </style>
 </head>
 <body>
 
 <nav class="nav">
-  <span class="nav-logo">LayerPitch</span>
+  <span class="nav-logo"><a href="./index.html" style="color:inherit">LayerPitch</a></span>
+  <div class="nav-links">
+    <a href="./a-propos.html">À propos</a>
+    <a href="./compositeurs.html">Compositeurs &amp; sound designers</a>
+    <a href="./studios.html" style="color:var(--accent)">Studios</a>
+    <a href="https://beta.layerpitch.com/shop">Catalogue audio</a>
+    <a href="../tarifs.html">Tarifs</a>
+    <a href="./faq.html">FAQ</a>
+  </div>
   <div class="nav-right">
-    <span class="nav-lang"><a class="active" href="./landing.html">FR</a> / <a href="./landing-en.html">EN</a></span>
-    <span class="nav-persona-teaser" title="Bientôt disponible">Studio · Fan — bientôt</span>
-    <!-- TODO une fois hébergé sur son propre domaine : garder cette URL absolue (l'app vit sur un
-         domaine différent de la landing, voir docs/infrastructure.md, 6 septembre). -->
-    <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html">Se connecter / Créer un compte</a>
+    <span class="nav-lang"><a class="active" href="./studios.html">FR</a> / <a href="./en/studios.html">EN</a></span>
+    <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html">Se connecter</a>
   </div>
 </nav>
 
 <header class="hero wrap">
-  <h1>MP3 vs LayerPitch :<br>épée en bois vs full stuff.</h1>
-  <div class="sub">Pour avancer dans le game, mieux vaut être équipé.</div>
+  <h1>Une musique qui immerge,<br>un travail qui se fluidifie.</h1>
+  <div class="sub">Le son façonne l'émotion et le sentiment de présence du joueur. LayerPitch réunit studio et compositeur dans le même espace pour l'imaginer, le tester et le valider ensemble, sans allers-retours.</div>
   <div class="path-map" aria-hidden="true">
     <div class="path-map-title">Carte des chemins — mode séquentiel à embranchement</div>
     <svg viewBox="0 0 630 224" xmlns="http://www.w3.org/2000/svg">
@@ -233,11 +241,10 @@
 </header>
 
 <section class="demo wrap">
-  <p>Avec un AdReel (Adaptive Reel), vous présentez de la musique qui n'est pas linéaire : changement d'état, embranchements, changement d'intensité, pools aléatoires. Le studio qui reçoit l'AdReel peut jouer avec vos compositions et comprendre ce que la musique peut apporter à son jeu. Partagez un AdReel avec un simple lien et laissez la magie opérer.</p>
-  <!-- Comportement d'accès réellement vérifié le 6 septembre (fenêtre privée) : cette page se
-       charge sans compte. Cloudflare Access a été retiré de layerpitch-backstage.html le
-       7 septembre (docs/infrastructure.md, Partie C) -- seul admin.html reste derrière ce mur. -->
-  <a class="btn btn-primary" href="https://beta.layerpitch.com/?adreel=demo-fr" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_demo_click')">Manipulez un AdReel vous-même →</a>
+  <p>Un projet de démonstration, en lecture seule : parcourez le Moodboard, les vidéos, la musique et la vitrine, comme votre équipe le ferait. Pas de compte nécessaire.</p>
+  <!-- Ouvre le Projet de démonstration public (projet.html?demo) : disponible une fois la migration 20260929010000
+       appliquée et le Projet marqué depuis contact@layerpitch.com. Jusque-là : page « démo indisponible ». -->
+  <a class="btn btn-primary" href="https://beta.layerpitch.com/projet.html?demo" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_studio_demo_click')">Manipulez un projet vous-même →</a>
 </section>
 
 <section class="proof wrap">
@@ -259,49 +266,41 @@
 
 <section class="block wrap">
   <span class="eyebrow">Notre approche</span>
-  <p>En tant que compositeurs de musique de jeu vidéo, notre métier consiste à apporter des solutions créatives aux problématiques de musique et de sound design, et à fluidifier le rapport qu'entretiennent les studios avec le son. En phase de pitch ou de préproduction, la musique linéaire oblige le studio à imaginer ce que ça donnerait une fois implémentée, avec le risque que ça ne sonne pas et qu'il faille reprendre tout le cycle proposition, implémentation, test, et la perte de temps qui va avec. Avec LayerPitch, tout ça, c'est de l'histoire ancienne. Le système est pensé pour fluidifier la collaboration entre le compositeur et le studio tout au long du process. La musique est déjà interactive, le versionning n'a jamais été aussi simple, et même les SFX ont leur petite section dédiée. Tester en conditions, essayer plusieurs reverbs sur des footsteps, expérimenter autour de la spatialisation, travailler à plusieurs sur un projet pour avancer plus vite et de manière plus fluide, c'est ce que propose LayerPitch.</p>
+  <p>Chaque échange autour de la musique ou des SFX coûte du temps : on décrit, on propose, on implémente, on teste, on recommence. Avec LayerPitch, studio et compositeur ou sound designer travaillent dans le même espace, avec des outils pensés pour valider plus tôt, et donc dépenser moins. La musique est déjà interactive, le versionning n'a jamais été aussi simple, et les SFX ont leur propre section.</p>
 </section>
 
 <section class="block wrap">
   <span class="eyebrow">Ce que ça change</span>
   <ul class="features">
     <li>
-      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 18V8M9 18V4M14 18v-9M19 18v-6"/></svg></span>
-      <span><strong>5 modes de lecture adaptative</strong><span class="desc">Statique bouclable, layering vertical, layering randomisé, séquentiel à embranchement, séquentiel aléatoire.</span></span>
+      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+      <span><strong>Un Moodboard partagé</strong><span class="desc">Réunissez références, images, vidéos, notes et morceaux, et construisez la direction sonore avec votre compositeur ou sound designer avant la production. Une ligne claire dès le début, c'est autant de retours évités plus tard.</span></span>
     </li>
     <li>
-      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M12 3v3M12 18v3M4.5 12h3M16.5 12h3"/></svg></span>
-      <span><strong>Contrôle en direct</strong><span class="desc">Le studio qui reçoit votre AdReel joue avec la musique en ajustant l'intensité, en coupant des couches, en explorant les embranchements lui-même. C'est simple, visuel et fascinant.</span></span>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h8"/></svg></span>
+      <span><strong>Des vitrines</strong><span class="desc">Présentez la musique de votre jeu sur une page publique pour les joueurs, ou dans une vitrine à lien secret pour un éditeur, avec vos visuels et vos couleurs, et sachez qui l'a ouverte.</span></span>
     </li>
     <li>
-      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a4 4 0 0 1 4-4h4a4 4 0 0 1 0 8h-1"/><path d="M15 12a4 4 0 0 1-4 4H7a4 4 0 0 1 0-8h1"/></svg></span>
-      <span><strong>Un lien, point barre</strong><span class="desc">Aucune installation. Ça s'ouvre comme une page web.</span></span>
+      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/><path d="M17 11a3 3 0 1 0 0-6M21 19c0-2-1.5-3.6-4-4.5"/></svg></span>
+      <span><strong>Des collaborateurs, au même endroit</strong><span class="desc">Invitez compositeurs, sound designers et membres de l'équipe dans le Projet : discussion, notes sur les morceaux et les vidéos, fichiers centralisés. Fini de chercher qui a la dernière version.</span></span>
     </li>
     <li>
-      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5.5L20 10l-4.4 3.6L17 19l-5-3.2L7 19l1.4-5.4L4 10l5.6-1.5z"/></svg></span>
-      <span><strong>Sur-mesure, jusqu'au bout</strong><span class="desc">Chaque AdReel se personnalise entièrement, à votre image ou à celle du studio visé.</span></span>
+      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg></span>
+      <span><strong>Testez sans sortir un build</strong><span class="desc">Le versionning vidéo permet d'essayer rapidement quelle musique, quels triggers et quels SFX fonctionnent sur le niveau qui vient d'être construit. Plus besoin de partager un build à chaque test.</span></span>
     </li>
   </ul>
 </section>
 
 <section class="block wrap">
-  <span class="eyebrow">Le suivi</span>
-  <div class="tracking-box">
-    <p class="lede" style="margin:0;">En phase de pitch, après l'envoi, vous n'êtes plus dans le flou. Chaque AdReel vous fait remonter les infos qui vont bien : qui a ouvert, quelles couches ont été testées, combien de temps votre interlocuteur est-il resté sur la page. Fini de deviner si le studio a vraiment joué avec la musique ou juste zappé la page. Un lien ouvert ce matin, c'est une relance qui tombe pile au bon moment, il n'y a plus qu'à relancer pendant que c'est chaud.</p>
-  </div>
-</section>
-
-<section class="block wrap">
   <span class="eyebrow">Et bientôt</span>
-  <p>En phase de préprod, travaillez à plusieurs sur le moodboard pour tracer une ligne directrice claire et économiser ainsi des allers-retours, du temps (et de l'argent !) lors des phases ultérieures. Utilisez l'outil de versioning vidéo pour tester rapidement quelle musique/triggers/sfx marchent le mieux pour le niveau qui vient d'être construit. Plus besoin de sortir la grosse armada et de partager un build à chaque test.</p>
-  <p>Avant la sortie du jeu, vendez des packs d'assets audio. Une fois le jeu sorti, valorisez sa musique et vendez une Adaptive OST !</p>
+  <p>Accédez à des packs d'assets audio, SFX et musique interactive, à intégrer à votre jeu. Une fois le jeu sorti, vendez son Adaptive OST à vos joueurs.</p>
 </section>
 
 <section class="block wrap">
   <div class="backstory">
     <!-- TODO : remplacer par la vraie photo de Jules-Antoine (assets/jules-photo.jpg ou équivalent)
          -- placeholder gris en attendant le fichier. -->
-    <img class="backstory-photo" src="./landing-assets/jules-photo.jpg" alt="Jules, fondateur de LayerPitch">
+    <img class="backstory-photo" src="../landing-assets/jules-photo.jpg" alt="Jules, fondateur de LayerPitch">
     <div class="backstory-text">
       <p>Salut, je m'appelle Jules et je suis compositeur.</p>
       <p>Récemment, j'ai pitché de la musique à un studio de jeu vidéo. J'ai voulu frapper fort et présenter directement de la musique adaptative — mais je n'ai trouvé aucune solution technique adéquate pour ça... et je n'avais pas envie de réduire tout mon boulot à de bêtes mp3.</p>
@@ -312,38 +311,27 @@
 
 <div class="cta-band">
   <section class="cta wrap">
-    <h2>LayerPitch est actuellement en bêta fermée, avec des compositeurs qui pitchent déjà leurs premiers AdReels.</h2>
-    <!-- Envoie vers l'Edge Function submit-access-request (supabase/functions/submit-access-request,
-         insertion + email de confirmation) -- même table que la demande d'accès de bienvenue.html,
-         visible dans le panneau admin du backstage à côté de "Inviter un testeur". -->
-    <form class="cta-form" id="waitlistForm">
-      <input type="email" name="email" placeholder="ton@email.com" required>
-      <textarea name="message" maxlength="500" rows="8" placeholder="Bonjour, merci de ton intérêt pour LayerPitch… Pour participer à la bêta, il suffit de rentrer ton email, mais ça m'intéresse d'en savoir un peu plus sur les personnes qui atterrissent ici 🙂 N'hésite pas à me donner quelques infos sur ce que tu fais, etc. L'invitation arrivera dans la journée (elle ne dure que 24h). Une fois inscrit·e, amuse-toi, tords l'appli et fais-moi des retours ! — Jules-Antoine"></textarea>
-      <input type="hidden" name="intent" id="intentField" value="beta">
-      <div class="cta-buttons">
-        <button type="submit" class="btn btn-primary" data-intent="beta">Je veux rejoindre la bêta</button>
-        <button type="submit" class="btn btn-on-dark" data-intent="waitlist">Tenez-moi juste au courant</button>
-      </div>
+    <h2>La bêta studios est sur invitation.</h2>
+    <form class="cta-form" id="studioForm">
+      <input type="email" name="email" placeholder="vous@studio.com" required>
+      <textarea name="message" maxlength="450" rows="4" placeholder="Votre studio, votre jeu en cours, ce que vous cherchez pour le son… (facultatif)"></textarea>
+      <div class="cta-buttons"><button type="submit" class="btn btn-primary">Demander une invitation</button></div>
       <div class="cta-msg" id="ctaMsg"></div>
     </form>
-    <div class="cta-note">Pas de spam, pas d'engagement.</div>
+    <div class="cta-note">Pas de spam, pas d'engagement. <a href="../tarifs.html" style="color:inherit;text-decoration:underline">Voir les tarifs</a></div>
   </section>
-  <footer>LayerPitch — musique interactive pour vos pitchs de jeu vidéo</footer>
+  <footer>LayerPitch — musique et sound design interactifs pour le jeu vidéo</footer>
 </div>
 
 <script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
 <script>
-  // Mêmes valeurs publiques que api/supabase-client.js (clé "publishable", pas un secret) --
-  // fetch() brut plutôt que le SDK complet, cette page est hébergée sur un domaine séparé
-  // (www.layerpitch.com) sans le reste des scripts api/*.js de l'app.
+  // Même point d'entrée que la landing actuelle (clé « publishable », pas un secret). PROVISOIRE : la fonction ne connaît
+  // que les intentions « beta » et « waitlist » ; en attendant une valeur « studio » (changement de base à valider), la
+  // demande part en « beta » avec « [STUDIO] » en tête du message, pour la repérer dans le panneau admin.
   const LAYERPITCH_SUPABASE_URL = 'https://ypygllyjfynrnvapufow.supabase.co';
   const LAYERPITCH_ANON_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
-  const form = document.getElementById('waitlistForm');
+  const form = document.getElementById('studioForm');
   const msg = document.getElementById('ctaMsg');
-  const intentField = document.getElementById('intentField');
-  form.querySelectorAll('button[data-intent]').forEach((btn) => {
-    btn.addEventListener('click', () => { intentField.value = btn.dataset.intent; });
-  });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     msg.textContent = 'Envoi…'; msg.className = 'cta-msg';
@@ -351,19 +339,13 @@
       const res = await fetch(`${LAYERPITCH_SUPABASE_URL}/functions/v1/submit-access-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
-        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: intentField.value, lang: 'fr', message: form.message.value.trim() || null }),
+        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: 'beta', lang: 'fr', message: ('[STUDIO] ' + form.message.value.trim()).trim() }),
       });
       if (res.ok) {
-        window.umami && window.umami.track('landing_signup', { intent: intentField.value });
-        form.innerHTML = '<div class="cta-msg ok">Merci — on te tient au courant ✓</div>';
-      } else {
-        msg.textContent = 'Une erreur est survenue — réessaie.';
-        msg.className = 'cta-msg err';
-      }
-    } catch (err) {
-      msg.textContent = 'Impossible d\'envoyer (connexion ?) — réessaie.';
-      msg.className = 'cta-msg err';
-    }
+        window.umami && window.umami.track('landing_signup', { intent: 'studio' });
+        form.innerHTML = '<div class="cta-msg ok">Merci — on revient vers vous ✓</div>';
+      } else { msg.textContent = 'Une erreur est survenue — réessayez.'; msg.className = 'cta-msg err'; }
+    } catch (err) { msg.textContent = 'Impossible d\'envoyer (connexion ?) — réessayez.'; msg.className = 'cta-msg err'; }
   });
 </script>
 </body>

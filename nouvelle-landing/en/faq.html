@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- BROUILLON PRIVÉ (29 septembre) : page « FAQ » du nouveau site.
+     À la bascule : retirer noindex ; la balise google-site-verification reste sur la page RACINE (index.html), pas ici. -->
+<meta name="robots" content="noindex, nofollow">
+<title>LayerPitch — FAQ</title>
+<meta name="description" content="Frequently asked questions about LayerPitch: access, AdReels, projects and Moodboard, pricing, ownership of your music and your data.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root {
+    --bg: #f6f5f3; --bg-card: #ffffff; --bg-dark: #201e1b; --border: #e4e1da;
+    --text: #262521; --text-title: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --text-on-dark: #f6f5f3; --text-on-dark-dim: #b6b1a7;
+    --accent: #2f6fe0; --accent-soft: #dce7fb; --accent-dark: #1f4fb0;
+    --accent-2: #1f9e6b; --accent-2-soft: #d7f0e3;
+    --font-body: 'Inter', sans-serif; --font-title: 'Space Grotesk', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+    --shadow-card: 0 1px 2px rgba(38,37,33,0.04), 0 8px 24px rgba(38,37,33,0.06);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); line-height: 1.6; overflow-x: hidden; }
+  a { color: var(--accent); text-decoration: none; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+  .eyebrow {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .eyebrow::before { content: ''; width: 16px; height: 1.5px; background: var(--accent); display: inline-block; }
+  h1, h2 { font-family: var(--font-title); color: var(--text-title); margin: 0; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 30px; border-radius: 8px;
+    font-family: var(--font-title); font-weight: 600; font-size: 15px; cursor: pointer; border: none; text-align: center;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 4px 14px rgba(47,111,224,0.35); }
+  .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(47,111,224,0.4); }
+  .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-on-dark { background: transparent; color: var(--text-on-dark); border: 1px solid rgba(246,245,243,0.28); }
+  .btn-on-dark:hover { border-color: var(--text-on-dark); background: rgba(246,245,243,0.06); }
+
+  /* ---- Nav ---- */
+  .nav {
+    display: flex; align-items: center; justify-content: space-between; padding: 18px 24px;
+    max-width: 760px; margin: 0 auto; position: sticky; top: 0; z-index: 20;
+    background: rgba(246,245,243,0.82); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  .nav-logo { font-family: var(--font-title); font-weight: 700; font-size: 18px; font-style: italic; color: var(--text-title); }
+  .nav-account { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.04em; color: var(--text-dim); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; transition: border-color 0.15s ease, color 0.15s ease; }
+  .nav-account:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-right { display: flex; align-items: center; gap: 14px; }
+  .nav-lang { font-family: var(--font-mono); font-size: 12px; color: var(--text-dimmer); }
+  .nav-lang a { color: var(--text-dim); }
+  .nav-lang a.active { color: var(--text); font-weight: 600; }
+  /* Branchement Studio/Fan (7 septembre) : réserve la place dans la nav pour les deux futures
+     landings dédiées (chantier "bascule bêta fermée -> lancement public", architecture actée le
+     même jour -- Compositeurs reste à la racine, Studio/Fan en pages sœurs). Grisé/non cliquable
+     tant que leur contenu n'est pas construit -- pas de lien vers une page vide. */
+  .nav-links { display: flex; flex-wrap: wrap; gap: 2px 4px; flex: 1; margin-left: 20px; }
+  .nav-links a { color: var(--text-dim); font-size: 13px; padding: 4px 8px; border-radius: 6px; }
+  .nav-links a:hover { color: var(--accent); }
+  .nav { max-width: 1040px !important; flex-wrap: wrap; }
+  .nav-persona-teaser { font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); opacity: 0.6; cursor: default; user-select: none; }
+
+  /* ---- Hero ---- */
+  .hero {
+    position: relative; padding: 56px 0 16px; text-align: center; overflow: hidden;
+    background: radial-gradient(ellipse 640px 320px at 50% 0%, var(--accent-soft) 0%, rgba(220,231,251,0) 70%);
+  }
+  .hero h1 { font-size: clamp(30px, 6vw, 48px); font-weight: 700; font-style: italic; line-height: 1.22; position: relative; }
+  .hero .sub { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; color: var(--text-dim); margin-top: 20px; position: relative; }
+
+  /* ---- Carte des chemins (remplace l'ancienne forme d'onde) -- reproduction compacte, en
+       HTML/SVG plutôt qu'une image, de la carte des chemins du backstage (mode séquentiel à
+       embranchement) : Intro joué -> Exploration en cours -> 3 embranchements en attente de choix
+       -> convergence. Sous-embranchements (Ambiance calme/intense, Intensité lvl1/2) volontairement
+       omis pour rester lisible à la taille d'un hero de landing page -- schéma complet fourni par
+       Jules-Antoine le 6 septembre, capture d'écran du backstage réel. ---- */
+  .path-map {
+    position: relative; margin: 32px auto 0; max-width: 620px; background: var(--bg-dark);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 20px 18px 14px;
+    box-shadow: var(--shadow-card); text-align: left;
+  }
+  .path-map-title { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-on-dark-dim); margin-bottom: 12px; }
+  .path-map svg { display: block; width: 100%; height: auto; }
+  .path-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+  .path-legend-item { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-on-dark-dim); }
+  .path-legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  /* ---- Demo ---- */
+  .demo { text-align: center; padding: 16px 0 56px; }
+  .demo p { max-width: 560px; margin: 0 auto 32px; color: var(--text-dim); font-size: 14.5px; }
+  .demo .eyebrow { justify-content: center; }
+
+  /* ---- Social proof ---- */
+  .proof { padding: 12px 0 60px; }
+  .proof-grid { display: grid; gap: 16px; }
+  .testimonial {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px 22px 20px; box-shadow: var(--shadow-card); position: relative;
+  }
+  .testimonial::before {
+    content: '“'; font-family: var(--font-title); font-size: 42px; color: var(--accent-soft);
+    position: absolute; top: 6px; left: 16px; line-height: 1; z-index: 0;
+  }
+  .testimonial p { margin: 0 0 10px; font-size: 15px; font-style: italic; position: relative; z-index: 1; }
+  .testimonial cite { font-family: var(--font-mono); font-style: normal; font-size: 11px; color: var(--text); font-weight: 600; }
+  .testimonial .role { font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); }
+
+  /* ---- Sections ---- */
+  section.block { padding: 48px 0; border-top: 1px solid var(--border); }
+  .block h2 { font-size: clamp(20px, 3.5vw, 26px); margin-bottom: 18px; }
+  .block p { color: var(--text); font-size: 15px; }
+  .block p + p { margin-top: 14px; }
+  .block .lede { color: var(--text-dim); }
+
+  .backstory { display: flex; gap: 26px; align-items: flex-start; }
+  .backstory-photo { width: 140px; height: 140px; border-radius: 12px; object-fit: cover; object-position: center 15%; flex-shrink: 0; background: var(--border); }
+  .backstory-text { flex: 1; min-width: 0; }
+  @media (max-width: 480px) {
+    .backstory { flex-direction: column; }
+    .backstory-photo { width: 96px; height: 96px; }
+  }
+
+  ul.features { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+  ul.features li { display: flex; align-items: flex-start; gap: 14px; font-size: 15px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .feature-icon {
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft);
+    color: var(--accent-dark); display: flex; align-items: center; justify-content: center;
+  }
+  .feature-icon.alt { background: var(--accent-2-soft); color: var(--accent-2); }
+  .feature-icon svg { width: 16px; height: 16px; }
+  ul.features strong { font-family: var(--font-title); display: block; margin-bottom: 2px; }
+  ul.features span.desc { color: var(--text-dim); font-size: 14px; }
+
+  .tracking-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 28px; box-shadow: var(--shadow-card); }
+  .tracking-box ul { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 12px; }
+  .tracking-box li { display: flex; align-items: flex-start; gap: 10px; font-size: 14.5px; }
+  .tracking-box .check {
+    flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-2);
+    color: #fff; display: flex; align-items: center; justify-content: center; margin-top: 1px;
+  }
+  .tracking-box .check svg { width: 11px; height: 11px; }
+
+  /* ---- CTA final ---- */
+  .cta-band { background: var(--bg-dark); padding: 56px 0 60px; margin-top: 4px; }
+  .cta { text-align: center; }
+  .cta h2 { font-size: clamp(22px, 4vw, 30px); color: var(--text-on-dark); }
+  .cta-form { display: flex; flex-direction: column; gap: 12px; max-width: 380px; margin: 28px auto 0; }
+  .cta-form input[type=email], .cta-form textarea {
+    padding: 14px 16px; border: 1px solid rgba(246,245,243,0.22); border-radius: 8px; font-family: var(--font-body);
+    font-size: 14px; background: rgba(246,245,243,0.06); color: var(--text-on-dark);
+  }
+  .cta-form textarea { resize: vertical; min-height: 64px; }
+  .cta-form input[type=email]::placeholder, .cta-form textarea::placeholder { color: var(--text-on-dark-dim); }
+  .cta-buttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .cta-buttons .btn { flex: 1; min-width: 160px; }
+  .cta-note { font-size: 12px; color: var(--text-on-dark-dim); margin-top: 16px; }
+  .cta-msg { font-family: var(--font-mono); font-size: 12px; margin-top: 12px; min-height: 16px; color: var(--text-on-dark-dim); }
+  .cta-msg.ok { color: #6fd39a; }
+  .cta-msg.err { color: #e08a72; }
+
+  footer { text-align: center; padding: 26px 24px 34px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); background: var(--bg-dark); }
+  footer, .cta-band { color: var(--text-on-dark-dim); }
+
+
+  .faq h2 { font-family: var(--font-title); font-size: 20px; margin: 40px 0 14px; }
+  .faq details { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; }
+  .faq summary { cursor: pointer; padding: 15px 18px; font-family: var(--font-title); font-weight: 600; font-size: 15.5px; list-style: none; display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: '+'; color: var(--accent); font-size: 20px; line-height: 1; flex-shrink: 0; }
+  .faq details[open] summary::after { content: '−'; }
+  .faq details p { margin: 0; padding: 0 18px 16px; color: var(--text-dim); font-size: 14.5px; }
+  .faq details p a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-logo"><a href="./index.html" style="color:inherit">LayerPitch</a></span>
+  <div class="nav-links">
+    <a href="./about.html">About</a>
+    <a href="./composers.html">Composers &amp; sound designers</a>
+    <a href="./studios.html">Studios</a>
+    <a href="https://beta.layerpitch.com/shop?lang=en">Audio catalog</a>
+    <a href="../../tarifs.html?lang=en">Pricing</a>
+    <a href="./faq.html" style="color:var(--accent)">FAQ</a>
+  </div>
+  <div class="nav-right">
+    <span class="nav-lang"><a href="../faq.html">FR</a> / <a class="active" href="#">EN</a></span>
+    <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html?lang=en">Log in</a>
+  </div>
+</nav>
+
+<header class="hero wrap" style="padding-bottom:0">
+  <h1>Frequently asked questions</h1>
+</header>
+
+<main class="wrap faq">
+  <h2>General</h2>
+  <details><summary>What is LayerPitch?</summary><p>A workspace to compose, present, test and validate the music and sound design of a video game, between composers, sound designers and studios.</p></details>
+  <details><summary>What is an AdReel?</summary><p>An "Adaptive Reel": a presentation of interactive music (state changes, branching, intensity changes, random pools) that you share with a simple link.</p></details>
+  <details><summary>Do I need to install anything?</summary><p>No. An AdReel, a showcase or a project opens like a web page.</p></details>
+  <details><summary>Do I need an account to listen?</summary><p>No. Listening to AdReels, packs and showcases is always free, with no account.</p></details>
+  <h2>Access</h2>
+  <details><summary>How do I get access to LayerPitch?</summary><p>LayerPitch is currently in closed beta, by invitation, for composers, sound designers and studios. Leave your email: the invitation arrives within the day and stays valid for 24 hours.</p></details>
+  <details><summary>What happens at the public launch?</summary><p>All beta testers keep their account and get a discount as a thank-you.</p></details>
+  <h2>Composers and sound designers</h2>
+  <details><summary>What does the studio see when I send an AdReel?</summary><p>They play with the music: they adjust the intensity, mute layers, explore the branches. On your side, you see who opened the link, which layers were tested and how long they stayed.</p></details>
+  <details><summary>What adaptive playback modes are there?</summary><p>Five: loopable static, vertical layering, randomized layering, branching sequential and random sequential.</p></details>
+  <details><summary>Can I sell my music?</summary><p>Yes, through packs, with a Stripe Connect payout and a billing mandate. Real sales will only start at the public launch.</p></details>
+  <h2>Studios</h2>
+  <details><summary>What are the Moodboard and the Project space?</summary><p>A shared space to gather references, images, videos, notes and tracks, build the sound direction, talk with your composer or sound designer and test versions on video.</p></details>
+  <details><summary>Who can see my project?</summary><p>Only the members you invite. Files are private and read through temporary links. Showcases are public or secret-link, as you choose.</p></details>
+  <details><summary>Can I invite my composer and my team?</summary><p>Yes. The number of members depends on your tier.</p></details>
+  <h2>Pricing and data</h2>
+  <details><summary>How much does it cost?</summary><p>There is always a free tier, then you scale up when you need to. Composers: Rookie (free), Warrior, Boss. Studios: SoloDev, Indie, AA, AAA. Details on the <a href="../../tarifs.html?lang=en">Pricing</a> page. If you are both a composer and a studio, with a paid studio tier your composer subscription is half price.</p></details>
+  <details><summary>Who owns the music I put on LayerPitch?</summary><p>It stays yours. LayerPitch only hosts and showcases it.</p></details>
+  <details><summary>Is my data safe?</summary><p>Your database and accounts are hosted in Europe (Ireland), with Supabase. Your files are stored separately, with Cloudflare, with a Western Europe location. Project files are private and can only be read through temporary links, and access rights are checked server-side on every request.</p></details>
+  <details><summary>Can I leave LayerPitch and delete my data?</summary><p>Yes. If you delete your account, all your data is erased, except the music you have sold to third parties.</p></details>
+</main>
+
+<div class="cta-band">
+  <section class="cta wrap">
+    <h2>Another question?</h2>
+    <p style="margin:14px 0 0"><a href="mailto:contact@layerpitch.com" style="color:var(--text-on-dark);text-decoration:underline">contact@layerpitch.com</a></p>
+    <div class="cta-buttons" style="max-width:520px;margin:28px auto 0">
+      <a class="btn btn-primary" href="./composers.html">Composers &amp; sound designers</a>
+      <a class="btn btn-on-dark" href="./studios.html">Studios</a>
+    </div>
+  </section>
+  <footer>LayerPitch — interactive music and sound design for video games</footer>
+</div>
+</body></html>

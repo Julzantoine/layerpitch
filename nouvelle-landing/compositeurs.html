@@ -3,14 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LayerPitch — Interactive stories need interactive music</title>
+<!-- BROUILLON PRIVÉ (29 septembre) : page « Compositeurs & sound designers » du nouveau site, issue de landing.html.
+     À la bascule : retirer noindex ; la balise google-site-verification reste sur la page RACINE (index.html), pas ici. -->
+<meta name="robots" content="noindex, nofollow">
+<title>LayerPitch — Compositeurs &amp; sound designers</title>
 <meta name="description" content="Un MP3 dit comment votre musique sonne. LayerPitch montre comment elle marche. Créez un AdReel : votre système musical, manipulable en direct par le studio qui vous lit.">
-<!-- Vérification Google Search Console (7 septembre) -- portée uniquement par la page racine
-     www.layerpitch.com, jamais retirée d'ici : présente seulement dans landing.html/index.html,
-     jamais dans landing-en.html/en.html (même choix que la mise en place d'origine). Si cette
-     balise disparaît d'une resynchronisation vers Julzantoine.github.io, c'est que ce commentaire
-     a été perdu -- ne jamais la retirer de ce fichier. -->
-<meta name="google-site-verification" content="asmoDiQgqSSZdCIJshXwRicbE9wsdtSAWed4oKUukRU" />
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
   :root {
@@ -61,6 +58,10 @@
      landings dédiées (chantier "bascule bêta fermée -> lancement public", architecture actée le
      même jour -- Compositeurs reste à la racine, Studio/Fan en pages sœurs). Grisé/non cliquable
      tant que leur contenu n'est pas construit -- pas de lien vers une page vide. */
+  .nav-links { display: flex; flex-wrap: wrap; gap: 2px 4px; flex: 1; margin-left: 20px; }
+  .nav-links a { color: var(--text-dim); font-size: 13px; padding: 4px 8px; border-radius: 6px; }
+  .nav-links a:hover { color: var(--accent); }
+  .nav { max-width: 1040px !important; flex-wrap: wrap; }
   .nav-persona-teaser { font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); opacity: 0.6; cursor: default; user-select: none; }
 
   /* ---- Hero ---- */
@@ -168,19 +169,24 @@
 <body>
 
 <nav class="nav">
-  <span class="nav-logo">LayerPitch</span>
+  <span class="nav-logo"><a href="./index.html" style="color:inherit">LayerPitch</a></span>
+  <div class="nav-links">
+    <a href="./a-propos.html">À propos</a>
+    <a href="./compositeurs.html" style="color:var(--accent)">Compositeurs &amp; sound designers</a>
+    <a href="./studios.html">Studios</a>
+    <a href="https://beta.layerpitch.com/shop">Catalogue audio</a>
+    <a href="../tarifs.html">Tarifs</a>
+    <a href="./faq.html">FAQ</a>
+  </div>
   <div class="nav-right">
-    <span class="nav-lang"><a class="active" href="./landing.html">FR</a> / <a href="./landing-en.html">EN</a></span>
-    <span class="nav-persona-teaser" title="Bientôt disponible">Studio · Fan — bientôt</span>
-    <!-- TODO une fois hébergé sur son propre domaine : garder cette URL absolue (l'app vit sur un
-         domaine différent de la landing, voir docs/infrastructure.md, 6 septembre). -->
-    <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html">Se connecter / Créer un compte</a>
+    <span class="nav-lang"><a class="active" href="./compositeurs.html">FR</a> / <a href="./en/composers.html">EN</a></span>
+    <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html">Se connecter</a>
   </div>
 </nav>
 
 <header class="hero wrap">
   <h1>MP3 vs LayerPitch :<br>épée en bois vs full stuff.</h1>
-  <div class="sub">Pour avancer dans le game, mieux vaut être équipé.</div>
+  <div class="sub">Compositeurs, sound designers : pour avancer dans le game, mieux vaut être équipé.</div>
   <div class="path-map" aria-hidden="true">
     <div class="path-map-title">Carte des chemins — mode séquentiel à embranchement</div>
     <svg viewBox="0 0 630 224" xmlns="http://www.w3.org/2000/svg">
@@ -301,7 +307,7 @@
   <div class="backstory">
     <!-- TODO : remplacer par la vraie photo de Jules-Antoine (assets/jules-photo.jpg ou équivalent)
          -- placeholder gris en attendant le fichier. -->
-    <img class="backstory-photo" src="./landing-assets/jules-photo.jpg" alt="Jules, fondateur de LayerPitch">
+    <img class="backstory-photo" src="../landing-assets/jules-photo.jpg" alt="Jules, fondateur de LayerPitch">
     <div class="backstory-text">
       <p>Salut, je m'appelle Jules et je suis compositeur.</p>
       <p>Récemment, j'ai pitché de la musique à un studio de jeu vidéo. J'ai voulu frapper fort et présenter directement de la musique adaptative — mais je n'ai trouvé aucune solution technique adéquate pour ça... et je n'avais pas envie de réduire tout mon boulot à de bêtes mp3.</p>
