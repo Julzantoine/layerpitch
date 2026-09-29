@@ -28,7 +28,7 @@
   function fromApi(a) {
     return {
       id: a.id, title: a.title || '', presFr: a.presentationFr || '', presEn: a.presentationEn || '',
-      price: a.priceEurCents == null ? '' : (a.priceEurCents / 100).toFixed(2), buyable: !!a.buyable, saved: true,
+      price: a.priceEurCents == null ? '' : (a.priceEurCents / 100).toFixed(2), buyable: !!a.buyable, saved: true, listenMode: a.listenMode || 'none', freeTrackIds: (a.freeTrackIds || []).slice(),
       trackIds: (a.trackIds || []).slice(), durations: Object.assign({}, a.officialDurations || {}),
       illustration: a.illustration || null, pendingCover: null, pendingCoverUrl: null, confirmedRights: !!a.buyable,
       contributors: [], rights: null,
@@ -79,7 +79,7 @@
       renderList();
     };
     $('#albNew').onclick = () => {
-      S.editing = { id: newId(), title: '', presFr: '', presEn: '', price: '', buyable: false, saved: false, trackIds: [], durations: {}, illustration: null,
+      S.editing = { id: newId(), title: '', presFr: '', presEn: '', price: '', buyable: false, listenMode: 'none', freeTrackIds: [], saved: false, trackIds: [], durations: {}, illustration: null,
         pendingCover: null, pendingCoverUrl: null, confirmedRights: false, contributors: [], rights: null };
       say(null); renderEditor();
     };
@@ -140,6 +140,12 @@
           <div data-rec-host="${esc(id)}" style="flex-basis:100%"></div></div>`;
       }).join('')}
     </div>
+    <div class="card">
+      <div class="section-label">${esc(tr('alb_listenTitle'))}</div>
+      <p class="hint">${esc(tr('alb_listenHint'))}</p>
+      ${['none', 'all', 'selected'].map(m => `<label style="display:flex;gap:8px;font-weight:normal;align-items:center"><input type="radio" name="albListen" value="${m}" style="width:auto;margin:0"${al.listenMode === m ? ' checked' : ''}> ${esc(tr('alb_listen' + { none: 'None', all: 'All', selected: 'Some' }[m]))}</label>`).join('')}
+      ${al.listenMode === 'selected' ? (al.trackIds.length ? al.trackIds.map(id => `<label style="display:flex;gap:8px;font-weight:normal;align-items:center;margin:4px 0 0 22px"><input type="checkbox" style="width:auto;margin:0" data-free="${esc(id)}"${al.freeTrackIds.includes(id) ? ' checked' : ''}> ${esc(trackTitle(id))}</label>`).join('') : `<p class="hint" style="margin-left:22px">${esc(tr('alb_listenNoTracks'))}</p>`) : ''}
+    </div>
     ${al.saved ? `<div class="card">
       <div class="section-label">${esc(tr('alb_contributors'))}</div>
       <p class="hint">${esc(tr('alb_contributorsHint'))}</p>
@@ -199,6 +205,8 @@
     });
     panel.querySelectorAll('[data-record]').forEach(b => b.onclick = () => openRecorder(b.dataset.record));
     panel.querySelectorAll('[data-play]').forEach(b => b.onclick = () => togglePlay(b.dataset.play));
+    panel.querySelectorAll('input[name="albListen"]').forEach(r => r.onchange = () => { al.listenMode = r.value; renderEditor(); });
+    panel.querySelectorAll('[data-free]').forEach(cb => cb.onchange = () => { al.freeTrackIds = cb.checked ? al.freeTrackIds.concat(cb.dataset.free) : al.freeTrackIds.filter(t => t !== cb.dataset.free); });
     $('#albSave').onclick = save;
     $('#albBack').onclick = async () => { await refresh(); renderList(); };
     if (!al.saved) return;
@@ -261,6 +269,8 @@
         trackIds: al.trackIds.filter(id => ownIds.has(id)), ...(cover || {}),
       });
       if (!r.ok) { say(tr('alb_error', { error: r.error }), 'error'); return renderEditor(); }
+      const listen = await window.LayerPitchAlbums.setAlbumListening(al.id, al.listenMode, al.freeTrackIds.filter(id => al.trackIds.includes(id)));
+      if (!listen.ok) { say(tr('alb_listenError', { error: listen.error }), 'error'); return renderEditor(); }
       const wasSaved = al.saved;
       al.saved = true; if (al.pendingCoverUrl) URL.revokeObjectURL(al.pendingCoverUrl);
       await refresh();

@@ -13,7 +13,7 @@
 
   // Version du compositeur de chaque morceau : seulement son type et sa durée (la prise entière peut peser plusieurs
   // centaines de Ko ; elle se lit à part, getAlbumTrackOfficialTake, quand on veut l'écouter).
-  const ALBUM_SELECT = `*, album_tracks(track_id, position, official_kind:default_settings->>kind, official_duration:default_settings->>duration)`;
+  const ALBUM_SELECT = `*, album_tracks(track_id, position, free_listen, official_kind:default_settings->>kind, official_duration:default_settings->>duration)`;
 
   function reshapeAlbum(row) {
     if (!row) return null;
@@ -21,7 +21,10 @@
     // Morceaux qui ont leur version du compositeur -> durée en secondes (condition de mise en vente, 26/09).
     const officialDurations = {};
     (row.album_tracks || []).forEach(r => { if (r.official_kind === 'layerpitch-take') officialDurations[r.track_id] = Number(r.official_duration) || 0; });
+    // Écoute libre sur la page publique (29/09) : 'none' | 'all' | 'selected' (+ les morceaux cochés).
+    const freeTrackIds = [...(row.album_tracks || [])].filter(r => r.free_listen).map(r => r.track_id);
     return {
+      listenMode: row.listen_mode || 'none', freeTrackIds,
       id: row.id, sellerId: row.seller_id, sellerRole: row.seller_role, title: row.title,
       illustration: row.illustration, illustrationOriginalName: row.illustration_original_name,
       presentationFr: row.presentation_fr, presentationEn: row.presentation_en,
@@ -181,6 +184,7 @@
 
   // ---- Albums de studio et compositeurs invités (29/09, migration 20260929020000) ----
   const call = async (name, args) => { const { data, error } = await getClient().rpc(name, args); return error ? { data: null, error: error.message } : { data, error: null }; };
+  const setAlbumListening = async (albumId, mode, trackIds) => { const r = await call('set_album_listening', { p_album_id: albumId, p_mode: mode, p_track_ids: trackIds || [] }); return r.error ? { ok: false, error: r.error } : { ok: true }; };
   const upsertStudioAlbum = async payload => { const r = await call('upsert_studio_album', { payload }); return r.error ? { ok: false, error: r.error } : { ok: true, data: r.data }; };
   const listAlbumContributors = async albumId => { const r = await call('list_album_contributors', { p_album_id: albumId }); return { contributors: r.data || [], error: r.error }; };
   // Enregistre l'invité puis envoie l'e-mail (Edge Function invite-album-contributor) ; en cas d'échec d'envoi, actionLink permet de transmettre le lien soi-même.
@@ -203,7 +207,7 @@
   const leaveAlbum = async albumId => { const r = await call('leave_album', { p_album_id: albumId }); return r.error ? { ok: false, error: r.error } : { ok: true, unpublished: !!(r.data && r.data.unpublished) }; };
 
   window.LayerPitchAlbums = {
-    upsertStudioAlbum, listAlbumContributors, inviteAlbumContributor, removeAlbumContributor, myAlbumInvitations, respondAlbumInvitation,
+    setAlbumListening, upsertStudioAlbum, listAlbumContributors, inviteAlbumContributor, removeAlbumContributor, myAlbumInvitations, respondAlbumInvitation,
     myAlbumContributions, setAlbumContributorTracks, leaveAlbum,
     getAlbumRights, setAlbumRights, markRightsHolderSelfPay, inviteRightsHolder, myRightsInvitations, respondRightsInvitation,
     listAlbums, upsertAlbum, claimTestAlbum, listMyPurchases, getPlatformFlags,

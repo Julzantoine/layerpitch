@@ -32,6 +32,7 @@ function setup() {
   w.LayerPitchAuth = { getSession: async () => ({ session: { user: { id: 'u1' } } }), getMyStudioId: async () => ({ studioId: 'st1', isOwner: true, name: 'Studio Mousse' }) };
   w.LayerPitchAlbums = {
     listAlbums: async () => ({ albums: albums.map(a => Object.assign({}, a)), error: null }),
+    setAlbumListening: async (id, mode, ids) => { calls.listen = { id, mode, ids }; return { ok: true }; },
     upsertStudioAlbum: async p => { calls.upsert.push(p); return { ok: true, data: {} }; },
     listAlbumContributors: async () => ({ contributors: contributors.map(c => Object.assign({}, c)), error: null }),
     inviteAlbumContributor: async (id, email) => { calls.invites.push(email); return { ok: true }; },
@@ -79,6 +80,11 @@ const input = (w, el, v) => { el.value = v; el.dispatchEvent(new w.Event('input'
   d.getElementById('albConfirm').checked = true; change(s.w, d.getElementById('albConfirm'));
   click(d.getElementById('albSave')); await flush();
   check('enregistrer : seulement les morceaux du studio (s1, s2), jamais ceux des invités', s.calls.upsert.length === 1 && JSON.stringify(s.calls.upsert[0].trackIds) === '["s1","s2"]' && s.calls.upsert[0].buyable === true && s.calls.upsert[0].priceEurCents === 800);
+
+  const some = s.doc.querySelector('input[name="albListen"][value="selected"]'); some.checked = true; change(s.w, some);
+  const free = s.doc.querySelector('[data-free="s1"]'); free.checked = true; change(s.w, free);
+  click(s.doc.getElementById('albSave')); await flush();
+  check('écoute libre : « certains morceaux » (s1) enregistré avec l\'album', JSON.stringify(s.calls.listen) === '{"id":"a1","mode":"selected","ids":["s1"]}');
 
   // Invitation d'un compositeur
   input(s.w, s.doc.getElementById('albInvite'), 'nouveau@x.test'); click(s.doc.getElementById('albInviteBtn')); await flush();

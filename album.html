@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LayerPitch</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="player.css?v=1790675749112">
+<link rel="stylesheet" href="player.css?v=1790676095317">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
 <style>
@@ -35,12 +35,13 @@
   .note { font-size: 13px; color: var(--text-dim); margin: 6px 0 0; min-height: 1.2em; }
   .tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 20px; }
   .tags span { font-size: 12px; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--border); color: var(--text-dim); }
-  #players { margin-top: 24px; }
-  #players .section-title, #players h2 { text-transform: none; }
+  #players { margin-top: 8px; }
+  #players + ol.tracks { margin-top: 12px; }
   h2 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); margin: 24px 0 8px; }
   ol.tracks { list-style: none; margin: 0; padding: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
   ol.tracks li { display: flex; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--border); }
   ol.tracks li:first-child { border-top: 0; }
+  ol.tracks .lock { margin-left: auto; font-size: 12px; color: var(--text-dimmer); }
   ol.tracks .n { color: var(--text-dimmer); width: 22px; text-align: right; }
   .empty { text-align: center; color: var(--text-dim); padding: 80px 0; }
   .foot { text-align: center; font-size: 12px; color: var(--text-dimmer); margin-top: 48px; }
@@ -55,10 +56,10 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790675749112"></script>
-<script src="player.js?v=1790675749112"></script>
-<script src="api/supabase-client.js?v=1790675749112"></script>
-<script src="api/tracks.js?v=1790675749112"></script>
+<script src="layerpitch-i18n.js?v=1790676095317"></script>
+<script src="player.js?v=1790676095317"></script>
+<script src="api/supabase-client.js?v=1790676095317"></script>
+<script src="api/tracks.js?v=1790676095317"></script>
 <script>
 // album.html — page PUBLIQUE d'un album en vente (/album/<id>), sans compte demandé. Données : get_public_album
 // (migration 20260929010000), qui ne renvoie rien pour un album non en vente. « Acheter » : achat factice de la bêta
@@ -68,11 +69,11 @@ if (params.get('__pretty')) { try { history.replaceState(null, '', params.get('_
 const lang = params.get('lang') === 'en' || (!params.get('lang') && /^en/i.test(navigator.language)) ? 'en' : 'fr';
 const T = lang === 'en' ? {
   notFound: 'This album is not available.', by: 'by', tracks: 'Tracks', buy: 'Buy', from: 'From', free: 'Pay what you want',
-  soon: 'Purchases open soon.', login: 'Sign in to buy.', done: 'Album added to your library.', owned: 'You already own this album.',
+  soon: 'Purchases open soon.', afterBuy: 'Available after purchase', login: 'Sign in to buy.', done: 'Album added to your library.', owned: 'You already own this album.',
   open: 'Open my albums', foot: 'Presented with LayerPitch', min: 'minimum',
 } : {
   notFound: 'Cet album n’est pas disponible.', by: 'par', tracks: 'Morceaux', buy: 'Acheter', from: 'À partir de', free: 'Prix libre',
-  soon: 'Les achats ouvrent bientôt.', login: 'Connecte-toi pour acheter.', done: 'Album ajouté à ta bibliothèque.', owned: 'Tu possèdes déjà cet album.',
+  soon: 'Les achats ouvrent bientôt.', afterBuy: 'Écoute après l\'achat', login: 'Connecte-toi pour acheter.', done: 'Album ajouté à ta bibliothèque.', owned: 'Tu possèdes déjà cet album.',
   open: 'Ouvrir mes albums', foot: 'Présenté avec LayerPitch', min: 'minimum',
 };
 const IMAGES_BASE = 'https://media.layerpitch.com/images/';
@@ -98,18 +99,25 @@ async function whoCanBuy(client) {
 async function listen(a) {
   try {
     if (!window.LayerPlayerCore || !window.LayerPitchTracks || !(a.tracks || []).length) return;
-    const { tracks, error } = await window.LayerPitchTracks.listTracksByIds(a.tracks.map(t => t.id));
+    // Seulement les morceaux que le vendeur laisse en écoute libre (les autres restent en simple titre).
+    const freeTracks = a.tracks.filter(t => t.free);
+    if (!freeTracks.length) return;
+    const { tracks, error } = await window.LayerPitchTracks.listTracksByIds(freeTracks.map(t => t.id));
     if (error || !tracks || !tracks.length) return;
     const byId = Object.fromEntries(tracks.map(t => [t.id, t]));
-    const ordered = a.tracks.map(t => byId[t.id]).filter(Boolean);
+    const ordered = freeTracks.map(t => byId[t.id]).filter(Boolean);
     if (window.LayerPlayerCore.setLang) window.LayerPlayerCore.setLang(lang);
     window.LayerPlayerCore.setSfxLibrary({});
     // Rendu d'abord à part : en cas d'erreur, la liste des titres reste en place.
     const staging = document.createElement('div');
     window.LayerPlayerCore.renderTracksBlock(staging, ordered, {}, false);
     const host = document.getElementById('players');
-    host.innerHTML = '';
     while (staging.firstChild) host.appendChild(staging.firstChild);
+    // Les morceaux en écoute libre ont maintenant leur lecteur : la liste ne garde que les autres.
+    const wrapTitle = document.querySelector('#players-wrap > h2'); if (wrapTitle) wrapTitle.remove();
+    const list = document.getElementById('trackList');
+    list.querySelectorAll('li[data-free]').forEach(li => li.remove());
+    if (!list.children.length) list.remove();
   } catch (e) { console.error('album: lecteur indisponible', e); }
 }
 
@@ -120,7 +128,7 @@ async function main() {
   if (error || !a) { root.innerHTML = '<div class="empty">' + T.notFound + '</div>'; return; }
   document.title = a.title + ' — LayerPitch';
   const pres = lang === 'en' ? (a.presentationEn || a.presentationFr) : (a.presentationFr || a.presentationEn);
-  const tracks = (a.tracks || []).map((t, i) => '<li><span class="n">' + (i + 1) + '</span><span>' + esc(t.title) + '</span></li>').join('');
+  const tracks = (a.tracks || []).map((t, i) => '<li' + (t.free ? ' data-free="1"' : '') + '><span class="n">' + (i + 1) + '</span><span>' + esc(t.title) + '</span>' + (t.free ? '' : '<span class="lock">' + T.afterBuy + '</span>') + '</li>').join('');
   root.innerHTML =
     '<div class="album"><div>' + (a.illustration ? '<img class="cover" src="' + IMAGES_BASE + esc(a.illustration) + '" alt="">' : '<div class="cover"></div>') + '</div>' +
     '<div><h1>' + esc(a.title) + '</h1>' + (a.sellerName ? '<p class="seller">' + T.by + ' ' + esc(a.sellerName) + '</p>' : '') +
@@ -128,7 +136,7 @@ async function main() {
     (pres ? '<p class="pres">' + esc(pres) + '</p>' : '') +
     '<div class="buy"><span class="price">' + priceText(a.priceEurCents) + '</span><button class="buy-btn" id="buyBtn" type="button" disabled>' + T.buy + '</button></div>' +
     '<p class="note" id="buyNote"></p>' +
-    '<div id="players"><h2>' + T.tracks + '</h2><ol class="tracks">' + tracks + '</ol></div></div></div>';
+    '<div id="players-wrap"><h2>' + T.tracks + '</h2><div id="players"></div><ol class="tracks" id="trackList">' + tracks + '</ol></div></div></div>';
   listen(a);
 
   const btn = document.getElementById('buyBtn'), note = document.getElementById('buyNote');

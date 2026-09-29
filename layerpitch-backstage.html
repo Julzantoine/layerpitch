@@ -1797,13 +1797,13 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790675749112"></script>
-<script src="layerpitch-appearance.js?v=1790675749112"></script>
-<script src="layerpitch-shell.js?v=1790675749112"></script>
-<script src="layerpitch-social-icons.js?v=1790675749112"></script>
-<script src="layerpitch-notify.js?v=1790675749112"></script>
-<script src="layerpitch-help.js?v=1790675749112"></script>
-<script src="player.js?v=1790675749112"></script>
+<script src="layerpitch-i18n.js?v=1790676095317"></script>
+<script src="layerpitch-appearance.js?v=1790676095317"></script>
+<script src="layerpitch-shell.js?v=1790676095317"></script>
+<script src="layerpitch-social-icons.js?v=1790676095317"></script>
+<script src="layerpitch-notify.js?v=1790676095317"></script>
+<script src="layerpitch-help.js?v=1790676095317"></script>
+<script src="player.js?v=1790676095317"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -10983,7 +10983,7 @@ function albumFromApi(a) {
   return {
     id: a.id, title: a.title || '', presentationFr: a.presentationFr || '', presentationEn: a.presentationEn || '',
     priceInput: a.priceEurCents == null ? '' : (a.priceEurCents / 100).toFixed(2),
-    buyable: !!a.buyable, trackIds: a.trackIds || [], saved: true, savedBuyable: !!a.buyable,
+    buyable: !!a.buyable, listenMode: a.listenMode || 'none', freeTrackIds: (a.freeTrackIds || []).slice(), trackIds: a.trackIds || [], saved: true, savedBuyable: !!a.buyable,
     // Morceaux enregistrés en base (seuls eux peuvent recevoir une version du compositeur) et durée de leur version.
     savedTrackIds: (a.trackIds || []).slice(), officialDurations: Object.assign({}, a.officialDurations || {}),
     illustration: a.illustration || null, illustrationOriginalName: a.illustrationOriginalName || null, pendingCover: null, pendingCoverUrl: null,
@@ -11097,6 +11097,7 @@ function renderAlbums() {
         <label>${tr('albumTracksLabel')}</label>
         ${trackRows.length ? trackRows.join('') : `<div class="sub">${tr('albumNoTracksInLibrary')}</div>`}
         ${renderAlbumOfficialVersions(al, ai)}
+        ${renderAlbumListening(al, ai)}
         <div class="actions" style="margin-top:14px">
           <button class="btn btn-small btn-primary" data-action="save-album" data-ai="${ai}" type="button">${tr('albumSaveBtn')}</button>
           ${canClaim ? `<button class="btn btn-small" data-action="claim-test-album" data-ai="${ai}" type="button">${tr('albumClaimTestBtn')}</button>` : ''}
@@ -11127,6 +11128,16 @@ function renderAlbums() {
 // (set_album_track_default_settings). Obligatoire pour chaque morceau avant la mise en vente (contrôle serveur dans
 // upsert_album, migration 20260926020000 ; contrôle client dans saveAlbum pour un message clair).
 const fmtAlbumDuration = sec => { sec = Math.max(0, Math.round(sec || 0)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
+// Écoute libre sur la page publique de l'album (29/09) : le vendeur choisit entre aucun morceau, tout l'album, ou certains.
+function renderAlbumListening(al, ai) {
+  const rowStyle = 'display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text-dim);';
+  const radio = (mode, key) => `<label style="${rowStyle}"><input type="radio" style="width:auto;margin:0" name="listen-${escapeAttr(al.id)}" data-album-listen="${mode}" data-ai="${ai}"${al.listenMode === mode ? ' checked' : ''}><span>${tr(key)}</span></label>`;
+  const some = al.listenMode === 'selected'
+    ? al.trackIds.map(id => `<label style="${rowStyle}margin-left:22px"><input type="checkbox" style="width:auto;margin:0" data-album-free="${escapeAttr(id)}" data-ai="${ai}"${al.freeTrackIds.includes(id) ? ' checked' : ''}><span>${escapeHtml(albumTrackTitle(id))}</span></label>`).join('') || `<div class="sub" style="margin-left:22px">${tr('albumListenNoTracks')}</div>`
+    : '';
+  return `<label style="margin-top:16px">${tr('albumListenTitle')}</label><div class="sub" style="margin-bottom:4px">${tr('albumListenHint')}</div>`
+    + radio('none', 'albumListenNone') + radio('all', 'albumListenAll') + radio('selected', 'albumListenSome') + some;
+}
 function albumTrackTitle(id) { const t = library.find(x => x.id === id); return (t && t.title) || id; }
 function renderAlbumOfficialVersions(al, ai) {
   const head = `<label style="margin-top:16px">${tr('albumOfficialTitle')}</label><div class="sub" style="margin-bottom:4px">${tr('albumOfficialHint')}</div>`;
@@ -11317,6 +11328,8 @@ async function saveAlbum(ai) {
       setAlbumMessage(al, tr('albumSaveError', { error }) + hint, 'error');
       return;
     }
+    const listen = await window.LayerPitchAlbums.setAlbumListening(al.id, al.listenMode, al.freeTrackIds.filter(id => al.trackIds.includes(id)));
+    if (!listen.ok) { setAlbumMessage(al, tr('albumListenError', { error: listen.error }), 'error'); return; }
     al.saved = true;
     al.savedBuyable = al.buyable;
     if (cover) {
@@ -11387,6 +11400,12 @@ async function claimTestAlbumFromUi(ai) {
     const ai = Number(e.target.dataset.ai);
     if (e.target.dataset.albumField === 'buyable') {
       albumsState.albums[ai].buyable = e.target.checked;
+    } else if (e.target.dataset.albumListen) {
+      albumsState.albums[ai].listenMode = e.target.dataset.albumListen;
+      renderAlbums();
+    } else if (e.target.dataset.albumFree) {
+      const al = albumsState.albums[ai], id = e.target.dataset.albumFree;
+      al.freeTrackIds = e.target.checked ? al.freeTrackIds.concat(id) : al.freeTrackIds.filter(t => t !== id);
     } else if (e.target.dataset.albumTrack) {
       const al = albumsState.albums[ai];
       const id = e.target.dataset.albumTrack;
@@ -11406,7 +11425,7 @@ async function claimTestAlbumFromUi(ai) {
     if (btn.dataset.action === 'official-play') toggleOfficialPlayback(ai, btn.dataset.track);
   });
   document.getElementById('btnAddAlbum').addEventListener('click', () => {
-    albumsState.albums.push({ id: newAlbumId(), title: '', presentationFr: '', presentationEn: '', priceInput: '', buyable: false, trackIds: [], saved: false, savedBuyable: false, savedTrackIds: [], officialDurations: {}, illustration: null, illustrationOriginalName: null, pendingCover: null, pendingCoverUrl: null });
+    albumsState.albums.push({ id: newAlbumId(), title: '', presentationFr: '', presentationEn: '', priceInput: '', buyable: false, listenMode: 'none', freeTrackIds: [], trackIds: [], saved: false, savedBuyable: false, savedTrackIds: [], officialDurations: {}, illustration: null, illustrationOriginalName: null, pendingCover: null, pendingCoverUrl: null });
     renderAlbums();
   });
 })();

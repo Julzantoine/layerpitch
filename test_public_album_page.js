@@ -26,6 +26,24 @@
   check('morceaux dans l\'ordre, sans celui retiré', a.tracks.map(t => t.id).join(',') === 't1,t3');
   check('album non en vente : rien', (await val(`select public.get_public_album('brouillon')`)) === null);
   check('album inconnu : rien', (await val(`select public.get_public_album('nope')`)) === null);
+  check('écoute libre : aucun morceau par défaut', a.listenMode === 'none' && a.tracks.every(t => t.free === false));
+  check('écoute libre : un autre compte ne peut pas régler', await (async () => { await q(`insert into auth.users (id, email) values ($1, 'b@x.test')`, [U(2)]); await db.query(`select set_config('test.uid', $1, false)`, [U(2)]); try { await db.query(`select public.set_album_listening('ost', 'all')`); return false; } catch (e) { return /vendeur/.test(e.message); } })());
+  await db.query(`select set_config('test.uid', $1, false)`, [U(1)]);
+  check('écoute libre : réglage invalide refusé', await (async () => { try { await db.query(`select public.set_album_listening('ost', 'tout')`); return false; } catch (e) { return /invalide/.test(e.message); } })());
+  await db.query(`select public.set_album_listening('ost', 'selected', array['t3'])`);
+  await db.query(`select set_config('test.uid', '', false)`);
+  let b = await val(`select public.get_public_album('ost')`);
+  check('écoute libre : certains morceaux (t3 seulement)', b.listenMode === 'selected' && b.tracks.map(t => t.id + ':' + t.free).join(',') === 't1:false,t3:true');
+  await db.query(`select set_config('test.uid', $1, false)`, [U(1)]);
+  await db.query(`select public.set_album_listening('ost', 'all')`);
+  await db.query(`select set_config('test.uid', '', false)`);
+  b = await val(`select public.get_public_album('ost')`);
+  check('écoute libre : tout l\'album', b.listenMode === 'all' && b.tracks.every(t => t.free));
+  await db.query(`select set_config('test.uid', $1, false)`, [U(1)]);
+  await db.query(`select public.set_album_listening('ost', 'none')`);
+  await db.query(`select set_config('test.uid', '', false)`);
+  b = await val(`select public.get_public_album('ost')`);
+  check('écoute libre : retour à aucun (les morceaux cochés sont remis à zéro)', b.listenMode === 'none' && b.tracks.every(t => !t.free));
   check('« album » est un nom réservé', (await val(`select public.handle_is_reserved('album')`)) === true);
   // Écoute sur la page (album.html) : lecteur habituel, rendu à part pour garder la liste des titres en cas d'erreur.
   const page = require('fs').readFileSync(require('path').join(__dirname, 'album.html'), 'utf8');
