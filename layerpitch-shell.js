@@ -386,6 +386,8 @@
         { id: 'studio.library', icon: 'purchases', href: 'library.html' },
         { id: 'catalog', icon: 'catalog', href: 'catalogue.html' },
       ];
+      // Vente d'OST par un studio (29/09) : même feu vert que la vente d'albums (admin seulement pendant la bêta).
+      if (studioSpace && ctx.flags.sell_albums) studio.splice(3, 0, { id: 'studio.albums', icon: 'albums', href: 'studio.html?tab=albums' });
       if (!ctx.composerId) studio.push({ id: 'account.sales', icon: 'sales', href: 'mon-compte.html?section=sales', label: 'salesStudio' });
       sections.push({ label: 'sectionStudio', items: studio });
     }
