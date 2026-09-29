@@ -258,6 +258,12 @@ document.addEventListener('toggle', e => {
   if (!k) return;
   if (d.open) fxTriggerEffectsCollapsed.delete(k); else fxTriggerEffectsCollapsed.add(k);
 }, true);
+const fxTriggersSectionCollapsed = new Set();
+document.addEventListener('toggle', e => {
+  const d = e.target, k = d && d.dataset && d.dataset.fxtSectionKey;
+  if (!k) return;
+  if (d.open) fxTriggersSectionCollapsed.delete(k); else fxTriggersSectionCollapsed.add(k);
+}, true);
 function fxTriggersEditorHtml(track, ti) {
   const triggers = track.fxTriggers || [];
   if (!fxOpen('triggers')) {
@@ -303,13 +309,15 @@ function fxTriggersEditorHtml(track, ti) {
         ${fxRelationsEditorHtml(triggers, i, trg, attrs)}
       </div>`;
   }).join('');
+  // Toute la section se replie (demande du 30/09) ; l'état est gardé par morceau à travers les re-rendus.
+  const secKey = String(track.id || ti);
   return `
-    <div style="margin-top:14px">
-      <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}</div>
+    <details data-fxt-section-key="${escapeAttr(secKey)}" ${fxTriggersSectionCollapsed.has(secKey) ? '' : 'open'} style="margin-top:14px">
+      <summary style="cursor:pointer;font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}<span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggersCount', { n: triggers.length })}</span></summary>
       <div class="hint-inline">${tr('fxTriggersHint')}</div>
       ${cards}
       <div class="actions" style="margin-top:8px"><button class="btn btn-small" data-action="add-fx-trigger" data-ti="${ti}">${tr('addFxTriggerBtn')}</button></div>
-    </div>`;
+    </details>`;
 }
 // ---- Curseurs de paramètre (24/09) -- réservés à l'admin, comme les triggers ----
 // track.fxSliders = [{ id, label, defaultValue (0..1), smoothSec, visible, bindings:[{target, param, from, to}],
