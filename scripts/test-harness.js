@@ -45,4 +45,44 @@ async function loadBackstage(opts) {
   return dom;
 }
 
-module.exports = { installFakeAudio, inlineLocalScripts, loadBackstage, readLocal };
+
+// ---- Page de test du lecteur (dette « ~30 tests du lecteur à migrer », 29/09) ----
+// Page minimale : i18n + player.js recopiés dans le HTML, comme le faisaient les tests un par un.
+function playerPageHtml() {
+  const i18nSrc = readLocal('layerpitch-i18n.js');
+  const playerSrc = readLocal('player.js').replace(/<\/script/gi, '<\\/script');
+  return `<!DOCTYPE html><html><body><div id="host"></div>
+  <script>${i18nSrc}</script>
+  <script>${playerSrc}</script>
+  </body></html>`;
+}
+// Faux contexte audio « à horloge réelle » : currentTime suit l'heure, un segment se termine à sa durée (10 s par défaut).
+function installTimedFakeAudio(win) {
+      const epoch = Date.now();
+      function FakeAudioContext() { this.destination = {}; }
+      Object.defineProperty(FakeAudioContext.prototype, 'currentTime', { get() { return (Date.now() - epoch) / 1000; } });
+      FakeAudioContext.prototype.resume = function () { return Promise.resolve(); };
+      FakeAudioContext.prototype.createGain = function () {
+        return { gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {} }, connect() {}, disconnect() {} };
+      };
+      FakeAudioContext.prototype.createBufferSource = function () {
+        const ctxRef = this;
+        const node = {
+          buffer: null, onended: null, connect() {},
+          stop() { if (node._endTimer) clearTimeout(node._endTimer); if (!node._ended) { node._ended = true; if (node.onended) node.onended(); } },
+          start(when) {
+            const dur = (node.buffer && node.buffer.duration) || 1;
+            const delaySec = Math.max(0, (when - ctxRef.currentTime) + dur);
+            node._endTimer = setTimeout(() => { if (!node._ended) { node._ended = true; if (node.onended) node.onended(); } }, delaySec * 1000);
+          }
+        };
+        return node;
+      };
+      FakeAudioContext.prototype.decodeAudioData = function () { return Promise.resolve({ duration: 10 }); };
+      win.AudioContext = FakeAudioContext;
+      win.ResizeObserver = win.ResizeObserver || function () { return { observe() {}, disconnect() {} }; };
+      win.requestAnimationFrame = win.requestAnimationFrame || (cb => setTimeout(cb, 16));
+      win.cancelAnimationFrame = win.cancelAnimationFrame || (id => clearTimeout(id));
+}
+
+module.exports = { playerPageHtml, installTimedFakeAudio, installFakeAudio, inlineLocalScripts, loadBackstage, readLocal };
