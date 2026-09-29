@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<!-- Adresse jolie /album/<id> (404.html) : les ressources relatives se résolvent depuis la racine du site. -->
+<base href="/">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LayerPitch</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6; --text: #24262b; --text-dim: #5f636b; --text-dimmer: #9a9ea6;
+    --accent: #2f80c0; --on-accent: #ffffff; --cover-empty: linear-gradient(135deg, #23262d, #3a3f48);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14161a; --bg-card: #1d2025; --border: #30343b; --text: #eceef2; --text-dim: #a3a8b0; --text-dimmer: #737880;
+      --accent: #5aa2e0; --on-accent: #0d1620; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; }
+  .page { max-width: 860px; margin: 0 auto; padding: 32px 16px 48px; }
+  .album { display: grid; grid-template-columns: 280px 1fr; gap: 28px; align-items: start; }
+  .cover { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; background: var(--cover-empty); display: block; }
+  h1 { font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 30px; margin: 0 0 4px; }
+  .seller { color: var(--text-dim); margin: 0 0 16px; }
+  .pres { white-space: pre-wrap; line-height: 1.55; margin: 0 0 20px; }
+  .buy { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 0 0 8px; }
+  .price { font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 600; }
+  button.buy-btn { padding: 11px 22px; border-radius: 10px; border: 0; background: var(--accent); color: var(--on-accent); font: 600 15px 'Inter', sans-serif; cursor: pointer; }
+  button.buy-btn:disabled { background: var(--border); color: var(--text-dimmer); cursor: not-allowed; }
+  .note { font-size: 13px; color: var(--text-dim); margin: 6px 0 0; min-height: 1.2em; }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 20px; }
+  .tags span { font-size: 12px; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--border); color: var(--text-dim); }
+  h2 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); margin: 24px 0 8px; }
+  ol.tracks { list-style: none; margin: 0; padding: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
+  ol.tracks li { display: flex; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--border); }
+  ol.tracks li:first-child { border-top: 0; }
+  ol.tracks .n { color: var(--text-dimmer); width: 22px; text-align: right; }
+  .empty { text-align: center; color: var(--text-dim); padding: 80px 0; }
+  .foot { text-align: center; font-size: 12px; color: var(--text-dimmer); margin-top: 48px; }
+  .foot a { color: inherit; }
+  @media (max-width: 640px) { .album { grid-template-columns: 1fr; } .cover { max-width: 320px; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div id="root"><div class="empty">…</div></div>
+  <div class="foot" id="foot"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="api/supabase-client.js?v=1790629048988"></script>
+<script>
+// album.html — page PUBLIQUE d'un album en vente (/album/<id>), sans compte demandé. Données : get_public_album
+// (migration 20260929010000), qui ne renvoie rien pour un album non en vente. « Acheter » : achat factice de la bêta
+// (claim_test_album), réservé à l'admin tant que les paiements ne sont pas ouverts ; grisé pour tous les autres.
+const params = new URLSearchParams(location.search);
+if (params.get('__pretty')) { try { history.replaceState(null, '', params.get('__pretty')); } catch (e) {} }
+const lang = params.get('lang') === 'en' || (!params.get('lang') && /^en/i.test(navigator.language)) ? 'en' : 'fr';
+const T = lang === 'en' ? {
+  notFound: 'This album is not available.', by: 'by', tracks: 'Tracks', buy: 'Buy', from: 'From', free: 'Pay what you want',
+  soon: 'Purchases open soon.', login: 'Sign in to buy.', done: 'Album added to your library.', owned: 'You already own this album.',
+  open: 'Open my albums', foot: 'Presented with LayerPitch', min: 'minimum',
+} : {
+  notFound: 'Cet album n’est pas disponible.', by: 'par', tracks: 'Morceaux', buy: 'Acheter', from: 'À partir de', free: 'Prix libre',
+  soon: 'Les achats ouvrent bientôt.', login: 'Connecte-toi pour acheter.', done: 'Album ajouté à ta bibliothèque.', owned: 'Tu possèdes déjà cet album.',
+  open: 'Ouvrir mes albums', foot: 'Présenté avec LayerPitch', min: 'minimum',
+};
+const IMAGES_BASE = 'https://media.layerpitch.com/images/';
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const root = document.getElementById('root');
+document.getElementById('foot').innerHTML = '<a href="https://layerpitch.com">' + T.foot + '</a>';
+
+function priceText(cents) {
+  if (!cents) return T.free;
+  return T.from + ' ' + (cents / 100).toLocaleString(lang === 'en' ? 'en-GB' : 'fr-FR', { style: 'currency', currency: 'EUR' });
+}
+
+async function whoCanBuy(client) {
+  // Public : sans session, personne ne peut acheter. Bêta : seul l'admin (voir claim_test_album).
+  const { data: sess } = await client.auth.getSession();
+  if (!sess || !sess.session) return { state: 'anon' };
+  const { data: admin } = await client.rpc('is_admin');
+  return { state: admin ? 'admin' : 'locked' };
+}
+
+async function main() {
+  const id = params.get('s') || params.get('id') || '';
+  const client = window.LayerPitchSupabaseClient.getClient();
+  const { data: a, error } = id ? await client.rpc('get_public_album', { p_album_id: id }) : { data: null };
+  if (error || !a) { root.innerHTML = '<div class="empty">' + T.notFound + '</div>'; return; }
+  document.title = a.title + ' — LayerPitch';
+  const pres = lang === 'en' ? (a.presentationEn || a.presentationFr) : (a.presentationFr || a.presentationEn);
+  const tracks = (a.tracks || []).map((t, i) => '<li><span class="n">' + (i + 1) + '</span><span>' + esc(t.title) + '</span></li>').join('');
+  root.innerHTML =
+    '<div class="album"><div>' + (a.illustration ? '<img class="cover" src="' + IMAGES_BASE + esc(a.illustration) + '" alt="">' : '<div class="cover"></div>') + '</div>' +
+    '<div><h1>' + esc(a.title) + '</h1>' + (a.sellerName ? '<p class="seller">' + T.by + ' ' + esc(a.sellerName) + '</p>' : '') +
+    (a.tags && a.tags.length ? '<div class="tags">' + a.tags.map(t => '<span>' + esc(t) + '</span>').join('') + '</div>' : '') +
+    (pres ? '<p class="pres">' + esc(pres) + '</p>' : '') +
+    '<div class="buy"><span class="price">' + priceText(a.priceEurCents) + '</span><button class="buy-btn" id="buyBtn" type="button" disabled>' + T.buy + '</button></div>' +
+    '<p class="note" id="buyNote"></p>' +
+    '<h2>' + T.tracks + '</h2><ol class="tracks">' + tracks + '</ol></div></div>';
+
+  const btn = document.getElementById('buyBtn'), note = document.getElementById('buyNote');
+  const who = await whoCanBuy(client);
+  note.textContent = who.state === 'anon' ? T.login : who.state === 'locked' ? T.soon : '';
+  if (who.state !== 'admin') return;
+  btn.disabled = false;
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    const { data, error: err } = await client.rpc('claim_test_album', { p_album_id: a.id });
+    if (err) { note.textContent = err.message; btn.disabled = false; return; }
+    note.innerHTML = esc(data && data.alreadyOwned ? T.owned : T.done) + ' <a href="mes-albums.html">' + T.open + '</a>';
+  });
+}
+main();
+</script>
+</body>
+</html>

@@ -30,5 +30,8 @@ check('trois segments -> vraie 404', route('/a/b/c') === null);
 r = route('/vitrine/ost-foret', '?lang=en');
 check('/vitrine/nom -> vitrine.html?s=nom (vitrine de Projet, 28/09)', r && r.file === '/vitrine.html' && r.params.s === 'ost-foret' && r.params.lang === 'en' && !r.params.u && r.params.__pretty === '/vitrine/ost-foret?lang=en');
 check('/vitrine/fichier.html -> pas une vitrine', !(route('/vitrine/x.html') || {}).file || route('/vitrine/x.html').file !== '/vitrine.html');
+r = route('/album/mon-ost', '?lang=en');
+check('/album/id -> album.html?s=id (page publique d\'album, 29/09)', r && r.file === '/album.html' && r.params.s === 'mon-ost' && r.params.lang === 'en' && !r.params.u && r.params.__pretty === '/album/mon-ost?lang=en');
+check('/album/fichier.html -> pas une page d\'album', !(route('/album/x.html') || {}).file || route('/album/x.html').file !== '/album.html');
 console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
 process.exit(failures ? 1 : 0);
