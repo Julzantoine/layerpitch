@@ -1172,7 +1172,10 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   wrapper.className = 'track-row-wrapper';
 
   let intensityBlockHtml = '';
-  if (track.mode === 'vertical' && supported) {
+  // Un curseur qui pilote la structure (26/09 vertical, 30/09 embranchement-vertical) remplace les boutons du visiteur : il
+  // s'affiche avec les autres curseurs, et les boutons (couches 1/2/3, boucles nommées) disparaissent.
+  const structureBySlider = supported && fxSlidersValid(track).some(sl => sl.intensity);
+  if (track.mode === 'vertical' && supported && !structureBySlider) {
     const n = track.layers.length;
     const chips = Array.from({ length: n }, (_, i) => {
       const customLabel = (track.layers[i] && track.layers[i].label) ? track.layers[i].label : '';
@@ -1216,7 +1219,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       return `<button type="button" class="embr-loop-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="${isShort ? '1' : '0'}">${label}</button>`;
     }).join('');
     embrVertBlockHtml = `
-      <div class="track-intensity-block">
+      <div class="track-intensity-block"${structureBySlider ? ' style="display:none"' : ''}>
         <div class="track-intensity-label">${t('embrLoopsLabel')}</div>
         <div class="intensity-picker" data-role="embrLoopPicker"${embrRichMode ? ` style="--embr-row-h:${embrRowH}px"` : ''}>${buttons}</div>
       </div>
@@ -1395,7 +1398,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       <div class="track-intensity-block">
         <div class="track-intensity-label">${t('fxSlidersRowLabel')}</div>
         <div class="fx-slider-row">
-          ${publicFxSliders.map((sl, i) => `<label class="fx-slider"><span>${escapeHtml(sl.label || t('fxSliderFallbackLabel', { n: i + 1 }))}</span><input type="range" min="0" max="100" step="1" value="${Math.round(sl.def * 100)}" data-fx-slider="${escapeHtml(sl.id)}" disabled><output>${Math.round(sl.def * 100)}%</output></label>`).join('')}
+          ${publicFxSliders.map((sl, i) => `<label class="fx-slider"><span>${escapeHtml(sl.label || t('fxSliderFallbackLabel', { n: i + 1 }))}</span><input type="range" min="0" max="100" step="1" value="${Math.round(sl.def * 100)}" data-fx-slider="${escapeHtml(sl.id)}" disabled><output>${Math.round(sl.def * 100)}%</output>${sl.intensity ? `<em data-fx-zone="${escapeHtml(sl.id)}" style="font-size:12px;opacity:.75;font-style:normal;margin-left:8px"></em>` : ''}</label>`).join('')}
         </div>
       </div>
     `;
@@ -2566,7 +2569,10 @@ function simulateTriggerRules(defs, requests) {
 // ---- Curseurs de paramètre (24/09) -- l'équivalent d'un RTPC de Wwise / d'un "game parameter" de FMOD ----
 // track.fxSliders = [{ id, label, defaultValue (0..1), smoothSec, visible,
 //   bindings:[{ target:{type,li|si|pi}, param:'highcut.frequency'|..., from, to }],
-//   thresholds:[{ at (0..1), mode:'below'|'above', triggerId }] }]
+//   thresholds:[{ at (0..1), mode:'below'|'above', triggerId }],
+//   intensity?:{ bounds:[0..1, ...] } }]  -- le curseur PILOTE LA STRUCTURE du morceau à la place des boutons (26/09 pour le
+//   vertical, 30/09 pour l'embranchement-vertical) : chaque zone du curseur = une couche / une boucle, voir fxStructureZones.
+//   Décision du 30/09 : pas pour le vertical-random ni le séquentiel (progression dans le temps, pas des degrés d'intensité).
 // Un curseur public de 0 à 100 % : chaque liaison convertit sa valeur en un réglage d'effet sur une cible (couche,
 // boucle, emplacement, pool) -- de `from` (curseur à 0) à `to` (curseur à 100 %), exponentiellement pour une
 // fréquence -- et les seuils activent/coupent des triggers ("santé < 25 % => Low life"). Le réglage est LISSÉ (smoothSec,
@@ -2657,8 +2663,28 @@ function fxSliderTargetKey(target) {
 }
 // Valeurs par défaut des autres réglages d'un effet que le curseur fait apparaître sans qu'il soit configuré ailleurs.
 const FX_SLIDER_DEFAULT_FX = { lowcut: { slope: 24 }, highcut: { slope: 24 }, reverb: { decay: 2 }, delay: { time: 0.3, feedback: 0.35 }, bitcrush: { bits: 16, reduction: 1 }, pitch: { mode: 'shift' }, volume: {} };
+// Zones d'un curseur qui pilote la structure : une zone par couche (vertical) ou par boucle (embranchement-vertical).
+// Renvoie les libellés (« » si l'élément n'en a pas) ; vide = ce mode n'a pas de zones.
+function fxStructureZones(track) {
+  const m = track && track.mode, lab = x => (x && x.label) || '';
+  if (m === 'vertical') return (track.layers || []).map(lab);
+  if (m === 'embranchement-vertical') return (track.loops || []).map(lab);
+  return [];
+}
+// n zones = n-1 limites (0..1, croissantes). Sans limites valables : découpage égal.
+function fxIntensityBounds(raw, n) {
+  if (!(n >= 2)) return null;
+  if (!Array.isArray(raw) || raw.length !== n - 1 || raw.some(v => !Number.isFinite(+v))) return Array.from({ length: n - 1 }, (_, i) => (i + 1) / n);
+  return raw.map(v => Math.max(0, Math.min(1, +v))).sort((a, b) => a - b);
+}
+// Zone (index à partir de 0) voulue pour la position v du curseur.
+function fxSliderIntensityLevel(bounds, v) {
+  return bounds.filter(b => v >= b).length;
+}
 function fxSlidersValid(track) {
   const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(+v) ? +v : 0));
+  const nZones = fxStructureZones(track).length;
+  let structureTaken = false; // un seul curseur pilote la structure : le premier qui la réclame
   return ((track && track.fxSliders) || []).filter(d => d && d.id).map(d => ({
     id: d.id, label: d.label || '', visible: !!d.visible,
     def: clamp01(d.defaultValue),
@@ -2669,8 +2695,9 @@ function fxSlidersValid(track) {
       // Un paramètre de spatialisation ne se lie qu'à un Sfx, un paramètre d'effet qu'à une voix.
       return !!key && ((FX_SLIDER_PARAMS[b.param].kind === 'sfx') === (key.indexOf('sfx:') === 0));
     }).map(b => ({ key: fxSliderTargetKey(b.target), param: b.param, from: +b.from, to: +b.to, curve: fxCurveSanitize(b.curve), curveSmooth: !!b.curveSmooth })),
-    thresholds: (d.thresholds || []).filter(x => x && x.triggerId && Number.isFinite(+x.at)).map(x => ({ at: clamp01(x.at), mode: x.mode === 'above' ? 'above' : 'below', triggerId: x.triggerId }))
-  })).filter(sl => sl.bindings.length || sl.thresholds.length);
+    thresholds: (d.thresholds || []).filter(x => x && x.triggerId && Number.isFinite(+x.at)).map(x => ({ at: clamp01(x.at), mode: x.mode === 'above' ? 'above' : 'below', triggerId: x.triggerId })),
+    intensity: d.intensity && !structureTaken && nZones >= 2 ? (structureTaken = true, fxIntensityBounds(d.intensity.bounds, nZones)) : null
+  })).filter(sl => sl.bindings.length || sl.thresholds.length || sl.intensity);
 }
 function fxSliderBindingValue(b, v0) {
   const meta = FX_SLIDER_PARAMS[b.param];
@@ -2981,12 +3008,43 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // ---- Curseurs (24/09) : exécution ----
   const fxSliderInputs = [...wrapper.querySelectorAll('[data-fx-slider]')];
   const fxSliderLastWant = new Map(); // triggerId -> dernier état voulu par un seuil (ne redemande que sur franchissement)
+  // ---- Curseur qui pilote la structure du morceau (26/09 vertical, 30/09 tous les modes) ----
+  // Chaque zone du curseur = une couche (vertical) ou une boucle (embranchement-vertical). Franchir une limite fait la MÊME
+  // chose que le bouton qu'il remplace : mêmes fondus, mêmes quantifications, mêmes repères pour l'outil vidéo.
+  const fxStructureSlider = fxSliders.find(sl => sl.intensity) || null;
+  const fxStructureNames = fxStructureZones(track);
+  const fxZoneOfValue = v => fxSliderIntensityLevel(fxStructureSlider.intensity, v);
+  let fxStructureZone = fxStructureSlider ? fxZoneOfValue(fxStructureSlider.def) : -1; // dernière zone demandée
+  function applyStructureZone(z) {
+    if (z < 0) return;
+    if (isEmbrVert) selectEmbrLoop(z);
+    else if (level !== z) applyIntensityLevel(z);
+  }
+  function followStructureSlider(sl) {
+    if (!sl.intensity) return;
+    const z = fxZoneOfValue(fxSliderValueOf(sl.id));
+    if (z === fxStructureZone) return;
+    fxStructureZone = z;
+    applyStructureZone(z);
+  }
+  // Au vrai démarrage : le curseur repart de sa position de départ ; les moteurs qui ne démarrent pas sur la bonne zone
+  // (l'embranchement-vertical ; le vertical lit fxStructureZone à son initialisation) la rejoignent aussitôt.
+  function startStructureSlider() {
+    if (!fxStructureSlider) return;
+    fxStructureZone = fxZoneOfValue(fxStructureSlider.def);
+    if (isEmbrVert && fxStructureZone !== embrReferenceIdx) setTimeout(() => { if (playing) applyStructureZone(fxStructureZone); }, 100);
+  }
   function paintFxSlider(id) {
     fxSliderInputs.forEach(inp => {
       if (inp.dataset.fxSlider !== id) return;
       inp.value = Math.round(fxSliderValueOf(id) * 100);
       const out = inp.parentElement && inp.parentElement.querySelector('output');
       if (out) out.textContent = Math.round(fxSliderValueOf(id) * 100) + '%';
+      const cap = inp.parentElement && inp.parentElement.querySelector('[data-fx-zone]');
+      if (cap && fxStructureSlider && fxStructureSlider.id === id) {
+        const z = fxZoneOfValue(fxSliderValueOf(id));
+        cap.textContent = '· ' + (fxStructureNames[z] || t('fxZoneFallback', { n: z + 1 }));
+      }
     });
   }
   function evalFxSliderThresholds(sl, force) {
@@ -3022,6 +3080,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     applyFxSliderToSfx(sl, sl.smoothSec);
     refreshTrackRate(sl.smoothSec);
     evalFxSliderThresholds(sl, false);
+    followStructureSlider(sl);
     paintFxSlider(id);
     // Évènement DOM (pas de la télémétrie : un curseur émet des dizaines de valeurs par seconde) -- l'outil vidéo
     // l'enregistre pendant une prise, comme "tourner la tête".
@@ -3036,6 +3095,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     refreshTrackRate(0.05);
     fxSliderLastWant.clear();
     fxSliders.forEach(sl => evalFxSliderThresholds(sl, true));
+    startStructureSlider();
   }
   fxSliderInputs.forEach(inp => inp.addEventListener('input', () => setFxSlider(inp.dataset.fxSlider, (+inp.value) / 100, true)));
   fxTriggerBtns.forEach(b => b.addEventListener('click', () => {
@@ -4788,7 +4848,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       }
     }
   }
-  let level = 0, playing = false, startedAt = 0, offsetAt = (useQuantizedLoop ? startTrackSec : 0), rafId = null, ready = false;
+  let level = (track.mode === 'vertical' && fxStructureSlider) ? fxZoneOfValue(fxStructureSlider.def) : 0, playing = false, startedAt = 0, offsetAt = (useQuantizedLoop ? startTrackSec : 0), rafId = null, ready = false;
   let isDraggingSeek = false; // vrai pendant qu'on glisse sur la barre de lecture — tick() ne doit pas écraser la position affichée pendant ce temps
 
   const PLAY_SVG = '<path d="M8 5v14l11-7z"/>';
@@ -6206,6 +6266,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     resumeAudioContext();
     playing = true;
     playingTrackIds.add(track.id); requestWakeLock();
+    // Un curseur d'intensité repart de sa position de départ (comme resetFxTriggers juste après) : on cale le niveau AVANT de
+    // l'annoncer, pour que la capture parte de la bonne intensité.
+    if (!isContinuation && !pausedResume && fxStructureSlider && track.mode === 'vertical') level = fxZoneOfValue(fxStructureSlider.def);
     // Capture vidéo : niveau d'intensité de départ (le visiteur a pu le choisir avant d'appuyer sur Lecture).
     if (!isContinuation) trackPublicEvent('track_play', { trackId: track.id, mode: track.mode }, { level });
     if (!isContinuation && !pausedResume) resetFxTriggers();
@@ -6469,24 +6532,24 @@ function initTrackPlayer(track, wrapper, elementColors) {
     block.addEventListener('pointercancel', () => { vrIsDraggingSeek = false; });
   });
 
-  notchDots.forEach(dot => {
-    dot.addEventListener('click', () => {
-      level = parseInt(dot.dataset.level, 10);
-      notchDots.forEach(d => d.classList.toggle('active', d === dot));
-      trackPublicEvent('intensity_change', { trackId: track.id, level });
-      if (!playing) return;
-      const p = profiles[level];
-      const now = ctx.currentTime;
-      const gainsToRamp = useQuantizedLoop ? currentGainNodes : gains;
-      gainsToRamp.forEach((g, i) => {
-        if (!g) return;
-        const layerGain = effGain(layersToLoad[i]);
-        g.gain.cancelScheduledValues(now);
-        g.gain.setValueAtTime(g.gain.value, now);
-        g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain * voiceGain('layer-' + i), now + INTENSITY_RAMP_SEC);
-      });
+  // Changement d'intensité (mode vertical) : bouton 1/2/3, ou curseur qui franchit une limite de zone (26/09).
+  function applyIntensityLevel(lv) {
+    level = lv;
+    notchDots.forEach(d => d.classList.toggle('active', parseInt(d.dataset.level, 10) === lv));
+    trackPublicEvent('intensity_change', { trackId: track.id, level });
+    if (!playing) return;
+    const p = profiles[level];
+    const now = ctx.currentTime;
+    const gainsToRamp = useQuantizedLoop ? currentGainNodes : gains;
+    gainsToRamp.forEach((g, i) => {
+      if (!g) return;
+      const layerGain = effGain(layersToLoad[i]);
+      g.gain.cancelScheduledValues(now);
+      g.gain.setValueAtTime(g.gain.value, now);
+      g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain * voiceGain('layer-' + i), now + INTENSITY_RAMP_SEC);
     });
-  });
+  }
+  notchDots.forEach(dot => dot.addEventListener('click', () => applyIntensityLevel(parseInt(dot.dataset.level, 10))));
 
   stingerBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -7304,6 +7367,9 @@ window.LayerPlayerCore = {
   simulateTriggerRules,
   FX_SLIDER_PARAMS,
   fxSlidersValid,
+  fxStructureZones,
+  fxIntensityBounds,
+  fxSliderIntensityLevel,
   fxSliderOverrides,
   fxSliderForceKeys,
   applyFxSliderOverrides,

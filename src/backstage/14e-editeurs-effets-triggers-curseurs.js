@@ -359,7 +359,8 @@ function fxSlidersClean(list) {
     defaultValue: Number.isFinite(+x.defaultValue) ? Math.max(0, Math.min(1, +x.defaultValue)) : 0,
     smoothSec: Number.isFinite(+x.smoothSec) && +x.smoothSec >= 0 ? +x.smoothSec : 0.15,
     bindings: (x.bindings || []).filter(b => b && b.target && b.param).map(b => { const cv = window.LayerPlayerCore.fxCurveSanitize(b.curve); return Object.assign({ target: b.target, param: b.param, from: Number.isFinite(+b.from) ? +b.from : 0, to: Number.isFinite(+b.to) ? +b.to : 1 }, cv ? { curve: cv } : {}, cv && b.curveSmooth ? { curveSmooth: true } : {}); }),
-    thresholds: (x.thresholds || []).filter(t => t && t.triggerId).map(t => ({ at: Number.isFinite(+t.at) ? Math.max(0, Math.min(1, +t.at)) : 0.5, mode: t.mode === 'above' ? 'above' : 'below', triggerId: t.triggerId }))
+    thresholds: (x.thresholds || []).filter(t => t && t.triggerId).map(t => ({ at: Number.isFinite(+t.at) ? Math.max(0, Math.min(1, +t.at)) : 0.5, mode: t.mode === 'above' ? 'above' : 'below', triggerId: t.triggerId })),
+    ...(x.intensity ? { intensity: { bounds: (x.intensity.bounds || []).filter(v => Number.isFinite(+v)).map(v => Math.max(0, Math.min(1, +v))) } } : {})
   }));
 }
 function fxSlidersEditorHtml(track, ti) {
@@ -382,8 +383,22 @@ function fxSlidersEditorHtml(track, ti) {
   const paramsAll = window.LayerPlayerCore.FX_SLIDER_PARAMS;
   const paramsFor = b => Object.keys(paramsAll).filter(pk => (paramsAll[pk].kind === 'sfx') === !!(b.target && b.target.type === 'sfx'));
   const triggers = (track.fxTriggers || []).filter(d => d && d.id);
+  // Zones de structure (26/09 vertical, 30/09 embranchement-vertical) : un curseur peut remplacer les boutons du visiteur
+  // (couches 1/2/3, boucles nommées) ; chaque zone a sa limite de départ, réglable.
+  const zoneNames = window.LayerPlayerCore.fxStructureZones(track);
   const cards = sliders.map((sl, i) => {
     const a = `data-ti="${ti}" data-sri="${i}"`;
+    const bounds = sl.intensity ? window.LayerPlayerCore.fxIntensityBounds(sl.intensity.bounds, zoneNames.length) : null;
+    const structureHtml = zoneNames.length < 2 ? '' : `
+        <label class="switch-row" style="margin-top:8px">
+          <input type="checkbox" data-field="fxSlider" data-fxs-prop="intensity" ${a} ${sl.intensity ? 'checked' : ''}>
+          <span class="switch-row-label">${tr('fxSliderIntensityLabel')}</span>
+        </label>
+        <div class="hint-inline">${tr('fxSliderIntensityHint')}</div>
+        ${bounds ? bounds.map((b, bi) => `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:6px;font-size:12px">
+          <span>${tr('fxSliderIntensityZone', { n: bi + 2, name: zoneNames[bi + 1] ? ' (' + escapeAttr(zoneNames[bi + 1]) + ')' : '' })}</span>
+          <input type="number" min="0" max="100" step="1" data-field="fxSliderIntensityBound" ${a} data-ib="${bi}" value="${Math.round(b * 100)}" style="width:64px"> %
+        </div>`).join('') : ''}`;
     const bindRows = (sl.bindings || []).map((b, bi) => {
       const cur = fxTriggerTargetToValue(b.target);
       const rowChoices = choices.some(c => c.value === cur) ? choices : choices.concat([{ value: cur, label: tr('fxSliderLegacyTargetOption', { name: (legacyChoices.find(c => c.value === cur) || {}).label || cur }) }]);
@@ -422,6 +437,7 @@ function fxSlidersEditorHtml(track, ti) {
           <input type="checkbox" data-field="fxSlider" data-fxs-prop="visible" ${a} ${sl.visible ? 'checked' : ''}>
           <span class="switch-row-label">${tr('fxSliderVisibleLabel')}</span>
         </label>
+        ${structureHtml}
         <div style="margin-top:8px;font-weight:600;font-size:0.85em">${tr('fxSliderBindingsTitle')}</div>
         <div class="hint-inline">${tr('fxSliderBindingsHint')}</div>
         ${bindRows}

@@ -374,7 +374,7 @@
       }
     }
   }
-  let level = 0, playing = false, startedAt = 0, offsetAt = (useQuantizedLoop ? startTrackSec : 0), rafId = null, ready = false;
+  let level = (track.mode === 'vertical' && fxStructureSlider) ? fxZoneOfValue(fxStructureSlider.def) : 0, playing = false, startedAt = 0, offsetAt = (useQuantizedLoop ? startTrackSec : 0), rafId = null, ready = false;
   let isDraggingSeek = false; // vrai pendant qu'on glisse sur la barre de lecture — tick() ne doit pas écraser la position affichée pendant ce temps
 
   const PLAY_SVG = '<path d="M8 5v14l11-7z"/>';

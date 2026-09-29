@@ -1,7 +1,10 @@
 // ---- Curseurs de paramètre (24/09) -- l'équivalent d'un RTPC de Wwise / d'un "game parameter" de FMOD ----
 // track.fxSliders = [{ id, label, defaultValue (0..1), smoothSec, visible,
 //   bindings:[{ target:{type,li|si|pi}, param:'highcut.frequency'|..., from, to }],
-//   thresholds:[{ at (0..1), mode:'below'|'above', triggerId }] }]
+//   thresholds:[{ at (0..1), mode:'below'|'above', triggerId }],
+//   intensity?:{ bounds:[0..1, ...] } }]  -- le curseur PILOTE LA STRUCTURE du morceau à la place des boutons (26/09 pour le
+//   vertical, 30/09 pour l'embranchement-vertical) : chaque zone du curseur = une couche / une boucle, voir fxStructureZones.
+//   Décision du 30/09 : pas pour le vertical-random ni le séquentiel (progression dans le temps, pas des degrés d'intensité).
 // Un curseur public de 0 à 100 % : chaque liaison convertit sa valeur en un réglage d'effet sur une cible (couche,
 // boucle, emplacement, pool) -- de `from` (curseur à 0) à `to` (curseur à 100 %), exponentiellement pour une
 // fréquence -- et les seuils activent/coupent des triggers ("santé < 25 % => Low life"). Le réglage est LISSÉ (smoothSec,
@@ -92,8 +95,28 @@ function fxSliderTargetKey(target) {
 }
 // Valeurs par défaut des autres réglages d'un effet que le curseur fait apparaître sans qu'il soit configuré ailleurs.
 const FX_SLIDER_DEFAULT_FX = { lowcut: { slope: 24 }, highcut: { slope: 24 }, reverb: { decay: 2 }, delay: { time: 0.3, feedback: 0.35 }, bitcrush: { bits: 16, reduction: 1 }, pitch: { mode: 'shift' }, volume: {} };
+// Zones d'un curseur qui pilote la structure : une zone par couche (vertical) ou par boucle (embranchement-vertical).
+// Renvoie les libellés (« » si l'élément n'en a pas) ; vide = ce mode n'a pas de zones.
+function fxStructureZones(track) {
+  const m = track && track.mode, lab = x => (x && x.label) || '';
+  if (m === 'vertical') return (track.layers || []).map(lab);
+  if (m === 'embranchement-vertical') return (track.loops || []).map(lab);
+  return [];
+}
+// n zones = n-1 limites (0..1, croissantes). Sans limites valables : découpage égal.
+function fxIntensityBounds(raw, n) {
+  if (!(n >= 2)) return null;
+  if (!Array.isArray(raw) || raw.length !== n - 1 || raw.some(v => !Number.isFinite(+v))) return Array.from({ length: n - 1 }, (_, i) => (i + 1) / n);
+  return raw.map(v => Math.max(0, Math.min(1, +v))).sort((a, b) => a - b);
+}
+// Zone (index à partir de 0) voulue pour la position v du curseur.
+function fxSliderIntensityLevel(bounds, v) {
+  return bounds.filter(b => v >= b).length;
+}
 function fxSlidersValid(track) {
   const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(+v) ? +v : 0));
+  const nZones = fxStructureZones(track).length;
+  let structureTaken = false; // un seul curseur pilote la structure : le premier qui la réclame
   return ((track && track.fxSliders) || []).filter(d => d && d.id).map(d => ({
     id: d.id, label: d.label || '', visible: !!d.visible,
     def: clamp01(d.defaultValue),
@@ -104,8 +127,9 @@ function fxSlidersValid(track) {
       // Un paramètre de spatialisation ne se lie qu'à un Sfx, un paramètre d'effet qu'à une voix.
       return !!key && ((FX_SLIDER_PARAMS[b.param].kind === 'sfx') === (key.indexOf('sfx:') === 0));
     }).map(b => ({ key: fxSliderTargetKey(b.target), param: b.param, from: +b.from, to: +b.to, curve: fxCurveSanitize(b.curve), curveSmooth: !!b.curveSmooth })),
-    thresholds: (d.thresholds || []).filter(x => x && x.triggerId && Number.isFinite(+x.at)).map(x => ({ at: clamp01(x.at), mode: x.mode === 'above' ? 'above' : 'below', triggerId: x.triggerId }))
-  })).filter(sl => sl.bindings.length || sl.thresholds.length);
+    thresholds: (d.thresholds || []).filter(x => x && x.triggerId && Number.isFinite(+x.at)).map(x => ({ at: clamp01(x.at), mode: x.mode === 'above' ? 'above' : 'below', triggerId: x.triggerId })),
+    intensity: d.intensity && !structureTaken && nZones >= 2 ? (structureTaken = true, fxIntensityBounds(d.intensity.bounds, nZones)) : null
+  })).filter(sl => sl.bindings.length || sl.thresholds.length || sl.intensity);
 }
 function fxSliderBindingValue(b, v0) {
   const meta = FX_SLIDER_PARAMS[b.param];

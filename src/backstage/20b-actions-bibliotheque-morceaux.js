@@ -329,6 +329,25 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
         else if (prop === 'visible') sl.visible = e.target.checked;
         else if (prop === 'defaultValue') sl.defaultValue = Math.max(0, Math.min(1, (parseFloat(e.target.value) || 0) / 100));
         else if (prop === 'smoothSec') sl.smoothSec = e.target.value === '' ? 0.15 : Math.max(0, parseFloat(e.target.value) || 0);
+        else if (prop === 'intensity') {
+          // Un seul curseur pilote la structure : l'activer ici le retire des autres. Il devient visible, puisqu'il remplace
+          // les boutons du visiteur.
+          if (e.target.checked) {
+            library[ti].fxSliders.forEach(o => { if (o !== sl) delete o.intensity; });
+            sl.intensity = { bounds: [] };
+            sl.visible = true;
+          } else delete sl.intensity;
+          hasUnsavedEdits = true; renderLibrary(); return;
+        }
+      }
+    }
+    else if (field === 'fxSliderIntensityBound') {
+      const sl = (library[ti].fxSliders || [])[parseInt(e.target.dataset.sri, 10)];
+      if (sl && sl.intensity) {
+        const n = window.LayerPlayerCore.fxStructureZones(library[ti]).length;
+        const bounds = window.LayerPlayerCore.fxIntensityBounds(sl.intensity.bounds, n) || [];
+        bounds[parseInt(e.target.dataset.ib, 10)] = Math.max(0, Math.min(1, (parseFloat(e.target.value) || 0) / 100));
+        sl.intensity.bounds = bounds; // pas de re-rendu ni de tri pendant la frappe (focus) : le lecteur trie à la lecture
       }
     }
     else if (field === 'fxSliderBinding') {
