@@ -196,7 +196,7 @@ function buildSfxPlayer(sfxDef) {
       else {
         if (!alt.file || !sfxDef.base) return null;
         const v = sfxDef.publishedAt ? ('?v=' + encodeURIComponent(sfxDef.publishedAt)) : '';
-        const res = await fetch(sfxDef.base + encodeURIComponent(alt.file) + v);
+        const res = await fetchAudio(sfxDef.base + encodeURIComponent(alt.file) + v, sfxDef.protected);
         ab = await res.arrayBuffer();
       }
       const buf = await decodeAudioDataCompat(ab);

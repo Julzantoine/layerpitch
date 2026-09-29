@@ -1797,14 +1797,14 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790679045938"></script>
-<script src="layerpitch-appearance.js?v=1790679045938"></script>
-<script src="layerpitch-album-shared.js?v=1790679045938"></script>
-<script src="layerpitch-shell.js?v=1790679045938"></script>
-<script src="layerpitch-social-icons.js?v=1790679045938"></script>
-<script src="layerpitch-notify.js?v=1790679045938"></script>
-<script src="layerpitch-help.js?v=1790679045938"></script>
-<script src="player.js?v=1790679045938"></script>
+<script src="layerpitch-i18n.js?v=1790679666480"></script>
+<script src="layerpitch-appearance.js?v=1790679666480"></script>
+<script src="layerpitch-album-shared.js?v=1790679666480"></script>
+<script src="layerpitch-shell.js?v=1790679666480"></script>
+<script src="layerpitch-social-icons.js?v=1790679666480"></script>
+<script src="layerpitch-notify.js?v=1790679666480"></script>
+<script src="layerpitch-help.js?v=1790679666480"></script>
+<script src="player.js?v=1790679666480"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3312,6 +3312,18 @@ function trackProtectionHtml(track, ti) {
       <button class="btn btn-small" type="button" data-action="toggle-track-protection" data-ti="${ti}">${tr(on ? 'trackUnprotectBtn' : 'trackProtectBtn')}</button>
     </div>
     <div class="hint-inline">${tr('trackProtectionHint')}</div>`;
+}
+
+// Protection des fichiers d'un effet sonore (29/09) : même principe que les morceaux (voir trackProtectionHtml) ; les packs
+// restent consultables, ce qui est protégé c'est l'accès direct aux fichiers. Bloc de l'onglet « Identité » du Sfx.
+function sfxProtectionHtml(sfx, si) {
+  const on = !!sfx.protected;
+  return `<label style="margin-top:14px">${tr('sfxProtectionLabel')}</label>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="badge">${tr(on ? 'trackProtectedBadge' : 'trackPublicBadge')}</span>
+      <button class="btn btn-small" type="button" data-action="toggle-sfx-protection" data-si="${si}">${tr(on ? 'trackUnprotectBtn' : 'trackProtectBtn')}</button>
+    </div>
+    <div class="hint-inline">${tr('sfxProtectionHint')}</div>`;
 }
 // Effets audio par couche (chantier "effets dynamiques", 22/09) -- filtre/reverb/écho/bitcrusher,
 // réglages fixes pour l'instant (pas d'automatisation/déclenchement -- prévu dans un second temps,
@@ -7134,6 +7146,7 @@ function renderSfxLibrary() {
       <textarea data-sfx-field="descriptionEn" data-si="${si}" rows="3">${escapeAttr(sfx.descriptionEn)}</textarea>
       <label>${tr('sfxTagLabel')}</label>
       <input type="text" data-sfx-field="tag" data-si="${si}" value="${escapeAttr(sfx.tag || '')}">
+      ${sfxProtectionHtml(sfx, si)}
     `;
   } else if (entrySel === 'behavior') {
     entryDetailHost.innerHTML = `
@@ -7599,6 +7612,21 @@ document.getElementById('sfxLibraryContainer').addEventListener('click', async e
       hasUnsavedEdits = true;
       renderSfxLibrary();
     }
+    return;
+  }
+  const protectBtn = e.target.closest('[data-action="toggle-sfx-protection"]');
+  if (protectBtn) {
+    const sfx = sfxLibrary[parseInt(protectBtn.dataset.si, 10)];
+    const target = !sfx.protected;
+    if (!await window.LayerPitchNotify.confirm(tr(target ? 'sfxProtectConfirm' : 'sfxUnprotectConfirm', { title: sfx.title || sfx.id }), { okLabel: tr(target ? 'trackProtectBtn' : 'trackUnprotectBtn') })) return;
+    protectBtn.disabled = true; protectBtn.textContent = tr('trackProtectBusy');
+    try {
+      await loadPostgresReadScripts();
+      const r = await window.LayerPitchSfx.setSfxProtected(sfx.id, target);
+      if (!r.ok) window.LayerPitchNotify.error(tr('trackProtectError', { error: r.error }));
+      else { sfx.protected = target; window.LayerPitchNotify.info(tr(target ? 'trackProtectDone' : 'trackUnprotectDone')); }
+    } catch (err) { window.LayerPitchNotify.error(tr('trackProtectError', { error: err.message })); }
+    renderSfxLibrary();
     return;
   }
   const removeBtn = e.target.closest('[data-action="remove-sfx"]');
@@ -12272,7 +12300,7 @@ async function loadData(silent) {
     libraryFolders.forEach(f => collapsedLibraryFolderIds.add(f.id));
     library.forEach(t => { if (t.folderId && !libraryFolders.some(f => f.id === t.folderId)) t.folderId = null; });
     sfxLibrary = (data.sfxLibrary || []).map(s => ({
-      id: s.id, title: s.title || '',
+      id: s.id, title: s.title || '', protected: !!s.protected,
       // Repli sur l'ancien champ unique "description" pour tout Sfx publié avant le passage au bilingue —
       // lu une fois ici, jamais réécrit dans l'ancien champ ensuite (même principe que tagline -> title/subtitle).
       descriptionFr: s.descriptionFr != null ? s.descriptionFr : (s.description || ''),

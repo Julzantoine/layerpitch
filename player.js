@@ -315,7 +315,7 @@ function linkify(s) { return escapeHtml(s).replace(/\[([^\]]+)\]\((https?:\/\/[^
 //   * les liens signés d'un morceau sont gardés en mémoire (une seule demande par morceau et par session, renouvelée à
 //     l'approche de leur expiration) ;
 //   * sans droit d'écoute (ou sans client Supabase sur la page) : la réponse d'origine est rendue, en erreur comme avant.
-// Les Sfx (audio/sfx-…) restent publics.
+// Les effets sonores protégés fonctionnent de même (dossier audio/sfx-<id>/, { sfxId }).
 // ---------------------------------------------------------------------------------------------------------------------
 const _protectedTrackIds = new Set();
 const _signedAudio = new Map(); // id du morceau -> { files, expiresAt } | { none: true, until }
@@ -330,7 +330,8 @@ async function signedAudioFor(trackId) {
     try {
       const sb = window.LayerPitchSupabaseClient;
       if (!sb) return null;
-      const { data, error } = await sb.getClient().functions.invoke('track-audio-url', { body: { trackId } });
+      const body = trackId.startsWith('sfx-') ? { sfxId: trackId.slice(4) } : { trackId };
+      const { data, error } = await sb.getClient().functions.invoke('track-audio-url', { body });
       if (error || !data || !data.ok || data.protected === false || !data.files) {
         _signedAudio.set(trackId, { none: true, until: Date.now() + 60000 }); // pas d'accès (ou pas protégé) : on ne redemande pas à chaque fichier
         return null;
@@ -345,10 +346,10 @@ async function signedAudioFor(trackId) {
   return p;
 }
 
-// hintProtected : le morceau est déjà connu comme protégé (track.protected) -> pas d'essai sur l'adresse publique.
+// hintProtected : le morceau (ou Sfx) est déjà connu comme protégé (track.protected) -> pas d'essai sur l'adresse publique.
 async function fetchAudio(url, hintProtected) {
   const m = MEDIA_AUDIO_RE.exec(url);
-  if (!m || m[1].startsWith('sfx-')) return fetch(url);
+  if (!m) return fetch(url);
   const trackId = m[1];
   if (hintProtected) _protectedTrackIds.add(trackId);
   let first = null;
@@ -6865,7 +6866,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
           else {
             const v = sfx.publishedAt ? ('?v=' + encodeURIComponent(sfx.publishedAt)) : '';
             const sfxUrl = sfx.base + encodeURIComponent(alt.file) + v;
-            const res = await fetch(sfxUrl);
+            const res = await fetchAudio(sfxUrl, sfx.protected);
             ab = await res.arrayBuffer();
             _arrayBufferUrls.set(ab, sfxUrl);
           }
@@ -7187,7 +7188,7 @@ function buildSfxPlayer(sfxDef) {
       else {
         if (!alt.file || !sfxDef.base) return null;
         const v = sfxDef.publishedAt ? ('?v=' + encodeURIComponent(sfxDef.publishedAt)) : '';
-        const res = await fetch(sfxDef.base + encodeURIComponent(alt.file) + v);
+        const res = await fetchAudio(sfxDef.base + encodeURIComponent(alt.file) + v, sfxDef.protected);
         ab = await res.arrayBuffer();
       }
       const buf = await decodeAudioDataCompat(ab);

@@ -38,6 +38,7 @@
   .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
   .checkbox-row input { width: auto; }
   .checkbox-row span { font-size: 12px; color: var(--text-dim); }
+  .btn.danger { border-color: #b23; color: #b23; }
 </style>
 </head>
 <body>
@@ -46,18 +47,18 @@
   <div id="content"></div>
 </div>
 
-<script src="layerpitch-i18n.js?v=1790679045938"></script>
-<script src="layerpitch-notify.js?v=1790679045938"></script>
+<script src="layerpitch-i18n.js?v=1790679666480"></script>
+<script src="layerpitch-notify.js?v=1790679666480"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1790679045938"></script>
-<script src="api/auth.js?v=1790679045938"></script>
-<script src="layerpitch-appearance.js?v=1790679045938"></script>
-<script src="layerpitch-shell.js?v=1790679045938"></script>
-<script src="api/subscriptions.js?v=1790679045938"></script>
-<script src="api/notification-prefs.js?v=1790679045938"></script>
-<script src="api/studio.js?v=1790679045938"></script>
-<script src="api/connect.js?v=1790679045938"></script>
-<script src="api/invoices.js?v=1790679045938"></script>
+<script src="api/supabase-client.js?v=1790679666480"></script>
+<script src="api/auth.js?v=1790679666480"></script>
+<script src="layerpitch-appearance.js?v=1790679666480"></script>
+<script src="layerpitch-shell.js?v=1790679666480"></script>
+<script src="api/subscriptions.js?v=1790679666480"></script>
+<script src="api/notification-prefs.js?v=1790679666480"></script>
+<script src="api/studio.js?v=1790679666480"></script>
+<script src="api/connect.js?v=1790679666480"></script>
+<script src="api/invoices.js?v=1790679666480"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 const content = document.getElementById('content');
@@ -89,6 +90,54 @@ function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c
 // LayerPitch n'a aucun mot de passe (connexion par lien magique + code à 8 chiffres uniquement,
 // voir api/auth.js) — rien à "retrouver" ni à changer. Section volontairement simple : le but est
 // d'éviter la confusion ("où est mon mot de passe ?"), pas de proposer un vrai changement d'identifiants.
+// Suppression de compte (29/09) : carte « zone sensible » en bas de la rubrique Profil, visible seulement quand le feu vert est
+// ouvert pour ce compte. Tout est revérifié par le serveur (request_account_deletion).
+function reloadPage() { location.reload(); }
+let deletionState = null;
+async function deletionCardHtml() {
+  const { status } = await LayerPitchAuth.getAccountDeletion();
+  deletionState = status;
+  if (!status || !status.open) return '';
+  const list = ['delErases', 'delKept', 'delDelay'].map(k => `<li>${escapeHtml(tr(k))}</li>`).join('');
+  const dateText = status.scheduledFor ? new Date(status.scheduledFor).toLocaleDateString(currentLang()) : '';
+  let body;
+  if (status.scheduledFor) {
+    body = `<div class="status" style="color:#b23">${escapeHtml(tr('delPending', { date: dateText }))}</div>
+      <div class="actions"><button class="btn" id="btnCancelDeletion" type="button">${escapeHtml(tr('delCancelBtn'))}</button></div>`;
+  } else if ((status.blockers || []).length) {
+    body = status.blockers.map(b => `<div class="hint" style="color:#b23">${escapeHtml(tr('delBlocker_' + b))}</div>`).join('');
+  } else {
+    body = `<label>${escapeHtml(tr('delTypeLabel'))}</label>
+      <input type="text" id="delConfirm" autocomplete="off" placeholder="SUPPRIMER">
+      <div class="actions"><button class="btn danger" id="btnRequestDeletion" type="button">${escapeHtml(tr('delRequestBtn'))}</button></div>`;
+  }
+  return `<div class="card" style="border-color:#b23">
+    <h2>${escapeHtml(tr('delTitle'))}</h2>
+    <ul class="hint" style="padding-left:18px;margin:8px 0">${list}</ul>
+    ${body}
+    <div class="msg" id="delMsg"></div>
+  </div>`;
+}
+function wireDeletionCard() {
+  const req = document.getElementById('btnRequestDeletion');
+  const cancel = document.getElementById('btnCancelDeletion');
+  const msg = document.getElementById('delMsg');
+  if (req) req.addEventListener('click', async () => {
+    const typed = document.getElementById('delConfirm').value.trim();
+    if (typed !== 'SUPPRIMER') { msg.textContent = tr('delTypeError'); msg.className = 'msg err'; return; }
+    if (!await window.LayerPitchNotify.confirm(tr('delFinalConfirm'), { okLabel: tr('delRequestBtn'), danger: true })) return;
+    req.disabled = true; msg.textContent = '…';
+    const { ok, error } = await LayerPitchAuth.requestAccountDeletion(typed);
+    if (!ok) { msg.textContent = tr('errorPrefix', { message: error }); msg.className = 'msg err'; req.disabled = false; return; }
+    reloadPage();
+  });
+  if (cancel) cancel.addEventListener('click', async () => {
+    cancel.disabled = true;
+    const { ok, error } = await LayerPitchAuth.cancelAccountDeletion();
+    if (!ok) { msg.textContent = tr('errorPrefix', { message: error }); msg.className = 'msg err'; cancel.disabled = false; return; }
+    reloadPage();
+  });
+}
 function identifiantsCardHtml(session) {
   return `
     <div class="card">
@@ -541,7 +590,7 @@ async function render() {
 
   // Rubriques (barre latérale commune, 28/09) : chaque rubrique n'affiche que ses cartes.
   const SECTIONS = {
-    profile: async () => identifiantsCardHtml(session) + (await publicAddressCardHtml()) + (await notificationsCardHtml()) + directoryCardHtml(),
+    profile: async () => identifiantsCardHtml(session) + (await publicAddressCardHtml()) + (await notificationsCardHtml()) + directoryCardHtml() + (await deletionCardHtml()),
     subscription: async () => subscriptionCardHtml(),
     billing: async () => billingCardHtml(),
     sales: async () => (await connectCardHtml()) + (await studioPayoutCardHtml()),
@@ -549,7 +598,7 @@ async function render() {
   };
   const section = SECTIONS[accountSection] ? accountSection : 'profile';
   content.innerHTML = await SECTIONS[section]();
-  wirePublicAddressCard(); wireNotificationsCard(); wireSubscriptionCard(); wireBillingCard(); wireConnectCard(); wireStudioPayoutCard(); wireInvoicesCard();
+  wirePublicAddressCard(); wireDeletionCard(); wireNotificationsCard(); wireSubscriptionCard(); wireBillingCard(); wireConnectCard(); wireStudioPayoutCard(); wireInvoicesCard();
 }
 
 // Rubrique demandée (?section=) ; un retour de Stripe (abonnement, portail) ouvre « Abonnement ».

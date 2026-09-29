@@ -46,6 +46,21 @@ document.getElementById('sfxLibraryContainer').addEventListener('click', async e
     }
     return;
   }
+  const protectBtn = e.target.closest('[data-action="toggle-sfx-protection"]');
+  if (protectBtn) {
+    const sfx = sfxLibrary[parseInt(protectBtn.dataset.si, 10)];
+    const target = !sfx.protected;
+    if (!await window.LayerPitchNotify.confirm(tr(target ? 'sfxProtectConfirm' : 'sfxUnprotectConfirm', { title: sfx.title || sfx.id }), { okLabel: tr(target ? 'trackProtectBtn' : 'trackUnprotectBtn') })) return;
+    protectBtn.disabled = true; protectBtn.textContent = tr('trackProtectBusy');
+    try {
+      await loadPostgresReadScripts();
+      const r = await window.LayerPitchSfx.setSfxProtected(sfx.id, target);
+      if (!r.ok) window.LayerPitchNotify.error(tr('trackProtectError', { error: r.error }));
+      else { sfx.protected = target; window.LayerPitchNotify.info(tr(target ? 'trackProtectDone' : 'trackUnprotectDone')); }
+    } catch (err) { window.LayerPitchNotify.error(tr('trackProtectError', { error: err.message })); }
+    renderSfxLibrary();
+    return;
+  }
   const removeBtn = e.target.closest('[data-action="remove-sfx"]');
   if (removeBtn) {
     const si = parseInt(removeBtn.dataset.si, 10);
