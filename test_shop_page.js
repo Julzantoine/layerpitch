@@ -43,7 +43,7 @@ const set = (w, el, v, ev) => { el.value = v; el.dispatchEvent(new w.Event(ev ||
 
 (async () => {
   let s = await page({ open: false });
-  check('shop fermé : message « ouvre bientôt », aucune carte, filtres cachés', /Le shop ouvre bientôt/.test(s.d.body.textContent) && cards(s.d).length === 0 && s.d.getElementById('filters').hidden);
+  check('shop fermé : message « ouvre bientôt », aucune carte, filtres cachés', /Le catalogue audio ouvre bientôt/.test(s.d.body.textContent) && cards(s.d).length === 0 && s.d.getElementById('filters').hidden);
 
   s = await page({ open: true });
   check('ouvert : rayon « Assets audio » par défaut avec les 2 packs', cards(s.d).length === 2 && s.d.getElementById('tabAssets').getAttribute('aria-selected') === 'true' && /Pack Forêt/.test(s.d.body.textContent));
