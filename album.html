@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LayerPitch</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="player.css?v=1790682651112">
+<link rel="stylesheet" href="player.css?v=1790682915585">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
 <style>
@@ -57,11 +57,11 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790682651112"></script>
-<script src="player.js?v=1790682651112"></script>
-<script src="api/supabase-client.js?v=1790682651112"></script>
-<script src="layerpitch-seller-contact.js?v=1790682651112"></script>
-<script src="api/tracks.js?v=1790682651112"></script>
+<script src="layerpitch-i18n.js?v=1790682915585"></script>
+<script src="player.js?v=1790682915585"></script>
+<script src="api/supabase-client.js?v=1790682915585"></script>
+<script src="layerpitch-seller-contact.js?v=1790682915585"></script>
+<script src="api/tracks.js?v=1790682915585"></script>
 <script>
 // album.html — page PUBLIQUE d'un album en vente (/album/<id>), sans compte demandé. Données : get_public_album
 // (migration 20260929010000), qui ne renvoie rien pour un album non en vente. « Acheter » : achat factice de la bêta
@@ -72,11 +72,11 @@ const lang = params.get('lang') === 'en' || (!params.get('lang') && /^en/i.test(
 const T = lang === 'en' ? {
   notFound: 'This album is not available.', by: 'by', tracks: 'Tracks', buy: 'Buy', from: 'From', free: 'Pay what you want',
   soon: 'Purchases open soon.', afterBuy: 'Available after purchase', login: 'Sign in to buy.', done: 'Album added to your library.', owned: 'You already own this album.',
-  open: 'Open my albums', foot: 'Presented with LayerPitch', min: 'minimum',
+  open: 'Open my albums', yourPrice: 'Your price (minimum {min})', emailLabel: 'Your email (an account is created for you)', pay: 'Buy', paid: 'Payment received: a sign-in link was sent to your email to find the album.', badAmount: 'Enter an amount of at least {min}.', badEmail: 'Enter a valid email.', testBuy: 'Test purchase (no payment)', foot: 'Presented with LayerPitch', min: 'minimum',
 } : {
   notFound: 'Cet album n’est pas disponible.', by: 'par', tracks: 'Morceaux', buy: 'Acheter', from: 'À partir de', free: 'Prix libre',
   soon: 'Les achats ouvrent bientôt.', afterBuy: 'Écoute après l\'achat', login: 'Connecte-toi pour acheter.', done: 'Album ajouté à ta bibliothèque.', owned: 'Tu possèdes déjà cet album.',
-  open: 'Ouvrir mes albums', foot: 'Présenté avec LayerPitch', min: 'minimum',
+  open: 'Ouvrir mes albums', yourPrice: 'Ton prix (minimum {min})', emailLabel: 'Ton e-mail (un compte est créé pour toi)', pay: 'Acheter', paid: 'Paiement reçu : un lien de connexion t\'a été envoyé par e-mail pour retrouver l\'album.', badAmount: 'Indique un montant d\'au moins {min}.', badEmail: 'Indique une adresse e-mail valide.', testBuy: 'Achat de test (sans paiement)', foot: 'Présenté avec LayerPitch', min: 'minimum',
 };
 const IMAGES_BASE = 'https://media.layerpitch.com/images/';
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -144,16 +144,54 @@ async function main() {
 
   const btn = document.getElementById('buyBtn'), note = document.getElementById('buyNote');
   const who = await whoCanBuy(client);
-  note.textContent = who.state === 'anon' ? T.login : who.state === 'locked' ? T.soon : '';
-  if (who.state !== 'admin') return;
-  btn.disabled = false;
-  btn.addEventListener('click', async () => {
-    btn.disabled = true;
+  const { data: co } = await client.rpc('album_checkout_status');
+  const checkoutOpen = !!(co && co.open);
+  if (params.get('purchased') === '1') note.textContent = T.paid;
+  const claimTest = async () => {
     const { data, error: err } = await client.rpc('claim_test_album', { p_album_id: a.id });
-    if (err) { note.textContent = err.message; btn.disabled = false; return; }
+    if (err) { note.textContent = err.message; return; }
     note.innerHTML = esc(data && data.alreadyOwned ? T.owned : T.done) + ' <a href="mes-albums.html">' + T.open + '</a>';
+  };
+  if (!checkoutOpen) {
+    // Paiement pas encore ouvert : seul l'admin a l'achat de test (sans paiement), les autres lisent « bientôt ».
+    if (!params.get('purchased')) note.textContent = who.state === 'anon' ? T.login : who.state === 'locked' ? T.soon : '';
+    if (who.state !== 'admin') return;
+    btn.disabled = false;
+    btn.addEventListener('click', async () => { btn.disabled = true; await claimTest(); btn.disabled = false; });
+    return;
+  }
+  // Paiement ouvert (feu vert 'album_checkout', ou admin) : prix libre au-dessus du minimum ; sans compte, une adresse e-mail.
+  const min = a.priceEurCents || 0;
+  const minText = eurText(min);
+  const form = document.createElement('div');
+  form.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin:10px 0;max-width:340px';
+  form.innerHTML = (min > 0 ? '<label style="font-size:13px">' + esc(T.yourPrice.replace('{min}', minText)) + '</label><input id="buyAmount" type="text" inputmode="decimal" value="' + (min / 100).toFixed(2) + '" style="padding:8px;border:1px solid var(--border);border-radius:6px;font:inherit">' : '')
+    + (who.state === 'anon' ? '<label style="font-size:13px">' + esc(T.emailLabel) + '</label><input id="buyEmail" type="email" style="padding:8px;border:1px solid var(--border);border-radius:6px;font:inherit">' : '');
+  btn.parentNode.after(form);
+  btn.textContent = T.pay; btn.disabled = false;
+  btn.addEventListener('click', async () => {
+    const cents = min > 0 ? Math.round(Number(String(document.getElementById('buyAmount').value).replace(',', '.')) * 100) : 0;
+    if (min > 0 && !(cents >= min)) { note.textContent = T.badAmount.replace('{min}', minText); return; }
+    const emailEl = document.getElementById('buyEmail'), email = emailEl ? emailEl.value.trim() : '';
+    if (emailEl && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { note.textContent = T.badEmail; return; }
+    btn.disabled = true; note.textContent = '…';
+    const here = location.origin + location.pathname;
+    const { data, error: err } = await client.functions.invoke('create-album-checkout-session', { body: { albumId: a.id, amountCents: cents, email: email || undefined,
+      successUrl: emailEl ? here + '?purchased=1' : location.origin + '/mes-albums.html?purchased=1', cancelUrl: here } });
+    if (err || !data || !data.url) {
+      let msg = (data && data.error) || (err && err.message) || '';
+      try { if (err && err.context && typeof err.context.json === 'function') msg = (await err.context.json()).error || msg; } catch (e) { /* message générique */ }
+      note.textContent = msg; btn.disabled = false; return;
+    }
+    location.href = data.url;
   });
+  if (who.state === 'admin') {
+    const t = document.createElement('a'); t.href = '#'; t.textContent = T.testBuy; t.style.cssText = 'font-size:12px;display:inline-block;margin-top:6px';
+    t.addEventListener('click', e => { e.preventDefault(); claimTest(); });
+    note.after(t);
+  }
 }
+function eurText(cents) { return (cents / 100).toLocaleString(lang === 'en' ? 'en-GB' : 'fr-FR', { style: 'currency', currency: 'EUR' }); }
 main();
 </script>
 </body>
