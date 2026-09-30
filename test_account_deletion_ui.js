@@ -17,7 +17,7 @@ const sb = { window: {} }; vm.createContext(sb);
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf8'), sb);
 const I = sb.window.LAYERPITCH_I18N;
 const keys = ['delTitle', 'delErases', 'delKept', 'delDelay', 'delTypeLabel', 'delTypeError', 'delRequestBtn', 'delFinalConfirm', 'delPending', 'delCancelBtn', 'delBlocker_last_admin', 'delBlocker_studio_team', 'delBlocker_already_deleted'];
-check('tous les textes existent en FR et EN (mon compte)', keys.every(k => I.fr.monCompte[k] && I.en.monCompte[k]) && !!I.fr.shell.deletionBanner && !!I.en.shell.deletionBanner && !!I.fr.shell.deletionCancel);
+check('tous les textes existent en FR et EN (mon compte)', keys.every(k => I.fr.monCompte[k] && I.en.monCompte[k]) && !!I.fr.shell.deletionBanner && !!I.en.shell.deletionBanner && !!I.fr.shell.deletionCancel && !!I.fr.shell.deletionCancelError && !!I.en.shell.deletionCancelError);
 
 function page(status) {
   const dom = new JSDOM('<div id="c"></div>', { runScripts: 'outside-only', url: 'http://localhost/mon-compte.html' });

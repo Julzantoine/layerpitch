@@ -508,7 +508,17 @@
     const oldBanner = document.getElementById('lpDeletionBanner'); if (oldBanner) oldBanner.remove();
     if (state.ctx && state.ctx.deletion && !state.bare) {
       const b = document.createElement('div'); b.className = 'lp-deletion'; b.id = 'lpDeletionBanner';
-      b.innerHTML = `${esc(tr('deletionBanner', { date: new Date(state.ctx.deletion).toLocaleDateString(lang()) }))} <a href="${esc(withLang('mon-compte.html?section=profile'))}">${esc(tr('deletionCancel'))}</a>`;
+      // « Annuler » annule VRAIMENT la suppression (30/09) : jusque-là c'était un lien vers Mon compte → Profil, qui ne faisait
+      // rien quand on y était déjà, et le bandeau restait.
+      b.innerHTML = `<span data-role="delText">${esc(tr('deletionBanner', { date: new Date(state.ctx.deletion).toLocaleDateString(lang()) }))}</span> <a href="#" data-role="delCancel">${esc(tr('deletionCancel'))}</a>`;
+      b.querySelector('[data-role="delCancel"]').addEventListener('click', async e => {
+        e.preventDefault();
+        e.target.style.pointerEvents = 'none';
+        const r = await window.LayerPitchAuth.cancelAccountDeletion();
+        if (r.ok) { location.reload(); return; }
+        e.target.style.pointerEvents = '';
+        b.querySelector('[data-role="delText"]').textContent = tr('deletionCancelError', { error: r.error });
+      });
       bar.after(b);
     }
   }
