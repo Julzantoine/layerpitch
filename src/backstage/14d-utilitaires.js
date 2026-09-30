@@ -14,6 +14,13 @@ function slug(str) {
 // historique (100+ appels) mais fait désormais exactement la même chose.
 function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function escapeAttr(s) { return escapeHtml(s); }
+// Échappe puis transforme les URL http(s) en liens cliquables (30/09, demande de Jules-Antoine sur
+// le lien de la playlist tutos dans la boîte de réception) -- l'échappement passe en premier pour
+// qu'une URL ne puisse jamais injecter de balise, le remplacement joue ensuite sur le texte déjà
+// sûr (aucun caractère HTML actif ne peut apparaître dans le texte d'une URL après escapeHtml).
+function escapeHtmlLinkify(s) {
+  return escapeHtml(s).replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
 function extOf(filename) { const m = /\.([a-zA-Z0-9]+)$/.exec(filename || ''); return m ? m[1].toLowerCase() : 'jpg'; }
 // Content-Type pour l'upload R2 des images (S3/R2 le
 // veut pour servir le bon en-tête -- voir MIME dans scripts/migrate-media-to-r2.js pour la même liste).

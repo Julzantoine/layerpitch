@@ -840,6 +840,7 @@
   .inbox-collapse[hidden] { display: none; }
   .inbox-collapse svg { width: 16px; height: 16px; }
   .inbox-text { color: var(--text-dim); white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+  .inbox-text a { color: var(--accent); }
   .inbox-text.expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
   .inbox-more { background: none; border: none; padding: 0; margin-top: 2px; font: inherit; font-size: 12px; color: var(--accent); cursor: pointer; }
   .inbox-more[hidden] { display: none; }
@@ -1797,15 +1798,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790712461910"></script>
-<script src="layerpitch-appearance.js?v=1790712461910"></script>
-<script src="layerpitch-album-shared.js?v=1790712461910"></script>
-<script src="layerpitch-album-editor.js?v=1790712461910"></script>
-<script src="layerpitch-shell.js?v=1790712461910"></script>
-<script src="layerpitch-social-icons.js?v=1790712461910"></script>
-<script src="layerpitch-notify.js?v=1790712461910"></script>
-<script src="layerpitch-help.js?v=1790712461910"></script>
-<script src="player.js?v=1790712461910"></script>
+<script src="layerpitch-i18n.js?v=1790787208361"></script>
+<script src="layerpitch-appearance.js?v=1790787208361"></script>
+<script src="layerpitch-album-shared.js?v=1790787208361"></script>
+<script src="layerpitch-album-editor.js?v=1790787208361"></script>
+<script src="layerpitch-shell.js?v=1790787208361"></script>
+<script src="layerpitch-social-icons.js?v=1790787208361"></script>
+<script src="layerpitch-notify.js?v=1790787208361"></script>
+<script src="layerpitch-help.js?v=1790787208361"></script>
+<script src="player.js?v=1790787208361"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2450,7 +2451,7 @@ function drawInboxBell(items) {
           <div class="inbox-title">${escapeHtml(it.title)}</div>
           <button class="inbox-collapse" type="button" hidden title="${tr('inboxReadLess')}" aria-label="${tr('inboxReadLess')}">${INBOX_ICON_COLLAPSE}</button>
         </div>
-        <div class="inbox-text">${escapeHtml(it.text || '')}</div>
+        <div class="inbox-text">${escapeHtmlLinkify(it.text || '')}</div>
         <button class="inbox-more" type="button" hidden>${tr('inboxReadMore')}</button>
         <div class="inbox-time">${formatRelativeTime(it.createdAt)}</div>
       </div>
@@ -3238,6 +3239,13 @@ function slug(str) {
 // historique (100+ appels) mais fait désormais exactement la même chose.
 function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function escapeAttr(s) { return escapeHtml(s); }
+// Échappe puis transforme les URL http(s) en liens cliquables (30/09, demande de Jules-Antoine sur
+// le lien de la playlist tutos dans la boîte de réception) -- l'échappement passe en premier pour
+// qu'une URL ne puisse jamais injecter de balise, le remplacement joue ensuite sur le texte déjà
+// sûr (aucun caractère HTML actif ne peut apparaître dans le texte d'une URL après escapeHtml).
+function escapeHtmlLinkify(s) {
+  return escapeHtml(s).replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
 function extOf(filename) { const m = /\.([a-zA-Z0-9]+)$/.exec(filename || ''); return m ? m[1].toLowerCase() : 'jpg'; }
 // Content-Type pour l'upload R2 des images (S3/R2 le
 // veut pour servir le bon en-tête -- voir MIME dans scripts/migrate-media-to-r2.js pour la même liste).

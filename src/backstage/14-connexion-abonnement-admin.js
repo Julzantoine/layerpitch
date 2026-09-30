@@ -423,7 +423,7 @@ function drawInboxBell(items) {
           <div class="inbox-title">${escapeHtml(it.title)}</div>
           <button class="inbox-collapse" type="button" hidden title="${tr('inboxReadLess')}" aria-label="${tr('inboxReadLess')}">${INBOX_ICON_COLLAPSE}</button>
         </div>
-        <div class="inbox-text">${escapeHtml(it.text || '')}</div>
+        <div class="inbox-text">${escapeHtmlLinkify(it.text || '')}</div>
         <button class="inbox-more" type="button" hidden>${tr('inboxReadMore')}</button>
         <div class="inbox-time">${formatRelativeTime(it.createdAt)}</div>
       </div>
