@@ -10903,10 +10903,23 @@ function fillAppearanceFields() {
   renderCustomFontsList();
   fillWaveformStyleField();
   const bgImageCtrl = document.getElementById('appThemeBgImageCtrl');
-  bgImageCtrl.innerHTML = fileCtrlHtml(tr('chooseBgImageFile'));
+  // « Retirer l'image de fond » (1er/10, demande d'un compositeur : une fois posée, impossible de l'enlever) : visible seulement
+  // s'il y a une image (publiée ou choisie). Le fichier publié est effacé du stockage à la prochaine publication, s'il n'est
+  // plus référencé (file d'orphelins), jamais avant.
+  bgImageCtrl.innerHTML = fileCtrlHtml(tr('chooseBgImageFile'), `<button type="button" class="btn btn-small btn-danger" data-role="removeBgImage">${tr('removeBgImageBtn')}</button>`);
+  const removeBgBtn = bgImageCtrl.querySelector('[data-role="removeBgImage"]');
+  const refreshRemoveBg = () => { removeBgBtn.hidden = !(themeBgImagePendingFile || profile.theme.bgImage); };
   wireFileControl(bgImageCtrl, 'image/*',
     () => themeBgImagePendingFile, () => profile.theme.bgImage,
-    f => { themeBgImagePendingFile = f; hasUnsavedEdits = true; }, () => profile.theme.bgImageOriginalName);
+    f => { themeBgImagePendingFile = f; hasUnsavedEdits = true; refreshRemoveBg(); }, () => profile.theme.bgImageOriginalName);
+  refreshRemoveBg();
+  removeBgBtn.addEventListener('click', () => {
+    if (profile.theme.bgImage) queueR2Delete('images/' + profile.theme.bgImage);
+    profile.theme.bgImage = null; profile.theme.bgImageOriginalName = null;
+    themeBgImagePendingFile = null;
+    hasUnsavedEdits = true;
+    fillAppearanceFields();
+  });
   const opacityInput = document.getElementById('appThemeBgImageOpacity');
   const opacityVal = (profile.theme.bgImageOpacity != null) ? profile.theme.bgImageOpacity : DEFAULT_THEME.bgImageOpacity;
   opacityInput.value = opacityVal;
