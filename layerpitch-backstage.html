@@ -1798,15 +1798,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790787208361"></script>
-<script src="layerpitch-appearance.js?v=1790787208361"></script>
-<script src="layerpitch-album-shared.js?v=1790787208361"></script>
-<script src="layerpitch-album-editor.js?v=1790787208361"></script>
-<script src="layerpitch-shell.js?v=1790787208361"></script>
-<script src="layerpitch-social-icons.js?v=1790787208361"></script>
-<script src="layerpitch-notify.js?v=1790787208361"></script>
-<script src="layerpitch-help.js?v=1790787208361"></script>
-<script src="player.js?v=1790787208361"></script>
+<script src="layerpitch-i18n.js?v=1790837244787"></script>
+<script src="layerpitch-appearance.js?v=1790837244787"></script>
+<script src="layerpitch-album-shared.js?v=1790837244787"></script>
+<script src="layerpitch-album-editor.js?v=1790837244787"></script>
+<script src="layerpitch-shell.js?v=1790837244787"></script>
+<script src="layerpitch-social-icons.js?v=1790837244787"></script>
+<script src="layerpitch-notify.js?v=1790837244787"></script>
+<script src="layerpitch-help.js?v=1790837244787"></script>
+<script src="player.js?v=1790837244787"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -10903,10 +10903,23 @@ function fillAppearanceFields() {
   renderCustomFontsList();
   fillWaveformStyleField();
   const bgImageCtrl = document.getElementById('appThemeBgImageCtrl');
-  bgImageCtrl.innerHTML = fileCtrlHtml(tr('chooseBgImageFile'));
+  // « Retirer l'image de fond » (1er/10, demande d'un compositeur : une fois posée, impossible de l'enlever) : visible seulement
+  // s'il y a une image (publiée ou choisie). Le fichier publié est effacé du stockage à la prochaine publication, s'il n'est
+  // plus référencé (file d'orphelins), jamais avant.
+  bgImageCtrl.innerHTML = fileCtrlHtml(tr('chooseBgImageFile'), `<button type="button" class="btn btn-small btn-danger" data-role="removeBgImage">${tr('removeBgImageBtn')}</button>`);
+  const removeBgBtn = bgImageCtrl.querySelector('[data-role="removeBgImage"]');
+  const refreshRemoveBg = () => { removeBgBtn.hidden = !(themeBgImagePendingFile || profile.theme.bgImage); };
   wireFileControl(bgImageCtrl, 'image/*',
     () => themeBgImagePendingFile, () => profile.theme.bgImage,
-    f => { themeBgImagePendingFile = f; hasUnsavedEdits = true; }, () => profile.theme.bgImageOriginalName);
+    f => { themeBgImagePendingFile = f; hasUnsavedEdits = true; refreshRemoveBg(); }, () => profile.theme.bgImageOriginalName);
+  refreshRemoveBg();
+  removeBgBtn.addEventListener('click', () => {
+    if (profile.theme.bgImage) queueR2Delete('images/' + profile.theme.bgImage);
+    profile.theme.bgImage = null; profile.theme.bgImageOriginalName = null;
+    themeBgImagePendingFile = null;
+    hasUnsavedEdits = true;
+    fillAppearanceFields();
+  });
   const opacityInput = document.getElementById('appThemeBgImageOpacity');
   const opacityVal = (profile.theme.bgImageOpacity != null) ? profile.theme.bgImageOpacity : DEFAULT_THEME.bgImageOpacity;
   opacityInput.value = opacityVal;
