@@ -243,6 +243,35 @@ function wireNotificationsCard() {
   });
 }
 
+// Brouillon automatique du Backstage (30/09) : « ne plus m'avertir » = ignorer d'office un brouillon retrouvé. Réglage propre à ce
+// navigateur (le brouillon l'est aussi) : localStorage, lu par le Backstage.
+const DRAFT_AUTO_IGNORE_KEY = 'layerpitch_draft_auto_ignore';
+function draftCardHtml() {
+  let on = false;
+  try { on = localStorage.getItem(DRAFT_AUTO_IGNORE_KEY) === '1'; } catch (e) { /* stockage indisponible */ }
+  return `
+    <div class="card">
+      <h2>${tr('draftTitle')}</h2>
+      <div class="hint">${tr('draftHint')}</div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="draftAutoIgnoreToggle" ${on ? 'checked' : ''}>
+        <span>${tr('draftCheckboxLabel')}</span>
+      </div>
+      <div class="msg" id="draftMsg"></div>
+    </div>`;
+}
+function wireDraftCard() {
+  const toggle = document.getElementById('draftAutoIgnoreToggle');
+  if (!toggle) return;
+  toggle.addEventListener('change', () => {
+    const msg = document.getElementById('draftMsg');
+    try {
+      if (toggle.checked) localStorage.setItem(DRAFT_AUTO_IGNORE_KEY, '1'); else localStorage.removeItem(DRAFT_AUTO_IGNORE_KEY);
+      msg.textContent = tr('savedMsg'); msg.className = 'msg ok';
+    } catch (e) { toggle.checked = !toggle.checked; msg.textContent = tr('errorPrefix', { message: e.message }); msg.className = 'msg err'; }
+  });
+}
+
 // Branchement pour le futur Annuaire des compositeurs (opt-in) -- carte volontairement grisée/non
 // interactive tant que le contenu et le fonctionnement réel de l'annuaire ne sont pas construits
 // (7 septembre). Pas de lecture de composer_profiles.directory_opt_in ici : rien à afficher tant
@@ -610,7 +639,7 @@ async function render() {
 
   // Rubriques (barre latérale commune, 28/09) : chaque rubrique n'affiche que ses cartes.
   const SECTIONS = {
-    profile: async () => identifiantsCardHtml(session) + (await publicAddressCardHtml()) + (await notificationsCardHtml()) + directoryCardHtml() + (await deletionCardHtml()),
+    profile: async () => identifiantsCardHtml(session) + (await publicAddressCardHtml()) + (await notificationsCardHtml()) + draftCardHtml() + directoryCardHtml() + (await deletionCardHtml()),
     subscription: async () => subscriptionCardHtml(),
     billing: async () => billingCardHtml(),
     sales: async () => (await salesCardHtml()) + (await connectCardHtml()) + (await studioPayoutCardHtml()),
@@ -618,7 +647,7 @@ async function render() {
   };
   const section = SECTIONS[accountSection] ? accountSection : 'profile';
   content.innerHTML = await SECTIONS[section]();
-  wirePublicAddressCard(); wireDeletionCard(); wireNotificationsCard(); wireSubscriptionCard(); wireBillingCard(); wireConnectCard(); wireStudioPayoutCard(); wireInvoicesCard();
+  wirePublicAddressCard(); wireDeletionCard(); wireNotificationsCard(); wireDraftCard(); wireSubscriptionCard(); wireBillingCard(); wireConnectCard(); wireStudioPayoutCard(); wireInvoicesCard();
 }
 
 // Rubrique demandée (?section=) ; un retour de Stripe (abonnement, portail) ouvre « Abonnement ».
