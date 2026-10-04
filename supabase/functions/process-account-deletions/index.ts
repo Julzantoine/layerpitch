@@ -21,8 +21,21 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const unxml = (s: string) => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
 
+// Appel depuis le navigateur (1er/10) : un administrateur peut lancer la fonction depuis sa session (console du Backstage) pour
+// l'essai réel ; sans ces en-têtes le navigateur bloquait l'appel (« CORS »). Mêmes origines que les autres fonctions ; l'accès
+// reste réservé à la clé de service ou à un administrateur (vérifié plus bas), l'origine n'est qu'une défense en profondeur.
+const ALLOWED_ORIGINS = new Set(['https://beta.layerpitch.com', 'https://layerpitch.com', 'https://www.layerpitch.com', 'http://localhost:8420']);
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') || '';
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://beta.layerpitch.com',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+}
+
 Deno.serve(async (req) => {
-  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeadersFor(req) });
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: Object.assign({ 'Content-Type': 'application/json' }, corsHeadersFor(req)) });
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
