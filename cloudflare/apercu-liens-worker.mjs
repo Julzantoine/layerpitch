@@ -6,6 +6,8 @@
 // titre « LayerPitch », sans image. Ce programme répond à LEURS visites seulement (reconnues à leur User-Agent) avec une page
 // minimale contenant les balises Open Graph de l'AdReel, du pack, de la collection ou de l'album visé ; il lit titre,
 // description et image via la fonction publique get_share_preview. Les visiteurs humains passent sans aucun changement.
+// Le code lui-meme ne contient que des caracteres ASCII (accents ecrits \uXXXX) : copie dans le presse-papiers puis collee dans Cloudflare,
+// un caractere accentue etait abime (les points de suspension devenaient du texte illisible).
 // En cas de doute (adresse inconnue, base injoignable, robot non reconnu), la requête est simplement transmise comme avant.
 const SUPABASE_URL = 'https://ypygllyjfynrnvapufow.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb'; // clé publique, la même que celle des pages
@@ -36,13 +38,13 @@ export function routeOf(url) {
 }
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const clip = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s; };
+const clip = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1).trimEnd() + '\u2026' : s; };
 
 export function previewHtml(preview, url) {
   const lang = url.searchParams.get('lang') === 'en' ? 'en' : (preview.lang === 'en' ? 'en' : 'fr');
   const title = clip(preview.title, 90) || 'LayerPitch';
   const description = clip((lang === 'en' ? (preview.descriptionEn || preview.descriptionFr) : (preview.descriptionFr || preview.descriptionEn)), 200)
-    || (lang === 'en' ? 'Interactive music for game pitches, on LayerPitch.' : 'La musique interactive pour vos pitchs de jeu vidéo, sur LayerPitch.');
+    || (lang === 'en' ? 'Interactive music for game pitches, on LayerPitch.' : 'La musique interactive pour vos pitchs de jeu vid\u00e9o, sur LayerPitch.');
   const image = preview.image ? MEDIA + String(preview.image).split('/').map(encodeURIComponent).join('/') : DEFAULT_IMAGE;
   const canonical = SITE + url.pathname + url.search;
   return `<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8">

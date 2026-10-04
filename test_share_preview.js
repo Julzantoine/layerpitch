@@ -30,9 +30,12 @@ const check = (label, cond) => { console.log((cond ? 'OK   ' : 'FAIL ') + label)
   let r = await P('adreel', 'jean', '');
   check('AdReel principal : titre, sous-titre, photo (avant le logo)', r.title === 'Jean compose' && r.descriptionFr === 'Musique adaptative pour le jeu vidéo' && r.image === c1 + '/photo.jpg' && r.lang === 'fr');
   r = await P('adreel', 'jean', 'english');
-  check('AdReel par son nom : titre replié sur son étiquette, bio en description, logo en image, langue', r.title === 'Version anglaise' && r.descriptionFr === 'Adaptive music for games' && r.image === c1 + '/logo.png' && r.lang === 'en');
+  check('AdReel secondaire sans titre : « étiquette · nom », bio en description, logo en image, langue', r.title === 'Version anglaise · jean' && r.descriptionFr === 'Adaptive music for games' && r.image === c1 + '/logo.png' && r.lang === 'en');
   r = await P('adreel', 'jean', '', 'r2');
-  check('AdReel par ?adreel= (identifiant)', r.title === 'Version anglaise');
+  check('AdReel par ?adreel= (identifiant)', r.title === 'Version anglaise · jean');
+  await q(`update public.ad_reels set profile = '{}'::jsonb where id = 'main' and owner_id = $1`, [c1]);
+  check('AdReel principal sans titre : le nom du compositeur, jamais « Principal »', (await P('adreel', 'jean', '')).title === 'jean');
+  await q(`update public.ad_reels set profile = $2::jsonb where id = 'main' and owner_id = $1`, [c1, JSON.stringify({ title: 'Jean compose', subtitle: 'Musique adaptative pour le jeu vidéo', bio: 'Longue bio', photo: c1 + '/photo.jpg', logo: c1 + '/logo.png' })]);
   check('compositeur inconnu : null', (await P('adreel', 'personne', '')) === null);
   r = await P('pack', 'jean', 'pk1');
   check('pack : titre, descriptions FR/EN, illustration', r.title === 'Pack Forêt' && r.descriptionFr === 'Ambiances de forêt' && r.descriptionEn === 'Forest ambiences' && r.image === c1 + '/pack-pk1.png');
@@ -88,6 +91,8 @@ const check = (label, cond) => { console.log((cond ? 'OK   ' : 'FAIL ') + label)
   html = await (await W.default.fetch(req('/jean/collection.html?id=co1&lang=en', 'facebookexternalhit/1.1'), {})).text();
   check('sans description ni image : texte et image LayerPitch par défaut (langue demandée)', /Interactive music for game pitches/.test(html) && /og:image" content="https:\/\/beta\.layerpitch\.com\/og-default\.png"/.test(html));
   global.fetch = realFetch;
+  const code = fs.readFileSync(path.join(__dirname, 'cloudflare', 'apercu-liens-worker.mjs'), 'utf8').split('\n').filter(l => !/^\s*\/\//.test(l)).map(l => l.replace(/\s\/\/.*$/, '')).join('\n');
+  check('programme Cloudflare : aucun caractère non ASCII dans le code (le presse-papiers abîmait « … »)', !/[^\x00-\x7F]/.test(code));
   const png = fs.readFileSync(path.join(__dirname, 'og-default.png'));
   check('image par défaut : PNG 1200 × 630', png.slice(1, 4).toString() === 'PNG' && png.readUInt32BE(16) === 1200 && png.readUInt32BE(20) === 630);
 
