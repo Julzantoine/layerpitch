@@ -1,7 +1,8 @@
 // process-account-deletions — LayerPitch, suppression de compte (29/09 ; migration 20260929070000).
 //
 // À PLANIFIER une fois par jour (Supabase → Integrations → Cron, ou pg_cron + pg_net), ou à lancer à la main. Qui peut
-// l'appeler : la tâche planifiée (clé service_role) ou un admin LayerPitch. Pour chaque compte dont la suppression est
+// l'appeler : la tâche planifiée (en-tête x-cron-secret = secret CRON_SECRET), la clé service_role ou un admin LayerPitch.
+// Déployée avec --no-verify-jwt (elle fait sa propre vérification ci-dessous). Pour chaque compte dont la suppression est
 // échue (30 jours après la demande, sans annulation) :
 //   1. lit les identifiants Stripe (avant l'anonymisation) ;
 //   2. finalize_account_deletion : SUPPRIME en base tout ce qui n'a pas été vendu à des tiers et ANONYMISE le reste
@@ -29,7 +30,7 @@ function corsHeadersFor(req: Request): Record<string, string> {
   const origin = req.headers.get('Origin') || '';
   return {
     'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://beta.layerpitch.com',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
   };
 }
 
@@ -40,7 +41,15 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const authHeader = req.headers.get('Authorization') || '';
-    if (authHeader.replace(/^Bearer\s+/i, '') !== serviceKey) {
+    // Trois façons d'être autorisé : la tâche planifiée avec son CODE DÉDIÉ (en-tête x-cron-secret, secret CRON_SECRET de la
+    // fonction : il ne permet que de lancer cette fonction, contrairement à la clé de service), la clé de service, ou un
+    // administrateur connecté. Le code dédié existe parce que la clé du coffre était refusée par la comparaison avec la clé de
+    // service vue par la fonction (essai du 4/10, réponse 403) ; comparaison à durée constante.
+    const cronSecret = Deno.env.get('CRON_SECRET') || '';
+    const sentSecret = req.headers.get('x-cron-secret') || '';
+    let cronOk = cronSecret.length >= 32 && sentSecret.length === cronSecret.length;
+    if (cronOk) { let diff = 0; for (let i = 0; i < cronSecret.length; i++) diff |= cronSecret.charCodeAt(i) ^ sentSecret.charCodeAt(i); cronOk = diff === 0; }
+    if (!cronOk && authHeader.replace(/^Bearer\s+/i, '') !== serviceKey) {
       const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
       const { data: isAdmin } = await callerClient.rpc('is_admin');
       if (!isAdmin) return json({ error: 'Non autorisé.' }, 403);
