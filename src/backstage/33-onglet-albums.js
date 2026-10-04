@@ -389,11 +389,55 @@ function analyticsFxButtonsCard(fxButtons) {
   }).join('');
   return `<div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsFxSummaryTitle'))} <span class="hint">${escapeHtml(tr('analyticsFxEntityHint'))}</span></div><ul class="an-ix">${rows}</ul></div>`;
 }
+// Nom lisible d'un morceau (1er/10) : le tableau de bord montrait l'identifiant interne (bmrc8rec1wtahz). Retrouvé dans la
+// bibliothèque locale ; repli sur l'identifiant si le morceau a été supprimé depuis.
+function analyticsTrackName(id) {
+  const t = library.find(x => x.id === id);
+  return t ? (t.title || id) : id;
+}
+// Libellé d'une « voix » (couche, pool) d'un morceau : 'layer-2' -> nom de la couche, 'pool-0' -> Pool 1.
+function analyticsVoiceName(track, voice) {
+  const m = /^(layer|pool)-(\d+)$/.exec(voice || '');
+  if (!m) return voice || '?';
+  const n = parseInt(m[2], 10);
+  if (m[1] === 'layer') return (track && track.layers && track.layers[n] && track.layers[n].label) || tr('layerFallback', { n: n + 1 });
+  return tr('analyticsPoolName', { n: n + 1 });
+}
+// Ce que le visiteur a fait, en clair : quel bouton, quelle boucle, quelle intensité, sur quel morceau (jusque-là seul le
+// nom technique de l'évènement, « intensity_change », était affiché).
 function analyticsInteractionLabel(i) {
+  const d = i.detail || {};
+  const track = library.find(x => x.id === d.trackId);
+  const tname = analyticsTrackName(d.trackId);
   if (i.name === 'fx_trigger' && i.detail) {
     const info = analyticsFxTriggerInfo(i.detail);
     return tr('analyticsFxInteraction', { label: info.label, track: info.trackTitle, state: tr(i.detail.active ? 'analyticsFxOn' : 'analyticsFxOff') });
   }
+  if (i.name === 'intensity_change' && d.level != null) {
+    const lay = track && track.layers && track.layers[d.level];
+    return tr('analyticsIntensity', { level: d.level + 1, name: (lay && lay.label) ? ' (' + lay.label + ')' : '', track: tname });
+  }
+  if (i.name === 'embr_loop_select') {
+    const loops = (track && track.loops) || [];
+    const idx = loops.findIndex(l => l.id === d.loopId);
+    return tr('analyticsLoopSelect', { name: idx >= 0 ? (loops[idx].label || tr('analyticsLoopFallback', { n: idx + 1 })) : (d.loopId || '?'), track: tname });
+  }
+  if (i.name === 'seq_branch_select') {
+    const slots = (track && track.segmentSlots) || [];
+    const idx = slots.findIndex(s => s.id === d.targetId);
+    return tr('analyticsBranchSelect', { name: idx >= 0 ? (slots[idx].label || tr('analyticsSlotFallback', { n: idx + 1 })) : (d.targetId || '?'), track: tname });
+  }
+  if (i.name === 'voice_solo_toggle' || i.name === 'voice_mute_toggle') {
+    return tr(i.name === 'voice_solo_toggle' ? 'analyticsVoiceSolo' : 'analyticsVoiceMute', { voice: analyticsVoiceName(track, d.voice), track: tname, state: tr(d.active ? 'analyticsFxOn' : 'analyticsFxOff') });
+  }
+  if (i.name === 'voice_volume_change') {
+    return tr('analyticsVoiceVolume', { voice: analyticsVoiceName(track, d.voice), value: Math.round((+d.value || 0) * 100), track: tname });
+  }
+  if (i.name === 'stinger_play') {
+    const sfx = typeof sfxLibrary !== 'undefined' ? sfxLibrary.find(x => x.id === d.sfxId) : null;
+    return tr('analyticsSfxPlay', { name: (sfx && sfx.title) || d.sfxId || '?', track: tname });
+  }
+  if (i.name === 'pool_refresh') return tr('analyticsPoolRefresh', { track: tname });
   return i.name;
 }
 // Synthèse « boutons d'effet les plus utilisés » : nombre d'appuis d'ACTIVATION par bouton sur toute la période
@@ -443,7 +487,7 @@ function renderAnalyticsSessionCard(s) {
     const trackItems = tracks.map(t => {
       const cls = t.skipped ? 'analytics-track-skipped' : (t.reachedEnd ? 'analytics-track-reached' : '');
       const stateLabel = t.reachedEnd ? tr('analyticsTrackReachedEnd') : (t.skipped ? tr('analyticsTrackSkipped') : tr('analyticsTrackPartial'));
-      return `<li class="${cls}">${escapeHtml(t.trackId)} — ${escapeHtml(stateLabel)}</li>`;
+      return `<li class="${cls}">${escapeHtml(analyticsTrackName(t.trackId))} — ${escapeHtml(stateLabel)}</li>`;
     }).join('');
     const interactionItems = interactions.map(i => `<li>${escapeHtml(analyticsInteractionLabel(i))}</li>`).join('');
     detail = `
