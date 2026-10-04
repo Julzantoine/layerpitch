@@ -419,6 +419,17 @@
             <label data-i18n="sharePreviewImageLabel">Image</label>
             <div id="sharePreviewImageCtrl"></div>
             <div class="hint-inline" data-i18n="sharePreviewImageHint">Idéalement 1200 × 630 pixels. Sans image, LayerPitch en affiche une par défaut.</div>
+            <label style="display:flex;align-items:flex-start;gap:8px;margin:10px 0 0;font-weight:normal">
+              <input type="checkbox" id="sharePreviewAutoFit" style="width:auto;margin:2px 0 0 0">
+              <span style="font-size:12px;line-height:1.5"><span data-i18n="sharePreviewAutoFitLabel">Ajuster automatiquement l'image au format 1200 × 630 (recadrage centré)</span><br><span class="hint-inline" data-i18n="sharePreviewAutoFitHint">Les bords peuvent être coupés : garde l'essentiel au centre. Décoché, l'image part telle quelle.</span></span>
+            </label>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px">
+            <select id="sharePreviewFitMode" style="max-width:360px">
+              <option value="fill" data-i18n="sharePreviewFitFill">Recadrer au centre (remplit la carte)</option>
+              <option value="contain" data-i18n="sharePreviewFitContain">Garder l'image entière (marie-louise)</option>
+            </select>
+            <label id="sharePreviewFitColorWrap" style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;font-size:12px"><span data-i18n="sharePreviewFitColorLabel">Couleur</span><input type="color" id="sharePreviewFitColor" value="#ffffff" style="width:44px;height:30px;padding:2px"></label>
+            </div>
             <div id="sharePreviewMock" style="margin-top:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;max-width:420px;background:var(--bg-card, #fff)"></div>
           </div>
         </div>
@@ -910,13 +921,13 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791146622136"></script>
-<script src="layerpitch-appearance.js?v=1791146622136"></script>
-<script src="layerpitch-album-shared.js?v=1791146622136"></script>
-<script src="layerpitch-album-editor.js?v=1791146622136"></script>
-<script src="layerpitch-shell.js?v=1791146622136"></script>
-<script src="layerpitch-social-icons.js?v=1791146622136"></script>
-<script src="layerpitch-notify.js?v=1791146622136"></script>
-<script src="layerpitch-help.js?v=1791146622136"></script>
-<script src="player.js?v=1791146622136"></script>
+<script src="layerpitch-i18n.js?v=1791148031206"></script>
+<script src="layerpitch-appearance.js?v=1791148031206"></script>
+<script src="layerpitch-album-shared.js?v=1791148031206"></script>
+<script src="layerpitch-album-editor.js?v=1791148031206"></script>
+<script src="layerpitch-shell.js?v=1791148031206"></script>
+<script src="layerpitch-social-icons.js?v=1791148031206"></script>
+<script src="layerpitch-notify.js?v=1791148031206"></script>
+<script src="layerpitch-help.js?v=1791148031206"></script>
+<script src="player.js?v=1791148031206"></script>
 <script>

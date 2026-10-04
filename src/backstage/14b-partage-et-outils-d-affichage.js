@@ -199,7 +199,9 @@ let seqMapTheme = 'light';
 let allowEmbedding = false;
 // Aperçu des liens partagés (1er/10, rubrique Réseaux sociaux) : titre, description et image de la carte qu'affichent LinkedIn,
 // Facebook, WhatsApp… quand on colle un lien. image = chemin sous images/ (publié) ; le fichier choisi attend la publication.
-const DEFAULT_SHARE_PREVIEW = { title: '', description: '', image: null, imageOriginalName: null };
+// autoFit (vrai par défaut) : à la publication, l'image choisie est ajustée au format 1200 × 630 (voir sharePreviewFit) ;
+// fitMode 'fill' = recadrage centré (la carte est remplie, les bords sont coupés), 'contain' = image entière dans une marie-louise (bordure) de la couleur fitColor.
+const DEFAULT_SHARE_PREVIEW = { title: '', description: '', image: null, imageOriginalName: null, autoFit: true, fitMode: 'fill', fitColor: '#ffffff' };
 let sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW);
 let sharePreviewPendingFile = null;
 function effectiveNoAiCertified(track) {

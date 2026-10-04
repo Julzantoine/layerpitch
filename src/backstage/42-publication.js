@@ -123,7 +123,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
     waveformStyle: window.LayerPlayerCore.WAVEFORM_STYLES.includes(waveformStyle) ? waveformStyle : 'bars',
     seqMapTheme: window.LayerPlayerCore.SEQ_MAP_THEMES.includes(seqMapTheme) ? seqMapTheme : 'light',
     allowEmbedding: !!allowEmbedding,
-    sharePreview: { title: (sharePreview.title || '').trim(), description: (sharePreview.description || '').trim(), image: sharePreview.image || null, imageOriginalName: sharePreview.imageOriginalName || null },
+    sharePreview: { title: (sharePreview.title || '').trim(), description: (sharePreview.description || '').trim(), image: sharePreview.image || null, imageOriginalName: sharePreview.imageOriginalName || null, autoFit: sharePreview.autoFit !== false, fitMode: sharePreview.fitMode === 'contain' ? 'contain' : 'fill', fitColor: /^#[0-9a-f]{6}$/i.test(sharePreview.fitColor || '') ? sharePreview.fitColor : '#ffffff' },
     collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', presetId: c.presetId || null, separator: c.separator || null, effectivePlan, buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
     customFonts: customFonts.filter(f => f.remoteFile).map(f => ({ id: f.id, name: f.name || '', file: f.remoteFile, originalFileName: f.originalFileName || null })),
     adReels: adReels.map(ar => ({
@@ -242,8 +242,13 @@ async function publishAll() {
     // create-media-signed-url.
     // Image de l'aperçu des liens partagés (1er/10) : images/<son id>/share-preview.<ext>, avant l'instantané ci-dessous.
     if (sharePreviewPendingFile) {
-      const bytes = new Uint8Array(await sharePreviewPendingFile.arrayBuffer());
-      const fileName = `${myComposerId}/share-preview.${extOf(sharePreviewPendingFile.name)}`;
+      // Ajustage automatique (case cochée) : recadrage centré au format 1200 × 630 ; sinon le fichier part tel quel.
+      let toSend = sharePreviewPendingFile;
+      if (sharePreview.autoFit !== false) {
+        try { toSend = await sharePreviewFit(sharePreviewPendingFile, sharePreview.fitMode, sharePreview.fitColor); } catch (e) { log(tr('sharePreviewFitFailed', { error: e && e.message ? e.message : String(e) }), 'warn'); toSend = sharePreviewPendingFile; }
+      }
+      const bytes = new Uint8Array(await toSend.arrayBuffer());
+      const fileName = `${myComposerId}/share-preview.${extOf(toSend.name)}`;
       await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
       sharePreview.image = fileName; sharePreview.imageOriginalName = sharePreviewPendingFile.name; sharePreviewPendingFile = null;
       log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
