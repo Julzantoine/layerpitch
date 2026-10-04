@@ -123,6 +123,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
     waveformStyle: window.LayerPlayerCore.WAVEFORM_STYLES.includes(waveformStyle) ? waveformStyle : 'bars',
     seqMapTheme: window.LayerPlayerCore.SEQ_MAP_THEMES.includes(seqMapTheme) ? seqMapTheme : 'light',
     allowEmbedding: !!allowEmbedding,
+    sharePreview: { title: (sharePreview.title || '').trim(), description: (sharePreview.description || '').trim(), image: sharePreview.image || null, imageOriginalName: sharePreview.imageOriginalName || null },
     collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', presetId: c.presetId || null, separator: c.separator || null, effectivePlan, buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
     customFonts: customFonts.filter(f => f.remoteFile).map(f => ({ id: f.id, name: f.name || '', file: f.remoteFile, originalFileName: f.originalFileName || null })),
     adReels: adReels.map(ar => ({
@@ -239,6 +240,14 @@ async function publishAll() {
     // que par compositeur ('main' pour tous), un nom à plat (images/photo-main.jpg) était partagé entre comptes -- la
     // photo de bio d'un bêta-testeur a ainsi remplacé celle d'un autre. Seul ce dossier est accepté par
     // create-media-signed-url.
+    // Image de l'aperçu des liens partagés (1er/10) : images/<son id>/share-preview.<ext>, avant l'instantané ci-dessous.
+    if (sharePreviewPendingFile) {
+      const bytes = new Uint8Array(await sharePreviewPendingFile.arrayBuffer());
+      const fileName = `${myComposerId}/share-preview.${extOf(sharePreviewPendingFile.name)}`;
+      await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
+      sharePreview.image = fileName; sharePreview.imageOriginalName = sharePreviewPendingFile.name; sharePreviewPendingFile = null;
+      log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
+    }
     for (const ar of adReels) {
       if (ar.logoPendingFile) {
         log(tr('uploadingLogo', { id: ar.id }));
@@ -567,7 +576,7 @@ async function publishAll() {
       publishedAt: data.publishedAt, implementationSkills: data.implementationSkills,
       noAiCertifiedGlobal: data.noAiCertifiedGlobal, customFonts: data.customFonts,
       waveformStyle: data.waveformStyle, seqMapTheme: data.seqMapTheme,
-      allowEmbedding: data.allowEmbedding,
+      allowEmbedding: data.allowEmbedding, sharePreview: data.sharePreview,
     });
     if (!settingsRes.ok) {
       throw new Error('Écriture Postgres échouée pour les réglages — publication arrêtée :\n' + settingsRes.error);

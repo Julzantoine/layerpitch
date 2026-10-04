@@ -62,6 +62,7 @@
       waveformStyle: settings.waveformStyle || 'bars',
       seqMapTheme: settings.seqMapTheme || 'light',
       allowEmbedding: !!settings.allowEmbedding,
+      sharePreview: settings.sharePreview || {},
       adReels: adReelsRes.adReels,
       adReelFolders: adReelFoldersRes.folders,
     };

@@ -36,6 +36,19 @@ const check = (label, cond) => { console.log((cond ? 'OK   ' : 'FAIL ') + label)
   await q(`update public.ad_reels set profile = '{}'::jsonb where id = 'main' and owner_id = $1`, [c1]);
   check('AdReel principal sans titre : le nom du compositeur, jamais « Principal »', (await P('adreel', 'jean', '')).title === 'jean');
   await q(`update public.ad_reels set profile = $2::jsonb where id = 'main' and owner_id = $1`, [c1, JSON.stringify({ title: 'Jean compose', subtitle: 'Musique adaptative pour le jeu vidéo', bio: 'Longue bio', photo: c1 + '/photo.jpg', logo: c1 + '/logo.png' })]);
+  // Champs « Aperçu des liens partagés » (Backstage, rubrique Réseaux sociaux) : passent avant le profil
+  await db.query(`select set_config('test.uid', $1, false)`, [U(1)]);
+  await q(`select public.upsert_settings($1::jsonb)`, [JSON.stringify({ publishedAt: 1, sharePreview: { title: 'Mon titre', description: 'Ma description', image: c1 + '/share-preview.png' } })]);
+  check('upsert_settings range les champs d\'aperçu', (await val(`select share_preview ->> 'title' from public.settings where owner_id = $1`, [c1])) === 'Mon titre');
+  r = await P('adreel', 'jean', '');
+  check('champs dédiés : titre, description et image passent avant le profil de l\'AdReel', r.title === 'Mon titre' && r.descriptionFr === 'Ma description' && r.image === c1 + '/share-preview.png');
+  r = await P('pack', 'jean', 'pk1');
+  check('pack : garde son titre, sa description et son illustration (l\'image dédiée ne sert qu\'en repli)', r.title === 'Pack Forêt' && r.image === c1 + '/pack-pk1.png');
+  r = await P('collection', 'jean', 'co1');
+  check('collection sans illustration : image dédiée en repli', r.title === 'Collection Nuit' && r.image === c1 + '/share-preview.png');
+  await q(`select public.upsert_settings($1::jsonb)`, [JSON.stringify({ publishedAt: 2 })]);
+  r = await P('adreel', 'jean', '');
+  check('champs effacés : retour au profil de l\'AdReel', r.title === 'Jean compose' && r.image === c1 + '/photo.jpg');
   check('compositeur inconnu : null', (await P('adreel', 'personne', '')) === null);
   r = await P('pack', 'jean', 'pk1');
   check('pack : titre, descriptions FR/EN, illustration', r.title === 'Pack Forêt' && r.descriptionFr === 'Ambiances de forêt' && r.descriptionEn === 'Forest ambiences' && r.image === c1 + '/pack-pk1.png');
