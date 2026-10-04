@@ -82,5 +82,12 @@
     return { ok: true, error: null };
   }
 
-  window.LayerPitchAdmin = { getStats, getGrowthSeries, listAccounts, listAdminMessages, sendAdminMessage, deleteAdminMessage };
+  // Rapport des AdReels de tous les compositeurs (4/10) : chiffres et liens, sans e-mail ni contenu (admin_adreels_report).
+  async function getAdReelsReport() {
+    const { data, error } = await getClient().rpc('admin_adreels_report');
+    if (error) return { report: null, error: error.message };
+    return { report: data || [], error: null };
+  }
+
+  window.LayerPitchAdmin = { getAdReelsReport, getStats, getGrowthSeries, listAccounts, listAdminMessages, sendAdminMessage, deleteAdminMessage };
 })();
