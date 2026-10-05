@@ -17,7 +17,7 @@ for (const [file, lang, img, url] of [['landing.html', 'fr', 'og-carte.png', 'ht
   check(`${file} : adresses absolues vers www.layerpitch.com (jamais un chemin relatif)`, /^https:\/\/www\.layerpitch\.com\//.test(meta(h, 'og:image')) && /^https:\/\/www\.layerpitch\.com\//.test(meta(h, 'og:url')));
   const png = fs.readFileSync(path.join(__dirname, 'landing-assets', img));
   check(`${img} : PNG 1200 × 630`, png.slice(1, 4).toString() === 'PNG' && png.readUInt32BE(16) === 1200 && png.readUInt32BE(20) === 630);
-  check(`${file} : titre d'aperçu choisi (${lang})`, lang === 'fr' ? /Pour avancer dans le game/.test(meta(h, 'og:title')) : /get ahead in the game/.test(meta(h, 'og:title')));
+  check(`${file} : titre d'aperçu choisi (${lang})`, lang === 'fr' ? /^MP3 vs LayerPitch : épée en bois vs full stuff\. Pour avancer dans le game/.test(meta(h, 'og:title')) : /^MP3 vs LayerPitch: wooden sword vs full gear\. To get ahead in the game/.test(meta(h, 'og:title')));
 }
 check('la vérification Google Search Console reste sur la page française seulement', /google-site-verification/.test(read('landing.html')) && !/google-site-verification/.test(read('landing-en.html')));
 
