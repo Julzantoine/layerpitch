@@ -430,7 +430,9 @@ function drawInboxBell(items) {
       <div class="inbox-dot"></div>
     </${it.href ? 'a' : 'div'}>`).join('');
   emptyEl.hidden = shown.length > 0;
-  badge.hidden = !shown.some(it => it.unread);
+  const unreadCount = shown.filter(it => it.unread).length;
+  badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+  badge.hidden = !unreadCount;
 }
 function initInboxBellUi() {
   const bellBtn = document.getElementById('btnInboxBell');

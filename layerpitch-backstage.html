@@ -856,9 +856,14 @@
   .admin-preview-label select { font-size: 12px; padding: 4px 6px; }
 
   .notif-badge {
-    position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%;
-    background: #c0392b; border: 1.5px solid var(--bg);
+    position: absolute; top: -6px; right: -7px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+    background: #d63a2a; color: #fff; border: 2px solid var(--bg); box-sizing: border-box;
+    font-size: 11px; font-weight: 700; line-height: 14px; text-align: center;
+    animation: notifPulse 1.8s ease-out infinite;
   }
+  .notif-badge[hidden] { display: none; }
+  @keyframes notifPulse { 0% { box-shadow: 0 0 0 0 rgba(214,58,42,0.55); } 70%, 100% { box-shadow: 0 0 0 9px rgba(214,58,42,0); } }
+  @media (prefers-reduced-motion: reduce) { .notif-badge { animation: none; } }
   .global-actions-bar .btn { white-space: nowrap; }
 
   /* ---------------- Bulles d'aide contextuelle (data-help) ---------------- */
@@ -1824,15 +1829,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791149370057"></script>
-<script src="layerpitch-appearance.js?v=1791149370057"></script>
-<script src="layerpitch-album-shared.js?v=1791149370057"></script>
-<script src="layerpitch-album-editor.js?v=1791149370057"></script>
-<script src="layerpitch-shell.js?v=1791149370057"></script>
-<script src="layerpitch-social-icons.js?v=1791149370057"></script>
-<script src="layerpitch-notify.js?v=1791149370057"></script>
-<script src="layerpitch-help.js?v=1791149370057"></script>
-<script src="player.js?v=1791149370057"></script>
+<script src="layerpitch-i18n.js?v=1791275324057"></script>
+<script src="layerpitch-appearance.js?v=1791275324057"></script>
+<script src="layerpitch-album-shared.js?v=1791275324057"></script>
+<script src="layerpitch-album-editor.js?v=1791275324057"></script>
+<script src="layerpitch-shell.js?v=1791275324057"></script>
+<script src="layerpitch-social-icons.js?v=1791275324057"></script>
+<script src="layerpitch-notify.js?v=1791275324057"></script>
+<script src="layerpitch-help.js?v=1791275324057"></script>
+<script src="player.js?v=1791275324057"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2484,7 +2489,9 @@ function drawInboxBell(items) {
       <div class="inbox-dot"></div>
     </${it.href ? 'a' : 'div'}>`).join('');
   emptyEl.hidden = shown.length > 0;
-  badge.hidden = !shown.some(it => it.unread);
+  const unreadCount = shown.filter(it => it.unread).length;
+  badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+  badge.hidden = !unreadCount;
 }
 function initInboxBellUi() {
   const bellBtn = document.getElementById('btnInboxBell');
