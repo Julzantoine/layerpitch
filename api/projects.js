@@ -19,6 +19,10 @@
 
   const P = {
     listMine: () => rpc('list_my_projects'),
+    // Carte de niveau (6/10, migration 20261006020000) : plusieurs cartes par Projet, une carte = un document JSON.
+    listMaps: id => rpc('list_project_maps', { p_project_id: id }),
+    saveMap: (id, p) => rpc('save_project_map', { p_project_id: id, p }),
+    deleteMap: mapId => rpc('delete_project_map', { p_map_id: mapId }),
     create: (title, description, asStudio) => rpc('create_project', { p_title: title, p_description: description || '', p_as_studio: !!asStudio }),
     get: id => rpc('get_project', { p_project_id: id }),
     content: id => rpc('get_project_content', { p_project_id: id }),
