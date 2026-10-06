@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791295086744">
+<link rel="stylesheet" href="player.css?v=1791296548464">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -140,21 +140,22 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791295086744"></script>
-<script src="layerpitch-notify.js?v=1791295086744"></script>
-<script src="player.js?v=1791295086744"></script>
-<script src="api/supabase-client.js?v=1791295086744"></script>
-<script src="api/auth.js?v=1791295086744"></script>
-<script src="layerpitch-appearance.js?v=1791295086744"></script>
-<script src="layerpitch-shell.js?v=1791295086744"></script>
-<script src="api/tracks.js?v=1791295086744"></script>
-<script src="api/packs.js?v=1791295086744"></script>
-<script src="api/albums.js?v=1791295086744"></script>
-<script src="api/studio.js?v=1791295086744"></script>
-<script src="api/adreels.js?v=1791295086744"></script>
-<script src="api/projects.js?v=1791295086744"></script>
-<script src="api/sfx.js?v=1791295086744"></script>
-<script src="projet-carte.js?v=1791295086744"></script>
+<script src="layerpitch-i18n.js?v=1791296548464"></script>
+<script src="layerpitch-notify.js?v=1791296548464"></script>
+<script src="player.js?v=1791296548464"></script>
+<script src="api/supabase-client.js?v=1791296548464"></script>
+<script src="api/auth.js?v=1791296548464"></script>
+<script src="layerpitch-appearance.js?v=1791296548464"></script>
+<script src="layerpitch-shell.js?v=1791296548464"></script>
+<script src="api/tracks.js?v=1791296548464"></script>
+<script src="api/packs.js?v=1791296548464"></script>
+<script src="api/albums.js?v=1791296548464"></script>
+<script src="api/studio.js?v=1791296548464"></script>
+<script src="api/adreels.js?v=1791296548464"></script>
+<script src="api/projects.js?v=1791296548464"></script>
+<script src="api/sfx.js?v=1791296548464"></script>
+<script src="projet-carte-audio.js?v=1791296548464"></script>
+<script src="projet-carte.js?v=1791296548464"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -1048,6 +1049,51 @@ function renderVideoNotes() {
 // ---- Musique : packs partagés / offerts, albums ----
 // ---- Carte de niveau (6/10, migration 20261006020000) : dessiner un niveau puis y déposer des sons de la bibliothèque ----
 // Éditeur et fonctions pures : projet-carte.js. Sons proposés : morceaux et Sfx de la bibliothèque du compositeur, et l'audio du Projet.
+// Lecture de la carte : les sons de la bibliothèque jouent avec le vrai lecteur (morceaux adaptatifs, plusieurs EN MÊME TEMPS : fond
+// d'ambiance, morceau en cours, morceau qui entre) ; Sfx et audio du Projet sont décodés et bouclés. Les lecteurs de morceaux sont montés
+// hors de l'écran, une seule fois par morceau.
+function mapAudioEnv() {
+  const P = window.LayerPlayerCore;
+  if (!P || !window.LayerPitchLevelMapAudio) return null;
+  let rack = $('mapAudioRack');
+  if (!rack) { rack = document.createElement('div'); rack.id = 'mapAudioRack'; rack.setAttribute('aria-hidden', 'true'); rack.style.cssText = 'position:absolute;left:-9999px;top:0;width:640px;pointer-events:none'; document.body.appendChild(rack); }
+  const factory = window.LayerPitchLevelMapAudio.createVoiceFactory({
+    audioContext: () => P.audioContext(),
+    fetchBytes: url => P.fetchAudioBytes(url),
+    decode: bytes => P.decodeAudioCompat(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)),
+    resolve: async ref => {
+      if (ref.kind === 'sfx') {
+        const r = await LayerPitchSfx.listSfxByIds([ref.id]);
+        const sfx = r.sfx && r.sfx[0];
+        const alts = (sfx && sfx.alternatives || []).filter(a => a.file);
+        if (!alts.length || !sfx.base) return null;
+        return { type: 'url', url: sfx.base + encodeURIComponent(alts[Math.floor(Math.random() * alts.length)].file), loop: true };
+      }
+      if (ref.kind === 'asset') {
+        const a = assetById(ref.id);
+        if (!a) return null;
+        if (a.kind === 'track') { const r = await LayerPitchTracks.listTracksByIds([a.trackId]); return r.tracks && r.tracks[0] ? { type: 'track', track: r.tracks[0] } : null; }
+        const url = await fileUrl(a.fileId);
+        return url ? { type: 'url', url, loop: true } : null;
+      }
+      const r = await LayerPitchTracks.listTracksByIds([ref.id]);
+      return r.tracks && r.tracks[0] ? { type: 'track', track: r.tracks[0] } : null;
+    },
+    mountTrackControl: async track => {
+      const row = P.buildTrackRow(track, null, false);
+      rack.appendChild(row);
+      P.initTrackPlayer(track, row, null, { concurrent: true });
+      return row.lpControl;
+    },
+  });
+  const pending = new Set();
+  return {
+    voiceFactory: async ref => { try { await P.resumeAudio(); return await factory(ref); } catch (e) { console.warn('carte : son indisponible', ref, e); return null; } },
+    now: () => P.audioNow(),
+    // Minuterie : à `at` (horloge audio, en secondes) ; rend la fonction qui l'annule.
+    schedule: (fn, at) => { const id = setTimeout(() => { pending.delete(id); fn(); }, Math.max(0, (at - P.audioNow()) * 1000)); pending.add(id); return () => { clearTimeout(id); pending.delete(id); }; },
+  };
+}
 async function renderMap(panel) {
   const r = await PJ.listMaps(projectId);
   if (r.error) {
@@ -1063,7 +1109,7 @@ async function renderMap(panel) {
   };
   if (S.mapView && S.mapView.destroy) S.mapView.destroy();
   S.mapView = LayerPitchLevelMap.mount(panel, {
-    tr, canEdit: true, libraries,
+    tr, canEdit: true, libraries, audio: mapAudioEnv(),
     maps: r.data || [],
     save: async m => {
       const res = await PJ.saveMap(projectId, { id: m.id, title: m.title, data: m.data });

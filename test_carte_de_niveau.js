@@ -9,6 +9,7 @@ const { JSDOM } = require('jsdom');
   const dom = new JSDOM('<div id="host"></div>', { url: 'https://beta.layerpitch.com/projet.html', runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window;
   w.eval(fs.readFileSync(path.join(__dirname, 'projet-carte.js'), 'utf8'));
+  w.eval(fs.readFileSync(path.join(__dirname, 'projet-carte-audio.js'), 'utf8'));
   const M = w.LayerPitchLevelMap.model;
 
   // ---- Modèle
@@ -83,7 +84,7 @@ const { JSDOM } = require('jsdom');
   const drop = new w.Event('drop', { bubbles: true, cancelable: true }); drop.dataTransfer = dt; target.dispatchEvent(drop);
   const boss2 = view.state.maps[0].data.nodes.find(n => n.id === 'b');
   check('son glissé sur un boss : posé en ambiance', boss2.sounds.main.length === 1 && boss2.sounds.main[0].id === 't1');
-  check('inspecteur du boss : emplacement combat présent', host.querySelectorAll('#lmInsp .lm-slot').length === 2);
+  check('inspecteur du boss : ambiance, combat et fond propre', host.querySelectorAll('#lmInsp [data-slot]').length === 3);
   const slotCombat = host.querySelector('#lmInsp [data-slot="combat"]');
   const item2 = host.querySelectorAll('#lmLib [data-ref]')[1];
   const dt2 = { data: {}, types: ['application/x-lp-sound'], setData(t, v) { this.data[t] = v; }, getData(t) { return this.data[t]; } };
@@ -101,6 +102,77 @@ const { JSDOM } = require('jsdom');
   host.querySelector('#lmNew').click(); await wait(20);
   check('nouvelle carte créée et enregistrée', view.state.maps.length === 2 && saves.some(sv => sv.title === 'Niveau 2'));
   view.destroy();
+
+
+  // ---- Écouter (mode lecture) : clic, flèches, combat, réglages de la carte, transitions propres
+  const calls = [];
+  const fakeVoices = {};
+  const clock = { t: 10, timers: [] };
+  const audioEnv = {
+    now: () => clock.t,
+    schedule: (fn, at) => { const timer = { fn, at, live: true }; clock.timers.push(timer); return () => { timer.live = false; }; },
+    voiceFactory: async ref => { const key = ref.kind + ':' + ref.id; if (!fakeVoices[key]) fakeVoices[key] = { key, start(l) { calls.push(key + ' start ' + l); this.p = true; }, setLevel(l, sec) { calls.push(key + ' level ' + l.toFixed(2)); }, stop() { calls.push(key + ' stop'); this.p = false; }, isPlaying() { return !!this.p; }, nextBoundary: () => null }; return fakeVoices[key]; },
+  };
+  const host3 = w.document.createElement('div'); w.document.body.appendChild(host3);
+  const v3 = w.LayerPitchLevelMap.mount(host3, { tr, canEdit: true, audio: audioEnv, libraries: { track: [{ id: 'room1', title: 'Room' }, { id: 'door', title: 'Porte' }], sfx: [], asset: [] },
+    maps: [{ id: 'p', title: 'Jouable', data: { roomTone: null, nodes: [
+      { id: 'a', type: 'start', label: 'Début', x: 100, y: 200, sounds: { main: [{ kind: 'track', id: 'intro', title: 'Intro' }] } },
+      { id: 'b', type: 'boss', label: 'Gardien', x: 500, y: 200, sounds: { main: [{ kind: 'track', id: 'boss', title: 'Boss' }], combat: [{ kind: 'track', id: 'fight', title: 'Combat' }] } }],
+      edges: [{ id: 'e', from: 'a', to: 'b', enemy: false, label: 'Route' }] } }],
+    save: async m => ({ id: m.id }), remove: async () => ({}), ask: async () => 'x', confirm: async () => true });
+  const settle = async () => { for (let i = 0; i < 6; i++) await wait(5); };
+  const advance = async sec => { const to = clock.t + sec; for (;;) { const due = clock.timers.filter(x => x.live && x.at <= to).sort((a, b) => a.at - b.at)[0]; if (!due) break; due.live = false; clock.t = Math.max(clock.t, due.at); due.fn(); await settle(); } clock.t = to; await settle(); };
+  check('mode Écouter : bouton présent', !!host3.querySelector('#lmPlay'));
+  host3.querySelector('#lmPlay').click();
+  check('mode Écouter actif : barre d\'écoute visible, outils de dessin masqués', !host3.querySelector('#lmNow').hidden && !host3.querySelector('[data-add]'));
+  const downOn = id => host3.querySelector('[data-node="' + id + '"]').dispatchEvent(new w.Event('pointerdown', { bubbles: true }));
+  downOn('a'); await settle(); await advance(0.1);
+  check('clic sur le début : son joué', calls.includes('track:intro start 0') && v3.audio.state.position.id === 'a');
+  check('barre d\'écoute : position et son', /Début/.test(host3.querySelector('#lmNow').textContent) && /Intro/.test(host3.querySelector('#lmNow').textContent));
+  host3.dispatchEvent(Object.assign(new w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
+  await settle(); await advance(3);
+  check('flèche droite : on passe sur le parcours voisin', v3.audio.state.position.kind === 'edge' && v3.audio.state.position.id === 'e');
+  host3.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); await settle(); await advance(3);
+  check('deuxième flèche : on arrive sur le boss, son du boss', v3.audio.state.position.id === 'b' && calls.includes('track:boss start 0'));
+  host3.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'c', bubbles: true })); await settle(); await advance(3);
+  check('touche C : combat, le morceau de combat entre', v3.audio.state.combat && calls.includes('track:fight start 0'));
+  check('bouton « Fin du combat » affiché', /map_combatOn/.test(host3.querySelector('#lmCombat').textContent));
+  host3.dispatchEvent(new w.KeyboardEvent('keydown', { key: ' ', bubbles: true })); await settle(); await advance(3);
+  check('Espace : pause (tout s\'éteint)', !v3.audio.state.playing);
+  host3.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await settle();
+  check('Échap : quitte l\'écoute, outils de dessin revenus', !v3.state.play && !!host3.querySelector('[data-add]'));
+
+  // Réglages de la carte : fond d'ambiance déposé, niveau, transition par défaut
+  const dtR = { data: { 'application/x-lp-sound': JSON.stringify({ kind: 'track', id: 'room1', title: 'Room' }) }, types: ['application/x-lp-sound'], getData(t) { return this.data[t]; } };
+  const dropRoom = new w.Event('drop', { bubbles: true, cancelable: true }); dropRoom.dataTransfer = dtR;
+  host3.querySelector('#lmRoomZone').dispatchEvent(dropRoom);
+  const mp = v3.state.maps[0].data;
+  check('fond d\'ambiance déposé dans les réglages', mp.roomTone && mp.roomTone.id === 'room1');
+  const db = host3.querySelector('#lmRoomDb'); db.value = '-20'; db.dispatchEvent(new w.Event('input'));
+  check('niveau du fond réglé', mp.roomToneDb === -20);
+  const defStyle = host3.querySelector('#lmDefStyle'); defStyle.value = 'cut'; defStyle.dispatchEvent(new w.Event('change'));
+  const defSync = host3.querySelector('#lmDefSync'); defSync.value = 'beat'; defSync.dispatchEvent(new w.Event('change'));
+  check('transition par défaut de la carte réglée', mp.defaults.transition.style === 'cut' && mp.defaults.transition.sync === 'beat');
+  // Transition propre à un élément
+  host3.querySelector('[data-node="b"]').dispatchEvent(new w.Event('pointerdown', { bubbles: true }));
+  const own = host3.querySelector('#lmTransOwn'); own.checked = true; own.dispatchEvent(new w.Event('change'));
+  const nb = mp.nodes.find(n => n.id === 'b');
+  check('transition propre : cochée, reprend celle de la carte', nb.transition && nb.transition.style === 'cut' && nb.transition.sync === 'beat');
+  const sec = host3.querySelector('#lmTrSec'); sec.value = '4'; sec.dispatchEvent(new w.Event('change'));
+  const style = host3.querySelector('#lmTrStyle'); style.value = 'fadeout'; style.dispatchEvent(new w.Event('change'));
+  check('transition propre : durée et style réglés', nb.transition.sec === 4 && nb.transition.style === 'fadeout');
+  const dtS = { data: { 'application/x-lp-sound': JSON.stringify({ kind: 'track', id: 'door', title: 'Porte' }) }, types: ['application/x-lp-sound'], getData(t) { return this.data[t]; } };
+  const dropSt = new w.Event('drop', { bubbles: true, cancelable: true }); dropSt.dataTransfer = dtS;
+  host3.querySelector('#lmStinger').dispatchEvent(dropSt);
+  check('son de transition déposé', nb.transition.stinger && nb.transition.stinger.id === 'door');
+  const dtRoom2 = { data: { 'application/x-lp-sound': JSON.stringify({ kind: 'track', id: 'room1', title: 'Room' }) }, types: ['application/x-lp-sound'], getData(t) { return this.data[t]; } };
+  const dropR2 = new w.Event('drop', { bubbles: true, cancelable: true }); dropR2.dataTransfer = dtRoom2;
+  // (ids en double entre les pages de ce test : on cherche l'emplacement dans l'inspecteur de CETTE page)
+  [...host3.querySelectorAll('#lmInsp [data-slot]')].find(x => x.dataset.slot === 'room').dispatchEvent(dropR2);
+  check('fond propre à un élément déposé (un seul)', nb.sounds.room.length === 1 && nb.sounds.room[0].id === 'room1');
+  own.checked = false; host3.querySelector('#lmTransOwn').checked = false; host3.querySelector('#lmTransOwn').dispatchEvent(new w.Event('change'));
+  check('décocher : retour au réglage de la carte', nb.transition === null);
+  v3.destroy();
 
   // Lecture seule
   const host2 = w.document.createElement('div'); w.document.body.appendChild(host2);

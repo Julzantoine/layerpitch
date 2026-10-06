@@ -1,0 +1,168 @@
+// projet-carte-audio.js — LayerPitch, lecture de la Carte de niveau (6 octobre).
+// On se place sur un élément ou un parcours de la carte : son (ou ses alternatives) joue ; on passe à un autre : transition
+// (fondu enchaîné, coupure, fondu sortant puis entrant), éventuellement attendue jusqu'à la prochaine mesure / temps du son qui joue,
+// avec un son de transition ponctuel facultatif. Un fond d'ambiance (room tone) tourne en continu dessous. « Ennemi ! » bascule vers
+// le son de combat de l'endroit.
+//   window.LayerPitchLevelMapAudio.createPlayer(env)   : le « cerveau » -- AUCUNE dépendance au navigateur, testé avec de faux sons
+//   window.LayerPitchLevelMapAudio.createVoiceFactory(env) : les vraies voix (morceaux du lecteur, fichiers décodés), pour projet.html
+(function () {
+  const M = () => window.LayerPitchLevelMap.model;
+
+  // ---------------------------------------------------------------- Le cerveau
+  // env : {
+  //   voiceFactory(ref) -> Promise<voice>   voice = { start(level), setLevel(level, sec), stop(), isPlaying(), nextBoundary(sync) -> secondes d'horloge ou null }
+  //   now() -> secondes (horloge audio), schedule(fn, atTime) -> cancel(), onChange(state)
+  // }
+  function createPlayer(env) {
+    const model = M();
+    let map = null;
+    const st = { playing: false, position: null, combat: false, music: null, room: null, pendingAt: null };
+    let musicVoice = null, roomVoice = null, stingerVoice = null, token = 0, cancelPending = null, lastMusicKey = null;
+    const notify = () => { if (env.onChange) env.onChange(snapshot()); };
+    const snapshot = () => ({ playing: st.playing, position: st.position && { kind: st.position.kind, id: st.position.id }, combat: st.combat,
+      music: st.music, room: st.room, pendingAt: st.pendingAt });
+    const itemAt = pos => (pos ? (pos.kind === 'edge' ? model.edgeById(map, pos.id) : model.nodeById(map, pos.id)) : null);
+    const safe = fn => { try { return fn(); } catch (e) { return undefined; } };
+
+    // Son de musique voulu pour la position (et l'état combat) : une alternative tirée au hasard dans la liste.
+    function wantedMusic() {
+      const item = itemAt(st.position); if (!item) return null;
+      const useCombat = st.combat && model.hasCombatSlot(map, st.position);
+      const list = (item.sounds && (useCombat ? item.sounds.combat : item.sounds.main)) || [];
+      return { ref: model.pickVariant(list, lastMusicKey), transition: model.resolveTransition(map, item) };
+    }
+
+    async function setRoom() {
+      const item = itemAt(st.position);
+      const ref = item ? model.resolveRoom(map, item) : (map && map.roomTone) || null;
+      const key = model.refKey(ref);
+      if (key === model.refKey(st.room)) { if (roomVoice) roomVoice.setLevel(model.dbToGain(map.roomToneDb), 0.3); return; }
+      const my = ++roomSeq;
+      const fade = 2;
+      const old = roomVoice; st.room = ref;
+      if (old) { old.setLevel(0, fade); const o = old; env.schedule(() => { if (roomVoice !== o) safe(() => o.stop()); }, env.now() + fade + 0.1); }
+      roomVoice = null;
+      if (!ref) return;
+      const v = await env.voiceFactory(ref);
+      if (my !== roomSeq || !v) return;
+      roomVoice = v; v.start(0); v.setLevel(model.dbToGain(map.roomToneDb), fade);
+    }
+    let roomSeq = 0;
+
+    async function enter() {
+      const my = ++token;
+      if (cancelPending) { cancelPending(); cancelPending = null; st.pendingAt = null; }
+      setRoom();
+      const want = wantedMusic();
+      const newKey = want && want.ref ? model.refKey(want.ref) : null;
+      if (newKey === lastMusicKey && musicVoice) { st.music = want.ref; notify(); return; } // même son : on le laisse jouer
+      const tr = want ? want.transition : model.resolveTransition(map, null);
+      const incomingPromise = want && want.ref ? env.voiceFactory(want.ref) : Promise.resolve(null);
+      const outgoing = musicVoice;
+      // Quand ? Au prochain repère de la grille du son qui joue (mesure, temps…), sinon tout de suite.
+      let at = env.now();
+      if (outgoing && tr.sync !== 'immediate' && outgoing.nextBoundary) { const b = safe(() => outgoing.nextBoundary(tr.sync)); if (b != null && b > at) at = b; }
+      const run = async () => {
+        if (my !== token) return;
+        cancelPending = null; st.pendingAt = null;
+        const incoming = await incomingPromise;
+        if (my !== token) return;
+        const sec = Math.max(0, tr.sec || 0);
+        if (stingerVoice) { const sv = stingerVoice; stingerVoice = null; safe(() => sv.stop()); }
+        if (tr.stinger) env.voiceFactory(tr.stinger).then(v => { if (v && my === token) { stingerVoice = v; v.start(1); } });
+        const stopLater = (v, after) => { if (!v) return; env.schedule(() => { if (musicVoice !== v) safe(() => v.stop()); }, env.now() + after + 0.05); };
+        musicVoice = incoming; lastMusicKey = incoming ? newKey : null; st.music = want && want.ref && incoming ? want.ref : null;
+        if (tr.style === 'cut' || sec === 0) {
+          if (outgoing && outgoing !== incoming) safe(() => outgoing.stop());
+          if (incoming) incoming.start(1);
+        } else if (tr.style === 'fadeout') {
+          if (outgoing && outgoing !== incoming) { outgoing.setLevel(0, sec / 2); stopLater(outgoing, sec / 2); }
+          if (incoming) env.schedule(() => { if (my === token || musicVoice === incoming) { incoming.start(0); incoming.setLevel(1, sec / 2); } }, env.now() + (outgoing ? sec / 2 : 0));
+        } else {
+          if (outgoing && outgoing !== incoming) { outgoing.setLevel(0, sec); stopLater(outgoing, sec); }
+          if (incoming) { incoming.start(0); incoming.setLevel(1, outgoing ? sec : Math.min(sec, 1)); } // premier son : fondu d'entrée court
+        }
+        notify();
+      };
+      if (at - env.now() > 0.02) { st.pendingAt = at; cancelPending = env.schedule(run, at); notify(); } else await run();
+    }
+
+    return {
+      setMap(m) { map = m; },
+      get state() { return snapshot(); },
+      // Se placer sur un élément ou un parcours : démarre la lecture si besoin.
+      async goTo(target) {
+        if (!map || !model.pointOf(map, target)) return false;
+        st.position = { kind: target.kind, id: target.id };
+        if (!model.hasCombatSlot(map, st.position)) st.combat = false;
+        st.playing = true; await enter(); return true;
+      },
+      // Flèche : voisin dans la direction demandée.
+      async step(dx, dy) {
+        if (!map || !st.position) return null;
+        const next = model.stepToward(map, st.position, dx, dy);
+        if (next) await this.goTo(next);
+        return next;
+      },
+      async setCombat(on) {
+        if (!map || !st.position) return false;
+        const want = !!on && model.hasCombatSlot(map, st.position);
+        if (want === st.combat) return want;
+        st.combat = want; if (st.playing) await enter(); else notify();
+        return want;
+      },
+      // Tout s'éteint en douceur ; la position est gardée pour reprendre.
+      stop(fade) {
+        const sec = fade == null ? 1 : fade;
+        token++; roomSeq++;
+        if (cancelPending) { cancelPending(); cancelPending = null; st.pendingAt = null; }
+        [musicVoice, roomVoice, stingerVoice].forEach(v => { if (v) { v.setLevel(0, sec); const vv = v; env.schedule(() => safe(() => vv.stop()), env.now() + sec + 0.05); } });
+        musicVoice = null; roomVoice = null; stingerVoice = null; lastMusicKey = null;
+        st.playing = false; st.music = null; st.room = null; notify();
+      },
+      async resume() { if (st.position) { st.playing = true; await enter(); } },
+      // Réglage fait pendant l'écoute (niveau du fond d'ambiance).
+      refreshRoomLevel() { if (roomVoice && map) roomVoice.setLevel(model.dbToGain(map.roomToneDb), 0.2); },
+    };
+  }
+
+  // ---------------------------------------------------------------- Les vraies voix
+  // env : { audioContext(), resolve(ref) -> Promise<{ type:'track', track } | { type:'url', url, loop? } | null>, mountTrackControl(track) -> Promise<lpControl> ,
+  //         fetchBytes(url) -> Promise<Uint8Array>, decode(bytes) -> Promise<AudioBuffer> }
+  function createVoiceFactory(env) {
+    const cache = new Map(); // morceaux : une voix par morceau, réutilisée (le lecteur du morceau est monté une seule fois)
+    const buffers = new Map();
+    async function bufferVoice(url, loop) {
+      let buf = buffers.get(url);
+      if (!buf) { buf = env.decode(await env.fetchBytes(url)); buffers.set(url, buf); }
+      const audioBuf = await buf;
+      const ctx = env.audioContext();
+      let src = null, gain = null, playing = false;
+      return {
+        start(level) {
+          if (playing) return;
+          src = ctx.createBufferSource(); src.buffer = audioBuf; src.loop = !!loop;
+          gain = ctx.createGain(); gain.gain.setValueAtTime(Math.max(0, level), ctx.currentTime);
+          src.connect(gain); gain.connect(ctx.destination); src.start(); playing = true;
+          src.onended = () => { playing = false; };
+        },
+        setLevel(level, sec) { if (!gain) return; const n = ctx.currentTime; gain.gain.cancelScheduledValues(n); gain.gain.setValueAtTime(gain.gain.value, n); gain.gain.linearRampToValueAtTime(Math.max(0, level), n + Math.max(0.01, sec || 0)); },
+        stop() { try { if (src) src.stop(); } catch (e) {} playing = false; },
+        isPlaying: () => playing,
+        nextBoundary: () => null, // un fichier brut n'a pas de tempo connu : la transition part tout de suite
+      };
+    }
+    return async function voiceFactory(ref) {
+      const spec = await env.resolve(ref);
+      if (!spec) return null;
+      if (spec.type === 'track') {
+        const key = spec.track.id;
+        if (!cache.has(key)) cache.set(key, env.mountTrackControl(spec.track));
+        return cache.get(key);
+      }
+      return bufferVoice(spec.url, spec.loop !== false);
+    };
+  }
+
+  window.LayerPitchLevelMapAudio = { createPlayer, createVoiceFactory };
+})();

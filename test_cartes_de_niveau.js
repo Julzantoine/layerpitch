@@ -77,6 +77,16 @@
   check('texte trop long refusé', await bad(m => { m.nodes[0].label = 'x'.repeat(200); }, /trop long/));
   check('position non numérique refusée', await bad(m => { m.nodes[0].x = 'gauche'; }, /Position/));
 
+  // Fond d'ambiance et transitions
+  check('fond d\'ambiance, niveau, transitions : acceptés', !(await bad(m => { m.roomTone = { kind: 'track', id: 'room', title: 'Room' }; m.roomToneDb = -14; m.defaults = { transition: { style: 'crossfade', sec: 2, sync: 'bar' } }; m.nodes[1].sounds.room = [{ kind: 'sfx', id: 'vent' }]; m.nodes[1].transition = { style: 'cut', stinger: { kind: 'sfx', id: 'porte' } }; })));
+  check('fond de carte invalide refusé', await bad(m => { m.roomTone = { kind: 'video', id: 'x' }; }, /invalide/));
+  check('niveau du fond hors limites refusé', await bad(m => { m.roomToneDb = 5; }, /invalide/));
+  check('style de transition inconnu refusé', await bad(m => { m.defaults = { transition: { style: 'zigzag' } }; }, /inconnu/));
+  check('synchro de transition inconnue refusée', await bad(m => { m.nodes[0].transition = { sync: 'jamais' }; }, /inconnue/));
+  check('durée de transition hors limites refusée', await bad(m => { m.edges[0].transition = { sec: 99 }; }, /invalide/));
+  check('son de transition (stinger) invalide refusé', await bad(m => { m.nodes[0].transition = { stinger: { kind: 'asset', id: '00000000-0000-0000-0000-0000000000ff' } }; }, /pas dans ce Projet/));
+  check('deux fonds propres à un même élément refusés', await bad(m => { m.nodes[0].sounds.room = [{ kind: 'sfx', id: 'a' }, { kind: 'sfx', id: 'b' }]; }, /invalides/));
+
   // Suppression
   check('un membre supprime une carte', await (async () => { await as(2); await q(`select public.delete_project_map($1)`, [id]); return (await val(`select count(*)::int from public.project_maps where id = $1`, [id])) === 0; })());
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
