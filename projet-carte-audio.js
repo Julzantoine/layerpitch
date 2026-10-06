@@ -21,7 +21,7 @@
     const notify = () => { if (env.onChange) env.onChange(snapshot()); };
     const layersOf = () => (musicVoice && musicVoice.layerCount ? (safe(() => musicVoice.layerCount()) || 0) : 0);
     const snapshot = () => ({ playing: st.playing, position: st.position && { kind: st.position.kind, id: st.position.id }, combat: st.combat,
-      music: st.music, room: st.room, pendingAt: st.pendingAt, layers: layersOf(), layerLevel: st.layerLevel, layerManual: st.intensity != null, fallback: !!st.fallback });
+      music: st.music, room: st.room, pendingAt: st.pendingAt, layers: layersOf(), layerKind: (musicVoice && musicVoice.layerKind && safe(() => musicVoice.layerKind())) || 'layers', layerLabels: (musicVoice && musicVoice.layerLabels && safe(() => musicVoice.layerLabels())) || null, layerLevel: st.layerLevel, layerManual: st.intensity != null, fallback: !!st.fallback });
     const itemAt = pos => (pos ? (pos.kind === 'edge' ? model.edgeById(map, pos.id) : model.nodeById(map, pos.id)) : null);
     const safe = fn => { try { return fn(); } catch (e) { return undefined; } };
 
@@ -64,7 +64,8 @@
       if (!voice || !voice.layerCount || !voice.setIntensity) { st.layerLevel = null; return; }
       const n = safe(() => voice.layerCount()) || 0;
       if (n < 2) { st.layerLevel = null; return; }
-      const want = st.intensity != null ? Math.max(0, Math.min(n - 1, st.intensity)) : (role === 'combat' ? n - 1 : 0);
+      const auto = voice.layerAuto ? (safe(() => voice.layerAuto(role === 'combat' ? 'combat' : 'explore')) || 0) : (role === 'combat' ? n - 1 : 0);
+      const want = st.intensity != null ? Math.max(0, Math.min(n - 1, st.intensity)) : Math.max(0, Math.min(n - 1, auto));
       safe(() => voice.setIntensity(want)); st.layerLevel = want;
     }
     async function enter() {

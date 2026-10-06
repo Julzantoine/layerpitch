@@ -6616,6 +6616,19 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       g.cancelScheduledValues(now); g.setValueAtTime(g.value, now);
       g.linearRampToValueAtTime(Math.max(0, level), now + Math.max(0.01, sec || 0));
     };
+    const lpIsEmbr = track.mode === 'embranchement-vertical' && (track.loops || []).length > 1;
+    const lpLevelCount = () => (lpIsEmbr ? track.loops.length : (track.mode === 'vertical' && profiles.length > 1 ? profiles.length : 0));
+    // Bascule vers une boucle dès que le morceau joue et que ses boucles sont chargées (le chargement est asynchrone au démarrage).
+    let lpLoopTimer = null;
+    function lpSelectLoopWhenReady(idx) {
+      if (lpLoopTimer) { clearInterval(lpLoopTimer); lpLoopTimer = null; }
+      let tries = 0;
+      const tick = () => {
+        if (playing && embrLoopBuffers[idx]) { if (embrActiveLoopIdx !== idx) selectEmbrLoop(idx); return true; }
+        return ++tries > 80;
+      };
+      if (!tick()) lpLoopTimer = setInterval(() => { if (tick()) { clearInterval(lpLoopTimer); lpLoopTimer = null; } }, 100);
+    }
     wrapper.lpControl = {
       start(level) { if (!playing) playThisTrack(true); trackMasterGain.gain.cancelScheduledValues(ctx.currentTime); trackMasterGain.gain.setValueAtTime(Math.max(0, level), ctx.currentTime); },
       stop() { if (playing) stopAllSources(false); },
@@ -6625,11 +6638,22 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       elapsed: () => (playing ? Math.max(0, ctx.currentTime - lpPlayStartedAt) : 0),
       // Prochain repère de la grille (mesure, temps, 2 ou 4 mesures) à partir de maintenant, en secondes d'horloge audio ; null si le
       // morceau ne joue pas encore. Tempo propre du morceau (bpm / temps par mesure).
-      // Couches d'un morceau en mode vertical (la Carte de niveau s'en sert : couche 1 en exploration, toutes en combat, réglable à la main).
-      // layerCount : nombre de couches (0 si le morceau n'a pas d'intensité) ; setIntensity(i) : de 0 (couche 1 seule) à layerCount - 1 (toutes).
-      layerCount: () => (track.mode === 'vertical' && profiles.length > 1 ? profiles.length : 0),
-      intensityLevel: () => level,
-      setIntensity(i) { const n = (track.mode === 'vertical' && profiles.length > 1) ? profiles.length : 0; if (n) applyIntensityLevel(Math.max(0, Math.min(n - 1, Math.round(+i) || 0)), true); },
+      // « Niveaux » d'un morceau pilotés par programme (la Carte de niveau s'en sert pour exploration / combat et pour le réglage à la main) :
+      //   - mode vertical : les COUCHES (0 = couche 1 seule ... n - 1 = toutes) ;
+      //   - mode vertical à embranchements : les BOUCLES nommées (index dans track.loops, bascule avec la quantification et la transition
+      //     propres à la boucle visée).
+      // layerCount : nombre de niveaux (0 = sans) ; layerKind : 'layers' | 'loops' ; layerLabels : noms (ou null) ; layerAuto(role) : niveau
+      // automatique pour 'explore' (couche 1, ou boucle initiale) ou 'combat' (toutes les couches, ou dernière boucle) ; setIntensity(i).
+      layerCount: () => lpLevelCount(),
+      layerKind: () => (lpIsEmbr ? 'loops' : 'layers'),
+      layerLabels: () => (lpIsEmbr ? (track.loops || []).map((l, i) => (l && l.label) || ('Boucle ' + (i + 1))) : (track.mode === 'vertical' ? (track.layers || []).map(l => (l && l.label) || '') : null)),
+      layerAuto: role => { const n = lpLevelCount(); if (n < 2) return 0; if (role === 'combat') return n - 1; return lpIsEmbr ? Math.max(0, (track.loops || []).findIndex(l => l && l.isInitial)) : 0; },
+      intensityLevel: () => (lpIsEmbr ? (embrActiveLoopIdx >= 0 ? embrActiveLoopIdx : Math.max(0, (track.loops || []).findIndex(l => l && l.isInitial))) : level),
+      setIntensity(i) {
+        const n = lpLevelCount(); if (!n) return;
+        const idx = Math.max(0, Math.min(n - 1, Math.round(+i) || 0));
+        if (lpIsEmbr) lpSelectLoopWhenReady(idx); else applyIntensityLevel(idx, true);
+      },
       nextBoundary(grid) {
         if (!playing) return null;
         const tt = trackTempo(track);

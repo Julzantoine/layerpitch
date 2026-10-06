@@ -16,12 +16,19 @@ const { JSDOM } = require('jsdom');
   const mk = (key, layers) => { const v = { key, playing: false, level: null, start(l) { log.push(key + ' start'); this.playing = true; }, setLevel() {}, stop() { this.playing = false; }, isPlaying() { return this.playing }, nextBoundary: () => null };
     if (layers) { v.layerCount = () => layers; v.setIntensity = i => { v.level = i; log.push(key + ' couche ' + (i + 1)); }; } return v; };
   const env = { now: () => clock.t, schedule: (fn, at) => { const t = { fn, at, live: true }; clock.timers.push(t); return () => { t.live = false; }; },
-    voiceFactory: async ref => voices[ref.id] || (voices[ref.id] = mk(ref.id, ref.id === 'layered' ? 3 : 0)) };
+    voiceFactory: async ref => {
+      if (!voices[ref.id]) {
+        voices[ref.id] = mk(ref.id, ref.id === 'layered' ? 3 : (ref.id === 'embr' ? 3 : 0));
+        if (ref.id === 'embr') { const v = voices.embr; v.layerKind = () => 'loops'; v.layerLabels = () => ['Calme', 'Tension', 'Combat']; v.layerAuto = role => (role === 'combat' ? 2 : 1); } // boucle de départ = la 2e
+      }
+      return voices[ref.id];
+    } };
   const settle = async () => { for (let i = 0; i < 8; i++) await new Promise(r => setTimeout(r, 3)); };
   const M = w.LayerPitchLevelMap.model;
   const map = M.normalize({ nodes: [{ id: 'a', type: 'start', label: 'Début', x: 0, y: 0 }, { id: 'b', type: 'place', label: 'Château', x: 400, y: 0 }],
     edges: [{ id: 'forest', from: 'a', to: 'b', enemy: true, label: 'Forêt', sounds: { main: [], combat: [{ kind: 'track', id: 'layered', title: 'Goûte donc ma hache' }] } },
             { id: 'plain', from: 'a', to: 'b', enemy: true, label: 'Plaine', sounds: { main: [], combat: [{ kind: 'track', id: 'flat', title: 'Combat simple' }] } },
+            { id: 'cave', from: 'a', to: 'b', enemy: true, label: 'Grotte', sounds: { main: [], combat: [{ kind: 'track', id: 'embr', title: 'Morceau à boucles' }] } },
             { id: 'calm', from: 'a', to: 'b', enemy: false, label: 'Chemin', sounds: { main: [{ kind: 'track', id: 'explo', title: 'Exploration' }], combat: [] } }] });
   const P = w.LayerPitchLevelMapAudio.createPlayer(env); P.setMap(map);
   const adv = async () => { for (let i = 0; i < 4; i++) { const due = clock.timers.filter(x => x.live).sort((a, b) => a.at - b.at)[0]; if (!due) break; due.live = false; clock.t = Math.max(clock.t, due.at); due.fn(); } await settle(); };
@@ -49,6 +56,18 @@ const { JSDOM } = require('jsdom');
   await P.setCombat(true); await settle(); await adv();
   check('…mais en combat il joue normalement', P.state.music && P.state.music.id === 'flat' && voices.flat.playing);
 
+
+  // Vertical à embranchements : exploration = boucle de départ, combat = dernière boucle, boucles réglables à la main
+  await P.setCombat(false); await settle(); await adv();
+  await P.goTo({ kind: 'edge', id: 'cave' }); await settle(); await adv();
+  check('boucles : exploration vide + morceau à boucles en combat : on joue ce morceau sur sa boucle de départ', P.state.music && P.state.music.id === 'embr' && voices.embr.level === 1 && P.state.layerKind === 'loops' && P.state.fallback === true);
+  check('boucles : les noms des boucles sont exposés', JSON.stringify(P.state.layerLabels) === '["Calme","Tension","Combat"]');
+  await P.setCombat(true); await settle(); await adv();
+  check('boucles : combat = dernière boucle', voices.embr.level === 2 && P.state.layerLevel === 2);
+  P.setIntensity(0);
+  check('boucles : choix à la main de la 1re boucle', voices.embr.level === 0 && P.state.layerManual === true);
+  await P.setCombat(false); await settle(); await adv();
+  check('boucles : retour à l\'exploration = boucle de départ (automatique)', voices.embr.level === 1 && P.state.layerManual === false);
   await P.goTo({ kind: 'edge', id: 'calm' }); await settle(); await adv();
   check('parcours avec une musique d\'exploration : c\'est elle qui joue, aucun repli', P.state.music && P.state.music.id === 'explo' && P.state.fallback === false);
 
@@ -72,9 +91,21 @@ const { JSDOM } = require('jsdom');
   check('« Auto » : exploration = couche 1', voices.layered.level === 0);
   v.destroy();
 
+  // Interface : pour un morceau à boucles, les boutons portent le nom des boucles
+  const host2 = w.document.createElement('div'); w.document.body.appendChild(host2);
+  const v2 = w.LayerPitchLevelMap.mount(host2, { tr: (k, vv) => k + (vv ? JSON.stringify(vv) : ''), canEdit: false, audio: env, libraries: { track: [], sfx: [], asset: [] },
+    maps: [{ id: 'm2', title: 'T', data: { nodes: [{ id: 'a', type: 'start', label: 'Début', x: 0, y: 0 }, { id: 'b', type: 'place', label: 'Château', x: 400, y: 0 }],
+      edges: [{ id: 'cave', from: 'a', to: 'b', enemy: true, label: 'Grotte', sounds: { main: [], combat: [{ kind: 'track', id: 'embr', title: 'Morceau à boucles' }] } }] } }],
+    save: async () => ({}), remove: async () => ({}), ask: async () => 'x', confirm: async () => true });
+  host2.querySelector('#lmPlay').click(); await settle();
+  host2.querySelector('[data-edge="cave"]').dispatchEvent(new w.Event('pointerdown', { bubbles: true })); await settle(); await adv();
+  const names = [...host2.querySelectorAll('#lmLayers [data-layer]')].map(b => b.textContent.trim());
+  check('barre d\'écoute : boutons nommés Auto, Calme, Tension, Combat, titre « Boucles »', JSON.stringify(names) === '["map_layerAuto","Calme","Tension","Combat"]' && /map_loops/.test(host2.querySelector('#lmLayers').textContent));
+  v2.destroy();
+
   // Lecteur de morceau : l'API de couches existe
   const src = fs.readFileSync(path.join(__dirname, 'player.js'), 'utf8');
-  check('lecteur : lpControl expose layerCount, intensityLevel et setIntensity', /layerCount: \(\) =>/.test(src) && /setIntensity\(i\)/.test(src) && /intensityLevel: \(\) => level/.test(src));
+  check('lecteur : lpControl expose layerCount, layerKind, layerLabels, layerAuto, intensityLevel et setIntensity (couches et boucles)', /layerCount: \(\) =>/.test(src) && /setIntensity\(i\)/.test(src) && /layerKind: \(\) =>/.test(src) && /layerAuto: role =>/.test(src) && /lpSelectLoopWhenReady/.test(src));
   console.log(failures ? failures + ' échec(s)' : 'Tout est vert');
   process.exit(failures ? 1 : 0);
 })().catch(e => { console.error('TEST THREW:', e); process.exit(1); });
