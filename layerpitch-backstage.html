@@ -1829,15 +1829,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791293930690"></script>
-<script src="layerpitch-appearance.js?v=1791293930690"></script>
-<script src="layerpitch-album-shared.js?v=1791293930690"></script>
-<script src="layerpitch-album-editor.js?v=1791293930690"></script>
-<script src="layerpitch-shell.js?v=1791293930690"></script>
-<script src="layerpitch-social-icons.js?v=1791293930690"></script>
-<script src="layerpitch-notify.js?v=1791293930690"></script>
-<script src="layerpitch-help.js?v=1791293930690"></script>
-<script src="player.js?v=1791293930690"></script>
+<script src="layerpitch-i18n.js?v=1791295027970"></script>
+<script src="layerpitch-appearance.js?v=1791295027970"></script>
+<script src="layerpitch-album-shared.js?v=1791295027970"></script>
+<script src="layerpitch-album-editor.js?v=1791295027970"></script>
+<script src="layerpitch-shell.js?v=1791295027970"></script>
+<script src="layerpitch-social-icons.js?v=1791295027970"></script>
+<script src="layerpitch-notify.js?v=1791295027970"></script>
+<script src="layerpitch-help.js?v=1791295027970"></script>
+<script src="player.js?v=1791295027970"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3621,8 +3621,11 @@ function stageFxHtml(stageFx, target, attrs) {
 // morceau), pas de champ mode (toujours "rate", implicite -- voir buildLayerFxChain/applyTrackPitchRate
 // dans player.js). Rendu une fois dans le panneau "Infos du morceau", commun à tous les modes.
 function trackPitchFxHtml(track, ti) {
-  const pitchDisabled = !fxOpen('pitch');
   const p = (track.fx && track.fx.pitch) || null;
+  // Le Pitch est un effet comme les autres : il se règle dans les effets d'un événement (7/10). Cette case ne s'affiche plus que pour
+  // un morceau qui a DÉJÀ un ancien réglage de vitesse global, afin de pouvoir le retirer ou le reprendre dans un événement.
+  if (!p) return '';
+  const pitchDisabled = !fxOpen('pitch');
   const attrs = `data-fx-target="track" data-ti="${ti}"`;
   // Fondu de pitch : seulement avec le moteur simple (statique/vertical sans boucle quantifiée), voir
   // applyTrackPitchRate() dans player.js.
@@ -3635,7 +3638,7 @@ function trackPitchFxHtml(track, ti) {
           <input type="checkbox" data-field="fx" data-fx-effect="pitch" data-fx-param="enabled" ${attrs} ${p ? 'checked' : ''} ${pitchDisabled ? 'disabled' : ''} style="width:auto;margin:0">
           ${tr('fxPitchModeRate')}${pitchDisabled ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}
         </label>
-        <div class="hint-inline">${tr('fxTrackPitchHint')}</div>
+        <div class="hint-inline">${tr('fxTrackPitchHint')} ${tr('fxTrackPitchLegacyNote')}</div>
         ${p ? `
           <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxSemitonesLabel')}</label>
             <input type="number" step="1" min="-24" max="24" ${pitchDisabled ? 'disabled' : ''} data-field="fx" data-fx-effect="pitch" data-fx-param="semitones" ${attrs} value="${p.semitones || 0}"></div>
@@ -3743,18 +3746,20 @@ function fxStepRowsHtml(track, trg, steps, parentPath, depth, attrs) {
     return `
       <details class="list-block" data-fxt-section-key="${escapeAttr(key)}" ${fxTriggersSectionOpen.has(key) ? 'open' : ''} data-fx-step-level="${level}" style="margin:6px 0 0 ${depth === 1 ? level * 18 : 18}px;border-left:3px solid var(--accent,#2f80c0)">
         <summary style="cursor:pointer;font-weight:600">&#8627; ${escapeAttr(st.label) || tr('fxStepTitle', { n: num })}<span class="hint-inline" style="margin:0 0 0 8px;font-weight:400">${when} ${tr('fxTriggerEffectsCount', { n: Object.keys(st.fx || {}).length })}${kids.length ? ' · ' + kids.length + ' &#8627;' : ''}</span></summary>
-        <div class="row" style="margin-top:8px">
-          <div><label style="font-size:0.85em">${tr('fxStepLabelLabel')}</label>
-            <input type="text" placeholder="${escapeAttr(tr('fxStepTitle', { n: num }))}" data-field="fxStep" data-fxs-prop="label" ${sAttrs} value="${escapeAttr(st.label)}"></div>
-          <div><label style="font-size:0.85em">${tr(depth === 1 ? 'fxStepDelayLabel' : 'fxStepChildDelayLabel')}</label>
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-top:8px">
+          <div style="flex:1;min-width:0"><label style="font-size:0.85em">${tr('fxStepLabelLabel')}</label>
+            <input type="text" placeholder="${escapeAttr(tr('fxStepTitle', { n: num }))}" data-field="fxStep" data-fxs-prop="label" ${sAttrs} value="${escapeAttr(st.label)}" style="width:100%"></div>
+          <button class="btn btn-icon btn-danger" type="button" data-action="remove-fx-step" ${sAttrs} title="${escapeAttr(tr('removeFxStepBtn'))}">×</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 12px;margin-top:8px">
+          <div><label style="font-size:0.85em;display:block">${tr(depth === 1 ? 'fxStepDelayLabel' : 'fxStepChildDelayLabel')}</label>
             <input type="number" step="0.1" min="0" data-field="fxStep" data-fxs-prop="delaySec" ${sAttrs} value="${+st.delaySec || 0}" style="width:100%"></div>
-          <div><label style="font-size:0.85em">${tr('fxStepDurationLabel')}</label>
+          <div><label style="font-size:0.85em;display:block">${tr('fxStepDurationLabel')}</label>
             <input type="number" step="0.1" min="0" placeholder="${escapeAttr(tr('fxStepDurationPlaceholder'))}" data-field="fxStep" data-fxs-prop="durationSec" ${sAttrs} value="${+st.durationSec > 0 ? +st.durationSec : ''}" style="width:100%"></div>
-          <div><label style="font-size:0.85em">${tr('fxTriggerFadeLabel')}</label>
+          <div><label style="font-size:0.85em;display:block">${tr('fxStepFadeInLabel')}</label>
             <input type="number" step="0.05" min="0" max="10" placeholder="${escapeAttr(tr('fxStepFadePlaceholder'))}" data-field="fxStep" data-fxs-prop="fadeSec" ${sAttrs} value="${st.fadeSec != null ? st.fadeSec : ''}" style="width:100%"></div>
-          <div><label style="font-size:0.85em">${tr('fxTriggerFadeOutLabel')}</label>
+          <div><label style="font-size:0.85em;display:block">${tr('fxStepFadeOutLabel')}</label>
             <input type="number" step="0.05" min="0" max="10" placeholder="${escapeAttr(tr('fxStepFadePlaceholder'))}" data-field="fxStep" data-fxs-prop="fadeOutSec" ${sAttrs} value="${st.fadeOutSec != null ? st.fadeOutSec : ''}" style="width:100%"></div>
-          <button class="btn btn-icon btn-danger" type="button" data-action="remove-fx-step" ${sAttrs} title="${escapeAttr(tr('removeFxStepBtn'))}" style="align-self:flex-end">×</button>
         </div>
         <div class="hint-inline">${tr(depth === 1 ? 'fxStepDelayHint' : 'fxStepChildDelayHint')} ${tr('fxStepDurationHint')}</div>
         <div style="margin-top:8px"><label style="font-size:0.85em">${tr('fxStepTargetsLabel')}</label>
