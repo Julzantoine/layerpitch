@@ -1829,15 +1829,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791295027970"></script>
-<script src="layerpitch-appearance.js?v=1791295027970"></script>
-<script src="layerpitch-album-shared.js?v=1791295027970"></script>
-<script src="layerpitch-album-editor.js?v=1791295027970"></script>
-<script src="layerpitch-shell.js?v=1791295027970"></script>
-<script src="layerpitch-social-icons.js?v=1791295027970"></script>
-<script src="layerpitch-notify.js?v=1791295027970"></script>
-<script src="layerpitch-help.js?v=1791295027970"></script>
-<script src="player.js?v=1791295027970"></script>
+<script src="layerpitch-i18n.js?v=1791295524003"></script>
+<script src="layerpitch-appearance.js?v=1791295524003"></script>
+<script src="layerpitch-album-shared.js?v=1791295524003"></script>
+<script src="layerpitch-album-editor.js?v=1791295524003"></script>
+<script src="layerpitch-shell.js?v=1791295524003"></script>
+<script src="layerpitch-social-icons.js?v=1791295524003"></script>
+<script src="layerpitch-notify.js?v=1791295524003"></script>
+<script src="layerpitch-help.js?v=1791295524003"></script>
+<script src="player.js?v=1791295524003"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3771,10 +3771,79 @@ function fxStepRowsHtml(track, trg, steps, parentPath, depth, attrs) {
       </details>`;
   }).join('');
 }
+// ---- Chronologie de l'enveloppe d'un événement (7/10, idée « ADSR » de Jules-Antoine, étape 1 : visuel seulement) ----
+// Une ligne par groupe d'effets (les effets propres de l'événement, puis chaque étape, enfants compris) : montée (attack = fondu
+// d'entrée), maintien (sustain = durée) et retour (release = fondu de sortie), sur un axe de secondes depuis l'appui du visiteur.
+// Pas de decay ni de niveau de maintien pour l'instant. Fonctions PURES.
+function fxEnvelopeRows(trg) {
+  const dflt = 0.1;
+  const attackOf = (node, parent) => (node.fadeSec != null ? +node.fadeSec : (parent.fadeSec != null ? +parent.fadeSec : dflt));
+  const releaseOf = (node, parent, attack) => (node.fadeOutSec != null ? +node.fadeOutSec : (parent.fadeOutSec != null ? +parent.fadeOutSec : attack));
+  const own = +(trg.relations && trg.relations.autoOffSec) > 0 ? +trg.relations.autoOffSec : null;
+  const a0 = attackOf(trg, {});
+  const rows = [{ label: trg.label || '', start: 0, attack: a0, sustain: own, release: releaseOf(trg, {}, a0), own: true, depth: 0 }];
+  const walk = (steps, base, depth, prefix) => (steps || []).forEach((s, i) => {
+    if (!s) return;
+    const start = base + (+s.delaySec > 0 ? +s.delaySec : 0);
+    const a = attackOf(s, trg);
+    const num = (prefix ? prefix + '.' : '') + (i + 1);
+    rows.push({ label: s.label || '', start, attack: a, sustain: +s.durationSec > 0 ? +s.durationSec : null, release: releaseOf(s, trg, a), own: false, depth, n: i + 1, num });
+    walk(s.children, start, depth + 1, num);
+  });
+  walk(trg.steps, 0, 1, '');
+  return rows;
+}
+// Dessin SVG : une ligne par groupe. Un maintien sans durée court jusqu'à la fin de l'événement (second appui) : tireté, avec « … ».
+function fxEnvelopeSvg(rows, labels) {
+  const W = 340, LABEL = 74, PAD_R = 10, ROW = 22, TOP = 4, AXIS = 16;
+  const finite = rows.map(r => r.sustain != null ? r.start + r.attack + r.sustain + r.release : null).filter(v => v != null);
+  const open = rows.filter(r => r.sustain == null).map(r => r.start + r.attack + 2);
+  const horizon = Math.max(4, Math.ceil(Math.max.apply(null, finite.concat(open, [0]))));
+  const H = TOP + rows.length * ROW + AXIS, iw = W - LABEL - PAD_R;
+  const X = t => LABEL + Math.min(horizon, Math.max(0, t)) / horizon * iw;
+  const step = horizon <= 8 ? 1 : (horizon <= 20 ? 2 : (horizon <= 60 ? 10 : 30));
+  let g = '';
+  for (let t = 0; t <= horizon; t += step) g += `<line x1="${X(t).toFixed(1)}" x2="${X(t).toFixed(1)}" y1="${TOP}" y2="${H - AXIS}" stroke="var(--border,#ddd)" stroke-width="1"/><text x="${X(t).toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="9" fill="var(--text-dim,#888)">${t}s</text>`;
+  rows.forEach((r, i) => {
+    const top = TOP + i * ROW + 3, bot = TOP + (i + 1) * ROW - 3;
+    const x0 = X(r.start), x1 = X(r.start + r.attack);
+    const name = ((r.depth > 1 ? '\u21b3 ' : '') + (r.own ? labels.own : (r.label || labels.step.replace('{n}', r.num)))).slice(0, 13);
+    g += `<text x="${LABEL - 4}" y="${(top + bot) / 2 + 3}" text-anchor="end" font-size="9" font-weight="${r.own ? 700 : 400}" fill="var(--text-dim,#666)">${name.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`;
+    let d = `M${x0.toFixed(1)},${bot} L${x1.toFixed(1)},${top}`;
+    if (r.sustain != null) {
+      const x2 = X(r.start + r.attack + r.sustain), x3 = X(r.start + r.attack + r.sustain + r.release);
+      d += ` L${x2.toFixed(1)},${top} L${x3.toFixed(1)},${bot}`;
+      g += `<path d="${d} Z" fill="var(--accent,#2f80c0)" opacity="${r.own ? 0.35 : 0.22}"/><path d="${d}" fill="none" stroke="var(--accent,#2f80c0)" stroke-width="1.6" stroke-linejoin="round"/>`;
+    } else {
+      const xe = X(horizon);
+      d += ` L${xe.toFixed(1)},${top}`;
+      g += `<path d="${d} L${xe.toFixed(1)},${bot} Z" fill="var(--accent,#2f80c0)" opacity="${r.own ? 0.35 : 0.22}"/><path d="${d}" fill="none" stroke="var(--accent,#2f80c0)" stroke-width="1.6" stroke-dasharray="4 3" stroke-linejoin="round"/><text x="${(xe - 2).toFixed(1)}" y="${top + 8}" text-anchor="end" font-size="10" fill="var(--accent,#2f80c0)">…</text>`;
+    }
+  });
+  return `<svg data-fx-envelope-svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:480px;display:block" role="img" aria-label="${labels.aria}">${g}</svg>`;
+}
+function fxEnvelopeHtml(trg, ti, tri) {
+  const labels = { own: tr('fxEnvelopeOwn'), step: tr('fxStepTitle', { n: '{n}' }), aria: escapeAttr(tr('fxEnvelopeAria')) };
+  return `<div style="margin-top:10px" data-fx-envelope data-ti="${ti}" data-tri="${tri}">
+    <div style="font-weight:600;font-size:0.9em">${tr('fxEnvelopeTitle')}</div>
+    <div class="hint-inline">${tr('fxEnvelopeHint')}</div>
+    <div data-role="envelopeBody">${fxEnvelopeSvg(fxEnvelopeRows(trg), labels)}</div></div>`;
+}
+// Mise à jour en direct : après chaque saisie dans une carte d'événement (le gestionnaire de saisie a déjà mis le modèle à jour).
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (!t || !t.dataset || t.dataset.tri == null || t.dataset.ti == null) return;
+  setTimeout(() => {
+    const host = document.querySelector(`[data-fx-envelope][data-ti="${t.dataset.ti}"][data-tri="${t.dataset.tri}"] [data-role="envelopeBody"]`);
+    const trg = host && library[+t.dataset.ti] && (library[+t.dataset.ti].fxTriggers || [])[+t.dataset.tri];
+    if (host && trg) host.innerHTML = fxEnvelopeSvg(fxEnvelopeRows(trg), { own: tr('fxEnvelopeOwn'), step: tr('fxStepTitle', { n: '{n}' }), aria: escapeAttr(tr('fxEnvelopeAria')) });
+  }, 0);
+}, true);
 function fxCascadeHtml(track, trg, attrs) {
   return `
     <div style="margin-top:12px">
-      <div style="font-weight:600;font-size:0.9em">${tr('fxCascadeTitle')}</div>
+      ${fxEnvelopeHtml(trg, +/data-ti="(\d+)"/.exec(attrs)[1], +/data-tri="(\d+)"/.exec(attrs)[1])}
+      <div style="font-weight:600;font-size:0.9em;margin-top:12px">${tr('fxCascadeTitle')}</div>
       <div class="hint-inline">${tr('fxCascadeHint')}</div>
       ${fxStepRowsHtml(track, trg, trg.steps || [], '', 1, attrs)}
       <div class="actions" style="margin-top:6px;margin-left:18px"><button class="btn btn-small" type="button" data-action="add-fx-step" ${attrs}>${tr('addFxStepBtn')}</button></div>
