@@ -70,6 +70,7 @@
   }
   function setStoppedUI() {
     pauseTake(); // pause, arrêt ou fin naturelle : le temps d'écoute de la prise s'arrête là
+    if (!lpManualStop && lpEndedCb) { const cb = lpEndedCb; lpEndedCb = null; try { cb(); } catch (e) { console.warn('fin de morceau :', e); } } // fin naturelle seulement
     playIcon.innerHTML = PLAY_SVG;
     if (statusEl) statusEl.textContent = t('pausedStatus');
     updateStopBtn();

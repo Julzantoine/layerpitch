@@ -20,7 +20,7 @@
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791299038045">
+<link rel="stylesheet" href="player.css?v=1791313446226">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --bg-side: #eef0f3; --border: #e2e2e6;
@@ -67,7 +67,11 @@
   .pl-menu button { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 6px; cursor: pointer; overflow-wrap: anywhere; }
   .pl-menu button:hover, .pl-menu button:focus-visible { background: var(--accent-soft); color: var(--accent); outline: none; }
   .pl-menu-new { color: var(--accent); border-top: 1px solid var(--border) !important; border-radius: 0 0 6px 6px !important; margin-top: 4px; }
-  .t-add, .t-order { width: 1%; white-space: nowrap; }
+  .t-add, .t-order, .t-dice { width: 1%; white-space: nowrap; }
+  .dice-btn { border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dim); border-radius: 8px; min-width: 32px; height: 32px; cursor: pointer; font-size: 16px; line-height: 1; }
+  .dice-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .dice-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .dice-hint { font-size: 12px; color: var(--text-dim); }
   .dl-status { position: fixed; right: 16px; bottom: 84px; z-index: 900; max-width: min(420px, calc(100vw - 32px)); background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; padding: 10px 14px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.14); overflow-wrap: anywhere; }
   .dl-status[hidden] { display: none; }
   .lib-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: none; padding: 7px 8px; border-radius: 8px; cursor: pointer; }
@@ -208,18 +212,18 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791299038045"></script>
-<script src="layerpitch-notify.js?v=1791299038045"></script>
-<script src="player.js?v=1791299038045"></script>
-<script src="capture-render.js?v=1791299038045"></script>
-<script src="api/supabase-client.js?v=1791299038045"></script>
-<script src="api/auth.js?v=1791299038045"></script>
-<script src="layerpitch-appearance.js?v=1791299038045"></script>
-<script src="layerpitch-shell.js?v=1791299038045"></script>
-<script src="api/tracks.js?v=1791299038045"></script>
-<script src="api/sfx.js?v=1791299038045"></script>
-<script src="api/playlists.js?v=1791299038045"></script>
-<script src="api/albums.js?v=1791299038045"></script>
+<script src="layerpitch-i18n.js?v=1791313446226"></script>
+<script src="layerpitch-notify.js?v=1791313446226"></script>
+<script src="player.js?v=1791313446226"></script>
+<script src="capture-render.js?v=1791313446226"></script>
+<script src="api/supabase-client.js?v=1791313446226"></script>
+<script src="api/auth.js?v=1791313446226"></script>
+<script src="layerpitch-appearance.js?v=1791313446226"></script>
+<script src="layerpitch-shell.js?v=1791313446226"></script>
+<script src="api/tracks.js?v=1791313446226"></script>
+<script src="api/sfx.js?v=1791313446226"></script>
+<script src="api/playlists.js?v=1791313446226"></script>
+<script src="api/albums.js?v=1791313446226"></script>
 <script>
 (async () => {
   const P = window.LayerPlayerCore, R = window.LayerCaptureRender;
@@ -274,7 +278,7 @@
     const must = r => { if (r.error) throw new Error(r.error); return r; };
     const ok = r => { if (!r.ok) throw new Error(r.error); return r; };
     return {
-      async albums() { return must(await A.listMyPurchases()).purchases.map(p => ({ id: p.albumId, title: p.title, illustration: p.illustration, presentation: lang === 'en' ? (p.presentationEn || p.presentationFr) : (p.presentationFr || p.presentationEn) })); },
+      async albums() { return must(await A.listMyPurchases()).purchases.map(p => ({ id: p.albumId, title: p.title, illustration: p.illustration, presentation: lang === 'en' ? (p.presentationEn || p.presentationFr) : (p.presentationFr || p.presentationEn), allowRandom: !!p.allowRandom })); },
       async album(id) { return must(await A.getMyAlbumVersions(id)); },
       async choices(id) { return must(await A.getMyAlbumSettings(id)).settings; },
       async setChoice(albumId, trackId, versionKey) { ok(await A.setMyAlbumTrackSettings(albumId, trackId, { albumVersion: versionKey })); },
@@ -297,7 +301,7 @@
     const uid = p => p + (++n);
     const list = id => { const l = lists.find(x => x.id === id); if (!l) throw new Error('Playlist introuvable'); return l; };
     return {
-      async albums() { return [{ id: 'demo', title: 'Album de démonstration', illustration: null, presentation: 'Mode démo local : rien n’est enregistré.' }]; },
+      async albums() { return [{ id: 'demo', title: 'Album de démonstration', illustration: null, presentation: 'Mode démo local : rien n’est enregistré.', allowRandom: params.get('random') === '1' }]; },
       async album() { return { tracks: trackIds.map((t, i) => ({ trackId: t, position: i, official: official[t] || null })), versions: versions.slice().reverse() }; },
       async choices() { return trackIds.map(t => ({ trackId: t, settings: chosen[t] ? { albumVersion: chosen[t] } : {}, isCustom: !!chosen[t] })); },
       async setChoice(albumId, trackId, key) { chosen[trackId] = key; },
@@ -379,9 +383,27 @@
       if (!sfxCache[sid]) { const r = await window.LayerPitchSfx.getSfx(sid); if (r && r.sfx) sfxCache[sid] = r.sfx; }
     }
     P.setSfxLibrary(Object.assign({}, sfxCache));
-    albumCache[id] = { id, title: a.title, illustration: a.illustration, presentation: a.presentation, tracks, versions: data.versions };
+    albumCache[id] = { id, title: a.title, illustration: a.illustration, presentation: a.presentation, allowRandom: !!a.allowRandom, tracks, versions: data.versions };
     return albumCache[id];
   }
+  // Le dé (6/10) : le fan écoute le morceau « vivant », tiré différemment à chaque écoute, à la place d'une version figée. Autorisé par le
+  // compositeur pour chaque album (albums.allow_random). Choix du fan gardé sur cet ordinateur : dé de l'album (pour tous ses morceaux) et,
+  // par morceau, « allumé » ou « éteint » pour surcharger celui de l'album.
+  const DICE_KEY = 'lp_dice';
+  const diceStore = (() => {
+    const read = () => { try { return JSON.parse(localStorage.getItem(DICE_KEY) || '{}') || {}; } catch (e) { return {}; } };
+    const write = o => { try { localStorage.setItem(DICE_KEY, JSON.stringify(o)); } catch (e) { /* stockage bloqué : le choix ne vit que dans cette page */ } };
+    return { get: albumId => Object.assign({ album: false, tracks: {} }, read()[albumId]), set: (albumId, v) => { const o = read(); o[albumId] = v; write(o); } };
+  })();
+  const diceState = {};
+  const diceOf = al => diceState[al.id] || (diceState[al.id] = diceStore.get(al.id));
+  const diceOn = (al, trackId) => {
+    if (!al || !al.allowRandom) return false;
+    const d = diceOf(al), own = d.tracks[trackId];
+    return own === 'on' ? true : own === 'off' ? false : !!d.album;
+  };
+  function setAlbumDice(al, on) { const d = diceOf(al); d.album = !!on; diceStore.set(al.id, d); }
+  function setTrackDice(al, trackId, on) { const d = diceOf(al); d.tracks[trackId] = on ? 'on' : 'off'; diceStore.set(al.id, d); }
   const versionsOf = (al, trackId) => al.versions.filter(v => v.trackId === trackId); // plus récentes d'abord
   // Nom affiché : le nom donné, sinon « Version n » dans l'ordre de création (1 = la plus ancienne).
   function versionName(al, v) {
@@ -392,6 +414,7 @@
   // Version jouée dans l'album : le choix du fan s'il existe encore, sinon celle du compositeur, sinon la plus récente
   // du fan. null = aucune version (morceau sauté).
   function albumEntryKey(al, t) {
+    if (diceOn(al, t.track.id)) return 'random';
     const mine = versionsOf(al, t.track.id);
     if (t.choice === 'official' && t.official) return 'official';
     if (t.choice && mine.some(v => v.id === t.choice)) return t.choice;
@@ -401,6 +424,7 @@
   function entryFor(al, t, key) {
     if (!key || !t) return null;
     const base = { albumId: al.id, trackId: t.track.id, title: t.track.title, key, cover: al.illustration, albumTitle: al.title };
+    if (key === 'random') return Object.assign(base, { sub: '🎲 ' + tr('randomVersion'), random: true, liveTrack: t.track, take: { duration: Number(t.track.duration) || 0 } });
     if (key === 'official') return t.official ? Object.assign(base, { sub: tr('officialVersion'), take: t.official }) : null;
     const v = al.versions.find(x => x.id === key);
     return v ? Object.assign(base, { sub: versionName(al, v), take: v.take }) : null;
@@ -431,6 +455,7 @@
       </header>
       <div class="album-actions">
         <button type="button" class="btn primary play-album" id="playAlbumBtn">${ICON_PLAY_SM.replace('width="14" height="14"', 'width="16" height="16"')}${esc(tr('playAlbum'))}</button>
+        ${album.allowRandom ? `<button type="button" class="dice-btn" id="albumDiceBtn" aria-pressed="${diceOf(album).album}" title="${esc(tr('diceAlbumHint'))}" aria-label="${esc(tr('diceAlbum'))}">🎲</button><span class="dice-hint">${esc(tr('diceAlbum'))}</span>` : ''}
         <span class="album-hint" id="playAlbumHint" hidden>${esc(tr('noPlayableVersion'))}</span>
       </div>
       <div class="tabs" role="tablist">
@@ -440,6 +465,11 @@
       <section id="panelTracks" role="tabpanel" aria-labelledby="tabTracks"${tab === 'tracks' ? '' : ' hidden'}></section>
       <section id="panelAtelier" role="tabpanel" aria-labelledby="tabAtelier"${tab === 'atelier' ? '' : ' hidden'}></section>`;
     $('playAlbumBtn').onclick = () => startQueue({ kind: 'album', id: album.id }, 0);
+    if ($('albumDiceBtn')) $('albumDiceBtn').onclick = () => {
+      const on = !diceOf(album).album; setAlbumDice(album, on);
+      $('albumDiceBtn').setAttribute('aria-pressed', String(on));
+      refreshQueue(); renderTracks();
+    };
     $('tabTracks').onclick = () => switchTab('tracks');
     $('tabAtelier').onclick = () => switchTab('atelier');
     renderTracks();
@@ -462,7 +492,7 @@
     if ($('playAlbumHint')) $('playAlbumHint').hidden = playable;
     const now = queue[qi];
     box.innerHTML = `<table class="tracks">
-      <thead><tr><th class="t-num">#</th><th></th><th>${esc(tr('colTitle'))}</th><th class="t-version">${esc(tr('colVersion'))}</th><th class="t-dur"></th><th class="t-add"></th><th class="t-atelier"></th></tr></thead>
+      <thead><tr><th class="t-num">#</th><th></th><th>${esc(tr('colTitle'))}</th><th class="t-dice"></th><th class="t-version">${esc(tr('colVersion'))}</th><th class="t-dur"></th><th class="t-add"></th><th class="t-atelier"></th></tr></thead>
       <tbody>${album.tracks.map((t, i) => {
         const key = albumEntryKey(album, t), e = entryFor(album, t, key), mine = versionsOf(album, t.track.id);
         const options = [t.official ? `<option value="official"${key === 'official' ? ' selected' : ''}>★ ${esc(tr('officialVersion'))}</option>` : '']
@@ -471,13 +501,15 @@
           <td class="t-num">${i + 1}</td>
           <td><button type="button" class="t-play" data-play="${esc(t.track.id)}" aria-label="${esc(tr('playThis'))} · ${esc(t.track.title)}"${e ? '' : ' disabled'}>${ICON_PLAY_SM}</button></td>
           <td><div class="t-title">${esc(t.track.title)}</div>${e ? `<div class="t-sub">${esc(e.sub)}</div>` : `<div class="t-sub">${esc(tr('noVersionYet'))}</div>`}</td>
-          <td class="t-version">${options ? `<select data-choice="${esc(t.track.id)}" aria-label="${esc(tr('colVersion'))}">${options}</select>` : ''}</td>
-          <td class="t-dur">${e ? fmt(e.take.duration) : ''}</td>
-          <td class="t-add"><button type="button" class="t-play" data-add-track="${esc(t.track.id)}" aria-label="${esc(tr('addToPlaylist'))} · ${esc(t.track.title)}" title="${esc(tr('addToPlaylist'))}"${e ? '' : ' disabled'}>${ICON_PLUS}</button><button type="button" class="t-play" data-dl-track="${esc(t.track.id)}" aria-label="${esc(tr('download'))} · ${esc(t.track.title)}" title="${esc(tr('download'))}"${e ? '' : ' disabled'}>${ICON_DL}</button></td>
+          <td class="t-dice">${album.allowRandom ? `<button type="button" class="dice-btn" data-dice="${esc(t.track.id)}" aria-pressed="${diceOn(album, t.track.id)}" title="${esc(tr('diceTrackHint'))}" aria-label="${esc(tr('diceTrack'))} · ${esc(t.track.title)}">🎲</button>` : ''}</td>
+          <td class="t-version">${options && key !== 'random' ? `<select data-choice="${esc(t.track.id)}" aria-label="${esc(tr('colVersion'))}">${options}</select>` : ''}</td>
+          <td class="t-dur">${e && !e.random ? fmt(e.take.duration) : ''}</td>
+          <td class="t-add"><button type="button" class="t-play" data-add-track="${esc(t.track.id)}" aria-label="${esc(tr('addToPlaylist'))} · ${esc(t.track.title)}" title="${esc(tr('addToPlaylist'))}"${e && !e.random ? '' : ' disabled'}>${ICON_PLUS}</button><button type="button" class="t-play" data-dl-track="${esc(t.track.id)}" aria-label="${esc(tr('download'))} · ${esc(t.track.title)}" title="${esc(tr('download'))}"${e ? '' : ' disabled'}>${ICON_DL}</button></td>
           <td class="t-atelier"><button type="button" class="btn" data-atelier="${esc(t.track.id)}">${esc(tr('openInAtelier'))}</button></td>
         </tr>`;
       }).join('')}</tbody></table>`;
     box.querySelectorAll('[data-play]').forEach(b => b.onclick = () => startQueue({ kind: 'album', id: album.id }, null, x => x.trackId === b.dataset.play));
+    box.querySelectorAll('[data-dice]').forEach(b => b.onclick = () => { setTrackDice(album, b.dataset.dice, !diceOn(album, b.dataset.dice)); refreshQueue(); renderTracks(); });
     box.querySelectorAll('[data-choice]').forEach(s => s.onchange = () => chooseVersion(s.dataset.choice, s.value));
     box.querySelectorAll('[data-add-track]').forEach(b => b.onclick = () => {
       const t = trackOf(album, b.dataset.addTrack);
@@ -831,7 +863,7 @@
     $('nowTitle').textContent = q ? q.title : '—';
     $('nowSub').textContent = sub != null ? sub : (q ? q.sub : tr('nothingPlaying'));
     $('nowCover').outerHTML = q && q.cover ? `<img class="cover" id="nowCover" src="${IMAGES_BASE}${esc(q.cover)}" alt="">` : '<div class="cover" id="nowCover"></div>';
-    $('durEl').textContent = fmt(q ? q.take.duration : 0);
+    $('durEl').textContent = q && q.random && !q.take.duration ? '∞' : fmt(q ? q.take.duration : 0);
     $('progTrack').setAttribute('aria-valuemax', String(Math.round(q ? q.take.duration : 0)));
     $('prevBtn').disabled = !q; $('nextBtn').disabled = !q || qi + 1 >= queue.length;
   }
@@ -840,6 +872,30 @@
       const now = queue[qi];
       center.querySelectorAll('[data-pl-play]').forEach(b => b.closest('tr').classList.toggle('playing', !!now && now.itemId === b.dataset.plPlay));
     } else { renderTracks(); renderAtelierVersions(); }
+  }
+  // Écoute aléatoire (le dé) : le morceau « vivant » joue dans le lecteur habituel (caché), tiré différemment à chaque écoute. Il se termine
+  // tout seul s'il a une fin ; sinon (boucle sans fin) après 2 boucles, et au plus après un délai de sécurité. Pause = arrêt : la reprise
+  // refait un tirage depuis le début. Même contrat que les prises figées : { position(), stop() }.
+  let liveRack = null, liveTrackId = null;
+  async function playLive(q, onEnd) {
+    if (!liveRack) { liveRack = document.createElement('div'); liveRack.setAttribute('aria-hidden', 'true'); liveRack.style.cssText = 'position:absolute;left:-9999px;top:0;width:640px;pointer-events:none'; document.body.appendChild(liveRack); }
+    const track = JSON.parse(JSON.stringify(q.liveTrack)); // copie : les limites de boucles ci-dessous ne touchent pas le morceau de l'Atelier
+    if (track.maxLoops == null) track.maxLoops = 2;
+    if (track.maxChainLoops == null) track.maxChainLoops = 2;
+    const row = P.buildTrackRow(track, null, false);
+    liveRack.appendChild(row);
+    liveTrackId = track.id;
+    P.initTrackPlayer(track, row);
+    const lp = row.lpControl;
+    if (!lp) throw new Error('lecteur indisponible');
+    let done = false, safety = null;
+    const cleanup = () => { clearTimeout(safety); setTimeout(() => { row.remove(); if (liveTrackId === track.id) liveTrackId = null; }, 400); };
+    const finish = natural => { if (done) return; done = true; cleanup(); if (natural) onEnd(); };
+    lp.onEnded(() => finish(true));
+    lp.start(1);
+    // Filet de sécurité : un morceau qui ne finirait jamais (boucle sans limite connue) passe au suivant après trois durées.
+    safety = setTimeout(() => { if (!done) { lp.stop(); finish(true); } }, Math.max(90, 3 * (Number(track.duration) || 0)) * 1000);
+    return { position: () => lp.elapsed(), stop: () => { lp.stop(); finish(false); } };
   }
   async function playIndex(i, from) {
     if (i < 0 || i >= queue.length) { stopBar(); qi = -1; showNow(null, tr('queueEnd')); paintLists(); return; }
@@ -851,7 +907,8 @@
     setPlayIcon(true);
     paintLists();
     try {
-      const c = await R.playTake(q.take, { from: from || 0, fetchBytes, onEnd: () => { if (turn === myTurn) playIndex(qi + 1); } });
+      const onEnd = () => { if (turn === myTurn) playIndex(qi + 1); };
+      const c = q.random ? await playLive(q, onEnd) : await R.playTake(q.take, { from: from || 0, fetchBytes, onEnd });
       if (turn !== myTurn) { c.stop(); return; }
       ctrl = c;
     } catch (e) { if (turn === myTurn) { showNow(q, tr('errorMsg', { error: e.message })); playing = false; starting = false; setPlayIcon(false); } return; }
@@ -868,17 +925,17 @@
   $('nextBtn').onclick = () => { if (qi + 1 < queue.length) playIndex(qi + 1); };
   $('prevBtn').onclick = () => { if ((ctrl ? ctrl.position() : pausedAt) > 3 || qi === 0) playIndex(qi); else if (qi > 0) playIndex(qi - 1); };
   function seekTo(pos) {
-    if (qi < 0) return;
+    if (qi < 0 || (queue[qi] && queue[qi].random)) return; // pas de recherche dans un morceau tiré au hasard
     pos = Math.max(0, Math.min(queue[qi].take.duration, pos));
     if (playing) playIndex(qi, pos); else { pausedAt = pos; paint(pos); }
   }
   $('progTrack').onclick = e => {
-    if (qi < 0) return;
+    if (qi < 0 || (queue[qi] && queue[qi].random)) return;
     const r = $('progTrack').getBoundingClientRect();
     seekTo(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * queue[qi].take.duration);
   };
   $('progTrack').onkeydown = e => {
-    if (qi < 0) return;
+    if (qi < 0 || (queue[qi] && queue[qi].random)) return;
     const cur = ctrl ? ctrl.position() : pausedAt;
     if (e.key === 'ArrowRight') { seekTo(cur + 5); e.preventDefault(); }
     else if (e.key === 'ArrowLeft') { seekTo(cur - 5); e.preventDefault(); }
@@ -896,7 +953,11 @@
     e.preventDefault(); $('playBtn').click();
   });
   // L'atelier et la barre ne jouent jamais en même temps : dès que l'atelier démarre, la barre se met en pause.
-  document.addEventListener('layerpitch-capture-mark', e => { if (e.detail && e.detail.name === 'track_play' && (playing || starting)) pauseBar(); });
+  document.addEventListener('layerpitch-capture-mark', e => {
+    // Le morceau tiré au hasard par la barre elle-même ne doit pas mettre la barre en pause (seul l'Atelier le fait).
+    const own = e.detail && e.detail.detail && e.detail.detail.trackId === liveTrackId && liveTrackId != null;
+    if (e.detail && e.detail.name === 'track_play' && (playing || starting) && !own) pauseBar();
+  });
 
   showNow(null);
   setPlayIcon(false);

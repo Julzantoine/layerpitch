@@ -24,7 +24,7 @@
     // Écoute libre sur la page publique (29/09) : 'none' | 'all' | 'selected' (+ les morceaux cochés).
     const freeTrackIds = [...(row.album_tracks || [])].filter(r => r.free_listen).map(r => r.track_id);
     return {
-      listenMode: row.listen_mode || 'none', freeTrackIds,
+      listenMode: row.listen_mode || 'none', freeTrackIds, allowRandom: !!row.allow_random, // le dé : écoute aléatoire autorisée par le vendeur (6/10)
       id: row.id, sellerId: row.seller_id, sellerRole: row.seller_role, title: row.title,
       illustration: row.illustration, illustrationOriginalName: row.illustration_original_name,
       presentationFr: row.presentation_fr, presentationEn: row.presentation_en,
@@ -67,14 +67,14 @@
   async function listMyPurchases() {
     const { data, error } = await getClient()
       .from('album_purchases')
-      .select('album_id, purchased_at, price_paid, is_test, albums(id, title, illustration, presentation_fr, presentation_en)')
+      .select('album_id, purchased_at, price_paid, is_test, albums(id, title, illustration, presentation_fr, presentation_en, allow_random)')
       .order('purchased_at', { ascending: false });
     if (error) return { purchases: null, error: error.message };
     return {
       purchases: data.map(r => ({
         albumId: r.album_id, purchasedAt: r.purchased_at, pricePaid: r.price_paid, isTest: r.is_test,
         title: r.albums ? r.albums.title : '',
-        illustration: r.albums ? r.albums.illustration : null,
+        illustration: r.albums ? r.albums.illustration : null, allowRandom: !!(r.albums && r.albums.allow_random),
         presentationFr: r.albums ? r.albums.presentation_fr || '' : '', presentationEn: r.albums ? r.albums.presentation_en || '' : '',
       })),
       error: null,
@@ -189,6 +189,7 @@
   const shopAlbums = async () => { const r = await call('shop_albums'); return { albums: r.data || [], error: r.error }; };
   const setAlbumShopListed = async (albumId, listed) => { const r = await call('set_album_shop_listed', { p_album_id: albumId, p_listed: !!listed }); return r.error ? { ok: false, error: r.error } : { ok: true }; };
   const setAlbumListening = async (albumId, mode, trackIds) => { const r = await call('set_album_listening', { p_album_id: albumId, p_mode: mode, p_track_ids: trackIds || [] }); return r.error ? { ok: false, error: r.error } : { ok: true }; };
+  const setAlbumRandom = async (albumId, allow) => { const r = await call('set_album_random', { p_album_id: albumId, p_allow: !!allow }); return r.error ? { ok: false, error: r.error } : { ok: true }; };
   const upsertStudioAlbum = async payload => { const r = await call('upsert_studio_album', { payload }); return r.error ? { ok: false, error: r.error } : { ok: true, data: r.data }; };
   const listAlbumContributors = async albumId => { const r = await call('list_album_contributors', { p_album_id: albumId }); return { contributors: r.data || [], error: r.error }; };
   // Enregistre l'invité puis envoie l'e-mail (Edge Function invite-album-contributor) ; en cas d'échec d'envoi, actionLink permet de transmettre le lien soi-même.
@@ -211,7 +212,7 @@
   const leaveAlbum = async albumId => { const r = await call('leave_album', { p_album_id: albumId }); return r.error ? { ok: false, error: r.error } : { ok: true, unpublished: !!(r.data && r.data.unpublished) }; };
 
   window.LayerPitchAlbums = {
-    shopStatus, shopAlbums, setAlbumShopListed, setAlbumListening, upsertStudioAlbum, listAlbumContributors, inviteAlbumContributor, removeAlbumContributor, myAlbumInvitations, respondAlbumInvitation,
+    shopStatus, shopAlbums, setAlbumShopListed, setAlbumListening, setAlbumRandom, upsertStudioAlbum, listAlbumContributors, inviteAlbumContributor, removeAlbumContributor, myAlbumInvitations, respondAlbumInvitation,
     myAlbumContributions, setAlbumContributorTracks, leaveAlbum,
     getAlbumRights, setAlbumRights, markRightsHolderSelfPay, inviteRightsHolder, myRightsInvitations, respondRightsInvitation,
     listAlbums, upsertAlbum, claimTestAlbum, listMyPurchases, getPlatformFlags,

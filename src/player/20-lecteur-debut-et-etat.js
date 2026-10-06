@@ -2,6 +2,9 @@
 // que l'autre s'éteint) au lieu d'arrêter le morceau actif ; il expose alors wrapper.lpControl (voir 32-pause-reprise-lecture.js).
 function initTrackPlayer(track, wrapper, elementColors, opts) {
   const concurrent = !!(opts && opts.concurrent);
+  // Fin naturelle d'un morceau lancé par programme (Carte de niveau, écoute aléatoire des albums) : lpEndedCb est appelée une seule fois quand
+  // le morceau se termine TOUT SEUL ; un arrêt demandé (Stop, pause, autre morceau) lève lpManualStop et ne l'appelle pas.
+  let lpEndedCb = null, lpManualStop = false;
   const { bg: waveBgColor, fg: waveFgColor } = resolveWaveformColors(elementColors);
   const isStatic = track.mode === 'static';
   const isVerticalRandom = track.mode === 'vertical-random';

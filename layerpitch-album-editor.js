@@ -50,7 +50,7 @@
 
   // ---- État d'un album ----
   const blank = () => ({
-    id: null, title: '', presentationFr: '', presentationEn: '', priceInput: '', buyable: false, shopListed: false, listenMode: 'none',
+    id: null, title: '', presentationFr: '', presentationEn: '', priceInput: '', buyable: false, shopListed: false, listenMode: 'none', allowRandom: false,
     freeTrackIds: [], trackIds: [], saved: false, savedBuyable: false, savedTrackIds: [], officialDurations: {},
     illustration: null, illustrationOriginalName: null, pendingCover: null, pendingCoverUrl: null,
     confirmedRights: false, contributors: [], rights: null, msg: null,
@@ -64,7 +64,7 @@
     return Object.assign(blank(), {
       id: a.id, title: a.title || '', presentationFr: a.presentationFr || '', presentationEn: a.presentationEn || '',
       priceInput: a.priceEurCents == null ? '' : (a.priceEurCents / 100).toFixed(2),
-      buyable: !!a.buyable, shopListed: !!a.shopListed, listenMode: a.listenMode || 'none', freeTrackIds: (a.freeTrackIds || []).slice(),
+      buyable: !!a.buyable, shopListed: !!a.shopListed, listenMode: a.listenMode || 'none', allowRandom: !!a.allowRandom, freeTrackIds: (a.freeTrackIds || []).slice(),
       trackIds: (a.trackIds || []).slice(), saved: true, savedBuyable: !!a.buyable,
       // Morceaux enregistrés en base (seuls eux peuvent recevoir une version) et durée de leur version.
       savedTrackIds: (a.trackIds || []).slice(), officialDurations: Object.assign({}, a.officialDurations || {}),
@@ -173,7 +173,10 @@
         ? al.trackIds.map(id => `<label class="lpae-row" style="margin-left:22px"><input type="checkbox" data-ae-free="${esc(id)}"${al.freeTrackIds.includes(id) ? ' checked' : ''}><span>${esc(title(id))}</span></label>`).join('')
         : `<div class="lpae-hint" style="margin-left:22px">${esc(tr('listenNoTracks'))}</div>`);
       return `<label class="lpae-l">${esc(tr('listenTitle'))}</label><div class="lpae-hint">${esc(tr('listenHint'))}</div>`
-        + radio('none', 'listenNone') + radio('all', 'listenAll') + radio('selected', 'listenSome') + some;
+        + radio('none', 'listenNone') + radio('all', 'listenAll') + radio('selected', 'listenSome') + some
+        // Le dé (6/10) : le fan peut écouter chaque morceau « vivant », tiré différemment à chaque écoute, à la place de la version figée.
+        + `<label class="lpae-l">${esc(tr('randomTitle'))}</label><div class="lpae-hint">${esc(tr('randomHint'))}</div>`
+        + `<label class="lpae-row"><input type="checkbox" data-ae-random${al.allowRandom ? ' checked' : ''}><span>${esc(tr('randomAllow'))}</span></label>`;
     }
 
     function contributorsRows() {
@@ -358,6 +361,8 @@
         if (!shop.ok) return say(tr('saveError', { error: shop.error }), 'error');
         const listen = await A().setAlbumListening(al.id, al.listenMode, al.freeTrackIds.filter(id => al.trackIds.includes(id)));
         if (!listen.ok) return say(tr('listenError', { error: listen.error }), 'error');
+        const rnd = await A().setAlbumRandom(al.id, al.allowRandom);
+        if (!rnd.ok) return say(tr('randomError', { error: rnd.error }), 'error');
         const wasSaved = al.saved;
         al.saved = true; al.savedBuyable = al.buyable;
         if (cover) {
@@ -411,6 +416,7 @@
       const t = e.target, d = t.dataset;
       if (d.aeBuyable != null) al.buyable = t.checked;
       else if (d.aeShop != null) al.shopListed = t.checked;
+      else if (d.aeRandom != null) al.allowRandom = t.checked;
       else if (d.aeConfirm != null) al.confirmedRights = t.checked;
       else if (d.aeRack != null) al.rights.ack = t.checked;
       else if (d.aeRightsDecl != null) {

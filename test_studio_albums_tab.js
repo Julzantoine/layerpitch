@@ -34,6 +34,7 @@ function setup() {
     listAlbums: async () => ({ albums: albums.map(a => Object.assign({}, a)), error: null }),
     setAlbumShopListed: async (id, on) => { calls.shop = { id, on }; return { ok: true }; },
     setAlbumListening: async (id, mode, ids) => { calls.listen = { id, mode, ids }; return { ok: true }; },
+    setAlbumRandom: async (id, allow) => { calls.random = { id, allow }; return { ok: true }; },
     upsertStudioAlbum: async p => { calls.upsert.push(p); return { ok: true, data: {} }; },
     listAlbumContributors: async () => ({ contributors: contributors.map(c => Object.assign({}, c)), error: null }),
     inviteAlbumContributor: async (id, email) => { calls.invites.push(email); return { ok: true }; },
