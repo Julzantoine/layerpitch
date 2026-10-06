@@ -22,7 +22,7 @@ const need = [...used].filter(k => !k.endsWith('_')).concat(dyn, ['savedNew']).f
 const fr = I18N.fr.albumEditor, en = I18N.en.albumEditor;
 check('clés utilisées par l\'éditeur : présentes en FR et EN', need.every(k => fr[k] && en[k]));
 check('FR et EN ont les mêmes clés', JSON.stringify(Object.keys(fr).sort()) === JSON.stringify(Object.keys(en).sort()));
-check('les clés dynamiques des messages d\'enregistrement existent', ['saved', 'savedNew', 'saveError', 'listenError'].every(k => fr[k] && en[k]));
+check('les clés dynamiques des messages d\'enregistrement existent', ['saved', 'savedNew', 'saveError', 'listenError', 'randomTitle', 'randomHint', 'randomAllow', 'randomError'].every(k => fr[k] && en[k]));
 
 // État d'un album
 const dom = new JSDOM('<div id="a"></div><div id="b"></div>', { runScripts: 'outside-only', url: 'http://localhost/x.html' });
@@ -35,6 +35,7 @@ const n = E.newAlbum();
 check('nouvel album : id alb_ aléatoire, brouillon vide, écoute « rien »', /^alb_[a-z0-9]{8,}$/.test(n.id) && n.saved === false && n.listenMode === 'none' && n.trackIds.length === 0 && E.newAlbum().id !== n.id);
 const f = E.fromApi({ id: 'x', title: 'T', priceEurCents: 350, buyable: true, trackIds: ['a', 'b'], officialDurations: { a: 10 }, listenMode: 'selected', freeTrackIds: ['a'] });
 check('album de l\'API : prix en euros, morceaux enregistrés, écoute libre', f.priceInput === '3.50' && f.savedTrackIds.join() === 'a,b' && f.listenMode === 'selected' && f.freeTrackIds[0] === 'a' && f.saved);
+check('le dé : désactivé par défaut pour un nouvel album, repris de l\'API sinon', n.allowRandom === false && E.fromApi({ id: 'y', allowRandom: true }).allowRandom === true && E.fromApi({ id: 'z' }).allowRandom === false);
 const c = E.fromContribution({ albumId: 'y', title: 'Studio', studioName: 'S', buyable: true, tracks: [{ trackId: 't', hasOfficial: true, duration: 42 }, { trackId: 'u', hasOfficial: false }] });
 check('album d\'un studio (invité) : mes morceaux et la durée de mes versions', c.contribution && c.trackIds.join() === 't,u' && c.officialDurations.t === 42 && !('u' in c.officialDurations));
 

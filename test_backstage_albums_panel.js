@@ -52,6 +52,7 @@ async function scenario({ testEnabled, saveResult, claimResult, contributions })
     markRightsHolderSelfPay: async holderId => { rights.holders.find(h => h.id === holderId).status = 'self_pay'; return { rights: rightsState(), error: null }; },
     setAlbumShopListed: async (id, on) => { calls.shopListed = { id, on }; return { ok: true }; },
     setAlbumListening: async (id, mode, ids) => { calls.listen = { id, mode, ids }; return { ok: true }; },
+    setAlbumRandom: async (id, allow) => { calls.random = { id, allow }; return { ok: true }; },
     myAlbumContributions: async () => ({ contributions: contributions || [], error: null }),
     setAlbumContributorTracks: async (id, ids) => { (calls.contribSave = calls.contribSave || []).push({ id, ids }); return { ok: true, unpublished: ids.length === 0 }; },
     leaveAlbum: async id => { calls.left = id; return { ok: true }; },

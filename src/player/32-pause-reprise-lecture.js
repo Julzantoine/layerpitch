@@ -130,6 +130,7 @@
     if (take) take.resumable = true;
   }
   function stopAllSources(keepPosition) {
+    lpManualStop = true; // arrêt demandé : pas une fin naturelle (voir setStoppedUI)
     playing = false;
     playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
     // Annule toute rampe de ducking en cours et revient à 1 immédiatement — sinon une prochaine lecture
@@ -182,6 +183,7 @@
       activeTrackId = track.id;
     }
     lpPlayStartedAt = ctx.currentTime;
+    lpManualStop = false;
     setDetailsExpanded(details, true);
     updateStingerAvailability();
     resumeAudioContext();
@@ -395,9 +397,10 @@
   });
   playBtn.addEventListener('click', () => { playing ? pauseThisTrack() : playThisTrack(true); });
   if (stopBtn) stopBtn.addEventListener('click', stopThisTrack);
-  // Pilotage par programme (Carte de niveau) : démarrer à un niveau donné, régler le niveau avec une rampe, arrêter, et savoir
-  // quand tombe la prochaine mesure / le prochain temps (grille du morceau, comptée depuis son départ).
-  if (concurrent) {
+  // Pilotage par programme (Carte de niveau, écoute aléatoire des albums) : démarrer à un niveau donné, régler le niveau avec une rampe,
+  // arrêter, être prévenu de la fin naturelle, et savoir quand tombe la prochaine mesure / le prochain temps (grille du morceau, comptée
+  // depuis son départ). Disponible sur tout lecteur ; seul `concurrent` joue en même temps que les autres.
+  {
     const rampTo = (level, sec) => {
       const now = ctx.currentTime, g = trackMasterGain.gain;
       g.cancelScheduledValues(now); g.setValueAtTime(g.value, now);
@@ -408,6 +411,8 @@
       stop() { if (playing) stopAllSources(false); },
       setLevel: rampTo,
       isPlaying: () => playing,
+      onEnded(cb) { lpEndedCb = cb; },
+      elapsed: () => (playing ? Math.max(0, ctx.currentTime - lpPlayStartedAt) : 0),
       // Prochain repère de la grille (mesure, temps, 2 ou 4 mesures) à partir de maintenant, en secondes d'horloge audio ; null si le
       // morceau ne joue pas encore. Tempo propre du morceau (bpm / temps par mesure).
       nextBoundary(grid) {

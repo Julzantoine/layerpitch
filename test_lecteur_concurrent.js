@@ -35,7 +35,7 @@ const path = require('path');
         };
         return node;
       };
-      FakeAudioContext.prototype.decodeAudioData = function () { return Promise.resolve({ duration: 10 }); };
+      FakeAudioContext.prototype.decodeAudioData = function () { return Promise.resolve({ duration: 0.4, length: 100, numberOfChannels: 1, sampleRate: 44100, getChannelData() { return new Float32Array(100); } }); };
       win.AudioContext = FakeAudioContext;
       win.ResizeObserver = win.ResizeObserver || function () { return { observe() {}, disconnect() {} }; };
       win.requestAnimationFrame = win.requestAnimationFrame || (cb => setTimeout(cb, 16));
@@ -58,7 +58,7 @@ const path = require('path');
   const rowA = mount(A, { concurrent: true }), rowB = mount(B, { concurrent: true }), rowC = mount(C);
   await sleep(300);
   check('lecteur concurrent : expose lpControl', !!rowA.lpControl && typeof rowA.lpControl.nextBoundary === 'function');
-  check('lecteur ordinaire : pas de lpControl', !rowC.lpControl);
+  check('tout lecteur expose lpControl (concurrent ou non)', !!rowC.lpControl && typeof rowC.lpControl.onEnded === 'function');
   check('avant lecture : pas de repère de mesure', rowA.lpControl.nextBoundary('bar') === null);
 
   window.__sets = []; window.__ramps = [];
@@ -85,6 +85,25 @@ const path = require('path');
   check('lecteur ordinaire lancé : n\'arrête pas les concurrents (seul son propre événement stop-track le ferait)', rowB.lpControl.isPlaying());
   click(rowC.querySelector('[data-role="playBtn"]')); await sleep(30);
   rowB.lpControl.stop();
+
+  // Fin naturelle : prévenue une seule fois ; un arrêt demandé ne la déclenche pas
+  const D = { id: 'plain-d', title: 'Court', mode: 'static', description: '', duration: 0.4, base: '', publishedAt: 1, loopable: false, layers: [{ label: 'L1', localFile: fakeFile('d.wav') }], sfxIds: [] };
+  const rowD = mount(D, {});
+  await sleep(300);
+  let ended = 0;
+  rowD.lpControl.onEnded(() => { ended++; });
+  rowD.lpControl.start(1); await sleep(60);
+  check('morceau court lancé par programme : il joue', rowD.lpControl.isPlaying());
+  await sleep(900);
+  check('fin naturelle : prévenu une seule fois, plus en lecture', ended === 1 && !rowD.lpControl.isPlaying());
+  rowD.lpControl.onEnded(() => { ended++; });
+  rowD.lpControl.start(1); await sleep(60);
+  rowD.lpControl.stop(); await sleep(900);
+  check('arrêt demandé : pas une fin naturelle (aucun appel)', ended === 1);
+  rowD.lpControl.onEnded(() => { ended++; });
+  rowD.lpControl.start(1); await sleep(60);
+  click(rowD.querySelector('[data-role="playBtn"]')); await sleep(900); // Pause par le bouton
+  check('pause par le bouton : pas une fin naturelle non plus', ended === 1);
 
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : (failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
