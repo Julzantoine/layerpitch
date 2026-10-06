@@ -264,7 +264,9 @@
   .video-versioning-chip.exported { border-color: var(--accent); color: var(--accent); }
 
   .backstage-layout { display: flex; gap: 28px; align-items: flex-start; margin-top: 20px; }
-  .backstage-sidebar { width: 196px; flex-shrink: 0; position: sticky; top: 20px; background: var(--bg-sidebar); border-radius: 10px; padding: 16px 14px; }
+  /* Barre de gauche : fixe sous la barre d'actions, et elle défile TOUTE SEULE quand elle est plus haute que l'écran (7/10) -- sinon
+     ses derniers éléments (Studio, Commun...) restaient hors de portée pendant que la page défilait derrière. */
+  .backstage-sidebar { width: 196px; flex-shrink: 0; position: sticky; top: 84px; max-height: calc(100vh - 104px); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; background: var(--bg-sidebar); border-radius: 10px; padding: 16px 14px; }
   .nav-section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dimmer); margin: 20px 0 8px; }
   .nav-section-label:first-child { margin-top: 0; }
   .nav-item {
