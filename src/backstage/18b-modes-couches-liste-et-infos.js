@@ -106,10 +106,7 @@
           <label style="margin-top:14px">${tr('trackTagsLabel')}</label>
           <input type="text" data-field="tags" data-ti="${ti}" value="${escapeAttr(track.tags || '')}">
           <div class="hint-inline">${tr('trackTagsHint')}</div>
-          <label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
-            <input type="checkbox" data-field="normalizeVolume" data-ti="${ti}" ${track.normalizeVolume ? 'checked' : ''} style="width:auto;margin:0;">
-            <span data-help="normalizeVolume" style="color:var(--text-dim);font-size:12px;">${tr('normalizeVolumeLabel')}</span>
-          </label>
+          ${trackNormalizeHtml(track, ti)}
           ${trackPitchFxHtml(track, ti)}
           ${fxTriggersEditorHtml(track, ti)}
           ${fxSlidersEditorHtml(track, ti)}

@@ -56,6 +56,16 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     try { await duplicateLibraryTrack(library[ti]); } finally { btn.disabled = false; }
     return;
   }
+  if (btn.dataset.action === 'recompute-track-normalization') {
+    const track = library[ti];
+    btn.disabled = true; btn.textContent = tr('normalizeRecomputeBusy');
+    try {
+      const r = await recomputeTrackNormalization(track);
+      window.LayerPitchNotify.info(tr(r.missing ? 'normalizeRecomputeDonePartial' : 'normalizeRecomputeDone', { lufs: r.lufs == null ? '?' : r.lufs.toFixed(1), n: r.missing }));
+    } catch (e) { window.LayerPitchNotify.error(tr('normalizeRecomputeError', { error: e.message })); }
+    renderLibrary();
+    return;
+  }
   if (btn.dataset.action === 'toggle-track-protection') {
     const track = library[ti];
     const target = !track.protected;
@@ -318,7 +328,12 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     else if (field === 'beatsPerBar') { library[ti].beatsPerBar = parseInt(e.target.value, 10) || 4; }
     else if (field === 'maxLoops') { library[ti].maxLoops = e.target.value === '' ? null : parseInt(e.target.value, 10); }
     else if (field === 'maxChainLoops') { library[ti].maxChainLoops = e.target.value === '' ? null : parseInt(e.target.value, 10); }
-    else if (field === 'normalizeVolume') { library[ti].normalizeVolume = e.target.checked; }
+    else if (field === 'normalizeVolume') {
+      library[ti].normalizeVolume = e.target.checked;
+      library[ti]._normDirty = e.target.checked; // le gain unique est (re)calculé à la prochaine publication
+      renderLibrary(); // le bouton « Recalculer » apparaît/disparaît
+      return;
+    }
     else if (field === 'introLabel') { library[ti].intro.label = e.target.value; }
     else if (field === 'introBars') { library[ti].intro.bars = parseInt(e.target.value, 10) || 8; }
     else if (field === 'introBpm') { library[ti].intro.bpm = parseFloat(e.target.value) || null; }

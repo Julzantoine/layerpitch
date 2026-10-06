@@ -371,12 +371,13 @@ async function publishAll() {
       if (!track.id) track.id = slug(track.title);
       track.base = `${MEDIA_BASE}audio/${track.id}/`;
       const isStatic = track.mode === 'static';
+      const hadPendingAudio = trackAudioItems(track).some(it => it.pendingFile);
       const layersToPublish = isStatic ? (track.layers || []).slice(0, 1) : (track.layers || []);
       for (let li = 0; li < layersToPublish.length; li++) {
         const layer = layersToPublish[li];
         if (!layer.pendingFile) continue;
         log(tr('convertingGeneric', { title: track.title, label: layer.label || tr('trackFallbackShort') }));
-        const { bytes, duration, gain } = await wavFileToOgg(layer.pendingFile);
+        const { bytes, duration, measure } = await wavFileToOgg(layer.pendingFile);
         // Vertical/Statique (20/08, correctif) : durée stockée par couche puis recalculée depuis les
         // couches réellement présentes, plutôt qu'accumulée sans jamais redescendre -- voir
         // recomputeTrackDuration(). Les 3 autres modes gardent l'ancien comportement pour l'instant (portée
@@ -387,29 +388,29 @@ async function publishAll() {
         const path = `audio/${track.id}/${fileName}`;
         log(tr('uploadingPath', { path }));
         await r2PutFile(path, bytes, 'audio/ogg');
-        layer.remoteFile = fileName; layer.originalFileName = layer.pendingFile.name; layer.pendingFile = null; layer.gain = gain;
+        layer.remoteFile = fileName; layer.originalFileName = layer.pendingFile.name; layer.pendingFile = null; layer._measure = measure;
         log(tr('uploadedPath', { path }), 'ok');
       }
       if (track.intro && track.intro.pendingFile) {
         log(tr('convertingGeneric', { title: track.title, label: track.intro.label || 'Intro' }));
-        const { bytes, duration, gain } = await wavFileToOgg(track.intro.pendingFile);
+        const { bytes, duration, measure } = await wavFileToOgg(track.intro.pendingFile);
         track.duration = Math.max(track.duration, duration);
         const fileName = `intro-${slug(track.intro.label || 'intro')}.ogg`;
         const path = `audio/${track.id}/${fileName}`;
         log(tr('uploadingPath', { path }));
         await r2PutFile(path, bytes, 'audio/ogg');
-        track.intro.remoteFile = fileName; track.intro.originalFileName = track.intro.pendingFile.name; track.intro.pendingFile = null; track.intro.gain = gain;
+        track.intro.remoteFile = fileName; track.intro.originalFileName = track.intro.pendingFile.name; track.intro.pendingFile = null; track.intro._measure = measure;
         log(tr('uploadedPath', { path }), 'ok');
       }
       if (track.outro && track.outro.pendingFile) {
         log(tr('convertingGeneric', { title: track.title, label: track.outro.label || 'Outro' }));
-        const { bytes, duration, gain } = await wavFileToOgg(track.outro.pendingFile);
+        const { bytes, duration, measure } = await wavFileToOgg(track.outro.pendingFile);
         track.duration = Math.max(track.duration, duration);
         const fileName = `outro-${slug(track.outro.label || 'outro')}.ogg`;
         const path = `audio/${track.id}/${fileName}`;
         log(tr('uploadingPath', { path }));
         await r2PutFile(path, bytes, 'audio/ogg');
-        track.outro.remoteFile = fileName; track.outro.originalFileName = track.outro.pendingFile.name; track.outro.pendingFile = null; track.outro.gain = gain;
+        track.outro.remoteFile = fileName; track.outro.originalFileName = track.outro.pendingFile.name; track.outro.pendingFile = null; track.outro._measure = measure;
         log(tr('uploadedPath', { path }), 'ok');
       }
       for (let si = 0; si < (track.segmentSlots || []).length; si++) {
@@ -418,13 +419,13 @@ async function publishAll() {
           const alt = slot.alternatives[ai];
           if (!alt.pendingFile) continue;
           log(tr('convertingGeneric', { title: track.title, label: tr('slotAltLabel', { si: si + 1, label: alt.label || tr('altFallbackShort') }) }));
-          const { bytes, duration, gain } = await wavFileToOgg(alt.pendingFile);
+          const { bytes, duration, measure } = await wavFileToOgg(alt.pendingFile);
           track.duration = Math.max(track.duration, duration);
           const fileName = `slot${si}-${ai}-${slug(alt.label || 'alt')}.ogg`;
           const path = `audio/${track.id}/${fileName}`;
           log(tr('uploadingPath', { path }));
           await r2PutFile(path, bytes, 'audio/ogg');
-          alt.remoteFile = fileName; alt.originalFileName = alt.pendingFile.name; alt.pendingFile = null; alt.gain = gain;
+          alt.remoteFile = fileName; alt.originalFileName = alt.pendingFile.name; alt.pendingFile = null; alt._measure = measure;
           log(tr('uploadedPath', { path }), 'ok');
         }
         // Fichiers de transition (optionnels, un par embranchement précis — voir schéma validé le 02/08) :
@@ -434,13 +435,13 @@ async function publishAll() {
           const opt = slot.nextOptions[oi];
           if (!opt.transition || !opt.transition.pendingFile) continue;
           log(tr('convertingGeneric', { title: track.title, label: opt.transition.label || tr('transitionFallbackShort') }));
-          const { bytes, duration, gain } = await wavFileToOgg(opt.transition.pendingFile);
+          const { bytes, duration, measure } = await wavFileToOgg(opt.transition.pendingFile);
           track.duration = Math.max(track.duration, duration);
           const fileName = `slot${si}-branch${oi}-transition-${slug(opt.transition.label || 'transition')}.ogg`;
           const path = `audio/${track.id}/${fileName}`;
           log(tr('uploadingPath', { path }));
           await r2PutFile(path, bytes, 'audio/ogg');
-          opt.transition.remoteFile = fileName; opt.transition.originalFileName = opt.transition.pendingFile.name; opt.transition.pendingFile = null; opt.transition.gain = gain;
+          opt.transition.remoteFile = fileName; opt.transition.originalFileName = opt.transition.pendingFile.name; opt.transition.pendingFile = null; opt.transition._measure = measure;
           log(tr('uploadedPath', { path }), 'ok');
         }
       }
@@ -452,13 +453,13 @@ async function publishAll() {
             const alt = pool.alternatives[ai];
             if (!alt.pendingFile) continue;
             log(tr('convertingGeneric', { title: track.title, label: tr('vrsPoolAltLabel', { si: sci + 1, pool: pool.label || tr('untitledFallback'), label: alt.label || tr('altFallbackShort') }) }));
-            const { bytes, duration, gain } = await wavFileToOgg(alt.pendingFile);
+            const { bytes, duration, measure } = await wavFileToOgg(alt.pendingFile);
             track.duration = Math.max(track.duration, duration);
             const fileName = `section${sci}-pool${pi}-${ai}-${slug(alt.label || 'alt')}.ogg`;
             const path = `audio/${track.id}/${fileName}`;
             log(tr('uploadingPath', { path }));
             await r2PutFile(path, bytes, 'audio/ogg');
-            alt.remoteFile = fileName; alt.originalFileName = alt.pendingFile.name; alt.pendingFile = null; alt.gain = gain;
+            alt.remoteFile = fileName; alt.originalFileName = alt.pendingFile.name; alt.pendingFile = null; alt._measure = measure;
             log(tr('uploadedPath', { path }), 'ok');
           }
         }
@@ -467,7 +468,7 @@ async function publishAll() {
         const loop = track.loops[li];
         if (loop.pendingFile) {
           log(tr('convertingGeneric', { title: track.title, label: loop.label || tr('embrLoopFallbackShort') }));
-          const { bytes, duration, gain } = await wavFileToOgg(loop.pendingFile);
+          const { bytes, duration, measure } = await wavFileToOgg(loop.pendingFile);
           // Durée stockée par boucle (24/08, même correctif que ci-dessus pour les couches du mode
           // Vertical) -- ce point de publication polluait encore track.duration à l'ancienne jusqu'ici.
           loop.duration = duration;
@@ -475,7 +476,7 @@ async function publishAll() {
           const path = `audio/${track.id}/${fileName}`;
           log(tr('uploadingPath', { path }));
           await r2PutFile(path, bytes, 'audio/ogg');
-          loop.remoteFile = fileName; loop.originalFileName = loop.pendingFile.name; loop.pendingFile = null; loop.gain = gain;
+          loop.remoteFile = fileName; loop.originalFileName = loop.pendingFile.name; loop.pendingFile = null; loop._measure = measure;
           log(tr('uploadedPath', { path }), 'ok');
         }
         // Fichier de transition optionnel (24/08) -- même schéma d'upload que les transitions du
@@ -491,6 +492,13 @@ async function publishAll() {
           loop.transition.remoteFile = transFileName; loop.transition.originalFileName = loop.transition.pendingFile.name; loop.transition.pendingFile = null;
           log(tr('uploadedPath', { path: transPath }), 'ok');
         }
+      }
+      // Niveau sonore : un seul gain pour tout le morceau, recalculé seulement si un fichier vient d'être converti ou si le
+      // compositeur vient de cocher la case (sinon on réécoute pas tous les fichiers à chaque publication).
+      if (track.normalizeVolume && (hadPendingAudio || track._normDirty)) {
+        log(tr('normalizingTrack', { title: track.title }));
+        const r = await recomputeTrackNormalization(track);
+        log(tr(r.missing ? 'normalizedTrackPartial' : 'normalizedTrack', { title: track.title, lufs: r.lufs == null ? '?' : r.lufs.toFixed(1), n: r.missing }), r.missing ? undefined : 'ok');
       }
     }
     for (const sfx of sfxLibrary) {
