@@ -110,7 +110,7 @@ async function sendAdminNotification(requesterEmail: string, source: string, int
   if (!apiKey || !fromAddress) return { ok: false, error: 'Secrets Resend non configurés côté Supabase.' };
   const sourceLabel = source === 'blocked_signin'
     ? 'connexion refusée (pas encore invité)'
-    : (intent === 'waitlist' ? 'landing — "Tenez-moi au courant"' : 'landing — "Rejoindre la bêta"');
+    : (intent === 'waitlist' ? 'landing — "Tenez-moi au courant"' : (intent === 'studio' ? 'landing — page Studios (demande d\'invitation d\'un studio)' : 'landing — "Rejoindre la bêta"'));
   const messageHtml = message
     ? `<p style="white-space:pre-wrap;border-left:2px solid #ddd;padding-left:10px;">${escapeHtml(message)}</p>`
     : '';
@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const v_intent = (intent === 'beta' || intent === 'waitlist') ? intent : null;
+    const v_intent = (intent === 'beta' || intent === 'waitlist' || intent === 'studio') ? intent : null;
     const v_lang = lang === 'en' ? 'en' : 'fr';
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

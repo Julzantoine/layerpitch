@@ -325,9 +325,7 @@
 
 <script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
 <script>
-  // Même point d'entrée que la landing actuelle (clé « publishable », pas un secret). PROVISOIRE : la fonction ne connaît
-  // que les intentions « beta » et « waitlist » ; en attendant une valeur « studio » (changement de base à valider), la
-  // demande part en « beta » avec « [STUDIO] » en tête du message, pour la repérer dans le panneau admin.
+  // Même point d'entrée que la landing actuelle (clé « publishable », pas un secret). La demande part avec l'intention « studio ».
   const LAYERPITCH_SUPABASE_URL = 'https://ypygllyjfynrnvapufow.supabase.co';
   const LAYERPITCH_ANON_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
   const form = document.getElementById('studioForm');
@@ -339,7 +337,7 @@
       const res = await fetch(`${LAYERPITCH_SUPABASE_URL}/functions/v1/submit-access-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
-        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: 'beta', lang: 'fr', message: ('[STUDIO] ' + form.message.value.trim()).trim() }),
+        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: 'studio', lang: 'fr', message: form.message.value.trim() }),
       });
       if (res.ok) {
         window.umami && window.umami.track('landing_signup', { intent: 'studio' });
