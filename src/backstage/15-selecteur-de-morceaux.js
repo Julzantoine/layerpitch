@@ -243,6 +243,16 @@ function switchAdReel(newId) {
   renderAdReelSelect();
   renderManageAdreels();
 }
+// AdReel à lien privé (6/10) : l'adresse seule ne suffit pas. Lien magique : le jeton n'est montré qu'une fois, à sa création, donc ni « Copier »
+// ni « Partager » ne peuvent le reconstituer -- on explique quoi faire plutôt que d'envoyer une adresse qui affiche « page privée ».
+// Mot de passe : l'adresse se partage normalement ; on rappelle d'envoyer le mot de passe à part. Renvoie true si l'action doit s'arrêter.
+function privateLinkNotice(adReelId) {
+  const ar = adReels.find(a => a.id === adReelId);
+  if (!ar) return false;
+  if (ar.accessMode === 'magic') { window.LayerPitchNotify.info(tr('shareMagicBlocked')); return true; }
+  if (ar.accessMode === 'password') window.LayerPitchNotify.info(tr('sharePasswordReminder'));
+  return false;
+}
 function computeAdReelUrl(adReelId) {
   // Lien public = chemin joli du handle sur beta.layerpitch.com (voir 404.html). Jamais de lien de substitution :
   // tant que le handle n'est pas chargé (asynchrone, voir refreshMyComposerHandle), il n'y a simplement pas encore
@@ -407,6 +417,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   if (copyBtn) {
     const url = computeAdReelUrl(copyBtn.dataset.id);
     if (!url) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+    if (privateLinkNotice(copyBtn.dataset.id)) return;
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done).catch(() => { window.LayerPitchNotify.error(tr('copyFailedAlert')); });
@@ -417,6 +428,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   if (shareBtn) {
     const shareUrl = computeAdReelUrl(shareBtn.dataset.id);
     if (!shareUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+    if (privateLinkNotice(shareBtn.dataset.id)) return;
     const ar = adReels.find(a => a.id === shareBtn.dataset.id);
     const result = await shareViaSocialsOrFallback(shareUrl, (ar && ar.label) || 'LayerPitch');
     if (result === 'copied') {
@@ -431,6 +443,7 @@ document.getElementById('adReelSelect').addEventListener('change', e => switchAd
 document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
   const url = computeAdReelUrl(currentAdReelId);
   if (!url) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+  if (privateLinkNotice(currentAdReelId)) return;
   const btn = document.getElementById('btnCopyAdReelUrl');
   const done = () => { const original = btn.textContent; btn.textContent = tr('copiedStatus'); setTimeout(() => { btn.textContent = original; }, 1500); };
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -451,6 +464,7 @@ document.getElementById('btnEmbedAdReelTracks').addEventListener('click', () => 
 document.getElementById('btnShareAdReelUrl').addEventListener('click', async () => {
   const shareUrl = computeAdReelUrl(currentAdReelId);
   if (!shareUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+  if (privateLinkNotice(currentAdReelId)) return;
   const btn = document.getElementById('btnShareAdReelUrl');
   const ar = adReels.find(a => a.id === currentAdReelId);
   const result = await shareViaSocialsOrFallback(shareUrl, (ar && ar.label) || 'LayerPitch');

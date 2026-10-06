@@ -91,6 +91,23 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   sel.value = 'public'; sel.dispatchEvent(new b.Event('change')); await tick(); await tick();
   check('retour en public envoyé au serveur', rpc[rpc.length - 1][1] === 'public');
 
+
+  // Copier / Partager : lien magique = expliqué (le jeton ne se reconstitue pas), mot de passe = rappel, public = inchangé
+  const infos = [], shared = [], copied = [];
+  b.LayerPitchNotify = { confirm: async () => true, info: m => infos.push(m), error: m => infos.push('ERR ' + m) };
+  b.shareViaSocialsOrFallback = async url => { shared.push(url); return 'copied'; };
+  try { Object.defineProperty(b.navigator, 'clipboard', { value: { writeText: async t => { copied.push(t); } }, configurable: true }); } catch (e) { /* déjà défini */ }
+  b.eval(`myComposerHandle = 'jules'; adReels.find(a => a.id === currentAdReelId).accessMode = 'magic';`);
+  doc.getElementById('btnShareAdReelUrl').click(); doc.getElementById('btnCopyAdReelUrl').click(); await tick(); await tick();
+  check('lien magique : « Partager » et « Copier » expliquent au lieu d\'envoyer une adresse inutilisable', shared.length === 0 && copied.length === 0 && infos.filter(m => /shareMagicBlocked|lien magique/i.test(m)).length === 2);
+  b.eval(`adReels.find(a => a.id === currentAdReelId).accessMode = 'password';`);
+  infos.length = 0;
+  doc.getElementById('btnShareAdReelUrl').click(); await tick(); await tick();
+  check('mot de passe : l\'adresse est partagée, avec le rappel d\'envoyer le mot de passe à part', shared.length === 1 && /jules/.test(shared[0]) && infos.some(m => /mot de passe/i.test(m)));
+  b.eval(`adReels.find(a => a.id === currentAdReelId).accessMode = 'public';`);
+  infos.length = 0; shared.length = 0;
+  doc.getElementById('btnShareAdReelUrl').click(); await tick(); await tick();
+  check('public : partage normal, aucun message', shared.length === 1 && infos.length === 0);
   console.log(failures ? failures + ' échec(s)' : 'Tout est vert');
   process.exit(failures ? 1 : 0);
 })();
