@@ -31,6 +31,15 @@ function check(label, cond) { console.log((cond ? 'OK   ' : 'FAIL ') + label); i
   check('clé ouverte : le rendu porte « open »', /data-fxt-section-key="t1"\s+open/.test(run("(function(){ const o = {}; return fxTriggersEditorHtml({ id: 't1', fxTriggers: [{ id: 'a', name: 'A', effects: [] }] }, 0); })()")));
   check('clé inconnue : fermée par défaut', !/data-fxt-section-key="t2"\s+open/.test(run("fxTriggersEditorHtml({ id: 't2', fxTriggers: [{ id: 'a', name: 'A', effects: [] }] }, 0)")));
 
+  // Chaque trigger se replie séparément : fermé par défaut, ouvert si retenu ; un trigger sans nom est numéroté dans les relations
+  const two = "{ id: 't3', fxTriggers: [{ id: 'a', label: 'Low life', fx: { highcut: { frequency: 3000, slope: 24 } } }, { id: 'b', label: '', fx: {} }] }";
+  const cardsOpen = () => run(`fxTriggersEditorHtml(${two}, 0)`).match(/<details class="list-block"[^>]*>/g) || [];
+  run("fxTriggersSectionOpen.clear(); fxTriggersSectionOpen.add('t3')");
+  check('deux triggers : deux cartes repliables, fermées par défaut', cardsOpen().length === 2 && cardsOpen().every(c => !/\sopen/.test(c)));
+  run("fxTriggersSectionOpen.add('c:b')");
+  check('carte retenue ouverte : seule celle-là s\'ouvre', cardsOpen().filter(c => /\sopen/.test(c)).length === 1 && /data-fxt-section-key="c:b"[^>]*open/.test(cardsOpen()[1]));
+  check('trigger sans nom : « Trigger 2 (sans nom) » dans les relations de l\'autre', /Trigger 2 \(sans nom\)/.test(run(`fxTriggersEditorHtml(${two}, 0)`)));
+  check('le titre de la carte porte le nom du trigger', /<summary[^>]*>Low life/.test(run(`fxTriggersEditorHtml(${two}, 0)`)));
   console.log(failures ? `\n${failures} ÉCHEC(S)` : '\nALL CHECKS PASSED');
   process.exit(failures ? 1 : 0);
 })();
