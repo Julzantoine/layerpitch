@@ -3,26 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- BROUILLON PRIVÉ (29 septembre) : page « À propos » du nouveau site (texte repris de la page Compositeurs).
+<!-- BROUILLON PRIVÉ (29 septembre) : page « FAQ » du nouveau site.
      À la bascule : retirer noindex ; la balise google-site-verification reste sur la page RACINE (index.html), pas ici. -->
 <meta name="robots" content="noindex, nofollow">
 <!-- Aperçu des liens (LinkedIn, WhatsApp...) : titre et description de la page ; image provisoire = la carte des chemins (à valider). -->
-<link rel="canonical" href="https://www.layerpitch.com/a-propos">
-<link rel="alternate" hreflang="fr" href="https://www.layerpitch.com/a-propos">
-<link rel="alternate" hreflang="en" href="https://www.layerpitch.com/en/about">
+<link rel="canonical" href="https://www.layerpitch.com/mentions-legales">
+<link rel="alternate" hreflang="fr" href="https://www.layerpitch.com/mentions-legales">
+<link rel="alternate" hreflang="en" href="https://www.layerpitch.com/en/legal">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="LayerPitch">
 <meta property="og:locale" content="fr_FR">
-<meta property="og:url" content="https://www.layerpitch.com/a-propos">
-<meta property="og:title" content="LayerPitch — À propos">
-<meta property="og:description" content="LayerPitch est né de la frustration d'un compositeur de jeu vidéo : présenter de la musique adaptative sans la réduire à des MP3.">
+<meta property="og:url" content="https://www.layerpitch.com/mentions-legales">
+<meta property="og:title" content="LayerPitch — Mentions légales">
+<meta property="og:description" content="Mentions légales du site LayerPitch : éditeur, hébergeurs, contact.">
 <meta property="og:image" content="https://www.layerpitch.com/assets/og-carte.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="LayerPitch — À propos">
-<meta name="twitter:description" content="LayerPitch est né de la frustration d'un compositeur de jeu vidéo : présenter de la musique adaptative sans la réduire à des MP3.">
+<meta name="twitter:title" content="LayerPitch — Mentions légales">
+<meta name="twitter:description" content="Mentions légales du site LayerPitch : éditeur, hébergeurs, contact.">
 <meta name="twitter:image" content="https://www.layerpitch.com/assets/og-carte.png">
-<title>LayerPitch — À propos</title>
-<meta name="description" content="LayerPitch est né de la frustration d'un compositeur de jeu vidéo : présenter de la musique adaptative sans la réduire à des MP3.">
+<title>LayerPitch — Mentions légales</title>
+<meta name="description" content="Mentions légales du site LayerPitch : éditeur, hébergeurs, contact.">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
   :root {
@@ -180,6 +180,22 @@
   footer { text-align: center; padding: 26px 24px 34px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); background: var(--bg-dark); }
   footer, .cta-band { color: var(--text-on-dark-dim); }
 
+
+  .faq h2 { font-family: var(--font-title); font-size: 20px; margin: 40px 0 14px; }
+  .faq details { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; }
+  .faq summary { cursor: pointer; padding: 15px 18px; font-family: var(--font-title); font-weight: 600; font-size: 15.5px; list-style: none; display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: '+'; color: var(--accent); font-size: 20px; line-height: 1; flex-shrink: 0; }
+  .faq details[open] summary::after { content: '−'; }
+  .faq details p { margin: 0; padding: 0 18px 16px; color: var(--text-dim); font-size: 14.5px; }
+  .faq details p a { color: var(--accent); }
+</style>
+<style>
+  .legal h2 { font-size: 20px; margin: 32px 0 8px; }
+  .legal p, .legal li { color: var(--text-dim); font-size: 15px; }
+  .legal ul { padding-left: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .legal .draft { background: #fff4d6; border: 1px solid #ecd48a; color: #5c4b1e; border-radius: 8px; padding: 12px 14px; font-size: 13.5px; }
+  .legal { padding-bottom: 56px; }
 </style>
 </head>
 <body>
@@ -187,7 +203,7 @@
 <nav class="nav">
   <span class="nav-logo"><a href="./" style="color:inherit">LayerPitch</a></span>
   <div class="nav-links">
-    <a href="./a-propos" style="color:var(--accent)">À propos</a>
+    <a href="./a-propos">À propos</a>
     <a href="./compositeurs">Compositeurs &amp; sound designers</a>
     <a href="./studios">Studios</a>
     <span class="nav-disabled" aria-disabled="true" title="Bientôt" style="color:var(--text-dimmer);cursor:default;opacity:.75;font-size:13px;padding:6px 10px">Catalogue audio</span>
@@ -195,36 +211,24 @@
     <a href="./faq">FAQ</a>
   </div>
   <div class="nav-right">
-    <span class="nav-lang"><a class="active" href="./a-propos">FR</a> / <a href="./en/about">EN</a></span>
+    <span class="nav-lang"><a class="active" href="./mentions-legales">FR</a> / <a href="./en/legal">EN</a></span>
     <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html">Se connecter</a>
   </div>
 </nav>
 
-<header class="hero wrap" style="padding-bottom:0">
-  <h1>L'histoire de LayerPitch</h1>
-</header>
-
-<section class="block wrap">
-  <div class="backstory">
-    <!-- TODO : remplacer par la vraie photo de Jules-Antoine (assets/jules-photo.jpg ou équivalent)
-         -- placeholder gris en attendant le fichier. -->
-    <img class="backstory-photo" src="./assets/jules-photo.jpg" alt="Jules, fondateur de LayerPitch">
-    <div class="backstory-text">
-      <p>Salut, je m'appelle Jules et je suis compositeur.</p>
-      <p>Récemment, j'ai pitché de la musique à un studio de jeu vidéo. J'ai voulu frapper fort et présenter directement de la musique adaptative — mais je n'ai trouvé aucune solution technique adéquate pour ça... et je n'avais pas envie de réduire tout mon boulot à de bêtes mp3.</p>
-      <p>LayerPitch est né de cette frustration. De fil en aiguille, l'idée a pris forme — jusqu'à être aujourd'hui accompagnée par Plaine Images / Take Off Inspiration, l'incubateur musique tech en partenariat avec la Sacem.</p>
-    </div>
-  </div>
-</section>
-
-<div class="cta-band">
-  <section class="cta wrap">
-    <h2>Envie d'essayer ?</h2>
-    <div class="cta-buttons" style="max-width:520px;margin:28px auto 0">
-      <a class="btn btn-primary" href="./compositeurs">Compositeurs &amp; sound designers</a>
-      <a class="btn btn-on-dark" href="./studios">Studios</a>
-    </div>
-  </section>
-  <footer>LayerPitch — musique interactive pour vos pitchs de jeu vidéo · <a href="./mentions-legales">Mentions légales</a> · <a href="./confidentialite">Confidentialité</a></footer>
-</div>
+<main class="wrap legal">
+  <h1>Mentions légales</h1>
+  <p class="draft">Brouillon à faire valider avant la mise en ligne. Les passages entre crochets [À COMPLÉTER] attendent une information que seul l'éditeur connaît. Ce texte n'est pas un conseil juridique.</p>
+  <h2>Éditeur du site</h2>
+  <p>LayerPitch est édité à titre professionnel par <b>Jules-Antoine Escande</b> [À CONFIRMER : nom et prénom de l'éditeur], en nom propre, en attendant la création d'une structure juridique dédiée [À COMPLÉTER à la création : forme, dénomination, capital, adresse du siège, numéro d'immatriculation, numéro de TVA le cas échéant].</p>
+  <p>Adresse postale : [À COMPLÉTER]<br>Contact : <a href="mailto:contact@layerpitch.com">contact@layerpitch.com</a><br>Directeur de la publication : Jules-Antoine Escande</p>
+  <h2>Hébergement</h2>
+  <p><b>Ce site (pages de présentation)</b> : Cloudflare, Inc., 101 Townsend Street, San Francisco, CA 94107, États-Unis (Cloudflare Pages) [À VÉRIFIER le jour de la mise en ligne].</p>
+  <p><b>L'application LayerPitch</b> (beta.layerpitch.com) : GitHub, Inc. (GitHub Pages), 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis. Données de l'application : Supabase (base de données hébergée en Irlande) ; fichiers : Cloudflare R2 (région Europe de l'Ouest).</p>
+  <h2>Propriété intellectuelle</h2>
+  <p>Les textes, images et éléments graphiques de ce site appartiennent à l'éditeur, sauf mention contraire. Les musiques, sons et contenus déposés par les compositeurs et les studios restent leur propriété ; LayerPitch ne les utilise que pour faire fonctionner le service.</p>
+  <h2>Données personnelles</h2>
+  <p>Voir la <a href="./confidentialite">politique de confidentialité</a>.</p>
+</main>
+<footer>LayerPitch — musique interactive pour vos pitchs de jeu vidéo · <a href="./mentions-legales">Mentions légales</a> · <a href="./confidentialite">Confidentialité</a></footer>
 </body></html>

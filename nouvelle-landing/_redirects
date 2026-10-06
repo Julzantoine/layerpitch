@@ -1,0 +1,5 @@
+# Cloudflare Pages : anciennes adresses du site actuel (servi par GitHub Pages) vers les nouvelles pages.
+# Les adresses en .html des pages (/studios.html, /faq.html...) sont déjà redirigées vers l'adresse propre par Cloudflare Pages.
+/en.html          /en/              301
+/landing.html     /compositeurs     301
+/landing-en.html  /en/composers     301

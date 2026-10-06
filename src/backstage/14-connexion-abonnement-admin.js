@@ -224,7 +224,7 @@ async function renderAccessRequestsList() {
   if (!requests.length) { listEl.textContent = 'Aucune demande en attente pour l\'instant.'; return; }
   const sourceLabel = (r) => r.source === 'blocked_signin'
     ? 'connexion refusée (pas encore invité)'
-    : (r.intent === 'waitlist' ? 'landing — "Tenez-moi au courant"' : 'landing — "Rejoindre la bêta"');
+    : (r.intent === 'waitlist' ? 'landing — "Tenez-moi au courant"' : (r.intent === 'studio' ? 'landing — page Studios (studio)' : 'landing — "Rejoindre la bêta"'));
   listEl.innerHTML = requests.map((r) => `
     <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #e2e2e6;">
       <div style="flex:1;">
@@ -232,7 +232,7 @@ async function renderAccessRequestsList() {
         <div style="font-size:11px;color:var(--text-dimmer);">${sourceLabel(r)} — ${new Date(r.created_at).toLocaleString('fr-FR')}</div>
         ${r.message ? `<div style="font-size:12px;margin-top:4px;padding:6px 8px;background:#f4f4f6;border-radius:6px;white-space:pre-wrap;">${escapeHtml(r.message)}</div>` : ''}
       </div>
-      <button class="btn btn-small" type="button" data-request-id="${r.id}" data-request-email="${escapeAttr(r.email)}">Inviter</button>
+      <button class="btn btn-small" type="button" data-request-id="${r.id}" data-request-email="${escapeAttr(r.email)}" data-request-intent="${escapeAttr(r.intent || '')}">Inviter</button>
       <button class="btn btn-small" type="button" data-delete-request-id="${r.id}" title="Écarter sans inviter">Supprimer</button>
     </div>`).join('');
   listEl.querySelectorAll('button[data-request-id]').forEach((btn) => {
@@ -240,6 +240,9 @@ async function renderAccessRequestsList() {
       const emailField = document.getElementById('inviteTesterEmail');
       emailField.value = btn.dataset.requestEmail;
       emailField.dataset.pendingRequestId = btn.dataset.requestId;
+      // Une demande venue de la page Studios s'invite en compte studio (profil studio créé à l'arrivée, puis espace studio).
+      const personaField = document.getElementById('inviteTesterPersona');
+      if (personaField) personaField.value = btn.dataset.requestIntent === 'studio' ? 'studio' : 'composer';
       emailField.scrollIntoView({ behavior: 'smooth', block: 'center' });
       emailField.focus();
     });
@@ -536,6 +539,7 @@ async function initPgAuthUi() {
     inviteBtn.addEventListener('click', async () => {
       const email = document.getElementById('inviteTesterEmail').value.trim();
       const lang = document.getElementById('inviteTesterLang').value === 'en' ? 'en' : 'fr';
+      const persona = document.getElementById('inviteTesterPersona') && document.getElementById('inviteTesterPersona').value === 'studio' ? 'studio' : 'composer';
       const personalMessage = document.getElementById('inviteTesterMessage').value.trim();
       if (!email) { window.LayerPitchNotify.info('Renseigne l\'email du testeur.'); return; }
       inviteBtn.disabled = true;
@@ -550,9 +554,10 @@ async function initPgAuthUi() {
         const emailFieldForRequestId = document.getElementById('inviteTesterEmail');
         const pendingRequestId = emailFieldForRequestId.dataset.pendingRequestId
           ? Number(emailFieldForRequestId.dataset.pendingRequestId) : null;
-        const { ok, error, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html?lang=' + lang, personalMessage, pendingRequestId, lang);
+        const { ok, error, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html?lang=' + lang + (persona === 'studio' ? '&persona=studio' : ''), personalMessage, pendingRequestId, lang);
         if (ok) {
-          window.LayerPitchNotify.success('Invitation envoyée à ' + email + '.');
+          window.LayerPitchNotify.success('Invitation envoyée à ' + email + (persona === 'studio' ? ' (compte studio).' : '.'));
+          const personaReset = document.getElementById('inviteTesterPersona'); if (personaReset) personaReset.value = 'composer';
           // Si cette invitation part d'une demande d'accès en attente (bouton "Inviter" de la
           // liste ci-dessus), la marquer traitée maintenant que l'envoi a réellement réussi --
           // jamais avant, pour ne pas perdre une demande si l'envoi avait échoué.
