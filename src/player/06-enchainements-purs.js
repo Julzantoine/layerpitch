@@ -153,7 +153,9 @@ const FX_CHIP_KEYS = { volume: 'fxChipVolume', lowcut: 'fxChipLowcut', highcut: 
 function fxEffectChipsHtml(track, shownTriggers) {
   const all = expandTriggerSteps(track.fxTriggers);
   const rows = shownTriggers.filter(d => d.showEffects !== false).map(d => {
-    const group = all.filter(x => x && (x.id === d.id || x.rootId === d.id));
+    // Une étape qui vise plusieurs voix existe en plusieurs copies : une seule pastille par étape et par effet.
+    const seen = new Set();
+    const group = all.filter(x => { if (!x || !(x.id === d.id || x.rootId === d.id)) return false; const k = x.stepKey || x.id; if (seen.has(k)) return false; seen.add(k); return true; });
     const chips = group.map(x => Object.keys(x.fx || {}).map(k => {
       const name = k === 'pitch' && x.fx.pitch && x.fx.pitch.mode === 'rate' ? t('fxChipSpeed') : t(FX_CHIP_KEYS[k] || k);
       const when = x.startSec > 0 ? ` <small>+${Math.round(x.startSec * 10) / 10} s</small>` : '';

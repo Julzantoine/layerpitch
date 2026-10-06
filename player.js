@@ -1120,7 +1120,9 @@ const FX_CHIP_KEYS = { volume: 'fxChipVolume', lowcut: 'fxChipLowcut', highcut: 
 function fxEffectChipsHtml(track, shownTriggers) {
   const all = expandTriggerSteps(track.fxTriggers);
   const rows = shownTriggers.filter(d => d.showEffects !== false).map(d => {
-    const group = all.filter(x => x && (x.id === d.id || x.rootId === d.id));
+    // Une étape qui vise plusieurs voix existe en plusieurs copies : une seule pastille par étape et par effet.
+    const seen = new Set();
+    const group = all.filter(x => { if (!x || !(x.id === d.id || x.rootId === d.id)) return false; const k = x.stepKey || x.id; if (seen.has(k)) return false; seen.add(k); return true; });
     const chips = group.map(x => Object.keys(x.fx || {}).map(k => {
       const name = k === 'pitch' && x.fx.pitch && x.fx.pitch.mode === 'rate' ? t('fxChipSpeed') : t(FX_CHIP_KEYS[k] || k);
       const when = x.startSec > 0 ? ` <small>+${Math.round(x.startSec * 10) / 10} s</small>` : '';
@@ -2506,37 +2508,55 @@ function mergeTriggerFx(baseFx, activeTriggerDefs) {
 // propres, déplacés dans une étape « self » (départ 0) ; le trigger se termine alors tout seul quand tout est fini, si toutes les
 // durées sont connues, sinon au second appui. Les copies portent rootId et startSec. Fonction PURE.
 const TRIGGER_STEPS_MAX_DEPTH = 5;
+// Cibles d'un événement (7/10, « un événement agit sur plusieurs voix ») : trigger.targets = [cible, ...] (une cible = { type: 'track' |
+// 'layer' | 'loop' | 'slot' | 'pool' | 'intro' | 'outro' | 'transition', ... }) ; à défaut, l'ancienne cible unique trigger.target.
+// Une étape peut avoir ses propres cibles (step.targets) ; sans cible, elle reprend celles de l'événement.
+function triggerTargets(d) {
+  const t = Array.isArray(d && d.targets) && d.targets.length ? d.targets : (d && d.target ? [d.target] : [{ type: 'track' }]);
+  return t.filter(Boolean);
+}
 function expandTriggerSteps(triggers) {
   const out = [];
   (triggers || []).forEach(d => {
-    if (!d || !d.id || !Array.isArray(d.steps) || !d.steps.length) { out.push(d); return; }
+    if (!d || !d.id) { out.push(d); return; }
+    const rootTargets = triggerTargets(d);
+    const hasSteps = Array.isArray(d.steps) && d.steps.length;
+    if (!hasSteps && rootTargets.length < 2) { out.push(d); return; }
     const kids = [];
+    // Une copie par cible (même départ, même durée) ; id logique = baseId, avec « @i » quand il y a plusieurs cibles.
+    function make(baseId, node, targets, start, dur, parentId, extra) {
+      targets.forEach((tg, i) => {
+        kids.push(Object.assign({ id: targets.length > 1 ? baseId + '@' + i : baseId, stepKey: baseId, label: node.label || '', target: tg, fx: node.fx || {}, visible: false,
+          // Fondus : ceux de l'étape s'ils sont renseignés, sinon ceux de l'événement.
+          fadeSec: node.fadeSec != null ? node.fadeSec : (d.fadeSec != null ? d.fadeSec : null), fadeOutSec: node.fadeOutSec != null ? node.fadeOutSec : (d.fadeOutSec != null ? d.fadeOutSec : null),
+          relations: dur ? { autoOffSec: dur } : null, stepOf: parentId, rootId: d.id, startSec: start, durationSec: dur }, extra || {}));
+      });
+    }
     function walk(parentId, steps, startSec, depth) {
       (steps || []).forEach((s, i) => {
         if (!s || depth > TRIGGER_STEPS_MAX_DEPTH) return;
         const id = parentId + '~' + (s.id || i);
         const start = startSec + (+s.delaySec > 0 ? +s.delaySec : 0);
         const dur = +s.durationSec > 0 ? +s.durationSec : 0;
-        // Fondus : ceux de l'étape s'ils sont renseignés, sinon ceux du trigger.
-        kids.push({ id, label: s.label || '', target: d.target, fx: s.fx || {}, visible: false, fadeSec: s.fadeSec != null ? s.fadeSec : (d.fadeSec != null ? d.fadeSec : null), fadeOutSec: s.fadeOutSec != null ? s.fadeOutSec : (d.fadeOutSec != null ? d.fadeOutSec : null),
-          relations: dur ? { autoOffSec: dur } : null, stepOf: parentId, rootId: d.id, startSec: start, durationSec: dur });
+        make(id, s, Array.isArray(s.targets) && s.targets.length ? s.targets.filter(Boolean) : rootTargets, start, dur, parentId);
         walk(id, s.children, start, depth + 1);
       });
     }
     const ownRel = Object.assign({}, d.relations);
     const ownDur = +ownRel.autoOffSec > 0 ? +ownRel.autoOffSec : 0;
-    let root = Object.assign({}, d);
-    if (ownDur) {
-      // Effets propres du trigger : une étape « self » de durée ownDur ; le trigger lui-même devient un simple porteur.
-      kids.push({ id: d.id + '~self', label: d.label || '', target: d.target, fx: d.fx || {}, visible: false, fadeSec: d.fadeSec != null ? d.fadeSec : null, fadeOutSec: d.fadeOutSec != null ? d.fadeOutSec : null,
-        relations: { autoOffSec: ownDur }, stepOf: d.id, rootId: d.id, startSec: 0, durationSec: ownDur, isSelf: true });
+    const root = Object.assign({}, d);
+    // Effets propres de l'événement : dans une étape « self » (départ 0) dès qu'il a une durée propre ou plusieurs cibles ; l'événement
+    // lui-même devient un simple porteur (le bouton).
+    if (ownDur || rootTargets.length > 1) {
+      make(d.id + '~self', d, rootTargets, 0, ownDur, d.id, { isSelf: true });
       root.fx = {};
+      root.target = rootTargets[0];
     }
     walk(d.id, d.steps, 0, 1);
     const rel = Object.assign({}, ownRel);
     rel.activates = (rel.activates || []).concat(kids.map(k => ({ triggerId: k.id, delaySec: k.startSec })));
     if (ownDur) {
-      // Fin du trigger = fin de la dernière étape, seulement si toutes ont une durée (sinon il dure jusqu'au second appui).
+      // Fin de l'événement = fin de la dernière étape, seulement si toutes ont une durée (sinon il dure jusqu'au second appui).
       const allFinite = kids.every(k => k.durationSec > 0);
       rel.autoOffSec = allFinite ? Math.max.apply(null, kids.map(k => k.startSec + k.durationSec)) : null;
     }
@@ -7441,6 +7461,7 @@ window.LayerPlayerCore = {
   CAPTURE_RAMPS: { intensity: INTENSITY_RAMP_SEC, voice: VOICE_RAMP_SEC, duckLevel: DUCK_LEVEL, duckAttack: DUCK_ATTACK_SEC, duckRelease: DUCK_RELEASE_SEC },
   createTriggerRuleEngine,
   expandTriggerSteps,
+  triggerTargets,
   fxEffectChipsHtml,
   simulateTriggerRules,
   FX_SLIDER_PARAMS,
