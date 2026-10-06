@@ -252,7 +252,8 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
     draggedOrgItemId = row.dataset.dragId;
     row.classList.add('dragging');
     containerEl.classList.add('is-reordering');
-    e.dataTransfer.effectAllowed = 'move';
+    // Option / Alt enfoncé = le navigateur demande une COPIE : si la prise n'autorise que « move », il refuse le dépôt (6/10).
+    e.dataTransfer.effectAllowed = duplicateItem ? 'copyMove' : 'move';
     try { e.dataTransfer.setData('text/plain', draggedOrgItemId); } catch (err) { /* non bloquant */ }
   });
   // Cible de dépôt (6/10) : CE QUE MONTRE LA BARRE est ce qui se passe au lâcher. La cible est calculée pendant le survol (jamais
