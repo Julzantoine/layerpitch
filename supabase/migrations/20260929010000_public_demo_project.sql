@@ -41,6 +41,26 @@ begin
 end;
 $$;
 
+-- État de la démo pour l'interrupteur de la page Projet (7/10, « construire la démo depuis mon profil admin ») : { eligible, projectId }.
+-- eligible = administrateur ou compte de démo ; projectId = le Projet actuellement marqué (null s'il n'y en a pas). Lecture seule ;
+-- un compte ordinaire reçoit { eligible: false } et jamais le numéro du Projet.
+create or replace function public.get_public_demo_status()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare v_email text;
+begin
+  select u.email into v_email from auth.users u where u.id = auth.uid();
+  if not (public.is_admin() or lower(coalesce(v_email, '')) = 'contact@layerpitch.com') then
+    return jsonb_build_object('eligible', false);
+  end if;
+  return jsonb_build_object('eligible', true, 'projectId', (select p.id from public.projects p where p.public_demo limit 1));
+end;
+$$;
+
 -- Lecture publique du Projet de démonstration. Rend null s'il n'y en a pas.
 create or replace function public.get_public_demo()
 returns jsonb
@@ -128,6 +148,6 @@ as $$
   limit 1;
 $$;
 
-revoke execute on function public.set_public_demo(uuid, boolean), public.get_public_demo() from public, anon;
-grant execute on function public.set_public_demo(uuid, boolean) to authenticated;
+revoke execute on function public.set_public_demo(uuid, boolean), public.get_public_demo(), public.get_public_demo_status() from public, anon;
+grant execute on function public.set_public_demo(uuid, boolean), public.get_public_demo_status() to authenticated;
 grant execute on function public.get_public_demo() to anon, authenticated;

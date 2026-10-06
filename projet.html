@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791296070654">
+<link rel="stylesheet" href="player.css?v=1791296641021">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -151,19 +151,19 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791296070654"></script>
-<script src="layerpitch-notify.js?v=1791296070654"></script>
-<script src="player.js?v=1791296070654"></script>
-<script src="api/supabase-client.js?v=1791296070654"></script>
-<script src="api/auth.js?v=1791296070654"></script>
-<script src="layerpitch-appearance.js?v=1791296070654"></script>
-<script src="layerpitch-shell.js?v=1791296070654"></script>
-<script src="api/tracks.js?v=1791296070654"></script>
-<script src="api/packs.js?v=1791296070654"></script>
-<script src="api/albums.js?v=1791296070654"></script>
-<script src="api/studio.js?v=1791296070654"></script>
-<script src="api/adreels.js?v=1791296070654"></script>
-<script src="api/projects.js?v=1791296070654"></script>
+<script src="layerpitch-i18n.js?v=1791296641021"></script>
+<script src="layerpitch-notify.js?v=1791296641021"></script>
+<script src="player.js?v=1791296641021"></script>
+<script src="api/supabase-client.js?v=1791296641021"></script>
+<script src="api/auth.js?v=1791296641021"></script>
+<script src="layerpitch-appearance.js?v=1791296641021"></script>
+<script src="layerpitch-shell.js?v=1791296641021"></script>
+<script src="api/tracks.js?v=1791296641021"></script>
+<script src="api/packs.js?v=1791296641021"></script>
+<script src="api/albums.js?v=1791296641021"></script>
+<script src="api/studio.js?v=1791296641021"></script>
+<script src="api/adreels.js?v=1791296641021"></script>
+<script src="api/projects.js?v=1791296641021"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -254,6 +254,7 @@ async function load() {
   const [c, composer] = await Promise.all([PJ.content(projectId), LayerPitchAuth.getMyComposerId()]);
   S.content = c.data || { assets: [], moodboard: [], packs: [], albums: [] };
   S.myComposerId = composer.composerId || null;
+  S.demoStatus = (await PJ.demoStatus()).data || { eligible: false }; // interrupteur « Démo publique » (admins et compte de démo)
   PJ.markRead(projectId);
   markProjectSeen();
   await loadMessages();
@@ -307,6 +308,7 @@ function render() {
     ${DEMO ? `<div class="demo-banner"><span>${esc(tr('demoBanner'))}</span><a class="btn primary" href="https://layerpitch.com/">${esc(tr('demoCta'))}</a></div>` : ''}
     <div class="top"><h1 id="pTitle">${esc(p.title)}</h1>
       <div class="bar">${S.content.openAnnotations ? `<button class="btn" id="openNotesBtn" type="button" title="${esc(tr('openNotesHint'))}">💬 ${esc(tr('openNotes', { n: S.content.openAnnotations }))}</button>` : ''}${p.archived ? `<span class="pill">${esc(tr('archived'))}</span>` : ''}
+        ${DEMO || !(S.demoStatus && S.demoStatus.eligible) ? '' : `<label class="demo-switch" title="${esc(tr('demoSwitchHint'))}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:6px"><input type="checkbox" id="demoSwitch" ${S.demoStatus.projectId === p.id ? 'checked' : ''} style="width:auto;margin:0"> ${esc(tr('demoSwitchLabel'))}</label>${S.demoStatus.projectId ? `<a class="btn" href="./projet.html?demo&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('demoViewLink'))}</a>` : ''}`}
         ${DEMO ? '' : `<button class="btn" id="editBtn" type="button">${esc(tr('editProject'))}</button>`}
         ${p.role === 'admin' ? `<button class="btn" id="archiveBtn" type="button">${esc(tr(p.archived ? 'restoreProject' : 'archiveProject'))}</button>
         <button class="btn danger" id="deleteBtn" type="button">${esc(tr('deleteProject'))}</button>` : ''}</div></div>
@@ -316,6 +318,16 @@ function render() {
     <div class="workspace" id="ws"><div id="panel" style="min-width:0"></div><aside class="chat" id="chat" aria-label="${esc(tr('tab_thread'))}"></aside></div>`;
   content.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; stopMedia(); render(); });
   if ($('editBtn')) $('editBtn').onclick = editProject;
+  if ($('demoSwitch')) $('demoSwitch').onchange = async e => {
+    const on = e.target.checked;
+    // Un seul Projet est la démo à la fois : en poser une nouvelle remplace l'ancienne, on demande confirmation.
+    if (on && S.demoStatus.projectId && S.demoStatus.projectId !== p.id && !(await window.LayerPitchNotify.confirm(tr('demoReplaceConfirm'), { okLabel: tr('demoSwitchLabel') }))) { e.target.checked = false; return; }
+    const r = await PJ.setDemo(p.id, on);
+    if (r.error) { e.target.checked = !on; return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error })); }
+    S.demoStatus = (await PJ.demoStatus()).data || { eligible: false };
+    window.LayerPitchNotify.info(tr(on ? 'demoSwitchedOn' : 'demoSwitchedOff'));
+    render();
+  };
   if ($('openNotesBtn')) $('openNotesBtn').onclick = () => { S.showOpenNotes = !S.showOpenNotes; renderOpenNotes(); };
   renderOpenNotes();
   if ($('archiveBtn')) $('archiveBtn').onclick = async () => { await PJ.archive(projectId, !p.archived); await load(); };

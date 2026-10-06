@@ -71,6 +71,21 @@ const path = require('path');
   await db.query(`reset role`);
   check('démarqué : ses fichiers redeviennent privés', (await val(`select public.project_file_is_public($1)`, [f.fileId])) === null);
 
+
+  // Interrupteur de la page Projet : état de la démo, réservé aux administrateurs et au compte de démo
+  await as(1);
+  await q(`select public.set_public_demo($1, true)`, [demo]);
+  const st1 = await val(`select public.get_public_demo_status()`);
+  check('administrateur : eligible, avec le numéro du Projet-démo', st1.eligible === true && st1.projectId === demo);
+  await as(2);
+  check('compte de démo : eligible', (await val(`select public.get_public_demo_status()`)).eligible === true);
+  await as(3);
+  const st3 = await val(`select public.get_public_demo_status()`);
+  check('compte ordinaire : non eligible, aucun numéro de Projet rendu', st3.eligible === false && st3.projectId === undefined);
+  await as(1); await q(`select public.set_public_demo($1, false)`, [demo]);
+  const st4 = await val(`select public.get_public_demo_status()`);
+  check('aucune démo : eligible mais projectId null', st4.eligible === true && st4.projectId === null);
+
   console.log(failures ? `\n${failures} ÉCHEC(S)` : '\nALL CHECKS PASSED');
   process.exit(failures ? 1 : 0);
 })();
