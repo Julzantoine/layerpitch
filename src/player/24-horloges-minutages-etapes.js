@@ -140,6 +140,9 @@
   // uniquement) affiche la carte en entier dès le chargement -- outil de vérification de sa propre
   // structure pendant qu'on la construit ; côté public, révélation progressive comme demandé.
   let seqVisitedSlotIds = new Set();
+  // Dernier emplacement entendu : à l'arrêt (aucun emplacement « courant »), la carte des chemins garde ses options visibles depuis celui-ci
+  // au lieu de se replier sur les seuls emplacements déjà joués (6/10, retour de Jules-Antoine : « quand j'appuie sur stop, la carte se replie »).
+  let seqMapFrontierIdx = -1;
   // Ordre aléatoire : slots entendus pendant le tour en cours (coches de la carte), tenu à partir de ce qui
   // est réellement joué -- chainState.order a souvent un tour d'avance (le slot suivant est préparé à l'avance).
   let seqRoundPlayedIds = new Set(), seqRoundLastIdx = -1;

@@ -148,9 +148,11 @@
     const slots = track.segmentSlots || [];
     if (seqMapFullReveal) return slots.map((s, i) => i);
     const visible = new Set(seqVisitedSlotIds);
-    if (currentIdx >= 0) {
-      visible.add(currentIdx);
-      const cur = slots[currentIdx];
+    if (currentIdx >= 0) seqMapFrontierIdx = currentIdx;
+    const frontierIdx = currentIdx >= 0 ? currentIdx : seqMapFrontierIdx; // arrêté : on garde ce qui était proposé depuis le dernier emplacement
+    if (frontierIdx >= 0) {
+      visible.add(frontierIdx);
+      const cur = slots[frontierIdx];
       ((cur && cur.nextOptions) || []).forEach(opt => {
         const ti = slots.findIndex(sl => sl.id === opt.targetId);
         if (ti >= 0) visible.add(ti);

@@ -3729,6 +3729,9 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // uniquement) affiche la carte en entier dès le chargement -- outil de vérification de sa propre
   // structure pendant qu'on la construit ; côté public, révélation progressive comme demandé.
   let seqVisitedSlotIds = new Set();
+  // Dernier emplacement entendu : à l'arrêt (aucun emplacement « courant »), la carte des chemins garde ses options visibles depuis celui-ci
+  // au lieu de se replier sur les seuls emplacements déjà joués (6/10, retour de Jules-Antoine : « quand j'appuie sur stop, la carte se replie »).
+  let seqMapFrontierIdx = -1;
   // Ordre aléatoire : slots entendus pendant le tour en cours (coches de la carte), tenu à partir de ce qui
   // est réellement joué -- chainState.order a souvent un tour d'avance (le slot suivant est préparé à l'avance).
   let seqRoundPlayedIds = new Set(), seqRoundLastIdx = -1;
@@ -4144,9 +4147,11 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     const slots = track.segmentSlots || [];
     if (seqMapFullReveal) return slots.map((s, i) => i);
     const visible = new Set(seqVisitedSlotIds);
-    if (currentIdx >= 0) {
-      visible.add(currentIdx);
-      const cur = slots[currentIdx];
+    if (currentIdx >= 0) seqMapFrontierIdx = currentIdx;
+    const frontierIdx = currentIdx >= 0 ? currentIdx : seqMapFrontierIdx; // arrêté : on garde ce qui était proposé depuis le dernier emplacement
+    if (frontierIdx >= 0) {
+      visible.add(frontierIdx);
+      const cur = slots[frontierIdx];
       ((cur && cur.nextOptions) || []).forEach(opt => {
         const ti = slots.findIndex(sl => sl.id === opt.targetId);
         if (ti >= 0) visible.add(ti);
@@ -4881,6 +4886,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       currentSlotIndex = (track.randomizeSections && (track.segmentSlots || []).length)
         ? advanceChainIndex(-1, track.segmentSlots.length, chainState, track.maxChainLoops, true) : 0;
       seqVisitedSlotIds = new Set();
+      seqMapFrontierIdx = -1;
       seqRoundPlayedIds = new Set(); seqRoundLastIdx = -1;
     }
     const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
