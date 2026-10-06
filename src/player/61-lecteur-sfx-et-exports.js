@@ -310,6 +310,7 @@ window.LayerPlayerCore = {
   CAPTURE_RAMPS: { intensity: INTENSITY_RAMP_SEC, voice: VOICE_RAMP_SEC, duckLevel: DUCK_LEVEL, duckAttack: DUCK_ATTACK_SEC, duckRelease: DUCK_RELEASE_SEC },
   createTriggerRuleEngine,
   expandTriggerSteps,
+  fxEffectChipsHtml,
   simulateTriggerRules,
   FX_SLIDER_PARAMS,
   fxSlidersValid,

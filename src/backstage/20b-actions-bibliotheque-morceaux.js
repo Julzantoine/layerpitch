@@ -135,15 +135,23 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   else if (btn.dataset.action === 'fx-trigger-to-track') { library[ti].fxTriggers[tri].target = { type: 'track' }; }
   else if (btn.dataset.action === 'add-fx-step') {
     const trg = library[ti].fxTriggers[tri];
-    trg.steps = trg.steps || [];
-    const step = { id: genId(), label: '', delaySec: trg.steps.length ? (+trg.steps[trg.steps.length - 1].delaySec || 0) : 0, fx: {} };
-    trg.steps.push(step);
-    fxTriggersSectionOpen.add('s:' + trg.id + ':' + step.id); // une étape qu'on vient de créer s'affiche dépliée
+    // Avec un chemin (data-sti) : étape ENFANT de celle-là ; sans : étape de premier niveau du trigger.
+    let list;
+    if (btn.dataset.sti != null && btn.dataset.sti !== '') { const at = fxStepByPath(trg, btn.dataset.sti); if (!at) return; at.step.children = at.step.children || []; list = at.step.children; }
+    else { trg.steps = trg.steps || []; list = trg.steps; }
+    const step = { id: genId(), label: '', delaySec: list.length ? (+list[list.length - 1].delaySec || 0) : 0, fx: {} };
+    list.push(step);
+    fxTriggersSectionOpen.add('s:' + trg.id + ':' + (btn.dataset.sti ? btn.dataset.sti + '-' : '') + (list.length - 1) + ':' + step.id); // une étape qu'on vient de créer s'affiche dépliée
     fxTriggersPersistOpen();
   }
   else if (btn.dataset.action === 'remove-fx-step') {
     const trg = library[ti].fxTriggers[tri];
-    trg.steps.splice(parseInt(btn.dataset.sti, 10), 1);
+    const at = fxStepByPath(trg, btn.dataset.sti);
+    if (!at) return;
+    at.list.splice(at.index, 1);
+    // Nettoyage des « children » et « steps » devenus vides.
+    const prune = list => list.forEach(x => { if (x.children) { prune(x.children); if (!x.children.length) delete x.children; } });
+    prune(trg.steps || []);
     if (!trg.steps.length) delete trg.steps;
   }
   else if (btn.dataset.action === 'remove-fx-trigger') {
@@ -331,6 +339,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       if (trg) {
         if (prop === 'label') trg.label = e.target.value;
         else if (prop === 'visible') trg.visible = e.target.checked;
+        else if (prop === 'showEffects') trg.showEffects = e.target.checked;
         else if (prop === 'fadeSec') trg.fadeSec = e.target.value === '' ? null : parseFloat(e.target.value);
         else if (prop === 'fadeOutSec') trg.fadeOutSec = e.target.value === '' ? null : parseFloat(e.target.value);
         else if (prop === 'target') trg.target = parseFxTriggerTarget(e.target.value);
@@ -339,7 +348,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     }
     else if (field === 'fxStep') {
       const trg = (library[ti].fxTriggers || [])[parseInt(e.target.dataset.tri, 10)];
-      const st = trg && (trg.steps || [])[parseInt(e.target.dataset.sti, 10)];
+      const at = trg && fxStepByPath(trg, e.target.dataset.sti), st = at && at.step;
       const prop = e.target.dataset.fxsProp;
       if (st) {
         if (prop === 'label') st.label = e.target.value;
@@ -449,7 +458,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       else if (fxTarget === 'pool') target = library[ti].sections[parseInt(e.target.dataset.si, 10)].pools[parseInt(e.target.dataset.pi, 10)];
       else if (fxTarget === 'track') target = library[ti];
       else if (fxTarget === 'trigger') target = library[ti].fxTriggers[parseInt(e.target.dataset.tri, 10)];
-      else if (fxTarget === 'trstep') target = library[ti].fxTriggers[parseInt(e.target.dataset.tri, 10)].steps[parseInt(e.target.dataset.sti, 10)];
+      else if (fxTarget === 'trstep') target = fxStepByPath(library[ti].fxTriggers[parseInt(e.target.dataset.tri, 10)], e.target.dataset.sti).step;
       else if (fxTarget === 'intro') target = library[ti].intro;
       else if (fxTarget === 'outro') target = library[ti].outro;
       else if (fxTarget === 'seqTransition') target = library[ti].segmentSlots[parseInt(e.target.dataset.si, 10)].nextOptions[parseInt(e.target.dataset.bi, 10)].transition;

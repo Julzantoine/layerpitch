@@ -249,6 +249,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
         <div class="fx-trigger-row">
           ${publicFxTriggers.map((d, i) => `<button type="button" class="fx-trigger-btn" data-fx-trigger="${escapeHtml(d.id)}" aria-pressed="false" disabled>${escapeHtml(d.label || t('fxTriggerFallbackLabel', { n: i + 1 }))}</button>`).join('')}
         </div>
+        ${fxEffectChipsHtml(track, publicFxTriggers)}
       </div>
     `;
   }

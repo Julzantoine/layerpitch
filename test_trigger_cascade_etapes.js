@@ -44,10 +44,10 @@ const path = require('path');
   const click = el => el.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
   const input = (el, v) => { el.value = v; el.dispatchEvent(new w.Event('input', { bubbles: true })); };
   await show();
-  check('éditeur : section Cascade avec le bouton « Ajouter une étape »', count('[data-action="add-fx-step"]') === 1);
-  click(doc.querySelector('[data-action="add-fx-step"]')); await settle();
+  check('éditeur : section Cascade avec le bouton « Ajouter une étape »', count('[data-action="add-fx-step"]:not([data-sti])') === 1);
+  click(doc.querySelector('[data-action="add-fx-step"]:not([data-sti])')); await settle();
   check('ajout : une étape est créée, dépliée', ev('library[0].fxTriggers[0].steps.length') === 1 && /^<details|<details[^>]*\sopen/.test((doc.querySelector('details[data-fxt-section-key^="s:"]') || { outerHTML: '' }).outerHTML.slice(0, 200)));
-  click(doc.querySelector('[data-action="add-fx-step"]')); await settle();
+  click(doc.querySelector('[data-action="add-fx-step"]:not([data-sti])')); await settle();
   check('ajout : la 2e étape reprend le délai de la précédente', ev('library[0].fxTriggers[0].steps.length') === 2 && ev('library[0].fxTriggers[0].steps[1].delaySec') === 0);
   const delay = doc.querySelectorAll('[data-fxs-prop="delaySec"]')[0];
   input(delay, '2');
@@ -61,11 +61,45 @@ const path = require('path');
   const snap = ev('buildDataSnapshot("pro", 1)');
   const pt = snap.library[0].fxTriggers[0];
   check('publication : les étapes partent avec le trigger (délai, nom, effets)', pt.steps.length === 2 && pt.steps[0].delaySec === 2 && pt.steps[0].label === 'Écrasé' && !!pt.steps[0].fx.bitcrush);
-  click(doc.querySelectorAll('[data-action="remove-fx-step"]')[1]); await settle();
+  click(doc.querySelector('[data-action="remove-fx-step"][data-sti="1"]')); await settle();
   check('retrait : une étape en moins', ev('library[0].fxTriggers[0].steps.length') === 1);
-  click(doc.querySelector('[data-action="remove-fx-step"]')); await settle();
+  click(doc.querySelector('[data-action="remove-fx-step"][data-sti="0"]')); await settle();
   check('retrait de la dernière : plus de champ « steps »', ev('library[0].fxTriggers[0].steps') === undefined && ev('buildDataSnapshot("pro", 1)').library[0].fxTriggers[0].steps === undefined);
 
+
+  // --- étapes enfants (délai compté depuis l'étape mère) ---
+  ev("library[0].fxTriggers[0].steps = [{ id: 'a', delaySec: 2, fx: { bitcrush: { bits: 6, reduction: 6 } } }]; renderLibrary();"); await settle();
+  click(doc.querySelector('[data-action="add-fx-step"][data-sti="0"]')); await settle();
+  check('enfant : ajouté sous l\'étape 1', ev('library[0].fxTriggers[0].steps[0].children.length') === 1);
+  input(doc.querySelector('[data-fxs-prop="delaySec"][data-sti="0.0"]'), '3');
+  check('enfant : délai 3 s compté depuis l\'étape mère', ev('library[0].fxTriggers[0].steps[0].children[0].delaySec') === 3);
+  const kidCrush = doc.querySelector('[data-fx-target="trstep"][data-sti="0.0"][data-fx-effect="reverb"][data-fx-param="enabled"]');
+  kidCrush.checked = true; kidCrush.dispatchEvent(new w.Event('input', { bubbles: true })); await settle();
+  check('enfant : son propre bloc d\'effets', !!ev('library[0].fxTriggers[0].steps[0].children[0].fx.reverb'));
+  const pk = ev('buildDataSnapshot("pro", 1)').library[0].fxTriggers[0];
+  check('publication : l\'enfant part avec son étape', pk.steps[0].children.length === 1 && pk.steps[0].children[0].delaySec === 3 && !!pk.steps[0].children[0].fx.reverb);
+  const flat2 = core.expandTriggerSteps([{ id: 'T', target: { type: 'track' }, fx: {}, steps: pk.steps }]);
+  const ch2 = core.simulateTriggerRules(flat2, [{ t: 0, id: 'T', active: true, source: 'visitor' }, { t: 20, id: 'T', active: false, source: 'visitor' }]);
+  const on2 = id => ch2.filter(c => c.id === id && c.active).map(c => c.t)[0];
+  const kidId = flat2.find(k => k.stepOf && k.stepOf !== 'T').id;
+  check('moteur : étape à 2 s, enfant à 2 + 3 = 5 s (départ cumulé 5)', on2(flat2[1].id) === 2 && on2(kidId) === 5 && flat2.find(k => k.id === kidId).startSec === 5);
+  check('moteur : tout s\'éteint avec le trigger', ch2.filter(c => !c.active).length === 3);
+  const cutKid = core.simulateTriggerRules(flat2, [{ t: 0, id: 'T', active: true, source: 'visitor' }, { t: 3, id: 'T', active: false, source: 'visitor' }]);
+  check('moteur : coupé à 3 s, l\'enfant prévu à 5 s n\'a jamais lieu', !cutKid.some(c => c.id === kidId && c.active));
+  click(doc.querySelector('[data-action="remove-fx-step"][data-sti="0.0"]')); await settle();
+  check('retrait de l\'enfant : plus de champ « children »', ev('library[0].fxTriggers[0].steps[0].children') === undefined);
+
+  // --- case « afficher au public » (cochée par défaut) et pastilles ---
+  const showBox = () => doc.querySelector('[data-fxt-prop="showEffects"]');
+  check('case « afficher les effets au public » : cochée par défaut', !!showBox() && showBox().checked === true);
+  showBox().checked = false; showBox().dispatchEvent(new w.Event('input', { bubbles: true })); await settle();
+  check('décochée : le modèle et la publication en tiennent compte', ev('library[0].fxTriggers[0].showEffects') === false && ev('buildDataSnapshot("pro", 1)').library[0].fxTriggers[0].showEffects === false);
+  const trk = (sh) => ({ fxTriggers: [{ id: 'T', label: 'Low life', target: { type: 'track' }, visible: true, showEffects: sh, fx: { lowcut: { frequency: 150 } }, steps: [{ id: 'a', delaySec: 2, fx: { bitcrush: { bits: 6 } }, children: [{ id: 'b', delaySec: 3, fx: { reverb: {}, delay: {} } }] }] }] });
+  const chipsHtml = sh => core.fxEffectChipsHtml(trk(sh), trk(sh).fxTriggers);
+  const h = chipsHtml(undefined);
+  check('public : une pastille par effet (parent, étape, enfant)', (h.match(/class="fx-chip"/g) || []).length === 4 && /Low cut/.test(h) && /Bitcrusher/.test(h) && /Reverb/.test(h) && /Écho/.test(h));
+  check('public : les pastilles d\'étapes annoncent leur départ (+2 s, +5 s)', /\+2 s/.test(h) && /\+5 s/.test(h));
+  check('public : showEffects=false -> aucune pastille', chipsHtml(false) === '');
   // Hiérarchie visuelle : plus l'étape est éloignée, plus elle est décalée ; même délai = même niveau ; ordre d'affichage = ordre de départ
   const lv = ev("fxStepLevels([{ id: 'a', delaySec: 5 }, { id: 'b', delaySec: 0 }, { id: 'c', delaySec: 2 }, { id: 'd', delaySec: 2 }]).map(x => x.st.id + x.level).join(',')");
   check('niveaux : 0 s -> 1, 2 s -> 2 (partagé), 5 s -> 3, affichés dans l\'ordre du temps', lv === 'b1,c2,d2,a3');

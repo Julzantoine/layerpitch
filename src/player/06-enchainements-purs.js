@@ -146,6 +146,23 @@ function advanceChainIndex(index, n, chainState, maxChainLoops, randomize) {
 // Style des boutons de triggers d'effets, injecté une seule fois par le lecteur lui-même plutôt que copié
 // dans index.html/pack.html/collection.html (chacun a sa propre feuille de style, déjà dupliquée) -- ne
 // s'appuie que sur les variables CSS déjà définies par toutes les pages hôtes (--accent, --border...).
+// Pastilles « effets en cours » sous les boutons de triggers (6/10) : une pastille par effet du trigger et de chacune de ses étapes,
+// grisées au départ, allumées quand leur étape est active (voir updateFxTriggerButtons) -- la cascade se déroule sous les yeux du
+// visiteur. Le compositeur peut les masquer par trigger (showEffects === false). Pure : renvoie du HTML.
+const FX_CHIP_KEYS = { volume: 'fxChipVolume', lowcut: 'fxChipLowcut', highcut: 'fxChipHighcut', pitch: 'fxChipPitch', reverb: 'fxChipReverb', delay: 'fxChipDelay', bitcrush: 'fxChipBitcrush' };
+function fxEffectChipsHtml(track, shownTriggers) {
+  const all = expandTriggerSteps(track.fxTriggers);
+  const rows = shownTriggers.filter(d => d.showEffects !== false).map(d => {
+    const group = all.filter(x => x && (x.id === d.id || x.rootId === d.id));
+    const chips = group.map(x => Object.keys(x.fx || {}).map(k => {
+      const name = k === 'pitch' && x.fx.pitch && x.fx.pitch.mode === 'rate' ? t('fxChipSpeed') : t(FX_CHIP_KEYS[k] || k);
+      const when = x.startSec > 0 ? ` <small>+${Math.round(x.startSec * 10) / 10} s</small>` : '';
+      return `<span class="fx-chip" data-fx-chip-of="${escapeHtml(x.id)}">${escapeHtml(name)}${when}</span>`;
+    }).join('')).join('');
+    return chips ? `<div class="fx-chip-row"><span class="fx-chip-owner">${escapeHtml(d.label || '')}</span>${chips}</div>` : '';
+  }).join('');
+  return rows ? `<div class="fx-chips">${rows}</div>` : '';
+}
 function ensureFxTriggerStyle() {
   if (document.getElementById('lp-fx-trigger-style')) return;
   const st = document.createElement('style');
@@ -158,6 +175,13 @@ function ensureFxTriggerStyle() {
     .fx-trigger-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
     .fx-trigger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
     .fx-trigger-btn.fx-locked { opacity: 0.4; cursor: not-allowed; border-style: dashed; }
+    .fx-chips { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+    .fx-chip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+    .fx-chip-owner { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim, #555); margin-right: 4px; }
+    .fx-chip { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 8px; border-radius: 999px; border: 1px dashed var(--border, #ccc);
+      color: var(--text-dim, #555); opacity: 0.45; transition: opacity .25s, background .25s, color .25s; }
+    .fx-chip small { opacity: 0.8; }
+    .fx-chip.on { opacity: 1; border-style: solid; border-color: var(--accent); background: var(--accent); color: var(--bg, #fff); }
     .fx-slider-row { display: flex; flex-direction: column; gap: 8px; }
     .fx-slider { display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim, #555); }
     .fx-slider span { min-width: 110px; }

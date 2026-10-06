@@ -84,7 +84,9 @@
   // Boutons : état enfoncé + état « bloqué » (condition « Nécessite » non remplie) -- grisé mais visible, avec en
   // infobulle ce qui le débloque. Recalculé après CHAQUE changement d'état, la condition d'un bouton dépendant de
   // l'état des autres.
+  const fxChipEls = [...wrapper.querySelectorAll('[data-fx-chip-of]')];
   function updateFxTriggerButtons() {
+    fxChipEls.forEach(c => c.classList.toggle('on', fxRules.isActive(c.dataset.fxChipOf)));
     fxTriggerBtns.forEach(b => {
       const id = b.dataset.fxTrigger;
       const on = fxRules.isActive(id);

@@ -101,7 +101,7 @@ async function loadData(silent) {
         maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
         normalizeVolume: !!t.normalizeVolume,
         fx: t.fx || null,
-        fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations), steps: fxStepsClean(x.steps) })),
+        fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations), steps: fxStepsClean(x.steps), showEffects: x.showEffects !== false })),
         fxSliders: fxSlidersClean(t.fxSliders),
         layers: (t.layers || []).map(l => ({ label: l.label, remoteFile: l.file, pendingFile: null, gain: l.gain || 1, duration: l.duration || 0, fx: l.fx || null })),
         intro: t.intro ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, remoteFile: t.intro.file || null, pendingFile: null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '', bpm: t.intro.bpm || null, beatsPerBar: t.intro.beatsPerBar || null, fx: t.intro.fx || null } : null,

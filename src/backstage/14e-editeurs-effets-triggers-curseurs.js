@@ -294,10 +294,24 @@ function parseFxTriggerTarget(v) {
 // Relations entre triggers (24/09) : { activates:[{triggerId, delaySec}], cuts:[id], requires:[id], autoOffSec } --
 // nettoyées à la sérialisation (rien d'inutile n'est publié). Règles décrites dans createTriggerRuleEngine (player.js).
 // Étapes de cascade d'un trigger : [{ id, label, delaySec, fx }] ; absent (undefined) quand il n'y en a pas.
-function fxStepsClean(steps) {
-  const out = (Array.isArray(steps) ? steps : []).filter(s => s && s.id).map(s => ({ id: s.id, label: s.label || '', delaySec: +s.delaySec > 0 ? +s.delaySec : 0, fx: s.fx || {} }));
+function fxStepsClean(steps, depth) {
+  depth = depth || 1;
+  const out = (Array.isArray(steps) ? steps : []).filter(x => x && x.id).map(x => {
+    const c = { id: x.id, label: x.label || '', delaySec: +x.delaySec > 0 ? +x.delaySec : 0, fx: x.fx || {} };
+    const kids = depth < FX_STEP_MAX_DEPTH ? fxStepsClean(x.children, depth + 1) : undefined;
+    if (kids) c.children = kids;
+    return c;
+  });
   return out.length ? out : undefined;
 }
+// Accès à une étape par son chemin « 0.2.1 » (indices à travers les enfants) : renvoie { step, list, index }.
+function fxStepByPath(trg, path) {
+  const idx = String(path).split('.').map(n => parseInt(n, 10));
+  let list = trg.steps || [], step = null;
+  for (let d = 0; d < idx.length; d++) { step = list[idx[d]]; if (!step) return null; if (d < idx.length - 1) list = step.children || []; }
+  return { step, list, index: idx[idx.length - 1] };
+}
+const FX_STEP_MAX_DEPTH = 4;
 function fxRelationsClean(rel) {
   if (!rel) return null;
   const out = {};
@@ -315,32 +329,39 @@ function fxStepLevels(steps) {
   return (steps || []).map((st, si) => ({ si, st, level: 1 + delays.indexOf(+st.delaySec > 0 ? +st.delaySec : 0) }))
     .sort((a, b) => ((+a.st.delaySec || 0) - (+b.st.delaySec || 0)) || (a.si - b.si));
 }
-function fxCascadeHtml(trg, attrs) {
-  const steps = trg.steps || [];
-  const rows = fxStepLevels(steps).map(({ st, si, level }) => {
-    const sAttrs = `data-ti="${/data-ti="(\d+)"/.exec(attrs)[1]}" data-tri="${/data-tri="(\d+)"/.exec(attrs)[1]}" data-sti="${si}"`;
+function fxStepRowsHtml(trg, steps, parentPath, depth, attrs) {
+  const ti = /data-ti="(\d+)"/.exec(attrs)[1], tri = /data-tri="(\d+)"/.exec(attrs)[1];
+  return fxStepLevels(steps).map(({ st, si, level }) => {
+    const path = parentPath ? parentPath + '.' + si : String(si);
+    const num = path.split('.').map(n => +n + 1).join('.');
+    const sAttrs = `data-ti="${ti}" data-tri="${tri}" data-sti="${path}"`;
     const when = +st.delaySec > 0 ? tr('fxStepAfter', { n: st.delaySec }) : tr('fxStepSimul');
+    const key = 's:' + trg.id + ':' + path.replace(/\./g, '-') + ':' + st.id;
+    const kids = st.children || [];
     return `
-      <details class="list-block" data-fxt-section-key="${escapeAttr('s:' + trg.id + ':' + st.id)}" ${fxTriggersSectionOpen.has('s:' + trg.id + ':' + st.id) ? 'open' : ''} data-fx-step-level="${level}" style="margin:6px 0 0 ${level * 18}px;border-left:3px solid var(--accent,#2f80c0)">
-        <summary style="cursor:pointer;font-weight:600">&#8627; ${escapeAttr(st.label) || tr('fxStepTitle', { n: si + 1 })}<span class="hint-inline" style="margin:0 0 0 8px;font-weight:400">${when} ${tr('fxTriggerEffectsCount', { n: Object.keys(st.fx || {}).length })}</span></summary>
+      <details class="list-block" data-fxt-section-key="${escapeAttr(key)}" ${fxTriggersSectionOpen.has(key) ? 'open' : ''} data-fx-step-level="${level}" style="margin:6px 0 0 ${depth === 1 ? level * 18 : 18}px;border-left:3px solid var(--accent,#2f80c0)">
+        <summary style="cursor:pointer;font-weight:600">&#8627; ${escapeAttr(st.label) || tr('fxStepTitle', { n: num })}<span class="hint-inline" style="margin:0 0 0 8px;font-weight:400">${when} ${tr('fxTriggerEffectsCount', { n: Object.keys(st.fx || {}).length })}${kids.length ? ' · ' + kids.length + ' &#8627;' : ''}</span></summary>
         <div class="row" style="margin-top:8px">
           <div><label style="font-size:0.85em">${tr('fxStepLabelLabel')}</label>
-            <input type="text" placeholder="${escapeAttr(tr('fxStepTitle', { n: si + 1 }))}" data-field="fxStep" data-fxs-prop="label" ${sAttrs} value="${escapeAttr(st.label)}"></div>
-          <div><label style="font-size:0.85em">${tr('fxStepDelayLabel')}</label>
+            <input type="text" placeholder="${escapeAttr(tr('fxStepTitle', { n: num }))}" data-field="fxStep" data-fxs-prop="label" ${sAttrs} value="${escapeAttr(st.label)}"></div>
+          <div><label style="font-size:0.85em">${tr(depth === 1 ? 'fxStepDelayLabel' : 'fxStepChildDelayLabel')}</label>
             <input type="number" step="0.1" min="0" data-field="fxStep" data-fxs-prop="delaySec" ${sAttrs} value="${+st.delaySec || 0}" style="width:100%"></div>
           <button class="btn btn-icon btn-danger" type="button" data-action="remove-fx-step" ${sAttrs} title="${escapeAttr(tr('removeFxStepBtn'))}" style="align-self:flex-end">×</button>
         </div>
-        <div class="hint-inline">${tr('fxStepDelayHint')}</div>
+        <div class="hint-inline">${tr(depth === 1 ? 'fxStepDelayHint' : 'fxStepChildDelayHint')}</div>
         ${fxBlockHtml(st.fx, `data-fx-target="trstep" ${sAttrs}`)}
+        ${fxStepRowsHtml(trg, kids, path, depth + 1, attrs)}
+        ${depth < FX_STEP_MAX_DEPTH ? `<div class="actions" style="margin:6px 0 0 18px"><button class="btn btn-small" type="button" data-action="add-fx-step" ${sAttrs}>${tr('addFxChildStepBtn')}</button></div>` : ''}
       </details>`;
   }).join('');
-  const taAttrs = attrs;
+}
+function fxCascadeHtml(trg, attrs) {
   return `
     <div style="margin-top:12px">
       <div style="font-weight:600;font-size:0.9em">${tr('fxCascadeTitle')}</div>
       <div class="hint-inline">${tr('fxCascadeHint')}</div>
-      ${rows}
-      <div class="actions" style="margin-top:6px;margin-left:18px"><button class="btn btn-small" type="button" data-action="add-fx-step" ${taAttrs}>${tr('addFxStepBtn')}</button></div>
+      ${fxStepRowsHtml(trg, trg.steps || [], '', 1, attrs)}
+      <div class="actions" style="margin-top:6px;margin-left:18px"><button class="btn btn-small" type="button" data-action="add-fx-step" ${attrs}>${tr('addFxStepBtn')}</button></div>
     </div>`;
 }
 function fxRelationsEditorHtml(triggers, i, trg, attrs) {
@@ -432,6 +453,11 @@ function fxTriggersEditorHtml(track, ti) {
           <span class="switch-row-label">${tr('fxTriggerVisibleLabel')}</span>
         </label>
         <div class="hint-inline">${tr('fxTriggerVisibleHint')}</div>
+        <label class="switch-row" style="margin-top:8px">
+          <input type="checkbox" data-field="fxTrigger" data-fxt-prop="showEffects" ${attrs} ${trg.showEffects !== false ? 'checked' : ''}>
+          <span class="switch-row-label">${tr('fxShowEffectsLabel')}</span>
+        </label>
+        <div class="hint-inline">${tr('fxShowEffectsHint')}</div>
         <div class="row" style="margin-top:6px">
           <div><label style="font-size:0.85em">${tr('fxTriggerFadeLabel')}</label>
             <input type="number" step="0.05" min="0" max="10" data-field="fxTrigger" data-fxt-prop="fadeSec" style="width:100%" ${attrs} value="${trg.fadeSec != null ? trg.fadeSec : ''}"></div>

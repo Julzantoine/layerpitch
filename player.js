@@ -1113,6 +1113,23 @@ function advanceChainIndex(index, n, chainState, maxChainLoops, randomize) {
 // Style des boutons de triggers d'effets, injecté une seule fois par le lecteur lui-même plutôt que copié
 // dans index.html/pack.html/collection.html (chacun a sa propre feuille de style, déjà dupliquée) -- ne
 // s'appuie que sur les variables CSS déjà définies par toutes les pages hôtes (--accent, --border...).
+// Pastilles « effets en cours » sous les boutons de triggers (6/10) : une pastille par effet du trigger et de chacune de ses étapes,
+// grisées au départ, allumées quand leur étape est active (voir updateFxTriggerButtons) -- la cascade se déroule sous les yeux du
+// visiteur. Le compositeur peut les masquer par trigger (showEffects === false). Pure : renvoie du HTML.
+const FX_CHIP_KEYS = { volume: 'fxChipVolume', lowcut: 'fxChipLowcut', highcut: 'fxChipHighcut', pitch: 'fxChipPitch', reverb: 'fxChipReverb', delay: 'fxChipDelay', bitcrush: 'fxChipBitcrush' };
+function fxEffectChipsHtml(track, shownTriggers) {
+  const all = expandTriggerSteps(track.fxTriggers);
+  const rows = shownTriggers.filter(d => d.showEffects !== false).map(d => {
+    const group = all.filter(x => x && (x.id === d.id || x.rootId === d.id));
+    const chips = group.map(x => Object.keys(x.fx || {}).map(k => {
+      const name = k === 'pitch' && x.fx.pitch && x.fx.pitch.mode === 'rate' ? t('fxChipSpeed') : t(FX_CHIP_KEYS[k] || k);
+      const when = x.startSec > 0 ? ` <small>+${Math.round(x.startSec * 10) / 10} s</small>` : '';
+      return `<span class="fx-chip" data-fx-chip-of="${escapeHtml(x.id)}">${escapeHtml(name)}${when}</span>`;
+    }).join('')).join('');
+    return chips ? `<div class="fx-chip-row"><span class="fx-chip-owner">${escapeHtml(d.label || '')}</span>${chips}</div>` : '';
+  }).join('');
+  return rows ? `<div class="fx-chips">${rows}</div>` : '';
+}
 function ensureFxTriggerStyle() {
   if (document.getElementById('lp-fx-trigger-style')) return;
   const st = document.createElement('style');
@@ -1125,6 +1142,13 @@ function ensureFxTriggerStyle() {
     .fx-trigger-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
     .fx-trigger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
     .fx-trigger-btn.fx-locked { opacity: 0.4; cursor: not-allowed; border-style: dashed; }
+    .fx-chips { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+    .fx-chip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+    .fx-chip-owner { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim, #555); margin-right: 4px; }
+    .fx-chip { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 8px; border-radius: 999px; border: 1px dashed var(--border, #ccc);
+      color: var(--text-dim, #555); opacity: 0.45; transition: opacity .25s, background .25s, color .25s; }
+    .fx-chip small { opacity: 0.8; }
+    .fx-chip.on { opacity: 1; border-style: solid; border-color: var(--accent); background: var(--accent); color: var(--bg, #fff); }
     .fx-slider-row { display: flex; flex-direction: column; gap: 8px; }
     .fx-slider { display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim, #555); }
     .fx-slider span { min-width: 110px; }
@@ -1385,6 +1409,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
         <div class="fx-trigger-row">
           ${publicFxTriggers.map((d, i) => `<button type="button" class="fx-trigger-btn" data-fx-trigger="${escapeHtml(d.id)}" aria-pressed="false" disabled>${escapeHtml(d.label || t('fxTriggerFallbackLabel', { n: i + 1 }))}</button>`).join('')}
         </div>
+        ${fxEffectChipsHtml(track, publicFxTriggers)}
       </div>
     `;
   }
@@ -2466,21 +2491,35 @@ function mergeTriggerFx(baseFx, activeTriggerDefs) {
 // exporté suive exactement les mêmes règles qu'en jeu.
 // hooks : { schedule(delaySec, fn) -> handle, cancel(handle), apply(id, active, cause) }
 // ---- Cascade par étapes (6/10) ----
-// trigger.steps = [{ id, label?, delaySec, fx }] : des groupes d'effets qui démarrent delaySec secondes APRÈS L'APPUI sur le
-// trigger (0 = en même temps), s'ajoutent à ses propres effets et s'arrêtent avec lui. Pas de nouveau mécanisme : chaque étape
-// devient un trigger invisible « enfant » (même cible, mêmes fondus), relié au parent par « Active aussi » avec son délai ; le
-// moteur de règles ci-dessous, le lecteur et l'export vidéo les traitent donc comme n'importe quelle cascade. Fonction PURE.
+// trigger.steps = [{ id, label?, delaySec, fx, children?:[étapes] }] : des groupes d'effets qui démarrent delaySec secondes
+// APRÈS LEUR PARENT (le trigger pour les étapes du premier niveau, l'étape-mère pour les enfants ; 0 = en même temps), s'ajoutent
+// aux effets du trigger et s'arrêtent avec lui. Pas de nouveau mécanisme : chaque étape devient un trigger invisible, relié à son
+// parent par « Active aussi » avec son délai ; le moteur de règles ci-dessous, le lecteur et l'export vidéo les traitent donc
+// comme n'importe quelle cascade. Les copies portent rootId (le trigger d'origine) et startSec (départ cumulé depuis l'appui).
+// Fonction PURE.
+const TRIGGER_STEPS_MAX_DEPTH = 5;
 function expandTriggerSteps(triggers) {
   const out = [];
   (triggers || []).forEach(d => {
     if (!d || !d.id || !Array.isArray(d.steps) || !d.steps.length) { out.push(d); return; }
     const kids = [];
-    d.steps.forEach((s, i) => {
-      if (!s) return;
-      kids.push({ id: d.id + '~' + (s.id || i), label: s.label || '', target: d.target, fx: s.fx || {}, visible: false, fadeSec: d.fadeSec != null ? d.fadeSec : null, fadeOutSec: d.fadeOutSec != null ? d.fadeOutSec : null, relations: null, stepOf: d.id, delaySec: +s.delaySec > 0 ? +s.delaySec : 0 });
-    });
+    function walk(parentId, steps, startSec, depth) {
+      const links = [];
+      (steps || []).forEach((s, i) => {
+        if (!s || depth > TRIGGER_STEPS_MAX_DEPTH) return;
+        const id = parentId + '~' + (s.id || i);
+        const delay = +s.delaySec > 0 ? +s.delaySec : 0;
+        const k = { id, label: s.label || '', target: d.target, fx: s.fx || {}, visible: false, fadeSec: d.fadeSec != null ? d.fadeSec : null, fadeOutSec: d.fadeOutSec != null ? d.fadeOutSec : null, relations: null, stepOf: parentId, rootId: d.id, startSec: startSec + delay };
+        kids.push(k);
+        const sub = walk(id, s.children, k.startSec, depth + 1);
+        if (sub.length) k.relations = { activates: sub };
+        links.push({ triggerId: id, delaySec: delay });
+      });
+      return links;
+    }
+    const top = walk(d.id, d.steps, 0, 1);
     const rel = Object.assign({}, d.relations);
-    rel.activates = (rel.activates || []).concat(kids.map(k => ({ triggerId: k.id, delaySec: k.delaySec })));
+    rel.activates = (rel.activates || []).concat(top);
     out.push(Object.assign({}, d, { relations: rel }));
     kids.forEach(k => out.push(k));
   });
@@ -2942,7 +2981,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // Boutons : état enfoncé + état « bloqué » (condition « Nécessite » non remplie) -- grisé mais visible, avec en
   // infobulle ce qui le débloque. Recalculé après CHAQUE changement d'état, la condition d'un bouton dépendant de
   // l'état des autres.
+  const fxChipEls = [...wrapper.querySelectorAll('[data-fx-chip-of]')];
   function updateFxTriggerButtons() {
+    fxChipEls.forEach(c => c.classList.toggle('on', fxRules.isActive(c.dataset.fxChipOf)));
     fxTriggerBtns.forEach(b => {
       const id = b.dataset.fxTrigger;
       const on = fxRules.isActive(id);
@@ -7386,6 +7427,7 @@ window.LayerPlayerCore = {
   CAPTURE_RAMPS: { intensity: INTENSITY_RAMP_SEC, voice: VOICE_RAMP_SEC, duckLevel: DUCK_LEVEL, duckAttack: DUCK_ATTACK_SEC, duckRelease: DUCK_RELEASE_SEC },
   createTriggerRuleEngine,
   expandTriggerSteps,
+  fxEffectChipsHtml,
   simulateTriggerRules,
   FX_SLIDER_PARAMS,
   fxSlidersValid,
