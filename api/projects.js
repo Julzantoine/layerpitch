@@ -18,6 +18,8 @@
   }
 
   const P = {
+    // Projet de démonstration public (sans compte, lecture seule) : voir la migration 20260929010000.
+    publicDemo: () => rpc('get_public_demo'),
     listMine: () => rpc('list_my_projects'),
     create: (title, description, asStudio) => rpc('create_project', { p_title: title, p_description: description || '', p_as_studio: !!asStudio }),
     get: id => rpc('get_project', { p_project_id: id }),

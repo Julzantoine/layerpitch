@@ -1752,6 +1752,13 @@ window.LAYERPITCH_I18N = {
     },
     projects: {
       pageTitle: "LayerPitch — Mes Projets",
+      // Projet de démonstration public (lecture seule, sans compte)
+      demoBanner: "Ceci est un Projet de démonstration : vous pouvez tout parcourir, mais rien ne se modifie ici.",
+      demoCta: "Demander une invitation",
+      demoReadOnly: "Démonstration en lecture seule : demandez une invitation pour créer votre Projet.",
+      demoViewShowcase: "Visualiser la vitrine",
+      demoUnavailable: "La démonstration n'est pas disponible pour le moment.",
+      demoSales: "Ventes & versements", demoPurchases: "Mes achats", demoTeam: "Équipe", demoPlan: "Palier & crédits", demoInvites: "Invitations", demoAccount: "Mon compte",
       h1: "Mes Projets",
       pageTitleProject: "{title} — Projet LayerPitch",
       backLink: "← Mes Projets",
@@ -4204,6 +4211,13 @@ window.LAYERPITCH_I18N = {
     },
     projects: {
       pageTitle: "LayerPitch — My Projects",
+      // Public demo Project (read-only, no account)
+      demoBanner: "This is a demo Project: browse everything you like, nothing can be changed here.",
+      demoCta: "Request an invitation",
+      demoReadOnly: "Read-only demo: request an invitation to create your own Project.",
+      demoViewShowcase: "View the showcase",
+      demoUnavailable: "The demo is not available right now.",
+      demoSales: "Sales & payouts", demoPurchases: "My purchases", demoTeam: "Team", demoPlan: "Plan & credits", demoInvites: "Invitations", demoAccount: "My account",
       h1: "My Projects",
       pageTitleProject: "{title} — LayerPitch Project",
       backLink: "← My Projects",
