@@ -179,6 +179,56 @@ const { JSDOM } = require('jsdom');
   w.LayerPitchLevelMap.mount(host2, { tr, canEdit: false, maps: [{ id: 'm', title: 'T', data: { nodes: [{ id: 'a', type: 'place', x: 0, y: 0 }], edges: [] } }], libraries: {}, save: async () => { throw new Error('ne doit pas enregistrer'); }, remove: async () => ({}) });
   check('lecture seule : ni ajout ni suppression', !host2.querySelector('[data-add]') && !host2.querySelector('#lmNew'));
 
+
+  // ---- Point sur un parcours (7/10) : « générer un point sur un itinéraire pour y relier quelque chose »
+  {
+    const m2 = M.emptyMap();
+    const s2 = M.addNode(m2, 'start', 0, 0, 'Début'), p2 = M.addNode(m2, 'place', 400, 0, 'Château'), q2 = M.addNode(m2, 'quest', 200, 150, 'Annexe'), pl2 = M.addNode(m2, 'place', 200, 300, 'Ville');
+    const ed = M.addEdge(m2, s2.id, p2.id);
+    const g = M.edgeGeometry(m2, ed);
+    check('projection : un point au-dessus du quart du trait donne t proche de 0,25', Math.abs(M.projectOnEdge(m2, ed.id, g.p1.x + (g.p2.x - g.p1.x) * 0.25, 90) - 0.25) < 0.01);
+    check('projection : bornée (jamais collée aux éléments)', M.projectOnEdge(m2, ed.id, -999, 0) === 0.05 && M.projectOnEdge(m2, ed.id, 9999, 0) === 0.95);
+    check('accrocher une quête à un parcours : la quête devient annexe, point retenu', M.anchorQuestToEdge(m2, q2.id, ed.id, 0.3) && q2.side === true && q2.anchor.kind === 'edge' && q2.anchor.id === ed.id && q2.anchor.t === 0.3);
+    const ap = M.anchorPoint(m2, q2.anchor);
+    check('le point d\'accroche est bien à 30 % du parcours', Math.abs(ap.x - (g.p1.x + (g.p2.x - g.p1.x) * 0.3)) < 0.01 && Math.abs(ap.y - g.p1.y) < 0.01);
+    check('sans t, l\'accroche reste au milieu du parcours', (() => { const mid = M.anchorPoint(m2, { kind: 'edge', id: ed.id }); return Math.abs(mid.x - (g.p1.x + g.p2.x) / 2) < 0.01; })());
+    check('seule une quête s\'accroche à un parcours', M.anchorQuestToEdge(m2, pl2.id, ed.id, 0.5) === false && !pl2.anchor);
+    check('le point survit à normalize (enregistrement / rechargement)', M.normalize(JSON.parse(JSON.stringify(m2))).nodes.find(n => n.id === q2.id).anchor.t === 0.3);
+    M.removeEdge(m2, ed.id);
+    check('parcours supprimé : la quête redevient libre', q2.anchor === null);
+
+    // Éditeur : « Relier », puis une quête et un parcours (dans les deux ordres), puis glisser le point
+    const host4 = w.document.createElement('div'); w.document.body.appendChild(host4);
+    const saves4 = [];
+    const v4 = w.LayerPitchLevelMap.mount(host4, { tr, canEdit: true, libraries: { track: [], sfx: [], asset: [] },
+      maps: [{ id: 'm4', title: 'T', data: { nodes: [{ id: 's', type: 'start', label: 'Début', x: 0, y: 0 }, { id: 'c', type: 'place', label: 'Château', x: 400, y: 0 }, { id: 'q', type: 'quest', label: 'Quête', x: 200, y: 150 }], edges: [{ id: 'e', from: 's', to: 'c' }] } }],
+      save: async m => { saves4.push(JSON.parse(JSON.stringify(m))); return { id: m.id }; }, remove: async () => ({}), ask: async () => 'x', confirm: async () => true });
+    v4.state.view = { x: 0, y: 0, k: 1 };
+    const at = (el, x, y, type) => el.dispatchEvent(Object.assign(new w.Event(type || 'pointerdown', { bubbles: true }), { clientX: x, clientY: y, pointerId: 1 }));
+    const gm = M.edgeGeometry(M.normalize({ nodes: [{ id: 's', type: 'start', x: 0, y: 0 }, { id: 'c', type: 'place', x: 400, y: 0 }], edges: [{ id: 'e', from: 's', to: 'c' }] }), { from: 's', to: 'c' });
+    host4.querySelector('#lmConnect').click();
+    at(host4.querySelector('[data-node="q"]'), 200, 150);
+    check('Relier : première quête cliquée, en attente du parcours', v4.state.linkFrom === 'q');
+    at(host4.querySelector('[data-edge="e"]'), gm.p1.x + (gm.p2.x - gm.p1.x) * 0.7, 0); await wait(30);
+    const qd = v4.state.maps[0].data.nodes.find(n => n.id === 'q');
+    check('clic sur le parcours : la quête s\'accroche à cet endroit (70 %)', qd.side === true && qd.anchor && qd.anchor.kind === 'edge' && Math.abs(qd.anchor.t - 0.7) < 0.01);
+    check('un point d\'accroche est dessiné sur le parcours', !!host4.querySelector('[data-anchor-dot="q"]'));
+    await wait(800); // enregistrement différé de 700 ms
+    check('la carte est enregistrée avec le point', saves4.some(sv => sv.data.nodes.find(n => n.id === 'q').anchor && sv.data.nodes.find(n => n.id === 'q').anchor.t));
+    // glisser le point
+    at(host4.querySelector('[data-anchor-dot="q"]'), 0, 0);
+    at(host4.querySelector('#lmCanvas'), gm.p1.x + (gm.p2.x - gm.p1.x) * 0.2, 0, 'pointermove'); 
+    at(host4.querySelector('#lmCanvas'), 0, 0, 'pointerup'); await wait(30);
+    check('glisser le point : il suit le parcours (20 %)', Math.abs(v4.state.maps[0].data.nodes.find(n => n.id === 'q').anchor.t - 0.2) < 0.01);
+    // dans l'autre ordre : parcours d'abord, puis la quête
+    v4.state.maps[0].data.nodes.find(n => n.id === 'q').anchor = null; v4.state.maps[0].data.nodes.find(n => n.id === 'q').side = false;
+    host4.querySelector('#lmConnect').click(); host4.querySelector('#lmConnect').click(); // sortir puis rentrer dans « Relier »
+    at(host4.querySelector('[data-edge="e"]'), gm.p1.x + (gm.p2.x - gm.p1.x) * 0.5, 0);
+    at(host4.querySelector('[data-node="q"]'), 200, 150); await wait(30);
+    check('parcours puis quête : accrochée au point cliqué (50 %)', (() => { const a = v4.state.maps[0].data.nodes.find(n => n.id === 'q').anchor; return !!a && a.kind === 'edge' && Math.abs(a.t - 0.5) < 0.01; })());
+    v4.destroy();
+  }
+
   console.log(failures ? failures + ' échec(s)' : 'Tout est vert');
   process.exit(failures ? 1 : 0);
 })();
