@@ -10,15 +10,8 @@
      qu'aucune reconstruction ne soit jamais nécessaire en cours de lecture. */
   const fxTriggerDefs = new Map();
   const fxTriggerTargetKey = new Map();
-  function fxTargetKeyOf(target) {
-    if (!target) return null;
-    if (target.type === 'track') return 'track';
-    if (target.type === 'layer') return 'layer:' + (target.li || 0);
-    if (target.type === 'loop') return 'loop:' + target.li;
-    if (target.type === 'slot') return 'slot:' + target.si;
-    if (target.type === 'pool') return 'pool:' + target.si + ':' + target.pi;
-    return null;
-  }
+  // Même table que l'export vidéo (fxTargetKeyFromTarget) : une seule source pour savoir quelle chaîne un trigger vise.
+  function fxTargetKeyOf(target) { return fxTargetKeyFromTarget(target); }
   expandTriggerSteps(track.fxTriggers).forEach(d => {
     const key = d && d.id && d.fx ? fxTargetKeyOf(d.target) : null;
     if (key) { fxTriggerDefs.set(d.id, d); fxTriggerTargetKey.set(d.id, key); }

@@ -12,6 +12,9 @@ function fxTargetKeyFromTarget(target) {
   if (target.type === 'loop') return 'loop:' + target.li;
   if (target.type === 'slot') return 'slot:' + target.si;
   if (target.type === 'pool') return 'pool:' + target.si + ':' + target.pi;
+  // Intro, outro et transitions (7/10) : les chaînes d'effets de ces éléments portent déjà ces clés (buildTargetFxChain). « transition »
+  // vise TOUTES les transitions du morceau (séquentiel et embranchement-vertical).
+  if (target.type === 'intro' || target.type === 'outro' || target.type === 'transition') return target.type;
   return null;
 }
 // fx de base porté par une cible ('layer:i', 'loop:i', 'slot:i', 'pool:s:p', 'intro', 'outro') -- même

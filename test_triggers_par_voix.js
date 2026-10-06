@@ -70,6 +70,40 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   const flat = core.expandTriggerSteps([{ id: 'T', target: { type: 'layer', li: 0 }, fx: { lowcut: {} }, steps: [{ id: 's', delaySec: 1, fx: { reverb: {} } }] }]);
   check('cascade d\'un trigger de voix : les étapes visent la même voix', flat.length === 2 && flat[1].target.type === 'layer' && flat[1].target.li === 0);
 
+  // --- intro, outro, transitions (7/10) ---
+  check('cibles du lecteur : intro / outro / transition reconnues, comme les voix',
+    core.fxTargetKeyFromTarget({ type: 'intro' }) === 'intro' && core.fxTargetKeyFromTarget({ type: 'outro' }) === 'outro' && core.fxTargetKeyFromTarget({ type: 'transition' }) === 'transition'
+    && core.fxTargetKeyFromTarget({ type: 'layer', li: 2 }) === 'layer:2' && core.fxTargetKeyFromTarget({ type: 'bidon' }) === null);
+  const stage = { fxTriggers: [], mode: 'sequential', segmentSlots: [{ id: 'S0', label: 'A', alternatives: [{}] }] };
+  const vals = m => ev(`fxTriggerTargetChoices({ mode: '${m}', layers: [], loops: [], segmentSlots: [], sections: [] }).map(c => c.value).join(',')`);
+  check('choix de cible : séquentiel = intro, outro, transitions', /intro,outro,transition/.test(vals('sequential')));
+  check('choix de cible : vertical-random = intro, outro', /intro,outro/.test(vals('vertical-random')) && !/transition/.test(vals('vertical-random')));
+  check('choix de cible : embranchement-vertical = transitions', /transition/.test(vals('embranchement-vertical')) && !/intro/.test(vals('embranchement-vertical')));
+  check('choix de cible : vertical = couches seulement (pas d\'intro ni de transition)', !/intro|outro|transition/.test(vals('vertical')));
+  check('aller-retour cible <-> valeur : intro, outro, transition', ['intro', 'outro', 'transition'].every(v => ev(`fxTriggerTargetToValue(parseFxTriggerTarget('${v}'))`) === v));
+  // éditeur : sections de triggers sous l'effet de l'intro, de l'outro et des transitions
+  ev("library[2].intro = { id: 'i', label: 'Intro', file: 'i.ogg', bars: 2, fx: null }; library[2].outro = { id: 'o', label: 'Outro', file: 'o.ogg', fx: null }; library[2].segmentSlots[0].nextOptions = [{ targetId: 'S1', label: 'vers B', transition: { id: 'tr1', label: 'T', file: 't.ogg', bars: 2, fx: null } }];");
+  await show('s', 'seqIntro');
+  check('séquentiel, intro : « + Trigger » ciblé sur l\'intro', addBtns().some(x => x.dataset.target === 'intro'));
+  click(addBtns().find(x => x.dataset.target === 'intro')); await settle();
+  check('…le trigger vise l\'intro', ev('library[2].fxTriggers.some(t => t.target.type === "intro")'));
+  await show('s', 'seqOutro');
+  check('séquentiel, outro : « + Trigger » ciblé sur l\'outro', addBtns().some(x => x.dataset.target === 'outro'));
+  await show('s', 0);
+  check('séquentiel, transition d\'embranchement : « + Trigger » ciblé sur les transitions', addBtns().some(x => x.dataset.target === 'transition'));
+  click(addBtns().find(x => x.dataset.target === 'transition')); await settle();
+  check('…le trigger vise toutes les transitions', ev('library[2].fxTriggers.some(t => t.target.type === "transition")'));
+  ev("library[1].loops[1].transition = { id: 'tt', label: 'X', file: 'x.ogg', fx: null };");
+  await show('e', 1);
+  check('embranchement-vertical, transition : « + Trigger » ciblé sur les transitions', addBtns().some(x => x.dataset.target === 'transition'));
+  ev("library[3].intro = { id: 'vi', label: 'Intro', file: 'vi.ogg', bars: 2, fx: null }; library[3].outro = { id: 'vo', label: 'Outro', file: 'vo.ogg', fx: null };");
+  await show('r', 'vrsIntro');
+  check('vertical-random, intro : « + Trigger » ciblé sur l\'intro', addBtns().some(x => x.dataset.target === 'intro'));
+  await show('r', 'vrsOutro');
+  check('vertical-random, outro : « + Trigger » ciblé sur l\'outro', addBtns().some(x => x.dataset.target === 'outro'));
+  // cascade : les étapes d'un trigger d'intro visent l'intro
+  const fi = core.expandTriggerSteps([{ id: 'T', target: { type: 'intro' }, fx: { lowcut: {} }, steps: [{ id: 's', delaySec: 1, fx: {} }] }]);
+  check('cascade d\'un trigger d\'intro : les étapes visent l\'intro', fi[1].target.type === 'intro');
   console.log('\n' + (failures ? failures + ' CHECK(S) FAILED' : 'ALL CHECKS PASSED'));
   process.exit(failures ? 1 : 0);
 })().catch(e => { console.error('TEST THREW:', e); process.exit(1); });
