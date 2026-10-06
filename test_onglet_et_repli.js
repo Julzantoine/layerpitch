@@ -38,7 +38,7 @@ function check(label, cond) { console.log((cond ? 'OK   ' : 'FAIL ') + label); i
   check('deux triggers : deux cartes repliables, fermées par défaut', cardsOpen().length === 2 && cardsOpen().every(c => !/\sopen/.test(c)));
   run("fxTriggersSectionOpen.add('c:b')");
   check('carte retenue ouverte : seule celle-là s\'ouvre', cardsOpen().filter(c => /\sopen/.test(c)).length === 1 && /data-fxt-section-key="c:b"[^>]*open/.test(cardsOpen()[1]));
-  check('trigger sans nom : « Trigger 2 (sans nom) » dans les relations de l\'autre', /Trigger 2 \(sans nom\)/.test(run(`fxTriggersEditorHtml(${two}, 0)`)));
+  check('événement sans nom : « Événement 2 (sans nom) » dans les relations de l\'autre', /Événement 2 \(sans nom\)/.test(run(`fxTriggersEditorHtml(${two}, 0)`)));
   check('le titre de la carte porte le nom du trigger', /<summary[^>]*>Low life/.test(run(`fxTriggersEditorHtml(${two}, 0)`)));
   console.log(failures ? `\n${failures} ÉCHEC(S)` : '\nALL CHECKS PASSED');
   process.exit(failures ? 1 : 0);

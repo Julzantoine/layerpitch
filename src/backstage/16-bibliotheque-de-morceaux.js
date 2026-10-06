@@ -517,7 +517,7 @@ function buildPreviewTrack(track) {
     // fx de morceau entier (pitch "vitesse", 22/09) -- distinct de layers[].fx/loops[].fx/etc., voir
     // applyTrackPitchRate() dans player.js.
     fx: track.fx || null,
-    fxTriggers: (track.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations), steps: fxStepsClean(x.steps), showEffects: x.showEffects !== false })),
+    fxTriggers: (track.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations), steps: fxStepsClean(x.steps), showEffects: x.showEffects !== false, targets: Array.isArray(x.targets) && x.targets.length ? x.targets.map(t => Object.assign({}, t)) : undefined })),
     fxSliders: fxSlidersClean(track.fxSliders),
     layers: (track.layers || []).map(mapItem).filter(Boolean),
     intro: mapBlockWithBars(track.intro),

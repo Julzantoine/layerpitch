@@ -11,6 +11,9 @@
     --text: #24262b; --text-dim: #5f636b; --text-dimmer: #9a9ea6;
     --accent: #2f80c0; --accent-soft: #e6eef8; --font-body: 'Inter', sans-serif;
   }
+  /* Visiteur sans compte : même beige et même bleu que la landing (nouvelle-landing). Connecté, la barre commune de l'application
+     prend le relais et la page garde les gris habituels. */
+  body:not(.lp-shell-on) { --bg: #f6f5f3; --border: #e4e1da; --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399; --accent: #2f6fe0; --accent-soft: #dce7fb; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: var(--font-body); padding: 56px 24px 60px; }
   .page { max-width: 480px; margin: 0 auto; text-align: center; }
@@ -84,11 +87,11 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791296548464"></script>
-<script src="api/supabase-client.js?v=1791296548464"></script>
-<script src="api/auth.js?v=1791296548464"></script>
-<script src="api/subscriptions.js?v=1791296548464"></script>
-<script src="api/access-requests.js?v=1791296548464"></script>
+<script src="layerpitch-i18n.js?v=1791297053471"></script>
+<script src="api/supabase-client.js?v=1791297053471"></script>
+<script src="api/auth.js?v=1791297053471"></script>
+<script src="api/subscriptions.js?v=1791297053471"></script>
+<script src="api/access-requests.js?v=1791297053471"></script>
 <script>
 const urlLang = new URLSearchParams(location.search).get('lang');
 const pageLang = urlLang === 'en' ? 'en' : 'fr';

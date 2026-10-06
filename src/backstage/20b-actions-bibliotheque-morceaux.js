@@ -129,7 +129,7 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   else if (btn.dataset.action === 'add-fx-trigger') {
     const tk = library[ti];
     if (!tk.fxTriggers) tk.fxTriggers = [];
-    const newTrigger = { id: genId(), label: tr('fxTriggerFallbackLabel', { n: tk.fxTriggers.length + 1 }), target: { type: 'track' }, fx: {}, visible: true, fadeSec: null }; // agit sur tout le morceau ; bouton public par défaut
+    const newTrigger = { id: genId(), label: tr('fxTriggerFallbackLabel', { n: tk.fxTriggers.length + 1 }), target: parseFxTriggerTarget(btn.dataset.target) || { type: 'track' }, fx: {}, visible: true, fadeSec: null }; // agit sur tout le morceau ; bouton public par défaut
     tk.fxTriggers.push(newTrigger);
     fxTriggersSectionOpen.add('c:' + newTrigger.id); // un trigger qu'on vient de créer s'affiche déplié
     fxTriggersPersistOpen();
@@ -383,8 +383,26 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
         else if (prop === 'showEffects') trg.showEffects = e.target.checked;
         else if (prop === 'fadeSec') trg.fadeSec = e.target.value === '' ? null : parseFloat(e.target.value);
         else if (prop === 'fadeOutSec') trg.fadeOutSec = e.target.value === '' ? null : parseFloat(e.target.value);
-        else if (prop === 'target') trg.target = parseFxTriggerTarget(e.target.value);
+        else if (prop === 'target') { trg.target = parseFxTriggerTarget(e.target.value); fxTriggersPersistOpen(); renderLibrary(); } // la carte change de voix
         else if (prop === 'autoOffSec') { trg.relations = trg.relations || {}; trg.relations.autoOffSec = e.target.value === '' ? null : parseFloat(e.target.value); }
+      }
+    }
+    else if (field === 'fxTargets') {
+      const trg = (library[ti].fxTriggers || [])[parseInt(e.target.dataset.tri, 10)];
+      if (trg) {
+        const isStep = e.target.dataset.fxtgOwner === 'step';
+        const holder = isStep ? (fxStepByPath(trg, e.target.dataset.sti) || {}).step : trg;
+        if (holder) {
+          if (e.target.dataset.fxtgSame) {
+            // « Comme l'événement » : l'étape reprend les cibles de l'événement ; décochée, elle part d'une copie modifiable.
+            if (e.target.checked) delete holder.targets; else holder.targets = fxTriggerTargetValues(trg).map(parseFxTriggerTarget).filter(Boolean);
+          } else {
+            const next = fxToggleTargetValue(fxTriggerTargetValues(holder), e.target.dataset.fxtgValue, e.target.checked).map(parseFxTriggerTarget).filter(Boolean);
+            holder.targets = next;
+            if (!isStep) holder.target = next[0]; // l'ancienne cible unique reste la première (lecteur, anciennes données)
+          }
+          renderLibrary();
+        }
       }
     }
     else if (field === 'fxStep') {

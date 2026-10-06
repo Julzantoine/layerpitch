@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791296548464">
+<link rel="stylesheet" href="player.css?v=1791297053471">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -131,6 +131,17 @@
   .choice { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 5px 0; }
   .choice input { width: auto; margin: 0; }
   @media (max-width: 560px) { .bubble { max-width: 100%; } .grid { grid-template-columns: 1fr; } }
+  /* Mode démonstration (?demo) : lecture seule. La discussion et la barre latérale restent visibles mais inertes. */
+  .demo-banner { background: var(--accent-soft); border: 1px solid var(--accent); color: var(--text); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+  body.demo #chat { pointer-events: none; opacity: .55; user-select: none; }
+  .demo-shell { position: fixed; left: 0; top: 0; bottom: 0; width: 232px; background: #eceef2; border-right: 1px solid var(--border); padding: 18px 14px; overflow: auto; pointer-events: none; user-select: none; opacity: .6; }
+  .demo-shell b { display: block; font-family: var(--font-title); font-size: 17px; margin-bottom: 14px; }
+  .demo-shell small { display: block; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dimmer); margin: 14px 0 4px; }
+  .demo-shell span { display: block; padding: 6px 8px; border-radius: 6px; }
+  .demo-shell span.on { background: #fff; color: var(--accent); font-weight: 600; }
+  body.demo .page { margin-left: 232px; max-width: none; }
+  @media (max-width: 900px) { .demo-shell { display: none; } body.demo .page { margin-left: auto; } }
+  [data-demo-locked] { opacity: .5; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -140,22 +151,22 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791296548464"></script>
-<script src="layerpitch-notify.js?v=1791296548464"></script>
-<script src="player.js?v=1791296548464"></script>
-<script src="api/supabase-client.js?v=1791296548464"></script>
-<script src="api/auth.js?v=1791296548464"></script>
-<script src="layerpitch-appearance.js?v=1791296548464"></script>
-<script src="layerpitch-shell.js?v=1791296548464"></script>
-<script src="api/tracks.js?v=1791296548464"></script>
-<script src="api/packs.js?v=1791296548464"></script>
-<script src="api/albums.js?v=1791296548464"></script>
-<script src="api/studio.js?v=1791296548464"></script>
-<script src="api/adreels.js?v=1791296548464"></script>
-<script src="api/projects.js?v=1791296548464"></script>
-<script src="api/sfx.js?v=1791296548464"></script>
-<script src="projet-carte-audio.js?v=1791296548464"></script>
-<script src="projet-carte.js?v=1791296548464"></script>
+<script src="layerpitch-i18n.js?v=1791297053471"></script>
+<script src="layerpitch-notify.js?v=1791297053471"></script>
+<script src="player.js?v=1791297053471"></script>
+<script src="api/supabase-client.js?v=1791297053471"></script>
+<script src="api/auth.js?v=1791297053471"></script>
+<script src="layerpitch-appearance.js?v=1791297053471"></script>
+<script src="layerpitch-shell.js?v=1791297053471"></script>
+<script src="api/tracks.js?v=1791297053471"></script>
+<script src="api/packs.js?v=1791297053471"></script>
+<script src="api/albums.js?v=1791297053471"></script>
+<script src="api/studio.js?v=1791297053471"></script>
+<script src="api/adreels.js?v=1791297053471"></script>
+<script src="api/projects.js?v=1791297053471"></script>
+<script src="api/sfx.js?v=1791297053471"></script>
+<script src="projet-carte-audio.js?v=1791297053471"></script>
+<script src="projet-carte.js?v=1791297053471"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -167,7 +178,8 @@ const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k)
 // Présence et mises à jour en direct : canal Supabase Realtime (présence + messages « a changé », sans lire les tables,
 // qui restent fermées : tout passe par les RPC). Tous les droits sont vérifiés côté serveur.
 const params = new URLSearchParams(location.search);
-const projectId = params.get('id');
+const DEMO = params.has('demo'); // Projet de démonstration public, en lecture seule
+const projectId = params.get('id') || (DEMO ? 'demo' : null);
 const pageLang = (params.get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
 function tr(key, vars) {
   const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, projects: {} }, en: { shared: {}, projects: {} } };
@@ -181,7 +193,25 @@ document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.
 if (window.LayerPlayerCore && window.LayerPlayerCore.setLang) window.LayerPlayerCore.setLang(pageLang);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const $ = id => document.getElementById(id);
-const PJ = window.LayerPitchProjects;
+const realPJ = window.LayerPitchProjects;
+// En démonstration, toute écriture est refusée ici (et, de toute façon, en base : aucun compte, aucune fonction d'écriture ouverte).
+function demoBlocked() { if (window.LayerPitchNotify) window.LayerPitchNotify.info(tr('demoReadOnly')); return { data: null, error: tr('demoReadOnly') }; }
+function demoProjects() {
+  const names = m => Object.assign({}, m, { authorEmail: m.authorName, actorEmail: m.actorName, mine: false });
+  const reads = {
+    get: async () => ({ data: S.demoProject, error: null }),
+    content: async () => ({ data: S.demo.content, error: null }),
+    messages: async () => ({ data: (S.demo.messages || []).map(names), error: null }),
+    activity: async () => ({ data: (S.demo.activity || []).map(names), error: null }),
+    annotations: async (id, tt, tid) => ({ data: (S.demo.annotations || []).filter(n => (!tt || n.targetType === tt) && (!tid || n.targetId === tid)).map(names), error: null }),
+    vitrines: async () => ({ data: (S.demo.vitrines || []).map(v => Object.assign({ audience: 'players', published: true, secretToken: null, blocks: [], theme: {} }, v)), error: null }),
+    snapshots: async () => ({ data: [], error: null }),
+    markRead: async () => ({ data: null, error: null }), markSeen: async () => ({ data: null, error: null }),
+    fileUrl: (fileId) => realPJ.fileUrl(fileId),
+  };
+  return new Proxy(realPJ, { get: (t, k) => k in reads ? reads[k] : (typeof t[k] === 'function' ? async () => demoBlocked() : t[k]) });
+}
+const PJ = DEMO ? demoProjects() : realPJ;
 const clock = s => { s = Math.max(0, Math.floor(Number(s) || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 const content = $('content');
 const S = { tab: 'board', project: null, content: null, messages: [], query: '', activity: [], snapshots: [], openNotes: {}, notes: {},
@@ -203,7 +233,19 @@ async function fileUrl(fileId) {
 }
 
 // ---- Chargement et direct ----
+async function loadDemo() {
+  let d = null;
+  if (params.get('demo') === 'fixture') { try { d = await (await fetch('./test-fixtures/public-demo.json')).json(); } catch (e) {} } // aperçu local, sans base
+  else { const r = await realPJ.publicDemo(); d = r.data; }
+  if (!d) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('demoUnavailable'))}</p></div>`; return; }
+  S.demo = d; S.me = { id: 'demo', email: '' };
+  S.demoProject = Object.assign({}, d.project, { role: 'viewer', archived: false, members: (d.members || []).map(m => ({ email: m.name, status: 'active', source: 'guest', role: m.role, me: false })) });
+  S.project = S.demoProject; S.content = d.content || { assets: [], moodboard: [], packs: [], albums: [] };
+  document.title = tr('pageTitleProject', { title: S.project.title });
+  await loadMessages(); computeUnread(); render();
+}
 async function load() {
+  if (DEMO) return loadDemo();
   const { session } = await LayerPitchAuth.getSession();
   if (!session) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('signInPrompt'))} <a href="./studio.html?lang=${pageLang}">${esc(tr('signInLink'))}</a></p></div>`; return; }
   S.me = session.user;
@@ -215,6 +257,7 @@ async function load() {
   const [c, composer] = await Promise.all([PJ.content(projectId), LayerPitchAuth.getMyComposerId()]);
   S.content = c.data || { assets: [], moodboard: [], packs: [], albums: [] };
   S.myComposerId = composer.composerId || null;
+  S.demoStatus = (await PJ.demoStatus()).data || { eligible: false }; // interrupteur « Démo publique » (admins et compte de démo)
   PJ.markRead(projectId);
   markProjectSeen();
   await loadMessages();
@@ -266,9 +309,11 @@ const TABS = ['board', 'map', 'videos', 'images', 'music', 'showcase', 'activity
 function render() {
   const p = S.project;
   content.innerHTML = `
+    ${DEMO ? `<div class="demo-banner"><span>${esc(tr('demoBanner'))}</span><a class="btn primary" href="https://layerpitch.com/">${esc(tr('demoCta'))}</a></div>` : ''}
     <div class="top"><h1 id="pTitle">${esc(p.title)}</h1>
       <div class="bar">${S.content.openAnnotations ? `<button class="btn" id="openNotesBtn" type="button" title="${esc(tr('openNotesHint'))}">💬 ${esc(tr('openNotes', { n: S.content.openAnnotations }))}</button>` : ''}${p.archived ? `<span class="pill">${esc(tr('archived'))}</span>` : ''}
-        <button class="btn" id="editBtn" type="button">${esc(tr('editProject'))}</button>
+        ${DEMO || !(S.demoStatus && S.demoStatus.eligible) ? '' : `<label class="demo-switch" title="${esc(tr('demoSwitchHint'))}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:6px"><input type="checkbox" id="demoSwitch" ${S.demoStatus.projectId === p.id ? 'checked' : ''} style="width:auto;margin:0"> ${esc(tr('demoSwitchLabel'))}</label>${S.demoStatus.projectId ? `<a class="btn" href="./projet.html?demo&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('demoViewLink'))}</a>` : ''}`}
+        ${DEMO ? '' : `<button class="btn" id="editBtn" type="button">${esc(tr('editProject'))}</button>`}
         ${p.role === 'admin' ? `<button class="btn" id="archiveBtn" type="button">${esc(tr(p.archived ? 'restoreProject' : 'archiveProject'))}</button>
         <button class="btn danger" id="deleteBtn" type="button">${esc(tr('deleteProject'))}</button>` : ''}</div></div>
     ${p.description ? `<div class="desc">${esc(p.description)}</div>` : ''}
@@ -276,7 +321,17 @@ function render() {
     <div id="openNotesBox"></div>
     <div class="workspace" id="ws"><div id="panel" style="min-width:0"></div><aside class="chat" id="chat" aria-label="${esc(tr('tab_thread'))}"></aside></div>`;
   content.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; stopMedia(); render(); });
-  $('editBtn').onclick = editProject;
+  if ($('editBtn')) $('editBtn').onclick = editProject;
+  if ($('demoSwitch')) $('demoSwitch').onchange = async e => {
+    const on = e.target.checked;
+    // Un seul Projet est la démo à la fois : en poser une nouvelle remplace l'ancienne, on demande confirmation.
+    if (on && S.demoStatus.projectId && S.demoStatus.projectId !== p.id && !(await window.LayerPitchNotify.confirm(tr('demoReplaceConfirm'), { okLabel: tr('demoSwitchLabel') }))) { e.target.checked = false; return; }
+    const r = await PJ.setDemo(p.id, on);
+    if (r.error) { e.target.checked = !on; return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error })); }
+    S.demoStatus = (await PJ.demoStatus()).data || { eligible: false };
+    window.LayerPitchNotify.info(tr(on ? 'demoSwitchedOn' : 'demoSwitchedOff'));
+    render();
+  };
   if ($('openNotesBtn')) $('openNotesBtn').onclick = () => { S.showOpenNotes = !S.showOpenNotes; renderOpenNotes(); };
   renderOpenNotes();
   if ($('archiveBtn')) $('archiveBtn').onclick = async () => { await PJ.archive(projectId, !p.archived); await load(); };
@@ -288,6 +343,7 @@ function render() {
   };
   renderPanel();
   renderChat();
+  if (DEMO) lockDemo();
 }
 // Notes non résolues de tout le Projet (clic sur le compteur à côté du titre) : sur quoi, qui, quoi, et « Voir » qui mène
 // à l'objet (onglet Vidéos, Images ou Moodboard, notes ouvertes).
@@ -1424,8 +1480,32 @@ function renderMembers(panel) {
   });
 }
 
-window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'projects', crumbs: [{ label: shellTr('item_projects'), href: 'projets.html' }, { label: '…' }] });
+if (!DEMO) window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'projects', crumbs: [{ label: shellTr('item_projects'), href: 'projets.html' }, { label: '…' }] });
+// Démonstration : formulaires et boutons d'écriture grisés (la discussion et la barre latérale le sont par la feuille de style).
+const DEMO_WRITE = '[data-act], [data-pin], [data-unpin], [data-star], [data-del], [data-delete], [data-edit], [data-unshare], [data-unlink], [data-bdel], [data-resolve], [data-range], [data-addlink], [data-dellink], #linkAlbumBtn, #shareBtn, #addBtn, #snapBtn, #iUploadBtn, #vLinkBtn, #vUploadBtn, [data-new], [data-stats]';
+function lockDemo() {
+  // Formulaires d'ajout : retirés (rien à saisir en démo) ; le reste des contrôles d'écriture est grisé.
+  const add = $('addKind'); if (add && add.closest('.bar')) add.closest('.bar').hidden = true;
+  if ($('addForm')) $('addForm').hidden = true;
+  // « Aperçu » d'une vitrine (réservé aux membres) devient « Visualiser la vitrine » : la page publique, ouverte à tous.
+  document.querySelectorAll('#panel a[href*="vitrine.html?id="]').forEach(a => {
+    const v = ((S.demo && S.demo.vitrines) || []).find(x => a.href.includes('id=' + x.id)); if (!v || !v.slug) return;
+    a.href = location.origin + '/vitrine/' + encodeURIComponent(v.slug); a.textContent = tr('demoViewShowcase');
+  });
+  document.querySelectorAll('#panel input, #panel textarea, #panel select, #panel ' + DEMO_WRITE.split(', ').join(', #panel ')).forEach(el => { if (!el.disabled) { el.disabled = true; el.setAttribute('data-demo-locked', ''); } });
+}
+if (DEMO) {
+  document.body.classList.add('demo');
+  // Les onglets se dessinent après coup (données chargées, images) : on reverrouille à chaque changement.
+  let lockTimer = null;
+  new MutationObserver(() => { clearTimeout(lockTimer); lockTimer = setTimeout(lockDemo, 30); }).observe(content, { childList: true, subtree: true });
+  document.body.insertAdjacentHTML('afterbegin', `<aside class="demo-shell" aria-hidden="true"><b>LayerPitch</b>
+    <small>${esc(shellTr('sectionComposer'))}</small><span>Backstage</span><span>${esc(tr('demoSales'))}</span>
+    <small>${esc(shellTr('sectionStudio'))}</small><span>${esc(tr('demoPurchases'))}</span><span>${esc(tr('demoTeam'))}</span><span>${esc(tr('demoPlan'))}</span>
+    <small>${esc(shellTr('sectionCommon'))}</small><span class="on">${esc(shellTr('item_projects'))}</span><span>${esc(tr('demoInvites'))}</span><span>${esc(tr('demoAccount'))}</span></aside>`);
+}
 if (!projectId) content.innerHTML = `<div class="card"><p class="hint">${esc(tr('noProject'))}</p></div>`;
+else if (DEMO) load();
 else LayerPitchAuth.onAuthStateChange((event) => { if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || !S.project) load(); });
 </script>
 </body>

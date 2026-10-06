@@ -1,0 +1,19 @@
+{
+  "project": { "id": "demo", "title": "Hollow Manor (démo)", "description": "Survival horror dans un manoir abandonné. Direction sonore : silences longs, tension lente, quelques sursauts.", "ownerKind": "studio", "createdAt": "2026-09-01T10:00:00Z", "updatedAt": "2026-09-20T10:00:00Z" },
+  "members": [ { "name": "directrice-audio", "role": "admin" }, { "name": "compositeur", "role": "member" }, { "name": "sound-designer", "role": "member" } ],
+  "content": {
+    "assets": [
+      { "id": "a1", "kind": "note", "origin": "board", "title": "Direction sonore", "body": "Ambiance étouffante. Le silence fait partie de la musique : jamais de nappe continue plus de 30 secondes.", "pinned": true, "starred": true, "createdAt": "2026-09-02T10:00:00Z", "authorName": "directrice-audio", "notes": 1 },
+      { "id": "a2", "kind": "link", "origin": "board", "title": "Référence : ambiance de couloir", "url": "https://example.com/reference", "pinned": true, "starred": false, "createdAt": "2026-09-03T10:00:00Z", "authorName": "compositeur", "notes": 0 },
+      { "id": "a3", "kind": "note", "origin": "board", "title": "Sursauts", "body": "Un stinger par apparition d'ennemi, jamais deux d'affilée.", "pinned": true, "starred": false, "createdAt": "2026-09-04T10:00:00Z", "authorName": "sound-designer", "notes": 0 }
+    ],
+    "moodboard": ["a1", "a2", "a3"], "packs": [], "albums": [], "openAnnotations": 1, "autoSnapshot": "weekly"
+  },
+  "messages": [
+    { "id": "m2", "body": "J'ai posé la version 2 du couloir : moins de basses, plus d'air.", "createdAt": "2026-09-05T15:00:00Z", "authorName": "compositeur", "attachments": [] },
+    { "id": "m1", "body": "Bienvenue sur le projet ! Tout est dans le Moodboard.", "createdAt": "2026-09-05T09:00:00Z", "authorName": "directrice-audio", "attachments": [] }
+  ],
+  "activity": [ { "kind": "asset_added", "payload": { "title": "Direction sonore" }, "createdAt": "2026-09-02T10:00:00Z", "actorName": "directrice-audio" } ],
+  "annotations": [ { "id": "n1", "targetType": "asset", "targetId": "a1", "atSeconds": null, "atPart": null, "body": "On garde cette ligne pour tout le niveau 1 ?", "resolved": false, "createdAt": "2026-09-03T11:00:00Z", "authorName": "compositeur" } ],
+  "vitrines": [ { "id": "v1", "title": "Hollow Manor", "subtitle": "Le jeu qui vous regarde", "slug": "hollow-manor", "display": "page" } ]
+}

@@ -1,0 +1,90 @@
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root {
+    --bg: #f6f5f3; --bg-card: #ffffff; --bg-dark: #201e1b; --border: #e4e1da;
+    --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399;
+    --text-on-dark: #f6f5f3; --text-on-dark-dim: #b6b1a7;
+    --accent: #2f6fe0; --accent-soft: #dce7fb; --accent-dark: #1f4fb0;
+    --accent-2: #1f9e6b; --accent-2-soft: #d7f0e3; --text-title: #262521;
+    --font-body: 'Inter', system-ui, sans-serif; --font-title: 'Space Grotesk', 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+    --shadow-card: 0 1px 2px rgba(38,37,33,0.04), 0 8px 24px rgba(38,37,33,0.06);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); line-height: 1.6; overflow-x: hidden; }
+  a { color: var(--accent); text-decoration: none; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- Barre de navigation ---- */
+  .nav { position: sticky; top: 0; z-index: 20; background: rgba(246,245,243,0.82); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+  .nav-inner { max-width: 1040px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+  .nav-logo { font-family: var(--font-title); font-weight: 700; font-size: 18px; font-style: italic; color: var(--text); }
+  .nav-links { display: flex; align-items: center; gap: 4px; flex: 1; flex-wrap: wrap; }
+  .nav-links a { color: var(--text-dim); font-size: 13px; padding: 6px 10px; border-radius: 6px; }
+  .nav-links a:hover { color: var(--accent); background: var(--accent-soft); }
+  .nav-lang { font-family: var(--font-mono); font-size: 12px; color: var(--text-dimmer); }
+  .nav-lang a { color: var(--text-dim); padding: 0; }
+  .nav-lang a.active { color: var(--text); font-weight: 600; }
+  .nav-account { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.04em; color: var(--text); border: 1px solid var(--border); background: var(--bg-card); border-radius: 6px; padding: 8px 14px; transition: border-color .15s, color .15s; }
+  .nav-account:hover { border-color: var(--accent); color: var(--accent); }
+  @media (max-width: 720px) {
+    .nav-inner { gap: 10px; }
+    .nav-links { order: 3; flex-basis: 100%; }
+    .nav-lang { margin-left: auto; }
+    .nav-account { margin-left: 0; }
+  }
+
+
+  /* ---- Accroche ---- */
+  .hero { padding: 72px 0 40px; text-align: center; }
+  .hero h1 { font-family: var(--font-title); font-size: clamp(30px, 6vw, 52px); font-weight: 700; font-style: italic; line-height: 1.15; margin: 0 auto; max-width: 18ch; }
+  .hero .sub { font-size: clamp(15px, 2.2vw, 18px); color: var(--text-dim); max-width: 56ch; margin: 22px auto 0; }
+
+  /* ---- Les trois portes ---- */
+  .doors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 24px 0 64px; }
+  .door { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 28px 24px 24px; box-shadow: var(--shadow-card); display: flex; flex-direction: column; gap: 14px; min-height: 280px; transition: transform .15s, border-color .15s; }
+  a.door { color: var(--text); }
+  a.door:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .door-eyebrow { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+  .door h2 { font-family: var(--font-title); font-size: 24px; line-height: 1.2; margin: 0; }
+  .door p { margin: 0; color: var(--text-dim); font-size: 15px; flex: 1; }
+  .door-cta { font-family: var(--font-title); font-weight: 600; font-size: 15px; color: var(--accent); }
+  /* Même carte blanche que les autres, mais ni lien ni survol : seul le texte reste en retrait. */
+  .door.soon { cursor: default; }
+  .door.soon .door-eyebrow, .door.soon .door-cta { color: var(--text-dimmer); }
+  /* Côte à côte sur ordinateur, empilées sur téléphone. */
+  @media (max-width: 720px) { .doors { grid-template-columns: 1fr; gap: 14px; } .door { min-height: 0; } }
+
+  /* ---- Recherche : ce que la littérature scientifique permet réellement d'affirmer (références vérifiées le 29/09) ---- */
+  .research { padding: 8px 24px 56px; border-top: 1px solid var(--border); }
+  .research .eyebrow { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 40px 0 12px; }
+  .research h2 { font-family: var(--font-title); font-size: clamp(20px, 3.5vw, 26px); margin: 0 0 10px; }
+  .research .lead { margin: 0 0 22px; color: var(--text-dim); max-width: 68ch; }
+  .studies { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .study { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .study p { margin: 0 0 12px; font-size: 14.5px; }
+  .study cite { font-style: normal; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); line-height: 1.5; display: block; }
+  .study cite a { color: var(--accent); }
+  @media (max-width: 860px) { .studies { grid-template-columns: 1fr; } }
+
+  /* ---- Témoignages ---- */
+  .proof { padding: 8px 0 72px; border-top: 1px solid var(--border); }
+  .proof h2 { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 40px 0 20px; font-weight: 400; }
+  .proof-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .testimonial { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 22px; box-shadow: var(--shadow-card); margin: 0; }
+  .testimonial p { margin: 0 0 12px; font-size: 15px; font-style: italic; }
+  .testimonial cite { font-family: var(--font-mono); font-style: normal; font-size: 11px; font-weight: 600; }
+  .testimonial .role { font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); }
+  @media (max-width: 860px) { .proof-grid { grid-template-columns: 1fr; } }
+
+  /* ---- Pied de page ---- */
+  footer { background: var(--bg-dark); color: var(--text-on-dark-dim); padding: 36px 0 40px; font-size: 13px; }
+  .foot-inner { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; align-items: center; }
+  .foot-links { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+  .foot-links a { color: var(--text-on-dark-dim); }
+  .foot-links a:hover { color: var(--text-on-dark); }
+
+  /* ---- Cartes de profil : une image en bandeau dans chaque carte (variante C retenue le 06/10) ---- */
+  .door { overflow: hidden; padding-top: 0; }
+  .door::before { content: ''; display: block; height: 120px; margin: 0 -24px 6px; background-size: cover; background-position: center; }
+  .door:nth-child(1)::before { background-image: url('./img/rpg.jpg'); }
+  .door:nth-child(2)::before { background-image: url('./img/plateforme.jpg'); }
+  .door:nth-child(3)::before { background-image: url('./img/scifi.jpg'); }

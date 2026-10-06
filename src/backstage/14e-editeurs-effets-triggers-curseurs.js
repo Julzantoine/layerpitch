@@ -228,8 +228,11 @@ function stageFxHtml(stageFx, target, attrs) {
 // morceau), pas de champ mode (toujours "rate", implicite -- voir buildLayerFxChain/applyTrackPitchRate
 // dans player.js). Rendu une fois dans le panneau "Infos du morceau", commun à tous les modes.
 function trackPitchFxHtml(track, ti) {
-  const pitchDisabled = !fxOpen('pitch');
   const p = (track.fx && track.fx.pitch) || null;
+  // Le Pitch est un effet comme les autres : il se règle dans les effets d'un événement (7/10). Cette case ne s'affiche plus que pour
+  // un morceau qui a DÉJÀ un ancien réglage de vitesse global, afin de pouvoir le retirer ou le reprendre dans un événement.
+  if (!p) return '';
+  const pitchDisabled = !fxOpen('pitch');
   const attrs = `data-fx-target="track" data-ti="${ti}"`;
   // Fondu de pitch : seulement avec le moteur simple (statique/vertical sans boucle quantifiée), voir
   // applyTrackPitchRate() dans player.js.
@@ -242,7 +245,7 @@ function trackPitchFxHtml(track, ti) {
           <input type="checkbox" data-field="fx" data-fx-effect="pitch" data-fx-param="enabled" ${attrs} ${p ? 'checked' : ''} ${pitchDisabled ? 'disabled' : ''} style="width:auto;margin:0">
           ${tr('fxPitchModeRate')}${pitchDisabled ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}
         </label>
-        <div class="hint-inline">${tr('fxTrackPitchHint')}</div>
+        <div class="hint-inline">${tr('fxTrackPitchHint')} ${tr('fxTrackPitchLegacyNote')}</div>
         ${p ? `
           <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxSemitonesLabel')}</label>
             <input type="number" step="1" min="-24" max="24" ${pitchDisabled ? 'disabled' : ''} data-field="fx" data-fx-effect="pitch" data-fx-param="semitones" ${attrs} value="${p.semitones || 0}"></div>
@@ -269,6 +272,9 @@ function fxTriggerTargetChoices(track) {
   else if (track.mode === 'embranchement-vertical') (track.loops || []).forEach((l, i) => out.push({ value: 'loop:' + i, label: l.label || tr('embrLoopFallback', { n: i + 1 }) }));
   else if (track.mode === 'sequential') (track.segmentSlots || []).forEach((sl, i) => out.push({ value: 'slot:' + i, label: '#' + (i + 1) + ' ' + (sl.label || tr('slotFallback', { n: i + 1 })) }));
   else if (track.mode === 'vertical-random') (track.sections || []).forEach((sec, si) => (sec.pools || []).forEach((p, pi) => out.push({ value: 'pool:' + si + ':' + pi, label: (sec.label || ('S' + (si + 1))) + ' / ' + (p.label || ('P' + (pi + 1))) })));
+  // Intro, outro, transitions (7/10) : leurs chaînes d'effets sont des cibles comme les voix.
+  if (track.mode === 'sequential' || track.mode === 'vertical-random') { out.push({ value: 'intro', label: tr('fxTargetIntro') }); out.push({ value: 'outro', label: tr('fxTargetOutro') }); }
+  if (track.mode === 'sequential' || track.mode === 'embranchement-vertical') out.push({ value: 'transition', label: tr('fxTargetTransitions') });
   return out;
 }
 function fxTriggerTargetToValue(t) {
@@ -279,6 +285,7 @@ function fxTriggerTargetToValue(t) {
   if (t.type === 'loop') return 'loop:' + t.li;
   if (t.type === 'slot') return 'slot:' + t.si;
   if (t.type === 'pool') return 'pool:' + t.si + ':' + t.pi;
+  if (t.type === 'intro' || t.type === 'outro' || t.type === 'transition') return t.type;
   return '';
 }
 function parseFxTriggerTarget(v) {
@@ -289,6 +296,7 @@ function parseFxTriggerTarget(v) {
   if (p[0] === 'loop') return { type: 'loop', li: parseInt(p[1], 10) || 0 };
   if (p[0] === 'slot') return { type: 'slot', si: parseInt(p[1], 10) || 0 };
   if (p[0] === 'pool') return { type: 'pool', si: parseInt(p[1], 10) || 0, pi: parseInt(p[2], 10) || 0 };
+  if (p[0] === 'intro' || p[0] === 'outro' || p[0] === 'transition') return { type: p[0] };
   return null;
 }
 // Relations entre triggers (24/09) : { activates:[{triggerId, delaySec}], cuts:[id], requires:[id], autoOffSec } --
@@ -299,6 +307,7 @@ function fxStepsClean(steps, depth) {
   const out = (Array.isArray(steps) ? steps : []).filter(x => x && x.id).map(x => {
     const c = { id: x.id, label: x.label || '', delaySec: +x.delaySec > 0 ? +x.delaySec : 0, fx: x.fx || {} };
     if (+x.durationSec > 0) c.durationSec = +x.durationSec;
+    if (Array.isArray(x.targets) && x.targets.length) c.targets = x.targets.map(t => Object.assign({}, t));
     if (x.fadeSec != null && x.fadeSec !== '' && +x.fadeSec >= 0) c.fadeSec = +x.fadeSec;
     if (x.fadeOutSec != null && x.fadeOutSec !== '' && +x.fadeOutSec >= 0) c.fadeOutSec = +x.fadeOutSec;
     const kids = depth < FX_STEP_MAX_DEPTH ? fxStepsClean(x.children, depth + 1) : undefined;
@@ -332,7 +341,7 @@ function fxStepLevels(steps) {
   return (steps || []).map((st, si) => ({ si, st, level: 1 + delays.indexOf(+st.delaySec > 0 ? +st.delaySec : 0) }))
     .sort((a, b) => ((+a.st.delaySec || 0) - (+b.st.delaySec || 0)) || (a.si - b.si));
 }
-function fxStepRowsHtml(trg, steps, parentPath, depth, attrs) {
+function fxStepRowsHtml(track, trg, steps, parentPath, depth, attrs) {
   const ti = /data-ti="(\d+)"/.exec(attrs)[1], tri = /data-tri="(\d+)"/.exec(attrs)[1];
   return fxStepLevels(steps).map(({ st, si, level }) => {
     const path = parentPath ? parentPath + '.' + si : String(si);
@@ -344,32 +353,106 @@ function fxStepRowsHtml(trg, steps, parentPath, depth, attrs) {
     return `
       <details class="list-block" data-fxt-section-key="${escapeAttr(key)}" ${fxTriggersSectionOpen.has(key) ? 'open' : ''} data-fx-step-level="${level}" style="margin:6px 0 0 ${depth === 1 ? level * 18 : 18}px;border-left:3px solid var(--accent,#2f80c0)">
         <summary style="cursor:pointer;font-weight:600">&#8627; ${escapeAttr(st.label) || tr('fxStepTitle', { n: num })}<span class="hint-inline" style="margin:0 0 0 8px;font-weight:400">${when} ${tr('fxTriggerEffectsCount', { n: Object.keys(st.fx || {}).length })}${kids.length ? ' · ' + kids.length + ' &#8627;' : ''}</span></summary>
-        <div class="row" style="margin-top:8px">
-          <div><label style="font-size:0.85em">${tr('fxStepLabelLabel')}</label>
-            <input type="text" placeholder="${escapeAttr(tr('fxStepTitle', { n: num }))}" data-field="fxStep" data-fxs-prop="label" ${sAttrs} value="${escapeAttr(st.label)}"></div>
-          <div><label style="font-size:0.85em">${tr(depth === 1 ? 'fxStepDelayLabel' : 'fxStepChildDelayLabel')}</label>
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-top:8px">
+          <div style="flex:1;min-width:0"><label style="font-size:0.85em">${tr('fxStepLabelLabel')}</label>
+            <input type="text" placeholder="${escapeAttr(tr('fxStepTitle', { n: num }))}" data-field="fxStep" data-fxs-prop="label" ${sAttrs} value="${escapeAttr(st.label)}" style="width:100%"></div>
+          <button class="btn btn-icon btn-danger" type="button" data-action="remove-fx-step" ${sAttrs} title="${escapeAttr(tr('removeFxStepBtn'))}">×</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 12px;margin-top:8px">
+          <div><label style="font-size:0.85em;display:block">${tr(depth === 1 ? 'fxStepDelayLabel' : 'fxStepChildDelayLabel')}</label>
             <input type="number" step="0.1" min="0" data-field="fxStep" data-fxs-prop="delaySec" ${sAttrs} value="${+st.delaySec || 0}" style="width:100%"></div>
-          <div><label style="font-size:0.85em">${tr('fxStepDurationLabel')}</label>
+          <div><label style="font-size:0.85em;display:block">${tr('fxStepDurationLabel')}</label>
             <input type="number" step="0.1" min="0" placeholder="${escapeAttr(tr('fxStepDurationPlaceholder'))}" data-field="fxStep" data-fxs-prop="durationSec" ${sAttrs} value="${+st.durationSec > 0 ? +st.durationSec : ''}" style="width:100%"></div>
-          <div><label style="font-size:0.85em">${tr('fxTriggerFadeLabel')}</label>
+          <div><label style="font-size:0.85em;display:block">${tr('fxStepFadeInLabel')}</label>
             <input type="number" step="0.05" min="0" max="10" placeholder="${escapeAttr(tr('fxStepFadePlaceholder'))}" data-field="fxStep" data-fxs-prop="fadeSec" ${sAttrs} value="${st.fadeSec != null ? st.fadeSec : ''}" style="width:100%"></div>
-          <div><label style="font-size:0.85em">${tr('fxTriggerFadeOutLabel')}</label>
+          <div><label style="font-size:0.85em;display:block">${tr('fxStepFadeOutLabel')}</label>
             <input type="number" step="0.05" min="0" max="10" placeholder="${escapeAttr(tr('fxStepFadePlaceholder'))}" data-field="fxStep" data-fxs-prop="fadeOutSec" ${sAttrs} value="${st.fadeOutSec != null ? st.fadeOutSec : ''}" style="width:100%"></div>
-          <button class="btn btn-icon btn-danger" type="button" data-action="remove-fx-step" ${sAttrs} title="${escapeAttr(tr('removeFxStepBtn'))}" style="align-self:flex-end">×</button>
         </div>
         <div class="hint-inline">${tr(depth === 1 ? 'fxStepDelayHint' : 'fxStepChildDelayHint')} ${tr('fxStepDurationHint')}</div>
+        <div style="margin-top:8px"><label style="font-size:0.85em">${tr('fxStepTargetsLabel')}</label>
+          <label style="display:flex;align-items:center;gap:6px;margin:4px 0 0;font-size:12px"><input type="checkbox" data-field="fxTargets" data-fxtg-same="1" data-fxtg-owner="step" ${sAttrs} ${st.targets && st.targets.length ? '' : 'checked'} style="width:auto;margin:0"> ${tr('fxStepTargetsSame')}</label>
+          ${st.targets && st.targets.length ? fxTargetsPickerHtml(track, fxTriggerTargetValues(st), `data-fxtg-owner="step" ${sAttrs}`) : ''}</div>
         ${fxBlockHtml(st.fx, `data-fx-target="trstep" ${sAttrs}`)}
-        ${fxStepRowsHtml(trg, kids, path, depth + 1, attrs)}
+        ${fxStepRowsHtml(track, trg, kids, path, depth + 1, attrs)}
         ${depth < FX_STEP_MAX_DEPTH ? `<div class="actions" style="margin:6px 0 0 18px"><button class="btn btn-small" type="button" data-action="add-fx-step" ${sAttrs}>${tr('addFxChildStepBtn')}</button></div>` : ''}
       </details>`;
   }).join('');
 }
-function fxCascadeHtml(trg, attrs) {
+// ---- Chronologie de l'enveloppe d'un événement (7/10, idée « ADSR » de Jules-Antoine, étape 1 : visuel seulement) ----
+// Une ligne par groupe d'effets (les effets propres de l'événement, puis chaque étape, enfants compris) : montée (attack = fondu
+// d'entrée), maintien (sustain = durée) et retour (release = fondu de sortie), sur un axe de secondes depuis l'appui du visiteur.
+// Pas de decay ni de niveau de maintien pour l'instant. Fonctions PURES.
+function fxEnvelopeRows(trg) {
+  const dflt = 0.1;
+  const attackOf = (node, parent) => (node.fadeSec != null ? +node.fadeSec : (parent.fadeSec != null ? +parent.fadeSec : dflt));
+  const releaseOf = (node, parent, attack) => (node.fadeOutSec != null ? +node.fadeOutSec : (parent.fadeOutSec != null ? +parent.fadeOutSec : attack));
+  const own = +(trg.relations && trg.relations.autoOffSec) > 0 ? +trg.relations.autoOffSec : null;
+  const a0 = attackOf(trg, {});
+  const rows = [{ label: trg.label || '', start: 0, attack: a0, sustain: own, release: releaseOf(trg, {}, a0), own: true, depth: 0 }];
+  const walk = (steps, base, depth, prefix) => (steps || []).forEach((s, i) => {
+    if (!s) return;
+    const start = base + (+s.delaySec > 0 ? +s.delaySec : 0);
+    const a = attackOf(s, trg);
+    const num = (prefix ? prefix + '.' : '') + (i + 1);
+    rows.push({ label: s.label || '', start, attack: a, sustain: +s.durationSec > 0 ? +s.durationSec : null, release: releaseOf(s, trg, a), own: false, depth, n: i + 1, num });
+    walk(s.children, start, depth + 1, num);
+  });
+  walk(trg.steps, 0, 1, '');
+  return rows;
+}
+// Dessin SVG : une ligne par groupe. Un maintien sans durée court jusqu'à la fin de l'événement (second appui) : tireté, avec « … ».
+function fxEnvelopeSvg(rows, labels) {
+  const W = 340, LABEL = 74, PAD_R = 10, ROW = 22, TOP = 4, AXIS = 16;
+  const finite = rows.map(r => r.sustain != null ? r.start + r.attack + r.sustain + r.release : null).filter(v => v != null);
+  const open = rows.filter(r => r.sustain == null).map(r => r.start + r.attack + 2);
+  const horizon = Math.max(4, Math.ceil(Math.max.apply(null, finite.concat(open, [0]))));
+  const H = TOP + rows.length * ROW + AXIS, iw = W - LABEL - PAD_R;
+  const X = t => LABEL + Math.min(horizon, Math.max(0, t)) / horizon * iw;
+  const step = horizon <= 8 ? 1 : (horizon <= 20 ? 2 : (horizon <= 60 ? 10 : 30));
+  let g = '';
+  for (let t = 0; t <= horizon; t += step) g += `<line x1="${X(t).toFixed(1)}" x2="${X(t).toFixed(1)}" y1="${TOP}" y2="${H - AXIS}" stroke="var(--border,#ddd)" stroke-width="1"/><text x="${X(t).toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="9" fill="var(--text-dim,#888)">${t}s</text>`;
+  rows.forEach((r, i) => {
+    const top = TOP + i * ROW + 3, bot = TOP + (i + 1) * ROW - 3;
+    const x0 = X(r.start), x1 = X(r.start + r.attack);
+    const name = ((r.depth > 1 ? '\u21b3 ' : '') + (r.own ? labels.own : (r.label || labels.step.replace('{n}', r.num)))).slice(0, 13);
+    g += `<text x="${LABEL - 4}" y="${(top + bot) / 2 + 3}" text-anchor="end" font-size="9" font-weight="${r.own ? 700 : 400}" fill="var(--text-dim,#666)">${name.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`;
+    let d = `M${x0.toFixed(1)},${bot} L${x1.toFixed(1)},${top}`;
+    if (r.sustain != null) {
+      const x2 = X(r.start + r.attack + r.sustain), x3 = X(r.start + r.attack + r.sustain + r.release);
+      d += ` L${x2.toFixed(1)},${top} L${x3.toFixed(1)},${bot}`;
+      g += `<path d="${d} Z" fill="var(--accent,#2f80c0)" opacity="${r.own ? 0.35 : 0.22}"/><path d="${d}" fill="none" stroke="var(--accent,#2f80c0)" stroke-width="1.6" stroke-linejoin="round"/>`;
+    } else {
+      const xe = X(horizon);
+      d += ` L${xe.toFixed(1)},${top}`;
+      g += `<path d="${d} L${xe.toFixed(1)},${bot} Z" fill="var(--accent,#2f80c0)" opacity="${r.own ? 0.35 : 0.22}"/><path d="${d}" fill="none" stroke="var(--accent,#2f80c0)" stroke-width="1.6" stroke-dasharray="4 3" stroke-linejoin="round"/><text x="${(xe - 2).toFixed(1)}" y="${top + 8}" text-anchor="end" font-size="10" fill="var(--accent,#2f80c0)">…</text>`;
+    }
+  });
+  return `<svg data-fx-envelope-svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:480px;display:block" role="img" aria-label="${labels.aria}">${g}</svg>`;
+}
+function fxEnvelopeHtml(trg, ti, tri) {
+  const labels = { own: tr('fxEnvelopeOwn'), step: tr('fxStepTitle', { n: '{n}' }), aria: escapeAttr(tr('fxEnvelopeAria')) };
+  return `<div style="margin-top:10px" data-fx-envelope data-ti="${ti}" data-tri="${tri}">
+    <div style="font-weight:600;font-size:0.9em">${tr('fxEnvelopeTitle')}</div>
+    <div class="hint-inline">${tr('fxEnvelopeHint')}</div>
+    <div data-role="envelopeBody">${fxEnvelopeSvg(fxEnvelopeRows(trg), labels)}</div></div>`;
+}
+// Mise à jour en direct : après chaque saisie dans une carte d'événement (le gestionnaire de saisie a déjà mis le modèle à jour).
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (!t || !t.dataset || t.dataset.tri == null || t.dataset.ti == null) return;
+  setTimeout(() => {
+    const host = document.querySelector(`[data-fx-envelope][data-ti="${t.dataset.ti}"][data-tri="${t.dataset.tri}"] [data-role="envelopeBody"]`);
+    const trg = host && library[+t.dataset.ti] && (library[+t.dataset.ti].fxTriggers || [])[+t.dataset.tri];
+    if (host && trg) host.innerHTML = fxEnvelopeSvg(fxEnvelopeRows(trg), { own: tr('fxEnvelopeOwn'), step: tr('fxStepTitle', { n: '{n}' }), aria: escapeAttr(tr('fxEnvelopeAria')) });
+  }, 0);
+}, true);
+function fxCascadeHtml(track, trg, attrs) {
   return `
     <div style="margin-top:12px">
-      <div style="font-weight:600;font-size:0.9em">${tr('fxCascadeTitle')}</div>
+      ${fxEnvelopeHtml(trg, +/data-ti="(\d+)"/.exec(attrs)[1], +/data-tri="(\d+)"/.exec(attrs)[1])}
+      <div style="font-weight:600;font-size:0.9em;margin-top:12px">${tr('fxCascadeTitle')}</div>
       <div class="hint-inline">${tr('fxCascadeHint')}</div>
-      ${fxStepRowsHtml(trg, trg.steps || [], '', 1, attrs)}
+      ${fxStepRowsHtml(track, trg, trg.steps || [], '', 1, attrs)}
       <div class="actions" style="margin-top:6px;margin-left:18px"><button class="btn btn-small" type="button" data-action="add-fx-step" ${attrs}>${tr('addFxStepBtn')}</button></div>
     </div>`;
 }
@@ -425,19 +508,30 @@ document.addEventListener('toggle', e => {
 function fxTriggersPersistOpen() {
   try { localStorage.setItem(FX_TRIGGERS_OPEN_STORAGE, JSON.stringify([...fxTriggersSectionOpen].slice(-300))); } catch (err) { /* stockage indisponible : on garde l'état en mémoire */ }
 }
-function fxTriggersEditorHtml(track, ti) {
+// Cibles d'un événement (7/10) : plusieurs voix, ou « Toutes les voix » (= le morceau entier), l'intro, l'outro, les transitions.
+// trigger.targets = [cible, ...] ; trigger.target (la première) reste renseignée pour le lecteur et les anciennes données.
+function fxTriggerTargetValues(holder) {
+  const t = Array.isArray(holder.targets) && holder.targets.length ? holder.targets : (holder.target ? [holder.target] : [{ type: 'track' }]);
+  return t.map(fxTriggerTargetToValue).filter(Boolean);
+}
+// Pure : coche / décoche une cible. « Toutes les voix » exclut les autres ; décocher la dernière revient à « Toutes les voix ».
+function fxToggleTargetValue(values, value, on) {
+  if (on) return value === 'track' ? ['track'] : values.filter(v => v !== 'track' && v !== value).concat(value);
+  const rest = values.filter(v => v !== value);
+  return rest.length ? rest : ['track'];
+}
+function fxTargetsPickerHtml(track, values, dataAttrs) {
+  const opts = [{ value: 'track', label: tr('fxTargetAllVoices') }].concat(fxTriggerTargetChoices(track));
+  const known = new Set(opts.map(o => o.value));
+  values.filter(v => !known.has(v)).forEach(v => opts.push({ value: v, label: v })); // cible d'anciennes données, conservée telle quelle
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:4px" data-role="fxTargets">${opts.map(o => `
+    <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:12px"><input type="checkbox" data-field="fxTargets" data-fxtg-value="${escapeAttr(o.value)}" ${dataAttrs} ${values.indexOf(o.value) >= 0 ? 'checked' : ''} style="width:auto;margin:0"> ${escapeAttr(o.label)}</label>`).join('')}</div>`;
+}
+// Carte d'un trigger (réglages, effets, cascade, relations) : la même partout -- section du morceau (anciens triggers « morceau
+// entier ») ou voix précise (couche, boucle, emplacement, pool). i = indice dans track.fxTriggers.
+function fxTriggerCardHtml(track, ti, trg, i, choices) {
   const triggers = track.fxTriggers || [];
-  if (!fxOpen('triggers')) {
-    return `
-      <div style="margin-top:14px;opacity:0.55">
-        <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}</div>
-        <div class="hint-inline">${tr('fxTriggersAdminOnly')}${triggers.length ? ' (' + triggers.length + ')' : ''}</div>
-      </div>`;
-  }
-  const choices = fxTriggerTargetChoices(track);
-  const cards = triggers.map((trg, i) => {
-    const curValue = fxTriggerTargetToValue(trg.target);
-    const opts = choices.map(c => `<option value="${escapeAttr(c.value)}" ${c.value === curValue ? 'selected' : ''}>${escapeAttr(c.label)}</option>`).join('');
+    const targetValues = fxTriggerTargetValues(trg);
     const attrs = `data-ti="${ti}" data-tri="${i}"`;
     const cardKey = 'c:' + trg.id;
     // Chaque trigger se replie séparément (demande du 6/10) : fermé par défaut, état retenu comme la section.
@@ -448,10 +542,9 @@ function fxTriggersEditorHtml(track, ti) {
           <div><label>${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('fxTriggerLabelPlaceholder')}" data-field="fxTrigger" data-fxt-prop="label" ${attrs} value="${escapeAttr(trg.label)}"></div>
           <button class="btn btn-icon btn-danger" data-action="remove-fx-trigger" ${attrs} title="${tr('removeFxTriggerBtn')}" style="align-self:flex-end">×</button>
         </div>
-        ${trg.target && trg.target.type !== 'track' ? `
-          <div class="hint-inline" style="margin-top:6px">${tr('fxTriggerLegacyTarget', { name: escapeAttr((choices.find(c => c.value === curValue) || {}).label || curValue) })}
-            <button class="btn btn-small" type="button" data-action="fx-trigger-to-track" ${attrs}>${tr('fxTriggerToWholeTrackBtn')}</button></div>
-        ` : `<div class="hint-inline" style="margin-top:6px">${tr('fxTriggerWholeTrackNote')}</div>`}
+        <div style="margin-top:8px"><label style="font-size:0.85em">${tr('fxTriggerTargetsLabel')}</label>
+          ${fxTargetsPickerHtml(track, targetValues, `data-fxtg-owner="trigger" ${attrs}`)}</div>
+        <div class="hint-inline">${tr('fxTriggerTargetsHint')}</div>
         <details data-fxt-effects-key="${escapeAttr(trg.id)}" ${fxTriggerEffectsCollapsed.has(trg.id) ? '' : 'open'} style="margin-top:10px">
           <summary style="cursor:pointer;font-weight:600;font-size:0.9em">${tr('fxSectionTitle')} <span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggerEffectsCount', { n: Object.keys(trg.fx || {}).length })}</span></summary>
   ${fxBlockHtml(trg.fx, `data-fx-target="trigger" ${attrs}`)}
@@ -476,10 +569,21 @@ function fxTriggersEditorHtml(track, ti) {
           <input type="number" step="0.5" min="0" placeholder="${tr('fxAutoOffPlaceholder')}" data-field="fxTrigger" data-fxt-prop="autoOffSec" style="width:100%" ${attrs} value="${trg.relations && trg.relations.autoOffSec != null ? trg.relations.autoOffSec : ''}"></div>
         <div class="hint-inline">${tr('fxAutoOffHint')}</div>
         ${(trg.steps || []).length ? `<div class="hint-inline">${tr('fxAutoOffCascadeNote')}</div>` : ''}
-        ${fxCascadeHtml(trg, attrs)}
+        ${fxCascadeHtml(track, trg, attrs)}
         ${fxRelationsEditorHtml(triggers, i, trg, attrs)}
       </details>`;
-  }).join('');
+}
+function fxTriggersEditorHtml(track, ti) {
+  const triggers = track.fxTriggers || [];
+  if (!fxOpen('triggers')) {
+    return `
+      <div style="margin-top:14px;opacity:0.55">
+        <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}</div>
+        <div class="hint-inline">${tr('fxTriggersAdminOnly')}${triggers.length ? ' (' + triggers.length + ')' : ''}</div>
+      </div>`;
+  }
+  const choices = fxTriggerTargetChoices(track);
+  const cards = triggers.map((trg, i) => fxTriggerCardHtml(track, ti, trg, i, choices)).join('');
   // Toute la section se replie (demande du 30/09) ; l'état est gardé par morceau à travers les re-rendus.
   const secKey = String(track.id || ti);
   return `
@@ -487,7 +591,7 @@ function fxTriggersEditorHtml(track, ti) {
       <summary style="cursor:pointer;font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}<span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggersCount', { n: triggers.length })}</span></summary>
       <div class="hint-inline">${tr('fxTriggersHint')}</div>
       ${cards}
-      <div class="actions" style="margin-top:8px"><button class="btn btn-small" data-action="add-fx-trigger" data-ti="${ti}">${tr('addFxTriggerBtn')}</button></div>
+      <div class="actions" style="margin-top:8px"><button class="btn btn-small" type="button" data-action="add-fx-trigger" data-ti="${ti}">${tr('addFxTriggerBtn')}</button></div>
     </details>`;
 }
 // ---- Curseurs de paramètre (24/09) -- réservés à l'admin, comme les triggers ----
@@ -553,7 +657,7 @@ function fxSlidersEditorHtml(track, ti) {
   }
   // Décision du 24/09 : plus de cible par section -- une liaison agit sur TOUT le morceau, ou sur un Sfx attaché. Une
   // ancienne cible précise (déjà enregistrée) reste listée pour ne rien perdre.
-  const voiceChoices = [{ value: 'track', label: tr('fxTargetWholeTrack') }];
+  const voiceChoices = [{ value: 'track', label: tr('fxTargetWholeTrackLegacy') }];
   const legacyChoices = fxTriggerTargetChoices(track);
   // Sfx attachés au morceau (boutons Sfx) : cibles possibles pour les paramètres de spatialisation.
   const sfxChoices = (track.sfxIds || []).map(id => (typeof sfxLibrary !== 'undefined' ? sfxLibrary : []).find(x => x.id === id)).filter(Boolean)
