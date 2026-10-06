@@ -98,7 +98,7 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   else if (btn.dataset.action === 'add-fx-trigger') {
     const tk = library[ti];
     if (!tk.fxTriggers) tk.fxTriggers = [];
-    const newTrigger = { id: genId(), label: tr('fxTriggerFallbackLabel', { n: tk.fxTriggers.length + 1 }), target: { type: 'track' }, fx: {}, visible: true, fadeSec: null }; // agit sur tout le morceau ; bouton public par défaut
+    const newTrigger = { id: genId(), label: tr('fxTriggerFallbackLabel', { n: tk.fxTriggers.length + 1 }), target: parseFxTriggerTarget(btn.dataset.target) || { type: 'track' }, fx: {}, visible: true, fadeSec: null }; // agit sur tout le morceau ; bouton public par défaut
     tk.fxTriggers.push(newTrigger);
     fxTriggersSectionOpen.add('c:' + newTrigger.id); // un trigger qu'on vient de créer s'affiche déplié
     fxTriggersPersistOpen();
@@ -347,7 +347,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
         else if (prop === 'showEffects') trg.showEffects = e.target.checked;
         else if (prop === 'fadeSec') trg.fadeSec = e.target.value === '' ? null : parseFloat(e.target.value);
         else if (prop === 'fadeOutSec') trg.fadeOutSec = e.target.value === '' ? null : parseFloat(e.target.value);
-        else if (prop === 'target') trg.target = parseFxTriggerTarget(e.target.value);
+        else if (prop === 'target') { trg.target = parseFxTriggerTarget(e.target.value); fxTriggersPersistOpen(); renderLibrary(); } // la carte change de voix
         else if (prop === 'autoOffSec') { trg.relations = trg.relations || {}; trg.relations.autoOffSec = e.target.value === '' ? null : parseFloat(e.target.value); }
       }
     }

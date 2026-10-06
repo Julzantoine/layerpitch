@@ -1829,15 +1829,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791282049594"></script>
-<script src="layerpitch-appearance.js?v=1791282049594"></script>
-<script src="layerpitch-album-shared.js?v=1791282049594"></script>
-<script src="layerpitch-album-editor.js?v=1791282049594"></script>
-<script src="layerpitch-shell.js?v=1791282049594"></script>
-<script src="layerpitch-social-icons.js?v=1791282049594"></script>
-<script src="layerpitch-notify.js?v=1791282049594"></script>
-<script src="layerpitch-help.js?v=1791282049594"></script>
-<script src="player.js?v=1791282049594"></script>
+<script src="layerpitch-i18n.js?v=1791290895062"></script>
+<script src="layerpitch-appearance.js?v=1791290895062"></script>
+<script src="layerpitch-album-shared.js?v=1791290895062"></script>
+<script src="layerpitch-album-editor.js?v=1791290895062"></script>
+<script src="layerpitch-shell.js?v=1791290895062"></script>
+<script src="layerpitch-social-icons.js?v=1791290895062"></script>
+<script src="layerpitch-notify.js?v=1791290895062"></script>
+<script src="layerpitch-help.js?v=1791290895062"></script>
+<script src="player.js?v=1791290895062"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3594,22 +3594,22 @@ document.addEventListener('click', e => {
 // Couche (mode vertical) ou l'unique couche du mode statique (li=null).
 function layerFxHtml(layer, ti, li) {
   const liAttr = li != null ? `data-li="${li}"` : '';
-  return fxBlockHtml(layer.fx, `data-fx-target="layer" data-ti="${ti}" ${liAttr}`);
+  return fxBlockHtml(layer.fx, `data-fx-target="layer" data-ti="${ti}" ${liAttr}`) + fxVoiceTriggersHtml(ti, 'layer:' + (li != null ? li : 0));
 }
 // Boucle nommée (mode embranchement-vertical) -- fx par boucle, exact équivalent d'une couche.
 function loopFxHtml(loop, ti, li) {
-  return fxBlockHtml(loop.fx, `data-fx-target="loop" data-ti="${ti}" data-li="${li}"`);
+  return fxBlockHtml(loop.fx, `data-fx-target="loop" data-ti="${ti}" data-li="${li}"`) + fxVoiceTriggersHtml(ti, 'loop:' + li);
 }
 // Emplacement séquentiel (mode séquentiel) -- fx porté par l'EMPLACEMENT, pas par chaque alternative :
 // un emplacement est une position fixe de la timeline, l'effet doit s'appliquer quel que soit le tirage
 // qui le remplit (anti-répétition), pas être reconfiguré alternative par alternative.
 function slotFxHtml(slot, ti, si) {
-  return fxBlockHtml(slot.fx, `data-fx-target="slot" data-ti="${ti}" data-si="${si}"`);
+  return fxBlockHtml(slot.fx, `data-fx-target="slot" data-ti="${ti}" data-si="${si}"`) + fxVoiceTriggersHtml(ti, 'slot:' + si);
 }
 // Pool (mode vertical-random) -- même raisonnement que l'emplacement séquentiel : le pool est la "voix"
 // fixe (façon Wwise Voice Graph), l'effet lui appartient plutôt qu'à l'alternative tirée au sort.
 function poolFxHtml(pool, ti, si, pi) {
-  return fxBlockHtml(pool.fx, `data-fx-target="pool" data-ti="${ti}" data-si="${si}" data-pi="${pi}"`);
+  return fxBlockHtml(pool.fx, `data-fx-target="pool" data-ti="${ti}" data-si="${si}" data-pi="${pi}"`) + fxVoiceTriggersHtml(ti, 'pool:' + si + ':' + pi);
 }
 // Intro, outro et transitions (27/09, proposition d'Antoine B.2) : leurs propres effets, comme une couche ou une
 // boucle ; les triggers du morceau entier s'y appliquent aussi (lecteur et export vidéo).
@@ -3818,19 +3818,16 @@ document.addEventListener('toggle', e => {
 function fxTriggersPersistOpen() {
   try { localStorage.setItem(FX_TRIGGERS_OPEN_STORAGE, JSON.stringify([...fxTriggersSectionOpen].slice(-300))); } catch (err) { /* stockage indisponible : on garde l'état en mémoire */ }
 }
-function fxTriggersEditorHtml(track, ti) {
+// Carte d'un trigger (réglages, effets, cascade, relations) : la même partout -- section du morceau (anciens triggers « morceau
+// entier ») ou voix précise (couche, boucle, emplacement, pool). i = indice dans track.fxTriggers.
+function fxTriggerCardHtml(track, ti, trg, i, choices) {
   const triggers = track.fxTriggers || [];
-  if (!fxOpen('triggers')) {
-    return `
-      <div style="margin-top:14px;opacity:0.55">
-        <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}</div>
-        <div class="hint-inline">${tr('fxTriggersAdminOnly')}${triggers.length ? ' (' + triggers.length + ')' : ''}</div>
-      </div>`;
-  }
-  const choices = fxTriggerTargetChoices(track);
-  const cards = triggers.map((trg, i) => {
     const curValue = fxTriggerTargetToValue(trg.target);
-    const opts = choices.map(c => `<option value="${escapeAttr(c.value)}" ${c.value === curValue ? 'selected' : ''}>${escapeAttr(c.label)}</option>`).join('');
+    // Le morceau entier n'est proposé que s'il est déjà la cible (ancien trigger) ; une cible inconnue est conservée telle quelle.
+    const known = choices.some(c => c.value === curValue);
+    const targetOpts = (curValue === 'track' ? `<option value="track" selected>${escapeAttr(tr('fxTargetWholeTrackLegacy'))}</option>` : '')
+      + (curValue && curValue !== 'track' && !known ? `<option value="${escapeAttr(curValue)}" selected>${escapeAttr(curValue)}</option>` : '')
+      + choices.map(c => `<option value="${escapeAttr(c.value)}" ${c.value === curValue ? 'selected' : ''}>${escapeAttr(c.label)}</option>`).join('');
     const attrs = `data-ti="${ti}" data-tri="${i}"`;
     const cardKey = 'c:' + trg.id;
     // Chaque trigger se replie séparément (demande du 6/10) : fermé par défaut, état retenu comme la section.
@@ -3841,10 +3838,9 @@ function fxTriggersEditorHtml(track, ti) {
           <div><label>${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('fxTriggerLabelPlaceholder')}" data-field="fxTrigger" data-fxt-prop="label" ${attrs} value="${escapeAttr(trg.label)}"></div>
           <button class="btn btn-icon btn-danger" data-action="remove-fx-trigger" ${attrs} title="${tr('removeFxTriggerBtn')}" style="align-self:flex-end">×</button>
         </div>
-        ${trg.target && trg.target.type !== 'track' ? `
-          <div class="hint-inline" style="margin-top:6px">${tr('fxTriggerLegacyTarget', { name: escapeAttr((choices.find(c => c.value === curValue) || {}).label || curValue) })}
-            <button class="btn btn-small" type="button" data-action="fx-trigger-to-track" ${attrs}>${tr('fxTriggerToWholeTrackBtn')}</button></div>
-        ` : `<div class="hint-inline" style="margin-top:6px">${tr('fxTriggerWholeTrackNote')}</div>`}
+        <div style="margin-top:8px"><label style="font-size:0.85em">${tr('fxTriggerTargetLabel')}</label>
+          <select data-field="fxTrigger" data-fxt-prop="target" ${attrs}>${targetOpts}</select></div>
+        <div class="hint-inline">${curValue === 'track' ? tr('fxTriggerWholeTrackNote') : tr('fxTriggerVoiceNote')}</div>
         <details data-fxt-effects-key="${escapeAttr(trg.id)}" ${fxTriggerEffectsCollapsed.has(trg.id) ? '' : 'open'} style="margin-top:10px">
           <summary style="cursor:pointer;font-weight:600;font-size:0.9em">${tr('fxSectionTitle')} <span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggerEffectsCount', { n: Object.keys(trg.fx || {}).length })}</span></summary>
   ${fxBlockHtml(trg.fx, `data-fx-target="trigger" ${attrs}`)}
@@ -3872,15 +3868,48 @@ function fxTriggersEditorHtml(track, ti) {
         ${fxCascadeHtml(trg, attrs)}
         ${fxRelationsEditorHtml(triggers, i, trg, attrs)}
       </details>`;
-  }).join('');
+}
+// Triggers d'UNE voix (7/10, « le système de triggers partout ») : leurs cartes + « + Trigger » préréglé sur cette voix, sous
+// le bloc d'effets de la voix. targetValue : 'layer:0', 'loop:1', 'slot:2', 'pool:0:1'.
+function fxVoiceTriggersHtml(ti, targetValue) {
+  const track = library[ti];
+  if (!track || !fxOpen('triggers')) return '';
+  const choices = fxTriggerTargetChoices(track);
+  const mine = (track.fxTriggers || []).map((trg, i) => ({ trg, i })).filter(x => fxTriggerTargetToValue(x.trg.target) === targetValue);
+  const secKey = 'v:' + track.id + ':' + targetValue;
+  return `
+    <details data-fxt-section-key="${escapeAttr(secKey)}" ${fxTriggersSectionOpen.has(secKey) ? 'open' : ''} style="margin-top:12px">
+      <summary style="cursor:pointer;font-weight:600;font-size:0.9em">${tr('fxVoiceTriggersTitle')}<span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggersCount', { n: mine.length })}</span></summary>
+      <div class="hint-inline">${tr('fxVoiceTriggersHint')}</div>
+      ${mine.map(x => fxTriggerCardHtml(track, ti, x.trg, x.i, choices)).join('')}
+      <div class="actions" style="margin-top:8px"><button class="btn btn-small" type="button" data-action="add-fx-trigger" data-ti="${ti}" data-target="${escapeAttr(targetValue)}">${tr('addFxTriggerBtn')}</button></div>
+    </details>`;
+}
+function fxTriggersEditorHtml(track, ti) {
+  const triggers = track.fxTriggers || [];
+  if (!fxOpen('triggers')) {
+    return `
+      <div style="margin-top:14px;opacity:0.55">
+        <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}</div>
+        <div class="hint-inline">${tr('fxTriggersAdminOnly')}${triggers.length ? ' (' + triggers.length + ')' : ''}</div>
+      </div>`;
+  }
+  const choices = fxTriggerTargetChoices(track);
+  // Les effets sur le MORCEAU ENTIER ne sont plus proposés à la création (7/10) : les triggers se créent dans chaque voix. Cette
+  // section ne garde que les anciens triggers « morceau entier » (ou à cible inconnue), pour qu'ils restent visibles et
+  // qu'on puisse les rattacher à une voix. Les autres sont dans leur voix.
+  const here = triggers.map((trg, i) => ({ trg, i })).filter(x => { const v = fxTriggerTargetToValue(x.trg.target); return v === 'track' || !choices.some(c => c.value === v); });
+  const elsewhere = triggers.length - here.length;
+  if (!here.length) return elsewhere ? `<div class="hint-inline" style="margin-top:14px">${tr('fxTriggersInVoices', { n: elsewhere })}</div>` : '';
+  const cards = here.map(x => fxTriggerCardHtml(track, ti, x.trg, x.i, choices)).join('');
   // Toute la section se replie (demande du 30/09) ; l'état est gardé par morceau à travers les re-rendus.
   const secKey = String(track.id || ti);
   return `
     <details data-fxt-section-key="${escapeAttr(secKey)}" ${fxTriggersSectionOpen.has(secKey) ? 'open' : ''} style="margin-top:14px">
-      <summary style="cursor:pointer;font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}<span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggersCount', { n: triggers.length })}</span></summary>
+      <summary style="cursor:pointer;font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}<span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggersCount', { n: here.length })}</span></summary>
       <div class="hint-inline">${tr('fxTriggersHint')}</div>
       ${cards}
-      <div class="actions" style="margin-top:8px"><button class="btn btn-small" data-action="add-fx-trigger" data-ti="${ti}">${tr('addFxTriggerBtn')}</button></div>
+      ${elsewhere ? `<div class="hint-inline" style="margin-top:8px">${tr('fxTriggersInVoices', { n: elsewhere })}</div>` : ''}
     </details>`;
 }
 // ---- Curseurs de paramètre (24/09) -- réservés à l'admin, comme les triggers ----
@@ -3946,7 +3975,7 @@ function fxSlidersEditorHtml(track, ti) {
   }
   // Décision du 24/09 : plus de cible par section -- une liaison agit sur TOUT le morceau, ou sur un Sfx attaché. Une
   // ancienne cible précise (déjà enregistrée) reste listée pour ne rien perdre.
-  const voiceChoices = [{ value: 'track', label: tr('fxTargetWholeTrack') }];
+  const voiceChoices = [{ value: 'track', label: tr('fxTargetWholeTrackLegacy') }];
   const legacyChoices = fxTriggerTargetChoices(track);
   // Sfx attachés au morceau (boutons Sfx) : cibles possibles pour les paramètres de spatialisation.
   const sfxChoices = (track.sfxIds || []).map(id => (typeof sfxLibrary !== 'undefined' ? sfxLibrary : []).find(x => x.id === id)).filter(Boolean)
@@ -8143,7 +8172,7 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   else if (btn.dataset.action === 'add-fx-trigger') {
     const tk = library[ti];
     if (!tk.fxTriggers) tk.fxTriggers = [];
-    const newTrigger = { id: genId(), label: tr('fxTriggerFallbackLabel', { n: tk.fxTriggers.length + 1 }), target: { type: 'track' }, fx: {}, visible: true, fadeSec: null }; // agit sur tout le morceau ; bouton public par défaut
+    const newTrigger = { id: genId(), label: tr('fxTriggerFallbackLabel', { n: tk.fxTriggers.length + 1 }), target: parseFxTriggerTarget(btn.dataset.target) || { type: 'track' }, fx: {}, visible: true, fadeSec: null }; // agit sur tout le morceau ; bouton public par défaut
     tk.fxTriggers.push(newTrigger);
     fxTriggersSectionOpen.add('c:' + newTrigger.id); // un trigger qu'on vient de créer s'affiche déplié
     fxTriggersPersistOpen();
@@ -8392,7 +8421,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
         else if (prop === 'showEffects') trg.showEffects = e.target.checked;
         else if (prop === 'fadeSec') trg.fadeSec = e.target.value === '' ? null : parseFloat(e.target.value);
         else if (prop === 'fadeOutSec') trg.fadeOutSec = e.target.value === '' ? null : parseFloat(e.target.value);
-        else if (prop === 'target') trg.target = parseFxTriggerTarget(e.target.value);
+        else if (prop === 'target') { trg.target = parseFxTriggerTarget(e.target.value); fxTriggersPersistOpen(); renderLibrary(); } // la carte change de voix
         else if (prop === 'autoOffSec') { trg.relations = trg.relations || {}; trg.relations.autoOffSec = e.target.value === '' ? null : parseFloat(e.target.value); }
       }
     }
