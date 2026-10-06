@@ -78,6 +78,28 @@ const { execSync } = require('child_process');
   doc.querySelector('#lpConfirmOverlay .lp-confirm-actions button:not(.lp-confirm-ok)').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
   check('réponses indépendantes', (await p1) === true && (await p2) === false);
 
+  // ---- Case à cocher facultative (30/09) : « Ne plus m'avertir » ----
+  w = makePage('fr');
+  let got = null;
+  p = w.LayerPitchNotify.confirm('Reprendre le brouillon ?', { cancelLabel: 'Ignorer', checkboxLabel: 'Ne plus m\'avertir', onFinish: (answer, checked) => { got = { answer, checked }; } });
+  await wait(0);
+  const box = w.document.querySelector('#lpConfirmOverlay input[type="checkbox"]');
+  check('case à cocher : présente, libellée, décochée par défaut', !!box && !box.checked && /Ne plus m'avertir/.test(w.document.querySelector('.lp-confirm-check').textContent));
+  box.checked = true;
+  [...w.document.querySelectorAll('.lp-confirm-actions button')][0].dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  check('cochée puis « Ignorer » : réponse false et case cochée transmises', (await p) === false && got && got.answer === false && got.checked === true);
+  p = w.LayerPitchNotify.confirm('Sans case ?', {});
+  await wait(0);
+  check('sans checkboxLabel : aucune case (fenêtre inchangée)', !w.document.querySelector('#lpConfirmOverlay input[type="checkbox"]'));
+  [...w.document.querySelectorAll('.lp-confirm-actions button')][1].dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  await p;
+  const srcDraft = fs.readFileSync(path.join(__dirname, 'src', 'backstage', '39-brouillon-automatique.js'), 'utf-8');
+  const srcAccount = fs.readFileSync(path.join(__dirname, 'mon-compte.html'), 'utf-8');
+  check('brouillon : réglage lu au démarrage, brouillon ignoré sans question, retenu seulement avec « Ignorer » coché', /layerpitch_draft_auto_ignore/.test(srcDraft) && /if \(autoIgnore\) \{ await clearDraft\(\)/.test(srcDraft) && /!answer && checked/.test(srcDraft));
+  check('Mon compte : même clé, case pour changer le réglage', /layerpitch_draft_auto_ignore/.test(srcAccount) && /draftAutoIgnoreToggle/.test(srcAccount));
+  const I = (() => { const vm = require('vm'); const sb = { window: {} }; vm.createContext(sb); vm.runInContext(i18n, sb); return sb.window.LAYERPITCH_I18N; })();
+  check('textes du brouillon : FR et EN', ['draftRestoreNever', 'draftAutoIgnored'].every(k => I.fr.backstage[k] && I.en.backstage[k]) && ['draftTitle', 'draftHint', 'draftCheckboxLabel'].every(k => I.fr.monCompte[k] && I.en.monCompte[k]));
+
   // ---- Langue : suit <html lang>, aucune langue codée en dur dans le module ----
   w = makePage('en');
   p = w.LayerPitchNotify.confirm('Delete?');

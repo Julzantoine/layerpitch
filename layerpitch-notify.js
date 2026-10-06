@@ -6,7 +6,8 @@
 //   LayerPitchNotify.info(msg)               bandeau neutre, disparaît seul
 //   LayerPitchNotify.error(msg)              bandeau rouge, reste affiché jusqu'à la croix (le texte peut contenir
 //                                            un lien de secours à copier : il reste sélectionnable)
-//   await LayerPitchNotify.confirm(msg, { okLabel, cancelLabel, danger })  -> true / false
+//   await LayerPitchNotify.confirm(msg, { okLabel, cancelLabel, danger, checkboxLabel, onFinish })  -> true / false
+//   checkboxLabel : ajoute une case à cocher (« Ne plus m'avertir… ») ; onFinish(réponse, cochée) est appelée à la fermeture.
 //
 // Chargé par toute page qui en a besoin via <script src="layerpitch-notify.js">, APRÈS layerpitch-i18n.js.
 // Libellés (bouton Confirmer, croix de fermeture) lus dans LAYERPITCH_I18N[langue].shared, langue = celle que la
@@ -38,6 +39,8 @@
   #lpConfirmOverlay { position: fixed; inset: 0; z-index: 100001; background: rgba(0,0,0,0.38); display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
   .lp-confirm { background: var(--bg-card, #fff); color: var(--text, #24262b); border: 1px solid var(--border, #e2e2e6); border-radius: 10px; padding: 20px; width: 420px; max-width: 100%; box-sizing: border-box; box-shadow: 0 12px 32px rgba(0,0,0,0.22); font-family: inherit; animation: lp-toast-in .15s ease-out; }
   .lp-confirm-msg { font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 18px; }
+  .lp-confirm-check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: -6px 0 16px; cursor: pointer; }
+  .lp-confirm-check input { margin: 0; }
   .lp-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
   .lp-confirm-actions button { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-family: inherit; cursor: pointer; border: 1px solid var(--border, #e2e2e6); background: transparent; color: var(--text, #24262b); }
   .lp-confirm-actions button.lp-confirm-ok { border-color: var(--accent, #2f80c0); background: var(--accent, #2f80c0); color: #fff; }
@@ -131,10 +134,21 @@
       okBtn.className = 'lp-confirm-ok' + (opts.danger ? ' danger' : '');
       okBtn.textContent = opts.okLabel || label('notifyConfirmOk');
       actions.append(cancelBtn, okBtn);
-      box.append(msg, actions);
+      let checkEl = null;
+      if (opts.checkboxLabel) {
+        const row = document.createElement('label');
+        row.className = 'lp-confirm-check';
+        checkEl = document.createElement('input');
+        checkEl.type = 'checkbox';
+        const txt = document.createElement('span');
+        txt.textContent = opts.checkboxLabel;
+        row.append(checkEl, txt);
+        box.append(msg, row, actions);
+      } else box.append(msg, actions);
       overlay.appendChild(box);
 
       function finish(answer) {
+        if (typeof opts.onFinish === 'function') { try { opts.onFinish(answer, !!(checkEl && checkEl.checked)); } catch (e) { /* un réglage qui échoue ne bloque pas la fenêtre */ } }
         overlay.remove();
         if (previousFocus && typeof previousFocus.focus === 'function' && previousFocus.isConnected) previousFocus.focus();
         resolve(answer);
@@ -144,9 +158,11 @@
       overlay.addEventListener('mousedown', e => { if (e.target === overlay) finish(false); });
       overlay.addEventListener('keydown', e => {
         if (e.key === 'Escape') { e.preventDefault(); finish(false); }
-        else if (e.key === 'Tab') { // focus gardé entre les deux boutons
+        else if (e.key === 'Tab') { // focus gardé dans la fenêtre : case (si présente), puis les deux boutons
           e.preventDefault();
-          (document.activeElement === okBtn ? cancelBtn : okBtn).focus();
+          const order = (checkEl ? [checkEl] : []).concat([cancelBtn, okBtn]);
+          const i = order.indexOf(document.activeElement);
+          order[(i + (e.shiftKey ? order.length - 1 : 1)) % order.length].focus();
         } else return;
         e.stopPropagation();
       });

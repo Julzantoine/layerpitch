@@ -44,6 +44,7 @@
     invitations: '<path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6"/>',
     albums: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>',
     account: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/>',
+    appearance: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>',
     pricing: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8zM7 7h.01"/>',
   };
   const icon = k => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ''}</svg>`;
@@ -51,25 +52,35 @@
   const CSS = `
   body.lp-shell-on { padding: 0 !important; }
   .lp-shell { display: flex; min-height: 100vh; align-items: stretch; }
-  .lp-nav { width: 232px; flex: 0 0 232px; background: #eef0f3; border-right: 1px solid var(--border, #e2e2e6); padding: 18px 12px 24px;
+  .lp-nav { width: 232px; flex: 0 0 232px; background: var(--bg-sidebar, #eef0f3); border-right: 1px solid var(--border, #e2e2e6); padding: 18px 12px 24px;
     position: sticky; top: 0; height: 100vh; overflow-y: auto; box-sizing: border-box; font-family: var(--font-body, 'Inter', system-ui, sans-serif); }
   .lp-nav-brand { display: block; font-family: var(--font-title, 'Space Grotesk', sans-serif); font-weight: 700; font-size: 17px; color: var(--text, #24262b); text-decoration: none; padding: 2px 10px 14px; }
   .lp-nav-section { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-dimmer, #9a9ea6); margin: 16px 10px 6px; font-weight: 600; }
   .lp-nav a.lp-item { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 8px; color: var(--text, #24262b); text-decoration: none; font-size: 13.5px; line-height: 1.25; }
   .lp-nav a.lp-item:hover { background: rgba(47, 128, 192, .08); }
-  .lp-nav a.lp-item[aria-current="page"] { background: #ffffff; color: var(--accent, #2f80c0); font-weight: 600; box-shadow: 0 0 0 1px var(--border, #e2e2e6); }
+  .lp-nav a.lp-item[aria-current="page"] { background: var(--bg-card, #ffffff); color: var(--accent, #2f80c0); font-weight: 600; box-shadow: 0 0 0 1px var(--border, #e2e2e6); }
   .lp-nav a.lp-item svg { flex: 0 0 auto; opacity: .8; }
   .lp-nav a.lp-sub { padding: 5px 10px 5px 35px; font-size: 12.5px; color: var(--text-dim, #5f636b); }
   .lp-nav a.lp-sub[aria-current="page"] { box-shadow: none; background: transparent; }
   .lp-badge { margin-left: auto; background: var(--accent, #2f80c0); color: #fff; font-size: 10.5px; font-weight: 600; border-radius: 999px; padding: 1px 7px; }
+  .lp-ap-btn { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 10px; margin-top: 6px; border: 0; border-radius: 8px; background: none; color: var(--text, #24262b); font: inherit; font-size: 13.5px; cursor: pointer; text-align: left; }
+  .lp-ap-btn:hover { background: rgba(47, 128, 192, .08); }
+  .lp-ap-pop { position: fixed; left: 244px; bottom: 16px; z-index: 1100; width: min(320px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; box-sizing: border-box;
+    background: var(--bg-card, #fff); border: 1px solid var(--border, #e2e2e6); border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.18); padding: 14px; }
+  .lp-ap-pop-head { font-weight: 600; font-size: 13px; margin-bottom: 10px; color: var(--text, #24262b); }
+  html.lp-sidebar-collapsed .lp-ap-pop { left: 76px; }
+  html.lp-sidebar-collapsed .lp-ap-btn span { display: none; }
+  @media (max-width: 860px) { .lp-ap-pop { left: 16px; right: 16px; width: auto; } }
   .lp-nav-foot { margin-top: 18px; padding: 10px; border-top: 1px solid var(--border, #e2e2e6); font-size: 12px; color: var(--text-dim, #5f636b); }
   .lp-nav-foot button { background: none; border: 0; padding: 0; color: var(--text-dim, #5f636b); cursor: pointer; font: inherit; text-decoration: underline; }
-  .lp-preview { margin: 16px 0 0; padding: 10px; border-radius: 10px; background: #ffffff; border: 1px dashed var(--accent, #2f80c0); font-size: 12px; }
+  .lp-preview { margin: 16px 0 0; padding: 10px; border-radius: 10px; background: var(--bg-card, #ffffff); border: 1px dashed var(--accent, #2f80c0); font-size: 12px; }
   .lp-preview-title { font-weight: 600; color: var(--accent, #2f80c0); margin-bottom: 6px; }
   .lp-preview label { display: block; color: var(--text-dim, #5f636b); margin: 7px 0 3px; font-size: 11.5px; }
-  .lp-preview select { width: 100%; font: inherit; padding: 4px 6px; border: 1px solid var(--border, #e2e2e6); border-radius: 6px; background: #fff; color: var(--text, #24262b); }
+  .lp-preview select { width: 100%; font: inherit; padding: 4px 6px; border: 1px solid var(--border, #e2e2e6); border-radius: 6px; background: var(--bg-card, #fff); color: var(--text, #24262b); }
   .lp-preview .lp-check { display: flex; gap: 6px; align-items: flex-start; margin-top: 8px; color: var(--text, #24262b); }
   .lp-preview .lp-check input { margin: 2px 0 0; }
+  .lp-deletion { margin: 0 0 14px; padding: 9px 14px; border-radius: 8px; background: rgba(178, 34, 51, .1); border: 1px solid #b23; color: var(--text, #24262b); font-size: 13px; }
+  .lp-deletion a { color: #b23; font-weight: 600; }
   .lp-main { flex: 1 1 auto; min-width: 0; padding: 22px 28px 60px; box-sizing: border-box; }
   .lp-crumbs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--text-dim, #5f636b); margin: 0 auto 14px; max-width: var(--lp-page-width, 1040px); min-height: 22px; }
   .lp-crumbs a { color: var(--accent, #2f80c0); text-decoration: none; }
@@ -77,7 +88,7 @@
   .lp-crumbs .lp-back { font-size: 16px; line-height: 1; margin-right: 2px; }
   .lp-crumb-sep { color: var(--text-dimmer, #9a9ea6); }
   .lp-preview-banner { margin-left: auto; font-size: 11.5px; background: #e6eef8; color: var(--accent, #2f80c0); border-radius: 999px; padding: 3px 10px; }
-  .lp-menu-btn { display: none; border: 1px solid var(--border, #e2e2e6); background: #fff; border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer; color: var(--text, #24262b); }
+  .lp-menu-btn { display: none; border: 1px solid var(--border, #e2e2e6); background: var(--bg-card, #fff); border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer; color: var(--text, #24262b); }
   .lp-nav-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
   .lp-nav, .lp-nav a.lp-item { transition: width .15s ease, flex-basis .15s ease, padding .15s ease; }
   @media (min-width: 821px) {
@@ -98,11 +109,11 @@
   .lp-bell-host { position: relative; }
   .lp-bell-floating { position: fixed; top: 10px; right: 14px; z-index: 900; }
   .lp-bell { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px;
-    border: 1px solid var(--border, #e2e2e6); background: #fff; color: var(--text-dim, #5f636b); cursor: pointer; }
+    border: 1px solid var(--border, #e2e2e6); background: var(--bg-card, #fff); color: var(--text-dim, #5f636b); cursor: pointer; }
   .lp-bell:hover, .lp-bell[aria-expanded="true"] { color: var(--accent, #2f80c0); border-color: var(--accent, #2f80c0); }
   .lp-bell-badge { position: absolute; top: -6px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--accent, #2f80c0);
     color: #fff; font-size: 10px; font-weight: 700; line-height: 17px; text-align: center; box-sizing: border-box; }
-  .lp-bell-panel { position: absolute; right: 0; top: 40px; width: min(380px, calc(100vw - 32px)); max-height: 70vh; overflow-y: auto; background: #fff;
+  .lp-bell-panel { position: absolute; right: 0; top: 40px; width: min(380px, calc(100vw - 32px)); max-height: 70vh; overflow-y: auto; background: var(--bg-card, #fff);
     border: 1px solid var(--border, #e2e2e6); border-radius: 12px; box-shadow: 0 12px 32px rgba(20, 22, 30, .16); z-index: 1200; text-align: left; }
   .lp-bell-head { font-weight: 600; font-size: 13px; padding: 12px 14px; border-bottom: 1px solid var(--border, #e2e2e6); color: var(--text, #24262b); }
   .lp-bell-item { display: block; padding: 10px 14px 10px 26px; border-bottom: 1px solid var(--border, #e2e2e6); color: var(--text, #24262b); text-decoration: none; position: relative; }
@@ -206,7 +217,7 @@
   // Invitations en attente (co-ayants droit, équipe, Projets) : la liste des co-ayants droit contient aussi les invitations
   // déjà traitées ; équipe et Projets : seulement celles en attente.
   async function countInvitations(client) {
-    const counts = await Promise.all([client.rpc('my_rights_invitations'), client.rpc('my_team_invitations'), client.rpc('my_project_invitations')]);
+    const counts = await Promise.all([client.rpc('my_rights_invitations'), client.rpc('my_team_invitations'), client.rpc('my_project_invitations'), client.rpc('my_album_invitations')]);
     return counts.reduce((n, r) => n + (Array.isArray(r.data) ? r.data.filter(x => !x.status || x.status === 'pending' || x.status === 'invited').length : 0), 0);
   }
   // Résumé d'un Projet : « 3 nouveaux messages · 2 modifications · 1 note pour toi » + le détail le plus récent.
@@ -295,6 +306,20 @@
   document.addEventListener('click', e => { if (inbox.open && !e.target.closest('#lpBellHost')) { inbox.open = false; renderBell(); } });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && inbox.open) { inbox.open = false; renderBell(); } });
 
+  // Fenêtre « Apparence » (jour / nuit, couleur de fond, image de fond) : réglage local et commun à toutes les pages,
+  // dessiné par layerpitch-appearance.js.
+  function closeAppearance() { const p = document.getElementById('lpApPop'); if (p) p.remove(); }
+  function toggleAppearance() {
+    if (document.getElementById('lpApPop')) { closeAppearance(); return; }
+    const pop = document.createElement('div'); pop.className = 'lp-ap-pop'; pop.id = 'lpApPop'; pop.setAttribute('role', 'dialog');
+    pop.innerHTML = `<div class="lp-ap-pop-head">${esc(tr('appearance'))}</div><div id="lpApHost"></div>`;
+    document.body.appendChild(pop);
+    window.LayerPitchAppearance.mountPanel(pop.querySelector('#lpApHost'));
+  }
+  // composedPath : le panneau se redessine au clic, l'élément cliqué n'est alors plus dans la page au moment du test.
+  document.addEventListener('click', e => { if (!e.composedPath().some(n => n.id === 'lpApPop' || n.id === 'lpApBtn')) closeAppearance(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAppearance(); });
+
   let state = { active: null, crumbs: [], ctx: null, navHandler: null };
 
   // Session probable (jeton Supabase présent) : on pose la mise en page tout de suite pour éviter un saut à l'affichage.
@@ -335,9 +360,12 @@
     const [{ composerId }, { studioId }, flagsRes, adminRes, preview] = await Promise.all([
       A.getMyComposerId(), A.getMyStudioId(), client.rpc('my_feature_flags'), client.rpc('is_admin'), A.getAdminPreview(),
     ]);
+    // Suppression de compte demandée (29/09) : bandeau « suppression prévue le … » sur toutes les pages, avec lien pour annuler.
+    let deletion = null;
+    try { const d = await client.rpc('account_deletion_status'); if (d.data && d.data.scheduledFor) deletion = d.data.scheduledFor; } catch (e) { /* facultatif */ }
     const flags = {};
     (flagsRes.data || []).forEach(f => { flags[f.key] = !!f.allowed; });
-    const ctx = { composerId, studioId, flags, isAdmin: !!adminRes.data, preview, invitations: 0 };
+    const ctx = { composerId, studioId, flags, isAdmin: !!adminRes.data, preview, invitations: 0, deletion };
     // Invitations en attente : pastille sur « Invitations ».
     try { ctx.invitations = await countInvitations(client); } catch (e) { /* compteur facultatif */ }
     return ctx;
@@ -355,18 +383,20 @@
     if (ctx.studioId) {
       const studio = studioSpace ? [
         { id: 'studio.library', icon: 'purchases', href: 'studio.html?tab=library' },
-        { id: 'catalog', icon: 'catalog', href: 'catalogue.html' },
         { id: 'studio.custom', icon: 'custom', href: 'studio.html?tab=custom' },
         { id: 'studio.team', icon: 'team', href: 'studio.html?tab=team' },
         { id: 'studio.plan', icon: 'plan', href: 'studio.html?tab=plan' },
       ] : [
         { id: 'studio.library', icon: 'purchases', href: 'library.html' },
-        { id: 'catalog', icon: 'catalog', href: 'catalogue.html' },
       ];
+      // Vente d'OST par un studio (29/09) : même feu vert que la vente d'albums (admin seulement pendant la bêta).
+      if (studioSpace && ctx.flags.sell_albums) studio.splice(3, 0, { id: 'studio.albums', icon: 'albums', href: 'studio.html?tab=albums' });
       if (!ctx.composerId) studio.push({ id: 'account.sales', icon: 'sales', href: 'mon-compte.html?section=sales', label: 'salesStudio' });
       sections.push({ label: 'sectionStudio', items: studio });
     }
     const common = [];
+    // Shop public (29/09) : packs et OST adaptive ; remplace l'ancienne entrée « Catalogue ». Feu vert « shop » (admin seulement pendant la bêta).
+    if (ctx.flags.shop) common.push({ id: 'shop', icon: 'catalog', href: 'shop.html' });
     if (ctx.flags.projects) common.push({ id: 'projects', icon: 'projects', href: 'projets.html' });
     common.push({ id: 'invitations', icon: 'invitations', href: 'invitation.html', badge: ctx.invitations });
     if (ctx.isAdmin && !(ctx.preview && ctx.preview.hideUnreleased)) common.push({ id: 'albums', icon: 'albums', href: 'mes-albums.html' });
@@ -396,6 +426,7 @@
     }
     html += `<a class="lp-item" href="${esc(withLang('tarifs.html'))}" style="margin-top:6px"${state.active === 'pricing' ? ' aria-current="page"' : ''}>${icon('pricing')}<span>${esc(tr('item_pricing'))}</span></a>`;
     if (ctx.isAdmin) html += previewHtml(ctx.preview || {});
+    if (window.LayerPitchAppearance) html += `<button type="button" class="lp-ap-btn" id="lpApBtn" title="${esc(tr('appearance'))}">${icon('appearance')}<span>${esc(tr('appearance'))}</span></button>`;
     html += `<div class="lp-nav-foot"><button type="button" id="lpSignOut">${esc(tr('signOut'))}</button></div>`;
     nav.innerHTML = html;
     nav.querySelector('.lp-nav-top').appendChild(collapseButton());
@@ -405,6 +436,8 @@
         e.preventDefault(); document.querySelector('.lp-shell').classList.remove('lp-open');
       }
     }));
+    const apBtn = nav.querySelector('#lpApBtn');
+    if (apBtn) apBtn.onclick = e => { e.stopPropagation(); toggleAppearance(); };
     const so = nav.querySelector('#lpSignOut');
     if (so) so.onclick = async () => { await window.LayerPitchAuth.signOut(); location.href = withLang('mon-compte.html'); };
     wirePreview(nav);
@@ -471,6 +504,23 @@
       document.querySelector('.lp-main').appendChild(host);
     }
     if (state.ctx) renderBell();
+    // Bandeau de suppression programmée, juste sous le fil d'Ariane.
+    const oldBanner = document.getElementById('lpDeletionBanner'); if (oldBanner) oldBanner.remove();
+    if (state.ctx && state.ctx.deletion && !state.bare) {
+      const b = document.createElement('div'); b.className = 'lp-deletion'; b.id = 'lpDeletionBanner';
+      // « Annuler » annule VRAIMENT la suppression (30/09) : jusque-là c'était un lien vers Mon compte → Profil, qui ne faisait
+      // rien quand on y était déjà, et le bandeau restait.
+      b.innerHTML = `<span data-role="delText">${esc(tr('deletionBanner', { date: new Date(state.ctx.deletion).toLocaleDateString(lang()) }))}</span> <a href="#" data-role="delCancel">${esc(tr('deletionCancel'))}</a>`;
+      b.querySelector('[data-role="delCancel"]').addEventListener('click', async e => {
+        e.preventDefault();
+        e.target.style.pointerEvents = 'none';
+        const r = await window.LayerPitchAuth.cancelAccountDeletion();
+        if (r.ok) { location.reload(); return; }
+        e.target.style.pointerEvents = '';
+        b.querySelector('[data-role="delText"]').textContent = tr('deletionCancelError', { error: r.error });
+      });
+      bar.after(b);
+    }
   }
 
   async function mount({ active, crumbs, bare } = {}) {

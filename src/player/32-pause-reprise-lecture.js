@@ -183,6 +183,9 @@
     resumeAudioContext();
     playing = true;
     playingTrackIds.add(track.id); requestWakeLock();
+    // Un curseur d'intensité repart de sa position de départ (comme resetFxTriggers juste après) : on cale le niveau AVANT de
+    // l'annoncer, pour que la capture parte de la bonne intensité.
+    if (!isContinuation && !pausedResume && fxStructureSlider && track.mode === 'vertical') level = fxZoneOfValue(fxStructureSlider.def);
     // Capture vidéo : niveau d'intensité de départ (le visiteur a pu le choisir avant d'appuyer sur Lecture).
     if (!isContinuation) trackPublicEvent('track_play', { trackId: track.id, mode: track.mode }, { level });
     if (!isContinuation && !pausedResume) resetFxTriggers();
@@ -446,24 +449,24 @@
     block.addEventListener('pointercancel', () => { vrIsDraggingSeek = false; });
   });
 
-  notchDots.forEach(dot => {
-    dot.addEventListener('click', () => {
-      level = parseInt(dot.dataset.level, 10);
-      notchDots.forEach(d => d.classList.toggle('active', d === dot));
-      trackPublicEvent('intensity_change', { trackId: track.id, level });
-      if (!playing) return;
-      const p = profiles[level];
-      const now = ctx.currentTime;
-      const gainsToRamp = useQuantizedLoop ? currentGainNodes : gains;
-      gainsToRamp.forEach((g, i) => {
-        if (!g) return;
-        const layerGain = effGain(layersToLoad[i]);
-        g.gain.cancelScheduledValues(now);
-        g.gain.setValueAtTime(g.gain.value, now);
-        g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain * voiceGain('layer-' + i), now + INTENSITY_RAMP_SEC);
-      });
+  // Changement d'intensité (mode vertical) : bouton 1/2/3, ou curseur qui franchit une limite de zone (26/09).
+  function applyIntensityLevel(lv) {
+    level = lv;
+    notchDots.forEach(d => d.classList.toggle('active', parseInt(d.dataset.level, 10) === lv));
+    trackPublicEvent('intensity_change', { trackId: track.id, level });
+    if (!playing) return;
+    const p = profiles[level];
+    const now = ctx.currentTime;
+    const gainsToRamp = useQuantizedLoop ? currentGainNodes : gains;
+    gainsToRamp.forEach((g, i) => {
+      if (!g) return;
+      const layerGain = effGain(layersToLoad[i]);
+      g.gain.cancelScheduledValues(now);
+      g.gain.setValueAtTime(g.gain.value, now);
+      g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain * voiceGain('layer-' + i), now + INTENSITY_RAMP_SEC);
     });
-  });
+  }
+  notchDots.forEach(dot => dot.addEventListener('click', () => applyIntensityLevel(parseInt(dot.dataset.level, 10))));
 
   stingerBtns.forEach(btn => {
     btn.addEventListener('click', () => {

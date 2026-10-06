@@ -10,41 +10,13 @@ const fs = require('fs');
 const path = require('path');
 
 (async () => {
-  const i18nSrc = fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf-8');
-  const playerSrc = fs.readFileSync(path.join(__dirname, 'player.js'), 'utf-8').replace(/<\/script/gi, '<\\/script');
-  const html = `<!DOCTYPE html><html><body><div id="host"></div>
-  <script>${i18nSrc}</script>
-  <script>${playerSrc}</script>
-  </body></html>`;
+  const { playerPageHtml, installTimedFakeAudio } = require('./scripts/test-harness.js');
+  const html = playerPageHtml();
 
   const dom = new JSDOM(html, {
     url: 'http://localhost/test.html', runScripts: 'dangerously', pretendToBeVisual: true,
     beforeParse(win) {
-      const epoch = Date.now();
-      function FakeAudioContext() { this.destination = {}; }
-      Object.defineProperty(FakeAudioContext.prototype, 'currentTime', { get() { return (Date.now() - epoch) / 1000; } });
-      FakeAudioContext.prototype.resume = function () { return Promise.resolve(); };
-      FakeAudioContext.prototype.createGain = function () {
-        return { gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {} }, connect() {}, disconnect() {} };
-      };
-      FakeAudioContext.prototype.createBufferSource = function () {
-        const ctxRef = this;
-        const node = {
-          buffer: null, onended: null, connect() {},
-          stop() { if (node._endTimer) clearTimeout(node._endTimer); if (!node._ended) { node._ended = true; if (node.onended) node.onended(); } },
-          start(when) {
-            const dur = (node.buffer && node.buffer.duration) || 1;
-            const delaySec = Math.max(0, (when - ctxRef.currentTime) + dur);
-            node._endTimer = setTimeout(() => { if (!node._ended) { node._ended = true; if (node.onended) node.onended(); } }, delaySec * 1000);
-          }
-        };
-        return node;
-      };
-      FakeAudioContext.prototype.decodeAudioData = function () { return Promise.resolve({ duration: 10 }); };
-      win.AudioContext = FakeAudioContext;
-      win.ResizeObserver = win.ResizeObserver || function () { return { observe() {}, disconnect() {} }; };
-      win.requestAnimationFrame = win.requestAnimationFrame || (cb => setTimeout(cb, 16));
-      win.cancelAnimationFrame = win.cancelAnimationFrame || (id => clearTimeout(id));
+      installTimedFakeAudio(win);
     }
   });
   const { window } = dom;

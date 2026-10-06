@@ -306,7 +306,20 @@ async function beneficiaryProfile(adminClient: ReturnType<typeof createClient>, 
 async function handleAlbumPurchase(adminClient: ReturnType<typeof createClient>, stripe: Stripe, session: Stripe.Checkout.Session): Promise<Response | null> {
   const md = session.metadata || {};
   const albumId = md.albumId;
-  const buyerId = md.buyerId || session.client_reference_id;
+  let buyerId = md.buyerId || session.client_reference_id;
+  // Visiteur sans compte (29/09) : l'achat est rattaché au compte de son adresse, créé au besoin (sans mot de passe) ; un lien
+  // de connexion lui est envoyé pour retrouver l'album. Une erreur d'envoi ne défait pas la vente (l'argent est déjà pris).
+  if (!buyerId && md.buyerEmail) {
+    const { data: existing } = await adminClient.rpc('user_id_by_email', { p_email: md.buyerEmail });
+    if (existing) buyerId = existing as string;
+    else {
+      const { data: created, error: createError } = await adminClient.auth.admin.createUser({ email: md.buyerEmail, email_confirm: true });
+      if (createError || !created?.user) { console.error('album guest account creation failed:', createError?.message); return new Response(JSON.stringify({ error: 'account creation failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } }); }
+      buyerId = created.user.id;
+    }
+    try { await adminClient.auth.signInWithOtp({ email: md.buyerEmail, options: { emailRedirectTo: 'https://beta.layerpitch.com/mes-albums.html?purchased=1' } }); }
+    catch (e) { console.error('album guest login link failed:', (e as Error).message); }
+  }
   if (!albumId || !buyerId) return null;
   const totalCents = session.amount_total || 0;
   const { data: rows, error: insertError } = await adminClient.from('album_purchases').upsert({

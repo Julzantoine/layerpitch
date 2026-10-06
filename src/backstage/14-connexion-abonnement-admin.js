@@ -184,10 +184,13 @@ async function renderAdminOnlyPanels(session) {
   // (le sien ou celui de son équipe, casquette non masquée par « Voir en tant que ») et que l'espace studio est ouvert.
   const navProjects = document.getElementById('navLinkProjects');
   if (navProjects) navProjects.hidden = !flagOpen('projects');
+  // Shop public (29/09) : lien dans la rubrique Compte, feu vert « shop » (admin seulement pendant la bêta).
+  const navShop = document.getElementById('navLinkCatalog');
+  if (navShop) navShop.hidden = !flagOpen('shop');
   if (window.LayerPitchAuth && window.LayerPitchAuth.getMyStudioId) {
     window.LayerPitchAuth.getMyStudioId().then(({ studioId }) => {
       const show = !!studioId && flagOpen('studio_space');
-      ['navSectionStudio', 'navLinkStudioLibrary', 'navLinkCatalog', 'navLinkStudioTeam', 'navLinkStudioPlan'].forEach(id => {
+      ['navSectionStudio', 'navLinkStudioLibrary', 'navLinkStudioTeam', 'navLinkStudioPlan'].forEach(id => {
         const el = document.getElementById(id); if (el) el.hidden = !show;
       });
     });
@@ -420,14 +423,16 @@ function drawInboxBell(items) {
           <div class="inbox-title">${escapeHtml(it.title)}</div>
           <button class="inbox-collapse" type="button" hidden title="${tr('inboxReadLess')}" aria-label="${tr('inboxReadLess')}">${INBOX_ICON_COLLAPSE}</button>
         </div>
-        <div class="inbox-text">${escapeHtml(it.text || '')}</div>
+        <div class="inbox-text">${escapeHtmlLinkify(it.text || '')}</div>
         <button class="inbox-more" type="button" hidden>${tr('inboxReadMore')}</button>
         <div class="inbox-time">${formatRelativeTime(it.createdAt)}</div>
       </div>
       <div class="inbox-dot"></div>
     </${it.href ? 'a' : 'div'}>`).join('');
   emptyEl.hidden = shown.length > 0;
-  badge.hidden = !shown.some(it => it.unread);
+  const unreadCount = shown.filter(it => it.unread).length;
+  badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+  badge.hidden = !unreadCount;
 }
 function initInboxBellUi() {
   const bellBtn = document.getElementById('btnInboxBell');

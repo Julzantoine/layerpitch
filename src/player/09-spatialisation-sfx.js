@@ -543,7 +543,7 @@ function trackNeedsLatencyComp(track) {
   if (anyFx(track.layers) || anyFx(track.loops) || anyFx(track.segmentSlots)) return true;
   if (spFx(track.intro && track.intro.fx) || spFx(track.outro && track.outro.fx)) return true;
   if ((track.sections || []).some(sec => sec && anyFx(sec.pools))) return true;
-  if ((track.fxTriggers || []).some(d => d && d.fx && (d.fx.bitcrush || (d.fx.pitch && d.fx.pitch.mode !== 'rate')))) return true;
+  if (expandTriggerSteps(track.fxTriggers).some(d => d && d.fx && (d.fx.bitcrush || (d.fx.pitch && d.fx.pitch.mode !== 'rate')))) return true;
   return ((track.fxSliders || []).some(d => d && (d.bindings || []).some(b => b && (b.param === 'bitcrush.bits' || b.param === 'bitcrush.reduction' || b.param === 'pitch.semitones'))));
 }
 // Ajoute à une chaîne d'effets (ou en crée une réduite au seul retard) le DelayNode de compensation, sauf si la

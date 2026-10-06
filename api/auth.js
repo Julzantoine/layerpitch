@@ -185,7 +185,7 @@
       if (direct.error) return { studioId: null, error: direct.error.message };
       return { studioId: direct.data ? direct.data.id : null, isOwner: true, error: null };
     }
-    return { studioId: data ? data.id : null, isOwner: !!(data && data.isOwner), error: null };
+    return { studioId: data ? data.id : null, isOwner: !!(data && data.isOwner), name: (data && data.name) || null, error: null };
   }
 
 
@@ -251,7 +251,28 @@
     return { ok: true, error: null };
   }
 
-  window.LayerPitchAuth = {
+  // Suppression de compte (29/09, migration 20260929070000) : 30 jours d'annulation ; seul l'état est lisible, la demande
+  // exige de taper SUPPRIMER (revérifié par le serveur).
+  async function getAccountDeletion() {
+    const { data, error } = await getClient().rpc('account_deletion_status');
+    return error ? { status: null, error: error.message } : { status: data, error: null };
+  }
+  async function requestAccountDeletion(confirm) {
+    const { data, error } = await getClient().rpc('request_account_deletion', { p_confirm: confirm });
+    return error ? { ok: false, error: error.message } : { ok: true, scheduledFor: data };
+  }
+  async function cancelAccountDeletion() {
+    const { error } = await getClient().rpc('cancel_account_deletion');
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+
+  // Onglet Ventes (29/09, migration 20260929090000) : { open, rows, totals } ; open=false tant que le feu vert est fermé.
+  async function getMySales() {
+    const { data, error } = await getClient().rpc('my_sales');
+    return error ? { sales: null, error: error.message } : { sales: data, error: null };
+  }
+
+  window.LayerPitchAuth = { getMySales, getAccountDeletion, requestAccountDeletion, cancelAccountDeletion,
     signInWithMagicLink, verifyEmailOtp, signOut, getSession, onAuthStateChange, inviteTester, getAdminPreview, setAdminPreview,
     getMyComposerId, getMyComposerHandle, ensureMyComposerProfile,
     getMyStudioId, ensureMyStudioProfile, getMyProfile, markOnboardingComplete,

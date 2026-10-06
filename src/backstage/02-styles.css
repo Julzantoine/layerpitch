@@ -17,49 +17,10 @@
     --bg-sidebar: #efeee9;
     --text: #24262b;
   }
-  /* Thème nuit (15/09, retour direct de Jules-Antoine, même réglage "local à cet ordinateur" que la
-     couleur de fond ci-dessus) : même hiérarchie de surfaces à trois niveaux qu'en plein jour
-     (sidebar la plus sombre < fond de page < cartes/blocs la plus claire), juste inversée en valeurs
-     absolues. Couleurs sémantiques (accent, succès/choix de la carte des chemins) laissées telles
-     quelles -- assez de contraste sur fond sombre, pas de raison de les faire dériver aussi. */
-  html[data-theme="dark"] {
-    --bg: #26262a;
-    --bg-card: #2c2c31;
-    --text-dim: #b3b1ac;
-    --text-dimmer: #7d7b76;
-    --border: #3d3d42;
-    --accent-soft: #1c2f47;
-    --backstage-bg: #1a1a1d;
-    --bg-sidebar: #131315;
-    --text: #ece9e2;
-  }
+  /* Thème nuit, couleur de fond et filigrane : layerpitch-appearance.js (29/09), commun à toutes les pages d'espace. */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--backstage-bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 32px 20px 80px; font-size: 13px; }
   .page { position: relative; max-width: min(1400px, 92vw); margin: 0 auto; }
-  /* Filigrane décoratif du Backstage (15/09, local à cet ordinateur -- même esprit que la couleur de
-     fond) : position fixed plein écran par défaut plutôt que cadré sur .page (retour direct de
-     Jules-Antoine, l'image restait petite et cadrée en haut) -- z-index négatif plutôt qu'un calcul
-     d'ordre du DOM, fiable même en fixed (se peint sous tout contenu positionné normalement, quel que
-     soit l'endroit du DOM où la balise vit). cover pour remplir tout l'écran quel que soit le ratio de
-     l'image choisie, quitte à en rogner les bords -- cohérent avec "toute l'écran" plutôt que "toute
-     visible". Case "Reste fixe pendant le défilement" (retour direct le même jour) : décochée, passe
-     en absolute -- ancré sur .page (position:relative), défile donc avec le contenu au lieu de rester
-     plaqué à l'écran.
-
-     Bug réel trouvé et corrigé le même jour (capture d'écran : image cadrée trop serrée, "coupée") :
-     en mode défilant, .scrolls-with-page héritait inset:0, donc une hauteur égale à TOUTE la page
-     (potentiellement des milliers de pixels avec tout le contenu du Backstage) au lieu de la hauteur
-     de l'écran -- avec cover, ce rapport largeur/hauteur totalement déformé (mesuré 430×657 pour une
-     image 1600×400 lors du diagnostic) force un zoom énorme, ne laissant voir qu'une bande étroite et
-     floue. Corrigé en fixant sa hauteur à 100vh (celle de l'écran, comme en mode fixe) plutôt que de
-     suivre la hauteur de .page -- même cover, même cadrage que le mode fixe, seule la position change
-     (défile avec le contenu au lieu de rester plaquée). */
-  #backstageWatermarkLayer {
-    position: fixed; inset: 0; z-index: -1; pointer-events: none;
-    background-repeat: no-repeat; background-position: center center;
-    background-size: cover; opacity: 0.08;
-  }
-  #backstageWatermarkLayer.scrolls-with-page { position: absolute; top: 0; left: 0; right: 0; bottom: auto; height: 100vh; }
   /* Verrou de connexion (7 septembre) : couvre tout l'outil tant qu'aucune session Supabase n'est
      confirmée -- sans ça, un visiteur non connecté voyait l'intégralité de l'interface compositeur
      (formulaires, panneaux) avant que la lecture Postgres échoue silencieusement en arrière-plan.
@@ -868,6 +829,7 @@
   .inbox-collapse[hidden] { display: none; }
   .inbox-collapse svg { width: 16px; height: 16px; }
   .inbox-text { color: var(--text-dim); white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+  .inbox-text a { color: var(--accent); }
   .inbox-text.expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
   .inbox-more { background: none; border: none; padding: 0; margin-top: 2px; font: inherit; font-size: 12px; color: var(--accent); cursor: pointer; }
   .inbox-more[hidden] { display: none; }
@@ -883,9 +845,14 @@
   .admin-preview-label select { font-size: 12px; padding: 4px 6px; }
 
   .notif-badge {
-    position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%;
-    background: #c0392b; border: 1.5px solid var(--bg);
+    position: absolute; top: -6px; right: -7px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+    background: #d63a2a; color: #fff; border: 2px solid var(--bg); box-sizing: border-box;
+    font-size: 11px; font-weight: 700; line-height: 14px; text-align: center;
+    animation: notifPulse 1.8s ease-out infinite;
   }
+  .notif-badge[hidden] { display: none; }
+  @keyframes notifPulse { 0% { box-shadow: 0 0 0 0 rgba(214,58,42,0.55); } 70%, 100% { box-shadow: 0 0 0 9px rgba(214,58,42,0); } }
+  @media (prefers-reduced-motion: reduce) { .notif-badge { animation: none; } }
   .global-actions-bar .btn { white-space: nowrap; }
 
   /* ---------------- Bulles d'aide contextuelle (data-help) ---------------- */

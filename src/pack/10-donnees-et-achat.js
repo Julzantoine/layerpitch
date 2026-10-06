@@ -143,6 +143,8 @@ async function renderRealPurchaseWidget(el, pack) {
     el.innerHTML = `<span class="buy-btn disabled">${tr('comingSoon')}</span><div class="buy-hint">${tr('notForSaleYet')}</div>`;
     return;
   }
+  // Pack en vente : « Contacter le vendeur » (Shop, 29/09) — le message part vers le compositeur, jamais son adresse ne s'affiche.
+  if (window.LayerPitchSellerContact) window.LayerPitchSellerContact.mount(document.getElementById('sellerContact'), { kind: 'pack', id: pack.id });
   // Tout en euros depuis le 28/09 (D30) ; format selon la langue de la page (« 10,00 € » / « €10.00 »).
   const priceLabel = new Intl.NumberFormat(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { style: 'currency', currency: 'EUR' }).format(livePack.priceEurCents / 100);
 

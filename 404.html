@@ -37,6 +37,21 @@
     location.replace('/vitrine.html?' + p.toString());
     return;
   }
+  // /shop (29/09, page Shop) : « shop » est un nom réservé.
+  if (handle === 'shop' && segments.length === 1) {
+    const p = new URLSearchParams(location.search);
+    p.set('__pretty', path + location.search);
+    location.replace('/shop.html?' + p.toString());
+    return;
+  }
+  // /album/<id> (29/09, page publique d'un album en vente) : « album » est un nom réservé.
+  if (handle === 'album' && segments.length === 2 && !segments[1].includes('.')) {
+    const p = new URLSearchParams(location.search);
+    p.set('s', decodeURIComponent(segments[1]));
+    p.set('__pretty', path + location.search);
+    location.replace('/album.html?' + p.toString());
+    return;
+  }
   // /<nom>/<adreel> (27/09, adresses personnalisables) : un second segment SANS extension est le nom d'un AdReel,
   // résolu par index.html (s=). Avec une extension, ce doit être une des pages publiques connues.
   const second = segments.length === 2 ? segments[1] : null;

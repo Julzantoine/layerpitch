@@ -30,7 +30,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
       normalizeVolume: !!t.normalizeVolume,
       fx: t.fx || null,
-      fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations) })),
+      fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations), steps: fxStepsClean(x.steps), showEffects: x.showEffects !== false, targets: Array.isArray(x.targets) && x.targets.length ? x.targets.map(t => Object.assign({}, t)) : undefined })),
       fxSliders: fxSlidersClean(t.fxSliders),
       duration: Math.round(t.duration * 100) / 100, base: t.base,
       // file/localUrl (18/09) : un fichier tout juste choisi mais pas encore publié n'a pas de
@@ -123,6 +123,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
     waveformStyle: window.LayerPlayerCore.WAVEFORM_STYLES.includes(waveformStyle) ? waveformStyle : 'bars',
     seqMapTheme: window.LayerPlayerCore.SEQ_MAP_THEMES.includes(seqMapTheme) ? seqMapTheme : 'light',
     allowEmbedding: !!allowEmbedding,
+    sharePreview: { title: (sharePreview.title || '').trim(), description: (sharePreview.description || '').trim(), image: sharePreview.image || null, imageOriginalName: sharePreview.imageOriginalName || null, autoFit: sharePreview.autoFit !== false, fitMode: sharePreview.fitMode === 'contain' ? 'contain' : 'fill', fitColor: /^#[0-9a-f]{6}$/i.test(sharePreview.fitColor || '') ? sharePreview.fitColor : '#ffffff' },
     collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', presetId: c.presetId || null, separator: c.separator || null, effectivePlan, buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
     customFonts: customFonts.filter(f => f.remoteFile).map(f => ({ id: f.id, name: f.name || '', file: f.remoteFile, originalFileName: f.originalFileName || null })),
     adReels: adReels.map(ar => ({
@@ -239,6 +240,19 @@ async function publishAll() {
     // que par compositeur ('main' pour tous), un nom à plat (images/photo-main.jpg) était partagé entre comptes -- la
     // photo de bio d'un bêta-testeur a ainsi remplacé celle d'un autre. Seul ce dossier est accepté par
     // create-media-signed-url.
+    // Image de l'aperçu des liens partagés (1er/10) : images/<son id>/share-preview.<ext>, avant l'instantané ci-dessous.
+    if (sharePreviewPendingFile) {
+      // Ajustage automatique (case cochée) : recadrage centré au format 1200 × 630 ; sinon le fichier part tel quel.
+      let toSend = sharePreviewPendingFile;
+      if (sharePreview.autoFit !== false) {
+        try { toSend = await sharePreviewFit(sharePreviewPendingFile, sharePreview.fitMode, sharePreview.fitColor); } catch (e) { log(tr('sharePreviewFitFailed', { error: e && e.message ? e.message : String(e) }), 'warn'); toSend = sharePreviewPendingFile; }
+      }
+      const bytes = new Uint8Array(await toSend.arrayBuffer());
+      const fileName = `${myComposerId}/share-preview.${extOf(toSend.name)}`;
+      await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
+      sharePreview.image = fileName; sharePreview.imageOriginalName = sharePreviewPendingFile.name; sharePreviewPendingFile = null;
+      log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
+    }
     for (const ar of adReels) {
       if (ar.logoPendingFile) {
         log(tr('uploadingLogo', { id: ar.id }));
@@ -567,7 +581,7 @@ async function publishAll() {
       publishedAt: data.publishedAt, implementationSkills: data.implementationSkills,
       noAiCertifiedGlobal: data.noAiCertifiedGlobal, customFonts: data.customFonts,
       waveformStyle: data.waveformStyle, seqMapTheme: data.seqMapTheme,
-      allowEmbedding: data.allowEmbedding,
+      allowEmbedding: data.allowEmbedding, sharePreview: data.sharePreview,
     });
     if (!settingsRes.ok) {
       throw new Error('Écriture Postgres échouée pour les réglages — publication arrêtée :\n' + settingsRes.error);
@@ -601,3 +615,6 @@ async function publishAll() {
     document.getElementById('btnPublish').disabled = false;
   }
 }
+
+// Retour sur l'onglet précédent après un rafraîchissement (sauf si l'adresse en demande un : ?tab=...).
+if (!new URLSearchParams(location.search).get('tab')) restoreBackstageTab();

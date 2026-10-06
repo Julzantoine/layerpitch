@@ -196,7 +196,7 @@ function buildSfxPlayer(sfxDef) {
       else {
         if (!alt.file || !sfxDef.base) return null;
         const v = sfxDef.publishedAt ? ('?v=' + encodeURIComponent(sfxDef.publishedAt)) : '';
-        const res = await fetch(sfxDef.base + encodeURIComponent(alt.file) + v);
+        const res = await fetchAudio(sfxDef.base + encodeURIComponent(alt.file) + v, sfxDef.protected);
         ab = await res.arrayBuffer();
       }
       const buf = await decodeAudioDataCompat(ab);
@@ -309,9 +309,15 @@ window.LayerPlayerCore = {
   liveFxLatencySec: () => fxSpLatencySec(ctx),
   CAPTURE_RAMPS: { intensity: INTENSITY_RAMP_SEC, voice: VOICE_RAMP_SEC, duckLevel: DUCK_LEVEL, duckAttack: DUCK_ATTACK_SEC, duckRelease: DUCK_RELEASE_SEC },
   createTriggerRuleEngine,
+  expandTriggerSteps,
+  triggerTargets,
+  fxEffectChipsHtml,
   simulateTriggerRules,
   FX_SLIDER_PARAMS,
   fxSlidersValid,
+  fxStructureZones,
+  fxIntensityBounds,
+  fxSliderIntensityLevel,
   fxSliderOverrides,
   fxSliderForceKeys,
   applyFxSliderOverrides,
@@ -335,6 +341,8 @@ window.LayerPlayerCore = {
   setSfxLibrary,
   shareOrCopy,
   downloadTracksAsZip,
+  fetchAudio,
+  fetchAudioBytes,
   createSectionPlaybackScheduler,
   PLAYABLE_MODES,
   WAVEFORM_STYLES,

@@ -9,12 +9,8 @@ const fs = require('fs');
 const path = require('path');
 
 (async () => {
-  const i18nSrc = fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf-8');
-  const playerSrc = fs.readFileSync(path.join(__dirname, 'player.js'), 'utf-8').replace(/<\/script/gi, '<\\/script');
-  const html = `<!DOCTYPE html><html><body><div id="host"></div>
-  <script>${i18nSrc}</script>
-  <script>${playerSrc}</script>
-  </body></html>`;
+  const { playerPageHtml, installTimedFakeAudio } = require('./scripts/test-harness.js');
+  const html = playerPageHtml();
 
   const fadeRamps = []; // { deltaSec } pour chaque appel linearRampToValueAtTime(0, ...)
 

@@ -12,6 +12,7 @@ async function loadData(silent) {
       waveformStyle = 'bars';
       seqMapTheme = 'light';
       allowEmbedding = false;
+      sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW); sharePreviewPendingFile = null;
       adReels = [{ id: 'main', label: tr('defaultAdreelLabel'), lang: currentLang(), blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, allowIndexing: true, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null }];
       currentAdReelId = 'main';
       const cur = adReels[0];
@@ -19,7 +20,7 @@ async function loadData(silent) {
       logoPendingFile = null; photoPendingFile = null;
       collapsedPackIds.clear(); collapsedBlockIds.clear(); collapsedCollectionIds.clear();
       cur.blocks.forEach(b => collapsedBlockIds.add(b.id));
-      renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); rebuildAllCards();
+      renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); fillSharePreviewFields(); rebuildAllCards();
       pendingR2Deletes.clear(); pendingOrphanR2Keys.clear();
       rememberPublishedCatalog();
       dataLoadOk = true; // absence légitime de data.json (premier lancement) -- pas un échec, publier est sûr
@@ -85,7 +86,7 @@ async function loadData(silent) {
       }
 
       return {
-        id: t.id, title: t.title, description: t.description || '', tags: t.tags || '', mode,
+        id: t.id, title: t.title, description: t.description || '', tags: t.tags || '', mode, protected: !!t.protected,
         implementationNote: t.implementationNote || '',
         noAiOverride: (t.noAiOverride === true || t.noAiOverride === false) ? t.noAiOverride : null,
         duration: t.duration || 0, base: t.base || '', loopable: !!t.loopable,
@@ -100,7 +101,7 @@ async function loadData(silent) {
         maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
         normalizeVolume: !!t.normalizeVolume,
         fx: t.fx || null,
-        fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations) })),
+        fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations), steps: fxStepsClean(x.steps), showEffects: x.showEffects !== false, targets: Array.isArray(x.targets) && x.targets.length ? x.targets.map(t => Object.assign({}, t)) : undefined })),
         fxSliders: fxSlidersClean(t.fxSliders),
         layers: (t.layers || []).map(l => ({ label: l.label, remoteFile: l.file, pendingFile: null, gain: l.gain || 1, duration: l.duration || 0, fx: l.fx || null })),
         intro: t.intro ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, remoteFile: t.intro.file || null, pendingFile: null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '', bpm: t.intro.bpm || null, beatsPerBar: t.intro.beatsPerBar || null, fx: t.intro.fx || null } : null,
@@ -183,7 +184,7 @@ async function loadData(silent) {
     libraryFolders.forEach(f => collapsedLibraryFolderIds.add(f.id));
     library.forEach(t => { if (t.folderId && !libraryFolders.some(f => f.id === t.folderId)) t.folderId = null; });
     sfxLibrary = (data.sfxLibrary || []).map(s => ({
-      id: s.id, title: s.title || '',
+      id: s.id, title: s.title || '', protected: !!s.protected,
       // Repli sur l'ancien champ unique "description" pour tout Sfx publié avant le passage au bilingue —
       // lu une fois ici, jamais réécrit dans l'ancien champ ensuite (même principe que tagline -> title/subtitle).
       descriptionFr: s.descriptionFr != null ? s.descriptionFr : (s.description || ''),
@@ -220,6 +221,7 @@ async function loadData(silent) {
     waveformStyle = window.LayerPlayerCore.WAVEFORM_STYLES.includes(data.waveformStyle) ? data.waveformStyle : 'bars';
     seqMapTheme = window.LayerPlayerCore.SEQ_MAP_THEMES.includes(data.seqMapTheme) ? data.seqMapTheme : 'light';
     allowEmbedding = !!data.allowEmbedding;
+    sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW, data.sharePreview || {}); sharePreviewPendingFile = null;
     collections = (data.collections || []).map(c => ({
       id: c.id, title: c.title || '', illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, pendingIllustration: null,
       presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '',
@@ -278,7 +280,7 @@ async function loadData(silent) {
     fillAppearanceFields();
     fillImplementationSkillsFields();
     fillNoAiCertifiedGlobalField();
-    fillAllowEmbeddingField();
+    fillAllowEmbeddingField(); fillSharePreviewFields();
     rebuildAllCards();
     hasUnsavedEdits = false;
     // Suppressions non publiées abandonnées par ce rechargement : les éléments reviennent, leurs fichiers R2 restent.

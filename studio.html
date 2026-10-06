@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Espace studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1790681825904">
+<link rel="stylesheet" href="player.css?v=1791296070654">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -70,17 +70,22 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790681825904"></script>
-<script src="layerpitch-notify.js?v=1790681825904"></script>
-<script src="player.js?v=1790681825904"></script>
-<script src="api/supabase-client.js?v=1790681825904"></script>
-<script src="api/auth.js?v=1790681825904"></script>
-<script src="layerpitch-shell.js?v=1790681825904"></script>
-<script src="api/purchases.js?v=1790681825904"></script>
-<script src="api/tracks.js?v=1790681825904"></script>
-<script src="api/sfx.js?v=1790681825904"></script>
-<script src="api/subscriptions.js?v=1790681825904"></script>
-<script src="api/studio.js?v=1790681825904"></script>
+<script src="layerpitch-i18n.js?v=1791296070654"></script>
+<script src="layerpitch-notify.js?v=1791296070654"></script>
+<script src="player.js?v=1791296070654"></script>
+<script src="api/supabase-client.js?v=1791296070654"></script>
+<script src="api/auth.js?v=1791296070654"></script>
+<script src="layerpitch-appearance.js?v=1791296070654"></script>
+<script src="layerpitch-album-shared.js?v=1791296070654"></script>
+<script src="layerpitch-album-editor.js?v=1791296070654"></script>
+<script src="layerpitch-shell.js?v=1791296070654"></script>
+<script src="api/purchases.js?v=1791296070654"></script>
+<script src="api/tracks.js?v=1791296070654"></script>
+<script src="api/sfx.js?v=1791296070654"></script>
+<script src="api/subscriptions.js?v=1791296070654"></script>
+<script src="api/albums.js?v=1791296070654"></script>
+<script src="layerpitch-studio-albums.js?v=1791296070654"></script>
+<script src="api/studio.js?v=1791296070654"></script>
 <script>
 // studio.html — Espace studio (chantier profils et permissions, étape 3, 28/09 ; D2, D9, D13, D33 du cadrage
 // layerpitch-docs/2026-09-27-cadrage-profils-permissions.md). Espace DÉDIÉ au studio, distinct du Backstage compositeur ;
@@ -111,7 +116,7 @@ const PLAN_NAMES = { solodev: 'SoloDev', indie: 'Indie', aa: 'AA', aaa: 'AAA' };
 const startParams = new URLSearchParams(location.search);
 const justSubscribed = startParams.get('subscribed') === '1';
 const fromPortal = startParams.get('portal') === '1';
-const startTab = justSubscribed ? 'plan' : (['library', 'custom', 'team', 'plan'].includes(startParams.get('tab')) ? startParams.get('tab') : 'library');
+const startTab = justSubscribed ? 'plan' : (['library', 'custom', 'albums', 'team', 'plan'].includes(startParams.get('tab')) ? startParams.get('tab') : 'library');
 if (justSubscribed || fromPortal) history.replaceState(null, '', location.pathname + '?tab=plan' + (pageLang === 'en' ? '&lang=en' : ''));
 const state = { tab: startTab, ent: {}, flags: {}, purchases: [], owned: [], customPacks: [], editing: null, playing: null };
 const content = $('content');
@@ -124,7 +129,7 @@ function quotaText(e) {
 
 // Barre latérale commune (28/09) : les onglets de l'espace studio sont ses entrées « Studio » ; le fil d'Ariane et
 // le titre suivent l'onglet choisi. Un lien de la barre vers cette même page change d'onglet sans rechargement.
-const STUDIO_TABS = ['library', 'custom', 'team', 'plan'];
+const STUDIO_TABS = ['library', 'custom', 'albums', 'team', 'plan'];
 function shellPlaces() {
   return { active: 'studio.' + state.tab, crumbs: [{ label: tr('h1') }, { label: tr('tab_' + state.tab) }] };
 }
@@ -199,7 +204,7 @@ async function render() {
   state.flags = flags.flags || {};
   if (!state.flags.studio_space) {
     content.innerHTML = `<div class="card"><h2>${esc(tr('comingSoonTitle'))}</h2><p class="hint">${esc(tr('comingSoonHint'))}</p>
-      <p class="hint"><a href="./catalogue.html?lang=${pageLang}">${esc(tr('catalogLink'))}</a></p></div>`;
+      <p class="hint"><a href="./shop.html?tab=assets&lang=${pageLang}">${esc(tr('catalogLink'))}</a></p></div>`;
     return;
   }
   const planEnt = Object.values(state.ent).find(e => e.kind === 'studio');
@@ -219,10 +224,21 @@ async function loadData() {
   state.customPacks = c.customPacks || [];
 }
 
+// ---- Albums (vente d'OST, 29/09) : layerpitch-studio-albums.js ----
+function renderAlbumsTab(panel) {
+  if (!state.flags.sell_albums) { panel.innerHTML = `<div class="card"><h2>${esc(tr('comingSoonTitle'))}</h2><p class="hint">${esc(tr('alb_locked'))}</p></div>`; return; }
+  // Morceaux dont le studio dispose (ceux de ses packs), uniques.
+  const seen = new Set();
+  const ownedTracks = state.owned.filter(a => a.kind === 'track' && !seen.has(a.id) && seen.add(a.id)).map(a => ({ id: a.id, title: a.title, packTitle: a.pack_title }));
+  LayerPitchStudioAlbums.mount(panel, { tr, esc, lang: pageLang, ownedTracks, notify: window.LayerPitchNotify });
+}
+
 function renderPanel() {
+  if (state.tab !== 'albums' && window.LayerPitchStudioAlbums) LayerPitchStudioAlbums.unmount();
   const panel = $('panel');
   if (state.tab === 'library') return renderLibrary(panel);
   if (state.tab === 'custom') return state.editing ? renderEditor(panel) : renderCustomList(panel);
+  if (state.tab === 'albums') return renderAlbumsTab(panel);
   if (state.tab === 'team') return renderTeam(panel);
   return renderPlan(panel);
 }
@@ -231,7 +247,7 @@ function renderPanel() {
 function renderLibrary(panel) {
   if (!state.purchases.length) {
     panel.innerHTML = `<div class="card"><div class="empty">${esc(tr('libraryEmpty'))}</div>
-      <p class="hint" style="text-align:center"><a href="./catalogue.html?lang=${pageLang}">${esc(tr('catalogLink'))}</a></p></div>`;
+      <p class="hint" style="text-align:center"><a href="./shop.html?tab=assets&lang=${pageLang}">${esc(tr('catalogLink'))}</a></p></div>`;
     return;
   }
   panel.innerHTML = `<div class="card">${state.purchases.map(p => `
@@ -475,7 +491,7 @@ async function renderCredits() {
   box.innerHTML = `<h2>${esc(tr('creditsTitle'))}</h2>${notice}
     <p class="hint">${esc(tr('creditsIntro'))}</p>
     <div class="quota"><dt>${esc(tr('creditsBalance'))}</dt><dd>${esc(credits.balance)}</dd><dt>${esc(tr('creditsMonthly'))}</dt><dd>${esc(credits.monthly == null ? '—' : credits.monthly)}</dd></div>
-    <p class="hint" style="margin-top:10px"><a href="./catalogue.html?lang=${pageLang}">${esc(tr('creditsUseInCatalog'))}</a></p>
+    <p class="hint" style="margin-top:10px"><a href="./shop.html?tab=assets&lang=${pageLang}">${esc(tr('creditsUseInCatalog'))}</a></p>
     ${credits.history.length ? `<div class="section-label">${esc(tr('creditsHistory'))}</div>` + credits.history.map(h => `<div class="row"><div class="row-main"><div class="row-sub">${esc(new Date(h.createdAt).toLocaleDateString(pageLang))} — ${esc(tr('credit_' + h.reason, { pack: h.packTitle || '', who: h.actorEmail || '' }))}</div></div><div class="row-actions" style="font-family:var(--font-mono)">${h.delta > 0 ? '+' : ''}${esc(h.delta)}</div></div>`).join('') : ''}`;
 }
 // Palier (D16) : Indie / AA en libre-service (propriétaire seulement), AAA sur devis.

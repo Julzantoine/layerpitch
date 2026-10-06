@@ -153,17 +153,34 @@ Deno.serve(async (req) => {
     const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
       global: { headers: { Authorization: authHeader } },
     });
+    const { path, method, size } = await req.json();
+    const adminClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+
+    // Pochette d'un album de STUDIO (29/09) : images/<id du studio>/album-<id>.<ext>, réservé au studio qui l'envoie (son
+    // dossier), sans profil compositeur (un compte studio seul ne doit pas en recevoir un juste pour envoyer une image).
+    let studioFolderId: string | null = null;
+    if (typeof path === 'string' && /^images\/[^/]+\/album-[^/]+\.[^./]+$/.test(path)) {
+      const { data: userData } = await callerClient.auth.getUser(jwt);
+      if (userData?.user) {
+        const { data: studio } = await adminClient.from('studio_profiles').select('id').eq('profile_id', userData.user.id).maybeSingle();
+        if (studio && path.startsWith(`images/${studio.id}/`)) studioFolderId = studio.id as string;
+      }
+    }
+
     // Le compositeur doit exister avant de publier du média -- même garde-fou que
     // create-connect-onboarding-link (ensure_composer_profile() déjà appelé ailleurs dans le
     // parcours d'inscription, mais on ne le suppose pas ici).
-    const { data: composerId, error: composerError } = await callerClient.rpc('ensure_composer_profile');
-    if (composerError || !composerId) {
-      return new Response(JSON.stringify({ error: composerError?.message || 'Impossible de provisionner le profil compositeur.' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    let composerId: unknown = studioFolderId;
+    if (!studioFolderId) {
+      const { data, error: composerError } = await callerClient.rpc('ensure_composer_profile');
+      if (composerError || !data) {
+        return new Response(JSON.stringify({ error: composerError?.message || 'Impossible de provisionner le profil compositeur.' }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      composerId = data;
     }
 
-    const { path, method, size } = await req.json();
     if (!path || typeof path !== 'string' || !ALLOWED_PREFIXES.some((p) => path.startsWith(p))) {
       return new Response(JSON.stringify({ error: 'Chemin invalide (doit commencer par images/, audio/, video/ ou fonts/).' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -190,10 +207,8 @@ Deno.serve(async (req) => {
       uploadHeaders = check.headers;
     }
 
-    // service_role pour la vérification de propriété -- même raisonnement que create-checkout-session
-    // (seul point de vérité, jamais soumis à la RLS "lecture publique" qui s'applique par ailleurs à
-    // ces tables).
-    const adminClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    // service_role (adminClient, plus haut) pour la vérification de propriété -- même raisonnement que create-checkout-session
+    // (seul point de vérité, jamais soumis à la RLS "lecture publique" qui s'applique par ailleurs à ces tables).
     const owned = await verifyOwnership(adminClient, path, composerId as string);
     if (!owned) {
       return new Response(JSON.stringify({ error: 'Ce fichier ne t\'appartient pas.' }), {
@@ -238,7 +253,23 @@ Deno.serve(async (req) => {
     }
 
     const accountId = Deno.env.get('R2_ACCOUNT_ID')!;
-    const bucket = Deno.env.get('R2_BUCKET')!;
+    // Morceau ou Sfx PROTÉGÉ (29/09) : ses fichiers audio/<id>/… (audio/sfx-<id>/…) vivent dans le seau privé (R2_PROJECTS_BUCKET), au même chemin.
+    // Envoi et effacement y sont donc aiguillés ; la vérification de propriété plus haut reste la même.
+    let bucket = Deno.env.get('R2_BUCKET')!;
+    const audioMatch = path.match(/^audio\/([^/]+)\//);
+    if (audioMatch) {
+      const isSfxFolder = audioMatch[1].startsWith('sfx-');
+      const { data: trk } = isSfxFolder
+        ? await adminClient.from('sfx_library').select('protected').eq('id', audioMatch[1].slice(4)).maybeSingle()
+        : await adminClient.from('tracks').select('protected').eq('id', audioMatch[1]).maybeSingle();
+      if (trk && trk.protected) {
+        const privateBucket = Deno.env.get('R2_PROJECTS_BUCKET');
+        if (!privateBucket) {
+          return new Response(JSON.stringify({ error: 'Stockage privé non configuré (R2_PROJECTS_BUCKET).' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        bucket = privateBucket;
+      }
+    }
     const client = new AwsClient({
       accessKeyId: Deno.env.get('R2_ACCESS_KEY_ID')!,
       secretAccessKey: Deno.env.get('R2_SECRET_ACCESS_KEY')!,

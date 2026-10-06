@@ -5,28 +5,10 @@
  * DÉJÀ publiés en base (les morceaux n'y arrivent qu'à la publication) -- d'où l'indice
  * albumTracksNotPublishedHint quand l'enregistrement est refusé pour cette raison.
  * Bêta : le paiement n'est pas branché, « Obtenir (test) » (claim_test_album) simule l'achat.
- * Vendeur compositeur seulement ici (décision du 21 septembre : le côté studio reste à concevoir). */
-const albumsState = { loaded: false, loading: false, albums: [], purchases: [], testEnabled: false, messages: {},
-  recorder: null,   // enregistreur de version du compositeur ouvert : { albumId, trackId, el } (un seul à la fois)
-  playback: null }; // version du compositeur en écoute : { key, ctrl }
-
-function newAlbumId() {
-  // Identifiant aléatoire : albums.id est unique sur TOUTE la base (pas par compositeur), un titre
-  // slugifié risquerait de collisionner avec l'album d'un autre compositeur.
-  const rand = (window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, '').slice(0, 16) : Math.random().toString(36).slice(2, 12);
-  return 'alb_' + rand;
-}
-
-function albumFromApi(a) {
-  return {
-    id: a.id, title: a.title || '', presentationFr: a.presentationFr || '', presentationEn: a.presentationEn || '',
-    priceInput: a.priceEurCents == null ? '' : (a.priceEurCents / 100).toFixed(2),
-    buyable: !!a.buyable, trackIds: a.trackIds || [], saved: true, savedBuyable: !!a.buyable,
-    // Morceaux enregistrés en base (seuls eux peuvent recevoir une version du compositeur) et durée de leur version.
-    savedTrackIds: (a.trackIds || []).slice(), officialDurations: Object.assign({}, a.officialDurations || {}),
-    illustration: a.illustration || null, illustrationOriginalName: a.illustrationOriginalName || null, pendingCover: null, pendingCoverUrl: null,
-  };
-}
+ * 30/09 : l'ÉDITEUR d'un album (champs, morceaux, versions officielles, écoute libre, droits, enregistrement) est le module
+ * commun layerpitch-album-editor.js, le même que l'espace studio. Ce fichier ne garde que ce qui est propre au Backstage :
+ * la liste des albums, les albums de studio où je suis compositeur invité, l'achat de test et les albums obtenus. */
+const albumsState = { loaded: false, loading: false, albums: [], purchases: [], testEnabled: false, editors: [] };
 
 async function loadAlbums() {
   if (albumsState.loaded || albumsState.loading) return;
@@ -37,12 +19,13 @@ async function loadAlbums() {
     await loadPostgresReadScripts();
     const { session } = await window.LayerPitchAuth.getSession();
     if (!session || !session.user) throw new Error(tr('albumsNoSession'));
-    const A = window.LayerPitchAlbums;
-    const [al, pu, fl] = await Promise.all([A.listAlbums({ sellerId: session.user.id }), A.listMyPurchases(), A.getPlatformFlags()]);
+    const A = window.LayerPitchAlbums, E = window.LayerPitchAlbumEditor;
+    const [al, pu, fl, co] = await Promise.all([A.listAlbums({ sellerId: session.user.id }), A.listMyPurchases(), A.getPlatformFlags(), A.myAlbumContributions()]);
     if (al.error) throw new Error(al.error);
     // Les brouillons pas encore enregistrés (+ Album cliqué avant la fin du chargement) sont gardés.
     const drafts = albumsState.albums.filter(x => !x.saved);
-    albumsState.albums = al.albums.map(albumFromApi).concat(drafts);
+    // Albums de studio où je suis compositeur invité (29/09) : mêmes cartes, réduites à mes morceaux.
+    albumsState.albums = (co.contributions || []).map(E.fromContribution).concat(al.albums.map(E.fromApi), drafts);
     albumsState.purchases = pu.purchases || [];
     albumsState.testEnabled = !!(fl.flags && fl.flags.testPurchasesEnabled);
     albumsState.loaded = true;
@@ -55,215 +38,60 @@ async function loadAlbums() {
   }
 }
 
+function albumTrackTitle(id) { const t = library.find(x => x.id === id); return (t && t.title) || id; }
+
+// Réglages de l'éditeur commun pour le Backstage : morceaux de la bibliothèque, enregistrement par upsert_album, pochette
+// rangée sous l'identifiant du compositeur (images/<id>/album-<id>.<ext>, comme toutes les images, voir publishAll).
+function albumEditorConfig(al) {
+  const A = () => window.LayerPitchAlbums;
+  return {
+    tracks: () => library.map(t => ({ id: t.id, title: t.title || t.id })),
+    trackTitle: albumTrackTitle,
+    mediaBase: MEDIA_BASE + 'images/',
+    features: { rights: true },
+    save: async p => { await loadPostgresReadScripts(); return A().upsertAlbum(p); },
+    uploadCover: async a => {
+      await loadPostgresReadScripts();
+      const { composerId, error } = await window.LayerPitchAuth.ensureMyComposerProfile();
+      if (error || !composerId) throw new Error(error || 'aucun profil compositeur');
+      const fileName = `${composerId}/album-${a.id}.${extOf(a.pendingCover.name)}`;
+      await r2PutFile(`images/${fileName}`, new Uint8Array(await a.pendingCover.arrayBuffer()), imageContentType(extOf(fileName)));
+      return { illustration: fileName, illustrationOriginalName: a.pendingCover.name };
+    },
+    saveErrorHint: error => (/pistes/i.test(error || '') ? ' ' + tr('albumTracksNotPublishedHint') : ''),
+    beforeAudio: () => activePreviewIds.forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id }))),
+    renderCover: (el, a, done) => {
+      el.innerHTML = fileCtrlHtml(tr('chooseIllustration'));
+      wireFileControl(el, 'image/*', () => a.pendingCover, () => a.illustration, f => {
+        if (a.pendingCoverUrl) URL.revokeObjectURL(a.pendingCoverUrl);
+        a.pendingCover = f || null;
+        a.pendingCoverUrl = f ? URL.createObjectURL(f) : null;
+        done();
+      }, () => a.illustrationOriginalName);
+    },
+    actions: a => (albumsState.testEnabled && a.saved && a.savedBuyable ? [{ id: 'claim', label: tr('albumClaimTestBtn'), onClick: claimTestAlbum }] : []),
+    contribution: { save: saveContribution, leave: leaveContributedAlbum },
+    confirm: (text, opts) => window.LayerPitchNotify.confirm(text, opts),
+  };
+}
+
 function renderAlbums() {
   const box = document.getElementById('albumsContainer');
+  albumsState.editors.forEach(ed => ed.destroy());
+  albumsState.editors = [];
   box.innerHTML = '';
   if (!albumsState.albums.length) { box.innerHTML = `<div class="sub">${tr('albumsEmpty')}</div>`; return; }
-  const rowStyle = 'display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text-dim);';
-  albumsState.albums.forEach((al, ai) => {
-    const libIds = new Set(library.map(t => t.id));
-    const trackRows = library.map(t => {
-      const pos = al.trackIds.indexOf(t.id);
-      return `<label style="${rowStyle}"><input type="checkbox" style="width:auto;margin:0" data-album-track="${escapeAttr(t.id)}" data-ai="${ai}"${pos >= 0 ? ' checked' : ''}><span>${pos >= 0 ? (pos + 1) + '. ' : ''}${escapeHtml(t.title || t.id)}</span></label>`;
-    });
-    // Piste de l'album absente de la bibliothèque locale (ex. supprimée) : on la montre quand même,
-    // décochable, plutôt que de la perdre en silence au prochain enregistrement.
-    al.trackIds.filter(id => !libIds.has(id)).forEach(id => {
-      trackRows.push(`<label style="${rowStyle}"><input type="checkbox" style="width:auto;margin:0" data-album-track="${escapeAttr(id)}" data-ai="${ai}" checked><span>${al.trackIds.indexOf(id) + 1}. ${escapeHtml(id)}</span></label>`);
-    });
-    const msg = albumsState.messages[al.id];
-    const canClaim = albumsState.testEnabled && al.saved && al.savedBuyable;
+  albumsState.albums.forEach(al => {
     const el = document.createElement('div');
     el.className = 'list-block';
-    el.innerHTML = `
-      <div class="list-block-head">
-        <div class="list-block-head-left">
-          <input type="text" class="seq-header-title" data-album-field="title" data-ai="${ai}" value="${escapeAttr(al.title)}" placeholder="${escapeAttr(tr('albumFallback', { n: ai + 1 }))}">
-          ${al.saved ? '' : `<span class="badge">${tr('albumUnsavedBadge')}</span>`}
-        </div>
-      </div>
-      <div class="list-block-body">
-        <label>${tr('albumPresentationFrLabel')}</label>
-        <textarea data-album-field="presentationFr" data-ai="${ai}">${escapeHtml(al.presentationFr)}</textarea>
-        <label>${tr('albumPresentationEnLabel')}</label>
-        <textarea data-album-field="presentationEn" data-ai="${ai}">${escapeHtml(al.presentationEn)}</textarea>
-        <label>${tr('albumCoverLabel')}</label>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          ${al.pendingCoverUrl || al.illustration
-            ? `<img src="${escapeAttr(al.pendingCoverUrl || (MEDIA_BASE + 'images/' + al.illustration))}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">`
-            : `<div style="width:72px;height:72px;border-radius:6px;border:1px dashed var(--border)"></div>`}
-          <div data-role="albumCoverCtrl" data-ai="${ai}"></div>
-        </div>
-        <div class="sub" style="margin-top:4px">${tr('albumCoverHint')}</div>
-        <label>${tr('albumMinPriceLabel')}</label>
-        <input type="text" inputmode="decimal" data-album-field="priceInput" data-ai="${ai}" value="${escapeAttr(al.priceInput)}" placeholder="3.00" style="max-width:140px">
-        <div class="sub" style="margin-top:4px">${tr('albumMinPriceHint')}</div>
-        <label style="${rowStyle}margin-top:12px"><input type="checkbox" style="width:auto;margin:0" data-album-field="buyable" data-ai="${ai}"${al.buyable ? ' checked' : ''}><span>${tr('albumBuyableLabel')}</span></label>
-        ${renderAlbumRights(al, ai)}
-        <label>${tr('albumTracksLabel')}</label>
-        ${trackRows.length ? trackRows.join('') : `<div class="sub">${tr('albumNoTracksInLibrary')}</div>`}
-        ${renderAlbumOfficialVersions(al, ai)}
-        <div class="actions" style="margin-top:14px">
-          <button class="btn btn-small btn-primary" data-action="save-album" data-ai="${ai}" type="button">${tr('albumSaveBtn')}</button>
-          ${canClaim ? `<button class="btn btn-small" data-action="claim-test-album" data-ai="${ai}" type="button">${tr('albumClaimTestBtn')}</button>` : ''}
-        </div>
-        ${msg ? `<div class="sub" style="margin-top:8px;${msg.kind === 'error' ? 'color:#c0392b' : 'color:#2e8b57'}">${escapeHtml(msg.text)}</div>` : ''}
-      </div>`;
+    el.innerHTML = '<div class="list-block-body"></div>';
     box.appendChild(el);
-    // Pochette (A.9, 27/09) : choisie ici, envoyée à l'enregistrement de l'album (saveAlbum), comme les autres champs.
-    const coverCtrl = el.querySelector('[data-role="albumCoverCtrl"]');
-    coverCtrl.innerHTML = fileCtrlHtml(tr('chooseIllustration'));
-    wireFileControl(coverCtrl, 'image/*', () => al.pendingCover, () => al.illustration, f => {
-      if (al.pendingCoverUrl) URL.revokeObjectURL(al.pendingCoverUrl);
-      al.pendingCover = f || null;
-      al.pendingCoverUrl = f ? URL.createObjectURL(f) : null;
-      renderAlbums();
-    }, () => al.illustrationOriginalName);
+    const ed = window.LayerPitchAlbumEditor.create({ host: el.firstChild, album: al, cfg: albumEditorConfig(al) });
+    albumsState.editors.push(ed);
+    ed.render();
   });
-  // L'enregistreur ouvert (lecteur vivant) survit aux re-rendus : on replace son nœud, sans le reconstruire.
-  const rec = albumsState.recorder;
-  if (rec) {
-    const host = [...box.querySelectorAll('[data-official-host]')].find(h => h.dataset.officialHost === rec.albumId + '|' + rec.trackId);
-    if (host) host.appendChild(rec.el); else closeOfficialRecorder();
-  }
 }
-
-// ---- Version du compositeur de chaque morceau (Adaptive OST, étape A.7, 26/09) ----
-// C'est une PRISE du vendeur (journal du lecteur, comme les versions du fan), rangée dans album_tracks.default_settings
-// (set_album_track_default_settings). Obligatoire pour chaque morceau avant la mise en vente (contrôle serveur dans
-// upsert_album, migration 20260926020000 ; contrôle client dans saveAlbum pour un message clair).
-const fmtAlbumDuration = sec => { sec = Math.max(0, Math.round(sec || 0)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
-function albumTrackTitle(id) { const t = library.find(x => x.id === id); return (t && t.title) || id; }
-function renderAlbumOfficialVersions(al, ai) {
-  const head = `<label style="margin-top:16px">${tr('albumOfficialTitle')}</label><div class="sub" style="margin-bottom:4px">${tr('albumOfficialHint')}</div>`;
-  if (!al.saved || !al.savedTrackIds.length) return head + `<div class="sub">${tr('albumOfficialSaveFirst')}</div>`;
-  const rowStyle = 'display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text-dim);';
-  const pending = al.trackIds.join('|') !== al.savedTrackIds.join('|');
-  return head + al.savedTrackIds.map(id => {
-    const has = Object.prototype.hasOwnProperty.call(al.officialDurations, id);
-    const key = al.id + '|' + id;
-    const playing = albumsState.playback && albumsState.playback.key === key;
-    return `<div style="${rowStyle}">
-        <span style="min-width:0;flex:1 1 160px;color:var(--text)">${escapeHtml(albumTrackTitle(id))}</span>
-        ${has ? `<span>✓ ${fmtAlbumDuration(al.officialDurations[id])}</span>` : `<span class="badge" style="color:#c0392b;border-color:#c0392b">${tr('albumOfficialMissing')}</span>`}
-        ${has ? `<button class="btn btn-small" type="button" data-action="official-play" data-ai="${ai}" data-track="${escapeAttr(id)}">${tr(playing ? 'albumOfficialStopBtn' : 'albumOfficialListenBtn')}</button>` : ''}
-        <button class="btn btn-small${has ? '' : ' btn-primary'}" type="button" data-action="official-record" data-ai="${ai}" data-track="${escapeAttr(id)}">${tr(has ? 'albumOfficialRedoBtn' : 'albumOfficialRecordBtn')}</button>
-      </div>
-      <div data-official-host="${escapeAttr(key)}"></div>`;
-  }).join('') + (pending ? `<div class="sub" style="margin-top:6px">${tr('albumOfficialSaveFirst')}</div>` : '');
-}
-
-// capture-render.js (lecture d'une prise) n'est chargé qu'à la première écoute, avec le numéro de version de la page.
-let captureRenderLoaded = null;
-function loadCaptureRenderScript() {
-  if (window.LayerCaptureRender) return Promise.resolve();
-  if (captureRenderLoaded) return captureRenderLoaded;
-  const v = (document.querySelector('script[src*="layerpitch-i18n.js?v="]') || {}).src;
-  const version = v ? new URL(v).searchParams.get('v') : '';
-  captureRenderLoaded = new Promise((resolve, reject) => {
-    const sc = document.createElement('script');
-    sc.src = './capture-render.js' + (version ? '?v=' + version : '');
-    sc.onload = resolve;
-    sc.onerror = () => { captureRenderLoaded = null; reject(new Error('Échec du chargement de ' + sc.src)); };
-    document.head.appendChild(sc);
-  });
-  return captureRenderLoaded;
-}
-function stopOfficialPlayback() {
-  const pb = albumsState.playback;
-  if (pb) { albumsState.playback = null; if (pb.ctrl) pb.ctrl.stop(); }
-}
-async function toggleOfficialPlayback(ai, trackId) {
-  const al = albumsState.albums[ai];
-  const key = al.id + '|' + trackId;
-  const wasThis = albumsState.playback && albumsState.playback.key === key;
-  stopOfficialPlayback();
-  if (wasThis) { renderAlbums(); return; }
-  // Une seule chose joue à la fois : enregistreur et aperçus « Écouter » s'arrêtent.
-  if (albumsState.recorder) document.dispatchEvent(new CustomEvent('stop-track', { detail: albumsState.recorder.trackId }));
-  activePreviewIds.forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id })));
-  const pb = { key, ctrl: null };
-  albumsState.playback = pb;
-  renderAlbums();
-  try {
-    await loadCaptureRenderScript();
-    const { take, error } = await window.LayerPitchAlbums.getAlbumTrackOfficialTake(al.id, trackId);
-    if (error || !take) throw new Error(error || tr('albumOfficialMissing'));
-    const fetchBytes = async url => new Uint8Array(await (await fetch(url)).arrayBuffer());
-    const ctrl = await window.LayerCaptureRender.playTake(take, { fetchBytes, onEnd: () => { if (albumsState.playback === pb) { albumsState.playback = null; renderAlbums(); } } });
-    if (albumsState.playback !== pb) { ctrl.stop(); return; }
-    pb.ctrl = ctrl;
-  } catch (e) {
-    if (albumsState.playback === pb) albumsState.playback = null;
-    setAlbumMessage(al, tr('albumOfficialError', { error: e.message }), 'error');
-  }
-}
-function closeOfficialRecorder() {
-  const rec = albumsState.recorder;
-  if (!rec) return;
-  albumsState.recorder = null;
-  document.dispatchEvent(new CustomEvent('stop-track', { detail: rec.trackId }));
-  rec.el.remove();
-}
-// Enregistreur : la version PUBLIÉE du morceau (celle que le fan recevra), jouée dans le lecteur habituel, journal de
-// prise actif ; « Enregistrer comme version de l'album » garde tout ce qui a été joué depuis le lancement.
-async function openOfficialRecorder(ai, trackId) {
-  const al = albumsState.albums[ai];
-  closeOfficialRecorder();
-  stopOfficialPlayback();
-  const P = window.LayerPlayerCore;
-  const el = document.createElement('div');
-  el.style.cssText = 'margin:8px 0 12px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg)';
-  el.innerHTML = `<div class="sub">${tr('albumOfficialLoading')}</div>`;
-  const rec = { albumId: al.id, trackId, el };
-  albumsState.recorder = rec;
-  renderAlbums();
-  try {
-    await loadPostgresReadScripts();
-    const r = await window.LayerPitchTracks.getTrack(trackId);
-    if (!r || !r.track) throw new Error(tr('albumOfficialUnpublished'));
-    const track = r.track;
-    const sfxById = {};
-    for (const sid of (track.sfxIds || [])) { const x = await window.LayerPitchSfx.getSfx(sid); if (x && x.sfx) sfxById[sid] = x.sfx; }
-    if (albumsState.recorder !== rec) return;
-    activePreviewIds.forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id })));
-    P.setSfxLibrary(sfxById);
-    P.setTakeRecording(true);
-    el.innerHTML = `<div class="sub" style="margin-bottom:8px">${tr('albumOfficialRecorderHint')}</div><div data-role="recPlayer"></div>
-      <div class="actions" style="margin-top:10px">
-        <button class="btn btn-small btn-primary" type="button" data-role="recSave">${tr('albumOfficialSaveBtn')}</button>
-        <button class="btn btn-small" type="button" data-role="recClose">${tr('albumOfficialCloseBtn')}</button>
-      </div>
-      <div class="sub" data-role="recMsg" style="margin-top:6px"></div>`;
-    const row = P.buildTrackRow(track, null, false);
-    el.querySelector('[data-role="recPlayer"]').appendChild(row);
-    P.initTrackPlayer(track, row);
-    const titleToggle = row.querySelector('[data-role="titleToggle"]');
-    if (titleToggle) titleToggle.click();
-    const say = text => { el.querySelector('[data-role="recMsg"]').textContent = text; };
-    el.querySelector('[data-role="recClose"]').onclick = () => closeOfficialRecorder();
-    el.querySelector('[data-role="recSave"]').onclick = async e => {
-      const take = P.getTrackTake(trackId);
-      if (!take || !take.voices.length) { say(tr('albumOfficialNothing')); return; }
-      if (take.missing) { say(tr('albumOfficialUnpublished')); return; }
-      e.target.disabled = true;
-      try {
-        const res = await window.LayerPitchAlbums.setAlbumTrackOfficialTake(al.id, trackId, take);
-        if (!res.ok) throw new Error(res.error);
-        al.officialDurations[trackId] = take.duration;
-        say(tr('albumOfficialSaved', { duration: fmtAlbumDuration(take.duration) }));
-        renderAlbums();
-      } catch (err) { say(tr('albumOfficialError', { error: err.message })); }
-      finally { e.target.disabled = false; }
-    };
-  } catch (e) {
-    el.innerHTML = `<div class="sub" style="color:#c0392b">${escapeHtml(tr('albumOfficialError', { error: e.message }))}</div>`;
-  }
-}
-// Le lecteur de l'enregistreur démarre : une version du compositeur en écoute s'arrête.
-document.addEventListener('layerpitch-capture-mark', e => {
-  if (e.detail && e.detail.name === 'track_play' && albumsState.playback) { stopOfficialPlayback(); renderAlbums(); }
-});
+const editorOf = al => albumsState.editors.find(e => e.album === al);
 
 function renderAlbumsLibrary() {
   const box = document.getElementById('albumsLibraryContainer');
@@ -278,117 +106,49 @@ function renderAlbumsLibrary() {
     </div>`).join('');
 }
 
-function setAlbumMessage(al, text, kind) {
-  albumsState.messages[al.id] = { text, kind };
+// Compositeur invité : enregistre MES morceaux de l'album du studio (set_album_contributor_tracks).
+async function saveContribution(al) {
+  const ed = editorOf(al);
+  ed.say(tr('albumSaving'), 'ok');
+  try {
+    await loadPostgresReadScripts();
+    const r = await window.LayerPitchAlbums.setAlbumContributorTracks(al.id, al.trackIds);
+    if (!r.ok) { ed.say(tr('albumSaveError', { error: r.error }) + (/catalogue/i.test(r.error || '') ? ' ' + tr('albumTracksNotPublishedHint') : ''), 'error'); return; }
+    al.savedTrackIds = al.trackIds.slice();
+    Object.keys(al.officialDurations || {}).forEach(id => { if (!al.trackIds.includes(id)) delete al.officialDurations[id]; });
+    if (r.unpublished) al.buyable = false;
+    ed.say(tr(r.unpublished ? 'albumContribUnpublished' : 'albumSaved'), 'ok');
+  } catch (e) {
+    ed.say(tr('albumSaveError', { error: e.message }), 'error');
+  }
+}
+async function leaveContributedAlbum(al) {
+  const ed = editorOf(al);
+  if (!await window.LayerPitchNotify.confirm(tr('albumContribLeaveConfirm', { title: al.title }), { okLabel: tr('albumContribLeaveBtn'), danger: true })) return;
+  const r = await window.LayerPitchAlbums.leaveAlbum(al.id);
+  if (!r.ok) { ed.say(tr('albumSaveError', { error: r.error }), 'error'); return; }
+  albumsState.albums.splice(albumsState.albums.indexOf(al), 1);
   renderAlbums();
 }
 
-async function saveAlbum(ai) {
-  const al = albumsState.albums[ai];
-  // Prix saisi en euros (« 3.5 », « 3,50 »), envoyé en centimes. Vide = pas de prix (refusé si en vente).
-  const raw = al.priceInput.trim().replace(',', '.');
-  let cents = null;
-  if (raw !== '') {
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n < 0) { setAlbumMessage(al, tr('albumPriceInvalid'), 'error'); return; }
-    cents = Math.round(n * 100);
-  }
-  if (al.buyable && cents === null) { setAlbumMessage(al, tr('albumSellingNeedsPrice'), 'error'); return; }
-  // Mise en vente : chaque morceau doit avoir sa version du compositeur (même règle côté serveur).
-  if (al.buyable) {
-    if (!al.trackIds.length) { setAlbumMessage(al, tr('albumSellingNeedsTracks'), 'error'); return; }
-    const missing = al.trackIds.filter(id => !Object.prototype.hasOwnProperty.call(al.officialDurations || {}, id));
-    if (missing.length) { setAlbumMessage(al, tr('albumSellingNeedsVersions', { tracks: missing.map(albumTrackTitle).join(', ') }), 'error'); return; }
-  }
-  setAlbumMessage(al, tr('albumSaving'), 'info');
-  try {
-    await loadPostgresReadScripts();
-    // Nouvelle pochette : envoyée d'abord (images/<id du compositeur>/album-<id>.<ext>, dossier du compositeur comme
-    // toutes les images, voir publishAll), puis enregistrée avec l'album.
-    let cover = null;
-    if (al.pendingCover) {
-      const { composerId, error: composerError } = await window.LayerPitchAuth.ensureMyComposerProfile();
-      if (composerError || !composerId) throw new Error(composerError || 'aucun profil compositeur');
-      const fileName = `${composerId}/album-${al.id}.${extOf(al.pendingCover.name)}`;
-      await r2PutFile(`images/${fileName}`, new Uint8Array(await al.pendingCover.arrayBuffer()), imageContentType(extOf(fileName)));
-      cover = { illustration: fileName, illustrationOriginalName: al.pendingCover.name };
-    }
-    const { ok, error, data: saved } = await window.LayerPitchAlbums.upsertAlbum({
-      id: al.id, title: al.title, presentationFr: al.presentationFr, presentationEn: al.presentationEn,
-      priceEurCents: cents, buyable: al.buyable, trackIds: al.trackIds,
-      ...(cover || {}),
-    });
-    if (!ok) {
-      const hint = /pistes/i.test(error || '') ? ' ' + tr('albumTracksNotPublishedHint') : '';
-      setAlbumMessage(al, tr('albumSaveError', { error }) + hint, 'error');
-      return;
-    }
-    al.saved = true;
-    al.savedBuyable = al.buyable;
-    if (cover) {
-      Object.assign(al, cover);
-      if (al.pendingCoverUrl) URL.revokeObjectURL(al.pendingCoverUrl);
-      al.pendingCover = null; al.pendingCoverUrl = null;
-    }
-    // Morceaux décochés d'un album déjà obtenu : gardés pour ceux qui l'ont (27/09) -- on le dit au compositeur.
-    const kept = (saved && saved.keptForBuyers) || [];
-    const savedMessage = kept.length ? tr('albumSaved') + ' ' + tr('albumTracksKeptForBuyers', { tracks: kept.map(albumTrackTitle).join(', ') }) : tr('albumSaved');
-    al.savedTrackIds = al.trackIds.slice();
-    // Un morceau retiré de l'album perd sa version (la ligne album_tracks est supprimée côté serveur).
-    Object.keys(al.officialDurations || {}).forEach(id => { if (!al.trackIds.includes(id)) delete al.officialDurations[id]; });
-    setAlbumMessage(al, savedMessage, 'ok');
-  } catch (e) {
-    setAlbumMessage(al, tr('albumSaveError', { error: e.message }), 'error');
-  }
-}
-
-async function claimTestAlbumFromUi(ai) {
-  const al = albumsState.albums[ai];
+async function claimTestAlbum(al) {
+  const ed = editorOf(al);
   try {
     const { ok, error, alreadyOwned } = await window.LayerPitchAlbums.claimTestAlbum(al.id);
-    if (!ok) { setAlbumMessage(al, tr('albumClaimError', { error }), 'error'); return; }
+    if (!ok) { ed.say(tr('albumClaimError', { error }), 'error'); return; }
     const pu = await window.LayerPitchAlbums.listMyPurchases();
     if (pu.purchases) albumsState.purchases = pu.purchases;
     renderAlbumsLibrary();
-    setAlbumMessage(al, tr(alreadyOwned ? 'albumAlreadyOwned' : 'albumClaimed'), 'ok');
+    ed.say(tr(alreadyOwned ? 'albumAlreadyOwned' : 'albumClaimed'), 'ok');
   } catch (e) {
-    setAlbumMessage(al, tr('albumClaimError', { error: e.message }), 'error');
+    ed.say(tr('albumClaimError', { error: e.message }), 'error');
   }
 }
 
-(function wireAlbumsPanel() {
-  const box = document.getElementById('albumsContainer');
-  // Saisie : on met à jour l'état sans re-rendre (sinon le champ perdrait le focus à chaque frappe).
-  box.addEventListener('input', e => {
-    const field = e.target.dataset.albumField;
-    if (!field || field === 'buyable') return;
-    albumsState.albums[Number(e.target.dataset.ai)][field] = e.target.value;
-  });
-  box.addEventListener('change', e => {
-    const ai = Number(e.target.dataset.ai);
-    if (e.target.dataset.albumField === 'buyable') {
-      albumsState.albums[ai].buyable = e.target.checked;
-    } else if (e.target.dataset.albumTrack) {
-      const al = albumsState.albums[ai];
-      const id = e.target.dataset.albumTrack;
-      al.trackIds = e.target.checked ? al.trackIds.concat(id) : al.trackIds.filter(t => t !== id);
-      renderAlbums(); // les numéros d'ordre (1., 2., …) suivent l'ordre de cochage
-    }
-  });
-  box.addEventListener('click', e => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const ai = Number(btn.dataset.ai);
-    if (btn.dataset.action === 'save-album') saveAlbum(ai);
-    if (btn.dataset.action === 'claim-test-album') claimTestAlbumFromUi(ai);
-    if (btn.dataset.action === 'official-record') openOfficialRecorder(ai, btn.dataset.track);
-    if (btn.dataset.action === 'official-play') toggleOfficialPlayback(ai, btn.dataset.track);
-  });
-  document.getElementById('btnAddAlbum').addEventListener('click', () => {
-    albumsState.albums.push({ id: newAlbumId(), title: '', presentationFr: '', presentationEn: '', priceInput: '', buyable: false, trackIds: [], saved: false, savedBuyable: false, savedTrackIds: [], officialDurations: {}, illustration: null, illustrationOriginalName: null, pendingCover: null, pendingCoverUrl: null });
-    renderAlbums();
-  });
-})();
+document.getElementById('btnAddAlbum').addEventListener('click', () => {
+  albumsState.albums.push(window.LayerPitchAlbumEditor.newAlbum());
+  renderAlbums();
+});
 
 async function loadAnalyticsIfNeeded() {
   renderAnalyticsPresets();
@@ -629,11 +389,55 @@ function analyticsFxButtonsCard(fxButtons) {
   }).join('');
   return `<div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsFxSummaryTitle'))} <span class="hint">${escapeHtml(tr('analyticsFxEntityHint'))}</span></div><ul class="an-ix">${rows}</ul></div>`;
 }
+// Nom lisible d'un morceau (1er/10) : le tableau de bord montrait l'identifiant interne (bmrc8rec1wtahz). Retrouvé dans la
+// bibliothèque locale ; repli sur l'identifiant si le morceau a été supprimé depuis.
+function analyticsTrackName(id) {
+  const t = library.find(x => x.id === id);
+  return t ? (t.title || id) : id;
+}
+// Libellé d'une « voix » (couche, pool) d'un morceau : 'layer-2' -> nom de la couche, 'pool-0' -> Pool 1.
+function analyticsVoiceName(track, voice) {
+  const m = /^(layer|pool)-(\d+)$/.exec(voice || '');
+  if (!m) return voice || '?';
+  const n = parseInt(m[2], 10);
+  if (m[1] === 'layer') return (track && track.layers && track.layers[n] && track.layers[n].label) || tr('layerFallback', { n: n + 1 });
+  return tr('analyticsPoolName', { n: n + 1 });
+}
+// Ce que le visiteur a fait, en clair : quel bouton, quelle boucle, quelle intensité, sur quel morceau (jusque-là seul le
+// nom technique de l'évènement, « intensity_change », était affiché).
 function analyticsInteractionLabel(i) {
+  const d = i.detail || {};
+  const track = library.find(x => x.id === d.trackId);
+  const tname = analyticsTrackName(d.trackId);
   if (i.name === 'fx_trigger' && i.detail) {
     const info = analyticsFxTriggerInfo(i.detail);
     return tr('analyticsFxInteraction', { label: info.label, track: info.trackTitle, state: tr(i.detail.active ? 'analyticsFxOn' : 'analyticsFxOff') });
   }
+  if (i.name === 'intensity_change' && d.level != null) {
+    const lay = track && track.layers && track.layers[d.level];
+    return tr('analyticsIntensity', { level: d.level + 1, name: (lay && lay.label) ? ' (' + lay.label + ')' : '', track: tname });
+  }
+  if (i.name === 'embr_loop_select') {
+    const loops = (track && track.loops) || [];
+    const idx = loops.findIndex(l => l.id === d.loopId);
+    return tr('analyticsLoopSelect', { name: idx >= 0 ? (loops[idx].label || tr('analyticsLoopFallback', { n: idx + 1 })) : (d.loopId || '?'), track: tname });
+  }
+  if (i.name === 'seq_branch_select') {
+    const slots = (track && track.segmentSlots) || [];
+    const idx = slots.findIndex(s => s.id === d.targetId);
+    return tr('analyticsBranchSelect', { name: idx >= 0 ? (slots[idx].label || tr('analyticsSlotFallback', { n: idx + 1 })) : (d.targetId || '?'), track: tname });
+  }
+  if (i.name === 'voice_solo_toggle' || i.name === 'voice_mute_toggle') {
+    return tr(i.name === 'voice_solo_toggle' ? 'analyticsVoiceSolo' : 'analyticsVoiceMute', { voice: analyticsVoiceName(track, d.voice), track: tname, state: tr(d.active ? 'analyticsFxOn' : 'analyticsFxOff') });
+  }
+  if (i.name === 'voice_volume_change') {
+    return tr('analyticsVoiceVolume', { voice: analyticsVoiceName(track, d.voice), value: Math.round((+d.value || 0) * 100), track: tname });
+  }
+  if (i.name === 'stinger_play') {
+    const sfx = typeof sfxLibrary !== 'undefined' ? sfxLibrary.find(x => x.id === d.sfxId) : null;
+    return tr('analyticsSfxPlay', { name: (sfx && sfx.title) || d.sfxId || '?', track: tname });
+  }
+  if (i.name === 'pool_refresh') return tr('analyticsPoolRefresh', { track: tname });
   return i.name;
 }
 // Synthèse « boutons d'effet les plus utilisés » : nombre d'appuis d'ACTIVATION par bouton sur toute la période
@@ -683,7 +487,7 @@ function renderAnalyticsSessionCard(s) {
     const trackItems = tracks.map(t => {
       const cls = t.skipped ? 'analytics-track-skipped' : (t.reachedEnd ? 'analytics-track-reached' : '');
       const stateLabel = t.reachedEnd ? tr('analyticsTrackReachedEnd') : (t.skipped ? tr('analyticsTrackSkipped') : tr('analyticsTrackPartial'));
-      return `<li class="${cls}">${escapeHtml(t.trackId)} — ${escapeHtml(stateLabel)}</li>`;
+      return `<li class="${cls}">${escapeHtml(analyticsTrackName(t.trackId))} — ${escapeHtml(stateLabel)}</li>`;
     }).join('');
     const interactionItems = interactions.map(i => `<li>${escapeHtml(analyticsInteractionLabel(i))}</li>`).join('');
     detail = `
@@ -813,3 +617,6 @@ document.getElementById('appAllowIndexing').addEventListener('change', e => {
 });
 fillAppearanceFields();
 
+
+// Arrivée depuis une invitation acceptée (invitation.html) : ouvre directement l'onglet Albums.
+if (new URLSearchParams(location.search).get('tab') === 'albums') { switchTab('albums'); loadAlbums(); }

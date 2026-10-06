@@ -67,7 +67,7 @@ function draftState() {
   saveWorkingPendingIntoCurrent(); // fichiers en cours de l'AdReel affiché -> dans son AdReel
   return {
     library, libraryFolders, sfxLibrary, sfxFolders, socials, packs, collections, customFonts, adReels, adReelFolders,
-    currentAdReelId, implementationSkills, noAiCertifiedGlobal, waveformStyle, seqMapTheme, allowEmbedding,
+    currentAdReelId, implementationSkills, noAiCertifiedGlobal, waveformStyle, seqMapTheme, allowEmbedding, sharePreview, sharePreviewPendingFile,
     pendingR2Deletes, pendingOrphanR2Keys,
   };
 }
@@ -109,9 +109,16 @@ async function offerDraftRestore() {
     const draft = await draftTx('drafts', 'readonly', st => st.get(loadedComposerId));
     if (!draft || !draft.state) return;
     const when = new Date(draft.savedAt).toLocaleString(currentLang(), { dateStyle: 'short', timeStyle: 'short' });
+    // Réglage « ne plus m'avertir » (30/09) : les brouillons retrouvés sont ignorés (supprimés) sans rien demander. Se règle dans
+    // la fenêtre ci-dessous et dans Mon compte → Profil ; propre à ce navigateur, comme le brouillon lui-même.
+    let autoIgnore = false;
+    try { autoIgnore = localStorage.getItem('layerpitch_draft_auto_ignore') === '1'; } catch (e) { /* stockage indisponible : on demande */ }
+    if (autoIgnore) { await clearDraft(); log(tr('draftAutoIgnored', { date: when }), 'info'); return; }
     const stale = draft.baselinePublishedAt !== loadedPublishedAt;
     const ok = await window.LayerPitchNotify.confirm(tr('draftRestoreConfirm', { date: when }) + (stale ? '\n\n' + tr('draftRestoreStale') : ''),
-      { okLabel: tr('draftRestoreOk'), cancelLabel: tr('draftRestoreDiscard') });
+      { okLabel: tr('draftRestoreOk'), cancelLabel: tr('draftRestoreDiscard'), checkboxLabel: tr('draftRestoreNever'),
+        // Cochée : retenue seulement avec « Ignorer » (reprendre un brouillon reste un choix fait à chaque fois).
+        onFinish: (answer, checked) => { if (!answer && checked) { try { localStorage.setItem('layerpitch_draft_auto_ignore', '1'); } catch (e) { /* tant pis */ } } } });
     if (!ok) { await clearDraft(); return; }
     const prefix = loadedComposerId + ':';
     const filesById = new Map();
@@ -135,6 +142,7 @@ function applyDraftState(d) {
   adReels = (d.adReels && d.adReels.length) ? d.adReels : adReels; adReelFolders = d.adReelFolders || [];
   implementationSkills = d.implementationSkills || implementationSkills; noAiCertifiedGlobal = !!d.noAiCertifiedGlobal;
   waveformStyle = d.waveformStyle || waveformStyle; seqMapTheme = d.seqMapTheme || seqMapTheme; allowEmbedding = !!d.allowEmbedding;
+  sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW, d.sharePreview || {}); sharePreviewPendingFile = d.sharePreviewPendingFile || null;
   pendingR2Deletes.clear(); (d.pendingR2Deletes || new Map()).forEach((v, k) => pendingR2Deletes.set(k, v));
   pendingOrphanR2Keys.clear(); (d.pendingOrphanR2Keys || new Set()).forEach(k => pendingOrphanR2Keys.add(k));
   currentAdReelId = adReels.some(a => a.id === d.currentAdReelId) ? d.currentAdReelId : adReels[0].id;
@@ -145,7 +153,7 @@ function applyDraftState(d) {
   collapsedCollectionIds.clear(); collections.forEach(c => collapsedCollectionIds.add(c.id));
   collapsedBlockIds.clear(); adReels.forEach(a => a.blocks.forEach(b => collapsedBlockIds.add(b.id)));
   renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels();
-  fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); rebuildAllCards();
+  fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); fillSharePreviewFields(); rebuildAllCards();
   hasUnsavedEdits = true; // rien de tout ça n'est publié : le garde-fou « quitter la page ? » reste actif
 }
 if (typeof indexedDB !== 'undefined') {

@@ -2,48 +2,9 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title data-i18n="pageTitle">LayerPitch — Catalogue de packs</title>
-<meta name="description" content="Packs de musique adaptative et de Sfx pour le jeu vidéo : écoute libre, achat à l'unité.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<style>
-  :root {
-    --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
-    --text: #24262b; --text-dim: #5f636b; --text-dimmer: #9a9ea6;
-    --accent: #2f80c0; --accent-soft: #e6eef8; --on-accent: #ffffff;
-    --font-body: 'Inter', system-ui, sans-serif; --font-title: 'Space Grotesk', 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 32px 16px 60px; }
-  .page { max-width: 1040px; margin: 0 auto; }
-  a { color: var(--accent); }
-  .top { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
-  h1 { font-family: var(--font-title); font-size: 28px; margin: 0; }
-  .intro { color: var(--text-dim); line-height: 1.6; max-width: 68ch; margin: 6px 0 18px; }
-  .top-links { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; }
-  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
-  .filters input, .filters select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); }
-  .filters input { flex: 1 1 240px; min-width: 0; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
-  .pack { display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color .15s; }
-  .pack:hover, .pack:focus-within { border-color: var(--accent); }
-  .pack-link { display: flex; flex-direction: column; flex: 1; text-decoration: none; color: inherit; outline: none; }
-  .take { margin: 0 14px 14px; border: 1px solid var(--accent); background: transparent; color: var(--accent); border-radius: 999px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 12.5px; }
-  .take:disabled { opacity: .5; cursor: default; }
-  .credits-bar { font-size: 13px; color: var(--text-dim); margin: -8px 0 16px; }
-  .cover { aspect-ratio: 1 / 1; width: 100%; object-fit: cover; display: block; background: linear-gradient(135deg, #23262d, #3a3f48); }
-  .pack-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
-  .pack-title { font-family: var(--font-title); font-size: 16px; overflow-wrap: anywhere; }
-  .pack-composer { font-size: 12.5px; color: var(--text-dim); }
-  .pack-meta { font-size: 11.5px; color: var(--text-dimmer); }
-  .pack-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 8px; }
-  .price { font-family: var(--font-mono); font-size: 14px; font-weight: 500; }
-  .credits { font-family: var(--font-mono); font-size: 10.5px; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
-  .tags { display: flex; flex-wrap: wrap; gap: 4px; }
-  .tag { font-size: 11px; color: var(--text-dim); border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; }
-  .empty { color: var(--text-dimmer); text-align: center; padding: 60px 0; }
-</style>
+<title>LayerPitch — Shop</title>
+<meta http-equiv="refresh" content="0; url=shop.html?tab=assets">
+<meta name="robots" content="noindex">
 </head>
 <body>
 <div class="page">
@@ -64,95 +25,18 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1790681825904"></script>
-<script src="api/supabase-client.js?v=1790681825904"></script>
-<script src="api/auth.js?v=1790681825904"></script>
-<script src="layerpitch-shell.js?v=1790681825904"></script>
-<script src="api/studio.js?v=1790681825904"></script>
+<script src="layerpitch-i18n.js?v=1791296070654"></script>
+<script src="api/supabase-client.js?v=1791296070654"></script>
+<script src="api/auth.js?v=1791296070654"></script>
+<script src="layerpitch-shell.js?v=1791296070654"></script>
+<script src="api/studio.js?v=1791296070654"></script>
 <script>
-// catalogue.html — catalogue PUBLIC des packs (chantier profils et permissions, étape 3, 28/09 ; D34) : visible sans
-// compte (règle « pages publiques jamais verrouillées »), écoute sur la page de chaque pack, achat à l'unité. N'apparaissent
-// que les packs en vente, payants et « Afficher dans le catalogue » (catalog_packs(), 20260928030000). La prise en
-// crédits (studios abonnés) arrivera avec l'offre studio payante (étape 6).
-const pageLang = (new URLSearchParams(location.search).get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
-function tr(key, vars) {
-  const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, catalog: {} }, en: { shared: {}, catalog: {} } };
-  const dict = I18N[pageLang] || I18N.fr, dictFr = I18N.fr;
-  let str = (dict.catalog && dict.catalog[key]) || (dict.shared && dict.shared[key]) || (dictFr.catalog && dictFr.catalog[key]) || (dictFr.shared && dictFr.shared[key]) || key;
-  if (vars) Object.keys(vars).forEach(k => { str = str.split('{' + k + '}').join(vars[k]); });
-  return str;
-}
-document.documentElement.lang = pageLang;
-document.title = tr('pageTitle');
-document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
-document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = tr(el.dataset.i18nPlaceholder); });
-
-const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const eur = cents => new Intl.NumberFormat(pageLang === 'en' ? 'en-GB' : 'fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(cents / 100);
-const IMAGES_BASE = 'https://media.layerpitch.com/images/';
-const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-let packs = [];
-
-window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'catalog', crumbs: [{ label: tr('h1') }] });
-
-function renderGrid() {
-  const q = norm(document.getElementById('q').value);
-  const sort = document.getElementById('sort').value;
-  let list = packs.filter(p => !q || norm([p.title, p.composer_name, (p.tags || []).join(' ')].join(' ')).includes(q));
-  if (sort === 'priceAsc') list = list.slice().sort((a, b) => a.price_eur_cents - b.price_eur_cents);
-  if (sort === 'priceDesc') list = list.slice().sort((a, b) => b.price_eur_cents - a.price_eur_cents);
-  const grid = document.getElementById('grid');
-  if (!list.length) { grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${esc(tr(packs.length ? 'noMatch' : 'empty'))}</div>`; return; }
-  grid.innerHTML = list.map(p => {
-    const href = `./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}${p.composer_handle ? '&u=' + encodeURIComponent(p.composer_handle) : ''}`;
-    const counts = [p.track_count ? tr(p.track_count > 1 ? 'tracksMany' : 'tracksOne', { n: p.track_count }) : '', p.sfx_count ? tr(p.sfx_count > 1 ? 'sfxMany' : 'sfxOne', { n: p.sfx_count }) : ''].filter(Boolean).join(' · ');
-    const canTake = credits && p.subscriber_credits && !taken.has(p.id);
-    return `<div class="pack"><a class="pack-link" href="${href}">
-      ${p.illustration ? `<img class="cover" src="${IMAGES_BASE}${esc(p.illustration)}" alt="" loading="lazy">` : `<div class="cover"></div>`}
-      <div class="pack-body">
-        <div class="pack-title">${esc(p.title)}</div>
-        <div class="pack-composer">${esc(tr('byComposer', { name: p.composer_name || '' }))}</div>
-        ${counts ? `<div class="pack-meta">${esc(counts)}</div>` : ''}
-        ${(p.tags || []).length ? `<div class="tags">${p.tags.slice(0, 4).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>` : ''}
-        <div class="pack-foot">
-          <span class="price">${esc(eur(p.price_eur_cents))}</span>
-          ${p.subscriber_credits ? `<span class="credits" title="${esc(tr('creditsHelp'))}">${esc(tr(p.subscriber_credits > 1 ? 'creditsMany' : 'creditsOne', { n: p.subscriber_credits }))}</span>` : ''}
-        </div>
-      </div>
-    </a>${canTake ? `<button class="take" type="button" data-take="${esc(p.id)}" ${credits.balance < p.subscriber_credits ? 'disabled' : ''}>${esc(tr('takeWithCredits', { n: p.subscriber_credits }))}</button>` : ''}${taken.has(p.id) ? `<div class="take" style="text-align:center;border-style:dashed">${esc(tr('takenLabel'))}</div>` : ''}</div>`;
-  }).join('');
-  grid.querySelectorAll('[data-take]').forEach(b => b.onclick = async () => {
-    const pack = packs.find(x => x.id === b.dataset.take);
-    b.disabled = true;
-    const r = await LayerPitchStudio.takePackWithCredits(pack.id);
-    if (!r.ok) { b.disabled = false; alertMsg(tr('errorPrefix', { message: r.error })); return; }
-    taken.add(pack.id); credits.balance = r.balance; renderCredits(); renderGrid();
-  });
-}
-// Crédits du studio (D15) : seulement pour un compte connecté qui en a (palier Indie et plus). L'écoute reste libre.
-let credits = null;
-const taken = new Set();
-function alertMsg(text) { const bar = document.getElementById('creditsBar'); bar.hidden = false; bar.textContent = text; }
-function renderCredits() {
-  const bar = document.getElementById('creditsBar');
-  if (!credits || credits.monthly == null) { bar.hidden = true; return; }
-  bar.hidden = false;
-  bar.innerHTML = `${esc(tr('creditsBalance', { n: credits.balance }))} — <a href="./studio.html?lang=${pageLang}">${esc(tr('studioLink'))}</a>`;
-}
-
-document.getElementById('q').addEventListener('input', renderGrid);
-document.getElementById('sort').addEventListener('change', renderGrid);
-(async () => {
-  document.getElementById('grid').innerHTML = `<div class="empty" style="grid-column:1/-1">${esc(tr('loading'))}</div>`;
-  const { packs: list, error } = await LayerPitchStudio.catalog();
-  if (error) { document.getElementById('grid').innerHTML = `<div class="empty" style="grid-column:1/-1">${esc(tr('loadError'))}</div>`; return; }
-  packs = list;
-  try {
-    const { session } = await LayerPitchAuth.getSession();
-    if (session) { const c = await LayerPitchStudio.myCredits(); credits = c.credits && c.credits.monthly != null ? c.credits : null; renderCredits(); }
-  } catch (e) {}
-  renderGrid();
+// catalogue.html a été remplacée par le Shop (29/09) : on garde l'adresse, elle mène au rayon « Assets audio » (langue conservée).
+(function () {
+  var lang = new URLSearchParams(location.search).get('lang') === 'en' ? '&lang=en' : '';
+  location.replace('shop.html?tab=assets' + lang);
 })();
 </script>
+<p><a href="shop.html?tab=assets">Shop</a></p>
 </body>
 </html>

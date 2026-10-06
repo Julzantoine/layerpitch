@@ -51,6 +51,27 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     renderLibrary();
     return;
   }
+  if (btn.dataset.action === 'duplicate-track') {
+    btn.disabled = true;
+    try { await duplicateLibraryTrack(library[ti]); } finally { btn.disabled = false; }
+    return;
+  }
+  if (btn.dataset.action === 'toggle-track-protection') {
+    const track = library[ti];
+    const target = !track.protected;
+    window.LayerPitchNotify.confirm(tr(target ? 'trackProtectConfirm' : 'trackUnprotectConfirm', { title: track.title || track.id }), { okLabel: tr(target ? 'trackProtectBtn' : 'trackUnprotectBtn') }).then(async ok => {
+      if (!ok) return;
+      btn.disabled = true; btn.textContent = tr('trackProtectBusy');
+      try {
+        await loadPostgresReadScripts();
+        const r = await window.LayerPitchTracks.setTrackProtected(track.id, target);
+        if (!r.ok) { window.LayerPitchNotify.error(tr('trackProtectError', { error: r.error })); }
+        else { track.protected = target; window.LayerPitchNotify.info(tr(target ? 'trackProtectDone' : 'trackUnprotectDone')); }
+      } catch (e) { window.LayerPitchNotify.error(tr('trackProtectError', { error: e.message })); }
+      renderLibrary();
+    });
+    return;
+  }
   if (btn.dataset.action === 'preview-track') {
     togglePreview(ti, btn.closest('.list-block'));
     trackBackstageEvent('preview_play', {});
@@ -77,7 +98,10 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   else if (btn.dataset.action === 'add-fx-trigger') {
     const tk = library[ti];
     if (!tk.fxTriggers) tk.fxTriggers = [];
-    tk.fxTriggers.push({ id: genId(), label: tr('fxTriggerFallbackLabel', { n: tk.fxTriggers.length + 1 }), target: { type: 'track' }, fx: {}, visible: true, fadeSec: null }); // agit sur tout le morceau ; bouton public par défaut
+    const newTrigger = { id: genId(), label: tr('fxTriggerFallbackLabel', { n: tk.fxTriggers.length + 1 }), target: parseFxTriggerTarget(btn.dataset.target) || { type: 'track' }, fx: {}, visible: true, fadeSec: null }; // agit sur tout le morceau ; bouton public par défaut
+    tk.fxTriggers.push(newTrigger);
+    fxTriggersSectionOpen.add('c:' + newTrigger.id); // un trigger qu'on vient de créer s'affiche déplié
+    fxTriggersPersistOpen();
   }
   else if (btn.dataset.action === 'add-fx-slider') {
     const tk = library[ti];
@@ -114,6 +138,27 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   }
   else if (btn.dataset.action === 'remove-fxs-threshold') { library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].thresholds.splice(parseInt(btn.dataset.thi, 10), 1); }
   else if (btn.dataset.action === 'fx-trigger-to-track') { library[ti].fxTriggers[tri].target = { type: 'track' }; }
+  else if (btn.dataset.action === 'add-fx-step') {
+    const trg = library[ti].fxTriggers[tri];
+    // Avec un chemin (data-sti) : étape ENFANT de celle-là ; sans : étape de premier niveau du trigger.
+    let list;
+    if (btn.dataset.sti != null && btn.dataset.sti !== '') { const at = fxStepByPath(trg, btn.dataset.sti); if (!at) return; at.step.children = at.step.children || []; list = at.step.children; }
+    else { trg.steps = trg.steps || []; list = trg.steps; }
+    const step = { id: genId(), label: '', delaySec: list.length ? (+list[list.length - 1].delaySec || 0) : 0, fx: {} };
+    list.push(step);
+    fxTriggersSectionOpen.add('s:' + trg.id + ':' + (btn.dataset.sti ? btn.dataset.sti + '-' : '') + (list.length - 1) + ':' + step.id); // une étape qu'on vient de créer s'affiche dépliée
+    fxTriggersPersistOpen();
+  }
+  else if (btn.dataset.action === 'remove-fx-step') {
+    const trg = library[ti].fxTriggers[tri];
+    const at = fxStepByPath(trg, btn.dataset.sti);
+    if (!at) return;
+    at.list.splice(at.index, 1);
+    // Nettoyage des « children » et « steps » devenus vides.
+    const prune = list => list.forEach(x => { if (x.children) { prune(x.children); if (!x.children.length) delete x.children; } });
+    prune(trg.steps || []);
+    if (!trg.steps.length) delete trg.steps;
+  }
   else if (btn.dataset.action === 'remove-fx-trigger') {
     const tk = library[ti];
     const removed = tk.fxTriggers[tri];
@@ -299,10 +344,40 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       if (trg) {
         if (prop === 'label') trg.label = e.target.value;
         else if (prop === 'visible') trg.visible = e.target.checked;
+        else if (prop === 'showEffects') trg.showEffects = e.target.checked;
         else if (prop === 'fadeSec') trg.fadeSec = e.target.value === '' ? null : parseFloat(e.target.value);
         else if (prop === 'fadeOutSec') trg.fadeOutSec = e.target.value === '' ? null : parseFloat(e.target.value);
-        else if (prop === 'target') trg.target = parseFxTriggerTarget(e.target.value);
+        else if (prop === 'target') { trg.target = parseFxTriggerTarget(e.target.value); fxTriggersPersistOpen(); renderLibrary(); } // la carte change de voix
         else if (prop === 'autoOffSec') { trg.relations = trg.relations || {}; trg.relations.autoOffSec = e.target.value === '' ? null : parseFloat(e.target.value); }
+      }
+    }
+    else if (field === 'fxTargets') {
+      const trg = (library[ti].fxTriggers || [])[parseInt(e.target.dataset.tri, 10)];
+      if (trg) {
+        const isStep = e.target.dataset.fxtgOwner === 'step';
+        const holder = isStep ? (fxStepByPath(trg, e.target.dataset.sti) || {}).step : trg;
+        if (holder) {
+          if (e.target.dataset.fxtgSame) {
+            // « Comme l'événement » : l'étape reprend les cibles de l'événement ; décochée, elle part d'une copie modifiable.
+            if (e.target.checked) delete holder.targets; else holder.targets = fxTriggerTargetValues(trg).map(parseFxTriggerTarget).filter(Boolean);
+          } else {
+            const next = fxToggleTargetValue(fxTriggerTargetValues(holder), e.target.dataset.fxtgValue, e.target.checked).map(parseFxTriggerTarget).filter(Boolean);
+            holder.targets = next;
+            if (!isStep) holder.target = next[0]; // l'ancienne cible unique reste la première (lecteur, anciennes données)
+          }
+          renderLibrary();
+        }
+      }
+    }
+    else if (field === 'fxStep') {
+      const trg = (library[ti].fxTriggers || [])[parseInt(e.target.dataset.tri, 10)];
+      const at = trg && fxStepByPath(trg, e.target.dataset.sti), st = at && at.step;
+      const prop = e.target.dataset.fxsProp;
+      if (st) {
+        if (prop === 'label') st.label = e.target.value;
+        else if (prop === 'delaySec') st.delaySec = e.target.value === '' ? 0 : Math.max(0, parseFloat(e.target.value) || 0);
+        else if (prop === 'fadeSec' || prop === 'fadeOutSec') { const v = parseFloat(e.target.value); if (e.target.value !== '' && v >= 0) st[prop] = v; else delete st[prop]; }
+        else if (prop === 'durationSec') { const v = parseFloat(e.target.value); if (v > 0) st.durationSec = v; else delete st.durationSec; }
       }
     }
     else if (field === 'fxSlider') {
@@ -313,6 +388,25 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
         else if (prop === 'visible') sl.visible = e.target.checked;
         else if (prop === 'defaultValue') sl.defaultValue = Math.max(0, Math.min(1, (parseFloat(e.target.value) || 0) / 100));
         else if (prop === 'smoothSec') sl.smoothSec = e.target.value === '' ? 0.15 : Math.max(0, parseFloat(e.target.value) || 0);
+        else if (prop === 'intensity') {
+          // Un seul curseur pilote la structure : l'activer ici le retire des autres. Il devient visible, puisqu'il remplace
+          // les boutons du visiteur.
+          if (e.target.checked) {
+            library[ti].fxSliders.forEach(o => { if (o !== sl) delete o.intensity; });
+            sl.intensity = { bounds: [] };
+            sl.visible = true;
+          } else delete sl.intensity;
+          hasUnsavedEdits = true; renderLibrary(); return;
+        }
+      }
+    }
+    else if (field === 'fxSliderIntensityBound') {
+      const sl = (library[ti].fxSliders || [])[parseInt(e.target.dataset.sri, 10)];
+      if (sl && sl.intensity) {
+        const n = window.LayerPlayerCore.fxStructureZones(library[ti]).length;
+        const bounds = window.LayerPlayerCore.fxIntensityBounds(sl.intensity.bounds, n) || [];
+        bounds[parseInt(e.target.dataset.ib, 10)] = Math.max(0, Math.min(1, (parseFloat(e.target.value) || 0) / 100));
+        sl.intensity.bounds = bounds; // pas de re-rendu ni de tri pendant la frappe (focus) : le lecteur trie à la lecture
       }
     }
     else if (field === 'fxSliderBinding') {
@@ -389,6 +483,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       else if (fxTarget === 'pool') target = library[ti].sections[parseInt(e.target.dataset.si, 10)].pools[parseInt(e.target.dataset.pi, 10)];
       else if (fxTarget === 'track') target = library[ti];
       else if (fxTarget === 'trigger') target = library[ti].fxTriggers[parseInt(e.target.dataset.tri, 10)];
+      else if (fxTarget === 'trstep') target = fxStepByPath(library[ti].fxTriggers[parseInt(e.target.dataset.tri, 10)], e.target.dataset.sti).step;
       else if (fxTarget === 'intro') target = library[ti].intro;
       else if (fxTarget === 'outro') target = library[ti].outro;
       else if (fxTarget === 'seqTransition') target = library[ti].segmentSlots[parseInt(e.target.dataset.si, 10)].nextOptions[parseInt(e.target.dataset.bi, 10)].transition;

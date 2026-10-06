@@ -32,7 +32,6 @@
 <div id="authGateOverlay" data-i18n="authGateCheckingText">Vérification de la session…</div>
 <div id="helpTooltip"></div>
 <div class="page">
-  <div id="backstageWatermarkLayer"></div>
   <div id="adminPreviewBanner" class="admin-preview-banner" hidden>
     <span id="adminPreviewBannerLabel"></span>
     <button class="btn btn-small" id="btnAdminPreviewReset" type="button" data-i18n="adminPreviewReset">Revenir en Admin</button>
@@ -225,6 +224,9 @@
           <span data-i18n="navAnalytics">Analytics</span>
         </span>
       </button>
+      <a class="nav-item" id="navLinkCatalog" href="shop.html" hidden>
+        <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg><span data-i18n="navCatalog">Catalogue audio</span></span>
+      </a>
       </div>
 
       <!-- Navigation commune (28/09) : mêmes rubriques que la barre latérale des autres pages (layerpitch-shell.js),
@@ -233,9 +235,6 @@
       <div class="nav-section-label" id="navSectionStudio" data-i18n="navStudio" hidden>Studio</div>
       <a class="nav-item" id="navLinkStudioLibrary" href="studio.html?tab=library" hidden>
         <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg><span data-i18n="navStudioPurchases">Mes achats</span></span>
-      </a>
-      <a class="nav-item" id="navLinkCatalog" href="catalogue.html" hidden>
-        <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg><span data-i18n="navCatalog">Catalogue de packs</span></span>
       </a>
       <a class="nav-item" id="navLinkStudioTeam" href="studio.html?tab=team" hidden>
         <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg><span data-i18n="navStudioTeam">Équipe</span></span>
@@ -407,6 +406,32 @@
             <input type="checkbox" id="allowEmbeddingCheckbox" style="width:auto;margin:2px 0 0 0;">
             <span style="font-size:11px;color:var(--text-dimmer);line-height:1.5;" data-i18n="allowEmbeddingLabel">Autoriser les visiteurs à intégrer eux-mêmes tes packs, collections et listes de morceaux d'AdReel sur leur propre site (bouton "Intégrer" affiché sur les pages publiques). Décoché par défaut — toi seul peux alors générer un code d'intégration, depuis chaque onglet Distribution ou le sélecteur d'AdReel.</span>
           </label>
+        </div>
+
+        <div class="list-block" style="margin-bottom:18px" id="sharePreviewCard">
+          <div class="list-block-body">
+            <h3 style="margin:0 0 4px;font-size:14px" data-i18n="sharePreviewTitle">Aperçu des liens partagés</h3>
+            <div class="sub" data-i18n="sharePreviewHint">Ce qui s'affiche quand quelqu'un colle le lien de ton AdReel dans LinkedIn, Facebook, WhatsApp, Discord…</div>
+            <label data-i18n="sharePreviewTitleLabel">Titre</label>
+            <input type="text" id="sharePreviewTitleInput" maxlength="90">
+            <label data-i18n="sharePreviewDescLabel">Description</label>
+            <textarea id="sharePreviewDescInput" rows="3" maxlength="200"></textarea>
+            <label data-i18n="sharePreviewImageLabel">Image</label>
+            <div id="sharePreviewImageCtrl"></div>
+            <div class="hint-inline" data-i18n="sharePreviewImageHint">Idéalement 1200 × 630 pixels. Sans image, LayerPitch en affiche une par défaut.</div>
+            <label style="display:flex;align-items:flex-start;gap:8px;margin:10px 0 0;font-weight:normal">
+              <input type="checkbox" id="sharePreviewAutoFit" style="width:auto;margin:2px 0 0 0">
+              <span style="font-size:12px;line-height:1.5"><span data-i18n="sharePreviewAutoFitLabel">Ajuster automatiquement l'image au format 1200 × 630 (recadrage centré)</span><br><span class="hint-inline" data-i18n="sharePreviewAutoFitHint">Les bords peuvent être coupés : garde l'essentiel au centre. Décoché, l'image part telle quelle.</span></span>
+            </label>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px">
+            <select id="sharePreviewFitMode" style="max-width:360px">
+              <option value="fill" data-i18n="sharePreviewFitFill">Recadrer au centre (remplit la carte)</option>
+              <option value="contain" data-i18n="sharePreviewFitContain">Garder l'image entière (marie-louise)</option>
+            </select>
+            <label id="sharePreviewFitColorWrap" style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;font-size:12px"><span data-i18n="sharePreviewFitColorLabel">Couleur</span><input type="color" id="sharePreviewFitColor" value="#ffffff" style="width:44px;height:30px;padding:2px"></label>
+            </div>
+            <div id="sharePreviewMock" style="margin-top:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;max-width:420px;background:var(--bg-card, #fff)"></div>
+          </div>
         </div>
 
         <div id="socialsContainer"></div>
@@ -665,30 +690,7 @@
 
   <fieldset>
     <legend data-i18n="backstageAppearanceLegend">Apparence du backstage (local à cet ordinateur)</legend>
-    <label data-i18n="backstageThemeLabel">Thème</label>
-    <div class="actions" style="margin-bottom:10px;">
-      <button class="btn btn-small" id="btnBackstageThemeLight" type="button" data-i18n="backstageThemeLightBtn">☀ Jour</button>
-      <button class="btn btn-small" id="btnBackstageThemeDark" type="button" data-i18n="backstageThemeDarkBtn">☾ Nuit</button>
-    </div>
-    <label data-help="backstageBgColor" data-i18n="backstageBgColorLabel">Couleur de fond de cet outil</label>
-    <input type="color" id="backstageBgColor" value="#ffffff">
-    <div class="hint" id="backstageBgColorHint" data-i18n="backstageBgColorHint">Ne change rien à ce que voient tes visiteurs — c'est uniquement le confort visuel de cet écran d'édition, mémorisé sur cet ordinateur.</div>
-    <label style="margin-top:12px" data-i18n="backstageWatermarkLabel">Image de fond en filigrane</label>
-    <div class="actions" style="margin-bottom:6px;">
-      <button class="btn btn-small" id="btnBackstageWatermarkPick" type="button" data-i18n="backstageWatermarkPickBtn">Choisir une image</button>
-      <button class="btn btn-small btn-danger" id="btnBackstageWatermarkClear" type="button" hidden data-i18n="backstageWatermarkClearBtn">Retirer</button>
-    </div>
-    <input type="file" id="backstageWatermarkInput" accept="image/*" hidden>
-    <div id="backstageWatermarkOpacityRow" hidden>
-      <label for="backstageWatermarkOpacity" data-i18n="backstageWatermarkOpacityLabel">Opacité</label>
-      <input type="range" id="backstageWatermarkOpacity" min="0" max="100" step="1" value="8">
-      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
-        <input type="checkbox" id="backstageWatermarkFixed" checked style="width:auto;margin:0;">
-        <span data-i18n="backstageWatermarkFixedLabel">Reste fixe pendant le défilement</span>
-      </label>
-    </div>
-    <div class="hint" id="backstageWatermarkStatus" style="color:#b23" hidden></div>
-    <div class="hint" data-i18n="backstageWatermarkHint">Purement décorative, locale à cet ordinateur — les visiteurs ne la voient jamais.</div>
+    <div id="backstageAppearanceHost"></div>
   </fieldset>
 
   <fieldset id="panelAdminTools" hidden>
@@ -919,10 +921,13 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790681825904"></script>
-<script src="layerpitch-shell.js?v=1790681825904"></script>
-<script src="layerpitch-social-icons.js?v=1790681825904"></script>
-<script src="layerpitch-notify.js?v=1790681825904"></script>
-<script src="layerpitch-help.js?v=1790681825904"></script>
-<script src="player.js?v=1790681825904"></script>
+<script src="layerpitch-i18n.js?v=1791296070654"></script>
+<script src="layerpitch-appearance.js?v=1791296070654"></script>
+<script src="layerpitch-album-shared.js?v=1791296070654"></script>
+<script src="layerpitch-album-editor.js?v=1791296070654"></script>
+<script src="layerpitch-shell.js?v=1791296070654"></script>
+<script src="layerpitch-social-icons.js?v=1791296070654"></script>
+<script src="layerpitch-notify.js?v=1791296070654"></script>
+<script src="layerpitch-help.js?v=1791296070654"></script>
+<script src="player.js?v=1791296070654"></script>
 <script>

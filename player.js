@@ -213,7 +213,7 @@ async function downloadTracksAsZip(zipBaseName, tracks) {
     const folder = zip.folder(slugifyForFile(track.title));
     for (const f of files) {
       const v = track.publishedAt ? ('?v=' + encodeURIComponent(track.publishedAt)) : '';
-      const res = await fetch(track.base + encodeURIComponent(f.file) + v);
+      const res = await fetchAudio(track.base + encodeURIComponent(f.file) + v, track.protected);
       if (!res.ok) continue; // un fichier manquant ne doit pas faire échouer tout le zip
       const blob = await res.blob();
       const ext = (f.file.split('.').pop() || 'ogg').toLowerCase();
@@ -302,6 +302,71 @@ function section(label, innerHTML) {
 }
 function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function linkify(s) { return escapeHtml(s).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>'); }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Audio des morceaux PROTÉGÉS (29/09, « protéger l'album », choix par morceau ; migration 20260929050000).
+//
+// Les fichiers d'un morceau protégé ne sont plus à leur adresse publique (…/audio/<id>/<fichier>) : ils sont dans un seau
+// privé, lisibles par des liens signés que l'Edge Function track-audio-url délivre selon can_hear_track (acheteur,
+// vendeur, compositeur, écoute libre, AdReel…). fetchAudio(url) est le SEUL point de lecture de l'audio d'un morceau :
+//   * adresse publique d'abord (sauf morceau déjà connu comme protégé) ; si elle répond « introuvable » (404) ou
+//     « interdit » (403), lien signé -- c'est aussi ce qui fait relire les versions figées des fans, dont l'adresse
+//     publique d'origine est gardée telle quelle dans la prise ;
+//   * les liens signés d'un morceau sont gardés en mémoire (une seule demande par morceau et par session, renouvelée à
+//     l'approche de leur expiration) ;
+//   * sans droit d'écoute (ou sans client Supabase sur la page) : la réponse d'origine est rendue, en erreur comme avant.
+// Les effets sonores protégés fonctionnent de même (dossier audio/sfx-<id>/, { sfxId }).
+// ---------------------------------------------------------------------------------------------------------------------
+const _protectedTrackIds = new Set();
+const _signedAudio = new Map(); // id du morceau -> { files, expiresAt } | { none: true, until }
+const _signedAudioPending = new Map();
+const MEDIA_AUDIO_RE = /^https?:\/\/[^/]+\/audio\/([^/?#]+)\/([^?#]+)/;
+
+async function signedAudioFor(trackId) {
+  const cached = _signedAudio.get(trackId);
+  if (cached && (cached.none ? cached.until : cached.expiresAt) > Date.now()) return cached.none ? null : cached;
+  if (_signedAudioPending.has(trackId)) return _signedAudioPending.get(trackId);
+  const p = (async () => {
+    try {
+      const sb = window.LayerPitchSupabaseClient;
+      if (!sb) return null;
+      const body = trackId.startsWith('sfx-') ? { sfxId: trackId.slice(4) } : { trackId };
+      const { data, error } = await sb.getClient().functions.invoke('track-audio-url', { body });
+      if (error || !data || !data.ok || data.protected === false || !data.files) {
+        _signedAudio.set(trackId, { none: true, until: Date.now() + 60000 }); // pas d'accès (ou pas protégé) : on ne redemande pas à chaque fichier
+        return null;
+      }
+      const entry = { files: data.files, expiresAt: Date.now() + Math.max(30, (data.expiresIn || 900) - 60) * 1000 };
+      _signedAudio.set(trackId, entry);
+      return entry;
+    } catch (e) { return null; }
+    finally { _signedAudioPending.delete(trackId); }
+  })();
+  _signedAudioPending.set(trackId, p);
+  return p;
+}
+
+// hintProtected : le morceau (ou Sfx) est déjà connu comme protégé (track.protected) -> pas d'essai sur l'adresse publique.
+async function fetchAudio(url, hintProtected) {
+  const m = MEDIA_AUDIO_RE.exec(url);
+  if (!m) return fetch(url);
+  const trackId = m[1];
+  if (hintProtected) _protectedTrackIds.add(trackId);
+  let first = null;
+  if (!_protectedTrackIds.has(trackId)) {
+    first = await fetch(url);
+    if (first.ok || (first.status !== 404 && first.status !== 403)) return first;
+  }
+  const entry = await signedAudioFor(trackId);
+  const signedUrl = entry && entry.files[decodeURIComponent(m[2])];
+  if (signedUrl) { _protectedTrackIds.add(trackId); return fetch(signedUrl); }
+  return first || fetch(url);
+}
+async function fetchAudioBytes(url) {
+  const res = await fetchAudio(url);
+  if (!res.ok) throw new Error('Fichier audio introuvable : ' + url);
+  return new Uint8Array(await res.arrayBuffer());
+}
 
 /* ---------------- Waveform (fonctions pures, niveau module) ----------------
  * Hissées hors de initTrackPlayer (elles ne dépendaient d'aucune fermeture de piste) pour être
@@ -1048,6 +1113,25 @@ function advanceChainIndex(index, n, chainState, maxChainLoops, randomize) {
 // Style des boutons de triggers d'effets, injecté une seule fois par le lecteur lui-même plutôt que copié
 // dans index.html/pack.html/collection.html (chacun a sa propre feuille de style, déjà dupliquée) -- ne
 // s'appuie que sur les variables CSS déjà définies par toutes les pages hôtes (--accent, --border...).
+// Pastilles « effets en cours » sous les boutons de triggers (6/10) : une pastille par effet du trigger et de chacune de ses étapes,
+// grisées au départ, allumées quand leur étape est active (voir updateFxTriggerButtons) -- la cascade se déroule sous les yeux du
+// visiteur. Le compositeur peut les masquer par trigger (showEffects === false). Pure : renvoie du HTML.
+const FX_CHIP_KEYS = { volume: 'fxChipVolume', lowcut: 'fxChipLowcut', highcut: 'fxChipHighcut', pitch: 'fxChipPitch', reverb: 'fxChipReverb', delay: 'fxChipDelay', bitcrush: 'fxChipBitcrush' };
+function fxEffectChipsHtml(track, shownTriggers) {
+  const all = expandTriggerSteps(track.fxTriggers);
+  const rows = shownTriggers.filter(d => d.showEffects !== false).map(d => {
+    // Une étape qui vise plusieurs voix existe en plusieurs copies : une seule pastille par étape et par effet.
+    const seen = new Set();
+    const group = all.filter(x => { if (!x || !(x.id === d.id || x.rootId === d.id)) return false; const k = x.stepKey || x.id; if (seen.has(k)) return false; seen.add(k); return true; });
+    const chips = group.map(x => Object.keys(x.fx || {}).map(k => {
+      const name = k === 'pitch' && x.fx.pitch && x.fx.pitch.mode === 'rate' ? t('fxChipSpeed') : t(FX_CHIP_KEYS[k] || k);
+      const when = x.startSec > 0 ? ` <small>+${Math.round(x.startSec * 10) / 10} s</small>` : '';
+      return `<span class="fx-chip" data-fx-chip-of="${escapeHtml(x.id)}">${escapeHtml(name)}${when}</span>`;
+    }).join('')).join('');
+    return chips ? `<div class="fx-chip-row"><span class="fx-chip-owner">${escapeHtml(d.label || '')}</span>${chips}</div>` : '';
+  }).join('');
+  return rows ? `<div class="fx-chips">${rows}</div>` : '';
+}
 function ensureFxTriggerStyle() {
   if (document.getElementById('lp-fx-trigger-style')) return;
   const st = document.createElement('style');
@@ -1060,6 +1144,13 @@ function ensureFxTriggerStyle() {
     .fx-trigger-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg, #fff); }
     .fx-trigger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
     .fx-trigger-btn.fx-locked { opacity: 0.4; cursor: not-allowed; border-style: dashed; }
+    .fx-chips { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+    .fx-chip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+    .fx-chip-owner { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim, #555); margin-right: 4px; }
+    .fx-chip { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 8px; border-radius: 999px; border: 1px dashed var(--border, #ccc);
+      color: var(--text-dim, #555); opacity: 0.45; transition: opacity .25s, background .25s, color .25s; }
+    .fx-chip small { opacity: 0.8; }
+    .fx-chip.on { opacity: 1; border-style: solid; border-color: var(--accent); background: var(--accent); color: var(--bg, #fff); }
     .fx-slider-row { display: flex; flex-direction: column; gap: 8px; }
     .fx-slider { display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim, #555); }
     .fx-slider span { min-width: 110px; }
@@ -1107,7 +1198,10 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   wrapper.className = 'track-row-wrapper';
 
   let intensityBlockHtml = '';
-  if (track.mode === 'vertical' && supported) {
+  // Un curseur qui pilote la structure (26/09 vertical, 30/09 embranchement-vertical) remplace les boutons du visiteur : il
+  // s'affiche avec les autres curseurs, et les boutons (couches 1/2/3, boucles nommées) disparaissent.
+  const structureBySlider = supported && fxSlidersValid(track).some(sl => sl.intensity);
+  if (track.mode === 'vertical' && supported && !structureBySlider) {
     const n = track.layers.length;
     const chips = Array.from({ length: n }, (_, i) => {
       const customLabel = (track.layers[i] && track.layers[i].label) ? track.layers[i].label : '';
@@ -1151,7 +1245,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       return `<button type="button" class="embr-loop-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="${isShort ? '1' : '0'}">${label}</button>`;
     }).join('');
     embrVertBlockHtml = `
-      <div class="track-intensity-block">
+      <div class="track-intensity-block"${structureBySlider ? ' style="display:none"' : ''}>
         <div class="track-intensity-label">${t('embrLoopsLabel')}</div>
         <div class="intensity-picker" data-role="embrLoopPicker"${embrRichMode ? ` style="--embr-row-h:${embrRowH}px"` : ''}>${buttons}</div>
       </div>
@@ -1317,6 +1411,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
         <div class="fx-trigger-row">
           ${publicFxTriggers.map((d, i) => `<button type="button" class="fx-trigger-btn" data-fx-trigger="${escapeHtml(d.id)}" aria-pressed="false" disabled>${escapeHtml(d.label || t('fxTriggerFallbackLabel', { n: i + 1 }))}</button>`).join('')}
         </div>
+        ${fxEffectChipsHtml(track, publicFxTriggers)}
       </div>
     `;
   }
@@ -1330,7 +1425,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       <div class="track-intensity-block">
         <div class="track-intensity-label">${t('fxSlidersRowLabel')}</div>
         <div class="fx-slider-row">
-          ${publicFxSliders.map((sl, i) => `<label class="fx-slider"><span>${escapeHtml(sl.label || t('fxSliderFallbackLabel', { n: i + 1 }))}</span><input type="range" min="0" max="100" step="1" value="${Math.round(sl.def * 100)}" data-fx-slider="${escapeHtml(sl.id)}" disabled><output>${Math.round(sl.def * 100)}%</output></label>`).join('')}
+          ${publicFxSliders.map((sl, i) => `<label class="fx-slider"><span>${escapeHtml(sl.label || t('fxSliderFallbackLabel', { n: i + 1 }))}</span><input type="range" min="0" max="100" step="1" value="${Math.round(sl.def * 100)}" data-fx-slider="${escapeHtml(sl.id)}" disabled><output>${Math.round(sl.def * 100)}%</output>${sl.intensity ? `<em data-fx-zone="${escapeHtml(sl.id)}" style="font-size:12px;opacity:.75;font-style:normal;margin-left:8px"></em>` : ''}</label>`).join('')}
         </div>
       </div>
     `;
@@ -2041,7 +2136,7 @@ function trackNeedsLatencyComp(track) {
   if (anyFx(track.layers) || anyFx(track.loops) || anyFx(track.segmentSlots)) return true;
   if (spFx(track.intro && track.intro.fx) || spFx(track.outro && track.outro.fx)) return true;
   if ((track.sections || []).some(sec => sec && anyFx(sec.pools))) return true;
-  if ((track.fxTriggers || []).some(d => d && d.fx && (d.fx.bitcrush || (d.fx.pitch && d.fx.pitch.mode !== 'rate')))) return true;
+  if (expandTriggerSteps(track.fxTriggers).some(d => d && d.fx && (d.fx.bitcrush || (d.fx.pitch && d.fx.pitch.mode !== 'rate')))) return true;
   return ((track.fxSliders || []).some(d => d && (d.bindings || []).some(b => b && (b.param === 'bitcrush.bits' || b.param === 'bitcrush.reduction' || b.param === 'pitch.semitones'))));
 }
 // Ajoute à une chaîne d'effets (ou en crée une réduite au seul retard) le DelayNode de compensation, sauf si la
@@ -2362,6 +2457,9 @@ function fxTargetKeyFromTarget(target) {
   if (target.type === 'loop') return 'loop:' + target.li;
   if (target.type === 'slot') return 'slot:' + target.si;
   if (target.type === 'pool') return 'pool:' + target.si + ':' + target.pi;
+  // Intro, outro et transitions (7/10) : les chaînes d'effets de ces éléments portent déjà ces clés (buildTargetFxChain). « transition »
+  // vise TOUTES les transitions du morceau (séquentiel et embranchement-vertical).
+  if (target.type === 'intro' || target.type === 'outro' || target.type === 'transition') return target.type;
   return null;
 }
 // fx de base porté par une cible ('layer:i', 'loop:i', 'slot:i', 'pool:s:p', 'intro', 'outro') -- même
@@ -2397,6 +2495,77 @@ function mergeTriggerFx(baseFx, activeTriggerDefs) {
 // les effets dans hooks.apply ; l'outil vidéo lui fournit un temps SIMULÉ (simulateTriggerRules) pour que le son
 // exporté suive exactement les mêmes règles qu'en jeu.
 // hooks : { schedule(delaySec, fn) -> handle, cancel(handle), apply(id, active, cause) }
+// ---- Cascade par étapes (6/10) ----
+// trigger.steps = [{ id, label?, delaySec, durationSec?, fx, children?:[étapes] }] : des groupes d'effets qui démarrent delaySec
+// secondes APRÈS LEUR PARENT (le trigger pour les étapes du premier niveau, l'étape-mère pour les enfants ; 0 = en même temps), et
+// qui durent durationSec (vide = jusqu'à la fin du trigger), avec leurs propres fondus fadeSec / fadeOutSec (vide = ceux du trigger).
+// Pas de nouveau mécanisme : chaque étape devient un trigger invisible, relié au trigger d'origine (la RACINE) par « Active aussi »
+// avec son départ cumulé depuis l'appui (startSec) ; le moteur de règles ci-dessous, le lecteur et l'export vidéo les traitent
+// comme n'importe quelle cascade. Chaque étape a sa propre vie : la fin d'une étape (ou des effets propres du trigger) ne coupe
+// JAMAIS celles qui suivent -- seule la coupure du trigger entier (second appui, ou fin de tout) les arrête (7/10, demande de
+// Jules-Antoine : la durée de l'effet « parent » ne doit pas rendre les étapes suivantes inaudibles).
+// Durée du trigger lui-même (« Durée de l'effet avant retour automatique ») : avec une cascade elle ne concerne que SES effets
+// propres, déplacés dans une étape « self » (départ 0) ; le trigger se termine alors tout seul quand tout est fini, si toutes les
+// durées sont connues, sinon au second appui. Les copies portent rootId et startSec. Fonction PURE.
+const TRIGGER_STEPS_MAX_DEPTH = 5;
+// Cibles d'un événement (7/10, « un événement agit sur plusieurs voix ») : trigger.targets = [cible, ...] (une cible = { type: 'track' |
+// 'layer' | 'loop' | 'slot' | 'pool' | 'intro' | 'outro' | 'transition', ... }) ; à défaut, l'ancienne cible unique trigger.target.
+// Une étape peut avoir ses propres cibles (step.targets) ; sans cible, elle reprend celles de l'événement.
+function triggerTargets(d) {
+  const t = Array.isArray(d && d.targets) && d.targets.length ? d.targets : (d && d.target ? [d.target] : [{ type: 'track' }]);
+  return t.filter(Boolean);
+}
+function expandTriggerSteps(triggers) {
+  const out = [];
+  (triggers || []).forEach(d => {
+    if (!d || !d.id) { out.push(d); return; }
+    const rootTargets = triggerTargets(d);
+    const hasSteps = Array.isArray(d.steps) && d.steps.length;
+    if (!hasSteps && rootTargets.length < 2) { out.push(d); return; }
+    const kids = [];
+    // Une copie par cible (même départ, même durée) ; id logique = baseId, avec « @i » quand il y a plusieurs cibles.
+    function make(baseId, node, targets, start, dur, parentId, extra) {
+      targets.forEach((tg, i) => {
+        kids.push(Object.assign({ id: targets.length > 1 ? baseId + '@' + i : baseId, stepKey: baseId, label: node.label || '', target: tg, fx: node.fx || {}, visible: false,
+          // Fondus : ceux de l'étape s'ils sont renseignés, sinon ceux de l'événement.
+          fadeSec: node.fadeSec != null ? node.fadeSec : (d.fadeSec != null ? d.fadeSec : null), fadeOutSec: node.fadeOutSec != null ? node.fadeOutSec : (d.fadeOutSec != null ? d.fadeOutSec : null),
+          relations: dur ? { autoOffSec: dur } : null, stepOf: parentId, rootId: d.id, startSec: start, durationSec: dur }, extra || {}));
+      });
+    }
+    function walk(parentId, steps, startSec, depth) {
+      (steps || []).forEach((s, i) => {
+        if (!s || depth > TRIGGER_STEPS_MAX_DEPTH) return;
+        const id = parentId + '~' + (s.id || i);
+        const start = startSec + (+s.delaySec > 0 ? +s.delaySec : 0);
+        const dur = +s.durationSec > 0 ? +s.durationSec : 0;
+        make(id, s, Array.isArray(s.targets) && s.targets.length ? s.targets.filter(Boolean) : rootTargets, start, dur, parentId);
+        walk(id, s.children, start, depth + 1);
+      });
+    }
+    const ownRel = Object.assign({}, d.relations);
+    const ownDur = +ownRel.autoOffSec > 0 ? +ownRel.autoOffSec : 0;
+    const root = Object.assign({}, d);
+    // Effets propres de l'événement : dans une étape « self » (départ 0) dès qu'il a une durée propre ou plusieurs cibles ; l'événement
+    // lui-même devient un simple porteur (le bouton).
+    if (ownDur || rootTargets.length > 1) {
+      make(d.id + '~self', d, rootTargets, 0, ownDur, d.id, { isSelf: true });
+      root.fx = {};
+      root.target = rootTargets[0];
+    }
+    walk(d.id, d.steps, 0, 1);
+    const rel = Object.assign({}, ownRel);
+    rel.activates = (rel.activates || []).concat(kids.map(k => ({ triggerId: k.id, delaySec: k.startSec })));
+    if (ownDur) {
+      // Fin de l'événement = fin de la dernière étape, seulement si toutes ont une durée (sinon il dure jusqu'au second appui).
+      const allFinite = kids.every(k => k.durationSec > 0);
+      rel.autoOffSec = allFinite ? Math.max.apply(null, kids.map(k => k.startSec + k.durationSec)) : null;
+    }
+    root.relations = rel;
+    out.push(root);
+    kids.forEach(k => out.push(k));
+  });
+  return out;
+}
 function createTriggerRuleEngine(defs, hooks) {
   const byId = new Map();
   (defs || []).forEach(d => { if (d && d.id) byId.set(d.id, d); });
@@ -2501,7 +2670,10 @@ function simulateTriggerRules(defs, requests) {
 // ---- Curseurs de paramètre (24/09) -- l'équivalent d'un RTPC de Wwise / d'un "game parameter" de FMOD ----
 // track.fxSliders = [{ id, label, defaultValue (0..1), smoothSec, visible,
 //   bindings:[{ target:{type,li|si|pi}, param:'highcut.frequency'|..., from, to }],
-//   thresholds:[{ at (0..1), mode:'below'|'above', triggerId }] }]
+//   thresholds:[{ at (0..1), mode:'below'|'above', triggerId }],
+//   intensity?:{ bounds:[0..1, ...] } }]  -- le curseur PILOTE LA STRUCTURE du morceau à la place des boutons (26/09 pour le
+//   vertical, 30/09 pour l'embranchement-vertical) : chaque zone du curseur = une couche / une boucle, voir fxStructureZones.
+//   Décision du 30/09 : pas pour le vertical-random ni le séquentiel (progression dans le temps, pas des degrés d'intensité).
 // Un curseur public de 0 à 100 % : chaque liaison convertit sa valeur en un réglage d'effet sur une cible (couche,
 // boucle, emplacement, pool) -- de `from` (curseur à 0) à `to` (curseur à 100 %), exponentiellement pour une
 // fréquence -- et les seuils activent/coupent des triggers ("santé < 25 % => Low life"). Le réglage est LISSÉ (smoothSec,
@@ -2592,8 +2764,28 @@ function fxSliderTargetKey(target) {
 }
 // Valeurs par défaut des autres réglages d'un effet que le curseur fait apparaître sans qu'il soit configuré ailleurs.
 const FX_SLIDER_DEFAULT_FX = { lowcut: { slope: 24 }, highcut: { slope: 24 }, reverb: { decay: 2 }, delay: { time: 0.3, feedback: 0.35 }, bitcrush: { bits: 16, reduction: 1 }, pitch: { mode: 'shift' }, volume: {} };
+// Zones d'un curseur qui pilote la structure : une zone par couche (vertical) ou par boucle (embranchement-vertical).
+// Renvoie les libellés (« » si l'élément n'en a pas) ; vide = ce mode n'a pas de zones.
+function fxStructureZones(track) {
+  const m = track && track.mode, lab = x => (x && x.label) || '';
+  if (m === 'vertical') return (track.layers || []).map(lab);
+  if (m === 'embranchement-vertical') return (track.loops || []).map(lab);
+  return [];
+}
+// n zones = n-1 limites (0..1, croissantes). Sans limites valables : découpage égal.
+function fxIntensityBounds(raw, n) {
+  if (!(n >= 2)) return null;
+  if (!Array.isArray(raw) || raw.length !== n - 1 || raw.some(v => !Number.isFinite(+v))) return Array.from({ length: n - 1 }, (_, i) => (i + 1) / n);
+  return raw.map(v => Math.max(0, Math.min(1, +v))).sort((a, b) => a - b);
+}
+// Zone (index à partir de 0) voulue pour la position v du curseur.
+function fxSliderIntensityLevel(bounds, v) {
+  return bounds.filter(b => v >= b).length;
+}
 function fxSlidersValid(track) {
   const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(+v) ? +v : 0));
+  const nZones = fxStructureZones(track).length;
+  let structureTaken = false; // un seul curseur pilote la structure : le premier qui la réclame
   return ((track && track.fxSliders) || []).filter(d => d && d.id).map(d => ({
     id: d.id, label: d.label || '', visible: !!d.visible,
     def: clamp01(d.defaultValue),
@@ -2604,8 +2796,9 @@ function fxSlidersValid(track) {
       // Un paramètre de spatialisation ne se lie qu'à un Sfx, un paramètre d'effet qu'à une voix.
       return !!key && ((FX_SLIDER_PARAMS[b.param].kind === 'sfx') === (key.indexOf('sfx:') === 0));
     }).map(b => ({ key: fxSliderTargetKey(b.target), param: b.param, from: +b.from, to: +b.to, curve: fxCurveSanitize(b.curve), curveSmooth: !!b.curveSmooth })),
-    thresholds: (d.thresholds || []).filter(x => x && x.triggerId && Number.isFinite(+x.at)).map(x => ({ at: clamp01(x.at), mode: x.mode === 'above' ? 'above' : 'below', triggerId: x.triggerId }))
-  })).filter(sl => sl.bindings.length || sl.thresholds.length);
+    thresholds: (d.thresholds || []).filter(x => x && x.triggerId && Number.isFinite(+x.at)).map(x => ({ at: clamp01(x.at), mode: x.mode === 'above' ? 'above' : 'below', triggerId: x.triggerId })),
+    intensity: d.intensity && !structureTaken && nZones >= 2 ? (structureTaken = true, fxIntensityBounds(d.intensity.bounds, nZones)) : null
+  })).filter(sl => sl.bindings.length || sl.thresholds.length || sl.intensity);
 }
 function fxSliderBindingValue(b, v0) {
   const meta = FX_SLIDER_PARAMS[b.param];
@@ -2755,16 +2948,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
      qu'aucune reconstruction ne soit jamais nécessaire en cours de lecture. */
   const fxTriggerDefs = new Map();
   const fxTriggerTargetKey = new Map();
-  function fxTargetKeyOf(target) {
-    if (!target) return null;
-    if (target.type === 'track') return 'track';
-    if (target.type === 'layer') return 'layer:' + (target.li || 0);
-    if (target.type === 'loop') return 'loop:' + target.li;
-    if (target.type === 'slot') return 'slot:' + target.si;
-    if (target.type === 'pool') return 'pool:' + target.si + ':' + target.pi;
-    return null;
-  }
-  (track.fxTriggers || []).forEach(d => {
+  // Même table que l'export vidéo (fxTargetKeyFromTarget) : une seule source pour savoir quelle chaîne un trigger vise.
+  function fxTargetKeyOf(target) { return fxTargetKeyFromTarget(target); }
+  expandTriggerSteps(track.fxTriggers).forEach(d => {
     const key = d && d.id && d.fx ? fxTargetKeyOf(d.target) : null;
     if (key) { fxTriggerDefs.set(d.id, d); fxTriggerTargetKey.set(d.id, key); }
   });
@@ -2829,7 +3015,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // Boutons : état enfoncé + état « bloqué » (condition « Nécessite » non remplie) -- grisé mais visible, avec en
   // infobulle ce qui le débloque. Recalculé après CHAQUE changement d'état, la condition d'un bouton dépendant de
   // l'état des autres.
+  const fxChipEls = [...wrapper.querySelectorAll('[data-fx-chip-of]')];
   function updateFxTriggerButtons() {
+    fxChipEls.forEach(c => c.classList.toggle('on', fxRules.isActive(c.dataset.fxChipOf)));
     fxTriggerBtns.forEach(b => {
       const id = b.dataset.fxTrigger;
       const on = fxRules.isActive(id);
@@ -2916,12 +3104,43 @@ function initTrackPlayer(track, wrapper, elementColors) {
   // ---- Curseurs (24/09) : exécution ----
   const fxSliderInputs = [...wrapper.querySelectorAll('[data-fx-slider]')];
   const fxSliderLastWant = new Map(); // triggerId -> dernier état voulu par un seuil (ne redemande que sur franchissement)
+  // ---- Curseur qui pilote la structure du morceau (26/09 vertical, 30/09 tous les modes) ----
+  // Chaque zone du curseur = une couche (vertical) ou une boucle (embranchement-vertical). Franchir une limite fait la MÊME
+  // chose que le bouton qu'il remplace : mêmes fondus, mêmes quantifications, mêmes repères pour l'outil vidéo.
+  const fxStructureSlider = fxSliders.find(sl => sl.intensity) || null;
+  const fxStructureNames = fxStructureZones(track);
+  const fxZoneOfValue = v => fxSliderIntensityLevel(fxStructureSlider.intensity, v);
+  let fxStructureZone = fxStructureSlider ? fxZoneOfValue(fxStructureSlider.def) : -1; // dernière zone demandée
+  function applyStructureZone(z) {
+    if (z < 0) return;
+    if (isEmbrVert) selectEmbrLoop(z);
+    else if (level !== z) applyIntensityLevel(z);
+  }
+  function followStructureSlider(sl) {
+    if (!sl.intensity) return;
+    const z = fxZoneOfValue(fxSliderValueOf(sl.id));
+    if (z === fxStructureZone) return;
+    fxStructureZone = z;
+    applyStructureZone(z);
+  }
+  // Au vrai démarrage : le curseur repart de sa position de départ ; les moteurs qui ne démarrent pas sur la bonne zone
+  // (l'embranchement-vertical ; le vertical lit fxStructureZone à son initialisation) la rejoignent aussitôt.
+  function startStructureSlider() {
+    if (!fxStructureSlider) return;
+    fxStructureZone = fxZoneOfValue(fxStructureSlider.def);
+    if (isEmbrVert && fxStructureZone !== embrReferenceIdx) setTimeout(() => { if (playing) applyStructureZone(fxStructureZone); }, 100);
+  }
   function paintFxSlider(id) {
     fxSliderInputs.forEach(inp => {
       if (inp.dataset.fxSlider !== id) return;
       inp.value = Math.round(fxSliderValueOf(id) * 100);
       const out = inp.parentElement && inp.parentElement.querySelector('output');
       if (out) out.textContent = Math.round(fxSliderValueOf(id) * 100) + '%';
+      const cap = inp.parentElement && inp.parentElement.querySelector('[data-fx-zone]');
+      if (cap && fxStructureSlider && fxStructureSlider.id === id) {
+        const z = fxZoneOfValue(fxSliderValueOf(id));
+        cap.textContent = '· ' + (fxStructureNames[z] || t('fxZoneFallback', { n: z + 1 }));
+      }
     });
   }
   function evalFxSliderThresholds(sl, force) {
@@ -2957,6 +3176,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     applyFxSliderToSfx(sl, sl.smoothSec);
     refreshTrackRate(sl.smoothSec);
     evalFxSliderThresholds(sl, false);
+    followStructureSlider(sl);
     paintFxSlider(id);
     // Évènement DOM (pas de la télémétrie : un curseur émet des dizaines de valeurs par seconde) -- l'outil vidéo
     // l'enregistre pendant une prise, comme "tourner la tête".
@@ -2971,6 +3191,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     refreshTrackRate(0.05);
     fxSliderLastWant.clear();
     fxSliders.forEach(sl => evalFxSliderThresholds(sl, true));
+    startStructureSlider();
   }
   fxSliderInputs.forEach(inp => inp.addEventListener('input', () => setFxSlider(inp.dataset.fxSlider, (+inp.value) / 100, true)));
   fxTriggerBtns.forEach(b => b.addEventListener('click', () => {
@@ -4723,7 +4944,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
       }
     }
   }
-  let level = 0, playing = false, startedAt = 0, offsetAt = (useQuantizedLoop ? startTrackSec : 0), rafId = null, ready = false;
+  let level = (track.mode === 'vertical' && fxStructureSlider) ? fxZoneOfValue(fxStructureSlider.def) : 0, playing = false, startedAt = 0, offsetAt = (useQuantizedLoop ? startTrackSec : 0), rafId = null, ready = false;
   let isDraggingSeek = false; // vrai pendant qu'on glisse sur la barre de lecture — tick() ne doit pas écraser la position affichée pendant ce temps
 
   const PLAY_SVG = '<path d="M8 5v14l11-7z"/>';
@@ -6141,6 +6362,9 @@ function initTrackPlayer(track, wrapper, elementColors) {
     resumeAudioContext();
     playing = true;
     playingTrackIds.add(track.id); requestWakeLock();
+    // Un curseur d'intensité repart de sa position de départ (comme resetFxTriggers juste après) : on cale le niveau AVANT de
+    // l'annoncer, pour que la capture parte de la bonne intensité.
+    if (!isContinuation && !pausedResume && fxStructureSlider && track.mode === 'vertical') level = fxZoneOfValue(fxStructureSlider.def);
     // Capture vidéo : niveau d'intensité de départ (le visiteur a pu le choisir avant d'appuyer sur Lecture).
     if (!isContinuation) trackPublicEvent('track_play', { trackId: track.id, mode: track.mode }, { level });
     if (!isContinuation && !pausedResume) resetFxTriggers();
@@ -6404,24 +6628,24 @@ function initTrackPlayer(track, wrapper, elementColors) {
     block.addEventListener('pointercancel', () => { vrIsDraggingSeek = false; });
   });
 
-  notchDots.forEach(dot => {
-    dot.addEventListener('click', () => {
-      level = parseInt(dot.dataset.level, 10);
-      notchDots.forEach(d => d.classList.toggle('active', d === dot));
-      trackPublicEvent('intensity_change', { trackId: track.id, level });
-      if (!playing) return;
-      const p = profiles[level];
-      const now = ctx.currentTime;
-      const gainsToRamp = useQuantizedLoop ? currentGainNodes : gains;
-      gainsToRamp.forEach((g, i) => {
-        if (!g) return;
-        const layerGain = effGain(layersToLoad[i]);
-        g.gain.cancelScheduledValues(now);
-        g.gain.setValueAtTime(g.gain.value, now);
-        g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain * voiceGain('layer-' + i), now + INTENSITY_RAMP_SEC);
-      });
+  // Changement d'intensité (mode vertical) : bouton 1/2/3, ou curseur qui franchit une limite de zone (26/09).
+  function applyIntensityLevel(lv) {
+    level = lv;
+    notchDots.forEach(d => d.classList.toggle('active', parseInt(d.dataset.level, 10) === lv));
+    trackPublicEvent('intensity_change', { trackId: track.id, level });
+    if (!playing) return;
+    const p = profiles[level];
+    const now = ctx.currentTime;
+    const gainsToRamp = useQuantizedLoop ? currentGainNodes : gains;
+    gainsToRamp.forEach((g, i) => {
+      if (!g) return;
+      const layerGain = effGain(layersToLoad[i]);
+      g.gain.cancelScheduledValues(now);
+      g.gain.setValueAtTime(g.gain.value, now);
+      g.gain.linearRampToValueAtTime((p[i] || 0) * layerGain * voiceGain('layer-' + i), now + INTENSITY_RAMP_SEC);
     });
-  });
+  }
+  notchDots.forEach(dot => dot.addEventListener('click', () => applyIntensityLevel(parseInt(dot.dataset.level, 10))));
 
   stingerBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -6536,7 +6760,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
     remoteFetchAttempts++;
     const v = track.publishedAt ? ('?v=' + encodeURIComponent(track.publishedAt)) : '';
     const url = track.base + encodeURIComponent(item.file) + v;
-    const res = await fetch(url);
+    const res = await fetchAudio(url, track.protected);
     if (!res.ok) remoteFetchNotFound++;
     const ab = await res.arrayBuffer();
     _arrayBufferUrls.set(ab, url); // journal de prise : le rendu hors-ligne retéléchargera ce fichier
@@ -6801,7 +7025,7 @@ function initTrackPlayer(track, wrapper, elementColors) {
           else {
             const v = sfx.publishedAt ? ('?v=' + encodeURIComponent(sfx.publishedAt)) : '';
             const sfxUrl = sfx.base + encodeURIComponent(alt.file) + v;
-            const res = await fetch(sfxUrl);
+            const res = await fetchAudio(sfxUrl, sfx.protected);
             ab = await res.arrayBuffer();
             _arrayBufferUrls.set(ab, sfxUrl);
           }
@@ -7123,7 +7347,7 @@ function buildSfxPlayer(sfxDef) {
       else {
         if (!alt.file || !sfxDef.base) return null;
         const v = sfxDef.publishedAt ? ('?v=' + encodeURIComponent(sfxDef.publishedAt)) : '';
-        const res = await fetch(sfxDef.base + encodeURIComponent(alt.file) + v);
+        const res = await fetchAudio(sfxDef.base + encodeURIComponent(alt.file) + v, sfxDef.protected);
         ab = await res.arrayBuffer();
       }
       const buf = await decodeAudioDataCompat(ab);
@@ -7236,9 +7460,15 @@ window.LayerPlayerCore = {
   liveFxLatencySec: () => fxSpLatencySec(ctx),
   CAPTURE_RAMPS: { intensity: INTENSITY_RAMP_SEC, voice: VOICE_RAMP_SEC, duckLevel: DUCK_LEVEL, duckAttack: DUCK_ATTACK_SEC, duckRelease: DUCK_RELEASE_SEC },
   createTriggerRuleEngine,
+  expandTriggerSteps,
+  triggerTargets,
+  fxEffectChipsHtml,
   simulateTriggerRules,
   FX_SLIDER_PARAMS,
   fxSlidersValid,
+  fxStructureZones,
+  fxIntensityBounds,
+  fxSliderIntensityLevel,
   fxSliderOverrides,
   fxSliderForceKeys,
   applyFxSliderOverrides,
@@ -7262,6 +7492,8 @@ window.LayerPlayerCore = {
   setSfxLibrary,
   shareOrCopy,
   downloadTracksAsZip,
+  fetchAudio,
+  fetchAudioBytes,
   createSectionPlaybackScheduler,
   PLAYABLE_MODES,
   WAVEFORM_STYLES,

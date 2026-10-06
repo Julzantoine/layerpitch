@@ -54,7 +54,7 @@ async function downloadTracksAsZip(zipBaseName, tracks) {
     const folder = zip.folder(slugifyForFile(track.title));
     for (const f of files) {
       const v = track.publishedAt ? ('?v=' + encodeURIComponent(track.publishedAt)) : '';
-      const res = await fetch(track.base + encodeURIComponent(f.file) + v);
+      const res = await fetchAudio(track.base + encodeURIComponent(f.file) + v, track.protected);
       if (!res.ok) continue; // un fichier manquant ne doit pas faire échouer tout le zip
       const blob = await res.blob();
       const ext = (f.file.split('.').pop() || 'ogg').toLowerCase();

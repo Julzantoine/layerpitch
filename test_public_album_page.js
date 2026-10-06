@@ -1,0 +1,53 @@
+// Page publique d'album (migration 20260929010000, album.html) : get_public_album ne montre qu'un album en vente, sans
+// connexion ; morceaux retirés absents ; « album » est un nom réservé. Base jetable PGlite.
+(async () => {
+  process.on('unhandledRejection', e => { console.log('FAIL - erreur inattendue : ' + (e && e.message)); process.exit(1); });
+  let freshDb;
+  try { ({ freshDb } = await import('./scripts/pglite-db.mjs')); }
+  catch (e) { console.log('FAIL - PGlite absent : lancer « npm install » une fois (' + e.message + ')'); process.exit(1); }
+  const db = await freshDb();
+  let failures = 0;
+  const check = (label, cond) => { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; };
+  const U = n => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const q = async (sql, args) => (await db.query(sql, args)).rows;
+  const val = async (sql, args) => Object.values((await q(sql, args))[0])[0];
+  await q(`insert into auth.users (id, email) values ($1, 'a@x.test')`, [U(1)]);
+  await q(`insert into public.profiles (id) values ($1) on conflict do nothing`, [U(1)]);
+  const c = (await q(`insert into public.composer_profiles (profile_id, handle) values ($1, 'jean') returning id`, [U(1)]))[0].id;
+  for (const t of ['t1', 't2', 't3']) await q(`insert into public.tracks (id, owner_id, title, mode) values ($1, $2, $3, 'static')`, [t, c, 'Morceau ' + t]);
+  await q(`insert into public.albums (id, seller_id, seller_role, title, presentation_fr, price_eur_cents, buyable) values ('ost', $1, 'composer', 'Mon OST', 'Bonjour', 500, true)`, [U(1)]);
+  await q(`insert into public.albums (id, seller_id, seller_role, title, buyable) values ('brouillon', $1, 'composer', 'Pas en vente', false)`, [U(1)]);
+  for (const [i, t] of ['t1', 't2', 't3'].entries()) await q(`insert into public.album_tracks (album_id, track_id, position) values ('ost', $1, $2)`, [t, i]);
+  await q(`update public.album_tracks set removed_at = now() where album_id = 'ost' and track_id = 't2'`);
+  await db.query(`select set_config('test.uid', '', false)`); // visiteur sans compte
+  const a = await val(`select public.get_public_album('ost')`);
+  check('album en vente : titre, prix, présentation', a && a.title === 'Mon OST' && a.priceEurCents === 500 && a.presentationFr === 'Bonjour');
+  check('vendeur : à défaut d\'AdReel, l\'identifiant public', a.sellerName === 'jean' && a.sellerRole === 'composer');
+  check('morceaux dans l\'ordre, sans celui retiré', a.tracks.map(t => t.id).join(',') === 't1,t3');
+  check('album non en vente : rien', (await val(`select public.get_public_album('brouillon')`)) === null);
+  check('album inconnu : rien', (await val(`select public.get_public_album('nope')`)) === null);
+  check('écoute libre : aucun morceau par défaut', a.listenMode === 'none' && a.tracks.every(t => t.free === false));
+  check('écoute libre : un autre compte ne peut pas régler', await (async () => { await q(`insert into auth.users (id, email) values ($1, 'b@x.test')`, [U(2)]); await db.query(`select set_config('test.uid', $1, false)`, [U(2)]); try { await db.query(`select public.set_album_listening('ost', 'all')`); return false; } catch (e) { return /vendeur/.test(e.message); } })());
+  await db.query(`select set_config('test.uid', $1, false)`, [U(1)]);
+  check('écoute libre : réglage invalide refusé', await (async () => { try { await db.query(`select public.set_album_listening('ost', 'tout')`); return false; } catch (e) { return /invalide/.test(e.message); } })());
+  await db.query(`select public.set_album_listening('ost', 'selected', array['t3'])`);
+  await db.query(`select set_config('test.uid', '', false)`);
+  let b = await val(`select public.get_public_album('ost')`);
+  check('écoute libre : certains morceaux (t3 seulement)', b.listenMode === 'selected' && b.tracks.map(t => t.id + ':' + t.free).join(',') === 't1:false,t3:true');
+  await db.query(`select set_config('test.uid', $1, false)`, [U(1)]);
+  await db.query(`select public.set_album_listening('ost', 'all')`);
+  await db.query(`select set_config('test.uid', '', false)`);
+  b = await val(`select public.get_public_album('ost')`);
+  check('écoute libre : tout l\'album', b.listenMode === 'all' && b.tracks.every(t => t.free));
+  await db.query(`select set_config('test.uid', $1, false)`, [U(1)]);
+  await db.query(`select public.set_album_listening('ost', 'none')`);
+  await db.query(`select set_config('test.uid', '', false)`);
+  b = await val(`select public.get_public_album('ost')`);
+  check('écoute libre : retour à aucun (les morceaux cochés sont remis à zéro)', b.listenMode === 'none' && b.tracks.every(t => !t.free));
+  check('« album » est un nom réservé', (await val(`select public.handle_is_reserved('album')`)) === true);
+  // Écoute sur la page (album.html) : lecteur habituel, rendu à part pour garder la liste des titres en cas d'erreur.
+  const page = require('fs').readFileSync(require('path').join(__dirname, 'album.html'), 'utf8');
+  check('album.html : lecteur des morceaux (player.js, api/tracks.js) chargé, sans compte demandé', /player\.js\?v=/.test(page) && /api\/tracks\.js\?v=/.test(page) && /renderTracksBlock\(staging/.test(page) && /listTracksByIds/.test(page));
+  console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
+  process.exit(failures ? 1 : 0);
+})();

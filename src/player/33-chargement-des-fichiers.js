@@ -19,7 +19,7 @@
     remoteFetchAttempts++;
     const v = track.publishedAt ? ('?v=' + encodeURIComponent(track.publishedAt)) : '';
     const url = track.base + encodeURIComponent(item.file) + v;
-    const res = await fetch(url);
+    const res = await fetchAudio(url, track.protected);
     if (!res.ok) remoteFetchNotFound++;
     const ab = await res.arrayBuffer();
     _arrayBufferUrls.set(ab, url); // journal de prise : le rendu hors-ligne retéléchargera ce fichier
@@ -284,7 +284,7 @@
           else {
             const v = sfx.publishedAt ? ('?v=' + encodeURIComponent(sfx.publishedAt)) : '';
             const sfxUrl = sfx.base + encodeURIComponent(alt.file) + v;
-            const res = await fetch(sfxUrl);
+            const res = await fetchAudio(sfxUrl, sfx.protected);
             ab = await res.arrayBuffer();
             _arrayBufferUrls.set(ab, sfxUrl);
           }

@@ -5,6 +5,11 @@
 // LayerPitch ne voyait jamais passer le message, donc aucun moyen de prévenir le compositeur autrement
 // que par cet email tiers. Voir supabase/migrations/20260905040000_contact_messages.sql pour le détail.
 //
+// Shop (29/09) : accepte aussi { packId } ou { albumId } (« prenez contact avec le vendeur pour d'éventuelles adaptations ») —
+// pack ou album EN VENTE seulement ; le destinataire est retrouvé côté serveur (adresse de contact configurée dans le
+// bloc Contact de son AdReel principal, à défaut l'adresse de connexion du vendeur ; pour un studio, celle du propriétaire).
+// Le message ne révèle jamais l'adresse du vendeur à l'expéditeur.
+//
 // Appelée anonymement (aucune session requise, un visiteur public n'a pas de compte) — le
 // propriétaire réel et son email de contact sont retrouvés ICI, côté serveur, à partir de l'AdReel
 // visé, jamais depuis une valeur envoyée par le client (même principe que log_analytics_event()).
@@ -78,9 +83,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { adReelId, name, email, message } = await req.json();
-    if (!adReelId || typeof adReelId !== 'string') {
-      return new Response(JSON.stringify({ error: 'adReelId manquant.' }), {
+    const { adReelId, packId, albumId, name, email, message } = await req.json();
+    const shopKind = typeof packId === 'string' && packId ? 'pack' : (typeof albumId === 'string' && albumId ? 'album' : null);
+    if (!shopKind && (!adReelId || typeof adReelId !== 'string')) {
+      return new Response(JSON.stringify({ error: 'adReelId, packId ou albumId manquant.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -111,27 +117,63 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Propriétaire réel et email de contact retrouvés ICI, jamais depuis une valeur envoyée par le
-    // client — un visiteur ne doit jamais pouvoir rediriger un message vers un autre compositeur.
-    const { data: adReel, error: adReelError } = await adminClient
-      .from('ad_reels')
-      .select('owner_id, label, profile')
-      .eq('id', adReelId)
-      .maybeSingle();
-    if (adReelError || !adReel) {
-      return new Response(JSON.stringify({ error: 'AdReel introuvable.' }), {
-        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const recipientEmail = adReel.profile && typeof adReel.profile.contactEmail === 'string'
-      ? adReel.profile.contactEmail.trim() : '';
-    if (!recipientEmail) {
-      return new Response(JSON.stringify({ error: 'Ce compositeur n\'a pas configuré d\'email de contact.' }), {
-        status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Destinataire retrouvé ICI, jamais depuis une valeur envoyée par le client — un visiteur ne doit jamais pouvoir
+    // rediriger un message vers un autre compositeur.
+    let ownerComposerId: string | null = null;
+    let recipientEmail = '';
+    let logRef = adReelId as string;
+    let adReelLabel = '';
+    if (shopKind) {
+      // Shop : pack ou album EN VENTE (jamais un brouillon).
+      let sellerProfileId: string | null = null;
+      if (shopKind === 'pack') {
+        const { data: pack } = await adminClient.from('packs').select('owner_id, title, buyable').eq('id', packId).maybeSingle();
+        if (!pack || !pack.buyable) return new Response(JSON.stringify({ error: 'Pack introuvable.' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        const { data: cp } = await adminClient.from('composer_profiles').select('id, profile_id').eq('id', pack.owner_id).maybeSingle();
+        ownerComposerId = cp?.id ?? null; sellerProfileId = cp?.profile_id ?? null;
+        adReelLabel = `Shop · ${pack.title || packId}`; logRef = `pack:${packId}`;
+      } else {
+        const { data: album } = await adminClient.from('albums').select('seller_id, seller_role, title, buyable').eq('id', albumId).maybeSingle();
+        if (!album || !album.buyable) return new Response(JSON.stringify({ error: 'Album introuvable.' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        sellerProfileId = album.seller_id;
+        if (album.seller_role !== 'studio') {
+          const { data: cp } = await adminClient.from('composer_profiles').select('id').eq('profile_id', album.seller_id).maybeSingle();
+          ownerComposerId = cp?.id ?? null;
+        }
+        adReelLabel = `Shop · ${album.title || albumId}`; logRef = `album:${albumId}`;
+      }
+      if (ownerComposerId) {
+        const { data: main } = await adminClient.from('ad_reels').select('profile').eq('owner_id', ownerComposerId).order('created_at').limit(50);
+        const withContact = (main || []).find((r: { profile: { contactEmail?: string } }) => r.profile && typeof r.profile.contactEmail === 'string' && r.profile.contactEmail.trim());
+        if (withContact) recipientEmail = withContact.profile.contactEmail.trim();
+      }
+      if (!recipientEmail && sellerProfileId) {
+        const { data: u } = await adminClient.auth.admin.getUserById(sellerProfileId);
+        recipientEmail = u?.user?.email || '';
+      }
+      if (!recipientEmail) return new Response(JSON.stringify({ error: 'Ce vendeur ne peut pas être contacté pour le moment.' }), { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    } else {
+      const { data: adReel, error: adReelError } = await adminClient
+        .from('ad_reels')
+        .select('owner_id, label, profile')
+        .eq('id', adReelId)
+        .maybeSingle();
+      if (adReelError || !adReel) {
+        return new Response(JSON.stringify({ error: 'AdReel introuvable.' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      recipientEmail = adReel.profile && typeof adReel.profile.contactEmail === 'string'
+        ? adReel.profile.contactEmail.trim() : '';
+      if (!recipientEmail) {
+        return new Response(JSON.stringify({ error: 'Ce compositeur n\'a pas configuré d\'email de contact.' }), {
+          status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      ownerComposerId = adReel.owner_id;
+      adReelLabel = adReel.label || adReelId;
     }
 
-    const adReelLabel = adReel.label || adReelId;
     const emailResult = await sendContactEmail(recipientEmail, senderName, senderEmail, senderMessage, adReelLabel);
     if (!emailResult.ok) {
       return new Response(JSON.stringify({ error: emailResult.error }), {
@@ -139,12 +181,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Journalisé APRÈS l'envoi réussi de l'email : un message que le compositeur n'a jamais reçu ne
-    // doit pas déclencher un badge "nouveau message" trompeur dans la cloche du backstage.
-    await adminClient.from('contact_messages').insert({
-      owner_id: adReel.owner_id, ad_reel_id: adReelId, ad_reel_label: adReelLabel,
-      sender_name: senderName, sender_email: senderEmail,
-    });
+    // Journalisé APRÈS l'envoi réussi de l'email : un message que le vendeur n'a jamais reçu ne doit pas déclencher un badge
+    // "nouveau message" trompeur dans la cloche. Un studio (sans profil compositeur) reçoit l'e-mail seulement.
+    if (ownerComposerId) {
+      await adminClient.from('contact_messages').insert({
+        owner_id: ownerComposerId, ad_reel_id: logRef, ad_reel_label: adReelLabel,
+        sender_name: senderName, sender_email: senderEmail,
+      });
+    }
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },

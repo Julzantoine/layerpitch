@@ -36,7 +36,10 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   wrapper.className = 'track-row-wrapper';
 
   let intensityBlockHtml = '';
-  if (track.mode === 'vertical' && supported) {
+  // Un curseur qui pilote la structure (26/09 vertical, 30/09 embranchement-vertical) remplace les boutons du visiteur : il
+  // s'affiche avec les autres curseurs, et les boutons (couches 1/2/3, boucles nommées) disparaissent.
+  const structureBySlider = supported && fxSlidersValid(track).some(sl => sl.intensity);
+  if (track.mode === 'vertical' && supported && !structureBySlider) {
     const n = track.layers.length;
     const chips = Array.from({ length: n }, (_, i) => {
       const customLabel = (track.layers[i] && track.layers[i].label) ? track.layers[i].label : '';
@@ -80,7 +83,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       return `<button type="button" class="embr-loop-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="${isShort ? '1' : '0'}">${label}</button>`;
     }).join('');
     embrVertBlockHtml = `
-      <div class="track-intensity-block">
+      <div class="track-intensity-block"${structureBySlider ? ' style="display:none"' : ''}>
         <div class="track-intensity-label">${t('embrLoopsLabel')}</div>
         <div class="intensity-picker" data-role="embrLoopPicker"${embrRichMode ? ` style="--embr-row-h:${embrRowH}px"` : ''}>${buttons}</div>
       </div>
@@ -246,6 +249,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
         <div class="fx-trigger-row">
           ${publicFxTriggers.map((d, i) => `<button type="button" class="fx-trigger-btn" data-fx-trigger="${escapeHtml(d.id)}" aria-pressed="false" disabled>${escapeHtml(d.label || t('fxTriggerFallbackLabel', { n: i + 1 }))}</button>`).join('')}
         </div>
+        ${fxEffectChipsHtml(track, publicFxTriggers)}
       </div>
     `;
   }
@@ -259,7 +263,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       <div class="track-intensity-block">
         <div class="track-intensity-label">${t('fxSlidersRowLabel')}</div>
         <div class="fx-slider-row">
-          ${publicFxSliders.map((sl, i) => `<label class="fx-slider"><span>${escapeHtml(sl.label || t('fxSliderFallbackLabel', { n: i + 1 }))}</span><input type="range" min="0" max="100" step="1" value="${Math.round(sl.def * 100)}" data-fx-slider="${escapeHtml(sl.id)}" disabled><output>${Math.round(sl.def * 100)}%</output></label>`).join('')}
+          ${publicFxSliders.map((sl, i) => `<label class="fx-slider"><span>${escapeHtml(sl.label || t('fxSliderFallbackLabel', { n: i + 1 }))}</span><input type="range" min="0" max="100" step="1" value="${Math.round(sl.def * 100)}" data-fx-slider="${escapeHtml(sl.id)}" disabled><output>${Math.round(sl.def * 100)}%</output>${sl.intensity ? `<em data-fx-zone="${escapeHtml(sl.id)}" style="font-size:12px;opacity:.75;font-style:normal;margin-left:8px"></em>` : ''}</label>`).join('')}
         </div>
       </div>
     `;

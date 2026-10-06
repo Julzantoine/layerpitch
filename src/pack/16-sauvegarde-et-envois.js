@@ -67,7 +67,7 @@ function findCaptureTrack(trackId) { return (window.__lpCaptureLibrary.library |
 function findCaptureSfx(sfxId) { return (window.__lpCaptureLibrary.sfxLibrary || []).find(s => s.id === sfxId); }
 
 async function fetchAsUint8Array(url) {
-  const res = await fetch(url);
+  const res = await window.LayerPlayerCore.fetchAudio(url); // audio des morceaux protégés : lien signé (player.js)
   if (!res.ok) throw new Error(tr('captureFetchError').replace('{url}', url));
   return new Uint8Array(await res.arrayBuffer());
 }

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- FICHIER GÉNÉRÉ par scripts/build-sources.js à partir de src/backstage/ — ne pas le modifier ici : modifier src/backstage/, puis `npm run build` (voir src/backstage/LISEZMOI.md). -->
-<html lang="fr">
+<html lang="fr" class="lp-bg-blocks">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,49 +28,10 @@
     --bg-sidebar: #efeee9;
     --text: #24262b;
   }
-  /* Thème nuit (15/09, retour direct de Jules-Antoine, même réglage "local à cet ordinateur" que la
-     couleur de fond ci-dessus) : même hiérarchie de surfaces à trois niveaux qu'en plein jour
-     (sidebar la plus sombre < fond de page < cartes/blocs la plus claire), juste inversée en valeurs
-     absolues. Couleurs sémantiques (accent, succès/choix de la carte des chemins) laissées telles
-     quelles -- assez de contraste sur fond sombre, pas de raison de les faire dériver aussi. */
-  html[data-theme="dark"] {
-    --bg: #26262a;
-    --bg-card: #2c2c31;
-    --text-dim: #b3b1ac;
-    --text-dimmer: #7d7b76;
-    --border: #3d3d42;
-    --accent-soft: #1c2f47;
-    --backstage-bg: #1a1a1d;
-    --bg-sidebar: #131315;
-    --text: #ece9e2;
-  }
+  /* Thème nuit, couleur de fond et filigrane : layerpitch-appearance.js (29/09), commun à toutes les pages d'espace. */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--backstage-bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 32px 20px 80px; font-size: 13px; }
   .page { position: relative; max-width: min(1400px, 92vw); margin: 0 auto; }
-  /* Filigrane décoratif du Backstage (15/09, local à cet ordinateur -- même esprit que la couleur de
-     fond) : position fixed plein écran par défaut plutôt que cadré sur .page (retour direct de
-     Jules-Antoine, l'image restait petite et cadrée en haut) -- z-index négatif plutôt qu'un calcul
-     d'ordre du DOM, fiable même en fixed (se peint sous tout contenu positionné normalement, quel que
-     soit l'endroit du DOM où la balise vit). cover pour remplir tout l'écran quel que soit le ratio de
-     l'image choisie, quitte à en rogner les bords -- cohérent avec "toute l'écran" plutôt que "toute
-     visible". Case "Reste fixe pendant le défilement" (retour direct le même jour) : décochée, passe
-     en absolute -- ancré sur .page (position:relative), défile donc avec le contenu au lieu de rester
-     plaqué à l'écran.
-
-     Bug réel trouvé et corrigé le même jour (capture d'écran : image cadrée trop serrée, "coupée") :
-     en mode défilant, .scrolls-with-page héritait inset:0, donc une hauteur égale à TOUTE la page
-     (potentiellement des milliers de pixels avec tout le contenu du Backstage) au lieu de la hauteur
-     de l'écran -- avec cover, ce rapport largeur/hauteur totalement déformé (mesuré 430×657 pour une
-     image 1600×400 lors du diagnostic) force un zoom énorme, ne laissant voir qu'une bande étroite et
-     floue. Corrigé en fixant sa hauteur à 100vh (celle de l'écran, comme en mode fixe) plutôt que de
-     suivre la hauteur de .page -- même cover, même cadrage que le mode fixe, seule la position change
-     (défile avec le contenu au lieu de rester plaquée). */
-  #backstageWatermarkLayer {
-    position: fixed; inset: 0; z-index: -1; pointer-events: none;
-    background-repeat: no-repeat; background-position: center center;
-    background-size: cover; opacity: 0.08;
-  }
-  #backstageWatermarkLayer.scrolls-with-page { position: absolute; top: 0; left: 0; right: 0; bottom: auto; height: 100vh; }
   /* Verrou de connexion (7 septembre) : couvre tout l'outil tant qu'aucune session Supabase n'est
      confirmée -- sans ça, un visiteur non connecté voyait l'intégralité de l'interface compositeur
      (formulaires, panneaux) avant que la lecture Postgres échoue silencieusement en arrière-plan.
@@ -879,6 +840,7 @@
   .inbox-collapse[hidden] { display: none; }
   .inbox-collapse svg { width: 16px; height: 16px; }
   .inbox-text { color: var(--text-dim); white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+  .inbox-text a { color: var(--accent); }
   .inbox-text.expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
   .inbox-more { background: none; border: none; padding: 0; margin-top: 2px; font: inherit; font-size: 12px; color: var(--accent); cursor: pointer; }
   .inbox-more[hidden] { display: none; }
@@ -894,9 +856,14 @@
   .admin-preview-label select { font-size: 12px; padding: 4px 6px; }
 
   .notif-badge {
-    position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%;
-    background: #c0392b; border: 1.5px solid var(--bg);
+    position: absolute; top: -6px; right: -7px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+    background: #d63a2a; color: #fff; border: 2px solid var(--bg); box-sizing: border-box;
+    font-size: 11px; font-weight: 700; line-height: 14px; text-align: center;
+    animation: notifPulse 1.8s ease-out infinite;
   }
+  .notif-badge[hidden] { display: none; }
+  @keyframes notifPulse { 0% { box-shadow: 0 0 0 0 rgba(214,58,42,0.55); } 70%, 100% { box-shadow: 0 0 0 9px rgba(214,58,42,0); } }
+  @media (prefers-reduced-motion: reduce) { .notif-badge { animation: none; } }
   .global-actions-bar .btn { white-space: nowrap; }
 
   /* ---------------- Bulles d'aide contextuelle (data-help) ---------------- */
@@ -973,7 +940,6 @@
 <div id="authGateOverlay" data-i18n="authGateCheckingText">Vérification de la session…</div>
 <div id="helpTooltip"></div>
 <div class="page">
-  <div id="backstageWatermarkLayer"></div>
   <div id="adminPreviewBanner" class="admin-preview-banner" hidden>
     <span id="adminPreviewBannerLabel"></span>
     <button class="btn btn-small" id="btnAdminPreviewReset" type="button" data-i18n="adminPreviewReset">Revenir en Admin</button>
@@ -1166,6 +1132,9 @@
           <span data-i18n="navAnalytics">Analytics</span>
         </span>
       </button>
+      <a class="nav-item" id="navLinkCatalog" href="shop.html" hidden>
+        <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg><span data-i18n="navCatalog">Catalogue audio</span></span>
+      </a>
       </div>
 
       <!-- Navigation commune (28/09) : mêmes rubriques que la barre latérale des autres pages (layerpitch-shell.js),
@@ -1174,9 +1143,6 @@
       <div class="nav-section-label" id="navSectionStudio" data-i18n="navStudio" hidden>Studio</div>
       <a class="nav-item" id="navLinkStudioLibrary" href="studio.html?tab=library" hidden>
         <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg><span data-i18n="navStudioPurchases">Mes achats</span></span>
-      </a>
-      <a class="nav-item" id="navLinkCatalog" href="catalogue.html" hidden>
-        <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg><span data-i18n="navCatalog">Catalogue de packs</span></span>
       </a>
       <a class="nav-item" id="navLinkStudioTeam" href="studio.html?tab=team" hidden>
         <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg><span data-i18n="navStudioTeam">Équipe</span></span>
@@ -1348,6 +1314,32 @@
             <input type="checkbox" id="allowEmbeddingCheckbox" style="width:auto;margin:2px 0 0 0;">
             <span style="font-size:11px;color:var(--text-dimmer);line-height:1.5;" data-i18n="allowEmbeddingLabel">Autoriser les visiteurs à intégrer eux-mêmes tes packs, collections et listes de morceaux d'AdReel sur leur propre site (bouton "Intégrer" affiché sur les pages publiques). Décoché par défaut — toi seul peux alors générer un code d'intégration, depuis chaque onglet Distribution ou le sélecteur d'AdReel.</span>
           </label>
+        </div>
+
+        <div class="list-block" style="margin-bottom:18px" id="sharePreviewCard">
+          <div class="list-block-body">
+            <h3 style="margin:0 0 4px;font-size:14px" data-i18n="sharePreviewTitle">Aperçu des liens partagés</h3>
+            <div class="sub" data-i18n="sharePreviewHint">Ce qui s'affiche quand quelqu'un colle le lien de ton AdReel dans LinkedIn, Facebook, WhatsApp, Discord…</div>
+            <label data-i18n="sharePreviewTitleLabel">Titre</label>
+            <input type="text" id="sharePreviewTitleInput" maxlength="90">
+            <label data-i18n="sharePreviewDescLabel">Description</label>
+            <textarea id="sharePreviewDescInput" rows="3" maxlength="200"></textarea>
+            <label data-i18n="sharePreviewImageLabel">Image</label>
+            <div id="sharePreviewImageCtrl"></div>
+            <div class="hint-inline" data-i18n="sharePreviewImageHint">Idéalement 1200 × 630 pixels. Sans image, LayerPitch en affiche une par défaut.</div>
+            <label style="display:flex;align-items:flex-start;gap:8px;margin:10px 0 0;font-weight:normal">
+              <input type="checkbox" id="sharePreviewAutoFit" style="width:auto;margin:2px 0 0 0">
+              <span style="font-size:12px;line-height:1.5"><span data-i18n="sharePreviewAutoFitLabel">Ajuster automatiquement l'image au format 1200 × 630 (recadrage centré)</span><br><span class="hint-inline" data-i18n="sharePreviewAutoFitHint">Les bords peuvent être coupés : garde l'essentiel au centre. Décoché, l'image part telle quelle.</span></span>
+            </label>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px">
+            <select id="sharePreviewFitMode" style="max-width:360px">
+              <option value="fill" data-i18n="sharePreviewFitFill">Recadrer au centre (remplit la carte)</option>
+              <option value="contain" data-i18n="sharePreviewFitContain">Garder l'image entière (marie-louise)</option>
+            </select>
+            <label id="sharePreviewFitColorWrap" style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;font-size:12px"><span data-i18n="sharePreviewFitColorLabel">Couleur</span><input type="color" id="sharePreviewFitColor" value="#ffffff" style="width:44px;height:30px;padding:2px"></label>
+            </div>
+            <div id="sharePreviewMock" style="margin-top:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;max-width:420px;background:var(--bg-card, #fff)"></div>
+          </div>
         </div>
 
         <div id="socialsContainer"></div>
@@ -1606,30 +1598,7 @@
 
   <fieldset>
     <legend data-i18n="backstageAppearanceLegend">Apparence du backstage (local à cet ordinateur)</legend>
-    <label data-i18n="backstageThemeLabel">Thème</label>
-    <div class="actions" style="margin-bottom:10px;">
-      <button class="btn btn-small" id="btnBackstageThemeLight" type="button" data-i18n="backstageThemeLightBtn">☀ Jour</button>
-      <button class="btn btn-small" id="btnBackstageThemeDark" type="button" data-i18n="backstageThemeDarkBtn">☾ Nuit</button>
-    </div>
-    <label data-help="backstageBgColor" data-i18n="backstageBgColorLabel">Couleur de fond de cet outil</label>
-    <input type="color" id="backstageBgColor" value="#ffffff">
-    <div class="hint" id="backstageBgColorHint" data-i18n="backstageBgColorHint">Ne change rien à ce que voient tes visiteurs — c'est uniquement le confort visuel de cet écran d'édition, mémorisé sur cet ordinateur.</div>
-    <label style="margin-top:12px" data-i18n="backstageWatermarkLabel">Image de fond en filigrane</label>
-    <div class="actions" style="margin-bottom:6px;">
-      <button class="btn btn-small" id="btnBackstageWatermarkPick" type="button" data-i18n="backstageWatermarkPickBtn">Choisir une image</button>
-      <button class="btn btn-small btn-danger" id="btnBackstageWatermarkClear" type="button" hidden data-i18n="backstageWatermarkClearBtn">Retirer</button>
-    </div>
-    <input type="file" id="backstageWatermarkInput" accept="image/*" hidden>
-    <div id="backstageWatermarkOpacityRow" hidden>
-      <label for="backstageWatermarkOpacity" data-i18n="backstageWatermarkOpacityLabel">Opacité</label>
-      <input type="range" id="backstageWatermarkOpacity" min="0" max="100" step="1" value="8">
-      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
-        <input type="checkbox" id="backstageWatermarkFixed" checked style="width:auto;margin:0;">
-        <span data-i18n="backstageWatermarkFixedLabel">Reste fixe pendant le défilement</span>
-      </label>
-    </div>
-    <div class="hint" id="backstageWatermarkStatus" style="color:#b23" hidden></div>
-    <div class="hint" data-i18n="backstageWatermarkHint">Purement décorative, locale à cet ordinateur — les visiteurs ne la voient jamais.</div>
+    <div id="backstageAppearanceHost"></div>
   </fieldset>
 
   <fieldset id="panelAdminTools" hidden>
@@ -1860,12 +1829,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1790681825904"></script>
-<script src="layerpitch-shell.js?v=1790681825904"></script>
-<script src="layerpitch-social-icons.js?v=1790681825904"></script>
-<script src="layerpitch-notify.js?v=1790681825904"></script>
-<script src="layerpitch-help.js?v=1790681825904"></script>
-<script src="player.js?v=1790681825904"></script>
+<script src="layerpitch-i18n.js?v=1791296070654"></script>
+<script src="layerpitch-appearance.js?v=1791296070654"></script>
+<script src="layerpitch-album-shared.js?v=1791296070654"></script>
+<script src="layerpitch-album-editor.js?v=1791296070654"></script>
+<script src="layerpitch-shell.js?v=1791296070654"></script>
+<script src="layerpitch-social-icons.js?v=1791296070654"></script>
+<script src="layerpitch-notify.js?v=1791296070654"></script>
+<script src="layerpitch-help.js?v=1791296070654"></script>
+<script src="player.js?v=1791296070654"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2271,10 +2243,13 @@ async function renderAdminOnlyPanels(session) {
   // (le sien ou celui de son équipe, casquette non masquée par « Voir en tant que ») et que l'espace studio est ouvert.
   const navProjects = document.getElementById('navLinkProjects');
   if (navProjects) navProjects.hidden = !flagOpen('projects');
+  // Shop public (29/09) : lien dans la rubrique Compte, feu vert « shop » (admin seulement pendant la bêta).
+  const navShop = document.getElementById('navLinkCatalog');
+  if (navShop) navShop.hidden = !flagOpen('shop');
   if (window.LayerPitchAuth && window.LayerPitchAuth.getMyStudioId) {
     window.LayerPitchAuth.getMyStudioId().then(({ studioId }) => {
       const show = !!studioId && flagOpen('studio_space');
-      ['navSectionStudio', 'navLinkStudioLibrary', 'navLinkCatalog', 'navLinkStudioTeam', 'navLinkStudioPlan'].forEach(id => {
+      ['navSectionStudio', 'navLinkStudioLibrary', 'navLinkStudioTeam', 'navLinkStudioPlan'].forEach(id => {
         const el = document.getElementById(id); if (el) el.hidden = !show;
       });
     });
@@ -2507,14 +2482,16 @@ function drawInboxBell(items) {
           <div class="inbox-title">${escapeHtml(it.title)}</div>
           <button class="inbox-collapse" type="button" hidden title="${tr('inboxReadLess')}" aria-label="${tr('inboxReadLess')}">${INBOX_ICON_COLLAPSE}</button>
         </div>
-        <div class="inbox-text">${escapeHtml(it.text || '')}</div>
+        <div class="inbox-text">${escapeHtmlLinkify(it.text || '')}</div>
         <button class="inbox-more" type="button" hidden>${tr('inboxReadMore')}</button>
         <div class="inbox-time">${formatRelativeTime(it.createdAt)}</div>
       </div>
       <div class="inbox-dot"></div>
     </${it.href ? 'a' : 'div'}>`).join('');
   emptyEl.hidden = shown.length > 0;
-  badge.hidden = !shown.some(it => it.unread);
+  const unreadCount = shown.filter(it => it.unread).length;
+  badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+  badge.hidden = !unreadCount;
 }
 function initInboxBellUi() {
   const bellBtn = document.getElementById('btnInboxBell');
@@ -2720,20 +2697,34 @@ window.addEventListener('unhandledrejection', (e) => {
   trackBackstageError((e.reason && e.reason.message) || String(e.reason), { unhandledRejection: true });
 });
 
+const BACKSTAGE_TAB_STORAGE = 'lp_backstage_tab';
 function switchTab(tabName) {
   document.querySelectorAll('.backstage-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === tabName));
   document.querySelectorAll('.nav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
+  try { sessionStorage.setItem(BACKSTAGE_TAB_STORAGE, tabName); } catch (e) { /* stockage indisponible */ }
+}
+// Ouvre un onglet et lance son chargement à la demande (appel RPC get_my_analytics() etc. -- jamais au chargement du
+// backstage, seulement quand le compositeur ouvre vraiment l'onglet).
+function openTab(tabName) {
+  switchTab(tabName);
+  if (tabName === 'analytics') loadAnalyticsIfNeeded();
+  if (tabName === 'videoLibrary') renderVideoLibrary();
+  if (tabName === 'albums') loadAlbums();
+}
+// Au rafraîchissement, on revient sur l'onglet où on était (pas de retour forcé sur l'AdReel).
+function restoreBackstageTab() {
+  let name = null;
+  try { name = sessionStorage.getItem(BACKSTAGE_TAB_STORAGE); } catch (e) { return; }
+  if (!name || name === 'content') return;
+  const btn = document.querySelector('.nav-item[data-tab="' + name + '"]');
+  if (!btn || btn.disabled || btn.hidden || btn.closest('[hidden]')) return;
+  openTab(name);
 }
 document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
     if (!btn.disabled) {
-      switchTab(btn.dataset.tab);
+      openTab(btn.dataset.tab);
       trackBackstageEvent('tab_switch', { tab: btn.dataset.tab });
-      // Chargement à la demande (appel RPC get_my_analytics()) -- jamais au chargement du
-      // backstage, seulement quand le compositeur ouvre vraiment l'onglet.
-      if (btn.dataset.tab === 'analytics') loadAnalyticsIfNeeded();
-      if (btn.dataset.tab === 'videoLibrary') renderVideoLibrary();
-      if (btn.dataset.tab === 'albums') loadAlbums();
     }
   });
 });
@@ -3167,6 +3158,13 @@ let seqMapTheme = 'light';
 // depuis un bouton public -- ne bloque jamais un lien ?embed=1 déjà généré par le compositeur lui-même
 // ici, dans le backstage, toujours disponible quel que soit ce réglage. Faux par défaut (opt-in).
 let allowEmbedding = false;
+// Aperçu des liens partagés (1er/10, rubrique Réseaux sociaux) : titre, description et image de la carte qu'affichent LinkedIn,
+// Facebook, WhatsApp… quand on colle un lien. image = chemin sous images/ (publié) ; le fichier choisi attend la publication.
+// autoFit (vrai par défaut) : à la publication, l'image choisie est ajustée au format 1200 × 630 (voir sharePreviewFit) ;
+// fitMode 'fill' = recadrage centré (la carte est remplie, les bords sont coupés), 'contain' = image entière dans une marie-louise (bordure) de la couleur fitColor.
+const DEFAULT_SHARE_PREVIEW = { title: '', description: '', image: null, imageOriginalName: null, autoFit: true, fitMode: 'fill', fitColor: '#ffffff' };
+let sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW);
+let sharePreviewPendingFile = null;
 function effectiveNoAiCertified(track) {
   return (track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : noAiCertifiedGlobal;
 }
@@ -3295,6 +3293,13 @@ function slug(str) {
 // historique (100+ appels) mais fait désormais exactement la même chose.
 function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function escapeAttr(s) { return escapeHtml(s); }
+// Échappe puis transforme les URL http(s) en liens cliquables (30/09, demande de Jules-Antoine sur
+// le lien de la playlist tutos dans la boîte de réception) -- l'échappement passe en premier pour
+// qu'une URL ne puisse jamais injecter de balise, le remplacement joue ensuite sur le texte déjà
+// sûr (aucun caractère HTML actif ne peut apparaître dans le texte d'une URL après escapeHtml).
+function escapeHtmlLinkify(s) {
+  return escapeHtml(s).replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
 function extOf(filename) { const m = /\.([a-zA-Z0-9]+)$/.exec(filename || ''); return m ? m[1].toLowerCase() : 'jpg'; }
 // Content-Type pour l'upload R2 des images (S3/R2 le
 // veut pour servir le bon en-tête -- voir MIME dans scripts/migrate-media-to-r2.js pour la même liste).
@@ -3360,6 +3365,32 @@ const FX_DEFAULTS = {
 };
 // Pitch de morceau entier (mode "rate" implicite, pas de champ mode -- un seul sens possible à ce niveau).
 const FX_TRACK_DEFAULTS = { pitch: () => ({ semitones: 0 }) };
+
+// Protection des fichiers d'un morceau (29/09, « protéger l'album », choix par morceau) : fichiers dans un stockage privé,
+// lus par liens signés ; le morceau reste écoutable là où le compositeur l'a mis en avant (AdReel, écoute libre d'un album,
+// pack en vente). Bloc affiché dans l'onglet « Infos » de chaque morceau ; le déplacement est fait par l'Edge Function
+// set-track-protection (le morceau doit être publié).
+function trackProtectionHtml(track, ti) {
+  const on = !!track.protected;
+  return `<label style="margin-top:14px">${tr('trackProtectionLabel')}</label>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="badge">${tr(on ? 'trackProtectedBadge' : 'trackPublicBadge')}</span>
+      <button class="btn btn-small" type="button" data-action="toggle-track-protection" data-ti="${ti}">${tr(on ? 'trackUnprotectBtn' : 'trackProtectBtn')}</button>
+    </div>
+    <div class="hint-inline">${tr('trackProtectionHint')}</div>`;
+}
+
+// Protection des fichiers d'un effet sonore (29/09) : même principe que les morceaux (voir trackProtectionHtml) ; les packs
+// restent consultables, ce qui est protégé c'est l'accès direct aux fichiers. Bloc de l'onglet « Identité » du Sfx.
+function sfxProtectionHtml(sfx, si) {
+  const on = !!sfx.protected;
+  return `<label style="margin-top:14px">${tr('sfxProtectionLabel')}</label>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="badge">${tr(on ? 'trackProtectedBadge' : 'trackPublicBadge')}</span>
+      <button class="btn btn-small" type="button" data-action="toggle-sfx-protection" data-si="${si}">${tr(on ? 'trackUnprotectBtn' : 'trackProtectBtn')}</button>
+    </div>
+    <div class="hint-inline">${tr('sfxProtectionHint')}</div>`;
+}
 // Effets audio par couche (chantier "effets dynamiques", 22/09) -- filtre/reverb/écho/bitcrusher,
 // réglages fixes pour l'instant (pas d'automatisation/déclenchement -- prévu dans un second temps,
 // cf. discussion produit). Un seul point de vérité pour ne pas dupliquer le markup entre le mode
@@ -3368,6 +3399,80 @@ const FX_TRACK_DEFAULTS = { pitch: () => ({ semitones: 0 }) };
 // à quel objet appliquer le réglage (couche, boucle, emplacement séquentiel, pool vertical-random). Les
 // 4 fonctions fooFxHtml ci-dessous ne sont que des façades qui fixent extraAttrs pour chaque cas, pour
 // ne jamais dupliquer le markup des 4 effets à chaque nouveau mode qui les gagne.
+// Courbe de réponse d'un filtre (Butterworth : l'ordre vaut raideur / 6, soit 12 dB par octave = ordre 2). Axe horizontal logarithmique
+// 20 Hz -> 20 kHz, axe vertical 0 -> -60 dB. Pure : renvoie le contenu du SVG, réutilisée pour la mise à jour en direct.
+const FX_GRAPH = { w: 260, h: 96, padL: 26, padR: 8, padT: 6, padB: 16, minDb: -60 };
+function fxFilterGain(kind, f, fc, slope) {
+  const n = (+slope || 24) / 6;
+  const ratio = kind === 'lowcut' ? fc / f : f / fc;
+  return -10 * Math.log10(1 + Math.pow(ratio, 2 * n));
+}
+function fxFilterGraphInner(kind, freq, slope) {
+  const g = FX_GRAPH, iw = g.w - g.padL - g.padR, ih = g.h - g.padT - g.padB;
+  const lo = Math.log10(20), span = Math.log10(20000) - lo;
+  const X = f => g.padL + (Math.log10(Math.min(20000, Math.max(20, f))) - lo) / span * iw;
+  const Y = db => g.padT + Math.min(1, Math.max(0, -db / -g.minDb)) * ih;
+  const fc = Math.min(20000, Math.max(20, +freq || (kind === 'lowcut' ? 150 : 3000)));
+  const pts = [];
+  for (let i = 0; i <= 120; i++) { const f = Math.pow(10, lo + span * i / 120); pts.push(X(f).toFixed(1) + ',' + Y(fxFilterGain(kind, f, fc, slope)).toFixed(1)); }
+  const base = (g.padT + ih).toFixed(1);
+  const grid = [100, 1000, 10000].map(f => `<line x1="${X(f).toFixed(1)}" x2="${X(f).toFixed(1)}" y1="${g.padT}" y2="${base}" stroke="var(--border,#ddd)" stroke-width="1"/><text x="${X(f).toFixed(1)}" y="${g.h - 3}" text-anchor="middle" font-size="9" fill="var(--text-dim,#888)">${f >= 1000 ? (f / 1000) + 'k' : f}</text>`).join('')
+    + [0, -20, -40, -60].map(db => `<line x1="${g.padL}" x2="${g.w - g.padR}" y1="${Y(db).toFixed(1)}" y2="${Y(db).toFixed(1)}" stroke="var(--border,#ddd)" stroke-width="1"/><text x="${g.padL - 3}" y="${(Y(db) + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--text-dim,#888)">${db}</text>`).join('');
+  const fcLabel = (fc >= 1000 ? (Math.round(fc / 100) / 10) + ' kHz' : Math.round(fc) + ' Hz');
+  const right = X(fc) > g.w / 2;
+  return grid
+    + `<polygon points="${g.padL},${base} ${pts.join(' ')} ${(g.w - g.padR)},${base}" fill="var(--accent,#2f80c0)" opacity="0.14"/>`
+    + `<polyline points="${pts.join(' ')}" fill="none" stroke="var(--accent,#2f80c0)" stroke-width="2" stroke-linejoin="round"/>`
+    + `<line x1="${X(fc).toFixed(1)}" x2="${X(fc).toFixed(1)}" y1="${g.padT}" y2="${base}" stroke="var(--accent,#2f80c0)" stroke-width="1" stroke-dasharray="3 3"/>`
+    + `<text x="${(X(fc) + (right ? -4 : 4)).toFixed(1)}" y="${g.padT + 9}" text-anchor="${right ? 'end' : 'start'}" font-size="10" font-weight="600" fill="var(--accent,#2f80c0)">${fcLabel}</text>`;
+}
+function fxFilterGraphHtml(kind, freq, slope) {
+  return `<svg data-fx-graph="${kind}" viewBox="0 0 ${FX_GRAPH.w} ${FX_GRAPH.h}" width="100%" style="max-width:340px;display:block;margin-top:6px" role="img" aria-label="${escapeAttr(tr('fxGraphLabel'))}">${fxFilterGraphInner(kind, freq, slope)}</svg>`;
+}
+// Mise à jour en direct quand on change la fréquence ou la raideur.
+document.addEventListener('input', e => {
+  const t = e.target, k = t && t.dataset && t.dataset.fxEffect;
+  if (!t.dataset || t.dataset.field !== 'fx' || (k !== 'lowcut' && k !== 'highcut')) return;
+  const box = t.closest('[data-fx-box]'), svg = box && box.querySelector('svg[data-fx-graph]');
+  if (!svg) return;
+  const f = box.querySelector('[data-fx-param="frequency"]'), sl = box.querySelector('[data-fx-param="slope"]');
+  svg.innerHTML = fxFilterGraphInner(k, f && f.value, sl && sl.value);
+}, true);
+
+// Paliers « léger / moyen / dur » : un clic remplit les champs du réglage (mêmes événements que la frappe : rien d'autre à câbler).
+// Filtres : seule la fréquence change (la raideur reste celle choisie).
+const FX_PRESETS = {
+  lowcut:   [{ frequency: 80 }, { frequency: 200 }, { frequency: 500 }],
+  highcut:  [{ frequency: 12000 }, { frequency: 5000 }, { frequency: 1500 }],
+  reverb:   [{ decay: 0.8, wet: 0.2 }, { decay: 2, wet: 0.3 }, { decay: 5, wet: 0.45 }],
+  delay:    [{ time: 0.12, feedback: 0.2, wet: 0.2 }, { time: 0.3, feedback: 0.35, wet: 0.25 }, { time: 0.6, feedback: 0.5, wet: 0.3 }],
+  bitcrush: [{ bits: 10, reduction: 2 }, { bits: 6, reduction: 6 }, { bits: 3, reduction: 12 }]
+};
+const FX_PRESET_KEYS = ['fxPresetLight', 'fxPresetMedium', 'fxPresetHard'];
+function fxPresetMatches(effect, level, cur) {
+  const p = FX_PRESETS[effect][level];
+  return !!cur && Object.keys(p).every(k => +cur[k] === p[k]);
+}
+function fxPresetsHtml(effect, cur, disabled) {
+  return `<div style="margin-top:6px;display:flex;align-items:center;gap:4px;flex-wrap:wrap" data-fx-presets="${effect}">
+    <span class="hint-inline" style="margin:0 4px 0 0">${tr('fxPresetsLabel')}</span>
+    ${FX_PRESET_KEYS.map((k, i) => `<button type="button" class="btn btn-small${fxPresetMatches(effect, i, cur) ? ' primary' : ''}" data-fx-preset="${effect}" data-fx-level="${i}" ${disabled ? 'disabled' : ''}>${tr(k)}</button>`).join('')}
+  </div>`;
+}
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-fx-preset]');
+  if (!btn || btn.disabled) return;
+  const effect = btn.dataset.fxPreset, preset = FX_PRESETS[effect] && FX_PRESETS[effect][+btn.dataset.fxLevel];
+  const box = btn.closest('[data-fx-box]');
+  if (!preset || !box) return;
+  Object.keys(preset).forEach(param => {
+    const input = box.querySelector(`[data-fx-param="${param}"]`);
+    if (!input) return;
+    input.value = String(preset[param]);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  btn.closest('[data-fx-presets]').querySelectorAll('[data-fx-preset]').forEach(b => b.classList.toggle('primary', b === btn));
+});
 function fxBlockHtml(fx, extraAttrs) {
   fx = fx || {};
   const lc = fx.lowcut, hc = fx.highcut, r = fx.reverb, d = fx.delay, b = fx.bitcrush;
@@ -3383,7 +3488,7 @@ function fxBlockHtml(fx, extraAttrs) {
   const gated = !fxOpen('fx_per_voice');
   // Dans la carte d'un TRIGGER, le fondu se règle par les deux champs « entrée / sortie » du trigger lui-même : les champs de
   // fondu propres au filtre (utiles à l'apparition d'une voix, pas à l'appui d'un bouton) sont masqués pour éviter la confusion.
-  const isTriggerBlock = /data-fx-target="trigger"/.test(extraAttrs || '');
+  const isTriggerBlock = /data-fx-target="(trigger|trstep)"/.test(extraAttrs || '');
   function num(effect, param, value, labelKey, step, min, max, disabled) {
     if (disabled === undefined) disabled = gated;
     return `<div style="margin-top:4px"><label style="font-size:0.85em">${tr(labelKey)}</label>
@@ -3431,14 +3536,18 @@ function fxBlockHtml(fx, extraAttrs) {
         const c = k === 'lowcut' ? lc : hc;
         const slopeVal = c && (+c.slope === 12 || +c.slope === 48) ? +c.slope : 24;
         return toggle(k, !!c, k === 'lowcut' ? 'fxLowcutLabel' : 'fxHighcutLabel', `
+        <div data-fx-box="${k}">
         <div class="hint-inline">${tr(k === 'lowcut' ? 'fxLowcutHint' : 'fxHighcutHint')}</div>
         ${num(k, 'frequency', c ? c.frequency : (k === 'lowcut' ? 150 : 3000), 'fxFrequencyLabel', 10, 20, 20000)}
         <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxSlopeLabel')}</label>
           <select data-field="fx" data-fx-effect="${k}" data-fx-param="slope" ${extraAttrs} ${gated ? 'disabled' : ''}>
             ${[12, 24, 48].map(v => `<option value="${v}" ${slopeVal === v ? 'selected' : ''}>${tr('fxSlopeOption', { db: v })}</option>`).join('')}
           </select></div>
+        ${fxFilterGraphHtml(k, c ? c.frequency : (k === 'lowcut' ? 150 : 3000), slopeVal)}
+        ${fxPresetsHtml(k, c, gated)}
         ${isTriggerBlock ? '' : numOptional(k, 'fadeFromFrequency', c ? c.fadeFromFrequency : null, 'fxFadeFromFreqLabel', 10)}
         ${isTriggerBlock ? '' : numOptional(k, 'fadeDurationSec', c ? c.fadeDurationSec : null, 'fxFadeDurationLabel', 0.1)}
+        </div>
       `);
       }).join('')}
       ${toggle('pitch', !!fx.pitch, 'fxPitchLabel', `
@@ -3451,19 +3560,22 @@ function fxBlockHtml(fx, extraAttrs) {
         <div class="hint-inline">${tr(fx.pitch && fx.pitch.mode === 'rate' ? 'fxPitchModeRateTriggerHint' : 'fxPitchModeShiftHint')}</div>` : `<div class="hint-inline">${tr('fxPitchModeShiftHint')}</div>`}
         ${num('pitch', 'semitones', fx.pitch ? fx.pitch.semitones : 0, 'fxSemitonesLabel', 1, -24, 24, pitchDisabled)}
       `, pitchDisabled)}
-      ${toggle('reverb', !!r, 'fxReverbLabel', `
+      ${toggle('reverb', !!r, 'fxReverbLabel', `<div data-fx-box="reverb">
+        ${fxPresetsHtml('reverb', r, gated)}
         ${num('reverb', 'decay', r ? r.decay : 2, 'fxDecayLabel', 0.1, 0.1, 10)}
         ${num('reverb', 'wet', r ? r.wet : 0.3, 'fxWetLabel', 0.05, 0, 1)}
-      `)}
-      ${toggle('delay', !!d, 'fxDelayLabel', `
+      </div>`)}
+      ${toggle('delay', !!d, 'fxDelayLabel', `<div data-fx-box="delay">
+        ${fxPresetsHtml('delay', d, gated)}
         ${num('delay', 'time', d ? d.time : 0.3, 'fxDelayTimeLabel', 0.01, 0.01, 2)}
         ${num('delay', 'feedback', d ? d.feedback : 0.35, 'fxFeedbackLabel', 0.05, 0, 0.9)}
         ${num('delay', 'wet', d ? d.wet : 0.25, 'fxWetLabel', 0.05, 0, 1)}
-      `)}
-      ${toggle('bitcrush', !!b, 'fxBitcrushLabel', `
+      </div>`)}
+      ${toggle('bitcrush', !!b, 'fxBitcrushLabel', `<div data-fx-box="bitcrush">
+        ${fxPresetsHtml('bitcrush', b, gated)}
         ${num('bitcrush', 'bits', b ? b.bits : 8, 'fxBitsLabel', 1, 1, 16)}
         ${num('bitcrush', 'reduction', b ? b.reduction : 1, 'fxReductionLabel', 1, 1, 50)}
-      `)}
+      </div>`)}
       </div>
     </div>
   `;
@@ -3509,8 +3621,11 @@ function stageFxHtml(stageFx, target, attrs) {
 // morceau), pas de champ mode (toujours "rate", implicite -- voir buildLayerFxChain/applyTrackPitchRate
 // dans player.js). Rendu une fois dans le panneau "Infos du morceau", commun à tous les modes.
 function trackPitchFxHtml(track, ti) {
-  const pitchDisabled = !fxOpen('pitch');
   const p = (track.fx && track.fx.pitch) || null;
+  // Le Pitch est un effet comme les autres : il se règle dans les effets d'un événement (7/10). Cette case ne s'affiche plus que pour
+  // un morceau qui a DÉJÀ un ancien réglage de vitesse global, afin de pouvoir le retirer ou le reprendre dans un événement.
+  if (!p) return '';
+  const pitchDisabled = !fxOpen('pitch');
   const attrs = `data-fx-target="track" data-ti="${ti}"`;
   // Fondu de pitch : seulement avec le moteur simple (statique/vertical sans boucle quantifiée), voir
   // applyTrackPitchRate() dans player.js.
@@ -3523,7 +3638,7 @@ function trackPitchFxHtml(track, ti) {
           <input type="checkbox" data-field="fx" data-fx-effect="pitch" data-fx-param="enabled" ${attrs} ${p ? 'checked' : ''} ${pitchDisabled ? 'disabled' : ''} style="width:auto;margin:0">
           ${tr('fxPitchModeRate')}${pitchDisabled ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}
         </label>
-        <div class="hint-inline">${tr('fxTrackPitchHint')}</div>
+        <div class="hint-inline">${tr('fxTrackPitchHint')} ${tr('fxTrackPitchLegacyNote')}</div>
         ${p ? `
           <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxSemitonesLabel')}</label>
             <input type="number" step="1" min="-24" max="24" ${pitchDisabled ? 'disabled' : ''} data-field="fx" data-fx-effect="pitch" data-fx-param="semitones" ${attrs} value="${p.semitones || 0}"></div>
@@ -3550,6 +3665,9 @@ function fxTriggerTargetChoices(track) {
   else if (track.mode === 'embranchement-vertical') (track.loops || []).forEach((l, i) => out.push({ value: 'loop:' + i, label: l.label || tr('embrLoopFallback', { n: i + 1 }) }));
   else if (track.mode === 'sequential') (track.segmentSlots || []).forEach((sl, i) => out.push({ value: 'slot:' + i, label: '#' + (i + 1) + ' ' + (sl.label || tr('slotFallback', { n: i + 1 })) }));
   else if (track.mode === 'vertical-random') (track.sections || []).forEach((sec, si) => (sec.pools || []).forEach((p, pi) => out.push({ value: 'pool:' + si + ':' + pi, label: (sec.label || ('S' + (si + 1))) + ' / ' + (p.label || ('P' + (pi + 1))) })));
+  // Intro, outro, transitions (7/10) : leurs chaînes d'effets sont des cibles comme les voix.
+  if (track.mode === 'sequential' || track.mode === 'vertical-random') { out.push({ value: 'intro', label: tr('fxTargetIntro') }); out.push({ value: 'outro', label: tr('fxTargetOutro') }); }
+  if (track.mode === 'sequential' || track.mode === 'embranchement-vertical') out.push({ value: 'transition', label: tr('fxTargetTransitions') });
   return out;
 }
 function fxTriggerTargetToValue(t) {
@@ -3560,6 +3678,7 @@ function fxTriggerTargetToValue(t) {
   if (t.type === 'loop') return 'loop:' + t.li;
   if (t.type === 'slot') return 'slot:' + t.si;
   if (t.type === 'pool') return 'pool:' + t.si + ':' + t.pi;
+  if (t.type === 'intro' || t.type === 'outro' || t.type === 'transition') return t.type;
   return '';
 }
 function parseFxTriggerTarget(v) {
@@ -3570,10 +3689,34 @@ function parseFxTriggerTarget(v) {
   if (p[0] === 'loop') return { type: 'loop', li: parseInt(p[1], 10) || 0 };
   if (p[0] === 'slot') return { type: 'slot', si: parseInt(p[1], 10) || 0 };
   if (p[0] === 'pool') return { type: 'pool', si: parseInt(p[1], 10) || 0, pi: parseInt(p[2], 10) || 0 };
+  if (p[0] === 'intro' || p[0] === 'outro' || p[0] === 'transition') return { type: p[0] };
   return null;
 }
 // Relations entre triggers (24/09) : { activates:[{triggerId, delaySec}], cuts:[id], requires:[id], autoOffSec } --
 // nettoyées à la sérialisation (rien d'inutile n'est publié). Règles décrites dans createTriggerRuleEngine (player.js).
+// Étapes de cascade d'un trigger : [{ id, label, delaySec, fx }] ; absent (undefined) quand il n'y en a pas.
+function fxStepsClean(steps, depth) {
+  depth = depth || 1;
+  const out = (Array.isArray(steps) ? steps : []).filter(x => x && x.id).map(x => {
+    const c = { id: x.id, label: x.label || '', delaySec: +x.delaySec > 0 ? +x.delaySec : 0, fx: x.fx || {} };
+    if (+x.durationSec > 0) c.durationSec = +x.durationSec;
+    if (Array.isArray(x.targets) && x.targets.length) c.targets = x.targets.map(t => Object.assign({}, t));
+    if (x.fadeSec != null && x.fadeSec !== '' && +x.fadeSec >= 0) c.fadeSec = +x.fadeSec;
+    if (x.fadeOutSec != null && x.fadeOutSec !== '' && +x.fadeOutSec >= 0) c.fadeOutSec = +x.fadeOutSec;
+    const kids = depth < FX_STEP_MAX_DEPTH ? fxStepsClean(x.children, depth + 1) : undefined;
+    if (kids) c.children = kids;
+    return c;
+  });
+  return out.length ? out : undefined;
+}
+// Accès à une étape par son chemin « 0.2.1 » (indices à travers les enfants) : renvoie { step, list, index }.
+function fxStepByPath(trg, path) {
+  const idx = String(path).split('.').map(n => parseInt(n, 10));
+  let list = trg.steps || [], step = null;
+  for (let d = 0; d < idx.length; d++) { step = list[idx[d]]; if (!step) return null; if (d < idx.length - 1) list = step.children || []; }
+  return { step, list, index: idx[idx.length - 1] };
+}
+const FX_STEP_MAX_DEPTH = 4;
 function fxRelationsClean(rel) {
   if (!rel) return null;
   const out = {};
@@ -3583,14 +3726,138 @@ function fxRelationsClean(rel) {
   if (+rel.autoOffSec > 0) out.autoOffSec = +rel.autoOffSec;
   return Object.keys(out).length ? out : null;
 }
+// Cascade (6/10) : les étapes d'un trigger, présentées en escalier sous ses propres effets.
+// Niveau d'indentation d'une étape : plus elle démarre tard, plus elle est décalée (les étapes de même délai partagent un niveau).
+// Les étapes sont affichées dans l'ordre de leur départ ; l'indice d'origine (si) reste celui du modèle.
+function fxStepLevels(steps) {
+  const delays = [...new Set((steps || []).map(st => +st.delaySec > 0 ? +st.delaySec : 0))].sort((a, b) => a - b);
+  return (steps || []).map((st, si) => ({ si, st, level: 1 + delays.indexOf(+st.delaySec > 0 ? +st.delaySec : 0) }))
+    .sort((a, b) => ((+a.st.delaySec || 0) - (+b.st.delaySec || 0)) || (a.si - b.si));
+}
+function fxStepRowsHtml(track, trg, steps, parentPath, depth, attrs) {
+  const ti = /data-ti="(\d+)"/.exec(attrs)[1], tri = /data-tri="(\d+)"/.exec(attrs)[1];
+  return fxStepLevels(steps).map(({ st, si, level }) => {
+    const path = parentPath ? parentPath + '.' + si : String(si);
+    const num = path.split('.').map(n => +n + 1).join('.');
+    const sAttrs = `data-ti="${ti}" data-tri="${tri}" data-sti="${path}"`;
+    const when = +st.delaySec > 0 ? tr('fxStepAfter', { n: st.delaySec }) : tr('fxStepSimul');
+    const key = 's:' + trg.id + ':' + path.replace(/\./g, '-') + ':' + st.id;
+    const kids = st.children || [];
+    return `
+      <details class="list-block" data-fxt-section-key="${escapeAttr(key)}" ${fxTriggersSectionOpen.has(key) ? 'open' : ''} data-fx-step-level="${level}" style="margin:6px 0 0 ${depth === 1 ? level * 18 : 18}px;border-left:3px solid var(--accent,#2f80c0)">
+        <summary style="cursor:pointer;font-weight:600">&#8627; ${escapeAttr(st.label) || tr('fxStepTitle', { n: num })}<span class="hint-inline" style="margin:0 0 0 8px;font-weight:400">${when} ${tr('fxTriggerEffectsCount', { n: Object.keys(st.fx || {}).length })}${kids.length ? ' · ' + kids.length + ' &#8627;' : ''}</span></summary>
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-top:8px">
+          <div style="flex:1;min-width:0"><label style="font-size:0.85em">${tr('fxStepLabelLabel')}</label>
+            <input type="text" placeholder="${escapeAttr(tr('fxStepTitle', { n: num }))}" data-field="fxStep" data-fxs-prop="label" ${sAttrs} value="${escapeAttr(st.label)}" style="width:100%"></div>
+          <button class="btn btn-icon btn-danger" type="button" data-action="remove-fx-step" ${sAttrs} title="${escapeAttr(tr('removeFxStepBtn'))}">×</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 12px;margin-top:8px">
+          <div><label style="font-size:0.85em;display:block">${tr(depth === 1 ? 'fxStepDelayLabel' : 'fxStepChildDelayLabel')}</label>
+            <input type="number" step="0.1" min="0" data-field="fxStep" data-fxs-prop="delaySec" ${sAttrs} value="${+st.delaySec || 0}" style="width:100%"></div>
+          <div><label style="font-size:0.85em;display:block">${tr('fxStepDurationLabel')}</label>
+            <input type="number" step="0.1" min="0" placeholder="${escapeAttr(tr('fxStepDurationPlaceholder'))}" data-field="fxStep" data-fxs-prop="durationSec" ${sAttrs} value="${+st.durationSec > 0 ? +st.durationSec : ''}" style="width:100%"></div>
+          <div><label style="font-size:0.85em;display:block">${tr('fxStepFadeInLabel')}</label>
+            <input type="number" step="0.05" min="0" max="10" placeholder="${escapeAttr(tr('fxStepFadePlaceholder'))}" data-field="fxStep" data-fxs-prop="fadeSec" ${sAttrs} value="${st.fadeSec != null ? st.fadeSec : ''}" style="width:100%"></div>
+          <div><label style="font-size:0.85em;display:block">${tr('fxStepFadeOutLabel')}</label>
+            <input type="number" step="0.05" min="0" max="10" placeholder="${escapeAttr(tr('fxStepFadePlaceholder'))}" data-field="fxStep" data-fxs-prop="fadeOutSec" ${sAttrs} value="${st.fadeOutSec != null ? st.fadeOutSec : ''}" style="width:100%"></div>
+        </div>
+        <div class="hint-inline">${tr(depth === 1 ? 'fxStepDelayHint' : 'fxStepChildDelayHint')} ${tr('fxStepDurationHint')}</div>
+        <div style="margin-top:8px"><label style="font-size:0.85em">${tr('fxStepTargetsLabel')}</label>
+          <label style="display:flex;align-items:center;gap:6px;margin:4px 0 0;font-size:12px"><input type="checkbox" data-field="fxTargets" data-fxtg-same="1" data-fxtg-owner="step" ${sAttrs} ${st.targets && st.targets.length ? '' : 'checked'} style="width:auto;margin:0"> ${tr('fxStepTargetsSame')}</label>
+          ${st.targets && st.targets.length ? fxTargetsPickerHtml(track, fxTriggerTargetValues(st), `data-fxtg-owner="step" ${sAttrs}`) : ''}</div>
+        ${fxBlockHtml(st.fx, `data-fx-target="trstep" ${sAttrs}`)}
+        ${fxStepRowsHtml(track, trg, kids, path, depth + 1, attrs)}
+        ${depth < FX_STEP_MAX_DEPTH ? `<div class="actions" style="margin:6px 0 0 18px"><button class="btn btn-small" type="button" data-action="add-fx-step" ${sAttrs}>${tr('addFxChildStepBtn')}</button></div>` : ''}
+      </details>`;
+  }).join('');
+}
+// ---- Chronologie de l'enveloppe d'un événement (7/10, idée « ADSR » de Jules-Antoine, étape 1 : visuel seulement) ----
+// Une ligne par groupe d'effets (les effets propres de l'événement, puis chaque étape, enfants compris) : montée (attack = fondu
+// d'entrée), maintien (sustain = durée) et retour (release = fondu de sortie), sur un axe de secondes depuis l'appui du visiteur.
+// Pas de decay ni de niveau de maintien pour l'instant. Fonctions PURES.
+function fxEnvelopeRows(trg) {
+  const dflt = 0.1;
+  const attackOf = (node, parent) => (node.fadeSec != null ? +node.fadeSec : (parent.fadeSec != null ? +parent.fadeSec : dflt));
+  const releaseOf = (node, parent, attack) => (node.fadeOutSec != null ? +node.fadeOutSec : (parent.fadeOutSec != null ? +parent.fadeOutSec : attack));
+  const own = +(trg.relations && trg.relations.autoOffSec) > 0 ? +trg.relations.autoOffSec : null;
+  const a0 = attackOf(trg, {});
+  const rows = [{ label: trg.label || '', start: 0, attack: a0, sustain: own, release: releaseOf(trg, {}, a0), own: true, depth: 0 }];
+  const walk = (steps, base, depth, prefix) => (steps || []).forEach((s, i) => {
+    if (!s) return;
+    const start = base + (+s.delaySec > 0 ? +s.delaySec : 0);
+    const a = attackOf(s, trg);
+    const num = (prefix ? prefix + '.' : '') + (i + 1);
+    rows.push({ label: s.label || '', start, attack: a, sustain: +s.durationSec > 0 ? +s.durationSec : null, release: releaseOf(s, trg, a), own: false, depth, n: i + 1, num });
+    walk(s.children, start, depth + 1, num);
+  });
+  walk(trg.steps, 0, 1, '');
+  return rows;
+}
+// Dessin SVG : une ligne par groupe. Un maintien sans durée court jusqu'à la fin de l'événement (second appui) : tireté, avec « … ».
+function fxEnvelopeSvg(rows, labels) {
+  const W = 340, LABEL = 74, PAD_R = 10, ROW = 22, TOP = 4, AXIS = 16;
+  const finite = rows.map(r => r.sustain != null ? r.start + r.attack + r.sustain + r.release : null).filter(v => v != null);
+  const open = rows.filter(r => r.sustain == null).map(r => r.start + r.attack + 2);
+  const horizon = Math.max(4, Math.ceil(Math.max.apply(null, finite.concat(open, [0]))));
+  const H = TOP + rows.length * ROW + AXIS, iw = W - LABEL - PAD_R;
+  const X = t => LABEL + Math.min(horizon, Math.max(0, t)) / horizon * iw;
+  const step = horizon <= 8 ? 1 : (horizon <= 20 ? 2 : (horizon <= 60 ? 10 : 30));
+  let g = '';
+  for (let t = 0; t <= horizon; t += step) g += `<line x1="${X(t).toFixed(1)}" x2="${X(t).toFixed(1)}" y1="${TOP}" y2="${H - AXIS}" stroke="var(--border,#ddd)" stroke-width="1"/><text x="${X(t).toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="9" fill="var(--text-dim,#888)">${t}s</text>`;
+  rows.forEach((r, i) => {
+    const top = TOP + i * ROW + 3, bot = TOP + (i + 1) * ROW - 3;
+    const x0 = X(r.start), x1 = X(r.start + r.attack);
+    const name = ((r.depth > 1 ? '\u21b3 ' : '') + (r.own ? labels.own : (r.label || labels.step.replace('{n}', r.num)))).slice(0, 13);
+    g += `<text x="${LABEL - 4}" y="${(top + bot) / 2 + 3}" text-anchor="end" font-size="9" font-weight="${r.own ? 700 : 400}" fill="var(--text-dim,#666)">${name.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`;
+    let d = `M${x0.toFixed(1)},${bot} L${x1.toFixed(1)},${top}`;
+    if (r.sustain != null) {
+      const x2 = X(r.start + r.attack + r.sustain), x3 = X(r.start + r.attack + r.sustain + r.release);
+      d += ` L${x2.toFixed(1)},${top} L${x3.toFixed(1)},${bot}`;
+      g += `<path d="${d} Z" fill="var(--accent,#2f80c0)" opacity="${r.own ? 0.35 : 0.22}"/><path d="${d}" fill="none" stroke="var(--accent,#2f80c0)" stroke-width="1.6" stroke-linejoin="round"/>`;
+    } else {
+      const xe = X(horizon);
+      d += ` L${xe.toFixed(1)},${top}`;
+      g += `<path d="${d} L${xe.toFixed(1)},${bot} Z" fill="var(--accent,#2f80c0)" opacity="${r.own ? 0.35 : 0.22}"/><path d="${d}" fill="none" stroke="var(--accent,#2f80c0)" stroke-width="1.6" stroke-dasharray="4 3" stroke-linejoin="round"/><text x="${(xe - 2).toFixed(1)}" y="${top + 8}" text-anchor="end" font-size="10" fill="var(--accent,#2f80c0)">…</text>`;
+    }
+  });
+  return `<svg data-fx-envelope-svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:480px;display:block" role="img" aria-label="${labels.aria}">${g}</svg>`;
+}
+function fxEnvelopeHtml(trg, ti, tri) {
+  const labels = { own: tr('fxEnvelopeOwn'), step: tr('fxStepTitle', { n: '{n}' }), aria: escapeAttr(tr('fxEnvelopeAria')) };
+  return `<div style="margin-top:10px" data-fx-envelope data-ti="${ti}" data-tri="${tri}">
+    <div style="font-weight:600;font-size:0.9em">${tr('fxEnvelopeTitle')}</div>
+    <div class="hint-inline">${tr('fxEnvelopeHint')}</div>
+    <div data-role="envelopeBody">${fxEnvelopeSvg(fxEnvelopeRows(trg), labels)}</div></div>`;
+}
+// Mise à jour en direct : après chaque saisie dans une carte d'événement (le gestionnaire de saisie a déjà mis le modèle à jour).
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (!t || !t.dataset || t.dataset.tri == null || t.dataset.ti == null) return;
+  setTimeout(() => {
+    const host = document.querySelector(`[data-fx-envelope][data-ti="${t.dataset.ti}"][data-tri="${t.dataset.tri}"] [data-role="envelopeBody"]`);
+    const trg = host && library[+t.dataset.ti] && (library[+t.dataset.ti].fxTriggers || [])[+t.dataset.tri];
+    if (host && trg) host.innerHTML = fxEnvelopeSvg(fxEnvelopeRows(trg), { own: tr('fxEnvelopeOwn'), step: tr('fxStepTitle', { n: '{n}' }), aria: escapeAttr(tr('fxEnvelopeAria')) });
+  }, 0);
+}, true);
+function fxCascadeHtml(track, trg, attrs) {
+  return `
+    <div style="margin-top:12px">
+      ${fxEnvelopeHtml(trg, +/data-ti="(\d+)"/.exec(attrs)[1], +/data-tri="(\d+)"/.exec(attrs)[1])}
+      <div style="font-weight:600;font-size:0.9em;margin-top:12px">${tr('fxCascadeTitle')}</div>
+      <div class="hint-inline">${tr('fxCascadeHint')}</div>
+      ${fxStepRowsHtml(track, trg, trg.steps || [], '', 1, attrs)}
+      <div class="actions" style="margin-top:6px;margin-left:18px"><button class="btn btn-small" type="button" data-action="add-fx-step" ${attrs}>${tr('addFxStepBtn')}</button></div>
+    </div>`;
+}
 function fxRelationsEditorHtml(triggers, i, trg, attrs) {
   const rel = trg.relations || {};
   const others = triggers.filter((o, j) => j !== i && o && o.id);
+  const numberOf = o => triggers.indexOf(o) + 1;
   const rows = others.map(o => {
     const rAttrs = `data-field="fxRel" ${attrs} data-rel-other="${escapeAttr(o.id)}"`;
     const act = (rel.activates || []).find(a => a.triggerId === o.id);
     return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:4px;font-size:12px">
-      <span style="min-width:110px;font-weight:600">${escapeAttr(o.label) || tr('fxTriggerLabelPlaceholder')}</span>
+      <span style="min-width:110px;font-weight:600">${escapeAttr(o.label) || tr('fxTriggerUnnamed', { n: numberOf(o) })}</span>
       <label style="display:flex;align-items:center;gap:4px;margin:0"><input type="checkbox" ${rAttrs} data-rel-kind="activates" ${act ? 'checked' : ''} style="width:auto;margin:0"> ${tr('fxRelActivates')}</label>
       ${act ? `<label style="display:flex;align-items:center;gap:4px;margin:0">${tr('fxRelDelay')} <input type="number" step="0.1" min="0" ${rAttrs} data-rel-kind="delay" value="${act.delaySec || 0}" style="width:64px"> s</label>` : ''}
       <label style="display:flex;align-items:center;gap:4px;margin:0"><input type="checkbox" ${rAttrs} data-rel-kind="cuts" ${(rel.cuts || []).indexOf(o.id) >= 0 ? 'checked' : ''} style="width:auto;margin:0"> ${tr('fxRelCuts')}</label>
@@ -3620,6 +3887,85 @@ document.addEventListener('toggle', e => {
   if (!k) return;
   if (d.open) fxTriggerEffectsCollapsed.delete(k); else fxTriggerEffectsCollapsed.add(k);
 }, true);
+// Section « Triggers » : fermée par défaut, et ce qu'on ouvre est retenu d'une visite à l'autre (par morceau).
+const FX_TRIGGERS_OPEN_STORAGE = 'lp_fx_triggers_open';
+const fxTriggersSectionOpen = new Set((() => {
+  try { const v = JSON.parse(localStorage.getItem(FX_TRIGGERS_OPEN_STORAGE) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+})());
+document.addEventListener('toggle', e => {
+  const d = e.target, k = d && d.dataset && d.dataset.fxtSectionKey;
+  if (!k) return;
+  if (d.open) fxTriggersSectionOpen.add(k); else fxTriggersSectionOpen.delete(k);
+  fxTriggersPersistOpen();
+}, true);
+function fxTriggersPersistOpen() {
+  try { localStorage.setItem(FX_TRIGGERS_OPEN_STORAGE, JSON.stringify([...fxTriggersSectionOpen].slice(-300))); } catch (err) { /* stockage indisponible : on garde l'état en mémoire */ }
+}
+// Cibles d'un événement (7/10) : plusieurs voix, ou « Toutes les voix » (= le morceau entier), l'intro, l'outro, les transitions.
+// trigger.targets = [cible, ...] ; trigger.target (la première) reste renseignée pour le lecteur et les anciennes données.
+function fxTriggerTargetValues(holder) {
+  const t = Array.isArray(holder.targets) && holder.targets.length ? holder.targets : (holder.target ? [holder.target] : [{ type: 'track' }]);
+  return t.map(fxTriggerTargetToValue).filter(Boolean);
+}
+// Pure : coche / décoche une cible. « Toutes les voix » exclut les autres ; décocher la dernière revient à « Toutes les voix ».
+function fxToggleTargetValue(values, value, on) {
+  if (on) return value === 'track' ? ['track'] : values.filter(v => v !== 'track' && v !== value).concat(value);
+  const rest = values.filter(v => v !== value);
+  return rest.length ? rest : ['track'];
+}
+function fxTargetsPickerHtml(track, values, dataAttrs) {
+  const opts = [{ value: 'track', label: tr('fxTargetAllVoices') }].concat(fxTriggerTargetChoices(track));
+  const known = new Set(opts.map(o => o.value));
+  values.filter(v => !known.has(v)).forEach(v => opts.push({ value: v, label: v })); // cible d'anciennes données, conservée telle quelle
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:4px" data-role="fxTargets">${opts.map(o => `
+    <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:12px"><input type="checkbox" data-field="fxTargets" data-fxtg-value="${escapeAttr(o.value)}" ${dataAttrs} ${values.indexOf(o.value) >= 0 ? 'checked' : ''} style="width:auto;margin:0"> ${escapeAttr(o.label)}</label>`).join('')}</div>`;
+}
+// Carte d'un trigger (réglages, effets, cascade, relations) : la même partout -- section du morceau (anciens triggers « morceau
+// entier ») ou voix précise (couche, boucle, emplacement, pool). i = indice dans track.fxTriggers.
+function fxTriggerCardHtml(track, ti, trg, i, choices) {
+  const triggers = track.fxTriggers || [];
+    const targetValues = fxTriggerTargetValues(trg);
+    const attrs = `data-ti="${ti}" data-tri="${i}"`;
+    const cardKey = 'c:' + trg.id;
+    // Chaque trigger se replie séparément (demande du 6/10) : fermé par défaut, état retenu comme la section.
+    return `
+      <details class="list-block" data-fxt-section-key="${escapeAttr(cardKey)}" ${fxTriggersSectionOpen.has(cardKey) ? 'open' : ''} style="margin-top:8px">
+        <summary style="cursor:pointer;font-weight:600">${escapeAttr(trg.label) || tr('fxTriggerUnnamed', { n: i + 1 })}<span class="hint-inline" style="margin:0 0 0 8px;font-weight:400">${tr('fxTriggerEffectsCount', { n: Object.keys(trg.fx || {}).length })}</span></summary>
+        <div class="row" style="margin-top:8px">
+          <div><label>${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('fxTriggerLabelPlaceholder')}" data-field="fxTrigger" data-fxt-prop="label" ${attrs} value="${escapeAttr(trg.label)}"></div>
+          <button class="btn btn-icon btn-danger" data-action="remove-fx-trigger" ${attrs} title="${tr('removeFxTriggerBtn')}" style="align-self:flex-end">×</button>
+        </div>
+        <div style="margin-top:8px"><label style="font-size:0.85em">${tr('fxTriggerTargetsLabel')}</label>
+          ${fxTargetsPickerHtml(track, targetValues, `data-fxtg-owner="trigger" ${attrs}`)}</div>
+        <div class="hint-inline">${tr('fxTriggerTargetsHint')}</div>
+        <details data-fxt-effects-key="${escapeAttr(trg.id)}" ${fxTriggerEffectsCollapsed.has(trg.id) ? '' : 'open'} style="margin-top:10px">
+          <summary style="cursor:pointer;font-weight:600;font-size:0.9em">${tr('fxSectionTitle')} <span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggerEffectsCount', { n: Object.keys(trg.fx || {}).length })}</span></summary>
+  ${fxBlockHtml(trg.fx, `data-fx-target="trigger" ${attrs}`)}
+        </details>
+        <label class="switch-row" style="margin-top:8px">
+          <input type="checkbox" data-field="fxTrigger" data-fxt-prop="visible" ${attrs} ${trg.visible ? 'checked' : ''}>
+          <span class="switch-row-label">${tr('fxTriggerVisibleLabel')}</span>
+        </label>
+        <div class="hint-inline">${tr('fxTriggerVisibleHint')}</div>
+        <label class="switch-row" style="margin-top:8px">
+          <input type="checkbox" data-field="fxTrigger" data-fxt-prop="showEffects" ${attrs} ${trg.showEffects !== false ? 'checked' : ''}>
+          <span class="switch-row-label">${tr('fxShowEffectsLabel')}</span>
+        </label>
+        <div class="hint-inline">${tr('fxShowEffectsHint')}</div>
+        <div class="row" style="margin-top:6px">
+          <div><label style="font-size:0.85em">${tr('fxTriggerFadeLabel')}</label>
+            <input type="number" step="0.05" min="0" max="10" data-field="fxTrigger" data-fxt-prop="fadeSec" style="width:100%" ${attrs} value="${trg.fadeSec != null ? trg.fadeSec : ''}"></div>
+          <div><label style="font-size:0.85em">${tr('fxTriggerFadeOutLabel')}</label>
+            <input type="number" step="0.05" min="0" max="10" placeholder="${tr('fxTriggerFadeOutPlaceholder')}" data-field="fxTrigger" data-fxt-prop="fadeOutSec" style="width:100%" ${attrs} value="${trg.fadeOutSec != null ? trg.fadeOutSec : ''}"></div>
+        </div>
+        <div style="margin-top:8px"><label style="font-size:0.85em">${tr('fxAutoOffLabel')}</label>
+          <input type="number" step="0.5" min="0" placeholder="${tr('fxAutoOffPlaceholder')}" data-field="fxTrigger" data-fxt-prop="autoOffSec" style="width:100%" ${attrs} value="${trg.relations && trg.relations.autoOffSec != null ? trg.relations.autoOffSec : ''}"></div>
+        <div class="hint-inline">${tr('fxAutoOffHint')}</div>
+        ${(trg.steps || []).length ? `<div class="hint-inline">${tr('fxAutoOffCascadeNote')}</div>` : ''}
+        ${fxCascadeHtml(track, trg, attrs)}
+        ${fxRelationsEditorHtml(triggers, i, trg, attrs)}
+      </details>`;
+}
 function fxTriggersEditorHtml(track, ti) {
   const triggers = track.fxTriggers || [];
   if (!fxOpen('triggers')) {
@@ -3630,48 +3976,16 @@ function fxTriggersEditorHtml(track, ti) {
       </div>`;
   }
   const choices = fxTriggerTargetChoices(track);
-  const cards = triggers.map((trg, i) => {
-    const curValue = fxTriggerTargetToValue(trg.target);
-    const opts = choices.map(c => `<option value="${escapeAttr(c.value)}" ${c.value === curValue ? 'selected' : ''}>${escapeAttr(c.label)}</option>`).join('');
-    const attrs = `data-ti="${ti}" data-tri="${i}"`;
-    return `
-      <div class="list-block" style="margin-top:8px">
-        <div class="row">
-          <div><label>${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('fxTriggerLabelPlaceholder')}" data-field="fxTrigger" data-fxt-prop="label" ${attrs} value="${escapeAttr(trg.label)}"></div>
-          <button class="btn btn-icon btn-danger" data-action="remove-fx-trigger" ${attrs} title="${tr('removeFxTriggerBtn')}" style="align-self:flex-end">×</button>
-        </div>
-        ${trg.target && trg.target.type !== 'track' ? `
-          <div class="hint-inline" style="margin-top:6px">${tr('fxTriggerLegacyTarget', { name: escapeAttr((choices.find(c => c.value === curValue) || {}).label || curValue) })}
-            <button class="btn btn-small" type="button" data-action="fx-trigger-to-track" ${attrs}>${tr('fxTriggerToWholeTrackBtn')}</button></div>
-        ` : `<div class="hint-inline" style="margin-top:6px">${tr('fxTriggerWholeTrackNote')}</div>`}
-        <details data-fxt-effects-key="${escapeAttr(trg.id)}" ${fxTriggerEffectsCollapsed.has(trg.id) ? '' : 'open'} style="margin-top:10px">
-          <summary style="cursor:pointer;font-weight:600;font-size:0.9em">${tr('fxSectionTitle')} <span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggerEffectsCount', { n: Object.keys(trg.fx || {}).length })}</span></summary>
-  ${fxBlockHtml(trg.fx, `data-fx-target="trigger" ${attrs}`)}
-        </details>
-        <label class="switch-row" style="margin-top:8px">
-          <input type="checkbox" data-field="fxTrigger" data-fxt-prop="visible" ${attrs} ${trg.visible ? 'checked' : ''}>
-          <span class="switch-row-label">${tr('fxTriggerVisibleLabel')}</span>
-        </label>
-        <div class="hint-inline">${tr('fxTriggerVisibleHint')}</div>
-        <div class="row" style="margin-top:6px">
-          <div><label style="font-size:0.85em">${tr('fxTriggerFadeLabel')}</label>
-            <input type="number" step="0.05" min="0" max="10" data-field="fxTrigger" data-fxt-prop="fadeSec" style="width:100%" ${attrs} value="${trg.fadeSec != null ? trg.fadeSec : ''}"></div>
-          <div><label style="font-size:0.85em">${tr('fxTriggerFadeOutLabel')}</label>
-            <input type="number" step="0.05" min="0" max="10" placeholder="${tr('fxTriggerFadeOutPlaceholder')}" data-field="fxTrigger" data-fxt-prop="fadeOutSec" style="width:100%" ${attrs} value="${trg.fadeOutSec != null ? trg.fadeOutSec : ''}"></div>
-        </div>
-        <div style="margin-top:8px"><label style="font-size:0.85em">${tr('fxAutoOffLabel')}</label>
-          <input type="number" step="0.5" min="0" placeholder="${tr('fxAutoOffPlaceholder')}" data-field="fxTrigger" data-fxt-prop="autoOffSec" style="width:100%" ${attrs} value="${trg.relations && trg.relations.autoOffSec != null ? trg.relations.autoOffSec : ''}"></div>
-        <div class="hint-inline">${tr('fxAutoOffHint')}</div>
-        ${fxRelationsEditorHtml(triggers, i, trg, attrs)}
-      </div>`;
-  }).join('');
+  const cards = triggers.map((trg, i) => fxTriggerCardHtml(track, ti, trg, i, choices)).join('');
+  // Toute la section se replie (demande du 30/09) ; l'état est gardé par morceau à travers les re-rendus.
+  const secKey = String(track.id || ti);
   return `
-    <div style="margin-top:14px">
-      <div style="font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}</div>
+    <details data-fxt-section-key="${escapeAttr(secKey)}" ${fxTriggersSectionOpen.has(secKey) ? 'open' : ''} style="margin-top:14px">
+      <summary style="cursor:pointer;font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}<span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggersCount', { n: triggers.length })}</span></summary>
       <div class="hint-inline">${tr('fxTriggersHint')}</div>
       ${cards}
-      <div class="actions" style="margin-top:8px"><button class="btn btn-small" data-action="add-fx-trigger" data-ti="${ti}">${tr('addFxTriggerBtn')}</button></div>
-    </div>`;
+      <div class="actions" style="margin-top:8px"><button class="btn btn-small" type="button" data-action="add-fx-trigger" data-ti="${ti}">${tr('addFxTriggerBtn')}</button></div>
+    </details>`;
 }
 // ---- Curseurs de paramètre (24/09) -- réservés à l'admin, comme les triggers ----
 // track.fxSliders = [{ id, label, defaultValue (0..1), smoothSec, visible, bindings:[{target, param, from, to}],
@@ -3721,7 +4035,8 @@ function fxSlidersClean(list) {
     defaultValue: Number.isFinite(+x.defaultValue) ? Math.max(0, Math.min(1, +x.defaultValue)) : 0,
     smoothSec: Number.isFinite(+x.smoothSec) && +x.smoothSec >= 0 ? +x.smoothSec : 0.15,
     bindings: (x.bindings || []).filter(b => b && b.target && b.param).map(b => { const cv = window.LayerPlayerCore.fxCurveSanitize(b.curve); return Object.assign({ target: b.target, param: b.param, from: Number.isFinite(+b.from) ? +b.from : 0, to: Number.isFinite(+b.to) ? +b.to : 1 }, cv ? { curve: cv } : {}, cv && b.curveSmooth ? { curveSmooth: true } : {}); }),
-    thresholds: (x.thresholds || []).filter(t => t && t.triggerId).map(t => ({ at: Number.isFinite(+t.at) ? Math.max(0, Math.min(1, +t.at)) : 0.5, mode: t.mode === 'above' ? 'above' : 'below', triggerId: t.triggerId }))
+    thresholds: (x.thresholds || []).filter(t => t && t.triggerId).map(t => ({ at: Number.isFinite(+t.at) ? Math.max(0, Math.min(1, +t.at)) : 0.5, mode: t.mode === 'above' ? 'above' : 'below', triggerId: t.triggerId })),
+    ...(x.intensity ? { intensity: { bounds: (x.intensity.bounds || []).filter(v => Number.isFinite(+v)).map(v => Math.max(0, Math.min(1, +v))) } } : {})
   }));
 }
 function fxSlidersEditorHtml(track, ti) {
@@ -3735,7 +4050,7 @@ function fxSlidersEditorHtml(track, ti) {
   }
   // Décision du 24/09 : plus de cible par section -- une liaison agit sur TOUT le morceau, ou sur un Sfx attaché. Une
   // ancienne cible précise (déjà enregistrée) reste listée pour ne rien perdre.
-  const voiceChoices = [{ value: 'track', label: tr('fxTargetWholeTrack') }];
+  const voiceChoices = [{ value: 'track', label: tr('fxTargetWholeTrackLegacy') }];
   const legacyChoices = fxTriggerTargetChoices(track);
   // Sfx attachés au morceau (boutons Sfx) : cibles possibles pour les paramètres de spatialisation.
   const sfxChoices = (track.sfxIds || []).map(id => (typeof sfxLibrary !== 'undefined' ? sfxLibrary : []).find(x => x.id === id)).filter(Boolean)
@@ -3744,8 +4059,22 @@ function fxSlidersEditorHtml(track, ti) {
   const paramsAll = window.LayerPlayerCore.FX_SLIDER_PARAMS;
   const paramsFor = b => Object.keys(paramsAll).filter(pk => (paramsAll[pk].kind === 'sfx') === !!(b.target && b.target.type === 'sfx'));
   const triggers = (track.fxTriggers || []).filter(d => d && d.id);
+  // Zones de structure (26/09 vertical, 30/09 embranchement-vertical) : un curseur peut remplacer les boutons du visiteur
+  // (couches 1/2/3, boucles nommées) ; chaque zone a sa limite de départ, réglable.
+  const zoneNames = window.LayerPlayerCore.fxStructureZones(track);
   const cards = sliders.map((sl, i) => {
     const a = `data-ti="${ti}" data-sri="${i}"`;
+    const bounds = sl.intensity ? window.LayerPlayerCore.fxIntensityBounds(sl.intensity.bounds, zoneNames.length) : null;
+    const structureHtml = zoneNames.length < 2 ? '' : `
+        <label class="switch-row" style="margin-top:8px">
+          <input type="checkbox" data-field="fxSlider" data-fxs-prop="intensity" ${a} ${sl.intensity ? 'checked' : ''}>
+          <span class="switch-row-label">${tr('fxSliderIntensityLabel')}</span>
+        </label>
+        <div class="hint-inline">${tr('fxSliderIntensityHint')}</div>
+        ${bounds ? bounds.map((b, bi) => `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:6px;font-size:12px">
+          <span>${tr('fxSliderIntensityZone', { n: bi + 2, name: zoneNames[bi + 1] ? ' (' + escapeAttr(zoneNames[bi + 1]) + ')' : '' })}</span>
+          <input type="number" min="0" max="100" step="1" data-field="fxSliderIntensityBound" ${a} data-ib="${bi}" value="${Math.round(b * 100)}" style="width:64px"> %
+        </div>`).join('') : ''}`;
     const bindRows = (sl.bindings || []).map((b, bi) => {
       const cur = fxTriggerTargetToValue(b.target);
       const rowChoices = choices.some(c => c.value === cur) ? choices : choices.concat([{ value: cur, label: tr('fxSliderLegacyTargetOption', { name: (legacyChoices.find(c => c.value === cur) || {}).label || cur }) }]);
@@ -3784,6 +4113,7 @@ function fxSlidersEditorHtml(track, ti) {
           <input type="checkbox" data-field="fxSlider" data-fxs-prop="visible" ${a} ${sl.visible ? 'checked' : ''}>
           <span class="switch-row-label">${tr('fxSliderVisibleLabel')}</span>
         </label>
+        ${structureHtml}
         <div style="margin-top:8px;font-weight:600;font-size:0.85em">${tr('fxSliderBindingsTitle')}</div>
         <div class="hint-inline">${tr('fxSliderBindingsHint')}</div>
         ${bindRows}
@@ -3935,6 +4265,56 @@ function deepCloneWithNewIds(v) {
   }
   return v;
 }
+// Copie d'un MORCEAU entier (6/10) : tous les id sont renouvelés ET toute référence interne qui les cite (targetId d'un
+// embranchement, referencesSlotId, triggerId des actions / relations / seuils de curseur...) est redirigée vers la copie --
+// contrairement à deepCloneWithNewIds, pensé pour UN élément dont les références pointent hors de lui. Les id sont des chaînes
+// aléatoires uniques : remplacer toute valeur égale à un ancien id est sans risque. Fichiers (File) partagés tels quels.
+function cloneTrackWithRemap(track) {
+  const idMap = new Map();
+  const isPlain = v => !!v && Object.prototype.toString.call(v) === '[object Object]'; // File, Blob... restent partagés ; indifférent au « monde » de l'objet
+  const collect = v => {
+    if (Array.isArray(v)) v.forEach(collect);
+    else if (isPlain(v)) {
+      if (typeof v.id === 'string' && v.id && !idMap.has(v.id)) { let n; do { n = genId(); } while ([...idMap.values()].includes(n)); idMap.set(v.id, n); }
+      Object.keys(v).forEach(k => collect(v[k]));
+    }
+  };
+  collect(track);
+  const walk = v => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (isPlain(v)) { const o = {}; Object.keys(v).forEach(k => { o[k] = walk(v[k]); }); return o; }
+    return typeof v === 'string' && idMap.has(v) ? idMap.get(v) : v;
+  };
+  return walk(track);
+}
+// Duplique un morceau de la bibliothèque : copie indépendante (nouvel id, ses propres fichiers copiés côté serveur par l'Edge
+// Function copy-track-files quand le morceau est déjà publié), insérée à `place` ({ folderId, anchorId, before }) ou juste après
+// l'original. Un morceau protégé n'est pas copié (voir la fonction). Renvoie la copie, ou null.
+async function duplicateLibraryTrack(src, place) {
+  if (!src) return null;
+  if (src.protected) { window.LayerPitchNotify.error(tr('trackCopyProtected')); return null; }
+  const copy = cloneTrackWithRemap(src);
+  copy.protected = false;
+  copy.title = src.title && String(src.title).trim() ? tr('duplicateLabel', { label: src.title }) : src.title;
+  if (trackRemoteFileKeys(src).length) {
+    try {
+      await loadPostgresReadScripts();
+      const r = await window.LayerPitchTracks.copyTrackFiles(src.id, copy.id);
+      if (!r.ok) { window.LayerPitchNotify.error(tr('trackCopyError', { error: r.error })); return null; }
+    } catch (e) { window.LayerPitchNotify.error(tr('trackCopyError', { error: e.message })); return null; }
+  }
+  if (library.indexOf(src) < 0) { window.LayerPitchNotify.error(tr('trackCopyError', { error: 'données rechargées' })); return null; }
+  copy.folderId = place && place.folderId !== undefined ? (place.folderId || null) : (src.folderId || null);
+  let at = library.indexOf(src) + 1;
+  if (place && place.anchorId) { const a = library.findIndex(x => x.id === place.anchorId); if (a >= 0) at = place.before ? a : a + 1; }
+  else if (place && place.append) at = library.length;
+  library.splice(at, 0, copy);
+  manageLibrarySelectedId = copy.id;
+  hasUnsavedEdits = true;
+  window.LayerPitchNotify.info(tr('trackCopyDone', { title: copy.title || '' }));
+  renderLibrary();
+  return copy;
+}
 function cloneWithCopyLabel(item, labelKey) {
   const c = deepCloneWithNewIds(item);
   const k = labelKey || 'label';
@@ -3968,53 +4348,67 @@ function wireArrayDragReorder(containerEl, itemClass, getArray, onDrop, cloneIte
     e.dataTransfer.effectAllowed = cloneItem ? 'copyMove' : 'move';
     try { e.dataTransfer.setData('text/plain', draggedId); } catch (err) { /* MIME requis par certains navigateurs, jamais bloquant ici */ }
   });
+  // Cible de dépôt (6/10) : ce que montre la barre est ce qui se passe au lâcher (calculée au survol, jamais au lâcher), et hors
+  // d'une ligne on retient la ligne la plus proche en hauteur au lieu de refuser le dépôt.
+  let dropTarget = null;
+  const clearIndicators = () => containerEl.querySelectorAll('.' + itemClass).forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+  function resolveTarget(e, dup) {
+    let item = e.target.closest('.' + itemClass);
+    if (!item || !item.dataset.dragId || (item.dataset.dragId === draggedId && !dup)) {
+      item = null;
+      let bestD = Infinity;
+      containerEl.querySelectorAll('.' + itemClass).forEach(el => {
+        if (!el.dataset.dragId || (el.dataset.dragId === draggedId && !dup)) return;
+        const r = el.getBoundingClientRect();
+        if (!r.height) return;
+        const d = e.clientY < r.top ? r.top - e.clientY : (e.clientY > r.bottom ? e.clientY - r.bottom : 0);
+        if (d < bestD) { bestD = d; item = el; }
+      });
+    }
+    if (!item) return null;
+    const rect = item.getBoundingClientRect();
+    return { el: item, before: (e.clientY - rect.top) < rect.height / 2 };
+  }
   containerEl.addEventListener('dragover', (e) => {
     if (!draggedId) return;
     e.preventDefault();
     const dup = !!cloneItem && isDuplicateDrag(e);
     e.dataTransfer.dropEffect = dup ? 'copy' : 'move';
     containerEl.classList.toggle('is-duplicating', dup);
-    const item = e.target.closest('.' + itemClass);
-    if (!item || !item.dataset.dragId || (item.dataset.dragId === draggedId && !dup)) return;
-    const rect = item.getBoundingClientRect();
-    const before = (e.clientY - rect.top) < rect.height / 2;
-    item.classList.toggle('drag-over-top', before);
-    item.classList.toggle('drag-over-bottom', !before);
+    dropTarget = resolveTarget(e, dup);
+    clearIndicators();
+    if (dropTarget) {
+      dropTarget.el.classList.toggle('drag-over-top', dropTarget.before);
+      dropTarget.el.classList.toggle('drag-over-bottom', !dropTarget.before);
+    }
   });
   containerEl.addEventListener('dragleave', (e) => {
-    const item = e.target.closest('.' + itemClass);
-    if (item && !item.contains(e.relatedTarget)) item.classList.remove('drag-over-top', 'drag-over-bottom');
+    if (!containerEl.contains(e.relatedTarget)) { dropTarget = null; clearIndicators(); }
   });
   containerEl.addEventListener('drop', (e) => {
     if (!draggedId) return;
     e.preventDefault();
-    const targetItem = e.target.closest('.' + itemClass);
-    containerEl.querySelectorAll('.' + itemClass).forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+    const dup = !!cloneItem && isDuplicateDrag(e);
+    const target = dropTarget || resolveTarget(e, dup);
+    dropTarget = null;
+    clearIndicators();
     containerEl.classList.remove('is-reordering', 'is-duplicating');
     const arr = getArray();
     const fromIdx = arr.findIndex(x => idOf(x) === draggedId);
     draggedId = null;
-    if (fromIdx === -1) return;
-    if (!targetItem || !targetItem.dataset.dragId) return;
-    if (cloneItem && isDuplicateDrag(e)) {
-      const toIdx = arr.findIndex(x => idOf(x) === targetItem.dataset.dragId);
-      if (toIdx === -1) return;
-      const rect = targetItem.getBoundingClientRect();
+    if (fromIdx === -1 || !target) return;
+    const targetId = target.el.dataset.dragId;
+    const toIdx = arr.findIndex(x => idOf(x) === targetId);
+    if (toIdx === -1) return;
+    if (dup) {
       const copy = cloneItem(arr[fromIdx]);
-      arr.splice((e.clientY - rect.top) < rect.height / 2 ? toIdx : toIdx + 1, 0, copy);
+      arr.splice(target.before ? toIdx : toIdx + 1, 0, copy);
       hasUnsavedEdits = true;
       onDrop(copy);
       return;
-    } // pas de dépôt en fin de liste ici (contrairement aux blocs de contenu) : chaque
-    // ligne de cette liste maître occupe toute la largeur disponible, il n'y a pas d'espace vide sous la
-    // dernière ligne où déposer sans ambiguïté.
-    const targetId = targetItem.dataset.dragId;
+    }
     if (targetId === idOf(arr[fromIdx])) return;
-    const toIdx = arr.findIndex(x => idOf(x) === targetId);
-    if (toIdx === -1) return;
-    const rect = targetItem.getBoundingClientRect();
-    const before = (e.clientY - rect.top) < rect.height / 2;
-    const insertAt = before ? toIdx : toIdx + 1;
+    const insertAt = target.before ? toIdx : toIdx + 1;
     const [moved] = arr.splice(fromIdx, 1);
     const adjustedInsertAt = insertAt > fromIdx ? insertAt - 1 : insertAt;
     arr.splice(adjustedInsertAt, 0, moved);
@@ -4027,6 +4421,7 @@ function wireArrayDragReorder(containerEl, itemClass, getArray, onDrop, cloneIte
     containerEl.querySelectorAll('.' + itemClass).forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
     containerEl.classList.remove('is-reordering', 'is-duplicating');
     draggedId = null;
+    dropTarget = null;
   });
 }
 // Filet de sécurité global (posé une seule fois, pas à chaque appel de wireArrayDragReorder ci-dessus) :
@@ -4062,7 +4457,7 @@ document.addEventListener('pointercancel', releaseAllDragHandles);
 // leur propre conteneur.
 let draggedOrgItemId = null;
 let draggedOrgFolderId = null;
-function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
+function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateItem) {
   containerEl.addEventListener('pointerdown', (e) => {
     const folderHandle = e.target.closest('.folder-drag-handle');
     if (folderHandle) {
@@ -4089,63 +4484,74 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
     draggedOrgItemId = row.dataset.dragId;
     row.classList.add('dragging');
     containerEl.classList.add('is-reordering');
-    e.dataTransfer.effectAllowed = 'move';
+    // Option / Alt enfoncé = le navigateur demande une COPIE : si la prise n'autorise que « move », il refuse le dépôt (6/10).
+    e.dataTransfer.effectAllowed = duplicateItem ? 'copyMove' : 'move';
     try { e.dataTransfer.setData('text/plain', draggedOrgItemId); } catch (err) { /* non bloquant */ }
   });
-  containerEl.addEventListener('dragover', (e) => {
+  // Cible de dépôt (6/10) : CE QUE MONTRE LA BARRE est ce qui se passe au lâcher. La cible est calculée pendant le survol (jamais
+  // recalculée au lâcher, où la souris peut se trouver dans un interstice) et, hors d'une ligne, on retient la ligne la plus
+  // proche en hauteur au lieu de refuser le dépôt. dropTarget = { kind: 'row'|'group'|'zone', el, before }.
+  let dropTarget = null;
+  const clearIndicators = () => containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target'));
+  function nearestBy(selector, y, exceptId) {
+    let best = null, bestD = Infinity;
+    containerEl.querySelectorAll(selector).forEach(el => {
+      if (exceptId && el.dataset.dragId === exceptId) return;
+      const r = el.getBoundingClientRect();
+      if (!r.height) return;
+      const d = y < r.top ? r.top - y : (y > r.bottom ? y - r.bottom : 0);
+      if (d < bestD) { bestD = d; best = el; }
+    });
+    return best;
+  }
+  function resolveDropTarget(e) {
     if (draggedOrgFolderId) {
-      const group = e.target.closest('.org-folder-group');
-      if (!group || group.dataset.dragId === draggedOrgFolderId) return;
-      e.preventDefault();
+      const group = e.target.closest('.org-folder-group') || nearestBy('.org-folder-group', e.clientY, draggedOrgFolderId);
+      if (!group || group.dataset.dragId === draggedOrgFolderId) return null;
       const rect = group.getBoundingClientRect();
-      const before = (e.clientY - rect.top) < rect.height / 2;
-      group.classList.toggle('drag-over-top', before);
-      group.classList.toggle('drag-over-bottom', !before);
-      return;
+      return { kind: 'group', el: group, before: (e.clientY - rect.top) < rect.height / 2 };
     }
-    if (!draggedOrgItemId) return;
-    const row = e.target.closest('.org-row');
-    if (row && row.dataset.dragId !== draggedOrgItemId) {
-      e.preventDefault();
-      const rect = row.getBoundingClientRect();
-      const before = (e.clientY - rect.top) < rect.height / 2;
-      row.classList.toggle('drag-over-top', before);
-      row.classList.toggle('drag-over-bottom', !before);
-      return;
-    }
+    if (!draggedOrgItemId) return null;
     const zone = e.target.closest('.org-folder-dropzone, .org-root-dropzone');
-    if (!zone) return;
+    let row = e.target.closest('.org-row');
+    // Une zone sans aucune ligne (dossier vide) reçoit le dépôt ; sinon la ligne visée, ou à défaut la plus proche.
+    if (!row && zone && !zone.querySelector('.org-row')) return { kind: 'zone', el: zone };
+    if (!row || row.dataset.dragId === draggedOrgItemId) row = nearestBy('.org-row', e.clientY, draggedOrgItemId);
+    if (!row) return zone ? { kind: 'zone', el: zone } : null;
+    const rect = row.getBoundingClientRect();
+    return { kind: 'row', el: row, before: (e.clientY - rect.top) < rect.height / 2 };
+  }
+  containerEl.addEventListener('dragover', (e) => {
+    if (!draggedOrgFolderId && !draggedOrgItemId) return;
+    const t = resolveDropTarget(e);
+    if (!t) { dropTarget = null; return; }
     e.preventDefault();
-    zone.classList.add('org-drop-target');
+    if (duplicateItem && draggedOrgItemId) { try { e.dataTransfer.dropEffect = isDuplicateDrag(e) ? 'copy' : 'move'; } catch (err) { /* non bloquant */ } }
+    dropTarget = t;
+    clearIndicators();
+    if (t.kind === 'zone') t.el.classList.add('org-drop-target');
+    else { t.el.classList.toggle('drag-over-top', t.before); t.el.classList.toggle('drag-over-bottom', !t.before); }
   });
   containerEl.addEventListener('dragleave', (e) => {
-    const group = e.target.closest('.org-folder-group');
-    if (group && !group.contains(e.relatedTarget)) group.classList.remove('drag-over-top', 'drag-over-bottom');
-    const row = e.target.closest('.org-row');
-    if (row && !row.contains(e.relatedTarget)) row.classList.remove('drag-over-top', 'drag-over-bottom');
-    const zone = e.target.closest('.org-folder-dropzone, .org-root-dropzone');
-    if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('org-drop-target');
+    if (!containerEl.contains(e.relatedTarget)) { dropTarget = null; clearIndicators(); } // sorti de la liste : plus de cible
   });
   containerEl.addEventListener('drop', (e) => {
     containerEl.classList.remove('is-reordering');
-    containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target').forEach(el => {
-      el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target');
-    });
+    const target = dropTarget || resolveDropTarget(e); // ce que montrait la barre ; à défaut, la position du lâcher
+    dropTarget = null;
+    clearIndicators();
     const folders = getFolders();
     const items = getItems();
     if (draggedOrgFolderId) {
       e.preventDefault();
-      const targetGroup = e.target.closest('.org-folder-group');
       const fromIdx = folders.findIndex(f => f.id === draggedOrgFolderId);
       draggedOrgFolderId = null;
-      if (!targetGroup || fromIdx === -1) return;
-      const targetId = targetGroup.dataset.dragId;
+      if (!target || target.kind !== 'group' || fromIdx === -1) return;
+      const targetId = target.el.dataset.dragId;
       if (targetId === folders[fromIdx].id) return;
       const toIdx = folders.findIndex(f => f.id === targetId);
       if (toIdx === -1) return;
-      const rect = targetGroup.getBoundingClientRect();
-      const before = (e.clientY - rect.top) < rect.height / 2;
-      const insertAt = before ? toIdx : toIdx + 1;
+      const insertAt = target.before ? toIdx : toIdx + 1;
       const [moved] = folders.splice(fromIdx, 1);
       const adjustedInsertAt = insertAt > fromIdx ? insertAt - 1 : insertAt;
       folders.splice(adjustedInsertAt, 0, moved);
@@ -4156,28 +4562,30 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
     if (!draggedOrgItemId) return;
     e.preventDefault();
     const it = items.find(x => x.id === draggedOrgItemId);
-    const targetRow = e.target.closest('.org-row');
-    const zone = e.target.closest('.org-folder-dropzone, .org-root-dropzone');
     draggedOrgItemId = null;
-    if (!it) return;
+    if (!it || !target) return;
     const fromIdx = items.indexOf(it);
-    if (targetRow && targetRow.dataset.dragId !== it.id) {
+    const targetRow = target.kind === 'row' ? target.el : null;
+    const zone = target.kind === 'zone' ? target.el : null;
+    // Alt + glisser (6/10) : le morceau est COPIÉ à l'endroit visé au lieu d'être déplacé (liste qui le permet : duplicateItem).
+    if (duplicateItem && isDuplicateDrag(e)) {
+      if (targetRow) duplicateItem(it, { folderId: targetRow.dataset.folderId || null, anchorId: targetRow.dataset.dragId, before: target.before });
+      else if (zone) duplicateItem(it, { folderId: zone.dataset.folderId || null, append: true });
+      return;
+    }
+    if (targetRow) {
       // Déposé sur un autre élément : change de groupe ET se positionne juste avant/après lui.
       const targetFolderId = targetRow.dataset.folderId || null;
-      const rect = targetRow.getBoundingClientRect();
-      const before = (e.clientY - rect.top) < rect.height / 2;
       items.splice(fromIdx, 1);
       const targetIdxNow = items.findIndex(x => x.id === targetRow.dataset.dragId);
-      const insertAt = before ? targetIdxNow : targetIdxNow + 1;
+      if (targetIdxNow === -1) { items.splice(fromIdx, 0, it); return; }
+      const insertAt = target.before ? targetIdxNow : targetIdxNow + 1;
       it.folderId = targetFolderId;
       items.splice(insertAt, 0, it);
       hasUnsavedEdits = true;
       onDrop();
     } else if (zone) {
-      // Déposé sur une zone vide (dossier vide, ou padding sous le dernier élément) : change de groupe
-      // seulement, ajouté en dernière position de ce groupe (donc en dernière position globale du
-      // tableau -- l'ordre relatif au sein d'un groupe suivant celui du tableau, peu importe où vivent
-      // les éléments des autres groupes entre-temps).
+      // Déposé sur une zone vide (dossier vide) : change de groupe seulement, ajouté en dernière position du tableau.
       const targetFolderId = zone.dataset.folderId || null;
       if (it.folderId === targetFolderId) return;
       items.splice(fromIdx, 1);
@@ -4198,6 +4606,7 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
     });
     draggedOrgItemId = null;
     draggedOrgFolderId = null;
+    dropTarget = null;
   });
 }
 // Pas de filet de sécurité pointerup/pointercancel dédié pour les lignes d'élément : chacune porte à la
@@ -4880,157 +5289,10 @@ document.getElementById('btnShareAdReelUrl').addEventListener('click', async () 
   }
 });
 
-// Thème jour/nuit + couleur de fond du backstage lui-même — réglages locaux à cet ordinateur, sans
-// rapport avec l'apparence publique (profil.bgColor). localStorage légitime ici : fichier ouvert
-// localement, hors du cadre des artifacts Claude.
-//
-// Les deux réglages coexistent mais la couleur perso ne veut dire quelque chose qu'en thème Jour --
-// le thème Nuit (15/09, retour direct de Jules-Antoine) redéfinit --backstage-bg lui-même (voir le
-// bloc html[data-theme="dark"] dans <style>). Sans coordination, une couleur de fond claire
-// enregistrée resterait posée en style inline (toujours prioritaire sur une règle CSS, même
-// [data-theme]) et gâcherait le thème nuit avec un fond clair résiduel -- le champ est donc
-// désactivé pendant que Nuit est actif plutôt que silencieusement sans effet, et le réglage clair
-// est retiré/réappliqué en style inline à chaque bascule.
-(function initBackstageThemeAndBgColor() {
-  const THEME_KEY = 'layerpitch_backstage_theme';
-  const BG_KEY = 'layerpitch_backstage_bg_color';
-  const bgInput = document.getElementById('backstageBgColor');
-  const bgHint = document.getElementById('backstageBgColorHint');
-  const btnLight = document.getElementById('btnBackstageThemeLight');
-  const btnDark = document.getElementById('btnBackstageThemeDark');
-  const savedBg = localStorage.getItem(BG_KEY);
-  if (savedBg) bgInput.value = savedBg;
-
-  // Relit localStorage à chaque appel plutôt qu'une variable fermée sur sa valeur de départ -- sans
-  // ça, choisir une nouvelle couleur PUIS basculer Nuit->Jour dans la même session réappliquait
-  // l'ancienne couleur (capturée une seule fois à l'initialisation), pas la dernière enregistrée.
-  function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    btnLight.classList.toggle('btn-primary', theme === 'light');
-    btnDark.classList.toggle('btn-primary', theme === 'dark');
-    bgInput.disabled = theme === 'dark';
-    bgHint.textContent = theme === 'dark' ? tr('backstageBgColorHintDark') : tr('backstageBgColorHint');
-    if (theme === 'dark') {
-      document.documentElement.style.removeProperty('--backstage-bg');
-    } else {
-      const currentBg = localStorage.getItem(BG_KEY);
-      if (currentBg) document.documentElement.style.setProperty('--backstage-bg', currentBg);
-    }
-  }
-  function setTheme(theme) {
-    try { localStorage.setItem(THEME_KEY, theme); } catch (e) { /* stockage plein ou bloqué : le thème reste appliqué pour la session en cours, juste pas mémorisé */ }
-    applyTheme(theme);
-  }
-  btnLight.addEventListener('click', () => setTheme('light'));
-  btnDark.addEventListener('click', () => setTheme('dark'));
-  applyTheme(localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light');
-
-  bgInput.addEventListener('input', () => {
-    document.documentElement.style.setProperty('--backstage-bg', bgInput.value);
-    try { localStorage.setItem(BG_KEY, bgInput.value); } catch (e) { /* stockage plein ou bloqué : le réglage reste appliqué pour la session en cours, juste pas mémorisé */ }
-  });
-})();
-
-// Image de fond en filigrane du Backstage (15/09, même réglage local à cet ordinateur que le thème
-// et la couleur de fond ci-dessus) -- purement décorative, jamais vue par un visiteur. Stockée en
-// data URL dans localStorage : réglage local, jamais envoyé nulle part. Réduite avant stockage depuis
-// le 21/09 : une photo brute dépasse vite les ~5 Mo de
-// localStorage et l'enregistrement échouait alors SILENCIEUSEMENT (image visible sur le moment, puis
-// disparue à la connexion suivante -- signalé trois fois de suite par Jules-Antoine). Si même la
-// version la plus réduite ne tient pas, un message explicite le dit au lieu de se taire.
-(function initBackstageWatermark() {
-  const IMAGE_KEY = 'layerpitch_backstage_watermark_image';
-  const OPACITY_KEY = 'layerpitch_backstage_watermark_opacity';
-  const FIXED_KEY = 'layerpitch_backstage_watermark_fixed';
-  const layer = document.getElementById('backstageWatermarkLayer');
-  const pickBtn = document.getElementById('btnBackstageWatermarkPick');
-  const clearBtn = document.getElementById('btnBackstageWatermarkClear');
-  const fileInput = document.getElementById('backstageWatermarkInput');
-  const opacityRow = document.getElementById('backstageWatermarkOpacityRow');
-  const opacityInput = document.getElementById('backstageWatermarkOpacity');
-  const fixedInput = document.getElementById('backstageWatermarkFixed');
-
-  function applyImage(dataUrl) {
-    layer.style.backgroundImage = dataUrl ? `url(${dataUrl})` : 'none';
-    clearBtn.hidden = !dataUrl;
-    opacityRow.hidden = !dataUrl;
-  }
-  function applyOpacity(percent) {
-    layer.style.opacity = String(percent / 100);
-  }
-  function applyFixed(isFixed) {
-    layer.classList.toggle('scrolls-with-page', !isFixed);
-  }
-
-  const savedImage = localStorage.getItem(IMAGE_KEY);
-  const savedOpacity = localStorage.getItem(OPACITY_KEY);
-  const savedFixed = localStorage.getItem(FIXED_KEY);
-  if (savedOpacity) opacityInput.value = savedOpacity;
-  if (savedFixed) fixedInput.checked = savedFixed === '1';
-  applyOpacity(parseInt(opacityInput.value, 10));
-  applyFixed(fixedInput.checked);
-  if (savedImage) applyImage(savedImage);
-
-  const statusEl = document.getElementById('backstageWatermarkStatus');
-  function setStatus(text) { statusEl.textContent = text || ''; statusEl.hidden = !text; }
-  const MAX_SIDES = [1920, 1280, 800];
-  function loadImage(file) {
-    return new Promise((resolve, reject) => {
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image illisible')); };
-      img.src = url;
-    });
-  }
-  function encodeScaled(img, maxSide, mime) {
-    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
-    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL(mime, 0.82);
-  }
-  // JPEG pour une photo JPEG ; WebP sinon (garde la transparence d'un PNG/logo -- Safari, qui ne sait
-  // pas encoder du WebP, retombe de lui-même sur du PNG, toujours réduit en dimensions).
-  async function saveWatermark(file) {
-    setStatus('');
-    let img;
-    try { img = await loadImage(file); } catch (e) { setStatus(tr('backstageWatermarkUnreadable')); return; }
-    if (!img.naturalWidth || !img.naturalHeight) { setStatus(tr('backstageWatermarkUnreadable')); return; }
-    const mime = /jpe?g/i.test(file.type) ? 'image/jpeg' : 'image/webp';
-    for (const side of MAX_SIDES) {
-      const dataUrl = encodeScaled(img, side, mime);
-      applyImage(dataUrl);
-      try { localStorage.setItem(IMAGE_KEY, dataUrl); return; } catch (e) { /* trop lourde pour le stockage : on retente en plus petit */ }
-    }
-    // Aucune taille ne tient : l'ancienne image mémorisée est retirée pour ne pas réapparaître à la
-    // place de celle-ci à la prochaine ouverture.
-    try { localStorage.removeItem(IMAGE_KEY); } catch (e) {}
-    setStatus(tr('backstageWatermarkNotSaved'));
-  }
-
-  pickBtn.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files[0];
-    if (!file) return;
-    saveWatermark(file);
-  });
-  clearBtn.addEventListener('click', () => {
-    applyImage(null);
-    setStatus('');
-    fileInput.value = '';
-    try { localStorage.removeItem(IMAGE_KEY); } catch (e) {}
-  });
-  opacityInput.addEventListener('input', () => {
-    applyOpacity(parseInt(opacityInput.value, 10));
-    try { localStorage.setItem(OPACITY_KEY, opacityInput.value); } catch (e) { /* stockage plein ou bloqué : le réglage reste appliqué pour la session en cours, juste pas mémorisé */ }
-  });
-  fixedInput.addEventListener('change', () => {
-    applyFixed(fixedInput.checked);
-    try { localStorage.setItem(FIXED_KEY, fixedInput.checked ? '1' : '0'); } catch (e) { /* stockage plein ou bloqué : le réglage reste appliqué pour la session en cours, juste pas mémorisé */ }
-  });
-})();
+// Apparence du Backstage (thème jour/nuit, couleur de fond, image de fond en filigrane) : réglages locaux à cet
+// ordinateur, sans rapport avec l'apparence publique. Depuis le 29/09 le code est dans layerpitch-appearance.js, commun
+// à toutes les pages d'espace (mêmes clés de stockage qu'avant : le réglage existant est conservé).
+window.LayerPitchAppearance.mountPanel(document.getElementById('backstageAppearanceHost'));
 
 // Purge ponctuelle (11 septembre, audit sécurité) : le panneau "Stockage média (Cloudflare R2)" qui
 // stockait les clés secrètes R2 maîtresses en clair dans localStorage a été retiré — create-media-signed-url
@@ -5685,7 +5947,7 @@ function buildPreviewTrack(track) {
     // fx de morceau entier (pitch "vitesse", 22/09) -- distinct de layers[].fx/loops[].fx/etc., voir
     // applyTrackPitchRate() dans player.js.
     fx: track.fx || null,
-    fxTriggers: (track.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations) })),
+    fxTriggers: (track.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations), steps: fxStepsClean(x.steps), showEffects: x.showEffects !== false, targets: Array.isArray(x.targets) && x.targets.length ? x.targets.map(t => Object.assign({}, t)) : undefined })),
     fxSliders: fxSlidersClean(track.fxSliders),
     layers: (track.layers || []).map(mapItem).filter(Boolean),
     intro: mapBlockWithBars(track.intro),
@@ -6040,7 +6302,7 @@ function renderLibrary() {
     folderFallbackKey: 'orgFolderFallback',
     buildRowInner: t => `<span class="seq-master-item-label">${escapeAttr(t.title) || tr('trackFallback', { n: library.indexOf(t) + 1 })}</span>`
   });
-  wireOrgDragDrop(masterHost, () => library, () => libraryFolders, renderLibrary); // conteneur statique du HTML -- voir commentaire de wireOrgDragDrop
+  wireOrgDragDrop(masterHost, () => library, () => libraryFolders, renderLibrary, (src, place) => duplicateLibraryTrack(src, place)); // conteneur statique du HTML -- voir commentaire de wireOrgDragDrop
 
   detailHost.innerHTML = '';
   if (!manageLibrarySelectedId) {
@@ -6075,6 +6337,7 @@ function renderLibrary() {
         </div>
         <div style="display:flex; gap:6px;">
           <button class="btn btn-small" data-action="preview-track" data-ti="${ti}" type="button">${tr('previewBtn')}</button>
+          ${flagOpen('alt_drag_delete') ? `<button class="btn btn-small" data-action="duplicate-track" data-ti="${ti}" type="button" title="${escapeAttr(tr('trackCopyTitle'))}">${tr('trackCopyBtn')}</button>` : ''}
           <button class="btn btn-small btn-danger" data-action="remove-track" data-ti="${ti}">${tr('deleteBtn')}</button>
         </div>
       </div>
@@ -6766,6 +7029,7 @@ function renderLibrary() {
             <option value="false" ${track.noAiOverride === false ? 'selected' : ''}>${tr('noAiNeverCertifyOption')}</option>
           </select>
           <div class="hint-inline">${tr('noAiOverrideHint')}</div>
+          ${trackProtectionHtml(track, ti)}
         `;
         modeDetailHost.appendChild(notesEl);
       }
@@ -7249,6 +7513,7 @@ function renderLibrary() {
             <option value="false" ${track.noAiOverride === false ? 'selected' : ''}>${tr('noAiNeverCertifyOption')}</option>
           </select>
           <div class="hint-inline">${tr('noAiOverrideHint')}</div>
+          ${trackProtectionHtml(track, ti)}
         `;
         slotsDetailHost.appendChild(notesEl);
       }
@@ -7326,6 +7591,7 @@ function renderSfxLibrary() {
       <textarea data-sfx-field="descriptionEn" data-si="${si}" rows="3">${escapeAttr(sfx.descriptionEn)}</textarea>
       <label>${tr('sfxTagLabel')}</label>
       <input type="text" data-sfx-field="tag" data-si="${si}" value="${escapeAttr(sfx.tag || '')}">
+      ${sfxProtectionHtml(sfx, si)}
     `;
   } else if (entrySel === 'behavior') {
     entryDetailHost.innerHTML = `
@@ -7793,6 +8059,21 @@ document.getElementById('sfxLibraryContainer').addEventListener('click', async e
     }
     return;
   }
+  const protectBtn = e.target.closest('[data-action="toggle-sfx-protection"]');
+  if (protectBtn) {
+    const sfx = sfxLibrary[parseInt(protectBtn.dataset.si, 10)];
+    const target = !sfx.protected;
+    if (!await window.LayerPitchNotify.confirm(tr(target ? 'sfxProtectConfirm' : 'sfxUnprotectConfirm', { title: sfx.title || sfx.id }), { okLabel: tr(target ? 'trackProtectBtn' : 'trackUnprotectBtn') })) return;
+    protectBtn.disabled = true; protectBtn.textContent = tr('trackProtectBusy');
+    try {
+      await loadPostgresReadScripts();
+      const r = await window.LayerPitchSfx.setSfxProtected(sfx.id, target);
+      if (!r.ok) window.LayerPitchNotify.error(tr('trackProtectError', { error: r.error }));
+      else { sfx.protected = target; window.LayerPitchNotify.info(tr(target ? 'trackProtectDone' : 'trackUnprotectDone')); }
+    } catch (err) { window.LayerPitchNotify.error(tr('trackProtectError', { error: err.message })); }
+    renderSfxLibrary();
+    return;
+  }
   const removeBtn = e.target.closest('[data-action="remove-sfx"]');
   if (removeBtn) {
     const si = parseInt(removeBtn.dataset.si, 10);
@@ -7919,6 +8200,27 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     renderLibrary();
     return;
   }
+  if (btn.dataset.action === 'duplicate-track') {
+    btn.disabled = true;
+    try { await duplicateLibraryTrack(library[ti]); } finally { btn.disabled = false; }
+    return;
+  }
+  if (btn.dataset.action === 'toggle-track-protection') {
+    const track = library[ti];
+    const target = !track.protected;
+    window.LayerPitchNotify.confirm(tr(target ? 'trackProtectConfirm' : 'trackUnprotectConfirm', { title: track.title || track.id }), { okLabel: tr(target ? 'trackProtectBtn' : 'trackUnprotectBtn') }).then(async ok => {
+      if (!ok) return;
+      btn.disabled = true; btn.textContent = tr('trackProtectBusy');
+      try {
+        await loadPostgresReadScripts();
+        const r = await window.LayerPitchTracks.setTrackProtected(track.id, target);
+        if (!r.ok) { window.LayerPitchNotify.error(tr('trackProtectError', { error: r.error })); }
+        else { track.protected = target; window.LayerPitchNotify.info(tr(target ? 'trackProtectDone' : 'trackUnprotectDone')); }
+      } catch (e) { window.LayerPitchNotify.error(tr('trackProtectError', { error: e.message })); }
+      renderLibrary();
+    });
+    return;
+  }
   if (btn.dataset.action === 'preview-track') {
     togglePreview(ti, btn.closest('.list-block'));
     trackBackstageEvent('preview_play', {});
@@ -7945,7 +8247,10 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   else if (btn.dataset.action === 'add-fx-trigger') {
     const tk = library[ti];
     if (!tk.fxTriggers) tk.fxTriggers = [];
-    tk.fxTriggers.push({ id: genId(), label: tr('fxTriggerFallbackLabel', { n: tk.fxTriggers.length + 1 }), target: { type: 'track' }, fx: {}, visible: true, fadeSec: null }); // agit sur tout le morceau ; bouton public par défaut
+    const newTrigger = { id: genId(), label: tr('fxTriggerFallbackLabel', { n: tk.fxTriggers.length + 1 }), target: parseFxTriggerTarget(btn.dataset.target) || { type: 'track' }, fx: {}, visible: true, fadeSec: null }; // agit sur tout le morceau ; bouton public par défaut
+    tk.fxTriggers.push(newTrigger);
+    fxTriggersSectionOpen.add('c:' + newTrigger.id); // un trigger qu'on vient de créer s'affiche déplié
+    fxTriggersPersistOpen();
   }
   else if (btn.dataset.action === 'add-fx-slider') {
     const tk = library[ti];
@@ -7982,6 +8287,27 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   }
   else if (btn.dataset.action === 'remove-fxs-threshold') { library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].thresholds.splice(parseInt(btn.dataset.thi, 10), 1); }
   else if (btn.dataset.action === 'fx-trigger-to-track') { library[ti].fxTriggers[tri].target = { type: 'track' }; }
+  else if (btn.dataset.action === 'add-fx-step') {
+    const trg = library[ti].fxTriggers[tri];
+    // Avec un chemin (data-sti) : étape ENFANT de celle-là ; sans : étape de premier niveau du trigger.
+    let list;
+    if (btn.dataset.sti != null && btn.dataset.sti !== '') { const at = fxStepByPath(trg, btn.dataset.sti); if (!at) return; at.step.children = at.step.children || []; list = at.step.children; }
+    else { trg.steps = trg.steps || []; list = trg.steps; }
+    const step = { id: genId(), label: '', delaySec: list.length ? (+list[list.length - 1].delaySec || 0) : 0, fx: {} };
+    list.push(step);
+    fxTriggersSectionOpen.add('s:' + trg.id + ':' + (btn.dataset.sti ? btn.dataset.sti + '-' : '') + (list.length - 1) + ':' + step.id); // une étape qu'on vient de créer s'affiche dépliée
+    fxTriggersPersistOpen();
+  }
+  else if (btn.dataset.action === 'remove-fx-step') {
+    const trg = library[ti].fxTriggers[tri];
+    const at = fxStepByPath(trg, btn.dataset.sti);
+    if (!at) return;
+    at.list.splice(at.index, 1);
+    // Nettoyage des « children » et « steps » devenus vides.
+    const prune = list => list.forEach(x => { if (x.children) { prune(x.children); if (!x.children.length) delete x.children; } });
+    prune(trg.steps || []);
+    if (!trg.steps.length) delete trg.steps;
+  }
   else if (btn.dataset.action === 'remove-fx-trigger') {
     const tk = library[ti];
     const removed = tk.fxTriggers[tri];
@@ -8167,10 +8493,40 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       if (trg) {
         if (prop === 'label') trg.label = e.target.value;
         else if (prop === 'visible') trg.visible = e.target.checked;
+        else if (prop === 'showEffects') trg.showEffects = e.target.checked;
         else if (prop === 'fadeSec') trg.fadeSec = e.target.value === '' ? null : parseFloat(e.target.value);
         else if (prop === 'fadeOutSec') trg.fadeOutSec = e.target.value === '' ? null : parseFloat(e.target.value);
-        else if (prop === 'target') trg.target = parseFxTriggerTarget(e.target.value);
+        else if (prop === 'target') { trg.target = parseFxTriggerTarget(e.target.value); fxTriggersPersistOpen(); renderLibrary(); } // la carte change de voix
         else if (prop === 'autoOffSec') { trg.relations = trg.relations || {}; trg.relations.autoOffSec = e.target.value === '' ? null : parseFloat(e.target.value); }
+      }
+    }
+    else if (field === 'fxTargets') {
+      const trg = (library[ti].fxTriggers || [])[parseInt(e.target.dataset.tri, 10)];
+      if (trg) {
+        const isStep = e.target.dataset.fxtgOwner === 'step';
+        const holder = isStep ? (fxStepByPath(trg, e.target.dataset.sti) || {}).step : trg;
+        if (holder) {
+          if (e.target.dataset.fxtgSame) {
+            // « Comme l'événement » : l'étape reprend les cibles de l'événement ; décochée, elle part d'une copie modifiable.
+            if (e.target.checked) delete holder.targets; else holder.targets = fxTriggerTargetValues(trg).map(parseFxTriggerTarget).filter(Boolean);
+          } else {
+            const next = fxToggleTargetValue(fxTriggerTargetValues(holder), e.target.dataset.fxtgValue, e.target.checked).map(parseFxTriggerTarget).filter(Boolean);
+            holder.targets = next;
+            if (!isStep) holder.target = next[0]; // l'ancienne cible unique reste la première (lecteur, anciennes données)
+          }
+          renderLibrary();
+        }
+      }
+    }
+    else if (field === 'fxStep') {
+      const trg = (library[ti].fxTriggers || [])[parseInt(e.target.dataset.tri, 10)];
+      const at = trg && fxStepByPath(trg, e.target.dataset.sti), st = at && at.step;
+      const prop = e.target.dataset.fxsProp;
+      if (st) {
+        if (prop === 'label') st.label = e.target.value;
+        else if (prop === 'delaySec') st.delaySec = e.target.value === '' ? 0 : Math.max(0, parseFloat(e.target.value) || 0);
+        else if (prop === 'fadeSec' || prop === 'fadeOutSec') { const v = parseFloat(e.target.value); if (e.target.value !== '' && v >= 0) st[prop] = v; else delete st[prop]; }
+        else if (prop === 'durationSec') { const v = parseFloat(e.target.value); if (v > 0) st.durationSec = v; else delete st.durationSec; }
       }
     }
     else if (field === 'fxSlider') {
@@ -8181,6 +8537,25 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
         else if (prop === 'visible') sl.visible = e.target.checked;
         else if (prop === 'defaultValue') sl.defaultValue = Math.max(0, Math.min(1, (parseFloat(e.target.value) || 0) / 100));
         else if (prop === 'smoothSec') sl.smoothSec = e.target.value === '' ? 0.15 : Math.max(0, parseFloat(e.target.value) || 0);
+        else if (prop === 'intensity') {
+          // Un seul curseur pilote la structure : l'activer ici le retire des autres. Il devient visible, puisqu'il remplace
+          // les boutons du visiteur.
+          if (e.target.checked) {
+            library[ti].fxSliders.forEach(o => { if (o !== sl) delete o.intensity; });
+            sl.intensity = { bounds: [] };
+            sl.visible = true;
+          } else delete sl.intensity;
+          hasUnsavedEdits = true; renderLibrary(); return;
+        }
+      }
+    }
+    else if (field === 'fxSliderIntensityBound') {
+      const sl = (library[ti].fxSliders || [])[parseInt(e.target.dataset.sri, 10)];
+      if (sl && sl.intensity) {
+        const n = window.LayerPlayerCore.fxStructureZones(library[ti]).length;
+        const bounds = window.LayerPlayerCore.fxIntensityBounds(sl.intensity.bounds, n) || [];
+        bounds[parseInt(e.target.dataset.ib, 10)] = Math.max(0, Math.min(1, (parseFloat(e.target.value) || 0) / 100));
+        sl.intensity.bounds = bounds; // pas de re-rendu ni de tri pendant la frappe (focus) : le lecteur trie à la lecture
       }
     }
     else if (field === 'fxSliderBinding') {
@@ -8257,6 +8632,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       else if (fxTarget === 'pool') target = library[ti].sections[parseInt(e.target.dataset.si, 10)].pools[parseInt(e.target.dataset.pi, 10)];
       else if (fxTarget === 'track') target = library[ti];
       else if (fxTarget === 'trigger') target = library[ti].fxTriggers[parseInt(e.target.dataset.tri, 10)];
+      else if (fxTarget === 'trstep') target = fxStepByPath(library[ti].fxTriggers[parseInt(e.target.dataset.tri, 10)], e.target.dataset.sti).step;
       else if (fxTarget === 'intro') target = library[ti].intro;
       else if (fxTarget === 'outro') target = library[ti].outro;
       else if (fxTarget === 'seqTransition') target = library[ti].segmentSlots[parseInt(e.target.dataset.si, 10)].nextOptions[parseInt(e.target.dataset.bi, 10)].transition;
@@ -10996,10 +11372,23 @@ function fillAppearanceFields() {
   renderCustomFontsList();
   fillWaveformStyleField();
   const bgImageCtrl = document.getElementById('appThemeBgImageCtrl');
-  bgImageCtrl.innerHTML = fileCtrlHtml(tr('chooseBgImageFile'));
+  // « Retirer l'image de fond » (1er/10, demande d'un compositeur : une fois posée, impossible de l'enlever) : visible seulement
+  // s'il y a une image (publiée ou choisie). Le fichier publié est effacé du stockage à la prochaine publication, s'il n'est
+  // plus référencé (file d'orphelins), jamais avant.
+  bgImageCtrl.innerHTML = fileCtrlHtml(tr('chooseBgImageFile'), `<button type="button" class="btn btn-small btn-danger" data-role="removeBgImage">${tr('removeBgImageBtn')}</button>`);
+  const removeBgBtn = bgImageCtrl.querySelector('[data-role="removeBgImage"]');
+  const refreshRemoveBg = () => { removeBgBtn.hidden = !(themeBgImagePendingFile || profile.theme.bgImage); };
   wireFileControl(bgImageCtrl, 'image/*',
     () => themeBgImagePendingFile, () => profile.theme.bgImage,
-    f => { themeBgImagePendingFile = f; hasUnsavedEdits = true; }, () => profile.theme.bgImageOriginalName);
+    f => { themeBgImagePendingFile = f; hasUnsavedEdits = true; refreshRemoveBg(); }, () => profile.theme.bgImageOriginalName);
+  refreshRemoveBg();
+  removeBgBtn.addEventListener('click', () => {
+    if (profile.theme.bgImage) queueR2Delete('images/' + profile.theme.bgImage);
+    profile.theme.bgImage = null; profile.theme.bgImageOriginalName = null;
+    themeBgImagePendingFile = null;
+    hasUnsavedEdits = true;
+    fillAppearanceFields();
+  });
   const opacityInput = document.getElementById('appThemeBgImageOpacity');
   const opacityVal = (profile.theme.bgImageOpacity != null) ? profile.theme.bgImageOpacity : DEFAULT_THEME.bgImageOpacity;
   opacityInput.value = opacityVal;
@@ -11176,28 +11565,10 @@ function renderAnalyticsPanelForTier() {
  * DÉJÀ publiés en base (les morceaux n'y arrivent qu'à la publication) -- d'où l'indice
  * albumTracksNotPublishedHint quand l'enregistrement est refusé pour cette raison.
  * Bêta : le paiement n'est pas branché, « Obtenir (test) » (claim_test_album) simule l'achat.
- * Vendeur compositeur seulement ici (décision du 21 septembre : le côté studio reste à concevoir). */
-const albumsState = { loaded: false, loading: false, albums: [], purchases: [], testEnabled: false, messages: {},
-  recorder: null,   // enregistreur de version du compositeur ouvert : { albumId, trackId, el } (un seul à la fois)
-  playback: null }; // version du compositeur en écoute : { key, ctrl }
-
-function newAlbumId() {
-  // Identifiant aléatoire : albums.id est unique sur TOUTE la base (pas par compositeur), un titre
-  // slugifié risquerait de collisionner avec l'album d'un autre compositeur.
-  const rand = (window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, '').slice(0, 16) : Math.random().toString(36).slice(2, 12);
-  return 'alb_' + rand;
-}
-
-function albumFromApi(a) {
-  return {
-    id: a.id, title: a.title || '', presentationFr: a.presentationFr || '', presentationEn: a.presentationEn || '',
-    priceInput: a.priceEurCents == null ? '' : (a.priceEurCents / 100).toFixed(2),
-    buyable: !!a.buyable, trackIds: a.trackIds || [], saved: true, savedBuyable: !!a.buyable,
-    // Morceaux enregistrés en base (seuls eux peuvent recevoir une version du compositeur) et durée de leur version.
-    savedTrackIds: (a.trackIds || []).slice(), officialDurations: Object.assign({}, a.officialDurations || {}),
-    illustration: a.illustration || null, illustrationOriginalName: a.illustrationOriginalName || null, pendingCover: null, pendingCoverUrl: null,
-  };
-}
+ * 30/09 : l'ÉDITEUR d'un album (champs, morceaux, versions officielles, écoute libre, droits, enregistrement) est le module
+ * commun layerpitch-album-editor.js, le même que l'espace studio. Ce fichier ne garde que ce qui est propre au Backstage :
+ * la liste des albums, les albums de studio où je suis compositeur invité, l'achat de test et les albums obtenus. */
+const albumsState = { loaded: false, loading: false, albums: [], purchases: [], testEnabled: false, editors: [] };
 
 async function loadAlbums() {
   if (albumsState.loaded || albumsState.loading) return;
@@ -11208,12 +11579,13 @@ async function loadAlbums() {
     await loadPostgresReadScripts();
     const { session } = await window.LayerPitchAuth.getSession();
     if (!session || !session.user) throw new Error(tr('albumsNoSession'));
-    const A = window.LayerPitchAlbums;
-    const [al, pu, fl] = await Promise.all([A.listAlbums({ sellerId: session.user.id }), A.listMyPurchases(), A.getPlatformFlags()]);
+    const A = window.LayerPitchAlbums, E = window.LayerPitchAlbumEditor;
+    const [al, pu, fl, co] = await Promise.all([A.listAlbums({ sellerId: session.user.id }), A.listMyPurchases(), A.getPlatformFlags(), A.myAlbumContributions()]);
     if (al.error) throw new Error(al.error);
     // Les brouillons pas encore enregistrés (+ Album cliqué avant la fin du chargement) sont gardés.
     const drafts = albumsState.albums.filter(x => !x.saved);
-    albumsState.albums = al.albums.map(albumFromApi).concat(drafts);
+    // Albums de studio où je suis compositeur invité (29/09) : mêmes cartes, réduites à mes morceaux.
+    albumsState.albums = (co.contributions || []).map(E.fromContribution).concat(al.albums.map(E.fromApi), drafts);
     albumsState.purchases = pu.purchases || [];
     albumsState.testEnabled = !!(fl.flags && fl.flags.testPurchasesEnabled);
     albumsState.loaded = true;
@@ -11226,215 +11598,60 @@ async function loadAlbums() {
   }
 }
 
+function albumTrackTitle(id) { const t = library.find(x => x.id === id); return (t && t.title) || id; }
+
+// Réglages de l'éditeur commun pour le Backstage : morceaux de la bibliothèque, enregistrement par upsert_album, pochette
+// rangée sous l'identifiant du compositeur (images/<id>/album-<id>.<ext>, comme toutes les images, voir publishAll).
+function albumEditorConfig(al) {
+  const A = () => window.LayerPitchAlbums;
+  return {
+    tracks: () => library.map(t => ({ id: t.id, title: t.title || t.id })),
+    trackTitle: albumTrackTitle,
+    mediaBase: MEDIA_BASE + 'images/',
+    features: { rights: true },
+    save: async p => { await loadPostgresReadScripts(); return A().upsertAlbum(p); },
+    uploadCover: async a => {
+      await loadPostgresReadScripts();
+      const { composerId, error } = await window.LayerPitchAuth.ensureMyComposerProfile();
+      if (error || !composerId) throw new Error(error || 'aucun profil compositeur');
+      const fileName = `${composerId}/album-${a.id}.${extOf(a.pendingCover.name)}`;
+      await r2PutFile(`images/${fileName}`, new Uint8Array(await a.pendingCover.arrayBuffer()), imageContentType(extOf(fileName)));
+      return { illustration: fileName, illustrationOriginalName: a.pendingCover.name };
+    },
+    saveErrorHint: error => (/pistes/i.test(error || '') ? ' ' + tr('albumTracksNotPublishedHint') : ''),
+    beforeAudio: () => activePreviewIds.forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id }))),
+    renderCover: (el, a, done) => {
+      el.innerHTML = fileCtrlHtml(tr('chooseIllustration'));
+      wireFileControl(el, 'image/*', () => a.pendingCover, () => a.illustration, f => {
+        if (a.pendingCoverUrl) URL.revokeObjectURL(a.pendingCoverUrl);
+        a.pendingCover = f || null;
+        a.pendingCoverUrl = f ? URL.createObjectURL(f) : null;
+        done();
+      }, () => a.illustrationOriginalName);
+    },
+    actions: a => (albumsState.testEnabled && a.saved && a.savedBuyable ? [{ id: 'claim', label: tr('albumClaimTestBtn'), onClick: claimTestAlbum }] : []),
+    contribution: { save: saveContribution, leave: leaveContributedAlbum },
+    confirm: (text, opts) => window.LayerPitchNotify.confirm(text, opts),
+  };
+}
+
 function renderAlbums() {
   const box = document.getElementById('albumsContainer');
+  albumsState.editors.forEach(ed => ed.destroy());
+  albumsState.editors = [];
   box.innerHTML = '';
   if (!albumsState.albums.length) { box.innerHTML = `<div class="sub">${tr('albumsEmpty')}</div>`; return; }
-  const rowStyle = 'display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text-dim);';
-  albumsState.albums.forEach((al, ai) => {
-    const libIds = new Set(library.map(t => t.id));
-    const trackRows = library.map(t => {
-      const pos = al.trackIds.indexOf(t.id);
-      return `<label style="${rowStyle}"><input type="checkbox" style="width:auto;margin:0" data-album-track="${escapeAttr(t.id)}" data-ai="${ai}"${pos >= 0 ? ' checked' : ''}><span>${pos >= 0 ? (pos + 1) + '. ' : ''}${escapeHtml(t.title || t.id)}</span></label>`;
-    });
-    // Piste de l'album absente de la bibliothèque locale (ex. supprimée) : on la montre quand même,
-    // décochable, plutôt que de la perdre en silence au prochain enregistrement.
-    al.trackIds.filter(id => !libIds.has(id)).forEach(id => {
-      trackRows.push(`<label style="${rowStyle}"><input type="checkbox" style="width:auto;margin:0" data-album-track="${escapeAttr(id)}" data-ai="${ai}" checked><span>${al.trackIds.indexOf(id) + 1}. ${escapeHtml(id)}</span></label>`);
-    });
-    const msg = albumsState.messages[al.id];
-    const canClaim = albumsState.testEnabled && al.saved && al.savedBuyable;
+  albumsState.albums.forEach(al => {
     const el = document.createElement('div');
     el.className = 'list-block';
-    el.innerHTML = `
-      <div class="list-block-head">
-        <div class="list-block-head-left">
-          <input type="text" class="seq-header-title" data-album-field="title" data-ai="${ai}" value="${escapeAttr(al.title)}" placeholder="${escapeAttr(tr('albumFallback', { n: ai + 1 }))}">
-          ${al.saved ? '' : `<span class="badge">${tr('albumUnsavedBadge')}</span>`}
-        </div>
-      </div>
-      <div class="list-block-body">
-        <label>${tr('albumPresentationFrLabel')}</label>
-        <textarea data-album-field="presentationFr" data-ai="${ai}">${escapeHtml(al.presentationFr)}</textarea>
-        <label>${tr('albumPresentationEnLabel')}</label>
-        <textarea data-album-field="presentationEn" data-ai="${ai}">${escapeHtml(al.presentationEn)}</textarea>
-        <label>${tr('albumCoverLabel')}</label>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          ${al.pendingCoverUrl || al.illustration
-            ? `<img src="${escapeAttr(al.pendingCoverUrl || (MEDIA_BASE + 'images/' + al.illustration))}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">`
-            : `<div style="width:72px;height:72px;border-radius:6px;border:1px dashed var(--border)"></div>`}
-          <div data-role="albumCoverCtrl" data-ai="${ai}"></div>
-        </div>
-        <div class="sub" style="margin-top:4px">${tr('albumCoverHint')}</div>
-        <label>${tr('albumMinPriceLabel')}</label>
-        <input type="text" inputmode="decimal" data-album-field="priceInput" data-ai="${ai}" value="${escapeAttr(al.priceInput)}" placeholder="3.00" style="max-width:140px">
-        <div class="sub" style="margin-top:4px">${tr('albumMinPriceHint')}</div>
-        <label style="${rowStyle}margin-top:12px"><input type="checkbox" style="width:auto;margin:0" data-album-field="buyable" data-ai="${ai}"${al.buyable ? ' checked' : ''}><span>${tr('albumBuyableLabel')}</span></label>
-        ${renderAlbumRights(al, ai)}
-        <label>${tr('albumTracksLabel')}</label>
-        ${trackRows.length ? trackRows.join('') : `<div class="sub">${tr('albumNoTracksInLibrary')}</div>`}
-        ${renderAlbumOfficialVersions(al, ai)}
-        <div class="actions" style="margin-top:14px">
-          <button class="btn btn-small btn-primary" data-action="save-album" data-ai="${ai}" type="button">${tr('albumSaveBtn')}</button>
-          ${canClaim ? `<button class="btn btn-small" data-action="claim-test-album" data-ai="${ai}" type="button">${tr('albumClaimTestBtn')}</button>` : ''}
-        </div>
-        ${msg ? `<div class="sub" style="margin-top:8px;${msg.kind === 'error' ? 'color:#c0392b' : 'color:#2e8b57'}">${escapeHtml(msg.text)}</div>` : ''}
-      </div>`;
+    el.innerHTML = '<div class="list-block-body"></div>';
     box.appendChild(el);
-    // Pochette (A.9, 27/09) : choisie ici, envoyée à l'enregistrement de l'album (saveAlbum), comme les autres champs.
-    const coverCtrl = el.querySelector('[data-role="albumCoverCtrl"]');
-    coverCtrl.innerHTML = fileCtrlHtml(tr('chooseIllustration'));
-    wireFileControl(coverCtrl, 'image/*', () => al.pendingCover, () => al.illustration, f => {
-      if (al.pendingCoverUrl) URL.revokeObjectURL(al.pendingCoverUrl);
-      al.pendingCover = f || null;
-      al.pendingCoverUrl = f ? URL.createObjectURL(f) : null;
-      renderAlbums();
-    }, () => al.illustrationOriginalName);
+    const ed = window.LayerPitchAlbumEditor.create({ host: el.firstChild, album: al, cfg: albumEditorConfig(al) });
+    albumsState.editors.push(ed);
+    ed.render();
   });
-  // L'enregistreur ouvert (lecteur vivant) survit aux re-rendus : on replace son nœud, sans le reconstruire.
-  const rec = albumsState.recorder;
-  if (rec) {
-    const host = [...box.querySelectorAll('[data-official-host]')].find(h => h.dataset.officialHost === rec.albumId + '|' + rec.trackId);
-    if (host) host.appendChild(rec.el); else closeOfficialRecorder();
-  }
 }
-
-// ---- Version du compositeur de chaque morceau (Adaptive OST, étape A.7, 26/09) ----
-// C'est une PRISE du vendeur (journal du lecteur, comme les versions du fan), rangée dans album_tracks.default_settings
-// (set_album_track_default_settings). Obligatoire pour chaque morceau avant la mise en vente (contrôle serveur dans
-// upsert_album, migration 20260926020000 ; contrôle client dans saveAlbum pour un message clair).
-const fmtAlbumDuration = sec => { sec = Math.max(0, Math.round(sec || 0)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
-function albumTrackTitle(id) { const t = library.find(x => x.id === id); return (t && t.title) || id; }
-function renderAlbumOfficialVersions(al, ai) {
-  const head = `<label style="margin-top:16px">${tr('albumOfficialTitle')}</label><div class="sub" style="margin-bottom:4px">${tr('albumOfficialHint')}</div>`;
-  if (!al.saved || !al.savedTrackIds.length) return head + `<div class="sub">${tr('albumOfficialSaveFirst')}</div>`;
-  const rowStyle = 'display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text-dim);';
-  const pending = al.trackIds.join('|') !== al.savedTrackIds.join('|');
-  return head + al.savedTrackIds.map(id => {
-    const has = Object.prototype.hasOwnProperty.call(al.officialDurations, id);
-    const key = al.id + '|' + id;
-    const playing = albumsState.playback && albumsState.playback.key === key;
-    return `<div style="${rowStyle}">
-        <span style="min-width:0;flex:1 1 160px;color:var(--text)">${escapeHtml(albumTrackTitle(id))}</span>
-        ${has ? `<span>✓ ${fmtAlbumDuration(al.officialDurations[id])}</span>` : `<span class="badge" style="color:#c0392b;border-color:#c0392b">${tr('albumOfficialMissing')}</span>`}
-        ${has ? `<button class="btn btn-small" type="button" data-action="official-play" data-ai="${ai}" data-track="${escapeAttr(id)}">${tr(playing ? 'albumOfficialStopBtn' : 'albumOfficialListenBtn')}</button>` : ''}
-        <button class="btn btn-small${has ? '' : ' btn-primary'}" type="button" data-action="official-record" data-ai="${ai}" data-track="${escapeAttr(id)}">${tr(has ? 'albumOfficialRedoBtn' : 'albumOfficialRecordBtn')}</button>
-      </div>
-      <div data-official-host="${escapeAttr(key)}"></div>`;
-  }).join('') + (pending ? `<div class="sub" style="margin-top:6px">${tr('albumOfficialSaveFirst')}</div>` : '');
-}
-
-// capture-render.js (lecture d'une prise) n'est chargé qu'à la première écoute, avec le numéro de version de la page.
-let captureRenderLoaded = null;
-function loadCaptureRenderScript() {
-  if (window.LayerCaptureRender) return Promise.resolve();
-  if (captureRenderLoaded) return captureRenderLoaded;
-  const v = (document.querySelector('script[src*="layerpitch-i18n.js?v="]') || {}).src;
-  const version = v ? new URL(v).searchParams.get('v') : '';
-  captureRenderLoaded = new Promise((resolve, reject) => {
-    const sc = document.createElement('script');
-    sc.src = './capture-render.js' + (version ? '?v=' + version : '');
-    sc.onload = resolve;
-    sc.onerror = () => { captureRenderLoaded = null; reject(new Error('Échec du chargement de ' + sc.src)); };
-    document.head.appendChild(sc);
-  });
-  return captureRenderLoaded;
-}
-function stopOfficialPlayback() {
-  const pb = albumsState.playback;
-  if (pb) { albumsState.playback = null; if (pb.ctrl) pb.ctrl.stop(); }
-}
-async function toggleOfficialPlayback(ai, trackId) {
-  const al = albumsState.albums[ai];
-  const key = al.id + '|' + trackId;
-  const wasThis = albumsState.playback && albumsState.playback.key === key;
-  stopOfficialPlayback();
-  if (wasThis) { renderAlbums(); return; }
-  // Une seule chose joue à la fois : enregistreur et aperçus « Écouter » s'arrêtent.
-  if (albumsState.recorder) document.dispatchEvent(new CustomEvent('stop-track', { detail: albumsState.recorder.trackId }));
-  activePreviewIds.forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id })));
-  const pb = { key, ctrl: null };
-  albumsState.playback = pb;
-  renderAlbums();
-  try {
-    await loadCaptureRenderScript();
-    const { take, error } = await window.LayerPitchAlbums.getAlbumTrackOfficialTake(al.id, trackId);
-    if (error || !take) throw new Error(error || tr('albumOfficialMissing'));
-    const fetchBytes = async url => new Uint8Array(await (await fetch(url)).arrayBuffer());
-    const ctrl = await window.LayerCaptureRender.playTake(take, { fetchBytes, onEnd: () => { if (albumsState.playback === pb) { albumsState.playback = null; renderAlbums(); } } });
-    if (albumsState.playback !== pb) { ctrl.stop(); return; }
-    pb.ctrl = ctrl;
-  } catch (e) {
-    if (albumsState.playback === pb) albumsState.playback = null;
-    setAlbumMessage(al, tr('albumOfficialError', { error: e.message }), 'error');
-  }
-}
-function closeOfficialRecorder() {
-  const rec = albumsState.recorder;
-  if (!rec) return;
-  albumsState.recorder = null;
-  document.dispatchEvent(new CustomEvent('stop-track', { detail: rec.trackId }));
-  rec.el.remove();
-}
-// Enregistreur : la version PUBLIÉE du morceau (celle que le fan recevra), jouée dans le lecteur habituel, journal de
-// prise actif ; « Enregistrer comme version de l'album » garde tout ce qui a été joué depuis le lancement.
-async function openOfficialRecorder(ai, trackId) {
-  const al = albumsState.albums[ai];
-  closeOfficialRecorder();
-  stopOfficialPlayback();
-  const P = window.LayerPlayerCore;
-  const el = document.createElement('div');
-  el.style.cssText = 'margin:8px 0 12px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg)';
-  el.innerHTML = `<div class="sub">${tr('albumOfficialLoading')}</div>`;
-  const rec = { albumId: al.id, trackId, el };
-  albumsState.recorder = rec;
-  renderAlbums();
-  try {
-    await loadPostgresReadScripts();
-    const r = await window.LayerPitchTracks.getTrack(trackId);
-    if (!r || !r.track) throw new Error(tr('albumOfficialUnpublished'));
-    const track = r.track;
-    const sfxById = {};
-    for (const sid of (track.sfxIds || [])) { const x = await window.LayerPitchSfx.getSfx(sid); if (x && x.sfx) sfxById[sid] = x.sfx; }
-    if (albumsState.recorder !== rec) return;
-    activePreviewIds.forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id })));
-    P.setSfxLibrary(sfxById);
-    P.setTakeRecording(true);
-    el.innerHTML = `<div class="sub" style="margin-bottom:8px">${tr('albumOfficialRecorderHint')}</div><div data-role="recPlayer"></div>
-      <div class="actions" style="margin-top:10px">
-        <button class="btn btn-small btn-primary" type="button" data-role="recSave">${tr('albumOfficialSaveBtn')}</button>
-        <button class="btn btn-small" type="button" data-role="recClose">${tr('albumOfficialCloseBtn')}</button>
-      </div>
-      <div class="sub" data-role="recMsg" style="margin-top:6px"></div>`;
-    const row = P.buildTrackRow(track, null, false);
-    el.querySelector('[data-role="recPlayer"]').appendChild(row);
-    P.initTrackPlayer(track, row);
-    const titleToggle = row.querySelector('[data-role="titleToggle"]');
-    if (titleToggle) titleToggle.click();
-    const say = text => { el.querySelector('[data-role="recMsg"]').textContent = text; };
-    el.querySelector('[data-role="recClose"]').onclick = () => closeOfficialRecorder();
-    el.querySelector('[data-role="recSave"]').onclick = async e => {
-      const take = P.getTrackTake(trackId);
-      if (!take || !take.voices.length) { say(tr('albumOfficialNothing')); return; }
-      if (take.missing) { say(tr('albumOfficialUnpublished')); return; }
-      e.target.disabled = true;
-      try {
-        const res = await window.LayerPitchAlbums.setAlbumTrackOfficialTake(al.id, trackId, take);
-        if (!res.ok) throw new Error(res.error);
-        al.officialDurations[trackId] = take.duration;
-        say(tr('albumOfficialSaved', { duration: fmtAlbumDuration(take.duration) }));
-        renderAlbums();
-      } catch (err) { say(tr('albumOfficialError', { error: err.message })); }
-      finally { e.target.disabled = false; }
-    };
-  } catch (e) {
-    el.innerHTML = `<div class="sub" style="color:#c0392b">${escapeHtml(tr('albumOfficialError', { error: e.message }))}</div>`;
-  }
-}
-// Le lecteur de l'enregistreur démarre : une version du compositeur en écoute s'arrête.
-document.addEventListener('layerpitch-capture-mark', e => {
-  if (e.detail && e.detail.name === 'track_play' && albumsState.playback) { stopOfficialPlayback(); renderAlbums(); }
-});
+const editorOf = al => albumsState.editors.find(e => e.album === al);
 
 function renderAlbumsLibrary() {
   const box = document.getElementById('albumsLibraryContainer');
@@ -11449,117 +11666,49 @@ function renderAlbumsLibrary() {
     </div>`).join('');
 }
 
-function setAlbumMessage(al, text, kind) {
-  albumsState.messages[al.id] = { text, kind };
+// Compositeur invité : enregistre MES morceaux de l'album du studio (set_album_contributor_tracks).
+async function saveContribution(al) {
+  const ed = editorOf(al);
+  ed.say(tr('albumSaving'), 'ok');
+  try {
+    await loadPostgresReadScripts();
+    const r = await window.LayerPitchAlbums.setAlbumContributorTracks(al.id, al.trackIds);
+    if (!r.ok) { ed.say(tr('albumSaveError', { error: r.error }) + (/catalogue/i.test(r.error || '') ? ' ' + tr('albumTracksNotPublishedHint') : ''), 'error'); return; }
+    al.savedTrackIds = al.trackIds.slice();
+    Object.keys(al.officialDurations || {}).forEach(id => { if (!al.trackIds.includes(id)) delete al.officialDurations[id]; });
+    if (r.unpublished) al.buyable = false;
+    ed.say(tr(r.unpublished ? 'albumContribUnpublished' : 'albumSaved'), 'ok');
+  } catch (e) {
+    ed.say(tr('albumSaveError', { error: e.message }), 'error');
+  }
+}
+async function leaveContributedAlbum(al) {
+  const ed = editorOf(al);
+  if (!await window.LayerPitchNotify.confirm(tr('albumContribLeaveConfirm', { title: al.title }), { okLabel: tr('albumContribLeaveBtn'), danger: true })) return;
+  const r = await window.LayerPitchAlbums.leaveAlbum(al.id);
+  if (!r.ok) { ed.say(tr('albumSaveError', { error: r.error }), 'error'); return; }
+  albumsState.albums.splice(albumsState.albums.indexOf(al), 1);
   renderAlbums();
 }
 
-async function saveAlbum(ai) {
-  const al = albumsState.albums[ai];
-  // Prix saisi en euros (« 3.5 », « 3,50 »), envoyé en centimes. Vide = pas de prix (refusé si en vente).
-  const raw = al.priceInput.trim().replace(',', '.');
-  let cents = null;
-  if (raw !== '') {
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n < 0) { setAlbumMessage(al, tr('albumPriceInvalid'), 'error'); return; }
-    cents = Math.round(n * 100);
-  }
-  if (al.buyable && cents === null) { setAlbumMessage(al, tr('albumSellingNeedsPrice'), 'error'); return; }
-  // Mise en vente : chaque morceau doit avoir sa version du compositeur (même règle côté serveur).
-  if (al.buyable) {
-    if (!al.trackIds.length) { setAlbumMessage(al, tr('albumSellingNeedsTracks'), 'error'); return; }
-    const missing = al.trackIds.filter(id => !Object.prototype.hasOwnProperty.call(al.officialDurations || {}, id));
-    if (missing.length) { setAlbumMessage(al, tr('albumSellingNeedsVersions', { tracks: missing.map(albumTrackTitle).join(', ') }), 'error'); return; }
-  }
-  setAlbumMessage(al, tr('albumSaving'), 'info');
-  try {
-    await loadPostgresReadScripts();
-    // Nouvelle pochette : envoyée d'abord (images/<id du compositeur>/album-<id>.<ext>, dossier du compositeur comme
-    // toutes les images, voir publishAll), puis enregistrée avec l'album.
-    let cover = null;
-    if (al.pendingCover) {
-      const { composerId, error: composerError } = await window.LayerPitchAuth.ensureMyComposerProfile();
-      if (composerError || !composerId) throw new Error(composerError || 'aucun profil compositeur');
-      const fileName = `${composerId}/album-${al.id}.${extOf(al.pendingCover.name)}`;
-      await r2PutFile(`images/${fileName}`, new Uint8Array(await al.pendingCover.arrayBuffer()), imageContentType(extOf(fileName)));
-      cover = { illustration: fileName, illustrationOriginalName: al.pendingCover.name };
-    }
-    const { ok, error, data: saved } = await window.LayerPitchAlbums.upsertAlbum({
-      id: al.id, title: al.title, presentationFr: al.presentationFr, presentationEn: al.presentationEn,
-      priceEurCents: cents, buyable: al.buyable, trackIds: al.trackIds,
-      ...(cover || {}),
-    });
-    if (!ok) {
-      const hint = /pistes/i.test(error || '') ? ' ' + tr('albumTracksNotPublishedHint') : '';
-      setAlbumMessage(al, tr('albumSaveError', { error }) + hint, 'error');
-      return;
-    }
-    al.saved = true;
-    al.savedBuyable = al.buyable;
-    if (cover) {
-      Object.assign(al, cover);
-      if (al.pendingCoverUrl) URL.revokeObjectURL(al.pendingCoverUrl);
-      al.pendingCover = null; al.pendingCoverUrl = null;
-    }
-    // Morceaux décochés d'un album déjà obtenu : gardés pour ceux qui l'ont (27/09) -- on le dit au compositeur.
-    const kept = (saved && saved.keptForBuyers) || [];
-    const savedMessage = kept.length ? tr('albumSaved') + ' ' + tr('albumTracksKeptForBuyers', { tracks: kept.map(albumTrackTitle).join(', ') }) : tr('albumSaved');
-    al.savedTrackIds = al.trackIds.slice();
-    // Un morceau retiré de l'album perd sa version (la ligne album_tracks est supprimée côté serveur).
-    Object.keys(al.officialDurations || {}).forEach(id => { if (!al.trackIds.includes(id)) delete al.officialDurations[id]; });
-    setAlbumMessage(al, savedMessage, 'ok');
-  } catch (e) {
-    setAlbumMessage(al, tr('albumSaveError', { error: e.message }), 'error');
-  }
-}
-
-async function claimTestAlbumFromUi(ai) {
-  const al = albumsState.albums[ai];
+async function claimTestAlbum(al) {
+  const ed = editorOf(al);
   try {
     const { ok, error, alreadyOwned } = await window.LayerPitchAlbums.claimTestAlbum(al.id);
-    if (!ok) { setAlbumMessage(al, tr('albumClaimError', { error }), 'error'); return; }
+    if (!ok) { ed.say(tr('albumClaimError', { error }), 'error'); return; }
     const pu = await window.LayerPitchAlbums.listMyPurchases();
     if (pu.purchases) albumsState.purchases = pu.purchases;
     renderAlbumsLibrary();
-    setAlbumMessage(al, tr(alreadyOwned ? 'albumAlreadyOwned' : 'albumClaimed'), 'ok');
+    ed.say(tr(alreadyOwned ? 'albumAlreadyOwned' : 'albumClaimed'), 'ok');
   } catch (e) {
-    setAlbumMessage(al, tr('albumClaimError', { error: e.message }), 'error');
+    ed.say(tr('albumClaimError', { error: e.message }), 'error');
   }
 }
 
-(function wireAlbumsPanel() {
-  const box = document.getElementById('albumsContainer');
-  // Saisie : on met à jour l'état sans re-rendre (sinon le champ perdrait le focus à chaque frappe).
-  box.addEventListener('input', e => {
-    const field = e.target.dataset.albumField;
-    if (!field || field === 'buyable') return;
-    albumsState.albums[Number(e.target.dataset.ai)][field] = e.target.value;
-  });
-  box.addEventListener('change', e => {
-    const ai = Number(e.target.dataset.ai);
-    if (e.target.dataset.albumField === 'buyable') {
-      albumsState.albums[ai].buyable = e.target.checked;
-    } else if (e.target.dataset.albumTrack) {
-      const al = albumsState.albums[ai];
-      const id = e.target.dataset.albumTrack;
-      al.trackIds = e.target.checked ? al.trackIds.concat(id) : al.trackIds.filter(t => t !== id);
-      renderAlbums(); // les numéros d'ordre (1., 2., …) suivent l'ordre de cochage
-    }
-  });
-  box.addEventListener('click', e => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const ai = Number(btn.dataset.ai);
-    if (btn.dataset.action === 'save-album') saveAlbum(ai);
-    if (btn.dataset.action === 'claim-test-album') claimTestAlbumFromUi(ai);
-    if (btn.dataset.action === 'official-record') openOfficialRecorder(ai, btn.dataset.track);
-    if (btn.dataset.action === 'official-play') toggleOfficialPlayback(ai, btn.dataset.track);
-  });
-  document.getElementById('btnAddAlbum').addEventListener('click', () => {
-    albumsState.albums.push({ id: newAlbumId(), title: '', presentationFr: '', presentationEn: '', priceInput: '', buyable: false, trackIds: [], saved: false, savedBuyable: false, savedTrackIds: [], officialDurations: {}, illustration: null, illustrationOriginalName: null, pendingCover: null, pendingCoverUrl: null });
-    renderAlbums();
-  });
-})();
+document.getElementById('btnAddAlbum').addEventListener('click', () => {
+  albumsState.albums.push(window.LayerPitchAlbumEditor.newAlbum());
+  renderAlbums();
+});
 
 async function loadAnalyticsIfNeeded() {
   renderAnalyticsPresets();
@@ -11800,11 +11949,55 @@ function analyticsFxButtonsCard(fxButtons) {
   }).join('');
   return `<div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsFxSummaryTitle'))} <span class="hint">${escapeHtml(tr('analyticsFxEntityHint'))}</span></div><ul class="an-ix">${rows}</ul></div>`;
 }
+// Nom lisible d'un morceau (1er/10) : le tableau de bord montrait l'identifiant interne (bmrc8rec1wtahz). Retrouvé dans la
+// bibliothèque locale ; repli sur l'identifiant si le morceau a été supprimé depuis.
+function analyticsTrackName(id) {
+  const t = library.find(x => x.id === id);
+  return t ? (t.title || id) : id;
+}
+// Libellé d'une « voix » (couche, pool) d'un morceau : 'layer-2' -> nom de la couche, 'pool-0' -> Pool 1.
+function analyticsVoiceName(track, voice) {
+  const m = /^(layer|pool)-(\d+)$/.exec(voice || '');
+  if (!m) return voice || '?';
+  const n = parseInt(m[2], 10);
+  if (m[1] === 'layer') return (track && track.layers && track.layers[n] && track.layers[n].label) || tr('layerFallback', { n: n + 1 });
+  return tr('analyticsPoolName', { n: n + 1 });
+}
+// Ce que le visiteur a fait, en clair : quel bouton, quelle boucle, quelle intensité, sur quel morceau (jusque-là seul le
+// nom technique de l'évènement, « intensity_change », était affiché).
 function analyticsInteractionLabel(i) {
+  const d = i.detail || {};
+  const track = library.find(x => x.id === d.trackId);
+  const tname = analyticsTrackName(d.trackId);
   if (i.name === 'fx_trigger' && i.detail) {
     const info = analyticsFxTriggerInfo(i.detail);
     return tr('analyticsFxInteraction', { label: info.label, track: info.trackTitle, state: tr(i.detail.active ? 'analyticsFxOn' : 'analyticsFxOff') });
   }
+  if (i.name === 'intensity_change' && d.level != null) {
+    const lay = track && track.layers && track.layers[d.level];
+    return tr('analyticsIntensity', { level: d.level + 1, name: (lay && lay.label) ? ' (' + lay.label + ')' : '', track: tname });
+  }
+  if (i.name === 'embr_loop_select') {
+    const loops = (track && track.loops) || [];
+    const idx = loops.findIndex(l => l.id === d.loopId);
+    return tr('analyticsLoopSelect', { name: idx >= 0 ? (loops[idx].label || tr('analyticsLoopFallback', { n: idx + 1 })) : (d.loopId || '?'), track: tname });
+  }
+  if (i.name === 'seq_branch_select') {
+    const slots = (track && track.segmentSlots) || [];
+    const idx = slots.findIndex(s => s.id === d.targetId);
+    return tr('analyticsBranchSelect', { name: idx >= 0 ? (slots[idx].label || tr('analyticsSlotFallback', { n: idx + 1 })) : (d.targetId || '?'), track: tname });
+  }
+  if (i.name === 'voice_solo_toggle' || i.name === 'voice_mute_toggle') {
+    return tr(i.name === 'voice_solo_toggle' ? 'analyticsVoiceSolo' : 'analyticsVoiceMute', { voice: analyticsVoiceName(track, d.voice), track: tname, state: tr(d.active ? 'analyticsFxOn' : 'analyticsFxOff') });
+  }
+  if (i.name === 'voice_volume_change') {
+    return tr('analyticsVoiceVolume', { voice: analyticsVoiceName(track, d.voice), value: Math.round((+d.value || 0) * 100), track: tname });
+  }
+  if (i.name === 'stinger_play') {
+    const sfx = typeof sfxLibrary !== 'undefined' ? sfxLibrary.find(x => x.id === d.sfxId) : null;
+    return tr('analyticsSfxPlay', { name: (sfx && sfx.title) || d.sfxId || '?', track: tname });
+  }
+  if (i.name === 'pool_refresh') return tr('analyticsPoolRefresh', { track: tname });
   return i.name;
 }
 // Synthèse « boutons d'effet les plus utilisés » : nombre d'appuis d'ACTIVATION par bouton sur toute la période
@@ -11854,7 +12047,7 @@ function renderAnalyticsSessionCard(s) {
     const trackItems = tracks.map(t => {
       const cls = t.skipped ? 'analytics-track-skipped' : (t.reachedEnd ? 'analytics-track-reached' : '');
       const stateLabel = t.reachedEnd ? tr('analyticsTrackReachedEnd') : (t.skipped ? tr('analyticsTrackSkipped') : tr('analyticsTrackPartial'));
-      return `<li class="${cls}">${escapeHtml(t.trackId)} — ${escapeHtml(stateLabel)}</li>`;
+      return `<li class="${cls}">${escapeHtml(analyticsTrackName(t.trackId))} — ${escapeHtml(stateLabel)}</li>`;
     }).join('');
     const interactionItems = interactions.map(i => `<li>${escapeHtml(analyticsInteractionLabel(i))}</li>`).join('');
     detail = `
@@ -11984,127 +12177,9 @@ document.getElementById('appAllowIndexing').addEventListener('change', e => {
 });
 fillAppearanceFields();
 
-/* ---------------- Onglet Albums : co-ayants droit (chantier profils et permissions, étape 4a, 28/09) ----------------
- * D4-D6 du cadrage layerpitch-docs/2026-09-27-cadrage-profils-permissions.md : à la mise en vente, le vendeur déclare
- * s'il est seul propriétaire ou s'il partage les droits (e-mail + part de chaque co-ayant droit, avertissement à
- * reconnaître). Chaque co-ayant droit est invité par e-mail (Edge Function invite-rights-holder) et accepte ou refuse
- * sur invitation.html. Injoignable : « je reverse moi-même sa part ». Refus : vente bloquée. Tout est vérifié côté
- * serveur (set_album_rights, upsert_album, 20260928040000) ; cette section ne fait qu'afficher et envoyer.
- * État par album : albumsState.rights[albumId] = { loaded, loading, declaration, ack, rows: [{ id?, email, pct, status }], msg }. */
-function albumRightsState(al) {
-  albumsState.rights = albumsState.rights || {};
-  if (!albumsState.rights[al.id]) albumsState.rights[al.id] = { loaded: false, loading: false, declaration: 'sole', ack: false, rows: [], msg: null };
-  return albumsState.rights[al.id];
-}
-function albumRightsFromServer(st, data) {
-  st.declaration = data.declaration || 'sole';
-  st.ack = !!data.ackAt;
-  st.rows = (data.holders || []).map(h => ({ id: h.id, email: h.email, pct: String(h.shareBps / 100).replace('.', ','), status: h.status, payoutRole: h.payoutRole, hasAccount: h.hasAccount }));
-  st.settled = !!data.settled;
-  st.sellerShareBps = data.sellerShareBps;
-}
-async function loadAlbumRights(al) {
-  const st = albumRightsState(al);
-  if (st.loaded || st.loading) return;
-  st.loading = true;
-  const { rights, error } = await window.LayerPitchAlbums.getAlbumRights(al.id);
-  st.loading = false;
-  if (error) { st.msg = { kind: 'error', text: tr('rightsLoadError', { error }) }; }
-  else { albumRightsFromServer(st, rights); st.loaded = true; }
-  renderAlbums();
-}
-const rightsPctToBps = s => Math.round(Number(String(s || '').trim().replace(',', '.')) * 100);
-function renderAlbumRights(al, ai) {
-  const head = `<label style="margin-top:16px">${tr('rightsTitle')}</label>`;
-  if (!al.saved) return head + `<div class="sub">${tr('rightsSaveFirst')}</div>`;
-  const st = albumRightsState(al);
-  if (!st.loaded) { if (!st.loading) setTimeout(() => loadAlbumRights(al), 0); return head + `<div class="sub">${tr('albumsLoading')}</div>`; }
-  const rowStyle = 'display:flex;align-items:center;gap:8px;';
-  let html = head + `
-    <label style="${rowStyle}font-weight:normal"><input type="radio" name="rights-${escapeAttr(al.id)}" data-rights-field="declaration" data-ai="${ai}" value="sole" style="width:auto;margin:0"${st.declaration === 'sole' ? ' checked' : ''}> ${tr('rightsSole')}</label>
-    <label style="${rowStyle}font-weight:normal"><input type="radio" name="rights-${escapeAttr(al.id)}" data-rights-field="declaration" data-ai="${ai}" value="shared" style="width:auto;margin:0"${st.declaration === 'shared' ? ' checked' : ''}> ${tr('rightsShared')}</label>`;
-  if (st.declaration === 'shared') {
-    const others = st.rows.reduce((s, r) => s + (rightsPctToBps(r.pct) || 0), 0);
-    html += `<div style="margin:8px 0 0 22px">
-      ${st.rows.map((r, i) => `
-        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px">
-          <input type="email" data-rights-row="${i}" data-rights-col="email" data-ai="${ai}" value="${escapeAttr(r.email)}" placeholder="${escapeAttr(tr('rightsEmailPlaceholder'))}" style="flex:1 1 200px;min-width:0">
-          <input type="text" inputmode="decimal" data-rights-row="${i}" data-rights-col="pct" data-ai="${ai}" value="${escapeAttr(r.pct)}" placeholder="30" style="width:70px"> %
-          ${r.status ? `<span class="badge">${escapeHtml(tr('rightsStatus_' + r.status))}</span>` : ''}
-          ${r.id && (r.status === 'pending' || r.status === 'self_pay') ? `<button class="btn btn-small" type="button" data-action="rights-invite" data-ai="${ai}" data-holder="${escapeAttr(r.id)}">${tr('rightsReinvite')}</button>` : ''}
-          ${r.id && r.status === 'pending' ? `<button class="btn btn-small" type="button" data-action="rights-self-pay" data-ai="${ai}" data-holder="${escapeAttr(r.id)}" title="${escapeAttr(tr('rightsSelfPayHelp'))}">${tr('rightsSelfPay')}</button>` : ''}
-          <button class="btn btn-small btn-danger" type="button" data-action="rights-remove" data-ai="${ai}" data-row="${i}">${tr('deleteBtn')}</button>
-        </div>`).join('')}
-      <button class="btn btn-small" type="button" data-action="rights-add" data-ai="${ai}" style="margin-top:8px">${tr('rightsAdd')}</button>
-      <div class="sub" style="margin-top:6px">${tr('rightsSellerShare', { pct: ((10000 - others) / 100).toLocaleString(currentLang()) })}</div>
-      <label style="${rowStyle}font-weight:normal;margin-top:8px;align-items:flex-start"><input type="checkbox" data-rights-field="ack" data-ai="${ai}" style="width:auto;margin:3px 0 0"${st.ack ? ' checked' : ''}> <span class="sub" style="margin:0">${tr('rightsDisclaimer')}</span></label>
-    </div>`;
-  }
-  html += `<div class="actions" style="margin-top:8px"><button class="btn btn-small" type="button" data-action="rights-save" data-ai="${ai}">${tr('rightsSaveBtn')}</button></div>`;
-  if (st.declaration === 'shared' && st.loaded && st.rows.some(r => r.status)) html += `<div class="sub" style="margin-top:4px">${tr(st.settled ? 'rightsSettled' : 'rightsNotSettled')}</div>`;
-  if (st.msg) html += `<div class="sub" style="margin-top:6px;${st.msg.kind === 'error' ? 'color:#c0392b' : 'color:#2e8b57'}">${escapeHtml(st.msg.text)}</div>`;
-  return html;
-}
-async function inviteRightsHolders(al, ids) {
-  const failures = [];
-  for (const id of ids) {
-    const r = await window.LayerPitchAlbums.inviteRightsHolder(al.id, id, location.origin + '/invitation.html');
-    if (!r.ok) failures.push(r.actionLink ? tr('rightsInviteFailedWithLink', { error: r.error, link: r.actionLink }) : r.error);
-  }
-  return failures;
-}
-async function saveAlbumRights(ai) {
-  const al = albumsState.albums[ai];
-  const st = albumRightsState(al);
-  const holders = st.declaration === 'shared' ? st.rows.filter(r => r.email.trim()).map(r => ({ email: r.email.trim(), shareBps: rightsPctToBps(r.pct) })) : [];
-  st.msg = { kind: 'ok', text: tr('albumSaving') }; renderAlbums();
-  const { rights, error } = await window.LayerPitchAlbums.setAlbumRights(al.id, st.declaration, holders, st.ack);
-  if (error) { st.msg = { kind: 'error', text: tr('rightsSaveError', { error }) }; renderAlbums(); return; }
-  albumRightsFromServer(st, rights);
-  if (rights.unlisted) { al.buyable = false; al.savedBuyable = false; }
-  const failures = rights.toInvite && rights.toInvite.length ? await inviteRightsHolders(al, rights.toInvite) : [];
-  st.msg = failures.length ? { kind: 'error', text: tr('rightsInviteFailed', { errors: failures.join(' / ') }) }
-    : { kind: 'ok', text: tr(rights.toInvite && rights.toInvite.length ? 'rightsSavedInvited' : 'rightsSaved', { n: (rights.toInvite || []).length }) + (rights.unlisted ? ' ' + tr('rightsUnlisted') : '') };
-  renderAlbums();
-}
-(function wireAlbumRights() {
-  const box = document.getElementById('albumsContainer');
-  box.addEventListener('input', e => {
-    const d = e.target.dataset;
-    if (d.rightsRow == null) return;
-    albumRightsState(albumsState.albums[Number(d.ai)]).rows[Number(d.rightsRow)][d.rightsCol] = e.target.value;
-  });
-  box.addEventListener('change', e => {
-    const d = e.target.dataset;
-    if (!d.rightsField) return;
-    const st = albumRightsState(albumsState.albums[Number(d.ai)]);
-    if (d.rightsField === 'declaration') { st.declaration = e.target.value; if (st.declaration === 'shared' && !st.rows.length) st.rows.push({ email: '', pct: '' }); renderAlbums(); }
-    if (d.rightsField === 'ack') st.ack = e.target.checked;
-  });
-  box.addEventListener('click', async e => {
-    const btn = e.target.closest('[data-action^="rights-"]');
-    if (!btn) return;
-    const ai = Number(btn.dataset.ai), al = albumsState.albums[ai], st = albumRightsState(al);
-    const act = btn.dataset.action;
-    if (act === 'rights-add') { st.rows.push({ email: '', pct: '' }); renderAlbums(); }
-    if (act === 'rights-remove') { st.rows.splice(Number(btn.dataset.row), 1); renderAlbums(); }
-    if (act === 'rights-save') saveAlbumRights(ai);
-    if (act === 'rights-invite') {
-      btn.disabled = true;
-      const failures = await inviteRightsHolders(al, [btn.dataset.holder]);
-      st.msg = failures.length ? { kind: 'error', text: tr('rightsInviteFailed', { errors: failures.join(' / ') }) } : { kind: 'ok', text: tr('rightsInviteSent') };
-      renderAlbums();
-    }
-    if (act === 'rights-self-pay') {
-      const ok = await window.LayerPitchNotify.confirm(tr('rightsSelfPayConfirm'), { okLabel: tr('rightsSelfPay') });
-      if (!ok) return;
-      const { rights, error } = await window.LayerPitchAlbums.markRightsHolderSelfPay(btn.dataset.holder);
-      st.msg = error ? { kind: 'error', text: tr('rightsSaveError', { error }) } : { kind: 'ok', text: tr('rightsSelfPayDone') };
-      if (rights) albumRightsFromServer(st, rights);
-      renderAlbums();
-    }
-  });
-})();
+
+// Arrivée depuis une invitation acceptée (invitation.html) : ouvre directement l'onglet Albums.
+if (new URLSearchParams(location.search).get('tab') === 'albums') { switchTab('albums'); loadAlbums(); }
 /* ---------------- Polices personnalisées (portée globale, réutilisables par tout AdReel/bloc) ---------------- */
 function renderCustomFontsList() {
   const container = document.getElementById('customFontsContainer');
@@ -12192,6 +12267,103 @@ document.getElementById('allowEmbeddingCheckbox').addEventListener('change', e =
 });
 fillAllowEmbeddingField();
 
+/* ---------------- Aperçu des liens partagés (1er/10, rubrique Réseaux sociaux) ----------------
+ * Titre, description et image de la carte qu'affichent LinkedIn, Facebook, WhatsApp, Discord… quand on colle un lien de l'AdReel
+ * (voir cloudflare/LISEZMOI.md et la fonction get_share_preview). Beaucoup de compositeurs mettent leur image dans le bloc
+ * Header et n'ont ni photo ni titre dans le profil : ces champs passent avant le profil. Enregistrés à la publication
+ * (settings.share_preview) ; l'image choisie attend la publication, comme les autres images. */
+// Recadrage « remplir » centré au format 1200 × 630 (1,91 pour 1, celui des cartes LinkedIn/Facebook). Pure : rectangle source.
+const SHARE_PREVIEW_W = 1200, SHARE_PREVIEW_H = 630;
+function sharePreviewCropRect(w, h) {
+  const target = SHARE_PREVIEW_W / SHARE_PREVIEW_H;
+  if (w / h > target) { const sw = Math.round(h * target); return { sx: Math.floor((w - sw) / 2), sy: 0, sw, sh: h }; }
+  const sh = Math.round(w / target);
+  return { sx: 0, sy: Math.floor((h - sh) / 2), sw: w, sh };
+}
+// Mode « image entière » (marie-louise) : l'image est réduite pour tenir dans 1200 × 630 sans rien couper, centrée dans une bordure. Pure : rectangle d'arrivée.
+function sharePreviewContainRect(w, h) {
+  const k = Math.min(SHARE_PREVIEW_W / w, SHARE_PREVIEW_H / h);
+  const dw = Math.round(w * k), dh = Math.round(h * k);
+  return { dx: Math.floor((SHARE_PREVIEW_W - dw) / 2), dy: Math.floor((SHARE_PREVIEW_H - dh) / 2), dw, dh };
+}
+// Déjà au bon format et assez grande : rien à faire (écart de format de 1 % toléré).
+function sharePreviewNeedsFit(w, h) {
+  return !(w >= SHARE_PREVIEW_W && Math.abs(w / h - SHARE_PREVIEW_W / SHARE_PREVIEW_H) / (SHARE_PREVIEW_W / SHARE_PREVIEW_H) < 0.01);
+}
+// Fichier choisi -> fichier recadré 1200 × 630 (JPEG si la source l'est, PNG sinon), ou le fichier d'origine s'il est déjà bon.
+async function sharePreviewFit(file, mode, color) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = () => reject(new Error('image illisible')); i.src = url; });
+    const w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h) throw new Error('image vide');
+    if (!sharePreviewNeedsFit(w, h)) return file;
+    const canvas = document.createElement('canvas');
+    canvas.width = SHARE_PREVIEW_W; canvas.height = SHARE_PREVIEW_H;
+    const g = canvas.getContext('2d');
+    if (mode === 'contain') {
+      // Marie-louise : fond de la couleur choisie, puis l'image entière au centre.
+      g.fillStyle = /^#[0-9a-f]{6}$/i.test(color || '') ? color : '#ffffff'; g.fillRect(0, 0, SHARE_PREVIEW_W, SHARE_PREVIEW_H);
+      const c = sharePreviewContainRect(w, h);
+      g.drawImage(img, 0, 0, w, h, c.dx, c.dy, c.dw, c.dh);
+    } else {
+      const r = sharePreviewCropRect(w, h);
+      g.drawImage(img, r.sx, r.sy, r.sw, r.sh, 0, 0, SHARE_PREVIEW_W, SHARE_PREVIEW_H);
+    }
+    const jpeg = /jpe?g/i.test(file.type);
+    const blob = await new Promise((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error('export impossible'))), jpeg ? 'image/jpeg' : 'image/png', 0.92));
+    return new File([blob], 'share-preview.' + (jpeg ? 'jpg' : 'png'), { type: blob.type });
+  } finally { URL.revokeObjectURL(url); }
+}
+function renderSharePreviewMock() {
+  const mock = document.getElementById('sharePreviewMock');
+  if (!mock) return;
+  const src = sharePreviewPendingFile ? (sharePreviewPendingFileUrl || '') : (sharePreview.image ? MEDIA_BASE + 'images/' + sharePreview.image : '');
+  const img = src ? `<img src="${escapeAttr(src)}" alt="" style="display:block;width:100%;aspect-ratio:1200/630;object-fit:${sharePreview.autoFit !== false && sharePreview.fitMode !== 'contain' ? 'cover' : 'contain'};background:${sharePreview.autoFit !== false && sharePreview.fitMode === 'contain' ? escapeAttr(sharePreview.fitColor || '#ffffff') : '#14181d'}">` : `<div style="aspect-ratio:1200/630;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-dimmer)">${tr('sharePreviewDefaultImage')}</div>`;
+  const title = (sharePreview.title || '').trim() || tr('sharePreviewMockTitleFallback');
+  const desc = (sharePreview.description || '').trim();
+  mock.innerHTML = `${img}<div style="padding:10px 12px"><div style="font-size:11px;color:var(--text-dimmer)">beta.layerpitch.com</div><div style="font-weight:600;font-size:13px;margin-top:2px">${escapeHtml(title)}</div>${desc ? `<div style="font-size:12px;color:var(--text-dim);margin-top:2px">${escapeHtml(desc)}</div>` : ''}</div>`;
+}
+let sharePreviewPendingFileUrl = null;
+function fillSharePreviewFields() {
+  const t = document.getElementById('sharePreviewTitleInput');
+  if (!t) return;
+  t.value = sharePreview.title || '';
+  document.getElementById('sharePreviewDescInput').value = sharePreview.description || '';
+  document.getElementById('sharePreviewAutoFit').checked = sharePreview.autoFit !== false;
+  document.getElementById('sharePreviewFitMode').value = sharePreview.fitMode === 'contain' ? 'contain' : 'fill';
+  document.getElementById('sharePreviewFitMode').disabled = sharePreview.autoFit === false;
+  document.getElementById('sharePreviewFitColor').value = /^#[0-9a-f]{6}$/i.test(sharePreview.fitColor || '') ? sharePreview.fitColor : '#ffffff';
+  document.getElementById('sharePreviewFitColorWrap').style.display = sharePreview.fitMode === 'contain' && sharePreview.autoFit !== false ? 'flex' : 'none';
+  const ctrl = document.getElementById('sharePreviewImageCtrl');
+  ctrl.innerHTML = fileCtrlHtml(tr('chooseSharePreviewImage'), `<button type="button" class="btn btn-small btn-danger" data-role="removeSharePreviewImage">${tr('removeSharePreviewImage')}</button>`);
+  const rm = ctrl.querySelector('[data-role="removeSharePreviewImage"]');
+  const refreshRm = () => { rm.hidden = !(sharePreviewPendingFile || sharePreview.image); };
+  wireFileControl(ctrl, 'image/*', () => sharePreviewPendingFile, () => sharePreview.image, f => {
+    if (sharePreviewPendingFileUrl) { URL.revokeObjectURL(sharePreviewPendingFileUrl); sharePreviewPendingFileUrl = null; }
+    sharePreviewPendingFile = f || null;
+    if (f) sharePreviewPendingFileUrl = URL.createObjectURL(f);
+    hasUnsavedEdits = true; refreshRm(); renderSharePreviewMock();
+  }, () => sharePreview.imageOriginalName);
+  refreshRm();
+  rm.addEventListener('click', () => {
+    // L'image publiée est effacée du stockage à la prochaine publication, si plus rien ne la référence (file d'orphelins).
+    if (sharePreview.image) queueR2Delete('images/' + sharePreview.image);
+    sharePreview.image = null; sharePreview.imageOriginalName = null;
+    if (sharePreviewPendingFileUrl) { URL.revokeObjectURL(sharePreviewPendingFileUrl); sharePreviewPendingFileUrl = null; }
+    sharePreviewPendingFile = null;
+    hasUnsavedEdits = true;
+    document.getElementById('sharePreviewAutoFit').addEventListener('change', e => { sharePreview.autoFit = e.target.checked; document.getElementById('sharePreviewFitMode').disabled = !e.target.checked; document.getElementById('sharePreviewFitColorWrap').style.display = e.target.checked && sharePreview.fitMode === 'contain' ? 'flex' : 'none'; hasUnsavedEdits = true; renderSharePreviewMock(); });
+document.getElementById('sharePreviewFitMode').addEventListener('change', e => { sharePreview.fitMode = e.target.value; document.getElementById('sharePreviewFitColorWrap').style.display = e.target.value === 'contain' ? 'flex' : 'none'; hasUnsavedEdits = true; renderSharePreviewMock(); });
+document.getElementById('sharePreviewFitColor').addEventListener('input', e => { sharePreview.fitColor = e.target.value; hasUnsavedEdits = true; renderSharePreviewMock(); });
+fillSharePreviewFields();
+  });
+  renderSharePreviewMock();
+}
+document.getElementById('sharePreviewTitleInput').addEventListener('input', e => { sharePreview.title = e.target.value; hasUnsavedEdits = true; renderSharePreviewMock(); });
+document.getElementById('sharePreviewDescInput').addEventListener('input', e => { sharePreview.description = e.target.value; hasUnsavedEdits = true; renderSharePreviewMock(); });
+document.getElementById('sharePreviewAutoFit').addEventListener('change', e => { sharePreview.autoFit = e.target.checked; hasUnsavedEdits = true; renderSharePreviewMock(); });
+fillSharePreviewFields();
 /* ---------------- Style de forme d'onde (réglage global, palier Pro) ---------------- */
 // Clé i18n dérivée du nom du style ('mirror' -> 'waveformStyleMirror') plutôt qu'une table de
 // correspondance à part -- fillAppearanceFields() étant appelée dès le chargement du script (avant même
@@ -12269,6 +12441,7 @@ async function loadData(silent) {
       waveformStyle = 'bars';
       seqMapTheme = 'light';
       allowEmbedding = false;
+      sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW); sharePreviewPendingFile = null;
       adReels = [{ id: 'main', label: tr('defaultAdreelLabel'), lang: currentLang(), blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, allowIndexing: true, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null }];
       currentAdReelId = 'main';
       const cur = adReels[0];
@@ -12276,7 +12449,7 @@ async function loadData(silent) {
       logoPendingFile = null; photoPendingFile = null;
       collapsedPackIds.clear(); collapsedBlockIds.clear(); collapsedCollectionIds.clear();
       cur.blocks.forEach(b => collapsedBlockIds.add(b.id));
-      renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); rebuildAllCards();
+      renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); fillSharePreviewFields(); rebuildAllCards();
       pendingR2Deletes.clear(); pendingOrphanR2Keys.clear();
       rememberPublishedCatalog();
       dataLoadOk = true; // absence légitime de data.json (premier lancement) -- pas un échec, publier est sûr
@@ -12342,7 +12515,7 @@ async function loadData(silent) {
       }
 
       return {
-        id: t.id, title: t.title, description: t.description || '', tags: t.tags || '', mode,
+        id: t.id, title: t.title, description: t.description || '', tags: t.tags || '', mode, protected: !!t.protected,
         implementationNote: t.implementationNote || '',
         noAiOverride: (t.noAiOverride === true || t.noAiOverride === false) ? t.noAiOverride : null,
         duration: t.duration || 0, base: t.base || '', loopable: !!t.loopable,
@@ -12357,7 +12530,7 @@ async function loadData(silent) {
         maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
         normalizeVolume: !!t.normalizeVolume,
         fx: t.fx || null,
-        fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations) })),
+        fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations), steps: fxStepsClean(x.steps), showEffects: x.showEffects !== false, targets: Array.isArray(x.targets) && x.targets.length ? x.targets.map(t => Object.assign({}, t)) : undefined })),
         fxSliders: fxSlidersClean(t.fxSliders),
         layers: (t.layers || []).map(l => ({ label: l.label, remoteFile: l.file, pendingFile: null, gain: l.gain || 1, duration: l.duration || 0, fx: l.fx || null })),
         intro: t.intro ? { label: t.intro.label || 'Intro', bars: t.intro.bars || 8, remoteFile: t.intro.file || null, pendingFile: null, gain: t.intro.gain || 1, descriptionFr: t.intro.descriptionFr || '', descriptionEn: t.intro.descriptionEn || '', bpm: t.intro.bpm || null, beatsPerBar: t.intro.beatsPerBar || null, fx: t.intro.fx || null } : null,
@@ -12440,7 +12613,7 @@ async function loadData(silent) {
     libraryFolders.forEach(f => collapsedLibraryFolderIds.add(f.id));
     library.forEach(t => { if (t.folderId && !libraryFolders.some(f => f.id === t.folderId)) t.folderId = null; });
     sfxLibrary = (data.sfxLibrary || []).map(s => ({
-      id: s.id, title: s.title || '',
+      id: s.id, title: s.title || '', protected: !!s.protected,
       // Repli sur l'ancien champ unique "description" pour tout Sfx publié avant le passage au bilingue —
       // lu une fois ici, jamais réécrit dans l'ancien champ ensuite (même principe que tagline -> title/subtitle).
       descriptionFr: s.descriptionFr != null ? s.descriptionFr : (s.description || ''),
@@ -12477,6 +12650,7 @@ async function loadData(silent) {
     waveformStyle = window.LayerPlayerCore.WAVEFORM_STYLES.includes(data.waveformStyle) ? data.waveformStyle : 'bars';
     seqMapTheme = window.LayerPlayerCore.SEQ_MAP_THEMES.includes(data.seqMapTheme) ? data.seqMapTheme : 'light';
     allowEmbedding = !!data.allowEmbedding;
+    sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW, data.sharePreview || {}); sharePreviewPendingFile = null;
     collections = (data.collections || []).map(c => ({
       id: c.id, title: c.title || '', illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, pendingIllustration: null,
       presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '',
@@ -12535,7 +12709,7 @@ async function loadData(silent) {
     fillAppearanceFields();
     fillImplementationSkillsFields();
     fillNoAiCertifiedGlobalField();
-    fillAllowEmbeddingField();
+    fillAllowEmbeddingField(); fillSharePreviewFields();
     rebuildAllCards();
     hasUnsavedEdits = false;
     // Suppressions non publiées abandonnées par ce rechargement : les éléments reviennent, leurs fichiers R2 restent.
@@ -12642,7 +12816,7 @@ function draftState() {
   saveWorkingPendingIntoCurrent(); // fichiers en cours de l'AdReel affiché -> dans son AdReel
   return {
     library, libraryFolders, sfxLibrary, sfxFolders, socials, packs, collections, customFonts, adReels, adReelFolders,
-    currentAdReelId, implementationSkills, noAiCertifiedGlobal, waveformStyle, seqMapTheme, allowEmbedding,
+    currentAdReelId, implementationSkills, noAiCertifiedGlobal, waveformStyle, seqMapTheme, allowEmbedding, sharePreview, sharePreviewPendingFile,
     pendingR2Deletes, pendingOrphanR2Keys,
   };
 }
@@ -12684,9 +12858,16 @@ async function offerDraftRestore() {
     const draft = await draftTx('drafts', 'readonly', st => st.get(loadedComposerId));
     if (!draft || !draft.state) return;
     const when = new Date(draft.savedAt).toLocaleString(currentLang(), { dateStyle: 'short', timeStyle: 'short' });
+    // Réglage « ne plus m'avertir » (30/09) : les brouillons retrouvés sont ignorés (supprimés) sans rien demander. Se règle dans
+    // la fenêtre ci-dessous et dans Mon compte → Profil ; propre à ce navigateur, comme le brouillon lui-même.
+    let autoIgnore = false;
+    try { autoIgnore = localStorage.getItem('layerpitch_draft_auto_ignore') === '1'; } catch (e) { /* stockage indisponible : on demande */ }
+    if (autoIgnore) { await clearDraft(); log(tr('draftAutoIgnored', { date: when }), 'info'); return; }
     const stale = draft.baselinePublishedAt !== loadedPublishedAt;
     const ok = await window.LayerPitchNotify.confirm(tr('draftRestoreConfirm', { date: when }) + (stale ? '\n\n' + tr('draftRestoreStale') : ''),
-      { okLabel: tr('draftRestoreOk'), cancelLabel: tr('draftRestoreDiscard') });
+      { okLabel: tr('draftRestoreOk'), cancelLabel: tr('draftRestoreDiscard'), checkboxLabel: tr('draftRestoreNever'),
+        // Cochée : retenue seulement avec « Ignorer » (reprendre un brouillon reste un choix fait à chaque fois).
+        onFinish: (answer, checked) => { if (!answer && checked) { try { localStorage.setItem('layerpitch_draft_auto_ignore', '1'); } catch (e) { /* tant pis */ } } } });
     if (!ok) { await clearDraft(); return; }
     const prefix = loadedComposerId + ':';
     const filesById = new Map();
@@ -12710,6 +12891,7 @@ function applyDraftState(d) {
   adReels = (d.adReels && d.adReels.length) ? d.adReels : adReels; adReelFolders = d.adReelFolders || [];
   implementationSkills = d.implementationSkills || implementationSkills; noAiCertifiedGlobal = !!d.noAiCertifiedGlobal;
   waveformStyle = d.waveformStyle || waveformStyle; seqMapTheme = d.seqMapTheme || seqMapTheme; allowEmbedding = !!d.allowEmbedding;
+  sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW, d.sharePreview || {}); sharePreviewPendingFile = d.sharePreviewPendingFile || null;
   pendingR2Deletes.clear(); (d.pendingR2Deletes || new Map()).forEach((v, k) => pendingR2Deletes.set(k, v));
   pendingOrphanR2Keys.clear(); (d.pendingOrphanR2Keys || new Set()).forEach(k => pendingOrphanR2Keys.add(k));
   currentAdReelId = adReels.some(a => a.id === d.currentAdReelId) ? d.currentAdReelId : adReels[0].id;
@@ -12720,7 +12902,7 @@ function applyDraftState(d) {
   collapsedCollectionIds.clear(); collections.forEach(c => collapsedCollectionIds.add(c.id));
   collapsedBlockIds.clear(); adReels.forEach(a => a.blocks.forEach(b => collapsedBlockIds.add(b.id)));
   renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels();
-  fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); rebuildAllCards();
+  fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); fillSharePreviewFields(); rebuildAllCards();
   hasUnsavedEdits = true; // rien de tout ça n'est publié : le garde-fou « quitter la page ? » reste actif
 }
 if (typeof indexedDB !== 'undefined') {
@@ -13248,7 +13430,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       maxChainLoops: (t.maxChainLoops !== undefined && t.maxChainLoops !== null) ? t.maxChainLoops : null,
       normalizeVolume: !!t.normalizeVolume,
       fx: t.fx || null,
-      fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations) })),
+      fxTriggers: (t.fxTriggers || []).map(x => ({ id: x.id, label: x.label || '', target: x.target || null, fx: x.fx || {}, visible: !!x.visible, fadeSec: x.fadeSec != null ? x.fadeSec : null, fadeOutSec: x.fadeOutSec != null ? x.fadeOutSec : null, relations: fxRelationsClean(x.relations), steps: fxStepsClean(x.steps), showEffects: x.showEffects !== false, targets: Array.isArray(x.targets) && x.targets.length ? x.targets.map(t => Object.assign({}, t)) : undefined })),
       fxSliders: fxSlidersClean(t.fxSliders),
       duration: Math.round(t.duration * 100) / 100, base: t.base,
       // file/localUrl (18/09) : un fichier tout juste choisi mais pas encore publié n'a pas de
@@ -13341,6 +13523,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
     waveformStyle: window.LayerPlayerCore.WAVEFORM_STYLES.includes(waveformStyle) ? waveformStyle : 'bars',
     seqMapTheme: window.LayerPlayerCore.SEQ_MAP_THEMES.includes(seqMapTheme) ? seqMapTheme : 'light',
     allowEmbedding: !!allowEmbedding,
+    sharePreview: { title: (sharePreview.title || '').trim(), description: (sharePreview.description || '').trim(), image: sharePreview.image || null, imageOriginalName: sharePreview.imageOriginalName || null, autoFit: sharePreview.autoFit !== false, fitMode: sharePreview.fitMode === 'contain' ? 'contain' : 'fill', fitColor: /^#[0-9a-f]{6}$/i.test(sharePreview.fitColor || '') ? sharePreview.fitColor : '#ffffff' },
     collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', presetId: c.presetId || null, separator: c.separator || null, effectivePlan, buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
     customFonts: customFonts.filter(f => f.remoteFile).map(f => ({ id: f.id, name: f.name || '', file: f.remoteFile, originalFileName: f.originalFileName || null })),
     adReels: adReels.map(ar => ({
@@ -13457,6 +13640,19 @@ async function publishAll() {
     // que par compositeur ('main' pour tous), un nom à plat (images/photo-main.jpg) était partagé entre comptes -- la
     // photo de bio d'un bêta-testeur a ainsi remplacé celle d'un autre. Seul ce dossier est accepté par
     // create-media-signed-url.
+    // Image de l'aperçu des liens partagés (1er/10) : images/<son id>/share-preview.<ext>, avant l'instantané ci-dessous.
+    if (sharePreviewPendingFile) {
+      // Ajustage automatique (case cochée) : recadrage centré au format 1200 × 630 ; sinon le fichier part tel quel.
+      let toSend = sharePreviewPendingFile;
+      if (sharePreview.autoFit !== false) {
+        try { toSend = await sharePreviewFit(sharePreviewPendingFile, sharePreview.fitMode, sharePreview.fitColor); } catch (e) { log(tr('sharePreviewFitFailed', { error: e && e.message ? e.message : String(e) }), 'warn'); toSend = sharePreviewPendingFile; }
+      }
+      const bytes = new Uint8Array(await toSend.arrayBuffer());
+      const fileName = `${myComposerId}/share-preview.${extOf(toSend.name)}`;
+      await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
+      sharePreview.image = fileName; sharePreview.imageOriginalName = sharePreviewPendingFile.name; sharePreviewPendingFile = null;
+      log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
+    }
     for (const ar of adReels) {
       if (ar.logoPendingFile) {
         log(tr('uploadingLogo', { id: ar.id }));
@@ -13785,7 +13981,7 @@ async function publishAll() {
       publishedAt: data.publishedAt, implementationSkills: data.implementationSkills,
       noAiCertifiedGlobal: data.noAiCertifiedGlobal, customFonts: data.customFonts,
       waveformStyle: data.waveformStyle, seqMapTheme: data.seqMapTheme,
-      allowEmbedding: data.allowEmbedding,
+      allowEmbedding: data.allowEmbedding, sharePreview: data.sharePreview,
     });
     if (!settingsRes.ok) {
       throw new Error('Écriture Postgres échouée pour les réglages — publication arrêtée :\n' + settingsRes.error);
@@ -13819,6 +14015,9 @@ async function publishAll() {
     document.getElementById('btnPublish').disabled = false;
   }
 }
+
+// Retour sur l'onglet précédent après un rafraîchissement (sauf si l'adresse en demande un : ?tab=...).
+if (!new URLSearchParams(location.search).get('tab')) restoreBackstageTab();
 </script>
 <script type="text/javascript">
   // Bandeau de consentement cookies (Microsoft Clarity uniquement -- 17 septembre). RGPD/CNIL,

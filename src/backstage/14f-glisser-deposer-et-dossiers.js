@@ -33,6 +33,56 @@ function deepCloneWithNewIds(v) {
   }
   return v;
 }
+// Copie d'un MORCEAU entier (6/10) : tous les id sont renouvelés ET toute référence interne qui les cite (targetId d'un
+// embranchement, referencesSlotId, triggerId des actions / relations / seuils de curseur...) est redirigée vers la copie --
+// contrairement à deepCloneWithNewIds, pensé pour UN élément dont les références pointent hors de lui. Les id sont des chaînes
+// aléatoires uniques : remplacer toute valeur égale à un ancien id est sans risque. Fichiers (File) partagés tels quels.
+function cloneTrackWithRemap(track) {
+  const idMap = new Map();
+  const isPlain = v => !!v && Object.prototype.toString.call(v) === '[object Object]'; // File, Blob... restent partagés ; indifférent au « monde » de l'objet
+  const collect = v => {
+    if (Array.isArray(v)) v.forEach(collect);
+    else if (isPlain(v)) {
+      if (typeof v.id === 'string' && v.id && !idMap.has(v.id)) { let n; do { n = genId(); } while ([...idMap.values()].includes(n)); idMap.set(v.id, n); }
+      Object.keys(v).forEach(k => collect(v[k]));
+    }
+  };
+  collect(track);
+  const walk = v => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (isPlain(v)) { const o = {}; Object.keys(v).forEach(k => { o[k] = walk(v[k]); }); return o; }
+    return typeof v === 'string' && idMap.has(v) ? idMap.get(v) : v;
+  };
+  return walk(track);
+}
+// Duplique un morceau de la bibliothèque : copie indépendante (nouvel id, ses propres fichiers copiés côté serveur par l'Edge
+// Function copy-track-files quand le morceau est déjà publié), insérée à `place` ({ folderId, anchorId, before }) ou juste après
+// l'original. Un morceau protégé n'est pas copié (voir la fonction). Renvoie la copie, ou null.
+async function duplicateLibraryTrack(src, place) {
+  if (!src) return null;
+  if (src.protected) { window.LayerPitchNotify.error(tr('trackCopyProtected')); return null; }
+  const copy = cloneTrackWithRemap(src);
+  copy.protected = false;
+  copy.title = src.title && String(src.title).trim() ? tr('duplicateLabel', { label: src.title }) : src.title;
+  if (trackRemoteFileKeys(src).length) {
+    try {
+      await loadPostgresReadScripts();
+      const r = await window.LayerPitchTracks.copyTrackFiles(src.id, copy.id);
+      if (!r.ok) { window.LayerPitchNotify.error(tr('trackCopyError', { error: r.error })); return null; }
+    } catch (e) { window.LayerPitchNotify.error(tr('trackCopyError', { error: e.message })); return null; }
+  }
+  if (library.indexOf(src) < 0) { window.LayerPitchNotify.error(tr('trackCopyError', { error: 'données rechargées' })); return null; }
+  copy.folderId = place && place.folderId !== undefined ? (place.folderId || null) : (src.folderId || null);
+  let at = library.indexOf(src) + 1;
+  if (place && place.anchorId) { const a = library.findIndex(x => x.id === place.anchorId); if (a >= 0) at = place.before ? a : a + 1; }
+  else if (place && place.append) at = library.length;
+  library.splice(at, 0, copy);
+  manageLibrarySelectedId = copy.id;
+  hasUnsavedEdits = true;
+  window.LayerPitchNotify.info(tr('trackCopyDone', { title: copy.title || '' }));
+  renderLibrary();
+  return copy;
+}
 function cloneWithCopyLabel(item, labelKey) {
   const c = deepCloneWithNewIds(item);
   const k = labelKey || 'label';
@@ -66,53 +116,67 @@ function wireArrayDragReorder(containerEl, itemClass, getArray, onDrop, cloneIte
     e.dataTransfer.effectAllowed = cloneItem ? 'copyMove' : 'move';
     try { e.dataTransfer.setData('text/plain', draggedId); } catch (err) { /* MIME requis par certains navigateurs, jamais bloquant ici */ }
   });
+  // Cible de dépôt (6/10) : ce que montre la barre est ce qui se passe au lâcher (calculée au survol, jamais au lâcher), et hors
+  // d'une ligne on retient la ligne la plus proche en hauteur au lieu de refuser le dépôt.
+  let dropTarget = null;
+  const clearIndicators = () => containerEl.querySelectorAll('.' + itemClass).forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+  function resolveTarget(e, dup) {
+    let item = e.target.closest('.' + itemClass);
+    if (!item || !item.dataset.dragId || (item.dataset.dragId === draggedId && !dup)) {
+      item = null;
+      let bestD = Infinity;
+      containerEl.querySelectorAll('.' + itemClass).forEach(el => {
+        if (!el.dataset.dragId || (el.dataset.dragId === draggedId && !dup)) return;
+        const r = el.getBoundingClientRect();
+        if (!r.height) return;
+        const d = e.clientY < r.top ? r.top - e.clientY : (e.clientY > r.bottom ? e.clientY - r.bottom : 0);
+        if (d < bestD) { bestD = d; item = el; }
+      });
+    }
+    if (!item) return null;
+    const rect = item.getBoundingClientRect();
+    return { el: item, before: (e.clientY - rect.top) < rect.height / 2 };
+  }
   containerEl.addEventListener('dragover', (e) => {
     if (!draggedId) return;
     e.preventDefault();
     const dup = !!cloneItem && isDuplicateDrag(e);
     e.dataTransfer.dropEffect = dup ? 'copy' : 'move';
     containerEl.classList.toggle('is-duplicating', dup);
-    const item = e.target.closest('.' + itemClass);
-    if (!item || !item.dataset.dragId || (item.dataset.dragId === draggedId && !dup)) return;
-    const rect = item.getBoundingClientRect();
-    const before = (e.clientY - rect.top) < rect.height / 2;
-    item.classList.toggle('drag-over-top', before);
-    item.classList.toggle('drag-over-bottom', !before);
+    dropTarget = resolveTarget(e, dup);
+    clearIndicators();
+    if (dropTarget) {
+      dropTarget.el.classList.toggle('drag-over-top', dropTarget.before);
+      dropTarget.el.classList.toggle('drag-over-bottom', !dropTarget.before);
+    }
   });
   containerEl.addEventListener('dragleave', (e) => {
-    const item = e.target.closest('.' + itemClass);
-    if (item && !item.contains(e.relatedTarget)) item.classList.remove('drag-over-top', 'drag-over-bottom');
+    if (!containerEl.contains(e.relatedTarget)) { dropTarget = null; clearIndicators(); }
   });
   containerEl.addEventListener('drop', (e) => {
     if (!draggedId) return;
     e.preventDefault();
-    const targetItem = e.target.closest('.' + itemClass);
-    containerEl.querySelectorAll('.' + itemClass).forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+    const dup = !!cloneItem && isDuplicateDrag(e);
+    const target = dropTarget || resolveTarget(e, dup);
+    dropTarget = null;
+    clearIndicators();
     containerEl.classList.remove('is-reordering', 'is-duplicating');
     const arr = getArray();
     const fromIdx = arr.findIndex(x => idOf(x) === draggedId);
     draggedId = null;
-    if (fromIdx === -1) return;
-    if (!targetItem || !targetItem.dataset.dragId) return;
-    if (cloneItem && isDuplicateDrag(e)) {
-      const toIdx = arr.findIndex(x => idOf(x) === targetItem.dataset.dragId);
-      if (toIdx === -1) return;
-      const rect = targetItem.getBoundingClientRect();
+    if (fromIdx === -1 || !target) return;
+    const targetId = target.el.dataset.dragId;
+    const toIdx = arr.findIndex(x => idOf(x) === targetId);
+    if (toIdx === -1) return;
+    if (dup) {
       const copy = cloneItem(arr[fromIdx]);
-      arr.splice((e.clientY - rect.top) < rect.height / 2 ? toIdx : toIdx + 1, 0, copy);
+      arr.splice(target.before ? toIdx : toIdx + 1, 0, copy);
       hasUnsavedEdits = true;
       onDrop(copy);
       return;
-    } // pas de dépôt en fin de liste ici (contrairement aux blocs de contenu) : chaque
-    // ligne de cette liste maître occupe toute la largeur disponible, il n'y a pas d'espace vide sous la
-    // dernière ligne où déposer sans ambiguïté.
-    const targetId = targetItem.dataset.dragId;
+    }
     if (targetId === idOf(arr[fromIdx])) return;
-    const toIdx = arr.findIndex(x => idOf(x) === targetId);
-    if (toIdx === -1) return;
-    const rect = targetItem.getBoundingClientRect();
-    const before = (e.clientY - rect.top) < rect.height / 2;
-    const insertAt = before ? toIdx : toIdx + 1;
+    const insertAt = target.before ? toIdx : toIdx + 1;
     const [moved] = arr.splice(fromIdx, 1);
     const adjustedInsertAt = insertAt > fromIdx ? insertAt - 1 : insertAt;
     arr.splice(adjustedInsertAt, 0, moved);
@@ -125,6 +189,7 @@ function wireArrayDragReorder(containerEl, itemClass, getArray, onDrop, cloneIte
     containerEl.querySelectorAll('.' + itemClass).forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
     containerEl.classList.remove('is-reordering', 'is-duplicating');
     draggedId = null;
+    dropTarget = null;
   });
 }
 // Filet de sécurité global (posé une seule fois, pas à chaque appel de wireArrayDragReorder ci-dessus) :
@@ -160,7 +225,7 @@ document.addEventListener('pointercancel', releaseAllDragHandles);
 // leur propre conteneur.
 let draggedOrgItemId = null;
 let draggedOrgFolderId = null;
-function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
+function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateItem) {
   containerEl.addEventListener('pointerdown', (e) => {
     const folderHandle = e.target.closest('.folder-drag-handle');
     if (folderHandle) {
@@ -187,63 +252,74 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
     draggedOrgItemId = row.dataset.dragId;
     row.classList.add('dragging');
     containerEl.classList.add('is-reordering');
-    e.dataTransfer.effectAllowed = 'move';
+    // Option / Alt enfoncé = le navigateur demande une COPIE : si la prise n'autorise que « move », il refuse le dépôt (6/10).
+    e.dataTransfer.effectAllowed = duplicateItem ? 'copyMove' : 'move';
     try { e.dataTransfer.setData('text/plain', draggedOrgItemId); } catch (err) { /* non bloquant */ }
   });
-  containerEl.addEventListener('dragover', (e) => {
+  // Cible de dépôt (6/10) : CE QUE MONTRE LA BARRE est ce qui se passe au lâcher. La cible est calculée pendant le survol (jamais
+  // recalculée au lâcher, où la souris peut se trouver dans un interstice) et, hors d'une ligne, on retient la ligne la plus
+  // proche en hauteur au lieu de refuser le dépôt. dropTarget = { kind: 'row'|'group'|'zone', el, before }.
+  let dropTarget = null;
+  const clearIndicators = () => containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target'));
+  function nearestBy(selector, y, exceptId) {
+    let best = null, bestD = Infinity;
+    containerEl.querySelectorAll(selector).forEach(el => {
+      if (exceptId && el.dataset.dragId === exceptId) return;
+      const r = el.getBoundingClientRect();
+      if (!r.height) return;
+      const d = y < r.top ? r.top - y : (y > r.bottom ? y - r.bottom : 0);
+      if (d < bestD) { bestD = d; best = el; }
+    });
+    return best;
+  }
+  function resolveDropTarget(e) {
     if (draggedOrgFolderId) {
-      const group = e.target.closest('.org-folder-group');
-      if (!group || group.dataset.dragId === draggedOrgFolderId) return;
-      e.preventDefault();
+      const group = e.target.closest('.org-folder-group') || nearestBy('.org-folder-group', e.clientY, draggedOrgFolderId);
+      if (!group || group.dataset.dragId === draggedOrgFolderId) return null;
       const rect = group.getBoundingClientRect();
-      const before = (e.clientY - rect.top) < rect.height / 2;
-      group.classList.toggle('drag-over-top', before);
-      group.classList.toggle('drag-over-bottom', !before);
-      return;
+      return { kind: 'group', el: group, before: (e.clientY - rect.top) < rect.height / 2 };
     }
-    if (!draggedOrgItemId) return;
-    const row = e.target.closest('.org-row');
-    if (row && row.dataset.dragId !== draggedOrgItemId) {
-      e.preventDefault();
-      const rect = row.getBoundingClientRect();
-      const before = (e.clientY - rect.top) < rect.height / 2;
-      row.classList.toggle('drag-over-top', before);
-      row.classList.toggle('drag-over-bottom', !before);
-      return;
-    }
+    if (!draggedOrgItemId) return null;
     const zone = e.target.closest('.org-folder-dropzone, .org-root-dropzone');
-    if (!zone) return;
+    let row = e.target.closest('.org-row');
+    // Une zone sans aucune ligne (dossier vide) reçoit le dépôt ; sinon la ligne visée, ou à défaut la plus proche.
+    if (!row && zone && !zone.querySelector('.org-row')) return { kind: 'zone', el: zone };
+    if (!row || row.dataset.dragId === draggedOrgItemId) row = nearestBy('.org-row', e.clientY, draggedOrgItemId);
+    if (!row) return zone ? { kind: 'zone', el: zone } : null;
+    const rect = row.getBoundingClientRect();
+    return { kind: 'row', el: row, before: (e.clientY - rect.top) < rect.height / 2 };
+  }
+  containerEl.addEventListener('dragover', (e) => {
+    if (!draggedOrgFolderId && !draggedOrgItemId) return;
+    const t = resolveDropTarget(e);
+    if (!t) { dropTarget = null; return; }
     e.preventDefault();
-    zone.classList.add('org-drop-target');
+    if (duplicateItem && draggedOrgItemId) { try { e.dataTransfer.dropEffect = isDuplicateDrag(e) ? 'copy' : 'move'; } catch (err) { /* non bloquant */ } }
+    dropTarget = t;
+    clearIndicators();
+    if (t.kind === 'zone') t.el.classList.add('org-drop-target');
+    else { t.el.classList.toggle('drag-over-top', t.before); t.el.classList.toggle('drag-over-bottom', !t.before); }
   });
   containerEl.addEventListener('dragleave', (e) => {
-    const group = e.target.closest('.org-folder-group');
-    if (group && !group.contains(e.relatedTarget)) group.classList.remove('drag-over-top', 'drag-over-bottom');
-    const row = e.target.closest('.org-row');
-    if (row && !row.contains(e.relatedTarget)) row.classList.remove('drag-over-top', 'drag-over-bottom');
-    const zone = e.target.closest('.org-folder-dropzone, .org-root-dropzone');
-    if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('org-drop-target');
+    if (!containerEl.contains(e.relatedTarget)) { dropTarget = null; clearIndicators(); } // sorti de la liste : plus de cible
   });
   containerEl.addEventListener('drop', (e) => {
     containerEl.classList.remove('is-reordering');
-    containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target').forEach(el => {
-      el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target');
-    });
+    const target = dropTarget || resolveDropTarget(e); // ce que montrait la barre ; à défaut, la position du lâcher
+    dropTarget = null;
+    clearIndicators();
     const folders = getFolders();
     const items = getItems();
     if (draggedOrgFolderId) {
       e.preventDefault();
-      const targetGroup = e.target.closest('.org-folder-group');
       const fromIdx = folders.findIndex(f => f.id === draggedOrgFolderId);
       draggedOrgFolderId = null;
-      if (!targetGroup || fromIdx === -1) return;
-      const targetId = targetGroup.dataset.dragId;
+      if (!target || target.kind !== 'group' || fromIdx === -1) return;
+      const targetId = target.el.dataset.dragId;
       if (targetId === folders[fromIdx].id) return;
       const toIdx = folders.findIndex(f => f.id === targetId);
       if (toIdx === -1) return;
-      const rect = targetGroup.getBoundingClientRect();
-      const before = (e.clientY - rect.top) < rect.height / 2;
-      const insertAt = before ? toIdx : toIdx + 1;
+      const insertAt = target.before ? toIdx : toIdx + 1;
       const [moved] = folders.splice(fromIdx, 1);
       const adjustedInsertAt = insertAt > fromIdx ? insertAt - 1 : insertAt;
       folders.splice(adjustedInsertAt, 0, moved);
@@ -254,28 +330,30 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
     if (!draggedOrgItemId) return;
     e.preventDefault();
     const it = items.find(x => x.id === draggedOrgItemId);
-    const targetRow = e.target.closest('.org-row');
-    const zone = e.target.closest('.org-folder-dropzone, .org-root-dropzone');
     draggedOrgItemId = null;
-    if (!it) return;
+    if (!it || !target) return;
     const fromIdx = items.indexOf(it);
-    if (targetRow && targetRow.dataset.dragId !== it.id) {
+    const targetRow = target.kind === 'row' ? target.el : null;
+    const zone = target.kind === 'zone' ? target.el : null;
+    // Alt + glisser (6/10) : le morceau est COPIÉ à l'endroit visé au lieu d'être déplacé (liste qui le permet : duplicateItem).
+    if (duplicateItem && isDuplicateDrag(e)) {
+      if (targetRow) duplicateItem(it, { folderId: targetRow.dataset.folderId || null, anchorId: targetRow.dataset.dragId, before: target.before });
+      else if (zone) duplicateItem(it, { folderId: zone.dataset.folderId || null, append: true });
+      return;
+    }
+    if (targetRow) {
       // Déposé sur un autre élément : change de groupe ET se positionne juste avant/après lui.
       const targetFolderId = targetRow.dataset.folderId || null;
-      const rect = targetRow.getBoundingClientRect();
-      const before = (e.clientY - rect.top) < rect.height / 2;
       items.splice(fromIdx, 1);
       const targetIdxNow = items.findIndex(x => x.id === targetRow.dataset.dragId);
-      const insertAt = before ? targetIdxNow : targetIdxNow + 1;
+      if (targetIdxNow === -1) { items.splice(fromIdx, 0, it); return; }
+      const insertAt = target.before ? targetIdxNow : targetIdxNow + 1;
       it.folderId = targetFolderId;
       items.splice(insertAt, 0, it);
       hasUnsavedEdits = true;
       onDrop();
     } else if (zone) {
-      // Déposé sur une zone vide (dossier vide, ou padding sous le dernier élément) : change de groupe
-      // seulement, ajouté en dernière position de ce groupe (donc en dernière position globale du
-      // tableau -- l'ordre relatif au sein d'un groupe suivant celui du tableau, peu importe où vivent
-      // les éléments des autres groupes entre-temps).
+      // Déposé sur une zone vide (dossier vide) : change de groupe seulement, ajouté en dernière position du tableau.
       const targetFolderId = zone.dataset.folderId || null;
       if (it.folderId === targetFolderId) return;
       items.splice(fromIdx, 1);
@@ -296,6 +374,7 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
     });
     draggedOrgItemId = null;
     draggedOrgFolderId = null;
+    dropTarget = null;
   });
 }
 // Pas de filet de sécurité pointerup/pointercancel dédié pour les lignes d'élément : chacune porte à la

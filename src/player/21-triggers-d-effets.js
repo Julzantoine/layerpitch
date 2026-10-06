@@ -10,16 +10,9 @@
      qu'aucune reconstruction ne soit jamais nécessaire en cours de lecture. */
   const fxTriggerDefs = new Map();
   const fxTriggerTargetKey = new Map();
-  function fxTargetKeyOf(target) {
-    if (!target) return null;
-    if (target.type === 'track') return 'track';
-    if (target.type === 'layer') return 'layer:' + (target.li || 0);
-    if (target.type === 'loop') return 'loop:' + target.li;
-    if (target.type === 'slot') return 'slot:' + target.si;
-    if (target.type === 'pool') return 'pool:' + target.si + ':' + target.pi;
-    return null;
-  }
-  (track.fxTriggers || []).forEach(d => {
+  // Même table que l'export vidéo (fxTargetKeyFromTarget) : une seule source pour savoir quelle chaîne un trigger vise.
+  function fxTargetKeyOf(target) { return fxTargetKeyFromTarget(target); }
+  expandTriggerSteps(track.fxTriggers).forEach(d => {
     const key = d && d.id && d.fx ? fxTargetKeyOf(d.target) : null;
     if (key) { fxTriggerDefs.set(d.id, d); fxTriggerTargetKey.set(d.id, key); }
   });
@@ -84,7 +77,9 @@
   // Boutons : état enfoncé + état « bloqué » (condition « Nécessite » non remplie) -- grisé mais visible, avec en
   // infobulle ce qui le débloque. Recalculé après CHAQUE changement d'état, la condition d'un bouton dépendant de
   // l'état des autres.
+  const fxChipEls = [...wrapper.querySelectorAll('[data-fx-chip-of]')];
   function updateFxTriggerButtons() {
+    fxChipEls.forEach(c => c.classList.toggle('on', fxRules.isActive(c.dataset.fxChipOf)));
     fxTriggerBtns.forEach(b => {
       const id = b.dataset.fxTrigger;
       const on = fxRules.isActive(id);

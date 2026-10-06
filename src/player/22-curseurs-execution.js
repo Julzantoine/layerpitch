@@ -1,12 +1,43 @@
   // ---- Curseurs (24/09) : exécution ----
   const fxSliderInputs = [...wrapper.querySelectorAll('[data-fx-slider]')];
   const fxSliderLastWant = new Map(); // triggerId -> dernier état voulu par un seuil (ne redemande que sur franchissement)
+  // ---- Curseur qui pilote la structure du morceau (26/09 vertical, 30/09 tous les modes) ----
+  // Chaque zone du curseur = une couche (vertical) ou une boucle (embranchement-vertical). Franchir une limite fait la MÊME
+  // chose que le bouton qu'il remplace : mêmes fondus, mêmes quantifications, mêmes repères pour l'outil vidéo.
+  const fxStructureSlider = fxSliders.find(sl => sl.intensity) || null;
+  const fxStructureNames = fxStructureZones(track);
+  const fxZoneOfValue = v => fxSliderIntensityLevel(fxStructureSlider.intensity, v);
+  let fxStructureZone = fxStructureSlider ? fxZoneOfValue(fxStructureSlider.def) : -1; // dernière zone demandée
+  function applyStructureZone(z) {
+    if (z < 0) return;
+    if (isEmbrVert) selectEmbrLoop(z);
+    else if (level !== z) applyIntensityLevel(z);
+  }
+  function followStructureSlider(sl) {
+    if (!sl.intensity) return;
+    const z = fxZoneOfValue(fxSliderValueOf(sl.id));
+    if (z === fxStructureZone) return;
+    fxStructureZone = z;
+    applyStructureZone(z);
+  }
+  // Au vrai démarrage : le curseur repart de sa position de départ ; les moteurs qui ne démarrent pas sur la bonne zone
+  // (l'embranchement-vertical ; le vertical lit fxStructureZone à son initialisation) la rejoignent aussitôt.
+  function startStructureSlider() {
+    if (!fxStructureSlider) return;
+    fxStructureZone = fxZoneOfValue(fxStructureSlider.def);
+    if (isEmbrVert && fxStructureZone !== embrReferenceIdx) setTimeout(() => { if (playing) applyStructureZone(fxStructureZone); }, 100);
+  }
   function paintFxSlider(id) {
     fxSliderInputs.forEach(inp => {
       if (inp.dataset.fxSlider !== id) return;
       inp.value = Math.round(fxSliderValueOf(id) * 100);
       const out = inp.parentElement && inp.parentElement.querySelector('output');
       if (out) out.textContent = Math.round(fxSliderValueOf(id) * 100) + '%';
+      const cap = inp.parentElement && inp.parentElement.querySelector('[data-fx-zone]');
+      if (cap && fxStructureSlider && fxStructureSlider.id === id) {
+        const z = fxZoneOfValue(fxSliderValueOf(id));
+        cap.textContent = '· ' + (fxStructureNames[z] || t('fxZoneFallback', { n: z + 1 }));
+      }
     });
   }
   function evalFxSliderThresholds(sl, force) {
@@ -42,6 +73,7 @@
     applyFxSliderToSfx(sl, sl.smoothSec);
     refreshTrackRate(sl.smoothSec);
     evalFxSliderThresholds(sl, false);
+    followStructureSlider(sl);
     paintFxSlider(id);
     // Évènement DOM (pas de la télémétrie : un curseur émet des dizaines de valeurs par seconde) -- l'outil vidéo
     // l'enregistre pendant une prise, comme "tourner la tête".
@@ -56,6 +88,7 @@
     refreshTrackRate(0.05);
     fxSliderLastWant.clear();
     fxSliders.forEach(sl => evalFxSliderThresholds(sl, true));
+    startStructureSlider();
   }
   fxSliderInputs.forEach(inp => inp.addEventListener('input', () => setFxSlider(inp.dataset.fxSlider, (+inp.value) / 100, true)));
   fxTriggerBtns.forEach(b => b.addEventListener('click', () => {
