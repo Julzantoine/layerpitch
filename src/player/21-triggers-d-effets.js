@@ -19,7 +19,7 @@
     if (target.type === 'pool') return 'pool:' + target.si + ':' + target.pi;
     return null;
   }
-  (track.fxTriggers || []).forEach(d => {
+  expandTriggerSteps(track.fxTriggers).forEach(d => {
     const key = d && d.id && d.fx ? fxTargetKeyOf(d.target) : null;
     if (key) { fxTriggerDefs.set(d.id, d); fxTriggerTargetKey.set(d.id, key); }
   });

@@ -103,7 +103,7 @@
     const out = [];
     Object.keys(byTrack).forEach(trackId => {
       const track = findTrack(trackId);
-      const defs = track ? (track.fxTriggers || []).filter(d => d && d.id && d.fx && C.fxTargetKeyFromTarget(d.target)) : [];
+      const defs = track ? core().expandTriggerSteps(track.fxTriggers).filter(d => d && d.id && d.fx && C.fxTargetKeyFromTarget(d.target)) : [];
       const reqs = byTrack[trackId].sort((a, b) => (a.t - b.t) || ((a.source === 'composer' ? 0 : 1) - (b.source === 'composer' ? 0 : 1)));
       if (!defs.length) { reqs.forEach(r => out.push({ t: r.t, trackId, triggerId: r.id, active: r.active })); return; }
       C.simulateTriggerRules(defs, reqs).forEach(c => out.push({ t: c.t, trackId, triggerId: c.id, active: c.active }));
@@ -172,9 +172,9 @@
     // Vitesse du morceau à l'instant t (base, triggers « Vitesse » actifs, curseur « pitch.speed ») -- mêmes règles que le lecteur.
     const isSpeedBinding = b => { const m = C.FX_SLIDER_PARAMS[b.param]; return !!(m && m.rate); };
     // Un trigger « vitesse » vaut pour le morceau entier quelle que soit sa cible (même règle que le lecteur, 27/09).
-    const hasDynamicRate = track => (track.fxTriggers || []).some(d => d && d.fx && d.fx.pitch && d.fx.pitch.mode === 'rate') || slidersOf(track).some(sl => sl.bindings.some(isSpeedBinding));
+    const hasDynamicRate = track => core().expandTriggerSteps(track.fxTriggers).some(d => d && d.fx && d.fx.pitch && d.fx.pitch.mode === 'rate') || slidersOf(track).some(sl => sl.bindings.some(isSpeedBinding));
     function trackRateAt(track, t) {
-      const defs = (track.fxTriggers || []).filter(d => d && d.id && d.fx);
+      const defs = core().expandTriggerSteps(track.fxTriggers).filter(d => d && d.id && d.fx);
       const sliders = slidersOf(track);
       const active = activeAt(track.id, t).map(id => defs.find(d => d.id === id)).filter(Boolean);
       return C.fxTrackRatio(track, active, sliders, id => { const sl = sliders.find(x => x.id === id); return sl ? sliderValueAt(track.id, sl, t) : 0; });
@@ -219,7 +219,7 @@
       // programmés pendant qu'elle joue (triggers et curseurs), mêmes règles de fusion que le lecteur.
       let chain = null;
       if (track && v.targetKey) {
-        const defs = (track.fxTriggers || []).filter(d => { if (!d || !d.id || !d.fx) return false; const k = C.fxTargetKeyFromTarget(d.target); return k === v.targetKey || k === 'track'; });
+        const defs = core().expandTriggerSteps(track.fxTriggers).filter(d => { if (!d || !d.id || !d.fx) return false; const k = C.fxTargetKeyFromTarget(d.target); return k === v.targetKey || k === 'track'; });
         const sliders = slidersOf(track);
         const base = v.baseFx != null ? v.baseFx : C.baseFxForTarget(track, v.targetKey);
         const force = [...new Set(defs.flatMap(d => Object.keys(d.fx).filter(k => !(k === 'pitch' && d.fx.pitch && d.fx.pitch.mode === 'rate'))).concat(C.fxSliderForceKeys(sliders, v.targetKey)))];

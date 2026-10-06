@@ -133,6 +133,19 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   }
   else if (btn.dataset.action === 'remove-fxs-threshold') { library[ti].fxSliders[parseInt(btn.dataset.sri, 10)].thresholds.splice(parseInt(btn.dataset.thi, 10), 1); }
   else if (btn.dataset.action === 'fx-trigger-to-track') { library[ti].fxTriggers[tri].target = { type: 'track' }; }
+  else if (btn.dataset.action === 'add-fx-step') {
+    const trg = library[ti].fxTriggers[tri];
+    trg.steps = trg.steps || [];
+    const step = { id: genId(), label: '', delaySec: trg.steps.length ? (+trg.steps[trg.steps.length - 1].delaySec || 0) : 0, fx: {} };
+    trg.steps.push(step);
+    fxTriggersSectionOpen.add('s:' + trg.id + ':' + step.id); // une étape qu'on vient de créer s'affiche dépliée
+    fxTriggersPersistOpen();
+  }
+  else if (btn.dataset.action === 'remove-fx-step') {
+    const trg = library[ti].fxTriggers[tri];
+    trg.steps.splice(parseInt(btn.dataset.sti, 10), 1);
+    if (!trg.steps.length) delete trg.steps;
+  }
   else if (btn.dataset.action === 'remove-fx-trigger') {
     const tk = library[ti];
     const removed = tk.fxTriggers[tri];
@@ -324,6 +337,15 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
         else if (prop === 'autoOffSec') { trg.relations = trg.relations || {}; trg.relations.autoOffSec = e.target.value === '' ? null : parseFloat(e.target.value); }
       }
     }
+    else if (field === 'fxStep') {
+      const trg = (library[ti].fxTriggers || [])[parseInt(e.target.dataset.tri, 10)];
+      const st = trg && (trg.steps || [])[parseInt(e.target.dataset.sti, 10)];
+      const prop = e.target.dataset.fxsProp;
+      if (st) {
+        if (prop === 'label') st.label = e.target.value;
+        else if (prop === 'delaySec') st.delaySec = e.target.value === '' ? 0 : Math.max(0, parseFloat(e.target.value) || 0);
+      }
+    }
     else if (field === 'fxSlider') {
       const sl = (library[ti].fxSliders || [])[parseInt(e.target.dataset.sri, 10)];
       const prop = e.target.dataset.fxsProp;
@@ -427,6 +449,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       else if (fxTarget === 'pool') target = library[ti].sections[parseInt(e.target.dataset.si, 10)].pools[parseInt(e.target.dataset.pi, 10)];
       else if (fxTarget === 'track') target = library[ti];
       else if (fxTarget === 'trigger') target = library[ti].fxTriggers[parseInt(e.target.dataset.tri, 10)];
+      else if (fxTarget === 'trstep') target = library[ti].fxTriggers[parseInt(e.target.dataset.tri, 10)].steps[parseInt(e.target.dataset.sti, 10)];
       else if (fxTarget === 'intro') target = library[ti].intro;
       else if (fxTarget === 'outro') target = library[ti].outro;
       else if (fxTarget === 'seqTransition') target = library[ti].segmentSlots[parseInt(e.target.dataset.si, 10)].nextOptions[parseInt(e.target.dataset.bi, 10)].transition;

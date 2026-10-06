@@ -11,6 +11,27 @@
 // les effets dans hooks.apply ; l'outil vidéo lui fournit un temps SIMULÉ (simulateTriggerRules) pour que le son
 // exporté suive exactement les mêmes règles qu'en jeu.
 // hooks : { schedule(delaySec, fn) -> handle, cancel(handle), apply(id, active, cause) }
+// ---- Cascade par étapes (6/10) ----
+// trigger.steps = [{ id, label?, delaySec, fx }] : des groupes d'effets qui démarrent delaySec secondes APRÈS L'APPUI sur le
+// trigger (0 = en même temps), s'ajoutent à ses propres effets et s'arrêtent avec lui. Pas de nouveau mécanisme : chaque étape
+// devient un trigger invisible « enfant » (même cible, mêmes fondus), relié au parent par « Active aussi » avec son délai ; le
+// moteur de règles ci-dessous, le lecteur et l'export vidéo les traitent donc comme n'importe quelle cascade. Fonction PURE.
+function expandTriggerSteps(triggers) {
+  const out = [];
+  (triggers || []).forEach(d => {
+    if (!d || !d.id || !Array.isArray(d.steps) || !d.steps.length) { out.push(d); return; }
+    const kids = [];
+    d.steps.forEach((s, i) => {
+      if (!s) return;
+      kids.push({ id: d.id + '~' + (s.id || i), label: s.label || '', target: d.target, fx: s.fx || {}, visible: false, fadeSec: d.fadeSec != null ? d.fadeSec : null, fadeOutSec: d.fadeOutSec != null ? d.fadeOutSec : null, relations: null, stepOf: d.id, delaySec: +s.delaySec > 0 ? +s.delaySec : 0 });
+    });
+    const rel = Object.assign({}, d.relations);
+    rel.activates = (rel.activates || []).concat(kids.map(k => ({ triggerId: k.id, delaySec: k.delaySec })));
+    out.push(Object.assign({}, d, { relations: rel }));
+    kids.forEach(k => out.push(k));
+  });
+  return out;
+}
 function createTriggerRuleEngine(defs, hooks) {
   const byId = new Map();
   (defs || []).forEach(d => { if (d && d.id) byId.set(d.id, d); });
