@@ -169,15 +169,19 @@
     setStoppedUI();
     if (activeTrackId === track.id) activeTrackId = null;
   }
+  let lpPlayStartedAt = 0; // instant (horloge audio) du dernier vrai départ : repère de la grille musicale pour la Carte de niveau
   function playThisTrack(reroll, isContinuation) {
-    if (activeTrackId && activeTrackId !== track.id) {
-      document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
-      if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
+    if (!concurrent) {
+      if (activeTrackId && activeTrackId !== track.id) {
+        document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+        if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
+      }
+      Object.keys(trackCollapsers).forEach(id => {
+        if (id !== track.id) trackCollapsers[id]();
+      });
+      activeTrackId = track.id;
     }
-    Object.keys(trackCollapsers).forEach(id => {
-      if (id !== track.id) trackCollapsers[id]();
-    });
-    activeTrackId = track.id;
+    lpPlayStartedAt = ctx.currentTime;
     setDetailsExpanded(details, true);
     updateStingerAvailability();
     resumeAudioContext();
@@ -391,6 +395,31 @@
   });
   playBtn.addEventListener('click', () => { playing ? pauseThisTrack() : playThisTrack(true); });
   if (stopBtn) stopBtn.addEventListener('click', stopThisTrack);
+  // Pilotage par programme (Carte de niveau) : démarrer à un niveau donné, régler le niveau avec une rampe, arrêter, et savoir
+  // quand tombe la prochaine mesure / le prochain temps (grille du morceau, comptée depuis son départ).
+  if (concurrent) {
+    const rampTo = (level, sec) => {
+      const now = ctx.currentTime, g = trackMasterGain.gain;
+      g.cancelScheduledValues(now); g.setValueAtTime(g.value, now);
+      g.linearRampToValueAtTime(Math.max(0, level), now + Math.max(0.01, sec || 0));
+    };
+    wrapper.lpControl = {
+      start(level) { if (!playing) playThisTrack(true); trackMasterGain.gain.cancelScheduledValues(ctx.currentTime); trackMasterGain.gain.setValueAtTime(Math.max(0, level), ctx.currentTime); },
+      stop() { if (playing) stopAllSources(false); },
+      setLevel: rampTo,
+      isPlaying: () => playing,
+      // Prochain repère de la grille (mesure, temps, 2 ou 4 mesures) à partir de maintenant, en secondes d'horloge audio ; null si le
+      // morceau ne joue pas encore. Tempo propre du morceau (bpm / temps par mesure).
+      nextBoundary(grid) {
+        if (!playing) return null;
+        const tt = trackTempo(track);
+        const unit = grid === 'beat' ? tt.secondsPerBeat : tt.secondsPerBeat * tt.beatsPerBar * (grid === 'bars4' ? 4 : grid === 'bars2' ? 2 : 1);
+        const elapsed = Math.max(0, ctx.currentTime - lpPlayStartedAt);
+        const next = lpPlayStartedAt + Math.ceil(elapsed / unit + 1e-6) * unit;
+        return next;
+      },
+    };
+  }
 
   // Vertical-random (fusionné le 30/07) : pas de recherche par glissement — avec plusieurs sections
   // potentiellement enchaînées dans un ordre mélangé, "une position dans le temps" n'a plus de sens

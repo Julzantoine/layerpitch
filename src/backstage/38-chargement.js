@@ -242,6 +242,7 @@ async function loadData(silent) {
       trackIds: a.trackIds ? a.trackIds.slice() : [],
       trackOverrides: a.trackOverrides ? JSON.parse(JSON.stringify(a.trackOverrides)) : {},
       allowIndexing: a.allowIndexing !== false,
+      accessMode: a.accessMode || 'public',
       slug: a.slug || null,
       blocks: migrateBlocks(a).map(b => {
         if (b.type === 'photo') return { ...b, images: (b.images || []).map(img => ({ file: img.file, originalFileName: img.originalFileName || null, pendingFile: null })) };

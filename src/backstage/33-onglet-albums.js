@@ -611,6 +611,105 @@ document.getElementById('btnSaveSlug').addEventListener('click', async () => {
     msg.textContent = e && e.hint === 'unpublished' ? tr('adreelSlugPublishFirst') : tr('errorPrefix', { message: (e && e.message) || String(e) });
   }
 });
+// Accès privé d'un AdReel (6/10) : réglé tout de suite côté serveur (set_ad_reel_access), jamais à la publication. Le jeton d'un lien
+// magique n'existe qu'à sa création : on l'affiche une fois, avec un bouton Copier.
+function fillAdReelAccessField(ar) {
+  const sel = document.getElementById('appAccessMode');
+  const mode = (ar && ar.accessMode) || 'public';
+  sel.value = mode;
+  const allowed = can('private_links');
+  sel.disabled = !allowed && mode === 'public';
+  document.getElementById('appAccessPasswordRow').hidden = mode !== 'password';
+  document.getElementById('appAccessMagicRow').hidden = mode !== 'magic';
+  document.getElementById('appAccessMagicOut').hidden = true;
+  document.getElementById('appAccessPassword').value = '';
+  document.getElementById('btnGenerateMagic').textContent = tr(mode === 'magic' ? 'adreelAccessMagicRegenerate' : 'adreelAccessMagicGenerate');
+  document.getElementById('appAccessHint').textContent = allowed ? tr('adreelAccessHint') : (flagOpen('private_links') ? tr('adreelAccessTierOnly') : tr('fxAdminOnlyHint'));
+  document.getElementById('appAccessMsg').textContent = '';
+}
+// Morceaux et Sfx de cet AdReel dont les fichiers ne sont PAS protégés (6/10) : un AdReel privé cache sa page, mais un fichier
+// non protégé reste à son adresse publique. Le compositeur choisit : protéger maintenant, continuer quand même, ou annuler.
+function unprotectedFilesOfAdReel(ar) {
+  const trackIds = new Set(ar.trackIds || []);
+  (ar.blocks || []).forEach(b => { if (b.type === 'tracks') (b.trackIds || []).forEach(id => trackIds.add(id)); });
+  const tracks = [...trackIds].map(id => library.find(t => t.id === id)).filter(t => t && !t.protected);
+  const sfxIds = new Set();
+  (ar.blocks || []).forEach(b => { if (b.type === 'sfx') (b.sfxIds || []).forEach(id => sfxIds.add(id)); });
+  const sfx = [...sfxIds].map(id => sfxLibrary.find(s => s.id === id)).filter(s => s && !s.protected);
+  return { tracks, sfx };
+}
+// Renvoie false si le compositeur annule (ou si une protection échoue), true pour continuer.
+async function confirmProtectFilesForPrivateAdReel(ar) {
+  const { tracks, sfx } = unprotectedFilesOfAdReel(ar);
+  if (!tracks.length && !sfx.length) return true;
+  const names = tracks.map(t => t.title || t.id).concat(sfx.map(s => s.title || s.id));
+  const answer = await window.LayerPitchNotify.confirm(
+    tr('adreelAccessUnprotectedMsg', { n: names.length, list: names.slice(0, 8).join(', ') + (names.length > 8 ? '…' : '') }),
+    { okLabel: tr('adreelAccessProtectThem'), extraLabel: tr('adreelAccessContinueAnyway'), cancelLabel: tr('cancel') });
+  if (answer === 'extra') return true;
+  if (answer !== true) return false;
+  await loadPostgresReadScripts();
+  const failed = [];
+  for (const t of tracks) {
+    const r = await window.LayerPitchTracks.setTrackProtected(t.id, true);
+    if (r.ok) t.protected = true; else failed.push((t.title || t.id) + ' : ' + r.error);
+  }
+  for (const s of sfx) {
+    const r = await window.LayerPitchSfx.setSfxProtected(s.id, true);
+    if (r.ok) s.protected = true; else failed.push((s.title || s.id) + ' : ' + r.error);
+  }
+  if (failed.length) { window.LayerPitchNotify.error(tr('adreelAccessProtectFailed', { list: failed.join('\n') })); return false; }
+  renderLibrary();
+  return true;
+}
+async function applyAdReelAccess(ar, mode, password) {
+  const msg = document.getElementById('appAccessMsg');
+  if (mode !== 'public' && !(await confirmProtectFilesForPrivateAdReel(ar))) { msg.textContent = ''; fillAdReelAccessField(ar); return null; }
+  msg.textContent = '…';
+  try {
+    await loadPostgresReadScripts();
+    const r = await window.LayerPitchAdReels.setAdReelAccess(ar.id, mode, password);
+    if (!r.ok) {
+      msg.textContent = r.hint === 'unpublished' ? tr('adreelAccessPublishFirst') : r.hint === 'short' ? tr('adreelAccessShort') : tr('errorPrefix', { message: r.error });
+      fillAdReelAccessField(ar);
+      return null;
+    }
+    ar.accessMode = r.mode;
+    fillAdReelAccessField(ar);
+    msg.textContent = tr(r.mode === 'public' ? 'adreelAccessNowPublic' : r.mode === 'password' ? 'adreelAccessPasswordSet' : 'adreelAccessMagicSet');
+    return r;
+  } catch (e) { msg.textContent = tr('errorPrefix', { message: (e && e.message) || String(e) }); fillAdReelAccessField(ar); return null; }
+}
+document.getElementById('appAccessMode').addEventListener('change', async e => {
+  const ar = adReels.find(a => a.id === currentAdReelId);
+  if (!ar) return;
+  const mode = e.target.value;
+  if (mode === 'public') { await applyAdReelAccess(ar, 'public'); return; }
+  // Mot de passe / lien magique : rien n'est protégé tant que le mot de passe n'est pas enregistré ou le lien généré.
+  document.getElementById('appAccessPasswordRow').hidden = mode !== 'password';
+  document.getElementById('appAccessMagicRow').hidden = mode !== 'magic';
+  document.getElementById('appAccessMagicOut').hidden = true;
+  document.getElementById('appAccessMsg').textContent = tr('adreelAccessNotYet');
+});
+document.getElementById('btnSaveAccessPassword').addEventListener('click', async () => {
+  const ar = adReels.find(a => a.id === currentAdReelId);
+  if (ar) await applyAdReelAccess(ar, 'password', document.getElementById('appAccessPassword').value);
+});
+document.getElementById('btnGenerateMagic').addEventListener('click', async () => {
+  const ar = adReels.find(a => a.id === currentAdReelId);
+  if (!ar) return;
+  const r = await applyAdReelAccess(ar, 'magic');
+  if (!r || !r.token) return;
+  const base = computeAdReelUrl(ar.id);
+  document.getElementById('appAccessMagicLink').value = `${base}#k=${r.token}`;
+  document.getElementById('appAccessMagicOut').hidden = false;
+  document.getElementById('appAccessMsg').textContent = tr('adreelAccessMagicOnce');
+});
+document.getElementById('btnCopyMagic').addEventListener('click', async () => {
+  const input = document.getElementById('appAccessMagicLink');
+  try { await navigator.clipboard.writeText(input.value); document.getElementById('appAccessMsg').textContent = tr('adreelAccessCopied'); }
+  catch (e) { input.select(); }
+});
 document.getElementById('appAllowIndexing').addEventListener('change', e => {
   const ar = adReels.find(a => a.id === currentAdReelId);
   if (ar) { ar.allowIndexing = e.target.checked; hasUnsavedEdits = true; }

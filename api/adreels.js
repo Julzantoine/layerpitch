@@ -23,6 +23,7 @@
       profile: row.profile, testimonials: row.testimonials, trackIds, trackOverrides: row.track_overrides,
       allowIndexing: row.allow_indexing !== false,
       slug: row.slug || null, // nom dans l'adresse publique (/<nom>/<slug>, 27/09)
+      accessMode: row.access_mode || 'public', // 'public' | 'password' | 'magic' (6/10) ; absent de la ligne renvoyée aux visiteurs
     };
   }
 
@@ -68,5 +69,27 @@
     return { ok: true, blocked: false, error: null };
   }
 
-  window.LayerPitchAdReels = { listAdReels, getAdReel, upsertAdReel, deleteAdReel, listAdReelFolders };
+  // Lien privé (6/10, migration 20261006010000). Page publique : mode d'accès d'un AdReel, puis l'AdReel contre le secret
+  // (mot de passe tapé, ou jeton du lien magique). error : 'none' | 'wrong' | 'throttled' | message technique.
+  async function getAdReelAccessMode(ownerId, adReelId) {
+    const { data, error } = await getClient().rpc('get_ad_reel_access_mode', { p_owner_id: ownerId, p_ad_reel_id: adReelId });
+    if (error) return { mode: null, error: error.message };
+    return { mode: data || null, error: null };
+  }
+  async function getPrivateAdReel(ownerId, adReelId, secret) {
+    const { data, error } = await getClient().rpc('get_private_ad_reel', { p_owner_id: ownerId, p_ad_reel_id: adReelId, p_secret: secret || '' });
+    if (error) return { adReel: null, error: error.message };
+    if (!data || !data.ok) return { adReel: null, error: (data && data.error) || 'none' };
+    const adReel = reshapeAdReel(data.adReel);
+    adReel.accessMode = 'private';
+    return { adReel, error: null };
+  }
+  // Backstage : règle l'accès d'un AdReel déjà publié. mode 'public' | 'password' | 'magic' ; le jeton d'un lien magique n'est renvoyé qu'ici.
+  async function setAdReelAccess(adReelId, mode, password) {
+    const { data, error } = await getClient().rpc('set_ad_reel_access', { p_ad_reel_id: adReelId, p_mode: mode, p_password: password || null });
+    if (error) return { ok: false, error: error.message, hint: error.hint || null };
+    return { ok: true, mode: data.mode, token: data.token || null };
+  }
+
+  window.LayerPitchAdReels = { listAdReels, getAdReel, upsertAdReel, deleteAdReel, listAdReelFolders, getAdReelAccessMode, getPrivateAdReel, setAdReelAccess };
 })();

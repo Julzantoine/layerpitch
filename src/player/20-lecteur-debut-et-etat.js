@@ -1,4 +1,7 @@
-function initTrackPlayer(track, wrapper, elementColors) {
+// opts.concurrent (6/10, Carte de niveau du Projet) : ce lecteur joue EN MÊME TEMPS que d'autres (fond d'ambiance, morceau qui entre pendant
+// que l'autre s'éteint) au lieu d'arrêter le morceau actif ; il expose alors wrapper.lpControl (voir 32-pause-reprise-lecture.js).
+function initTrackPlayer(track, wrapper, elementColors, opts) {
+  const concurrent = !!(opts && opts.concurrent);
   const { bg: waveBgColor, fg: waveFgColor } = resolveWaveformColors(elementColors);
   const isStatic = track.mode === 'static';
   const isVerticalRandom = track.mode === 'vertical-random';

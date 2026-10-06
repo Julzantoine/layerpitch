@@ -12,6 +12,21 @@
 //   * sans droit d'écoute (ou sans client Supabase sur la page) : la réponse d'origine est rendue, en erreur comme avant.
 // Les effets sonores protégés fonctionnent de même (dossier audio/sfx-<id>/, { sfxId }).
 // ---------------------------------------------------------------------------------------------------------------------
+// Accès aux AdReels PRIVÉS (6/10) : une fois le lien ouvert (ou le mot de passe tapé), le secret est gardé sur CET ordinateur
+// (localStorage, un secret par AdReel) -- une 2e fenêtre, un pack ouvert depuis l'AdReel, un rechargement : tout reste ouvert.
+// Les secrets sont envoyés, avec l'id de l'AdReel, à track-audio-url, qui ne les accepte que pour un morceau de CET AdReel.
+const LP_PRIVATE_KEY = 'lp_private_access';
+window.LpPrivateAccess = (function () {
+  const read = () => { try { return JSON.parse(localStorage.getItem(LP_PRIVATE_KEY) || '{}') || {}; } catch (e) { return {}; } };
+  const write = m => { try { localStorage.setItem(LP_PRIVATE_KEY, JSON.stringify(m)); } catch (e) { /* stockage bloqué : l'accès ne vit que dans cette page */ } };
+  const key = (ownerId, adReelId) => ownerId + ':' + adReelId;
+  return {
+    get: (ownerId, adReelId) => read()[key(ownerId, adReelId)] || '',
+    set: (ownerId, adReelId, secret) => { const m = read(); m[key(ownerId, adReelId)] = secret; write(m); },
+    del: (ownerId, adReelId) => { const m = read(); delete m[key(ownerId, adReelId)]; write(m); },
+    proofs: () => Object.entries(read()).slice(-8).map(([k, secret]) => ({ adReelId: k.slice(k.indexOf(':') + 1), secret })),
+  };
+})();
 const _protectedTrackIds = new Set();
 const _signedAudio = new Map(); // id du morceau -> { files, expiresAt } | { none: true, until }
 const _signedAudioPending = new Map();
@@ -26,6 +41,9 @@ async function signedAudioFor(trackId) {
       const sb = window.LayerPitchSupabaseClient;
       if (!sb) return null;
       const body = trackId.startsWith('sfx-') ? { sfxId: trackId.slice(4) } : { trackId };
+      // AdReel privé (6/10) : les secrets déjà ouverts sur cet ordinateur prouvent le droit d'écoute des morceaux protégés qu'ils contiennent.
+      const proofs = window.LpPrivateAccess.proofs();
+      if (proofs.length) body.proofs = proofs;
       const { data, error } = await sb.getClient().functions.invoke('track-audio-url', { body });
       if (error || !data || !data.ok || data.protected === false || !data.files) {
         _signedAudio.set(trackId, { none: true, until: Date.now() + 60000 }); // pas d'accès (ou pas protégé) : on ne redemande pas à chaque fichier

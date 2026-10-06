@@ -87,6 +87,17 @@ const FX_DEFAULTS = {
 // Pitch de morceau entier (mode "rate" implicite, pas de champ mode -- un seul sens possible à ce niveau).
 const FX_TRACK_DEFAULTS = { pitch: () => ({ semitones: 0 }) };
 
+// Niveau sonore du morceau (06/10) : case « égaliser » + bouton « Recalculer » (réécoute tous les fichiers du morceau, y compris
+// ceux déjà publiés, et recalcule le gain unique ; à publier ensuite). Bloc de l'onglet « Infos » des deux familles de modes.
+function trackNormalizeHtml(track, ti) {
+  return `<label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+            <input type="checkbox" data-field="normalizeVolume" data-ti="${ti}" ${track.normalizeVolume ? 'checked' : ''} style="width:auto;margin:0;">
+            <span data-help="normalizeVolume" style="color:var(--text-dim);font-size:12px;">${tr('normalizeVolumeLabel')}</span>
+          </label>
+          <div class="hint-inline">${tr('normalizeVolumeHint')}</div>
+          ${track.normalizeVolume ? `<div style="margin-top:6px"><button class="btn btn-small" type="button" data-action="recompute-track-normalization" data-ti="${ti}">${tr('normalizeRecomputeBtn')}</button></div>` : ''}`;
+}
+
 // Protection des fichiers d'un morceau (29/09, « protéger l'album », choix par morceau) : fichiers dans un stockage privé,
 // lus par liens signés ; le morceau reste écoutable là où le compositeur l'a mis en avant (AdReel, écoute libre d'un album,
 // pack en vente). Bloc affiché dans l'onglet « Infos » de chaque morceau ; le déplacement est fait par l'Edge Function

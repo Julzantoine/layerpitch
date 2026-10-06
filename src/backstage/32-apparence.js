@@ -34,6 +34,7 @@ function fillAppearanceFields() {
   document.getElementById('appLang').value = (ar && ar.lang) || 'fr';
   document.getElementById('appAllowIndexing').checked = !ar || ar.allowIndexing !== false;
   fillAdReelSlugField(ar);
+  fillAdReelAccessField(ar);
   document.getElementById('appAdminTierOverride').value = profile.adminTierOverride || '';
   const sep = Object.assign({}, DEFAULT_SEPARATOR, profile.theme.separator || {});
   document.getElementById('appSeparatorVisible').checked = !!sep.visible;

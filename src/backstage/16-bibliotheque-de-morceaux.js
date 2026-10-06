@@ -382,6 +382,21 @@ function applyVrsBatchDrop(track, section, files, res, hints) {
 
 // -- Bibliothèque Sfx : un Sfx par famille de noms, ses fichiers en variations round-robin --
 // Un Sfx déjà présent avec le même titre est complété plutôt que dupliqué.
+// Un seul fichier déposé : un Sfx simple (une variation), sans fenêtre de vérification -- ou ajouté au Sfx du même nom.
+function addSimpleSfxFromFile(file) {
+  const guess = groupFilesByNameFamily([file], false).groups[0];
+  const title = (guess && guess.label) || titleFromFilename(file.name);
+  let sfx = sfxLibrary.find(s => nameFamilyKey(s.title) === nameFamilyKey(title));
+  if (!sfx) {
+    sfx = { id: genId(), title, descriptionFr: '', descriptionEn: '', rrMode: 'random', duckMainTrack: false, alternatives: [], folderId: null };
+    sfxLibrary.push(sfx);
+  }
+  sfx.alternatives.push({ label: titleFromFilename(file.name), remoteFile: null, pendingFile: file });
+  manageSfxSelectedId = sfx.id; sfxSelectedEntry.set(sfx.id, 'variations');
+  hasUnsavedEdits = true;
+  trackBackstageEvent('sfx_batch_add', { count: 1 });
+  renderSfxLibrary();
+}
 function openSfxBatchDropDialog(files) {
   const guess = groupFilesByNameFamily(files, false);
   openGroupedDropDialog({

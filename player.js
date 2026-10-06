@@ -317,6 +317,21 @@ function linkify(s) { return escapeHtml(s).replace(/\[([^\]]+)\]\((https?:\/\/[^
 //   * sans droit d'écoute (ou sans client Supabase sur la page) : la réponse d'origine est rendue, en erreur comme avant.
 // Les effets sonores protégés fonctionnent de même (dossier audio/sfx-<id>/, { sfxId }).
 // ---------------------------------------------------------------------------------------------------------------------
+// Accès aux AdReels PRIVÉS (6/10) : une fois le lien ouvert (ou le mot de passe tapé), le secret est gardé sur CET ordinateur
+// (localStorage, un secret par AdReel) -- une 2e fenêtre, un pack ouvert depuis l'AdReel, un rechargement : tout reste ouvert.
+// Les secrets sont envoyés, avec l'id de l'AdReel, à track-audio-url, qui ne les accepte que pour un morceau de CET AdReel.
+const LP_PRIVATE_KEY = 'lp_private_access';
+window.LpPrivateAccess = (function () {
+  const read = () => { try { return JSON.parse(localStorage.getItem(LP_PRIVATE_KEY) || '{}') || {}; } catch (e) { return {}; } };
+  const write = m => { try { localStorage.setItem(LP_PRIVATE_KEY, JSON.stringify(m)); } catch (e) { /* stockage bloqué : l'accès ne vit que dans cette page */ } };
+  const key = (ownerId, adReelId) => ownerId + ':' + adReelId;
+  return {
+    get: (ownerId, adReelId) => read()[key(ownerId, adReelId)] || '',
+    set: (ownerId, adReelId, secret) => { const m = read(); m[key(ownerId, adReelId)] = secret; write(m); },
+    del: (ownerId, adReelId) => { const m = read(); delete m[key(ownerId, adReelId)]; write(m); },
+    proofs: () => Object.entries(read()).slice(-8).map(([k, secret]) => ({ adReelId: k.slice(k.indexOf(':') + 1), secret })),
+  };
+})();
 const _protectedTrackIds = new Set();
 const _signedAudio = new Map(); // id du morceau -> { files, expiresAt } | { none: true, until }
 const _signedAudioPending = new Map();
@@ -331,6 +346,9 @@ async function signedAudioFor(trackId) {
       const sb = window.LayerPitchSupabaseClient;
       if (!sb) return null;
       const body = trackId.startsWith('sfx-') ? { sfxId: trackId.slice(4) } : { trackId };
+      // AdReel privé (6/10) : les secrets déjà ouverts sur cet ordinateur prouvent le droit d'écoute des morceaux protégés qu'ils contiennent.
+      const proofs = window.LpPrivateAccess.proofs();
+      if (proofs.length) body.proofs = proofs;
       const { data, error } = await sb.getClient().functions.invoke('track-audio-url', { body });
       if (error || !data || !data.ok || data.protected === false || !data.files) {
         _signedAudio.set(trackId, { none: true, until: Date.now() + 60000 }); // pas d'accès (ou pas protégé) : on ne redemande pas à chaque fichier
@@ -2896,7 +2914,10 @@ function disconnectLeakyFxNodes(fxChain) {
 function fxChainHasLeakyNode(fxChain) {
   return !!(fxChain && (fxChain.nodes.bitcrush || fxChain.nodes.pitchShift));
 }
-function initTrackPlayer(track, wrapper, elementColors) {
+// opts.concurrent (6/10, Carte de niveau du Projet) : ce lecteur joue EN MÊME TEMPS que d'autres (fond d'ambiance, morceau qui entre pendant
+// que l'autre s'éteint) au lieu d'arrêter le morceau actif ; il expose alors wrapper.lpControl (voir 32-pause-reprise-lecture.js).
+function initTrackPlayer(track, wrapper, elementColors, opts) {
+  const concurrent = !!(opts && opts.concurrent);
   const { bg: waveBgColor, fg: waveFgColor } = resolveWaveformColors(elementColors);
   const isStatic = track.mode === 'static';
   const isVerticalRandom = track.mode === 'vertical-random';
@@ -6348,15 +6369,19 @@ function initTrackPlayer(track, wrapper, elementColors) {
     setStoppedUI();
     if (activeTrackId === track.id) activeTrackId = null;
   }
+  let lpPlayStartedAt = 0; // instant (horloge audio) du dernier vrai départ : repère de la grille musicale pour la Carte de niveau
   function playThisTrack(reroll, isContinuation) {
-    if (activeTrackId && activeTrackId !== track.id) {
-      document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
-      if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
+    if (!concurrent) {
+      if (activeTrackId && activeTrackId !== track.id) {
+        document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+        if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
+      }
+      Object.keys(trackCollapsers).forEach(id => {
+        if (id !== track.id) trackCollapsers[id]();
+      });
+      activeTrackId = track.id;
     }
-    Object.keys(trackCollapsers).forEach(id => {
-      if (id !== track.id) trackCollapsers[id]();
-    });
-    activeTrackId = track.id;
+    lpPlayStartedAt = ctx.currentTime;
     setDetailsExpanded(details, true);
     updateStingerAvailability();
     resumeAudioContext();
@@ -6570,6 +6595,31 @@ function initTrackPlayer(track, wrapper, elementColors) {
   });
   playBtn.addEventListener('click', () => { playing ? pauseThisTrack() : playThisTrack(true); });
   if (stopBtn) stopBtn.addEventListener('click', stopThisTrack);
+  // Pilotage par programme (Carte de niveau) : démarrer à un niveau donné, régler le niveau avec une rampe, arrêter, et savoir
+  // quand tombe la prochaine mesure / le prochain temps (grille du morceau, comptée depuis son départ).
+  if (concurrent) {
+    const rampTo = (level, sec) => {
+      const now = ctx.currentTime, g = trackMasterGain.gain;
+      g.cancelScheduledValues(now); g.setValueAtTime(g.value, now);
+      g.linearRampToValueAtTime(Math.max(0, level), now + Math.max(0.01, sec || 0));
+    };
+    wrapper.lpControl = {
+      start(level) { if (!playing) playThisTrack(true); trackMasterGain.gain.cancelScheduledValues(ctx.currentTime); trackMasterGain.gain.setValueAtTime(Math.max(0, level), ctx.currentTime); },
+      stop() { if (playing) stopAllSources(false); },
+      setLevel: rampTo,
+      isPlaying: () => playing,
+      // Prochain repère de la grille (mesure, temps, 2 ou 4 mesures) à partir de maintenant, en secondes d'horloge audio ; null si le
+      // morceau ne joue pas encore. Tempo propre du morceau (bpm / temps par mesure).
+      nextBoundary(grid) {
+        if (!playing) return null;
+        const tt = trackTempo(track);
+        const unit = grid === 'beat' ? tt.secondsPerBeat : tt.secondsPerBeat * tt.beatsPerBar * (grid === 'bars4' ? 4 : grid === 'bars2' ? 2 : 1);
+        const elapsed = Math.max(0, ctx.currentTime - lpPlayStartedAt);
+        const next = lpPlayStartedAt + Math.ceil(elapsed / unit + 1e-6) * unit;
+        return next;
+      },
+    };
+  }
 
   // Vertical-random (fusionné le 30/07) : pas de recherche par glissement — avec plusieurs sections
   // potentiellement enchaînées dans un ordre mélangé, "une position dans le temps" n'a plus de sens

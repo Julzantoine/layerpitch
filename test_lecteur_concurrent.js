@@ -1,0 +1,91 @@
+// Lecteur « concurrent » (6/10, Carte de niveau) : plusieurs morceaux jouent en même temps (fond, morceau en cours, morceau qui entre),
+// pilotés par wrapper.lpControl (démarrer à un niveau, rampes de niveau, arrêt, prochaine mesure). Un lecteur ordinaire garde son
+// comportement : lancer un morceau arrête l'autre.
+const { JSDOM } = require('jsdom');
+const fs = require('fs');
+const path = require('path');
+
+(async () => {
+  const { playerPageHtml, installTimedFakeAudio } = require('./scripts/test-harness.js');
+  const html = playerPageHtml();
+
+  const dom = new JSDOM(html, {
+    url: 'http://localhost/test.html', runScripts: 'dangerously', pretendToBeVisual: true,
+    beforeParse(win) {
+      const epoch = Date.now();
+      function FakeAudioContext() { this.destination = {}; }
+      Object.defineProperty(FakeAudioContext.prototype, 'currentTime', { get() { return (Date.now() - epoch) / 1000; } });
+      FakeAudioContext.prototype.resume = function () { return Promise.resolve(); };
+      FakeAudioContext.prototype.createGain = function () {
+        const rec = { value: 1, setValueAtTime(v) { this.value = v; (win.__sets = win.__sets || []).push(v); }, linearRampToValueAtTime(v, t) { (win.__ramps = win.__ramps || []).push({ v, t }); }, cancelScheduledValues() {} };
+        return { gain: rec, connect() {}, disconnect() {} };
+      };
+      FakeAudioContext.prototype.createBufferSource = function () {
+        const ctxRef = this;
+        const node = {
+          buffer: null, onended: null, loop: false, loopStart: 0, loopEnd: 0, connect() {},
+          stop() { if (node._endTimer) clearTimeout(node._endTimer); if (!node._ended) { node._ended = true; if (node.onended) node.onended(); } },
+          start(when, offset) {
+            (win.__starts = win.__starts || []).push({ when, offset });
+            if (node.loop) return; // boucle "en attente d'un bouton" -- ne se termine jamais toute seule, comme un vrai src.loop=true
+            const dur = (node.buffer && node.buffer.duration) || 1;
+            const delaySec = Math.max(0, (when - ctxRef.currentTime) + dur);
+            node._endTimer = setTimeout(() => { if (!node._ended) { node._ended = true; if (node.onended) node.onended(); } }, delaySec * 1000);
+          }
+        };
+        return node;
+      };
+      FakeAudioContext.prototype.decodeAudioData = function () { return Promise.resolve({ duration: 10 }); };
+      win.AudioContext = FakeAudioContext;
+      win.ResizeObserver = win.ResizeObserver || function () { return { observe() {}, disconnect() {} }; };
+      win.requestAnimationFrame = win.requestAnimationFrame || (cb => setTimeout(cb, 16));
+      win.cancelAnimationFrame = win.cancelAnimationFrame || (id => clearTimeout(id));
+    }
+  });
+  const { window } = dom;
+  await new Promise(resolve => setTimeout(resolve, 50));
+  const doc = window.document;
+  const Core = window.LayerPlayerCore;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  function fakeFile(name) { return { name, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }; }
+  function click(el) { el.dispatchEvent(new window.MouseEvent('click', { bubbles: true })); }
+  let failures = 0;
+  function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; }
+  const mk = (id, bpm) => ({ id, title: id, mode: 'vertical', description: '', duration: 10, base: '', publishedAt: 1, loopable: true, loopEngine: 'quantized',
+    bpm, beatsPerBar: 4, startTrackBeat: 0, loopInBeat: 0, loopOutBeat: 16, layers: [{ label: 'L1', localFile: fakeFile(id + '.wav') }], sfxIds: [] });
+  const A = mk('conc-a', 120), B = mk('conc-b', 120), C = mk('plain-c', 120);
+  const mount = (t, opts) => { const row = Core.buildTrackRow(t, null, false); doc.getElementById('host').appendChild(row); Core.initTrackPlayer(t, row, null, opts); return row; };
+  const rowA = mount(A, { concurrent: true }), rowB = mount(B, { concurrent: true }), rowC = mount(C);
+  await sleep(300);
+  check('lecteur concurrent : expose lpControl', !!rowA.lpControl && typeof rowA.lpControl.nextBoundary === 'function');
+  check('lecteur ordinaire : pas de lpControl', !rowC.lpControl);
+  check('avant lecture : pas de repère de mesure', rowA.lpControl.nextBoundary('bar') === null);
+
+  window.__sets = []; window.__ramps = [];
+  rowA.lpControl.start(0.5); await sleep(60);
+  check('start(niveau) : joue, au niveau demandé', rowA.lpControl.isPlaying() && window.__sets.includes(0.5));
+  rowB.lpControl.start(1); await sleep(60);
+  check('un 2e lecteur concurrent joue SANS arrêter le premier', rowA.lpControl.isPlaying() && rowB.lpControl.isPlaying());
+
+  const bar = rowA.lpControl.nextBoundary('bar'), beat = rowA.lpControl.nextBoundary('beat'), bars2 = rowA.lpControl.nextBoundary('bars2');
+  const now = Core.audioNow();
+  check('prochaine mesure : dans le futur, dans la durée d\'une mesure (2 s à 120 bpm)', bar > now && bar - now <= 2.001);
+  check('prochain temps : dans la demi-seconde', beat > now && beat - now <= 0.501);
+  check('2 mesures : la même mesure, ou la suivante (grille de 4 s)', Math.abs(bars2 - bar) < 0.01 || Math.abs(bars2 - bar - 2) < 0.01);
+
+  window.__ramps = [];
+  rowA.lpControl.setLevel(0, 2);
+  check('setLevel : rampe vers le niveau demandé', window.__ramps.length === 1 && window.__ramps[0].v === 0);
+  rowA.lpControl.stop(); await sleep(60);
+  check('stop : le morceau s\'arrête, l\'autre continue', !rowA.lpControl.isPlaying() && rowB.lpControl.isPlaying());
+  check('arrêté : plus de repère de mesure', rowA.lpControl.nextBoundary('bar') === null);
+
+  // Un lecteur ordinaire garde la règle « un seul morceau à la fois »
+  click(rowC.querySelector('[data-role="playBtn"]')); await sleep(80);
+  check('lecteur ordinaire lancé : n\'arrête pas les concurrents (seul son propre événement stop-track le ferait)', rowB.lpControl.isPlaying());
+  click(rowC.querySelector('[data-role="playBtn"]')); await sleep(30);
+  rowB.lpControl.stop();
+
+  console.log(failures === 0 ? 'ALL CHECKS PASSED' : (failures + ' CHECK(S) FAILED'));
+  process.exit(failures === 0 ? 0 : 1);
+})();

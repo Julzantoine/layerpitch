@@ -8,9 +8,9 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch</title>
-<link rel="stylesheet" href="player.css?v=1791296641021">
+<link rel="stylesheet" href="player.css?v=1791297053471">
 <!-- Styles des blocs et de la page : fichier commun avec les vitrines de Projet (reel.css, 28/09). -->
-<link rel="stylesheet" href="reel.css?v=1791296641021">
+<link rel="stylesheet" href="reel.css?v=1791297053471">
 <script>
   // Umami chargé dynamiquement et sauté en mode aperçu (?preview=1) -- voir le commentaire équivalent
   // dans pack.html.
@@ -95,11 +95,11 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791296641021"></script>
-<script src="public-page.js?v=1791296641021"></script>
-<script src="player.js?v=1791296641021"></script>
-<script src="layerpitch-social-icons.js?v=1791296641021"></script>
-<script src="reel.js?v=1791296641021"></script>
+<script src="layerpitch-i18n.js?v=1791297053471"></script>
+<script src="public-page.js?v=1791297053471"></script>
+<script src="player.js?v=1791297053471"></script>
+<script src="layerpitch-social-icons.js?v=1791297053471"></script>
+<script src="reel.js?v=1791297053471"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
 
@@ -132,6 +132,13 @@ const composerHandleFromUrl = new URLSearchParams(location.search).get('u');
 // Nom d'AdReel dans l'adresse (/<nom>/<adreel>, 27/09 -- traduit en s= par 404.html). Capturé avant la remise en
 // place de l'adresse ci-dessous, comme le nom du compositeur.
 const adReelSlugFromUrl = new URLSearchParams(location.search).get('s');
+// Jeton d'un lien privé (6/10) : dans le fragment (#k=...), qui ne quitte jamais le navigateur. Capturé ici (avant la remise en
+// place de l'adresse jolie, qui l'efface de la barre) ; une fois accepté, il est gardé sur cet ordinateur (window.LpPrivateAccess,
+// src/player/02a-audio-protege.js) : rechargement, 2e fenêtre ou pack ouvert depuis l'AdReel ne redemandent rien.
+let privateAccessSecret = (function () {
+  const m = /[#&]k=([A-Za-z0-9]+)/.exec(location.hash || '');
+  return m ? m[1] : '';
+})();
 // AdReel désigné par son nom dans l'adresse (resolve_public_link).
 let resolvedAdReelId = null;
 (function restorePrettyUrl() {
@@ -211,7 +218,7 @@ async function loadSiteData() {
 // (valeur par défaut) : un AdReel normal ne doit jamais gagner de balise robots qu'il n'avait pas
 // avant ce chantier.
 function applyIndexingMeta(adReel) {
-  if (adReel.allowIndexing === false) {
+  if (adReel.allowIndexing === false || adReel.accessMode === 'private') {
     const meta = document.createElement('meta');
     meta.name = 'robots';
     meta.content = 'noindex';
@@ -254,6 +261,42 @@ function applyI18n() {
   document.querySelectorAll('[data-i18n]').forEach(el => { const v = tr(el.dataset.i18n); if (v) el.textContent = v; });
 }
 
+// Page d'un AdReel privé (6/10) : renvoie l'AdReel une fois le secret accepté, null sinon (la page affiche alors « introuvable »
+// ou, pour un mot de passe, le formulaire -- jamais le moindre contenu). Aucune indexation possible : balise noindex immédiate.
+async function loadPrivateAdReel(ownerId, adreelId, container) {
+  const ads = window.LayerPitchAdReels;
+  const { mode } = await ads.getAdReelAccessMode(ownerId, adreelId);
+  if (mode !== 'password' && mode !== 'magic') return null;
+  const robots = document.createElement('meta'); robots.name = 'robots'; robots.content = 'noindex'; document.head.appendChild(robots);
+  pageLang = (navigator.language || '').toLowerCase().startsWith('fr') ? 'fr' : 'en';
+  applyI18n();
+  const store = window.LpPrivateAccess;
+  const candidate = privateAccessSecret || (store ? store.get(ownerId, adreelId) : '');
+  if (candidate) {
+    const r = await ads.getPrivateAdReel(ownerId, adreelId, candidate);
+    if (r.adReel) { privateAccessSecret = candidate; if (store) store.set(ownerId, adreelId, candidate); return r.adReel; }
+    if (store) store.del(ownerId, adreelId);
+    if (mode === 'magic') { container.innerHTML = `<div class="empty private-gate">${tr(r.error === 'throttled' ? 'privateAdReelThrottled' : 'privateAdReelNeedLink')}</div>`; return null; }
+    privateAccessSecret = '';
+  }
+  if (mode === 'magic') { container.innerHTML = `<div class="empty private-gate">${tr('privateAdReelNeedLink')}</div>`; return null; }
+  return new Promise(resolve => {
+    container.innerHTML = `<form class="private-gate" style="max-width:360px;margin:60px auto;padding:0 16px;display:flex;flex-direction:column;gap:10px;font-family:inherit">
+      <h2 style="margin:0">${tr('privateAdReelTitle')}</h2><p style="margin:0">${tr('privateAdReelPasswordPrompt')}</p>
+      <input type="password" autocomplete="off" aria-label="${tr('privateAdReelPasswordLabel')}" placeholder="${tr('privateAdReelPasswordLabel')}" style="padding:10px;font-size:16px">
+      <button type="submit" style="padding:10px;font-size:16px;cursor:pointer">${tr('privateAdReelSubmit')}</button><div class="private-gate-msg" role="alert" style="min-height:1.2em"></div></form>`;
+    const form = container.querySelector('form'), input = form.querySelector('input'), msg = form.querySelector('.private-gate-msg');
+    input.focus();
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const r = await ads.getPrivateAdReel(ownerId, adreelId, input.value);
+      if (r.adReel) { privateAccessSecret = input.value; if (store) store.set(ownerId, adreelId, input.value); resolve(r.adReel); return; }
+      msg.textContent = tr(r.error === 'throttled' ? 'privateAdReelThrottled' : 'privateAdReelWrong');
+      input.select();
+    });
+  });
+}
+
 async function init() {
   const container = document.getElementById('blocksContainer');
   let adreelId = new URLSearchParams(location.search).get('adreel') || 'main';
@@ -268,9 +311,14 @@ async function init() {
     const data = await loadSiteData();
     window.__lpTrackContext.ownerId = lastResolvedOwnerId;
     if (resolvedAdReelId) { adreelId = resolvedAdReelId; window.__lpTrackContext.id = adreelId; } // /<nom>/<adreel>
-    const adReel = (data.adReels || []).find(a => a.id === adreelId);
+    let adReel = (data.adReels || []).find(a => a.id === adreelId);
+    if (!adReel && !previewActive) {
+      // AdReel à lien privé (6/10) : absent de la lecture publique ; on le demande avec le secret (jeton du lien ou mot de passe).
+      adReel = await loadPrivateAdReel(lastResolvedOwnerId, adreelId, container);
+      if (adReel) data.adReels = (data.adReels || []).concat([adReel]);
+    }
     if (!adReel) {
-      container.innerHTML = `<div class="empty">${tr('adreelNotFound')}</div>`;
+      if (!container.querySelector('.private-gate')) container.innerHTML = `<div class="empty">${tr('adreelNotFound')}</div>`;
       return;
     }
     // Ouverture (23 septembre) : sans cet événement, une visite sans aucune interaction n'existait pas

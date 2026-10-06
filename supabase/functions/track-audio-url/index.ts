@@ -29,7 +29,12 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization') || '';
     const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, authHeader ? { global: { headers: { Authorization: authHeader } } } : undefined);
     const adminClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-    const { trackId, sfxId } = await req.json().catch(() => ({}));
+    const { trackId, sfxId, proofs } = await req.json().catch(() => ({}));
+    // AdReels privés (6/10) : secrets déjà ouverts par le visiteur ({ adReelId, secret }), essayés un par un -- can_hear_track / can_hear_sfx
+    // à 3 paramètres ne les accepte que pour un morceau (ou Sfx) réellement dans cet AdReel.
+    const privateProofs: { p_ad_reel_id: string; p_secret: string }[] = (Array.isArray(proofs) ? proofs : []).slice(0, 8)
+      .filter((x: any) => x && typeof x.adReelId === 'string' && typeof x.secret === 'string' && x.adReelId && x.secret)
+      .map((x: any) => ({ p_ad_reel_id: x.adReelId, p_secret: x.secret }));
     const isSfx = typeof sfxId === 'string' && !!sfxId;
     const id = isSfx ? sfxId : trackId;
     if (!id || typeof id !== 'string' || /[/\\]|\.\./.test(id)) return json({ error: 'trackId ou sfxId invalide.' }, 400);
@@ -39,9 +44,14 @@ Deno.serve(async (req) => {
       : await adminClient.from('tracks').select('protected').eq('id', id).maybeSingle();
     if (!item) return json({ error: isSfx ? 'Sfx introuvable.' : 'Morceau introuvable.' }, 404);
     if (!item.protected) return json({ ok: true, protected: false });
-    const { data: allowed, error: accessError } = isSfx
-      ? await callerClient.rpc('can_hear_sfx', { p_sfx_id: id })
-      : await callerClient.rpc('can_hear_track', { p_track_id: id });
+    const askRight = (extra: Record<string, string> = {}) => isSfx
+      ? callerClient.rpc('can_hear_sfx', { p_sfx_id: id, ...extra })
+      : callerClient.rpc('can_hear_track', { p_track_id: id, ...extra });
+    let { data: allowed, error: accessError } = await askRight();
+    for (const proof of privateProofs) {
+      if (allowed || accessError) break;
+      ({ data: allowed, error: accessError } = await askRight(proof));
+    }
     if (accessError) { console.error('track-audio-url: can_hear', accessError); return json({ error: 'Erreur interne. Réessaie dans un instant.' }, 500); }
     if (!allowed) return json({ error: isSfx ? 'Cet effet sonore est protégé.' : 'Ce morceau est réservé aux acheteurs.' }, 403);
 
