@@ -290,6 +290,7 @@
       currentSlotIndex = (track.randomizeSections && (track.segmentSlots || []).length)
         ? advanceChainIndex(-1, track.segmentSlots.length, chainState, track.maxChainLoops, true) : 0;
       seqVisitedSlotIds = new Set();
+      seqMapFrontierIdx = -1;
       seqRoundPlayedIds = new Set(); seqRoundLastIdx = -1;
     }
     const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)

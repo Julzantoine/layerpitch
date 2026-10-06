@@ -78,6 +78,36 @@ const path = require('path');
     check('B est maintenant "current"', !!nodesEl.querySelector('.seq-map-node[data-slot-idx="1"].current'));
   }
 
+  // ---- Scénario 2b : Stop ne replie pas la carte (6/10, retour de Jules-Antoine) -- les options proposées depuis le dernier
+  // emplacement restent affichées, mais plus aucun nœud n'est « courant » ----
+  {
+    const track = {
+      id: 'sm-2b', title: 'Stop garde la carte', mode: 'sequential', description: '', duration: 0,
+      base: '', publishedAt: 1, bpm, beatsPerBar,
+      segmentSlots: [
+        { id: 'slotA', label: 'A', repeatCount: 1, alternatives: [{ label: 'A1', bars: 2, localFile: fakeFile('a1.wav') }], nextOptions: [{ targetId: 'slotB', label: '' }, { targetId: 'slotC', label: '' }] },
+        { id: 'slotB', label: 'B', repeatCount: 1, alternatives: [{ label: 'B1', bars: 2, localFile: fakeFile('b1.wav') }] },
+        { id: 'slotC', label: 'C', repeatCount: 1, alternatives: [{ label: 'C1', bars: 2, localFile: fakeFile('c1.wav') }] }
+      ],
+      sfxIds: []
+    };
+    const row = Core.buildTrackRow(track, null, false);
+    doc.getElementById('host').appendChild(row);
+    Core.initTrackPlayer(track, row);
+    await sleep(300);
+    const nodesEl = row.querySelector('[data-role="seqMapNodes"]');
+    click(row.querySelector('[data-role="playBtn"]'));
+    await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'A1', 2000);
+    check('en lecture : A et ses deux options (B, C) sont affichés', nodesEl.children.length === 3);
+    click(row.querySelector('[data-role="stopBtn"]')); await sleep(100);
+    check('après Stop : la carte ne se replie pas (A, B et C restent affichés)', nodesEl.children.length === 3);
+    check('après Stop : plus aucun nœud « courant » (rien ne joue)', !nodesEl.querySelector('.seq-map-node.current'));
+    click(row.querySelector('[data-role="playBtn"]'));
+    await waitUntil(() => row.querySelector('[data-role="seqCurrent"]').textContent === 'A1', 2000);
+    check('nouvelle lecture : la carte repart de zéro (A et ses options), sans accumuler d\'ancien état', nodesEl.children.length === 3);
+    click(row.querySelector('[data-role="stopBtn"]')); await sleep(50);
+  }
+
   // ---- Scénario 3 : cycle -- un embranchement pointant vers un emplacement déjà visité ne duplique pas le nœud ----
   {
     const track = {

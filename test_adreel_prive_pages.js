@@ -43,6 +43,7 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   input.value = 'bon'; c.querySelector('form').dispatchEvent(new w.Event('submit', { cancelable: true }));
   const got = await pending;
   check('bon mot de passe : AdReel rendu', got && got.id === 'corp');
+  check('bon mot de passe : le formulaire a disparu (plus de message, plus de champ)', !c.querySelector('form') && !c.querySelector('.private-gate') && !/privateAdReel/.test(c.innerHTML));
 
   // ---- Audio protégé : le secret part avec la demande de liens signés ----
   const audio = fs.readFileSync(path.join(__dirname, 'src/player/02a-audio-protege.js'), 'utf8');
