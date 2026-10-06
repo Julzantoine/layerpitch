@@ -2491,12 +2491,17 @@ function mergeTriggerFx(baseFx, activeTriggerDefs) {
 // exporté suive exactement les mêmes règles qu'en jeu.
 // hooks : { schedule(delaySec, fn) -> handle, cancel(handle), apply(id, active, cause) }
 // ---- Cascade par étapes (6/10) ----
-// trigger.steps = [{ id, label?, delaySec, fx, children?:[étapes] }] : des groupes d'effets qui démarrent delaySec secondes
-// APRÈS LEUR PARENT (le trigger pour les étapes du premier niveau, l'étape-mère pour les enfants ; 0 = en même temps), s'ajoutent
-// aux effets du trigger et s'arrêtent avec lui. Pas de nouveau mécanisme : chaque étape devient un trigger invisible, relié à son
-// parent par « Active aussi » avec son délai ; le moteur de règles ci-dessous, le lecteur et l'export vidéo les traitent donc
-// comme n'importe quelle cascade. Les copies portent rootId (le trigger d'origine) et startSec (départ cumulé depuis l'appui).
-// Fonction PURE.
+// trigger.steps = [{ id, label?, delaySec, durationSec?, fx, children?:[étapes] }] : des groupes d'effets qui démarrent delaySec
+// secondes APRÈS LEUR PARENT (le trigger pour les étapes du premier niveau, l'étape-mère pour les enfants ; 0 = en même temps), et
+// qui durent durationSec (vide = jusqu'à la fin du trigger).
+// Pas de nouveau mécanisme : chaque étape devient un trigger invisible, relié au trigger d'origine (la RACINE) par « Active aussi »
+// avec son départ cumulé depuis l'appui (startSec) ; le moteur de règles ci-dessous, le lecteur et l'export vidéo les traitent
+// comme n'importe quelle cascade. Chaque étape a sa propre vie : la fin d'une étape (ou des effets propres du trigger) ne coupe
+// JAMAIS celles qui suivent -- seule la coupure du trigger entier (second appui, ou fin de tout) les arrête (7/10, demande de
+// Jules-Antoine : la durée de l'effet « parent » ne doit pas rendre les étapes suivantes inaudibles).
+// Durée du trigger lui-même (« Durée de l'effet avant retour automatique ») : avec une cascade elle ne concerne que SES effets
+// propres, déplacés dans une étape « self » (départ 0) ; le trigger se termine alors tout seul quand tout est fini, si toutes les
+// durées sont connues, sinon au second appui. Les copies portent rootId et startSec. Fonction PURE.
 const TRIGGER_STEPS_MAX_DEPTH = 5;
 function expandTriggerSteps(triggers) {
   const out = [];
@@ -2504,23 +2509,35 @@ function expandTriggerSteps(triggers) {
     if (!d || !d.id || !Array.isArray(d.steps) || !d.steps.length) { out.push(d); return; }
     const kids = [];
     function walk(parentId, steps, startSec, depth) {
-      const links = [];
       (steps || []).forEach((s, i) => {
         if (!s || depth > TRIGGER_STEPS_MAX_DEPTH) return;
         const id = parentId + '~' + (s.id || i);
-        const delay = +s.delaySec > 0 ? +s.delaySec : 0;
-        const k = { id, label: s.label || '', target: d.target, fx: s.fx || {}, visible: false, fadeSec: d.fadeSec != null ? d.fadeSec : null, fadeOutSec: d.fadeOutSec != null ? d.fadeOutSec : null, relations: null, stepOf: parentId, rootId: d.id, startSec: startSec + delay };
-        kids.push(k);
-        const sub = walk(id, s.children, k.startSec, depth + 1);
-        if (sub.length) k.relations = { activates: sub };
-        links.push({ triggerId: id, delaySec: delay });
+        const start = startSec + (+s.delaySec > 0 ? +s.delaySec : 0);
+        const dur = +s.durationSec > 0 ? +s.durationSec : 0;
+        kids.push({ id, label: s.label || '', target: d.target, fx: s.fx || {}, visible: false, fadeSec: d.fadeSec != null ? d.fadeSec : null, fadeOutSec: d.fadeOutSec != null ? d.fadeOutSec : null,
+          relations: dur ? { autoOffSec: dur } : null, stepOf: parentId, rootId: d.id, startSec: start, durationSec: dur });
+        walk(id, s.children, start, depth + 1);
       });
-      return links;
     }
-    const top = walk(d.id, d.steps, 0, 1);
-    const rel = Object.assign({}, d.relations);
-    rel.activates = (rel.activates || []).concat(top);
-    out.push(Object.assign({}, d, { relations: rel }));
+    const ownRel = Object.assign({}, d.relations);
+    const ownDur = +ownRel.autoOffSec > 0 ? +ownRel.autoOffSec : 0;
+    let root = Object.assign({}, d);
+    if (ownDur) {
+      // Effets propres du trigger : une étape « self » de durée ownDur ; le trigger lui-même devient un simple porteur.
+      kids.push({ id: d.id + '~self', label: d.label || '', target: d.target, fx: d.fx || {}, visible: false, fadeSec: d.fadeSec != null ? d.fadeSec : null, fadeOutSec: d.fadeOutSec != null ? d.fadeOutSec : null,
+        relations: { autoOffSec: ownDur }, stepOf: d.id, rootId: d.id, startSec: 0, durationSec: ownDur, isSelf: true });
+      root.fx = {};
+    }
+    walk(d.id, d.steps, 0, 1);
+    const rel = Object.assign({}, ownRel);
+    rel.activates = (rel.activates || []).concat(kids.map(k => ({ triggerId: k.id, delaySec: k.startSec })));
+    if (ownDur) {
+      // Fin du trigger = fin de la dernière étape, seulement si toutes ont une durée (sinon il dure jusqu'au second appui).
+      const allFinite = kids.every(k => k.durationSec > 0);
+      rel.autoOffSec = allFinite ? Math.max.apply(null, kids.map(k => k.startSec + k.durationSec)) : null;
+    }
+    root.relations = rel;
+    out.push(root);
     kids.forEach(k => out.push(k));
   });
   return out;

@@ -100,6 +100,41 @@ const path = require('path');
   check('public : une pastille par effet (parent, étape, enfant)', (h.match(/class="fx-chip"/g) || []).length === 4 && /Low cut/.test(h) && /Bitcrusher/.test(h) && /Reverb/.test(h) && /Écho/.test(h));
   check('public : les pastilles d\'étapes annoncent leur départ (+2 s, +5 s)', /\+2 s/.test(h) && /\+5 s/.test(h));
   check('public : showEffects=false -> aucune pastille', chipsHtml(false) === '');
+
+  // --- durées indépendantes (7/10) : la fin d'un effet ne rend pas inaudibles ceux qui suivent ---
+  const onT = (chs, id) => chs.filter(c => c.id === id && c.active).map(c => c.t);
+  const offT = (chs, id) => chs.filter(c => c.id === id && !c.active).map(c => c.t);
+  const base = { id: 'R', target: { type: 'track' }, fx: { lowcut: { frequency: 150 } }, visible: true, relations: { autoOffSec: 3 } };
+  // (a) effet du parent 3 s, étape à +5 s qui dure 4 s : on l'entend bien de 5 à 9 s
+  const fa = core.expandTriggerSteps([Object.assign({}, base, { steps: [{ id: 'x', delaySec: 5, durationSec: 4, fx: { bitcrush: {} } }] })]);
+  const ca = core.simulateTriggerRules(fa, [{ t: 0, id: 'R', active: true, source: 'visitor' }]);
+  check('parent 3 s + étape à +5 s : l\'étape démarre quand même à 5 s', JSON.stringify(onT(ca, 'R~x')) === '[5]');
+  check('…les effets propres du parent s\'arrêtent à 3 s (étape « self »), pas l\'étape', JSON.stringify(offT(ca, 'R~self')) === '[3]' && JSON.stringify(offT(ca, 'R~x')) === '[9]');
+  check('…toutes les durées connues : le trigger se termine seul à 9 s', JSON.stringify(offT(ca, 'R')) === '[9]');
+  check('…le trigger lui-même ne porte plus d\'effet (ils sont dans « self »)', fa[0].fx && Object.keys(fa[0].fx).length === 0 && fa.some(k => k.isSelf && k.fx.lowcut));
+  // (b) une étape sans durée : le trigger dure jusqu'au second appui
+  const fb = core.expandTriggerSteps([Object.assign({}, base, { steps: [{ id: 'x', delaySec: 5, fx: { bitcrush: {} } }] })]);
+  const cb = core.simulateTriggerRules(fb, [{ t: 0, id: 'R', active: true, source: 'visitor' }, { t: 20, id: 'R', active: false, source: 'visitor' }]);
+  check('étape sans durée : elle dure jusqu\'au second appui, le trigger aussi', JSON.stringify(onT(cb, 'R~x')) === '[5]' && JSON.stringify(offT(cb, 'R~x')) === '[20]' && JSON.stringify(offT(cb, 'R')) === '[20]');
+  check('…et les effets propres du parent ont bien fini à 3 s', JSON.stringify(offT(cb, 'R~self')) === '[3]');
+  // (c) une étape qui s'arrête ne coupe pas son enfant (départ cumulé : 2 + 4 = 6 s, alors que l'étape mère finit à 5 s)
+  const fc = core.expandTriggerSteps([{ id: 'R', target: { type: 'track' }, fx: {}, visible: true, steps: [{ id: 'm', delaySec: 2, durationSec: 3, fx: {}, children: [{ id: 'k', delaySec: 4, durationSec: 2, fx: { reverb: {} } }] }] }]);
+  const cc = core.simulateTriggerRules(fc, [{ t: 0, id: 'R', active: true, source: 'visitor' }, { t: 30, id: 'R', active: false, source: 'visitor' }]);
+  check('étape mère de 2 à 5 s, enfant à +4 s (donc 6 s) : l\'enfant joue après la fin de sa mère', JSON.stringify(offT(cc, 'R~m')) === '[5]' && JSON.stringify(onT(cc, 'R~m~k')) === '[6]' && JSON.stringify(offT(cc, 'R~m~k')) === '[8]');
+  // (d) coupé à la main avant : tout s'arrête, rien de prévu n'a lieu
+  const cd = core.simulateTriggerRules(fa, [{ t: 0, id: 'R', active: true, source: 'visitor' }, { t: 4, id: 'R', active: false, source: 'visitor' }]);
+  check('second appui à 4 s : l\'étape prévue à 5 s n\'a jamais lieu', onT(cd, 'R~x').length === 0);
+  // (e) sans durée propre : comportement inchangé (effets sur le trigger, pas d'étape « self »)
+  const fe = core.expandTriggerSteps([{ id: 'R', target: { type: 'track' }, fx: { lowcut: {} }, steps: [{ id: 'x', delaySec: 1, fx: {} }] }]);
+  check('sans durée propre : pas d\'étape « self », le trigger garde ses effets', !fe.some(k => k.isSelf) && !!fe[0].fx.lowcut);
+  // éditeur : durée de l'étape
+  ev("library[0].fxTriggers[0].steps = [{ id: 'q', delaySec: 1, fx: {} }]; renderLibrary();"); await settle();
+  const dur = doc.querySelector('[data-fxs-prop="durationSec"][data-sti="0"]');
+  check('éditeur : champ « Dure (s) » par étape, vide par défaut', !!dur && dur.value === '');
+  input(dur, '4');
+  check('durée de l\'étape enregistrée et publiée', ev('library[0].fxTriggers[0].steps[0].durationSec') === 4 && ev('buildDataSnapshot("pro", 1)').library[0].fxTriggers[0].steps[0].durationSec === 4);
+  input(dur, '');
+  check('champ vidé : plus de durée (jusqu\'à la fin)', ev('library[0].fxTriggers[0].steps[0].durationSec') === undefined);
   // Hiérarchie visuelle : plus l'étape est éloignée, plus elle est décalée ; même délai = même niveau ; ordre d'affichage = ordre de départ
   const lv = ev("fxStepLevels([{ id: 'a', delaySec: 5 }, { id: 'b', delaySec: 0 }, { id: 'c', delaySec: 2 }, { id: 'd', delaySec: 2 }]).map(x => x.st.id + x.level).join(',')");
   check('niveaux : 0 s -> 1, 2 s -> 2 (partagé), 5 s -> 3, affichés dans l\'ordre du temps', lv === 'b1,c2,d2,a3');

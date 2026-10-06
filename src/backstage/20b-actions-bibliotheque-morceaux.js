@@ -358,6 +358,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       if (st) {
         if (prop === 'label') st.label = e.target.value;
         else if (prop === 'delaySec') st.delaySec = e.target.value === '' ? 0 : Math.max(0, parseFloat(e.target.value) || 0);
+        else if (prop === 'durationSec') { const v = parseFloat(e.target.value); if (v > 0) st.durationSec = v; else delete st.durationSec; }
       }
     }
     else if (field === 'fxSlider') {
