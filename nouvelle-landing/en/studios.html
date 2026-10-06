@@ -6,6 +6,21 @@
 <!-- BROUILLON PRIVÉ (29 septembre) : page « Studios » du nouveau site, bâtie sur la trame de compositeurs.html.
      À la bascule : retirer noindex ; la balise google-site-verification reste sur la page RACINE (index.html), pas ici. -->
 <meta name="robots" content="noindex, nofollow">
+<!-- Aperçu des liens (LinkedIn, WhatsApp...) : titre et description de la page ; image provisoire = la carte des chemins (à valider). -->
+<link rel="canonical" href="https://www.layerpitch.com/en/studios">
+<link rel="alternate" hreflang="fr" href="https://www.layerpitch.com/studios">
+<link rel="alternate" hreflang="en" href="https://www.layerpitch.com/en/studios">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="LayerPitch">
+<meta property="og:locale" content="en_GB">
+<meta property="og:url" content="https://www.layerpitch.com/en/studios">
+<meta property="og:title" content="LayerPitch — Studios: music that immerses, work that flows">
+<meta property="og:description" content="Sound shapes player immersion. LayerPitch brings studio and composer into one space to imagine, test and validate the game's music without back-and-forth.">
+<meta property="og:image" content="https://www.layerpitch.com/assets/og-carte-en.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="LayerPitch — Studios: music that immerses, work that flows">
+<meta name="twitter:description" content="Sound shapes player immersion. LayerPitch brings studio and composer into one space to imagine, test and validate the game's music without back-and-forth.">
+<meta name="twitter:image" content="https://www.layerpitch.com/assets/og-carte-en.png">
 <title>LayerPitch — Studios: music that immerses, work that flows</title>
 <meta name="description" content="Sound shapes player immersion. LayerPitch brings studio and composer into one space to imagine, test and validate the game's music without back-and-forth.">
 <style>
@@ -158,6 +173,7 @@
   .cta-buttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
   .cta-buttons .btn { flex: 1; min-width: 160px; }
   .cta-note { font-size: 12px; color: var(--text-on-dark-dim); margin-top: 16px; }
+  .cta-legal { font-size: 12px; line-height: 1.5; margin: 12px 0 0; color: var(--text-on-dark-dim); } .cta-legal a { color: inherit; text-decoration: underline; }
   .cta-msg { font-family: var(--font-mono); font-size: 12px; margin-top: 12px; min-height: 16px; color: var(--text-on-dark-dim); }
   .cta-msg.ok { color: #6fd39a; }
   .cta-msg.err { color: #e08a72; }
@@ -171,17 +187,17 @@
 <body>
 
 <nav class="nav">
-  <span class="nav-logo"><a href="./index.html" style="color:inherit">LayerPitch</a></span>
+  <span class="nav-logo"><a href="./" style="color:inherit">LayerPitch</a></span>
   <div class="nav-links">
-    <a href="./about.html">About</a>
-    <a href="./composers.html">Composers &amp; sound designers</a>
-    <a href="./studios.html" style="color:var(--accent)">Studios</a>
+    <a href="./about">About</a>
+    <a href="./composers">Composers &amp; sound designers</a>
+    <a href="./studios" style="color:var(--accent)">Studios</a>
     <span class="nav-disabled" aria-disabled="true" title="Bientôt" style="color:var(--text-dimmer);cursor:default;opacity:.75;font-size:13px;padding:6px 10px">Audio catalog</span>
     <span class="nav-disabled" aria-disabled="true" title="Bientôt" style="color:var(--text-dimmer);cursor:default;opacity:.75;font-size:13px;padding:6px 10px">Pricing</span>
-    <a href="./faq.html">FAQ</a>
+    <a href="./faq">FAQ</a>
   </div>
   <div class="nav-right">
-    <span class="nav-lang"><a href="../studios.html">FR</a> / <a class="active" href="#">EN</a></span>
+    <span class="nav-lang"><a href="../studios">FR</a> / <a class="active" href="#">EN</a></span>
     <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html?lang=en">Log in</a>
   </div>
 </nav>
@@ -242,7 +258,10 @@
 
 <section class="demo wrap">
   <p>A demo project, read-only: browse the Moodboard, the videos, the music and the showcase the way your team would. No account needed.</p>
-  <a class="btn btn-primary" href="https://beta.layerpitch.com/projet.html?demo&lang=en" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_studio_demo_click')">Try a project yourself →</a>
+  <!-- DÉMO PAS ENCORE PRÊTE : bouton grisé. Le jour où le Projet « Alone in the Barque » est marqué comme démo publique (interrupteur
+       « Démo publique » sur sa page), remplacer ce <span> par :
+       <a class="btn btn-primary" href="https://beta.layerpitch.com/projet.html?demo&lang=en" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_studio_demo_click')">Try a project yourself →</a> -->
+  <span class="btn btn-primary" aria-disabled="true" title="Coming soon" style="opacity:.45;cursor:default;pointer-events:none">Try a project yourself · Coming soon</span>
 </section>
 
 <section class="proof wrap">
@@ -296,7 +315,7 @@
 
 <section class="block wrap">
   <div class="backstory">
-    <img class="backstory-photo" src="../../landing-assets/jules-photo.jpg" alt="Jules, LayerPitch founder">
+    <img class="backstory-photo" src="../assets/jules-photo.jpg" alt="Jules, LayerPitch founder">
     <div class="backstory-text">
       <p>Hi, I'm Jules and I'm a composer.</p>
       <p>Recently, I pitched music to a video game studio. I wanted to go all in and present adaptive music directly — but I couldn't find any technical solution that actually worked for that... and I didn't want to flatten all my work into some dumb MP3.</p>
@@ -312,11 +331,12 @@
       <input type="email" name="email" placeholder="you@studio.com" required>
       <textarea name="message" maxlength="450" rows="4" placeholder="Your studio, your game in progress, what you're looking for in sound… (optional)"></textarea>
       <div class="cta-buttons"><button type="submit" class="btn btn-primary">Request an invitation</button></div>
+      <p class="cta-legal">By sending this form you agree that LayerPitch uses your address to reply to you. Details in the <a href="./privacy">privacy policy</a>.</p>
       <div class="cta-msg" id="ctaMsg"></div>
     </form>
     <div class="cta-note">No spam, no commitment.</div>
   </section>
-  <footer>LayerPitch — interactive music and sound design for video games</footer>
+  <footer>LayerPitch — interactive music and sound design for video games · <a href="./legal">Legal notice</a> · <a href="./privacy">Privacy</a></footer>
 </div>
 
 <script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>

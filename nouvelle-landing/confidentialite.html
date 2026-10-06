@@ -3,26 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- BROUILLON PRIVÉ (29 septembre) : page « À propos » du nouveau site (texte repris de la page Compositeurs).
+<!-- BROUILLON PRIVÉ (29 septembre) : page « FAQ » du nouveau site.
      À la bascule : retirer noindex ; la balise google-site-verification reste sur la page RACINE (index.html), pas ici. -->
 <meta name="robots" content="noindex, nofollow">
 <!-- Aperçu des liens (LinkedIn, WhatsApp...) : titre et description de la page ; image provisoire = la carte des chemins (à valider). -->
-<link rel="canonical" href="https://www.layerpitch.com/a-propos">
-<link rel="alternate" hreflang="fr" href="https://www.layerpitch.com/a-propos">
-<link rel="alternate" hreflang="en" href="https://www.layerpitch.com/en/about">
+<link rel="canonical" href="https://www.layerpitch.com/confidentialite">
+<link rel="alternate" hreflang="fr" href="https://www.layerpitch.com/confidentialite">
+<link rel="alternate" hreflang="en" href="https://www.layerpitch.com/en/privacy">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="LayerPitch">
 <meta property="og:locale" content="fr_FR">
-<meta property="og:url" content="https://www.layerpitch.com/a-propos">
-<meta property="og:title" content="LayerPitch — À propos">
-<meta property="og:description" content="LayerPitch est né de la frustration d'un compositeur de jeu vidéo : présenter de la musique adaptative sans la réduire à des MP3.">
+<meta property="og:url" content="https://www.layerpitch.com/confidentialite">
+<meta property="og:title" content="LayerPitch — Politique de confidentialité">
+<meta property="og:description" content="Comment LayerPitch traite vos données : ce qui est collecté, pourquoi, qui y a accès et comment exercer vos droits.">
 <meta property="og:image" content="https://www.layerpitch.com/assets/og-carte.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="LayerPitch — À propos">
-<meta name="twitter:description" content="LayerPitch est né de la frustration d'un compositeur de jeu vidéo : présenter de la musique adaptative sans la réduire à des MP3.">
+<meta name="twitter:title" content="LayerPitch — Politique de confidentialité">
+<meta name="twitter:description" content="Comment LayerPitch traite vos données : ce qui est collecté, pourquoi, qui y a accès et comment exercer vos droits.">
 <meta name="twitter:image" content="https://www.layerpitch.com/assets/og-carte.png">
-<title>LayerPitch — À propos</title>
-<meta name="description" content="LayerPitch est né de la frustration d'un compositeur de jeu vidéo : présenter de la musique adaptative sans la réduire à des MP3.">
+<title>LayerPitch — Politique de confidentialité</title>
+<meta name="description" content="Comment LayerPitch traite vos données : ce qui est collecté, pourquoi, qui y a accès et comment exercer vos droits.">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
   :root {
@@ -180,6 +180,22 @@
   footer { text-align: center; padding: 26px 24px 34px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); background: var(--bg-dark); }
   footer, .cta-band { color: var(--text-on-dark-dim); }
 
+
+  .faq h2 { font-family: var(--font-title); font-size: 20px; margin: 40px 0 14px; }
+  .faq details { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; }
+  .faq summary { cursor: pointer; padding: 15px 18px; font-family: var(--font-title); font-weight: 600; font-size: 15.5px; list-style: none; display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: '+'; color: var(--accent); font-size: 20px; line-height: 1; flex-shrink: 0; }
+  .faq details[open] summary::after { content: '−'; }
+  .faq details p { margin: 0; padding: 0 18px 16px; color: var(--text-dim); font-size: 14.5px; }
+  .faq details p a { color: var(--accent); }
+</style>
+<style>
+  .legal h2 { font-size: 20px; margin: 32px 0 8px; }
+  .legal p, .legal li { color: var(--text-dim); font-size: 15px; }
+  .legal ul { padding-left: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .legal .draft { background: #fff4d6; border: 1px solid #ecd48a; color: #5c4b1e; border-radius: 8px; padding: 12px 14px; font-size: 13.5px; }
+  .legal { padding-bottom: 56px; }
 </style>
 </head>
 <body>
@@ -187,7 +203,7 @@
 <nav class="nav">
   <span class="nav-logo"><a href="./" style="color:inherit">LayerPitch</a></span>
   <div class="nav-links">
-    <a href="./a-propos" style="color:var(--accent)">À propos</a>
+    <a href="./a-propos">À propos</a>
     <a href="./compositeurs">Compositeurs &amp; sound designers</a>
     <a href="./studios">Studios</a>
     <span class="nav-disabled" aria-disabled="true" title="Bientôt" style="color:var(--text-dimmer);cursor:default;opacity:.75;font-size:13px;padding:6px 10px">Catalogue audio</span>
@@ -195,36 +211,31 @@
     <a href="./faq">FAQ</a>
   </div>
   <div class="nav-right">
-    <span class="nav-lang"><a class="active" href="./a-propos">FR</a> / <a href="./en/about">EN</a></span>
+    <span class="nav-lang"><a class="active" href="./confidentialite">FR</a> / <a href="./en/privacy">EN</a></span>
     <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html">Se connecter</a>
   </div>
 </nav>
 
-<header class="hero wrap" style="padding-bottom:0">
-  <h1>L'histoire de LayerPitch</h1>
-</header>
-
-<section class="block wrap">
-  <div class="backstory">
-    <!-- TODO : remplacer par la vraie photo de Jules-Antoine (assets/jules-photo.jpg ou équivalent)
-         -- placeholder gris en attendant le fichier. -->
-    <img class="backstory-photo" src="./assets/jules-photo.jpg" alt="Jules, fondateur de LayerPitch">
-    <div class="backstory-text">
-      <p>Salut, je m'appelle Jules et je suis compositeur.</p>
-      <p>Récemment, j'ai pitché de la musique à un studio de jeu vidéo. J'ai voulu frapper fort et présenter directement de la musique adaptative — mais je n'ai trouvé aucune solution technique adéquate pour ça... et je n'avais pas envie de réduire tout mon boulot à de bêtes mp3.</p>
-      <p>LayerPitch est né de cette frustration. De fil en aiguille, l'idée a pris forme — jusqu'à être aujourd'hui accompagnée par Plaine Images / Take Off Inspiration, l'incubateur musique tech en partenariat avec la Sacem.</p>
-    </div>
-  </div>
-</section>
-
-<div class="cta-band">
-  <section class="cta wrap">
-    <h2>Envie d'essayer ?</h2>
-    <div class="cta-buttons" style="max-width:520px;margin:28px auto 0">
-      <a class="btn btn-primary" href="./compositeurs">Compositeurs &amp; sound designers</a>
-      <a class="btn btn-on-dark" href="./studios">Studios</a>
-    </div>
-  </section>
-  <footer>LayerPitch — musique interactive pour vos pitchs de jeu vidéo · <a href="./mentions-legales">Mentions légales</a> · <a href="./confidentialite">Confidentialité</a></footer>
-</div>
+<main class="wrap legal">
+  <h1>Politique de confidentialité</h1>
+  <p class="draft">Brouillon à faire valider avant la mise en ligne. Les passages entre crochets attendent une information ou une vérification. Ce texte n'est pas un conseil juridique.</p>
+  <h2>Qui est responsable</h2>
+  <p>Le responsable du traitement est l'éditeur de LayerPitch (voir les <a href="./mentions-legales">mentions légales</a>). Contact pour toute question sur vos données : <a href="mailto:contact@layerpitch.com">contact@layerpitch.com</a>.</p>
+  <h2>Ce que nous collectons, et pourquoi</h2>
+  <ul>
+  <li><b>Formulaires d'invitation et de contact</b> : votre adresse e-mail et le message éventuel, pour vous répondre et vous inviter à la bêta. Base légale : votre demande. Conservation : [À DÉFINIR, par exemple 12 mois après la dernière réponse].</li>
+  <li><b>Compte LayerPitch</b> : adresse e-mail et informations de profil, pour faire fonctionner votre espace. Base légale : exécution du service. Conservation : tant que le compte existe ; vous pouvez le supprimer depuis votre compte, ce qui efface vos données et vos fichiers (hors ce que la loi nous oblige à conserver, par exemple des factures).</li>
+  <li><b>Contenus que vous déposez</b> (musiques, sons, images, textes, projets) : pour les afficher et les partager comme vous le décidez. Ils vous appartiennent.</li>
+  <li><b>Paiements</b> : traités par Stripe ; LayerPitch ne voit ni n'enregistre votre numéro de carte. [À CONFIRMER à l'ouverture des paiements réels.]</li>
+  <li><b>Mesure d'audience</b> : statistiques de fréquentation du site de présentation avec Umami, sans cookie ni profil publicitaire [À VÉRIFIER : configuration Umami]. Dans l'application, des statistiques d'usage (Microsoft Clarity) ne sont activées qu'avec votre consentement.</li>
+  </ul>
+  <h2>Qui y a accès</h2>
+  <p>Seuls l'éditeur et les prestataires techniques nécessaires au service : Supabase (base de données, Irlande), Cloudflare (hébergement, fichiers, Europe de l'Ouest), Resend (envoi des e-mails), Stripe (paiements), Umami (mesure d'audience), et, avec votre accord, Microsoft Clarity. Nous ne vendons pas vos données. [À VÉRIFIER : transferts hors Union européenne et garanties (clauses contractuelles types) pour chaque prestataire.]</p>
+  <h2>Vos droits</h2>
+  <p>Vous pouvez demander l'accès à vos données, leur rectification, leur effacement, leur portabilité, ou vous opposer à un traitement, en écrivant à <a href="mailto:contact@layerpitch.com">contact@layerpitch.com</a>. Vous pouvez aussi saisir la CNIL (cnil.fr).</p>
+  <h2>Cookies</h2>
+  <p>Le site de présentation n'utilise pas de cookie de suivi [À VÉRIFIER]. L'application utilise le stockage de votre navigateur pour retenir votre session et vos préférences.</p>
+  <p>Dernière mise à jour : [À COMPLÉTER].</p>
+</main>
+<footer>LayerPitch — musique interactive pour vos pitchs de jeu vidéo · <a href="./mentions-legales">Mentions légales</a> · <a href="./confidentialite">Confidentialité</a></footer>
 </body></html>

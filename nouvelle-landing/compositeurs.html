@@ -6,6 +6,21 @@
 <!-- BROUILLON PRIVÉ (29 septembre) : page « Compositeurs & sound designers » du nouveau site, issue de landing.html.
      À la bascule : retirer noindex ; la balise google-site-verification reste sur la page RACINE (index.html), pas ici. -->
 <meta name="robots" content="noindex, nofollow">
+<!-- Aperçu des liens (LinkedIn, WhatsApp...) : titre et description de la page ; image provisoire = la carte des chemins (à valider). -->
+<link rel="canonical" href="https://www.layerpitch.com/compositeurs">
+<link rel="alternate" hreflang="fr" href="https://www.layerpitch.com/compositeurs">
+<link rel="alternate" hreflang="en" href="https://www.layerpitch.com/en/composers">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="LayerPitch">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:url" content="https://www.layerpitch.com/compositeurs">
+<meta property="og:title" content="LayerPitch — Compositeurs &amp; sound designers">
+<meta property="og:description" content="Un MP3 dit comment votre musique sonne. LayerPitch montre comment elle marche. Créez un AdReel : votre système musical, manipulable en direct par le studio qui vous lit.">
+<meta property="og:image" content="https://www.layerpitch.com/assets/og-carte.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="LayerPitch — Compositeurs &amp; sound designers">
+<meta name="twitter:description" content="Un MP3 dit comment votre musique sonne. LayerPitch montre comment elle marche. Créez un AdReel : votre système musical, manipulable en direct par le studio qui vous lit.">
+<meta name="twitter:image" content="https://www.layerpitch.com/assets/og-carte.png">
 <title>LayerPitch — Compositeurs &amp; sound designers</title>
 <meta name="description" content="Un MP3 dit comment votre musique sonne. LayerPitch montre comment elle marche. Créez un AdReel : votre système musical, manipulable en direct par le studio qui vous lit.">
 <style>
@@ -158,6 +173,7 @@
   .cta-buttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
   .cta-buttons .btn { flex: 1; min-width: 160px; }
   .cta-note { font-size: 12px; color: var(--text-on-dark-dim); margin-top: 16px; }
+  .cta-legal { font-size: 12px; line-height: 1.5; margin: 12px 0 0; color: var(--text-on-dark-dim); } .cta-legal a { color: inherit; text-decoration: underline; }
   .cta-msg { font-family: var(--font-mono); font-size: 12px; margin-top: 12px; min-height: 16px; color: var(--text-on-dark-dim); }
   .cta-msg.ok { color: #6fd39a; }
   .cta-msg.err { color: #e08a72; }
@@ -169,17 +185,17 @@
 <body>
 
 <nav class="nav">
-  <span class="nav-logo"><a href="./index.html" style="color:inherit">LayerPitch</a></span>
+  <span class="nav-logo"><a href="./" style="color:inherit">LayerPitch</a></span>
   <div class="nav-links">
-    <a href="./a-propos.html">À propos</a>
-    <a href="./compositeurs.html" style="color:var(--accent)">Compositeurs &amp; sound designers</a>
-    <a href="./studios.html">Studios</a>
+    <a href="./a-propos">À propos</a>
+    <a href="./compositeurs" style="color:var(--accent)">Compositeurs &amp; sound designers</a>
+    <a href="./studios">Studios</a>
     <span class="nav-disabled" aria-disabled="true" title="Bientôt" style="color:var(--text-dimmer);cursor:default;opacity:.75;font-size:13px;padding:6px 10px">Catalogue audio</span>
     <span class="nav-disabled" aria-disabled="true" title="Bientôt" style="color:var(--text-dimmer);cursor:default;opacity:.75;font-size:13px;padding:6px 10px">Tarifs</span>
-    <a href="./faq.html">FAQ</a>
+    <a href="./faq">FAQ</a>
   </div>
   <div class="nav-right">
-    <span class="nav-lang"><a class="active" href="./compositeurs.html">FR</a> / <a href="./en/composers.html">EN</a></span>
+    <span class="nav-lang"><a class="active" href="./compositeurs">FR</a> / <a href="./en/composers">EN</a></span>
     <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html">Se connecter</a>
   </div>
 </nav>
@@ -307,7 +323,7 @@
   <div class="backstory">
     <!-- TODO : remplacer par la vraie photo de Jules-Antoine (assets/jules-photo.jpg ou équivalent)
          -- placeholder gris en attendant le fichier. -->
-    <img class="backstory-photo" src="../landing-assets/jules-photo.jpg" alt="Jules, fondateur de LayerPitch">
+    <img class="backstory-photo" src="./assets/jules-photo.jpg" alt="Jules, fondateur de LayerPitch">
     <div class="backstory-text">
       <p>Salut, je m'appelle Jules et je suis compositeur.</p>
       <p>Récemment, j'ai pitché de la musique à un studio de jeu vidéo. J'ai voulu frapper fort et présenter directement de la musique adaptative — mais je n'ai trouvé aucune solution technique adéquate pour ça... et je n'avais pas envie de réduire tout mon boulot à de bêtes mp3.</p>
@@ -330,11 +346,12 @@
         <button type="submit" class="btn btn-primary" data-intent="beta">Je veux rejoindre la bêta</button>
         <button type="submit" class="btn btn-on-dark" data-intent="waitlist">Tenez-moi juste au courant</button>
       </div>
+      <p class="cta-legal">En envoyant ce formulaire, vous acceptez que LayerPitch utilise votre adresse pour vous répondre. Détails dans la <a href="./confidentialite">politique de confidentialité</a>.</p>
       <div class="cta-msg" id="ctaMsg"></div>
     </form>
     <div class="cta-note">Pas de spam, pas d'engagement.</div>
   </section>
-  <footer>LayerPitch — musique interactive pour vos pitchs de jeu vidéo</footer>
+  <footer>LayerPitch — musique interactive pour vos pitchs de jeu vidéo · <a href="./mentions-legales">Mentions légales</a> · <a href="./confidentialite">Confidentialité</a></footer>
 </div>
 
 <script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>

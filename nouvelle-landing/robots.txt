@@ -1,0 +1,7 @@
+# TEST : tant que la bascule n'est pas faite, rien ne doit être indexé (les pages portent aussi la balise noindex).
+# Le jour J : remplacer par les deux lignes ci-dessous et retirer les balises noindex des pages.
+#   User-agent: *
+#   Allow: /
+#   Sitemap: https://www.layerpitch.com/sitemap.xml
+User-agent: *
+Disallow: /
