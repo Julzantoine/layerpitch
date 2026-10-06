@@ -21,6 +21,27 @@
   await db.query(`select public.set_album_random('alb1', false)`);
   check('… et la retire', (await db.query(`select allow_random from public.albums where id = 'alb1'`)).rows[0].allow_random === false);
   check('album inconnu refusé', await fails(`select public.set_album_random('nope', true)`));
+
+  // Préférences du fan (le dé), par compte et par album : en base, pour suivre le fan d'un appareil à l'autre
+  await db.query(`insert into auth.users (id) values ($1)`, [U(3)]); await db.query(`insert into public.profiles (id) values ($1) on conflict do nothing`, [U(3)]);
+  await db.query(`insert into public.composer_profiles (profile_id, plan) values ($1, 'pro')`, [U(1)]);
+  const owner = (await db.query(`select id from public.composer_profiles where profile_id = $1`, [U(1)])).rows[0].id;
+  await db.query(`insert into public.tracks (id, owner_id, title, mode) values ('t1', $1, 'T1', 'vertical'), ('t2', $1, 'T2', 'vertical')`, [owner]);
+  await db.query(`insert into public.album_tracks (album_id, track_id, position) values ('alb1', 't1', 0), ('alb1', 't2', 1)`);
+  await db.query(`insert into public.album_purchases (album_id, buyer_id, is_test) values ('alb1', $1, true)`, [U(2)]);
+  await as(3);
+  check('sans achat : préférences refusées (lecture et écriture)', await fails(`select public.get_my_album_prefs('alb1')`) && await fails(`select public.set_my_album_prefs('alb1', true, '{}')`));
+  await as(2);
+  const get = async () => (await db.query(`select public.get_my_album_prefs('alb1') as p`)).rows[0].p;
+  check('acheteur : préférences par défaut (dé éteint, aucun morceau)', JSON.stringify(await get()) === '{"dice":false,"tracks":{}}');
+  await db.query(`select public.set_my_album_prefs('alb1', true, '{"t1":"off","t2":"on"}'::jsonb)`);
+  check('préférences enregistrées pour le compte (dé d\'album + par morceau)', JSON.stringify(await get()) === '{"dice":true,"tracks":{"t1":"off","t2":"on"}}');
+  await db.query(`select public.set_my_album_prefs('alb1', false, '{"t1":"on","zz":"on","t2":"peut-être"}'::jsonb)`);
+  check('morceau inconnu et valeur invalide ignorés, le reste remplacé', JSON.stringify(await get()) === '{"dice":false,"tracks":{"t1":"on"}}');
+  check('préférences mal formées refusées', await fails(`select public.set_my_album_prefs('alb1', true, '[1]'::jsonb)`));
+  await as(3);
+  check('un autre compte ne voit pas ces préférences (table fermée)', await fails(`select public.get_my_album_prefs('alb1')`));
+
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
   process.exit(failures ? 1 : 0);
 })();

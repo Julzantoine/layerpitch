@@ -4,7 +4,7 @@
 // l'Atelier, « Nouvelle playlist… », écouter, réordonner, retirer, suppression en cascade d'une version, supprimer), la version jouée dans l'album (choix du fan, sinon celle du compositeur,
 // sinon la plus récente du fan), un morceau sans version sauté, pause / reprise à la même position, enchaînement, l'atelier
 // qui coupe la barre, renommer, supprimer (confirmation dans l'interface), et le verrou admin hors démo.
-// l'album entier ou morceau par morceau (choix gardé sur l'ordinateur) ; le morceau « vivant » joue dans le lecteur habituel (faux ici), se
+// l'album entier ou morceau par morceau (choix rangé en base, par compte) ; le morceau « vivant » joue dans le lecteur habituel (faux ici), se
 // termine seul ou après 2 boucles, et la barre enchaîne le suivant. Même banc d'essai que test_fan_albums_page.js.
 const fs = require('fs');
 const path = require('path');
@@ -127,8 +127,8 @@ function makeWindow({ url, session, isAdmin }) {
   check('lancer t1 : prise figée du compositeur, pas de morceau vivant', state.plays.length >= 1 && state.started.length === 0);
 
   // Le choix est gardé sur l'ordinateur
-  const saved = JSON.parse(w.localStorage.getItem('lp_dice') || '{}');
-  check('choix gardé (album allumé, t1 éteint)', saved.demo && saved.demo.album === true && saved.demo.tracks.t1 === 'off');
+  const saved = w.__lpDemoPrefs.demo;
+  check('choix enregistré côté « base » (dé de l\'album allumé, t1 éteint) -- plus rien dans le navigateur', saved && saved.dice === true && saved.tracks.t1 === 'off' && !w.localStorage.getItem('lp_dice'));
   // L'Atelier ne pause pas la barre quand c'est le morceau vivant de la barre lui-même qui démarre ; il la pause sinon
   doc.querySelector('[data-dice="t1"]').click(); await wait(10); // t1 de nouveau vivant
   state.started.length = 0;

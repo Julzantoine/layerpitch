@@ -20,7 +20,7 @@
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791313446226">
+<link rel="stylesheet" href="player.css?v=1791317729584">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --bg-side: #eef0f3; --border: #e2e2e6;
@@ -212,18 +212,18 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791313446226"></script>
-<script src="layerpitch-notify.js?v=1791313446226"></script>
-<script src="player.js?v=1791313446226"></script>
-<script src="capture-render.js?v=1791313446226"></script>
-<script src="api/supabase-client.js?v=1791313446226"></script>
-<script src="api/auth.js?v=1791313446226"></script>
-<script src="layerpitch-appearance.js?v=1791313446226"></script>
-<script src="layerpitch-shell.js?v=1791313446226"></script>
-<script src="api/tracks.js?v=1791313446226"></script>
-<script src="api/sfx.js?v=1791313446226"></script>
-<script src="api/playlists.js?v=1791313446226"></script>
-<script src="api/albums.js?v=1791313446226"></script>
+<script src="layerpitch-i18n.js?v=1791317729584"></script>
+<script src="layerpitch-notify.js?v=1791317729584"></script>
+<script src="player.js?v=1791317729584"></script>
+<script src="capture-render.js?v=1791317729584"></script>
+<script src="api/supabase-client.js?v=1791317729584"></script>
+<script src="api/auth.js?v=1791317729584"></script>
+<script src="layerpitch-appearance.js?v=1791317729584"></script>
+<script src="layerpitch-shell.js?v=1791317729584"></script>
+<script src="api/tracks.js?v=1791317729584"></script>
+<script src="api/sfx.js?v=1791317729584"></script>
+<script src="api/playlists.js?v=1791317729584"></script>
+<script src="api/albums.js?v=1791317729584"></script>
 <script>
 (async () => {
   const P = window.LayerPlayerCore, R = window.LayerCaptureRender;
@@ -282,6 +282,8 @@
       async album(id) { return must(await A.getMyAlbumVersions(id)); },
       async choices(id) { return must(await A.getMyAlbumSettings(id)).settings; },
       async setChoice(albumId, trackId, versionKey) { ok(await A.setMyAlbumTrackSettings(albumId, trackId, { albumVersion: versionKey })); },
+      async prefs(id) { return must(await A.getMyAlbumPrefs(id)).prefs; },
+      async setPrefs(id, prefs) { ok(await A.setMyAlbumPrefs(id, prefs.dice, prefs.tracks)); },
       async save(albumId, trackId, name, take) { return ok(await A.saveMyTrackVersion(albumId, trackId, name, take)).id; },
       async rename(id, name) { ok(await A.renameMyTrackVersion(id, name)); },
       async remove(id) { ok(await A.deleteMyTrackVersion(id)); },
@@ -297,6 +299,7 @@
   function demoStore(ids) {
     const trackIds = ids.split(',').filter(Boolean), versions = [], official = {}, chosen = {}, lists = [];
     (params.get('official') || '').split(',').filter(Boolean).forEach(t => { official[t] = { v: 1, kind: 'layerpitch-take', trackId: t, duration: 21, voices: [], sfx: [] }; });
+    const prefsMem = {}; window.__lpDemoPrefs = prefsMem; // démo locale seulement : permet aux essais de lire ce qui serait en base
     let n = 0;
     const uid = p => p + (++n);
     const list = id => { const l = lists.find(x => x.id === id); if (!l) throw new Error('Playlist introuvable'); return l; };
@@ -305,6 +308,8 @@
       async album() { return { tracks: trackIds.map((t, i) => ({ trackId: t, position: i, official: official[t] || null })), versions: versions.slice().reverse() }; },
       async choices() { return trackIds.map(t => ({ trackId: t, settings: chosen[t] ? { albumVersion: chosen[t] } : {}, isCustom: !!chosen[t] })); },
       async setChoice(albumId, trackId, key) { chosen[trackId] = key; },
+      async prefs(id) { return JSON.parse(JSON.stringify(prefsMem[id] || { dice: false, tracks: {} })); },
+      async setPrefs(id, prefs) { prefsMem[id] = JSON.parse(JSON.stringify(prefs)); },
       async save(albumId, trackId, name, take) { const id = uid('v'); versions.push({ id, trackId, name, take, createdAt: new Date().toISOString() }); return id; },
       async rename(id, name) { const v = versions.find(x => x.id === id); if (v) v.name = name; },
       async remove(id) {
@@ -373,7 +378,7 @@
     if (albumCache[id]) return albumCache[id];
     const a = albums.find(x => x.id === id);
     if (!a) return null;
-    const [data, choices] = await Promise.all([store.album(id), store.choices(id)]);
+    const [data, choices, prefs] = await Promise.all([store.album(id), store.choices(id), a.allowRandom ? store.prefs(id) : Promise.resolve(null)]);
     const choiceOf = {};
     for (const c of choices || []) if (c.isCustom && c.settings && c.settings.albumVersion) choiceOf[c.trackId] = c.settings.albumVersion;
     const tracks = [];
@@ -383,27 +388,27 @@
       if (!sfxCache[sid]) { const r = await window.LayerPitchSfx.getSfx(sid); if (r && r.sfx) sfxCache[sid] = r.sfx; }
     }
     P.setSfxLibrary(Object.assign({}, sfxCache));
-    albumCache[id] = { id, title: a.title, illustration: a.illustration, presentation: a.presentation, allowRandom: !!a.allowRandom, tracks, versions: data.versions };
+    albumCache[id] = { id, title: a.title, illustration: a.illustration, presentation: a.presentation, allowRandom: !!a.allowRandom, prefs: Object.assign({ dice: false, tracks: {} }, prefs || {}), tracks, versions: data.versions };
     return albumCache[id];
   }
   // Le dé (6/10) : le fan écoute le morceau « vivant », tiré différemment à chaque écoute, à la place d'une version figée. Autorisé par le
-  // compositeur pour chaque album (albums.allow_random). Choix du fan gardé sur cet ordinateur : dé de l'album (pour tous ses morceaux) et,
-  // par morceau, « allumé » ou « éteint » pour surcharger celui de l'album.
-  const DICE_KEY = 'lp_dice';
-  const diceStore = (() => {
-    const read = () => { try { return JSON.parse(localStorage.getItem(DICE_KEY) || '{}') || {}; } catch (e) { return {}; } };
-    const write = o => { try { localStorage.setItem(DICE_KEY, JSON.stringify(o)); } catch (e) { /* stockage bloqué : le choix ne vit que dans cette page */ } };
-    return { get: albumId => Object.assign({ album: false, tracks: {} }, read()[albumId]), set: (albumId, v) => { const o = read(); o[albumId] = v; write(o); } };
-  })();
-  const diceState = {};
-  const diceOf = al => diceState[al.id] || (diceState[al.id] = diceStore.get(al.id));
+  // compositeur pour chaque album (albums.allow_random). Choix du fan : dé de l'album (pour tous ses morceaux) et, par morceau, « allumé »
+  // ou « éteint » pour surcharger celui de l'album.
+  // Le choix est rangé en BASE, par compte et par album (album_fan_prefs) : il suit le fan sur tous ses appareils et dans la future application.
+  const diceOf = al => al.prefs;
   const diceOn = (al, trackId) => {
     if (!al || !al.allowRandom) return false;
     const d = diceOf(al), own = d.tracks[trackId];
-    return own === 'on' ? true : own === 'off' ? false : !!d.album;
+    return own === 'on' ? true : own === 'off' ? false : !!d.dice;
   };
-  function setAlbumDice(al, on) { const d = diceOf(al); d.album = !!on; diceStore.set(al.id, d); }
-  function setTrackDice(al, trackId, on) { const d = diceOf(al); d.tracks[trackId] = on ? 'on' : 'off'; diceStore.set(al.id, d); }
+  // Mise à jour locale tout de suite, enregistrement ensuite ; en cas d'échec on le dit et on remet l'ancien état.
+  async function savePrefs(al, before) {
+    try { await store.setPrefs(al.id, al.prefs); }
+    catch (e) { al.prefs = before; notifyError(e); refreshQueue(); if (album && album.id === al.id) { renderTracks(); const b = $('albumDiceBtn'); if (b) b.setAttribute('aria-pressed', String(al.prefs.dice)); } }
+  }
+  const clonePrefs = al => JSON.parse(JSON.stringify(al.prefs));
+  function setAlbumDice(al, on) { const before = clonePrefs(al); al.prefs.dice = !!on; savePrefs(al, before); }
+  function setTrackDice(al, trackId, on) { const before = clonePrefs(al); al.prefs.tracks[trackId] = on ? 'on' : 'off'; savePrefs(al, before); }
   const versionsOf = (al, trackId) => al.versions.filter(v => v.trackId === trackId); // plus récentes d'abord
   // Nom affiché : le nom donné, sinon « Version n » dans l'ordre de création (1 = la plus ancienne).
   function versionName(al, v) {
@@ -455,7 +460,7 @@
       </header>
       <div class="album-actions">
         <button type="button" class="btn primary play-album" id="playAlbumBtn">${ICON_PLAY_SM.replace('width="14" height="14"', 'width="16" height="16"')}${esc(tr('playAlbum'))}</button>
-        ${album.allowRandom ? `<button type="button" class="dice-btn" id="albumDiceBtn" aria-pressed="${diceOf(album).album}" title="${esc(tr('diceAlbumHint'))}" aria-label="${esc(tr('diceAlbum'))}">🎲</button><span class="dice-hint">${esc(tr('diceAlbum'))}</span>` : ''}
+        ${album.allowRandom ? `<button type="button" class="dice-btn" id="albumDiceBtn" aria-pressed="${diceOf(album).dice}" title="${esc(tr('diceAlbumHint'))}" aria-label="${esc(tr('diceAlbum'))}">🎲</button><span class="dice-hint">${esc(tr('diceAlbum'))}</span>` : ''}
         <span class="album-hint" id="playAlbumHint" hidden>${esc(tr('noPlayableVersion'))}</span>
       </div>
       <div class="tabs" role="tablist">
@@ -466,7 +471,7 @@
       <section id="panelAtelier" role="tabpanel" aria-labelledby="tabAtelier"${tab === 'atelier' ? '' : ' hidden'}></section>`;
     $('playAlbumBtn').onclick = () => startQueue({ kind: 'album', id: album.id }, 0);
     if ($('albumDiceBtn')) $('albumDiceBtn').onclick = () => {
-      const on = !diceOf(album).album; setAlbumDice(album, on);
+      const on = !diceOf(album).dice; setAlbumDice(album, on);
       $('albumDiceBtn').setAttribute('aria-pressed', String(on));
       refreshQueue(); renderTracks();
     };

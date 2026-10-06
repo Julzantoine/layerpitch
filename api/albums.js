@@ -190,6 +190,10 @@
   const setAlbumShopListed = async (albumId, listed) => { const r = await call('set_album_shop_listed', { p_album_id: albumId, p_listed: !!listed }); return r.error ? { ok: false, error: r.error } : { ok: true }; };
   const setAlbumListening = async (albumId, mode, trackIds) => { const r = await call('set_album_listening', { p_album_id: albumId, p_mode: mode, p_track_ids: trackIds || [] }); return r.error ? { ok: false, error: r.error } : { ok: true }; };
   const setAlbumRandom = async (albumId, allow) => { const r = await call('set_album_random', { p_album_id: albumId, p_allow: !!allow }); return r.error ? { ok: false, error: r.error } : { ok: true }; };
+  // Le dé (6/10) : préférences du fan pour un album qu'il possède, en base -- elles suivent son compte sur tous ses appareils.
+  // prefs = { dice: bool (dé de l'album), tracks: { "<morceau>": 'on' | 'off' } (surcharge par morceau) }.
+  const getMyAlbumPrefs = async albumId => { const r = await call('get_my_album_prefs', { p_album_id: albumId }); return r.error ? { prefs: null, error: r.error } : { prefs: r.data, error: null }; };
+  const setMyAlbumPrefs = async (albumId, dice, tracks) => { const r = await call('set_my_album_prefs', { p_album_id: albumId, p_dice: !!dice, p_tracks: tracks || {} }); return r.error ? { ok: false, error: r.error } : { ok: true }; };
   const upsertStudioAlbum = async payload => { const r = await call('upsert_studio_album', { payload }); return r.error ? { ok: false, error: r.error } : { ok: true, data: r.data }; };
   const listAlbumContributors = async albumId => { const r = await call('list_album_contributors', { p_album_id: albumId }); return { contributors: r.data || [], error: r.error }; };
   // Enregistre l'invité puis envoie l'e-mail (Edge Function invite-album-contributor) ; en cas d'échec d'envoi, actionLink permet de transmettre le lien soi-même.
@@ -212,7 +216,7 @@
   const leaveAlbum = async albumId => { const r = await call('leave_album', { p_album_id: albumId }); return r.error ? { ok: false, error: r.error } : { ok: true, unpublished: !!(r.data && r.data.unpublished) }; };
 
   window.LayerPitchAlbums = {
-    shopStatus, shopAlbums, setAlbumShopListed, setAlbumListening, setAlbumRandom, upsertStudioAlbum, listAlbumContributors, inviteAlbumContributor, removeAlbumContributor, myAlbumInvitations, respondAlbumInvitation,
+    shopStatus, shopAlbums, setAlbumShopListed, setAlbumListening, setAlbumRandom, getMyAlbumPrefs, setMyAlbumPrefs, upsertStudioAlbum, listAlbumContributors, inviteAlbumContributor, removeAlbumContributor, myAlbumInvitations, respondAlbumInvitation,
     myAlbumContributions, setAlbumContributorTracks, leaveAlbum,
     getAlbumRights, setAlbumRights, markRightsHolderSelfPay, inviteRightsHolder, myRightsInvitations, respondRightsInvitation,
     listAlbums, upsertAlbum, claimTestAlbum, listMyPurchases, getPlatformFlags,

@@ -21,7 +21,7 @@
   // ---- Garde-fou : toute clé étrangère vers un compte a une règle connue ----
   const HANDLED = new Set(`
     account_entitlement_overrides.profile_id admin_message_emails.profile_id admin_messages.recipient_id admins.profile_id album_contributors.profile_id
-    album_payouts.beneficiary_profile_id album_purchases.buyer_id album_rights_holders.holder_profile_id album_track_settings.buyer_id album_track_versions.buyer_id
+    album_payouts.beneficiary_profile_id album_purchases.buyer_id album_rights_holders.holder_profile_id album_track_settings.buyer_id album_fan_prefs.buyer_id album_track_versions.buyer_id
     album_tracks.added_by albums.seller_id composer_profiles.profile_id fan_profiles.profile_id invites.user_id invites.invited_by invoices.beneficiary_profile_id
     pack_purchases.studio_id playlists.buyer_id project_activity.actor_id project_albums.linked_by project_annotations.resolved_by project_annotations.addressee_id
     project_annotations.author_id project_assets.created_by project_files.uploaded_by project_members.profile_id project_members.invited_by project_messages.author_id
@@ -86,7 +86,9 @@
   check('tâche planifiée : le compte échu est listé', (await q(`select * from public.due_account_deletions()`)).length === 1);
   const ext = await one(`select public.account_deletion_stripe_ids($1)`, [U(1)]);
   check('identifiants Stripe à résilier lus avant l\'anonymisation', ext.customers[0] === 'cus_1' && ext.subscriptions[0] === 'sub_1');
+  await q(`insert into public.album_fan_prefs (buyer_id, album_id, dice) values ($1, 'alS', true), ($2, 'alS', true)`, [U(1), U(2)]); // préférences du dé : celles du compte supprimé partent, celles de l'acheteur restent
   const res = await one(`select public.finalize_account_deletion($1)`, [U(1)]);
+  check('EFFACÉ : préférences du dé du compte supprimé ; GARDÉ : celles de l\'acheteur', (await count('album_fan_prefs', `buyer_id = $1`, [U(1)])) === 0 && (await count('album_fan_prefs', `buyer_id = $1`, [U(2)])) === 1);
 
   check('GARDÉ : album vendu (achat réel), hors vente', (await count('albums', `id = 'alS' and not buyable`)) === 1);
   check('GARDÉ : pack vendu, hors vente', (await count('packs', `id = 'pkS' and not buyable`)) === 1);
