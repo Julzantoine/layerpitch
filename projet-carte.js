@@ -236,7 +236,15 @@
     s.id = STYLE_ID;
     s.textContent = `
       .lm-wrap { display: grid; grid-template-columns: 230px minmax(0, 1fr) 270px; gap: 12px; align-items: start; }
-      @media (max-width: 1100px) { .lm-wrap { grid-template-columns: minmax(0, 1fr); } }
+      .lm-wrap.lib-c { grid-template-columns: 38px minmax(0, 1fr) 270px; } .lm-wrap.insp-c { grid-template-columns: 230px minmax(0, 1fr) 38px; } .lm-wrap.lib-c.insp-c { grid-template-columns: 38px minmax(0, 1fr) 38px; }
+      @media (max-width: 1100px) { .lm-wrap, .lm-wrap.lib-c, .lm-wrap.insp-c, .lm-wrap.lib-c.insp-c { grid-template-columns: minmax(0, 1fr); } }
+      .lm-panel { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+      .lm-collapse { display: flex; align-items: center; gap: 8px; font: inherit; font-size: 12px; background: var(--bg-card); color: var(--text-dim); border: 1px solid var(--border); border-radius: 8px; padding: 5px 9px; cursor: pointer; }
+      .lm-collapse:hover { border-color: var(--accent); color: var(--accent); } .lm-collapse:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .lm-chev { font-weight: 700; } .lm-vlabel { white-space: nowrap; }
+      .lm-wrap.lib-c #lmLibPanel > .lm-side, .lm-wrap.insp-c #lmInspPanel > .lm-side { display: none; }
+      .lm-wrap.lib-c #lmLibPanel > .lm-collapse, .lm-wrap.insp-c #lmInspPanel > .lm-collapse { flex-direction: column; padding: 10px 0; justify-content: flex-start; align-items: center; }
+      .lm-wrap.lib-c #lmLibPanel .lm-vlabel, .lm-wrap.insp-c #lmInspPanel .lm-vlabel { writing-mode: vertical-rl; }
       .lm-side { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; max-height: 640px; overflow: auto; }
       .lm-toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
       .lm-canvas { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; height: 600px; overflow: hidden; position: relative; touch-action: none; cursor: grab;
@@ -346,7 +354,7 @@
       const s = summary(map);
       return `<details class="card" id="lmSettings" style="padding:10px 16px"${st.settingsOpen ? ' open' : ''}><summary style="cursor:pointer;font-weight:600">${esc(tr('map_settings'))}</summary><div id="lmSettingsBody"></div></details>
         <div class="lm-wrap">
-        <div class="lm-side" id="lmLib"></div>
+        <div class="lm-panel" id="lmLibPanel"><button type="button" class="lm-collapse" data-collapse="lib" aria-expanded="true"><span class="lm-chev">«</span><span class="lm-vlabel">${esc(tr('map_library'))}</span></button><div class="lm-side" id="lmLib"></div></div>
         <div>
           <div class="lm-now" id="lmNow" hidden></div>
           <div class="lm-toolbar">${audio ? `<button class="btn${st.play ? ' primary' : ''}" id="lmPlay" type="button">${esc(tr(st.play ? 'map_playOn' : 'map_play'))}</button>` : ''}${ctx.canEdit && !st.play ? NODE_TYPES.map(t => `<button class="btn" type="button" data-add="${t}" ${t === 'start' && map.nodes.some(n => n.type === 'start') ? 'disabled' : ''}>${GLYPH[t]} ${esc(tr('map_type_' + t))}</button>`).join('') +
@@ -355,7 +363,7 @@
           <div class="lm-canvas${st.connecting ? ' connecting' : ''}${st.play ? ' playing' : ''}" id="lmCanvas" tabindex="0"><svg id="lmSvg" role="img" aria-label="${esc(tr('map_title'))}"></svg></div>
           <p class="hint" style="margin-top:6px">${esc(tr('map_summary', s))}</p>
         </div>
-        <div class="lm-side" id="lmInsp"></div></div>`;
+        <div class="lm-panel" id="lmInspPanel"><button type="button" class="lm-collapse" data-collapse="insp" aria-expanded="true"><span class="lm-chev">»</span><span class="lm-vlabel">${esc(tr('map_inspector'))}</span></button><div class="lm-side" id="lmInsp"></div></div></div>`;
     }
 
     function wireHeader() {
@@ -432,7 +440,25 @@
       svg.innerHTML = out;
     }
 
+    // Panneaux « Sons » (gauche) et « Détail / Parcours » (droite) repliables pour gagner de la place (7/10) ; le choix est retenu.
+    const PANEL_KEY = { lib: 'lp_map_lib_collapsed', insp: 'lp_map_insp_collapsed' };
+    const panelCollapsed = k => { try { return localStorage.getItem(PANEL_KEY[k]) === '1'; } catch (e) { return false; } };
+    const setPanelCollapsed = (k, on) => { try { localStorage.setItem(PANEL_KEY[k], on ? '1' : '0'); } catch (e) { /* stockage indisponible : le repli vaut pour cette visite */ } };
+    function applyPanels() {
+      const wrap = host.querySelector('.lm-wrap'); if (!wrap) return;
+      ['lib', 'insp'].forEach(k => {
+        const on = st['collapsed_' + k] != null ? st['collapsed_' + k] : panelCollapsed(k);
+        wrap.classList.toggle(k + '-c', !!on);
+        const b = wrap.querySelector('[data-collapse="' + k + '"]');
+        if (b) { b.setAttribute('aria-expanded', String(!on)); b.querySelector('.lm-chev').textContent = k === 'lib' ? (on ? '»' : '«') : (on ? '«' : '»'); b.title = tr(on ? 'map_expand' : 'map_collapse'); }
+      });
+    }
     function wireEditor(map) {
+      host.querySelectorAll('[data-collapse]').forEach(b => b.onclick = () => {
+        const k = b.dataset.collapse, now = !(st['collapsed_' + k] != null ? st['collapsed_' + k] : panelCollapsed(k));
+        st['collapsed_' + k] = now; setPanelCollapsed(k, now); applyPanels(); drawCanvas();
+      });
+      applyPanels();
       host.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
         const c = viewCenter(), jitter = (map.nodes.length % 6) * 22;
         const node = addNode(map, b.dataset.add, Math.round((c.x + jitter) / 10) * 10, Math.round((c.y + jitter) / 10) * 10, '');

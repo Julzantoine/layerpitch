@@ -226,6 +226,17 @@ const { JSDOM } = require('jsdom');
     at(host4.querySelector('[data-edge="e"]'), gm.p1.x + (gm.p2.x - gm.p1.x) * 0.5, 0);
     at(host4.querySelector('[data-node="q"]'), 200, 150); await wait(30);
     check('parcours puis quête : accrochée au point cliqué (50 %)', (() => { const a = v4.state.maps[0].data.nodes.find(n => n.id === 'q').anchor; return !!a && a.kind === 'edge' && Math.abs(a.t - 0.5) < 0.01; })());
+    // Panneaux « Sons » et « Détail » repliables, choix retenu
+    const wrap4 = host4.querySelector('.lm-wrap');
+    check('panneaux dépliés au départ', !wrap4.classList.contains('lib-c') && !wrap4.classList.contains('insp-c') && host4.querySelector('[data-collapse="lib"]').getAttribute('aria-expanded') === 'true');
+    host4.querySelector('[data-collapse="lib"]').click();
+    check('replier « Sons » : classe posée, bouton « déplier », choix retenu', wrap4.classList.contains('lib-c') && host4.querySelector('[data-collapse="lib"]').getAttribute('aria-expanded') === 'false' && w.localStorage.getItem('lp_map_lib_collapsed') === '1');
+    host4.querySelector('[data-collapse="insp"]').click();
+    check('replier aussi le détail : la carte occupe presque toute la largeur', wrap4.classList.contains('lib-c') && wrap4.classList.contains('insp-c') && w.localStorage.getItem('lp_map_insp_collapsed') === '1');
+    check('le dessin de la carte reste présent', !!host4.querySelector('[data-node="q"]'));
+    host4.querySelector('[data-collapse="lib"]').click();
+    check('déplier « Sons » : de nouveau visible, l\'autre reste replié', !wrap4.classList.contains('lib-c') && wrap4.classList.contains('insp-c'));
+    host4.querySelector('[data-collapse="insp"]').click();
     v4.destroy();
   }
 
