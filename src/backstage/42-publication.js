@@ -615,3 +615,6 @@ async function publishAll() {
     document.getElementById('btnPublish').disabled = false;
   }
 }
+
+// Retour sur l'onglet précédent après un rafraîchissement (sauf si l'adresse en demande un : ?tab=...).
+if (!new URLSearchParams(location.search).get('tab')) restoreBackstageTab();

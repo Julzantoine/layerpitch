@@ -17,20 +17,34 @@ window.addEventListener('unhandledrejection', (e) => {
   trackBackstageError((e.reason && e.reason.message) || String(e.reason), { unhandledRejection: true });
 });
 
+const BACKSTAGE_TAB_STORAGE = 'lp_backstage_tab';
 function switchTab(tabName) {
   document.querySelectorAll('.backstage-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === tabName));
   document.querySelectorAll('.nav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
+  try { sessionStorage.setItem(BACKSTAGE_TAB_STORAGE, tabName); } catch (e) { /* stockage indisponible */ }
+}
+// Ouvre un onglet et lance son chargement à la demande (appel RPC get_my_analytics() etc. -- jamais au chargement du
+// backstage, seulement quand le compositeur ouvre vraiment l'onglet).
+function openTab(tabName) {
+  switchTab(tabName);
+  if (tabName === 'analytics') loadAnalyticsIfNeeded();
+  if (tabName === 'videoLibrary') renderVideoLibrary();
+  if (tabName === 'albums') loadAlbums();
+}
+// Au rafraîchissement, on revient sur l'onglet où on était (pas de retour forcé sur l'AdReel).
+function restoreBackstageTab() {
+  let name = null;
+  try { name = sessionStorage.getItem(BACKSTAGE_TAB_STORAGE); } catch (e) { return; }
+  if (!name || name === 'content') return;
+  const btn = document.querySelector('.nav-item[data-tab="' + name + '"]');
+  if (!btn || btn.disabled || btn.hidden || btn.closest('[hidden]')) return;
+  openTab(name);
 }
 document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
     if (!btn.disabled) {
-      switchTab(btn.dataset.tab);
+      openTab(btn.dataset.tab);
       trackBackstageEvent('tab_switch', { tab: btn.dataset.tab });
-      // Chargement à la demande (appel RPC get_my_analytics()) -- jamais au chargement du
-      // backstage, seulement quand le compositeur ouvre vraiment l'onglet.
-      if (btn.dataset.tab === 'analytics') loadAnalyticsIfNeeded();
-      if (btn.dataset.tab === 'videoLibrary') renderVideoLibrary();
-      if (btn.dataset.tab === 'albums') loadAlbums();
     }
   });
 });

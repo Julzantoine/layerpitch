@@ -258,11 +258,16 @@ document.addEventListener('toggle', e => {
   if (!k) return;
   if (d.open) fxTriggerEffectsCollapsed.delete(k); else fxTriggerEffectsCollapsed.add(k);
 }, true);
-const fxTriggersSectionCollapsed = new Set();
+// Section « Triggers » : fermée par défaut, et ce qu'on ouvre est retenu d'une visite à l'autre (par morceau).
+const FX_TRIGGERS_OPEN_STORAGE = 'lp_fx_triggers_open';
+const fxTriggersSectionOpen = new Set((() => {
+  try { const v = JSON.parse(localStorage.getItem(FX_TRIGGERS_OPEN_STORAGE) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+})());
 document.addEventListener('toggle', e => {
   const d = e.target, k = d && d.dataset && d.dataset.fxtSectionKey;
   if (!k) return;
-  if (d.open) fxTriggersSectionCollapsed.delete(k); else fxTriggersSectionCollapsed.add(k);
+  if (d.open) fxTriggersSectionOpen.add(k); else fxTriggersSectionOpen.delete(k);
+  try { localStorage.setItem(FX_TRIGGERS_OPEN_STORAGE, JSON.stringify([...fxTriggersSectionOpen].slice(-200))); } catch (err) { /* stockage indisponible : on garde l'état en mémoire */ }
 }, true);
 function fxTriggersEditorHtml(track, ti) {
   const triggers = track.fxTriggers || [];
@@ -312,7 +317,7 @@ function fxTriggersEditorHtml(track, ti) {
   // Toute la section se replie (demande du 30/09) ; l'état est gardé par morceau à travers les re-rendus.
   const secKey = String(track.id || ti);
   return `
-    <details data-fxt-section-key="${escapeAttr(secKey)}" ${fxTriggersSectionCollapsed.has(secKey) ? '' : 'open'} style="margin-top:14px">
+    <details data-fxt-section-key="${escapeAttr(secKey)}" ${fxTriggersSectionOpen.has(secKey) ? 'open' : ''} style="margin-top:14px">
       <summary style="cursor:pointer;font-weight:600;font-size:0.9em;margin-bottom:2px">${tr('fxTriggersTitle')}<span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggersCount', { n: triggers.length })}</span></summary>
       <div class="hint-inline">${tr('fxTriggersHint')}</div>
       ${cards}
