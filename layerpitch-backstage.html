@@ -1186,6 +1186,7 @@
           <div class="actions" style="margin-bottom:14px">
             <button class="btn btn-small" id="btnAddLibraryFolder" type="button" data-i18n="addOrgFolder">+ Dossier</button>
             <button class="btn btn-small" id="btnAddLibraryTrack" type="button" data-i18n="addTrack">+ Morceau</button>
+            <button class="btn btn-small" id="btnRecomputeAllNormalization" type="button" data-i18n="normalizeRecomputeAllBtn">Recalculer le niveau de tous les morceaux</button>
           </div>
           <div class="seq-two-col">
             <div class="seq-master-list" id="libraryMaster"></div>
@@ -1201,17 +1202,19 @@
           <div class="actions" style="margin-bottom:14px">
             <button class="btn btn-small" id="btnAddSfxFolder" type="button" data-i18n="addOrgFolder">+ Dossier</button>
           </div>
-          <!-- Dépôt groupé de Sfx (25/09) : un Sfx par famille de noms, variations round-robin. Admin seulement
-               tant que Jules-Antoine n'a pas donné son feu vert (grisé via renderAdminOnlyPanels). -->
-          <label data-help="sfxBatchDrop"><span data-i18n="batchSfxDropLabel">Dépôt groupé de Sfx</span><span class="hint-inline" id="sfxBatchDropAdminHint" style="margin:0 0 0 6px"></span></label>
-          <div class="hint-inline" data-i18n="batchSfxDropHint"></div>
-          <div data-role="sfxLibraryDrop" id="sfxLibraryDrop" class="is-disabled" style="margin:6px 0 14px" data-i18n="dropAllFilesHint">Dépose tous tes fichiers ici</div>
           <div class="seq-two-col">
             <div class="seq-master-list" id="sfxLibraryMaster"></div>
             <div class="seq-detail-col" id="sfxLibraryDetail"></div>
           </div>
         </div>
-        <div class="actions" style="margin-bottom:20px"><button class="btn btn-small" id="btnAddSfx" type="button" data-i18n="addSfx">+ Sfx</button></div>
+        <!-- Un seul point d'entrée (06/10) : « + Sfx » crée un Sfx vide ; déposer des fichiers à côté en crée un par famille de noms
+             (variations round-robin), avec une fenêtre de vérification dès qu'il y a plusieurs fichiers. Dépôt admin seulement tant
+             que le feu vert n'est pas donné (grisé via renderAdminOnlyPanels). -->
+        <div class="actions" style="margin-bottom:6px;align-items:stretch">
+          <button class="btn btn-small" id="btnAddSfx" type="button" data-i18n="addSfx">+ Sfx</button>
+          <div data-role="sfxLibraryDrop" id="sfxLibraryDrop" class="is-disabled" style="margin:0;flex:1" data-i18n="sfxDropOrFilesHint" data-help="sfxBatchDrop">…ou dépose tes fichiers ici</div>
+        </div>
+        <div class="hint-inline" style="margin-bottom:20px"><span data-i18n="batchSfxDropHint"></span><span class="hint-inline" id="sfxBatchDropAdminHint" style="margin:0 0 0 6px"></span></div>
       </div>
 
       <!-- Bibliothèque vidéo compositeur (16 septembre) -- volontairement PAS le patron
@@ -1829,15 +1832,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791290767300"></script>
-<script src="layerpitch-appearance.js?v=1791290767300"></script>
-<script src="layerpitch-album-shared.js?v=1791290767300"></script>
-<script src="layerpitch-album-editor.js?v=1791290767300"></script>
-<script src="layerpitch-shell.js?v=1791290767300"></script>
-<script src="layerpitch-social-icons.js?v=1791290767300"></script>
-<script src="layerpitch-notify.js?v=1791290767300"></script>
-<script src="layerpitch-help.js?v=1791290767300"></script>
-<script src="player.js?v=1791290767300"></script>
+<script src="layerpitch-i18n.js?v=1791291148310"></script>
+<script src="layerpitch-appearance.js?v=1791291148310"></script>
+<script src="layerpitch-album-shared.js?v=1791291148310"></script>
+<script src="layerpitch-album-editor.js?v=1791291148310"></script>
+<script src="layerpitch-shell.js?v=1791291148310"></script>
+<script src="layerpitch-social-icons.js?v=1791291148310"></script>
+<script src="layerpitch-notify.js?v=1791291148310"></script>
+<script src="layerpitch-help.js?v=1791291148310"></script>
+<script src="player.js?v=1791291148310"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -5734,6 +5737,21 @@ function applyVrsBatchDrop(track, section, files, res, hints) {
 
 // -- Bibliothèque Sfx : un Sfx par famille de noms, ses fichiers en variations round-robin --
 // Un Sfx déjà présent avec le même titre est complété plutôt que dupliqué.
+// Un seul fichier déposé : un Sfx simple (une variation), sans fenêtre de vérification -- ou ajouté au Sfx du même nom.
+function addSimpleSfxFromFile(file) {
+  const guess = groupFilesByNameFamily([file], false).groups[0];
+  const title = (guess && guess.label) || titleFromFilename(file.name);
+  let sfx = sfxLibrary.find(s => nameFamilyKey(s.title) === nameFamilyKey(title));
+  if (!sfx) {
+    sfx = { id: genId(), title, descriptionFr: '', descriptionEn: '', rrMode: 'random', duckMainTrack: false, alternatives: [], folderId: null };
+    sfxLibrary.push(sfx);
+  }
+  sfx.alternatives.push({ label: titleFromFilename(file.name), remoteFile: null, pendingFile: file });
+  manageSfxSelectedId = sfx.id; sfxSelectedEntry.set(sfx.id, 'variations');
+  hasUnsavedEdits = true;
+  trackBackstageEvent('sfx_batch_add', { count: 1 });
+  renderSfxLibrary();
+}
 function openSfxBatchDropDialog(files) {
   const guess = groupFilesByNameFamily(files, false);
   openGroupedDropDialog({
@@ -7925,7 +7943,11 @@ document.getElementById('btnAddSfx').addEventListener('click', () => {
   if (!host) return;
   // Le statut admin n'est connu qu'après coup (RPC) : vérifié au moment du dépôt. Pour un non-admin, le
   // dépôt est avalé sans effet (sinon le navigateur ouvrirait le fichier et quitterait la page).
-  wireBatchDrop(host, files => { if (flagOpen('bulk_drop')) openSfxBatchDropDialog(files); });
+  wireBatchDrop(host, files => {
+    if (!flagOpen('bulk_drop')) return;
+    if (files.length === 1) { addSimpleSfxFromFile(files[0]); return; } // un seul fichier : pas de regroupement à vérifier
+    openSfxBatchDropDialog(files);
+  });
   host.addEventListener('dragover', e => { if (!flagOpen('bulk_drop')) host.classList.remove('drag-over'); });
   host.addEventListener('drop', e => e.preventDefault());
 })();
@@ -8056,6 +8078,27 @@ document.getElementById('btnAddLibraryTrack').addEventListener('click', () => {
   trackBackstageEvent('track_add', {});
   renderLibrary();
   if (blockTracksRefresh) blockTracksRefresh(); packTracksRefreshers.forEach(fn => fn());
+});
+// Recalcul du niveau sonore de tous les morceaux dont l'égalisation est cochée (06/10) : réécoute chaque morceau, un par un.
+document.getElementById('btnRecomputeAllNormalization').addEventListener('click', async e => {
+  const btn = e.currentTarget;
+  const todo = library.filter(t => t.normalizeVolume);
+  if (!todo.length) { window.LayerPitchNotify.info(tr('normalizeRecomputeAllNone')); return; }
+  const ok = await window.LayerPitchNotify.confirm(tr('normalizeRecomputeAllConfirm', { n: todo.length }), { okLabel: tr('normalizeRecomputeAllBtn') });
+  if (!ok) return;
+  btn.disabled = true;
+  let bad = 0;
+  try {
+    for (let i = 0; i < todo.length; i++) {
+      btn.textContent = tr('normalizeRecomputeAllProgress', { i: i + 1, n: todo.length, title: todo[i].title || todo[i].id });
+      const r = await recomputeTrackNormalization(todo[i]);
+      if (r.missing) bad++;
+    }
+    hasUnsavedEdits = true;
+    window.LayerPitchNotify.info(tr(bad ? 'normalizeRecomputeAllDonePartial' : 'normalizeRecomputeAllDone', { n: todo.length, bad }));
+  } catch (err) { window.LayerPitchNotify.error(tr('normalizeRecomputeError', { error: err.message })); }
+  btn.disabled = false; btn.textContent = tr('normalizeRecomputeAllBtn');
+  renderLibrary();
 });
 document.getElementById('btnAddLibraryFolder').addEventListener('click', () => {
   libraryFolders.push({ id: genId(), label: tr('defaultOrgFolderLabel', { n: libraryFolders.length + 1 }) });

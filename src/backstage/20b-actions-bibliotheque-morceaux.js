@@ -7,6 +7,27 @@ document.getElementById('btnAddLibraryTrack').addEventListener('click', () => {
   renderLibrary();
   if (blockTracksRefresh) blockTracksRefresh(); packTracksRefreshers.forEach(fn => fn());
 });
+// Recalcul du niveau sonore de tous les morceaux dont l'égalisation est cochée (06/10) : réécoute chaque morceau, un par un.
+document.getElementById('btnRecomputeAllNormalization').addEventListener('click', async e => {
+  const btn = e.currentTarget;
+  const todo = library.filter(t => t.normalizeVolume);
+  if (!todo.length) { window.LayerPitchNotify.info(tr('normalizeRecomputeAllNone')); return; }
+  const ok = await window.LayerPitchNotify.confirm(tr('normalizeRecomputeAllConfirm', { n: todo.length }), { okLabel: tr('normalizeRecomputeAllBtn') });
+  if (!ok) return;
+  btn.disabled = true;
+  let bad = 0;
+  try {
+    for (let i = 0; i < todo.length; i++) {
+      btn.textContent = tr('normalizeRecomputeAllProgress', { i: i + 1, n: todo.length, title: todo[i].title || todo[i].id });
+      const r = await recomputeTrackNormalization(todo[i]);
+      if (r.missing) bad++;
+    }
+    hasUnsavedEdits = true;
+    window.LayerPitchNotify.info(tr(bad ? 'normalizeRecomputeAllDonePartial' : 'normalizeRecomputeAllDone', { n: todo.length, bad }));
+  } catch (err) { window.LayerPitchNotify.error(tr('normalizeRecomputeError', { error: err.message })); }
+  btn.disabled = false; btn.textContent = tr('normalizeRecomputeAllBtn');
+  renderLibrary();
+});
 document.getElementById('btnAddLibraryFolder').addEventListener('click', () => {
   libraryFolders.push({ id: genId(), label: tr('defaultOrgFolderLabel', { n: libraryFolders.length + 1 }) });
   hasUnsavedEdits = true;
