@@ -18,7 +18,7 @@ function renderLibrary() {
     folderFallbackKey: 'orgFolderFallback',
     buildRowInner: t => `<span class="seq-master-item-label">${escapeAttr(t.title) || tr('trackFallback', { n: library.indexOf(t) + 1 })}</span>`
   });
-  wireOrgDragDrop(masterHost, () => library, () => libraryFolders, renderLibrary); // conteneur statique du HTML -- voir commentaire de wireOrgDragDrop
+  wireOrgDragDrop(masterHost, () => library, () => libraryFolders, renderLibrary, (src, place) => duplicateLibraryTrack(src, place)); // conteneur statique du HTML -- voir commentaire de wireOrgDragDrop
 
   detailHost.innerHTML = '';
   if (!manageLibrarySelectedId) {
@@ -53,6 +53,7 @@ function renderLibrary() {
         </div>
         <div style="display:flex; gap:6px;">
           <button class="btn btn-small" data-action="preview-track" data-ti="${ti}" type="button">${tr('previewBtn')}</button>
+          ${flagOpen('alt_drag_delete') ? `<button class="btn btn-small" data-action="duplicate-track" data-ti="${ti}" type="button" title="${escapeAttr(tr('trackCopyTitle'))}">${tr('trackCopyBtn')}</button>` : ''}
           <button class="btn btn-small btn-danger" data-action="remove-track" data-ti="${ti}">${tr('deleteBtn')}</button>
         </div>
       </div>

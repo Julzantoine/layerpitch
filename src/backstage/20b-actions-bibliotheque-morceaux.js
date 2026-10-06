@@ -51,6 +51,11 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     renderLibrary();
     return;
   }
+  if (btn.dataset.action === 'duplicate-track') {
+    btn.disabled = true;
+    try { await duplicateLibraryTrack(library[ti]); } finally { btn.disabled = false; }
+    return;
+  }
   if (btn.dataset.action === 'toggle-track-protection') {
     const track = library[ti];
     const target = !track.protected;

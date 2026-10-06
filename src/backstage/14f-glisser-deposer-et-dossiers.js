@@ -33,6 +33,56 @@ function deepCloneWithNewIds(v) {
   }
   return v;
 }
+// Copie d'un MORCEAU entier (6/10) : tous les id sont renouvelés ET toute référence interne qui les cite (targetId d'un
+// embranchement, referencesSlotId, triggerId des actions / relations / seuils de curseur...) est redirigée vers la copie --
+// contrairement à deepCloneWithNewIds, pensé pour UN élément dont les références pointent hors de lui. Les id sont des chaînes
+// aléatoires uniques : remplacer toute valeur égale à un ancien id est sans risque. Fichiers (File) partagés tels quels.
+function cloneTrackWithRemap(track) {
+  const idMap = new Map();
+  const isPlain = v => !!v && Object.prototype.toString.call(v) === '[object Object]'; // File, Blob... restent partagés ; indifférent au « monde » de l'objet
+  const collect = v => {
+    if (Array.isArray(v)) v.forEach(collect);
+    else if (isPlain(v)) {
+      if (typeof v.id === 'string' && v.id && !idMap.has(v.id)) { let n; do { n = genId(); } while ([...idMap.values()].includes(n)); idMap.set(v.id, n); }
+      Object.keys(v).forEach(k => collect(v[k]));
+    }
+  };
+  collect(track);
+  const walk = v => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (isPlain(v)) { const o = {}; Object.keys(v).forEach(k => { o[k] = walk(v[k]); }); return o; }
+    return typeof v === 'string' && idMap.has(v) ? idMap.get(v) : v;
+  };
+  return walk(track);
+}
+// Duplique un morceau de la bibliothèque : copie indépendante (nouvel id, ses propres fichiers copiés côté serveur par l'Edge
+// Function copy-track-files quand le morceau est déjà publié), insérée à `place` ({ folderId, anchorId, before }) ou juste après
+// l'original. Un morceau protégé n'est pas copié (voir la fonction). Renvoie la copie, ou null.
+async function duplicateLibraryTrack(src, place) {
+  if (!src) return null;
+  if (src.protected) { window.LayerPitchNotify.error(tr('trackCopyProtected')); return null; }
+  const copy = cloneTrackWithRemap(src);
+  copy.protected = false;
+  copy.title = src.title && String(src.title).trim() ? tr('duplicateLabel', { label: src.title }) : src.title;
+  if (trackRemoteFileKeys(src).length) {
+    try {
+      await loadPostgresReadScripts();
+      const r = await window.LayerPitchTracks.copyTrackFiles(src.id, copy.id);
+      if (!r.ok) { window.LayerPitchNotify.error(tr('trackCopyError', { error: r.error })); return null; }
+    } catch (e) { window.LayerPitchNotify.error(tr('trackCopyError', { error: e.message })); return null; }
+  }
+  if (library.indexOf(src) < 0) { window.LayerPitchNotify.error(tr('trackCopyError', { error: 'données rechargées' })); return null; }
+  copy.folderId = place && place.folderId !== undefined ? (place.folderId || null) : (src.folderId || null);
+  let at = library.indexOf(src) + 1;
+  if (place && place.anchorId) { const a = library.findIndex(x => x.id === place.anchorId); if (a >= 0) at = place.before ? a : a + 1; }
+  else if (place && place.append) at = library.length;
+  library.splice(at, 0, copy);
+  manageLibrarySelectedId = copy.id;
+  hasUnsavedEdits = true;
+  window.LayerPitchNotify.info(tr('trackCopyDone', { title: copy.title || '' }));
+  renderLibrary();
+  return copy;
+}
 function cloneWithCopyLabel(item, labelKey) {
   const c = deepCloneWithNewIds(item);
   const k = labelKey || 'label';
@@ -160,7 +210,7 @@ document.addEventListener('pointercancel', releaseAllDragHandles);
 // leur propre conteneur.
 let draggedOrgItemId = null;
 let draggedOrgFolderId = null;
-function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
+function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateItem) {
   containerEl.addEventListener('pointerdown', (e) => {
     const folderHandle = e.target.closest('.folder-drag-handle');
     if (folderHandle) {
@@ -203,6 +253,7 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
     }
     if (!draggedOrgItemId) return;
     const row = e.target.closest('.org-row');
+    if (duplicateItem) { try { e.dataTransfer.dropEffect = isDuplicateDrag(e) ? 'copy' : 'move'; } catch (err) { /* non bloquant */ } }
     if (row && row.dataset.dragId !== draggedOrgItemId) {
       e.preventDefault();
       const rect = row.getBoundingClientRect();
@@ -259,6 +310,15 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop) {
     draggedOrgItemId = null;
     if (!it) return;
     const fromIdx = items.indexOf(it);
+    // Alt + glisser (6/10) : le morceau est COPIÉ à l'endroit visé au lieu d'être déplacé (liste qui le permet : duplicateItem).
+    if (duplicateItem && isDuplicateDrag(e)) {
+      if (targetRow && targetRow.dataset.dragId !== it.id) {
+        const rect = targetRow.getBoundingClientRect();
+        duplicateItem(it, { folderId: targetRow.dataset.folderId || null, anchorId: targetRow.dataset.dragId, before: (e.clientY - rect.top) < rect.height / 2 });
+      } else if (zone) duplicateItem(it, { folderId: zone.dataset.folderId || null, append: true });
+      else if (targetRow) duplicateItem(it, {}); // déposé sur lui-même : copie juste après
+      return;
+    }
     if (targetRow && targetRow.dataset.dragId !== it.id) {
       // Déposé sur un autre élément : change de groupe ET se positionne juste avant/après lui.
       const targetFolderId = targetRow.dataset.folderId || null;

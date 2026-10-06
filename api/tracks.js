@@ -138,5 +138,17 @@
     return data && data.ok ? { ok: true, files: data.files, leftover: data.leftover } : { ok: false, error: (data && data.error) || 'Réponse inattendue.' };
   }
 
-  window.LayerPitchTracks = { setTrackProtected, listTracks, getTrack, upsertTrack, deleteTrack, listTrackFolders, listTracksByIds };
+  // Copie des fichiers d'un morceau publié vers un nouvel identifiant (6/10, « copier un morceau ») : Edge Function copy-track-files,
+  // copie côté serveur, refusée pour un morceau protégé.
+  async function copyTrackFiles(fromTrackId, toTrackId) {
+    const { data, error } = await getClient().functions.invoke('copy-track-files', { body: { fromTrackId, toTrackId } });
+    if (error) {
+      let body = null;
+      try { body = error.context && typeof error.context.json === 'function' ? await error.context.json() : null; } catch (e) {}
+      return { ok: false, error: (body && body.error) || await window.LayerPitchAuth.describeFunctionError(error) };
+    }
+    return data && data.ok ? { ok: true, files: data.files } : { ok: false, error: (data && data.error) || 'Réponse inattendue.' };
+  }
+
+  window.LayerPitchTracks = { copyTrackFiles, setTrackProtected, listTracks, getTrack, upsertTrack, deleteTrack, listTrackFolders, listTracksByIds };
 })();
