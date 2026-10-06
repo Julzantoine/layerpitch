@@ -627,8 +627,44 @@ function fillAdReelAccessField(ar) {
   document.getElementById('appAccessHint').textContent = allowed ? tr('adreelAccessHint') : (flagOpen('private_links') ? tr('adreelAccessTierOnly') : tr('fxAdminOnlyHint'));
   document.getElementById('appAccessMsg').textContent = '';
 }
+// Morceaux et Sfx de cet AdReel dont les fichiers ne sont PAS protégés (6/10) : un AdReel privé cache sa page, mais un fichier
+// non protégé reste à son adresse publique. Le compositeur choisit : protéger maintenant, continuer quand même, ou annuler.
+function unprotectedFilesOfAdReel(ar) {
+  const trackIds = new Set(ar.trackIds || []);
+  (ar.blocks || []).forEach(b => { if (b.type === 'tracks') (b.trackIds || []).forEach(id => trackIds.add(id)); });
+  const tracks = [...trackIds].map(id => library.find(t => t.id === id)).filter(t => t && !t.protected);
+  const sfxIds = new Set();
+  (ar.blocks || []).forEach(b => { if (b.type === 'sfx') (b.sfxIds || []).forEach(id => sfxIds.add(id)); });
+  const sfx = [...sfxIds].map(id => sfxLibrary.find(s => s.id === id)).filter(s => s && !s.protected);
+  return { tracks, sfx };
+}
+// Renvoie false si le compositeur annule (ou si une protection échoue), true pour continuer.
+async function confirmProtectFilesForPrivateAdReel(ar) {
+  const { tracks, sfx } = unprotectedFilesOfAdReel(ar);
+  if (!tracks.length && !sfx.length) return true;
+  const names = tracks.map(t => t.title || t.id).concat(sfx.map(s => s.title || s.id));
+  const answer = await window.LayerPitchNotify.confirm(
+    tr('adreelAccessUnprotectedMsg', { n: names.length, list: names.slice(0, 8).join(', ') + (names.length > 8 ? '…' : '') }),
+    { okLabel: tr('adreelAccessProtectThem'), extraLabel: tr('adreelAccessContinueAnyway'), cancelLabel: tr('cancel') });
+  if (answer === 'extra') return true;
+  if (answer !== true) return false;
+  await loadPostgresReadScripts();
+  const failed = [];
+  for (const t of tracks) {
+    const r = await window.LayerPitchTracks.setTrackProtected(t.id, true);
+    if (r.ok) t.protected = true; else failed.push((t.title || t.id) + ' : ' + r.error);
+  }
+  for (const s of sfx) {
+    const r = await window.LayerPitchSfx.setSfxProtected(s.id, true);
+    if (r.ok) s.protected = true; else failed.push((s.title || s.id) + ' : ' + r.error);
+  }
+  if (failed.length) { window.LayerPitchNotify.error(tr('adreelAccessProtectFailed', { list: failed.join('\n') })); return false; }
+  renderLibrary();
+  return true;
+}
 async function applyAdReelAccess(ar, mode, password) {
   const msg = document.getElementById('appAccessMsg');
+  if (mode !== 'public' && !(await confirmProtectFilesForPrivateAdReel(ar))) { msg.textContent = ''; fillAdReelAccessField(ar); return null; }
   msg.textContent = '…';
   try {
     await loadPostgresReadScripts();

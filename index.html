@@ -8,9 +8,9 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch</title>
-<link rel="stylesheet" href="player.css?v=1791293747129">
+<link rel="stylesheet" href="player.css?v=1791294419687">
 <!-- Styles des blocs et de la page : fichier commun avec les vitrines de Projet (reel.css, 28/09). -->
-<link rel="stylesheet" href="reel.css?v=1791293747129">
+<link rel="stylesheet" href="reel.css?v=1791294419687">
 <script>
   // Umami chargé dynamiquement et sauté en mode aperçu (?preview=1) -- voir le commentaire équivalent
   // dans pack.html.
@@ -95,11 +95,11 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791293747129"></script>
-<script src="public-page.js?v=1791293747129"></script>
-<script src="player.js?v=1791293747129"></script>
-<script src="layerpitch-social-icons.js?v=1791293747129"></script>
-<script src="reel.js?v=1791293747129"></script>
+<script src="layerpitch-i18n.js?v=1791294419687"></script>
+<script src="public-page.js?v=1791294419687"></script>
+<script src="player.js?v=1791294419687"></script>
+<script src="layerpitch-social-icons.js?v=1791294419687"></script>
+<script src="reel.js?v=1791294419687"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
 
@@ -133,11 +133,11 @@ const composerHandleFromUrl = new URLSearchParams(location.search).get('u');
 // place de l'adresse ci-dessous, comme le nom du compositeur.
 const adReelSlugFromUrl = new URLSearchParams(location.search).get('s');
 // Jeton d'un lien privé (6/10) : dans le fragment (#k=...), qui ne quitte jamais le navigateur. Capturé ici (avant la remise en
-// place de l'adresse jolie, qui l'efface de la barre) et gardé pour la session : un rechargement ne redemande rien.
+// place de l'adresse jolie, qui l'efface de la barre) ; une fois accepté, il est gardé sur cet ordinateur (window.LpPrivateAccess,
+// src/player/02a-audio-protege.js) : rechargement, 2e fenêtre ou pack ouvert depuis l'AdReel ne redemandent rien.
 let privateAccessSecret = (function () {
   const m = /[#&]k=([A-Za-z0-9]+)/.exec(location.hash || '');
-  if (m) { try { sessionStorage.setItem('lp_private_k', m[1]); } catch (e) { /* stockage bloqué : le jeton ne vit que dans cette page */ } return m[1]; }
-  try { return sessionStorage.getItem('lp_private_k') || ''; } catch (e) { return ''; }
+  return m ? m[1] : '';
 })();
 // AdReel désigné par son nom dans l'adresse (resolve_public_link).
 let resolvedAdReelId = null;
@@ -270,11 +270,14 @@ async function loadPrivateAdReel(ownerId, adreelId, container) {
   const robots = document.createElement('meta'); robots.name = 'robots'; robots.content = 'noindex'; document.head.appendChild(robots);
   pageLang = (navigator.language || '').toLowerCase().startsWith('fr') ? 'fr' : 'en';
   applyI18n();
-  if (privateAccessSecret) {
-    const r = await ads.getPrivateAdReel(ownerId, adreelId, privateAccessSecret);
-    if (r.adReel) return r.adReel;
+  const store = window.LpPrivateAccess;
+  const candidate = privateAccessSecret || (store ? store.get(ownerId, adreelId) : '');
+  if (candidate) {
+    const r = await ads.getPrivateAdReel(ownerId, adreelId, candidate);
+    if (r.adReel) { privateAccessSecret = candidate; if (store) store.set(ownerId, adreelId, candidate); return r.adReel; }
+    if (store) store.del(ownerId, adreelId);
     if (mode === 'magic') { container.innerHTML = `<div class="empty private-gate">${tr(r.error === 'throttled' ? 'privateAdReelThrottled' : 'privateAdReelNeedLink')}</div>`; return null; }
-    privateAccessSecret = ''; try { sessionStorage.removeItem('lp_private_k'); } catch (e) { /* ignoré */ }
+    privateAccessSecret = '';
   }
   if (mode === 'magic') { container.innerHTML = `<div class="empty private-gate">${tr('privateAdReelNeedLink')}</div>`; return null; }
   return new Promise(resolve => {
@@ -287,7 +290,7 @@ async function loadPrivateAdReel(ownerId, adreelId, container) {
     form.addEventListener('submit', async e => {
       e.preventDefault();
       const r = await ads.getPrivateAdReel(ownerId, adreelId, input.value);
-      if (r.adReel) { privateAccessSecret = input.value; try { sessionStorage.setItem('lp_private_k', input.value); } catch (err) { /* ignoré */ } resolve(r.adReel); return; }
+      if (r.adReel) { privateAccessSecret = input.value; if (store) store.set(ownerId, adreelId, input.value); resolve(r.adReel); return; }
       msg.textContent = tr(r.error === 'throttled' ? 'privateAdReelThrottled' : 'privateAdReelWrong');
       input.select();
     });
@@ -312,10 +315,7 @@ async function init() {
     if (!adReel && !previewActive) {
       // AdReel à lien privé (6/10) : absent de la lecture publique ; on le demande avec le secret (jeton du lien ou mot de passe).
       adReel = await loadPrivateAdReel(lastResolvedOwnerId, adreelId, container);
-      if (adReel) {
-        data.adReels = (data.adReels || []).concat([adReel]);
-        window.__lpPrivateAccess = { adReelId: adreelId, secret: privateAccessSecret }; // lu par src/player/02a-audio-protege.js (morceaux protégés)
-      }
+      if (adReel) data.adReels = (data.adReels || []).concat([adReel]);
     }
     if (!adReel) {
       if (!container.querySelector('.private-gate')) container.innerHTML = `<div class="empty">${tr('adreelNotFound')}</div>`;

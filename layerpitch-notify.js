@@ -6,7 +6,8 @@
 //   LayerPitchNotify.info(msg)               bandeau neutre, disparaît seul
 //   LayerPitchNotify.error(msg)              bandeau rouge, reste affiché jusqu'à la croix (le texte peut contenir
 //                                            un lien de secours à copier : il reste sélectionnable)
-//   await LayerPitchNotify.confirm(msg, { okLabel, cancelLabel, danger, checkboxLabel, onFinish })  -> true / false
+//   await LayerPitchNotify.confirm(msg, { okLabel, cancelLabel, extraLabel, danger, checkboxLabel, onFinish })  -> true / false
+//   extraLabel : ajoute un 3e bouton, entre « Annuler » et le bouton principal ; la réponse est alors 'extra' (6/10, « continuer sans protéger »).
 //   checkboxLabel : ajoute une case à cocher (« Ne plus m'avertir… ») ; onFinish(réponse, cochée) est appelée à la fermeture.
 //
 // Chargé par toute page qui en a besoin via <script src="layerpitch-notify.js">, APRÈS layerpitch-i18n.js.
@@ -133,7 +134,9 @@
       okBtn.type = 'button';
       okBtn.className = 'lp-confirm-ok' + (opts.danger ? ' danger' : '');
       okBtn.textContent = opts.okLabel || label('notifyConfirmOk');
-      actions.append(cancelBtn, okBtn);
+      let extraBtn = null;
+      if (opts.extraLabel) { extraBtn = document.createElement('button'); extraBtn.type = 'button'; extraBtn.textContent = opts.extraLabel; actions.append(cancelBtn, extraBtn, okBtn); }
+      else actions.append(cancelBtn, okBtn);
       let checkEl = null;
       if (opts.checkboxLabel) {
         const row = document.createElement('label');
@@ -155,12 +158,13 @@
       }
       okBtn.addEventListener('click', () => finish(true));
       cancelBtn.addEventListener('click', () => finish(false));
+      if (extraBtn) extraBtn.addEventListener('click', () => finish('extra'));
       overlay.addEventListener('mousedown', e => { if (e.target === overlay) finish(false); });
       overlay.addEventListener('keydown', e => {
         if (e.key === 'Escape') { e.preventDefault(); finish(false); }
         else if (e.key === 'Tab') { // focus gardé dans la fenêtre : case (si présente), puis les deux boutons
           e.preventDefault();
-          const order = (checkEl ? [checkEl] : []).concat([cancelBtn, okBtn]);
+          const order = (checkEl ? [checkEl] : []).concat(extraBtn ? [cancelBtn, extraBtn, okBtn] : [cancelBtn, okBtn]);
           const i = order.indexOf(document.activeElement);
           order[(i + (e.shiftKey ? order.length - 1 : 1)) % order.length].focus();
         } else return;

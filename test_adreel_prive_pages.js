@@ -18,6 +18,7 @@ const { loadBackstage } = require('./scripts/test-harness.js');
     getAdReelAccessMode: async () => ({ mode: w.__mode }),
     getPrivateAdReel: async (o, id, secret) => { calls.push(secret); return secret === 'bon' ? { adReel: { id, accessMode: 'private' } } : { adReel: null, error: 'wrong' }; }
   };
+  w.LpPrivateAccess = { get: () => '', set: () => {}, del: () => {} };
   w.eval(`let pageLang = 'fr'; function tr(k) { return k; } function applyI18n() {} let privateAccessSecret = ''; ${fnSrc}; window.__load = loadPrivateAdReel; window.__setSecret = v => { privateAccessSecret = v; };`);
   const c = w.document.getElementById('c');
 
@@ -45,7 +46,7 @@ const { loadBackstage } = require('./scripts/test-harness.js');
 
   // ---- Audio protégé : le secret part avec la demande de liens signés ----
   const audio = fs.readFileSync(path.join(__dirname, 'src/player/02a-audio-protege.js'), 'utf8');
-  check('l\'audio protégé joint l\'AdReel privé et son secret', /__lpPrivateAccess/.test(audio) && /body\.adReelId/.test(audio) && /body\.secret/.test(audio));
+  check('l\'audio protégé joint les secrets ouverts sur cet ordinateur', /LpPrivateAccess/.test(audio) && /body\.proofs/.test(audio) && /localStorage/.test(audio));
   check('l\'Edge Function relaie le secret aux deux fonctions de droit', /privateProof/.test(fs.readFileSync(path.join(__dirname, 'supabase/functions/track-audio-url/index.ts'), 'utf8')));
   check('404.html garde le fragment (#k=) à la redirection', /location\.hash/.test(fs.readFileSync(path.join(__dirname, '404.html'), 'utf8')));
 
@@ -59,6 +60,25 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   b.loadPostgresReadScripts = async () => {};
   b.LayerPitchAdReels = Object.assign(b.LayerPitchAdReels || {}, { setAdReelAccess: async (id, mode, pw) => { rpc.push([id, mode, pw]); return mode === 'magic' ? { ok: true, mode, token: 'a'.repeat(64) } : { ok: true, mode }; } });
   b.eval(`myEntitlements = Object.assign({}, myEntitlements, { private_links: { allowed: true } }); fillAdReelAccessField(adReels.find(a => a.id === currentAdReelId));`);
+  // Fenêtre « certains fichiers ne sont pas protégés » : annuler / continuer / protéger
+  b.eval(`library.push({ id: 'tp', title: 'Thème', protected: false }); adReels.find(a => a.id === currentAdReelId).trackIds = ['tp'];`);
+  const asked = [];
+  let answer = false;
+  b.LayerPitchNotify = { confirm: async (m, o) => { asked.push({ m, o }); return answer; }, info() {}, error() {} };
+  const protectedCalls = [];
+  b.LayerPitchTracks = { setTrackProtected: async (id, on) => { protectedCalls.push([id, on]); return { ok: true }; } };
+  sel.value = 'password'; sel.dispatchEvent(new b.Event('change')); await tick();
+  doc.getElementById('appAccessPassword').value = 'sesame-2026'; doc.getElementById('btnSaveAccessPassword').click(); await tick(); await tick();
+  check('fichier non protégé : la fenêtre s\'ouvre avec les 3 choix', asked.length === 1 && /Thème/.test(asked[0].m) && !!asked[0].o.extraLabel && !!asked[0].o.okLabel);
+  check('annuler : rien n\'est envoyé, rien n\'est protégé', rpc.length === 0 && protectedCalls.length === 0);
+  answer = true;
+  doc.getElementById('btnSaveAccessPassword').click(); await tick(); await tick(); await tick();
+  check('« protéger » : le morceau est protégé PUIS l\'accès privé activé', protectedCalls.join() === 'tp,true' && rpc.length === 1);
+  b.eval(`library[library.length - 1].protected = false`);
+  answer = 'extra'; rpc.length = 0; protectedCalls.length = 0;
+  doc.getElementById('btnSaveAccessPassword').click(); await tick(); await tick(); await tick();
+  check('« continuer sans protéger » : accès privé activé, rien protégé', rpc.length === 1 && protectedCalls.length === 0);
+  b.eval(`library.pop(); adReels.find(a => a.id === currentAdReelId).trackIds = [];`); rpc.length = 0;
   sel.value = 'password'; sel.dispatchEvent(new b.Event('change')); await tick();
   check('mot de passe choisi : rangée affichée, rien d\'envoyé tant que non enregistré', !doc.getElementById('appAccessPasswordRow').hidden && rpc.length === 0);
   doc.getElementById('appAccessPassword').value = 'sesame-2026'; doc.getElementById('btnSaveAccessPassword').click(); await tick(); await tick();
