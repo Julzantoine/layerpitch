@@ -49,9 +49,27 @@
   .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
   .notice { background: var(--bg-card); border: 1px dashed var(--border); border-radius: 10px; padding: 40px 20px; text-align: center; color: var(--text-dim); }
   .filters select.tagsel { max-width: 200px; }
+  /* Visiteur sans compte (ajouté 06/10) : barre du site (même esprit que la landing) et palette beige. Posée par le script après la
+     vérification de la session, pour qu'un utilisateur connecté (barre latérale de l'application) ne voie jamais ce changement. */
+  .site-bar { display: none; }
+  body.visitor { --bg: #f6f5f3; --border: #e4e1da; --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399; --accent: #2f6fe0; --accent-soft: #dce7fb; padding-top: 0; }
+  body.visitor .site-bar { display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap; position: sticky; top: 0; z-index: 20; margin: 0 -16px 28px; padding: 14px 24px;
+    background: rgba(246,245,243,0.88); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+  .site-logo { font-family: var(--font-title); font-weight: 700; font-size: 18px; font-style: italic; color: var(--text); text-decoration: none; }
+  .site-nav { display: flex; flex-wrap: wrap; gap: 2px 4px; flex: 1; }
+  .site-nav a, .site-nav span { font-size: 13px; padding: 6px 10px; border-radius: 6px; color: var(--text-dim); text-decoration: none; }
+  .site-nav a:hover { color: var(--accent); }
+  .site-nav .on { color: var(--accent); }
+  .site-nav .soon { color: var(--text-dimmer); opacity: .75; cursor: default; }
+  .site-right { display: flex; align-items: center; gap: 14px; font-family: var(--font-mono); font-size: 12px; }
+  .site-right .lang a { color: var(--text-dim); text-decoration: none; } .site-right .lang a.on { color: var(--text); font-weight: 600; }
+  .site-login { color: var(--text); border: 1px solid var(--border); background: var(--bg-card); border-radius: 6px; padding: 8px 14px; text-decoration: none; }
+  .site-login:hover { border-color: var(--accent); color: var(--accent); }
+  @media (max-width: 720px) { .site-nav { order: 3; flex-basis: 100%; } .site-right { margin-left: auto; } }
 </style>
 </head>
 <body>
+<header class="site-bar" id="siteBar"><a class="site-logo" href="https://www.layerpitch.com/">LayerPitch</a><nav class="site-nav" id="siteNav"></nav><div class="site-right" id="siteRight"></div></header>
 <div class="page">
   <div class="top">
     <h1 data-i18n="h1">Catalogue audio</h1>
@@ -113,6 +131,28 @@ const state = { tab: new URLSearchParams(location.search).get('tab') === 'ost' ?
 const $ = id => document.getElementById(id);
 
 window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'shop', crumbs: [{ label: tr('h1') }] });
+
+// ---- Barre du site pour les visiteurs sans compte (06/10, demande de Jules-Antoine : « pas de bouton de retour ») ----
+// SITE_NAV_LIVE : tant que les nouvelles pages de la landing (compositeurs, studios, À propos, FAQ) ne sont pas en ligne, seul le logo (retour à
+// la landing actuelle) est proposé : les autres liens renverraient une page introuvable. À passer à true le jour de la bascule.
+const SITE_NAV_LIVE = false;
+(async function visitorBar() {
+  const { session } = await window.LayerPitchAuth.getSession();
+  if (session) return;
+  const SITE = 'https://www.layerpitch.com';
+  const T = pageLang === 'en'
+    ? { about: 'About', composers: 'Composers & sound designers', studios: 'Studios', catalog: 'Audio catalog', pricing: 'Pricing', faq: 'FAQ', login: 'Log in', pre: '/en', soon: 'Coming soon', aboutPath: 'about', compPath: 'composers' }
+    : { about: 'À propos', composers: 'Compositeurs & sound designers', studios: 'Studios', catalog: 'Catalogue audio', pricing: 'Tarifs', faq: 'FAQ', login: 'Se connecter', pre: '', soon: 'Bientôt', aboutPath: 'a-propos', compPath: 'compositeurs' };
+  const q = pageLang === 'en' ? '?lang=en' : '';
+  let siteNavHtml;
+  if (SITE_NAV_LIVE) {
+    siteNavHtml = `<a href="${SITE}${T.pre}/${T.aboutPath}.html">${esc(T.about)}</a><a href="${SITE}${T.pre}/${T.compPath}.html">${esc(T.composers)}</a><a href="${SITE}${T.pre}/studios.html">${esc(T.studios)}</a>
+      <a class="on" href="/shop${q}">${esc(T.catalog)}</a><span class="soon" title="${esc(T.soon)}">${esc(T.pricing)}</span><a href="${SITE}${T.pre}/faq.html">${esc(T.faq)}</a>`;
+  } else { siteNavHtml = ''; }
+  document.getElementById('siteNav').innerHTML = siteNavHtml;
+  document.getElementById('siteRight').innerHTML = `<span class="lang"><a class="${pageLang === 'fr' ? 'on' : ''}" href="?lang=fr">FR</a> / <a class="${pageLang === 'en' ? 'on' : ''}" href="?lang=en">EN</a></span><a class="site-login" href="./bienvenue.html${q}">${esc(T.login)}</a>`;
+  document.body.classList.add('visitor');
+})();
 
 const gridEmpty = key => `<div class="empty" style="grid-column:1/-1">${esc(tr(key))}</div>`;
 const countsText = (tracks, sfx) => [tracks ? tr(tracks > 1 ? 'tracksMany' : 'tracksOne', { n: tracks }) : '', sfx ? tr(sfx > 1 ? 'sfxMany' : 'sfxOne', { n: sfx }) : ''].filter(Boolean).join(' · ');
