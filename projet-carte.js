@@ -5,7 +5,7 @@
 // Document d'une carte : { nodes: [{ id, type, label, x, y, note, side, anchor, sounds: { main: [ref], combat: [ref] } }],
 //                          edges: [{ id, from, to, label, enemy, sounds }] }   ref = { kind: 'track'|'sfx'|'asset', id, title }
 (function () {
-  const NODE_TYPES = ['start', 'place', 'quest', 'boss', 'npc', 'treasure'];
+  const NODE_TYPES = ['start', 'place', 'quest', 'boss', 'npc', 'treasure', 'junction']; // junction = point de passage sur un parcours, d'où d'autres itinéraires peuvent partir
   const SLOTS = ['main', 'combat', 'room'];
   const TRANSITION_STYLES = ['crossfade', 'cut', 'fadeout'];
   const SYNCS = ['immediate', 'beat', 'bar', 'bars2', 'bars4'];
@@ -13,7 +13,7 @@
   const DEFAULT_ROOM_DB = -14;
   const MAX_SOUNDS = 12;
   const MAX_NODES = 300, MAX_EDGES = 600;
-  const GLYPH = { start: '▶', place: '⌂', quest: '!', boss: '☠', npc: '☺', treasure: '◆' };
+  const GLYPH = { start: '▶', place: '⌂', quest: '!', boss: '☠', npc: '☺', treasure: '◆', junction: '•' };
 
   // ---------------------------------------------------------------- Modèle (fonctions pures)
   let idSeq = 0;
@@ -37,7 +37,49 @@
     map.edges.push(edge);
     return edge;
   }
+  // Point de passage sur un parcours (7/10, « générer un nœud sur un itinéraire pour en faire partir un autre, comme un embranchement ») :
+  // le parcours A → B devient A → P → B, P étant un nouvel élément « point de passage » posé là où l'on a cliqué. Les deux moitiés
+  // reprennent les réglages du parcours d'origine (sons, ennemi, transition) ; les quêtes qui y étaient accrochées suivent la bonne moitié.
+  function splitEdge(map, edgeId, x, y) {
+    const e = edgeById(map, edgeId), g = e && edgeGeometry(map, e);
+    if (!e || !g || map.nodes.length >= MAX_NODES || map.edges.length + 1 > MAX_EDGES) return null;
+    const ts = projectOnEdge(map, edgeId, x, y);
+    const node = { id: newId('n'), type: 'junction', label: '', x: Math.round(g.p1.x + (g.p2.x - g.p1.x) * ts), y: Math.round(g.p1.y + (g.p2.y - g.p1.y) * ts), note: '', sounds: { main: [], combat: [], room: [] }, transition: null };
+    const clone = o => JSON.parse(JSON.stringify(o));
+    const half = (from, to, label) => ({ id: newId('e'), from, to, label, enemy: !!e.enemy, sounds: clone(e.sounds || { main: [], combat: [], room: [] }), transition: e.transition ? clone(e.transition) : null });
+    const e1 = half(e.from, node.id, e.label || ''), e2 = half(node.id, e.to, '');
+    map.nodes.push(node);
+    const at = map.edges.indexOf(e);
+    map.edges.splice(at, 1, e1, e2);
+    map.nodes.forEach(n => {
+      if (n.anchor && n.anchor.kind === 'edge' && n.anchor.id === edgeId) {
+        const t0 = clampT(n.anchor.t);
+        n.anchor = t0 <= ts ? { kind: 'edge', id: e1.id, t: Math.round(clampT(t0 / ts) * 1000) / 1000 } : { kind: 'edge', id: e2.id, t: Math.round(clampT((t0 - ts) / (1 - ts)) * 1000) / 1000 };
+      }
+    });
+    return { node, edges: [e1, e2] };
+  }
   function removeNode(map, id) {
+    // Un point de passage qui n'a que deux parcours disparaît en les réunissant (A → P → B redevient A → B).
+    const target = nodeById(map, id);
+    if (target && target.type === 'junction') {
+      const inc = map.edges.filter(e => e.from === id || e.to === id);
+      if (inc.length === 2) {
+        const other = e => (e.from === id ? e.to : e.from);
+        const a = other(inc[0]), b = other(inc[1]);
+        const exists = map.edges.some(e => e !== inc[0] && e !== inc[1] && ((e.from === a && e.to === b) || (e.from === b && e.to === a)));
+        if (a !== b && !exists) {
+          const first = inc[0].to === id ? inc[0] : inc[1], second = first === inc[0] ? inc[1] : inc[0]; // first : arrive en P ; second : repart de P
+          const merged = { id: newId('e'), from: other(first), to: other(second), label: first.label || second.label || '', enemy: !!(first.enemy || second.enemy), sounds: first.sounds, transition: first.transition || null };
+          if (second.from !== id) { merged.from = other(second); merged.to = other(first); } // les deux arrivent en P : l'ordre n'a pas d'importance
+          map.edges.splice(map.edges.indexOf(inc[0]), 1, merged);
+          map.edges.splice(map.edges.indexOf(inc[1]), 1);
+          map.nodes = map.nodes.filter(n => n.id !== id);
+          map.nodes.forEach(n => { if (n.anchor && ((n.anchor.kind === 'node' && n.anchor.id === id) || (n.anchor.kind === 'edge' && (n.anchor.id === inc[0].id || n.anchor.id === inc[1].id)))) n.anchor = null; });
+          return;
+        }
+      }
+    }
     const gone = map.edges.filter(e => e.from === id || e.to === id).map(e => e.id);
     map.edges = map.edges.filter(e => e.from !== id && e.to !== id);
     map.nodes = map.nodes.filter(n => n.id !== id);
@@ -79,8 +121,8 @@
     return map.nodes.filter(n => n.id !== exceptNodeId).map(n => ({ kind: 'node', id: n.id, label: n.label || n.type }))
       .concat(map.edges.map(e => ({ kind: 'edge', id: e.id, label: (e.label || ((nodeById(map, e.from) || {}).label || '?') + ' → ' + ((nodeById(map, e.to) || {}).label || '?')) })));
   }
-  const SIZE = { start: { hx: 56, hy: 34 }, other: { hx: 62, hy: 22 } };
-  const halfSize = n => (n.type === 'start' ? SIZE.start : SIZE.other);
+  const SIZE = { start: { hx: 56, hy: 34 }, other: { hx: 62, hy: 22 }, junction: { hx: 10, hy: 10 } };
+  const halfSize = n => (n.type === 'start' ? SIZE.start : (n.type === 'junction' ? SIZE.junction : SIZE.other));
   // Point où un trait partant du centre d'un élément vers (tx, ty) sort de sa forme.
   function borderPoint(n, tx, ty) {
     const { hx, hy } = halfSize(n);
@@ -226,7 +268,7 @@
 
   const model = { NODE_TYPES, SLOTS, GLYPH, MAX_SOUNDS, TRANSITION_STYLES, SYNCS, DEFAULT_TRANSITION, DEFAULT_ROOM_DB, emptyMap, normalize, cleanRef, cleanTransition,
     resolveTransition, resolveRoom, dbToGain, neighbors, stepToward, pickVariant, refKey, pointOf, nodeById, edgeById, addNode, addEdge, removeNode, removeEdge, addSound, removeSound,
-    setEnemy, hasCombatSlot, anchorChoices, borderPoint, edgeGeometry, anchorPoint, projectOnEdge, anchorQuestToEdge, summary };
+    setEnemy, hasCombatSlot, anchorChoices, borderPoint, edgeGeometry, anchorPoint, projectOnEdge, anchorQuestToEdge, splitEdge, summary };
 
   // ---------------------------------------------------------------- Éditeur
   const STYLE_ID = 'lpLevelMapStyle';
@@ -270,6 +312,7 @@
       .lm-tabs { display: flex; gap: 4px; margin: 6px 0; } .lm-tabs button { flex: 1; font-size: 11.5px; padding: 4px 6px; }
       .lm-node.here .lm-shape { stroke: var(--accent); stroke-width: 5; } .lm-edge.here .lm-line { stroke: var(--accent); stroke-width: 4.5; }
       .lm-canvas.playing { cursor: pointer; } .lm-canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .lm-now[hidden] { display: none; } /* sans cette règle, la barre vide restait visible hors du mode « se balader » */
       .lm-now { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; font-size: 12.5px; }
       .lm-now b { font-weight: 600; } .lm-now .lm-wait { color: var(--text-dim); font-family: var(--font-mono); font-size: 11.5px; }
       .lm-set { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 18px; }
@@ -410,7 +453,7 @@
     function drawCanvas() {
       const map = curData(), svg = host.querySelector('#lmSvg');
       if (!map || !svg) return;
-      const COLORS = { start: 'var(--accent)', place: 'var(--text-dim)', quest: 'var(--seq-map-choice)', boss: '#b5442e', npc: 'var(--seq-map-success)', treasure: '#b8862e' };
+      const COLORS = { start: 'var(--accent)', place: 'var(--text-dim)', quest: 'var(--seq-map-choice)', boss: '#b5442e', npc: 'var(--seq-map-success)', treasure: '#b8862e', junction: 'var(--text-dim)' };
       let out = `<defs><marker id="lmArrow" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--text-dim)"/></marker></defs>`;
       out += `<g transform="translate(${st.view.x} ${st.view.y}) scale(${st.view.k})">`;
       map.nodes.forEach(n => {
@@ -427,6 +470,10 @@
       map.nodes.forEach(n => {
         const sel = st.sel && st.sel.kind === 'node' && st.sel.id === n.id;
         const { hx, hy } = halfSize(n);
+        if (n.type === 'junction') { // point de passage : un petit rond, nom facultatif dessous
+          out += `<g class="lm-node lm-junction${sel ? ' sel' : ''}${hereIs('node', n.id) ? ' here' : ''}${st.linkFrom === n.id ? ' link-from' : ''}" data-node="${esc(n.id)}" style="--lm-color:${COLORS.junction}"><circle class="lm-shape" cx="${n.x}" cy="${n.y}" r="${hx}"/>${n.label ? `<text x="${n.x}" y="${n.y + hy + 14}" text-anchor="middle">${esc(n.label.length > 16 ? n.label.slice(0, 15) + '…' : n.label)}</text>` : ''}${soundCount(n) ? `<text class="lm-badge" x="${n.x + hx + 2}" y="${n.y - hy}" text-anchor="start">♪${soundCount(n)}</text>` : ''}</g>`;
+          return;
+        }
         const shape = n.type === 'start' ? `<polygon class="lm-shape" points="${n.x},${n.y - hy} ${n.x + hx},${n.y} ${n.x},${n.y + hy} ${n.x - hx},${n.y}"/>`
           : `<rect class="lm-shape" x="${n.x - hx}" y="${n.y - hy}" width="${hx * 2}" height="${hy * 2}" rx="${n.type === 'quest' ? 20 : 6}"${n.type === 'boss' ? ' stroke-width="3.5"' : ''}/>`;
         const full = n.label || tr('map_type_' + n.type), max = n.type === 'start' ? 9 : 16;
@@ -469,7 +516,7 @@
       const playBtn = host.querySelector('#lmPlay');
       if (playBtn) playBtn.onclick = () => togglePlay(!st.play);
       const conn = host.querySelector('#lmConnect');
-      if (conn) conn.onclick = () => { st.connecting = !st.connecting; st.linkFrom = null; st.linkEdge = null; render(); };
+      if (conn) conn.onclick = () => { st.connecting = !st.connecting; st.linkFrom = null; render(); };
       host.querySelector('#lmZoomIn').onclick = () => zoomBy(1.2);
       host.querySelector('#lmZoomOut').onclick = () => zoomBy(1 / 1.2);
       host.querySelector('#lmFit').onclick = fit;
@@ -491,8 +538,6 @@
         if (nodeEl) {
           const id = nodeEl.dataset.node, n = nodeById(map, id);
           if (st.connecting && ctx.canEdit) {
-            // Un parcours déjà cliqué + une quête : la quête est accrochée à ce point du parcours.
-            if (st.linkEdge && n && n.type === 'quest') { if (anchorQuestToEdge(map, id, st.linkEdge.id, st.linkEdge.t)) { st.sel = { kind: 'node', id }; touch(); } st.linkEdge = null; st.linkFrom = null; render(); return; }
             if (!st.linkFrom) { st.linkFrom = id; drawCanvas(); }
             else { const e = addEdge(map, st.linkFrom, id); st.linkFrom = null; if (e) { st.sel = { kind: 'edge', id: e.id }; touch(); } render(); }
             return;
@@ -502,10 +547,17 @@
           drawCanvas(); renderInspector();
         } else if (edgeEl) {
           if (st.connecting && ctx.canEdit) {
-            // Relier : une quête puis un parcours (ou l'inverse) => la quête s'accroche à l'endroit cliqué du parcours.
+            // Relier + un parcours : un point de passage est créé là où l'on clique, et un itinéraire part de lui ou y arrive.
+            //   - une quête cliquée d'abord : elle s'accroche à cet endroit du parcours (quête annexe) ;
+            //   - un autre élément cliqué d'abord : un parcours le relie au nouveau point de passage ;
+            //   - le parcours cliqué d'abord : le point de passage est créé, puis on clique l'élément à atteindre.
             const w = toWorld(ev), t = projectOnEdge(map, edgeEl.dataset.edge, w.x, w.y), from = st.linkFrom && nodeById(map, st.linkFrom);
-            if (from && from.type === 'quest') { if (anchorQuestToEdge(map, from.id, edgeEl.dataset.edge, t)) { st.sel = { kind: 'node', id: from.id }; touch(); } st.linkFrom = null; st.linkEdge = null; render(); }
-            else if (!st.linkFrom) { st.linkEdge = { id: edgeEl.dataset.edge, t }; drawCanvas(); }
+            if (from && from.type === 'quest') { if (anchorQuestToEdge(map, from.id, edgeEl.dataset.edge, t)) { st.sel = { kind: 'node', id: from.id }; touch(); } st.linkFrom = null; render(); return; }
+            const cut = splitEdge(map, edgeEl.dataset.edge, w.x, w.y);
+            if (!cut) return;
+            if (from) { const e = addEdge(map, from.id, cut.node.id); st.linkFrom = null; st.sel = e ? { kind: 'edge', id: e.id } : { kind: 'node', id: cut.node.id }; }
+            else { st.linkFrom = cut.node.id; st.sel = { kind: 'node', id: cut.node.id }; }
+            touch(); render();
             return;
           }
           st.sel = { kind: 'edge', id: edgeEl.dataset.edge }; drawCanvas(); renderInspector();
@@ -525,6 +577,13 @@
       });
       const end = () => { if (!drag) return; if ((drag.mode === 'node' || drag.mode === 'anchor') && drag.moved) touch(); drag = null; canvas.classList.remove('panning'); };
       canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
+      // Double-clic sur un parcours : un point de passage y est créé (on peut ensuite en faire partir un autre itinéraire).
+      canvas.addEventListener('dblclick', ev => {
+        if (!ctx.canEdit || st.play) return;
+        const edgeEl = ev.target.closest('[data-edge]'); if (!edgeEl) return;
+        const w = toWorld(ev), cut = splitEdge(map, edgeEl.dataset.edge, w.x, w.y);
+        if (cut) { st.sel = { kind: 'node', id: cut.node.id }; touch(); render(); }
+      });
       canvas.addEventListener('wheel', ev => { ev.preventDefault(); zoomBy(ev.deltaY < 0 ? 1.1 : 1 / 1.1, ev); }, { passive: false });
       // Dépôt d'un son sur un élément ou un parcours
       const dropTarget = ev => { const el = ev.target.closest('[data-node],[data-edge]'); return el ? (el.dataset.node ? { kind: 'node', id: el.dataset.node, el } : { kind: 'edge', id: el.dataset.edge, el }) : null; };
@@ -551,7 +610,7 @@
           if (ev.key === 'Escape') { ev.preventDefault(); togglePlay(false); return; }
         }
         if ((ev.key === 'Delete' || ev.key === 'Backspace') && st.sel && ctx.canEdit && !/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName)) { ev.preventDefault(); deleteSelection(); }
-        if (ev.key === 'Escape' && !st.play) { st.linkFrom = null; st.linkEdge = null; st.connecting = false; render(); }
+        if (ev.key === 'Escape' && !st.play) { st.linkFrom = null; st.connecting = false; render(); }
       };
     }
     function zoomBy(f, ev) {
@@ -580,6 +639,7 @@
       if (isEdge) {
         const a = nodeById(map, item.from), b = nodeById(map, item.to);
         html += `<p class="hint">${esc((a && a.label) || '?')} → ${esc((b && b.label) || '?')}</p>
+          ${ctx.canEdit ? `<button class="btn" id="lmSplit" type="button" title="${esc(tr('map_splitHint'))}">${esc(tr('map_split'))}</button>` : ''}
           <label class="choice" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lmEnemy" ${item.enemy ? 'checked' : ''}${dis} style="width:auto"> ${esc(tr('map_enemy'))}</label>`;
       } else {
         html += `<label>${esc(tr('map_note'))}</label><textarea id="lmNote" maxlength="2000"${dis}>${esc(item.note)}</textarea>`;
@@ -605,6 +665,7 @@
       const on = (id, evt, fn) => { const el = box.querySelector(id); if (el) el.addEventListener(evt, fn); };
       on('#lmLabel', 'input', e => { item.label = e.target.value; touch(); drawCanvas(); });
       on('#lmNote', 'input', e => { item.note = e.target.value; touch(); });
+      on('#lmSplit', 'click', () => { const g = edgeGeometry(map, item), cut = g && splitEdge(map, item.id, g.mid.x, g.mid.y); if (cut) { st.sel = { kind: 'node', id: cut.node.id }; touch(); render(); } });
       on('#lmEnemy', 'change', e => { setEnemy(map, item.id, e.target.checked); touch(); drawCanvas(); renderInspector(); });
       on('#lmSide', 'change', e => { item.side = e.target.checked; if (!item.side) item.anchor = null; touch(); drawCanvas(); renderInspector(); });
       on('#lmAnchor', 'change', e => { const [kind, ...rest] = e.target.value.split(':'); item.anchor = e.target.value ? { kind, id: rest.join(':') } : null; touch(); drawCanvas(); });
@@ -733,7 +794,8 @@
       if (!on) { audio.stop(1); st.now = null; }
       st.play = !!on; st.connecting = false; st.linkFrom = null;
       render();
-      if (on) { audio.setMap(curData()); const c = host.querySelector('#lmCanvas'); if (c) c.focus(); if (st.sel) audio.goTo(st.sel); }
+      // On se place tout de suite : sur l'élément sélectionné, à défaut sur le Début de la carte (puis flèches, clic, Espace, C).
+      if (on) { audio.setMap(curData()); const c = host.querySelector('#lmCanvas'); if (c) c.focus(); startFromSelection(); }
     }
 
     // ---- Bibliothèque de sons (à gauche)

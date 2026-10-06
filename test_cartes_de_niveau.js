@@ -65,6 +65,7 @@
   await as(1);
   const bad = async (mut, re) => { const m = JSON.parse(JSON.stringify(map)); mut(m); return fails(`select public.save_project_map($1, $2::jsonb)`, [pid, JSON.stringify({ title: 'x', data: m })], re); };
   check('type d\'élément inconnu refusé', await bad(m => { m.nodes[1].type = 'dragon'; }, /inconnu/));
+  check('point de passage (« junction ») accepté, avec le point d\'accroche (anchor.t)', await (async () => { const m = JSON.parse(JSON.stringify(map)); m.nodes.push({ id: 'pj', type: 'junction', label: '', x: 100, y: 100, sounds: { main: [], combat: [], room: [] } }); try { await db.query(`select public.save_project_map($1, $2::jsonb)`, [pid, JSON.stringify({ title: 'Avec point', data: m })]); return true; } catch (e) { console.log(e.message); return false; } })());
   check('deux débuts de niveau refusés', await bad(m => { m.nodes[1].type = 'start'; }, /seul début/));
   check('identifiant en double refusé', await bad(m => { m.nodes[1].id = 'n1'; }, /double/));
   check('parcours vers un élément inexistant refusé', await bad(m => { m.edges[0].to = 'zz'; }, /n'existent pas/));

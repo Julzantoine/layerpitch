@@ -27,6 +27,8 @@
     // Son de musique voulu pour la position (et l'état combat) : une alternative tirée au hasard dans la liste.
     function wantedMusic() {
       const item = itemAt(st.position); if (!item) return null;
+      // Un point de passage sans son à lui est transparent : la musique en cours continue (le son du parcours qu'on emprunte).
+      if (item.type === 'junction' && !((item.sounds && item.sounds.main) || []).length && st.music) return { ref: st.music, transition: model.resolveTransition(map, item) };
       const useCombat = st.combat && model.hasCombatSlot(map, st.position);
       const list = (item.sounds && (useCombat ? item.sounds.combat : item.sounds.main)) || [];
       return { ref: model.pickVariant(list, lastMusicKey), transition: model.resolveTransition(map, item) };

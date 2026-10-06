@@ -125,6 +125,8 @@ const { JSDOM } = require('jsdom');
   check('mode Écouter : bouton présent', !!host3.querySelector('#lmPlay'));
   host3.querySelector('#lmPlay').click();
   check('mode Écouter actif : barre d\'écoute visible, outils de dessin masqués', !host3.querySelector('#lmNow').hidden && !host3.querySelector('[data-add]'));
+  await settle(); await advance(0.1);
+  check('« Se balader » sans rien sélectionner : on est placé tout de suite sur le Début, son joué', !!v3.audio.state.position && v3.audio.state.position.id === 'a' && calls.includes('track:intro start 0'));
   const downOn = id => host3.querySelector('[data-node="' + id + '"]').dispatchEvent(new w.Event('pointerdown', { bubbles: true }));
   downOn('a'); await settle(); await advance(0.1);
   check('clic sur le début : son joué', calls.includes('track:intro start 0') && v3.audio.state.position.id === 'a');
@@ -220,12 +222,65 @@ const { JSDOM } = require('jsdom');
     at(host4.querySelector('#lmCanvas'), gm.p1.x + (gm.p2.x - gm.p1.x) * 0.2, 0, 'pointermove'); 
     at(host4.querySelector('#lmCanvas'), 0, 0, 'pointerup'); await wait(30);
     check('glisser le point : il suit le parcours (20 %)', Math.abs(v4.state.maps[0].data.nodes.find(n => n.id === 'q').anchor.t - 0.2) < 0.01);
-    // dans l'autre ordre : parcours d'abord, puis la quête
-    v4.state.maps[0].data.nodes.find(n => n.id === 'q').anchor = null; v4.state.maps[0].data.nodes.find(n => n.id === 'q').side = false;
-    host4.querySelector('#lmConnect').click(); host4.querySelector('#lmConnect').click(); // sortir puis rentrer dans « Relier »
-    at(host4.querySelector('[data-edge="e"]'), gm.p1.x + (gm.p2.x - gm.p1.x) * 0.5, 0);
-    at(host4.querySelector('[data-node="q"]'), 200, 150); await wait(30);
-    check('parcours puis quête : accrochée au point cliqué (50 %)', (() => { const a = v4.state.maps[0].data.nodes.find(n => n.id === 'q').anchor; return !!a && a.kind === 'edge' && Math.abs(a.t - 0.5) < 0.01; })());
+    // Point de passage (7/10) : un parcours devient A → P → B ; d'autres itinéraires peuvent en partir
+    const m5 = M.emptyMap();
+    const s5 = M.addNode(m5, 'start', 0, 0, 'Début'), c5 = M.addNode(m5, 'place', 400, 0, 'Château'), v5 = M.addNode(m5, 'place', 200, 200, 'Ville'), q5 = M.addNode(m5, 'quest', 100, 120, 'Annexe');
+    const ed5 = M.addEdge(m5, s5.id, c5.id); ed5.label = 'Route'; ed5.enemy = true; ed5.sounds.main = [{ kind: 'track', id: 't1', title: 'Marche' }];
+    const gm5 = M.edgeGeometry(m5, ed5);
+    M.anchorQuestToEdge(m5, q5.id, ed5.id, 0.8);
+    const cut = M.splitEdge(m5, ed5.id, gm5.p1.x + (gm5.p2.x - gm5.p1.x) * 0.5, 0);
+    check('point de passage : un nouvel élément de type « junction », posé sur le parcours (au milieu)', !!cut && cut.node.type === 'junction' && Math.abs(cut.node.x - (gm5.p1.x + gm5.p2.x) / 2) <= 1 && cut.node.y === 0);
+    check('le parcours est remplacé par deux moitiés Début → P et P → Château', m5.edges.length === 2 && !M.edgeById(m5, ed5.id) && cut.edges[0].from === s5.id && cut.edges[0].to === cut.node.id && cut.edges[1].from === cut.node.id && cut.edges[1].to === c5.id);
+    check('les moitiés reprennent le nom (1re), l\'ennemi et les sons', cut.edges[0].label === 'Route' && cut.edges[1].label === '' && cut.edges.every(e => e.enemy && e.sounds.main.length === 1) && cut.edges[0].sounds !== cut.edges[1].sounds);
+    check('la quête accrochée à 80 % suit la 2e moitié (60 % de celle-ci)', q5.anchor.id === cut.edges[1].id && Math.abs(q5.anchor.t - 0.6) < 0.01);
+    const e6 = M.addEdge(m5, cut.node.id, v5.id);
+    check('un autre itinéraire part du point de passage (embranchement)', !!e6 && m5.edges.length === 3);
+    check('le point de passage survit à normalize', M.normalize(JSON.parse(JSON.stringify(m5))).nodes.some(n => n.type === 'junction'));
+    check('à 3 parcours, supprimer le point supprime ses parcours (pas de fusion)', (() => { const m = JSON.parse(JSON.stringify(m5)); M.removeNode(m, cut.node.id); return m.edges.length === 0 && !m.nodes.some(n => n.type === 'junction'); })());
+    const m7 = M.emptyMap(); const a7 = M.addNode(m7, 'start', 0, 0, 'A'), b7 = M.addNode(m7, 'place', 400, 0, 'B'); const ed7 = M.addEdge(m7, a7.id, b7.id); const cut7 = M.splitEdge(m7, ed7.id, 200, 0);
+    M.removeNode(m7, cut7.node.id);
+    check('à 2 parcours, supprimer le point les réunit (A → P → B redevient A → B)', m7.edges.length === 1 && m7.edges[0].from === a7.id && m7.edges[0].to === b7.id && m7.nodes.length === 2);
+
+    // Éditeur : double-clic, Relier + parcours, bouton du détail
+    const host5 = w.document.createElement('div'); w.document.body.appendChild(host5);
+    const v5v = w.LayerPitchLevelMap.mount(host5, { tr, canEdit: true, libraries: { track: [], sfx: [], asset: [] },
+      maps: [{ id: 'm5', title: 'T', data: { nodes: [{ id: 's', type: 'start', label: 'Début', x: 0, y: 0 }, { id: 'c', type: 'place', label: 'Château', x: 400, y: 0 }, { id: 'v', type: 'place', label: 'Ville', x: 200, y: 250 }, { id: 'p', type: 'npc', label: 'Marchand', x: 100, y: 200 }], edges: [{ id: 'e', from: 's', to: 'c' }] } }],
+      save: async () => ({ id: 'm5' }), remove: async () => ({}), ask: async () => 'x', confirm: async () => true });
+    v5v.state.view = { x: 0, y: 0, k: 1 };
+    const geo = M.edgeGeometry(M.normalize({ nodes: [{ id: 's', type: 'start', x: 0, y: 0 }, { id: 'c', type: 'place', x: 400, y: 0 }], edges: [{ id: 'e', from: 's', to: 'c' }] }), { from: 's', to: 'c' });
+    const ptr = (el, x, y, type) => el.dispatchEvent(Object.assign(new w.Event(type || 'pointerdown', { bubbles: true }), { clientX: x, clientY: y, pointerId: 1 }));
+    const nodes5 = () => v5v.state.maps[0].data.nodes, edges5 = () => v5v.state.maps[0].data.edges;
+    ptr(host5.querySelector('[data-edge="e"]'), geo.p1.x + (geo.p2.x - geo.p1.x) * 0.3, 0, 'dblclick');
+    check('double-clic sur un parcours : un point de passage est créé et sélectionné', nodes5().filter(n => n.type === 'junction').length === 1 && edges5().length === 2 && v5v.state.sel.kind === 'node');
+    const j1 = nodes5().find(n => n.type === 'junction');
+    check('le point de passage est dessiné (petit rond)', !!host5.querySelector('[data-node="' + j1.id + '"] circle'));
+    // Relier : Marchand (PNJ) puis le parcours d'arrivée du point -> un nouveau point, relié au Marchand
+    host5.querySelector('#lmConnect').click();
+    ptr(host5.querySelector('[data-node="p"]'), 100, 200);
+    const second = edges5().find(e => e.from === j1.id);
+    ptr(host5.querySelector('[data-edge="' + second.id + '"]'), 300, 0);
+    check('Relier : un élément (PNJ) puis un parcours : un 2e point de passage est créé et relié au PNJ', nodes5().filter(n => n.type === 'junction').length === 2 && edges5().some(e => e.from === 'p' && nodes5().find(n => n.id === e.to).type === 'junction'));
+    // Relier : parcours d'abord, puis la Ville -> itinéraire du point vers la Ville
+    host5.querySelector('#lmConnect').click(); host5.querySelector('#lmConnect').click();
+    const firstHalf = edges5().find(e => e.from === 's');
+    const nBefore = nodes5().length, eBefore = edges5().length;
+    ptr(host5.querySelector('[data-edge="' + firstHalf.id + '"]'), 40, 0);
+    check('Relier : un parcours d\'abord : un point de passage est créé et attend sa destination', nodes5().length === nBefore + 1 && v5v.state.linkFrom && nodes5().find(n => n.id === v5v.state.linkFrom).type === 'junction');
+    ptr(host5.querySelector('[data-node="v"]'), 200, 250);
+    check('…puis la Ville : un itinéraire part du point de passage vers la Ville (embranchement)', edges5().length === eBefore + 2 && edges5().some(e => e.to === 'v' && nodes5().find(n => n.id === e.from).type === 'junction'));
+    // bouton du détail
+    if (v5v.state.connecting) host5.querySelector('#lmConnect').click(); // sortir du mode « Relier »
+    const eSel = edges5()[0]; v5v.state.sel = { kind: 'edge', id: eSel.id }; host5.querySelector('#lmCanvas').dispatchEvent(new w.Event('pointerup', { bubbles: true }));
+    const nj = nodes5().filter(n => n.type === 'junction').length;
+    ptr(host5.querySelector('[data-edge="' + eSel.id + '"]'), 5, 5); // sélectionne le parcours -> inspecteur
+    const splitBtn = host5.querySelector('#lmSplit');
+    check('détail d\'un parcours : bouton « Insérer un point de passage »', !!splitBtn);
+    if (splitBtn) splitBtn.click();
+    check('…un clic coupe le parcours en son milieu', nodes5().filter(n => n.type === 'junction').length === nj + 1);
+    // Se balader : la barre d'état est cachée hors du mode, puis on se place sur le Début sans rien sélectionner
+    const now5 = host5.querySelector('#lmNow');
+    check('hors du mode « se balader », la barre d\'état est cachée', !!now5 && now5.hidden === true && /\.lm-now\[hidden\]\s*\{\s*display:\s*none/.test(fs.readFileSync(path.join(__dirname, 'projet-carte.js'), 'utf8')));
+    v5v.destroy();
     // Panneaux « Sons » et « Détail » repliables, choix retenu
     const wrap4 = host4.querySelector('.lm-wrap');
     check('panneaux dépliés au départ', !wrap4.classList.contains('lib-c') && !wrap4.classList.contains('insp-c') && host4.querySelector('[data-collapse="lib"]').getAttribute('aria-expanded') === 'true');
