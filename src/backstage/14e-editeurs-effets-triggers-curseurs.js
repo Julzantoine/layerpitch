@@ -299,6 +299,8 @@ function fxStepsClean(steps, depth) {
   const out = (Array.isArray(steps) ? steps : []).filter(x => x && x.id).map(x => {
     const c = { id: x.id, label: x.label || '', delaySec: +x.delaySec > 0 ? +x.delaySec : 0, fx: x.fx || {} };
     if (+x.durationSec > 0) c.durationSec = +x.durationSec;
+    if (x.fadeSec != null && x.fadeSec !== '' && +x.fadeSec >= 0) c.fadeSec = +x.fadeSec;
+    if (x.fadeOutSec != null && x.fadeOutSec !== '' && +x.fadeOutSec >= 0) c.fadeOutSec = +x.fadeOutSec;
     const kids = depth < FX_STEP_MAX_DEPTH ? fxStepsClean(x.children, depth + 1) : undefined;
     if (kids) c.children = kids;
     return c;
@@ -349,6 +351,10 @@ function fxStepRowsHtml(trg, steps, parentPath, depth, attrs) {
             <input type="number" step="0.1" min="0" data-field="fxStep" data-fxs-prop="delaySec" ${sAttrs} value="${+st.delaySec || 0}" style="width:100%"></div>
           <div><label style="font-size:0.85em">${tr('fxStepDurationLabel')}</label>
             <input type="number" step="0.1" min="0" placeholder="${escapeAttr(tr('fxStepDurationPlaceholder'))}" data-field="fxStep" data-fxs-prop="durationSec" ${sAttrs} value="${+st.durationSec > 0 ? +st.durationSec : ''}" style="width:100%"></div>
+          <div><label style="font-size:0.85em">${tr('fxTriggerFadeLabel')}</label>
+            <input type="number" step="0.05" min="0" max="10" placeholder="${escapeAttr(tr('fxStepFadePlaceholder'))}" data-field="fxStep" data-fxs-prop="fadeSec" ${sAttrs} value="${st.fadeSec != null ? st.fadeSec : ''}" style="width:100%"></div>
+          <div><label style="font-size:0.85em">${tr('fxTriggerFadeOutLabel')}</label>
+            <input type="number" step="0.05" min="0" max="10" placeholder="${escapeAttr(tr('fxStepFadePlaceholder'))}" data-field="fxStep" data-fxs-prop="fadeOutSec" ${sAttrs} value="${st.fadeOutSec != null ? st.fadeOutSec : ''}" style="width:100%"></div>
           <button class="btn btn-icon btn-danger" type="button" data-action="remove-fx-step" ${sAttrs} title="${escapeAttr(tr('removeFxStepBtn'))}" style="align-self:flex-end">×</button>
         </div>
         <div class="hint-inline">${tr(depth === 1 ? 'fxStepDelayHint' : 'fxStepChildDelayHint')} ${tr('fxStepDurationHint')}</div>
@@ -450,7 +456,6 @@ function fxTriggersEditorHtml(track, ti) {
           <summary style="cursor:pointer;font-weight:600;font-size:0.9em">${tr('fxSectionTitle')} <span class="hint-inline" style="margin:0 0 0 6px;font-weight:400">${tr('fxTriggerEffectsCount', { n: Object.keys(trg.fx || {}).length })}</span></summary>
   ${fxBlockHtml(trg.fx, `data-fx-target="trigger" ${attrs}`)}
         </details>
-        ${fxCascadeHtml(trg, attrs)}
         <label class="switch-row" style="margin-top:8px">
           <input type="checkbox" data-field="fxTrigger" data-fxt-prop="visible" ${attrs} ${trg.visible ? 'checked' : ''}>
           <span class="switch-row-label">${tr('fxTriggerVisibleLabel')}</span>
@@ -471,6 +476,7 @@ function fxTriggersEditorHtml(track, ti) {
           <input type="number" step="0.5" min="0" placeholder="${tr('fxAutoOffPlaceholder')}" data-field="fxTrigger" data-fxt-prop="autoOffSec" style="width:100%" ${attrs} value="${trg.relations && trg.relations.autoOffSec != null ? trg.relations.autoOffSec : ''}"></div>
         <div class="hint-inline">${tr('fxAutoOffHint')}</div>
         ${(trg.steps || []).length ? `<div class="hint-inline">${tr('fxAutoOffCascadeNote')}</div>` : ''}
+        ${fxCascadeHtml(trg, attrs)}
         ${fxRelationsEditorHtml(triggers, i, trg, attrs)}
       </details>`;
   }).join('');

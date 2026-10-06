@@ -135,6 +135,21 @@ const path = require('path');
   check('durée de l\'étape enregistrée et publiée', ev('library[0].fxTriggers[0].steps[0].durationSec') === 4 && ev('buildDataSnapshot("pro", 1)').library[0].fxTriggers[0].steps[0].durationSec === 4);
   input(dur, '');
   check('champ vidé : plus de durée (jusqu\'à la fin)', ev('library[0].fxTriggers[0].steps[0].durationSec') === undefined);
+  // fondus propres à l'étape (vide = ceux du trigger)
+  const ff = core.expandTriggerSteps([{ id: 'R', target: { type: 'track' }, fx: {}, fadeSec: 1, fadeOutSec: 2, steps: [{ id: 'a', delaySec: 0, fx: {}, fadeSec: 0.2 }, { id: 'b', delaySec: 0, fx: {} }] }]);
+  check('fondus : l\'étape qui en a un garde le sien, l\'autre hérite du trigger', ff[1].fadeSec === 0.2 && ff[1].fadeOutSec === 2 && ff[2].fadeSec === 1 && ff[2].fadeOutSec === 2);
+  const fin = doc.querySelector('[data-fxs-prop="fadeSec"][data-sti="0"]'), fout = doc.querySelector('[data-fxs-prop="fadeOutSec"][data-sti="0"]');
+  check('éditeur : fondus d\'entrée et de sortie par étape, vides par défaut', !!fin && !!fout && fin.value === '' && fout.value === '');
+  input(fin, '0.5'); input(fout, '3');
+  const ps = ev('buildDataSnapshot("pro", 1)').library[0].fxTriggers[0].steps[0];
+  check('fondus de l\'étape enregistrés et publiés', ps.fadeSec === 0.5 && ps.fadeOutSec === 3);
+  input(fin, '');
+  check('fondu vidé : redevient celui du trigger', ev('library[0].fxTriggers[0].steps[0].fadeSec') === undefined);
+  // ordre dans la carte : réglages du trigger (durée de retour automatique) AVANT la cascade, relations APRÈS
+  const card = doc.querySelector('details[data-fxt-section-key^="c:"]');
+  const html = card ? card.innerHTML : '';
+  const iAuto = html.indexOf('data-fxt-prop="autoOffSec"'), iCasc = html.indexOf('data-action="add-fx-step"'), iRel = html.indexOf('data-field="fxRel"') >= 0 ? html.indexOf('data-field="fxRel"') : html.indexOf('Relations');
+  check('carte du trigger : réglages (fondus, durée) avant la cascade', iAuto > 0 && iCasc > iAuto);
   // Hiérarchie visuelle : plus l'étape est éloignée, plus elle est décalée ; même délai = même niveau ; ordre d'affichage = ordre de départ
   const lv = ev("fxStepLevels([{ id: 'a', delaySec: 5 }, { id: 'b', delaySec: 0 }, { id: 'c', delaySec: 2 }, { id: 'd', delaySec: 2 }]).map(x => x.st.id + x.level).join(',')");
   check('niveaux : 0 s -> 1, 2 s -> 2 (partagé), 5 s -> 3, affichés dans l\'ordre du temps', lv === 'b1,c2,d2,a3');

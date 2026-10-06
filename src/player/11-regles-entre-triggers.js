@@ -14,7 +14,7 @@
 // ---- Cascade par étapes (6/10) ----
 // trigger.steps = [{ id, label?, delaySec, durationSec?, fx, children?:[étapes] }] : des groupes d'effets qui démarrent delaySec
 // secondes APRÈS LEUR PARENT (le trigger pour les étapes du premier niveau, l'étape-mère pour les enfants ; 0 = en même temps), et
-// qui durent durationSec (vide = jusqu'à la fin du trigger).
+// qui durent durationSec (vide = jusqu'à la fin du trigger), avec leurs propres fondus fadeSec / fadeOutSec (vide = ceux du trigger).
 // Pas de nouveau mécanisme : chaque étape devient un trigger invisible, relié au trigger d'origine (la RACINE) par « Active aussi »
 // avec son départ cumulé depuis l'appui (startSec) ; le moteur de règles ci-dessous, le lecteur et l'export vidéo les traitent
 // comme n'importe quelle cascade. Chaque étape a sa propre vie : la fin d'une étape (ou des effets propres du trigger) ne coupe
@@ -35,7 +35,8 @@ function expandTriggerSteps(triggers) {
         const id = parentId + '~' + (s.id || i);
         const start = startSec + (+s.delaySec > 0 ? +s.delaySec : 0);
         const dur = +s.durationSec > 0 ? +s.durationSec : 0;
-        kids.push({ id, label: s.label || '', target: d.target, fx: s.fx || {}, visible: false, fadeSec: d.fadeSec != null ? d.fadeSec : null, fadeOutSec: d.fadeOutSec != null ? d.fadeOutSec : null,
+        // Fondus : ceux de l'étape s'ils sont renseignés, sinon ceux du trigger.
+        kids.push({ id, label: s.label || '', target: d.target, fx: s.fx || {}, visible: false, fadeSec: s.fadeSec != null ? s.fadeSec : (d.fadeSec != null ? d.fadeSec : null), fadeOutSec: s.fadeOutSec != null ? s.fadeOutSec : (d.fadeOutSec != null ? d.fadeOutSec : null),
           relations: dur ? { autoOffSec: dur } : null, stepOf: parentId, rootId: d.id, startSec: start, durationSec: dur });
         walk(id, s.children, start, depth + 1);
       });
