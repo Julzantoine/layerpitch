@@ -415,6 +415,11 @@
       elapsed: () => (playing ? Math.max(0, ctx.currentTime - lpPlayStartedAt) : 0),
       // Prochain repère de la grille (mesure, temps, 2 ou 4 mesures) à partir de maintenant, en secondes d'horloge audio ; null si le
       // morceau ne joue pas encore. Tempo propre du morceau (bpm / temps par mesure).
+      // Couches d'un morceau en mode vertical (la Carte de niveau s'en sert : couche 1 en exploration, toutes en combat, réglable à la main).
+      // layerCount : nombre de couches (0 si le morceau n'a pas d'intensité) ; setIntensity(i) : de 0 (couche 1 seule) à layerCount - 1 (toutes).
+      layerCount: () => (track.mode === 'vertical' && profiles.length > 1 ? profiles.length : 0),
+      intensityLevel: () => level,
+      setIntensity(i) { const n = (track.mode === 'vertical' && profiles.length > 1) ? profiles.length : 0; if (n) applyIntensityLevel(Math.max(0, Math.min(n - 1, Math.round(+i) || 0)), true); },
       nextBoundary(grid) {
         if (!playing) return null;
         const tt = trackTempo(track);
@@ -484,10 +489,10 @@
   });
 
   // Changement d'intensité (mode vertical) : bouton 1/2/3, ou curseur qui franchit une limite de zone (26/09).
-  function applyIntensityLevel(lv) {
+  function applyIntensityLevel(lv, silent) {
     level = lv;
     notchDots.forEach(d => d.classList.toggle('active', parseInt(d.dataset.level, 10) === lv));
-    trackPublicEvent('intensity_change', { trackId: track.id, level });
+    if (!silent) trackPublicEvent('intensity_change', { trackId: track.id, level }); // silencieux quand c'est la Carte de niveau qui pilote
     if (!playing) return;
     const p = profiles[level];
     const now = ctx.currentTime;

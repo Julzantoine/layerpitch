@@ -314,6 +314,7 @@
       .lm-canvas.playing { cursor: pointer; } .lm-canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       .lm-now[hidden] { display: none; } /* sans cette règle, la barre vide restait visible hors du mode « se balader » */
       .lm-now { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; font-size: 12.5px; }
+      .lm-layers { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; } .lm-layers .btn { padding: 3px 10px; min-width: 32px; }
       .lm-now b { font-weight: 600; } .lm-now .lm-wait { color: var(--text-dim); font-family: var(--font-mono); font-size: 11.5px; }
       .lm-set { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 18px; }
       .lm-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; } .lm-row input[type="number"] { width: 80px; } .lm-row select { width: auto; flex: 1 1 130px; }
@@ -606,6 +607,7 @@
         if (st.play && audio && !typing) {
           if (ARROWS[ev.key]) { ev.preventDefault(); const [dx, dy] = ARROWS[ev.key]; const from = st.now && st.now.position; (from ? audio.step(dx, dy) : startFromSelection()).then(next => { const pos = audio.state.position; if (pos) { st.sel = { kind: pos.kind, id: pos.id }; drawCanvas(); renderInspector(); } }); return; }
           if (ev.key === ' ') { ev.preventDefault(); if (st.now && st.now.playing) audio.stop(1); else if (st.now && st.now.position) audio.resume(); else startFromSelection(); return; }
+          if (/^[0-9]$/.test(ev.key) && st.now && st.now.layers > 1) { ev.preventDefault(); audio.setIntensity(ev.key === '0' ? null : Math.min(st.now.layers - 1, +ev.key - 1)); return; } // 1-9 : couche ; 0 : automatique
           if (ev.key === 'c' || ev.key === 'C') { ev.preventDefault(); audio.setCombat(!(st.now && st.now.combat)); return; }
           if (ev.key === 'Escape') { ev.preventDefault(); togglePlay(false); return; }
         }
@@ -776,9 +778,13 @@
       box.innerHTML = n.position
         ? `<span><b>${esc(tr('map_nowAt'))}</b> ${esc(labelOf(map, n.position))}</span><span>♪ ${esc((n.music && n.music.title) || tr('map_nowSilence'))}</span>${n.room ? `<span>🌫 ${esc(n.room.title || n.room.id)}</span>` : ''}
           ${n.pendingAt != null ? `<span class="lm-wait">${esc(tr('map_nowWaiting'))}</span>` : ''}
+          ${n.layers > 1 ? `<span class="lm-layers" id="lmLayers"><b>${esc(tr('map_layers'))}</b>
+            <button class="btn${n.layerManual ? '' : ' primary'}" type="button" data-layer="auto" title="${esc(tr('map_layerAutoHint'))}">${esc(tr('map_layerAuto'))}</button>${Array.from({ length: n.layers }, (_, i) => `<button class="btn${n.layerManual && n.layerLevel === i ? ' primary' : ''}" type="button" data-layer="${i}" title="${esc(tr('map_layerHint', { n: i + 1 }))}">${i + 1}</button>`).join('')}
+            <span class="lm-wait">${esc(tr('map_layerNow', { n: (n.layerLevel || 0) + 1, total: n.layers }))}${n.fallback ? ' · ' + esc(tr('map_layerFallback')) : ''}</span></span>` : ''}
           <button class="btn${n.combat ? ' primary' : ''}" type="button" id="lmCombat" ${can ? '' : 'disabled'}>${esc(tr(n.combat ? 'map_combatOn' : 'map_combat'))}</button>
           <button class="btn" type="button" id="lmStopPlay">${esc(tr(n.playing ? 'map_pause' : 'map_resume'))}</button>`
         : `<span>${esc(tr('map_playHint'))}</span>`;
+      box.querySelectorAll('[data-layer]').forEach(b => { b.onclick = () => { audio.setIntensity(b.dataset.layer === 'auto' ? null : +b.dataset.layer); host.querySelector('#lmCanvas').focus(); }; });
       const c = box.querySelector('#lmCombat'); if (c) c.onclick = () => { audio.setCombat(!n.combat); host.querySelector('#lmCanvas').focus(); };
       const sp = box.querySelector('#lmStopPlay'); if (sp) sp.onclick = () => { if (n.playing) audio.stop(1); else audio.resume(); };
     }

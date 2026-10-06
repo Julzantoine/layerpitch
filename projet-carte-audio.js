@@ -16,11 +16,12 @@
   function createPlayer(env) {
     const model = M();
     let map = null;
-    const st = { playing: false, position: null, combat: false, music: null, room: null, pendingAt: null };
+    const st = { playing: false, position: null, combat: false, music: null, room: null, pendingAt: null, intensity: null /* choix manuel de couche (null = automatique) */, layerLevel: null };
     let musicVoice = null, roomVoice = null, stingerVoice = null, token = 0, cancelPending = null, lastMusicKey = null;
     const notify = () => { if (env.onChange) env.onChange(snapshot()); };
+    const layersOf = () => (musicVoice && musicVoice.layerCount ? (safe(() => musicVoice.layerCount()) || 0) : 0);
     const snapshot = () => ({ playing: st.playing, position: st.position && { kind: st.position.kind, id: st.position.id }, combat: st.combat,
-      music: st.music, room: st.room, pendingAt: st.pendingAt });
+      music: st.music, room: st.room, pendingAt: st.pendingAt, layers: layersOf(), layerLevel: st.layerLevel, layerManual: st.intensity != null, fallback: !!st.fallback });
     const itemAt = pos => (pos ? (pos.kind === 'edge' ? model.edgeById(map, pos.id) : model.nodeById(map, pos.id)) : null);
     const safe = fn => { try { return fn(); } catch (e) { return undefined; } };
 
@@ -30,8 +31,15 @@
       // Un point de passage sans son à lui est transparent : la musique en cours continue (le son du parcours qu'on emprunte).
       if (item.type === 'junction' && !((item.sounds && item.sounds.main) || []).length && st.music) return { ref: st.music, transition: model.resolveTransition(map, item) };
       const useCombat = st.combat && model.hasCombatSlot(map, st.position);
-      const list = (item.sounds && (useCombat ? item.sounds.combat : item.sounds.main)) || [];
-      return { ref: model.pickVariant(list, lastMusicKey), transition: model.resolveTransition(map, item) };
+      let list = (item.sounds && (useCombat ? item.sounds.combat : item.sounds.main)) || [];
+      // Exploration vide mais un morceau de combat posé : un compositeur peut se servir de la 1re couche d'un morceau à couches
+      // comme musique d'exploration. On joue donc ce morceau, à la couche 1 (repli ; ignoré si ce n'est pas un morceau à couches).
+      let fallback = false;
+      if (!useCombat && !list.length) {
+        const combat = ((item.sounds && item.sounds.combat) || []).filter(r => r && (r.kind === 'track' || r.kind === 'asset'));
+        if (combat.length && model.hasCombatSlot(map, st.position)) { list = combat; fallback = true; }
+      }
+      return { ref: model.pickVariant(list, lastMusicKey), transition: model.resolveTransition(map, item), fallback, role: useCombat ? 'combat' : 'explore' };
     }
 
     async function setRoom() {
@@ -51,13 +59,22 @@
     }
     let roomSeq = 0;
 
+    // Couche d'un morceau à couches : automatique (exploration = couche 1, combat = toutes) ou choisie à la main.
+    function applyLayer(voice, role) {
+      if (!voice || !voice.layerCount || !voice.setIntensity) { st.layerLevel = null; return; }
+      const n = safe(() => voice.layerCount()) || 0;
+      if (n < 2) { st.layerLevel = null; return; }
+      const want = st.intensity != null ? Math.max(0, Math.min(n - 1, st.intensity)) : (role === 'combat' ? n - 1 : 0);
+      safe(() => voice.setIntensity(want)); st.layerLevel = want;
+    }
     async function enter() {
       const my = ++token;
       if (cancelPending) { cancelPending(); cancelPending = null; st.pendingAt = null; }
       setRoom();
       const want = wantedMusic();
       const newKey = want && want.ref ? model.refKey(want.ref) : null;
-      if (newKey === lastMusicKey && musicVoice) { st.music = want.ref; notify(); return; } // même son : on le laisse jouer
+      st.fallback = !!(want && want.fallback);
+      if (newKey === lastMusicKey && musicVoice) { st.music = want.ref; applyLayer(musicVoice, want.role); notify(); return; } // même son : on le laisse jouer (la couche suit l'état exploration / combat)
       const tr = want ? want.transition : model.resolveTransition(map, null);
       const incomingPromise = want && want.ref ? env.voiceFactory(want.ref) : Promise.resolve(null);
       const outgoing = musicVoice;
@@ -67,8 +84,11 @@
       const run = async () => {
         if (my !== token) return;
         cancelPending = null; st.pendingAt = null;
-        const incoming = await incomingPromise;
+        let incoming = await incomingPromise;
         if (my !== token) return;
+        // Repli d'exploration sur un morceau qui n'a pas de couches : ce n'est pas de la musique d'exploration, on reste sans son.
+        if (want && want.fallback && incoming && !((incoming.layerCount && safe(() => incoming.layerCount())) > 1)) incoming = null;
+        if (incoming) applyLayer(incoming, want && want.role); else st.layerLevel = null;
         const sec = Math.max(0, tr.sec || 0);
         if (stingerVoice) { const sv = stingerVoice; stingerVoice = null; safe(() => sv.stop()); }
         if (tr.stinger) env.voiceFactory(tr.stinger).then(v => { if (v && my === token) { stingerVoice = v; v.start(1); } });
@@ -95,6 +115,7 @@
       // Se placer sur un élément ou un parcours : démarre la lecture si besoin.
       async goTo(target) {
         if (!map || !model.pointOf(map, target)) return false;
+        if (!st.position || st.position.kind !== target.kind || st.position.id !== target.id) st.intensity = null; // nouveau lieu : la couche redevient automatique
         st.position = { kind: target.kind, id: target.id };
         if (!model.hasCombatSlot(map, st.position)) st.combat = false;
         st.playing = true; await enter(); return true;
@@ -106,11 +127,18 @@
         if (next) await this.goTo(next);
         return next;
       },
+      // Couche à entendre (morceau à couches) : i = 0 (couche 1 seule) ... n - 1 (toutes) ; null = automatique.
+      setIntensity(i) {
+        st.intensity = i == null ? null : Math.max(0, Math.round(+i) || 0);
+        if (musicVoice) applyLayer(musicVoice, st.combat && model.hasCombatSlot(map, st.position) ? 'combat' : 'explore');
+        notify();
+      },
       async setCombat(on) {
         if (!map || !st.position) return false;
         const want = !!on && model.hasCombatSlot(map, st.position);
         if (want === st.combat) return want;
-        st.combat = want; if (st.playing) await enter(); else notify();
+        st.combat = want; st.intensity = null; // le combat change la couche : retour à l'automatique
+        if (st.playing) await enter(); else notify();
         return want;
       },
       // Tout s'éteint en douceur ; la position est gardée pour reprendre.
