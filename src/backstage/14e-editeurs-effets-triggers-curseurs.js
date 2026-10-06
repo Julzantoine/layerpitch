@@ -6,6 +6,80 @@
 // à quel objet appliquer le réglage (couche, boucle, emplacement séquentiel, pool vertical-random). Les
 // 4 fonctions fooFxHtml ci-dessous ne sont que des façades qui fixent extraAttrs pour chaque cas, pour
 // ne jamais dupliquer le markup des 4 effets à chaque nouveau mode qui les gagne.
+// Courbe de réponse d'un filtre (Butterworth : l'ordre vaut raideur / 6, soit 12 dB par octave = ordre 2). Axe horizontal logarithmique
+// 20 Hz -> 20 kHz, axe vertical 0 -> -60 dB. Pure : renvoie le contenu du SVG, réutilisée pour la mise à jour en direct.
+const FX_GRAPH = { w: 260, h: 96, padL: 26, padR: 8, padT: 6, padB: 16, minDb: -60 };
+function fxFilterGain(kind, f, fc, slope) {
+  const n = (+slope || 24) / 6;
+  const ratio = kind === 'lowcut' ? fc / f : f / fc;
+  return -10 * Math.log10(1 + Math.pow(ratio, 2 * n));
+}
+function fxFilterGraphInner(kind, freq, slope) {
+  const g = FX_GRAPH, iw = g.w - g.padL - g.padR, ih = g.h - g.padT - g.padB;
+  const lo = Math.log10(20), span = Math.log10(20000) - lo;
+  const X = f => g.padL + (Math.log10(Math.min(20000, Math.max(20, f))) - lo) / span * iw;
+  const Y = db => g.padT + Math.min(1, Math.max(0, -db / -g.minDb)) * ih;
+  const fc = Math.min(20000, Math.max(20, +freq || (kind === 'lowcut' ? 150 : 3000)));
+  const pts = [];
+  for (let i = 0; i <= 120; i++) { const f = Math.pow(10, lo + span * i / 120); pts.push(X(f).toFixed(1) + ',' + Y(fxFilterGain(kind, f, fc, slope)).toFixed(1)); }
+  const base = (g.padT + ih).toFixed(1);
+  const grid = [100, 1000, 10000].map(f => `<line x1="${X(f).toFixed(1)}" x2="${X(f).toFixed(1)}" y1="${g.padT}" y2="${base}" stroke="var(--border,#ddd)" stroke-width="1"/><text x="${X(f).toFixed(1)}" y="${g.h - 3}" text-anchor="middle" font-size="9" fill="var(--text-dim,#888)">${f >= 1000 ? (f / 1000) + 'k' : f}</text>`).join('')
+    + [0, -20, -40, -60].map(db => `<line x1="${g.padL}" x2="${g.w - g.padR}" y1="${Y(db).toFixed(1)}" y2="${Y(db).toFixed(1)}" stroke="var(--border,#ddd)" stroke-width="1"/><text x="${g.padL - 3}" y="${(Y(db) + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--text-dim,#888)">${db}</text>`).join('');
+  const fcLabel = (fc >= 1000 ? (Math.round(fc / 100) / 10) + ' kHz' : Math.round(fc) + ' Hz');
+  const right = X(fc) > g.w / 2;
+  return grid
+    + `<polygon points="${g.padL},${base} ${pts.join(' ')} ${(g.w - g.padR)},${base}" fill="var(--accent,#2f80c0)" opacity="0.14"/>`
+    + `<polyline points="${pts.join(' ')}" fill="none" stroke="var(--accent,#2f80c0)" stroke-width="2" stroke-linejoin="round"/>`
+    + `<line x1="${X(fc).toFixed(1)}" x2="${X(fc).toFixed(1)}" y1="${g.padT}" y2="${base}" stroke="var(--accent,#2f80c0)" stroke-width="1" stroke-dasharray="3 3"/>`
+    + `<text x="${(X(fc) + (right ? -4 : 4)).toFixed(1)}" y="${g.padT + 9}" text-anchor="${right ? 'end' : 'start'}" font-size="10" font-weight="600" fill="var(--accent,#2f80c0)">${fcLabel}</text>`;
+}
+function fxFilterGraphHtml(kind, freq, slope) {
+  return `<svg data-fx-graph="${kind}" viewBox="0 0 ${FX_GRAPH.w} ${FX_GRAPH.h}" width="100%" style="max-width:340px;display:block;margin-top:6px" role="img" aria-label="${escapeAttr(tr('fxGraphLabel'))}">${fxFilterGraphInner(kind, freq, slope)}</svg>`;
+}
+// Mise à jour en direct quand on change la fréquence ou la raideur.
+document.addEventListener('input', e => {
+  const t = e.target, k = t && t.dataset && t.dataset.fxEffect;
+  if (!t.dataset || t.dataset.field !== 'fx' || (k !== 'lowcut' && k !== 'highcut')) return;
+  const box = t.closest('[data-fx-box]'), svg = box && box.querySelector('svg[data-fx-graph]');
+  if (!svg) return;
+  const f = box.querySelector('[data-fx-param="frequency"]'), sl = box.querySelector('[data-fx-param="slope"]');
+  svg.innerHTML = fxFilterGraphInner(k, f && f.value, sl && sl.value);
+}, true);
+
+// Paliers « léger / moyen / dur » : un clic remplit les champs du réglage (mêmes événements que la frappe : rien d'autre à câbler).
+// Filtres : seule la fréquence change (la raideur reste celle choisie).
+const FX_PRESETS = {
+  lowcut:   [{ frequency: 80 }, { frequency: 200 }, { frequency: 500 }],
+  highcut:  [{ frequency: 12000 }, { frequency: 5000 }, { frequency: 1500 }],
+  reverb:   [{ decay: 0.8, wet: 0.2 }, { decay: 2, wet: 0.3 }, { decay: 5, wet: 0.45 }],
+  delay:    [{ time: 0.12, feedback: 0.2, wet: 0.2 }, { time: 0.3, feedback: 0.35, wet: 0.25 }, { time: 0.6, feedback: 0.5, wet: 0.3 }],
+  bitcrush: [{ bits: 10, reduction: 2 }, { bits: 6, reduction: 6 }, { bits: 3, reduction: 12 }]
+};
+const FX_PRESET_KEYS = ['fxPresetLight', 'fxPresetMedium', 'fxPresetHard'];
+function fxPresetMatches(effect, level, cur) {
+  const p = FX_PRESETS[effect][level];
+  return !!cur && Object.keys(p).every(k => +cur[k] === p[k]);
+}
+function fxPresetsHtml(effect, cur, disabled) {
+  return `<div style="margin-top:6px;display:flex;align-items:center;gap:4px;flex-wrap:wrap" data-fx-presets="${effect}">
+    <span class="hint-inline" style="margin:0 4px 0 0">${tr('fxPresetsLabel')}</span>
+    ${FX_PRESET_KEYS.map((k, i) => `<button type="button" class="btn btn-small${fxPresetMatches(effect, i, cur) ? ' primary' : ''}" data-fx-preset="${effect}" data-fx-level="${i}" ${disabled ? 'disabled' : ''}>${tr(k)}</button>`).join('')}
+  </div>`;
+}
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-fx-preset]');
+  if (!btn || btn.disabled) return;
+  const effect = btn.dataset.fxPreset, preset = FX_PRESETS[effect] && FX_PRESETS[effect][+btn.dataset.fxLevel];
+  const box = btn.closest('[data-fx-box]');
+  if (!preset || !box) return;
+  Object.keys(preset).forEach(param => {
+    const input = box.querySelector(`[data-fx-param="${param}"]`);
+    if (!input) return;
+    input.value = String(preset[param]);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  btn.closest('[data-fx-presets]').querySelectorAll('[data-fx-preset]').forEach(b => b.classList.toggle('primary', b === btn));
+});
 function fxBlockHtml(fx, extraAttrs) {
   fx = fx || {};
   const lc = fx.lowcut, hc = fx.highcut, r = fx.reverb, d = fx.delay, b = fx.bitcrush;
@@ -69,14 +143,18 @@ function fxBlockHtml(fx, extraAttrs) {
         const c = k === 'lowcut' ? lc : hc;
         const slopeVal = c && (+c.slope === 12 || +c.slope === 48) ? +c.slope : 24;
         return toggle(k, !!c, k === 'lowcut' ? 'fxLowcutLabel' : 'fxHighcutLabel', `
+        <div data-fx-box="${k}">
         <div class="hint-inline">${tr(k === 'lowcut' ? 'fxLowcutHint' : 'fxHighcutHint')}</div>
         ${num(k, 'frequency', c ? c.frequency : (k === 'lowcut' ? 150 : 3000), 'fxFrequencyLabel', 10, 20, 20000)}
         <div style="margin-top:4px"><label style="font-size:0.85em">${tr('fxSlopeLabel')}</label>
           <select data-field="fx" data-fx-effect="${k}" data-fx-param="slope" ${extraAttrs} ${gated ? 'disabled' : ''}>
             ${[12, 24, 48].map(v => `<option value="${v}" ${slopeVal === v ? 'selected' : ''}>${tr('fxSlopeOption', { db: v })}</option>`).join('')}
           </select></div>
+        ${fxFilterGraphHtml(k, c ? c.frequency : (k === 'lowcut' ? 150 : 3000), slopeVal)}
+        ${fxPresetsHtml(k, c, gated)}
         ${isTriggerBlock ? '' : numOptional(k, 'fadeFromFrequency', c ? c.fadeFromFrequency : null, 'fxFadeFromFreqLabel', 10)}
         ${isTriggerBlock ? '' : numOptional(k, 'fadeDurationSec', c ? c.fadeDurationSec : null, 'fxFadeDurationLabel', 0.1)}
+        </div>
       `);
       }).join('')}
       ${toggle('pitch', !!fx.pitch, 'fxPitchLabel', `
@@ -89,19 +167,22 @@ function fxBlockHtml(fx, extraAttrs) {
         <div class="hint-inline">${tr(fx.pitch && fx.pitch.mode === 'rate' ? 'fxPitchModeRateTriggerHint' : 'fxPitchModeShiftHint')}</div>` : `<div class="hint-inline">${tr('fxPitchModeShiftHint')}</div>`}
         ${num('pitch', 'semitones', fx.pitch ? fx.pitch.semitones : 0, 'fxSemitonesLabel', 1, -24, 24, pitchDisabled)}
       `, pitchDisabled)}
-      ${toggle('reverb', !!r, 'fxReverbLabel', `
+      ${toggle('reverb', !!r, 'fxReverbLabel', `<div data-fx-box="reverb">
+        ${fxPresetsHtml('reverb', r, gated)}
         ${num('reverb', 'decay', r ? r.decay : 2, 'fxDecayLabel', 0.1, 0.1, 10)}
         ${num('reverb', 'wet', r ? r.wet : 0.3, 'fxWetLabel', 0.05, 0, 1)}
-      `)}
-      ${toggle('delay', !!d, 'fxDelayLabel', `
+      </div>`)}
+      ${toggle('delay', !!d, 'fxDelayLabel', `<div data-fx-box="delay">
+        ${fxPresetsHtml('delay', d, gated)}
         ${num('delay', 'time', d ? d.time : 0.3, 'fxDelayTimeLabel', 0.01, 0.01, 2)}
         ${num('delay', 'feedback', d ? d.feedback : 0.35, 'fxFeedbackLabel', 0.05, 0, 0.9)}
         ${num('delay', 'wet', d ? d.wet : 0.25, 'fxWetLabel', 0.05, 0, 1)}
-      `)}
-      ${toggle('bitcrush', !!b, 'fxBitcrushLabel', `
+      </div>`)}
+      ${toggle('bitcrush', !!b, 'fxBitcrushLabel', `<div data-fx-box="bitcrush">
+        ${fxPresetsHtml('bitcrush', b, gated)}
         ${num('bitcrush', 'bits', b ? b.bits : 8, 'fxBitsLabel', 1, 1, 16)}
         ${num('bitcrush', 'reduction', b ? b.reduction : 1, 'fxReductionLabel', 1, 1, 50)}
-      `)}
+      </div>`)}
       </div>
     </div>
   `;
