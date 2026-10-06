@@ -895,3 +895,6 @@
   .cookie-reopen { position: fixed; left: 20px; bottom: 20px; z-index: 490; display: inline-flex; align-items: center; gap: 7px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px 8px 10px; font-size: 11px; color: var(--text-dim); cursor: pointer; box-shadow: 0 4px 14px rgba(20,18,14,0.1); }
   .cookie-reopen[hidden] { display: none; }
   .cookie-reopen:hover { color: var(--text); border-color: var(--text-dimmer); }
+
+/* Accès privé d'un AdReel (6/10) : les rangées gardent `hidden` malgré leur display:flex. */
+#appAccessPasswordRow[hidden], #appAccessMagicRow[hidden], #appAccessMagicOut[hidden] { display: none !important; }

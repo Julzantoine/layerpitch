@@ -26,6 +26,8 @@ async function signedAudioFor(trackId) {
       const sb = window.LayerPitchSupabaseClient;
       if (!sb) return null;
       const body = trackId.startsWith('sfx-') ? { sfxId: trackId.slice(4) } : { trackId };
+      // AdReel privé (6/10) : le secret de la page prouve le droit d'écoute des morceaux protégés qu'il contient.
+      if (window.__lpPrivateAccess && window.__lpPrivateAccess.secret) { body.adReelId = window.__lpPrivateAccess.adReelId; body.secret = window.__lpPrivateAccess.secret; }
       const { data, error } = await sb.getClient().functions.invoke('track-audio-url', { body });
       if (error || !data || !data.ok || data.protected === false || !data.files) {
         _signedAudio.set(trackId, { none: true, until: Date.now() + 60000 }); // pas d'accès (ou pas protégé) : on ne redemande pas à chaque fichier

@@ -63,7 +63,8 @@
   params.set('u', handle);
   if (isAdReelSlug) params.set('s', decodeURIComponent(second));
   params.set('__pretty', path + location.search);
-  location.replace('/' + targetFile + '?' + params.toString());
+  // location.hash : le jeton d'un lien privé (#k=...) ne part jamais vers un serveur, il doit juste survivre à la redirection.
+  location.replace('/' + targetFile + '?' + params.toString() + (location.hash || ''));
 })();
 </script>
 </body>

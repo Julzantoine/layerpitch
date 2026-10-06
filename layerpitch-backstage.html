@@ -906,6 +906,9 @@
   .cookie-reopen { position: fixed; left: 20px; bottom: 20px; z-index: 490; display: inline-flex; align-items: center; gap: 7px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px 8px 10px; font-size: 11px; color: var(--text-dim); cursor: pointer; box-shadow: 0 4px 14px rgba(20,18,14,0.1); }
   .cookie-reopen[hidden] { display: none; }
   .cookie-reopen:hover { color: var(--text); border-color: var(--text-dimmer); }
+
+/* Accès privé d'un AdReel (6/10) : les rangées gardent `hidden` malgré leur display:flex. */
+#appAccessPasswordRow[hidden], #appAccessMagicRow[hidden], #appAccessMagicOut[hidden] { display: none !important; }
 </style>
 </head>
 <body>
@@ -1477,6 +1480,27 @@
           </div>
           <div class="hint-inline" id="appSlugHint"></div>
           <div class="hint-inline" id="appSlugMsg" role="status"></div>
+          <!-- Accès privé (6/10) : mot de passe ou lien magique, enregistré tout de suite (pas à la publication) comme l'adresse.
+               Le secret n'est jamais relisible : le lien magique n'est montré qu'à sa création (migration 20261006010000). -->
+          <label style="margin-top:14px" data-i18n="adreelAccessLabel">Accès à cet AdReel</label>
+          <select id="appAccessMode" style="max-width:320px">
+            <option value="public" data-i18n="adreelAccessPublic">Public (toute personne qui a l'adresse)</option>
+            <option value="password" data-i18n="adreelAccessPassword">Privé : mot de passe</option>
+            <option value="magic" data-i18n="adreelAccessMagic">Privé : lien magique</option>
+          </select>
+          <div id="appAccessPasswordRow" hidden style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <input type="text" id="appAccessPassword" autocomplete="off" spellcheck="false" style="flex:1 1 160px;min-width:0" data-i18n-placeholder="adreelAccessPasswordPlaceholder">
+            <button class="btn btn-small" type="button" id="btnSaveAccessPassword" data-i18n="adreelAccessPasswordSave">Enregistrer le mot de passe</button>
+          </div>
+          <div id="appAccessMagicRow" hidden style="margin-top:6px">
+            <button class="btn btn-small" type="button" id="btnGenerateMagic" data-i18n="adreelAccessMagicGenerate">Générer le lien privé</button>
+            <div id="appAccessMagicOut" hidden style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+              <input type="text" id="appAccessMagicLink" readonly style="flex:1 1 220px;min-width:0">
+              <button class="btn btn-small" type="button" id="btnCopyMagic" data-i18n="adreelAccessCopy">Copier</button>
+            </div>
+          </div>
+          <div class="hint-inline" id="appAccessHint"></div>
+          <div class="hint-inline" id="appAccessMsg" role="status"></div>
         </fieldset>
 
         <!-- Admin seulement (23 septembre) : palier de publication forcé pour CET AdReel, pour vérifier son
@@ -1832,15 +1856,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791291148310"></script>
-<script src="layerpitch-appearance.js?v=1791291148310"></script>
-<script src="layerpitch-album-shared.js?v=1791291148310"></script>
-<script src="layerpitch-album-editor.js?v=1791291148310"></script>
-<script src="layerpitch-shell.js?v=1791291148310"></script>
-<script src="layerpitch-social-icons.js?v=1791291148310"></script>
-<script src="layerpitch-notify.js?v=1791291148310"></script>
-<script src="layerpitch-help.js?v=1791291148310"></script>
-<script src="player.js?v=1791291148310"></script>
+<script src="layerpitch-i18n.js?v=1791293747129"></script>
+<script src="layerpitch-appearance.js?v=1791293747129"></script>
+<script src="layerpitch-album-shared.js?v=1791293747129"></script>
+<script src="layerpitch-album-editor.js?v=1791293747129"></script>
+<script src="layerpitch-shell.js?v=1791293747129"></script>
+<script src="layerpitch-social-icons.js?v=1791293747129"></script>
+<script src="layerpitch-notify.js?v=1791293747129"></script>
+<script src="layerpitch-help.js?v=1791293747129"></script>
+<script src="player.js?v=1791293747129"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -11338,6 +11362,7 @@ function fillAppearanceFields() {
   document.getElementById('appLang').value = (ar && ar.lang) || 'fr';
   document.getElementById('appAllowIndexing').checked = !ar || ar.allowIndexing !== false;
   fillAdReelSlugField(ar);
+  fillAdReelAccessField(ar);
   document.getElementById('appAdminTierOverride').value = profile.adminTierOverride || '';
   const sep = Object.assign({}, DEFAULT_SEPARATOR, profile.theme.separator || {});
   document.getElementById('appSeparatorVisible').checked = !!sep.visible;
@@ -12112,6 +12137,69 @@ document.getElementById('btnSaveSlug').addEventListener('click', async () => {
     msg.textContent = e && e.hint === 'unpublished' ? tr('adreelSlugPublishFirst') : tr('errorPrefix', { message: (e && e.message) || String(e) });
   }
 });
+// Accès privé d'un AdReel (6/10) : réglé tout de suite côté serveur (set_ad_reel_access), jamais à la publication. Le jeton d'un lien
+// magique n'existe qu'à sa création : on l'affiche une fois, avec un bouton Copier.
+function fillAdReelAccessField(ar) {
+  const sel = document.getElementById('appAccessMode');
+  const mode = (ar && ar.accessMode) || 'public';
+  sel.value = mode;
+  const allowed = can('private_links');
+  sel.disabled = !allowed && mode === 'public';
+  document.getElementById('appAccessPasswordRow').hidden = mode !== 'password';
+  document.getElementById('appAccessMagicRow').hidden = mode !== 'magic';
+  document.getElementById('appAccessMagicOut').hidden = true;
+  document.getElementById('appAccessPassword').value = '';
+  document.getElementById('btnGenerateMagic').textContent = tr(mode === 'magic' ? 'adreelAccessMagicRegenerate' : 'adreelAccessMagicGenerate');
+  document.getElementById('appAccessHint').textContent = allowed ? tr('adreelAccessHint') : (flagOpen('private_links') ? tr('adreelAccessTierOnly') : tr('fxAdminOnlyHint'));
+  document.getElementById('appAccessMsg').textContent = '';
+}
+async function applyAdReelAccess(ar, mode, password) {
+  const msg = document.getElementById('appAccessMsg');
+  msg.textContent = '…';
+  try {
+    await loadPostgresReadScripts();
+    const r = await window.LayerPitchAdReels.setAdReelAccess(ar.id, mode, password);
+    if (!r.ok) {
+      msg.textContent = r.hint === 'unpublished' ? tr('adreelAccessPublishFirst') : r.hint === 'short' ? tr('adreelAccessShort') : tr('errorPrefix', { message: r.error });
+      fillAdReelAccessField(ar);
+      return null;
+    }
+    ar.accessMode = r.mode;
+    fillAdReelAccessField(ar);
+    msg.textContent = tr(r.mode === 'public' ? 'adreelAccessNowPublic' : r.mode === 'password' ? 'adreelAccessPasswordSet' : 'adreelAccessMagicSet');
+    return r;
+  } catch (e) { msg.textContent = tr('errorPrefix', { message: (e && e.message) || String(e) }); fillAdReelAccessField(ar); return null; }
+}
+document.getElementById('appAccessMode').addEventListener('change', async e => {
+  const ar = adReels.find(a => a.id === currentAdReelId);
+  if (!ar) return;
+  const mode = e.target.value;
+  if (mode === 'public') { await applyAdReelAccess(ar, 'public'); return; }
+  // Mot de passe / lien magique : rien n'est protégé tant que le mot de passe n'est pas enregistré ou le lien généré.
+  document.getElementById('appAccessPasswordRow').hidden = mode !== 'password';
+  document.getElementById('appAccessMagicRow').hidden = mode !== 'magic';
+  document.getElementById('appAccessMagicOut').hidden = true;
+  document.getElementById('appAccessMsg').textContent = tr('adreelAccessNotYet');
+});
+document.getElementById('btnSaveAccessPassword').addEventListener('click', async () => {
+  const ar = adReels.find(a => a.id === currentAdReelId);
+  if (ar) await applyAdReelAccess(ar, 'password', document.getElementById('appAccessPassword').value);
+});
+document.getElementById('btnGenerateMagic').addEventListener('click', async () => {
+  const ar = adReels.find(a => a.id === currentAdReelId);
+  if (!ar) return;
+  const r = await applyAdReelAccess(ar, 'magic');
+  if (!r || !r.token) return;
+  const base = computeAdReelUrl(ar.id);
+  document.getElementById('appAccessMagicLink').value = `${base}#k=${r.token}`;
+  document.getElementById('appAccessMagicOut').hidden = false;
+  document.getElementById('appAccessMsg').textContent = tr('adreelAccessMagicOnce');
+});
+document.getElementById('btnCopyMagic').addEventListener('click', async () => {
+  const input = document.getElementById('appAccessMagicLink');
+  try { await navigator.clipboard.writeText(input.value); document.getElementById('appAccessMsg').textContent = tr('adreelAccessCopied'); }
+  catch (e) { input.select(); }
+});
 document.getElementById('appAllowIndexing').addEventListener('change', e => {
   const ar = adReels.find(a => a.id === currentAdReelId);
   if (ar) { ar.allowIndexing = e.target.checked; hasUnsavedEdits = true; }
@@ -12612,6 +12700,7 @@ async function loadData(silent) {
       trackIds: a.trackIds ? a.trackIds.slice() : [],
       trackOverrides: a.trackOverrides ? JSON.parse(JSON.stringify(a.trackOverrides)) : {},
       allowIndexing: a.allowIndexing !== false,
+      accessMode: a.accessMode || 'public',
       slug: a.slug || null,
       blocks: migrateBlocks(a).map(b => {
         if (b.type === 'photo') return { ...b, images: (b.images || []).map(img => ({ file: img.file, originalFileName: img.originalFileName || null, pendingFile: null })) };

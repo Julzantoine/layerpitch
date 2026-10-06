@@ -569,6 +569,27 @@
           </div>
           <div class="hint-inline" id="appSlugHint"></div>
           <div class="hint-inline" id="appSlugMsg" role="status"></div>
+          <!-- Accès privé (6/10) : mot de passe ou lien magique, enregistré tout de suite (pas à la publication) comme l'adresse.
+               Le secret n'est jamais relisible : le lien magique n'est montré qu'à sa création (migration 20261006010000). -->
+          <label style="margin-top:14px" data-i18n="adreelAccessLabel">Accès à cet AdReel</label>
+          <select id="appAccessMode" style="max-width:320px">
+            <option value="public" data-i18n="adreelAccessPublic">Public (toute personne qui a l'adresse)</option>
+            <option value="password" data-i18n="adreelAccessPassword">Privé : mot de passe</option>
+            <option value="magic" data-i18n="adreelAccessMagic">Privé : lien magique</option>
+          </select>
+          <div id="appAccessPasswordRow" hidden style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <input type="text" id="appAccessPassword" autocomplete="off" spellcheck="false" style="flex:1 1 160px;min-width:0" data-i18n-placeholder="adreelAccessPasswordPlaceholder">
+            <button class="btn btn-small" type="button" id="btnSaveAccessPassword" data-i18n="adreelAccessPasswordSave">Enregistrer le mot de passe</button>
+          </div>
+          <div id="appAccessMagicRow" hidden style="margin-top:6px">
+            <button class="btn btn-small" type="button" id="btnGenerateMagic" data-i18n="adreelAccessMagicGenerate">Générer le lien privé</button>
+            <div id="appAccessMagicOut" hidden style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+              <input type="text" id="appAccessMagicLink" readonly style="flex:1 1 220px;min-width:0">
+              <button class="btn btn-small" type="button" id="btnCopyMagic" data-i18n="adreelAccessCopy">Copier</button>
+            </div>
+          </div>
+          <div class="hint-inline" id="appAccessHint"></div>
+          <div class="hint-inline" id="appAccessMsg" role="status"></div>
         </fieldset>
 
         <!-- Admin seulement (23 septembre) : palier de publication forcé pour CET AdReel, pour vérifier son
@@ -924,13 +945,13 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791291148310"></script>
-<script src="layerpitch-appearance.js?v=1791291148310"></script>
-<script src="layerpitch-album-shared.js?v=1791291148310"></script>
-<script src="layerpitch-album-editor.js?v=1791291148310"></script>
-<script src="layerpitch-shell.js?v=1791291148310"></script>
-<script src="layerpitch-social-icons.js?v=1791291148310"></script>
-<script src="layerpitch-notify.js?v=1791291148310"></script>
-<script src="layerpitch-help.js?v=1791291148310"></script>
-<script src="player.js?v=1791291148310"></script>
+<script src="layerpitch-i18n.js?v=1791293747129"></script>
+<script src="layerpitch-appearance.js?v=1791293747129"></script>
+<script src="layerpitch-album-shared.js?v=1791293747129"></script>
+<script src="layerpitch-album-editor.js?v=1791293747129"></script>
+<script src="layerpitch-shell.js?v=1791293747129"></script>
+<script src="layerpitch-social-icons.js?v=1791293747129"></script>
+<script src="layerpitch-notify.js?v=1791293747129"></script>
+<script src="layerpitch-help.js?v=1791293747129"></script>
+<script src="player.js?v=1791293747129"></script>
 <script>

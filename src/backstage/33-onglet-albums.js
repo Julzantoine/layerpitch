@@ -611,6 +611,69 @@ document.getElementById('btnSaveSlug').addEventListener('click', async () => {
     msg.textContent = e && e.hint === 'unpublished' ? tr('adreelSlugPublishFirst') : tr('errorPrefix', { message: (e && e.message) || String(e) });
   }
 });
+// Accès privé d'un AdReel (6/10) : réglé tout de suite côté serveur (set_ad_reel_access), jamais à la publication. Le jeton d'un lien
+// magique n'existe qu'à sa création : on l'affiche une fois, avec un bouton Copier.
+function fillAdReelAccessField(ar) {
+  const sel = document.getElementById('appAccessMode');
+  const mode = (ar && ar.accessMode) || 'public';
+  sel.value = mode;
+  const allowed = can('private_links');
+  sel.disabled = !allowed && mode === 'public';
+  document.getElementById('appAccessPasswordRow').hidden = mode !== 'password';
+  document.getElementById('appAccessMagicRow').hidden = mode !== 'magic';
+  document.getElementById('appAccessMagicOut').hidden = true;
+  document.getElementById('appAccessPassword').value = '';
+  document.getElementById('btnGenerateMagic').textContent = tr(mode === 'magic' ? 'adreelAccessMagicRegenerate' : 'adreelAccessMagicGenerate');
+  document.getElementById('appAccessHint').textContent = allowed ? tr('adreelAccessHint') : (flagOpen('private_links') ? tr('adreelAccessTierOnly') : tr('fxAdminOnlyHint'));
+  document.getElementById('appAccessMsg').textContent = '';
+}
+async function applyAdReelAccess(ar, mode, password) {
+  const msg = document.getElementById('appAccessMsg');
+  msg.textContent = '…';
+  try {
+    await loadPostgresReadScripts();
+    const r = await window.LayerPitchAdReels.setAdReelAccess(ar.id, mode, password);
+    if (!r.ok) {
+      msg.textContent = r.hint === 'unpublished' ? tr('adreelAccessPublishFirst') : r.hint === 'short' ? tr('adreelAccessShort') : tr('errorPrefix', { message: r.error });
+      fillAdReelAccessField(ar);
+      return null;
+    }
+    ar.accessMode = r.mode;
+    fillAdReelAccessField(ar);
+    msg.textContent = tr(r.mode === 'public' ? 'adreelAccessNowPublic' : r.mode === 'password' ? 'adreelAccessPasswordSet' : 'adreelAccessMagicSet');
+    return r;
+  } catch (e) { msg.textContent = tr('errorPrefix', { message: (e && e.message) || String(e) }); fillAdReelAccessField(ar); return null; }
+}
+document.getElementById('appAccessMode').addEventListener('change', async e => {
+  const ar = adReels.find(a => a.id === currentAdReelId);
+  if (!ar) return;
+  const mode = e.target.value;
+  if (mode === 'public') { await applyAdReelAccess(ar, 'public'); return; }
+  // Mot de passe / lien magique : rien n'est protégé tant que le mot de passe n'est pas enregistré ou le lien généré.
+  document.getElementById('appAccessPasswordRow').hidden = mode !== 'password';
+  document.getElementById('appAccessMagicRow').hidden = mode !== 'magic';
+  document.getElementById('appAccessMagicOut').hidden = true;
+  document.getElementById('appAccessMsg').textContent = tr('adreelAccessNotYet');
+});
+document.getElementById('btnSaveAccessPassword').addEventListener('click', async () => {
+  const ar = adReels.find(a => a.id === currentAdReelId);
+  if (ar) await applyAdReelAccess(ar, 'password', document.getElementById('appAccessPassword').value);
+});
+document.getElementById('btnGenerateMagic').addEventListener('click', async () => {
+  const ar = adReels.find(a => a.id === currentAdReelId);
+  if (!ar) return;
+  const r = await applyAdReelAccess(ar, 'magic');
+  if (!r || !r.token) return;
+  const base = computeAdReelUrl(ar.id);
+  document.getElementById('appAccessMagicLink').value = `${base}#k=${r.token}`;
+  document.getElementById('appAccessMagicOut').hidden = false;
+  document.getElementById('appAccessMsg').textContent = tr('adreelAccessMagicOnce');
+});
+document.getElementById('btnCopyMagic').addEventListener('click', async () => {
+  const input = document.getElementById('appAccessMagicLink');
+  try { await navigator.clipboard.writeText(input.value); document.getElementById('appAccessMsg').textContent = tr('adreelAccessCopied'); }
+  catch (e) { input.select(); }
+});
 document.getElementById('appAllowIndexing').addEventListener('change', e => {
   const ar = adReels.find(a => a.id === currentAdReelId);
   if (ar) { ar.allowIndexing = e.target.checked; hasUnsavedEdits = true; }

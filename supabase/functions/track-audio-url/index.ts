@@ -29,7 +29,9 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization') || '';
     const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, authHeader ? { global: { headers: { Authorization: authHeader } } } : undefined);
     const adminClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-    const { trackId, sfxId } = await req.json().catch(() => ({}));
+    const { trackId, sfxId, adReelId, secret } = await req.json().catch(() => ({}));
+    // AdReel privé (6/10) : secret de la page + id de l'AdReel, vérifiés par can_hear_track / can_hear_sfx à 3 paramètres.
+    const privateProof = typeof adReelId === 'string' && adReelId && typeof secret === 'string' && secret ? { p_ad_reel_id: adReelId, p_secret: secret } : null;
     const isSfx = typeof sfxId === 'string' && !!sfxId;
     const id = isSfx ? sfxId : trackId;
     if (!id || typeof id !== 'string' || /[/\\]|\.\./.test(id)) return json({ error: 'trackId ou sfxId invalide.' }, 400);
@@ -40,8 +42,8 @@ Deno.serve(async (req) => {
     if (!item) return json({ error: isSfx ? 'Sfx introuvable.' : 'Morceau introuvable.' }, 404);
     if (!item.protected) return json({ ok: true, protected: false });
     const { data: allowed, error: accessError } = isSfx
-      ? await callerClient.rpc('can_hear_sfx', { p_sfx_id: id })
-      : await callerClient.rpc('can_hear_track', { p_track_id: id });
+      ? await callerClient.rpc('can_hear_sfx', { p_sfx_id: id, ...(privateProof || {}) })
+      : await callerClient.rpc('can_hear_track', { p_track_id: id, ...(privateProof || {}) });
     if (accessError) { console.error('track-audio-url: can_hear', accessError); return json({ error: 'Erreur interne. Réessaie dans un instant.' }, 500); }
     if (!allowed) return json({ error: isSfx ? 'Cet effet sonore est protégé.' : 'Ce morceau est réservé aux acheteurs.' }, 403);
 
