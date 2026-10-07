@@ -37,6 +37,11 @@
     deleteSection: sectionId => rpc('delete_project_section', { p_section_id: sectionId }),
     setAssetSections: (assetId, sectionIds) => rpc('set_asset_sections', { p_asset_id: assetId, p_section_ids: sectionIds || [] }),
     addAssetsToSection: (sectionId, assetIds) => rpc('add_assets_to_section', { p_section_id: sectionId, p_asset_ids: assetIds }),
+    // Moodboard par section (migration 20261007040000) : épingles propres à chaque section, sur les mêmes objets.
+    sectionPins: id => rpc('list_section_pins', { p_project_id: id }),
+    pinInSection: (sectionId, assetId, pinned) => rpc('pin_asset_in_section', { p_section_id: sectionId, p_asset_id: assetId, p_pinned: !!pinned }),
+    starSectionPin: (sectionId, assetId, starred) => rpc('star_section_pin', { p_section_id: sectionId, p_asset_id: assetId, p_starred: !!starred }),
+    reorderSectionPins: (sectionId, assetIds) => rpc('reorder_section_pins', { p_section_id: sectionId, p_asset_ids: assetIds }),
     removeAssetsFromSection: (sectionId, assetIds) => rpc('remove_assets_from_section', { p_section_id: sectionId, p_asset_ids: assetIds }),
     create: (title, description, asStudio) => rpc('create_project', { p_title: title, p_description: description || '', p_as_studio: !!asStudio }),
     get: id => rpc('get_project', { p_project_id: id }),

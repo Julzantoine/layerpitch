@@ -13,7 +13,7 @@ const { JSDOM } = require('jsdom');
     const dom = new JSDOM('<div id="content"></div><div id="presence"></div>', { url: 'https://beta.layerpitch.com/projet.html?id=p1&lang=fr', runScripts: 'outside-only', pretendToBeVisual: true });
     const w = dom.window;
     w.eval(fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf8'));
-    const db = { sections: [], links: [], assets: [
+    const db = { sections: [], links: [], pins: [], mood: [], assets: [
       { id: 'a1', kind: 'image', origin: 'own', title: 'Forêt', fileId: 'f1', notes: 0, pinned: false },
       { id: 'a2', kind: 'image', origin: 'own', title: 'Château', fileId: 'f2', notes: 0, pinned: false },
       { id: 'v1', kind: 'video', origin: 'own', title: 'Trailer', url: 'https://youtu.be/abcdefghij', notes: 0, pinned: false }], n: 0 };
@@ -22,7 +22,7 @@ const { JSDOM } = require('jsdom');
     const P = {
       PRIVATE: '__me',
       get: () => ok({ id: 'p1', title: 'Hollow Manor', description: '', role: 'admin', archived: false, members: [] }),
-      content: () => ok({ assets: db.assets.map(a => Object.assign({}, a)), moodboard: [], packs: [], albums: [] }),
+      content: () => ok({ assets: db.assets.map(a => Object.assign({}, a)), moodboard: db.mood.slice(), packs: [], albums: [] }),
       snapshots: () => ok([]), activity: () => ok([]), vitrines: () => ok([]), listMaps: () => ok([]),
       demoStatus: () => ok({ eligible: false }), markRead: () => ok(null), markSeen: () => ok(null), messages: () => ok([]), annotations: () => ok([]),
       fileUrl: () => ok('https://example.test/x.png'),
@@ -32,6 +32,11 @@ const { JSDOM } = require('jsdom');
       deleteSection: id => { const s = db.sections.find(x => x.id === id); db.sections.forEach(x => { if (x.parentId === id) x.parentId = s.parentId; }); db.sections = db.sections.filter(x => x.id !== id); db.links = db.links.filter(l => l.sectionId !== id); return ok(null); },
       moveSection: (id, parent) => { db.sections.find(s => s.id === id).parentId = parent || null; calls.push(['move', id, parent]); return ok(null); },
       setAssetSections: (assetId, ids) => { db.links = db.links.filter(l => l.assetId !== assetId).concat(ids.map(sectionId => ({ sectionId, assetId }))); calls.push(['set', assetId, ids]); return ok(null); },
+      sectionPins: () => ok(db.pins.map(k => Object.assign({}, k))),
+      pinInSection: (sid, assetId, on) => { calls.push(['pinIn', sid, assetId, on]); db.pins = db.pins.filter(k => !(k.sectionId === sid && k.assetId === assetId)); if (on) { db.pins.push({ sectionId: sid, assetId, position: db.pins.length, starred: false }); if (!db.links.some(l => l.sectionId === sid && l.assetId === assetId)) db.links.push({ sectionId: sid, assetId }); } return ok(null); },
+      starSectionPin: (sid, assetId, on) => { calls.push(['starPin', sid, assetId, on]); db.pins.find(k => k.sectionId === sid && k.assetId === assetId).starred = on; return ok(null); },
+      reorderSectionPins: () => ok(null),
+      pin: (assetId, on) => { calls.push(['pinGeneral', assetId, on]); const a = db.assets.find(x => x.id === assetId); a.pinned = on; db.mood = db.mood.filter(i => i !== assetId).concat(on ? [assetId] : []); return ok(null); },
       addAssetsToSection: (sid, ids) => { ids.forEach(assetId => { if (!db.links.some(l => l.sectionId === sid && l.assetId === assetId)) db.links.push({ sectionId: sid, assetId }); }); calls.push(['addTo', sid, ids]); return ok(null); },
       addAsset: (pid, p) => { const id = 'n' + (++db.n); db.assets.push({ id, kind: p.kind, origin: 'own', title: p.title || '', url: p.url || null, fileId: p.fileId || null, notes: 0, pinned: false }); return ok({ id }); },
     };
@@ -139,6 +144,28 @@ const { JSDOM } = require('jsdom');
   click(c.w, nav().querySelector('[data-secact="del"][data-id="s2"]')); await wait(200);
   check('supprimer demande confirmation et rend les objets au « non classé »', c.confirms.length === 1 && c.db.sections.length === 1 && !c.db.assets.every(a => !a) && c.db.assets.length >= 3);
   check('après suppression, retour à la réserve', !!nav().querySelector('.sec-row.on [data-pick="all"]') || !!nav().querySelector('.sec-row.on [data-pick="s1"]'));
+
+  // ---- Moodboard par section
+  await tab(c, 'board');
+  check('onglet Moodboard : colonne Sections avec « Moodboard général »', !!nav() && /Moodboard général/.test(nav().textContent) && !/Non classé/.test(nav().textContent));
+  click(c.w, nav().querySelector('[data-pick="s1"]')); await wait(150);
+  check('Moodboard de la section : son titre et son texte', /Niveau 1/.test(c.d.getElementById('panel').querySelector('h2').textContent) && /Moodboard de cette section/.test(c.d.getElementById('panel').textContent));
+  check('Moodboard de la section : pas de versions (général seulement)', !c.d.getElementById('snapBtn'));
+  const kind = c.d.getElementById('addKind'); kind.value = 'fromProject'; kind.dispatchEvent(new c.w.Event('change', { bubbles: true }));
+  c.d.getElementById('fAsset').value = 'a2'; click(c.w, c.d.getElementById('addBtn')); await wait(200);
+  check('épingler un objet du Projet dans le Moodboard de la section', c.db.pins.some(k => k.sectionId === 's1' && k.assetId === 'a2') && cards(c.d).includes('Château'));
+  check('le Moodboard général reste vide', c.db.mood.length === 0);
+  click(c.w, c.d.querySelector('[data-act="star"]')); await wait(150);
+  check('★ propre à ce Moodboard', c.db.pins.find(k => k.assetId === 'a2').starred === true);
+  click(c.w, c.d.querySelector('[data-act="moodcopy"]')); await wait(50);
+  const mb = [...c.d.querySelectorAll('.sec-dialog input[type="checkbox"]')];
+  check('copier : une case par Moodboard (général + sections), celle-ci cochée', mb.length === 2 && mb[0].value === '' && !mb[0].checked && mb[1].checked);
+  mb[0].checked = true; click(c.w, c.d.querySelector('.sec-dialog [data-x="save"]')); await wait(200);
+  check('copier vers le Moodboard général = épingle indépendante', c.calls.some(x => x[0] === 'pinGeneral' && x[1] === 'a2' && x[2] === true) && c.db.pins.some(k => k.assetId === 'a2'));
+  click(c.w, c.d.querySelector('[data-act="unpin"]')); await wait(150);
+  check('retirer du Moodboard de la section ne touche pas le général', !c.db.pins.some(k => k.assetId === 'a2') && c.db.mood.includes('a2'));
+  click(c.w, nav().querySelector('[data-pick="all"]')); await wait(150);
+  check('retour au Moodboard général : la carte y est', cards(c.d).includes('Château'));
 
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon');
   process.exit(failures ? 1 : 0);

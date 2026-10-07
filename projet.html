@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791380607197">
+<link rel="stylesheet" href="player.css?v=1791380864470">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -171,22 +171,22 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791380607197"></script>
-<script src="layerpitch-notify.js?v=1791380607197"></script>
-<script src="player.js?v=1791380607197"></script>
-<script src="api/supabase-client.js?v=1791380607197"></script>
-<script src="api/auth.js?v=1791380607197"></script>
-<script src="layerpitch-appearance.js?v=1791380607197"></script>
-<script src="layerpitch-shell.js?v=1791380607197"></script>
-<script src="api/tracks.js?v=1791380607197"></script>
-<script src="api/packs.js?v=1791380607197"></script>
-<script src="api/albums.js?v=1791380607197"></script>
-<script src="api/studio.js?v=1791380607197"></script>
-<script src="api/adreels.js?v=1791380607197"></script>
-<script src="api/projects.js?v=1791380607197"></script>
-<script src="api/sfx.js?v=1791380607197"></script>
-<script src="projet-carte-audio.js?v=1791380607197"></script>
-<script src="projet-carte.js?v=1791380607197"></script>
+<script src="layerpitch-i18n.js?v=1791380864470"></script>
+<script src="layerpitch-notify.js?v=1791380864470"></script>
+<script src="player.js?v=1791380864470"></script>
+<script src="api/supabase-client.js?v=1791380864470"></script>
+<script src="api/auth.js?v=1791380864470"></script>
+<script src="layerpitch-appearance.js?v=1791380864470"></script>
+<script src="layerpitch-shell.js?v=1791380864470"></script>
+<script src="api/tracks.js?v=1791380864470"></script>
+<script src="api/packs.js?v=1791380864470"></script>
+<script src="api/albums.js?v=1791380864470"></script>
+<script src="api/studio.js?v=1791380864470"></script>
+<script src="api/adreels.js?v=1791380864470"></script>
+<script src="api/projects.js?v=1791380864470"></script>
+<script src="api/sfx.js?v=1791380864470"></script>
+<script src="projet-carte-audio.js?v=1791380864470"></script>
+<script src="projet-carte.js?v=1791380864470"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -240,13 +240,15 @@ const S = { tab: 'board', project: null, content: null, messages: [], query: '',
 // ---- Sections (7/10, étape 1) : arbre libre ; un objet peut être dans plusieurs sections ; sans section = « non classé » ----
 // S.sections = { sections: [{ id, parentId, title, position }], links: [{ sectionId, assetId }] }, ou null tant que le feu vert
 // 'project_sections' est fermé (ou en démonstration) : alors rien n'apparaît. S.sel = 'all' | 'none' | identifiant de section.
-const SECTION_TABS = ['images', 'videos', 'music']; // le Moodboard reste général jusqu'à l'étape 2 (un Moodboard par section)
+const SECTION_TABS = ['board', 'images', 'videos', 'music']; // sur « Moodboard », la section choisie = son propre Moodboard
+S.secPins = [];
 S.sections = null; S.sel = 'all'; S.secEdit = null; S.secLocked = false;
 async function loadSections() {
   if (DEMO || S.secLocked) return;
   const r = await PJ.sections(projectId);
   if (r.error || !r.data) { S.secLocked = true; S.sections = null; return; }
   S.sections = { sections: r.data.sections || [], links: r.data.links || [] };
+  const pr = await PJ.sectionPins(projectId); S.secPins = pr.error ? [] : (pr.data || []);
   if (S.sel !== 'all' && S.sel !== 'none' && !secById(S.sel)) S.sel = 'all';
 }
 const secById = id => S.sections && S.sections.sections.find(x => x.id === id);
@@ -261,11 +263,15 @@ function inSelection(a) {
   const ids = new Set(secDescendants(S.sel));
   return mine.some(i => ids.has(i));
 }
+// Moodboard à l'écran : null = le général, sinon l'identifiant de la section choisie (sur « Non classé », le général).
+const boardSection = () => S.sections && S.tab === 'board' && S.sel !== 'all' && S.sel !== 'none' ? S.sel : null;
+const sectionPinned = (secId) => S.secPins.filter(k => k.sectionId === secId).sort((a, b) => a.position - b.position);
 const forSel = list => S.sections ? list.filter(inSelection) : list;
 // Un objet ajouté pendant qu'une section est choisie y est rangé tout de suite (il reste de toute façon dans la réserve).
 async function addAsset(id, payload, pin) {
-  const r = await PJ.addAsset(id, payload, pin);
-  if (!r.error && r.data && r.data.id && S.sections && S.sel !== 'all' && S.sel !== 'none') await PJ.addAssetsToSection(S.sel, [r.data.id]);
+  const sec = boardSection();
+  const r = await PJ.addAsset(id, payload, sec ? false : pin); // dans le Moodboard d'une section : épinglé là, pas au général
+  if (!r.error && r.data && r.data.id && S.sections && S.sel !== 'all' && S.sel !== 'none') await (sec && pin ? PJ.pinInSection(sec, r.data.id, true) : PJ.addAssetsToSection(S.sel, [r.data.id]));
   return r;
 }
 const secBtn = (a, cls) => S.sections ? `<button class="${cls || 'icon-btn'}" type="button" data-secassign="${esc(a.id)}" title="${esc(tr('secAssign'))}">🗂${assetSectionIds(a.id).length ? ' ' + assetSectionIds(a.id).length : ''}</button>` : '';
@@ -279,18 +285,19 @@ function renderSecNav() {
   const walk = (pid, depth) => secKids(pid).map(x => {
     const on = S.sel === x.id;
     const head = S.secEdit && S.secEdit.rename === x.id ? editRow(depth, x.title)
-      : `<div class="sec-row${on ? ' on' : ''}" data-dropsec="${esc(x.id)}" style="padding-left:${6 + depth * 14}px"><button type="button" class="sec-name" data-pick="${esc(x.id)}">${esc(x.title)}</button><span class="meta">${secCount(x.id)}</span>
+      : `<div class="sec-row${on ? ' on' : ''}" data-dropsec="${esc(x.id)}" style="padding-left:${6 + depth * 14}px"><button type="button" class="sec-name" data-pick="${esc(x.id)}">${esc(x.title)}</button><span class="meta">${S.tab === 'board' ? sectionPinned(x.id).length : secCount(x.id)}</span>
         ${on ? `<span class="sec-acts"><button class="icon-btn" type="button" data-secact="add" data-id="${esc(x.id)}" title="${esc(tr('secAddSub'))}">＋</button><button class="icon-btn" type="button" data-secact="rename" data-id="${esc(x.id)}" title="${esc(tr('secRename'))}">✎</button><button class="icon-btn" type="button" data-secact="move" data-id="${esc(x.id)}" title="${esc(tr('secMove'))}">⇄</button><button class="icon-btn" type="button" data-secact="del" data-id="${esc(x.id)}" title="${esc(tr('secDelete'))}">✕</button></span>` : ''}</div>`;
     return head + (S.secEdit && S.secEdit.add === x.id ? editRow(depth + 1) : '') + walk(x.id, depth + 1);
   }).join('');
   const picked = S.sel !== 'all' && S.sel !== 'none' ? secById(S.sel) : null;
   nav.innerHTML = `<h3>${esc(tr('secTitle'))}<button class="icon-btn" type="button" data-secact="add" data-id="" title="${esc(tr('secAdd'))}">＋</button></h3>
-    <div class="sec-row${S.sel === 'all' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="all">${esc(tr('secAll'))}</button><span class="meta">${assets.length}</span></div>
-    <div class="sec-row${S.sel === 'none' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="none">${esc(tr('secNone'))}</button><span class="meta">${none}</span></div>
+    ${S.tab === 'board' ? `<div class="sec-row${S.sel === 'all' || S.sel === 'none' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="all">${esc(tr('secBoardGeneral'))}</button><span class="meta">${(S.content.moodboard || []).length}</span></div>`
+    : `<div class="sec-row${S.sel === 'all' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="all">${esc(tr('secAll'))}</button><span class="meta">${assets.length}</span></div>
+    <div class="sec-row${S.sel === 'none' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="none">${esc(tr('secNone'))}</button><span class="meta">${none}</span></div>`}
     <div class="sec-sep"></div>
     ${S.sections.sections.length || (S.secEdit && S.secEdit.add === '') ? '' : `<div class="meta">${esc(tr('secEmpty'))}</div>`}
     ${walk(null, 0)}${S.secEdit && S.secEdit.add === '' ? editRow(0) : ''}
-    ${picked ? `<div class="sec-sep"></div><div class="meta">${esc(tr('secFilesHere', { title: picked.title }))}</div>` : ''}`;
+    ${picked ? `<div class="sec-sep"></div><div class="meta">${esc(tr(S.tab === 'board' ? 'secBoardHere' : 'secFilesHere', { title: picked.title }))}</div>` : ''}`;
   nav.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { S.sel = b.dataset.pick; S.secEdit = null; renderPanel(); });
   nav.querySelectorAll('[data-secact]').forEach(b => b.onclick = async () => {
     const id = b.dataset.id, act = b.dataset.secact;
@@ -338,6 +345,24 @@ function openAssignDialog(assetId) {
     const ids = [...box.querySelectorAll('input:checked')].map(i => i.value);
     if (secError(await PJ.setAssetSections(assetId, ids))) return;
     close(); await sectionsChanged();
+  };
+}
+// Copier une carte vers d'autres Moodboards : une épingle indépendante par Moodboard (ordre, ★, retrait), le même objet derrière.
+function openMoodboardsDialog(assetId) {
+  const a = assetById(assetId); if (!a || !S.sections) return;
+  const here = new Set(S.secPins.filter(k => k.assetId === assetId).map(k => k.sectionId)), flat = secFlat();
+  const { box, close } = openOverlay(`<h2>${esc(tr('moodCopyTitle', { title: assetTitle(a) }))}</h2><p class="hint">${esc(tr('moodCopyHint'))}</p>
+    <label class="sec-pick"><input type="checkbox" value="" ${a.pinned ? 'checked' : ''}> ${esc(tr('secBoardGeneral'))}</label>
+    ${flat.map(x => `<label class="sec-pick" style="padding-left:${(x.depth + 1) * 16}px"><input type="checkbox" value="${esc(x.id)}" ${here.has(x.id) ? 'checked' : ''}> ${esc(x.title)}</label>`).join('')}
+    <div class="bar" style="margin-top:12px;justify-content:flex-end"><button class="btn" type="button" data-x="cancel">${esc(tr('secCancel'))}</button><button class="btn primary" type="button" data-x="save">${esc(tr('save'))}</button></div>`);
+  box.querySelector('[data-x="cancel"]').onclick = close;
+  box.querySelector('[data-x="save"]').onclick = async () => {
+    for (const i of box.querySelectorAll('input[type="checkbox"]')) {
+      const want = i.checked;
+      if (i.value === '') { if (want !== !!a.pinned && secError(await PJ.pin(assetId, want))) return; }
+      else if (want !== here.has(i.value) && secError(await PJ.pinInSection(i.value, assetId, want))) return;
+    }
+    close(); await reloadContent(); renderPanel(); broadcast('content'); broadcast('sections');
   };
 }
 function openMoveDialog(id) {
@@ -529,14 +554,14 @@ async function renderOpenNotes() {
 async function renderPanel() {
   const panel = $('panel');
   if (!panel) return;
-  if (S.tab === 'board') return renderBoard(panel);
   if (S.tab === 'map') return renderMap(panel);
-  // Images / Vidéos / Musique : colonne « Sections » à gauche (si le feu vert est ouvert), l'onglet à droite.
+  // Moodboard / Images / Vidéos / Musique : colonne « Sections » à gauche (si le feu vert est ouvert), l'onglet à droite.
   let host = panel;
   if (S.sections && SECTION_TABS.includes(S.tab)) {
     panel.innerHTML = `<div class="sec-layout"><nav class="card sec-nav" id="secNav" aria-label="${esc(tr('secTitle'))}"></nav><div id="secMain" style="min-width:0"></div></div>`;
     renderSecNav(); host = $('secMain');
   }
+  if (S.tab === 'board') return renderBoard(host);
   if (S.tab === 'videos') return renderVideos(host);
   if (S.tab === 'images') return renderImages(host);
   if (S.tab === 'music') return renderMusic(host);
@@ -764,13 +789,16 @@ async function ensureMyTracks() {
 }
 async function renderBoard(panel) {
   await Promise.all([ensureMyPacks(), ensureMyTracks()]);
-  const pins = (S.content.moodboard || []).map(assetById).filter(Boolean);
-  const unpinned = (S.content.assets || []).filter(a => !a.pinned);
+  const sec = boardSection();
+  // Moodboard d'une section : ses propres épingles (ordre, ★), sur les mêmes objets de la réserve.
+  const pins = sec ? sectionPinned(sec).map(k => { const a = assetById(k.assetId); return a ? Object.assign({}, a, { starred: k.starred }) : null; }).filter(Boolean)
+    : (S.content.moodboard || []).map(assetById).filter(Boolean);
+  const unpinned = sec ? (S.content.assets || []).filter(a => !sectionPinned(sec).some(k => k.assetId === a.id)) : (S.content.assets || []).filter(a => !a.pinned);
   const shared = S.content.packs || [];
   const packChoices = [...S.myPacks.map(p => ({ id: p.id, title: p.title })), ...shared.filter(s => !S.myPacks.some(p => p.id === s.packId)).map(s => ({ id: s.packId, title: s.title }))];
   panel.innerHTML = `<div class="card">
-      <h2>${esc(tr('boardTitle'))}</h2>
-      <p class="hint">${esc(tr('boardIntro'))}</p>
+      <h2>${esc(tr('boardTitle'))}${sec ? ' · ' + esc(secById(sec).title) : ''}</h2>
+      <p class="hint">${esc(tr(sec ? 'boardSectionIntro' : 'boardIntro'))}</p>
       <div class="bar">
         <select id="addKind" style="max-width:240px">
           <option value="link">${esc(tr('kind_link'))}</option><option value="note">${esc(tr('kind_note'))}</option>
@@ -785,7 +813,7 @@ async function renderBoard(panel) {
       <div class="msg" id="boardMsg"></div>
     </div>
     <div class="grid" id="grid">${pins.length ? '' : `<div class="empty" style="grid-column:1/-1">${esc(tr('boardEmpty'))}</div>`}</div>
-    <div class="card" style="margin-top:14px">
+    ${sec ? '' : `<div class="card" style="margin-top:14px">
       <h2>${esc(tr('versionsTitle'))}</h2>
       <p class="hint">${esc(tr('versionsIntro'))}</p>
       <div class="bar"><input type="text" id="snapLabel" placeholder="${esc(tr('snapPlaceholder'))}" style="flex:1 1 220px"><button class="btn" id="snapBtn" type="button">${esc(tr('snapBtn'))}</button></div>
@@ -793,7 +821,7 @@ async function renderBoard(panel) {
         <select id="autoSnap" style="max-width:200px" ${S.project.role === 'admin' ? '' : 'disabled'}>${['off', 'daily', 'weekly'].map(m => `<option value="${m}"${(S.content.autoSnapshot || 'weekly') === m ? ' selected' : ''}>${esc(tr('autoSnap_' + m))}</option>`).join('')}</select>
         <span class="meta">${esc(tr('autoSnapHint'))}</span></div>
       <div id="snapList" style="margin-top:8px"></div><div class="msg" id="snapMsg"></div>
-    </div>`;
+    </div>`}`;
   const renderAddForm = () => {
     const kind = $('addKind').value;
     const f = $('addForm');
@@ -816,11 +844,12 @@ async function renderBoard(panel) {
     grid.dataset.sortable = 'grid';
     makeSortable(grid, async (f, t) => {
       const ids = pins.map(x => x.id); ids.splice(t, 0, ids.splice(f, 1)[0]);
-      const r = await PJ.reorderMoodboard(projectId, ids);
+      const r = sec ? await PJ.reorderSectionPins(sec, ids) : await PJ.reorderMoodboard(projectId, ids);
       if (r.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error }));
       await reloadContent(); renderPanel(); broadcast('content');
     });
   }
+  if (sec) return;
   $('autoSnap').onchange = async e => {
     const r = await PJ.setAutoSnapshot(projectId, e.target.value);
     if (r.error) return say('snapMsg', tr('errorPrefix', { message: r.error }));
@@ -864,7 +893,7 @@ async function addItem() {
     if (r.data && r.data.existed) window.LayerPitchNotify.info(tr('alreadyInProject'));
     await reloadContent(); renderPanel(); broadcast('content');
   };
-  if (kind === 'fromProject') return done(await PJ.pin(val('fAsset'), true));
+  if (kind === 'fromProject') return done(boardSection() ? await PJ.pinInSection(boardSection(), val('fAsset'), true) : await PJ.pin(val('fAsset'), true));
   let payload;
   if (kind === 'upload') {
     const file = $('fFile').files[0];
@@ -878,7 +907,7 @@ async function addItem() {
   else if (kind === 'note') payload = { kind, title: val('fTitle'), body: val('fBody') };
   else if (kind === 'track') payload = { kind, trackId: val('fTrack'), body: val('fBody') };
   else payload = { kind, packId: val('fPack'), body: val('fBody') };
-  done(await PJ.addAsset(projectId, payload, true));
+  done(await addAsset(projectId, payload, true));
 }
 // Aperçus (étape 2) : services connus seulement, même liste que l'Edge Function link-preview. Le lecteur n'est inséré que
 // si son adresse commence par l'un de ces préfixes (défense en profondeur : link-preview les vérifie déjà).
@@ -991,7 +1020,7 @@ async function assetCard(a, pins) {
     <div class="item-actions">
       <button class="icon-btn${a.starred ? ' on' : ''}" type="button" data-act="star" title="${esc(tr('pitchToggle'))}">★</button>
       ${pins.length > 1 ? dragHandle() : ''}
-      ${secBtn(a)}
+      ${secBtn(a)}${S.sections && S.sections.sections.length ? `<button class="icon-btn" type="button" data-act="moodcopy" title="${esc(tr('moodCopy'))}">⎘</button>` : ''}
       <button class="icon-btn" type="button" data-act="notes" title="${esc(tr('notesToggle'))}">💬${a.notes ? ' ' + esc(a.notes) : ''}</button>
       <button class="icon-btn" type="button" data-act="unpin" title="${esc(tr('unpin'))}">⊖</button>
       <button class="icon-btn" type="button" data-act="del" title="${esc(tr('deleteFromProject'))}">✕</button>
@@ -1003,8 +1032,10 @@ async function assetCard(a, pins) {
   if (act('open')) act('open').onclick = async () => { const u = await fileUrl(a.fileId); if (u) window.open(u, '_blank', 'noopener'); };
   if (act('watch')) act('watch').onclick = () => openInVideos(a.id);
   if (act('play')) act('play').onclick = () => playPreview(el, a);
-  act('star').onclick = async () => after(await PJ.star(a.id, !a.starred));
-  act('unpin').onclick = async () => after(await PJ.pin(a.id, false));
+  const sec = boardSection();
+  act('star').onclick = async () => after(sec ? await PJ.starSectionPin(sec, a.id, !a.starred) : await PJ.star(a.id, !a.starred));
+  act('unpin').onclick = async () => after(sec ? await PJ.pinInSection(sec, a.id, false) : await PJ.pin(a.id, false));
+  if (act('moodcopy')) act('moodcopy').onclick = () => openMoodboardsDialog(a.id);
   act('del').onclick = () => deleteAsset(a);
   act('notes').onclick = () => { S.openNotes[a.id] = !S.openNotes[a.id]; const box = el.querySelector('[data-role="notes"]'); box.hidden = !S.openNotes[a.id]; if (!box.hidden) renderNotes(box, 'asset', a.id, mediaFor(el, a)); };
   if (S.openNotes[a.id]) renderNotes(el.querySelector('[data-role="notes"]'), 'asset', a.id, mediaFor(el, a));

@@ -95,6 +95,36 @@
   check('supprimer : ses sous-sections remontent d\'un cran', l.sections.find(s => s.id === boss).parentId === niv1);
   check('supprimer : ses objets restent dans la réserve', Number(await val(`select count(*) from public.project_assets where project_id = $1`, [pid])) === 3 && l.links.filter(x => x.assetId === a2).length === 1);
 
+  // Moodboard par section (migration 20261007040000)
+  await as(2);
+  const pins = async () => val(`select public.list_section_pins($1)`, [pid]);
+  await q(`select public.pin_asset_in_section($1, $2, true)`, [chateau, a2]);
+  await q(`select public.pin_asset_in_section($1, $2, true)`, [chateau, a3]);
+  let pl = await pins();
+  check('épingler dans une section : ordre à la suite', pl.length === 2 && pl.find(x => x.assetId === a2).position === 0 && pl.find(x => x.assetId === a3).position === 1);
+  check('épingler range aussi l\'objet dans la section', (await list(pid)).links.some(x => x.sectionId === chateau && x.assetId === a3));
+  await q(`select public.pin_asset_in_section($1, $2, true)`, [boss, a2]);
+  check('même objet épinglé dans deux Moodboards (épingles indépendantes)', (await pins()).filter(x => x.assetId === a2).length === 2);
+  await q(`select public.reorder_section_pins($1, $2)`, [chateau, [a3, a2]]);
+  pl = await pins();
+  check('réordonner le Moodboard d\'une section', pl.find(x => x.sectionId === chateau && x.assetId === a3).position === 0 && pl.find(x => x.sectionId === chateau && x.assetId === a2).position === 1);
+  await q(`select public.star_section_pin($1, $2, true)`, [chateau, a3]);
+  check('★ propre à ce Moodboard', (await pins()).find(x => x.sectionId === chateau && x.assetId === a3).starred === true && (await pins()).find(x => x.sectionId === boss && x.assetId === a2).starred === false);
+  check('★ sur un objet non épinglé refusé', await fails(`select public.star_section_pin($1, $2, true)`, [boss, a3], /pas épinglé/));
+  check('objet d\'un autre Projet refusé', await fails(`select public.pin_asset_in_section($1, $2, true)`, [chateau, other], /Objet introuvable/));
+  await q(`select public.pin_asset_in_section($1, $2, false)`, [boss, a2]);
+  check('retirer l\'épingle d\'un Moodboard ne touche pas l\'autre', (await pins()).filter(x => x.assetId === a2).length === 1 && (await pins()).some(x => x.sectionId === chateau && x.assetId === a2));
+  await q(`select public.remove_assets_from_section($1, $2)`, [chateau, [a2]]);
+  check('sortir un objet d\'une section retire son épingle', !(await pins()).some(x => x.sectionId === chateau && x.assetId === a2));
+  await q(`select public.set_asset_sections($1, $2)`, [a3, [boss]]);
+  check('fixer les sections retire les épingles des sections quittées', !(await pins()).some(x => x.assetId === a3));
+  await as(3);
+  check('un intrus ne voit pas les Moodboards de section', await fails(`select public.list_section_pins($1)`, [pid], /introuvable/));
+  await as(1);
+  await q(`select public.pin_asset_in_section($1, $2, true)`, [boss, a1]);
+  await q(`select public.delete_project_section($1)`, [boss]);
+  check('supprimer la section emporte ses épingles, pas l\'objet', Number(await val(`select count(*) from public.project_section_pins where asset_id = $1`, [a1])) === 0 && Number(await val(`select count(*) from public.project_assets where id = $1`, [a1])) === 1);
+
   // Intrus et nettoyage
   await as(3);
   check('un intrus ne voit rien', await fails(`select public.list_project_sections($1)`, [pid], /introuvable/));
