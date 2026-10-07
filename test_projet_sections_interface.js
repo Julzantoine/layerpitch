@@ -13,7 +13,7 @@ const { JSDOM } = require('jsdom');
     const dom = new JSDOM('<div id="content"></div><div id="presence"></div>', { url: 'https://beta.layerpitch.com/projet.html?id=p1&lang=fr', runScripts: 'outside-only', pretendToBeVisual: true });
     const w = dom.window;
     w.eval(fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf8'));
-    const db = { sections: [], links: [], pins: [], mood: [], assets: [
+    const db = { sections: [], links: [], pins: [], mood: [], msgs: [], chatState: [], assets: [
       { id: 'a1', kind: 'image', origin: 'own', title: 'Forêt', fileId: 'f1', notes: 0, pinned: false },
       { id: 'a2', kind: 'image', origin: 'own', title: 'Château', fileId: 'f2', notes: 0, pinned: false },
       { id: 'v1', kind: 'video', origin: 'own', title: 'Trailer', url: 'https://youtu.be/abcdefghij', notes: 0, pinned: false }], n: 0 };
@@ -23,7 +23,7 @@ const { JSDOM } = require('jsdom');
       PRIVATE: '__me',
       get: () => ok({ id: 'p1', title: 'Hollow Manor', description: '', role: 'admin', archived: false, members: [] }),
       content: () => ok({ assets: db.assets.map(a => Object.assign({}, a)), moodboard: db.mood.slice(), packs: [], albums: [] }),
-      snapshots: () => ok([]), activity: () => ok([]), vitrines: () => ok([]), listMaps: () => ok([]),
+      snapshots: () => ok([]), activity: () => ok([]), vitrines: () => ok([]),
       demoStatus: () => ok({ eligible: false }), markRead: () => ok(null), markSeen: () => ok(null), messages: () => ok([]), annotations: () => ok([]),
       fileUrl: () => ok('https://example.test/x.png'),
       sections: () => locked ? Promise.resolve({ data: null, error: 'Les sections ne sont pas encore ouvertes' }) : ok({ sections: db.sections.map(s => Object.assign({}, s)), links: db.links.map(l => Object.assign({}, l)) }),
@@ -37,6 +37,14 @@ const { JSDOM } = require('jsdom');
       starSectionPin: (sid, assetId, on) => { calls.push(['starPin', sid, assetId, on]); db.pins.find(k => k.sectionId === sid && k.assetId === assetId).starred = on; return ok(null); },
       reorderSectionPins: () => ok(null),
       pin: (assetId, on) => { calls.push(['pinGeneral', assetId, on]); const a = db.assets.find(x => x.id === assetId); a.pinned = on; db.mood = db.mood.filter(i => i !== assetId).concat(on ? [assetId] : []); return ok(null); },
+      sectionChatState: () => ok(db.chatState.map(x => Object.assign({}, x))),
+      sectionMessages: sid => ok(db.msgs.filter(m => m.sectionId === sid).map(m => ({ id: m.id, body: m.body, createdAt: m.createdAt, authorEmail: m.mine ? 'me@x.test' : 'autre@x.test', mine: m.mine })).reverse()),
+      postSectionMessage: (sid, body) => { calls.push(['post', sid, body]); db.msgs.push({ id: 'm' + (++db.n), sectionId: sid, body, createdAt: new Date(Date.now() + db.n).toISOString(), mine: true }); if (!db.chatState.some(x => x.sectionId === sid)) db.chatState.push({ sectionId: sid, followed: true, unread: 0 }); return ok('m'); },
+      setSectionFollow: (sid, on) => { calls.push(['follow', sid, on]); db.chatState = db.chatState.filter(x => x.sectionId !== sid).concat(on ? [{ sectionId: sid, followed: true, unread: 0 }] : []); return ok(null); },
+      markSectionRead: sid => { calls.push(['read', sid]); const x = db.chatState.find(y => y.sectionId === sid); if (x) x.unread = 0; return ok(null); },
+      deleteSectionMessage: id => { db.msgs = db.msgs.filter(m => m.id !== id); return ok(null); },
+      listMaps: () => ok([{ id: 'mp1', title: 'Niveau 1', data: { nodes: [], edges: [] } }]),
+      setSectionMap: (sid, mid) => { calls.push(['map', sid, mid]); db.sections.find(s => s.id === sid).mapId = mid; return ok(null); },
       addAssetsToSection: (sid, ids) => { ids.forEach(assetId => { if (!db.links.some(l => l.sectionId === sid && l.assetId === assetId)) db.links.push({ sectionId: sid, assetId }); }); calls.push(['addTo', sid, ids]); return ok(null); },
       addAsset: (pid, p) => { const id = 'n' + (++db.n); db.assets.push({ id, kind: p.kind, origin: 'own', title: p.title || '', url: p.url || null, fileId: p.fileId || null, notes: 0, pinned: false }); return ok({ id }); },
     };
@@ -166,6 +174,37 @@ const { JSDOM } = require('jsdom');
   check('retirer du Moodboard de la section ne touche pas le général', !c.db.pins.some(k => k.assetId === 'a2') && c.db.mood.includes('a2'));
   click(c.w, nav().querySelector('[data-pick="all"]')); await wait(150);
   check('retour au Moodboard général : la carte y est', cards(c.d).includes('Château'));
+
+  // ---- Tchat par section
+  await tab(c, 'images');
+  const chat = () => c.d.getElementById('chat');
+  check('sélecteur de canal dans la colonne de discussion', !!c.d.getElementById('chanSel') && /Discussion générale/.test(c.d.getElementById('chanSel').textContent));
+  click(c.w, nav().querySelector('[data-pick="s1"]')); await wait(100);
+  click(c.w, nav().querySelector('[data-secact="chat"]')); await wait(200);
+  check('ouvrir le canal de la section', /# Niveau 1/.test(chat().textContent) && /Personne n'a encore écrit/.test(chat().textContent));
+  c.d.getElementById('newMsg').value = 'Salut le niveau 1';
+  click(c.w, c.d.getElementById('sendBtn')); await wait(250);
+  check('écrire dans le canal', c.calls.some(x => x[0] === 'post' && x[2] === 'Salut le niveau 1') && /Salut le niveau 1/.test(chat().textContent));
+  check('écrire = suivre : le bouton propose « Ne plus suivre »', /Ne plus suivre/.test(chat().textContent));
+  click(c.w, c.d.getElementById('followBtn')); await wait(200);
+  check('ne plus suivre', c.calls.some(x => x[0] === 'follow' && x[2] === false) && /Suivre/.test(c.d.getElementById('followBtn').textContent) && !/Ne plus/.test(c.d.getElementById('followBtn').textContent));
+  click(c.w, c.d.getElementById('followBtn')); await wait(200);
+  c.db.chatState[0].unread = 3; await c.w.eval('loadSections().then(() => { renderSecNav(); renderChat(); })'); await wait(150);
+  check('pastille de non lus sur la section', !!nav().querySelector('.sec-unread') && nav().querySelector('.sec-unread').textContent === '3');
+  check('non lus dans la liste des canaux', /Niveau 1 \(3\)/.test(c.d.getElementById('chanSel').textContent));
+  const sel = c.d.getElementById('chanSel'); sel.value = ''; sel.dispatchEvent(new c.w.Event('change', { bubbles: true })); await wait(200);
+  check('retour au tchat général', /Discussion générale/.test(c.d.getElementById('chanSel').options[0].textContent) && !/# Niveau 1/.test(chat().textContent.split('Niveau 1 (')[0].slice(0, 80)) && !!c.d.getElementById('q'));
+
+  // ---- Lien section ↔ carte
+  await tab(c, 'images');
+  click(c.w, nav().querySelector('[data-pick="s1"]')); await wait(100);
+  check('pas de lien de carte au départ', !nav().querySelector('[data-openmap]'));
+  click(c.w, nav().querySelector('[data-secact="map"]')); await wait(200);
+  const radios2 = [...c.d.querySelectorAll('.sec-dialog input[type="radio"]')];
+  check('choix de carte : aucune + les cartes du Projet', radios2.length === 2 && radios2[1].value === 'mp1');
+  radios2[1].checked = true; click(c.w, c.d.querySelector('.sec-dialog [data-x="save"]')); await wait(200);
+  check('section reliée à la carte', c.calls.some(x => x[0] === 'map' && x[1] === 's1' && x[2] === 'mp1') && !!nav().querySelector('[data-openmap="mp1"]'));
+  check('le bouton « Ouvrir la carte » est là', /Ouvrir la carte/.test(nav().textContent));
 
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon');
   process.exit(failures ? 1 : 0);

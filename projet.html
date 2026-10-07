@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791380864470">
+<link rel="stylesheet" href="player.css?v=1791381541612">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -95,6 +95,8 @@
   .sec-row input { flex: 1 1 auto; min-width: 0; padding: 4px 6px; font-size: 13px; }
   .sec-acts { display: flex; flex: 0 0 auto; }
   .sec-acts .icon-btn { padding: 2px 4px; font-size: 12px; }
+  .sec-unread { flex: 0 0 auto; min-width: 16px; padding: 0 5px; border-radius: 999px; background: #d0433a; color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
+  .chan-sel { flex: 1 1 auto; min-width: 0; max-width: 100%; font-weight: 600; }
   .sec-sep { border-top: 1px solid var(--border); margin: 6px 0; }
   .sec-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(0,0,0,.4); display: grid; place-items: center; padding: 16px; }
   .sec-dialog { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 18px; width: 420px; max-width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 12px 32px rgba(0,0,0,.22); }
@@ -171,22 +173,22 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791380864470"></script>
-<script src="layerpitch-notify.js?v=1791380864470"></script>
-<script src="player.js?v=1791380864470"></script>
-<script src="api/supabase-client.js?v=1791380864470"></script>
-<script src="api/auth.js?v=1791380864470"></script>
-<script src="layerpitch-appearance.js?v=1791380864470"></script>
-<script src="layerpitch-shell.js?v=1791380864470"></script>
-<script src="api/tracks.js?v=1791380864470"></script>
-<script src="api/packs.js?v=1791380864470"></script>
-<script src="api/albums.js?v=1791380864470"></script>
-<script src="api/studio.js?v=1791380864470"></script>
-<script src="api/adreels.js?v=1791380864470"></script>
-<script src="api/projects.js?v=1791380864470"></script>
-<script src="api/sfx.js?v=1791380864470"></script>
-<script src="projet-carte-audio.js?v=1791380864470"></script>
-<script src="projet-carte.js?v=1791380864470"></script>
+<script src="layerpitch-i18n.js?v=1791381541612"></script>
+<script src="layerpitch-notify.js?v=1791381541612"></script>
+<script src="player.js?v=1791381541612"></script>
+<script src="api/supabase-client.js?v=1791381541612"></script>
+<script src="api/auth.js?v=1791381541612"></script>
+<script src="layerpitch-appearance.js?v=1791381541612"></script>
+<script src="layerpitch-shell.js?v=1791381541612"></script>
+<script src="api/tracks.js?v=1791381541612"></script>
+<script src="api/packs.js?v=1791381541612"></script>
+<script src="api/albums.js?v=1791381541612"></script>
+<script src="api/studio.js?v=1791381541612"></script>
+<script src="api/adreels.js?v=1791381541612"></script>
+<script src="api/projects.js?v=1791381541612"></script>
+<script src="api/sfx.js?v=1791381541612"></script>
+<script src="projet-carte-audio.js?v=1791381541612"></script>
+<script src="projet-carte.js?v=1791381541612"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -241,7 +243,7 @@ const S = { tab: 'board', project: null, content: null, messages: [], query: '',
 // S.sections = { sections: [{ id, parentId, title, position }], links: [{ sectionId, assetId }] }, ou null tant que le feu vert
 // 'project_sections' est fermé (ou en démonstration) : alors rien n'apparaît. S.sel = 'all' | 'none' | identifiant de section.
 const SECTION_TABS = ['board', 'images', 'videos', 'music']; // sur « Moodboard », la section choisie = son propre Moodboard
-S.secPins = [];
+S.secPins = []; S.chan = null; S.chanState = []; S.secMsgs = []; S.secMore = false; // S.chan = canal du tchat : null = général, sinon une section
 S.sections = null; S.sel = 'all'; S.secEdit = null; S.secLocked = false;
 async function loadSections() {
   if (DEMO || S.secLocked) return;
@@ -249,6 +251,8 @@ async function loadSections() {
   if (r.error || !r.data) { S.secLocked = true; S.sections = null; return; }
   S.sections = { sections: r.data.sections || [], links: r.data.links || [] };
   const pr = await PJ.sectionPins(projectId); S.secPins = pr.error ? [] : (pr.data || []);
+  const cs = await PJ.sectionChatState(projectId); S.chanState = cs.error ? [] : (cs.data || []);
+  if (S.chan && !secById(S.chan)) S.chan = null;
   if (S.sel !== 'all' && S.sel !== 'none' && !secById(S.sel)) S.sel = 'all';
 }
 const secById = id => S.sections && S.sections.sections.find(x => x.id === id);
@@ -285,8 +289,8 @@ function renderSecNav() {
   const walk = (pid, depth) => secKids(pid).map(x => {
     const on = S.sel === x.id;
     const head = S.secEdit && S.secEdit.rename === x.id ? editRow(depth, x.title)
-      : `<div class="sec-row${on ? ' on' : ''}" data-dropsec="${esc(x.id)}" style="padding-left:${6 + depth * 14}px"><button type="button" class="sec-name" data-pick="${esc(x.id)}">${esc(x.title)}</button><span class="meta">${S.tab === 'board' ? sectionPinned(x.id).length : secCount(x.id)}</span>
-        ${on ? `<span class="sec-acts"><button class="icon-btn" type="button" data-secact="add" data-id="${esc(x.id)}" title="${esc(tr('secAddSub'))}">＋</button><button class="icon-btn" type="button" data-secact="rename" data-id="${esc(x.id)}" title="${esc(tr('secRename'))}">✎</button><button class="icon-btn" type="button" data-secact="move" data-id="${esc(x.id)}" title="${esc(tr('secMove'))}">⇄</button><button class="icon-btn" type="button" data-secact="del" data-id="${esc(x.id)}" title="${esc(tr('secDelete'))}">✕</button></span>` : ''}</div>`;
+      : `<div class="sec-row${on ? ' on' : ''}" data-dropsec="${esc(x.id)}" style="padding-left:${6 + depth * 14}px"><button type="button" class="sec-name" data-pick="${esc(x.id)}">${esc(x.title)}</button><span class="meta">${S.tab === 'board' ? sectionPinned(x.id).length : secCount(x.id)}</span>${chanUnread(x.id) ? `<span class="sec-unread" title="${esc(tr('chanUnread'))}">${chanUnread(x.id)}</span>` : ''}
+        ${on ? `<span class="sec-acts"><button class="icon-btn" type="button" data-secact="chat" data-id="${esc(x.id)}" title="${esc(tr('chanOpen'))}">💬</button><button class="icon-btn" type="button" data-secact="map" data-id="${esc(x.id)}" title="${esc(tr('secMapLink'))}">🗺</button><button class="icon-btn" type="button" data-secact="add" data-id="${esc(x.id)}" title="${esc(tr('secAddSub'))}">＋</button><button class="icon-btn" type="button" data-secact="rename" data-id="${esc(x.id)}" title="${esc(tr('secRename'))}">✎</button><button class="icon-btn" type="button" data-secact="move" data-id="${esc(x.id)}" title="${esc(tr('secMove'))}">⇄</button><button class="icon-btn" type="button" data-secact="del" data-id="${esc(x.id)}" title="${esc(tr('secDelete'))}">✕</button></span>` : ''}</div>`;
     return head + (S.secEdit && S.secEdit.add === x.id ? editRow(depth + 1) : '') + walk(x.id, depth + 1);
   }).join('');
   const picked = S.sel !== 'all' && S.sel !== 'none' ? secById(S.sel) : null;
@@ -297,12 +301,15 @@ function renderSecNav() {
     <div class="sec-sep"></div>
     ${S.sections.sections.length || (S.secEdit && S.secEdit.add === '') ? '' : `<div class="meta">${esc(tr('secEmpty'))}</div>`}
     ${walk(null, 0)}${S.secEdit && S.secEdit.add === '' ? editRow(0) : ''}
+    ${picked && picked.mapId ? `<div class="sec-sep"></div><button class="btn" type="button" data-openmap="${esc(picked.mapId)}" style="width:100%">🗺 ${esc(tr('secMapOpen'))}</button>` : ''}
     ${picked ? `<div class="sec-sep"></div><div class="meta">${esc(tr(S.tab === 'board' ? 'secBoardHere' : 'secFilesHere', { title: picked.title }))}</div>` : ''}`;
   nav.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { S.sel = b.dataset.pick; S.secEdit = null; renderPanel(); });
   nav.querySelectorAll('[data-secact]').forEach(b => b.onclick = async () => {
     const id = b.dataset.id, act = b.dataset.secact;
     if (act === 'add') { S.secEdit = { add: id }; renderSecNav(); }
     else if (act === 'rename') { S.secEdit = { rename: id }; renderSecNav(); }
+    else if (act === 'chat') openChannel(id);
+    else if (act === 'map') openMapLinkDialog(id);
     else if (act === 'move') openMoveDialog(id);
     else if (act === 'del') {
       const x = secById(id);
@@ -313,6 +320,7 @@ function renderSecNav() {
     }
     const input = $('secInput'); if (input) { input.focus(); input.select(); }
   });
+  nav.querySelectorAll('[data-openmap]').forEach(b => b.onclick = () => { S.openMapId = b.dataset.openmap; S.tab = 'map'; stopMedia(); render(); });
   const input = $('secInput');
   if (input) input.onkeydown = async e => {
     if (e.key === 'Escape') { S.secEdit = null; return renderSecNav(); }
@@ -363,6 +371,23 @@ function openMoodboardsDialog(assetId) {
       else if (want !== here.has(i.value) && secError(await PJ.pinInSection(i.value, assetId, want))) return;
     }
     close(); await reloadContent(); renderPanel(); broadcast('content'); broadcast('sections');
+  };
+}
+// Relier une section à une carte de niveau (un simple lien : la section propose d'ouvrir cette carte).
+async function openMapLinkDialog(id) {
+  const x = secById(id); if (!x) return;
+  const r = await PJ.listMaps(projectId);
+  if (r.error) return window.LayerPitchNotify.info(tr(/pas encore ouverte/.test(r.error) ? 'map_locked' : 'errorPrefix', { message: r.error }));
+  const maps = r.data || [];
+  const { box, close } = openOverlay(`<h2>${esc(tr('secMapTitle', { title: x.title }))}</h2>
+    <label class="sec-pick"><input type="radio" name="secMap" value="" ${!x.mapId ? 'checked' : ''}> ${esc(tr('secMapNone'))}</label>
+    ${maps.map(m => `<label class="sec-pick"><input type="radio" name="secMap" value="${esc(m.id)}" ${x.mapId === m.id ? 'checked' : ''}> ${esc(m.title || tr('secMapUntitled'))}</label>`).join('')}
+    ${maps.length ? '' : `<div class="meta">${esc(tr('secMapNoMaps'))}</div>`}
+    <div class="bar" style="margin-top:12px;justify-content:flex-end"><button class="btn" type="button" data-x="cancel">${esc(tr('secCancel'))}</button><button class="btn primary" type="button" data-x="save">${esc(tr('save'))}</button></div>`);
+  box.querySelector('[data-x="cancel"]').onclick = close;
+  box.querySelector('[data-x="save"]').onclick = async () => {
+    if (secError(await PJ.setSectionMap(id, box.querySelector('input:checked').value || null))) return;
+    close(); await sectionsChanged();
   };
 }
 function openMoveDialog(id) {
@@ -458,6 +483,12 @@ function joinChannel() {
         renderChat();
       }
       else if (payload.what === 'content') { await reloadContent(); if (S.video) S.video = assetById(S.video.id) || null; if (['board', 'videos', 'images', 'music', 'showcase'].includes(S.tab) && !(S.tab === 'showcase' && S.vitrineDraft)) renderPanel(); /* jamais pendant l'édition d'une vitrine */ }
+      else if (payload.what === 'secmessages') {
+        await loadSections();
+        if (S.chan && S.chan === payload.sectionId) { await loadSecMessages(); if (chatVisible()) await PJ.markSectionRead(S.chan); await loadSections(); }
+        if ($('secNav')) renderSecNav();
+        renderChat();
+      }
       else if (payload.what === 'sections') { await loadSections(); if (SECTION_TABS.includes(S.tab) && !S.secEdit) renderPanel(); }
       else if (payload.what === 'maps' && S.tab === 'map') { if (!(S.mapView && S.mapView.state.dirty)) renderPanel(); }
       else if (payload.what === 'notes' && S.video) { await loadVideoNotes(); renderPanel(); }
@@ -475,7 +506,7 @@ function markProjectSeen(force) {
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) markProjectSeen(true); else markProjectSeen(); });
 window.addEventListener('pagehide', () => markProjectSeen(true));
-function broadcast(what) { try { if (S.channel) S.channel.send({ type: 'broadcast', event: 'changed', payload: { what } }); } catch (e) {} }
+function broadcast(what, extra) { try { if (S.channel) S.channel.send({ type: 'broadcast', event: 'changed', payload: Object.assign({ what }, extra || {}) }); } catch (e) {} }
 function renderPresence() {
   if (!S.channel) return;
   const state = S.channel.presenceState();
@@ -639,7 +670,7 @@ function chatVisible() { return isPhone() ? S.chatPhoneOpen : S.chatOpen; }
 function renderChatFab() {
   let fab = $('chatFab');
   if (!fab) { fab = document.createElement('button'); fab.id = 'chatFab'; fab.type = 'button'; fab.className = 'chat-fab'; fab.onclick = () => setChatOpen(!S.chatPhoneOpen); document.body.appendChild(fab); }
-  fab.innerHTML = `💬 ${esc(tr('tab_thread'))}${S.unread ? ` <span class="badge">${esc(S.unread)}</span>` : ''}`;
+  fab.innerHTML = `💬 ${esc(tr('tab_thread'))}${S.unread + chanUnreadTotal() ? ` <span class="badge">${esc(S.unread + chanUnreadTotal())}</span>` : ''}`;
 }
 // Ce qu'on peut ranger depuis un message : ses liens et ses pièces jointes, avec leur état dans le Projet.
 function rangeItems(m) {
@@ -666,6 +697,61 @@ function attachmentsHtml(m) {
     return `<button class="chip-btn" type="button" data-openfile="${esc(x.fileId)}">📄 ${esc(x.title || x.fileName || '')}</button>`;
   }).join('');
 }
+// ---- Tchat par section (7/10, étape 3) : canaux « type Discord », texte seulement ----
+const chanUnread = id => { const c = S.chanState.find(x => x.sectionId === id); return c ? c.unread : 0; };
+const chanFollowed = id => S.chanState.some(x => x.sectionId === id);
+const chanUnreadTotal = () => S.chanState.reduce((n, c) => n + c.unread, 0);
+async function loadSecMessages(older) {
+  const before = older && S.secMsgs.length ? S.secMsgs[S.secMsgs.length - 1].createdAt : null;
+  const r = await PJ.sectionMessages(S.chan, before);
+  const list = r.data || [];
+  S.secMsgs = older ? S.secMsgs.concat(list) : list; S.secMore = list.length === 50;
+}
+async function openChannel(id) {
+  S.chan = id || null; S.secMsgs = [];
+  if (S.chan) { await loadSecMessages(); if (chanFollowed(S.chan)) { await PJ.markSectionRead(S.chan); await loadSections(); } }
+  if (!chatVisible()) setChatOpen(true);
+  if ($('secNav')) renderSecNav();
+  renderChat();
+}
+function chanSelectHtml() {
+  if (!S.sections || !S.sections.sections.length) return '';
+  return `<select id="chanSel" class="chan-sel" title="${esc(tr('chanSwitch'))}"><option value="">${esc(tr('chanGeneral'))}${S.unread ? ' (' + S.unread + ')' : ''}</option>${secFlat().map(x => `<option value="${esc(x.id)}"${S.chan === x.id ? ' selected' : ''}>${'\u00a0\u00a0'.repeat(x.depth)}# ${esc(x.title)}${chanUnread(x.id) ? ' (' + chanUnread(x.id) + ')' : ''}</option>`).join('')}</select>`;
+}
+function renderSectionChat(aside) {
+  const x = secById(S.chan), msgs = S.secMsgs.slice().reverse(), followed = chanFollowed(S.chan);
+  aside.innerHTML = `<div class="chat-head">${chanSelectHtml()}<button class="icon-btn" id="chatCloseBtn" type="button" title="${esc(tr('chatClose'))}">${isPhone() ? '✕' : '»'}</button></div>
+    <div class="bar" style="margin-bottom:8px"><strong># ${esc(x.title)}</strong><button class="btn" id="followBtn" type="button" style="margin-left:auto" title="${esc(tr('chanFollowHint'))}">${esc(tr(followed ? 'chanUnfollow' : 'chanFollow'))}</button></div>
+    ${S.secMore ? `<div style="text-align:center;margin-bottom:6px"><button class="btn" id="olderBtn" type="button">${esc(tr('olderMessages'))}</button></div>` : ''}
+    <div class="thread" id="thread">${msgs.length ? msgs.map(m => `<div class="bubble${m.mine ? ' mine' : ''}" data-id="${esc(m.id)}">
+        <div class="meta">${esc(m.authorEmail || '')} · ${esc(new Date(m.createdAt).toLocaleString(pageLang))}</div>
+        <div class="bubble-body">${linkifyText(m.body)}</div>
+        ${m.mine || S.project.role === 'admin' ? `<div class="bar" style="margin-top:4px"><button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button></div>` : ''}
+      </div>`).join('') : `<div class="empty">${esc(tr('chanEmpty', { title: x.title }))}</div>`}</div>
+    <div class="composer" id="composer"><textarea id="newMsg" placeholder="${esc(tr('chanPlaceholder', { title: x.title }))}"></textarea>
+      <div class="bar" style="margin-top:6px"><button class="btn primary" id="sendBtn" type="button">${esc(tr('send'))}</button><span class="meta">${esc(tr('sendHint'))}</span></div>
+      <div class="msg" id="threadMsg"></div></div>`;
+  const th = $('thread'); th.scrollTop = th.scrollHeight;
+  $('chatCloseBtn').onclick = () => setChatOpen(false);
+  $('chanSel').onchange = e => openChannel(e.target.value);
+  $('followBtn').onclick = async () => { if (secError(await PJ.setSectionFollow(S.chan, !followed))) return; await loadSections(); if ($('secNav')) renderSecNav(); renderChat(); };
+  if ($('olderBtn')) $('olderBtn').onclick = async () => { await loadSecMessages(true); renderChat(); };
+  const send = async () => {
+    const body = $('newMsg').value.trim(); if (!body) return;
+    $('sendBtn').disabled = true;
+    const r = await PJ.postSectionMessage(S.chan, body);
+    if (r.error) { say('threadMsg', tr('errorPrefix', { message: r.error })); $('sendBtn').disabled = false; return; }
+    await loadSecMessages(); await loadSections(); if ($('secNav')) renderSecNav(); renderChat(); broadcast('secmessages', { sectionId: S.chan });
+  };
+  $('sendBtn').onclick = send;
+  $('newMsg').onkeydown = e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(); };
+  aside.querySelectorAll('.bubble [data-act="delete"]').forEach(b => b.onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('deleteMessageConfirm'), { okLabel: tr('delete'), danger: true }))) return;
+    if (secError(await PJ.deleteSectionMessage(b.closest('.bubble').dataset.id))) return;
+    await loadSecMessages(); renderChat(); broadcast('secmessages', { sectionId: S.chan });
+  });
+  updateTitle();
+}
 function renderChat() {
   const aside = $('chat'); if (!aside) return;
   const ws = $('ws');
@@ -673,13 +759,14 @@ function renderChat() {
   if (ws) ws.classList.toggle('chat-closed', !S.chatOpen);
   aside.classList.toggle('phone-open', S.chatPhoneOpen);
   if (!chatVisible()) {
-    aside.innerHTML = `<button class="chat-rail" id="chatOpenBtn" type="button" title="${esc(tr('chatOpen'))}">💬${S.unread ? `<span class="badge">${esc(S.unread)}</span>` : ''}<span class="chat-rail-label">${esc(tr('tab_thread'))}</span></button>`;
+    aside.innerHTML = `<button class="chat-rail" id="chatOpenBtn" type="button" title="${esc(tr('chatOpen'))}">💬${S.unread + chanUnreadTotal() ? `<span class="badge">${esc(S.unread + chanUnreadTotal())}</span>` : ''}<span class="chat-rail-label">${esc(tr('tab_thread'))}</span></button>`;
     $('chatOpenBtn').onclick = () => setChatOpen(true);
     updateTitle();
     return;
   }
+  if (S.chan && S.sections && secById(S.chan)) return renderSectionChat(aside);
   const msgs = S.messages.slice().reverse();
-  aside.innerHTML = `<div class="chat-head"><strong>${esc(tr('tab_thread'))}</strong><button class="icon-btn" id="chatCloseBtn" type="button" title="${esc(tr('chatClose'))}">${isPhone() ? '✕' : '»'}</button></div>
+  aside.innerHTML = `<div class="chat-head">${S.sections && S.sections.sections.length ? chanSelectHtml() : `<strong>${esc(tr('tab_thread'))}</strong>`}<button class="icon-btn" id="chatCloseBtn" type="button" title="${esc(tr('chatClose'))}">${isPhone() ? '✕' : '»'}</button></div>
     <div class="bar" style="margin-bottom:8px"><input type="search" id="q" placeholder="${esc(tr('searchPlaceholder'))}" value="${esc(S.query)}" style="flex:1 1 120px">
       ${S.query ? `<button class="btn" id="clearSearch" type="button">${esc(tr('clearSearch'))}</button>` : ''}</div>
     ${S.moreMessages ? `<div style="text-align:center;margin-bottom:6px"><button class="btn" id="olderBtn" type="button">${esc(tr('olderMessages'))}</button></div>` : ''}
@@ -702,6 +789,7 @@ function renderChat() {
   if (divider) th.scrollTop = Math.max(0, divider.offsetTop - th.offsetTop - 8); else th.scrollTop = th.scrollHeight;
   markSeen();
   $('chatCloseBtn').onclick = () => setChatOpen(false);
+  if ($('chanSel')) $('chanSel').onchange = e => openChannel(e.target.value);
   const doSearch = async () => { S.query = $('q').value.trim(); await loadMessages(); renderChat(); };
   $('q').onkeydown = e => { if (e.key === 'Enter') doSearch(); };
   if ($('clearSearch')) $('clearSearch').onclick = async () => { S.query = ''; await loadMessages(); renderChat(); };
@@ -1359,8 +1447,9 @@ async function renderMap(panel) {
     asset: (S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio').map(a => ({ id: a.id, title: assetTitle(a) })),
   };
   if (S.mapView && S.mapView.destroy) S.mapView.destroy();
+  const openId = S.openMapId; S.openMapId = null;
   S.mapView = LayerPitchLevelMap.mount(panel, {
-    tr, canEdit: true, libraries, audio: mapAudioEnv(),
+    tr, canEdit: true, libraries, audio: mapAudioEnv(), openId,
     maps: r.data || [],
     save: async m => {
       const res = await PJ.saveMap(projectId, { id: m.id, title: m.title, data: m.data });

@@ -125,6 +125,58 @@
   await q(`select public.delete_project_section($1)`, [boss]);
   check('supprimer la section emporte ses épingles, pas l\'objet', Number(await val(`select count(*) from public.project_section_pins where asset_id = $1`, [a1])) === 0 && Number(await val(`select count(*) from public.project_assets where id = $1`, [a1])) === 1);
 
+  // Tchat par section (migration 20261007050000)
+  const chat = await sec(pid, 'Discussion Niveau 2');
+  const gen = Number(await val(`select count(*) from public.project_messages where project_id = $1`, [pid]));
+  await as(1);
+  await q(`select public.post_section_message($1, 'Bonjour le niveau 2')`, [chat]);
+  await as(2);
+  let st = await val(`select public.section_chat_state($1)`, [pid]);
+  check('non suivi : aucun compteur de non lus', st.length === 0);
+  await q(`select public.set_section_follow($1, true)`, [chat]);
+  await as(1);
+  await q(`select public.post_section_message($1, 'Un deuxième message')`, [chat]);
+  await as(2);
+  st = await val(`select public.section_chat_state($1)`, [pid]);
+  check('suivi : les messages d\'après comptent comme non lus', st.length === 1 && st[0].unread === 1);
+  await q(`select public.mark_section_read($1)`, [chat]);
+  check('marquer lu remet à zéro', (await val(`select public.section_chat_state($1)`, [pid]))[0].unread === 0);
+  await q(`select public.post_section_message($1, 'Ma réponse')`, [chat]);
+  check('écrire = suivre ; ses propres messages ne comptent pas', (await val(`select public.section_chat_state($1)`, [pid]))[0].unread === 0);
+  const ms = await val(`select public.list_section_messages($1)`, [chat]);
+  check('messages du canal, du plus récent au plus ancien', ms.length === 3 && ms[0].body === 'Ma réponse' && ms[0].mine === true && ms[2].mine === false);
+  check('le tchat général ne voit pas les messages de section', Number(await val(`select count(*) from public.project_messages where project_id = $1`, [pid])) === gen && (await val(`select public.list_project_messages($1)`, [pid])).length === gen);
+  check('message vide refusé', await fails(`select public.post_section_message($1, '  ')`, [chat], /vide/));
+  check('on ne supprime pas le message d\'un autre', await fails(`select public.delete_section_message($1)`, [ms[2].id], /introuvable/));
+  await q(`select public.delete_section_message($1)`, [ms[0].id]);
+  check('on supprime son propre message', (await val(`select public.list_section_messages($1)`, [chat])).length === 2);
+  await as(1);
+  await q(`select public.delete_section_message($1)`, [ms[1].id]);
+  check('l\'administrateur du Projet supprime un message de membre', (await val(`select public.list_section_messages($1)`, [chat])).length === 1);
+  await q(`select public.set_section_follow($1, false)`, [chat]);
+  check('ne plus suivre', (await val(`select public.section_chat_state($1)`, [pid])).length === 0);
+  await db.query(`update public.feature_flags set released = false where key = 'project_sections'`);
+  await as(2);
+  check('feu vert fermé : canal de section fermé aussi', await fails(`select public.list_section_messages($1)`, [chat], /pas encore ouvertes/));
+  await db.query(`update public.feature_flags set released = true where key = 'project_sections'`);
+  await as(3);
+  check('un intrus ne lit ni n\'écrit dans un canal', await fails(`select public.list_section_messages($1)`, [chat], /introuvable/) && await fails(`select public.post_section_message($1, 'x')`, [chat], /introuvable/));
+  await as(1);
+  await q(`select public.delete_project_section($1)`, [chat]);
+  check('supprimer la section supprime sa discussion', Number(await val(`select count(*) from public.project_section_messages`)) === 0);
+
+  // Lien section ↔ carte (migration 20261007060000)
+  await as(1);
+  const mapId = await val(`select (public.save_project_map($1, $2::jsonb))->>'id'`, [pid, JSON.stringify({ title: 'Niveau 1', data: { nodes: [], edges: [] } })]);
+  const lk = await sec(pid, 'Avec carte');
+  check('une section n\'a pas de carte au départ', (await list(pid)).sections.find(s => s.id === lk).mapId === null);
+  await as(2);
+  await q(`select public.set_section_map($1, $2)`, [lk, mapId]);
+  check('relier une section à une carte', (await list(pid)).sections.find(s => s.id === lk).mapId === mapId);
+  check('une carte d\'un autre Projet refusée', await (async () => { await as(1); const m2 = await val(`select (public.save_project_map($1, $2::jsonb))->>'id'`, [pid2, JSON.stringify({ title: 'Autre', data: { nodes: [], edges: [] } })]); return fails(`select public.set_section_map($1, $2)`, [lk, m2], /Carte introuvable/); })());
+  await q(`select public.delete_project_map($1)`, [mapId]);
+  check('supprimer la carte retire le lien', (await list(pid)).sections.find(s => s.id === lk).mapId === null);
+
   // Intrus et nettoyage
   await as(3);
   check('un intrus ne voit rien', await fails(`select public.list_project_sections($1)`, [pid], /introuvable/));
