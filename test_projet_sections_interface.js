@@ -9,15 +9,16 @@ const { JSDOM } = require('jsdom');
   const html = fs.readFileSync(path.join(__dirname, 'projet.html'), 'utf8');
   const inline = html.match(/<script>\n(const shellTr[\s\S]*?)<\/script>/)[1];
 
-  async function boot(locked, channel) {
+  async function boot(locked, channel, seed) {
     const dom = new JSDOM('<div id="content"></div><div id="presence"></div>', { url: 'https://beta.layerpitch.com/projet.html?id=p1&lang=fr' + (channel ? '&channel=' + channel : ''), runScripts: 'outside-only', pretendToBeVisual: true });
     const w = dom.window;
     w.eval(fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf8'));
     const db = { sections: [], links: [], pins: [], mood: [], msgs: [], chatState: [], assets: [
-      { id: 'a1', kind: 'image', origin: 'own', title: 'Forêt', fileId: 'f1', notes: 0, pinned: false },
-      { id: 'a2', kind: 'image', origin: 'own', title: 'Château', fileId: 'f2', notes: 0, pinned: false },
+      { id: 'a1', kind: 'image', origin: 'own', title: 'Forêt', fileId: 'f1', fileName: 'foret.png', fileSize: 1000, notes: 0, pinned: false },
+      { id: 'a2', kind: 'image', origin: 'own', title: 'Château', fileId: 'f2', fileName: 'chateau.png', fileSize: 2000, notes: 0, pinned: false },
       { id: 'v1', kind: 'video', origin: 'own', title: 'Trailer', url: 'https://youtu.be/abcdefghij', notes: 0, pinned: false }], n: 0 };
     if (channel) { db.sections.push({ id: 's1', parentId: null, title: 'Niveau 1', position: 0 }); db.chatState.push({ sectionId: 's1', followed: true, unread: 2 }); }
+    if (seed) seed(db);
     const calls = [];
     const ok = data => Promise.resolve({ data, error: null });
     const P = {
@@ -31,7 +32,7 @@ const { JSDOM } = require('jsdom');
       createSection: (pid, title, parent) => { const id = 's' + (++db.n); db.sections.push({ id, parentId: parent || null, title, position: db.sections.length }); calls.push(['create', title, parent]); return ok({ id }); },
       renameSection: (id, title) => { db.sections.find(s => s.id === id).title = title; return ok(null); },
       deleteSection: id => { const s = db.sections.find(x => x.id === id); db.sections.forEach(x => { if (x.parentId === id) x.parentId = s.parentId; }); db.sections = db.sections.filter(x => x.id !== id); db.links = db.links.filter(l => l.sectionId !== id); return ok(null); },
-      moveSection: (id, parent) => { db.sections.find(s => s.id === id).parentId = parent || null; calls.push(['move', id, parent]); return ok(null); },
+      moveSection: (id, parent, pos) => { db.sections.find(s => s.id === id).parentId = parent || null; calls.push(['move', id, parent, pos]); return ok(null); },
       setAssetSections: (assetId, ids) => { db.links = db.links.filter(l => l.assetId !== assetId).concat(ids.map(sectionId => ({ sectionId, assetId }))); calls.push(['set', assetId, ids]); return ok(null); },
       sectionPins: () => ok(db.pins.map(k => Object.assign({}, k))),
       pinInSection: (sid, assetId, on) => { calls.push(['pinIn', sid, assetId, on]); db.pins = db.pins.filter(k => !(k.sectionId === sid && k.assetId === assetId)); if (on) { db.pins.push({ sectionId: sid, assetId, position: db.pins.length, starred: false }); if (!db.links.some(l => l.sectionId === sid && l.assetId === assetId)) db.links.push({ sectionId: sid, assetId }); } return ok(null); },
@@ -47,6 +48,7 @@ const { JSDOM } = require('jsdom');
       deleteSectionMessage: id => { db.msgs = db.msgs.filter(m => m.id !== id); return ok(null); },
       listMaps: () => ok([{ id: 'mp1', title: 'Niveau 1', data: { nodes: [], edges: [] } }]),
       setSectionMap: (sid, mid) => { calls.push(['map', sid, mid]); db.sections.find(s => s.id === sid).mapId = mid; return ok(null); },
+      removeAssetsFromSection: (sid, ids) => { calls.push(['removeFrom', sid, ids]); db.links = db.links.filter(l => !(l.sectionId === sid && ids.includes(l.assetId))); return ok(null); },
       addAssetsToSection: (sid, ids) => { ids.forEach(assetId => { if (!db.links.some(l => l.sectionId === sid && l.assetId === assetId)) db.links.push({ sectionId: sid, assetId }); }); calls.push(['addTo', sid, ids]); return ok(null); },
       addAsset: (pid, p) => { const id = 'n' + (++db.n); db.assets.push({ id, kind: p.kind, origin: 'own', title: p.title || '', url: p.url || null, fileId: p.fileId || null, notes: 0, pinned: false }); return ok({ id }); },
     };
@@ -224,6 +226,80 @@ const { JSDOM } = require('jsdom');
   radios2[1].checked = true; click(c.w, c.d.querySelector('.sec-dialog [data-x="save"]')); await wait(200);
   check('section reliée à la carte', c.calls.some(x => x[0] === 'map' && x[1] === 's1' && x[2] === 'mp1') && !!nav().querySelector('[data-openmap="mp1"]'));
   check('le bouton « Ouvrir la carte » est là', /Ouvrir la carte/.test(nav().textContent));
+
+  // ---- Sélection multiple, réordonner les sections, télécharger
+  const seed = db => {
+    db.sections.push({ id: 'A', parentId: null, title: 'Alpha', position: 0 }, { id: 'B', parentId: null, title: 'Bravo', position: 1 }, { id: 'C', parentId: null, title: 'Charlie', position: 2 });
+    db.links.push({ sectionId: 'A', assetId: 'a1' }, { sectionId: 'A', assetId: 'a2' });
+  };
+  const k = await boot(false, null, seed);
+  const kn = () => k.d.getElementById('secNav');
+  await tab(k, 'images');
+  check('mode sélection : pas de cases au départ', !k.d.querySelector('.sel-box'));
+  click(k.w, kn().querySelector('[data-secact="select"]')); await wait(150);
+  check('mode sélection : une case par image et une barre d\'actions', k.d.querySelectorAll('.sel-box').length === 2 && !!k.d.getElementById('selBar'));
+  click(k.w, k.d.querySelector('[data-sel="all"]')); await wait(100);
+  check('Tout sélectionner', /2 sélectionné/.test(k.d.getElementById('selBar').textContent));
+  click(k.w, k.d.querySelector('[data-sel="add"]')); await wait(50);
+  const targets = [...k.d.querySelectorAll('.sec-dialog input[type="radio"]')];
+  targets.find(r => r.value === 'B').checked = true;
+  click(k.w, k.d.querySelector('.sec-dialog [data-x="save"]')); await wait(200);
+  check('ajouter la sélection à une section (en masse)', k.calls.some(x => x[0] === 'addTo' && x[1] === 'B' && x[2].length === 2) && k.db.links.filter(l => l.sectionId === 'B').length === 2);
+  check('la sélection est vidée, le mode reste', /0 sélectionné/.test(k.d.getElementById('selBar').textContent));
+  click(k.w, kn().querySelector('[data-pick="A"]')); await wait(150);
+  click(k.w, k.d.querySelector('[data-sel="all"]')); await wait(100);
+  click(k.w, k.d.querySelector('[data-sel="move"]')); await wait(50);
+  const mv = [...k.d.querySelectorAll('.sec-dialog input[type="radio"]')];
+  check('déplacer : la section courante n\'est pas proposée', mv.length === 2 && mv.every(r => r.value !== 'A'));
+  mv.find(r => r.value === 'C').checked = true;
+  click(k.w, k.d.querySelector('.sec-dialog [data-x="save"]')); await wait(250);
+  check('déplacer la sélection vers une autre section (ajoute puis retire)', k.db.links.filter(l => l.sectionId === 'C').length === 2 && k.db.links.filter(l => l.sectionId === 'A').length === 0);
+  click(k.w, k.d.querySelector('[data-sel="close"]')); await wait(100);
+  check('terminer : les cases disparaissent', !k.d.querySelector('.sel-box') && !k.d.getElementById('selBar'));
+
+  // glisser une section
+  const rect = (el, top, height) => { el.getBoundingClientRect = () => ({ top, height, left: 0, width: 100, right: 100, bottom: top + height }); };
+  const dragSec = (fromId, toId, y, type) => {
+    const row = kn().querySelector(`[data-dropsec="${toId}"]`); rect(row, 0, 100);
+    const ev = new k.w.MouseEvent(type, { bubbles: true, cancelable: true, clientY: y });
+    ev.dataTransfer = { types: ['text/x-lp-section'], data: { 'text/x-lp-section': fromId }, setData(a, b) { this.data[a] = b; }, getData(a) { return this.data[a] || ''; } };
+    row.dispatchEvent(ev); return ev;
+  };
+  check('les lignes de section sont glissables', !!kn().querySelector('[data-secdrag="B"][draggable="true"]'));
+  check('survol d\'une section par une section : dépôt accepté', dragSec('C', 'A', 50, 'dragover').defaultPrevented);
+  dragSec('C', 'A', 5, 'drop'); await wait(200);
+  check('déposer en haut d\'une ligne : placée avant (position 0)', k.calls.some(x => x[0] === 'move' && x[1] === 'C' && x[2] === null && x[3] === 0));
+  dragSec('A', 'B', 95, 'drop'); await wait(200);
+  check('déposer en bas d\'une ligne : placée après (position 1 parmi les sœurs B, C)', k.calls.some(x => x[0] === 'move' && x[1] === 'A' && x[2] === null && x[3] === 1));
+  dragSec('A', 'B', 50, 'drop'); await wait(200);
+  check('déposer au milieu : devient sa sous-section', k.calls.some(x => x[0] === 'move' && x[1] === 'A' && x[2] === 'B' && x[3] === null));
+  const before = k.calls.filter(x => x[0] === 'move').length;
+  dragSec('B', 'A', 50, 'drop'); await wait(200);
+  check('une section ne peut pas entrer dans sa propre sous-section', k.calls.filter(x => x[0] === 'move').length === before);
+
+  // télécharger
+  const zipped = [];
+  k.w.JSZip = class { file(p) { zipped.push(p); } generateAsync() { return Promise.resolve(new k.w.Blob(['x'])); } };
+  k.w.fetch = () => Promise.resolve({ ok: true, blob: () => Promise.resolve(new k.w.Blob(['x'])) });
+  k.w.URL.createObjectURL = () => 'blob:x'; k.w.URL.revokeObjectURL = () => {};
+  k.w.HTMLAnchorElement.prototype.click = function () { zipped.push('DL:' + this.download); };
+  k.db.links = [{ sectionId: 'A', assetId: 'a1' }, { sectionId: 'B', assetId: 'a1' }, { sectionId: 'B', assetId: 'v1' }];
+  click(k.w, kn().querySelector('[data-pick="B"]')); await wait(150);
+  await k.w.eval('loadSections()'); k.w.eval('renderSecNav()');
+  click(k.w, kn().querySelector('[data-secact="download"]')); await wait(400);
+  check('télécharger une section : zip nommé comme la section', zipped.includes('DL:Bravo.zip'));
+  check('dossier de la section, nom du fichier', zipped.includes('Bravo/foret.png'));
+  check('une vidéo en lien (sans fichier) n\'est pas dans le zip', !zipped.some(p => /Trailer/.test(p)));
+  zipped.length = 0;
+  click(k.w, kn().querySelector('[data-pick="all"]')); await wait(100);
+  click(k.w, kn().querySelector('[data-secact="download"]')); await wait(400);
+  check('télécharger tout : un dossier par section, « Non classé » pour le reste', zipped.includes('Bravo/Alpha/foret.png') && zipped.includes('Bravo/foret.png') && zipped.includes('Non classé/chateau.png') && zipped.includes('DL:Hollow Manor.zip'));
+
+  // télécharger les fichiers d'une carte
+  zipped.length = 0;
+  await k.w.eval("downloadMapFiles({ title: 'Niveau 1', data: { roomTone: { kind: 'asset', id: 'a1' }, nodes: [{ label: 'Château', sounds: { main: [{ kind: 'asset', id: 'a2' }, { kind: 'track', id: 't' }] } }], edges: [] } })"); await wait(300);
+  check('fichiers d\'une carte : un dossier par élément, fond d\'ambiance à part', zipped.includes("Niveau 1/Fond d'ambiance/foret.png") && zipped.includes('Niveau 1/Château/chateau.png') && zipped.includes('DL:Niveau 1.zip'));
+  check('fichiers d\'une carte : les morceaux du Backstage ne sont pas inclus', zipped.filter(p => !p.startsWith('DL:')).length === 2);
 
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon');
   process.exit(failures ? 1 : 0);

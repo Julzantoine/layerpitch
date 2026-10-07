@@ -387,7 +387,7 @@
         <div class="lm-toolbar">
           <select id="lmPick" style="max-width:240px">${st.maps.map(m => `<option value="${esc(m.id)}"${m.id === st.current ? ' selected' : ''}>${esc(m.title || tr('map_untitled'))}</option>`).join('')}</select>
           ${ctx.canEdit ? `<button class="btn" id="lmNew" type="button">${esc(tr('map_new'))}</button>` : ''}
-          ${cur() && ctx.canEdit ? `<button class="btn" id="lmRename" type="button">${esc(tr('map_rename'))}</button><button class="btn danger" id="lmDelete" type="button">${esc(tr('map_delete'))}</button>` : ''}
+          ${cur() && ctx.canEdit ? `<button class="btn" id="lmRename" type="button">${esc(tr('map_rename'))}</button>${ctx.downloadFiles ? `<button class="btn" id="lmDownload" type="button" title="${esc(tr('map_downloadHint'))}">⬇ ${esc(tr('map_download'))}</button>` : ''}<button class="btn danger" id="lmDelete" type="button">${esc(tr('map_delete'))}</button>` : ''}
           <span class="lm-status">${esc(st.status)}</span>
         </div></div>
         ${map ? editorHtml(map) : `<div class="card"><div class="empty">${esc(tr('map_none'))}</div></div>`}`;
@@ -425,6 +425,8 @@
       };
       const rn = host.querySelector('#lmRename');
       if (rn) rn.onclick = async () => { const m = cur(); const t = await ask(tr('map_askName'), m.title); if (t == null) return; m.title = t.trim(); touch(); render(); };
+      const dlf = host.querySelector('#lmDownload');
+      if (dlf) dlf.onclick = () => ctx.downloadFiles(cur()); // zip des fichiers déposés sur la carte (fait par la page)
       const dl = host.querySelector('#lmDelete');
       if (dl) dl.onclick = async () => {
         const m = cur();

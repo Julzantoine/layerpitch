@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791384055865">
+<link rel="stylesheet" href="player.css?v=1791388234080">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -89,6 +89,8 @@
   .sec-row { display: flex; align-items: center; gap: 4px; border-radius: 6px; min-height: 30px; }
   .sec-row.on { background: var(--accent-soft); }
   .sec-row.drop-over { outline: 2px dashed var(--accent); background: var(--accent-soft); }
+  .sec-row.drop-before { box-shadow: 0 -2px 0 0 var(--accent); }
+  .sec-row.drop-after { box-shadow: 0 2px 0 0 var(--accent); }
   .sec-name { flex: 1 1 auto; min-width: 0; text-align: left; background: none; border: 0; padding: 4px 6px; font: inherit; font-size: 13px; color: var(--text); cursor: pointer; overflow-wrap: anywhere; }
   .sec-row.on .sec-name { font-weight: 600; }
   .sec-row .meta { flex: 0 0 auto; }
@@ -97,6 +99,9 @@
   .sec-acts .icon-btn { padding: 2px 4px; font-size: 12px; }
   .sec-unread { flex: 0 0 auto; min-width: 16px; padding: 0 5px; border-radius: 999px; background: #d0433a; color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
   .chan-sel { flex: 1 1 auto; min-width: 0; max-width: 100%; font-weight: 600; }
+  .sel-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px; margin: 0 0 12px; position: sticky; top: 8px; z-index: 5; }
+  .sel-box { width: auto; margin: 0 6px 0 0; align-self: flex-start; }
+  .sec-nav h3 .icon-btn.on { background: var(--accent-soft); }
   .sec-sep { border-top: 1px solid var(--border); margin: 6px 0; }
   .sec-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(0,0,0,.4); display: grid; place-items: center; padding: 16px; }
   .sec-dialog { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 18px; width: 420px; max-width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 12px 32px rgba(0,0,0,.22); }
@@ -173,22 +178,22 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791384055865"></script>
-<script src="layerpitch-notify.js?v=1791384055865"></script>
-<script src="player.js?v=1791384055865"></script>
-<script src="api/supabase-client.js?v=1791384055865"></script>
-<script src="api/auth.js?v=1791384055865"></script>
-<script src="layerpitch-appearance.js?v=1791384055865"></script>
-<script src="layerpitch-shell.js?v=1791384055865"></script>
-<script src="api/tracks.js?v=1791384055865"></script>
-<script src="api/packs.js?v=1791384055865"></script>
-<script src="api/albums.js?v=1791384055865"></script>
-<script src="api/studio.js?v=1791384055865"></script>
-<script src="api/adreels.js?v=1791384055865"></script>
-<script src="api/projects.js?v=1791384055865"></script>
-<script src="api/sfx.js?v=1791384055865"></script>
-<script src="projet-carte-audio.js?v=1791384055865"></script>
-<script src="projet-carte.js?v=1791384055865"></script>
+<script src="layerpitch-i18n.js?v=1791388234080"></script>
+<script src="layerpitch-notify.js?v=1791388234080"></script>
+<script src="player.js?v=1791388234080"></script>
+<script src="api/supabase-client.js?v=1791388234080"></script>
+<script src="api/auth.js?v=1791388234080"></script>
+<script src="layerpitch-appearance.js?v=1791388234080"></script>
+<script src="layerpitch-shell.js?v=1791388234080"></script>
+<script src="api/tracks.js?v=1791388234080"></script>
+<script src="api/packs.js?v=1791388234080"></script>
+<script src="api/albums.js?v=1791388234080"></script>
+<script src="api/studio.js?v=1791388234080"></script>
+<script src="api/adreels.js?v=1791388234080"></script>
+<script src="api/projects.js?v=1791388234080"></script>
+<script src="api/sfx.js?v=1791388234080"></script>
+<script src="projet-carte-audio.js?v=1791388234080"></script>
+<script src="projet-carte.js?v=1791388234080"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -243,7 +248,7 @@ const S = { tab: 'board', project: null, content: null, messages: [], query: '',
 // S.sections = { sections: [{ id, parentId, title, position }], links: [{ sectionId, assetId }] }, ou null tant que le feu vert
 // 'project_sections' est fermé (ou en démonstration) : alors rien n'apparaît. S.sel = 'all' | 'none' | identifiant de section.
 const SECTION_TABS = ['board', 'images', 'videos', 'music']; // sur « Moodboard », la section choisie = son propre Moodboard
-S.secPins = []; S.chan = null; S.chanState = []; S.secMsgs = []; S.secMore = false; // S.chan = canal du tchat : null = général, sinon une section
+S.secPins = []; S.selMode = false; S.selected = new Set(); S.chan = null; S.chanState = []; S.secMsgs = []; S.secMore = false; // S.chan = canal du tchat : null = général, sinon une section
 S.sections = null; S.sel = 'all'; S.secEdit = null; S.secLocked = false;
 async function loadSections() {
   if (DEMO || S.secLocked) return;
@@ -289,18 +294,19 @@ function renderSecNav() {
   const walk = (pid, depth) => secKids(pid).map(x => {
     const on = S.sel === x.id;
     const head = S.secEdit && S.secEdit.rename === x.id ? editRow(depth, x.title)
-      : `<div class="sec-row${on ? ' on' : ''}" data-dropsec="${esc(x.id)}" style="padding-left:${6 + depth * 14}px"><button type="button" class="sec-name" data-pick="${esc(x.id)}">${esc(x.title)}</button><span class="meta">${S.tab === 'board' ? sectionPinned(x.id).length : secCount(x.id)}</span>${chanUnread(x.id) ? `<span class="sec-unread" title="${esc(tr('chanUnread'))}">${chanUnread(x.id)}</span>` : ''}
+      : `<div class="sec-row${on ? ' on' : ''}" data-dropsec="${esc(x.id)}" data-secdrag="${esc(x.id)}" draggable="true" style="padding-left:${6 + depth * 14}px"><button type="button" class="sec-name" data-pick="${esc(x.id)}">${esc(x.title)}</button><span class="meta">${S.tab === 'board' ? sectionPinned(x.id).length : secCount(x.id)}</span>${chanUnread(x.id) ? `<span class="sec-unread" title="${esc(tr('chanUnread'))}">${chanUnread(x.id)}</span>` : ''}
         ${on ? `<span class="sec-acts"><button class="icon-btn" type="button" data-secact="chat" data-id="${esc(x.id)}" title="${esc(tr('chanOpen'))}">💬</button><button class="icon-btn" type="button" data-secact="map" data-id="${esc(x.id)}" title="${esc(tr('secMapLink'))}">🗺</button><button class="icon-btn" type="button" data-secact="add" data-id="${esc(x.id)}" title="${esc(tr('secAddSub'))}">＋</button><button class="icon-btn" type="button" data-secact="rename" data-id="${esc(x.id)}" title="${esc(tr('secRename'))}">✎</button><button class="icon-btn" type="button" data-secact="move" data-id="${esc(x.id)}" title="${esc(tr('secMove'))}">⇄</button><button class="icon-btn" type="button" data-secact="del" data-id="${esc(x.id)}" title="${esc(tr('secDelete'))}">✕</button></span>` : ''}</div>`;
     return head + (S.secEdit && S.secEdit.add === x.id ? editRow(depth + 1) : '') + walk(x.id, depth + 1);
   }).join('');
   const picked = S.sel !== 'all' && S.sel !== 'none' ? secById(S.sel) : null;
-  nav.innerHTML = `<h3>${esc(tr('secTitle'))}<button class="icon-btn" type="button" data-secact="add" data-id="" title="${esc(tr('secAdd'))}">＋</button></h3>
+  nav.innerHTML = `<h3>${esc(tr('secTitle'))}<span>${S.tab !== 'board' ? `<button class="icon-btn${S.selMode ? ' on' : ''}" type="button" data-secact="select" title="${esc(tr('selToggle'))}">☑</button>` : ''}<button class="icon-btn" type="button" data-secact="add" data-id="" title="${esc(tr('secAdd'))}">＋</button></span></h3>
     ${S.tab === 'board' ? `<div class="sec-row${S.sel === 'all' || S.sel === 'none' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="all">${esc(tr('secBoardGeneral'))}</button><span class="meta">${(S.content.moodboard || []).length}</span></div>`
     : `<div class="sec-row${S.sel === 'all' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="all">${esc(tr('secAll'))}</button><span class="meta">${assets.length}</span></div>
     <div class="sec-row${S.sel === 'none' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="none">${esc(tr('secNone'))}</button><span class="meta">${none}</span></div>`}
     <div class="sec-sep"></div>
     ${S.sections.sections.length || (S.secEdit && S.secEdit.add === '') ? '' : `<div class="meta">${esc(tr('secEmpty'))}</div>`}
     ${walk(null, 0)}${S.secEdit && S.secEdit.add === '' ? editRow(0) : ''}
+    <div class="sec-sep"></div><button class="btn" type="button" data-secact="download" style="width:100%">⬇ ${esc(tr(picked ? 'dlSection' : 'dlAll'))}</button>
     ${picked && picked.mapId ? `<div class="sec-sep"></div><button class="btn" type="button" data-openmap="${esc(picked.mapId)}" style="width:100%">🗺 ${esc(tr('secMapOpen'))}</button>` : ''}
     ${picked ? `<div class="sec-sep"></div><div class="meta">${esc(tr(S.tab === 'board' ? 'secBoardHere' : 'secFilesHere', { title: picked.title }))}</div>` : ''}`;
   nav.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { S.sel = b.dataset.pick; S.secEdit = null; renderPanel(); });
@@ -308,6 +314,8 @@ function renderSecNav() {
     const id = b.dataset.id, act = b.dataset.secact;
     if (act === 'add') { S.secEdit = { add: id }; renderSecNav(); }
     else if (act === 'rename') { S.secEdit = { rename: id }; renderSecNav(); }
+    else if (act === 'select') { S.selMode = !S.selMode; S.selected = new Set(); renderSecNav(); decorateSelection(); }
+    else if (act === 'download') downloadFiles(picked ? picked.id : null);
     else if (act === 'chat') openChannel(id);
     else if (act === 'map') openMapLinkDialog(id);
     else if (act === 'move') openMoveDialog(id);
@@ -373,6 +381,129 @@ function openMoodboardsDialog(assetId) {
     close(); await reloadContent(); renderPanel(); broadcast('content'); broadcast('sections');
   };
 }
+// ---- Sélection multiple (réorganisation en masse) ----
+// Mode « ☑ » de la colonne : une case sur chaque carte / ligne glissable, une barre d'actions au-dessus de la liste. Les renderers
+// redessinent leur liste à volonté : un observateur remet cases et barre après chaque redessin.
+let selObserver = null;
+function selectionBarHtml() {
+  const n = S.selected.size, inSec = S.sel !== 'all' && S.sel !== 'none' ? secById(S.sel) : null;
+  return `<div class="card sel-bar" id="selBar"><strong>${esc(tr('selCount', { n }))}</strong>
+    <button class="btn" type="button" data-sel="all">${esc(tr('selAll'))}</button><button class="btn" type="button" data-sel="none">${esc(tr('selNone'))}</button>
+    <button class="btn primary" type="button" data-sel="add" ${n ? '' : 'disabled'}>${esc(tr('selAdd'))}</button>
+    ${inSec ? `<button class="btn" type="button" data-sel="move" ${n ? '' : 'disabled'}>${esc(tr('selMove'))}</button><button class="btn" type="button" data-sel="remove" ${n ? '' : 'disabled'}>${esc(tr('selRemove', { title: inSec.title }))}</button>` : ''}
+    <button class="btn" type="button" data-sel="unsort" ${n ? '' : 'disabled'}>${esc(tr('selUnsort'))}</button>
+    <button class="btn" type="button" data-sel="close">${esc(tr('selClose'))}</button></div>`;
+}
+function decorateSelection() {
+  const host = $('secMain'); if (!host) return;
+  if (selObserver) selObserver.disconnect();
+  host.querySelectorAll('.sel-box').forEach(x => x.remove());
+  const bar = $('selBar'); if (bar) bar.remove();
+  if (S.selMode && S.sections) {
+    host.insertAdjacentHTML('afterbegin', selectionBarHtml());
+    host.querySelectorAll('[data-dragasset]').forEach(el => {
+      const id = el.dataset.dragasset, box = document.createElement('input');
+      box.type = 'checkbox'; box.className = 'sel-box'; box.checked = S.selected.has(id); box.title = tr('selToggle');
+      box.onchange = () => { if (box.checked) S.selected.add(id); else S.selected.delete(id); decorateSelection(); };
+      el.insertBefore(box, el.firstChild);
+    });
+    $('selBar').querySelectorAll('[data-sel]').forEach(b => b.onclick = () => selectionAction(b.dataset.sel));
+  }
+  if (!selObserver) selObserver = new MutationObserver(() => { const h = $('secMain'); if (h && !h.querySelector('#selBar') === S.selMode) decorateSelection(); });
+  selObserver.observe(host, { childList: true });
+}
+async function selectionAction(act) {
+  const ids = [...S.selected];
+  if (act === 'close') { S.selMode = false; S.selected = new Set(); renderSecNav(); return decorateSelection(); }
+  if (act === 'all') { ids.length = 0; $('secMain').querySelectorAll('[data-dragasset]').forEach(el => S.selected.add(el.dataset.dragasset)); return decorateSelection(); }
+  if (act === 'none') { S.selected = new Set(); return decorateSelection(); }
+  if (!ids.length) return;
+  const done = async () => { S.selected = new Set(); await sectionsChanged(); };
+  if (act === 'remove') { if (secError(await PJ.removeAssetsFromSection(S.sel, ids))) return; return done(); }
+  if (act === 'unsort') {
+    if (!(await window.LayerPitchNotify.confirm(tr('selUnsortConfirm', { n: ids.length }), { okLabel: tr('selUnsort') }))) return;
+    for (const id of ids) if (secError(await PJ.setAssetSections(id, []))) return;
+    return done();
+  }
+  // add / move : choisir la section de destination
+  const skip = act === 'move' ? new Set([S.sel]) : null, flat = secFlat(skip);
+  if (!flat.length) return window.LayerPitchNotify.info(tr('secEmpty'));
+  const { box, close } = openOverlay(`<h2>${esc(tr(act === 'move' ? 'selMoveTitle' : 'selAddTitle', { n: ids.length }))}</h2>
+    ${flat.map((x, i) => `<label class="sec-pick" style="padding-left:${x.depth * 16}px"><input type="radio" name="selTarget" value="${esc(x.id)}" ${i === 0 ? 'checked' : ''}> ${esc(x.title)}</label>`).join('')}
+    <div class="bar" style="margin-top:12px;justify-content:flex-end"><button class="btn" type="button" data-x="cancel">${esc(tr('secCancel'))}</button><button class="btn primary" type="button" data-x="save">${esc(tr('save'))}</button></div>`);
+  box.querySelector('[data-x="cancel"]').onclick = close;
+  box.querySelector('[data-x="save"]').onclick = async () => {
+    const target = box.querySelector('input:checked').value;
+    if (secError(await PJ.addAssetsToSection(target, ids))) return;
+    if (act === 'move' && secError(await PJ.removeAssetsFromSection(S.sel, ids))) return;
+    close(); await done();
+  };
+}
+
+// ---- Télécharger les fichiers (7/10) : un zip, un dossier par section (sous-sections en sous-dossiers) ----
+// Seulement les fichiers du Projet (images, audio, vidéos, documents envoyés) : les morceaux LayerPitch restent dans le Backstage,
+// les liens n'ont pas de fichier. Les objets rangés dans plusieurs sections sont dans chacun de leurs dossiers. Zip fait dans
+// le navigateur (JSZip chargé au clic), noms sans accent ni caractère interdit.
+let jsZipPromise = null;
+function loadJSZip() {
+  if (window.JSZip) return Promise.resolve();
+  if (!jsZipPromise) jsZipPromise = new Promise((res, rej) => { const el = document.createElement('script'); el.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'; el.onload = res; el.onerror = () => rej(new Error('JSZip')); document.head.appendChild(el); });
+  return jsZipPromise;
+}
+const safeName = t => String(t || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').replace(/\s+/g, ' ').trim().replace(/^\.+/, '').slice(0, 80) || 'sans-titre';
+// [{ path: 'Niveau 1/Forêt/plan.png', asset }] pour une section (et ses sous-sections), ou pour toute la réserve (null).
+function downloadPlan(secId) {
+  const files = a => a.fileId, out = [], assets = S.content.assets || [];
+  const walk = (id, prefix) => {
+    const x = secById(id), dir = prefix + safeName(x.title) + '/';
+    const here = new Set(S.sections.links.filter(l => l.sectionId === id).map(l => l.assetId));
+    assets.filter(a => here.has(a.id) && files(a)).forEach(a => out.push({ dir, asset: a }));
+    secKids(id).forEach(k => walk(k.id, dir));
+  };
+  if (secId) walk(secId, ''); else {
+    secKids(null).forEach(k => walk(k.id, ''));
+    assets.filter(a => files(a) && !assetSectionIds(a.id).length).forEach(a => out.push({ dir: safeName(tr('secNone')) + '/', asset: a }));
+  }
+  return out;
+}
+// Fichiers déposés sur une carte (fond d'ambiance, éléments, parcours, transitions) : un dossier par élément. Seuls les sons
+// « fichier du Projet » sont inclus (les morceaux et effets du Backstage n'ont pas de fichier dans le Projet).
+function downloadMapFiles(m) {
+  const data = m.data || {}, assets = S.content.assets || [], out = [];
+  const add = (dir, refs) => (refs || []).forEach(r => { const a = r && r.kind === 'asset' ? assets.find(x => x.id === r.id) : null; if (a && a.fileId) out.push({ dir: safeName(m.title || tr('map_untitled')) + '/' + safeName(dir) + '/', asset: a }); });
+  add(tr('map_downloadRoom'), [data.roomTone]);
+  const sounds = (dir, o) => { ['main', 'combat', 'room'].forEach(k => add(dir, (o.sounds || {})[k])); if (o.transition && o.transition.stinger) add(dir, [o.transition.stinger]); };
+  (data.nodes || []).forEach(n => sounds(n.label || tr('map_untitled'), n));
+  (data.edges || []).forEach(e => sounds(e.label || tr('map_untitled'), e));
+  const seen = new Set();
+  const plan = out.filter(x => { const k = x.dir + x.asset.id; if (seen.has(k)) return false; seen.add(k); return true; });
+  return zipPlan(uniquePaths(plan), m.title || tr('map_untitled'));
+}
+function uniquePaths(list) {
+  const used = new Set();
+  return list.map(({ dir, asset }) => {
+    const base = safeName(asset.fileName || assetTitle(asset)), dot = base.lastIndexOf('.'), stem = dot > 0 ? base.slice(0, dot) : base, ext = dot > 0 ? base.slice(dot) : '';
+    let path = dir + base, n = 2; while (used.has(path.toLowerCase())) path = dir + stem + ' (' + n++ + ')' + ext;
+    used.add(path.toLowerCase()); return { path, asset };
+  });
+}
+function downloadFiles(secId) { return zipPlan(uniquePaths(downloadPlan(secId)), secId ? secById(secId).title : S.project.title); }
+async function zipPlan(plan, title) {
+  if (!plan.length) return window.LayerPitchNotify.info(tr('dlNone'));
+  const total = plan.reduce((n, x) => n + (Number(x.asset.fileSize) || 0), 0);
+  if (total > 500 * 1024 * 1024 && !(await window.LayerPitchNotify.confirm(tr('dlBig', { n: plan.length, mb: Math.round(total / 1048576) }), { okLabel: tr('dlGo') }))) return;
+  try { await loadJSZip(); } catch (e) { return window.LayerPitchNotify.error(tr('dlNoLib')); }
+  const zip = new window.JSZip(); let done = 0, failed = 0;
+  for (const { path, asset } of plan) {
+    window.LayerPitchNotify.info(tr('dlProgress', { n: ++done, total: plan.length }));
+    try { const u = await fileUrl(asset.fileId); const r = await fetch(u); if (!r.ok) throw new Error(r.status); zip.file(path, await r.blob()); } catch (e) { failed++; }
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = safeName(title) + '.zip'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  window.LayerPitchNotify.info(tr(failed ? 'dlDoneSome' : 'dlDone', { n: plan.length - failed, failed }));
+}
+
 // Relier une section à une carte de niveau (un simple lien : la section propose d'ouvrir cette carte).
 async function openMapLinkDialog(id) {
   const x = secById(id); if (!x) return;
@@ -404,16 +535,49 @@ function openMoveDialog(id) {
     close(); await sectionsChanged();
   };
 }
-// Glisser un objet (image, vidéo, morceau) sur une section de la colonne pour l'y ranger (sans le retirer d'ailleurs).
-content.addEventListener('dragstart', e => { const el = e.target.closest && e.target.closest('[data-dragasset]'); if (!el || !S.sections) return; e.dataTransfer.setData('text/x-lp-asset', el.dataset.dragasset); e.dataTransfer.effectAllowed = 'copy'; });
+// Glisser un objet (image, vidéo, morceau) sur une section de la colonne pour l'y ranger (sans le retirer d'ailleurs) ; si l'objet
+// fait partie d'une sélection, toute la sélection suit. Glisser une section sur une autre : au milieu de la ligne = elle devient
+// sa sous-section, en haut / en bas = elle se place avant / après.
+content.addEventListener('dragstart', e => {
+  if (!S.sections) return;
+  const sd = e.target.closest && e.target.closest('[data-secdrag]');
+  if (sd) { e.dataTransfer.setData('text/x-lp-section', sd.dataset.secdrag); e.dataTransfer.effectAllowed = 'move'; return; }
+  const el = e.target.closest && e.target.closest('[data-dragasset]'); if (!el) return;
+  e.dataTransfer.setData('text/x-lp-asset', el.dataset.dragasset); e.dataTransfer.effectAllowed = 'copy';
+});
 const dropRow = e => e.target.closest && e.target.closest('[data-dropsec]');
-content.addEventListener('dragover', e => { const r = dropRow(e); content.querySelectorAll('.sec-row.drop-over').forEach(x => { if (x !== r) x.classList.remove('drop-over'); }); if (r && e.dataTransfer && [...(e.dataTransfer.types || [])].includes('text/x-lp-asset')) { e.preventDefault(); r.classList.add('drop-over'); } });
-content.addEventListener('dragleave', e => { const r = dropRow(e); if (r && !r.contains(e.relatedTarget)) r.classList.remove('drop-over'); });
+const dragTypes = e => [...((e.dataTransfer && e.dataTransfer.types) || [])];
+function dropZone(e, row) { // 'before' | 'inside' | 'after' d'après la position du pointeur dans la ligne
+  const r = row.getBoundingClientRect(); if (!r.height) return 'inside';
+  const y = (e.clientY - r.top) / r.height; return y < 0.25 ? 'before' : y > 0.75 ? 'after' : 'inside';
+}
+function clearDropMarks() { content.querySelectorAll('.sec-row.drop-over, .sec-row.drop-before, .sec-row.drop-after').forEach(x => x.classList.remove('drop-over', 'drop-before', 'drop-after')); }
+content.addEventListener('dragover', e => {
+  const r = dropRow(e); clearDropMarks();
+  if (!r || !e.dataTransfer) return;
+  const t = dragTypes(e);
+  if (t.includes('text/x-lp-asset')) { e.preventDefault(); r.classList.add('drop-over'); }
+  else if (t.includes('text/x-lp-section')) { e.preventDefault(); r.classList.add('drop-' + (dropZone(e, r) === 'inside' ? 'over' : dropZone(e, r))); }
+});
+content.addEventListener('dragleave', e => { const r = dropRow(e); if (r && !r.contains(e.relatedTarget)) r.classList.remove('drop-over', 'drop-before', 'drop-after'); });
+// Place une section par rapport à une autre : zone 'inside' = au bout des sous-sections de la cible, sinon avant / après elle.
+async function moveSectionNear(id, targetId, zone) {
+  if (id === targetId || secDescendants(id).includes(targetId)) return;
+  const target = secById(targetId); if (!target) return;
+  if (zone === 'inside') { if (secError(await PJ.moveSection(id, targetId, null))) return; return sectionsChanged(); }
+  const parent = target.parentId || null, sibs = secKids(parent).filter(x => x.id !== id), idx = sibs.findIndex(x => x.id === targetId);
+  if (secError(await PJ.moveSection(id, parent, zone === 'before' ? idx : idx + 1))) return;
+  await sectionsChanged();
+}
 content.addEventListener('drop', async e => {
   const r = dropRow(e); if (!r) return;
-  const id = e.dataTransfer.getData('text/x-lp-asset'); r.classList.remove('drop-over'); if (!id) return;
+  const secId = e.dataTransfer.getData('text/x-lp-section'), zone = secId ? dropZone(e, r) : null;
+  const id = e.dataTransfer.getData('text/x-lp-asset'); clearDropMarks();
+  if (secId) { e.preventDefault(); return moveSectionNear(secId, r.dataset.dropsec, zone); }
+  if (!id) return;
   e.preventDefault();
-  if (secError(await PJ.addAssetsToSection(r.dataset.dropsec, [id]))) return;
+  const ids = S.selMode && S.selected.has(id) ? [...S.selected] : [id];
+  if (secError(await PJ.addAssetsToSection(r.dataset.dropsec, ids))) return;
   window.LayerPitchNotify.info(tr('secDropped', { title: secById(r.dataset.dropsec).title }));
   await sectionsChanged();
 });
@@ -592,7 +756,7 @@ async function renderPanel() {
   let host = panel;
   if (S.sections && SECTION_TABS.includes(S.tab)) {
     panel.innerHTML = `<div class="sec-layout"><nav class="card sec-nav" id="secNav" aria-label="${esc(tr('secTitle'))}"></nav><div id="secMain" style="min-width:0"></div></div>`;
-    renderSecNav(); host = $('secMain');
+    renderSecNav(); host = $('secMain'); decorateSelection();
   }
   if (S.tab === 'board') return renderBoard(host);
   if (S.tab === 'videos') return renderVideos(host);
@@ -1472,7 +1636,7 @@ async function renderMap(panel) {
   if (S.mapView && S.mapView.destroy) S.mapView.destroy();
   const openId = S.openMapId; S.openMapId = null;
   S.mapView = LayerPitchLevelMap.mount(panel, {
-    tr, canEdit: true, libraries, audio: mapAudioEnv(), openId,
+    tr, canEdit: true, libraries, audio: mapAudioEnv(), openId, downloadFiles: downloadMapFiles,
     maps: r.data || [],
     save: async m => {
       const res = await PJ.saveMap(projectId, { id: m.id, title: m.title, data: m.data });
