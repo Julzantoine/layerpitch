@@ -28,6 +28,16 @@
     listMaps: id => rpc('list_project_maps', { p_project_id: id }),
     saveMap: (id, p) => rpc('save_project_map', { p_project_id: id, p }),
     deleteMap: mapId => rpc('delete_project_map', { p_map_id: mapId }),
+    // Sections (7/10, migration 20261007030000) : arbre libre ; un objet peut être dans plusieurs sections ; sans section = « non classé ».
+    // list rend { sections: [{ id, parentId, title, position }], links: [{ sectionId, assetId }] }.
+    sections: id => rpc('list_project_sections', { p_project_id: id }),
+    createSection: (id, title, parentId) => rpc('create_project_section', { p_project_id: id, p_title: title, p_parent_id: parentId || null }),
+    renameSection: (sectionId, title) => rpc('rename_project_section', { p_section_id: sectionId, p_title: title }),
+    moveSection: (sectionId, parentId, position) => rpc('move_project_section', { p_section_id: sectionId, p_parent_id: parentId || null, p_position: position == null ? null : position }),
+    deleteSection: sectionId => rpc('delete_project_section', { p_section_id: sectionId }),
+    setAssetSections: (assetId, sectionIds) => rpc('set_asset_sections', { p_asset_id: assetId, p_section_ids: sectionIds || [] }),
+    addAssetsToSection: (sectionId, assetIds) => rpc('add_assets_to_section', { p_section_id: sectionId, p_asset_ids: assetIds }),
+    removeAssetsFromSection: (sectionId, assetIds) => rpc('remove_assets_from_section', { p_section_id: sectionId, p_asset_ids: assetIds }),
     create: (title, description, asStudio) => rpc('create_project', { p_title: title, p_description: description || '', p_as_studio: !!asStudio }),
     get: id => rpc('get_project', { p_project_id: id }),
     content: id => rpc('get_project_content', { p_project_id: id }),

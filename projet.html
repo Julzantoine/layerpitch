@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791321089379">
+<link rel="stylesheet" href="player.css?v=1791379993381">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -82,6 +82,25 @@
   .bubble { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; max-width: 85%; }
   .bubble.mine { align-self: flex-end; background: var(--accent-soft); border-color: transparent; }
   .bubble-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+  /* Sections (7/10) : colonne de navigation à gauche des onglets Images / Vidéos / Musique */
+  .sec-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 14px; align-items: start; }
+  .sec-nav { position: sticky; top: 8px; padding: 10px; margin: 0; max-height: calc(100vh - 24px); overflow-y: auto; }
+  .sec-nav h3 { margin: 0 0 6px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .sec-row { display: flex; align-items: center; gap: 4px; border-radius: 6px; min-height: 30px; }
+  .sec-row.on { background: var(--accent-soft); }
+  .sec-name { flex: 1 1 auto; min-width: 0; text-align: left; background: none; border: 0; padding: 4px 6px; font: inherit; font-size: 13px; color: var(--text); cursor: pointer; overflow-wrap: anywhere; }
+  .sec-row.on .sec-name { font-weight: 600; }
+  .sec-row .meta { flex: 0 0 auto; }
+  .sec-row input { flex: 1 1 auto; min-width: 0; padding: 4px 6px; font-size: 13px; }
+  .sec-acts { display: flex; flex: 0 0 auto; }
+  .sec-acts .icon-btn { padding: 2px 4px; font-size: 12px; }
+  .sec-sep { border-top: 1px solid var(--border); margin: 6px 0; }
+  .sec-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(0,0,0,.4); display: grid; place-items: center; padding: 16px; }
+  .sec-dialog { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 18px; width: 420px; max-width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 12px 32px rgba(0,0,0,.22); }
+  .sec-dialog h2 { margin: 0 0 6px; font-size: 16px; }
+  .sec-pick { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; cursor: pointer; }
+  .sec-pick input { width: auto; margin: 0; }
+  @media (max-width: 900px) { .sec-layout { grid-template-columns: minmax(0, 1fr); } .sec-nav { position: static; max-height: none; } }
   /* Tableau */
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
   .item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
@@ -151,22 +170,22 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791321089379"></script>
-<script src="layerpitch-notify.js?v=1791321089379"></script>
-<script src="player.js?v=1791321089379"></script>
-<script src="api/supabase-client.js?v=1791321089379"></script>
-<script src="api/auth.js?v=1791321089379"></script>
-<script src="layerpitch-appearance.js?v=1791321089379"></script>
-<script src="layerpitch-shell.js?v=1791321089379"></script>
-<script src="api/tracks.js?v=1791321089379"></script>
-<script src="api/packs.js?v=1791321089379"></script>
-<script src="api/albums.js?v=1791321089379"></script>
-<script src="api/studio.js?v=1791321089379"></script>
-<script src="api/adreels.js?v=1791321089379"></script>
-<script src="api/projects.js?v=1791321089379"></script>
-<script src="api/sfx.js?v=1791321089379"></script>
-<script src="projet-carte-audio.js?v=1791321089379"></script>
-<script src="projet-carte.js?v=1791321089379"></script>
+<script src="layerpitch-i18n.js?v=1791379993381"></script>
+<script src="layerpitch-notify.js?v=1791379993381"></script>
+<script src="player.js?v=1791379993381"></script>
+<script src="api/supabase-client.js?v=1791379993381"></script>
+<script src="api/auth.js?v=1791379993381"></script>
+<script src="layerpitch-appearance.js?v=1791379993381"></script>
+<script src="layerpitch-shell.js?v=1791379993381"></script>
+<script src="api/tracks.js?v=1791379993381"></script>
+<script src="api/packs.js?v=1791379993381"></script>
+<script src="api/albums.js?v=1791379993381"></script>
+<script src="api/studio.js?v=1791379993381"></script>
+<script src="api/adreels.js?v=1791379993381"></script>
+<script src="api/projects.js?v=1791379993381"></script>
+<script src="api/sfx.js?v=1791379993381"></script>
+<script src="projet-carte-audio.js?v=1791379993381"></script>
+<script src="projet-carte.js?v=1791379993381"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -217,6 +236,125 @@ const content = $('content');
 const S = { tab: 'board', project: null, content: null, messages: [], query: '', activity: [], snapshots: [], openNotes: {}, notes: {},
   video: null, videoNotes: [], fileUrls: {}, myComposerId: null, myPacks: [], myAlbums: [], channel: null, me: null };
 
+// ---- Sections (7/10, étape 1) : arbre libre ; un objet peut être dans plusieurs sections ; sans section = « non classé » ----
+// S.sections = { sections: [{ id, parentId, title, position }], links: [{ sectionId, assetId }] }, ou null tant que le feu vert
+// 'project_sections' est fermé (ou en démonstration) : alors rien n'apparaît. S.sel = 'all' | 'none' | identifiant de section.
+const SECTION_TABS = ['images', 'videos', 'music']; // le Moodboard reste général jusqu'à l'étape 2 (un Moodboard par section)
+S.sections = null; S.sel = 'all'; S.secEdit = null; S.secLocked = false;
+async function loadSections() {
+  if (DEMO || S.secLocked) return;
+  const r = await PJ.sections(projectId);
+  if (r.error || !r.data) { S.secLocked = true; S.sections = null; return; }
+  S.sections = { sections: r.data.sections || [], links: r.data.links || [] };
+  if (S.sel !== 'all' && S.sel !== 'none' && !secById(S.sel)) S.sel = 'all';
+}
+const secById = id => S.sections && S.sections.sections.find(x => x.id === id);
+const secKids = pid => S.sections.sections.filter(x => (x.parentId || null) === (pid || null));
+function secDescendants(id) { const out = [id]; for (const k of secKids(id)) out.push(...secDescendants(k.id)); return out; }
+const assetSectionIds = assetId => S.sections.links.filter(l => l.assetId === assetId).map(l => l.sectionId);
+function secCount(id) { const ids = new Set(secDescendants(id)); return new Set(S.sections.links.filter(l => ids.has(l.sectionId)).map(l => l.assetId)).size; }
+function inSelection(a) {
+  if (!S.sections || S.sel === 'all') return true;
+  const mine = assetSectionIds(a.id);
+  if (S.sel === 'none') return !mine.length;
+  const ids = new Set(secDescendants(S.sel));
+  return mine.some(i => ids.has(i));
+}
+const forSel = list => S.sections ? list.filter(inSelection) : list;
+// Un objet ajouté pendant qu'une section est choisie y est rangé tout de suite (il reste de toute façon dans la réserve).
+async function addAsset(id, payload, pin) {
+  const r = await PJ.addAsset(id, payload, pin);
+  if (!r.error && r.data && r.data.id && S.sections && S.sel !== 'all' && S.sel !== 'none') await PJ.addAssetsToSection(S.sel, [r.data.id]);
+  return r;
+}
+const secBtn = (a, cls) => S.sections ? `<button class="${cls || 'icon-btn'}" type="button" data-secassign="${esc(a.id)}" title="${esc(tr('secAssign'))}">🗂${assetSectionIds(a.id).length ? ' ' + assetSectionIds(a.id).length : ''}</button>` : '';
+async function sectionsChanged() { await loadSections(); renderPanel(); broadcast('sections'); }
+function secError(r) { if (r && r.error) { window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error })); return true; } return false; }
+function renderSecNav() {
+  const nav = $('secNav'); if (!nav || !S.sections) return;
+  const assets = S.content.assets || [];
+  const none = assets.filter(a => !assetSectionIds(a.id).length).length;
+  const editRow = (depth, value) => `<div class="sec-row" style="padding-left:${6 + depth * 14}px"><input type="text" id="secInput" maxlength="120" value="${esc(value || '')}" placeholder="${esc(tr('secNamePlaceholder'))}"></div>`;
+  const walk = (pid, depth) => secKids(pid).map(x => {
+    const on = S.sel === x.id;
+    const head = S.secEdit && S.secEdit.rename === x.id ? editRow(depth, x.title)
+      : `<div class="sec-row${on ? ' on' : ''}" style="padding-left:${6 + depth * 14}px"><button type="button" class="sec-name" data-pick="${esc(x.id)}">${esc(x.title)}</button><span class="meta">${secCount(x.id)}</span>
+        ${on ? `<span class="sec-acts"><button class="icon-btn" type="button" data-secact="add" data-id="${esc(x.id)}" title="${esc(tr('secAddSub'))}">＋</button><button class="icon-btn" type="button" data-secact="rename" data-id="${esc(x.id)}" title="${esc(tr('secRename'))}">✎</button><button class="icon-btn" type="button" data-secact="move" data-id="${esc(x.id)}" title="${esc(tr('secMove'))}">⇄</button><button class="icon-btn" type="button" data-secact="del" data-id="${esc(x.id)}" title="${esc(tr('secDelete'))}">✕</button></span>` : ''}</div>`;
+    return head + (S.secEdit && S.secEdit.add === x.id ? editRow(depth + 1) : '') + walk(x.id, depth + 1);
+  }).join('');
+  const picked = S.sel !== 'all' && S.sel !== 'none' ? secById(S.sel) : null;
+  nav.innerHTML = `<h3>${esc(tr('secTitle'))}<button class="icon-btn" type="button" data-secact="add" data-id="" title="${esc(tr('secAdd'))}">＋</button></h3>
+    <div class="sec-row${S.sel === 'all' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="all">${esc(tr('secAll'))}</button><span class="meta">${assets.length}</span></div>
+    <div class="sec-row${S.sel === 'none' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="none">${esc(tr('secNone'))}</button><span class="meta">${none}</span></div>
+    <div class="sec-sep"></div>
+    ${S.sections.sections.length || (S.secEdit && S.secEdit.add === '') ? '' : `<div class="meta">${esc(tr('secEmpty'))}</div>`}
+    ${walk(null, 0)}${S.secEdit && S.secEdit.add === '' ? editRow(0) : ''}
+    ${picked ? `<div class="sec-sep"></div><div class="meta">${esc(tr('secFilesHere', { title: picked.title }))}</div>` : ''}`;
+  nav.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { S.sel = b.dataset.pick; S.secEdit = null; renderPanel(); });
+  nav.querySelectorAll('[data-secact]').forEach(b => b.onclick = async () => {
+    const id = b.dataset.id, act = b.dataset.secact;
+    if (act === 'add') { S.secEdit = { add: id }; renderSecNav(); }
+    else if (act === 'rename') { S.secEdit = { rename: id }; renderSecNav(); }
+    else if (act === 'move') openMoveDialog(id);
+    else if (act === 'del') {
+      const x = secById(id);
+      if (!(await window.LayerPitchNotify.confirm(tr('secDeleteConfirm', { title: x.title }), { okLabel: tr('secDelete'), danger: true }))) return;
+      if (secError(await PJ.deleteSection(id))) return;
+      if (S.sel === id) S.sel = x.parentId || 'all';
+      await sectionsChanged();
+    }
+    const input = $('secInput'); if (input) { input.focus(); input.select(); }
+  });
+  const input = $('secInput');
+  if (input) input.onkeydown = async e => {
+    if (e.key === 'Escape') { S.secEdit = null; return renderSecNav(); }
+    if (e.key !== 'Enter') return;
+    const title = input.value.trim(), ed = S.secEdit; if (!title || !ed) { S.secEdit = null; return renderSecNav(); }
+    S.secEdit = null;
+    if (ed.rename) { if (secError(await PJ.renameSection(ed.rename, title))) return renderSecNav(); }
+    else { const r = await PJ.createSection(projectId, title, ed.add || null); if (secError(r)) return renderSecNav(); if (r.data && r.data.id) S.sel = r.data.id; }
+    await sectionsChanged();
+  };
+}
+function openOverlay(html) {
+  const o = document.createElement('div'); o.className = 'sec-overlay'; o.innerHTML = `<div class="sec-dialog" role="dialog" aria-modal="true">${html}</div>`;
+  document.body.appendChild(o);
+  const close = () => o.remove();
+  o.addEventListener('click', e => { if (e.target === o) close(); });
+  o.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  return { box: o.firstChild, close };
+}
+// Liste indentée de l'arbre (pour les boîtes de dialogue) : [{ id, title, depth }], sans les sections de `skip`.
+function secFlat(skip) { const out = []; const walk = (pid, depth) => secKids(pid).forEach(x => { if (skip && skip.has(x.id)) return; out.push({ id: x.id, title: x.title, depth }); walk(x.id, depth + 1); }); walk(null, 0); return out; }
+function openAssignDialog(assetId) {
+  const a = assetById(assetId); if (!a || !S.sections) return;
+  const mine = new Set(assetSectionIds(assetId)), flat = secFlat();
+  const { box, close } = openOverlay(`<h2>${esc(tr('secAssignTitle', { title: assetTitle(a) }))}</h2><p class="hint">${esc(tr('secAssignHint'))}</p>
+    ${flat.length ? flat.map(x => `<label class="sec-pick" style="padding-left:${x.depth * 16}px"><input type="checkbox" value="${esc(x.id)}" ${mine.has(x.id) ? 'checked' : ''}> ${esc(x.title)}</label>`).join('') : `<div class="meta">${esc(tr('secEmpty'))}</div>`}
+    <div class="bar" style="margin-top:12px;justify-content:flex-end"><button class="btn" type="button" data-x="cancel">${esc(tr('secCancel'))}</button><button class="btn primary" type="button" data-x="save">${esc(tr('save'))}</button></div>`);
+  box.querySelector('[data-x="cancel"]').onclick = close;
+  box.querySelector('[data-x="save"]').onclick = async () => {
+    const ids = [...box.querySelectorAll('input:checked')].map(i => i.value);
+    if (secError(await PJ.setAssetSections(assetId, ids))) return;
+    close(); await sectionsChanged();
+  };
+}
+function openMoveDialog(id) {
+  const x = secById(id); if (!x) return;
+  const flat = secFlat(new Set(secDescendants(id)));
+  const { box, close } = openOverlay(`<h2>${esc(tr('secMoveTitle', { title: x.title }))}</h2>
+    <label class="sec-pick"><input type="radio" name="secParent" value="" ${!x.parentId ? 'checked' : ''}> ${esc(tr('secRoot'))}</label>
+    ${flat.map(f => `<label class="sec-pick" style="padding-left:${(f.depth + 1) * 16}px"><input type="radio" name="secParent" value="${esc(f.id)}" ${x.parentId === f.id ? 'checked' : ''}> ${esc(f.title)}</label>`).join('')}
+    <div class="bar" style="margin-top:12px;justify-content:flex-end"><button class="btn" type="button" data-x="cancel">${esc(tr('secCancel'))}</button><button class="btn primary" type="button" data-x="save">${esc(tr('save'))}</button></div>`);
+  box.querySelector('[data-x="cancel"]').onclick = close;
+  box.querySelector('[data-x="save"]').onclick = async () => {
+    const parent = box.querySelector('input:checked').value || null;
+    if (secError(await PJ.moveSection(id, parent, null))) return;
+    close(); await sectionsChanged();
+  };
+}
+content.addEventListener('click', e => { const b = e.target.closest('[data-secassign]'); if (b) openAssignDialog(b.dataset.secassign); });
+
 function say(id, text, ok) { const m = $(id); if (m) { m.textContent = text; m.className = 'msg ' + (ok ? 'ok' : 'err'); } }
 function memberOptions(selected) {
   return `<option value="">${esc(tr('noAddressee'))}</option><option value="${PJ.PRIVATE}"${selected === PJ.PRIVATE ? ' selected' : ''}>${esc(tr('notePrivate'))}</option>` + (S.project.members || []).filter(m => m.profileId && m.status === 'active' && !m.me)
@@ -257,6 +395,7 @@ async function load() {
   const [c, composer] = await Promise.all([PJ.content(projectId), LayerPitchAuth.getMyComposerId()]);
   S.content = c.data || { assets: [], moodboard: [], packs: [], albums: [] };
   S.myComposerId = composer.composerId || null;
+  await loadSections();
   S.demoStatus = (await PJ.demoStatus()).data || { eligible: false }; // interrupteur « Démo publique » (admins et compte de démo)
   PJ.markRead(projectId);
   markProjectSeen();
@@ -265,7 +404,7 @@ async function load() {
   joinChannel();
   render();
 }
-async function reloadContent() { const c = await PJ.content(projectId); if (!c.error) S.content = c.data; }
+async function reloadContent() { const c = await PJ.content(projectId); if (!c.error) S.content = c.data; await loadSections(); if ($('secNav')) renderSecNav(); }
 function joinChannel() {
   if (S.channel) return;
   try {
@@ -280,6 +419,7 @@ function joinChannel() {
         renderChat();
       }
       else if (payload.what === 'content') { await reloadContent(); if (S.video) S.video = assetById(S.video.id) || null; if (['board', 'videos', 'images', 'music', 'showcase'].includes(S.tab) && !(S.tab === 'showcase' && S.vitrineDraft)) renderPanel(); /* jamais pendant l'édition d'une vitrine */ }
+      else if (payload.what === 'sections') { await loadSections(); if (SECTION_TABS.includes(S.tab) && !S.secEdit) renderPanel(); }
       else if (payload.what === 'maps' && S.tab === 'map') { if (!(S.mapView && S.mapView.state.dirty)) renderPanel(); }
       else if (payload.what === 'notes' && S.video) { await loadVideoNotes(); renderPanel(); }
     });
@@ -377,9 +517,15 @@ async function renderPanel() {
   if (!panel) return;
   if (S.tab === 'board') return renderBoard(panel);
   if (S.tab === 'map') return renderMap(panel);
-  if (S.tab === 'videos') return renderVideos(panel);
-  if (S.tab === 'images') return renderImages(panel);
-  if (S.tab === 'music') return renderMusic(panel);
+  // Images / Vidéos / Musique : colonne « Sections » à gauche (si le feu vert est ouvert), l'onglet à droite.
+  let host = panel;
+  if (S.sections && SECTION_TABS.includes(S.tab)) {
+    panel.innerHTML = `<div class="sec-layout"><nav class="card sec-nav" id="secNav" aria-label="${esc(tr('secTitle'))}"></nav><div id="secMain" style="min-width:0"></div></div>`;
+    renderSecNav(); host = $('secMain');
+  }
+  if (S.tab === 'videos') return renderVideos(host);
+  if (S.tab === 'images') return renderImages(host);
+  if (S.tab === 'music') return renderMusic(host);
   if (S.tab === 'showcase') return renderShowcase(panel);
   if (S.tab === 'activity') { const a = await PJ.activity(projectId); S.activity = a.data || []; return renderActivity(panel); }
   return renderMembers(panel);
@@ -831,6 +977,7 @@ async function assetCard(a, pins) {
     <div class="item-actions">
       <button class="icon-btn${a.starred ? ' on' : ''}" type="button" data-act="star" title="${esc(tr('pitchToggle'))}">★</button>
       ${pins.length > 1 ? dragHandle() : ''}
+      ${secBtn(a)}
       <button class="icon-btn" type="button" data-act="notes" title="${esc(tr('notesToggle'))}">💬${a.notes ? ' ' + esc(a.notes) : ''}</button>
       <button class="icon-btn" type="button" data-act="unpin" title="${esc(tr('unpin'))}">⊖</button>
       <button class="icon-btn" type="button" data-act="del" title="${esc(tr('deleteFromProject'))}">✕</button>
@@ -941,7 +1088,7 @@ function wireNotes(box, list, refresh) {
 // ---- Vidéos annotées (façon SoundCloud) ----
 // ---- Images : toutes les images du Projet, d'où qu'elles viennent (Moodboard, discussion, cet onglet) — 28/09 ----
 async function renderImages(panel) {
-  const imgs = (S.content.assets || []).filter(a => a.kind === 'image');
+  const imgs = forSel((S.content.assets || []).filter(a => a.kind === 'image'));
   panel.innerHTML = `<div class="card"><h2>${esc(tr('imagesTitle'))}</h2><p class="hint">${esc(tr('imagesIntro'))}</p>
       <div class="bar"><input type="file" id="iFile" multiple accept="image/jpeg,image/png,image/webp,image/gif" style="flex:1 1 240px">
         <label class="choice" style="margin:0"><input type="checkbox" id="iReference"> ${esc(tr('uploadIsReference'))}</label>
@@ -955,7 +1102,7 @@ async function renderImages(panel) {
       say('iMsg', tr('uploadingNamed', { name: f.name }), true);
       const up = await uploadOrReuse(f);
       if (up.error) { $('iUploadBtn').disabled = false; return say('iMsg', tr('errorPrefix', { message: f.name + ' : ' + up.error })); }
-      const r = await PJ.addAsset(projectId, { kind: 'image', fileId: up.data.fileId, title: f.name, origin: $('iReference').checked ? 'external' : 'own' });
+      const r = await addAsset(projectId, { kind: 'image', fileId: up.data.fileId, title: f.name, origin: $('iReference').checked ? 'external' : 'own' });
       if (r.error) { $('iUploadBtn').disabled = false; return say('iMsg', tr('errorPrefix', { message: r.error })); }
     }
     await reloadContent(); renderImages(panel); broadcast('content');
@@ -972,6 +1119,7 @@ async function renderImages(panel) {
       <div class="meta">${esc(a.authorEmail || '')}</div>
       <div class="item-actions">
         <button class="btn" type="button" data-act="pin">${esc(tr(a.pinned ? 'unpin' : 'pinBtn'))}</button>
+        ${secBtn(a)}
         <button class="icon-btn" type="button" data-act="notes" title="${esc(tr('notesToggle'))}">💬${a.notes ? ' ' + esc(a.notes) : ''}</button>
         <button class="icon-btn" type="button" data-act="del" title="${esc(tr('deleteFromProject'))}">✕</button>
       </div>
@@ -985,7 +1133,7 @@ async function renderImages(panel) {
   }
 }
 function renderVideos(panel) {
-  const vids = (S.content.assets || []).filter(a => a.kind === 'video');
+  const vids = forSel((S.content.assets || []).filter(a => a.kind === 'video'));
   panel.innerHTML = `<div class="card">
       <h2>${esc(tr('videosTitle'))}</h2><p class="hint">${esc(tr('videosIntro'))}</p>
       <div class="bar"><input type="url" id="vUrl" placeholder="${esc(tr('videoLinkPlaceholder'))}" style="flex:1 1 240px"><button class="btn" id="vLinkBtn" type="button">${esc(tr('addVideoLink'))}</button></div>
@@ -996,10 +1144,11 @@ function renderVideos(panel) {
     <div class="card">${vids.length ? vids.map(v => `<div class="list-row"><div class="list-main">${esc(v.title || tr('untitledVideo'))} <span class="meta">· ${esc(tr(v.url ? 'videoLink' : 'videoFile'))} · ${esc(tr('noteCount', { n: v.notes }))}</span>${v.pinned ? ` <span class="pill">${esc(tr('pinnedPill'))}</span>` : ''}</div>
         <button class="btn${S.video && S.video.id === v.id ? ' primary' : ''}" type="button" data-open="${esc(v.id)}">${esc(tr('openVideo'))}</button>
         <button class="btn" type="button" data-pin="${esc(v.id)}">${esc(tr(v.pinned ? 'unpin' : 'pinBtn'))}</button>
+        ${secBtn(v, 'btn')}
         <button class="btn danger" type="button" data-delvideo="${esc(v.id)}">${esc(tr('delete'))}</button></div>`).join('') : `<div class="empty">${esc(tr('noVideos'))}</div>`}</div>
     <div id="videoStage"></div>`;
   const addLink = async () => {
-    const r = await PJ.addAsset(projectId, { kind: 'video', url: $('vUrl').value.trim(), title: $('vTitle').value.trim() });
+    const r = await addAsset(projectId, { kind: 'video', url: $('vUrl').value.trim(), title: $('vTitle').value.trim() });
     if (r.error) return say('vMsg', tr('errorPrefix', { message: r.error }));
     if (r.data && r.data.existed) window.LayerPitchNotify.info(tr('alreadyInProjectVideo'));
     await reloadContent(); renderVideos(panel); broadcast('content');
@@ -1010,7 +1159,7 @@ function renderVideos(panel) {
     $('vUploadBtn').disabled = true; say('vMsg', tr('uploading'), true);
     const up = await uploadOrReuse(file);
     if (up.error) { $('vUploadBtn').disabled = false; return say('vMsg', tr('errorPrefix', { message: up.error })); }
-    const r = await PJ.addAsset(projectId, { kind: 'video', fileId: up.data.fileId, title: $('vTitle').value.trim() || file.name });
+    const r = await addAsset(projectId, { kind: 'video', fileId: up.data.fileId, title: $('vTitle').value.trim() || file.name });
     if (r.error) { $('vUploadBtn').disabled = false; return say('vMsg', tr('errorPrefix', { message: r.error })); }
     await reloadContent(); renderVideos(panel); broadcast('content');
   };
@@ -1183,7 +1332,7 @@ async function renderMusic(panel) {
   const shared = S.content.packs || [];
   const albums = S.content.albums || [];
   const studioProject = S.project.ownerKind === 'studio';
-  const musicAssets = (S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio');
+  const musicAssets = forSel((S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio'));
   panel.innerHTML = `<div class="card"><h2>${esc(tr('packsTitle'))}</h2><p class="hint">${esc(tr('packsIntro'))}</p>
       ${shared.length ? shared.map(p => `<div class="list-row"><div class="list-main">${esc(p.title)} <span class="pill">${esc(tr('mode_' + p.mode))}</span>
           <span class="meta">· ${esc(tr('sharedBy', { email: p.sharedByEmail || '' }))}</span></div>
@@ -1200,7 +1349,7 @@ async function renderMusic(panel) {
       <div class="msg" id="albumMsg"></div></div>
     <div class="card"><h2>${esc(tr('musicAssetsTitle'))}</h2>
       ${musicAssets.length ? musicAssets.map(a => `<div class="list-row"><div class="list-main">${esc(assetTitle(a))} <span class="meta">· ${esc(tr('kind_' + a.kind))} · ${esc(tr('noteCount', { n: a.notes }))}</span>${a.pinned ? ` <span class="pill">${esc(tr('pinnedPill'))}</span>` : ''}</div>
-          <button class="btn" type="button" data-pin="${esc(a.id)}">${esc(tr(a.pinned ? 'unpin' : 'pinBtn'))}</button></div>`).join('') : `<div class="empty">${esc(tr('musicAssetsNone'))}</div>`}</div>`;
+          ${secBtn(a, 'btn')}<button class="btn" type="button" data-pin="${esc(a.id)}">${esc(tr(a.pinned ? 'unpin' : 'pinBtn'))}</button></div>`).join('') : `<div class="empty">${esc(tr('musicAssetsNone'))}</div>`}</div>`;
   const share = async mode => {
     if (mode === 'offer' && !(await window.LayerPitchNotify.confirm(tr('offerConfirm'), { okLabel: tr('offerPack') }))) return;
     const r = await PJ.sharePack(projectId, $('myPack').value, mode);

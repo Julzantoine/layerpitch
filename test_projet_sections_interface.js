@@ -1,0 +1,135 @@
+// Sections d'un Projet — interface de projet.html (7/10) : colonne Sections, filtre, rangement, auto-rangement, feu vert fermé.
+// La page tourne dans jsdom avec une fausse couche d'accès (LayerPitchProjects) qui garde l'état en mémoire.
+const fs = require('fs'), path = require('path');
+const { JSDOM } = require('jsdom');
+(async () => {
+  let failures = 0;
+  const check = (label, cond) => { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; };
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const html = fs.readFileSync(path.join(__dirname, 'projet.html'), 'utf8');
+  const inline = html.match(/<script>\n(const shellTr[\s\S]*?)<\/script>/)[1];
+
+  async function boot(locked) {
+    const dom = new JSDOM('<div id="content"></div><div id="presence"></div>', { url: 'https://beta.layerpitch.com/projet.html?id=p1&lang=fr', runScripts: 'outside-only', pretendToBeVisual: true });
+    const w = dom.window;
+    w.eval(fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf8'));
+    const db = { sections: [], links: [], assets: [
+      { id: 'a1', kind: 'image', origin: 'own', title: 'Forêt', fileId: 'f1', notes: 0, pinned: false },
+      { id: 'a2', kind: 'image', origin: 'own', title: 'Château', fileId: 'f2', notes: 0, pinned: false },
+      { id: 'v1', kind: 'video', origin: 'own', title: 'Trailer', url: 'https://youtu.be/abcdefghij', notes: 0, pinned: false }], n: 0 };
+    const calls = [];
+    const ok = data => Promise.resolve({ data, error: null });
+    const P = {
+      PRIVATE: '__me',
+      get: () => ok({ id: 'p1', title: 'Hollow Manor', description: '', role: 'admin', archived: false, members: [] }),
+      content: () => ok({ assets: db.assets.map(a => Object.assign({}, a)), moodboard: [], packs: [], albums: [] }),
+      snapshots: () => ok([]), activity: () => ok([]), vitrines: () => ok([]), listMaps: () => ok([]),
+      demoStatus: () => ok({ eligible: false }), markRead: () => ok(null), markSeen: () => ok(null), messages: () => ok([]), annotations: () => ok([]),
+      fileUrl: () => ok('https://example.test/x.png'),
+      sections: () => locked ? Promise.resolve({ data: null, error: 'Les sections ne sont pas encore ouvertes' }) : ok({ sections: db.sections.map(s => Object.assign({}, s)), links: db.links.map(l => Object.assign({}, l)) }),
+      createSection: (pid, title, parent) => { const id = 's' + (++db.n); db.sections.push({ id, parentId: parent || null, title, position: db.sections.length }); calls.push(['create', title, parent]); return ok({ id }); },
+      renameSection: (id, title) => { db.sections.find(s => s.id === id).title = title; return ok(null); },
+      deleteSection: id => { const s = db.sections.find(x => x.id === id); db.sections.forEach(x => { if (x.parentId === id) x.parentId = s.parentId; }); db.sections = db.sections.filter(x => x.id !== id); db.links = db.links.filter(l => l.sectionId !== id); return ok(null); },
+      moveSection: (id, parent) => { db.sections.find(s => s.id === id).parentId = parent || null; calls.push(['move', id, parent]); return ok(null); },
+      setAssetSections: (assetId, ids) => { db.links = db.links.filter(l => l.assetId !== assetId).concat(ids.map(sectionId => ({ sectionId, assetId }))); calls.push(['set', assetId, ids]); return ok(null); },
+      addAssetsToSection: (sid, ids) => { ids.forEach(assetId => { if (!db.links.some(l => l.sectionId === sid && l.assetId === assetId)) db.links.push({ sectionId: sid, assetId }); }); calls.push(['addTo', sid, ids]); return ok(null); },
+      addAsset: (pid, p) => { const id = 'n' + (++db.n); db.assets.push({ id, kind: p.kind, origin: 'own', title: p.title || '', url: p.url || null, fileId: p.fileId || null, notes: 0, pinned: false }); return ok({ id }); },
+    };
+    w.LayerPitchProjects = P;
+    w.LayerPitchAuth = { getSession: () => Promise.resolve({ session: { user: { id: 'u1', email: 'me@x.test' } } }), getMyComposerId: () => Promise.resolve({ composerId: null }), onAuthStateChange: cb => setTimeout(() => cb('INITIAL_SESSION'), 0) };
+    const confirms = [];
+    w.LayerPitchNotify = { confirm: m => { confirms.push(m); return Promise.resolve(true); }, error: () => {}, info: () => {} };
+    w.LayerPitchSupabaseClient = { getClient: () => ({ channel: () => ({ on() { return this; }, subscribe() {}, track() {}, presenceState: () => ({}), send() {} }) }) };
+    w.LayerPitchTracks = { listTracksByIds: () => Promise.resolve({ tracks: [] }), listTracks: () => Promise.resolve({ tracks: [] }) };
+    w.LayerPitchAlbums = { listAlbums: () => Promise.resolve({ albums: [] }) };
+    w.LayerPitchShell = { mount() {}, update() {}, tr: k => k };
+    w.matchMedia = () => ({ matches: false, addEventListener() {}, addListener() {} });
+    w.HTMLElement.prototype.scrollIntoView = function () {};
+    w.eval(inline);
+    await wait(150);
+    return { w, d: w.document, db, calls, confirms };
+  }
+  const click = (w, el) => el.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  const tab = async (ctx, name) => { click(ctx.w, ctx.d.querySelector(`[data-tab="${name}"]`)); await wait(150); };
+  const cards = d => [...d.querySelectorAll('.item .item-title')].map(e => e.textContent.trim());
+
+  // ---- Feu vert fermé : rien n'apparaît
+  let c = await boot(true);
+  await tab(c, 'images');
+  check('feu vert fermé : pas de colonne Sections', !c.d.getElementById('secNav'));
+  check('feu vert fermé : les images s\'affichent toujours', cards(c.d).length === 2);
+  check('feu vert fermé : pas de bouton de rangement', !c.d.querySelector('[data-secassign]'));
+
+  // ---- Feu vert ouvert
+  c = await boot(false);
+  await tab(c, 'images');
+  const nav = () => c.d.getElementById('secNav');
+  check('colonne Sections affichée', !!nav() && /Toute la réserve/.test(nav().textContent) && /Non classé/.test(nav().textContent));
+  check('« non classé » compte tout au départ', /Non classé\s*3/.test(nav().textContent));
+  check('message « aucune section »', /Aucune section/.test(nav().textContent));
+
+  // créer une section à la racine
+  click(c.w, nav().querySelector('[data-secact="add"]'));
+  let input = c.d.getElementById('secInput');
+  check('champ de saisie inline', !!input);
+  input.value = 'Niveau 1'; input.dispatchEvent(new c.w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await wait(150);
+  check('section créée et sélectionnée', c.db.sections.length === 1 && /Niveau 1/.test(nav().textContent) && !!nav().querySelector('.sec-row.on [data-pick="s1"]'));
+  check('filtre : section vide = aucune image', cards(c.d).length === 0);
+
+  // sous-section
+  click(c.w, nav().querySelector('[data-secact="add"][data-id="s1"]'));
+  input = c.d.getElementById('secInput'); input.value = 'Forêt'; input.dispatchEvent(new c.w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await wait(150);
+  check('sous-section créée sous Niveau 1', c.db.sections[1].parentId === 's1');
+
+  // ranger une image : Toute la réserve > bouton 🗂
+  click(c.w, nav().querySelector('[data-pick="all"]')); await wait(100);
+  check('toute la réserve : 2 images', cards(c.d).length === 2);
+  click(c.w, c.d.querySelector('[data-secassign="a1"]')); await wait(50);
+  const boxes = [...c.d.querySelectorAll('.sec-dialog input[type="checkbox"]')];
+  check('boîte « ranger » : une case par section', boxes.length === 2);
+  boxes.find(b => b.value === 's2').checked = true;
+  click(c.w, c.d.querySelector('.sec-dialog [data-x="save"]')); await wait(150);
+  check('image rangée dans la sous-section', c.db.links.length === 1 && c.db.links[0].sectionId === 's2' && c.db.links[0].assetId === 'a1');
+  check('boîte fermée', !c.d.querySelector('.sec-overlay'));
+  check('« non classé » descend à 2', /Non classé\s*2/.test(nav().textContent));
+
+  // filtre : Niveau 1 inclut les sous-sections
+  click(c.w, nav().querySelector('[data-pick="s1"]')); await wait(100);
+  check('filtre sur le parent : montre les objets des sous-sections', cards(c.d).length === 1 && cards(c.d)[0] === 'Forêt');
+  click(c.w, nav().querySelector('[data-pick="none"]')); await wait(100);
+  check('filtre « non classé »', cards(c.d).length === 1 && cards(c.d)[0] === 'Château');
+
+  // un objet dans deux sections
+  click(c.w, nav().querySelector('[data-pick="all"]')); await wait(100);
+  click(c.w, c.d.querySelector('[data-secassign="a1"]')); await wait(50);
+  [...c.d.querySelectorAll('.sec-dialog input[type="checkbox"]')].forEach(b => { b.checked = true; });
+  click(c.w, c.d.querySelector('.sec-dialog [data-x="save"]')); await wait(150);
+  check('un objet dans plusieurs sections', c.db.links.filter(l => l.assetId === 'a1').length === 2);
+
+  // auto-rangement : on choisit une section puis on ajoute une vidéo (lien)
+  await tab(c, 'videos');
+  click(c.w, nav().querySelector('[data-pick="s2"]')); await wait(100);
+  check('onglet Vidéos : même colonne Sections', !!nav() && /Aucun|Trailer|vidéo/i.test(c.d.getElementById('panel').textContent));
+  c.d.getElementById('vUrl').value = 'https://youtu.be/zzzzzzzzzz';
+  click(c.w, c.d.getElementById('vLinkBtn')); await wait(200);
+  check('objet ajouté pendant qu\'une section est choisie : rangé dedans', c.calls.some(x => x[0] === 'addTo' && x[1] === 's2' && x[2][0] === 'n3' || x[0] === 'addTo' && x[1] === 's2' && /^n/.test(x[2][0])));
+
+  // renommer, déplacer, supprimer
+  click(c.w, nav().querySelector('[data-pick="s2"]')); await wait(100);
+  click(c.w, nav().querySelector('[data-secact="rename"][data-id="s2"]'));
+  input = c.d.getElementById('secInput'); input.value = 'Forêt sombre'; input.dispatchEvent(new c.w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await wait(150);
+  check('renommer', c.db.sections[1].title === 'Forêt sombre' && /Forêt sombre/.test(nav().textContent));
+  click(c.w, nav().querySelector('[data-secact="move"][data-id="s2"]')); await wait(50);
+  const radios = [...c.d.querySelectorAll('.sec-dialog input[type="radio"]')];
+  check('déplacer : on propose la racine et les autres sections (pas elle-même)', radios.length === 2 && radios.every(r => r.value !== 's2'));
+  radios.find(r => r.value === '').checked = true;
+  click(c.w, c.d.querySelector('.sec-dialog [data-x="save"]')); await wait(150);
+  check('déplacer à la racine', c.db.sections[1].parentId === null);
+  click(c.w, nav().querySelector('[data-pick="s2"]')); await wait(100);
+  click(c.w, nav().querySelector('[data-secact="del"][data-id="s2"]')); await wait(200);
+  check('supprimer demande confirmation et rend les objets au « non classé »', c.confirms.length === 1 && c.db.sections.length === 1 && !c.db.assets.every(a => !a) && c.db.assets.length >= 3);
+  check('après suppression, retour à la réserve', !!nav().querySelector('.sec-row.on [data-pick="all"]') || !!nav().querySelector('.sec-row.on [data-pick="s1"]'));
+
+  console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon');
+  process.exit(failures ? 1 : 0);
+})();
