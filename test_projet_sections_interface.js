@@ -99,6 +99,16 @@ const { JSDOM } = require('jsdom');
   click(c.w, nav().querySelector('[data-pick="none"]')); await wait(100);
   check('filtre « non classé »', cards(c.d).length === 1 && cards(c.d)[0] === 'Château');
 
+  // glisser-déposer d'un objet sur une section
+  const drag = (el, type, data) => { const ev = new c.w.Event(type, { bubbles: true, cancelable: true }); ev.dataTransfer = { types: ['text/x-lp-asset'], data: { 'text/x-lp-asset': data }, setData(k, v) { this.data[k] = v; }, getData(k) { return this.data[k]; } }; el.dispatchEvent(ev); return ev; };
+  const card = [...c.d.querySelectorAll('[data-dragasset]')].find(e => e.dataset.dragasset === 'a2');
+  check('les cartes d\'images sont glissables', !!card && card.draggable);
+  const over = drag(nav().querySelector('[data-dropsec="s1"]'), 'dragover', 'a2');
+  check('survol d\'une section : dépôt accepté', over.defaultPrevented);
+  drag(nav().querySelector('[data-dropsec="s1"]'), 'drop', 'a2'); await wait(150);
+  check('déposer une image sur une section l\'y range', c.db.links.some(l => l.sectionId === 's1' && l.assetId === 'a2'));
+  c.db.links = c.db.links.filter(l => l.assetId !== 'a2'); // on remet comme avant
+
   // un objet dans deux sections
   click(c.w, nav().querySelector('[data-pick="all"]')); await wait(100);
   click(c.w, c.d.querySelector('[data-secassign="a1"]')); await wait(50);

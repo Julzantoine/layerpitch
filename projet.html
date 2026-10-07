@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791379993381">
+<link rel="stylesheet" href="player.css?v=1791380607197">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -88,6 +88,7 @@
   .sec-nav h3 { margin: 0 0 6px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
   .sec-row { display: flex; align-items: center; gap: 4px; border-radius: 6px; min-height: 30px; }
   .sec-row.on { background: var(--accent-soft); }
+  .sec-row.drop-over { outline: 2px dashed var(--accent); background: var(--accent-soft); }
   .sec-name { flex: 1 1 auto; min-width: 0; text-align: left; background: none; border: 0; padding: 4px 6px; font: inherit; font-size: 13px; color: var(--text); cursor: pointer; overflow-wrap: anywhere; }
   .sec-row.on .sec-name { font-weight: 600; }
   .sec-row .meta { flex: 0 0 auto; }
@@ -170,22 +171,22 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791379993381"></script>
-<script src="layerpitch-notify.js?v=1791379993381"></script>
-<script src="player.js?v=1791379993381"></script>
-<script src="api/supabase-client.js?v=1791379993381"></script>
-<script src="api/auth.js?v=1791379993381"></script>
-<script src="layerpitch-appearance.js?v=1791379993381"></script>
-<script src="layerpitch-shell.js?v=1791379993381"></script>
-<script src="api/tracks.js?v=1791379993381"></script>
-<script src="api/packs.js?v=1791379993381"></script>
-<script src="api/albums.js?v=1791379993381"></script>
-<script src="api/studio.js?v=1791379993381"></script>
-<script src="api/adreels.js?v=1791379993381"></script>
-<script src="api/projects.js?v=1791379993381"></script>
-<script src="api/sfx.js?v=1791379993381"></script>
-<script src="projet-carte-audio.js?v=1791379993381"></script>
-<script src="projet-carte.js?v=1791379993381"></script>
+<script src="layerpitch-i18n.js?v=1791380607197"></script>
+<script src="layerpitch-notify.js?v=1791380607197"></script>
+<script src="player.js?v=1791380607197"></script>
+<script src="api/supabase-client.js?v=1791380607197"></script>
+<script src="api/auth.js?v=1791380607197"></script>
+<script src="layerpitch-appearance.js?v=1791380607197"></script>
+<script src="layerpitch-shell.js?v=1791380607197"></script>
+<script src="api/tracks.js?v=1791380607197"></script>
+<script src="api/packs.js?v=1791380607197"></script>
+<script src="api/albums.js?v=1791380607197"></script>
+<script src="api/studio.js?v=1791380607197"></script>
+<script src="api/adreels.js?v=1791380607197"></script>
+<script src="api/projects.js?v=1791380607197"></script>
+<script src="api/sfx.js?v=1791380607197"></script>
+<script src="projet-carte-audio.js?v=1791380607197"></script>
+<script src="projet-carte.js?v=1791380607197"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -278,7 +279,7 @@ function renderSecNav() {
   const walk = (pid, depth) => secKids(pid).map(x => {
     const on = S.sel === x.id;
     const head = S.secEdit && S.secEdit.rename === x.id ? editRow(depth, x.title)
-      : `<div class="sec-row${on ? ' on' : ''}" style="padding-left:${6 + depth * 14}px"><button type="button" class="sec-name" data-pick="${esc(x.id)}">${esc(x.title)}</button><span class="meta">${secCount(x.id)}</span>
+      : `<div class="sec-row${on ? ' on' : ''}" data-dropsec="${esc(x.id)}" style="padding-left:${6 + depth * 14}px"><button type="button" class="sec-name" data-pick="${esc(x.id)}">${esc(x.title)}</button><span class="meta">${secCount(x.id)}</span>
         ${on ? `<span class="sec-acts"><button class="icon-btn" type="button" data-secact="add" data-id="${esc(x.id)}" title="${esc(tr('secAddSub'))}">＋</button><button class="icon-btn" type="button" data-secact="rename" data-id="${esc(x.id)}" title="${esc(tr('secRename'))}">✎</button><button class="icon-btn" type="button" data-secact="move" data-id="${esc(x.id)}" title="${esc(tr('secMove'))}">⇄</button><button class="icon-btn" type="button" data-secact="del" data-id="${esc(x.id)}" title="${esc(tr('secDelete'))}">✕</button></span>` : ''}</div>`;
     return head + (S.secEdit && S.secEdit.add === x.id ? editRow(depth + 1) : '') + walk(x.id, depth + 1);
   }).join('');
@@ -353,6 +354,19 @@ function openMoveDialog(id) {
     close(); await sectionsChanged();
   };
 }
+// Glisser un objet (image, vidéo, morceau) sur une section de la colonne pour l'y ranger (sans le retirer d'ailleurs).
+content.addEventListener('dragstart', e => { const el = e.target.closest && e.target.closest('[data-dragasset]'); if (!el || !S.sections) return; e.dataTransfer.setData('text/x-lp-asset', el.dataset.dragasset); e.dataTransfer.effectAllowed = 'copy'; });
+const dropRow = e => e.target.closest && e.target.closest('[data-dropsec]');
+content.addEventListener('dragover', e => { const r = dropRow(e); content.querySelectorAll('.sec-row.drop-over').forEach(x => { if (x !== r) x.classList.remove('drop-over'); }); if (r && e.dataTransfer && [...(e.dataTransfer.types || [])].includes('text/x-lp-asset')) { e.preventDefault(); r.classList.add('drop-over'); } });
+content.addEventListener('dragleave', e => { const r = dropRow(e); if (r && !r.contains(e.relatedTarget)) r.classList.remove('drop-over'); });
+content.addEventListener('drop', async e => {
+  const r = dropRow(e); if (!r) return;
+  const id = e.dataTransfer.getData('text/x-lp-asset'); r.classList.remove('drop-over'); if (!id) return;
+  e.preventDefault();
+  if (secError(await PJ.addAssetsToSection(r.dataset.dropsec, [id]))) return;
+  window.LayerPitchNotify.info(tr('secDropped', { title: secById(r.dataset.dropsec).title }));
+  await sectionsChanged();
+});
 content.addEventListener('click', e => { const b = e.target.closest('[data-secassign]'); if (b) openAssignDialog(b.dataset.secassign); });
 
 function say(id, text, ok) { const m = $(id); if (m) { m.textContent = text; m.className = 'msg ' + (ok ? 'ok' : 'err'); } }
@@ -1111,6 +1125,7 @@ async function renderImages(panel) {
   for (const a of imgs) {
     const el = document.createElement('div');
     el.className = 'item';
+    if (S.sections) { el.draggable = true; el.dataset.dragasset = a.id; }
     const u = await fileUrl(a.fileId);
     el.innerHTML = `<div class="item-kind">${esc(tr('kind_image'))} · ${esc(tr('origin_' + a.origin))}${a.pinned ? ' · ' + esc(tr('pinnedPill')) : ''}</div>
       <div class="item-title">${esc(assetTitle(a))}</div>
@@ -1141,7 +1156,7 @@ function renderVideos(panel) {
       <label>${esc(tr('itemTitle'))}</label><input type="text" id="vTitle">
       <div class="msg" id="vMsg"></div>
     </div>
-    <div class="card">${vids.length ? vids.map(v => `<div class="list-row"><div class="list-main">${esc(v.title || tr('untitledVideo'))} <span class="meta">· ${esc(tr(v.url ? 'videoLink' : 'videoFile'))} · ${esc(tr('noteCount', { n: v.notes }))}</span>${v.pinned ? ` <span class="pill">${esc(tr('pinnedPill'))}</span>` : ''}</div>
+    <div class="card">${vids.length ? vids.map(v => `<div class="list-row"${S.sections ? ` draggable="true" data-dragasset="${esc(v.id)}"` : ''}><div class="list-main">${esc(v.title || tr('untitledVideo'))} <span class="meta">· ${esc(tr(v.url ? 'videoLink' : 'videoFile'))} · ${esc(tr('noteCount', { n: v.notes }))}</span>${v.pinned ? ` <span class="pill">${esc(tr('pinnedPill'))}</span>` : ''}</div>
         <button class="btn${S.video && S.video.id === v.id ? ' primary' : ''}" type="button" data-open="${esc(v.id)}">${esc(tr('openVideo'))}</button>
         <button class="btn" type="button" data-pin="${esc(v.id)}">${esc(tr(v.pinned ? 'unpin' : 'pinBtn'))}</button>
         ${secBtn(v, 'btn')}
@@ -1348,7 +1363,7 @@ async function renderMusic(panel) {
       ${S.myAlbums.filter(m => !albums.some(a => a.albumId === m.id)).length ? `<label>${esc(tr('linkAlbum'))}</label><div class="bar"><select id="myAlbum" style="flex:1 1 200px">${S.myAlbums.filter(m => !albums.some(a => a.albumId === m.id)).map(a => `<option value="${esc(a.id)}">${esc(a.title)}</option>`).join('')}</select><button class="btn" id="linkAlbumBtn" type="button">${esc(tr('link'))}</button></div>` : ''}
       <div class="msg" id="albumMsg"></div></div>
     <div class="card"><h2>${esc(tr('musicAssetsTitle'))}</h2>
-      ${musicAssets.length ? musicAssets.map(a => `<div class="list-row"><div class="list-main">${esc(assetTitle(a))} <span class="meta">· ${esc(tr('kind_' + a.kind))} · ${esc(tr('noteCount', { n: a.notes }))}</span>${a.pinned ? ` <span class="pill">${esc(tr('pinnedPill'))}</span>` : ''}</div>
+      ${musicAssets.length ? musicAssets.map(a => `<div class="list-row"${S.sections ? ` draggable="true" data-dragasset="${esc(a.id)}"` : ''}><div class="list-main">${esc(assetTitle(a))} <span class="meta">· ${esc(tr('kind_' + a.kind))} · ${esc(tr('noteCount', { n: a.notes }))}</span>${a.pinned ? ` <span class="pill">${esc(tr('pinnedPill'))}</span>` : ''}</div>
           ${secBtn(a, 'btn')}<button class="btn" type="button" data-pin="${esc(a.id)}">${esc(tr(a.pinned ? 'unpin' : 'pinBtn'))}</button></div>`).join('') : `<div class="empty">${esc(tr('musicAssetsNone'))}</div>`}</div>`;
   const share = async mode => {
     if (mode === 'offer' && !(await window.LayerPitchNotify.confirm(tr('offerConfirm'), { okLabel: tr('offerPack') }))) return;
