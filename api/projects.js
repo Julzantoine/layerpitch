@@ -44,7 +44,8 @@
     reorderSectionPins: (sectionId, assetIds) => rpc('reorder_section_pins', { p_section_id: sectionId, p_asset_ids: assetIds }),
     // Tchat par section (migration 20261007050000) : un canal par section, texte seulement ; on suit un canal pour compter ses non lus.
     sectionMessages: (sectionId, before) => rpc('list_section_messages', { p_section_id: sectionId, p_before: before || null }),
-    postSectionMessage: (sectionId, body) => rpc('post_section_message', { p_section_id: sectionId, p_body: body }),
+    // attachments : [{ fileId, title }] — fichiers déjà envoyés ; ils deviennent des objets du Projet rangés dans la section (migration 20261007070000).
+    postSectionMessage: (sectionId, body, attachments) => rpc('post_section_message', { p_section_id: sectionId, p_body: body || '', p_attachments: attachments || [] }),
     deleteSectionMessage: messageId => rpc('delete_section_message', { p_message_id: messageId }),
     setSectionFollow: (sectionId, follow) => rpc('set_section_follow', { p_section_id: sectionId, p_follow: !!follow }),
     markSectionRead: sectionId => rpc('mark_section_read', { p_section_id: sectionId }),

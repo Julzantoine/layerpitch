@@ -165,6 +165,41 @@
   await q(`select public.delete_project_section($1)`, [chat]);
   check('supprimer la section supprime sa discussion', Number(await val(`select count(*) from public.project_section_messages`)) === 0);
 
+  // Pièces jointes dans un canal + cloche (migration 20261007070000)
+  await as(1);
+  const ch2 = await sec(pid, 'Canal fichiers');
+  const fl = await val(`select public.reserve_project_file($1, 'plan.png', 1234)`, [pid]); await q(`select public.complete_project_file($1)`, [fl.fileId]);
+  await as(2);
+  const pm = await val(`select public.post_section_message($1, '', $2::jsonb)`, [ch2, JSON.stringify([{ fileId: fl.fileId, title: 'Plan du niveau' }])]);
+  const lm = (await val(`select public.list_section_messages($1)`, [ch2]))[0];
+  check('message avec seulement une pièce jointe accepté', !!pm && lm.attachments.length === 1 && lm.attachments[0].title === 'Plan du niveau' && lm.attachments[0].kind === 'image');
+  const asId = lm.attachments[0].assetId;
+  check('la pièce jointe devient un objet du Projet', Number(await val(`select count(*) from public.project_assets where id = $1 and project_id = $2`, [asId, pid])) === 1);
+  check('…et est rangée automatiquement dans la section du canal', (await list(pid)).links.some(x => x.sectionId === ch2 && x.assetId === asId));
+  check('le tchat général ne la voit pas', (await val(`select public.list_project_messages($1)`, [pid])).length === gen);
+  await q(`select public.post_section_message($1, 'Voir le plan', $2::jsonb)`, [ch2, JSON.stringify([{ fileId: fl.fileId }])]);
+  check('même fichier joint deux fois : un seul objet', Number(await val(`select count(*) from public.project_assets where file_id = $1`, [fl.fileId])) === 1);
+  check('fichier d\'un autre Projet refusé', await fails(`select public.post_section_message($1, 'x', '[{"fileId":"00000000-0000-0000-0000-0000000000ff"}]'::jsonb)`, [ch2], /introuvable/));
+  await q(`select public.delete_section_message($1)`, [pm]);
+  check('supprimer le message garde l\'objet', Number(await val(`select count(*) from public.project_assets where id = $1`, [asId])) === 1);
+  // cloche
+  await as(1);
+  await q(`select public.set_section_follow($1, true)`, [ch2]);
+  check('cloche : rien tant que personne d\'autre n\'écrit', (await val(`select public.my_section_updates()`)).length === 0);
+  await as(2);
+  await q(`select public.post_section_message($1, 'Nouveau message pour la cloche')`, [ch2]);
+  await as(1);
+  const up2 = await val(`select public.my_section_updates()`);
+  check('cloche : le canal suivi apparaît avec son compteur et le dernier message', up2.length === 1 && up2[0].unread === 1 && up2[0].sectionTitle === 'Canal fichiers' && up2[0].lastMessage.excerpt === 'Nouveau message pour la cloche');
+  await as(2);
+  check('cloche : mes propres messages ne me sont pas signalés', (await val(`select public.my_section_updates()`)).length === 0);
+  await as(1);
+  await q(`select public.mark_section_read($1)`, [ch2]);
+  check('cloche : lu = plus rien', (await val(`select public.my_section_updates()`)).length === 0);
+  await as(3);
+  check('cloche : un non-membre ne voit rien', (await val(`select public.my_section_updates()`)).length === 0);
+  await as(1);
+
   // Lien section ↔ carte (migration 20261007060000)
   await as(1);
   const mapId = await val(`select (public.save_project_map($1, $2::jsonb))->>'id'`, [pid, JSON.stringify({ title: 'Niveau 1', data: { nodes: [], edges: [] } })]);

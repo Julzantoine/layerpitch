@@ -233,14 +233,22 @@
     return { key: 'project:' + u.projectId + ':' + u.latestAt, kind: 'project', unread: true, createdAt: u.latestAt, projectTitle: u.title,
       title: tr('inboxProjectTitle', { title: u.title, what: parts.join(' · ') }), text: detail, href: 'projet.html?id=' + encodeURIComponent(u.projectId) };
   }
+  // Canal de section suivi avec du neuf : « Projet · # Section : 2 nouveaux messages » + le dernier message ; mène au canal.
+  function sectionItem(u) {
+    return { key: 'section:' + u.sectionId + ':' + u.latestAt, kind: 'project', unread: true, createdAt: u.latestAt, projectTitle: u.title,
+      title: tr('inboxSectionTitle', { title: u.title, section: u.sectionTitle, n: u.unread }),
+      text: u.lastMessage ? `${u.lastMessage.authorEmail || ''} : « ${u.lastMessage.excerpt || '📎'} »` : '',
+      href: 'projet.html?id=' + encodeURIComponent(u.projectId) + '&channel=' + encodeURIComponent(u.sectionId) };
+  }
   async function fetchInbox() {
     const client = window.LayerPitchSupabaseClient.getClient();
-    const [ann, reads, contact, updates, invitations] = await Promise.all([
+    const [ann, reads, contact, updates, invitations, sectionUpdates] = await Promise.all([
       client.from('admin_messages').select('id, body, title, created_at').order('created_at', { ascending: false }).limit(20),
       client.from('admin_message_reads').select('message_id'),
       client.from('contact_messages').select('id, ad_reel_label, sender_name, sender_email, created_at, seen_at').order('created_at', { ascending: false }).limit(20),
       client.rpc('my_project_updates'),
       countInvitations(client).catch(() => 0),
+      client.rpc('my_section_updates'), // canaux de section suivis (migration 20261007070000) ; absent ou fermé = liste vide
     ]);
     const seen = new Set((reads.data || []).map(r => r.message_id));
     const L = lang();
@@ -250,6 +258,7 @@
     (contact.data || []).forEach(m => list.push({ key: 'contact:' + m.id, kind: 'contact', createdAt: m.created_at, unread: !m.seen_at,
       title: i18nOf('backstage', 'inboxContactTitle', { name: m.sender_name }), text: i18nOf('backstage', 'inboxContactBody', { adreel: m.ad_reel_label, email: m.sender_email }) }));
     (Array.isArray(updates.data) ? updates.data : []).forEach(u => list.push(projectItem(u)));
+    (Array.isArray(sectionUpdates && sectionUpdates.data) ? sectionUpdates.data : []).forEach(u => list.push(sectionItem(u)));
     if (invitations) list.push({ key: 'invitations:' + invitations, kind: 'invitation', unread: true, createdAt: new Date().toISOString(),
       title: tr('inboxInvitations', { n: invitations }), text: '', href: 'invitation.html' });
     list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));

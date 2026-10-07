@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791381541612">
+<link rel="stylesheet" href="player.css?v=1791384055865">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -173,22 +173,22 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791381541612"></script>
-<script src="layerpitch-notify.js?v=1791381541612"></script>
-<script src="player.js?v=1791381541612"></script>
-<script src="api/supabase-client.js?v=1791381541612"></script>
-<script src="api/auth.js?v=1791381541612"></script>
-<script src="layerpitch-appearance.js?v=1791381541612"></script>
-<script src="layerpitch-shell.js?v=1791381541612"></script>
-<script src="api/tracks.js?v=1791381541612"></script>
-<script src="api/packs.js?v=1791381541612"></script>
-<script src="api/albums.js?v=1791381541612"></script>
-<script src="api/studio.js?v=1791381541612"></script>
-<script src="api/adreels.js?v=1791381541612"></script>
-<script src="api/projects.js?v=1791381541612"></script>
-<script src="api/sfx.js?v=1791381541612"></script>
-<script src="projet-carte-audio.js?v=1791381541612"></script>
-<script src="projet-carte.js?v=1791381541612"></script>
+<script src="layerpitch-i18n.js?v=1791384055865"></script>
+<script src="layerpitch-notify.js?v=1791384055865"></script>
+<script src="player.js?v=1791384055865"></script>
+<script src="api/supabase-client.js?v=1791384055865"></script>
+<script src="api/auth.js?v=1791384055865"></script>
+<script src="layerpitch-appearance.js?v=1791384055865"></script>
+<script src="layerpitch-shell.js?v=1791384055865"></script>
+<script src="api/tracks.js?v=1791384055865"></script>
+<script src="api/packs.js?v=1791384055865"></script>
+<script src="api/albums.js?v=1791384055865"></script>
+<script src="api/studio.js?v=1791384055865"></script>
+<script src="api/adreels.js?v=1791384055865"></script>
+<script src="api/projects.js?v=1791384055865"></script>
+<script src="api/sfx.js?v=1791384055865"></script>
+<script src="projet-carte-audio.js?v=1791384055865"></script>
+<script src="projet-carte.js?v=1791384055865"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -465,6 +465,8 @@ async function load() {
   markProjectSeen();
   await loadMessages();
   computeUnread();
+  const wanted = params.get('channel'); // lien depuis la cloche : ouvre ce canal de section
+  if (wanted && S.sections && secById(wanted)) { S.chan = wanted; S.chatOpen = true; await loadSecMessages(); if (chanFollowed(wanted)) { await PJ.markSectionRead(wanted); await loadSections(); } }
   joinChannel();
   render();
 }
@@ -679,12 +681,13 @@ function rangeItems(m) {
   const files = (m.attachments || []).map(x => ({ assetId: x.assetId, asset: assets.find(a => a.id === x.assetId) || { id: x.assetId, kind: x.kind }, label: x.title || x.fileName || '' }));
   return links.concat(files);
 }
-function rangeBarHtml(m, items) {
+function rangeBarHtml(m, items, isPinned) {
+  isPinned = isPinned || (a => a && a.pinned);
   if (!items.length) return '';
   return `<div class="rangebar">${items.map((it, i) => {
     const a = it.asset; const isVideo = (a && a.kind === 'video') || (it.url && VIDEO_URL.test(it.url));
-    const done = [a && a.pinned ? tr('pinnedIn_board') : null, a && a.kind === 'video' ? tr('pinnedIn_videos') : null].filter(Boolean);
-    const btns = [!(a && a.pinned) ? `<button class="chip-btn" type="button" data-range="board" data-i="${i}">${esc(tr('tab_board'))}</button>` : '',
+    const done = [isPinned(a) ? tr('pinnedIn_board') : null, a && a.kind === 'video' ? tr('pinnedIn_videos') : null].filter(Boolean);
+    const btns = [!isPinned(a) ? `<button class="chip-btn" type="button" data-range="board" data-i="${i}">${esc(tr('tab_board'))}</button>` : '',
       isVideo && !a ? `<button class="chip-btn" type="button" data-range="videos" data-i="${i}">${esc(tr('tab_videos'))}</button>` : ''].join('');
     return `<div class="range-row"><span class="meta">${esc(tr('rangeInto', { what: it.label }))}</span> ${btns}${done.length ? `<span class="range-done">✓ ${esc(done.join(' · '))}</span>` : ''}</div>`;
   }).join('')}</div>`;
@@ -725,26 +728,40 @@ function renderSectionChat(aside) {
     ${S.secMore ? `<div style="text-align:center;margin-bottom:6px"><button class="btn" id="olderBtn" type="button">${esc(tr('olderMessages'))}</button></div>` : ''}
     <div class="thread" id="thread">${msgs.length ? msgs.map(m => `<div class="bubble${m.mine ? ' mine' : ''}" data-id="${esc(m.id)}">
         <div class="meta">${esc(m.authorEmail || '')} · ${esc(new Date(m.createdAt).toLocaleString(pageLang))}</div>
-        <div class="bubble-body">${linkifyText(m.body)}</div>
+        ${m.body ? `<div class="bubble-body">${linkifyText(m.body)}</div>` : ''}
+        ${attachmentsHtml(m)}
+        ${m.attachments && m.attachments.length ? `<div class="meta">${esc(tr('chanFiled', { title: x.title }))}</div>` : ''}
+        ${rangeBarHtml(m, rangeItems(m), a => !!(a && a.id && S.secPins.some(k => k.sectionId === S.chan && k.assetId === a.id)))}
         ${m.mine || S.project.role === 'admin' ? `<div class="bar" style="margin-top:4px"><button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button></div>` : ''}
       </div>`).join('') : `<div class="empty">${esc(tr('chanEmpty', { title: x.title }))}</div>`}</div>
-    <div class="composer" id="composer"><textarea id="newMsg" placeholder="${esc(tr('chanPlaceholder', { title: x.title }))}"></textarea>
-      <div class="bar" style="margin-top:6px"><button class="btn primary" id="sendBtn" type="button">${esc(tr('send'))}</button><span class="meta">${esc(tr('sendHint'))}</span></div>
+    <div class="composer" id="composer">
+      <div class="pending" id="pending">${S.pending.map((f, i) => `<span class="pending-chip">${esc(f.name)} <button type="button" data-unpend="${i}" title="${esc(tr('delete'))}">×</button></span>`).join('')}</div>
+      <textarea id="newMsg" placeholder="${esc(tr('chanPlaceholder', { title: x.title }))}"></textarea>
+      <div class="bar" style="margin-top:6px"><button class="icon-btn" id="attachBtn" type="button" title="${esc(tr('chanAttach'))}">📎</button>
+        <input type="file" id="attachInput" multiple hidden accept="image/jpeg,image/png,image/webp,image/gif,audio/*,video/mp4,video/webm,video/quicktime,.mov,application/pdf">
+        <button class="btn primary" id="sendBtn" type="button">${esc(tr('send'))}</button><span class="meta">${esc(tr('sendHint'))}</span></div>
       <div class="msg" id="threadMsg"></div></div>`;
   const th = $('thread'); th.scrollTop = th.scrollHeight;
+  aside.querySelectorAll('[data-file]').forEach(async el => { const u = await fileUrl(el.dataset.file); if (u) el.src = u; });
+  aside.querySelectorAll('[data-watch]').forEach(b => b.onclick = async () => { await reloadContent(); openInVideos(b.dataset.watch); if (isPhone()) setChatOpen(false); });
+  aside.querySelectorAll('[data-openfile]').forEach(b => b.onclick = async () => { const u = await fileUrl(b.dataset.openfile); if (u) window.open(u, '_blank', 'noopener'); });
+  wireComposer(aside); // pièces jointes : le même mécanisme que le tchat général (📎, glisser-déposer, coller)
+  // « Ranger dans… » : dans un canal, le Moodboard est celui de la section ; l'objet est aussi rangé dans la section.
+  aside.querySelectorAll('.bubble[data-id]').forEach(b => {
+    const m = S.secMsgs.find(y => y.id === b.dataset.id), items = rangeItems(m);
+    b.querySelectorAll('[data-range]').forEach(btn => btn.onclick = async () => {
+      const it = items[Number(btn.dataset.i)], where = btn.dataset.range; btn.disabled = true;
+      let id = it.assetId, r = { error: null };
+      if (!id) { r = await PJ.addAsset(projectId, { kind: where === 'videos' ? 'video' : 'link', url: it.url }, false); id = r.data && r.data.id; }
+      if (!r.error && id) r = where === 'board' ? await PJ.pinInSection(S.chan, id, true) : await PJ.addAssetsToSection(S.chan, [id]);
+      if (r.error) { btn.disabled = false; return say('threadMsg', tr('errorPrefix', { message: r.error })); }
+      await reloadContent(); renderChat(); if (SECTION_TABS.includes(S.tab)) renderPanel(); broadcast('content'); broadcast('sections');
+    });
+  });
   $('chatCloseBtn').onclick = () => setChatOpen(false);
   $('chanSel').onchange = e => openChannel(e.target.value);
   $('followBtn').onclick = async () => { if (secError(await PJ.setSectionFollow(S.chan, !followed))) return; await loadSections(); if ($('secNav')) renderSecNav(); renderChat(); };
   if ($('olderBtn')) $('olderBtn').onclick = async () => { await loadSecMessages(true); renderChat(); };
-  const send = async () => {
-    const body = $('newMsg').value.trim(); if (!body) return;
-    $('sendBtn').disabled = true;
-    const r = await PJ.postSectionMessage(S.chan, body);
-    if (r.error) { say('threadMsg', tr('errorPrefix', { message: r.error })); $('sendBtn').disabled = false; return; }
-    await loadSecMessages(); await loadSections(); if ($('secNav')) renderSecNav(); renderChat(); broadcast('secmessages', { sectionId: S.chan });
-  };
-  $('sendBtn').onclick = send;
-  $('newMsg').onkeydown = e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(); };
   aside.querySelectorAll('.bubble [data-act="delete"]').forEach(b => b.onclick = async () => {
     if (!(await window.LayerPitchNotify.confirm(tr('deleteMessageConfirm'), { okLabel: tr('delete'), danger: true }))) return;
     if (secError(await PJ.deleteSectionMessage(b.closest('.bubble').dataset.id))) return;
@@ -849,9 +866,15 @@ function wireComposer(aside) {
       if (up.error) { say('threadMsg', tr('errorPrefix', { message: f.name + ' : ' + up.error })); $('sendBtn').disabled = false; return; }
       attachments.push({ fileId: up.data.fileId, title: f.name });
     }
-    const r = await PJ.post(projectId, body, attachments);
+    const r = S.chan ? await PJ.postSectionMessage(S.chan, body, attachments) : await PJ.post(projectId, body, attachments);
     if (r.error) { say('threadMsg', tr('errorPrefix', { message: r.error })); $('sendBtn').disabled = false; return; }
     S.pending = [];
+    if (S.chan) {
+      await Promise.all([loadSecMessages(), attachments.length ? reloadContent() : loadSections()]);
+      renderChat(); if ($('secNav')) renderSecNav(); if (SECTION_TABS.includes(S.tab) && attachments.length) renderPanel();
+      broadcast('secmessages', { sectionId: S.chan }); if (attachments.length) { broadcast('content'); broadcast('sections'); }
+      return;
+    }
     await Promise.all([loadMessages(), attachments.length ? reloadContent() : null]);
     renderChat(); broadcast('messages'); if (attachments.length) broadcast('content');
   };

@@ -9,14 +9,15 @@ const { JSDOM } = require('jsdom');
   const html = fs.readFileSync(path.join(__dirname, 'projet.html'), 'utf8');
   const inline = html.match(/<script>\n(const shellTr[\s\S]*?)<\/script>/)[1];
 
-  async function boot(locked) {
-    const dom = new JSDOM('<div id="content"></div><div id="presence"></div>', { url: 'https://beta.layerpitch.com/projet.html?id=p1&lang=fr', runScripts: 'outside-only', pretendToBeVisual: true });
+  async function boot(locked, channel) {
+    const dom = new JSDOM('<div id="content"></div><div id="presence"></div>', { url: 'https://beta.layerpitch.com/projet.html?id=p1&lang=fr' + (channel ? '&channel=' + channel : ''), runScripts: 'outside-only', pretendToBeVisual: true });
     const w = dom.window;
     w.eval(fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf8'));
     const db = { sections: [], links: [], pins: [], mood: [], msgs: [], chatState: [], assets: [
       { id: 'a1', kind: 'image', origin: 'own', title: 'Forêt', fileId: 'f1', notes: 0, pinned: false },
       { id: 'a2', kind: 'image', origin: 'own', title: 'Château', fileId: 'f2', notes: 0, pinned: false },
       { id: 'v1', kind: 'video', origin: 'own', title: 'Trailer', url: 'https://youtu.be/abcdefghij', notes: 0, pinned: false }], n: 0 };
+    if (channel) { db.sections.push({ id: 's1', parentId: null, title: 'Niveau 1', position: 0 }); db.chatState.push({ sectionId: 's1', followed: true, unread: 2 }); }
     const calls = [];
     const ok = data => Promise.resolve({ data, error: null });
     const P = {
@@ -38,8 +39,9 @@ const { JSDOM } = require('jsdom');
       reorderSectionPins: () => ok(null),
       pin: (assetId, on) => { calls.push(['pinGeneral', assetId, on]); const a = db.assets.find(x => x.id === assetId); a.pinned = on; db.mood = db.mood.filter(i => i !== assetId).concat(on ? [assetId] : []); return ok(null); },
       sectionChatState: () => ok(db.chatState.map(x => Object.assign({}, x))),
-      sectionMessages: sid => ok(db.msgs.filter(m => m.sectionId === sid).map(m => ({ id: m.id, body: m.body, createdAt: m.createdAt, authorEmail: m.mine ? 'me@x.test' : 'autre@x.test', mine: m.mine })).reverse()),
-      postSectionMessage: (sid, body) => { calls.push(['post', sid, body]); db.msgs.push({ id: 'm' + (++db.n), sectionId: sid, body, createdAt: new Date(Date.now() + db.n).toISOString(), mine: true }); if (!db.chatState.some(x => x.sectionId === sid)) db.chatState.push({ sectionId: sid, followed: true, unread: 0 }); return ok('m'); },
+      sectionMessages: sid => ok(db.msgs.filter(m => m.sectionId === sid).map(m => ({ id: m.id, body: m.body, createdAt: m.createdAt, authorEmail: m.mine ? 'me@x.test' : 'autre@x.test', mine: m.mine, attachments: m.attachments || [] })).reverse()),
+      upload: (pid, file) => { calls.push(['upload', file.name]); return ok({ fileId: 'F' + file.name }); },
+      postSectionMessage: (sid, body, atts) => { calls.push(['post', sid, body, atts]); const attachments = (atts || []).map(a => { const id = 'att' + (++db.n); db.assets.push({ id, kind: 'image', origin: 'own', title: a.title, fileId: a.fileId, notes: 0, pinned: false }); db.links.push({ sectionId: sid, assetId: id }); return { assetId: id, kind: 'image', title: a.title, fileId: a.fileId }; }); db.msgs.push({ id: 'm' + (++db.n), sectionId: sid, body, attachments, createdAt: new Date(Date.now() + db.n).toISOString(), mine: true }); if (!db.chatState.some(x => x.sectionId === sid)) db.chatState.push({ sectionId: sid, followed: true, unread: 0 }); return ok('m'); },
       setSectionFollow: (sid, on) => { calls.push(['follow', sid, on]); db.chatState = db.chatState.filter(x => x.sectionId !== sid).concat(on ? [{ sectionId: sid, followed: true, unread: 0 }] : []); return ok(null); },
       markSectionRead: sid => { calls.push(['read', sid]); const x = db.chatState.find(y => y.sectionId === sid); if (x) x.unread = 0; return ok(null); },
       deleteSectionMessage: id => { db.msgs = db.msgs.filter(m => m.id !== id); return ok(null); },
@@ -194,6 +196,23 @@ const { JSDOM } = require('jsdom');
   check('non lus dans la liste des canaux', /Niveau 1 \(3\)/.test(c.d.getElementById('chanSel').textContent));
   const sel = c.d.getElementById('chanSel'); sel.value = ''; sel.dispatchEvent(new c.w.Event('change', { bubbles: true })); await wait(200);
   check('retour au tchat général', /Discussion générale/.test(c.d.getElementById('chanSel').options[0].textContent) && !/# Niveau 1/.test(chat().textContent.split('Niveau 1 (')[0].slice(0, 80)) && !!c.d.getElementById('q'));
+
+  // pièce jointe dans le canal : rangée automatiquement dans la section
+  const selB = c.d.getElementById('chanSel'); selB.value = 's1'; selB.dispatchEvent(new c.w.Event('change', { bubbles: true })); await wait(200);
+  check('le canal propose 📎', !!c.d.getElementById('attachBtn') && !!c.d.getElementById('attachInput'));
+  const fileInput = c.d.getElementById('attachInput');
+  Object.defineProperty(fileInput, 'files', { value: [new c.w.File(['x'], 'plan.png', { type: 'image/png' })], configurable: true });
+  fileInput.dispatchEvent(new c.w.Event('change', { bubbles: true })); await wait(100);
+  check('fichier en attente d\'envoi', /plan\.png/.test(c.d.getElementById('pending').textContent));
+  click(c.w, c.d.getElementById('sendBtn')); await wait(300);
+  check('envoyé avec la pièce jointe (message sans texte)', c.calls.some(x => x[0] === 'post' && x[1] === 's1' && x[3] && x[3][0] && x[3][0].fileId === 'Fplan.png'));
+  check('le message du canal montre sa pièce jointe, rangée dans la section', /Rangé dans « Niveau 1 »/.test(chat().textContent));
+  check('la pièce jointe est bien dans la section (filtre Images)', c.db.links.some(l => l.sectionId === 's1' && /^att/.test(l.assetId)));
+  await tab(c, 'images'); click(c.w, nav().querySelector('[data-pick="s1"]')); await wait(150);
+  check('et visible dans l\'onglet Images de la section', cards(c.d).includes('plan.png'));
+  // lien depuis la cloche : ?channel=
+  const c2 = await boot(false, 's1');
+  check('lien de la cloche : ouvre le canal de la section', /# Niveau 1/.test(c2.d.getElementById('chat').textContent));
 
   // ---- Lien section ↔ carte
   await tab(c, 'images');
