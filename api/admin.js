@@ -45,16 +45,19 @@
   }
 
   // Boîte de réception des compositeurs (admin_messages, remplace l'ancien bandeau plein écran
-  // platform_settings — 7 septembre, retour de Jules-Antoine : une boîte qui déclenche une notif
-  // plutôt qu'un bandeau qui écrase le message précédent). Historique complet, broadcast à tous les
-  // compositeurs (pas de ciblage individuel — décision actée le 7 septembre). Lecture directe (RLS
-  // "public read", même convention que platform_settings) : pas besoin de RPC, is_admin() n'entre
-  // en jeu que pour l'écriture.
+  // platform_settings — 7 septembre). Historique complet, messages diffusés ET personnels : lu par
+  // admin_list_messages() (8 octobre) plutôt qu'en direct, car la règle de lecture de la table ne
+  // montre à un compte que les messages diffusés ou adressés à lui -- un message adressé à un autre
+  // compte serait invisible (et impossible à supprimer) pour l'admin qui l'a envoyé.
   async function listAdminMessages() {
-    const { data, error } = await getClient().from('admin_messages').select('id, body, title, created_at, existing_accounts_only').order('created_at', { ascending: false }).limit(50);
+    const { data, error } = await getClient().rpc('admin_list_messages');
     if (error) return { messages: null, error: error.message };
     return {
-      messages: (data || []).map(m => ({ id: m.id, body: m.body || {}, title: m.title || {}, createdAt: m.created_at, existingAccountsOnly: !!m.existing_accounts_only })),
+      messages: (data || []).map(m => ({
+        id: m.id, body: m.body || {}, title: m.title || {}, createdAt: m.created_at,
+        existingAccountsOnly: !!m.existing_accounts_only,
+        recipientId: m.recipient_id || null, recipientEmail: m.recipient_email || null,
+      })),
       error: null,
     };
   }
@@ -66,14 +69,25 @@
   // titles (21 septembre, optionnel) : même forme { <code langue>: <titre> } ; les langues laissées
   // vides sont écartées, et si aucune n'est renseignée le paramètre n'est pas envoyé du tout (le
   // message retombe sur le titre générique côté backstage).
-  async function sendAdminMessage(messages, existingAccountsOnly, titles) {
-    const params = { p_messages: messages, p_existing_accounts_only: !!existingAccountsOnly };
+  // recipientIds (8 octobre, optionnel) : liste d'identifiants de compte ; vide ou absente = message
+  // diffusé à tous (comportement historique). Sinon un message personnel par compte (admin_send_message
+  // accepte un seul p_recipient_id), envoyés un par un : si l'un échoue les autres déjà partis le
+  // restent, et la réponse dit combien sont partis (sent) pour que l'admin ne les renvoie pas.
+  // Un envoi ciblé n'est jamais « comptes existants uniquement » (sans objet pour un compte précis).
+  async function sendAdminMessage(messages, existingAccountsOnly, titles, recipientIds) {
     const cleanTitles = {};
     Object.keys(titles || {}).forEach(code => { const t = String(titles[code] || '').trim(); if (t) cleanTitles[code] = t; });
-    if (Object.keys(cleanTitles).length > 0) params.p_titles = cleanTitles;
-    const { error } = await getClient().rpc('admin_send_message', params);
-    if (error) return { ok: false, error: error.message };
-    return { ok: true, error: null };
+    const targets = Array.isArray(recipientIds) && recipientIds.length > 0 ? recipientIds : [null];
+    let sent = 0;
+    for (const recipientId of targets) {
+      const params = { p_messages: messages, p_existing_accounts_only: recipientId ? false : !!existingAccountsOnly };
+      if (recipientId) params.p_recipient_id = recipientId;
+      if (Object.keys(cleanTitles).length > 0) params.p_titles = cleanTitles;
+      const { error } = await getClient().rpc('admin_send_message', params);
+      if (error) return { ok: false, error: error.message, sent };
+      sent++;
+    }
+    return { ok: true, error: null, sent };
   }
 
   async function deleteAdminMessage(id) {
