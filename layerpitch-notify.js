@@ -32,7 +32,7 @@
   .lp-toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px 10px 14px; border-radius: 8px; border: 1px solid var(--border, #e2e2e6); border-left: 4px solid var(--lp-toast-tone, var(--accent, #2f80c0)); background: var(--bg-card, #fff); color: var(--text, #24262b); box-shadow: 0 6px 20px rgba(0,0,0,0.16); font-family: inherit; font-size: 13px; line-height: 1.45; max-width: 100%; box-sizing: border-box; animation: lp-toast-in .18s ease-out; }
   .lp-toast.success { --lp-toast-tone: #2e9d5b; }
   .lp-toast.error { --lp-toast-tone: #d0433a; }
-  .lp-toast-msg { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+  .lp-toast-msg { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; max-height: 60vh; overflow-y: auto; }
   .lp-toast-close { flex: none; border: none; background: none; color: inherit; opacity: .55; font-size: 16px; line-height: 1; padding: 0 2px; cursor: pointer; font-family: inherit; }
   .lp-toast-close:hover, .lp-toast-close:focus-visible { opacity: 1; }
   .lp-toast.leaving { opacity: 0; transform: translateY(6px); transition: opacity .15s, transform .15s; }

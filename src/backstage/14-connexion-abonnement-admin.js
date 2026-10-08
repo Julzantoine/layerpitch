@@ -467,9 +467,12 @@ function initInboxBellUi() {
   dropdown.addEventListener('click', (e) => {
     const more = e.target.closest('.inbox-more');
     const collapse = e.target.closest('.inbox-collapse');
-    if (!more && !collapse) return;
+    // Un clic n'importe où sur un message (hors lien) l'ouvre ou le referme, comme « Lire la suite » (8/10 : le texte d'aperçu ne réagissait pas au clic).
+    const onItem = !more && !collapse && !e.target.closest('a') && e.target.closest('.inbox-item');
+    if (!more && !collapse && !onItem) return;
+    if (onItem && (onItem.tagName === 'A' || !onItem.querySelector('.inbox-text'))) return;
     e.preventDefault();
-    const item = (more || collapse).closest('.inbox-item');
+    const item = (more || collapse || onItem).closest('.inbox-item');
     const text = item.querySelector('.inbox-text');
     if (collapse) text.classList.remove('expanded'); else text.classList.toggle('expanded');
     refreshClamps();

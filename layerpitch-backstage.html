@@ -1877,15 +1877,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791488082120"></script>
-<script src="layerpitch-appearance.js?v=1791488082120"></script>
-<script src="layerpitch-album-shared.js?v=1791488082120"></script>
-<script src="layerpitch-album-editor.js?v=1791488082120"></script>
-<script src="layerpitch-shell.js?v=1791488082120"></script>
-<script src="layerpitch-social-icons.js?v=1791488082120"></script>
-<script src="layerpitch-notify.js?v=1791488082120"></script>
-<script src="layerpitch-help.js?v=1791488082120"></script>
-<script src="player.js?v=1791488082120"></script>
+<script src="layerpitch-i18n.js?v=1791491328137"></script>
+<script src="layerpitch-appearance.js?v=1791491328137"></script>
+<script src="layerpitch-album-shared.js?v=1791491328137"></script>
+<script src="layerpitch-album-editor.js?v=1791491328137"></script>
+<script src="layerpitch-shell.js?v=1791491328137"></script>
+<script src="layerpitch-social-icons.js?v=1791491328137"></script>
+<script src="layerpitch-notify.js?v=1791491328137"></script>
+<script src="layerpitch-help.js?v=1791491328137"></script>
+<script src="player.js?v=1791491328137"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2574,9 +2574,12 @@ function initInboxBellUi() {
   dropdown.addEventListener('click', (e) => {
     const more = e.target.closest('.inbox-more');
     const collapse = e.target.closest('.inbox-collapse');
-    if (!more && !collapse) return;
+    // Un clic n'importe où sur un message (hors lien) l'ouvre ou le referme, comme « Lire la suite » (8/10 : le texte d'aperçu ne réagissait pas au clic).
+    const onItem = !more && !collapse && !e.target.closest('a') && e.target.closest('.inbox-item');
+    if (!more && !collapse && !onItem) return;
+    if (onItem && (onItem.tagName === 'A' || !onItem.querySelector('.inbox-text'))) return;
     e.preventDefault();
-    const item = (more || collapse).closest('.inbox-item');
+    const item = (more || collapse || onItem).closest('.inbox-item');
     const text = item.querySelector('.inbox-text');
     if (collapse) text.classList.remove('expanded'); else text.classList.toggle('expanded');
     refreshClamps();

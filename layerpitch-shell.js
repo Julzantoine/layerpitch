@@ -122,6 +122,10 @@
   .lp-bell-item.unread::before { content: ''; position: absolute; left: 11px; top: 16px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent, #2f80c0); }
   .lp-bell-item-title { font-size: 13px; font-weight: 600; line-height: 1.35; }
   .lp-bell-item-text { font-size: 12.5px; color: var(--text-dim, #5f636b); margin-top: 2px; line-height: 1.4; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  div.lp-bell-item:has(.lp-bell-item-text) { cursor: pointer; }
+  .lp-bell-item-text { white-space: pre-line; }
+  .lp-bell-item-text a { color: var(--accent, #2f80c0); }
+  .lp-bell-item-text.expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
   .lp-bell-item-time { font-size: 11px; color: var(--text-dimmer, #9a9ea6); margin-top: 4px; }
   .lp-bell-empty { padding: 18px 14px; font-size: 13px; color: var(--text-dim, #5f636b); text-align: center; }
   .lp-shell.lp-bare .lp-main { padding: 0; }
@@ -264,6 +268,14 @@
     list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     return list.slice(0, 30);
   }
+  // Début d'un texte pour le petit bandeau d'arrivée : une ligne, coupé proprement sur un mot.
+  function toastExcerpt(text, max) {
+    max = max || 120;
+    const t = String(text || '').replace(/\s+/g, ' ').trim();
+    if (t.length <= max) return t;
+    const cut = t.slice(0, max), sp = cut.lastIndexOf(' ');
+    return (sp > max * 0.6 ? cut.slice(0, sp) : cut).trimEnd() + '…';
+  }
   async function refreshInbox() {
     try {
       const { session } = await window.LayerPitchAuth.getSession();
@@ -273,7 +285,8 @@
       if (inbox.known && window.LayerPitchNotify) {
         const fresh = list.filter(it => it.unread && !inbox.known.has(it.key));
         const head = it => (it.kind === 'project' ? tr('inboxToastProject', { title: it.projectTitle }) : it.title);
-        if (fresh.length) window.LayerPitchNotify.info(fresh.length === 1 ? `${head(fresh[0])}${fresh[0].text ? ' — ' + fresh[0].text : ''}` : tr('inboxSeveral', { n: fresh.length }));
+        // Début du message seulement (8/10) : une annonce longue montrée en entier faisait un bandeau plus haut que l'écran, sans début visible ; le message complet est dans la cloche.
+        if (fresh.length) window.LayerPitchNotify.info(fresh.length === 1 ? `${head(fresh[0])}${fresh[0].text ? ' — ' + toastExcerpt(fresh[0].text) : ''}` : tr('inboxSeveral', { n: fresh.length }));
       }
       inbox.known = new Set(list.map(it => it.key));
       inbox.items = list;
@@ -304,7 +317,7 @@
     host.innerHTML = `<button type="button" class="lp-bell" id="lpBell" aria-haspopup="true" aria-expanded="${open ? 'true' : 'false'}" title="${esc(tr('inboxTitle'))}">${BELL_ICON}${unread ? `<span class="lp-bell-badge">${unread > 9 ? '9+' : unread}</span>` : ''}</button>
       ${open ? `<div class="lp-bell-panel" role="dialog" aria-label="${esc(tr('inboxTitle'))}"><div class="lp-bell-head">${esc(tr('inboxTitle'))}</div>
         ${list.length ? list.map(it => `<${it.href ? `a href="${esc(withLang(it.href))}"` : 'div'} class="lp-bell-item${it.unread ? ' unread' : ''}">
-          <div class="lp-bell-item-title">${esc(it.title)}</div>${it.text ? `<div class="lp-bell-item-text">${esc(it.text)}</div>` : ''}
+          <div class="lp-bell-item-title">${esc(it.title)}</div>${it.text ? `<div class="lp-bell-item-text">${linkify(it.text)}</div>` : ''}
           <div class="lp-bell-item-time">${esc(relTime(it.createdAt))}</div></${it.href ? 'a' : 'div'}>`).join('') : `<div class="lp-bell-empty">${esc(tr('inboxEmpty'))}</div>`}
       </div>` : ''}`;
     host.querySelector('#lpBell').onclick = e => {
@@ -312,6 +325,15 @@
       if (inbox.open && list.some(it => it.unread && (it.kind === 'announcement' || it.kind === 'contact'))) markInboxSeen();
     };
   }
+  // Texte cliquable (8/10) : les adresses http(s) d'une annonce deviennent des liens (comme dans la cloche du Backstage).
+  function linkify(t) { return esc(t).replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); }
+  // Un clic sur un message l'ouvre en entier (ou le referme) ; un clic sur un lien suit le lien, et une entrée qui est elle-même un lien garde son rôle.
+  document.addEventListener('click', e => {
+    const item = e.target.closest && e.target.closest('#lpBellHost div.lp-bell-item');
+    if (!item || e.target.closest('a')) return;
+    const text = item.querySelector('.lp-bell-item-text');
+    if (text) text.classList.toggle('expanded');
+  });
   document.addEventListener('click', e => { if (inbox.open && !e.target.closest('#lpBellHost')) { inbox.open = false; renderBell(); } });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && inbox.open) { inbox.open = false; renderBell(); } });
 
