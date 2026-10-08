@@ -150,6 +150,19 @@ const { JSDOM } = require('jsdom');
   host3.querySelector('#lmRoomZone').dispatchEvent(dropRoom);
   const mp = v3.state.maps[0].data;
   check('fond d\'ambiance déposé dans les réglages', mp.roomTone && mp.roomTone.id === 'room1');
+  // Fond d'ambiance : déposé sur le TITRE de la colonne (pas seulement le cadre en pointillés), puis choisi à gauche et « + Ajouter »
+  const roomLabel = host3.querySelector('#lmRoomZone').parentElement.querySelector('label');
+  const dropRoom2 = new w.Event('drop', { bubbles: true, cancelable: true }); dropRoom2.dataTransfer = { data: { 'application/x-lp-sound': JSON.stringify({ kind: 'track', id: 'room2', title: 'Room 2' }) }, types: ['application/x-lp-sound'], getData(t) { return this.data[t]; } };
+  roomLabel.dispatchEvent(dropRoom2);
+  check('fond d\'ambiance : déposé sur le titre de la colonne, il est pris en compte', v3.state.maps[0].data.roomTone.id === 'room2');
+  const addBtn0 = [...host3.querySelectorAll('#lmRoomZone button')].find(b => /map_addPicked/.test(b.textContent));
+  check('fond d\'ambiance : « + Ajouter » est grisé tant qu\'aucun son n\'est choisi à gauche', !!addBtn0 && addBtn0.disabled);
+  const libItem = host3.querySelector('[data-ref]'); libItem.click();
+  const addBtn1 = [...host3.querySelectorAll('#lmRoomZone button')].find(b => /map_addPicked/.test(b.textContent));
+  check('fond d\'ambiance : après avoir choisi un son à gauche, « + Ajouter » devient actif et le nomme', !!addBtn1 && !addBtn1.disabled && /map_addPicked/.test(addBtn1.textContent));
+  addBtn1.click();
+  check('fond d\'ambiance : « + Ajouter » pose le son choisi', v3.state.maps[0].data.roomTone && v3.state.maps[0].data.roomTone.id === JSON.parse(libItem.dataset.ref).id);
+  v3.state.maps[0].data.roomTone = { kind: 'track', id: 'room1', title: 'Room' };
   const db = host3.querySelector('#lmRoomDb'); db.value = '-20'; db.dispatchEvent(new w.Event('input'));
   check('niveau du fond réglé', mp.roomToneDb === -20);
   const defStyle = host3.querySelector('#lmDefStyle'); defStyle.value = 'cut'; defStyle.dispatchEvent(new w.Event('change'));
@@ -260,14 +273,25 @@ const { JSDOM } = require('jsdom');
     const second = edges5().find(e => e.from === j1.id);
     ptr(host5.querySelector('[data-edge="' + second.id + '"]'), 300, 0);
     check('Relier : un élément (PNJ) puis un parcours : un 2e point de passage est créé et relié au PNJ', nodes5().filter(n => n.type === 'junction').length === 2 && edges5().some(e => e.from === 'p' && nodes5().find(n => n.id === e.to).type === 'junction'));
-    // Relier : parcours d'abord, puis la Ville -> itinéraire du point vers la Ville
+    // Relier : un simple clic sur un parcours, sans élément choisi d'abord, ne crée RIEN (il le sélectionne)
     host5.querySelector('#lmConnect').click(); host5.querySelector('#lmConnect').click();
     const firstHalf = edges5().find(e => e.from === 's');
     const nBefore = nodes5().length, eBefore = edges5().length;
     ptr(host5.querySelector('[data-edge="' + firstHalf.id + '"]'), 40, 0);
-    check('Relier : un parcours d\'abord : un point de passage est créé et attend sa destination', nodes5().length === nBefore + 1 && v5v.state.linkFrom && nodes5().find(n => n.id === v5v.state.linkFrom).type === 'junction');
+    check('Relier : un clic sur un parcours sans élément choisi ne crée aucun point (il sélectionne le parcours)', nodes5().length === nBefore && edges5().length === eBefore && v5v.state.sel.kind === 'edge' && !v5v.state.linkFrom);
+    // Relier : la Ville d'abord, puis le parcours -> point de passage relié à la Ville (embranchement)
     ptr(host5.querySelector('[data-node="v"]'), 200, 250);
-    check('…puis la Ville : un itinéraire part du point de passage vers la Ville (embranchement)', edges5().length === eBefore + 2 && edges5().some(e => e.to === 'v' && nodes5().find(n => n.id === e.from).type === 'junction'));
+    ptr(host5.querySelector('[data-edge="' + firstHalf.id + '"]'), 40, 0);
+    check('Relier : un élément (Ville) puis un parcours : un point de passage est créé et relié à la Ville', nodes5().length === nBefore + 1 && edges5().length === eBefore + 2 && edges5().some(e => e.from === 'v' && nodes5().find(n => n.id === e.to).type === 'junction'));
+    // Double-clic réel (deux appuis rapprochés sur le même parcours, sans événement « dblclick » : le dessin remplace l'élément entre les deux)
+    if (v5v.state.connecting) host5.querySelector('#lmConnect').click();
+    const tgt = edges5().find(e => e.to === 'c'), jBefore = nodes5().filter(n => n.type === 'junction').length;
+    ptr(host5.querySelector('[data-edge="' + tgt.id + '"]'), 300, 0);
+    check('un seul appui : le parcours est seulement sélectionné', nodes5().filter(n => n.type === 'junction').length === jBefore);
+    ptr(host5.querySelector('[data-edge="' + tgt.id + '"]'), 301, 0);
+    check('deux appuis rapprochés sur un parcours : un point de passage est créé (même sans événement dblclick)', nodes5().filter(n => n.type === 'junction').length === jBefore + 1);
+    host5.querySelector('[data-edge]') && host5.querySelector('[data-edge]').dispatchEvent(new w.Event('dblclick', { bubbles: true }));
+    check('l\'événement dblclick qui suit ne crée pas un deuxième point', nodes5().filter(n => n.type === 'junction').length === jBefore + 1);
     // bouton du détail
     if (v5v.state.connecting) host5.querySelector('#lmConnect').click(); // sortir du mode « Relier »
     const eSel = edges5()[0]; v5v.state.sel = { kind: 'edge', id: eSel.id }; host5.querySelector('#lmCanvas').dispatchEvent(new w.Event('pointerup', { bubbles: true }));

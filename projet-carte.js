@@ -557,14 +557,25 @@
             //   - un autre élément cliqué d'abord : un parcours le relie au nouveau point de passage ;
             //   - le parcours cliqué d'abord : le point de passage est créé, puis on clique l'élément à atteindre.
             const w = toWorld(ev), t = projectOnEdge(map, edgeEl.dataset.edge, w.x, w.y), from = st.linkFrom && nodeById(map, st.linkFrom);
+            // Aucun élément choisi d'abord : un simple clic sur un parcours ne crée rien (on le sélectionne) ; le point de passage se crée
+            // par un double-clic, ou en choisissant d'abord l'élément à relier.
+            if (!from) { st.sel = { kind: 'edge', id: edgeEl.dataset.edge }; drawCanvas(); renderInspector(); return; }
             if (from && from.type === 'quest') { if (anchorQuestToEdge(map, from.id, edgeEl.dataset.edge, t)) { st.sel = { kind: 'node', id: from.id }; touch(); } st.linkFrom = null; render(); return; }
             const cut = splitEdge(map, edgeEl.dataset.edge, w.x, w.y);
             if (!cut) return;
-            if (from) { const e = addEdge(map, from.id, cut.node.id); st.linkFrom = null; st.sel = e ? { kind: 'edge', id: e.id } : { kind: 'node', id: cut.node.id }; }
-            else { st.linkFrom = cut.node.id; st.sel = { kind: 'node', id: cut.node.id }; }
+            const e = addEdge(map, from.id, cut.node.id); st.linkFrom = null; st.sel = e ? { kind: 'edge', id: e.id } : { kind: 'node', id: cut.node.id };
             touch(); render();
             return;
           }
+          // Double-clic sur un parcours : détecté ici (deux appuis rapprochés sur le même parcours), car le dessin remplace l'élément
+          // après le premier clic et Firefox ne signale alors plus l'événement « dblclick ».
+          const now = Date.now(), last = st.lastEdgeDown;
+          if (ctx.canEdit && !st.play && last && last.id === edgeEl.dataset.edge && now - last.at < 450 && Math.hypot(ev.clientX - last.x, ev.clientY - last.y) < 10) {
+            st.lastEdgeDown = null;
+            const w = toWorld(ev), cut = splitEdge(map, edgeEl.dataset.edge, w.x, w.y);
+            if (cut) { st.splitAt = now; st.sel = { kind: 'node', id: cut.node.id }; touch(); render(); return; }
+          }
+          st.lastEdgeDown = { id: edgeEl.dataset.edge, at: now, x: ev.clientX, y: ev.clientY };
           st.sel = { kind: 'edge', id: edgeEl.dataset.edge }; drawCanvas(); renderInspector();
         } else {
           st.sel = null; st.linkFrom = null;
@@ -584,7 +595,7 @@
       canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
       // Double-clic sur un parcours : un point de passage y est créé (on peut ensuite en faire partir un autre itinéraire).
       canvas.addEventListener('dblclick', ev => {
-        if (!ctx.canEdit || st.play) return;
+        if (!ctx.canEdit || st.play || (st.splitAt && Date.now() - st.splitAt < 700)) return; // déjà fait par la détection ci-dessus
         const edgeEl = ev.target.closest('[data-edge]'); if (!edgeEl) return;
         const w = toWorld(ev), cut = splitEdge(map, edgeEl.dataset.edge, w.x, w.y);
         if (cut) { st.sel = { kind: 'node', id: cut.node.id }; touch(); render(); }
@@ -752,10 +763,14 @@
       const setRoom = ref => { map.roomTone = ref ? { kind: ref.kind, id: ref.id, title: ref.title } : null; touch(); renderSettings(); if (audio && st.play) { audio.setMap(map); audio.resume(); } };
       const rm = box.querySelector('#lmRoomRm'); if (rm) rm.onclick = () => setRoom(null);
       const zone = box.querySelector('#lmRoomZone');
-      zone.addEventListener('dragover', ev => { if ([...(ev.dataTransfer.types || [])].includes('application/x-lp-sound')) { ev.preventDefault(); zone.classList.add('drop'); } });
-      zone.addEventListener('dragleave', () => zone.classList.remove('drop'));
-      zone.addEventListener('drop', ev => { zone.classList.remove('drop'); ev.preventDefault(); let ref = null; try { ref = JSON.parse(ev.dataTransfer.getData('application/x-lp-sound')); } catch (e) { return; } if (cleanRef(ref)) setRoom(ref); });
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.style.marginTop = '4px'; b.textContent = tr('map_addPicked'); b.disabled = !st.picked;
+      // Toute la colonne du fond d'ambiance (titre, zone, niveau) reçoit le dépôt, pas seulement le cadre en pointillés.
+      const dropArea = zone.parentElement;
+      const accepts = ev => [...(ev.dataTransfer.types || [])].includes('application/x-lp-sound');
+      dropArea.addEventListener('dragenter', ev => { if (accepts(ev)) { ev.preventDefault(); zone.classList.add('drop'); } });
+      dropArea.addEventListener('dragover', ev => { if (accepts(ev)) { ev.preventDefault(); zone.classList.add('drop'); } });
+      dropArea.addEventListener('dragleave', ev => { if (!dropArea.contains(ev.relatedTarget)) zone.classList.remove('drop'); });
+      dropArea.addEventListener('drop', ev => { zone.classList.remove('drop'); ev.preventDefault(); let ref = null; try { ref = JSON.parse(ev.dataTransfer.getData('application/x-lp-sound')); } catch (e) { return; } if (cleanRef(ref)) setRoom(ref); });
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.style.marginTop = '4px'; b.textContent = st.picked ? tr('map_addPickedNamed', { title: st.picked.title || st.picked.id }) : tr('map_addPicked'); b.disabled = !st.picked;
       b.onclick = () => { if (st.picked) setRoom(st.picked); }; zone.appendChild(b);
       const db = box.querySelector('#lmRoomDb');
       db.oninput = () => { map.roomToneDb = Number(db.value); box.querySelector('#lmRoomDb').previousElementSibling.textContent = tr('map_roomToneDb', { db: map.roomToneDb }); if (audio) audio.refreshRoomLevel(); touch(); };
@@ -824,7 +839,7 @@
       search.oninput = () => { st.libQuery = search.value; const pos = search.selectionStart; renderLibrary(); const s2 = host.querySelector('#lmSearch'); s2.focus(); s2.setSelectionRange(pos, pos); };
       box.querySelectorAll('[data-ref]').forEach(el => {
         el.addEventListener('dragstart', ev => { ev.dataTransfer.setData('application/x-lp-sound', el.dataset.ref); ev.dataTransfer.effectAllowed = 'copy'; });
-        el.addEventListener('click', () => { st.picked = JSON.parse(el.dataset.ref); box.querySelectorAll('.lm-sound').forEach(x => { x.style.outline = x === el ? '2px solid var(--accent)' : ''; }); renderInspector(); });
+        el.addEventListener('click', () => { st.picked = JSON.parse(el.dataset.ref); box.querySelectorAll('.lm-sound').forEach(x => { x.style.outline = x === el ? '2px solid var(--accent)' : ''; }); renderInspector(); renderSettings(); });
       });
     }
 
