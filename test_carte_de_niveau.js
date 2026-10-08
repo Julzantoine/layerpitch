@@ -29,13 +29,19 @@ const { JSDOM } = require('jsdom');
   const ref = { kind: 'track', id: 'theme', title: 'Thème' };
   check('son déposé sur un lieu (emplacement principal)', M.addSound(map, { kind: 'node', id: castle.id }, 'main', ref));
   check('même son deux fois refusé', !M.addSound(map, { kind: 'node', id: castle.id }, 'main', ref));
-  check('emplacement combat refusé sur un lieu', !M.addSound(map, { kind: 'node', id: castle.id }, 'combat', ref));
-  check('emplacement combat accepté sur un boss', M.addSound(map, { kind: 'node', id: boss.id }, 'combat', ref));
-  check('emplacement combat refusé sur un parcours sans ennemi', !M.addSound(map, { kind: 'edge', id: e1.id }, 'combat', ref));
-  M.setEnemy(map, e1.id, true);
-  check('emplacement combat accepté sur un parcours étoilé', M.addSound(map, { kind: 'edge', id: e1.id }, 'combat', { kind: 'track', id: 'fight', title: 'Combat' }));
-  M.setEnemy(map, e1.id, false);
-  check('retirer l\'étoile garde les sons de combat', M.edgeById(map, e1.id).sounds.combat.length === 1);
+  // 8/10 : une musique par élément, plus une 2e facultative sur n'importe quel élément ou parcours (emplacement interne « combat »)
+  check('2e musique acceptée sur un lieu', M.addSound(map, { kind: 'node', id: castle.id }, 'combat', ref) && M.hasAltMusic(map, { kind: 'node', id: castle.id }));
+  check('2e musique acceptée sur un boss', M.addSound(map, { kind: 'node', id: boss.id }, 'combat', ref));
+  check('2e musique acceptée sur un parcours, sans qu\'il faille l\'étoile', M.addSound(map, { kind: 'edge', id: e1.id }, 'combat', { kind: 'track', id: 'fight', title: 'Combat' }) && M.hasAltMusic(map, { kind: 'edge', id: e1.id }));
+  check('pas de 2e musique tant qu\'aucun son n\'y est posé', !M.hasAltMusic(map, { kind: 'node', id: city.id }));
+  M.setEnemy(map, e1.id, true); M.setEnemy(map, e1.id, false);
+  check('l\'étoile « ennemi possible » n\'est plus qu\'un repère : elle ne touche pas aux sons', M.edgeById(map, e1.id).sounds.combat.length === 1);
+  const tgtC = { kind: 'node', id: castle.id };
+  check('nom de la 2e musique (rogné à 60 caractères, retiré si vide)', M.setAltName(map, tgtC, '  Tension ' + 'x'.repeat(80)) && M.nodeById(map, castle.id).altName.length === 60 && M.setAltName(map, tgtC, '  ') && M.nodeById(map, castle.id).altName === undefined);
+  check('son de transition entre les deux musiques : un seul, valide', M.addSound(map, tgtC, 'altTransition', { kind: 'sfx', id: 'whoosh', title: 'Whoosh' }) && M.nodeById(map, castle.id).altTransition.id === 'whoosh' && !M.addSound(map, tgtC, 'altTransition', { kind: 'video', id: 'x' }));
+  check('2e musique, nom et transition survivent à normalize', (() => { M.setAltName(map, tgtC, 'Tension'); const n = M.normalize(JSON.parse(JSON.stringify(map))).nodes.find(x => x.id === castle.id); return n.altName === 'Tension' && n.altTransition.id === 'whoosh' && n.sounds.combat.length === 1; })());
+  check('une carte sans 2e musique garde sa forme (aucune clé en plus)', (() => { const n = M.normalize({ nodes: [{ id: 'z', type: 'place', x: 0, y: 0 }], edges: [] }).nodes[0]; return !('altName' in n) && !('altTransition' in n); })());
+  check('retirer la 2e musique efface sons, nom et transition', M.clearAlt(map, tgtC) && !M.hasAltMusic(map, tgtC) && !('altName' in M.nodeById(map, castle.id)) && !('altTransition' in M.nodeById(map, castle.id)));
   check('référence invalide refusée', !M.addSound(map, { kind: 'node', id: castle.id }, 'main', { kind: 'video', id: 'x' }));
   for (let i = 0; i < 20; i++) M.addSound(map, { kind: 'node', id: city.id }, 'main', { kind: 'sfx', id: 's' + i, title: 'S' + i });
   check('douze sons au plus par emplacement', city.sounds.main.length === M.MAX_SOUNDS);
@@ -84,7 +90,9 @@ const { JSDOM } = require('jsdom');
   const drop = new w.Event('drop', { bubbles: true, cancelable: true }); drop.dataTransfer = dt; target.dispatchEvent(drop);
   const boss2 = view.state.maps[0].data.nodes.find(n => n.id === 'b');
   check('son glissé sur un boss : posé en ambiance', boss2.sounds.main.length === 1 && boss2.sounds.main[0].id === 't1');
-  check('inspecteur du boss : ambiance, combat et fond propre', host.querySelectorAll('#lmInsp [data-slot]').length === 3);
+  check('inspecteur du boss : une seule musique et le fond propre, « ＋ 2e musique » proposé', host.querySelectorAll('#lmInsp [data-slot]').length === 2 && !host.querySelector('#lmInsp [data-slot="combat"]') && !!host.querySelector('#lmAltAdd'));
+  host.querySelector('#lmAltAdd').click();
+  check('« ＋ 2e musique » : le 2e emplacement, son nom et la transition apparaissent', !!host.querySelector('#lmInsp [data-slot="combat"]') && !!host.querySelector('#lmAltName') && !!host.querySelector('#lmInsp [data-slot="altTransition"]') && !host.querySelector('#lmAltAdd'));
   const slotCombat = host.querySelector('#lmInsp [data-slot="combat"]');
   const item2 = host.querySelectorAll('#lmLib [data-ref]')[1];
   const dt2 = { data: {}, types: ['application/x-lp-sound'], setData(t, v) { this.data[t] = v; }, getData(t) { return this.data[t]; } };
@@ -138,7 +146,7 @@ const { JSDOM } = require('jsdom');
   check('deuxième flèche : on arrive sur le boss, son du boss', v3.audio.state.position.id === 'b' && calls.includes('track:boss start 0'));
   host3.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'c', bubbles: true })); await settle(); await advance(3);
   check('touche C : combat, le morceau de combat entre', v3.audio.state.combat && calls.includes('track:fight start 0'));
-  check('bouton « Fin du combat » affiché', /map_combatOn/.test(host3.querySelector('#lmCombat').textContent));
+  check('bouton « Retour à la musique 1 » affiché pendant la 2e musique', /map_altBack/.test(host3.querySelector('#lmCombat').textContent));
   host3.dispatchEvent(new w.KeyboardEvent('keydown', { key: ' ', bubbles: true })); await settle(); await advance(3);
   check('Espace : pause (tout s\'éteint)', !v3.audio.state.playing);
   host3.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await settle();
@@ -332,6 +340,51 @@ const { JSDOM } = require('jsdom');
     check('balade : pendant le chargement du morceau, « Chargement » est affiché', v9.audio.state.loading === 1 && !!h9.querySelector('.lm-loading'));
     releases.forEach(r => r()); await wait(30);
     check('balade : une fois chargé, le témoin disparaît', v9.audio.state.loading === 0 && !h9.querySelector('.lm-loading'));
+  }
+
+  // ---- Panneau de pilotage d'un morceau séquentiel pendant la balade (8/10) : libellés du morceau, atteignables, touches 1-9
+  {
+    const went = [];
+    const seqVoice = { start() {}, setLevel() {}, stop() {}, isPlaying: () => true, nextBoundary: () => null,
+      sequenceCount: () => 3, sequenceLabels: () => ['Calme', 'Tension', 'Séquence 3'], sequenceCurrent: () => 0, sequenceReachable: () => [1], sequencePending: () => -1,
+      goToSequence: i => { went.push(i); return true; } };
+    const seqEnv = { now: () => 0, schedule: () => () => {}, voiceFactory: async () => seqVoice };
+    const h10 = w.document.createElement('div'); w.document.body.appendChild(h10);
+    const v10 = w.LayerPitchLevelMap.mount(h10, { tr, canEdit: true, audio: seqEnv, libraries: { track: [], sfx: [], asset: [] },
+      maps: [{ id: 'm10', title: 'Seq', data: { nodes: [{ id: 'a', type: 'start', label: 'Début', x: 0, y: 0, sounds: { main: [{ kind: 'track', id: 'seq', title: 'Séquentiel' }] } }], edges: [] } }],
+      save: async m => ({ id: m.id }), remove: async () => ({}) });
+    h10.querySelector('#lmPlay').click(); await wait(40);
+    const seqBtns = [...h10.querySelectorAll('[data-seq]')];
+    check('séquentiel en balade : un bouton par séquence, avec les libellés du morceau', seqBtns.length === 3 && /Calme/.test(seqBtns[0].textContent) && /Tension/.test(seqBtns[1].textContent));
+    check('séquentiel en balade : la séquence en cours est mise en avant, seules les atteignables sont actives', seqBtns[0].classList.contains('primary') && !seqBtns[1].disabled && seqBtns[0].disabled && seqBtns[2].disabled);
+    seqBtns[1].click();
+    check('séquentiel en balade : cliquer une séquence la demande au morceau', went.join() === '1');
+    h10.dispatchEvent(new w.KeyboardEvent('keydown', { key: '2', bubbles: true }));
+    check('séquentiel en balade : la touche 2 demande la 2e séquence', went.join() === '1,1');
+  }
+
+  // ---- 2e musique pendant la balade (8/10) : bouton nommé, jingle de transition à la bascule
+  {
+    const plays = [];
+    const mkV = key => ({ key, start(l) { plays.push(key + ' start'); }, setLevel() {}, stop() { plays.push(key + ' stop'); }, isPlaying: () => true, nextBoundary: () => null });
+    const voices2 = {};
+    const env2 = { now: () => 0, schedule: () => () => {}, voiceFactory: async ref => (voices2[ref.id] = voices2[ref.id] || mkV(ref.id)) };
+    const h11 = w.document.createElement('div'); w.document.body.appendChild(h11);
+    const v11 = w.LayerPitchLevelMap.mount(h11, { tr, canEdit: true, audio: env2, libraries: { track: [], sfx: [], asset: [] },
+      maps: [{ id: 'm11', title: 'Deux', data: { nodes: [{ id: 'a', type: 'start', label: 'Début', x: 0, y: 0, altName: 'Poursuite', altTransition: { kind: 'sfx', id: 'whoosh', title: 'Whoosh' },
+        sounds: { main: [{ kind: 'track', id: 'calme', title: 'Calme' }], combat: [{ kind: 'track', id: 'course', title: 'Course' }] } }], edges: [] } }],
+      save: async m => ({ id: m.id }), remove: async () => ({}) });
+    h11.querySelector('#lmPlay').click(); await wait(40);
+    check('2e musique : le bouton porte le nom choisi', /Poursuite/.test(h11.querySelector('#lmCombat').textContent) && !h11.querySelector('#lmCombat').disabled);
+    plays.length = 0; h11.querySelector('#lmCombat').click(); await wait(40);
+    check('2e musique : la bascule joue le son de transition puis la 2e musique', plays.includes('whoosh start') && plays.includes('course start'));
+    check('2e musique : le bouton propose alors le retour à la musique 1', /map_altBack/.test(h11.querySelector('#lmCombat').textContent));
+    const h12 = w.document.createElement('div'); w.document.body.appendChild(h12);
+    const v12 = w.LayerPitchLevelMap.mount(h12, { tr, canEdit: true, audio: env2, libraries: { track: [], sfx: [], asset: [] },
+      maps: [{ id: 'm12', title: 'Une', data: { nodes: [{ id: 'a', type: 'start', label: 'Début', x: 0, y: 0, sounds: { main: [{ kind: 'track', id: 'calme', title: 'Calme' }] } }], edges: [] } }],
+      save: async m => ({ id: m.id }), remove: async () => ({}) });
+    h12.querySelector('#lmPlay').click(); await wait(40);
+    check('une seule musique : le bouton de 2e musique est grisé', h12.querySelector('#lmCombat').disabled);
   }
 
   // ---- Fichier audio déposé depuis l'ordinateur (8/10) : envoyé par la page, la carte garde la référence

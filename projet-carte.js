@@ -91,16 +91,35 @@
     map.nodes.forEach(n => { if (n.anchor && n.anchor.kind === 'edge' && n.anchor.id === id) n.anchor = null; });
   }
   const targetOf = (map, t) => (t.kind === 'edge' ? edgeById(map, t.id) : nodeById(map, t.id));
-  // L'emplacement « combat » : un boss, ou un parcours où un ennemi est possible.
-  function hasCombatSlot(map, t) {
-    const item = targetOf(map, t);
-    if (!item) return false;
-    return t.kind === 'edge' ? !!item.enemy : item.type === 'boss';
+  // Une 2e musique (emplacement interne « combat ») est possible sur n'importe quel élément ou parcours (8/10 : une seule musique par
+  // défaut, une 2e facultative) ; hasAltMusic : elle existe vraiment (au moins un son posé), donc on peut y basculer pendant la balade.
+  function hasCombatSlot(map, t) { return !!targetOf(map, t); }
+  function hasAltMusic(map, t) { const item = targetOf(map, t); return !!(item && item.sounds && item.sounds.combat && item.sounds.combat.length); }
+  const altNameOf = item => (item && item.altName) || '';
+  // Nom de la 2e musique (60 caractères au plus) et son de transition entre les deux musiques (un seul son).
+  function setAltName(map, t, name) {
+    const item = targetOf(map, t); if (!item) return false;
+    const v = String(name == null ? '' : name).trim().slice(0, 60);
+    if (v) item.altName = v; else delete item.altName;
+    return true;
+  }
+  function setAltTransition(map, t, ref) {
+    const item = targetOf(map, t); if (!item) return false;
+    const c = ref ? cleanRef(ref) : null;
+    if (ref && !c) return false;
+    if (c) item.altTransition = c; else delete item.altTransition;
+    return true;
+  }
+  function clearAlt(map, t) {
+    const item = targetOf(map, t); if (!item) return false;
+    if (item.sounds) item.sounds.combat = [];
+    delete item.altName; delete item.altTransition;
+    return true;
   }
   function addSound(map, t, slot, ref) {
     const item = targetOf(map, t);
+    if (slot === 'altTransition') return item ? setAltTransition(map, t, ref) && !!item.altTransition : false;
     if (!item || !SLOTS.includes(slot) || !ref || !['track', 'sfx', 'asset'].includes(ref.kind) || !ref.id) return false;
-    if (slot === 'combat' && !hasCombatSlot(map, t)) return false;
     item.sounds = item.sounds || { main: [], combat: [] };
     const list = item.sounds[slot] = item.sounds[slot] || [];
     if (slot === 'room') list.length = 0; // un seul fond d'ambiance propre à l'élément : le nouveau remplace l'ancien
@@ -110,6 +129,7 @@
   }
   function removeSound(map, t, slot, index) {
     const item = targetOf(map, t);
+    if (slot === 'altTransition') { if (!item || !item.altTransition) return false; delete item.altTransition; return true; }
     if (!item || !item.sounds || !item.sounds[slot] || !item.sounds[slot][index]) return false;
     item.sounds[slot].splice(index, 1);
     return true;
@@ -189,16 +209,23 @@
     return out;
   }
   // Remet une carte reçue du serveur dans la forme attendue (champs absents, sons manquants).
+  // 2e musique : nom et son de transition, seulement s'ils existent (une carte sans 2e musique garde exactement sa forme d'avant).
+  function altFields(o) {
+    const out = {}, name = String((o && o.altName) || '').trim().slice(0, 60), tr0 = cleanRef(o && o.altTransition);
+    if (name) out.altName = name;
+    if (tr0) out.altTransition = tr0;
+    return out;
+  }
   function normalize(raw) {
     const map = emptyMap();
     ((raw && raw.nodes) || []).forEach(n => {
       if (!n || !NODE_TYPES.includes(n.type)) return;
       map.nodes.push({ id: String(n.id), type: n.type, label: n.label || '', x: Number(n.x) || 0, y: Number(n.y) || 0, note: n.note || '',
-        side: !!n.side, anchor: n.anchor || null, sounds: cleanSounds(n.sounds), transition: cleanTransition(n.transition) });
+        side: !!n.side, anchor: n.anchor || null, sounds: cleanSounds(n.sounds), transition: cleanTransition(n.transition), ...altFields(n) });
     });
     ((raw && raw.edges) || []).forEach(e => {
       if (!e || !nodeById(map, e.from) || !nodeById(map, e.to)) return;
-      map.edges.push({ id: String(e.id), from: e.from, to: e.to, label: e.label || '', enemy: !!e.enemy, sounds: cleanSounds(e.sounds), transition: cleanTransition(e.transition) });
+      map.edges.push({ id: String(e.id), from: e.from, to: e.to, label: e.label || '', enemy: !!e.enemy, sounds: cleanSounds(e.sounds), transition: cleanTransition(e.transition), ...altFields(e) });
     });
     map.roomTone = cleanRef(raw && raw.roomTone);
     if (raw && Number.isFinite(Number(raw.roomToneDb))) map.roomToneDb = Math.max(-60, Math.min(0, Number(raw.roomToneDb)));
@@ -268,7 +295,7 @@
 
   const model = { NODE_TYPES, SLOTS, GLYPH, MAX_SOUNDS, TRANSITION_STYLES, SYNCS, DEFAULT_TRANSITION, DEFAULT_ROOM_DB, emptyMap, normalize, cleanRef, cleanTransition,
     resolveTransition, resolveRoom, dbToGain, neighbors, stepToward, pickVariant, refKey, pointOf, nodeById, edgeById, addNode, addEdge, removeNode, removeEdge, addSound, removeSound,
-    setEnemy, hasCombatSlot, anchorChoices, borderPoint, edgeGeometry, anchorPoint, projectOnEdge, anchorQuestToEdge, splitEdge, summary };
+    setEnemy, hasCombatSlot, hasAltMusic, altNameOf, setAltName, setAltTransition, clearAlt, anchorChoices, borderPoint, edgeGeometry, anchorPoint, projectOnEdge, anchorQuestToEdge, splitEdge, summary };
 
   // ---------------------------------------------------------------- Éditeur
   const STYLE_ID = 'lpLevelMapStyle';
@@ -307,6 +334,8 @@
       .lm-anchor { stroke: var(--text-dimmer); stroke-width: 1.6; stroke-dasharray: 4 4; fill: none; pointer-events: none; }
       .lm-sound { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; margin: 4px 0; font-size: 12.5px; background: var(--bg); }
       .lm-sound[draggable="true"] { cursor: grab; } .lm-sound .lm-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .lm-alt { border-left: 3px solid var(--accent-soft, #e4eef8); padding-left: 10px; margin: 8px 0; } .lm-alt input[type=text] { width: 100%; box-sizing: border-box; margin-bottom: 4px; }
+      .lm-now .btn.pending { outline: 2px dashed var(--accent); outline-offset: 1px; }
       .lm-slot { border: 1px dashed var(--border); border-radius: 8px; padding: 8px; margin: 6px 0; } .lm-slot.drop { border-color: var(--accent); background: var(--accent-soft); }
       .lm-slot h4 { margin: 0 0 4px; font-size: 12px; color: var(--text-dim); font-weight: 600; }
       .lm-tabs { display: flex; gap: 4px; margin: 6px 0; } .lm-tabs button { flex: 1; font-size: 11.5px; padding: 4px 6px; }
@@ -648,6 +677,7 @@
         if (st.play && audio && !typing) {
           if (ARROWS[ev.key]) { ev.preventDefault(); const [dx, dy] = ARROWS[ev.key]; const from = st.now && st.now.position; (from ? audio.step(dx, dy) : startFromSelection()).then(next => { const pos = audio.state.position; if (pos) { st.sel = { kind: pos.kind, id: pos.id }; drawCanvas(); renderInspector(); } }); return; }
           if (ev.key === ' ') { ev.preventDefault(); if (st.now && st.now.playing) audio.stop(1); else if (st.now && st.now.position) audio.resume(); else startFromSelection(); return; }
+          if (/^[1-9]$/.test(ev.key) && st.now && st.now.sequences) { ev.preventDefault(); if (+ev.key - 1 < st.now.sequences.labels.length) audio.goToSequence(+ev.key - 1); return; } // 1-9 : séquence d'un morceau séquentiel
           if (/^[0-9]$/.test(ev.key) && st.now && st.now.layers > 1) { ev.preventDefault(); audio.setIntensity(ev.key === '0' ? null : Math.min(st.now.layers - 1, +ev.key - 1)); return; } // 1-9 : couche ; 0 : automatique
           if (ev.key === 'c' || ev.key === 'C') { ev.preventDefault(); audio.setCombat(!(st.now && st.now.combat)); return; }
           if (ev.key === 'Escape') { ev.preventDefault(); togglePlay(false); return; }
@@ -696,13 +726,19 @@
         }
       }
       const target = { kind: st.sel.kind, id: item.id };
-      const slots = (hasCombatSlot(map, target) ? ['main', 'combat'] : ['main']).concat(['room']);
-      slots.forEach(slot => {
-        html += `<div class="lm-slot" data-slot="${slot}"><h4>${esc(tr('map_slot_' + slot))}</h4>${((item.sounds && item.sounds[slot]) || []).map((r, i) =>
-          `<div class="lm-sound"><span>${r.kind === 'sfx' ? '🔔' : '♪'}</span><span class="lm-t" title="${esc(r.title)}">${esc(r.title || r.id)}</span>${ctx.canEdit ? `<button class="icon-btn" type="button" data-rm="${slot}:${i}" aria-label="${esc(tr('map_removeSound'))}">✕</button>` : ''}</div>`).join('') || `<p class="hint" style="margin:0">${esc(tr('map_slotEmpty'))}</p>`}</div>`;
-      });
+      // Une seule musique ; une 2e facultative (avec son nom et un son de transition entre les deux) ; le fond d'ambiance de l'endroit.
+      const listOf = slot => (slot === 'altTransition' ? (item.altTransition ? [item.altTransition] : []) : ((item.sounds && item.sounds[slot]) || []));
+      const slotBox = (slot, title, emptyKey) => `<div class="lm-slot" data-slot="${slot}"><h4>${esc(title)}</h4>${listOf(slot).map((r, i) =>
+        `<div class="lm-sound"><span>${r.kind === 'sfx' ? '🔔' : '♪'}</span><span class="lm-t" title="${esc(r.title)}">${esc(r.title || r.id)}</span>${ctx.canEdit ? `<button class="icon-btn" type="button" data-rm="${slot}:${i}" aria-label="${esc(tr('map_removeSound'))}">✕</button>` : ''}</div>`).join('') || `<p class="hint" style="margin:0">${esc(tr(emptyKey))}</p>`}</div>`;
+      const altKey = st.sel.kind + ':' + item.id, hasAlt = hasAltMusic(map, target) || !!item.altName || !!item.altTransition || st.altOpen === altKey;
+      html += slotBox('main', tr('map_slot_main'), 'map_slotEmpty');
+      if (hasAlt) {
+        html += `<div class="lm-alt"><label>${esc(tr('map_altName'))}</label><input type="text" id="lmAltName" value="${esc(item.altName || '')}" maxlength="60" placeholder="${esc(tr('map_altDefault'))}"${dis}>
+          ${slotBox('combat', item.altName || tr('map_altDefault'), 'map_slotEmpty')}${slotBox('altTransition', tr('map_slot_altTransition'), 'map_altTransitionEmpty')}
+          ${ctx.canEdit ? `<button class="btn" type="button" id="lmAltRemove">${esc(tr('map_altRemove'))}</button>` : ''}</div>`;
+      } else if (ctx.canEdit) html += `<button class="btn" type="button" id="lmAltAdd" style="margin:6px 0">＋ ${esc(tr('map_altAdd'))}</button>`;
+      html += slotBox('room', tr('map_slot_room'), 'map_slotEmpty');
       html += transitionHtml(map, item);
-      if (item.sounds && item.sounds.combat && item.sounds.combat.length && !slots.includes('combat')) html += `<p class="hint">${esc(tr('map_combatKept', { n: item.sounds.combat.length }))}</p>`;
       if (ctx.canEdit) html += `<div class="bar" style="margin-top:10px"><button class="btn danger" id="lmDeleteSel" type="button">${esc(tr(isEdge ? 'map_deleteEdge' : 'map_deleteNode'))}</button></div>`;
       box.innerHTML = html;
       const on = (id, evt, fn) => { const el = box.querySelector(id); if (el) el.addEventListener(evt, fn); };
@@ -713,6 +749,9 @@
       on('#lmSide', 'change', e => { item.side = e.target.checked; if (!item.side) item.anchor = null; touch(); drawCanvas(); renderInspector(); });
       on('#lmAnchor', 'change', e => { const [kind, ...rest] = e.target.value.split(':'); item.anchor = e.target.value ? { kind, id: rest.join(':') } : null; touch(); drawCanvas(); });
       on('#lmDeleteSel', 'click', deleteSelection);
+      on('#lmAltAdd', 'click', () => { st.altOpen = altKey; renderInspector(); });
+      on('#lmAltName', 'input', e => { setAltName(map, target, e.target.value); touch(); });
+      on('#lmAltRemove', 'click', () => { clearAlt(map, target); st.altOpen = null; touch(); drawCanvas(); renderInspector(); });
       box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const [slot, i] = b.dataset.rm.split(':'); if (removeSound(map, target, slot, Number(i))) { touch(); drawCanvas(); renderInspector(); } });
       box.querySelectorAll('.lm-slot[data-slot]').forEach(sl => {
         sl.addEventListener('dragover', ev => { if (ctx.canEdit && acceptsSound(ev)) { ev.preventDefault(); sl.classList.add('drop'); } });
@@ -822,16 +861,19 @@
       if (!box) return;
       if (!st.play || !map || !audio) { box.hidden = true; return; }
       box.hidden = false;
-      const n = st.now || {}, can = n.position && hasCombatSlot(map, n.position);
+      const n = st.now || {}, can = n.position && hasAltMusic(map, n.position), here = n.position && itemOf(map, n.position), altLabel = (here && altNameOf(here)) || tr('map_altDefault');
       box.innerHTML = (n.loading > 0 ? `<span class="lm-wait lm-loading">⏳ ${esc(tr('map_loading'))}</span>` : '') + (n.position
         ? `<span><b>${esc(tr('map_nowAt'))}</b> ${esc(labelOf(map, n.position))}</span><span>♪ ${esc((n.music && n.music.title) || tr('map_nowSilence'))}</span>${n.room ? `<span>🌫 ${esc(n.room.title || n.room.id)}</span>` : ''}
           ${n.pendingAt != null ? `<span class="lm-wait">${esc(tr('map_nowWaiting'))}</span>` : ''}
+          ${n.sequences ? `<span class="lm-layers" id="lmSeqs"><b>${esc(tr('map_sequences'))}</b>${n.sequences.labels.map((lab, i) => `<button class="btn${n.sequences.current === i ? ' primary' : ''}${n.sequences.pending === i ? ' pending' : ''}" type="button" data-seq="${i}" ${n.sequences.reachable.includes(i) ? '' : 'disabled'} title="${esc(tr(n.sequences.reachable.includes(i) ? 'map_seqGo' : 'map_seqNo'))}">${i < 9 ? (i + 1) + ' · ' : ''}${esc(lab)}</button>`).join('')}
+            <span class="lm-wait">${esc(tr('map_seqHint'))}</span></span>` : ''}
           ${n.layers > 1 ? `<span class="lm-layers" id="lmLayers"><b>${esc(tr(n.layerKind === 'loops' ? 'map_loops' : 'map_layers'))}</b>
             <button class="btn${n.layerManual ? '' : ' primary'}" type="button" data-layer="auto" title="${esc(tr('map_layerAutoHint'))}">${esc(tr('map_layerAuto'))}</button>${Array.from({ length: n.layers }, (_, i) => `<button class="btn${n.layerManual && n.layerLevel === i ? ' primary' : ''}" type="button" data-layer="${i}" title="${esc(n.layerKind === 'loops' ? ((n.layerLabels && n.layerLabels[i]) || tr('map_loopHint', { n: i + 1 })) : tr('map_layerHint', { n: i + 1 }))}">${n.layerKind === 'loops' && n.layerLabels && n.layerLabels[i] ? esc(n.layerLabels[i].length > 14 ? n.layerLabels[i].slice(0, 13) + '…' : n.layerLabels[i]) : i + 1}</button>`).join('')}
             <span class="lm-wait">${esc(n.layerKind === 'loops' ? ((n.layerLabels && n.layerLabels[n.layerLevel || 0]) || tr('map_loopHint', { n: (n.layerLevel || 0) + 1 })) : tr('map_layerNow', { n: (n.layerLevel || 0) + 1, total: n.layers }))}${n.fallback ? ' · ' + esc(tr(n.layerKind === 'loops' ? 'map_loopFallback' : 'map_layerFallback')) : ''}</span></span>` : ''}
-          <button class="btn${n.combat ? ' primary' : ''}" type="button" id="lmCombat" ${can ? '' : 'disabled'}>${esc(tr(n.combat ? 'map_combatOn' : 'map_combat'))}</button>
+          <button class="btn${n.combat ? ' primary' : ''}" type="button" id="lmCombat" ${can ? '' : 'disabled'}>${esc(n.combat ? tr('map_altBack') : tr('map_altGo', { name: altLabel }))}</button>
           <button class="btn" type="button" id="lmStopPlay">${esc(tr(n.playing ? 'map_pause' : 'map_resume'))}</button>`
         : `<span>${esc(tr('map_playHint'))}</span>`);
+      box.querySelectorAll('[data-seq]').forEach(b => { b.onclick = () => { audio.goToSequence(+b.dataset.seq); host.querySelector('#lmCanvas').focus(); }; });
       box.querySelectorAll('[data-layer]').forEach(b => { b.onclick = () => { audio.setIntensity(b.dataset.layer === 'auto' ? null : +b.dataset.layer); host.querySelector('#lmCanvas').focus(); }; });
       const c = box.querySelector('#lmCombat'); if (c) c.onclick = () => { audio.setCombat(!n.combat); host.querySelector('#lmCanvas').focus(); };
       const sp = box.querySelector('#lmStopPlay'); if (sp) sp.onclick = () => { if (n.playing) audio.stop(1); else audio.resume(); };

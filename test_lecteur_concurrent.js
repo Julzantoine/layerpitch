@@ -105,6 +105,33 @@ const path = require('path');
   click(rowD.querySelector('[data-role="playBtn"]')); await sleep(900); // Pause par le bouton
   check('pause par le bouton : pas une fin naturelle non plus', ended === 1);
 
+  // Séquences d'un morceau séquentiel (8/10) : libellés, séquence en cours, atteignables, passage par les embranchements du morceau
+  const SQ = { id: 'seq-x', title: 'Séquentiel', mode: 'sequential', description: '', duration: 30, base: '', publishedAt: 1, bpm: 120, beatsPerBar: 4, sfxIds: [],
+    segmentSlots: [
+      { id: 'S1', label: 'Calme', alternatives: [{ localFile: fakeFile('s1.wav'), bars: 1 }], quantization: 'immediate', nextOptions: [{ targetId: 'S2' }] },
+      { id: 'S2', label: 'Tension', alternatives: [{ localFile: fakeFile('s2.wav'), bars: 1 }], quantization: 'immediate', nextOptions: [{ targetId: 'S1' }] },
+      { id: 'S3', alternatives: [{ localFile: fakeFile('s3.wav'), bars: 1 }] }
+    ] };
+  const rowS = mount(SQ, { concurrent: true });
+  await sleep(300);
+  const lc = rowS.lpControl;
+  check('séquences : nombre et libellés du morceau (libellé de secours pour un emplacement sans nom)', lc.sequenceCount() === 3 && lc.sequenceLabels()[0] === 'Calme' && lc.sequenceLabels()[1] === 'Tension' && /3/.test(lc.sequenceLabels()[2]));
+  check('séquences : un morceau vertical n\'en a pas', rowA.lpControl.sequenceCount() === 0 && rowA.lpControl.sequenceLabels() === null && !rowA.lpControl.goToSequence(0));
+  check('séquences : à l\'arrêt, on ne peut pas y aller', !lc.goToSequence(1) && lc.sequenceCurrent() === -1);
+  lc.start(1); await sleep(400);
+  const cur = lc.sequenceCurrent();
+  check('séquences : le morceau joue, une séquence est en cours', lc.isPlaying() && cur >= 0);
+  if (cur === 0) {
+    check('séquences : atteignables = celles prévues par le morceau (Calme → Tension)', lc.sequenceReachable().join() === '1');
+    check('séquences : une séquence non prévue est refusée', !lc.goToSequence(2) && lc.sequencePending() === -1);
+    check('séquences : aller à « Tension » est accepté et mis en attente ou fait', lc.goToSequence(1) === true);
+    await sleep(500);
+    check('séquences : le morceau est passé à « Tension »', lc.sequenceCurrent() === 1 || lc.sequencePending() === 1);
+  } else {
+    check('séquences : au démarrage le morceau est sur la première séquence', false);
+  }
+  lc.stop(); await sleep(60);
+
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : (failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
 })();

@@ -444,6 +444,26 @@
         const idx = Math.max(0, Math.min(n - 1, Math.round(+i) || 0));
         if (lpIsEmbr) lpSelectLoopWhenReady(idx); else applyIntensityLevel(idx, true);
       },
+      // Séquences (mode séquentiel, 8/10) : les emplacements du morceau, avec leurs libellés, et le passage de l'un à l'autre par les
+      // embranchements que le morceau prévoit déjà (comme un clic sur sa carte des chemins : au prochain repère de l'emplacement en cours).
+      // sequenceCount : nombre d'emplacements (0 hors mode séquentiel) ; sequenceCurrent : emplacement entendu (-1 = intro / fin) ;
+      // sequenceReachable : emplacements atteignables d'ici ; sequencePending : choix en attente (-1 = aucun) ; goToSequence(i) : vrai si accepté.
+      sequenceCount: () => (isSequential ? (track.segmentSlots || []).length : 0),
+      sequenceLabels: () => (isSequential ? (track.segmentSlots || []).map((sl, i) => (sl && sl.label) || t('slotFallback', { n: i + 1 })) : null),
+      sequenceCurrent: () => (isSequential && currentSeqBlockInfo && currentSeqBlockInfo.kind === 'segment' && currentSeqBlockInfo.slotIdx != null ? currentSeqBlockInfo.slotIdx : -1),
+      sequenceReachable: () => {
+        if (!isSequential || !currentSeqBlockInfo || currentSeqBlockInfo.kind !== 'segment') return [];
+        const slots = track.segmentSlots || [], cur = slots[currentSeqBlockInfo.slotIdx];
+        return ((cur && cur.nextOptions) || []).map(o => slots.findIndex(sl => sl.id === o.targetId)).filter(i => i >= 0);
+      },
+      sequencePending: () => (isSequential && pendingNextSegmentId ? (track.segmentSlots || []).findIndex(sl => sl.id === pendingNextSegmentId) : -1),
+      goToSequence(i) {
+        if (!isSequential || !playing || !currentSeqBlockInfo || currentSeqBlockInfo.kind !== 'segment') return false;
+        const slots = track.segmentSlots || [], cur = slots[currentSeqBlockInfo.slotIdx], target = slots[i];
+        if (!cur || !target || !(cur.nextOptions || []).some(o => o.targetId === target.id)) return false;
+        handleSeqBranchChoice(target.id, cur);
+        return true;
+      },
       nextBoundary(grid) {
         if (!playing) return null;
         const tt = trackTempo(track);

@@ -21,7 +21,13 @@
     const notify = () => { if (env.onChange) env.onChange(snapshot()); };
     const layersOf = () => (musicVoice && musicVoice.layerCount ? (safe(() => musicVoice.layerCount()) || 0) : 0);
     const snapshot = () => ({ playing: st.playing, position: st.position && { kind: st.position.kind, id: st.position.id }, combat: st.combat,
-      music: st.music, room: st.room, pendingAt: st.pendingAt, loading: st.loading, layers: layersOf(), layerKind: (musicVoice && musicVoice.layerKind && safe(() => musicVoice.layerKind())) || 'layers', layerLabels: (musicVoice && musicVoice.layerLabels && safe(() => musicVoice.layerLabels())) || null, layerLevel: st.layerLevel, layerManual: st.intensity != null, fallback: !!st.fallback });
+      music: st.music, room: st.room, pendingAt: st.pendingAt, loading: st.loading, sequences: sequencesOf(), layers: layersOf(), layerKind: (musicVoice && musicVoice.layerKind && safe(() => musicVoice.layerKind())) || 'layers', layerLabels: (musicVoice && musicVoice.layerLabels && safe(() => musicVoice.layerLabels())) || null, layerLevel: st.layerLevel, layerManual: st.intensity != null, fallback: !!st.fallback });
+    // Séquences d'un morceau séquentiel qui joue : { labels, current, reachable, pending } (null si le morceau n'en a pas ou ne joue pas).
+    const sequencesOf = () => {
+      const v = musicVoice; if (!v || !v.sequenceCount) return null;
+      const n = safe(() => v.sequenceCount()) || 0; if (n < 2) return null;
+      return { labels: safe(() => v.sequenceLabels()) || [], current: safe(() => v.sequenceCurrent()), reachable: safe(() => v.sequenceReachable()) || [], pending: safe(() => v.sequencePending()) };
+    };
     const itemAt = pos => (pos ? (pos.kind === 'edge' ? model.edgeById(map, pos.id) : model.nodeById(map, pos.id)) : null);
     // Chargement d'un son (récupération + décodage, parfois plusieurs secondes pour un morceau à couches) : compté pour que la page l'indique.
     const load = ref => {
@@ -36,14 +42,14 @@
       const item = itemAt(st.position); if (!item) return null;
       // Un point de passage sans son à lui est transparent : la musique en cours continue (le son du parcours qu'on emprunte).
       if (item.type === 'junction' && !((item.sounds && item.sounds.main) || []).length && st.music) return { ref: st.music, transition: model.resolveTransition(map, item) };
-      const useCombat = st.combat && model.hasCombatSlot(map, st.position);
+      const useCombat = st.combat && model.hasAltMusic(map, st.position);
       let list = (item.sounds && (useCombat ? item.sounds.combat : item.sounds.main)) || [];
       // Exploration vide mais un morceau de combat posé : un compositeur peut se servir de la 1re couche d'un morceau à couches
       // comme musique d'exploration. On joue donc ce morceau, à la couche 1 (repli ; ignoré si ce n'est pas un morceau à couches).
       let fallback = false;
       if (!useCombat && !list.length) {
         const combat = ((item.sounds && item.sounds.combat) || []).filter(r => r && (r.kind === 'track' || r.kind === 'asset'));
-        if (combat.length && model.hasCombatSlot(map, st.position)) { list = combat; fallback = true; }
+        if (combat.length && model.hasAltMusic(map, st.position)) { list = combat; fallback = true; }
       }
       return { ref: model.pickVariant(list, lastMusicKey), transition: model.resolveTransition(map, item), fallback, role: useCombat ? 'combat' : 'explore' };
     }
@@ -82,7 +88,9 @@
       const newKey = want && want.ref ? model.refKey(want.ref) : null;
       st.fallback = !!(want && want.fallback);
       if (newKey === lastMusicKey && musicVoice) { st.music = want.ref; applyLayer(musicVoice, want.role); notify(); return; } // même son : on le laisse jouer (la couche suit l'état exploration / combat)
-      const tr = want ? want.transition : model.resolveTransition(map, null);
+      let tr = want ? want.transition : model.resolveTransition(map, null);
+      // Bascule d'une musique à l'autre : le son de transition de l'élément (facultatif) est joué comme jingle de passage.
+      if (st.switchStinger) { tr = Object.assign({}, tr, { stinger: st.switchStinger }); st.switchStinger = null; }
       const incomingPromise = want && want.ref ? load(want.ref) : Promise.resolve(null);
       const outgoing = musicVoice;
       // Quand ? Au prochain repère de la grille du son qui joue (mesure, temps…), sinon tout de suite.
@@ -124,7 +132,7 @@
         if (!map || !model.pointOf(map, target)) return false;
         if (!st.position || st.position.kind !== target.kind || st.position.id !== target.id) st.intensity = null; // nouveau lieu : la couche redevient automatique
         st.position = { kind: target.kind, id: target.id };
-        if (!model.hasCombatSlot(map, st.position)) st.combat = false;
+        if (!model.hasAltMusic(map, st.position)) st.combat = false;
         st.playing = true; await enter(); return true;
       },
       // Flèche : voisin dans la direction demandée.
@@ -137,14 +145,17 @@
       // Couche à entendre (morceau à couches) : i = 0 (couche 1 seule) ... n - 1 (toutes) ; null = automatique.
       setIntensity(i) {
         st.intensity = i == null ? null : Math.max(0, Math.round(+i) || 0);
-        if (musicVoice) applyLayer(musicVoice, st.combat && model.hasCombatSlot(map, st.position) ? 'combat' : 'explore');
+        if (musicVoice) applyLayer(musicVoice, st.combat && model.hasAltMusic(map, st.position) ? 'combat' : 'explore');
         notify();
       },
+      // Passer à une séquence du morceau séquentiel qui joue (par les embranchements que le morceau prévoit).
+      goToSequence(i) { const ok = !!(musicVoice && musicVoice.goToSequence && safe(() => musicVoice.goToSequence(i))); notify(); return ok; },
       async setCombat(on) {
         if (!map || !st.position) return false;
-        const want = !!on && model.hasCombatSlot(map, st.position);
+        const want = !!on && model.hasAltMusic(map, st.position);
         if (want === st.combat) return want;
         st.combat = want; st.intensity = null; // le combat change la couche : retour à l'automatique
+        const it = itemAt(st.position); st.switchStinger = (it && it.altTransition) || null;
         if (st.playing) await enter(); else notify();
         return want;
       },
