@@ -202,6 +202,7 @@ async function renderAdminOnlyPanels(session) {
   const albumsNavBtn = document.getElementById('navItemAlbums');
   if (albumsNavBtn) albumsNavBtn.hidden = !can('sell_albums');
   if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); }
+  if (typeof syncBackstageTour === 'function') syncBackstageTour(); // visite guidée (feu vert in_app_tour)
   // Le statut admin peut se résoudre après un premier rendu de la Bibliothèque (session déjà en cache
   // vs RPC is_admin() encore en vol) -- redessine pour refléter le grisage pitch correctement, sans quoi
   // un admin verrait le pitch grisé jusqu'au prochain clic (renderLibrary() no-op si le panneau n'est pas
