@@ -400,6 +400,55 @@ const { JSDOM } = require('jsdom');
     check('une seule musique : le bouton de 2e musique est grisé', h12.querySelector('#lmCombat').disabled);
   }
 
+  // ---- Nœud « Transition » (8/10) : on le traverse, on ne s'y arrête pas ; le lecteur joue son fichier au passage
+  {
+    check('type « Transition » connu du modèle', M.NODE_TYPES.includes('transition'));
+    const m = M.emptyMap();
+    const a = M.addNode(m, 'start', 0, 0, 'A'), b = M.addNode(m, 'place', 400, 0, 'B'), tn = M.addNode(m, 'transition', 200, 0, 'T');
+    const e1 = M.addEdge(m, a.id, tn.id), e2 = M.addEdge(m, tn.id, b.id);
+    const nb = M.neighbors(m, { kind: 'edge', id: e1.id });
+    check('voisins : le nœud Transition n\'est jamais un endroit où s\'arrêter, on passe au parcours d\'après', !nb.some(x => x.kind === 'node' && x.id === tn.id) && nb.some(x => x.kind === 'node' && x.id === a.id) && nb.some(x => x.kind === 'edge' && x.id === e2.id && x.via && x.via[0] === tn.id));
+    const step = M.stepToward(m, { kind: 'edge', id: e1.id }, 1, 0);
+    check('flèche → : on franchit la transition et on arrive sur le parcours d\'après (via le nœud)', step && step.kind === 'edge' && step.id === e2.id && step.via && step.via[0] === tn.id);
+    const back = M.stepToward(m, { kind: 'edge', id: e2.id }, -1, 0);
+    check('et dans l\'autre sens aussi', back && back.id === e1.id && back.via[0] === tn.id);
+    M.removeNode(m, tn.id);
+    check('supprimer un nœud Transition à 2 parcours les réunit', m.edges.length === 1 && m.edges[0].from === a.id && m.edges[0].to === b.id);
+    const cut = M.splitEdge(m, m.edges[0].id, 200, 0, 'transition');
+    check('insérer une transition sur un parcours : A → T → B', cut && cut.node.type === 'transition' && m.edges.length === 2);
+
+    const plays2 = [];
+    const mkV2 = key => ({ key, start() { plays2.push(key + ' start'); }, setLevel() {}, stop() { plays2.push(key + ' stop'); }, isPlaying: () => true, nextBoundary: () => null });
+    const vs = {};
+    const env3 = { now: () => 0, schedule: () => () => {}, voiceFactory: async ref => (vs[ref.id] = vs[ref.id] || mkV2(ref.id)) };
+    const h14 = w.document.createElement('div'); w.document.body.appendChild(h14);
+    const v14 = w.LayerPitchLevelMap.mount(h14, { tr, canEdit: true, audio: env3, libraries: { track: [], sfx: [], asset: [] },
+      maps: [{ id: 'm14', title: 'Trans', data: { nodes: [
+        { id: 'a', type: 'start', label: 'A', x: 0, y: 0, sounds: { main: [{ kind: 'track', id: 'musA', title: 'A' }] } },
+        { id: 't', type: 'transition', label: 'T', x: 200, y: 0, transition: { style: 'cut', sec: 0, sync: 'immediate', stinger: { kind: 'sfx', id: 'whoosh', title: 'Whoosh' } } },
+        { id: 'b', type: 'place', label: 'B', x: 400, y: 0, sounds: { main: [{ kind: 'track', id: 'musB', title: 'B' }] } }],
+        edges: [{ id: 'e1', from: 'a', to: 't' }, { id: 'e2', from: 't', to: 'b' }] } }],
+      save: async mm => ({ id: mm.id }), remove: async () => ({}) });
+    h14.querySelector('#lmPlay').click(); await wait(40);
+    check('balade : on ne peut pas se placer sur un nœud Transition', (await v14.audio.goTo({ kind: 'node', id: 't' })) === false);
+    await v14.audio.goTo({ kind: 'edge', id: 'e1' }); await wait(20);
+    plays2.length = 0;
+    await v14.audio.goTo({ kind: 'edge', id: 'e2', via: ['t'] }); await wait(40);
+    check('balade : en franchissant la transition, son fichier est joué', plays2.includes('whoosh start'));
+    plays2.length = 0;
+    await v14.audio.goTo({ kind: 'edge', id: 'e1' }); await wait(40);
+    check('balade : sans franchir de transition, rien n\'est joué en plus', !plays2.includes('whoosh start'));
+    // Éditeur : bouton de la barre d'outils, inspecteur du nœud, bouton « Insérer une transition » sur un parcours
+    h14.querySelector('#lmPlay').click(); await wait(30); // quitte la balade : outils de dessin
+    check('barre d\'outils : un bouton « Transition »', !!h14.querySelector('[data-add="transition"]'));
+    h14.querySelector('[data-node="t"]').dispatchEvent(new w.Event('pointerdown', { bubbles: true }));
+    check('inspecteur d\'un nœud Transition : réglages du passage et fichier de transition, ni musique ni 2e musique ni fond', !!h14.querySelector('#lmInsp #lmStinger') && !h14.querySelector('#lmInsp [data-slot="main"]') && !h14.querySelector('#lmAltAdd') && !h14.querySelector('#lmInsp [data-slot="room"]') && !h14.querySelector('#lmTransOwn'));
+    h14.querySelector('[data-edge="e1"]').dispatchEvent(new w.Event('pointerdown', { bubbles: true }));
+    const nT = v14.state.maps[0].data.nodes.filter(n => n.type === 'transition').length;
+    h14.querySelector('#lmSplitT').click();
+    check('« Insérer une transition » sur un parcours : un nœud Transition de plus, sélectionné', v14.state.maps[0].data.nodes.filter(n => n.type === 'transition').length === nT + 1 && v14.state.sel.kind === 'node');
+  }
+
   // ---- Morceau pas encore chargé et nouveau tirage (8/10)
   {
     let ready = false, refreshed = 0;

@@ -102,8 +102,16 @@
       const want = wantedMusic();
       const newKey = want && want.ref ? model.refKey(want.ref) : null;
       st.fallback = !!(want && want.fallback);
-      if (newKey === lastMusicKey && musicVoice) { st.music = want.ref; applyLayer(musicVoice, want.role); notify(); return; } // même son : on le laisse jouer (la couche suit l'état exploration / combat)
-      let tr = want ? want.transition : model.resolveTransition(map, null);
+      // Nœud « Transition » franchi pour arriver ici : ses réglages (style, durée, repère) et son fichier remplacent ceux de l'arrivée ;
+      // le fichier est joué même si la musique ne change pas.
+      const viaNode = st.via && st.via.length ? model.nodeById(map, st.via[0]) : null; st.via = null;
+      const viaTr = viaNode ? model.resolveTransition(map, viaNode) : null;
+      if (newKey === lastMusicKey && musicVoice) {
+        st.music = want.ref; applyLayer(musicVoice, want.role);
+        if (viaTr && viaTr.stinger) load(viaTr.stinger).then(v => { if (v && my === token) { if (stingerVoice) { const sv = stingerVoice; safe(() => sv.stop()); } stingerVoice = v; v.start(1); } });
+        notify(); return;
+      } // même son : on le laisse jouer (la couche suit l'état exploration / combat)
+      let tr = viaTr || (want ? want.transition : model.resolveTransition(map, null));
       // Bascule d'une musique à l'autre : le son de transition de l'élément (facultatif) est joué comme jingle de passage.
       if (st.switchStinger) { tr = Object.assign({}, tr, { stinger: st.switchStinger }); st.switchStinger = null; }
       const incomingPromise = want && want.ref ? load(want.ref) : Promise.resolve(null);
@@ -145,6 +153,8 @@
       // Se placer sur un élément ou un parcours : démarre la lecture si besoin.
       async goTo(target) {
         if (!map || !model.pointOf(map, target)) return false;
+        if (target.kind === 'node' && (model.nodeById(map, target.id) || {}).type === 'transition') return false; // un nœud « Transition » se traverse, on ne s'y place pas
+        st.via = target.via && target.via.length ? target.via.slice() : null; // nœud(s) « Transition » franchi(s) pour arriver ici
         if (!st.position || st.position.kind !== target.kind || st.position.id !== target.id) st.intensity = null; // nouveau lieu : la couche redevient automatique
         st.position = { kind: target.kind, id: target.id };
         if (!model.hasAltMusic(map, st.position)) st.combat = false;
