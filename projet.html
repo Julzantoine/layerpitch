@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791462767328">
+<link rel="stylesheet" href="player.css?v=1791462868904">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -102,6 +102,7 @@
   .sel-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px; margin: 0 0 12px; position: sticky; top: 8px; z-index: 5; }
   .sel-box { width: auto; margin: 0 6px 0 0; align-self: flex-start; }
   .sec-nav h3 .icon-btn.on { background: var(--accent-soft); }
+  .drop-files { outline: 2px dashed var(--accent); outline-offset: 4px; border-radius: 10px; }
   .sec-sep { border-top: 1px solid var(--border); margin: 6px 0; }
   .sec-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(0,0,0,.4); display: grid; place-items: center; padding: 16px; }
   .sec-dialog { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 18px; width: 420px; max-width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 12px 32px rgba(0,0,0,.22); }
@@ -178,22 +179,22 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791462767328"></script>
-<script src="layerpitch-notify.js?v=1791462767328"></script>
-<script src="player.js?v=1791462767328"></script>
-<script src="api/supabase-client.js?v=1791462767328"></script>
-<script src="api/auth.js?v=1791462767328"></script>
-<script src="layerpitch-appearance.js?v=1791462767328"></script>
-<script src="layerpitch-shell.js?v=1791462767328"></script>
-<script src="api/tracks.js?v=1791462767328"></script>
-<script src="api/packs.js?v=1791462767328"></script>
-<script src="api/albums.js?v=1791462767328"></script>
-<script src="api/studio.js?v=1791462767328"></script>
-<script src="api/adreels.js?v=1791462767328"></script>
-<script src="api/projects.js?v=1791462767328"></script>
-<script src="api/sfx.js?v=1791462767328"></script>
-<script src="projet-carte-audio.js?v=1791462767328"></script>
-<script src="projet-carte.js?v=1791462767328"></script>
+<script src="layerpitch-i18n.js?v=1791462868904"></script>
+<script src="layerpitch-notify.js?v=1791462868904"></script>
+<script src="player.js?v=1791462868904"></script>
+<script src="api/supabase-client.js?v=1791462868904"></script>
+<script src="api/auth.js?v=1791462868904"></script>
+<script src="layerpitch-appearance.js?v=1791462868904"></script>
+<script src="layerpitch-shell.js?v=1791462868904"></script>
+<script src="api/tracks.js?v=1791462868904"></script>
+<script src="api/packs.js?v=1791462868904"></script>
+<script src="api/albums.js?v=1791462868904"></script>
+<script src="api/studio.js?v=1791462868904"></script>
+<script src="api/adreels.js?v=1791462868904"></script>
+<script src="api/projects.js?v=1791462868904"></script>
+<script src="api/sfx.js?v=1791462868904"></script>
+<script src="projet-carte-audio.js?v=1791462868904"></script>
+<script src="projet-carte.js?v=1791462868904"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -758,6 +759,7 @@ async function renderPanel() {
     panel.innerHTML = `<div class="sec-layout"><nav class="card sec-nav" id="secNav" aria-label="${esc(tr('secTitle'))}"></nav><div id="secMain" style="min-width:0"></div></div>`;
     renderSecNav(); host = $('secMain'); decorateSelection();
   }
+  if (!DEMO && ['board', 'images', 'videos', 'music'].includes(S.tab)) wireBulkDrop(host);
   if (S.tab === 'board') return renderBoard(host);
   if (S.tab === 'videos') return renderVideos(host);
   if (S.tab === 'images') return renderImages(host);
@@ -765,6 +767,44 @@ async function renderPanel() {
   if (S.tab === 'showcase') return renderShowcase(panel);
   if (S.tab === 'activity') { const a = await PJ.activity(projectId); S.activity = a.data || []; return renderActivity(panel); }
   return renderMembers(panel);
+}
+// ---- Dépôt en vrac (8/10) : on glisse des fichiers (ou des liens) depuis le Mac sur l'onglet ; chacun est envoyé puis rangé tout
+// seul d'après son type (image, audio, vidéo, document ; lien vidéo YouTube / Vimeo ou lien simple) et apparaît dans le bon onglet.
+// Sur le Moodboard, il y est aussi épinglé (celui de la section choisie, ou le général) ; si une section est choisie, il y est rangé.
+const DROP_KIND = f => /^image\/(jpeg|png|webp|gif)$/.test(f.type) ? 'image' : /^audio\//.test(f.type) ? 'audio' : /^video\/(mp4|webm|quicktime)$/.test(f.type) || /\.mov$/i.test(f.name) ? 'video' : f.type === 'application/pdf' ? 'file' : null;
+const dropHasContent = e => { const t = [...((e.dataTransfer && e.dataTransfer.types) || [])]; return t.includes('Files') || t.includes('text/uri-list'); };
+function wireBulkDrop(host) {
+  host.ondragover = e => { if (!dropHasContent(e)) return; e.preventDefault(); host.classList.add('drop-files'); };
+  host.ondragleave = e => { if (!host.contains(e.relatedTarget)) host.classList.remove('drop-files'); };
+  host.ondrop = e => {
+    host.classList.remove('drop-files');
+    if (!dropHasContent(e) || e.target.closest('[data-dropsec]')) return;
+    e.preventDefault();
+    const files = [...e.dataTransfer.files], uris = files.length ? [] : (e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain') || '').split(/\r?\n/).map(x => x.trim()).filter(x => /^https?:\/\//i.test(x));
+    dropIntoProject(files, uris);
+  };
+}
+async function dropIntoProject(files, urls) {
+  const pin = S.tab === 'board', also = !!($('alsoGeneral') && $('alsoGeneral').checked), N = window.LayerPitchNotify;
+  let added = 0;
+  for (const f of files) {
+    const kind = DROP_KIND(f);
+    if (!kind) { N.error(tr('dropRejected', { name: f.name })); continue; }
+    N.info(tr('uploadingNamed', { name: f.name }));
+    const up = await uploadOrReuse(f);
+    if (up.error) { N.error(tr('errorPrefix', { message: f.name + ' : ' + up.error })); continue; }
+    const r = await addAsset(projectId, { kind, fileId: up.data.fileId, title: f.name, origin: 'own' }, pin);
+    if (r.error) { N.error(tr('errorPrefix', { message: f.name + ' : ' + r.error })); continue; }
+    if (also && pin && r.data && r.data.id) await PJ.pin(r.data.id, true);
+    added++;
+  }
+  for (const url of urls) {
+    const r = await addAsset(projectId, VIDEO_URL.test(url) ? { kind: 'video', url } : { kind: 'link', url }, pin);
+    if (r.error) { N.error(tr('errorPrefix', { message: url + ' : ' + r.error })); continue; }
+    if (also && pin && r.data && r.data.id) await PJ.pin(r.data.id, true);
+    added++;
+  }
+  if (added) { N.info(tr('dropDone', { n: added })); await reloadContent(); renderPanel(); broadcast('content'); if (S.sections) broadcast('sections'); }
 }
 function stopMedia() {
   document.querySelectorAll('audio, video').forEach(m => { try { m.pause(); } catch (e) {} });
@@ -1085,6 +1125,7 @@ async function renderBoard(panel) {
         <span class="meta">${esc(tr('pitchHint'))}</span>
       </div>
       <div id="addForm"></div>
+      <div class="meta" style="margin-top:6px">${esc(tr('dropHint'))}</div>
       <div class="msg" id="boardMsg"></div>
     </div>
     <div class="grid" id="grid">${pins.length ? '' : `<div class="empty" style="grid-column:1/-1">${esc(tr('boardEmpty'))}</div>`}</div>

@@ -25,7 +25,7 @@ const { JSDOM } = require('jsdom');
       PRIVATE: '__me',
       get: () => ok({ id: 'p1', title: 'Hollow Manor', description: '', role: 'admin', archived: false, members: [] }),
       content: () => ok({ assets: db.assets.map(a => Object.assign({}, a)), moodboard: db.mood.slice(), packs: [], albums: [] }),
-      snapshots: () => ok([]), activity: () => ok([]), vitrines: () => ok([]),
+      preview: () => ok({}), snapshots: () => ok([]), activity: () => ok([]), vitrines: () => ok([]),
       demoStatus: () => ok({ eligible: false }), markRead: () => ok(null), markSeen: () => ok(null), messages: () => ok([]), annotations: () => ok([]),
       fileUrl: () => ok('https://example.test/x.png'),
       sections: () => locked ? Promise.resolve({ data: null, error: 'Les sections ne sont pas encore ouvertes' }) : ok({ sections: db.sections.map(s => Object.assign({}, s)), links: db.links.map(l => Object.assign({}, l)) }),
@@ -50,7 +50,7 @@ const { JSDOM } = require('jsdom');
       setSectionMap: (sid, mid) => { calls.push(['map', sid, mid]); db.sections.find(s => s.id === sid).mapId = mid; return ok(null); },
       removeAssetsFromSection: (sid, ids) => { calls.push(['removeFrom', sid, ids]); db.links = db.links.filter(l => !(l.sectionId === sid && ids.includes(l.assetId))); return ok(null); },
       addAssetsToSection: (sid, ids) => { ids.forEach(assetId => { if (!db.links.some(l => l.sectionId === sid && l.assetId === assetId)) db.links.push({ sectionId: sid, assetId }); }); calls.push(['addTo', sid, ids]); return ok(null); },
-      addAsset: (pid, p) => { const id = 'n' + (++db.n); db.assets.push({ id, kind: p.kind, origin: 'own', title: p.title || '', url: p.url || null, fileId: p.fileId || null, notes: 0, pinned: false }); return ok({ id }); },
+      addAsset: (pid, p, pin) => { calls.push(['add', p.kind, p.title || p.url, pin]); const id = 'n' + (++db.n); db.assets.push({ id, kind: p.kind, origin: 'own', title: p.title || '', url: p.url || null, fileId: p.fileId || null, notes: 0, pinned: false }); return ok({ id }); },
     };
     w.LayerPitchProjects = P;
     w.LayerPitchAuth = { getSession: () => Promise.resolve({ session: { user: { id: 'u1', email: 'me@x.test' } } }), getMyComposerId: () => Promise.resolve({ composerId: null }), onAuthStateChange: cb => setTimeout(() => cb('INITIAL_SESSION'), 0) };
@@ -180,6 +180,22 @@ const { JSDOM } = require('jsdom');
   const k2 = c.d.getElementById('addKind'); k2.value = 'fromProject'; k2.dispatchEvent(new c.w.Event('change', { bubbles: true }));
   c.d.getElementById('fAsset').value = 'a1'; c.d.getElementById('alsoGeneral').checked = true; click(c.w, c.d.getElementById('addBtn')); await wait(250);
   check('case cochée : épinglé dans la section ET au Moodboard général', c.db.pins.some(k => k.sectionId === 's1' && k.assetId === 'a1') && c.db.mood.includes('a1'));
+  // dépôt en vrac sur le Moodboard d'une section
+  const dropOn = (host, types, files, uris) => { const ev = new c.w.Event('drop', { bubbles: true, cancelable: true }); ev.dataTransfer = { types, files, getData: k => (k === 'text/uri-list' ? uris || '' : '') }; host.dispatchEvent(ev); return ev; };
+  const mf = (name, type) => new c.w.File(['x'], name, { type });
+  const nAdd = c.calls.filter(x => x[0] === 'add').length;
+  const hostB = c.d.getElementById('secMain');
+  const ov = new c.w.Event('dragover', { bubbles: true, cancelable: true }); ov.dataTransfer = { types: ['Files'] }; hostB.dispatchEvent(ov);
+  check('survol de fichiers : zone de dépôt acceptée', ov.defaultPrevented && hostB.classList.contains('drop-files'));
+  dropOn(hostB, ['Files'], [mf('ambiance.png', 'image/png'), mf('theme.mp3', 'audio/mpeg'), mf('trailer.mp4', 'video/mp4'), mf('brief.pdf', 'application/pdf'), mf('virus.exe', 'application/x-msdownload')]); await wait(500);
+  const added = c.calls.filter(x => x[0] === 'add').slice(nAdd);
+  check('fichiers en vrac : chacun rangé selon son type (image, audio, vidéo, document)', ['image', 'audio', 'video', 'file'].every(k => added.some(x => x[1] === k)) && added.length === 4);
+  check('un type refusé n\'est pas ajouté', !added.some(x => /virus/.test(x[2])));
+  check('sur le Moodboard d\'une section : épinglés dans cette section', c.calls.filter(x => x[0] === 'pinIn' && x[1] === 's1' && x[3] === true).length >= 5);
+  const nAdd2 = c.calls.filter(x => x[0] === 'add').length;
+  dropOn(c.d.getElementById('secMain'), ['text/uri-list'], [], 'https://youtu.be/abcdefghijk\nhttps://exemple.test/page'); await wait(400);
+  const lk = c.calls.filter(x => x[0] === 'add').slice(nAdd2);
+  check('liens en vrac : vidéo YouTube et lien simple', lk.length === 2 && lk[0][1] === 'video' && lk[1][1] === 'link');
   click(c.w, nav().querySelector('[data-pick="all"]')); await wait(150);
   check('retour au Moodboard général : la carte y est', cards(c.d).includes('Château'));
 
