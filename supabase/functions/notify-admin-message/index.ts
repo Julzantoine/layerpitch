@@ -12,8 +12,9 @@
 // été tentée le 21 septembre (juste "vous avez une notification"), puis Jules-Antoine est revenu
 // sur ce choix le 30 : l'aperçu donne envie d'ouvrir, une notification muette moins.
 //
-// Ne notifie que les annonces diffusées (recipient_id null) : le message de bienvenue
-// (mark_onboarding_complete) est un message ciblé, jamais envoyé par email. Idempotent : chaque
+// Notifie les annonces diffusées (recipient_id null) et les messages personnels pour lesquels l'admin
+// a coché l'e-mail (email_notify, 8 octobre) : le message de bienvenue
+// (mark_onboarding_complete) est un message ciblé sans cette case, jamais envoyé par email. Idempotent : chaque
 // (annonce, compte) notifié est consigné dans admin_message_emails, un rejeu n'envoie rien de plus.
 //
 // Mode essai (corps { message_id, test_email, test_lang? }) : envoie UN SEUL email, à cette
@@ -157,9 +158,10 @@ Deno.serve(async (req) => {
     const adminClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
     const { data: message, error: messageError } = await adminClient
-      .from('admin_messages').select('id, body, title, recipient_id').eq('id', messageId).maybeSingle();
+      .from('admin_messages').select('id, body, title, recipient_id, email_notify').eq('id', messageId).maybeSingle();
     if (messageError || !message) return json({ error: 'Message introuvable.' }, 404);
-    if (message.recipient_id) return json({ skipped: 'message ciblé (pas une annonce diffusée)' });
+    // Message personnel : e-mail seulement si l'admin l'a demandé (colonne email_notify, 8 octobre) ; le message d'accueil n'en envoie jamais.
+    if (message.recipient_id && !message.email_notify) return json({ skipped: 'message ciblé sans e-mail demandé' });
     const body = (message.body && typeof message.body === 'object') ? message.body as Record<string, string> : {};
     const title = (message.title && typeof message.title === 'object') ? message.title as Record<string, string> : null;
 

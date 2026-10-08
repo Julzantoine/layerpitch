@@ -56,7 +56,7 @@
       messages: (data || []).map(m => ({
         id: m.id, body: m.body || {}, title: m.title || {}, createdAt: m.created_at,
         existingAccountsOnly: !!m.existing_accounts_only,
-        recipientId: m.recipient_id || null, recipientEmail: m.recipient_email || null,
+        recipientId: m.recipient_id || null, recipientEmail: m.recipient_email || null, emailNotify: !!m.email_notify,
       })),
       error: null,
     };
@@ -74,14 +74,16 @@
   // accepte un seul p_recipient_id), envoyés un par un : si l'un échoue les autres déjà partis le
   // restent, et la réponse dit combien sont partis (sent) pour que l'admin ne les renvoie pas.
   // Un envoi ciblé n'est jamais « comptes existants uniquement » (sans objet pour un compte précis).
-  async function sendAdminMessage(messages, existingAccountsOnly, titles, recipientIds) {
+  // emailNotify (8 octobre) : pour un envoi ciblé seulement, demande aussi l'e-mail de notification
+  // (sans effet sur une diffusion, qui en envoie toujours un).
+  async function sendAdminMessage(messages, existingAccountsOnly, titles, recipientIds, emailNotify) {
     const cleanTitles = {};
     Object.keys(titles || {}).forEach(code => { const t = String(titles[code] || '').trim(); if (t) cleanTitles[code] = t; });
     const targets = Array.isArray(recipientIds) && recipientIds.length > 0 ? recipientIds : [null];
     let sent = 0;
     for (const recipientId of targets) {
       const params = { p_messages: messages, p_existing_accounts_only: recipientId ? false : !!existingAccountsOnly };
-      if (recipientId) params.p_recipient_id = recipientId;
+      if (recipientId) { params.p_recipient_id = recipientId; if (emailNotify) params.p_email_notify = true; }
       if (Object.keys(cleanTitles).length > 0) params.p_titles = cleanTitles;
       const { error } = await getClient().rpc('admin_send_message', params);
       if (error) return { ok: false, error: error.message, sent };
