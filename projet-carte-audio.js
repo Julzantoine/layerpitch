@@ -16,13 +16,19 @@
   function createPlayer(env) {
     const model = M();
     let map = null;
-    const st = { playing: false, position: null, combat: false, music: null, room: null, pendingAt: null, intensity: null /* choix manuel de couche (null = automatique) */, layerLevel: null };
+    const st = { playing: false, position: null, combat: false, music: null, room: null, pendingAt: null, loading: 0, intensity: null /* choix manuel de couche (null = automatique) */, layerLevel: null };
     let musicVoice = null, roomVoice = null, stingerVoice = null, token = 0, cancelPending = null, lastMusicKey = null;
     const notify = () => { if (env.onChange) env.onChange(snapshot()); };
     const layersOf = () => (musicVoice && musicVoice.layerCount ? (safe(() => musicVoice.layerCount()) || 0) : 0);
     const snapshot = () => ({ playing: st.playing, position: st.position && { kind: st.position.kind, id: st.position.id }, combat: st.combat,
-      music: st.music, room: st.room, pendingAt: st.pendingAt, layers: layersOf(), layerKind: (musicVoice && musicVoice.layerKind && safe(() => musicVoice.layerKind())) || 'layers', layerLabels: (musicVoice && musicVoice.layerLabels && safe(() => musicVoice.layerLabels())) || null, layerLevel: st.layerLevel, layerManual: st.intensity != null, fallback: !!st.fallback });
+      music: st.music, room: st.room, pendingAt: st.pendingAt, loading: st.loading, layers: layersOf(), layerKind: (musicVoice && musicVoice.layerKind && safe(() => musicVoice.layerKind())) || 'layers', layerLabels: (musicVoice && musicVoice.layerLabels && safe(() => musicVoice.layerLabels())) || null, layerLevel: st.layerLevel, layerManual: st.intensity != null, fallback: !!st.fallback });
     const itemAt = pos => (pos ? (pos.kind === 'edge' ? model.edgeById(map, pos.id) : model.nodeById(map, pos.id)) : null);
+    // Chargement d'un son (récupération + décodage, parfois plusieurs secondes pour un morceau à couches) : compté pour que la page l'indique.
+    const load = ref => {
+      st.loading++; notify();
+      const done = () => { st.loading = Math.max(0, st.loading - 1); notify(); };
+      return env.voiceFactory(ref).then(v => { done(); return v; }, e => { done(); throw e; });
+    };
     const safe = fn => { try { return fn(); } catch (e) { return undefined; } };
 
     // Son de musique voulu pour la position (et l'état combat) : une alternative tirée au hasard dans la liste.
@@ -53,7 +59,7 @@
       if (old) { old.setLevel(0, fade); const o = old; env.schedule(() => { if (roomVoice !== o) safe(() => o.stop()); }, env.now() + fade + 0.1); }
       roomVoice = null;
       if (!ref) return;
-      const v = await env.voiceFactory(ref);
+      const v = await load(ref);
       if (my !== roomSeq || !v) return;
       roomVoice = v; v.start(0); v.setLevel(model.dbToGain(map.roomToneDb), fade);
     }
@@ -77,7 +83,7 @@
       st.fallback = !!(want && want.fallback);
       if (newKey === lastMusicKey && musicVoice) { st.music = want.ref; applyLayer(musicVoice, want.role); notify(); return; } // même son : on le laisse jouer (la couche suit l'état exploration / combat)
       const tr = want ? want.transition : model.resolveTransition(map, null);
-      const incomingPromise = want && want.ref ? env.voiceFactory(want.ref) : Promise.resolve(null);
+      const incomingPromise = want && want.ref ? load(want.ref) : Promise.resolve(null);
       const outgoing = musicVoice;
       // Quand ? Au prochain repère de la grille du son qui joue (mesure, temps…), sinon tout de suite.
       let at = env.now();
@@ -92,7 +98,7 @@
         if (incoming) applyLayer(incoming, want && want.role); else st.layerLevel = null;
         const sec = Math.max(0, tr.sec || 0);
         if (stingerVoice) { const sv = stingerVoice; stingerVoice = null; safe(() => sv.stop()); }
-        if (tr.stinger) env.voiceFactory(tr.stinger).then(v => { if (v && my === token) { stingerVoice = v; v.start(1); } });
+        if (tr.stinger) load(tr.stinger).then(v => { if (v && my === token) { stingerVoice = v; v.start(1); } });
         const stopLater = (v, after) => { if (!v) return; env.schedule(() => { if (musicVoice !== v) safe(() => v.stop()); }, env.now() + after + 0.05); };
         musicVoice = incoming; lastMusicKey = incoming ? newKey : null; st.music = want && want.ref && incoming ? want.ref : null;
         if (tr.style === 'cut' || sec === 0) {

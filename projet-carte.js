@@ -361,6 +361,29 @@
     const cur = () => st.maps.find(m => m.id === st.current) || null;
     const curData = () => { const m = cur(); return m ? m.data : null; };
 
+    // Dépôt d'un son : depuis la bibliothèque de gauche (glisser), ou un fichier audio de l'ordinateur (envoyé par la page, qui en fait un
+    // objet « fichier du Projet » rangé comme les autres ; la carte n'en garde que la référence).
+    const AUDIO_FILE = f => /^audio\//.test(f.type) || /\.(mp3|wav|ogg|flac|m4a|aac)$/i.test(f.name);
+    const dragTypes = ev => [...((ev.dataTransfer && ev.dataTransfer.types) || [])];
+    const acceptsSound = ev => dragTypes(ev).includes('application/x-lp-sound') || (!!ctx.uploadSound && dragTypes(ev).includes('Files'));
+    // Lit le dépôt SANS attendre (les données ne sont lisibles que pendant l'événement) et appelle fn avec les références : tout de suite pour
+    // un son de la bibliothèque, après l'envoi pour des fichiers de l'ordinateur.
+    function withDroppedRefs(ev, fn) {
+      const raw = ev.dataTransfer.getData('application/x-lp-sound');
+      if (raw) { let ref = null; try { ref = JSON.parse(raw); } catch (e) { return; } fn([ref]); return; }
+      const files = [...((ev.dataTransfer && ev.dataTransfer.files) || [])].filter(AUDIO_FILE);
+      if (!files.length || !ctx.uploadSound) { if (dragTypes(ev).includes('Files')) setStatus(tr('map_dropAudioOnly')); return; }
+      (async () => {
+        const out = [];
+        for (const f of files) {
+          setStatus(tr('map_uploading', { name: f.name }));
+          const r = await ctx.uploadSound(f);
+          if (!r || r.error || !r.ref) { setStatus(tr('map_saveError', { message: (r && r.error) || f.name })); continue; }
+          out.push(r.ref);
+        }
+        if (out.length) { setStatus(tr('map_uploaded', { n: out.length })); fn(out); }
+      })();
+    }
     function setStatus(text) { st.status = text; const el = host.querySelector('.lm-status'); if (el) el.textContent = text; }
     function touch() {
       st.dirty = true; setStatus(tr('map_saving'));
@@ -401,7 +424,7 @@
         <div class="lm-panel" id="lmLibPanel"><button type="button" class="lm-collapse" data-collapse="lib" aria-expanded="true"><span class="lm-chev">«</span><span class="lm-vlabel">${esc(tr('map_library'))}</span></button><div class="lm-side" id="lmLib"></div></div>
         <div>
           <div class="lm-now" id="lmNow" hidden></div>
-          <div class="lm-toolbar">${audio ? `<button class="btn${st.play ? ' primary' : ''}" id="lmPlay" type="button">${esc(tr(st.play ? 'map_playOn' : 'map_play'))}</button>` : ''}${ctx.canEdit && !st.play ? NODE_TYPES.map(t => `<button class="btn" type="button" data-add="${t}" ${t === 'start' && map.nodes.some(n => n.type === 'start') ? 'disabled' : ''}>${GLYPH[t]} ${esc(tr('map_type_' + t))}</button>`).join('') +
+          <div class="lm-toolbar">${audio ? `<button class="btn${st.play ? ' primary' : ''}" id="lmPlay" type="button" title="${esc(tr('map_playBtnHint'))}">${esc(tr(st.play ? 'map_playOn' : 'map_play'))}</button>${st.play ? '' : `<span class="hint lm-keys" style="margin:0 6px 0 -2px">${esc(tr('map_keysHint'))}</span>`}` : ''}${ctx.canEdit && !st.play ? NODE_TYPES.map(t => `<button class="btn" type="button" data-add="${t}" ${t === 'start' && map.nodes.some(n => n.type === 'start') ? 'disabled' : ''}>${GLYPH[t]} ${esc(tr('map_type_' + t))}</button>`).join('') +
             `<button class="btn${st.connecting ? ' primary' : ''}" id="lmConnect" type="button">${esc(tr(st.connecting ? 'map_connecting' : 'map_connect'))}</button>` : ''}
             <button class="btn" id="lmZoomOut" type="button" aria-label="${esc(tr('map_zoomOut'))}">−</button><button class="btn" id="lmZoomIn" type="button" aria-label="${esc(tr('map_zoomIn'))}">+</button><button class="btn" id="lmFit" type="button">${esc(tr('map_fit'))}</button></div>
           <div class="lm-canvas${st.connecting ? ' connecting' : ''}${st.play ? ' playing' : ''}" id="lmCanvas" tabindex="0"><svg id="lmSvg" role="img" aria-label="${esc(tr('map_title'))}"></svg></div>
@@ -604,7 +627,7 @@
       // Dépôt d'un son sur un élément ou un parcours
       const dropTarget = ev => { const el = ev.target.closest('[data-node],[data-edge]'); return el ? (el.dataset.node ? { kind: 'node', id: el.dataset.node, el } : { kind: 'edge', id: el.dataset.edge, el }) : null; };
       canvas.addEventListener('dragover', ev => {
-        if (!ctx.canEdit || ![...(ev.dataTransfer.types || [])].includes('application/x-lp-sound')) return;
+        if (!ctx.canEdit || !acceptsSound(ev)) return;
         const t = dropTarget(ev); canvas.querySelectorAll('.drop').forEach(x => x.classList.remove('drop'));
         if (t) { ev.preventDefault(); t.el.classList.add('drop'); }
       });
@@ -613,8 +636,11 @@
         const t = dropTarget(ev); canvas.querySelectorAll('.drop').forEach(x => x.classList.remove('drop'));
         if (!t || !ctx.canEdit) return;
         ev.preventDefault();
-        let ref = null; try { ref = JSON.parse(ev.dataTransfer.getData('application/x-lp-sound')); } catch (e) { return; }
-        if (addSound(map, { kind: t.kind, id: t.id }, 'main', ref)) { st.sel = { kind: t.kind, id: t.id }; touch(); drawCanvas(); renderInspector(); }
+        withDroppedRefs(ev, refs => {
+          let any = false;
+          for (const ref of refs) if (addSound(map, { kind: t.kind, id: t.id }, 'main', ref)) any = true;
+          if (any) { st.sel = { kind: t.kind, id: t.id }; touch(); drawCanvas(); renderInspector(); }
+        });
       });
       const ARROWS = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
       host.onkeydown = ev => {
@@ -689,12 +715,15 @@
       on('#lmDeleteSel', 'click', deleteSelection);
       box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const [slot, i] = b.dataset.rm.split(':'); if (removeSound(map, target, slot, Number(i))) { touch(); drawCanvas(); renderInspector(); } });
       box.querySelectorAll('.lm-slot[data-slot]').forEach(sl => {
-        sl.addEventListener('dragover', ev => { if (ctx.canEdit && [...(ev.dataTransfer.types || [])].includes('application/x-lp-sound')) { ev.preventDefault(); sl.classList.add('drop'); } });
+        sl.addEventListener('dragover', ev => { if (ctx.canEdit && acceptsSound(ev)) { ev.preventDefault(); sl.classList.add('drop'); } });
         sl.addEventListener('dragleave', () => sl.classList.remove('drop'));
         sl.addEventListener('drop', ev => {
           sl.classList.remove('drop'); if (!ctx.canEdit) return; ev.preventDefault();
-          let ref = null; try { ref = JSON.parse(ev.dataTransfer.getData('application/x-lp-sound')); } catch (e) { return; }
-          if (addSound(map, target, sl.dataset.slot, ref)) { touch(); drawCanvas(); renderInspector(); }
+          withDroppedRefs(ev, refs => {
+            let any = false;
+            for (const ref of refs) if (addSound(map, target, sl.dataset.slot, ref)) any = true;
+            if (any) { touch(); drawCanvas(); renderInspector(); }
+          });
         });
       });
       wireTransition(box, map, item);
@@ -735,9 +764,9 @@
       const zone = box.querySelector('#lmStinger');
       if (zone) {
         const setStinger = ref => { item.transition = Object.assign({}, item.transition || {}, { stinger: { kind: ref.kind, id: ref.id, title: ref.title } }); touch(); renderInspector(); };
-        zone.addEventListener('dragover', ev => { if ([...(ev.dataTransfer.types || [])].includes('application/x-lp-sound')) { ev.preventDefault(); zone.classList.add('drop'); } });
+        zone.addEventListener('dragover', ev => { if (acceptsSound(ev)) { ev.preventDefault(); zone.classList.add('drop'); } });
         zone.addEventListener('dragleave', () => zone.classList.remove('drop'));
-        zone.addEventListener('drop', ev => { zone.classList.remove('drop'); ev.preventDefault(); let ref = null; try { ref = JSON.parse(ev.dataTransfer.getData('application/x-lp-sound')); } catch (e) { return; } if (cleanRef(ref)) setStinger(ref); });
+        zone.addEventListener('drop', ev => { zone.classList.remove('drop'); ev.preventDefault(); withDroppedRefs(ev, refs => { if (refs[0] && cleanRef(refs[0])) setStinger(refs[0]); }); });
         const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.style.marginTop = '4px'; b.textContent = tr('map_addPicked'); b.disabled = !st.picked;
         b.onclick = () => { if (st.picked) setStinger(st.picked); };
         zone.appendChild(b);
@@ -765,11 +794,11 @@
       const zone = box.querySelector('#lmRoomZone');
       // Toute la colonne du fond d'ambiance (titre, zone, niveau) reçoit le dépôt, pas seulement le cadre en pointillés.
       const dropArea = zone.parentElement;
-      const accepts = ev => [...(ev.dataTransfer.types || [])].includes('application/x-lp-sound');
+      const accepts = acceptsSound;
       dropArea.addEventListener('dragenter', ev => { if (accepts(ev)) { ev.preventDefault(); zone.classList.add('drop'); } });
       dropArea.addEventListener('dragover', ev => { if (accepts(ev)) { ev.preventDefault(); zone.classList.add('drop'); } });
       dropArea.addEventListener('dragleave', ev => { if (!dropArea.contains(ev.relatedTarget)) zone.classList.remove('drop'); });
-      dropArea.addEventListener('drop', ev => { zone.classList.remove('drop'); ev.preventDefault(); let ref = null; try { ref = JSON.parse(ev.dataTransfer.getData('application/x-lp-sound')); } catch (e) { return; } if (cleanRef(ref)) setRoom(ref); });
+      dropArea.addEventListener('drop', ev => { zone.classList.remove('drop'); ev.preventDefault(); withDroppedRefs(ev, refs => { if (refs[0] && cleanRef(refs[0])) setRoom(refs[0]); }); });
       const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.style.marginTop = '4px'; b.textContent = st.picked ? tr('map_addPickedNamed', { title: st.picked.title || st.picked.id }) : tr('map_addPicked'); b.disabled = !st.picked;
       b.onclick = () => { if (st.picked) setRoom(st.picked); }; zone.appendChild(b);
       const db = box.querySelector('#lmRoomDb');
@@ -794,7 +823,7 @@
       if (!st.play || !map || !audio) { box.hidden = true; return; }
       box.hidden = false;
       const n = st.now || {}, can = n.position && hasCombatSlot(map, n.position);
-      box.innerHTML = n.position
+      box.innerHTML = (n.loading > 0 ? `<span class="lm-wait lm-loading">⏳ ${esc(tr('map_loading'))}</span>` : '') + (n.position
         ? `<span><b>${esc(tr('map_nowAt'))}</b> ${esc(labelOf(map, n.position))}</span><span>♪ ${esc((n.music && n.music.title) || tr('map_nowSilence'))}</span>${n.room ? `<span>🌫 ${esc(n.room.title || n.room.id)}</span>` : ''}
           ${n.pendingAt != null ? `<span class="lm-wait">${esc(tr('map_nowWaiting'))}</span>` : ''}
           ${n.layers > 1 ? `<span class="lm-layers" id="lmLayers"><b>${esc(tr(n.layerKind === 'loops' ? 'map_loops' : 'map_layers'))}</b>
@@ -802,7 +831,7 @@
             <span class="lm-wait">${esc(n.layerKind === 'loops' ? ((n.layerLabels && n.layerLabels[n.layerLevel || 0]) || tr('map_loopHint', { n: (n.layerLevel || 0) + 1 })) : tr('map_layerNow', { n: (n.layerLevel || 0) + 1, total: n.layers }))}${n.fallback ? ' · ' + esc(tr(n.layerKind === 'loops' ? 'map_loopFallback' : 'map_layerFallback')) : ''}</span></span>` : ''}
           <button class="btn${n.combat ? ' primary' : ''}" type="button" id="lmCombat" ${can ? '' : 'disabled'}>${esc(tr(n.combat ? 'map_combatOn' : 'map_combat'))}</button>
           <button class="btn" type="button" id="lmStopPlay">${esc(tr(n.playing ? 'map_pause' : 'map_resume'))}</button>`
-        : `<span>${esc(tr('map_playHint'))}</span>`;
+        : `<span>${esc(tr('map_playHint'))}</span>`);
       box.querySelectorAll('[data-layer]').forEach(b => { b.onclick = () => { audio.setIntensity(b.dataset.layer === 'auto' ? null : +b.dataset.layer); host.querySelector('#lmCanvas').focus(); }; });
       const c = box.querySelector('#lmCombat'); if (c) c.onclick = () => { audio.setCombat(!n.combat); host.querySelector('#lmCanvas').focus(); };
       const sp = box.querySelector('#lmStopPlay'); if (sp) sp.onclick = () => { if (n.playing) audio.stop(1); else audio.resume(); };

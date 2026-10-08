@@ -319,6 +319,48 @@ const { JSDOM } = require('jsdom');
     v4.destroy();
   }
 
+  // ---- Balade : mention des flèches et témoin de chargement des morceaux (8/10)
+  {
+    const releases = [];
+    const slowEnv = { now: () => 0, schedule: () => () => {}, voiceFactory: ref => new Promise(res => releases.push(() => res({ start() {}, setLevel() {}, stop() {}, isPlaying: () => true, nextBoundary: () => null }))) };
+    const h9 = w.document.createElement('div'); w.document.body.appendChild(h9);
+    const v9 = w.LayerPitchLevelMap.mount(h9, { tr, canEdit: true, audio: slowEnv, libraries: { track: [], sfx: [], asset: [] },
+      maps: [{ id: 'm9', title: 'Lent', data: { nodes: [{ id: 'a', type: 'start', label: 'Début', x: 0, y: 0, sounds: { main: [{ kind: 'track', id: 'lourd', title: 'Lourd' }] } }], edges: [] } }],
+      save: async m => ({ id: m.id }), remove: async () => ({}) });
+    check('balade : la mention des flèches est visible avant de se lancer, et sur le bouton', /map_keysHint/.test(h9.querySelector('.lm-keys').textContent) && /map_playBtnHint/.test(h9.querySelector('#lmPlay').title));
+    h9.querySelector('#lmPlay').click(); await wait(30);
+    check('balade : pendant le chargement du morceau, « Chargement » est affiché', v9.audio.state.loading === 1 && !!h9.querySelector('.lm-loading'));
+    releases.forEach(r => r()); await wait(30);
+    check('balade : une fois chargé, le témoin disparaît', v9.audio.state.loading === 0 && !h9.querySelector('.lm-loading'));
+  }
+
+  // ---- Fichier audio déposé depuis l'ordinateur (8/10) : envoyé par la page, la carte garde la référence
+  {
+    const uploads = [];
+    const h8 = w.document.createElement('div'); w.document.body.appendChild(h8);
+    const v8 = w.LayerPitchLevelMap.mount(h8, { tr, canEdit: true, libraries: { track: [], sfx: [], asset: [] },
+      maps: [{ id: 'm8', title: 'Niveau', data: { nodes: [{ id: 'a', type: 'start', label: 'Début', x: 100, y: 100 }, { id: 'b', type: 'place', label: 'Lieu', x: 300, y: 100 }], edges: [{ id: 'e', from: 'a', to: 'b' }] } }],
+      save: async m => ({ id: m.id }), remove: async () => ({}),
+      uploadSound: async f => { uploads.push(f.name); return { ref: { kind: 'asset', id: 'asset-' + f.name, title: f.name } }; } });
+    const fileDrop = (el, files) => { const ev = new w.Event('drop', { bubbles: true, cancelable: true }); ev.dataTransfer = { types: ['Files'], files, getData: () => '' }; el.dispatchEvent(ev); return ev; };
+    const fileOver = (el) => { const ev = new w.Event('dragover', { bubbles: true, cancelable: true }); ev.dataTransfer = { types: ['Files'] }; el.dispatchEvent(ev); return ev; };
+    const mkF = (name, type) => new w.File(['x'], name, { type });
+    const settle2 = () => new Promise(r => setTimeout(r, 30));
+    check('fond d\'ambiance : un fichier de l\'ordinateur survole la zone, dépôt accepté', fileOver(h8.querySelector('#lmRoomZone')).defaultPrevented);
+    fileDrop(h8.querySelector('#lmRoomZone'), [mkF('ambiance.wav', 'audio/wav')]); await settle2();
+    check('fond d\'ambiance : fichier audio déposé = envoyé, et pris comme fond (référence « asset »)', uploads.join() === 'ambiance.wav' && v8.state.maps[0].data.roomTone && v8.state.maps[0].data.roomTone.kind === 'asset' && v8.state.maps[0].data.roomTone.id === 'asset-ambiance.wav');
+    fileDrop(h8.querySelector('#lmRoomZone'), [mkF('image.png', 'image/png')]); await settle2();
+    check('un fichier qui n\'est pas de l\'audio est refusé (rien n\'est envoyé)', uploads.length === 1 && /map_dropAudioOnly/.test(h8.textContent));
+    fileDrop(h8.querySelector('[data-node="b"]'), [mkF('theme.mp3', 'audio/mpeg'), mkF('boucle.ogg', 'audio/ogg')]); await settle2();
+    const nb = v8.state.maps[0].data.nodes.find(n => n.id === 'b');
+    check('fichiers audio déposés sur un lieu : tous envoyés et ajoutés à son emplacement principal', uploads.length === 3 && nb.sounds.main.length === 2 && nb.sounds.main[0].kind === 'asset');
+    fileDrop(h8.querySelector('[data-edge="e"]'), [mkF('vent.m4a', '')]); await settle2();
+    check('sur un parcours aussi (type reconnu par l\'extension)', v8.state.maps[0].data.edges[0].sounds.main.length === 1);
+    const hNo = w.document.createElement('div'); w.document.body.appendChild(hNo);
+    w.LayerPitchLevelMap.mount(hNo, { tr, canEdit: true, libraries: { track: [], sfx: [], asset: [] }, maps: [{ id: 'mn', title: 'N', data: { nodes: [], edges: [] } }], save: async m => ({ id: m.id }), remove: async () => ({}) });
+    check('sans fonction d\'envoi fournie : les fichiers ne sont pas acceptés', !fileOver(hNo.querySelector('#lmRoomZone')).defaultPrevented);
+  }
+
   // ---- Boutons « Fichiers » et « Sections » (8/10) : seulement si la page fournit les fonctions
   {
     const calls = [];
