@@ -132,6 +132,26 @@ const path = require('path');
   }
   lc.stop(); await sleep(60);
 
+  // Démarrer avant la fin du chargement (8/10) : le morceau attend ses fichiers au lieu de « jouer » dans le vide
+  const slowFile = (name, ms) => ({ name, arrayBuffer: () => new Promise(r => setTimeout(() => r(new ArrayBuffer(8)), ms)) });
+  const SL = { id: 'slow-l', title: 'Lent', mode: 'vertical', description: '', duration: 10, base: '', publishedAt: 1, loopable: true, loopEngine: 'quantized', bpm: 120, beatsPerBar: 4, startTrackBeat: 0, loopInBeat: 0, loopOutBeat: 16, layers: [{ label: 'L1', localFile: slowFile('slow.wav', 600) }], sfxIds: [] };
+  const rowL = mount(SL, { concurrent: true });
+  await sleep(100);
+  check('chargement : le lecteur indique qu\'il n\'est pas prêt', rowL.lpControl.isReady() === false);
+  rowL.lpControl.start(1); await sleep(100);
+  check('démarrage demandé avant la fin du chargement : il ne joue pas encore (mais ne joue pas « dans le vide »)', !rowL.lpControl.isPlaying());
+  await sleep(1200);
+  check('chargement terminé : le morceau démarre tout seul', rowL.lpControl.isReady() === true && rowL.lpControl.isPlaying());
+  rowL.lpControl.stop(); await sleep(50);
+  const rowL2 = mount(Object.assign({}, SL, { id: 'slow-l2', layers: [{ label: 'L1', localFile: slowFile('slow2.wav', 600) }] }), { concurrent: true });
+  await sleep(100); rowL2.lpControl.start(1); rowL2.lpControl.stop(); await sleep(1200);
+  check('stop pendant le chargement : annule le démarrage en attente', !rowL2.lpControl.isPlaying());
+  check('nouveau tirage : seulement pour le vertical-random', rowA.lpControl.canRefreshPool() === false && rowA.lpControl.refreshPool() === false);
+  const VR = { id: 'vr-x', title: 'VR', mode: 'vertical-random', description: '', duration: 10, base: '', publishedAt: 1, bpm: 120, beatsPerBar: 4, sfxIds: [], sections: [{ id: 'S1', label: 'S1', pools: [{ label: 'P', alternatives: [{ localFile: fakeFile('p1.wav'), bars: 1 }, { localFile: fakeFile('p2.wav'), bars: 1 }] }] }] };
+  const rowV = mount(VR, { concurrent: true }); await sleep(400);
+  check('vertical-random : le pilotage propose le nouveau tirage', rowV.lpControl.canRefreshPool() === true && rowV.lpControl.refreshPool() === true);
+  rowV.lpControl.stop(); await sleep(50);
+
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : (failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
 })();
