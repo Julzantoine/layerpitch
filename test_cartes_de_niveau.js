@@ -70,6 +70,7 @@
   check('2e musique : nom trop long refusé', await bad(m => { m.nodes[1].altName = 'x'.repeat(61); }, /trop long/));
   check('2e musique : son de transition invalide refusé', await bad(m => { m.nodes[1].altTransition = { kind: 'video', id: 'x' }; }, /invalide/));
   check('2e musique : transition citant un son d\'un autre Projet refusée', await bad(m => { m.edges[0].altTransition = { kind: 'asset', id: '00000000-0000-0000-0000-0000000000aa', title: 'x' }; }, /pas dans ce Projet/));
+  check('nœud « Transition » accepté (migration 20261008030000)', await (async () => { const m = JSON.parse(JSON.stringify(map)); m.nodes.push({ id: 'tr1', type: 'transition', label: 'Passage', x: 400, y: 120, transition: { style: 'crossfade', sec: 2, sync: 'bar', stinger: { kind: 'sfx', id: 'whoosh', title: 'Whoosh' } } }); try { await db.query(`select public.save_project_map($1, $2::jsonb)`, [pid, JSON.stringify({ title: 'Avec transition', data: m })]); return true; } catch (e) { console.log(e.message); return false; } })());
   check('deux débuts de niveau refusés', await bad(m => { m.nodes[1].type = 'start'; }, /seul début/));
   check('identifiant en double refusé', await bad(m => { m.nodes[1].id = 'n1'; }, /double/));
   check('parcours vers un élément inexistant refusé', await bad(m => { m.edges[0].to = 'zz'; }, /n'existent pas/));

@@ -21,13 +21,28 @@
     const notify = () => { if (env.onChange) env.onChange(snapshot()); };
     const layersOf = () => (musicVoice && musicVoice.layerCount ? (safe(() => musicVoice.layerCount()) || 0) : 0);
     const snapshot = () => ({ playing: st.playing, position: st.position && { kind: st.position.kind, id: st.position.id }, combat: st.combat,
-      music: st.music, room: st.room, pendingAt: st.pendingAt, loading: st.loading, sequences: sequencesOf(), layers: layersOf(), layerKind: (musicVoice && musicVoice.layerKind && safe(() => musicVoice.layerKind())) || 'layers', layerLabels: (musicVoice && musicVoice.layerLabels && safe(() => musicVoice.layerLabels())) || null, layerLevel: st.layerLevel, layerManual: st.intensity != null, fallback: !!st.fallback });
+      music: st.music, room: st.room, pendingAt: st.pendingAt, loading: st.loading, notReady: notReadyOf(), canRefreshPool: !!(musicVoice && musicVoice.canRefreshPool && safe(() => musicVoice.canRefreshPool())), sequences: sequencesOf(), layers: layersOf(), layerKind: (musicVoice && musicVoice.layerKind && safe(() => musicVoice.layerKind())) || 'layers', layerLabels: (musicVoice && musicVoice.layerLabels && safe(() => musicVoice.layerLabels())) || null, layerLevel: st.layerLevel, layerManual: st.intensity != null, fallback: !!st.fallback });
     // Séquences d'un morceau séquentiel qui joue : { labels, current, reachable, pending } (null si le morceau n'en a pas ou ne joue pas).
     const sequencesOf = () => {
       const v = musicVoice; if (!v || !v.sequenceCount) return null;
       const n = safe(() => v.sequenceCount()) || 0; if (n < 2) return null;
       return { labels: safe(() => v.sequenceLabels()) || [], current: safe(() => v.sequenceCurrent()), reachable: safe(() => v.sequenceReachable()) || [], pending: safe(() => v.sequencePending()) };
     };
+    // Morceau monté mais dont les fichiers ne sont pas encore chargés : le titre de ce qu'on attend (sinon null).
+    const notReadyOf = () => (musicVoice && musicVoice.isReady && !safe(() => musicVoice.isReady()) ? (st.music && st.music.title) || true : null);
+    // Un morceau séquentiel change de séquence tout seul (au repère choisi, ou au bout de son emplacement) sans en avertir la carte :
+    // tant qu'il joue, on relit son état quatre fois par seconde et on prévient la page seulement quand il a changé.
+    let seqTimer = null, seqSig = '';
+    function watchSequences() {
+      if (seqTimer) return;
+      seqSig = JSON.stringify([sequencesOf(), notReadyOf()]);
+      seqTimer = setInterval(() => {
+        const v = musicVoice;
+        if (!st.playing || !v || !(v.sequenceCount || v.isReady)) { clearInterval(seqTimer); seqTimer = null; return; }
+        const sig = JSON.stringify([sequencesOf(), notReadyOf()]);
+        if (sig !== seqSig) { seqSig = sig; notify(); }
+      }, 250);
+    }
     const itemAt = pos => (pos ? (pos.kind === 'edge' ? model.edgeById(map, pos.id) : model.nodeById(map, pos.id)) : null);
     // Chargement d'un son (récupération + décodage, parfois plusieurs secondes pour un morceau à couches) : compté pour que la page l'indique.
     const load = ref => {
@@ -87,8 +102,16 @@
       const want = wantedMusic();
       const newKey = want && want.ref ? model.refKey(want.ref) : null;
       st.fallback = !!(want && want.fallback);
-      if (newKey === lastMusicKey && musicVoice) { st.music = want.ref; applyLayer(musicVoice, want.role); notify(); return; } // même son : on le laisse jouer (la couche suit l'état exploration / combat)
-      let tr = want ? want.transition : model.resolveTransition(map, null);
+      // Nœud « Transition » franchi pour arriver ici : ses réglages (style, durée, repère) et son fichier remplacent ceux de l'arrivée ;
+      // le fichier est joué même si la musique ne change pas.
+      const viaNode = st.via && st.via.length ? model.nodeById(map, st.via[0]) : null; st.via = null;
+      const viaTr = viaNode ? model.resolveTransition(map, viaNode) : null;
+      if (newKey === lastMusicKey && musicVoice) {
+        st.music = want.ref; applyLayer(musicVoice, want.role);
+        if (viaTr && viaTr.stinger) load(viaTr.stinger).then(v => { if (v && my === token) { if (stingerVoice) { const sv = stingerVoice; safe(() => sv.stop()); } stingerVoice = v; v.start(1); } });
+        notify(); return;
+      } // même son : on le laisse jouer (la couche suit l'état exploration / combat)
+      let tr = viaTr || (want ? want.transition : model.resolveTransition(map, null));
       // Bascule d'une musique à l'autre : le son de transition de l'élément (facultatif) est joué comme jingle de passage.
       if (st.switchStinger) { tr = Object.assign({}, tr, { stinger: st.switchStinger }); st.switchStinger = null; }
       const incomingPromise = want && want.ref ? load(want.ref) : Promise.resolve(null);
@@ -108,7 +131,7 @@
         if (stingerVoice) { const sv = stingerVoice; stingerVoice = null; safe(() => sv.stop()); }
         if (tr.stinger) load(tr.stinger).then(v => { if (v && my === token) { stingerVoice = v; v.start(1); } });
         const stopLater = (v, after) => { if (!v) return; env.schedule(() => { if (musicVoice !== v) safe(() => v.stop()); }, env.now() + after + 0.05); };
-        musicVoice = incoming; lastMusicKey = incoming ? newKey : null; st.music = want && want.ref && incoming ? want.ref : null;
+        musicVoice = incoming; lastMusicKey = incoming ? newKey : null; if (incoming && (incoming.sequenceCount || incoming.isReady)) watchSequences(); st.music = want && want.ref && incoming ? want.ref : null;
         if (tr.style === 'cut' || sec === 0) {
           if (outgoing && outgoing !== incoming) safe(() => outgoing.stop());
           if (incoming) incoming.start(1);
@@ -130,6 +153,8 @@
       // Se placer sur un élément ou un parcours : démarre la lecture si besoin.
       async goTo(target) {
         if (!map || !model.pointOf(map, target)) return false;
+        if (target.kind === 'node' && (model.nodeById(map, target.id) || {}).type === 'transition') return false; // un nœud « Transition » se traverse, on ne s'y place pas
+        st.via = target.via && target.via.length ? target.via.slice() : null; // nœud(s) « Transition » franchi(s) pour arriver ici
         if (!st.position || st.position.kind !== target.kind || st.position.id !== target.id) st.intensity = null; // nouveau lieu : la couche redevient automatique
         st.position = { kind: target.kind, id: target.id };
         if (!model.hasAltMusic(map, st.position)) st.combat = false;
@@ -149,7 +174,9 @@
         notify();
       },
       // Passer à une séquence du morceau séquentiel qui joue (par les embranchements que le morceau prévoit).
-      goToSequence(i) { const ok = !!(musicVoice && musicVoice.goToSequence && safe(() => musicVoice.goToSequence(i))); notify(); return ok; },
+      goToSequence(i) { const ok = !!(musicVoice && musicVoice.goToSequence && safe(() => musicVoice.goToSequence(i))); if (musicVoice && (musicVoice.sequenceCount || musicVoice.isReady)) watchSequences(); notify(); return ok; },
+      // Vertical-random : nouveau tirage de la section en cours.
+      refreshPool() { const ok = !!(musicVoice && musicVoice.refreshPool && safe(() => musicVoice.refreshPool())); notify(); return ok; },
       async setCombat(on) {
         if (!map || !st.position) return false;
         const want = !!on && model.hasAltMusic(map, st.position);
@@ -166,6 +193,7 @@
         if (cancelPending) { cancelPending(); cancelPending = null; st.pendingAt = null; }
         [musicVoice, roomVoice, stingerVoice].forEach(v => { if (v) { v.setLevel(0, sec); const vv = v; env.schedule(() => safe(() => vv.stop()), env.now() + sec + 0.05); } });
         musicVoice = null; roomVoice = null; stingerVoice = null; lastMusicKey = null;
+        if (seqTimer) { clearInterval(seqTimer); seqTimer = null; }
         st.playing = false; st.music = null; st.room = null; notify();
       },
       async resume() { if (st.position) { st.playing = true; await enter(); } },

@@ -5,7 +5,7 @@
 // Document d'une carte : { nodes: [{ id, type, label, x, y, note, side, anchor, sounds: { main: [ref], combat: [ref] } }],
 //                          edges: [{ id, from, to, label, enemy, sounds }] }   ref = { kind: 'track'|'sfx'|'asset', id, title }
 (function () {
-  const NODE_TYPES = ['start', 'place', 'quest', 'boss', 'npc', 'treasure', 'junction']; // junction = point de passage sur un parcours, d'où d'autres itinéraires peuvent partir
+  const NODE_TYPES = ['start', 'place', 'quest', 'boss', 'npc', 'treasure', 'junction', 'transition']; // junction = point de passage sur un parcours, d'où d'autres itinéraires peuvent partir
   const SLOTS = ['main', 'combat', 'room'];
   const TRANSITION_STYLES = ['crossfade', 'cut', 'fadeout'];
   const SYNCS = ['immediate', 'beat', 'bar', 'bars2', 'bars4'];
@@ -13,7 +13,7 @@
   const DEFAULT_ROOM_DB = -14;
   const MAX_SOUNDS = 12;
   const MAX_NODES = 300, MAX_EDGES = 600;
-  const GLYPH = { start: '▶', place: '⌂', quest: '!', boss: '☠', npc: '☺', treasure: '◆', junction: '•' };
+  const GLYPH = { start: '▶', place: '⌂', quest: '!', boss: '☠', npc: '☺', treasure: '◆', junction: '•', transition: '⇢' };
 
   // ---------------------------------------------------------------- Modèle (fonctions pures)
   let idSeq = 0;
@@ -40,11 +40,11 @@
   // Point de passage sur un parcours (7/10, « générer un nœud sur un itinéraire pour en faire partir un autre, comme un embranchement ») :
   // le parcours A → B devient A → P → B, P étant un nouvel élément « point de passage » posé là où l'on a cliqué. Les deux moitiés
   // reprennent les réglages du parcours d'origine (sons, ennemi, transition) ; les quêtes qui y étaient accrochées suivent la bonne moitié.
-  function splitEdge(map, edgeId, x, y) {
+  function splitEdge(map, edgeId, x, y, type) {
     const e = edgeById(map, edgeId), g = e && edgeGeometry(map, e);
     if (!e || !g || map.nodes.length >= MAX_NODES || map.edges.length + 1 > MAX_EDGES) return null;
     const ts = projectOnEdge(map, edgeId, x, y);
-    const node = { id: newId('n'), type: 'junction', label: '', x: Math.round(g.p1.x + (g.p2.x - g.p1.x) * ts), y: Math.round(g.p1.y + (g.p2.y - g.p1.y) * ts), note: '', sounds: { main: [], combat: [], room: [] }, transition: null };
+    const node = { id: newId('n'), type: type === 'transition' ? 'transition' : 'junction', label: '', x: Math.round(g.p1.x + (g.p2.x - g.p1.x) * ts), y: Math.round(g.p1.y + (g.p2.y - g.p1.y) * ts), note: '', sounds: { main: [], combat: [], room: [] }, transition: null };
     const clone = o => JSON.parse(JSON.stringify(o));
     const half = (from, to, label) => ({ id: newId('e'), from, to, label, enemy: !!e.enemy, sounds: clone(e.sounds || { main: [], combat: [], room: [] }), transition: e.transition ? clone(e.transition) : null });
     const e1 = half(e.from, node.id, e.label || ''), e2 = half(node.id, e.to, '');
@@ -62,7 +62,7 @@
   function removeNode(map, id) {
     // Un point de passage qui n'a que deux parcours disparaît en les réunissant (A → P → B redevient A → B).
     const target = nodeById(map, id);
-    if (target && target.type === 'junction') {
+    if (target && (target.type === 'junction' || target.type === 'transition')) {
       const inc = map.edges.filter(e => e.from === id || e.to === id);
       if (inc.length === 2) {
         const other = e => (e.from === id ? e.to : e.from);
@@ -256,7 +256,7 @@
   // Voisins d'une position : un élément touche ses parcours (et les quêtes annexes accrochées à lui) ; un parcours touche ses deux
   // extrémités (et les quêtes accrochées à lui) ; une quête annexe touche ce à quoi elle est accrochée.
   function neighbors(map, t) {
-    const out = [], add = x => { if (x && !out.some(o => o.kind === x.kind && o.id === x.id) && itemOf(map, x)) out.push({ kind: x.kind, id: x.id }); };
+    const out = [], add = x => { if (x && !out.some(o => o.kind === x.kind && o.id === x.id) && itemOf(map, x)) out.push(x.via ? { kind: x.kind, id: x.id, via: x.via } : { kind: x.kind, id: x.id }); };
     if (t.kind === 'node') {
       const n = nodeById(map, t.id); if (!n) return out;
       map.edges.forEach(e => { if (e.from === n.id || e.to === n.id) add({ kind: 'edge', id: e.id }); });
@@ -264,7 +264,13 @@
       map.nodes.forEach(q => { if (q.anchor && q.anchor.kind === 'node' && q.anchor.id === n.id) add({ kind: 'node', id: q.id }); });
     } else {
       const e = edgeById(map, t.id); if (!e) return out;
-      add({ kind: 'node', id: e.from }); add({ kind: 'node', id: e.to });
+      // Un nœud « Transition » n'est jamais un endroit où l'on s'arrête : on le traverse, et on arrive sur le parcours d'après (via : le
+      // nœud franchi, dont le lecteur joue le fichier de transition).
+      [e.from, e.to].forEach(id => {
+        const end = nodeById(map, id);
+        if (end && end.type === 'transition') map.edges.forEach(e2 => { if (e2.id !== e.id && (e2.from === id || e2.to === id)) add({ kind: 'edge', id: e2.id, via: [id] }); });
+        else add({ kind: 'node', id });
+      });
       map.nodes.forEach(q => { if (q.anchor && q.anchor.kind === 'edge' && q.anchor.id === e.id) add({ kind: 'node', id: q.id }); });
     }
     return out;
@@ -712,7 +718,7 @@
       if (isEdge) {
         const a = nodeById(map, item.from), b = nodeById(map, item.to);
         html += `<p class="hint">${esc((a && a.label) || '?')} → ${esc((b && b.label) || '?')}</p>
-          ${ctx.canEdit ? `<button class="btn" id="lmSplit" type="button" title="${esc(tr('map_splitHint'))}">${esc(tr('map_split'))}</button>` : ''}
+          ${ctx.canEdit ? `<button class="btn" id="lmSplit" type="button" title="${esc(tr('map_splitHint'))}">${esc(tr('map_split'))}</button> <button class="btn" id="lmSplitT" type="button" title="${esc(tr('map_splitTransitionHint'))}">${esc(tr('map_splitTransition'))}</button>` : ''}
           <label class="choice" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lmEnemy" ${item.enemy ? 'checked' : ''}${dis} style="width:auto"> ${esc(tr('map_enemy'))}</label>`;
       } else {
         html += `<label>${esc(tr('map_note'))}</label><textarea id="lmNote" maxlength="2000"${dis}>${esc(item.note)}</textarea>`;
@@ -731,13 +737,14 @@
       const slotBox = (slot, title, emptyKey) => `<div class="lm-slot" data-slot="${slot}"><h4>${esc(title)}</h4>${listOf(slot).map((r, i) =>
         `<div class="lm-sound"><span>${r.kind === 'sfx' ? '🔔' : '♪'}</span><span class="lm-t" title="${esc(r.title)}">${esc(r.title || r.id)}</span>${ctx.canEdit ? `<button class="icon-btn" type="button" data-rm="${slot}:${i}" aria-label="${esc(tr('map_removeSound'))}">✕</button>` : ''}</div>`).join('') || `<p class="hint" style="margin:0">${esc(tr(emptyKey))}</p>`}${slot !== 'altTransition' && slot !== 'room' && listOf(slot).length > 1 ? `<p class="hint" style="margin:4px 0 0">🎲 ${esc(tr('map_randomHint'))}</p>` : ''}</div>`;
       const altKey = st.sel.kind + ':' + item.id, hasAlt = hasAltMusic(map, target) || !!item.altName || !!item.altTransition || st.altOpen === altKey;
-      html += slotBox('main', tr('map_slot_main'), 'map_slotEmpty');
-      if (hasAlt) {
+      const isTrans = !isEdge && item.type === 'transition';
+      if (isTrans) html += `<p class="hint">${esc(tr('map_transitionNodeHint'))}</p>`; else html += slotBox('main', tr('map_slot_main'), 'map_slotEmpty');
+      if (isTrans) { /* un nœud « Transition » n'a ni musique ni fond propres */ } else if (hasAlt) {
         html += `<div class="lm-alt"><label>${esc(tr('map_altName'))}</label><input type="text" id="lmAltName" value="${esc(item.altName || '')}" maxlength="60" placeholder="${esc(tr('map_altDefault'))}"${dis}>
           ${slotBox('combat', item.altName || tr('map_altDefault'), 'map_slotEmpty')}${slotBox('altTransition', tr('map_slot_altTransition'), 'map_altTransitionEmpty')}
           ${ctx.canEdit ? `<button class="btn" type="button" id="lmAltRemove">${esc(tr('map_altRemove'))}</button>` : ''}</div>`;
       } else if (ctx.canEdit) html += `<button class="btn" type="button" id="lmAltAdd" style="margin:6px 0;font-size:12px;padding:4px 10px;width:auto;border-style:dashed">＋ ${esc(tr('map_altAdd'))}</button>`;
-      html += slotBox('room', tr('map_slot_room'), 'map_slotEmpty');
+      if (!isTrans) html += slotBox('room', tr('map_slot_room'), 'map_slotEmpty');
       html += transitionHtml(map, item);
       if (ctx.canEdit) html += `<div class="bar" style="margin-top:10px"><button class="btn danger" id="lmDeleteSel" type="button">${esc(tr(isEdge ? 'map_deleteEdge' : 'map_deleteNode'))}</button></div>`;
       box.innerHTML = html;
@@ -745,6 +752,7 @@
       on('#lmLabel', 'input', e => { item.label = e.target.value; touch(); drawCanvas(); });
       on('#lmNote', 'input', e => { item.note = e.target.value; touch(); });
       on('#lmSplit', 'click', () => { const g = edgeGeometry(map, item), cut = g && splitEdge(map, item.id, g.mid.x, g.mid.y); if (cut) { st.sel = { kind: 'node', id: cut.node.id }; touch(); render(); } });
+      on('#lmSplitT', 'click', () => { const g = edgeGeometry(map, item), cut = g && splitEdge(map, item.id, g.mid.x, g.mid.y, 'transition'); if (cut) { st.sel = { kind: 'node', id: cut.node.id }; touch(); render(); } });
       on('#lmEnemy', 'change', e => { setEnemy(map, item.id, e.target.checked); touch(); drawCanvas(); renderInspector(); });
       on('#lmSide', 'change', e => { item.side = e.target.checked; if (!item.side) item.anchor = null; touch(); drawCanvas(); renderInspector(); });
       on('#lmAnchor', 'change', e => { const [kind, ...rest] = e.target.value.split(':'); item.anchor = e.target.value ? { kind, id: rest.join(':') } : null; touch(); drawCanvas(); });
@@ -778,14 +786,16 @@
     // ---- Transition d'entrée (propre à l'élément, sinon celle de la carte)
     const optionsHtml = (list, current, key) => list.map(v => `<option value="${v}"${v === current ? ' selected' : ''}>${esc(tr(key + v))}</option>`).join('');
     function transitionHtml(map, item) {
+      const isT = item.type === 'transition';
+      if (isT && !cleanTransition(item.transition)) { const e0 = resolveTransition(map, item); item.transition = { style: e0.style, sec: e0.sec, sync: e0.sync }; } // un nœud « Transition » a toujours ses propres réglages
       const own = cleanTransition(item.transition), eff = resolveTransition(map, item), dis = ctx.canEdit ? '' : ' disabled';
       const stingerHtml = eff.stinger ? `<div class="lm-sound"><span>${eff.stinger.kind === 'sfx' ? '🔔' : '♪'}</span><span class="lm-t" title="${esc(eff.stinger.title)}">${esc(eff.stinger.title || eff.stinger.id)}</span>${ctx.canEdit ? `<button class="icon-btn" type="button" id="lmStingerRm" aria-label="${esc(tr('map_removeSound'))}">✕</button>` : ''}</div>` : `<p class="hint" style="margin:0">${esc(tr('map_stingerEmpty'))}</p>`;
-      return `<div class="lm-slot" id="lmTrans"><h4>${esc(tr('map_transition'))}</h4>
-        <label class="choice" style="display:flex;gap:6px;align-items:center;margin:0 0 6px"><input type="checkbox" id="lmTransOwn" ${own ? 'checked' : ''}${dis} style="width:auto"> ${esc(tr('map_transitionOwn'))}</label>
+      return `<div class="lm-slot" id="lmTrans"><h4>${esc(tr(isT ? 'map_transitionNodeTitle' : 'map_transition'))}</h4>
+        ${isT ? '' : `<label class="choice" style="display:flex;gap:6px;align-items:center;margin:0 0 6px"><input type="checkbox" id="lmTransOwn" ${own ? 'checked' : ''}${dis} style="width:auto"> ${esc(tr('map_transitionOwn'))}</label>`}
         ${own ? `<div class="lm-row"><select id="lmTrStyle"${dis}>${optionsHtml(TRANSITION_STYLES, eff.style, 'map_style_')}</select>
           <input type="number" id="lmTrSec" min="0" max="30" step="0.5" value="${eff.sec}"${dis} aria-label="${esc(tr('map_seconds'))}"> <span class="meta">${esc(tr('map_seconds'))}</span></div>
           <div class="lm-row" style="margin-top:6px"><select id="lmTrSync"${dis} aria-label="${esc(tr('map_sync'))}">${optionsHtml(SYNCS, eff.sync, 'map_sync_')}</select></div>
-          <div class="lm-slot" id="lmStinger" style="margin-top:8px"><h4>${esc(tr('map_stinger'))}</h4>${stingerHtml}</div>`
+          <div class="lm-slot" id="lmStinger" style="margin-top:8px"><h4>${esc(tr(isT ? 'map_transitionFile' : 'map_stinger'))}</h4>${stingerHtml}</div>`
         : `<p class="hint" style="margin:0">${esc(tr('map_transitionDefault', { style: tr('map_style_' + eff.style), sec: eff.sec, sync: tr('map_sync_' + eff.sync) }))}</p>`}</div>`;
     }
     function wireTransition(box, map, item) {
@@ -862,9 +872,10 @@
       if (!st.play || !map || !audio) { box.hidden = true; return; }
       box.hidden = false;
       const n = st.now || {}, can = n.position && hasAltMusic(map, n.position), here = n.position && itemOf(map, n.position), altLabel = (here && altNameOf(here)) || tr('map_altDefault');
-      box.innerHTML = (n.loading > 0 ? `<span class="lm-wait lm-loading">⏳ ${esc(tr('map_loading'))}</span>` : '') + (n.position
+      box.innerHTML = (n.loading > 0 || n.notReady ? `<span class="lm-wait lm-loading">⏳ ${esc(n.notReady && n.notReady !== true ? tr('map_loadingNamed', { title: n.notReady }) : tr('map_loading'))}</span>` : '') + (n.position
         ? `<span><b>${esc(tr('map_nowAt'))}</b> ${esc(labelOf(map, n.position))}</span><span>♪ ${esc((n.music && n.music.title) || tr('map_nowSilence'))}</span>${n.room ? `<span>🌫 ${esc(n.room.title || n.room.id)}</span>` : ''}
           ${n.pendingAt != null ? `<span class="lm-wait">${esc(tr('map_nowWaiting'))}</span>` : ''}
+          ${n.canRefreshPool ? `<span class="lm-layers"><button class="btn" type="button" id="lmPool" title="${esc(tr('map_poolHint'))}">🎲 ${esc(tr('map_pool'))}</button></span>` : ''}
           ${n.sequences ? `<span class="lm-layers" id="lmSeqs"><b>${esc(tr('map_sequences'))}</b>${n.sequences.labels.map((lab, i) => `<button class="btn${n.sequences.current === i ? ' primary' : ''}${n.sequences.pending === i ? ' pending' : ''}" type="button" data-seq="${i}" ${n.sequences.reachable.includes(i) ? '' : 'disabled'} title="${esc(tr(n.sequences.reachable.includes(i) ? 'map_seqGo' : 'map_seqNo'))}">${i < 9 ? (i + 1) + ' · ' : ''}${esc(lab)}</button>`).join('')}
             <span class="lm-wait">${esc(tr('map_seqHint'))}</span></span>` : ''}
           ${n.layers > 1 ? `<span class="lm-layers" id="lmLayers"><b>${esc(tr(n.layerKind === 'loops' ? 'map_loops' : 'map_layers'))}</b>
@@ -873,6 +884,7 @@
           <button class="btn${n.combat ? ' primary' : ''}" type="button" id="lmCombat" ${can ? '' : 'disabled'}>${esc(n.combat ? tr('map_altBack') : tr('map_altGo', { name: altLabel }))}</button>
           <button class="btn" type="button" id="lmStopPlay">${esc(tr(n.playing ? 'map_pause' : 'map_resume'))}</button>`
         : `<span>${esc(tr('map_playHint'))}</span>`);
+      const pool = box.querySelector('#lmPool'); if (pool) pool.onclick = () => { audio.refreshPool(); host.querySelector('#lmCanvas').focus(); };
       box.querySelectorAll('[data-seq]').forEach(b => { b.onclick = () => { audio.goToSequence(+b.dataset.seq); host.querySelector('#lmCanvas').focus(); }; });
       box.querySelectorAll('[data-layer]').forEach(b => { b.onclick = () => { audio.setIntensity(b.dataset.layer === 'auto' ? null : +b.dataset.layer); host.querySelector('#lmCanvas').focus(); }; });
       const c = box.querySelector('#lmCombat'); if (c) c.onclick = () => { audio.setCombat(!n.combat); host.querySelector('#lmCanvas').focus(); };
