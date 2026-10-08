@@ -62,19 +62,23 @@
   document.body.insertBefore(layer, document.body.firstChild);
 
   function getTheme() { return read(KEYS.theme) === 'dark' ? 'dark' : 'light'; }
+  // Réglage imposé par une page (apparence d'équipe d'un Projet, 8/10) : { bg, image, opacity, fixed }. Il remplace couleur et image
+  // locales tant qu'il est posé, sans toucher aux réglages enregistrés ; le thème Jour / Nuit reste celui de chacun. null = retiré.
+  let over = null;
   function apply() {
     const dark = getTheme() === 'dark';
     html.setAttribute('data-theme', dark ? 'dark' : 'light');
     // La couleur perso ne veut dire quelque chose qu'en Jour : en style inline elle l'emporterait sur le thème Nuit.
-    const bg = read(KEYS.bg);
+    const bg = over ? over.bg : read(KEYS.bg);
     if (!dark && bg) html.style.setProperty('--backstage-bg', bg); else html.style.removeProperty('--backstage-bg');
-    const img = read(KEYS.image);
+    const img = over ? over.image : read(KEYS.image);
     layer.style.backgroundImage = img ? `url(${img})` : 'none';
-    const op = parseInt(read(KEYS.opacity) || '8', 10);
+    const op = parseInt(over ? String(over.opacity == null ? 8 : over.opacity) : (read(KEYS.opacity) || '8'), 10);
     layer.style.opacity = String((isNaN(op) ? 8 : op) / 100);
-    layer.classList.toggle('scrolls-with-page', read(KEYS.fixed) === '0');
+    layer.classList.toggle('scrolls-with-page', over ? over.fixed === false : read(KEYS.fixed) === '0');
   }
   function changed() { apply(); document.dispatchEvent(new CustomEvent('lp-appearance-change')); }
+  function setOverride(o) { over = o && (o.bg || o.image) ? { bg: o.bg || null, image: o.image || null, opacity: o.opacity, fixed: o.fixed } : null; apply(); }
   function setTheme(t) { write(KEYS.theme, t === 'dark' ? 'dark' : 'light'); changed(); }
   apply();
 
@@ -113,6 +117,20 @@
     return 'appearanceImageNotSaved';
   }
 
+  // Réduit une image choisie par l'utilisateur jusqu'à ce que son adresse de données tienne dans maxChars (sans l'enregistrer).
+  // Renvoie { dataUrl } ou { error: clé du message }.
+  async function scaleImage(file, maxChars) {
+    let img;
+    try { img = await loadImage(file); } catch (e) { return { error: 'appearanceImageUnreadable' }; }
+    if (!img.naturalWidth || !img.naturalHeight) return { error: 'appearanceImageUnreadable' };
+    const mime = /jpe?g/i.test(file.type) ? 'image/jpeg' : 'image/webp';
+    for (const side of MAX_SIDES.concat([480])) {
+      const url = encodeScaled(img, side, mime);
+      if (url.length <= (maxChars || 450000)) return { dataUrl: url };
+    }
+    return { error: 'appearanceImageNotSaved' };
+  }
+
   function mountPanel(host) {
     if (!host) return;
     function draw(errKey) {
@@ -148,5 +166,5 @@
     document.addEventListener('lp-appearance-change', () => { if (host.isConnected) draw(); });
   }
 
-  window.LayerPitchAppearance = { mountPanel, getTheme, setTheme };
+  window.LayerPitchAppearance = { mountPanel, getTheme, setTheme, setOverride, scaleImage };
 })();

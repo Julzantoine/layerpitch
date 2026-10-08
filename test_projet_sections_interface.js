@@ -9,10 +9,12 @@ const { JSDOM } = require('jsdom');
   const html = fs.readFileSync(path.join(__dirname, 'projet.html'), 'utf8');
   const inline = html.match(/<script>\n(const shellTr[\s\S]*?)<\/script>/)[1];
 
-  async function boot(locked, channel, seed) {
+  async function boot(locked, channel, seed, opts) {
+    opts = opts || {};
     const dom = new JSDOM('<div id="content"></div><div id="presence"></div>', { url: 'https://beta.layerpitch.com/projet.html?id=p1&lang=fr' + (channel ? '&channel=' + channel : ''), runScripts: 'outside-only', pretendToBeVisual: true });
     const w = dom.window;
     w.eval(fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf8'));
+    w.eval(fs.readFileSync(path.join(__dirname, 'layerpitch-appearance.js'), 'utf8'));
     const db = { sections: [], links: [], pins: [], mood: [], msgs: [], chatState: [], assets: [
       { id: 'a1', kind: 'image', origin: 'own', title: 'Forêt', fileId: 'f1', fileName: 'foret.png', fileSize: 1000, notes: 0, pinned: false },
       { id: 'a2', kind: 'image', origin: 'own', title: 'Château', fileId: 'f2', fileName: 'chateau.png', fileSize: 2000, notes: 0, pinned: false },
@@ -23,8 +25,10 @@ const { JSDOM } = require('jsdom');
     const ok = data => Promise.resolve({ data, error: null });
     const P = {
       PRIVATE: '__me',
-      get: () => ok({ id: 'p1', title: 'Hollow Manor', description: '', role: 'admin', archived: false, members: [] }),
+      get: () => ok({ id: 'p1', title: 'Hollow Manor', description: '', role: opts.role || 'admin', archived: false, members: [] }),
       content: () => ok({ assets: db.assets.map(a => Object.assign({}, a)), moodboard: db.mood.slice(), packs: [], albums: [] }),
+      appearance: () => opts.appearance === 'locked' ? Promise.resolve({ data: null, error: "L'apparence des Projets n'est pas encore ouverte" }) : ok(opts.appearance || {}),
+      setAppearance: (id, p) => { calls.push(['setApp', p]); return ok(null); },
       preview: () => ok({}), snapshots: () => ok([]), activity: () => ok([]), vitrines: () => ok([]),
       demoStatus: () => ok({ eligible: false }), markRead: () => ok(null), markSeen: () => ok(null), messages: () => ok([]), annotations: () => ok([]),
       fileUrl: () => ok('https://example.test/x.png'),
@@ -337,6 +341,26 @@ const { JSDOM } = require('jsdom');
   check('décocher retire le lien de cette section seulement', k.calls.some(x => x[0] === 'map' && x[1] === 'A' && x[2] === null) && !k.calls.some(x => x[0] === 'map' && x[1] === 'C' && x[2] === null));
   k.calls.length = 0; k.w.eval("openMapSectionsDialog({ isNew: true, title: 'x' })"); await wait(50);
   check('carte pas encore enregistrée : pas de boîte, on demande d\'enregistrer', !k.d.querySelector('.sec-dialog'));
+
+  // ---- Apparence du Projet
+  const ap0 = await boot(true, null, null, { appearance: 'locked' });
+  check('apparence fermée : pas de bouton', !ap0.d.getElementById('appearanceBtn'));
+  const ap1 = await boot(false, null, null, { role: 'admin', appearance: {} });
+  check('apparence ouverte : bouton « Apparence » dans la barre du Projet', !!ap1.d.getElementById('appearanceBtn'));
+  click(ap1.w, ap1.d.getElementById('appearanceBtn')); await wait(50);
+  check('administrateur : réglage d\'équipe proposé, aucun choix « équipe / moi » tant que rien n\'est réglé', !!ap1.d.getElementById('appBgOn') && !ap1.d.querySelector('[name="appWho"]'));
+  const bgIn = ap1.d.getElementById('appBg'); bgIn.value = '#336699'; bgIn.dispatchEvent(new ap1.w.Event('input', { bubbles: true }));
+  check('aperçu en direct de la couleur', ap1.d.documentElement.style.getPropertyValue('--backstage-bg') === '#336699' && ap1.d.getElementById('appBgOn').checked);
+  click(ap1.w, ap1.d.querySelector('.sec-dialog [data-x="save"]')); await wait(150);
+  check('enregistrement du réglage d\'équipe', ap1.calls.some(x => x[0] === 'setApp' && x[1].bg === '#336699'));
+  const ap2 = await boot(false, null, null, { role: 'member', appearance: { bg: '#112233', image: null, opacity: 8, fixed: true } });
+  check('membre : l\'apparence d\'équipe est appliquée d\'office', ap2.d.documentElement.style.getPropertyValue('--backstage-bg') === '#112233');
+  click(ap2.w, ap2.d.getElementById('appearanceBtn')); await wait(50);
+  check('membre : pas de réglage d\'équipe, mais le choix équipe / ma propre apparence', !ap2.d.getElementById('appBgOn') && ap2.d.querySelectorAll('[name="appWho"]').length === 2);
+  ap2.d.querySelector('[name="appWho"][value="mine"]').checked = true; ap2.d.querySelector('[name="appWho"][value="mine"]').dispatchEvent(new ap2.w.Event('change', { bubbles: true }));
+  click(ap2.w, ap2.d.querySelector('.sec-dialog [data-x="save"]')); await wait(150);
+  check('« ma propre apparence » : l\'apparence d\'équipe n\'est plus appliquée, et le choix est mémorisé', ap2.d.documentElement.style.getPropertyValue('--backstage-bg') === '' && ap2.w.localStorage.getItem('layerpitch_project_appearance_mine_p1') === '1');
+  check('un membre n\'écrit jamais l\'apparence d\'équipe', !ap2.calls.some(x => x[0] === 'setApp'));
 
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon');
   process.exit(failures ? 1 : 0);

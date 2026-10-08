@@ -52,6 +52,9 @@
     sectionChatState: id => rpc('section_chat_state', { p_project_id: id }),
     setSectionMap: (sectionId, mapId) => rpc('set_section_map', { p_section_id: sectionId, p_map_id: mapId || null }),
     removeAssetsFromSection: (sectionId, assetIds) => rpc('remove_assets_from_section', { p_section_id: sectionId, p_asset_ids: assetIds }),
+    // Apparence d'équipe d'un Projet (migration 20261008010000) : { bg, image, opacity, fixed } ; {} = rien de réglé. Réglage : administrateur du Projet.
+    appearance: id => rpc('get_project_appearance', { p_project_id: id }),
+    setAppearance: (id, p) => rpc('set_project_appearance', { p_project_id: id, p: p || {} }),
     create: (title, description, asStudio) => rpc('create_project', { p_title: title, p_description: description || '', p_as_studio: !!asStudio }),
     get: id => rpc('get_project', { p_project_id: id }),
     content: id => rpc('get_project_content', { p_project_id: id }),

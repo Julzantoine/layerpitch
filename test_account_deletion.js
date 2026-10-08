@@ -26,7 +26,7 @@
     pack_purchases.studio_id playlists.buyer_id project_activity.actor_id project_albums.linked_by project_annotations.resolved_by project_annotations.addressee_id
     project_annotations.author_id project_assets.created_by project_files.uploaded_by project_members.profile_id project_members.invited_by project_messages.author_id
     project_moodboard_pins.pinned_by project_notifications.profile_id project_reads.profile_id project_shared_packs.shared_by project_snapshots.created_by
-    project_vitrines.created_by project_maps.created_by project_sections.created_by project_section_assets.added_by project_section_pins.pinned_by project_section_messages.author_id project_section_follows.profile_id projects.owner_profile_id projects.created_by studio_credit_ledger.actor_id studio_members.profile_id studio_profiles.profile_id
+    project_vitrines.created_by project_maps.created_by project_sections.created_by project_section_assets.added_by project_section_pins.pinned_by project_section_messages.author_id project_section_follows.profile_id project_appearance.updated_by projects.owner_profile_id projects.created_by studio_credit_ledger.actor_id studio_members.profile_id studio_profiles.profile_id
     profiles.id
     ad_reel_folders.owner_id ad_reels.owner_id admin_message_reads.composer_id analytics_events.owner_id collections.owner_id composer_handle_aliases.composer_id
     composer_videos.owner_id contact_messages.owner_id credit_payouts.composer_id invoices.composer_id packs.owner_id settings.owner_id sfx_folders.owner_id

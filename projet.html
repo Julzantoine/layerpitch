@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791463215020">
+<link rel="stylesheet" href="player.css?v=1791463761997">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -182,22 +182,22 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791463215020"></script>
-<script src="layerpitch-notify.js?v=1791463215020"></script>
-<script src="player.js?v=1791463215020"></script>
-<script src="api/supabase-client.js?v=1791463215020"></script>
-<script src="api/auth.js?v=1791463215020"></script>
-<script src="layerpitch-appearance.js?v=1791463215020"></script>
-<script src="layerpitch-shell.js?v=1791463215020"></script>
-<script src="api/tracks.js?v=1791463215020"></script>
-<script src="api/packs.js?v=1791463215020"></script>
-<script src="api/albums.js?v=1791463215020"></script>
-<script src="api/studio.js?v=1791463215020"></script>
-<script src="api/adreels.js?v=1791463215020"></script>
-<script src="api/projects.js?v=1791463215020"></script>
-<script src="api/sfx.js?v=1791463215020"></script>
-<script src="projet-carte-audio.js?v=1791463215020"></script>
-<script src="projet-carte.js?v=1791463215020"></script>
+<script src="layerpitch-i18n.js?v=1791463761997"></script>
+<script src="layerpitch-notify.js?v=1791463761997"></script>
+<script src="player.js?v=1791463761997"></script>
+<script src="api/supabase-client.js?v=1791463761997"></script>
+<script src="api/auth.js?v=1791463761997"></script>
+<script src="layerpitch-appearance.js?v=1791463761997"></script>
+<script src="layerpitch-shell.js?v=1791463761997"></script>
+<script src="api/tracks.js?v=1791463761997"></script>
+<script src="api/packs.js?v=1791463761997"></script>
+<script src="api/albums.js?v=1791463761997"></script>
+<script src="api/studio.js?v=1791463761997"></script>
+<script src="api/adreels.js?v=1791463761997"></script>
+<script src="api/projects.js?v=1791463761997"></script>
+<script src="api/sfx.js?v=1791463761997"></script>
+<script src="projet-carte-audio.js?v=1791463761997"></script>
+<script src="projet-carte.js?v=1791463761997"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -252,6 +252,7 @@ const S = { tab: 'board', project: null, content: null, messages: [], query: '',
 // S.sections = { sections: [{ id, parentId, title, position }], links: [{ sectionId, assetId }] }, ou null tant que le feu vert
 // 'project_sections' est fermé (ou en démonstration) : alors rien n'apparaît. S.sel = 'all' | 'none' | identifiant de section.
 const SECTION_TABS = ['board', 'images', 'videos', 'music']; // sur « Moodboard », la section choisie = son propre Moodboard
+S.appearance = null; // apparence d'équipe : null = pas ouverte, {} = rien de réglé
 S.secPins = []; S.selMode = false; S.selected = new Set(); S.chan = null; S.chanState = []; S.secMsgs = []; S.secMore = false; // S.chan = canal du tchat : null = général, sinon une section
 S.sections = null; S.sel = 'all'; S.secEdit = null; S.secLocked = false;
 async function loadSections() {
@@ -528,6 +529,70 @@ function openMapSectionsDialog(m) {
     close(); S.openMapId = m.id; await sectionsChanged();
   };
 }
+// ---- Apparence du Projet (8/10) : couleur et image de fond d'équipe, au choix de chacun ----
+// L'administrateur du Projet règle ; chacun voit l'apparence d'équipe, ou garde la sienne (choix local, par Projet). Le thème Jour / Nuit
+// reste personnel. Le moteur est celui des réglages d'interface (layerpitch-appearance.js, setOverride).
+const MINE_KEY = () => 'layerpitch_project_appearance_mine_' + projectId;
+const useMine = () => { try { return localStorage.getItem(MINE_KEY()) === '1'; } catch (e) { return false; } };
+function applyProjectAppearance(draft) {
+  const A = window.LayerPitchAppearance; if (!A || !A.setOverride) return;
+  const a = draft || (S.appearance && !useMine() ? S.appearance : null);
+  A.setOverride(a && (a.bg || a.image) ? a : null);
+}
+function openAppearanceDialog() {
+  if (S.appearance == null) return;
+  const admin = S.project.role === 'admin', A = window.LayerPitchAppearance, has = !!(S.appearance.bg || S.appearance.image);
+  const d = { bg: S.appearance.bg || null, image: S.appearance.image || null, opacity: S.appearance.opacity == null ? 8 : S.appearance.opacity, fixed: S.appearance.fixed !== false };
+  let err = '', mine = useMine();
+  const { box, close } = openOverlay('');
+  const done = () => { applyProjectAppearance(); close(); };
+  const draw = () => {
+    box.innerHTML = `<h2>${esc(tr('appTitle'))}</h2><p class="hint">${esc(tr('appIntro'))}</p>
+      ${has ? `<label class="sec-pick"><input type="radio" name="appWho" value="team" ${mine ? '' : 'checked'}> ${esc(tr('appUseTeam'))}</label>
+        <label class="sec-pick"><input type="radio" name="appWho" value="mine" ${mine ? 'checked' : ''}> ${esc(tr('appUseMine'))}</label>` : `<div class="meta">${esc(tr(admin ? 'appNoneAdmin' : 'appNone'))}</div>`}
+      ${admin ? `<div class="sec-sep"></div><strong>${esc(tr('appTeamSetting'))}</strong>
+        <label class="sec-pick"><input type="checkbox" id="appBgOn" ${d.bg ? 'checked' : ''}> ${esc(tr('appBgColor'))} <input type="color" id="appBg" value="${esc(d.bg || '#f5f6f8')}" style="width:48px;height:26px;padding:0"></label>
+        <div class="meta">${esc(tr('appBgHint'))}</div>
+        <div class="bar" style="margin-top:8px"><button class="btn" type="button" id="appPick">${esc(tr('appImagePick'))}</button>${d.image ? `<button class="btn" type="button" id="appClear">${esc(tr('appImageClear'))}</button>` : ''}<input type="file" id="appFile" accept="image/jpeg,image/png,image/webp" hidden></div>
+        ${d.image ? `<label style="margin-top:8px">${esc(tr('appOpacity'))}</label><input type="range" id="appOp" min="0" max="100" step="1" value="${esc(d.opacity)}">
+          <label class="sec-pick"><input type="checkbox" id="appFixed" ${d.fixed ? 'checked' : ''}> ${esc(tr('appFixed'))}</label>` : ''}
+        ${err ? `<div class="msg err">${esc(err)}</div>` : ''}` : ''}
+      <div class="bar" style="margin-top:12px;justify-content:flex-end">${admin && has ? `<button class="btn danger" type="button" data-x="clear">${esc(tr('appRemove'))}</button>` : ''}<button class="btn" type="button" data-x="cancel">${esc(tr('secCancel'))}</button><button class="btn primary" type="button" data-x="save">${esc(tr('save'))}</button></div>`;
+    box.querySelectorAll('[name="appWho"]').forEach(r => r.onchange = () => { mine = r.value === 'mine'; });
+    if (admin) {
+      const live = () => applyProjectAppearance(d.bg || d.image ? d : null); // aperçu pendant le réglage
+      $('appBgOn').onchange = () => { d.bg = $('appBgOn').checked ? $('appBg').value : null; live(); };
+      $('appBg').oninput = () => { $('appBgOn').checked = true; d.bg = $('appBg').value; live(); };
+      $('appPick').onclick = () => $('appFile').click();
+      $('appFile').onchange = async e => {
+        const f = e.target.files[0]; if (!f) return;
+        const r = await A.scaleImage(f, 450000);
+        if (r.error) { err = tr(r.error === 'appearanceImageUnreadable' ? 'appErrImage' : 'appErrTooBig'); return draw(); }
+        d.image = r.dataUrl; err = ''; live(); draw();
+      };
+      if ($('appClear')) $('appClear').onclick = () => { d.image = null; applyProjectAppearance(d.bg ? d : null); draw(); };
+      if ($('appOp')) $('appOp').oninput = () => { d.opacity = Number($('appOp').value); live(); };
+      if ($('appFixed')) $('appFixed').onchange = () => { d.fixed = $('appFixed').checked; live(); };
+      const rm = box.querySelector('[data-x="clear"]');
+      if (rm) rm.onclick = async () => {
+        if (!(await window.LayerPitchNotify.confirm(tr('appRemoveConfirm'), { okLabel: tr('appRemove'), danger: true }))) return;
+        if (secError(await PJ.setAppearance(projectId, {}))) return;
+        S.appearance = {}; broadcast('appearance'); done(); render();
+      };
+    }
+    box.querySelector('[data-x="cancel"]').onclick = () => { applyProjectAppearance(); close(); };
+    box.querySelector('[data-x="save"]').onclick = async () => {
+      try { localStorage.setItem(MINE_KEY(), mine ? '1' : '0'); } catch (e) {}
+      if (admin) {
+        const next = { bg: d.bg, image: d.image, opacity: d.opacity, fixed: d.fixed };
+        const changed = JSON.stringify(next) !== JSON.stringify({ bg: S.appearance.bg || null, image: S.appearance.image || null, opacity: S.appearance.opacity == null ? 8 : S.appearance.opacity, fixed: S.appearance.fixed !== false });
+        if (changed) { if (secError(await PJ.setAppearance(projectId, next.bg || next.image ? next : {}))) return; S.appearance = next.bg || next.image ? next : {}; broadcast('appearance'); }
+      }
+      done(); render();
+    };
+  };
+  draw();
+}
 // Relier une section à une carte de niveau (un simple lien : la section propose d'ouvrir cette carte).
 async function openMapLinkDialog(id) {
   const x = secById(id); if (!x) return;
@@ -648,6 +713,7 @@ async function load() {
   S.content = c.data || { assets: [], moodboard: [], packs: [], albums: [] };
   S.myComposerId = composer.composerId || null;
   await loadSections();
+  const ap = await PJ.appearance(projectId); S.appearance = ap.error ? null : (ap.data || {}); applyProjectAppearance(); // null = pas ouvert
   S.demoStatus = (await PJ.demoStatus()).data || { eligible: false }; // interrupteur « Démo publique » (admins et compte de démo)
   PJ.markRead(projectId);
   markProjectSeen();
@@ -673,6 +739,7 @@ function joinChannel() {
         renderChat();
       }
       else if (payload.what === 'content') { await reloadContent(); if (S.video) S.video = assetById(S.video.id) || null; if (['board', 'videos', 'images', 'music', 'showcase'].includes(S.tab) && !(S.tab === 'showcase' && S.vitrineDraft)) renderPanel(); /* jamais pendant l'édition d'une vitrine */ }
+      else if (payload.what === 'appearance') { const ap = await PJ.appearance(projectId); if (!ap.error) { S.appearance = ap.data || {}; applyProjectAppearance(); } }
       else if (payload.what === 'secmessages') {
         await loadSections();
         if (S.chan && S.chan === payload.sectionId) { await loadSecMessages(); if (chatVisible()) await PJ.markSectionRead(S.chan); await loadSections(); }
@@ -713,6 +780,7 @@ function render() {
     <div class="top"><h1 id="pTitle">${esc(p.title)}</h1>
       <div class="bar">${S.content.openAnnotations ? `<button class="btn" id="openNotesBtn" type="button" title="${esc(tr('openNotesHint'))}">💬 ${esc(tr('openNotes', { n: S.content.openAnnotations }))}</button>` : ''}${p.archived ? `<span class="pill">${esc(tr('archived'))}</span>` : ''}
         ${DEMO || !(S.demoStatus && S.demoStatus.eligible) ? '' : `<label class="demo-switch" title="${esc(tr('demoSwitchHint'))}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:6px"><input type="checkbox" id="demoSwitch" ${S.demoStatus.projectId === p.id ? 'checked' : ''} style="width:auto;margin:0"> ${esc(tr('demoSwitchLabel'))}</label>${S.demoStatus.projectId ? `<a class="btn" href="./projet.html?demo&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('demoViewLink'))}</a>` : ''}`}
+        ${DEMO || S.appearance == null ? '' : `<button class="btn" id="appearanceBtn" type="button" title="${esc(tr('appTitle'))}">🎨 ${esc(tr('appBtn'))}</button>`}
         ${DEMO ? '' : `<button class="btn" id="editBtn" type="button">${esc(tr('editProject'))}</button>`}
         ${p.role === 'admin' ? `<button class="btn" id="archiveBtn" type="button">${esc(tr(p.archived ? 'restoreProject' : 'archiveProject'))}</button>
         <button class="btn danger" id="deleteBtn" type="button">${esc(tr('deleteProject'))}</button>` : ''}</div></div>
@@ -722,6 +790,7 @@ function render() {
     <div class="workspace" id="ws"><div id="panel" style="min-width:0"></div><aside class="chat" id="chat" aria-label="${esc(tr('tab_thread'))}"></aside></div>`;
   content.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; stopMedia(); render(); });
   if ($('editBtn')) $('editBtn').onclick = editProject;
+  if ($('appearanceBtn')) $('appearanceBtn').onclick = openAppearanceDialog;
   if ($('demoSwitch')) $('demoSwitch').onchange = async e => {
     const on = e.target.checked;
     // Un seul Projet est la démo à la fois : en poser une nouvelle remplace l'ancienne, on demande confirmation.
