@@ -729,7 +729,7 @@
       // Une seule musique ; une 2e facultative (avec son nom et un son de transition entre les deux) ; le fond d'ambiance de l'endroit.
       const listOf = slot => (slot === 'altTransition' ? (item.altTransition ? [item.altTransition] : []) : ((item.sounds && item.sounds[slot]) || []));
       const slotBox = (slot, title, emptyKey) => `<div class="lm-slot" data-slot="${slot}"><h4>${esc(title)}</h4>${listOf(slot).map((r, i) =>
-        `<div class="lm-sound"><span>${r.kind === 'sfx' ? '🔔' : '♪'}</span><span class="lm-t" title="${esc(r.title)}">${esc(r.title || r.id)}</span>${ctx.canEdit ? `<button class="icon-btn" type="button" data-rm="${slot}:${i}" aria-label="${esc(tr('map_removeSound'))}">✕</button>` : ''}</div>`).join('') || `<p class="hint" style="margin:0">${esc(tr(emptyKey))}</p>`}</div>`;
+        `<div class="lm-sound"><span>${r.kind === 'sfx' ? '🔔' : '♪'}</span><span class="lm-t" title="${esc(r.title)}">${esc(r.title || r.id)}</span>${ctx.canEdit ? `<button class="icon-btn" type="button" data-rm="${slot}:${i}" aria-label="${esc(tr('map_removeSound'))}">✕</button>` : ''}</div>`).join('') || `<p class="hint" style="margin:0">${esc(tr(emptyKey))}</p>`}${slot !== 'altTransition' && slot !== 'room' && listOf(slot).length > 1 ? `<p class="hint" style="margin:4px 0 0">🎲 ${esc(tr('map_randomHint'))}</p>` : ''}</div>`;
       const altKey = st.sel.kind + ':' + item.id, hasAlt = hasAltMusic(map, target) || !!item.altName || !!item.altTransition || st.altOpen === altKey;
       html += slotBox('main', tr('map_slot_main'), 'map_slotEmpty');
       if (hasAlt) {

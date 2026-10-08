@@ -92,12 +92,19 @@ const { JSDOM } = require('jsdom');
   check('son glissé sur un boss : posé en ambiance', boss2.sounds.main.length === 1 && boss2.sounds.main[0].id === 't1');
   check('inspecteur du boss : une seule musique et le fond propre, « ＋ 2e musique » proposé', host.querySelectorAll('#lmInsp [data-slot]').length === 2 && !host.querySelector('#lmInsp [data-slot="combat"]') && !!host.querySelector('#lmAltAdd'));
   host.querySelector('#lmAltAdd').click();
+  check('un seul morceau dans l\'emplacement : pas de mention du tirage au hasard', !/map_randomHint/.test(host.querySelector('#lmInsp').textContent));
   check('« ＋ 2e musique » : le 2e emplacement, son nom et la transition apparaissent', !!host.querySelector('#lmInsp [data-slot="combat"]') && !!host.querySelector('#lmAltName') && !!host.querySelector('#lmInsp [data-slot="altTransition"]') && !host.querySelector('#lmAltAdd'));
   const slotCombat = host.querySelector('#lmInsp [data-slot="combat"]');
   const item2 = host.querySelectorAll('#lmLib [data-ref]')[1];
   const dt2 = { data: {}, types: ['application/x-lp-sound'], setData(t, v) { this.data[t] = v; }, getData(t) { return this.data[t]; } };
   const ds2 = new w.Event('dragstart', { bubbles: true }); ds2.dataTransfer = dt2; item2.dispatchEvent(ds2);
   const drop2 = new w.Event('drop', { bubbles: true, cancelable: true }); drop2.dataTransfer = dt2; slotCombat.dispatchEvent(drop2);
+  { // deux morceaux dans « Musique » : la mention du tirage au hasard apparaît
+    const hostR = w.document.createElement('div'); w.document.body.appendChild(hostR);
+    const vR = w.LayerPitchLevelMap.mount(hostR, { tr, canEdit: true, libraries: { track: [], sfx: [], asset: [] }, maps: [{ id: 'mr', title: 'R', data: { nodes: [{ id: 'a', type: 'start', label: 'D', x: 0, y: 0, sounds: { main: [{ kind: 'track', id: 'u', title: 'U' }, { kind: 'track', id: 'v', title: 'V' }] } }], edges: [] } }], save: async m => ({ id: m.id }), remove: async () => ({}) });
+    hostR.querySelector('[data-node="a"]').dispatchEvent(new w.Event('pointerdown', { bubbles: true }));
+    check('deux morceaux dans « Musique » : la mention du tirage au hasard est affichée', /map_randomHint/.test(hostR.querySelector('#lmInsp').textContent));
+  }
   check('son glissé sur l\'emplacement combat de l\'inspecteur', boss2.sounds.combat.length === 1 && boss2.sounds.combat[0].id === 't2');
 
   // Parcours : sélection puis case ennemi
