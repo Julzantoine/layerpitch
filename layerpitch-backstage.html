@@ -1689,6 +1689,19 @@
     <div id="accessRequestsList" class="hint" style="margin-top:8px;max-height:420px;overflow-y:auto;">Chargement…</div>
   </fieldset>
 
+  <fieldset id="panelFeatureFlags" hidden>
+    <legend>Feux verts (admin)</legend>
+    <div class="hint">
+      Une fonction « admin seulement » n'est visible que par les admins. « Ouvrir à tous » la rend visible à tous les
+      comptes immédiatement ; « Refermer » la réserve de nouveau aux admins. Chaque changement demande confirmation.
+    </div>
+    <div class="row" style="margin-top:8px;align-items:center;">
+      <div><input type="text" id="featureFlagsSearch" placeholder="Rechercher un feu vert…"></div>
+      <div class="hint" id="featureFlagsCount" style="margin:0;"></div>
+    </div>
+    <div id="featureFlagsList" class="hint" style="margin-top:8px;max-height:420px;overflow-y:auto;">Chargement…</div>
+  </fieldset>
+
   <fieldset id="panelInviteTester" hidden>
     <legend>Inviter un testeur (admin)</legend>
     <div class="hint">
@@ -1877,15 +1890,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791491328137"></script>
-<script src="layerpitch-appearance.js?v=1791491328137"></script>
-<script src="layerpitch-album-shared.js?v=1791491328137"></script>
-<script src="layerpitch-album-editor.js?v=1791491328137"></script>
-<script src="layerpitch-shell.js?v=1791491328137"></script>
-<script src="layerpitch-social-icons.js?v=1791491328137"></script>
-<script src="layerpitch-notify.js?v=1791491328137"></script>
-<script src="layerpitch-help.js?v=1791491328137"></script>
-<script src="player.js?v=1791491328137"></script>
+<script src="layerpitch-i18n.js?v=1791491575546"></script>
+<script src="layerpitch-appearance.js?v=1791491575546"></script>
+<script src="layerpitch-album-shared.js?v=1791491575546"></script>
+<script src="layerpitch-album-editor.js?v=1791491575546"></script>
+<script src="layerpitch-shell.js?v=1791491575546"></script>
+<script src="layerpitch-social-icons.js?v=1791491575546"></script>
+<script src="layerpitch-notify.js?v=1791491575546"></script>
+<script src="layerpitch-help.js?v=1791491575546"></script>
+<script src="player.js?v=1791491575546"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2208,7 +2221,7 @@ async function setAdminPreviewTier(tier) {
 // tout, docs/infrastructure.md). Confort d'affichage uniquement, comme dans admin.html : la vraie
 // barrière reste is_admin() côté serveur (RPC SECURITY DEFINER, RLS) sur chaque action, jamais
 // cette vérification client seule.
-const ADMIN_ONLY_PANEL_IDS = ['panelAdminTools', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelInvitesSent', 'panelAdminLink', 'adminPreviewMenuWrap', 'appAdminTierOverrideWrap'];
+const ADMIN_ONLY_PANEL_IDS = ['panelAdminTools', 'panelPgWrite', 'panelAccessRequests', 'panelFeatureFlags', 'panelInviteTester', 'panelInvitesSent', 'panelAdminLink', 'adminPreviewMenuWrap', 'appAdminTierOverrideWrap'];
 // La bibliothèque vidéo / capture (navItemVideoLibrary, panelVideoLibrary) avait été ouverte à tout
 // compositeur connecté le 16 septembre (voir
 // supabase/migrations/20260916040000_open_capture_video_to_composers.sql, toujours en place côté
@@ -2308,7 +2321,7 @@ async function renderAdminOnlyPanels(session) {
   if (socialsBlockBtn) socialsBlockBtn.hidden = !flagOpen('adreel_socials');
   const albumsNavBtn = document.getElementById('navItemAlbums');
   if (albumsNavBtn) albumsNavBtn.hidden = !can('sell_albums');
-  if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); }
+  if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); if (typeof loadFeatureFlagsPanel === 'function') loadFeatureFlagsPanel(); }
   if (typeof syncBackstageTour === 'function') syncBackstageTour(); // visite guidée (feu vert in_app_tour)
   // Le statut admin peut se résoudre après un premier rendu de la Bibliothèque (session déjà en cache
   // vs RPC is_admin() encore en vol) -- redessine pour refléter le grisage pitch correctement, sans quoi
@@ -14550,6 +14563,62 @@ function syncBackstageTour() {
     if (dd) dd.hidden = true;
     startBackstageTour();
   });
+})();
+/* ---------------- Panneau « Feux verts » (admin, 08/10) ---------------- */
+// Remplace la commande collée dans la console : liste les feux verts (table feature_flags, lisible par tous) et
+// ouvre / ferme chacun via la fonction set_feature_released, qui vérifie côté base que l'appelant est admin.
+// Ouvrir un feu vert l'ouvre à TOUS les comptes : confirmation avant chaque changement.
+let featureFlagRows = [];
+function featureFlagKeyLabel(k) { return '<code>' + escapeHtml(k) + '</code>'; }
+
+async function loadFeatureFlagsPanel() {
+  const listEl = document.getElementById('featureFlagsList');
+  if (!listEl) return;
+  const { data, error } = await window.LayerPitchSupabaseClient.getClient()
+    .from('feature_flags').select('key, released, released_at, description').order('key');
+  if (error) { listEl.textContent = 'Erreur : ' + error.message; return; }
+  featureFlagRows = data || [];
+  renderFeatureFlagsPanel();
+}
+function renderFeatureFlagsPanel() {
+  const listEl = document.getElementById('featureFlagsList');
+  const countEl = document.getElementById('featureFlagsCount');
+  if (!listEl) return;
+  const filter = ((document.getElementById('featureFlagsSearch') || {}).value || '').trim().toLowerCase();
+  const rows = featureFlagRows
+    .filter(r => !filter || r.key.toLowerCase().includes(filter) || (r.description || '').toLowerCase().includes(filter))
+    .sort((a, b) => (a.released === b.released ? a.key.localeCompare(b.key) : (a.released ? 1 : -1))); // fermés d'abord
+  const closed = featureFlagRows.filter(r => !r.released).length;
+  if (countEl) countEl.textContent = closed + ' fermé' + (closed > 1 ? 's' : '') + ' (admin seulement) sur ' + featureFlagRows.length;
+  if (!rows.length) { listEl.textContent = 'Aucun feu vert ne correspond.'; return; }
+  listEl.innerHTML = rows.map(r => `
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid #e2e2e6;">
+      <div style="flex:1;min-width:0;">
+        <div>${featureFlagKeyLabel(r.key)} <span style="font-size:11px;color:${r.released ? '#2a7' : '#b8862e'};">${r.released ? 'ouvert à tous' : 'admin seulement'}</span></div>
+        <div style="font-size:12px;color:var(--text-dimmer);margin-top:2px;">${escapeHtml(r.description || '')}</div>
+      </div>
+      <button class="btn btn-small ${r.released ? '' : 'btn-primary'}" type="button" data-flag-key="${escapeAttr(r.key)}" data-flag-open="${r.released ? '0' : '1'}">${r.released ? 'Refermer' : 'Ouvrir à tous'}</button>
+    </div>`).join('');
+}
+async function toggleFeatureFlag(key, open) {
+  const msg = open
+    ? 'Ouvrir « ' + key + ' » à TOUS les comptes ? Les compositeurs et studios le verront tout de suite.'
+    : 'Refermer « ' + key + ' » ? Seuls les admins le verront de nouveau.';
+  if (!(await window.LayerPitchNotify.confirm(msg, { danger: !open }))) return;
+  const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_feature_released', { p_key: key, p_released: open });
+  if (error) { window.LayerPitchNotify.error('Erreur : ' + error.message); return; }
+  window.LayerPitchNotify.success(open ? '« ' + key + ' » est ouvert à tous.' : '« ' + key + ' » est refermé.');
+  await loadFeatureFlagsPanel();
+}
+(function wireFeatureFlagsPanel() {
+  const listEl = document.getElementById('featureFlagsList');
+  if (!listEl) return;
+  listEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-flag-key]');
+    if (btn) toggleFeatureFlag(btn.dataset.flagKey, btn.dataset.flagOpen === '1');
+  });
+  const search = document.getElementById('featureFlagsSearch');
+  if (search) search.addEventListener('input', renderFeatureFlagsPanel);
 })();
 </script>
 <script type="text/javascript">

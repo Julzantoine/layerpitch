@@ -101,7 +101,7 @@ async function setAdminPreviewTier(tier) {
 // tout, docs/infrastructure.md). Confort d'affichage uniquement, comme dans admin.html : la vraie
 // barrière reste is_admin() côté serveur (RPC SECURITY DEFINER, RLS) sur chaque action, jamais
 // cette vérification client seule.
-const ADMIN_ONLY_PANEL_IDS = ['panelAdminTools', 'panelPgWrite', 'panelAccessRequests', 'panelInviteTester', 'panelInvitesSent', 'panelAdminLink', 'adminPreviewMenuWrap', 'appAdminTierOverrideWrap'];
+const ADMIN_ONLY_PANEL_IDS = ['panelAdminTools', 'panelPgWrite', 'panelAccessRequests', 'panelFeatureFlags', 'panelInviteTester', 'panelInvitesSent', 'panelAdminLink', 'adminPreviewMenuWrap', 'appAdminTierOverrideWrap'];
 // La bibliothèque vidéo / capture (navItemVideoLibrary, panelVideoLibrary) avait été ouverte à tout
 // compositeur connecté le 16 septembre (voir
 // supabase/migrations/20260916040000_open_capture_video_to_composers.sql, toujours en place côté
@@ -201,7 +201,7 @@ async function renderAdminOnlyPanels(session) {
   if (socialsBlockBtn) socialsBlockBtn.hidden = !flagOpen('adreel_socials');
   const albumsNavBtn = document.getElementById('navItemAlbums');
   if (albumsNavBtn) albumsNavBtn.hidden = !can('sell_albums');
-  if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); }
+  if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); if (typeof loadFeatureFlagsPanel === 'function') loadFeatureFlagsPanel(); }
   if (typeof syncBackstageTour === 'function') syncBackstageTour(); // visite guidée (feu vert in_app_tour)
   // Le statut admin peut se résoudre après un premier rendu de la Bibliothèque (session déjà en cache
   // vs RPC is_admin() encore en vol) -- redessine pour refléter le grisage pitch correctement, sans quoi
