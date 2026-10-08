@@ -23,4 +23,27 @@ check('bandeau : défile si trop haut (max-height + overflow)', /\.lp-toast-msg 
 check('bandeau : garde sa croix de fermeture', /close\.className = 'lp-toast-close'/.test(read('layerpitch-notify.js')));
 check('cloche commune : clic sur un message = ouvrir/fermer (hors lien)', /div\.lp-bell-item/.test(shell) && /classList\.toggle\('expanded'\)/.test(shell));
 check('cloche du Backstage : clic sur un message = ouvrir/fermer', /const onItem = /.test(read('src/backstage/14-connexion-abonnement-admin.js')));
-process.exit(failures ? 1 : 0);
+
+// Carte « nouvelle notification » sous la cloche : vrai module dans un navigateur simulé.
+(async () => {
+  const { JSDOM } = require('jsdom');
+  const dom = new JSDOM('<!doctype html><html lang="fr"><body><button id="btnInboxBell" style="position:absolute;right:20px;top:10px">cloche</button></body></html>', { runScripts: 'outside-only', pretendToBeVisual: true });
+  const w = dom.window;
+  w.eval(read('layerpitch-notify.js'));
+  let opened = 0;
+  w.LayerPitchNotify.inbox({ title: 'LayerPitch 101', text: 'Bonjour à toutes et à tous', anchor: '#btnInboxBell, #lpBell', onClick: () => opened++ });
+  const card = () => w.document.querySelector('.lp-inbox-card');
+  check('carte : affichée avec titre et début du texte', !!card() && card().textContent.includes('LayerPitch 101') && card().textContent.includes('Bonjour à toutes'));
+  w.LayerPitchNotify.inbox({ title: 'Deuxième', anchor: '#btnInboxBell' });
+  check('carte : une seule à la fois (la nouvelle remplace l\'ancienne)', w.document.querySelectorAll('.lp-inbox-card').length === 1 && card().textContent.includes('Deuxième'));
+  w.LayerPitchNotify.inbox({ title: 'Cliquable', onClick: () => opened++ });
+  card().click();
+  check('carte : un clic appelle l\'action (ouvrir la cloche)', opened === 1);
+  w.LayerPitchNotify.inbox({ title: 'Avec croix', onClick: () => opened++ });
+  card().querySelector('.lp-inbox-card-close').click();
+  check('carte : la croix ferme sans ouvrir la cloche', opened === 1);
+  check('carte : le bandeau classique n\'a pas changé (toast.info existe)', typeof w.LayerPitchNotify.info === 'function');
+  check('cloche : la carte est branchée à l\'arrivée d\'un message', /LayerPitchNotify\.inbox\(\{/.test(shell) && /function openBell\(\)/.test(shell));
+  check('seules les annonces ouvrent la carte (messages de contact, Projets, invitations : cloche seulement)', /kind === 'announcement' && it\.unread && !inbox\.known\.has\(it\.key\)/.test(shell) && !/inboxToastProject/.test(grab(shell, /const fresh = [\s\S]*?inbox\.known = new Set/)));
+  process.exit(failures ? 1 : 0);
+})();

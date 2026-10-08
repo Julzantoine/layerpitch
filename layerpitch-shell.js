@@ -276,6 +276,12 @@
     const cut = t.slice(0, max), sp = cut.lastIndexOf(' ');
     return (sp > max * 0.6 ? cut.slice(0, sp) : cut).trimEnd() + '…';
   }
+  // Ouvre la cloche : celle du Backstage (#btnInboxBell, déjà ouverte = on ne la referme pas) ou celle des autres pages.
+  function openBell() {
+    const bk = document.getElementById('btnInboxBell');
+    if (bk) { const dd = document.getElementById('inboxBellDropdown'); if (dd && dd.hidden) bk.click(); return; }
+    if (!inbox.open) { const b = document.getElementById('lpBell'); if (b) b.click(); }
+  }
   async function refreshInbox() {
     try {
       const { session } = await window.LayerPitchAuth.getSession();
@@ -283,10 +289,18 @@
       const list = await fetchInbox();
       // Petit bandeau pour ce qui vient d'arriver (pas au premier chargement de la page).
       if (inbox.known && window.LayerPitchNotify) {
-        const fresh = list.filter(it => it.unread && !inbox.known.has(it.key));
-        const head = it => (it.kind === 'project' ? tr('inboxToastProject', { title: it.projectTitle }) : it.title);
-        // Début du message seulement (8/10) : une annonce longue montrée en entier faisait un bandeau plus haut que l'écran, sans début visible ; le message complet est dans la cloche.
-        if (fresh.length) window.LayerPitchNotify.info(fresh.length === 1 ? `${head(fresh[0])}${fresh[0].text ? ' — ' + toastExcerpt(fresh[0].text) : ''}` : tr('inboxSeveral', { n: fresh.length }));
+        // Seules les annonces de LayerPitch ouvrent une carte (8/10, décision de Jules-Antoine) : les autres notifications (messages de contact, Projets, invitations) restent dans la cloche, sans pop-up.
+        const fresh = list.filter(it => it.kind === 'announcement' && it.unread && !inbox.known.has(it.key));
+        // Carte sous la cloche : le titre et le début du message seulement (une annonce longue montrée en entier faisait un bandeau plus haut que l'écran) ; un clic ouvre la cloche, où le message est en entier.
+        if (fresh.length) {
+          const one = fresh.length === 1 ? fresh[0] : null;
+          window.LayerPitchNotify.inbox({
+            title: one ? one.title : tr('inboxSeveral', { n: fresh.length }),
+            text: one && one.text ? toastExcerpt(one.text) : '',
+            anchor: '#btnInboxBell, #lpBell',
+            onClick: openBell,
+          });
+        }
       }
       inbox.known = new Set(list.map(it => it.key));
       inbox.items = list;

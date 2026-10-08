@@ -4,6 +4,7 @@
 //
 //   LayerPitchNotify.success(msg)            bandeau vert, disparaît seul après quelques secondes
 //   LayerPitchNotify.info(msg)               bandeau neutre, disparaît seul
+//   LayerPitchNotify.inbox({ title, text, anchor, onClick })   carte sous la cloche (8/10) : une notification arrivée, avec titre et début du texte ; un clic dessus appelle onClick ; disparaît seule
 //   LayerPitchNotify.error(msg)              bandeau rouge, reste affiché jusqu'à la croix (le texte peut contenir
 //                                            un lien de secours à copier : il reste sélectionnable)
 //   await LayerPitchNotify.confirm(msg, { okLabel, cancelLabel, extraLabel, danger, checkboxLabel, onFinish })  -> true / false
@@ -35,6 +36,15 @@
   .lp-toast-msg { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; max-height: 60vh; overflow-y: auto; }
   .lp-toast-close { flex: none; border: none; background: none; color: inherit; opacity: .55; font-size: 16px; line-height: 1; padding: 0 2px; cursor: pointer; font-family: inherit; }
   .lp-toast-close:hover, .lp-toast-close:focus-visible { opacity: 1; }
+  .lp-inbox-card { position: fixed; z-index: 100001; width: min(340px, calc(100vw - 32px)); box-sizing: border-box; display: flex; align-items: flex-start; gap: 10px; padding: 12px 10px 12px 12px; border-radius: 10px; border: 1px solid var(--accent, #2f80c0); background: var(--bg-card, #fff); color: var(--text, #24262b); box-shadow: 0 10px 28px rgba(0,0,0,0.22); font-family: inherit; font-size: 13px; line-height: 1.45; cursor: pointer; animation: lp-toast-in .18s ease-out; }
+  .lp-inbox-card.leaving { opacity: 0; transform: translateY(-6px); transition: opacity .15s, transform .15s; }
+  .lp-inbox-card-icon { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--accent, #2f80c0); color: #fff; display: flex; align-items: center; justify-content: center; }
+  .lp-inbox-card-icon svg { width: 16px; height: 16px; }
+  .lp-inbox-card-body { flex: 1; min-width: 0; }
+  .lp-inbox-card-title { font-weight: 700; overflow-wrap: anywhere; }
+  .lp-inbox-card-text { color: var(--text-dim, #5f636b); margin-top: 2px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .lp-inbox-card-close { flex: none; border: none; background: none; color: inherit; opacity: .55; font-size: 16px; line-height: 1; padding: 0 2px; cursor: pointer; font-family: inherit; }
+  .lp-inbox-card-close:hover, .lp-inbox-card-close:focus-visible { opacity: 1; }
   .lp-toast.leaving { opacity: 0; transform: translateY(6px); transition: opacity .15s, transform .15s; }
   @keyframes lp-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   #lpConfirmOverlay { position: fixed; inset: 0; z-index: 100001; background: rgba(0,0,0,0.38); display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
@@ -178,8 +188,47 @@
     return result;
   }
 
+
+  // Carte « nouvelle notification » (8/10) : posée sous la cloche (en haut à droite) plutôt qu'en bas au milieu de la page,
+  // plus visible qu'un petit bandeau, et un clic dessus ouvre la cloche. Une seule à la fois ; disparaît seule, sauf pendant
+  // que la souris est dessus.
+  const BELL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>';
+  let inboxCard = null;
+  function inboxNotice(opts) {
+    opts = opts || {};
+    ensureStyle();
+    if (inboxCard && inboxCard.isConnected) inboxCard.remove();
+    const el = document.createElement('div');
+    el.className = 'lp-inbox-card';
+    el.setAttribute('role', 'status');
+    const icon = document.createElement('div'); icon.className = 'lp-inbox-card-icon'; icon.innerHTML = BELL_SVG;
+    const body = document.createElement('div'); body.className = 'lp-inbox-card-body';
+    const title = document.createElement('div'); title.className = 'lp-inbox-card-title'; title.textContent = String(opts.title || '');
+    body.appendChild(title);
+    if (opts.text) { const text = document.createElement('div'); text.className = 'lp-inbox-card-text'; text.textContent = String(opts.text); body.appendChild(text); }
+    const close = document.createElement('button');
+    close.type = 'button'; close.className = 'lp-inbox-card-close'; close.textContent = '×';
+    close.setAttribute('aria-label', label('notifyClose')); close.title = label('notifyClose');
+    el.append(icon, body, close);
+    // Sous la cloche si on la trouve, sinon en haut à droite de la fenêtre.
+    const anchor = opts.anchor && document.querySelector(opts.anchor);
+    const r = anchor && anchor.getBoundingClientRect();
+    el.style.top = (r && r.height ? Math.round(r.bottom + 10) : 16) + 'px';
+    el.style.right = (r && r.width ? Math.max(16, Math.round(window.innerWidth - r.right)) : 16) + 'px';
+    document.body.appendChild(el);
+    inboxCard = el;
+    const dismissCard = () => { if (!el.isConnected || el.classList.contains('leaving')) return; el.classList.add('leaving'); setTimeout(() => el.remove(), 160); };
+    close.addEventListener('click', e => { e.stopPropagation(); dismissCard(); });
+    el.addEventListener('click', () => { dismissCard(); if (typeof opts.onClick === 'function') opts.onClick(); });
+    let timer = setTimeout(dismissCard, opts.duration != null ? opts.duration : 10000);
+    el.addEventListener('mouseenter', () => clearTimeout(timer));
+    el.addEventListener('mouseleave', () => { clearTimeout(timer); timer = setTimeout(dismissCard, 2500); });
+    return el;
+  }
+
   window.LayerPitchNotify = {
     toast,
+    inbox: inboxNotice,
     success: (m, o) => toast(m, Object.assign({}, o, { type: 'success' })),
     info: (m, o) => toast(m, Object.assign({}, o, { type: 'info' })),
     error: (m, o) => toast(m, Object.assign({}, o, { type: 'error' })),
