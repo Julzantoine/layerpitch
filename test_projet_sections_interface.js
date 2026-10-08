@@ -321,6 +321,23 @@ const { JSDOM } = require('jsdom');
   check('fichiers d\'une carte : un dossier par élément, fond d\'ambiance à part', zipped.includes("Niveau 1/Fond d'ambiance/foret.png") && zipped.includes('Niveau 1/Château/chateau.png') && zipped.includes('DL:Niveau 1.zip'));
   check('fichiers d\'une carte : les morceaux du Backstage ne sont pas inclus', zipped.filter(p => !p.startsWith('DL:')).length === 2);
 
+  // relier la carte à des sections, depuis l'onglet Carte
+  k.db.sections.forEach(x => { x.mapId = null; }); k.db.sections.find(x => x.id === 'C').mapId = 'autre';
+  await k.w.eval('loadSections()'); k.calls.length = 0;
+  k.w.eval("openMapSectionsDialog({ id: 'mp1', title: 'Niveau 1' })"); await wait(50);
+  const lb = [...k.d.querySelectorAll('.sec-dialog input[type="checkbox"]')];
+  check('depuis la carte : une case par section, rien de coché au départ', lb.length === 3 && lb.every(x => !x.checked));
+  check('une section déjà reliée à une autre carte est signalée', /déjà reliée à une autre carte/.test(k.d.querySelector('.sec-dialog').textContent));
+  lb.find(x => x.value === 'A').checked = true; lb.find(x => x.value === 'C').checked = true;
+  click(k.w, k.d.querySelector('.sec-dialog [data-x="save"]')); await wait(250);
+  check('relier la carte à deux sections', k.calls.filter(x => x[0] === 'map' && x[2] === 'mp1').map(x => x[1]).sort().join() === 'A,C');
+  k.w.eval("openMapSectionsDialog({ id: 'mp1', title: 'Niveau 1' })"); await wait(50);
+  [...k.d.querySelectorAll('.sec-dialog input[type="checkbox"]')].find(x => x.value === 'A').checked = false;
+  click(k.w, k.d.querySelector('.sec-dialog [data-x="save"]')); await wait(250);
+  check('décocher retire le lien de cette section seulement', k.calls.some(x => x[0] === 'map' && x[1] === 'A' && x[2] === null) && !k.calls.some(x => x[0] === 'map' && x[1] === 'C' && x[2] === null));
+  k.calls.length = 0; k.w.eval("openMapSectionsDialog({ isNew: true, title: 'x' })"); await wait(50);
+  check('carte pas encore enregistrée : pas de boîte, on demande d\'enregistrer', !k.d.querySelector('.sec-dialog'));
+
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon');
   process.exit(failures ? 1 : 0);
 })();

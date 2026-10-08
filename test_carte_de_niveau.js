@@ -295,6 +295,21 @@ const { JSDOM } = require('jsdom');
     v4.destroy();
   }
 
+  // ---- Boutons « Fichiers » et « Sections » (8/10) : seulement si la page fournit les fonctions
+  {
+    const calls = [];
+    const h6 = w.document.createElement('div'); w.document.body.appendChild(h6);
+    w.LayerPitchLevelMap.mount(h6, { tr, canEdit: true, libraries: { track: [], sfx: [], asset: [] }, maps: [{ id: 'mx', title: 'Niveau X', data: { nodes: [], edges: [] } }],
+      save: async m => ({ id: m.id }), remove: async () => ({}), downloadFiles: m => calls.push('dl:' + m.id), linkSections: m => calls.push('link:' + m.id), linkedNames: m => 'Forêt, Château' });
+    check('carte : boutons Fichiers et Sections proposés', !!h6.querySelector('#lmDownload') && !!h6.querySelector('#lmLinkSec'));
+    check('carte : le bouton Sections affiche les sections reliées', /Forêt, Château/.test(h6.querySelector('#lmLinkSec').textContent));
+    h6.querySelector('#lmLinkSec').click(); h6.querySelector('#lmDownload').click();
+    check('carte : les boutons appellent la page avec la carte courante', calls.join() === 'link:mx,dl:mx');
+    const h7 = w.document.createElement('div'); w.document.body.appendChild(h7);
+    w.LayerPitchLevelMap.mount(h7, { tr, canEdit: true, libraries: { track: [], sfx: [], asset: [] }, maps: [{ id: 'my', title: 'Y', data: { nodes: [], edges: [] } }], save: async m => ({ id: m.id }), remove: async () => ({}) });
+    check('carte : sans fonctions fournies (sections fermées), pas de boutons', !h7.querySelector('#lmLinkSec') && !h7.querySelector('#lmDownload'));
+  }
+
   console.log(failures ? failures + ' échec(s)' : 'Tout est vert');
   process.exit(failures ? 1 : 0);
 })();

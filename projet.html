@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791463108769">
+<link rel="stylesheet" href="player.css?v=1791463215020">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -95,7 +95,10 @@
   .sec-row.on .sec-name { font-weight: 600; }
   .sec-row .meta { flex: 0 0 auto; }
   .sec-row input { flex: 1 1 auto; min-width: 0; padding: 4px 6px; font-size: 13px; }
-  .sec-acts { display: flex; flex: 1 0 100%; justify-content: flex-end; flex-wrap: wrap; } /* les boutons de la section choisie passent sur leur propre ligne : le nom garde toute sa largeur */
+  .sec-acts { display: flex; flex: 1 0 100%; justify-content: flex-start; flex-wrap: wrap; gap: 4px; padding: 2px 0 6px; }
+  .sec-act { font: inherit; font-size: 12px; padding: 3px 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); border-radius: 6px; cursor: pointer; }
+  .sec-act:hover { border-color: var(--accent); }
+  .sec-act.danger { color: #d0433a; } /* les boutons de la section choisie passent sur leur propre ligne : le nom garde toute sa largeur */
   .sec-acts .icon-btn { padding: 2px 4px; font-size: 12px; }
   .sec-unread { flex: 0 0 auto; min-width: 16px; padding: 0 5px; border-radius: 999px; background: #d0433a; color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
   .chan-sel { flex: 1 1 auto; min-width: 0; max-width: 100%; font-weight: 600; }
@@ -179,22 +182,22 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791463108769"></script>
-<script src="layerpitch-notify.js?v=1791463108769"></script>
-<script src="player.js?v=1791463108769"></script>
-<script src="api/supabase-client.js?v=1791463108769"></script>
-<script src="api/auth.js?v=1791463108769"></script>
-<script src="layerpitch-appearance.js?v=1791463108769"></script>
-<script src="layerpitch-shell.js?v=1791463108769"></script>
-<script src="api/tracks.js?v=1791463108769"></script>
-<script src="api/packs.js?v=1791463108769"></script>
-<script src="api/albums.js?v=1791463108769"></script>
-<script src="api/studio.js?v=1791463108769"></script>
-<script src="api/adreels.js?v=1791463108769"></script>
-<script src="api/projects.js?v=1791463108769"></script>
-<script src="api/sfx.js?v=1791463108769"></script>
-<script src="projet-carte-audio.js?v=1791463108769"></script>
-<script src="projet-carte.js?v=1791463108769"></script>
+<script src="layerpitch-i18n.js?v=1791463215020"></script>
+<script src="layerpitch-notify.js?v=1791463215020"></script>
+<script src="player.js?v=1791463215020"></script>
+<script src="api/supabase-client.js?v=1791463215020"></script>
+<script src="api/auth.js?v=1791463215020"></script>
+<script src="layerpitch-appearance.js?v=1791463215020"></script>
+<script src="layerpitch-shell.js?v=1791463215020"></script>
+<script src="api/tracks.js?v=1791463215020"></script>
+<script src="api/packs.js?v=1791463215020"></script>
+<script src="api/albums.js?v=1791463215020"></script>
+<script src="api/studio.js?v=1791463215020"></script>
+<script src="api/adreels.js?v=1791463215020"></script>
+<script src="api/projects.js?v=1791463215020"></script>
+<script src="api/sfx.js?v=1791463215020"></script>
+<script src="projet-carte-audio.js?v=1791463215020"></script>
+<script src="projet-carte.js?v=1791463215020"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -296,7 +299,7 @@ function renderSecNav() {
     const on = S.sel === x.id;
     const head = S.secEdit && S.secEdit.rename === x.id ? editRow(depth, x.title)
       : `<div class="sec-row${on ? ' on' : ''}" data-dropsec="${esc(x.id)}" data-secdrag="${esc(x.id)}" draggable="true" style="padding-left:${6 + depth * 14}px"><button type="button" class="sec-name" data-pick="${esc(x.id)}">${esc(x.title)}</button><span class="meta">${S.tab === 'board' ? sectionPinned(x.id).length : secCount(x.id)}</span>${chanUnread(x.id) ? `<span class="sec-unread" title="${esc(tr('chanUnread'))}">${chanUnread(x.id)}</span>` : ''}
-        ${on ? `<span class="sec-acts"><button class="icon-btn" type="button" data-secact="chat" data-id="${esc(x.id)}" title="${esc(tr('chanOpen'))}">💬</button><button class="icon-btn" type="button" data-secact="map" data-id="${esc(x.id)}" title="${esc(tr('secMapLink'))}">🗺</button><button class="icon-btn" type="button" data-secact="add" data-id="${esc(x.id)}" title="${esc(tr('secAddSub'))}">＋</button><button class="icon-btn" type="button" data-secact="rename" data-id="${esc(x.id)}" title="${esc(tr('secRename'))}">✎</button><button class="icon-btn" type="button" data-secact="move" data-id="${esc(x.id)}" title="${esc(tr('secMove'))}">⇄</button><button class="icon-btn" type="button" data-secact="del" data-id="${esc(x.id)}" title="${esc(tr('secDelete'))}">✕</button></span>` : ''}</div>`;
+        ${on ? `<span class="sec-acts">${[['add', '＋', 'secActSub', 'secAddSub'], ['rename', '✎', 'secActRename', 'secRename'], ['move', '⇄', 'secActMove', 'secMove'], ['chat', '💬', 'secActChat', 'chanOpen'], ['map', '🗺', 'secActMap', 'secMapLink'], ['del', '✕', 'secActDel', 'secDelete']].map(([act, ic, lab, tip]) => `<button class="sec-act${act === 'del' ? ' danger' : ''}" type="button" data-secact="${act}" data-id="${esc(x.id)}" title="${esc(tr(tip))}">${ic} ${esc(tr(lab))}</button>`).join('')}</span>` : ''}</div>`;
     return head + (S.secEdit && S.secEdit.add === x.id ? editRow(depth + 1) : '') + walk(x.id, depth + 1);
   }).join('');
   const picked = S.sel !== 'all' && S.sel !== 'none' ? secById(S.sel) : null;
@@ -506,6 +509,25 @@ async function zipPlan(plan, title) {
   window.LayerPitchNotify.info(tr(failed ? 'dlDoneSome' : 'dlDone', { n: plan.length - failed, failed }));
 }
 
+// Depuis la carte : choisir les sections (« niveaux ») auxquelles elle est reliée. Une section n'a qu'une carte : en cocher une déjà
+// reliée à une autre carte lui retire cette autre carte.
+function openMapSectionsDialog(m) {
+  if (!m || !S.sections) return;
+  if (m.isNew || !m.id) return window.LayerPitchNotify.info(tr('map_linkSaveFirst'));
+  const flat = secFlat();
+  const { box, close } = openOverlay(`<h2>${esc(tr('map_linkSectionsTitle', { title: m.title || tr('map_untitled') }))}</h2><p class="hint">${esc(tr('map_linkSectionsIntro'))}</p>
+    ${flat.length ? flat.map(x => { const sec = secById(x.id), other = sec.mapId && sec.mapId !== m.id; return `<label class="sec-pick" style="padding-left:${x.depth * 16}px"><input type="checkbox" value="${esc(x.id)}" ${sec.mapId === m.id ? 'checked' : ''}> ${esc(x.title)}${other ? ` <span class="meta">(${esc(tr('map_linkOther'))})</span>` : ''}</label>`; }).join('') : `<div class="meta">${esc(tr('secEmpty'))}</div>`}
+    <div class="bar" style="margin-top:12px;justify-content:flex-end"><button class="btn" type="button" data-x="cancel">${esc(tr('secCancel'))}</button><button class="btn primary" type="button" data-x="save">${esc(tr('save'))}</button></div>`);
+  box.querySelector('[data-x="cancel"]').onclick = close;
+  box.querySelector('[data-x="save"]').onclick = async () => {
+    for (const i of box.querySelectorAll('input[type="checkbox"]')) {
+      const sec = secById(i.value), linked = sec.mapId === m.id;
+      if (i.checked && !linked) { if (secError(await PJ.setSectionMap(i.value, m.id))) return; }
+      else if (!i.checked && linked) { if (secError(await PJ.setSectionMap(i.value, null))) return; }
+    }
+    close(); S.openMapId = m.id; await sectionsChanged();
+  };
+}
 // Relier une section à une carte de niveau (un simple lien : la section propose d'ouvrir cette carte).
 async function openMapLinkDialog(id) {
   const x = secById(id); if (!x) return;
@@ -1682,6 +1704,8 @@ async function renderMap(panel) {
   const openId = S.openMapId; S.openMapId = null;
   S.mapView = LayerPitchLevelMap.mount(panel, {
     tr, canEdit: true, libraries, audio: mapAudioEnv(), openId, downloadFiles: downloadMapFiles,
+    // Relier la carte à des sections (sections ouvertes seulement) : le lien est le même que le 🗺 d'une section.
+    linkSections: S.sections ? openMapSectionsDialog : null, linkedNames: S.sections ? (m => m ? S.sections.sections.filter(x => x.mapId === m.id).map(x => x.title).join(', ') : '') : null,
     maps: r.data || [],
     save: async m => {
       const res = await PJ.saveMap(projectId, { id: m.id, title: m.title, data: m.data });
