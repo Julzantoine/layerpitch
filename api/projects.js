@@ -28,7 +28,7 @@
     listMaps: id => rpc('list_project_maps', { p_project_id: id }),
     saveMap: (id, p) => rpc('save_project_map', { p_project_id: id, p }),
     deleteMap: mapId => rpc('delete_project_map', { p_map_id: mapId }),
-    // Sections (7/10, migration 20261007030000) : arbre libre ; un objet peut être dans plusieurs sections ; sans section = « non classé ».
+    // Sections (7/10, migration 20261007030000) : arbre libre ; un objet peut être dans plusieurs sections ; sans section = « Sans section ».
     // list rend { sections: [{ id, parentId, title, position }], links: [{ sectionId, assetId }] }.
     sections: id => rpc('list_project_sections', { p_project_id: id }),
     createSection: (id, title, parentId) => rpc('create_project_section', { p_project_id: id, p_title: title, p_parent_id: parentId || null }),

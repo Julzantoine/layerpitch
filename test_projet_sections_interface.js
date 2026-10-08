@@ -81,8 +81,8 @@ const { JSDOM } = require('jsdom');
   c = await boot(false);
   await tab(c, 'images');
   const nav = () => c.d.getElementById('secNav');
-  check('colonne Sections affichée', !!nav() && /Toute la réserve/.test(nav().textContent) && /Non classé/.test(nav().textContent));
-  check('« non classé » compte tout au départ', /Non classé\s*3/.test(nav().textContent));
+  check('colonne Sections affichée', !!nav() && /Toute la réserve/.test(nav().textContent) && /Sans section/.test(nav().textContent));
+  check('« sans section » compte tout au départ', /Sans section\s*3/.test(nav().textContent));
   check('message « aucune section »', /Aucune section/.test(nav().textContent));
 
   // créer une section à la racine
@@ -108,13 +108,13 @@ const { JSDOM } = require('jsdom');
   click(c.w, c.d.querySelector('.sec-dialog [data-x="save"]')); await wait(150);
   check('image rangée dans la sous-section', c.db.links.length === 1 && c.db.links[0].sectionId === 's2' && c.db.links[0].assetId === 'a1');
   check('boîte fermée', !c.d.querySelector('.sec-overlay'));
-  check('« non classé » descend à 2', /Non classé\s*2/.test(nav().textContent));
+  check('« sans section » descend à 2', /Sans section\s*2/.test(nav().textContent));
 
   // filtre : Niveau 1 inclut les sous-sections
   click(c.w, nav().querySelector('[data-pick="s1"]')); await wait(100);
   check('filtre sur le parent : montre les objets des sous-sections', cards(c.d).length === 1 && cards(c.d)[0] === 'Forêt');
   click(c.w, nav().querySelector('[data-pick="none"]')); await wait(100);
-  check('filtre « non classé »', cards(c.d).length === 1 && cards(c.d)[0] === 'Château');
+  check('filtre « sans section »', cards(c.d).length === 1 && cards(c.d)[0] === 'Château');
 
   // glisser-déposer d'un objet sur une section
   const drag = (el, type, data) => { const ev = new c.w.Event(type, { bubbles: true, cancelable: true }); ev.dataTransfer = { types: ['text/x-lp-asset'], data: { 'text/x-lp-asset': data }, setData(k, v) { this.data[k] = v; }, getData(k) { return this.data[k]; } }; el.dispatchEvent(ev); return ev; };
@@ -154,12 +154,12 @@ const { JSDOM } = require('jsdom');
   check('déplacer à la racine', c.db.sections[1].parentId === null);
   click(c.w, nav().querySelector('[data-pick="s2"]')); await wait(100);
   click(c.w, nav().querySelector('[data-secact="del"][data-id="s2"]')); await wait(200);
-  check('supprimer demande confirmation et rend les objets au « non classé »', c.confirms.length === 1 && c.db.sections.length === 1 && !c.db.assets.every(a => !a) && c.db.assets.length >= 3);
+  check('supprimer demande confirmation et rend les objets au « sans section »', c.confirms.length === 1 && c.db.sections.length === 1 && !c.db.assets.every(a => !a) && c.db.assets.length >= 3);
   check('après suppression, retour à la réserve', !!nav().querySelector('.sec-row.on [data-pick="all"]') || !!nav().querySelector('.sec-row.on [data-pick="s1"]'));
 
   // ---- Moodboard par section
   await tab(c, 'board');
-  check('onglet Moodboard : colonne Sections avec « Moodboard général »', !!nav() && /Moodboard général/.test(nav().textContent) && !/Non classé/.test(nav().textContent));
+  check('onglet Moodboard : colonne Sections avec « Moodboard général »', !!nav() && /Moodboard général/.test(nav().textContent) && !/Sans section/.test(nav().textContent));
   click(c.w, nav().querySelector('[data-pick="s1"]')); await wait(150);
   check('Moodboard de la section : son titre et son texte', /Niveau 1/.test(c.d.getElementById('panel').querySelector('h2').textContent) && /Moodboard de cette section/.test(c.d.getElementById('panel').textContent));
   check('Moodboard de la section : pas de versions (général seulement)', !c.d.getElementById('snapBtn'));
@@ -297,7 +297,7 @@ const { JSDOM } = require('jsdom');
   zipped.length = 0;
   click(k.w, kn().querySelector('[data-pick="all"]')); await wait(100);
   click(k.w, kn().querySelector('[data-secact="download"]')); await wait(400);
-  check('télécharger tout : un dossier par section, « Non classé » pour le reste', zipped.includes('Bravo/Alpha/foret.png') && zipped.includes('Bravo/foret.png') && zipped.includes('Non classé/chateau.png') && zipped.includes('DL:Hollow Manor.zip'));
+  check('télécharger tout : un dossier par section, « Sans section » pour le reste', zipped.includes('Bravo/Alpha/foret.png') && zipped.includes('Bravo/foret.png') && zipped.includes('Sans section/chateau.png') && zipped.includes('DL:Hollow Manor.zip'));
 
   // télécharger les fichiers d'une carte
   zipped.length = 0;
