@@ -862,9 +862,10 @@
       if (!st.play || !map || !audio) { box.hidden = true; return; }
       box.hidden = false;
       const n = st.now || {}, can = n.position && hasAltMusic(map, n.position), here = n.position && itemOf(map, n.position), altLabel = (here && altNameOf(here)) || tr('map_altDefault');
-      box.innerHTML = (n.loading > 0 ? `<span class="lm-wait lm-loading">⏳ ${esc(tr('map_loading'))}</span>` : '') + (n.position
+      box.innerHTML = (n.loading > 0 || n.notReady ? `<span class="lm-wait lm-loading">⏳ ${esc(n.notReady && n.notReady !== true ? tr('map_loadingNamed', { title: n.notReady }) : tr('map_loading'))}</span>` : '') + (n.position
         ? `<span><b>${esc(tr('map_nowAt'))}</b> ${esc(labelOf(map, n.position))}</span><span>♪ ${esc((n.music && n.music.title) || tr('map_nowSilence'))}</span>${n.room ? `<span>🌫 ${esc(n.room.title || n.room.id)}</span>` : ''}
           ${n.pendingAt != null ? `<span class="lm-wait">${esc(tr('map_nowWaiting'))}</span>` : ''}
+          ${n.canRefreshPool ? `<span class="lm-layers"><button class="btn" type="button" id="lmPool" title="${esc(tr('map_poolHint'))}">🎲 ${esc(tr('map_pool'))}</button></span>` : ''}
           ${n.sequences ? `<span class="lm-layers" id="lmSeqs"><b>${esc(tr('map_sequences'))}</b>${n.sequences.labels.map((lab, i) => `<button class="btn${n.sequences.current === i ? ' primary' : ''}${n.sequences.pending === i ? ' pending' : ''}" type="button" data-seq="${i}" ${n.sequences.reachable.includes(i) ? '' : 'disabled'} title="${esc(tr(n.sequences.reachable.includes(i) ? 'map_seqGo' : 'map_seqNo'))}">${i < 9 ? (i + 1) + ' · ' : ''}${esc(lab)}</button>`).join('')}
             <span class="lm-wait">${esc(tr('map_seqHint'))}</span></span>` : ''}
           ${n.layers > 1 ? `<span class="lm-layers" id="lmLayers"><b>${esc(tr(n.layerKind === 'loops' ? 'map_loops' : 'map_layers'))}</b>
@@ -873,6 +874,7 @@
           <button class="btn${n.combat ? ' primary' : ''}" type="button" id="lmCombat" ${can ? '' : 'disabled'}>${esc(n.combat ? tr('map_altBack') : tr('map_altGo', { name: altLabel }))}</button>
           <button class="btn" type="button" id="lmStopPlay">${esc(tr(n.playing ? 'map_pause' : 'map_resume'))}</button>`
         : `<span>${esc(tr('map_playHint'))}</span>`);
+      const pool = box.querySelector('#lmPool'); if (pool) pool.onclick = () => { audio.refreshPool(); host.querySelector('#lmCanvas').focus(); };
       box.querySelectorAll('[data-seq]').forEach(b => { b.onclick = () => { audio.goToSequence(+b.dataset.seq); host.querySelector('#lmCanvas').focus(); }; });
       box.querySelectorAll('[data-layer]').forEach(b => { b.onclick = () => { audio.setIntensity(b.dataset.layer === 'auto' ? null : +b.dataset.layer); host.querySelector('#lmCanvas').focus(); }; });
       const c = box.querySelector('#lmCombat'); if (c) c.onclick = () => { audio.setCombat(!n.combat); host.querySelector('#lmCanvas').focus(); };

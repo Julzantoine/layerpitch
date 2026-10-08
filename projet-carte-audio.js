@@ -21,23 +21,25 @@
     const notify = () => { if (env.onChange) env.onChange(snapshot()); };
     const layersOf = () => (musicVoice && musicVoice.layerCount ? (safe(() => musicVoice.layerCount()) || 0) : 0);
     const snapshot = () => ({ playing: st.playing, position: st.position && { kind: st.position.kind, id: st.position.id }, combat: st.combat,
-      music: st.music, room: st.room, pendingAt: st.pendingAt, loading: st.loading, sequences: sequencesOf(), layers: layersOf(), layerKind: (musicVoice && musicVoice.layerKind && safe(() => musicVoice.layerKind())) || 'layers', layerLabels: (musicVoice && musicVoice.layerLabels && safe(() => musicVoice.layerLabels())) || null, layerLevel: st.layerLevel, layerManual: st.intensity != null, fallback: !!st.fallback });
+      music: st.music, room: st.room, pendingAt: st.pendingAt, loading: st.loading, notReady: notReadyOf(), canRefreshPool: !!(musicVoice && musicVoice.canRefreshPool && safe(() => musicVoice.canRefreshPool())), sequences: sequencesOf(), layers: layersOf(), layerKind: (musicVoice && musicVoice.layerKind && safe(() => musicVoice.layerKind())) || 'layers', layerLabels: (musicVoice && musicVoice.layerLabels && safe(() => musicVoice.layerLabels())) || null, layerLevel: st.layerLevel, layerManual: st.intensity != null, fallback: !!st.fallback });
     // Séquences d'un morceau séquentiel qui joue : { labels, current, reachable, pending } (null si le morceau n'en a pas ou ne joue pas).
     const sequencesOf = () => {
       const v = musicVoice; if (!v || !v.sequenceCount) return null;
       const n = safe(() => v.sequenceCount()) || 0; if (n < 2) return null;
       return { labels: safe(() => v.sequenceLabels()) || [], current: safe(() => v.sequenceCurrent()), reachable: safe(() => v.sequenceReachable()) || [], pending: safe(() => v.sequencePending()) };
     };
+    // Morceau monté mais dont les fichiers ne sont pas encore chargés : le titre de ce qu'on attend (sinon null).
+    const notReadyOf = () => (musicVoice && musicVoice.isReady && !safe(() => musicVoice.isReady()) ? (st.music && st.music.title) || true : null);
     // Un morceau séquentiel change de séquence tout seul (au repère choisi, ou au bout de son emplacement) sans en avertir la carte :
     // tant qu'il joue, on relit son état quatre fois par seconde et on prévient la page seulement quand il a changé.
     let seqTimer = null, seqSig = '';
     function watchSequences() {
       if (seqTimer) return;
-      seqSig = JSON.stringify(sequencesOf());
+      seqSig = JSON.stringify([sequencesOf(), notReadyOf()]);
       seqTimer = setInterval(() => {
         const v = musicVoice;
-        if (!st.playing || !v || !v.sequenceCount) { clearInterval(seqTimer); seqTimer = null; return; }
-        const sig = JSON.stringify(sequencesOf());
+        if (!st.playing || !v || !(v.sequenceCount || v.isReady)) { clearInterval(seqTimer); seqTimer = null; return; }
+        const sig = JSON.stringify([sequencesOf(), notReadyOf()]);
         if (sig !== seqSig) { seqSig = sig; notify(); }
       }, 250);
     }
@@ -121,7 +123,7 @@
         if (stingerVoice) { const sv = stingerVoice; stingerVoice = null; safe(() => sv.stop()); }
         if (tr.stinger) load(tr.stinger).then(v => { if (v && my === token) { stingerVoice = v; v.start(1); } });
         const stopLater = (v, after) => { if (!v) return; env.schedule(() => { if (musicVoice !== v) safe(() => v.stop()); }, env.now() + after + 0.05); };
-        musicVoice = incoming; lastMusicKey = incoming ? newKey : null; if (incoming && incoming.sequenceCount) watchSequences(); st.music = want && want.ref && incoming ? want.ref : null;
+        musicVoice = incoming; lastMusicKey = incoming ? newKey : null; if (incoming && (incoming.sequenceCount || incoming.isReady)) watchSequences(); st.music = want && want.ref && incoming ? want.ref : null;
         if (tr.style === 'cut' || sec === 0) {
           if (outgoing && outgoing !== incoming) safe(() => outgoing.stop());
           if (incoming) incoming.start(1);
@@ -162,7 +164,9 @@
         notify();
       },
       // Passer à une séquence du morceau séquentiel qui joue (par les embranchements que le morceau prévoit).
-      goToSequence(i) { const ok = !!(musicVoice && musicVoice.goToSequence && safe(() => musicVoice.goToSequence(i))); if (musicVoice && musicVoice.sequenceCount) watchSequences(); notify(); return ok; },
+      goToSequence(i) { const ok = !!(musicVoice && musicVoice.goToSequence && safe(() => musicVoice.goToSequence(i))); if (musicVoice && (musicVoice.sequenceCount || musicVoice.isReady)) watchSequences(); notify(); return ok; },
+      // Vertical-random : nouveau tirage de la section en cours.
+      refreshPool() { const ok = !!(musicVoice && musicVoice.refreshPool && safe(() => musicVoice.refreshPool())); notify(); return ok; },
       async setCombat(on) {
         if (!map || !st.position) return false;
         const want = !!on && model.hasAltMusic(map, st.position);

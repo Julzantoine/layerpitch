@@ -400,6 +400,21 @@ const { JSDOM } = require('jsdom');
     check('une seule musique : le bouton de 2e musique est grisé', h12.querySelector('#lmCombat').disabled);
   }
 
+  // ---- Morceau pas encore chargé et nouveau tirage (8/10)
+  {
+    let ready = false, refreshed = 0;
+    const lazy = { start() {}, setLevel() {}, stop() {}, isPlaying: () => ready, nextBoundary: () => null, isReady: () => ready, canRefreshPool: () => true, refreshPool: () => { refreshed++; return true; } };
+    const h13 = w.document.createElement('div'); w.document.body.appendChild(h13);
+    const v13 = w.LayerPitchLevelMap.mount(h13, { tr, canEdit: true, audio: { now: () => 0, schedule: () => () => {}, voiceFactory: async () => lazy }, libraries: { track: [], sfx: [], asset: [] },
+      maps: [{ id: 'm13', title: 'Lent', data: { nodes: [{ id: 'a', type: 'start', label: 'Début', x: 0, y: 0, sounds: { main: [{ kind: 'track', id: 'vr', title: 'Mon morceau' }] } }], edges: [] } }],
+      save: async m => ({ id: m.id }), remove: async () => ({}) });
+    h13.querySelector('#lmPlay').click(); await wait(60);
+    check('morceau pas encore chargé : un signe le dit, avec son titre', !!h13.querySelector('.lm-loading') && /map_loadingNamed/.test(h13.querySelector('.lm-loading').textContent) && /Mon morceau/.test(h13.querySelector('.lm-loading').textContent));
+    ready = true; await wait(450);
+    check('une fois chargé : le signe disparaît tout seul', !h13.querySelector('.lm-loading'));
+    check('vertical-random : bouton « Nouveau tirage » dans le panneau, il agit sur le morceau', !!h13.querySelector('#lmPool') && (h13.querySelector('#lmPool').click(), refreshed === 1));
+  }
+
   // ---- Fichier audio déposé depuis l'ordinateur (8/10) : envoyé par la page, la carte garde la référence
   {
     const uploads = [];

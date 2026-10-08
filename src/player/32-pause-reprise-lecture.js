@@ -419,9 +419,23 @@
       };
       if (!tick()) lpLoopTimer = setInterval(() => { if (tick()) { clearInterval(lpLoopTimer); lpLoopTimer = null; } }, 100);
     }
+    let lpWaitTimer = null;
+    const lpCancelWait = () => { if (lpWaitTimer) { clearInterval(lpWaitTimer); lpWaitTimer = null; } };
     wrapper.lpControl = {
-      start(level) { if (!playing) playThisTrack(true); trackMasterGain.gain.cancelScheduledValues(ctx.currentTime); trackMasterGain.gain.setValueAtTime(Math.max(0, level), ctx.currentTime); },
-      stop() { if (playing) stopAllSources(false); },
+      // Démarrer : si les fichiers du morceau ne sont pas encore chargés (le chargement est asynchrone), on attend qu'ils le soient (au plus
+      // 2 minutes) au lieu de « jouer » dans le vide ; stop() annule l'attente. isReady() : les fichiers sont chargés.
+      start(level) {
+        const go = () => { if (!playing) playThisTrack(true); trackMasterGain.gain.cancelScheduledValues(ctx.currentTime); trackMasterGain.gain.setValueAtTime(Math.max(0, level), ctx.currentTime); };
+        lpCancelWait();
+        if (ready || playing) { go(); return; }
+        let waited = 0;
+        lpWaitTimer = setInterval(() => { waited += 100; if (ready) { lpCancelWait(); go(); } else if (waited > 120000) lpCancelWait(); }, 100);
+      },
+      stop() { lpCancelWait(); if (playing) stopAllSources(false); },
+      isReady: () => !!ready,
+      // Vertical-random : « nouveau tirage » (rejoue la section en cours avec de nouveaux tirages) ; faux pour les autres modes.
+      canRefreshPool: () => isVerticalRandom,
+      refreshPool() { if (!isVerticalRandom) return false; rerollPool(); return true; },
       setLevel: rampTo,
       isPlaying: () => playing,
       onEnded(cb) { lpEndedCb = cb; },
