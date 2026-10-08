@@ -368,6 +368,12 @@ const { JSDOM } = require('jsdom');
     check('séquentiel en balade : cliquer une séquence la demande au morceau', went.join() === '1');
     h10.dispatchEvent(new w.KeyboardEvent('keydown', { key: '2', bubbles: true }));
     check('séquentiel en balade : la touche 2 demande la 2e séquence', went.join() === '1,1');
+    // Le morceau change de séquence tout seul : le panneau suit sans qu'on fasse rien
+    seqVoice.sequenceCurrent = () => 1; seqVoice.sequenceReachable = () => [0, 2];
+    await wait(450);
+    const seqBtns2 = [...h10.querySelectorAll('[data-seq]')];
+    check('séquentiel en balade : quand le morceau change de séquence, le panneau suit (séquence en cours et atteignables)', seqBtns2[1].classList.contains('primary') && !seqBtns2[0].classList.contains('primary') && !seqBtns2[0].disabled && !seqBtns2[2].disabled && seqBtns2[1].disabled);
+    h10.querySelector('#lmPlay').click(); await wait(30);
   }
 
   // ---- 2e musique pendant la balade (8/10) : bouton nommé, jingle de transition à la bascule

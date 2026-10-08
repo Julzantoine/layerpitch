@@ -28,6 +28,19 @@
       const n = safe(() => v.sequenceCount()) || 0; if (n < 2) return null;
       return { labels: safe(() => v.sequenceLabels()) || [], current: safe(() => v.sequenceCurrent()), reachable: safe(() => v.sequenceReachable()) || [], pending: safe(() => v.sequencePending()) };
     };
+    // Un morceau séquentiel change de séquence tout seul (au repère choisi, ou au bout de son emplacement) sans en avertir la carte :
+    // tant qu'il joue, on relit son état quatre fois par seconde et on prévient la page seulement quand il a changé.
+    let seqTimer = null, seqSig = '';
+    function watchSequences() {
+      if (seqTimer) return;
+      seqSig = JSON.stringify(sequencesOf());
+      seqTimer = setInterval(() => {
+        const v = musicVoice;
+        if (!st.playing || !v || !v.sequenceCount) { clearInterval(seqTimer); seqTimer = null; return; }
+        const sig = JSON.stringify(sequencesOf());
+        if (sig !== seqSig) { seqSig = sig; notify(); }
+      }, 250);
+    }
     const itemAt = pos => (pos ? (pos.kind === 'edge' ? model.edgeById(map, pos.id) : model.nodeById(map, pos.id)) : null);
     // Chargement d'un son (récupération + décodage, parfois plusieurs secondes pour un morceau à couches) : compté pour que la page l'indique.
     const load = ref => {
@@ -108,7 +121,7 @@
         if (stingerVoice) { const sv = stingerVoice; stingerVoice = null; safe(() => sv.stop()); }
         if (tr.stinger) load(tr.stinger).then(v => { if (v && my === token) { stingerVoice = v; v.start(1); } });
         const stopLater = (v, after) => { if (!v) return; env.schedule(() => { if (musicVoice !== v) safe(() => v.stop()); }, env.now() + after + 0.05); };
-        musicVoice = incoming; lastMusicKey = incoming ? newKey : null; st.music = want && want.ref && incoming ? want.ref : null;
+        musicVoice = incoming; lastMusicKey = incoming ? newKey : null; if (incoming && incoming.sequenceCount) watchSequences(); st.music = want && want.ref && incoming ? want.ref : null;
         if (tr.style === 'cut' || sec === 0) {
           if (outgoing && outgoing !== incoming) safe(() => outgoing.stop());
           if (incoming) incoming.start(1);
@@ -149,7 +162,7 @@
         notify();
       },
       // Passer à une séquence du morceau séquentiel qui joue (par les embranchements que le morceau prévoit).
-      goToSequence(i) { const ok = !!(musicVoice && musicVoice.goToSequence && safe(() => musicVoice.goToSequence(i))); notify(); return ok; },
+      goToSequence(i) { const ok = !!(musicVoice && musicVoice.goToSequence && safe(() => musicVoice.goToSequence(i))); if (musicVoice && musicVoice.sequenceCount) watchSequences(); notify(); return ok; },
       async setCombat(on) {
         if (!map || !st.position) return false;
         const want = !!on && model.hasAltMusic(map, st.position);
@@ -166,6 +179,7 @@
         if (cancelPending) { cancelPending(); cancelPending = null; st.pendingAt = null; }
         [musicVoice, roomVoice, stingerVoice].forEach(v => { if (v) { v.setLevel(0, sec); const vv = v; env.schedule(() => safe(() => vv.stop()), env.now() + sec + 0.05); } });
         musicVoice = null; roomVoice = null; stingerVoice = null; lastMusicKey = null;
+        if (seqTimer) { clearInterval(seqTimer); seqTimer = null; }
         st.playing = false; st.music = null; st.room = null; notify();
       },
       async resume() { if (st.position) { st.playing = true; await enter(); } },
