@@ -167,6 +167,7 @@ const { JSDOM } = require('jsdom');
   c.d.getElementById('fAsset').value = 'a2'; click(c.w, c.d.getElementById('addBtn')); await wait(200);
   check('épingler un objet du Projet dans le Moodboard de la section', c.db.pins.some(k => k.sectionId === 's1' && k.assetId === 'a2') && cards(c.d).includes('Château'));
   check('le Moodboard général reste vide', c.db.mood.length === 0);
+  check('case « Épingler aussi au Moodboard général » proposée dans le Moodboard d\'une section', !!c.d.getElementById('alsoGeneral') && !c.d.getElementById('alsoGeneral').checked);
   click(c.w, c.d.querySelector('[data-act="star"]')); await wait(150);
   check('★ propre à ce Moodboard', c.db.pins.find(k => k.assetId === 'a2').starred === true);
   click(c.w, c.d.querySelector('[data-act="moodcopy"]')); await wait(50);
@@ -176,6 +177,9 @@ const { JSDOM } = require('jsdom');
   check('copier vers le Moodboard général = épingle indépendante', c.calls.some(x => x[0] === 'pinGeneral' && x[1] === 'a2' && x[2] === true) && c.db.pins.some(k => k.assetId === 'a2'));
   click(c.w, c.d.querySelector('[data-act="unpin"]')); await wait(150);
   check('retirer du Moodboard de la section ne touche pas le général', !c.db.pins.some(k => k.assetId === 'a2') && c.db.mood.includes('a2'));
+  const k2 = c.d.getElementById('addKind'); k2.value = 'fromProject'; k2.dispatchEvent(new c.w.Event('change', { bubbles: true }));
+  c.d.getElementById('fAsset').value = 'a1'; c.d.getElementById('alsoGeneral').checked = true; click(c.w, c.d.getElementById('addBtn')); await wait(250);
+  check('case cochée : épinglé dans la section ET au Moodboard général', c.db.pins.some(k => k.sectionId === 's1' && k.assetId === 'a1') && c.db.mood.includes('a1'));
   click(c.w, nav().querySelector('[data-pick="all"]')); await wait(150);
   check('retour au Moodboard général : la carte y est', cards(c.d).includes('Château'));
 
