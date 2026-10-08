@@ -900,3 +900,12 @@
 
 /* Accès privé d'un AdReel (6/10) : les rangées gardent `hidden` malgré leur display:flex. */
 #appAccessPasswordRow[hidden], #appAccessMagicRow[hidden], #appAccessMagicOut[hidden] { display: none !important; }
+
+  /* Visite guidée (08/10) : voile transparent + découpe lumineuse autour de la cible + carte d'explication. */
+  .tour-root { position: fixed; inset: 0; z-index: 9000; }
+  .tour-spot { position: fixed; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(20,22,28,0.55); outline: 2px solid var(--accent); pointer-events: none; transition: all 0.2s ease; }
+  .tour-card { position: fixed; width: 320px; max-width: calc(100vw - 24px); background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; box-shadow: 0 12px 32px rgba(20,22,28,0.28); }
+  .tour-count { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; color: var(--accent); margin-bottom: 6px; }
+  .tour-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .tour-text { font-size: 13px; line-height: 1.55; color: var(--text-dim); margin-bottom: 14px; }
+  .tour-actions { display: flex; align-items: center; gap: 8px; }
