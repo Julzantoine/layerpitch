@@ -736,7 +736,7 @@
         html += `<div class="lm-alt"><label>${esc(tr('map_altName'))}</label><input type="text" id="lmAltName" value="${esc(item.altName || '')}" maxlength="60" placeholder="${esc(tr('map_altDefault'))}"${dis}>
           ${slotBox('combat', item.altName || tr('map_altDefault'), 'map_slotEmpty')}${slotBox('altTransition', tr('map_slot_altTransition'), 'map_altTransitionEmpty')}
           ${ctx.canEdit ? `<button class="btn" type="button" id="lmAltRemove">${esc(tr('map_altRemove'))}</button>` : ''}</div>`;
-      } else if (ctx.canEdit) html += `<button class="btn" type="button" id="lmAltAdd" style="margin:6px 0">＋ ${esc(tr('map_altAdd'))}</button>`;
+      } else if (ctx.canEdit) html += `<button class="btn" type="button" id="lmAltAdd" style="margin:6px 0;font-size:12px;padding:4px 10px;width:auto;border-style:dashed">＋ ${esc(tr('map_altAdd'))}</button>`;
       html += slotBox('room', tr('map_slot_room'), 'map_slotEmpty');
       html += transitionHtml(map, item);
       if (ctx.canEdit) html += `<div class="bar" style="margin-top:10px"><button class="btn danger" id="lmDeleteSel" type="button">${esc(tr(isEdge ? 'map_deleteEdge' : 'map_deleteNode'))}</button></div>`;
