@@ -124,14 +124,15 @@
             f => {
               layer0.pendingFile = f;
               hasUnsavedEdits = true;
-              if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) { track.title = titleFromFilename(f.name); renderLibrary(); }
+              applyStaticFileNameHints(track, f);
+              renderLibrary();
               probeAudioDuration(f).then(dur => { layer0.duration = dur; recomputeTrackDuration(track); renderLibrary(); });
             }, () => layer0.originalFileName);
           wireBatchDrop(staticCtrlHost, files => {
             const f = files[0];
             layer0.pendingFile = f;
             hasUnsavedEdits = true;
-            if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilename(f.name);
+            applyStaticFileNameHints(track, f);
             renderLibrary();
             probeAudioDuration(f).then(dur => { layer0.duration = dur; recomputeTrackDuration(track); renderLibrary(); });
           });

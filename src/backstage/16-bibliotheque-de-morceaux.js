@@ -23,6 +23,13 @@ function titleFromFilenameStrippingHints(filename) {
     .replace(/[_-]+/g, ' ')
     .trim();
 }
+// Morceau statique (08/10) : le fichier déposé donne le titre (sans le jeton « 120bpm ») et, s'il le contient, le tempo --
+// même nomenclature que le dépôt groupé du séquentiel (parseAudioFilenameHints). Un titre déjà saisi n'est jamais écrasé.
+function applyStaticFileNameHints(track, file) {
+  const hints = parseAudioFilenameHints(file.name);
+  if (hints.bpm) track.bpm = hints.bpm;
+  if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilenameStrippingHints(file.name);
+}
 // Devine le rôle (intro/segment/outro) d'un fichier déposé en lot dans le mode séquentiel, à partir de
 // son nom. "Segment" par défaut si rien ne correspond — reste ajustable ensuite via le sélecteur "Rôle".
 // Séparateurs explicites plutôt que \b (25/09) : pour \b le tiret bas est une lettre, donc

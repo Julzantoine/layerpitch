@@ -1890,15 +1890,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791492317231"></script>
-<script src="layerpitch-appearance.js?v=1791492317231"></script>
-<script src="layerpitch-album-shared.js?v=1791492317231"></script>
-<script src="layerpitch-album-editor.js?v=1791492317231"></script>
-<script src="layerpitch-shell.js?v=1791492317231"></script>
-<script src="layerpitch-social-icons.js?v=1791492317231"></script>
-<script src="layerpitch-notify.js?v=1791492317231"></script>
-<script src="layerpitch-help.js?v=1791492317231"></script>
-<script src="player.js?v=1791492317231"></script>
+<script src="layerpitch-i18n.js?v=1791648187130"></script>
+<script src="layerpitch-appearance.js?v=1791648187130"></script>
+<script src="layerpitch-album-shared.js?v=1791648187130"></script>
+<script src="layerpitch-album-editor.js?v=1791648187130"></script>
+<script src="layerpitch-shell.js?v=1791648187130"></script>
+<script src="layerpitch-social-icons.js?v=1791648187130"></script>
+<script src="layerpitch-notify.js?v=1791648187130"></script>
+<script src="layerpitch-help.js?v=1791648187130"></script>
+<script src="player.js?v=1791648187130"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -5563,6 +5563,13 @@ function titleFromFilenameStrippingHints(filename) {
     .replace(/[_-]+/g, ' ')
     .trim();
 }
+// Morceau statique (08/10) : le fichier déposé donne le titre (sans le jeton « 120bpm ») et, s'il le contient, le tempo --
+// même nomenclature que le dépôt groupé du séquentiel (parseAudioFilenameHints). Un titre déjà saisi n'est jamais écrasé.
+function applyStaticFileNameHints(track, file) {
+  const hints = parseAudioFilenameHints(file.name);
+  if (hints.bpm) track.bpm = hints.bpm;
+  if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilenameStrippingHints(file.name);
+}
 // Devine le rôle (intro/segment/outro) d'un fichier déposé en lot dans le mode séquentiel, à partir de
 // son nom. "Segment" par défaut si rien ne correspond — reste ajustable ensuite via le sélecteur "Rôle".
 // Séparateurs explicites plutôt que \b (25/09) : pour \b le tiret bas est une lettre, donc
@@ -6596,14 +6603,15 @@ function renderLibrary() {
             f => {
               layer0.pendingFile = f;
               hasUnsavedEdits = true;
-              if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) { track.title = titleFromFilename(f.name); renderLibrary(); }
+              applyStaticFileNameHints(track, f);
+              renderLibrary();
               probeAudioDuration(f).then(dur => { layer0.duration = dur; recomputeTrackDuration(track); renderLibrary(); });
             }, () => layer0.originalFileName);
           wireBatchDrop(staticCtrlHost, files => {
             const f = files[0];
             layer0.pendingFile = f;
             hasUnsavedEdits = true;
-            if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilename(f.name);
+            applyStaticFileNameHints(track, f);
             renderLibrary();
             probeAudioDuration(f).then(dur => { layer0.duration = dur; recomputeTrackDuration(track); renderLibrary(); });
           });
