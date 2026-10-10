@@ -30,6 +30,7 @@
   const a1 = await asset(pid, 'https://example.com/a'), a2 = await asset(pid, 'https://example.com/b'), a3 = await asset(pid, 'https://example.com/c');
   const other = await asset(pid2, 'https://example.com/z');
   const list = async p => val(`select public.list_project_sections($1)`, [p]);
+  const tick = () => new Promise(r => setTimeout(r, 20)); // l'horloge de PGlite est à la milliseconde : on sépare « suivre / lire » et « écrire »
   const sec = async (p, t, parent) => (await val(`select public.create_project_section($1, $2, $3)`, [p, t, parent || null])).id;
 
   // Feu vert
@@ -134,12 +135,14 @@
   let st = await val(`select public.section_chat_state($1)`, [pid]);
   check('non suivi : aucun compteur de non lus', st.length === 0);
   await q(`select public.set_section_follow($1, true)`, [chat]);
+  await tick();
   await as(1);
   await q(`select public.post_section_message($1, 'Un deuxième message')`, [chat]);
   await as(2);
   st = await val(`select public.section_chat_state($1)`, [pid]);
   check('suivi : les messages d\'après comptent comme non lus', st.length === 1 && st[0].unread === 1);
   await q(`select public.mark_section_read($1)`, [chat]);
+  await tick();
   check('marquer lu remet à zéro', (await val(`select public.section_chat_state($1)`, [pid]))[0].unread === 0);
   await q(`select public.post_section_message($1, 'Ma réponse')`, [chat]);
   check('écrire = suivre ; ses propres messages ne comptent pas', (await val(`select public.section_chat_state($1)`, [pid]))[0].unread === 0);
@@ -185,6 +188,7 @@
   // cloche
   await as(1);
   await q(`select public.set_section_follow($1, true)`, [ch2]);
+  await tick();
   check('cloche : rien tant que personne d\'autre n\'écrit', (await val(`select public.my_section_updates()`)).length === 0);
   await as(2);
   await q(`select public.post_section_message($1, 'Nouveau message pour la cloche')`, [ch2]);
@@ -195,6 +199,7 @@
   check('cloche : mes propres messages ne me sont pas signalés', (await val(`select public.my_section_updates()`)).length === 0);
   await as(1);
   await q(`select public.mark_section_read($1)`, [ch2]);
+  await tick();
   check('cloche : lu = plus rien', (await val(`select public.my_section_updates()`)).length === 0);
   await as(3);
   check('cloche : un non-membre ne voit rien', (await val(`select public.my_section_updates()`)).length === 0);
