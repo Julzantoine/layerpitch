@@ -909,3 +909,14 @@
   .tour-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
   .tour-text { font-size: 13px; line-height: 1.55; color: var(--text-dim); margin-bottom: 14px; }
   .tour-actions { display: flex; align-items: center; gap: 8px; }
+  /* Leçons guidées (08/10) : le voile laisse passer les clics pour que l'apprenant agisse sur l'élément en surbrillance. */
+  .tour-root-lesson { pointer-events: none; }
+  .tour-root-lesson .tour-card { pointer-events: auto; }
+  .tour-waiting { font-size: 12px; color: var(--accent); margin: -6px 0 12px; }
+  .tour-sample { display: block; font-size: 12.5px; margin: -4px 0 12px; }
+  .tour-sample-soon { color: var(--text-dimmer); }
+  .tutorial-menu-heading { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); padding: 6px 10px 2px; }
+  .tutorial-menu-text { display: flex; flex-direction: column; gap: 2px; }
+  .tutorial-menu-text small { font-size: 11.5px; color: var(--text-dim); font-weight: 400; }
+  .tour-root-lesson .tour-card { width: 380px; }
+  .tour-root-lesson .tour-text { font-size: 13.5px; }
