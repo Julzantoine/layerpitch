@@ -1,14 +1,14 @@
 /* ---------------- Visite guidée et leçons guidées du Backstage (08/10) ---------------- */
 // Un seul moteur de bulles, deux usages : le tour du propriétaire (étapes manuelles : « Suivant ») et les leçons (étapes
-// qui avancent toutes seules quand l'apprenant fait le geste demandé). Feu vert « in_app_tour » (admin seulement pour
-// l'instant). Menu « Tutoriel » dans la barre du haut, à côté de la cloche et du compte.
+// qui avancent toutes seules quand l'apprenant fait le geste demandé). Feu vert « in_app_tour » (visite) et « in_app_lessons » (leçons), admin seulement pour
+// l'instant. Menu « Tutoriel » (leçons) dans la barre du haut, à côté de la cloche et du compte : feu vert séparé « in_app_lessons ».
 const TOUR_DONE_STORAGE = 'layerpitch_tour_done_v1';
 const LESSONS_DONE_STORAGE = 'layerpitch_lessons_done_v1';
 const TOUR_STEPS = [
   { titleKey: 'tourWelcomeTitle', textKey: 'tourWelcomeText' },
+  { selector: '.nav-item[data-tab="library"]', titleKey: 'tourLibraryTitle', textKey: 'tourLibraryText' },
   { selector: '.nav-item[data-tab="content"]', titleKey: 'tourContentTitle', textKey: 'tourContentText' },
   { selector: '.nav-item[data-tab="appearance"]', titleKey: 'tourAppearanceTitle', textKey: 'tourAppearanceText' },
-  { selector: '.nav-item[data-tab="library"]', titleKey: 'tourLibraryTitle', textKey: 'tourLibraryText' },
   { selector: '.nav-item[data-tab="packs"]', titleKey: 'tourPacksTitle', textKey: 'tourPacksText' },
   { selector: '#btnPublish', titleKey: 'tourPublishTitle', textKey: 'tourPublishText' },
   { selector: '#btnAccountMenu', titleKey: 'tourAccountTitle', textKey: 'tourAccountText' },
@@ -186,7 +186,7 @@ function startBackstageTour() {
 }
 function startLesson(id) {
   const lesson = LESSONS.find(l => l.id === id);
-  if (!lesson || !lesson.steps) return;
+  if (!lesson || !lesson.steps || !flagOpen('in_app_lessons')) return;
   openGuide('lesson', lesson.steps, id);
   // Saute les étapes déjà faites au départ (par ex. bibliothèque déjà ouverte).
   const skipDone = () => { while (guide && guide.index < guide.steps.length - 1 && guide.steps[guide.index].done && guideStepIsDone(guide.steps[guide.index])) guideGo(1); };
@@ -242,9 +242,11 @@ function syncBackstageTour() {
   const open = flagOpen('in_app_tour');
   const menuItem = document.getElementById('accountMenuTour');
   if (menuItem) menuItem.hidden = !open;
+  // Le menu « Tutoriel » et les leçons ont leur propre feu vert : on peut ouvrir la visite sans ouvrir les leçons.
+  const lessonsOpen = flagOpen('in_app_lessons');
   const wrap = document.getElementById('tutorialMenuWrap');
-  if (wrap) wrap.hidden = !open;
-  if (open) renderTutorialMenu();
+  if (wrap) wrap.hidden = !lessonsOpen;
+  if (lessonsOpen) renderTutorialMenu();
   if (open && !tourAlreadyDone() && !guide) setTimeout(startBackstageTour, 600);
 }
 (function wireTourMenu() {
