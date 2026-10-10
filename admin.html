@@ -19,7 +19,7 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--backstage-bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; padding: 32px 20px 80px; }
-  .page { max-width: min(900px, 92vw); margin: 0 auto; }
+  .page { max-width: min(1280px, 96vw); margin: 0 auto; }
   h1 { font-size: 18px; margin: 0 0 4px; }
   .subtitle { color: var(--text-dim); font-size: 13px; margin: 0 0 24px; }
   .card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; }
@@ -62,6 +62,22 @@
   .growth-dot { position: absolute; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: var(--accent); }
   .growth-dot::after { content: ''; position: absolute; inset: -5px; }
   .growth-tile-range { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dimmer); margin: 0 0 0 26px; }
+  .admin-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 20px; align-items: start; }
+  .admin-nav { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 4px; }
+  .admin-nav button { text-align: left; background: transparent; color: var(--text); border: 1px solid transparent; padding: 9px 12px; }
+  .admin-nav button:hover { background: var(--accent-soft); }
+  .admin-nav button[aria-current="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .admin-main section[hidden] { display: none; }
+  .access-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  .access-cols .card { margin-bottom: 0; }
+  .list-scroll { max-height: 520px; overflow-y: auto; font-size: 12.5px; color: var(--text-dim); }
+  label { display: block; font-size: 12px; color: var(--text-dim); margin: 0 0 4px; }
+  .inline-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--text); }
+  .inline-check input { width: auto; margin: 2px 0 0; }
+  select { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; background: var(--bg); color: var(--text); }
+  .badge.open { background: #e2f3ea; color: #2a7; } .badge.closed { background: #faefdc; color: #b8862e; }
+  @media (max-width: 1100px) { .access-cols { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 760px) { .admin-layout { grid-template-columns: minmax(0, 1fr); } .admin-nav { position: static; flex-direction: row; flex-wrap: wrap; } }
 </style>
 </head>
 <body>
@@ -88,6 +104,134 @@
   </div>
 
   <div id="adminContent">
+    <!-- Mise en page : du général au particulier, de gauche à droite. À gauche, les grandes familles (navigation) ; à droite, le contenu
+         de la famille choisie ; dans « Accès et invitations », trois colonnes qui se lisent aussi de gauche à droite
+         (la demande reçue -> l'invitation à écrire -> l'historique des invitations envoyées). -->
+    <div class="admin-layout">
+      <nav class="admin-nav" id="adminNav" aria-label="Sections du panneau admin">
+        <button type="button" data-section="overview">Vue d'ensemble</button>
+        <button type="button" data-section="access">Accès et invitations</button>
+        <button type="button" data-section="accounts">Comptes</button>
+        <button type="button" data-section="announce">Annonces</button>
+        <button type="button" data-section="flags">Feux verts</button>
+        <button type="button" data-section="tools">Outils</button>
+      </nav>
+      <div class="admin-main">
+        <section data-section="overview">
+    <div class="card">
+      <h2 data-i18n="statsTitle">Statistiques</h2>
+      <div id="statsLoading" data-i18n="loadingLabel">Chargement…</div>
+      <div id="statsBody" style="display:none;">
+        <div class="stat-block">
+          <h3 data-i18n="statsAccountsTitle">Comptes</h3>
+          <div class="stat-grid" id="statsAccounts"></div>
+        </div>
+        <div class="stat-block">
+          <h3 data-i18n="statsContentTitle">Contenu</h3>
+          <div class="stat-grid" id="statsContent"></div>
+        </div>
+        <div class="stat-block">
+          <h3 data-i18n="statsAveragesTitle">Moyennes par compositeur</h3>
+          <div class="stat-grid" id="statsAverages"></div>
+        </div>
+        <div class="stat-block">
+          <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span data-i18n="statsNewInPeriodTitle">Nouveaux sur la période</span>
+            <select id="statsPeriod" style="font-size:12px;padding:4px 6px;">
+              <option value="24h" data-i18n="statsPeriod24h">Dernières 24h</option>
+              <option value="7d" selected data-i18n="statsPeriod7d">7 derniers jours</option>
+              <option value="30d" data-i18n="statsPeriod30d">Dernier mois</option>
+              <option value="6m" data-i18n="statsPeriod6m">6 derniers mois</option>
+              <option value="1y" data-i18n="statsPeriod1y">Dernière année</option>
+            </select>
+          </h3>
+          <div class="stat-grid" id="statsNewInPeriod"></div>
+        </div>
+      </div>
+      <div id="statsMsg" class="msg err"></div>
+    </div>
+
+    <div class="card">
+      <h2 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span data-i18n="growthTitle">Évolution dans le temps</span>
+        <select id="growthGranularity" style="font-size:12px;padding:4px 6px;">
+          <option value="week" selected data-i18n="growthWeek">Par semaine</option>
+          <option value="month" data-i18n="growthMonth">Par mois</option>
+        </select>
+      </h2>
+      <p class="subtitle" data-i18n="growthHint" style="margin:0 0 12px;font-size:12px;"></p>
+      <div id="growthLoading" data-i18n="loadingLabel">Chargement…</div>
+      <div id="growthBody" style="display:none;"></div>
+      <div id="growthMsg" class="msg err"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="adReelsReportTitle">Rapport des AdReels</h2>
+      <p class="subtitle" data-i18n="adReelsReportHint" style="margin-bottom:10px;"></p>
+      <div class="row">
+        <button id="adReelsReportBtn" data-i18n="adReelsReportBtn">Générer le rapport</button>
+        <input type="text" id="adReelsReportFilter" data-i18n-placeholder="adReelsReportFilter" placeholder="Filtrer par nom d'adresse…" style="display:none">
+        <button id="adReelsReportCsvBtn" data-i18n="adReelsReportCsvBtn" style="display:none">Exporter en CSV</button>
+      </div>
+      <p class="subtitle" id="adReelsReportStatus" style="margin-top:8px"></p>
+      <div id="adReelsReportBody" style="overflow-x:auto"></div>
+    </div>
+        </section>
+
+        <section data-section="access" hidden>
+          <div class="access-cols">
+            <div class="card" id="panelAccessRequests">
+              <h2>Demandes d'accès en attente</h2>
+              <p class="subtitle" style="margin:0 0 10px;font-size:12px;">Deux sources : les boutons « Je veux rejoindre la bêta » / « Tenez-moi au courant » de la landing page, et bienvenue.html quand quelqu'un se connecte sans avoir été invité. « Inviter » pré-remplit le formulaire ; la demande n'est marquée traitée qu'une fois l'invitation réellement envoyée.</p>
+              <div id="accessRequestsList" class="list-scroll">Chargement…</div>
+            </div>
+            <div class="card" id="panelInviteTester">
+              <h2>Inviter un testeur</h2>
+              <p class="subtitle" style="margin:0 0 10px;font-size:12px;">Envoie une invitation par e-mail (compte créé, lien magique de première connexion). La fonction d'envoi refuse tout autre appelant qu'un admin. Le testeur reçoit son propre profil, jamais l'accès au contenu de quelqu'un d'autre. Limite Supabase par défaut : 2 e-mails par heure.</p>
+              <label for="inviteTesterEmail">E-mail du testeur</label>
+              <input type="email" id="inviteTesterEmail" placeholder="testeur@exemple.com">
+              <div class="row" style="margin-top:8px;">
+                <div style="flex:1;min-width:110px;"><label for="inviteTesterLang">Langue</label>
+                  <select id="inviteTesterLang"><option value="fr">Français</option><option value="en">English</option></select></div>
+                <div style="flex:1;min-width:110px;"><label for="inviteTesterPersona">Type de compte</label>
+                  <select id="inviteTesterPersona"><option value="composer">Compositeur</option><option value="studio">Studio</option></select></div>
+              </div>
+              <label for="inviteTesterMessage" style="margin-top:8px;">Message personnalisé (facultatif)</label>
+              <textarea id="inviteTesterMessage" rows="3" placeholder="Un petit mot pour ce testeur : laisse vide pour le message par défaut."></textarea>
+              <div class="row" style="margin-top:10px;"><button type="button" id="btnInviteTester">Envoyer l'invitation</button></div>
+            </div>
+            <div class="card" id="panelInvitesSent">
+              <h2>Invitations envoyées</h2>
+              <p class="subtitle" style="margin:0 0 10px;font-size:12px;">Historique des invitations envoyées d'ici. « Inscrit·e » apparaît dès que la personne s'est réellement connectée au moins une fois (pas seulement au clic sur le lien).</p>
+              <div id="invitesSentList" class="list-scroll">Chargement…</div>
+            </div>
+          </div>
+        </section>
+
+        <section data-section="accounts" hidden>
+    <div class="card">
+      <h2 data-i18n="suspensionTitle">Comptes</h2>
+      <div class="row">
+        <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="Rechercher par email ou handle…">
+        <button id="searchBtn" data-i18n="searchBtn">Rechercher</button>
+      </div>
+      <table id="accountsTable">
+        <thead>
+          <tr>
+            <th data-i18n="tableEmail">Email</th>
+            <th data-i18n="tableCreatedAt">Créé le</th>
+            <th data-i18n="tableProfiles">Profils</th>
+            <th data-i18n="tableStatus">Statut</th>
+            <th data-i18n="tableAction">Action</th>
+          </tr>
+        </thead>
+        <tbody id="accountsBody"></tbody>
+      </table>
+      <div id="accountsMsg" class="msg"></div>
+    </div>
+        </section>
+
+        <section data-section="announce" hidden>
     <div class="card">
       <h2 data-i18n="adminMsgTitle">Message aux compositeurs</h2>
       <p class="subtitle" data-i18n="adminMsgHint" style="margin-bottom:10px;">Envoyé à tous les compositeurs connectés — ils le retrouvent dans leur boîte de réception (cloche du backstage).</p>
@@ -137,22 +281,26 @@
 
     <!-- Espace Projet, étape 2 (28/09) : sites collés dans les Projets pour lesquels LayerPitch ne sait pas faire d'aperçu.
          Liste seulement : ajouter un site = décision manuelle (Edge Function link-preview + project_link_has_preview). -->
+        </section>
+
+        <section data-section="flags" hidden>
+          <div class="card" id="panelFeatureFlags">
+            <h2>Feux verts</h2>
+            <p class="subtitle" style="margin:0 0 10px;font-size:12px;">Une fonction « admin seulement » n'est visible que par les admins. « Ouvrir à tous » la rend visible à tous les comptes tout de suite ; « Refermer » la réserve de nouveau aux admins. Chaque changement demande confirmation.</p>
+            <div class="row"><input type="text" id="featureFlagsSearch" placeholder="Rechercher un feu vert…" style="flex:1;min-width:180px;"><span class="subtitle" id="featureFlagsCount" style="margin:0;font-size:12px;"></span></div>
+            <div id="featureFlagsList" class="list-scroll" style="margin-top:8px;">Chargement…</div>
+          </div>
+        </section>
+
+        <section data-section="tools" hidden>
+          <div class="card" id="panelTestTools">
+            <h2>Outils de test</h2>
+            <label class="inline-check"><input type="checkbox" id="modeTestToggle"> Mode test : mes propres essais dans le Backstage sont exclus des statistiques d'usage (réglage de ce navigateur)</label>
+          </div>
     <div class="card">
       <h2 data-i18n="linkDomainsTitle">Liens sans aperçu dans les Projets</h2>
       <p class="subtitle" data-i18n="linkDomainsHint" style="margin-bottom:10px;"></p>
       <div id="linkDomainsBody"></div>
-    </div>
-
-    <div class="card">
-      <h2 data-i18n="adReelsReportTitle">Rapport des AdReels</h2>
-      <p class="subtitle" data-i18n="adReelsReportHint" style="margin-bottom:10px;"></p>
-      <div class="row">
-        <button id="adReelsReportBtn" data-i18n="adReelsReportBtn">Générer le rapport</button>
-        <input type="text" id="adReelsReportFilter" data-i18n-placeholder="adReelsReportFilter" placeholder="Filtrer par nom d'adresse…" style="display:none">
-        <button id="adReelsReportCsvBtn" data-i18n="adReelsReportCsvBtn" style="display:none">Exporter en CSV</button>
-      </div>
-      <p class="subtitle" id="adReelsReportStatus" style="margin-top:8px"></p>
-      <div id="adReelsReportBody" style="overflow-x:auto"></div>
     </div>
 
     <div class="card">
@@ -162,85 +310,21 @@
         <a class="btn-link" href="https://clarity.microsoft.com/projects/view/yjd22i9kce/dashboard" target="_blank" rel="noopener" data-i18n="clarityOpenBtn">Ouvrir Microsoft Clarity</a>
       </div>
     </div>
-
-    <div class="card">
-      <h2 data-i18n="statsTitle">Statistiques</h2>
-      <div id="statsLoading" data-i18n="loadingLabel">Chargement…</div>
-      <div id="statsBody" style="display:none;">
-        <div class="stat-block">
-          <h3 data-i18n="statsAccountsTitle">Comptes</h3>
-          <div class="stat-grid" id="statsAccounts"></div>
-        </div>
-        <div class="stat-block">
-          <h3 data-i18n="statsContentTitle">Contenu</h3>
-          <div class="stat-grid" id="statsContent"></div>
-        </div>
-        <div class="stat-block">
-          <h3 data-i18n="statsAveragesTitle">Moyennes par compositeur</h3>
-          <div class="stat-grid" id="statsAverages"></div>
-        </div>
-        <div class="stat-block">
-          <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <span data-i18n="statsNewInPeriodTitle">Nouveaux sur la période</span>
-            <select id="statsPeriod" style="font-size:12px;padding:4px 6px;">
-              <option value="24h" data-i18n="statsPeriod24h">Dernières 24h</option>
-              <option value="7d" selected data-i18n="statsPeriod7d">7 derniers jours</option>
-              <option value="30d" data-i18n="statsPeriod30d">Dernier mois</option>
-              <option value="6m" data-i18n="statsPeriod6m">6 derniers mois</option>
-              <option value="1y" data-i18n="statsPeriod1y">Dernière année</option>
-            </select>
-          </h3>
-          <div class="stat-grid" id="statsNewInPeriod"></div>
-        </div>
+        </section>
       </div>
-      <div id="statsMsg" class="msg err"></div>
     </div>
-
-    <div class="card">
-      <h2 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <span data-i18n="growthTitle">Évolution dans le temps</span>
-        <select id="growthGranularity" style="font-size:12px;padding:4px 6px;">
-          <option value="week" selected data-i18n="growthWeek">Par semaine</option>
-          <option value="month" data-i18n="growthMonth">Par mois</option>
-        </select>
-      </h2>
-      <p class="subtitle" data-i18n="growthHint" style="margin:0 0 12px;font-size:12px;"></p>
-      <div id="growthLoading" data-i18n="loadingLabel">Chargement…</div>
-      <div id="growthBody" style="display:none;"></div>
-      <div id="growthMsg" class="msg err"></div>
-    </div>
-
-    <div class="card">
-      <h2 data-i18n="suspensionTitle">Comptes</h2>
-      <div class="row">
-        <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="Rechercher par email ou handle…">
-        <button id="searchBtn" data-i18n="searchBtn">Rechercher</button>
-      </div>
-      <table id="accountsTable">
-        <thead>
-          <tr>
-            <th data-i18n="tableEmail">Email</th>
-            <th data-i18n="tableCreatedAt">Créé le</th>
-            <th data-i18n="tableProfiles">Profils</th>
-            <th data-i18n="tableStatus">Statut</th>
-            <th data-i18n="tableAction">Action</th>
-          </tr>
-        </thead>
-        <tbody id="accountsBody"></tbody>
-      </table>
-      <div id="accountsMsg" class="msg"></div>
-    </div>
-
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1791492317231"></script>
-<script src="api/auth.js?v=1791492317231"></script>
-<script src="layerpitch-admin-report.js?v=1791492317231"></script>
-<script src="api/admin.js?v=1791492317231"></script>
-<script src="layerpitch-i18n.js?v=1791492317231"></script>
-<script src="layerpitch-notify.js?v=1791492317231"></script>
+<script src="api/supabase-client.js?v=1791650650107"></script>
+<script src="api/auth.js?v=1791650650107"></script>
+<script src="layerpitch-admin-report.js?v=1791650650107"></script>
+<script src="api/admin.js?v=1791650650107"></script>
+<script src="api/access-requests.js?v=1791650650107"></script>
+<script src="api/invites.js?v=1791650650107"></script>
+<script src="layerpitch-i18n.js?v=1791650650107"></script>
+<script src="layerpitch-notify.js?v=1791650650107"></script>
 <script>
 // i18n minimal (zone "admin" + repli "shared") — même patron que layerpitch-backstage.html.
 function currentLang() { return localStorage.getItem('layerpitch_lang') || 'fr'; }
@@ -253,6 +337,8 @@ function tr(key, vars) {
   if (vars) Object.keys(vars).forEach(k => { str = str.replace('{' + k + '}', vars[k]); });
   return str;
 }
+function escapeAttr(s) { return escapeHtml(s); }
+const esc = escapeHtml; // la carte « Liens sans aperçu » l'appelait sans qu'elle existe (erreur silencieuse avant le 10/10)
 function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function applyI18n() {
   document.documentElement.lang = currentLang();
@@ -294,7 +380,183 @@ async function render(session) {
   loadAccounts();
   loadAdminMsgHistory();
   loadLinkDomains();
+  renderAccessRequestsList();
+  renderInvitesSentList();
+  loadFeatureFlagsPanel();
 }
+
+// ---- Navigation du panneau : du général (à gauche) au particulier (à droite) ----
+const ADMIN_SECTION_KEY = 'layerpitch_admin_section';
+function showAdminSection(name) {
+  const names = [...document.querySelectorAll('#adminNav [data-section]')].map(b => b.dataset.section);
+  if (!names.includes(name)) name = 'overview';
+  document.querySelectorAll('.admin-main section[data-section]').forEach(sec => { sec.hidden = sec.dataset.section !== name; });
+  document.querySelectorAll('#adminNav [data-section]').forEach(b => b.setAttribute('aria-current', b.dataset.section === name ? 'true' : 'false'));
+  try { localStorage.setItem(ADMIN_SECTION_KEY, name); } catch (e) {}
+}
+document.querySelectorAll('#adminNav [data-section]').forEach(b => b.addEventListener('click', () => showAdminSection(b.dataset.section)));
+(function () { let last = 'overview'; try { last = localStorage.getItem(ADMIN_SECTION_KEY) || 'overview'; } catch (e) {} showAdminSection(last); })();
+
+// ---- Demandes d'accès, invitations de testeurs, feux verts, mode test : déplacés du Backstage (10/10) ----
+// Mêmes appels qu'avant (api/access-requests.js, api/invites.js, Edge Function d'invitation, set_feature_released) ; la vraie
+// barrière reste is_admin() côté serveur sur chacun.
+async function renderAccessRequestsList() {
+  const listEl = document.getElementById('accessRequestsList');
+  if (!listEl) return;
+  const { requests, error } = await window.LayerPitchAccessRequests.getPendingAccessRequests();
+  if (error) { listEl.textContent = 'Erreur : ' + error; return; }
+  if (!requests.length) { listEl.textContent = 'Aucune demande en attente pour l\'instant.'; return; }
+  const sourceLabel = (r) => r.source === 'blocked_signin'
+    ? 'connexion refusée (pas encore invité)'
+    : (r.intent === 'waitlist' ? 'landing — "Tenez-moi au courant"' : (r.intent === 'studio' ? 'landing — page Studios (studio)' : 'landing — "Rejoindre la bêta"'));
+  listEl.innerHTML = requests.map((r) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--border);">
+      <div style="flex:1;min-width:0;overflow-wrap:anywhere;">
+        <div style="color:var(--text);">${escapeHtml(r.email)}</div>
+        <div style="font-size:11px;color:var(--text-dimmer);">${sourceLabel(r)} — ${new Date(r.created_at).toLocaleString('fr-FR')}</div>
+        ${r.message ? `<div style="font-size:12px;margin-top:4px;padding:6px 8px;background:var(--bg-card);border-radius:6px;white-space:pre-wrap;">${escapeHtml(r.message)}</div>` : ''}
+      </div>
+      <button type="button" data-request-id="${r.id}" data-request-email="${escapeAttr(r.email)}" data-request-intent="${escapeAttr(r.intent || '')}" style="padding:5px 10px;">Inviter</button>
+      <button type="button" class="secondary" data-delete-request-id="${r.id}" title="Écarter sans inviter" style="padding:5px 10px;">Supprimer</button>
+    </div>`).join('');
+  listEl.querySelectorAll('button[data-request-id]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const emailField = document.getElementById('inviteTesterEmail');
+      emailField.value = btn.dataset.requestEmail;
+      emailField.dataset.pendingRequestId = btn.dataset.requestId;
+      // Une demande venue de la page Studios s'invite en compte studio (profil studio créé à l'arrivée, puis espace studio).
+      const personaField = document.getElementById('inviteTesterPersona');
+      if (personaField) personaField.value = btn.dataset.requestIntent === 'studio' ? 'studio' : 'composer';
+      if (emailField.scrollIntoView) emailField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      emailField.focus();
+    });
+  });
+  listEl.querySelectorAll('button[data-delete-request-id]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { ok, error: err } = await window.LayerPitchAccessRequests.deleteAccessRequest(Number(btn.dataset.deleteRequestId));
+      if (!ok) { window.LayerPitchNotify.error('Erreur : ' + err); btn.disabled = false; return; }
+      renderAccessRequestsList();
+    });
+  });
+}
+async function renderInvitesSentList() {
+  const listEl = document.getElementById('invitesSentList');
+  if (!listEl) return;
+  const { invites, error } = await window.LayerPitchInvites.getInvites();
+  if (error) { listEl.textContent = 'Erreur : ' + error; return; }
+  if (!invites.length) { listEl.textContent = 'Aucune invitation envoyée pour l\'instant.'; return; }
+  listEl.innerHTML = invites.map((inv) => {
+    const status = inv.accepted_at ? 'Inscrit·e le ' + new Date(inv.accepted_at).toLocaleString('fr-FR') : 'En attente';
+    return `
+    <div style="position:relative;display:flex;align-items:center;gap:10px;padding:6px 22px 6px 0;border-top:1px solid var(--border);">
+      <div style="flex:1;min-width:0;overflow-wrap:anywhere;">
+        <div style="color:var(--text);">${escapeHtml(inv.email)} <span style="font-size:10px;color:var(--text-dimmer);border:1px solid var(--border);border-radius:3px;padding:0 4px;">${inv.lang === 'en' ? 'EN' : 'FR'}</span></div>
+        <div style="font-size:11px;color:var(--text-dimmer);">Invité·e le ${new Date(inv.created_at).toLocaleString('fr-FR')}</div>
+      </div>
+      <div style="font-size:12px;">${status}</div>
+      <button type="button" class="btn-invite-delete" data-invite-id="${inv.id}" title="Effacer" aria-label="Effacer" style="position:absolute;top:4px;right:0;border:none;background:none;color:var(--text-dimmer);font-size:14px;padding:0 4px;">×</button>
+    </div>`;
+  }).join('');
+  listEl.querySelectorAll('.btn-invite-delete').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { ok, error: err } = await window.LayerPitchInvites.deleteInvite(Number(btn.dataset.inviteId));
+      if (!ok) { window.LayerPitchNotify.error('Erreur : ' + err); btn.disabled = false; return; }
+      renderInvitesSentList();
+    });
+  });
+}
+document.getElementById('btnInviteTester').addEventListener('click', async () => {
+  const inviteBtn = document.getElementById('btnInviteTester');
+  const emailField = document.getElementById('inviteTesterEmail');
+  const email = emailField.value.trim();
+  const lang = document.getElementById('inviteTesterLang').value === 'en' ? 'en' : 'fr';
+  const persona = document.getElementById('inviteTesterPersona').value === 'studio' ? 'studio' : 'composer';
+  const personalMessage = document.getElementById('inviteTesterMessage').value.trim();
+  if (!email) { window.LayerPitchNotify.info('Renseigne l\'e-mail du testeur.'); return; }
+  inviteBtn.disabled = true;
+  try {
+    // Redirige vers bienvenue.html (flux d'inscription), pas vers le Backstage : sinon le nouvel invité atterrit dans l'outil sans voir
+    // l'écran d'accueil. ?lang= : propagé à l'écran d'accueil et au message de bienvenue ; ?persona=studio : crée le profil studio.
+    const pendingRequestId = emailField.dataset.pendingRequestId ? Number(emailField.dataset.pendingRequestId) : null;
+    const { ok, error, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html?lang=' + lang + (persona === 'studio' ? '&persona=studio' : ''), personalMessage, pendingRequestId, lang);
+    if (ok) {
+      window.LayerPitchNotify.success('Invitation envoyée à ' + email + (persona === 'studio' ? ' (compte studio).' : '.'));
+      document.getElementById('inviteTesterPersona').value = 'composer';
+      // La demande d'accès d'où part l'invitation n'est marquée traitée qu'une fois l'envoi réussi (jamais avant).
+      if (emailField.dataset.pendingRequestId) {
+        await window.LayerPitchAccessRequests.markAccessRequestInvited(Number(emailField.dataset.pendingRequestId));
+        delete emailField.dataset.pendingRequestId;
+        renderAccessRequestsList();
+      }
+      renderInvitesSentList();
+      emailField.value = '';
+      document.getElementById('inviteTesterMessage').value = '';
+      document.getElementById('inviteTesterLang').value = 'fr';
+    } else if (actionLink) {
+      // Compte créé mais e-mail jamais parti : le lien de secours doit être transmis à la main plutôt que de perdre l'invitation.
+      window.LayerPitchNotify.error('Erreur : ' + error + '\n\nLien à transmettre toi-même à ' + email + ' :\n' + actionLink);
+    } else {
+      window.LayerPitchNotify.error('Erreur : ' + error);
+    }
+  } catch (e) { window.LayerPitchNotify.error('Erreur : ' + e.message); }
+  inviteBtn.disabled = false;
+});
+
+// Feux verts : table feature_flags (lisible par tous), changement par set_feature_released (vérifie is_admin côté base).
+// Ouvrir un feu vert l'ouvre à TOUS les comptes : confirmation avant chaque changement.
+let featureFlagRows = [];
+async function loadFeatureFlagsPanel() {
+  const listEl = document.getElementById('featureFlagsList');
+  if (!listEl) return;
+  const { data, error } = await window.LayerPitchSupabaseClient.getClient().from('feature_flags').select('key, released, released_at, description').order('key');
+  if (error) { listEl.textContent = 'Erreur : ' + error.message; return; }
+  featureFlagRows = data || [];
+  renderFeatureFlagsPanel();
+}
+function renderFeatureFlagsPanel() {
+  const listEl = document.getElementById('featureFlagsList'), countEl = document.getElementById('featureFlagsCount');
+  if (!listEl) return;
+  const filter = ((document.getElementById('featureFlagsSearch') || {}).value || '').trim().toLowerCase();
+  const rows = featureFlagRows
+    .filter(r => !filter || r.key.toLowerCase().includes(filter) || (r.description || '').toLowerCase().includes(filter))
+    .sort((a, b) => (a.released === b.released ? a.key.localeCompare(b.key) : (a.released ? 1 : -1))); // fermés d'abord
+  const closed = featureFlagRows.filter(r => !r.released).length;
+  if (countEl) countEl.textContent = closed + ' fermé' + (closed > 1 ? 's' : '') + ' (admin seulement) sur ' + featureFlagRows.length;
+  if (!rows.length) { listEl.textContent = 'Aucun feu vert ne correspond.'; return; }
+  listEl.innerHTML = rows.map(r => `
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="color:var(--text);"><code>${escapeHtml(r.key)}</code> <span class="badge ${r.released ? 'open' : 'closed'}">${r.released ? 'ouvert à tous' : 'admin seulement'}</span></div>
+        <div style="font-size:12px;color:var(--text-dimmer);margin-top:2px;">${escapeHtml(r.description || '')}</div>
+      </div>
+      <button type="button" class="${r.released ? 'secondary' : ''}" data-flag-key="${escapeAttr(r.key)}" data-flag-open="${r.released ? '0' : '1'}" style="padding:5px 10px;">${r.released ? 'Refermer' : 'Ouvrir à tous'}</button>
+    </div>`).join('');
+}
+async function toggleFeatureFlag(key, open) {
+  const msg = open
+    ? 'Ouvrir « ' + key + ' » à TOUS les comptes ? Les compositeurs et studios le verront tout de suite.'
+    : 'Refermer « ' + key + ' » ? Seuls les admins le verront de nouveau.';
+  if (!(await window.LayerPitchNotify.confirm(msg, { danger: !open }))) return;
+  const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_feature_released', { p_key: key, p_released: open });
+  if (error) { window.LayerPitchNotify.error('Erreur : ' + error.message); return; }
+  window.LayerPitchNotify.success(open ? '« ' + key + ' » est ouvert à tous.' : '« ' + key + ' » est refermé.');
+  await loadFeatureFlagsPanel();
+}
+document.getElementById('featureFlagsList').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-flag-key]');
+  if (btn) toggleFeatureFlag(btn.dataset.flagKey, btn.dataset.flagOpen === '1');
+});
+document.getElementById('featureFlagsSearch').addEventListener('input', renderFeatureFlagsPanel);
+
+// Mode test : même clé que le Backstage (isModeTest() la relit), donc le réglage vaut pour ce navigateur.
+const MODE_TEST_KEY = 'layerpitch_backstage_mode_test';
+(function () {
+  const cb = document.getElementById('modeTestToggle');
+  try { cb.checked = localStorage.getItem(MODE_TEST_KEY) === '1'; } catch (e) {}
+  cb.addEventListener('change', () => { try { localStorage.setItem(MODE_TEST_KEY, cb.checked ? '1' : '0'); } catch (e) {} });
+})();
 
 // ---- Sites sans aperçu dans les Projets (étape 2 de l'espace Projet) ----
 async function loadLinkDomains() {

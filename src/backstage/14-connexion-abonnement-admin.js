@@ -101,7 +101,7 @@ async function setAdminPreviewTier(tier) {
 // tout, docs/infrastructure.md). Confort d'affichage uniquement, comme dans admin.html : la vraie
 // barrière reste is_admin() côté serveur (RPC SECURITY DEFINER, RLS) sur chaque action, jamais
 // cette vérification client seule.
-const ADMIN_ONLY_PANEL_IDS = ['panelAdminTools', 'panelPgWrite', 'panelAccessRequests', 'panelFeatureFlags', 'panelInviteTester', 'panelInvitesSent', 'panelAdminLink', 'adminPreviewMenuWrap', 'appAdminTierOverrideWrap'];
+const ADMIN_ONLY_PANEL_IDS = ['panelAdminTools', 'panelPgWrite', 'panelAdminLink', 'adminPreviewMenuWrap', 'appAdminTierOverrideWrap'];
 // La bibliothèque vidéo / capture (navItemVideoLibrary, panelVideoLibrary) avait été ouverte à tout
 // compositeur connecté le 16 septembre (voir
 // supabase/migrations/20260916040000_open_capture_video_to_composers.sql, toujours en place côté
@@ -201,7 +201,6 @@ async function renderAdminOnlyPanels(session) {
   if (socialsBlockBtn) socialsBlockBtn.hidden = !flagOpen('adreel_socials');
   const albumsNavBtn = document.getElementById('navItemAlbums');
   if (albumsNavBtn) albumsNavBtn.hidden = !can('sell_albums');
-  if (isAdmin) { renderAccessRequestsList(); renderInvitesSentList(); if (typeof loadFeatureFlagsPanel === 'function') loadFeatureFlagsPanel(); }
   if (typeof syncBackstageTour === 'function') syncBackstageTour(); // visite guidée (feu vert in_app_tour)
   // Le statut admin peut se résoudre après un premier rendu de la Bibliothèque (session déjà en cache
   // vs RPC is_admin() encore en vol) -- redessine pour refléter le grisage pitch correctement, sans quoi
@@ -215,84 +214,7 @@ async function renderAdminOnlyPanels(session) {
   if (typeof renderSfxLibrary === 'function') renderSfxLibrary(); // même raison : l'entrée "Espace" des Sfx est réservée à l'admin
   if (typeof renderPacks === 'function') renderPacks(); // prix et catalogue abonnés : droits lus dans la matrice
 }
-// Demandes d'accès en attente (bloc "Inviter un testeur" ci-dessous, 6 septembre) -- une seule
-// fonction de rendu réutilisée après chaque invitation réussie pour retirer la ligne traitée.
-async function renderAccessRequestsList() {
-  const listEl = document.getElementById('accessRequestsList');
-  if (!listEl) return;
-  const { requests, error } = await window.LayerPitchAccessRequests.getPendingAccessRequests();
-  if (error) { listEl.textContent = 'Erreur : ' + error; return; }
-  if (!requests.length) { listEl.textContent = 'Aucune demande en attente pour l\'instant.'; return; }
-  const sourceLabel = (r) => r.source === 'blocked_signin'
-    ? 'connexion refusée (pas encore invité)'
-    : (r.intent === 'waitlist' ? 'landing — "Tenez-moi au courant"' : (r.intent === 'studio' ? 'landing — page Studios (studio)' : 'landing — "Rejoindre la bêta"'));
-  listEl.innerHTML = requests.map((r) => `
-    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #e2e2e6;">
-      <div style="flex:1;">
-        <div>${escapeHtml(r.email)}</div>
-        <div style="font-size:11px;color:var(--text-dimmer);">${sourceLabel(r)} — ${new Date(r.created_at).toLocaleString('fr-FR')}</div>
-        ${r.message ? `<div style="font-size:12px;margin-top:4px;padding:6px 8px;background:#f4f4f6;border-radius:6px;white-space:pre-wrap;">${escapeHtml(r.message)}</div>` : ''}
-      </div>
-      <button class="btn btn-small" type="button" data-request-id="${r.id}" data-request-email="${escapeAttr(r.email)}" data-request-intent="${escapeAttr(r.intent || '')}">Inviter</button>
-      <button class="btn btn-small" type="button" data-delete-request-id="${r.id}" title="Écarter sans inviter">Supprimer</button>
-    </div>`).join('');
-  listEl.querySelectorAll('button[data-request-id]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const emailField = document.getElementById('inviteTesterEmail');
-      emailField.value = btn.dataset.requestEmail;
-      emailField.dataset.pendingRequestId = btn.dataset.requestId;
-      // Une demande venue de la page Studios s'invite en compte studio (profil studio créé à l'arrivée, puis espace studio).
-      const personaField = document.getElementById('inviteTesterPersona');
-      if (personaField) personaField.value = btn.dataset.requestIntent === 'studio' ? 'studio' : 'composer';
-      emailField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      emailField.focus();
-    });
-  });
-  // Écarte une demande sans l'inviter (doublon, spam, déjà traitée autrement) -- retour de
-  // Jules-Antoine le 11 septembre : sans ça, la liste ne fait que grossir.
-  listEl.querySelectorAll('button[data-delete-request-id]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      const { ok, error } = await window.LayerPitchAccessRequests.deleteAccessRequest(Number(btn.dataset.deleteRequestId));
-      if (!ok) { window.LayerPitchNotify.error('Erreur : ' + error); btn.disabled = false; return; }
-      renderAccessRequestsList();
-    });
-  });
-}
-// Invitations envoyées (bloc "Invitations envoyées" ci-dessous, 16 septembre) -- réutilisée après
-// chaque invitation réussie pour faire apparaître la nouvelle ligne sans recharger la page.
-async function renderInvitesSentList() {
-  const listEl = document.getElementById('invitesSentList');
-  if (!listEl) return;
-  const { invites, error } = await window.LayerPitchInvites.getInvites();
-  if (error) { listEl.textContent = 'Erreur : ' + error; return; }
-  if (!invites.length) { listEl.textContent = 'Aucune invitation envoyée pour l\'instant.'; return; }
-  listEl.innerHTML = invites.map((inv) => {
-    const status = inv.accepted_at
-      ? 'Inscrit·e le ' + new Date(inv.accepted_at).toLocaleString('fr-FR')
-      : 'En attente';
-    const langBadge = (inv.lang === 'en' ? 'EN' : 'FR');
-    return `
-    <div style="position:relative;display:flex;align-items:center;gap:10px;padding:6px 22px 6px 0;border-top:1px solid #e2e2e6;">
-      <div style="flex:1;">
-        <div>${escapeHtml(inv.email)} <span style="font-size:10px;color:var(--text-dimmer);border:1px solid #e2e2e6;border-radius:3px;padding:0 4px;">${langBadge}</span></div>
-        <div style="font-size:11px;color:var(--text-dimmer);">Invité·e le ${new Date(inv.created_at).toLocaleString('fr-FR')}</div>
-      </div>
-      <div style="font-size:12px;${inv.accepted_at ? 'color:var(--text-dim);' : 'color:var(--text-dimmer);'}">${status}</div>
-      <button type="button" class="btn-invite-delete" data-invite-id="${inv.id}" title="Effacer" aria-label="Effacer" style="position:absolute;top:4px;right:0;border:none;background:none;color:var(--text-dimmer);font-size:14px;line-height:1;cursor:pointer;padding:2px 4px;">×</button>
-    </div>`;
-  }).join('');
-  // Petite croix de suppression (17 septembre, demande de Jules-Antoine) -- suppression libre
-  // (pending ou inscrit·e), voir supabase/migrations/20260917010000_delete_invite.sql.
-  listEl.querySelectorAll('.btn-invite-delete').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      const { ok, error } = await window.LayerPitchInvites.deleteInvite(Number(btn.dataset.inviteId));
-      if (!ok) { window.LayerPitchNotify.error('Erreur : ' + error); btn.disabled = false; return; }
-      renderInvitesSentList();
-    });
-  });
-}
+// Demandes d'accès, invitation des testeurs, invitations envoyées et feux verts : déplacés dans le panneau admin (admin.html, 10/10).
 function renderPgAuthStatus(session) {
   const el = document.getElementById('pgAuthStatus');
   const signOutBtn = document.getElementById('btnPgSignOut');
@@ -536,54 +458,6 @@ async function initPgAuthUi() {
       await loadPostgresReadScripts();
       await window.LayerPitchAuth.signOut();
       window.location.replace('bienvenue.html');
-    });
-  }
-  const inviteBtn = document.getElementById('btnInviteTester');
-  if (inviteBtn) {
-    inviteBtn.addEventListener('click', async () => {
-      const email = document.getElementById('inviteTesterEmail').value.trim();
-      const lang = document.getElementById('inviteTesterLang').value === 'en' ? 'en' : 'fr';
-      const persona = document.getElementById('inviteTesterPersona') && document.getElementById('inviteTesterPersona').value === 'studio' ? 'studio' : 'composer';
-      const personalMessage = document.getElementById('inviteTesterMessage').value.trim();
-      if (!email) { window.LayerPitchNotify.info('Renseigne l\'email du testeur.'); return; }
-      inviteBtn.disabled = true;
-      try {
-        await loadPostgresReadScripts();
-        // Redirige vers bienvenue.html (flux d'inscription, docs/infrastructure.md), pas vers le
-        // backstage lui-même -- sinon tout nouvel invité atterrit directement dans l'outil
-        // compositeur sans jamais voir l'écran d'accueil. ?lang= : bienvenue.html le lit et le
-        // propage à localStorage.layerpitch_lang (voir currentLang() plus haut dans ce fichier),
-        // donc à l'écran d'accueil ET au message de bienvenue personnel -- sans ce paramètre,
-        // tout le monde recevait la version française par défaut (11 septembre).
-        const emailFieldForRequestId = document.getElementById('inviteTesterEmail');
-        const pendingRequestId = emailFieldForRequestId.dataset.pendingRequestId
-          ? Number(emailFieldForRequestId.dataset.pendingRequestId) : null;
-        const { ok, error, actionLink } = await window.LayerPitchAuth.inviteTester(email, window.location.origin + '/bienvenue.html?lang=' + lang + (persona === 'studio' ? '&persona=studio' : ''), personalMessage, pendingRequestId, lang);
-        if (ok) {
-          window.LayerPitchNotify.success('Invitation envoyée à ' + email + (persona === 'studio' ? ' (compte studio).' : '.'));
-          const personaReset = document.getElementById('inviteTesterPersona'); if (personaReset) personaReset.value = 'composer';
-          // Si cette invitation part d'une demande d'accès en attente (bouton "Inviter" de la
-          // liste ci-dessus), la marquer traitée maintenant que l'envoi a réellement réussi --
-          // jamais avant, pour ne pas perdre une demande si l'envoi avait échoué.
-          const emailField = document.getElementById('inviteTesterEmail');
-          if (emailField.dataset.pendingRequestId) {
-            await window.LayerPitchAccessRequests.markAccessRequestInvited(Number(emailField.dataset.pendingRequestId));
-            delete emailField.dataset.pendingRequestId;
-            renderAccessRequestsList();
-          }
-          renderInvitesSentList();
-          emailField.value = '';
-          document.getElementById('inviteTesterMessage').value = '';
-          document.getElementById('inviteTesterLang').value = 'fr';
-        } else if (actionLink) {
-          // Compte créé mais email jamais parti (Resend en échec) -- le lien de secours doit être
-          // transmis à la main plutôt que de perdre l'invitation.
-          window.LayerPitchNotify.error('Erreur : ' + error + '\n\nLien à transmettre toi-même à ' + email + ' :\n' + actionLink);
-        } else {
-          window.LayerPitchNotify.error('Erreur : ' + error);
-        }
-      } catch (e) { window.LayerPitchNotify.error('Erreur : ' + e.message); }
-      inviteBtn.disabled = false;
     });
   }
   // Presets de période + période personnalisée du tableau de bord Analytics (refonte du 23
