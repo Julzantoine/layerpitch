@@ -246,13 +246,14 @@
   }
   async function fetchInbox() {
     const client = window.LayerPitchSupabaseClient.getClient();
-    const [ann, reads, contact, updates, invitations, sectionUpdates] = await Promise.all([
+    const [ann, reads, contact, updates, invitations, sectionUpdates, accessReqs] = await Promise.all([
       client.from('admin_messages').select('id, body, title, created_at').order('created_at', { ascending: false }).limit(20),
       client.from('admin_message_reads').select('message_id'),
       client.from('contact_messages').select('id, ad_reel_label, sender_name, sender_email, created_at, seen_at').order('created_at', { ascending: false }).limit(20),
       client.rpc('my_project_updates'),
       countInvitations(client).catch(() => 0),
       client.rpc('my_section_updates'), // canaux de section suivis (migration 20261007070000) ; absent ou fermé = liste vide
+      client.rpc('get_pending_access_requests'), // demandes d'accès à la bêta en attente : liste vide pour un compte non admin (filtrée par is_admin() côté base)
     ]);
     const seen = new Set((reads.data || []).map(r => r.message_id));
     const L = lang();
@@ -263,6 +264,17 @@
       title: i18nOf('backstage', 'inboxContactTitle', { name: m.sender_name }), text: i18nOf('backstage', 'inboxContactBody', { adreel: m.ad_reel_label, email: m.sender_email }) }));
     (Array.isArray(updates.data) ? updates.data : []).forEach(u => list.push(projectItem(u)));
     (Array.isArray(sectionUpdates && sectionUpdates.data) ? sectionUpdates.data : []).forEach(u => list.push(sectionItem(u)));
+    // Demandes d'accès à la bêta en attente (admin) : une seule ligne, dont la clé change à chaque nouvelle demande (donc le bandeau
+    // d'arrivée s'affiche) ; un clic mène au panneau admin, famille « Accès et invitations ».
+    const pending = Array.isArray(accessReqs && accessReqs.data) ? accessReqs.data : [];
+    if (pending.length) {
+      const newest = pending.reduce((a, b) => (new Date(b.created_at) > new Date(a.created_at) ? b : a));
+      const maxId = pending.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+      list.push({ key: 'access:' + maxId + ':' + pending.length, kind: 'access', unread: true, createdAt: newest.created_at,
+        title: pending.length === 1 ? tr('inboxAccessOne', { email: newest.email }) : tr('inboxAccessMany', { n: pending.length }),
+        text: pending.length === 1 ? (newest.message || '') : tr('inboxAccessLatest', { email: newest.email }),
+        href: 'admin.html?section=access' });
+    }
     if (invitations) list.push({ key: 'invitations:' + invitations, kind: 'invitation', unread: true, createdAt: new Date().toISOString(),
       title: tr('inboxInvitations', { n: invitations }), text: '', href: 'invitation.html' });
     list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
