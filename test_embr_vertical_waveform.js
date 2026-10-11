@@ -93,13 +93,18 @@ const path = require('path');
     await sleep(100);
     const btnRef = richBtns.find(b => b.dataset.loopId === 'ref');
     const btnPeerA = richBtns.find(b => b.dataset.loopId === 'peerA');
-    check('après lecture, la ligne active a une animation en cours (running)', btnRef.querySelector('.embr-wave-fg').style.animationPlayState === 'running');
-    check('la ligne active a une durée d\'animation cohérente avec le cycle (4 mesures à 300bpm/1 temps = 0.8s)', btnRef.querySelector('.embr-wave-fg').style.animationDuration === '0.8s');
-    check('une ligne riche non active tourne AUSSI (jamais figée), et reste visible (jamais masquée)', btnPeerA.querySelector('.embr-wave-fg').style.animationPlayState === 'running' && btnPeerA.style.display !== 'none');
+    // 11/10 : la progression suit la position réelle dans le fichier, peinte en continu (clip-path), plus d'animation CSS
+    const fgRef = btnRef.querySelector('.embr-wave-fg'), fgPeer = btnPeerA.querySelector('.embr-wave-fg');
+    const shown = el => { const m = /inset\(0(?:px)? ([\d.]+)%/.exec(el.style.clipPath || ''); return m ? 100 - parseFloat(m[1]) : null; };
+    check('après lecture, la ligne active est peinte en continu (clip-path posé, animation CSS coupée)', fgRef.style.animation === 'none' && shown(fgRef) !== null);
+    const f1 = shown(fgRef); await sleep(120); const f2 = shown(fgRef);
+    check('la progression avance avec la lecture', f2 !== null && f1 !== null && (f2 > f1 || f2 < f1)); // avance, ou vient de reboucler
+    check('une ligne riche non active avance AUSSI (jamais figée), et reste visible (jamais masquée)', shown(fgPeer) !== null && Math.abs(shown(fgPeer) - shown(fgRef)) < 15 && btnPeerA.style.display !== 'none');
 
     click(row.querySelector('[data-role="playBtn"]')); // Stop (toggle)
     await sleep(50);
-    check('après Stop, les lignes riches repassent en pause (rien ne joue dans le vide)', btnRef.querySelector('.embr-wave-fg').style.animationPlayState === 'paused' && btnPeerA.querySelector('.embr-wave-fg').style.animationPlayState === 'paused');
+    const frozen = fgRef.style.clipPath; await sleep(100);
+    check('après Stop, les lignes riches ne bougent plus (rien ne joue dans le vide)', fgRef.style.clipPath === frozen && fgPeer.style.clipPath === btnPeerA.querySelector('.embr-wave-fg').style.clipPath);
   }
 
   // ---- Scénario 2 : bascule "paire" avec transition -- overlay visible pendant, filigrane sur les 2 lignes concernées ----
@@ -132,7 +137,7 @@ const path = require('path');
     check('la ligne de transition apparaît pendant la bascule', !!overlay);
     check('sa progression est un clip-path one-shot avec la bonne durée (~0.4s)', overlay && /0\.4s/.test(overlay.querySelector('.embr-wave-fg').style.transition));
     check('les 2 lignes concernées (source ET cible) passent en filigrane', btnRef.classList.contains('embr-transition-dim') && btnPeer.classList.contains('embr-transition-dim'));
-    check('aucune des deux ne voit son animation continue interrompue pendant la transition', btnRef.querySelector('.embr-wave-fg').style.animationPlayState === 'running' && btnPeer.querySelector('.embr-wave-fg').style.animationPlayState === 'running');
+    check('aucune des deux ne voit sa progression interrompue pendant la transition', btnRef.querySelector('.embr-wave-fg').style.animation === 'none' && !!btnRef.querySelector('.embr-wave-fg').style.clipPath && !!btnPeer.querySelector('.embr-wave-fg').style.clipPath);
 
     check('la bascule réelle attend la fin de la transition', await waitUntil(() => btnPeer.classList.contains('active'), 800));
     check('la ligne de transition disparaît une fois la bascule effectuée', !picker.querySelector('.embr-transition-row'));
