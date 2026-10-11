@@ -21,7 +21,7 @@ function lessonPoolFiles(i) { const sec = lessonSection(); const p = sec && sec.
 // sans compte) n'aura qu'à répondre « oui » ici, sans toucher aux leçons.
 function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
-function lessonSlotHasFile(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return !!sl && (sl.alternatives || []).some(lessonHasFile); }
+function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonTrack() { return (typeof library !== 'undefined' && library.find(t => t.id === manageLibrarySelectedId)) || null; }
 // Fichiers d'exemple de chaque leçon : null tant qu'ils n'existent pas (la bulle dit alors « bientôt disponible »).
 const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null, sequential: null };
@@ -33,8 +33,8 @@ const LESSON_SAMPLE_NAMES = {
   randomFixed: 'couche-fixe_120bpm.wav',
   randomVariants: 'variante-1_120bpm.wav, variante-2_120bpm.wav, variante-3_120bpm.wav',
   seqIntro: 'intro_120bpm.wav',
-  seqA: 'segment-a_120bpm.wav',
-  seqB: 'segment-b_120bpm.wav',
+  seqA: 'segment-a1_120bpm.wav, segment-a2_120bpm.wav',
+  seqB: 'segment-b1_120bpm.wav, segment-b2_120bpm.wav',
   seqOutro: 'outro_120bpm.wav',
 };
 // done(ctx) : true quand le geste est fait -> la leçon avance seule. clickDone : un clic sur la cible suffit.
@@ -115,14 +115,19 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && t.mode === 'sequential'; } },
     { selector: '#libraryDetail .seq-master-item[data-seq-key="seqIntro"]', titleKey: 'lqIntroTitle', textKey: 'lqIntroText', sampleKey: 'sequential', names: 'seqIntro',
       done: () => { const t = lessonTrack(); return !!t && lessonHasFile(t.intro); } },
+    // L'intro de l'exemple dure moins d'une mesure (un temps) : réglage manuel (mesures = 1, temps par mesure = 1).
+    { selector: '#libraryDetail [data-field="introBars"]', titleKey: 'lqIntroSetTitle', textKey: 'lqIntroSetText' },
     { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlotTitle', textKey: 'lqSlotText',
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 1; } },
     { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lqSegTitle', textKey: 'lqSegText', names: 'seqA',
-      done: () => lessonSlotHasFile(0) },
+      done: () => lessonSlotFileCount(0) >= 2 },
+    { selector: '#libraryDetail [data-slot-field="repeatCount"]', titleKey: 'lqSlotCheckTitle', textKey: 'lqSlotCheckText' },
+    // Répétition des opérations pour une nouvelle section.
     { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlot2Title', textKey: 'lqSlot2Text',
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 2; } },
     { selector: '#libraryDetail .seq-master-item[data-si="1"]', titleKey: 'lqSeg2Title', textKey: 'lqSeg2Text', names: 'seqB',
-      done: () => lessonSlotHasFile(1) },
+      done: () => lessonSlotFileCount(1) >= 2 },
+    { selector: '#libraryDetail [data-slot-field="repeatCount"]', titleKey: 'lqSlotCheckTitle', textKey: 'lqSlotCheckText' },
     { selector: '#libraryDetail .seq-master-item[data-seq-key="seqOutro"]', titleKey: 'lqOutroTitle', textKey: 'lqOutroText', names: 'seqOutro',
       done: () => { const t = lessonTrack(); return !!t && lessonHasFile(t.outro); } },
     { selector: '#libraryDetail [data-role="segmentSlotsMaster"]', titleKey: 'lqCheckTitle', textKey: 'lqCheckText' },
