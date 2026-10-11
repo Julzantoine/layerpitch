@@ -6225,7 +6225,10 @@ function openFolderImportDialog(folder) {
   const files = folder.files || [];
   if (!files.length) { window.LayerPitchNotify.info(tr('importFolderNoAudio')); return; }
   const guess = guessFolderStructure(folder.name, files);
-  const state = { mode: guess.mode, title: folder.name || titleFromFilename(files[0].name) };
+  // Aucun indice dans les noms (why = 'default') : pas de présélection, la structure doit être choisie (11/10, retour de
+  // Jules-Antoine : « le moteur croit toujours que c'est du layering »). Le défaut vertical n'est qu'un repli interne.
+  const noClue = guess.why === 'default';
+  const state = { mode: noClue ? '' : guess.mode, title: folder.name || titleFromFilename(files[0].name) };
   const overlay = document.createElement('div');
   overlay.className = 'vrs-batch-overlay';
   const modal = document.createElement('div');
@@ -6242,21 +6245,26 @@ function openFolderImportDialog(folder) {
       <label>${tr('importFolderTitleLabel')}</label>
       <input type="text" data-fi="title" value="${escapeAttr(state.title)}">
       <label style="margin-top:12px">${tr('importFolderStructureLabel')}</label>
-      <select data-fi="mode">${FOLDER_IMPORT_MODES.map(m => `<option value="${m}"${m === state.mode ? ' selected' : ''}>${tr(optionLabel[m])}</option>`).join('')}</select>
-      <div class="hint-inline">${tr('importFolderGuess', { why: tr('importFolderWhy_' + guess.why) })}</div>
+      <select data-fi="mode">${noClue ? `<option value="" selected>${tr('importFolderChoosePlaceholder')}</option>` : ''}${FOLDER_IMPORT_MODES.map(m => `<option value="${m}"${m === state.mode ? ' selected' : ''}>${tr(optionLabel[m])}</option>`).join('')}</select>
+      <div class="hint-inline">${noClue ? tr('importFolderNoClue') : tr('importFolderGuess', { why: tr('importFolderWhy_' + guess.why) })}</div>
       ${ignored.length ? `<div class="hint-inline" style="color:#b45309;margin-top:10px">${tr('importFolderIgnored', { list: escapeHtml(ignored.map(s => `${s.name} (${s.count})`).join(', ')) })}</div>` : ''}
       <div class="hint-inline" style="margin-top:10px">${tr('importFolderDraftNote')}</div>
     </div>
     <div class="actions vrs-batch-actions">
       <button class="btn btn-small" type="button" data-fi-btn="cancel">${tr('cancel')}</button>
-      <button class="btn btn-small btn-primary" type="button" data-fi-btn="go">${tr('importFolderContinue')}</button>
+      <button class="btn btn-small btn-primary" type="button" data-fi-btn="go"${noClue ? ' disabled' : ''}>${tr('importFolderContinue')}</button>
     </div>`;
   modal.addEventListener('input', e => { if (e.target.dataset.fi === 'title') state.title = e.target.value; });
-  modal.addEventListener('change', e => { if (e.target.dataset.fi === 'mode') state.mode = e.target.value; });
+  modal.addEventListener('change', e => {
+    if (e.target.dataset.fi !== 'mode') return;
+    state.mode = e.target.value;
+    modal.querySelector('[data-fi-btn="go"]').disabled = !state.mode;
+  });
   modal.addEventListener('click', e => {
     const b = e.target.closest('[data-fi-btn]');
     if (!b) return;
     if (b.dataset.fiBtn === 'cancel') { close(); return; }
+    if (!state.mode) return; // rien choisi : on ne devine pas à sa place
     close();
     const title = (state.title || '').trim() || tr('defaultTrackTitle');
     if (state.mode === 'vertical-random') importFolderAsVerticalRandom(title, files);
