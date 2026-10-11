@@ -1853,15 +1853,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791726882911"></script>
-<script src="layerpitch-appearance.js?v=1791726882911"></script>
-<script src="layerpitch-album-shared.js?v=1791726882911"></script>
-<script src="layerpitch-album-editor.js?v=1791726882911"></script>
-<script src="layerpitch-shell.js?v=1791726882911"></script>
-<script src="layerpitch-social-icons.js?v=1791726882911"></script>
-<script src="layerpitch-notify.js?v=1791726882911"></script>
-<script src="layerpitch-help.js?v=1791726882911"></script>
-<script src="player.js?v=1791726882911"></script>
+<script src="layerpitch-i18n.js?v=1791727473609"></script>
+<script src="layerpitch-appearance.js?v=1791727473609"></script>
+<script src="layerpitch-album-shared.js?v=1791727473609"></script>
+<script src="layerpitch-album-editor.js?v=1791727473609"></script>
+<script src="layerpitch-shell.js?v=1791727473609"></script>
+<script src="layerpitch-social-icons.js?v=1791727473609"></script>
+<script src="layerpitch-notify.js?v=1791727473609"></script>
+<script src="layerpitch-help.js?v=1791727473609"></script>
+<script src="player.js?v=1791727473609"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -14627,6 +14627,9 @@ const TOUR_STEPS = [
 // Morceau en cours d'édition dans la Bibliothèque musicale (celui sélectionné dans la liste).
 function lessonSection() { const t = lessonTrack(); return (t && t.sections && t.sections[0]) || null; }
 function lessonPoolFiles(i) { const sec = lessonSection(); const p = sec && sec.pools && sec.pools[i]; return p ? (p.alternatives || []).filter(a => a.pendingFile || a.remoteFile).length : 0; }
+// Point d'accès unique aux leçons : aujourd'hui le feu vert « in_app_lessons ». Une future version publique (mode démo,
+// sans compte) n'aura qu'à répondre « oui » ici, sans toucher aux leçons.
+function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 function lessonTrack() { return (typeof library !== 'undefined' && library.find(t => t.id === manageLibrarySelectedId)) || null; }
 // Fichiers d'exemple de chaque leçon : null tant qu'ils n'existent pas (la bulle dit alors « bientôt disponible »).
 const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null };
@@ -14852,7 +14855,7 @@ function startBackstageTour() {
 }
 function startLesson(id) {
   const lesson = LESSONS.find(l => l.id === id);
-  if (!lesson || !lesson.steps || !flagOpen('in_app_lessons')) return;
+  if (!lesson || !lesson.steps || !lessonsAccessOpen()) return;
   openGuide('lesson', lesson.steps, id);
   // Saute les étapes déjà faites au départ (par ex. bibliothèque déjà ouverte).
   const skipDone = () => { while (guide && guide.index < guide.steps.length - 1 && guide.steps[guide.index].done && guideStepIsDone(guide.steps[guide.index])) guideGo(1); };
@@ -14909,7 +14912,7 @@ function syncBackstageTour() {
   const menuItem = document.getElementById('accountMenuTour');
   if (menuItem) menuItem.hidden = !open;
   // Le menu « Tutoriel » et les leçons ont leur propre feu vert : on peut ouvrir la visite sans ouvrir les leçons.
-  const lessonsOpen = flagOpen('in_app_lessons');
+  const lessonsOpen = lessonsAccessOpen();
   const wrap = document.getElementById('tutorialMenuWrap');
   if (wrap) wrap.hidden = !lessonsOpen;
   if (lessonsOpen) renderTutorialMenu();

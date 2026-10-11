@@ -17,6 +17,9 @@ const TOUR_STEPS = [
 // Morceau en cours d'édition dans la Bibliothèque musicale (celui sélectionné dans la liste).
 function lessonSection() { const t = lessonTrack(); return (t && t.sections && t.sections[0]) || null; }
 function lessonPoolFiles(i) { const sec = lessonSection(); const p = sec && sec.pools && sec.pools[i]; return p ? (p.alternatives || []).filter(a => a.pendingFile || a.remoteFile).length : 0; }
+// Point d'accès unique aux leçons : aujourd'hui le feu vert « in_app_lessons ». Une future version publique (mode démo,
+// sans compte) n'aura qu'à répondre « oui » ici, sans toucher aux leçons.
+function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 function lessonTrack() { return (typeof library !== 'undefined' && library.find(t => t.id === manageLibrarySelectedId)) || null; }
 // Fichiers d'exemple de chaque leçon : null tant qu'ils n'existent pas (la bulle dit alors « bientôt disponible »).
 const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null };
@@ -242,7 +245,7 @@ function startBackstageTour() {
 }
 function startLesson(id) {
   const lesson = LESSONS.find(l => l.id === id);
-  if (!lesson || !lesson.steps || !flagOpen('in_app_lessons')) return;
+  if (!lesson || !lesson.steps || !lessonsAccessOpen()) return;
   openGuide('lesson', lesson.steps, id);
   // Saute les étapes déjà faites au départ (par ex. bibliothèque déjà ouverte).
   const skipDone = () => { while (guide && guide.index < guide.steps.length - 1 && guide.steps[guide.index].done && guideStepIsDone(guide.steps[guide.index])) guideGo(1); };
@@ -299,7 +302,7 @@ function syncBackstageTour() {
   const menuItem = document.getElementById('accountMenuTour');
   if (menuItem) menuItem.hidden = !open;
   // Le menu « Tutoriel » et les leçons ont leur propre feu vert : on peut ouvrir la visite sans ouvrir les leçons.
-  const lessonsOpen = flagOpen('in_app_lessons');
+  const lessonsOpen = lessonsAccessOpen();
   const wrap = document.getElementById('tutorialMenuWrap');
   if (wrap) wrap.hidden = !lessonsOpen;
   if (lessonsOpen) renderTutorialMenu();

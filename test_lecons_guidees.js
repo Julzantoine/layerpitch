@@ -19,7 +19,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
 
   const page = read('layerpitch-backstage.html');
   check('feu vert in_app_lessons déclaré en base', read('supabase/migrations/20261008070000_in_app_lessons_flag.sql').includes("'in_app_lessons'"));
-  check('menu Tutoriel piloté par in_app_lessons, visite par in_app_tour', /lessonsOpen = flagOpen\('in_app_lessons'\)/.test(src) && /flagOpen\('in_app_tour'\)/.test(src));
+  check('menu Tutoriel piloté par in_app_lessons, visite par in_app_tour', /function lessonsAccessOpen\(\) \{ return flagOpen\('in_app_lessons'\)/.test(src) && /lessonsOpen = lessonsAccessOpen\(\)/.test(src) && /flagOpen\('in_app_tour'\)/.test(src));
   check('menu Tutoriel caché par défaut', /id="tutorialMenuWrap" hidden/.test(page));
   ['btnTutorialMenu', 'tutorialMenuDropdown', 'tutorialMenuList', 'btnAddLibraryTrack', 'btnPublish', 'libraryDetail'].forEach(id => check('élément ' + id + ' présent', page.includes('id="' + id + '"')));
   ['data-field="mode"', 'data-role="staticFileCtrl"', 'data-field="loopable"', 'data-field="loopEngine"', 'data-role="loopTimelineHost"', 'data-action="preview-track"', 'data-role="modeMaster"', 'data-role="previewHost"', 'data-role="fxSlidersHost"', 'data-role="vrsPools"', 'data-action="add-section"', 'data-action="add-pool"', 'data-section-field="bpm"']
