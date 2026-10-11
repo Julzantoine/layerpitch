@@ -24,9 +24,11 @@ function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
 function lessonLoopFileCount() { const t = lessonTrack(); return t ? (t.loops || []).filter(lessonHasFile).length : 0; }
+function lessonFolderDialogOpen() { return !!document.querySelector('.vrs-batch-modal [data-fi="mode"]'); }
+function lessonDialogText() { const m = document.querySelector('.vrs-batch-modal'); return m ? m.textContent : ''; }
 function lessonTrack() { return (typeof library !== 'undefined' && library.find(t => t.id === manageLibrarySelectedId)) || null; }
 // Fichiers d'exemple de chaque leçon : null tant qu'ils n'existent pas (la bulle dit alors « bientôt disponible »).
-const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null, sequential: null, branching: null, embranchement: null };
+const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null, sequential: null, branching: null, embranchement: null, import: null };
 // Nom du fichier d'exemple cité dans la consigne de dépôt (il porte le tempo : ambiance_120bpm).
 // (additive : noms provisoires, à remplacer par ceux des vrais fichiers).
 const LESSON_SAMPLE_NAMES = {
@@ -41,6 +43,7 @@ const LESSON_SAMPLE_NAMES = {
   seqC: 'segment-c1_120bpm.wav, segment-c2_120bpm.wav',
   embrLoops: 'boucle-calme_120bpm_16M.wav, boucle-combat_120bpm_16M.wav',
   embrDetour: 'detour_120bpm_4M.wav',
+  import: 'Tuto embranchement',
 };
 // done(ctx) : true quand le geste est fait -> la leçon avance seule. clickDone : un clic sur la cible suffit.
 // Sans done ni clickDone : étape manuelle (« Suivant »). enter(ctx) : photographie l'état à l'arrivée sur l'étape.
@@ -204,6 +207,26 @@ const LESSONS = [
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'leEndTitle', textKey: 'leEndText', final: true },
   ] },
+  // Leçon 7 : l'import d'un dossier tourne entièrement dans le navigateur (feu vert « bulk_drop » pour l'instant).
+  { id: 'import', titleKey: 'lessonImportTitle', descKey: 'lessonImportDesc', needs: 'bulk_drop', steps: [
+    { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
+      done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
+    { selector: '#libraryFolderDrop', titleKey: 'lfDropTitle', textKey: 'lfDropText', sampleKey: 'import', names: 'import',
+      enter: (c) => { c.baseLen = library.length; }, done: () => lessonFolderDialogOpen() },
+    { selector: '.vrs-batch-modal [data-fi="mode"]', titleKey: 'lfReadTitle', textKey: 'lfReadText' },
+    { selector: '.vrs-batch-modal [data-fi-btn="go"]', titleKey: 'lfGoTitle', textKey: 'lfGoText',
+      done: () => !!document.querySelector('.vrs-batch-modal [data-rg]') },
+    { selector: '.vrs-batch-modal .vrs-batch-body', titleKey: 'lfRolesTitle', textKey: 'lfRolesText' },
+    // Le piège : « Passage.wav » n'est pas compris. L'apprenant le renomme chez lui, puis redépose le dossier.
+    { selector: '.vrs-batch-modal .vrs-batch-body', titleKey: 'lfRenameTitle', textKey: 'lfRenameText', required: true,
+      done: () => /Transition #2/i.test(lessonDialogText()) },
+    { selector: '.vrs-batch-modal .vrs-batch-group', titleKey: 'lfPairsTitle', textKey: 'lfPairsText' },
+    { selector: '.vrs-batch-modal [data-rg-btn="ok"]', titleKey: 'lfCreateTitle', textKey: 'lfCreateText',
+      done: (c) => library.length > c.baseLen },
+    { selector: '#libraryMaster', titleKey: 'lfDraftTitle', textKey: 'lfDraftText' },
+    { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    { titleKey: 'lfEndTitle', textKey: 'lfEndText', final: true },
+  ] },
 ];
 
 let guide = null; // { root, kind, lessonId, steps, index, ctx, timer, advancing, clicked }
@@ -346,7 +369,7 @@ function startBackstageTour() {
 }
 function startLesson(id) {
   const lesson = LESSONS.find(l => l.id === id);
-  if (!lesson || !lesson.steps || !lessonsAccessOpen()) return;
+  if (!lesson || !lesson.steps || !lessonsAccessOpen() || (lesson.needs && !flagOpen(lesson.needs))) return;
   openGuide('lesson', lesson.steps, id);
   // Saute les étapes déjà faites au départ (par ex. bibliothèque déjà ouverte).
   const skipDone = () => { while (guide && guide.index < guide.steps.length - 1 && guide.steps[guide.index].done && guideStepIsDone(guide.steps[guide.index])) guideGo(1); };
@@ -367,9 +390,9 @@ function renderTutorialMenu() {
     <div class="account-menu-sep"></div>
     <div class="tutorial-menu-heading">${escapeHtml(tr('tutorialLessonsHeading'))}</div>
     ${LESSONS.map(l => `
-      <button class="account-menu-item" type="button" data-tutorial="${l.id}" ${l.soon ? 'disabled' : ''}>
+      <button class="account-menu-item" type="button" data-tutorial="${l.id}" ${(l.soon || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}>
         <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr(l.titleKey))}</b><small>${escapeHtml(tr(l.descKey))}</small></span></span>
-        ${l.soon ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : '')}
+        ${(l.soon || (l.needs && !flagOpen(l.needs))) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : '')}
       </button>`).join('')}`;
 }
 function initTutorialMenuUi() {

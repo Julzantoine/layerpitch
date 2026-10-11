@@ -22,7 +22,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('menu Tutoriel piloté par in_app_lessons, visite par in_app_tour', /function lessonsAccessOpen\(\) \{ return flagOpen\('in_app_lessons'\)/.test(src) && /lessonsOpen = lessonsAccessOpen\(\)/.test(src) && /flagOpen\('in_app_tour'\)/.test(src));
   check('menu Tutoriel caché par défaut', /id="tutorialMenuWrap" hidden/.test(page));
   ['btnTutorialMenu', 'tutorialMenuDropdown', 'tutorialMenuList', 'btnAddLibraryTrack', 'btnPublish', 'libraryDetail'].forEach(id => check('élément ' + id + ' présent', page.includes('id="' + id + '"')));
-  ['data-field="mode"', 'data-role="staticFileCtrl"', 'data-field="loopable"', 'data-field="loopEngine"', 'data-role="loopTimelineHost"', 'data-action="preview-track"', 'data-role="modeMaster"', 'data-role="previewHost"', 'data-role="fxSlidersHost"', 'data-role="vrsPools"', 'data-action="add-section"', 'data-action="add-pool"', 'data-section-field="bpm"', 'data-seq-key="seqIntro"', 'data-seq-key="seqOutro"', 'data-seq-key="trackinfo"', 'data-action="add-segment-slot"', 'data-role="segmentSlotsMaster"', 'data-field="introBars"', 'data-field="introBeatsPerBar"', 'data-slot-field="repeatCount"', 'data-slot-field="hasBranches"', 'data-slot-field="quantization"', 'data-branch-field="targetId"', 'data-branch-field="label"', 'data-branch-field="hasTransition"', 'data-action="add-branch-option"', 'branch-option-card', 'data-embr-loop-field="label"', 'data-embr-loop-field="switchQuantize"', 'data-embr-loop-field="hasTransition"', 'data-role="embrLoopTimelineHost"', 'data-action="add-embr-loop"', 'data-role="embrLoopFileCtrl"', 'data-embr-loop-field="isDetour"', 'data-embr-loop-field="bars"']
+  ['data-field="mode"', 'data-role="staticFileCtrl"', 'data-field="loopable"', 'data-field="loopEngine"', 'data-role="loopTimelineHost"', 'data-action="preview-track"', 'data-role="modeMaster"', 'data-role="previewHost"', 'data-role="fxSlidersHost"', 'data-role="vrsPools"', 'data-action="add-section"', 'data-action="add-pool"', 'data-section-field="bpm"', 'data-seq-key="seqIntro"', 'data-seq-key="seqOutro"', 'data-seq-key="trackinfo"', 'data-action="add-segment-slot"', 'data-role="segmentSlotsMaster"', 'data-field="introBars"', 'data-field="introBeatsPerBar"', 'data-slot-field="repeatCount"', 'data-slot-field="hasBranches"', 'data-slot-field="quantization"', 'data-branch-field="targetId"', 'data-branch-field="label"', 'data-branch-field="hasTransition"', 'data-action="add-branch-option"', 'branch-option-card', 'data-embr-loop-field="label"', 'data-embr-loop-field="switchQuantize"', 'data-embr-loop-field="hasTransition"', 'data-role="embrLoopTimelineHost"', 'data-action="add-embr-loop"', 'data-role="embrLoopFileCtrl"', 'data-embr-loop-field="isDetour"', 'data-embr-loop-field="bars"', 'id="libraryFolderDrop"', 'vrs-batch-modal', 'data-fi="mode"', 'data-fi-btn="go"', 'data-rg-btn="ok"', 'vrs-batch-group']
     .forEach(a => check('cible de leçon ' + a + ' présente dans les sources', page.includes(a)));
 
   // Moteur : la leçon avance toute seule quand le geste est fait.
@@ -34,12 +34,13 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
     window.__closed = !document.querySelector('.tour-root');
     myFlags = { in_app_lessons: true };
     document.querySelector('.nav-item[data-tab="library"]').hidden = false;
-    var __r = { lessons: LESSONS.length, soon: LESSONS.filter(l => l.soon).length, add: (LESSONS.find(l => l.id === 'additive').steps || []).length, rnd: (LESSONS.find(l => l.id === 'random').steps || []).length, seq: (LESSONS.find(l => l.id === 'sequential').steps || []).length, br: (LESSONS.find(l => l.id === 'branching').steps || []).length, emb: (LESSONS.find(l => l.id === 'embranchement').steps || []).length };
+    var __r = { lessons: LESSONS.length, soon: LESSONS.filter(l => l.soon).length, add: (LESSONS.find(l => l.id === 'additive').steps || []).length, rnd: (LESSONS.find(l => l.id === 'random').steps || []).length, seq: (LESSONS.find(l => l.id === 'sequential').steps || []).length, br: (LESSONS.find(l => l.id === 'branching').steps || []).length, emb: (LESSONS.find(l => l.id === 'embranchement').steps || []).length, imp: (LESSONS.find(l => l.id === 'import').steps || []).length, impNeeds: LESSONS.find(l => l.id === 'import').needs };
     startLesson('static');
     window.__r = __r;
   `);
   check('leçon refusée tant que in_app_lessons est fermé', w.__closed === true);
-  check('6 leçons déclarées, aucune « bientôt »', w.__r.lessons === 6 && w.__r.soon === 0);
+  check('7 leçons déclarées, aucune « bientôt »', w.__r.lessons === 7 && w.__r.soon === 0);
+  check('leçon 7 : 11 étapes, feu vert bulk_drop requis', w.__r.imp === 11 && w.__r.impNeeds === 'bulk_drop');
   check('leçon 6 : 21 étapes', w.__r.emb === 21);
   check('leçon 5 : 15 étapes', w.__r.br === 15);
   check('leçon 4 : 18 étapes', w.__r.seq === 18);
