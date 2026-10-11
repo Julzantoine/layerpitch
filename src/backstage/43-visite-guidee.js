@@ -15,12 +15,19 @@ const TOUR_STEPS = [
 ];
 
 // Morceau en cours d'édition dans la Bibliothèque musicale (celui sélectionné dans la liste).
+function lessonSection() { const t = lessonTrack(); return (t && t.sections && t.sections[0]) || null; }
+function lessonPoolFiles(i) { const sec = lessonSection(); const p = sec && sec.pools && sec.pools[i]; return p ? (p.alternatives || []).filter(a => a.pendingFile || a.remoteFile).length : 0; }
 function lessonTrack() { return (typeof library !== 'undefined' && library.find(t => t.id === manageLibrarySelectedId)) || null; }
 // Fichiers d'exemple de chaque leçon : null tant qu'ils n'existent pas (la bulle dit alors « bientôt disponible »).
-const LESSON_SAMPLE_FILES = { static: null, additive: null };
+const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null };
 // Nom du fichier d'exemple cité dans la consigne de dépôt (il porte le tempo : ambiance_120bpm).
 // (additive : noms provisoires, à remplacer par ceux des vrais fichiers).
-const LESSON_SAMPLE_NAMES = { static: 'ambiance_120bpm.wav', additive: 'couche-calme_120bpm.wav, couche-rythme_120bpm.wav, couche-intense_120bpm.wav' };
+const LESSON_SAMPLE_NAMES = {
+  static: 'ambiance_120bpm.wav',
+  additive: 'couche-calme_120bpm.wav, couche-rythme_120bpm.wav, couche-intense_120bpm.wav',
+  randomFixed: 'couche-fixe_120bpm.wav',
+  randomVariants: 'variante-1_120bpm.wav, variante-2_120bpm.wav, variante-3_120bpm.wav',
+};
 // done(ctx) : true quand le geste est fait -> la leçon avance seule. clickDone : un clic sur la cible suffit.
 // Sans done ni clickDone : étape manuelle (« Suivant »). enter(ctx) : photographie l'état à l'arrivée sur l'étape.
 const LESSONS = [
@@ -67,7 +74,29 @@ const LESSONS = [
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'laEndTitle', textKey: 'laEndText', final: true },
   ] },
-  { id: 'random', titleKey: 'lessonRandomTitle', descKey: 'lessonRandomDesc', soon: true },
+  { id: 'random', titleKey: 'lessonRandomTitle', descKey: 'lessonRandomDesc', steps: [
+    { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
+      done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
+    { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
+      enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
+    { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'lrModeTitle', textKey: 'lrModeText',
+      done: () => { const t = lessonTrack(); return !!t && t.mode === 'vertical-random'; } },
+    { selector: '#libraryDetail [data-action="add-section"]', titleKey: 'lrSectionTitle', textKey: 'lrSectionText',
+      done: () => { const t = lessonTrack(); return !!t && (t.sections || []).length >= 1; } },
+    // Une nouvelle section naît avec un premier pool vide : il sert de couche fixe (un seul fichier, joué à chaque passage).
+    { selector: '#libraryDetail [data-role="vrsPools"] > .list-block:nth-child(1)', titleKey: 'lrFixedTitle', textKey: 'lrFixedText', sampleKey: 'random', names: 'randomFixed',
+      done: () => lessonPoolFiles(0) >= 1 },
+    { selector: '#libraryDetail [data-action="add-pool"]', titleKey: 'lrPoolTitle', textKey: 'lrPoolText',
+      done: () => { const s2 = lessonSection(); return !!s2 && (s2.pools || []).length >= 2; } },
+    { selector: '#libraryDetail [data-role="vrsPools"] > .list-block:nth-child(2)', titleKey: 'lrVariantsTitle', textKey: 'lrVariantsText', names: 'randomVariants',
+      done: () => lessonPoolFiles(1) >= 2 },
+    { selector: '#libraryDetail [data-role="vrsPools"]', titleKey: 'lrCheckTitle', textKey: 'lrCheckText' },
+    { selector: '#libraryDetail input[data-section-field="bpm"]', titleKey: 'lrBpmTitle', textKey: 'lrBpmText' },
+    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lrPointsTitle', textKey: 'lrPointsText' },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lrListenTitle', textKey: 'lrListenText', clickDone: true },
+    { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    { titleKey: 'lrEndTitle', textKey: 'lrEndText', final: true },
+  ] },
   { id: 'sequential', titleKey: 'lessonSequentialTitle', descKey: 'lessonSequentialDesc', soon: true },
   { id: 'branching', titleKey: 'lessonBranchingTitle', descKey: 'lessonBranchingDesc', soon: true },
   { id: 'embranchement', titleKey: 'lessonEmbrTitle', descKey: 'lessonEmbrDesc', soon: true },
@@ -156,7 +185,7 @@ function renderGuideStep(positionOnly) {
     card.innerHTML = `
       <div class="tour-count">${guide.index + 1} / ${guide.steps.length}</div>
       <div class="tour-title">${escapeHtml(tr(step.titleKey))}</div>
-      <div class="tour-text">${escapeHtml(tr(step.textKey, { file: LESSON_SAMPLE_NAMES[guide.lessonId] || '' }))}</div>
+      <div class="tour-text">${escapeHtml(tr(step.textKey, { file: LESSON_SAMPLE_NAMES[step.names || guide.lessonId] || '' }))}</div>
       ${sampleHtml}
       ${auto ? `<div class="tour-waiting">${escapeHtml(tr('lessonDoIt'))}</div>` : ''}
       <div class="tour-actions">
