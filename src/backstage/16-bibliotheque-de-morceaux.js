@@ -173,6 +173,16 @@ function openGroupedDropDialog(opts) {
   (opts.checks || []).forEach(c => { checks[c.id] = !!c.checked; });
   let silentAll = false;
   const isSfx = opts.groupKind === 'sfx';
+  // Libellés propres à l'appelant (11/10, import de dossier : un « slot » du séquentiel n'est pas un « pool ») ;
+  // par défaut, ceux des pools / des Sfx comme avant.
+  const L = Object.assign({
+    summary: isSfx ? 'batchSfxSummary' : 'vrsBatchSummary',
+    option: isSfx ? 'batchSfxOption' : 'vrsBatchPoolOption',
+    fallback: isSfx ? 'sfxFallback' : 'vrsBatchPoolFallback',
+    empty: isSfx ? 'batchSfxEmptyGroup' : 'vrsBatchEmptyGroup',
+    placeholder: isSfx ? 'batchSfxNamePlaceholder' : 'poolNamePlaceholder',
+    addGroup: isSfx ? 'addSfx' : 'addPoolBtn'
+  }, opts.labels || {});
 
   const overlay = document.createElement('div');
   overlay.className = 'vrs-batch-overlay';
@@ -182,17 +192,17 @@ function openGroupedDropDialog(opts) {
   document.body.appendChild(overlay);
   const close = () => overlay.remove();
 
-  const groupName = (g, i) => g.label || tr(isSfx ? 'sfxFallback' : 'vrsBatchPoolFallback', { n: i + 1 });
+  const groupName = (g, i) => g.label || tr(L.fallback, { n: i + 1 });
   function destOptionsHtml(cur) {
     const opt = (v, label) => `<option value="${v}"${cur === v ? ' selected' : ''}>${escapeHtml(label)}</option>`;
     return (opts.withIntroOutro ? opt('intro', tr('introShortLabel')) + opt('outro', tr('outroShortLabel')) : '')
-      + groups.map((g, i) => opt(g.id, tr(isSfx ? 'batchSfxOption' : 'vrsBatchPoolOption', { name: groupName(g, i) }))).join('')
+      + groups.map((g, i) => opt(g.id, tr(L.option, { name: groupName(g, i) }))).join('')
       + opt('skip', tr('vrsBatchSkipOption'));
   }
   const filesFor = key => files.filter(f => dest.get(f) === key);
   function fileRowsHtml(key) {
     const list = filesFor(key);
-    if (!list.length) return `<div class="hint-inline">${tr(isSfx ? 'batchSfxEmptyGroup' : 'vrsBatchEmptyGroup')}</div>`;
+    if (!list.length) return `<div class="hint-inline">${tr(L.empty)}</div>`;
     return list.map(f => `
       <div class="vrs-batch-file">
         <span title="${escapeAttr(f.name)}">${escapeHtml(f.name)}</span>
@@ -219,7 +229,7 @@ function openGroupedDropDialog(opts) {
     const introHints = introHintText();
     modal.innerHTML = `
       <h3>${escapeHtml(opts.title)}</h3>
-      <div class="hint-inline">${tr(isSfx ? 'batchSfxSummary' : 'vrsBatchSummary', { files: files.length, pools: filled.length })}</div>
+      <div class="hint-inline">${tr(L.summary, { files: files.length, pools: filled.length })}</div>
       <div class="vrs-batch-body">
         ${opts.withSilent ? `
           <label class="vrs-batch-check vrs-batch-silent-all">
@@ -237,7 +247,7 @@ function openGroupedDropDialog(opts) {
         ${groups.map(g => `
           <div class="vrs-batch-group">
             <div class="vrs-batch-group-head">
-              <input type="text" data-vbd-group-label="${g.id}" value="${escapeAttr(g.label)}" placeholder="${tr(isSfx ? 'batchSfxNamePlaceholder' : 'poolNamePlaceholder')}">
+              <input type="text" data-vbd-group-label="${g.id}" value="${escapeAttr(g.label)}" placeholder="${tr(L.placeholder)}">
               ${opts.withSilent ? `<label class="vrs-batch-check"><input type="checkbox" data-vbd-group-silent="${g.id}"${g.silent ? ' checked' : ''}><span>${tr('vrsBatchSilentPoolLabel')}</span></label>` : ''}
             </div>
             ${fileRowsHtml(g.id)}
@@ -248,7 +258,7 @@ function openGroupedDropDialog(opts) {
             <div class="vrs-batch-group-head"><strong>${tr('vrsBatchSkippedLabel')}</strong></div>
             ${fileRowsHtml('skip')}
           </div>` : ''}
-        <div class="actions"><button class="btn btn-small" type="button" data-vbd="addGroup">${tr(isSfx ? 'addSfx' : 'addPoolBtn')}</button></div>
+        <div class="actions"><button class="btn btn-small" type="button" data-vbd="addGroup">${tr(L.addGroup)}</button></div>
       </div>
       ${tooMany ? `<div class="hint-inline" style="color:#b45309">${tr('vrsBatchTooManyIntroOutro')}</div>` : ''}
       <div class="actions vrs-batch-actions">

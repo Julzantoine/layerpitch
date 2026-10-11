@@ -199,6 +199,8 @@ async function renderAdminOnlyPanels(session) {
   // modifiable et s'affiche sur la page publique ; seul l'ajout d'un nouveau bloc est verrouillé.
   const socialsBlockBtn = document.getElementById('btnAddSocialsBlock');
   if (socialsBlockBtn) socialsBlockBtn.hidden = !flagOpen('adreel_socials');
+  const folderImportHost = document.getElementById('libraryFolderImport');
+  if (folderImportHost) folderImportHost.hidden = !flagOpen('bulk_drop'); // import d'un dossier -> morceau (11/10), même feu vert que les dépôts groupés
   const albumsNavBtn = document.getElementById('navItemAlbums');
   if (albumsNavBtn) albumsNavBtn.hidden = !can('sell_albums');
   if (typeof syncBackstageTour === 'function') syncBackstageTour(); // visite guidée (feu vert in_app_tour)

@@ -293,6 +293,14 @@
             <button class="btn btn-small" id="btnAddLibraryTrack" type="button" data-i18n="addTrack">+ Morceau</button>
             <button class="btn btn-small" id="btnRecomputeAllNormalization" type="button" data-i18n="normalizeRecomputeAllBtn">Recalculer le niveau de tous les morceaux</button>
           </div>
+          <!-- Import d'un dossier de fichiers -> nouveau morceau en brouillon (11/10). Visible avec le feu vert bulk_drop. -->
+          <div id="libraryFolderImport" hidden>
+            <div style="display:flex;gap:10px;align-items:stretch;margin-bottom:14px">
+              <button class="btn btn-small" id="btnImportFolder" type="button" data-i18n="importFolderBtn">Importer un dossier…</button>
+              <input type="file" id="importFolderInput" webkitdirectory multiple hidden>
+              <div data-role="libraryFolderDrop" id="libraryFolderDrop" style="flex:1" data-i18n="importFolderDropHint">…ou dépose ici un dossier de fichiers audio</div>
+            </div>
+          </div>
           <div class="seq-two-col">
             <div class="seq-master-list" id="libraryMaster"></div>
             <div class="seq-detail-col" id="libraryDetail"></div>
