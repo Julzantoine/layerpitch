@@ -116,7 +116,8 @@ const LESSONS = [
     { selector: '#libraryDetail .seq-master-item[data-seq-key="seqIntro"]', titleKey: 'lqIntroTitle', textKey: 'lqIntroText', sampleKey: 'sequential', names: 'seqIntro',
       done: () => { const t = lessonTrack(); return !!t && lessonHasFile(t.intro); } },
     // L'intro de l'exemple dure moins d'une mesure (un temps) : réglage manuel (mesures = 1, temps par mesure = 1).
-    { selector: '#libraryDetail [data-field="introBars"]', titleKey: 'lqIntroSetTitle', textKey: 'lqIntroSetText' },
+    { selector: '#libraryDetail .row:has([data-field="introBars"])', titleKey: 'lqIntroSetTitle', textKey: 'lqIntroSetText',
+      done: () => { const t = lessonTrack(); return !!t && !!t.intro && Number(t.intro.bars) === 1 && Number(t.intro.beatsPerBar) === 1; } },
     { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlotTitle', textKey: 'lqSlotText',
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 1; } },
     { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lqSegTitle', textKey: 'lqSegText', names: 'seqA',

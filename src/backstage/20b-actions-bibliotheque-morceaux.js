@@ -357,8 +357,8 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     }
     else if (field === 'introLabel') { library[ti].intro.label = e.target.value; }
     else if (field === 'introBars') { library[ti].intro.bars = parseInt(e.target.value, 10) || 8; }
-    else if (field === 'introBpm') { library[ti].intro.bpm = parseFloat(e.target.value) || null; }
-    else if (field === 'introBeatsPerBar') { library[ti].intro.beatsPerBar = parseInt(e.target.value, 10) || null; }
+    else if (field === 'introBpm') { library[ti].intro.bpm = parseFloat(e.target.value) || null; library[ti].intro.timingOwn = !!(library[ti].intro.bpm || library[ti].intro.beatsPerBar); }
+    else if (field === 'introBeatsPerBar') { library[ti].intro.beatsPerBar = parseInt(e.target.value, 10) || null; library[ti].intro.timingOwn = !!(library[ti].intro.bpm || library[ti].intro.beatsPerBar); }
     else if (field === 'introDescriptionFr') { library[ti].intro.descriptionFr = e.target.value; }
     else if (field === 'introDescriptionEn') { library[ti].intro.descriptionEn = e.target.value; }
     else if (field === 'outroLabel') { library[ti].outro.label = e.target.value; }

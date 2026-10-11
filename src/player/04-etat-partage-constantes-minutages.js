@@ -56,6 +56,19 @@ function seqBlockSeconds(track, bars, slot) {
   const tt = trackTempo(track);
   return (bars || tt.beatsPerBar) * tt.beatsPerBar * tt.secondsPerBeat;
 }
+// Durée nominale de l'intro d'un morceau séquentiel (08/10). Par défaut (comportement historique) : grille du premier
+// emplacement, ou du morceau. Si le compositeur a réglé un tempo ou des temps par mesure PROPRES à l'intro
+// (`intro.timingOwn`, posé par l'éditeur), ils priment, champ par champ -- pour une intro plus courte qu'une mesure
+// (un coup de « woosh » : 1 mesure de 1 temps). Sans le drapeau, un `intro.bpm` déjà enregistré (repris d'un nom de
+// fichier avant ce réglage) reste ignoré, pour ne rien changer aux morceaux existants.
+function seqIntroSeconds(track, firstSlot) {
+  const intro = (track && track.intro) || {};
+  if (!intro.timingOwn || !(intro.bpm || intro.beatsPerBar)) return seqBlockSeconds(track, intro.bars, firstSlot);
+  const base = (firstSlot && (firstSlot.bpm || firstSlot.beatsPerBar)) ? seqSlotTiming(track, firstSlot) : trackTempo(track);
+  const secondsPerBeat = intro.bpm ? 60 / intro.bpm : base.secondsPerBeat;
+  const beatsPerBar = intro.beatsPerBar || base.beatsPerBar;
+  return (intro.bars || beatsPerBar) * beatsPerBar * secondsPerBeat;
+}
 // Tempo d'un fichier de transition : le sien, sinon celui de l'emplacement (ou de la boucle) quitté, sinon le morceau.
 function seqTransitionTiming(track, tr, sourceSlot) {
   const tt = trackTempo(track);

@@ -5,6 +5,8 @@
           <div class="row">
             <div><label>${tr('nameFieldLabel')}</label><input type="text" data-field="introLabel" data-ti="${ti}" value="${escapeAttr(track.intro.label)}"></div>
             <div><label>${tr('barsLabel')}</label><input type="text" inputmode="numeric" data-field="introBars" data-ti="${ti}" value="${track.intro.bars || 8}"></div>
+            <div><label>${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-field="introBpm" data-ti="${ti}" placeholder="${bpm}" value="${track.intro.bpm || ''}"></div>
+            <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" data-field="introBeatsPerBar" data-ti="${ti}" placeholder="${beatsPerBar}" value="${track.intro.beatsPerBar || ''}"></div>
             <div><label>${tr('roleLabel')}</label>
               <select data-role-select="intro" data-ti="${ti}">
                 <option value="intro" selected>${tr('roleIntro')}</option>

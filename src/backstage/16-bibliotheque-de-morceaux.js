@@ -73,7 +73,7 @@ function setSeqStageFile(track, stage, f) {
   st.pendingFile = f;
   if (stage === 'intro') {
     if (h.bars) st.bars = h.bars;
-    if (h.bpm) st.bpm = h.bpm;
+    if (h.bpm) { st.bpm = h.bpm; st.timingOwn = true; } // tempo lu dans le nom : désormais pris en compte à la lecture
     if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilename(f.name);
   }
   hasUnsavedEdits = true;

@@ -300,7 +300,7 @@
       // chaîne (position 0, point de départ conventionnel), même principe que le vertical-random dont
       // l'intro suit le tempo de la première section jouable.
       const firstSlot = (track.segmentSlots || [])[0];
-      firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars, firstSlot); firstKind = 'intro'; firstGain = effGain(track.intro); firstDesc = pickStageDescription(track.intro);
+      firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = seqIntroSeconds(track, firstSlot); firstKind = 'intro'; firstGain = effGain(track.intro); firstDesc = pickStageDescription(track.intro);
       // Repère pour le mode Capture -- l'intro ne passe jamais par decideNextSeqBlock() (voir son
       // commentaire pour seq_slot_start), donc pas couverte par ce repère-là : son propre événement.
       seqOutcomeByBuffer.set(introBuffer, { name: 'seq_intro_start', detail: { trackId: track.id } });

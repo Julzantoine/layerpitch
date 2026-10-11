@@ -255,7 +255,7 @@
         const withCut = d => { if (pendingCut) d.cut = pendingCut; pendingCut = null; return d; };
         if (st.kind === 'outro') { push(cursor, 'seq_outro_start', withCut({})); cursor = L.b; return; }
         if (st.kind === 'intro' || st.kind === 'transition') {
-          const nominal = st.kind === 'intro' ? C().seqBlockSeconds(dst, st.item.bars, dstSlots[0]) : C().seqTransitionDurationSec(dst, st.opt, st.from);
+          const nominal = st.kind === 'intro' ? C().seqIntroSeconds(dst, dstSlots[0]) : C().seqTransitionDurationSec(dst, st.opt, st.from);
           const detail = st.kind === 'intro' ? {} : { fromSlotId: st.from.id, targetId: st.target.id };
           push(cursor, st.kind === 'intro' ? 'seq_intro_start' : 'seq_transition_start', withCut(detail));
           // Une intro / une transition ne se coupe pas dans le lecteur : la suite part à sa fin nominale -- sauf « caler

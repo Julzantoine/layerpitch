@@ -679,6 +679,19 @@ function seqBlockSeconds(track, bars, slot) {
   const tt = trackTempo(track);
   return (bars || tt.beatsPerBar) * tt.beatsPerBar * tt.secondsPerBeat;
 }
+// Durée nominale de l'intro d'un morceau séquentiel (08/10). Par défaut (comportement historique) : grille du premier
+// emplacement, ou du morceau. Si le compositeur a réglé un tempo ou des temps par mesure PROPRES à l'intro
+// (`intro.timingOwn`, posé par l'éditeur), ils priment, champ par champ -- pour une intro plus courte qu'une mesure
+// (un coup de « woosh » : 1 mesure de 1 temps). Sans le drapeau, un `intro.bpm` déjà enregistré (repris d'un nom de
+// fichier avant ce réglage) reste ignoré, pour ne rien changer aux morceaux existants.
+function seqIntroSeconds(track, firstSlot) {
+  const intro = (track && track.intro) || {};
+  if (!intro.timingOwn || !(intro.bpm || intro.beatsPerBar)) return seqBlockSeconds(track, intro.bars, firstSlot);
+  const base = (firstSlot && (firstSlot.bpm || firstSlot.beatsPerBar)) ? seqSlotTiming(track, firstSlot) : trackTempo(track);
+  const secondsPerBeat = intro.bpm ? 60 / intro.bpm : base.secondsPerBeat;
+  const beatsPerBar = intro.beatsPerBar || base.beatsPerBar;
+  return (intro.bars || beatsPerBar) * beatsPerBar * secondsPerBeat;
+}
 // Tempo d'un fichier de transition : le sien, sinon celui de l'emplacement (ou de la boucle) quitté, sinon le morceau.
 function seqTransitionTiming(track, tr, sourceSlot) {
   const tt = trackTempo(track);
@@ -4899,7 +4912,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       // chaîne (position 0, point de départ conventionnel), même principe que le vertical-random dont
       // l'intro suit le tempo de la première section jouable.
       const firstSlot = (track.segmentSlots || [])[0];
-      firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = blockSeconds(track.intro && track.intro.bars, firstSlot); firstKind = 'intro'; firstGain = effGain(track.intro); firstDesc = pickStageDescription(track.intro);
+      firstBuffer = introBuffer; firstLabel = (track.intro && track.intro.label) || 'Intro'; firstDurationSec = seqIntroSeconds(track, firstSlot); firstKind = 'intro'; firstGain = effGain(track.intro); firstDesc = pickStageDescription(track.intro);
       // Repère pour le mode Capture -- l'intro ne passe jamais par decideNextSeqBlock() (voir son
       // commentaire pour seq_slot_start), donc pas couverte par ce repère-là : son propre événement.
       seqOutcomeByBuffer.set(introBuffer, { name: 'seq_intro_start', detail: { trackId: track.id } });
@@ -7577,7 +7590,7 @@ window.LayerPlayerCore = {
   fxSpLatencySec,
   embrCutFadeSec,
   // Minutages musicaux purs (26/09, voir plus haut) -- partagés avec l'outil vidéo (capture-retarget.js).
-  trackTempo, seqSlotTiming, seqBlockSeconds, seqTransitionTiming, seqTransitionDurationSec, embrTransitionDurationSec,
+  trackTempo, seqSlotTiming, seqBlockSeconds, seqIntroSeconds, seqTransitionTiming, seqTransitionDurationSec, embrTransitionDurationSec,
   quantizedLoopTiming, vrSectionTiming, vrIntroDurationSec, embrReferenceIndex, embrPeerIndicesOf, embrLoopTimingOf, embrDurationToSec, embrQuantizeDelayAt,
   // Contexte audio de la page : sa fréquence et le retard de ses effets à ScriptProcessor (rendu hors-ligne à l'identique).
   liveSampleRate: () => ctx.sampleRate,
