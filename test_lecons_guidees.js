@@ -22,7 +22,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('menu Tutoriel piloté par in_app_lessons, visite par in_app_tour', /lessonsOpen = flagOpen\('in_app_lessons'\)/.test(src) && /flagOpen\('in_app_tour'\)/.test(src));
   check('menu Tutoriel caché par défaut', /id="tutorialMenuWrap" hidden/.test(page));
   ['btnTutorialMenu', 'tutorialMenuDropdown', 'tutorialMenuList', 'btnAddLibraryTrack', 'btnPublish', 'libraryDetail'].forEach(id => check('élément ' + id + ' présent', page.includes('id="' + id + '"')));
-  ['data-field="mode"', 'data-role="staticFileCtrl"', 'data-field="loopable"', 'data-field="loopEngine"', 'data-role="loopTimelineHost"', 'data-action="preview-track"']
+  ['data-field="mode"', 'data-role="staticFileCtrl"', 'data-field="loopable"', 'data-field="loopEngine"', 'data-role="loopTimelineHost"', 'data-action="preview-track"', 'data-role="modeMaster"', 'data-role="previewHost"']
     .forEach(a => check('cible de leçon ' + a + ' présente dans les sources', page.includes(a)));
 
   // Moteur : la leçon avance toute seule quand le geste est fait.
@@ -34,12 +34,13 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
     window.__closed = !document.querySelector('.tour-root');
     myFlags = { in_app_lessons: true };
     document.querySelector('.nav-item[data-tab="library"]').hidden = false;
-    var __r = { lessons: LESSONS.length, soon: LESSONS.filter(l => l.soon).length };
+    var __r = { lessons: LESSONS.length, soon: LESSONS.filter(l => l.soon).length, add: (LESSONS.find(l => l.id === 'additive').steps || []).length };
     startLesson('static');
     window.__r = __r;
   `);
   check('leçon refusée tant que in_app_lessons est fermé', w.__closed === true);
-  check('6 leçons déclarées, 5 « bientôt »', w.__r.lessons === 6 && w.__r.soon === 5);
+  check('6 leçons déclarées, 4 « bientôt » (2 construites)', w.__r.lessons === 6 && w.__r.soon === 4);
+  check('leçon 2 : 11 étapes', w.__r.add === 11);
   check('la leçon ouvre une bulle', !!w.document.querySelector('.tour-root-lesson .tour-card'));
   check('étape 1 sur 11', /1 \/ 11/.test(w.document.querySelector('.tour-count').textContent));
   // Geste : l'onglet bibliothèque devient actif -> étape 2 (après le délai d'avance).
