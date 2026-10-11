@@ -920,3 +920,4 @@
   .tutorial-menu-text small { font-size: 11.5px; color: var(--text-dim); font-weight: 400; }
   .tour-root-lesson .tour-card { width: 380px; }
   .tour-root-lesson .tour-text { font-size: 13.5px; }
+  .tour-text { white-space: pre-line; } /* un « \n » dans un texte fait un retour à la ligne */

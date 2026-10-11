@@ -931,6 +931,7 @@
   .tutorial-menu-text small { font-size: 11.5px; color: var(--text-dim); font-weight: 400; }
   .tour-root-lesson .tour-card { width: 380px; }
   .tour-root-lesson .tour-text { font-size: 13.5px; }
+  .tour-text { white-space: pre-line; } /* un « \n » dans un texte fait un retour à la ligne */
 </style>
 </head>
 <body>
@@ -1853,15 +1854,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791753955847"></script>
-<script src="layerpitch-appearance.js?v=1791753955847"></script>
-<script src="layerpitch-album-shared.js?v=1791753955847"></script>
-<script src="layerpitch-album-editor.js?v=1791753955847"></script>
-<script src="layerpitch-shell.js?v=1791753955847"></script>
-<script src="layerpitch-social-icons.js?v=1791753955847"></script>
-<script src="layerpitch-notify.js?v=1791753955847"></script>
-<script src="layerpitch-help.js?v=1791753955847"></script>
-<script src="player.js?v=1791753955847"></script>
+<script src="layerpitch-i18n.js?v=1791753997509"></script>
+<script src="layerpitch-appearance.js?v=1791753997509"></script>
+<script src="layerpitch-album-shared.js?v=1791753997509"></script>
+<script src="layerpitch-album-editor.js?v=1791753997509"></script>
+<script src="layerpitch-shell.js?v=1791753997509"></script>
+<script src="layerpitch-social-icons.js?v=1791753997509"></script>
+<script src="layerpitch-notify.js?v=1791753997509"></script>
+<script src="layerpitch-help.js?v=1791753997509"></script>
+<script src="player.js?v=1791753997509"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
