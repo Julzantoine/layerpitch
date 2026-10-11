@@ -43,7 +43,7 @@ const LESSON_SAMPLE_NAMES = {
   seqC: 'segment-c1_120bpm.wav, segment-c2_120bpm.wav',
   embrLoops: 'boucle-calme_120bpm_16M.wav, boucle-combat_120bpm_16M.wav',
   embrDetour: 'detour_120bpm_4M.wav',
-  import: 'Tuto séquentiel',
+  import: 'Tuto séquentiel - raccourci',
 };
 // done(ctx) : true quand le geste est fait -> la leçon avance seule. clickDone : un clic sur la cible suffit.
 // Sans done ni clickDone : étape manuelle (« Suivant »). enter(ctx) : photographie l'état à l'arrivée sur l'étape.
@@ -170,6 +170,23 @@ const LESSONS = [
     { selector: '#libraryDetail select[data-slot-field="quantization"]', titleKey: 'lbTriggerTitle', textKey: 'lbTriggerText' },
     { selector: '#libraryDetail .branch-option-card:nth-child(1) [data-branch-field="hasTransition"]', titleKey: 'lbTransTitle', textKey: 'lbTransText' },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lbListenTitle', textKey: 'lbListenText', clickDone: true },
+    // Raccourci (feu vert « bulk_drop ») : après la construction à la main (leçons 4 et 5), le même résultat en déposant un dossier. L'import crée la chaîne mais pas les embranchements, qui se relient à la main.
+    // L'import tourne entièrement dans le navigateur. Étapes ignorées tant que le feu vert est fermé.
+    { titleKey: 'lfIntroTitle', textKey: 'lfIntroText', skip: () => !flagOpen('bulk_drop') },
+    { selector: '#libraryFolderDrop', titleKey: 'lfDropTitle', textKey: 'lfDropText', sampleKey: 'import', names: 'import', skip: () => !flagOpen('bulk_drop'),
+      enter: (c) => { c.baseLen = library.length; }, done: () => lessonFolderDialogOpen() },
+    { selector: '.vrs-batch-modal [data-fi="mode"]', titleKey: 'lfReadTitle', textKey: 'lfReadText', skip: () => !flagOpen('bulk_drop') },
+    { selector: '.vrs-batch-modal [data-fi-btn="go"]', titleKey: 'lfGoTitle', textKey: 'lfGoText', skip: () => !flagOpen('bulk_drop'),
+      done: () => !!document.querySelector('.vrs-batch-modal [data-vbd-file]') },
+    // Le piège : « Ouverture.wav » n'est pas reconnue comme intro et aucun nom ne porte de tempo. L'apprenant la
+    // renomme chez lui (mot « Intro » + « _120bpm »), puis redépose le dossier.
+    { selector: '.vrs-batch-modal .vrs-batch-body', titleKey: 'lfRolesTitle', textKey: 'lfRolesText', skip: () => !flagOpen('bulk_drop') },
+    { selector: '.vrs-batch-modal .vrs-batch-body', titleKey: 'lfRenameTitle', textKey: 'lfRenameText', required: true, skip: () => !flagOpen('bulk_drop'),
+      done: () => /120\s*BPM/i.test(lessonDialogText()) && !!document.querySelector('.vrs-batch-modal [data-vbd-check="hints"]') },
+    { selector: '.vrs-batch-modal .vrs-batch-group', titleKey: 'lfCheckTitle', textKey: 'lfCheckText', skip: () => !flagOpen('bulk_drop') },
+    { selector: '.vrs-batch-modal [data-vbd="confirm"]', titleKey: 'lfCreateTitle', textKey: 'lfCreateText', skip: () => !flagOpen('bulk_drop'),
+      done: (c) => library.length > c.baseLen },
+    { selector: '#libraryMaster', titleKey: 'lfDraftTitle', textKey: 'lfDraftText', skip: () => !flagOpen('bulk_drop') },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lbEndTitle', textKey: 'lbEndText', final: true },
   ] },
@@ -206,27 +223,6 @@ const LESSONS = [
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'leListenTitle', textKey: 'leListenText', clickDone: true },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'leEndTitle', textKey: 'leEndText', final: true },
-  ] },
-  // Leçon 7 : l'import d'un dossier tourne entièrement dans le navigateur (feu vert « bulk_drop » pour l'instant).
-  { id: 'import', titleKey: 'lessonImportTitle', descKey: 'lessonImportDesc', needs: 'bulk_drop', steps: [
-    { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
-      done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
-    { selector: '#libraryFolderDrop', titleKey: 'lfDropTitle', textKey: 'lfDropText', sampleKey: 'import', names: 'import',
-      enter: (c) => { c.baseLen = library.length; }, done: () => lessonFolderDialogOpen() },
-    { selector: '.vrs-batch-modal [data-fi="mode"]', titleKey: 'lfReadTitle', textKey: 'lfReadText' },
-    { selector: '.vrs-batch-modal [data-fi-btn="go"]', titleKey: 'lfGoTitle', textKey: 'lfGoText',
-      done: () => !!document.querySelector('.vrs-batch-modal [data-vbd-file]') },
-    // Le piège : « Ouverture.wav » n'est pas reconnue comme intro et aucun nom ne porte de tempo. L'apprenant la
-    // renomme chez lui (mot « Intro » + « _120bpm »), puis redépose le dossier.
-    { selector: '.vrs-batch-modal .vrs-batch-body', titleKey: 'lfRolesTitle', textKey: 'lfRolesText' },
-    { selector: '.vrs-batch-modal .vrs-batch-body', titleKey: 'lfRenameTitle', textKey: 'lfRenameText', required: true,
-      done: () => /120\s*BPM/i.test(lessonDialogText()) && !!document.querySelector('.vrs-batch-modal [data-vbd-check="hints"]') },
-    { selector: '.vrs-batch-modal .vrs-batch-group', titleKey: 'lfCheckTitle', textKey: 'lfCheckText' },
-    { selector: '.vrs-batch-modal [data-vbd="confirm"]', titleKey: 'lfCreateTitle', textKey: 'lfCreateText',
-      done: (c) => library.length > c.baseLen },
-    { selector: '#libraryMaster', titleKey: 'lfDraftTitle', textKey: 'lfDraftText' },
-    { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
-    { titleKey: 'lfEndTitle', textKey: 'lfEndText', final: true },
   ] },
 ];
 

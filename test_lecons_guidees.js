@@ -34,16 +34,17 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
     window.__closed = !document.querySelector('.tour-root');
     myFlags = { in_app_lessons: true };
     document.querySelector('.nav-item[data-tab="library"]').hidden = false;
-    var __r = { lessons: LESSONS.length, soon: LESSONS.filter(l => l.soon).length, add: (LESSONS.find(l => l.id === 'additive').steps || []).length, rnd: (LESSONS.find(l => l.id === 'random').steps || []).length, seq: (LESSONS.find(l => l.id === 'sequential').steps || []).length, br: (LESSONS.find(l => l.id === 'branching').steps || []).length, emb: (LESSONS.find(l => l.id === 'embranchement').steps || []).length, imp: (LESSONS.find(l => l.id === 'import').steps || []).length, impNeeds: LESSONS.find(l => l.id === 'import').needs };
+    var __r = { lessons: LESSONS.length, soon: LESSONS.filter(l => l.soon).length, add: (LESSONS.find(l => l.id === 'additive').steps || []).length, rnd: (LESSONS.find(l => l.id === 'random').steps || []).length, seq: (LESSONS.find(l => l.id === 'sequential').steps || []).length, br: (LESSONS.find(l => l.id === 'branching').steps || []).length, emb: (LESSONS.find(l => l.id === 'embranchement').steps || []).length, seqSkip: (LESSONS.find(l => l.id === 'sequential').steps || []).filter(s2 => s2.skip).length, brSkip: (LESSONS.find(l => l.id === 'branching').steps || []).filter(s2 => s2.skip).length };
     startLesson('static');
     window.__r = __r;
   `);
   check('leçon refusée tant que in_app_lessons est fermé', w.__closed === true);
-  check('7 leçons déclarées, aucune « bientôt »', w.__r.lessons === 7 && w.__r.soon === 0);
-  check('leçon 7 : 11 étapes, feu vert bulk_drop requis', w.__r.imp === 11 && w.__r.impNeeds === 'bulk_drop');
+  check('6 leçons déclarées, aucune « bientôt »', w.__r.lessons === 6 && w.__r.soon === 0);
+  check('leçon 4 : 18 étapes, sans raccourci', w.__r.seq === 18 && w.__r.seqSkip === 0);
+  check('raccourci d’import dans la leçon 5 (24 étapes dont 9 sautées sans bulk_drop)', w.__r.br === 24 && w.__r.brSkip === 9);
   check('leçon 6 : 21 étapes', w.__r.emb === 21);
-  check('leçon 5 : 15 étapes', w.__r.br === 15);
-  check('leçon 4 : 18 étapes', w.__r.seq === 18);
+  
+  
   check('leçon 3 : 13 étapes', w.__r.rnd === 13);
   check('leçon 2 : 13 étapes', w.__r.add === 13);
   check('la leçon ouvre une bulle', !!w.document.querySelector('.tour-root-lesson .tour-card'));
