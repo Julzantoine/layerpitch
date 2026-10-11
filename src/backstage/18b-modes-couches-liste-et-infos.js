@@ -109,7 +109,7 @@
           ${trackNormalizeHtml(track, ti)}
           ${trackPitchFxHtml(track, ti)}
           ${fxTriggersEditorHtml(track, ti)}
-          ${fxSlidersEditorHtml(track, ti)}
+          <div data-role="fxSlidersHost">${fxSlidersEditorHtml(track, ti)}</div>
         `;
         modeDetailHost.appendChild(infoEl);
         if (isStatic) {

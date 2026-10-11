@@ -58,6 +58,10 @@ const LESSONS = [
     { selector: '#libraryDetail select[data-field="loopEngine"]', titleKey: 'laEngineTitle', textKey: 'laEngineText', required: true,
       done: () => { const t = lessonTrack(); return !!t && t.loopEngine === 'quantized'; } },
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'laPointsTitle', textKey: 'laPointsText' },
+    // Le pilotage de l'intensité se règle AVANT l'écoute : boutons nommés (par défaut), ou curseur à seuils (RTPC).
+    { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'laButtonsTitle', textKey: 'laButtonsText' },
+    { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'laSliderTitle', textKey: 'laSliderText',
+      skip: () => !fxOpen('rtpc') }, // curseurs : feu vert « rtpc » (admin seulement pour l'instant)
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'laListenTitle', textKey: 'laListenText', clickDone: true },
     { selector: '#libraryDetail [data-role="previewHost"]', titleKey: 'laIntensityTitle', textKey: 'laIntensityText' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
@@ -103,7 +107,9 @@ function guideClickCapture(e) {
 function guideStepTarget(step) { return step.selector ? document.querySelector(step.selector) : null; }
 function guideGo(delta) {
   if (!guide) return;
-  const next = guide.index + delta;
+  let next = guide.index + delta;
+  // Saute les étapes sans objet (ex. curseur de paramètre quand son feu vert est fermé), dans les deux sens.
+  while (next >= 0 && next < guide.steps.length && guide.steps[next].skip && guide.steps[next].skip()) next += delta;
   if (next < 0) return;
   if (next >= guide.steps.length) { finishGuide(); return; }
   guide.index = next; guide.clicked = false; guide.advancing = false;
