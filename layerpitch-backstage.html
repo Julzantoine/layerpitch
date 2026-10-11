@@ -6052,8 +6052,9 @@ function isTransitionFile(name) {
   return /(?:^|[^a-z0-9])transitions?(?:$|[^a-z0-9])/i.test((name || '').replace(/\.[^/.]+$/, ''));
 }
 // Numéro « #N » (ou « 1. » en tête) d'un nom, pour relier une transition à sa boucle.
+// Le numéro doit être isolé : « #1bis_SecretLever_Transition » n'est PAS le « #1 » d'une boucle (11/10, dossier RobotAdventure).
 function folderImportNumber(name) {
-  const m = (name || '').match(/#\s*(\d+(?:[.,]\d+)?)/) || (name || '').match(/^\s*(\d+)\s*[.\-_ ]/);
+  const m = (name || '').match(/#\s*(\d+(?:[.,]\d+)?)(?![A-Za-z0-9])/) || (name || '').match(/^\s*(\d+)\s*[.\-_ ]/);
   return m ? m[1].replace(',', '.') : null;
 }
 // Boucles + transitions rattachées : par numéro commun, puis par ordre pour les transitions restantes.
@@ -6072,7 +6073,7 @@ function pairLoopsWithTransitions(files) {
   pairs.forEach(pr => { if (!pr.transition && rest.length) pr.transition = rest.shift(); });
   return { loops, transitions, pairs, unassigned: rest };
 }
-if (typeof window !== 'undefined') { window.isTransitionFile = isTransitionFile; window.pairLoopsWithTransitions = pairLoopsWithTransitions; }
+if (typeof window !== 'undefined') { window.isTransitionFile = isTransitionFile; window.folderImportNumber = folderImportNumber; window.pairLoopsWithTransitions = pairLoopsWithTransitions; }
 const folderImportByName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 
 // Structure la plus probable pour un dossier, avec la raison (affichée au compositeur). Pure : testée sans page.
@@ -6091,8 +6092,10 @@ function guessFolderStructure(folderName, files) {
   if (transFiles.length && otherFiles.length && !otherFiles.some(f => guessSequentialRole(f.name) !== 'segment')) {
     const loopNumbers = new Set(otherFiles.map(f => folderImportNumber(f.name)).filter(Boolean));
     const allNumbered = transFiles.every(t => { const n = folderImportNumber(t.name); return n && loopNumbers.has(n); });
-    const hasVariants = groupFilesByNameFamily(otherFiles, false).groups.some(x => x.files.length >= 2);
-    if (allNumbered || !hasVariants) return { mode: 'embranchement-vertical', why: 'transitions' };
+    if (allNumbered) return { mode: 'embranchement-vertical', why: 'transitions' };
+    // Une transition qui ne porte le numéro d'aucune boucle : embranchement, ou séquentiel avec une bifurcation ? Rien ne
+    // le dit dans les noms -> on le demande, on ne présélectionne rien (RobotAdventure : séquentiel à embranchement).
+    if (!groupFilesByNameFamily(otherFiles, false).groups.some(x => x.files.length >= 2)) return { mode: 'vertical', why: 'transitionsUnclear' };
   }
   const intensity = files.filter(f => /(?:^|[^a-z])(?:low|med|medium|mid|high)[\s_-]?intensit|intensit/i.test(f.name)).length;
   if (files.length >= 2 && intensity >= 2) return { mode: 'vertical', why: 'intensity' };
@@ -6384,7 +6387,7 @@ function openFolderImportDialog(folder) {
   const guess = guessFolderStructure(folder.name, files);
   // Aucun indice dans les noms (why = 'default') : pas de présélection, la structure doit être choisie (11/10, retour de
   // Jules-Antoine : « le moteur croit toujours que c'est du layering »). Le défaut vertical n'est qu'un repli interne.
-  const noClue = guess.why === 'default';
+  const noClue = guess.why === 'default' || guess.why === 'transitionsUnclear';
   const state = { mode: noClue ? '' : guess.mode, title: folder.name || titleFromFilename(files[0].name) };
   const overlay = document.createElement('div');
   overlay.className = 'vrs-batch-overlay';
@@ -6403,7 +6406,7 @@ function openFolderImportDialog(folder) {
       <input type="text" data-fi="title" value="${escapeAttr(state.title)}">
       <label style="margin-top:12px">${tr('importFolderStructureLabel')}</label>
       <select data-fi="mode">${noClue ? `<option value="" selected>${tr('importFolderChoosePlaceholder')}</option>` : ''}${FOLDER_IMPORT_MODES.map(m => `<option value="${m}"${m === state.mode ? ' selected' : ''}>${tr(optionLabel[m])}</option>`).join('')}</select>
-      <div class="hint-inline">${noClue ? tr('importFolderNoClue') : tr('importFolderGuess', { why: tr('importFolderWhy_' + guess.why) })}</div>
+      <div class="hint-inline">${noClue ? tr(guess.why === 'transitionsUnclear' ? 'importFolderNoClueTransition' : 'importFolderNoClue') : tr('importFolderGuess', { why: tr('importFolderWhy_' + guess.why) })}</div>
       ${ignored.length ? `<div class="hint-inline" style="color:#b45309;margin-top:10px">${tr('importFolderIgnored', { list: escapeHtml(ignored.map(s => `${s.name} (${s.count})`).join(', ')) })}</div>` : ''}
       <div class="hint-inline" style="margin-top:10px">${tr('importFolderDraftNote')}</div>
     </div>

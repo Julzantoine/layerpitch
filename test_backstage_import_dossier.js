@@ -191,6 +191,15 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   window.applyVrsBatchDrop(trkLive, trkLive.sections[0], [], { groups: [], intro: null, outro: null, checks: {} }, { bpm: 120, bars: 18, introBars: 2 });
   check('section vertical-random : loopIn = 8 temps, loopOut = 72 (mesure 18)', trkLive.sections[0].loopInBeat === 8 && trkLive.sections[0].loopOutBeat === 72);
 
+  // ---- Dossier réel RobotAdventure : séquentiel à embranchement, aucun indice net -> on demande ----
+  const robot = ['#1_RobotAdventure_WetDarkCave_120bpm_30M.wav', '#2_RobotAdventure_Corridor_120bpm_30M.wav', '#3_RobotAdventure_BattleFinal_160bpm_40M.wav', '#1bis_SecretLever_Transition.wav'].map(F);
+  const gr = window.guessFolderStructure('RobotAdventure', robot);
+  check('RobotAdventure : « #1bis…Transition » n\'est pas la transition d\'une boucle -> question, pas de présélection', gr.why === 'transitionsUnclear');
+  window.openFolderImportDialog({ name: 'RobotAdventure', files: robot, ignored: [] });
+  check('RobotAdventure : liste sur « Choisis », « Continuer » grisé, message dédié', q('[data-fi="mode"]').value === '' && q('[data-fi-btn="go"]').disabled === true && q('.vrs-batch-overlay').textContent.includes('bifurcation'));
+  click(q('[data-fi-btn="cancel"]'));
+  check('« #1bis » n\'a pas le numéro 1, « Transition #1 » oui', window.folderImportNumber('#1bis_SecretLever_Transition.wav') === null && window.folderImportNumber('Transition #1.wav') === '1' && window.folderImportNumber('#2.5 X.wav') === '2.5');
+
   // ---- Devinette : « Transition » dans un séquentiel (intro/outro) n'en fait pas un embranchement ----
   const seqT = window.guessFolderStructure('The Last Door', ['Door_Intro.wav', '#1bis_SecretLever_Transition.wav', '#2 Door.wav', 'Door_Outro.wav'].map(F));
   check('transition + intro/outro : jamais un embranchement', seqT.mode !== 'embranchement-vertical');
