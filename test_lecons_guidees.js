@@ -14,7 +14,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   vm.createContext(sb);
   vm.runInContext(read('layerpitch-i18n.js'), sb);
   const keys = new Set([...src.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].map(m => m[1]));
-  ['lessonSampleDownload', 'lsVerifyTitle', 'lsVerifyText', 'lessonSampleSoon', 'lessonDoIt', 'lessonQuit', 'lessonSkipStep', 'tutorialMenuTitle', 'tutorialTourDesc', 'tutorialLessonsHeading'].forEach(k => keys.add(k));
+  ['lessonSampleDownload', 'lessonSampleUse', 'lessonSampleUseMany', 'lessonSampleError', 'lsVerifyTitle', 'lsVerifyText', 'lessonSampleSoon', 'lessonDoIt', 'lessonQuit', 'lessonSkipStep', 'tutorialMenuTitle', 'tutorialTourDesc', 'tutorialLessonsHeading'].forEach(k => keys.add(k));
   ['fr', 'en'].forEach(l => check('textes présents en ' + l + ' (' + keys.size + ' clés)', [...keys].every(k => sb.window.LAYERPITCH_I18N[l].backstage[k])));
 
   const page = read('layerpitch-backstage.html');
@@ -60,6 +60,34 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   w.eval(`library[0].loopEngine = 'quantized';`);
   for (let i = 0; i < 40 && !/7 \/ 11/.test((w.document.querySelector('.tour-count') || {}).textContent || ''); i++) await new Promise(r => setTimeout(r, 100));
   check('moteur Quantifié : avance à l’étape 7', /7 \/ 11/.test((w.document.querySelector('.tour-count') || {}).textContent || ''));
+  // Fichiers d'exemple : le bouton « Utiliser » n'apparaît que lorsque toutes les URL sont connues.
+  const sampleOk = w.eval(`(function () {
+    const st = LESSONS.find(l => l.id === 'static').steps.find(x => x.sampleKey);
+    guide.lessonId = 'static';
+    const before = lessonSampleReady(st);
+    LESSON_SAMPLE_URLS['ambiance_120bpm.wav'] = 'https://example.test/ambiance_120bpm.wav';
+    const after = lessonSampleReady(st);
+    delete LESSON_SAMPLE_URLS['ambiance_120bpm.wav'];
+    const multi = LESSONS.find(l => l.id === 'additive').steps.find(x => x.sampleKey);
+    guide.lessonId = 'additive';
+    return { before, after, names: lessonStepFileNames(multi).length, flagged: LESSONS.reduce((n, l) => n + (l.steps || []).filter(x => x.useSample).length, 0) };
+  })()`);
+  check('fichier d’exemple : bouton absent sans URL, présent avec', sampleOk.before === false && sampleOk.after === true);
+  check('fichiers d’exemple : 3 noms pour les couches additives', sampleOk.names === 3);
+  check('11 étapes de dépôt acceptent l’exemple', sampleOk.flagged === 11);
+  // Dépôt réel d'un exemple : un événement « drop » transporte les fichiers jusqu'au gestionnaire de la zone.
+  w.DataTransfer = class { constructor() { this.files = []; this.items = { add: f => this.files.push(f) }; } };
+  w.DragEvent = class extends w.Event { constructor(t, o) { super(t, o); this.dataTransfer = o.dataTransfer; } };
+  w.fetch = async () => ({ ok: true, blob: async () => new w.Blob(['x'], { type: 'audio/wav' }) });
+  const zone = w.document.createElement('div'); zone.id = '__sampleZone'; w.document.body.appendChild(zone);
+  let received = [];
+  zone.addEventListener('drop', e => { received = e.dataTransfer.files.slice(); });
+  await w.eval(`(async () => {
+    guide.lessonId = 'static';
+    LESSON_SAMPLE_URLS['ambiance_120bpm.wav'] = 'https://example.test/ambiance_120bpm.wav';
+    await lessonUseSample({ selector: '#__sampleZone', useSample: true, names: 'static' });
+  })()`);
+  check('« Utiliser l’exemple » dépose le fichier nommé sur la zone', received.length === 1 && received[0].name === 'ambiance_120bpm.wav');
   // « Passer l’étape » existe sur une étape automatique, et Échap quitte.
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));
   w.document.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));

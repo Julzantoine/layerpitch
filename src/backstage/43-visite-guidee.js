@@ -20,6 +20,33 @@ function lessonPoolFiles(i) { const sec = lessonSection(); const p = sec && sec.
 // Point d'accès unique aux leçons : aujourd'hui le feu vert « in_app_lessons ». Une future version publique (mode démo,
 // sans compte) n'aura qu'à répondre « oui » ici, sans toucher aux leçons.
 function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
+// URL de chaque fichier d'exemple (nom de fichier -> URL), à renseigner quand les fichiers seront en ligne (stockage
+// des médias, avec CORS ouvert à l'origine du Backstage). Tant qu'un nom manque, le bouton « Utiliser » n'apparaît pas.
+const LESSON_SAMPLE_URLS = {};
+function lessonStepFileNames(step) {
+  const names = LESSON_SAMPLE_NAMES[step.names || (guide && guide.lessonId)] || '';
+  return names.split(',').map(x => x.trim()).filter(Boolean);
+}
+function lessonSampleReady(step) {
+  const names = lessonStepFileNames(step);
+  return !!step.useSample && names.length > 0 && names.every(n => LESSON_SAMPLE_URLS[n]);
+}
+// Dépose les fichiers d'exemple sur la zone en surbrillance, comme si l'apprenant les y avait glissés : un événement
+// « drop » transportant de vrais objets File, traité par les mêmes gestionnaires que les dépôts réels.
+async function lessonUseSample(step) {
+  const target = guideStepTarget(step);
+  if (!target) throw new Error('zone introuvable');
+  if (typeof DataTransfer === 'undefined' || typeof DragEvent === 'undefined') throw new Error('dépôt non pris en charge par ce navigateur');
+  const dt = new DataTransfer();
+  for (const name of lessonStepFileNames(step)) {
+    const res = await fetch(LESSON_SAMPLE_URLS[name]);
+    if (!res.ok) throw new Error(name + ' : ' + res.status);
+    const blob = await res.blob();
+    dt.items.add(new File([blob], name, { type: blob.type || 'audio/wav' }));
+  }
+  const zone = target.querySelector('.file-ctrl') || target;
+  zone.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+}
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
@@ -55,7 +82,7 @@ const LESSONS = [
       enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
     { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'lsModeTitle', textKey: 'lsModeText',
       done: () => { const t = lessonTrack(); return !!t && t.mode === 'static'; } },
-    { selector: '#libraryDetail [data-role="staticFileCtrl"]', titleKey: 'lsFileTitle', textKey: 'lsFileText', sampleKey: 'static',
+    { useSample: true, selector: '#libraryDetail [data-role="staticFileCtrl"]', titleKey: 'lsFileTitle', textKey: 'lsFileText', sampleKey: 'static',
       done: () => { const t = lessonTrack(); const l = t && t.layers && t.layers[0]; return !!(l && (l.pendingFile || l.remoteFile)); } },
     { selector: '#libraryDetail input[data-field="loopable"]', titleKey: 'lsLoopTitle', textKey: 'lsLoopText',
       done: () => { const t = lessonTrack(); return !!t && !!t.loopable; } },
@@ -76,7 +103,7 @@ const LESSONS = [
       enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
     // Un nouveau morceau est déjà en « vertical » : étape de lecture (« Suivant »), pas de geste à détecter.
     { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'laModeTitle', textKey: 'laModeText' },
-    { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'laDropTitle', textKey: 'laDropText', sampleKey: 'additive',
+    { useSample: true, selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'laDropTitle', textKey: 'laDropText', sampleKey: 'additive',
       done: () => { const t = lessonTrack(); return !!t && (t.layers || []).filter(l => l.pendingFile || l.remoteFile).length >= 2; } },
     { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'laCheckTitle', textKey: 'laCheckText' },
     { selector: '#libraryDetail select[data-field="loopEngine"]', titleKey: 'laEngineTitle', textKey: 'laEngineText', required: true,
@@ -98,7 +125,7 @@ const LESSONS = [
       enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
     { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'leModeTitle', textKey: 'leModeText',
       done: () => { const t = lessonTrack(); return !!t && t.mode === 'embranchement-vertical'; } },
-    { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'leDropTitle', textKey: 'leDropText', sampleKey: 'embranchement', names: 'embrLoops',
+    { useSample: true, selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'leDropTitle', textKey: 'leDropText', sampleKey: 'embranchement', names: 'embrLoops',
       done: () => lessonLoopFileCount() >= 2 },
     { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'leCheckTitle', textKey: 'leCheckText' },
     { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'leRefTitle', textKey: 'leRefText',
@@ -115,7 +142,7 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && (t.loops || []).length >= 3; } },
     { selector: '#libraryDetail .seq-master-item[data-si="2"]', titleKey: 'ldOpenTitle', textKey: 'ldOpenText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 2; } },
-    { selector: '#libraryDetail [data-role="embrLoopFileCtrl"]', titleKey: 'ldFileTitle', textKey: 'ldFileText', names: 'embrDetour',
+    { useSample: true, selector: '#libraryDetail [data-role="embrLoopFileCtrl"]', titleKey: 'ldFileTitle', textKey: 'ldFileText', names: 'embrDetour',
       done: () => { const t = lessonTrack(); return !!t && lessonHasFile((t.loops || [])[2]); } },
     { selector: '#libraryDetail input[data-embr-loop-field="isDetour"]', titleKey: 'ldFlagTitle', textKey: 'ldFlagText',
       done: () => { const t = lessonTrack(); const l = t && (t.loops || [])[2]; return !!l && !!l.isDetour; } },
@@ -135,11 +162,11 @@ const LESSONS = [
     { selector: '#libraryDetail [data-action="add-section"]', titleKey: 'lrSectionTitle', textKey: 'lrSectionText',
       done: () => { const t = lessonTrack(); return !!t && (t.sections || []).length >= 1; } },
     // Une nouvelle section naît avec un premier pool vide : il sert de couche fixe (un seul fichier, joué à chaque passage).
-    { selector: '#libraryDetail [data-role="vrsPools"] > .list-block:nth-child(1)', titleKey: 'lrFixedTitle', textKey: 'lrFixedText', sampleKey: 'random', names: 'randomFixed',
+    { useSample: true, selector: '#libraryDetail [data-role="vrsPools"] > .list-block:nth-child(1)', titleKey: 'lrFixedTitle', textKey: 'lrFixedText', sampleKey: 'random', names: 'randomFixed',
       done: () => lessonPoolFiles(0) >= 1 },
     { selector: '#libraryDetail [data-action="add-pool"]', titleKey: 'lrPoolTitle', textKey: 'lrPoolText',
       done: () => { const s2 = lessonSection(); return !!s2 && (s2.pools || []).length >= 2; } },
-    { selector: '#libraryDetail [data-role="vrsPools"] > .list-block:nth-child(2)', titleKey: 'lrVariantsTitle', textKey: 'lrVariantsText', names: 'randomVariants',
+    { useSample: true, selector: '#libraryDetail [data-role="vrsPools"] > .list-block:nth-child(2)', titleKey: 'lrVariantsTitle', textKey: 'lrVariantsText', names: 'randomVariants',
       done: () => lessonPoolFiles(1) >= 2 },
     { selector: '#libraryDetail [data-role="vrsPools"]', titleKey: 'lrCheckTitle', textKey: 'lrCheckText' },
     { selector: '#libraryDetail input[data-section-field="bpm"]', titleKey: 'lrBpmTitle', textKey: 'lrBpmText' },
@@ -155,23 +182,23 @@ const LESSONS = [
       enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
     { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'lqModeTitle', textKey: 'lqModeText',
       done: () => { const t = lessonTrack(); return !!t && t.mode === 'sequential'; } },
-    { selector: '#libraryDetail .seq-master-item[data-seq-key="seqIntro"]', titleKey: 'lqIntroTitle', textKey: 'lqIntroText', sampleKey: 'sequential', names: 'seqIntro',
+    { useSample: true, selector: '#libraryDetail .seq-master-item[data-seq-key="seqIntro"]', titleKey: 'lqIntroTitle', textKey: 'lqIntroText', sampleKey: 'sequential', names: 'seqIntro',
       done: () => { const t = lessonTrack(); return !!t && lessonHasFile(t.intro); } },
     // L'intro de l'exemple dure moins d'une mesure (un temps) : réglage manuel (mesures = 1, temps par mesure = 1).
     { selector: '#libraryDetail .row:has([data-field="introBars"])', titleKey: 'lqIntroSetTitle', textKey: 'lqIntroSetText',
       done: () => { const t = lessonTrack(); return !!t && !!t.intro && Number(t.intro.bars) === 1 && Number(t.intro.beatsPerBar) === 1; } },
     { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlotTitle', textKey: 'lqSlotText',
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 1; } },
-    { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lqSegTitle', textKey: 'lqSegText', names: 'seqA',
+    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lqSegTitle', textKey: 'lqSegText', names: 'seqA',
       done: () => lessonSlotFileCount(0) >= 2 },
     { selector: '#libraryDetail [data-slot-field="repeatCount"]', titleKey: 'lqSlotCheckTitle', textKey: 'lqSlotCheckText' },
     // Répétition des opérations pour une nouvelle section.
     { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlot2Title', textKey: 'lqSlot2Text',
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 2; } },
-    { selector: '#libraryDetail .seq-master-item[data-si="1"]', titleKey: 'lqSeg2Title', textKey: 'lqSeg2Text', names: 'seqB',
+    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="1"]', titleKey: 'lqSeg2Title', textKey: 'lqSeg2Text', names: 'seqB',
       done: () => lessonSlotFileCount(1) >= 2 },
     { selector: '#libraryDetail [data-slot-field="repeatCount"]', titleKey: 'lqSlotCheckTitle', textKey: 'lqSlotCheckText' },
-    { selector: '#libraryDetail .seq-master-item[data-seq-key="seqOutro"]', titleKey: 'lqOutroTitle', textKey: 'lqOutroText', names: 'seqOutro',
+    { useSample: true, selector: '#libraryDetail .seq-master-item[data-seq-key="seqOutro"]', titleKey: 'lqOutroTitle', textKey: 'lqOutroText', names: 'seqOutro',
       done: () => { const t = lessonTrack(); return !!t && lessonHasFile(t.outro); } },
     { selector: '#libraryDetail [data-role="segmentSlotsMaster"]', titleKey: 'lqCheckTitle', textKey: 'lqCheckText' },
     { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'lqInfoTitle', textKey: 'lqInfoText',
@@ -189,7 +216,7 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && t.mode === 'sequential' && (t.segmentSlots || []).length >= 2; } },
     { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lbSlot3Title', textKey: 'lbSlot3Text',
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 3; } },
-    { selector: '#libraryDetail .seq-master-item[data-si="2"]', titleKey: 'lbSeg3Title', textKey: 'lbSeg3Text', sampleKey: 'branching', names: 'seqC',
+    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="2"]', titleKey: 'lbSeg3Title', textKey: 'lbSeg3Text', sampleKey: 'branching', names: 'seqC',
       done: () => { const sl = lessonSlot(2); return !!sl && (sl.alternatives || []).filter(lessonHasFile).length >= 2; } },
     { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lbPickTitle', textKey: 'lbPickText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 0; } },
@@ -302,10 +329,13 @@ function renderGuideStep(positionOnly) {
   if (!positionOnly || guide.cardKey !== key) {
     guide.cardKey = key;
     const sample = step.sampleKey ? LESSON_SAMPLE_FILES[step.sampleKey] : undefined;
-    const sampleHtml = step.sampleKey
-      ? (sample ? `<a class="tour-sample" href="${escapeAttr(sample)}" download>${escapeHtml(tr('lessonSampleDownload'))}</a>`
-        : `<div class="tour-sample tour-sample-soon">${escapeHtml(tr('lessonSampleSoon'))}</div>`)
-      : '';
+    const canUse = lessonSampleReady(step);
+    const many = lessonStepFileNames(step).length > 1;
+    // Téléchargement du lot (étapes marquées sampleKey), bouton « Utiliser » (étapes useSample dont les URL sont connues),
+    // et « bientôt disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
+    const sampleHtml = (sample ? `<a class="tour-sample" href="${escapeAttr(sample)}" download>${escapeHtml(tr('lessonSampleDownload'))}</a>` : '')
+      + (canUse ? `<button class="btn btn-small tour-sample-use" type="button" data-tour="sample">${escapeHtml(tr(many ? 'lessonSampleUseMany' : 'lessonSampleUse'))}</button>` : '')
+      + (step.sampleKey && !sample && !canUse ? `<div class="tour-sample tour-sample-soon">${escapeHtml(tr('lessonSampleSoon'))}</div>` : '');
     card.innerHTML = `
       <div class="tour-count">${guide.index + 1} / ${guide.steps.length}</div>
       <div class="tour-title">${escapeHtml(tr(step.titleKey))}</div>
@@ -324,6 +354,12 @@ function renderGuideStep(positionOnly) {
     if (nextBtn) nextBtn.onclick = () => guideGo(1); // absent sur une étape obligatoire
     const prev = card.querySelector('[data-tour="prev"]');
     if (prev) prev.onclick = () => guideGo(-1);
+    const useBtn = card.querySelector('[data-tour="sample"]');
+    if (useBtn) useBtn.onclick = async () => {
+      useBtn.disabled = true;
+      try { await lessonUseSample(step); }
+      catch (e) { useBtn.disabled = false; window.LayerPitchNotify.error(tr('lessonSampleError', { error: e.message || String(e) })); }
+    };
   }
   const margin = 12;
   if (visible) {
