@@ -40,13 +40,13 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   `);
   check('leçon refusée tant que in_app_lessons est fermé', w.__closed === true);
   check('6 leçons déclarées, aucune « bientôt »', w.__r.lessons === 6 && w.__r.soon === 0);
-  check('leçon 4 : 18 étapes, sans raccourci', w.__r.seq === 18 && w.__r.seqSkip === 0);
-  check('raccourci d’import dans la leçon 5 (24 étapes dont 9 sautées sans bulk_drop)', w.__r.br === 24 && w.__r.brSkip === 9);
-  check('leçon 6 : 21 étapes', w.__r.emb === 21);
+  check('séquentiel simple : 18 étapes, sans raccourci', w.__r.seq === 18 && w.__r.seqSkip === 0);
+  check('séquentiel à embranchement : raccourci d’import (24 étapes dont 9 sautées sans bulk_drop)', w.__r.br === 24 && w.__r.brSkip === 9);
+  check('embranchement vertical : 21 étapes', w.__r.emb === 21);
   
   
-  check('leçon 3 : 13 étapes', w.__r.rnd === 13);
-  check('leçon 2 : 13 étapes', w.__r.add === 13);
+  check('couches aléatoires : 13 étapes', w.__r.rnd === 13);
+  check('couches additives : 13 étapes', w.__r.add === 13);
   check('la leçon ouvre une bulle', !!w.document.querySelector('.tour-root-lesson .tour-card'));
   check('étape 1 sur 11', /1 \/ 11/.test(w.document.querySelector('.tour-count').textContent));
   // Geste : l'onglet bibliothèque devient actif -> étape 2 (après le délai d'avance).
