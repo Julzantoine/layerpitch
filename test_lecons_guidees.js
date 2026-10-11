@@ -46,13 +46,15 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   w.eval(`document.querySelector('.backstage-panel[data-panel="library"]').classList.add('active');`);
   for (let i = 0; i < 40 && !/2 \/ 11/.test((w.document.querySelector('.tour-count') || {}).textContent || ''); i++) await new Promise(r => setTimeout(r, 100));
   check('avance seule à l’étape 2', /2 \/ 11/.test((w.document.querySelector('.tour-count') || {}).textContent || ''));
-  // Moteur « Simple » : tempo et points de boucle sautés ; « Quantifié » : ils restent.
-  w.eval(`library = [{ id: 't1', mode: 'static', loopEngine: 'simple', layers: [{}] }]; manageLibrarySelectedId = 't1'; guide.index = 5; guideGo(1); window.__simpleIdx = guide.index;`);
-  w.eval(`library[0].loopEngine = 'quantized'; guide.index = 5; guideGo(1); window.__quantIdx = guide.index;`);
-  check('moteur Simple : saute les étapes tempo et points (arrive à « Écoute »)', w.__simpleIdx === 8);
-  check('moteur Quantifié : garde l’étape de vérification', w.__quantIdx === 6);
+  // Étape « moteur de bouclage » : obligatoire, pas de « Passer l’étape » tant que « Simple » est réglé.
+  w.eval(`library = [{ id: 't1', mode: 'static', loopEngine: 'simple', layers: [{}] }]; manageLibrarySelectedId = 't1'; guide.index = 5; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`);
+  check('moteur Simple : pas de bouton « Passer l’étape »', !w.document.querySelector('[data-tour="next"]'));
+  check('moteur Simple : la leçon reste sur l’étape 6', /6 \/ 11/.test(w.document.querySelector('.tour-count').textContent));
+  w.eval(`library[0].loopEngine = 'quantized';`);
+  for (let i = 0; i < 40 && !/7 \/ 11/.test((w.document.querySelector('.tour-count') || {}).textContent || ''); i++) await new Promise(r => setTimeout(r, 100));
+  check('moteur Quantifié : avance à l’étape 7', /7 \/ 11/.test((w.document.querySelector('.tour-count') || {}).textContent || ''));
   // « Passer l’étape » existe sur une étape automatique, et Échap quitte.
-  check('bouton « Passer l’étape »', !!w.document.querySelector('[data-tour="next"]'));
+  check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));
   w.document.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   check('Échap ferme la leçon', !w.document.querySelector('.tour-root'));
   dom.window.close();
