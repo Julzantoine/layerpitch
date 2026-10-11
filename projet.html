@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1791723477795">
+<link rel="stylesheet" href="player.css?v=1791723993905">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -106,6 +106,8 @@
   .sel-box { width: auto; margin: 0 6px 0 0; align-self: flex-start; }
   .sec-nav h3 .icon-btn.on { background: var(--accent-soft); }
   .drop-files { outline: 2px dashed var(--accent); outline-offset: 4px; border-radius: 10px; }
+  /* Une liste qui peut grossir (activité, versions, membres) montre une dizaine de lignes puis défile dans son cadre. */
+  .scroll-list { max-height: 26rem; overflow-y: auto; overscroll-behavior: contain; }
   .sec-sep { border-top: 1px solid var(--border); margin: 6px 0; }
   .sec-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(0,0,0,.4); display: grid; place-items: center; padding: 16px; }
   .sec-dialog { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 18px; width: 420px; max-width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 12px 32px rgba(0,0,0,.22); }
@@ -182,22 +184,22 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1791723477795"></script>
-<script src="layerpitch-notify.js?v=1791723477795"></script>
-<script src="player.js?v=1791723477795"></script>
-<script src="api/supabase-client.js?v=1791723477795"></script>
-<script src="api/auth.js?v=1791723477795"></script>
-<script src="layerpitch-appearance.js?v=1791723477795"></script>
-<script src="layerpitch-shell.js?v=1791723477795"></script>
-<script src="api/tracks.js?v=1791723477795"></script>
-<script src="api/packs.js?v=1791723477795"></script>
-<script src="api/albums.js?v=1791723477795"></script>
-<script src="api/studio.js?v=1791723477795"></script>
-<script src="api/adreels.js?v=1791723477795"></script>
-<script src="api/projects.js?v=1791723477795"></script>
-<script src="api/sfx.js?v=1791723477795"></script>
-<script src="projet-carte-audio.js?v=1791723477795"></script>
-<script src="projet-carte.js?v=1791723477795"></script>
+<script src="layerpitch-i18n.js?v=1791723993905"></script>
+<script src="layerpitch-notify.js?v=1791723993905"></script>
+<script src="player.js?v=1791723993905"></script>
+<script src="api/supabase-client.js?v=1791723993905"></script>
+<script src="api/auth.js?v=1791723993905"></script>
+<script src="layerpitch-appearance.js?v=1791723993905"></script>
+<script src="layerpitch-shell.js?v=1791723993905"></script>
+<script src="api/tracks.js?v=1791723993905"></script>
+<script src="api/packs.js?v=1791723993905"></script>
+<script src="api/albums.js?v=1791723993905"></script>
+<script src="api/studio.js?v=1791723993905"></script>
+<script src="api/adreels.js?v=1791723993905"></script>
+<script src="api/projects.js?v=1791723993905"></script>
+<script src="api/sfx.js?v=1791723993905"></script>
+<script src="projet-carte-audio.js?v=1791723993905"></script>
+<script src="projet-carte.js?v=1791723993905"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -1228,7 +1230,7 @@ async function renderBoard(panel) {
       <div class="bar" style="margin-top:8px"><label for="autoSnap" style="margin:0">${esc(tr('autoSnapLabel'))}</label>
         <select id="autoSnap" style="max-width:200px" ${S.project.role === 'admin' ? '' : 'disabled'}>${['off', 'daily', 'weekly'].map(m => `<option value="${m}"${(S.content.autoSnapshot || 'weekly') === m ? ' selected' : ''}>${esc(tr('autoSnap_' + m))}</option>`).join('')}</select>
         <span class="meta">${esc(tr('autoSnapHint'))}</span></div>
-      <div id="snapList" style="margin-top:8px"></div><div class="msg" id="snapMsg"></div>
+      <div id="snapList" class="scroll-list" style="margin-top:8px"></div><div class="msg" id="snapMsg"></div>
     </div>`}`;
   const renderAddForm = () => {
     const kind = $('addKind').value;
@@ -2063,9 +2065,9 @@ function renderVitrineBlocks(panel) {
 
 // ---- Activité ----
 function renderActivity(panel) {
-  panel.innerHTML = `<div class="card"><h2>${esc(tr('activityTitle'))}</h2>${S.activity.length ? S.activity.map(a => `<div class="list-row"><div class="list-main">
+  panel.innerHTML = `<div class="card"><h2>${esc(tr('activityTitle'))}</h2>${S.activity.length ? '<div class="scroll-list">' + S.activity.map(a => `<div class="list-row"><div class="list-main">
       <strong>${esc(a.actorEmail || '')}</strong> ${esc(tr('act_' + a.kind, { title: (a.payload && (a.payload.title || a.payload.label || a.payload.email)) || '' }))}</div>
-      <span class="meta">${esc(new Date(a.createdAt).toLocaleString(pageLang))}</span></div>`).join('') : `<div class="empty">${esc(tr('noActivity'))}</div>`}</div>`;
+      <span class="meta">${esc(new Date(a.createdAt).toLocaleString(pageLang))}</span></div>`).join('') + '</div>' : `<div class="empty">${esc(tr('noActivity'))}</div>`}</div>`;
 }
 
 // ---- Membres ----
