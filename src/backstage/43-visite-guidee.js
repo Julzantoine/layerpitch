@@ -346,7 +346,7 @@ function renderGuideStep(positionOnly) {
         <button class="btn btn-small" type="button" data-tour="skip">${escapeHtml(tr(last ? 'tourClose' : (guide.kind === 'lesson' ? 'lessonQuit' : 'tourSkip')))}</button>
         <span style="flex:1"></span>
         ${guide.index > 0 && !auto && !step.final ? `<button class="btn btn-small" type="button" data-tour="prev">${escapeHtml(tr('tourPrev'))}</button>` : ''}
-        ${auto ? (step.required ? '' : `<button class="btn btn-small" type="button" data-tour="next">${escapeHtml(tr('lessonSkipStep'))}</button>`)
+        ${auto ? '' /* étape à geste : elle n'avance que lorsque le geste est fait (« Quitter » reste disponible) */
           : `<button class="btn btn-small btn-primary" type="button" data-tour="next">${escapeHtml(tr(last ? 'tourFinish' : 'tourNext'))}</button>`}
       </div>`;
     card.querySelector('[data-tour="skip"]').onclick = closeBackstageTour;
