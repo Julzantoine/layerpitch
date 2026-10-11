@@ -43,6 +43,19 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   window.openFolderImportDialog({ name: 'Vide', files: [], ignored: [] });
   check('dossier sans audio : aucune fenêtre ouverte', !q('.vrs-batch-overlay'));
 
+  // ---- Aucun indice : pas de présélection, « Continuer » grisé jusqu'au choix ----
+  window.openFolderImportDialog({ name: 'Divers', files: ['Render_03.wav', 'Final_v2.wav'].map(F), ignored: [] });
+  check('aucun indice : aucune structure présélectionnée', q('[data-fi="mode"]').value === '');
+  check('aucun indice : « Continuer » grisé', q('[data-fi-btn="go"]').disabled === true);
+  const nNo = lib().length;
+  click(q('[data-fi-btn="go"]'));
+  check('clic sur « Continuer » grisé : rien créé, fenêtre toujours là', lib().length === nNo && !!q('.vrs-batch-overlay'));
+  change(q('[data-fi="mode"]'), 'vertical');
+  check('structure choisie : « Continuer » actif', q('[data-fi-btn="go"]').disabled === false);
+  click(q('[data-fi-btn="go"]'));
+  check('morceau créé avec la structure choisie', lib().length === nNo + 1 && lib()[nNo].mode === 'vertical');
+  const noClueOverlay = q('.vrs-batch-overlay'); if (noClueOverlay) click(noClueOverlay.querySelector('[data-hc-btn="cancel"]'));
+
   // ---- Vertical (une couche par fichier) ----
   const before = lib().length;
   window.openFolderImportDialog({ name: 'Goute donc ma hache pour voir', files: hache, ignored: [{ name: 'V2', count: 4 }] });
