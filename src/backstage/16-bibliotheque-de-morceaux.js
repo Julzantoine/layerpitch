@@ -14,12 +14,20 @@ function parseAudioFilenameHints(filename) {
   return { bpm: bpmMatch ? parseInt(bpmMatch[1], 10) : null, bars: barsMatch ? parseInt(barsMatch[1], 10) : null };
 }
 if (typeof window !== 'undefined') window.parseAudioFilenameHints = parseAudioFilenameHints;
+// Mesures d'intro DANS une boucle (« ..._120bpm_18M_intro2M.wav » : les 2 premières mesures ne rebouclent pas), 11/10.
+// Fonction à part (et non un champ de plus de parseAudioFilenameHints, dont le résultat est comparé tel quel par des tests).
+function parseIntroBarsHint(filename) {
+  const m = filename.match(/(?:^|[_\s-])intro(\d+)M(?=[_\s.-]|$)/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+if (typeof window !== 'undefined') window.parseIntroBarsHint = parseIntroBarsHint;
 // Même principe que titleFromFilename() ci-dessus, mais retire d'abord les jetons bpm/mesures repérés par
 // parseAudioFilenameHints() — pour ne pas les laisser traîner dans le libellé affiché d'un emplacement.
 function titleFromFilenameStrippingHints(filename) {
   return filename.replace(/\.[^/.]+$/, '')
     .replace(/(?:^|[_\s-])(\d+)bpm(?=[_\s.-]|$)/i, '')
     .replace(/(?:^|[_\s-])(\d+)M(?=[_\s.-]|$)/, '')
+    .replace(/(?:^|[_\s-])intro(\d+)M(?=[_\s.-]|$)/i, '')
     .replace(/[_-]+/g, ' ')
     .trim();
 }
@@ -163,12 +171,13 @@ function groupFilesByNameFamily(files, detectIntroOutro) {
   return { intro, outro, groups: [...groups.values()].map(g => ({ label: g.label, files: g.files.sort(byName) })) };
 }
 function hintsText(h) {
-  return h ? [h.bpm ? h.bpm + ' BPM' : '', h.bars ? tr('vrsBatchBarsN', { n: h.bars }) : ''].filter(Boolean).join(', ') : '';
+  return h ? [h.bpm ? h.bpm + ' BPM' : '', h.bars ? tr('vrsBatchBarsN', { n: h.bars }) : '', h.introBars ? tr('importFolderEmbrIntro', { n: h.introBars }) : ''].filter(Boolean).join(', ') : '';
 }
 // Premier fichier (hors intro/outro) dont le nom porte un tempo ou un nombre de mesures.
 function firstFilenameHints(files) {
-  const f = files.find(x => { const h = parseAudioFilenameHints(x.name); return guessSequentialRole(x.name) === 'segment' && (h.bpm || h.bars); });
-  return f ? { file: f, hints: parseAudioFilenameHints(f.name) } : null;
+  const f = files.find(x => { const h = parseAudioFilenameHints(x.name); return guessSequentialRole(x.name) === 'segment' && (h.bpm || h.bars || parseIntroBarsHint(x.name)); });
+  // introBars (11/10, « ..._intro2M ») s'ajoute ici, pas dans parseAudioFilenameHints (comparé tel quel par des tests).
+  return f ? { file: f, hints: Object.assign({}, parseAudioFilenameHints(f.name), { introBars: parseIntroBarsHint(f.name) }) } : null;
 }
 
 // Fenêtre modale commune. opts :
@@ -398,7 +407,9 @@ function applyVrsBatchDrop(track, section, files, res, hints) {
   }
   if (hints) {
     if (hints.bpm) section.bpm = hints.bpm;
-    if (hints.bars) section.loopOutBeat = (section.loopInBeat || 0) + hints.bars * (section.beatsPerBar || 4);
+    if (hints.introBars) section.loopInBeat = hints.introBars * (section.beatsPerBar || 4); // « intro2M » : rebouclage après l'intro
+    // Avec une intro (« 18M_intro2M ») : « 18 » est la mesure de fin de boucle, intro comprise.
+    if (hints.bars) section.loopOutBeat = (hints.introBars && hints.bars > hints.introBars ? 0 : (section.loopInBeat || 0)) + hints.bars * (section.beatsPerBar || 4);
   }
   hasUnsavedEdits = true;
   if ((!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) && files[0]) track.title = titleFromFilename(files[0].name);
@@ -464,14 +475,24 @@ function offerTrackTempoFromFilenames(track, files, withLoopBars) {
   const h = found.hints;
   const checks = [];
   if (h.bpm && h.bpm !== track.bpm) checks.push({ id: 'bpm', text: tr('hintsConfirmTrackBpm', { bpm: h.bpm, file: escapeHtml(found.file.name) }) });
-  if (withLoopBars && h.bars) checks.push({ id: 'bars', text: tr('hintsConfirmTrackLoopBars', { n: h.bars, file: escapeHtml(found.file.name) }) });
+  if (withLoopBars && h.introBars) checks.push({ id: 'intro', text: tr('hintsConfirmTrackIntroBars', { n: h.introBars, file: escapeHtml(found.file.name) }) });
+  // Avec une intro (« 18M_intro2M ») : 18 = la mesure où la boucle se termine, intro comprise -> boucle de la mesure 3 à la 18.
+  if (withLoopBars && h.bars) checks.push({ id: 'bars', text: h.introBars && h.bars > h.introBars
+    ? tr('hintsConfirmTrackLoopSpan', { from: h.introBars + 1, to: h.bars, len: h.bars - h.introBars, file: escapeHtml(found.file.name) })
+    : tr('hintsConfirmTrackLoopBars', { n: h.bars, file: escapeHtml(found.file.name) }) });
   if (!checks.length) return;
   openHintsConfirmDialog(tr('hintsConfirmTitle'), checks, state => {
     if (state.bpm) { track.bpm = h.bpm; if (!track.beatsPerBar) track.beatsPerBar = 4; }
+    if (state.intro) {
+      track.loopEngine = 'quantized';
+      if (!track.beatsPerBar) track.beatsPerBar = 4;
+      track.loopInBeat = h.introBars * track.beatsPerBar; // les mesures d'intro ne rebouclent pas
+    }
     if (state.bars) {
       track.loopEngine = 'quantized';
       if (!track.beatsPerBar) track.beatsPerBar = 4;
-      track.loopOutBeat = (track.loopInBeat || 0) + h.bars * track.beatsPerBar;
+      // Avec intro : « NM » est une position absolue (fin de la boucle) ; sans intro : longueur de la boucle.
+      track.loopOutBeat = (h.introBars && h.bars > h.introBars ? 0 : (track.loopInBeat || 0)) + h.bars * track.beatsPerBar;
     }
     hasUnsavedEdits = true;
     renderLibrary();

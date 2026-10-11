@@ -223,6 +223,20 @@
           // Mesures de chaque boucle lues dans son nom ("_16M", 25/09) : propres à ce fichier, donc appliquées
           // directement ; le tempo du morceau, lui, passe par une confirmation (offerTrackTempoFromFilenames).
           // Admin seulement pour l'instant.
+          // Même lecture des noms que l'import de dossier (11/10) : « Transition #N » rattachée à la boucle de même numéro,
+          // « intro2M » = rebouclage après 2 mesures d'intro.
+          if (flagOpen('bulk_drop')) {
+            const res = addFilesToEmbranchementLoops(track, files);
+            hasUnsavedEdits = true;
+            const first = files.find(f => !isTransitionFile(f.name)) || files[0];
+            if ((!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) && first) track.title = titleFromFilename(first.name);
+            renderLibrary();
+            res.added.forEach(a => probeAudioDuration(a.file).then(dur => { a.loop.duration = dur; renderLibrary(); }));
+            [...res.added.filter(a => a.transition).map(a => ({ loop: a.loop, file: a.transition })), ...res.attached].forEach(a =>
+              probeAudioDuration(a.file).then(dur => { if (a.loop.transition) { a.loop.transition.duration = dur; renderLibrary(); } }));
+            if (res.added.length) offerTrackTempoFromFilenames(track, res.added.map(a => a.file), false);
+            return;
+          }
           const pushedLoops = files.map((f, idx) => {
             const fileBars = flagOpen('bulk_drop') ? parseAudioFilenameHints(f.name).bars : null;
             const newLoop = { id: genId(), label: flagOpen('bulk_drop') ? titleFromFilenameStrippingHints(f.name) : titleFromFilename(f.name), bars: fileBars || 8, isInitial: track.loops.length === 0 && idx === 0, remoteFile: null, pendingFile: f, switchQuantize: 'immediate', autoReturnEnabled: false, autoReturnValue: 4, autoReturnUnit: 'bars', detourMode: 'once', endLoopButtonLabel: '', isDetour: false, cutStyle: 'fade', customCutFadeSec: null, transition: null };
