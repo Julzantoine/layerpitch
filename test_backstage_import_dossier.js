@@ -12,6 +12,8 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   function click(el) { el.dispatchEvent(new window.MouseEvent('click', { bubbles: true })); }
   function change(el, value) { el.value = value; el.dispatchEvent(new window.Event('change', { bubbles: true })); }
   const q = sel => doc.querySelector(sel);
+  function setValue(el, value) { el.value = value; el.dispatchEvent(new window.Event('input', { bubbles: true })); el.dispatchEvent(new window.Event('change', { bubbles: true })); }
+  const qa = sel => [...doc.querySelectorAll(sel)];
   const F = name => new window.File([new Uint8Array(8)], name, { type: 'audio/wav' });
   const lib = () => window.eval('library');
 
@@ -110,6 +112,67 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   const t4 = lib()[n4];
   check('embranchement : 3 boucles, la 1re initiale, mesures lues (64)', t4.mode === 'embranchement-vertical' && t4.loops.length === 3 && t4.loops[0].isInitial && !t4.loops[1].isInitial && t4.loops.every(l => l.bars === 64));
   const o4 = q('.vrs-batch-overlay'); if (o4) click(o4.querySelector('[data-hc-btn="cancel"]'));
+
+  // ---- Dossier réel « Monte en l'air et pattes de velours » : 2 boucles + 2 transitions numérotées ----
+  const monte = ['#1 Everything is fine_120bpm_18M_intro2M.wav', 'Transition #2.wav', 'Transition #1.wav', "#2 We've been noticed_120bpm_18M_intro2M.wav"].map(F);
+  const gm = window.guessFolderStructure("Monte en l'air et pattes de velours", monte);
+  check('boucles + transitions -> embranchement vertical (raison : transitions)', gm.mode === 'embranchement-vertical' && gm.why === 'transitions');
+  check('« Transition » reconnue dans un nom', window.isTransitionFile('Transition #1.wav') && !window.isTransitionFile('#1 Everything is fine.wav'));
+  check('mesures d\'intro lues (intro2M)', window.parseIntroBarsHint('#1 Everything is fine_120bpm_18M_intro2M.wav') === 2 && window.parseIntroBarsHint('Door_Intro_6M_90bpm.wav') === null);
+  check('tempo/mesures toujours lus malgré « intro2M »', JSON.stringify(window.parseAudioFilenameHints('#1 Everything is fine_120bpm_18M_intro2M.wav')) === JSON.stringify({ bpm: 120, bars: 18 }));
+  const pr = window.pairLoopsWithTransitions(monte);
+  check('transition rattachée à la boucle de même numéro', pr.pairs.length === 2 && pr.pairs[0].transition.name === 'Transition #1.wav' && pr.pairs[1].transition.name === 'Transition #2.wav');
+  const nM = lib().length;
+  window.openFolderImportDialog({ name: "Monte en l'air et pattes de velours", files: monte, ignored: [] });
+  check('proposition = embranchement vertical', q('[data-fi="mode"]').value === 'embranchement-vertical');
+  click(q('[data-fi-btn="go"]'));
+  check('fenêtre de vérification : une ligne par boucle avec sa transition', qa('[data-ei]').length === 2 && qa('[data-ei]')[0].selectedOptions[0].textContent === 'Transition #1.wav' && lib().length === nM);
+  click(q('[data-ei-btn="ok"]'));
+  const tM = lib()[nM];
+  check('2 boucles (la 1re initiale), 18 mesures, libellés propres', tM.mode === 'embranchement-vertical' && tM.loops.length === 2 && tM.loops[0].isInitial && tM.loops.every(l => l.bars === 18) && tM.loops[0].label === '#1 Everything is fine');
+  check('transitions rattachées, fichiers en attente', tM.loops[0].transition && tM.loops[0].transition.pendingFile.name === 'Transition #1.wav' && tM.loops[1].transition.pendingFile.name === 'Transition #2.wav');
+  check('2 mesures d\'intro : rebouclage après 2 x 4 temps', tM.loops.every(l => l.loopInBeat === 8));
+  const oM = q('.vrs-batch-overlay'); if (oM) click(oM.querySelector('[data-hc-btn="cancel"]'));
+  // la transition peut être changée ou retirée avant de créer
+  window.openFolderImportDialog({ name: 'Monte', files: monte, ignored: [] });
+  click(q('[data-fi-btn="go"]'));
+  change(qa('[data-ei]')[1], '-1');
+  click(q('[data-ei-btn="ok"]'));
+  const tM2 = lib()[lib().length - 1];
+  check('transition retirée dans la fenêtre : la boucle n\'en a plus', tM2.loops[0].transition && tM2.loops[1].transition === null);
+  const oM2 = q('.vrs-batch-overlay'); if (oM2) click(oM2.querySelector('[data-hc-btn="cancel"]'));
+  // les transitions ne gênent pas les autres devinettes
+  check('Menu reste en aléatoire (sans transition)', window.guessFolderStructure('Menu', menu).mode === 'vertical-random');
+
+  // ---- Dépôt groupé « + Boucle » d'un embranchement existant : mêmes règles (transitions, intro2M) ----
+  window.eval("myFlags.bulk_drop = true");
+  click(q('#btnAddLibraryTrack'));
+  const tiE = window.eval('library.length - 1');
+  setValue(q(`#libraryContainer select[data-field="mode"][data-ti="${tiE}"]`), 'embranchement-vertical');
+  const trackE = () => window.eval(`library[${tiE}]`);
+  const resE = window.addFilesToEmbranchementLoops(trackE(), monte);
+  check('dépôt groupé : 2 boucles créées, transitions rattachées par numéro', trackE().loops.length === 2 && trackE().loops[0].isInitial && trackE().loops[0].transition.pendingFile.name === 'Transition #1.wav' && trackE().loops[1].transition.pendingFile.name === 'Transition #2.wav' && resE.added.length === 2);
+  check('dépôt groupé : intro2M -> rebouclage après 2 mesures, 18 mesures', trackE().loops.every(l => l.loopInBeat === 8 && l.bars === 18));
+  // transition déposée plus tard seule : rattachée à la boucle de même numéro qui n'en a pas
+  trackE().loops[1].transition = null;
+  const lateE = window.addFilesToEmbranchementLoops(trackE(), [F('Transition #2.wav')]);
+  check('transition déposée seule : rattachée à la boucle #2 sans transition', lateE.attached.length === 1 && trackE().loops[1].transition.pendingFile.name === 'Transition #2.wav' && trackE().loops.length === 2);
+
+  // Même chose par le vrai dépôt de fichiers sur la liste des boucles
+  click(q('#btnAddLibraryTrack'));
+  const tiU = window.eval('library.length - 1');
+  setValue(q(`#libraryContainer select[data-field="mode"][data-ti="${tiU}"]`), 'embranchement-vertical');
+  const zoneU = q('#libraryContainer [data-role="modeMaster"]');
+  const dtU = { files: monte, types: ['Files'] };
+  const overU = new window.Event('dragover', { bubbles: true, cancelable: true }); Object.defineProperty(overU, 'dataTransfer', { value: dtU }); zoneU.dispatchEvent(overU);
+  const dropU = new window.Event('drop', { bubbles: true, cancelable: true }); Object.defineProperty(dropU, 'dataTransfer', { value: dtU }); zoneU.dispatchEvent(dropU);
+  const trackU = window.eval(`library[${tiU}]`);
+  check('vrai dépôt sur les boucles : 2 boucles, transitions rattachées, intro2M lu', trackU.loops.length === 2 && trackU.loops[0].transition && trackU.loops[0].transition.pendingFile.name === 'Transition #1.wav' && trackU.loops[1].transition.pendingFile.name === 'Transition #2.wav' && trackU.loops[0].loopInBeat === 8);
+  const oU = q('.vrs-batch-overlay'); if (oU) click(oU.querySelector('[data-hc-btn="cancel"]'));
+
+  // ---- Devinette : « Transition » dans un séquentiel (intro/outro) n'en fait pas un embranchement ----
+  const seqT = window.guessFolderStructure('The Last Door', ['Door_Intro.wav', '#1bis_SecretLever_Transition.wav', '#2 Door.wav', 'Door_Outro.wav'].map(F));
+  check('transition + intro/outro : jamais un embranchement', seqT.mode !== 'embranchement-vertical');
 
   // ---- Annuler : rien n'est créé ----
   const n5 = lib().length;
