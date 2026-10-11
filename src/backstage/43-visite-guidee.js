@@ -298,6 +298,18 @@ function guideGo(delta) {
   if (step.enter) step.enter(guide.ctx);
   renderGuideStep();
 }
+// Leçon qui suit la leçon en cours dans le menu (ou null) : proposée sur la bulle finale.
+function nextLessonOf(lessonId) {
+  const i = LESSONS.findIndex(l => l.id === lessonId);
+  const next = i >= 0 ? LESSONS[i + 1] : null;
+  return next && next.steps && (!next.needs || flagOpen(next.needs)) ? { lesson: next, n: i + 2 } : null;
+}
+function goToNextLesson() {
+  if (!guide) return;
+  const nx = nextLessonOf(guide.lessonId);
+  finishGuide();
+  if (nx) startLesson(nx.lesson.id);
+}
 function finishGuide() {
   if (guide && guide.kind === 'lesson') lessonMarkDone(guide.lessonId);
   closeBackstageTour();
@@ -328,6 +340,7 @@ function renderGuideStep(positionOnly) {
   const auto = guide.kind === 'lesson' && (step.done || step.clickDone);
   const last = guide.index === guide.steps.length - 1;
   const revisiting = guide.index < guide.maxIndex;
+  const nextLesson = guide.kind === 'lesson' && step.final ? nextLessonOf(guide.lessonId) : null;
   const key = guide.index + ':' + (visible ? 'v' : 'h') + (revisiting ? ':r' : '');
   if (!positionOnly || guide.cardKey !== key) {
     guide.cardKey = key;
@@ -349,6 +362,7 @@ function renderGuideStep(positionOnly) {
         <button class="btn btn-small" type="button" data-tour="skip">${escapeHtml(tr(last ? 'tourClose' : (guide.kind === 'lesson' ? 'lessonQuit' : 'tourSkip')))}</button>
         <span style="flex:1"></span>
         ${guide.index > 0 && !step.final ? `<button class="btn btn-small" type="button" data-tour="prev">${escapeHtml(tr('tourPrev'))}</button>` : ''}
+        ${nextLesson ? `<button class="btn btn-small btn-primary" type="button" data-tour="nextlesson">${escapeHtml(tr('lessonNextBtn', { n: nextLesson.n, title: tr(nextLesson.lesson.titleKey).replace(/^\d+\s·\s/, '') }))}</button>` : ''}
         ${auto
           /* étape à geste : elle n'avance que lorsque le geste est fait ; « Passer l'étape » n'existe que pour une étape déjà
              franchie, revue avec « Précédent » */
@@ -360,6 +374,8 @@ function renderGuideStep(positionOnly) {
     if (nextBtn) nextBtn.onclick = () => guideGo(1); // absent sur une étape obligatoire
     const prev = card.querySelector('[data-tour="prev"]');
     if (prev) prev.onclick = () => guideGo(-1);
+    const nlBtn = card.querySelector('[data-tour="nextlesson"]');
+    if (nlBtn) nlBtn.onclick = goToNextLesson;
     const useBtn = card.querySelector('[data-tour="sample"]');
     if (useBtn) useBtn.onclick = async () => {
       useBtn.disabled = true;

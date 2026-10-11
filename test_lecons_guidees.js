@@ -14,7 +14,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   vm.createContext(sb);
   vm.runInContext(read('layerpitch-i18n.js'), sb);
   const keys = new Set([...src.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].map(m => m[1]));
-  ['lessonSampleDownload', 'lessonSampleUse', 'lessonSampleUseMany', 'lessonSampleError', 'lsVerifyTitle', 'lsVerifyText', 'lessonSampleSoon', 'lessonDoIt', 'lessonQuit', 'lessonSkipStep', 'tutorialMenuTitle', 'tutorialTourDesc', 'tutorialLessonsHeading'].forEach(k => keys.add(k));
+  ['lessonSampleDownload', 'lessonSampleUse', 'lessonNextBtn', 'lessonSampleUseMany', 'lessonSampleError', 'lsVerifyTitle', 'lsVerifyText', 'lessonSampleSoon', 'lessonDoIt', 'lessonQuit', 'lessonSkipStep', 'tutorialMenuTitle', 'tutorialTourDesc', 'tutorialLessonsHeading'].forEach(k => keys.add(k));
   ['fr', 'en'].forEach(l => check('textes présents en ' + l + ' (' + keys.size + ' clés)', [...keys].every(k => sb.window.LAYERPITCH_I18N[l].backstage[k])));
 
   const page = read('layerpitch-backstage.html');
@@ -98,6 +98,12 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('étape déjà franchie : bouton « Passer l’étape » présent', !!w.document.querySelector('[data-tour="next"]'));
   await new Promise(r => setTimeout(r, 700));
   check('étape déjà franchie : pas d’avance automatique', /4 \/ 11/.test(w.document.querySelector('.tour-count').textContent));
+  // Bulle finale : bouton « Passer à la leçon suivante ».
+  w.eval(`flagOpen = () => true; guide.lessonId = 'static'; guide.index = guide.steps.length - 1; guide.maxIndex = guide.index; guide.cardKey = ''; renderGuideStep();`);
+  const nl = w.document.querySelector('[data-tour="nextlesson"]');
+  check('bulle finale : bouton vers la leçon suivante', !!nl && /Passer à la leçon 2 : Mode layering vertical additif/.test(nl.textContent));
+  w.eval(`guide.lessonId = 'branching'; guide.cardKey = ''; renderGuideStep();`);
+  check('dernière leçon : pas de bouton « leçon suivante »', !w.document.querySelector('[data-tour="nextlesson"]'));
   // Échap quitte.
   w.eval(`guide.index = 6; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));
