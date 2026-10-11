@@ -132,6 +132,7 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   check('2 boucles (la 1re initiale), 18 mesures, libellés propres', tM.mode === 'embranchement-vertical' && tM.loops.length === 2 && tM.loops[0].isInitial && tM.loops.every(l => l.bars === 18) && tM.loops[0].label === '#1 Everything is fine');
   check('transitions rattachées, fichiers en attente', tM.loops[0].transition && tM.loops[0].transition.pendingFile.name === 'Transition #1.wav' && tM.loops[1].transition.pendingFile.name === 'Transition #2.wav');
   check('2 mesures d\'intro : rebouclage après 2 x 4 temps', tM.loops.every(l => l.loopInBeat === 8));
+  check('« 18M_intro2M » : boucle de la mesure 3 à la mesure 18 (temps 8 à 72)', tM.loops.every(l => l.loopInBeat === 8 && l.loopOutBeat === 72));
   const oM = q('.vrs-batch-overlay'); if (oM) click(oM.querySelector('[data-hc-btn="cancel"]'));
   // la transition peut être changée ou retirée avant de créer
   window.openFolderImportDialog({ name: 'Monte', files: monte, ignored: [] });
@@ -169,6 +170,26 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   const trackU = window.eval(`library[${tiU}]`);
   check('vrai dépôt sur les boucles : 2 boucles, transitions rattachées, intro2M lu', trackU.loops.length === 2 && trackU.loops[0].transition && trackU.loops[0].transition.pendingFile.name === 'Transition #1.wav' && trackU.loops[1].transition.pendingFile.name === 'Transition #2.wav' && trackU.loops[0].loopInBeat === 8);
   const oU = q('.vrs-batch-overlay'); if (oU) click(oU.querySelector('[data-hc-btn="cancel"]'));
+
+  // Morceau vertical : la fenêtre de confirmation règle intro + fin de boucle (mesure 3 à 18)
+  click(q('#btnAddLibraryTrack'));
+  const tiV = window.eval('library.length - 1');
+  const introFile = F('#1 Everything is fine_120bpm_18M_intro2M.wav');
+  window.__introFile = introFile;
+  window.eval(`offerTrackTempoFromFilenames(library[${tiV}], [window.__introFile], true)`);
+  const okV = q('.vrs-batch-overlay [data-hc-btn="ok"]');
+  check('morceau vertical : la fenêtre propose intro + boucle de la mesure 3 à 18', !!okV && q('.vrs-batch-overlay').textContent.includes('mesure 3 à la mesure 18'));
+  if (okV) click(okV);
+  const tV = window.eval(`library[${tiV}]`);
+  check('morceau vertical : loopIn = 2 mesures, loopOut = mesure 18', tV.loopInBeat === 8 && tV.loopOutBeat === 72 && tV.loopEngine === 'quantized' && tV.bpm === 120);
+
+  // Section vertical-random : même lecture (fin de boucle à la mesure 18, intro de 2 mesures)
+  const secT = { id: 's', label: '', bars: 8, pools: [] };
+  const trkT = { id: 't', title: 'T', mode: 'vertical-random', intro: { label: 'Intro', remoteFile: null, pendingFile: null }, outro: { label: 'Outro', remoteFile: null, pendingFile: null }, sections: [secT], layers: [], duration: 0 };
+  window.eval('library.push(' + JSON.stringify(trkT) + ')');
+  const trkLive = window.eval('library[library.length - 1]');
+  window.applyVrsBatchDrop(trkLive, trkLive.sections[0], [], { groups: [], intro: null, outro: null, checks: {} }, { bpm: 120, bars: 18, introBars: 2 });
+  check('section vertical-random : loopIn = 8 temps, loopOut = 72 (mesure 18)', trkLive.sections[0].loopInBeat === 8 && trkLive.sections[0].loopOutBeat === 72);
 
   // ---- Devinette : « Transition » dans un séquentiel (intro/outro) n'en fait pas un embranchement ----
   const seqT = window.guessFolderStructure('The Last Door', ['Door_Intro.wav', '#1bis_SecretLever_Transition.wav', '#2 Door.wav', 'Door_Outro.wav'].map(F));

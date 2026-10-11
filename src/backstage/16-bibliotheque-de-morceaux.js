@@ -387,7 +387,8 @@ function applyVrsBatchDrop(track, section, files, res, hints) {
   if (hints) {
     if (hints.bpm) section.bpm = hints.bpm;
     if (hints.introBars) section.loopInBeat = hints.introBars * (section.beatsPerBar || 4); // « intro2M » : rebouclage après l'intro
-    if (hints.bars) section.loopOutBeat = (section.loopInBeat || 0) + hints.bars * (section.beatsPerBar || 4);
+    // Avec une intro (« 18M_intro2M ») : « 18 » est la mesure de fin de boucle, intro comprise.
+    if (hints.bars) section.loopOutBeat = (hints.introBars && hints.bars > hints.introBars ? 0 : (section.loopInBeat || 0)) + hints.bars * (section.beatsPerBar || 4);
   }
   hasUnsavedEdits = true;
   if ((!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) && files[0]) track.title = titleFromFilename(files[0].name);
@@ -454,7 +455,10 @@ function offerTrackTempoFromFilenames(track, files, withLoopBars) {
   const checks = [];
   if (h.bpm && h.bpm !== track.bpm) checks.push({ id: 'bpm', text: tr('hintsConfirmTrackBpm', { bpm: h.bpm, file: escapeHtml(found.file.name) }) });
   if (withLoopBars && h.introBars) checks.push({ id: 'intro', text: tr('hintsConfirmTrackIntroBars', { n: h.introBars, file: escapeHtml(found.file.name) }) });
-  if (withLoopBars && h.bars) checks.push({ id: 'bars', text: tr('hintsConfirmTrackLoopBars', { n: h.bars, file: escapeHtml(found.file.name) }) });
+  // Avec une intro (« 18M_intro2M ») : 18 = la mesure où la boucle se termine, intro comprise -> boucle de la mesure 3 à la 18.
+  if (withLoopBars && h.bars) checks.push({ id: 'bars', text: h.introBars && h.bars > h.introBars
+    ? tr('hintsConfirmTrackLoopSpan', { from: h.introBars + 1, to: h.bars, len: h.bars - h.introBars, file: escapeHtml(found.file.name) })
+    : tr('hintsConfirmTrackLoopBars', { n: h.bars, file: escapeHtml(found.file.name) }) });
   if (!checks.length) return;
   openHintsConfirmDialog(tr('hintsConfirmTitle'), checks, state => {
     if (state.bpm) { track.bpm = h.bpm; if (!track.beatsPerBar) track.beatsPerBar = 4; }
@@ -466,7 +470,8 @@ function offerTrackTempoFromFilenames(track, files, withLoopBars) {
     if (state.bars) {
       track.loopEngine = 'quantized';
       if (!track.beatsPerBar) track.beatsPerBar = 4;
-      track.loopOutBeat = (track.loopInBeat || 0) + h.bars * track.beatsPerBar;
+      // Avec intro : « NM » est une position absolue (fin de la boucle) ; sans intro : longueur de la boucle.
+      track.loopOutBeat = (h.introBars && h.bars > h.introBars ? 0 : (track.loopInBeat || 0)) + h.bars * track.beatsPerBar;
     }
     hasUnsavedEdits = true;
     renderLibrary();

@@ -180,7 +180,11 @@ function makeEmbranchementLoop(track, file, transitionFile, isInitial) {
     detourMode: 'once', endLoopButtonLabel: '', isDetour: false, cutStyle: 'fade', customCutFadeSec: null,
     transition: transitionFile ? { label: titleFromFilenameStrippingHints(transitionFile.name), remoteFile: null, pendingFile: transitionFile } : null
   };
-  if (intro) { loop.beatsPerBar = track.beatsPerBar || 4; loop.loopInBeat = intro * loop.beatsPerBar; }
+  if (intro) {
+    loop.beatsPerBar = track.beatsPerBar || 4; loop.loopInBeat = intro * loop.beatsPerBar;
+    // « 18M_intro2M » : 18 mesures au total, la boucle va de la mesure 3 à la mesure 18 (16 mesures).
+    if (h.bars && h.bars > intro) loop.loopOutBeat = h.bars * loop.beatsPerBar;
+  }
   return loop;
 }
 // Dépôt groupé sur les boucles d'un embranchement déjà créé : les « Transition #N » se rattachent à la boucle de même
