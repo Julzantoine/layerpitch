@@ -52,6 +52,13 @@ const { JSDOM } = require('jsdom');
   check('« Accès et invitations » : demandes -> invitation -> historique, de gauche à droite', cols.join() === 'panelAccessRequests,panelInviteTester,panelInvitesSent' && !doc.querySelector('[data-section="access"]').hidden);
   check('mémorise la famille choisie', w.localStorage.getItem('layerpitch_admin_section') === 'access');
 
+  // ---- les listes qui peuvent grossir défilent dans leur cadre (une dizaine de lignes), la page ne s'allonge pas
+  const scrolling = id => { const el = doc.getElementById(id); return !!el && /(^|\s)(scroll-list|list-scroll)(\s|$)/.test(el.className); };
+  check('listes défilantes : demandes, invitations, feux verts, messages envoyés, liens sans aperçu, rapport AdReels, comptes', ['accessRequestsList', 'invitesSentList', 'featureFlagsList', 'adminMsgHistory', 'linkDomainsBody', 'adReelsReportBody', 'accountsScroll', 'adminMsgPickerList'].every(scrolling));
+  const css = html.match(/<style>([\s\S]*?)<\/style>/)[1];
+  check('le cadre défilant a une hauteur maximale et défile', /\.scroll-list[^{]*\{[^}]*max-height:\s*\d+(\.\d+)?rem[^}]*overflow-y:\s*auto/.test(css));
+  check('l\'en-tête du tableau des comptes reste visible pendant le défilement', /\.scroll-list thead th\s*\{[^}]*position:\s*sticky/.test(css));
+
   // ---- demandes / invitation studio
   const list = doc.getElementById('accessRequestsList').textContent;
   check('liste : la demande du studio est étiquetée « page Studios »', /page Studios/.test(list) && /landing — "Rejoindre la bêta"/.test(list));
