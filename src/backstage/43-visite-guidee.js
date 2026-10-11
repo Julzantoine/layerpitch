@@ -15,6 +15,7 @@ const TOUR_STEPS = [
 ];
 
 // Morceau en cours d'édition dans la Bibliothèque musicale (celui sélectionné dans la liste).
+function lessonEngineIsSimple() { const t = lessonTrack(); return !t || t.loopEngine !== 'quantized'; }
 function lessonTrack() { return (typeof library !== 'undefined' && library.find(t => t.id === manageLibrarySelectedId)) || null; }
 // Fichiers d'exemple de chaque leçon : null tant qu'ils n'existent pas (la bulle dit alors « bientôt disponible »).
 const LESSON_SAMPLE_FILES = { static: null };
@@ -34,10 +35,12 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); const l = t && t.layers && t.layers[0]; return !!(l && (l.pendingFile || l.remoteFile)); } },
     { selector: '#libraryDetail input[data-field="loopable"]', titleKey: 'lsLoopTitle', textKey: 'lsLoopText',
       done: () => { const t = lessonTrack(); return !!t && !!t.loopable; } },
+    // Le fichier d'exemple n'est pas préparé pour boucler seul : la leçon demande « Quantifié » (avance quand c'est fait).
+    // « Passer l'étape » reste possible en « Simple » : le tempo et les points de boucle (Quantifié seulement) sont alors sautés.
     { selector: '#libraryDetail select[data-field="loopEngine"]', titleKey: 'lsEngineTitle', textKey: 'lsEngineText',
       done: () => { const t = lessonTrack(); return !!t && t.loopEngine === 'quantized'; } },
-    { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lsVerifyTitle', textKey: 'lsVerifyText' },
-    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText' },
+    { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lsVerifyTitle', textKey: 'lsVerifyText', skip: lessonEngineIsSimple },
+    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText', skip: lessonEngineIsSimple },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', clickDone: true },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lsEndTitle', textKey: 'lsEndText', final: true },
@@ -83,7 +86,9 @@ function guideClickCapture(e) {
 function guideStepTarget(step) { return step.selector ? document.querySelector(step.selector) : null; }
 function guideGo(delta) {
   if (!guide) return;
-  const next = guide.index + delta;
+  let next = guide.index + delta;
+  // Saute les étapes sans objet (par ex. points de boucle quand le moteur est « Simple »), dans les deux sens.
+  while (next >= 0 && next < guide.steps.length && guide.steps[next].skip && guide.steps[next].skip(guide.ctx)) next += delta;
   if (next < 0) return;
   if (next >= guide.steps.length) { finishGuide(); return; }
   guide.index = next; guide.clicked = false; guide.advancing = false;
