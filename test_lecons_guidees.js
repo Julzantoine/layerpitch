@@ -93,6 +93,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('étape à geste : aucun bouton « Passer l’étape »', !w.document.querySelector('[data-tour="next"]'));
   check('étape à geste : « Quitter » reste disponible', !!w.document.querySelector('[data-tour="skip"]'));
   // Échap quitte.
+  w.eval(`guide.index = 6; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));
   w.document.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   check('Échap ferme la leçon', !w.document.querySelector('.tour-root'));
