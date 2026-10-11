@@ -22,7 +22,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('menu Tutoriel piloté par in_app_lessons, visite par in_app_tour', /function lessonsAccessOpen\(\) \{ return flagOpen\('in_app_lessons'\)/.test(src) && /lessonsOpen = lessonsAccessOpen\(\)/.test(src) && /flagOpen\('in_app_tour'\)/.test(src));
   check('menu Tutoriel caché par défaut', /id="tutorialMenuWrap" hidden/.test(page));
   ['btnTutorialMenu', 'tutorialMenuDropdown', 'tutorialMenuList', 'btnAddLibraryTrack', 'btnPublish', 'libraryDetail'].forEach(id => check('élément ' + id + ' présent', page.includes('id="' + id + '"')));
-  ['data-field="mode"', 'data-role="staticFileCtrl"', 'data-field="loopable"', 'data-field="loopEngine"', 'data-role="loopTimelineHost"', 'data-action="preview-track"', 'data-role="modeMaster"', 'data-role="previewHost"', 'data-role="fxSlidersHost"', 'data-role="vrsPools"', 'data-action="add-section"', 'data-action="add-pool"', 'data-section-field="bpm"']
+  ['data-field="mode"', 'data-role="staticFileCtrl"', 'data-field="loopable"', 'data-field="loopEngine"', 'data-role="loopTimelineHost"', 'data-action="preview-track"', 'data-role="modeMaster"', 'data-role="previewHost"', 'data-role="fxSlidersHost"', 'data-role="vrsPools"', 'data-action="add-section"', 'data-action="add-pool"', 'data-section-field="bpm"', 'data-seq-key="seqIntro"', 'data-seq-key="seqOutro"', 'data-seq-key="trackinfo"', 'data-action="add-segment-slot"', 'data-role="segmentSlotsMaster"']
     .forEach(a => check('cible de leçon ' + a + ' présente dans les sources', page.includes(a)));
 
   // Moteur : la leçon avance toute seule quand le geste est fait.
@@ -34,12 +34,13 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
     window.__closed = !document.querySelector('.tour-root');
     myFlags = { in_app_lessons: true };
     document.querySelector('.nav-item[data-tab="library"]').hidden = false;
-    var __r = { lessons: LESSONS.length, soon: LESSONS.filter(l => l.soon).length, add: (LESSONS.find(l => l.id === 'additive').steps || []).length, rnd: (LESSONS.find(l => l.id === 'random').steps || []).length };
+    var __r = { lessons: LESSONS.length, soon: LESSONS.filter(l => l.soon).length, add: (LESSONS.find(l => l.id === 'additive').steps || []).length, rnd: (LESSONS.find(l => l.id === 'random').steps || []).length, seq: (LESSONS.find(l => l.id === 'sequential').steps || []).length };
     startLesson('static');
     window.__r = __r;
   `);
   check('leçon refusée tant que in_app_lessons est fermé', w.__closed === true);
-  check('6 leçons déclarées, 3 « bientôt » (3 construites)', w.__r.lessons === 6 && w.__r.soon === 3);
+  check('6 leçons déclarées, 2 « bientôt » (4 construites)', w.__r.lessons === 6 && w.__r.soon === 2);
+  check('leçon 4 : 15 étapes', w.__r.seq === 15);
   check('leçon 3 : 13 étapes', w.__r.rnd === 13);
   check('leçon 2 : 13 étapes', w.__r.add === 13);
   check('la leçon ouvre une bulle', !!w.document.querySelector('.tour-root-lesson .tour-card'));

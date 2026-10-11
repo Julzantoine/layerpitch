@@ -1853,15 +1853,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791727473609"></script>
-<script src="layerpitch-appearance.js?v=1791727473609"></script>
-<script src="layerpitch-album-shared.js?v=1791727473609"></script>
-<script src="layerpitch-album-editor.js?v=1791727473609"></script>
-<script src="layerpitch-shell.js?v=1791727473609"></script>
-<script src="layerpitch-social-icons.js?v=1791727473609"></script>
-<script src="layerpitch-notify.js?v=1791727473609"></script>
-<script src="layerpitch-help.js?v=1791727473609"></script>
-<script src="player.js?v=1791727473609"></script>
+<script src="layerpitch-i18n.js?v=1791728129492"></script>
+<script src="layerpitch-appearance.js?v=1791728129492"></script>
+<script src="layerpitch-album-shared.js?v=1791728129492"></script>
+<script src="layerpitch-album-editor.js?v=1791728129492"></script>
+<script src="layerpitch-shell.js?v=1791728129492"></script>
+<script src="layerpitch-social-icons.js?v=1791728129492"></script>
+<script src="layerpitch-notify.js?v=1791728129492"></script>
+<script src="layerpitch-help.js?v=1791728129492"></script>
+<script src="player.js?v=1791728129492"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -14630,9 +14630,11 @@ function lessonPoolFiles(i) { const sec = lessonSection(); const p = sec && sec.
 // Point d'accès unique aux leçons : aujourd'hui le feu vert « in_app_lessons ». Une future version publique (mode démo,
 // sans compte) n'aura qu'à répondre « oui » ici, sans toucher aux leçons.
 function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
+function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
+function lessonSlotHasFile(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return !!sl && (sl.alternatives || []).some(lessonHasFile); }
 function lessonTrack() { return (typeof library !== 'undefined' && library.find(t => t.id === manageLibrarySelectedId)) || null; }
 // Fichiers d'exemple de chaque leçon : null tant qu'ils n'existent pas (la bulle dit alors « bientôt disponible »).
-const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null };
+const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null, sequential: null };
 // Nom du fichier d'exemple cité dans la consigne de dépôt (il porte le tempo : ambiance_120bpm).
 // (additive : noms provisoires, à remplacer par ceux des vrais fichiers).
 const LESSON_SAMPLE_NAMES = {
@@ -14640,6 +14642,10 @@ const LESSON_SAMPLE_NAMES = {
   additive: 'couche-calme_120bpm.wav, couche-rythme_120bpm.wav, couche-intense_120bpm.wav',
   randomFixed: 'couche-fixe_120bpm.wav',
   randomVariants: 'variante-1_120bpm.wav, variante-2_120bpm.wav, variante-3_120bpm.wav',
+  seqIntro: 'intro_120bpm.wav',
+  seqA: 'segment-a_120bpm.wav',
+  seqB: 'segment-b_120bpm.wav',
+  seqOutro: 'outro_120bpm.wav',
 };
 // done(ctx) : true quand le geste est fait -> la leçon avance seule. clickDone : un clic sur la cible suffit.
 // Sans done ni clickDone : étape manuelle (« Suivant »). enter(ctx) : photographie l'état à l'arrivée sur l'étape.
@@ -14710,7 +14716,33 @@ const LESSONS = [
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lrEndTitle', textKey: 'lrEndText', final: true },
   ] },
-  { id: 'sequential', titleKey: 'lessonSequentialTitle', descKey: 'lessonSequentialDesc', soon: true },
+  { id: 'sequential', titleKey: 'lessonSequentialTitle', descKey: 'lessonSequentialDesc', steps: [
+    { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
+      done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
+    { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
+      enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
+    { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'lqModeTitle', textKey: 'lqModeText',
+      done: () => { const t = lessonTrack(); return !!t && t.mode === 'sequential'; } },
+    { selector: '#libraryDetail .seq-master-item[data-seq-key="seqIntro"]', titleKey: 'lqIntroTitle', textKey: 'lqIntroText', sampleKey: 'sequential', names: 'seqIntro',
+      done: () => { const t = lessonTrack(); return !!t && lessonHasFile(t.intro); } },
+    { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlotTitle', textKey: 'lqSlotText',
+      done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 1; } },
+    { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lqSegTitle', textKey: 'lqSegText', names: 'seqA',
+      done: () => lessonSlotHasFile(0) },
+    { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlot2Title', textKey: 'lqSlot2Text',
+      done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 2; } },
+    { selector: '#libraryDetail .seq-master-item[data-si="1"]', titleKey: 'lqSeg2Title', textKey: 'lqSeg2Text', names: 'seqB',
+      done: () => lessonSlotHasFile(1) },
+    { selector: '#libraryDetail .seq-master-item[data-seq-key="seqOutro"]', titleKey: 'lqOutroTitle', textKey: 'lqOutroText', names: 'seqOutro',
+      done: () => { const t = lessonTrack(); return !!t && lessonHasFile(t.outro); } },
+    { selector: '#libraryDetail [data-role="segmentSlotsMaster"]', titleKey: 'lqCheckTitle', textKey: 'lqCheckText' },
+    { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'lqInfoTitle', textKey: 'lqInfoText',
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
+    { selector: '#libraryDetail select[data-field="maxChainLoops"]', titleKey: 'lqCyclesTitle', textKey: 'lqCyclesText' },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lqListenTitle', textKey: 'lqListenText', clickDone: true },
+    { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    { titleKey: 'lqEndTitle', textKey: 'lqEndText', final: true },
+  ] },
   { id: 'branching', titleKey: 'lessonBranchingTitle', descKey: 'lessonBranchingDesc', soon: true },
   { id: 'embranchement', titleKey: 'lessonEmbrTitle', descKey: 'lessonEmbrDesc', soon: true },
 ];
