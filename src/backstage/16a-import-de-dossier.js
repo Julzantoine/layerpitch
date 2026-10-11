@@ -8,6 +8,33 @@
    avalés (un dossier « V2 » ne doit pas doubler les couches). */
 const FOLDER_IMPORT_MODES = ['vertical-random', 'vertical', 'sequential', 'embranchement-vertical'];
 const FOLDER_IMPORT_AUDIO_RE = /\.(wav|mp3)$/i;
+// Un fichier « Transition #1.wav » : audio joué à la bascule vers une boucle d'un embranchement (11/10, dossier réel de
+// Jules-Antoine : « #1 … », « #2 … », « Transition #1 », « Transition #2 »).
+function isTransitionFile(name) {
+  return /(?:^|[^a-z0-9])transitions?(?:$|[^a-z0-9])/i.test((name || '').replace(/\.[^/.]+$/, ''));
+}
+// Numéro « #N » (ou « 1. » en tête) d'un nom, pour relier une transition à sa boucle.
+function folderImportNumber(name) {
+  const m = (name || '').match(/#\s*(\d+(?:[.,]\d+)?)/) || (name || '').match(/^\s*(\d+)\s*[.\-_ ]/);
+  return m ? m[1].replace(',', '.') : null;
+}
+// Boucles + transitions rattachées : par numéro commun, puis par ordre pour les transitions restantes.
+function pairLoopsWithTransitions(files) {
+  const transitions = files.filter(f => isTransitionFile(f.name));
+  const loops = files.filter(f => !isTransitionFile(f.name));
+  if (!loops.length) return { loops: files, transitions: [], pairs: [] };
+  const taken = new Set();
+  const pairs = loops.map(l => {
+    const n = folderImportNumber(l.name);
+    const t = n && transitions.find(x => !taken.has(x) && folderImportNumber(x.name) === n);
+    if (t) taken.add(t);
+    return { loop: l, transition: t || null };
+  });
+  const rest = transitions.filter(t => !taken.has(t));
+  pairs.forEach(pr => { if (!pr.transition && rest.length) pr.transition = rest.shift(); });
+  return { loops, transitions, pairs, unassigned: rest };
+}
+if (typeof window !== 'undefined') { window.isTransitionFile = isTransitionFile; window.pairLoopsWithTransitions = pairLoopsWithTransitions; }
 const folderImportByName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 
 // Structure la plus probable pour un dossier, avec la raison (affichée au compositeur). Pure : testée sans page.
@@ -19,6 +46,16 @@ function guessFolderStructure(folderName, files) {
   if (/random|aleatoire/.test(n) && /vertical|layer|couche/.test(n)) return { mode: 'vertical-random', why: 'name' };
   if (/sequenti/.test(n)) return { mode: 'sequential', why: 'name' };
   if (/layer|vertical|couche/.test(n)) return { mode: 'vertical', why: 'name' };
+  // Des transitions rattachées à des boucles : un embranchement. Prudence : « Transition » est aussi un nom courant dans
+  // un séquentiel (« #1bis_SecretLever_Transition »), donc : jamais avec intro/outro, et seulement si chaque transition
+  // porte le numéro d'une boucle ou si le dossier n'a pas de familles d'alternatives.
+  const transFiles = files.filter(f => isTransitionFile(f.name)), otherFiles = files.filter(f => !isTransitionFile(f.name));
+  if (transFiles.length && otherFiles.length && !otherFiles.some(f => guessSequentialRole(f.name) !== 'segment')) {
+    const loopNumbers = new Set(otherFiles.map(f => folderImportNumber(f.name)).filter(Boolean));
+    const allNumbered = transFiles.every(t => { const n = folderImportNumber(t.name); return n && loopNumbers.has(n); });
+    const hasVariants = groupFilesByNameFamily(otherFiles, false).groups.some(x => x.files.length >= 2);
+    if (allNumbered || !hasVariants) return { mode: 'embranchement-vertical', why: 'transitions' };
+  }
   const intensity = files.filter(f => /(?:^|[^a-z])(?:low|med|medium|mid|high)[\s_-]?intensit|intensit/i.test(f.name)).length;
   if (files.length >= 2 && intensity >= 2) return { mode: 'vertical', why: 'intensity' };
   const g = groupFilesByNameFamily(files, true);
@@ -133,16 +170,115 @@ function importFolderAsVertical(title, files) {
   probeImportedDurations(track, track.layers.map((l, i) => [l, files[i]]));
   offerTrackTempoFromFilenames(track, files, true);
 }
-function importFolderAsEmbranchement(title, files) {
+// Une boucle nommée d'embranchement, avec sa transition (facultative) -- partagée entre l'import de dossier et le dépôt
+// groupé « + Boucle » de l'éditeur (11/10). Mesures d'intro (« intro2M ») : le rebouclage est posé après elles.
+function makeEmbranchementLoop(track, file, transitionFile, isInitial) {
+  const h = parseAudioFilenameHints(file.name), intro = parseIntroBarsHint(file.name);
+  const loop = {
+    id: genId(), label: titleFromFilenameStrippingHints(file.name), bars: h.bars || 8, isInitial: !!isInitial,
+    remoteFile: null, pendingFile: file, switchQuantize: 'immediate', autoReturnEnabled: false, autoReturnValue: 4, autoReturnUnit: 'bars',
+    detourMode: 'once', endLoopButtonLabel: '', isDetour: false, cutStyle: 'fade', customCutFadeSec: null,
+    transition: transitionFile ? { label: titleFromFilenameStrippingHints(transitionFile.name), remoteFile: null, pendingFile: transitionFile } : null
+  };
+  if (intro) {
+    loop.beatsPerBar = track.beatsPerBar || 4; loop.loopInBeat = intro * loop.beatsPerBar;
+    // « 18M_intro2M » : 18 mesures au total, la boucle va de la mesure 3 à la mesure 18 (16 mesures).
+    if (h.bars && h.bars > intro) loop.loopOutBeat = h.bars * loop.beatsPerBar;
+  }
+  return loop;
+}
+// Dépôt groupé sur les boucles d'un embranchement déjà créé : les « Transition #N » se rattachent à la boucle de même
+// numéro (parmi les fichiers déposés, puis parmi les boucles existantes sans transition) ; renvoie ce qui a été fait.
+function addFilesToEmbranchementLoops(track, files) {
+  const loopFiles = files.filter(f => !isTransitionFile(f.name));
+  const added = [], attached = [];
+  let leftovers;
+  if (loopFiles.length) {
+    const paired = pairLoopsWithTransitions(files);
+    paired.pairs.forEach(pr => {
+      const loop = makeEmbranchementLoop(track, pr.loop, pr.transition, track.loops.length === 0 && added.length === 0);
+      track.loops.push(loop); added.push({ loop, file: pr.loop, transition: pr.transition });
+    });
+    leftovers = paired.unassigned || [];
+  } else {
+    leftovers = files.filter(f => isTransitionFile(f.name)); // seulement des transitions : pour les boucles déjà là
+  }
+  // Transitions sans boucle déposée avec elles : rattachées aux boucles existantes sans transition, par numéro puis par ordre.
+  leftovers.forEach(t => {
+    const n = folderImportNumber(t.name);
+    const free = track.loops.filter(l => !(l.transition && (l.transition.pendingFile || l.transition.remoteFile)));
+    const target = (n && free.find(l => folderImportNumber(l.label) === n)) || free[0];
+    if (!target) return;
+    target.transition = { label: titleFromFilenameStrippingHints(t.name), remoteFile: null, pendingFile: t };
+    attached.push({ loop: target, file: t });
+  });
+  return { added, attached };
+}
+if (typeof window !== 'undefined') window.addFilesToEmbranchementLoops = addFilesToEmbranchementLoops;
+function buildEmbranchementTrack(title, pairs) {
   const track = newFolderImportTrack(title, 'embranchement-vertical');
-  files.forEach((f, i) => track.loops.push({
-    id: genId(), label: titleFromFilenameStrippingHints(f.name), bars: parseAudioFilenameHints(f.name).bars || 8, isInitial: i === 0,
-    remoteFile: null, pendingFile: f, switchQuantize: 'immediate', autoReturnEnabled: false, autoReturnValue: 4, autoReturnUnit: 'bars',
-    detourMode: 'once', endLoopButtonLabel: '', isDetour: false, cutStyle: 'fade', customCutFadeSec: null, transition: null
-  }));
+  pairs.forEach((pr, i) => track.loops.push(makeEmbranchementLoop(track, pr.loop, pr.transition, i === 0)));
+  return track;
+}
+function finishEmbranchementImport(track, pairs, files) {
   registerImportedTrack(track, files.length);
-  probeImportedDurations(track, track.loops.map((l, i) => [l, files[i]]));
-  offerTrackTempoFromFilenames(track, files, false);
+  probeImportedDurations(track, track.loops.map((l, i) => [l, pairs[i].loop]));
+  track.loops.forEach((l, i) => { if (l.transition && pairs[i].transition) probeAudioDuration(pairs[i].transition).then(dur => { l.transition.duration = dur; renderLibrary(); }); });
+  offerTrackTempoFromFilenames(track, pairs.map(p => p.loop), false);
+}
+// Embranchement : la fenêtre de vérification montre chaque boucle et la transition proposée (rattachée par le numéro
+// « #N » commun, sinon par l'ordre) ; le compositeur peut changer ou retirer une transition avant de créer.
+function importFolderAsEmbranchement(title, files) {
+  const paired = pairLoopsWithTransitions(files);
+  const pairs = paired.pairs.length ? paired.pairs : files.map(f => ({ loop: f, transition: null }));
+  const trans = paired.transitions || [];
+  if (!trans.length) { // aucune transition : création directe
+    const track = buildEmbranchementTrack(title, pairs);
+    finishEmbranchementImport(track, pairs, files);
+    return;
+  }
+  const overlay = document.createElement('div');
+  overlay.className = 'vrs-batch-overlay';
+  const modal = document.createElement('div');
+  modal.className = 'vrs-batch-modal';
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  const choice = pairs.map(p => (p.transition ? trans.indexOf(p.transition) : -1));
+  const rowHtml = (p, i) => {
+    const h = parseAudioFilenameHints(p.loop.name), intro = parseIntroBarsHint(p.loop.name);
+    const meta = [h.bpm ? h.bpm + ' BPM' : '', h.bars ? tr('vrsBatchBarsN', { n: h.bars }) : '', intro ? tr('importFolderEmbrIntro', { n: intro }) : ''].filter(Boolean).join(' · ');
+    return `
+      <div class="vrs-batch-group">
+        <div class="vrs-batch-group-head"><strong>${i === 0 ? escapeHtml(tr('importFolderEmbrInitial')) + ' — ' : ''}${escapeHtml(titleFromFilenameStrippingHints(p.loop.name))}</strong></div>
+        ${meta ? `<div class="hint-inline">${escapeHtml(meta)}</div>` : ''}
+        <div class="vrs-batch-file">
+          <span>${tr('importFolderEmbrTransitionLabel')}</span>
+          <select data-ei="${i}">
+            <option value="-1"${choice[i] === -1 ? ' selected' : ''}>${tr('importFolderEmbrNone')}</option>
+            ${trans.map((t, k) => `<option value="${k}"${choice[i] === k ? ' selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
+          </select>
+        </div>
+      </div>`;
+  };
+  modal.innerHTML = `
+    <h3>${escapeHtml(tr('importFolderGroupedTitle', { title }))}</h3>
+    <div class="hint-inline">${tr('importFolderEmbrSummary', { loops: pairs.length, transitions: trans.length })}</div>
+    <div class="vrs-batch-body">${pairs.map(rowHtml).join('')}</div>
+    <div class="actions vrs-batch-actions">
+      <button class="btn btn-small" type="button" data-ei-btn="cancel">${tr('cancel')}</button>
+      <button class="btn btn-small btn-primary" type="button" data-ei-btn="ok">${tr('importFolderConfirmBtn')}</button>
+    </div>`;
+  modal.addEventListener('change', e => { if (e.target.dataset.ei !== undefined) choice[+e.target.dataset.ei] = +e.target.value; });
+  modal.addEventListener('click', e => {
+    const b = e.target.closest('[data-ei-btn]');
+    if (!b) return;
+    if (b.dataset.eiBtn === 'cancel') { close(); return; }
+    close();
+    const finalPairs = pairs.map((p, i) => ({ loop: p.loop, transition: choice[i] >= 0 ? trans[choice[i]] : null }));
+    finishEmbranchementImport(buildEmbranchementTrack(title, finalPairs), finalPairs, files);
+  });
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 }
 function importFolderAsVerticalRandom(title, files) {
   const guess = groupFilesByNameFamily(files, true);
