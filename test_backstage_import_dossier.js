@@ -55,16 +55,34 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   change(q('[data-fi="mode"]'), 'vertical');
   check('structure choisie : « Continuer » actif', q('[data-fi-btn="go"]').disabled === false);
   click(q('[data-fi-btn="go"]'));
+  check('grille de rôles : une ligne par fichier, rien créé encore', qa('[data-rg]').length === 2 && lib().length === nNo);
+  click(q('[data-rg-btn="ok"]'));
   check('morceau créé avec la structure choisie', lib().length === nNo + 1 && lib()[nNo].mode === 'vertical');
   const noClueOverlay = q('.vrs-batch-overlay'); if (noClueOverlay) click(noClueOverlay.querySelector('[data-hc-btn="cancel"]'));
+
+  // ---- Question en langage clair : alternatives, niveaux, étapes ou boucles ? ----
+  window.openFolderImportDialog({ name: 'Perc', files: ['Perc #1.wav', 'Perc #2.wav', 'Perc #3.wav'].map(F), ignored: [] });
+  check('question claire : 4 réponses possibles, aucune cochée', qa('[data-fi-radio]').length === 4 && qa('[data-fi-radio]').every(r => !r.checked));
+  const radioLevels = q('[data-fi-radio="vertical"]'); radioLevels.checked = true; change(radioLevels, 'vertical');
+  check('« niveaux d\'intensité » règle la structure et active « Continuer »', q('[data-fi="mode"]').value === 'vertical' && q('[data-fi-btn="go"]').disabled === false);
+  const radioRandom = q('[data-fi-radio="vertical-random"]'); radioRandom.checked = true; change(radioRandom, 'vertical-random');
+  check('« alternatives » règle la structure sur l\'aléatoire', q('[data-fi="mode"]').value === 'vertical-random');
+  click(q('[data-fi-btn="cancel"]'));
+  window.openFolderImportDialog({ name: 'Menu / Test Layering Vertical Random', files: menu, ignored: [] });
+  check('nom du dossier explicite : pas de question, structure présélectionnée', qa('[data-fi-radio]').length === 0 && q('[data-fi="mode"]').value === 'vertical-random');
+  click(q('[data-fi-btn="cancel"]'));
 
   // ---- Vertical (une couche par fichier) ----
   const before = lib().length;
   window.openFolderImportDialog({ name: 'Goute donc ma hache pour voir', files: hache, ignored: [{ name: 'V2', count: 4 }] });
-  check('fenêtre de structure ouverte, proposition = vertical', !!q('.vrs-batch-overlay') && q('[data-fi="mode"]').value === 'vertical');
+  check('intensité dans les noms : suggestion affichée, RIEN de présélectionné', !!q('.vrs-batch-overlay') && q('[data-fi="mode"]').value === '' && q('.vrs-batch-overlay').textContent.includes('Layering vertical additif') && !!q('[data-fi-btn="suggest"]'));
+  click(q('[data-fi-btn="suggest"]'));
+  check('« Choisir la suggestion » sélectionne vertical', q('[data-fi="mode"]').value === 'vertical' && q('[data-fi-btn="go"]').disabled === false);
   check('sous-dossier ignoré signalé', q('.vrs-batch-overlay').textContent.includes('V2 (4)'));
   check('titre proposé = nom du dossier', q('[data-fi="title"]').value === 'Goute donc ma hache pour voir');
   click(q('[data-fi-btn="go"]'));
+  check('grille de rôles : 3 fichiers, tous en « Couche »', qa('[data-rg]').length === 3 && qa('[data-rg]').every(sel => sel.value === 'layer'));
+  click(q('[data-rg-btn="ok"]'));
   const t1 = lib()[before];
   check('morceau créé (brouillon dans la bibliothèque), mode vertical', lib().length === before + 1 && t1.mode === 'vertical' && t1.title === 'Goute donc ma hache pour voir');
   check('3 couches, une par fichier, libellés sans tempo/mesures', t1.layers.length === 3 && t1.layers[0].label === '#1.BattleLoop LowIntensity' && t1.layers.every(l => l.pendingFile));
@@ -94,7 +112,7 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   window.openFolderImportDialog({ name: 'The Last Door', files: seqFiles, ignored: [] });
   // Des « #1.1 », « #1.2 », « #2 » du même nom ressemblent à des alternatives : le moteur propose l'aléatoire,
   // c'est au compositeur de choisir « Séquentiel » (c'est le cas ambigu, assumé).
-  check('proposition = vertical-random (noms numérotés du même nom)', q('[data-fi="mode"]').value === 'vertical-random');
+  check('noms numérotés du même nom : suggestion vertical-random, rien de présélectionné', q('[data-fi="mode"]').value === '' && q('.vrs-batch-overlay').textContent.includes('Layering vertical randomisé'));
   change(q('[data-fi="mode"]'), 'sequential');
   const n3 = lib().length;
   click(q('[data-fi-btn="go"]'));
@@ -107,8 +125,10 @@ const { loadBackstage } = require('./scripts/test-harness.js');
 
   // ---- Embranchement vertical ----
   window.openFolderImportDialog({ name: 'Test embranchement', files: hache, ignored: [] });
+  check('nom du dossier « embranchement » : structure présélectionnée', q('[data-fi="mode"]').value === 'embranchement-vertical');
   const n4 = lib().length;
   click(q('[data-fi-btn="go"]'));
+  click(q('[data-rg-btn="ok"]'));
   const t4 = lib()[n4];
   check('embranchement : 3 boucles, la 1re initiale, mesures lues (64)', t4.mode === 'embranchement-vertical' && t4.loops.length === 3 && t4.loops[0].isInitial && !t4.loops[1].isInitial && t4.loops.every(l => l.bars === 64));
   const o4 = q('.vrs-batch-overlay'); if (o4) click(o4.querySelector('[data-hc-btn="cancel"]'));
@@ -124,10 +144,13 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   check('transition rattachée à la boucle de même numéro', pr.pairs.length === 2 && pr.pairs[0].transition.name === 'Transition #1.wav' && pr.pairs[1].transition.name === 'Transition #2.wav');
   const nM = lib().length;
   window.openFolderImportDialog({ name: "Monte en l'air et pattes de velours", files: monte, ignored: [] });
-  check('proposition = embranchement vertical', q('[data-fi="mode"]').value === 'embranchement-vertical');
+  check('Monte : suggestion embranchement, rien de présélectionné', q('[data-fi="mode"]').value === '' && q('.vrs-batch-overlay').textContent.includes('Embranchement vertical'));
+  click(q('[data-fi-btn="suggest"]'));
   click(q('[data-fi-btn="go"]'));
-  check('fenêtre de vérification : une ligne par boucle avec sa transition', qa('[data-ei]').length === 2 && qa('[data-ei]')[0].selectedOptions[0].textContent === 'Transition #1.wav' && lib().length === nM);
-  click(q('[data-ei-btn="ok"]'));
+  const rolesM = qa('[data-rg]').map(sel => sel.value).join(',');
+  check('grille de rôles : « Transition » reconnue (2 boucles, 2 transitions)', qa('[data-rg]').length === 4 && rolesM.split(',').filter(r => r === 'transition').length === 2 && rolesM.split(',').filter(r => r === 'loop').length === 2);
+  check('rattachement proposé par numéro : #1 -> Transition #1', qa('[data-rgx="trans"]').length === 2 && qa('[data-rgx="trans"]')[0].selectedOptions[0].textContent === 'Transition #1.wav' && lib().length === nM);
+  click(q('[data-rg-btn="ok"]'));
   const tM = lib()[nM];
   check('2 boucles (la 1re initiale), 18 mesures, libellés propres', tM.mode === 'embranchement-vertical' && tM.loops.length === 2 && tM.loops[0].isInitial && tM.loops.every(l => l.bars === 18) && tM.loops[0].label === '#1 Everything is fine');
   check('transitions rattachées, fichiers en attente', tM.loops[0].transition && tM.loops[0].transition.pendingFile.name === 'Transition #1.wav' && tM.loops[1].transition.pendingFile.name === 'Transition #2.wav');
@@ -136,12 +159,25 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   const oM = q('.vrs-batch-overlay'); if (oM) click(oM.querySelector('[data-hc-btn="cancel"]'));
   // la transition peut être changée ou retirée avant de créer
   window.openFolderImportDialog({ name: 'Monte', files: monte, ignored: [] });
+  click(q('[data-fi-btn="suggest"]'));
   click(q('[data-fi-btn="go"]'));
-  change(qa('[data-ei]')[1], '-1');
-  click(q('[data-ei-btn="ok"]'));
+  change(qa('[data-rgx="trans"]')[1], '-1');
+  click(q('[data-rg-btn="ok"]'));
   const tM2 = lib()[lib().length - 1];
   check('transition retirée dans la fenêtre : la boucle n\'en a plus', tM2.loops[0].transition && tM2.loops[1].transition === null);
   const oM2 = q('.vrs-batch-overlay'); if (oM2) click(oM2.querySelector('[data-hc-btn="cancel"]'));
+  // Rôle d'un fichier changé à la main : « Transition #2 » écartée, boucle de départ = la 2e
+  window.openFolderImportDialog({ name: 'Monte', files: monte, ignored: [] });
+  click(q('[data-fi-btn="suggest"]'));
+  click(q('[data-fi-btn="go"]'));
+  const idxT2 = monte.findIndex(f => f.name === 'Transition #2.wav');
+  change(qa('[data-rg]')[idxT2], 'skip');
+  check('transition écartée : plus qu\'une transition proposée', qa('[data-rgx="trans"]')[0].options.length === 2);
+  qa('[data-rgx="initial"]')[1].checked = true; change(qa('[data-rgx="initial"]')[1], '1');
+  click(q('[data-rg-btn="ok"]'));
+  const tM3 = lib()[lib().length - 1];
+  check('boucle de départ choisie : la 2e', !tM3.loops[0].isInitial && tM3.loops[1].isInitial && tM3.loops[0].transition && tM3.loops[1].transition === null);
+  const oM3 = q('.vrs-batch-overlay'); if (oM3) click(oM3.querySelector('[data-hc-btn="cancel"]'));
   // les transitions ne gênent pas les autres devinettes
   check('Menu reste en aléatoire (sans transition)', window.guessFolderStructure('Menu', menu).mode === 'vertical-random');
 
@@ -190,6 +226,15 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   const trkLive = window.eval('library[library.length - 1]');
   window.applyVrsBatchDrop(trkLive, trkLive.sections[0], [], { groups: [], intro: null, outro: null, checks: {} }, { bpm: 120, bars: 18, introBars: 2 });
   check('section vertical-random : loopIn = 8 temps, loopOut = 72 (mesure 18)', trkLive.sections[0].loopInBeat === 8 && trkLive.sections[0].loopOutBeat === 72);
+
+  // ---- Dossier réel RobotAdventure : séquentiel à embranchement, aucun indice net -> on demande ----
+  const robot = ['#1_RobotAdventure_WetDarkCave_120bpm_30M.wav', '#2_RobotAdventure_Corridor_120bpm_30M.wav', '#3_RobotAdventure_BattleFinal_160bpm_40M.wav', '#1bis_SecretLever_Transition.wav'].map(F);
+  const gr = window.guessFolderStructure('RobotAdventure', robot);
+  check('RobotAdventure : « #1bis…Transition » n\'est pas la transition d\'une boucle -> question, pas de présélection', gr.why === 'transitionsUnclear');
+  window.openFolderImportDialog({ name: 'RobotAdventure', files: robot, ignored: [] });
+  check('RobotAdventure : liste sur « Choisis », « Continuer » grisé, message dédié', q('[data-fi="mode"]').value === '' && q('[data-fi-btn="go"]').disabled === true && q('.vrs-batch-overlay').textContent.includes('bifurcation'));
+  click(q('[data-fi-btn="cancel"]'));
+  check('« #1bis » n\'a pas le numéro 1, « Transition #1 » oui', window.folderImportNumber('#1bis_SecretLever_Transition.wav') === null && window.folderImportNumber('Transition #1.wav') === '1' && window.folderImportNumber('#2.5 X.wav') === '2.5');
 
   // ---- Devinette : « Transition » dans un séquentiel (intro/outro) n'en fait pas un embranchement ----
   const seqT = window.guessFolderStructure('The Last Door', ['Door_Intro.wav', '#1bis_SecretLever_Transition.wav', '#2 Door.wav', 'Door_Outro.wav'].map(F));

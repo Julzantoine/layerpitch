@@ -14,8 +14,9 @@ function isTransitionFile(name) {
   return /(?:^|[^a-z0-9])transitions?(?:$|[^a-z0-9])/i.test((name || '').replace(/\.[^/.]+$/, ''));
 }
 // Numéro « #N » (ou « 1. » en tête) d'un nom, pour relier une transition à sa boucle.
+// Le numéro doit être isolé : « #1bis_SecretLever_Transition » n'est PAS le « #1 » d'une boucle (11/10, dossier RobotAdventure).
 function folderImportNumber(name) {
-  const m = (name || '').match(/#\s*(\d+(?:[.,]\d+)?)/) || (name || '').match(/^\s*(\d+)\s*[.\-_ ]/);
+  const m = (name || '').match(/#\s*(\d+(?:[.,]\d+)?)(?![A-Za-z0-9])/) || (name || '').match(/^\s*(\d+)\s*[.\-_ ]/);
   return m ? m[1].replace(',', '.') : null;
 }
 // Boucles + transitions rattachées : par numéro commun, puis par ordre pour les transitions restantes.
@@ -34,7 +35,7 @@ function pairLoopsWithTransitions(files) {
   pairs.forEach(pr => { if (!pr.transition && rest.length) pr.transition = rest.shift(); });
   return { loops, transitions, pairs, unassigned: rest };
 }
-if (typeof window !== 'undefined') { window.isTransitionFile = isTransitionFile; window.pairLoopsWithTransitions = pairLoopsWithTransitions; }
+if (typeof window !== 'undefined') { window.isTransitionFile = isTransitionFile; window.folderImportNumber = folderImportNumber; window.pairLoopsWithTransitions = pairLoopsWithTransitions; }
 const folderImportByName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 
 // Structure la plus probable pour un dossier, avec la raison (affichée au compositeur). Pure : testée sans page.
@@ -53,8 +54,10 @@ function guessFolderStructure(folderName, files) {
   if (transFiles.length && otherFiles.length && !otherFiles.some(f => guessSequentialRole(f.name) !== 'segment')) {
     const loopNumbers = new Set(otherFiles.map(f => folderImportNumber(f.name)).filter(Boolean));
     const allNumbered = transFiles.every(t => { const n = folderImportNumber(t.name); return n && loopNumbers.has(n); });
-    const hasVariants = groupFilesByNameFamily(otherFiles, false).groups.some(x => x.files.length >= 2);
-    if (allNumbered || !hasVariants) return { mode: 'embranchement-vertical', why: 'transitions' };
+    if (allNumbered) return { mode: 'embranchement-vertical', why: 'transitions' };
+    // Une transition qui ne porte le numéro d'aucune boucle : embranchement, ou séquentiel avec une bifurcation ? Rien ne
+    // le dit dans les noms -> on le demande, on ne présélectionne rien (RobotAdventure : séquentiel à embranchement).
+    if (!groupFilesByNameFamily(otherFiles, false).groups.some(x => x.files.length >= 2)) return { mode: 'vertical', why: 'transitionsUnclear' };
   }
   const intensity = files.filter(f => /(?:^|[^a-z])(?:low|med|medium|mid|high)[\s_-]?intensit|intensit/i.test(f.name)).length;
   if (files.length >= 2 && intensity >= 2) return { mode: 'vertical', why: 'intensity' };
@@ -163,13 +166,75 @@ function probeImportedDurations(track, pairs) { // pairs : [[objet portant .dura
   pairs.forEach(([obj, f]) => probeAudioDuration(f).then(dur => { obj.duration = dur; recomputeTrackDuration(track); renderLibrary(); }));
 }
 
-function importFolderAsVertical(title, files) {
-  const track = newFolderImportTrack(title, 'vertical');
-  files.forEach(f => track.layers.push({ id: genId(), label: titleFromFilenameStrippingHints(f.name), remoteFile: null, pendingFile: f }));
-  registerImportedTrack(track, files.length);
-  probeImportedDurations(track, track.layers.map((l, i) => [l, files[i]]));
-  offerTrackTempoFromFilenames(track, files, true);
+// Grille de rôles (11/10, décision de Jules-Antoine : peu de règles tirées d'une nomenclature, le reste par questions) :
+// une ligne par fichier, un menu de rôle ; ce que le nom dit explicitement (Transition, Intro, Outro) pré-remplit la ligne,
+// toujours modifiable. opts : title, files, roles [{ value, label }], defaultRole(file), extraHtml(state), onRolesChanged(state),
+// onExtraChange(target, state), requiredRole (au moins un fichier doit l'avoir), onConfirm(state).
+function openRoleGridDialog(opts) {
+  const files = opts.files;
+  const state = { roles: files.map(f => opts.defaultRole(f)) };
+  if (opts.onRolesChanged) opts.onRolesChanged(state);
+  const overlay = document.createElement('div');
+  overlay.className = 'vrs-batch-overlay';
+  const modal = document.createElement('div');
+  modal.className = 'vrs-batch-modal';
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  function render() {
+    const okEnabled = state.roles.some(r => r === opts.requiredRole);
+    modal.innerHTML = `
+      <h3>${escapeHtml(opts.title)}</h3>
+      <div class="hint-inline">${opts.summary || ''}</div>
+      <div class="vrs-batch-body">
+        ${files.map((f, i) => `
+          <div class="vrs-batch-file">
+            <span title="${escapeAttr(f.name)}">${escapeHtml(f.name)}</span>
+            <select data-rg="${i}">${opts.roles.map(r => `<option value="${r.value}"${state.roles[i] === r.value ? ' selected' : ''}>${escapeHtml(r.label)}</option>`).join('')}</select>
+          </div>`).join('')}
+        ${opts.extraHtml ? opts.extraHtml(state) : ''}
+      </div>
+      <div class="actions vrs-batch-actions">
+        <button class="btn btn-small" type="button" data-rg-btn="cancel">${tr('cancel')}</button>
+        <button class="btn btn-small btn-primary" type="button" data-rg-btn="ok"${okEnabled ? '' : ' disabled'}>${tr('importFolderConfirmBtn')}</button>
+      </div>`;
+  }
+  modal.addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset.rg !== undefined) { state.roles[+t.dataset.rg] = t.value; if (opts.onRolesChanged) opts.onRolesChanged(state); render(); }
+    else if (t.dataset.rgx !== undefined && opts.onExtraChange) { opts.onExtraChange(t, state); render(); }
+  });
+  modal.addEventListener('click', e => {
+    const b = e.target.closest('[data-rg-btn]');
+    if (!b) return;
+    if (b.dataset.rgBtn === 'cancel') { close(); return; }
+    if (b.disabled) return;
+    close();
+    opts.onConfirm(state);
+  });
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  render();
 }
+if (typeof window !== 'undefined') window.openRoleGridDialog = openRoleGridDialog;
+
+// Vertical : une couche par fichier. Rien n'est supposé : chaque fichier est une couche, sauf ceux que le compositeur écarte.
+function importFolderAsVertical(title, files) {
+  openRoleGridDialog({
+    title: tr('importFolderGroupedTitle', { title }), files, requiredRole: 'layer',
+    summary: tr('importFolderVerticalSummary', { files: files.length }),
+    roles: [{ value: 'layer', label: tr('importFolderRoleLayer') }, { value: 'skip', label: tr('vrsBatchSkipOption') }],
+    defaultRole: () => 'layer',
+    onConfirm: st => {
+      const chosen = files.filter((f, i) => st.roles[i] === 'layer');
+      const track = newFolderImportTrack(title, 'vertical');
+      chosen.forEach(f => track.layers.push({ id: genId(), label: titleFromFilenameStrippingHints(f.name), remoteFile: null, pendingFile: f }));
+      registerImportedTrack(track, chosen.length);
+      probeImportedDurations(track, track.layers.map((l, i) => [l, chosen[i]]));
+      offerTrackTempoFromFilenames(track, chosen, true);
+    }
+  });
+}
+
 // Une boucle nommée d'embranchement, avec sa transition (facultative) -- partagée entre l'import de dossier et le dépôt
 // groupé « + Boucle » de l'éditeur (11/10). Mesures d'intro (« intro2M ») : le rebouclage est posé après elles.
 function makeEmbranchementLoop(track, file, transitionFile, isInitial) {
@@ -226,60 +291,55 @@ function finishEmbranchementImport(track, pairs, files) {
   track.loops.forEach((l, i) => { if (l.transition && pairs[i].transition) probeAudioDuration(pairs[i].transition).then(dur => { l.transition.duration = dur; renderLibrary(); }); });
   offerTrackTempoFromFilenames(track, pairs.map(p => p.loop), false);
 }
-// Embranchement : la fenêtre de vérification montre chaque boucle et la transition proposée (rattachée par le numéro
-// « #N » commun, sinon par l'ordre) ; le compositeur peut changer ou retirer une transition avant de créer.
+// Embranchement : grille de rôles (boucle / transition / ne pas importer) ; les transitions sont rattachées par le numéro
+// commun, sinon par l'ordre, et le compositeur corrige chaque rattachement et choisit la boucle de départ.
 function importFolderAsEmbranchement(title, files) {
-  const paired = pairLoopsWithTransitions(files);
-  const pairs = paired.pairs.length ? paired.pairs : files.map(f => ({ loop: f, transition: null }));
-  const trans = paired.transitions || [];
-  if (!trans.length) { // aucune transition : création directe
-    const track = buildEmbranchementTrack(title, pairs);
-    finishEmbranchementImport(track, pairs, files);
-    return;
+  const roleFor = f => (isTransitionFile(f.name) && files.some(x => !isTransitionFile(x.name)) ? 'transition' : 'loop');
+  function recompute(st) { // rattachement par défaut, recalculé à chaque changement de rôle
+    const loops = files.filter((f, i) => st.roles[i] === 'loop');
+    const trans = files.filter((f, i) => st.roles[i] === 'transition');
+    const paired = pairLoopsWithTransitions(loops.concat(trans).map(f => f));
+    st.loops = loops; st.trans = trans;
+    st.choice = loops.map(l => {
+      const pr = (paired.pairs || []).find(x => x.loop === l);
+      return pr && pr.transition ? trans.indexOf(pr.transition) : -1;
+    });
+    st.initial = 0;
   }
-  const overlay = document.createElement('div');
-  overlay.className = 'vrs-batch-overlay';
-  const modal = document.createElement('div');
-  modal.className = 'vrs-batch-modal';
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-  const close = () => overlay.remove();
-  const choice = pairs.map(p => (p.transition ? trans.indexOf(p.transition) : -1));
-  const rowHtml = (p, i) => {
-    const h = parseAudioFilenameHints(p.loop.name), intro = parseIntroBarsHint(p.loop.name);
-    const meta = [h.bpm ? h.bpm + ' BPM' : '', h.bars ? tr('vrsBatchBarsN', { n: h.bars }) : '', intro ? tr('importFolderEmbrIntro', { n: intro }) : ''].filter(Boolean).join(' · ');
-    return `
-      <div class="vrs-batch-group">
-        <div class="vrs-batch-group-head"><strong>${i === 0 ? escapeHtml(tr('importFolderEmbrInitial')) + ' — ' : ''}${escapeHtml(titleFromFilenameStrippingHints(p.loop.name))}</strong></div>
-        ${meta ? `<div class="hint-inline">${escapeHtml(meta)}</div>` : ''}
+  const extra = st => {
+    if (!st.loops.length) return '';
+    return `<div class="vrs-batch-group"><div class="vrs-batch-group-head"><strong>${tr('importFolderEmbrPairsTitle')}</strong></div>
+      <div class="hint-inline">${tr('importFolderEmbrPairsHint')}</div>
+      ${st.loops.map((l, i) => `
         <div class="vrs-batch-file">
-          <span>${tr('importFolderEmbrTransitionLabel')}</span>
-          <select data-ei="${i}">
-            <option value="-1"${choice[i] === -1 ? ' selected' : ''}>${tr('importFolderEmbrNone')}</option>
-            ${trans.map((t, k) => `<option value="${k}"${choice[i] === k ? ' selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
+          <span><label style="display:inline-flex;gap:6px;align-items:center"><input type="radio" name="rgInitial" data-rgx="initial" value="${i}"${st.initial === i ? ' checked' : ''} style="width:auto;margin:0">${escapeHtml(titleFromFilenameStrippingHints(l.name))}</label></span>
+          <select data-rgx="trans" data-i="${i}">
+            <option value="-1"${st.choice[i] === -1 ? ' selected' : ''}>${tr('importFolderEmbrNone')}</option>
+            ${st.trans.map((t, k) => `<option value="${k}"${st.choice[i] === k ? ' selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
           </select>
-        </div>
-      </div>`;
-  };
-  modal.innerHTML = `
-    <h3>${escapeHtml(tr('importFolderGroupedTitle', { title }))}</h3>
-    <div class="hint-inline">${tr('importFolderEmbrSummary', { loops: pairs.length, transitions: trans.length })}</div>
-    <div class="vrs-batch-body">${pairs.map(rowHtml).join('')}</div>
-    <div class="actions vrs-batch-actions">
-      <button class="btn btn-small" type="button" data-ei-btn="cancel">${tr('cancel')}</button>
-      <button class="btn btn-small btn-primary" type="button" data-ei-btn="ok">${tr('importFolderConfirmBtn')}</button>
+        </div>`).join('')}
     </div>`;
-  modal.addEventListener('change', e => { if (e.target.dataset.ei !== undefined) choice[+e.target.dataset.ei] = +e.target.value; });
-  modal.addEventListener('click', e => {
-    const b = e.target.closest('[data-ei-btn]');
-    if (!b) return;
-    if (b.dataset.eiBtn === 'cancel') { close(); return; }
-    close();
-    const finalPairs = pairs.map((p, i) => ({ loop: p.loop, transition: choice[i] >= 0 ? trans[choice[i]] : null }));
-    finishEmbranchementImport(buildEmbranchementTrack(title, finalPairs), finalPairs, files);
+  };
+  openRoleGridDialog({
+    title: tr('importFolderGroupedTitle', { title }), files, requiredRole: 'loop',
+    summary: tr('importFolderEmbrGridSummary', { files: files.length }),
+    roles: [{ value: 'loop', label: tr('importFolderRoleLoop') }, { value: 'transition', label: tr('importFolderRoleTransition') }, { value: 'skip', label: tr('vrsBatchSkipOption') }],
+    defaultRole: roleFor,
+    onRolesChanged: recompute,
+    extraHtml: extra,
+    onExtraChange: (t, st) => {
+      if (t.dataset.rgx === 'initial') st.initial = +t.value;
+      else if (t.dataset.rgx === 'trans') st.choice[+t.dataset.i] = +t.value;
+    },
+    onConfirm: st => {
+      const pairs = st.loops.map((l, i) => ({ loop: l, transition: st.choice[i] >= 0 ? st.trans[st.choice[i]] : null }));
+      const track = buildEmbranchementTrack(title, pairs);
+      track.loops.forEach((l, i) => { l.isInitial = i === st.initial; });
+      finishEmbranchementImport(track, pairs, st.loops.concat(pairs.map(p => p.transition).filter(Boolean)));
+    }
   });
-  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 }
+
 function importFolderAsVerticalRandom(title, files) {
   const guess = groupFilesByNameFamily(files, true);
   const found = firstFilenameHints(files);
@@ -346,7 +406,9 @@ function openFolderImportDialog(folder) {
   const guess = guessFolderStructure(folder.name, files);
   // Aucun indice dans les noms (why = 'default') : pas de présélection, la structure doit être choisie (11/10, retour de
   // Jules-Antoine : « le moteur croit toujours que c'est du layering »). Le défaut vertical n'est qu'un repli interne.
-  const noClue = guess.why === 'default';
+  // Décision du 11/10 : on ne présélectionne QUE si le nom du dossier le dit ; toute autre devinette est une suggestion
+  // affichée, que le compositeur accepte d'un clic (chaque compositeur nomme ses fichiers à sa manière).
+  const noClue = guess.why !== 'name';
   const state = { mode: noClue ? '' : guess.mode, title: folder.name || titleFromFilename(files[0].name) };
   const overlay = document.createElement('div');
   overlay.className = 'vrs-batch-overlay';
@@ -365,7 +427,17 @@ function openFolderImportDialog(folder) {
       <input type="text" data-fi="title" value="${escapeAttr(state.title)}">
       <label style="margin-top:12px">${tr('importFolderStructureLabel')}</label>
       <select data-fi="mode">${noClue ? `<option value="" selected>${tr('importFolderChoosePlaceholder')}</option>` : ''}${FOLDER_IMPORT_MODES.map(m => `<option value="${m}"${m === state.mode ? ' selected' : ''}>${tr(optionLabel[m])}</option>`).join('')}</select>
-      <div class="hint-inline">${noClue ? tr('importFolderNoClue') : tr('importFolderGuess', { why: tr('importFolderWhy_' + guess.why) })}</div>
+      <div class="hint-inline">${!noClue ? tr('importFolderGuess', { why: tr('importFolderWhy_name') })
+        : (guess.why === 'default' ? tr('importFolderNoClue')
+        : (guess.why === 'transitionsUnclear' ? tr('importFolderNoClueTransition')
+        : tr('importFolderSuggestion', { mode: tr(optionLabel[guess.mode]), why: tr('importFolderWhy_' + guess.why) })))}
+        ${noClue && guess.why !== 'default' && guess.why !== 'transitionsUnclear' ? `<button class="btn btn-small" type="button" data-fi-btn="suggest" style="margin-left:6px">${tr('importFolderUseSuggestion')}</button>` : ''}</div>
+      ${noClue ? `
+        <div class="vrs-batch-group" style="margin-top:12px">
+          <div class="vrs-batch-group-head"><strong>${tr('importFolderWhatAreTheyTitle')}</strong></div>
+          ${[['vertical-random', 'importFolderWhatRandom'], ['vertical', 'importFolderWhatLevels'], ['sequential', 'importFolderWhatSteps'], ['embranchement-vertical', 'importFolderWhatLoops']].map(([m, k]) => `
+            <label class="vrs-batch-check"><input type="radio" name="fiWhat" data-fi-radio="${m}" style="width:auto;margin:0"><span>${tr(k)}</span></label>`).join('')}
+        </div>` : ''}
       ${ignored.length ? `<div class="hint-inline" style="color:#b45309;margin-top:10px">${tr('importFolderIgnored', { list: escapeHtml(ignored.map(s => `${s.name} (${s.count})`).join(', ')) })}</div>` : ''}
       <div class="hint-inline" style="margin-top:10px">${tr('importFolderDraftNote')}</div>
     </div>
@@ -375,14 +447,27 @@ function openFolderImportDialog(folder) {
     </div>`;
   modal.addEventListener('input', e => { if (e.target.dataset.fi === 'title') state.title = e.target.value; });
   modal.addEventListener('change', e => {
+    if (e.target.dataset.fiRadio) { // réponse en langage clair : règle la structure (et la liste ci-dessus)
+      state.mode = e.target.dataset.fiRadio;
+      modal.querySelector('[data-fi="mode"]').value = state.mode;
+      modal.querySelector('[data-fi-btn="go"]').disabled = false;
+      return;
+    }
     if (e.target.dataset.fi !== 'mode') return;
     state.mode = e.target.value;
+    modal.querySelectorAll('[data-fi-radio]').forEach(r => { r.checked = r.dataset.fiRadio === state.mode; });
     modal.querySelector('[data-fi-btn="go"]').disabled = !state.mode;
   });
   modal.addEventListener('click', e => {
     const b = e.target.closest('[data-fi-btn]');
     if (!b) return;
     if (b.dataset.fiBtn === 'cancel') { close(); return; }
+    if (b.dataset.fiBtn === 'suggest') {
+      state.mode = guess.mode;
+      modal.querySelector('[data-fi="mode"]').value = guess.mode;
+      modal.querySelector('[data-fi-btn="go"]').disabled = false;
+      return;
+    }
     if (!state.mode) return; // rien choisi : on ne devine pas à sa place
     close();
     const title = (state.title || '').trim() || tr('defaultTrackTitle');
