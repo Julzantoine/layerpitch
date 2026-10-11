@@ -22,9 +22,10 @@ function lessonPoolFiles(i) { const sec = lessonSection(); const p = sec && sec.
 function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
+function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
 function lessonTrack() { return (typeof library !== 'undefined' && library.find(t => t.id === manageLibrarySelectedId)) || null; }
 // Fichiers d'exemple de chaque leçon : null tant qu'ils n'existent pas (la bulle dit alors « bientôt disponible »).
-const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null, sequential: null };
+const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null, sequential: null, branching: null };
 // Nom du fichier d'exemple cité dans la consigne de dépôt (il porte le tempo : ambiance_120bpm).
 // (additive : noms provisoires, à remplacer par ceux des vrais fichiers).
 const LESSON_SAMPLE_NAMES = {
@@ -36,6 +37,7 @@ const LESSON_SAMPLE_NAMES = {
   seqA: 'segment-a1_120bpm.wav, segment-a2_120bpm.wav',
   seqB: 'segment-b1_120bpm.wav, segment-b2_120bpm.wav',
   seqOutro: 'outro_120bpm.wav',
+  seqC: 'segment-c1_120bpm.wav, segment-c2_120bpm.wav',
 };
 // done(ctx) : true quand le geste est fait -> la leçon avance seule. clickDone : un clic sur la cible suffit.
 // Sans done ni clickDone : étape manuelle (« Suivant »). enter(ctx) : photographie l'état à l'arrivée sur l'étape.
@@ -139,7 +141,32 @@ const LESSONS = [
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lqEndTitle', textKey: 'lqEndText', final: true },
   ] },
-  { id: 'branching', titleKey: 'lessonBranchingTitle', descKey: 'lessonBranchingDesc', soon: true },
+  { id: 'branching', titleKey: 'lessonBranchingTitle', descKey: 'lessonBranchingDesc', steps: [
+    { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
+      done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
+    // Cette leçon prolonge la précédente : elle reprend le morceau séquentiel déjà construit (au moins 2 emplacements).
+    { selector: '#libraryMaster', titleKey: 'lbOpenTitle', textKey: 'lbOpenText',
+      done: () => { const t = lessonTrack(); return !!t && t.mode === 'sequential' && (t.segmentSlots || []).length >= 2; } },
+    { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lbSlot3Title', textKey: 'lbSlot3Text',
+      done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 3; } },
+    { selector: '#libraryDetail .seq-master-item[data-si="2"]', titleKey: 'lbSeg3Title', textKey: 'lbSeg3Text', sampleKey: 'branching', names: 'seqC',
+      done: () => { const sl = lessonSlot(2); return !!sl && (sl.alternatives || []).filter(lessonHasFile).length >= 2; } },
+    { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lbPickTitle', textKey: 'lbPickText',
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 0; } },
+    { selector: '#libraryDetail input[data-slot-field="hasBranches"]', titleKey: 'lbEnableTitle', textKey: 'lbEnableText',
+      done: () => { const sl = lessonSlot(0); return !!sl && (sl.nextOptions || []).length >= 1; } },
+    { selector: '#libraryDetail .branch-option-card:nth-child(1) [data-branch-field="targetId"]', titleKey: 'lbTarget1Title', textKey: 'lbTarget1Text' },
+    { selector: '#libraryDetail [data-action="add-branch-option"]', titleKey: 'lbAddTitle', textKey: 'lbAddText',
+      done: () => { const sl = lessonSlot(0); return !!sl && (sl.nextOptions || []).length >= 2; } },
+    { selector: '#libraryDetail .branch-option-card:nth-child(2) [data-branch-field="targetId"]', titleKey: 'lbTarget2Title', textKey: 'lbTarget2Text',
+      done: () => { const t = lessonTrack(); const sl = lessonSlot(0); const third = lessonSlot(2); return !!(t && sl && third && sl.nextOptions && sl.nextOptions[1] && sl.nextOptions[1].targetId === third.id); } },
+    { selector: '#libraryDetail .branch-option-card:nth-child(1) [data-branch-field="label"]', titleKey: 'lbLabelsTitle', textKey: 'lbLabelsText' },
+    { selector: '#libraryDetail select[data-slot-field="quantization"]', titleKey: 'lbTriggerTitle', textKey: 'lbTriggerText' },
+    { selector: '#libraryDetail .branch-option-card:nth-child(1) [data-branch-field="hasTransition"]', titleKey: 'lbTransTitle', textKey: 'lbTransText' },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lbListenTitle', textKey: 'lbListenText', clickDone: true },
+    { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    { titleKey: 'lbEndTitle', textKey: 'lbEndText', final: true },
+  ] },
   { id: 'embranchement', titleKey: 'lessonEmbrTitle', descKey: 'lessonEmbrDesc', soon: true },
 ];
 
