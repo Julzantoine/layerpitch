@@ -151,9 +151,12 @@
               wireFileControl(altCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
                 () => alt.pendingFile, () => alt.remoteFile,
                 f => {
+                  const hadFiles = sectionHasAnyFile(section);
                   alt.pendingFile = f;
                   hasUnsavedEdits = true;
-                  if (!alt.label || !alt.label.trim()) { alt.label = titleFromFilename(f.name); renderLibrary(); }
+                  applySectionTempoFromFileNames(section, [f], hadFiles);
+                  if (!alt.label || !alt.label.trim()) alt.label = titleFromFilename(f.name);
+                  renderLibrary();
                   probeAudioDuration(f).then(dur => {
                     if (dur > (section.duration || 0)) { section.duration = dur; renderLibrary(); }
                     if (dur > (track.duration || 0)) { track.duration = dur; }
@@ -165,9 +168,11 @@
             // liste des variations, repliée par défaut. Un fichier lâché sur le sélecteur d'une variation précise
             // remplace toujours SON fichier (wireFileControl arrête l'événement avant qu'il n'arrive ici).
             wireBatchDrop(poolEl, files => {
+              const hadFiles = sectionHasAnyFile(section);
               // Pool encore sans aucun fichier : ses variations vides sont des attentes de fichier, remplacées.
               if (!pool.alternatives.some(a => a.pendingFile || a.remoteFile)) pool.alternatives = [];
               files.forEach(f => pool.alternatives.push({ label: titleFromFilenameStrippingHints(f.name), remoteFile: null, pendingFile: f }));
+              applySectionTempoFromFileNames(section, files, hadFiles);
               expandedAltPoolKeys.add(`vrspool:${ti}:${sci}:${pi}`);
               hasUnsavedEdits = true;
               renderLibrary();

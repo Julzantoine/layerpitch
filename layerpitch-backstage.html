@@ -1853,15 +1853,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791726297715"></script>
-<script src="layerpitch-appearance.js?v=1791726297715"></script>
-<script src="layerpitch-album-shared.js?v=1791726297715"></script>
-<script src="layerpitch-album-editor.js?v=1791726297715"></script>
-<script src="layerpitch-shell.js?v=1791726297715"></script>
-<script src="layerpitch-social-icons.js?v=1791726297715"></script>
-<script src="layerpitch-notify.js?v=1791726297715"></script>
-<script src="layerpitch-help.js?v=1791726297715"></script>
-<script src="player.js?v=1791726297715"></script>
+<script src="layerpitch-i18n.js?v=1791726882911"></script>
+<script src="layerpitch-appearance.js?v=1791726882911"></script>
+<script src="layerpitch-album-shared.js?v=1791726882911"></script>
+<script src="layerpitch-album-editor.js?v=1791726882911"></script>
+<script src="layerpitch-shell.js?v=1791726882911"></script>
+<script src="layerpitch-social-icons.js?v=1791726882911"></script>
+<script src="layerpitch-notify.js?v=1791726882911"></script>
+<script src="layerpitch-help.js?v=1791726882911"></script>
+<script src="player.js?v=1791726882911"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -5409,6 +5409,20 @@ function applyStaticFileNameHints(track, file) {
   if (hints.bpm) track.bpm = hints.bpm;
   if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilenameStrippingHints(file.name);
 }
+// Section d'un morceau « couches aléatoires » (08/10) : le tempo est lu dans le nom du premier fichier qui en porte un, comme
+// pour le morceau statique. Appliqué seulement si la section n'avait encore aucun fichier (sinon on ne touche pas au
+// calage de pools déjà en place). Renvoie le tempo appliqué, ou null.
+function applySectionTempoFromFileNames(section, files, sectionHadFiles) {
+  if (sectionHadFiles) return null;
+  const found = (files || []).map(f => parseAudioFilenameHints(f.name)).find(h => h.bpm);
+  if (!found) return null;
+  section.bpm = found.bpm;
+  if (!section.beatsPerBar) section.beatsPerBar = 4;
+  return found.bpm;
+}
+function sectionHasAnyFile(section) {
+  return (section.pools || []).some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile));
+}
 // Devine le rôle (intro/segment/outro) d'un fichier déposé en lot dans le mode séquentiel, à partir de
 // son nom. "Segment" par défaut si rien ne correspond — reste ajustable ensuite via le sélecteur "Rôle".
 // Séparateurs explicites plutôt que \b (25/09) : pour \b le tiret bas est une lettre, donc
@@ -6915,9 +6929,12 @@ function renderLibrary() {
               wireFileControl(altCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
                 () => alt.pendingFile, () => alt.remoteFile,
                 f => {
+                  const hadFiles = sectionHasAnyFile(section);
                   alt.pendingFile = f;
                   hasUnsavedEdits = true;
-                  if (!alt.label || !alt.label.trim()) { alt.label = titleFromFilename(f.name); renderLibrary(); }
+                  applySectionTempoFromFileNames(section, [f], hadFiles);
+                  if (!alt.label || !alt.label.trim()) alt.label = titleFromFilename(f.name);
+                  renderLibrary();
                   probeAudioDuration(f).then(dur => {
                     if (dur > (section.duration || 0)) { section.duration = dur; renderLibrary(); }
                     if (dur > (track.duration || 0)) { track.duration = dur; }
@@ -6929,9 +6946,11 @@ function renderLibrary() {
             // liste des variations, repliée par défaut. Un fichier lâché sur le sélecteur d'une variation précise
             // remplace toujours SON fichier (wireFileControl arrête l'événement avant qu'il n'arrive ici).
             wireBatchDrop(poolEl, files => {
+              const hadFiles = sectionHasAnyFile(section);
               // Pool encore sans aucun fichier : ses variations vides sont des attentes de fichier, remplacées.
               if (!pool.alternatives.some(a => a.pendingFile || a.remoteFile)) pool.alternatives = [];
               files.forEach(f => pool.alternatives.push({ label: titleFromFilenameStrippingHints(f.name), remoteFile: null, pendingFile: f }));
+              applySectionTempoFromFileNames(section, files, hadFiles);
               expandedAltPoolKeys.add(`vrspool:${ti}:${sci}:${pi}`);
               hasUnsavedEdits = true;
               renderLibrary();

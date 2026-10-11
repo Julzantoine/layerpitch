@@ -30,6 +30,20 @@ function applyStaticFileNameHints(track, file) {
   if (hints.bpm) track.bpm = hints.bpm;
   if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilenameStrippingHints(file.name);
 }
+// Section d'un morceau « couches aléatoires » (08/10) : le tempo est lu dans le nom du premier fichier qui en porte un, comme
+// pour le morceau statique. Appliqué seulement si la section n'avait encore aucun fichier (sinon on ne touche pas au
+// calage de pools déjà en place). Renvoie le tempo appliqué, ou null.
+function applySectionTempoFromFileNames(section, files, sectionHadFiles) {
+  if (sectionHadFiles) return null;
+  const found = (files || []).map(f => parseAudioFilenameHints(f.name)).find(h => h.bpm);
+  if (!found) return null;
+  section.bpm = found.bpm;
+  if (!section.beatsPerBar) section.beatsPerBar = 4;
+  return found.bpm;
+}
+function sectionHasAnyFile(section) {
+  return (section.pools || []).some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile));
+}
 // Devine le rôle (intro/segment/outro) d'un fichier déposé en lot dans le mode séquentiel, à partir de
 // son nom. "Segment" par défaut si rien ne correspond — reste ajustable ensuite via le sélecteur "Rôle".
 // Séparateurs explicites plutôt que \b (25/09) : pour \b le tiret bas est une lettre, donc
