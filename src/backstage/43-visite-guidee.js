@@ -43,7 +43,7 @@ const LESSON_SAMPLE_NAMES = {
   seqC: 'segment-c1_120bpm.wav, segment-c2_120bpm.wav',
   embrLoops: 'boucle-calme_120bpm_16M.wav, boucle-combat_120bpm_16M.wav',
   embrDetour: 'detour_120bpm_4M.wav',
-  import: 'Tuto embranchement',
+  import: 'Tuto séquentiel',
 };
 // done(ctx) : true quand le geste est fait -> la leçon avance seule. clickDone : un clic sur la cible suffit.
 // Sans done ni clickDone : étape manuelle (« Suivant »). enter(ctx) : photographie l'état à l'arrivée sur l'étape.
@@ -215,13 +215,14 @@ const LESSONS = [
       enter: (c) => { c.baseLen = library.length; }, done: () => lessonFolderDialogOpen() },
     { selector: '.vrs-batch-modal [data-fi="mode"]', titleKey: 'lfReadTitle', textKey: 'lfReadText' },
     { selector: '.vrs-batch-modal [data-fi-btn="go"]', titleKey: 'lfGoTitle', textKey: 'lfGoText',
-      done: () => !!document.querySelector('.vrs-batch-modal [data-rg]') },
+      done: () => !!document.querySelector('.vrs-batch-modal [data-vbd-file]') },
+    // Le piège : « Ouverture.wav » n'est pas reconnue comme intro et aucun nom ne porte de tempo. L'apprenant la
+    // renomme chez lui (mot « Intro » + « _120bpm »), puis redépose le dossier.
     { selector: '.vrs-batch-modal .vrs-batch-body', titleKey: 'lfRolesTitle', textKey: 'lfRolesText' },
-    // Le piège : « Passage.wav » n'est pas compris. L'apprenant le renomme chez lui, puis redépose le dossier.
     { selector: '.vrs-batch-modal .vrs-batch-body', titleKey: 'lfRenameTitle', textKey: 'lfRenameText', required: true,
-      done: () => /Transition #2/i.test(lessonDialogText()) },
-    { selector: '.vrs-batch-modal .vrs-batch-group', titleKey: 'lfPairsTitle', textKey: 'lfPairsText' },
-    { selector: '.vrs-batch-modal [data-rg-btn="ok"]', titleKey: 'lfCreateTitle', textKey: 'lfCreateText',
+      done: () => /120\s*BPM/i.test(lessonDialogText()) && !!document.querySelector('.vrs-batch-modal [data-vbd-check="hints"]') },
+    { selector: '.vrs-batch-modal .vrs-batch-group', titleKey: 'lfCheckTitle', textKey: 'lfCheckText' },
+    { selector: '.vrs-batch-modal [data-vbd="confirm"]', titleKey: 'lfCreateTitle', textKey: 'lfCreateText',
       done: (c) => library.length > c.baseLen },
     { selector: '#libraryMaster', titleKey: 'lfDraftTitle', textKey: 'lfDraftText' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
