@@ -293,6 +293,7 @@ function guideGo(delta) {
   if (next < 0) return;
   if (next >= guide.steps.length) { finishGuide(); return; }
   guide.index = next; guide.clicked = false; guide.advancing = false;
+  if (next > guide.maxIndex) guide.maxIndex = next; // étape la plus avancée atteinte : au-delà du « front », on ne fait que revoir
   const step = guide.steps[next];
   if (step.enter) step.enter(guide.ctx);
   renderGuideStep();
@@ -309,7 +310,8 @@ function guideStepIsDone(step) {
 function guideTick() {
   if (!guide) return;
   const step = guide.steps[guide.index];
-  if (guide.kind === 'lesson' && !guide.advancing && guideStepIsDone(step)) {
+  // Étape déjà franchie, revue avec « Précédent » : pas d'avance automatique (sinon on ne pourrait jamais reculer).
+  if (guide.kind === 'lesson' && !guide.advancing && guide.index >= guide.maxIndex && guideStepIsDone(step)) {
     guide.advancing = true;
     setTimeout(() => guideGo(1), 450); // laisse voir le résultat du geste avant la bulle suivante
     return;
@@ -325,7 +327,8 @@ function renderGuideStep(positionOnly) {
   const card = guide.root.querySelector('.tour-card');
   const auto = guide.kind === 'lesson' && (step.done || step.clickDone);
   const last = guide.index === guide.steps.length - 1;
-  const key = guide.index + ':' + (visible ? 'v' : 'h');
+  const revisiting = guide.index < guide.maxIndex;
+  const key = guide.index + ':' + (visible ? 'v' : 'h') + (revisiting ? ':r' : '');
   if (!positionOnly || guide.cardKey !== key) {
     guide.cardKey = key;
     const sample = step.sampleKey ? LESSON_SAMPLE_FILES[step.sampleKey] : undefined;
@@ -345,8 +348,11 @@ function renderGuideStep(positionOnly) {
       <div class="tour-actions">
         <button class="btn btn-small" type="button" data-tour="skip">${escapeHtml(tr(last ? 'tourClose' : (guide.kind === 'lesson' ? 'lessonQuit' : 'tourSkip')))}</button>
         <span style="flex:1"></span>
-        ${guide.index > 0 && !auto && !step.final ? `<button class="btn btn-small" type="button" data-tour="prev">${escapeHtml(tr('tourPrev'))}</button>` : ''}
-        ${auto ? '' /* étape à geste : elle n'avance que lorsque le geste est fait (« Quitter » reste disponible) */
+        ${guide.index > 0 && !step.final ? `<button class="btn btn-small" type="button" data-tour="prev">${escapeHtml(tr('tourPrev'))}</button>` : ''}
+        ${auto
+          /* étape à geste : elle n'avance que lorsque le geste est fait ; « Passer l'étape » n'existe que pour une étape déjà
+             franchie, revue avec « Précédent » */
+          ? (revisiting ? `<button class="btn btn-small" type="button" data-tour="next">${escapeHtml(tr('lessonSkipStep'))}</button>` : '')
           : `<button class="btn btn-small btn-primary" type="button" data-tour="next">${escapeHtml(tr(last ? 'tourFinish' : 'tourNext'))}</button>`}
       </div>`;
     card.querySelector('[data-tour="skip"]').onclick = closeBackstageTour;
@@ -387,7 +393,7 @@ function openGuide(kind, steps, lessonId) {
   root.setAttribute('role', 'dialog');
   root.innerHTML = '<div class="tour-spot"></div><div class="tour-card"></div>';
   document.body.appendChild(root);
-  guide = { root, kind, lessonId, steps, index: 0, ctx: {}, timer: null, advancing: false, clicked: false, cardKey: '' };
+  guide = { root, kind, lessonId, steps, index: 0, maxIndex: 0, ctx: {}, timer: null, advancing: false, clicked: false, cardKey: '' };
   if (steps[0].enter) steps[0].enter(guide.ctx);
   window.addEventListener('resize', renderGuideStep);
   document.addEventListener('keydown', guideKeydown, true);

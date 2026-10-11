@@ -88,10 +88,16 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
     await lessonUseSample({ selector: '#__sampleZone', useSample: true, names: 'static' });
   })()`);
   check('« Utiliser l’exemple » dépose le fichier nommé sur la zone', received.length === 1 && received[0].name === 'ambiance_120bpm.wav');
-  // Une étape à geste n'a jamais de bouton « Passer l'étape » : elle n'avance que lorsque le geste est fait.
-  w.eval(`guide.index = 3; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`);
-  check('étape à geste : aucun bouton « Passer l’étape »', !w.document.querySelector('[data-tour="next"]'));
+  // Une étape à geste n'a pas de bouton « Passer l'étape » tant qu'on est sur la dernière étape atteinte.
+  w.eval(`guide.maxIndex = 3; guide.index = 3; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`);
+  check('étape à geste (la plus avancée) : aucun bouton « Passer l’étape »', !w.document.querySelector('[data-tour="next"]'));
   check('étape à geste : « Quitter » reste disponible', !!w.document.querySelector('[data-tour="skip"]'));
+  check('étape à geste : « Précédent » disponible', !!w.document.querySelector('[data-tour="prev"]'));
+  // Revue avec « Précédent » : « Passer l'étape » apparaît, et l'étape n'avance pas toute seule.
+  w.eval(`guide.maxIndex = 5; guide.index = 3; guide.cardKey = ''; renderGuideStep();`);
+  check('étape déjà franchie : bouton « Passer l’étape » présent', !!w.document.querySelector('[data-tour="next"]'));
+  await new Promise(r => setTimeout(r, 700));
+  check('étape déjà franchie : pas d’avance automatique', /4 \/ 11/.test(w.document.querySelector('.tour-count').textContent));
   // Échap quitte.
   w.eval(`guide.index = 6; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));
