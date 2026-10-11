@@ -1853,15 +1853,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791744245007"></script>
-<script src="layerpitch-appearance.js?v=1791744245007"></script>
-<script src="layerpitch-album-shared.js?v=1791744245007"></script>
-<script src="layerpitch-album-editor.js?v=1791744245007"></script>
-<script src="layerpitch-shell.js?v=1791744245007"></script>
-<script src="layerpitch-social-icons.js?v=1791744245007"></script>
-<script src="layerpitch-notify.js?v=1791744245007"></script>
-<script src="layerpitch-help.js?v=1791744245007"></script>
-<script src="player.js?v=1791744245007"></script>
+<script src="layerpitch-i18n.js?v=1791744353238"></script>
+<script src="layerpitch-appearance.js?v=1791744353238"></script>
+<script src="layerpitch-album-shared.js?v=1791744353238"></script>
+<script src="layerpitch-album-editor.js?v=1791744353238"></script>
+<script src="layerpitch-shell.js?v=1791744353238"></script>
+<script src="layerpitch-social-icons.js?v=1791744353238"></script>
+<script src="layerpitch-notify.js?v=1791744353238"></script>
+<script src="layerpitch-help.js?v=1791744353238"></script>
+<script src="player.js?v=1791744353238"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -14907,7 +14907,8 @@ const LESSON_SAMPLE_NAMES = {
   seqB: 'segment-b1_120bpm.wav, segment-b2_120bpm.wav',
   seqOutro: 'outro_120bpm.wav',
   seqC: 'segment-c1_120bpm.wav, segment-c2_120bpm.wav',
-  embrLoops: 'boucle-calme_120bpm_16M.wav, boucle-tension_120bpm_16M.wav, boucle-combat_120bpm_16M.wav',
+  embrLoops: 'boucle-calme_120bpm_16M.wav, boucle-combat_120bpm_16M.wav',
+  embrDetour: 'detour_120bpm_4M.wav',
 };
 // done(ctx) : true quand le geste est fait -> la leçon avance seule. clickDone : un clic sur la cible suffit.
 // Sans done ni clickDone : étape manuelle (« Suivant »). enter(ctx) : photographie l'état à l'arrivée sur l'étape.
@@ -15056,6 +15057,16 @@ const LESSONS = [
     { selector: '#libraryDetail input[data-embr-loop-field="label"]', titleKey: 'leLabelTitle', textKey: 'leLabelText' },
     { selector: '#libraryDetail select[data-embr-loop-field="switchQuantize"]', titleKey: 'leQuantTitle', textKey: 'leQuantText' },
     { selector: '#libraryDetail input[data-embr-loop-field="hasTransition"]', titleKey: 'leTransTitle', textKey: 'leTransText' },
+    // Boucle de détour : un fichier à part, joué ponctuellement au clic (mesures et tempo propres).
+    { selector: '#libraryDetail [data-action="add-embr-loop"]', titleKey: 'ldAddTitle', textKey: 'ldAddText',
+      done: () => { const t = lessonTrack(); return !!t && (t.loops || []).length >= 3; } },
+    { selector: '#libraryDetail .seq-master-item[data-si="2"]', titleKey: 'ldOpenTitle', textKey: 'ldOpenText',
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 2; } },
+    { selector: '#libraryDetail [data-role="embrLoopFileCtrl"]', titleKey: 'ldFileTitle', textKey: 'ldFileText', names: 'embrDetour',
+      done: () => { const t = lessonTrack(); return !!t && lessonHasFile((t.loops || [])[2]); } },
+    { selector: '#libraryDetail input[data-embr-loop-field="isDetour"]', titleKey: 'ldFlagTitle', textKey: 'ldFlagText',
+      done: () => { const t = lessonTrack(); const l = t && (t.loops || [])[2]; return !!l && !!l.isDetour; } },
+    { selector: '#libraryDetail .row:has([data-embr-loop-field="bars"])', titleKey: 'ldSetTitle', textKey: 'ldSetText' },
     { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'leSliderTitle', textKey: 'leSliderText', skip: () => !fxOpen('rtpc') },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'leListenTitle', textKey: 'leListenText', clickDone: true },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
