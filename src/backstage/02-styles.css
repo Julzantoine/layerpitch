@@ -754,6 +754,16 @@
   .progress-track { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--border); border-radius: 2px; pointer-events: none; }
   .progress-fill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--accent); border-radius: 2px; width: 0%; pointer-events: none; }
   .progress-head { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 9px; height: 9px; background: var(--accent); border-radius: 50%; pointer-events: none; }
+  /* Repères de boucle (moteur quantifié) : entrée / sortie, queue du fichier après la sortie, et deuxième tête de lecture. */
+  .loop-overlay { position: absolute; inset: 0; pointer-events: none; }
+  .loop-marker { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--text-dim); opacity: 0.75; pointer-events: none; }
+  .loop-marker-in { border-left-style: dashed; }
+  .loop-tail { position: absolute; top: 0; bottom: 0; right: 0; pointer-events: auto; color: var(--text-dimmer); overflow: hidden; }
+  .loop-tail::before { content: ''; position: absolute; inset: 0; opacity: 0.35; background: repeating-linear-gradient(135deg, currentColor 0 1px, transparent 1px 6px); }
+  .loop-tail-label { position: absolute; right: 4px; top: 1px; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .progress-tail-head { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--loop-tail-head, #9b72e0); pointer-events: none; }
+  .vert-layer-rows .loop-tail { pointer-events: none; } /* sur les lignes de couches, la zone de queue ne doit pas intercepter les clics */
+  .progress-tail-head[hidden], .loop-tail[hidden], .loop-marker[hidden] { display: none; }
   .time-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); }
 
   .stingers { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
