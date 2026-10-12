@@ -43,6 +43,9 @@ function tHelp(key) {
   }
 
   function showTooltip(target) {
+    // Pendant la visite guidée ou une leçon, les bulles d'aide au survol sont masquées : elles se superposeraient aux
+    // bulles du parcours (classe posée par openGuide / retirée par closeBackstageTour, dans 43-visite-guidee.js).
+    if (document.body.classList.contains('lp-guide-active')) return;
     const text = tHelp(target.dataset.help);
     if (!text) return;
     tooltipEl.textContent = text;

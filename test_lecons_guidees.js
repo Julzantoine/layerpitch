@@ -115,11 +115,13 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   w.eval(`guide.lessonId = 'static'; guide.index = 3; guide.maxIndex = 3; guide.cardKey = ''; renderGuideStep();`);
   check('étape de dépôt : vignette du fichier d’exemple présente', !!w.document.querySelector('[data-tour="chip"]'));
   check('étape de dépôt : bouton « Utiliser » toujours présent (clavier)', !!w.document.querySelector('[data-tour="sample"]'));
+  check('pendant une leçon : bulles d’aide au survol masquées', w.document.body.classList.contains('lp-guide-active'));
   // Échap quitte.
   w.eval(`guide.index = 6; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));
   w.document.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   check('Échap ferme la leçon', !w.document.querySelector('.tour-root'));
+  check('après la leçon : bulles d’aide au survol rétablies', !w.document.body.classList.contains('lp-guide-active'));
   dom.window.close();
   process.exit(failures ? 1 : 0);
 })();

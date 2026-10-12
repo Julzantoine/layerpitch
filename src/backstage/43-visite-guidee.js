@@ -315,6 +315,7 @@ function closeBackstageTour() {
   if (!guide) return;
   if (guide.timer) clearInterval(guide.timer);
   guide.root.remove();
+  document.body.classList.remove('lp-guide-active');
   window.removeEventListener('resize', renderGuideStep);
   document.removeEventListener('keydown', guideKeydown, true);
   document.removeEventListener('click', guideClickCapture, true);
@@ -458,6 +459,9 @@ function openGuide(kind, steps, lessonId) {
   root.setAttribute('role', 'dialog');
   root.innerHTML = '<div class="tour-spot"></div><div class="tour-card"></div>';
   document.body.appendChild(root);
+  document.body.classList.add('lp-guide-active'); // masque les bulles d'aide au survol (voir 12-bulles-d-aide.js)
+  const helpTip = document.getElementById('helpTooltip');
+  if (helpTip) helpTip.classList.remove('visible');
   guide = { root, kind, lessonId, steps, index: 0, maxIndex: 0, ctx: {}, timer: null, advancing: false, clicked: false, cardKey: '' };
   if (steps[0].enter) steps[0].enter(guide.ctx);
   window.addEventListener('resize', renderGuideStep);
