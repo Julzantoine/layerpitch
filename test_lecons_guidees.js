@@ -114,7 +114,8 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('zone de dépôt : point dedans / dehors', inside === true && outside === false);
   w.eval(`guide.lessonId = 'static'; guide.index = 3; guide.maxIndex = 3; guide.cardKey = ''; renderGuideStep();`);
   check('étape de dépôt : vignette du fichier d’exemple présente', !!w.document.querySelector('[data-tour="chip"]'));
-  check('étape de dépôt : bouton « Utiliser » toujours présent (clavier)', !!w.document.querySelector('[data-tour="sample"]'));
+  check('étape de dépôt : plus de bouton « Utiliser le fichier d’exemple »', !w.document.querySelector('[data-tour="sample"]'));
+  check('étape de dépôt : la vignette est atteignable au clavier', w.document.querySelector('[data-tour="chip"]').getAttribute('tabindex') === '0');
   check('pendant une leçon : bulles d’aide au survol masquées', w.document.body.classList.contains('lp-guide-active'));
   // Flèche de la 31e mesure : même échelle que la timeline (durée / temps), 30 mesures de 4 temps à 120 BPM.
   const arrowX = w.eval(`(function () {

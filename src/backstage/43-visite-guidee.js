@@ -429,7 +429,6 @@ function renderGuideStep(positionOnly) {
     // et « bientôt disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
     const sampleHtml = (sample ? `<a class="tour-sample" href="${escapeAttr(sample)}" download>${escapeHtml(tr('lessonSampleDownload'))}</a>` : '')
       + (canUse ? `<div class="tour-chip" data-tour="chip" role="button" tabindex="0" aria-label="${escapeAttr(tr('lessonChipHint'))}"><span class="tour-chip-note">♪</span><span class="tour-chip-name">${escapeHtml(many ? tr('lessonChipMany', { n: lessonStepFileNames(step).length }) : lessonStepFileNames(step)[0])}</span></div><div class="tour-sample-hint">${escapeHtml(tr('lessonChipHint'))}</div>` : '')
-      + (canUse ? `<button class="btn btn-small tour-sample-use" type="button" data-tour="sample">${escapeHtml(tr(many ? 'lessonSampleUseMany' : 'lessonSampleUse'))}</button>` : '')
       + (step.sampleKey && !sample && !canUse ? `<div class="tour-sample tour-sample-soon">${escapeHtml(tr('lessonSampleSoon'))}</div>` : '');
     card.innerHTML = `
       <div class="tour-count">${guide.index + 1} / ${guide.steps.length}</div>
@@ -460,12 +459,12 @@ function renderGuideStep(positionOnly) {
     if (chip) chip.addEventListener('pointerdown', ev => lessonStartChipDrag(ev, step, chip));
     const nlBtn = card.querySelector('[data-tour="nextlesson"]');
     if (nlBtn) nlBtn.onclick = goToNextLesson;
-    const useBtn = card.querySelector('[data-tour="sample"]');
-    if (useBtn) useBtn.onclick = async () => {
-      useBtn.disabled = true;
-      try { await lessonUseSample(step); }
-      catch (e) { useBtn.disabled = false; window.LayerPitchNotify.error(tr('lessonSampleError', { error: e.message || String(e) })); }
-    };
+    // Accès clavier : Entrée ou Espace sur la vignette dépose le fichier d'exemple (sans glisser à la souris).
+    if (chip) chip.addEventListener('keydown', ev => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      ev.preventDefault();
+      lessonUseSample(step).catch(err => window.LayerPitchNotify.error(tr('lessonSampleError', { error: err.message || String(err) })));
+    });
   }
   // Flèche indicative (étapes avec `arrow`) : pointe la mesure à viser sur la timeline.
   let arrowEl = guide.root.querySelector('.tour-arrow');
