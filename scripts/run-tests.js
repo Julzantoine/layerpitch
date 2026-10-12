@@ -14,7 +14,10 @@ for (const f of files) {
   if (r.status === 0) { process.stdout.write('.'); continue; }
   failed.push(f);
   process.stdout.write('F');
-  const out = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-6).join('\n    ');
+  // Les lignes « FAIL » d'abord (elles peuvent être loin du bas de la sortie), puis les dernières lignes.
+  const lines = ((r.stdout || '') + (r.stderr || '')).trim().split('\n');
+  const fails = lines.filter(l => /^FAIL\b/.test(l));
+  const out = fails.concat(fails.length ? ['…'] : [], lines.slice(-6)).join('\n    ');
   failed[failed.length - 1] = `${f}\n    ${out}`;
 }
 console.log(`\n${files.length - failed.length}/${files.length} fichiers de test OK`);
