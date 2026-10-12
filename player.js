@@ -1267,7 +1267,23 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   // Un curseur qui pilote la structure (26/09 vertical, 30/09 embranchement-vertical) remplace les boutons du visiteur : il
   // s'affiche avec les autres curseurs, et les boutons (couches 1/2/3, boucles nommées) disparaissent.
   const structureBySlider = supported && fxSlidersValid(track).some(sl => sl.intensity);
-  if (track.mode === 'vertical' && supported && !structureBySlider) {
+  // Mode vertical additif (12/10) : une ligne de forme d'onde par couche, toutes superposées et qui avancent ensemble, comme dans
+  // l'embranchement vertical (jusqu'à 7 couches ; au-delà, retour aux puces compactes). Un clic sur une ligne règle le niveau, un clic
+  // sur la ligne du niveau en cours se déplace dans le morceau. Piloté par un curseur : les lignes sont affichées sans être cliquables.
+  if (track.mode === 'vertical' && supported && track.layers.length <= 7) {
+    const n = track.layers.length;
+    const rowH = n <= 4 ? 34 : Math.round(34 - (Math.min(n, 7) - 4) * (14 / 3));
+    const rows = Array.from({ length: n }, (_, i) => {
+      const label = escapeHtml((track.layers[i] && track.layers[i].label) || t('layerFallback', { n: i + 1 }));
+      return `<button type="button" class="vert-layer-btn${i === 0 ? ' active' : ''}" data-level="${i}"><canvas class="vert-wave-bg" data-role="vertWaveBg-${i}"></canvas><canvas class="vert-wave-fg" data-role="vertWaveFg-${i}"></canvas><span class="vert-wave-label"><span class="intensity-chip-num">${i + 1}</span>${label}</span></button>`;
+    }).join('');
+    intensityBlockHtml = `
+      <div class="track-intensity-block">
+        <div class="track-intensity-label">${t('intensityLabel')}</div>
+        <div class="intensity-picker vert-layer-rows${structureBySlider ? ' is-slider-driven' : ''}" data-role="vertLayerRows" style="--embr-row-h:${rowH}px">${rows}</div>
+      </div>
+    `;
+  } else if (track.mode === 'vertical' && supported && !structureBySlider) {
     const n = track.layers.length;
     const chips = Array.from({ length: n }, (_, i) => {
       const customLabel = (track.layers[i] && track.layers[i].label) ? track.layers[i].label : '';
@@ -3525,6 +3541,22 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   const timeCurrent = wrapper.querySelector('[data-role="timeCurrent"]');
   const timeTotal = wrapper.querySelector('[data-role="timeTotal"]');
   const notchDots = [...wrapper.querySelectorAll('.intensity-chip')];
+  // Mode vertical additif : une ligne de forme d'onde par couche (voir buildTrackRow). L'ancienne barre de progression est alors masquée :
+  // les lignes sont à la fois l'affichage de la progression et les commandes.
+  const vertLayerRows = [...wrapper.querySelectorAll('.vert-layer-btn')];
+  if (vertLayerRows.length && wrap) wrap.style.display = 'none';
+  function redrawVertLayerWaves() {
+    vertLayerRows.forEach((btn, i) => {
+      const buf = buffers[i];
+      const bg = btn.querySelector('.vert-wave-bg'), fg = btn.querySelector('.vert-wave-fg');
+      if (buf && bg && fg) renderWaveformPair(bg, fg, buf, waveBgColor, waveFgColor, progressMaxSec());
+    });
+  }
+  if (vertLayerRows.length) {
+    document.addEventListener('layerpitch-contrast-changed', redrawVertLayerWaves);
+    const rowsHost = wrapper.querySelector('[data-role="vertLayerRows"]');
+    if (rowsHost && window.ResizeObserver) new ResizeObserver(redrawVertLayerWaves).observe(rowsHost); // 1er dépli depuis l'état replié, redimensionnement
+  }
   const embrLoopBtns = [...wrapper.querySelectorAll('.embr-loop-btn')];
   const stingerBtns = [...wrapper.querySelectorAll('.stinger-btn')];
   const loopCountSelect = wrapper.querySelector('[data-role="loopCountSelect"]');
@@ -5066,6 +5098,8 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     if (fill) fill.style.width = pct + '%';
     if (head) head.style.left = pct + '%';
     if (waveformFg) waveformFg.style.clipPath = `inset(0 ${Math.max(0, 100 - pct)}% 0 0)`;
+    // Mode vertical additif : toutes les lignes (une par couche) avancent en même temps.
+    vertLayerRows.forEach(btn => { const f = btn.querySelector('.vert-wave-fg'); if (f) f.style.clipPath = `inset(0 ${Math.max(0, 100 - pct)}% 0 0)`; });
     timeCurrent.textContent = formatTime(elapsed);
   }
   // Repères de boucle sur la forme d'onde (moteur quantifié) : entrée, sortie et queue du fichier, placés en % de sa durée
@@ -6023,7 +6057,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     }
   }
   embrLoopBtns.forEach(btn => {
-    btn.addEventListener('click', () => selectEmbrLoop(parseInt(btn.dataset.loopIdx, 10)));
+    btn.addEventListener('click', () => { if (btn.dataset.dragged) return; selectEmbrLoop(parseInt(btn.dataset.loopIdx, 10)); });
   });
   // Cliquer/glisser sur la forme d'onde de la boucle EN COURS (gabarit riche uniquement) déplace la tête
   // de lecture -- même principe que les blocs séquentiels : position affichée en direct pendant le
@@ -6048,21 +6082,28 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       });
     }
     function isSeekable() {
-      return playing && idx === embrActiveLoopIdx && !embrDetourSource
+      return playing && !embrDetourSource
         && !embrPendingSwitchTimeout && !embrPendingTransitionSwitchTimeout;
     }
+    // 12/10 : glisser sur N'IMPORTE QUELLE ligne déplace la tête de lecture (avant, seule la ligne en cours le permettait, et un glisser
+    // sur une autre ligne n'avait aucun effet). Un simple clic sur la ligne en cours déplace comme avant ; un simple clic sur une AUTRE
+    // ligne reste une bascule de boucle (événement « click » ci-dessus).
+    let pending = false, startX = 0;
     btn.addEventListener('pointerdown', (e) => {
       if (!isSeekable()) return;
-      dragging = true;
       try { btn.setPointerCapture(e.pointerId); } catch (err) {}
-      showFraction(fractionFromEvent(e));
+      if (idx === embrActiveLoopIdx) { dragging = true; showFraction(fractionFromEvent(e)); }
+      else { pending = true; startX = e.clientX; }
     });
     btn.addEventListener('pointermove', (e) => {
+      if (pending && Math.abs(e.clientX - startX) >= 4) { pending = false; dragging = true; btn.dataset.dragged = '1'; }
       if (dragging) showFraction(fractionFromEvent(e));
     });
     btn.addEventListener('pointerup', (e) => {
+      pending = false;
       if (!dragging) return;
       dragging = false;
+      if (btn.dataset.dragged) setTimeout(() => { delete btn.dataset.dragged; }, 0); // le « click » qui suit un glisser ne doit pas basculer la boucle
       if (!isSeekable()) { applyEmbrWaveAnimation(); return; }
       trackPublicEvent('embr_seek', { trackId: track.id });
       seekEmbrVertical(fractionFromEvent(e));
@@ -6882,6 +6923,8 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   function applyIntensityLevel(lv, silent) {
     level = lv;
     notchDots.forEach(d => d.classList.toggle('active', parseInt(d.dataset.level, 10) === lv));
+    // Lignes de formes d'onde (vertical additif) : « actives » = les couches qui sonnent à ce niveau (cumulatif : 1..niveau).
+    vertLayerRows.forEach((r, i) => r.classList.toggle('active', (profiles[lv] && profiles[lv][i] > 0) || false));
     if (!silent) trackPublicEvent('intensity_change', { trackId: track.id, level }); // silencieux quand c'est la Carte de niveau qui pilote
     if (!playing) return;
     const p = profiles[level];
@@ -6896,6 +6939,45 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     });
   }
   notchDots.forEach(dot => dot.addEventListener('click', () => applyIntensityLevel(parseInt(dot.dataset.level, 10))));
+  // Lignes de formes d'onde (vertical additif), même logique que l'embranchement vertical :
+  //  - glisser sur N'IMPORTE QUELLE ligne déplace la tête de lecture (position en direct pendant le glisser, vraie recherche audio au relâchement) ;
+  //  - un simple clic sur une ligne qui n'est pas celle du niveau en cours règle ce niveau (les couches en dessous continuent de jouer,
+  //    celles au-dessus se coupent) ; un simple clic sur la ligne du niveau en cours déplace la lecture à l'endroit cliqué.
+  vertLayerRows.forEach((row, i) => {
+    let down = false, moved = false, startX = 0, pid = null;
+    const fractionOf = e => { const r = row.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / (r.width || 1))); };
+    const seekTo = sec => {
+      if (playing) { stopAllSources(false); offsetAt = sec; playThisTrack(false, true); }
+      else { offsetAt = sec; updateProgressAt(offsetAt); }
+    };
+    row.addEventListener('pointerdown', (e) => {
+      if (row.closest('.is-slider-driven')) return;
+      down = true; moved = false; startX = e.clientX; pid = e.pointerId;
+      try { row.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    row.addEventListener('pointermove', (e) => {
+      if (!down) return;
+      if (!moved && Math.abs(e.clientX - startX) < 4) return;
+      moved = true; isDraggingSeek = true;
+      updateProgressAt(fractionOf(e) * progressMaxSec());
+    });
+    row.addEventListener('pointerup', (e) => {
+      if (!down) return;
+      down = false;
+      try { row.releasePointerCapture(pid); } catch (err) {}
+      row.dataset.justHandled = '1';
+      setTimeout(() => { delete row.dataset.justHandled; }, 0);
+      if (moved) { isDraggingSeek = false; seekTo(fractionOf(e) * progressMaxSec()); return; }
+      if (i !== level) applyIntensityLevel(i);
+      else seekTo(fractionOf(e) * progressMaxSec());
+    });
+    row.addEventListener('pointercancel', () => { down = false; if (moved) { moved = false; isDraggingSeek = false; } });
+    // Clavier (Entrée / Espace sur une ligne) : règle le niveau. Le clic souris est déjà traité par pointerup.
+    row.addEventListener('click', (e) => {
+      if (row.closest('.is-slider-driven') || row.dataset.justHandled) return;
+      if (e.detail === 0 || e.pointerType === undefined) { if (i !== level) applyIntensityLevel(i); }
+    });
+  });
 
   stingerBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -7254,6 +7336,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
           if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
         } catch (e) { if (statusEl) statusEl.textContent = loadErrorMessageFor('loadErrorStatus'); setLoadErrorIcon(); return; }
       }
+      if (vertLayerRows.length) { try { redrawVertLayerWaves(); } catch (e) { /* bonus visuel : jamais bloquant */ } }
       if (isStatic && buffers[0] && waveformBg) {
         try {
           waveformBuffer = buffers[0];

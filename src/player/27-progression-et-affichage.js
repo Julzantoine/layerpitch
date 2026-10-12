@@ -31,6 +31,8 @@
     if (fill) fill.style.width = pct + '%';
     if (head) head.style.left = pct + '%';
     if (waveformFg) waveformFg.style.clipPath = `inset(0 ${Math.max(0, 100 - pct)}% 0 0)`;
+    // Mode vertical additif : toutes les lignes (une par couche) avancent en même temps.
+    vertLayerRows.forEach(btn => { const f = btn.querySelector('.vert-wave-fg'); if (f) f.style.clipPath = `inset(0 ${Math.max(0, 100 - pct)}% 0 0)`; });
     timeCurrent.textContent = formatTime(elapsed);
   }
   // Repères de boucle sur la forme d'onde (moteur quantifié) : entrée, sortie et queue du fichier, placés en % de sa durée

@@ -160,6 +160,22 @@
   const timeCurrent = wrapper.querySelector('[data-role="timeCurrent"]');
   const timeTotal = wrapper.querySelector('[data-role="timeTotal"]');
   const notchDots = [...wrapper.querySelectorAll('.intensity-chip')];
+  // Mode vertical additif : une ligne de forme d'onde par couche (voir buildTrackRow). L'ancienne barre de progression est alors masquée :
+  // les lignes sont à la fois l'affichage de la progression et les commandes.
+  const vertLayerRows = [...wrapper.querySelectorAll('.vert-layer-btn')];
+  if (vertLayerRows.length && wrap) wrap.style.display = 'none';
+  function redrawVertLayerWaves() {
+    vertLayerRows.forEach((btn, i) => {
+      const buf = buffers[i];
+      const bg = btn.querySelector('.vert-wave-bg'), fg = btn.querySelector('.vert-wave-fg');
+      if (buf && bg && fg) renderWaveformPair(bg, fg, buf, waveBgColor, waveFgColor, progressMaxSec());
+    });
+  }
+  if (vertLayerRows.length) {
+    document.addEventListener('layerpitch-contrast-changed', redrawVertLayerWaves);
+    const rowsHost = wrapper.querySelector('[data-role="vertLayerRows"]');
+    if (rowsHost && window.ResizeObserver) new ResizeObserver(redrawVertLayerWaves).observe(rowsHost); // 1er dépli depuis l'état replié, redimensionnement
+  }
   const embrLoopBtns = [...wrapper.querySelectorAll('.embr-loop-btn')];
   const stingerBtns = [...wrapper.querySelectorAll('.stinger-btn')];
   const loopCountSelect = wrapper.querySelector('[data-role="loopCountSelect"]');

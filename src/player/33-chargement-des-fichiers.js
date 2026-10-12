@@ -263,6 +263,7 @@
           if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
         } catch (e) { if (statusEl) statusEl.textContent = loadErrorMessageFor('loadErrorStatus'); setLoadErrorIcon(); return; }
       }
+      if (vertLayerRows.length) { try { redrawVertLayerWaves(); } catch (e) { /* bonus visuel : jamais bloquant */ } }
       if (isStatic && buffers[0] && waveformBg) {
         try {
           waveformBuffer = buffers[0];

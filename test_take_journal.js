@@ -84,7 +84,7 @@ const path = require('path');
     const playBtn = row.querySelector('[data-role="playBtn"]');
     click(playBtn);
     await sleep(200);
-    click(row.querySelector('.intensity-chip[data-level="1"]'));
+    click(row.querySelector('.intensity-chip[data-level="1"], .vert-layer-btn[data-level="1"]'));
     click(row.querySelector('[data-voice-action="mute"][data-voice-key="layer-0"]'));
     await sleep(200);
     let take = Core.getTrackTake('v1');

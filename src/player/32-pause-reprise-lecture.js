@@ -555,6 +555,8 @@
   function applyIntensityLevel(lv, silent) {
     level = lv;
     notchDots.forEach(d => d.classList.toggle('active', parseInt(d.dataset.level, 10) === lv));
+    // Lignes de formes d'onde (vertical additif) : « actives » = les couches qui sonnent à ce niveau (cumulatif : 1..niveau).
+    vertLayerRows.forEach((r, i) => r.classList.toggle('active', (profiles[lv] && profiles[lv][i] > 0) || false));
     if (!silent) trackPublicEvent('intensity_change', { trackId: track.id, level }); // silencieux quand c'est la Carte de niveau qui pilote
     if (!playing) return;
     const p = profiles[level];
@@ -569,6 +571,45 @@
     });
   }
   notchDots.forEach(dot => dot.addEventListener('click', () => applyIntensityLevel(parseInt(dot.dataset.level, 10))));
+  // Lignes de formes d'onde (vertical additif), même logique que l'embranchement vertical :
+  //  - glisser sur N'IMPORTE QUELLE ligne déplace la tête de lecture (position en direct pendant le glisser, vraie recherche audio au relâchement) ;
+  //  - un simple clic sur une ligne qui n'est pas celle du niveau en cours règle ce niveau (les couches en dessous continuent de jouer,
+  //    celles au-dessus se coupent) ; un simple clic sur la ligne du niveau en cours déplace la lecture à l'endroit cliqué.
+  vertLayerRows.forEach((row, i) => {
+    let down = false, moved = false, startX = 0, pid = null;
+    const fractionOf = e => { const r = row.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / (r.width || 1))); };
+    const seekTo = sec => {
+      if (playing) { stopAllSources(false); offsetAt = sec; playThisTrack(false, true); }
+      else { offsetAt = sec; updateProgressAt(offsetAt); }
+    };
+    row.addEventListener('pointerdown', (e) => {
+      if (row.closest('.is-slider-driven')) return;
+      down = true; moved = false; startX = e.clientX; pid = e.pointerId;
+      try { row.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    row.addEventListener('pointermove', (e) => {
+      if (!down) return;
+      if (!moved && Math.abs(e.clientX - startX) < 4) return;
+      moved = true; isDraggingSeek = true;
+      updateProgressAt(fractionOf(e) * progressMaxSec());
+    });
+    row.addEventListener('pointerup', (e) => {
+      if (!down) return;
+      down = false;
+      try { row.releasePointerCapture(pid); } catch (err) {}
+      row.dataset.justHandled = '1';
+      setTimeout(() => { delete row.dataset.justHandled; }, 0);
+      if (moved) { isDraggingSeek = false; seekTo(fractionOf(e) * progressMaxSec()); return; }
+      if (i !== level) applyIntensityLevel(i);
+      else seekTo(fractionOf(e) * progressMaxSec());
+    });
+    row.addEventListener('pointercancel', () => { down = false; if (moved) { moved = false; isDraggingSeek = false; } });
+    // Clavier (Entrée / Espace sur une ligne) : règle le niveau. Le clic souris est déjà traité par pointerup.
+    row.addEventListener('click', (e) => {
+      if (row.closest('.is-slider-driven') || row.dataset.justHandled) return;
+      if (e.detail === 0 || e.pointerType === undefined) { if (i !== level) applyIntensityLevel(i); }
+    });
+  });
 
   stingerBtns.forEach(btn => {
     btn.addEventListener('click', () => {
