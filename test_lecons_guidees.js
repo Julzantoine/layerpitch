@@ -14,7 +14,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   vm.createContext(sb);
   vm.runInContext(read('layerpitch-i18n.js'), sb);
   const keys = new Set([...src.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].map(m => m[1]));
-  ['lessonSampleDownload', 'lessonSampleUse', 'lessonListening', 'lessonKeepTrack', 'lessonChipHint', 'lessonArrowLabel', 'lessonChipMany', 'lessonNextBtn', 'lessonSampleUseMany', 'lessonSampleError', 'lsVerifyTitle', 'lsVerifyText', 'lessonSampleSoon', 'lessonDoIt', 'lessonQuit', 'lessonSkipStep', 'tutorialMenuTitle', 'tutorialTourDesc', 'tutorialLessonsHeading'].forEach(k => keys.add(k));
+  ['lessonSampleDownload', 'lessonSampleUse', 'lessonMoveHint', 'lessonListening', 'lessonKeepTrack', 'lessonChipHint', 'lessonArrowLabel', 'lessonChipMany', 'lessonNextBtn', 'lessonSampleUseMany', 'lessonSampleError', 'lsVerifyTitle', 'lsVerifyText', 'lessonSampleSoon', 'lessonDoIt', 'lessonQuit', 'lessonSkipStep', 'tutorialMenuTitle', 'tutorialTourDesc', 'tutorialLessonsHeading'].forEach(k => keys.add(k));
   ['fr', 'en'].forEach(l => check('textes présents en ' + l + ' (' + keys.size + ' clés)', [...keys].every(k => sb.window.LAYERPITCH_I18N[l].backstage[k])));
 
   const page = read('layerpitch-backstage.html');
@@ -162,6 +162,26 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   })()`);
   check('écoute : avant le clic la surbrillance est sur « Écouter »', hl.before === true);
   check('écoute : après le clic la surbrillance passe au lecteur', hl.after === true);
+  // Bulle déplaçable : saisie hors boutons, position conservée tant qu'on reste sur l'étape, réinitialisée à l'étape suivante.
+  const mv = w.eval(`(function () {
+    const card = guide.root.querySelector('.tour-card');
+    card.getBoundingClientRect = () => ({ left: 200, top: 120, right: 520, bottom: 400, width: 320, height: 280 });
+    Object.defineProperty(card, 'offsetWidth', { value: 320, configurable: true });
+    Object.defineProperty(card, 'offsetHeight', { value: 280, configurable: true });
+    const down = new MouseEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 250, clientY: 150, button: 0 });
+    card.querySelector('.tour-title').dispatchEvent(down);
+    const moved = guide.userMoved;
+    document.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 450, clientY: 300 }));
+    const pos = { left: card.style.left, top: card.style.top };
+    document.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientX: 450, clientY: 300 }));
+    renderGuideStep(true);
+    const kept = { left: card.style.left, top: card.style.top };
+    guideGo(1);
+    return { moved, pos, kept, resetOnNext: guide.userMoved };
+  })()`);
+  check('bulle : saisie puis déplacement suivent la souris', mv.moved === true && mv.pos.left === '400px' && mv.pos.top === '270px');
+  check('bulle : la position est conservée tant qu’on reste sur l’étape', mv.kept.left === '400px' && mv.kept.top === '270px');
+  check('bulle : retour au placement automatique à l’étape suivante', mv.resetOnNext === false);
   // Échap quitte.
   w.eval(`guide.index = 6; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));

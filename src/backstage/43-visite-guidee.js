@@ -377,7 +377,7 @@ function guideGo(delta) {
   while (next >= 0 && next < guide.steps.length && guide.steps[next].skip && guide.steps[next].skip(guide.ctx)) next += delta;
   if (next < 0) return;
   if (next >= guide.steps.length) { finishGuide(); return; }
-  guide.index = next; guide.clicked = false; guide.advancing = false;
+  guide.index = next; guide.clicked = false; guide.advancing = false; guide.userMoved = false;
   if (next > guide.maxIndex) guide.maxIndex = next; // étape la plus avancée atteinte : au-delà du « front », on ne fait que revoir
   const step = guide.steps[next];
   if (step.enter) step.enter(guide.ctx);
@@ -439,7 +439,7 @@ function renderGuideStep(positionOnly) {
       + (canUse ? `<div class="tour-chip" data-tour="chip" role="button" tabindex="0" aria-label="${escapeAttr(tr('lessonChipHint'))}"><span class="tour-chip-note">♪</span><span class="tour-chip-name">${escapeHtml(many ? tr('lessonChipMany', { n: lessonStepFileNames(step).length }) : lessonStepFileNames(step)[0])}</span></div><div class="tour-sample-hint">${escapeHtml(tr('lessonChipHint'))}</div>` : '')
       + (step.sampleKey && !sample && !canUse ? `<div class="tour-sample tour-sample-soon">${escapeHtml(tr('lessonSampleSoon'))}</div>` : '');
     card.innerHTML = `
-      <div class="tour-count">${guide.index + 1} / ${guide.steps.length}</div>
+      <div class="tour-count"><span>${guide.index + 1} / ${guide.steps.length}</span><span class="tour-grip" title="${escapeAttr(tr('lessonMoveHint'))}" aria-hidden="true">⠿</span></div>
       <div class="tour-title">${escapeHtml(tr(step.titleKey))}</div>
       <div class="tour-text">${escapeHtml(tr(step.textKey, { file: LESSON_SAMPLE_NAMES[step.names || guide.lessonId] || '' }))}</div>
       ${sampleHtml}
@@ -497,16 +497,48 @@ function renderGuideStep(positionOnly) {
     spot.style.top = (r.top - 4) + 'px'; spot.style.left = (r.left - 4) + 'px';
     spot.style.width = (r.width + 8) + 'px'; spot.style.height = (r.height + 8) + 'px';
     // Pendant une leçon, la cible doit rester cliquable : le voile laisse passer les clics (pointer-events), la carte non.
-    const cw = card.offsetWidth, ch = card.offsetHeight;
-    let left = r.right + margin, top = r.top;
-    if (left + cw > window.innerWidth - margin) { left = Math.min(r.left, window.innerWidth - cw - margin); top = r.bottom + margin; }
-    if (top + ch > window.innerHeight - margin) top = Math.max(margin, r.top - ch - margin);
-    card.style.left = Math.max(margin, left) + 'px'; card.style.top = Math.max(margin, top) + 'px';
-    card.style.transform = 'none';
+    if (!guide.userMoved) {
+      const cw = card.offsetWidth, ch = card.offsetHeight;
+      let left = r.right + margin, top = r.top;
+      if (left + cw > window.innerWidth - margin) { left = Math.min(r.left, window.innerWidth - cw - margin); top = r.bottom + margin; }
+      if (top + ch > window.innerHeight - margin) top = Math.max(margin, r.top - ch - margin);
+      card.style.left = Math.max(margin, left) + 'px'; card.style.top = Math.max(margin, top) + 'px';
+      card.style.transform = 'none';
+    }
   } else {
     spot.style.display = 'none';
-    card.style.left = '50%'; card.style.top = '50%'; card.style.transform = 'translate(-50%, -50%)';
+    if (!guide.userMoved) { card.style.left = '50%'; card.style.top = '50%'; card.style.transform = 'translate(-50%, -50%)'; }
   }
+}
+// La bulle se saisit et se déplace (utile quand elle cache la zone à manipuler) ; le déplacement vaut pour l'étape en cours,
+// la bulle reprend sa place automatique à l'étape suivante.
+function guideEnableCardDrag(card) {
+  card.addEventListener('pointerdown', ev => {
+    if (!guide || (ev.button !== undefined && ev.button !== 0)) return;
+    if (ev.target.closest('button, a, input, select, textarea, .tour-chip')) return;
+    ev.preventDefault();
+    const r = card.getBoundingClientRect();
+    const dx = ev.clientX - r.left, dy = ev.clientY - r.top;
+    guide.userMoved = true;
+    card.style.transform = 'none';
+    card.style.left = r.left + 'px'; card.style.top = r.top + 'px';
+    card.classList.add('is-moving');
+    const move = e => {
+      const m = 8;
+      const x = Math.max(m, Math.min(window.innerWidth - card.offsetWidth - m, e.clientX - dx));
+      const y = Math.max(m, Math.min(window.innerHeight - card.offsetHeight - m, e.clientY - dy));
+      card.style.left = x + 'px'; card.style.top = y + 'px';
+    };
+    const end = () => {
+      card.classList.remove('is-moving');
+      document.removeEventListener('pointermove', move, true);
+      document.removeEventListener('pointerup', end, true);
+      document.removeEventListener('pointercancel', end, true);
+    };
+    document.addEventListener('pointermove', move, true);
+    document.addEventListener('pointerup', end, true);
+    document.addEventListener('pointercancel', end, true);
+  });
 }
 function openGuide(kind, steps, lessonId) {
   if (guide) closeBackstageTour();
@@ -519,7 +551,8 @@ function openGuide(kind, steps, lessonId) {
   document.body.classList.add('lp-guide-active'); // masque les bulles d'aide au survol (voir 12-bulles-d-aide.js)
   const helpTip = document.getElementById('helpTooltip');
   if (helpTip) helpTip.classList.remove('visible');
-  guide = { root, kind, lessonId, steps, index: 0, maxIndex: 0, ctx: {}, timer: null, advancing: false, clicked: false, cardKey: '' };
+  guide = { root, kind, lessonId, steps, index: 0, maxIndex: 0, ctx: {}, timer: null, advancing: false, clicked: false, cardKey: '', userMoved: false };
+  guideEnableCardDrag(root.querySelector('.tour-card'));
   if (steps[0].enter) steps[0].enter(guide.ctx);
   window.addEventListener('resize', renderGuideStep);
   document.addEventListener('keydown', guideKeydown, true);
