@@ -932,6 +932,14 @@
   .tour-root-lesson .tour-card { width: 380px; }
   .tour-root-lesson .tour-text { font-size: 13.5px; }
   .tour-text { white-space: pre-line; } /* un « \n » dans un texte fait un retour à la ligne */
+  /* Vignette du fichier d'exemple, à glisser jusqu'à la zone en surbrillance (glisser-déposer simulé par la page). */
+  .tour-chip { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin: 0 0 6px; border: 1px dashed var(--accent); border-radius: 8px; background: var(--accent-soft); color: var(--text); font-size: 12.5px; cursor: grab; user-select: none; touch-action: none; }
+  .tour-chip.is-dragging { opacity: 0.45; cursor: grabbing; }
+  .tour-chip-note { color: var(--accent); }
+  .tour-chip-name { overflow-wrap: anywhere; }
+  .tour-chip-ghost { position: fixed; z-index: 10000; pointer-events: none; margin: 0; max-width: 320px; box-shadow: 0 8px 20px rgba(20,22,28,0.3); background: var(--bg); }
+  .tour-sample-hint { font-size: 11.5px; color: var(--text-dim); margin: 0 0 8px; }
+  .tour-spot.tour-spot-hot { outline-width: 4px; }
 </style>
 </head>
 <body>
@@ -1854,15 +1862,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791837850338"></script>
-<script src="layerpitch-appearance.js?v=1791837850338"></script>
-<script src="layerpitch-album-shared.js?v=1791837850338"></script>
-<script src="layerpitch-album-editor.js?v=1791837850338"></script>
-<script src="layerpitch-shell.js?v=1791837850338"></script>
-<script src="layerpitch-social-icons.js?v=1791837850338"></script>
-<script src="layerpitch-notify.js?v=1791837850338"></script>
-<script src="layerpitch-help.js?v=1791837850338"></script>
-<script src="player.js?v=1791837850338"></script>
+<script src="layerpitch-i18n.js?v=1791838036808"></script>
+<script src="layerpitch-appearance.js?v=1791838036808"></script>
+<script src="layerpitch-album-shared.js?v=1791838036808"></script>
+<script src="layerpitch-album-editor.js?v=1791838036808"></script>
+<script src="layerpitch-shell.js?v=1791838036808"></script>
+<script src="layerpitch-social-icons.js?v=1791838036808"></script>
+<script src="layerpitch-notify.js?v=1791838036808"></script>
+<script src="layerpitch-help.js?v=1791838036808"></script>
+<script src="player.js?v=1791838036808"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -14926,6 +14934,42 @@ async function lessonUseSample(step) {
   input.files = dt.files;
   input.dispatchEvent(new Event('change', { bubbles: true }));
 }
+// Glisser-déposer simulé par la page (fiable sous tous les navigateurs) : une vignette suit la souris, la zone en
+// surbrillance réagit au survol, et le relâchement sur la zone dépose les fichiers d'exemple (même chemin que le bouton).
+function lessonPointInZone(step, x, y) {
+  const el = guideStepTarget(step);
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  const m = 6;
+  return x >= r.left - m && x <= r.right + m && y >= r.top - m && y <= r.bottom + m;
+}
+function lessonStartChipDrag(ev, step, chip) {
+  if (ev.button !== undefined && ev.button !== 0) return;
+  ev.preventDefault();
+  const ghost = chip.cloneNode(true);
+  ghost.classList.add('tour-chip-ghost');
+  ghost.removeAttribute('data-tour');
+  document.body.appendChild(ghost);
+  const place = (x, y) => { ghost.style.left = (x + 12) + 'px'; ghost.style.top = (y + 12) + 'px'; };
+  place(ev.clientX, ev.clientY);
+  chip.classList.add('is-dragging');
+  const spot = guide && guide.root.querySelector('.tour-spot');
+  const target = guideStepTarget(step);
+  const hot = on => { if (spot) spot.classList.toggle('tour-spot-hot', on); if (target) target.classList.toggle('drag-over', on); };
+  const move = e => { place(e.clientX, e.clientY); hot(lessonPointInZone(step, e.clientX, e.clientY)); };
+  const finish = e => {
+    document.removeEventListener('pointermove', move, true);
+    document.removeEventListener('pointerup', finish, true);
+    document.removeEventListener('pointercancel', finish, true);
+    ghost.remove(); chip.classList.remove('is-dragging'); hot(false);
+    if (e.type !== 'pointercancel' && lessonPointInZone(step, e.clientX, e.clientY)) {
+      lessonUseSample(step).catch(err => window.LayerPitchNotify.error(tr('lessonSampleError', { error: err.message || String(err) })));
+    }
+  };
+  document.addEventListener('pointermove', move, true);
+  document.addEventListener('pointerup', finish, true);
+  document.addEventListener('pointercancel', finish, true);
+}
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
@@ -15229,6 +15273,7 @@ function renderGuideStep(positionOnly) {
     // Téléchargement du lot (étapes marquées sampleKey), bouton « Utiliser » (étapes useSample dont les URL sont connues),
     // et « bientôt disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
     const sampleHtml = (sample ? `<a class="tour-sample" href="${escapeAttr(sample)}" download>${escapeHtml(tr('lessonSampleDownload'))}</a>` : '')
+      + (canUse ? `<div class="tour-chip" data-tour="chip" role="button" tabindex="0" aria-label="${escapeAttr(tr('lessonChipHint'))}"><span class="tour-chip-note">♪</span><span class="tour-chip-name">${escapeHtml(many ? tr('lessonChipMany', { n: lessonStepFileNames(step).length }) : lessonStepFileNames(step)[0])}</span></div><div class="tour-sample-hint">${escapeHtml(tr('lessonChipHint'))}</div>` : '')
       + (canUse ? `<button class="btn btn-small tour-sample-use" type="button" data-tour="sample">${escapeHtml(tr(many ? 'lessonSampleUseMany' : 'lessonSampleUse'))}</button>` : '')
       + (step.sampleKey && !sample && !canUse ? `<div class="tour-sample tour-sample-soon">${escapeHtml(tr('lessonSampleSoon'))}</div>` : '');
     card.innerHTML = `
@@ -15253,6 +15298,8 @@ function renderGuideStep(positionOnly) {
     if (nextBtn) nextBtn.onclick = () => guideGo(1); // absent sur une étape obligatoire
     const prev = card.querySelector('[data-tour="prev"]');
     if (prev) prev.onclick = () => guideGo(-1);
+    const chip = card.querySelector('[data-tour="chip"]');
+    if (chip) chip.addEventListener('pointerdown', ev => lessonStartChipDrag(ev, step, chip));
     const nlBtn = card.querySelector('[data-tour="nextlesson"]');
     if (nlBtn) nlBtn.onclick = goToNextLesson;
     const useBtn = card.querySelector('[data-tour="sample"]');

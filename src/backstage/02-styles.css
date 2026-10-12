@@ -921,3 +921,11 @@
   .tour-root-lesson .tour-card { width: 380px; }
   .tour-root-lesson .tour-text { font-size: 13.5px; }
   .tour-text { white-space: pre-line; } /* un « \n » dans un texte fait un retour à la ligne */
+  /* Vignette du fichier d'exemple, à glisser jusqu'à la zone en surbrillance (glisser-déposer simulé par la page). */
+  .tour-chip { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin: 0 0 6px; border: 1px dashed var(--accent); border-radius: 8px; background: var(--accent-soft); color: var(--text); font-size: 12.5px; cursor: grab; user-select: none; touch-action: none; }
+  .tour-chip.is-dragging { opacity: 0.45; cursor: grabbing; }
+  .tour-chip-note { color: var(--accent); }
+  .tour-chip-name { overflow-wrap: anywhere; }
+  .tour-chip-ghost { position: fixed; z-index: 10000; pointer-events: none; margin: 0; max-width: 320px; box-shadow: 0 8px 20px rgba(20,22,28,0.3); background: var(--bg); }
+  .tour-sample-hint { font-size: 11.5px; color: var(--text-dim); margin: 0 0 8px; }
+  .tour-spot.tour-spot-hot { outline-width: 4px; }

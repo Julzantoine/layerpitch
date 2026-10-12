@@ -57,6 +57,42 @@ async function lessonUseSample(step) {
   input.files = dt.files;
   input.dispatchEvent(new Event('change', { bubbles: true }));
 }
+// Glisser-déposer simulé par la page (fiable sous tous les navigateurs) : une vignette suit la souris, la zone en
+// surbrillance réagit au survol, et le relâchement sur la zone dépose les fichiers d'exemple (même chemin que le bouton).
+function lessonPointInZone(step, x, y) {
+  const el = guideStepTarget(step);
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  const m = 6;
+  return x >= r.left - m && x <= r.right + m && y >= r.top - m && y <= r.bottom + m;
+}
+function lessonStartChipDrag(ev, step, chip) {
+  if (ev.button !== undefined && ev.button !== 0) return;
+  ev.preventDefault();
+  const ghost = chip.cloneNode(true);
+  ghost.classList.add('tour-chip-ghost');
+  ghost.removeAttribute('data-tour');
+  document.body.appendChild(ghost);
+  const place = (x, y) => { ghost.style.left = (x + 12) + 'px'; ghost.style.top = (y + 12) + 'px'; };
+  place(ev.clientX, ev.clientY);
+  chip.classList.add('is-dragging');
+  const spot = guide && guide.root.querySelector('.tour-spot');
+  const target = guideStepTarget(step);
+  const hot = on => { if (spot) spot.classList.toggle('tour-spot-hot', on); if (target) target.classList.toggle('drag-over', on); };
+  const move = e => { place(e.clientX, e.clientY); hot(lessonPointInZone(step, e.clientX, e.clientY)); };
+  const finish = e => {
+    document.removeEventListener('pointermove', move, true);
+    document.removeEventListener('pointerup', finish, true);
+    document.removeEventListener('pointercancel', finish, true);
+    ghost.remove(); chip.classList.remove('is-dragging'); hot(false);
+    if (e.type !== 'pointercancel' && lessonPointInZone(step, e.clientX, e.clientY)) {
+      lessonUseSample(step).catch(err => window.LayerPitchNotify.error(tr('lessonSampleError', { error: err.message || String(err) })));
+    }
+  };
+  document.addEventListener('pointermove', move, true);
+  document.addEventListener('pointerup', finish, true);
+  document.addEventListener('pointercancel', finish, true);
+}
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
@@ -360,6 +396,7 @@ function renderGuideStep(positionOnly) {
     // Téléchargement du lot (étapes marquées sampleKey), bouton « Utiliser » (étapes useSample dont les URL sont connues),
     // et « bientôt disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
     const sampleHtml = (sample ? `<a class="tour-sample" href="${escapeAttr(sample)}" download>${escapeHtml(tr('lessonSampleDownload'))}</a>` : '')
+      + (canUse ? `<div class="tour-chip" data-tour="chip" role="button" tabindex="0" aria-label="${escapeAttr(tr('lessonChipHint'))}"><span class="tour-chip-note">♪</span><span class="tour-chip-name">${escapeHtml(many ? tr('lessonChipMany', { n: lessonStepFileNames(step).length }) : lessonStepFileNames(step)[0])}</span></div><div class="tour-sample-hint">${escapeHtml(tr('lessonChipHint'))}</div>` : '')
       + (canUse ? `<button class="btn btn-small tour-sample-use" type="button" data-tour="sample">${escapeHtml(tr(many ? 'lessonSampleUseMany' : 'lessonSampleUse'))}</button>` : '')
       + (step.sampleKey && !sample && !canUse ? `<div class="tour-sample tour-sample-soon">${escapeHtml(tr('lessonSampleSoon'))}</div>` : '');
     card.innerHTML = `
@@ -384,6 +421,8 @@ function renderGuideStep(positionOnly) {
     if (nextBtn) nextBtn.onclick = () => guideGo(1); // absent sur une étape obligatoire
     const prev = card.querySelector('[data-tour="prev"]');
     if (prev) prev.onclick = () => guideGo(-1);
+    const chip = card.querySelector('[data-tour="chip"]');
+    if (chip) chip.addEventListener('pointerdown', ev => lessonStartChipDrag(ev, step, chip));
     const nlBtn = card.querySelector('[data-tour="nextlesson"]');
     if (nlBtn) nlBtn.onclick = goToNextLesson;
     const useBtn = card.querySelector('[data-tour="sample"]');

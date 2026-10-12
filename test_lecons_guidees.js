@@ -14,7 +14,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   vm.createContext(sb);
   vm.runInContext(read('layerpitch-i18n.js'), sb);
   const keys = new Set([...src.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].map(m => m[1]));
-  ['lessonSampleDownload', 'lessonSampleUse', 'lessonNextBtn', 'lessonSampleUseMany', 'lessonSampleError', 'lsVerifyTitle', 'lsVerifyText', 'lessonSampleSoon', 'lessonDoIt', 'lessonQuit', 'lessonSkipStep', 'tutorialMenuTitle', 'tutorialTourDesc', 'tutorialLessonsHeading'].forEach(k => keys.add(k));
+  ['lessonSampleDownload', 'lessonSampleUse', 'lessonChipHint', 'lessonChipMany', 'lessonNextBtn', 'lessonSampleUseMany', 'lessonSampleError', 'lsVerifyTitle', 'lsVerifyText', 'lessonSampleSoon', 'lessonDoIt', 'lessonQuit', 'lessonSkipStep', 'tutorialMenuTitle', 'tutorialTourDesc', 'tutorialLessonsHeading'].forEach(k => keys.add(k));
   ['fr', 'en'].forEach(l => check('textes présents en ' + l + ' (' + keys.size + ' clés)', [...keys].every(k => sb.window.LAYERPITCH_I18N[l].backstage[k])));
 
   const page = read('layerpitch-backstage.html');
@@ -107,6 +107,14 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('bulle finale : bouton vers la leçon suivante', !!nl && /Passer à la leçon 2 : Mode layering vertical additif/.test(nl.textContent));
   w.eval(`guide.lessonId = 'branching'; guide.cardKey = ''; renderGuideStep();`);
   check('dernière leçon : pas de bouton « leçon suivante »', !w.document.querySelector('[data-tour="nextlesson"]'));
+  // Glisser simulé : relâcher sur la zone dépose ; la vignette apparaît quand l'exemple est prêt.
+  zone.getBoundingClientRect = () => ({ left: 100, top: 100, right: 300, bottom: 160, width: 200, height: 60 });
+  const inside = w.eval(`lessonPointInZone({ selector: '#__sampleZone' }, 150, 120)`);
+  const outside = w.eval(`lessonPointInZone({ selector: '#__sampleZone' }, 500, 500)`);
+  check('zone de dépôt : point dedans / dehors', inside === true && outside === false);
+  w.eval(`guide.lessonId = 'static'; guide.index = 3; guide.maxIndex = 3; guide.cardKey = ''; renderGuideStep();`);
+  check('étape de dépôt : vignette du fichier d’exemple présente', !!w.document.querySelector('[data-tour="chip"]'));
+  check('étape de dépôt : bouton « Utiliser » toujours présent (clavier)', !!w.document.querySelector('[data-tour="sample"]'));
   // Échap quitte.
   w.eval(`guide.index = 6; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));
