@@ -14,7 +14,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   vm.createContext(sb);
   vm.runInContext(read('layerpitch-i18n.js'), sb);
   const keys = new Set([...src.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].map(m => m[1]));
-  ['lessonSampleDownload', 'lessonSampleUse', 'lessonChipHint', 'lessonChipMany', 'lessonNextBtn', 'lessonSampleUseMany', 'lessonSampleError', 'lsVerifyTitle', 'lsVerifyText', 'lessonSampleSoon', 'lessonDoIt', 'lessonQuit', 'lessonSkipStep', 'tutorialMenuTitle', 'tutorialTourDesc', 'tutorialLessonsHeading'].forEach(k => keys.add(k));
+  ['lessonSampleDownload', 'lessonSampleUse', 'lessonChipHint', 'lessonArrowLabel', 'lessonChipMany', 'lessonNextBtn', 'lessonSampleUseMany', 'lessonSampleError', 'lsVerifyTitle', 'lsVerifyText', 'lessonSampleSoon', 'lessonDoIt', 'lessonQuit', 'lessonSkipStep', 'tutorialMenuTitle', 'tutorialTourDesc', 'tutorialLessonsHeading'].forEach(k => keys.add(k));
   ['fr', 'en'].forEach(l => check('textes présents en ' + l + ' (' + keys.size + ' clés)', [...keys].every(k => sb.window.LAYERPITCH_I18N[l].backstage[k])));
 
   const page = read('layerpitch-backstage.html');
@@ -116,6 +116,16 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('étape de dépôt : vignette du fichier d’exemple présente', !!w.document.querySelector('[data-tour="chip"]'));
   check('étape de dépôt : bouton « Utiliser » toujours présent (clavier)', !!w.document.querySelector('[data-tour="sample"]'));
   check('pendant une leçon : bulles d’aide au survol masquées', w.document.body.classList.contains('lp-guide-active'));
+  // Flèche de la 31e mesure : même échelle que la timeline (durée / temps), 30 mesures de 4 temps à 120 BPM.
+  const arrowX = w.eval(`(function () {
+    const ruler = document.createElement('div'); ruler.className = 'loop-timeline-ruler';
+    ruler.getBoundingClientRect = () => ({ left: 100, top: 400, right: 1100, bottom: 440, width: 1000, height: 40 });
+    const host = document.createElement('div'); host.id = 'libraryDetail'; host.appendChild(ruler); document.body.appendChild(host);
+    library = [{ id: 'tt', duration: 70, bpm: 120, beatsPerBar: 4 }]; manageLibrarySelectedId = 'tt';
+    const p = lessonArrowPoint(31); host.remove(); return p;
+  })()`);
+  // 70 s à 120 BPM = 140 temps ; la 31e mesure commence au temps 120 : 120/140 de la largeur.
+  check('flèche : placée sur la barre de la 31e mesure', arrowX && Math.abs(arrowX.x - (100 + 1000 * 120 / 140)) < 0.01 && arrowX.y === 400);
   // Échap quitte.
   w.eval(`guide.index = 6; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));

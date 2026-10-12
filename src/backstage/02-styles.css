@@ -930,3 +930,7 @@
   .tour-sample-hint { font-size: 11.5px; color: var(--text-dim); margin: 0 0 8px; }
   .tour-spot.tour-spot-hot { outline-width: 4px; }
   .tour-sample-use { margin: 0 0 16px; }
+  /* Flèche indiquant une mesure sur la timeline (étape « points de boucle » de la leçon 1). */
+  .tour-arrow { position: fixed; z-index: 9100; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+  .tour-arrow-label { background: var(--accent); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+  .tour-arrow-head { color: var(--accent); font-size: 20px; line-height: 14px; }

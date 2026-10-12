@@ -93,6 +93,19 @@ function lessonStartChipDrag(ev, step, chip) {
   document.addEventListener('pointerup', finish, true);
   document.addEventListener('pointercancel', finish, true);
 }
+// Point de la timeline (écran) où commence la mesure `bar` : même échelle que buildLoopTimelineEl (durée / temps).
+function lessonArrowPoint(bar) {
+  const t = lessonTrack();
+  const ruler = document.querySelector('#libraryDetail .loop-timeline-ruler');
+  if (!t || !ruler || !t.duration) return null;
+  const bpm = t.bpm || 120, bpb = t.beatsPerBar || 4;
+  const total = Math.max(1, Math.round(t.duration / (60 / bpm)));
+  const beat = (bar - 1) * bpb;
+  if (beat < 0 || beat > total) return null;
+  const r = ruler.getBoundingClientRect();
+  if (!r.width) return null;
+  return { x: r.left + r.width * beat / total, y: r.top };
+}
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
@@ -137,7 +150,8 @@ const LESSONS = [
     { selector: '#libraryDetail select[data-field="loopEngine"]', titleKey: 'lsEngineTitle', textKey: 'lsEngineText', required: true,
       done: () => { const t = lessonTrack(); return !!t && t.loopEngine === 'quantized'; } },
     { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lsVerifyTitle', textKey: 'lsVerifyText' },
-    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText' },
+    // Flèche sur la barre de la 31e mesure : le morceau d'exemple fait 30 mesures (+ résonances), la sortie se place à la fin.
+    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText', arrow: { bar: 31 } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', clickDone: true },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lsEndTitle', textKey: 'lsEndText', final: true },
@@ -432,6 +446,22 @@ function renderGuideStep(positionOnly) {
       try { await lessonUseSample(step); }
       catch (e) { useBtn.disabled = false; window.LayerPitchNotify.error(tr('lessonSampleError', { error: e.message || String(e) })); }
     };
+  }
+  // Flèche indicative (étapes avec `arrow`) : pointe la mesure à viser sur la timeline.
+  let arrowEl = guide.root.querySelector('.tour-arrow');
+  const ap = step.arrow && visible ? lessonArrowPoint(step.arrow.bar) : null;
+  if (ap) {
+    if (!arrowEl) {
+      arrowEl = document.createElement('div');
+      arrowEl.className = 'tour-arrow';
+      arrowEl.innerHTML = '<span class="tour-arrow-label"></span><span class="tour-arrow-head">▼</span>';
+      guide.root.appendChild(arrowEl);
+    }
+    arrowEl.querySelector('.tour-arrow-label').textContent = tr('lessonArrowLabel', { n: step.arrow.bar });
+    arrowEl.style.left = ap.x + 'px';
+    arrowEl.style.top = ap.y + 'px';
+  } else if (arrowEl) {
+    arrowEl.remove();
   }
   const margin = 12;
   if (visible) {
