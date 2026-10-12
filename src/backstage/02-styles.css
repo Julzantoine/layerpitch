@@ -929,3 +929,4 @@
   .tour-chip-ghost { position: fixed; z-index: 10000; pointer-events: none; margin: 0; max-width: 320px; box-shadow: 0 8px 20px rgba(20,22,28,0.3); background: var(--bg); }
   .tour-sample-hint { font-size: 11.5px; color: var(--text-dim); margin: 0 0 8px; }
   .tour-spot.tour-spot-hot { outline-width: 4px; }
+  .tour-sample-use { margin: 0 0 16px; }
