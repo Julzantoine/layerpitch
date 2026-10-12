@@ -656,7 +656,7 @@
     }
   }
   embrLoopBtns.forEach(btn => {
-    btn.addEventListener('click', () => selectEmbrLoop(parseInt(btn.dataset.loopIdx, 10)));
+    btn.addEventListener('click', () => { if (btn.dataset.dragged) return; selectEmbrLoop(parseInt(btn.dataset.loopIdx, 10)); });
   });
   // Cliquer/glisser sur la forme d'onde de la boucle EN COURS (gabarit riche uniquement) déplace la tête
   // de lecture -- même principe que les blocs séquentiels : position affichée en direct pendant le
@@ -681,21 +681,28 @@
       });
     }
     function isSeekable() {
-      return playing && idx === embrActiveLoopIdx && !embrDetourSource
+      return playing && !embrDetourSource
         && !embrPendingSwitchTimeout && !embrPendingTransitionSwitchTimeout;
     }
+    // 12/10 : glisser sur N'IMPORTE QUELLE ligne déplace la tête de lecture (avant, seule la ligne en cours le permettait, et un glisser
+    // sur une autre ligne n'avait aucun effet). Un simple clic sur la ligne en cours déplace comme avant ; un simple clic sur une AUTRE
+    // ligne reste une bascule de boucle (événement « click » ci-dessus).
+    let pending = false, startX = 0;
     btn.addEventListener('pointerdown', (e) => {
       if (!isSeekable()) return;
-      dragging = true;
       try { btn.setPointerCapture(e.pointerId); } catch (err) {}
-      showFraction(fractionFromEvent(e));
+      if (idx === embrActiveLoopIdx) { dragging = true; showFraction(fractionFromEvent(e)); }
+      else { pending = true; startX = e.clientX; }
     });
     btn.addEventListener('pointermove', (e) => {
+      if (pending && Math.abs(e.clientX - startX) >= 4) { pending = false; dragging = true; btn.dataset.dragged = '1'; }
       if (dragging) showFraction(fractionFromEvent(e));
     });
     btn.addEventListener('pointerup', (e) => {
+      pending = false;
       if (!dragging) return;
       dragging = false;
+      if (btn.dataset.dragged) setTimeout(() => { delete btn.dataset.dragged; }, 0); // le « click » qui suit un glisser ne doit pas basculer la boucle
       if (!isSeekable()) { applyEmbrWaveAnimation(); return; }
       trackPublicEvent('embr_seek', { trackId: track.id });
       seekEmbrVertical(fractionFromEvent(e));
