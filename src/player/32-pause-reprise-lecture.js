@@ -578,6 +578,8 @@
   vertLayerRows.forEach((row, i) => {
     let down = false, moved = false, startX = 0, pid = null;
     const fractionOf = e => { const r = row.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / (r.width || 1))); };
+    // Moteur quantifié : la queue (après le repère de sortie) n'est pas une position où l'on peut se placer.
+    const secOf = e => { const sec = fractionOf(e) * progressMaxSec(); return useQuantizedLoop && loops ? clampSeekToLoopExit(sec, { loopOutSec }) : sec; };
     const seekTo = sec => {
       if (playing) { stopAllSources(false); offsetAt = sec; playThisTrack(false, true); }
       else { offsetAt = sec; updateProgressAt(offsetAt); }
@@ -591,7 +593,7 @@
       if (!down) return;
       if (!moved && Math.abs(e.clientX - startX) < 4) return;
       moved = true; isDraggingSeek = true;
-      updateProgressAt(fractionOf(e) * progressMaxSec());
+      updateProgressAt(secOf(e));
     });
     row.addEventListener('pointerup', (e) => {
       if (!down) return;
@@ -599,9 +601,9 @@
       try { row.releasePointerCapture(pid); } catch (err) {}
       row.dataset.justHandled = '1';
       setTimeout(() => { delete row.dataset.justHandled; }, 0);
-      if (moved) { isDraggingSeek = false; seekTo(fractionOf(e) * progressMaxSec()); return; }
+      if (moved) { isDraggingSeek = false; seekTo(secOf(e)); return; }
       if (i !== level) applyIntensityLevel(i);
-      else seekTo(fractionOf(e) * progressMaxSec());
+      else seekTo(secOf(e));
     });
     row.addEventListener('pointercancel', () => { down = false; if (moved) { moved = false; isDraggingSeek = false; } });
     // Clavier (Entrée / Espace sur une ligne) : règle le niveau. Le clic souris est déjà traité par pointerup.

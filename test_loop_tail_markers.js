@@ -79,6 +79,27 @@ const { JSDOM } = require('jsdom');
   check('deuxième tête masquée en pause', q('.progress-tail-head').hidden);
   click(q('[data-role="stopBtn"]')); await sleep(50);
 
+  // Vertical additif (une ligne par couche, barre masquée) : le calque est posé sur les lignes, le glisser y est borné aussi.
+  const vTrack = {
+    id: 'tail-3', title: 'Vertical', mode: 'vertical', loopable: true, loopEngine: 'quantized', description: '', duration: 10, base: '',
+    publishedAt: 1, bpm: 480, beatsPerBar: 4, loopInBeat: 0, loopOutBeat: 8,
+    layers: [{ label: 'L1', localFile: fakeFile('v1.wav') }, { label: 'L2', localFile: fakeFile('v2.wav') }], sfxIds: []
+  };
+  const vRow = Core.buildTrackRow(vTrack, null, false);
+  doc.getElementById('host').appendChild(vRow);
+  Core.initTrackPlayer(vTrack, vRow);
+  await sleep(300);
+  const vRows = vRow.querySelector('[data-role="vertLayerRows"]');
+  check('vertical additif : calque de repères posé sur les lignes (et un seul)', vRows && vRows.querySelector('[data-role="loopOverlay"]') && vRow.querySelectorAll('[data-role="loopOverlay"]').length === 1);
+  const vTail = vRow.querySelector('[data-role="loopTail"]');
+  check('vertical additif : queue visible à 10 %', vTail && !vTail.hidden && vTail.style.left.startsWith('10'));
+  const layerBtn = vRow.querySelector('.vert-layer-btn');
+  layerBtn.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 34, right: 100, bottom: 34 });
+  const vev = (type, x) => layerBtn.dispatchEvent(new window.MouseEvent(type, { bubbles: true, clientX: x }));
+  vev('pointerdown', 20); vev('pointermove', 90);
+  check('vertical additif : glisser dans la queue -> tête sur le repère de sortie (0:01)', vRow.querySelector('[data-role="timeCurrent"]').textContent === '0:01');
+  vev('pointerup', 90);
+
   // Moteur simple : aucun repère.
   const simple = { id: 'tail-2', title: 'Simple', mode: 'static', loopable: true, description: '', duration: 10, base: '', publishedAt: 1, layers: [{ label: 'L1', localFile: fakeFile('b.wav') }], sfxIds: [] };
   const sRow = Core.buildTrackRow(simple, null, false);

@@ -10,6 +10,17 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   const isSequential = track.mode === 'sequential';
   const isEmbrVert = track.mode === 'embranchement-vertical';
   const loops = !isStatic || !!track.loopable;
+  // Repères de boucle (moteur quantifié) : entrée / sortie, queue du fichier et deuxième tête de lecture. Un seul calque par morceau,
+  // posé sur la barre de progression -- ou, en vertical additif (une ligne par couche), sur l'ensemble des lignes.
+  const loopOverlayHtml = () => `
+            <div class="loop-overlay" data-role="loopOverlay">
+              <div class="loop-tail" data-role="loopTail" title="${escapeHtml(t('loopTailTitle'))}" hidden><span class="loop-tail-label">${escapeHtml(t('loopTailLabel'))}</span></div>
+              <div class="loop-marker loop-marker-in" data-role="loopMarkIn" title="${escapeHtml(t('loopMarkerInTitle'))}" hidden></div>
+              <div class="loop-marker loop-marker-out" data-role="loopMarkOut" title="${escapeHtml(t('loopMarkerOutTitle'))}" hidden></div>
+            </div>
+          `;
+  const quantizedLoopOverlay = (loops && track.loopEngine === 'quantized');
+  const vertLayerRowsMode = track.mode === 'vertical' && supported && track.layers.length <= 7;
   // Même plafond que progressMaxSec() dans initTrackPlayer : vertical-random affiche la longueur du
   // cycle qui boucle de la PREMIÈRE section jouable, pas celle du fichier le plus long de tous les pools
   // de toutes les sections (voir le commentaire détaillé dans initTrackPlayer).
@@ -42,7 +53,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   // Mode vertical additif (12/10) : une ligne de forme d'onde par couche, toutes superposées et qui avancent ensemble, comme dans
   // l'embranchement vertical (jusqu'à 7 couches ; au-delà, retour aux puces compactes). Un clic sur une ligne règle le niveau, un clic
   // sur la ligne du niveau en cours se déplace dans le morceau. Piloté par un curseur : les lignes sont affichées sans être cliquables.
-  if (track.mode === 'vertical' && supported && track.layers.length <= 7) {
+  if (vertLayerRowsMode) {
     const n = track.layers.length;
     const rowH = n <= 4 ? 34 : Math.round(34 - (Math.min(n, 7) - 4) * (14 / 3));
     const rows = Array.from({ length: n }, (_, i) => {
@@ -52,7 +63,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
     intensityBlockHtml = `
       <div class="track-intensity-block">
         <div class="track-intensity-label">${t('intensityLabel')}</div>
-        <div class="intensity-picker vert-layer-rows${structureBySlider ? ' is-slider-driven' : ''}" data-role="vertLayerRows" style="--embr-row-h:${rowH}px">${rows}</div>
+        <div class="intensity-picker vert-layer-rows${structureBySlider ? ' is-slider-driven' : ''}" data-role="vertLayerRows" style="--embr-row-h:${rowH}px">${rows}${quantizedLoopOverlay ? loopOverlayHtml() : ''}</div>
       </div>
     `;
   } else if (track.mode === 'vertical' && supported && !structureBySlider) {
@@ -364,13 +375,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
             <div class="progress-track" data-role="progressTrack"></div>
             <div class="progress-fill" data-role="progressFill"></div>
             <div class="progress-head" data-role="progressHead"></div>
-          `}${useQuantizedLoopForUI ? `
-            <div class="loop-overlay" data-role="loopOverlay">
-              <div class="loop-tail" data-role="loopTail" title="${escapeHtml(t('loopTailTitle'))}" hidden><span class="loop-tail-label">${escapeHtml(t('loopTailLabel'))}</span></div>
-              <div class="loop-marker loop-marker-in" data-role="loopMarkIn" title="${escapeHtml(t('loopMarkerInTitle'))}" hidden></div>
-              <div class="loop-marker loop-marker-out" data-role="loopMarkOut" title="${escapeHtml(t('loopMarkerOutTitle'))}" hidden></div>
-            </div>
-          ` : ''}
+          `}${useQuantizedLoopForUI && !vertLayerRowsMode ? loopOverlayHtml() : ''}
         </div>
         <div class="time-row"><span data-role="timeCurrent">0:00</span><span data-role="timeTotal">${formatTime(displayMaxSec)}</span></div>
         ${(track.sfxIds && track.sfxIds.length) ? `

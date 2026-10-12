@@ -228,6 +228,7 @@
 .loop-tail::before { content: ''; position: absolute; inset: 0; opacity: 0.35; background: repeating-linear-gradient(135deg, currentColor 0 1px, transparent 1px 6px); }
 .loop-tail-label { position: absolute; right: 4px; top: 1px; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; }
 .progress-tail-head { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--loop-tail-head, #9b72e0); pointer-events: none; }
+.vert-layer-rows .loop-tail { pointer-events: none; } /* sur les lignes de couches, la zone de queue ne doit pas intercepter les clics */
 .progress-tail-head[hidden], .loop-tail[hidden], .loop-marker[hidden] { display: none; }
 .time-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); }
 .track-sfx-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
