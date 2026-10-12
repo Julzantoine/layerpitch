@@ -734,6 +734,41 @@ function quantizedLoopTiming(track) {
   const startTrackSec = Math.min((track.startTrackBeat || 0) * tt.secondsPerBeat, loopInSec);
   return { loopInSec, loopOutSec, cycleLength: loopOutSec - loopInSec, startTrackSec };
 }
+// Repères de boucle du lecteur (moteur quantifié, statique bouclable et vertical) : positions en % de la durée du fichier
+// de l'entrée de boucle (null si la boucle démarre au tout début), de la sortie, et début de la « queue » -- la partie du
+// fichier après le repère de sortie, qui continue de sonner pendant que la boucle suivante est déjà repartie.
+function quantizedLoopMarkers(timing, durationSec) {
+  if (!timing || !(durationSec > 0)) return null;
+  const pct = s => Math.max(0, Math.min(100, (s / durationSec) * 100));
+  const outSec = Math.min(timing.loopOutSec, durationSec);
+  return {
+    loopInPct: timing.loopInSec > 1e-6 ? pct(timing.loopInSec) : null,
+    loopOutPct: pct(outSec),
+    tailStartPct: pct(outSec),
+    hasTail: durationSec - outSec > 0.05,
+  };
+}
+// Déplacement borné : on ne peut pas poser la tête dans la queue (au-delà du repère de sortie) -- sans quoi le fichier
+// jouerait jusqu'au bout sans reboucler.
+function clampSeekToLoopExit(sec, timing) {
+  return timing ? Math.min(sec, timing.loopOutSec) : sec;
+}
+// Deuxième tête de lecture : positions (en secondes de fichier) des générations déjà remplacées par une plus récente mais
+// dont la queue sonne encore. `gens` = { ctxStartTime, bufferOffset, ratio, stopped? } ; la plus récente démarrée est la
+// lecture « principale » (la tête principale), les autres sont des queues. Triées de la plus récente à la plus ancienne.
+function quantizedTailPositions(gens, now, durationSec) {
+  let latest = null;
+  for (const g of gens) {
+    if (g.stopped || g.ctxStartTime > now) continue;
+    if (!latest || g.ctxStartTime > latest.ctxStartTime) latest = g;
+  }
+  if (!latest) return [];
+  return gens
+    .filter(g => !g.stopped && g.ctxStartTime <= now && g.ctxStartTime < latest.ctxStartTime)
+    .sort((a, b) => b.ctxStartTime - a.ctxStartTime)
+    .map(g => g.bufferOffset + (now - g.ctxStartTime) * (g.ratio || 1))
+    .filter(pos => pos >= 0 && pos < durationSec);
+}
 // Vertical-random : minutage d'une section résolue (bpm/mesures/timeline propres à CETTE section, décision du 30/07).
 function vrSectionTiming(section) {
   const spb = 60 / (section.bpm || 120);
@@ -1541,7 +1576,13 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
             <div class="progress-track" data-role="progressTrack"></div>
             <div class="progress-fill" data-role="progressFill"></div>
             <div class="progress-head" data-role="progressHead"></div>
-          `}
+          `}${useQuantizedLoopForUI ? `
+            <div class="loop-overlay" data-role="loopOverlay">
+              <div class="loop-tail" data-role="loopTail" title="${escapeHtml(t('loopTailTitle'))}" hidden><span class="loop-tail-label">${escapeHtml(t('loopTailLabel'))}</span></div>
+              <div class="loop-marker loop-marker-in" data-role="loopMarkIn" title="${escapeHtml(t('loopMarkerInTitle'))}" hidden></div>
+              <div class="loop-marker loop-marker-out" data-role="loopMarkOut" title="${escapeHtml(t('loopMarkerOutTitle'))}" hidden></div>
+            </div>
+          ` : ''}
         </div>
         <div class="time-row"><span data-role="timeCurrent">0:00</span><span data-role="timeTotal">${formatTime(displayMaxSec)}</span></div>
         ${(track.sfxIds && track.sfxIds.length) ? `
@@ -5027,6 +5068,40 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     if (waveformFg) waveformFg.style.clipPath = `inset(0 ${Math.max(0, 100 - pct)}% 0 0)`;
     timeCurrent.textContent = formatTime(elapsed);
   }
+  // Repères de boucle sur la forme d'onde (moteur quantifié) : entrée, sortie et queue du fichier, placés en % de sa durée
+  // (la forme d'onde reste entière : la queue doit rester visible). Posés dès que la durée est connue.
+  const loopOverlayEl = wrapper.querySelector('[data-role="loopOverlay"]');
+  const loopTailEl = wrapper.querySelector('[data-role="loopTail"]');
+  const loopMarkInEl = wrapper.querySelector('[data-role="loopMarkIn"]');
+  const loopMarkOutEl = wrapper.querySelector('[data-role="loopMarkOut"]');
+  const tailHeadEls = []; // deuxième tête(s) de lecture : la queue de la boucle précédente, en train d'être jouée
+  function layoutLoopMarkers() {
+    if (!loopOverlayEl || !useQuantizedLoop) return;
+    const m = quantizedLoopMarkers({ loopInSec, loopOutSec }, progressMaxSec());
+    if (!m) return;
+    if (loopMarkInEl) { loopMarkInEl.hidden = m.loopInPct == null; if (m.loopInPct != null) loopMarkInEl.style.left = m.loopInPct + '%'; }
+    if (loopMarkOutEl) { loopMarkOutEl.hidden = !m.hasTail && m.loopOutPct >= 99.5; loopMarkOutEl.style.left = m.loopOutPct + '%'; }
+    if (loopTailEl) { loopTailEl.hidden = !m.hasTail; loopTailEl.style.left = m.tailStartPct + '%'; }
+  }
+  layoutLoopMarkers();
+  function updateTailHeads() {
+    if (!loopOverlayEl || !useQuantizedLoop) return;
+    const dur = progressMaxSec();
+    const positions = (playing && dur > 0) ? quantizedTailPositions(scheduledGens, ctx.currentTime, dur) : [];
+    positions.forEach((sec, i) => {
+      let el = tailHeadEls[i];
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'progress-tail-head';
+        el.title = t('loopTailHeadTitle');
+        loopOverlayEl.appendChild(el);
+        tailHeadEls[i] = el;
+      }
+      el.hidden = false;
+      el.style.left = ((sec / dur) * 100) + '%';
+    });
+    for (let i = positions.length; i < tailHeadEls.length; i++) tailHeadEls[i].hidden = true;
+  }
   function computeElapsed() {
     return (useQuantizedLoop || isVerticalRandom)
       ? currentPlaybackOffset()
@@ -5035,6 +5110,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   function tick() {
     if (!playing || isSequential || isEmbrVert) return;
     const elapsed = computeElapsed();
+    updateTailHeads();
     if (isDraggingSeek) { rafId = requestAnimationFrame(tick); return; } // laisse la position glissée visible, ne pas l'écraser
     updateProgressAt(elapsed);
     if (vertMeterFills.length) {
@@ -5063,6 +5139,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     rafId = requestAnimationFrame(tick);
   }
   function setStoppedUI() {
+    updateTailHeads(); // plus rien ne joue : la deuxième tête disparaît
     pauseTake(); // pause, arrêt ou fin naturelle : le temps d'écoute de la prise s'arrête là
     if (!lpManualStop && lpEndedCb) { const cb = lpEndedCb; lpEndedCb = null; try { cb(); } catch (e) { console.warn('fin de morceau :', e); } } // fin naturelle seulement
     playIcon.innerHTML = PLAY_SVG;
@@ -5266,13 +5343,18 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     activeGenSources = [];
     voiceGraphTimeouts.forEach(id => clearTimeout(id));
     voiceGraphTimeouts = [];
+    // Les générations arrêtées ne sonnent plus : leur queue ne doit plus être montrée par la deuxième tête de lecture.
+    scheduledGens.forEach(g => { g.stopped = true; });
   }
   function playQuantized(fromOffsetSec) {
     stopQuantized();
     const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
     scheduleGeneration(now, fromOffsetSec);
     let timeUntilNext;
-    if (fromOffsetSec < loopInSec) {
+    if (fromOffsetSec >= loopOutSec - 1e-4) {
+      // Posé sur le repère de sortie (déplacement borné, voir clampSeekToLoopExit) : la queue sonne, et la boucle repart aussitôt.
+      timeUntilNext = 0;
+    } else if (fromOffsetSec < loopInSec) {
       timeUntilNext = loopOutSec - fromOffsetSec;
     } else {
       const positionInLoop = (fromOffsetSec - loopInSec) % cycleLength;
@@ -6746,19 +6828,24 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       const rect = wrap.getBoundingClientRect();
       return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     }
+    // Moteur quantifié : la queue (après le repère de sortie) n'est pas une position où l'on peut se placer.
+    function seekSecFromEvent(e) {
+      const sec = seekPctFromEvent(e) * progressMaxSec();
+      return useQuantizedLoop && loops ? clampSeekToLoopExit(sec, { loopOutSec }) : sec;
+    }
     wrap.addEventListener('pointerdown', (e) => {
       isDraggingSeek = true;
       try { wrap.setPointerCapture(e.pointerId); } catch (err) {}
-      updateProgressAt(seekPctFromEvent(e) * progressMaxSec());
+      updateProgressAt(seekSecFromEvent(e));
     });
     wrap.addEventListener('pointermove', (e) => {
       if (!isDraggingSeek) return;
-      updateProgressAt(seekPctFromEvent(e) * progressMaxSec());
+      updateProgressAt(seekSecFromEvent(e));
     });
     wrap.addEventListener('pointerup', (e) => {
       if (!isDraggingSeek) return;
       isDraggingSeek = false;
-      const seekTo = seekPctFromEvent(e) * progressMaxSec();
+      const seekTo = seekSecFromEvent(e);
       if (playing) { stopAllSources(false); offsetAt = seekTo; playThisTrack(false, true); }
       else { offsetAt = seekTo; updateProgressAt(offsetAt); }
     });
@@ -7217,6 +7304,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     if (decodedMax > (track.duration || 0)) {
       track.duration = decodedMax;
       if (timeTotal) timeTotal.textContent = formatTime(progressMaxSec());
+      layoutLoopMarkers(); // la durée est maintenant exacte : repères d'entrée / sortie et queue
     }
     if (statusEl) statusEl.textContent = t('readyStatus');
     playBtn.disabled = false;
@@ -7613,7 +7701,7 @@ window.LayerPlayerCore = {
   embrCutFadeSec,
   // Minutages musicaux purs (26/09, voir plus haut) -- partagés avec l'outil vidéo (capture-retarget.js).
   trackTempo, seqSlotTiming, seqBlockSeconds, seqIntroSeconds, seqTransitionTiming, seqTransitionDurationSec, embrTransitionDurationSec,
-  quantizedLoopTiming, vrSectionTiming, vrIntroDurationSec, embrReferenceIndex, embrPeerIndicesOf, embrLoopTimingOf, embrDurationToSec, embrQuantizeDelayAt,
+  quantizedLoopTiming, quantizedLoopMarkers, clampSeekToLoopExit, quantizedTailPositions, vrSectionTiming, vrIntroDurationSec, embrReferenceIndex, embrPeerIndicesOf, embrLoopTimingOf, embrDurationToSec, embrQuantizeDelayAt,
   // Contexte audio de la page : sa fréquence et le retard de ses effets à ScriptProcessor (rendu hors-ligne à l'identique).
   liveSampleRate: () => ctx.sampleRate,
   audioContext: () => ctx, // le contexte audio de la page (lecture d'une version figée en direct)

@@ -348,7 +348,13 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
             <div class="progress-track" data-role="progressTrack"></div>
             <div class="progress-fill" data-role="progressFill"></div>
             <div class="progress-head" data-role="progressHead"></div>
-          `}
+          `}${useQuantizedLoopForUI ? `
+            <div class="loop-overlay" data-role="loopOverlay">
+              <div class="loop-tail" data-role="loopTail" title="${escapeHtml(t('loopTailTitle'))}" hidden><span class="loop-tail-label">${escapeHtml(t('loopTailLabel'))}</span></div>
+              <div class="loop-marker loop-marker-in" data-role="loopMarkIn" title="${escapeHtml(t('loopMarkerInTitle'))}" hidden></div>
+              <div class="loop-marker loop-marker-out" data-role="loopMarkOut" title="${escapeHtml(t('loopMarkerOutTitle'))}" hidden></div>
+            </div>
+          ` : ''}
         </div>
         <div class="time-row"><span data-role="timeCurrent">0:00</span><span data-role="timeTotal">${formatTime(displayMaxSec)}</span></div>
         ${(track.sfxIds && track.sfxIds.length) ? `

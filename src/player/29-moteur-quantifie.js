@@ -93,13 +93,18 @@
     activeGenSources = [];
     voiceGraphTimeouts.forEach(id => clearTimeout(id));
     voiceGraphTimeouts = [];
+    // Les générations arrêtées ne sonnent plus : leur queue ne doit plus être montrée par la deuxième tête de lecture.
+    scheduledGens.forEach(g => { g.stopped = true; });
   }
   function playQuantized(fromOffsetSec) {
     stopQuantized();
     const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
     scheduleGeneration(now, fromOffsetSec);
     let timeUntilNext;
-    if (fromOffsetSec < loopInSec) {
+    if (fromOffsetSec >= loopOutSec - 1e-4) {
+      // Posé sur le repère de sortie (déplacement borné, voir clampSeekToLoopExit) : la queue sonne, et la boucle repart aussitôt.
+      timeUntilNext = 0;
+    } else if (fromOffsetSec < loopInSec) {
       timeUntilNext = loopOutSec - fromOffsetSec;
     } else {
       const positionInLoop = (fromOffsetSec - loopInSec) % cycleLength;

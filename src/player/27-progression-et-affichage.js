@@ -33,6 +33,40 @@
     if (waveformFg) waveformFg.style.clipPath = `inset(0 ${Math.max(0, 100 - pct)}% 0 0)`;
     timeCurrent.textContent = formatTime(elapsed);
   }
+  // Repères de boucle sur la forme d'onde (moteur quantifié) : entrée, sortie et queue du fichier, placés en % de sa durée
+  // (la forme d'onde reste entière : la queue doit rester visible). Posés dès que la durée est connue.
+  const loopOverlayEl = wrapper.querySelector('[data-role="loopOverlay"]');
+  const loopTailEl = wrapper.querySelector('[data-role="loopTail"]');
+  const loopMarkInEl = wrapper.querySelector('[data-role="loopMarkIn"]');
+  const loopMarkOutEl = wrapper.querySelector('[data-role="loopMarkOut"]');
+  const tailHeadEls = []; // deuxième tête(s) de lecture : la queue de la boucle précédente, en train d'être jouée
+  function layoutLoopMarkers() {
+    if (!loopOverlayEl || !useQuantizedLoop) return;
+    const m = quantizedLoopMarkers({ loopInSec, loopOutSec }, progressMaxSec());
+    if (!m) return;
+    if (loopMarkInEl) { loopMarkInEl.hidden = m.loopInPct == null; if (m.loopInPct != null) loopMarkInEl.style.left = m.loopInPct + '%'; }
+    if (loopMarkOutEl) { loopMarkOutEl.hidden = !m.hasTail && m.loopOutPct >= 99.5; loopMarkOutEl.style.left = m.loopOutPct + '%'; }
+    if (loopTailEl) { loopTailEl.hidden = !m.hasTail; loopTailEl.style.left = m.tailStartPct + '%'; }
+  }
+  layoutLoopMarkers();
+  function updateTailHeads() {
+    if (!loopOverlayEl || !useQuantizedLoop) return;
+    const dur = progressMaxSec();
+    const positions = (playing && dur > 0) ? quantizedTailPositions(scheduledGens, ctx.currentTime, dur) : [];
+    positions.forEach((sec, i) => {
+      let el = tailHeadEls[i];
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'progress-tail-head';
+        el.title = t('loopTailHeadTitle');
+        loopOverlayEl.appendChild(el);
+        tailHeadEls[i] = el;
+      }
+      el.hidden = false;
+      el.style.left = ((sec / dur) * 100) + '%';
+    });
+    for (let i = positions.length; i < tailHeadEls.length; i++) tailHeadEls[i].hidden = true;
+  }
   function computeElapsed() {
     return (useQuantizedLoop || isVerticalRandom)
       ? currentPlaybackOffset()
@@ -41,6 +75,7 @@
   function tick() {
     if (!playing || isSequential || isEmbrVert) return;
     const elapsed = computeElapsed();
+    updateTailHeads();
     if (isDraggingSeek) { rafId = requestAnimationFrame(tick); return; } // laisse la position glissée visible, ne pas l'écraser
     updateProgressAt(elapsed);
     if (vertMeterFills.length) {
@@ -69,6 +104,7 @@
     rafId = requestAnimationFrame(tick);
   }
   function setStoppedUI() {
+    updateTailHeads(); // plus rien ne joue : la deuxième tête disparaît
     pauseTake(); // pause, arrêt ou fin naturelle : le temps d'écoute de la prise s'arrête là
     if (!lpManualStop && lpEndedCb) { const cb = lpEndedCb; lpEndedCb = null; try { cb(); } catch (e) { console.warn('fin de morceau :', e); } } // fin naturelle seulement
     playIcon.innerHTML = PLAY_SVG;

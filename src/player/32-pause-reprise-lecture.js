@@ -501,19 +501,24 @@
       const rect = wrap.getBoundingClientRect();
       return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     }
+    // Moteur quantifié : la queue (après le repère de sortie) n'est pas une position où l'on peut se placer.
+    function seekSecFromEvent(e) {
+      const sec = seekPctFromEvent(e) * progressMaxSec();
+      return useQuantizedLoop && loops ? clampSeekToLoopExit(sec, { loopOutSec }) : sec;
+    }
     wrap.addEventListener('pointerdown', (e) => {
       isDraggingSeek = true;
       try { wrap.setPointerCapture(e.pointerId); } catch (err) {}
-      updateProgressAt(seekPctFromEvent(e) * progressMaxSec());
+      updateProgressAt(seekSecFromEvent(e));
     });
     wrap.addEventListener('pointermove', (e) => {
       if (!isDraggingSeek) return;
-      updateProgressAt(seekPctFromEvent(e) * progressMaxSec());
+      updateProgressAt(seekSecFromEvent(e));
     });
     wrap.addEventListener('pointerup', (e) => {
       if (!isDraggingSeek) return;
       isDraggingSeek = false;
-      const seekTo = seekPctFromEvent(e) * progressMaxSec();
+      const seekTo = seekSecFromEvent(e);
       if (playing) { stopAllSources(false); offsetAt = seekTo; playThisTrack(false, true); }
       else { offsetAt = seekTo; updateProgressAt(offsetAt); }
     });

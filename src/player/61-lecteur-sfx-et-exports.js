@@ -299,7 +299,7 @@ window.LayerPlayerCore = {
   embrCutFadeSec,
   // Minutages musicaux purs (26/09, voir plus haut) -- partagés avec l'outil vidéo (capture-retarget.js).
   trackTempo, seqSlotTiming, seqBlockSeconds, seqIntroSeconds, seqTransitionTiming, seqTransitionDurationSec, embrTransitionDurationSec,
-  quantizedLoopTiming, vrSectionTiming, vrIntroDurationSec, embrReferenceIndex, embrPeerIndicesOf, embrLoopTimingOf, embrDurationToSec, embrQuantizeDelayAt,
+  quantizedLoopTiming, quantizedLoopMarkers, clampSeekToLoopExit, quantizedTailPositions, vrSectionTiming, vrIntroDurationSec, embrReferenceIndex, embrPeerIndicesOf, embrLoopTimingOf, embrDurationToSec, embrQuantizeDelayAt,
   // Contexte audio de la page : sa fréquence et le retard de ses effets à ScriptProcessor (rendu hors-ligne à l'identique).
   liveSampleRate: () => ctx.sampleRate,
   audioContext: () => ctx, // le contexte audio de la page (lecture d'une version figée en direct)

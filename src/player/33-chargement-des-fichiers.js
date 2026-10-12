@@ -313,6 +313,7 @@
     if (decodedMax > (track.duration || 0)) {
       track.duration = decodedMax;
       if (timeTotal) timeTotal.textContent = formatTime(progressMaxSec());
+      layoutLoopMarkers(); // la durée est maintenant exacte : repères d'entrée / sortie et queue
     }
     if (statusEl) statusEl.textContent = t('readyStatus');
     playBtn.disabled = false;

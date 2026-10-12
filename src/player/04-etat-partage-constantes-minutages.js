@@ -111,6 +111,41 @@ function quantizedLoopTiming(track) {
   const startTrackSec = Math.min((track.startTrackBeat || 0) * tt.secondsPerBeat, loopInSec);
   return { loopInSec, loopOutSec, cycleLength: loopOutSec - loopInSec, startTrackSec };
 }
+// Repères de boucle du lecteur (moteur quantifié, statique bouclable et vertical) : positions en % de la durée du fichier
+// de l'entrée de boucle (null si la boucle démarre au tout début), de la sortie, et début de la « queue » -- la partie du
+// fichier après le repère de sortie, qui continue de sonner pendant que la boucle suivante est déjà repartie.
+function quantizedLoopMarkers(timing, durationSec) {
+  if (!timing || !(durationSec > 0)) return null;
+  const pct = s => Math.max(0, Math.min(100, (s / durationSec) * 100));
+  const outSec = Math.min(timing.loopOutSec, durationSec);
+  return {
+    loopInPct: timing.loopInSec > 1e-6 ? pct(timing.loopInSec) : null,
+    loopOutPct: pct(outSec),
+    tailStartPct: pct(outSec),
+    hasTail: durationSec - outSec > 0.05,
+  };
+}
+// Déplacement borné : on ne peut pas poser la tête dans la queue (au-delà du repère de sortie) -- sans quoi le fichier
+// jouerait jusqu'au bout sans reboucler.
+function clampSeekToLoopExit(sec, timing) {
+  return timing ? Math.min(sec, timing.loopOutSec) : sec;
+}
+// Deuxième tête de lecture : positions (en secondes de fichier) des générations déjà remplacées par une plus récente mais
+// dont la queue sonne encore. `gens` = { ctxStartTime, bufferOffset, ratio, stopped? } ; la plus récente démarrée est la
+// lecture « principale » (la tête principale), les autres sont des queues. Triées de la plus récente à la plus ancienne.
+function quantizedTailPositions(gens, now, durationSec) {
+  let latest = null;
+  for (const g of gens) {
+    if (g.stopped || g.ctxStartTime > now) continue;
+    if (!latest || g.ctxStartTime > latest.ctxStartTime) latest = g;
+  }
+  if (!latest) return [];
+  return gens
+    .filter(g => !g.stopped && g.ctxStartTime <= now && g.ctxStartTime < latest.ctxStartTime)
+    .sort((a, b) => b.ctxStartTime - a.ctxStartTime)
+    .map(g => g.bufferOffset + (now - g.ctxStartTime) * (g.ratio || 1))
+    .filter(pos => pos >= 0 && pos < durationSec);
+}
 // Vertical-random : minutage d'une section résolue (bpm/mesures/timeline propres à CETTE section, décision du 30/07).
 function vrSectionTiming(section) {
   const spb = 60 / (section.bpm || 120);
