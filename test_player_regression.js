@@ -79,10 +79,16 @@ const path = require('path');
     check('vertical: play button enabled after loading', playBtn && !playBtn.disabled);
     click(playBtn);
     await sleep(100);
-    const chip = row.querySelector('.intensity-chip[data-level="1"]');
+    const chip = row.querySelector('.intensity-chip[data-level="1"], .vert-layer-btn[data-level="1"]');
     check('vertical: intensity chip present', !!chip);
+    check('vertical: une ligne de forme d\'onde par couche (2)', row.querySelectorAll('.vert-layer-btn').length === 2);
+    check('vertical: ancienne barre de progression masquée', row.querySelector('.progress-wrap, [data-role="progressWrap"]') ? row.querySelector('.progress-wrap, [data-role="progressWrap"]').style.display === 'none' : true);
+    const rowsBefore = [...row.querySelectorAll('.vert-layer-btn')].map(b => b.classList.contains('active'));
+    check('vertical: au départ seule la couche 1 est active', rowsBefore[0] === true && rowsBefore[1] === false);
     if (chip) click(chip);
     await sleep(50);
+    const rowsAfter = [...row.querySelectorAll('.vert-layer-btn')].map(b => b.classList.contains('active'));
+    check('vertical: après clic sur la ligne 2, les deux couches sont actives (additif)', rowsAfter[0] === true && rowsAfter[1] === true);
     click(playBtn);
   }
 

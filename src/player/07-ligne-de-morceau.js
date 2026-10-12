@@ -39,7 +39,23 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   // Un curseur qui pilote la structure (26/09 vertical, 30/09 embranchement-vertical) remplace les boutons du visiteur : il
   // s'affiche avec les autres curseurs, et les boutons (couches 1/2/3, boucles nommées) disparaissent.
   const structureBySlider = supported && fxSlidersValid(track).some(sl => sl.intensity);
-  if (track.mode === 'vertical' && supported && !structureBySlider) {
+  // Mode vertical additif (12/10) : une ligne de forme d'onde par couche, toutes superposées et qui avancent ensemble, comme dans
+  // l'embranchement vertical (jusqu'à 7 couches ; au-delà, retour aux puces compactes). Un clic sur une ligne règle le niveau, un clic
+  // sur la ligne du niveau en cours se déplace dans le morceau. Piloté par un curseur : les lignes sont affichées sans être cliquables.
+  if (track.mode === 'vertical' && supported && track.layers.length <= 7) {
+    const n = track.layers.length;
+    const rowH = n <= 4 ? 34 : Math.round(34 - (Math.min(n, 7) - 4) * (14 / 3));
+    const rows = Array.from({ length: n }, (_, i) => {
+      const label = escapeHtml((track.layers[i] && track.layers[i].label) || t('layerFallback', { n: i + 1 }));
+      return `<button type="button" class="vert-layer-btn${i === 0 ? ' active' : ''}" data-level="${i}"><canvas class="vert-wave-bg" data-role="vertWaveBg-${i}"></canvas><canvas class="vert-wave-fg" data-role="vertWaveFg-${i}"></canvas><span class="vert-wave-label"><span class="intensity-chip-num">${i + 1}</span>${label}</span></button>`;
+    }).join('');
+    intensityBlockHtml = `
+      <div class="track-intensity-block">
+        <div class="track-intensity-label">${t('intensityLabel')}</div>
+        <div class="intensity-picker vert-layer-rows${structureBySlider ? ' is-slider-driven' : ''}" data-role="vertLayerRows" style="--embr-row-h:${rowH}px">${rows}</div>
+      </div>
+    `;
+  } else if (track.mode === 'vertical' && supported && !structureBySlider) {
     const n = track.layers.length;
     const chips = Array.from({ length: n }, (_, i) => {
       const customLabel = (track.layers[i] && track.layers[i].label) ? track.layers[i].label : '';
