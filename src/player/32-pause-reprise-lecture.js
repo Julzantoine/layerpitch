@@ -550,6 +550,8 @@
   function applyIntensityLevel(lv, silent) {
     level = lv;
     notchDots.forEach(d => d.classList.toggle('active', parseInt(d.dataset.level, 10) === lv));
+    // Lignes de formes d'onde (vertical additif) : « actives » = les couches qui sonnent à ce niveau (cumulatif : 1..niveau).
+    vertLayerRows.forEach((r, i) => r.classList.toggle('active', (profiles[lv] && profiles[lv][i] > 0) || false));
     if (!silent) trackPublicEvent('intensity_change', { trackId: track.id, level }); // silencieux quand c'est la Carte de niveau qui pilote
     if (!playing) return;
     const p = profiles[level];
@@ -564,6 +566,37 @@
     });
   }
   notchDots.forEach(dot => dot.addEventListener('click', () => applyIntensityLevel(parseInt(dot.dataset.level, 10))));
+  // Lignes de formes d'onde (vertical additif), même logique que l'embranchement vertical : un clic sur une ligne qui n'est pas celle du
+  // niveau en cours règle ce niveau (les couches en dessous continuent de jouer, celles au-dessus se coupent) ; un clic ou un glisser
+  // sur la ligne du niveau en cours déplace la lecture (relâchement = recherche réelle, position affichée en direct pendant le glisser).
+  vertLayerRows.forEach((row, i) => {
+    let dragging = false;
+    const fractionOf = e => { const r = row.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / (r.width || 1))); };
+    row.addEventListener('pointerdown', (e) => {
+      if (row.closest('.is-slider-driven')) return;
+      if (i !== level) return;
+      dragging = true; isDraggingSeek = true;
+      try { row.setPointerCapture(e.pointerId); } catch (err) {}
+      updateProgressAt(fractionOf(e) * progressMaxSec());
+    });
+    row.addEventListener('pointermove', (e) => { if (dragging) updateProgressAt(fractionOf(e) * progressMaxSec()); });
+    row.addEventListener('pointerup', (e) => {
+      if (row.closest('.is-slider-driven')) return;
+      if (dragging) {
+        dragging = false; isDraggingSeek = false;
+        const seekTo = fractionOf(e) * progressMaxSec();
+        if (playing) { stopAllSources(false); offsetAt = seekTo; playThisTrack(false, true); }
+        else { offsetAt = seekTo; updateProgressAt(offsetAt); }
+        return;
+      }
+    });
+    // Changement de niveau : événement « click » (fonctionne aussi au clavier).
+    row.addEventListener('click', () => {
+      if (row.closest('.is-slider-driven')) return;
+      if (i !== level) applyIntensityLevel(i);
+    });
+    row.addEventListener('pointercancel', () => { if (dragging) { dragging = false; isDraggingSeek = false; } });
+  });
 
   stingerBtns.forEach(btn => {
     btn.addEventListener('click', () => {

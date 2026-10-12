@@ -1232,7 +1232,23 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   // Un curseur qui pilote la structure (26/09 vertical, 30/09 embranchement-vertical) remplace les boutons du visiteur : il
   // s'affiche avec les autres curseurs, et les boutons (couches 1/2/3, boucles nommées) disparaissent.
   const structureBySlider = supported && fxSlidersValid(track).some(sl => sl.intensity);
-  if (track.mode === 'vertical' && supported && !structureBySlider) {
+  // Mode vertical additif (12/10) : une ligne de forme d'onde par couche, toutes superposées et qui avancent ensemble, comme dans
+  // l'embranchement vertical (jusqu'à 7 couches ; au-delà, retour aux puces compactes). Un clic sur une ligne règle le niveau, un clic
+  // sur la ligne du niveau en cours se déplace dans le morceau. Piloté par un curseur : les lignes sont affichées sans être cliquables.
+  if (track.mode === 'vertical' && supported && track.layers.length <= 7) {
+    const n = track.layers.length;
+    const rowH = n <= 4 ? 34 : Math.round(34 - (Math.min(n, 7) - 4) * (14 / 3));
+    const rows = Array.from({ length: n }, (_, i) => {
+      const label = escapeHtml((track.layers[i] && track.layers[i].label) || t('layerFallback', { n: i + 1 }));
+      return `<button type="button" class="vert-layer-btn${i === 0 ? ' active' : ''}" data-level="${i}"><canvas class="vert-wave-bg" data-role="vertWaveBg-${i}"></canvas><canvas class="vert-wave-fg" data-role="vertWaveFg-${i}"></canvas><span class="vert-wave-label"><span class="intensity-chip-num">${i + 1}</span>${label}</span></button>`;
+    }).join('');
+    intensityBlockHtml = `
+      <div class="track-intensity-block">
+        <div class="track-intensity-label">${t('intensityLabel')}</div>
+        <div class="intensity-picker vert-layer-rows${structureBySlider ? ' is-slider-driven' : ''}" data-role="vertLayerRows" style="--embr-row-h:${rowH}px">${rows}</div>
+      </div>
+    `;
+  } else if (track.mode === 'vertical' && supported && !structureBySlider) {
     const n = track.layers.length;
     const chips = Array.from({ length: n }, (_, i) => {
       const customLabel = (track.layers[i] && track.layers[i].label) ? track.layers[i].label : '';
@@ -3484,6 +3500,22 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   const timeCurrent = wrapper.querySelector('[data-role="timeCurrent"]');
   const timeTotal = wrapper.querySelector('[data-role="timeTotal"]');
   const notchDots = [...wrapper.querySelectorAll('.intensity-chip')];
+  // Mode vertical additif : une ligne de forme d'onde par couche (voir buildTrackRow). L'ancienne barre de progression est alors masquée :
+  // les lignes sont à la fois l'affichage de la progression et les commandes.
+  const vertLayerRows = [...wrapper.querySelectorAll('.vert-layer-btn')];
+  if (vertLayerRows.length && wrap) wrap.style.display = 'none';
+  function redrawVertLayerWaves() {
+    vertLayerRows.forEach((btn, i) => {
+      const buf = buffers[i];
+      const bg = btn.querySelector('.vert-wave-bg'), fg = btn.querySelector('.vert-wave-fg');
+      if (buf && bg && fg) renderWaveformPair(bg, fg, buf, waveBgColor, waveFgColor, progressMaxSec());
+    });
+  }
+  if (vertLayerRows.length) {
+    document.addEventListener('layerpitch-contrast-changed', redrawVertLayerWaves);
+    const rowsHost = wrapper.querySelector('[data-role="vertLayerRows"]');
+    if (rowsHost && window.ResizeObserver) new ResizeObserver(redrawVertLayerWaves).observe(rowsHost); // 1er dépli depuis l'état replié, redimensionnement
+  }
   const embrLoopBtns = [...wrapper.querySelectorAll('.embr-loop-btn')];
   const stingerBtns = [...wrapper.querySelectorAll('.stinger-btn')];
   const loopCountSelect = wrapper.querySelector('[data-role="loopCountSelect"]');
@@ -5025,6 +5057,8 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     if (fill) fill.style.width = pct + '%';
     if (head) head.style.left = pct + '%';
     if (waveformFg) waveformFg.style.clipPath = `inset(0 ${Math.max(0, 100 - pct)}% 0 0)`;
+    // Mode vertical additif : toutes les lignes (une par couche) avancent en même temps.
+    vertLayerRows.forEach(btn => { const f = btn.querySelector('.vert-wave-fg'); if (f) f.style.clipPath = `inset(0 ${Math.max(0, 100 - pct)}% 0 0)`; });
     timeCurrent.textContent = formatTime(elapsed);
   }
   function computeElapsed() {
@@ -6795,6 +6829,8 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   function applyIntensityLevel(lv, silent) {
     level = lv;
     notchDots.forEach(d => d.classList.toggle('active', parseInt(d.dataset.level, 10) === lv));
+    // Lignes de formes d'onde (vertical additif) : « actives » = les couches qui sonnent à ce niveau (cumulatif : 1..niveau).
+    vertLayerRows.forEach((r, i) => r.classList.toggle('active', (profiles[lv] && profiles[lv][i] > 0) || false));
     if (!silent) trackPublicEvent('intensity_change', { trackId: track.id, level }); // silencieux quand c'est la Carte de niveau qui pilote
     if (!playing) return;
     const p = profiles[level];
@@ -6809,6 +6845,37 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     });
   }
   notchDots.forEach(dot => dot.addEventListener('click', () => applyIntensityLevel(parseInt(dot.dataset.level, 10))));
+  // Lignes de formes d'onde (vertical additif), même logique que l'embranchement vertical : un clic sur une ligne qui n'est pas celle du
+  // niveau en cours règle ce niveau (les couches en dessous continuent de jouer, celles au-dessus se coupent) ; un clic ou un glisser
+  // sur la ligne du niveau en cours déplace la lecture (relâchement = recherche réelle, position affichée en direct pendant le glisser).
+  vertLayerRows.forEach((row, i) => {
+    let dragging = false;
+    const fractionOf = e => { const r = row.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / (r.width || 1))); };
+    row.addEventListener('pointerdown', (e) => {
+      if (row.closest('.is-slider-driven')) return;
+      if (i !== level) return;
+      dragging = true; isDraggingSeek = true;
+      try { row.setPointerCapture(e.pointerId); } catch (err) {}
+      updateProgressAt(fractionOf(e) * progressMaxSec());
+    });
+    row.addEventListener('pointermove', (e) => { if (dragging) updateProgressAt(fractionOf(e) * progressMaxSec()); });
+    row.addEventListener('pointerup', (e) => {
+      if (row.closest('.is-slider-driven')) return;
+      if (dragging) {
+        dragging = false; isDraggingSeek = false;
+        const seekTo = fractionOf(e) * progressMaxSec();
+        if (playing) { stopAllSources(false); offsetAt = seekTo; playThisTrack(false, true); }
+        else { offsetAt = seekTo; updateProgressAt(offsetAt); }
+        return;
+      }
+    });
+    // Changement de niveau : événement « click » (fonctionne aussi au clavier).
+    row.addEventListener('click', () => {
+      if (row.closest('.is-slider-driven')) return;
+      if (i !== level) applyIntensityLevel(i);
+    });
+    row.addEventListener('pointercancel', () => { if (dragging) { dragging = false; isDraggingSeek = false; } });
+  });
 
   stingerBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -7167,6 +7234,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
           if (statusEl) statusEl.textContent = t('loadingProgress', { loaded, total });
         } catch (e) { if (statusEl) statusEl.textContent = loadErrorMessageFor('loadErrorStatus'); setLoadErrorIcon(); return; }
       }
+      if (vertLayerRows.length) { try { redrawVertLayerWaves(); } catch (e) { /* bonus visuel : jamais bloquant */ } }
       if (isStatic && buffers[0] && waveformBg) {
         try {
           waveformBuffer = buffers[0];

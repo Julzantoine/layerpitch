@@ -59,7 +59,7 @@ function check(label, cond) { console.log((cond ? 'OK   ' : 'FAIL ') + label); i
 
   // ---- Lecteur : boutons OU curseur ----
   const rowButtons = C.buildTrackRow(vertical({ fxSliders: [slHealth] }), [], false, true);
-  check('sans curseur d\'intensité : boutons 1/2/3 affichés', rowButtons.querySelectorAll('.intensity-chip').length === 3);
+  check('sans curseur d\'intensité : boutons 1/2/3 affichés', rowButtons.querySelectorAll('.vert-layer-btn').length === 3);
   const rowSlider = C.buildTrackRow(vertical({ fxSliders: [slIntensity, slHealth] }), [], false, true);
   check('avec curseur d\'intensité : plus de boutons 1/2/3', rowSlider.querySelectorAll('.intensity-chip').length === 0);
   check('avec curseur d\'intensité : curseur public affiché', !!rowSlider.querySelector('[data-fx-slider="s1"]'));
