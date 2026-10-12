@@ -698,6 +698,21 @@ function togglePreview(ti, cardEl) {
   activePreviewIds.add(previewTrack.id);
   const titleToggle = row.querySelector('[data-role="titleToggle"]');
   if (titleToggle) titleToggle.click(); // déplie directement la vue pour aller droit à l'écoute
+  // Lecture automatique (12/10) : « Prévisualiser » suffit, plus besoin de rappuyer sur Lecture. Le bouton Lecture est grisé le temps
+  // du chargement des fichiers : on lance la lecture dès qu'il s'active. L'audio est débloqué tout de suite (le clic sur « Prévisualiser »
+  // est le geste de l'utilisateur ; certains navigateurs refusent de démarrer un son après une longue attente sans cela). Si
+  // l'aperçu est refermé ou remplacé entre-temps, ou si le chargement échoue, rien ne démarre.
+  const previewPlayBtn = row.querySelector('[data-role="playBtn"]');
+  try { if (window.LayerPlayerCore && window.LayerPlayerCore.resumeAudio) window.LayerPlayerCore.resumeAudio(); } catch (e) { /* le bouton Lecture reste disponible */ }
+  if (previewPlayBtn) {
+    let waited = 0;
+    const autoplayTimer = setInterval(() => {
+      waited += 120;
+      if (host.dataset.active !== '1' || host.dataset.previewId !== previewTrack.id) { clearInterval(autoplayTimer); return; }
+      if (!previewPlayBtn.disabled) { clearInterval(autoplayTimer); previewPlayBtn.click(); }
+      else if (waited > 120000) clearInterval(autoplayTimer);
+    }, 120);
+  }
 }
 
 const activePreviewIds = new Set();

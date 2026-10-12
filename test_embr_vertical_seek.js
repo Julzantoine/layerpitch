@@ -34,7 +34,7 @@ const path = require('path');
         };
         return node;
       };
-      FakeAudioContext.prototype.decodeAudioData = function () { return Promise.resolve({ duration: 10 }); };
+      FakeAudioContext.prototype.decodeAudioData = function () { return Promise.resolve({ duration: 0.8 }); };
       win.AudioContext = FakeAudioContext;
       win.ResizeObserver = win.ResizeObserver || function () { return { observe() {}, disconnect() {} }; };
       win.requestAnimationFrame = win.requestAnimationFrame || (cb => setTimeout(cb, 16));
@@ -96,7 +96,8 @@ const path = require('path');
   check('au relâchement, les 2 boucles paires sont relancées', fresh.length === 2);
   check('au milieu du cycle (offset 0.4s sur 0.8s)', fresh.every(s => Math.abs(s.offset - 0.4) < 1e-9));
   const fg = btnRef.querySelector('.embr-wave-fg');
-  check('animation recalée sur la position cliquée (délai -0.4s, en cours)', fg.style.animationDelay === '-0.4s' && fg.style.animationPlayState === 'running' && fg.style.clipPath === '');
+  const shownPct = 100 - parseFloat(/inset\(0(?:px)? ([\d.]+)%/.exec(fg.style.clipPath)[1]);
+  check('progression recalée sur la position cliquée (~50 % du fichier), de nouveau peinte en continu', fg.style.animation === 'none' && shownPct > 44 && shownPct < 60);
   check('la boucle active reste la même', btnRef.classList.contains('active') && !btnPeer.classList.contains('active'));
 
   click(row.querySelector('[data-role="playBtn"]')); // Stop

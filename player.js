@@ -5348,6 +5348,10 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // fichier (24/08, "Mesures" est vestige une fois un fichier chargé). Voir embrLoopTimingOf.
   function embrLoopTiming() { return embrLoopTimingOf(track); }
   function embrCycleLengthSec() { return embrLoopTiming().cycleLength; }
+  // 1er passage (11/10) : la 1re génération démarre à « Départ » ; la suivante doit démarrer à la SORTIE de ce passage (Sortie - Départ
+  // après le début), et non un cycle plus tôt : sinon, avec une intro (Départ avant Entrée), la boucle repartait de l'Entrée trop tôt,
+  // par-dessus la fin de l'intro. Même calcul que playQuantized() du moteur quantifié. Sans intro (Départ = Entrée) : un cycle, inchangé.
+  function embrFirstPassSec() { const t = embrLoopTiming(); return t.cycleLength + Math.max(0, t.loopInSec - t.startSec); }
   // Le bouton d'une boucle EST masqué (pas seulement désactivé) tant qu'elle est celle effectivement
   // audible -- inutile d'afficher un bouton vers ce qui joue déjà (retour de Jules-Antoine, 29/08).
   // S'applique aussi bien à une boucle "paire" (embrActiveLoopIdx) qu'à un détour en cours (embrDetourBtn,
@@ -5367,41 +5371,58 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       btn.style.display = isCurrentlyAudible ? 'none' : '';
     });
   }
-  // Anime la progression continue des lignes riches -- calée UNE SEULE FOIS par (re)démarrage de
-  // l'horloge de phase (embrClockReset vient justement d'être appelé par
-  // l'appelant, playEmbrVertical()/resumeEmbrVerticalAfterBackground()), jamais recalculée à chaque
-  // bascule : le verrouillage de phase entre boucles paires ne change pas quand on change laquelle est
-  // audible (refreshEmbrGains est une pure rampe de gain, voir son commentaire d'en-tête). N'affecte que
-  // les boutons en gabarit riche (classe .embr-wave-btn) -- silencieusement ignoré pour les autres.
-  // startPosSec (25/09, seek par clic sur la forme d'onde) : position dans le cycle à laquelle l'animation
-  // reprend (délai négatif). L'animation est toujours REDÉMARRÉE (animation: none + reflow) plutôt que
-  // simplement relancée -- sinon elle repartirait de là où elle avait été mise en pause, désynchronisée
-  // de l'audio, et un clip-path posé pendant un glisser resterait masqué par l'animation.
-  function applyEmbrWaveAnimation(startPosSec, ratioOverride) {
-    const cycle = embrCycleLengthSec();
-    if (!(cycle > 0)) return;
+  // Progression des lignes riches (11/10) : la forme d'onde de chaque ligne est dessinée sur TOUT le fichier (intro, boucle et queue),
+  // la progression doit donc suivre la position réelle DANS LE FICHIER, pas seulement le cycle Entrée -> Sortie (avant : une
+  // animation CSS balayait 0 -> 100 % en une durée de cycle, puis repartait de 0 : trop rapide dès qu'il y a une intro ou une queue, et
+  // retour au tout début à chaque boucle au lieu du point d'Entrée). Modèle identique à celui des générations audio :
+  //   - tant que le 1er passage n'est pas fini (embrIntroPhase) : position = Départ + temps écoulé, pendant un cycle ;
+  //   - ensuite (ou après un seek) : position = Entrée + (temps écoulé modulo cycle), c'est-à-dire un va-et-vient Entrée -> Sortie.
+  // Le temps écoulé est nominal (horloge de phase, qui suit les changements de vitesse). Un rAF peint les lignes ; un glisser en cours
+  // (embrWaveDragging) garde la main sur l'affichage.
+  let embrIntroPhase = false, embrWaveRaf = null, embrWaveDragging = false;
+  function embrFilePosSec(nominal) {
+    const t = embrLoopTiming(), cycle = t.cycleLength;
+    if (!(cycle > 0)) return 0;
+    const first = cycle + Math.max(0, t.loopInSec - t.startSec); // durée du 1er passage : Départ -> Sortie
+    if (embrIntroPhase) {
+      if (nominal < first) return t.startSec + Math.max(0, nominal);
+      nominal -= first; // ensuite : un va-et-vient Entrée -> Sortie, qui repart de l'Entrée
+    }
+    return t.loopInSec + (((nominal % cycle) + cycle) % cycle);
+  }
+  function embrWaveDurationSec() {
+    const ref = embrLoopBuffers[embrReferenceIdx] || embrLoopBuffers.find(Boolean);
+    const t = embrLoopTiming();
+    return Math.max(ref ? ref.duration : 0, t.loopInSec + t.cycleLength); // le fichier va au moins jusqu'à la Sortie
+  }
+  function paintEmbrWave() {
+    const dur = embrWaveDurationSec();
+    if (!(dur > 0)) return;
+    const frac = Math.max(0, Math.min(1, embrFilePosSec(embrNominalAt(ctx.currentTime)) / dur));
     embrLoopBtns.forEach(btn => {
       const fg = btn.querySelector('.embr-wave-fg');
       if (!fg) return;
-      fg.style.animation = 'none';
-      fg.style.clipPath = '';
-      void fg.offsetWidth;
-      fg.style.animation = '';
-      // Durées RÉELLES : cycle et position sont en temps nominal, joués à la vitesse audible (27/09 -- avant, l'animation
-      // ignorait la vitesse du morceau et se décalait dès qu'elle n'était pas à 1).
-      const r = ratioOverride || embrClockSegAt(ctx.currentTime).ratio || 1;
-      fg.style.animationDuration = (cycle / r) + 's';
-      fg.style.animationDelay = (-(startPosSec || 0) / r) + 's';
-      fg.style.animationPlayState = 'running';
+      fg.style.animation = 'none'; // une animation CSS l'emporterait sur le clip-path posé ici
+      fg.style.clipPath = `inset(0 ${(1 - frac) * 100}% 0 0)`;
     });
   }
-  // Repasse toutes les lignes riches en pause (état "Prêt", plus rien ne joue) -- évite une animation qui
-  // continue de tourner dans le vide après un Stop.
+  function embrWaveFrame() {
+    embrWaveRaf = null;
+    if (!playing) return;
+    if (!embrWaveDragging) paintEmbrWave();
+    embrWaveRaf = requestAnimationFrame(embrWaveFrame);
+  }
+  // (Re)démarre la peinture continue ; appelé au démarrage, après un seek, et quand un glisser est annulé.
+  function applyEmbrWaveAnimation() {
+    embrWaveDragging = false;
+    if (embrWaveRaf) cancelAnimationFrame(embrWaveRaf);
+    paintEmbrWave();
+    embrWaveRaf = requestAnimationFrame(embrWaveFrame);
+  }
+  // Arrête la peinture (état « Prêt », plus rien ne joue) : les lignes gardent leur dernière position.
   function pauseEmbrWaveAnimation() {
-    embrLoopBtns.forEach(btn => {
-      const fg = btn.querySelector('.embr-wave-fg');
-      if (fg) fg.style.animationPlayState = 'paused';
-    });
+    if (embrWaveRaf) { cancelAnimationFrame(embrWaveRaf); embrWaveRaf = null; }
+    embrWaveDragging = false;
   }
   // Ligne overlay "en surimpression" affichée pendant la lecture d'un fichier de transition (voir
   // playEmbrTransitionIfAny) -- même mécanisme one-shot clip-path que animateMainWaveProgress() du
@@ -5589,8 +5610,9 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     embrActiveLoopIdx = preservedIdx;
     const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
     embrClockReset(now, 0);
+    embrIntroPhase = true;
     scheduleEmbrGeneration(now, true); // fixe déjà le bon gain (1) sur preservedIdx via embrActiveLoopIdx ci-dessus
-    embrNextStartCtxTime = now + embrCycleLengthSec() / trackPitchRatio;
+    embrNextStartCtxTime = now + embrFirstPassSec() / trackPitchRatio; // 1er passage : jusqu'à la Sortie (voir embrFirstPassSec)
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
     updateEmbrButtonsUI();
     applyEmbrWaveAnimation();
@@ -5606,7 +5628,13 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     const timing = embrLoopTiming();
     const cycle = timing.cycleLength;
     if (!(cycle > 0) || embrActiveLoopIdx < 0) return;
-    const posSec = Math.max(0, Math.min(1, fraction)) * cycle;
+    // La forme d'onde couvre tout le fichier : la fraction cliquée est une position dans le FICHIER, ramenée à l'intérieur de la boucle
+    // (avant l'Entrée -> Entrée ; après la Sortie -> dernier instant de la boucle). Sans fichier mesuré : ancienne échelle (le cycle).
+    const dur = embrWaveDurationSec();
+    const posSec = dur > 0
+      ? Math.max(0, Math.min(cycle - 0.001, Math.max(0, Math.min(1, fraction)) * dur - timing.loopInSec))
+      : Math.max(0, Math.min(1, fraction)) * cycle;
+    embrIntroPhase = false;
     if (embrSchedulerTimer) { clearInterval(embrSchedulerTimer); embrSchedulerTimer = null; }
     // Repère de capture : seules les générations des boucles jumelles s'arrêtent (transition ou détour éventuels continuent).
     captureMark('voices_stop', { trackId: track.id, scope: 'embr_gens' });
@@ -5631,8 +5659,9 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     applyFxActions(((track.loops || [])[embrReferenceIdx] || {}).fxActions); // état de départ = celui de la boucle de référence
     const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
     embrClockReset(now, 0); // point zéro de l'horloge de phase, utilisée par embrQuantizeDelaySec()
+    embrIntroPhase = true;
     scheduleEmbrGeneration(now, true); // seul appel avec isFirst=true -- démarre à "Départ", pas "Entrée"
-    embrNextStartCtxTime = now + embrCycleLengthSec() / trackPitchRatio;
+    embrNextStartCtxTime = now + embrFirstPassSec() / trackPitchRatio; // 1er passage : jusqu'à la Sortie (voir embrFirstPassSec)
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
     updateEmbrButtonsUI();
     applyEmbrWaveAnimation();
@@ -5928,6 +5957,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     }
     function showFraction(frac) {
+      embrWaveDragging = true;
       embrLoopBtns.forEach(b => {
         const fg = b.querySelector('.embr-wave-fg');
         if (!fg) return;
@@ -5951,24 +5981,16 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     btn.addEventListener('pointerup', (e) => {
       if (!dragging) return;
       dragging = false;
-      if (!isSeekable()) { applyEmbrWaveAnimation(embrCurrentCyclePosSec()); return; }
+      if (!isSeekable()) { applyEmbrWaveAnimation(); return; }
       trackPublicEvent('embr_seek', { trackId: track.id });
       seekEmbrVertical(fractionFromEvent(e));
     });
     btn.addEventListener('pointercancel', () => {
       if (!dragging) return;
       dragging = false;
-      applyEmbrWaveAnimation(embrCurrentCyclePosSec());
+      applyEmbrWaveAnimation();
     });
   });
-  // Position actuelle dans le cycle (temps nominal du fichier) -- sert à remettre l'animation en place
-  // quand un glisser est annulé sans seek.
-  function embrCurrentCyclePosSec() {
-    const cycle = embrCycleLengthSec();
-    if (!(cycle > 0)) return 0;
-    const elapsed = embrNominalAt(ctx.currentTime);
-    return ((elapsed % cycle) + cycle) % cycle;
-  }
 
   /* ---- Moteur vertical-random : sections chaînées, chacune avec ses pools simultanés et son propre
      tempo/timeline (30/07). La décision "quoi jouer ensuite" vient entièrement de
