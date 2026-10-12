@@ -1854,15 +1854,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791754225968"></script>
-<script src="layerpitch-appearance.js?v=1791754225968"></script>
-<script src="layerpitch-album-shared.js?v=1791754225968"></script>
-<script src="layerpitch-album-editor.js?v=1791754225968"></script>
-<script src="layerpitch-shell.js?v=1791754225968"></script>
-<script src="layerpitch-social-icons.js?v=1791754225968"></script>
-<script src="layerpitch-notify.js?v=1791754225968"></script>
-<script src="layerpitch-help.js?v=1791754225968"></script>
-<script src="player.js?v=1791754225968"></script>
+<script src="layerpitch-i18n.js?v=1791837850338"></script>
+<script src="layerpitch-appearance.js?v=1791837850338"></script>
+<script src="layerpitch-album-shared.js?v=1791837850338"></script>
+<script src="layerpitch-album-editor.js?v=1791837850338"></script>
+<script src="layerpitch-shell.js?v=1791837850338"></script>
+<script src="layerpitch-social-icons.js?v=1791837850338"></script>
+<script src="layerpitch-notify.js?v=1791837850338"></script>
+<script src="layerpitch-help.js?v=1791837850338"></script>
+<script src="player.js?v=1791837850338"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -14891,7 +14891,10 @@ function lessonPoolFiles(i) { const sec = lessonSection(); const p = sec && sec.
 function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 // URL de chaque fichier d'exemple (nom de fichier -> URL), à renseigner quand les fichiers seront en ligne (stockage
 // des médias, avec CORS ouvert à l'origine du Backstage). Tant qu'un nom manque, le bouton « Utiliser » n'apparaît pas.
-const LESSON_SAMPLE_URLS = {};
+const LESSON_SAMPLE_URLS = {
+  // Leçon 1 (essai) : morceau de Jules-Antoine, stocké dans le bucket layerpitch-media (lecture publique, CORS ouvert).
+  '1_RobotAdventure_WetDarkCave_120bpm_30M.wav': 'https://media.layerpitch.com/tuto/1_RobotAdventure_WetDarkCave_120bpm_30M.wav',
+};
 function lessonStepFileNames(step) {
   const names = LESSON_SAMPLE_NAMES[step.names || (guide && guide.lessonId)] || '';
   return names.split(',').map(x => x.trim()).filter(Boolean);
@@ -14914,7 +14917,14 @@ async function lessonUseSample(step) {
     dt.items.add(new File([blob], name, { type: blob.type || 'audio/wav' }));
   }
   const zone = target.querySelector('.file-ctrl') || target;
-  zone.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+  const ev = new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true });
+  if (ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length === dt.files.length) { zone.dispatchEvent(ev); return; }
+  // Navigateur qui ne transmet pas le DataTransfer dans un DragEvent construit : repli par le sélecteur de fichier de la
+  // zone (même gestionnaire « change » que si l'apprenant avait choisi le fichier à la main).
+  const input = target.querySelector('input[type="file"]');
+  if (!input) throw new Error('dépôt non pris en charge par ce navigateur');
+  input.files = dt.files;
+  input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
@@ -14928,7 +14938,7 @@ const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null, sequen
 // Nom du fichier d'exemple cité dans la consigne de dépôt (il porte le tempo : ambiance_120bpm).
 // (additive : noms provisoires, à remplacer par ceux des vrais fichiers).
 const LESSON_SAMPLE_NAMES = {
-  static: 'ambiance_120bpm.wav',
+  static: '1_RobotAdventure_WetDarkCave_120bpm_30M.wav',
   additive: 'couche-calme_120bpm.wav, couche-rythme_120bpm.wav, couche-intense_120bpm.wav',
   randomFixed: 'couche-fixe_120bpm.wav',
   randomVariants: 'variante-1_120bpm.wav, variante-2_120bpm.wav, variante-3_120bpm.wav',

@@ -64,10 +64,13 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const sampleOk = w.eval(`(function () {
     const st = LESSONS.find(l => l.id === 'static').steps.find(x => x.sampleKey);
     guide.lessonId = 'static';
+    const nm = LESSON_SAMPLE_NAMES.static;
+    const saved = LESSON_SAMPLE_URLS[nm];
+    delete LESSON_SAMPLE_URLS[nm];
     const before = lessonSampleReady(st);
-    LESSON_SAMPLE_URLS['ambiance_120bpm.wav'] = 'https://example.test/ambiance_120bpm.wav';
+    LESSON_SAMPLE_URLS[nm] = 'https://example.test/' + nm;
     const after = lessonSampleReady(st);
-    delete LESSON_SAMPLE_URLS['ambiance_120bpm.wav'];
+    if (saved) LESSON_SAMPLE_URLS[nm] = saved; else delete LESSON_SAMPLE_URLS[nm];
     const multi = LESSONS.find(l => l.id === 'additive').steps.find(x => x.sampleKey);
     guide.lessonId = 'additive';
     return { before, after, names: lessonStepFileNames(multi).length, flagged: LESSONS.reduce((n, l) => n + (l.steps || []).filter(x => x.useSample).length, 0) };
@@ -84,10 +87,10 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   zone.addEventListener('drop', e => { received = e.dataTransfer.files.slice(); });
   await w.eval(`(async () => {
     guide.lessonId = 'static';
-    LESSON_SAMPLE_URLS['ambiance_120bpm.wav'] = 'https://example.test/ambiance_120bpm.wav';
     await lessonUseSample({ selector: '#__sampleZone', useSample: true, names: 'static' });
   })()`);
-  check('« Utiliser l’exemple » dépose le fichier nommé sur la zone', received.length === 1 && received[0].name === 'ambiance_120bpm.wav');
+  const expected = w.eval('LESSON_SAMPLE_NAMES.static');
+  check('« Utiliser l’exemple » dépose le fichier nommé sur la zone', received.length === 1 && received[0].name === expected);
   // Une étape à geste n'a pas de bouton « Passer l'étape » tant qu'on est sur la dernière étape atteinte.
   w.eval(`guide.maxIndex = 3; guide.index = 3; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`);
   check('étape à geste (la plus avancée) : aucun bouton « Passer l’étape »', !w.document.querySelector('[data-tour="next"]'));
