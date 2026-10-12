@@ -148,6 +148,20 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('nettoyage : le morceau supprimé valide l’étape et demande la sauvegarde', cl.doneRemoved === true && cl.skipSaveRemoved === false);
   w.eval(`guide.lessonId = 'static'; guide.steps = LESSONS.find(l => l.id === 'static').steps; guide.index = guide.steps.length - 3; guide.maxIndex = guide.index; guide.cardKey = ''; renderGuideStep();`);
   check('nettoyage : bouton « Garder ce morceau » présent', !!w.document.querySelector('[data-tour="next"]') && /Garder ce morceau/.test(w.document.querySelector('[data-tour="next"]').textContent));
+  // Écoute : après le clic sur « Écouter », la surbrillance passe au lecteur qui vient de s'ouvrir.
+  const hl = w.eval(`(function () {
+    const st = LESSONS.find(l => l.id === 'static').steps.find(x => x.listen);
+    const btn = document.createElement('button'); btn.setAttribute('data-action', 'preview-track');
+    const host = document.createElement('div'); host.id = 'libraryDetail';
+    const player = document.createElement('div'); player.setAttribute('data-role', 'previewHost'); player.textContent = 'lecteur';
+    player.getBoundingClientRect = () => ({ left: 0, top: 0, right: 500, bottom: 120, width: 500, height: 120 });
+    host.append(btn, player); document.body.appendChild(host);
+    guide.clicked = false; const before = guideStepTarget(st) === btn;
+    guide.clicked = true; const after = guideStepTarget(st) === player;
+    host.remove(); return { before, after };
+  })()`);
+  check('écoute : avant le clic la surbrillance est sur « Écouter »', hl.before === true);
+  check('écoute : après le clic la surbrillance passe au lecteur', hl.after === true);
   // Échap quitte.
   w.eval(`guide.index = 6; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));
