@@ -31,11 +31,15 @@ function titleFromFilenameStrippingHints(filename) {
     .replace(/[_-]+/g, ' ')
     .trim();
 }
-// Morceau statique (08/10) : le fichier déposé donne le titre (sans le jeton « 120bpm ») et, s'il le contient, le tempo --
+// Morceau statique (08/10) : le fichier déposé donne le titre (sans le jeton « 120bpm »), le tempo et la longueur en mesures --
 // même nomenclature que le dépôt groupé du séquentiel (parseAudioFilenameHints). Un titre déjà saisi n'est jamais écrasé.
 function applyStaticFileNameHints(track, file) {
   const hints = parseAudioFilenameHints(file.name);
   if (hints.bpm) track.bpm = hints.bpm;
+  // Longueur en mesures lue dans le nom (« _30M ») : le repère de sortie de la boucle se place à la fin de ces mesures
+  // (comme dans les dépôts groupés). La queue du fichier au-delà reste la queue de résonance. Sans effet tant que le
+  // moteur n'est pas « Quantifié » : la timeline lit ce repère dès qu'on le choisit.
+  if (hints.bars) track.loopOutBeat = (track.loopInBeat || 0) + hints.bars * (track.beatsPerBar || 4);
   if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilenameStrippingHints(file.name);
 }
 // Section d'un morceau « couches aléatoires » (08/10) : le tempo est lu dans le nom du premier fichier qui en porte un, comme

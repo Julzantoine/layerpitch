@@ -1873,15 +1873,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791839987729"></script>
-<script src="layerpitch-appearance.js?v=1791839987729"></script>
-<script src="layerpitch-album-shared.js?v=1791839987729"></script>
-<script src="layerpitch-album-editor.js?v=1791839987729"></script>
-<script src="layerpitch-shell.js?v=1791839987729"></script>
-<script src="layerpitch-social-icons.js?v=1791839987729"></script>
-<script src="layerpitch-notify.js?v=1791839987729"></script>
-<script src="layerpitch-help.js?v=1791839987729"></script>
-<script src="player.js?v=1791839987729"></script>
+<script src="layerpitch-i18n.js?v=1791840550831"></script>
+<script src="layerpitch-appearance.js?v=1791840550831"></script>
+<script src="layerpitch-album-shared.js?v=1791840550831"></script>
+<script src="layerpitch-album-editor.js?v=1791840550831"></script>
+<script src="layerpitch-shell.js?v=1791840550831"></script>
+<script src="layerpitch-social-icons.js?v=1791840550831"></script>
+<script src="layerpitch-notify.js?v=1791840550831"></script>
+<script src="layerpitch-help.js?v=1791840550831"></script>
+<script src="player.js?v=1791840550831"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -5433,11 +5433,15 @@ function titleFromFilenameStrippingHints(filename) {
     .replace(/[_-]+/g, ' ')
     .trim();
 }
-// Morceau statique (08/10) : le fichier déposé donne le titre (sans le jeton « 120bpm ») et, s'il le contient, le tempo --
+// Morceau statique (08/10) : le fichier déposé donne le titre (sans le jeton « 120bpm »), le tempo et la longueur en mesures --
 // même nomenclature que le dépôt groupé du séquentiel (parseAudioFilenameHints). Un titre déjà saisi n'est jamais écrasé.
 function applyStaticFileNameHints(track, file) {
   const hints = parseAudioFilenameHints(file.name);
   if (hints.bpm) track.bpm = hints.bpm;
+  // Longueur en mesures lue dans le nom (« _30M ») : le repère de sortie de la boucle se place à la fin de ces mesures
+  // (comme dans les dépôts groupés). La queue du fichier au-delà reste la queue de résonance. Sans effet tant que le
+  // moteur n'est pas « Quantifié » : la timeline lit ce repère dès qu'on le choisit.
+  if (hints.bars) track.loopOutBeat = (track.loopInBeat || 0) + hints.bars * (track.beatsPerBar || 4);
   if (!track.title || !track.title.trim() || track.title === tr('defaultTrackTitle')) track.title = titleFromFilenameStrippingHints(file.name);
 }
 // Section d'un morceau « couches aléatoires » (08/10) : le tempo est lu dans le nom du premier fichier qui en porte un, comme
