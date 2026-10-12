@@ -133,6 +133,16 @@ const LESSON_SAMPLE_NAMES = {
 };
 // done(ctx) : true quand le geste est fait -> la leçon avance seule. clickDone : un clic sur la cible suffit.
 // Sans done ni clickDone : étape manuelle (« Suivant »). enter(ctx) : photographie l'état à l'arrivée sur l'étape.
+// Nettoyage commun à toutes les leçons (Backstage des compositeurs) : le morceau d'essai est supprimé, puis la
+// suppression est sauvegardée (une suppression n'est définitive qu'une fois sauvegardée). « Garder ce morceau » existe.
+// Absentes d'une éventuelle version publique sans compte : rien n'y est jamais enregistré.
+const CLEANUP_STEPS = [
+  { selector: '#libraryDetail [data-action="remove-track"]', titleKey: 'lcDelTitle', textKey: 'lcDelText', keepTrack: true,
+    enter: (c) => { const t = lessonTrack(); c.cleanupId = t ? t.id : null; },
+    done: (c) => !!c.cleanupId && !library.some(t => t.id === c.cleanupId) },
+  { selector: '#btnPublish', titleKey: 'lcSaveTitle', textKey: 'lcSaveText', clickDone: true,
+    skip: (c) => !c || !c.cleanupId || library.some(t => t.id === c.cleanupId) },
+];
 const LESSONS = [
   { id: 'static', titleKey: 'lessonStaticTitle', descKey: 'lessonStaticDesc', steps: [
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
@@ -154,6 +164,7 @@ const LESSONS = [
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText', arrow: { bar: 31 } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', listen: true },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    ...CLEANUP_STEPS,
     { titleKey: 'lsEndTitle', textKey: 'lsEndText', final: true },
   ] },
   { id: 'additive', titleKey: 'lessonAdditiveTitle', descKey: 'lessonAdditiveDesc', steps: [
@@ -176,6 +187,7 @@ const LESSONS = [
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'laListenTitle', textKey: 'laListenText', listen: true },
     { selector: '#libraryDetail [data-role="previewHost"]', titleKey: 'laIntensityTitle', textKey: 'laIntensityText' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    ...CLEANUP_STEPS,
     { titleKey: 'laEndTitle', textKey: 'laEndText', final: true },
   ] },
   { id: 'embranchement', titleKey: 'lessonEmbrTitle', descKey: 'lessonEmbrDesc', steps: [
@@ -210,6 +222,7 @@ const LESSONS = [
     { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'leSliderTitle', textKey: 'leSliderText', skip: () => !fxOpen('rtpc') },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'leListenTitle', textKey: 'leListenText', listen: true },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    ...CLEANUP_STEPS,
     { titleKey: 'leEndTitle', textKey: 'leEndText', final: true },
   ] },
   { id: 'random', titleKey: 'lessonRandomTitle', descKey: 'lessonRandomDesc', steps: [
@@ -233,6 +246,7 @@ const LESSONS = [
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lrPointsTitle', textKey: 'lrPointsText' },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lrListenTitle', textKey: 'lrListenText', listen: true },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    ...CLEANUP_STEPS,
     { titleKey: 'lrEndTitle', textKey: 'lrEndText', final: true },
   ] },
   { id: 'sequential', titleKey: 'lessonSequentialTitle', descKey: 'lessonSequentialDesc', steps: [
@@ -266,6 +280,7 @@ const LESSONS = [
     { selector: '#libraryDetail select[data-field="maxChainLoops"]', titleKey: 'lqCyclesTitle', textKey: 'lqCyclesText' },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lqListenTitle', textKey: 'lqListenText', listen: true },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    ...CLEANUP_STEPS,
     { titleKey: 'lqEndTitle', textKey: 'lqEndText', final: true },
   ] },
   { id: 'branching', titleKey: 'lessonBranchingTitle', descKey: 'lessonBranchingDesc', steps: [
@@ -309,6 +324,7 @@ const LESSONS = [
       done: (c) => library.length > c.baseLen },
     { selector: '#libraryMaster', titleKey: 'lfDraftTitle', textKey: 'lfDraftText', skip: () => !flagOpen('bulk_drop') },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    ...CLEANUP_STEPS,
     { titleKey: 'lbEndTitle', textKey: 'lbEndText', final: true },
   ] },
 ];
@@ -350,7 +366,7 @@ function guideGo(delta) {
   if (!guide) return;
   let next = guide.index + delta;
   // Saute les étapes sans objet (ex. curseur de paramètre quand son feu vert est fermé), dans les deux sens.
-  while (next >= 0 && next < guide.steps.length && guide.steps[next].skip && guide.steps[next].skip()) next += delta;
+  while (next >= 0 && next < guide.steps.length && guide.steps[next].skip && guide.steps[next].skip(guide.ctx)) next += delta;
   if (next < 0) return;
   if (next >= guide.steps.length) { finishGuide(); return; }
   guide.index = next; guide.clicked = false; guide.advancing = false;
@@ -430,7 +446,8 @@ function renderGuideStep(positionOnly) {
         ${auto
           /* étape à geste : elle n'avance que lorsque le geste est fait ; « Passer l'étape » n'existe que pour une étape déjà
              franchie, revue avec « Précédent » */
-          ? (revisiting ? `<button class="btn btn-small" type="button" data-tour="next">${escapeHtml(tr('lessonSkipStep'))}</button>` : '')
+          ? (revisiting ? `<button class="btn btn-small" type="button" data-tour="next">${escapeHtml(tr('lessonSkipStep'))}</button>`
+              : (step.keepTrack ? `<button class="btn btn-small" type="button" data-tour="next">${escapeHtml(tr('lessonKeepTrack'))}</button>` : ''))
           : (listening && !guide.clicked && !revisiting ? ''
             : `<button class="btn btn-small btn-primary" type="button" data-tour="next">${escapeHtml(tr(last ? 'tourFinish' : 'tourNext'))}</button>`)}
       </div>`;
