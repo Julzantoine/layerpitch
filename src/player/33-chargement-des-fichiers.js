@@ -316,6 +316,7 @@
       if (timeTotal) timeTotal.textContent = formatTime(progressMaxSec());
       layoutLoopMarkers(); // la durée est maintenant exacte : repères d'entrée / sortie et queue
     }
+    if (isEmbrVert) layoutEmbrLoopMarkers(); // repères d'Entrée / Sortie et queue, une fois la durée du fichier connue
     if (statusEl) statusEl.textContent = t('readyStatus');
     playBtn.disabled = false;
     playBtn.setAttribute('aria-label', t('playAriaLabel'));

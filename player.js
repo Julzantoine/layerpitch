@@ -1333,7 +1333,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       const isShort = isShortLoop(l, isRef);
       const label = escapeHtml(l.label || t('loopFallback', { n: i + 1 }));
       if (embrRichMode && !isShort) {
-        return `<button type="button" class="embr-loop-btn embr-wave-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="0"><canvas class="embr-wave-bg" data-role="embrWaveBg-${i}"></canvas><canvas class="embr-wave-fg" data-role="embrWaveFg-${i}"></canvas><span class="embr-wave-label">${label}</span></button>`;
+        return `<button type="button" class="embr-loop-btn embr-wave-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="0"><canvas class="embr-wave-bg" data-role="embrWaveBg-${i}"></canvas><canvas class="embr-wave-fg" data-role="embrWaveFg-${i}"></canvas><span class="embr-wave-label">${label}</span>${loopOverlayHtml()}</button>`;
       }
       return `<button type="button" class="embr-loop-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="${isShort ? '1' : '0'}">${label}</button>`;
     }).join('');
@@ -5110,36 +5110,41 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // Repères de boucle sur la forme d'onde (moteur quantifié) : entrée, sortie et queue du fichier, placés en % de sa durée
   // (la forme d'onde reste entière : la queue doit rester visible). Posés dès que la durée est connue.
   const loopOverlayEl = wrapper.querySelector('[data-role="loopOverlay"]');
-  const loopTailEl = wrapper.querySelector('[data-role="loopTail"]');
-  const loopMarkInEl = wrapper.querySelector('[data-role="loopMarkIn"]');
-  const loopMarkOutEl = wrapper.querySelector('[data-role="loopMarkOut"]');
   const tailHeadEls = []; // deuxième tête(s) de lecture : la queue de la boucle précédente, en train d'être jouée
+  // Posent les repères / la deuxième tête sur UN calque (barre, lignes de couches, ou une ligne de boucle de l'embranchement vertical).
+  function applyLoopMarkers(overlay, m) {
+    if (!overlay || !m) return;
+    const mIn = overlay.querySelector('[data-role="loopMarkIn"]'), mOut = overlay.querySelector('[data-role="loopMarkOut"]'), tail = overlay.querySelector('[data-role="loopTail"]');
+    if (mIn) { mIn.hidden = m.loopInPct == null; if (m.loopInPct != null) mIn.style.left = m.loopInPct + '%'; }
+    if (mOut) { mOut.hidden = !m.hasTail && m.loopOutPct >= 99.5; mOut.style.left = m.loopOutPct + '%'; }
+    if (tail) { tail.hidden = !m.hasTail; tail.style.left = m.tailStartPct + '%'; }
+  }
+  // positions : secondes de fichier de chaque queue en cours de jeu ; pool : les éléments « tête » déjà créés pour ce calque.
+  function paintTailHeads(overlay, pool, positions, dur) {
+    if (!overlay) return;
+    positions.forEach((sec, i) => {
+      let el = pool[i];
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'progress-tail-head';
+        el.title = t('loopTailHeadTitle');
+        overlay.appendChild(el);
+        pool[i] = el;
+      }
+      el.hidden = false;
+      el.style.left = ((sec / dur) * 100) + '%';
+    });
+    for (let i = positions.length; i < pool.length; i++) pool[i].hidden = true;
+  }
   function layoutLoopMarkers() {
     if (!loopOverlayEl || !useQuantizedLoop) return;
-    const m = quantizedLoopMarkers({ loopInSec, loopOutSec }, progressMaxSec());
-    if (!m) return;
-    if (loopMarkInEl) { loopMarkInEl.hidden = m.loopInPct == null; if (m.loopInPct != null) loopMarkInEl.style.left = m.loopInPct + '%'; }
-    if (loopMarkOutEl) { loopMarkOutEl.hidden = !m.hasTail && m.loopOutPct >= 99.5; loopMarkOutEl.style.left = m.loopOutPct + '%'; }
-    if (loopTailEl) { loopTailEl.hidden = !m.hasTail; loopTailEl.style.left = m.tailStartPct + '%'; }
+    applyLoopMarkers(loopOverlayEl, quantizedLoopMarkers({ loopInSec, loopOutSec }, progressMaxSec()));
   }
   layoutLoopMarkers();
   function updateTailHeads() {
     if (!loopOverlayEl || !useQuantizedLoop) return;
     const dur = progressMaxSec();
-    const positions = (playing && dur > 0) ? quantizedTailPositions(scheduledGens, ctx.currentTime, dur) : [];
-    positions.forEach((sec, i) => {
-      let el = tailHeadEls[i];
-      if (!el) {
-        el = document.createElement('div');
-        el.className = 'progress-tail-head';
-        el.title = t('loopTailHeadTitle');
-        loopOverlayEl.appendChild(el);
-        tailHeadEls[i] = el;
-      }
-      el.hidden = false;
-      el.style.left = ((sec / dur) * 100) + '%';
-    });
-    for (let i = positions.length; i < tailHeadEls.length; i++) tailHeadEls[i].hidden = true;
+    paintTailHeads(loopOverlayEl, tailHeadEls, (playing && dur > 0) ? quantizedTailPositions(scheduledGens, ctx.currentTime, dur) : [], dur);
   }
   function computeElapsed() {
     return (useQuantizedLoop || isVerticalRandom)
@@ -5516,10 +5521,37 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     const t = embrLoopTiming();
     return Math.max(ref ? ref.duration : 0, t.loopInSec + t.cycleLength); // le fichier va au moins jusqu'à la Sortie
   }
+  // Repères de boucle sur chaque ligne (Entrée / Sortie, queue du fichier au-delà de la Sortie) et deuxième tête de lecture : la queue
+  // de la génération précédente, encore en train de sonner pendant que la boucle suivante est repartie. Voir quantizedTailPositions.
+  const embrOverlayEls = embrLoopBtns.map(btn => btn.querySelector('[data-role="loopOverlay"]'));
+  const embrTailPools = embrLoopBtns.map(() => []);
+  function embrLoopOutSec() { const t = embrLoopTiming(); return t.loopInSec + t.cycleLength; }
+  function layoutEmbrLoopMarkers() {
+    const dur = embrWaveDurationSec();
+    if (!(dur > 0)) return;
+    const m = quantizedLoopMarkers({ loopInSec: embrLoopTiming().loopInSec, loopOutSec: embrLoopOutSec() }, dur);
+    embrOverlayEls.forEach(ov => applyLoopMarkers(ov, m));
+  }
+  function updateEmbrTailHeads(forceHide) {
+    const dur = embrWaveDurationSec();
+    let positions = [];
+    if (!forceHide && playing && dur > 0) {
+      const byStart = new Map();
+      embrActiveGenSources.forEach(g => { if (g.bufferOffset != null && !byStart.has(g.ctxStartTime)) byStart.set(g.ctxStartTime, { ctxStartTime: g.ctxStartTime, bufferOffset: g.bufferOffset, ratio: g.ratio }); });
+      positions = quantizedTailPositions([...byStart.values()], ctx.currentTime, dur);
+    }
+    embrOverlayEls.forEach((ov, i) => paintTailHeads(ov, embrTailPools[i], positions, dur));
+  }
+  // Déplacement borné : on ne se place pas dans la queue, la tête s'arrête au repère de sortie.
+  function embrClampFraction(frac) {
+    const dur = embrWaveDurationSec();
+    return dur > 0 ? Math.min(frac, embrLoopOutSec() / dur) : frac;
+  }
   function paintEmbrWave() {
     const dur = embrWaveDurationSec();
     if (!(dur > 0)) return;
     const frac = Math.max(0, Math.min(1, embrFilePosSec(embrNominalAt(ctx.currentTime)) / dur));
+    updateEmbrTailHeads();
     embrLoopBtns.forEach(btn => {
       const fg = btn.querySelector('.embr-wave-fg');
       if (!fg) return;
@@ -5544,6 +5576,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   function pauseEmbrWaveAnimation() {
     if (embrWaveRaf) { cancelAnimationFrame(embrWaveRaf); embrWaveRaf = null; }
     embrWaveDragging = false;
+    updateEmbrTailHeads(true); // plus rien ne joue : la deuxième tête disparaît
   }
   // Ligne overlay "en surimpression" affichée pendant la lecture d'un fichier de transition (voir
   // playEmbrTransitionIfAny) -- même mécanisme one-shot clip-path que animateMainWaveProgress() du
@@ -5646,7 +5679,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       }
       journalVoice(src, g, fxChain);
       src.start(ctxStartTime, bufferOffset);
-      embrActiveGenSources.push({ src, gain: g, loopIdx: idx, ctxStartTime });
+      embrActiveGenSources.push({ src, gain: g, loopIdx: idx, ctxStartTime, bufferOffset, ratio: trackPitchRatio });
     });
     // Purge des générations trop anciennes pour ne plus jamais sonner (même logique de nettoyage que
     // scheduledGens du moteur quantifié) — évite une croissance illimitée du tableau sur une lecture longue.
@@ -6078,6 +6111,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     }
     function showFraction(frac) {
+      frac = embrClampFraction(frac);
       embrWaveDragging = true;
       embrLoopBtns.forEach(b => {
         const fg = b.querySelector('.embr-wave-fg');
@@ -7396,6 +7430,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       if (timeTotal) timeTotal.textContent = formatTime(progressMaxSec());
       layoutLoopMarkers(); // la durée est maintenant exacte : repères d'entrée / sortie et queue
     }
+    if (isEmbrVert) layoutEmbrLoopMarkers(); // repères d'Entrée / Sortie et queue, une fois la durée du fichier connue
     if (statusEl) statusEl.textContent = t('readyStatus');
     playBtn.disabled = false;
     playBtn.setAttribute('aria-label', t('playAriaLabel'));

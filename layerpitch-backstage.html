@@ -773,6 +773,7 @@
   .loop-tail::before { content: ''; position: absolute; inset: 0; opacity: 0.35; background: repeating-linear-gradient(135deg, currentColor 0 1px, transparent 1px 6px); }
   .loop-tail-label { position: absolute; right: 4px; top: 1px; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; }
   .progress-tail-head { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--loop-tail-head, #9b72e0); pointer-events: none; }
+  .embr-wave-btn .loop-tail { pointer-events: none; } /* sur les lignes de boucles, la zone de queue ne doit pas intercepter les clics */
   .vert-layer-rows .loop-tail { pointer-events: none; } /* sur les lignes de couches, la zone de queue ne doit pas intercepter les clics */
   .progress-tail-head[hidden], .loop-tail[hidden], .loop-marker[hidden] { display: none; }
   .time-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); }
@@ -1894,15 +1895,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1791843593648"></script>
-<script src="layerpitch-appearance.js?v=1791843593648"></script>
-<script src="layerpitch-album-shared.js?v=1791843593648"></script>
-<script src="layerpitch-album-editor.js?v=1791843593648"></script>
-<script src="layerpitch-shell.js?v=1791843593648"></script>
-<script src="layerpitch-social-icons.js?v=1791843593648"></script>
-<script src="layerpitch-notify.js?v=1791843593648"></script>
-<script src="layerpitch-help.js?v=1791843593648"></script>
-<script src="player.js?v=1791843593648"></script>
+<script src="layerpitch-i18n.js?v=1791844473377"></script>
+<script src="layerpitch-appearance.js?v=1791844473377"></script>
+<script src="layerpitch-album-shared.js?v=1791844473377"></script>
+<script src="layerpitch-album-editor.js?v=1791844473377"></script>
+<script src="layerpitch-shell.js?v=1791844473377"></script>
+<script src="layerpitch-social-icons.js?v=1791844473377"></script>
+<script src="layerpitch-notify.js?v=1791844473377"></script>
+<script src="layerpitch-help.js?v=1791844473377"></script>
+<script src="player.js?v=1791844473377"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 

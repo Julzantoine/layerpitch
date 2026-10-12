@@ -110,10 +110,37 @@
     const t = embrLoopTiming();
     return Math.max(ref ? ref.duration : 0, t.loopInSec + t.cycleLength); // le fichier va au moins jusqu'à la Sortie
   }
+  // Repères de boucle sur chaque ligne (Entrée / Sortie, queue du fichier au-delà de la Sortie) et deuxième tête de lecture : la queue
+  // de la génération précédente, encore en train de sonner pendant que la boucle suivante est repartie. Voir quantizedTailPositions.
+  const embrOverlayEls = embrLoopBtns.map(btn => btn.querySelector('[data-role="loopOverlay"]'));
+  const embrTailPools = embrLoopBtns.map(() => []);
+  function embrLoopOutSec() { const t = embrLoopTiming(); return t.loopInSec + t.cycleLength; }
+  function layoutEmbrLoopMarkers() {
+    const dur = embrWaveDurationSec();
+    if (!(dur > 0)) return;
+    const m = quantizedLoopMarkers({ loopInSec: embrLoopTiming().loopInSec, loopOutSec: embrLoopOutSec() }, dur);
+    embrOverlayEls.forEach(ov => applyLoopMarkers(ov, m));
+  }
+  function updateEmbrTailHeads(forceHide) {
+    const dur = embrWaveDurationSec();
+    let positions = [];
+    if (!forceHide && playing && dur > 0) {
+      const byStart = new Map();
+      embrActiveGenSources.forEach(g => { if (g.bufferOffset != null && !byStart.has(g.ctxStartTime)) byStart.set(g.ctxStartTime, { ctxStartTime: g.ctxStartTime, bufferOffset: g.bufferOffset, ratio: g.ratio }); });
+      positions = quantizedTailPositions([...byStart.values()], ctx.currentTime, dur);
+    }
+    embrOverlayEls.forEach((ov, i) => paintTailHeads(ov, embrTailPools[i], positions, dur));
+  }
+  // Déplacement borné : on ne se place pas dans la queue, la tête s'arrête au repère de sortie.
+  function embrClampFraction(frac) {
+    const dur = embrWaveDurationSec();
+    return dur > 0 ? Math.min(frac, embrLoopOutSec() / dur) : frac;
+  }
   function paintEmbrWave() {
     const dur = embrWaveDurationSec();
     if (!(dur > 0)) return;
     const frac = Math.max(0, Math.min(1, embrFilePosSec(embrNominalAt(ctx.currentTime)) / dur));
+    updateEmbrTailHeads();
     embrLoopBtns.forEach(btn => {
       const fg = btn.querySelector('.embr-wave-fg');
       if (!fg) return;
@@ -138,6 +165,7 @@
   function pauseEmbrWaveAnimation() {
     if (embrWaveRaf) { cancelAnimationFrame(embrWaveRaf); embrWaveRaf = null; }
     embrWaveDragging = false;
+    updateEmbrTailHeads(true); // plus rien ne joue : la deuxième tête disparaît
   }
   // Ligne overlay "en surimpression" affichée pendant la lecture d'un fichier de transition (voir
   // playEmbrTransitionIfAny) -- même mécanisme one-shot clip-path que animateMainWaveProgress() du
@@ -240,7 +268,7 @@
       }
       journalVoice(src, g, fxChain);
       src.start(ctxStartTime, bufferOffset);
-      embrActiveGenSources.push({ src, gain: g, loopIdx: idx, ctxStartTime });
+      embrActiveGenSources.push({ src, gain: g, loopIdx: idx, ctxStartTime, bufferOffset, ratio: trackPitchRatio });
     });
     // Purge des générations trop anciennes pour ne plus jamais sonner (même logique de nettoyage que
     // scheduledGens du moteur quantifié) — évite une croissance illimitée du tableau sur une lecture longue.
@@ -672,6 +700,7 @@
       return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     }
     function showFraction(frac) {
+      frac = embrClampFraction(frac);
       embrWaveDragging = true;
       embrLoopBtns.forEach(b => {
         const fg = b.querySelector('.embr-wave-fg');

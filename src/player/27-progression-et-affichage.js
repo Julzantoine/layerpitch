@@ -38,36 +38,41 @@
   // Repères de boucle sur la forme d'onde (moteur quantifié) : entrée, sortie et queue du fichier, placés en % de sa durée
   // (la forme d'onde reste entière : la queue doit rester visible). Posés dès que la durée est connue.
   const loopOverlayEl = wrapper.querySelector('[data-role="loopOverlay"]');
-  const loopTailEl = wrapper.querySelector('[data-role="loopTail"]');
-  const loopMarkInEl = wrapper.querySelector('[data-role="loopMarkIn"]');
-  const loopMarkOutEl = wrapper.querySelector('[data-role="loopMarkOut"]');
   const tailHeadEls = []; // deuxième tête(s) de lecture : la queue de la boucle précédente, en train d'être jouée
+  // Posent les repères / la deuxième tête sur UN calque (barre, lignes de couches, ou une ligne de boucle de l'embranchement vertical).
+  function applyLoopMarkers(overlay, m) {
+    if (!overlay || !m) return;
+    const mIn = overlay.querySelector('[data-role="loopMarkIn"]'), mOut = overlay.querySelector('[data-role="loopMarkOut"]'), tail = overlay.querySelector('[data-role="loopTail"]');
+    if (mIn) { mIn.hidden = m.loopInPct == null; if (m.loopInPct != null) mIn.style.left = m.loopInPct + '%'; }
+    if (mOut) { mOut.hidden = !m.hasTail && m.loopOutPct >= 99.5; mOut.style.left = m.loopOutPct + '%'; }
+    if (tail) { tail.hidden = !m.hasTail; tail.style.left = m.tailStartPct + '%'; }
+  }
+  // positions : secondes de fichier de chaque queue en cours de jeu ; pool : les éléments « tête » déjà créés pour ce calque.
+  function paintTailHeads(overlay, pool, positions, dur) {
+    if (!overlay) return;
+    positions.forEach((sec, i) => {
+      let el = pool[i];
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'progress-tail-head';
+        el.title = t('loopTailHeadTitle');
+        overlay.appendChild(el);
+        pool[i] = el;
+      }
+      el.hidden = false;
+      el.style.left = ((sec / dur) * 100) + '%';
+    });
+    for (let i = positions.length; i < pool.length; i++) pool[i].hidden = true;
+  }
   function layoutLoopMarkers() {
     if (!loopOverlayEl || !useQuantizedLoop) return;
-    const m = quantizedLoopMarkers({ loopInSec, loopOutSec }, progressMaxSec());
-    if (!m) return;
-    if (loopMarkInEl) { loopMarkInEl.hidden = m.loopInPct == null; if (m.loopInPct != null) loopMarkInEl.style.left = m.loopInPct + '%'; }
-    if (loopMarkOutEl) { loopMarkOutEl.hidden = !m.hasTail && m.loopOutPct >= 99.5; loopMarkOutEl.style.left = m.loopOutPct + '%'; }
-    if (loopTailEl) { loopTailEl.hidden = !m.hasTail; loopTailEl.style.left = m.tailStartPct + '%'; }
+    applyLoopMarkers(loopOverlayEl, quantizedLoopMarkers({ loopInSec, loopOutSec }, progressMaxSec()));
   }
   layoutLoopMarkers();
   function updateTailHeads() {
     if (!loopOverlayEl || !useQuantizedLoop) return;
     const dur = progressMaxSec();
-    const positions = (playing && dur > 0) ? quantizedTailPositions(scheduledGens, ctx.currentTime, dur) : [];
-    positions.forEach((sec, i) => {
-      let el = tailHeadEls[i];
-      if (!el) {
-        el = document.createElement('div');
-        el.className = 'progress-tail-head';
-        el.title = t('loopTailHeadTitle');
-        loopOverlayEl.appendChild(el);
-        tailHeadEls[i] = el;
-      }
-      el.hidden = false;
-      el.style.left = ((sec / dur) * 100) + '%';
-    });
-    for (let i = positions.length; i < tailHeadEls.length; i++) tailHeadEls[i].hidden = true;
+    paintTailHeads(loopOverlayEl, tailHeadEls, (playing && dur > 0) ? quantizedTailPositions(scheduledGens, ctx.currentTime, dur) : [], dur);
   }
   function computeElapsed() {
     return (useQuantizedLoop || isVerticalRandom)

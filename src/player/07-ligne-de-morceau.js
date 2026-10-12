@@ -105,7 +105,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       const isShort = isShortLoop(l, isRef);
       const label = escapeHtml(l.label || t('loopFallback', { n: i + 1 }));
       if (embrRichMode && !isShort) {
-        return `<button type="button" class="embr-loop-btn embr-wave-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="0"><canvas class="embr-wave-bg" data-role="embrWaveBg-${i}"></canvas><canvas class="embr-wave-fg" data-role="embrWaveFg-${i}"></canvas><span class="embr-wave-label">${label}</span></button>`;
+        return `<button type="button" class="embr-loop-btn embr-wave-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="0"><canvas class="embr-wave-bg" data-role="embrWaveBg-${i}"></canvas><canvas class="embr-wave-fg" data-role="embrWaveFg-${i}"></canvas><span class="embr-wave-label">${label}</span>${loopOverlayHtml()}</button>`;
       }
       return `<button type="button" class="embr-loop-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="${isShort ? '1' : '0'}">${label}</button>`;
     }).join('');
