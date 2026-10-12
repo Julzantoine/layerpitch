@@ -14,7 +14,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   vm.createContext(sb);
   vm.runInContext(read('layerpitch-i18n.js'), sb);
   const keys = new Set([...src.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].map(m => m[1]));
-  ['lessonSampleDownload', 'lessonSampleUse', 'lessonChipHint', 'lessonArrowLabel', 'lessonChipMany', 'lessonNextBtn', 'lessonSampleUseMany', 'lessonSampleError', 'lsVerifyTitle', 'lsVerifyText', 'lessonSampleSoon', 'lessonDoIt', 'lessonQuit', 'lessonSkipStep', 'tutorialMenuTitle', 'tutorialTourDesc', 'tutorialLessonsHeading'].forEach(k => keys.add(k));
+  ['lessonSampleDownload', 'lessonSampleUse', 'lessonListening', 'lessonChipHint', 'lessonArrowLabel', 'lessonChipMany', 'lessonNextBtn', 'lessonSampleUseMany', 'lessonSampleError', 'lsVerifyTitle', 'lsVerifyText', 'lessonSampleSoon', 'lessonDoIt', 'lessonQuit', 'lessonSkipStep', 'tutorialMenuTitle', 'tutorialTourDesc', 'tutorialLessonsHeading'].forEach(k => keys.add(k));
   ['fr', 'en'].forEach(l => check('textes présents en ' + l + ' (' + keys.size + ' clés)', [...keys].every(k => sb.window.LAYERPITCH_I18N[l].backstage[k])));
 
   const page = read('layerpitch-backstage.html');
@@ -126,6 +126,14 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   })()`);
   // 70 s à 120 BPM = 140 temps ; la 31e mesure commence au temps 120 : 120/140 de la largeur.
   check('flèche : placée sur la barre de la 31e mesure', arrowX && Math.abs(arrowX.x - (100 + 1000 * 120 / 140)) < 0.01 && arrowX.y === 400);
+  // Étape d'écoute : le clic sur « Écouter » n'avance plus ; « Suivant » n'apparaît qu'après le clic, et c'est lui qui avance.
+  const listenIdx = w.eval(`LESSONS.find(l => l.id === 'static').steps.findIndex(x => x.listen)`);
+  w.eval(`guide.lessonId = 'static'; guide.index = ${listenIdx}; guide.maxIndex = ${listenIdx}; guide.clicked = false; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`);
+  check('écoute : pas de « Suivant » avant le clic', !w.document.querySelector('[data-tour="next"]'));
+  w.eval(`guide.clicked = true; guideTick();`);
+  await new Promise(r => setTimeout(r, 700));
+  check('écoute : après le clic, la leçon n’avance pas toute seule', w.eval('guide.index') === listenIdx);
+  check('écoute : « Suivant » apparaît après le clic', !!w.document.querySelector('[data-tour="next"]'));
   // Échap quitte.
   w.eval(`guide.index = 6; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));

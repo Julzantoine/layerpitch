@@ -152,7 +152,7 @@ const LESSONS = [
     { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lsVerifyTitle', textKey: 'lsVerifyText' },
     // Flèche sur la barre de la 31e mesure : le morceau d'exemple fait 30 mesures (+ résonances), la sortie se place à la fin.
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText', arrow: { bar: 31 } },
-    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', clickDone: true },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', listen: true },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lsEndTitle', textKey: 'lsEndText', final: true },
   ] },
@@ -173,7 +173,7 @@ const LESSONS = [
     { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'laButtonsTitle', textKey: 'laButtonsText' },
     { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'laSliderTitle', textKey: 'laSliderText',
       skip: () => !fxOpen('rtpc') }, // curseurs : feu vert « rtpc » (admin seulement pour l'instant)
-    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'laListenTitle', textKey: 'laListenText', clickDone: true },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'laListenTitle', textKey: 'laListenText', listen: true },
     { selector: '#libraryDetail [data-role="previewHost"]', titleKey: 'laIntensityTitle', textKey: 'laIntensityText' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'laEndTitle', textKey: 'laEndText', final: true },
@@ -208,7 +208,7 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); const l = t && (t.loops || [])[2]; return !!l && !!l.isDetour; } },
     { selector: '#libraryDetail .row:has([data-embr-loop-field="bars"])', titleKey: 'ldSetTitle', textKey: 'ldSetText' },
     { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'leSliderTitle', textKey: 'leSliderText', skip: () => !fxOpen('rtpc') },
-    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'leListenTitle', textKey: 'leListenText', clickDone: true },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'leListenTitle', textKey: 'leListenText', listen: true },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'leEndTitle', textKey: 'leEndText', final: true },
   ] },
@@ -231,7 +231,7 @@ const LESSONS = [
     { selector: '#libraryDetail [data-role="vrsPools"]', titleKey: 'lrCheckTitle', textKey: 'lrCheckText' },
     { selector: '#libraryDetail input[data-section-field="bpm"]', titleKey: 'lrBpmTitle', textKey: 'lrBpmText' },
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lrPointsTitle', textKey: 'lrPointsText' },
-    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lrListenTitle', textKey: 'lrListenText', clickDone: true },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lrListenTitle', textKey: 'lrListenText', listen: true },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lrEndTitle', textKey: 'lrEndText', final: true },
   ] },
@@ -264,7 +264,7 @@ const LESSONS = [
     { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'lqInfoTitle', textKey: 'lqInfoText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
     { selector: '#libraryDetail select[data-field="maxChainLoops"]', titleKey: 'lqCyclesTitle', textKey: 'lqCyclesText' },
-    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lqListenTitle', textKey: 'lqListenText', clickDone: true },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lqListenTitle', textKey: 'lqListenText', listen: true },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lqEndTitle', textKey: 'lqEndText', final: true },
   ] },
@@ -290,7 +290,7 @@ const LESSONS = [
     { selector: '#libraryDetail .branch-option-card:nth-child(1) [data-branch-field="label"]', titleKey: 'lbLabelsTitle', textKey: 'lbLabelsText' },
     { selector: '#libraryDetail select[data-slot-field="quantization"]', titleKey: 'lbTriggerTitle', textKey: 'lbTriggerText' },
     { selector: '#libraryDetail .branch-option-card:nth-child(1) [data-branch-field="hasTransition"]', titleKey: 'lbTransTitle', textKey: 'lbTransText' },
-    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lbListenTitle', textKey: 'lbListenText', clickDone: true },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lbListenTitle', textKey: 'lbListenText', listen: true },
     // Raccourci (feu vert « bulk_drop ») : après la construction à la main (leçons 4 et 5), le même résultat en déposant un dossier. L'import crée la chaîne mais pas les embranchements, qui se relient à la main.
     // L'import tourne entièrement dans le navigateur. Étapes ignorées tant que le feu vert est fermé.
     { titleKey: 'lfIntroTitle', textKey: 'lfIntroText', skip: () => !flagOpen('bulk_drop') },
@@ -343,7 +343,7 @@ function guideKeydown(e) {
 function guideClickCapture(e) {
   if (!guide) return;
   const step = guide.steps[guide.index];
-  if (step && step.clickDone && step.selector && e.target.closest && e.target.closest(step.selector)) guide.clicked = true;
+  if (step && (step.clickDone || step.listen) && step.selector && e.target.closest && e.target.closest(step.selector)) guide.clicked = true;
 }
 function guideStepTarget(step) { return step.selector ? document.querySelector(step.selector) : null; }
 function guideGo(delta) {
@@ -399,10 +399,11 @@ function renderGuideStep(positionOnly) {
   const spot = guide.root.querySelector('.tour-spot');
   const card = guide.root.querySelector('.tour-card');
   const auto = guide.kind === 'lesson' && (step.done || step.clickDone);
+  const listening = guide.kind === 'lesson' && !!step.listen; // clic sur « Écouter », puis écoute libre, puis « Suivant »
   const last = guide.index === guide.steps.length - 1;
   const revisiting = guide.index < guide.maxIndex;
   const nextLesson = guide.kind === 'lesson' && step.final ? nextLessonOf(guide.lessonId) : null;
-  const key = guide.index + ':' + (visible ? 'v' : 'h') + (revisiting ? ':r' : '');
+  const key = guide.index + ':' + (visible ? 'v' : 'h') + (revisiting ? ':r' : '') + (listening && guide.clicked ? ':c' : '');
   if (!positionOnly || guide.cardKey !== key) {
     guide.cardKey = key;
     const sample = step.sampleKey ? LESSON_SAMPLE_FILES[step.sampleKey] : undefined;
@@ -419,7 +420,8 @@ function renderGuideStep(positionOnly) {
       <div class="tour-title">${escapeHtml(tr(step.titleKey))}</div>
       <div class="tour-text">${escapeHtml(tr(step.textKey, { file: LESSON_SAMPLE_NAMES[step.names || guide.lessonId] || '' }))}</div>
       ${sampleHtml}
-      ${auto ? `<div class="tour-waiting">${escapeHtml(tr('lessonDoIt'))}</div>` : ''}
+      ${auto || (listening && !guide.clicked && !revisiting) ? `<div class="tour-waiting">${escapeHtml(tr('lessonDoIt'))}</div>` : ''}
+      ${listening && guide.clicked ? `<div class="tour-waiting">${escapeHtml(tr('lessonListening'))}</div>` : ''}
       <div class="tour-actions">
         <button class="btn btn-small" type="button" data-tour="skip">${escapeHtml(tr(last ? 'tourClose' : (guide.kind === 'lesson' ? 'lessonQuit' : 'tourSkip')))}</button>
         <span style="flex:1"></span>
@@ -429,7 +431,8 @@ function renderGuideStep(positionOnly) {
           /* étape à geste : elle n'avance que lorsque le geste est fait ; « Passer l'étape » n'existe que pour une étape déjà
              franchie, revue avec « Précédent » */
           ? (revisiting ? `<button class="btn btn-small" type="button" data-tour="next">${escapeHtml(tr('lessonSkipStep'))}</button>` : '')
-          : `<button class="btn btn-small btn-primary" type="button" data-tour="next">${escapeHtml(tr(last ? 'tourFinish' : 'tourNext'))}</button>`}
+          : (listening && !guide.clicked && !revisiting ? ''
+            : `<button class="btn btn-small btn-primary" type="button" data-tour="next">${escapeHtml(tr(last ? 'tourFinish' : 'tourNext'))}</button>`)}
       </div>`;
     card.querySelector('[data-tour="skip"]').onclick = closeBackstageTour;
     const nextBtn = card.querySelector('[data-tour="next"]');
