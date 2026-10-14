@@ -25,6 +25,10 @@ function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 const LESSON_SAMPLE_URLS = {
   // Leçon 1 (essai) : morceau de Jules-Antoine, stocké dans le bucket layerpitch-media (lecture publique, CORS ouvert).
   '1_RobotAdventure_WetDarkCave_120bpm_30M.wav': 'https://media.layerpitch.com/tuto/1_RobotAdventure_WetDarkCave_120bpm_30M.wav',
+  // Leçon 2 (essai) : trois couches du même morceau, 64 mesures à 120 BPM.
+  '1_BattleLoop_LowIntensity_120bpm_64M.wav': 'https://media.layerpitch.com/tuto/1_BattleLoop_LowIntensity_120bpm_64M.wav',
+  '2_BattleLoop_MedIntensity_120bpm_64M.wav': 'https://media.layerpitch.com/tuto/2_BattleLoop_MedIntensity_120bpm_64M.wav',
+  '3_BattleLoop_HighIntensity_120bpm_64M.wav': 'https://media.layerpitch.com/tuto/3_BattleLoop_HighIntensity_120bpm_64M.wav',
 };
 function lessonStepFileNames(step) {
   const names = LESSON_SAMPLE_NAMES[step.names || (guide && guide.lessonId)] || '';
@@ -119,7 +123,7 @@ const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null, sequen
 // (additive : noms provisoires, à remplacer par ceux des vrais fichiers).
 const LESSON_SAMPLE_NAMES = {
   static: '1_RobotAdventure_WetDarkCave_120bpm_30M.wav',
-  additive: 'couche-calme_120bpm.wav, couche-rythme_120bpm.wav, couche-intense_120bpm.wav',
+  additive: '1_BattleLoop_LowIntensity_120bpm_64M.wav, 2_BattleLoop_MedIntensity_120bpm_64M.wav, 3_BattleLoop_HighIntensity_120bpm_64M.wav',
   randomFixed: 'couche-fixe_120bpm.wav',
   randomVariants: 'variante-1_120bpm.wav, variante-2_120bpm.wav, variante-3_120bpm.wav',
   seqIntro: 'intro_120bpm.wav',

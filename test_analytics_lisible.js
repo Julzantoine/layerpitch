@@ -38,7 +38,7 @@ function check(label, cond) { console.log((cond ? 'OK   ' : 'FAIL ') + label); i
     segmentSlots: [{ id: 'slot1', label: 'Intro' }, { id: 'slot2', label: 'Poursuite' }], fxTriggers: [] }]`);
   const L = i => w.eval('analyticsInteractionLabel')(i);
   check('morceau montré par son titre, pas par son identifiant', w.eval("analyticsTrackName('tA')") === 'Thème du boss' && w.eval("analyticsTrackName('zzz')") === 'zzz');
-  check('intensité : niveau et nom de la couche', L({ name: 'intensity_change', detail: { trackId: 'tA', level: 1 } }) === 'Intensité 2 (Tension) — Thème du boss');
+  check('couches : niveau et nom de la couche', L({ name: 'intensity_change', detail: { trackId: 'tA', level: 1 } }) === 'Couches 2 (Tension) — Thème du boss');
   check('boucle : nom de la boucle choisie', L({ name: 'embr_loop_select', detail: { trackId: 'tA', loopId: 'l2' } }) === 'Boucle « Toits » choisie — Thème du boss');
   check('option de bascule : nom de l\'emplacement', L({ name: 'seq_branch_select', detail: { trackId: 'tA', targetId: 'slot2' } }) === 'Option « Poursuite » choisie — Thème du boss');
   check('solo : couche et état', L({ name: 'voice_solo_toggle', detail: { trackId: 'tA', voice: 'layer-2', active: true } }) === 'Solo de « Combat » activé — Thème du boss');
@@ -48,7 +48,7 @@ function check(label, cond) { console.log((cond ? 'OK   ' : 'FAIL ') + label); i
   const card = w.eval('renderAnalyticsSessionCard')({ type: 'adreel', entityId: 'main', openedAt: '2026-09-25T17:24:59Z', device: 'desktop', tracks: [{ trackId: 'tA', reachedEnd: true }], interactions: [{ name: 'intensity_change', detail: { trackId: 'tA', level: 0 } }] });
   w.eval("currentEffectivePlan = 'pro'");
   const card2 = w.eval('renderAnalyticsSessionCard')({ type: 'adreel', entityId: 'main', openedAt: '2026-09-25T17:24:59Z', device: 'desktop', tracks: [{ trackId: 'tA', reachedEnd: true }], interactions: [{ name: 'intensity_change', detail: { trackId: 'tA', level: 0 } }] });
-  check('carte de visite (Pro) : titre du morceau et interaction lisible, plus d\'identifiant', /Thème du boss — /.test(card2) && /Intensité 1 \(Calme\)/.test(card2) && !/>tA —/.test(card2));
+  check('carte de visite (Pro) : titre du morceau et interaction lisible, plus d\'identifiant', /Thème du boss — /.test(card2) && /Couches 1 \(Calme\)/.test(card2) && !/>tA —/.test(card2));
 
   console.log(failures ? `\n${failures} ÉCHEC(S)` : '\nALL CHECKS PASSED');
   process.exit(failures ? 1 : 0);
