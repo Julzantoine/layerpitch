@@ -253,7 +253,7 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && t.loopEngine === 'quantized'; } },
     { selector: '#libraryDetail select[data-field="loopEngine"]', titleKey: 'laEngineAutoTitle', textKey: 'laEngineAutoText',
       skip: (c) => !!c.engineManual },
-    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'laPointsTitle', textKey: 'laPointsText' },
+    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'laPointsTitle', textKey: 'laPointsText', arrow: { bar: 65 } },
     // Le pilotage des couches se règle AVANT l'écoute : boutons nommés (par défaut), ou curseur à seuils (RTPC).
     { selector: '#libraryDetail input[data-field="label"]', titleKey: 'laButtonsTitle', textKey: 'laButtonsText' },
     { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'laSliderTitle', textKey: 'laSliderText',
@@ -571,7 +571,9 @@ function renderGuideStep(positionOnly) {
     // surbrillance reste invisible.
     if (!positionOnly) {
       const b = target.getBoundingClientRect();
-      if (b.bottom > window.innerHeight - 8 || b.top < 8) { try { target.scrollIntoView({ block: b.height > window.innerHeight * 0.7 ? 'start' : 'center' }); } catch (e) { /* ancien navigateur */ } }
+      // (les champs de la fiche passent sous la barre fixe du haut : on les ramène au centre)
+      const underBar = b.top < 250 && !!target.closest('#libraryDetail');
+      if (b.bottom > window.innerHeight - 8 || b.top < 8 || underBar) { try { target.scrollIntoView({ block: b.height > window.innerHeight * 0.7 ? 'start' : 'center' }); } catch (e) { /* ancien navigateur */ } }
     }
     const r = target.getBoundingClientRect();
     spot.style.display = 'block';
