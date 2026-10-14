@@ -42,11 +42,11 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('6 leçons déclarées, aucune « bientôt »', w.__r.lessons === 6 && w.__r.soon === 0);
   check('séquentiel simple : 20 étapes, sans raccourci d’import', w.__r.seq === 20 && w.__r.seqSkip === 1);
   check('séquentiel à embranchement : raccourci d’import (26 étapes dont 10 sautées sans bulk_drop)', w.__r.br === 26 && w.__r.brSkip === 10);
-  check('embranchement vertical : 23 étapes (dont 2 de nettoyage)', w.__r.emb === 23);
+  check('embranchement vertical : 24 étapes (dont 2 de nettoyage)', w.__r.emb === 24);
   
   
   check('couches aléatoires : 15 étapes (dont 2 de nettoyage)', w.__r.rnd === 15);
-  check('couches additives : 15 étapes (dont 2 de nettoyage)', w.__r.add === 15);
+  check('couches additives : 17 étapes (dont 2 de nettoyage)', w.__r.add === 17);
   check('la leçon ouvre une bulle', !!w.document.querySelector('.tour-root-lesson .tour-card'));
   check('étape 1 sur 13', /1 \/ 13/.test(w.document.querySelector('.tour-count').textContent));
   // Geste : l'onglet bibliothèque devient actif -> étape 2 (après le délai d'avance).

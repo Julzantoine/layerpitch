@@ -140,6 +140,12 @@ const LESSON_SAMPLE_NAMES = {
 // Nettoyage commun à toutes les leçons (Backstage des compositeurs) : le morceau d'essai est supprimé, puis la
 // suppression est sauvegardée (une suppression n'est définitive qu'une fois sauvegardée). « Garder ce morceau » existe.
 // Absentes d'une éventuelle version publique sans compte : rien n'y est jamais enregistré.
+// Après un dépôt de plusieurs fichiers dont les noms portent le tempo / la longueur (« _120bpm », « _64M »), le moteur
+// ouvre une petite fenêtre de confirmation : la leçon la met en surbrillance et attend le clic sur « Appliquer ».
+// Sans fenêtre (rien à proposer, ou fonction fermée) l'étape est sautée.
+const HINTS_DIALOG_STEP = { selector: '.vrs-batch-overlay .vrs-batch-modal', titleKey: 'lsHintsTitle', textKey: 'lsHintsText',
+  skip: () => !document.querySelector('.vrs-batch-overlay'),
+  done: () => !document.querySelector('.vrs-batch-overlay') };
 const CLEANUP_STEPS = [
   { selector: '#libraryDetail [data-action="remove-track"]', titleKey: 'lcDelTitle', textKey: 'lcDelText', keepTrack: true,
     enter: (c) => { const t = lessonTrack(); c.cleanupId = t ? t.id : null; },
@@ -180,12 +186,19 @@ const LESSONS = [
     { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'laModeTitle', textKey: 'laModeText' },
     { useSample: true, selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'laDropTitle', textKey: 'laDropText', sampleKey: 'additive',
       done: () => { const t = lessonTrack(); return !!t && (t.layers || []).filter(l => l.pendingFile || l.remoteFile).length >= 2; } },
+    HINTS_DIALOG_STEP,
     { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'laCheckTitle', textKey: 'laCheckText' },
+    // Si la confirmation « tempo et mesures repérés » a déjà passé le moteur en « Quantifié », la leçon le dit (étape de
+    // lecture) au lieu de demander un geste déjà fait.
     { selector: '#libraryDetail select[data-field="loopEngine"]', titleKey: 'laEngineTitle', textKey: 'laEngineText', required: true,
+      skip: () => { const t = lessonTrack(); return !!t && t.loopEngine === 'quantized'; },
+      enter: (c) => { c.engineManual = true; },
       done: () => { const t = lessonTrack(); return !!t && t.loopEngine === 'quantized'; } },
+    { selector: '#libraryDetail select[data-field="loopEngine"]', titleKey: 'laEngineAutoTitle', textKey: 'laEngineAutoText',
+      skip: (c) => !!c.engineManual },
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'laPointsTitle', textKey: 'laPointsText' },
-    // Le pilotage de l'intensité se règle AVANT l'écoute : boutons nommés (par défaut), ou curseur à seuils (RTPC).
-    { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'laButtonsTitle', textKey: 'laButtonsText' },
+    // Le pilotage des couches se règle AVANT l'écoute : boutons nommés (par défaut), ou curseur à seuils (RTPC).
+    { selector: '#libraryDetail input[data-field="label"]', titleKey: 'laButtonsTitle', textKey: 'laButtonsText' },
     { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'laSliderTitle', textKey: 'laSliderText',
       skip: () => !fxOpen('rtpc') }, // curseurs : feu vert « rtpc » (admin seulement pour l'instant)
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'laListenTitle', textKey: 'laListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
@@ -203,6 +216,7 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && t.mode === 'embranchement-vertical'; } },
     { useSample: true, selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'leDropTitle', textKey: 'leDropText', sampleKey: 'embranchement', names: 'embrLoops',
       done: () => lessonLoopFileCount() >= 2 },
+    HINTS_DIALOG_STEP,
     { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'leCheckTitle', textKey: 'leCheckText' },
     { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'leRefTitle', textKey: 'leRefText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 0; } },
@@ -496,6 +510,12 @@ function renderGuideStep(positionOnly) {
   }
   const margin = 12;
   if (visible) {
+    // Cible hors de l'écran (page longue) : on la fait défiler dans la vue à l'arrivée sur l'étape, sinon la zone en
+    // surbrillance reste invisible.
+    if (!positionOnly) {
+      const b = target.getBoundingClientRect();
+      if (b.bottom > window.innerHeight - 8 || b.top < 8) { try { target.scrollIntoView({ block: b.height > window.innerHeight * 0.7 ? 'start' : 'center' }); } catch (e) { /* ancien navigateur */ } }
+    }
     const r = target.getBoundingClientRect();
     spot.style.display = 'block';
     spot.style.top = (r.top - 4) + 'px'; spot.style.left = (r.left - 4) + 'px';
