@@ -69,25 +69,39 @@ async function lessonUseSample(step) {
     for (let i = 0; i < names.length; i++) {
       const name = names[i];
       lessonShowLoading(i + 1, names.length, 0);
-      const res = await fetch(LESSON_SAMPLE_URLS[name]);
-      if (!res.ok) throw new Error(name + ' : ' + res.status);
-      const hdr = n => (res.headers && res.headers.get ? res.headers.get(n) : null);
-      const total = Number(hdr('content-length')) || 0;
-      let blob;
-      if (res.body && res.body.getReader && total) {
-        const reader = res.body.getReader();
-        const chunks = [];
-        let got = 0;
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value); got += value.length;
-          lessonShowLoading(i + 1, names.length, Math.min(100, Math.round(100 * got / total)));
+      // Connexion lente ou coupée (« Content-Length header of network response exceeds response Body » sous Firefox) :
+      // on reprend le téléchargement là où il s'est arrêté (requête Range), jusqu'à 6 tentatives.
+      const chunks = [];
+      let got = 0, total = 0, mime = 'audio/wav';
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const res = await fetch(LESSON_SAMPLE_URLS[name], got > 0 ? { headers: { Range: 'bytes=' + got + '-' } } : undefined);
+          if (!res.ok) throw new Error(name + ' : ' + res.status);
+          const hdr = n => (res.headers && res.headers.get ? res.headers.get(n) : null);
+          if (got > 0 && res.status !== 206) { chunks.length = 0; got = 0; } // le serveur renvoie tout : on repart de zéro
+          const cr = /\/(\d+)$/.exec(hdr('content-range') || '');
+          total = cr ? Number(cr[1]) : (got === 0 ? Number(hdr('content-length')) || 0 : total);
+          mime = hdr('content-type') || mime;
+          if (res.body && res.body.getReader) {
+            const reader = res.body.getReader();
+            for (;;) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value); got += value.length;
+              lessonShowLoading(i + 1, names.length, total ? Math.min(100, Math.round(100 * got / total)) : 0);
+            }
+          } else {
+            const b = await res.blob();
+            chunks.push(b); got += b.size;
+          }
+          if (!total || got >= total) break;
+          throw new Error('transfert incomplet');
+        } catch (err) {
+          if (attempt >= 5) throw err;
+          await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
         }
-        blob = new Blob(chunks, { type: hdr('content-type') || 'audio/wav' });
-      } else {
-        blob = await res.blob();
       }
+      const blob = new Blob(chunks, { type: mime });
       dt.items.add(new File([blob], name, { type: blob.type || 'audio/wav' }));
     }
   } finally {
