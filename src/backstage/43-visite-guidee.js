@@ -40,16 +40,59 @@ function lessonSampleReady(step) {
 }
 // Dépose les fichiers d'exemple sur la zone en surbrillance, comme si l'apprenant les y avait glissés : un événement
 // « drop » transportant de vrais objets File, traité par les mêmes gestionnaires que les dépôts réels.
+// Indique dans la bulle que le chargement des fichiers d'exemple est en cours (ils sont lourds, la connexion peut être
+// lente) : sans cela, rien ne bouge pendant le téléchargement.
+function lessonShowLoading(done, total, pct) {
+  if (!guide) return;
+  const card = guide.root.querySelector('.tour-card');
+  if (!card) return;
+  let el = card.querySelector('.tour-loading');
+  if (done == null) { if (el) el.remove(); const chip = card.querySelector('.tour-chip'); if (chip) chip.style.opacity = ''; return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'tour-waiting tour-loading';
+    const actions = card.querySelector('.tour-actions');
+    card.insertBefore(el, actions);
+  }
+  const chip = card.querySelector('.tour-chip'); if (chip) chip.style.opacity = '0.45';
+  el.textContent = tr('lessonSampleLoading', { done, total, pct });
+}
 async function lessonUseSample(step) {
   const target = guideStepTarget(step);
   if (!target) throw new Error('zone introuvable');
   if (typeof DataTransfer === 'undefined' || typeof DragEvent === 'undefined') throw new Error('dépôt non pris en charge par ce navigateur');
+  if (guide && guide.sampleLoading) return; // un chargement est déjà en cours
+  if (guide) guide.sampleLoading = true;
   const dt = new DataTransfer();
-  for (const name of lessonStepFileNames(step)) {
-    const res = await fetch(LESSON_SAMPLE_URLS[name]);
-    if (!res.ok) throw new Error(name + ' : ' + res.status);
-    const blob = await res.blob();
-    dt.items.add(new File([blob], name, { type: blob.type || 'audio/wav' }));
+  try {
+    const names = lessonStepFileNames(step);
+    for (let i = 0; i < names.length; i++) {
+      const name = names[i];
+      lessonShowLoading(i + 1, names.length, 0);
+      const res = await fetch(LESSON_SAMPLE_URLS[name]);
+      if (!res.ok) throw new Error(name + ' : ' + res.status);
+      const hdr = n => (res.headers && res.headers.get ? res.headers.get(n) : null);
+      const total = Number(hdr('content-length')) || 0;
+      let blob;
+      if (res.body && res.body.getReader && total) {
+        const reader = res.body.getReader();
+        const chunks = [];
+        let got = 0;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value); got += value.length;
+          lessonShowLoading(i + 1, names.length, Math.min(100, Math.round(100 * got / total)));
+        }
+        blob = new Blob(chunks, { type: hdr('content-type') || 'audio/wav' });
+      } else {
+        blob = await res.blob();
+      }
+      dt.items.add(new File([blob], name, { type: blob.type || 'audio/wav' }));
+    }
+  } finally {
+    if (guide) guide.sampleLoading = false;
+    lessonShowLoading(null);
   }
   const zone = target.querySelector('.file-ctrl') || target;
   const ev = new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true });
@@ -184,7 +227,7 @@ const LESSONS = [
       enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
     // Un nouveau morceau est déjà en « vertical » : étape de lecture (« Suivant »), pas de geste à détecter.
     { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'laModeTitle', textKey: 'laModeText' },
-    { useSample: true, selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'laDropTitle', textKey: 'laDropText', sampleKey: 'additive',
+    { useSample: true, selector: '#libraryDetail [data-role="modeMaster"] .seq-master-item[data-si="0"]', titleKey: 'laDropTitle', textKey: 'laDropText', sampleKey: 'additive',
       done: () => { const t = lessonTrack(); return !!t && (t.layers || []).filter(l => l.pendingFile || l.remoteFile).length >= 2; } },
     HINTS_DIALOG_STEP,
     { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'laCheckTitle', textKey: 'laCheckText' },
