@@ -255,7 +255,15 @@ const LESSONS = [
       skip: (c) => !!c.engineManual },
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'laPointsTitle', textKey: 'laPointsText', arrow: { bar: 65 } },
     // Le pilotage des couches se règle AVANT l'écoute : boutons nommés (par défaut), ou curseur à seuils (RTPC).
+    // Le champ « Label » n'existe que lorsqu'une couche est ouverte : on demande d'abord de cliquer dessus.
+    { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'laSelectTitle', textKey: 'laSelectText',
+      skip: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 0; },
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 0; } },
     { selector: '#libraryDetail input[data-field="label"]', titleKey: 'laButtonsTitle', textKey: 'laButtonsText' },
+    // Les curseurs se trouvent dans « Infos du morceau » : on y revient avant de les montrer.
+    { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'laInfoTitle', textKey: 'laInfoText',
+      skip: () => { const t = lessonTrack(); return !fxOpen('rtpc') || (!!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'); },
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
     { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'laSliderTitle', textKey: 'laSliderText',
       skip: () => !fxOpen('rtpc') }, // curseurs : feu vert « rtpc » (admin seulement pour l'instant)
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'laListenTitle', textKey: 'laListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },

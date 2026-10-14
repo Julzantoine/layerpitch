@@ -46,7 +46,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   
   
   check('couches aléatoires : 15 étapes (dont 2 de nettoyage)', w.__r.rnd === 15);
-  check('couches additives : 17 étapes (dont 2 de nettoyage)', w.__r.add === 17);
+  check('couches additives : 19 étapes (dont 2 de nettoyage)', w.__r.add === 19);
   check('la leçon ouvre une bulle', !!w.document.querySelector('.tour-root-lesson .tour-card'));
   check('étape 1 sur 13', /1 \/ 13/.test(w.document.querySelector('.tour-count').textContent));
   // Geste : l'onglet bibliothèque devient actif -> étape 2 (après le délai d'avance).
