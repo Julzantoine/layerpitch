@@ -285,7 +285,7 @@ const LESSONS = [
       enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
     { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'leModeTitle', textKey: 'leModeText',
       done: () => { const t = lessonTrack(); return !!t && t.mode === 'embranchement-vertical'; } },
-    { useSample: true, selector: '#libraryDetail [data-role="modeMaster"] .seq-master-item[data-si="0"]', titleKey: 'leDropTitle', textKey: 'leDropText', sampleKey: 'embranchement', names: 'embrLoops',
+    { useSample: true, selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'leDropTitle', textKey: 'leDropText', sampleKey: 'embranchement', names: 'embrLoops',
       done: () => lessonLoopFileCount() >= 2 },
     HINTS_DIALOG_STEP,
     { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'leCheckTitle', textKey: 'leCheckText' },
