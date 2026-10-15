@@ -6999,8 +6999,10 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       if (playing) { stopAllSources(false); offsetAt = sec; playThisTrack(false, true); }
       else { offsetAt = sec; updateProgressAt(offsetAt); }
     };
+    // Quand un curseur pilote la structure, les lignes ne changent plus le niveau au clic (c'est le curseur qui décide),
+    // mais elles servent toujours à placer la tête de lecture (clic ou glisser).
+    const sliderDriven = () => !!row.closest('.is-slider-driven');
     row.addEventListener('pointerdown', (e) => {
-      if (row.closest('.is-slider-driven')) return;
       down = true; moved = false; startX = e.clientX; pid = e.pointerId;
       try { row.setPointerCapture(e.pointerId); } catch (err) {}
     });
@@ -7017,7 +7019,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       row.dataset.justHandled = '1';
       setTimeout(() => { delete row.dataset.justHandled; }, 0);
       if (moved) { isDraggingSeek = false; seekTo(secOf(e)); return; }
-      if (i !== level) applyIntensityLevel(i);
+      if (i !== level && !sliderDriven()) applyIntensityLevel(i);
       else seekTo(secOf(e));
     });
     row.addEventListener('pointercancel', () => { down = false; if (moved) { moved = false; isDraggingSeek = false; } });
