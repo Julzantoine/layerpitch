@@ -308,15 +308,14 @@ const LESSONS = [
       skip: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 0; },
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 0; } },
     { selector: '#libraryDetail input[data-field="label"]', titleKey: 'laButtonsTitle', textKey: 'laButtonsText' },
-    // Curseur qui remplace les boutons : pas à pas (feu vert « rtpc », admin seulement pour l'instant). La première étape
-    // propose de garder les boutons et de sauter tout le groupe.
-    { titleKey: 'laSl0Title', textKey: 'laSl0Text', group: 'sliders', offerSkipGroup: 'sliders', skip: () => !fxOpen('rtpc') },
-    { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'laSl1Title', textKey: 'laSl1Text',
-      group: 'sliders', offerSkipGroup: 'sliders',
-      skip: () => { const t = lessonTrack(); return !fxOpen('rtpc') || (!!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'); },
-      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
+    // Curseur qui remplace les boutons : pas à pas (feu vert « rtpc », admin seulement pour l'instant). 
+    // « Infos du morceau » s'ouvre toute seule : la zone des curseurs y est entourée tout de suite (pas de choix à faire,
+    // c'est le but de la leçon).
+    { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'laSl0Title', textKey: 'laSl0Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc'),
+      enter: () => { const t = lessonTrack(); if (t && seqSelectedSlotIndex.get(t.id) !== 'trackinfo') { seqSelectedSlotIndex.set(t.id, 'trackinfo'); renderLibrary(); } } },
     { selector: '#libraryDetail [data-action="add-fx-slider"]', titleKey: 'laSl2Title', textKey: 'laSl2Text', group: 'sliders',
-      skip: () => !fxOpen('rtpc'), offerSkipGroup: 'sliders',
+      skip: () => !fxOpen('rtpc'),
       done: () => { const t = lessonTrack(); return !!t && (t.fxSliders || []).length >= 1; } },
     { selector: '#libraryDetail [data-field="fxSlider"][data-fxs-prop="label"]', titleKey: 'laSl3Title', textKey: 'laSl3Text', group: 'sliders',
       skip: () => !fxOpen('rtpc') || !fxSliderExists() },
@@ -487,20 +486,6 @@ function guideStepTarget(step) {
   }
   return step.selector ? document.querySelector(step.selector) : null;
 }
-// Saute tout un groupe d'étapes (ex. le curseur de la leçon d'embranchement) : l'apprenant garde les boutons.
-function guideSkipGroup(group) {
-  if (!guide) return;
-  let next = guide.index + 1;
-  while (next < guide.steps.length && guide.steps[next].group === group) next++;
-  if (next >= guide.steps.length) { finishGuide(); return; }
-  while (next < guide.steps.length && guide.steps[next].skip && guide.steps[next].skip(guide.ctx)) next++;
-  if (next >= guide.steps.length) { finishGuide(); return; }
-  guide.index = next; guide.clicked = false; guide.advancing = false; guide.userMoved = false;
-  if (next > guide.maxIndex) guide.maxIndex = next;
-  const step = guide.steps[next];
-  if (step.enter) step.enter(guide.ctx);
-  renderGuideStep();
-}
 function guideGo(delta) {
   if (!guide) return;
   let next = guide.index + delta;
@@ -579,7 +564,6 @@ function renderGuideStep(positionOnly) {
       <div class="tour-actions">
         <button class="btn btn-small" type="button" data-tour="skip">${escapeHtml(tr(last ? 'tourClose' : (guide.kind === 'lesson' ? 'lessonQuit' : 'tourSkip')))}</button>
         <span style="flex:1"></span>
-        ${step.offerSkipGroup ? `<button class="btn btn-small" type="button" data-tour="skipgroup">${escapeHtml(tr('lessonKeepButtons'))}</button>` : ''}
         ${guide.index > 0 && !step.final ? `<button class="btn btn-small" type="button" data-tour="prev">${escapeHtml(tr('tourPrev'))}</button>` : ''}
         ${nextLesson ? `<button class="btn btn-small btn-primary" type="button" data-tour="nextlesson">${escapeHtml(tr('lessonNextBtn', { n: nextLesson.n, title: tr(nextLesson.lesson.titleKey).replace(/^\d+\s·\s/, '') }))}</button>` : ''}
         ${auto
@@ -593,8 +577,6 @@ function renderGuideStep(positionOnly) {
     card.querySelector('[data-tour="skip"]').onclick = closeBackstageTour;
     const nextBtn = card.querySelector('[data-tour="next"]');
     if (nextBtn) nextBtn.onclick = () => guideGo(1); // absent sur une étape obligatoire
-    const skipGroupBtn = card.querySelector('[data-tour="skipgroup"]');
-    if (skipGroupBtn) skipGroupBtn.onclick = () => guideSkipGroup(step.offerSkipGroup);
     const prev = card.querySelector('[data-tour="prev"]');
     if (prev) prev.onclick = () => guideGo(-1);
     const chip = card.querySelector('[data-tour="chip"]');
