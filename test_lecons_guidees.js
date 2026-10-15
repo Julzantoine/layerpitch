@@ -42,7 +42,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('6 leçons déclarées, aucune « bientôt »', w.__r.lessons === 6 && w.__r.soon === 0);
   check('séquentiel simple : 20 étapes, sans raccourci d’import', w.__r.seq === 20 && w.__r.seqSkip === 1);
   check('séquentiel à embranchement : raccourci d’import (26 étapes dont 10 sautées sans bulk_drop)', w.__r.br === 26 && w.__r.brSkip === 10);
-  check('embranchement vertical : 24 étapes (dont 2 de nettoyage)', w.__r.emb === 24);
+  check('embranchement vertical : 25 étapes (dont 2 de nettoyage)', w.__r.emb === 25);
   
   
   check('couches aléatoires : 15 étapes (dont 2 de nettoyage)', w.__r.rnd === 15);
