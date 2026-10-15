@@ -195,6 +195,16 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   const lateE = window.addFilesToEmbranchementLoops(trackE(), [F('Transition #2.wav')]);
   check('transition déposée seule : rattachée à la boucle #2 sans transition', lateE.attached.length === 1 && trackE().loops[1].transition.pendingFile.name === 'Transition #2.wav' && trackE().loops.length === 2);
 
+  // Une boucle vide déjà présente (« + Boucle ») reçoit le premier fichier : pas de boucle vide laissée derrière
+  click(q('#btnAddLibraryTrack'));
+  const tiEmpty = window.eval('library.length - 1');
+  setValue(q(`#libraryContainer select[data-field="mode"][data-ti="${tiEmpty}"]`), 'embranchement-vertical');
+  click(q(`#libraryContainer [data-action="add-embr-loop"][data-ti="${tiEmpty}"]`));
+  const trackEmpty = window.eval(`library[${tiEmpty}]`);
+  const emptyId = trackEmpty.loops[0] && trackEmpty.loops[0].id;
+  window.addFilesToEmbranchementLoops(trackEmpty, monte);
+  check('boucle vide déjà présente : remplie par le premier fichier, aucune boucle vide laissée', trackEmpty.loops.length === 2 && trackEmpty.loops[0].id === emptyId && !!trackEmpty.loops[0].pendingFile && trackEmpty.loops[0].isInitial && trackEmpty.loops.every(l => l.pendingFile));
+
   // Même chose par le vrai dépôt de fichiers sur la liste des boucles
   click(q('#btnAddLibraryTrack'));
   const tiU = window.eval('library.length - 1');
