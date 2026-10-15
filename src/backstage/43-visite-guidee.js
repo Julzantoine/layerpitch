@@ -171,6 +171,7 @@ function lessonArrowPoint(bar) {
   if (!r.width) return null;
   return { x: r.left + r.width * beat / total, y: r.top };
 }
+function fxSliderExists() { const t = lessonTrack(); return !!t && (t.fxSliders || []).length >= 1; }
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
@@ -314,10 +315,28 @@ const LESSONS = [
     { selector: '#libraryDetail input[data-embr-loop-field="isDetour"]', titleKey: 'ldFlagTitle', textKey: 'ldFlagText', skip: () => !lessonDetourReady(),
       done: () => { const t = lessonTrack(); const l = t && (t.loops || [])[2]; return !!l && !!l.isDetour; } },
     { selector: '#libraryDetail .row:has([data-embr-loop-field="bars"])', titleKey: 'ldSetTitle', textKey: 'ldSetText', skip: () => !lessonDetourReady() },
-    { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'laInfoTitle', textKey: 'laInfoText',
+    // Curseur qui remplace les boutons : pas à pas (feu vert « rtpc », admin seulement pour l'instant). La première étape
+    // propose de garder les boutons et de sauter tout le groupe.
+    { titleKey: 'leSl0Title', textKey: 'leSl0Text', group: 'sliders', offerSkipGroup: 'sliders', skip: () => !fxOpen('rtpc') },
+    { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'leSl1Title', textKey: 'leSl1Text',
+      group: 'sliders', offerSkipGroup: 'sliders',
       skip: () => { const t = lessonTrack(); return !fxOpen('rtpc') || (!!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'); },
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
-    { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'leSliderTitle', textKey: 'leSliderText', skip: () => !fxOpen('rtpc') },
+    { selector: '#libraryDetail [data-action="add-fx-slider"]', titleKey: 'leSl2Title', textKey: 'leSl2Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc'), offerSkipGroup: 'sliders',
+      done: () => { const t = lessonTrack(); return !!t && (t.fxSliders || []).length >= 1; } },
+    { selector: '#libraryDetail [data-field="fxSlider"][data-fxs-prop="label"]', titleKey: 'leSl3Title', textKey: 'leSl3Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc') || !fxSliderExists() },
+    { selector: '#libraryDetail [data-field="fxSlider"][data-fxs-prop="visible"]', titleKey: 'leSl4Title', textKey: 'leSl4Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc') || !fxSliderExists(),
+      done: () => { const t = lessonTrack(); const sl = t && (t.fxSliders || [])[0]; return !!sl && !!sl.visible; } },
+    { selector: '#libraryDetail [data-field="fxSlider"][data-fxs-prop="intensity"]', titleKey: 'leSl5Title', textKey: 'leSl5Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc') || !fxSliderExists(),
+      done: () => { const t = lessonTrack(); const sl = t && (t.fxSliders || [])[0]; return !!sl && !!sl.intensity; } },
+    { selector: '#libraryDetail [data-field="fxSliderIntensityBound"]', titleKey: 'leSl6Title', textKey: 'leSl6Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc') || !fxSliderExists() },
+    { selector: '#libraryDetail [data-field="fxSlider"][data-fxs-prop="defaultValue"]', titleKey: 'leSl7Title', textKey: 'leSl7Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc') || !fxSliderExists() },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'leListenTitle', textKey: 'leListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     ...CLEANUP_STEPS,
@@ -474,6 +493,20 @@ function guideStepTarget(step) {
   }
   return step.selector ? document.querySelector(step.selector) : null;
 }
+// Saute tout un groupe d'étapes (ex. le curseur de la leçon d'embranchement) : l'apprenant garde les boutons.
+function guideSkipGroup(group) {
+  if (!guide) return;
+  let next = guide.index + 1;
+  while (next < guide.steps.length && guide.steps[next].group === group) next++;
+  if (next >= guide.steps.length) { finishGuide(); return; }
+  while (next < guide.steps.length && guide.steps[next].skip && guide.steps[next].skip(guide.ctx)) next++;
+  if (next >= guide.steps.length) { finishGuide(); return; }
+  guide.index = next; guide.clicked = false; guide.advancing = false; guide.userMoved = false;
+  if (next > guide.maxIndex) guide.maxIndex = next;
+  const step = guide.steps[next];
+  if (step.enter) step.enter(guide.ctx);
+  renderGuideStep();
+}
 function guideGo(delta) {
   if (!guide) return;
   let next = guide.index + delta;
@@ -552,6 +585,7 @@ function renderGuideStep(positionOnly) {
       <div class="tour-actions">
         <button class="btn btn-small" type="button" data-tour="skip">${escapeHtml(tr(last ? 'tourClose' : (guide.kind === 'lesson' ? 'lessonQuit' : 'tourSkip')))}</button>
         <span style="flex:1"></span>
+        ${step.offerSkipGroup ? `<button class="btn btn-small" type="button" data-tour="skipgroup">${escapeHtml(tr('lessonKeepButtons'))}</button>` : ''}
         ${guide.index > 0 && !step.final ? `<button class="btn btn-small" type="button" data-tour="prev">${escapeHtml(tr('tourPrev'))}</button>` : ''}
         ${nextLesson ? `<button class="btn btn-small btn-primary" type="button" data-tour="nextlesson">${escapeHtml(tr('lessonNextBtn', { n: nextLesson.n, title: tr(nextLesson.lesson.titleKey).replace(/^\d+\s·\s/, '') }))}</button>` : ''}
         ${auto
@@ -565,6 +599,8 @@ function renderGuideStep(positionOnly) {
     card.querySelector('[data-tour="skip"]').onclick = closeBackstageTour;
     const nextBtn = card.querySelector('[data-tour="next"]');
     if (nextBtn) nextBtn.onclick = () => guideGo(1); // absent sur une étape obligatoire
+    const skipGroupBtn = card.querySelector('[data-tour="skipgroup"]');
+    if (skipGroupBtn) skipGroupBtn.onclick = () => guideSkipGroup(step.offerSkipGroup);
     const prev = card.querySelector('[data-tour="prev"]');
     if (prev) prev.onclick = () => guideGo(-1);
     const chip = card.querySelector('[data-tour="chip"]');

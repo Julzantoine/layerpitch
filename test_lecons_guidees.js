@@ -42,7 +42,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('6 leçons déclarées, aucune « bientôt »', w.__r.lessons === 6 && w.__r.soon === 0);
   check('séquentiel simple : 21 étapes, sans raccourci d’import', w.__r.seq === 21 && w.__r.seqSkip === 1);
   check('séquentiel à embranchement : raccourci d’import (27 étapes dont 10 sautées sans bulk_drop)', w.__r.br === 27 && w.__r.brSkip === 10);
-  check('embranchement vertical : 26 étapes (dont 2 de nettoyage)', w.__r.emb === 26);
+  check('embranchement vertical : 32 étapes (dont 2 de nettoyage)', w.__r.emb === 32);
   
   
   check('couches aléatoires : 16 étapes (dont 2 de nettoyage)', w.__r.rnd === 16);
@@ -185,6 +185,21 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('bulle : saisie puis déplacement suivent la souris', mv.moved === true && mv.pos.left === '400px' && mv.pos.top === '270px');
   check('bulle : la position est conservée tant qu’on reste sur l’étape', mv.kept.left === '400px' && mv.kept.top === '270px');
   check('bulle : retour au placement automatique à l’étape suivante', mv.resetOnNext === false);
+  // Curseur de la leçon d'embranchement : « Garder les boutons » saute tout le groupe d'étapes du curseur.
+  const skipRes = w.eval(`(function () {
+    flagOpen = () => true; fxOpen = () => true;
+    guide.lessonId = 'embranchement'; guide.steps = LESSONS.find(l => l.id === 'embranchement').steps;
+    const first = guide.steps.findIndex(x => x.group === 'sliders');
+    const last = guide.steps.map(x => x.group).lastIndexOf('sliders');
+    guide.index = first; guide.maxIndex = first; guide.cardKey = '';
+    renderGuideStep();
+    const hasBtn = !!document.querySelector('[data-tour="skipgroup"]');
+    guideSkipGroup('sliders');
+    return { hasBtn, n: guide.steps.filter(x => x.group === 'sliders').length, after: guide.index, expected: last + 1 };
+  })()`);
+  check('curseur : bouton « Garder les boutons » sur la première étape du groupe', skipRes.hasBtn === true);
+  check('curseur : 8 étapes pas à pas', skipRes.n === 8);
+  check('curseur : « Garder les boutons » saute tout le groupe', skipRes.after === skipRes.expected);
   // Échap quitte.
   w.eval(`guide.index = 7; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));
