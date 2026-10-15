@@ -30,7 +30,7 @@ const { JSDOM } = require('jsdom');
   w.LayerPitchSupabaseClient = { getClient: () => ({ rpc: async (name, args) => { calls.rpc.push([name, args]); if (name === 'set_feature_released') { flags = flags.map(f => f.key === args.p_key ? Object.assign({}, f, { released: args.p_released }) : f); return { data: null, error: null }; } return { data: name === 'is_admin' ? true : [], error: null }; }, from: t => (t === 'feature_flags' ? { select: () => ({ order: async () => ({ data: flags, error: null }) }) } : tbl([])) }) };
   let authCb = null;
   w.LayerPitchAuth = { onAuthStateChange: cb => { authCb = cb; }, signOut: async () => {}, signInWithMagicLink: async () => ({ ok: true }), inviteTester: async (...a) => { calls.invite.push(a); return { ok: true }; }, suspendAccount: async () => ({ ok: true }), reinstateAccount: async () => ({ ok: true }) };
-  w.LayerPitchAdmin = { getStats: async () => ({ stats: null }), getGrowthSeries: async () => ({ growth: null }), listAccounts: async () => ({ accounts: [] }), listAdminMessages: async () => ({ messages: [] }), getAdReelsReport: async () => ({ report: [] }) };
+  w.LayerPitchAdmin = { getStats: async () => ({ stats: null }), getGrowthSeries: async () => ({ growth: null }), listAccounts: async () => ({ accounts: [] }), listAdminMessages: async () => ({ messages: [] }), listNativeMessages: async () => ({ messages: [] }), getAdReelsReport: async () => ({ report: [] }) };
   w.LayerPitchAdminReport = { filterRows: r => r, reportHtml: () => '', reportCsv: () => '' };
   let requests = [
     { id: 1, email: 'compo@x.test', source: 'landing', intent: 'beta', created_at: '2026-10-07T08:00:00Z', message: null },

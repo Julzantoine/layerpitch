@@ -57,6 +57,7 @@
         id: m.id, body: m.body || {}, title: m.title || {}, createdAt: m.created_at,
         existingAccountsOnly: !!m.existing_accounts_only,
         recipientId: m.recipient_id || null, recipientEmail: m.recipient_email || null, emailNotify: !!m.email_notify,
+        welcome: !!m.welcome,
       })),
       error: null,
     };
@@ -98,6 +99,43 @@
     return { ok: true, error: null };
   }
 
+  // Retouche d'un message déjà envoyé (15/10) : même forme { <code langue>: <texte> } que l'envoi. Sans
+  // notification ni e-mail ; une diffusion étant une seule ligne, la correction vaut pour tous.
+  async function updateAdminMessage(id, messages, titles) {
+    const { error } = await getClient().rpc('admin_update_message', { p_id: id, p_body: messages, p_title: cleanTitleMap(titles) });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, error: null };
+  }
+
+  // Messages automatiques de la plateforme (15/10, platform_message_templates) : bienvenue des nouveaux
+  // arrivants. Une modification ne touche que les futurs arrivants.
+  async function listNativeMessages() {
+    const { data, error } = await getClient().rpc('admin_list_native_messages');
+    if (error) return { messages: null, error: error.message };
+    return { messages: (data || []).map(m => ({ key: m.key, title: m.title || {}, body: m.body || {}, updatedAt: m.updated_at })), error: null };
+  }
+
+  async function updateNativeMessage(key, messages, titles) {
+    const { error } = await getClient().rpc('admin_update_native_message', { p_key: key, p_body: messages, p_title: cleanTitleMap(titles) });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, error: null };
+  }
+
+  // Supprime le modèle : plus de message de bienvenue automatique pour les futurs arrivants
+  // (« enregistrer » le recrée).
+  async function deleteNativeMessage(key) {
+    const { error } = await getClient().rpc('admin_delete_native_message', { p_key: key });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, error: null };
+  }
+
+  // Titres : les langues laissées vides sont écartées (même règle que sendAdminMessage).
+  function cleanTitleMap(titles) {
+    const out = {};
+    Object.keys(titles || {}).forEach(code => { const t = String(titles[code] || '').trim(); if (t) out[code] = t; });
+    return out;
+  }
+
   // Rapport des AdReels de tous les compositeurs (4/10) : chiffres et liens, sans e-mail ni contenu (admin_adreels_report).
   async function getAdReelsReport() {
     const { data, error } = await getClient().rpc('admin_adreels_report');
@@ -105,5 +143,5 @@
     return { report: data || [], error: null };
   }
 
-  window.LayerPitchAdmin = { getAdReelsReport, getStats, getGrowthSeries, listAccounts, listAdminMessages, sendAdminMessage, deleteAdminMessage };
+  window.LayerPitchAdmin = { getAdReelsReport, getStats, getGrowthSeries, listAccounts, listAdminMessages, sendAdminMessage, deleteAdminMessage, updateAdminMessage, listNativeMessages, updateNativeMessage, deleteNativeMessage };
 })();
