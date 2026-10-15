@@ -29,6 +29,10 @@ const LESSON_SAMPLE_URLS = {
   '1_BattleLoop_LowIntensity_120bpm_64M.wav': 'https://media.layerpitch.com/tuto/1_BattleLoop_LowIntensity_120bpm_64M.wav',
   '2_BattleLoop_MedIntensity_120bpm_64M.wav': 'https://media.layerpitch.com/tuto/2_BattleLoop_MedIntensity_120bpm_64M.wav',
   '3_BattleLoop_HighIntensity_120bpm_64M.wav': 'https://media.layerpitch.com/tuto/3_BattleLoop_HighIntensity_120bpm_64M.wav',
+  // Leçon 3 (essai) : deux boucles de 18 mesures avec 2 mesures d'intro, 120 BPM (envoyées avec « .wav.wav » : le nom
+  // affiché reste « .wav », seul le lien porte le doublon).
+  '1_Everything_is_fine_120bpm_18M_intro2M.wav': 'https://media.layerpitch.com/tuto/1_Everything_is_fine_120bpm_18M_intro2M.wav.wav',
+  '2_Weve_been_noticed_120bpm_18M_intro2M.wav': 'https://media.layerpitch.com/tuto/2_Weve_been_noticed_120bpm_18M_intro2M.wav.wav',
 };
 function lessonStepFileNames(step) {
   const names = LESSON_SAMPLE_NAMES[step.names || (guide && guide.lessonId)] || '';
@@ -188,10 +192,12 @@ const LESSON_SAMPLE_NAMES = {
   seqB: 'segment-b1_120bpm.wav, segment-b2_120bpm.wav',
   seqOutro: 'outro_120bpm.wav',
   seqC: 'segment-c1_120bpm.wav, segment-c2_120bpm.wav',
-  embrLoops: 'boucle-calme_120bpm_16M.wav, boucle-combat_120bpm_16M.wav',
+  embrLoops: '1_Everything_is_fine_120bpm_18M_intro2M.wav, 2_Weve_been_noticed_120bpm_18M_intro2M.wav',
   embrDetour: 'detour_120bpm_4M.wav',
   import: 'Tuto séquentiel - raccourci',
 };
+// La boucle de détour de la leçon d'embranchement n'est montrée que lorsque son fichier d'exemple est en ligne.
+function lessonDetourReady() { return lessonStepFileNames({ names: 'embrDetour' }).every(n => !!LESSON_SAMPLE_URLS[n]); }
 // done(ctx) : true quand le geste est fait -> la leçon avance seule. clickDone : un clic sur la cible suffit.
 // Sans done ni clickDone : étape manuelle (« Suivant »). enter(ctx) : photographie l'état à l'arrivée sur l'étape.
 // Nettoyage commun à toutes les leçons (Backstage des compositeurs) : le morceau d'essai est supprimé, puis la
@@ -279,29 +285,32 @@ const LESSONS = [
       enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
     { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'leModeTitle', textKey: 'leModeText',
       done: () => { const t = lessonTrack(); return !!t && t.mode === 'embranchement-vertical'; } },
-    { useSample: true, selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'leDropTitle', textKey: 'leDropText', sampleKey: 'embranchement', names: 'embrLoops',
+    { useSample: true, selector: '#libraryDetail [data-role="modeMaster"] .seq-master-item[data-si="0"]', titleKey: 'leDropTitle', textKey: 'leDropText', sampleKey: 'embranchement', names: 'embrLoops',
       done: () => lessonLoopFileCount() >= 2 },
     HINTS_DIALOG_STEP,
     { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'leCheckTitle', textKey: 'leCheckText' },
     { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'leRefTitle', textKey: 'leRefText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 0; } },
     { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'leBpmTitle', textKey: 'leBpmText' },
-    { selector: '#libraryDetail [data-role="embrLoopTimelineHost"]', titleKey: 'lePointsTitle', textKey: 'lePointsText' },
+    { selector: '#libraryDetail [data-role="embrLoopTimelineHost"]', titleKey: 'lePointsTitle', textKey: 'lePointsText', names: 'embrLoops' },
     { selector: '#libraryDetail .seq-master-item[data-si="1"]', titleKey: 'leSecondTitle', textKey: 'leSecondText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 1; } },
     { selector: '#libraryDetail input[data-embr-loop-field="label"]', titleKey: 'leLabelTitle', textKey: 'leLabelText' },
     { selector: '#libraryDetail select[data-embr-loop-field="switchQuantize"]', titleKey: 'leQuantTitle', textKey: 'leQuantText' },
     { selector: '#libraryDetail input[data-embr-loop-field="hasTransition"]', titleKey: 'leTransTitle', textKey: 'leTransText' },
     // Boucle de détour : un fichier à part, joué ponctuellement au clic (mesures et tempo propres).
-    { selector: '#libraryDetail [data-action="add-embr-loop"]', titleKey: 'ldAddTitle', textKey: 'ldAddText',
+    { selector: '#libraryDetail [data-action="add-embr-loop"]', titleKey: 'ldAddTitle', textKey: 'ldAddText', skip: () => !lessonDetourReady(),
       done: () => { const t = lessonTrack(); return !!t && (t.loops || []).length >= 3; } },
-    { selector: '#libraryDetail .seq-master-item[data-si="2"]', titleKey: 'ldOpenTitle', textKey: 'ldOpenText',
+    { selector: '#libraryDetail .seq-master-item[data-si="2"]', titleKey: 'ldOpenTitle', textKey: 'ldOpenText', skip: () => !lessonDetourReady(),
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 2; } },
-    { useSample: true, selector: '#libraryDetail [data-role="embrLoopFileCtrl"]', titleKey: 'ldFileTitle', textKey: 'ldFileText', names: 'embrDetour',
+    { useSample: true, selector: '#libraryDetail [data-role="embrLoopFileCtrl"]', titleKey: 'ldFileTitle', textKey: 'ldFileText', names: 'embrDetour', skip: () => !lessonDetourReady(),
       done: () => { const t = lessonTrack(); return !!t && lessonHasFile((t.loops || [])[2]); } },
-    { selector: '#libraryDetail input[data-embr-loop-field="isDetour"]', titleKey: 'ldFlagTitle', textKey: 'ldFlagText',
+    { selector: '#libraryDetail input[data-embr-loop-field="isDetour"]', titleKey: 'ldFlagTitle', textKey: 'ldFlagText', skip: () => !lessonDetourReady(),
       done: () => { const t = lessonTrack(); const l = t && (t.loops || [])[2]; return !!l && !!l.isDetour; } },
-    { selector: '#libraryDetail .row:has([data-embr-loop-field="bars"])', titleKey: 'ldSetTitle', textKey: 'ldSetText' },
+    { selector: '#libraryDetail .row:has([data-embr-loop-field="bars"])', titleKey: 'ldSetTitle', textKey: 'ldSetText', skip: () => !lessonDetourReady() },
+    { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'laInfoTitle', textKey: 'laInfoText',
+      skip: () => { const t = lessonTrack(); return !fxOpen('rtpc') || (!!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'); },
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
     { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'leSliderTitle', textKey: 'leSliderText', skip: () => !fxOpen('rtpc') },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'leListenTitle', textKey: 'leListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
