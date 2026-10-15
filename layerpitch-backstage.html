@@ -1895,15 +1895,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1792071490717"></script>
-<script src="layerpitch-appearance.js?v=1792071490717"></script>
-<script src="layerpitch-album-shared.js?v=1792071490717"></script>
-<script src="layerpitch-album-editor.js?v=1792071490717"></script>
-<script src="layerpitch-shell.js?v=1792071490717"></script>
-<script src="layerpitch-social-icons.js?v=1792071490717"></script>
-<script src="layerpitch-notify.js?v=1792071490717"></script>
-<script src="layerpitch-help.js?v=1792071490717"></script>
-<script src="player.js?v=1792071490717"></script>
+<script src="layerpitch-i18n.js?v=1792072486385"></script>
+<script src="layerpitch-appearance.js?v=1792072486385"></script>
+<script src="layerpitch-album-shared.js?v=1792072486385"></script>
+<script src="layerpitch-album-editor.js?v=1792072486385"></script>
+<script src="layerpitch-shell.js?v=1792072486385"></script>
+<script src="layerpitch-social-icons.js?v=1792072486385"></script>
+<script src="layerpitch-notify.js?v=1792072486385"></script>
+<script src="layerpitch-help.js?v=1792072486385"></script>
+<script src="player.js?v=1792072486385"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -6403,9 +6403,21 @@ function addFilesToEmbranchementLoops(track, files) {
   let leftovers;
   if (loopFiles.length) {
     const paired = pairLoopsWithTransitions(files);
-    paired.pairs.forEach(pr => {
-      const loop = makeEmbranchementLoop(track, pr.loop, pr.transition, track.loops.length === 0 && added.length === 0);
-      track.loops.push(loop); added.push({ loop, file: pr.loop, transition: pr.transition });
+    // Les boucles déjà présentes mais sans fichier (ex. « Boucle 1 » créée avec « + Boucle ») reçoivent d'abord les
+    // premiers fichiers, dans l'ordre, au lieu de rester vides pendant que le lot crée des boucles à la suite.
+    const emptyLoops = track.loops.filter(l => !l.pendingFile && !l.remoteFile);
+    paired.pairs.forEach((pr, i) => {
+      const target = emptyLoops[i];
+      const made = makeEmbranchementLoop(track, pr.loop, pr.transition, track.loops.length === 0 && added.length === 0);
+      if (target) {
+        // On garde l'identité de la boucle (id, rôle de référence) et on lui donne le contenu lu dans le fichier.
+        const keep = { id: target.id, isInitial: target.isInitial };
+        Object.keys(target).forEach(k => { delete target[k]; });
+        Object.assign(target, made, keep);
+        added.push({ loop: target, file: pr.loop, transition: pr.transition });
+      } else {
+        track.loops.push(made); added.push({ loop: made, file: pr.loop, transition: pr.transition });
+      }
     });
     leftovers = paired.unassigned || [];
   } else {
@@ -7510,8 +7522,17 @@ function renderLibrary() {
             if (res.added.length) offerTrackTempoFromFilenames(track, res.added.map(a => a.file), false);
             return;
           }
+          // Boucles déjà présentes mais sans fichier : elles reçoivent d'abord les premiers fichiers (pas de boucle vide laissée).
+          const emptyLoops = track.loops.filter(l => !l.pendingFile && !l.remoteFile);
           const pushedLoops = files.map((f, idx) => {
             const fileBars = flagOpen('bulk_drop') ? parseAudioFilenameHints(f.name).bars : null;
+            const emptyLoop = emptyLoops[idx];
+            if (emptyLoop) {
+              emptyLoop.label = titleFromFilename(f.name);
+              emptyLoop.pendingFile = f;
+              if (fileBars) emptyLoop.bars = fileBars;
+              return emptyLoop;
+            }
             const newLoop = { id: genId(), label: flagOpen('bulk_drop') ? titleFromFilenameStrippingHints(f.name) : titleFromFilename(f.name), bars: fileBars || 8, isInitial: track.loops.length === 0 && idx === 0, remoteFile: null, pendingFile: f, switchQuantize: 'immediate', autoReturnEnabled: false, autoReturnValue: 4, autoReturnUnit: 'bars', detourMode: 'once', endLoopButtonLabel: '', isDetour: false, cutStyle: 'fade', customCutFadeSec: null, transition: null };
             track.loops.push(newLoop);
             return newLoop;

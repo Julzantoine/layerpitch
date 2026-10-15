@@ -237,8 +237,17 @@
             if (res.added.length) offerTrackTempoFromFilenames(track, res.added.map(a => a.file), false);
             return;
           }
+          // Boucles déjà présentes mais sans fichier : elles reçoivent d'abord les premiers fichiers (pas de boucle vide laissée).
+          const emptyLoops = track.loops.filter(l => !l.pendingFile && !l.remoteFile);
           const pushedLoops = files.map((f, idx) => {
             const fileBars = flagOpen('bulk_drop') ? parseAudioFilenameHints(f.name).bars : null;
+            const emptyLoop = emptyLoops[idx];
+            if (emptyLoop) {
+              emptyLoop.label = titleFromFilename(f.name);
+              emptyLoop.pendingFile = f;
+              if (fileBars) emptyLoop.bars = fileBars;
+              return emptyLoop;
+            }
             const newLoop = { id: genId(), label: flagOpen('bulk_drop') ? titleFromFilenameStrippingHints(f.name) : titleFromFilename(f.name), bars: fileBars || 8, isInitial: track.loops.length === 0 && idx === 0, remoteFile: null, pendingFile: f, switchQuantize: 'immediate', autoReturnEnabled: false, autoReturnValue: 4, autoReturnUnit: 'bars', detourMode: 'once', endLoopButtonLabel: '', isDetour: false, cutStyle: 'fade', customCutFadeSec: null, transition: null };
             track.loops.push(newLoop);
             return newLoop;

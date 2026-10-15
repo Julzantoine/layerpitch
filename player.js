@@ -787,8 +787,16 @@ function vrIntroDurationSec(track, firstSection) {
 }
 // Embranchement-vertical : boucle de référence, boucles « paires » (verrouillées en phase) et cycle de la référence.
 function embrReferenceIndex(track) {
-  const idx = (track.loops || []).findIndex(l => l && l.isInitial);
-  return idx >= 0 ? idx : 0;
+  const loops = track.loops || [];
+  // Une boucle sans fichier ne peut pas servir de référence : sa « longueur » (8 mesures par défaut) ferait redémarrer
+  // les autres boucles trop tôt et les superposerait. On prend alors la première boucle qui a un fichier.
+  const hasFile = l => !!(l && (l.file || l.localFile));
+  const idx = loops.findIndex(l => l && l.isInitial && hasFile(l));
+  if (idx >= 0) return idx;
+  const firstWithFile = loops.findIndex(hasFile);
+  if (firstWithFile >= 0) return firstWithFile;
+  const initial = loops.findIndex(l => l && l.isInitial);
+  return initial >= 0 ? initial : 0;
 }
 function embrPeerIndicesOf(track) {
   const loops = track.loops || [];
