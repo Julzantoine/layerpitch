@@ -218,6 +218,8 @@ const CLEANUP_STEPS = [
 ];
 const LESSONS = [
   { id: 'static', titleKey: 'lessonStaticTitle', descKey: 'lessonStaticDesc', steps: [
+    // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
+    { titleKey: 'lsWelcomeTitle', textKey: 'lsWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
     { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
@@ -241,6 +243,8 @@ const LESSONS = [
     { titleKey: 'lsEndTitle', textKey: 'lsEndText', final: true },
   ] },
   { id: 'additive', titleKey: 'lessonAdditiveTitle', descKey: 'lessonAdditiveDesc', steps: [
+    // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
+    { titleKey: 'laWelcomeTitle', textKey: 'laWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
     { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
@@ -279,6 +283,8 @@ const LESSONS = [
     { titleKey: 'laEndTitle', textKey: 'laEndText', final: true },
   ] },
   { id: 'embranchement', titleKey: 'lessonEmbrTitle', descKey: 'lessonEmbrDesc', steps: [
+    // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
+    { titleKey: 'leWelcomeTitle', textKey: 'leWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
     { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
@@ -318,6 +324,8 @@ const LESSONS = [
     { titleKey: 'leEndTitle', textKey: 'leEndText', final: true },
   ] },
   { id: 'random', titleKey: 'lessonRandomTitle', descKey: 'lessonRandomDesc', steps: [
+    // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
+    { titleKey: 'lrWelcomeTitle', textKey: 'lrWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
     { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
@@ -342,6 +350,8 @@ const LESSONS = [
     { titleKey: 'lrEndTitle', textKey: 'lrEndText', final: true },
   ] },
   { id: 'sequential', titleKey: 'lessonSequentialTitle', descKey: 'lessonSequentialDesc', steps: [
+    // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
+    { titleKey: 'lqWelcomeTitle', textKey: 'lqWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
     { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
@@ -376,6 +386,8 @@ const LESSONS = [
     { titleKey: 'lqEndTitle', textKey: 'lqEndText', final: true },
   ] },
   { id: 'branching', titleKey: 'lessonBranchingTitle', descKey: 'lessonBranchingDesc', steps: [
+    // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
+    { titleKey: 'lbWelcomeTitle', textKey: 'lbWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
     // Cette leçon prolonge la précédente : elle reprend le morceau séquentiel déjà construit (au moins 2 emplacements).
