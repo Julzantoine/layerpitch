@@ -171,6 +171,7 @@ function lessonArrowPoint(bar) {
   if (!r.width) return null;
   return { x: r.left + r.width * beat / total, y: r.top };
 }
+function fxSliderExists() { const t = lessonTrack(); return !!t && (t.fxSliders || []).length >= 1; }
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
@@ -218,6 +219,8 @@ const CLEANUP_STEPS = [
 ];
 const LESSONS = [
   { id: 'static', titleKey: 'lessonStaticTitle', descKey: 'lessonStaticDesc', steps: [
+    // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
+    { titleKey: 'lsWelcomeTitle', textKey: 'lsWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
     { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
@@ -240,7 +243,46 @@ const LESSONS = [
     ...CLEANUP_STEPS,
     { titleKey: 'lsEndTitle', textKey: 'lsEndText', final: true },
   ] },
+  { id: 'embranchement', titleKey: 'lessonEmbrTitle', descKey: 'lessonEmbrDesc', steps: [
+    // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
+    { titleKey: 'leWelcomeTitle', textKey: 'leWelcomeText' },
+    { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
+      done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
+    { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
+      enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
+    { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'leModeTitle', textKey: 'leModeText',
+      done: () => { const t = lessonTrack(); return !!t && t.mode === 'embranchement-vertical'; } },
+    { useSample: true, selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'leDropTitle', textKey: 'leDropText', sampleKey: 'embranchement', names: 'embrLoops',
+      done: () => lessonLoopFileCount() >= 2 },
+    HINTS_DIALOG_STEP,
+    { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'leCheckTitle', textKey: 'leCheckText' },
+    { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'leRefTitle', textKey: 'leRefText',
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 0; } },
+    { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'leBpmTitle', textKey: 'leBpmText' },
+    { selector: '#libraryDetail [data-role="embrLoopTimelineHost"]', titleKey: 'lePointsTitle', textKey: 'lePointsText', names: 'embrLoops' },
+    { selector: '#libraryDetail .seq-master-item[data-si="1"]', titleKey: 'leSecondTitle', textKey: 'leSecondText',
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 1; } },
+    { selector: '#libraryDetail input[data-embr-loop-field="label"]', titleKey: 'leLabelTitle', textKey: 'leLabelText' },
+    { selector: '#libraryDetail select[data-embr-loop-field="switchQuantize"]', titleKey: 'leQuantTitle', textKey: 'leQuantText' },
+    { selector: '#libraryDetail input[data-embr-loop-field="hasTransition"]', titleKey: 'leTransTitle', textKey: 'leTransText' },
+    // Boucle de détour : un fichier à part, joué ponctuellement au clic (mesures et tempo propres).
+    { selector: '#libraryDetail [data-action="add-embr-loop"]', titleKey: 'ldAddTitle', textKey: 'ldAddText', skip: () => !lessonDetourReady(),
+      done: () => { const t = lessonTrack(); return !!t && (t.loops || []).length >= 3; } },
+    { selector: '#libraryDetail .seq-master-item[data-si="2"]', titleKey: 'ldOpenTitle', textKey: 'ldOpenText', skip: () => !lessonDetourReady(),
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 2; } },
+    { useSample: true, selector: '#libraryDetail [data-role="embrLoopFileCtrl"]', titleKey: 'ldFileTitle', textKey: 'ldFileText', names: 'embrDetour', skip: () => !lessonDetourReady(),
+      done: () => { const t = lessonTrack(); return !!t && lessonHasFile((t.loops || [])[2]); } },
+    { selector: '#libraryDetail input[data-embr-loop-field="isDetour"]', titleKey: 'ldFlagTitle', textKey: 'ldFlagText', skip: () => !lessonDetourReady(),
+      done: () => { const t = lessonTrack(); const l = t && (t.loops || [])[2]; return !!l && !!l.isDetour; } },
+    { selector: '#libraryDetail .row:has([data-embr-loop-field="bars"])', titleKey: 'ldSetTitle', textKey: 'ldSetText', skip: () => !lessonDetourReady() },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'leListenTitle', textKey: 'leListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
+    { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    ...CLEANUP_STEPS,
+    { titleKey: 'leEndTitle', textKey: 'leEndText', final: true },
+  ] },
   { id: 'additive', titleKey: 'lessonAdditiveTitle', descKey: 'lessonAdditiveDesc', steps: [
+    // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
+    { titleKey: 'laWelcomeTitle', textKey: 'laWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
     { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
@@ -266,58 +308,37 @@ const LESSONS = [
       skip: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 0; },
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 0; } },
     { selector: '#libraryDetail input[data-field="label"]', titleKey: 'laButtonsTitle', textKey: 'laButtonsText' },
-    // Les curseurs se trouvent dans « Infos du morceau » : on y revient avant de les montrer.
-    { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'laInfoTitle', textKey: 'laInfoText',
-      skip: () => { const t = lessonTrack(); return !fxOpen('rtpc') || (!!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'); },
-      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
-    { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'laSliderTitle', textKey: 'laSliderText',
-      skip: () => !fxOpen('rtpc') }, // curseurs : feu vert « rtpc » (admin seulement pour l'instant)
+    // Curseur qui remplace les boutons : pas à pas (feu vert « rtpc », admin seulement pour l'instant). 
+    // « Infos du morceau » s'ouvre toute seule : la zone des curseurs y est entourée tout de suite (pas de choix à faire,
+    // c'est le but de la leçon).
+    { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'laSl0Title', textKey: 'laSl0Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc'),
+      enter: () => { const t = lessonTrack(); if (t && seqSelectedSlotIndex.get(t.id) !== 'trackinfo') { seqSelectedSlotIndex.set(t.id, 'trackinfo'); renderLibrary(); } } },
+    { selector: '#libraryDetail [data-action="add-fx-slider"]', titleKey: 'laSl2Title', textKey: 'laSl2Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc'),
+      done: () => { const t = lessonTrack(); return !!t && (t.fxSliders || []).length >= 1; } },
+    { selector: '#libraryDetail [data-field="fxSlider"][data-fxs-prop="label"]', titleKey: 'laSl3Title', textKey: 'laSl3Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc') || !fxSliderExists() },
+    { selector: '#libraryDetail [data-field="fxSlider"][data-fxs-prop="visible"]', titleKey: 'laSl4Title', textKey: 'laSl4Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc') || !fxSliderExists(),
+      done: () => { const t = lessonTrack(); const sl = t && (t.fxSliders || [])[0]; return !!sl && !!sl.visible; } },
+    { selector: '#libraryDetail [data-field="fxSlider"][data-fxs-prop="intensity"]', titleKey: 'laSl5Title', textKey: 'laSl5Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc') || !fxSliderExists(),
+      done: () => { const t = lessonTrack(); const sl = t && (t.fxSliders || [])[0]; return !!sl && !!sl.intensity; } },
+    { selector: '#libraryDetail [data-field="fxSliderIntensityBound"]', titleKey: 'laSl6Title', textKey: 'laSl6Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc') || !fxSliderExists() },
+    { selector: '#libraryDetail [data-field="fxSlider"][data-fxs-prop="defaultValue"]', titleKey: 'laSl7Title', textKey: 'laSl7Text', group: 'sliders',
+      skip: () => !fxOpen('rtpc') || !fxSliderExists(),
+      done: () => { const t = lessonTrack(); const sl = t && (t.fxSliders || [])[0]; return !!sl && Number(sl.defaultValue) === 0; } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'laListenTitle', textKey: 'laListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#libraryDetail [data-role="previewHost"]', titleKey: 'laIntensityTitle', textKey: 'laIntensityText' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     ...CLEANUP_STEPS,
     { titleKey: 'laEndTitle', textKey: 'laEndText', final: true },
   ] },
-  { id: 'embranchement', titleKey: 'lessonEmbrTitle', descKey: 'lessonEmbrDesc', steps: [
-    { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
-      done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
-    { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
-      enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
-    { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'leModeTitle', textKey: 'leModeText',
-      done: () => { const t = lessonTrack(); return !!t && t.mode === 'embranchement-vertical'; } },
-    { useSample: true, selector: '#libraryDetail [data-role="modeMaster"] .seq-master-item[data-si="0"]', titleKey: 'leDropTitle', textKey: 'leDropText', sampleKey: 'embranchement', names: 'embrLoops',
-      done: () => lessonLoopFileCount() >= 2 },
-    HINTS_DIALOG_STEP,
-    { selector: '#libraryDetail [data-role="modeMaster"]', titleKey: 'leCheckTitle', textKey: 'leCheckText' },
-    { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'leRefTitle', textKey: 'leRefText',
-      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 0; } },
-    { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'leBpmTitle', textKey: 'leBpmText' },
-    { selector: '#libraryDetail [data-role="embrLoopTimelineHost"]', titleKey: 'lePointsTitle', textKey: 'lePointsText', names: 'embrLoops' },
-    { selector: '#libraryDetail .seq-master-item[data-si="1"]', titleKey: 'leSecondTitle', textKey: 'leSecondText',
-      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 1; } },
-    { selector: '#libraryDetail input[data-embr-loop-field="label"]', titleKey: 'leLabelTitle', textKey: 'leLabelText' },
-    { selector: '#libraryDetail select[data-embr-loop-field="switchQuantize"]', titleKey: 'leQuantTitle', textKey: 'leQuantText' },
-    { selector: '#libraryDetail input[data-embr-loop-field="hasTransition"]', titleKey: 'leTransTitle', textKey: 'leTransText' },
-    // Boucle de détour : un fichier à part, joué ponctuellement au clic (mesures et tempo propres).
-    { selector: '#libraryDetail [data-action="add-embr-loop"]', titleKey: 'ldAddTitle', textKey: 'ldAddText', skip: () => !lessonDetourReady(),
-      done: () => { const t = lessonTrack(); return !!t && (t.loops || []).length >= 3; } },
-    { selector: '#libraryDetail .seq-master-item[data-si="2"]', titleKey: 'ldOpenTitle', textKey: 'ldOpenText', skip: () => !lessonDetourReady(),
-      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 2; } },
-    { useSample: true, selector: '#libraryDetail [data-role="embrLoopFileCtrl"]', titleKey: 'ldFileTitle', textKey: 'ldFileText', names: 'embrDetour', skip: () => !lessonDetourReady(),
-      done: () => { const t = lessonTrack(); return !!t && lessonHasFile((t.loops || [])[2]); } },
-    { selector: '#libraryDetail input[data-embr-loop-field="isDetour"]', titleKey: 'ldFlagTitle', textKey: 'ldFlagText', skip: () => !lessonDetourReady(),
-      done: () => { const t = lessonTrack(); const l = t && (t.loops || [])[2]; return !!l && !!l.isDetour; } },
-    { selector: '#libraryDetail .row:has([data-embr-loop-field="bars"])', titleKey: 'ldSetTitle', textKey: 'ldSetText', skip: () => !lessonDetourReady() },
-    { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'laInfoTitle', textKey: 'laInfoText',
-      skip: () => { const t = lessonTrack(); return !fxOpen('rtpc') || (!!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'); },
-      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
-    { selector: '#libraryDetail [data-role="fxSlidersHost"]', titleKey: 'leSliderTitle', textKey: 'leSliderText', skip: () => !fxOpen('rtpc') },
-    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'leListenTitle', textKey: 'leListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
-    { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
-    ...CLEANUP_STEPS,
-    { titleKey: 'leEndTitle', textKey: 'leEndText', final: true },
-  ] },
   { id: 'random', titleKey: 'lessonRandomTitle', descKey: 'lessonRandomDesc', steps: [
+    // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
+    { titleKey: 'lrWelcomeTitle', textKey: 'lrWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
     { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
@@ -342,6 +363,8 @@ const LESSONS = [
     { titleKey: 'lrEndTitle', textKey: 'lrEndText', final: true },
   ] },
   { id: 'sequential', titleKey: 'lessonSequentialTitle', descKey: 'lessonSequentialDesc', steps: [
+    // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
+    { titleKey: 'lqWelcomeTitle', textKey: 'lqWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
     { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
@@ -376,6 +399,8 @@ const LESSONS = [
     { titleKey: 'lqEndTitle', textKey: 'lqEndText', final: true },
   ] },
   { id: 'branching', titleKey: 'lessonBranchingTitle', descKey: 'lessonBranchingDesc', steps: [
+    // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
+    { titleKey: 'lbWelcomeTitle', textKey: 'lbWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
     // Cette leçon prolonge la précédente : elle reprend le morceau séquentiel déjà construit (au moins 2 emplacements).

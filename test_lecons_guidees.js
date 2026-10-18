@@ -40,26 +40,29 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   `);
   check('leçon refusée tant que in_app_lessons est fermé', w.__closed === true);
   check('6 leçons déclarées, aucune « bientôt »', w.__r.lessons === 6 && w.__r.soon === 0);
-  check('séquentiel simple : 20 étapes, sans raccourci d’import', w.__r.seq === 20 && w.__r.seqSkip === 1);
-  check('séquentiel à embranchement : raccourci d’import (26 étapes dont 10 sautées sans bulk_drop)', w.__r.br === 26 && w.__r.brSkip === 10);
-  check('embranchement vertical : 25 étapes (dont 2 de nettoyage)', w.__r.emb === 25);
+  check('séquentiel simple : 21 étapes, sans raccourci d’import', w.__r.seq === 21 && w.__r.seqSkip === 1);
+  check('séquentiel à embranchement : raccourci d’import (27 étapes dont 10 sautées sans bulk_drop)', w.__r.br === 27 && w.__r.brSkip === 10);
+  check('embranchement vertical : 24 étapes (dont 2 de nettoyage)', w.__r.emb === 24);
   
   
-  check('couches aléatoires : 15 étapes (dont 2 de nettoyage)', w.__r.rnd === 15);
-  check('couches additives : 19 étapes (dont 2 de nettoyage)', w.__r.add === 19);
+  check('couches aléatoires : 16 étapes (dont 2 de nettoyage)', w.__r.rnd === 16);
+  check('couches additives : 25 étapes (dont 2 de nettoyage)', w.__r.add === 25);
   check('la leçon ouvre une bulle', !!w.document.querySelector('.tour-root-lesson .tour-card'));
-  check('étape 1 sur 13', /1 \/ 13/.test(w.document.querySelector('.tour-count').textContent));
+  check('la leçon démarre sur le message de bienvenue (étape 1 sur 14)', /1 \/ 14/.test(w.document.querySelector('.tour-count').textContent) && /Bienvenue/.test(w.document.querySelector('.tour-title').textContent));
+  check('message de bienvenue : étape manuelle avec « Suivant »', !!w.document.querySelector('[data-tour="next"]'));
+  w.eval('guideGo(1)');
+  check('« Suivant » passe à l’étape 2 sur 14', /2 \/ 14/.test(w.document.querySelector('.tour-count').textContent));
   // Geste : l'onglet bibliothèque devient actif -> étape 2 (après le délai d'avance).
   w.eval(`document.querySelector('.backstage-panel[data-panel="library"]').classList.add('active');`);
-  for (let i = 0; i < 40 && !/2 \/ 13/.test((w.document.querySelector('.tour-count') || {}).textContent || ''); i++) await new Promise(r => setTimeout(r, 100));
-  check('avance seule à l’étape 2', /2 \/ 13/.test((w.document.querySelector('.tour-count') || {}).textContent || ''));
+  for (let i = 0; i < 40 && !/3 \/ 14/.test((w.document.querySelector('.tour-count') || {}).textContent || ''); i++) await new Promise(r => setTimeout(r, 100));
+  check('avance seule à l’étape 3', /3 \/ 14/.test((w.document.querySelector('.tour-count') || {}).textContent || ''));
   // Étape « moteur de bouclage » : obligatoire, pas de « Passer l’étape » tant que « Simple » est réglé.
-  w.eval(`library = [{ id: 't1', mode: 'static', loopEngine: 'simple', layers: [{}] }]; manageLibrarySelectedId = 't1'; guide.index = 5; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`);
+  w.eval(`library = [{ id: 't1', mode: 'static', loopEngine: 'simple', layers: [{}] }]; manageLibrarySelectedId = 't1'; guide.index = 6; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`);
   check('moteur Simple : pas de bouton « Passer l’étape »', !w.document.querySelector('[data-tour="next"]'));
-  check('moteur Simple : la leçon reste sur l’étape 6', /6 \/ 13/.test(w.document.querySelector('.tour-count').textContent));
+  check('moteur Simple : la leçon reste sur l’étape 7', /7 \/ 14/.test(w.document.querySelector('.tour-count').textContent));
   w.eval(`library[0].loopEngine = 'quantized';`);
-  for (let i = 0; i < 40 && !/7 \/ 13/.test((w.document.querySelector('.tour-count') || {}).textContent || ''); i++) await new Promise(r => setTimeout(r, 100));
-  check('moteur Quantifié : avance à l’étape 7', /7 \/ 13/.test((w.document.querySelector('.tour-count') || {}).textContent || ''));
+  for (let i = 0; i < 40 && !/8 \/ 14/.test((w.document.querySelector('.tour-count') || {}).textContent || ''); i++) await new Promise(r => setTimeout(r, 100));
+  check('moteur Quantifié : avance à l’étape 8', /8 \/ 14/.test((w.document.querySelector('.tour-count') || {}).textContent || ''));
   // Fichiers d'exemple : le bouton « Utiliser » n'apparaît que lorsque toutes les URL sont connues.
   const sampleOk = w.eval(`(function () {
     const st = LESSONS.find(l => l.id === 'static').steps.find(x => x.sampleKey);
@@ -92,19 +95,19 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const expected = w.eval('LESSON_SAMPLE_NAMES.static');
   check('« Utiliser l’exemple » dépose le fichier nommé sur la zone', received.length === 1 && received[0].name === expected);
   // Une étape à geste n'a pas de bouton « Passer l'étape » tant qu'on est sur la dernière étape atteinte.
-  w.eval(`guide.maxIndex = 3; guide.index = 3; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`);
+  w.eval(`guide.maxIndex = 4; guide.index = 4; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`);
   check('étape à geste (la plus avancée) : aucun bouton « Passer l’étape »', !w.document.querySelector('[data-tour="next"]'));
   check('étape à geste : « Quitter » reste disponible', !!w.document.querySelector('[data-tour="skip"]'));
   check('étape à geste : « Précédent » disponible', !!w.document.querySelector('[data-tour="prev"]'));
   // Revue avec « Précédent » : « Passer l'étape » apparaît, et l'étape n'avance pas toute seule.
-  w.eval(`guide.maxIndex = 5; guide.index = 3; guide.cardKey = ''; renderGuideStep();`);
+  w.eval(`guide.maxIndex = 6; guide.index = 4; guide.cardKey = ''; renderGuideStep();`);
   check('étape déjà franchie : bouton « Passer l’étape » présent', !!w.document.querySelector('[data-tour="next"]'));
   await new Promise(r => setTimeout(r, 700));
-  check('étape déjà franchie : pas d’avance automatique', /4 \/ 13/.test(w.document.querySelector('.tour-count').textContent));
+  check('étape déjà franchie : pas d’avance automatique', /5 \/ 14/.test(w.document.querySelector('.tour-count').textContent));
   // Bulle finale : bouton « Passer à la leçon suivante ».
   w.eval(`flagOpen = () => true; guide.lessonId = 'static'; guide.index = guide.steps.length - 1; guide.maxIndex = guide.index; guide.cardKey = ''; renderGuideStep();`);
   const nl = w.document.querySelector('[data-tour="nextlesson"]');
-  check('bulle finale : bouton vers la leçon suivante', !!nl && /Passer à la leçon 2 : Mode layering vertical additif/.test(nl.textContent));
+  check('bulle finale : bouton vers la leçon suivante', !!nl && /Passer à la leçon 2 : Mode embranchement vertical/.test(nl.textContent));
   w.eval(`guide.lessonId = 'branching'; guide.cardKey = ''; renderGuideStep();`);
   check('dernière leçon : pas de bouton « leçon suivante »', !w.document.querySelector('[data-tour="nextlesson"]'));
   // Glisser simulé : relâcher sur la zone dépose ; la vignette apparaît quand l'exemple est prêt.
@@ -112,7 +115,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const inside = w.eval(`lessonPointInZone({ selector: '#__sampleZone' }, 150, 120)`);
   const outside = w.eval(`lessonPointInZone({ selector: '#__sampleZone' }, 500, 500)`);
   check('zone de dépôt : point dedans / dehors', inside === true && outside === false);
-  w.eval(`guide.lessonId = 'static'; guide.index = 3; guide.maxIndex = 3; guide.cardKey = ''; renderGuideStep();`);
+  w.eval(`guide.lessonId = 'static'; guide.index = 4; guide.maxIndex = 4; guide.cardKey = ''; renderGuideStep();`);
   check('étape de dépôt : vignette du fichier d’exemple présente', !!w.document.querySelector('[data-tour="chip"]'));
   check('étape de dépôt : plus de bouton « Utiliser le fichier d’exemple »', !w.document.querySelector('[data-tour="sample"]'));
   check('étape de dépôt : la vignette est atteignable au clavier', w.document.querySelector('[data-tour="chip"]').getAttribute('tabindex') === '0');
@@ -183,7 +186,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('bulle : la position est conservée tant qu’on reste sur l’étape', mv.kept.left === '400px' && mv.kept.top === '270px');
   check('bulle : retour au placement automatique à l’étape suivante', mv.resetOnNext === false);
   // Échap quitte.
-  w.eval(`guide.index = 6; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
+  w.eval(`guide.index = 7; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));
   w.document.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   check('Échap ferme la leçon', !w.document.querySelector('.tour-root'));

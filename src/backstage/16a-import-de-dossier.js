@@ -260,9 +260,21 @@ function addFilesToEmbranchementLoops(track, files) {
   let leftovers;
   if (loopFiles.length) {
     const paired = pairLoopsWithTransitions(files);
-    paired.pairs.forEach(pr => {
-      const loop = makeEmbranchementLoop(track, pr.loop, pr.transition, track.loops.length === 0 && added.length === 0);
-      track.loops.push(loop); added.push({ loop, file: pr.loop, transition: pr.transition });
+    // Les boucles déjà présentes mais sans fichier (ex. « Boucle 1 » créée avec « + Boucle ») reçoivent d'abord les
+    // premiers fichiers, dans l'ordre, au lieu de rester vides pendant que le lot crée des boucles à la suite.
+    const emptyLoops = track.loops.filter(l => !l.pendingFile && !l.remoteFile);
+    paired.pairs.forEach((pr, i) => {
+      const target = emptyLoops[i];
+      const made = makeEmbranchementLoop(track, pr.loop, pr.transition, track.loops.length === 0 && added.length === 0);
+      if (target) {
+        // On garde l'identité de la boucle (id, rôle de référence) et on lui donne le contenu lu dans le fichier.
+        const keep = { id: target.id, isInitial: target.isInitial };
+        Object.keys(target).forEach(k => { delete target[k]; });
+        Object.assign(target, made, keep);
+        added.push({ loop: target, file: pr.loop, transition: pr.transition });
+      } else {
+        track.loops.push(made); added.push({ loop: made, file: pr.loop, transition: pr.transition });
+      }
     });
     leftovers = paired.unassigned || [];
   } else {

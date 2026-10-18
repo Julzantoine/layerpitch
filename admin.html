@@ -286,6 +286,12 @@
       <div id="adminMsgHistory" class="scroll-list tall" style="margin-top:16px;"></div>
     </div>
 
+    <div class="card">
+      <h2 data-i18n="adminNativeTitle">Messages d'accueil</h2>
+      <p class="subtitle" data-i18n="adminNativeHint" style="margin-bottom:10px;">Ce que reçoit un nouvel arrivant dans sa boîte de réception.</p>
+      <div id="adminNativeMsgs"></div>
+    </div>
+
     <!-- Espace Projet, étape 2 (28/09) : sites collés dans les Projets pour lesquels LayerPitch ne sait pas faire d'aperçu.
          Liste seulement : ajouter un site = décision manuelle (Edge Function link-preview + project_link_has_preview). -->
         </section>
@@ -324,14 +330,14 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1792072341942"></script>
-<script src="api/auth.js?v=1792072341942"></script>
-<script src="layerpitch-admin-report.js?v=1792072341942"></script>
-<script src="api/admin.js?v=1792072341942"></script>
-<script src="api/access-requests.js?v=1792072341942"></script>
-<script src="api/invites.js?v=1792072341942"></script>
-<script src="layerpitch-i18n.js?v=1792072341942"></script>
-<script src="layerpitch-notify.js?v=1792072341942"></script>
+<script src="api/supabase-client.js?v=1792356372220"></script>
+<script src="api/auth.js?v=1792356372220"></script>
+<script src="layerpitch-admin-report.js?v=1792356372220"></script>
+<script src="api/admin.js?v=1792356372220"></script>
+<script src="api/access-requests.js?v=1792356372220"></script>
+<script src="api/invites.js?v=1792356372220"></script>
+<script src="layerpitch-i18n.js?v=1792356372220"></script>
+<script src="layerpitch-notify.js?v=1792356372220"></script>
 <script>
 // i18n minimal (zone "admin" + repli "shared") — même patron que layerpitch-backstage.html.
 function currentLang() { return localStorage.getItem('layerpitch_lang') || 'fr'; }
@@ -386,6 +392,7 @@ async function render(session) {
   loadGrowthSeries();
   loadAccounts();
   loadAdminMsgHistory();
+  loadAdminNativeMsgs();
   loadLinkDomains();
   renderAccessRequestsList();
   renderInvitesSentList();
@@ -804,8 +811,9 @@ adminMsgLangsContainer.innerHTML = ADMIN_MSG_LANGS.map(({ code, labelKey, placeh
 
 async function loadAdminMsgHistory() {
   const historyEl = document.getElementById('adminMsgHistory');
-  const { messages, error } = await window.LayerPitchAdmin.listAdminMessages();
-  if (error || !messages || messages.length === 0) {
+  const { messages: allMessages, error } = await window.LayerPitchAdmin.listAdminMessages();
+  const messages = (allMessages || []).filter(m => !m.welcome); // les messages d'accueil vivent dans leur propre carte
+  if (error || messages.length === 0) {
     historyEl.innerHTML = `<p class="subtitle" data-i18n="adminMsgHistoryEmpty">${tr('adminMsgHistoryEmpty')}</p>`;
     return;
   }
@@ -835,7 +843,10 @@ async function loadAdminMsgHistory() {
           <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">${new Date(m.createdAt).toLocaleString('fr-FR')} — ${escapeHtml(m.recipientId ? tr(m.emailNotify ? 'adminMsgPersonalEmailTag' : 'adminMsgPersonalTag', { email: m.recipientEmail || '?' }) : tr(m.existingAccountsOnly ? 'adminMsgExistingOnlyTag' : 'adminMsgAudienceAllTag'))}</div>
           <button class="secondary" type="button" data-admin-msg-toggle style="padding:3px 8px;font-size:11px;margin-top:4px;">${escapeHtml(tr('adminMsgExpandBtn'))}</button>
         </div>
-        <button class="secondary" data-admin-msg-delete="${m.id}" data-i18n="adminMsgDeleteBtn">${tr('adminMsgDeleteBtn')}</button>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button class="secondary" data-admin-msg-edit="${m.id}" data-i18n="adminMsgEditBtn">${tr('adminMsgEditBtn')}</button>
+          <button class="secondary" data-admin-msg-delete="${m.id}" data-i18n="adminMsgDeleteBtn">${tr('adminMsgDeleteBtn')}</button>
+        </div>
       </div>`;
     }).join('');
   historyEl.querySelectorAll('[data-admin-msg-toggle]').forEach(btn => {
@@ -849,6 +860,16 @@ async function loadAdminMsgHistory() {
       btn.textContent = tr(willExpand ? 'adminMsgCollapseBtn' : 'adminMsgExpandBtn');
     });
   });
+  historyEl.querySelectorAll('[data-admin-msg-edit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const m = messages.find(x => String(x.id) === btn.dataset.adminMsgEdit);
+      const item = btn.closest('.admin-msg-item');
+      openAdminMsgEditor(item, m, async (bodies, titles) => {
+        const { ok, error: upError } = await window.LayerPitchAdmin.updateAdminMessage(m.id, bodies, titles);
+        return ok ? null : upError;
+      }, loadAdminMsgHistory);
+    });
+  });
   historyEl.querySelectorAll('[data-admin-msg-delete]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!(await window.LayerPitchNotify.confirm(tr('adminMsgDeleteConfirm'), { danger: true }))) return;
@@ -859,6 +880,95 @@ async function loadAdminMsgHistory() {
     });
   });
 }
+// ---- Retouche d'un message (15/10) : éditeur en place, partagé par l'historique et les messages automatiques ----
+// container : l'élément dont le contenu est remplacé le temps de l'édition ; onSave(bodies, titles) renvoie
+// null si tout va bien, sinon le texte de l'erreur. onClose : appelé par Annuler (recharge la liste).
+function openAdminMsgEditor(container, m, onSave, onClose) {
+  container.innerHTML = `<div style="flex:1;min-width:0;width:100%;">` + ADMIN_MSG_LANGS.map(({ code, labelKey }) => `
+    <label style="font-size:11px;color:var(--text-dim);display:block;margin:8px 0 4px;">${escapeHtml(tr(labelKey))}</label>
+    <input type="text" data-edit-title="${code}" maxlength="120" style="width:100%;margin-bottom:6px;" value="${escapeHtml((m.title && m.title[code]) || '')}" placeholder="${escapeHtml(tr('adminMsgTitlePlaceholder'))}">
+    <textarea data-edit-body="${code}" style="width:100%;min-height:180px;">${escapeHtml((m.body && m.body[code]) || '')}</textarea>`).join('') + `
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+      <button type="button" data-edit-save>${escapeHtml(tr('adminMsgEditSave'))}</button>
+      <button type="button" class="secondary" data-edit-cancel>${escapeHtml(tr('adminMsgEditCancel'))}</button>
+      <span data-edit-status class="msg"></span>
+    </div></div>`;
+  container.querySelector('[data-edit-cancel]').addEventListener('click', onClose); // recharge la liste : les boutons d'origine sont recréés avec leurs écouteurs
+  container.querySelector('[data-edit-save]').addEventListener('click', async () => {
+    const bodies = {}, titles = {};
+    ADMIN_MSG_LANGS.forEach(({ code }) => {
+      bodies[code] = container.querySelector(`[data-edit-body="${code}"]`).value;
+      titles[code] = container.querySelector(`[data-edit-title="${code}"]`).value;
+    });
+    const status = container.querySelector('[data-edit-status]');
+    const saveBtn = container.querySelector('[data-edit-save]');
+    saveBtn.disabled = true;
+    const err = await onSave(bodies, titles);
+    saveBtn.disabled = false;
+    if (err) { status.textContent = tr('adminMsgErrorPrefix') + err; status.className = 'msg err'; return; }
+    status.textContent = tr('adminMsgEditSaved'); status.className = 'msg ok';
+    setTimeout(onClose, 700);
+  });
+}
+
+// Messages d'accueil des nouveaux arrivants : (1) le message automatique (platform_message_templates), qui ne
+// touche que les futurs arrivants ; (2) les messages diffusés rangés en « accueil » (admin_messages.welcome),
+// une seule ligne vue de tous, donc modifiée pour tous. Chacun : Modifier / Supprimer.
+async function loadAdminNativeMsgs() {
+  const el = document.getElementById('adminNativeMsgs');
+  const [native, sent] = await Promise.all([window.LayerPitchAdmin.listNativeMessages(), window.LayerPitchAdmin.listAdminMessages()]);
+  if (native.error || !native.messages) { el.innerHTML = `<p class="subtitle">${escapeHtml(tr('adminMsgErrorPrefix') + (native.error || ''))}</p>`; return; }
+  const items = native.messages.map(m => ({ kind: 'native', id: m.key, title: m.title, body: m.body, label: tr('adminNativeKey_' + m.key), when: m.updatedAt }))
+    .concat((sent.messages || []).filter(m => m.welcome).map(m => ({ kind: 'sent', id: m.id, title: m.title, body: m.body, label: tr('adminNativeSentLabel'), when: m.createdAt })));
+  const hasWelcome = native.messages.some(m => m.key === 'welcome');
+  el.innerHTML = items.map((m, i) => {
+    const first = ADMIN_MSG_LANGS.map(l => l.code).find(code => (m.body && m.body[code]) || (m.title && m.title[code])) || 'fr';
+    return `
+    <div class="admin-native-item" data-native-idx="${i}" style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div style="flex:1;min-width:0;font-size:12.5px;">
+        <div style="font-size:11px;color:var(--text-dim);">${escapeHtml(m.label)}</div>
+        ${(m.title && m.title[first]) ? `<div style="font-weight:600;">${escapeHtml(m.title[first])}</div>` : ''}
+        <div style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line;">${escapeHtml((m.body && m.body[first]) || '')}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">${escapeHtml(tr(m.kind === 'native' ? 'adminNativeUpdatedAt' : 'adminNativeSentAt', { date: new Date(m.when).toLocaleString('fr-FR') }))}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <button class="secondary" data-native-edit="${i}">${escapeHtml(tr('adminMsgEditBtn'))}</button>
+        <button class="secondary" data-native-delete="${i}">${escapeHtml(tr('adminMsgDeleteBtn'))}</button>
+      </div>
+    </div>`;
+  }).join('') + (hasWelcome ? '' : `
+    <div style="padding:8px 0;font-size:12.5px;color:var(--text-dim);">${escapeHtml(tr('adminNativeWelcomeOff'))}
+      <button class="secondary" data-native-create style="margin-left:8px;">${escapeHtml(tr('adminNativeCreateBtn'))}</button>
+    </div>`);
+  el.querySelectorAll('[data-native-edit]').forEach(btn => btn.addEventListener('click', () => {
+    const m = items[Number(btn.dataset.nativeEdit)];
+    openAdminMsgEditor(btn.closest('.admin-native-item'), m, async (bodies, titles) => {
+      const r = m.kind === 'native'
+        ? await window.LayerPitchAdmin.updateNativeMessage(m.id, bodies, titles)
+        : await window.LayerPitchAdmin.updateAdminMessage(m.id, bodies, titles);
+      return r.ok ? null : r.error;
+    }, loadAdminNativeMsgs);
+  }));
+  el.querySelectorAll('[data-native-delete]').forEach(btn => btn.addEventListener('click', async () => {
+    const m = items[Number(btn.dataset.nativeDelete)];
+    if (!(await window.LayerPitchNotify.confirm(tr(m.kind === 'native' ? 'adminNativeDeleteConfirm' : 'adminMsgDeleteConfirm'), { danger: true }))) return;
+    btn.disabled = true;
+    const r = m.kind === 'native' ? await window.LayerPitchAdmin.deleteNativeMessage(m.id) : await window.LayerPitchAdmin.deleteAdminMessage(m.id);
+    if (!r.ok) { window.LayerPitchNotify.error(tr('adminMsgErrorPrefix') + r.error); btn.disabled = false; return; }
+    loadAdminNativeMsgs();
+  }));
+  const createBtn = el.querySelector('[data-native-create]');
+  if (createBtn) createBtn.addEventListener('click', () => {
+    const box = document.createElement('div');
+    box.className = 'admin-native-item';
+    createBtn.parentElement.replaceWith(box);
+    openAdminMsgEditor(box, { title: {}, body: {} }, async (bodies, titles) => {
+      const r = await window.LayerPitchAdmin.updateNativeMessage('welcome', bodies, titles);
+      return r.ok ? null : r.error;
+    }, loadAdminNativeMsgs);
+  });
+}
+
 // ---- Choix des destinataires (8/10) : tous, ou des comptes précis (compositeurs / studios) ----
 // Un envoi ciblé arrive dans la cloche des comptes choisis ; l'e-mail de notification est une case à cocher
 // (email_notify, migration 20261008040000), décochée par défaut.
