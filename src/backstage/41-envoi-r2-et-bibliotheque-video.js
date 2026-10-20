@@ -353,6 +353,34 @@ function renderVideoCapturePacksList() {
   }).join('');
 }
 
+// Versioning depuis le bloc vidéo d'un AdReel (21/10) : index « vidéo de la bibliothèque -> montage d'origine et versions sœurs », lu une fois
+// (les RPC sont celles du sous-onglet Versioning). Une vidéo issue d'une version vidéo (last_export_video_id) retrouve son montage et les autres
+// versions rendues du même montage ; une vidéo envoyée à la main n'a pas de montage, rien ne s'affiche pour elle. Palier « enregistré »
+// (comme la liste du sous-onglet) ; aucun changement de base : choisir une version = choisir une autre vidéo de la bibliothèque.
+let videoVersioningIndexPromise = null;
+function loadVideoVersioningIndex(force) {
+  if (videoVersioningIndexPromise && !force) return videoVersioningIndexPromise;
+  const empty = { byVideoId: {}, available: false };
+  videoVersioningIndexPromise = (async () => {
+    if (entitlementLevel('versioning') !== 'saved') return empty;
+    const client = window.LayerPitchSupabaseClient.getClient();
+    const res = await client.rpc('list_my_video_captures', { p_pack_id: null });
+    if (res.error) return empty;
+    const out = { byVideoId: {}, available: true };
+    await Promise.all((res.data || []).map(async c => {
+      const r = await client.rpc('list_video_capture_versions', { p_capture_id: c.id });
+      if (r.error) return;
+      const siblings = (r.data || []).filter(v => v.lastExportVideoId).map(v => ({ versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId }));
+      siblings.forEach(sib => { out.byVideoId[sib.videoId] = { capture: c, siblings }; });
+    }));
+    return out;
+  })().catch(() => empty);
+  return videoVersioningIndexPromise;
+}
+// Adresse de l'outil de capture sur ce montage (même lien que le bouton « Ouvrir » du sous-onglet Versioning).
+function videoVersioningMontageUrl(capture) {
+  return `./pack.html?id=${encodeURIComponent(capture.packId)}&lang=${encodeURIComponent(currentLang())}&capture=1&montage=${encodeURIComponent(capture.id)}`;
+}
 async function renderVideoVersioningList() {
   const listEl = document.getElementById('videoVersioningList');
   if (!listEl) return;

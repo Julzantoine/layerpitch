@@ -180,6 +180,7 @@ function buildVideoCard(block) {
             ${libraryVideos.map(lv => `<option value="${lv.id}" ${v.libraryVideoId === lv.id ? 'selected' : ''}>${escapeAttr(lv.title || lv.originalName || lv.file)}</option>`).join('')}
           </select>
           ${libraryLoaded && !libraryVideos.length ? `<div class="hint-inline">${tr('videoLibrarySelectEmpty')}</div>` : ''}
+          <div data-role="versionRow" data-i="${i}"></div>
         </div>` : ''}
         <label>${tr('commentLabel')}</label><textarea data-field="comment" data-i="${i}" rows="2">${escapeAttr(v.comment || '')}</textarea>
       `;
@@ -189,6 +190,24 @@ function buildVideoCard(block) {
         () => v.pendingThumbnail, () => v.thumbnail,
         f => { v.pendingThumbnail = f; hasUnsavedEdits = true; }, () => v.thumbnailOriginalName);
       listEl.appendChild(el);
+    });
+    fillVersionRows();
+  }
+  // Versioning depuis le bloc (21/10) : si la vidéo choisie vient d'un montage, on propose de choisir parmi ses versions rendues, ou d'en créer une.
+  function fillVersionRows() {
+    if (!flagOpen('video_upload') || typeof loadVideoVersioningIndex !== 'function') return;
+    loadVideoVersioningIndex().then(idx => {
+      listEl.querySelectorAll('[data-role="versionRow"]').forEach(row => {
+        const v = block.videos[parseInt(row.dataset.i, 10)];
+        const info = v && v.libraryVideoId && idx.byVideoId[v.libraryVideoId];
+        if (!info) { row.innerHTML = ''; return; }
+        const options = info.siblings.filter(sib => libraryVideos.some(lv => lv.id === sib.videoId));
+        row.innerHTML = `
+          <label style="margin-top:8px">${tr('videoBlockVersionLabel')}</label>
+          <select data-role="versionSelect" data-i="${row.dataset.i}">${options.map(sib => `<option value="${sib.videoId}" ${sib.videoId === v.libraryVideoId ? 'selected' : ''}>${escapeAttr(sib.title || tr('videoVersioningUntitled'))}</option>`).join('')}</select>
+          <div class="actions" style="margin-top:6px"><a class="btn btn-small" data-role="versionNew" href="${videoVersioningMontageUrl(info.capture)}" target="_blank" rel="noopener">${tr('videoBlockVersionNew')}</a></div>
+          <div class="hint-inline">${tr('videoBlockVersionHint')}</div>`;
+      });
     });
   }
   if (flagOpen('video_upload')) loadMyVideos().then(({ videos }) => {
@@ -225,6 +244,13 @@ function buildVideoCard(block) {
       hasUnsavedEdits = true;
       renderList();
       refreshAllBlockSummaries();
+      return;
+    }
+    const vsel = e.target.closest('[data-role="versionSelect"]');
+    if (vsel) {
+      const v = block.videos[parseInt(vsel.dataset.i, 10)];
+      const chosen = libraryVideos.find(lv => lv.id === vsel.value);
+      if (chosen) { v.libraryVideoId = chosen.id; v.url = chosen.base + chosen.file; hasUnsavedEdits = true; renderList(); refreshAllBlockSummaries(); }
       return;
     }
     const sel = e.target.closest('[data-role="librarySelect"]');

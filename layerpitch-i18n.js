@@ -2165,6 +2165,9 @@ window.LAYERPITCH_I18N = {
       videoVersioningUntitled: "Sans titre",
       videoVersioningNoVersion: "aucune version vidéo",
       videoVersioningOpenBtn: "Ouvrir",
+      videoBlockVersionLabel: "Version vidéo affichée",
+      videoBlockVersionNew: "Créer une version vidéo",
+      videoBlockVersionHint: "Cette vidéo vient d’un montage : choisis la version à montrer dans l’AdReel, ou crées-en une nouvelle (autre musique) sans rejouer le montage.",
     },
     studio: {
       creditsTitle: "Crédits",
@@ -5750,6 +5753,9 @@ window.LAYERPITCH_I18N = {
       videoVersioningUntitled: "Untitled",
       videoVersioningNoVersion: "no video version",
       videoVersioningOpenBtn: "Open",
+      videoBlockVersionLabel: "Video version shown",
+      videoBlockVersionNew: "Create a video version",
+      videoBlockVersionHint: "This video comes from a montage: pick the version to show in the AdReel, or create a new one (other music) without replaying the montage.",
     },
     studio: {
       creditsTitle: "Credits",
