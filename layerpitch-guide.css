@@ -1,0 +1,38 @@
+/* layerpitch-guide.css — mise en forme des bulles guidées (visite et leçons), partagée par le Backstage et les autres pages.
+   Sorti du Backstage le 20/10 avec layerpitch-guide.js. Variables attendues : --bg, --border, --accent, --accent-soft, --text, --text-dim, --text-dimmer. */
+/* Visite guidée (08/10) : voile transparent + découpe lumineuse autour de la cible + carte d'explication. */
+.tour-root { position: fixed; inset: 0; z-index: 9000; }
+.tour-spot { position: fixed; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(20,22,28,0.55); outline: 2px solid var(--accent); pointer-events: none; transition: all 0.2s ease; }
+.tour-card { position: fixed; width: 320px; max-width: calc(100vw - 24px); background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; box-shadow: 0 12px 32px rgba(20,22,28,0.28); }
+.tour-count { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; color: var(--accent); margin-bottom: 6px; }
+.tour-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.tour-text { font-size: 13px; line-height: 1.55; color: var(--text-dim); margin-bottom: 14px; }
+.tour-actions { display: flex; align-items: center; gap: 8px; }
+/* Leçons guidées (08/10) : le voile laisse passer les clics pour que l'apprenant agisse sur l'élément en surbrillance. */
+.tour-root-lesson { pointer-events: none; }
+.tour-root-lesson .tour-card { pointer-events: auto; }
+.tour-waiting { font-size: 12px; color: var(--accent); margin: -6px 0 12px; }
+.tour-sample { display: block; font-size: 12.5px; margin: -4px 0 12px; }
+.tour-sample-soon { color: var(--text-dimmer); }
+.tour-root-lesson .tour-card { width: 380px; }
+.tour-root-lesson .tour-text { font-size: 13.5px; }
+.tour-text { white-space: pre-line; } /* un « \n » dans un texte fait un retour à la ligne */
+/* Vignette du fichier d'exemple, à glisser jusqu'à la zone en surbrillance (glisser-déposer simulé par la page). */
+.tour-chip { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin: 0 0 6px; border: 1px dashed var(--accent); border-radius: 8px; background: var(--accent-soft); color: var(--text); font-size: 12.5px; cursor: grab; user-select: none; touch-action: none; }
+.tour-chip.is-dragging { opacity: 0.45; cursor: grabbing; }
+.tour-chip-note { color: var(--accent); }
+.tour-chip-name { overflow-wrap: anywhere; }
+.tour-chip-ghost { position: fixed; z-index: 10000; pointer-events: none; margin: 0; max-width: 320px; box-shadow: 0 8px 20px rgba(20,22,28,0.3); background: var(--bg); }
+.tour-sample-hint { font-size: 11.5px; color: var(--text-dim); margin: 0 0 8px; }
+.tour-spot.tour-spot-hot { outline-width: 4px; }
+.tour-sample-use { margin: 0 0 16px; }
+/* Flèche indiquant une mesure sur la timeline (étape « points de boucle » de la leçon 1). */
+.tour-arrow { position: fixed; z-index: 9100; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+.tour-arrow-label { background: var(--accent); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+.tour-arrow-head { color: var(--accent); font-size: 20px; line-height: 14px; }
+/* La bulle se saisit pour être déplacée (hors boutons). */
+.tour-card { cursor: grab; user-select: none; touch-action: none; }
+.tour-card.is-moving { cursor: grabbing; box-shadow: 0 16px 36px rgba(20,22,28,0.38); }
+.tour-count { display: flex; justify-content: space-between; align-items: center; }
+.tour-grip { color: var(--text-dimmer); font-size: 14px; letter-spacing: 0; }
+.tour-card button, .tour-card a { cursor: pointer; }

@@ -457,246 +457,60 @@ const LESSONS = [
   ] },
 ];
 
-let guide = null; // { root, kind, lessonId, steps, index, ctx, timer, advancing, clicked }
-
-function tourTargetVisible(el) {
-  if (!el || el.hidden || el.closest('[hidden]')) return false;
-  const r = el.getBoundingClientRect();
-  return r.width > 0 && r.height > 0;
-}
+// Le moteur de bulles (affichage, avancement des étapes, clavier, déplacement) est partagé avec les autres pages :
+// layerpitch-guide.js. Ici ne reste que ce qui est propre au Backstage : les textes, les leçons, les vignettes de fichiers
+// d'exemple, la flèche de la timeline et la mémorisation de ce qui a été fait.
+function tourTargetVisible(el) { return window.LayerPitchGuide.targetVisible(el); }
 function tourMarkDone() { try { localStorage.setItem(TOUR_DONE_STORAGE, '1'); } catch (e) { /* stockage indisponible */ } }
 function tourAlreadyDone() { try { return localStorage.getItem(TOUR_DONE_STORAGE) === '1'; } catch (e) { return false; } }
 function lessonsDone() { try { return JSON.parse(localStorage.getItem(LESSONS_DONE_STORAGE) || '{}') || {}; } catch (e) { return {}; } }
 function lessonMarkDone(id) { try { const d = lessonsDone(); d[id] = true; localStorage.setItem(LESSONS_DONE_STORAGE, JSON.stringify(d)); } catch (e) { /* stockage indisponible */ } }
 
-function closeBackstageTour() {
-  if (!guide) return;
-  if (guide.timer) clearInterval(guide.timer);
-  guide.root.remove();
-  document.body.classList.remove('lp-guide-active');
-  window.removeEventListener('resize', renderGuideStep);
-  document.removeEventListener('keydown', guideKeydown, true);
-  document.removeEventListener('click', guideClickCapture, true);
-  if (guide.kind === 'tour') tourMarkDone();
-  guide = null;
-  renderTutorialMenu();
-}
-function guideKeydown(e) {
-  if (e.key === 'Escape') { e.stopPropagation(); closeBackstageTour(); }
-}
-function guideClickCapture(e) {
-  if (!guide) return;
-  const step = guide.steps[guide.index];
-  if (step && (step.clickDone || step.listen) && step.selector && e.target.closest && e.target.closest(step.selector)) guide.clicked = true;
-}
-function guideStepTarget(step) {
-  // Étape d'écoute : une fois « Écouter » cliqué, la surbrillance passe au lecteur qui vient de s'ouvrir (listenTarget),
-  // pour montrer qu'on peut s'en servir (pause, tête de lecture).
-  if (step.listenTarget && guide && guide.clicked) {
-    const el = document.querySelector(step.listenTarget);
-    if (el && tourTargetVisible(el)) return el;
-  }
-  return step.selector ? document.querySelector(step.selector) : null;
-}
-function guideGo(delta) {
-  if (!guide) return;
-  let next = guide.index + delta;
-  // Saute les étapes sans objet (ex. curseur de paramètre quand son feu vert est fermé), dans les deux sens.
-  while (next >= 0 && next < guide.steps.length && guide.steps[next].skip && guide.steps[next].skip(guide.ctx)) next += delta;
-  if (next < 0) return;
-  if (next >= guide.steps.length) { finishGuide(); return; }
-  guide.index = next; guide.clicked = false; guide.advancing = false; guide.userMoved = false;
-  if (next > guide.maxIndex) guide.maxIndex = next; // étape la plus avancée atteinte : au-delà du « front », on ne fait que revoir
-  const step = guide.steps[next];
-  if (step.enter) step.enter(guide.ctx);
-  renderGuideStep();
-}
+
 // Leçon qui suit la leçon en cours dans le menu (ou null) : proposée sur la bulle finale.
 function nextLessonOf(lessonId) {
   const i = LESSONS.findIndex(l => l.id === lessonId);
   const next = i >= 0 ? LESSONS[i + 1] : null;
-  return next && next.steps && (!next.needs || flagOpen(next.needs)) ? { lesson: next, n: i + 2 } : null;
+  return next && next.steps && lessonPlayable(next) && (!next.needs || flagOpen(next.needs)) ? { lesson: next, n: i + 2 } : null;
 }
-function goToNextLesson() {
-  if (!guide) return;
-  const nx = nextLessonOf(guide.lessonId);
-  finishGuide();
-  if (nx) startLesson(nx.lesson.id);
-}
-function finishGuide() {
-  if (guide && guide.kind === 'lesson') lessonMarkDone(guide.lessonId);
-  closeBackstageTour();
-}
-function guideStepIsDone(step) {
-  if (step.done) { try { return !!step.done(guide.ctx); } catch (e) { return false; } }
-  if (step.clickDone) return guide.clicked;
-  return false;
-}
-function guideTick() {
-  if (!guide) return;
-  const step = guide.steps[guide.index];
-  // Étape déjà franchie, revue avec « Précédent » : pas d'avance automatique (sinon on ne pourrait jamais reculer).
-  if (guide.kind === 'lesson' && !guide.advancing && guide.index >= guide.maxIndex && guideStepIsDone(step)) {
-    guide.advancing = true;
-    setTimeout(() => guideGo(1), 450); // laisse voir le résultat du geste avant la bulle suivante
-    return;
-  }
-  renderGuideStep(true);
-}
-function renderGuideStep(positionOnly) {
-  if (!guide) return;
-  const step = guide.steps[guide.index];
-  const target = guideStepTarget(step);
-  const visible = tourTargetVisible(target);
-  const spot = guide.root.querySelector('.tour-spot');
-  const card = guide.root.querySelector('.tour-card');
-  const auto = guide.kind === 'lesson' && (step.done || step.clickDone);
-  const listening = guide.kind === 'lesson' && !!step.listen; // clic sur « Écouter », puis écoute libre, puis « Suivant »
-  const last = guide.index === guide.steps.length - 1;
-  const revisiting = guide.index < guide.maxIndex;
-  const nextLesson = guide.kind === 'lesson' && step.final ? nextLessonOf(guide.lessonId) : null;
-  const key = guide.index + ':' + (visible ? 'v' : 'h') + (revisiting ? ':r' : '') + (listening && guide.clicked ? ':c' : '');
-  if (!positionOnly || guide.cardKey !== key) {
-    guide.cardKey = key;
+const GUIDE = window.LayerPitchGuide.create({
+  tr,
+  nextLesson: nextLessonOf,
+  startLesson: id => startLesson(id),
+  onLessonDone: lessonMarkDone,
+  onTourDone: tourMarkDone,
+  onClose: () => renderTutorialMenu(),
+  onOpen: () => { const helpTip = document.getElementById('helpTooltip'); if (helpTip) helpTip.classList.remove('visible'); },
+  // Vignettes d'exemple : lot à télécharger, bouton « Utiliser » (étapes useSample dont les URL sont connues), et « bientôt
+  // disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
+  cardExtras(step) {
     const sample = step.sampleKey ? LESSON_SAMPLE_FILES[step.sampleKey] : undefined;
     const canUse = lessonSampleReady(step);
     const many = lessonStepFileNames(step).length > 1;
-    // Téléchargement du lot (étapes marquées sampleKey), bouton « Utiliser » (étapes useSample dont les URL sont connues),
-    // et « bientôt disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
-    const sampleHtml = (sample ? `<a class="tour-sample" href="${escapeAttr(sample)}" download>${escapeHtml(tr('lessonSampleDownload'))}</a>` : '')
+    return (sample ? `<a class="tour-sample" href="${escapeAttr(sample)}" download>${escapeHtml(tr('lessonSampleDownload'))}</a>` : '')
       + (canUse ? `<div class="tour-chip" data-tour="chip" role="button" tabindex="0" aria-label="${escapeAttr(tr('lessonChipHint'))}"><span class="tour-chip-note">♪</span><span class="tour-chip-name">${escapeHtml(many ? tr('lessonChipMany', { n: lessonStepFileNames(step).length }) : lessonStepFileNames(step)[0])}</span></div><div class="tour-sample-hint">${escapeHtml(tr('lessonChipHint'))}</div>` : '')
       + (step.sampleKey && !sample && !canUse ? `<div class="tour-sample tour-sample-soon">${escapeHtml(tr('lessonSampleSoon'))}</div>` : '');
-    card.innerHTML = `
-      <div class="tour-count"><span>${guide.index + 1} / ${guide.steps.length}</span><span class="tour-grip" title="${escapeAttr(tr('lessonMoveHint'))}" aria-hidden="true">⠿</span></div>
-      <div class="tour-title">${escapeHtml(tr(step.titleKey))}</div>
-      <div class="tour-text">${escapeHtml(tr(step.textKey, { file: LESSON_SAMPLE_NAMES[step.names || guide.lessonId] || '' }))}</div>
-      ${sampleHtml}
-      ${auto || (listening && !guide.clicked && !revisiting) ? `<div class="tour-waiting">${escapeHtml(tr('lessonDoIt'))}</div>` : ''}
-      ${listening && guide.clicked ? `<div class="tour-waiting">${escapeHtml(tr('lessonListening'))}</div>` : ''}
-      <div class="tour-actions">
-        <button class="btn btn-small" type="button" data-tour="skip">${escapeHtml(tr(last ? 'tourClose' : (guide.kind === 'lesson' ? 'lessonQuit' : 'tourSkip')))}</button>
-        <span style="flex:1"></span>
-        ${guide.index > 0 && !step.final ? `<button class="btn btn-small" type="button" data-tour="prev">${escapeHtml(tr('tourPrev'))}</button>` : ''}
-        ${nextLesson ? `<button class="btn btn-small btn-primary" type="button" data-tour="nextlesson">${escapeHtml(tr('lessonNextBtn', { n: nextLesson.n, title: tr(nextLesson.lesson.titleKey).replace(/^\d+\s·\s/, '') }))}</button>` : ''}
-        ${auto
-          /* étape à geste : elle n'avance que lorsque le geste est fait ; « Passer l'étape » n'existe que pour une étape déjà
-             franchie, revue avec « Précédent » */
-          ? (revisiting ? `<button class="btn btn-small" type="button" data-tour="next">${escapeHtml(tr('lessonSkipStep'))}</button>`
-              : (step.keepTrack ? `<button class="btn btn-small" type="button" data-tour="next">${escapeHtml(tr('lessonKeepTrack'))}</button>` : ''))
-          : (listening && !guide.clicked && !revisiting ? ''
-            : `<button class="btn btn-small btn-primary" type="button" data-tour="next">${escapeHtml(tr(last ? 'tourFinish' : 'tourNext'))}</button>`)}
-      </div>`;
-    card.querySelector('[data-tour="skip"]').onclick = closeBackstageTour;
-    const nextBtn = card.querySelector('[data-tour="next"]');
-    if (nextBtn) nextBtn.onclick = () => guideGo(1); // absent sur une étape obligatoire
-    const prev = card.querySelector('[data-tour="prev"]');
-    if (prev) prev.onclick = () => guideGo(-1);
+  },
+  wireCard(card, step) {
     const chip = card.querySelector('[data-tour="chip"]');
     if (chip) chip.addEventListener('pointerdown', ev => lessonStartChipDrag(ev, step, chip));
-    const nlBtn = card.querySelector('[data-tour="nextlesson"]');
-    if (nlBtn) nlBtn.onclick = goToNextLesson;
     // Accès clavier : Entrée ou Espace sur la vignette dépose le fichier d'exemple (sans glisser à la souris).
     if (chip) chip.addEventListener('keydown', ev => {
       if (ev.key !== 'Enter' && ev.key !== ' ') return;
       ev.preventDefault();
       lessonUseSample(step).catch(err => window.LayerPitchNotify.error(tr('lessonSampleError', { error: err.message || String(err) })));
     });
-  }
-  // Flèche indicative (étapes avec `arrow`) : pointe la mesure à viser sur la timeline.
-  let arrowEl = guide.root.querySelector('.tour-arrow');
-  const ap = step.arrow && visible ? lessonArrowPoint(step.arrow.bar) : null;
-  if (ap) {
-    if (!arrowEl) {
-      arrowEl = document.createElement('div');
-      arrowEl.className = 'tour-arrow';
-      arrowEl.innerHTML = '<span class="tour-arrow-label"></span><span class="tour-arrow-head">▼</span>';
-      guide.root.appendChild(arrowEl);
-    }
-    arrowEl.querySelector('.tour-arrow-label').textContent = tr('lessonArrowLabel', { n: step.arrow.bar });
-    arrowEl.style.left = ap.x + 'px';
-    arrowEl.style.top = ap.y + 'px';
-  } else if (arrowEl) {
-    arrowEl.remove();
-  }
-  const margin = 12;
-  if (visible) {
-    // Cible hors de l'écran (page longue) : on la fait défiler dans la vue à l'arrivée sur l'étape, sinon la zone en
-    // surbrillance reste invisible.
-    if (!positionOnly) {
-      const b = target.getBoundingClientRect();
-      // (les champs de la fiche passent sous la barre fixe du haut : on les ramène au centre)
-      const underBar = b.top < 250 && !!target.closest('#libraryDetail');
-      if (b.bottom > window.innerHeight - 8 || b.top < 8 || underBar) { try { target.scrollIntoView({ block: b.height > window.innerHeight * 0.7 ? 'start' : 'center' }); } catch (e) { /* ancien navigateur */ } }
-    }
-    const r = target.getBoundingClientRect();
-    spot.style.display = 'block';
-    spot.style.top = (r.top - 4) + 'px'; spot.style.left = (r.left - 4) + 'px';
-    spot.style.width = (r.width + 8) + 'px'; spot.style.height = (r.height + 8) + 'px';
-    // Pendant une leçon, la cible doit rester cliquable : le voile laisse passer les clics (pointer-events), la carte non.
-    if (!guide.userMoved) {
-      const cw = card.offsetWidth, ch = card.offsetHeight;
-      let left = r.right + margin, top = r.top;
-      if (left + cw > window.innerWidth - margin) { left = Math.min(r.left, window.innerWidth - cw - margin); top = r.bottom + margin; }
-      if (top + ch > window.innerHeight - margin) top = Math.max(margin, r.top - ch - margin);
-      card.style.left = Math.max(margin, left) + 'px'; card.style.top = Math.max(margin, top) + 'px';
-      card.style.transform = 'none';
-    }
-  } else {
-    spot.style.display = 'none';
-    if (!guide.userMoved) { card.style.left = '50%'; card.style.top = '50%'; card.style.transform = 'translate(-50%, -50%)'; }
-  }
-}
-// La bulle se saisit et se déplace (utile quand elle cache la zone à manipuler) ; le déplacement vaut pour l'étape en cours,
-// la bulle reprend sa place automatique à l'étape suivante.
-function guideEnableCardDrag(card) {
-  card.addEventListener('pointerdown', ev => {
-    if (!guide || (ev.button !== undefined && ev.button !== 0)) return;
-    if (ev.target.closest('button, a, input, select, textarea, .tour-chip')) return;
-    ev.preventDefault();
-    const r = card.getBoundingClientRect();
-    const dx = ev.clientX - r.left, dy = ev.clientY - r.top;
-    guide.userMoved = true;
-    card.style.transform = 'none';
-    card.style.left = r.left + 'px'; card.style.top = r.top + 'px';
-    card.classList.add('is-moving');
-    const move = e => {
-      const m = 8;
-      const x = Math.max(m, Math.min(window.innerWidth - card.offsetWidth - m, e.clientX - dx));
-      const y = Math.max(m, Math.min(window.innerHeight - card.offsetHeight - m, e.clientY - dy));
-      card.style.left = x + 'px'; card.style.top = y + 'px';
-    };
-    const end = () => {
-      card.classList.remove('is-moving');
-      document.removeEventListener('pointermove', move, true);
-      document.removeEventListener('pointerup', end, true);
-      document.removeEventListener('pointercancel', end, true);
-    };
-    document.addEventListener('pointermove', move, true);
-    document.addEventListener('pointerup', end, true);
-    document.addEventListener('pointercancel', end, true);
-  });
-}
-function openGuide(kind, steps, lessonId) {
-  if (guide) closeBackstageTour();
-  if (!steps.length) return;
-  const root = document.createElement('div');
-  root.className = 'tour-root' + (kind === 'lesson' ? ' tour-root-lesson' : '');
-  root.setAttribute('role', 'dialog');
-  root.innerHTML = '<div class="tour-spot"></div><div class="tour-card"></div>';
-  document.body.appendChild(root);
-  document.body.classList.add('lp-guide-active'); // masque les bulles d'aide au survol (voir 12-bulles-d-aide.js)
-  const helpTip = document.getElementById('helpTooltip');
-  if (helpTip) helpTip.classList.remove('visible');
-  guide = { root, kind, lessonId, steps, index: 0, maxIndex: 0, ctx: {}, timer: null, advancing: false, clicked: false, cardKey: '', userMoved: false };
-  guideEnableCardDrag(root.querySelector('.tour-card'));
-  if (steps[0].enter) steps[0].enter(guide.ctx);
-  window.addEventListener('resize', renderGuideStep);
-  document.addEventListener('keydown', guideKeydown, true);
-  document.addEventListener('click', guideClickCapture, true);
-  renderGuideStep();
-  if (kind === 'lesson') guide.timer = setInterval(guideTick, 250);
-  else guide.timer = setInterval(() => renderGuideStep(true), 400); // suit la cible si l'écran se redessine
-}
+  },
+  textVars: (step, st) => ({ file: LESSON_SAMPLE_NAMES[step.names || st.lessonId] || '' }),
+  arrowPoint: lessonArrowPoint,
+  // Les champs de la fiche passent sous la barre fixe du haut : on les ramène au centre.
+  centerTarget: (target, b) => b.top < 250 && !!target.closest('#libraryDetail'),
+});
+// `guide` (état de la bulle en cours, ou null) reste lisible partout dans ce fichier comme avant.
+Object.defineProperty(window, 'guide', { get: () => GUIDE.state(), configurable: true });
+const guideStepTarget = GUIDE.stepTarget, guideStepIsDone = GUIDE.stepIsDone, guideGo = GUIDE.go, finishGuide = GUIDE.finish, renderGuideStep = GUIDE.render, guideTick = GUIDE.tick;
+function openGuide(kind, steps, lessonId) { GUIDE.open(kind, steps, lessonId); }
+function closeBackstageTour() { GUIDE.close(); }
 function startBackstageTour() {
   if (guide) return;
   openGuide('tour', TOUR_STEPS.filter(s => !s.selector || tourTargetVisible(document.querySelector(s.selector))));
