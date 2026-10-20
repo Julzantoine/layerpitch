@@ -22,11 +22,12 @@
   const LESSON_THEME_ID = 'preprod';
   // Leçons de cette page, dans l'ordre du menu. Les textes sont dans la zone « projects » de layerpitch-i18n.js.
   const LESSON_LIST = [
-    { id: 'pj-chat', theme: LESSON_THEME_ID, titleKey: 'plChatTitle', descKey: 'plChatDesc' },
-    { id: 'pj-moodboard', theme: LESSON_THEME_ID, titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },
-    { id: 'pj-map-build', theme: LESSON_THEME_ID, titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc' },
-    { id: 'pj-map-music', theme: LESSON_THEME_ID, titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc', soon: true },
-    { id: 'pj-map-walk', theme: LESSON_THEME_ID, titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc', soon: true },
+    { id: 'pj-create', theme: LESSON_THEME_ID, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc' },
+    { id: 'pj-chat', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
+    { id: 'pj-moodboard', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },
+    { id: 'pj-map-build', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc' },
+    { id: 'pj-map-music', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc', soon: true },
+    { id: 'pj-map-walk', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc', soon: true },
   ];
 
   function init(ctx) {
@@ -58,6 +59,15 @@
       return s;
     }
     const lessons = {
+      'pj-create': [
+        { titleKey: 'plCreateWelcomeTitle', textKey: 'plCreateWelcomeText' },
+        { selector: '#newTitle', titleKey: 'plCreateNameTitle', textKey: 'plCreateNameText', done: () => hasText('newTitle'),
+          drops: [{ kind: 'text', label: 'Alone in the Barque', value: 'Alone in the Barque' }] },
+        { selector: '#newDesc', titleKey: 'plCreateDescTitle', textKey: 'plCreateDescText', done: () => hasText('newDesc'),
+          drops: [{ kind: 'text', label: 'Jeu d’horreur lacustre. Quatre zones, une menace qui se rapproche, le silence comme récompense.', value: 'Jeu d’horreur lacustre. Quatre zones, une menace qui se rapproche, le silence comme récompense.' }] },
+        { selector: '#createBtn', titleKey: 'plCreateBtnTitle', textKey: 'plCreateBtnText', clickDone: true, done: () => !!document.querySelector('a.row') },
+        { selector: 'a.row', titleKey: 'plCreateDoneTitle', textKey: 'plCreateDoneText', final: true },
+      ],
       'pj-chat': [
         { titleKey: 'plChatWelcomeTitle', textKey: 'plChatWelcomeText' },
         { selector: '#newMsg', titleKey: 'plChatWriteTitle', textKey: 'plChatWriteText', done: () => hasText('newMsg'),

@@ -37,10 +37,10 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
 
   // Branchements dans les sources du Backstage.
   const load = read('src/backstage/13-suivi-d-usage.js');
-  check('fermé au public par défaut (tutoPublicOpen -> false)', /function tutoPublicOpen\(\) \{ return false; \}/.test(load));
+  check('fermé au public par défaut, règle unique dans layerpitch-tuto.js', /function publicOpen\(\) \{ return false; \}/.test(read('layerpitch-tuto.js')) && /function tutoPublicOpen\(\) \{ return window\.LayerPitchTuto\.publicOpen\(\); \}/.test(load));
   check('garde admin avant le faux serveur', /if \(!tutoPublicOpen\(\)\) tutoFullAccess = await tutoAdminGate\(\)/.test(load));
   check('SDK réel non chargé en version publique', /needRealSdk = !tuto \|\| !tutoPublicOpen\(\)/.test(load));
-  check('bascule du client en une ligne', /window\.LayerPitchSupabaseClient = \{ getClient: \(\) => window\.LayerPitchDemoClient \}/.test(load));
+  check('bascule du client en une ligne (layerpitch-tuto.js)', /window\.LayerPitchSupabaseClient = \{ getClient: \(\) => window\.LayerPitchDemoClient \}/.test(read('layerpitch-tuto.js')) && /window\.LayerPitchTuto\.switchToDemo\(\)/.test(load));
   check('aucun brouillon en mode tutoriel', /let draftDisabled = isTutoMode\(\)/.test(read('src/backstage/39-brouillon-automatique.js')));
   check('publication simulée en mode tutoriel', /async function publishAll\(\) \{[^\n]*\n[^\n]*\n?\s*if \(isTutoMode\(\)\)/.test(read('src/backstage/42-publication.js')));
   const page = read('layerpitch-backstage.html');

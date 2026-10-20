@@ -10,15 +10,16 @@ const { JSDOM } = require('jsdom');
   const html = read('projet.html');
   const inlineSrc = html.match(/<script>\n(const shellTr[\s\S]*?)<\/script>/)[1];
 
-  check('fermé au public par défaut (tutoPublicOpen -> false)', /function tutoPublicOpen\(\) \{ return false; \}/.test(inlineSrc));
+  check('fermé au public par défaut (règle unique dans layerpitch-tuto.js)', /function publicOpen\(\) \{ return false; \}/.test(read('layerpitch-tuto.js')));
   check('pas de barre commune ni de vrai serveur en mode tutoriel', /if \(!DEMO && !TUTO\) window\.LayerPitchShell/.test(inlineSrc));
 
   // Dans le test seulement, on ouvre le tutoriel (sans quoi le verrou admin renvoie vers la liste des projets).
-  const opened = inlineSrc.replace('function tutoPublicOpen() { return false; }', 'function tutoPublicOpen() { return true; }');
+  const opened = inlineSrc;
+  const tutoOpen = read('layerpitch-tuto.js').replace('function publicOpen() { return false; }', 'function publicOpen() { return true; }');
   async function boot() {
     const dom = new JSDOM('<div id="content"></div><div id="presence"></div>', { url: 'https://beta.layerpitch.com/projet.html?tuto&lang=fr', runScripts: 'outside-only', pretendToBeVisual: true });
     const w = dom.window;
-    ['layerpitch-i18n.js', 'layerpitch-appearance.js', 'layerpitch-guide.js', 'api/demo-client.js', 'api/demo-projects.js', 'projet-lecons.js', 'projet-carte-audio.js', 'projet-carte.js'].forEach(f => w.eval(read(f)));
+    ['layerpitch-i18n.js', 'layerpitch-appearance.js', 'layerpitch-guide.js', '__TUTO__', 'api/demo-client.js', 'api/demo-projects.js', 'projet-lecons.js', 'projet-carte-audio.js', 'projet-carte.js'].forEach(f => w.eval(f === '__TUTO__' ? tutoOpen : read(f)));
     w.LayerPitchProjects = {};
     w.LayerPitchAuth = { getSession: () => Promise.resolve({ session: { user: { id: 'demo-user', email: 'demo@layerpitch.com' } } }), getMyComposerId: () => Promise.resolve({ composerId: null }), onAuthStateChange: cb => setTimeout(() => cb('INITIAL_SESSION'), 0) };
     w.LayerPitchNotify = { confirm: () => Promise.resolve(true), error: () => {}, info: () => {} };
@@ -120,6 +121,37 @@ const { JSDOM } = require('jsdom');
 
   // ---- Leçons « musique » et « balade » : attendent leurs fichiers
   check('musique et balade marquées « bientôt » dans le menu du Backstage', /pj-map-music', theme: 'preprod', public: true, page: 'projet', soon: true/.test(read('src/backstage/43-visite-guidee.js')) && /pj-map-walk', theme: 'preprod', public: true, page: 'projet', soon: true/.test(read('src/backstage/43-visite-guidee.js')));
+  // ---- Leçon « créer un projet » (projets.html?tuto)
+  {
+    const phtml = read('projets.html');
+    const pinline = phtml.match(/<script>\n(\/\/ projets\.html[\s\S]*?)<\/script>/)[1];
+    const dom = new JSDOM('<div id="content"></div>', { url: 'https://beta.layerpitch.com/projets.html?tuto&lang=fr', runScripts: 'outside-only', pretendToBeVisual: true });
+    const pw = dom.window;
+    ['layerpitch-i18n.js', 'layerpitch-guide.js', '__TUTO__', 'api/demo-client.js', 'api/demo-projects.js', 'projet-lecons.js'].forEach(f => pw.eval(f === '__TUTO__' ? tutoOpen : read(f)));
+    pw.LayerPitchAuth = { getSession: () => Promise.resolve({ session: { user: { id: 'demo-user', email: 'demo@layerpitch.com' } } }), getMyComposerId: () => Promise.resolve({ composerId: 'demo-composer' }), getMyStudioId: () => Promise.resolve({ studioId: null }), onAuthStateChange: cb => setTimeout(() => cb('INITIAL_SESSION'), 0) };
+    pw.LayerPitchNotify = { error() {}, info() {} };
+    pw.LayerPitchSupabaseClient = { getClient: () => { throw new Error('le vrai serveur ne doit pas être appelé'); } };
+    pw.LayerPitchStudio = { myFeatureFlags: async () => ({ flags: { projects: true } }), myEntitlements: async () => ({ entitlements: { projects: { allowed: true, amount: 5 } } }) };
+    pw.LayerPitchProjects = {};
+    pw.LayerPitchShell = { mount() { throw new Error('la barre commune ne doit pas être montée'); } };
+    pw.eval(pinline);
+    await wait(500);
+    const D = pw.document;
+    check('liste des projets : bandeau tutoriel, liste vide au départ', /rien n’est enregistré/.test(D.body.textContent) && !D.querySelector('a.row'));
+    click(pw, D.querySelector('[data-tutolesson="pj-create"]')); await wait(100);
+    check('la leçon « créer un projet » s’ouvre', /1 \/ 5/.test(countText(D)));
+    click(pw, D.querySelector('[data-tour="next"]')); await wait(100);
+    chipKey(pw, D, 0);
+    check('le titre arrive dans le champ', /Alone in the Barque/.test(D.getElementById('newTitle').value));
+    check('étape « description »', await untilCount(D, /3 \/ 5/));
+    chipKey(pw, D, 0);
+    check('la description arrive dans le champ', /horreur/.test(D.getElementById('newDesc').value));
+    check('étape « créer »', await untilCount(D, /4 \/ 5/));
+    click(pw, D.getElementById('createBtn')); await wait(500);
+    check('le projet apparaît dans la liste (sans quitter la page)', !!D.querySelector('a.row') && /tuto/.test(D.querySelector('a.row').getAttribute('href')));
+    check('leçon terminée sur le message final', await untilCount(D, /5 \/ 5/));
+  }
+
   console.log(failures ? failures + ' échec(s)' : 'Tout est OK');
   process.exit(failures ? 1 : 0);
 })();

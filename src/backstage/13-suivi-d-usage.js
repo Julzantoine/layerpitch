@@ -27,20 +27,14 @@ var postgresReadScriptsLoaded = null;
 function isTutoMode() { return new URLSearchParams(window.location.search).has('tuto'); }
 // Tant que Jules-Antoine n'a pas ouvert le tutoriel au public : seul un admin connecté pour de vrai peut y entrer.
 // Pour l'ouvrir à tout le monde : faire répondre « true » ici (une seule ligne).
-function tutoPublicOpen() { return false; }
+function tutoPublicOpen() { return window.LayerPitchTuto.publicOpen(); } // règle d'accès unique : layerpitch-tuto.js
 // Vrai si l'accès est celui d'un admin (tutoriel complet) ; en version publique, seules les leçons marquées « public »
 // sont jouables (les autres restent visibles avec « le tuto complet nécessite un compte »).
 var tutoFullAccess = false;
 // Vérifie, AVANT de passer sur le faux serveur, qu'un vrai admin est connecté (SDK réel + vrai client). Sinon on
 // retourne au Backstage normal (qui renverra vers la connexion si besoin).
 async function tutoAdminGate() {
-  try {
-    const { data } = await window.LayerPitchSupabaseClient.getClient().auth.getSession();
-    if (data && data.session && data.session.user) {
-      const res = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin');
-      if (!res.error && res.data) return true;
-    }
-  } catch (e) { /* traité comme non admin */ }
+  if (await window.LayerPitchTuto.adminGate()) return true;
   window.location.replace(window.location.pathname);
   return new Promise(() => {}); // la page s'en va : on ne laisse rien se charger
 }
@@ -77,7 +71,7 @@ function loadPostgresReadScripts() {
     if (!tutoPublicOpen()) tutoFullAccess = await tutoAdminGate();
     // Bascule : tous les api/*.js appellent window.LayerPitchSupabaseClient.getClient() à chaque usage, donc cette
     // seule ligne les met tous sur le faux serveur.
-    window.LayerPitchSupabaseClient = { getClient: () => window.LayerPitchDemoClient };
+    window.LayerPitchTuto.switchToDemo();
   });
   return postgresReadScriptsLoaded;
 }

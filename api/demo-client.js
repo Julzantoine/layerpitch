@@ -22,10 +22,12 @@
   const DEMO_ENTITLEMENTS_ALLOWED = ['versioning'];
   const DEMO_ENTITLEMENTS_DENIED = ['custom_address', 'private_links', 'sell_albums', 'sell_packs', 'subscriber_catalog'];
 
+  // Sur les pages Projets (liste et espace), le compte fictif peut créer des Projets ; ailleurs (Backstage), la fonction reste fermée.
+  const onProjectPage = () => !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
   const RPC_ANSWERS = {
     is_admin: () => false,
-    my_feature_flags: () => DEMO_FLAGS.map(key => ({ key, allowed: true })),
-    my_entitlements: () => DEMO_ENTITLEMENTS_ALLOWED.map(f => ({ feature: f, allowed: true, amount: null, level: 'pro', plan: 'pro', source: 'demo' }))
+    my_feature_flags: () => DEMO_FLAGS.concat(onProjectPage() ? ['projects'] : []).map(key => ({ key, allowed: true })),
+    my_entitlements: () => DEMO_ENTITLEMENTS_ALLOWED.concat(onProjectPage() ? ['projects'] : []).map(f => ({ feature: f, allowed: true, amount: f === 'projects' ? 5 : null, level: 'pro', plan: 'pro', source: 'demo' }))
       .concat(DEMO_ENTITLEMENTS_DENIED.map(f => ({ feature: f, allowed: false, amount: null, level: null, plan: 'pro', source: 'demo' }))),
     get_trial_status: () => [{ plan: 'pro', trial_ends_at: null, real_plan: 'pro', preview_active: false }],
     my_billing: () => ({}),

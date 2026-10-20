@@ -70,6 +70,7 @@
     const stamp = hhmm => { const [h, m] = hhmm.split(':'); const d = new Date(day); d.setHours(+h, +m, 0, 0); return d.toISOString(); };
     const ok = data => ({ data: data === undefined ? null : data, error: null });
     const log = [];
+    let created = false; // leçon « créer un projet » : la liste des projets est vide tant qu'on n'en a pas créé un (opts.startEmpty)
     const activity = (kind, payload) => log.unshift({ kind, payload: payload || {}, createdAt: now(), actorEmail: ME.email });
 
     const project = { id: 'demo-barque', title: SEED.project.title, description: SEED.project.description, ownerKind: 'composer', archived: false, createdAt: stamp('09:00'), updatedAt: now() };
@@ -116,8 +117,8 @@
       publicDemo: async () => ok(null),
       demoStatus: async () => ok({ eligible: false }),
       setDemo: async () => ok(null),
-      listMine: async () => ok([{ id: project.id, title: project.title, description: project.description, role: 'admin', ownerKind: 'composer', archived: false, updatedAt: project.updatedAt }]),
-      create: async (title, description) => { project.title = title || project.title; project.description = description || ''; activity('project_created', { title: project.title }); return ok(project.id); },
+      listMine: async () => ok((opts.startEmpty && !created) ? [] : [{ id: project.id, title: project.title, description: project.description, role: 'admin', ownerKind: 'composer', archived: false, updatedAt: project.updatedAt }]),
+      create: async (title, description) => { created = true; project.title = title || project.title; project.description = description || ''; activity('project_created', { title: project.title }); return ok(project.id); },
       get: async () => ok(Object.assign({}, project, { role: 'admin', members })),
       update: async (id, title, description) => { project.title = title; project.description = description; project.updatedAt = now(); return ok(null); },
       archive: async (id, archived) => { project.archived = !!archived; return ok(null); },
