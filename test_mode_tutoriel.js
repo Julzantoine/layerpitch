@@ -47,10 +47,14 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('bandeau + bouton Quitter dans la page', page.includes('id="tutoBanner"') && page.includes('id="btnTutoQuit"'));
   check('lecture publique : leçons limitées aux leçons publiques', /function lessonPlayable\(lesson\) \{ return !isTutoMode\(\) \|\| tutoFullAccess \|\| lessonIsPublic\(lesson\); \}/.test(read('src/backstage/43-visite-guidee.js')));
 
+  const sel = read('src/backstage/15-selecteur-de-morceaux.js');
+  check('aucun lien public réel en mode tutoriel', /function computeAdReelUrl\(adReelId\) \{\n  if \(isTutoMode\(\)\) return null;/.test(sel) && /linkButtons\.hidden = isTutoMode\(\)/.test(sel));
+  check('« Visualiser le résultat » grisé en mode tutoriel', /viewBtn\.disabled = true/.test(read('src/backstage/43-visite-guidee.js')));
+
   const i18n = { window: {} };
   vm.createContext(i18n);
   vm.runInContext(read('layerpitch-i18n.js'), i18n);
-  ['tutoBannerText', 'tutoQuit', 'tutoSaveSimulated', 'tutoNeedsAccount', 'tutoAccountBadge', 'tutoTryTitle', 'tutoTryDesc']
+  ['tutoBannerText', 'tutoQuit', 'tutoSaveSimulated', 'tutoNeedsAccount', 'tutoAccountBadge', 'tutoTryTitle', 'tutoTryDesc', 'tutoNoPublicLink']
     .forEach(k => check('texte ' + k + ' en FR et EN', ['fr', 'en'].every(l => i18n.window.LAYERPITCH_I18N[l].backstage[k])));
 
   console.log(failures ? failures + ' échec(s)' : 'Tout est OK');

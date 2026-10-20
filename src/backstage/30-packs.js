@@ -216,7 +216,7 @@ function renderPacks() {
     if (entrySel === 'distribution') {
       const packUrlBox = detailEl.querySelector(`#packUrlBox_${pack.id}`);
       const packUrl = computePackUrl(pack.id);
-      packUrlBox.innerHTML = packUrl ? `<a href="${escapeAttr(packUrl)}" target="_blank" rel="noopener">${escapeHtml(packUrl)}</a>` : escapeHtml(tr('adreelUrlPending'));
+      packUrlBox.innerHTML = packUrl ? `<a href="${escapeAttr(packUrl)}" target="_blank" rel="noopener">${escapeHtml(packUrl)}</a>` : escapeHtml(adReelUrlMissingText());
     }
     if (entrySel === 'content') {
       const selectorHost = detailEl.querySelector('[data-role="trackSelector"]');
@@ -281,7 +281,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   if (copyBtn) {
     const pi = parseInt(copyBtn.dataset.pi, 10);
     const url = computePackUrl(packs[pi].id);
-    if (!url) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done).catch(() => { window.LayerPitchNotify.error(tr('copyFailedAlert')); });
@@ -294,7 +294,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   if (embedBtn) {
     const pi = parseInt(embedBtn.dataset.pi, 10);
     const embedUrl = computePackUrl(packs[pi].id);
-    if (!embedUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+    if (!embedUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
     openEmbedModal(`${embedUrl}&embed=1`, packs[pi].title, 'embedModalHintPack');
     return;
   }
@@ -308,7 +308,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   if (shareBtn) {
     const pi = parseInt(shareBtn.dataset.pi, 10);
     const shareUrl = computePackUrl(packs[pi].id);
-    if (!shareUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
     const result = await shareViaSocialsOrFallback(shareUrl, packs[pi].title || 'LayerPitch');
     if (result === 'copied') {
       const original = shareBtn.textContent;
@@ -325,7 +325,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
     const social = socials.find(s => s.id === publishBtn.dataset.socialId);
     if (!social) return;
     const publicUrl = computePackUrl(packs[pi].id);
-    if (!publicUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+    if (!publicUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
     const url = buildSocialShareUrl(social.platform, publicUrl, tr('publishPackText', { title: packs[pi].title || '' }));
     if (url) { openSharePopup(url); trackBackstageEvent('social_publish_click', {}); }
     return;

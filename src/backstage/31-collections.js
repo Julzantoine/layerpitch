@@ -164,7 +164,7 @@ function renderCollections() {
     if (entrySel === 'distribution') {
       const collUrlBox = detailEl.querySelector(`#collectionUrlBox_${coll.id}`);
       const collUrl = computeCollectionUrl(coll.id);
-      collUrlBox.innerHTML = collUrl ? `<a href="${escapeAttr(collUrl)}" target="_blank" rel="noopener">${escapeHtml(collUrl)}</a>` : escapeHtml(tr('adreelUrlPending'));
+      collUrlBox.innerHTML = collUrl ? `<a href="${escapeAttr(collUrl)}" target="_blank" rel="noopener">${escapeHtml(collUrl)}</a>` : escapeHtml(adReelUrlMissingText());
     }
     container.appendChild(el);
   });
@@ -199,7 +199,7 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
   if (copyBtn) {
     const ci = parseInt(copyBtn.dataset.ci, 10);
     const url = computeCollectionUrl(collections[ci].id);
-    if (!url) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done).catch(() => { window.LayerPitchNotify.error(tr('copyFailedAlert')); });
@@ -212,7 +212,7 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
   if (embedBtn) {
     const ci = parseInt(embedBtn.dataset.ci, 10);
     const embedUrl = computeCollectionUrl(collections[ci].id);
-    if (!embedUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+    if (!embedUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
     openEmbedModal(`${embedUrl}&embed=1`, collections[ci].title, 'embedModalHintCollection');
     return;
   }
@@ -226,7 +226,7 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
   if (shareBtn) {
     const ci = parseInt(shareBtn.dataset.ci, 10);
     const shareUrl = computeCollectionUrl(collections[ci].id);
-    if (!shareUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
     const result = await shareViaSocialsOrFallback(shareUrl, collections[ci].title || 'LayerPitch');
     if (result === 'copied') {
       const original = shareBtn.textContent;
@@ -243,7 +243,7 @@ document.getElementById('collectionsContainer').addEventListener('click', async 
     const social = socials.find(s => s.id === publishBtn.dataset.socialId);
     if (!social) return;
     const publicUrl = computeCollectionUrl(collections[ci].id);
-    if (!publicUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+    if (!publicUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
     const url = buildSocialShareUrl(social.platform, publicUrl, tr('publishCollectionText', { title: collections[ci].title || '' }));
     if (url) { openSharePopup(url); trackBackstageEvent('social_publish_click', {}); }
     return;

@@ -789,5 +789,8 @@ function syncBackstageTour() {
   const banner = document.getElementById('tutoBanner');
   if (!banner) return;
   banner.hidden = false;
+  // « Visualiser le résultat » ouvre la vraie page publique du compte : rien à voir avec le compte fictif.
+  const viewBtn = document.getElementById('btnView');
+  if (viewBtn) { viewBtn.disabled = true; viewBtn.title = tr('tutoNoPublicLink'); }
   document.getElementById('btnTutoQuit').addEventListener('click', () => { window.location.href = window.location.pathname; });
 })();

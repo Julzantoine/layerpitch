@@ -168,7 +168,7 @@ document.getElementById('btnView').addEventListener('click', () => {
   // « Renseigne owner / repo » n'allait que dans le journal, invisible). C'était aussi vrai pour tout compositeur
   // sans dépôt GitHub personnel, alors que computeAdReelUrl sait déjà retomber sur le lien public de son handle.
   const url = computeAdReelUrl(currentAdReelId);
-  if (!url) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+  if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
   window.open(url, '_blank');
 });
 

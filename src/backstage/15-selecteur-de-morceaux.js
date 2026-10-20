@@ -253,7 +253,10 @@ function privateLinkNotice(adReelId) {
   if (ar.accessMode === 'password') window.LayerPitchNotify.info(tr('sharePasswordReminder'));
   return false;
 }
+// Texte quand il n'y a pas (encore) de lien public : en mode tutoriel, le compte est fictif, il n'aura jamais de vrai lien.
+function adReelUrlMissingText() { return tr(isTutoMode() ? 'tutoNoPublicLink' : 'adreelUrlPending'); }
 function computeAdReelUrl(adReelId) {
+  if (isTutoMode()) return null; // compte fictif : aucun lien public réel (ni copie, ni partage, ni « Visualiser »)
   // Lien public = chemin joli du handle sur beta.layerpitch.com (voir 404.html). Jamais de lien de substitution :
   // tant que le handle n'est pas chargé (asynchrone, voir refreshMyComposerHandle), il n'y a simplement pas encore
   // de lien à afficher -- null est un état transitoire normal. (Le lien github.io des dépôts personnels a disparu
@@ -311,7 +314,9 @@ function renderAdReelSelect() {
   const box = document.getElementById('adReelUrlBox');
   box.innerHTML = url
     ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>`
-    : escapeAttr(tr('adreelUrlPending'));
+    : escapeAttr(adReelUrlMissingText());
+  const linkButtons = document.getElementById('adReelLinkButtons');
+  if (linkButtons) linkButtons.hidden = isTutoMode(); // copier / partager / intégrer un lien qui n'existe pas : masqués
   document.getElementById('btnDeleteAdReel').disabled = (currentAdReelId === 'main' || adReels.length <= 1);
   // Code d'intégration (liste de morceaux uniquement, voir embedMode côté index.html) : désactivé si
   // cet AdReel n'a aucun bloc "Morceaux" -- rien à intégrer, plutôt qu'un lecteur vide et déroutant.
@@ -356,7 +361,7 @@ function renderManageAdreels() {
       </div>
       <span class="hint-inline" style="font-family:monospace;white-space:nowrap;">${escapeAttr(selected.id)}</span>
     </div>
-    <div class="hint-inline" style="margin-top:6px;word-break:break-all;">${url ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>` : escapeAttr(tr('adreelUrlPending'))}</div>
+    <div class="hint-inline" style="margin-top:6px;word-break:break-all;">${url ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>` : escapeAttr(adReelUrlMissingText())}</div>
     <div class="actions" style="margin-top:10px;flex-wrap:wrap;">
       <button class="btn btn-small" data-action="edit-adreel" data-id="${selected.id}" type="button">${tr('editAdreelBtn')}</button>
       <button class="btn btn-small" data-action="duplicate-adreel" data-id="${selected.id}" type="button">${tr('duplicateAdreelBtn')}</button>
@@ -416,7 +421,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   const copyBtn = e.target.closest('[data-action="copy-adreel-url-manage"]');
   if (copyBtn) {
     const url = computeAdReelUrl(copyBtn.dataset.id);
-    if (!url) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
     if (privateLinkNotice(copyBtn.dataset.id)) return;
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -427,7 +432,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   const shareBtn = e.target.closest('[data-action="share-adreel-url-manage"]');
   if (shareBtn) {
     const shareUrl = computeAdReelUrl(shareBtn.dataset.id);
-    if (!shareUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
     if (privateLinkNotice(shareBtn.dataset.id)) return;
     const ar = adReels.find(a => a.id === shareBtn.dataset.id);
     const result = await shareViaSocialsOrFallback(shareUrl, (ar && ar.label) || 'LayerPitch');
@@ -442,7 +447,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
 document.getElementById('adReelSelect').addEventListener('change', e => switchAdReel(e.target.value));
 document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
   const url = computeAdReelUrl(currentAdReelId);
-  if (!url) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+  if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
   if (privateLinkNotice(currentAdReelId)) return;
   const btn = document.getElementById('btnCopyAdReelUrl');
   const done = () => { const original = btn.textContent; btn.textContent = tr('copiedStatus'); setTimeout(() => { btn.textContent = original; }, 1500); };
@@ -454,7 +459,7 @@ document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
 });
 document.getElementById('btnEmbedAdReelTracks').addEventListener('click', () => {
   const baseUrl = computeAdReelUrl(currentAdReelId);
-  if (!baseUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+  if (!baseUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
   const ar = adReels.find(a => a.id === currentAdReelId);
   // computeAdReelUrl('main') ne contient pas encore de "?" (juste la racine) -- &embed=1 supposerait à
   // tort un "?" déjà présent, contrairement à computePackUrl/computeCollectionUrl (toujours "?id=...").
@@ -463,7 +468,7 @@ document.getElementById('btnEmbedAdReelTracks').addEventListener('click', () => 
 });
 document.getElementById('btnShareAdReelUrl').addEventListener('click', async () => {
   const shareUrl = computeAdReelUrl(currentAdReelId);
-  if (!shareUrl) { window.LayerPitchNotify.info(tr('adreelUrlPending')); return; }
+  if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
   if (privateLinkNotice(currentAdReelId)) return;
   const btn = document.getElementById('btnShareAdReelUrl');
   const ar = adReels.find(a => a.id === currentAdReelId);
