@@ -455,6 +455,10 @@ const LESSONS = [
     ...CLEANUP_STEPS,
     { titleKey: 'lbEndTitle', textKey: 'lbEndText', final: true },
   ] },
+  // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
+  // Projet fictif ; `page` renvoie vers cette page au clic.
+  { id: 'pj-chat', theme: 'preprod', public: false, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
+  { id: 'pj-moodboard', theme: 'preprod', public: false, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },
 ];
 
 // Le moteur de bulles (affichage, avancement des étapes, clavier, déplacement) est partagé avec les autres pages :
@@ -517,6 +521,7 @@ function startBackstageTour() {
 }
 function startLesson(id) {
   const lesson = LESSONS.find(l => l.id === id);
+  if (lesson && lesson.page === 'projet' && lessonsAccessOpen() && lessonPlayable(lesson)) { window.location.href = 'projet.html?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); return; }
   if (!lesson || !lesson.steps || !lessonsAccessOpen() || !lessonPlayable(lesson) || (lesson.needs && !flagOpen(lesson.needs))) return;
   openGuide('lesson', lesson.steps, id);
   // Saute les étapes déjà faites au départ (par ex. bibliothèque déjà ouverte).

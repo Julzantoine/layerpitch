@@ -92,6 +92,9 @@
       const answer = RPC_ANSWERS[name];
       return OK(answer ? answer() : null);
     },
+    // Temps réel (présence, « ça a changé ») : rien à écouter dans un tutoriel à un seul utilisateur.
+    channel: () => { const c = { on: () => c, subscribe: () => c, track: () => c, send: () => c, presenceState: () => ({}), unsubscribe() {} }; return c; },
+    removeChannel: () => {},
     functions: { invoke: async () => ({ data: null, error: UNAVAILABLE }) },
     storage: { from: () => ({ upload: async () => ({ data: null, error: UNAVAILABLE }), getPublicUrl: () => ({ data: { publicUrl: '' } }), remove: async () => OK(null) }) },
   };
