@@ -215,9 +215,10 @@ const HINTS_DIALOG_STEP = { selector: '.vrs-batch-overlay .vrs-batch-modal', tit
   done: () => !document.querySelector('.vrs-batch-overlay') };
 // Thèmes du menu « Tutoriel » : les leçons y sont regroupées. `public` (sur une leçon) = ouverte dans la version sans compte
 // (mode démo) ; les autres y restent visibles avec la mention « nécessite un compte ». Un thème sans leçon s'affiche « bientôt ».
-// Vidéo du bloc vidéo de la leçon AdReel : la même que celle de la leçon « Versioning » (gameplay d'« Alone in the Barque »). Lien à fournir par
-// Jules-Antoine ; tant qu'il manque, l'étape « colle le lien » est sautée.
-const LESSON_ADREEL_VIDEO = { title: 'Gameplay d’Alone in the Barque : traversée du ponton à la cabane', url: '' };
+// Titre de la vidéo du bloc vidéo de la leçon AdReel (gameplay d'« Alone in the Barque », la même que celle de la leçon « Versioning »).
+const LESSON_ADREEL_VIDEO = { title: 'Gameplay d’Alone in the Barque : traversée du ponton à la cabane' };
+// Première vidéo du premier bloc vidéo de l'AdReel en cours (celle que la leçon fait remplir).
+function lessonAdreelVideo() { const b = blocks.find(x => x.type === 'video'); return b && b.videos && b.videos[0] || null; }
 const LESSON_THEMES = [
   { id: 'engine', titleKey: 'lessonThemeEngine' },
   { id: 'pitch', titleKey: 'lessonThemePitch' },
@@ -475,11 +476,16 @@ const LESSONS = [
     // Bloc vidéo : la vidéo de gameplay de la leçon « Versioning » (lien à fournir : LESSON_ADREEL_VIDEO ; l'étape du lien est sautée tant qu'il manque).
     { selector: '#btnAddVideoBlock', titleKey: 'laAddVideoTitle', textKey: 'laAddVideoText', clickDone: true, done: () => blocks.some(b => b.type === 'video') },
     { selector: '.block-editor-card[data-type="video"] [data-role="addBtn"]', titleKey: 'laVideoItemTitle', textKey: 'laVideoItemText', clickDone: true, done: () => blocks.some(b => b.type === 'video' && (b.videos || []).length >= 1) },
-    { selector: '.block-editor-card[data-type="video"] [data-field="title"]', titleKey: 'laVideoNameTitle', textKey: 'laVideoNameText', done: () => blocks.some(b => b.type === 'video' && (b.videos || []).some(v => (v.title || '').trim().length > 2)),
+    // La vidéo de gameplay d'Alone, déjà dans la bibliothèque vidéo en deux versions (même montage, deux musiques) : on la choisit, puis on choisit
+    // la version montrée au studio (versioning depuis le bloc vidéo, 21/10).
+    { selector: '.block-editor-card[data-type="video"] [data-role="sourceRadio"][value="library"]', titleKey: 'laVideoSourceTitle', textKey: 'laVideoSourceText',
+      done: () => lessonAdreelVideo() && lessonAdreelVideo().source === 'library' },
+    { selector: '.block-editor-card[data-type="video"] [data-role="librarySelect"]', titleKey: 'laVideoPickTitle', textKey: 'laVideoPickText',
+      done: () => !!(lessonAdreelVideo() && lessonAdreelVideo().libraryVideoId) },
+    { selector: '.block-editor-card[data-type="video"] [data-role="versionSelect"]', titleKey: 'laVideoVersionTitle', textKey: 'laVideoVersionText',
+      done: (c) => { const v = lessonAdreelVideo(); if (!v) return false; if (!c.firstVideo) c.firstVideo = v.libraryVideoId; return !!v.libraryVideoId && v.libraryVideoId !== c.firstVideo; } },
+    { selector: '.block-editor-card[data-type="video"] [data-field="title"]', titleKey: 'laVideoNameTitle', textKey: 'laVideoNameText', done: () => !!(lessonAdreelVideo() && (lessonAdreelVideo().title || '').trim().length > 2),
       drops: [{ kind: 'text', label: LESSON_ADREEL_VIDEO.title, value: LESSON_ADREEL_VIDEO.title }] },
-    { selector: '.block-editor-card[data-type="video"] [data-field="url"]', titleKey: 'laVideoLinkTitle', textKey: 'laVideoLinkText', skip: () => !LESSON_ADREEL_VIDEO.url,
-      done: () => blocks.some(b => b.type === 'video' && (b.videos || []).some(v => (v.url || '').trim().length > 5)),
-      drops: LESSON_ADREEL_VIDEO.url ? [{ kind: 'link', label: LESSON_ADREEL_VIDEO.title, value: LESSON_ADREEL_VIDEO.url }] : [] },
     { selector: '.nav-item[data-tab="appearance"]', titleKey: 'laAppearanceTitle', textKey: 'laAppearanceText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
     { selector: () => document.querySelector('#themeProQuickStartGallery button, #appThemeFreeGallery button'), titleKey: 'laThemeTitle', textKey: 'laThemeText', clickDone: true },
     { selector: '.nav-item[data-tab="content"]', titleKey: 'laBackTitle', textKey: 'laBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },

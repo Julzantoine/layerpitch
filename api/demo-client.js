@@ -26,15 +26,19 @@
   const onProjectPage = () => !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
   const RPC_ANSWERS = {
     is_admin: () => false,
-    my_feature_flags: () => DEMO_FLAGS.concat(onProjectPage() ? ['projects'] : []).map(key => ({ key, allowed: true })),
-    my_entitlements: () => DEMO_ENTITLEMENTS_ALLOWED.concat(onProjectPage() ? ['projects'] : []).map(f => ({ feature: f, allowed: true, amount: f === 'projects' ? 5 : null, level: 'pro', plan: 'pro', source: 'demo' }))
+    my_feature_flags: () => DEMO_FLAGS.concat(onProjectPage() ? ['projects'] : [], lessonParam() === 'adreel' ? ['video_upload', 'versioning'] : []).map(key => ({ key, allowed: true })),
+    my_entitlements: () => DEMO_ENTITLEMENTS_ALLOWED.concat(onProjectPage() ? ['projects'] : []).map(f => ({ feature: f, allowed: true, amount: f === 'projects' ? 5 : null, level: f === 'versioning' && lessonParam() === 'adreel' ? 'saved' : 'pro', plan: 'pro', source: 'demo' }))
       .concat(DEMO_ENTITLEMENTS_DENIED.map(f => ({ feature: f, allowed: false, amount: null, level: null, plan: 'pro', source: 'demo' }))),
     get_trial_status: () => [{ plan: 'pro', trial_ends_at: null, real_plan: 'pro', preview_active: false }],
     my_billing: () => ({}),
     my_admin_preview: () => null,
     ensure_composer_profile: () => DEMO_COMPOSER_ID,
     my_studio: () => null,
-    list_my_videos: () => [],
+    list_my_videos: () => (lessonParam() === 'adreel'
+      ? { videos: ALONE_VIDEOS.map(v => ({ id: v.id, title: v.title, base: TUTO_BASE, file: v.file, originalName: v.file, sizeBytes: 0, durationSec: 30 })), interrupted: [], quotaGb: null, usedBytes: 0 }
+      : { videos: [], interrupted: [], quotaGb: null, usedBytes: 0 }),
+    list_my_video_captures: () => (lessonParam() === 'adreel' ? [ALONE_CAPTURE] : []),
+    list_video_capture_versions: () => (lessonParam() === 'adreel' ? ALONE_VIDEOS.map((v, i) => ({ id: 'ver-' + (i + 1), captureId: ALONE_CAPTURE.id, title: v.versionTitle, lastExportVideoId: v.id })) : []),
     account_deletion_status: () => null,
   };
   // Lignes lues « en direct » sur une table (select().maybeSingle()). Toute autre table : liste vide / null.
@@ -59,6 +63,14 @@
     watermark_original_name: null, presentation_fr: '', presentation_en: '', buyable: false, buy_url: null, free_download_enabled: false, video_test_mode_enabled: false,
     bg_color: null, text_color: null, font: null, linked_ad_reel_id: null, tags: [], price_eur_cents: null, subscriber_credits: null, catalog_listed: true,
     pack_tracks: DEMO_TRACKS.map((t, i) => ({ track_id: t.id, position: i })), pack_sfx: [] }];
+  // Leçon AdReel : la vidéo de gameplay d'« Alone in the Barque » en DEUX versions vidéo (même montage, deux musiques), dans la bibliothèque
+  // vidéo du compte fictif. Le bloc vidéo propose alors de choisir la version affichée. FICHIERS À DÉPOSER par Jules-Antoine dans
+  // media.layerpitch.com/tuto/ sous ces noms (tant qu'ils manquent, la vidéo ne se lit pas, la leçon se déroule quand même).
+  const ALONE_VIDEOS = [
+    { id: 'vid-alone-1', title: 'Alone in the Barque : gameplay, musique 1', file: 'alone-gameplay-musique1.mp4', versionTitle: 'Musique 1 : boucle d’origine' },
+    { id: 'vid-alone-2', title: 'Alone in the Barque : gameplay, musique 2', file: 'alone-gameplay-musique2.mp4', versionTitle: 'Musique 2 : couches selon la menace' },
+  ];
+  const ALONE_CAPTURE = { id: 'cap-alone', packId: 'p-alone', title: 'Alone in the Barque : traversée', videoFilename: 'alone-gameplay-muette.mp4', createdAt: '2026-10-20T10:00:00Z', updatedAt: '2026-10-20T10:00:00Z' };
   const lessonParam = () => { try { return new URLSearchParams(window.location.search).get('lesson'); } catch (e) { return null; } };
   // Morceaux d'exemple : leçon AdReel (Backstage) et pages Projets (leur propre bibliothèque, pour le pack et la carte). Pack : pages Projets.
   const listRows = table => {
