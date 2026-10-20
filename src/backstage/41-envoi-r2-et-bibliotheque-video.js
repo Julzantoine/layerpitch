@@ -356,7 +356,7 @@ function renderVideoCapturePacksList() {
 // Versioning depuis le bloc vidéo d'un AdReel (21/10) : index « vidéo de la bibliothèque -> montage d'origine et versions sœurs », lu une fois
 // (les RPC sont celles du sous-onglet Versioning). Une vidéo issue d'une version vidéo (last_export_video_id) retrouve son montage et les autres
 // versions rendues du même montage ; une vidéo envoyée à la main n'a pas de montage, rien ne s'affiche pour elle. Palier « enregistré »
-// (comme la liste du sous-onglet) ; aucun changement de base : choisir une version = choisir une autre vidéo de la bibliothèque.
+// (comme la liste du sous-onglet). Choisir une version = choisir une autre vidéo de la bibliothèque (rien de plus dans l'AdReel).
 let videoVersioningIndexPromise = null;
 function loadVideoVersioningIndex(force) {
   if (videoVersioningIndexPromise && !force) return videoVersioningIndexPromise;
@@ -370,7 +370,9 @@ function loadVideoVersioningIndex(force) {
     await Promise.all((res.data || []).map(async c => {
       const r = await client.rpc('list_video_capture_versions', { p_capture_id: c.id });
       if (r.error) return;
-      const siblings = (r.data || []).filter(v => v.lastExportVideoId).map(v => ({ versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId }));
+      // Le montage lui-même (sa musique d'origine, s'il a été déposé dans la bibliothèque : migration 20261021010000), puis ses versions.
+      const siblings = (c.lastExportVideoId ? [{ versionId: null, title: tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
+        .concat((r.data || []).filter(v => v.lastExportVideoId).map(v => ({ versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId })));
       siblings.forEach(sib => { out.byVideoId[sib.videoId] = { capture: c, siblings }; });
     }));
     return out;

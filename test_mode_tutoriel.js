@@ -43,11 +43,12 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const vids = (await cA.rpc('list_my_videos')).data.videos;
   const caps = (await cA.rpc('list_my_video_captures', { p_pack_id: null })).data;
   const vers = (await cA.rpc('list_video_capture_versions', { p_capture_id: caps[0] && caps[0].id })).data;
-  check('leçon AdReel : deux vidéos d’Alone, un montage, deux versions qui pointent vers ces vidéos', vids.length === 2 && caps.length === 1 && vers.length === 2 && vers.every(v => vids.some(x => x.id === v.lastExportVideoId)));
+  check('leçon AdReel : deux vidéos d’Alone = export du montage (musique 1) + une version vidéo (musique 2)', vids.length === 2 && caps.length === 1 && caps[0].lastExportVideoId === vids[0].id && vers.length === 1 && vers[0].lastExportVideoId === vids[1].id);
   const entA = (await cA.rpc('my_entitlements')).data.find(e => e.feature === 'versioning');
   const flagsA = (await cA.rpc('my_feature_flags')).data.map(f => f.key);
   check('leçon AdReel : bibliothèque vidéo ouverte et versions enregistrées visibles', entA && entA.level === 'saved' && flagsA.includes('video_upload'));
   check('hors leçon AdReel : bibliothèque vidéo vide', (await c.rpc('list_my_videos')).data.videos.length === 0);
+  check('migration : le montage retient son export direct, proposé comme « montage d’origine »', /add column if not exists last_export_video_id/.test(read('supabase/migrations/20261021010000_video_capture_export_link.sql')) && /c\.lastExportVideoId \? \[\{ versionId: null/.test(read('src/backstage/41-envoi-r2-et-bibliotheque-video.js')) && /set_video_capture_export/.test(read('src/pack/18-panneau-de-capture.js')));
   check('bloc vidéo : choix de la version affichée + bouton « Créer une version vidéo »', /data-role="versionSelect"/.test(read('src/backstage/29-selecteur-de-sfx.js')) && /videoBlockVersionNew/.test(read('src/backstage/29-selecteur-de-sfx.js')));
 
   // Branchements dans les sources du Backstage.

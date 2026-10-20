@@ -298,7 +298,10 @@ function openCapturePanel(file, opts) {
     addToLibraryBtn.disabled = true;
     exportStatus.textContent = tr('captureAddingToLibrary');
     try {
-      await saveExportToVideoLibrary(lastExportBlob, packId, titleInput.value, videoEl.duration || null);
+      const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, titleInput.value, videoEl.duration || null);
+      // Montage sauvegardé : il retient sa vidéo (21/10, migration 20261021010000), pour que le bloc vidéo d'un AdReel la propose parmi
+      // les versions du montage. Jamais bloquant : sans la migration, ou sur un montage non sauvegardé, le lien n'est simplement pas posé.
+      if (savedCaptureId && videoId) window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId }).then(() => {}, () => {});
       exportStatus.textContent = tr('captureAddedToLibrary');
       addToLibraryBtn.hidden = true; // évite un second envoi du même export
     } catch (e) {

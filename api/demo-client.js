@@ -38,7 +38,8 @@
       ? { videos: ALONE_VIDEOS.map(v => ({ id: v.id, title: v.title, base: TUTO_BASE, file: v.file, originalName: v.file, sizeBytes: 0, durationSec: 30 })), interrupted: [], quotaGb: null, usedBytes: 0 }
       : { videos: [], interrupted: [], quotaGb: null, usedBytes: 0 }),
     list_my_video_captures: () => (lessonParam() === 'adreel' ? [ALONE_CAPTURE] : []),
-    list_video_capture_versions: () => (lessonParam() === 'adreel' ? ALONE_VIDEOS.map((v, i) => ({ id: 'ver-' + (i + 1), captureId: ALONE_CAPTURE.id, title: v.versionTitle, lastExportVideoId: v.id })) : []),
+    // Musique 1 = l'export direct du montage (ALONE_CAPTURE.lastExportVideoId) ; musique 2 = une version vidéo du montage.
+    list_video_capture_versions: () => (lessonParam() === 'adreel' ? [{ id: 'ver-2', captureId: ALONE_CAPTURE.id, title: ALONE_VIDEOS[1].versionTitle, lastExportVideoId: ALONE_VIDEOS[1].id }] : []),
     account_deletion_status: () => null,
   };
   // Lignes lues « en direct » sur une table (select().maybeSingle()). Toute autre table : liste vide / null.
@@ -70,7 +71,7 @@
     { id: 'vid-alone-1', title: 'Alone in the Barque : gameplay, musique 1', file: 'alone-gameplay-musique1.mp4', versionTitle: 'Musique 1 : boucle d’origine' },
     { id: 'vid-alone-2', title: 'Alone in the Barque : gameplay, musique 2', file: 'alone-gameplay-musique2.mp4', versionTitle: 'Musique 2 : couches selon la menace' },
   ];
-  const ALONE_CAPTURE = { id: 'cap-alone', packId: 'p-alone', title: 'Alone in the Barque : traversée', videoFilename: 'alone-gameplay-muette.mp4', createdAt: '2026-10-20T10:00:00Z', updatedAt: '2026-10-20T10:00:00Z' };
+  const ALONE_CAPTURE = { id: 'cap-alone', packId: 'p-alone', title: 'Alone in the Barque : traversée', videoFilename: 'alone-gameplay-muette.mp4', lastExportVideoId: 'vid-alone-1', createdAt: '2026-10-20T10:00:00Z', updatedAt: '2026-10-20T10:00:00Z' };
   const lessonParam = () => { try { return new URLSearchParams(window.location.search).get('lesson'); } catch (e) { return null; } };
   // Morceaux d'exemple : leçon AdReel (Backstage) et pages Projets (leur propre bibliothèque, pour le pack et la carte). Pack : pages Projets.
   const listRows = table => {
