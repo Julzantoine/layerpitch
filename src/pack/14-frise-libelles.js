@@ -116,3 +116,43 @@ function describeCaptureEvent(e, laneOverrides) {
   return e.name;
 }
 
+// Étiquettes d'une prise (21/10) : exactement ce que l'incrustation de l'export complet écrit sur l'image (même source, mêmes libellés),
+// mais sous forme de liste : [{ start, end, text, kind: 'state' | 'stinger' | 'fx', row, style }]. Rangées avec la vidéo exportée (migration
+// 20261021020000), elles s'affichent en direct dans le lecteur des pages publiques (étiquette sur la vidéo), sans réencoder l'image.
+// style : 'layer' (calque, une ligne par calque) ou 'window' (boucle, emplacement, section : une seule ligne) -- utilisé par l'export complet.
+function buildCaptureCues(events, laneOverrides) {
+  laneOverrides = laneOverrides || {};
+  const r3 = x => Math.round(x * 1000) / 1000;
+  const cues = [];
+  events.filter(e => e.name === 'layer_segment').forEach(seg => {
+    const track = findCaptureTrack(seg.detail.trackId);
+    cues.push({ start: seg.t, end: seg.t + seg.detail.duration, kind: 'state', style: 'layer', row: seg.detail.layerIndex,
+      text: track ? captureLaneLabel(track, seg.detail.layerIndex, laneOverrides) : 'calque ' + seg.detail.layerIndex });
+  });
+  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx });
+  const embr = built.windows.embr, seq = built.windows.seq, vr = built.windows.vr;
+  Object.keys(embr).forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    embr[trackId].forEach(w => cues.push({ start: w.start, end: w.end, kind: 'state', style: 'window', row: 0, text: track ? captureLoopLaneLabel(track, w.loopId, laneOverrides) : w.loopId }));
+  });
+  Object.keys(seq).forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    seq[trackId].forEach(w => cues.push({ start: w.start, end: w.end, kind: 'state', style: 'window', row: 0, text: captureSeqWindowLabel(track, w, laneOverrides) }));
+  });
+  Object.keys(vr).forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    vr[trackId].forEach(w => cues.push({ start: w.start, end: w.end, kind: 'state', style: 'window', row: 0, text: captureVRWindowLabel(track, w) }));
+  });
+  events.filter(e => e.name === 'stinger_play').forEach(s => {
+    const sfx = findCaptureSfx(s.detail.sfxId);
+    // sans retouche, flash d'1 s par défaut (durée réelle inconnue sans sonder le fichier)
+    cues.push({ start: s.t, end: s.t + (s.detail.durationOverride || 1), kind: 'stinger', style: 'flash', row: 0, text: (sfx && sfx.title) || 'stinger' });
+  });
+  events.filter(e => e.name === 'fx_segment').forEach(fs => {
+    const track = findCaptureTrack(fs.detail.trackId);
+    const list = ((track && track.fxTriggers) || []).filter(d => d && d.id && d.fx);
+    const ti = Math.max(0, list.findIndex(d => d.id === fs.detail.triggerId));
+    cues.push({ start: fs.t, end: fs.t + fs.detail.duration, kind: 'fx', style: 'fx', row: ti, text: 'FX ' + ((list[ti] && list[ti].label) || 'FX') });
+  });
+  return cues.map(c => Object.assign(c, { start: r3(c.start), end: r3(c.end) })).sort((a, b) => a.start - b.start);
+}

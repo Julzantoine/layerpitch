@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792535897170">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792537382977">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1869,17 +1869,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792535897170"></script>
-<script src="layerpitch-i18n.js?v=1792535897170"></script>
-<script src="layerpitch-appearance.js?v=1792535897170"></script>
-<script src="layerpitch-album-shared.js?v=1792535897170"></script>
-<script src="layerpitch-album-editor.js?v=1792535897170"></script>
-<script src="layerpitch-shell.js?v=1792535897170"></script>
-<script src="layerpitch-social-icons.js?v=1792535897170"></script>
-<script src="layerpitch-notify.js?v=1792535897170"></script>
-<script src="layerpitch-guide.js?v=1792535897170"></script>
-<script src="layerpitch-help.js?v=1792535897170"></script>
-<script src="player.js?v=1792535897170"></script>
+<script src="layerpitch-tuto.js?v=1792537382977"></script>
+<script src="layerpitch-i18n.js?v=1792537382977"></script>
+<script src="layerpitch-appearance.js?v=1792537382977"></script>
+<script src="layerpitch-album-shared.js?v=1792537382977"></script>
+<script src="layerpitch-album-editor.js?v=1792537382977"></script>
+<script src="layerpitch-shell.js?v=1792537382977"></script>
+<script src="layerpitch-social-icons.js?v=1792537382977"></script>
+<script src="layerpitch-notify.js?v=1792537382977"></script>
+<script src="layerpitch-guide.js?v=1792537382977"></script>
+<script src="layerpitch-help.js?v=1792537382977"></script>
+<script src="player.js?v=1792537382977"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -5311,7 +5311,7 @@ function buildBlocksForNewAdReel(source, importExtraBlocks) {
     const clone = { ...b, id: genId() };
     if (b.appearance) clone.appearance = Object.assign({}, b.appearance); // copie indépendante, pas la même référence que le bloc source
     if (b.type === 'photo') clone.images = (b.images || []).map(img => ({ file: img.file || null, originalFileName: img.originalFileName || null, pendingFile: null }));
-    if (b.type === 'video') clone.videos = (b.videos || []).map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, pendingThumbnail: null, source: v.source === 'library' ? 'library' : 'url', libraryVideoId: v.libraryVideoId || null }));
+    if (b.type === 'video') clone.videos = (b.videos || []).map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, pendingThumbnail: null, source: v.source === 'library' ? 'library' : 'url', libraryVideoId: v.libraryVideoId || null, ...videoMontageFields(v) }));
     if (b.type === 'packs') clone.packIds = (b.packIds || []).slice();
     if (b.type === 'collections') clone.collectionIds = (b.collectionIds || []).slice();
     if (b.type === 'sfx') clone.sfxIds = (b.sfxIds || []).slice();
@@ -10856,11 +10856,19 @@ function buildVideoCard(block) {
       listEl.querySelectorAll('[data-role="versionRow"]').forEach(row => {
         const v = block.videos[parseInt(row.dataset.i, 10)];
         const info = v && v.libraryVideoId && idx.byVideoId[v.libraryVideoId];
-        if (!info) { row.innerHTML = ''; return; }
+        if (!info) { row.innerHTML = ''; if (v && v.montageId) { v.montageId = null; v.defaultVersion = null; v.hiddenVersions = []; } return; }
+        // La vidéo vient d'un montage : l'AdReel pointe désormais vers le montage (toutes ses versions, toujours à jour), la vidéo choisie
+        // devient la version proposée par défaut.
+        const current = info.siblings.find(sib => sib.videoId === v.libraryVideoId);
+        if (v.montageId !== info.capture.id || v.defaultVersion !== (current && current.key)) {
+          v.montageId = info.capture.id; v.defaultVersion = current ? current.key : 'original'; if (!Array.isArray(v.hiddenVersions)) v.hiddenVersions = [];
+        }
         const options = info.siblings.filter(sib => libraryVideos.some(lv => lv.id === sib.videoId));
         row.innerHTML = `
           <label style="margin-top:8px">${tr('videoBlockVersionLabel')}</label>
           <select data-role="versionSelect" data-i="${row.dataset.i}">${options.map(sib => `<option value="${sib.videoId}" ${sib.videoId === v.libraryVideoId ? 'selected' : ''}>${escapeAttr(sib.title || tr('videoVersioningUntitled'))}</option>`).join('')}</select>
+          ${options.length > 1 ? `<label style="margin-top:8px">${tr('videoBlockVersionMenuLabel')}</label>
+          ${options.map(sib => `<label style="display:flex;align-items:center;gap:6px;font-weight:normal"><input type="checkbox" data-role="versionShown" data-i="${row.dataset.i}" data-key="${escapeAttr(sib.key)}" style="width:auto;margin:0" ${(v.hiddenVersions || []).includes(sib.key) ? '' : 'checked'} ${sib.key === v.defaultVersion ? 'disabled' : ''}> ${escapeAttr(sib.title || tr('videoVersioningUntitled'))}</label>`).join('')}` : ''}
           <div class="actions" style="margin-top:6px"><a class="btn btn-small" data-role="versionNew" href="${videoVersioningMontageUrl(info.capture)}" target="_blank" rel="noopener">${tr('videoBlockVersionNew')}</a></div>
           <div class="hint-inline">${tr('videoBlockVersionHint')}</div>`;
       });
@@ -10900,6 +10908,14 @@ function buildVideoCard(block) {
       hasUnsavedEdits = true;
       renderList();
       refreshAllBlockSummaries();
+      return;
+    }
+    const shown = e.target.closest('[data-role="versionShown"]');
+    if (shown) {
+      const v = block.videos[parseInt(shown.dataset.i, 10)];
+      const set = new Set(v.hiddenVersions || []);
+      if (shown.checked) set.delete(shown.dataset.key); else set.add(shown.dataset.key);
+      v.hiddenVersions = [...set]; hasUnsavedEdits = true;
       return;
     }
     const vsel = e.target.closest('[data-role="versionSelect"]');
@@ -13456,7 +13472,7 @@ async function loadData(silent) {
       slug: a.slug || null,
       blocks: migrateBlocks(a).map(b => {
         if (b.type === 'photo') return { ...b, images: (b.images || []).map(img => ({ file: img.file, originalFileName: img.originalFileName || null, pendingFile: null })) };
-        if (b.type === 'video') return { ...b, videos: (b.videos || []).map(v => ({ title: v.title, url: v.url, comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, pendingThumbnail: null, source: v.source === 'library' ? 'library' : 'url', libraryVideoId: v.libraryVideoId || null })) };
+        if (b.type === 'video') return { ...b, videos: (b.videos || []).map(v => ({ title: v.title, url: v.url, comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, pendingThumbnail: null, source: v.source === 'library' ? 'library' : 'url', libraryVideoId: v.libraryVideoId || null, ...videoMontageFields(v) })) };
         return b;
       }),
       logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null,
@@ -14304,13 +14320,21 @@ function loadVideoVersioningIndex(force) {
       const r = await client.rpc('list_video_capture_versions', { p_capture_id: c.id });
       if (r.error) return;
       // Le montage lui-même (sa musique d'origine, s'il a été déposé dans la bibliothèque : migration 20261021010000), puis ses versions.
-      const siblings = (c.lastExportVideoId ? [{ versionId: null, title: tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
-        .concat((r.data || []).filter(v => v.lastExportVideoId).map(v => ({ versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId })));
+      const siblings = (c.lastExportVideoId ? [{ key: 'original', versionId: null, title: tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
+        .concat((r.data || []).filter(v => v.lastExportVideoId).map(v => ({ key: v.id, versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId })));
       siblings.forEach(sib => { out.byVideoId[sib.videoId] = { capture: c, siblings }; });
     }));
     return out;
   })().catch(() => empty);
   return videoVersioningIndexPromise;
+}
+// Champs « montage » d'une vidéo de bloc (21/10) : le lecteur public propose alors toutes les versions du montage (menu) avec une
+// étiquette « ce qui joue », lues en direct ; defaultVersion = 'original' (musique d'origine) ou l'identifiant d'une version vidéo ;
+// hiddenVersions = versions à ne pas proposer à cet endroit. Vides pour une vidéo qui ne vient pas d'un montage.
+function videoMontageFields(v) {
+  return v && v.source === 'library' && v.montageId
+    ? { montageId: v.montageId, defaultVersion: v.defaultVersion || 'original', hiddenVersions: Array.isArray(v.hiddenVersions) ? v.hiddenVersions.slice() : [] }
+    : { montageId: null, defaultVersion: null, hiddenVersions: [] };
 }
 // Adresse de l'outil de capture sur ce montage (même lien que le bouton « Ouvrir » du sous-onglet Versioning).
 function videoVersioningMontageUrl(capture) {
@@ -14526,7 +14550,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         let out;
         if (b.type === 'text') out = { id: b.id, type: 'text', title: b.title || '', content: b.content || '', align: b.align || 'left' };
         else if (b.type === 'photo') out = { id: b.id, type: 'photo', align: b.align || 'left', caption: b.caption || '', images: b.images.filter(i => i.file || i.pendingFile).map(i => ({ file: i.file || pendingPreviewUrl(i.pendingFile), originalFileName: i.originalFileName || null })) };
-        else if (b.type === 'video') out = { id: b.id, type: 'video', videos: b.videos.map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || pendingPreviewUrl(v.pendingThumbnail) || null, thumbnailOriginalName: v.thumbnailOriginalName || null, source: v.source === 'library' ? 'library' : 'url' })) };
+        else if (b.type === 'video') out = { id: b.id, type: 'video', videos: b.videos.map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || pendingPreviewUrl(v.pendingThumbnail) || null, thumbnailOriginalName: v.thumbnailOriginalName || null, source: v.source === 'library' ? 'library' : 'url', libraryVideoId: v.libraryVideoId || null, ...videoMontageFields(v) })) };
         else if (b.type === 'packs') out = { id: b.id, type: 'packs', presentation: b.presentation || '', packIds: b.packIds || [] };
         else if (b.type === 'collections') out = { id: b.id, type: 'collections', presentation: b.presentation || '', collectionIds: b.collectionIds || [] };
         else if (b.type === 'sfx') out = { id: b.id, type: 'sfx', sfxIds: b.sfxIds || [] };

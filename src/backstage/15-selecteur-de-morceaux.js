@@ -515,7 +515,7 @@ function buildBlocksForNewAdReel(source, importExtraBlocks) {
     const clone = { ...b, id: genId() };
     if (b.appearance) clone.appearance = Object.assign({}, b.appearance); // copie indépendante, pas la même référence que le bloc source
     if (b.type === 'photo') clone.images = (b.images || []).map(img => ({ file: img.file || null, originalFileName: img.originalFileName || null, pendingFile: null }));
-    if (b.type === 'video') clone.videos = (b.videos || []).map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, pendingThumbnail: null, source: v.source === 'library' ? 'library' : 'url', libraryVideoId: v.libraryVideoId || null }));
+    if (b.type === 'video') clone.videos = (b.videos || []).map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || null, thumbnailOriginalName: v.thumbnailOriginalName || null, pendingThumbnail: null, source: v.source === 'library' ? 'library' : 'url', libraryVideoId: v.libraryVideoId || null, ...videoMontageFields(v) }));
     if (b.type === 'packs') clone.packIds = (b.packIds || []).slice();
     if (b.type === 'collections') clone.collectionIds = (b.collectionIds || []).slice();
     if (b.type === 'sfx') clone.sfxIds = (b.sfxIds || []).slice();

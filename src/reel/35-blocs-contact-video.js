@@ -80,6 +80,12 @@ function renderVideoBlockItem(container, block) {
       video.preload = 'metadata';
       if (v.thumbnail) video.poster = resolveImageUrl(v.thumbnail);
       wrap.appendChild(video);
+      // Vidéo issue d'un montage (21/10) : menu des versions sous le lecteur + étiquette « ce qui joue », lus en direct
+      // (layerpitch-video-versions.js) ; v.url reste la version par défaut si la lecture échoue.
+      if (v.montageId && window.LayerPitchVideoVersions) {
+        window.LayerPitchVideoVersions.mount(video, wrap, { montageId: v.montageId, defaultKey: v.defaultVersion || 'original', hidden: v.hiddenVersions || [], tr })
+          .catch(e => console.warn('versions vidéo indisponibles', e));
+      }
       return wrap;
     }
 

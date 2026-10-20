@@ -33,7 +33,7 @@
   const api = {
     list: captureId => rpc('list_video_capture_versions', { p_capture_id: captureId }),
     save: (id, captureId, title, subs) => rpc('save_video_capture_version', { p_id: id, p_capture_id: captureId, p_title: title || '', p_substitutions: subs }),
-    setExport: (id, videoId) => rpc('set_video_capture_version_export', { p_id: id, p_video_id: videoId }),
+    setExport: (id, videoId, cues) => rpc('set_video_capture_version_export', { p_id: id, p_video_id: videoId, p_cues: cues || null }),
     remove: id => rpc('delete_video_capture_version', { p_id: id }),
   };
   // Fonctions serveur absentes : la migration n'a pas encore été appliquée.
@@ -48,7 +48,7 @@
         const prev = rows.get(id);
         rows.set(id, { id, captureId, title: title || '', substitutions: clone(subs), lastExportVideoId: prev ? prev.lastExportVideoId : null, createdAt: prev ? prev.createdAt : Date.now() });
       },
-      setExport: async (id, videoId) => { const v = rows.get(id); if (v) v.lastExportVideoId = videoId; },
+      setExport: async (id, videoId) => { const v = rows.get(id); if (v) v.lastExportVideoId = videoId; }, // (session : pas d'étiquettes rangées)
       remove: async id => { rows.delete(id); },
     };
   }
@@ -198,7 +198,7 @@
           if (toLibrary && mode !== 'audio') {
             label(tr('captureAddingToLibrary'));
             const videoId = await ctx.saveToLibrary(blob, title);
-            await store.setExport(v.id, videoId);
+            await store.setExport(v.id, videoId, ctx.cuesOf ? ctx.cuesOf(events) : null); // vidéo + étiquettes : tous les endroits qui montrent ce montage suivent
             v.lastExportVideoId = videoId;
           }
           done++;

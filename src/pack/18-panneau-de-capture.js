@@ -70,6 +70,7 @@ function openCapturePanel(file, opts) {
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportAudioBtn" disabled title="${tr('captureExportAudioHelp')}">${tr('captureExportAudioBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportCopyBtn" disabled title="${tr('captureExportCopyHelp')}">${tr('captureExportCopyBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureUpdateEverywhereBtn" title="${tr('captureUpdateEverywhereHelp')}">${tr('captureUpdateEverywhereBtn')}</button>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
     <div class="video-capture-bar">
@@ -108,6 +109,7 @@ function openCapturePanel(file, opts) {
     exportBtn.insertAdjacentHTML('afterend', `<span class="video-capture-count" id="videoCaptureFullLockedNote">${tr('captureExportFullLockedNote')}</span>`);
   }
   const addToLibraryBtn = document.getElementById('videoCaptureAddToLibraryBtn');
+  const updateEverywhereBtn = document.getElementById('videoCaptureUpdateEverywhereBtn');
   const exportStatus = document.getElementById('videoCaptureExportStatus');
   const additiveLabel = document.getElementById('videoCaptureAdditiveLabel');
   const additiveCheckbox = document.getElementById('videoCaptureAdditiveCheckbox');
@@ -301,7 +303,8 @@ function openCapturePanel(file, opts) {
       const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, titleInput.value, videoEl.duration || null);
       // Montage sauvegardé : il retient sa vidéo (21/10, migration 20261021010000), pour que le bloc vidéo d'un AdReel la propose parmi
       // les versions du montage. Jamais bloquant : sans la migration, ou sur un montage non sauvegardé, le lien n'est simplement pas posé.
-      if (savedCaptureId && videoId) window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId }).then(() => {}, () => {});
+      // Étiquettes (21/10, migration 20261021020000) rangées avec la vidéo : l'étiquette du lecteur public suit ce qui joue.
+      if (savedCaptureId && videoId) window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides) }).then(() => {}, () => {});
       exportStatus.textContent = tr('captureAddedToLibrary');
       addToLibraryBtn.hidden = true; // évite un second envoi du même export
     } catch (e) {
@@ -309,6 +312,28 @@ function openCapturePanel(file, opts) {
       exportStatus.textContent = tr('captureAddToLibraryFailed').replace('{error}', e.message);
     } finally {
       addToLibraryBtn.disabled = false;
+    }
+  });
+  // « Mettre à jour la vidéo partout » (21/10) : après une retouche, refait l'export rapide (image d'origine + nouveau son, sans
+  // incrustation, quelques secondes), le dépose dans la bibliothèque et y relie le montage avec ses nouvelles étiquettes. Partout où le
+  // montage est affiché (AdReels, espace Projet), la nouvelle vidéo et la nouvelle étiquette apparaissent, sans rien republier.
+  updateEverywhereBtn.addEventListener('click', async () => {
+    if (!savedCaptureId) { exportStatus.textContent = tr('captureUpdateEverywhereNeedsSave'); return; }
+    if (!lastEvents.length || !packId) return;
+    updateEverywhereBtn.disabled = true; setExportButtonsDisabled(true);
+    try {
+      const exportOptions = { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode: 'copy' };
+      const blob = await exportCaptureVideo(lastEvents, file, (msg) => { exportStatus.textContent = msg; }, laneOverrides, exportOptions);
+      exportStatus.textContent = tr('captureAddingToLibrary');
+      const videoId = await saveExportToVideoLibrary(blob, packId, titleInput.value, videoEl.duration || null);
+      const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides) });
+      if (error) throw error;
+      exportStatus.textContent = tr('captureUpdatedEverywhere');
+    } catch (e) {
+      console.error(e);
+      exportStatus.textContent = tr('captureExportFailed').replace('{error}', e.message);
+    } finally {
+      updateEverywhereBtn.disabled = false; setExportButtonsDisabled(lastEvents.length === 0);
     }
   });
   // Sauvegarde/reprise côté serveur (2026-09-16) -- voir saveVideoCapture/listVideoCaptures/loadVideoCapture
@@ -404,6 +429,7 @@ function openCapturePanel(file, opts) {
       getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
       exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
+      cuesOf: (events) => buildCaptureCues(events, laneOverrides), // étiquettes rangées avec la vidéo d'une version (21/10)
       // « Détacher » : la version devient un montage indépendant (sauvegardé tout de suite), ouvert à la place de celui-ci.
       detach: async (events, title) => {
         const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));

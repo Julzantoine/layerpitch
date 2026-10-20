@@ -134,7 +134,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         let out;
         if (b.type === 'text') out = { id: b.id, type: 'text', title: b.title || '', content: b.content || '', align: b.align || 'left' };
         else if (b.type === 'photo') out = { id: b.id, type: 'photo', align: b.align || 'left', caption: b.caption || '', images: b.images.filter(i => i.file || i.pendingFile).map(i => ({ file: i.file || pendingPreviewUrl(i.pendingFile), originalFileName: i.originalFileName || null })) };
-        else if (b.type === 'video') out = { id: b.id, type: 'video', videos: b.videos.map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || pendingPreviewUrl(v.pendingThumbnail) || null, thumbnailOriginalName: v.thumbnailOriginalName || null, source: v.source === 'library' ? 'library' : 'url' })) };
+        else if (b.type === 'video') out = { id: b.id, type: 'video', videos: b.videos.map(v => ({ title: v.title || '', url: v.url || '', comment: v.comment || '', thumbnail: v.thumbnail || pendingPreviewUrl(v.pendingThumbnail) || null, thumbnailOriginalName: v.thumbnailOriginalName || null, source: v.source === 'library' ? 'library' : 'url', libraryVideoId: v.libraryVideoId || null, ...videoMontageFields(v) })) };
         else if (b.type === 'packs') out = { id: b.id, type: 'packs', presentation: b.presentation || '', packIds: b.packIds || [] };
         else if (b.type === 'collections') out = { id: b.id, type: 'collections', presentation: b.presentation || '', collectionIds: b.collectionIds || [] };
         else if (b.type === 'sfx') out = { id: b.id, type: 'sfx', sfxIds: b.sfxIds || [] };

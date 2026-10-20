@@ -48,7 +48,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const flagsA = (await cA.rpc('my_feature_flags')).data.map(f => f.key);
   check('leçon AdReel : bibliothèque vidéo ouverte et versions enregistrées visibles', entA && entA.level === 'saved' && flagsA.includes('video_upload'));
   check('hors leçon AdReel : bibliothèque vidéo vide', (await c.rpc('list_my_videos')).data.videos.length === 0);
-  check('migration : le montage retient son export direct, proposé comme « montage d’origine »', /add column if not exists last_export_video_id/.test(read('supabase/migrations/20261021010000_video_capture_export_link.sql')) && /c\.lastExportVideoId \? \[\{ versionId: null/.test(read('src/backstage/41-envoi-r2-et-bibliotheque-video.js')) && /set_video_capture_export/.test(read('src/pack/18-panneau-de-capture.js')));
+  check('migration : le montage retient son export direct, proposé comme « montage d’origine »', /add column if not exists last_export_video_id/.test(read('supabase/migrations/20261021010000_video_capture_export_link.sql')) && /c\.lastExportVideoId \? \[\{ key: 'original', versionId: null/.test(read('src/backstage/41-envoi-r2-et-bibliotheque-video.js')) && /set_video_capture_export/.test(read('src/pack/18-panneau-de-capture.js')));
   check('bloc vidéo : choix de la version affichée + bouton « Créer une version vidéo »', /data-role="versionSelect"/.test(read('src/backstage/29-selecteur-de-sfx.js')) && /videoBlockVersionNew/.test(read('src/backstage/29-selecteur-de-sfx.js')));
 
   // Branchements dans les sources du Backstage.

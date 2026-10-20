@@ -371,13 +371,21 @@ function loadVideoVersioningIndex(force) {
       const r = await client.rpc('list_video_capture_versions', { p_capture_id: c.id });
       if (r.error) return;
       // Le montage lui-même (sa musique d'origine, s'il a été déposé dans la bibliothèque : migration 20261021010000), puis ses versions.
-      const siblings = (c.lastExportVideoId ? [{ versionId: null, title: tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
-        .concat((r.data || []).filter(v => v.lastExportVideoId).map(v => ({ versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId })));
+      const siblings = (c.lastExportVideoId ? [{ key: 'original', versionId: null, title: tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
+        .concat((r.data || []).filter(v => v.lastExportVideoId).map(v => ({ key: v.id, versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId })));
       siblings.forEach(sib => { out.byVideoId[sib.videoId] = { capture: c, siblings }; });
     }));
     return out;
   })().catch(() => empty);
   return videoVersioningIndexPromise;
+}
+// Champs « montage » d'une vidéo de bloc (21/10) : le lecteur public propose alors toutes les versions du montage (menu) avec une
+// étiquette « ce qui joue », lues en direct ; defaultVersion = 'original' (musique d'origine) ou l'identifiant d'une version vidéo ;
+// hiddenVersions = versions à ne pas proposer à cet endroit. Vides pour une vidéo qui ne vient pas d'un montage.
+function videoMontageFields(v) {
+  return v && v.source === 'library' && v.montageId
+    ? { montageId: v.montageId, defaultVersion: v.defaultVersion || 'original', hiddenVersions: Array.isArray(v.hiddenVersions) ? v.hiddenVersions.slice() : [] }
+    : { montageId: null, defaultVersion: null, hiddenVersions: [] };
 }
 // Adresse de l'outil de capture sur ce montage (même lien que le bouton « Ouvrir » du sous-onglet Versioning).
 function videoVersioningMontageUrl(capture) {

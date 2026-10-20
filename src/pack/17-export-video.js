@@ -86,64 +86,14 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // Un calque = une hauteur d'incrustation qui lui est propre (dérivée de son layerIndex) -- plusieurs
   // calques pouvant désormais être actifs en même temps (segments indépendants), superposer leurs
   // libellés à la même hauteur les rendrait illisibles.
-  for (const seg of layerSegmentEvents) {
-    const track = findCaptureTrack(seg.detail.trackId);
-    const label = (track ? captureLaneLabel(track, seg.detail.layerIndex, laneOverrides) : 'calque ' + seg.detail.layerIndex).replace(/['\\:]/g, '');
-    drawtexts.push(
-      `drawtext=fontfile=font.ttf:text='${label}':x=24:y=h-56-${seg.detail.layerIndex * 30}:fontsize=22:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6:` +
-      `enable='between(t,${seg.t},${seg.t + seg.detail.duration})'`
-    );
-  }
-  Object.keys(embrWindowsByTrack).forEach(trackId => {
-    const track = findCaptureTrack(trackId);
-    embrWindowsByTrack[trackId].forEach(w => {
-      const label = (track ? captureLoopLaneLabel(track, w.loopId, laneOverrides) : w.loopId).replace(/['\\:]/g, '');
-      drawtexts.push(
-        `drawtext=fontfile=font.ttf:text='${label}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:` +
-        `enable='between(t,${w.start},${w.end})'`
-      );
-    });
-  });
-  Object.keys(seqWindowsByTrack).forEach(trackId => {
-    const track = findCaptureTrack(trackId);
-    seqWindowsByTrack[trackId].forEach(w => {
-      const label = captureSeqWindowLabel(track, w, laneOverrides).replace(/['\\:]/g, '');
-      drawtexts.push(
-        `drawtext=fontfile=font.ttf:text='${label}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:` +
-        `enable='between(t,${w.start},${w.end})'`
-      );
-    });
-  });
-  Object.keys(vrWindowsByTrack).forEach(trackId => {
-    const track = findCaptureTrack(trackId);
-    vrWindowsByTrack[trackId].forEach(w => {
-      const label = captureVRWindowLabel(track, w).replace(/['\\:]/g, '');
-      drawtexts.push(
-        `drawtext=fontfile=font.ttf:text='${label}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:` +
-        `enable='between(t,${w.start},${w.end})'`
-      );
-    });
-  });
-  for (const s of stingerEvents) {
-    const sfx = findCaptureSfx(s.detail.sfxId);
-    const label = ((sfx && sfx.title) || 'stinger').toUpperCase().replace(/['\\:]/g, '');
-    const flashDur = s.detail.durationOverride || 1; // sans retouche, flash d'1s par défaut (durée réelle inconnue sans sonder le fichier)
-    drawtexts.push(
-      `drawtext=fontfile=font.ttf:text='${label} !':x=24:y=24:fontsize=26:fontcolor=0xffaa55:box=1:boxcolor=0x000000AA:boxborderw=8:` +
-      `enable='between(t,${s.t},${s.t + flashDur})'`
-    );
-  }
-  // Effets déclenchés par bouton : un libellé violet sous le flash Sfx pendant que le bouton est enfoncé (une ligne
-  // par trigger pour que plusieurs effets simultanés restent lisibles).
-  for (const fs of fxSegmentEvents) {
-    const track = findCaptureTrack(fs.detail.trackId);
-    const list = ((track && track.fxTriggers) || []).filter(d => d && d.id && d.fx);
-    const ti = Math.max(0, list.findIndex(d => d.id === fs.detail.triggerId));
-    const label = (((list[ti] && list[ti].label) || 'FX')).replace(/['\\:]/g, '');
-    drawtexts.push(
-      `drawtext=fontfile=font.ttf:text='FX ${label}':x=24:y=${64 + ti * 30}:fontsize=22:fontcolor=0xc9a0ff:box=1:boxcolor=0x000000AA:boxborderw=6:` +
-      `enable='between(t,${fs.t},${fs.t + fs.detail.duration})'`
-    );
+  // Incrustations : la même liste d'étiquettes que celle rangée avec la vidéo pour les pages publiques (buildCaptureCues, 21/10).
+  const esc = t => String(t).replace(/['\\:]/g, '');
+  for (const c of buildCaptureCues(events, laneOverrides)) {
+    const when = `enable='between(t,${c.start},${c.end})'`;
+    if (c.style === 'layer') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=h-56-${c.row * 30}:fontsize=22:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
+    else if (c.style === 'window') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:${when}`);
+    else if (c.style === 'flash') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text.toUpperCase())} !':x=24:y=24:fontsize=26:fontcolor=0xffaa55:box=1:boxcolor=0x000000AA:boxborderw=8:${when}`);
+    else if (c.style === 'fx') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=${64 + c.row * 30}:fontsize=22:fontcolor=0xc9a0ff:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
   }
   // Filigrane "powered by LayerPitch" (Rookie/Warrior, voir tout en haut de la fonction) -- permanent,
   // pas de fenêtre `enable`, coin bas-droit pour ne jamais chevaucher les libellés de calque/boucle/

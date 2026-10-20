@@ -8,7 +8,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
-<link rel="stylesheet" href="player.css?v=1792535897170">
+<link rel="stylesheet" href="player.css?v=1792537382977">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -469,15 +469,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1792535897170"></script>
-<script src="layerpitch-notify.js?v=1792535897170"></script>
-<script src="public-page.js?v=1792535897170"></script>
-<script src="layerpitch-seller-contact.js?v=1792535897170"></script>
-<script src="player.js?v=1792535897170"></script>
-<script src="capture-plan.js?v=1792535897170"></script>
-<script src="capture-render.js?v=1792535897170"></script>
-<script src="capture-retarget.js?v=1792535897170"></script>
-<script src="capture-versioning.js?v=1792535897170"></script>
+<script src="layerpitch-i18n.js?v=1792537382977"></script>
+<script src="layerpitch-notify.js?v=1792537382977"></script>
+<script src="public-page.js?v=1792537382977"></script>
+<script src="layerpitch-seller-contact.js?v=1792537382977"></script>
+<script src="player.js?v=1792537382977"></script>
+<script src="capture-plan.js?v=1792537382977"></script>
+<script src="capture-render.js?v=1792537382977"></script>
+<script src="capture-retarget.js?v=1792537382977"></script>
+<script src="capture-versioning.js?v=1792537382977"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1021,6 +1021,46 @@ function describeCaptureEvent(e, laneOverrides) {
   return e.name;
 }
 
+// Étiquettes d'une prise (21/10) : exactement ce que l'incrustation de l'export complet écrit sur l'image (même source, mêmes libellés),
+// mais sous forme de liste : [{ start, end, text, kind: 'state' | 'stinger' | 'fx', row, style }]. Rangées avec la vidéo exportée (migration
+// 20261021020000), elles s'affichent en direct dans le lecteur des pages publiques (étiquette sur la vidéo), sans réencoder l'image.
+// style : 'layer' (calque, une ligne par calque) ou 'window' (boucle, emplacement, section : une seule ligne) -- utilisé par l'export complet.
+function buildCaptureCues(events, laneOverrides) {
+  laneOverrides = laneOverrides || {};
+  const r3 = x => Math.round(x * 1000) / 1000;
+  const cues = [];
+  events.filter(e => e.name === 'layer_segment').forEach(seg => {
+    const track = findCaptureTrack(seg.detail.trackId);
+    cues.push({ start: seg.t, end: seg.t + seg.detail.duration, kind: 'state', style: 'layer', row: seg.detail.layerIndex,
+      text: track ? captureLaneLabel(track, seg.detail.layerIndex, laneOverrides) : 'calque ' + seg.detail.layerIndex });
+  });
+  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx });
+  const embr = built.windows.embr, seq = built.windows.seq, vr = built.windows.vr;
+  Object.keys(embr).forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    embr[trackId].forEach(w => cues.push({ start: w.start, end: w.end, kind: 'state', style: 'window', row: 0, text: track ? captureLoopLaneLabel(track, w.loopId, laneOverrides) : w.loopId }));
+  });
+  Object.keys(seq).forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    seq[trackId].forEach(w => cues.push({ start: w.start, end: w.end, kind: 'state', style: 'window', row: 0, text: captureSeqWindowLabel(track, w, laneOverrides) }));
+  });
+  Object.keys(vr).forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    vr[trackId].forEach(w => cues.push({ start: w.start, end: w.end, kind: 'state', style: 'window', row: 0, text: captureVRWindowLabel(track, w) }));
+  });
+  events.filter(e => e.name === 'stinger_play').forEach(s => {
+    const sfx = findCaptureSfx(s.detail.sfxId);
+    // sans retouche, flash d'1 s par défaut (durée réelle inconnue sans sonder le fichier)
+    cues.push({ start: s.t, end: s.t + (s.detail.durationOverride || 1), kind: 'stinger', style: 'flash', row: 0, text: (sfx && sfx.title) || 'stinger' });
+  });
+  events.filter(e => e.name === 'fx_segment').forEach(fs => {
+    const track = findCaptureTrack(fs.detail.trackId);
+    const list = ((track && track.fxTriggers) || []).filter(d => d && d.id && d.fx);
+    const ti = Math.max(0, list.findIndex(d => d.id === fs.detail.triggerId));
+    cues.push({ start: fs.t, end: fs.t + fs.detail.duration, kind: 'fx', style: 'fx', row: ti, text: 'FX ' + ((list[ti] && list[ti].label) || 'FX') });
+  });
+  return cues.map(c => Object.assign(c, { start: r3(c.start), end: r3(c.end) })).sort((a, b) => a.start - b.start);
+}
 // Frise d'édition -- cible finale d'après le schéma papier de Jules-Antoine (2026-09-14) : une piste par
 // calque du morceau (dans l'ordre de leur niveau d'intensité) + une piste SFX au-dessus, blocs positionnés
 // sur une frise temporelle commune, déplaçables/redimensionnables à la souris comme dans un DAW. Les
@@ -1859,64 +1899,14 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // Un calque = une hauteur d'incrustation qui lui est propre (dérivée de son layerIndex) -- plusieurs
   // calques pouvant désormais être actifs en même temps (segments indépendants), superposer leurs
   // libellés à la même hauteur les rendrait illisibles.
-  for (const seg of layerSegmentEvents) {
-    const track = findCaptureTrack(seg.detail.trackId);
-    const label = (track ? captureLaneLabel(track, seg.detail.layerIndex, laneOverrides) : 'calque ' + seg.detail.layerIndex).replace(/['\\:]/g, '');
-    drawtexts.push(
-      `drawtext=fontfile=font.ttf:text='${label}':x=24:y=h-56-${seg.detail.layerIndex * 30}:fontsize=22:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6:` +
-      `enable='between(t,${seg.t},${seg.t + seg.detail.duration})'`
-    );
-  }
-  Object.keys(embrWindowsByTrack).forEach(trackId => {
-    const track = findCaptureTrack(trackId);
-    embrWindowsByTrack[trackId].forEach(w => {
-      const label = (track ? captureLoopLaneLabel(track, w.loopId, laneOverrides) : w.loopId).replace(/['\\:]/g, '');
-      drawtexts.push(
-        `drawtext=fontfile=font.ttf:text='${label}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:` +
-        `enable='between(t,${w.start},${w.end})'`
-      );
-    });
-  });
-  Object.keys(seqWindowsByTrack).forEach(trackId => {
-    const track = findCaptureTrack(trackId);
-    seqWindowsByTrack[trackId].forEach(w => {
-      const label = captureSeqWindowLabel(track, w, laneOverrides).replace(/['\\:]/g, '');
-      drawtexts.push(
-        `drawtext=fontfile=font.ttf:text='${label}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:` +
-        `enable='between(t,${w.start},${w.end})'`
-      );
-    });
-  });
-  Object.keys(vrWindowsByTrack).forEach(trackId => {
-    const track = findCaptureTrack(trackId);
-    vrWindowsByTrack[trackId].forEach(w => {
-      const label = captureVRWindowLabel(track, w).replace(/['\\:]/g, '');
-      drawtexts.push(
-        `drawtext=fontfile=font.ttf:text='${label}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:` +
-        `enable='between(t,${w.start},${w.end})'`
-      );
-    });
-  });
-  for (const s of stingerEvents) {
-    const sfx = findCaptureSfx(s.detail.sfxId);
-    const label = ((sfx && sfx.title) || 'stinger').toUpperCase().replace(/['\\:]/g, '');
-    const flashDur = s.detail.durationOverride || 1; // sans retouche, flash d'1s par défaut (durée réelle inconnue sans sonder le fichier)
-    drawtexts.push(
-      `drawtext=fontfile=font.ttf:text='${label} !':x=24:y=24:fontsize=26:fontcolor=0xffaa55:box=1:boxcolor=0x000000AA:boxborderw=8:` +
-      `enable='between(t,${s.t},${s.t + flashDur})'`
-    );
-  }
-  // Effets déclenchés par bouton : un libellé violet sous le flash Sfx pendant que le bouton est enfoncé (une ligne
-  // par trigger pour que plusieurs effets simultanés restent lisibles).
-  for (const fs of fxSegmentEvents) {
-    const track = findCaptureTrack(fs.detail.trackId);
-    const list = ((track && track.fxTriggers) || []).filter(d => d && d.id && d.fx);
-    const ti = Math.max(0, list.findIndex(d => d.id === fs.detail.triggerId));
-    const label = (((list[ti] && list[ti].label) || 'FX')).replace(/['\\:]/g, '');
-    drawtexts.push(
-      `drawtext=fontfile=font.ttf:text='FX ${label}':x=24:y=${64 + ti * 30}:fontsize=22:fontcolor=0xc9a0ff:box=1:boxcolor=0x000000AA:boxborderw=6:` +
-      `enable='between(t,${fs.t},${fs.t + fs.detail.duration})'`
-    );
+  // Incrustations : la même liste d'étiquettes que celle rangée avec la vidéo pour les pages publiques (buildCaptureCues, 21/10).
+  const esc = t => String(t).replace(/['\\:]/g, '');
+  for (const c of buildCaptureCues(events, laneOverrides)) {
+    const when = `enable='between(t,${c.start},${c.end})'`;
+    if (c.style === 'layer') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=h-56-${c.row * 30}:fontsize=22:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
+    else if (c.style === 'window') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:${when}`);
+    else if (c.style === 'flash') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text.toUpperCase())} !':x=24:y=24:fontsize=26:fontcolor=0xffaa55:box=1:boxcolor=0x000000AA:boxborderw=8:${when}`);
+    else if (c.style === 'fx') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=${64 + c.row * 30}:fontsize=22:fontcolor=0xc9a0ff:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
   }
   // Filigrane "powered by LayerPitch" (Rookie/Warrior, voir tout en haut de la fonction) -- permanent,
   // pas de fenêtre `enable`, coin bas-droit pour ne jamais chevaucher les libellés de calque/boucle/
@@ -2051,6 +2041,7 @@ function openCapturePanel(file, opts) {
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportAudioBtn" disabled title="${tr('captureExportAudioHelp')}">${tr('captureExportAudioBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportCopyBtn" disabled title="${tr('captureExportCopyHelp')}">${tr('captureExportCopyBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureUpdateEverywhereBtn" title="${tr('captureUpdateEverywhereHelp')}">${tr('captureUpdateEverywhereBtn')}</button>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
     <div class="video-capture-bar">
@@ -2089,6 +2080,7 @@ function openCapturePanel(file, opts) {
     exportBtn.insertAdjacentHTML('afterend', `<span class="video-capture-count" id="videoCaptureFullLockedNote">${tr('captureExportFullLockedNote')}</span>`);
   }
   const addToLibraryBtn = document.getElementById('videoCaptureAddToLibraryBtn');
+  const updateEverywhereBtn = document.getElementById('videoCaptureUpdateEverywhereBtn');
   const exportStatus = document.getElementById('videoCaptureExportStatus');
   const additiveLabel = document.getElementById('videoCaptureAdditiveLabel');
   const additiveCheckbox = document.getElementById('videoCaptureAdditiveCheckbox');
@@ -2282,7 +2274,8 @@ function openCapturePanel(file, opts) {
       const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, titleInput.value, videoEl.duration || null);
       // Montage sauvegardé : il retient sa vidéo (21/10, migration 20261021010000), pour que le bloc vidéo d'un AdReel la propose parmi
       // les versions du montage. Jamais bloquant : sans la migration, ou sur un montage non sauvegardé, le lien n'est simplement pas posé.
-      if (savedCaptureId && videoId) window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId }).then(() => {}, () => {});
+      // Étiquettes (21/10, migration 20261021020000) rangées avec la vidéo : l'étiquette du lecteur public suit ce qui joue.
+      if (savedCaptureId && videoId) window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides) }).then(() => {}, () => {});
       exportStatus.textContent = tr('captureAddedToLibrary');
       addToLibraryBtn.hidden = true; // évite un second envoi du même export
     } catch (e) {
@@ -2290,6 +2283,28 @@ function openCapturePanel(file, opts) {
       exportStatus.textContent = tr('captureAddToLibraryFailed').replace('{error}', e.message);
     } finally {
       addToLibraryBtn.disabled = false;
+    }
+  });
+  // « Mettre à jour la vidéo partout » (21/10) : après une retouche, refait l'export rapide (image d'origine + nouveau son, sans
+  // incrustation, quelques secondes), le dépose dans la bibliothèque et y relie le montage avec ses nouvelles étiquettes. Partout où le
+  // montage est affiché (AdReels, espace Projet), la nouvelle vidéo et la nouvelle étiquette apparaissent, sans rien republier.
+  updateEverywhereBtn.addEventListener('click', async () => {
+    if (!savedCaptureId) { exportStatus.textContent = tr('captureUpdateEverywhereNeedsSave'); return; }
+    if (!lastEvents.length || !packId) return;
+    updateEverywhereBtn.disabled = true; setExportButtonsDisabled(true);
+    try {
+      const exportOptions = { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode: 'copy' };
+      const blob = await exportCaptureVideo(lastEvents, file, (msg) => { exportStatus.textContent = msg; }, laneOverrides, exportOptions);
+      exportStatus.textContent = tr('captureAddingToLibrary');
+      const videoId = await saveExportToVideoLibrary(blob, packId, titleInput.value, videoEl.duration || null);
+      const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides) });
+      if (error) throw error;
+      exportStatus.textContent = tr('captureUpdatedEverywhere');
+    } catch (e) {
+      console.error(e);
+      exportStatus.textContent = tr('captureExportFailed').replace('{error}', e.message);
+    } finally {
+      updateEverywhereBtn.disabled = false; setExportButtonsDisabled(lastEvents.length === 0);
     }
   });
   // Sauvegarde/reprise côté serveur (2026-09-16) -- voir saveVideoCapture/listVideoCaptures/loadVideoCapture
@@ -2385,6 +2400,7 @@ function openCapturePanel(file, opts) {
       getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
       exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
+      cuesOf: (events) => buildCaptureCues(events, laneOverrides), // étiquettes rangées avec la vidéo d'une version (21/10)
       // « Détacher » : la version devient un montage indépendant (sauvegardé tout de suite), ouvert à la place de celui-ci.
       detach: async (events, title) => {
         const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));

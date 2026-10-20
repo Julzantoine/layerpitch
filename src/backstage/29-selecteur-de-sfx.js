@@ -200,11 +200,19 @@ function buildVideoCard(block) {
       listEl.querySelectorAll('[data-role="versionRow"]').forEach(row => {
         const v = block.videos[parseInt(row.dataset.i, 10)];
         const info = v && v.libraryVideoId && idx.byVideoId[v.libraryVideoId];
-        if (!info) { row.innerHTML = ''; return; }
+        if (!info) { row.innerHTML = ''; if (v && v.montageId) { v.montageId = null; v.defaultVersion = null; v.hiddenVersions = []; } return; }
+        // La vidéo vient d'un montage : l'AdReel pointe désormais vers le montage (toutes ses versions, toujours à jour), la vidéo choisie
+        // devient la version proposée par défaut.
+        const current = info.siblings.find(sib => sib.videoId === v.libraryVideoId);
+        if (v.montageId !== info.capture.id || v.defaultVersion !== (current && current.key)) {
+          v.montageId = info.capture.id; v.defaultVersion = current ? current.key : 'original'; if (!Array.isArray(v.hiddenVersions)) v.hiddenVersions = [];
+        }
         const options = info.siblings.filter(sib => libraryVideos.some(lv => lv.id === sib.videoId));
         row.innerHTML = `
           <label style="margin-top:8px">${tr('videoBlockVersionLabel')}</label>
           <select data-role="versionSelect" data-i="${row.dataset.i}">${options.map(sib => `<option value="${sib.videoId}" ${sib.videoId === v.libraryVideoId ? 'selected' : ''}>${escapeAttr(sib.title || tr('videoVersioningUntitled'))}</option>`).join('')}</select>
+          ${options.length > 1 ? `<label style="margin-top:8px">${tr('videoBlockVersionMenuLabel')}</label>
+          ${options.map(sib => `<label style="display:flex;align-items:center;gap:6px;font-weight:normal"><input type="checkbox" data-role="versionShown" data-i="${row.dataset.i}" data-key="${escapeAttr(sib.key)}" style="width:auto;margin:0" ${(v.hiddenVersions || []).includes(sib.key) ? '' : 'checked'} ${sib.key === v.defaultVersion ? 'disabled' : ''}> ${escapeAttr(sib.title || tr('videoVersioningUntitled'))}</label>`).join('')}` : ''}
           <div class="actions" style="margin-top:6px"><a class="btn btn-small" data-role="versionNew" href="${videoVersioningMontageUrl(info.capture)}" target="_blank" rel="noopener">${tr('videoBlockVersionNew')}</a></div>
           <div class="hint-inline">${tr('videoBlockVersionHint')}</div>`;
       });
@@ -244,6 +252,14 @@ function buildVideoCard(block) {
       hasUnsavedEdits = true;
       renderList();
       refreshAllBlockSummaries();
+      return;
+    }
+    const shown = e.target.closest('[data-role="versionShown"]');
+    if (shown) {
+      const v = block.videos[parseInt(shown.dataset.i, 10)];
+      const set = new Set(v.hiddenVersions || []);
+      if (shown.checked) set.delete(shown.dataset.key); else set.add(shown.dataset.key);
+      v.hiddenVersions = [...set]; hasUnsavedEdits = true;
       return;
     }
     const vsel = e.target.closest('[data-role="versionSelect"]');
