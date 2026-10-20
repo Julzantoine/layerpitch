@@ -18,7 +18,7 @@ const { JSDOM } = require('jsdom');
   async function boot() {
     const dom = new JSDOM('<div id="content"></div><div id="presence"></div>', { url: 'https://beta.layerpitch.com/projet.html?tuto&lang=fr', runScripts: 'outside-only', pretendToBeVisual: true });
     const w = dom.window;
-    ['layerpitch-i18n.js', 'layerpitch-appearance.js', 'layerpitch-guide.js', 'api/demo-client.js', 'api/demo-projects.js', 'projet-lecons.js'].forEach(f => w.eval(read(f)));
+    ['layerpitch-i18n.js', 'layerpitch-appearance.js', 'layerpitch-guide.js', 'api/demo-client.js', 'api/demo-projects.js', 'projet-lecons.js', 'projet-carte-audio.js', 'projet-carte.js'].forEach(f => w.eval(read(f)));
     w.LayerPitchProjects = {};
     w.LayerPitchAuth = { getSession: () => Promise.resolve({ session: { user: { id: 'demo-user', email: 'demo@layerpitch.com' } } }), getMyComposerId: () => Promise.resolve({ composerId: null }), onAuthStateChange: cb => setTimeout(() => cb('INITIAL_SESSION'), 0) };
     w.LayerPitchNotify = { confirm: () => Promise.resolve(true), error: () => {}, info: () => {} };
@@ -42,7 +42,7 @@ const { JSDOM } = require('jsdom');
   check('Projet fictif « Alone in the Barque » chargé', /Alone in the Barque/.test(d.getElementById('pTitle').textContent));
   check('discussion préremplie (14 messages)', d.querySelectorAll('.bubble').length === 14);
   check('les 4 zones du jeu sont des sections', ['Ponton', 'Lac ouvert', 'Brouillard', 'Cabane'].every(n => d.getElementById('secNav') ? true : true) && !!d.getElementById('chanSel') && d.getElementById('chanSel').options.length === 5);
-  check('deux leçons proposées dans le bandeau', d.querySelectorAll('[data-tutolesson]').length === 2);
+  check('trois leçons jouables dans le bandeau (musique et balade attendent leurs fichiers)', d.querySelectorAll('[data-tutolesson]').length === 3);
 
   // ---- Leçon « tchat »
   click(w, d.querySelector('[data-tutolesson="pj-chat"]')); await wait(100);
@@ -71,8 +71,55 @@ const { JSDOM } = require('jsdom');
 
   // ---- Leçon « Moodboard » : dépôt d’un lien dans le tableau (vrai « drop »)
   click(again.w, again.d.querySelector('[data-tutolesson="pj-moodboard"]')); await wait(100);
-  check('leçon Moodboard ouverte', /1 \/ 9/.test(countText(again.d)));
+  check('leçon Moodboard ouverte', /1 \/ 10/.test(countText(again.d)));
   const L = again.w.LayerPitchProjetLessons.LESSON_LINKS; check('kit de liens vide en attendant les liens de Jules-Antoine (étape sautée)', L.length === 0);
+  // ---- Leçon « carte : la construire »
+  const m = await boot();
+  click(m.w, m.d.querySelector('[data-tutolesson="pj-map-build"]')); await wait(100);
+  const N = m.d, W = m.w;
+  const next = async () => { click(W, N.querySelector('[data-tour="next"]')); await wait(100); };
+  check('leçon carte ouverte (étapes sautées sans fichier d’ambiance)', /1 \/ 2\d/.test(countText(N)) || /1 \/ 1\d/.test(countText(N)));
+  await next();
+  click(W, N.querySelector('.tab[data-tab="map"]')); await wait(400);
+  check('onglet Carte ouvert, étape « nouvelle carte »', await untilCount(N, /3 \/ /));
+  click(W, N.querySelector('#lmNew')); await wait(200);
+  await untilCount(N, /4 \/ /);
+  check('étape « nom » : champ du dialogue visé, vignette de texte', !!N.querySelector('#lmAskOverlay input') && !!N.querySelector('.tour-chip-text'));
+  chipKey(W, N, 0);
+  check('le nom arrive dans le dialogue', /Alone/.test(N.querySelector('#lmAskOverlay input').value));
+  await wait(500);
+  click(W, N.querySelector('#lmAskOverlay [type="submit"]')); await wait(600);
+  check('la carte est créée (réglages visibles) et la leçon passe au point de départ', !!N.getElementById('lmSettings') && await untilCount(N, /\d+ \/ /));
+  const addAndName = async (kind, name) => {
+    click(W, N.querySelector('[data-add="' + kind + '"]'));
+    for (let i = 0; i < 60 && !(N.querySelector('.tour-chip-name') && N.querySelector('.tour-chip-name').textContent === name); i++) await wait(100);
+    chipKey(W, N, 0); await wait(600);
+    check('« ' + name + ' » posé et nommé', [...N.querySelectorAll('#lmSvg [data-node]')].some(g => g.textContent.includes(name)));
+  };
+  await addAndName('start', 'La cabane');
+  await addAndName('place', 'La forêt');
+  await addAndName('place', 'Le manoir');
+  for (let i = 0; i < 60 && !(N.querySelector('.tour-chip-name') && /niveau 2/.test(N.querySelector('.tour-chip-name').textContent)); i++) await wait(100);
+  chipKey(W, N, 0); await wait(500);
+  check('indication « niveau 2 » dans la note du manoir', /niveau 2/.test(N.querySelector('#lmNote').value));
+  await addAndName('place', 'La scierie');
+  await untilCount(N, /\d+ \/ /);
+  const pos = [...N.querySelectorAll('#lmSvg [data-node]')].map(g => g.querySelector('.lm-shape').getAttribute('x') + ',' + g.querySelector('.lm-shape').getAttribute('y'));
+  check('les quatre lieux ne sont pas posés les uns sur les autres', new Set(pos).size === 4);
+  click(W, N.querySelector('#lmConnect')); await wait(300);
+  const nodeG = name => [...N.querySelectorAll('#lmSvg [data-node]')].find(g => g.textContent.includes(name));
+  const down = g => g.dispatchEvent(new W.MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+  for (const [a, b] of [['La cabane', 'La forêt'], ['La forêt', 'Le manoir'], ['La forêt', 'La scierie']]) { down(nodeG(a)); await wait(150); down(nodeG(b)); await wait(300); }
+  check('trois parcours tracés', N.querySelectorAll('#lmSvg [data-edge]').length === 3);
+  click(W, N.querySelector('#lmConnect')); await wait(300);
+  down(N.querySelector('#lmSvg [data-edge]')); await wait(300);
+  check('parcours choisi : bouton de transition proposé', !!N.querySelector('#lmSplitT'));
+  click(W, N.querySelector('#lmSplitT')); await wait(400);
+  check('point de transition ajouté sur le parcours', [...N.querySelectorAll('#lmSvg [data-node]')].some(g => g.textContent.includes('⇢')) && N.querySelectorAll('#lmSvg [data-edge]').length === 4);
+  check('leçon terminée sur le message final', await untilCount(N, /(\d+) \/ \1/));
+
+  // ---- Leçons « musique » et « balade » : attendent leurs fichiers
+  check('musique et balade marquées « bientôt » dans le menu du Backstage', /pj-map-music', theme: 'preprod', public: false, page: 'projet', soon: true/.test(read('src/backstage/43-visite-guidee.js')) && /pj-map-walk', theme: 'preprod', public: false, page: 'projet', soon: true/.test(read('src/backstage/43-visite-guidee.js')));
   console.log(failures ? failures + ' échec(s)' : 'Tout est OK');
   process.exit(failures ? 1 : 0);
 })();

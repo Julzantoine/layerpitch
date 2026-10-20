@@ -459,6 +459,10 @@ const LESSONS = [
   // Projet fictif ; `page` renvoie vers cette page au clic.
   { id: 'pj-chat', theme: 'preprod', public: false, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
   { id: 'pj-moodboard', theme: 'preprod', public: false, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },
+  { id: 'pj-map-build', theme: 'preprod', public: false, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc' },
+  // « Musique » et « balade » attendent les fichiers sonores d'exemple (kit MAP_MUSIC dans projet-lecons.js) : « bientôt » d'ici là.
+  { id: 'pj-map-music', theme: 'preprod', public: false, page: 'projet', soon: true, titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc' },
+  { id: 'pj-map-walk', theme: 'preprod', public: false, page: 'projet', soon: true, titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc' },
 ];
 
 // Le moteur de bulles (affichage, avancement des étapes, clavier, déplacement) est partagé avec les autres pages :

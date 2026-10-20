@@ -381,6 +381,19 @@
 
   // ctx : { tr(key, vars), maps: [{ id, title, data }], libraries: { track: [{id, title, hint}], sfx: [...], asset: [...] },
   //         save(map) -> Promise<{ id } | { error }>, remove(map) -> Promise, canEdit }
+  // Place libre la plus proche du centre de la vue (anneaux autour du centre) : les nouveaux éléments ne se posent plus les uns sur les autres.
+  function freeSpot(map, cx, cy) {
+    const clash = (x, y) => map.nodes.some(n => Math.abs(n.x - x) < 150 && Math.abs(n.y - y) < 56);
+    for (let ring = 0; ring < 8; ring++) {
+      const steps = ring === 0 ? 1 : ring * 6, rad = ring * 100;
+      for (let i = 0; i < steps; i++) {
+        const a = (2 * Math.PI * i) / steps - Math.PI / 2;
+        const x = Math.round((cx + rad * 1.5 * Math.cos(a)) / 10) * 10, y = Math.round((cy + rad * 0.8 * Math.sin(a)) / 10) * 10;
+        if (!clash(x, y)) return { x, y };
+      }
+    }
+    return { x: Math.round(cx / 10) * 10, y: Math.round(cy / 10) * 10 };
+  }
   function mount(host, ctx) {
     ensureStyle();
     const tr = ctx.tr;
@@ -570,8 +583,8 @@
       });
       applyPanels();
       host.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
-        const c = viewCenter(), jitter = (map.nodes.length % 6) * 22;
-        const node = addNode(map, b.dataset.add, Math.round((c.x + jitter) / 10) * 10, Math.round((c.y + jitter) / 10) * 10, '');
+        const c = viewCenter(), spot = freeSpot(map, c.x, c.y);
+        const node = addNode(map, b.dataset.add, spot.x, spot.y, '');
         if (!node) return;
         st.sel = { kind: 'node', id: node.id }; touch(); render();
       });

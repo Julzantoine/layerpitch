@@ -20,10 +20,12 @@
  *   });
  *   G.open('lesson', steps, 'static'); G.state(); G.close(); G.go(1); G.stepIsDone(step); …
  *
- * Vignettes de LIENS et de TEXTE (20/10) : une étape peut porter `drops: [{ kind: 'link' | 'text', label, value }]`. Chaque
+ * Vignettes de LIENS, de TEXTE et de FICHIERS (20/10) : une étape peut porter `drops: [{ kind: 'link' | 'text', label, value }]`
+ * ou { kind: 'file', label, url, name } (fichier téléchargé puis déposé comme un vrai fichier glissé). Chaque
  * vignette se glisse (ou s'active au clavier / au clic) vers la zone en surbrillance : champ de saisie -> la valeur y est
  * écrite ; autre zone -> un vrai événement « drop » (text/plain + text/uri-list) lui est envoyé, que la page traite comme
  * un dépôt de lien ou de texte ordinaire. `host.onDrop(step, drop, target)` (facultatif) reprend la main à la place.
+ * `selector` peut être une fonction qui renvoie l'élément visé (cible calculée à chaque instant).
  * Étapes : { selector, titleKey, textKey, done(ctx), clickDone, listen, listenTarget, enter(ctx), skip(ctx), final,
  *            keepTrack, arrow: {bar} } — voir les leçons du Backstage pour des exemples.
  * Mise en forme : layerpitch-guide.css. Gabarit de page attendu : variables --bg, --border, --accent, --text-dim.
@@ -43,15 +45,34 @@
 
 
     // ---- Vignettes de liens et de texte ----
-    const DROP_GLYPH = { link: '↗', text: '¶' };
+    const DROP_GLYPH = { link: '↗', text: '¶', file: '♪' };
     function dropsHtml(step) {
       if (!step.drops || !step.drops.length) return '';
       return step.drops.map((d, i) => `<div class="tour-chip tour-chip-${esc(d.kind)}" data-tour-drop="${i}" role="button" tabindex="0" aria-label="${esc(tr('lessonDropHint'))}"><span class="tour-chip-note">${DROP_GLYPH[d.kind] || '♪'}</span><span class="tour-chip-name">${esc(d.label || d.value)}</span></div>`).join('')
         + `<div class="tour-sample-hint">${esc(tr('lessonDropHint'))}</div>`;
     }
+    // Fichier d'exemple : téléchargé (reprise possible, comme les leçons du Backstage), puis déposé sur la zone comme un vrai
+    // fichier glissé depuis l'ordinateur (événement « drop » portant un File).
+    function deliverFile(drop, target) {
+      (async () => {
+        try {
+          const res = await fetch(drop.url);
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const blob = await res.blob();
+          const file = new File([blob], drop.name || 'exemple', { type: blob.type || 'audio/mpeg' });
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          const ev = new Event('drop', { bubbles: true, cancelable: true });
+          Object.defineProperty(ev, 'dataTransfer', { value: dt });
+          target.dispatchEvent(ev);
+        } catch (e) { if (host.onError) host.onError(e); }
+      })();
+      return true;
+    }
     // Remet la valeur de la vignette à la zone visée (champ de saisie, ou événement « drop » ordinaire).
     function deliverDrop(step, drop, target) {
       if (!target) return false;
+      if (drop.kind === 'file') return deliverFile(drop, target);
       if (host.onDrop && host.onDrop(step, drop, target) === true) return true;
       const tag = target.tagName;
       const field = (tag === 'INPUT' || tag === 'TEXTAREA') ? target : target.querySelector && target.querySelector('input:not([type=file]):not([type=checkbox]):not([type=radio]), textarea');
@@ -136,7 +157,9 @@
     function onClickCapture(e) {
       if (!guide) return;
       const step = guide.steps[guide.index];
-      if (step && (step.clickDone || step.listen) && step.selector && e.target.closest && e.target.closest(step.selector)) guide.clicked = true;
+      if (!step || !(step.clickDone || step.listen) || !step.selector || !e.target) return;
+      if (typeof step.selector === 'function') { const el = step.selector(); if (el && el.contains && el.contains(e.target)) guide.clicked = true; }
+      else if (e.target.closest && e.target.closest(step.selector)) guide.clicked = true;
     }
     function stepTarget(step) {
       // Étape d'écoute : une fois « Écouter » cliqué, la surbrillance passe au lecteur qui vient de s'ouvrir (listenTarget),
@@ -145,6 +168,7 @@
         const el = document.querySelector(step.listenTarget);
         if (el && targetVisible(el)) return el;
       }
+      if (typeof step.selector === 'function') return step.selector() || null; // cible calculée (ex. un nœud d'une carte, retrouvé par son nom)
       return step.selector ? document.querySelector(step.selector) : null;
     }
     function go(delta) {

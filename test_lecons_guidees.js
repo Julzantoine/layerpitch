@@ -34,7 +34,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
     window.__closed = !document.querySelector('.tour-root');
     myFlags = { in_app_lessons: true };
     document.querySelector('.nav-item[data-tab="library"]').hidden = false;
-    var __r = { lessons: LESSONS.filter(l => l.theme === 'engine').length, soon: LESSONS.filter(l => l.soon).length, add: (LESSONS.find(l => l.id === 'additive').steps || []).length, rnd: (LESSONS.find(l => l.id === 'random').steps || []).length, seq: (LESSONS.find(l => l.id === 'sequential').steps || []).length, br: (LESSONS.find(l => l.id === 'branching').steps || []).length, emb: (LESSONS.find(l => l.id === 'embranchement').steps || []).length, seqSkip: (LESSONS.find(l => l.id === 'sequential').steps || []).filter(s2 => s2.skip).length, brSkip: (LESSONS.find(l => l.id === 'branching').steps || []).filter(s2 => s2.skip).length };
+    var __r = { lessons: LESSONS.filter(l => l.theme === 'engine').length, soon: LESSONS.filter(l => l.theme === 'engine' && l.soon).length, add: (LESSONS.find(l => l.id === 'additive').steps || []).length, rnd: (LESSONS.find(l => l.id === 'random').steps || []).length, seq: (LESSONS.find(l => l.id === 'sequential').steps || []).length, br: (LESSONS.find(l => l.id === 'branching').steps || []).length, emb: (LESSONS.find(l => l.id === 'embranchement').steps || []).length, seqSkip: (LESSONS.find(l => l.id === 'sequential').steps || []).filter(s2 => s2.skip).length, brSkip: (LESSONS.find(l => l.id === 'branching').steps || []).filter(s2 => s2.skip).length };
     startLesson('static');
     window.__r = __r;
   `);
@@ -195,7 +195,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('leçons publiques : statique, embranchement, couches', th.pub.join() === 'static,embranchement,additive');
   w.eval(`myFlags = { in_app_lessons: true }; renderTutorialMenu();`);
   const heads = [...w.document.querySelectorAll('#tutorialMenuList .tutorial-menu-heading')].map(x => x.textContent).join('|');
-  check('menu : leçons groupées par thème (Moteur audio, Pitch, Préproduction)', /Moteur audio/.test(heads) && /Pitch/.test(heads) && /Préproduction/.test(heads));
+  check('menu : leçons groupées par thème (moteur audio, AdReel, préproduction)', /moteur audio : uploader de la musique interactive/.test(heads) && /Créer un AdReel : envoyer de la musique à un studio/.test(heads) && /espace de travail conjoint studio\/compositeur/.test(heads));
   // Échap quitte.
   w.eval(`guide.index = 7; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));

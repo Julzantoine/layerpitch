@@ -61,7 +61,8 @@
     return { failed: true };
   }
 
-  function create() {
+  function create(opts) {
+    opts = opts || {};
     let seq = 0;
     const nid = p => (p || 'd') + (++seq);
     const now = () => new Date().toISOString();
@@ -86,6 +87,17 @@
     let secPins = [];                  // { sectionId, assetId, position, starred }
     const annotations = [];
     const maps = [];
+    // Carte déjà construite (celle que la leçon « construire la carte » fait faire) : pour les leçons « musique » et « balade ».
+    if (opts.seedMap) {
+      const emptySounds = () => ({ main: [], combat: [], room: [] });
+      const node = (id, type, label, x, y, note) => ({ id, type, label, x, y, note: note || '', sounds: emptySounds(), transition: null });
+      const edge = (id, from, to) => ({ id, from, to, label: '', enemy: false, sounds: emptySounds(), transition: null });
+      maps.push({ id: 'map-barque', title: 'Alone in the Barque', updatedAt: now(), data: {
+        nodes: [node('n1', 'start', 'La cabane', -240, 0), node('n2', 'transition', '', -120, 0), node('n3', 'place', 'La forêt', 0, 0),
+          node('n4', 'place', 'Le manoir', 260, -110, 'Entrée du manoir : sa carte est au niveau 2.'), node('n5', 'place', 'La scierie', 260, 110)],
+        edges: [edge('e1', 'n1', 'n2'), edge('e2', 'n2', 'n3'), edge('e3', 'n3', 'n4'), edge('e4', 'n3', 'n5')],
+        roomTone: null, roomToneDb: -14, defaults: { transition: { style: 'crossfade', sec: 2, sync: 'bar' } } } });
+    }
     const snapshots = [];
     let appearance = {};
 
@@ -214,7 +226,7 @@
       saveMap: async (id, p) => {
         const doc = Object.assign({}, p); const i = maps.findIndex(m => m.id === doc.id);
         if (i >= 0) maps[i] = Object.assign({}, maps[i], doc, { updatedAt: now() }); else { doc.id = doc.id || nid('c'); doc.updatedAt = now(); maps.push(doc); }
-        return ok((i >= 0 ? maps[i] : doc).id);
+        return ok({ id: (i >= 0 ? maps[i] : doc).id });
       },
       deleteMap: async mapId => { const i = maps.findIndex(m => m.id === mapId); if (i >= 0) maps.splice(i, 1); return ok(null); },
 
