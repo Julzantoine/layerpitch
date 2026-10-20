@@ -217,7 +217,7 @@ let hasUnsavedEdits = false;
 // automatique) -- le navigateur demande maintenant confirmation avant de quitter/recharger tant que des modifications
 // n'ont pas été enregistrées. Depuis le 27/09, un brouillon automatique garde aussi ces modifications (voir « Brouillon
 // automatique ») : ce garde-fou reste, un brouillon n'étant qu'un filet de sécurité propre à ce navigateur.
-window.addEventListener('beforeunload', e => { if (hasUnsavedEdits) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (hasUnsavedEdits && !isTutoMode()) { e.preventDefault(); e.returnValue = ''; } });
 // dataLoadOk (29/08, garde-fou contre une publication "en mode panique" après un échec de chargement --
 // scénario réel vécu par Jules-Antoine : erreur 403 au chargement automatique, puis clic sur Publier sur
 // une bibliothèque restée vide, écrasant les vraies données sur GitHub). Vrai UNE FOIS un chargement

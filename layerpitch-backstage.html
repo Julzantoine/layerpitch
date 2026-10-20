@@ -874,6 +874,8 @@
   #btnInboxBell { position: relative; }
   .admin-preview-banner { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; background: #fff3cd; border-bottom: 1px solid #f0dda0; padding: 8px 12px; font-size: 12px; color: #5c4b1e; margin: -32px -20px 16px; }
   .admin-preview-banner[hidden] { display: none; }
+  .tuto-banner { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; background: #e6f0fa; border-bottom: 1px solid #b9d3ec; padding: 8px 12px; font-size: 12px; color: #1d4a73; margin: -32px -20px 16px; }
+  .tuto-banner[hidden] { display: none; }
   .account-menu-item-static { padding: 6px 12px; font-size: 12px; }
   .account-menu-item-static[hidden] { display: none; }
   .admin-preview-label { display: flex; flex-direction: column; gap: 4px; color: var(--text-dim); }
@@ -1008,6 +1010,11 @@
 <div id="authGateOverlay" data-i18n="authGateCheckingText">Vérification de la session…</div>
 <div id="helpTooltip"></div>
 <div class="page">
+  <!-- Bandeau du mode tutoriel (?tuto) : rappelle que rien n'est enregistré ; affiché par initTutoBanner() (43-visite-guidee.js). -->
+  <div id="tutoBanner" class="tuto-banner" hidden>
+    <span data-i18n="tutoBannerText">Mode tutoriel : rien n'est enregistré.</span>
+    <button class="btn btn-small" id="btnTutoQuit" type="button" data-i18n="tutoQuit">Quitter</button>
+  </div>
   <div id="adminPreviewBanner" class="admin-preview-banner" hidden>
     <span id="adminPreviewBannerLabel"></span>
     <button class="btn btn-small" id="btnAdminPreviewReset" type="button" data-i18n="adminPreviewReset">Revenir en Admin</button>
@@ -1896,15 +1903,15 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1792506227800"></script>
-<script src="layerpitch-appearance.js?v=1792506227800"></script>
-<script src="layerpitch-album-shared.js?v=1792506227800"></script>
-<script src="layerpitch-album-editor.js?v=1792506227800"></script>
-<script src="layerpitch-shell.js?v=1792506227800"></script>
-<script src="layerpitch-social-icons.js?v=1792506227800"></script>
-<script src="layerpitch-notify.js?v=1792506227800"></script>
-<script src="layerpitch-help.js?v=1792506227800"></script>
-<script src="player.js?v=1792506227800"></script>
+<script src="layerpitch-i18n.js?v=1792510978562"></script>
+<script src="layerpitch-appearance.js?v=1792510978562"></script>
+<script src="layerpitch-album-shared.js?v=1792510978562"></script>
+<script src="layerpitch-album-editor.js?v=1792510978562"></script>
+<script src="layerpitch-shell.js?v=1792510978562"></script>
+<script src="layerpitch-social-icons.js?v=1792510978562"></script>
+<script src="layerpitch-notify.js?v=1792510978562"></script>
+<script src="layerpitch-help.js?v=1792510978562"></script>
+<script src="player.js?v=1792510978562"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2090,6 +2097,29 @@ function isModeTest() {
 // Trouvé le 7 septembre en testant la boîte de réception des messages admin (bug indépendant,
 // présent depuis 56ed331 "Ajoute un verrou de connexion sur le backstage compositeur").
 var postgresReadScriptsLoaded = null;
+// MODE TUTORIEL (20/10) : layerpitch-backstage.html?tuto -- le Backstage tourne sur un faux serveur local (api/demo-client.js) :
+// compte fictif, rien n'est lu ni écrit en base, tout est remis à zéro à chaque chargement. Ce sont des FONCTIONS (et non
+// des variables) pour rester utilisables dès le tout premier appel, avant que le script n'ait fini de se dérouler.
+function isTutoMode() { return new URLSearchParams(window.location.search).has('tuto'); }
+// Tant que Jules-Antoine n'a pas ouvert le tutoriel au public : seul un admin connecté pour de vrai peut y entrer.
+// Pour l'ouvrir à tout le monde : faire répondre « true » ici (une seule ligne).
+function tutoPublicOpen() { return false; }
+// Vrai si l'accès est celui d'un admin (tutoriel complet) ; en version publique, seules les leçons marquées « public »
+// sont jouables (les autres restent visibles avec « le tuto complet nécessite un compte »).
+var tutoFullAccess = false;
+// Vérifie, AVANT de passer sur le faux serveur, qu'un vrai admin est connecté (SDK réel + vrai client). Sinon on
+// retourne au Backstage normal (qui renverra vers la connexion si besoin).
+async function tutoAdminGate() {
+  try {
+    const { data } = await window.LayerPitchSupabaseClient.getClient().auth.getSession();
+    if (data && data.session && data.session.user) {
+      const res = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin');
+      if (!res.error && res.data) return true;
+    }
+  } catch (e) { /* traité comme non admin */ }
+  window.location.replace(window.location.pathname);
+  return new Promise(() => {}); // la page s'en va : on ne laisse rien se charger
+}
 function loadPostgresReadScripts() {
   if (postgresReadScriptsLoaded) return postgresReadScriptsLoaded;
   // Même principe que public-page.js (pages publiques) : téléchargement en parallèle mais exécution DANS L'ORDRE
@@ -2105,14 +2135,26 @@ function loadPostgresReadScripts() {
     './api/subscriptions.js', './api/admin.js', './api/analytics.js', './api/access-requests.js', './api/invites.js',
     './api/notification-prefs.js',
   ];
-  postgresReadScriptsLoaded = Promise.all(srcs.map(src => new Promise((resolve, reject) => {
+  const tuto = isTutoMode();
+  // Mode tutoriel public : pas de SDK Supabase du tout (rien à contacter) ; fermé au public : SDK chargé seulement pour
+  // vérifier qu'un vrai admin entre.
+  const needRealSdk = !tuto || !tutoPublicOpen();
+  const list = (needRealSdk ? srcs : srcs.filter(src => !src.startsWith('http')));
+  if (tuto) list.push('./api/demo-client.js');
+  postgresReadScriptsLoaded = Promise.all(list.map(src => new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = (src.startsWith('http') || !version) ? src : src + '?v=' + version;
     s.async = false;
     s.onload = resolve;
     s.onerror = () => reject(new Error('Échec du chargement de ' + s.src));
     document.head.appendChild(s);
-  })));
+  }))).then(async () => {
+    if (!tuto) return;
+    if (!tutoPublicOpen()) tutoFullAccess = await tutoAdminGate();
+    // Bascule : tous les api/*.js appellent window.LayerPitchSupabaseClient.getClient() à chaque usage, donc cette
+    // seule ligne les met tous sur le faux serveur.
+    window.LayerPitchSupabaseClient = { getClient: () => window.LayerPitchDemoClient };
+  });
   return postgresReadScriptsLoaded;
 }
 // Retourne exactement la même forme que le data.json parsé (voir api/site-data.js) — null si aucun
@@ -3133,7 +3175,7 @@ let hasUnsavedEdits = false;
 // automatique) -- le navigateur demande maintenant confirmation avant de quitter/recharger tant que des modifications
 // n'ont pas été enregistrées. Depuis le 27/09, un brouillon automatique garde aussi ces modifications (voir « Brouillon
 // automatique ») : ce garde-fou reste, un brouillon n'étant qu'un filet de sécurité propre à ce navigateur.
-window.addEventListener('beforeunload', e => { if (hasUnsavedEdits) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (hasUnsavedEdits && !isTutoMode()) { e.preventDefault(); e.returnValue = ''; } });
 // dataLoadOk (29/08, garde-fou contre une publication "en mode panique" après un échec de chargement --
 // scénario réel vécu par Jules-Antoine : erreur 403 au chargement automatique, puis clic sur Publier sur
 // une bibliothèque restée vide, écrasant les vraies données sur GitHub). Vrai UNE FOIS un chargement
@@ -13506,7 +13548,7 @@ let loadedPublishedAt = null;  // date de publication du catalogue chargé (dét
 const DRAFT_DB_NAME = 'layerpitch-backstage-drafts';
 const DRAFT_SAVE_EVERY_MS = 3000;
 let draftDbPromise = null;
-let draftDisabled = false;     // IndexedDB indisponible (navigation privée…) : on n'insiste pas
+let draftDisabled = isTutoMode(); // IndexedDB indisponible (navigation privée…) : on n'insiste pas ; mode tutoriel : jamais de brouillon (tout repart de zéro)
 let draftDecisionPending = true; // pas d'écriture avant la décision « reprendre / ignorer » du chargement
 let draftSaving = false, draftLastJson = null;
 const draftFileIds = new WeakMap(); // fichier -> identifiant stable dans le brouillon (rangé une seule fois)
@@ -14530,6 +14572,8 @@ document.getElementById('btnPreview').addEventListener('click', () => {
   openPreview(`./index.html?preview=1${adreelParam}&lang=${currentLang()}`);
 });
 async function publishAll() {
+  // Mode tutoriel : rien ne part vers le serveur. Le geste est joué (la leçon avance), un message explique.
+  if (isTutoMode()) { window.LayerPitchNotify.info(tr('tutoSaveSimulated')); return; }
   // Garde-fou (29/08, défense en profondeur -- le bouton est déjà désactivé dans ce cas, voir loadData(),
   // mais on protège aussi la fonction elle-même contre un déclenchement par un autre chemin). Scénario réel
   // vécu par Jules-Antoine : échec du chargement initial (403), puis clic sur Publier en mode panique,
@@ -14974,6 +15018,9 @@ function lessonPoolFiles(i) { const sec = lessonSection(); const p = sec && sec.
 // Point d'accès unique aux leçons : aujourd'hui le feu vert « in_app_lessons ». Une future version publique (mode démo,
 // sans compte) n'aura qu'à répondre « oui » ici, sans toucher aux leçons.
 function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
+// Mode tutoriel (?tuto) en version publique : seules les leçons « publiques » sont jouables, les autres restent visibles
+// avec la mention « le tuto complet nécessite un compte ». Un admin (tutoFullAccess) a tout.
+function lessonPlayable(lesson) { return !isTutoMode() || tutoFullAccess || lessonIsPublic(lesson); }
 // URL de chaque fichier d'exemple (nom de fichier -> URL), à renseigner quand les fichiers seront en ligne (stockage
 // des médias, avec CORS ouvert à l'origine du Backstage). Tant qu'un nom manque, le bouton « Utiliser » n'apparaît pas.
 const LESSON_SAMPLE_URLS = {
@@ -15654,7 +15701,7 @@ function startBackstageTour() {
 }
 function startLesson(id) {
   const lesson = LESSONS.find(l => l.id === id);
-  if (!lesson || !lesson.steps || !lessonsAccessOpen() || (lesson.needs && !flagOpen(lesson.needs))) return;
+  if (!lesson || !lesson.steps || !lessonsAccessOpen() || !lessonPlayable(lesson) || (lesson.needs && !flagOpen(lesson.needs))) return;
   openGuide('lesson', lesson.steps, id);
   // Saute les étapes déjà faites au départ (par ex. bibliothèque déjà ouverte).
   const skipDone = () => { while (guide && guide.index < guide.steps.length - 1 && guide.steps[guide.index].done && guideStepIsDone(guide.steps[guide.index])) guideGo(1); };
@@ -15673,13 +15720,17 @@ function renderTutorialMenu() {
       ${tourAlreadyDone() ? tick : ''}
     </button>
     <div class="account-menu-sep"></div>
+    ${isTutoMode() ? '' : `<button class="account-menu-item" type="button" data-tutorial="demo">
+      <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr('tutoTryTitle'))}</b><small>${escapeHtml(tr('tutoTryDesc'))}</small></span></span>
+    </button>
+    <div class="account-menu-sep"></div>`}
     <div class="tutorial-menu-heading">${escapeHtml(tr('tutorialLessonsHeading'))}</div>
     ${LESSON_THEMES.map(th => {
       const items = LESSONS.filter(l => l.theme === th.id);
       return `<div class="tutorial-menu-heading">${escapeHtml(tr(th.titleKey))}</div>` + (items.length ? items.map(l => `
-      <button class="account-menu-item" type="button" data-tutorial="${l.id}" ${(l.soon || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}>
-        <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr(l.titleKey))}</b><small>${escapeHtml(tr(l.descKey))}</small></span></span>
-        ${(l.soon || (l.needs && !flagOpen(l.needs))) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : '')}
+      <button class="account-menu-item" type="button" data-tutorial="${l.id}" ${(l.soon || !lessonPlayable(l) || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}>
+        <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr(l.titleKey))}</b><small>${escapeHtml(lessonPlayable(l) ? tr(l.descKey) : tr('tutoNeedsAccount'))}</small></span></span>
+        ${!lessonPlayable(l) ? `<span class="nav-badge">${escapeHtml(tr('tutoAccountBadge'))}</span>` : (l.soon || (l.needs && !flagOpen(l.needs))) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : '')}
       </button>`).join('') : `<div class="tutorial-menu-empty">${escapeHtml(tr('lessonThemeSoon'))}</div>`);
     }).join('')}`;
 }
@@ -15704,7 +15755,8 @@ function initTutorialMenuUi() {
     if (!item || item.disabled) return;
     closeMenu();
     const id = item.dataset.tutorial;
-    if (id === 'tour') startBackstageTour(); else startLesson(id);
+    if (id === 'demo') window.location.href = window.location.pathname + '?tuto';
+    else if (id === 'tour') startBackstageTour(); else startLesson(id);
   });
 }
 // Appelée une fois les feux verts connus (fin de renderAdminOnlyPanels) : montre le menu et lance la visite la toute
@@ -15728,6 +15780,14 @@ function syncBackstageTour() {
     startBackstageTour();
   });
   initTutorialMenuUi();
+})();
+// Mode tutoriel (?tuto) : bandeau « rien n'est enregistré » + bouton Quitter (retour au Backstage normal, sans ?tuto).
+(function initTutoBanner() {
+  if (!isTutoMode()) return;
+  const banner = document.getElementById('tutoBanner');
+  if (!banner) return;
+  banner.hidden = false;
+  document.getElementById('btnTutoQuit').addEventListener('click', () => { window.location.href = window.location.pathname; });
 })();
 </script>
 <script type="text/javascript">

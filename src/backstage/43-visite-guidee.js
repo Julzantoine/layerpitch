@@ -20,6 +20,9 @@ function lessonPoolFiles(i) { const sec = lessonSection(); const p = sec && sec.
 // Point d'accès unique aux leçons : aujourd'hui le feu vert « in_app_lessons ». Une future version publique (mode démo,
 // sans compte) n'aura qu'à répondre « oui » ici, sans toucher aux leçons.
 function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
+// Mode tutoriel (?tuto) en version publique : seules les leçons « publiques » sont jouables, les autres restent visibles
+// avec la mention « le tuto complet nécessite un compte ». Un admin (tutoFullAccess) a tout.
+function lessonPlayable(lesson) { return !isTutoMode() || tutoFullAccess || lessonIsPublic(lesson); }
 // URL de chaque fichier d'exemple (nom de fichier -> URL), à renseigner quand les fichiers seront en ligne (stockage
 // des médias, avec CORS ouvert à l'origine du Backstage). Tant qu'un nom manque, le bouton « Utiliser » n'apparaît pas.
 const LESSON_SAMPLE_URLS = {
@@ -700,7 +703,7 @@ function startBackstageTour() {
 }
 function startLesson(id) {
   const lesson = LESSONS.find(l => l.id === id);
-  if (!lesson || !lesson.steps || !lessonsAccessOpen() || (lesson.needs && !flagOpen(lesson.needs))) return;
+  if (!lesson || !lesson.steps || !lessonsAccessOpen() || !lessonPlayable(lesson) || (lesson.needs && !flagOpen(lesson.needs))) return;
   openGuide('lesson', lesson.steps, id);
   // Saute les étapes déjà faites au départ (par ex. bibliothèque déjà ouverte).
   const skipDone = () => { while (guide && guide.index < guide.steps.length - 1 && guide.steps[guide.index].done && guideStepIsDone(guide.steps[guide.index])) guideGo(1); };
@@ -719,13 +722,17 @@ function renderTutorialMenu() {
       ${tourAlreadyDone() ? tick : ''}
     </button>
     <div class="account-menu-sep"></div>
+    ${isTutoMode() ? '' : `<button class="account-menu-item" type="button" data-tutorial="demo">
+      <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr('tutoTryTitle'))}</b><small>${escapeHtml(tr('tutoTryDesc'))}</small></span></span>
+    </button>
+    <div class="account-menu-sep"></div>`}
     <div class="tutorial-menu-heading">${escapeHtml(tr('tutorialLessonsHeading'))}</div>
     ${LESSON_THEMES.map(th => {
       const items = LESSONS.filter(l => l.theme === th.id);
       return `<div class="tutorial-menu-heading">${escapeHtml(tr(th.titleKey))}</div>` + (items.length ? items.map(l => `
-      <button class="account-menu-item" type="button" data-tutorial="${l.id}" ${(l.soon || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}>
-        <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr(l.titleKey))}</b><small>${escapeHtml(tr(l.descKey))}</small></span></span>
-        ${(l.soon || (l.needs && !flagOpen(l.needs))) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : '')}
+      <button class="account-menu-item" type="button" data-tutorial="${l.id}" ${(l.soon || !lessonPlayable(l) || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}>
+        <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr(l.titleKey))}</b><small>${escapeHtml(lessonPlayable(l) ? tr(l.descKey) : tr('tutoNeedsAccount'))}</small></span></span>
+        ${!lessonPlayable(l) ? `<span class="nav-badge">${escapeHtml(tr('tutoAccountBadge'))}</span>` : (l.soon || (l.needs && !flagOpen(l.needs))) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : '')}
       </button>`).join('') : `<div class="tutorial-menu-empty">${escapeHtml(tr('lessonThemeSoon'))}</div>`);
     }).join('')}`;
 }
@@ -750,7 +757,8 @@ function initTutorialMenuUi() {
     if (!item || item.disabled) return;
     closeMenu();
     const id = item.dataset.tutorial;
-    if (id === 'tour') startBackstageTour(); else startLesson(id);
+    if (id === 'demo') window.location.href = window.location.pathname + '?tuto';
+    else if (id === 'tour') startBackstageTour(); else startLesson(id);
   });
 }
 // Appelée une fois les feux verts connus (fin de renderAdminOnlyPanels) : montre le menu et lance la visite la toute
@@ -774,4 +782,12 @@ function syncBackstageTour() {
     startBackstageTour();
   });
   initTutorialMenuUi();
+})();
+// Mode tutoriel (?tuto) : bandeau « rien n'est enregistré » + bouton Quitter (retour au Backstage normal, sans ?tuto).
+(function initTutoBanner() {
+  if (!isTutoMode()) return;
+  const banner = document.getElementById('tutoBanner');
+  if (!banner) return;
+  banner.hidden = false;
+  document.getElementById('btnTutoQuit').addEventListener('click', () => { window.location.href = window.location.pathname; });
 })();

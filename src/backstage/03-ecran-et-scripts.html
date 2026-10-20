@@ -32,6 +32,11 @@
 <div id="authGateOverlay" data-i18n="authGateCheckingText">Vérification de la session…</div>
 <div id="helpTooltip"></div>
 <div class="page">
+  <!-- Bandeau du mode tutoriel (?tuto) : rappelle que rien n'est enregistré ; affiché par initTutoBanner() (43-visite-guidee.js). -->
+  <div id="tutoBanner" class="tuto-banner" hidden>
+    <span data-i18n="tutoBannerText">Mode tutoriel : rien n'est enregistré.</span>
+    <button class="btn btn-small" id="btnTutoQuit" type="button" data-i18n="tutoQuit">Quitter</button>
+  </div>
   <div id="adminPreviewBanner" class="admin-preview-banner" hidden>
     <span id="adminPreviewBannerLabel"></span>
     <button class="btn btn-small" id="btnAdminPreviewReset" type="button" data-i18n="adminPreviewReset">Revenir en Admin</button>
@@ -920,13 +925,13 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1792506227800"></script>
-<script src="layerpitch-appearance.js?v=1792506227800"></script>
-<script src="layerpitch-album-shared.js?v=1792506227800"></script>
-<script src="layerpitch-album-editor.js?v=1792506227800"></script>
-<script src="layerpitch-shell.js?v=1792506227800"></script>
-<script src="layerpitch-social-icons.js?v=1792506227800"></script>
-<script src="layerpitch-notify.js?v=1792506227800"></script>
-<script src="layerpitch-help.js?v=1792506227800"></script>
-<script src="player.js?v=1792506227800"></script>
+<script src="layerpitch-i18n.js?v=1792510978562"></script>
+<script src="layerpitch-appearance.js?v=1792510978562"></script>
+<script src="layerpitch-album-shared.js?v=1792510978562"></script>
+<script src="layerpitch-album-editor.js?v=1792510978562"></script>
+<script src="layerpitch-shell.js?v=1792510978562"></script>
+<script src="layerpitch-social-icons.js?v=1792510978562"></script>
+<script src="layerpitch-notify.js?v=1792510978562"></script>
+<script src="layerpitch-help.js?v=1792510978562"></script>
+<script src="player.js?v=1792510978562"></script>
 <script>

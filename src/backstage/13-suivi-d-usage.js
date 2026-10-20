@@ -21,6 +21,29 @@ function isModeTest() {
 // Trouvé le 7 septembre en testant la boîte de réception des messages admin (bug indépendant,
 // présent depuis 56ed331 "Ajoute un verrou de connexion sur le backstage compositeur").
 var postgresReadScriptsLoaded = null;
+// MODE TUTORIEL (20/10) : layerpitch-backstage.html?tuto -- le Backstage tourne sur un faux serveur local (api/demo-client.js) :
+// compte fictif, rien n'est lu ni écrit en base, tout est remis à zéro à chaque chargement. Ce sont des FONCTIONS (et non
+// des variables) pour rester utilisables dès le tout premier appel, avant que le script n'ait fini de se dérouler.
+function isTutoMode() { return new URLSearchParams(window.location.search).has('tuto'); }
+// Tant que Jules-Antoine n'a pas ouvert le tutoriel au public : seul un admin connecté pour de vrai peut y entrer.
+// Pour l'ouvrir à tout le monde : faire répondre « true » ici (une seule ligne).
+function tutoPublicOpen() { return false; }
+// Vrai si l'accès est celui d'un admin (tutoriel complet) ; en version publique, seules les leçons marquées « public »
+// sont jouables (les autres restent visibles avec « le tuto complet nécessite un compte »).
+var tutoFullAccess = false;
+// Vérifie, AVANT de passer sur le faux serveur, qu'un vrai admin est connecté (SDK réel + vrai client). Sinon on
+// retourne au Backstage normal (qui renverra vers la connexion si besoin).
+async function tutoAdminGate() {
+  try {
+    const { data } = await window.LayerPitchSupabaseClient.getClient().auth.getSession();
+    if (data && data.session && data.session.user) {
+      const res = await window.LayerPitchSupabaseClient.getClient().rpc('is_admin');
+      if (!res.error && res.data) return true;
+    }
+  } catch (e) { /* traité comme non admin */ }
+  window.location.replace(window.location.pathname);
+  return new Promise(() => {}); // la page s'en va : on ne laisse rien se charger
+}
 function loadPostgresReadScripts() {
   if (postgresReadScriptsLoaded) return postgresReadScriptsLoaded;
   // Même principe que public-page.js (pages publiques) : téléchargement en parallèle mais exécution DANS L'ORDRE
@@ -36,14 +59,26 @@ function loadPostgresReadScripts() {
     './api/subscriptions.js', './api/admin.js', './api/analytics.js', './api/access-requests.js', './api/invites.js',
     './api/notification-prefs.js',
   ];
-  postgresReadScriptsLoaded = Promise.all(srcs.map(src => new Promise((resolve, reject) => {
+  const tuto = isTutoMode();
+  // Mode tutoriel public : pas de SDK Supabase du tout (rien à contacter) ; fermé au public : SDK chargé seulement pour
+  // vérifier qu'un vrai admin entre.
+  const needRealSdk = !tuto || !tutoPublicOpen();
+  const list = (needRealSdk ? srcs : srcs.filter(src => !src.startsWith('http')));
+  if (tuto) list.push('./api/demo-client.js');
+  postgresReadScriptsLoaded = Promise.all(list.map(src => new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = (src.startsWith('http') || !version) ? src : src + '?v=' + version;
     s.async = false;
     s.onload = resolve;
     s.onerror = () => reject(new Error('Échec du chargement de ' + s.src));
     document.head.appendChild(s);
-  })));
+  }))).then(async () => {
+    if (!tuto) return;
+    if (!tutoPublicOpen()) tutoFullAccess = await tutoAdminGate();
+    // Bascule : tous les api/*.js appellent window.LayerPitchSupabaseClient.getClient() à chaque usage, donc cette
+    // seule ligne les met tous sur le faux serveur.
+    window.LayerPitchSupabaseClient = { getClient: () => window.LayerPitchDemoClient };
+  });
   return postgresReadScriptsLoaded;
 }
 // Retourne exactement la même forme que le data.json parsé (voir api/site-data.js) — null si aucun

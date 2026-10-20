@@ -204,6 +204,8 @@ document.getElementById('btnPreview').addEventListener('click', () => {
   openPreview(`./index.html?preview=1${adreelParam}&lang=${currentLang()}`);
 });
 async function publishAll() {
+  // Mode tutoriel : rien ne part vers le serveur. Le geste est joué (la leçon avance), un message explique.
+  if (isTutoMode()) { window.LayerPitchNotify.info(tr('tutoSaveSimulated')); return; }
   // Garde-fou (29/08, défense en profondeur -- le bouton est déjà désactivé dans ce cas, voir loadData(),
   // mais on protège aussi la fonction elle-même contre un déclenchement par un autre chemin). Scénario réel
   // vécu par Jules-Antoine : échec du chargement initial (403), puis clic sur Publier en mode panique,

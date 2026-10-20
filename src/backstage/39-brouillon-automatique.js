@@ -11,7 +11,7 @@ let loadedPublishedAt = null;  // date de publication du catalogue chargé (dét
 const DRAFT_DB_NAME = 'layerpitch-backstage-drafts';
 const DRAFT_SAVE_EVERY_MS = 3000;
 let draftDbPromise = null;
-let draftDisabled = false;     // IndexedDB indisponible (navigation privée…) : on n'insiste pas
+let draftDisabled = isTutoMode(); // IndexedDB indisponible (navigation privée…) : on n'insiste pas ; mode tutoriel : jamais de brouillon (tout repart de zéro)
 let draftDecisionPending = true; // pas d'écriture avant la décision « reprendre / ignorer » du chargement
 let draftSaving = false, draftLastJson = null;
 const draftFileIds = new WeakMap(); // fichier -> identifiant stable dans le brouillon (rangé une seule fois)
