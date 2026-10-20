@@ -213,13 +213,6 @@ function lessonDetourReady() { return lessonStepFileNames({ names: 'embrDetour' 
 const HINTS_DIALOG_STEP = { selector: '.vrs-batch-overlay .vrs-batch-modal', titleKey: 'lsHintsTitle', textKey: 'lsHintsText',
   skip: () => !document.querySelector('.vrs-batch-overlay'),
   done: () => !document.querySelector('.vrs-batch-overlay') };
-const CLEANUP_STEPS = [
-  { selector: '#libraryDetail [data-action="remove-track"]', titleKey: 'lcDelTitle', textKey: 'lcDelText', keepTrack: true,
-    enter: (c) => { const t = lessonTrack(); c.cleanupId = t ? t.id : null; },
-    done: (c) => !!c.cleanupId && !library.some(t => t.id === c.cleanupId) },
-  { selector: '#btnPublish', titleKey: 'lcSaveTitle', textKey: 'lcSaveText', clickDone: true,
-    skip: (c) => !c || !c.cleanupId || library.some(t => t.id === c.cleanupId) },
-];
 // Thèmes du menu « Tutoriel » : les leçons y sont regroupées. `public` (sur une leçon) = ouverte dans la version sans compte
 // (mode démo) ; les autres y restent visibles avec la mention « nécessite un compte ». Un thème sans leçon s'affiche « bientôt ».
 // Vidéo du bloc vidéo de la leçon AdReel : la même que celle de la leçon « Versioning » (gameplay d'« Alone in the Barque »). Lien à fournir par
@@ -254,7 +247,6 @@ const LESSONS = [
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText', arrow: { bar: 31 } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
-    ...CLEANUP_STEPS,
     { titleKey: 'lsEndTitle', textKey: 'lsEndText', final: true },
   ] },
   { id: 'embranchement', theme: 'engine', public: true, titleKey: 'lessonEmbrTitle', descKey: 'lessonEmbrDesc', steps: [
@@ -291,7 +283,6 @@ const LESSONS = [
     { selector: '#libraryDetail .row:has([data-embr-loop-field="bars"])', titleKey: 'ldSetTitle', textKey: 'ldSetText', skip: () => !lessonDetourReady() },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'leListenTitle', textKey: 'leListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
-    ...CLEANUP_STEPS,
     { titleKey: 'leEndTitle', textKey: 'leEndText', final: true },
   ] },
   { id: 'additive', theme: 'engine', public: true, titleKey: 'lessonAdditiveTitle', descKey: 'lessonAdditiveDesc', steps: [
@@ -347,7 +338,6 @@ const LESSONS = [
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'laListenTitle', textKey: 'laListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#libraryDetail [data-role="previewHost"]', titleKey: 'laIntensityTitle', textKey: 'laIntensityText' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
-    ...CLEANUP_STEPS,
     { titleKey: 'laEndTitle', textKey: 'laEndText', final: true },
   ] },
   { id: 'random', theme: 'engine', public: true, titleKey: 'lessonRandomTitle', descKey: 'lessonRandomDesc', steps: [
@@ -373,7 +363,6 @@ const LESSONS = [
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lrPointsTitle', textKey: 'lrPointsText' },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lrListenTitle', textKey: 'lrListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
-    ...CLEANUP_STEPS,
     { titleKey: 'lrEndTitle', textKey: 'lrEndText', final: true },
   ] },
   { id: 'sequential', theme: 'engine', public: true, titleKey: 'lessonSequentialTitle', descKey: 'lessonSequentialDesc', steps: [
@@ -409,7 +398,6 @@ const LESSONS = [
     { selector: '#libraryDetail select[data-field="maxChainLoops"]', titleKey: 'lqCyclesTitle', textKey: 'lqCyclesText' },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lqListenTitle', textKey: 'lqListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
-    ...CLEANUP_STEPS,
     { titleKey: 'lqEndTitle', textKey: 'lqEndText', final: true },
   ] },
   { id: 'branching', theme: 'engine', public: true, titleKey: 'lessonBranchingTitle', descKey: 'lessonBranchingDesc', steps: [
@@ -455,7 +443,6 @@ const LESSONS = [
       done: (c) => library.length > c.baseLen },
     { selector: '#libraryMaster', titleKey: 'lfDraftTitle', textKey: 'lfDraftText', skip: () => !flagOpen('bulk_drop') },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
-    ...CLEANUP_STEPS,
     { titleKey: 'lbEndTitle', textKey: 'lbEndText', final: true },
   ] },
   // Leçon « Créer un AdReel » (20/10) : se joue dans le Backstage du mode tutoriel, bibliothèque d'exemple préchargée (api/demo-client.js,
