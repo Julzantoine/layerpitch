@@ -938,6 +938,7 @@
   .tour-sample { display: block; font-size: 12.5px; margin: -4px 0 12px; }
   .tour-sample-soon { color: var(--text-dimmer); }
   .tutorial-menu-heading { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); padding: 6px 10px 2px; }
+  .tutorial-menu-empty { font-size: 12px; color: var(--text-dimmer); padding: 2px 10px 8px; }
   .tutorial-menu-text { display: flex; flex-direction: column; gap: 2px; }
   .tutorial-menu-text small { font-size: 11.5px; color: var(--text-dim); font-weight: 400; }
   .tour-root-lesson .tour-card { width: 380px; }
