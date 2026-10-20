@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792530002191">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792530885332">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1869,16 +1869,16 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1792530002191"></script>
-<script src="layerpitch-appearance.js?v=1792530002191"></script>
-<script src="layerpitch-album-shared.js?v=1792530002191"></script>
-<script src="layerpitch-album-editor.js?v=1792530002191"></script>
-<script src="layerpitch-shell.js?v=1792530002191"></script>
-<script src="layerpitch-social-icons.js?v=1792530002191"></script>
-<script src="layerpitch-notify.js?v=1792530002191"></script>
-<script src="layerpitch-guide.js?v=1792530002191"></script>
-<script src="layerpitch-help.js?v=1792530002191"></script>
-<script src="player.js?v=1792530002191"></script>
+<script src="layerpitch-i18n.js?v=1792530885332"></script>
+<script src="layerpitch-appearance.js?v=1792530885332"></script>
+<script src="layerpitch-album-shared.js?v=1792530885332"></script>
+<script src="layerpitch-album-editor.js?v=1792530885332"></script>
+<script src="layerpitch-shell.js?v=1792530885332"></script>
+<script src="layerpitch-social-icons.js?v=1792530885332"></script>
+<script src="layerpitch-notify.js?v=1792530885332"></script>
+<script src="layerpitch-guide.js?v=1792530885332"></script>
+<script src="layerpitch-help.js?v=1792530885332"></script>
+<script src="player.js?v=1792530885332"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -15193,6 +15193,9 @@ const CLEANUP_STEPS = [
 ];
 // Thèmes du menu « Tutoriel » : les leçons y sont regroupées. `public` (sur une leçon) = ouverte dans la version sans compte
 // (mode démo) ; les autres y restent visibles avec la mention « nécessite un compte ». Un thème sans leçon s'affiche « bientôt ».
+// Vidéo du bloc vidéo de la leçon AdReel : la même que celle de la leçon « Versioning » (gameplay d'« Alone in the Barque »). Lien à fournir par
+// Jules-Antoine ; tant qu'il manque, l'étape « colle le lien » est sautée.
+const LESSON_ADREEL_VIDEO = { title: 'Gameplay d’Alone in the Barque : traversée du ponton à la cabane', url: '' };
 const LESSON_THEMES = [
   { id: 'engine', titleKey: 'lessonThemeEngine' },
   { id: 'pitch', titleKey: 'lessonThemePitch' },
@@ -15433,24 +15436,32 @@ const LESSONS = [
     { titleKey: 'laWelcomeTitle', textKey: 'laWelcomeText' },
     { selector: '#btnAddAdReel', titleKey: 'laNewTitle', textKey: 'laNewText', clickDone: true },
     { selector: '#newAdReelLabel', titleKey: 'laNameTitle', textKey: 'laNameText', done: () => { const i = document.getElementById('newAdReelLabel'); return !!i && i.value.trim().length > 2; },
-      drops: [{ kind: 'text', label: 'AdReel pour le studio Barque', value: 'AdReel pour le studio Barque' }] },
+      drops: [{ kind: 'text', label: 'Alone in the Barque : pitch musical', value: 'Alone in the Barque : pitch musical' }] },
     { selector: '#newAdReelOk', titleKey: 'laCreateTitle', textKey: 'laCreateText', done: () => currentAdReelId !== 'main' && adReels.length >= 2 },
     { selector: '#btnToggleCollapseAllBlocks', titleKey: 'laOpenTitle', textKey: 'laOpenText', done: () => !!document.querySelector('.block-editor-body:not(.collapsed)') },
     { selector: '.block-editor-card[data-type="header"] [data-role="title"]', titleKey: 'laHeaderTitleTitle', textKey: 'laHeaderTitleText', done: () => (profile.title || '').trim().length > 2,
-      drops: [{ kind: 'text', label: 'Daniel Orcman, compositeur de musiques de jeu', value: 'Daniel Orcman, compositeur de musiques de jeu' }] },
+      drops: [{ kind: 'text', label: 'Alone in the Barque', value: 'Alone in the Barque' }] },
     { selector: '.block-editor-card[data-type="header"] [data-role="subtitle"]', titleKey: 'laHeaderSubTitle', textKey: 'laHeaderSubText', done: () => (profile.subtitle || '').trim().length > 2,
-      drops: [{ kind: 'text', label: 'Musique interactive pour jeux d’horreur et d’ambiance', value: 'Musique interactive pour jeux d’horreur et d’ambiance' }] },
+      drops: [{ kind: 'text', label: 'Un jeu d’horreur lacustre. Musique interactive par Daniel Orcman.', value: 'Un jeu d’horreur lacustre. Musique interactive par Daniel Orcman.' }] },
     { selector: '.block-editor-card[data-type="bio"] [data-role="bioText"]', titleKey: 'laBioTitle', textKey: 'laBioText', done: () => (profile.bio || '').trim().length > 5,
-      drops: [{ kind: 'text', label: 'Je compose des musiques qui réagissent au jeu : couches, transitions, silences.', value: 'Je compose des musiques qui réagissent au jeu : couches, transitions, silences.' }] },
+      drops: [{ kind: 'text', label: 'Quatre zones, une menace qui se rapproche : la musique réagit à la distance du monstre, et se tait à la cabane.', value: 'Quatre zones, une menace qui se rapproche : la musique réagit à la distance du monstre, et se tait à la cabane.' }] },
     { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack1Title', textKey: 'laTrack1Text', done: () => trackIds.length >= 1 },
     { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack2Title', textKey: 'laTrack2Text', done: () => trackIds.length >= 2 },
     // Mise en page : explication, sans geste obligatoire (le glisser-déposer des blocs marche à la souris, pas toujours au doigt).
     { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'laReorderTitle', textKey: 'laReorderText' },
     { selector: '#btnAddText', titleKey: 'laAddTextTitle', textKey: 'laAddTextText', clickDone: true, done: () => blocks.some(b => b.type === 'text') },
     { selector: '.block-editor-card[data-type="text"] [data-role="title"]', titleKey: 'laTextTitleTitle', textKey: 'laTextTitleText', done: () => blocks.some(b => b.type === 'text' && (b.title || '').trim().length > 2),
-      drops: [{ kind: 'text', label: 'Ce que j’apporte à un studio', value: 'Ce que j’apporte à un studio' }] },
+      drops: [{ kind: 'text', label: 'Direction sonore', value: 'Direction sonore' }] },
     { selector: '.block-editor-card[data-type="text"] [data-role="content"]', titleKey: 'laTextBodyTitle', textKey: 'laTextBodyText', done: () => blocks.some(b => b.type === 'text' && (b.content || '').trim().length > 5),
-      drops: [{ kind: 'text', label: 'Des boucles propres, des transitions prêtes, et un silence quand il le faut.', value: 'Des boucles propres, des transitions prêtes, et un silence quand il le faut.' }] },
+      drops: [{ kind: 'text', label: 'Le silence fait partie de la musique : refuge = feu de bois et un accord de piano.', value: 'Le silence fait partie de la musique : refuge = feu de bois et un accord de piano.' }] },
+    // Bloc vidéo : la vidéo de gameplay de la leçon « Versioning » (lien à fournir : LESSON_ADREEL_VIDEO ; l'étape du lien est sautée tant qu'il manque).
+    { selector: '#btnAddVideoBlock', titleKey: 'laAddVideoTitle', textKey: 'laAddVideoText', clickDone: true, done: () => blocks.some(b => b.type === 'video') },
+    { selector: '.block-editor-card[data-type="video"] [data-role="addBtn"]', titleKey: 'laVideoItemTitle', textKey: 'laVideoItemText', clickDone: true, done: () => blocks.some(b => b.type === 'video' && (b.videos || []).length >= 1) },
+    { selector: '.block-editor-card[data-type="video"] [data-field="title"]', titleKey: 'laVideoNameTitle', textKey: 'laVideoNameText', done: () => blocks.some(b => b.type === 'video' && (b.videos || []).some(v => (v.title || '').trim().length > 2)),
+      drops: [{ kind: 'text', label: LESSON_ADREEL_VIDEO.title, value: LESSON_ADREEL_VIDEO.title }] },
+    { selector: '.block-editor-card[data-type="video"] [data-field="url"]', titleKey: 'laVideoLinkTitle', textKey: 'laVideoLinkText', skip: () => !LESSON_ADREEL_VIDEO.url,
+      done: () => blocks.some(b => b.type === 'video' && (b.videos || []).some(v => (v.url || '').trim().length > 5)),
+      drops: LESSON_ADREEL_VIDEO.url ? [{ kind: 'link', label: LESSON_ADREEL_VIDEO.title, value: LESSON_ADREEL_VIDEO.url }] : [] },
     { selector: '.nav-item[data-tab="appearance"]', titleKey: 'laAppearanceTitle', textKey: 'laAppearanceText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
     { selector: () => document.querySelector('#themeProQuickStartGallery button, #appThemeFreeGallery button'), titleKey: 'laThemeTitle', textKey: 'laThemeText', clickDone: true },
     { selector: '.nav-item[data-tab="content"]', titleKey: 'laBackTitle', textKey: 'laBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
