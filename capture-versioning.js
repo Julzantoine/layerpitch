@@ -33,7 +33,7 @@
   const api = {
     list: captureId => rpc('list_video_capture_versions', { p_capture_id: captureId }),
     save: (id, captureId, title, subs) => rpc('save_video_capture_version', { p_id: id, p_capture_id: captureId, p_title: title || '', p_substitutions: subs }),
-    setExport: (id, videoId, cues) => rpc('set_video_capture_version_export', { p_id: id, p_video_id: videoId, p_cues: cues || null }),
+    setExport: (id, videoId, cues, keepOld) => rpc('set_video_capture_version_export', { p_id: id, p_video_id: videoId, p_cues: cues || null, p_keep_old: keepOld !== false }),
     remove: id => rpc('delete_video_capture_version', { p_id: id }),
   };
   // Fonctions serveur absentes : la migration n'a pas encore été appliquée.
@@ -198,7 +198,8 @@
           if (toLibrary && mode !== 'audio') {
             label(tr('captureAddingToLibrary'));
             const videoId = await ctx.saveToLibrary(blob, title);
-            await store.setExport(v.id, videoId, ctx.cuesOf ? ctx.cuesOf(events) : null); // vidéo + étiquettes : tous les endroits qui montrent ce montage suivent
+            const res = await store.setExport(v.id, videoId, ctx.cuesOf ? ctx.cuesOf(events) : null, ctx.keepOld ? ctx.keepOld() : true); // vidéo + étiquettes : tous les endroits qui montrent ce montage suivent
+            if (ctx.afterExport) ctx.afterExport(res && res.data); // historique (3 derniers) et fichiers à effacer
             v.lastExportVideoId = videoId;
           }
           done++;

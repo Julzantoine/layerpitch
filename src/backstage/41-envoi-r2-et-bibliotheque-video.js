@@ -232,6 +232,28 @@ async function renderVideoLibrary() {
   quotaEl.textContent = quotaGb == null
     ? tr('videoLibraryQuotaUnlimited', { used: usedGb })
     : tr('videoLibraryQuotaHint', { used: usedGb, quota: quotaGb });
+  renderVideoHistoryCleanup(quotaGb != null && Number(usedGb) >= quotaGb * 0.9);
+}
+
+// Nettoyage des historiques d'exports (21/10, migration 20261021030000) : chaque montage et chaque version garde ses 3 dernières vidéos
+// remplacées ; quand le quota approche, un bouton les efface toutes d'un coup (les vidéos affichées et celles placées à la main dans un
+// AdReel ne sont jamais touchées).
+async function renderVideoHistoryCleanup(nearQuota) {
+  const el = document.getElementById('videoLibraryHistory');
+  if (!el) return;
+  const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('my_video_history_usage');
+  if (error || !data || !data.count) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = `<span>${escapeHtml(tr(nearQuota ? 'videoHistoryNearQuota' : 'videoHistoryUsage', { n: data.count, size: formatVideoBytes(Number(data.bytes)) }))}</span>
+    <button type="button" class="btn btn-small${nearQuota ? ' btn-primary' : ''}" id="btnClearVideoHistory">${escapeHtml(tr('videoHistoryClearBtn'))}</button>`;
+  document.getElementById('btnClearVideoHistory').onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('videoHistoryClearConfirm'), { danger: true }))) return;
+    const res = await window.LayerPitchSupabaseClient.getClient().rpc('clear_video_export_history');
+    if (res.error) { window.LayerPitchNotify.error(tr('videoLibraryDeleteFailed', { error: res.error.message })); return; }
+    ((res.data && res.data.removed) || []).forEach(r => r2DeleteFileLogged(r.path));
+    window.LayerPitchNotify.info(tr('videoHistoryCleared', { n: ((res.data && res.data.removed) || []).length }));
+    renderVideoLibrary();
+  };
 }
 
 async function deleteLibraryVideo(id, knownVideos) {

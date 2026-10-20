@@ -340,3 +340,7 @@
   .cookie-reopen { position: fixed; left: 20px; bottom: 20px; z-index: 190; display: inline-flex; align-items: center; gap: 7px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px 8px 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); cursor: pointer; box-shadow: 0 4px 14px rgba(20,18,14,0.1); }
   .cookie-reopen[hidden] { display: none; }
   .cookie-reopen:hover { color: var(--text); border-color: var(--text-dimmer); }
+  /* Historique des exports d'un montage (21/10) */
+  .video-capture-history { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .video-capture-history[hidden] { display: none; }
+  .video-capture-history-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }

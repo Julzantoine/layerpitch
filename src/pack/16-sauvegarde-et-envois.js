@@ -96,6 +96,16 @@ async function r2PutFile(key, bytes, contentType) {
     throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
   }
 }
+// Efface du stockage les fichiers des vidéos retirées de la bibliothèque par l'historique des exports (21/10, migration 20261021030000) :
+// le serveur rend leurs chemins, la page les efface (même URL signée que la bibliothèque du Backstage). Jamais bloquant.
+async function r2DeleteRemovedVideos(removed) {
+  for (const r of (removed || [])) {
+    try {
+      const data = await r2SignedUrl(r.path, 'DELETE');
+      if (data && data.url && !data.kept) await fetch(data.url, { method: 'DELETE' });
+    } catch (e) { console.warn('Effacement du fichier ' + r.path + ' :', e.message || e); }
+  }
+}
 // Envoie un export terminé (Blob mp4) dans la bibliothèque vidéo du compositeur -- kind:'capture_export'
 // pour le distinguer d'un simple import (voir composer_videos.kind), pack_id relie l'export à CE pack.
 // Pas de recompression ffmpeg ici (contrairement à un import dans le Backstage) : le fichier sort déjà

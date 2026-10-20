@@ -71,8 +71,10 @@ function openCapturePanel(file, opts) {
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportCopyBtn" disabled title="${tr('captureExportCopyHelp')}">${tr('captureExportCopyBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureUpdateEverywhereBtn" title="${tr('captureUpdateEverywhereHelp')}">${tr('captureUpdateEverywhereBtn')}</button>
+      <label class="video-capture-count" style="display:inline-flex;align-items:center;gap:4px" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
+    <div class="video-capture-history" id="videoCaptureHistory" hidden></div>
     <div class="video-capture-bar">
       <input type="text" class="video-capture-title-input" id="videoCaptureTitleInput" placeholder="${tr('captureTitleInputPlaceholder')}">
       <button type="button" class="video-capture-download-btn" id="videoCaptureSaveBtn" disabled>${tr('captureSaveBtn')}</button>
@@ -110,6 +112,32 @@ function openCapturePanel(file, opts) {
   }
   const addToLibraryBtn = document.getElementById('videoCaptureAddToLibraryBtn');
   const updateEverywhereBtn = document.getElementById('videoCaptureUpdateEverywhereBtn');
+  const keepOldCheckbox = document.getElementById('videoCaptureKeepOld');
+  const historyEl = document.getElementById('videoCaptureHistory');
+  // Historique des exports du montage (21/10, migration 20261021030000) : les 3 dernières vidéos remplacées, du montage et de ses
+  // versions, avec « Revenir à celle-ci » (elle redevient la vidéo affichée partout).
+  async function renderExportHistory() {
+    if (!savedCaptureId || versioningLevelForHistory() !== 'saved') { historyEl.hidden = true; return; }
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_video_export_history', { p_capture_id: savedCaptureId });
+    if (error || !data || !data.length) { historyEl.hidden = true; historyEl.innerHTML = ''; return; }
+    historyEl.hidden = false;
+    historyEl.innerHTML = `<div class="video-capture-count">${tr('captureHistoryTitle')}</div>` + data.map(h => `
+      <div class="video-capture-history-row"><span>${new Date(h.createdAt).toLocaleString()}${h.versionId ? ' · ' + tr('captureHistoryVersion') : ' · ' + tr('captureHistoryMontage')}${h.sizeBytes ? ' · ' + (h.sizeBytes / 1048576).toFixed(1) + ' Mo' : ''}</span>
+        <a class="video-capture-download-btn" href="${h.url}" target="_blank" rel="noopener">${tr('captureHistoryView')}</a>
+        <button type="button" class="video-capture-download-btn" data-restore="${h.id}">${tr('captureHistoryRestore')}</button></div>`).join('');
+  }
+  const versioningLevelForHistory = () => window.__lpVersioningLevel || 'saved';
+  historyEl.addEventListener('click', async e => {
+    const b = e.target.closest('[data-restore]');
+    if (!b) return;
+    b.disabled = true;
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('restore_video_export', { p_history_id: Number(b.dataset.restore) });
+    if (error) { exportStatus.textContent = tr('captureExportFailed').replace('{error}', error.message); b.disabled = false; return; }
+    await r2DeleteRemovedVideos(data && data.removed);
+    exportStatus.textContent = tr('captureHistoryRestored');
+    if (versioning) versioning.refresh();
+    renderExportHistory();
+  });
   const exportStatus = document.getElementById('videoCaptureExportStatus');
   const additiveLabel = document.getElementById('videoCaptureAdditiveLabel');
   const additiveCheckbox = document.getElementById('videoCaptureAdditiveCheckbox');
@@ -304,7 +332,8 @@ function openCapturePanel(file, opts) {
       // Montage sauvegardé : il retient sa vidéo (21/10, migration 20261021010000), pour que le bloc vidéo d'un AdReel la propose parmi
       // les versions du montage. Jamais bloquant : sans la migration, ou sur un montage non sauvegardé, le lien n'est simplement pas posé.
       // Étiquettes (21/10, migration 20261021020000) rangées avec la vidéo : l'étiquette du lecteur public suit ce qui joue.
-      if (savedCaptureId && videoId) window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides) }).then(() => {}, () => {});
+      if (savedCaptureId && videoId) window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides), p_keep_old: keepOldCheckbox.checked })
+        .then(({ data }) => { r2DeleteRemovedVideos(data && data.removed); renderExportHistory(); }, () => {});
       exportStatus.textContent = tr('captureAddedToLibrary');
       addToLibraryBtn.hidden = true; // évite un second envoi du même export
     } catch (e) {
@@ -326,9 +355,11 @@ function openCapturePanel(file, opts) {
       const blob = await exportCaptureVideo(lastEvents, file, (msg) => { exportStatus.textContent = msg; }, laneOverrides, exportOptions);
       exportStatus.textContent = tr('captureAddingToLibrary');
       const videoId = await saveExportToVideoLibrary(blob, packId, titleInput.value, videoEl.duration || null);
-      const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides) });
+      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides), p_keep_old: keepOldCheckbox.checked });
       if (error) throw error;
+      await r2DeleteRemovedVideos(data && data.removed); // exports trop anciens (au-delà de 3) ou ancienne vidéo non gardée
       exportStatus.textContent = tr('captureUpdatedEverywhere');
+      renderExportHistory();
     } catch (e) {
       console.error(e);
       exportStatus.textContent = tr('captureExportFailed').replace('{error}', e.message);
@@ -349,7 +380,7 @@ function openCapturePanel(file, opts) {
       await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups);
       saveStatus.textContent = tr('captureSaved');
       refreshLoadOptions();
-      if (savedCaptureId !== currentCaptureId) { savedCaptureId = currentCaptureId; if (versioning) versioning.refresh(); }
+      if (savedCaptureId !== currentCaptureId) { savedCaptureId = currentCaptureId; if (versioning) versioning.refresh(); renderExportHistory(); }
     } catch (e) {
       console.error(e);
       saveStatus.textContent = tr('captureSaveFailed').replace('{error}', e.message);
@@ -361,6 +392,7 @@ function openCapturePanel(file, opts) {
   function applyLoadedCapture(capture) {
     currentCaptureId = capture.id;
     savedCaptureId = capture.id;
+    setTimeout(renderExportHistory, 0); // historique des exports de ce montage
     lastEvents = capture.events || [];
     laneOverrides = capture.laneOverrides || {};
     collapsedGroups = capture.collapsedGroups || {};
@@ -430,6 +462,8 @@ function openCapturePanel(file, opts) {
       exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
       cuesOf: (events) => buildCaptureCues(events, laneOverrides), // étiquettes rangées avec la vidéo d'une version (21/10)
+      keepOld: () => keepOldCheckbox.checked, // garder ou non l'ancienne vidéo d'une version dans l'historique
+      afterExport: (result) => { r2DeleteRemovedVideos(result && result.removed); renderExportHistory(); },
       // « Détacher » : la version devient un montage indépendant (sauvegardé tout de suite), ouvert à la place de celui-ci.
       detach: async (events, title) => {
         const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
