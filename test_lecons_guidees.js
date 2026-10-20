@@ -185,6 +185,17 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('bulle : saisie puis déplacement suivent la souris', mv.moved === true && mv.pos.left === '400px' && mv.pos.top === '270px');
   check('bulle : la position est conservée tant qu’on reste sur l’étape', mv.kept.left === '400px' && mv.kept.top === '270px');
   check('bulle : retour au placement automatique à l’étape suivante', mv.resetOnNext === false);
+  // Thèmes du menu et leçons publiques (version sans compte).
+  const th = w.eval(`(function () {
+    const ids = LESSON_THEMES.map(t => t.id);
+    return { ids, allThemed: LESSONS.every(l => ids.includes(l.theme)), pub: LESSONS.filter(lessonIsPublic).map(l => l.id) };
+  })()`);
+  check('3 thèmes : moteur audio, pitch, préproduction', th.ids.join() === 'engine,pitch,preprod');
+  check('chaque leçon appartient à un thème', th.allThemed === true);
+  check('leçons publiques : statique, embranchement, couches', th.pub.join() === 'static,embranchement,additive');
+  w.eval(`myFlags = { in_app_lessons: true }; renderTutorialMenu();`);
+  const heads = [...w.document.querySelectorAll('#tutorialMenuList .tutorial-menu-heading')].map(x => x.textContent).join('|');
+  check('menu : leçons groupées par thème (Moteur audio, Pitch, Préproduction)', /Moteur audio/.test(heads) && /Pitch/.test(heads) && /Préproduction/.test(heads));
   // Échap quitte.
   w.eval(`guide.index = 7; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));

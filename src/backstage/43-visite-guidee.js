@@ -217,8 +217,16 @@ const CLEANUP_STEPS = [
   { selector: '#btnPublish', titleKey: 'lcSaveTitle', textKey: 'lcSaveText', clickDone: true,
     skip: (c) => !c || !c.cleanupId || library.some(t => t.id === c.cleanupId) },
 ];
+// Thèmes du menu « Tutoriel » : les leçons y sont regroupées. `public` (sur une leçon) = ouverte dans la version sans compte
+// (mode démo) ; les autres y restent visibles avec la mention « nécessite un compte ». Un thème sans leçon s'affiche « bientôt ».
+const LESSON_THEMES = [
+  { id: 'engine', titleKey: 'lessonThemeEngine' },
+  { id: 'pitch', titleKey: 'lessonThemePitch' },
+  { id: 'preprod', titleKey: 'lessonThemePreprod' },
+];
+function lessonIsPublic(lesson) { return !!(lesson && lesson.public); }
 const LESSONS = [
-  { id: 'static', titleKey: 'lessonStaticTitle', descKey: 'lessonStaticDesc', steps: [
+  { id: 'static', theme: 'engine', public: true, titleKey: 'lessonStaticTitle', descKey: 'lessonStaticDesc', steps: [
     // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
     { titleKey: 'lsWelcomeTitle', textKey: 'lsWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
@@ -243,7 +251,7 @@ const LESSONS = [
     ...CLEANUP_STEPS,
     { titleKey: 'lsEndTitle', textKey: 'lsEndText', final: true },
   ] },
-  { id: 'embranchement', titleKey: 'lessonEmbrTitle', descKey: 'lessonEmbrDesc', steps: [
+  { id: 'embranchement', theme: 'engine', public: true, titleKey: 'lessonEmbrTitle', descKey: 'lessonEmbrDesc', steps: [
     // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
     { titleKey: 'leWelcomeTitle', textKey: 'leWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
@@ -280,7 +288,7 @@ const LESSONS = [
     ...CLEANUP_STEPS,
     { titleKey: 'leEndTitle', textKey: 'leEndText', final: true },
   ] },
-  { id: 'additive', titleKey: 'lessonAdditiveTitle', descKey: 'lessonAdditiveDesc', steps: [
+  { id: 'additive', theme: 'engine', public: true, titleKey: 'lessonAdditiveTitle', descKey: 'lessonAdditiveDesc', steps: [
     // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
     { titleKey: 'laWelcomeTitle', textKey: 'laWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
@@ -336,7 +344,7 @@ const LESSONS = [
     ...CLEANUP_STEPS,
     { titleKey: 'laEndTitle', textKey: 'laEndText', final: true },
   ] },
-  { id: 'random', titleKey: 'lessonRandomTitle', descKey: 'lessonRandomDesc', steps: [
+  { id: 'random', theme: 'engine', public: false, titleKey: 'lessonRandomTitle', descKey: 'lessonRandomDesc', steps: [
     // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
     { titleKey: 'lrWelcomeTitle', textKey: 'lrWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
@@ -362,7 +370,7 @@ const LESSONS = [
     ...CLEANUP_STEPS,
     { titleKey: 'lrEndTitle', textKey: 'lrEndText', final: true },
   ] },
-  { id: 'sequential', titleKey: 'lessonSequentialTitle', descKey: 'lessonSequentialDesc', steps: [
+  { id: 'sequential', theme: 'engine', public: false, titleKey: 'lessonSequentialTitle', descKey: 'lessonSequentialDesc', steps: [
     // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
     { titleKey: 'lqWelcomeTitle', textKey: 'lqWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
@@ -398,7 +406,7 @@ const LESSONS = [
     ...CLEANUP_STEPS,
     { titleKey: 'lqEndTitle', textKey: 'lqEndText', final: true },
   ] },
-  { id: 'branching', titleKey: 'lessonBranchingTitle', descKey: 'lessonBranchingDesc', steps: [
+  { id: 'branching', theme: 'engine', public: false, titleKey: 'lessonBranchingTitle', descKey: 'lessonBranchingDesc', steps: [
     // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
     { titleKey: 'lbWelcomeTitle', textKey: 'lbWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
@@ -712,11 +720,14 @@ function renderTutorialMenu() {
     </button>
     <div class="account-menu-sep"></div>
     <div class="tutorial-menu-heading">${escapeHtml(tr('tutorialLessonsHeading'))}</div>
-    ${LESSONS.map(l => `
+    ${LESSON_THEMES.map(th => {
+      const items = LESSONS.filter(l => l.theme === th.id);
+      return `<div class="tutorial-menu-heading">${escapeHtml(tr(th.titleKey))}</div>` + (items.length ? items.map(l => `
       <button class="account-menu-item" type="button" data-tutorial="${l.id}" ${(l.soon || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}>
         <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr(l.titleKey))}</b><small>${escapeHtml(tr(l.descKey))}</small></span></span>
         ${(l.soon || (l.needs && !flagOpen(l.needs))) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : '')}
-      </button>`).join('')}`;
+      </button>`).join('') : `<div class="tutorial-menu-empty">${escapeHtml(tr('lessonThemeSoon'))}</div>`);
+    }).join('')}`;
 }
 function initTutorialMenuUi() {
   const btn = document.getElementById('btnTutorialMenu');
