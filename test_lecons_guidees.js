@@ -188,11 +188,11 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   // Thèmes du menu et leçons publiques (version sans compte).
   const th = w.eval(`(function () {
     const ids = LESSON_THEMES.map(t => t.id);
-    return { ids, allThemed: LESSONS.every(l => ids.includes(l.theme)), pub: LESSONS.filter(lessonIsPublic).map(l => l.id) };
+    return { ids, allThemed: LESSONS.every(l => ids.includes(l.theme)), pub: LESSONS.filter(lessonIsPublic).map(l => l.id), total: LESSONS.length };
   })()`);
   check('3 thèmes : moteur audio, pitch, préproduction', th.ids.join() === 'engine,pitch,preprod');
   check('chaque leçon appartient à un thème', th.allThemed === true);
-  check('leçons publiques : statique, embranchement, couches', th.pub.join() === 'static,embranchement,additive');
+  check('toutes les leçons sont ouvertes sans compte (le tutoriel se joue toujours en mode sans compte)', th.pub.length === th.total);
   w.eval(`myFlags = { in_app_lessons: true }; renderTutorialMenu();`);
   const heads = [...w.document.querySelectorAll('#tutorialMenuList .tutorial-menu-heading')].map(x => x.textContent).join('|');
   check('menu : leçons groupées par thème (moteur audio, AdReel, préproduction)', /moteur audio : uploader de la musique interactive/.test(heads) && /Créer un AdReel : envoyer de la musique à un studio/.test(heads) && /espace de travail conjoint studio\/compositeur/.test(heads));

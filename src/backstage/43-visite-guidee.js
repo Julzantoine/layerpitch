@@ -347,7 +347,7 @@ const LESSONS = [
     ...CLEANUP_STEPS,
     { titleKey: 'laEndTitle', textKey: 'laEndText', final: true },
   ] },
-  { id: 'random', theme: 'engine', public: false, titleKey: 'lessonRandomTitle', descKey: 'lessonRandomDesc', steps: [
+  { id: 'random', theme: 'engine', public: true, titleKey: 'lessonRandomTitle', descKey: 'lessonRandomDesc', steps: [
     // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
     { titleKey: 'lrWelcomeTitle', textKey: 'lrWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
@@ -373,7 +373,7 @@ const LESSONS = [
     ...CLEANUP_STEPS,
     { titleKey: 'lrEndTitle', textKey: 'lrEndText', final: true },
   ] },
-  { id: 'sequential', theme: 'engine', public: false, titleKey: 'lessonSequentialTitle', descKey: 'lessonSequentialDesc', steps: [
+  { id: 'sequential', theme: 'engine', public: true, titleKey: 'lessonSequentialTitle', descKey: 'lessonSequentialDesc', steps: [
     // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
     { titleKey: 'lqWelcomeTitle', textKey: 'lqWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
@@ -409,7 +409,7 @@ const LESSONS = [
     ...CLEANUP_STEPS,
     { titleKey: 'lqEndTitle', textKey: 'lqEndText', final: true },
   ] },
-  { id: 'branching', theme: 'engine', public: false, titleKey: 'lessonBranchingTitle', descKey: 'lessonBranchingDesc', steps: [
+  { id: 'branching', theme: 'engine', public: true, titleKey: 'lessonBranchingTitle', descKey: 'lessonBranchingDesc', steps: [
     // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
     { titleKey: 'lbWelcomeTitle', textKey: 'lbWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
@@ -455,14 +455,52 @@ const LESSONS = [
     ...CLEANUP_STEPS,
     { titleKey: 'lbEndTitle', textKey: 'lbEndText', final: true },
   ] },
+  // Leçon « Créer un AdReel » (20/10) : se joue dans le Backstage du mode tutoriel, bibliothèque d'exemple préchargée (api/demo-client.js,
+  // ?tuto&lesson=adreel : rechargement obligatoire d'où `reload`). Fil rouge : le compositeur fictif Théo envoie son travail au studio Barque.
+  // L'aperçu de fin ouvre l'AdReel REMPLI (bouton Prévisualiser : aperçu local, sans serveur).
+  { id: 'adreel', theme: 'pitch', public: true, reload: true, titleKey: 'laTitle', descKey: 'laDesc', steps: [
+    { titleKey: 'laWelcomeTitle', textKey: 'laWelcomeText' },
+    { selector: '#btnAddAdReel', titleKey: 'laNewTitle', textKey: 'laNewText', clickDone: true },
+    { selector: '#newAdReelLabel', titleKey: 'laNameTitle', textKey: 'laNameText', done: () => { const i = document.getElementById('newAdReelLabel'); return !!i && i.value.trim().length > 2; },
+      drops: [{ kind: 'text', label: 'AdReel pour le studio Barque', value: 'AdReel pour le studio Barque' }] },
+    { selector: '#newAdReelOk', titleKey: 'laCreateTitle', textKey: 'laCreateText', done: () => currentAdReelId !== 'main' && adReels.length >= 2 },
+    { selector: '#btnToggleCollapseAllBlocks', titleKey: 'laOpenTitle', textKey: 'laOpenText', done: () => !!document.querySelector('.block-editor-body:not(.collapsed)') },
+    { selector: '.block-editor-card[data-type="header"] [data-role="title"]', titleKey: 'laHeaderTitleTitle', textKey: 'laHeaderTitleText', done: () => (profile.title || '').trim().length > 2,
+      drops: [{ kind: 'text', label: 'Daniel Orcman, compositeur de musiques de jeu', value: 'Daniel Orcman, compositeur de musiques de jeu' }] },
+    { selector: '.block-editor-card[data-type="header"] [data-role="subtitle"]', titleKey: 'laHeaderSubTitle', textKey: 'laHeaderSubText', done: () => (profile.subtitle || '').trim().length > 2,
+      drops: [{ kind: 'text', label: 'Musique interactive pour jeux d’horreur et d’ambiance', value: 'Musique interactive pour jeux d’horreur et d’ambiance' }] },
+    { selector: '.block-editor-card[data-type="bio"] [data-role="bioText"]', titleKey: 'laBioTitle', textKey: 'laBioText', done: () => (profile.bio || '').trim().length > 5,
+      drops: [{ kind: 'text', label: 'Je compose des musiques qui réagissent au jeu : couches, transitions, silences.', value: 'Je compose des musiques qui réagissent au jeu : couches, transitions, silences.' }] },
+    { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack1Title', textKey: 'laTrack1Text', done: () => trackIds.length >= 1 },
+    { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack2Title', textKey: 'laTrack2Text', done: () => trackIds.length >= 2 },
+    // Mise en page : explication, sans geste obligatoire (le glisser-déposer des blocs marche à la souris, pas toujours au doigt).
+    { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'laReorderTitle', textKey: 'laReorderText' },
+    { selector: '#btnAddText', titleKey: 'laAddTextTitle', textKey: 'laAddTextText', clickDone: true, done: () => blocks.some(b => b.type === 'text') },
+    { selector: '.block-editor-card[data-type="text"] [data-role="title"]', titleKey: 'laTextTitleTitle', textKey: 'laTextTitleText', done: () => blocks.some(b => b.type === 'text' && (b.title || '').trim().length > 2),
+      drops: [{ kind: 'text', label: 'Ce que j’apporte à un studio', value: 'Ce que j’apporte à un studio' }] },
+    { selector: '.block-editor-card[data-type="text"] [data-role="content"]', titleKey: 'laTextBodyTitle', textKey: 'laTextBodyText', done: () => blocks.some(b => b.type === 'text' && (b.content || '').trim().length > 5),
+      drops: [{ kind: 'text', label: 'Des boucles propres, des transitions prêtes, et un silence quand il le faut.', value: 'Des boucles propres, des transitions prêtes, et un silence quand il le faut.' }] },
+    { selector: '.nav-item[data-tab="appearance"]', titleKey: 'laAppearanceTitle', textKey: 'laAppearanceText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
+    { selector: () => document.querySelector('#themeProQuickStartGallery button, #appThemeFreeGallery button'), titleKey: 'laThemeTitle', textKey: 'laThemeText', clickDone: true },
+    { selector: '.nav-item[data-tab="content"]', titleKey: 'laBackTitle', textKey: 'laBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
+    // Aperçu de l'AdReel rempli : nouvelle fenêtre, aperçu local (rien n'est publié).
+    { selector: '#btnPreview', titleKey: 'laPreviewTitle', textKey: 'laPreviewText', clickDone: true },
+    { selector: '#btnPublish', titleKey: 'laSendTitle', textKey: 'laSendText', clickDone: true },
+    { titleKey: 'laEndTitle', textKey: 'laEndText', final: true },
+  ] },
+  // Squelette (20/10) : leçon « Versioning vidéo » (argument de vente). Parcours choisi par Jules-Antoine : partir d'une vidéo SANS son, y faire
+  // poser une première musique, puis une seconde (même structure, deux musiques dynamiques). Étapes prévues : (1) ouvrir la section Vidéo,
+  // (2) envoyer la vidéo muette, (3) capturer avec la musique 1, (4) enregistrer le montage, (5) créer une version avec la musique 2,
+  // (6) écouter en direct, sans rendu vidéo. À écrire après l'audit du parcours réel (capture, sauvegarde, version) et la fourniture des fichiers.
+  { id: 'versioning', theme: 'pitch', public: true, soon: true, titleKey: 'lvTitle', descKey: 'lvDesc' },
   // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
   // Projet fictif ; `page` renvoie vers cette page au clic.
-  { id: 'pj-chat', theme: 'preprod', public: false, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
-  { id: 'pj-moodboard', theme: 'preprod', public: false, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },
-  { id: 'pj-map-build', theme: 'preprod', public: false, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc' },
+  { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
+  { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },
+  { id: 'pj-map-build', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc' },
   // « Musique » et « balade » attendent les fichiers sonores d'exemple (kit MAP_MUSIC dans projet-lecons.js) : « bientôt » d'ici là.
-  { id: 'pj-map-music', theme: 'preprod', public: false, page: 'projet', soon: true, titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc' },
-  { id: 'pj-map-walk', theme: 'preprod', public: false, page: 'projet', soon: true, titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc' },
+  { id: 'pj-map-music', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc' },
+  { id: 'pj-map-walk', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc' },
 ];
 
 // Le moteur de bulles (affichage, avancement des étapes, clavier, déplacement) est partagé avec les autres pages :
@@ -479,7 +517,7 @@ function lessonMarkDone(id) { try { const d = lessonsDone(); d[id] = true; local
 function nextLessonOf(lessonId) {
   const i = LESSONS.findIndex(l => l.id === lessonId);
   const next = i >= 0 ? LESSONS[i + 1] : null;
-  return next && next.steps && lessonPlayable(next) && (!next.needs || flagOpen(next.needs)) ? { lesson: next, n: i + 2 } : null;
+  return next && next.steps && next.theme === LESSONS[i].theme && !next.reload && lessonPlayable(next) && (!next.needs || flagOpen(next.needs)) ? { lesson: next, n: i + 2 } : null;
 }
 const GUIDE = window.LayerPitchGuide.create({
   tr,
@@ -526,6 +564,9 @@ function startBackstageTour() {
 function startLesson(id) {
   const lesson = LESSONS.find(l => l.id === id);
   if (lesson && lesson.page === 'projet' && lessonsAccessOpen() && lessonPlayable(lesson)) { window.location.href = 'projet.html?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); return; }
+  if (lesson && lesson.reload && lessonsAccessOpen() && lessonPlayable(lesson) && !lesson.soon && !(isTutoMode() && new URLSearchParams(window.location.search).get('lesson') === id)) {
+    window.location.href = window.location.pathname + '?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); return;
+  }
   if (!lesson || !lesson.steps || !lessonsAccessOpen() || !lessonPlayable(lesson) || (lesson.needs && !flagOpen(lesson.needs))) return;
   openGuide('lesson', lesson.steps, id);
   // Saute les étapes déjà faites au départ (par ex. bibliothèque déjà ouverte).
@@ -545,10 +586,6 @@ function renderTutorialMenu() {
       ${tourAlreadyDone() ? tick : ''}
     </button>
     <div class="account-menu-sep"></div>
-    ${isTutoMode() ? '' : `<button class="account-menu-item" type="button" data-tutorial="demo">
-      <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr('tutoTryTitle'))}</b><small>${escapeHtml(tr('tutoTryDesc'))}</small></span></span>
-    </button>
-    <div class="account-menu-sep"></div>`}
     <div class="tutorial-menu-heading">${escapeHtml(tr('tutorialLessonsHeading'))}</div>
     ${LESSON_THEMES.map(th => {
       const items = LESSONS.filter(l => l.theme === th.id);
@@ -580,8 +617,12 @@ function initTutorialMenuUi() {
     if (!item || item.disabled) return;
     closeMenu();
     const id = item.dataset.tutorial;
-    if (id === 'demo') window.location.href = window.location.pathname + '?tuto';
-    else if (id === 'tour') startBackstageTour(); else startLesson(id);
+    if (id === 'tour') { startBackstageTour(); return; }
+    // Décidé le 20/10 : le tutoriel se joue TOUJOURS en mode sans compte (faux compte local, rien d'enregistré), pour tout le monde,
+    // y compris depuis un vrai Backstage : un seul tutoriel à maintenir. On y entre en rechargeant la page avec la leçon demandée.
+    const l = LESSONS.find(x => x.id === id);
+    if (!isTutoMode() && l && !l.soon) { window.location.href = (l.page === 'projet' ? 'projet.html' : window.location.pathname) + '?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); return; }
+    startLesson(id);
   });
 }
 // Appelée une fois les feux verts connus (fin de renderAdminOnlyPanels) : montre le menu et lance la visite la toute
@@ -595,6 +636,8 @@ function syncBackstageTour() {
   const wrap = document.getElementById('tutorialMenuWrap');
   if (wrap) wrap.hidden = !lessonsOpen;
   if (lessonsOpen) renderTutorialMenu();
+  const wanted = isTutoMode() ? new URLSearchParams(window.location.search).get('lesson') : null;
+  if (wanted && lessonsOpen && !guide && !window.__lessonAutoStarted) { window.__lessonAutoStarted = true; setTimeout(() => startLesson(wanted), 900); return; }
   if (open && !tourAlreadyDone() && !guide) setTimeout(startBackstageTour, 600);
 }
 (function wireTourMenu() {

@@ -119,7 +119,7 @@ const { JSDOM } = require('jsdom');
   check('leçon terminée sur le message final', await untilCount(N, /(\d+) \/ \1/));
 
   // ---- Leçons « musique » et « balade » : attendent leurs fichiers
-  check('musique et balade marquées « bientôt » dans le menu du Backstage', /pj-map-music', theme: 'preprod', public: false, page: 'projet', soon: true/.test(read('src/backstage/43-visite-guidee.js')) && /pj-map-walk', theme: 'preprod', public: false, page: 'projet', soon: true/.test(read('src/backstage/43-visite-guidee.js')));
+  check('musique et balade marquées « bientôt » dans le menu du Backstage', /pj-map-music', theme: 'preprod', public: true, page: 'projet', soon: true/.test(read('src/backstage/43-visite-guidee.js')) && /pj-map-walk', theme: 'preprod', public: true, page: 'projet', soon: true/.test(read('src/backstage/43-visite-guidee.js')));
   console.log(failures ? failures + ' échec(s)' : 'Tout est OK');
   process.exit(failures ? 1 : 0);
 })();

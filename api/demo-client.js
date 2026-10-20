@@ -41,6 +41,20 @@
     profiles: { onboarding_completed: true },
   };
 
+  // Bibliothèque d'exemple de la leçon AdReel (?tuto&lesson=adreel) : trois morceaux déjà publiés, lus depuis le stockage public des
+  // fichiers d'essai (media.layerpitch.com/tuto/). Les autres leçons partent d'une bibliothèque vide.
+  // PROVISOIRE : les morceaux d'essai des leçons ; à remplacer par les morceaux finaux de Jules-Antoine (voir DEMO_TRACKS).
+  const TUTO_BASE = 'https://media.layerpitch.com/tuto/';
+  const DEMO_TRACKS = [
+    ['t-ponton', 'Alone : le ponton (exemple)', '1_RobotAdventure_WetDarkCave_120bpm_30M.wav', 60],
+    ['t-lac', 'Alone : le lac ouvert (exemple)', '1_Everything_is_fine_120bpm_18M_intro2M.wav.wav', 36],
+    ['t-brouillard', 'Alone : le brouillard (exemple)', '1_BattleLoop_LowIntensity_120bpm_64M.wav', 128],
+  ].map(([id, title, file, duration]) => ({ id, owner_id: 'demo-composer', folder_id: null, title, description: '', mode: 'static', loopable: true, loop_engine: 'simple',
+    bpm: 120, beats_per_bar: 4, duration, base: TUTO_BASE, layers: [{ label: 'Boucle', file, originalFileName: file, gain: 1, duration }], intro: null, outro: null,
+    loops: null, sections: null, segment_slots: [], track_sfx: [], tags: [], fx: null, fx_triggers: [], fx_sliders: [], protected: false, retired_at: null }));
+  const lessonParam = () => { try { return new URLSearchParams(window.location.search).get('lesson'); } catch (e) { return null; } };
+  const listRows = table => (table === 'tracks' && lessonParam() === 'adreel') ? DEMO_TRACKS : null;
+
   const OK = (data) => ({ data: data === undefined ? null : data, error: null });
   const UNAVAILABLE = { message: 'Indisponible en mode tutoriel : rien n\'est enregistré.' };
 
@@ -54,7 +68,7 @@
           let result;
           if (isWrite) result = OK(single ? (payload || null) : null);
           else if (single) result = OK(row || null);
-          else result = OK(row ? [row] : []);
+          else result = OK(listRows(table) || (row ? [row] : []));
           return (res, rej) => Promise.resolve(result).then(res, rej);
         }
         if (prop === 'single' || prop === 'maybeSingle') return () => { single = true; return q; };

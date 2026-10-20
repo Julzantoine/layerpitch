@@ -3,6 +3,7 @@ function makeCardShell(block) {
   const card = document.createElement('div');
   card.className = 'block-editor-card';
   card.dataset.id = block.id;
+  card.dataset.type = block.type; // repère stable pour les leçons guidées (sélecteur du bloc par son type)
   const canDelete = true; // tous les blocs sont supprimables (20/08, retour visuel) -- y compris les 4
   // "singletons" (Header, Bio, Témoignages, Musique) qui ne l'étaient pas jusque-là. Voir migrateBlocks()
   // : la réinjection forcée au chargement a été retirée en même temps, sinon un bloc supprimé
