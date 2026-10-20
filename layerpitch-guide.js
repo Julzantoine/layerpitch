@@ -20,6 +20,10 @@
  *   });
  *   G.open('lesson', steps, 'static'); G.state(); G.close(); G.go(1); G.stepIsDone(step); …
  *
+ * Vignettes de LIENS et de TEXTE (20/10) : une étape peut porter `drops: [{ kind: 'link' | 'text', label, value }]`. Chaque
+ * vignette se glisse (ou s'active au clavier / au clic) vers la zone en surbrillance : champ de saisie -> la valeur y est
+ * écrite ; autre zone -> un vrai événement « drop » (text/plain + text/uri-list) lui est envoyé, que la page traite comme
+ * un dépôt de lien ou de texte ordinaire. `host.onDrop(step, drop, target)` (facultatif) reprend la main à la place.
  * Étapes : { selector, titleKey, textKey, done(ctx), clickDone, listen, listenTarget, enter(ctx), skip(ctx), final,
  *            keepTrack, arrow: {bar} } — voir les leçons du Backstage pour des exemples.
  * Mise en forme : layerpitch-guide.css. Gabarit de page attendu : variables --bg, --border, --accent, --text-dim.
@@ -36,6 +40,84 @@
   function create(host) {
     const tr = (k, v) => host.tr(k, v);
     let guide = null; // { root, kind, lessonId, steps, index, maxIndex, ctx, timer, advancing, clicked, cardKey, userMoved }
+
+
+    // ---- Vignettes de liens et de texte ----
+    const DROP_GLYPH = { link: '↗', text: '¶' };
+    function dropsHtml(step) {
+      if (!step.drops || !step.drops.length) return '';
+      return step.drops.map((d, i) => `<div class="tour-chip tour-chip-${esc(d.kind)}" data-tour-drop="${i}" role="button" tabindex="0" aria-label="${esc(tr('lessonDropHint'))}"><span class="tour-chip-note">${DROP_GLYPH[d.kind] || '♪'}</span><span class="tour-chip-name">${esc(d.label || d.value)}</span></div>`).join('')
+        + `<div class="tour-sample-hint">${esc(tr('lessonDropHint'))}</div>`;
+    }
+    // Remet la valeur de la vignette à la zone visée (champ de saisie, ou événement « drop » ordinaire).
+    function deliverDrop(step, drop, target) {
+      if (!target) return false;
+      if (host.onDrop && host.onDrop(step, drop, target) === true) return true;
+      const tag = target.tagName;
+      const field = (tag === 'INPUT' || tag === 'TEXTAREA') ? target : target.querySelector && target.querySelector('input:not([type=file]):not([type=checkbox]):not([type=radio]), textarea');
+      if (field && !field.disabled && !field.readOnly) {
+        field.focus();
+        field.value = drop.value;
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      }
+      if (target.isContentEditable) {
+        target.focus();
+        target.textContent = drop.value;
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      }
+      // Zone de dépôt : un vrai « drop » transportant le lien ou le texte, comme si l'apprenant l'y avait lâché.
+      let dt = null;
+      try {
+        dt = new DataTransfer();
+        dt.setData('text/plain', drop.value);
+        if (drop.kind === 'link') dt.setData('text/uri-list', drop.value);
+      } catch (e) { /* DataTransfer non constructible : repli ci-dessous */ }
+      const ev = new Event('drop', { bubbles: true, cancelable: true });
+      Object.defineProperty(ev, 'dataTransfer', { value: dt || { files: [], types: ['text/plain'], getData: t => (t === 'text/plain' || (t === 'text/uri-list' && drop.kind === 'link')) ? drop.value : '' } });
+      target.dispatchEvent(ev);
+      return true;
+    }
+    function pointInTarget(step, x, y) {
+      const el = stepTarget(step);
+      if (!el) return false;
+      const r = el.getBoundingClientRect(), m = 6;
+      return x >= r.left - m && x <= r.right + m && y >= r.top - m && y <= r.bottom + m;
+    }
+    function wireDrops(card, step) {
+      card.querySelectorAll('[data-tour-drop]').forEach(chip => {
+        const drop = step.drops[Number(chip.dataset.tourDrop)];
+        const use = () => deliverDrop(step, drop, stepTarget(step));
+        chip.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); use(); } });
+        chip.addEventListener('pointerdown', ev => {
+          if (ev.button !== undefined && ev.button !== 0) return;
+          ev.preventDefault();
+          const ghost = chip.cloneNode(true);
+          ghost.classList.add('tour-chip-ghost');
+          ghost.removeAttribute('data-tour-drop');
+          document.body.appendChild(ghost);
+          const place = (x, y) => { ghost.style.left = (x + 12) + 'px'; ghost.style.top = (y + 12) + 'px'; };
+          place(ev.clientX, ev.clientY);
+          chip.classList.add('is-dragging');
+          const spot = guide && guide.root.querySelector('.tour-spot');
+          const target = stepTarget(step);
+          const hot = on => { if (spot) spot.classList.toggle('tour-spot-hot', on); if (target) target.classList.toggle('drag-over', on); };
+          const move = e => { place(e.clientX, e.clientY); hot(pointInTarget(step, e.clientX, e.clientY)); };
+          const end = e => {
+            document.removeEventListener('pointermove', move, true);
+            document.removeEventListener('pointerup', end, true);
+            document.removeEventListener('pointercancel', end, true);
+            ghost.remove(); chip.classList.remove('is-dragging'); hot(false);
+            if (e.type !== 'pointercancel' && pointInTarget(step, e.clientX, e.clientY)) use();
+          };
+          document.addEventListener('pointermove', move, true);
+          document.addEventListener('pointerup', end, true);
+          document.addEventListener('pointercancel', end, true);
+        });
+      });
+    }
 
     function close() {
       if (!guide) return;
@@ -119,7 +201,7 @@
       const key = guide.index + ':' + (visible ? 'v' : 'h') + (revisiting ? ':r' : '') + (listening && guide.clicked ? ':c' : '');
       if (!positionOnly || guide.cardKey !== key) {
         guide.cardKey = key;
-        const extras = host.cardExtras ? host.cardExtras(step, guide) : '';
+        const extras = (host.cardExtras ? host.cardExtras(step, guide) : '') + dropsHtml(step);
         const vars = host.textVars ? host.textVars(step, guide) : {};
         card.innerHTML = `
       <div class="tour-count"><span>${guide.index + 1} / ${guide.steps.length}</span><span class="tour-grip" title="${esc(tr('lessonMoveHint'))}" aria-hidden="true">⠿</span></div>
@@ -148,6 +230,7 @@
         if (prev) prev.onclick = () => go(-1);
         const nlBtn = card.querySelector('[data-tour="nextlesson"]');
         if (nlBtn) nlBtn.onclick = goToNextLesson;
+        wireDrops(card, step);
         if (host.wireCard) host.wireCard(card, step, guide);
       }
       // Flèche indicative (étapes avec `arrow`) : pointe la mesure à viser sur la timeline.
@@ -245,7 +328,7 @@
       else guide.timer = setInterval(() => render(true), 400); // suit la cible si l'écran se redessine
     }
 
-    return { open, close, go, finish, goToNextLesson, stepIsDone, stepTarget, render, tick, state: () => guide, targetVisible };
+    return { open, close, go, finish, goToNextLesson, stepIsDone, stepTarget, render, tick, state: () => guide, targetVisible, deliverDrop };
   }
 
   window.LayerPitchGuide = { create, targetVisible, esc };
