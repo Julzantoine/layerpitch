@@ -54,8 +54,19 @@
   ].map(([id, title, file, duration]) => ({ id, owner_id: 'demo-composer', folder_id: null, title, description: '', mode: 'static', loopable: true, loop_engine: 'simple',
     bpm: 120, beats_per_bar: 4, duration, base: TUTO_BASE, layers: [{ label: 'Boucle', file, originalFileName: file, gain: 1, duration }], intro: null, outro: null,
     loops: null, sections: null, segment_slots: [], track_sfx: [], tags: [], fx: null, fx_triggers: [], fx_sliders: [], protected: false, retired_at: null }));
+  // Pack de la bibliothèque du compositeur fictif (leçon « La musique du projet » : on le partage au Projet).
+  const DEMO_PACKS = [{ id: 'p-alone', owner_id: 'demo-composer', title: 'Alone : ambiances du lac (exemple)', illustration: null, illustration_original_name: null, watermark: null,
+    watermark_original_name: null, presentation_fr: '', presentation_en: '', buyable: false, buy_url: null, free_download_enabled: false, video_test_mode_enabled: false,
+    bg_color: null, text_color: null, font: null, linked_ad_reel_id: null, tags: [], price_eur_cents: null, subscriber_credits: null, catalog_listed: true,
+    pack_tracks: DEMO_TRACKS.map((t, i) => ({ track_id: t.id, position: i })), pack_sfx: [] }];
   const lessonParam = () => { try { return new URLSearchParams(window.location.search).get('lesson'); } catch (e) { return null; } };
-  const listRows = table => (table === 'tracks' && lessonParam() === 'adreel') ? DEMO_TRACKS : null;
+  // Morceaux d'exemple : leçon AdReel (Backstage) et pages Projets (leur propre bibliothèque, pour le pack et la carte). Pack : pages Projets.
+  const listRows = table => {
+    const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
+    if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
+    if (table === 'packs' && projectPage) return DEMO_PACKS;
+    return null;
+  };
 
   const OK = (data) => ({ data: data === undefined ? null : data, error: null });
   const UNAVAILABLE = { message: 'Indisponible en mode tutoriel : rien n\'est enregistré.' };

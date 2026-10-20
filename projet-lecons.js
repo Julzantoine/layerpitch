@@ -25,6 +25,7 @@
     { id: 'pj-create', theme: LESSON_THEME_ID, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc' },
     { id: 'pj-chat', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
     { id: 'pj-moodboard', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },
+    { id: 'pj-music', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMusicTitle', descKey: 'plMusicDesc' },
     { id: 'pj-map-build', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc' },
     { id: 'pj-map-music', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc', soon: true },
     { id: 'pj-map-walk', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc', soon: true },
@@ -78,6 +79,14 @@
           drops: [{ kind: 'text', label: 'Ici, seulement le feu de bois et un piano.', value: 'Ici, seulement le feu de bois et un piano.' }] },
         { selector: '#sendBtn', titleKey: 'plChatSendTitle', textKey: 'plChatSectionSendText', done: () => secMsgCount() > 0 },
         { titleKey: 'plChatDoneTitle', textKey: 'plChatDoneText', final: true },
+      ],
+      'pj-music': [
+        { titleKey: 'plMusicWelcomeTitle', textKey: 'plMusicWelcomeText' },
+        { selector: '.tab[data-tab="music"]', titleKey: 'plMusicTabTitle', textKey: 'plMusicTabText', done: () => S.tab === 'music' },
+        { selector: () => document.querySelector('#panel .list-row'), titleKey: 'plMusicSharedTitle', textKey: 'plMusicSharedText' },
+        { selector: '#myPack', titleKey: 'plMusicPickTitle', textKey: 'plMusicPickText' },
+        { selector: '#shareBtn', titleKey: 'plMusicShareTitle', textKey: 'plMusicShareText', clickDone: true, done: () => (S.content.packs || []).some(p => p.mine) },
+        { titleKey: 'plMusicDoneTitle', textKey: 'plMusicDoneText', final: true },
       ],
       'pj-moodboard': [
         { titleKey: 'plBoardWelcomeTitle', textKey: 'plBoardWelcomeText' },

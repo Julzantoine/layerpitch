@@ -21,11 +21,13 @@ const { JSDOM } = require('jsdom');
     const w = dom.window;
     ['layerpitch-i18n.js', 'layerpitch-appearance.js', 'layerpitch-guide.js', '__TUTO__', 'api/demo-client.js', 'api/demo-projects.js', 'projet-lecons.js', 'projet-carte-audio.js', 'projet-carte.js'].forEach(f => w.eval(f === '__TUTO__' ? tutoOpen : read(f)));
     w.LayerPitchProjects = {};
-    w.LayerPitchAuth = { getSession: () => Promise.resolve({ session: { user: { id: 'demo-user', email: 'demo@layerpitch.com' } } }), getMyComposerId: () => Promise.resolve({ composerId: null }), onAuthStateChange: cb => setTimeout(() => cb('INITIAL_SESSION'), 0) };
+    w.LayerPitchAuth = { getSession: () => Promise.resolve({ session: { user: { id: 'demo-user', email: 'demo@layerpitch.com' } } }), getMyComposerId: () => Promise.resolve({ composerId: 'demo-composer' }), onAuthStateChange: cb => setTimeout(() => cb('INITIAL_SESSION'), 0) };
     w.LayerPitchNotify = { confirm: () => Promise.resolve(true), error: () => {}, info: () => {} };
     w.LayerPitchSupabaseClient = { getClient: () => { throw new Error('le vrai serveur ne doit pas être appelé en mode tutoriel'); } };
     w.LayerPitchTracks = { listTracksByIds: () => Promise.resolve({ tracks: [] }), listTracks: () => Promise.resolve({ tracks: [] }) };
     w.LayerPitchAlbums = { listAlbums: () => Promise.resolve({ albums: [] }) };
+    w.LayerPitchSfx = { listSfx: () => Promise.resolve({ sfx: [] }) };
+    w.LayerPitchPacks = { listPacks: () => Promise.resolve({ packs: [{ id: 'p-alone', title: 'Alone : ambiances du lac (exemple)' }] }) };
     w.LayerPitchShell = { mount() { throw new Error('la barre commune ne doit pas être montée'); }, update() {}, tr: k => k };
     w.matchMedia = () => ({ matches: false, addEventListener() {}, addListener() {} });
     w.HTMLElement.prototype.scrollIntoView = function () {};
@@ -43,7 +45,7 @@ const { JSDOM } = require('jsdom');
   check('Projet fictif « Alone in the Barque » chargé', /Alone in the Barque/.test(d.getElementById('pTitle').textContent));
   check('discussion préremplie (14 messages)', d.querySelectorAll('.bubble').length === 14);
   check('les 4 zones du jeu sont des sections', ['Ponton', 'Lac ouvert', 'Brouillard', 'Cabane'].every(n => d.getElementById('secNav') ? true : true) && !!d.getElementById('chanSel') && d.getElementById('chanSel').options.length === 5);
-  check('trois leçons jouables dans le bandeau (musique et balade attendent leurs fichiers)', d.querySelectorAll('[data-tutolesson]').length === 3);
+  check('quatre leçons jouables dans le bandeau (musique et balade de la carte attendent leurs fichiers)', d.querySelectorAll('[data-tutolesson]').length === 4);
 
   // ---- Leçon « tchat »
   click(w, d.querySelector('[data-tutolesson="pj-chat"]')); await wait(100);
@@ -74,6 +76,22 @@ const { JSDOM } = require('jsdom');
   click(again.w, again.d.querySelector('[data-tutolesson="pj-moodboard"]')); await wait(100);
   check('leçon Moodboard ouverte', /1 \/ 10/.test(countText(again.d)));
   const L = again.w.LayerPitchProjetLessons.LESSON_LINKS; check('kit de liens vide en attendant les liens de Jules-Antoine (étape sautée)', L.length === 0);
+  // ---- Leçon « la musique du projet »
+  {
+    const x = await boot();
+    click(x.w, x.d.querySelector('[data-tutolesson="pj-music"]')); await wait(100);
+    check('leçon « la musique du projet » ouverte', /1 \/ 6/.test(countText(x.d)) && /compositeur du projet/.test(x.d.querySelector('.tour-text').textContent));
+    click(x.w, x.d.querySelector('[data-tour="next"]')); await wait(100);
+    click(x.w, x.d.querySelector('.tab[data-tab="music"]')); await wait(500);
+    check('onglet Musique : un pack déjà partagé par un compositeur', await untilCount(x.d, /3 \/ 6/) && /Théo/.test(x.d.querySelector('#panel').textContent));
+    click(x.w, x.d.querySelector('[data-tour="next"]')); await wait(100);
+    check('étape « choisis un de tes packs »', /4 \/ 6/.test(countText(x.d)) && !!x.d.getElementById('myPack'));
+    click(x.w, x.d.querySelector('[data-tour="next"]')); await wait(100);
+    click(x.w, x.d.getElementById('shareBtn')); await wait(500);
+    check('le pack est partagé et apparaît dans la liste', /Alone : ambiances du lac/.test(x.d.querySelector('#panel').textContent));
+    check('leçon terminée sur le message final', await untilCount(x.d, /6 \/ 6/));
+  }
+
   // ---- Leçon « carte : la construire »
   const m = await boot();
   click(m.w, m.d.querySelector('[data-tutolesson="pj-map-build"]')); await wait(100);

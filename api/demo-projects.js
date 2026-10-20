@@ -87,6 +87,9 @@
     let links = [];                    // { sectionId, assetId }
     let secPins = [];                  // { sectionId, assetId, position, starred }
     const annotations = [];
+    // Musique du Projet : un pack déjà partagé par un autre compositeur ; le pack du compositeur fictif (api/demo-client.js) se partage en leçon.
+    const PACK_TITLES = { 'p-alone': 'Alone : ambiances du lac (exemple)' };
+    const sharedPacks = [{ packId: 'p-theo', title: 'Alone : cordes et brouillard (pack de Théo)', illustration: null, mode: 'share', priceEurCents: null, subscriberCredits: null, mine: false, sharedByEmail: 'theo@barque.example' }];
     const maps = [];
     // Carte déjà construite (celle que la leçon « construire la carte » fait faire) : pour les leçons « musique » et « balade ».
     if (opts.seedMap) {
@@ -123,7 +126,7 @@
       update: async (id, title, description) => { project.title = title; project.description = description; project.updatedAt = now(); return ok(null); },
       archive: async (id, archived) => { project.archived = !!archived; return ok(null); },
       remove: async () => ok({ filePaths: [] }),
-      content: async () => ok({ assets: assets.map(assetView), moodboard: moodboard.slice(), packs: [], albums: [], openAnnotations: annotations.filter(n => !n.resolved).length, autoSnapshot: 'weekly' }),
+      content: async () => ok({ assets: assets.map(assetView), moodboard: moodboard.slice(), packs: sharedPacks.map(p => Object.assign({}, p)), albums: [], openAnnotations: annotations.filter(n => !n.resolved).length, autoSnapshot: 'weekly' }),
       markRead: async () => ok(null), markSeen: async () => ok(null),
       appearance: async () => ok(appearance), setAppearance: async (id, p) => { appearance = p || {}; return ok(null); },
       // Membres : invitations simulées (aucun courriel).
@@ -233,7 +236,9 @@
 
       // Vitrines, musique partagée : fermées dans le tutoriel (rien n’est publié ni partagé)
       vitrines: async () => ok([]), vitrineStats: async () => ok(null), getVitrine: async () => ok(null),
-      sharePack: async () => ok(null), unsharePack: async () => ok(null), linkAlbum: async () => ok(null),
+      sharePack: async (id, packId, mode) => { if (!sharedPacks.some(p => p.packId === packId)) sharedPacks.push({ packId, title: PACK_TITLES[packId] || 'Pack', illustration: null, mode: mode || 'share', priceEurCents: null, subscriberCredits: null, mine: true, sharedByEmail: ME.email }); return ok(null); },
+      unsharePack: async (id, packId) => { const i = sharedPacks.findIndex(p => p.packId === packId); if (i >= 0) sharedPacks.splice(i, 1); return ok(null); },
+      linkAlbum: async () => ok(null),
 
       // Fichiers : gardés dans le navigateur, jamais envoyés.
       upload: async (id, file, onProgress) => {
