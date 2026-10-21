@@ -50,6 +50,16 @@
   await db.query(`select public.set_video_capture_version_export('ver2', 'v3', '[]'::jsonb)`);
   const m2 = (await q(`select public.get_public_video_montage('cap1') as m`))[0].m;
   check('après réexport : la version publique montre la nouvelle vidéo', m2.versions[1].url === 'https://media.example/video/v3/export.mp4');
+  // Vidéo muette une fois + un son par version (migration 20261021040000).
+  await db.query(`insert into public.composer_videos (id, owner_id, kind, title, base, file) values ('base1', $1, 'capture_base', 'Muette', 'https://media.example/video/base1/', 'base.mp4'), ('a2', $1, 'capture_audio', 'Son 2', 'https://media.example/video/a2/', 'audio.mp4')`, [owner]);
+  await db.query(`select public.set_video_capture_base('cap1', 'base1')`);
+  await db.query(`select public.set_video_capture_version_export('ver2', 'a2', '[]'::jsonb)`);
+  const m3 = (await q(`select public.get_public_video_montage('cap1') as m`))[0].m;
+  check('vidéo muette du montage + version en son seul', m3.baseUrl === 'https://media.example/video/base1/base.mp4' && m3.versions[1].kind === 'audio' && m3.versions[0].kind === 'video');
+  const lib = (await q(`select public.list_my_videos() as l`))[0].l;
+  check('bibliothèque : les sons ne sont pas proposés comme vidéos, la vidéo muette oui', !lib.videos.some(v => v.id === 'a2') && lib.videos.some(v => v.id === 'base1'));
+  const caps = (await q(`select public.list_my_video_captures(null) as c`))[0].c;
+  check('liste des montages : vidéo muette indiquée', caps[0].baseVideoId === 'base1');
   console.log(failures ? failures + ' échec(s)' : 'Tout est OK');
   process.exit(failures ? 1 : 0);
 })();

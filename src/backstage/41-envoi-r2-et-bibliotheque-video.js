@@ -396,6 +396,7 @@ function loadVideoVersioningIndex(force) {
       const siblings = (c.lastExportVideoId ? [{ key: 'original', versionId: null, title: tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
         .concat((r.data || []).filter(v => v.lastExportVideoId).map(v => ({ key: v.id, versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId })));
       siblings.forEach(sib => { out.byVideoId[sib.videoId] = { capture: c, siblings }; });
+      if (c.baseVideoId) out.byVideoId[c.baseVideoId] = { capture: c, siblings }; // la vidéo muette du montage (migration 20261021040000) mène aussi au montage
     }));
     return out;
   })().catch(() => empty);

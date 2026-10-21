@@ -36,8 +36,26 @@
     const hidden = new Set(opts.hidden || []);
     const versions = montage.versions.filter(v => v.url && !hidden.has(v.key));
     if (!versions.length) return null;
+    // Vidéo muette une fois + un son par version (migration 20261021040000) : une version 'audio' se joue sur l'image muette du
+    // montage, son et image synchronisés ; une ancienne version 'video' (export complet) se lit telle quelle.
+    const base = montage.baseUrl || null;
+    const isSound = v => v.kind === 'audio' && !!base;
+    const audio = document.createElement('audio');
+    audio.preload = 'auto';
+    const safePlay = el => { const p = el.play(); if (p && p.catch) p.catch(() => {}); };
     let current = versions.find(v => v.key === opts.defaultKey) || versions[0];
-    if (video.getAttribute('src') !== current.url) video.src = current.url;
+    const srcFor = v => (isSound(v) ? base : v.url);
+    if (video.getAttribute('src') !== srcFor(current)) video.src = srcFor(current);
+    if (isSound(current)) audio.src = current.url;
+    // Le son suit l'image : lecture, pause, déplacement, vitesse, volume ; petit recalage si l'écart dépasse un dixième de seconde.
+    const follow = () => isSound(current);
+    video.addEventListener('play', () => { if (follow()) { audio.currentTime = video.currentTime; safePlay(audio); } });
+    video.addEventListener('playing', () => { if (follow() && audio.paused) { audio.currentTime = video.currentTime; safePlay(audio); } });
+    ['pause', 'waiting', 'ended'].forEach(ev => video.addEventListener(ev, () => { if (follow()) audio.pause(); }));
+    video.addEventListener('seeking', () => { if (follow()) audio.currentTime = video.currentTime; });
+    video.addEventListener('ratechange', () => { audio.playbackRate = video.playbackRate; });
+    video.addEventListener('volumechange', () => { audio.volume = video.volume; audio.muted = video.muted; });
+    const resync = () => { if (follow() && !video.paused && Math.abs((audio.currentTime || 0) - (video.currentTime || 0)) > 0.12) audio.currentTime = video.currentTime; };
 
     const label = document.createElement('div');
     label.className = 'lp-video-cue';
@@ -51,7 +69,7 @@
       flash.textContent = txt.flash ? txt.flash.toUpperCase() + ' !' : ''; flash.hidden = !txt.flash;
     };
     let raf = 0;
-    const loop = () => { refresh(); raf = video.paused ? 0 : requestAnimationFrame(loop); };
+    const loop = () => { refresh(); resync(); raf = video.paused ? 0 : requestAnimationFrame(loop); };
     video.addEventListener('play', () => { if (!raf) raf = requestAnimationFrame(loop); });
     video.addEventListener('timeupdate', refresh);
     video.addEventListener('seeked', refresh);
@@ -75,17 +93,23 @@
         if (!next || next === current) return;
         const t = video.currentTime || 0, playing = !video.paused;
         current = next;
-        video.src = next.url;
-        video.addEventListener('loadedmetadata', () => {
-          try { video.currentTime = Math.min(t, (video.duration || t) - 0.05); } catch (e) { /* ancien navigateur */ }
-          if (playing) video.play().catch(() => {});
+        if (isSound(next)) audio.src = next.url; else { audio.pause(); audio.removeAttribute('src'); }
+        const resume = () => {
+          const d = video.duration;
+          const target = isFinite(d) && d > 0 ? Math.min(t, d - 0.05) : t; // durée inconnue : on garde l'instant tel quel
+          if (Math.abs((video.currentTime || 0) - target) > 0.01) { try { video.currentTime = target; } catch (e) { /* ancien navigateur */ } }
+          if (isSound(next)) audio.currentTime = target;
+          if (playing) { safePlay(video); if (isSound(next)) safePlay(audio); }
           refresh();
-        }, { once: true });
+        };
+        // Même image (deux sons sur la vidéo muette) : seul le son change, sans recharger la vidéo.
+        if (video.getAttribute('src') === srcFor(next)) resume();
+        else { video.src = srcFor(next); video.addEventListener('loadedmetadata', resume, { once: true }); }
       });
       wrap.parentNode.insertBefore(bar, wrap.nextSibling);
     }
     refresh();
-    return { versions, select, refresh, current: () => current };
+    return { versions, select, refresh, audio, current: () => current };
   }
 
   window.LayerPitchVideoVersions = { cueTextAt, mount, loadMontage };

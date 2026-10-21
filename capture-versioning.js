@@ -197,7 +197,9 @@
           setTimeout(() => URL.revokeObjectURL(url), 10000);
           if (toLibrary && mode !== 'audio') {
             label(tr('captureAddingToLibrary'));
-            const videoId = await ctx.saveToLibrary(blob, title);
+            // Pages LayerPitch : la version publiée n'est qu'un son, joué sur la vidéo muette du montage (21/10) ; sans cette fonction (ancien
+            // appelant), la vidéo complète comme avant.
+            const videoId = ctx.publishVersion && ctx.getCaptureId() !== 'session' ? await ctx.publishVersion(events, title) : await ctx.saveToLibrary(blob, title);
             const res = await store.setExport(v.id, videoId, ctx.cuesOf ? ctx.cuesOf(events) : null, ctx.keepOld ? ctx.keepOld() : true); // vidéo + étiquettes : tous les endroits qui montrent ce montage suivent
             if (ctx.afterExport) ctx.afterExport(res && res.data); // historique (3 derniers) et fichiers à effacer
             v.lastExportVideoId = videoId;

@@ -96,6 +96,25 @@ async function r2PutFile(key, bytes, contentType) {
     throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
   }
 }
+// Vidéo muette d'un montage (21/10) : l'image d'origine recopiée sans son (-an, -c:v copy : aucun réencodage, quelques secondes).
+async function makeSilentVideo(videoFile, onProgress) {
+  const ffmpeg = await loadFfmpegWasm(onProgress);
+  const ext = videoFile.name.slice(videoFile.name.lastIndexOf('.')) || '.mp4';
+  await ffmpeg.writeFile('src' + ext, new Uint8Array(await videoFile.arrayBuffer()));
+  const code = await ffmpeg.exec(['-i', 'src' + ext, '-an', '-c:v', 'copy', 'base.mp4']);
+  if (code !== 0) throw new Error('ffmpeg (vidéo muette) a échoué');
+  const out = await ffmpeg.readFile('base.mp4');
+  return new Blob([out.buffer], { type: 'video/mp4' });
+}
+// Son d'une version (21/10) : le WAV rendu par le moteur du lecteur, compressé en AAC dans un conteneur .mp4 (léger, lu partout).
+async function encodeSoundForLibrary(wavBlob, onProgress) {
+  const ffmpeg = await loadFfmpegWasm(onProgress);
+  await ffmpeg.writeFile('mix.wav', new Uint8Array(await wavBlob.arrayBuffer()));
+  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '160k', 'sound.mp4']);
+  if (code !== 0) throw new Error('ffmpeg (son) a échoué');
+  const out = await ffmpeg.readFile('sound.mp4');
+  return new Blob([out.buffer], { type: 'video/mp4' });
+}
 // Efface du stockage les fichiers des vidéos retirées de la bibliothèque par l'historique des exports (21/10, migration 20261021030000) :
 // le serveur rend leurs chemins, la page les efface (même URL signée que la bibliothèque du Backstage). Jamais bloquant.
 async function r2DeleteRemovedVideos(removed) {
@@ -111,16 +130,19 @@ async function r2DeleteRemovedVideos(removed) {
 // Pas de recompression ffmpeg ici (contrairement à un import dans le Backstage) : le fichier sort déjà
 // de exportCaptureVideo en H.264, faire subir une deuxième passe ffmpeg.wasm juste après l'export
 // initial (déjà long) serait une attente supplémentaire dont le gain resterait marginal.
-async function saveExportToVideoLibrary(blob, packId, title, durationSeconds) {
+// kind (21/10) : 'capture_export' (vidéo complète, par défaut), 'capture_base' (vidéo muette d'un montage) ou 'capture_audio' (son seul
+// d'une version, dans un conteneur .mp4) -- voir la migration 20261021040000.
+async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, kind) {
   const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
   const base = `${MEDIA_BASE}video/${id}/`;
   let uploaded = false;
   try {
-    await r2PutFile(`video/${id}/export.mp4`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    const fileName = kind === 'capture_audio' ? 'audio.mp4' : (kind === 'capture_base' ? 'base.mp4' : 'export.mp4');
+    await r2PutFile(`video/${id}/${fileName}`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
     uploaded = true;
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
       payload: {
-        id, kind: 'capture_export', packId, title: title || '', base, file: 'export.mp4',
+        id, kind: kind || 'capture_export', packId, title: title || '', base, file: fileName,
         mimeType: 'video/mp4', sizeBytes: blob.size, durationSeconds: durationSeconds || null,
       },
     });

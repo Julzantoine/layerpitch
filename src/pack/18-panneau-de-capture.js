@@ -329,11 +329,8 @@ function openCapturePanel(file, opts) {
     exportStatus.textContent = tr('captureAddingToLibrary');
     try {
       const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, titleInput.value, videoEl.duration || null);
-      // Montage sauvegardé : il retient sa vidéo (21/10, migration 20261021010000), pour que le bloc vidéo d'un AdReel la propose parmi
-      // les versions du montage. Jamais bloquant : sans la migration, ou sur un montage non sauvegardé, le lien n'est simplement pas posé.
-      // Étiquettes (21/10, migration 20261021020000) rangées avec la vidéo : l'étiquette du lecteur public suit ce qui joue.
-      if (savedCaptureId && videoId) window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides), p_keep_old: keepOldCheckbox.checked })
-        .then(({ data }) => { r2DeleteRemovedVideos(data && data.removed); renderExportHistory(); }, () => {});
+      // (Vidéo complète : à télécharger ou publier ailleurs. Les pages LayerPitch, elles, jouent la vidéo muette du montage et le son de
+      // chaque version : voir « Mettre à jour la vidéo partout ».)
       exportStatus.textContent = tr('captureAddedToLibrary');
       addToLibraryBtn.hidden = true; // évite un second envoi du même export
     } catch (e) {
@@ -346,15 +343,35 @@ function openCapturePanel(file, opts) {
   // « Mettre à jour la vidéo partout » (21/10) : après une retouche, refait l'export rapide (image d'origine + nouveau son, sans
   // incrustation, quelques secondes), le dépose dans la bibliothèque et y relie le montage avec ses nouvelles étiquettes. Partout où le
   // montage est affiché (AdReels, espace Projet), la nouvelle vidéo et la nouvelle étiquette apparaissent, sans rien republier.
+  // Vidéo muette une fois + un son par version (21/10, migration 20261021040000) : la première publication d'un montage range sa vidéo
+  // muette (l'image d'origine sans son) ; ensuite, chaque export n'est plus qu'un fichier son (+ étiquettes), joué sur cette image.
+  async function ensureMontageBase(onStatus) {
+    const client = window.LayerPitchSupabaseClient.getClient();
+    const cur = await client.rpc('video_capture_base', { p_capture_id: savedCaptureId });
+    if (!cur.error && cur.data) return cur.data;
+    onStatus(tr('captureMakingSilentVideo'));
+    const blob = await makeSilentVideo(file, onStatus);
+    const id = await saveExportToVideoLibrary(blob, packId, (titleInput.value || file.name) + ' — ' + tr('captureSilentVideoSuffix'), videoEl.duration || null, 'capture_base');
+    const { error } = await client.rpc('set_video_capture_base', { p_capture_id: savedCaptureId, p_video_id: id });
+    if (error) throw error;
+    return id;
+  }
+  async function publishMontageSound(events, title) {
+    const onStatus = (msg) => { exportStatus.textContent = msg; };
+    await ensureMontageBase(onStatus);
+    const exportOptions = { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode: 'audio' };
+    const wav = await exportCaptureVideo(events, file, onStatus, laneOverrides, exportOptions);
+    onStatus(tr('captureEncodingSound'));
+    const sound = await encodeSoundForLibrary(wav, onStatus);
+    onStatus(tr('captureAddingToLibrary'));
+    return saveExportToVideoLibrary(sound, packId, title || '', videoEl.duration || null, 'capture_audio');
+  }
   updateEverywhereBtn.addEventListener('click', async () => {
     if (!savedCaptureId) { exportStatus.textContent = tr('captureUpdateEverywhereNeedsSave'); return; }
     if (!lastEvents.length || !packId) return;
     updateEverywhereBtn.disabled = true; setExportButtonsDisabled(true);
     try {
-      const exportOptions = { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode: 'copy' };
-      const blob = await exportCaptureVideo(lastEvents, file, (msg) => { exportStatus.textContent = msg; }, laneOverrides, exportOptions);
-      exportStatus.textContent = tr('captureAddingToLibrary');
-      const videoId = await saveExportToVideoLibrary(blob, packId, titleInput.value, videoEl.duration || null);
+      const videoId = await publishMontageSound(lastEvents, titleInput.value);
       const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides), p_keep_old: keepOldCheckbox.checked });
       if (error) throw error;
       await r2DeleteRemovedVideos(data && data.removed); // exports trop anciens (au-delà de 3) ou ancienne vidéo non gardée
@@ -463,6 +480,7 @@ function openCapturePanel(file, opts) {
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
       cuesOf: (events) => buildCaptureCues(events, laneOverrides), // étiquettes rangées avec la vidéo d'une version (21/10)
       keepOld: () => keepOldCheckbox.checked, // garder ou non l'ancienne vidéo d'une version dans l'historique
+      publishVersion: (events, title) => publishMontageSound(events, title), // une version publiée = un son, joué sur la vidéo muette
       afterExport: (result) => { r2DeleteRemovedVideos(result && result.removed); renderExportHistory(); },
       // « Détacher » : la version devient un montage indépendant (sauvegardé tout de suite), ouvert à la place de celui-ci.
       detach: async (events, title) => {

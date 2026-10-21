@@ -203,14 +203,17 @@ function buildVideoCard(block) {
         if (!info) { row.innerHTML = ''; if (v && v.montageId) { v.montageId = null; v.defaultVersion = null; v.hiddenVersions = []; } return; }
         // La vidéo vient d'un montage : l'AdReel pointe désormais vers le montage (toutes ses versions, toujours à jour), la vidéo choisie
         // devient la version proposée par défaut.
-        const current = info.siblings.find(sib => sib.videoId === v.libraryVideoId);
-        if (v.montageId !== info.capture.id || v.defaultVersion !== (current && current.key)) {
-          v.montageId = info.capture.id; v.defaultVersion = current ? current.key : 'original'; if (!Array.isArray(v.hiddenVersions)) v.hiddenVersions = [];
+        // Version par défaut : celle déjà choisie pour ce bloc, sinon celle de la vidéo choisie, sinon la musique d'origine. Les versions
+        // publiées en son seul (vidéo muette + son, migration 20261021040000) ne sont pas des vidéos de la bibliothèque : on les choisit par clé.
+        const picked = info.siblings.find(sib => sib.videoId === v.libraryVideoId);
+        const options = info.siblings;
+        const defKey = (v.montageId === info.capture.id && options.some(o => o.key === v.defaultVersion)) ? v.defaultVersion : (picked ? picked.key : (options[0] ? options[0].key : 'original'));
+        if (v.montageId !== info.capture.id || v.defaultVersion !== defKey) {
+          v.montageId = info.capture.id; v.defaultVersion = defKey; if (!Array.isArray(v.hiddenVersions)) v.hiddenVersions = [];
         }
-        const options = info.siblings.filter(sib => libraryVideos.some(lv => lv.id === sib.videoId));
         row.innerHTML = `
           <label style="margin-top:8px">${tr('videoBlockVersionLabel')}</label>
-          <select data-role="versionSelect" data-i="${row.dataset.i}">${options.map(sib => `<option value="${sib.videoId}" ${sib.videoId === v.libraryVideoId ? 'selected' : ''}>${escapeAttr(sib.title || tr('videoVersioningUntitled'))}</option>`).join('')}</select>
+          <select data-role="versionSelect" data-i="${row.dataset.i}">${options.map(sib => `<option value="${escapeAttr(sib.key)}" ${sib.key === v.defaultVersion ? 'selected' : ''}>${escapeAttr(sib.title || tr('videoVersioningUntitled'))}</option>`).join('')}</select>
           ${options.length > 1 ? `<label style="margin-top:8px">${tr('videoBlockVersionMenuLabel')}</label>
           ${options.map(sib => `<label style="display:flex;align-items:center;gap:6px;font-weight:normal"><input type="checkbox" data-role="versionShown" data-i="${row.dataset.i}" data-key="${escapeAttr(sib.key)}" style="width:auto;margin:0" ${(v.hiddenVersions || []).includes(sib.key) ? '' : 'checked'} ${sib.key === v.defaultVersion ? 'disabled' : ''}> ${escapeAttr(sib.title || tr('videoVersioningUntitled'))}</label>`).join('')}` : ''}
           <div class="actions" style="margin-top:6px"><a class="btn btn-small" data-role="versionNew" href="${videoVersioningMontageUrl(info.capture)}" target="_blank" rel="noopener">${tr('videoBlockVersionNew')}</a></div>
@@ -264,9 +267,17 @@ function buildVideoCard(block) {
     }
     const vsel = e.target.closest('[data-role="versionSelect"]');
     if (vsel) {
+      // Version proposée par défaut (clé) ; une ancienne version en vidéo complète devient aussi la vidéo de repli du bloc.
       const v = block.videos[parseInt(vsel.dataset.i, 10)];
-      const chosen = libraryVideos.find(lv => lv.id === vsel.value);
-      if (chosen) { v.libraryVideoId = chosen.id; v.url = chosen.base + chosen.file; hasUnsavedEdits = true; renderList(); refreshAllBlockSummaries(); }
+      v.defaultVersion = vsel.value;
+      hasUnsavedEdits = true;
+      loadVideoVersioningIndex().then(ix => {
+        const info = ix.byVideoId[v.libraryVideoId];
+        const sib = info && info.siblings.find(o => o.key === vsel.value);
+        const full = sib && libraryVideos.find(lv => lv.id === sib.videoId);
+        if (full) { v.libraryVideoId = full.id; v.url = full.base + full.file; }
+        renderList(); refreshAllBlockSummaries();
+      });
       return;
     }
     const sel = e.target.closest('[data-role="librarySelect"]');

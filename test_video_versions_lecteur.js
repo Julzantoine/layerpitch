@@ -40,6 +40,24 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const none = await dom2.window.LayerPitchVideoVersions.mount(dom2.window.document.getElementById('v'), dom2.window.document.getElementById('w'), { montageId: 'x', load: async () => null });
   check('montage introuvable : la vidéo reste telle quelle, sans menu', none === null && !dom2.window.document.querySelector('.lp-video-versions') && dom2.window.document.getElementById('v').getAttribute('src') === 'https://m/x.mp4');
 
+  // Vidéo muette + sons : l'image ne se recharge pas, seul le son change, au même instant.
+  const dom3 = new JSDOM('<div id="w"><video id="v"></video></div>', { runScripts: 'outside-only', pretendToBeVisual: true });
+  const w3 = dom3.window; w3.eval(read('layerpitch-video-versions.js'));
+  w3.HTMLMediaElement.prototype.play = function () { return Promise.resolve(); };
+  w3.HTMLMediaElement.prototype.pause = function () {};
+  Object.defineProperty(w3.HTMLMediaElement.prototype, 'currentTime', { configurable: true, get() { return this._t || 0; }, set(x) { this._t = x; } }); // jsdom ne joue aucun média
+  const v3 = w3.document.getElementById('v'), wrap3 = w3.document.getElementById('w');
+  let t3 = 0; Object.defineProperty(v3, 'currentTime', { get: () => t3, set: x => { t3 = x; } });
+  Object.defineProperty(v3, 'paused', { get: () => true });
+  const soundMontage = { baseUrl: 'https://m/base.mp4', versions: [
+    { key: 'original', url: 'https://m/s1.mp4', kind: 'audio', cues: [] }, { key: 'ver2', title: 'Musique 2', url: 'https://m/s2.mp4', kind: 'audio', cues: [] }] };
+  const c3 = await w3.LayerPitchVideoVersions.mount(v3, wrap3, { montageId: 'c', defaultKey: 'original', tr, load: async () => soundMontage });
+  check('version son : l’image est la vidéo muette du montage, le son celui de la version', v3.getAttribute('src') === 'https://m/base.mp4' && c3.audio.getAttribute('src') === 'https://m/s1.mp4');
+  t3 = 17;
+  const sel3 = w3.document.querySelector('.lp-video-versions select');
+  sel3.value = 'ver2'; sel3.dispatchEvent(new w3.Event('change'));
+  check('changer de musique : même image (pas rechargée), nouveau son calé au même instant', v3.getAttribute('src') === 'https://m/base.mp4' && c3.audio.getAttribute('src') === 'https://m/s2.mp4' && Math.abs(c3.audio.currentTime - 17) < 0.01);
+
   const reel = read('src/reel/35-blocs-contact-video.js');
   check('bloc vidéo public : branché quand la vidéo vient d’un montage', /v\.montageId && window\.LayerPitchVideoVersions/.test(reel));
   check('pages publiques : le fichier est chargé avant reel.js', ['index.html', 'vitrine.html'].every(f => /layerpitch-video-versions\.js[^\n]*\n<script src="reel\.js/.test(read(f))));
