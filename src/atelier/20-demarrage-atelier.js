@@ -14,6 +14,17 @@ function atelierTell(type, detail) {
   if (!atelierEmbedded) return;
   try { window.parent.postMessage(Object.assign({ source: 'lp-atelier', type }, detail || {}), location.origin); } catch (e) { /* page d'accueil d'une autre origine : rien à dire */ }
 }
+// Tout enregistrement de l'atelier (montage, version, vidéo, historique) prévient la page hôte (« changed »), pour qu'elle rafraîchisse ses
+// listes (bibliothèque, Versioning, bloc vidéo). Un seul point d'écoute : les appels serveur d'écriture du client.
+const ATELIER_WRITES = new Set(['save_video_capture', 'delete_video_capture', 'upsert_video', 'delete_video', 'save_video_capture_version',
+  'set_video_capture_version_export', 'delete_video_capture_version', 'set_video_capture_export', 'set_video_capture_base', 'restore_video_export', 'clear_video_export_history']);
+function atelierWatchWrites() {
+  const c = window.LayerPitchSupabaseClient && window.LayerPitchSupabaseClient.getClient();
+  if (!c || c.__lpAtelierWatched) return;
+  const rpc = c.rpc.bind(c);
+  c.rpc = async (name, args) => { const r = await rpc(name, args); if (ATELIER_WRITES.has(name) && r && !r.error) atelierTell('changed'); return r; };
+  c.__lpAtelierWatched = true;
+}
 function atelierEmpty(container, html) { container.innerHTML = `<div class="atelier-empty">${html}</div>`; }
 
 // Packs proposés : les siens (lecture publique de la table packs) ou ceux de l'équipe du studio (my_team_purchases).
@@ -40,6 +51,7 @@ async function init() {
     await loadPostgresReadScripts();
     await loadPurchaseScripts();
     if (atelierAsStudio) await lpLoadScriptsInOrder(['./api/studio.js']);
+    atelierWatchWrites();
     const { session } = await window.LayerPitchAuth.getSession();
     if (!session) {
       atelierEmpty(container, `${escapeHtml(tr('atelierSignIn'))} <a href="./layerpitch-backstage.html" target="_top">${escapeHtml(tr('atelierSignInLink'))}</a>`);
