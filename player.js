@@ -709,7 +709,9 @@ function seqTransitionDurationSec(track, opt, sourceSlot) {
   if (!tr) return null;
   if (tr.durationUnit === 'seconds') return tr.durationSeconds != null ? tr.durationSeconds : 0;
   if (tr.durationUnit === 'beats') return (tr.durationBeats || 1) * seqTransitionTiming(track, tr, sourceSlot).secondsPerBeat;
-  if (tr.durationUnit === 'bars') {
+  // Unité jamais choisie mais tempo ou temps par mesure propres saisis (21/10) : l'éditeur affiche « Mesures » par défaut sans rien
+  // enregistrer, donc ces deux champs étaient ignorés par l'ancien calcul. On les honore comme pour l'unité « mesures ».
+  if (tr.durationUnit === 'bars' || tr.bpm || tr.beatsPerBar) {
     const timing = seqTransitionTiming(track, tr, sourceSlot);
     return (tr.bars || timing.beatsPerBar) * timing.beatsPerBar * timing.secondsPerBeat;
   }
