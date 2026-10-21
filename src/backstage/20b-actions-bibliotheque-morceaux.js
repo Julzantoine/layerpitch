@@ -749,6 +749,18 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
 document.getElementById('libraryContainer').addEventListener('change', e => {
   const field = e.target.dataset.field;
   const sectionField = e.target.dataset.sectionField;
+  // Tempo/longueur propres à l'intro (séquentiel) : l'aperçu ouvert est un instantané de l'ancienne valeur, donc on le
+  // referme et on le relance avec la nouvelle (21/10 : « je change l'intro, ça ne fait rien »).
+  if (field === 'introBars' || field === 'introBpm' || field === 'introBeatsPerBar') {
+    const card = e.target.closest('.list-block');
+    const host = card && card.querySelector('[data-role="previewHost"]');
+    if (host && host.dataset.active === '1') {
+      const ti = parseInt(e.target.dataset.ti, 10);
+      togglePreview(ti, card);
+      togglePreview(ti, card);
+    }
+    return;
+  }
   const isTimingField = (field === 'bpm' || field === 'beatsPerBar') || (sectionField === 'bpm' || sectionField === 'beatsPerBar');
   if (!isTimingField) return;
   const ti = parseInt(e.target.dataset.ti, 10);
