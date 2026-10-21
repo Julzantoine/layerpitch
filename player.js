@@ -686,9 +686,11 @@ function seqBlockSeconds(track, bars, slot) {
 // fichier avant ce réglage) reste ignoré, pour ne rien changer aux morceaux existants.
 function seqIntroSeconds(track, firstSlot) {
   const intro = (track && track.intro) || {};
-  if (!intro.timingOwn || !(intro.bpm || intro.beatsPerBar)) return seqBlockSeconds(track, intro.bars, firstSlot);
+  // Les temps par mesure de l'intro ne viennent que de l'éditeur (jamais d'un nom de fichier) : ils comptent même sans le
+  // drapeau, absent des morceaux enregistrés avant son introduction (21/10). Le bpm, lui, reste soumis au drapeau.
+  if (!intro.beatsPerBar && !(intro.timingOwn && intro.bpm)) return seqBlockSeconds(track, intro.bars, firstSlot);
   const base = (firstSlot && (firstSlot.bpm || firstSlot.beatsPerBar)) ? seqSlotTiming(track, firstSlot) : trackTempo(track);
-  const secondsPerBeat = intro.bpm ? 60 / intro.bpm : base.secondsPerBeat;
+  const secondsPerBeat = (intro.timingOwn && intro.bpm) ? 60 / intro.bpm : base.secondsPerBeat;
   const beatsPerBar = intro.beatsPerBar || base.beatsPerBar;
   return (intro.bars || beatsPerBar) * beatsPerBar * secondsPerBeat;
 }

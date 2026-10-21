@@ -28,8 +28,10 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   check('publication : timingOwn transmis', snap.intro.timingOwn === true && snap.intro.beatsPerBar === 2);
   check('publication : le lecteur calcule 2 temps', Math.abs(core.seqIntroSeconds(snap, null) - expected) < 1e-6);
 
-  const old = Object.assign({}, snap, { intro: Object.assign({}, snap.intro, { timingOwn: false }) });
-  check('ancien morceau sans drapeau : inchangé (4 temps)', Math.abs(core.seqIntroSeconds(old, null) - (60 / 110) * 4) < 1e-6 || Math.abs(core.seqIntroSeconds(old, null) - (60 / 110) * 4 * 1) < 1e-6);
+  const noFlag = Object.assign({}, snap, { intro: Object.assign({}, snap.intro, { timingOwn: false }) });
+  check('morceau enregistré avant le drapeau : les temps par mesure comptent quand même (2 temps)', Math.abs(core.seqIntroSeconds(noFlag, null) - expected) < 1e-6);
+  const oldBpm = Object.assign({}, snap, { intro: { label: 'Intro', bars: 1, bpm: 200, remoteFile: 'i.ogg' } });
+  check('bpm d\'un nom de fichier, sans drapeau : toujours ignoré (4 temps)', Math.abs(core.seqIntroSeconds(oldBpm, null) - (60 / 110) * 4) < 1e-6);
 
   console.log(failures ? '\n' + failures + ' ÉCHEC(S)' : '\nALL CHECKS PASSED');
   process.exit(failures ? 1 : 0);
