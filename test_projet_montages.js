@@ -40,6 +40,7 @@
   const fs = require('fs'), read = f => fs.readFileSync(require('path').join(__dirname, f), 'utf8');
   const page = read('projet.html');
   check('page Projet : lecteur à versions chargé, carte « montage », ajout depuis le Moodboard, liste dans Vidéos', /layerpitch-video-versions\.js/.test(page) && /if \(a\.kind === 'montage'\) mountMontagePlayer\(el, a\)/.test(page) && /kind === 'montage'\) payload = \{ kind, montageId/.test(page) && /id="montageGrid"/.test(page));
+  check('notes horodatées sur un montage : instant + version regardée, dans le Moodboard et l’onglet Vidéos', /if \(a\.kind === 'montage'\) \{\n    const wrap = el\.querySelector\('\.lp-montage'\)/.test(page) && /hasParts: true \};\n  \}\n  return null;/.test(page) && /renderNotes\(box, 'asset', a\.id, mediaFor\(el, a\)\); \};\n    if \(S\.openNotes/.test(page));
   console.log(failures ? failures + ' échec(s)' : 'Tout est OK');
   process.exit(failures ? 1 : 0);
 })();
