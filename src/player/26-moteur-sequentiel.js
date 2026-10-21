@@ -13,6 +13,7 @@
     const slot = (slotIdx != null && slotIdx >= 0) ? (track.segmentSlots || [])[slotIdx] : null;
     if (!slot || !slot.nextOptions || !slot.nextOptions.length) return;
     const quant = slot.quantization || 'bar';
+    const sourceInfo = currentSeqBlockInfo; // l'emplacement qu'on quitte, figé maintenant (voir performSeqBranchCut)
     const segStart = currentSeqBlockInfo.virtualZero;
     const timing = slotTiming(slot);
     const unitSec = quant === 'beat' ? timing.secondsPerBeat : (timing.beatsPerBar * timing.secondsPerBeat);
@@ -22,7 +23,7 @@
     const delayMs = Math.max(0, (cutTime - ENGINE_START_LEAD_SEC - ctx.currentTime) * 1000);
     const id = setTimeout(() => {
       if (myEpoch !== seqBranchEpoch) return; // périmée pendant l'attente (nouveau passage ou coupure survenue par ailleurs)
-      if (pendingNextSegmentId) performSeqBranchCut(cutTime);
+      if (pendingNextSegmentId) performSeqBranchCut(cutTime, sourceInfo);
       else armNextSeqBranchBoundary(myEpoch, cutTime); // rien choisi à cette frontière : on surveille la suivante
     }, delayMs);
     seqTimeouts.push(id);
@@ -34,12 +35,16 @@
   // directement. Schéma "quantization"/"cutStyle"/"transition" validé le 02/08.
   // atTime : instant exact de la coupure (frontière de mesure / de temps) ; sans lui (quantification « immédiate »), juste
   // après l'appui.
-  function performSeqBranchCut(atTime) {
+  // sourceInfo : le bloc quitté tel qu'il était quand la frontière a été armée. Le minuteur peut se réveiller en retard
+  // (la marge n'est que de ENGINE_START_LEAD_SEC) : le bloc suivant a alors déjà pris la place de currentSeqBlockInfo, et
+  // l'on couperait le mauvais emplacement. Sans lui (quantification « immédiate »), c'est le bloc audible à l'instant.
+  function performSeqBranchCut(atTime, sourceInfo) {
     const targetId = pendingNextSegmentId;
     pendingNextSegmentId = null;
     updateSeqPendingIndicator();
-    if (!currentSeqBlockInfo || currentSeqBlockInfo.kind !== 'segment' || currentSeqBlockInfo.slotIdx == null || currentSeqBlockInfo.slotIdx < 0 || !targetId) return;
-    const sourceSlotIdx = currentSeqBlockInfo.slotIdx;
+    const fromInfo = sourceInfo || currentSeqBlockInfo;
+    if (!fromInfo || fromInfo.kind !== 'segment' || fromInfo.slotIdx == null || fromInfo.slotIdx < 0 || !targetId) return;
+    const sourceSlotIdx = fromInfo.slotIdx;
     const sourceSlot = (track.segmentSlots || [])[sourceSlotIdx];
     if (!sourceSlot) return;
     const targetIdx = (track.segmentSlots || []).findIndex(sl => sl.id === targetId);
@@ -65,8 +70,8 @@
     // Repère de capture : le bloc suivant (transition ou cible) part sur une COUPURE -- l'outil vidéo éteint alors le
     // bloc quitté comme ici (net ou en fondu), au lieu de le laisser finir sa queue comme dans un enchaînement normal.
     seqPendingCut = { hard: cutStyle === 'hard', fadeSec: cutStyle === 'hard' ? 0 : fadeOutSec };
-    if (currentSeqBlockInfo.gainNode) {
-      const g = currentSeqBlockInfo.gainNode;
+    if (fromInfo.gainNode) {
+      const g = fromInfo.gainNode;
       g.gain.cancelScheduledValues(now);
       if (cutStyle === 'hard') {
         g.gain.setValueAtTime(0, now);
@@ -86,8 +91,12 @@
     // l'ancien et le nouvel emplacement, signalé par Jules-Antoine). La génération ACTUELLEMENT audible
     // (ctxStartTime <= now) n'est jamais concernée ici : elle est déjà en train de s'éteindre via son
     // gainNode juste au-dessus.
+    // Le critère est la frontière de coupure elle-même, pas l'horloge au moment où ce code s'exécute : si le minuteur est
+    // en retard, le bloc qui devait démarrer PILE sur la frontière (souvent la destination elle-même) est déjà parti, et
+    // l'ancien critère (« pas encore audible ») le laissait sonner par-dessus la transition (bug aléatoire, 21/10).
+    const cutRef = atTime != null ? atTime : now;
     seqActiveSources = seqActiveSources.filter(({ src, ctxStartTime: st }) => {
-      if (st > ctx.currentTime) { try { src.stop(); } catch (e) {} return false; } // pas encore audible : annulé
+      if (st >= cutRef - 0.005 || st > ctx.currentTime) { try { src.stop(); } catch (e) {} return false; } // devait démarrer à la coupure ou après : annulé
       return true;
     });
     seqTimeouts.forEach(id => clearTimeout(id)); seqTimeouts = [];

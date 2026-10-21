@@ -59,6 +59,8 @@ function guessFolderStructure(folderName, files) {
     // le dit dans les noms -> on le demande, on ne présélectionne rien (RobotAdventure : séquentiel à embranchement).
     if (!groupFilesByNameFamily(otherFiles, false).groups.some(x => x.files.length >= 2)) return { mode: 'vertical', why: 'transitionsUnclear' };
   }
+  // Un seul fichier (21/10) : un morceau statique, une seule piste -- ni couches, ni étapes, ni boucles à empiler.
+  if (files.length === 1) return { mode: 'static', why: 'single' };
   const intensity = files.filter(f => /(?:^|[^a-z])(?:low|med|medium|mid|high)[\s_-]?intensit|intensit/i.test(f.name)).length;
   if (files.length >= 2 && intensity >= 2) return { mode: 'vertical', why: 'intensity' };
   const g = groupFilesByNameFamily(files, true);
@@ -218,6 +220,16 @@ function openRoleGridDialog(opts) {
 if (typeof window !== 'undefined') window.openRoleGridDialog = openRoleGridDialog;
 
 // Vertical : une couche par fichier. Rien n'est supposé : chaque fichier est une couche, sauf ceux que le compositeur écarte.
+// Morceau statique : l'unique fichier devient la piste ; titre, tempo et mesures lus dans son nom comme au choix d'un fichier.
+function importFolderAsStatic(title, files) {
+  const f = files[0];
+  const track = newFolderImportTrack(title, 'static');
+  const layer = { id: genId(), label: titleFromFilenameStrippingHints(f.name), remoteFile: null, pendingFile: f };
+  track.layers.push(layer);
+  applyStaticFileNameHints(track, f);
+  registerImportedTrack(track, 1);
+  probeImportedDurations(track, [[layer, f]]);
+}
 function importFolderAsVertical(title, files) {
   openRoleGridDialog({
     title: tr('importFolderGroupedTitle', { title }), files, requiredRole: 'layer',
@@ -429,7 +441,7 @@ function openFolderImportDialog(folder) {
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
   const close = () => overlay.remove();
-  const optionLabel = { 'vertical-random': 'modeOptionVerticalRandom', vertical: 'modeOptionVertical', sequential: 'modeOptionSequential', 'embranchement-vertical': 'modeOptionEmbranchementVertical' };
+  const optionLabel = { static: 'modeOptionStatic', 'vertical-random': 'modeOptionVerticalRandom', vertical: 'modeOptionVertical', sequential: 'modeOptionSequential', 'embranchement-vertical': 'modeOptionEmbranchementVertical' };
   const ignored = folder.ignored || [];
   modal.innerHTML = `
     <h3>${tr('importFolderTitle')}</h3>
@@ -438,7 +450,7 @@ function openFolderImportDialog(folder) {
       <label>${tr('importFolderTitleLabel')}</label>
       <input type="text" data-fi="title" value="${escapeAttr(state.title)}">
       <label style="margin-top:12px">${tr('importFolderStructureLabel')}</label>
-      <select data-fi="mode">${noClue ? `<option value="" selected>${tr('importFolderChoosePlaceholder')}</option>` : ''}${FOLDER_IMPORT_MODES.map(m => `<option value="${m}"${m === state.mode ? ' selected' : ''}>${tr(optionLabel[m])}</option>`).join('')}</select>
+      <select data-fi="mode">${noClue ? `<option value="" selected>${tr('importFolderChoosePlaceholder')}</option>` : ''}${(files.length === 1 ? ['static', ...FOLDER_IMPORT_MODES] : FOLDER_IMPORT_MODES).map(m => `<option value="${m}"${m === state.mode ? ' selected' : ''}>${tr(optionLabel[m])}</option>`).join('')}</select>
       <div class="hint-inline">${!noClue ? tr('importFolderGuess', { why: tr('importFolderWhy_name') })
         : (guess.why === 'default' ? tr('importFolderNoClue')
         : (guess.why === 'transitionsUnclear' ? tr('importFolderNoClueTransition')
@@ -483,7 +495,8 @@ function openFolderImportDialog(folder) {
     if (!state.mode) return; // rien choisi : on ne devine pas à sa place
     close();
     const title = (state.title || '').trim() || tr('defaultTrackTitle');
-    if (state.mode === 'vertical-random') importFolderAsVerticalRandom(title, files);
+    if (state.mode === 'static') importFolderAsStatic(title, files);
+    else if (state.mode === 'vertical-random') importFolderAsVerticalRandom(title, files);
     else if (state.mode === 'sequential') importFolderAsSequential(title, files);
     else if (state.mode === 'embranchement-vertical') importFolderAsEmbranchement(title, files);
     else importFolderAsVertical(title, files);
