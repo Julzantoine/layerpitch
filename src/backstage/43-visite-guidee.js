@@ -27,21 +27,25 @@ function lessonPlayable(lesson) { return !isTutoMode() || tutoFullAccess || less
 // des médias, avec CORS ouvert à l'origine du Backstage). Tant qu'un nom manque, le bouton « Utiliser » n'apparaît pas.
 const LESSON_SAMPLE_URLS = {
 };
-// Leçons « Jazz » (21/10) : morceaux de Jules-Antoine, 110 BPM, dans le même dossier `tuto/`. Les originaux .wav y sont déposés sous
-// leurs noms exacts (avec espaces : l'adresse est encodée). Le nom est celui que l'apprenant voit et que le moteur lit (tempo, mesures).
-[
+// Leçons « Jazz » (21/10) : morceaux de Jules-Antoine, 110 BPM. Chaque dossier du Bureau est déposé tel quel dans `tuto/`
+// (media.layerpitch.com/tuto/<dossier>/<fichier>) : l'adresse est encodée, les espaces des noms n'y gênent pas. Le nom du fichier
+// est celui que l'apprenant voit et que le moteur lit (tempo, mesures).
+const LESSON_SAMPLE_FOLDERS = {
   // Statique : une boucle de 8 mesures précédée d'une intro de 2 temps.
-  'Jazz Lo_2bts Intro_8M_110bpm.wav',
+  'Jazz Lo': ['Jazz Lo_2bts Intro_8M_110bpm.wav'],
   // Embranchement vertical : deux boucles de 8 mesures précédées d'une intro de 2 temps.
-  'Jazz Lo 2bts Intro_8M_110bpm.wav', 'Jazz Hi 2bts Intro_8M_110bpm.wav',
+  'Jazz Hi-Lo Vert. Branch.': ['Jazz Lo 2bts Intro_8M_110bpm.wav', 'Jazz Hi 2bts Intro_8M_110bpm.wav'],
   // Couches additives : trois couches (cordes, batterie, clavier), même durée.
-  'Jazz Hi CB Only_2bts intro_8M_110bpm.wav', 'Jazz Hi Drum Only_2bts intro_8M_110bpm.wav', 'Jazz Hi KB Only_2bts intro_8M_110bpm.wav',
+  'Jazz Hi Lay. Add.': ['Jazz Hi CB Only_2bts intro_8M_110bpm.wav', 'Jazz Hi Drum Only_2bts intro_8M_110bpm.wav', 'Jazz Hi KB Only_2bts intro_8M_110bpm.wav'],
   // Séquentiel (sections aléatoires) : intro de 2 temps, quatre sections de 4 mesures, outro de 4 mesures.
-  'Jazz Hi Intro 2bts.wav', 'Jazz Hi Alt1_4M_110bpm.wav', 'Jazz Hi Alt2_4M_110bpm.wav', 'Jazz Hi Alt3_4M_110bpm.wav', 'Jazz Hi Alt4_4M_110bpm.wav', 'Jazz Hi Outro_4M.wav',
+  'Jazz Hi Seq. Rand.': ['Jazz Hi Intro 2bts.wav', 'Jazz Hi Alt1_4M_110bpm.wav', 'Jazz Hi Alt2_4M_110bpm.wav', 'Jazz Hi Alt3_4M_110bpm.wav', 'Jazz Hi Alt4_4M_110bpm.wav', 'Jazz Hi Outro_4M.wav'],
   // Séquentiel à embranchement : trois « villes » de 4 mesures, et une transition d'une mesure par ville d'arrivée.
-  'Jazz Hi_Disco City_4M_110bpm.wav', 'Jazz Hi_Jazz City_4M_110bpm.wav', 'Jazz Hi_Synth city_4M_110bpm.wav',
-  'Jazz Hi_Trans Disco City_1M.wav', 'Jazz Hi_Trans Jazz City_1M.wav', 'Jazz Hi_Trans Synth City_1M.wav',
-].forEach(n => { LESSON_SAMPLE_URLS[n] = 'https://media.layerpitch.com/tuto/' + encodeURIComponent(n); });
+  'Jazz Hi Seq. Branch.': ['Jazz Hi_Disco City_4M_110bpm.wav', 'Jazz Hi_Jazz City_4M_110bpm.wav', 'Jazz Hi_Synth city_4M_110bpm.wav',
+    'Jazz Hi_Trans Disco City_1M.wav', 'Jazz Hi_Trans Jazz City_1M.wav', 'Jazz Hi_Trans Synth City_1M.wav'],
+};
+Object.keys(LESSON_SAMPLE_FOLDERS).forEach(dir => LESSON_SAMPLE_FOLDERS[dir].forEach(n => {
+  LESSON_SAMPLE_URLS[n] = 'https://media.layerpitch.com/tuto/' + encodeURIComponent(dir) + '/' + encodeURIComponent(n);
+}));
 function lessonStepFileNames(step) {
   const names = LESSON_SAMPLE_NAMES[step.names || (guide && guide.lessonId)] || '';
   return names.split(',').map(x => x.trim()).filter(Boolean);
