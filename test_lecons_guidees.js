@@ -182,8 +182,10 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('chaque leçon appartient à un thème', th.allThemed === true);
   check('toutes les leçons sont ouvertes sans compte (le tutoriel se joue toujours en mode sans compte)', th.pub.length === th.total);
   w.eval(`myFlags = { in_app_lessons: true }; renderTutorialMenu();`);
-  const heads = [...w.document.querySelectorAll('#tutorialMenuList .tutorial-menu-heading')].map(x => x.textContent).join('|');
-  check('menu : leçons groupées par thème (moteur audio, AdReel, préproduction)', /moteur audio : uploader de la musique interactive/.test(heads) && /Créer un AdReel : envoyer de la musique à un studio/.test(heads) && /espace de travail conjoint studio\/compositeur/.test(heads));
+  // Sections (21/10) : titre + sous-titre coupés au « : », plus visibles que l'étiquette « Leçons » et que les leçons.
+  const heads = [...w.document.querySelectorAll('#tutorialMenuList .tutorial-menu-section')].map(x => x.querySelector('strong').textContent + ' : ' + (x.querySelector('small') ? x.querySelector('small').textContent : '')).join('|');
+  check('menu : leçons groupées par thème (moteur audio, AdReel, préproduction)', /moteur audio : Uploader de la musique interactive/.test(heads) && /Créer un AdReel : Envoyer de la musique à un studio/.test(heads) && /espace de travail conjoint studio\/compositeur/.test(heads)
+    && w.document.querySelectorAll('#tutorialMenuList .tutorial-menu-lesson').length > 0);
   // Échap quitte.
   w.eval(`guide.index = 7; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle
   check('bouton « Suivant » sur une étape manuelle', !!w.document.querySelector('[data-tour="next"]'));

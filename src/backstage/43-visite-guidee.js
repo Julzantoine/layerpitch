@@ -611,6 +611,7 @@ function startLesson(id) {
 }
 
 // ---- Menu « Tutoriel » (barre du haut) ----
+const capitalizeFirst = str => str.charAt(0).toUpperCase() + str.slice(1);
 function renderTutorialMenu() {
   const list = document.getElementById('tutorialMenuList');
   if (!list) return;
@@ -625,8 +626,11 @@ function renderTutorialMenu() {
     <div class="tutorial-menu-heading">${escapeHtml(tr('tutorialLessonsHeading'))}</div>
     ${LESSON_THEMES.map(th => {
       const items = LESSONS.filter(l => l.theme === th.id);
-      return `<div class="tutorial-menu-heading">${escapeHtml(tr(th.titleKey))}</div>` + (items.length ? items.map(l => `
-      <button class="account-menu-item" type="button" data-tutorial="${l.id}" ${(l.soon || !lessonPlayable(l) || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}>
+      // Hiérarchie (retour de Jules-Antoine, 21/10) : « Leçons » = petite étiquette ; chaque section = vrai titre (le plus visible),
+      // coupé en titre + sous-titre au « : » ; les leçons en dessous, en retrait et moins appuyées.
+      const [thMain, ...thRest] = tr(th.titleKey).split(' : ');
+      return `<div class="tutorial-menu-section"><strong>${escapeHtml(thMain)}</strong>${thRest.length ? `<small>${escapeHtml(capitalizeFirst(thRest.join(' : ')))}</small>` : ''}</div>` + (items.length ? items.map(l => `
+      <button class="account-menu-item tutorial-menu-lesson" type="button" data-tutorial="${l.id}" ${(l.soon || !lessonPlayable(l) || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}>
         <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr(l.titleKey))}</b><small>${escapeHtml(lessonPlayable(l) ? tr(l.descKey) : tr('tutoNeedsAccount'))}</small></span></span>
         ${!lessonPlayable(l) ? `<span class="nav-badge">${escapeHtml(tr('tutoAccountBadge'))}</span>` : (l.soon || (l.needs && !flagOpen(l.needs))) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : '')}
       </button>`).join('') : `<div class="tutorial-menu-empty">${escapeHtml(tr('lessonThemeSoon'))}</div>`);

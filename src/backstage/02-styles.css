@@ -929,6 +929,13 @@
 
   /* Les bulles guidées (.tour-*) sont dans layerpitch-guide.css, partagé avec les autres pages. */
   .tutorial-menu-heading { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); padding: 6px 10px 2px; }
-  .tutorial-menu-empty { font-size: 12px; color: var(--text-dimmer); padding: 2px 10px 8px; }
+  /* Sections du menu (21/10) : le niveau le plus visible sous « Leçons », séparées par un trait ; leçons en retrait, titres moins appuyés. */
+  .tutorial-menu-section { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding: 10px 10px 4px; border-top: 1px solid var(--border); }
+  .tutorial-menu-heading + .tutorial-menu-section { border-top: 0; margin-top: 0; padding-top: 4px; }
+  .tutorial-menu-section strong { font-size: 14px; font-weight: 700; color: var(--text); }
+  .tutorial-menu-section small { font-size: 11.5px; color: var(--text-dim); }
+  .account-menu-item.tutorial-menu-lesson { padding-left: 20px; }
+  .tutorial-menu-lesson .tutorial-menu-text b { font-weight: 500; font-size: 13px; }
+  .tutorial-menu-empty { font-size: 12px; color: var(--text-dimmer); padding: 2px 10px 8px 20px; }
   .tutorial-menu-text { display: flex; flex-direction: column; gap: 2px; }
   .tutorial-menu-text small { font-size: 11.5px; color: var(--text-dim); font-weight: 400; }
