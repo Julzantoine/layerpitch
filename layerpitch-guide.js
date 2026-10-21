@@ -271,7 +271,7 @@
           arrowEl.innerHTML = '<span class="tour-arrow-label"></span><span class="tour-arrow-head">▼</span>';
           guide.root.appendChild(arrowEl);
         }
-        arrowEl.querySelector('.tour-arrow-label').textContent = tr('lessonArrowLabel', { n: step.arrow.bar });
+        arrowEl.querySelector('.tour-arrow-label').textContent = step.arrow.labelKey ? tr(step.arrow.labelKey) : tr('lessonArrowLabel', { n: step.arrow.bar });
         arrowEl.style.left = ap.x + 'px';
         arrowEl.style.top = ap.y + 'px';
       } else if (arrowEl) {
