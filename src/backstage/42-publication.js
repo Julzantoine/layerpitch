@@ -524,6 +524,13 @@ async function publishAll() {
     const data = buildDataSnapshot(effectivePlan, buildVersion);
     // Écriture en base : la seule source de vérité du site public. Si une écriture échoue, la publication s'arrête
     // là (l'exception remonte au catch de publishAll()) avec la liste des éléments en échec.
+    // Dossiers d'abord (21/10) : un élément rangé dans un dossier absent de la base est refusé, et un dossier jamais écrit
+    // disparaissait au rechargement avec tout son contenu.
+    log('Écriture en base : dossiers...');
+    for (const [kind, folders] of [['tracks', data.libraryFolders], ['sfx', data.sfxFolders], ['adreels', data.adReelFolders]]) {
+      const { ok, error } = await window.LayerPitchTracks.syncFolders(kind, folders);
+      if (!ok) throw new Error('Écriture des dossiers (' + kind + ') échouée — publication arrêtée : ' + error);
+    }
     log('Écriture en base : morceaux...');
     const pgErrors = [];
     for (const track of data.library) {

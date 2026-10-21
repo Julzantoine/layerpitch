@@ -97,7 +97,15 @@
     if (opts && opts.ownerId) query = query.eq('owner_id', opts.ownerId);
     const { data, error } = await query;
     if (error) return { folders: null, error: error.message };
-    return { folders: data.map(f => ({ id: f.id, label: f.label })), error: null };
+    return { folders: data.slice().sort((a, b) => (a.position || 0) - (b.position || 0)).map(f => ({ id: f.id, label: f.label })), error: null };
+  }
+
+  // Écrit la liste COMPLÈTE et ordonnée des dossiers d'un type ('tracks' | 'sfx' | 'adreels') du compositeur courant
+  // (21/10, migration 20261021070000) : crée, renomme, réordonne, supprime les absents. À appeler avant d'écrire les
+  // éléments qui y sont rangés.
+  async function syncFolders(kind, folders) {
+    const { error } = await getClient().rpc('sync_my_folders', { p_kind: kind, p_folders: (folders || []).map(f => ({ id: f.id, label: f.label || '' })) });
+    return error ? { ok: false, error: error.message } : { ok: true };
   }
 
   async function getTrack(id) {
@@ -150,5 +158,5 @@
     return data && data.ok ? { ok: true, files: data.files } : { ok: false, error: (data && data.error) || 'Réponse inattendue.' };
   }
 
-  window.LayerPitchTracks = { copyTrackFiles, setTrackProtected, listTracks, getTrack, upsertTrack, deleteTrack, listTrackFolders, listTracksByIds };
+  window.LayerPitchTracks = { syncFolders, copyTrackFiles, setTrackProtected, listTracks, getTrack, upsertTrack, deleteTrack, listTrackFolders, listTracksByIds };
 })();

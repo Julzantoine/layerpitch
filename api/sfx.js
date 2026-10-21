@@ -54,7 +54,7 @@
     if (opts && opts.ownerId) query = query.eq('owner_id', opts.ownerId);
     const { data, error } = await query;
     if (error) return { folders: null, error: error.message };
-    return { folders: data.map(f => ({ id: f.id, label: f.label })), error: null };
+    return { folders: data.slice().sort((a, b) => (a.position || 0) - (b.position || 0)).map(f => ({ id: f.id, label: f.label })), error: null };
   }
 
   // payload : même forme qu'un Sfx de data.json (voir reshapeSfx ci-dessus pour le mapping inverse).
