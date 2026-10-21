@@ -615,7 +615,16 @@ async function renderUpgrade() {
 }
 
 window.LayerPitchShell && window.LayerPitchShell.mount(shellPlaces());
-LayerPitchAuth.onAuthStateChange(() => render()); // appelé tout de suite avec l'état courant, puis à chaque changement
+// Appelé tout de suite avec l'état courant, puis à chaque évènement de connexion. On ne redessine que si le COMPTE change (connexion,
+// déconnexion, autre compte) : un simple rafraîchissement de session -- que l'atelier vidéo, chargé dans un cadre de cette page, provoque
+// lui-même en se connectant -- redessinait tout, rechargeait l'atelier, qui en provoquait un autre… l'image sautait en boucle (21/10).
+let lastAuthUserId;
+LayerPitchAuth.onAuthStateChange((_event, session) => {
+  const userId = (session && session.user && session.user.id) || null;
+  if (userId === lastAuthUserId) return;
+  lastAuthUserId = userId;
+  render();
+});
 </script>
 </body>
 </html>

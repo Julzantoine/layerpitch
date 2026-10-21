@@ -32,6 +32,8 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('Backstage : bloc vidéo → « Faire une vidéo avec un pack (atelier) »', /data-role="openAtelier"/.test(bs) && /atelierBtn\.addEventListener\('click', \(\) => openVideoAtelier\(\)\)/.test(bs));
   check('Backstage : messages de l’atelier acceptés de la même origine seulement', /if \(e\.origin !== location\.origin \|\| !e\.data \|\| e\.data\.source !== 'lp-atelier'\) return;/.test(bs));
   const studio = read('studio.html');
+  check('espace studio : un rafraîchissement de session (provoqué par l’atelier) ne redessine pas la page (sinon l’atelier se recharge en boucle)',
+    /if \(userId === lastAuthUserId\) return;/.test(studio) && !/onAuthStateChange\(\(\) => render\(\)\)/.test(studio));
   check('espace studio : atelier au nom du studio dans l’onglet Vidéos', /<iframe id="svAtelier"/.test(studio) && /studio: '1'/.test(studio) && !/pack\.html\?[^`]*capture=1/.test(studio));
   check('atelier : chaque enregistrement prévient la page hôte (« changed »)', /c\.rpc = async \(name, args\) => \{ const r = await rpc\(name, args\); if \(ATELIER_WRITES\.has\(name\) && r && !r\.error\) atelierTell\('changed'\)/.test(atelier) && /atelierWatchWrites\(\);/.test(atelier));
   check('Backstage et studio : listes rafraîchies sans recharger l’atelier', /if \(e\.data\.type === 'changed'\) \{\s*videoVersioningIndexPromise = null;/.test(bs)
