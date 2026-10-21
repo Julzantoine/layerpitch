@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Espace studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1792580929412">
+<link rel="stylesheet" href="player.css?v=1792585672404">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -71,22 +71,22 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1792580929412"></script>
-<script src="layerpitch-notify.js?v=1792580929412"></script>
-<script src="player.js?v=1792580929412"></script>
-<script src="api/supabase-client.js?v=1792580929412"></script>
-<script src="api/auth.js?v=1792580929412"></script>
-<script src="layerpitch-appearance.js?v=1792580929412"></script>
-<script src="layerpitch-album-shared.js?v=1792580929412"></script>
-<script src="layerpitch-album-editor.js?v=1792580929412"></script>
-<script src="layerpitch-shell.js?v=1792580929412"></script>
-<script src="api/purchases.js?v=1792580929412"></script>
-<script src="api/tracks.js?v=1792580929412"></script>
-<script src="api/sfx.js?v=1792580929412"></script>
-<script src="api/subscriptions.js?v=1792580929412"></script>
-<script src="api/albums.js?v=1792580929412"></script>
-<script src="layerpitch-studio-albums.js?v=1792580929412"></script>
-<script src="api/studio.js?v=1792580929412"></script>
+<script src="layerpitch-i18n.js?v=1792585672404"></script>
+<script src="layerpitch-notify.js?v=1792585672404"></script>
+<script src="player.js?v=1792585672404"></script>
+<script src="api/supabase-client.js?v=1792585672404"></script>
+<script src="api/auth.js?v=1792585672404"></script>
+<script src="layerpitch-appearance.js?v=1792585672404"></script>
+<script src="layerpitch-album-shared.js?v=1792585672404"></script>
+<script src="layerpitch-album-editor.js?v=1792585672404"></script>
+<script src="layerpitch-shell.js?v=1792585672404"></script>
+<script src="api/purchases.js?v=1792585672404"></script>
+<script src="api/tracks.js?v=1792585672404"></script>
+<script src="api/sfx.js?v=1792585672404"></script>
+<script src="api/subscriptions.js?v=1792585672404"></script>
+<script src="api/albums.js?v=1792585672404"></script>
+<script src="layerpitch-studio-albums.js?v=1792585672404"></script>
+<script src="api/studio.js?v=1792585672404"></script>
 <script>
 // studio.html — Espace studio (chantier profils et permissions, étape 3, 28/09 ; D2, D9, D13, D33 du cadrage
 // layerpitch-docs/2026-09-27-cadrage-profils-permissions.md). Espace DÉDIÉ au studio, distinct du Backstage compositeur ;
@@ -250,7 +250,24 @@ function renderPanel() {
 // au STUDIO, tout membre le retouche, il reste au studio si son auteur part. Ses vidéos muettes et ses sons comptent dans le stockage
 // du studio. Ici : la liste des montages (ouvrir dans l'outil, supprimer), la bibliothèque vidéo, le stockage et le nettoyage des historiques.
 async function renderVideoTab(panel) {
-  panel.innerHTML = `<div class="card"><div class="empty">${esc(tr('sv_loading'))}</div></div>`;
+  // Atelier vidéo (21/10) : l'outil de capture et de Versioning, au nom du studio (?studio=1), packs achetés par l'équipe. Même page que
+  // dans le Backstage (atelier.html), dans un cadre. Les listes en dessous se redessinent seules après un enregistrement dans l'atelier
+  // (message « changed »), sans recharger le cadre.
+  panel.innerHTML = `<div class="card">
+      <h2>${esc(tr('sv_atelierTitle'))}</h2>
+      <p class="hint">${esc(tr('sv_atelierIntro'))}</p>
+      <iframe id="svAtelier" class="atelier-frame" title="${esc(tr('sv_atelierTitle'))}" allow="autoplay; fullscreen" src="${esc(svAtelierUrl())}"></iframe>
+    </div>
+    <div id="svLists"><div class="card"><div class="empty">${esc(tr('sv_loading'))}</div></div></div>`;
+  await renderVideoLists($('svLists'));
+}
+const svAtelierUrl = (packId, montageId) => './atelier.html?' + new URLSearchParams(Object.assign({ studio: '1', lang: pageLang }, packId ? { id: packId } : {}, montageId ? { montage: montageId } : {})).toString();
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-atelier' || e.data.type !== 'changed') return;
+  const host = $('svLists');
+  if (host) renderVideoLists(host);
+});
+async function renderVideoLists(host) {
   const client = window.LayerPitchSupabaseClient.getClient();
   const [caps, lib, hist] = await Promise.all([
     client.rpc('list_my_video_captures', { p_pack_id: null, p_studio: true }),
@@ -260,15 +277,7 @@ async function renderVideoTab(panel) {
   const montages = caps.data || [], videos = (lib.data && lib.data.videos) || [], usage = hist.data || { count: 0, bytes: 0 };
   const mo = n => (Number(n || 0) / 1048576).toFixed(1) + ' Mo';
   const quota = lib.data && lib.data.quotaGb != null ? tr('sv_storage', { used: (Number(lib.data.usedBytes || 0) / 1073741824).toFixed(2), quota: lib.data.quotaGb }) : '';
-  // Atelier vidéo (21/10) : l'outil de capture et de Versioning, au nom du studio (?studio=1), packs achetés par l'équipe. Même page que
-  // dans le Backstage (atelier.html), dans un cadre.
-  const atelierUrl = (packId, montageId) => './atelier.html?' + new URLSearchParams(Object.assign({ studio: '1', lang: pageLang }, packId ? { id: packId } : {}, montageId ? { montage: montageId } : {})).toString();
-  panel.innerHTML = `<div class="card">
-      <h2>${esc(tr('sv_atelierTitle'))}</h2>
-      <p class="hint">${esc(tr('sv_atelierIntro'))}</p>
-      <iframe id="svAtelier" class="atelier-frame" title="${esc(tr('sv_atelierTitle'))}" allow="autoplay; fullscreen" src="${esc(atelierUrl())}"></iframe>
-    </div>
-    <div class="card">
+  host.innerHTML = `<div class="card">
       <h2>${esc(tr('sv_montagesTitle'))}</h2>
       <p class="hint">${esc(tr('sv_montagesIntro'))}</p>
       ${montages.length ? montages.map(c => `<div class="row"><div class="row-main"><div class="row-title">${esc(c.title || tr('sv_untitled'))}</div>
@@ -293,16 +302,16 @@ async function renderVideoTab(panel) {
       } catch (e) { console.warn('effacement ' + r.path, e); }
     }
   };
-  panel.querySelectorAll('[data-atelier-montage]').forEach(b => b.onclick = () => {
+  host.querySelectorAll('[data-atelier-montage]').forEach(b => b.onclick = () => {
     const frame = $('svAtelier');
-    frame.src = atelierUrl(b.dataset.atelierPack, b.dataset.atelierMontage);
+    frame.src = svAtelierUrl(b.dataset.atelierPack, b.dataset.atelierMontage);
     if (frame.scrollIntoView) frame.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
-  panel.querySelectorAll('[data-delmontage]').forEach(b => b.onclick = async () => {
+  host.querySelectorAll('[data-delmontage]').forEach(b => b.onclick = async () => {
     if (!(await window.LayerPitchNotify.confirm(tr('sv_deleteConfirm'), { danger: true }))) return;
     const { error } = await client.rpc('delete_video_capture', { p_id: b.dataset.delmontage, p_studio: true });
     if (error) return window.LayerPitchNotify.error(error.message);
-    renderVideoTab(panel);
+    renderVideoLists(host);
   });
   const clr = $('svClearHistory');
   if (clr) clr.onclick = async () => {
@@ -310,7 +319,7 @@ async function renderVideoTab(panel) {
     const { data, error } = await client.rpc('clear_video_export_history', { p_studio: true });
     if (error) return window.LayerPitchNotify.error(error.message);
     await dropFiles(data && data.removed);
-    renderVideoTab(panel);
+    renderVideoLists(host);
   };
 }
 
