@@ -14,6 +14,22 @@ function parseAudioFilenameHints(filename) {
   return { bpm: bpmMatch ? parseInt(bpmMatch[1], 10) : null, bars: barsMatch ? parseInt(barsMatch[1], 10) : null };
 }
 if (typeof window !== 'undefined') window.parseAudioFilenameHints = parseAudioFilenameHints;
+// Choix d'un fichier un par un (bouton « Choisir un WAV »), qui ne lisait pas le nom alors que le dépôt groupé le lisait (21/10).
+// Variation d'un emplacement séquentiel : mesures lues dans le nom ; tempo repris pour l'emplacement seulement s'il n'en a pas
+// encore (même règle que le dépôt groupé, addFilesToSeqSlot).
+function applySeqAltFileNameHints(slot, alt, file) {
+  const h = parseAudioFilenameHints(file.name);
+  if (h.bars) alt.bars = h.bars;
+  if (h.bpm && !slot.bpm) slot.bpm = h.bpm;
+}
+// Transition d'un embranchement séquentiel : mesures et tempo lus dans le nom, unité « mesures » posée pour que le tempo propre
+// de la transition compte. Un tempo déjà saisi à la main n'est jamais écrasé ; sans jeton dans le nom, rien ne change.
+function applySeqTransitionFileNameHints(transition, file) {
+  const h = parseAudioFilenameHints(file.name);
+  if (h.bars) { transition.bars = h.bars; if (!transition.durationUnit) transition.durationUnit = 'bars'; }
+  if (h.bpm && !transition.bpm) { transition.bpm = h.bpm; if (!transition.durationUnit) transition.durationUnit = 'bars'; }
+}
+if (typeof window !== 'undefined') { window.applySeqAltFileNameHints = applySeqAltFileNameHints; window.applySeqTransitionFileNameHints = applySeqTransitionFileNameHints; }
 // Mesures d'intro DANS une boucle (« ..._120bpm_18M_intro2M.wav » : les 2 premières mesures ne rebouclent pas), 11/10.
 // Fonction à part (et non un champ de plus de parseAudioFilenameHints, dont le résultat est comparé tel quel par des tests).
 function parseIntroBarsHint(filename) {
@@ -147,6 +163,19 @@ function groupFilesByNameFamily(files, detectIntroOutro) {
     else if (role === 'outro' && !outro) outro = f;
     else rest.push(f);
   });
+  // Code court en tête de nom (« BS_ », « DM_ », « KB_ » : 2 à 3 majuscules puis un tiret bas) : au moins 2 fichiers qui le
+  // partagent forment un seul pool, nommé d'après ce code (21/10). Majuscules seulement, pour ne pas réunir à tort des
+  // fichiers qui commencent par un mot ordinaire (« Main_Perc », « Main_Bass »).
+  const codeOf = f => { const m = f.name.match(/^([A-Z]{2,3})_/); return m ? m[1] : null; };
+  const codeCount = new Map();
+  rest.forEach(f => { const c = codeOf(f); if (c) codeCount.set(c, (codeCount.get(c) || 0) + 1); });
+  const codeGroups = new Map();
+  for (let i = rest.length - 1; i >= 0; i--) {
+    const c = codeOf(rest[i]);
+    if (!c || codeCount.get(c) < 2) continue;
+    if (!codeGroups.has(c)) codeGroups.set(c, { label: c, files: [] });
+    codeGroups.get(c).files.unshift(rest.splice(i, 1)[0]);
+  }
   const strictLabel = f => stripVariantSuffix(titleFromFilenameStrippingHints(f.name));
   const looseCount = new Map();
   rest.forEach(f => { const k = nameFamilyKey(stripVariantSuffixLoose(strictLabel(f))); looseCount.set(k, (looseCount.get(k) || 0) + 1); });
@@ -172,8 +201,9 @@ function groupFilesByNameFamily(files, detectIntroOutro) {
     }
   });
   const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-  return { intro, outro, groups: [...groups.values()].map(g => ({ label: g.label, files: g.files.sort(byName) })) };
+  return { intro, outro, groups: [...codeGroups.values(), ...groups.values()].map(g => ({ label: g.label, files: g.files.sort(byName) })) };
 }
+if (typeof window !== 'undefined') window.groupFilesByNameFamily = groupFilesByNameFamily;
 function hintsText(h) {
   return h ? [h.bpm ? h.bpm + ' BPM' : '', h.bars ? tr('vrsBatchBarsN', { n: h.bars }) : '', h.introBars ? tr('importFolderEmbrIntro', { n: h.introBars }) : ''].filter(Boolean).join(', ') : '';
 }

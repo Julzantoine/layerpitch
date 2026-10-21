@@ -252,6 +252,7 @@
                 () => opt.transition.pendingFile, () => opt.transition.remoteFile,
                 f => {
                   opt.transition.pendingFile = f;
+                  applySeqTransitionFileNameHints(opt.transition, f);
                   hasUnsavedEdits = true;
                   if (!opt.transition.label || !opt.transition.label.trim()) opt.transition.label = titleFromFilename(f.name);
                   renderLibrary();
@@ -296,8 +297,10 @@
             () => alt.pendingFile, () => alt.remoteFile,
             f => {
               alt.pendingFile = f;
+              applySeqAltFileNameHints(slot, alt, f);
               hasUnsavedEdits = true;
-              if (!alt.label || !alt.label.trim()) { alt.label = titleFromFilename(f.name); renderLibrary(); }
+              if (!alt.label || !alt.label.trim()) alt.label = titleFromFilename(f.name);
+              renderLibrary();
               probeAudioDuration(f).then(dur => { if (dur > (track.duration || 0)) { track.duration = dur; renderLibrary(); } });
             }, () => alt.originalFileName);
           altsHost.appendChild(altRow);
