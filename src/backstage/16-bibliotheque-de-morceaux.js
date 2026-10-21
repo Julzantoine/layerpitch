@@ -532,6 +532,8 @@ function buildPreviewTrack(track) {
     // première section.
     if (item && item.bpm) out.bpm = item.bpm;
     if (item && item.beatsPerBar) out.beatsPerBar = item.beatsPerBar;
+    // Drapeau posé par l'éditeur d'intro (séquentiel) : sans lui, le lecteur ignore bpm/beatsPerBar de l'intro.
+    if (item && item.timingOwn) out.timingOwn = true;
     return out;
   };
   // Comme mapAlternative (ne filtre jamais un slot vide), mais conserve aussi le nombre de mesures —
