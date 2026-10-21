@@ -84,7 +84,12 @@ async function fetchAsUint8Array(url) {
 // fichiers (aucun module commun entre eux, même raisonnement que trackPublicEvent()).
 const MEDIA_BASE = 'https://media.layerpitch.com/';
 // size : taille exacte d'un envoi (PUT), vérifiée et verrouillée par le serveur avec le type de fichier (27/09).
+// Envois vidéo AU NOM D'UN STUDIO : prêts seulement quand la fonction create-media-signed-url (asStudio, 21/10) est redéployée.
+// D'ici là, bloqués ici (seul point de passage des envois) : sinon l'ancienne fonction créerait un profil compositeur au compte studio.
+// Passer à true une fois le redéploiement fait.
+window.__lpStudioVideoUploadsReady = false;
 async function r2SignedUrl(path, method, size) {
+  if (window.__lpStudioBuyer && path.startsWith('video/') && !window.__lpStudioVideoUploadsReady) throw new Error(tr('captureStudioUploadSoon'));
   const { data, error } = await window.LayerPitchSupabaseClient.getClient()
     .functions.invoke('create-media-signed-url', { body: window.__lpStudioBuyer && path.startsWith('video/') ? { path, method, size, asStudio: true } : { path, method, size } }); // vidéo d'un studio : à son nom
   if (error) throw new Error(await window.LayerPitchAuth.describeFunctionError(error));
