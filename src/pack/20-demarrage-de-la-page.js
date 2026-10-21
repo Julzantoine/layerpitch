@@ -85,7 +85,7 @@ async function init() {
       triggerBtn.title = tr('videoTestTriggerBtnHelp');
       triggerBtn.addEventListener('click', () => document.getElementById('videoTestDialog').showModal());
       container.appendChild(triggerBtn);
-      setupCaptureTrigger(pack, container); // async, ne bloque pas le rendu -- s'insère seule si admin
+      setupCaptureTrigger(pack, container).then(() => startPackLessonIfAsked()); // async, ne bloque pas le rendu -- s'insère seule si admin
     }
     container.appendChild(musicContainer);
     const libraryById = {};
@@ -262,4 +262,20 @@ async function init() {
   } catch (e) {
     container.innerHTML = `<div class="empty">${tr('loadError')}</div>`;
   }
+}
+
+// Mode tutoriel (?tuto&lesson=versioning, 21/10) : bandeau « rien n'est enregistré » + lancement de la leçon guidée (pack-lecons.js).
+let packLessonStarted = false;
+function startPackLessonIfAsked() {
+  const params = new URLSearchParams(location.search);
+  if (!params.has('tuto') || packLessonStarted || !window.LayerPitchPackLessons || !window.LayerPitchGuide) return;
+  packLessonStarted = true;
+  const bar = document.createElement('div');
+  bar.className = 'preview-mode-banner';
+  bar.innerHTML = '<span></span> <a style="color:inherit;text-decoration:underline;margin-left:8px" href="./layerpitch-backstage.html"></a>';
+  bar.querySelector('span').textContent = tr('tutoBannerText');
+  bar.querySelector('a').textContent = tr('tutoQuit');
+  document.body.prepend(bar);
+  document.body.classList.add('has-preview-banner');
+  if (params.get('lesson') === 'versioning') setTimeout(() => window.LayerPitchPackLessons.init({ lang: currentLang() }).start(), 600);
 }

@@ -225,7 +225,9 @@ const LESSON_THEMES = [
   { id: 'preprod', titleKey: 'lessonThemePreprod' },
 ];
 // Page où se joue une leçon : le Backstage lui-même, ou une autre page du mode tutoriel (liste des projets, espace Projet).
-function lessonPageUrl(l) { return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : window.location.pathname); }
+function lessonPageUrl(l) { return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : (l && l.page === 'pack' ? 'pack.html?id=p-alone&u=demo' : window.location.pathname)); }
+// Adresse complète d'une leçon dans le mode tutoriel (la page de la leçon + ?tuto&lesson=…).
+function lessonTutoUrl(l, id) { const base = lessonPageUrl(l); return base + (base.includes('?') ? '&' : '?') + 'tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); }
 function lessonIsPublic(lesson) { return !!(lesson && lesson.public); }
 const LESSONS = [
   { id: 'static', theme: 'engine', public: true, titleKey: 'lessonStaticTitle', descKey: 'lessonStaticDesc', steps: [
@@ -498,7 +500,7 @@ const LESSONS = [
   // poser une première musique, puis une seconde (même structure, deux musiques dynamiques). Étapes prévues : (1) ouvrir la section Vidéo,
   // (2) envoyer la vidéo muette, (3) capturer avec la musique 1, (4) enregistrer le montage, (5) créer une version avec la musique 2,
   // (6) écouter en direct, sans rendu vidéo. À écrire après l'audit du parcours réel (capture, sauvegarde, version) et la fourniture des fichiers.
-  { id: 'versioning', theme: 'pitch', public: true, soon: true, titleKey: 'lvTitle', descKey: 'lvDesc' },
+  { id: 'versioning', theme: 'pitch', public: true, soon: true, page: 'pack', titleKey: 'lvTitle', descKey: 'lvDesc' }, // pack-lecons.js ; retirer « soon » quand alone-gameplay-muette.mp4 est en ligne
   // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
   // Projet fictif ; `page` renvoie vers cette page au clic.
   { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc' },
@@ -571,7 +573,7 @@ function startBackstageTour() {
 }
 function startLesson(id) {
   const lesson = LESSONS.find(l => l.id === id);
-  if (lesson && lesson.page && lessonsAccessOpen() && lessonPlayable(lesson)) { window.location.href = lessonPageUrl(lesson) + '?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); return; }
+  if (lesson && lesson.page && lessonsAccessOpen() && lessonPlayable(lesson)) { window.location.href = lessonTutoUrl(lesson, id); return; }
   if (lesson && lesson.reload && lessonsAccessOpen() && lessonPlayable(lesson) && !lesson.soon && !(isTutoMode() && new URLSearchParams(window.location.search).get('lesson') === id)) {
     window.location.href = window.location.pathname + '?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); return;
   }
@@ -629,7 +631,7 @@ function initTutorialMenuUi() {
     // Décidé le 20/10 : le tutoriel se joue TOUJOURS en mode sans compte (faux compte local, rien d'enregistré), pour tout le monde,
     // y compris depuis un vrai Backstage : un seul tutoriel à maintenir. On y entre en rechargeant la page avec la leçon demandée.
     const l = LESSONS.find(x => x.id === id);
-    if (!isTutoMode() && l && !l.soon) { window.location.href = lessonPageUrl(l) + '?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); return; }
+    if (!isTutoMode() && l && !l.soon) { window.location.href = lessonTutoUrl(l, id); return; }
     startLesson(id);
   });
 }

@@ -8,7 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
-<link rel="stylesheet" href="player.css?v=1792574638490">
+<link rel="stylesheet" href="player.css?v=1792574875334">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792574875334">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -473,15 +474,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1792574638490"></script>
-<script src="layerpitch-notify.js?v=1792574638490"></script>
-<script src="public-page.js?v=1792574638490"></script>
-<script src="layerpitch-seller-contact.js?v=1792574638490"></script>
-<script src="player.js?v=1792574638490"></script>
-<script src="capture-plan.js?v=1792574638490"></script>
-<script src="capture-render.js?v=1792574638490"></script>
-<script src="capture-retarget.js?v=1792574638490"></script>
-<script src="capture-versioning.js?v=1792574638490"></script>
+<script src="layerpitch-i18n.js?v=1792574875334"></script>
+<script src="layerpitch-notify.js?v=1792574875334"></script>
+<script src="public-page.js?v=1792574875334"></script>
+<script src="layerpitch-seller-contact.js?v=1792574875334"></script>
+<script src="player.js?v=1792574875334"></script>
+<script src="capture-plan.js?v=1792574875334"></script>
+<script src="capture-render.js?v=1792574875334"></script>
+<script src="capture-retarget.js?v=1792574875334"></script>
+<script src="capture-versioning.js?v=1792574875334"></script>
+<script src="layerpitch-guide.js?v=1792574875334"></script>
+<script src="pack-lecons.js?v=1792574875334"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -555,6 +558,11 @@ const PURCHASES_ENABLED = false;
 let purchaseScriptsLoaded = null;
 function loadPurchaseScripts() {
   if (purchaseScriptsLoaded) return purchaseScriptsLoaded;
+  // Mode tutoriel (21/10) : tout passe par le faux serveur ; recharger le vrai client ici le remplacerait.
+  if (new URLSearchParams(location.search).has('tuto')) {
+    purchaseScriptsLoaded = loadPostgresReadScripts().then(() => lpLoadScriptsInOrder(['./api/packs.js', './api/purchases.js'])).then(() => window.LayerPitchTuto.switchToDemo());
+    return purchaseScriptsLoaded;
+  }
   // Même chargeur que loadPostgresReadScripts() (public-page.js) : téléchargement parallèle, exécution dans l'ordre,
   // version du déploiement.
   purchaseScriptsLoaded = lpLoadScriptsInOrder([
@@ -2817,7 +2825,7 @@ async function init() {
       triggerBtn.title = tr('videoTestTriggerBtnHelp');
       triggerBtn.addEventListener('click', () => document.getElementById('videoTestDialog').showModal());
       container.appendChild(triggerBtn);
-      setupCaptureTrigger(pack, container); // async, ne bloque pas le rendu -- s'insère seule si admin
+      setupCaptureTrigger(pack, container).then(() => startPackLessonIfAsked()); // async, ne bloque pas le rendu -- s'insère seule si admin
     }
     container.appendChild(musicContainer);
     const libraryById = {};
@@ -2994,6 +3002,22 @@ async function init() {
   } catch (e) {
     container.innerHTML = `<div class="empty">${tr('loadError')}</div>`;
   }
+}
+
+// Mode tutoriel (?tuto&lesson=versioning, 21/10) : bandeau « rien n'est enregistré » + lancement de la leçon guidée (pack-lecons.js).
+let packLessonStarted = false;
+function startPackLessonIfAsked() {
+  const params = new URLSearchParams(location.search);
+  if (!params.has('tuto') || packLessonStarted || !window.LayerPitchPackLessons || !window.LayerPitchGuide) return;
+  packLessonStarted = true;
+  const bar = document.createElement('div');
+  bar.className = 'preview-mode-banner';
+  bar.innerHTML = '<span></span> <a style="color:inherit;text-decoration:underline;margin-left:8px" href="./layerpitch-backstage.html"></a>';
+  bar.querySelector('span').textContent = tr('tutoBannerText');
+  bar.querySelector('a').textContent = tr('tutoQuit');
+  document.body.prepend(bar);
+  document.body.classList.add('has-preview-banner');
+  if (params.get('lesson') === 'versioning') setTimeout(() => window.LayerPitchPackLessons.init({ lang: currentLang() }).start(), 600);
 }
 function showPublicEmbedButton(url) {
   const btn = document.getElementById('embedPublicBtn');

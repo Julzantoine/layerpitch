@@ -70,6 +70,11 @@ const PURCHASES_ENABLED = false;
 let purchaseScriptsLoaded = null;
 function loadPurchaseScripts() {
   if (purchaseScriptsLoaded) return purchaseScriptsLoaded;
+  // Mode tutoriel (21/10) : tout passe par le faux serveur ; recharger le vrai client ici le remplacerait.
+  if (new URLSearchParams(location.search).has('tuto')) {
+    purchaseScriptsLoaded = loadPostgresReadScripts().then(() => lpLoadScriptsInOrder(['./api/packs.js', './api/purchases.js'])).then(() => window.LayerPitchTuto.switchToDemo());
+    return purchaseScriptsLoaded;
+  }
   // Même chargeur que loadPostgresReadScripts() (public-page.js) : téléchargement parallèle, exécution dans l'ordre,
   // version du déploiement.
   purchaseScriptsLoaded = lpLoadScriptsInOrder([

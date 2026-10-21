@@ -26,8 +26,8 @@
   const onProjectPage = () => !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
   const RPC_ANSWERS = {
     is_admin: () => false,
-    my_feature_flags: () => DEMO_FLAGS.concat(onProjectPage() ? ['projects'] : [], lessonParam() === 'adreel' ? ['video_upload', 'versioning'] : []).map(key => ({ key, allowed: true })),
-    my_entitlements: () => DEMO_ENTITLEMENTS_ALLOWED.concat(onProjectPage() ? ['projects'] : []).map(f => ({ feature: f, allowed: true, amount: f === 'projects' ? 5 : null, level: f === 'versioning' && lessonParam() === 'adreel' ? 'saved' : 'pro', plan: 'pro', source: 'demo' }))
+    my_feature_flags: () => DEMO_FLAGS.concat(onProjectPage() ? ['projects'] : [], (lessonParam() === 'adreel' || isVersioning()) ? ['video_upload', 'versioning'] : []).map(key => ({ key, allowed: true })),
+    my_entitlements: () => DEMO_ENTITLEMENTS_ALLOWED.concat(onProjectPage() ? ['projects'] : [], isVersioning() ? ['test_in_game', 'no_watermark'] : []).map(f => ({ feature: f, allowed: true, amount: f === 'projects' ? 5 : null, level: (f === 'versioning' && (lessonParam() === 'adreel' || isVersioning())) || f === 'test_in_game' ? 'saved' : 'pro', plan: 'pro', source: 'demo' }))
       .concat(DEMO_ENTITLEMENTS_DENIED.map(f => ({ feature: f, allowed: false, amount: null, level: null, plan: 'pro', source: 'demo' }))),
     get_trial_status: () => [{ plan: 'pro', trial_ends_at: null, real_plan: 'pro', preview_active: false }],
     my_billing: () => ({}),
@@ -37,11 +37,26 @@
     list_my_videos: () => (lessonParam() === 'adreel'
       ? { videos: ALONE_VIDEOS.map(v => ({ id: v.id, title: v.title, base: TUTO_BASE, file: v.file, originalName: v.file, sizeBytes: 0, durationSec: 30 })), interrupted: [], quotaGb: null, usedBytes: 0 }
       : { videos: [], interrupted: [], quotaGb: null, usedBytes: 0 }),
-    list_my_video_captures: () => (lessonParam() === 'adreel' ? [ALONE_CAPTURE] : []),
+    list_my_video_captures: a => (lessonParam() === 'adreel' ? [ALONE_CAPTURE] : [...CAPTURES.values()].filter(c => !a || !a.p_pack_id || c.packId === a.p_pack_id)),
     // Musique 1 = l'export direct du montage (ALONE_CAPTURE.lastExportVideoId) ; musique 2 = une version vidéo du montage.
-    list_video_capture_versions: () => (lessonParam() === 'adreel' ? [{ id: 'ver-2', captureId: ALONE_CAPTURE.id, title: ALONE_VIDEOS[1].versionTitle, lastExportVideoId: ALONE_VIDEOS[1].id }] : []),
+    list_video_capture_versions: a => (lessonParam() === 'adreel' ? [{ id: 'ver-2', captureId: ALONE_CAPTURE.id, title: ALONE_VIDEOS[1].versionTitle, lastExportVideoId: ALONE_VIDEOS[1].id }] : [...VERSIONS.values()].filter(v => a && v.captureId === a.p_capture_id)),
     account_deletion_status: () => null,
+    // Leçon « Versioning vidéo » (page d'un pack, ?u=demo&tuto&lesson=versioning) : montages et versions gardés EN MÉMOIRE (perdus
+    // au rechargement), le compte fictif est le compositeur du pack d'exemple.
+    resolve_composer_handle: () => DEMO_COMPOSER_ID,
+    team_owns_pack: () => false,
+    save_video_capture: a => { CAPTURES.set(a.p_id, { id: a.p_id, packId: a.p_pack_id, title: a.p_title || '', videoFilename: a.p_video_filename || null, events: a.p_events || [], laneOverrides: a.p_lane_overrides || {}, collapsedGroups: a.p_collapsed_groups || {}, lastExportVideoId: null, baseVideoId: null, createdAt: (CAPTURES.get(a.p_id) || {}).createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() }); return { ok: true, id: a.p_id, updatedAt: new Date().toISOString() }; },
+    get_video_capture: a => CAPTURES.get(a.p_id) || null,
+    delete_video_capture: a => { CAPTURES.delete(a.p_id); return null; },
+    save_video_capture_version: a => { VERSIONS.set(a.p_id, { id: a.p_id, captureId: a.p_capture_id, title: a.p_title || '', substitutions: a.p_substitutions || {}, lastExportVideoId: null, createdAt: (VERSIONS.get(a.p_id) || {}).createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() }); return { ok: true, id: a.p_id }; },
+    delete_video_capture_version: a => { VERSIONS.delete(a.p_id); return null; },
+    set_video_capture_export: () => ({ removed: [] }),
+    set_video_capture_version_export: () => ({ removed: [] }),
+    video_capture_base: () => null,
+    list_video_export_history: () => [],
   };
+  const CAPTURES = new Map(), VERSIONS = new Map();
+  const isVersioning = () => lessonParam() === 'versioning';
   // Lignes lues « en direct » sur une table (select().maybeSingle()). Toute autre table : liste vide / null.
   const TABLE_ROWS = {
     composer_profiles: { id: DEMO_COMPOSER_ID, handle: 'demo' },
@@ -78,6 +93,9 @@
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
     if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
     if (table === 'packs' && projectPage) return DEMO_PACKS;
+    const packPage = !!(window.location && /\/pack\.html$/.test(window.location.pathname));
+    if (packPage && isVersioning() && table === 'tracks') return DEMO_TRACKS;
+    if (packPage && isVersioning() && table === 'packs') return DEMO_PACKS.map(p => Object.assign({}, p, { video_test_mode_enabled: true }));
     return null;
   };
 
@@ -128,9 +146,9 @@
       update: (p) => makeQuery(table, true, p),
       delete: () => makeQuery(table, true),
     }),
-    rpc: async (name) => {
+    rpc: async (name, args) => {
       const answer = RPC_ANSWERS[name];
-      return OK(answer ? answer() : null);
+      return OK(answer ? answer(args || {}) : null);
     },
     // Temps réel (présence, « ça a changé ») : rien à écouter dans un tutoriel à un seul utilisateur.
     channel: () => { const c = { on: () => c, subscribe: () => c, track: () => c, send: () => c, presenceState: () => ({}), unsubscribe() {} }; return c; },

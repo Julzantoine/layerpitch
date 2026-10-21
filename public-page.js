@@ -39,7 +39,10 @@ function lpLoadScriptsInOrder(srcs) {
 let postgresReadScriptsLoaded = null;
 function loadPostgresReadScripts() {
   if (!postgresReadScriptsLoaded) {
-    postgresReadScriptsLoaded = lpLoadScriptsInOrder([
+    // Mode tutoriel (?tuto, 21/10 : leçon « Versioning vidéo » sur la page d'un pack) : faux serveur local, porte d'entrée unique
+    // layerpitch-tuto.js (admins seulement tant que le tutoriel n'est pas ouvert au public). Sans ?tuto : rien ne change.
+    const tuto = new URLSearchParams(location.search).has('tuto');
+    postgresReadScriptsLoaded = lpLoadScriptsInOrder((tuto ? ['./layerpitch-tuto.js', './api/demo-client.js', './api/auth.js'] : []).concat([
       'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
       './api/supabase-client.js',
       './api/tracks.js',
@@ -51,7 +54,7 @@ function loadPostgresReadScripts() {
       './api/site-data.js',
       './api/composers.js',
       './api/analytics.js',
-    ]);
+    ])).then(() => (tuto ? window.LayerPitchTuto.enter(location.pathname + location.search.replace(/[?&]tuto(=[^&]*)?/, '').replace(/^&/, '?')) : null));
   }
   return postgresReadScriptsLoaded;
 }
