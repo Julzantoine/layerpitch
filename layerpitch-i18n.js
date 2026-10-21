@@ -2422,6 +2422,11 @@ window.LAYERPITCH_I18N = {
       pageTitle: "LayerPitch — Mes Projets",
       // Projet de démonstration public (lecture seule, sans compte)
       demoBanner: "Ceci est un Projet de démonstration : vous pouvez tout parcourir, mais rien ne se modifie ici.",
+      kind_montage: "Montage vidéo",
+      untitledMontage: "Montage sans titre",
+      montageNotPublished: "Ce montage n’a pas encore de vidéo publiée : dans l’outil de capture, clique sur « Mettre à jour la vidéo partout ».",
+      montagesTitle: "Montages vidéo",
+      montagesIntro: "La même scène avec plusieurs musiques : choisis la version sous la vidéo. Tout reste à jour quand le montage est retouché.",
       demoCta: "Demander une invitation",
       demoReadOnly: "Démonstration en lecture seule : demandez une invitation pour créer votre Projet.",
       demoViewShowcase: "Visualiser la vitrine",
@@ -6039,6 +6044,11 @@ window.LAYERPITCH_I18N = {
       pageTitle: "LayerPitch — My Projects",
       // Public demo Project (read-only, no account)
       demoBanner: "This is a demo Project: browse everything you like, nothing can be changed here.",
+      kind_montage: "Video montage",
+      untitledMontage: "Untitled montage",
+      montageNotPublished: "This montage has no published video yet: in the capture tool, click “Update the video everywhere”.",
+      montagesTitle: "Video montages",
+      montagesIntro: "The same scene with several pieces of music: pick the version under the video. Everything stays up to date when the montage is edited.",
       demoCta: "Request an invitation",
       demoReadOnly: "Read-only demo: request an invitation to create your own Project.",
       demoViewShowcase: "View the showcase",

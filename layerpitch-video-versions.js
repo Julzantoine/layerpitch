@@ -16,6 +16,16 @@
     return { state: [...new Set(state)].join(' · '), flash: flash.join(' · '), fx: fx.join(' · ') };
   }
 
+  // Mise en forme : injectée une fois, pour que toutes les pages (AdReels, vitrines, espace Projet) aient la même sans dupliquer le CSS.
+  function ensureStyle() {
+    if (document.getElementById('lp-video-versions-style')) return;
+    const st = document.createElement('style');
+    st.id = 'lp-video-versions-style';
+    st.textContent = '.lp-video-cue{position:absolute;left:12px;bottom:48px;max-width:calc(100% - 24px);padding:4px 9px;border-radius:6px;background:rgba(0,0,0,.62);color:#fff;font-size:13px;line-height:1.35;pointer-events:none}'
+      + '.lp-video-cue-flash{bottom:auto;top:12px;color:#ffbd7a;font-weight:600}.lp-video-cue[hidden]{display:none}'
+      + '.lp-video-versions{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px}.lp-video-versions select{font:inherit;padding:4px 8px;border-radius:6px;max-width:100%}';
+    document.head.appendChild(st);
+  }
   async function client() {
     if (typeof loadPostgresReadScripts === 'function') await loadPostgresReadScripts();
     return window.LayerPitchSupabaseClient ? window.LayerPitchSupabaseClient.getClient() : null;
@@ -31,6 +41,7 @@
   // `wrap` doit être un conteneur en position relative autour de la vidéo (l'étiquette s'y superpose).
   async function mount(video, wrap, opts) {
     const tr = opts.tr || (k => k);
+    ensureStyle();
     const montage = await (opts.load || loadMontage)(opts.montageId);
     if (!montage || !Array.isArray(montage.versions) || !montage.versions.length) return null;
     const hidden = new Set(opts.hidden || []);
