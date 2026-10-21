@@ -193,7 +193,7 @@ function buildTrackSheetJson(track) {
     });
   } else if (track.mode === 'sequential') {
     json.randomizeSlots = !!track.randomizeSections;
-    json.intro = (track.intro && (track.intro.remoteFile || track.intro.pendingFile)) ? { label: track.intro.label || '', bars: track.intro.bars || 8 } : null;
+    json.intro = (track.intro && (track.intro.remoteFile || track.intro.pendingFile)) ? { label: track.intro.label || '', bars: track.intro.bars || 8, ...(track.intro.timingOwn ? { bpm: track.intro.bpm || null, beatsPerBar: track.intro.beatsPerBar || null } : {}) } : null;
     json.segmentSlots = (track.segmentSlots || []).map((sl, si) => {
       const base = { order: si, label: sl.label || '', repeatCount: sl.repeatCount || 1 };
       if (sl.referencesSlotId) {
