@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792596161566">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792596324515">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1877,17 +1877,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792596161566"></script>
-<script src="layerpitch-i18n.js?v=1792596161566"></script>
-<script src="layerpitch-appearance.js?v=1792596161566"></script>
-<script src="layerpitch-album-shared.js?v=1792596161566"></script>
-<script src="layerpitch-album-editor.js?v=1792596161566"></script>
-<script src="layerpitch-shell.js?v=1792596161566"></script>
-<script src="layerpitch-social-icons.js?v=1792596161566"></script>
-<script src="layerpitch-notify.js?v=1792596161566"></script>
-<script src="layerpitch-guide.js?v=1792596161566"></script>
-<script src="layerpitch-help.js?v=1792596161566"></script>
-<script src="player.js?v=1792596161566"></script>
+<script src="layerpitch-tuto.js?v=1792596324515"></script>
+<script src="layerpitch-i18n.js?v=1792596324515"></script>
+<script src="layerpitch-appearance.js?v=1792596324515"></script>
+<script src="layerpitch-album-shared.js?v=1792596324515"></script>
+<script src="layerpitch-album-editor.js?v=1792596324515"></script>
+<script src="layerpitch-shell.js?v=1792596324515"></script>
+<script src="layerpitch-social-icons.js?v=1792596324515"></script>
+<script src="layerpitch-notify.js?v=1792596324515"></script>
+<script src="layerpitch-guide.js?v=1792596324515"></script>
+<script src="layerpitch-help.js?v=1792596324515"></script>
+<script src="player.js?v=1792596324515"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -9521,20 +9521,26 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
 // est ouvert pour ce morceau, on ne reconstruit pas non plus : renderLibrary() détruirait et recréerait
 // tout le lecteur (donc son état interne, dont le pool tiré au sort en vertical-random) — la timeline
 // restera juste sur l'ancien BPM le temps que l'aperçu se ferme ou qu'un autre rafraîchissement survienne.
+const DESCRIPTIVE_FIELDS = /^(title|label|name|description|descriptionFr|descriptionEn|tags|implementationNote|noAiOverride|folderId|introLabel|outroLabel|introDescriptionFr|introDescriptionEn|outroDescriptionFr|outroDescriptionEn)$/i;
 document.getElementById('libraryContainer').addEventListener('change', e => {
   const field = e.target.dataset.field;
   const sectionField = e.target.dataset.sectionField;
-  // Tempo/longueur propres à l'intro (séquentiel) : l'aperçu ouvert est un instantané de l'ancienne valeur, donc on le
-  // referme et on le relance avec la nouvelle (21/10 : « je change l'intro, ça ne fait rien »).
-  if (field === 'introBars' || field === 'introBpm' || field === 'introBeatsPerBar') {
-    const card = e.target.closest('.list-block');
-    const host = card && card.querySelector('[data-role="previewHost"]');
-    if (host && host.dataset.active === '1') {
+  // Toute modification d'une information « écoutable » (durées, tempo, volumes, effets, boucles, fichiers, règles de
+  // tirage...) relance l'aperçu ouvert avec les nouvelles valeurs : il est un instantané pris au clic sur « Prévisualiser »
+  // (21/10). Seuls les champs purement descriptifs (noms, descriptions, tags, notes, dossier) ne le touchent pas.
+  // La carte du morceau = l'ancêtre le plus proche qui contient l'hôte d'aperçu (les `.list-block` imbriqués - pools,
+  // alternatives - ne conviennent pas).
+  let card = e.target.parentElement;
+  while (card && card.id !== 'libraryContainer' && !card.querySelector(':scope > [data-role="previewHost"], :scope > * > [data-role="previewHost"]')) card = card.parentElement;
+  if (card && card.id === 'libraryContainer') card = null;
+  const previewHost = card && card.querySelector('[data-role="previewHost"]');
+  if (previewHost && previewHost.dataset.active === '1' && !e.target.closest('[data-role="previewHost"]')) {
+    const names = Object.keys(e.target.dataset).filter(k => /field$/i.test(k)).map(k => e.target.dataset[k]);
+    const isFile = e.target.type === 'file';
+    if ((names.length || isFile) && !names.some(n => DESCRIPTIVE_FIELDS.test(n))) {
       const ti = parseInt(e.target.dataset.ti, 10);
-      togglePreview(ti, card);
-      togglePreview(ti, card);
+      if (!isNaN(ti) && library[ti]) { togglePreview(ti, card); togglePreview(ti, card); return; }
     }
-    return;
   }
   const isTimingField = (field === 'bpm' || field === 'beatsPerBar') || (sectionField === 'bpm' || sectionField === 'beatsPerBar');
   if (!isTimingField) return;
