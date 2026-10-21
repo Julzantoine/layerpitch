@@ -53,6 +53,10 @@
     set_video_capture_export: () => ({ removed: [] }),
     set_video_capture_version_export: () => ({ removed: [] }),
     video_capture_base: () => null,
+    // Lecteur à versions (AdReel, espace Projet) : le montage d'« Alone », deux exports complets (musique 1, musique 2).
+    get_public_video_montage: a => (a.p_capture_id === ALONE_CAPTURE.id ? { id: ALONE_CAPTURE.id, title: ALONE_CAPTURE.title, baseUrl: null, versions: [
+      { key: 'original', title: null, url: TUTO_BASE + ALONE_VIDEOS[0].file, kind: 'video', cues: [] },
+      { key: 'ver-2', title: ALONE_VIDEOS[1].versionTitle, url: TUTO_BASE + ALONE_VIDEOS[1].file, kind: 'video', cues: [] }] } : null),
     list_video_export_history: () => [],
   };
   const CAPTURES = new Map(), VERSIONS = new Map();

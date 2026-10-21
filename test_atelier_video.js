@@ -79,6 +79,21 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
     && /\[data-role="versionNew"\]/.test(lv) && !/page: 'pack'/.test(src43) && /reload: true, soon: true/.test(lv));
   const bkeys = [...lv.matchAll(/(?:titleKey|textKey): '([^']+)'/g)].map(m => m[1]);
   check('leçon (Backstage) : ' + bkeys.length + ' textes présents en FR et EN', bkeys.every(has));
+
+  // Suite : annoter le montage dans l'espace Projet (projet.html?tuto&lesson=pj-annotate).
+  const dp = { window: {}, console, setTimeout }; vm.createContext(dp); vm.runInContext(read('api/demo-projects.js'), dp);
+  const PJ = dp.window.LayerPitchDemoProjects.create({ seedMontage: true });
+  const content = (await PJ.content('demo-barque')).data;
+  check('Projet (leçon) : le montage d’« Alone » est dans le Projet', content.assets.some(a => a.kind === 'montage' && a.montageId === 'cap-alone'));
+  const mont = (await bk.window.LayerPitchDemoClient.rpc('get_public_video_montage', { p_capture_id: 'cap-alone' })).data;
+  check('lecteur à versions : deux musiques sur la même scène', mont && mont.versions.length === 2 && mont.versions.every(v => v.url && v.kind === 'video'));
+  check('page Projet : le montage d’exemple seulement pour cette leçon', /seedMontage: params\.get\('lesson'\) === 'pj-annotate'/.test(read('projet.html')));
+  const pl = read('projet-lecons.js');
+  const ann = pl.slice(pl.indexOf("'pj-annotate': ["), pl.indexOf("'pj-moodboard': ["));
+  check('leçon « Annoter » : onglet Vidéos, version, instant, note adressée', /data-tab="videos"/.test(ann) && /lp-video-versions select/.test(ann) && /noteHere/.test(ann) && /noteTo/.test(ann) && /noteAdd/.test(ann));
+  const akeys = [...ann.matchAll(/(?:titleKey|textKey): '([^']+)'/g)].map(m => m[1]).concat(['plAnnTitle', 'plAnnDesc']);
+  check('leçon « Annoter » : ' + akeys.length + ' textes présents en FR et EN', akeys.every(has));
+  check('leçon « Annoter » : au menu du Backstage (Préproduction), « bientôt » tant que les vidéos manquent', /\{ id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', soon: true/.test(src43));
   console.log(failures ? failures + ' échec(s)' : 'Tout est OK');
   process.exit(failures ? 1 : 0);
 })();

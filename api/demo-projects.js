@@ -107,6 +107,12 @@
 
     const addNote = (title, body, pin) => { const a = { id: nid('a'), kind: 'note', origin: 'board', title, body, url: null, fileId: null, createdAt: now(), authorEmail: ME.email, preview: null }; assets.push(a); if (pin) moodboard.push(a.id); return a; };
     SEED.notes.forEach(([t, b]) => addNote(t, b, true));
+    // Leçon « Annoter un montage » (21/10) : le montage d'« Alone » (deux musiques, api/demo-client.js : cap-alone) déjà ajouté au Projet.
+    if (opts.seedMontage) {
+      const m = { id: nid('a'), kind: 'montage', origin: 'board', title: 'Alone in the Barque : traversée', body: 'Deux musiques sur la même scène : laquelle garde-t-on ?',
+        montageId: 'cap-alone', montageTitle: 'Alone in the Barque : traversée', url: null, fileId: null, createdAt: now(), authorEmail: 'daniel.orcman@example.com', preview: null };
+      assets.push(m); moodboard.push(m.id);
+    }
 
     const assetView = a => Object.assign({}, a, {
       pinned: moodboard.includes(a.id), starred: !!a.starred,

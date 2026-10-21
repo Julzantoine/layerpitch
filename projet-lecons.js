@@ -26,6 +26,8 @@
     { id: 'pj-chat', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
     { id: 'pj-moodboard', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },
     { id: 'pj-music', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMusicTitle', descKey: 'plMusicDesc' },
+    // « bientôt » tant que les deux vidéos d'« Alone » (alone-gameplay-musique1/2.mp4) ne sont pas en ligne (media.layerpitch.com/tuto/).
+    { id: 'pj-annotate', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc', soon: true },
     { id: 'pj-map-build', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc' },
     { id: 'pj-map-music', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc', soon: true },
     { id: 'pj-map-walk', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc', soon: true },
@@ -87,6 +89,25 @@
         { selector: '#myPack', titleKey: 'plMusicPickTitle', textKey: 'plMusicPickText' },
         { selector: '#shareBtn', titleKey: 'plMusicShareTitle', textKey: 'plMusicShareText', clickDone: true, done: () => (S.content.packs || []).some(p => p.mine) },
         { titleKey: 'plMusicDoneTitle', textKey: 'plMusicDoneText', final: true },
+      ],
+      // Annoter un montage vidéo (21/10, suite de la leçon « Versioning » du Backstage) : onglet Vidéos, choisir la version, noter à un
+      // instant (la note retient l'instant ET la version regardée), l'adresser au studio.
+      'pj-annotate': [
+        { titleKey: 'plAnnWelcomeTitle', textKey: 'plAnnWelcomeText' },
+        { selector: '.tab[data-tab="videos"]', titleKey: 'plAnnTabTitle', textKey: 'plAnnTabText', done: () => S.tab === 'videos' },
+        { selector: '#montageGrid .lp-video-versions select', titleKey: 'plAnnVersionTitle', textKey: 'plAnnVersionText' },
+        { selector: '#montageGrid video', titleKey: 'plAnnPlayTitle', textKey: 'plAnnPlayText' },
+        { selector: '#montageGrid [data-act="notes"]', titleKey: 'plAnnOpenTitle', textKey: 'plAnnOpenText',
+          done: () => !!document.querySelector('#montageGrid [data-role="noteHere"]') },
+        { selector: '#montageGrid [data-role="noteHere"]', titleKey: 'plAnnHereTitle', textKey: 'plAnnHereText',
+          done: () => { const l = document.querySelector('#montageGrid [data-role="noteAtLabel"]'); return !!(l && l.textContent.trim()); } },
+        { selector: '#montageGrid [data-role="noteBody"]', titleKey: 'plAnnBodyTitle', textKey: 'plAnnBodyText',
+          done: () => { const t = document.querySelector('#montageGrid [data-role="noteBody"]'); return !!(t && t.value.trim().length > 3); },
+          drops: [label('Ici, la musique 2 monte trop tôt : attendre que la barque sorte du brouillard.')] },
+        { selector: '#montageGrid [data-role="noteTo"]', titleKey: 'plAnnToTitle', textKey: 'plAnnToText' },
+        { selector: '#montageGrid [data-role="noteAdd"]', titleKey: 'plAnnAddTitle', textKey: 'plAnnAddText',
+          done: () => !!document.querySelector('#montageGrid [data-note]') },
+        { titleKey: 'plAnnDoneTitle', textKey: 'plAnnDoneText', final: true },
       ],
       'pj-moodboard': [
         { titleKey: 'plBoardWelcomeTitle', textKey: 'plBoardWelcomeText' },
