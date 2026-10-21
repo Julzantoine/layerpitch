@@ -34,14 +34,14 @@
     my_admin_preview: () => null,
     ensure_composer_profile: () => DEMO_COMPOSER_ID,
     my_studio: () => null,
-    list_my_videos: () => (lessonParam() === 'adreel'
+    list_my_videos: () => (aloneMontageShown()
       ? { videos: ALONE_VIDEOS.map(v => ({ id: v.id, title: v.title, base: TUTO_BASE, file: v.file, originalName: v.file, sizeBytes: 0, durationSec: 30 })), interrupted: [], quotaGb: null, usedBytes: 0 }
       : { videos: [], interrupted: [], quotaGb: null, usedBytes: 0 }),
-    list_my_video_captures: a => (lessonParam() === 'adreel' ? [ALONE_CAPTURE] : [...CAPTURES.values()].filter(c => !a || !a.p_pack_id || c.packId === a.p_pack_id)),
+    list_my_video_captures: a => (aloneMontageShown() ? [ALONE_CAPTURE] : [...CAPTURES.values()].filter(c => !a || !a.p_pack_id || c.packId === a.p_pack_id)),
     // Musique 1 = l'export direct du montage (ALONE_CAPTURE.lastExportVideoId) ; musique 2 = une version vidéo du montage.
-    list_video_capture_versions: a => (lessonParam() === 'adreel' ? [{ id: 'ver-2', captureId: ALONE_CAPTURE.id, title: ALONE_VIDEOS[1].versionTitle, lastExportVideoId: ALONE_VIDEOS[1].id }] : [...VERSIONS.values()].filter(v => a && v.captureId === a.p_capture_id)),
+    list_video_capture_versions: a => (aloneMontageShown() ? [{ id: 'ver-2', captureId: ALONE_CAPTURE.id, title: ALONE_VIDEOS[1].versionTitle, lastExportVideoId: ALONE_VIDEOS[1].id }] : [...VERSIONS.values()].filter(v => a && v.captureId === a.p_capture_id)),
     account_deletion_status: () => null,
-    // Leçon « Versioning vidéo » (page d'un pack, ?u=demo&tuto&lesson=versioning) : montages et versions gardés EN MÉMOIRE (perdus
+    // Leçon « Versioning vidéo » (atelier vidéo, atelier.html?tuto&lesson=versioning) : montages et versions gardés EN MÉMOIRE (perdus
     // au rechargement), le compte fictif est le compositeur du pack d'exemple.
     resolve_composer_handle: () => DEMO_COMPOSER_ID,
     team_owns_pack: () => false,
@@ -57,6 +57,10 @@
   };
   const CAPTURES = new Map(), VERSIONS = new Map();
   const isVersioning = () => lessonParam() === 'versioning';
+  const onAtelierPage = () => !!(window.location && /\/atelier\.html$/.test(window.location.pathname));
+  // Montage d'exemple d'« Alone » déjà publié en deux musiques : leçon AdReel, et partie « bloc vidéo » de la leçon Versioning (Backstage).
+  // Dans l'atelier, la leçon Versioning part de zéro (montages gardés en mémoire ci-dessus).
+  const aloneMontageShown = () => lessonParam() === 'adreel' || (isVersioning() && !onAtelierPage());
   // Lignes lues « en direct » sur une table (select().maybeSingle()). Toute autre table : liste vide / null.
   const TABLE_ROWS = {
     composer_profiles: { id: DEMO_COMPOSER_ID, handle: 'demo' },
@@ -93,7 +97,8 @@
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
     if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
     if (table === 'packs' && projectPage) return DEMO_PACKS;
-    const packPage = !!(window.location && /\/pack\.html$/.test(window.location.pathname));
+    // Atelier vidéo (21/10 : l'outil de capture a quitté la page du pack pour l'atelier, ouvert dans le Backstage).
+    const packPage = onAtelierPage();
     if (packPage && isVersioning() && table === 'tracks') return DEMO_TRACKS;
     if (packPage && isVersioning() && table === 'packs') return DEMO_PACKS.map(p => Object.assign({}, p, { video_test_mode_enabled: true }));
     return null;

@@ -337,43 +337,47 @@ async function uploadLibraryVideo(file) {
   });
 })();
 
-// Sous-onglets Bibliothèque/Capture du panneau Vidéo (16 septembre) -- toggle purement local, pas le
-// switchTab() global (réservé aux panneaux de premier niveau). Le sous-onglet Capture ne réimplémente
-// pas le moteur de capture ici : il liste les packs du compositeur et ouvre la page en direct du pack
-// choisi (pack.html?...&capture=1), dialogue de capture pré-ouvert -- voir setupCaptureTrigger dans
-// pack.html, élargi le même jour de is_admin() uniquement à "admin OU propriétaire du pack".
+// Sous-onglets Bibliothèque/Atelier/Versioning du panneau Vidéo (16 septembre) -- toggle purement local, pas le switchTab() global
+// (réservé aux panneaux de premier niveau).
 function switchVideoSubtab(name) {
   document.querySelectorAll('#panelVideoLibrary .video-subpanel').forEach(p => p.classList.toggle('active', p.dataset.videoSubpanel === name));
   document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(b => b.classList.toggle('active', b.dataset.videoSubtab === name));
-  if (name === 'capture') renderVideoCapturePacksList();
+  if (name === 'capture') ensureVideoAtelierLoaded();
   if (name === 'versioning') renderVideoVersioningList();
 }
 document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(btn => {
   btn.addEventListener('click', () => switchVideoSubtab(btn.dataset.videoSubtab));
 });
-function renderVideoCapturePacksList() {
-  const listEl = document.getElementById('videoCapturePacksList');
-  if (!listEl) return;
-  if (!packs.length) {
-    listEl.innerHTML = `<div class="video-library-empty">${tr('videoCaptureNoPacks')}</div>`;
-    return;
-  }
-  listEl.innerHTML = packs.map(p => {
-    const enabled = !!p.videoTestModeEnabled;
-    const url = `./pack.html?id=${encodeURIComponent(p.id)}&lang=${encodeURIComponent(currentLang())}&capture=1`;
-    return `
-      <div class="video-library-item">
-        <div class="video-library-item-main">
-          <div class="video-capture-pack-row-title">${escapeHtml(p.title || tr('defaultPackTitle'))}</div>
-          ${enabled ? '' : `<div class="video-capture-pack-row-hint">${escapeHtml(tr('videoCaptureNeedsTestMode'))}</div>`}
-        </div>
-        ${enabled
-          ? `<a class="btn btn-small" href="${url}" target="_blank" rel="noopener">${tr('videoCaptureOpenBtn')}</a>`
-          : `<span class="btn btn-small" style="opacity:.4;pointer-events:none;">${tr('videoCaptureOpenBtn')}</span>`}
-      </div>
-    `;
-  }).join('');
+
+// Atelier vidéo (21/10, décidé par Jules-Antoine) : l'outil de capture et de Versioning vit ici, dans un cadre (atelier.html : son code
+// est celui qui était sur la page du pack, déplacé, jamais recopié dans le Backstage). Le choix du pack se fait dans l'atelier.
+// Mode tutoriel : l'atelier aussi (?tuto&lesson=…), pour que la leçon Versioning s'y poursuive avec le faux serveur.
+function videoAtelierUrl(opts) {
+  const o = opts || {};
+  const q = new URLSearchParams({ lang: currentLang() });
+  if (o.packId) q.set('id', o.packId);
+  if (o.montageId) q.set('montage', o.montageId);
+  if (isTutoMode()) { q.set('tuto', ''); const lesson = new URLSearchParams(location.search).get('lesson'); if (lesson) q.set('lesson', lesson); }
+  return './atelier.html?' + q.toString().replace(/tuto=(&|$)/, 'tuto$1');
 }
+function ensureVideoAtelierLoaded() {
+  const frame = document.getElementById('videoAtelierFrame');
+  if (frame && !frame.getAttribute('src')) frame.src = videoAtelierUrl();
+}
+// Ouvre l'atelier (onglet Vidéo → Atelier), sur un pack et un montage s'ils sont donnés (Versioning, bloc vidéo d'un AdReel).
+function openVideoAtelier(opts) {
+  openTab('videoLibrary');
+  switchVideoSubtab('capture');
+  const frame = document.getElementById('videoAtelierFrame');
+  if (frame && opts && (opts.packId || opts.montageId)) frame.src = videoAtelierUrl(opts);
+  else ensureVideoAtelierLoaded();
+  if (frame && frame.scrollIntoView) frame.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+// Messages de l'atelier (même origine seulement) : fin de sa partie de la leçon Versioning -> le Backstage reprend la main.
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-atelier') return;
+  if (e.data.type === 'lessonDone' && typeof onAtelierLessonDone === 'function') onAtelierLessonDone();
+});
 
 // Versioning depuis le bloc vidéo d'un AdReel (21/10) : index « vidéo de la bibliothèque -> montage d'origine et versions sœurs », lu une fois
 // (les RPC sont celles du sous-onglet Versioning). Une vidéo issue d'une version vidéo (last_export_video_id) retrouve son montage et les autres
@@ -410,10 +414,6 @@ function videoMontageFields(v) {
     ? { montageId: v.montageId, defaultVersion: v.defaultVersion || 'original', hiddenVersions: Array.isArray(v.hiddenVersions) ? v.hiddenVersions.slice() : [] }
     : { montageId: null, defaultVersion: null, hiddenVersions: [] };
 }
-// Adresse de l'outil de capture sur ce montage (même lien que le bouton « Ouvrir » du sous-onglet Versioning).
-function videoVersioningMontageUrl(capture) {
-  return `./pack.html?id=${encodeURIComponent(capture.packId)}&lang=${encodeURIComponent(currentLang())}&capture=1&montage=${encodeURIComponent(capture.id)}`;
-}
 async function renderVideoVersioningList() {
   const listEl = document.getElementById('videoVersioningList');
   if (!listEl) return;
@@ -441,8 +441,6 @@ async function renderVideoVersioningList() {
   const videoIds = new Set(videos.map(v => v.id));
   listEl.innerHTML = captures.map(c => {
     const pack = packs.find(p => p.id === c.packId);
-    const enabled = !!(pack && pack.videoTestModeEnabled);
-    const url = `./pack.html?id=${encodeURIComponent(c.packId)}&lang=${encodeURIComponent(currentLang())}&capture=1&montage=${encodeURIComponent(c.id)}`;
     const vs = versionsByCapture[c.id];
     const meta = [pack ? (pack.title || tr('defaultPackTitle')) : tr('videoVersioningPackMissing'), c.videoFilename ? tr('videoVersioningVideo').replace('{video}', c.videoFilename) : '', new Date(c.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ');
     const chips = vs === null ? `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningVersionsUnavailable'))}</span>`
@@ -453,14 +451,12 @@ async function renderVideoVersioningList() {
         <div class="video-library-item-main">
           <div class="video-capture-pack-row-title">${escapeHtml(c.title || tr('videoVersioningUntitled'))}</div>
           <div class="video-library-item-meta">${escapeHtml(meta)}</div>
-          ${enabled ? '' : `<div class="video-capture-pack-row-hint">${escapeHtml(tr('videoCaptureNeedsTestMode'))}</div>`}
           <div class="video-versioning-versions">${chips}</div>
         </div>
-        ${enabled
-          ? `<a class="btn btn-small" href="${url}" target="_blank" rel="noopener">${escapeHtml(tr('videoVersioningOpenBtn'))}</a>`
-          : `<span class="btn btn-small" style="opacity:.4;pointer-events:none;">${escapeHtml(tr('videoVersioningOpenBtn'))}</span>`}
+        <button class="btn btn-small" type="button" data-atelier-pack="${escapeHtml(c.packId)}" data-atelier-montage="${escapeHtml(c.id)}">${escapeHtml(tr('videoVersioningOpenBtn'))}</button>
       </div>`;
   }).join('');
+  listEl.querySelectorAll('[data-atelier-montage]').forEach(b => b.addEventListener('click', () => openVideoAtelier({ packId: b.dataset.atelierPack, montageId: b.dataset.atelierMontage })));
 }
 
 // Construit la liste des clés R2 (audio/<trackId>/<fichier>) de tous les fichiers déjà publiés

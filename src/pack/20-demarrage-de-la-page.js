@@ -10,15 +10,6 @@ async function init() {
     const data = await loadSiteData();
     if (previewActive) showPreviewModeBanner();
     window.__lpTrackContext.ownerId = lastResolvedOwnerId;
-    // Référence pour le mode Capture (résolution trackId/sfxId -> fichier réel, voir exportCaptureVideo).
-    // composerName : même source que le lien "← Retour" plus bas (data.adReels 'main'.profile.title) --
-    // seul nom de compositeur déjà disponible côté client, réutilisé pour le crédit compositeur sur
-    // l'export (2026-09-16, voir decisions/2026-09-16-capture-watermark-composer-credit.md, docs privés).
-    const mainAdReelForCapture = (data.adReels || []).find(a => a.id === 'main');
-    window.__lpCaptureLibrary = {
-      library: data.library || [], sfxLibrary: data.sfxLibrary || [], sfxFolders: data.sfxFolders || [],
-      composerName: (mainAdReelForCapture && mainAdReelForCapture.profile && mainAdReelForCapture.profile.title) || '',
-    };
     const pack = (data.packs || []).find(p => p.id === id);
     if (!pack) {
       container.innerHTML = `<div class="empty">${tr('packNotFound')}</div>`;
@@ -83,9 +74,8 @@ async function init() {
       triggerBtn.className = 'video-test-trigger-btn';
       triggerBtn.textContent = tr('videoTestTriggerBtn');
       triggerBtn.title = tr('videoTestTriggerBtnHelp');
-      triggerBtn.addEventListener('click', () => document.getElementById('videoTestDialog').showModal());
+      triggerBtn.addEventListener('click', () => openVideoTestDialog());
       container.appendChild(triggerBtn);
-      setupCaptureTrigger(pack, container).then(() => startPackLessonIfAsked()); // async, ne bloque pas le rendu -- s'insère seule si admin
     }
     container.appendChild(musicContainer);
     const libraryById = {};
@@ -262,20 +252,4 @@ async function init() {
   } catch (e) {
     container.innerHTML = `<div class="empty">${tr('loadError')}</div>`;
   }
-}
-
-// Mode tutoriel (?tuto&lesson=versioning, 21/10) : bandeau « rien n'est enregistré » + lancement de la leçon guidée (pack-lecons.js).
-let packLessonStarted = false;
-function startPackLessonIfAsked() {
-  const params = new URLSearchParams(location.search);
-  if (!params.has('tuto') || packLessonStarted || !window.LayerPitchPackLessons || !window.LayerPitchGuide) return;
-  packLessonStarted = true;
-  const bar = document.createElement('div');
-  bar.className = 'preview-mode-banner';
-  bar.innerHTML = '<span></span> <a style="color:inherit;text-decoration:underline;margin-left:8px" href="./layerpitch-backstage.html"></a>';
-  bar.querySelector('span').textContent = tr('tutoBannerText');
-  bar.querySelector('a').textContent = tr('tutoQuit');
-  document.body.prepend(bar);
-  document.body.classList.add('has-preview-banner');
-  if (params.get('lesson') === 'versioning') setTimeout(() => window.LayerPitchPackLessons.init({ lang: currentLang() }).start(), 600);
 }

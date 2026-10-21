@@ -256,6 +256,8 @@
   .video-library-empty { padding: 18px 4px; color: var(--text-dimmer); font-size: 13px; }
   .video-subpanel { display: none; margin-top: 6px; }
   .video-subpanel.active { display: block; }
+  /* Atelier vidéo (21/10) : atelier.html dans un cadre, assez haut pour le lecteur, la vidéo et la frise (il défile à l'intérieur). */
+  .video-atelier-frame { display: block; width: 100%; height: calc(100vh - 210px); min-height: 640px; border: 1px solid var(--border); border-radius: 8px; background: #fff; margin-top: 10px; }
   .video-capture-pack-row-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
   .video-capture-pack-row-hint { font-size: 11.5px; color: var(--text-dimmer); margin-top: 2px; }
   /* Sous-onglet Versioning (26/09) : montages sauvegardés et leurs versions vidéo. */

@@ -1,4 +1,8 @@
-/* pack-lecons.js — leçon guidée « Versioning vidéo » sur la page d'un pack (pack.html?id=p-alone&u=demo&tuto&lesson=versioning), 21/10.
+/* atelier-lecons.js — partie « atelier » de la leçon guidée « Versioning vidéo » (atelier.html?tuto&lesson=versioning), 21/10.
+ *
+ * L'atelier vit dans un cadre du Backstage (onglet Vidéo → Atelier) : le Backstage guide jusqu'à l'atelier, ce fichier guide DANS
+ * l'atelier (choisir le pack, la vidéo, jouer, enregistrer, versionner), puis rend la main au Backstage (onDone) pour le bloc vidéo.
+ * Choisir le pack recharge l'atelier : la leçon reprend alors juste après cette étape (le pack est dans l'adresse).
  *
  * Parcours choisi par Jules-Antoine : partir d'une vidéo SANS son (le gameplay d'« Alone in the Barque »), y poser une première musique en
  * jouant le pack sur la vidéo (capture), enregistrer le montage, puis en faire une deuxième version avec une autre musique de même
@@ -23,8 +27,10 @@
       return s;
     };
     const $ = sel => document.querySelector(sel);
+    const hasPack = new URLSearchParams(location.search).has('id');
     const steps = [
       { titleKey: 'pvWelcomeTitle', textKey: 'pvWelcomeText' },
+      { selector: '#atelierPackSelect', titleKey: 'pvPackTitle', textKey: 'pvPackText', done: () => !!($('#atelierPackSelect') && $('#atelierPackSelect').value) },
       { selector: '.video-capture-trigger-btn', titleKey: 'pvOpenTitle', textKey: 'pvOpenText', clickDone: true },
       { selector: '#videoCaptureDropzone', titleKey: 'pvVideoTitle', textKey: 'pvVideoText', done: () => !!$('#videoCaptureEl'),
         drops: ready() ? [{ kind: 'file', label: KIT.video.label, url: KIT.video.url, name: KIT.video.name }] : [] },
@@ -39,11 +45,13 @@
       { selector: '#videoCaptureVersioning', titleKey: 'pvPickTitle', textKey: 'pvPickText' },
       { selector: () => document.querySelector('#videoCaptureVersioning [data-act="listenDraft"]'), titleKey: 'pvListenTitle', textKey: 'pvListenText', clickDone: true },
       { selector: () => document.querySelector('#videoCaptureVersioning [data-act="saveDraft"]'), titleKey: 'pvKeepTitle', textKey: 'pvKeepText', clickDone: true },
-      { titleKey: 'pvEndTitle', textKey: 'pvEndText', final: true },
+      { titleKey: 'pvAtelierEndTitle', textKey: 'pvAtelierEndText', final: true },
     ];
-    const G = window.LayerPitchGuide.create({ tr });
-    return { start: () => { if (!ready()) return false; G.open('lesson', steps, 'versioning'); return true; }, guide: G, steps };
+    // Pack déjà choisi (l'atelier vient d'être rechargé sur lui) : on reprend après « choisir le pack ».
+    const run = hasPack ? steps.slice(2) : steps.slice(0, 2);
+    const G = window.LayerPitchGuide.create({ tr, onLessonDone: ctx.onDone && hasPack ? (() => ctx.onDone()) : undefined });
+    return { start: () => { if (!ready()) return false; G.open('lesson', run, 'versioning'); return true; }, guide: G, steps };
   }
 
-  window.LayerPitchPackLessons = { init, KIT };
+  window.LayerPitchAtelierLessons = { init, KIT };
 })();

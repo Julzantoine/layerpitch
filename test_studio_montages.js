@@ -83,9 +83,9 @@
   for (let i = 2; i <= 10; i++) await save('cap' + i, 'M' + i);
   check('11e montage refusé (limite saved_montages : 10)', await fails(`select public.save_video_capture('cap11', 'p1', 'x', 'x', '[]'::jsonb, '{}'::jsonb, '{}'::jsonb, true)`, [], /Nombre maximal/));
   const fs = require('fs'), read = f => fs.readFileSync(require('path').join(__dirname, f), 'utf8');
-  const pack = read('src/pack/16-sauvegarde-et-envois.js');
+  const pack = read('src/atelier/16-sauvegarde-et-envois.js');
   check('outil de capture : un compte studio agit au nom du studio (p_studio, asStudio)', /window\.__lpStudioBuyer && path\.startsWith\('video\/'\)/.test(pack) && /rpc\('save_video_capture', withStudio\(/.test(pack) && /asStudio: videoAsStudio\(\)/.test(pack));
-  check('outil de capture : un studio enregistre et versionne (plus de « provisoire »)', /window\.__lpVersioningLevel = lvl\('studio_versioning'\)/.test(read('src/pack/19-bouton-de-capture.js')));
+  check('outil de capture : un studio enregistre et versionne (plus de « provisoire »)', /window\.__lpVersioningLevel = lvl\('studio_versioning'\)/.test(read('src/atelier/19-bouton-de-capture.js')));
   check('espace studio : onglet « Vidéos » (montages, bibliothèque, nettoyage)', /STUDIO_TABS = \['library', 'custom', 'video'/.test(read('studio.html')) && /clear_video_export_history', \{ p_studio: true \}/.test(read('studio.html')) && /studio\.video/.test(read('layerpitch-shell.js')));
   check('envoi des fichiers : vidéo d’un studio au quota du studio', /reserve_video_upload_studio/.test(read('supabase/functions/create-media-signed-url/index.ts')) && /verifyStudioVideo/.test(read('supabase/functions/create-media-signed-url/index.ts')));
   check('envois vidéo d’un studio bloqués tant que la fonction d’envoi n’est pas redéployée', /window\.__lpStudioVideoUploadsReady = false;/.test(pack) && /!window\.__lpStudioVideoUploadsReady\) throw/.test(pack));

@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Espace studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1792574875334">
+<link rel="stylesheet" href="player.css?v=1792578828337">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -25,6 +25,7 @@
   h2 { font-family: var(--font-title); font-size: 16px; margin: 0 0 8px; }
   .plan-badge { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; color: var(--accent); background: var(--accent-soft); padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
   .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+  .atelier-frame { display: block; width: 100%; height: calc(100vh - 200px); min-height: 640px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
   .hint { font-size: 12.5px; line-height: 1.6; color: var(--text-dim); margin: 0 0 10px; }
   .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
   .tab { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text); }
@@ -70,22 +71,22 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1792574875334"></script>
-<script src="layerpitch-notify.js?v=1792574875334"></script>
-<script src="player.js?v=1792574875334"></script>
-<script src="api/supabase-client.js?v=1792574875334"></script>
-<script src="api/auth.js?v=1792574875334"></script>
-<script src="layerpitch-appearance.js?v=1792574875334"></script>
-<script src="layerpitch-album-shared.js?v=1792574875334"></script>
-<script src="layerpitch-album-editor.js?v=1792574875334"></script>
-<script src="layerpitch-shell.js?v=1792574875334"></script>
-<script src="api/purchases.js?v=1792574875334"></script>
-<script src="api/tracks.js?v=1792574875334"></script>
-<script src="api/sfx.js?v=1792574875334"></script>
-<script src="api/subscriptions.js?v=1792574875334"></script>
-<script src="api/albums.js?v=1792574875334"></script>
-<script src="layerpitch-studio-albums.js?v=1792574875334"></script>
-<script src="api/studio.js?v=1792574875334"></script>
+<script src="layerpitch-i18n.js?v=1792578828337"></script>
+<script src="layerpitch-notify.js?v=1792578828337"></script>
+<script src="player.js?v=1792578828337"></script>
+<script src="api/supabase-client.js?v=1792578828337"></script>
+<script src="api/auth.js?v=1792578828337"></script>
+<script src="layerpitch-appearance.js?v=1792578828337"></script>
+<script src="layerpitch-album-shared.js?v=1792578828337"></script>
+<script src="layerpitch-album-editor.js?v=1792578828337"></script>
+<script src="layerpitch-shell.js?v=1792578828337"></script>
+<script src="api/purchases.js?v=1792578828337"></script>
+<script src="api/tracks.js?v=1792578828337"></script>
+<script src="api/sfx.js?v=1792578828337"></script>
+<script src="api/subscriptions.js?v=1792578828337"></script>
+<script src="api/albums.js?v=1792578828337"></script>
+<script src="layerpitch-studio-albums.js?v=1792578828337"></script>
+<script src="api/studio.js?v=1792578828337"></script>
 <script>
 // studio.html — Espace studio (chantier profils et permissions, étape 3, 28/09 ; D2, D9, D13, D33 du cadrage
 // layerpitch-docs/2026-09-27-cadrage-profils-permissions.md). Espace DÉDIÉ au studio, distinct du Backstage compositeur ;
@@ -259,12 +260,20 @@ async function renderVideoTab(panel) {
   const montages = caps.data || [], videos = (lib.data && lib.data.videos) || [], usage = hist.data || { count: 0, bytes: 0 };
   const mo = n => (Number(n || 0) / 1048576).toFixed(1) + ' Mo';
   const quota = lib.data && lib.data.quotaGb != null ? tr('sv_storage', { used: (Number(lib.data.usedBytes || 0) / 1073741824).toFixed(2), quota: lib.data.quotaGb }) : '';
+  // Atelier vidéo (21/10) : l'outil de capture et de Versioning, au nom du studio (?studio=1), packs achetés par l'équipe. Même page que
+  // dans le Backstage (atelier.html), dans un cadre.
+  const atelierUrl = (packId, montageId) => './atelier.html?' + new URLSearchParams(Object.assign({ studio: '1', lang: pageLang }, packId ? { id: packId } : {}, montageId ? { montage: montageId } : {})).toString();
   panel.innerHTML = `<div class="card">
+      <h2>${esc(tr('sv_atelierTitle'))}</h2>
+      <p class="hint">${esc(tr('sv_atelierIntro'))}</p>
+      <iframe id="svAtelier" class="atelier-frame" title="${esc(tr('sv_atelierTitle'))}" allow="autoplay; fullscreen" src="${esc(atelierUrl())}"></iframe>
+    </div>
+    <div class="card">
       <h2>${esc(tr('sv_montagesTitle'))}</h2>
       <p class="hint">${esc(tr('sv_montagesIntro'))}</p>
       ${montages.length ? montages.map(c => `<div class="row"><div class="row-main"><div class="row-title">${esc(c.title || tr('sv_untitled'))}</div>
           <div class="row-sub">${esc(new Date(c.updatedAt).toLocaleDateString(pageLang))}${c.lastExportVideoId ? '' : ' — ' + esc(tr('sv_notPublished'))}</div></div>
-          <div class="row-actions"><a class="btn" href="./pack.html?id=${encodeURIComponent(c.packId)}&lang=${pageLang}&capture=1&montage=${encodeURIComponent(c.id)}">${esc(tr('sv_open'))}</a>
+          <div class="row-actions"><button class="btn" type="button" data-atelier-pack="${esc(c.packId)}" data-atelier-montage="${esc(c.id)}">${esc(tr('sv_open'))}</button>
           <button class="btn" type="button" data-delmontage="${esc(c.id)}">${esc(tr('sv_delete'))}</button></div></div>`).join('') : `<div class="empty">${esc(tr('sv_noMontages'))}</div>`}
     </div>
     <div class="card">
@@ -284,6 +293,11 @@ async function renderVideoTab(panel) {
       } catch (e) { console.warn('effacement ' + r.path, e); }
     }
   };
+  panel.querySelectorAll('[data-atelier-montage]').forEach(b => b.onclick = () => {
+    const frame = $('svAtelier');
+    frame.src = atelierUrl(b.dataset.atelierPack, b.dataset.atelierMontage);
+    if (frame.scrollIntoView) frame.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   panel.querySelectorAll('[data-delmontage]').forEach(b => b.onclick = async () => {
     if (!(await window.LayerPitchNotify.confirm(tr('sv_deleteConfirm'), { danger: true }))) return;
     const { error } = await client.rpc('delete_video_capture', { p_id: b.dataset.delmontage, p_studio: true });

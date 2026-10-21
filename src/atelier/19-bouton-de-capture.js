@@ -1,38 +1,22 @@
-// Éligibilité (élargie le 16 septembre) : admin OU le compositeur propriétaire de CE pack --
-// auparavant is_admin() uniquement. `lastResolvedOwnerId` est déjà le composer_id propriétaire des
-// données affichées (résolu par loadSiteData()) -- comparé à l'id du compositeur connecté
-// (ensure_composer_profile(), même RPC que le reste du produit pour "mon propre id"). Barrière
-// d'AFFICHAGE seulement (même remarque qu'avant) -- la vraie barrière de sécurité vit dans les RPC
-// SECURITY DEFINER elles-mêmes (save_video_capture/upsert_video, etc.), voir
-// supabase/migrations/20260916040000_open_capture_video_to_composers.sql. POINT EXPLICITEMENT
-// TEMPORAIRE (dit par Jules-Antoine) : à filtrer par palier d'abonnement (Rookie/Warrior/Boss) au
-// lancement -- pas construit par anticipation ici, rien à quoi le rattacher n'existe encore. Ne
-// charge les scripts d'auth que si nécessaire, comme le fait déjà loadPurchaseScripts() pour l'achat
-// -- page publique, rien de tout ça ne doit ralentir un visiteur ordinaire.
-async function setupCaptureTrigger(pack, container) {
-  if (!pack.videoTestModeEnabled) return;
+// Droits de l'atelier vidéo (21/10 : l'outil a quitté la page publique du pack pour l'atelier, voir 20-demarrage-atelier.js).
+// Compositeur : admin OU propriétaire de CE pack (élargi le 16 septembre). Studio (?studio=1) : pack acheté par un compte de
+// l'équipe (D10, 27/09). Barrière d'AFFICHAGE seulement -- la vraie barrière de sécurité vit dans les RPC SECURITY DEFINER
+// (save_video_capture, upsert_video, etc.). Plus besoin du réglage « Tester en jeu » du pack : il ne concerne que la page publique.
+// Renvoie true si l'outil est ouvert à ce compte sur ce pack.
+async function setupCaptureTrigger(pack, container, opts) {
+  const asStudio = !!(opts && opts.asStudio);
   let eligible = false;
   try {
     await loadPurchaseScripts();
     const { session } = await window.LayerPitchAuth.getSession();
-    if (!session) return;
+    if (!session) return false;
     const client = window.LayerPitchSupabaseClient.getClient();
     const { data: isAdmin } = await client.rpc('is_admin');
     // Export complet (image ré-encodée) réservé à l'admin tant que l'abonnement multicoeur n'existe pas (voir
     // openCapturePanel) -- barrière d'affichage, comme le reste de cet outil.
     window.__lpCaptureIsAdmin = !!isAdmin;
-    if (isAdmin) {
-      eligible = true;
-    } else {
-      // getMyComposerId (lecture) plutôt qu'ensure_composer_profile : un studio qui visite le pack ne doit pas se voir
-      // créer un profil compositeur au passage.
-      const { composerId: myComposerId } = await window.LayerPitchAuth.getMyComposerId();
-      eligible = !!myComposerId && myComposerId === lastResolvedOwnerId;
-    }
-    // Studio qui a ACHETÉ ce pack (D10, 27/09) : capture autorisée. Sans achat, la musique se joue sur sa vidéo
-    // (mode « Tester une vidéo » public) mais ne se capture pas.
     window.__lpStudioBuyer = false;
-    if (!eligible) {
+    if (asStudio) {
       // Achat par n'importe quel compte de l'équipe du studio (équipes, 28/09) ; repli sur ses propres achats tant que
       // la fonction team_owns_pack n'existe pas en base.
       let owns = false;
@@ -43,8 +27,14 @@ async function setupCaptureTrigger(pack, container) {
         owns = !!(bought && bought.length);
       }
       if (owns) { eligible = true; window.__lpStudioBuyer = true; }
+    } else if (isAdmin) {
+      eligible = true;
+    } else {
+      // getMyComposerId (lecture) plutôt qu'ensure_composer_profile : un studio ne doit pas se voir créer un profil compositeur au passage.
+      const { composerId: myComposerId } = await window.LayerPitchAuth.getMyComposerId();
+      eligible = !!myComposerId && myComposerId === lastResolvedOwnerId;
     }
-    if (!eligible) return;
+    if (!eligible) return false;
     // Droits de l'outil vidéo lus dans la matrice (28/09, chantier profils et permissions) : Test in game
     // (capture / edit / saved), Versioning (session / saved), filigrane. En cas d'erreur : droits Rookie (le serveur
     // refuse de toute façon ce que la matrice n'accorde pas).
@@ -57,7 +47,7 @@ async function setupCaptureTrigger(pack, container) {
       if (window.__lpStudioBuyer) {
         // Droits du palier STUDIO (studio_test_in_game, studio_versioning, studio_no_watermark). Depuis le 21/10 (migration
         // 20261021060000), un studio enregistre ses montages et ses versions vidéo AU NOM DU STUDIO (toute l'équipe les retouche).
-        if (!(byF.studio_test_in_game && byF.studio_test_in_game.allowed)) return; // feu vert studio_space fermé
+        if (!(byF.studio_test_in_game && byF.studio_test_in_game.allowed)) return false; // feu vert studio_space fermé
         window.__lpCaptureLevel = lvl('studio_test_in_game') || 'capture';
         window.__lpVersioningLevel = lvl('studio_versioning');
         window.__lpNoWatermark = !!(byF.studio_no_watermark && byF.studio_no_watermark.allowed);
@@ -67,20 +57,18 @@ async function setupCaptureTrigger(pack, container) {
         window.__lpNoWatermark = !!(byF.no_watermark && byF.no_watermark.allowed);
       }
     } catch (e) { console.warn('my_entitlements() indisponible, droits Rookie par défaut', e); }
-  } catch (e) { return; } // jamais bloquant pour le reste de la page
+  } catch (e) { return false; } // jamais bloquant pour le reste de la page
 
   const captureBtn = document.createElement('button');
   captureBtn.type = 'button';
   captureBtn.className = 'video-capture-trigger-btn';
-  captureBtn.textContent = tr('captureDialogTitle');
+  captureBtn.textContent = tr('atelierChooseVideoBtn');
   captureBtn.addEventListener('click', () => openVideoCaptureDialog());
   container.insertBefore(captureBtn, container.firstChild);
-  // Lien direct depuis le Backstage (bibliothèque vidéo, sous-onglet "Capture", ?capture=1) : ouvre le
-  // dialogue tout de suite, sans clic supplémentaire depuis la liste des packs du compositeur.
-  // &montage=<id> (Backstage → Vidéo → Versioning, 26/09) : ce montage sauvegardé s'ouvre dès que la vidéo est choisie.
-  if (new URLSearchParams(location.search).get('capture') === '1') {
-    openVideoCaptureDialog(new URLSearchParams(location.search).get('montage'));
-  }
+  // &montage=<id> (Backstage → Vidéo → Versioning, bloc vidéo d'un AdReel, espace studio) : ce montage sauvegardé s'ouvre dès que
+  // la vidéo est choisie -- le dialogue s'ouvre tout de suite.
+  const montageParam = new URLSearchParams(location.search).get('montage');
+  if (montageParam) openVideoCaptureDialog(montageParam);
 
   // Boutons ⏺ "Armer" -- un par morceau, posés directement à côté de son propre bouton de lecture dans
   // le VRAI lecteur du pack (pas un sélecteur séparé dans le panneau de capture) : plus logique puisque
@@ -104,6 +92,7 @@ async function setupCaptureTrigger(pack, container) {
     });
     playBtn.insertAdjacentElement('afterend', armBtn);
   });
+  return true;
 }
 
 // Montage à ouvrir dès que la vidéo est choisie (lien du Backstage), et sa fiche (titre, nom de la vidéo d'origine).

@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792574875334">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792578828337">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -268,6 +268,8 @@
   .video-library-empty { padding: 18px 4px; color: var(--text-dimmer); font-size: 13px; }
   .video-subpanel { display: none; margin-top: 6px; }
   .video-subpanel.active { display: block; }
+  /* Atelier vidéo (21/10) : atelier.html dans un cadre, assez haut pour le lecteur, la vidéo et la frise (il défile à l'intérieur). */
+  .video-atelier-frame { display: block; width: 100%; height: calc(100vh - 210px); min-height: 640px; border: 1px solid var(--border); border-radius: 8px; background: #fff; margin-top: 10px; }
   .video-capture-pack-row-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
   .video-capture-pack-row-hint { font-size: 11.5px; color: var(--text-dimmer); margin-top: 2px; }
   /* Sous-onglet Versioning (26/09) : montages sauvegardés et leurs versions vidéo. */
@@ -1289,7 +1291,7 @@
 
         <div class="content-appearance-toggle">
           <button class="nav-item active" data-video-subtab="library" type="button"><span data-i18n="videoSubtabLibrary">Bibliothèque</span></button>
-          <button class="nav-item" data-video-subtab="capture" type="button"><span data-i18n="videoSubtabCapture">Capture</span></button>
+          <button class="nav-item" data-video-subtab="capture" type="button"><span data-i18n="videoSubtabCapture">Atelier</span></button>
           <button class="nav-item" data-video-subtab="versioning" type="button"><span data-i18n="videoSubtabVersioning">Versioning</span></button>
         </div>
 
@@ -1303,20 +1305,17 @@
           <div id="videoLibraryList" class="video-library-list"></div>
         </div>
 
-        <!-- Sous-onglet Capture (16 septembre) : ouvre le moteur de capture/rescore de chaque pack --
-             le panneau lui-même vit dans pack.html (impraticable à dupliquer ici, la logique de capture
-             fait plusieurs milliers de lignes), donc ce sous-onglet se contente de lister les packs du
-             compositeur et d'ouvrir la page en direct du pack choisi, dialogue de capture pré-ouvert
-             (?capture=1, voir setupCaptureTrigger dans pack.html). -->
+        <!-- Sous-onglet Atelier (21/10, décidé par Jules-Antoine ; « Capture » depuis le 16/09) : l'atelier vidéo (atelier.html, outil de
+             capture et de Versioning sorti de la page publique du pack) dans un cadre. Le choix du pack se fait dans l'atelier. Ouvert
+             aussi par « Ouvrir » (Versioning) et « Créer une version vidéo » (bloc vidéo d'un AdReel) : openVideoAtelier(). -->
         <div class="video-subpanel" data-video-subpanel="capture">
-          <div class="sub" data-i18n="videoCaptureSubtabHint">Rejoue la musique adaptative d'un de tes packs en direct sur une vidéo de gameplay, édite la prise, exporte-la ou sauvegarde-la. Ouvre la page en direct du pack choisi, dans un nouvel onglet.</div>
-          <div id="videoCapturePacksList" class="video-library-list"></div>
+          <div class="sub" data-i18n="videoCaptureSubtabHint">Choisis un pack, puis une vidéo, et joue sa musique adaptative sur l'image : retouche la prise, enregistre le montage, fais-en des versions avec d'autres musiques, et mets la vidéo à jour partout où elle est montrée.</div>
+          <iframe id="videoAtelierFrame" class="video-atelier-frame" title="Atelier vidéo" allow="autoplay; fullscreen"></iframe>
         </div>
 
         <!-- Sous-onglet Versioning (26/09) : tous les montages sauvegardés (video_captures), tous packs confondus, avec
-             leurs versions vidéo (video_capture_versions). « Ouvrir » ouvre l'outil vidéo du pack, montage chargé
-             (pack.html?...&capture=1&montage=<id>) -- l'outil lui-même vit dans pack.html, jamais dupliqué ici. Réservé à
-             l'admin jusqu'au feu vert (les fonctions serveur le vérifient aussi). -->
+             leurs versions vidéo (video_capture_versions). « Ouvrir » ouvre le montage dans l'atelier vidéo (sous-onglet Atelier,
+             atelier.html?...&montage=<id>). Réservé au palier qui enregistre les versions (les fonctions serveur le vérifient aussi). -->
         <div class="video-subpanel" data-video-subpanel="versioning">
           <div class="sub" data-i18n="videoVersioningSubtabHint">Tes montages vidéo sauvegardés et leurs versions (le même montage rejoué avec d'autres morceaux ou d'autres Sfx). Ouvre un montage pour créer, écouter ou rendre ses versions, dans un nouvel onglet.</div>
           <div id="videoVersioningList" class="video-library-list"></div>
@@ -1871,17 +1870,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792574875334"></script>
-<script src="layerpitch-i18n.js?v=1792574875334"></script>
-<script src="layerpitch-appearance.js?v=1792574875334"></script>
-<script src="layerpitch-album-shared.js?v=1792574875334"></script>
-<script src="layerpitch-album-editor.js?v=1792574875334"></script>
-<script src="layerpitch-shell.js?v=1792574875334"></script>
-<script src="layerpitch-social-icons.js?v=1792574875334"></script>
-<script src="layerpitch-notify.js?v=1792574875334"></script>
-<script src="layerpitch-guide.js?v=1792574875334"></script>
-<script src="layerpitch-help.js?v=1792574875334"></script>
-<script src="player.js?v=1792574875334"></script>
+<script src="layerpitch-tuto.js?v=1792578828337"></script>
+<script src="layerpitch-i18n.js?v=1792578828337"></script>
+<script src="layerpitch-appearance.js?v=1792578828337"></script>
+<script src="layerpitch-album-shared.js?v=1792578828337"></script>
+<script src="layerpitch-album-editor.js?v=1792578828337"></script>
+<script src="layerpitch-shell.js?v=1792578828337"></script>
+<script src="layerpitch-social-icons.js?v=1792578828337"></script>
+<script src="layerpitch-notify.js?v=1792578828337"></script>
+<script src="layerpitch-guide.js?v=1792578828337"></script>
+<script src="layerpitch-help.js?v=1792578828337"></script>
+<script src="player.js?v=1792578828337"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -10800,7 +10799,8 @@ function refreshSocialsBlockCards() {
 
 function buildVideoCard(block) {
   const { card, body } = makeCardShell(block);
-  body.innerHTML = `<div data-role="list"></div><div class="actions"><button class="btn btn-small" data-role="addBtn">${tr('addVideoBtn')}</button></div>`;
+  // « Atelier vidéo » (21/10) : faire une vidéo avec la musique d'un pack (onglet Vidéo → Atelier), puis la choisir ici dans la bibliothèque.
+  body.innerHTML = `<div data-role="list"></div><div class="actions"><button class="btn btn-small" data-role="addBtn">${tr('addVideoBtn')}</button>${flagOpen('video_upload') ? ` <button class="btn btn-small" type="button" data-role="openAtelier">${tr('videoBlockOpenAtelier')}</button>` : ''}</div>`;
   const listEl = body.querySelector('[data-role="list"]');
   // Bibliothèque vidéo (composer_videos, Postgres) chargée à part de data.json -- pas préchargée au
   // niveau de l'app comme sfxLibrary/packs/collections, donc récupérée à l'ouverture de ce bloc.
@@ -10874,7 +10874,7 @@ function buildVideoCard(block) {
           <select data-role="versionSelect" data-i="${row.dataset.i}">${options.map(sib => `<option value="${escapeAttr(sib.key)}" ${sib.key === v.defaultVersion ? 'selected' : ''}>${escapeAttr(sib.title || tr('videoVersioningUntitled'))}</option>`).join('')}</select>
           ${options.length > 1 ? `<label style="margin-top:8px">${tr('videoBlockVersionMenuLabel')}</label>
           ${options.map(sib => `<label style="display:flex;align-items:center;gap:6px;font-weight:normal"><input type="checkbox" data-role="versionShown" data-i="${row.dataset.i}" data-key="${escapeAttr(sib.key)}" style="width:auto;margin:0" ${(v.hiddenVersions || []).includes(sib.key) ? '' : 'checked'} ${sib.key === v.defaultVersion ? 'disabled' : ''}> ${escapeAttr(sib.title || tr('videoVersioningUntitled'))}</label>`).join('')}` : ''}
-          <div class="actions" style="margin-top:6px"><a class="btn btn-small" data-role="versionNew" href="${videoVersioningMontageUrl(info.capture)}" target="_blank" rel="noopener">${tr('videoBlockVersionNew')}</a></div>
+          <div class="actions" style="margin-top:6px"><button class="btn btn-small" type="button" data-role="versionNew" data-pack="${escapeAttr(info.capture.packId)}" data-montage="${escapeAttr(info.capture.id)}">${tr('videoBlockVersionNew')}</button></div>
           <div class="hint-inline">${tr('videoBlockVersionHint')}</div>`;
       });
     });
@@ -10884,6 +10884,8 @@ function buildVideoCard(block) {
     libraryLoaded = true;
     renderList();
   });
+  const atelierBtn = body.querySelector('[data-role="openAtelier"]');
+  if (atelierBtn) atelierBtn.addEventListener('click', () => openVideoAtelier());
   body.querySelector('[data-role="addBtn"]').addEventListener('click', () => {
     block.videos.push({ title: '', url: '', comment: '', thumbnail: null, pendingThumbnail: null, source: 'url', libraryVideoId: null });
     hasUnsavedEdits = true;
@@ -10891,6 +10893,9 @@ function buildVideoCard(block) {
     refreshAllBlockSummaries();
   });
   listEl.addEventListener('click', e => {
+    // « Créer une version vidéo » : le montage de cette vidéo s'ouvre dans l'atelier (onglet Vidéo → Atelier).
+    const newVersion = e.target.closest('[data-role="versionNew"]');
+    if (newVersion) { openVideoAtelier({ packId: newVersion.dataset.pack, montageId: newVersion.dataset.montage }); return; }
     const btn = e.target.closest('[data-action="remove"]');
     if (!btn) return;
     block.videos.splice(parseInt(btn.dataset.i, 10), 1);
@@ -14299,43 +14304,47 @@ async function uploadLibraryVideo(file) {
   });
 })();
 
-// Sous-onglets Bibliothèque/Capture du panneau Vidéo (16 septembre) -- toggle purement local, pas le
-// switchTab() global (réservé aux panneaux de premier niveau). Le sous-onglet Capture ne réimplémente
-// pas le moteur de capture ici : il liste les packs du compositeur et ouvre la page en direct du pack
-// choisi (pack.html?...&capture=1), dialogue de capture pré-ouvert -- voir setupCaptureTrigger dans
-// pack.html, élargi le même jour de is_admin() uniquement à "admin OU propriétaire du pack".
+// Sous-onglets Bibliothèque/Atelier/Versioning du panneau Vidéo (16 septembre) -- toggle purement local, pas le switchTab() global
+// (réservé aux panneaux de premier niveau).
 function switchVideoSubtab(name) {
   document.querySelectorAll('#panelVideoLibrary .video-subpanel').forEach(p => p.classList.toggle('active', p.dataset.videoSubpanel === name));
   document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(b => b.classList.toggle('active', b.dataset.videoSubtab === name));
-  if (name === 'capture') renderVideoCapturePacksList();
+  if (name === 'capture') ensureVideoAtelierLoaded();
   if (name === 'versioning') renderVideoVersioningList();
 }
 document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(btn => {
   btn.addEventListener('click', () => switchVideoSubtab(btn.dataset.videoSubtab));
 });
-function renderVideoCapturePacksList() {
-  const listEl = document.getElementById('videoCapturePacksList');
-  if (!listEl) return;
-  if (!packs.length) {
-    listEl.innerHTML = `<div class="video-library-empty">${tr('videoCaptureNoPacks')}</div>`;
-    return;
-  }
-  listEl.innerHTML = packs.map(p => {
-    const enabled = !!p.videoTestModeEnabled;
-    const url = `./pack.html?id=${encodeURIComponent(p.id)}&lang=${encodeURIComponent(currentLang())}&capture=1`;
-    return `
-      <div class="video-library-item">
-        <div class="video-library-item-main">
-          <div class="video-capture-pack-row-title">${escapeHtml(p.title || tr('defaultPackTitle'))}</div>
-          ${enabled ? '' : `<div class="video-capture-pack-row-hint">${escapeHtml(tr('videoCaptureNeedsTestMode'))}</div>`}
-        </div>
-        ${enabled
-          ? `<a class="btn btn-small" href="${url}" target="_blank" rel="noopener">${tr('videoCaptureOpenBtn')}</a>`
-          : `<span class="btn btn-small" style="opacity:.4;pointer-events:none;">${tr('videoCaptureOpenBtn')}</span>`}
-      </div>
-    `;
-  }).join('');
+
+// Atelier vidéo (21/10, décidé par Jules-Antoine) : l'outil de capture et de Versioning vit ici, dans un cadre (atelier.html : son code
+// est celui qui était sur la page du pack, déplacé, jamais recopié dans le Backstage). Le choix du pack se fait dans l'atelier.
+// Mode tutoriel : l'atelier aussi (?tuto&lesson=…), pour que la leçon Versioning s'y poursuive avec le faux serveur.
+function videoAtelierUrl(opts) {
+  const o = opts || {};
+  const q = new URLSearchParams({ lang: currentLang() });
+  if (o.packId) q.set('id', o.packId);
+  if (o.montageId) q.set('montage', o.montageId);
+  if (isTutoMode()) { q.set('tuto', ''); const lesson = new URLSearchParams(location.search).get('lesson'); if (lesson) q.set('lesson', lesson); }
+  return './atelier.html?' + q.toString().replace(/tuto=(&|$)/, 'tuto$1');
 }
+function ensureVideoAtelierLoaded() {
+  const frame = document.getElementById('videoAtelierFrame');
+  if (frame && !frame.getAttribute('src')) frame.src = videoAtelierUrl();
+}
+// Ouvre l'atelier (onglet Vidéo → Atelier), sur un pack et un montage s'ils sont donnés (Versioning, bloc vidéo d'un AdReel).
+function openVideoAtelier(opts) {
+  openTab('videoLibrary');
+  switchVideoSubtab('capture');
+  const frame = document.getElementById('videoAtelierFrame');
+  if (frame && opts && (opts.packId || opts.montageId)) frame.src = videoAtelierUrl(opts);
+  else ensureVideoAtelierLoaded();
+  if (frame && frame.scrollIntoView) frame.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+// Messages de l'atelier (même origine seulement) : fin de sa partie de la leçon Versioning -> le Backstage reprend la main.
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-atelier') return;
+  if (e.data.type === 'lessonDone' && typeof onAtelierLessonDone === 'function') onAtelierLessonDone();
+});
 
 // Versioning depuis le bloc vidéo d'un AdReel (21/10) : index « vidéo de la bibliothèque -> montage d'origine et versions sœurs », lu une fois
 // (les RPC sont celles du sous-onglet Versioning). Une vidéo issue d'une version vidéo (last_export_video_id) retrouve son montage et les autres
@@ -14372,10 +14381,6 @@ function videoMontageFields(v) {
     ? { montageId: v.montageId, defaultVersion: v.defaultVersion || 'original', hiddenVersions: Array.isArray(v.hiddenVersions) ? v.hiddenVersions.slice() : [] }
     : { montageId: null, defaultVersion: null, hiddenVersions: [] };
 }
-// Adresse de l'outil de capture sur ce montage (même lien que le bouton « Ouvrir » du sous-onglet Versioning).
-function videoVersioningMontageUrl(capture) {
-  return `./pack.html?id=${encodeURIComponent(capture.packId)}&lang=${encodeURIComponent(currentLang())}&capture=1&montage=${encodeURIComponent(capture.id)}`;
-}
 async function renderVideoVersioningList() {
   const listEl = document.getElementById('videoVersioningList');
   if (!listEl) return;
@@ -14403,8 +14408,6 @@ async function renderVideoVersioningList() {
   const videoIds = new Set(videos.map(v => v.id));
   listEl.innerHTML = captures.map(c => {
     const pack = packs.find(p => p.id === c.packId);
-    const enabled = !!(pack && pack.videoTestModeEnabled);
-    const url = `./pack.html?id=${encodeURIComponent(c.packId)}&lang=${encodeURIComponent(currentLang())}&capture=1&montage=${encodeURIComponent(c.id)}`;
     const vs = versionsByCapture[c.id];
     const meta = [pack ? (pack.title || tr('defaultPackTitle')) : tr('videoVersioningPackMissing'), c.videoFilename ? tr('videoVersioningVideo').replace('{video}', c.videoFilename) : '', new Date(c.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ');
     const chips = vs === null ? `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningVersionsUnavailable'))}</span>`
@@ -14415,14 +14418,12 @@ async function renderVideoVersioningList() {
         <div class="video-library-item-main">
           <div class="video-capture-pack-row-title">${escapeHtml(c.title || tr('videoVersioningUntitled'))}</div>
           <div class="video-library-item-meta">${escapeHtml(meta)}</div>
-          ${enabled ? '' : `<div class="video-capture-pack-row-hint">${escapeHtml(tr('videoCaptureNeedsTestMode'))}</div>`}
           <div class="video-versioning-versions">${chips}</div>
         </div>
-        ${enabled
-          ? `<a class="btn btn-small" href="${url}" target="_blank" rel="noopener">${escapeHtml(tr('videoVersioningOpenBtn'))}</a>`
-          : `<span class="btn btn-small" style="opacity:.4;pointer-events:none;">${escapeHtml(tr('videoVersioningOpenBtn'))}</span>`}
+        <button class="btn btn-small" type="button" data-atelier-pack="${escapeHtml(c.packId)}" data-atelier-montage="${escapeHtml(c.id)}">${escapeHtml(tr('videoVersioningOpenBtn'))}</button>
       </div>`;
   }).join('');
+  listEl.querySelectorAll('[data-atelier-montage]').forEach(b => b.addEventListener('click', () => openVideoAtelier({ packId: b.dataset.atelierPack, montageId: b.dataset.atelierMontage })));
 }
 
 // Construit la liste des clés R2 (audio/<trackId>/<fichier>) de tous les fichiers déjà publiés
@@ -15299,6 +15300,9 @@ const HINTS_DIALOG_STEP = { selector: '.vrs-batch-overlay .vrs-batch-modal', tit
 // (mode démo) ; les autres y restent visibles avec la mention « nécessite un compte ». Un thème sans leçon s'affiche « bientôt ».
 // Titre de la vidéo du bloc vidéo de la leçon AdReel (gameplay d'« Alone in the Barque », la même que celle de la leçon « Versioning »).
 const LESSON_ADREEL_VIDEO = { title: 'Gameplay d’Alone in the Barque : traversée du ponton à la cabane' };
+// Leçon Versioning : l'atelier (cadre) a fini sa partie (message « lessonDone », voir 41-envoi-r2-et-bibliotheque-video.js).
+let atelierLessonFinished = false;
+function onAtelierLessonDone() { atelierLessonFinished = true; }
 // Première vidéo du premier bloc vidéo de l'AdReel en cours (celle que la leçon fait remplir).
 function lessonAdreelVideo() { const b = blocks.find(x => x.type === 'video'); return b && b.videos && b.videos[0] || null; }
 const LESSON_THEMES = [
@@ -15307,7 +15311,7 @@ const LESSON_THEMES = [
   { id: 'preprod', titleKey: 'lessonThemePreprod' },
 ];
 // Page où se joue une leçon : le Backstage lui-même, ou une autre page du mode tutoriel (liste des projets, espace Projet).
-function lessonPageUrl(l) { return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : (l && l.page === 'pack' ? 'pack.html?id=p-alone&u=demo' : window.location.pathname)); }
+function lessonPageUrl(l) { return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : window.location.pathname); }
 // Adresse complète d'une leçon dans le mode tutoriel (la page de la leçon + ?tuto&lesson=…).
 function lessonTutoUrl(l, id) { const base = lessonPageUrl(l); return base + (base.includes('?') ? '&' : '?') + 'tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); }
 function lessonIsPublic(lesson) { return !!(lesson && lesson.public); }
@@ -15578,11 +15582,33 @@ const LESSONS = [
     { selector: '#btnPublish', titleKey: 'laSendTitle', textKey: 'laSendText', clickDone: true },
     { titleKey: 'laEndTitle', textKey: 'laEndText', final: true },
   ] },
-  // Squelette (20/10) : leçon « Versioning vidéo » (argument de vente). Parcours choisi par Jules-Antoine : partir d'une vidéo SANS son, y faire
-  // poser une première musique, puis une seconde (même structure, deux musiques dynamiques). Étapes prévues : (1) ouvrir la section Vidéo,
-  // (2) envoyer la vidéo muette, (3) capturer avec la musique 1, (4) enregistrer le montage, (5) créer une version avec la musique 2,
-  // (6) écouter en direct, sans rendu vidéo. À écrire après l'audit du parcours réel (capture, sauvegarde, version) et la fourniture des fichiers.
-  { id: 'versioning', theme: 'pitch', public: true, soon: true, page: 'pack', titleKey: 'lvTitle', descKey: 'lvDesc' }, // pack-lecons.js ; retirer « soon » quand alone-gameplay-muette.mp4 est en ligne
+  // Leçon « Versioning vidéo » (21/10, refaite le même jour : elle se joue dans le Backstage, pas sur la page du pack). Parcours choisi par
+  // Jules-Antoine : onglet Vidéo → Atelier ; DANS l'atelier (cadre, atelier-lecons.js) : choisir le pack, la vidéo muette d'« Alone in the
+  // Barque », capturer la musique 1, enregistrer le montage, version musique 2, écoute en direct ; puis, ici, le bloc vidéo d'un AdReel :
+  // la vidéo du montage, ses versions, « Créer une version vidéo » qui rouvre l'atelier. Suite : annoter le montage (espace Projet).
+  // `reload` : le faux serveur prépare le montage d'exemple déjà publié (deux musiques) pour la partie « bloc vidéo ».
+  // « bientôt » tant que la vidéo muette (alone-gameplay-muette.mp4) n'est pas en ligne (KIT d'atelier-lecons.js).
+  { id: 'versioning', theme: 'pitch', public: true, reload: true, soon: true, titleKey: 'lvTitle', descKey: 'lvDesc', steps: [
+    { titleKey: 'lvWelcomeTitle', textKey: 'lvWelcomeText' },
+    { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'lvVideoTabTitle', textKey: 'lvVideoTabText',
+      done: () => !!document.querySelector('.backstage-panel[data-panel="videoLibrary"].active') },
+    { selector: '#panelVideoLibrary [data-video-subtab="capture"]', titleKey: 'lvAtelierTabTitle', textKey: 'lvAtelierTabText',
+      done: () => !!document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"].active') },
+    // La suite se passe DANS l'atelier (ses propres bulles) ; cette étape avance seule quand l'atelier a fini sa partie.
+    { selector: '#videoAtelierFrame', titleKey: 'lvInAtelierTitle', textKey: 'lvInAtelierText', done: () => atelierLessonFinished },
+    { selector: '.nav-item[data-tab="content"]', titleKey: 'lvAdreelTitle', textKey: 'lvAdreelText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
+    { selector: '#btnAddVideoBlock', titleKey: 'laAddVideoTitle', textKey: 'laAddVideoText', clickDone: true, done: () => blocks.some(b => b.type === 'video') },
+    { selector: '.block-editor-card[data-type="video"] [data-role="addBtn"]', titleKey: 'laVideoItemTitle', textKey: 'laVideoItemText', clickDone: true, done: () => blocks.some(b => b.type === 'video' && (b.videos || []).length >= 1) },
+    { selector: '.block-editor-card[data-type="video"] [data-role="sourceRadio"][value="library"]', titleKey: 'laVideoSourceTitle', textKey: 'laVideoSourceText',
+      done: () => lessonAdreelVideo() && lessonAdreelVideo().source === 'library' },
+    { selector: '.block-editor-card[data-type="video"] [data-role="librarySelect"]', titleKey: 'lvBlockPickTitle', textKey: 'lvBlockPickText',
+      done: () => !!(lessonAdreelVideo() && lessonAdreelVideo().montageId) },
+    { selector: '.block-editor-card[data-type="video"] [data-role="versionSelect"]', titleKey: 'lvBlockVersionTitle', textKey: 'lvBlockVersionText' },
+    { selector: '.block-editor-card[data-type="video"] [data-role="versionShown"]', titleKey: 'lvBlockMenuTitle', textKey: 'lvBlockMenuText' },
+    // Explication seulement : dans un vrai compte, ce bouton rouvre l'atelier sur ce montage.
+    { selector: '.block-editor-card[data-type="video"] [data-role="versionNew"]', titleKey: 'lvBlockNewTitle', textKey: 'lvBlockNewText' },
+    { titleKey: 'lvEndTitle', textKey: 'lvEndText', final: true },
+  ] },
   // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
   // Projet fictif ; `page` renvoie vers cette page au clic.
   { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc' },

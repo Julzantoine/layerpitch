@@ -217,6 +217,9 @@ const HINTS_DIALOG_STEP = { selector: '.vrs-batch-overlay .vrs-batch-modal', tit
 // (mode démo) ; les autres y restent visibles avec la mention « nécessite un compte ». Un thème sans leçon s'affiche « bientôt ».
 // Titre de la vidéo du bloc vidéo de la leçon AdReel (gameplay d'« Alone in the Barque », la même que celle de la leçon « Versioning »).
 const LESSON_ADREEL_VIDEO = { title: 'Gameplay d’Alone in the Barque : traversée du ponton à la cabane' };
+// Leçon Versioning : l'atelier (cadre) a fini sa partie (message « lessonDone », voir 41-envoi-r2-et-bibliotheque-video.js).
+let atelierLessonFinished = false;
+function onAtelierLessonDone() { atelierLessonFinished = true; }
 // Première vidéo du premier bloc vidéo de l'AdReel en cours (celle que la leçon fait remplir).
 function lessonAdreelVideo() { const b = blocks.find(x => x.type === 'video'); return b && b.videos && b.videos[0] || null; }
 const LESSON_THEMES = [
@@ -225,7 +228,7 @@ const LESSON_THEMES = [
   { id: 'preprod', titleKey: 'lessonThemePreprod' },
 ];
 // Page où se joue une leçon : le Backstage lui-même, ou une autre page du mode tutoriel (liste des projets, espace Projet).
-function lessonPageUrl(l) { return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : (l && l.page === 'pack' ? 'pack.html?id=p-alone&u=demo' : window.location.pathname)); }
+function lessonPageUrl(l) { return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : window.location.pathname); }
 // Adresse complète d'une leçon dans le mode tutoriel (la page de la leçon + ?tuto&lesson=…).
 function lessonTutoUrl(l, id) { const base = lessonPageUrl(l); return base + (base.includes('?') ? '&' : '?') + 'tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); }
 function lessonIsPublic(lesson) { return !!(lesson && lesson.public); }
@@ -496,11 +499,33 @@ const LESSONS = [
     { selector: '#btnPublish', titleKey: 'laSendTitle', textKey: 'laSendText', clickDone: true },
     { titleKey: 'laEndTitle', textKey: 'laEndText', final: true },
   ] },
-  // Squelette (20/10) : leçon « Versioning vidéo » (argument de vente). Parcours choisi par Jules-Antoine : partir d'une vidéo SANS son, y faire
-  // poser une première musique, puis une seconde (même structure, deux musiques dynamiques). Étapes prévues : (1) ouvrir la section Vidéo,
-  // (2) envoyer la vidéo muette, (3) capturer avec la musique 1, (4) enregistrer le montage, (5) créer une version avec la musique 2,
-  // (6) écouter en direct, sans rendu vidéo. À écrire après l'audit du parcours réel (capture, sauvegarde, version) et la fourniture des fichiers.
-  { id: 'versioning', theme: 'pitch', public: true, soon: true, page: 'pack', titleKey: 'lvTitle', descKey: 'lvDesc' }, // pack-lecons.js ; retirer « soon » quand alone-gameplay-muette.mp4 est en ligne
+  // Leçon « Versioning vidéo » (21/10, refaite le même jour : elle se joue dans le Backstage, pas sur la page du pack). Parcours choisi par
+  // Jules-Antoine : onglet Vidéo → Atelier ; DANS l'atelier (cadre, atelier-lecons.js) : choisir le pack, la vidéo muette d'« Alone in the
+  // Barque », capturer la musique 1, enregistrer le montage, version musique 2, écoute en direct ; puis, ici, le bloc vidéo d'un AdReel :
+  // la vidéo du montage, ses versions, « Créer une version vidéo » qui rouvre l'atelier. Suite : annoter le montage (espace Projet).
+  // `reload` : le faux serveur prépare le montage d'exemple déjà publié (deux musiques) pour la partie « bloc vidéo ».
+  // « bientôt » tant que la vidéo muette (alone-gameplay-muette.mp4) n'est pas en ligne (KIT d'atelier-lecons.js).
+  { id: 'versioning', theme: 'pitch', public: true, reload: true, soon: true, titleKey: 'lvTitle', descKey: 'lvDesc', steps: [
+    { titleKey: 'lvWelcomeTitle', textKey: 'lvWelcomeText' },
+    { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'lvVideoTabTitle', textKey: 'lvVideoTabText',
+      done: () => !!document.querySelector('.backstage-panel[data-panel="videoLibrary"].active') },
+    { selector: '#panelVideoLibrary [data-video-subtab="capture"]', titleKey: 'lvAtelierTabTitle', textKey: 'lvAtelierTabText',
+      done: () => !!document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"].active') },
+    // La suite se passe DANS l'atelier (ses propres bulles) ; cette étape avance seule quand l'atelier a fini sa partie.
+    { selector: '#videoAtelierFrame', titleKey: 'lvInAtelierTitle', textKey: 'lvInAtelierText', done: () => atelierLessonFinished },
+    { selector: '.nav-item[data-tab="content"]', titleKey: 'lvAdreelTitle', textKey: 'lvAdreelText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
+    { selector: '#btnAddVideoBlock', titleKey: 'laAddVideoTitle', textKey: 'laAddVideoText', clickDone: true, done: () => blocks.some(b => b.type === 'video') },
+    { selector: '.block-editor-card[data-type="video"] [data-role="addBtn"]', titleKey: 'laVideoItemTitle', textKey: 'laVideoItemText', clickDone: true, done: () => blocks.some(b => b.type === 'video' && (b.videos || []).length >= 1) },
+    { selector: '.block-editor-card[data-type="video"] [data-role="sourceRadio"][value="library"]', titleKey: 'laVideoSourceTitle', textKey: 'laVideoSourceText',
+      done: () => lessonAdreelVideo() && lessonAdreelVideo().source === 'library' },
+    { selector: '.block-editor-card[data-type="video"] [data-role="librarySelect"]', titleKey: 'lvBlockPickTitle', textKey: 'lvBlockPickText',
+      done: () => !!(lessonAdreelVideo() && lessonAdreelVideo().montageId) },
+    { selector: '.block-editor-card[data-type="video"] [data-role="versionSelect"]', titleKey: 'lvBlockVersionTitle', textKey: 'lvBlockVersionText' },
+    { selector: '.block-editor-card[data-type="video"] [data-role="versionShown"]', titleKey: 'lvBlockMenuTitle', textKey: 'lvBlockMenuText' },
+    // Explication seulement : dans un vrai compte, ce bouton rouvre l'atelier sur ce montage.
+    { selector: '.block-editor-card[data-type="video"] [data-role="versionNew"]', titleKey: 'lvBlockNewTitle', textKey: 'lvBlockNewText' },
+    { titleKey: 'lvEndTitle', textKey: 'lvEndText', final: true },
+  ] },
   // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
   // Projet fictif ; `page` renvoie vers cette page au clic.
   { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc' },

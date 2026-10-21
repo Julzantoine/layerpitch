@@ -1,0 +1,21 @@
+  /* Atelier vidéo (21/10) : en-tête « choisir le pack », ouvert dans un cadre du Backstage (onglet Vidéo) ou de l'espace studio. */
+  .atelier-head { margin-bottom: 28px; }
+  .atelier-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; margin: 0 0 6px; }
+  .atelier-intro { font-size: 13.5px; line-height: 1.6; color: var(--text-dim); margin: 0 0 14px; }
+  .atelier-pack-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .atelier-pack-row[hidden] { display: none; }
+  .atelier-pack-row label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); }
+  .atelier-pack-row select { flex: 1; min-width: 200px; padding: 9px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card, #fff); color: var(--text); font: inherit; font-size: 14px; }
+  .atelier-empty { font-size: 13.5px; color: var(--text-dim); text-align: center; padding: 28px 12px; border: 1px dashed var(--border); border-radius: 8px; }
+  .atelier-empty a { color: var(--accent); }
+  .atelier-pack-name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 17px; margin: 0 0 4px; }
+  .atelier-steps { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin: 0 0 18px; padding-left: 18px; }
+  body.atelier-embedded { padding-top: 16px; }
+  /* « Choisir la vidéo » : l'action principale de l'atelier (sur la page pack, c'était un bouton discret réservé au compositeur). */
+  #content .video-capture-trigger-btn { margin: 0 0 24px; border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+  #content .video-capture-trigger-btn:hover { opacity: 0.9; color: #fff; }
+  /* Boutons des bulles du tutoriel (layerpitch-guide.css s'appuie sur les .btn de la page qui l'accueille, absents ici). */
+  .tour-card .btn { font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; }
+  .tour-card .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .tour-card .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tour-card .btn-primary:hover { opacity: 0.9; color: #fff; }

@@ -51,7 +51,7 @@
   try { await db.exec('set role anon'); await db.query(`select public.clear_video_export_history()`); anon = true; } catch (e) { /* refusé : attendu */ } finally { await db.exec('reset role'); }
   check('sans compte : aucun accès', !anon);
   const fs = require('fs'), read = f => fs.readFileSync(require('path').join(__dirname, f), 'utf8');
-  const panel = read('src/pack/18-panneau-de-capture.js');
+  const panel = read('src/atelier/18-panneau-de-capture.js');
   check('outil de capture : case « Garder l’ancienne », historique avec « Revenir à celle-ci », fichiers retirés effacés', /videoCaptureKeepOld/.test(panel) && /restore_video_export/.test(panel) && /p_keep_old: keepOldCheckbox\.checked/.test(panel) && /r2DeleteRemovedVideos\(data && data\.removed\)/.test(panel));
   check('versions : même chose pour l’export d’une version', /p_keep_old: keepOld !== false/.test(read('capture-versioning.js')) && /ctx\.afterExport/.test(read('capture-versioning.js')));
   check('bibliothèque vidéo : bouton « Effacer les historiques », mis en avant quand le quota approche', /clear_video_export_history/.test(read('src/backstage/41-envoi-r2-et-bibliotheque-video.js')) && /quotaGb \* 0\.9/.test(read('src/backstage/41-envoi-r2-et-bibliotheque-video.js')));

@@ -1,0 +1,2665 @@
+<!DOCTYPE html>
+<!-- FICHIER GÉNÉRÉ par scripts/build-sources.js à partir de src/atelier/ (et des morceaux partagés de src/pack/) — ne pas le modifier ici : modifier ces sources, puis `npm run build` (voir src/atelier/LISEZMOI.md). -->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<!-- Chemin joli par compositeur (/<handle>/pack.html, voir 404.html) — voir le commentaire
+     équivalent dans index.html. -->
+<base href="/">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
+<link rel="stylesheet" href="player.css?v=1792578828337">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792578828337">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
+    --text: #24262b; --text-dim: #5f636b; --text-dimmer: #9a9ea6;
+    --accent: #2f80c0; --accent-soft: #e6eef8;
+    --seq-map-success: #2f8f5b; --seq-map-choice: #b8862e;
+    --font-body: 'Inter', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  img { max-width: 100%; height: auto; display: block; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); padding: 56px 24px 60px; }
+  body.has-preview-banner { padding-top: 92px; }
+  .preview-mode-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #24262b; color: #f5f6f8; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 8px 16px; letter-spacing: 0.02em; }
+  body.has-preview-banner .share-btn { top: 56px; }
+  .page { max-width: 760px; margin: 0 auto; }
+  a { color: var(--accent); }
+
+  .back-link { display: inline-block; margin-bottom: 32px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); text-decoration: none; }
+  .back-link:hover { color: var(--accent); }
+  /* Bouton d'intégration (?embed=1) : remplace le discret "← Retour" par un vrai bouton visible, seul
+     moyen pour l'auditeur de rejoindre le site du compositeur depuis une iframe sur un site tiers. */
+  .back-link.embed-cta-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em; }
+  .back-link.embed-cta-btn:hover { opacity: 0.88; color: #fff; }
+
+  .pack-illustration { display: block; max-width: 100%; max-height: 380px; width: auto; height: auto; margin: 0 auto 28px; border-radius: 8px; border: 1px solid var(--border); }
+  .pack-illustration.empty { width: 100%; max-height: none; aspect-ratio: 16/7; background: linear-gradient(135deg, #23262d, #3a3f48); }
+
+  .pack-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 28px; margin-bottom: 16px; }
+  .pack-presentation p { font-size: 14.5px; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; white-space: pre-wrap; }
+
+  .block { margin-bottom: 56px; margin-top: 48px; }
+  .section-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 18px;
+  }
+
+  /* ---------------- Lecteur Sfx ---------------- */
+  /* Ligne compacte + repli : réutilise .track-row-wrapper/.track-row/.track-row-details (déjà défini plus
+     bas pour les morceaux). Seules les variations RR (affichées dans le repli, sous la forme d'onde
+     principale) ont encore besoin de classes propres. */
+  .sfx-rr-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+
+  .share-btn {
+    position: fixed; top: 20px; right: 20px; z-index: 50;
+    width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .share-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .share-btn:active { transform: scale(0.94); }
+  .share-btn svg { width: 18px; height: 18px; }
+  .share-btn.copied { color: #2a7; border-color: #2a7; }
+  /* Bouton "Intégrer" public (composer.allowEmbedding) : même style que .share-btn, juste à sa gauche --
+     seulement visible si le compositeur a explicitement autorisé les visiteurs à générer eux-mêmes un
+     code d'intégration (réglage global, backstage -- réglage "socials"). */
+  .embed-public-btn { right: 68px; }
+  .embed-public-btn[hidden] { display: none; }
+  body.has-preview-banner .embed-public-btn { top: 56px; }
+  #publicEmbedModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
+  #publicEmbedModal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; width: 480px; max-width: 90vw; box-shadow: 0 8px 24px rgba(0,0,0,0.16); }
+  #publicEmbedModal h3 { font-size: 14px; margin-bottom: 4px; }
+  #publicEmbedModal .sub { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
+  #publicEmbedModal textarea { width: 100%; box-sizing: border-box; min-height: 100px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: 'JetBrains Mono', monospace; resize: vertical; background: var(--bg); color: var(--text); }
+  #publicEmbedModal .actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; }
+  #publicEmbedModal .actions button { padding: 8px 16px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text); font-size: 12px; cursor: pointer; font-family: inherit; }
+  #publicEmbedModal .actions button:hover { border-color: var(--accent); color: var(--accent); }
+  #publicEmbedCopyStatus { font-size: 11px; color: #2a7; margin-right: auto; opacity: 0; transition: opacity 0.2s; }
+  #publicEmbedCopyStatus.visible { opacity: 1; }
+
+  .track { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); padding: 26px; margin-bottom: 16px; }
+  .track.disabled { opacity: 0.5; }
+
+  .empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 20px 0; }
+
+  .buy-section { margin-top: 56px; text-align: center; padding: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); }
+  .buy-btn {
+    display: inline-block; padding: 14px 32px; border-radius: 6px; background: var(--accent); color: #fff;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+    text-decoration: none; border: none; cursor: pointer;
+  }
+  .buy-btn:hover { opacity: 0.9; }
+  .buy-btn.disabled, .buy-btn:disabled { background: var(--border); color: var(--text-dimmer); cursor: not-allowed; pointer-events: none; }
+  .buy-hint { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dimmer); margin-top: 10px; }
+  .implementation-help { margin-top: 18px; font-size: 11.5px; color: var(--text-dimmer); text-align: center; font-family: 'JetBrains Mono', monospace; }
+
+  /* Achat réel (Décision 5, étape 4) — masqué en production tant que PURCHASES_ENABLED est faux */
+  .purchase-owned { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
+  .purchase-signin { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .purchase-signin input {
+    font-family: 'Inter', sans-serif; font-size: 13px; padding: 8px 12px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text); width: 240px; text-align: center;
+  }
+  .purchase-msg { font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-top: 8px; }
+  .purchase-msg.err { color: #b5442e; }
+  .purchase-msg.ok { color: #2a7; }
+  .purchase-banner {
+    max-width: 1100px; margin: 0 auto 24px; padding: 12px 20px; border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; text-align: center;
+  }
+  .purchase-banner.ok { background: #e4f5ec; color: #1f7a4d; }
+  .purchase-banner.cancelled { background: #f5efe4; color: #8a6a2f; }
+
+  /* Mode Test Gameplay : bouton déclencheur + boîte de dialogue pour coller une URL vidéo */
+  .video-test-trigger-btn {
+    display: block; margin: 0 auto 28px; padding: 12px 24px; border-radius: 6px; border: 1px solid var(--accent);
+    background: transparent; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer;
+  }
+  .video-test-trigger-btn:hover { background: var(--accent-soft); }
+  .video-test-dialog {
+    border: 1px solid var(--border); border-radius: 10px; padding: 0; max-width: 440px; width: calc(100% - 40px);
+    background: var(--bg-card); color: var(--text); box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+  }
+  /* margin: auto -- la remise à zéro « * { margin: 0 } » plus haut collait sinon la fenêtre en haut à gauche (corrigé le 21/10). */
+  .video-test-dialog { margin: auto; }
+  .video-test-dialog::backdrop { background: rgba(0,0,0,0.4); }
+  .video-test-form { padding: 24px; display: flex; flex-direction: column; }
+  .video-test-dialog-title { font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+  .video-test-dialog-hint { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin: 0 0 16px; }
+  .video-test-form input[type="text"] {
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg);
+    color: var(--text); font-size: 13px; font-family: inherit;
+  }
+  .video-test-dialog-error { font-size: 12px; color: #c0392b; min-height: 16px; margin-top: 8px; }
+  /* Ouverture d'un montage depuis le Backstage (Versioning, 26/09) + vidéo prise dans la bibliothèque vidéo. */
+  .video-capture-montage-note { font-size: 12.5px; color: var(--text); background: var(--accent-soft); border-radius: 6px; padding: 8px 10px; margin: 0 0 12px; line-height: 1.5; }
+  .video-capture-library-pick { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .video-capture-library-pick[hidden] { display: none; }
+  .video-capture-library-pick .video-test-dialog-hint { margin: 0; }
+  .video-capture-library-row { display: flex; gap: 8px; align-items: center; }
+  .video-capture-library-row select { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 12.5px; font-family: inherit; }
+  .video-capture-library-status { font-size: 12px; color: var(--text-dim); min-height: 16px; }
+  .video-test-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+  .video-test-btn-secondary, .video-test-btn-primary {
+    padding: 9px 18px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+    letter-spacing: 0.03em; cursor: pointer; border: 1px solid var(--border);
+  }
+  .video-test-btn-secondary { background: transparent; color: var(--text-dim); }
+  .video-test-btn-secondary:hover { border-color: var(--text-dim); }
+  .video-test-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .video-test-btn-primary:hover { opacity: 0.9; }
+
+  /* Panneau vidéo intégré (écran unique) — cf. Mode Test Gameplay. Sur multi-écrans détecté
+     (window.screen.isExtended), on passe par une fenêtre séparée à la place, voir openInWindow(). */
+  .video-test-panel { display: none; background: #111; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+  .video-test-panel.active { display: block; }
+  .video-test-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: #1a1a1a; }
+  .video-test-panel-title { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: #ccc; }
+  .video-test-panel-actions { display: flex; gap: 6px; }
+  .video-test-panel-btn { width: 26px; height: 26px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc; cursor: pointer; font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .video-test-panel-btn:hover { border-color: #666; color: #fff; }
+  .video-test-panel-frame-wrap { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
+  .video-test-panel-frame-wrap iframe, .video-test-panel-frame-wrap video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+  /* Mode Capture (admin uniquement, prototype moteur vidéo) : import d'un fichier local plutôt qu'un
+     lien YouTube/Vimeo (impossible d'en extraire les images pour l'export final), et enregistrement
+     horodaté des interactions du lecteur pendant la lecture -- voir video-engine-prototype/. */
+  .video-capture-trigger-btn {
+    display: block; margin: 0 auto 12px; padding: 12px 24px; border-radius: 6px; border: 1px dashed var(--text-dim);
+    background: transparent; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer;
+  }
+  .video-capture-trigger-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .video-capture-dropzone {
+    border: 2px dashed var(--border); border-radius: 8px; padding: 32px 16px; text-align: center;
+    font-size: 13px; color: var(--text-dim); cursor: pointer; margin-top: 4px;
+  }
+  .video-capture-dropzone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+  .video-capture-bar {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: #1a1a1a;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #ccc; flex-wrap: wrap;
+  }
+  .video-capture-record-btn {
+    display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 5px;
+    border: 1px solid #3a3a3a; background: #222; color: #eee; cursor: pointer; font-size: 11px;
+  }
+  .video-capture-record-btn .dot { width: 9px; height: 9px; border-radius: 50%; background: #e74c3c; }
+  .video-capture-record-btn.recording { border-color: #e74c3c; }
+  .video-capture-record-btn.recording .dot { animation: video-capture-pulse 1s infinite; }
+  @keyframes video-capture-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  .video-capture-count { flex: 1; }
+  .video-capture-armed-status { color: #e74c3c; }
+  /* Bouton ⏺ posé à côté du VRAI bouton de lecture d'un morceau (pas dans le panneau de capture) --
+     discret par défaut, coloré quand la piste est armée. */
+  .video-capture-arm-track-btn {
+    width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); cursor: pointer; font-size: 10px; line-height: 1; margin-left: 4px;
+  }
+  .video-capture-arm-track-btn:hover { border-color: #e74c3c; color: #e74c3c; }
+  .video-capture-arm-track-btn.armed { background: #e74c3c; border-color: #e74c3c; color: #fff; }
+  .video-capture-download-btn {
+    padding: 6px 12px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc;
+    cursor: pointer; font-size: 11px;
+  }
+  .video-capture-download-btn:disabled { opacity: 0.4; cursor: default; }
+  .video-capture-title-input, .video-capture-load-select {
+    padding: 5px 8px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  }
+  .video-capture-title-input { width: 200px; }
+  .video-capture-load-select:disabled, .video-capture-title-input:disabled { opacity: 0.4; }
+  .video-capture-export-opt { display: flex; align-items: center; gap: 5px; color: #999; white-space: nowrap; }
+  /* Versioning (26/09, capture-versioning.js) : versions vidéo d'un montage sauvegardé -- admin seulement pour l'instant. */
+  .video-capture-versioning {
+    background: #161616; border-top: 1px solid #2a2a2a; padding: 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #ccc; display: flex; flex-direction: column; gap: 8px;
+  }
+  .vcv-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .vcv-title { font-weight: 600; color: #eee; font-size: 12px; }
+  .vcv-hint { color: #888; flex: 1; min-width: 180px; }
+  .vcv-empty { color: #888; padding: 2px 0; }
+  .vcv-warn, .vcv-note-warn, .vcv-note-block { color: #f0a050; }
+  .vcv-version, .vcv-batch, .vcv-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .vcv-version { padding: 6px 8px; border: 1px solid #2c2c2c; border-radius: 6px; background: #1c1c1c; }
+  .vcv-name { color: #eee; font-weight: 600; }
+  .vcv-summary { color: #999; flex: 1; min-width: 160px; }
+  .vcv-status { color: #aaa; }
+  .vcv-batch { border-top: 1px dashed #2c2c2c; padding-top: 8px; }
+  .vcv-editor { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid #3a3a3a; border-radius: 6px; background: #1c1c1c; }
+  .vcv-section { color: #eee; font-weight: 600; margin-top: 6px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .vcv-label { color: #999; min-width: 40px; }
+  .vcv-name-input { flex: 1; min-width: 180px; }
+  .vcv-src { min-width: 180px; color: #ddd; }
+  .vcv-src em { color: #888; font-style: normal; margin-left: 4px; }
+  .vcv-arrow { color: #777; }
+  .vcv-row select { max-width: 320px; }
+  .vcv-orange { border-left: 3px solid #f0a050; padding-left: 6px; }
+  .vcv-notes { border-top: 1px dashed #2c2c2c; padding-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+  .vcv-note { color: #aaa; }
+  .vcv-note-info { color: #9ab; }
+  /* Frise d'édition (cible finale, schéma papier de Jules-Antoine 2026-09-14) : une piste horizontale par
+     calque du morceau + une piste SFX, blocs positionnés en pourcentage de la durée totale (pas de pixel
+     fixe -- pas de défilement horizontal à gérer, suffisant pour les prises courtes de ce prototype). */
+  .video-capture-timeline {
+    background: #1a1a1a; border-top: 1px solid #2a2a2a; padding: 10px 10px 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #ccc; position: relative;
+  }
+  .vct-empty { padding: 10px; color: #777; }
+  .vct-playhead { position: absolute; top: 20px; bottom: 34px; width: 1px; background: #ff4444; pointer-events: none; z-index: 20; }
+  .vct-playhead::before {
+    content: ''; position: absolute; top: -4px; left: -3px; border: 4px solid transparent;
+    border-top-color: #ff4444;
+  }
+  .vct-ruler { position: relative; height: 16px; margin-left: 96px; }
+  .vct-tick { position: absolute; top: 0; height: 100%; border-left: 1px solid #333; padding-left: 3px; color: #777; font-size: 9px; white-space: nowrap; }
+  .vct-lane { display: flex; align-items: stretch; height: 26px; margin-bottom: 3px; }
+  /* Le repère visuel du groupe (bordure + titre) ne doit pas décaler .vct-lane-track, sous peine de ne
+     plus s'aligner avec la frise temporelle (.vct-ruler, margin-left fixe) -- seule l'étiquette de piste
+     est indentée, jamais la largeur réservée au label lui-même. */
+  .vct-track-group { border-left: 2px solid #3a5f8a; margin-top: 6px; padding-left: 0; }
+  .vct-track-group-sfx { border-left-color: #8a5a2f; }
+  .vct-track-group-header {
+    font-size: 10px; font-weight: 600; color: #7fb0e8; padding: 2px 0 4px 6px; text-transform: uppercase;
+    letter-spacing: 0.03em; cursor: pointer; user-select: none;
+  }
+  .vct-track-group-sfx .vct-track-group-header { color: #d69a5c; }
+  .vct-track-group-header:hover { color: #fff; }
+  .vct-group-chevron { display: inline-block; width: 12px; font-size: 8px; }
+  .vct-lane-nested .vct-lane-label { padding-left: 14px; }
+  .vct-lane-label { width: 96px; flex-shrink: 0; display: flex; align-items: center; padding-right: 6px; color: #aaa; font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vct-lane-label[data-lane-kind="layer"] { cursor: text; }
+  .vct-lane-label[data-lane-kind="layer"]:hover { color: #fff; text-decoration: underline dotted; }
+  .vct-lane-rename-input {
+    width: 96px; flex-shrink: 0; background: #222; border: 1px solid var(--accent); border-radius: 3px;
+    color: #fff; font-family: inherit; font-size: 9.5px; padding: 2px 4px;
+  }
+  .vct-lane-track { position: relative; flex: 1; background: #101010; border-radius: 3px; border: 1px solid #232323; }
+  .vct-block { position: absolute; top: 2px; bottom: 2px; min-width: 4px; border-radius: 3px; cursor: grab; border: 1px solid transparent; overflow: hidden; touch-action: none; }
+  .vct-block.vct-layer { background: #2f5d8a; }
+  .vct-block.vct-sfx { background: #8a5a2f; }
+  .vct-block.vct-fx { background: #7a4d9c; }
+  .vct-block.vct-fx-cut { background: repeating-linear-gradient(45deg, #7a4d9c, #7a4d9c 3px, #3d2650 3px, #3d2650 6px); min-width: 10px; }
+  .vct-block.vct-head { background: #3d8a6e; min-width: 10px; }
+  .vct-block.vct-slider { background: #a0742f; min-width: 12px; }
+  .vct-track-group-head { border-left-color: #3d8a6e; }
+  .vct-track-group-head .vct-track-group-header { color: #6fd4ae; }
+  .vct-block-implicit { opacity: 0.45; cursor: default; }
+  .vct-block.vct-selected { border-color: #fff; }
+  .vct-block-label { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); font-size: 9px; color: #fff; white-space: nowrap; pointer-events: none; }
+  .vct-resize-handle { position: absolute; top: 0; right: 0; bottom: 0; width: 6px; cursor: ew-resize; background: rgba(255,255,255,0.15); }
+  .vct-resize-handle:hover { background: rgba(255,255,255,0.35); }
+  .vct-detail { display: flex; align-items: center; gap: 8px; padding: 8px 0 4px; margin-top: 4px; border-top: 1px solid #2a2a2a; min-height: 30px; }
+  .vct-detail-empty { color: #666; font-size: 10px; }
+  .vct-detail-label { flex: 1; color: #ddd; }
+  .video-capture-event-time, .video-capture-event-duration, .video-capture-event-yaw, .video-capture-event-slidervalue {
+    width: 56px; background: #222; border: 1px solid #3a3a3a; border-radius: 4px; color: #ccc;
+    font-family: inherit; font-size: 11px; padding: 2px 4px;
+  }
+  .video-capture-event-duration { width: 78px; }
+  .video-capture-event-duration::placeholder { color: #666; font-size: 9.5px; }
+  .video-capture-duck-label { display: flex; align-items: center; gap: 3px; color: #aaa; cursor: pointer; user-select: none; }
+  .video-capture-duck-label input { margin: 0; cursor: pointer; }
+  .video-capture-event-del {
+    border: none; background: transparent; color: #888; cursor: pointer; font-size: 13px; line-height: 1;
+    padding: 2px 4px;
+  }
+  .video-capture-event-del:hover { color: #e74c3c; }
+
+  /* Empilé par défaut (mobile, laptop pas assez large) : vidéo au-dessus, contenu de la page en dessous
+     — ordre du DOM (le panneau est déclaré avant .page dans le body). À partir de 1280px, on passe
+     côte à côte pour l'aisance d'interaction (regarder la vidéo tout en cliquant les morceaux), sans
+     que ce soit encore trop serré sur un écran de laptop 13"/14" standard. */
+  body.video-panel-active { display: flex; flex-direction: column; align-items: center; gap: 24px; }
+  body.video-panel-active .page { margin: 0; }
+  body.video-panel-active .video-test-panel { width: 100%; max-width: 640px; }
+  @media (min-width: 1280px) {
+    body.video-panel-active { flex-direction: row; align-items: flex-start; justify-content: center; max-width: 1240px; margin: 0 auto; gap: 28px; }
+    body.video-panel-active .page { order: 1; flex-shrink: 0; }
+    body.video-panel-active .video-test-panel { order: 2; width: 400px; max-width: none; flex-shrink: 0; position: sticky; top: 40px; }
+  }
+  .contrast-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 24px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dimmer); cursor: pointer; user-select: none; }
+  .contrast-toggle input { width: auto; margin: 0; cursor: pointer; }
+  body.high-contrast .contrast-toggle { color: var(--text); font-weight: 600; }
+  body.high-contrast .pack-watermark { display: none; }
+  .layerpitch-credit { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--text-dimmer); opacity: 0.55; letter-spacing: 0.04em; margin-top: 32px; }
+  .layerpitch-credit a { color: inherit; text-decoration: none; }
+  .layerpitch-credit a:hover { text-decoration: underline; }
+  /* Séparateurs entre sections (Chantier Apparence Phase 3) -- désactivé par défaut. */
+  #content.show-separators > .pub-section + .pub-section { border-top: var(--separator-width, 1px) solid var(--separator-color, transparent); padding-top: 32px; }
+  .pack-watermark { position: fixed; inset: 0; z-index: -1; background-position: center; background-repeat: no-repeat; background-size: cover; opacity: 0.15; pointer-events: none; }
+  /* Bandeau de consentement cookies (Microsoft Clarity -- 17 septembre), voir le commentaire au
+     niveau du script plus bas pour le raisonnement RGPD/CNIL. */
+  .cookie-banner { position: fixed; left: 0; right: 0; bottom: 0; z-index: 200; display: flex; justify-content: center; padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .cookie-banner[hidden] { display: none; }
+  .cookie-card { width: 100%; max-width: 620px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; box-shadow: 0 12px 32px rgba(20,18,14,0.16); display: flex; flex-direction: column; gap: 14px; }
+  .cookie-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .cookie-head h2 { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px; margin: 0; }
+  .cookie-head .tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; }
+  .cookie-text { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin: 0; }
+  .cookie-text a { color: var(--text); }
+  .cookie-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .cookie-btn { font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 20px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; flex: 1; min-width: 140px; }
+  .cookie-btn.accept { background: var(--accent); color: #fff; }
+  .cookie-btn.accept:hover { opacity: 0.9; }
+  .cookie-btn.refuse { background: transparent; color: var(--text); border-color: var(--border); }
+  .cookie-btn.refuse:hover { border-color: var(--text-dimmer); }
+  .cookie-detail-toggle { align-self: flex-start; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dimmer); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; }
+  .cookie-detail { font-size: 12.5px; color: var(--text-dim); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+  .cookie-detail[hidden] { display: none; }
+  .cookie-detail ul { margin: 6px 0 0; padding-left: 18px; }
+  .cookie-reopen { position: fixed; left: 20px; bottom: 20px; z-index: 190; display: inline-flex; align-items: center; gap: 7px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px 8px 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); cursor: pointer; box-shadow: 0 4px 14px rgba(20,18,14,0.1); }
+  .cookie-reopen[hidden] { display: none; }
+  .cookie-reopen:hover { color: var(--text); border-color: var(--text-dimmer); }
+  /* Historique des exports d'un montage (21/10) */
+  .video-capture-history { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .video-capture-history[hidden] { display: none; }
+  .video-capture-history-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+  /* Atelier vidéo (21/10) : en-tête « choisir le pack », ouvert dans un cadre du Backstage (onglet Vidéo) ou de l'espace studio. */
+  .atelier-head { margin-bottom: 28px; }
+  .atelier-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; margin: 0 0 6px; }
+  .atelier-intro { font-size: 13.5px; line-height: 1.6; color: var(--text-dim); margin: 0 0 14px; }
+  .atelier-pack-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .atelier-pack-row[hidden] { display: none; }
+  .atelier-pack-row label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); }
+  .atelier-pack-row select { flex: 1; min-width: 200px; padding: 9px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card, #fff); color: var(--text); font: inherit; font-size: 14px; }
+  .atelier-empty { font-size: 13.5px; color: var(--text-dim); text-align: center; padding: 28px 12px; border: 1px dashed var(--border); border-radius: 8px; }
+  .atelier-empty a { color: var(--accent); }
+  .atelier-pack-name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 17px; margin: 0 0 4px; }
+  .atelier-steps { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin: 0 0 18px; padding-left: 18px; }
+  body.atelier-embedded { padding-top: 16px; }
+  /* « Choisir la vidéo » : l'action principale de l'atelier (sur la page pack, c'était un bouton discret réservé au compositeur). */
+  #content .video-capture-trigger-btn { margin: 0 0 24px; border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+  #content .video-capture-trigger-btn:hover { opacity: 0.9; color: #fff; }
+  /* Boutons des bulles du tutoriel (layerpitch-guide.css s'appuie sur les .btn de la page qui l'accueille, absents ici). */
+  .tour-card .btn { font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; }
+  .tour-card .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .tour-card .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tour-card .btn-primary:hover { opacity: 0.9; color: #fff; }
+</style>
+</head>
+<body>
+<!-- Atelier vidéo (21/10, décidé par Jules-Antoine) : l'outil de capture et de Versioning, sorti de la page publique du pack.
+     Ouvert dans un cadre du Backstage (onglet Vidéo → Atelier) et de l'espace studio (onglet Vidéos, ?studio=1), ou seul.
+     Choisir le pack, puis la vidéo (bibliothèque ou ordinateur), armer un morceau, jouer, enregistrer, versionner.
+     Paramètres : id (pack), studio=1 (au nom du studio, packs achetés), montage (montage à rouvrir), lang, tuto/lesson. -->
+<div id="videoTestPanel" class="video-test-panel"></div>
+<div class="page">
+  <div class="atelier-head">
+    <h1 class="atelier-title" data-i18n="atelierTitle">Atelier vidéo</h1>
+    <p class="atelier-intro" data-i18n="atelierIntro">Pose la musique adaptative d'un pack sur une vidéo : choisis le pack, puis la vidéo, et joue les morceaux pendant qu'elle défile. Tu peux ensuite retoucher la prise, l'enregistrer, en faire des versions avec d'autres musiques et la mettre à jour partout où elle est montrée.</p>
+    <div class="atelier-pack-row" id="atelierPackRow" hidden>
+      <label for="atelierPackSelect" data-i18n="atelierPackLabel">Pack</label>
+      <select id="atelierPackSelect"></select>
+    </div>
+  </div>
+  <div id="content"></div>
+</div>
+
+<!-- Ouverture de l'outil : la vidéo se choisit ici (ordinateur ou bibliothèque vidéo). -->
+<dialog id="videoCaptureDialog" class="video-test-dialog">
+  <div class="video-test-form">
+    <div class="video-test-dialog-title" data-i18n="captureDialogTitle">Capturer une prise</div>
+    <div class="video-capture-montage-note" id="videoCaptureMontageNote" hidden></div>
+    <p class="video-test-dialog-hint" data-i18n="captureDialogHint">Importe ta propre vidéo de gameplay (fichier local -- un lien YouTube/Vimeo ne peut pas être réutilisé dans un export). Le lecteur ci-dessous enregistrera l'horodatage de chaque déclenchement pendant que tu joues.</p>
+    <div class="video-capture-dropzone" id="videoCaptureDropzone" data-i18n="captureDropzoneHint">Glisse un fichier vidéo ici, ou clique pour en choisir un</div>
+    <input type="file" id="videoCaptureFileInput" accept="video/*" hidden>
+    <div class="video-capture-library-pick" id="videoCaptureLibraryPick" hidden>
+      <p class="video-test-dialog-hint" data-i18n="captureLibraryPickHint">Ou prends une vidéo de ta bibliothèque vidéo (Backstage → Vidéo) :</p>
+      <div class="video-capture-library-row">
+        <select id="videoCaptureLibrarySelect"></select>
+        <button type="button" class="video-test-btn-primary" id="videoCaptureLibraryBtn" data-i18n="captureLibraryUseBtn">Utiliser</button>
+      </div>
+      <div class="video-capture-library-status" id="videoCaptureLibraryStatus"></div>
+    </div>
+    <div class="video-test-dialog-error" id="videoCaptureError"></div>
+    <div class="video-test-dialog-actions">
+      <button type="button" class="video-test-btn-secondary" id="videoCaptureCancelBtn" data-i18n="cancel">Annuler</button>
+    </div>
+  </div>
+</dialog>
+
+<script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
+<script src="layerpitch-i18n.js?v=1792578828337"></script>
+<script src="layerpitch-notify.js?v=1792578828337"></script>
+<script src="public-page.js?v=1792578828337"></script>
+<script src="player.js?v=1792578828337"></script>
+<script src="capture-plan.js?v=1792578828337"></script>
+<script src="capture-render.js?v=1792578828337"></script>
+<script src="capture-retarget.js?v=1792578828337"></script>
+<script src="capture-versioning.js?v=1792578828337"></script>
+<script src="layerpitch-guide.js?v=1792578828337"></script>
+<script src="atelier-lecons.js?v=1792578828337"></script>
+<script>
+const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
+
+// Images migrées vers Cloudflare R2 (docs/infrastructure.md, Partie B, Décision 3) — chemins
+// conservés à l'identique (images/<filename>), seul le domaine de base change.
+const IMAGES_BASE = 'https://media.layerpitch.com/images/';
+
+// Chemin joli par compositeur — voir le commentaire équivalent dans index.html.
+// Capturé AVANT le replaceState ci-dessous (même bug que index.html, corrigé le 18/09) : __pretty ne
+// contient jamais ?u=<handle>, donc restaurer la barre d'adresse dessus efface u de location.search.
+const composerHandleFromUrl = new URLSearchParams(location.search).get('u');
+(function restorePrettyUrl() {
+  const pretty = new URLSearchParams(location.search).get('__pretty');
+  if (pretty) history.replaceState(null, '', pretty);
+})();
+const DEFAULT_OWNER_ID = 'd7b26934-2f7d-43d4-a69e-52611bf4c141';
+
+// Dernier ownerId résolu par loadSiteData() — voir le commentaire équivalent dans index.html
+// (ajouté le 4 septembre pour le tableau de bord analytique compositeur).
+let lastResolvedOwnerId = DEFAULT_OWNER_ID;
+// Identité de compositeur par handle — voir le commentaire équivalent dans index.html.
+// Postgres seule source de vérité (7 septembre, Décision 5 close) -- data.json plus jamais lu, voir
+// index.html pour le pourquoi (backstage hébergé multi-compositeur).
+// Mode aperçu (?preview=1, backstage -- bouton "Prévisualiser") : mis à vrai seulement si un dépôt
+// local valide a réellement été utilisé ci-dessous -- lu par init() pour afficher le bandeau "Mode
+// aperçu", jamais affiché sur un ?preview=1 sans dépôt valide (page rechargée après expiration du
+// stockage local, par exemple), qui retombe alors sur le chargement Postgres normal, silencieusement.
+let previewActive = false;
+async function loadSiteData() {
+  const params = new URLSearchParams(location.search);
+  // localStorage (pas sessionStorage, cf. commentaire de openPreview() côté backstage) : partagé
+  // entre onglets de même origine, seul moyen pour cet onglet fraîchement ouvert de lire le dépôt
+  // écrit par l'onglet backstage juste avant. Aucun appel réseau, aucune écriture ici.
+  if (params.get('preview') === '1') {
+    try {
+      const raw = localStorage.getItem('layerpitch_preview_data');
+      if (raw) { previewActive = true; return JSON.parse(raw); }
+    } catch (e) { /* dépôt corrompu/absent -- repli silencieux sur le chargement Postgres normal */ }
+  }
+  const handle = composerHandleFromUrl;
+  await loadPostgresReadScripts();
+  let ownerId = DEFAULT_OWNER_ID;
+  if (handle) {
+    const { ownerId: resolvedId, error } = await window.LayerPitchComposers.resolveHandle(handle);
+    if (error) throw new Error(error);
+    ownerId = resolvedId || DEFAULT_OWNER_ID;
+  }
+  lastResolvedOwnerId = ownerId;
+  return window.LayerPitchSiteData.loadSiteDataFromPostgres(ownerId);
+}
+// Bandeau "Mode aperçu" -- seul indice visible que ce chargement vient du backstage (localStorage)
+// et non de Postgres, pour que l'absence d'un fichier tout juste ajouté/remplacé (voir
+// buildDataSnapshot(), backstage) ne passe pas pour un bug.
+function showPreviewModeBanner() {
+  const banner = document.createElement('div');
+  banner.className = 'preview-mode-banner';
+  banner.textContent = tr('previewModeBanner');
+  document.body.prepend(banner);
+  document.body.classList.add('has-preview-banner');
+}
+
+// Achat réel de packs (Décision 5, étape 4 — backend Stripe/Postgres construit et vérifié le
+// 31 août, docs/LAYERPITCH_CHANGELOG.md). Volontairement désactivé en production pour l'instant :
+// décision actée avec Jules-Antoine de garder l'affichage "Bientôt disponible" pendant la bêta
+// (comportement inchangé tant que ce flag reste à false — aucune requête réseau supplémentaire,
+// aucun SDK chargé). Passer à true pour activer, une fois prêt à sortir de la bêta.
+const PURCHASES_ENABLED = false;
+
+// Charge le SDK Supabase + api/*.js à la demande seulement (jamais si PURCHASES_ENABLED est faux) —
+// mémorisé pour ne charger qu'une fois même si plusieurs packs de la page en ont besoin.
+let purchaseScriptsLoaded = null;
+function loadPurchaseScripts() {
+  if (purchaseScriptsLoaded) return purchaseScriptsLoaded;
+  // Mode tutoriel (21/10) : tout passe par le faux serveur ; recharger le vrai client ici le remplacerait.
+  if (new URLSearchParams(location.search).has('tuto')) {
+    purchaseScriptsLoaded = loadPostgresReadScripts().then(() => lpLoadScriptsInOrder(['./api/packs.js', './api/purchases.js'])).then(() => window.LayerPitchTuto.switchToDemo());
+    return purchaseScriptsLoaded;
+  }
+  // Même chargeur que loadPostgresReadScripts() (public-page.js) : téléchargement parallèle, exécution dans l'ordre,
+  // version du déploiement.
+  purchaseScriptsLoaded = lpLoadScriptsInOrder([
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
+    './api/supabase-client.js',
+    './api/auth.js',
+    './api/packs.js',
+    './api/purchases.js',
+  ]);
+  return purchaseScriptsLoaded;
+}
+
+// Rendu du widget d'achat réel (Décision 5, étape 4) dans `el` — un des trois états : formulaire de
+// connexion (magic link), bouton d'achat (prix lu depuis Postgres, jamais inventé côté client), ou
+// "déjà acheté". Affiche aussi une bannière de retour Stripe (succès/annulation) une fois, puis
+// nettoie l'URL pour ne pas la réafficher à un rechargement ultérieur.
+async function renderRealPurchaseWidget(el, pack) {
+  await loadPurchaseScripts();
+
+  const params = new URLSearchParams(window.location.search);
+  const purchaseStatus = params.get('purchase');
+  if (purchaseStatus === 'success' || purchaseStatus === 'cancelled') {
+    const banner = document.createElement('div');
+    banner.className = 'purchase-banner ' + (purchaseStatus === 'success' ? 'ok' : 'cancelled');
+    banner.textContent = purchaseStatus === 'success' ? tr('purchaseSuccessMsg') : tr('purchaseCancelledMsg');
+    el.parentNode.insertBefore(banner, el);
+    params.delete('purchase');
+    const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+    window.history.replaceState({}, '', newUrl);
+
+    // Facture/attestation de vente (chantier 4 septembre) : générée de façon asynchrone dans le
+    // webhook Stripe, jamais déjà prête à cet instant précis -- on sonde plutôt que de supposer
+    // qu'elle est immédiatement disponible (même principe que bienvenue.html?subscribed=1).
+    if (purchaseStatus === 'success') {
+      const { session: buyerSession } = await window.LayerPitchAuth.getSession();
+      if (buyerSession) {
+        const invoiceMsg = document.createElement('div');
+        invoiceMsg.className = 'purchase-msg';
+        invoiceMsg.textContent = tr('invoicePreparingMsg');
+        banner.appendChild(invoiceMsg);
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const { purchases } = await window.LayerPitchPurchases.myPurchases();
+          const match = (purchases || []).find(p => p.packId === pack.id && p.invoice);
+          if (match) {
+            invoiceMsg.innerHTML = '';
+            const dlBtn = document.createElement('button');
+            dlBtn.type = 'button';
+            dlBtn.className = 'buy-btn';
+            dlBtn.textContent = tr('downloadInvoiceBtn');
+            dlBtn.addEventListener('click', async () => {
+              dlBtn.disabled = true;
+              const { data, error: fnError } = await window.LayerPitchSupabaseClient.getClient().functions.invoke('get-invoice-download-url', { body: { invoiceId: match.invoice.id } });
+              if (fnError || !data || !data.url) {
+                window.LayerPitchNotify.error(tr('purchaseErrorMsg').replace('{error}', fnError ? await window.LayerPitchAuth.describeFunctionError(fnError) : (data && data.error) || 'inconnue'));
+              } else {
+                window.open(data.url, '_blank', 'noopener');
+              }
+              dlBtn.disabled = false;
+            });
+            invoiceMsg.appendChild(dlBtn);
+            break;
+          }
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+    }
+  }
+
+  const { pack: livePack, error: packError } = await window.LayerPitchPacks.getPack(pack.id);
+  if (packError || !livePack || !livePack.buyable || !livePack.priceEurCents) {
+    el.innerHTML = `<span class="buy-btn disabled">${tr('comingSoon')}</span><div class="buy-hint">${tr('notForSaleYet')}</div>`;
+    return;
+  }
+  // Pack en vente : « Contacter le vendeur » (Shop, 29/09) — le message part vers le compositeur, jamais son adresse ne s'affiche.
+  if (window.LayerPitchSellerContact) window.LayerPitchSellerContact.mount(document.getElementById('sellerContact'), { kind: 'pack', id: pack.id });
+  // Tout en euros depuis le 28/09 (D30) ; format selon la langue de la page (« 10,00 € » / « €10.00 »).
+  const priceLabel = new Intl.NumberFormat(currentLang() === 'en' ? 'en-GB' : 'fr-FR', { style: 'currency', currency: 'EUR' }).format(livePack.priceEurCents / 100);
+
+  const { session } = await window.LayerPitchAuth.getSession();
+  if (!session) {
+    el.innerHTML = `
+      <div class="purchase-signin">
+        <div class="buy-hint">${tr('signInToBuyHint')}</div>
+        <input type="email" id="purchaseSignInEmail" placeholder="${tr('signInToBuyEmailPlaceholder')}">
+        <button class="buy-btn" id="purchaseSignInBtn" type="button">${tr('signInToBuySendBtn')}</button>
+        <div class="purchase-msg" id="purchaseSignInMsg"></div>
+      </div>`;
+    el.querySelector('#purchaseSignInBtn').addEventListener('click', async () => {
+      const email = el.querySelector('#purchaseSignInEmail').value.trim();
+      const msg = el.querySelector('#purchaseSignInMsg');
+      if (!email) return;
+      msg.textContent = '…'; msg.className = 'purchase-msg';
+      const { ok, error } = await window.LayerPitchAuth.signInWithMagicLink(email, window.location.href);
+      msg.textContent = ok ? tr('signInToBuySentMsg') : tr('purchaseErrorMsg').replace('{error}', error);
+      msg.className = 'purchase-msg ' + (ok ? 'ok' : 'err');
+    });
+    return;
+  }
+
+  const { purchases } = await window.LayerPitchPurchases.myPurchases();
+  const alreadyOwned = (purchases || []).some(p => p.packId === pack.id);
+  if (alreadyOwned) {
+    el.innerHTML = `<span class="purchase-owned">${tr('alreadyOwned')}</span>`;
+    return;
+  }
+
+  el.innerHTML = `<button class="buy-btn" id="realBuyBtn" type="button">${tr('buyBtn').replace('{price}', priceLabel)}</button><div class="purchase-msg" id="purchaseBuyMsg"></div>`;
+  el.querySelector('#realBuyBtn').addEventListener('click', async () => {
+    const btn = el.querySelector('#realBuyBtn');
+    const msg = el.querySelector('#purchaseBuyMsg');
+    btn.disabled = true;
+    btn.textContent = tr('buyBtnLoading');
+    const successUrl = window.location.origin + window.location.pathname + '?id=' + encodeURIComponent(pack.id) + '&purchase=success';
+    const cancelUrl = window.location.origin + window.location.pathname + '?id=' + encodeURIComponent(pack.id) + '&purchase=cancelled';
+    const { ok, error } = await window.LayerPitchPurchases.buyPack(pack.id, { successUrl, cancelUrl });
+    if (!ok) {
+      msg.textContent = tr('purchaseErrorMsg').replace('{error}', error);
+      msg.className = 'purchase-msg err';
+      btn.disabled = false;
+      btn.textContent = tr('buyBtn').replace('{price}', priceLabel);
+    }
+    // Si ok, buyPack() a déjà redirigé la page vers Stripe Checkout — rien d'autre à faire ici.
+  });
+}
+
+// Presets du palier Free (Chantier Apparence Phase 3, 4 septembre) -- copiés tel quel depuis
+// layerpitch-backstage.html/index.html, même encodage, même logique. titleColor n'est pas utilisé ici
+// (pack.html n'a qu'un seul --text, pas de --text-title séparé) mais reste dans l'objet pour rester
+// identique aux 2 autres copies.
+const THEME_PRESETS = [
+  { id: 'default', labelKey: 'themePresetDefault', bgColor: '#FAFAF8', titleColor: '#1A1A1A', contentColor: '#333333', font: 'default', separator: { visible: true, color: '#E0E0DC', thickness: 1 } },
+  { id: 'night', labelKey: 'themePresetNight', bgColor: '#121212', titleColor: '#FFFFFF', contentColor: '#C9C9CE', font: 'default', separator: { visible: true, color: '#3A3A40', thickness: 1 } },
+  { id: 'amber', labelKey: 'themePresetAmber', bgColor: '#F5EDE0', titleColor: '#A85C1E', contentColor: '#5C4530', font: 'google:Fraunces', separator: { visible: true, color: '#C99A6B', thickness: 3 } },
+  { id: 'neon', labelKey: 'themePresetNeon', bgColor: '#1B1035', titleColor: '#FF3EA5', contentColor: '#D9CFFF', font: 'google:Space Grotesk', separator: { visible: true, color: '#7A5FFF', thickness: 1 } },
+  { id: 'forest', labelKey: 'themePresetForest', bgColor: '#16321F', titleColor: '#D4AF37', contentColor: '#EDE6D6', font: 'google:Zilla Slab', separator: { visible: true, color: '#8C7A3D', thickness: 1 } },
+  { id: 'minimal', labelKey: 'themePresetMinimal', bgColor: '#FFFFFF', titleColor: '#000000', contentColor: '#4D4D4D', font: 'google:Manrope', separator: { visible: false, color: '#E0E0DC', thickness: 1 } }
+];
+function resolveThemePreset(presetId) {
+  return THEME_PRESETS.find(p => p.id === presetId) || THEME_PRESETS[0];
+}
+const DEFAULT_SEPARATOR = { visible: false, color: '#E4E1DA', thickness: 1 };
+
+// Traductions de l'habillage LayerPitch (pas le contenu des packs/morceaux, qui reste dans sa langue
+// d'origine). Vit dans layerpitch-i18n.js (zones "shared" + "pack"), édité via l'outil dédié.
+// Langue transmise par l'AdReel qui a mené ici (paramètre ?lang= dans le lien), jamais choisie par le
+// visiteur. 'fr' par défaut si le pack est ouvert directement (lien ancien, accès direct sans AdReel).
+const pageLang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'fr';
+function currentLang() { return pageLang; }
+// Intégration externe (?embed=1, généré par le backstage — bouton "Code d'intégration") : ce pack
+// tourne dans une iframe sur le site d'un tiers, pas sur layerpitch.com -- le lien "← Retour" n'a
+// alors plus aucun sens (l'auditeur n'est jamais passé par le site du compositeur), remplacé par un
+// vrai bouton qui ouvre l'AdReel PRINCIPAL du compositeur dans un nouvel onglet (jamais dans
+// l'iframe elle-même, qui resterait minuscule et coincée sur le site tiers).
+const embedMode = new URLSearchParams(location.search).get('embed') === '1';
+// Texte bilingue (présentation de pack/collection) : montre la version qui correspond à la langue de
+// la page ; si elle n'a jamais été remplie par le compositeur, on préfère montrer l'autre langue plutôt
+// que rien du tout.
+function pickBilingualText(fr, en) {
+  return (pageLang === 'en' ? (en || fr) : (fr || en)) || '';
+}
+// tr('clé') pour le texte généré en JS ; data-i18n pour le HTML statique. Un même dictionnaire pour les
+// deux. Ordre de repli : zone pack -> zone shared -> même chose en français -> la clé elle-même.
+function tr(key) {
+  const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, pack: {} }, en: { shared: {}, pack: {} } };
+  const dict = I18N[currentLang()] || I18N.fr;
+  const dictFr = I18N.fr;
+  return (dict.pack && dict.pack[key]) || (dict.shared && dict.shared[key])
+    || (dictFr.pack && dictFr.pack[key]) || (dictFr.shared && dictFr.shared[key]) || key;
+}
+function applyI18n() {
+  document.documentElement.lang = currentLang();
+  document.querySelectorAll('[data-i18n]').forEach(el => { const v = tr(el.dataset.i18n); if (v) el.textContent = v; });
+}
+window.LayerPlayerCore.setLang(pageLang);
+applyI18n();
+
+// --- Mode Capture (admin, prototype moteur vidéo) --------------------------------------------
+// Enregistre l'horodatage (vs. la vidéo importée) de chaque interaction du lecteur adaptatif pendant
+// une "prise" -- calques (intensity_change), stingers (stinger_play), embranchements (seq_branch_select,
+// embr_loop_select), etc. Plutôt que de raccorder ces déclencheurs un par un (5 modes de lecture,
+// logique interne à player.js), on intercepte le point de passage déjà unique par lequel TOUTE
+// interaction transite : trackPublicEvent() y appelle systématiquement window.umami.track(name, detail)
+// (voir player.js). On substitue temporairement window.umami par un objet qui journalise avant de
+// relayer au vrai umami s'il existe déjà -- aucune modification de player.js nécessaire.
+let videoCaptureState = null; // { events, videoEl, markHandler, headHandler, sliderHandler }
+
+// Piste armée pour la capture (2026-09-15) -- réglée depuis un bouton ⏺ posé à côté du lecteur de CHAQUE
+// morceau (voir setupCaptureTrigger), exclusif (armer une piste désarme l'ancienne). Persiste tant que la
+// page reste ouverte, indépendamment du panneau de capture -- on arme d'abord dans le lecteur du pack,
+// avant même d'ouvrir "Capturer une prise" (confirmé par Jules-Antoine 2026-09-15 : "on va d'abord
+// s'intéresser au lecteur du pack, avant d'aller dans l'éditeur vidéo").
+let armedTrackId = null;
+
+// Libellé humain d'un événement capturé (calques/sfx résolus depuis window.__lpCaptureLibrary) --
+// utilisé à la fois par la liste affichée dans le panneau et implicitement par l'incrustation vidéo
+// de exportCaptureVideo (mêmes données sources, cohérent entre ce que le compositeur voit ici et ce qui
+// finit à l'écran dans l'export).
+// laneOverrides : renomme l'affichage d'un calque pour CETTE prise uniquement (ex. "Ca va, c'est cool"
+// -> "Intensité basse") -- ne touche jamais au vrai `layer.label` du morceau (ça resterait le nom parlant
+// pour l'AdReel), voir exportCaptureVideo qui utilise le même nom pour l'incrustation vidéo. Clé :
+// `${trackId}:${levelIdx}`.
+function captureLaneLabel(track, levelIdx, laneOverrides) {
+  const key = track.id + ':' + levelIdx;
+  const layer = track.layers[levelIdx];
+  return (laneOverrides && laneOverrides[key]) || (layer && layer.label) || ('Niveau ' + levelIdx);
+}
+
+// Même principe que captureLaneLabel ci-dessus, pour une piste de boucle (mode embranchement-vertical) --
+// clé `${trackId}:loop:${loopId}` pour ne jamais entrer en collision avec les clés `${trackId}:${levelIdx}`
+// des calques (un morceau ne peut de toute façon pas être les deux modes à la fois, mais autant garder
+// les espaces de clés distincts).
+function captureLoopLaneLabel(track, loopId, laneOverrides) {
+  const key = track.id + ':loop:' + loopId;
+  const loop = (track.loops || []).find(l => l.id === loopId);
+  return (laneOverrides && laneOverrides[key]) || (loop && loop.label) || loopId;
+}
+
+// Même principe, pour une piste d'emplacement (mode séquentiel) -- clé `${trackId}:slot:${slotId}`.
+function captureSlotLaneLabel(track, slotId, laneOverrides) {
+  const key = track.id + ':slot:' + slotId;
+  const slot = (track.segmentSlots || []).find(s => s.id === slotId);
+  return (laneOverrides && laneOverrides[key]) || (slot && slot.label) || slotId;
+}
+
+// Briques communes de la capture (capture-plan.js, 25/09) : fenêtres de la frise, résolution des fichiers,
+// matérialisation d'une capture brute -- partagées avec le rendu audio pour ne jamais diverger.
+const SEQ_TIMELINE_EVENT_NAMES = window.LayerCapturePlan.SEQ_TIMELINE_EVENT_NAMES;
+const VR_TIMELINE_EVENT_NAMES = window.LayerCapturePlan.VR_TIMELINE_EVENT_NAMES;
+const CAPTURE_MARK_NAMES = window.LayerCapturePlan.CAPTURE_MARK_NAMES;
+const resolveCaptureSeqAlternative = window.LayerCapturePlan.resolveSeqAlternative;
+const resolveCaptureSeqTransition = window.LayerCapturePlan.resolveSeqTransition;
+const resolveCaptureVRSection = window.LayerCapturePlan.resolveVRSection;
+const buildSeqTimelineWindows = window.LayerCapturePlan.buildSeqTimelineWindows;
+const buildVRTimelineWindows = window.LayerCapturePlan.buildVRTimelineWindows;
+function materializeCapture(events) { return window.LayerCapturePlan.materialize(events, findCaptureTrack); }
+
+// Même principe que captureSlotLaneLabel, pour la piste d'UNE transition séquentielle précise -- clé
+// `${trackId}:seqtransition:${fromSlotId}>${targetId}` pour distinguer chaque embranchement (un même
+// emplacement source peut avoir plusieurs transitions vers des cibles différentes).
+function captureSeqTransitionLaneLabel(track, fromSlotId, targetId, laneOverrides) {
+  const key = track.id + ':seqtransition:' + fromSlotId + '>' + targetId;
+  const transition = resolveCaptureSeqTransition(track, fromSlotId, targetId);
+  return (laneOverrides && laneOverrides[key]) || (transition && transition.label) || 'Transition';
+}
+
+// Libellé d'une fenêtre séquentielle (voir buildSeqTimelineWindows plus bas) quel que soit son type --
+// partagé entre la frise, l'export (incrustation vidéo) et describeCaptureEvent pour ne jamais diverger.
+function captureSeqWindowLabel(track, w, laneOverrides) {
+  if (w.kind === 'intro') return (track && track.intro && track.intro.label) || 'Intro';
+  if (w.kind === 'outro') return (track && track.outro && track.outro.label) || 'Outro';
+  if (w.kind === 'transition') return track ? captureSeqTransitionLaneLabel(track, w.fromSlotId, w.targetId, laneOverrides) : 'Transition';
+  return track ? captureSlotLaneLabel(track, w.slotId, laneOverrides) : w.slotId;
+}
+
+function captureVRWindowLabel(track, w) {
+  if (w.kind === 'intro') return (track && track.intro && track.intro.label) || 'Intro';
+  if (w.kind === 'outro') return (track && track.outro && track.outro.label) || 'Outro';
+  const section = track && (track.sections || [])[w.sectionIndex];
+  return (section && section.label) || ('Section ' + (w.sectionIndex + 1));
+}
+
+function describeCaptureEvent(e, laneOverrides) {
+  if (e.name === 'layer_segment') {
+    const track = findCaptureTrack(e.detail.trackId);
+    const label = track ? captureLaneLabel(track, e.detail.layerIndex, laneOverrides) : tr('captureLayerFallback').replace('{n}', e.detail.layerIndex);
+    return tr('captureLayerDesc').replace('{label}', label).replace('{duration}', e.detail.duration.toFixed(2));
+  }
+  if (e.name === 'embr_loop_select') {
+    const track = findCaptureTrack(e.detail.trackId);
+    return tr('captureLoopDesc').replace('{label}', track ? captureLoopLaneLabel(track, e.detail.loopId, laneOverrides) : e.detail.loopId);
+  }
+  if (e.name === 'seq_slot_start') {
+    const track = findCaptureTrack(e.detail.trackId);
+    return tr('captureSlotDesc').replace('{label}', track ? captureSlotLaneLabel(track, e.detail.slotId, laneOverrides) : e.detail.slotId);
+  }
+  if (e.name === 'seq_intro_start') return 'Intro';
+  if (e.name === 'seq_outro_start') return 'Outro';
+  if (e.name === 'seq_transition_start') {
+    const track = findCaptureTrack(e.detail.trackId);
+    return tr('captureTransitionDesc').replace('{label}', track ? captureSeqTransitionLaneLabel(track, e.detail.fromSlotId, e.detail.targetId, laneOverrides) : 'Transition');
+  }
+  if (e.name === 'vr_intro_start') return 'Intro';
+  if (e.name === 'vr_outro_start') return 'Outro';
+  if (e.name === 'vr_section_start') {
+    const track = findCaptureTrack(e.detail.trackId);
+    return tr('captureSectionDesc').replace('{label}', captureVRWindowLabel(track, { kind: 'section', sectionIndex: e.detail.sectionIndex }));
+  }
+  if (e.name === 'fx_segment') {
+    const track = findCaptureTrack(e.detail.trackId);
+    const trg = track && (track.fxTriggers || []).find(d => d.id === e.detail.triggerId);
+    return tr('captureFxSegDesc').replace('{label}', (trg && trg.label) || e.detail.triggerId).replace('{duration}', e.detail.duration.toFixed(2));
+  }
+  if (e.name === 'fx_cut') {
+    const track = findCaptureTrack(e.detail.trackId);
+    const trg = track && (track.fxTriggers || []).find(d => d.id === e.detail.triggerId);
+    return tr('captureFxCutDesc').replace('{label}', (trg && trg.label) || e.detail.triggerId);
+  }
+  if (e.name === 'fx_slider') {
+    const track = findCaptureTrack(e.detail.trackId);
+    const sl = track && (track.fxSliders || []).find(d => d.id === e.detail.sliderId);
+    return tr('captureSliderDesc').replace('{label}', (sl && sl.label) || e.detail.sliderId).replace('{value}', Math.round(e.detail.value * 100));
+  }
+  if (e.name === 'head_turn') return tr('captureHeadDesc').replace('{yaw}', Math.round(e.detail.yaw));
+  if (e.name === 'stinger_play') {
+    const sfx = findCaptureSfx(e.detail.sfxId);
+    const base = tr('captureStingerDesc').replace('{title}', sfx ? sfx.title : e.detail.sfxId);
+    return e.detail.durationOverride ? base + ' (' + e.detail.durationOverride.toFixed(2) + 's)' : base;
+  }
+  return e.name;
+}
+
+// Étiquettes d'une prise (21/10) : exactement ce que l'incrustation de l'export complet écrit sur l'image (même source, mêmes libellés),
+// mais sous forme de liste : [{ start, end, text, kind: 'state' | 'stinger' | 'fx', row, style }]. Rangées avec la vidéo exportée (migration
+// 20261021020000), elles s'affichent en direct dans le lecteur des pages publiques (étiquette sur la vidéo), sans réencoder l'image.
+// style : 'layer' (calque, une ligne par calque) ou 'window' (boucle, emplacement, section : une seule ligne) -- utilisé par l'export complet.
+function buildCaptureCues(events, laneOverrides) {
+  laneOverrides = laneOverrides || {};
+  const r3 = x => Math.round(x * 1000) / 1000;
+  const cues = [];
+  events.filter(e => e.name === 'layer_segment').forEach(seg => {
+    const track = findCaptureTrack(seg.detail.trackId);
+    cues.push({ start: seg.t, end: seg.t + seg.detail.duration, kind: 'state', style: 'layer', row: seg.detail.layerIndex,
+      text: track ? captureLaneLabel(track, seg.detail.layerIndex, laneOverrides) : 'calque ' + seg.detail.layerIndex });
+  });
+  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx });
+  const embr = built.windows.embr, seq = built.windows.seq, vr = built.windows.vr;
+  Object.keys(embr).forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    embr[trackId].forEach(w => cues.push({ start: w.start, end: w.end, kind: 'state', style: 'window', row: 0, text: track ? captureLoopLaneLabel(track, w.loopId, laneOverrides) : w.loopId }));
+  });
+  Object.keys(seq).forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    seq[trackId].forEach(w => cues.push({ start: w.start, end: w.end, kind: 'state', style: 'window', row: 0, text: captureSeqWindowLabel(track, w, laneOverrides) }));
+  });
+  Object.keys(vr).forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    vr[trackId].forEach(w => cues.push({ start: w.start, end: w.end, kind: 'state', style: 'window', row: 0, text: captureVRWindowLabel(track, w) }));
+  });
+  events.filter(e => e.name === 'stinger_play').forEach(s => {
+    const sfx = findCaptureSfx(s.detail.sfxId);
+    // sans retouche, flash d'1 s par défaut (durée réelle inconnue sans sonder le fichier)
+    cues.push({ start: s.t, end: s.t + (s.detail.durationOverride || 1), kind: 'stinger', style: 'flash', row: 0, text: (sfx && sfx.title) || 'stinger' });
+  });
+  events.filter(e => e.name === 'fx_segment').forEach(fs => {
+    const track = findCaptureTrack(fs.detail.trackId);
+    const list = ((track && track.fxTriggers) || []).filter(d => d && d.id && d.fx);
+    const ti = Math.max(0, list.findIndex(d => d.id === fs.detail.triggerId));
+    cues.push({ start: fs.t, end: fs.t + fs.detail.duration, kind: 'fx', style: 'fx', row: ti, text: 'FX ' + ((list[ti] && list[ti].label) || 'FX') });
+  });
+  return cues.map(c => Object.assign(c, { start: r3(c.start), end: r3(c.end) })).sort((a, b) => a.start - b.start);
+}
+// Frise d'édition -- cible finale d'après le schéma papier de Jules-Antoine (2026-09-14) : une piste par
+// calque du morceau (dans l'ordre de leur niveau d'intensité) + une piste SFX au-dessus, blocs positionnés
+// sur une frise temporelle commune, déplaçables/redimensionnables à la souris comme dans un DAW. Les
+// changements d'intensité restent des points sous le capot (fidèle au moteur réel -- les calques tournent
+// en permanence, on ne fait qu'un fondu à un instant précis, déjà réglé par le morceau lui-même) : chaque
+// bloc de calque est juste la fenêtre entre deux points consécutifs, dérivée à l'affichage -- glisser le
+// CORPS d'un bloc de calque déplace donc son point de départ (qui est aussi la fin du bloc précédent, sur
+// N'IMPORTE QUELLE piste) ; il n'y a pas de poignée de redimensionnement sur ces blocs, leur fin appartient
+// au bloc suivant. Les stingers, eux, ont un vrai IN + OUT/durée (façon cue sheet) : glisser le corps
+// déplace le IN, une poignée sur le bord droit redimensionne la durée. En lecture seule pendant
+// l'enregistrement (pas d'interaction), éditable une fois arrêté. `events` est mutée en place
+// (splice/tri) pour que la référence déjà fermée par les autres gestionnaires (lastEvents) reste à jour.
+// Positionne la tête de lecture (ligne verticale) sur la frise, à la position actuelle de la vidéo --
+// appelée à chaque nouveau rendu ET en continu pendant la lecture (timeupdate, câblé une seule fois dans
+// openCapturePanel plutôt qu'à chaque re-rendu, pour ne pas empiler les écouteurs). Calcule en pixels
+// réels (pas en %) à partir de .vct-ruler, qui a toujours le même repère que les pistes (margin-left 96px
+// aligné sur les étiquettes) -- fonctionne donc même à travers les groupes imbriqués.
+function positionCapturePlayhead(container, videoEl) {
+  if (!videoEl) return;
+  const ph = container.querySelector('#vctPlayhead');
+  const ruler = container.querySelector('.vct-ruler');
+  if (!ph || !ruler) return;
+  const containerRect = container.getBoundingClientRect();
+  const rulerRect = ruler.getBoundingClientRect();
+  const total = container.__vctTotal || videoEl.duration || 1;
+  const t = videoEl.currentTime || 0;
+  const leftPx = (rulerRect.left - containerRect.left) + Math.min(1, Math.max(0, t / total)) * rulerRect.width;
+  ph.style.left = leftPx + 'px';
+}
+
+function renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl) {
+  laneOverrides = laneOverrides || {};
+  collapsedGroups = collapsedGroups || {};
+  if (!events.length) {
+    container.innerHTML = `<div class="vct-empty">${tr('captureTimelineEmpty')}</div>`;
+    return;
+  }
+  const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl);
+  // Calques d'un morceau dont l'intensité suit un curseur (26/09) : recalculés à partir des points du curseur à chaque
+  // affichage -- donc après chaque retouche d'un point (glisser, valeur, ajout, suppression).
+  if (editable) window.LayerCapturePlan.syncSliderIntensityLayers(events, findCaptureTrack);
+  const intensityEvents = events.filter(e => e.name === 'intensity_change').sort((a, b) => a.t - b.t);
+  const embrEvents = events.filter(e => e.name === 'embr_loop_select').sort((a, b) => a.t - b.t);
+  const stingerEvents = events.filter(e => e.name === 'stinger_play');
+  const layerSegmentEvents = events.filter(e => e.name === 'layer_segment');
+  const fxSegmentEvents = events.filter(e => e.name === 'fx_segment');
+  const lastT = Math.max(0, ...events.map(e => e.t),
+    ...stingerEvents.map(e => e.t + (e.detail.durationOverride || 1)),
+    ...layerSegmentEvents.map(e => e.t + e.detail.duration),
+    ...fxSegmentEvents.map(e => e.t + e.detail.duration));
+  const total = Math.max(lastT + 1, 5); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement
+  const tickStep = total <= 20 ? 1 : (total <= 60 ? 5 : 10);
+  const pct = (t) => Math.min(100, Math.max(0, t / total * 100));
+
+  let ticksHtml = '';
+  for (let t = 0; t <= total; t += tickStep) {
+    ticksHtml += `<div class="vct-tick" style="left:${pct(t)}%">${t}s</div>`;
+  }
+
+  // Tous les événements qui appartiennent à un groupe donné (même morceau ou même Sfx) -- utilisé à la
+  // fois pour calculer l'étendue du bloc-résumé ci-dessous et pour savoir quoi déplacer ensemble au
+  // glisser-déposer du groupe entier (voir startGroupDrag plus bas).
+  function groupMembers(key) {
+    if (key.indexOf('track:') === 0) {
+      const trackId = key.slice(6);
+      // Repères de capture compris (générations, arrêts, bascules réelles) : ils suivent le morceau quand on le déplace.
+      return events.filter(e => (e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'fx_segment' || e.name === 'fx_cut' || e.name === 'fx_slider' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || CAPTURE_MARK_NAMES.indexOf(e.name) !== -1 || e.name === 'voice_mute_toggle' || e.name === 'voice_solo_toggle' || e.name === 'voice_volume_change') && e.detail.trackId === trackId);
+    }
+    if (key === 'head:') return events.filter(e => e.name === 'head_turn');
+    if (key.indexOf('sfx:') === 0) {
+      const sfxId = key.slice(4);
+      return events.filter(e => e.name === 'stinger_play' && e.detail.sfxId === sfxId);
+    }
+    return [];
+  }
+
+  // Un groupe = un en-tête cliquable (repliable) + un bloc-résumé glissable (déplace TOUS les enfants
+  // ensemble, en préservant leur espacement relatif -- demandé par Jules-Antoine 2026-09-15) + les pistes
+  // enfants indentées en dessous, même gabarit pour les morceaux (calques ou boucles) et les Sfx
+  // (variations round-robin) -- voir les usages ci-dessous.
+  // Nom du groupe ET bloc-résumé glissable sur UNE SEULE ligne (2026-09-16, retour direct de
+  // Jules-Antoine : "la section parente doit être sur la même ligne que le bloc général", même principe
+  // que l'affichage d'un track stack dans Logic Pro X -- le nom + le résumé replié restent visibles sur
+  // une seule rangée, jamais deux lignes empilées). L'étiquette (nom + chevron) occupe la même colonne
+  // que .vct-lane-label des autres pistes (96px), le bloc-résumé la même colonne que .vct-lane-track --
+  // cette ligne reste donc visible même repliée (c'est justement le principe d'un résumé replié),
+  // seules les pistes enfants (nestedLanesHtml) disparaissent alors.
+  function renderGroup(key, headerLabel, colorClass, nestedLanesHtml) {
+    const collapsed = !!collapsedGroups[key];
+    const members = groupMembers(key);
+    let blockHtml = '';
+    if (editable && members.length) {
+      const isMusic = key.indexOf('track:') === 0;
+      const start = isMusic ? 0 : Math.min(...members.map(m => m.t));
+      const end = isMusic ? total : Math.max(...members.map(m => m.t + (m.name === 'head_turn' ? 0.5 : (m.detail.durationOverride || 1))));
+      blockHtml = `<div class="vct-block vct-block-group" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}" ` +
+        `title="${tr('captureGroupDragHint')}" style="left:${pct(start)}%;width:${pct(end) - pct(start)}%"></div>`;
+    }
+    const headerRow = `<div class="vct-lane vct-group-summary">` +
+      `<div class="vct-lane-label vct-track-group-header" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}">` +
+      `<span class="vct-group-chevron">${collapsed ? '▸' : '▾'}</span>${window.LayerPlayerCore.escapeHtml(headerLabel)}</div>` +
+      `<div class="vct-lane-track">${blockHtml}</div></div>`;
+    return `<div class="vct-track-group ${colorClass}">` + headerRow + (collapsed ? '' : nestedLanesHtml) + `</div>`;
+  }
+
+  // SFX : un groupe par son déclenché, une piste enfant par variation round-robin réellement tirée dans
+  // cette prise (pas toutes celles de la bibliothèque -- sinon un Sfx à 6 variations dont une seule sert
+  // laisserait 5 pistes vides). Plusieurs sons différents déclenchés dans la même prise donnent donc
+  // plusieurs groupes SFX côte à côte (2026-09-15).
+  const sfxGroups = {}; // sfxId -> { variationIndex: [events] }
+  stingerEvents.forEach(e => {
+    const sid = e.detail.sfxId;
+    const vi = e.detail.variationIndex;
+    (sfxGroups[sid] = sfxGroups[sid] || {})[vi] = (sfxGroups[sid][vi] || []).concat(e);
+  });
+  let lanesHtml = '';
+  Object.keys(sfxGroups).forEach(sid => {
+    const sfx = findCaptureSfx(sid);
+    let groupLanesHtml = '';
+    Object.keys(sfxGroups[sid]).map(Number).sort((a, b) => a - b).forEach(vi => {
+      let blocksHtml = '';
+      sfxGroups[sid][vi].forEach(e => {
+        const dur = e.detail.durationOverride || 1;
+        const idx = events.indexOf(e);
+        blocksHtml += `<div class="vct-block vct-sfx" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + dur) - pct(e.t)}%">` +
+          (editable ? `<div class="vct-resize-handle" title="${tr('captureResizeHint')}"></div>` : '') + `</div>`;
+      });
+      const sfxAddAttrs = editable ? ` data-addable="sfx" data-add-sfx-id="${sid}" data-add-variation="${vi}"` : '';
+      groupLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label">RR${vi + 1}</div><div class="vct-lane-track"${sfxAddAttrs} title="${editable ? tr('captureAddSfxHint') : ''}">${blocksHtml}</div></div>`;
+    });
+    lanesHtml += renderGroup('sfx:' + sid, (sfx && sfx.title) || sid, 'vct-track-group-sfx', groupLanesHtml);
+  });
+
+  // Musique : un groupe par morceau référencé (mode vertical -- calques cumulatifs -- ou
+  // embranchement-vertical -- boucles exclusives), dans l'ordre de première apparition. Plusieurs
+  // morceaux différents dans la même prise donnent plusieurs groupes "Musique" côte à côte (schéma
+  // papier "Musique #1"/"Musique #2", 2026-09-14/15).
+  const musicTrackIds = [];
+  events.forEach(e => {
+    if ((e.name === 'intensity_change' || e.name === 'embr_loop_select' || e.name === 'layer_segment' || e.name === 'fx_segment' || e.name === 'fx_cut' || e.name === 'fx_slider' || e.name === 'track_play' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1) && musicTrackIds.indexOf(e.detail.trackId) === -1) {
+      musicTrackIds.push(e.detail.trackId);
+    }
+  });
+  musicTrackIds.forEach(trackId => {
+    const track = findCaptureTrack(trackId);
+    if (!track) return;
+    let nestedLanesHtml = '';
+    if (track.mode === 'embranchement-vertical') {
+      // Une seule boucle audible à la fois (contrairement à l'empilage cumulatif du mode vertical) --
+      // chaque bascule embr_loop_select ferme la fenêtre précédente et en ouvre une nouvelle. La toute
+      // première fenêtre (la boucle de référence, avant le premier clic) n'a aucun événement associé --
+      // rien n'est capturé pour l'état de départ implicite du moteur -- donc pas de point à éditer/glisser
+      // pour elle (idx -1, bloc non interactif, distingué visuellement).
+      // Fenêtres communes avec le rendu (capture-plan.js) : la référence joue depuis le démarrage du morceau.
+      const windows = window.LayerCapturePlan.buildEmbrTimelineWindows(events, track, total).map(w => Object.assign(w, { idx: w.e ? events.indexOf(w.e) : -1 }));
+      const usedLoopIds = [];
+      windows.forEach(w => { if (usedLoopIds.indexOf(w.loopId) === -1) usedLoopIds.push(w.loopId); });
+      usedLoopIds.forEach(loopId => {
+        let blocksHtml = '';
+        windows.forEach(w => {
+          if (w.loopId !== loopId) return;
+          const cls = 'vct-block vct-layer' + (w.idx < 0 ? ' vct-block-implicit' : '');
+          blocksHtml += `<div class="${cls}" data-idx="${w.idx}" style="left:${pct(w.start)}%;width:${pct(w.end) - pct(w.start)}%"></div>`;
+        });
+        const laneLabel = captureLoopLaneLabel(track, loopId, laneOverrides);
+        const loopAddAttrs = editable ? ` data-addable="loop" data-add-track-id="${trackId}" data-add-loop-id="${loopId}"` : '';
+        nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" data-lane-kind="loop" data-track-id="${trackId}" data-loop-id="${loopId}" title="${editable ? tr('captureRenameHint') : ''}">${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${loopAddAttrs} title="${editable ? tr('captureAddLoopHint') : ''}">${blocksHtml}</div></div>`;
+      });
+    } else if (track.mode === 'vertical-random') {
+      // Une seule piste "Section" (2026-09-16), volontairement pas détaillée par pool (demande explicite de
+      // Jules-Antoine : "dans l'éditeur, on ne détaille pas le contenu du pool") -- mais chaque bloc
+      // correspond maintenant à un vrai cycle capturé (vr_intro_start/vr_section_start/vr_outro_start, voir
+      // buildVRTimelineWindows), déplaçable comme les autres blocs chaînés, avec ses tirages de pool réels
+      // conservés dans l'événement pour un export fidèle -- plus le simple repère "ce morceau jouait ici"
+      // d'avant, qui ne portait aucune donnée exportable.
+      const vrWindows = buildVRTimelineWindows(events, trackId, total);
+      let blocksHtml = '';
+      if (vrWindows.length) {
+        vrWindows.forEach(w => {
+          blocksHtml += `<div class="vct-block vct-layer" data-idx="${w.idx}" style="left:${pct(w.start)}%;width:${pct(w.end) - pct(w.start)}%"></div>`;
+        });
+      } else {
+        // Repli (capture très courte, arrêtée avant le premier cycle réel) : simple repère non interactif,
+        // comme le comportement d'origine.
+        const trackPlayEvents = events.filter(e => e.name === 'track_play' && e.detail.trackId === trackId).sort((a, b) => a.t - b.t);
+        trackPlayEvents.forEach((e, i) => {
+          const end = i + 1 < trackPlayEvents.length ? trackPlayEvents[i + 1].t : total;
+          blocksHtml += `<div class="vct-block vct-layer vct-block-implicit" data-idx="-1" style="left:${pct(e.t)}%;width:${pct(end) - pct(e.t)}%"></div>`;
+        });
+      }
+      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label">Section</div><div class="vct-lane-track">${blocksHtml}</div></div>`;
+    } else if (track.mode === 'sequential') {
+      // Une seule variation audible à la fois -- chaque événement (emplacement, transition, intro, outro)
+      // ferme la fenêtre précédente et en ouvre une nouvelle, exactement comme pour les boucles. Les
+      // transitions ont leur propre piste (une par embranchement source->cible distinct, comme les
+      // emplacements) ; intro/outro sont des pistes uniques puisqu'un morceau n'en a qu'une de chaque.
+      // Seuls les emplacements restent renommables/ajoutables au clic (intro/outro/transitions sont des
+      // fichiers "cachets" du morceau lui-même, pas des passages composés pour cette prise -- 2026-09-16).
+      const windows = buildSeqTimelineWindows(events, trackId, total);
+      const laneKeys = [];
+      windows.forEach(w => { if (laneKeys.indexOf(w.laneKey) === -1) laneKeys.push(w.laneKey); });
+      laneKeys.forEach(laneKey => {
+        const first = windows.find(w => w.laneKey === laneKey);
+        let blocksHtml = '';
+        windows.forEach(w => {
+          if (w.laneKey !== laneKey) return;
+          blocksHtml += `<div class="vct-block vct-layer" data-idx="${w.idx}" style="left:${pct(w.start)}%;width:${pct(w.end) - pct(w.start)}%"></div>`;
+        });
+        const laneLabel = captureSeqWindowLabel(track, first, laneOverrides);
+        const renameAttrs = first.kind === 'slot' ? ` data-lane-kind="slot" data-track-id="${trackId}" data-slot-id="${first.slotId}" title="${editable ? tr('captureRenameHint') : ''}"` : '';
+        const addAttrs = first.kind === 'slot' && editable ? ` data-addable="slot" data-add-track-id="${trackId}" data-add-slot-id="${first.slotId}"` : '';
+        nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label"${renameAttrs}>${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${addAttrs} title="${editable && first.kind === 'slot' ? tr('captureAddSlotHint') : ''}">${blocksHtml}</div></div>`;
+      });
+    } else {
+      const trackLayerEvents = events.filter(e => e.name === 'layer_segment' && e.detail.trackId === trackId);
+      const layers = track.layers || [];
+      if (trackLayerEvents.length) {
+        // Calques indépendants (matérialisés une fois pour toutes à l'arrêt de la capture par
+        // materializeLayerSegments -- voir ce commentaire pour le raisonnement) : chaque layer_segment a
+        // son propre début + durée, comme un stinger, sans lien avec les autres calques ni avec un
+        // quelconque "niveau". Se déplace/se redimensionne seul (voir startDrag), sans jamais bouger un
+        // autre bloc.
+        // Intensité pilotée par un curseur : blocs déduits de ses points (voir syncSliderIntensityLayers), donc non
+        // déplaçables ici -- on retouche le curseur, pas les calques.
+        const intensitySl = window.LayerCapturePlan.intensitySliderOf(track);
+        const layerEditable = editable && !intensitySl;
+        const lockedTitle = intensitySl ? tr('captureLayerFollowsSlider').replace('{label}', intensitySl.label || tr('fxSliderFallbackLabel').replace('{n}', 1)) : '';
+        layers.forEach((layer, levelIdx) => {
+          let blocksHtml = '';
+          trackLayerEvents.filter(e => e.detail.layerIndex === levelIdx).forEach(e => {
+            const idx = layerEditable ? events.indexOf(e) : -1;
+            const end = e.t + e.detail.duration;
+            blocksHtml += `<div class="vct-block vct-layer" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(end) - pct(e.t)}%${intensitySl ? ';cursor:default' : ''}"${intensitySl ? ` title="${window.LayerPlayerCore.escapeHtml(lockedTitle)}"` : ''}>` +
+              (layerEditable ? `<div class="vct-resize-handle" title="${tr('captureResizeHint')}"></div>` : '') + `</div>`;
+          });
+          const laneLabel = captureLaneLabel(track, levelIdx, laneOverrides);
+          const addAttrs = layerEditable ? ` data-addable="layer" data-add-track-id="${trackId}" data-add-level="${levelIdx}"` : '';
+          nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" data-lane-kind="layer" data-track-id="${trackId}" data-level="${levelIdx}" title="${editable ? tr('captureRenameHint') : ''}">${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track"${addAttrs} title="${layerEditable ? tr('captureAddLayerHint') : lockedTitle}">${blocksHtml}</div></div>`;
+        });
+      } else {
+        // Pas encore matérialisé : aperçu en direct pendant l'enregistrement (toujours en lecture seule,
+        // `editable` est déjà à false à ce stade) -- calcul par empilage cumulatif à partir des points
+        // intensity_change bruts, avant leur conversion en segments indépendants à l'arrêt.
+        const trackIntensityEvents = intensityEvents.filter(e => e.detail.trackId === trackId);
+        const cumulative = window.LayerPlayerCore.cumulativeProfiles(layers.length);
+        layers.forEach((layer, levelIdx) => {
+          let blocksHtml = '';
+          trackIntensityEvents.forEach((e, i) => {
+            const profile = cumulative[e.detail.level] || cumulative[0];
+            if (!profile || !profile[levelIdx]) return;
+            const end = i + 1 < trackIntensityEvents.length ? trackIntensityEvents[i + 1].t : total;
+            const idx = events.indexOf(e);
+            blocksHtml += `<div class="vct-block vct-layer" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(end) - pct(e.t)}%"></div>`;
+          });
+          const laneLabel = captureLaneLabel(track, levelIdx, laneOverrides);
+          nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" data-lane-kind="layer" data-track-id="${trackId}" data-level="${levelIdx}">${window.LayerPlayerCore.escapeHtml(laneLabel)}</div><div class="vct-lane-track">${blocksHtml}</div></div>`;
+        });
+      }
+    }
+    // Effets déclenchables par bouton (23/09) : une piste par trigger défini sur le morceau, blocs = les
+    // moments où le bouton était enfoncé (fx_segment) -- déplaçables, redimensionnables, ajoutables au clic,
+    // comme les segments de calque. Rejoués à l'export par le moteur du lecteur (capture-render.js).
+    (track.fxTriggers || []).filter(d => d && d.id && d.fx).forEach((d, di) => {
+      let blocksHtml = '';
+      events.filter(e => e.name === 'fx_segment' && e.detail.trackId === trackId && e.detail.triggerId === d.id).forEach(e => {
+        const idx = events.indexOf(e);
+        blocksHtml += `<div class="vct-block vct-fx" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + e.detail.duration) - pct(e.t)}%">` +
+          (editable ? `<div class="vct-resize-handle" title="${tr('captureResizeHint')}"></div>` : '') + `</div>`;
+      });
+      // Coupures faites par le visiteur sur un trigger activé par cascade : simple repère déplaçable.
+      events.filter(e => e.name === 'fx_cut' && e.detail.trackId === trackId && e.detail.triggerId === d.id).forEach(e => {
+        const idx = events.indexOf(e);
+        blocksHtml += `<div class="vct-block vct-fx vct-fx-cut" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.4) - pct(e.t)}%" title="${window.LayerPlayerCore.escapeHtml(describeCaptureEvent(e, laneOverrides))}"></div>`;
+      });
+      const addAttrs = editable ? ` data-addable="fxseg" data-add-track-id="${trackId}" data-add-trigger-id="${window.LayerPlayerCore.escapeHtml(d.id)}"` : '';
+      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(d.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureFxLaneLabel').replace('{label}', d.label || tr('fxTriggerFallbackLabel').replace('{n}', di + 1)))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddFxHint') : ''}">${blocksHtml}</div></div>`;
+    });
+    // Curseurs de paramètre (24/09) : une piste par curseur, un point-clé par valeur enregistrée (déplaçable, valeur
+    // éditable dans le détail, ajout d'un clic). Rejoués à l'export par le moteur du lecteur.
+    window.LayerPlayerCore.fxSlidersValid(track).forEach((sl, sliderIdx) => {
+      let blocksHtml = '';
+      events.filter(e => e.name === 'fx_slider' && e.detail.trackId === trackId && e.detail.sliderId === sl.id).forEach(e => {
+        const idx = events.indexOf(e);
+        blocksHtml += `<div class="vct-block vct-slider" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.5) - pct(e.t)}%" title="${Math.round(e.detail.value * 100)}%"><span class="vct-block-label">${Math.round(e.detail.value * 100)}%</span></div>`;
+      });
+      const addAttrs = editable ? ` data-addable="fxslider" data-add-track-id="${trackId}" data-add-slider-id="${window.LayerPlayerCore.escapeHtml(sl.id)}"` : '';
+      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(sl.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureSliderLaneLabel').replace('{label}', sl.label || tr('fxSliderFallbackLabel').replace('{n}', sliderIdx + 1)))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddSliderHint') : ''}">${blocksHtml}</div></div>`;
+    });
+    // Regroupe les pistes sous le nom du morceau qui les possède (2026-09-15) -- le titre lui-même n'est
+    // pas éditable ici, c'est le vrai nom du morceau, pas un libellé de prise.
+    lanesHtml += renderGroup('track:' + trackId, track.title || 'Morceau', 'vct-track-group-music', nestedLanesHtml);
+  });
+
+  // Auditeur (23/09) : les gestes de "tourner la tête" enregistrés pendant la prise, en points-clés (chaque
+  // point = l'orientation à cet instant, en degrés, éditable dans le détail) -- affiché dès qu'il y en a, ou
+  // dès qu'un Sfx spatialisé joue (pour pouvoir en ajouter un au clic).
+  const headEvents = events.filter(e => e.name === 'head_turn');
+  const hasSpatialSfx = stingerEvents.some(e => { const sf = findCaptureSfx(e.detail.sfxId); return !!(sf && sf.spatial && sf.spatial.enabled); });
+  if (headEvents.length || hasSpatialSfx) {
+    let blocksHtml = '';
+    headEvents.forEach(e => {
+      const idx = events.indexOf(e);
+      blocksHtml += `<div class="vct-block vct-head" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.5) - pct(e.t)}%" title="${Math.round(e.detail.yaw)}°"><span class="vct-block-label">${Math.round(e.detail.yaw)}°</span></div>`;
+    });
+    const addAttrs = editable ? ` data-addable="head"` : '';
+    const headLane = `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label">${tr('captureHeadLane')}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddHeadHint') : ''}">${blocksHtml}</div></div>`;
+    lanesHtml += renderGroup('head:', tr('captureHeadGroup'), 'vct-track-group-head', headLane);
+  }
+
+  container.__vctTotal = total;
+  container.innerHTML = `
+    <div class="vct-ruler">${ticksHtml}</div>
+    <div class="vct-lanes">${lanesHtml}</div>
+    <div class="vct-playhead" id="vctPlayhead"></div>
+    <div class="vct-detail" id="vctDetail"><span class="vct-detail-empty">${editable ? tr('captureTimelineHint') : ''}</span></div>
+  `;
+  positionCapturePlayhead(container, videoEl);
+  container.querySelectorAll('.vct-track-group-header').forEach(headerEl => {
+    headerEl.addEventListener('click', () => {
+      const key = headerEl.dataset.groupKey;
+      collapsedGroups[key] = !collapsedGroups[key];
+      rerender();
+    });
+  });
+  if (!editable) return;
+
+  // Les stingers ET les segments de calque ont chacun un vrai IN + OUT/durée, indépendant de tout autre
+  // bloc (façon cue sheet) -- seul le nom du champ diffère (durationOverride vs duration, ce dernier
+  // toujours défini puisque matérialisé, jamais "d'origine" à retrouver). Ces deux petits accesseurs
+  // évitent de dupliquer la logique d'édition/glisser pour les deux types.
+  function hasIndependentDuration(e) { return e.name === 'stinger_play' || e.name === 'layer_segment' || e.name === 'fx_segment'; }
+  function getEventDuration(e) { return (e.name === 'layer_segment' || e.name === 'fx_segment') ? e.detail.duration : (e.detail.durationOverride || 1); }
+  function setEventDuration(e, v) {
+    if (e.name === 'layer_segment' || e.name === 'fx_segment') e.detail.duration = Math.max(0.1, v);
+    else e.detail.durationOverride = (v == null || v <= 0) ? null : v;
+  }
+
+  function selectBlock(idx, el) {
+    container.querySelectorAll('.vct-block').forEach(b => b.classList.remove('vct-selected'));
+    el.classList.add('vct-selected');
+    const e = events[idx];
+    const editableDuration = hasIndependentDuration(e);
+    const isSfx = e.name === 'stinger_play';
+    // Duck (2026-09-15) : baisse le volume de la musique pendant que le stinger joue, comme le fait déjà
+    // le vrai moteur pour les Sfx marqués duckMainTrack -- pré-coché selon ce réglage d'origine du son,
+    // mais modifiable pour cette prise (e.detail.duck, undefined tant qu'intact = suit le réglage du son).
+    const sfxForDuck = isSfx ? findCaptureSfx(e.detail.sfxId) : null;
+    const duckChecked = isSfx && (e.detail.duck !== undefined ? e.detail.duck : !!(sfxForDuck && sfxForDuck.duckMainTrack));
+    const detailEl = container.querySelector('#vctDetail');
+    detailEl.innerHTML = `
+      <span class="vct-detail-label">${window.LayerPlayerCore.escapeHtml(describeCaptureEvent(e, laneOverrides))}</span>
+      <input type="number" step="0.1" min="0" value="${e.t.toFixed(2)}" class="video-capture-event-time" title="${tr('captureTimeInputTitle')}">
+      ${editableDuration ? `<input type="number" step="0.1" min="0" placeholder="${isSfx ? tr('captureDurationPlaceholder') : ''}" value="${isSfx ? (e.detail.durationOverride ? e.detail.durationOverride.toFixed(2) : '') : e.detail.duration.toFixed(2)}" class="video-capture-event-duration" title="${tr('captureDurationInputTitle')}">` : ''}
+      ${e.name === 'head_turn' ? `<input type="number" step="1" min="-180" max="180" value="${Math.round(e.detail.yaw)}" class="video-capture-event-yaw" title="${tr('captureYawInputTitle')}">` : ''}
+      ${e.name === 'fx_slider' ? `<input type="number" step="1" min="0" max="100" value="${Math.round(e.detail.value * 100)}" class="video-capture-event-slidervalue" title="${tr('captureSliderValueTitle')}">` : ''}
+      ${isSfx ? `<label class="video-capture-duck-label" title="${tr('captureDuckHint')}"><input type="checkbox" class="video-capture-event-duck" ${duckChecked ? 'checked' : ''}> Duck</label>` : ''}
+      <button type="button" class="video-capture-event-del" title="${tr('captureDeleteBtn')}" aria-label="${tr('captureDeleteBtn')}">✕</button>
+    `;
+    detailEl.querySelector('.video-capture-event-time').addEventListener('change', (ev) => {
+      const v = parseFloat(ev.target.value);
+      e.t = isNaN(v) ? e.t : Math.max(0, v);
+      events.sort((a, b) => a.t - b.t); // garde l'ordre chronologique après une retouche manuelle
+      rerender();
+      onChange && onChange();
+    });
+    const durationInput = detailEl.querySelector('.video-capture-event-duration');
+    if (durationInput) {
+      durationInput.addEventListener('change', (ev) => {
+        const v = parseFloat(ev.target.value);
+        setEventDuration(e, isNaN(v) ? null : v);
+        rerender();
+        onChange && onChange();
+      });
+    }
+    const sliderValInput = detailEl.querySelector('.video-capture-event-slidervalue');
+    if (sliderValInput) {
+      sliderValInput.addEventListener('change', (ev) => {
+        const v = parseFloat(ev.target.value);
+        if (!isNaN(v)) e.detail.value = Math.max(0, Math.min(1, v / 100));
+        rerender();
+        onChange && onChange();
+      });
+    }
+    const yawInput = detailEl.querySelector('.video-capture-event-yaw');
+    if (yawInput) {
+      yawInput.addEventListener('change', (ev) => {
+        const v = parseFloat(ev.target.value);
+        if (!isNaN(v)) e.detail.yaw = Math.max(-180, Math.min(180, v));
+        rerender();
+        onChange && onChange();
+      });
+    }
+    const duckInput = detailEl.querySelector('.video-capture-event-duck');
+    if (duckInput) {
+      duckInput.addEventListener('change', (ev) => {
+        e.detail.duck = ev.target.checked;
+        onChange && onChange();
+      });
+    }
+    detailEl.querySelector('.video-capture-event-del').addEventListener('click', () => {
+      // Supprimer une bascule supprime aussi ce qu'elle a déclenché.
+      window.LayerCapturePlan.linkedMarks(events, e).forEach(m => { const j = events.indexOf(m); if (j >= 0) events.splice(j, 1); });
+      events.splice(events.indexOf(e), 1);
+      rerender();
+      onChange && onChange();
+    });
+  }
+
+  // Glisser-déposer façon DAW : écouteurs posés sur `document` (pas sur le bloc lui-même) pour survivre
+  // au réaffichage complet de la frise à chaque mouvement -- un bloc recréé en plein geste perdrait sinon
+  // la capture du pointeur. `kind` distingue déplacer (IN) de redimensionner (durée, uniquement depuis la
+  // poignée -- stingers et segments de calque seulement, jamais les boucles). Un mouvement sous 3px au
+  // relâché est traité comme un simple clic (ouvre le détail).
+  //
+  // Bornes de glisser (signalé par Jules-Antoine 2026-09-15) : SEULES les boucles (embr_loop_select)
+  // partagent encore un point avec leur voisine -- on ne doit jamais les faire se croiser (fenêtres
+  // inversées, rendu incohérent), calculé une fois au début du geste à partir des voisines ORIGINALES
+  // pour un comportement stable pendant tout le glisser. Les segments de calque et les stingers, eux,
+  // sont indépendants (matérialisés/toujours-été autonomes) : aucune borne de voisinage, on ne fait que
+  // les déplacer comme un bloc entier -- jamais "rogner" leur début, exactement ce que demandait
+  // Jules-Antoine (le bloc entier glisse, sa durée propre ne change jamais au déplacement).
+  function startDrag(pointerDownEvent, idx, kind) {
+    pointerDownEvent.preventDefault();
+    pointerDownEvent.stopPropagation();
+    const el = pointerDownEvent.currentTarget.closest('.vct-block');
+    const trackEl = el.closest('.vct-lane-track');
+    const trackRect = trackEl.getBoundingClientRect();
+    const startX = pointerDownEvent.clientX;
+    // Document COURANT de l'élément, pas le `document` global figé à l'ouverture du script (2026-09-16,
+    // nécessaire pour la fenêtre détachée -- voir detachCapturePanel) : une fois le panneau déplacé dans
+    // une autre fenêtre via appendChild, ses éléments changent réellement d'ownerDocument, mais les
+    // mouvements de souris dans CETTE fenêtre-là ne sont jamais reçus par l'ancien document.
+    const doc = pointerDownEvent.currentTarget.ownerDocument || document;
+    const e = events[idx];
+    const startT = e.t;
+    const startDuration = hasIndependentDuration(e) ? getEventDuration(e) : 1;
+    const EPS = 0.05;
+    // Boucles (embranchement-vertical), les 4 types d'événements du séquentiel (emplacement, transition,
+    // intro, outro -- une seule chronologie partagée, voir buildSeqTimelineWindows) ET les 3 types du
+    // vertical-random (intro, section, outro -- voir buildVRTimelineWindows) gardent encore un point avec
+    // leur voisin (une seule variation audible à la fois, la fenêtre suivante démarre pile où celle-ci
+    // finit) -- jamais les laisser se croiser. Un emplacement séquentiel doit donc être borné par SES
+    // voisins immédiats quel que soit LEUR type précis (ex. une transition qui le suit), pas seulement par
+    // d'autres emplacements -- pareil pour une section vertical-random face à l'intro/outro -- d'où un
+    // groupe de chaînage par famille plutôt qu'une simple égalité de nom. Calques et stingers, eux, sont
+    // totalement indépendants (voir hasIndependentDuration).
+    const isChainPoint = e.name === 'embr_loop_select' || SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 || VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1;
+    const chainGroupNames = SEQ_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 ? SEQ_TIMELINE_EVENT_NAMES
+      : VR_TIMELINE_EVENT_NAMES.indexOf(e.name) !== -1 ? VR_TIMELINE_EVENT_NAMES : null;
+    let minT = 0, maxT = total;
+    if (kind === 'move' && isChainPoint) {
+      let minNeighbor = 0, maxNeighbor = total;
+      events.forEach(o => {
+        if (o === e || o.detail.trackId !== e.detail.trackId) return;
+        const sameChain = chainGroupNames ? chainGroupNames.indexOf(o.name) !== -1 : o.name === e.name;
+        if (!sameChain) return;
+        if (o.t < startT && o.t > minNeighbor) minNeighbor = o.t;
+        if (o.t > startT && o.t < maxNeighbor) maxNeighbor = o.t;
+      });
+      minT = minNeighbor + EPS; maxT = maxNeighbor - EPS;
+    }
+    let moved = false;
+    // Une bascule d'embranchement emporte avec elle ce qu'elle a déclenché (transition, baisse de la boucle quittée,
+    // retour automatique...) -- voir LayerCapturePlan.linkedMarks.
+    const linked = kind === 'move' ? window.LayerCapturePlan.linkedMarks(events, e) : [];
+    const linkedStartTs = linked.map(m => m.t);
+    function onMove(ev) {
+      const dx = ev.clientX - startX;
+      if (Math.abs(dx) > 3) moved = true;
+      const dt = dx / trackRect.width * total;
+      if (kind === 'move') {
+        e.t = isChainPoint ? Math.min(Math.max(startT + dt, minT), maxT) : Math.max(0, startT + dt);
+        linked.forEach((m, i) => { m.t = Math.max(0, linkedStartTs[i] + (e.t - startT)); });
+      } else {
+        setEventDuration(e, startDuration + dt);
+      }
+      rerender();
+    }
+    function onUp() {
+      doc.removeEventListener('pointermove', onMove);
+      doc.removeEventListener('pointerup', onUp);
+      if (!moved) {
+        // Pas de vrai glisser : un simple clic, on rouvre juste le détail du bloc.
+        const freshEl = container.querySelector(`.vct-block[data-idx="${idx}"]`);
+        if (freshEl) selectBlock(idx, freshEl);
+        return;
+      }
+      if (kind === 'move') events.sort((a, b) => a.t - b.t); // garde l'ordre chronologique après le glisser
+      rerender();
+      onChange && onChange();
+    }
+    doc.addEventListener('pointermove', onMove);
+    doc.addEventListener('pointerup', onUp);
+  }
+  container.querySelectorAll('.vct-block:not(.vct-block-group)').forEach(el => {
+    const idx = parseInt(el.dataset.idx, 10);
+    if (idx < 0) return; // fenêtre implicite de départ (avant le premier vrai clic) -- pas interactive
+    el.addEventListener('pointerdown', (ev) => startDrag(ev, idx, 'move'));
+    const handle = el.querySelector('.vct-resize-handle');
+    if (handle) handle.addEventListener('pointerdown', (ev) => startDrag(ev, idx, 'resize'));
+  });
+
+  // Glisser le bloc-résumé d'un groupe entier : décale TOUS ses membres (mêmes trackId/sfxId) du même
+  // delta, ce qui préserve automatiquement leur espacement relatif -- pas besoin de borner contre des
+  // voisins internes (l'ordre entre membres du même groupe ne change jamais), seulement d'empêcher le
+  // membre le plus tôt de passer sous 0.
+  function startGroupDrag(pointerDownEvent, key) {
+    pointerDownEvent.preventDefault();
+    pointerDownEvent.stopPropagation();
+    const trackRect = pointerDownEvent.currentTarget.closest('.vct-lane-track').getBoundingClientRect();
+    const startX = pointerDownEvent.clientX;
+    const doc = pointerDownEvent.currentTarget.ownerDocument || document; // voir startDrag ci-dessus
+    const members = groupMembers(key);
+    if (!members.length) return;
+    const startTs = members.map(m => m.t);
+    const minStartT = Math.min(...startTs);
+    let moved = false;
+    function onMove(ev) {
+      const dx = ev.clientX - startX;
+      if (Math.abs(dx) > 3) moved = true;
+      let dt = dx / trackRect.width * total;
+      dt = Math.max(dt, -minStartT); // n'autorise jamais un membre à passer sous 0
+      members.forEach((m, i) => { m.t = startTs[i] + dt; });
+      rerender();
+    }
+    function onUp() {
+      doc.removeEventListener('pointermove', onMove);
+      doc.removeEventListener('pointerup', onUp);
+      if (!moved) return;
+      events.sort((a, b) => a.t - b.t);
+      rerender();
+      onChange && onChange();
+    }
+    doc.addEventListener('pointermove', onMove);
+    doc.addEventListener('pointerup', onUp);
+  }
+  container.querySelectorAll('.vct-block-group').forEach(el => {
+    el.addEventListener('pointerdown', (ev) => startGroupDrag(ev, el.dataset.groupKey));
+  });
+
+  // Clic sur une zone vide d'une piste = crée un nouveau bloc à cet endroit (calque, boucle ou stinger --
+  // même geste partout, seul le type d'événement créé change selon la piste) -- pour les cas où rien n'a
+  // été cliqué pendant la prise (silence réel au début, par exemple) mais où quelque chose doit en fait
+  // se jouer là (2026-09-15, à la demande de Jules-Antoine : le silence par défaut reste correct, mais il
+  // doit pouvoir ajouter du son là où il en veut plutôt que subir une hypothèse automatique). Durée de
+  // départ 3s pour les calques/boucles (ajustable ensuite) ; les stingers gardent leur longueur d'origine
+  // tant qu'on ne retouche pas leur durée. `ev.target !== trackEl` exclut les clics qui viennent en fait
+  // d'un bloc existant (déjà géré par startDrag/selectBlock).
+  container.querySelectorAll('.vct-lane-track[data-addable]').forEach(trackEl => {
+    trackEl.addEventListener('click', (ev) => {
+      if (ev.target !== trackEl) return;
+      const rect = trackEl.getBoundingClientRect();
+      const t = Math.max(0, (ev.clientX - rect.left) / rect.width * total);
+      const kind = trackEl.dataset.addable;
+      if (kind === 'layer') {
+        events.push({ t, name: 'layer_segment', detail: { trackId: trackEl.dataset.addTrackId, layerIndex: parseInt(trackEl.dataset.addLevel, 10), duration: 3 } });
+      } else if (kind === 'loop') {
+        events.push({ t, name: 'embr_loop_select', detail: { trackId: trackEl.dataset.addTrackId, loopId: trackEl.dataset.addLoopId } });
+      } else if (kind === 'sfx') {
+        events.push({ t, name: 'stinger_play', detail: { sfxId: trackEl.dataset.addSfxId, variationIndex: parseInt(trackEl.dataset.addVariation, 10) } });
+      } else if (kind === 'slot') {
+        events.push({ t, name: 'seq_slot_start', detail: { trackId: trackEl.dataset.addTrackId, slotId: trackEl.dataset.addSlotId, altIndex: 0 } });
+      } else if (kind === 'fxseg') {
+        events.push({ t, name: 'fx_segment', detail: { trackId: trackEl.dataset.addTrackId, triggerId: trackEl.dataset.addTriggerId, duration: 3 } });
+      } else if (kind === 'fxslider') {
+        // Nouveau point-clé : reprend la valeur du point précédent de ce curseur (ou sa position de départ).
+        const tId = trackEl.dataset.addTrackId, sId = trackEl.dataset.addSliderId;
+        const prev = events.filter(o => o.name === 'fx_slider' && o.detail.trackId === tId && o.detail.sliderId === sId && o.t <= t).sort((a, b) => b.t - a.t)[0];
+        const trk = findCaptureTrack(tId);
+        const def = trk ? window.LayerPlayerCore.fxSlidersValid(trk).find(x => x.id === sId) : null;
+        events.push({ t, name: 'fx_slider', detail: { trackId: tId, sliderId: sId, value: prev ? prev.detail.value : (def ? def.def : 0) } });
+      } else if (kind === 'head') {
+        events.push({ t, name: 'head_turn', detail: { yaw: 0 } });
+      } else {
+        return;
+      }
+      events.sort((a, b) => a.t - b.t);
+      rerender();
+      onChange && onChange();
+    });
+  });
+
+  // Renommage d'une piste pour cette prise -- calques (vertical), boucles (embranchement-vertical) ou
+  // emplacements (séquentiel), même mécanique : clic sur le nom, remplacé par un champ texte, validé par
+  // Entrée ou en cliquant ailleurs. Le morceau concerné est résolu via data-track-id porté par
+  // l'étiquette (plusieurs morceaux possibles dans la même prise, voir ci-dessus).
+  container.querySelectorAll('.vct-lane-label[data-lane-kind="layer"], .vct-lane-label[data-lane-kind="loop"], .vct-lane-label[data-lane-kind="slot"]').forEach(labelEl => {
+    labelEl.addEventListener('click', () => {
+      const kind = labelEl.dataset.laneKind;
+      const trk = findCaptureTrack(labelEl.dataset.trackId);
+      if (!trk) return;
+      const levelIdx = kind === 'layer' ? parseInt(labelEl.dataset.level, 10) : null;
+      const loopId = kind === 'loop' ? labelEl.dataset.loopId : null;
+      const slotId = kind === 'slot' ? labelEl.dataset.slotId : null;
+      const key = kind === 'loop' ? (trk.id + ':loop:' + loopId) : kind === 'slot' ? (trk.id + ':slot:' + slotId) : (trk.id + ':' + levelIdx);
+      const current = kind === 'loop' ? captureLoopLaneLabel(trk, loopId, laneOverrides)
+        : kind === 'slot' ? captureSlotLaneLabel(trk, slotId, laneOverrides)
+        : captureLaneLabel(trk, levelIdx, laneOverrides);
+      const realDefault = kind === 'loop' ? (((trk.loops || []).find(l => l.id === loopId) || {}).label || '')
+        : kind === 'slot' ? (((trk.segmentSlots || []).find(s => s.id === slotId) || {}).label || '')
+        : ((trk.layers[levelIdx] || {}).label || '');
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'vct-lane-rename-input';
+      input.value = current;
+      labelEl.replaceWith(input);
+      input.focus();
+      input.select();
+      function commit() {
+        const v = input.value.trim();
+        if (v && v !== realDefault) laneOverrides[key] = v;
+        else delete laneOverrides[key];
+        rerender();
+      }
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+        if (ev.key === 'Escape') { ev.preventDefault(); rerender(); }
+      });
+      input.addEventListener('blur', commit);
+    });
+  });
+}
+
+// --- Sauvegarde côté serveur (2026-09-16) --------------------------------------------------------
+// Décidé le 16 septembre : Jules-Antoine a explicitement écarté le JSON à télécharger/réimporter (trop
+// de friction) au profit d'une sauvegarde hébergée dans le Backstage -- voir supabase/migrations/
+// 20260916010000_video_captures.sql et decisions/2026-09-15-capture-tiers-sauvegarde.md (docs privés).
+// La vidéo importée elle-même n'est PAS envoyée au serveur (choix délibéré, voir la migration) : seul
+// son nom est conservé pour que le compositeur s'y retrouve, il doit réimporter le même fichier local
+// à chaque reprise. Gating réel côté serveur (is_admin(), palier Boss pas encore implémenté) -- ces
+// fonctions ne font que relayer l'appel, aucune vérification client à dupliquer ici.
+// Le bouton "Télécharger le JSON" (v1 de la fonctionnalité, avant la sauvegarde serveur) a été retiré
+// le 16 septembre : un export JSON en libre accès contournerait entièrement le futur gating par palier
+// (Rookie/Warrior sans persistance, Boss avec) -- n'importe qui pourrait "sauvegarder" gratuitement en
+// téléchargeant le fichier, rendant le futur verrou Boss sans objet. Toute persistance doit passer par
+// ces RPC, jamais par un fichier que le client peut simplement garder.
+// Montages d'un STUDIO (21/10, migration 20261021060000) : un compte studio (window.__lpStudioBuyer) enregistre ses montages, versions,
+// sons et vidéos muettes AU NOM DU STUDIO -- tout membre de l'équipe les retouche, ils restent au studio, quota du studio. Chaque appel
+// aux fonctions vidéo porte alors p_studio (et asStudio pour les envois de fichiers).
+const videoAsStudio = () => !!window.__lpStudioBuyer;
+const withStudio = args => (videoAsStudio() ? Object.assign({}, args, { p_studio: true }) : args);
+async function saveVideoCapture(packId, id, title, videoFilename, events, laneOverrides, collapsedGroups) {
+  const client = window.LayerPitchSupabaseClient.getClient();
+  const { data, error } = await client.rpc('save_video_capture', withStudio({
+    p_id: id, p_pack_id: packId, p_title: title || '', p_video_filename: videoFilename || null,
+    p_events: events, p_lane_overrides: laneOverrides, p_collapsed_groups: collapsedGroups,
+  }));
+  if (error) throw error;
+  return data;
+}
+async function listVideoCaptures(packId) {
+  const client = window.LayerPitchSupabaseClient.getClient();
+  const { data, error } = await client.rpc('list_my_video_captures', withStudio({ p_pack_id: packId }));
+  if (error) throw error;
+  return data || [];
+}
+async function loadVideoCapture(id) {
+  const client = window.LayerPitchSupabaseClient.getClient();
+  const { data, error } = await client.rpc('get_video_capture', withStudio({ p_id: id }));
+  if (error) throw error;
+  return data;
+}
+
+// --- Export vidéo (ffmpeg.wasm) ---------------------------------------------------------------
+// Même logique que video-engine-prototype/render-from-capture.js (validée côté Node avec de vrais
+// morceaux), portée ici pour tourner directement dans le navigateur -- fichiers servis en local
+// (vendor/ffmpeg/) plutôt que depuis un CDN : le Worker que la librairie construit en interne doit
+// être de même origine que la page, un CDN cross-origin le fait échouer silencieusement (SecurityError).
+// Coeur multi-thread DÉFINITIVEMENT désactivé -- voir le même flag dans layerpitch-backstage.html pour
+// le détail : plusieurs tentatives le 16 septembre (dont -threads 2 pour éviter le deadlock connu,
+// https://github.com/ffmpegwasm/ffmpeg.wasm/issues/772), aucune n'a résolu le blocage. Ne pas repasser
+// à true sans une piste nouvelle et vérifiable.
+const FFMPEG_MULTITHREAD_ENABLED = false;
+let ffmpegSingleton = null;
+async function loadFfmpegWasm(onProgress) {
+  if (ffmpegSingleton) return ffmpegSingleton;
+  onProgress && onProgress(tr('captureFfmpegLoading'));
+  const { FFmpeg } = await import('./vendor/ffmpeg/ffmpeg/index.js');
+  const ffmpeg = new FFmpeg();
+  // Coeur multi-thread (vendor/ffmpeg/core-mt/) uniquement si la page est servie avec les en-têtes
+  // d'isolation (window.crossOriginIsolated) -- le Worker Cloudflare mis en place le 16 septembre ne
+  // les envoie que pour pack.html?capture=1, jamais pour une visite normale d'un pack. Repli
+  // silencieux sur le coeur mono-thread existant sinon.
+  const useMultiThread = FFMPEG_MULTITHREAD_ENABLED && typeof SharedArrayBuffer !== 'undefined' && self.crossOriginIsolated;
+  const coreDir = useMultiThread ? 'core-mt' : 'core';
+  await ffmpeg.load({
+    coreURL: new URL(`./vendor/ffmpeg/${coreDir}/ffmpeg-core.js`, location.href).href,
+    wasmURL: new URL(`./vendor/ffmpeg/${coreDir}/ffmpeg-core.wasm`, location.href).href,
+  });
+  ffmpegSingleton = ffmpeg;
+  return ffmpeg;
+}
+
+function findCaptureTrack(trackId) { return (window.__lpCaptureLibrary.library || []).find(t => t.id === trackId); }
+function findCaptureSfx(sfxId) { return (window.__lpCaptureLibrary.sfxLibrary || []).find(s => s.id === sfxId); }
+
+async function fetchAsUint8Array(url) {
+  const res = await window.LayerPlayerCore.fetchAudio(url); // audio des morceaux protégés : lien signé (player.js)
+  if (!res.ok) throw new Error(tr('captureFetchError').replace('{url}', url));
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+// --- Bibliothèque vidéo (2026-09-16) -- déposer un export du moteur de capture dans composer_videos,
+// voir supabase/migrations/20260916020000_composer_videos.sql et 20260916040000_open_capture_video_to_
+// composers.sql. Même mécanisme d'URL R2 pré-signée que layerpitch-backstage.html (create-media-signed-
+// url), jamais utilisé jusqu'ici dans pack.html -- dupliqué ici plutôt que partagé entre les deux
+// fichiers (aucun module commun entre eux, même raisonnement que trackPublicEvent()).
+const MEDIA_BASE = 'https://media.layerpitch.com/';
+// size : taille exacte d'un envoi (PUT), vérifiée et verrouillée par le serveur avec le type de fichier (27/09).
+// Envois vidéo AU NOM D'UN STUDIO : prêts seulement quand la fonction create-media-signed-url (asStudio, 21/10) est redéployée.
+// D'ici là, bloqués ici (seul point de passage des envois) : sinon l'ancienne fonction créerait un profil compositeur au compte studio.
+// Passer à true une fois le redéploiement fait.
+window.__lpStudioVideoUploadsReady = false;
+async function r2SignedUrl(path, method, size) {
+  if (window.__lpStudioBuyer && path.startsWith('video/') && !window.__lpStudioVideoUploadsReady) throw new Error(tr('captureStudioUploadSoon'));
+  const { data, error } = await window.LayerPitchSupabaseClient.getClient()
+    .functions.invoke('create-media-signed-url', { body: window.__lpStudioBuyer && path.startsWith('video/') ? { path, method, size, asStudio: true } : { path, method, size } }); // vidéo d'un studio : à son nom
+  if (error) throw new Error(await window.LayerPitchAuth.describeFunctionError(error));
+  if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
+  return data;
+}
+async function r2PutFile(key, bytes, contentType) {
+  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength);
+  // En-têtes imposés et signés par le serveur (type, et pour un SVG Content-Disposition) : renvoyés tels quels, sinon
+  // R2 refuse l'envoi. contentType ne sert plus que si le serveur n'en renvoie pas (ancienne version).
+  const res = await fetch(url, { method: 'PUT', headers: headers || { 'content-type': contentType }, body: bytes });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
+  }
+}
+// Vidéo muette d'un montage (21/10) : l'image d'origine recopiée sans son (-an, -c:v copy : aucun réencodage, quelques secondes).
+async function makeSilentVideo(videoFile, onProgress) {
+  const ffmpeg = await loadFfmpegWasm(onProgress);
+  const ext = videoFile.name.slice(videoFile.name.lastIndexOf('.')) || '.mp4';
+  await ffmpeg.writeFile('src' + ext, new Uint8Array(await videoFile.arrayBuffer()));
+  const code = await ffmpeg.exec(['-i', 'src' + ext, '-an', '-c:v', 'copy', 'base.mp4']);
+  if (code !== 0) throw new Error('ffmpeg (vidéo muette) a échoué');
+  const out = await ffmpeg.readFile('base.mp4');
+  return new Blob([out.buffer], { type: 'video/mp4' });
+}
+// Son d'une version (21/10) : le WAV rendu par le moteur du lecteur, compressé en AAC dans un conteneur .mp4 (léger, lu partout).
+async function encodeSoundForLibrary(wavBlob, onProgress) {
+  const ffmpeg = await loadFfmpegWasm(onProgress);
+  await ffmpeg.writeFile('mix.wav', new Uint8Array(await wavBlob.arrayBuffer()));
+  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '160k', 'sound.mp4']);
+  if (code !== 0) throw new Error('ffmpeg (son) a échoué');
+  const out = await ffmpeg.readFile('sound.mp4');
+  return new Blob([out.buffer], { type: 'video/mp4' });
+}
+// Efface du stockage les fichiers des vidéos retirées de la bibliothèque par l'historique des exports (21/10, migration 20261021030000) :
+// le serveur rend leurs chemins, la page les efface (même URL signée que la bibliothèque du Backstage). Jamais bloquant.
+async function r2DeleteRemovedVideos(removed) {
+  for (const r of (removed || [])) {
+    try {
+      const data = await r2SignedUrl(r.path, 'DELETE');
+      if (data && data.url && !data.kept) await fetch(data.url, { method: 'DELETE' });
+    } catch (e) { console.warn('Effacement du fichier ' + r.path + ' :', e.message || e); }
+  }
+}
+// Envoie un export terminé (Blob mp4) dans la bibliothèque vidéo du compositeur -- kind:'capture_export'
+// pour le distinguer d'un simple import (voir composer_videos.kind), pack_id relie l'export à CE pack.
+// Pas de recompression ffmpeg ici (contrairement à un import dans le Backstage) : le fichier sort déjà
+// de exportCaptureVideo en H.264, faire subir une deuxième passe ffmpeg.wasm juste après l'export
+// initial (déjà long) serait une attente supplémentaire dont le gain resterait marginal.
+// kind (21/10) : 'capture_export' (vidéo complète, par défaut), 'capture_base' (vidéo muette d'un montage) ou 'capture_audio' (son seul
+// d'une version, dans un conteneur .mp4) -- voir la migration 20261021040000.
+async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, kind) {
+  const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+  const base = `${MEDIA_BASE}video/${id}/`;
+  let uploaded = false;
+  try {
+    const fileName = kind === 'capture_audio' ? 'audio.mp4' : (kind === 'capture_base' ? 'base.mp4' : 'export.mp4');
+    await r2PutFile(`video/${id}/${fileName}`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    uploaded = true;
+    const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
+      payload: {
+        id, kind: kind || 'capture_export', packId, title: title || '', base, file: fileName, asStudio: videoAsStudio(),
+        mimeType: 'video/mp4', sizeBytes: blob.size, durationSeconds: durationSeconds || null,
+      },
+    });
+    if (error) throw error;
+  } catch (e) {
+    // Envoi raté après la réservation serveur (27/09, reserve_video_upload) : si le fichier n'est pas arrivé, la ligne
+    // « envoi en cours » est retirée (sans effet si rien n'avait été réservé). S'il est arrivé, elle reste : comptée
+    // dans le quota et supprimable depuis la bibliothèque du Backstage, qui efface aussi le fichier.
+    if (!uploaded) window.LayerPitchSupabaseClient.getClient().rpc('delete_video', withStudio({ p_id: id })).then(() => {}, () => {});
+    throw e;
+  }
+  return id;
+}
+
+// Reprend exactement la logique de conversion de render-from-capture.js (mode "vertical" -- calques en
+// parallèle -- + stingers). Les embranchements/séquentiel ne sont pas encore gérés ici non plus.
+async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, exportOptions) {
+  onProgress = onProgress || (() => {});
+  laneOverrides = laneOverrides || {};
+  // Filigrane + crédit compositeur (2026-09-16, decisions/2026-09-16-capture-watermark-composer-credit.md,
+  // docs privés) : `tier` reste un réglage manuel du panneau tant que Rookie/Warrior/Boss n'existe nulle
+  // part ailleurs dans le produit -- une fois ce palier réel, remplacer par le vrai palier du compositeur
+  // qui capture. `showComposerCredit` reste coché par défaut côté UI (voir openCapturePanel) : sans
+  // vérification d'achat automatisée, mieux vaut créditer par défaut que l'omettre par erreur.
+  exportOptions = exportOptions || {};
+  const exportTier = exportOptions.tier || 'boss';
+  const showWatermark = exportTier !== 'boss';
+  const showComposerCredit = exportOptions.showComposerCredit !== false;
+  const composerName = (window.__lpCaptureLibrary && window.__lpCaptureLibrary.composerName) || '';
+  // Modes d'export (23/09). 'video' : l'export complet (image ré-encodée + incrustations -- long, ffmpeg.wasm
+  // n'utilise qu'un seul coeur). 'audio' : seulement le son, rendu par le moteur du lecteur, en fichier WAV --
+  // quelques secondes, ffmpeg n'est même pas chargé. 'copy' : l'image d'origine recopiée SANS ré-encodage avec le
+  // nouveau son (pas d'incrustations) -- quelques secondes aussi. Les deux modes rapides passent toujours par le
+  // moteur de rendu, même sans effet.
+  const exportMode = exportOptions.mode === 'audio' || exportOptions.mode === 'copy' ? exportOptions.mode : 'video';
+  const ffmpeg = exportMode === 'audio' ? null : await loadFfmpegWasm(onProgress);
+
+  const stingerEvents = events.filter(e => e.name === 'stinger_play');
+  const layerSegmentEvents = events.filter(e => e.name === 'layer_segment');
+  const fxSegmentEvents = events.filter(e => e.name === 'fx_segment');
+  // Le son est TOUJOURS rendu par le moteur du lecteur depuis le 25/09 (capture-plan.js -> capture-render.js) : chaque
+  // fichier est replacé exactement comme le lecteur l'a joué -- générations de boucles, queues de fin, coupures,
+  // rampes de volume, effets, Sfx, tête. L'ancien mixage par filtres ffmpeg (fenêtres rognées, boucles non rebouclées,
+  // calage approximatif) a été retiré. ffmpeg ne sert plus qu'à assembler ce son avec l'image.
+  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx });
+  const embrWindowsByTrack = built.windows.embr, seqWindowsByTrack = built.windows.seq, vrWindowsByTrack = built.windows.vr;
+  const switchCount = Object.keys(embrWindowsByTrack).reduce((n, id) => n + embrWindowsByTrack[id].filter(w => w.isSwitch).length, 0);
+  onProgress(tr('captureExportPreparing').replace('{n}', layerSegmentEvents.length).replace('{m}', switchCount).replace('{k}', stingerEvents.length));
+  onProgress(tr('captureEngineRendering'));
+  const rendered = await window.LayerCaptureRender.render(built.plan, {
+    fetchBytes: fetchAsUint8Array,
+    onProgress: (i, n) => onProgress(tr('captureEngineProgress').replace('{i}', i).replace('{n}', n))
+  });
+  const wavBytes = window.LayerCaptureRender.encodeWav(rendered);
+  if (exportMode === 'audio') return new Blob([wavBytes], { type: 'audio/wav' });
+  await ffmpeg.writeFile('mix.wav', wavBytes);
+  if (exportMode === 'copy') {
+    // Image d'origine recopiée telle quelle (-c:v copy : aucun ré-encodage, donc rapide) + nouveau son ; le son
+    // d'origine de la vidéo est écarté. Pas d'incrustations (elles exigent de ré-encoder l'image).
+    onProgress(tr('captureFetchVideo'));
+    const copyExt = videoFile.name.slice(videoFile.name.lastIndexOf('.')) || '.mp4';
+    await ffmpeg.writeFile('bg' + copyExt, new Uint8Array(await videoFile.arrayBuffer()));
+    onProgress(tr('captureCopying'));
+    const copyLogs = [];
+    const onCopyLog = ({ message }) => copyLogs.push(message);
+    ffmpeg.on('log', onCopyLog);
+    let copyCode;
+    try {
+      copyCode = await ffmpeg.exec(['-i', 'bg' + copyExt, '-i', 'mix.wav', '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-c:a', 'aac', '-shortest', 'out.mp4']);
+    } finally { ffmpeg.off('log', onCopyLog); }
+    if (copyCode !== 0) throw new Error('ffmpeg a échoué : ' + copyLogs.slice(-6).join(' | '));
+    const copyData = await ffmpeg.readFile('out.mp4');
+    return new Blob([copyData.buffer], { type: 'video/mp4' });
+  }
+  const inputs = ['mix.wav'];
+  const filterParts = [];
+  let inIdx = 1;
+  const audioMap = '0:a';
+
+  onProgress(tr('captureFetchVideo'));
+  const videoExt = videoFile.name.slice(videoFile.name.lastIndexOf('.')) || '.mp4';
+  const videoName = `bg${videoExt}`;
+  await ffmpeg.writeFile(videoName, new Uint8Array(await videoFile.arrayBuffer()));
+  inputs.push(videoName);
+  const videoIdx = inIdx++;
+
+  // Incrustation à l'écran (libellé du niveau d'intensité actif + flash sur stinger) : volontaire dans le
+  // vrai export, pas juste un aide-debug -- montrer concrètement l'adaptativité de la musique est tout
+  // l'intérêt de la démo. Le moteur ffmpeg.wasm n'a aucune police embarquée par défaut (drawtext échoue
+  // sans fontfile) -- on lui fournit celle déjà utilisée par le reste du site (JetBrains Mono, licence
+  // libre, vendor/fonts/).
+  onProgress(tr('captureFetchFont'));
+  await ffmpeg.writeFile('font.ttf', await fetchAsUint8Array(new URL('./vendor/fonts/JetBrainsMono-Regular.ttf', location.href).href));
+  // Plafonné à 720p (16 septembre, retour direct : un export de 3 min prenait ~10 min -- cet export
+  // encodait la vidéo source à sa résolution d'origine, souvent 1080p+, SANS le plafond déjà appliqué
+  // côté bibliothèque vidéo -- voir compressVideoForLibrary dans layerpitch-backstage.html). Le
+  // drawtext qui suit coûte aussi moins cher sur moins de pixels.
+  let videoChain = `[${videoIdx}:v]scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease`;
+  const drawtexts = [];
+  // Un calque = une hauteur d'incrustation qui lui est propre (dérivée de son layerIndex) -- plusieurs
+  // calques pouvant désormais être actifs en même temps (segments indépendants), superposer leurs
+  // libellés à la même hauteur les rendrait illisibles.
+  // Incrustations : la même liste d'étiquettes que celle rangée avec la vidéo pour les pages publiques (buildCaptureCues, 21/10).
+  const esc = t => String(t).replace(/['\\:]/g, '');
+  for (const c of buildCaptureCues(events, laneOverrides)) {
+    const when = `enable='between(t,${c.start},${c.end})'`;
+    if (c.style === 'layer') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=h-56-${c.row * 30}:fontsize=22:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
+    else if (c.style === 'window') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:${when}`);
+    else if (c.style === 'flash') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text.toUpperCase())} !':x=24:y=24:fontsize=26:fontcolor=0xffaa55:box=1:boxcolor=0x000000AA:boxborderw=8:${when}`);
+    else if (c.style === 'fx') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=${64 + c.row * 30}:fontsize=22:fontcolor=0xc9a0ff:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
+  }
+  // Filigrane "powered by LayerPitch" (Rookie/Warrior, voir tout en haut de la fonction) -- permanent,
+  // pas de fenêtre `enable`, coin bas-droit pour ne jamais chevaucher les libellés de calque/boucle/
+  // emplacement (toujours en bas-gauche ci-dessus).
+  if (showWatermark) {
+    drawtexts.push(
+      `drawtext=fontfile=font.ttf:text='Powered by LayerPitch':x=w-tw-16:y=h-32:fontsize=16:` +
+      `fontcolor=white@0.75:box=1:boxcolor=0x000000AA:boxborderw=5`
+    );
+  }
+  // Crédit compositeur (tant que le pack n'a pas été acheté par la personne qui exporte -- voir le
+  // commentaire tout en haut de la fonction) -- permanent, coin haut-droit, distinct du flash stinger
+  // (toujours en haut-gauche ci-dessus).
+  if (showComposerCredit && composerName) {
+    const creditLabel = composerName.replace(/['\\:]/g, '');
+    drawtexts.push(
+      `drawtext=fontfile=font.ttf:text='Musique\\: ${creditLabel}':x=w-tw-16:y=16:fontsize=18:` +
+      `fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6`
+    );
+  }
+  videoChain += (drawtexts.length ? ',' + drawtexts.join(',') : '') + '[vout]';
+  filterParts.push(videoChain);
+
+  const filterComplex = filterParts.join(';');
+  // -threads 2 (16 septembre, même bug connu que layerpitch-backstage.html -- voir
+  // FFMPEG_MULTITHREAD_ENABLED en haut de ce fichier) : sans plafond explicite, décodeur et encodeur
+  // réclament chacun un nombre de threads auto-détecté qui peut dépasser la taille fixe du pool du
+  // coeur core-mt, bloquant pthread_create indéfiniment sans erreur ni log
+  // (https://github.com/ffmpegwasm/ffmpeg.wasm/issues/772). Sans effet sur le coeur mono-thread.
+  const args = ['-threads', '2'];
+  inputs.forEach(name => args.push('-i', name));
+  args.push(
+    '-filter_complex', filterComplex,
+    '-map', '[vout]', '-map', audioMap,
+    '-c:v', 'libx264', '-threads', '2', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac',
+    '-shortest',
+    'out.mp4'
+  );
+
+  onProgress(tr('captureRendering'));
+  const logs = [];
+  const onLog = ({ message }) => logs.push(message);
+  ffmpeg.on('log', onLog);
+  let exitCode;
+  try {
+    exitCode = await ffmpeg.exec(args);
+  } finally {
+    ffmpeg.off('log', onLog);
+  }
+  if (exitCode !== 0) {
+    throw new Error('ffmpeg a échoué : ' + logs.slice(-6).join(' | '));
+  }
+  const data = await ffmpeg.readFile('out.mp4');
+  return new Blob([data.buffer], { type: 'video/mp4' });
+}
+
+// Fenêtre du panneau de capture détaché (2026-09-16, retour direct de Jules-Antoine : "il faut pouvoir
+// détacher la fenêtre de capture"), si actif -- null sinon. Voir detachCapturePanel() plus bas.
+let capturePanelDetachedWindow = null;
+let capturePanelVersioning = null; // section Versioning du panneau ouvert (arrêtée à la fermeture : écoute en cours)
+
+function closeCapturePanel() {
+  if (videoCaptureState) stopCapture();
+  if (capturePanelVersioning) { capturePanelVersioning.stop(); capturePanelVersioning = null; }
+  const panel = document.getElementById('videoTestPanel');
+  panel.classList.remove('active');
+  document.body.classList.remove('video-panel-active');
+  panel.innerHTML = ''; // libère l'URL objet de la vidéo en vidant le <video>, pas juste en le masquant
+  const detached = capturePanelDetachedWindow;
+  capturePanelDetachedWindow = null;
+  if (detached && !detached.closed) detached.close();
+}
+
+// Déplace le VRAI contenu du panneau (pas une copie) dans une fenêtre séparée -- conserve tous les
+// écouteurs déjà posés dessus (bouton d'enregistrement, glisser sur la frise, etc.), puisque déplacer
+// un nœud DOM via appendChild ne détruit jamais ses écouteurs. Les feuilles <style> de la page sont
+// recopiées (cloneNode) pour que le contenu déplacé garde son apparence -- le reste (polices Google)
+// est chargé via un @import DANS cette même feuille, donc suit automatiquement.
+function detachCapturePanel() {
+  const panel = document.getElementById('videoTestPanel');
+  if (!panel.firstChild || capturePanelDetachedWindow) return; // rien à détacher, ou déjà détaché
+  const win = window.open('', '_blank', 'width=980,height=760');
+  if (!win) return; // popup bloqué par le navigateur -- on reste comme avant, sans erreur bruyante
+  capturePanelDetachedWindow = win;
+  win.document.title = document.title;
+  document.querySelectorAll('style').forEach(styleEl => win.document.head.appendChild(styleEl.cloneNode(true)));
+  win.document.body.style.cssText = 'margin:0;background:#0d0d0d;';
+  const wrapper = win.document.createElement('div');
+  wrapper.className = 'video-test-panel active';
+  wrapper.style.cssText = 'max-width:none;width:100%;';
+  while (panel.firstChild) wrapper.appendChild(panel.firstChild); // déplace les vrais nœuds, pas une copie
+  win.document.body.appendChild(wrapper);
+  panel.classList.remove('active');
+  document.body.classList.remove('video-panel-active');
+  // Fermeture de la fenêtre détachée PAR L'UTILISATEUR (croix du navigateur, pas notre bouton ✕, qui
+  // passe déjà par closeCapturePanel() ci-dessus et vide capturePanelDetachedWindow avant d'appeler
+  // .close() -- ce garde évite donc un double nettoyage dans ce cas).
+  win.addEventListener('pagehide', () => {
+    if (capturePanelDetachedWindow !== win) return;
+    capturePanelDetachedWindow = null;
+    if (videoCaptureState) stopCapture();
+  });
+}
+
+function openCapturePanel(file, opts) {
+  opts = opts || {};
+  const panel = document.getElementById('videoTestPanel');
+  const objectUrl = URL.createObjectURL(file);
+  panel.innerHTML = `
+    <div class="video-test-panel-header">
+      <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
+      <div class="video-test-panel-actions">
+        <button type="button" class="video-test-panel-btn" id="videoCaptureDetachBtn" title="${tr('detachBtn')}" aria-label="${tr('detachBtn')}">⤢</button>
+        <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
+      </div>
+    </div>
+    <div class="video-test-panel-frame-wrap"><video id="videoCaptureEl" src="${objectUrl}" controls muted></video></div>
+    <div class="video-capture-bar">
+      <button type="button" class="video-capture-record-btn" id="videoCaptureRecordBtn"><span class="dot"></span><span id="videoCaptureRecordLabel">${tr('captureStartBtn')}</span></button>
+      <label class="video-capture-export-opt" id="videoCaptureAdditiveLabel" title="${tr('captureAdditiveHelp')}" hidden>
+        <input type="checkbox" id="videoCaptureAdditiveCheckbox"> ${tr('captureAdditiveLabel')}
+      </label>
+      <span class="video-capture-armed-status" id="videoCaptureArmedStatus" title="${tr('captureArmedHelp')}"></span>
+      <span class="video-capture-count" id="videoCaptureCount"></span>
+    </div>
+    <div class="video-capture-bar">
+      <label class="video-capture-export-opt" title="${tr('captureCreditHelp')}">
+        <input type="checkbox" id="videoCaptureCreditCheckbox" checked> ${tr('captureCreditLabel')}
+      </label>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>${tr('captureExportBtn')}</button>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureExportAudioBtn" disabled title="${tr('captureExportAudioHelp')}">${tr('captureExportAudioBtn')}</button>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureExportCopyBtn" disabled title="${tr('captureExportCopyHelp')}">${tr('captureExportCopyBtn')}</button>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureUpdateEverywhereBtn" title="${tr('captureUpdateEverywhereHelp')}">${tr('captureUpdateEverywhereBtn')}</button>
+      <label class="video-capture-count" style="display:inline-flex;align-items:center;gap:4px" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
+      <span class="video-capture-count" id="videoCaptureExportStatus"></span>
+    </div>
+    <div class="video-capture-history" id="videoCaptureHistory" hidden></div>
+    <div class="video-capture-bar">
+      <input type="text" class="video-capture-title-input" id="videoCaptureTitleInput" placeholder="${tr('captureTitleInputPlaceholder')}">
+      <button type="button" class="video-capture-download-btn" id="videoCaptureSaveBtn" disabled>${tr('captureSaveBtn')}</button>
+      <select class="video-capture-load-select" id="videoCaptureLoadSelect" disabled><option value="">${tr('captureLoadOptionDefault')}</option></select>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureLoadBtn" disabled>${tr('captureLoadBtn')}</button>
+      <span class="video-capture-count" id="videoCaptureSaveStatus"></span>
+    </div>
+    <div class="video-capture-timeline" id="videoCaptureTimeline"></div>
+    <div class="video-capture-versioning" id="videoCaptureVersioning" hidden></div>
+  `;
+  panel.classList.add('active');
+  document.body.classList.add('video-panel-active');
+  updateArmedStatusDisplay(); // reflète tout de suite une piste déjà armée avant l'ouverture du panneau
+  const videoEl = document.getElementById('videoCaptureEl');
+  const recordBtn = document.getElementById('videoCaptureRecordBtn');
+  const recordLabel = document.getElementById('videoCaptureRecordLabel');
+  const countEl = document.getElementById('videoCaptureCount');
+  const exportBtn = document.getElementById('videoCaptureExportBtn');
+  const exportAudioBtn = document.getElementById('videoCaptureExportAudioBtn');
+  const exportCopyBtn = document.getElementById('videoCaptureExportCopyBtn');
+  // Export COMPLET grisé pour tout compte non-admin (24/09, demande de Jules-Antoine) : ré-encoder l'image avec
+  // ffmpeg.wasm mono-coeur prend ~10 min pour 3 min de vidéo -- réservé à l'admin tant qu'il n'y a pas d'abonnement
+  // multicoeur (compression côté serveur, voir la note sur les limites de ffmpeg.wasm). Les deux exports rapides
+  // (audio seul, vidéo sans ré-encodage) restent ouverts à tous les éligibles.
+  const fullExportLocked = !window.__lpCaptureIsAdmin;
+  // Échelle Test in game (15/09, matrice du 27/09) : Rookie = capture seule (frise non modifiable), Warrior = frise
+  // modifiable mais rien d'enregistré, Boss = modifiable + enregistré. Le serveur refuse aussi l'enregistrement hors Boss.
+  const captureLevel = window.__lpCaptureLevel || 'capture';
+  const captureCanEdit = captureLevel !== 'capture';
+  const captureCanSave = captureLevel === 'saved';
+  const setExportButtonsDisabled = (v) => { exportBtn.disabled = v || fullExportLocked; exportAudioBtn.disabled = v; exportCopyBtn.disabled = v; };
+  if (fullExportLocked) {
+    exportBtn.title = tr('captureExportFullLockedHint');
+    exportBtn.insertAdjacentHTML('afterend', `<span class="video-capture-count" id="videoCaptureFullLockedNote">${tr('captureExportFullLockedNote')}</span>`);
+  }
+  const addToLibraryBtn = document.getElementById('videoCaptureAddToLibraryBtn');
+  const updateEverywhereBtn = document.getElementById('videoCaptureUpdateEverywhereBtn');
+  const keepOldCheckbox = document.getElementById('videoCaptureKeepOld');
+  const historyEl = document.getElementById('videoCaptureHistory');
+  // Historique des exports du montage (21/10, migration 20261021030000) : les 3 dernières vidéos remplacées, du montage et de ses
+  // versions, avec « Revenir à celle-ci » (elle redevient la vidéo affichée partout).
+  async function renderExportHistory() {
+    if (!savedCaptureId || versioningLevelForHistory() !== 'saved') { historyEl.hidden = true; return; }
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_video_export_history', withStudio({ p_capture_id: savedCaptureId }));
+    if (error || !data || !data.length) { historyEl.hidden = true; historyEl.innerHTML = ''; return; }
+    historyEl.hidden = false;
+    historyEl.innerHTML = `<div class="video-capture-count">${tr('captureHistoryTitle')}</div>` + data.map(h => `
+      <div class="video-capture-history-row"><span>${new Date(h.createdAt).toLocaleString()}${h.versionId ? ' · ' + tr('captureHistoryVersion') : ' · ' + tr('captureHistoryMontage')}${h.sizeBytes ? ' · ' + (h.sizeBytes / 1048576).toFixed(1) + ' Mo' : ''}</span>
+        <a class="video-capture-download-btn" href="${h.url}" target="_blank" rel="noopener">${tr('captureHistoryView')}</a>
+        <button type="button" class="video-capture-download-btn" data-restore="${h.id}">${tr('captureHistoryRestore')}</button></div>`).join('');
+  }
+  const versioningLevelForHistory = () => window.__lpVersioningLevel || 'saved';
+  historyEl.addEventListener('click', async e => {
+    const b = e.target.closest('[data-restore]');
+    if (!b) return;
+    b.disabled = true;
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('restore_video_export', withStudio({ p_history_id: Number(b.dataset.restore) }));
+    if (error) { exportStatus.textContent = tr('captureExportFailed').replace('{error}', error.message); b.disabled = false; return; }
+    await r2DeleteRemovedVideos(data && data.removed);
+    exportStatus.textContent = tr('captureHistoryRestored');
+    if (versioning) versioning.refresh();
+    renderExportHistory();
+  });
+  const exportStatus = document.getElementById('videoCaptureExportStatus');
+  const additiveLabel = document.getElementById('videoCaptureAdditiveLabel');
+  const additiveCheckbox = document.getElementById('videoCaptureAdditiveCheckbox');
+  const creditCheckbox = document.getElementById('videoCaptureCreditCheckbox');
+  const titleInput = document.getElementById('videoCaptureTitleInput');
+  const saveBtn = document.getElementById('videoCaptureSaveBtn');
+  const loadSelect = document.getElementById('videoCaptureLoadSelect');
+  const loadBtn = document.getElementById('videoCaptureLoadBtn');
+  const saveStatus = document.getElementById('videoCaptureSaveStatus');
+  const timelineEl = document.getElementById('videoCaptureTimeline');
+  let lastEvents = [];
+  let lastExportBlob = null; // dernier export réussi, en attente d'un envoi optionnel vers la bibliothèque
+  // Identifiant de la prise sauvegardée en cours (null tant qu'aucune sauvegarde n'a encore été faite
+  // pour CETTE prise -- généré au premier clic sur Sauvegarder, réutilisé ensuite pour que les
+  // sauvegardes successives mettent à jour la même ligne plutôt que d'en créer une nouvelle à chaque
+  // fois). Remplacé par l'id chargé si le compositeur reprend une prise existante via "Charger".
+  let currentCaptureId = null;
+  // Montage réellement présent en base (sauvegarde réussie ou chargement) -- les versions vidéo (Versioning) s'y
+  // rattachent ; null tant que la prise en cours n'a jamais été sauvegardée.
+  let savedCaptureId = null;
+  let versioning = null; // section Versioning (capture-versioning.js), admin seulement -- montée plus bas
+  const packId = window.__lpTrackContext && window.__lpTrackContext.id;
+  // Noms de piste retouchés pour cette prise (ex. "Ca va, c'est cool" -> "Intensité basse") -- persistent
+  // tant que ce panneau reste ouvert (plusieurs prises successives sur la même vidéo gardent les mêmes
+  // noms), remis à zéro à la prochaine ouverture d'un nouveau fichier. Voir captureLaneLabel().
+  let laneOverrides = {};
+  // Groupes repliés (par clé "track:<id>" ou "sfx:<id>") -- persistent tant que ce panneau reste ouvert,
+  // même logique que laneOverrides ci-dessus.
+  let collapsedGroups = {};
+  // Écraser ou passe additive (2026-09-16, demande explicite de Jules-Antoine : "la possibilité d'écraser
+  // ou de faire des passes additives") -- pendingBaseEvents porte les événements de la prise précédente à
+  // fusionner au prochain arrêt de capture, vide = la prochaine capture remplace tout (comportement
+  // d'origine). Réglé au moment où l'enregistrement DÉMARRE (voir recordBtn ci-dessous), pas à l'arrêt --
+  // la case à cocher ne doit plus pouvoir changer d'avis une fois l'enregistrement en cours.
+  let pendingBaseEvents = [];
+  function refreshActionButtons() {
+    setExportButtonsDisabled(lastEvents.length === 0);
+    saveBtn.disabled = lastEvents.length === 0;
+    // La case "Passe additive" n'a de sens que s'il existe déjà quelque chose à préserver.
+    additiveLabel.hidden = lastEvents.length === 0;
+    if (lastEvents.length === 0) additiveCheckbox.checked = false;
+  }
+  // Nombre de gestes affiché : les repères techniques de la capture (générations, arrêts, commandes de volume) ne
+  // comptent pas.
+  function captureCountText(evs) { return tr('captureEventCount').replace('{n}', evs.filter(e => CAPTURE_MARK_NAMES.indexOf(e.name) === -1 && e.name.indexOf('embr_') !== 0 || e.name === 'embr_loop_select').length); }
+  recordBtn.addEventListener('click', () => {
+    if (videoCaptureState) {
+      // Fusionne avec la prise précédente (passe additive) si demandé à l'armement de CET enregistrement
+      // -- voir la branche "else" ci-dessous. materializeLayerSegments accepte sans problème un mélange
+      // d'événements déjà matérialisés (layer_segment de la passe précédente) et bruts (intensity_change/
+      // track_play de la passe qui vient de s'arrêter) : seuls ces derniers sont (re)convertis, le reste
+      // traverse tel quel -- voir son propre commentaire plus haut dans le fichier.
+      const newPassEvents = stopCapture();
+      lastEvents = materializeCapture(pendingBaseEvents.concat(newPassEvents));
+      pendingBaseEvents = [];
+      // Arrêter la capture doit vraiment arrêter la musique en cours (2026-09-16, même retour direct de
+      // Jules-Antoine que pour Démarrer). 'stop-track' est l'événement global que player.js écoute déjà
+      // pour arrêter n'importe quelle piste (mécanisme "une seule piste à la fois" de playThisTrack) --
+      // réutilisé tel quel plutôt que de deviner l'état interne (playing) depuis l'extérieur du closure
+      // de player.js, qu'aucun signal DOM fiable n'expose. Sans effet si la piste n'était déjà plus en
+      // train de jouer. Ne couvre que la piste ARMÉE -- si le compositeur a manuellement démarré une
+      // AUTRE piste sans l'armer, celle-là continue (limite connue, cas rare vu le flux armer/capturer).
+      if (armedTrackId) document.dispatchEvent(new CustomEvent('stop-track', { detail: armedTrackId }));
+      videoEl.pause();
+      recordBtn.classList.remove('recording');
+      recordLabel.textContent = tr('captureStartBtn');
+      countEl.textContent = captureCountText(lastEvents);
+      additiveCheckbox.disabled = false;
+      refreshActionButtons();
+      renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
+        countEl.textContent = captureCountText(lastEvents);
+        refreshActionButtons();
+      }, laneOverrides, collapsedGroups, videoEl);
+    } else {
+      // Écraser ou passe additive : décidé ICI, au démarrage -- la case reste figée pendant tout
+      // l'enregistrement (voir additiveCheckbox.disabled ci-dessous), pas de changement d'avis en cours
+      // de route. Décochée ou rien à préserver (lastEvents vide) : comportement d'origine, la nouvelle
+      // capture remplacera tout à l'arrêt.
+      const additive = additiveCheckbox.checked && lastEvents.length > 0;
+      pendingBaseEvents = additive ? lastEvents.slice() : [];
+      // Une passe additive DOIT repartir du tout début de la vidéo (2026-09-16, Jules-Antoine) : les
+      // horaires de la passe précédente (pendingBaseEvents) sont comptés depuis t=0 -- si la nouvelle
+      // passe démarrait ailleurs (ex. la vidéo laissée en cours de lecture après la passe précédente),
+      // ses propres événements seraient décalés par rapport à ceux déjà acquis, et la fusion produirait
+      // une frise incohérente. Pas de remise à zéro en mode écrasement -- rien à réaligner puisqu'il n'y
+      // a alors qu'une seule passe.
+      if (additive) videoEl.currentTime = 0;
+      startCapture(videoEl);
+      // Démarrer la capture doit vraiment lancer la vidéo ET la piste armée (2026-09-16, retour direct
+      // de Jules-Antoine en testant : "Start capture doit lancer la vidéo et la musique qui est armée.
+      // Ça ne fait ni l'un ni l'autre") -- avant, seul un repère track_play SYNTHÉTIQUE était injecté
+      // dans les événements, sans jamais vraiment démarrer quoi que ce soit à l'écran ni au casque.
+      // videoEl.play() ET un vrai clic simulé sur le bouton de lecture réel de la piste armée, tous les
+      // deux SYNCHRONES dans le même geste utilisateur que le clic sur "Démarrer la capture" (nécessaire
+      // pour que les navigateurs autorisent la lecture -- un geste différé, même de quelques
+      // millisecondes via un timeout, serait refusé). Le clic réel traverse toute la vraie logique de
+      // player.js (choix initial selon le mode, vraie télémétrie track_play...) -- capturée normalement
+      // par l'interception déjà active (startCapture ci-dessus) -- pas besoin de réimplémenter "démarrer
+      // une piste" ni de deviner ce que "niveau 0"/"boucle de référence" veut dire selon le mode.
+      videoEl.play().catch(() => {}); // ignore un refus navigateur (rare -- ex. vidéo déjà en lecture)
+      if (armedTrackId) {
+        const armedPlayBtn = document.querySelector(`[data-track-id="${armedTrackId}"] [data-role="playBtn"]`);
+        if (armedPlayBtn) {
+          armedPlayBtn.click();
+        } else {
+          // Repli si le bouton n'est plus dans le DOM (cas limite) -- au moins un repère, comme avant.
+          videoCaptureState.events.push({ t: 0, name: 'track_play', detail: { trackId: armedTrackId } });
+        }
+      }
+      recordBtn.classList.add('recording');
+      recordLabel.textContent = tr('captureStopBtn');
+      countEl.textContent = tr('captureInProgress');
+      setExportButtonsDisabled(true);
+      saveBtn.disabled = true;
+      additiveCheckbox.disabled = true;
+      exportStatus.textContent = '';
+      // Un nouvel export sera nécessaire pour la nouvelle prise -- l'ancien Blob n'a plus de sens.
+      lastExportBlob = null;
+      addToLibraryBtn.hidden = true;
+      // Une nouvelle capture EN MODE ÉCRASEMENT = une nouvelle prise à sauvegarder (jamais un écrasement
+      // silencieux d'une sauvegarde précédente) -- currentCaptureId reparti à zéro, un nouveau clic sur
+      // Sauvegarder créera une ligne distincte plutôt que de mettre à jour l'ancienne. Une passe ADDITIVE,
+      // elle, continue de construire la MÊME prise -- currentCaptureId (et son titre) sont conservés, un
+      // Sauvegarder après coup met à jour la même ligne.
+      if (!additive) {
+        currentCaptureId = null;
+        savedCaptureId = null;
+        saveStatus.textContent = '';
+        if (versioning) versioning.refresh();
+      }
+      const tick = setInterval(() => {
+        if (!videoCaptureState) { clearInterval(tick); return; }
+        // En passe additive, on affiche la prise précédente (déjà matérialisée) ET les événements bruts
+        // de la passe en cours superposés -- pour une piste touchée uniquement dans la passe précédente,
+        // la frise reste fidèle à ce qui est déjà acquis ; limite connue : une piste retouchée dans LES
+        // DEUX passes ne montre pas encore l'aperçu en direct de la seconde tant qu'elle n'est pas
+        // matérialisée à l'arrêt (le résultat final, lui, est toujours correct).
+        const liveEvents = pendingBaseEvents.concat(videoCaptureState.events);
+        countEl.textContent = captureCountText(liveEvents);
+        renderCaptureTimeline(timelineEl, liveEvents, false, null, laneOverrides, collapsedGroups, videoEl);
+      }, 500);
+    }
+  });
+  // Tête de lecture en continu pendant que la vidéo avance -- repositionne juste la ligne (pas de
+  // ré-affichage complet de la frise, trop coûteux à chaque frame).
+  videoEl.addEventListener('timeupdate', () => positionCapturePlayhead(timelineEl, videoEl));
+  async function runExport(mode) {
+    if (mode === 'video' && fullExportLocked) return; // garde-fou : même si le bouton était réactivé à la main
+    setExportButtonsDisabled(true);
+    try {
+      // Sélecteur de palier retiré du panneau le 16 septembre (retour direct de Jules-Antoine : "ça ne
+      // sert à rien" -- confusion en testant, aucun palier réel n'existe encore pour lui donner du
+      // sens) -- "on le garde pour les vrais réglages que personne ne verra". La mécanique de filigrane
+      // dans exportCaptureVideo reste intacte, juste plus exposée en UI : figé sur 'boss' (aucun
+      // filigrane) en attendant un vrai palier compositeur à brancher ici, invisible pour l'instant.
+      const exportOptions = { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode };
+      const blob = await exportCaptureVideo(lastEvents, file, (msg) => { exportStatus.textContent = msg; }, laneOverrides, exportOptions);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `export-${Date.now()}.${mode === 'audio' ? 'wav' : 'mp4'}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      exportStatus.textContent = tr(mode === 'audio' ? 'captureAudioDone' : 'captureExportDone');
+      // Garde le Blob pour un envoi optionnel vers la bibliothèque vidéo (voir addToLibraryBtn
+      // ci-dessous) -- distinct du téléchargement local ci-dessus, jamais automatique (2026-09-16).
+      // Un export audio seul n'est pas une vidéo : rien à envoyer à la bibliothèque.
+      if (mode === 'audio') { lastExportBlob = null; addToLibraryBtn.hidden = true; }
+      else { lastExportBlob = blob; addToLibraryBtn.hidden = false; }
+    } catch (e) {
+      console.error(e);
+      exportStatus.textContent = tr('captureExportFailed').replace('{error}', e.message);
+    } finally {
+      setExportButtonsDisabled(lastEvents.length === 0);
+    }
+  }
+  exportBtn.addEventListener('click', () => runExport('video'));
+  exportAudioBtn.addEventListener('click', () => runExport('audio'));
+  exportCopyBtn.addEventListener('click', () => runExport('copy'));
+  // Dépose l'export dans la bibliothèque vidéo du compositeur (2026-09-16, voir composer_videos) --
+  // action séparée et volontaire, jamais automatique après un export (un compositeur peut vouloir
+  // exporter plusieurs essais avant de choisir lequel garder). Réutilise le champ "Nom de la prise"
+  // déjà présent pour Sauvegarder -- même prise, même nom.
+  addToLibraryBtn.addEventListener('click', async () => {
+    if (!lastExportBlob || !packId) return;
+    addToLibraryBtn.disabled = true;
+    exportStatus.textContent = tr('captureAddingToLibrary');
+    try {
+      const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, titleInput.value, videoEl.duration || null);
+      // (Vidéo complète : à télécharger ou publier ailleurs. Les pages LayerPitch, elles, jouent la vidéo muette du montage et le son de
+      // chaque version : voir « Mettre à jour la vidéo partout ».)
+      exportStatus.textContent = tr('captureAddedToLibrary');
+      addToLibraryBtn.hidden = true; // évite un second envoi du même export
+    } catch (e) {
+      console.error(e);
+      exportStatus.textContent = tr('captureAddToLibraryFailed').replace('{error}', e.message);
+    } finally {
+      addToLibraryBtn.disabled = false;
+    }
+  });
+  // « Mettre à jour la vidéo partout » (21/10) : après une retouche, refait l'export rapide (image d'origine + nouveau son, sans
+  // incrustation, quelques secondes), le dépose dans la bibliothèque et y relie le montage avec ses nouvelles étiquettes. Partout où le
+  // montage est affiché (AdReels, espace Projet), la nouvelle vidéo et la nouvelle étiquette apparaissent, sans rien republier.
+  // Vidéo muette une fois + un son par version (21/10, migration 20261021040000) : la première publication d'un montage range sa vidéo
+  // muette (l'image d'origine sans son) ; ensuite, chaque export n'est plus qu'un fichier son (+ étiquettes), joué sur cette image.
+  async function ensureMontageBase(onStatus) {
+    const client = window.LayerPitchSupabaseClient.getClient();
+    const cur = await client.rpc('video_capture_base', withStudio({ p_capture_id: savedCaptureId }));
+    if (!cur.error && cur.data) return cur.data;
+    onStatus(tr('captureMakingSilentVideo'));
+    const blob = await makeSilentVideo(file, onStatus);
+    const id = await saveExportToVideoLibrary(blob, packId, (titleInput.value || file.name) + ' — ' + tr('captureSilentVideoSuffix'), videoEl.duration || null, 'capture_base');
+    const { error } = await client.rpc('set_video_capture_base', withStudio({ p_capture_id: savedCaptureId, p_video_id: id }));
+    if (error) throw error;
+    return id;
+  }
+  async function publishMontageSound(events, title) {
+    const onStatus = (msg) => { exportStatus.textContent = msg; };
+    await ensureMontageBase(onStatus);
+    const exportOptions = { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode: 'audio' };
+    const wav = await exportCaptureVideo(events, file, onStatus, laneOverrides, exportOptions);
+    onStatus(tr('captureEncodingSound'));
+    const sound = await encodeSoundForLibrary(wav, onStatus);
+    onStatus(tr('captureAddingToLibrary'));
+    return saveExportToVideoLibrary(sound, packId, title || '', videoEl.duration || null, 'capture_audio');
+  }
+  updateEverywhereBtn.addEventListener('click', async () => {
+    if (!savedCaptureId) { exportStatus.textContent = tr('captureUpdateEverywhereNeedsSave'); return; }
+    if (!lastEvents.length || !packId) return;
+    updateEverywhereBtn.disabled = true; setExportButtonsDisabled(true);
+    try {
+      const videoId = await publishMontageSound(lastEvents, titleInput.value);
+      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', withStudio({ p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides), p_keep_old: keepOldCheckbox.checked }));
+      if (error) throw error;
+      await r2DeleteRemovedVideos(data && data.removed); // exports trop anciens (au-delà de 3) ou ancienne vidéo non gardée
+      exportStatus.textContent = tr('captureUpdatedEverywhere');
+      renderExportHistory();
+    } catch (e) {
+      console.error(e);
+      exportStatus.textContent = tr('captureExportFailed').replace('{error}', e.message);
+    } finally {
+      updateEverywhereBtn.disabled = false; setExportButtonsDisabled(lastEvents.length === 0);
+    }
+  });
+  // Sauvegarde/reprise côté serveur (2026-09-16) -- voir saveVideoCapture/listVideoCaptures/loadVideoCapture
+  // plus haut. `packId` vient de window.__lpTrackContext.id (déjà résolu par init()), jamais redemandé ici.
+  saveBtn.addEventListener('click', async () => {
+    if (!packId || !lastEvents.length) return;
+    saveBtn.disabled = true;
+    saveStatus.textContent = tr('captureSaving');
+    try {
+      if (!currentCaptureId) {
+        currentCaptureId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+      }
+      await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups);
+      saveStatus.textContent = tr('captureSaved');
+      refreshLoadOptions();
+      if (savedCaptureId !== currentCaptureId) { savedCaptureId = currentCaptureId; if (versioning) versioning.refresh(); renderExportHistory(); }
+    } catch (e) {
+      console.error(e);
+      saveStatus.textContent = tr('captureSaveFailed').replace('{error}', e.message);
+    } finally {
+      saveBtn.disabled = lastEvents.length === 0;
+    }
+  });
+  // Prise chargée (depuis la liste, ou montage « détaché » d'une version vidéo) : elle devient la prise en cours.
+  function applyLoadedCapture(capture) {
+    currentCaptureId = capture.id;
+    savedCaptureId = capture.id;
+    setTimeout(renderExportHistory, 0); // historique des exports de ce montage
+    lastEvents = capture.events || [];
+    laneOverrides = capture.laneOverrides || {};
+    collapsedGroups = capture.collapsedGroups || {};
+    titleInput.value = capture.title || '';
+    countEl.textContent = captureCountText(lastEvents);
+    refreshActionButtons();
+    renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
+      countEl.textContent = captureCountText(lastEvents);
+      refreshActionButtons();
+    }, laneOverrides, collapsedGroups, videoEl);
+    // La vidéo elle-même n'est jamais sauvegardée (voir la migration) -- seul son nom d'origine permet
+    // de vérifier qu'on a bien réimporté le bon fichier avant de faire confiance aux horaires chargés.
+    saveStatus.textContent = capture.videoFilename && capture.videoFilename !== file.name
+      ? tr('captureLoadedVideoMismatch').replace('{video}', capture.videoFilename)
+      : tr('captureLoaded');
+    if (versioning) versioning.refresh();
+  }
+  loadSelect.addEventListener('change', () => { loadBtn.disabled = !loadSelect.value; });
+  loadBtn.addEventListener('click', async () => {
+    if (!loadSelect.value) return;
+    loadBtn.disabled = true;
+    saveStatus.textContent = tr('captureLoading');
+    try {
+      applyLoadedCapture(await loadVideoCapture(loadSelect.value));
+    } catch (e) {
+      console.error(e);
+      saveStatus.textContent = tr('captureLoadFailed').replace('{error}', e.message);
+    } finally {
+      loadBtn.disabled = false;
+    }
+  });
+  async function refreshLoadOptions() {
+    if (!packId) return;
+    try {
+      const captures = await listVideoCaptures(packId);
+      const current = loadSelect.value;
+      loadSelect.innerHTML = `<option value="">${tr('captureLoadOptionDefault')}</option>` + captures.map(c =>
+        `<option value="${c.id}">${window.LayerPlayerCore.escapeHtml(c.title || tr('captureUntitled'))} — ${new Date(c.updatedAt).toLocaleString()}</option>`
+      ).join('');
+      loadSelect.value = captures.some(c => c.id === current) ? current : '';
+      loadSelect.disabled = captures.length === 0;
+      loadBtn.disabled = !loadSelect.value;
+    } catch (e) {
+      console.error('Échec de la liste des prises sauvegardées', e);
+    }
+  }
+  // Hors Boss : pas d'enregistrement de montage (barre masquée, explication à la place).
+  if (!captureCanSave) {
+    [saveBtn, loadSelect, loadBtn, titleInput].forEach(el => { el.hidden = true; });
+    saveStatus.textContent = tr(captureLevel === 'edit' ? 'captureSaveTierNoteWarrior' : 'captureSaveTierNoteRookie');
+  } else {
+    refreshLoadOptions();
+  }
+  // Versioning (26/09) : les versions vidéo d'un montage -- même montage rejoué sur d'autres morceaux / Sfx
+  // (capture-retarget.js, capture-versioning.js). Droit lu dans la matrice (28/09) : Boss = versions enregistrées
+  // (rattachées au montage sauvegardé) ; Warrior = versions de la séance, gardées en mémoire, perdues à la fermeture.
+  // Feu vert 'versioning' : admin seulement d'ici là ; les fonctions serveur le vérifient aussi.
+  const versioningHost = document.getElementById('videoCaptureVersioning');
+  const versioningLevel = window.__lpVersioningLevel;
+  if (versioningLevel && window.LayerCaptureVersioning) {
+    versioningHost.hidden = false;
+    versioning = window.LayerCaptureVersioning.mount(versioningHost, {
+      sessionOnly: versioningLevel !== 'saved',
+      tr, videoEl, fetchBytes: fetchAsUint8Array, fullExportLocked,
+      library: window.__lpCaptureLibrary, findTrack: findCaptureTrack, findSfx: findCaptureSfx,
+      getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
+      exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
+      saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
+      cuesOf: (events) => buildCaptureCues(events, laneOverrides), // étiquettes rangées avec la vidéo d'une version (21/10)
+      keepOld: () => keepOldCheckbox.checked, // garder ou non l'ancienne vidéo d'une version dans l'historique
+      publishVersion: (events, title) => publishMontageSound(events, title), // une version publiée = un son, joué sur la vidéo muette
+      afterExport: (result) => { r2DeleteRemovedVideos(result && result.removed); renderExportHistory(); },
+      // « Détacher » : la version devient un montage indépendant (sauvegardé tout de suite), ouvert à la place de celui-ci.
+      detach: async (events, title) => {
+        const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+        await saveVideoCapture(packId, id, title, file.name, events, {}, collapsedGroups);
+        applyLoadedCapture({ id, title, videoFilename: file.name, events, laneOverrides: {}, collapsedGroups });
+        saveStatus.textContent = tr('versioningDetachedLoaded');
+        refreshLoadOptions();
+      },
+    });
+    capturePanelVersioning = versioning;
+  }
+  // Montage demandé à l'ouverture (lien du Backstage) : chargé tout de suite, puis la section Versioning est amenée à l'écran.
+  if (opts.montageId) {
+    saveStatus.textContent = tr('captureLoading');
+    loadVideoCapture(opts.montageId).then(capture => {
+      applyLoadedCapture(capture);
+      loadSelect.value = capture.id;
+      if (versioning) setTimeout(() => versioningHost.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+    }).catch(e => { console.error(e); saveStatus.textContent = tr('captureLoadFailed').replace('{error}', e.message); });
+  }
+  document.getElementById('videoCaptureCloseBtn').addEventListener('click', () => {
+    URL.revokeObjectURL(objectUrl);
+    closeCapturePanel();
+  });
+  document.getElementById('videoCaptureDetachBtn').addEventListener('click', detachCapturePanel);
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Droits de l'atelier vidéo (21/10 : l'outil a quitté la page publique du pack pour l'atelier, voir 20-demarrage-atelier.js).
+// Compositeur : admin OU propriétaire de CE pack (élargi le 16 septembre). Studio (?studio=1) : pack acheté par un compte de
+// l'équipe (D10, 27/09). Barrière d'AFFICHAGE seulement -- la vraie barrière de sécurité vit dans les RPC SECURITY DEFINER
+// (save_video_capture, upsert_video, etc.). Plus besoin du réglage « Tester en jeu » du pack : il ne concerne que la page publique.
+// Renvoie true si l'outil est ouvert à ce compte sur ce pack.
+async function setupCaptureTrigger(pack, container, opts) {
+  const asStudio = !!(opts && opts.asStudio);
+  let eligible = false;
+  try {
+    await loadPurchaseScripts();
+    const { session } = await window.LayerPitchAuth.getSession();
+    if (!session) return false;
+    const client = window.LayerPitchSupabaseClient.getClient();
+    const { data: isAdmin } = await client.rpc('is_admin');
+    // Export complet (image ré-encodée) réservé à l'admin tant que l'abonnement multicoeur n'existe pas (voir
+    // openCapturePanel) -- barrière d'affichage, comme le reste de cet outil.
+    window.__lpCaptureIsAdmin = !!isAdmin;
+    window.__lpStudioBuyer = false;
+    if (asStudio) {
+      // Achat par n'importe quel compte de l'équipe du studio (équipes, 28/09) ; repli sur ses propres achats tant que
+      // la fonction team_owns_pack n'existe pas en base.
+      let owns = false;
+      const teamRes = await client.rpc('team_owns_pack', { p_pack_id: pack.id });
+      if (!teamRes.error) owns = !!teamRes.data;
+      else {
+        const { data: bought } = await client.from('pack_purchases').select('id').eq('pack_id', pack.id).limit(1);
+        owns = !!(bought && bought.length);
+      }
+      if (owns) { eligible = true; window.__lpStudioBuyer = true; }
+    } else if (isAdmin) {
+      eligible = true;
+    } else {
+      // getMyComposerId (lecture) plutôt qu'ensure_composer_profile : un studio ne doit pas se voir créer un profil compositeur au passage.
+      const { composerId: myComposerId } = await window.LayerPitchAuth.getMyComposerId();
+      eligible = !!myComposerId && myComposerId === lastResolvedOwnerId;
+    }
+    if (!eligible) return false;
+    // Droits de l'outil vidéo lus dans la matrice (28/09, chantier profils et permissions) : Test in game
+    // (capture / edit / saved), Versioning (session / saved), filigrane. En cas d'erreur : droits Rookie (le serveur
+    // refuse de toute façon ce que la matrice n'accorde pas).
+    window.__lpCaptureLevel = 'capture'; window.__lpVersioningLevel = null; window.__lpNoWatermark = false;
+    try {
+      const { data: ent } = await client.rpc('my_entitlements');
+      const byF = {};
+      (ent || []).forEach(r => { byF[r.feature] = r; });
+      const lvl = f => (byF[f] && byF[f].allowed ? byF[f].level : null);
+      if (window.__lpStudioBuyer) {
+        // Droits du palier STUDIO (studio_test_in_game, studio_versioning, studio_no_watermark). Depuis le 21/10 (migration
+        // 20261021060000), un studio enregistre ses montages et ses versions vidéo AU NOM DU STUDIO (toute l'équipe les retouche).
+        if (!(byF.studio_test_in_game && byF.studio_test_in_game.allowed)) return false; // feu vert studio_space fermé
+        window.__lpCaptureLevel = lvl('studio_test_in_game') || 'capture';
+        window.__lpVersioningLevel = lvl('studio_versioning');
+        window.__lpNoWatermark = !!(byF.studio_no_watermark && byF.studio_no_watermark.allowed);
+      } else {
+        window.__lpCaptureLevel = lvl('test_in_game') || 'capture';
+        window.__lpVersioningLevel = lvl('versioning');
+        window.__lpNoWatermark = !!(byF.no_watermark && byF.no_watermark.allowed);
+      }
+    } catch (e) { console.warn('my_entitlements() indisponible, droits Rookie par défaut', e); }
+  } catch (e) { return false; } // jamais bloquant pour le reste de la page
+
+  const captureBtn = document.createElement('button');
+  captureBtn.type = 'button';
+  captureBtn.className = 'video-capture-trigger-btn';
+  captureBtn.textContent = tr('atelierChooseVideoBtn');
+  captureBtn.addEventListener('click', () => openVideoCaptureDialog());
+  container.insertBefore(captureBtn, container.firstChild);
+  // &montage=<id> (Backstage → Vidéo → Versioning, bloc vidéo d'un AdReel, espace studio) : ce montage sauvegardé s'ouvre dès que
+  // la vidéo est choisie -- le dialogue s'ouvre tout de suite.
+  const montageParam = new URLSearchParams(location.search).get('montage');
+  if (montageParam) openVideoCaptureDialog(montageParam);
+
+  // Boutons ⏺ "Armer" -- un par morceau, posés directement à côté de son propre bouton de lecture dans
+  // le VRAI lecteur du pack (pas un sélecteur séparé dans le panneau de capture) : plus logique puisque
+  // c'est là que le compositeur manipule déjà les morceaux (confirmé par Jules-Antoine 2026-09-15).
+  // Exclusif -- en armer un désarme automatiquement l'ancien. `[data-track-id]` posé par
+  // renderTracksBlock (player.js, décoratif) permet de retrouver quel bloc correspond à quel morceau.
+  document.querySelectorAll('[data-track-id]').forEach(row => {
+    const playBtn = row.querySelector('[data-role="playBtn"]');
+    if (!playBtn || row.querySelector('.video-capture-arm-track-btn')) return;
+    const armBtn = document.createElement('button');
+    armBtn.type = 'button';
+    armBtn.className = 'video-capture-arm-track-btn';
+    armBtn.textContent = '⏺';
+    armBtn.title = tr('captureArmBtnTitle');
+    armBtn.addEventListener('click', () => {
+      const trackId = row.dataset.trackId;
+      armedTrackId = (armedTrackId === trackId) ? null : trackId; // reclique = désarme
+      document.querySelectorAll('.video-capture-arm-track-btn').forEach(b => b.classList.remove('armed'));
+      if (armedTrackId === trackId) armBtn.classList.add('armed');
+      updateArmedStatusDisplay();
+    });
+    playBtn.insertAdjacentElement('afterend', armBtn);
+  });
+  return true;
+}
+
+// Montage à ouvrir dès que la vidéo est choisie (lien du Backstage), et sa fiche (titre, nom de la vidéo d'origine).
+let pendingMontageId = null;
+let pendingMontage = null;
+let openVideoCaptureDialog = () => {};
+(function setupVideoCaptureDialog() {
+  const dialog = document.getElementById('videoCaptureDialog');
+  const dropzone = document.getElementById('videoCaptureDropzone');
+  const fileInput = document.getElementById('videoCaptureFileInput');
+  const errorEl = document.getElementById('videoCaptureError');
+  const cancelBtn = document.getElementById('videoCaptureCancelBtn');
+  const montageNote = document.getElementById('videoCaptureMontageNote');
+  const libPick = document.getElementById('videoCaptureLibraryPick');
+  const libSelect = document.getElementById('videoCaptureLibrarySelect');
+  const libBtn = document.getElementById('videoCaptureLibraryBtn');
+  const libStatus = document.getElementById('videoCaptureLibraryStatus');
+  if (!dialog) return;
+  let libraryVideos = [];
+  function handleFile(file) {
+    if (!file || !file.type.startsWith('video/')) {
+      errorEl.textContent = tr('captureChooseVideoError');
+      return;
+    }
+    errorEl.textContent = '';
+    dialog.close();
+    const montageId = pendingMontageId;
+    pendingMontageId = null;
+    openCapturePanel(file, { montageId });
+  }
+  // Ouverture du dialogue ; montageId (facultatif) : montage sauvegardé à ouvrir dans la foulée. La vidéo n'étant jamais
+  // sauvegardée avec le montage (seul son nom), elle se choisit ici -- sur le disque, ou (admin, 26/09) directement dans
+  // la bibliothèque vidéo du compositeur, la vidéo d'origine présélectionnée si elle s'y trouve.
+  openVideoCaptureDialog = async (montageId) => {
+    pendingMontageId = montageId || null;
+    pendingMontage = null;
+    montageNote.hidden = true;
+    libPick.hidden = true;
+    libStatus.textContent = '';
+    dialog.showModal();
+    if (pendingMontageId) {
+      try {
+        pendingMontage = await loadVideoCapture(pendingMontageId);
+        montageNote.textContent = tr('captureMontageToOpen').replace('{title}', pendingMontage.title || tr('captureUntitled'))
+          + (pendingMontage.videoFilename ? ' ' + tr('captureMontageOriginalVideo').replace('{video}', pendingMontage.videoFilename) : '');
+        montageNote.hidden = false;
+      } catch (e) {
+        console.error(e);
+        pendingMontageId = null;
+        errorEl.textContent = tr('captureLoadFailed').replace('{error}', e.message);
+      }
+    }
+    if (!window.__lpCaptureIsAdmin) return; // nouveauté réservée à l'admin jusqu'au feu vert
+    try {
+      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_videos', window.__lpStudioBuyer ? { p_studio: true } : {});
+      if (error) throw error;
+      libraryVideos = (data && data.videos) || [];
+    } catch (e) { console.error(e); libraryVideos = []; }
+    if (!libraryVideos.length) return;
+    const wanted = pendingMontage && pendingMontage.videoFilename;
+    const match = wanted ? libraryVideos.find(v => v.originalName === wanted || v.title === wanted || v.file === wanted) : null;
+    libSelect.innerHTML = libraryVideos.map(v => `<option value="${window.LayerPlayerCore.escapeHtml(v.id)}" ${match && match.id === v.id ? 'selected' : ''}>${window.LayerPlayerCore.escapeHtml(v.title || v.originalName || v.file)}${v.kind === 'capture_export' ? ' — ' + window.LayerPlayerCore.escapeHtml(tr('captureLibraryKindExport')) : ''}</option>`).join('');
+    libPick.hidden = false;
+    if (wanted && !match) libStatus.textContent = tr('captureLibraryNoMatch').replace('{video}', wanted);
+  };
+  libBtn.addEventListener('click', async () => {
+    const v = libraryVideos.find(x => x.id === libSelect.value);
+    if (!v) return;
+    libBtn.disabled = true;
+    libStatus.textContent = tr('captureLibraryDownloading');
+    try {
+      const res = await fetch(v.base + encodeURIComponent(v.file));
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const blob = await res.blob();
+      // Nom du fichier d'origine : c'est lui que le montage a retenu (vérification « bonne vidéo » au chargement).
+      const name = v.originalName || v.title || v.file;
+      handleFile(new File([blob], name, { type: v.mimeType || blob.type || 'video/mp4' }));
+    } catch (e) {
+      console.error(e);
+      libStatus.textContent = tr('captureLibraryDownloadFailed').replace('{error}', e.message);
+    } finally {
+      libBtn.disabled = false;
+    }
+  });
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    handleFile(e.dataTransfer.files[0]);
+  });
+  cancelBtn.addEventListener('click', () => { pendingMontageId = null; dialog.close(); });
+  dialog.addEventListener('close', () => { errorEl.textContent = ''; fileInput.value = ''; });
+})();
+
+// Démarrage de l'atelier vidéo (21/10, décidé par Jules-Antoine : l'outil de capture et de Versioning vit dans le Backstage,
+// onglet Vidéo, et dans l'espace studio, onglet Vidéos ; la page publique du pack ne garde que le test public).
+//   1. compte connecté obligatoire (sinon : lien vers la connexion) ;
+//   2. liste des packs : les siens (compositeur), ou ceux achetés par l'équipe (studio, ?studio=1) ;
+//   3. pack choisi (?id=) : ses morceaux, dans le vrai lecteur, avec les boutons ⏺ « armer », puis « Choisir la vidéo ».
+// Changer de pack recharge l'atelier sur l'autre pack (rien ne traîne d'un pack à l'autre). Dans un cadre (Backstage, studio), l'atelier
+// prévient la page qui l'accueille du pack choisi (message « lp-atelier »), pour qu'elle le retienne.
+const atelierParams = new URLSearchParams(location.search);
+const atelierAsStudio = atelierParams.get('studio') === '1';
+const atelierEmbedded = window.parent !== window;
+if (atelierEmbedded) document.body.classList.add('atelier-embedded');
+
+function atelierTell(type, detail) {
+  if (!atelierEmbedded) return;
+  try { window.parent.postMessage(Object.assign({ source: 'lp-atelier', type }, detail || {}), location.origin); } catch (e) { /* page d'accueil d'une autre origine : rien à dire */ }
+}
+function atelierEmpty(container, html) { container.innerHTML = `<div class="atelier-empty">${html}</div>`; }
+
+// Packs proposés : les siens (lecture publique de la table packs) ou ceux de l'équipe du studio (my_team_purchases).
+async function atelierPackChoices(client) {
+  if (atelierAsStudio) {
+    const { data } = await client.rpc('my_team_purchases');
+    const seen = new Set();
+    return (data || []).filter(p => p.packId && !seen.has(p.packId) && seen.add(p.packId))
+      .map(p => ({ id: p.packId, title: (p.pack && p.pack.title) || p.packId }));
+  }
+  const { composerId } = await window.LayerPitchAuth.getMyComposerId();
+  if (!composerId) return [];
+  const { data } = await client.from('packs').select('id, title, owner_id').eq('owner_id', composerId).order('title');
+  return (data || []).filter(p => p.owner_id === composerId).map(p => ({ id: p.id, title: p.title || tr('atelierUntitledPack') }));
+}
+
+async function init() {
+  const container = document.getElementById('content');
+  const packId = atelierParams.get('id');
+  window.__lpTrackContext = { type: 'atelier', id: packId, sessionId: null };
+  atelierEmpty(container, escapeHtml(tr('atelierLoading')));
+  try {
+    // Lecture des données publiées (même chargeur que la page pack), puis scripts du compte (connexion, achats).
+    await loadPostgresReadScripts();
+    await loadPurchaseScripts();
+    if (atelierAsStudio) await lpLoadScriptsInOrder(['./api/studio.js']);
+    const { session } = await window.LayerPitchAuth.getSession();
+    if (!session) {
+      atelierEmpty(container, `${escapeHtml(tr('atelierSignIn'))} <a href="./layerpitch-backstage.html" target="_top">${escapeHtml(tr('atelierSignInLink'))}</a>`);
+      return;
+    }
+    const client = window.LayerPitchSupabaseClient.getClient();
+    const choices = await atelierPackChoices(client);
+    const row = document.getElementById('atelierPackRow');
+    const select = document.getElementById('atelierPackSelect');
+    if (!choices.length && !packId) {
+      atelierEmpty(container, escapeHtml(tr(atelierAsStudio ? 'atelierNoPacksStudio' : 'atelierNoPacks')));
+      return;
+    }
+    // Un pack ouvert par un lien (montage d'un autre compte de l'équipe, pack retiré de la liste…) reste proposé.
+    if (packId && !choices.some(c => c.id === packId)) choices.unshift({ id: packId, title: packId });
+    select.innerHTML = (packId ? '' : `<option value="">${escapeHtml(tr('atelierPickPack'))}</option>`)
+      + choices.map(c => `<option value="${escapeHtml(c.id)}" ${c.id === packId ? 'selected' : ''}>${escapeHtml(c.title)}</option>`).join('');
+    row.hidden = false;
+    select.addEventListener('change', () => {
+      if (!select.value) return;
+      const next = new URLSearchParams(location.search);
+      next.set('id', select.value);
+      next.delete('montage');
+      atelierTell('pack', { packId: select.value });
+      location.search = next.toString();
+    });
+    if (!packId) { atelierEmpty(container, escapeHtml(tr('atelierPickPackHint'))); return; }
+
+    // Données publiées du compositeur du pack (le sien, ou celui qui a vendu le pack au studio) : mêmes données que la page publique.
+    const { data: packRows } = await client.from('packs').select('id, owner_id').eq('id', packId);
+    const owner = (packRows || []).find(p => p.id === packId);
+    if (!owner) { atelierEmpty(container, escapeHtml(tr('packNotFound'))); return; }
+    lastResolvedOwnerId = owner.owner_id;
+    const data = await window.LayerPitchSiteData.loadSiteDataFromPostgres(owner.owner_id);
+    const pack = (data.packs || []).find(p => p.id === packId);
+    if (!pack) { atelierEmpty(container, escapeHtml(tr('packNotFound'))); return; }
+    // Référence pour la capture (trackId/sfxId -> fichier réel, voir exportCaptureVideo) ; composerName : crédit compositeur de l'export.
+    const mainAdReel = (data.adReels || []).find(a => a.id === 'main');
+    window.__lpCaptureLibrary = {
+      library: data.library || [], sfxLibrary: data.sfxLibrary || [], sfxFolders: data.sfxFolders || [],
+      composerName: (mainAdReel && mainAdReel.profile && mainAdReel.profile.title) || '',
+    };
+    window.LayerPlayerCore.setSeqMapDensity('roomy');
+
+    container.innerHTML = `<div class="atelier-pack-name">${escapeHtml(pack.title)}</div>
+      <ol class="atelier-steps"><li>${escapeHtml(tr('atelierStepArm'))}</li><li>${escapeHtml(tr('atelierStepVideo'))}</li><li>${escapeHtml(tr('atelierStepPlay'))}</li></ol>`;
+    const musicContainer = document.createElement('div');
+    musicContainer.className = 'pub-section';
+    container.appendChild(musicContainer);
+    const libraryById = {};
+    (data.library || []).forEach(t => { t.publishedAt = data.publishedAt; libraryById[t.id] = t; });
+    const sfxById = {};
+    (data.sfxLibrary || []).forEach(s => { s.publishedAt = data.publishedAt; sfxById[s.id] = s; });
+    window.LayerPlayerCore.setSfxLibrary(sfxById);
+    const packTracks = (pack.trackIds || []).map(id => libraryById[id]).filter(Boolean);
+    renderTracksBlock(musicContainer, packTracks, null, data.noAiCertifiedGlobal);
+    const packSfx = (pack.sfxIds || []).map(id => sfxById[id]).filter(Boolean);
+    if (packSfx.length) {
+      const sfxSectionEl = section(tr('sfxSection'), '');
+      sfxSectionEl.classList.add('pub-section');
+      packSfx.forEach(s => { sfxSectionEl.appendChild(window.LayerPlayerCore.buildSfxPlayer(s)); });
+      container.appendChild(sfxSectionEl);
+    }
+    const open = await setupCaptureTrigger(pack, container, { asStudio: atelierAsStudio });
+    // « Choisir la vidéo » juste sous le nom du pack et les étapes, avant les morceaux.
+    const chooseBtn = container.querySelector('.video-capture-trigger-btn');
+    if (chooseBtn) container.insertBefore(chooseBtn, musicContainer);
+    if (!open) {
+      const note = document.createElement('div');
+      note.className = 'atelier-empty';
+      note.textContent = tr(atelierAsStudio ? 'atelierNotAllowedStudio' : 'atelierNotAllowed');
+      container.insertBefore(note, container.firstChild);
+    }
+    atelierTell('ready', { packId });
+    startAtelierLessonIfAsked();
+  } catch (e) {
+    console.error('LayerPitch — atelier vidéo :', e);
+    atelierEmpty(container, escapeHtml(tr('loadError')));
+  }
+}
+
+// Mode tutoriel (?tuto&lesson=versioning) : la partie « atelier » de la leçon Versioning, guidée dans ce cadre (atelier-lecons.js) ; la
+// page qui l'accueille (Backstage en mode tutoriel) reprend la main à la fin (message « lp-atelier » / lessonDone).
+let atelierLessonStarted = false;
+function startAtelierLessonIfAsked() {
+  if (!atelierParams.has('tuto') || atelierLessonStarted || !window.LayerPitchAtelierLessons || !window.LayerPitchGuide) return;
+  atelierLessonStarted = true;
+  if (!atelierEmbedded) {
+    const bar = document.createElement('div');
+    bar.className = 'preview-mode-banner';
+    bar.textContent = tr('tutoBannerText');
+    document.body.prepend(bar);
+    document.body.classList.add('has-preview-banner');
+  }
+  if (atelierParams.get('lesson') === 'versioning') {
+    setTimeout(() => window.LayerPitchAtelierLessons.init({ lang: currentLang(), onDone: () => atelierTell('lessonDone') }).start(), 600);
+  }
+}
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>

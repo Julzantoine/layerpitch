@@ -80,6 +80,14 @@
     <div class="video-test-dialog-title" data-i18n="videoTestTitle">Tester en jeu</div>
     <p class="video-test-dialog-hint" data-i18n="videoTestHint">Colle le lien d'une vidéo YouTube ou Vimeo (gameplay, cinématique...). Elle s'ouvrira dans une fenêtre séparée, son coupé — à toi de déclencher les morceaux ici pendant que tu regardes.</p>
     <input type="text" id="videoTestUrlInput" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+    <!-- Visiteur connecté à un compte LayerPitch (21/10) : une vidéo de SA bibliothèque, jouée ici son coupé (rien n'est enregistré). -->
+    <div class="video-capture-library-pick" id="videoTestLibraryPick" hidden>
+      <p class="video-test-dialog-hint" data-i18n="videoTestLibraryHint">Ou prends une vidéo de ta bibliothèque LayerPitch :</p>
+      <div class="video-capture-library-row">
+        <select id="videoTestLibrarySelect"></select>
+        <button type="button" class="video-test-btn-primary" id="videoTestLibraryBtn" data-i18n="captureLibraryUseBtn">Utiliser</button>
+      </div>
+    </div>
     <div class="video-test-dialog-error" id="videoTestError"></div>
     <div class="video-test-dialog-actions">
       <button type="button" class="video-test-btn-secondary" id="videoTestCancelBtn" data-i18n="cancel">Annuler</button>
@@ -88,42 +96,13 @@
   </div>
 </dialog>
 
-<!-- Réservé à l'admin ET au compositeur propriétaire du pack (élargi le 16 septembre, voir
-     setupCaptureTrigger) -- traduit FR/EN comme le reste du site. -->
-<dialog id="videoCaptureDialog" class="video-test-dialog">
-  <div class="video-test-form">
-    <div class="video-test-dialog-title" data-i18n="captureDialogTitle">Capturer une prise</div>
-    <div class="video-capture-montage-note" id="videoCaptureMontageNote" hidden></div>
-    <p class="video-test-dialog-hint" data-i18n="captureDialogHint">Importe ta propre vidéo de gameplay (fichier local -- un lien YouTube/Vimeo ne peut pas être réutilisé dans un export). Le lecteur ci-dessous enregistrera l'horodatage de chaque déclenchement pendant que tu joues.</p>
-    <div class="video-capture-dropzone" id="videoCaptureDropzone" data-i18n="captureDropzoneHint">Glisse un fichier vidéo ici, ou clique pour en choisir un</div>
-    <input type="file" id="videoCaptureFileInput" accept="video/*" hidden>
-    <div class="video-capture-library-pick" id="videoCaptureLibraryPick" hidden>
-      <p class="video-test-dialog-hint" data-i18n="captureLibraryPickHint">Ou prends une vidéo de ta bibliothèque vidéo (Backstage → Vidéo) :</p>
-      <div class="video-capture-library-row">
-        <select id="videoCaptureLibrarySelect"></select>
-        <button type="button" class="video-test-btn-primary" id="videoCaptureLibraryBtn" data-i18n="captureLibraryUseBtn">Utiliser</button>
-      </div>
-      <div class="video-capture-library-status" id="videoCaptureLibraryStatus"></div>
-    </div>
-    <div class="video-test-dialog-error" id="videoCaptureError"></div>
-    <div class="video-test-dialog-actions">
-      <button type="button" class="video-test-btn-secondary" id="videoCaptureCancelBtn" data-i18n="cancel">Annuler</button>
-    </div>
-  </div>
-</dialog>
 
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1792574875334"></script>
-<script src="layerpitch-notify.js?v=1792574875334"></script>
-<script src="public-page.js?v=1792574875334"></script>
-<script src="layerpitch-seller-contact.js?v=1792574875334"></script>
-<script src="player.js?v=1792574875334"></script>
-<script src="capture-plan.js?v=1792574875334"></script>
-<script src="capture-render.js?v=1792574875334"></script>
-<script src="capture-retarget.js?v=1792574875334"></script>
-<script src="capture-versioning.js?v=1792574875334"></script>
-<script src="layerpitch-guide.js?v=1792574875334"></script>
-<script src="pack-lecons.js?v=1792574875334"></script>
+<script src="layerpitch-i18n.js?v=1792578828337"></script>
+<script src="layerpitch-notify.js?v=1792578828337"></script>
+<script src="public-page.js?v=1792578828337"></script>
+<script src="layerpitch-seller-contact.js?v=1792578828337"></script>
+<script src="player.js?v=1792578828337"></script>
 <script>

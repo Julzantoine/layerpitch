@@ -52,8 +52,13 @@ function closeVideoPanel() {
   panel.innerHTML = ''; // vide l'iframe pour couper la vidéo, pas juste la masquer
 }
 
+// parsed : { service: 'youtube' | 'vimeo', id } (lien collé), ou { service: 'library', url, title } (vidéo de la bibliothèque du
+// visiteur connecté, 21/10) -- celle-ci se joue directement ici, son coupé, comme le ferait la fenêtre YouTube/Vimeo.
 function openInPanel(parsed) {
   const panel = document.getElementById('videoTestPanel');
+  const media = parsed.service === 'library'
+    ? `<video src="${escapeHtml(parsed.url)}" controls muted playsinline></video>`
+    : `<iframe src="${videoTestUrl(parsed)}" allow="autoplay"></iframe>`;
   panel.innerHTML = `
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('videoTestPanelTitle')}</span>
@@ -62,18 +67,62 @@ function openInPanel(parsed) {
         <button type="button" class="video-test-panel-btn" id="videoTestCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
       </div>
     </div>
-    <div class="video-test-panel-frame-wrap"><iframe src="${videoTestUrl(parsed)}" allow="autoplay"></iframe></div>
+    <div class="video-test-panel-frame-wrap">${media}</div>
   `;
   panel.classList.add('active');
   document.body.classList.add('video-panel-active');
   document.getElementById('videoTestCloseBtn').addEventListener('click', closeVideoPanel);
-  document.getElementById('videoTestDetachBtn').addEventListener('click', () => {
+  const detachBtn = document.getElementById('videoTestDetachBtn');
+  // Une vidéo de la bibliothèque reste dans la page (pas de fenêtre séparée prévue pour elle).
+  if (parsed.service === 'library') detachBtn.hidden = true;
+  else detachBtn.addEventListener('click', () => {
     closeVideoPanel();
     openInWindow(parsed);
   });
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   trackPublicEvent('video_test_open', { service: parsed.service, mode: 'embedded' });
 }
+
+// Ouverture du dialogue « Tester en jeu ». Visiteur connecté à un compte LayerPitch (21/10, décidé par Jules-Antoine) : en plus du
+// lien YouTube/Vimeo, une vidéo de SA bibliothèque (compositeur, ou studio de son équipe). Les scripts du compte ne sont chargés
+// qu'à ce moment-là (jamais au chargement de la page publique). Réservé à l'admin jusqu'au feu vert (même règle que le choix dans la
+// bibliothèque de l'atelier). Rien n'est enregistré : la vidéo se joue ici, son coupé.
+let videoTestLibrary = [];
+let openVideoTestDialog = () => document.getElementById('videoTestDialog').showModal();
+(function setupVideoTestLibrary() {
+  const dialog = document.getElementById('videoTestDialog');
+  const pick = document.getElementById('videoTestLibraryPick');
+  const select = document.getElementById('videoTestLibrarySelect');
+  const btn = document.getElementById('videoTestLibraryBtn');
+  if (!dialog || !pick) return;
+  let loaded = false;
+  async function loadLibrary() {
+    if (loaded) return;
+    loaded = true;
+    try {
+      await loadPurchaseScripts();
+      const { session } = await window.LayerPitchAuth.getSession();
+      if (!session) return;
+      const client = window.LayerPitchSupabaseClient.getClient();
+      const { data: isAdmin } = await client.rpc('is_admin');
+      if (!isAdmin) return; // nouveauté réservée à l'admin jusqu'au feu vert
+      const [mine, studio] = await Promise.all([client.rpc('list_my_videos'), client.rpc('list_my_videos', { p_studio: true })]);
+      const seen = new Set();
+      videoTestLibrary = [].concat((mine.data && mine.data.videos) || [], (!studio.error && studio.data && studio.data.videos) || [])
+        .filter(v => v.kind !== 'capture_audio' && !seen.has(v.id) && seen.add(v.id));
+    } catch (e) { console.warn('LayerPitch — bibliothèque vidéo indisponible :', e); videoTestLibrary = []; }
+    if (!videoTestLibrary.length) return;
+    select.innerHTML = videoTestLibrary.map(v => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.title || v.originalName || v.file)}</option>`).join('');
+    pick.hidden = false;
+  }
+  openVideoTestDialog = () => { dialog.showModal(); loadLibrary(); };
+  btn.addEventListener('click', () => {
+    const v = videoTestLibrary.find(x => x.id === select.value);
+    if (!v) return;
+    dialog.close();
+    openInPanel({ service: 'library', url: v.base + encodeURIComponent(v.file), title: v.title || v.originalName || v.file });
+  });
+})();
 
 // Boîte de dialogue Mode Test Gameplay — mise en place une fois, indépendamment du fait que ce pack
 // l'active ou non (la balise <dialog> ne s'ouvre de toute façon que si le bouton déclencheur existe).
@@ -101,20 +150,3 @@ function openInPanel(parsed) {
   input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tryOpen(); } });
   dialog.addEventListener('close', () => { errorEl.textContent = ''; });
 })();
-
-// --- Mode Capture (admin, prototype moteur vidéo) --------------------------------------------
-// Enregistre l'horodatage (vs. la vidéo importée) de chaque interaction du lecteur adaptatif pendant
-// une "prise" -- calques (intensity_change), stingers (stinger_play), embranchements (seq_branch_select,
-// embr_loop_select), etc. Plutôt que de raccorder ces déclencheurs un par un (5 modes de lecture,
-// logique interne à player.js), on intercepte le point de passage déjà unique par lequel TOUTE
-// interaction transite : trackPublicEvent() y appelle systématiquement window.umami.track(name, detail)
-// (voir player.js). On substitue temporairement window.umami par un objet qui journalise avant de
-// relayer au vrai umami s'il existe déjà -- aucune modification de player.js nécessaire.
-let videoCaptureState = null; // { events, videoEl, markHandler, headHandler, sliderHandler }
-
-// Piste armée pour la capture (2026-09-15) -- réglée depuis un bouton ⏺ posé à côté du lecteur de CHAQUE
-// morceau (voir setupCaptureTrigger), exclusif (armer une piste désarme l'ancienne). Persiste tant que la
-// page reste ouverte, indépendamment du panneau de capture -- on arme d'abord dans le lecteur du pack,
-// avant même d'ouvrir "Capturer une prise" (confirmé par Jules-Antoine 2026-09-15 : "on va d'abord
-// s'intéresser au lecteur du pack, avant d'aller dans l'éditeur vidéo").
-let armedTrackId = null;

@@ -97,8 +97,8 @@ const db = fakeDb({ tracks: { tB: B, tA: A }, sfx_library: { sB: B }, composer_v
   check('migration : upsert_video ne reprend plus la taille du navigateur',
     !/size_bytes = excluded\.size_bytes|nullif\(payload->>'sizeBytes'/.test(mig.slice(mig.indexOf('function public.upsert_video'))));
 
-  // Côté navigateur : r2PutFile (vrai code du Backstage et de pack.html) annonce la taille et renvoie les en-têtes imposés.
-  for (const file of ['layerpitch-backstage.html', 'pack.html']) {
+  // Côté navigateur : r2PutFile (vrai code du Backstage et de l'atelier vidéo, atelier.html depuis le 21/10) annonce la taille et renvoie les en-têtes imposés.
+  for (const file of ['layerpitch-backstage.html', 'atelier.html']) {
     const page = fs.readFileSync(path.join(__dirname, file), 'utf-8');
     const s0 = page.indexOf('async function r2SignedUrl(');
     const s1 = page.indexOf('\n}\n', page.indexOf('async function r2PutFile(')) + 3;

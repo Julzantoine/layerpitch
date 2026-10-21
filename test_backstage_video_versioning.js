@@ -1,6 +1,6 @@
 // Backstage → Vidéo → sous-onglet « Versioning » (26/09) : liste de tous les montages sauvegardés, tous packs confondus,
-// avec leurs versions vidéo (celles déjà rendues et rangées en bibliothèque repérées), et le lien « Ouvrir » vers l'outil
-// vidéo du pack, montage chargé (pack.html?...&capture=1&montage=<id>). Réservé à l'admin jusqu'au feu vert.
+// avec leurs versions vidéo (celles déjà rendues et rangées en bibliothèque repérées), et le bouton « Ouvrir » qui ouvre le
+// montage dans l'atelier vidéo (sous-onglet Atelier, atelier.html?...&montage=<id>, 21/10). Réservé à l'admin jusqu'au feu vert.
 const { loadBackstage } = require('./scripts/test-harness.js');
 const fs = require('fs');
 const path = require('path');
@@ -46,10 +46,13 @@ const path = require('path');
   check('montage : titre, pack, vidéo d\'origine', first.textContent.includes('Trailer') && first.textContent.includes('Robot Adventure') && first.textContent.includes('gameplay.mp4'));
   const chips = first.querySelectorAll('.video-versioning-chip');
   check('montage : ses versions vidéo, celle déjà rangée en bibliothèque repérée', chips.length === 2 && chips[0].classList.contains('exported') && !chips[1].classList.contains('exported'));
-  const link = first.querySelector('a');
-  check('« Ouvrir » : outil vidéo du pack, montage chargé, nouvel onglet', link && /pack\.html\?id=p1&lang=\w+&capture=1&montage=cap1$/.test(link.getAttribute('href')) && link.target === '_blank');
   const second = list.querySelectorAll('.video-library-item')[1];
-  check('pack sans mode « Tester en jeu » : bouton grisé + explication', !second.querySelector('a') && second.textContent.includes(ev("tr('videoCaptureNeedsTestMode')")));
+  check('« Ouvrir » sur chaque montage, même sans le mode « Tester en jeu » du pack (il ne concerne que la page publique)',
+    !!first.querySelector('[data-atelier-montage="cap1"]') && !!second.querySelector('[data-atelier-montage]') && !second.textContent.includes(ev("tr('videoCaptureNeedsTestMode')")));
+  first.querySelector('[data-atelier-montage="cap1"]').click(); await settle();
+  const frame = doc.getElementById('videoAtelierFrame');
+  check('« Ouvrir » : l\'atelier (sous-onglet Atelier) s\'ouvre sur le pack et le montage', /^\.\/atelier\.html\?lang=\w+&id=p1&montage=cap1$/.test(frame.getAttribute('src') || '')
+    && doc.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"]').classList.contains('active'));
   check('montage sans version : « aucune version vidéo »', second.textContent.includes(ev("tr('videoVersioningNoVersion')")));
 
   rpcData.list_my_video_captures = [];

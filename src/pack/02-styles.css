@@ -113,6 +113,8 @@
     border: 1px solid var(--border); border-radius: 10px; padding: 0; max-width: 440px; width: calc(100% - 40px);
     background: var(--bg-card); color: var(--text); box-shadow: 0 12px 40px rgba(0,0,0,0.18);
   }
+  /* margin: auto -- la remise à zéro « * { margin: 0 } » plus haut collait sinon la fenêtre en haut à gauche (corrigé le 21/10). */
+  .video-test-dialog { margin: auto; }
   .video-test-dialog::backdrop { background: rgba(0,0,0,0.4); }
   .video-test-form { padding: 24px; display: flex; flex-direction: column; }
   .video-test-dialog-title { font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 600; margin-bottom: 8px; }
@@ -125,6 +127,7 @@
   /* Ouverture d'un montage depuis le Backstage (Versioning, 26/09) + vidéo prise dans la bibliothèque vidéo. */
   .video-capture-montage-note { font-size: 12.5px; color: var(--text); background: var(--accent-soft); border-radius: 6px; padding: 8px 10px; margin: 0 0 12px; line-height: 1.5; }
   .video-capture-library-pick { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .video-capture-library-pick[hidden] { display: none; }
   .video-capture-library-pick .video-test-dialog-hint { margin: 0; }
   .video-capture-library-row { display: flex; gap: 8px; align-items: center; }
   .video-capture-library-row select { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 12.5px; font-family: inherit; }

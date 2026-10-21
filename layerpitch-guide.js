@@ -118,7 +118,7 @@
           const ghost = chip.cloneNode(true);
           ghost.classList.add('tour-chip-ghost');
           ghost.removeAttribute('data-tour-drop');
-          document.body.appendChild(ghost);
+          (guide && guide.root.parentNode ? guide.root.parentNode : document.body).appendChild(ghost); // même couche que la bulle (fenêtre ouverte)
           const place = (x, y) => { ghost.style.left = (x + 12) + 'px'; ghost.style.top = (y + 12) + 'px'; };
           place(ev.clientX, ev.clientY);
           chip.classList.add('is-dragging');
@@ -214,6 +214,10 @@
       if (!guide) return;
       const step = guide.steps[guide.index];
       const target = stepTarget(step);
+      // Cible dans une fenêtre modale ouverte (<dialog> : affichée au-dessus de tout le reste de la page) : la bulle s'y installe,
+      // sinon elle resterait derrière la fenêtre, inaccessible (21/10, dialogue « Choisir la vidéo » de l'atelier vidéo).
+      const layer = (target && target.closest && target.closest('dialog[open]')) || document.body;
+      if (guide.root.parentNode !== layer) layer.appendChild(guide.root);
       const visible = targetVisible(target);
       const spot = guide.root.querySelector('.tour-spot');
       const card = guide.root.querySelector('.tour-card');

@@ -142,7 +142,8 @@ function refreshSocialsBlockCards() {
 
 function buildVideoCard(block) {
   const { card, body } = makeCardShell(block);
-  body.innerHTML = `<div data-role="list"></div><div class="actions"><button class="btn btn-small" data-role="addBtn">${tr('addVideoBtn')}</button></div>`;
+  // « Atelier vidéo » (21/10) : faire une vidéo avec la musique d'un pack (onglet Vidéo → Atelier), puis la choisir ici dans la bibliothèque.
+  body.innerHTML = `<div data-role="list"></div><div class="actions"><button class="btn btn-small" data-role="addBtn">${tr('addVideoBtn')}</button>${flagOpen('video_upload') ? ` <button class="btn btn-small" type="button" data-role="openAtelier">${tr('videoBlockOpenAtelier')}</button>` : ''}</div>`;
   const listEl = body.querySelector('[data-role="list"]');
   // Bibliothèque vidéo (composer_videos, Postgres) chargée à part de data.json -- pas préchargée au
   // niveau de l'app comme sfxLibrary/packs/collections, donc récupérée à l'ouverture de ce bloc.
@@ -216,7 +217,7 @@ function buildVideoCard(block) {
           <select data-role="versionSelect" data-i="${row.dataset.i}">${options.map(sib => `<option value="${escapeAttr(sib.key)}" ${sib.key === v.defaultVersion ? 'selected' : ''}>${escapeAttr(sib.title || tr('videoVersioningUntitled'))}</option>`).join('')}</select>
           ${options.length > 1 ? `<label style="margin-top:8px">${tr('videoBlockVersionMenuLabel')}</label>
           ${options.map(sib => `<label style="display:flex;align-items:center;gap:6px;font-weight:normal"><input type="checkbox" data-role="versionShown" data-i="${row.dataset.i}" data-key="${escapeAttr(sib.key)}" style="width:auto;margin:0" ${(v.hiddenVersions || []).includes(sib.key) ? '' : 'checked'} ${sib.key === v.defaultVersion ? 'disabled' : ''}> ${escapeAttr(sib.title || tr('videoVersioningUntitled'))}</label>`).join('')}` : ''}
-          <div class="actions" style="margin-top:6px"><a class="btn btn-small" data-role="versionNew" href="${videoVersioningMontageUrl(info.capture)}" target="_blank" rel="noopener">${tr('videoBlockVersionNew')}</a></div>
+          <div class="actions" style="margin-top:6px"><button class="btn btn-small" type="button" data-role="versionNew" data-pack="${escapeAttr(info.capture.packId)}" data-montage="${escapeAttr(info.capture.id)}">${tr('videoBlockVersionNew')}</button></div>
           <div class="hint-inline">${tr('videoBlockVersionHint')}</div>`;
       });
     });
@@ -226,6 +227,8 @@ function buildVideoCard(block) {
     libraryLoaded = true;
     renderList();
   });
+  const atelierBtn = body.querySelector('[data-role="openAtelier"]');
+  if (atelierBtn) atelierBtn.addEventListener('click', () => openVideoAtelier());
   body.querySelector('[data-role="addBtn"]').addEventListener('click', () => {
     block.videos.push({ title: '', url: '', comment: '', thumbnail: null, pendingThumbnail: null, source: 'url', libraryVideoId: null });
     hasUnsavedEdits = true;
@@ -233,6 +236,9 @@ function buildVideoCard(block) {
     refreshAllBlockSummaries();
   });
   listEl.addEventListener('click', e => {
+    // « Créer une version vidéo » : le montage de cette vidéo s'ouvre dans l'atelier (onglet Vidéo → Atelier).
+    const newVersion = e.target.closest('[data-role="versionNew"]');
+    if (newVersion) { openVideoAtelier({ packId: newVersion.dataset.pack, montageId: newVersion.dataset.montage }); return; }
     const btn = e.target.closest('[data-action="remove"]');
     if (!btn) return;
     block.videos.splice(parseInt(btn.dataset.i, 10), 1);
