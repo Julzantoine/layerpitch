@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792615101678">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792617171626">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1877,17 +1877,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792615101678"></script>
-<script src="layerpitch-i18n.js?v=1792615101678"></script>
-<script src="layerpitch-appearance.js?v=1792615101678"></script>
-<script src="layerpitch-album-shared.js?v=1792615101678"></script>
-<script src="layerpitch-album-editor.js?v=1792615101678"></script>
-<script src="layerpitch-shell.js?v=1792615101678"></script>
-<script src="layerpitch-social-icons.js?v=1792615101678"></script>
-<script src="layerpitch-notify.js?v=1792615101678"></script>
-<script src="layerpitch-guide.js?v=1792615101678"></script>
-<script src="layerpitch-help.js?v=1792615101678"></script>
-<script src="player.js?v=1792615101678"></script>
+<script src="layerpitch-tuto.js?v=1792617171626"></script>
+<script src="layerpitch-i18n.js?v=1792617171626"></script>
+<script src="layerpitch-appearance.js?v=1792617171626"></script>
+<script src="layerpitch-album-shared.js?v=1792617171626"></script>
+<script src="layerpitch-album-editor.js?v=1792617171626"></script>
+<script src="layerpitch-shell.js?v=1792617171626"></script>
+<script src="layerpitch-social-icons.js?v=1792617171626"></script>
+<script src="layerpitch-notify.js?v=1792617171626"></script>
+<script src="layerpitch-guide.js?v=1792617171626"></script>
+<script src="layerpitch-help.js?v=1792617171626"></script>
+<script src="player.js?v=1792617171626"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -5605,18 +5605,19 @@ function groupFilesByNameFamily(files, detectIntroOutro) {
     else if (role === 'outro' && !outro) outro = f;
     else rest.push(f);
   });
-  // Code court en tête de nom (« BS_ », « DM_ », « KB_ » : 2 à 3 majuscules puis un tiret bas) : au moins 2 fichiers qui le
-  // partagent forment un seul pool, nommé d'après ce code (21/10). Majuscules seulement, pour ne pas réunir à tort des
-  // fichiers qui commencent par un mot ordinaire (« Main_Perc », « Main_Bass »).
-  const codeOf = f => { const m = f.name.match(/^([A-Z]{2,3})_/); return m ? m[1] : null; };
-  const codeCount = new Map();
-  rest.forEach(f => { const c = codeOf(f); if (c) codeCount.set(c, (codeCount.get(c) || 0) + 1); });
+  // Nom de pool = ce qui précède le premier « _ » (« BS_Stories… », « DM_Foothills… » -> pools BS et DM) : au moins 2 fichiers qui
+  // le partagent (casse ignorée) forment un seul pool (21/10, règle choisie par Jules-Antoine : plus simple et sans piège que
+  // les majuscules). Un fichier sans « _ », ou seul sous son préfixe, suit les règles de familles de noms ci-dessous.
+  const prefixOf = f => { const m = f.name.match(/^([^_]+)_/); const p = m ? m[1].trim() : ''; return p || null; };
+  const prefixCount = new Map();
+  rest.forEach(f => { const p = prefixOf(f); if (p) { const k = p.toLowerCase(); prefixCount.set(k, (prefixCount.get(k) || 0) + 1); } });
   const codeGroups = new Map();
   for (let i = rest.length - 1; i >= 0; i--) {
-    const c = codeOf(rest[i]);
-    if (!c || codeCount.get(c) < 2) continue;
-    if (!codeGroups.has(c)) codeGroups.set(c, { label: c, files: [] });
-    codeGroups.get(c).files.unshift(rest.splice(i, 1)[0]);
+    const p = prefixOf(rest[i]);
+    if (!p || prefixCount.get(p.toLowerCase()) < 2) continue;
+    const k = p.toLowerCase();
+    if (!codeGroups.has(k)) codeGroups.set(k, { label: p, files: [] });
+    codeGroups.get(k).files.unshift(rest.splice(i, 1)[0]);
   }
   const strictLabel = f => stripVariantSuffix(titleFromFilenameStrippingHints(f.name));
   const looseCount = new Map();
@@ -6252,6 +6253,8 @@ function guessFolderStructure(folderName, files) {
     // le dit dans les noms -> on le demande, on ne présélectionne rien (RobotAdventure : séquentiel à embranchement).
     if (!groupFilesByNameFamily(otherFiles, false).groups.some(x => x.files.length >= 2)) return { mode: 'vertical', why: 'transitionsUnclear' };
   }
+  // Un seul fichier (21/10) : un morceau statique, une seule piste -- ni couches, ni étapes, ni boucles à empiler.
+  if (files.length === 1) return { mode: 'static', why: 'single' };
   const intensity = files.filter(f => /(?:^|[^a-z])(?:low|med|medium|mid|high)[\s_-]?intensit|intensit/i.test(f.name)).length;
   if (files.length >= 2 && intensity >= 2) return { mode: 'vertical', why: 'intensity' };
   const g = groupFilesByNameFamily(files, true);
@@ -6411,6 +6414,16 @@ function openRoleGridDialog(opts) {
 if (typeof window !== 'undefined') window.openRoleGridDialog = openRoleGridDialog;
 
 // Vertical : une couche par fichier. Rien n'est supposé : chaque fichier est une couche, sauf ceux que le compositeur écarte.
+// Morceau statique : l'unique fichier devient la piste ; titre, tempo et mesures lus dans son nom comme au choix d'un fichier.
+function importFolderAsStatic(title, files) {
+  const f = files[0];
+  const track = newFolderImportTrack(title, 'static');
+  const layer = { id: genId(), label: titleFromFilenameStrippingHints(f.name), remoteFile: null, pendingFile: f };
+  track.layers.push(layer);
+  applyStaticFileNameHints(track, f);
+  registerImportedTrack(track, 1);
+  probeImportedDurations(track, [[layer, f]]);
+}
 function importFolderAsVertical(title, files) {
   openRoleGridDialog({
     title: tr('importFolderGroupedTitle', { title }), files, requiredRole: 'layer',
@@ -6622,7 +6635,7 @@ function openFolderImportDialog(folder) {
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
   const close = () => overlay.remove();
-  const optionLabel = { 'vertical-random': 'modeOptionVerticalRandom', vertical: 'modeOptionVertical', sequential: 'modeOptionSequential', 'embranchement-vertical': 'modeOptionEmbranchementVertical' };
+  const optionLabel = { static: 'modeOptionStatic', 'vertical-random': 'modeOptionVerticalRandom', vertical: 'modeOptionVertical', sequential: 'modeOptionSequential', 'embranchement-vertical': 'modeOptionEmbranchementVertical' };
   const ignored = folder.ignored || [];
   modal.innerHTML = `
     <h3>${tr('importFolderTitle')}</h3>
@@ -6631,7 +6644,7 @@ function openFolderImportDialog(folder) {
       <label>${tr('importFolderTitleLabel')}</label>
       <input type="text" data-fi="title" value="${escapeAttr(state.title)}">
       <label style="margin-top:12px">${tr('importFolderStructureLabel')}</label>
-      <select data-fi="mode">${noClue ? `<option value="" selected>${tr('importFolderChoosePlaceholder')}</option>` : ''}${FOLDER_IMPORT_MODES.map(m => `<option value="${m}"${m === state.mode ? ' selected' : ''}>${tr(optionLabel[m])}</option>`).join('')}</select>
+      <select data-fi="mode">${noClue ? `<option value="" selected>${tr('importFolderChoosePlaceholder')}</option>` : ''}${(files.length === 1 ? ['static', ...FOLDER_IMPORT_MODES] : FOLDER_IMPORT_MODES).map(m => `<option value="${m}"${m === state.mode ? ' selected' : ''}>${tr(optionLabel[m])}</option>`).join('')}</select>
       <div class="hint-inline">${!noClue ? tr('importFolderGuess', { why: tr('importFolderWhy_name') })
         : (guess.why === 'default' ? tr('importFolderNoClue')
         : (guess.why === 'transitionsUnclear' ? tr('importFolderNoClueTransition')
@@ -6676,7 +6689,8 @@ function openFolderImportDialog(folder) {
     if (!state.mode) return; // rien choisi : on ne devine pas à sa place
     close();
     const title = (state.title || '').trim() || tr('defaultTrackTitle');
-    if (state.mode === 'vertical-random') importFolderAsVerticalRandom(title, files);
+    if (state.mode === 'static') importFolderAsStatic(title, files);
+    else if (state.mode === 'vertical-random') importFolderAsVerticalRandom(title, files);
     else if (state.mode === 'sequential') importFolderAsSequential(title, files);
     else if (state.mode === 'embranchement-vertical') importFolderAsEmbranchement(title, files);
     else importFolderAsVertical(title, files);

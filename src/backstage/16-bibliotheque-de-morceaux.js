@@ -163,18 +163,19 @@ function groupFilesByNameFamily(files, detectIntroOutro) {
     else if (role === 'outro' && !outro) outro = f;
     else rest.push(f);
   });
-  // Code court en tête de nom (« BS_ », « DM_ », « KB_ » : 2 à 3 majuscules puis un tiret bas) : au moins 2 fichiers qui le
-  // partagent forment un seul pool, nommé d'après ce code (21/10). Majuscules seulement, pour ne pas réunir à tort des
-  // fichiers qui commencent par un mot ordinaire (« Main_Perc », « Main_Bass »).
-  const codeOf = f => { const m = f.name.match(/^([A-Z]{2,3})_/); return m ? m[1] : null; };
-  const codeCount = new Map();
-  rest.forEach(f => { const c = codeOf(f); if (c) codeCount.set(c, (codeCount.get(c) || 0) + 1); });
+  // Nom de pool = ce qui précède le premier « _ » (« BS_Stories… », « DM_Foothills… » -> pools BS et DM) : au moins 2 fichiers qui
+  // le partagent (casse ignorée) forment un seul pool (21/10, règle choisie par Jules-Antoine : plus simple et sans piège que
+  // les majuscules). Un fichier sans « _ », ou seul sous son préfixe, suit les règles de familles de noms ci-dessous.
+  const prefixOf = f => { const m = f.name.match(/^([^_]+)_/); const p = m ? m[1].trim() : ''; return p || null; };
+  const prefixCount = new Map();
+  rest.forEach(f => { const p = prefixOf(f); if (p) { const k = p.toLowerCase(); prefixCount.set(k, (prefixCount.get(k) || 0) + 1); } });
   const codeGroups = new Map();
   for (let i = rest.length - 1; i >= 0; i--) {
-    const c = codeOf(rest[i]);
-    if (!c || codeCount.get(c) < 2) continue;
-    if (!codeGroups.has(c)) codeGroups.set(c, { label: c, files: [] });
-    codeGroups.get(c).files.unshift(rest.splice(i, 1)[0]);
+    const p = prefixOf(rest[i]);
+    if (!p || prefixCount.get(p.toLowerCase()) < 2) continue;
+    const k = p.toLowerCase();
+    if (!codeGroups.has(k)) codeGroups.set(k, { label: p, files: [] });
+    codeGroups.get(k).files.unshift(rest.splice(i, 1)[0]);
   }
   const strictLabel = f => stripVariantSuffix(titleFromFilenameStrippingHints(f.name));
   const looseCount = new Map();
