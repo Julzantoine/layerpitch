@@ -26,12 +26,12 @@ function lessonPlayable(lesson) { return !isTutoMode() || tutoFullAccess || less
 // URL de chaque fichier d'exemple (nom de fichier -> URL), à renseigner quand les fichiers seront en ligne (stockage
 // des médias, avec CORS ouvert à l'origine du Backstage). Tant qu'un nom manque, le bouton « Utiliser » n'apparaît pas.
 const LESSON_SAMPLE_URLS = {
-  // Leçon 1 (essai) : morceau de Jules-Antoine, stocké dans le bucket layerpitch-media (lecture publique, CORS ouvert).
-  '1_RobotAdventure_WetDarkCave_120bpm_30M.wav': 'https://media.layerpitch.com/tuto/1_RobotAdventure_WetDarkCave_120bpm_30M.wav',
 };
 // Leçons « Jazz » (21/10) : morceaux de Jules-Antoine, 110 BPM, dans le même dossier `tuto/`. Les originaux .wav y sont déposés sous
 // leurs noms exacts (avec espaces : l'adresse est encodée). Le nom est celui que l'apprenant voit et que le moteur lit (tempo, mesures).
 [
+  // Statique : une boucle de 8 mesures précédée d'une intro de 2 temps.
+  'Jazz Lo_2bts Intro_8M_110bpm.wav',
   // Embranchement vertical : deux boucles de 8 mesures précédées d'une intro de 2 temps.
   'Jazz Lo 2bts Intro_8M_110bpm.wav', 'Jazz Hi 2bts Intro_8M_110bpm.wav',
   // Couches additives : trois couches (cordes, batterie, clavier), même durée.
@@ -191,7 +191,7 @@ function lessonTrack() { return (typeof library !== 'undefined' && library.find(
 const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null, sequential: null, branching: null, embranchement: null, import: null };
 // Nom du fichier d'exemple cité dans la consigne de dépôt (il porte le tempo : ambiance_120bpm).
 const LESSON_SAMPLE_NAMES = {
-  static: '1_RobotAdventure_WetDarkCave_120bpm_30M.wav',
+  static: 'Jazz Lo_2bts Intro_8M_110bpm.wav',
   additive: 'Jazz Hi CB Only_2bts intro_8M_110bpm.wav, Jazz Hi Drum Only_2bts intro_8M_110bpm.wav, Jazz Hi KB Only_2bts intro_8M_110bpm.wav',
   randomFixed: 'couche-fixe_120bpm.wav',
   randomVariants: 'variante-1_120bpm.wav, variante-2_120bpm.wav, variante-3_120bpm.wav',
@@ -262,7 +262,7 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && t.loopEngine === 'quantized'; } },
     { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lsVerifyTitle', textKey: 'lsVerifyText' },
     // Flèche sur la barre de la 31e mesure : le morceau d'exemple fait 30 mesures (+ résonances), la sortie se place à la fin.
-    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText', arrow: { bar: 31 } },
+    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText', arrow: { bar: 9.5, labelKey: 'laArrowOut' } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lsEndTitle', textKey: 'lsEndText', final: true },
