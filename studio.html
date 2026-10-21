@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Espace studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1792568152233">
+<link rel="stylesheet" href="player.css?v=1792570029429">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -70,22 +70,22 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1792568152233"></script>
-<script src="layerpitch-notify.js?v=1792568152233"></script>
-<script src="player.js?v=1792568152233"></script>
-<script src="api/supabase-client.js?v=1792568152233"></script>
-<script src="api/auth.js?v=1792568152233"></script>
-<script src="layerpitch-appearance.js?v=1792568152233"></script>
-<script src="layerpitch-album-shared.js?v=1792568152233"></script>
-<script src="layerpitch-album-editor.js?v=1792568152233"></script>
-<script src="layerpitch-shell.js?v=1792568152233"></script>
-<script src="api/purchases.js?v=1792568152233"></script>
-<script src="api/tracks.js?v=1792568152233"></script>
-<script src="api/sfx.js?v=1792568152233"></script>
-<script src="api/subscriptions.js?v=1792568152233"></script>
-<script src="api/albums.js?v=1792568152233"></script>
-<script src="layerpitch-studio-albums.js?v=1792568152233"></script>
-<script src="api/studio.js?v=1792568152233"></script>
+<script src="layerpitch-i18n.js?v=1792570029429"></script>
+<script src="layerpitch-notify.js?v=1792570029429"></script>
+<script src="player.js?v=1792570029429"></script>
+<script src="api/supabase-client.js?v=1792570029429"></script>
+<script src="api/auth.js?v=1792570029429"></script>
+<script src="layerpitch-appearance.js?v=1792570029429"></script>
+<script src="layerpitch-album-shared.js?v=1792570029429"></script>
+<script src="layerpitch-album-editor.js?v=1792570029429"></script>
+<script src="layerpitch-shell.js?v=1792570029429"></script>
+<script src="api/purchases.js?v=1792570029429"></script>
+<script src="api/tracks.js?v=1792570029429"></script>
+<script src="api/sfx.js?v=1792570029429"></script>
+<script src="api/subscriptions.js?v=1792570029429"></script>
+<script src="api/albums.js?v=1792570029429"></script>
+<script src="layerpitch-studio-albums.js?v=1792570029429"></script>
+<script src="api/studio.js?v=1792570029429"></script>
 <script>
 // studio.html — Espace studio (chantier profils et permissions, étape 3, 28/09 ; D2, D9, D13, D33 du cadrage
 // layerpitch-docs/2026-09-27-cadrage-profils-permissions.md). Espace DÉDIÉ au studio, distinct du Backstage compositeur ;
@@ -129,7 +129,7 @@ function quotaText(e) {
 
 // Barre latérale commune (28/09) : les onglets de l'espace studio sont ses entrées « Studio » ; le fil d'Ariane et
 // le titre suivent l'onglet choisi. Un lien de la barre vers cette même page change d'onglet sans rechargement.
-const STUDIO_TABS = ['library', 'custom', 'albums', 'team', 'plan'];
+const STUDIO_TABS = ['library', 'custom', 'video', 'albums', 'team', 'plan'];
 function shellPlaces() {
   return { active: 'studio.' + state.tab, crumbs: [{ label: tr('h1') }, { label: tr('tab_' + state.tab) }] };
 }
@@ -239,8 +239,65 @@ function renderPanel() {
   if (state.tab === 'library') return renderLibrary(panel);
   if (state.tab === 'custom') return state.editing ? renderEditor(panel) : renderCustomList(panel);
   if (state.tab === 'albums') return renderAlbumsTab(panel);
+  if (state.tab === 'video') return renderVideoTab(panel);
   if (state.tab === 'team') return renderTeam(panel);
   return renderPlan(panel);
+}
+
+// ---- Vidéos du studio (21/10, migration 20261021060000) ----
+// Les membres d'un studio sont les parties d'une seule entité : un montage (outil « Capturer une prise » d'un pack acheté) appartient
+// au STUDIO, tout membre le retouche, il reste au studio si son auteur part. Ses vidéos muettes et ses sons comptent dans le stockage
+// du studio. Ici : la liste des montages (ouvrir dans l'outil, supprimer), la bibliothèque vidéo, le stockage et le nettoyage des historiques.
+async function renderVideoTab(panel) {
+  panel.innerHTML = `<div class="card"><div class="empty">${esc(tr('sv_loading'))}</div></div>`;
+  const client = window.LayerPitchSupabaseClient.getClient();
+  const [caps, lib, hist] = await Promise.all([
+    client.rpc('list_my_video_captures', { p_pack_id: null, p_studio: true }),
+    client.rpc('list_my_videos', { p_studio: true }),
+    client.rpc('my_video_history_usage', { p_studio: true }),
+  ]);
+  const montages = caps.data || [], videos = (lib.data && lib.data.videos) || [], usage = hist.data || { count: 0, bytes: 0 };
+  const mo = n => (Number(n || 0) / 1048576).toFixed(1) + ' Mo';
+  const quota = lib.data && lib.data.quotaGb != null ? tr('sv_storage', { used: (Number(lib.data.usedBytes || 0) / 1073741824).toFixed(2), quota: lib.data.quotaGb }) : '';
+  panel.innerHTML = `<div class="card">
+      <h2>${esc(tr('sv_montagesTitle'))}</h2>
+      <p class="hint">${esc(tr('sv_montagesIntro'))}</p>
+      ${montages.length ? montages.map(c => `<div class="row"><div class="row-main"><div class="row-title">${esc(c.title || tr('sv_untitled'))}</div>
+          <div class="row-sub">${esc(new Date(c.updatedAt).toLocaleDateString(pageLang))}${c.lastExportVideoId ? '' : ' — ' + esc(tr('sv_notPublished'))}</div></div>
+          <div class="row-actions"><a class="btn" href="./pack.html?id=${encodeURIComponent(c.packId)}&lang=${pageLang}&capture=1&montage=${encodeURIComponent(c.id)}">${esc(tr('sv_open'))}</a>
+          <button class="btn" type="button" data-delmontage="${esc(c.id)}">${esc(tr('sv_delete'))}</button></div></div>`).join('') : `<div class="empty">${esc(tr('sv_noMontages'))}</div>`}
+    </div>
+    <div class="card">
+      <h2>${esc(tr('sv_libraryTitle'))}</h2>
+      ${quota ? `<p class="hint">${esc(quota)}</p>` : ''}
+      ${videos.length ? videos.map(v => `<div class="row"><div class="row-main"><div class="row-title">${esc(v.title || v.originalName || v.file)}</div><div class="row-sub">${esc(mo(v.sizeBytes))}</div></div>
+          <div class="row-actions"><a class="btn" href="${esc(v.base + v.file)}" target="_blank" rel="noopener">${esc(tr('sv_view'))}</a></div></div>`).join('') : `<div class="empty">${esc(tr('sv_noVideos'))}</div>`}
+      ${usage.count ? `<div class="row"><div class="row-main"><div class="row-sub">${esc(tr('sv_history', { n: usage.count, size: mo(usage.bytes) }))}</div></div>
+          <div class="row-actions"><button class="btn" type="button" id="svClearHistory">${esc(tr('sv_clearHistory'))}</button></div></div>` : ''}
+      <div class="msg" id="svMsg"></div>
+    </div>`;
+  const dropFiles = async removed => {
+    for (const r of (removed || [])) {
+      try {
+        const { data } = await client.functions.invoke('create-media-signed-url', { body: { path: r.path, method: 'DELETE', asStudio: true } });
+        if (data && data.url && !data.kept) await fetch(data.url, { method: 'DELETE' });
+      } catch (e) { console.warn('effacement ' + r.path, e); }
+    }
+  };
+  panel.querySelectorAll('[data-delmontage]').forEach(b => b.onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('sv_deleteConfirm'), { danger: true }))) return;
+    const { error } = await client.rpc('delete_video_capture', { p_id: b.dataset.delmontage, p_studio: true });
+    if (error) return window.LayerPitchNotify.error(error.message);
+    renderVideoTab(panel);
+  });
+  const clr = $('svClearHistory');
+  if (clr) clr.onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('sv_clearConfirm'), { danger: true }))) return;
+    const { data, error } = await client.rpc('clear_video_export_history', { p_studio: true });
+    if (error) return window.LayerPitchNotify.error(error.message);
+    await dropFiles(data && data.removed);
+    renderVideoTab(panel);
+  };
 }
 
 // ---- Bibliothèque : packs achetés ----

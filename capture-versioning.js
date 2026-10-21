@@ -25,8 +25,9 @@
   const newId = () => ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)));
   const clone = o => JSON.parse(JSON.stringify(o || {}));
 
+  // Compte studio (21/10) : versions enregistrées au nom du studio (p_studio), comme ses montages.
   const rpc = async (name, args) => {
-    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc(name, args);
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc(name, window.__lpStudioBuyer ? Object.assign({}, args, { p_studio: true }) : args);
     if (error) throw error;
     return data;
   };

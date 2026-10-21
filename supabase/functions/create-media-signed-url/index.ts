@@ -136,6 +136,15 @@ async function verifyOwnership(adminClient: ReturnType<typeof createClient>, pat
   return false;
 }
 
+// Vidéo d'un studio : l'entité visée (composer_videos) doit appartenir à ce studio, ou ne pas encore exister.
+async function verifyStudioVideo(adminClient: ReturnType<typeof createClient>, path: string, studioId: string): Promise<boolean> {
+  const m = path.match(/^video\/([^/]+)\/[^/]+$/);
+  if (!m) return false;
+  const { data, error } = await adminClient.from('composer_videos').select('owner_studio_id').eq('id', m[1]).maybeSingle();
+  if (error) { console.error('create-media-signed-url: verifyStudioVideo', error); return false; }
+  return !data || data.owner_studio_id === studioId;
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = corsHeadersFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -153,7 +162,7 @@ Deno.serve(async (req) => {
     const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { path, method, size } = await req.json();
+    const { path, method, size, asStudio } = await req.json();
     const adminClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
     // Pochette d'un album de STUDIO (29/09) : images/<id du studio>/album-<id>.<ext>, réservé au studio qui l'envoie (son
@@ -170,8 +179,24 @@ Deno.serve(async (req) => {
     // Le compositeur doit exister avant de publier du média -- même garde-fou que
     // create-connect-onboarding-link (ensure_composer_profile() déjà appelé ailleurs dans le
     // parcours d'inscription, mais on ne le suppose pas ici).
+    // Bibliothèque vidéo d'un STUDIO (21/10, migration 20261021060000) : video/<id>/<fichier> au nom du studio du compte connecté
+    // (propriétaire ou membre de l'équipe). Quota du studio (reserve_video_upload_studio), sans profil compositeur.
+    let videoStudioId: string | null = null;
+    if (asStudio === true && typeof path === 'string' && path.startsWith('video/')) {
+      const { data: userData } = await callerClient.auth.getUser(jwt);
+      if (userData?.user) {
+        const { data: sid } = await adminClient.rpc('account_studio_id', { p_profile_id: userData.user.id });
+        if (sid) videoStudioId = sid as string;
+      }
+      if (!videoStudioId) {
+        return new Response(JSON.stringify({ error: 'Aucun studio associé à ce compte.' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     let composerId: unknown = studioFolderId;
-    if (!studioFolderId) {
+    if (!studioFolderId && !videoStudioId) {
       const { data, error: composerError } = await callerClient.rpc('ensure_composer_profile');
       if (composerError || !data) {
         return new Response(JSON.stringify({ error: composerError?.message || 'Impossible de provisionner le profil compositeur.' }), {
@@ -209,7 +234,7 @@ Deno.serve(async (req) => {
 
     // service_role (adminClient, plus haut) pour la vérification de propriété -- même raisonnement que create-checkout-session
     // (seul point de vérité, jamais soumis à la RLS "lecture publique" qui s'applique par ailleurs à ces tables).
-    const owned = await verifyOwnership(adminClient, path, composerId as string);
+    const owned = videoStudioId ? await verifyStudioVideo(adminClient, path, videoStudioId) : await verifyOwnership(adminClient, path, composerId as string);
     if (!owned) {
       return new Response(JSON.stringify({ error: 'Ce fichier ne t\'appartient pas.' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -219,9 +244,9 @@ Deno.serve(async (req) => {
     // Envoi d'une vidéo : quota vérifié et place réservée AVANT de signer (27/09, reserve_video_upload), sur la taille
     // exacte verrouillée dans la signature -- jamais sur ce que le navigateur annoncera ensuite à upsert_video.
     if (method === 'PUT' && path.startsWith('video/')) {
-      const { data: refusal, error: reserveError } = await adminClient.rpc('reserve_video_upload', {
-        p_composer_id: composerId, p_path: path, p_size: size,
-      });
+      const { data: refusal, error: reserveError } = videoStudioId
+        ? await adminClient.rpc('reserve_video_upload_studio', { p_studio_id: videoStudioId, p_path: path, p_size: size })
+        : await adminClient.rpc('reserve_video_upload', { p_composer_id: composerId, p_path: path, p_size: size });
       if (reserveError) {
         console.error('create-media-signed-url: reserve_video_upload', reserveError);
         return new Response(JSON.stringify({ error: 'Erreur interne. Réessaie dans un instant.' }), {

@@ -127,5 +127,5 @@ const db = fakeDb({ tracks: { tB: B, tA: A }, sfx_library: { sB: B }, composer_v
   console.log('\nTout est OK');
 })();// Pochette d'un album de studio (29/09) : images/<id du studio>/album-<id>.<ext>, dossier du studio seulement, sans profil compositeur.
 check('pochette de studio : chemin images/<studio>/album-… accepté seulement pour le dossier du studio de l\'appelant', /studio_profiles/.test(edge) && /album-\[\^\/\]\+/.test(edge) && /path\.startsWith\(`images\/\$\{studio\.id\}\/`\)/.test(edge));
-check('pochette de studio : le profil compositeur n\'est créé que hors de ce cas', /if \(!studioFolderId\)[\s\S]{0,80}ensure_composer_profile/.test(edge));
+check('pochette de studio (et vidéo d\'un studio) : le profil compositeur n\'est créé que hors de ces cas', /if \(!studioFolderId( && !videoStudioId)?\)[\s\S]{0,80}ensure_composer_profile/.test(edge));
 

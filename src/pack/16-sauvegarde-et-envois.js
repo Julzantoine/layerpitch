@@ -11,24 +11,29 @@
 // (Rookie/Warrior sans persistance, Boss avec) -- n'importe qui pourrait "sauvegarder" gratuitement en
 // téléchargeant le fichier, rendant le futur verrou Boss sans objet. Toute persistance doit passer par
 // ces RPC, jamais par un fichier que le client peut simplement garder.
+// Montages d'un STUDIO (21/10, migration 20261021060000) : un compte studio (window.__lpStudioBuyer) enregistre ses montages, versions,
+// sons et vidéos muettes AU NOM DU STUDIO -- tout membre de l'équipe les retouche, ils restent au studio, quota du studio. Chaque appel
+// aux fonctions vidéo porte alors p_studio (et asStudio pour les envois de fichiers).
+const videoAsStudio = () => !!window.__lpStudioBuyer;
+const withStudio = args => (videoAsStudio() ? Object.assign({}, args, { p_studio: true }) : args);
 async function saveVideoCapture(packId, id, title, videoFilename, events, laneOverrides, collapsedGroups) {
   const client = window.LayerPitchSupabaseClient.getClient();
-  const { data, error } = await client.rpc('save_video_capture', {
+  const { data, error } = await client.rpc('save_video_capture', withStudio({
     p_id: id, p_pack_id: packId, p_title: title || '', p_video_filename: videoFilename || null,
     p_events: events, p_lane_overrides: laneOverrides, p_collapsed_groups: collapsedGroups,
-  });
+  }));
   if (error) throw error;
   return data;
 }
 async function listVideoCaptures(packId) {
   const client = window.LayerPitchSupabaseClient.getClient();
-  const { data, error } = await client.rpc('list_my_video_captures', { p_pack_id: packId });
+  const { data, error } = await client.rpc('list_my_video_captures', withStudio({ p_pack_id: packId }));
   if (error) throw error;
   return data || [];
 }
 async function loadVideoCapture(id) {
   const client = window.LayerPitchSupabaseClient.getClient();
-  const { data, error } = await client.rpc('get_video_capture', { p_id: id });
+  const { data, error } = await client.rpc('get_video_capture', withStudio({ p_id: id }));
   if (error) throw error;
   return data;
 }
@@ -81,7 +86,7 @@ const MEDIA_BASE = 'https://media.layerpitch.com/';
 // size : taille exacte d'un envoi (PUT), vérifiée et verrouillée par le serveur avec le type de fichier (27/09).
 async function r2SignedUrl(path, method, size) {
   const { data, error } = await window.LayerPitchSupabaseClient.getClient()
-    .functions.invoke('create-media-signed-url', { body: { path, method, size } });
+    .functions.invoke('create-media-signed-url', { body: window.__lpStudioBuyer && path.startsWith('video/') ? { path, method, size, asStudio: true } : { path, method, size } }); // vidéo d'un studio : à son nom
   if (error) throw new Error(await window.LayerPitchAuth.describeFunctionError(error));
   if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
   return data;
@@ -142,7 +147,7 @@ async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, ki
     uploaded = true;
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
       payload: {
-        id, kind: kind || 'capture_export', packId, title: title || '', base, file: fileName,
+        id, kind: kind || 'capture_export', packId, title: title || '', base, file: fileName, asStudio: videoAsStudio(),
         mimeType: 'video/mp4', sizeBytes: blob.size, durationSeconds: durationSeconds || null,
       },
     });
@@ -151,7 +156,7 @@ async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, ki
     // Envoi raté après la réservation serveur (27/09, reserve_video_upload) : si le fichier n'est pas arrivé, la ligne
     // « envoi en cours » est retirée (sans effet si rien n'avait été réservé). S'il est arrivé, elle reste : comptée
     // dans le quota et supprimable depuis la bibliothèque du Backstage, qui efface aussi le fichier.
-    if (!uploaded) window.LayerPitchSupabaseClient.getClient().rpc('delete_video', { p_id: id }).then(() => {}, () => {});
+    if (!uploaded) window.LayerPitchSupabaseClient.getClient().rpc('delete_video', withStudio({ p_id: id })).then(() => {}, () => {});
     throw e;
   }
   return id;

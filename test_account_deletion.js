@@ -31,6 +31,7 @@
     ad_reel_folders.owner_id ad_reels.owner_id admin_message_reads.composer_id analytics_events.owner_id collections.owner_id composer_handle_aliases.composer_id
     composer_videos.owner_id contact_messages.owner_id credit_payouts.composer_id invoices.composer_id packs.owner_id settings.owner_id sfx_folders.owner_id
     sfx_library.owner_id socials.owner_id track_folders.owner_id tracks.owner_id video_capture_versions.owner_id video_captures.owner_id video_export_history.owner_id
+    composer_videos.owner_studio_id video_captures.owner_studio_id video_capture_versions.owner_studio_id video_export_history.owner_studio_id
     invoices.studio_id projects.owner_studio_id studio_credit_ledger.studio_id studio_custom_packs.studio_id studio_members.studio_id`.split(/\s+/).filter(Boolean));
   const fks = await q(`select c.conrelid::regclass::text as tbl, a.attname as col from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any(c.conkey)
     where c.contype = 'f' and c.confrelid::regclass::text in ('profiles', 'auth.users', 'composer_profiles', 'studio_profiles')`);

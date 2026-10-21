@@ -55,13 +55,11 @@ async function setupCaptureTrigger(pack, container) {
       (ent || []).forEach(r => { byF[r.feature] = r; });
       const lvl = f => (byF[f] && byF[f].allowed ? byF[f].level : null);
       if (window.__lpStudioBuyer) {
-        // Droits du palier STUDIO (studio_test_in_game, studio_versioning, studio_no_watermark). Les montages et versions
-        // enregistrés côté serveur n'existent aujourd'hui que pour un compositeur (video_captures) : pour un studio,
-        // « enregistré » devient provisoirement « modifiable » et « pendant la séance » (étapes suivantes du chantier).
+        // Droits du palier STUDIO (studio_test_in_game, studio_versioning, studio_no_watermark). Depuis le 21/10 (migration
+        // 20261021060000), un studio enregistre ses montages et ses versions vidéo AU NOM DU STUDIO (toute l'équipe les retouche).
         if (!(byF.studio_test_in_game && byF.studio_test_in_game.allowed)) return; // feu vert studio_space fermé
-        const cap = lvl('studio_test_in_game');
-        window.__lpCaptureLevel = cap === 'saved' ? 'edit' : (cap || 'capture');
-        window.__lpVersioningLevel = lvl('studio_versioning') ? 'session' : null;
+        window.__lpCaptureLevel = lvl('studio_test_in_game') || 'capture';
+        window.__lpVersioningLevel = lvl('studio_versioning');
         window.__lpNoWatermark = !!(byF.studio_no_watermark && byF.studio_no_watermark.allowed);
       } else {
         window.__lpCaptureLevel = lvl('test_in_game') || 'capture';
@@ -160,7 +158,7 @@ let openVideoCaptureDialog = () => {};
     }
     if (!window.__lpCaptureIsAdmin) return; // nouveauté réservée à l'admin jusqu'au feu vert
     try {
-      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_videos');
+      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_videos', window.__lpStudioBuyer ? { p_studio: true } : {});
       if (error) throw error;
       libraryVideos = (data && data.videos) || [];
     } catch (e) { console.error(e); libraryVideos = []; }

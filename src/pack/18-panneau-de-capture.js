@@ -118,7 +118,7 @@ function openCapturePanel(file, opts) {
   // versions, avec « Revenir à celle-ci » (elle redevient la vidéo affichée partout).
   async function renderExportHistory() {
     if (!savedCaptureId || versioningLevelForHistory() !== 'saved') { historyEl.hidden = true; return; }
-    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_video_export_history', { p_capture_id: savedCaptureId });
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_video_export_history', withStudio({ p_capture_id: savedCaptureId }));
     if (error || !data || !data.length) { historyEl.hidden = true; historyEl.innerHTML = ''; return; }
     historyEl.hidden = false;
     historyEl.innerHTML = `<div class="video-capture-count">${tr('captureHistoryTitle')}</div>` + data.map(h => `
@@ -131,7 +131,7 @@ function openCapturePanel(file, opts) {
     const b = e.target.closest('[data-restore]');
     if (!b) return;
     b.disabled = true;
-    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('restore_video_export', { p_history_id: Number(b.dataset.restore) });
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('restore_video_export', withStudio({ p_history_id: Number(b.dataset.restore) }));
     if (error) { exportStatus.textContent = tr('captureExportFailed').replace('{error}', error.message); b.disabled = false; return; }
     await r2DeleteRemovedVideos(data && data.removed);
     exportStatus.textContent = tr('captureHistoryRestored');
@@ -347,12 +347,12 @@ function openCapturePanel(file, opts) {
   // muette (l'image d'origine sans son) ; ensuite, chaque export n'est plus qu'un fichier son (+ étiquettes), joué sur cette image.
   async function ensureMontageBase(onStatus) {
     const client = window.LayerPitchSupabaseClient.getClient();
-    const cur = await client.rpc('video_capture_base', { p_capture_id: savedCaptureId });
+    const cur = await client.rpc('video_capture_base', withStudio({ p_capture_id: savedCaptureId }));
     if (!cur.error && cur.data) return cur.data;
     onStatus(tr('captureMakingSilentVideo'));
     const blob = await makeSilentVideo(file, onStatus);
     const id = await saveExportToVideoLibrary(blob, packId, (titleInput.value || file.name) + ' — ' + tr('captureSilentVideoSuffix'), videoEl.duration || null, 'capture_base');
-    const { error } = await client.rpc('set_video_capture_base', { p_capture_id: savedCaptureId, p_video_id: id });
+    const { error } = await client.rpc('set_video_capture_base', withStudio({ p_capture_id: savedCaptureId, p_video_id: id }));
     if (error) throw error;
     return id;
   }
@@ -372,7 +372,7 @@ function openCapturePanel(file, opts) {
     updateEverywhereBtn.disabled = true; setExportButtonsDisabled(true);
     try {
       const videoId = await publishMontageSound(lastEvents, titleInput.value);
-      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', { p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides), p_keep_old: keepOldCheckbox.checked });
+      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', withStudio({ p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides), p_keep_old: keepOldCheckbox.checked }));
       if (error) throw error;
       await r2DeleteRemovedVideos(data && data.removed); // exports trop anciens (au-delà de 3) ou ancienne vidéo non gardée
       exportStatus.textContent = tr('captureUpdatedEverywhere');

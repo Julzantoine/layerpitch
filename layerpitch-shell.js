@@ -43,6 +43,7 @@
     projects: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
     invitations: '<path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6"/>',
     albums: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>',
+    video: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4z"/>',
     account: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/>',
     appearance: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>',
     pricing: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8zM7 7h.01"/>',
@@ -441,6 +442,8 @@
       const studio = studioSpace ? [
         { id: 'studio.library', icon: 'purchases', href: 'studio.html?tab=library' },
         { id: 'studio.custom', icon: 'custom', href: 'studio.html?tab=custom' },
+        // Vidéos du studio (21/10) : montages, versions vidéo et bibliothèque vidéo de l'équipe (migration 20261021060000).
+        { id: 'studio.video', icon: 'video', href: 'studio.html?tab=video' },
         { id: 'studio.team', icon: 'team', href: 'studio.html?tab=team' },
         { id: 'studio.plan', icon: 'plan', href: 'studio.html?tab=plan' },
       ] : [
