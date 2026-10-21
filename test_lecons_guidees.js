@@ -45,7 +45,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('embranchement vertical : 24 étapes', w.__r.emb === 24);
   
   
-  check('couches aléatoires : 14 étapes', w.__r.rnd === 14);
+  check('couches aléatoires : 17 étapes', w.__r.rnd === 17);
   check('couches additives : 23 étapes', w.__r.add === 23);
   check('la leçon ouvre une bulle', !!w.document.querySelector('.tour-root-lesson .tour-card'));
   check('la leçon démarre sur le message de bienvenue (étape 1 sur 12)', /1 \/ 12/.test(w.document.querySelector('.tour-count').textContent) && /Bienvenue/.test(w.document.querySelector('.tour-title').textContent));
@@ -80,7 +80,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   })()`);
   check('fichier d’exemple : bouton absent sans URL, présent avec', sampleOk.before === false && sampleOk.after === true);
   check('fichiers d’exemple : 3 noms pour les couches additives', sampleOk.names === 3);
-  check('17 étapes de dépôt acceptent l’exemple', sampleOk.flagged === 17);
+  check('16 étapes de dépôt acceptent l’exemple', sampleOk.flagged === 16);
   // Dépôt réel d'un exemple : un événement « drop » transporte les fichiers jusqu'au gestionnaire de la zone.
   w.DataTransfer = class { constructor() { this.files = []; this.items = { add: f => this.files.push(f) }; } };
   w.DragEvent = class extends w.Event { constructor(t, o) { super(t, o); this.dataTransfer = o.dataTransfer; } };
