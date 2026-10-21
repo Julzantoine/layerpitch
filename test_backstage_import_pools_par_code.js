@@ -29,5 +29,8 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   check('un seul fichier : structure statique proposée', g1.mode === 'static');
   const g2 = w.guessFolderStructure('', [f('A_1.wav'), f('B_1.wav')]);
   check('deux fichiers : pas de statique', g2.mode !== 'static');
+  const hi = w.firstFilenameHints([f('Jazz Hi_2bts Intro_8M_110bpm.wav')], true);
+  check('couches : un nom contenant « Intro » propose quand même son tempo', hi && hi.hints.bpm === 110 && hi.hints.bars === 8);
+  check('séquentiel/pools : intro toujours écartée du tempo de référence', w.firstFilenameHints([f('Jazz Hi_2bts Intro_8M_110bpm.wav')]) === null);
   process.exit(failures ? 1 : 0);
 })();

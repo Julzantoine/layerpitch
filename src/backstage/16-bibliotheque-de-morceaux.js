@@ -209,12 +209,15 @@ function hintsText(h) {
   return h ? [h.bpm ? h.bpm + ' BPM' : '', h.bars ? tr('vrsBatchBarsN', { n: h.bars }) : '', h.introBars ? tr('importFolderEmbrIntro', { n: h.introBars }) : ''].filter(Boolean).join(', ') : '';
 }
 // Premier fichier (hors intro/outro) dont le nom porte un tempo ou un nombre de mesures.
-function firstFilenameHints(files) {
-  const f = files.find(x => { const h = parseAudioFilenameHints(x.name); return guessSequentialRole(x.name) === 'segment' && (h.bpm || h.bars || parseIntroBarsHint(x.name)); });
+// anyRole (21/10) : morceau à couches / boucles, où « intro » dans un nom (« Jazz Hi_2bts Intro_8M_110bpm ») n'est pas un rôle à part --
+// tous les fichiers comptent, sinon ce nom ne proposait jamais son tempo.
+function firstFilenameHints(files, anyRole) {
+  const f = files.find(x => { const h = parseAudioFilenameHints(x.name); return (anyRole || guessSequentialRole(x.name) === 'segment') && (h.bpm || h.bars || parseIntroBarsHint(x.name)); });
   // introBars (11/10, « ..._intro2M ») s'ajoute ici, pas dans parseAudioFilenameHints (comparé tel quel par des tests).
   return f ? { file: f, hints: Object.assign({}, parseAudioFilenameHints(f.name), { introBars: parseIntroBarsHint(f.name) }) } : null;
 }
 
+if (typeof window !== 'undefined') window.firstFilenameHints = firstFilenameHints;
 // Fenêtre modale commune. opts :
 //   files, title, groups [{ label, files }], intro/outro (fichier ou null), introTaken/outroTaken,
 //   withIntroOutro, withSilent, groupKind ('pool' | 'sfx'), confirmLabel,
@@ -505,7 +508,7 @@ function openSfxBatchDropDialog(files) {
 // tant que Jules-Antoine n'a pas donné son feu vert.
 function offerTrackTempoFromFilenames(track, files, withLoopBars) {
   if (!flagOpen('bulk_drop')) return;
-  const found = firstFilenameHints(files);
+  const found = firstFilenameHints(files, true);
   if (!found) return;
   const h = found.hints;
   const checks = [];
