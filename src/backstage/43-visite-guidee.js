@@ -210,6 +210,12 @@ function lessonSfxSpace(i) { const x = lessonSfx(i); return (x && x.spatial) || 
 function lessonSfxEntryOpen(i, entry) { const x = lessonSfx(i); return !!x && sfxSelectedEntry.get(x.id) === entry; }
 function lessonSfxBatchOpen() { return !!document.querySelector('.vrs-batch-modal [data-vbd="confirm"]'); }
 function lessonSfxGroupName() { const el = document.querySelector('.vrs-batch-modal [data-vbd-group-label]'); return el ? el.value.trim().toLowerCase() : ''; }
+// Leçon « Les événements d'effets » (22/10) : le morceau « Jazz Lo Static +FX » de Jules-Antoine, deux événements (un groupe dans un coin du bar, une radio).
+function lessonTrigger(i) { const t = lessonTrack(); return (t && t.fxTriggers && t.fxTriggers[i]) || null; }
+function lessonFxToggle(i, effect) { return document.querySelector(`#libraryDetail input[data-fx-target="trigger"][data-tri="${i}"][data-fx-effect="${effect}"][data-fx-param="enabled"]`); }
+function lessonFxBox(i, effect) { const c = lessonFxToggle(i, effect); return c ? c.closest('label').parentElement : null; } // l'effet en entier : case à cocher + réglages
+function lessonFxValue(i, effect, param) { const t = lessonTrigger(i); return t && t.fx && t.fx[effect] ? t.fx[effect][param] : undefined; }
+function lessonEventsSection() { const t = lessonTrack(); return t ? document.querySelector(`#libraryDetail details[data-fxt-section-key="${t.id}"] > summary`) : null; }
 function lessonSlotFirstName(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; const al = sl && (sl.alternatives || []).find(lessonHasFile); return al ? ((al.pendingFile && al.pendingFile.name) || al.remoteFile || '') : ''; }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
@@ -621,6 +627,48 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); const b = lessonSfx(1); return !!t && !!b && (t.sfxIds || []).includes(b.id); } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lxListenTitle', textKey: 'lxListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { titleKey: 'lxEndTitle', textKey: 'lxEndText', final: true },
+  ] },
+  // Leçon « Les événements d'effets » (22/10) : reproduit les deux événements du morceau « Jazz Lo Static +FX » de Jules-Antoine, posés sur « Toutes les voix » :
+  // « un groupe qui joue dans un coin » (volume -8 dB, pan 0,6, low cut 80 Hz, high cut 5 000 Hz, reverb 1,3 s / 0,3) et « une radio » (volume -18 dB,
+  // low cut 500 Hz, high cut 1 500 Hz). Le morceau « Jazz Lo Static » est préchargé dans le compte fictif (api/demo-client.js, leçon `events`).
+  { id: 'events', theme: 'engine', public: true, reload: true, titleKey: 'lessonEventsTitle', descKey: 'lessonEventsDesc', steps: [
+    { titleKey: 'lvxWelcomeTitle', textKey: 'lvxWelcomeText' },
+    { selector: '.nav-item[data-tab="library"]', titleKey: 'lxLibTitle', textKey: 'lsLibText',
+      done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
+    { selector: '#libraryMaster .seq-master-item', titleKey: 'lxPickTitle', textKey: 'lxPickText',
+      done: () => !!lessonTrack() && !!document.querySelector('#libraryDetail .seq-master-item[data-seq-key="trackinfo"]') },
+    { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'lvxInfoTitle', textKey: 'lvxInfoText',
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
+    { selector: () => lessonEventsSection(), titleKey: 'lvxSectionTitle', textKey: 'lvxSectionText', enter: lessonSelectTrackInfo,
+      done: () => { const t = lessonTrack(); return !!t && fxTriggersSectionOpen.has(String(t.id)); } },
+    { selector: '#libraryDetail [data-action="add-fx-trigger"]', titleKey: 'lvxAddTitle', textKey: 'lvxAddText',
+      done: () => { const t = lessonTrack(); return !!t && (t.fxTriggers || []).length >= 1; } },
+    { selector: '#libraryDetail [data-fxt-prop="label"][data-tri="0"]', titleKey: 'lvxName1Title', textKey: 'lvxName1Text',
+      done: () => { const t = lessonTrigger(0); return !!t && /groupe/i.test(t.label || ''); } },
+    { selector: '#libraryDetail [data-tri="0"][data-fxtg-owner="trigger"]', titleKey: 'lvxTargetTitle', textKey: 'lvxTargetText' },
+    { selector: () => lessonFxBox(0, 'volume'), titleKey: 'lvxVolTitle', textKey: 'lvxVolText',
+      done: () => lessonFxValue(0, 'volume', 'db') === -8 },
+    { selector: () => lessonFxBox(0, 'pan'), titleKey: 'lvxPanTitle', textKey: 'lvxPanText',
+      done: () => { const v = lessonFxValue(0, 'pan', 'value'); return Number.isFinite(v) && v >= 0.4 && v <= 0.9; } },
+    { selector: () => lessonFxBox(0, 'lowcut'), titleKey: 'lvxLowTitle', textKey: 'lvxLowText',
+      done: () => lessonFxValue(0, 'lowcut', 'frequency') === 80 },
+    { selector: () => lessonFxBox(0, 'highcut'), titleKey: 'lvxHighTitle', textKey: 'lvxHighText',
+      done: () => lessonFxValue(0, 'highcut', 'frequency') === 5000 },
+    { selector: () => lessonFxBox(0, 'reverb'), titleKey: 'lvxReverbTitle', textKey: 'lvxReverbText',
+      done: () => lessonFxValue(0, 'reverb', 'decay') === 1.3 && lessonFxValue(0, 'reverb', 'wet') === 0.3 },
+    { selector: '#libraryDetail [data-fxt-prop="visible"][data-tri="0"]', titleKey: 'lvxVisibleTitle', textKey: 'lvxVisibleText' },
+    { selector: '#libraryDetail [data-action="add-fx-trigger"]', titleKey: 'lvxAdd2Title', textKey: 'lvxAdd2Text',
+      done: () => { const t = lessonTrack(); return !!t && (t.fxTriggers || []).length >= 2; } },
+    { selector: '#libraryDetail [data-fxt-prop="label"][data-tri="1"]', titleKey: 'lvxName2Title', textKey: 'lvxName2Text',
+      done: () => { const t = lessonTrigger(1); return !!t && /radio/i.test(t.label || ''); } },
+    { selector: () => lessonFxBox(1, 'volume'), titleKey: 'lvxVol2Title', textKey: 'lvxVol2Text',
+      done: () => lessonFxValue(1, 'volume', 'db') === -18 },
+    { selector: () => lessonFxBox(1, 'lowcut'), titleKey: 'lvxLow2Title', textKey: 'lvxLow2Text',
+      done: () => lessonFxValue(1, 'lowcut', 'frequency') === 500 },
+    { selector: () => lessonFxBox(1, 'highcut'), titleKey: 'lvxHigh2Title', textKey: 'lvxHigh2Text',
+      done: () => lessonFxValue(1, 'highcut', 'frequency') === 1500 },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lvxListenTitle', textKey: 'lvxListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
+    { titleKey: 'lvxEndTitle', textKey: 'lvxEndText', final: true },
   ] },
   // Leçon « Créer un AdReel » (20/10) : se joue dans le Backstage du mode tutoriel, bibliothèque d'exemple préchargée (api/demo-client.js,
   // ?tuto&lesson=adreel : rechargement obligatoire d'où `reload`). Fil rouge : le compositeur fictif Théo envoie son travail au studio Barque.
