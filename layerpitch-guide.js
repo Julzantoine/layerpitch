@@ -11,6 +11,7 @@
  *     startLesson(id),                    // lance une leçon (bouton « leçon suivante »)
  *     onLessonDone(id), onTourDone(),     // mémorisation de ce qui a été fait
  *     onClose(),                          // après toute fermeture (ex. redessiner le menu)
+ *     onQuit(),                           // après « Quitter » / « Fermer » dans une leçon (ex. recharger le tutoriel à zéro)
  *     onOpen(),                           // à l'ouverture (ex. cacher les bulles d'aide au survol)
  *     cardExtras(step, st) -> html,       // bloc en plus dans la bulle (vignettes d'exemple…)
  *     wireCard(card, step, st),           // branche ce bloc (glisser, clavier…)
@@ -298,7 +299,7 @@
           : (listening && !guide.clicked && !revisiting ? ''
             : `<button class="btn btn-small btn-primary" type="button" data-tour="next">${esc(tr(last ? 'tourFinish' : 'tourNext'))}</button>`)}
       </div>`;
-        card.querySelector('[data-tour="skip"]').onclick = close;
+        card.querySelector('[data-tour="skip"]').onclick = () => { const kind = guide.kind; close(); if (kind === 'lesson' && host.onQuit) host.onQuit(); }; // « Quitter » : la page peut se remettre à zéro
         const nextBtn = card.querySelector('[data-tour="next"]');
         if (nextBtn) nextBtn.onclick = () => go(1); // absent sur une étape obligatoire
         const prev = card.querySelector('[data-tour="prev"]');
