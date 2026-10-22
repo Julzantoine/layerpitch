@@ -45,7 +45,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('embranchement vertical : 24 étapes', w.__r.emb === 24);
   
   
-  check('couches aléatoires : 16 étapes (dépôt direct dans la fenêtre d’import)', w.__r.rnd === 16);
+  check('couches aléatoires : 19 étapes (dépôt direct dans la fenêtre d’import, compresseur sur la basse)', w.__r.rnd === 19);
   check('couches additives : 23 étapes', w.__r.add === 23);
   check('la leçon ouvre une bulle', !!w.document.querySelector('.tour-root-lesson .tour-card'));
   check('la leçon démarre sur le message de bienvenue (étape 1 sur 12)', /1 \/ 12/.test(w.document.querySelector('.tour-count').textContent) && /Bienvenue/.test(w.document.querySelector('.tour-title').textContent));
