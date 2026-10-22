@@ -36,6 +36,8 @@ const LESSON_SAMPLE_URLS = {
 // (media.layerpitch.com/tuto/<dossier>/<fichier>) : l'adresse est encodée, les espaces des noms n'y gênent pas. Le nom du fichier
 // est celui que l'apprenant voit et que le moteur lit (tempo, mesures).
 const LESSON_SAMPLE_FOLDERS = {
+  // Leçon Sfx : trois bruits de glaçons et deux de verre qui se remplit (Jules-Antoine).
+  'SFX': ['Glacon 1.wav', 'Glacon 2.wav', 'Glacon 3.wav', 'Verre 1.wav', 'Verre 2.wav'],
   // Statique : une boucle de 8 mesures, sans intro (leçon d'entrée : le moteur place tout seul les repères).
   'Jazz Lo': ['Jazz Lo_No Intro_110bpm.wav'],
   // Embranchement vertical : deux boucles de 8 mesures précédées d'une intro d'une mesure (« _Intro1M_9M » : le moteur lit tout).
@@ -202,6 +204,12 @@ function lessonPoolHasSilence(label) {
 function fxSliderExists() { const t = lessonTrack(); return !!t && (t.fxSliders || []).length >= 1; }
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
 function lessonSelectTrackInfo() { const t = lessonTrack(); if (t && seqSelectedSlotIndex.get(t.id) !== 'trackinfo') { seqSelectedSlotIndex.set(t.id, 'trackinfo'); renderLibrary(); } }
+// Leçon Sfx (22/10) : les deux Sfx de la bibliothèque (Glaçons, puis le verre) et leur espace, tels que Jules-Antoine les a réglés dans « Jazz Lo Static +SFX ».
+function lessonSfx(i) { return (typeof sfxLibrary !== 'undefined' && sfxLibrary[i]) || null; }
+function lessonSfxSpace(i) { const x = lessonSfx(i); return (x && x.spatial) || null; }
+function lessonSfxEntryOpen(i, entry) { const x = lessonSfx(i); return !!x && sfxSelectedEntry.get(x.id) === entry; }
+function lessonSfxBatchOpen() { return !!document.querySelector('.vrs-batch-modal [data-vbd="confirm"]'); }
+function lessonSfxGroupName() { const el = document.querySelector('.vrs-batch-modal [data-vbd-group-label]'); return el ? el.value.trim().toLowerCase() : ''; }
 function lessonSlotFirstName(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; const al = sl && (sl.alternatives || []).find(lessonHasFile); return al ? ((al.pendingFile && al.pendingFile.name) || al.remoteFile || '') : ''; }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
@@ -225,6 +233,8 @@ const LESSON_SAMPLE_NAMES = {
   seqAlt4: 'Jazz Hi Alt4_4M_110bpm.wav',
   seqOutro: 'Jazz Hi Outro_4M.wav',
   cityRock: 'Jazz Hi_Rock City_4M_110bpm.wav',
+  sfxIce: 'Glacon 1.wav, Glacon 2.wav, Glacon 3.wav',
+  sfxGlass: 'Verre 1.wav, Verre 2.wav',
   cityDisco: 'Jazz Hi_Disco City_4M_110bpm.wav',
   cityJazz: 'Jazz Hi_Jazz City_4M_110bpm.wav, Jazz Hi Jazz City.2_4M_110bpm.wav',
   citySynth: 'Jazz Hi_Synth city_4M_110bpm.wav',
@@ -554,6 +564,63 @@ const LESSONS = [
     { selector: '#libraryMaster', titleKey: 'lfDraftTitle', textKey: 'lfDraftText', skip: lessonImportSkipped },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lbEndTitle', textKey: 'lbEndText', final: true },
+  ] },
+  // Leçon « Les Sfx » (22/10) : reproduit le morceau « Jazz Lo Static +SFX » de Jules-Antoine. Le morceau « Jazz Lo Static » est préchargé dans le compte
+  // fictif (api/demo-client.js, leçon `sfx`) ; on crée deux Sfx (glaçons : 3 variations, espace en pas à pas, 6 points ; verre : 2 variations, 5 points, rendu
+  // binaural), on les ajoute au morceau et on les déclenche à l'écoute.
+  { id: 'sfx', theme: 'engine', public: true, reload: true, titleKey: 'lessonSfxTitle', descKey: 'lessonSfxDesc', steps: [
+    { titleKey: 'lxWelcomeTitle', textKey: 'lxWelcomeText' },
+    { selector: '.nav-item[data-tab="sfxLibrary"]', titleKey: 'lxNavTitle', textKey: 'lxNavText',
+      done: () => { const p = document.querySelector('.backstage-panel[data-panel="sfxLibrary"]'); return !!(p && p.classList.contains('active')); } },
+    { useSample: true, selector: '#sfxLibraryDrop', titleKey: 'lxDrop1Title', textKey: 'lxDrop1Text', names: 'sfxIce',
+      enter: (c) => { c.baseLen = sfxLibrary.length; }, done: () => lessonSfxBatchOpen() },
+    { selector: '.vrs-batch-modal [data-vbd-group-label]', titleKey: 'lxName1Title', textKey: 'lxName1Text',
+      done: () => lessonSfxGroupName() === 'glaçons' },
+    { selector: '.vrs-batch-modal [data-vbd="confirm"]', titleKey: 'lxConfirmTitle', textKey: 'lxConfirmText',
+      done: (c) => sfxLibrary.length > c.baseLen && !document.querySelector('.vrs-batch-modal') },
+    { selector: '#sfxLibraryDetail [data-role="sfxVariationsDrop"]', titleKey: 'lxVarTitle', textKey: 'lxVarText' },
+    { selector: '#sfxLibraryDetail [data-action="select-sfx-entry"][data-entry="behavior"]', titleKey: 'lxBehTitle', textKey: 'lxBehText',
+      done: () => lessonSfxEntryOpen(0, 'behavior') },
+    { selector: '#sfxLibraryDetail select[data-sfx-field="rrMode"]', titleKey: 'lxRrTitle', textKey: 'lxRrText' },
+    { selector: '#sfxLibraryDetail [data-action="select-sfx-entry"][data-entry="space"]', titleKey: 'lxSpaceTitle', textKey: 'lxSpaceText',
+      done: () => lessonSfxEntryOpen(0, 'space') },
+    { selector: '#sfxLibraryDetail input[data-sfx-space="enabled"]', titleKey: 'lxEnableTitle', textKey: 'lxEnableText',
+      done: () => { const sp = lessonSfxSpace(0); return !!sp && !!sp.enabled; } },
+    { selector: '#sfxLibraryDetail select[data-sfx-space="room"]', titleKey: 'lxRoomTitle', textKey: 'lxRoomText' },
+    { selector: '#sfxLibraryDetail select[data-sfx-space="pathMode"]', titleKey: 'lxModeTitle', textKey: 'lxModeText',
+      done: () => { const sp = lessonSfxSpace(0); return !!sp && !!sp.path && sp.path.mode === 'steps'; } },
+    { selector: '#sfxLibraryDetail [data-role="spaceMatrix"]', titleKey: 'lxPointsTitle', textKey: 'lxPointsText',
+      done: () => { const sp = lessonSfxSpace(0); return !!sp && !!sp.path && sp.path.mode === 'steps' && (sp.path.points || []).length >= 6; } },
+    { selector: '#sfxLibraryDetail [data-role="spaceTest"]', titleKey: 'lxTest1Title', textKey: 'lxTest1Text', listen: true },
+    { useSample: true, selector: '#sfxLibraryDrop', titleKey: 'lxDrop2Title', textKey: 'lxDrop2Text', names: 'sfxGlass',
+      enter: (c) => { c.baseLen = sfxLibrary.length; }, done: () => lessonSfxBatchOpen() },
+    { selector: '.vrs-batch-modal [data-vbd-group-label]', titleKey: 'lxName2Title', textKey: 'lxName2Text',
+      done: () => lessonSfxGroupName() === 'se remplir un verre' },
+    { selector: '.vrs-batch-modal [data-vbd="confirm"]', titleKey: 'lxConfirmTitle', textKey: 'lxConfirmText',
+      done: (c) => sfxLibrary.length > c.baseLen && !document.querySelector('.vrs-batch-modal') },
+    { selector: '#sfxLibraryDetail [data-action="select-sfx-entry"][data-entry="space"]', titleKey: 'lxSpace2Title', textKey: 'lxSpace2Text',
+      done: () => lessonSfxEntryOpen(1, 'space') },
+    { selector: '#sfxLibraryDetail input[data-sfx-space="enabled"]', titleKey: 'lxEnableTitle', textKey: 'lxEnableText',
+      done: () => { const sp = lessonSfxSpace(1); return !!sp && !!sp.enabled; } },
+    { selector: '#sfxLibraryDetail select[data-sfx-space="pathMode"]', titleKey: 'lxMode2Title', textKey: 'lxMode2Text',
+      done: () => { const sp = lessonSfxSpace(1); return !!sp && !!sp.path && sp.path.mode === 'steps'; } },
+    { selector: '#sfxLibraryDetail [data-role="spaceMatrix"]', titleKey: 'lxPoints2Title', textKey: 'lxPoints2Text',
+      done: () => { const sp = lessonSfxSpace(1); return !!sp && !!sp.path && sp.path.mode === 'steps' && (sp.path.points || []).length >= 5; } },
+    { selector: '#sfxLibraryDetail input[data-sfx-space="binaural"]', titleKey: 'lxBinauralTitle', textKey: 'lxBinauralText',
+      done: () => { const sp = lessonSfxSpace(1); return !!sp && !!sp.binaural; } },
+    { selector: '#sfxLibraryDetail [data-role="spaceTest"]', titleKey: 'lxTest2Title', textKey: 'lxTest2Text', listen: true },
+    { selector: '.nav-item[data-tab="library"]', titleKey: 'lxLibTitle', textKey: 'lsLibText',
+      done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
+    { selector: '#libraryMaster .seq-master-item', titleKey: 'lxPickTitle', textKey: 'lxPickText',
+      done: () => !!lessonTrack() && !!document.querySelector('#libraryDetail .seq-master-item[data-seq-key="sfx"]') },
+    { selector: '#libraryDetail .seq-master-item[data-seq-key="sfx"]', titleKey: 'lxExtraTitle', textKey: 'lxExtraText',
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'sfx'; } },
+    { selector: '#libraryDetail [data-role="trackSfxSelector"] select[data-sel-action="add"]', titleKey: 'lxAdd1Title', textKey: 'lxAdd1Text',
+      done: () => { const t = lessonTrack(); const a = lessonSfx(0); return !!t && !!a && (t.sfxIds || []).includes(a.id); } },
+    { selector: '#libraryDetail [data-role="trackSfxSelector"] select[data-sel-action="add"]', titleKey: 'lxAdd2Title', textKey: 'lxAdd2Text',
+      done: () => { const t = lessonTrack(); const b = lessonSfx(1); return !!t && !!b && (t.sfxIds || []).includes(b.id); } },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lxListenTitle', textKey: 'lxListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
+    { titleKey: 'lxEndTitle', textKey: 'lxEndText', final: true },
   ] },
   // Leçon « Créer un AdReel » (20/10) : se joue dans le Backstage du mode tutoriel, bibliothèque d'exemple préchargée (api/demo-client.js,
   // ?tuto&lesson=adreel : rechargement obligatoire d'où `reload`). Fil rouge : le compositeur fictif Théo envoie son travail au studio Barque.
