@@ -51,3 +51,9 @@
 .tour-beta-ok { color: var(--text); }
 .tour-beta-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .tour-free { font-size: 13px; line-height: 1.55; color: var(--text); margin: 0 0 12px; }
+
+/* Outils d'admin des leçons (22/10) */
+.tour-admin { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; padding: 8px; border: 1px dashed var(--border); border-radius: 8px; background: rgba(127,127,127,0.06); }
+.tour-admin-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; color: var(--accent); text-transform: uppercase; }
+.tour-admin select { max-width: 150px; font-size: 11px; }
+.tour-admin-msg { flex-basis: 100%; font-size: 11px; color: var(--text-dim); }

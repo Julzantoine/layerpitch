@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792696353043">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792697082108">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1877,17 +1877,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792696353043"></script>
-<script src="layerpitch-i18n.js?v=1792696353043"></script>
-<script src="layerpitch-appearance.js?v=1792696353043"></script>
-<script src="layerpitch-album-shared.js?v=1792696353043"></script>
-<script src="layerpitch-album-editor.js?v=1792696353043"></script>
-<script src="layerpitch-shell.js?v=1792696353043"></script>
-<script src="layerpitch-social-icons.js?v=1792696353043"></script>
-<script src="layerpitch-notify.js?v=1792696353043"></script>
-<script src="layerpitch-guide.js?v=1792696353043"></script>
-<script src="layerpitch-help.js?v=1792696353043"></script>
-<script src="player.js?v=1792696353043"></script>
+<script src="layerpitch-tuto.js?v=1792697082108"></script>
+<script src="layerpitch-i18n.js?v=1792697082108"></script>
+<script src="layerpitch-appearance.js?v=1792697082108"></script>
+<script src="layerpitch-album-shared.js?v=1792697082108"></script>
+<script src="layerpitch-album-editor.js?v=1792697082108"></script>
+<script src="layerpitch-shell.js?v=1792697082108"></script>
+<script src="layerpitch-social-icons.js?v=1792697082108"></script>
+<script src="layerpitch-notify.js?v=1792697082108"></script>
+<script src="layerpitch-guide.js?v=1792697082108"></script>
+<script src="layerpitch-help.js?v=1792697082108"></script>
+<script src="player.js?v=1792697082108"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -15484,6 +15484,23 @@ function lessonSfxBatchOpen() { return !!document.querySelector('.vrs-batch-moda
 function lessonSfxGroupName() { const el = document.querySelector('.vrs-batch-modal [data-vbd-group-label]'); return el ? el.value.trim().toLowerCase() : ''; }
 // Leçon « Les événements d'effets » (22/10) : le morceau « Jazz Lo Static +FX » de Jules-Antoine, deux événements (un groupe dans un coin du bar, une radio).
 function lessonTrigger(i) { const t = lessonTrack(); return (t && t.fxTriggers && t.fxTriggers[i]) || null; }
+// Outils d'admin des leçons (22/10) : « Passer l'étape », « Aller à l'étape n », « Auto » (voir layerpitch-guide.js). Pour un admin réellement connecté
+// (tutoriel fermé au public), ou, une fois le tutoriel ouvert au public, sur ce navigateur après avoir ouvert l'adresse avec `&admintools=1`
+// (`&admintools=0` les retire). Ce n'est pas une barrière de sécurité : ces outils ne font que sauter des étapes d'une démonstration locale.
+function lessonAdminTools() {
+  if (!isTutoMode()) return false;
+  let on = false;
+  try {
+    const q = new URLSearchParams(window.location.search).get('admintools');
+    if (q === '1') localStorage.setItem('lp_tuto_admin', '1');
+    if (q === '0') localStorage.removeItem('lp_tuto_admin');
+    on = localStorage.getItem('lp_tuto_admin') === '1';
+  } catch (e) { /* stockage indisponible */ }
+  return !!tutoFullAccess || on;
+}
+// Gestes pour « Auto » : saisie dans un champ, choix dans une liste, clic sur un élément (pour les étapes dont la validation ne se devine pas).
+function lessonAutoType(el, value) { if (!el) return; el.value = String(value); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }
+function lessonAutoClick(el) { if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); }
 function lessonFxToggle(i, effect) { return document.querySelector(`#libraryDetail input[data-fx-target="trigger"][data-tri="${i}"][data-fx-effect="${effect}"][data-fx-param="enabled"]`); }
 function lessonFxBox(i, effect) { const c = lessonFxToggle(i, effect); return c ? c.closest('label').parentElement : null; } // l'effet en entier : case à cocher + réglages
 function lessonFxValue(i, effect, param) { const t = lessonTrigger(i); return t && t.fx && t.fx[effect] ? t.fx[effect][param] : undefined; }
@@ -15959,21 +15976,21 @@ const LESSONS = [
     { titleKey: 'lvxEndTitle', textKey: 'lvxEndText', final: true },
   ] },
   // Leçon « Créer un AdReel » (20/10) : se joue dans le Backstage du mode tutoriel, bibliothèque d'exemple préchargée (api/demo-client.js,
-  // ?tuto&lesson=adreel : rechargement obligatoire d'où `reload`). Fil rouge : le compositeur fictif Théo envoie son travail au studio Barque.
+  // ?tuto&lesson=adreel : rechargement obligatoire d'où `reload`). Fil rouge (22/10) : au retour de la WorldGameCon, le compositeur envoie à Joshua, créateur du jeu « Music City », un AdReel custom (quatre villes, un fil rouge musical).
   // L'aperçu de fin ouvre l'AdReel REMPLI (bouton Prévisualiser : aperçu local, sans serveur).
   { id: 'adreel', theme: 'pitch', public: true, reload: true, titleKey: 'laTitle', descKey: 'laDesc', steps: [
-    { titleKey: 'laWelcomeTitle', textKey: 'laWelcomeText' },
+    { titleKey: 'adWelcomeTitle', textKey: 'adWelcomeText' },
     { selector: '#btnAddAdReel', titleKey: 'laNewTitle', textKey: 'laNewText', clickDone: true },
     { selector: '#newAdReelLabel', titleKey: 'laNameTitle', textKey: 'laNameText', done: () => { const i = document.getElementById('newAdReelLabel'); return !!i && i.value.trim().length > 2; },
-      drops: [{ kind: 'text', label: 'Alone in the Barque : pitch musical', value: 'Alone in the Barque : pitch musical' }] },
+      drops: [{ kind: 'text', label: 'Music City : pitch musical', value: 'Music City : pitch musical' }] },
     { selector: '#newAdReelOk', titleKey: 'laCreateTitle', textKey: 'laCreateText', done: () => currentAdReelId !== 'main' && adReels.length >= 2 },
     { selector: '#btnToggleCollapseAllBlocks', titleKey: 'laOpenTitle', textKey: 'laOpenText', done: () => !!document.querySelector('.block-editor-body:not(.collapsed)') },
     { selector: '.block-editor-card[data-type="header"] [data-role="title"]', titleKey: 'laHeaderTitleTitle', textKey: 'laHeaderTitleText', done: () => (profile.title || '').trim().length > 2,
-      drops: [{ kind: 'text', label: 'Alone in the Barque', value: 'Alone in the Barque' }] },
+      drops: [{ kind: 'text', label: 'Music City', value: 'Music City' }] },
     { selector: '.block-editor-card[data-type="header"] [data-role="subtitle"]', titleKey: 'laHeaderSubTitle', textKey: 'laHeaderSubText', done: () => (profile.subtitle || '').trim().length > 2,
-      drops: [{ kind: 'text', label: 'Un jeu d’horreur lacustre. Musique interactive par Daniel Orcman.', value: 'Un jeu d’horreur lacustre. Musique interactive par Daniel Orcman.' }] },
+      drops: [{ kind: 'text', label: 'Un jeu où chaque ville a sa propre ambiance. Musique interactive.', value: 'Un jeu où chaque ville a sa propre ambiance. Musique interactive.' }] },
     { selector: '.block-editor-card[data-type="bio"] [data-role="bioText"]', titleKey: 'laBioTitle', textKey: 'laBioText', done: () => (profile.bio || '').trim().length > 5,
-      drops: [{ kind: 'text', label: 'Quatre zones, une menace qui se rapproche : la musique réagit à la distance du monstre, et se tait à la cabane.', value: 'Quatre zones, une menace qui se rapproche : la musique réagit à la distance du monstre, et se tait à la cabane.' }] },
+      drops: [{ kind: 'text', label: 'Quatre villes, quatre ambiances (Rock, Jazz, Disco, Synth) et un fil rouge musical qui les relie : le même tempo, des univers différents.', value: 'Quatre villes, quatre ambiances (Rock, Jazz, Disco, Synth) et un fil rouge musical qui les relie : le même tempo, des univers différents.' }] },
     { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack1Title', textKey: 'laTrack1Text', done: () => trackIds.length >= 1 },
     { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack2Title', textKey: 'laTrack2Text', done: () => trackIds.length >= 2 },
     // Mise en page : explication, sans geste obligatoire (le glisser-déposer des blocs marche à la souris, pas toujours au doigt).
@@ -15982,27 +15999,15 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="text"] [data-role="title"]', titleKey: 'laTextTitleTitle', textKey: 'laTextTitleText', done: () => blocks.some(b => b.type === 'text' && (b.title || '').trim().length > 2),
       drops: [{ kind: 'text', label: 'Direction sonore', value: 'Direction sonore' }] },
     { selector: '.block-editor-card[data-type="text"] [data-role="content"]', titleKey: 'laTextBodyTitle', textKey: 'laTextBodyText', done: () => blocks.some(b => b.type === 'text' && (b.content || '').trim().length > 5),
-      drops: [{ kind: 'text', label: 'Le silence fait partie de la musique : refuge = feu de bois et un accord de piano.', value: 'Le silence fait partie de la musique : refuge = feu de bois et un accord de piano.' }] },
+      drops: [{ kind: 'text', label: 'Un fil rouge entre toutes les villes : le même tempo (110 BPM), et une ambiance différente à chaque ville.', value: 'Un fil rouge entre toutes les villes : le même tempo (110 BPM), et une ambiance différente à chaque ville.' }] },
     // Bloc vidéo : la vidéo de gameplay de la leçon « Versioning » (lien à fournir : LESSON_ADREEL_VIDEO ; l'étape du lien est sautée tant qu'il manque).
-    { selector: '#btnAddVideoBlock', titleKey: 'laAddVideoTitle', textKey: 'laAddVideoText', clickDone: true, done: () => blocks.some(b => b.type === 'video') },
-    { selector: '.block-editor-card[data-type="video"] [data-role="addBtn"]', titleKey: 'laVideoItemTitle', textKey: 'laVideoItemText', clickDone: true, done: () => blocks.some(b => b.type === 'video' && (b.videos || []).length >= 1) },
-    // La vidéo de gameplay d'Alone, déjà dans la bibliothèque vidéo en deux versions (même montage, deux musiques) : on la choisit, puis on choisit
-    // la version montrée au studio (versioning depuis le bloc vidéo, 21/10).
-    { selector: '.block-editor-card[data-type="video"] [data-role="sourceRadio"][value="library"]', titleKey: 'laVideoSourceTitle', textKey: 'laVideoSourceText',
-      done: () => lessonAdreelVideo() && lessonAdreelVideo().source === 'library' },
-    { selector: '.block-editor-card[data-type="video"] [data-role="librarySelect"]', titleKey: 'laVideoPickTitle', textKey: 'laVideoPickText',
-      done: () => !!(lessonAdreelVideo() && lessonAdreelVideo().libraryVideoId) },
-    { selector: '.block-editor-card[data-type="video"] [data-role="versionSelect"]', titleKey: 'laVideoVersionTitle', textKey: 'laVideoVersionText',
-      done: (c) => { const v = lessonAdreelVideo(); if (!v) return false; if (!c.firstVideo) c.firstVideo = v.libraryVideoId; return !!v.libraryVideoId && v.libraryVideoId !== c.firstVideo; } },
-    { selector: '.block-editor-card[data-type="video"] [data-field="title"]', titleKey: 'laVideoNameTitle', textKey: 'laVideoNameText', done: () => !!(lessonAdreelVideo() && (lessonAdreelVideo().title || '').trim().length > 2),
-      drops: [{ kind: 'text', label: LESSON_ADREEL_VIDEO.title, value: LESSON_ADREEL_VIDEO.title }] },
     { selector: '.nav-item[data-tab="appearance"]', titleKey: 'laAppearanceTitle', textKey: 'laAppearanceText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
     { selector: () => document.querySelector('#themeProQuickStartGallery button, #appThemeFreeGallery button'), titleKey: 'laThemeTitle', textKey: 'laThemeText', clickDone: true },
     { selector: '.nav-item[data-tab="content"]', titleKey: 'laBackTitle', textKey: 'laBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
     // Aperçu de l'AdReel rempli : nouvelle fenêtre, aperçu local (rien n'est publié).
     { selector: '#btnPreview', titleKey: 'laPreviewTitle', textKey: 'laPreviewText', clickDone: true },
     { selector: '#btnPublish', titleKey: 'laSendTitle', textKey: 'laSendText', clickDone: true },
-    { titleKey: 'laEndTitle', textKey: 'laEndText', final: true },
+    { titleKey: 'adEndTitle', textKey: 'adEndText', final: true },
   ] },
   // Leçon « Versioning vidéo » (21/10, refaite le même jour : elle se joue dans le Backstage, pas sur la page du pack). Parcours choisi par
   // Jules-Antoine : onglet Vidéo → Atelier ; DANS l'atelier (cadre, atelier-lecons.js) : choisir le pack, la vidéo muette d'« Alone in the
@@ -16105,6 +16110,8 @@ const GUIDE = window.LayerPitchGuide.create({
     });
   },
   textVars: (step, st) => ({ file: LESSON_SAMPLE_NAMES[step.names || st.lessonId] || '' }),
+  adminTools: lessonAdminTools,
+  autoSample: step => lessonUseSample(step),
   arrowPoint: lessonArrowPoint,
   // Les champs de la fiche passent sous la barre fixe du haut : on les ramène au centre.
   centerTarget: (target, b) => b.top < 250 && !!target.closest('#libraryDetail'),

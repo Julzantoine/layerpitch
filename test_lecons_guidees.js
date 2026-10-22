@@ -17,6 +17,16 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   ['lessonSampleDownload', 'lessonSampleUse', 'lessonMoveHint', 'lessonListening', 'lessonKeepTrack', 'lessonChipHint', 'lessonArrowLabel', 'lessonChipMany', 'lessonNextBtn', 'lessonSampleUseMany', 'lessonSampleError', 'lsVerifyTitle', 'lsVerifyText', 'lessonSampleSoon', 'lessonDoIt', 'lessonQuit', 'lessonSkipStep', 'tutorialMenuTitle', 'tutorialTourDesc', 'tutorialLessonsHeading'].forEach(k => keys.add(k));
   ['fr', 'en'].forEach(l => check('textes présents en ' + l + ' (' + keys.size + ' clés)', [...keys].every(k => sb.window.LAYERPITCH_I18N[l].backstage[k] || sb.window.LAYERPITCH_I18N[l].shared[k])));
 
+  // Une clé de leçon définie deux fois dans la même langue : la seconde écrase la première en silence (cas vu le 22/10 : « laWelcomeText » de la leçon
+  // AdReel masqué par celui du layering additif). Chaque clé citée par une étape doit être définie une seule fois par langue.
+  {
+    const i18nSrc = read('layerpitch-i18n.js').split('\n');
+    const counts = {};
+    let lang = null;
+    i18nSrc.forEach(l => { const m = /^  (fr|en): \{/.exec(l); if (m) lang = m[1]; const k = /^      ([A-Za-z0-9_]+):/.exec(l); if (k && lang) { const key = lang + ':' + k[1]; counts[key] = (counts[key] || 0) + 1; } });
+    const dupLesson = [...keys].filter(k => (counts['fr:' + k] || 0) > 1 || (counts['en:' + k] || 0) > 1);
+    check('aucune clé de leçon définie deux fois dans la même langue' + (dupLesson.length ? ' (' + dupLesson.join(', ') + ')' : ''), dupLesson.length === 0);
+  }
   const page = read('layerpitch-backstage.html');
   check('feu vert in_app_lessons déclaré en base', read('supabase/migrations/20261008070000_in_app_lessons_flag.sql').includes("'in_app_lessons'"));
   check('menu Tutoriel piloté par in_app_lessons, visite par in_app_tour', /function lessonsAccessOpen\(\) \{ return flagOpen\('in_app_lessons'\)/.test(src) && /lessonsOpen = lessonsAccessOpen\(\)/.test(src) && /flagOpen\('in_app_tour'\)/.test(src));

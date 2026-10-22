@@ -17,6 +17,8 @@
  *     textVars(step, st) -> {…},          // variables du texte de l'étape
  *     arrowPoint(bar) -> {x, y} | null,   // position écran de la flèche « mesure n »
  *     centerTarget(target) -> bool,       // cible à ramener au centre (passe sous une barre fixe)
+ *     adminTools() -> bool,               // outils d'admin : « Passer l'étape », « Aller à l'étape n », « Auto jusqu'à l'étape n » (rejoue les gestes)
+ *     autoSample(step) -> Promise,        // dépose le fichier d'exemple d'une étape (utilisé par « Auto »)
  *   });
  *   G.open('lesson', steps, 'static'); G.state(); G.close(); G.go(1); G.stepIsDone(step); …
  *
@@ -229,6 +231,60 @@
       });
       input.focus();
     }
+    // ---- Outils d'admin (22/10) : rejouer une leçon jusqu'à l'étape voulue, pour vérifier une étape tardive sans refaire tout le début ----
+    // « Auto » refait les gestes à la place de l'apprenant : dépôt du fichier d'exemple, clics, cases, listes (on essaie chaque option jusqu'à
+    // ce que l'étape soit validée) ; pour une saisie, l'étape fournit `auto(ctx, cible)`. Si une étape ne se laisse pas automatiser, on s'arrête
+    // dessus : on la fait à la main puis on relance « Auto ». Les étapes manuelles (« Suivant ») sont passées, l'écoute libre aussi.
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    function fire(el) { try { el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); } catch (e) { el.click(); } }
+    function setAdminMsg(t) { if (!guide) return; guide.adminMsg = t; const m = guide.root.querySelector('[data-tour="adm-msg"]'); if (m) m.textContent = t; }
+    async function autoPerform(step) {
+      let target = null;
+      for (let i = 0; i < 25; i++) { target = stepTarget(step); if (!step.selector || targetVisible(target)) break; await wait(120); }
+      if (!step.done && !step.clickDone && !step.listen) return true; // manuelle : rien à faire
+      if (step.auto) await step.auto(guide.ctx, target);
+      else if (step.useSample && host.autoSample) await host.autoSample(step);
+      else if ((step.clickDone || step.listen) && target) fire(target);
+      else if (target) {
+        const tag = target.tagName;
+        if (tag === 'INPUT' && target.type === 'checkbox') { if (!target.checked) fire(target); }
+        else if (tag === 'SELECT') {
+          // La page peut redessiner la liste à chaque choix : on la retrouve avant chaque essai.
+          const values = [...target.options].map(o => o.value).filter(v => v);
+          for (const v of values) {
+            if (stepIsDone(step)) break;
+            const cur = stepTarget(step);
+            if (!cur) break;
+            cur.value = v; cur.dispatchEvent(new Event('input', { bubbles: true })); cur.dispatchEvent(new Event('change', { bubbles: true }));
+            await wait(50);
+          }
+        } else fire(target);
+      }
+      if (step.listen) return true; // l'écoute n'a pas de geste vérifiable
+      for (let i = 0; i < 40; i++) { if (stepIsDone(step)) return true; await wait(100); }
+      return false;
+    }
+    async function autoTo(targetIndex) {
+      if (!guide) return;
+      if (guide.autoRunning) { guide.autoRunning = false; setAdminMsg(tr('tourAdminStopped')); return; }
+      guide.autoRunning = true;
+      const myGuide = guide;
+      let stalled = false;
+      try {
+        while (guide === myGuide && guide.autoRunning && guide.index < targetIndex) {
+          const step = guide.steps[guide.index];
+          if (step.final) break;
+          setAdminMsg(tr('tourAdminProgress', { n: guide.index + 1, total: targetIndex + 1 }));
+          const ok = await autoPerform(step);
+          if (guide !== myGuide || !guide.autoRunning) break;
+          if (!ok) { stalled = true; guide.autoRunning = false; setAdminMsg(tr('tourAdminStalled', { n: guide.index + 1 })); break; }
+          go(1);
+          await wait(80);
+        }
+      } finally {
+        if (guide === myGuide) { guide.autoRunning = false; if (!stalled) { guide.cardKey = ''; render(); } }
+      }
+    }
     function goToNextLesson() {
       if (!guide) return;
       const nx = host.nextLesson ? host.nextLesson(guide.lessonId) : null;
@@ -247,6 +303,7 @@
     function tick() {
       if (!guide) return;
       const step = guide.steps[guide.index];
+      if (guide.autoRunning) { render(true); return; } // « Auto » (admin) fait avancer lui-même
       // Étape déjà franchie, revue avec « Précédent » : pas d'avance automatique (sinon on ne pourrait jamais reculer).
       if (guide.kind === 'lesson' && !guide.advancing && guide.index >= guide.maxIndex && stepIsDone(step)) {
         guide.advancing = true;
@@ -276,6 +333,14 @@
         guide.cardKey = key;
         const extras = (host.cardExtras ? host.cardExtras(step, guide) : '') + dropsHtml(step);
         const vars = host.textVars ? host.textVars(step, guide) : {};
+        const adminOn = guide.kind === 'lesson' && !!(host.adminTools && host.adminTools());
+        if (guide.adminTarget == null) guide.adminTarget = guide.steps.length - 1;
+        const adminHtml = adminOn ? `<div class="tour-admin"><span class="tour-admin-tag">${esc(tr('tourAdminTag'))}</span>
+        <button class="btn btn-small" type="button" data-tour="adm-skip">${esc(tr('tourAdminSkip'))}</button>
+        <select data-tour="adm-target" title="${esc(tr('tourAdminTargetTitle'))}">${guide.steps.map((st, k) => `<option value="${k}"${k === guide.adminTarget ? ' selected' : ''}>${k + 1} · ${esc(tr(st.titleKey || ''))}</option>`).join('')}</select>
+        <button class="btn btn-small" type="button" data-tour="adm-jump" title="${esc(tr('tourAdminJumpTitle'))}">${esc(tr('tourAdminJump'))}</button>
+        <button class="btn btn-small" type="button" data-tour="adm-auto" title="${esc(tr('tourAdminAutoTitle'))}">${esc(tr(guide.autoRunning ? 'tourAdminStop' : 'tourAdminAuto'))}</button>
+        <span class="tour-admin-msg" data-tour="adm-msg">${esc(guide.adminMsg || '')}</span></div>` : '';
         card.innerHTML = `
       <div class="tour-count"><span>${guide.index + 1} / ${guide.steps.length}</span><span class="tour-grip" title="${esc(tr('lessonMoveHint'))}" aria-hidden="true">⠿</span></div>
       <div class="tour-title">${esc(tr(step.titleKey))}</div>
@@ -286,6 +351,7 @@
       ${guide.kind === 'lesson' && step.final ? `<div class="tour-ps">${esc(tr('lessonBetaPs'))} <a href="#" data-tour="beta">${esc(tr('lessonBetaLink'))}</a></div>` : ''}
       ${auto || (listening && !guide.clicked && !revisiting) ? `<div class="tour-waiting">${esc(tr('lessonDoIt'))}</div>` : ''}
       ${listening && guide.clicked ? `<div class="tour-waiting">${esc(tr('lessonListening'))}</div>` : ''}
+      ${adminHtml}
       <div class="tour-actions">
         <button class="btn btn-small" type="button" data-tour="skip">${esc(tr(last ? 'tourClose' : (guide.kind === 'lesson' ? 'lessonQuit' : 'tourSkip')))}</button>
         <span style="flex:1"></span>
@@ -306,6 +372,14 @@
         if (prev) prev.onclick = () => go(-1);
         const betaLink = card.querySelector('[data-tour="beta"]');
         if (betaLink) betaLink.onclick = e => { e.preventDefault(); openBetaPopup(guide.lessonId); };
+        const admSkip = card.querySelector('[data-tour="adm-skip"]');
+        if (admSkip) {
+          const tsel = card.querySelector('[data-tour="adm-target"]');
+          tsel.onchange = () => { guide.adminTarget = parseInt(tsel.value, 10); };
+          admSkip.onclick = () => { guide.autoRunning = false; go(1); };
+          card.querySelector('[data-tour="adm-jump"]').onclick = () => { guide.autoRunning = false; go(parseInt(tsel.value, 10) - guide.index); };
+          card.querySelector('[data-tour="adm-auto"]').onclick = () => autoTo(parseInt(tsel.value, 10));
+        }
         const nlBtn = card.querySelector('[data-tour="nextlesson"]');
         if (nlBtn) nlBtn.onclick = goToNextLesson;
         wireDrops(card, step);

@@ -98,6 +98,17 @@
     sfxRow('sfx-verre', 'Se Remplir un Verre', ['Verre 1.wav', 'Verre 2.wav'], SFX_SPACE(1.4, 0.6, 'steps', [{ x: 1.4, y: 0.6 }, { x: -1.4, y: 0.6 }, { x: 1.1, y: -0.7 }, { x: 0.3, y: -1.7 }, { x: -1.9, y: -1.4 }], true)),
     sfxRow('sfx-bar', 'Se balader dans le Bar', ['Ambiance Bar.wav'], SFX_SPACE(1.5, 0.4, 'glide', [{ x: 1.5, y: 0.4 }, { x: -1.7, y: 1.3 }, { x: -1.9, y: -1.2 }, { x: 1.9, y: -1.4 }, { x: 2, y: 1.4 }, { x: -0.9, y: 0.3 }], true, 20)),
   ];
+  // Leçon AdReel (22/10) : le jeu « Music City » de Joshua, une ville = une ambiance ; les quatre boucles de ville de Jules-Antoine (110 BPM, 4 mesures), dans
+  // media.layerpitch.com/tuto/Jazz Hi Seq. Branch./.
+  const CITY_BASE = TUTO_BASE + 'Jazz%20Hi%20Seq.%20Branch./';
+  const DEMO_TRACKS_CITIES = [
+    ['t-city-jazz', 'Jazz City (exemple)', 'Jazz Hi_Jazz City_4M_110bpm.wav'],
+    ['t-city-rock', 'Rock City (exemple)', 'Jazz Hi_Rock City_4M_110bpm.wav'],
+    ['t-city-disco', 'Disco City (exemple)', 'Jazz Hi_Disco City_4M_110bpm.wav'],
+    ['t-city-synth', 'Synth City (exemple)', 'Jazz Hi_Synth city_4M_110bpm.wav'],
+  ].map(([id, title, file]) => ({ id, owner_id: 'demo-composer', folder_id: null, title, description: '', mode: 'static', loopable: true, loop_engine: 'simple',
+    bpm: 110, beats_per_bar: 4, duration: 8.727, base: CITY_BASE, layers: [{ label: 'Boucle', file, originalFileName: file, gain: 1, duration: 8.727 }], intro: null, outro: null,
+    loops: null, sections: null, segment_slots: [], track_sfx: [], tags: [], fx: null, fx_triggers: [], fx_sliders: [], protected: false, retired_at: null }));
   // Pack de la bibliothèque du compositeur fictif (leçon « La musique du projet » : on le partage au Projet).
   const DEMO_PACKS = [{ id: 'p-alone', owner_id: 'demo-composer', title: 'Alone : ambiances du lac (exemple)', illustration: null, illustration_original_name: null, watermark: null,
     watermark_original_name: null, presentation_fr: '', presentation_en: '', buyable: false, buy_url: null, free_download_enabled: false, video_test_mode_enabled: false,
@@ -115,6 +126,7 @@
   // Morceaux d'exemple : leçon AdReel (Backstage) et pages Projets (leur propre bibliothèque, pour le pack et la carte). Pack : pages Projets.
   const listRows = table => {
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
+    if (table === 'tracks' && lessonParam() === 'adreel' && !projectPage) return DEMO_TRACKS_CITIES;
     if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
     if (table === 'tracks' && lessonParam() === 'sfx') return [DEMO_TRACK_JAZZ_SFX];
     if (table === 'tracks' && lessonParam() === 'events') return [Object.assign({}, DEMO_TRACK_JAZZ_SFX, { track_sfx: DEMO_SFX.map((x, i) => ({ sfx_id: x.id, position: i })) })];
