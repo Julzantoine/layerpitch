@@ -414,6 +414,7 @@ const LESSONS = [
     // L'intro (2 temps, moins d'une mesure) est rangée toute seule, mais sa durée se règle à la main : 1 mesure de 2 temps.
     { selector: '#libraryDetail [data-role="introTimingRows"]', titleKey: 'lrIntroSetTitle', textKey: 'lrIntroSetText',
       done: () => { const t = lessonTrack(); return !!t && !!t.intro && Number(t.intro.bars) === 1 && Number(t.intro.beatsPerBar) === 2; } },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lrListenTitle', textKey: 'lrListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     // Compresseur sur la basse (22/10) : réglages de Jules-Antoine (seuil -30 dB, ratio 4, gain +2 dB). Ignoré tant que les effets par voix sont fermés.
     { selector: () => lessonBassFxToggle(), titleKey: 'lrCompOpenTitle', textKey: 'lrCompOpenText', skip: () => !fxOpen('fx_per_voice') || lessonBassPoolIndex() < 0,
       // On quitte l'écran de l'intro : les effets des pools se trouvent dans l'écran de la section.
@@ -423,7 +424,6 @@ const LESSONS = [
       done: () => !!lessonBassCompressor() },
     { selector: () => { const c = lessonBassCompressorCheckbox(); return c ? c.closest('label').parentElement : null; }, titleKey: 'lrCompSetTitle', textKey: 'lrCompSetText', skip: () => !fxOpen('fx_per_voice') || lessonBassPoolIndex() < 0,
       done: () => { const c = lessonBassCompressor(); return !!c && c.threshold === -30 && c.ratio === 4 && c.makeup === 2; } },
-    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lrListenTitle', textKey: 'lrListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lrEndTitle', textKey: 'lrEndText', final: true },
   ] },
