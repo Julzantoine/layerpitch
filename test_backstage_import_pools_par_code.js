@@ -16,7 +16,8 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   const r = w.groupFilesByNameFamily(names.map(f), true);
   const byLabel = {}; r.groups.forEach(g => { byLabel[g.label] = g.files.length; });
   check('BS, DM et KB sont chacun un pool', ['BS', 'DM', 'KB'].every(c => byLabel[c] === 3));
-  check('le fichier sans code reste un pool à part', r.groups.length === 4);
+  // « IntroONLY » est reconnu comme l'intro (22/10) : il ne forme donc pas un pool, les trois codes restent les seuls pools.
+  check('le fichier « IntroONLY » est l’intro, pas un pool', r.groups.length === 3 && !!r.intro && /IntroONLY/.test(r.intro.name));
     const solo = w.groupFilesByNameFamily([f('BS_Seul.wav'), f('Main_Perc.wav'), f('Main_Bass.wav')], false);
   check('un préfixe porté par un seul fichier ne forme pas de pool dédié', solo.groups.length === 2 && solo.groups.some(g => g.label === 'Main' && g.files.length === 2));
   const casse = w.groupFilesByNameFamily([f('bs_a.wav'), f('BS_b.wav')], false);

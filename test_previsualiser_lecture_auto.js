@@ -38,6 +38,17 @@ const { loadBackstage, installTimedFakeAudio } = require('./scripts/test-harness
   click(doc.querySelector('[data-action="preview-track"]')); // referme pendant le chargement
   await sleep(1200);
   check('aperçu refermé pendant le chargement : plus d\'aperçu monté, donc aucune lecture', !doc.querySelector('[data-role="previewHost"] [data-role="playBtn"]'));
+  // relances successives (flèche d'un champ numérique, 22/10) : l'aperçu repart, mais une seule lecture démarre au final
+  w.__slowLayer3 = slowFile('lent3.wav', 500);
+  w.eval("library[0].layers[0].pendingFile = window.__slowLayer3; renderLibrary();");
+  click(doc.querySelector('[data-action="preview-track"]')); await sleep(60);
+  const hostR = doc.querySelector('[data-role="previewHost"]');
+  const plays = [];
+  const watch = () => { const b = hostR.querySelector('[data-role="playBtn"]'); if (b && !b._watched) { b._watched = true; b.addEventListener('click', () => plays.push(1)); } };
+  watch();
+  for (let i = 0; i < 4; i++) { w.eval("togglePreview(0, document.querySelector('[data-role=\"previewHost\"]').closest('.list-block') || document.getElementById('libraryContainer')); togglePreview(0, document.querySelector('[data-role=\"previewHost\"]').closest('.list-block') || document.getElementById('libraryContainer'));"); watch(); await sleep(60); }
+  await sleep(1800);
+  check('aperçu relancé plusieurs fois de suite : une seule lecture démarre', plays.length === 1);
   console.log(failures ? failures + ' échec(s)' : 'Tout est bon');
   process.exit(failures ? 1 : 0);
 })().catch(e => { console.error('TEST THREW:', e); process.exit(1); });

@@ -2,6 +2,7 @@
           const introEl = document.createElement('div');
           introEl.innerHTML = `
             <div data-role="introCtrl" style="margin-bottom:10px"></div>
+            <div data-role="introTimingRows">
             <div class="row">
               <div><label>${tr('nameFieldLabel')}</label><input type="text" data-field="introLabel" data-ti="${ti}" value="${escapeAttr(track.intro.label)}"></div>
               <div><label>${tr('barsLabel')}</label><input type="text" inputmode="numeric" data-field="introBars" data-ti="${ti}" value="${track.intro.bars || 8}"></div>
@@ -9,6 +10,7 @@
             <div class="row" style="margin-top:8px">
               <div><label data-help="bpmMeasuresVerticalRandom">${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-field="introBpm" data-ti="${ti}" value="${track.intro.bpm || ((track.sections || [])[0] || {}).bpm || 120}"></div>
               <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" data-field="introBeatsPerBar" data-ti="${ti}" value="${track.intro.beatsPerBar || ((track.sections || [])[0] || {}).beatsPerBar || 4}"></div>
+            </div>
             </div>
             <div class="hint-inline">${tr('introSectionLabel')}</div>
             <div class="hint-inline">${tr('introTailHintVrs')}</div>

@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792656193122">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792657279422">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1877,17 +1877,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792656193122"></script>
-<script src="layerpitch-i18n.js?v=1792656193122"></script>
-<script src="layerpitch-appearance.js?v=1792656193122"></script>
-<script src="layerpitch-album-shared.js?v=1792656193122"></script>
-<script src="layerpitch-album-editor.js?v=1792656193122"></script>
-<script src="layerpitch-shell.js?v=1792656193122"></script>
-<script src="layerpitch-social-icons.js?v=1792656193122"></script>
-<script src="layerpitch-notify.js?v=1792656193122"></script>
-<script src="layerpitch-guide.js?v=1792656193122"></script>
-<script src="layerpitch-help.js?v=1792656193122"></script>
-<script src="player.js?v=1792656193122"></script>
+<script src="layerpitch-tuto.js?v=1792657279422"></script>
+<script src="layerpitch-i18n.js?v=1792657279422"></script>
+<script src="layerpitch-appearance.js?v=1792657279422"></script>
+<script src="layerpitch-album-shared.js?v=1792657279422"></script>
+<script src="layerpitch-album-editor.js?v=1792657279422"></script>
+<script src="layerpitch-shell.js?v=1792657279422"></script>
+<script src="layerpitch-social-icons.js?v=1792657279422"></script>
+<script src="layerpitch-notify.js?v=1792657279422"></script>
+<script src="layerpitch-guide.js?v=1792657279422"></script>
+<script src="layerpitch-help.js?v=1792657279422"></script>
+<script src="player.js?v=1792657279422"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -5529,8 +5529,8 @@ function sectionHasAnyFile(section) {
 // "The_Last_Door_Intro_120bpm_14M.wav" n'était jamais reconnu comme intro.
 function guessSequentialRole(filename) {
   const n = filename.toLowerCase().replace(/\.[^/.]+$/, '');
-  if (/(?:^|[^a-z0-9])intro(?:$|[^a-z0-9])/.test(n)) return 'intro';
-  if (/(?:^|[^a-z0-9])outro(?:$|[^a-z0-9])/.test(n)) return 'outro';
+  if (/(?:^|[^a-z0-9])intro(?:only)?(?:$|[^a-z0-9])/.test(n)) return 'intro'; // « IntroONLY » (22/10) : l'intro seule du morceau Jazz Lo du tuto
+  if (/(?:^|[^a-z0-9])outro(?:only)?(?:$|[^a-z0-9])/.test(n)) return 'outro';
   return 'segment';
 }
 
@@ -6192,10 +6192,14 @@ function togglePreview(ti, cardEl) {
   const previewPlayBtn = row.querySelector('[data-role="playBtn"]');
   try { if (window.LayerPlayerCore && window.LayerPlayerCore.resumeAudio) window.LayerPlayerCore.resumeAudio(); } catch (e) { /* le bouton Lecture reste disponible */ }
   if (previewPlayBtn) {
+    // Numéro de lancement (22/10) : l'identifiant de l'aperçu est le même à chaque relance ; sans ce numéro, le minuteur d'une relance
+    // précédente (aperçu relancé à chaque clic sur la flèche d'un champ) cliquait encore sur SON bouton Lecture -> lectures superposées.
+    host._previewGen = (host._previewGen || 0) + 1;
+    const gen = host._previewGen;
     let waited = 0;
     const autoplayTimer = setInterval(() => {
       waited += 120;
-      if (host.dataset.active !== '1' || host.dataset.previewId !== previewTrack.id) { clearInterval(autoplayTimer); return; }
+      if (host.dataset.active !== '1' || host.dataset.previewId !== previewTrack.id || host._previewGen !== gen) { clearInterval(autoplayTimer); return; }
       if (!previewPlayBtn.disabled) { clearInterval(autoplayTimer); previewPlayBtn.click(); }
       else if (waited > 120000) clearInterval(autoplayTimer);
     }, 120);
@@ -7174,6 +7178,7 @@ function renderLibrary() {
           const introEl = document.createElement('div');
           introEl.innerHTML = `
             <div data-role="introCtrl" style="margin-bottom:10px"></div>
+            <div data-role="introTimingRows">
             <div class="row">
               <div><label>${tr('nameFieldLabel')}</label><input type="text" data-field="introLabel" data-ti="${ti}" value="${escapeAttr(track.intro.label)}"></div>
               <div><label>${tr('barsLabel')}</label><input type="text" inputmode="numeric" data-field="introBars" data-ti="${ti}" value="${track.intro.bars || 8}"></div>
@@ -7181,6 +7186,7 @@ function renderLibrary() {
             <div class="row" style="margin-top:8px">
               <div><label data-help="bpmMeasuresVerticalRandom">${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-field="introBpm" data-ti="${ti}" value="${track.intro.bpm || ((track.sections || [])[0] || {}).bpm || 120}"></div>
               <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" data-field="introBeatsPerBar" data-ti="${ti}" value="${track.intro.beatsPerBar || ((track.sections || [])[0] || {}).beatsPerBar || 4}"></div>
+            </div>
             </div>
             <div class="hint-inline">${tr('introSectionLabel')}</div>
             <div class="hint-inline">${tr('introTailHintVrs')}</div>
@@ -9605,7 +9611,15 @@ document.getElementById('libraryContainer').addEventListener('change', e => {
     const isFile = e.target.type === 'file';
     if ((names.length || isFile) && !names.some(n => DESCRIPTIVE_FIELDS.test(n))) {
       const ti = parseInt(e.target.dataset.ti, 10);
-      if (!isNaN(ti) && library[ti]) { togglePreview(ti, card); togglePreview(ti, card); return; }
+      // Relance différée (22/10) : les flèches d'un champ numérique envoient un « change » à chaque clic ; on attend la fin de la
+      // série de clics pour relancer l'aperçu une seule fois, au lieu de le redémarrer (et de le superposer) à chaque clic.
+      if (!isNaN(ti) && library[ti]) {
+        clearTimeout(previewHost._restartTimer);
+        previewHost._restartTimer = setTimeout(() => {
+          if (previewHost.dataset.active === '1' && card.isConnected && library[ti]) { togglePreview(ti, card); togglePreview(ti, card); }
+        }, 450);
+        return;
+      }
     }
   }
   const isTimingField = (field === 'bpm' || field === 'beatsPerBar') || (sectionField === 'bpm' || sectionField === 'beatsPerBar');
@@ -15595,7 +15609,7 @@ const LESSONS = [
     { selector: '#libraryDetail .seq-master-item[data-seq-key="vrsIntro"]', titleKey: 'lrIntroOpenTitle', textKey: 'lrIntroOpenText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'vrsIntro'; } },
     // L'intro (2 temps, moins d'une mesure) est rangée toute seule, mais sa durée se règle à la main : 1 mesure de 2 temps.
-    { selector: '#libraryDetail .row:has([data-field="introBars"])', titleKey: 'lrIntroSetTitle', textKey: 'lrIntroSetText',
+    { selector: '#libraryDetail [data-role="introTimingRows"]', titleKey: 'lrIntroSetTitle', textKey: 'lrIntroSetText',
       done: () => { const t = lessonTrack(); return !!t && !!t.intro && Number(t.intro.bars) === 1 && Number(t.intro.beatsPerBar) === 2; } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lrListenTitle', textKey: 'lrListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
