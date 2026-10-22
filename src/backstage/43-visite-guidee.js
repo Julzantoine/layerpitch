@@ -44,8 +44,8 @@ const LESSON_SAMPLE_FOLDERS = {
   'Jazz Hi Lay. Add.': ['Jazz Hi CB Only_2bts intro_8M_110bpm.wav', 'Jazz Hi Drum Only_2bts intro_8M_110bpm.wav', 'Jazz Hi KB Only_2bts intro_8M_110bpm.wav'],
   // Aléatoire : une intro de 2 temps et trois pools de variantes de 4 mesures (BS, DM, KB), déposés d'un coup sur la section.
   'Jazz Lo Vert. Rand.': ['Jazz Lo 2bts IntroONLY_110bpm.wav', 'Jazz Lo BS_Dirty South Blender_4M_110bpm.wav', 'Jazz Lo BS_Fog Machine_4M_110bpm.wav', 'Jazz Lo BS_Stories Told_4M_110bpm.wav', 'Jazz Lo BS_Straight Up_4M_110bpm.wav', 'Jazz Lo BS_Sweet Summer_4M_110bpm.wav', 'Jazz Lo BS_Walking Strong_4M_110bpm.wav', 'Jazz Lo DM_DirtRoad 1_4M_110bpm.wav', 'Jazz Lo DM_DirtRoad 2_4M_110bpm.wav', 'Jazz Lo DM_DirtRoad 3_4M_110bpm.wav', 'Jazz Lo KB_Carry On_4M_110bpm.wav', 'Jazz Lo KB_Fluid Chords_4M_110bpm.wav', 'Jazz Lo KB_Journey\'s End_4M_110bpm.wav', 'Jazz Lo KB_Perpetual Sunrise_4M_110bpm.wav', 'Jazz Lo KB_Simply Said_4M_110bpm.wav', 'Jazz Lo KB_The Feels_4M_110bpm.wav'],
-  // Séquentiel (sections aléatoires) : intro de 2 temps, quatre sections de 4 mesures, outro de 4 mesures.
-  'Jazz Hi Seq. Rand.': ['Jazz Hi Intro 2bts.wav', 'Jazz Hi Alt1_4M_110bpm.wav', 'Jazz Hi Alt2_4M_110bpm.wav', 'Jazz Hi Alt3_4M_110bpm.wav', 'Jazz Hi Alt4_4M_110bpm.wav', 'Jazz Hi Outro_4M.wav'],
+  // Séquentiel (sections aléatoires) : intro de 2 temps, deux sections de 4 mesures (4 alternatives chacune, « Alt1.1 » à « Alt2.4 »), outro de 4 mesures.
+  'Jazz Hi Seq. Rand.': ['Jazz Hi Intro 2bts.wav', 'Jazz Hi Alt1.1_4M_110bpm.wav', 'Jazz Hi Alt1.2_4M_110bpm.wav', 'Jazz Hi Alt1.3_4M_110bpm.wav', 'Jazz Hi Alt1.4_4M_110bpm.wav', 'Jazz Hi Alt2.1_4M_110bpm.wav', 'Jazz Hi Alt2.2_4M_110bpm.wav', 'Jazz Hi Alt2.3_4M_110bpm.wav', 'Jazz Hi Alt2.4_4M_110bpm.wav', 'Jazz Hi Outro_4M.wav'],
   // Séquentiel à embranchement : trois « villes » de 4 mesures, et une transition d'une mesure par ville d'arrivée.
   'Jazz Hi Seq. Branch.': ['Jazz Hi_Disco City_4M_110bpm.wav', 'Jazz Hi_Jazz City_4M_110bpm.wav', 'Jazz Hi_Synth city_4M_110bpm.wav',
     'Jazz Hi_Trans Disco City_1M.wav', 'Jazz Hi_Trans Jazz City_1M.wav', 'Jazz Hi_Trans Synth City_1M.wav'],
@@ -217,8 +217,8 @@ const LESSON_SAMPLE_NAMES = {
   additive: 'Jazz Hi CB Only_2bts intro_8M_110bpm.wav, Jazz Hi Drum Only_2bts intro_8M_110bpm.wav, Jazz Hi KB Only_2bts intro_8M_110bpm.wav',
   randAll: 'Jazz Lo 2bts IntroONLY_110bpm.wav, Jazz Lo BS_Dirty South Blender_4M_110bpm.wav, Jazz Lo BS_Fog Machine_4M_110bpm.wav, Jazz Lo BS_Stories Told_4M_110bpm.wav, Jazz Lo BS_Straight Up_4M_110bpm.wav, Jazz Lo BS_Sweet Summer_4M_110bpm.wav, Jazz Lo BS_Walking Strong_4M_110bpm.wav, Jazz Lo DM_DirtRoad 1_4M_110bpm.wav, Jazz Lo DM_DirtRoad 2_4M_110bpm.wav, Jazz Lo DM_DirtRoad 3_4M_110bpm.wav, Jazz Lo KB_Carry On_4M_110bpm.wav, Jazz Lo KB_Fluid Chords_4M_110bpm.wav, Jazz Lo KB_Journey\'s End_4M_110bpm.wav, Jazz Lo KB_Perpetual Sunrise_4M_110bpm.wav, Jazz Lo KB_Simply Said_4M_110bpm.wav, Jazz Lo KB_The Feels_4M_110bpm.wav',
   seqIntro: 'Jazz Hi Intro 2bts.wav',
-  seqAlt1: 'Jazz Hi Alt1_4M_110bpm.wav',
-  seqAlt2: 'Jazz Hi Alt2_4M_110bpm.wav',
+  seqAlt1: 'Jazz Hi Alt1.1_4M_110bpm.wav, Jazz Hi Alt1.2_4M_110bpm.wav, Jazz Hi Alt1.3_4M_110bpm.wav, Jazz Hi Alt1.4_4M_110bpm.wav',
+  seqAlt2: 'Jazz Hi Alt2.1_4M_110bpm.wav, Jazz Hi Alt2.2_4M_110bpm.wav, Jazz Hi Alt2.3_4M_110bpm.wav, Jazz Hi Alt2.4_4M_110bpm.wav',
   seqAlt3: 'Jazz Hi Alt3_4M_110bpm.wav',
   seqAlt4: 'Jazz Hi Alt4_4M_110bpm.wav',
   seqOutro: 'Jazz Hi Outro_4M.wav',
@@ -444,19 +444,13 @@ const LESSONS = [
     { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlotTitle', textKey: 'lqSlotText',
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 1; } },
     { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lqSegTitle', textKey: 'lqSegText', names: 'seqAlt1',
-      done: () => lessonSlotFileCount(0) >= 1 },
+      done: () => lessonSlotFileCount(0) >= 4 },
     { selector: '#libraryDetail [data-slot-field="repeatCount"]', titleKey: 'lqSlotCheckTitle', textKey: 'lqSlotCheckText' },
     // Répétition des opérations pour une nouvelle section.
     { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlot2Title', textKey: 'lqSlot2Text',
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 2; } },
     { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="1"]', titleKey: 'lqSeg2Title', textKey: 'lqSeg2Text', names: 'seqAlt2',
-      done: () => lessonSlotFileCount(1) >= 1 },
-    { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlot34Title', textKey: 'lqSlot34Text',
-      done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 4; } },
-    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="2"]', titleKey: 'lqSeg3Title', textKey: 'lqSeg3Text', names: 'seqAlt3',
-      done: () => lessonSlotFileCount(2) >= 1 },
-    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="3"]', titleKey: 'lqSeg4Title', textKey: 'lqSeg4Text', names: 'seqAlt4',
-      done: () => lessonSlotFileCount(3) >= 1 },
+      done: () => lessonSlotFileCount(1) >= 4 },
     { useSample: true, selector: '#libraryDetail .seq-master-item[data-seq-key="seqOutro"]', titleKey: 'lqOutroTitle', textKey: 'lqOutroText', names: 'seqOutro',
       done: () => { const t = lessonTrack(); return !!t && lessonHasFile(t.outro); } },
     { selector: '#libraryDetail [data-role="segmentSlotsMaster"]', titleKey: 'lqCheckTitle', textKey: 'lqCheckText' },
