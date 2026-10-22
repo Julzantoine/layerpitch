@@ -33,8 +33,8 @@ const LESSON_SAMPLE_URLS = {
 const LESSON_SAMPLE_FOLDERS = {
   // Statique : une boucle de 8 mesures, sans intro (leçon d'entrée : le moteur place tout seul les repères).
   'Jazz Lo': ['Jazz Lo_No Intro_110bpm.wav'],
-  // Embranchement vertical : deux boucles de 8 mesures précédées d'une intro de 2 temps.
-  'Jazz Hi-Lo Vert. Branch.': ['Jazz Lo 2bts Intro_8M_110bpm.wav', 'Jazz Hi 2bts Intro_8M_110bpm.wav'],
+  // Embranchement vertical : deux boucles de 8 mesures précédées d'une intro d'une mesure (« _Intro1M_9M » : le moteur lit tout).
+  'Jazz Hi-Lo Vert. Branch.': ['Jazz Lo_Intro1M_9M_110bpm.wav', 'Jazz Hi_Intro1M_9M_110bpm.wav'],
   // Couches additives : trois couches (cordes, batterie, clavier), même durée.
   'Jazz Hi Lay. Add.': ['Jazz Hi CB Only_2bts intro_8M_110bpm.wav', 'Jazz Hi Drum Only_2bts intro_8M_110bpm.wav', 'Jazz Hi KB Only_2bts intro_8M_110bpm.wav'],
   // Aléatoire : une intro de 2 temps et trois pools de variantes de 4 mesures (BS, DM, KB), déposés d'un coup sur la section.
@@ -222,7 +222,7 @@ const LESSON_SAMPLE_NAMES = {
   citySynth: 'Jazz Hi_Synth city_4M_110bpm.wav',
   transJazz: 'Jazz Hi_Trans Jazz City_1M.wav',
   transSynth: 'Jazz Hi_Trans Synth City_1M.wav',
-  embrLoops: 'Jazz Lo 2bts Intro_8M_110bpm.wav, Jazz Hi 2bts Intro_8M_110bpm.wav',
+  embrLoops: 'Jazz Lo_Intro1M_9M_110bpm.wav, Jazz Hi_Intro1M_9M_110bpm.wav',
   embrDetour: 'detour_120bpm_4M.wav',
   import: 'Tuto séquentiel - raccourci',
 };
