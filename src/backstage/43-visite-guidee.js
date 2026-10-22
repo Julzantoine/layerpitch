@@ -26,17 +26,28 @@ function lessonPlayable(lesson) { return !isTutoMode() || tutoFullAccess || less
 // URL de chaque fichier d'exemple (nom de fichier -> URL), à renseigner quand les fichiers seront en ligne (stockage
 // des médias, avec CORS ouvert à l'origine du Backstage). Tant qu'un nom manque, le bouton « Utiliser » n'apparaît pas.
 const LESSON_SAMPLE_URLS = {
-  // Leçon 1 (essai) : morceau de Jules-Antoine, stocké dans le bucket layerpitch-media (lecture publique, CORS ouvert).
-  '1_RobotAdventure_WetDarkCave_120bpm_30M.wav': 'https://media.layerpitch.com/tuto/1_RobotAdventure_WetDarkCave_120bpm_30M.wav',
-  // Leçon 2 (essai) : trois couches du même morceau, 64 mesures à 120 BPM.
-  '1_BattleLoop_LowIntensity_120bpm_64M.wav': 'https://media.layerpitch.com/tuto/1_BattleLoop_LowIntensity_120bpm_64M.wav',
-  '2_BattleLoop_MedIntensity_120bpm_64M.wav': 'https://media.layerpitch.com/tuto/2_BattleLoop_MedIntensity_120bpm_64M.wav',
-  '3_BattleLoop_HighIntensity_120bpm_64M.wav': 'https://media.layerpitch.com/tuto/3_BattleLoop_HighIntensity_120bpm_64M.wav',
-  // Leçon 3 (essai) : deux boucles de 18 mesures avec 2 mesures d'intro, 120 BPM (envoyées avec « .wav.wav » : le nom
-  // affiché reste « .wav », seul le lien porte le doublon).
-  '1_Everything_is_fine_120bpm_18M_intro2M.wav': 'https://media.layerpitch.com/tuto/1_Everything_is_fine_120bpm_18M_intro2M.wav.wav',
-  '2_Weve_been_noticed_120bpm_18M_intro2M.wav': 'https://media.layerpitch.com/tuto/2_Weve_been_noticed_120bpm_18M_intro2M.wav.wav',
 };
+// Leçons « Jazz » (21/10) : morceaux de Jules-Antoine, 110 BPM. Chaque dossier du Bureau est déposé tel quel dans `tuto/`
+// (media.layerpitch.com/tuto/<dossier>/<fichier>) : l'adresse est encodée, les espaces des noms n'y gênent pas. Le nom du fichier
+// est celui que l'apprenant voit et que le moteur lit (tempo, mesures).
+const LESSON_SAMPLE_FOLDERS = {
+  // Statique : une boucle de 8 mesures, sans intro (leçon d'entrée : le moteur place tout seul les repères).
+  'Jazz Lo': ['Jazz Lo_No Intro_110bpm.wav'],
+  // Embranchement vertical : deux boucles de 8 mesures précédées d'une intro de 2 temps.
+  'Jazz Hi-Lo Vert. Branch.': ['Jazz Lo 2bts Intro_8M_110bpm.wav', 'Jazz Hi 2bts Intro_8M_110bpm.wav'],
+  // Couches additives : trois couches (cordes, batterie, clavier), même durée.
+  'Jazz Hi Lay. Add.': ['Jazz Hi CB Only_2bts intro_8M_110bpm.wav', 'Jazz Hi Drum Only_2bts intro_8M_110bpm.wav', 'Jazz Hi KB Only_2bts intro_8M_110bpm.wav'],
+  // Aléatoire : une intro de 2 temps et trois pools de variantes de 4 mesures (BS, DM, KB), déposés d'un coup sur la section.
+  'Jazz Lo Vert. Rand.': ['Jazz Lo 2bts IntroONLY_110bpm.wav', 'Jazz Lo BS_Dirty South Blender_4M_110bpm.wav', 'Jazz Lo BS_Fog Machine_4M_110bpm.wav', 'Jazz Lo BS_Stories Told_4M_110bpm.wav', 'Jazz Lo BS_Straight Up_4M_110bpm.wav', 'Jazz Lo BS_Sweet Summer_4M_110bpm.wav', 'Jazz Lo BS_Walking Strong_4M_110bpm.wav', 'Jazz Lo DM_DirtRoad 1_4M_110bpm.wav', 'Jazz Lo DM_DirtRoad 2_4M_110bpm.wav', 'Jazz Lo DM_DirtRoad 3_4M_110bpm.wav', 'Jazz Lo KB_Carry On_4M_110bpm.wav', 'Jazz Lo KB_Fluid Chords_4M_110bpm.wav', 'Jazz Lo KB_Journey\'s End_4M_110bpm.wav', 'Jazz Lo KB_Perpetual Sunrise_4M_110bpm.wav', 'Jazz Lo KB_Simply Said_4M_110bpm.wav', 'Jazz Lo KB_The Feels_4M_110bpm.wav'],
+  // Séquentiel (sections aléatoires) : intro de 2 temps, quatre sections de 4 mesures, outro de 4 mesures.
+  'Jazz Hi Seq. Rand.': ['Jazz Hi Intro 2bts.wav', 'Jazz Hi Alt1_4M_110bpm.wav', 'Jazz Hi Alt2_4M_110bpm.wav', 'Jazz Hi Alt3_4M_110bpm.wav', 'Jazz Hi Alt4_4M_110bpm.wav', 'Jazz Hi Outro_4M.wav'],
+  // Séquentiel à embranchement : trois « villes » de 4 mesures, et une transition d'une mesure par ville d'arrivée.
+  'Jazz Hi Seq. Branch.': ['Jazz Hi_Disco City_4M_110bpm.wav', 'Jazz Hi_Jazz City_4M_110bpm.wav', 'Jazz Hi_Synth city_4M_110bpm.wav',
+    'Jazz Hi_Trans Disco City_1M.wav', 'Jazz Hi_Trans Jazz City_1M.wav', 'Jazz Hi_Trans Synth City_1M.wav'],
+};
+Object.keys(LESSON_SAMPLE_FOLDERS).forEach(dir => LESSON_SAMPLE_FOLDERS[dir].forEach(n => {
+  LESSON_SAMPLE_URLS[n] = 'https://media.layerpitch.com/tuto/' + encodeURIComponent(dir) + '/' + encodeURIComponent(n);
+}));
 function lessonStepFileNames(step) {
   const names = LESSON_SAMPLE_NAMES[step.names || (guide && guide.lessonId)] || '';
   return names.split(',').map(x => x.trim()).filter(Boolean);
@@ -174,29 +185,44 @@ function lessonArrowPoint(bar) {
   if (!r.width) return null;
   return { x: r.left + r.width * beat / total, y: r.top };
 }
+// Fenêtre de dépôt groupé de la section : la case « + piste vide » du pool dont le nom commence par `label`.
+function lessonDialogPoolSilent(label) {
+  const g = [...document.querySelectorAll('.vrs-batch-modal .vrs-batch-group')].find(x => { const i = x.querySelector('[data-vbd-group-label]'); return i && i.value.trim().toLowerCase() === label.toLowerCase(); });
+  return g ? g.querySelector('[data-vbd-group-silent]') : null;
+}
+function lessonPoolHasSilence(label) {
+  const sec = lessonSection(); const p = sec && (sec.pools || []).find(x => (x.label || '').trim().toLowerCase() === label.toLowerCase());
+  return !!p && (p.alternatives || []).some(a => !(a.pendingFile || a.remoteFile));
+}
 function fxSliderExists() { const t = lessonTrack(); return !!t && (t.fxSliders || []).length >= 1; }
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
 function lessonLoopFileCount() { const t = lessonTrack(); return t ? (t.loops || []).filter(lessonHasFile).length : 0; }
+// Raccourci « Importer un dossier » (fin de la leçon d'embranchement) : joué seulement si le feu vert est ouvert ET si le dossier d'exemple est en ligne.
+function lessonImportSkipped() { return !flagOpen('bulk_drop') || !lessonSampleReady({ useSample: true, names: 'import' }); }
 function lessonFolderDialogOpen() { return !!document.querySelector('.vrs-batch-modal [data-fi="mode"]'); }
 function lessonDialogText() { const m = document.querySelector('.vrs-batch-modal'); return m ? m.textContent : ''; }
 function lessonTrack() { return (typeof library !== 'undefined' && library.find(t => t.id === manageLibrarySelectedId)) || null; }
 // Fichiers d'exemple de chaque leçon : null tant qu'ils n'existent pas (la bulle dit alors « bientôt disponible »).
 const LESSON_SAMPLE_FILES = { static: null, additive: null, random: null, sequential: null, branching: null, embranchement: null, import: null };
 // Nom du fichier d'exemple cité dans la consigne de dépôt (il porte le tempo : ambiance_120bpm).
-// (additive : noms provisoires, à remplacer par ceux des vrais fichiers).
 const LESSON_SAMPLE_NAMES = {
-  static: '1_RobotAdventure_WetDarkCave_120bpm_30M.wav',
-  additive: '1_BattleLoop_LowIntensity_120bpm_64M.wav, 2_BattleLoop_MedIntensity_120bpm_64M.wav, 3_BattleLoop_HighIntensity_120bpm_64M.wav',
-  randomFixed: 'couche-fixe_120bpm.wav',
-  randomVariants: 'variante-1_120bpm.wav, variante-2_120bpm.wav, variante-3_120bpm.wav',
-  seqIntro: 'intro_120bpm.wav',
-  seqA: 'segment-a1_120bpm.wav, segment-a2_120bpm.wav',
-  seqB: 'segment-b1_120bpm.wav, segment-b2_120bpm.wav',
-  seqOutro: 'outro_120bpm.wav',
-  seqC: 'segment-c1_120bpm.wav, segment-c2_120bpm.wav',
-  embrLoops: '1_Everything_is_fine_120bpm_18M_intro2M.wav, 2_Weve_been_noticed_120bpm_18M_intro2M.wav',
+  static: 'Jazz Lo_No Intro_110bpm.wav',
+  additive: 'Jazz Hi CB Only_2bts intro_8M_110bpm.wav, Jazz Hi Drum Only_2bts intro_8M_110bpm.wav, Jazz Hi KB Only_2bts intro_8M_110bpm.wav',
+  randAll: 'Jazz Lo 2bts IntroONLY_110bpm.wav, Jazz Lo BS_Dirty South Blender_4M_110bpm.wav, Jazz Lo BS_Fog Machine_4M_110bpm.wav, Jazz Lo BS_Stories Told_4M_110bpm.wav, Jazz Lo BS_Straight Up_4M_110bpm.wav, Jazz Lo BS_Sweet Summer_4M_110bpm.wav, Jazz Lo BS_Walking Strong_4M_110bpm.wav, Jazz Lo DM_DirtRoad 1_4M_110bpm.wav, Jazz Lo DM_DirtRoad 2_4M_110bpm.wav, Jazz Lo DM_DirtRoad 3_4M_110bpm.wav, Jazz Lo KB_Carry On_4M_110bpm.wav, Jazz Lo KB_Fluid Chords_4M_110bpm.wav, Jazz Lo KB_Journey\'s End_4M_110bpm.wav, Jazz Lo KB_Perpetual Sunrise_4M_110bpm.wav, Jazz Lo KB_Simply Said_4M_110bpm.wav, Jazz Lo KB_The Feels_4M_110bpm.wav',
+  seqIntro: 'Jazz Hi Intro 2bts.wav',
+  seqAlt1: 'Jazz Hi Alt1_4M_110bpm.wav',
+  seqAlt2: 'Jazz Hi Alt2_4M_110bpm.wav',
+  seqAlt3: 'Jazz Hi Alt3_4M_110bpm.wav',
+  seqAlt4: 'Jazz Hi Alt4_4M_110bpm.wav',
+  seqOutro: 'Jazz Hi Outro_4M.wav',
+  cityDisco: 'Jazz Hi_Disco City_4M_110bpm.wav',
+  cityJazz: 'Jazz Hi_Jazz City_4M_110bpm.wav',
+  citySynth: 'Jazz Hi_Synth city_4M_110bpm.wav',
+  transJazz: 'Jazz Hi_Trans Jazz City_1M.wav',
+  transSynth: 'Jazz Hi_Trans Synth City_1M.wav',
+  embrLoops: 'Jazz Lo 2bts Intro_8M_110bpm.wav, Jazz Hi 2bts Intro_8M_110bpm.wav',
   embrDetour: 'detour_120bpm_4M.wav',
   import: 'Tuto séquentiel - raccourci',
 };
@@ -242,7 +268,9 @@ const LESSONS = [
       enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
     { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'lsModeTitle', textKey: 'lsModeText',
       done: () => { const t = lessonTrack(); return !!t && t.mode === 'static'; } },
-    { useSample: true, selector: '#libraryDetail [data-role="staticFileCtrl"]', titleKey: 'lsFileTitle', textKey: 'lsFileText', sampleKey: 'static',
+    { useSample: true, selector: '#libraryDetail [data-role="staticFileCtrl"]', titleKey: 'lsFileTitle', textKey: 'lsFileText', sampleKey: 'static', downloadSample: true,
+      // Le bouton « Choisir un WAV ou MP3 » est grisé pendant cette étape : la leçon utilise les fichiers d'exemple (le texte l'explique).
+      enter: () => { const b = document.querySelector('#libraryDetail [data-role="staticFileCtrl"] [data-role="pickBtn"]'); if (b) b.disabled = true; },
       done: () => { const t = lessonTrack(); const l = t && t.layers && t.layers[0]; return !!(l && (l.pendingFile || l.remoteFile)); } },
     { selector: '#libraryDetail input[data-field="loopable"]', titleKey: 'lsLoopTitle', textKey: 'lsLoopText',
       done: () => { const t = lessonTrack(); return !!t && !!t.loopable; } },
@@ -252,7 +280,7 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && t.loopEngine === 'quantized'; } },
     { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lsVerifyTitle', textKey: 'lsVerifyText' },
     // Flèche sur la barre de la 31e mesure : le morceau d'exemple fait 30 mesures (+ résonances), la sortie se place à la fin.
-    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText', arrow: { bar: 31 } },
+    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText', arrow: { bar: 9, labelKey: 'lsArrowOut' } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lsEndTitle', textKey: 'lsEndText', final: true },
@@ -278,6 +306,10 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 1; } },
     { selector: '#libraryDetail input[data-embr-loop-field="label"]', titleKey: 'leLabelTitle', textKey: 'leLabelText' },
     { selector: '#libraryDetail select[data-embr-loop-field="switchQuantize"]', titleKey: 'leQuantTitle', textKey: 'leQuantText' },
+    // Style de coupure « personnalisé » : le fondu se règle alors à la seconde près (0,5 s pour ces deux boucles).
+    { selector: '#libraryDetail select[data-embr-loop-field="cutStyle"]', titleKey: 'leCutTitle', textKey: 'leCutText',
+      done: () => { const t = lessonTrack(); const l = t && (t.loops || [])[1]; return !!l && l.cutStyle === 'custom'; } },
+    { selector: '#libraryDetail input[data-embr-loop-field="customCutFadeSec"]', titleKey: 'leFadeTitle', textKey: 'leFadeText' },
     { selector: '#libraryDetail input[data-embr-loop-field="hasTransition"]', titleKey: 'leTransTitle', textKey: 'leTransText' },
     // Boucle de détour : un fichier à part, joué ponctuellement au clic (mesures et tempo propres).
     { selector: '#libraryDetail [data-action="add-embr-loop"]', titleKey: 'ldAddTitle', textKey: 'ldAddText', skip: () => !lessonDetourReady(),
@@ -314,7 +346,7 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && t.loopEngine === 'quantized'; } },
     { selector: '#libraryDetail select[data-field="loopEngine"]', titleKey: 'laEngineAutoTitle', textKey: 'laEngineAutoText',
       skip: (c) => !!c.engineManual },
-    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'laPointsTitle', textKey: 'laPointsText', arrow: { bar: 65 } },
+    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'laPointsTitle', textKey: 'laPointsText', arrow: { bar: 9.5, labelKey: 'laArrowOut' } },
     // Le pilotage des couches se règle AVANT l'écoute : boutons nommés (par défaut), ou curseur à seuils (RTPC).
     // Le champ « Label » n'existe que lorsqu'une couche est ouverte : on demande d'abord de cliquer dessus.
     { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'laSelectTitle', textKey: 'laSelectText',
@@ -359,16 +391,22 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && t.mode === 'vertical-random'; } },
     { selector: '#libraryDetail [data-action="add-section"]', titleKey: 'lrSectionTitle', textKey: 'lrSectionText',
       done: () => { const t = lessonTrack(); return !!t && (t.sections || []).length >= 1; } },
-    // Une nouvelle section naît avec un premier pool vide : il sert de couche fixe (un seul fichier, joué à chaque passage).
-    { useSample: true, selector: '#libraryDetail [data-role="vrsPools"] > .list-block:nth-child(1)', titleKey: 'lrFixedTitle', textKey: 'lrFixedText', sampleKey: 'random', names: 'randomFixed',
-      done: () => lessonPoolFiles(0) >= 1 },
-    { selector: '#libraryDetail [data-action="add-pool"]', titleKey: 'lrPoolTitle', textKey: 'lrPoolText',
-      done: () => { const s2 = lessonSection(); return !!s2 && (s2.pools || []).length >= 2; } },
-    { useSample: true, selector: '#libraryDetail [data-role="vrsPools"] > .list-block:nth-child(2)', titleKey: 'lrVariantsTitle', textKey: 'lrVariantsText', names: 'randomVariants',
-      done: () => lessonPoolFiles(1) >= 2 },
+    // Dépôt groupé : tous les fichiers d'un coup sur la section. La fenêtre qui s'ouvre range les fichiers en pools (nom = ce qui précède le premier « _ »).
+    { useSample: true, selector: '#libraryDetail [data-role="vrsSectionDrop"]', titleKey: 'lrBatchTitle', textKey: 'lrBatchText', sampleKey: 'random', names: 'randAll',
+      done: () => !!document.querySelector('.vrs-batch-modal [data-vbd="confirm"]') },
+    { selector: '.vrs-batch-modal .vrs-batch-body', titleKey: 'lrReadTitle', textKey: 'lrReadText' },
+    { selector: () => lessonDialogPoolSilent('Jazz Lo KB'), titleKey: 'lrSilentTitle', textKey: 'lrSilentText',
+      done: () => { const c = lessonDialogPoolSilent('Jazz Lo KB'); return !!c && c.checked; } },
+    { selector: '.vrs-batch-modal [data-vbd="confirm"]', titleKey: 'lrConfirmTitle', textKey: 'lrConfirmText',
+      done: () => { const sec = lessonSection(); return !!sec && (sec.pools || []).length >= 3 && !document.querySelector('.vrs-batch-modal'); } },
     { selector: '#libraryDetail [data-role="vrsPools"]', titleKey: 'lrCheckTitle', textKey: 'lrCheckText' },
     { selector: '#libraryDetail input[data-section-field="bpm"]', titleKey: 'lrBpmTitle', textKey: 'lrBpmText' },
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lrPointsTitle', textKey: 'lrPointsText' },
+    { selector: '#libraryDetail .seq-master-item[data-seq-key="vrsIntro"]', titleKey: 'lrIntroOpenTitle', textKey: 'lrIntroOpenText',
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'vrsIntro'; } },
+    // L'intro (2 temps, moins d'une mesure) est rangée toute seule, mais sa durée se règle à la main : 1 mesure de 2 temps.
+    { selector: '#libraryDetail .row:has([data-field="introBars"])', titleKey: 'lrIntroSetTitle', textKey: 'lrIntroSetText',
+      done: () => { const t = lessonTrack(); return !!t && !!t.intro && Number(t.intro.bars) === 1 && Number(t.intro.beatsPerBar) === 2; } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lrListenTitle', textKey: 'lrListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lrEndTitle', textKey: 'lrEndText', final: true },
@@ -384,25 +422,36 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && t.mode === 'sequential'; } },
     { useSample: true, selector: '#libraryDetail .seq-master-item[data-seq-key="seqIntro"]', titleKey: 'lqIntroTitle', textKey: 'lqIntroText', sampleKey: 'sequential', names: 'seqIntro',
       done: () => { const t = lessonTrack(); return !!t && lessonHasFile(t.intro); } },
-    // L'intro de l'exemple dure moins d'une mesure (un temps) : réglage manuel (mesures = 1, temps par mesure = 1).
+    // L'intro de l'exemple dure 2 temps (moins d'une mesure) et le nom ne dit que le tempo : réglage manuel (mesures = 1, temps par mesure = 2).
     { selector: '#libraryDetail .row:has([data-field="introBars"])', titleKey: 'lqIntroSetTitle', textKey: 'lqIntroSetText',
-      done: () => { const t = lessonTrack(); return !!t && !!t.intro && Number(t.intro.bars) === 1 && Number(t.intro.beatsPerBar) === 1; } },
+      done: () => { const t = lessonTrack(); return !!t && !!t.intro && Number(t.intro.bars) === 1 && Number(t.intro.beatsPerBar) === 2; } },
     { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlotTitle', textKey: 'lqSlotText',
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 1; } },
-    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lqSegTitle', textKey: 'lqSegText', names: 'seqA',
-      done: () => lessonSlotFileCount(0) >= 2 },
+    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lqSegTitle', textKey: 'lqSegText', names: 'seqAlt1',
+      done: () => lessonSlotFileCount(0) >= 1 },
     { selector: '#libraryDetail [data-slot-field="repeatCount"]', titleKey: 'lqSlotCheckTitle', textKey: 'lqSlotCheckText' },
     // Répétition des opérations pour une nouvelle section.
     { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlot2Title', textKey: 'lqSlot2Text',
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 2; } },
-    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="1"]', titleKey: 'lqSeg2Title', textKey: 'lqSeg2Text', names: 'seqB',
-      done: () => lessonSlotFileCount(1) >= 2 },
-    { selector: '#libraryDetail [data-slot-field="repeatCount"]', titleKey: 'lqSlotCheckTitle', textKey: 'lqSlotCheckText' },
+    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="1"]', titleKey: 'lqSeg2Title', textKey: 'lqSeg2Text', names: 'seqAlt2',
+      done: () => lessonSlotFileCount(1) >= 1 },
+    { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlot34Title', textKey: 'lqSlot34Text',
+      done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 4; } },
+    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="2"]', titleKey: 'lqSeg3Title', textKey: 'lqSeg3Text', names: 'seqAlt3',
+      done: () => lessonSlotFileCount(2) >= 1 },
+    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="3"]', titleKey: 'lqSeg4Title', textKey: 'lqSeg4Text', names: 'seqAlt4',
+      done: () => lessonSlotFileCount(3) >= 1 },
     { useSample: true, selector: '#libraryDetail .seq-master-item[data-seq-key="seqOutro"]', titleKey: 'lqOutroTitle', textKey: 'lqOutroText', names: 'seqOutro',
       done: () => { const t = lessonTrack(); return !!t && lessonHasFile(t.outro); } },
     { selector: '#libraryDetail [data-role="segmentSlotsMaster"]', titleKey: 'lqCheckTitle', textKey: 'lqCheckText' },
     { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'lqInfoTitle', textKey: 'lqInfoText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
+    // Le dépôt d'un fichier dans un emplacement ne règle pas le tempo du morceau : on le saisit à la main (110, lu dans les noms).
+    { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lqBpmTitle', textKey: 'lqBpmText',
+      done: () => { const t = lessonTrack(); return !!t && Number(t.bpm) === 110; } },
+    // « Ordre aléatoire des sections » : les quatre sections sont jouées dans un ordre tiré au hasard à chaque cycle.
+    { selector: '#libraryDetail input[data-field="seqSlotOrder"]', titleKey: 'lqRandomTitle', textKey: 'lqRandomText',
+      done: () => { const t = lessonTrack(); return !!t && !!t.randomizeSections; } },
     { selector: '#libraryDetail select[data-field="maxChainLoops"]', titleKey: 'lqCyclesTitle', textKey: 'lqCyclesText' },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lqListenTitle', textKey: 'lqListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
@@ -413,13 +462,18 @@ const LESSONS = [
     { titleKey: 'lbWelcomeTitle', textKey: 'lbWelcomeText' },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText',
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
-    // Cette leçon prolonge la précédente : elle reprend le morceau séquentiel déjà construit (au moins 2 emplacements).
-    { selector: '#libraryMaster', titleKey: 'lbOpenTitle', textKey: 'lbOpenText',
-      done: () => { const t = lessonTrack(); return !!t && t.mode === 'sequential' && (t.segmentSlots || []).length >= 2; } },
+    { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
+      enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
+    { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'lbModeTitle', textKey: 'lbModeText',
+      done: () => { const t = lessonTrack(); return !!t && t.mode === 'sequential'; } },
     { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lbSlot3Title', textKey: 'lbSlot3Text',
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 3; } },
-    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="2"]', titleKey: 'lbSeg3Title', textKey: 'lbSeg3Text', sampleKey: 'branching', names: 'seqC',
-      done: () => { const sl = lessonSlot(2); return !!sl && (sl.alternatives || []).filter(lessonHasFile).length >= 2; } },
+    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lbCity1Title', textKey: 'lbCity1Text', sampleKey: 'branching', names: 'cityDisco',
+      done: () => lessonSlotFileCount(0) >= 1 },
+    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="1"]', titleKey: 'lbCity2Title', textKey: 'lbCity2Text', names: 'cityJazz',
+      done: () => lessonSlotFileCount(1) >= 1 },
+    { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="2"]', titleKey: 'lbCity3Title', textKey: 'lbCity3Text', names: 'citySynth',
+      done: () => lessonSlotFileCount(2) >= 1 },
     { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lbPickTitle', textKey: 'lbPickText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 0; } },
     { selector: '#libraryDetail input[data-slot-field="hasBranches"]', titleKey: 'lbEnableTitle', textKey: 'lbEnableText',
@@ -430,26 +484,42 @@ const LESSONS = [
     { selector: '#libraryDetail .branch-option-card:nth-child(2) [data-branch-field="targetId"]', titleKey: 'lbTarget2Title', textKey: 'lbTarget2Text',
       done: () => { const t = lessonTrack(); const sl = lessonSlot(0); const third = lessonSlot(2); return !!(t && sl && third && sl.nextOptions && sl.nextOptions[1] && sl.nextOptions[1].targetId === third.id); } },
     { selector: '#libraryDetail .branch-option-card:nth-child(1) [data-branch-field="label"]', titleKey: 'lbLabelsTitle', textKey: 'lbLabelsText' },
-    { selector: '#libraryDetail select[data-slot-field="quantization"]', titleKey: 'lbTriggerTitle', textKey: 'lbTriggerText' },
-    { selector: '#libraryDetail .branch-option-card:nth-child(1) [data-branch-field="hasTransition"]', titleKey: 'lbTransTitle', textKey: 'lbTransText' },
+    { selector: '#libraryDetail select[data-slot-field="quantization"]', titleKey: 'lbTriggerTitle', textKey: 'lbTriggerText',
+      done: () => { const sl = lessonSlot(0); return !!sl && sl.quantization === 'beat'; } },
+    { selector: '#libraryDetail select[data-slot-field="cutStyle"]', titleKey: 'lbCutTitle', textKey: 'lbCutText',
+      done: () => { const sl = lessonSlot(0); return !!sl && sl.cutStyle === 'custom'; } },
+    { selector: '#libraryDetail input[data-slot-field="customCutFadeSec"]', titleKey: 'lbFadeTitle', textKey: 'lbFadeText' },
+    { selector: '#libraryDetail .branch-option-card:nth-child(1) [data-branch-field="hasTransition"]', titleKey: 'lbTransTitle', textKey: 'lbTransText',
+      done: () => { const sl = lessonSlot(0); const o = sl && (sl.nextOptions || [])[0]; return !!(o && o.transition); } },
+    { useSample: true, selector: '#libraryDetail .branch-option-card:nth-child(1) [data-role="transitionFileCtrl"]', titleKey: 'lbTransFile1Title', textKey: 'lbTransFile1Text', names: 'transJazz',
+      done: () => { const sl = lessonSlot(0); const o = sl && (sl.nextOptions || [])[0]; return !!(o && o.transition && lessonHasFile(o.transition)); } },
+    { selector: '#libraryDetail .branch-option-card:nth-child(2) [data-branch-field="hasTransition"]', titleKey: 'lbTrans2Title', textKey: 'lbTrans2Text',
+      done: () => { const sl = lessonSlot(0); const o = sl && (sl.nextOptions || [])[1]; return !!(o && o.transition); } },
+    { useSample: true, selector: '#libraryDetail .branch-option-card:nth-child(2) [data-role="transitionFileCtrl"]', titleKey: 'lbTransFile2Title', textKey: 'lbTransFile2Text', names: 'transSynth',
+      done: () => { const sl = lessonSlot(0); const o = sl && (sl.nextOptions || [])[1]; return !!(o && o.transition && lessonHasFile(o.transition)); } },
+    { selector: '#libraryDetail [data-role="segmentSlotsMaster"]', titleKey: 'lbOthersTitle', textKey: 'lbOthersText' },
+    { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'lqInfoTitle', textKey: 'lqInfoText',
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
+    { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lqBpmTitle', textKey: 'lqBpmText',
+      done: () => { const t = lessonTrack(); return !!t && Number(t.bpm) === 110; } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lbListenTitle', textKey: 'lbListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     // Raccourci (feu vert « bulk_drop ») : après la construction à la main (leçons 4 et 5), le même résultat en déposant un dossier. L'import crée la chaîne mais pas les embranchements, qui se relient à la main.
     // L'import tourne entièrement dans le navigateur. Étapes ignorées tant que le feu vert est fermé.
-    { titleKey: 'lfIntroTitle', textKey: 'lfIntroText', skip: () => !flagOpen('bulk_drop') },
-    { selector: '#libraryFolderDrop', titleKey: 'lfDropTitle', textKey: 'lfDropText', sampleKey: 'import', names: 'import', skip: () => !flagOpen('bulk_drop'),
+    { titleKey: 'lfIntroTitle', textKey: 'lfIntroText', skip: lessonImportSkipped },
+    { selector: '#libraryFolderDrop', titleKey: 'lfDropTitle', textKey: 'lfDropText', sampleKey: 'import', names: 'import', skip: lessonImportSkipped,
       enter: (c) => { c.baseLen = library.length; }, done: () => lessonFolderDialogOpen() },
-    { selector: '.vrs-batch-modal [data-fi="mode"]', titleKey: 'lfReadTitle', textKey: 'lfReadText', skip: () => !flagOpen('bulk_drop') },
-    { selector: '.vrs-batch-modal [data-fi-btn="go"]', titleKey: 'lfGoTitle', textKey: 'lfGoText', skip: () => !flagOpen('bulk_drop'),
+    { selector: '.vrs-batch-modal [data-fi="mode"]', titleKey: 'lfReadTitle', textKey: 'lfReadText', skip: lessonImportSkipped },
+    { selector: '.vrs-batch-modal [data-fi-btn="go"]', titleKey: 'lfGoTitle', textKey: 'lfGoText', skip: lessonImportSkipped,
       done: () => !!document.querySelector('.vrs-batch-modal [data-vbd-file]') },
     // Le piège : « Ouverture.wav » n'est pas reconnue comme intro et aucun nom ne porte de tempo. L'apprenant la
     // renomme chez lui (mot « Intro » + « _120bpm »), puis redépose le dossier.
-    { selector: '.vrs-batch-modal .vrs-batch-body', titleKey: 'lfRolesTitle', textKey: 'lfRolesText', skip: () => !flagOpen('bulk_drop') },
-    { selector: '.vrs-batch-modal .vrs-batch-body', titleKey: 'lfRenameTitle', textKey: 'lfRenameText', required: true, skip: () => !flagOpen('bulk_drop'),
+    { selector: '.vrs-batch-modal .vrs-batch-body', titleKey: 'lfRolesTitle', textKey: 'lfRolesText', skip: lessonImportSkipped },
+    { selector: '.vrs-batch-modal .vrs-batch-body', titleKey: 'lfRenameTitle', textKey: 'lfRenameText', required: true, skip: lessonImportSkipped,
       done: () => /120\s*BPM/i.test(lessonDialogText()) && !!document.querySelector('.vrs-batch-modal [data-vbd-check="hints"]') },
-    { selector: '.vrs-batch-modal .vrs-batch-group', titleKey: 'lfCheckTitle', textKey: 'lfCheckText', skip: () => !flagOpen('bulk_drop') },
-    { selector: '.vrs-batch-modal [data-vbd="confirm"]', titleKey: 'lfCreateTitle', textKey: 'lfCreateText', skip: () => !flagOpen('bulk_drop'),
+    { selector: '.vrs-batch-modal .vrs-batch-group', titleKey: 'lfCheckTitle', textKey: 'lfCheckText', skip: lessonImportSkipped },
+    { selector: '.vrs-batch-modal [data-vbd="confirm"]', titleKey: 'lfCreateTitle', textKey: 'lfCreateText', skip: lessonImportSkipped,
       done: (c) => library.length > c.baseLen },
-    { selector: '#libraryMaster', titleKey: 'lfDraftTitle', textKey: 'lfDraftText', skip: () => !flagOpen('bulk_drop') },
+    { selector: '#libraryMaster', titleKey: 'lfDraftTitle', textKey: 'lfDraftText', skip: lessonImportSkipped },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lbEndTitle', textKey: 'lbEndText', final: true },
   ] },
@@ -571,10 +641,25 @@ const GUIDE = window.LayerPitchGuide.create({
     const canUse = lessonSampleReady(step);
     const many = lessonStepFileNames(step).length > 1;
     return (sample ? `<a class="tour-sample" href="${escapeAttr(sample)}" download>${escapeHtml(tr('lessonSampleDownload'))}</a>` : '')
+      + (canUse && step.downloadSample ? `<a class="tour-sample" href="#" data-tour="download">${escapeHtml(tr('lessonSampleDownload'))}</a>` : '')
       + (canUse ? `<div class="tour-chip" data-tour="chip" role="button" tabindex="0" aria-label="${escapeAttr(tr('lessonChipHint'))}"><span class="tour-chip-note">♪</span><span class="tour-chip-name">${escapeHtml(many ? tr('lessonChipMany', { n: lessonStepFileNames(step).length }) : lessonStepFileNames(step)[0])}</span></div><div class="tour-sample-hint">${escapeHtml(tr('lessonChipHint'))}</div>` : '')
       + (step.sampleKey && !sample && !canUse ? `<div class="tour-sample tour-sample-soon">${escapeHtml(tr('lessonSampleSoon'))}</div>` : '');
   },
   wireCard(card, step) {
+    // Lien « Télécharger le fichier d'exemple » : pour la façon « bouton » (choisir le fichier sur son ordinateur). Le fichier vient d'un
+    // autre domaine : on le charge puis on le propose en téléchargement, l'attribut `download` seul serait ignoré.
+    const dl = card.querySelector('[data-tour="download"]');
+    if (dl) dl.addEventListener('click', async ev => {
+      ev.preventDefault();
+      const name = lessonStepFileNames(step)[0];
+      try {
+        const res = await fetch(LESSON_SAMPLE_URLS[name]);
+        if (!res.ok) throw new Error(name + ' : ' + res.status);
+        const url = URL.createObjectURL(await res.blob());
+        const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      } catch (err) { window.LayerPitchNotify.error(tr('lessonSampleError', { error: err.message || String(err) })); }
+    });
     const chip = card.querySelector('[data-tour="chip"]');
     if (chip) chip.addEventListener('pointerdown', ev => lessonStartChipDrag(ev, step, chip));
     // Accès clavier : Entrée ou Espace sur la vignette dépose le fichier d'exemple (sans glisser à la souris).
@@ -662,7 +747,8 @@ function initTutorialMenuUi() {
     // Décidé le 20/10 : le tutoriel se joue TOUJOURS en mode sans compte (faux compte local, rien d'enregistré), pour tout le monde,
     // y compris depuis un vrai Backstage : un seul tutoriel à maintenir. On y entre en rechargeant la page avec la leçon demandée.
     const l = LESSONS.find(x => x.id === id);
-    if (!isTutoMode() && l && !l.soon) { window.location.href = lessonTutoUrl(l, id); return; }
+    // Nouvelle fenêtre (22/10) : le vrai Backstage reste ouvert à côté du tutoriel.
+    if (!isTutoMode() && l && !l.soon) { window.open(lessonTutoUrl(l, id), '_blank', 'noopener'); return; }
     startLesson(id);
   });
 }

@@ -234,7 +234,8 @@
         card.innerHTML = `
       <div class="tour-count"><span>${guide.index + 1} / ${guide.steps.length}</span><span class="tour-grip" title="${esc(tr('lessonMoveHint'))}" aria-hidden="true">⠿</span></div>
       <div class="tour-title">${esc(tr(step.titleKey))}</div>
-      <div class="tour-text">${esc(tr(step.textKey, vars))}</div>
+      <div class="tour-move-note">${esc(tr('lessonMoveNote'))}</div>
+      <div class="tour-text">${esc(tr(step.textKey, vars).replace(/\n/g, '\n\n'))}</div>
       ${extras}
       ${auto || (listening && !guide.clicked && !revisiting) ? `<div class="tour-waiting">${esc(tr('lessonDoIt'))}</div>` : ''}
       ${listening && guide.clicked ? `<div class="tour-waiting">${esc(tr('lessonListening'))}</div>` : ''}
@@ -261,22 +262,25 @@
         wireDrops(card, step);
         if (host.wireCard) host.wireCard(card, step, guide);
       }
-      // Flèche indicative (étapes avec `arrow`) : pointe la mesure à viser sur la timeline.
-      let arrowEl = guide.root.querySelector('.tour-arrow');
-      const ap = step.arrow && visible && host.arrowPoint ? host.arrowPoint(step.arrow.bar) : null;
-      if (ap) {
+      // Flèches indicatives (étapes avec `arrow`, une flèche ou une liste) : pointent les mesures à viser sur la timeline.
+      const arrows = step.arrow && visible && host.arrowPoint ? [].concat(step.arrow) : [];
+      const arrowEls = [...guide.root.querySelectorAll('.tour-arrow')];
+      arrows.forEach((a, k) => {
+        const ap = host.arrowPoint(a.bar);
+        let arrowEl = arrowEls[k];
+        if (!ap) { if (arrowEl) { arrowEl.remove(); arrowEls[k] = null; } return; }
         if (!arrowEl) {
           arrowEl = document.createElement('div');
           arrowEl.className = 'tour-arrow';
           arrowEl.innerHTML = '<span class="tour-arrow-label"></span><span class="tour-arrow-head">▼</span>';
           guide.root.appendChild(arrowEl);
+          arrowEls[k] = arrowEl;
         }
-        arrowEl.querySelector('.tour-arrow-label').textContent = tr('lessonArrowLabel', { n: step.arrow.bar });
+        arrowEl.querySelector('.tour-arrow-label').textContent = a.labelKey ? tr(a.labelKey) : tr('lessonArrowLabel', { n: a.bar });
         arrowEl.style.left = ap.x + 'px';
         arrowEl.style.top = ap.y + 'px';
-      } else if (arrowEl) {
-        arrowEl.remove();
-      }
+      });
+      arrowEls.slice(arrows.length).forEach(el => el && el.remove());
       const margin = 12;
       if (visible) {
         // Cible hors de l'écran (page longue) : on la fait défiler dans la vue à l'arrivée sur l'étape, sinon la zone en

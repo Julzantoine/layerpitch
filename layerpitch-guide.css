@@ -6,6 +6,7 @@
 .tour-card { position: fixed; width: 320px; max-width: calc(100vw - 24px); background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; box-shadow: 0 12px 32px rgba(20,22,28,0.28); }
 .tour-count { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; color: var(--accent); margin-bottom: 6px; }
 .tour-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.tour-move-note { font-size: 11px; font-style: italic; color: var(--text-dimmer, var(--text-dim)); margin: -3px 0 8px; }
 .tour-text { font-size: 13px; line-height: 1.55; color: var(--text-dim); margin-bottom: 14px; }
 .tour-actions { display: flex; align-items: center; gap: 8px; }
 /* Leçons guidées (08/10) : le voile laisse passer les clics pour que l'apprenant agisse sur l'élément en surbrillance. */

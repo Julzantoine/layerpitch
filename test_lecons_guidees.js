@@ -40,12 +40,12 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   `);
   check('leçon refusée tant que in_app_lessons est fermé', w.__closed === true);
   check('6 leçons déclarées, aucune « bientôt »', w.__r.lessons === 6 && w.__r.soon === 0);
-  check('séquentiel simple : 19 étapes, sans raccourci d’import', w.__r.seq === 19 && w.__r.seqSkip === 0);
-  check('séquentiel à embranchement : raccourci d’import (25 étapes dont 9 sautées sans bulk_drop)', w.__r.br === 25 && w.__r.brSkip === 9);
-  check('embranchement vertical : 22 étapes', w.__r.emb === 22);
+  check('séquentiel simple : 23 étapes, sans raccourci d’import', w.__r.seq === 23 && w.__r.seqSkip === 0);
+  check('séquentiel à embranchement : raccourci d’import (36 étapes dont 9 sautées sans bulk_drop)', w.__r.br === 36 && w.__r.brSkip === 9);
+  check('embranchement vertical : 24 étapes', w.__r.emb === 24);
   
   
-  check('couches aléatoires : 14 étapes', w.__r.rnd === 14);
+  check('couches aléatoires : 17 étapes', w.__r.rnd === 17);
   check('couches additives : 23 étapes', w.__r.add === 23);
   check('la leçon ouvre une bulle', !!w.document.querySelector('.tour-root-lesson .tour-card'));
   check('la leçon démarre sur le message de bienvenue (étape 1 sur 12)', /1 \/ 12/.test(w.document.querySelector('.tour-count').textContent) && /Bienvenue/.test(w.document.querySelector('.tour-title').textContent));
@@ -80,7 +80,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   })()`);
   check('fichier d’exemple : bouton absent sans URL, présent avec', sampleOk.before === false && sampleOk.after === true);
   check('fichiers d’exemple : 3 noms pour les couches additives', sampleOk.names === 3);
-  check('11 étapes de dépôt acceptent l’exemple', sampleOk.flagged === 11);
+  check('16 étapes de dépôt acceptent l’exemple', sampleOk.flagged === 16);
   // Dépôt réel d'un exemple : un événement « drop » transporte les fichiers jusqu'au gestionnaire de la zone.
   w.DataTransfer = class { constructor() { this.files = []; this.items = { add: f => this.files.push(f) }; } };
   w.DragEvent = class extends w.Event { constructor(t, o) { super(t, o); this.dataTransfer = o.dataTransfer; } };
