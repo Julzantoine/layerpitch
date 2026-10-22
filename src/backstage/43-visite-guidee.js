@@ -347,7 +347,7 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && t.loopEngine === 'quantized'; } },
     { selector: '#libraryDetail select[data-field="loopEngine"]', titleKey: 'laEngineAutoTitle', textKey: 'laEngineAutoText',
       skip: (c) => !!c.engineManual },
-    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'laPointsTitle', textKey: 'laPointsText', arrow: { bar: 9.5, labelKey: 'laArrowOut' } },
+    { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'laPointsTitle', textKey: 'laPointsText', arrow: [{ bar: 1.5, labelKey: 'laArrowIn' }, { bar: 9.5, labelKey: 'laArrowOut' }] },
     // Le pilotage des couches se règle AVANT l'écoute : boutons nommés (par défaut), ou curseur à seuils (RTPC).
     // Le champ « Label » n'existe que lorsqu'une couche est ouverte : on demande d'abord de cliquer dessus.
     { selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'laSelectTitle', textKey: 'laSelectText',
