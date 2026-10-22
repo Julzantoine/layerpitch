@@ -112,6 +112,8 @@ document.addEventListener('click', e => {
     if (!input) return;
     input.value = String(preset[param]);
     input.dispatchEvent(new Event('input', { bubbles: true }));
+    // « change » aussi (22/10) : c'est lui qui relance l'aperçu ouvert -- sans lui, un palier cliqué pendant l'écoute ne s'entendait pas.
+    input.dispatchEvent(new Event('change', { bubbles: true }));
   });
   btn.closest('[data-fx-presets]').querySelectorAll('[data-fx-preset]').forEach(b => b.classList.toggle('primary', b === btn));
 });
