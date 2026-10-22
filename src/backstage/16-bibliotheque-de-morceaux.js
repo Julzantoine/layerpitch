@@ -550,8 +550,8 @@ function buildPreviewTrack(track) {
   // Pour les alternatives d'un groupe : un slot vide reste un choix possible du tirage (silence),
   // il ne doit JAMAIS être filtré du pool — sinon la taille du pool et les probabilités changent.
   const mapAlternative = (item) => {
-    if (item && item.pendingFile) return { label: item.label || '', localFile: item.pendingFile };
-    if (item && item.remoteFile) return { label: item.label || '', file: item.remoteFile, gain: item.gain || 1 };
+    if (item && item.pendingFile) return { label: item.label || '', localFile: item.pendingFile, volumeDb: item.volumeDb || 0 };
+    if (item && item.remoteFile) return { label: item.label || '', file: item.remoteFile, gain: item.gain || 1, volumeDb: item.volumeDb || 0 };
     return { label: (item && item.label) || '', file: null };
   };
   // Comme mapItem, mais conserve le nombre de mesures (intro/segments du mode séquentiel) ET le texte de
@@ -712,6 +712,10 @@ function togglePreview(ti, cardEl) {
     return;
   }
   const previewTrack = buildPreviewTrack(track);
+  // Aperçu « vivant » : les réglages d'effet modifiés pendant l'écoute s'appliquent sans relance (événement preview-fx-live, voir le lecteur).
+  host._previewGen = (host._previewGen || 0) + 1;
+  previewTrack.__previewLive = true;
+  previewTrack.__previewGen = host._previewGen;
   // Bibliothèque Sfx locale pour cette prévisualisation : mêmes fichiers en attente que dans l'éditeur
   // (localFile), pas besoin d'avoir déjà publié pour tester le bouton Sfx d'un morceau.
   const previewSfxById = {};
@@ -743,7 +747,6 @@ function togglePreview(ti, cardEl) {
   if (previewPlayBtn) {
     // Numéro de lancement (22/10) : l'identifiant de l'aperçu est le même à chaque relance ; sans ce numéro, le minuteur d'une relance
     // précédente (aperçu relancé à chaque clic sur la flèche d'un champ) cliquait encore sur SON bouton Lecture -> lectures superposées.
-    host._previewGen = (host._previewGen || 0) + 1;
     const gen = host._previewGen;
     let waited = 0;
     const autoplayTimer = setInterval(() => {

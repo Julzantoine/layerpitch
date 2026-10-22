@@ -764,6 +764,13 @@ document.getElementById('libraryContainer').addEventListener('change', e => {
   if (previewHost && previewHost.dataset.active === '1' && !e.target.closest('[data-role="previewHost"]')) {
     const names = Object.keys(e.target.dataset).filter(k => /field$/i.test(k)).map(k => e.target.dataset[k]);
     const isFile = e.target.type === 'file';
+    // Réglage d'un effet (hors case à cocher) sur une voix : appliqué EN DIRECT à l'aperçu qui joue, sans le relancer -- plus facile à
+    // entendre (22/10). Si le lecteur ne peut pas suivre (effet pas encore dans la chaîne, cible particulière), on relance comme avant.
+    if (field === 'fx' && e.target.dataset.fxParam !== 'enabled' && /^(layer|loop|slot|pool|intro|outro)$/.test(e.target.dataset.fxTarget || 'layer') && previewHost.dataset.previewId) {
+      const live = { previewId: previewHost.dataset.previewId, gen: previewHost._previewGen, handled: false };
+      document.dispatchEvent(new CustomEvent('preview-fx-live', { detail: live }));
+      if (live.handled) return;
+    }
     if ((names.length || isFile) && !names.some(n => DESCRIPTIVE_FIELDS.test(n))) {
       const ti = parseInt(e.target.dataset.ti, 10);
       // Relance différée (22/10) : les flèches d'un champ numérique envoient un « change » à chaque clic ; on attend la fin de la
