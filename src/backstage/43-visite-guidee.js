@@ -238,7 +238,8 @@ function lessonDetourReady() { return lessonStepFileNames({ names: 'embrDetour' 
 // Sans fenêtre (rien à proposer, ou fonction fermée) l'étape est sautée.
 const HINTS_DIALOG_STEP = { selector: '.vrs-batch-overlay .vrs-batch-modal', titleKey: 'lsHintsTitle', textKey: 'lsHintsText',
   skip: () => !document.querySelector('.vrs-batch-overlay'),
-  done: () => !document.querySelector('.vrs-batch-overlay') };
+  done: () => !document.querySelector('.vrs-batch-overlay'),
+  onBack: () => { const o = document.querySelector('.vrs-batch-overlay'); if (o) o.remove(); } }; // « Précédent » ferme la fenêtre : elle ne reste pas devant l'étape revue
 // Thèmes du menu « Tutoriel » : les leçons y sont regroupées. `public` (sur une leçon) = ouverte dans la version sans compte
 // (mode démo) ; les autres y restent visibles avec la mention « nécessite un compte ». Un thème sans leçon s'affiche « bientôt ».
 // Titre de la vidéo du bloc vidéo de la leçon AdReel (gameplay d'« Alone in the Barque », la même que celle de la leçon « Versioning »).

@@ -178,6 +178,8 @@
       while (next >= 0 && next < guide.steps.length && guide.steps[next].skip && guide.steps[next].skip(guide.ctx)) next += delta;
       if (next < 0) return;
       if (next >= guide.steps.length) { finish(); return; }
+      const leaving = guide.steps[guide.index];
+      if (delta < 0 && leaving && leaving.onBack) leaving.onBack(guide.ctx); // ex. fenêtre ouverte par l'étape quittée
       guide.index = next; guide.clicked = false; guide.advancing = false; guide.userMoved = false;
       if (next > guide.maxIndex) guide.maxIndex = next; // étape la plus avancée atteinte : au-delà du « front », on ne fait que revoir
       const step = guide.steps[next];
