@@ -201,6 +201,7 @@ function lessonPoolHasSilence(label) {
 }
 function fxSliderExists() { const t = lessonTrack(); return !!t && (t.fxSliders || []).length >= 1; }
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
+function lessonSlotFirstName(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; const al = sl && (sl.alternatives || []).find(lessonHasFile); return al ? ((al.pendingFile && al.pendingFile.name) || al.remoteFile || '') : ''; }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
 function lessonLoopFileCount() { const t = lessonTrack(); return t ? (t.loops || []).filter(lessonHasFile).length : 0; }
@@ -451,6 +452,14 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 2; } },
     { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="1"]', titleKey: 'lqSeg2Title', textKey: 'lqSeg2Text', names: 'seqAlt2',
       done: () => lessonSlotFileCount(1) >= 4 },
+    // Dupliquer une section (22/10) : structure AABA = A, copie de A, B, copie de A (morceau « Jazz Hi Seq. Rand. » de Jules-Antoine). Le bouton
+    // « Dupliquer cette section » (ou Alt + glisser, feu vert alt_drag_delete) crée une copie indépendante, juste après l'original.
+    { selector: '#libraryDetail [data-action="duplicate-segment-slot"]', titleKey: 'lqDupTitle', textKey: 'lqDupText',
+      enter: () => { const t = lessonTrack(); if (t && seqSelectedSlotIndex.get(t.id) !== 0) { seqSelectedSlotIndex.set(t.id, 0); renderLibrary(); } },
+      done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 3; } },
+    // La 2e copie de A va APRÈS B : Alt + glisser la section A sous B (ou « Dupliquer » puis glisser la copie par n'importe où sur sa ligne).
+    { selector: '#libraryDetail [data-role="segmentSlotsMaster"]', titleKey: 'lqDup2Title', textKey: 'lqDup2Text',
+      done: () => { const t = lessonTrack(); const n = t && (t.segmentSlots || []).length; return n >= 4 && lessonSlotFileCount(n - 1) >= 4 && lessonSlotFirstName(n - 1) === lessonSlotFirstName(0) && lessonSlotFirstName(n - 2) !== lessonSlotFirstName(0); } },
     { useSample: true, selector: '#libraryDetail .seq-master-item[data-seq-key="seqOutro"]', titleKey: 'lqOutroTitle', textKey: 'lqOutroText', names: 'seqOutro',
       done: () => { const t = lessonTrack(); return !!t && lessonHasFile(t.outro); } },
     { selector: '#libraryDetail [data-role="segmentSlotsMaster"]', titleKey: 'lqCheckTitle', textKey: 'lqCheckText' },
@@ -459,9 +468,6 @@ const LESSONS = [
     // Le dépôt d'un fichier dans un emplacement ne règle pas le tempo du morceau : on le saisit à la main (110, lu dans les noms).
     { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lqBpmTitle', textKey: 'lqBpmText',
       done: () => { const t = lessonTrack(); return !!t && Number(t.bpm) === 110; } },
-    // « Ordre aléatoire des sections » : les quatre sections sont jouées dans un ordre tiré au hasard à chaque cycle.
-    { selector: '#libraryDetail input[data-field="seqSlotOrder"]', titleKey: 'lqRandomTitle', textKey: 'lqRandomText',
-      done: () => { const t = lessonTrack(); return !!t && !!t.randomizeSections; } },
     { selector: '#libraryDetail select[data-field="maxChainLoops"]', titleKey: 'lqCyclesTitle', textKey: 'lqCyclesText' },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lqListenTitle', textKey: 'lqListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },

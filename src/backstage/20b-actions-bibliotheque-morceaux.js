@@ -220,6 +220,14 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     if (!library[ti].segmentSlots) library[ti].segmentSlots = [];
     library[ti].segmentSlots.push({ id: genId(), label: '', avoidImmediateRepeat: true, alternatives: [{ label: '', bars: 8, remoteFile: null, pendingFile: null }] });
   }
+  // « Dupliquer cette section » (22/10) : même copie indépendante qu'Alt + glisser (toutes les alternatives, nouveaux id, « (copie) »),
+  // placée juste après l'original et sélectionnée. Les fichiers déjà en ligne sont partagés : leur suppression n'efface rien tant qu'un
+  // autre emplacement s'en sert (voir pendingOrphanR2Keys).
+  else if (btn.dataset.action === 'duplicate-segment-slot') {
+    const copy = cloneWithCopyLabel(library[ti].segmentSlots[si]);
+    library[ti].segmentSlots.splice(si + 1, 0, copy);
+    seqSelectedSlotIndex.set(library[ti].id, si + 1);
+  }
   else if (btn.dataset.action === 'remove-segment-slot') {
     const removedSlot = library[ti].segmentSlots[si];
     const removedId = removedSlot.id;

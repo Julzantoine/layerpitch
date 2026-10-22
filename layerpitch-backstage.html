@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792662033874">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792662124644">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1877,17 +1877,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792662033874"></script>
-<script src="layerpitch-i18n.js?v=1792662033874"></script>
-<script src="layerpitch-appearance.js?v=1792662033874"></script>
-<script src="layerpitch-album-shared.js?v=1792662033874"></script>
-<script src="layerpitch-album-editor.js?v=1792662033874"></script>
-<script src="layerpitch-shell.js?v=1792662033874"></script>
-<script src="layerpitch-social-icons.js?v=1792662033874"></script>
-<script src="layerpitch-notify.js?v=1792662033874"></script>
-<script src="layerpitch-guide.js?v=1792662033874"></script>
-<script src="layerpitch-help.js?v=1792662033874"></script>
-<script src="player.js?v=1792662033874"></script>
+<script src="layerpitch-tuto.js?v=1792662124644"></script>
+<script src="layerpitch-i18n.js?v=1792662124644"></script>
+<script src="layerpitch-appearance.js?v=1792662124644"></script>
+<script src="layerpitch-album-shared.js?v=1792662124644"></script>
+<script src="layerpitch-album-editor.js?v=1792662124644"></script>
+<script src="layerpitch-shell.js?v=1792662124644"></script>
+<script src="layerpitch-social-icons.js?v=1792662124644"></script>
+<script src="layerpitch-notify.js?v=1792662124644"></script>
+<script src="layerpitch-guide.js?v=1792662124644"></script>
+<script src="layerpitch-help.js?v=1792662124644"></script>
+<script src="player.js?v=1792662124644"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -7930,6 +7930,7 @@ function renderLibrary() {
         slotEl.innerHTML = `
           <div class="list-block-head">
             <input type="text" placeholder="${tr('slotNamePlaceholder')}" data-slot-field="label" data-ti="${ti}" data-si="${si}" value="${escapeAttr(slot.label)}" style="flex:1;margin:0 8px 0 0;">
+            ${flagOpen('alt_drag_delete') ? `<button class="btn btn-small" type="button" data-action="duplicate-segment-slot" data-ti="${ti}" data-si="${si}" title="${escapeAttr(tr('duplicateSlotTitle'))}" style="margin-right:6px">${tr('duplicateSlotBtn')}</button>` : ''}
             <button class="btn btn-small btn-danger" data-action="remove-segment-slot" data-ti="${ti}" data-si="${si}">${tr('removeSegmentSlotBtn')}</button>
           </div>
           ${!hasAnyFile ? `<div class="hint-inline" style="color:#b45309">${tr('noAltFileWarning')}</div>` : ''}
@@ -9112,6 +9113,14 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   else if (btn.dataset.action === 'add-segment-slot') {
     if (!library[ti].segmentSlots) library[ti].segmentSlots = [];
     library[ti].segmentSlots.push({ id: genId(), label: '', avoidImmediateRepeat: true, alternatives: [{ label: '', bars: 8, remoteFile: null, pendingFile: null }] });
+  }
+  // « Dupliquer cette section » (22/10) : même copie indépendante qu'Alt + glisser (toutes les alternatives, nouveaux id, « (copie) »),
+  // placée juste après l'original et sélectionnée. Les fichiers déjà en ligne sont partagés : leur suppression n'efface rien tant qu'un
+  // autre emplacement s'en sert (voir pendingOrphanR2Keys).
+  else if (btn.dataset.action === 'duplicate-segment-slot') {
+    const copy = cloneWithCopyLabel(library[ti].segmentSlots[si]);
+    library[ti].segmentSlots.splice(si + 1, 0, copy);
+    seqSelectedSlotIndex.set(library[ti].id, si + 1);
   }
   else if (btn.dataset.action === 'remove-segment-slot') {
     const removedSlot = library[ti].segmentSlots[si];
@@ -15457,6 +15466,7 @@ function lessonPoolHasSilence(label) {
 }
 function fxSliderExists() { const t = lessonTrack(); return !!t && (t.fxSliders || []).length >= 1; }
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
+function lessonSlotFirstName(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; const al = sl && (sl.alternatives || []).find(lessonHasFile); return al ? ((al.pendingFile && al.pendingFile.name) || al.remoteFile || '') : ''; }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
 function lessonLoopFileCount() { const t = lessonTrack(); return t ? (t.loops || []).filter(lessonHasFile).length : 0; }
@@ -15707,6 +15717,14 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 2; } },
     { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="1"]', titleKey: 'lqSeg2Title', textKey: 'lqSeg2Text', names: 'seqAlt2',
       done: () => lessonSlotFileCount(1) >= 4 },
+    // Dupliquer une section (22/10) : structure AABA = A, copie de A, B, copie de A (morceau « Jazz Hi Seq. Rand. » de Jules-Antoine). Le bouton
+    // « Dupliquer cette section » (ou Alt + glisser, feu vert alt_drag_delete) crée une copie indépendante, juste après l'original.
+    { selector: '#libraryDetail [data-action="duplicate-segment-slot"]', titleKey: 'lqDupTitle', textKey: 'lqDupText',
+      enter: () => { const t = lessonTrack(); if (t && seqSelectedSlotIndex.get(t.id) !== 0) { seqSelectedSlotIndex.set(t.id, 0); renderLibrary(); } },
+      done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 3; } },
+    // La 2e copie de A va APRÈS B : Alt + glisser la section A sous B (ou « Dupliquer » puis glisser la copie par n'importe où sur sa ligne).
+    { selector: '#libraryDetail [data-role="segmentSlotsMaster"]', titleKey: 'lqDup2Title', textKey: 'lqDup2Text',
+      done: () => { const t = lessonTrack(); const n = t && (t.segmentSlots || []).length; return n >= 4 && lessonSlotFileCount(n - 1) >= 4 && lessonSlotFirstName(n - 1) === lessonSlotFirstName(0) && lessonSlotFirstName(n - 2) !== lessonSlotFirstName(0); } },
     { useSample: true, selector: '#libraryDetail .seq-master-item[data-seq-key="seqOutro"]', titleKey: 'lqOutroTitle', textKey: 'lqOutroText', names: 'seqOutro',
       done: () => { const t = lessonTrack(); return !!t && lessonHasFile(t.outro); } },
     { selector: '#libraryDetail [data-role="segmentSlotsMaster"]', titleKey: 'lqCheckTitle', textKey: 'lqCheckText' },
@@ -15715,9 +15733,6 @@ const LESSONS = [
     // Le dépôt d'un fichier dans un emplacement ne règle pas le tempo du morceau : on le saisit à la main (110, lu dans les noms).
     { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lqBpmTitle', textKey: 'lqBpmText',
       done: () => { const t = lessonTrack(); return !!t && Number(t.bpm) === 110; } },
-    // « Ordre aléatoire des sections » : les quatre sections sont jouées dans un ordre tiré au hasard à chaque cycle.
-    { selector: '#libraryDetail input[data-field="seqSlotOrder"]', titleKey: 'lqRandomTitle', textKey: 'lqRandomText',
-      done: () => { const t = lessonTrack(); return !!t && !!t.randomizeSections; } },
     { selector: '#libraryDetail select[data-field="maxChainLoops"]', titleKey: 'lqCyclesTitle', textKey: 'lqCyclesText' },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lqListenTitle', textKey: 'lqListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },

@@ -70,6 +70,7 @@
         slotEl.innerHTML = `
           <div class="list-block-head">
             <input type="text" placeholder="${tr('slotNamePlaceholder')}" data-slot-field="label" data-ti="${ti}" data-si="${si}" value="${escapeAttr(slot.label)}" style="flex:1;margin:0 8px 0 0;">
+            ${flagOpen('alt_drag_delete') ? `<button class="btn btn-small" type="button" data-action="duplicate-segment-slot" data-ti="${ti}" data-si="${si}" title="${escapeAttr(tr('duplicateSlotTitle'))}" style="margin-right:6px">${tr('duplicateSlotBtn')}</button>` : ''}
             <button class="btn btn-small btn-danger" data-action="remove-segment-slot" data-ti="${ti}" data-si="${si}">${tr('removeSegmentSlotBtn')}</button>
           </div>
           ${!hasAnyFile ? `<div class="hint-inline" style="color:#b45309">${tr('noAltFileWarning')}</div>` : ''}

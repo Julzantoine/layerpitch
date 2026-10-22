@@ -40,7 +40,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   `);
   check('leçon refusée tant que in_app_lessons est fermé', w.__closed === true);
   check('6 leçons déclarées, aucune « bientôt »', w.__r.lessons === 6 && w.__r.soon === 0);
-  check('séquentiel simple : 20 étapes (deux sections de quatre alternatives), sans raccourci d’import', w.__r.seq === 20 && w.__r.seqSkip === 0);
+  check('séquentiel simple : 21 étapes (deux sections de quatre alternatives, duplication en AABA), sans raccourci d’import', w.__r.seq === 21 && w.__r.seqSkip === 0);
   check('séquentiel à embranchement : raccourci d’import (36 étapes dont 9 sautées sans bulk_drop)', w.__r.br === 36 && w.__r.brSkip === 9);
   check('embranchement vertical : 24 étapes', w.__r.emb === 24);
   
