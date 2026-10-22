@@ -27,9 +27,9 @@ check('tempo propre 60 BPM, 2 mesures de 4 temps = 8 s', near(intro(track, null)
 const slot = { bpm: 90 };
 track.intro = { bars: 1, beatsPerBar: 3, timingOwn: true };
 check('tempo hérité du premier emplacement (90) : 3 temps = 2 s', near(intro(track, slot), 3 * 60 / 90));
-// compatibilité : intro.bpm enregistré SANS drapeau = ignoré, comme avant
+// compatibilité : intro.bpm enregistré SANS drapeau = ignoré, comme avant ; les temps par mesure, eux, comptent (21/10, 639cf3e5)
 track.intro = { bars: 1, bpm: 60, beatsPerBar: 1 };
-check('sans drapeau : intro.bpm / beatsPerBar enregistrés restent ignorés', near(intro(track, null), block(track, 1, null)));
+check('sans drapeau : intro.bpm ignoré (tempo du morceau), beatsPerBar honoré : 1 x 1 à 120 BPM = 0,5 s', near(intro(track, null), 0.5));
 // drapeau sans valeur : repli historique
 track.intro = { bars: 1, timingOwn: true };
 check('drapeau sans valeur : repli historique', near(intro(track, null), block(track, 1, null)));
