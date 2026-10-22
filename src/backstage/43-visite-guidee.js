@@ -468,6 +468,8 @@ const LESSONS = [
     // Le dépôt d'un fichier dans un emplacement ne règle pas le tempo du morceau : on le saisit à la main (110, lu dans les noms).
     { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lqBpmTitle', textKey: 'lqBpmText',
       done: () => { const t = lessonTrack(); return !!t && Number(t.bpm) === 110; } },
+    // Case « ordre aléatoire » : simplement présentée (étape manuelle, rien à cocher) — le morceau garde l'ordre A, A, B, A.
+    { selector: '#libraryDetail input[data-field="seqSlotOrder"]', titleKey: 'lqRandomTitle', textKey: 'lqRandomText' },
     { selector: '#libraryDetail select[data-field="maxChainLoops"]', titleKey: 'lqCyclesTitle', textKey: 'lqCyclesText' },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lqListenTitle', textKey: 'lqListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
