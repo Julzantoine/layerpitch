@@ -35,6 +35,41 @@
     fxChainsByTarget.forEach(set => set.forEach(ch => all.push(ch)));
     return all;
   }
+  // Réglages d'effet modifiés PENDANT l'écoute d'un aperçu (22/10) : le Backstage modifie l'objet `fx` du morceau d'aperçu en place
+  // (partagé avec la bibliothèque) puis prévient ici ; les chaînes vivantes reprennent le nouveau réglage sans que rien ne redémarre,
+  // et les prochaines générations le lisent d'elles-mêmes. Renvoie false si une chaîne ne peut pas suivre (effet sans nœud, cible
+  // inconnue) : l'appelant relance alors l'aperçu comme avant.
+  const livePreview = !!track.__previewLive;
+  function fxItemOfTarget(key) {
+    const m = String(key).split(':');
+    if (m[0] === 'layer') return (track.layers || [])[+m[1]];
+    if (m[0] === 'loop') return (track.loops || [])[+m[1]];
+    if (m[0] === 'slot') return (track.segmentSlots || [])[+m[1]];
+    if (m[0] === 'pool') return ((track.sections || [])[+m[1]] || {}).pools && track.sections[+m[1]].pools[+m[2]];
+    if (m[0] === 'intro' || m[0] === 'outro') return track[m[0]];
+    return undefined;
+  }
+  function fxChainCanHold(ch, fx) {
+    return Object.keys(fx || {}).every(k => k === 'pitch' ? !(fx.pitch && fx.pitch.mode === 'shift') || !!ch.nodes.pitchShift : !!ch.nodes[k]);
+  }
+  function refreshLiveFx() {
+    let ok = true;
+    fxChainsByTarget.forEach((set, key) => {
+      const item = fxItemOfTarget(key);
+      if (!item) { if (set.size) ok = false; return; }
+      set.forEach(ch => { if (!fxChainCanHold(ch, item.fx)) ok = false; });
+    });
+    if (!ok) return false;
+    fxChainsByTarget.forEach((set, key) => {
+      const fx = (fxItemOfTarget(key) || {}).fx || null;
+      set.forEach(ch => { ch.baseFx = fx; applyFxToChain(ctx, ch, fxEffectiveFor(key, fx), 0.03); });
+    });
+    return true;
+  }
+  if (livePreview) document.addEventListener('preview-fx-live', e => {
+    const d = e.detail;
+    if (d && d.previewId === track.id && d.gen === track.__previewGen) d.handled = refreshLiveFx();
+  });
   function fxEffectiveFor(targetKey, baseFx) {
     let out = baseFx ? Object.assign({}, baseFx) : {};
     fxActiveTriggerIds.forEach(id => {
@@ -56,7 +91,9 @@
   }
   function buildTargetFxChain(targetKey, baseFx, src, startTime) {
     const force = (fxTriggerDefs.size || fxSliders.length) ? fxForceKeysFor(targetKey) : [];
-    if (!force.length) {
+    // Aperçu du Backstage (22/10) : toutes les chaînes sont inscrites au registre pour que les réglages d'effet modifiés pendant
+    // l'écoute s'appliquent en direct (voir refreshLiveFx) au lieu de relancer l'aperçu.
+    if (!force.length && !livePreview) {
       const plain = buildLayerFxChain(ctx, baseFx, src, startTime);
       return journalChain(fxNeedsComp ? withLatencyComp(ctx, plain) : plain, baseFx, force);
     }

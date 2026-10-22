@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792659498124">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792659528681">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1877,17 +1877,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792659498124"></script>
-<script src="layerpitch-i18n.js?v=1792659498124"></script>
-<script src="layerpitch-appearance.js?v=1792659498124"></script>
-<script src="layerpitch-album-shared.js?v=1792659498124"></script>
-<script src="layerpitch-album-editor.js?v=1792659498124"></script>
-<script src="layerpitch-shell.js?v=1792659498124"></script>
-<script src="layerpitch-social-icons.js?v=1792659498124"></script>
-<script src="layerpitch-notify.js?v=1792659498124"></script>
-<script src="layerpitch-guide.js?v=1792659498124"></script>
-<script src="layerpitch-help.js?v=1792659498124"></script>
-<script src="player.js?v=1792659498124"></script>
+<script src="layerpitch-tuto.js?v=1792659528681"></script>
+<script src="layerpitch-i18n.js?v=1792659528681"></script>
+<script src="layerpitch-appearance.js?v=1792659528681"></script>
+<script src="layerpitch-album-shared.js?v=1792659528681"></script>
+<script src="layerpitch-album-editor.js?v=1792659528681"></script>
+<script src="layerpitch-shell.js?v=1792659528681"></script>
+<script src="layerpitch-social-icons.js?v=1792659528681"></script>
+<script src="layerpitch-notify.js?v=1792659528681"></script>
+<script src="layerpitch-guide.js?v=1792659528681"></script>
+<script src="layerpitch-help.js?v=1792659528681"></script>
+<script src="player.js?v=1792659528681"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -6038,8 +6038,8 @@ function buildPreviewTrack(track) {
   // Pour les alternatives d'un groupe : un slot vide reste un choix possible du tirage (silence),
   // il ne doit JAMAIS être filtré du pool — sinon la taille du pool et les probabilités changent.
   const mapAlternative = (item) => {
-    if (item && item.pendingFile) return { label: item.label || '', localFile: item.pendingFile };
-    if (item && item.remoteFile) return { label: item.label || '', file: item.remoteFile, gain: item.gain || 1 };
+    if (item && item.pendingFile) return { label: item.label || '', localFile: item.pendingFile, volumeDb: item.volumeDb || 0 };
+    if (item && item.remoteFile) return { label: item.label || '', file: item.remoteFile, gain: item.gain || 1, volumeDb: item.volumeDb || 0 };
     return { label: (item && item.label) || '', file: null };
   };
   // Comme mapItem, mais conserve le nombre de mesures (intro/segments du mode séquentiel) ET le texte de
@@ -6200,6 +6200,10 @@ function togglePreview(ti, cardEl) {
     return;
   }
   const previewTrack = buildPreviewTrack(track);
+  // Aperçu « vivant » : les réglages d'effet modifiés pendant l'écoute s'appliquent sans relance (événement preview-fx-live, voir le lecteur).
+  host._previewGen = (host._previewGen || 0) + 1;
+  previewTrack.__previewLive = true;
+  previewTrack.__previewGen = host._previewGen;
   // Bibliothèque Sfx locale pour cette prévisualisation : mêmes fichiers en attente que dans l'éditeur
   // (localFile), pas besoin d'avoir déjà publié pour tester le bouton Sfx d'un morceau.
   const previewSfxById = {};
@@ -6231,7 +6235,6 @@ function togglePreview(ti, cardEl) {
   if (previewPlayBtn) {
     // Numéro de lancement (22/10) : l'identifiant de l'aperçu est le même à chaque relance ; sans ce numéro, le minuteur d'une relance
     // précédente (aperçu relancé à chaque clic sur la flèche d'un champ) cliquait encore sur SON bouton Lecture -> lectures superposées.
-    host._previewGen = (host._previewGen || 0) + 1;
     const gen = host._previewGen;
     let waited = 0;
     const autoplayTimer = setInterval(() => {
@@ -9646,6 +9649,13 @@ document.getElementById('libraryContainer').addEventListener('change', e => {
   if (previewHost && previewHost.dataset.active === '1' && !e.target.closest('[data-role="previewHost"]')) {
     const names = Object.keys(e.target.dataset).filter(k => /field$/i.test(k)).map(k => e.target.dataset[k]);
     const isFile = e.target.type === 'file';
+    // Réglage d'un effet (hors case à cocher) sur une voix : appliqué EN DIRECT à l'aperçu qui joue, sans le relancer -- plus facile à
+    // entendre (22/10). Si le lecteur ne peut pas suivre (effet pas encore dans la chaîne, cible particulière), on relance comme avant.
+    if (field === 'fx' && e.target.dataset.fxParam !== 'enabled' && /^(layer|loop|slot|pool|intro|outro)$/.test(e.target.dataset.fxTarget || 'layer') && previewHost.dataset.previewId) {
+      const live = { previewId: previewHost.dataset.previewId, gen: previewHost._previewGen, handled: false };
+      document.dispatchEvent(new CustomEvent('preview-fx-live', { detail: live }));
+      if (live.handled) return;
+    }
     if ((names.length || isFile) && !names.some(n => DESCRIPTIVE_FIELDS.test(n))) {
       const ti = parseInt(e.target.dataset.ti, 10);
       // Relance différée (22/10) : les flèches d'un champ numérique envoient un « change » à chaque clic ; on attend la fin de la
