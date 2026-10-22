@@ -85,7 +85,7 @@
   // Leçons Sfx et événements d'effets (?tuto&lesson=sfx / events) : le morceau « Jazz Lo Static » (statique, boucle quantifiée de la mesure 1 temps 3 à la fin de la mesure 9) déjà dans la
   // bibliothèque, pour y ajouter les Sfx créés pendant la leçon. Fichier dans media.layerpitch.com/tuto/Jazz Lo/.
   const DEMO_TRACK_JAZZ_SFX = { id: 't-jazz-lo', owner_id: 'demo-composer', folder_id: null, title: 'Jazz Lo Static', description: '', mode: 'static', loopable: true, loop_engine: 'quantized',
-    bpm: 110, beats_per_bar: 4, loop_in_beat: 2, loop_out_beat: 34, duration: 20.48, base: TUTO_BASE, layers: [{ label: 'Jazz Lo', file: 'Jazz Lo/Jazz Lo_2bts Intro_8M_110bpm.wav', originalFileName: 'Jazz Lo_2bts Intro_8M_110bpm.wav', gain: 1, duration: 20.48 }],
+    bpm: 110, beats_per_bar: 4, loop_in_beat: 2, loop_out_beat: 34, duration: 20.48, base: TUTO_BASE + 'Jazz%20Lo/', layers: [{ label: 'Jazz Lo', file: 'Jazz Lo_2bts Intro_8M_110bpm.wav', originalFileName: 'Jazz Lo_2bts Intro_8M_110bpm.wav', gain: 1, duration: 20.48 }],
     intro: null, outro: null, loops: null, sections: null, segment_slots: [], track_sfx: [], tags: [], fx: null, fx_triggers: [], fx_sliders: [], protected: false, retired_at: null };
   // Pack de la bibliothèque du compositeur fictif (leçon « La musique du projet » : on le partage au Projet).
   const DEMO_PACKS = [{ id: 'p-alone', owner_id: 'demo-composer', title: 'Alone : ambiances du lac (exemple)', illustration: null, illustration_original_name: null, watermark: null,

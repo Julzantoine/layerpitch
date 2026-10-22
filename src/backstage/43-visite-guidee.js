@@ -37,7 +37,7 @@ const LESSON_SAMPLE_URLS = {
 // est celui que l'apprenant voit et que le moteur lit (tempo, mesures).
 const LESSON_SAMPLE_FOLDERS = {
   // Leçon Sfx : trois bruits de glaçons et deux de verre qui se remplit (Jules-Antoine).
-  'SFX': ['Glacon 1.wav', 'Glacon 2.wav', 'Glacon 3.wav', 'Verre 1.wav', 'Verre 2.wav'],
+  'SFX': ['Glaçons 1.wav', 'Glaçons 2.wav', 'Glaçons 3.wav', 'Verre 1.wav', 'Verre 2.wav'],
   // Statique : une boucle de 8 mesures, sans intro (leçon d'entrée : le moteur place tout seul les repères).
   'Jazz Lo': ['Jazz Lo_No Intro_110bpm.wav'],
   // Embranchement vertical : deux boucles de 8 mesures précédées d'une intro d'une mesure (« _Intro1M_9M » : le moteur lit tout).
@@ -239,7 +239,7 @@ const LESSON_SAMPLE_NAMES = {
   seqAlt4: 'Jazz Hi Alt4_4M_110bpm.wav',
   seqOutro: 'Jazz Hi Outro_4M.wav',
   cityRock: 'Jazz Hi_Rock City_4M_110bpm.wav',
-  sfxIce: 'Glacon 1.wav, Glacon 2.wav, Glacon 3.wav',
+  sfxIce: 'Glaçons 1.wav, Glaçons 2.wav, Glaçons 3.wav',
   sfxGlass: 'Verre 1.wav, Verre 2.wav',
   cityDisco: 'Jazz Hi_Disco City_4M_110bpm.wav',
   cityJazz: 'Jazz Hi_Jazz City_4M_110bpm.wav, Jazz Hi Jazz City.2_4M_110bpm.wav',
@@ -580,8 +580,7 @@ const LESSONS = [
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="sfxLibrary"]'); return !!(p && p.classList.contains('active')); } },
     { useSample: true, selector: '#sfxLibraryDrop', titleKey: 'lxDrop1Title', textKey: 'lxDrop1Text', names: 'sfxIce',
       enter: (c) => { c.baseLen = sfxLibrary.length; }, done: () => lessonSfxBatchOpen() },
-    { selector: '.vrs-batch-modal [data-vbd-group-label]', titleKey: 'lxName1Title', textKey: 'lxName1Text',
-      done: () => lessonSfxGroupName() === 'glaçons' },
+    { selector: '.vrs-batch-modal [data-vbd-group-label]', titleKey: 'lxName1Title', textKey: 'lxName1Text' },
     { selector: '.vrs-batch-modal [data-vbd="confirm"]', titleKey: 'lxConfirmTitle', textKey: 'lxConfirmText',
       done: (c) => sfxLibrary.length > c.baseLen && !document.querySelector('.vrs-batch-modal') },
     { selector: '#sfxLibraryDetail [data-role="sfxVariationsDrop"]', titleKey: 'lxVarTitle', textKey: 'lxVarText' },
