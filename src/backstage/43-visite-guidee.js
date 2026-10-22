@@ -399,7 +399,9 @@ const LESSONS = [
       done: () => { const c = lessonDialogPoolSilent('Jazz Lo KB'); return !!c && c.checked; } },
     { selector: '.vrs-batch-modal [data-vbd="confirm"]', titleKey: 'lrConfirmTitle', textKey: 'lrConfirmText',
       done: (c) => library.length > c.baseLen && !document.querySelector('.vrs-batch-modal') && (lessonSection() || { pools: [] }).pools.length >= 3 },
-    { selector: '#libraryDetail [data-role="vrsPools"]', titleKey: 'lrCheckTitle', textKey: 'lrCheckText' },
+    // Le morceau vient d'être créé par l'import : son écran s'ouvre sur « Infos du morceau », on affiche la section pour voir ses pools.
+    { selector: '#libraryDetail [data-role="vrsPools"]', titleKey: 'lrCheckTitle', textKey: 'lrCheckText',
+      enter: () => { const t = lessonTrack(); if (t && (t.sections || []).length && seqSelectedSlotIndex.get(t.id) !== 0) { seqSelectedSlotIndex.set(t.id, 0); renderLibrary(); } } },
     { selector: '#libraryDetail input[data-section-field="bpm"]', titleKey: 'lrBpmTitle', textKey: 'lrBpmText' },
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lrPointsTitle', textKey: 'lrPointsText' },
     { selector: '#libraryDetail .seq-master-item[data-seq-key="vrsIntro"]', titleKey: 'lrIntroOpenTitle', textKey: 'lrIntroOpenText',

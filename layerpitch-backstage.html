@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792654880614">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792655183309">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1877,17 +1877,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792654880614"></script>
-<script src="layerpitch-i18n.js?v=1792654880614"></script>
-<script src="layerpitch-appearance.js?v=1792654880614"></script>
-<script src="layerpitch-album-shared.js?v=1792654880614"></script>
-<script src="layerpitch-album-editor.js?v=1792654880614"></script>
-<script src="layerpitch-shell.js?v=1792654880614"></script>
-<script src="layerpitch-social-icons.js?v=1792654880614"></script>
-<script src="layerpitch-notify.js?v=1792654880614"></script>
-<script src="layerpitch-guide.js?v=1792654880614"></script>
-<script src="layerpitch-help.js?v=1792654880614"></script>
-<script src="player.js?v=1792654880614"></script>
+<script src="layerpitch-tuto.js?v=1792655183309"></script>
+<script src="layerpitch-i18n.js?v=1792655183309"></script>
+<script src="layerpitch-appearance.js?v=1792655183309"></script>
+<script src="layerpitch-album-shared.js?v=1792655183309"></script>
+<script src="layerpitch-album-editor.js?v=1792655183309"></script>
+<script src="layerpitch-shell.js?v=1792655183309"></script>
+<script src="layerpitch-social-icons.js?v=1792655183309"></script>
+<script src="layerpitch-notify.js?v=1792655183309"></script>
+<script src="layerpitch-guide.js?v=1792655183309"></script>
+<script src="layerpitch-help.js?v=1792655183309"></script>
+<script src="player.js?v=1792655183309"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -15573,7 +15573,9 @@ const LESSONS = [
       done: () => { const c = lessonDialogPoolSilent('Jazz Lo KB'); return !!c && c.checked; } },
     { selector: '.vrs-batch-modal [data-vbd="confirm"]', titleKey: 'lrConfirmTitle', textKey: 'lrConfirmText',
       done: (c) => library.length > c.baseLen && !document.querySelector('.vrs-batch-modal') && (lessonSection() || { pools: [] }).pools.length >= 3 },
-    { selector: '#libraryDetail [data-role="vrsPools"]', titleKey: 'lrCheckTitle', textKey: 'lrCheckText' },
+    // Le morceau vient d'être créé par l'import : son écran s'ouvre sur « Infos du morceau », on affiche la section pour voir ses pools.
+    { selector: '#libraryDetail [data-role="vrsPools"]', titleKey: 'lrCheckTitle', textKey: 'lrCheckText',
+      enter: () => { const t = lessonTrack(); if (t && (t.sections || []).length && seqSelectedSlotIndex.get(t.id) !== 0) { seqSelectedSlotIndex.set(t.id, 0); renderLibrary(); } } },
     { selector: '#libraryDetail input[data-section-field="bpm"]', titleKey: 'lrBpmTitle', textKey: 'lrBpmText' },
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lrPointsTitle', textKey: 'lrPointsText' },
     { selector: '#libraryDetail .seq-master-item[data-seq-key="vrsIntro"]', titleKey: 'lrIntroOpenTitle', textKey: 'lrIntroOpenText',
