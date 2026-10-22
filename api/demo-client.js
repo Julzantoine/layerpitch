@@ -96,7 +96,7 @@
   const DEMO_SFX = [
     sfxRow('sfx-glacons', 'Glaçons', ['Glaçons 1.wav', 'Glaçons 2.wav', 'Glaçons 3.wav'], SFX_SPACE(1.4, -0.5, 'steps', [{ x: 1.4, y: -0.5 }, { x: -1.4, y: -0.5 }, { x: 1.2, y: 0.7 }, { x: -1, y: 1.4 }, { x: -2, y: -0.1 }, { x: -0.5, y: -1.6 }], false)),
     sfxRow('sfx-verre', 'Se Remplir un Verre', ['Verre 1.wav', 'Verre 2.wav'], SFX_SPACE(1.4, 0.6, 'steps', [{ x: 1.4, y: 0.6 }, { x: -1.4, y: 0.6 }, { x: 1.1, y: -0.7 }, { x: 0.3, y: -1.7 }, { x: -1.9, y: -1.4 }], true)),
-    sfxRow('sfx-bar', 'Se balader dans le Bar', ['AMBRest_Ambiance de bar 2 (ID 0481)_LaSonotheque.fr.wav'], SFX_SPACE(1.5, 0.4, 'glide', [{ x: 1.5, y: 0.4 }, { x: -1.7, y: 1.3 }, { x: -1.9, y: -1.2 }, { x: 1.9, y: -1.4 }, { x: 2, y: 1.4 }, { x: -0.9, y: 0.3 }], true, 20)),
+    sfxRow('sfx-bar', 'Se balader dans le Bar', ['Ambiance Bar.wav'], SFX_SPACE(1.5, 0.4, 'glide', [{ x: 1.5, y: 0.4 }, { x: -1.7, y: 1.3 }, { x: -1.9, y: -1.2 }, { x: 1.9, y: -1.4 }, { x: 2, y: 1.4 }, { x: -0.9, y: 0.3 }], true, 20)),
   ];
   // Pack de la bibliothèque du compositeur fictif (leçon « La musique du projet » : on le partage au Projet).
   const DEMO_PACKS = [{ id: 'p-alone', owner_id: 'demo-composer', title: 'Alone : ambiances du lac (exemple)', illustration: null, illustration_original_name: null, watermark: null,

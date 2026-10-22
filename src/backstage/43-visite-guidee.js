@@ -37,7 +37,7 @@ const LESSON_SAMPLE_URLS = {
 // est celui que l'apprenant voit et que le moteur lit (tempo, mesures).
 const LESSON_SAMPLE_FOLDERS = {
   // Leçon Sfx : trois bruits de glaçons et deux de verre qui se remplit (Jules-Antoine).
-  'SFX': ['Glaçons 1.wav', 'Glaçons 2.wav', 'Glaçons 3.wav', 'Verre 1.wav', 'Verre 2.wav', 'AMBRest_Ambiance de bar 2 (ID 0481)_LaSonotheque.fr.wav'],
+  'SFX': ['Glaçons 1.wav', 'Glaçons 2.wav', 'Glaçons 3.wav', 'Verre 1.wav', 'Verre 2.wav', 'Ambiance Bar.wav'],
   // Statique : une boucle de 8 mesures, sans intro (leçon d'entrée : le moteur place tout seul les repères).
   'Jazz Lo': ['Jazz Lo_No Intro_110bpm.wav'],
   // Embranchement vertical : deux boucles de 8 mesures précédées d'une intro d'une mesure (« _Intro1M_9M » : le moteur lit tout).
@@ -241,7 +241,7 @@ const LESSON_SAMPLE_NAMES = {
   cityRock: 'Jazz Hi_Rock City_4M_110bpm.wav',
   sfxIce: 'Glaçons 1.wav, Glaçons 2.wav, Glaçons 3.wav',
   sfxGlass: 'Verre 1.wav, Verre 2.wav',
-  sfxBar: 'AMBRest_Ambiance de bar 2 (ID 0481)_LaSonotheque.fr.wav',
+  sfxBar: 'Ambiance Bar.wav',
   cityDisco: 'Jazz Hi_Disco City_4M_110bpm.wav',
   cityJazz: 'Jazz Hi_Jazz City_4M_110bpm.wav, Jazz Hi Jazz City.2_4M_110bpm.wav',
   citySynth: 'Jazz Hi_Synth city_4M_110bpm.wav',
