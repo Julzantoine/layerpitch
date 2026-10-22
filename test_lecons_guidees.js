@@ -184,7 +184,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   w.eval(`myFlags = { in_app_lessons: true }; renderTutorialMenu();`);
   // Sections (21/10) : titre + sous-titre coupés au « : », plus visibles que l'étiquette « Leçons » et que les leçons.
   const heads = [...w.document.querySelectorAll('#tutorialMenuList .tutorial-menu-section')].map(x => x.querySelector('strong').textContent + ' : ' + (x.querySelector('small') ? x.querySelector('small').textContent : '')).join('|');
-  check('menu : leçons groupées par thème (moteur audio, AdReel, préproduction)', /moteur audio : Uploader de la musique interactive/.test(heads) && /Créer un AdReel : Envoyer de la musique à un studio/.test(heads) && /espace de travail conjoint studio\/compositeur/.test(heads)
+  check('menu : leçons groupées par thème (moteur audio, AdReel, préproduction)', /moteur audio : Uploader de la musique interactive/.test(heads) && /Pitcher de la musique : Envoyer de la musique à un studio/.test(heads) && /Découvrir les outils de collaboration studio\/compositeur/.test(heads)
     && w.document.querySelectorAll('#tutorialMenuList .tutorial-menu-lesson').length > 0);
   // Échap quitte.
   w.eval(`guide.index = 7; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`); // « Vérifie les infos » : étape manuelle

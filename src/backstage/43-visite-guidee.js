@@ -505,7 +505,7 @@ const LESSONS = [
   // la vidéo du montage, ses versions, « Créer une version vidéo » qui rouvre l'atelier. Suite : annoter le montage (espace Projet).
   // `reload` : le faux serveur prépare le montage d'exemple déjà publié (deux musiques) pour la partie « bloc vidéo ».
   // « bientôt » tant que la vidéo muette (alone-gameplay-muette.mp4) n'est pas en ligne (KIT d'atelier-lecons.js).
-  { id: 'versioning', theme: 'pitch', public: true, reload: true, soon: true, titleKey: 'lvTitle', descKey: 'lvDesc', steps: [
+  { id: 'versioning', theme: 'preprod', public: true, reload: true, soon: true, titleKey: 'lvTitle', descKey: 'lvDesc', steps: [
     { titleKey: 'lvWelcomeTitle', textKey: 'lvWelcomeText' },
     { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'lvVideoTabTitle', textKey: 'lvVideoTabText',
       done: () => !!document.querySelector('.backstage-panel[data-panel="videoLibrary"].active') },
@@ -528,6 +528,7 @@ const LESSONS = [
   ] },
   // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
   // Projet fictif ; `page` renvoie vers cette page au clic.
+  { id: 'tracking', theme: 'pitch', public: true, soon: true, titleKey: 'ltTitle', descKey: 'ltDesc' }, // à construire ; « bientôt » d'ici là
   { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc' },
   { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
   { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },
