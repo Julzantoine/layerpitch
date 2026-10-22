@@ -201,6 +201,7 @@ function lessonPoolHasSilence(label) {
 }
 function fxSliderExists() { const t = lessonTrack(); return !!t && (t.fxSliders || []).length >= 1; }
 function lessonHasFile(x) { return !!(x && (x.pendingFile || x.remoteFile)); }
+function lessonSelectTrackInfo() { const t = lessonTrack(); if (t && seqSelectedSlotIndex.get(t.id) !== 'trackinfo') { seqSelectedSlotIndex.set(t.id, 'trackinfo'); renderLibrary(); } }
 function lessonSlotFirstName(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; const al = sl && (sl.alternatives || []).find(lessonHasFile); return al ? ((al.pendingFile && al.pendingFile.name) || al.remoteFile || '') : ''; }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
@@ -465,12 +466,12 @@ const LESSONS = [
     { selector: '#libraryDetail [data-role="segmentSlotsMaster"]', titleKey: 'lqCheckTitle', textKey: 'lqCheckText' },
     { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'lqInfoTitle', textKey: 'lqInfoText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
-    // Le dépôt d'un fichier dans un emplacement ne règle pas le tempo du morceau : on le saisit à la main (110, lu dans les noms).
-    { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lqBpmTitle', textKey: 'lqBpmText',
+    // Le dépôt d'un fichier daté (« 110bpm ») règle le tempo de CHAQUE section, pas celui du morceau : on saisit celui-ci à la main (110).
+    { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lqBpmTitle', textKey: 'lqBpmText', enter: lessonSelectTrackInfo,
       done: () => { const t = lessonTrack(); return !!t && Number(t.bpm) === 110; } },
     // Case « ordre aléatoire » : simplement présentée (étape manuelle, rien à cocher) — le morceau garde l'ordre A, A, B, A.
-    { selector: '#libraryDetail input[data-field="seqSlotOrder"]', titleKey: 'lqRandomTitle', textKey: 'lqRandomText' },
-    { selector: '#libraryDetail select[data-field="maxChainLoops"]', titleKey: 'lqCyclesTitle', textKey: 'lqCyclesText' },
+    { selector: '#libraryDetail input[data-field="seqSlotOrder"]', titleKey: 'lqRandomTitle', textKey: 'lqRandomText', enter: lessonSelectTrackInfo },
+    { selector: '#libraryDetail select[data-field="maxChainLoops"]', titleKey: 'lqCyclesTitle', textKey: 'lqCyclesText', enter: lessonSelectTrackInfo },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lqListenTitle', textKey: 'lqListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lqEndTitle', textKey: 'lqEndText', final: true },
@@ -497,28 +498,28 @@ const LESSONS = [
     { selector: '#libraryDetail input[data-slot-field="hasBranches"]', titleKey: 'lbEnableTitle', textKey: 'lbEnableText',
       done: () => { const sl = lessonSlot(0); return !!sl && (sl.nextOptions || []).length >= 1; } },
     { selector: '#libraryDetail .branch-option-card:nth-child(1) [data-branch-field="targetId"]', titleKey: 'lbTarget1Title', textKey: 'lbTarget1Text' },
+    { selector: '#libraryDetail .branch-option-card:nth-child(1) [data-branch-field="hasTransition"]', titleKey: 'lbTransTitle', textKey: 'lbTransText',
+      done: () => { const sl = lessonSlot(0); const o = sl && (sl.nextOptions || [])[0]; return !!(o && o.transition); } },
+    { useSample: true, selector: '#libraryDetail .branch-option-card:nth-child(1) [data-role="transitionFileCtrl"]', titleKey: 'lbTransFile1Title', textKey: 'lbTransFile1Text', names: 'transJazz',
+      done: () => { const sl = lessonSlot(0); const o = sl && (sl.nextOptions || [])[0]; return !!(o && o.transition && lessonHasFile(o.transition)); } },
     { selector: '#libraryDetail [data-action="add-branch-option"]', titleKey: 'lbAddTitle', textKey: 'lbAddText',
       done: () => { const sl = lessonSlot(0); return !!sl && (sl.nextOptions || []).length >= 2; } },
     { selector: '#libraryDetail .branch-option-card:nth-child(2) [data-branch-field="targetId"]', titleKey: 'lbTarget2Title', textKey: 'lbTarget2Text',
       done: () => { const t = lessonTrack(); const sl = lessonSlot(0); const third = lessonSlot(2); return !!(t && sl && third && sl.nextOptions && sl.nextOptions[1] && sl.nextOptions[1].targetId === third.id); } },
+    { selector: '#libraryDetail .branch-option-card:nth-child(2) [data-branch-field="hasTransition"]', titleKey: 'lbTrans2Title', textKey: 'lbTrans2Text',
+      done: () => { const sl = lessonSlot(0); const o = sl && (sl.nextOptions || [])[1]; return !!(o && o.transition); } },
+    { useSample: true, selector: '#libraryDetail .branch-option-card:nth-child(2) [data-role="transitionFileCtrl"]', titleKey: 'lbTransFile2Title', textKey: 'lbTransFile2Text', names: 'transSynth',
+      done: () => { const sl = lessonSlot(0); const o = sl && (sl.nextOptions || [])[1]; return !!(o && o.transition && lessonHasFile(o.transition)); } },
     { selector: '#libraryDetail .branch-option-card:nth-child(1) [data-branch-field="label"]', titleKey: 'lbLabelsTitle', textKey: 'lbLabelsText' },
     { selector: '#libraryDetail select[data-slot-field="quantization"]', titleKey: 'lbTriggerTitle', textKey: 'lbTriggerText',
       done: () => { const sl = lessonSlot(0); return !!sl && sl.quantization === 'beat'; } },
     { selector: '#libraryDetail select[data-slot-field="cutStyle"]', titleKey: 'lbCutTitle', textKey: 'lbCutText',
       done: () => { const sl = lessonSlot(0); return !!sl && sl.cutStyle === 'custom'; } },
     { selector: '#libraryDetail input[data-slot-field="customCutFadeSec"]', titleKey: 'lbFadeTitle', textKey: 'lbFadeText' },
-    { selector: '#libraryDetail .branch-option-card:nth-child(1) [data-branch-field="hasTransition"]', titleKey: 'lbTransTitle', textKey: 'lbTransText',
-      done: () => { const sl = lessonSlot(0); const o = sl && (sl.nextOptions || [])[0]; return !!(o && o.transition); } },
-    { useSample: true, selector: '#libraryDetail .branch-option-card:nth-child(1) [data-role="transitionFileCtrl"]', titleKey: 'lbTransFile1Title', textKey: 'lbTransFile1Text', names: 'transJazz',
-      done: () => { const sl = lessonSlot(0); const o = sl && (sl.nextOptions || [])[0]; return !!(o && o.transition && lessonHasFile(o.transition)); } },
-    { selector: '#libraryDetail .branch-option-card:nth-child(2) [data-branch-field="hasTransition"]', titleKey: 'lbTrans2Title', textKey: 'lbTrans2Text',
-      done: () => { const sl = lessonSlot(0); const o = sl && (sl.nextOptions || [])[1]; return !!(o && o.transition); } },
-    { useSample: true, selector: '#libraryDetail .branch-option-card:nth-child(2) [data-role="transitionFileCtrl"]', titleKey: 'lbTransFile2Title', textKey: 'lbTransFile2Text', names: 'transSynth',
-      done: () => { const sl = lessonSlot(0); const o = sl && (sl.nextOptions || [])[1]; return !!(o && o.transition && lessonHasFile(o.transition)); } },
     { selector: '#libraryDetail [data-role="segmentSlotsMaster"]', titleKey: 'lbOthersTitle', textKey: 'lbOthersText' },
     { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'lqInfoTitle', textKey: 'lqInfoText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
-    { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lqBpmTitle', textKey: 'lqBpmText',
+    { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lqBpmTitle', textKey: 'lqBpmText', enter: lessonSelectTrackInfo,
       done: () => { const t = lessonTrack(); return !!t && Number(t.bpm) === 110; } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lbListenTitle', textKey: 'lbListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     // Raccourci (feu vert « bulk_drop ») : après la construction à la main (leçons 4 et 5), le même résultat en déposant un dossier. L'import crée la chaîne mais pas les embranchements, qui se relient à la main.
