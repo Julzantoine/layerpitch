@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792657279422">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792657924223">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1877,17 +1877,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792657279422"></script>
-<script src="layerpitch-i18n.js?v=1792657279422"></script>
-<script src="layerpitch-appearance.js?v=1792657279422"></script>
-<script src="layerpitch-album-shared.js?v=1792657279422"></script>
-<script src="layerpitch-album-editor.js?v=1792657279422"></script>
-<script src="layerpitch-shell.js?v=1792657279422"></script>
-<script src="layerpitch-social-icons.js?v=1792657279422"></script>
-<script src="layerpitch-notify.js?v=1792657279422"></script>
-<script src="layerpitch-guide.js?v=1792657279422"></script>
-<script src="layerpitch-help.js?v=1792657279422"></script>
-<script src="player.js?v=1792657279422"></script>
+<script src="layerpitch-tuto.js?v=1792657924223"></script>
+<script src="layerpitch-i18n.js?v=1792657924223"></script>
+<script src="layerpitch-appearance.js?v=1792657924223"></script>
+<script src="layerpitch-album-shared.js?v=1792657924223"></script>
+<script src="layerpitch-album-editor.js?v=1792657924223"></script>
+<script src="layerpitch-shell.js?v=1792657924223"></script>
+<script src="layerpitch-social-icons.js?v=1792657924223"></script>
+<script src="layerpitch-notify.js?v=1792657924223"></script>
+<script src="layerpitch-guide.js?v=1792657924223"></script>
+<script src="layerpitch-help.js?v=1792657924223"></script>
+<script src="player.js?v=1792657924223"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3411,13 +3411,47 @@ function fxFilterGraphHtml(kind, freq, slope) {
 // Mise à jour en direct quand on change la fréquence ou la raideur.
 document.addEventListener('input', e => {
   const t = e.target, k = t && t.dataset && t.dataset.fxEffect;
-  if (!t.dataset || t.dataset.field !== 'fx' || (k !== 'lowcut' && k !== 'highcut')) return;
+  if (!t.dataset || t.dataset.field !== 'fx' || (k !== 'lowcut' && k !== 'highcut' && k !== 'compressor')) return;
   const box = t.closest('[data-fx-box]'), svg = box && box.querySelector('svg[data-fx-graph]');
   if (!svg) return;
+  if (k === 'compressor') {
+    const v = n => { const el = box.querySelector(`[data-fx-param="${n}"]`); return el ? el.value : ''; };
+    svg.innerHTML = fxCompressorGraphInner(v('threshold'), v('ratio'), v('makeup'));
+    return;
+  }
   const f = box.querySelector('[data-fx-param="frequency"]'), sl = box.querySelector('[data-fx-param="slope"]');
   svg.innerHTML = fxFilterGraphInner(k, f && f.value, sl && sl.value);
 }, true);
 
+// Courbe du compresseur : niveau d'entrée (horizontal, -60 -> 0 dB) contre niveau de sortie (vertical, -60 -> +12 dB). La diagonale
+// pointillée = pas de compression ; la courbe se plie au seuil (coude doux de 12 dB, comme le lecteur) puis monte moins vite selon
+// le ratio ; le gain de compensation la remonte d'un bloc. Pure : renvoie le contenu du SVG, réutilisée pour la mise à jour en direct.
+function fxCompressorOut(x, th, ratio, knee) {
+  if (2 * (x - th) < -knee) return x;
+  if (2 * Math.abs(x - th) <= knee) return x + (1 / ratio - 1) * Math.pow(x - th + knee / 2, 2) / (2 * knee);
+  return th + (x - th) / ratio;
+}
+function fxCompressorGraphInner(threshold, ratio, makeup) {
+  const g = FX_GRAPH, iw = g.w - g.padL - g.padR, ih = g.h - g.padT - g.padB;
+  const lo = -60, hi = 12;
+  const th = Math.min(0, Math.max(-60, Number.isFinite(+threshold) ? +threshold : -24));
+  const r = Math.min(20, Math.max(1, +ratio || 4)), mk = Number.isFinite(+makeup) ? +makeup : 0;
+  const X = db => g.padL + (db - lo) / 60 * iw;
+  const Y = db => g.padT + (1 - (Math.min(hi, Math.max(lo, db)) - lo) / (hi - lo)) * ih;
+  const pts = [];
+  for (let i = 0; i <= 60; i++) { const x = lo + i; pts.push(X(x).toFixed(1) + ',' + Y(fxCompressorOut(x, th, r, 12) + mk).toFixed(1)); }
+  const grid = [-60, -40, -20, 0].map(db => `<line x1="${X(db).toFixed(1)}" x2="${X(db).toFixed(1)}" y1="${g.padT}" y2="${g.padT + ih}" stroke="var(--border,#ddd)" stroke-width="1"/><text x="${X(db).toFixed(1)}" y="${g.h - 3}" text-anchor="middle" font-size="9" fill="var(--text-dim,#888)">${db}</text>`).join('')
+    + [12, 0, -20, -40, -60].map(db => `<line x1="${g.padL}" x2="${g.w - g.padR}" y1="${Y(db).toFixed(1)}" y2="${Y(db).toFixed(1)}" stroke="var(--border,#ddd)" stroke-width="1"/><text x="${g.padL - 3}" y="${(Y(db) + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--text-dim,#888)">${db}</text>`).join('');
+  const right = X(th) > g.w / 2;
+  return grid
+    + `<line x1="${X(lo).toFixed(1)}" y1="${Y(lo).toFixed(1)}" x2="${X(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="var(--text-dim,#888)" stroke-width="1" stroke-dasharray="3 3"/>`
+    + `<line x1="${X(th).toFixed(1)}" x2="${X(th).toFixed(1)}" y1="${g.padT}" y2="${g.padT + ih}" stroke="var(--accent,#2f80c0)" stroke-width="1" stroke-dasharray="3 3"/>`
+    + `<polyline points="${pts.join(' ')}" fill="none" stroke="var(--accent,#2f80c0)" stroke-width="2" stroke-linejoin="round"/>`
+    + `<text x="${(X(th) + (right ? -4 : 4)).toFixed(1)}" y="${g.padT + 9}" text-anchor="${right ? 'end' : 'start'}" font-size="10" font-weight="600" fill="var(--accent,#2f80c0)">${Math.round(th)} dB · ${Math.round(r * 10) / 10}:1</text>`;
+}
+function fxCompressorGraphHtml(threshold, ratio, makeup) {
+  return `<svg data-fx-graph="compressor" viewBox="0 0 ${FX_GRAPH.w} ${FX_GRAPH.h}" width="100%" style="max-width:340px;display:block;margin-top:6px" role="img" aria-label="${escapeAttr(tr('fxCompressorGraphLabel'))}">${fxCompressorGraphInner(threshold, ratio, makeup)}</svg>`;
+}
 // Paliers « léger / moyen / dur » : un clic remplit les champs du réglage (mêmes événements que la frappe : rien d'autre à câbler).
 // Filtres : seule la fréquence change (la raideur reste celle choisie).
 const FX_PRESETS = {
@@ -3514,6 +3548,7 @@ function fxBlockHtml(fx, extraAttrs) {
       `)}
       ${toggle('compressor', !!fx.compressor, 'fxCompressorLabel', `<div data-fx-box="compressor">
         <div class="hint-inline">${tr('fxCompressorHint')}</div>
+        ${fxCompressorGraphHtml(fx.compressor ? fx.compressor.threshold : -24, fx.compressor ? fx.compressor.ratio : 4, fx.compressor ? fx.compressor.makeup : 3)}
         ${fxPresetsHtml('compressor', fx.compressor, gated)}
         ${num('compressor', 'threshold', fx.compressor ? fx.compressor.threshold : -24, 'fxCompressorThresholdLabel', 1, -60, 0)}
         ${num('compressor', 'ratio', fx.compressor ? fx.compressor.ratio : 4, 'fxCompressorRatioLabel', 0.5, 1, 20)}
