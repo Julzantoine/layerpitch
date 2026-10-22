@@ -416,6 +416,8 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && !!t.intro && Number(t.intro.bars) === 1 && Number(t.intro.beatsPerBar) === 2; } },
     // Compresseur sur la basse (22/10) : réglages de Jules-Antoine (seuil -30 dB, ratio 4, gain +2 dB). Ignoré tant que les effets par voix sont fermés.
     { selector: () => lessonBassFxToggle(), titleKey: 'lrCompOpenTitle', textKey: 'lrCompOpenText', skip: () => !fxOpen('fx_per_voice') || lessonBassPoolIndex() < 0,
+      // On quitte l'écran de l'intro : les effets des pools se trouvent dans l'écran de la section.
+      enter: () => { const t = lessonTrack(); if (t && (t.sections || []).length && seqSelectedSlotIndex.get(t.id) !== 0) { seqSelectedSlotIndex.set(t.id, 0); renderLibrary(); } },
       done: () => { const b = lessonBassFxToggle(); return !!b && expandedAltPoolKeys.has(b.dataset.fxKey); } },
     { selector: () => lessonBassCompressorCheckbox(), titleKey: 'lrCompOnTitle', textKey: 'lrCompOnText', skip: () => !fxOpen('fx_per_voice') || lessonBassPoolIndex() < 0,
       done: () => !!lessonBassCompressor() },
