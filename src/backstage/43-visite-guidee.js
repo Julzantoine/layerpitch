@@ -37,7 +37,7 @@ const LESSON_SAMPLE_URLS = {
 // est celui que l'apprenant voit et que le moteur lit (tempo, mesures).
 const LESSON_SAMPLE_FOLDERS = {
   // Leçon Sfx : trois bruits de glaçons et deux de verre qui se remplit (Jules-Antoine).
-  'SFX': ['Glaçons 1.wav', 'Glaçons 2.wav', 'Glaçons 3.wav', 'Verre 1.wav', 'Verre 2.wav'],
+  'SFX': ['Glaçons 1.wav', 'Glaçons 2.wav', 'Glaçons 3.wav', 'Verre 1.wav', 'Verre 2.wav', 'AMBRest_Ambiance de bar 2 (ID 0481)_LaSonotheque.fr.wav'],
   // Statique : une boucle de 8 mesures, sans intro (leçon d'entrée : le moteur place tout seul les repères).
   'Jazz Lo': ['Jazz Lo_No Intro_110bpm.wav'],
   // Embranchement vertical : deux boucles de 8 mesures précédées d'une intro d'une mesure (« _Intro1M_9M » : le moteur lit tout).
@@ -241,6 +241,7 @@ const LESSON_SAMPLE_NAMES = {
   cityRock: 'Jazz Hi_Rock City_4M_110bpm.wav',
   sfxIce: 'Glaçons 1.wav, Glaçons 2.wav, Glaçons 3.wav',
   sfxGlass: 'Verre 1.wav, Verre 2.wav',
+  sfxBar: 'AMBRest_Ambiance de bar 2 (ID 0481)_LaSonotheque.fr.wav',
   cityDisco: 'Jazz Hi_Disco City_4M_110bpm.wav',
   cityJazz: 'Jazz Hi_Jazz City_4M_110bpm.wav, Jazz Hi Jazz City.2_4M_110bpm.wav',
   citySynth: 'Jazz Hi_Synth city_4M_110bpm.wav',
@@ -614,6 +615,24 @@ const LESSONS = [
     { selector: '#sfxLibraryDetail input[data-sfx-space="binaural"]', titleKey: 'lxBinauralTitle', textKey: 'lxBinauralText',
       done: () => { const sp = lessonSfxSpace(1); return !!sp && !!sp.binaural; } },
     { selector: '#sfxLibraryDetail [data-role="spaceTest"]', titleKey: 'lxTest2Title', textKey: 'lxTest2Text', listen: true },
+    // Troisième Sfx (22/10) : l'ambiance du bar, UN seul fichier (créé aussitôt, sans fenêtre de rangement), en « Glissement » sur 20 s.
+    { useSample: true, selector: '#sfxLibraryDrop', titleKey: 'lxDrop3Title', textKey: 'lxDrop3Text', names: 'sfxBar',
+      enter: (c) => { c.baseLen = sfxLibrary.length; }, done: (c) => sfxLibrary.length > c.baseLen },
+    { selector: '#sfxLibraryDetail [data-sfx-field="title"]', titleKey: 'lxName3Title', textKey: 'lxName3Text',
+      done: () => { const x = lessonSfx(2); return !!x && /balader/i.test(x.title || ''); } },
+    { selector: '#sfxLibraryDetail [data-action="select-sfx-entry"][data-entry="space"]', titleKey: 'lxSpace3Title', textKey: 'lxSpace3Text',
+      done: () => lessonSfxEntryOpen(2, 'space') },
+    { selector: '#sfxLibraryDetail input[data-sfx-space="enabled"]', titleKey: 'lxEnableTitle', textKey: 'lxEnableText',
+      done: () => { const sp = lessonSfxSpace(2); return !!sp && !!sp.enabled; } },
+    { selector: '#sfxLibraryDetail select[data-sfx-space="pathMode"]', titleKey: 'lxMode3Title', textKey: 'lxMode3Text',
+      done: () => { const sp = lessonSfxSpace(2); return !!sp && !!sp.path && sp.path.mode === 'glide'; } },
+    { selector: '#sfxLibraryDetail [data-role="spaceMatrix"]', titleKey: 'lxPoints3Title', textKey: 'lxPoints3Text',
+      done: () => { const sp = lessonSfxSpace(2); return !!sp && !!sp.path && sp.path.mode === 'glide' && (sp.path.points || []).length >= 6; } },
+    { selector: '#sfxLibraryDetail input[data-sfx-space="pathDuration"]', titleKey: 'lxDurationTitle', textKey: 'lxDurationText',
+      done: () => { const sp = lessonSfxSpace(2); return !!sp && !!sp.path && sp.path.durationSec === 20; } },
+    { selector: '#sfxLibraryDetail input[data-sfx-space="binaural"]', titleKey: 'lxBinauralTitle', textKey: 'lxBinaural3Text',
+      done: () => { const sp = lessonSfxSpace(2); return !!sp && !!sp.binaural; } },
+    { selector: '#sfxLibraryDetail [data-role="spaceTest"]', titleKey: 'lxTest3Title', textKey: 'lxTest3Text', listen: true },
     { selector: '.nav-item[data-tab="library"]', titleKey: 'lxLibTitle', textKey: 'lsLibText',
       done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
     { selector: '#libraryMaster .seq-master-item', titleKey: 'lxPickTitle', textKey: 'lxPickText',
@@ -624,6 +643,8 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); const a = lessonSfx(0); return !!t && !!a && (t.sfxIds || []).includes(a.id); } },
     { selector: '#libraryDetail [data-role="trackSfxSelector"] select[data-sel-action="add"]', titleKey: 'lxAdd2Title', textKey: 'lxAdd2Text',
       done: () => { const t = lessonTrack(); const b = lessonSfx(1); return !!t && !!b && (t.sfxIds || []).includes(b.id); } },
+    { selector: '#libraryDetail [data-role="trackSfxSelector"] select[data-sel-action="add"]', titleKey: 'lxAdd3Title', textKey: 'lxAdd3Text',
+      done: () => { const t = lessonTrack(); const c = lessonSfx(2); return !!t && !!c && (t.sfxIds || []).includes(c.id); } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lxListenTitle', textKey: 'lxListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { titleKey: 'lxEndTitle', textKey: 'lxEndText', final: true },
   ] },

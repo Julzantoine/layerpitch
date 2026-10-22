@@ -80,7 +80,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   })()`);
   check('fichier d’exemple : bouton absent sans URL, présent avec', sampleOk.before === false && sampleOk.after === true);
   check('fichiers d’exemple : 3 noms pour les couches additives', sampleOk.names === 3);
-  check('18 étapes de dépôt acceptent l’exemple', sampleOk.flagged === 18);
+  check('19 étapes de dépôt acceptent l’exemple', sampleOk.flagged === 19);
   // Dépôt réel d'un exemple : un événement « drop » transporte les fichiers jusqu'au gestionnaire de la zone.
   w.DataTransfer = class { constructor() { this.files = []; this.items = { add: f => this.files.push(f) }; } };
   w.DragEvent = class extends w.Event { constructor(t, o) { super(t, o); this.dataTransfer = o.dataTransfer; } };
