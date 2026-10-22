@@ -446,7 +446,7 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 1; } },
     { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lqSegTitle', textKey: 'lqSegText', names: 'seqAlt1',
       done: () => lessonSlotFileCount(0) >= 4 },
-    { selector: '#libraryDetail [data-slot-field="repeatCount"]', titleKey: 'lqSlotCheckTitle', textKey: 'lqSlotCheckText' },
+    { selector: '#libraryDetail [data-role="slotSettings"]', titleKey: 'lqSlotCheckTitle', textKey: 'lqSlotCheckText' },
     // Répétition des opérations pour une nouvelle section.
     { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlot2Title', textKey: 'lqSlot2Text',
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 2; } },

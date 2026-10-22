@@ -68,6 +68,7 @@
         // ne sait pas résoudre (une seule indirection gérée, pas une résolution récursive).
         const isReferencedByOthers = track.segmentSlots.some(sl => sl.referencesSlotId === slot.id);
         slotEl.innerHTML = `
+          <div data-role="slotSettings">
           <div class="list-block-head">
             <input type="text" placeholder="${tr('slotNamePlaceholder')}" data-slot-field="label" data-ti="${ti}" data-si="${si}" value="${escapeAttr(slot.label)}" style="flex:1;margin:0 8px 0 0;">
             ${flagOpen('alt_drag_delete') ? `<button class="btn btn-small" type="button" data-action="duplicate-segment-slot" data-ti="${ti}" data-si="${si}" title="${escapeAttr(tr('duplicateSlotTitle'))}" style="margin-right:6px">${tr('duplicateSlotBtn')}</button>` : ''}
@@ -99,6 +100,7 @@
               <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" placeholder="${beatsPerBar}" data-slot-field="beatsPerBar" data-ti="${ti}" data-si="${si}" value="${slot.beatsPerBar || ''}"></div>
             </div>
           ` : ''}
+          </div>
           ${isReferencedByOthers ? `<div class="hint-inline">${tr('slotIsSourceHint')}</div>` : ''}
           <div class="hint-inline">${tr('repeatCountHint')}</div>
           <div style="margin-top:8px">
