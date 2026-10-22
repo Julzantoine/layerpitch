@@ -186,6 +186,49 @@
       if (step.enter) step.enter(guide.ctx);
       render();
     }
+    // Invitation à la bêta (22/10) : fenêtre qui recueille une adresse mail et l'envoie à la même fonction que le formulaire de la
+    // landing (submit-access-request : enregistre la demande, confirme à la personne, prévient Jules-Antoine).
+    const BETA_FN_URL = 'https://ypygllyjfynrnvapufow.supabase.co/functions/v1/submit-access-request';
+    const BETA_ANON_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
+    function openBetaPopup(lessonId) {
+      if (document.querySelector('.tour-beta-overlay')) return;
+      const overlay = document.createElement('div');
+      overlay.className = 'tour-beta-overlay';
+      overlay.innerHTML = `
+        <div class="tour-beta-modal" role="dialog" aria-modal="true">
+          <h3>${esc(tr('betaPopupTitle'))}</h3>
+          <form novalidate>
+            <p>${esc(tr('betaPopupText'))}</p>
+            <input type="email" name="email" autocomplete="email" placeholder="${esc(tr('betaPopupPlaceholder'))}" required>
+            <div class="tour-beta-msg" aria-live="polite"></div>
+            <div class="tour-beta-actions">
+              <button class="btn btn-small" type="button" data-beta="close">${esc(tr('betaPopupClose'))}</button>
+              <button class="btn btn-small btn-primary" type="submit">${esc(tr('betaPopupSend'))}</button>
+            </div>
+          </form>
+        </div>`;
+      document.body.appendChild(overlay);
+      const form = overlay.querySelector('form'), msg = overlay.querySelector('.tour-beta-msg'), input = overlay.querySelector('input[name="email"]');
+      const closePopup = () => overlay.remove();
+      overlay.addEventListener('click', e => { if (e.target === overlay || (e.target.closest && e.target.closest('[data-beta="close"]'))) closePopup(); });
+      overlay.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closePopup(); } });
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const email = input.value.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.textContent = tr('betaPopupInvalid'); msg.className = 'tour-beta-msg err'; return; }
+        msg.textContent = tr('betaPopupSending'); msg.className = 'tour-beta-msg';
+        try {
+          const res = await fetch(BETA_FN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', apikey: BETA_ANON_KEY, Authorization: 'Bearer ' + BETA_ANON_KEY },
+            body: JSON.stringify({ email, source: 'landing', intent: 'beta', lang: tr('betaPopupLang'), message: 'Depuis le tutoriel (leçon : ' + (lessonId || '?') + ')' }),
+          });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          form.innerHTML = `<p class="tour-beta-ok">${esc(tr('betaPopupThanks'))}</p><div class="tour-beta-actions"><button class="btn btn-small btn-primary" type="button" data-beta="close">${esc(tr('betaPopupClose'))}</button></div>`;
+        } catch (err) { msg.textContent = tr('betaPopupError'); msg.className = 'tour-beta-msg err'; }
+      });
+      input.focus();
+    }
     function goToNextLesson() {
       if (!guide) return;
       const nx = host.nextLesson ? host.nextLesson(guide.lessonId) : null;
@@ -239,6 +282,7 @@
       <div class="tour-move-note">${esc(tr('lessonMoveNote'))}</div>
       <div class="tour-text">${esc(tr(step.textKey, vars).replace(/\n/g, '\n\n'))}</div>
       ${extras}
+      ${guide.kind === 'lesson' && step.final ? `<div class="tour-ps">${esc(tr('lessonBetaPs'))} <a href="#" data-tour="beta">${esc(tr('lessonBetaLink'))}</a></div>` : ''}
       ${auto || (listening && !guide.clicked && !revisiting) ? `<div class="tour-waiting">${esc(tr('lessonDoIt'))}</div>` : ''}
       ${listening && guide.clicked ? `<div class="tour-waiting">${esc(tr('lessonListening'))}</div>` : ''}
       <div class="tour-actions">
@@ -259,6 +303,8 @@
         if (nextBtn) nextBtn.onclick = () => go(1); // absent sur une étape obligatoire
         const prev = card.querySelector('[data-tour="prev"]');
         if (prev) prev.onclick = () => go(-1);
+        const betaLink = card.querySelector('[data-tour="beta"]');
+        if (betaLink) betaLink.onclick = e => { e.preventDefault(); openBetaPopup(guide.lessonId); };
         const nlBtn = card.querySelector('[data-tour="nextlesson"]');
         if (nlBtn) nlBtn.onclick = goToNextLesson;
         wireDrops(card, step);

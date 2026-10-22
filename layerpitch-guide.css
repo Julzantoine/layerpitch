@@ -37,3 +37,16 @@
 .tour-count { display: flex; justify-content: space-between; align-items: center; }
 .tour-grip { color: var(--text-dimmer); font-size: 14px; letter-spacing: 0; }
 .tour-card button, .tour-card a { cursor: pointer; }
+
+/* PS d'invitation à la bêta (dernière bulle d'une leçon) et sa fenêtre */
+.tour-ps { font-size: 12px; line-height: 1.5; color: var(--text-dim); margin: 0 0 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.tour-ps a { color: var(--accent); text-decoration: underline; }
+.tour-beta-overlay { position: fixed; inset: 0; z-index: 9300; background: rgba(20,22,28,0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.tour-beta-modal { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; width: 380px; max-width: 100%; box-shadow: 0 12px 32px rgba(20,22,28,0.28); }
+.tour-beta-modal h3 { margin: 0 0 8px; font-size: 16px; }
+.tour-beta-modal p { margin: 0 0 12px; font-size: 13px; line-height: 1.55; color: var(--text-dim); }
+.tour-beta-modal input { width: 100%; box-sizing: border-box; }
+.tour-beta-msg { min-height: 18px; font-size: 12px; margin: 8px 0; color: var(--text-dim); }
+.tour-beta-msg.err { color: #b3261e; }
+.tour-beta-ok { color: var(--text); }
+.tour-beta-actions { display: flex; justify-content: flex-end; gap: 8px; }
