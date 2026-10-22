@@ -6,10 +6,9 @@
  * Chromium), zéro dépendance externe comme le reste du fichier. */
 let draggedBlockId = null;
 document.getElementById('blocksEditorContainer').addEventListener('pointerdown', (e) => {
-  const handle = e.target.closest('.block-drag-handle');
-  if (!handle) return;
-  const card = handle.closest('.block-editor-card');
-  if (card && ownsHandle(card, handle)) card.draggable = true; // pas la poignée d'un morceau du bloc Musique (27/09)
+  if (!e.target.closest('.block-drag-handle') && e.target.closest('.sel-track-item, .seq-master-item')) return; // ligne imbriquée : c'est elle qui se glisse, pas le bloc
+  const card = dragItemToArm(e, '.block-editor-card'); // poignée, ou n'importe où sur la carte hors contrôles (22/10) ; pas celle d'un morceau du bloc Musique (27/09)
+  if (card) card.draggable = true;
 });
 // ---- Touche Supprimer (Supp ou ⌫) sur l'élément sélectionné (25/09, demande de Jules-Antoine) ----
 // Sélection = dernier élément cliqué d'une liste (morceau, Sfx, AdReel, slot, section, boucle, couche) ou dernier bloc

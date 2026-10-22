@@ -17,7 +17,7 @@
   const DEMO_COMPOSER_ID = 'demo-composer';
 
   // Feux verts ouverts dans le tutoriel : ce dont les leçons ont besoin, rien d'autre (les nouveautés restent fermées).
-  const DEMO_FLAGS = ['in_app_lessons', 'audio_fx', 'bulk_drop'];
+  const DEMO_FLAGS = ['in_app_lessons', 'audio_fx', 'bulk_drop', 'alt_drag_delete'];
   // Droits de la matrice : tout ce qui touche à la vente ou au compte payant reste fermé.
   const DEMO_ENTITLEMENTS_ALLOWED = ['versioning'];
   const DEMO_ENTITLEMENTS_DENIED = ['custom_address', 'private_links', 'sell_albums', 'sell_packs', 'subscriber_catalog'];

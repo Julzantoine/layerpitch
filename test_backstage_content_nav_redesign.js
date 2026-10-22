@@ -109,9 +109,17 @@ check('draggable=true apres pointerdown sur la poignee', card1.draggable === tru
 document.dispatchEvent(new Event('pointerup', { bubbles: true }));
 check('draggable revient a false apres pointerup (n importe ou)', card1.draggable === false);
 
+// 22/10 : le bloc se saisit aussi par son corps (comme un fichier sur un bureau), sauf sur un contrôle (champ, bouton, liste...).
 const titleEl = card1.querySelector('strong');
 titleEl.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-check('pointerdown hors poignee n active jamais draggable', card1.draggable === false);
+check('pointerdown sur le corps du bloc arme le glissement', card1.draggable === true);
+document.dispatchEvent(new Event('pointerup', { bubbles: true }));
+check('...et il se relâche au pointerup', card1.draggable === false);
+const ctl = card1.querySelector('input, button, select, textarea');
+if (ctl) {
+  ctl.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+  check('pointerdown sur un champ ou un bouton n arme jamais le glissement', card1.draggable === false);
+}
 
 // 6) Reordonnancement effectif via drop.
 blocks = [

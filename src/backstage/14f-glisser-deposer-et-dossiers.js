@@ -89,6 +89,18 @@ function cloneWithCopyLabel(item, labelKey) {
   if (c[k] && String(c[k]).trim()) c[k] = tr('duplicateLabel', { label: c[k] });
   return c;
 }
+// Saisie par le corps de l'élément (22/10, demande de Jules-Antoine : comme un fichier sur un bureau, on clique n'importe où sur le bloc
+// pour le sélectionner et on le fait glisser en restant appuyé). Le glissement s'arme depuis n'importe quel endroit de l'élément, SAUF sur un
+// contrôle (champ, liste, bouton, lien, étiquette, zone de dépôt de fichier) où l'on doit pouvoir cliquer et sélectionner du texte normalement.
+const DRAG_BODY_EXCLUDED = 'input, select, textarea, button, a, label, summary, [contenteditable=""], [contenteditable="true"], [data-no-drag], .file-ctrl, .tour-root';
+function dragBodyArms(e) { return (e.button === undefined || e.button === 0) && !!e.target.closest && !e.target.closest(DRAG_BODY_EXCLUDED); }
+// Renvoie l'élément à armer pour ce pointerdown (poignée OU corps), ou null.
+function dragItemToArm(e, itemClass) {
+  const handle = e.target.closest('.block-drag-handle');
+  if (handle) { const it = handle.closest(itemClass); return it && ownsHandle(it, handle) ? it : null; }
+  if (!dragBodyArms(e)) return null;
+  return e.target.closest(itemClass) || null;
+}
 // Une poignée n'arme que l'élément qui la porte directement, jamais un élément qui le contient (27/09 : la
 // poignée d'un morceau du bloc Musique armait aussi le bloc entier, resté grisé après le dépôt).
 const DRAG_ITEM_SELECTOR = '[data-drag-id], .block-editor-card';
@@ -102,10 +114,8 @@ function wireArrayDragReorder(containerEl, itemClass, getArray, onDrop, cloneIte
   const idOf = x => (typeof x === 'string' ? x : x.id);
   let draggedId = null;
   containerEl.addEventListener('pointerdown', (e) => {
-    const handle = e.target.closest('.block-drag-handle');
-    if (!handle) return;
-    const item = handle.closest('.' + itemClass);
-    if (item && ownsHandle(item, handle)) item.draggable = true;
+    const item = dragItemToArm(e, '.' + itemClass);
+    if (item && item.dataset.dragId) item.draggable = true;
   });
   containerEl.addEventListener('dragstart', (e) => {
     const item = e.target.closest('.' + itemClass);
@@ -198,7 +208,7 @@ function wireArrayDragReorder(containerEl, itemClass, getArray, onDrop, cloneIte
 // document plutôt qu'un conteneur précis -- volontairement large, puisqu'un seul écouteur suffit pour
 // toutes les listes maître de tous les morceaux, quel que soit leur nombre.
 function releaseAllDragHandles() {
-  document.querySelectorAll('.seq-master-item[draggable="true"], .sel-track-item[draggable="true"]').forEach(c => { c.draggable = false; });
+  document.querySelectorAll('[data-drag-id][draggable="true"]:not(.block-editor-card), .seq-master-item[draggable="true"], .sel-track-item[draggable="true"]').forEach(c => { c.draggable = false; });
 }
 document.addEventListener('pointerup', releaseAllDragHandles);
 document.addEventListener('pointercancel', releaseAllDragHandles);
@@ -233,10 +243,8 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
       if (group) group.draggable = true;
       return;
     }
-    const rowHandle = e.target.closest('.block-drag-handle');
-    if (!rowHandle) return;
-    const row = rowHandle.closest('.org-row');
-    if (row && ownsHandle(row, rowHandle)) row.draggable = true;
+    const row = dragItemToArm(e, '.org-row');
+    if (row) row.draggable = true;
   });
   containerEl.addEventListener('dragstart', (e) => {
     const group = e.target.closest('.org-folder-group');
