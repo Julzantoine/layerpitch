@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792666279408">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792667133327">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1877,17 +1877,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792666279408"></script>
-<script src="layerpitch-i18n.js?v=1792666279408"></script>
-<script src="layerpitch-appearance.js?v=1792666279408"></script>
-<script src="layerpitch-album-shared.js?v=1792666279408"></script>
-<script src="layerpitch-album-editor.js?v=1792666279408"></script>
-<script src="layerpitch-shell.js?v=1792666279408"></script>
-<script src="layerpitch-social-icons.js?v=1792666279408"></script>
-<script src="layerpitch-notify.js?v=1792666279408"></script>
-<script src="layerpitch-guide.js?v=1792666279408"></script>
-<script src="layerpitch-help.js?v=1792666279408"></script>
-<script src="player.js?v=1792666279408"></script>
+<script src="layerpitch-tuto.js?v=1792667133327"></script>
+<script src="layerpitch-i18n.js?v=1792667133327"></script>
+<script src="layerpitch-appearance.js?v=1792667133327"></script>
+<script src="layerpitch-album-shared.js?v=1792667133327"></script>
+<script src="layerpitch-album-editor.js?v=1792667133327"></script>
+<script src="layerpitch-shell.js?v=1792667133327"></script>
+<script src="layerpitch-social-icons.js?v=1792667133327"></script>
+<script src="layerpitch-notify.js?v=1792667133327"></script>
+<script src="layerpitch-guide.js?v=1792667133327"></script>
+<script src="layerpitch-help.js?v=1792667133327"></script>
+<script src="player.js?v=1792667133327"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3326,6 +3326,7 @@ const FX_DEFAULTS = {
   bitcrush: () => ({ bits: 6, reduction: 6 }), // départ nettement audible (8 bits sans réduction ne s'entendait presque pas, 24/09)
   compressor: () => ({ threshold: -24, ratio: 4, makeup: 3 }),
   volume: () => ({ db: 0 }),
+  pan: () => ({ value: 0.5 }), // départ nettement audible : à moitié à droite
   // "rate" retiré des valeurs par défaut par élément (22/09) : devenu un réglage de morceau entier, voir
   // FX_TRACK_DEFAULTS ci-dessous et trackPitchFxHtml() -- ici, "shift" reste le seul mode par couche/
   // boucle/emplacement/pool, puisqu'il ne pose pas de problème de synchro (durée inchangée).
@@ -3539,7 +3540,7 @@ function fxBlockHtml(fx, extraAttrs) {
   // effets sont le contenu même de la carte.
   const fxKey = 'fx:' + (extraAttrs || '').replace(/\s+/g, ' ').trim();
   const expanded = isTriggerBlock || expandedAltPoolKeys.has(fxKey);
-  const activeCount = ['volume', 'compressor', 'lowcut', 'highcut', 'pitch', 'reverb', 'delay', 'bitcrush'].filter(k => fx[k]).length;
+  const activeCount = ['volume', 'pan', 'compressor', 'lowcut', 'highcut', 'pitch', 'reverb', 'delay', 'bitcrush'].filter(k => fx[k]).length;
   return `
     <div style="margin-top:10px">
       ${isTriggerBlock ? '' : `<button type="button" class="btn btn-small alt-pool-toggle" data-role="fxBlockToggle" data-fx-key="${escapeAttr(fxKey)}"><span data-role="caret">${expanded ? '▾' : '▸'}</span> ${tr('fxSectionTitle')}${activeCount ? ` <span class="hint-inline" style="margin:0">(${tr('fxActiveCount', { n: activeCount })})</span>` : ''}</button>`}
@@ -3547,6 +3548,10 @@ function fxBlockHtml(fx, extraAttrs) {
       ${toggle('volume', !!fx.volume, 'fxVolumeLabel', `
         ${num('volume', 'db', fx.volume ? fx.volume.db : 0, 'fxVolumeDbLabel', 0.5, -60, 12)}
         <div class="hint-inline">${tr('fxVolumeHint')}</div>
+      `)}
+      ${toggle('pan', !!fx.pan, 'fxPanLabel', `
+        ${num('pan', 'value', fx.pan ? fx.pan.value : 0.5, 'fxPanValueLabel', 0.1, -1, 1)}
+        <div class="hint-inline">${tr('fxPanHint')}</div>
       `)}
       ${toggle('compressor', !!fx.compressor, 'fxCompressorLabel', `<div data-fx-box="compressor">
         <div class="hint-inline">${tr('fxCompressorHint')}</div>

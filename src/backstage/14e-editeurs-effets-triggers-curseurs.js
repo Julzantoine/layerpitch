@@ -167,7 +167,7 @@ function fxBlockHtml(fx, extraAttrs) {
   // effets sont le contenu même de la carte.
   const fxKey = 'fx:' + (extraAttrs || '').replace(/\s+/g, ' ').trim();
   const expanded = isTriggerBlock || expandedAltPoolKeys.has(fxKey);
-  const activeCount = ['volume', 'compressor', 'lowcut', 'highcut', 'pitch', 'reverb', 'delay', 'bitcrush'].filter(k => fx[k]).length;
+  const activeCount = ['volume', 'pan', 'compressor', 'lowcut', 'highcut', 'pitch', 'reverb', 'delay', 'bitcrush'].filter(k => fx[k]).length;
   return `
     <div style="margin-top:10px">
       ${isTriggerBlock ? '' : `<button type="button" class="btn btn-small alt-pool-toggle" data-role="fxBlockToggle" data-fx-key="${escapeAttr(fxKey)}"><span data-role="caret">${expanded ? '▾' : '▸'}</span> ${tr('fxSectionTitle')}${activeCount ? ` <span class="hint-inline" style="margin:0">(${tr('fxActiveCount', { n: activeCount })})</span>` : ''}</button>`}
@@ -175,6 +175,10 @@ function fxBlockHtml(fx, extraAttrs) {
       ${toggle('volume', !!fx.volume, 'fxVolumeLabel', `
         ${num('volume', 'db', fx.volume ? fx.volume.db : 0, 'fxVolumeDbLabel', 0.5, -60, 12)}
         <div class="hint-inline">${tr('fxVolumeHint')}</div>
+      `)}
+      ${toggle('pan', !!fx.pan, 'fxPanLabel', `
+        ${num('pan', 'value', fx.pan ? fx.pan.value : 0.5, 'fxPanValueLabel', 0.1, -1, 1)}
+        <div class="hint-inline">${tr('fxPanHint')}</div>
       `)}
       ${toggle('compressor', !!fx.compressor, 'fxCompressorLabel', `<div data-fx-box="compressor">
         <div class="hint-inline">${tr('fxCompressorHint')}</div>

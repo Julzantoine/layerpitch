@@ -80,6 +80,7 @@ const FX_DEFAULTS = {
   bitcrush: () => ({ bits: 6, reduction: 6 }), // départ nettement audible (8 bits sans réduction ne s'entendait presque pas, 24/09)
   compressor: () => ({ threshold: -24, ratio: 4, makeup: 3 }),
   volume: () => ({ db: 0 }),
+  pan: () => ({ value: 0.5 }), // départ nettement audible : à moitié à droite
   // "rate" retiré des valeurs par défaut par élément (22/09) : devenu un réglage de morceau entier, voir
   // FX_TRACK_DEFAULTS ci-dessous et trackPitchFxHtml() -- ici, "shift" reste le seul mode par couche/
   // boucle/emplacement/pool, puisqu'il ne pose pas de problème de synchro (durée inchangée).

@@ -149,7 +149,7 @@ function advanceChainIndex(index, n, chainState, maxChainLoops, randomize) {
 // Pastilles « effets en cours » sous les boutons de triggers (6/10) : une pastille par effet du trigger et de chacune de ses étapes,
 // grisées au départ, allumées quand leur étape est active (voir updateFxTriggerButtons) -- la cascade se déroule sous les yeux du
 // visiteur. Le compositeur peut les masquer par trigger (showEffects === false). Pure : renvoie du HTML.
-const FX_CHIP_KEYS = { volume: 'fxChipVolume', lowcut: 'fxChipLowcut', highcut: 'fxChipHighcut', pitch: 'fxChipPitch', reverb: 'fxChipReverb', delay: 'fxChipDelay', bitcrush: 'fxChipBitcrush', compressor: 'fxChipCompressor' };
+const FX_CHIP_KEYS = { volume: 'fxChipVolume', lowcut: 'fxChipLowcut', highcut: 'fxChipHighcut', pitch: 'fxChipPitch', reverb: 'fxChipReverb', delay: 'fxChipDelay', bitcrush: 'fxChipBitcrush', compressor: 'fxChipCompressor', pan: 'fxChipPan' };
 function fxEffectChipsHtml(track, shownTriggers) {
   const all = expandTriggerSteps(track.fxTriggers);
   const rows = shownTriggers.filter(d => d.showEffects !== false).map(d => {

@@ -1194,7 +1194,7 @@ function advanceChainIndex(index, n, chainState, maxChainLoops, randomize) {
 // Pastilles « effets en cours » sous les boutons de triggers (6/10) : une pastille par effet du trigger et de chacune de ses étapes,
 // grisées au départ, allumées quand leur étape est active (voir updateFxTriggerButtons) -- la cascade se déroule sous les yeux du
 // visiteur. Le compositeur peut les masquer par trigger (showEffects === false). Pure : renvoie du HTML.
-const FX_CHIP_KEYS = { volume: 'fxChipVolume', lowcut: 'fxChipLowcut', highcut: 'fxChipHighcut', pitch: 'fxChipPitch', reverb: 'fxChipReverb', delay: 'fxChipDelay', bitcrush: 'fxChipBitcrush', compressor: 'fxChipCompressor' };
+const FX_CHIP_KEYS = { volume: 'fxChipVolume', lowcut: 'fxChipLowcut', highcut: 'fxChipHighcut', pitch: 'fxChipPitch', reverb: 'fxChipReverb', delay: 'fxChipDelay', bitcrush: 'fxChipBitcrush', compressor: 'fxChipCompressor', pan: 'fxChipPan' };
 function fxEffectChipsHtml(track, shownTriggers) {
   const all = expandTriggerSteps(track.fxTriggers);
   const rows = shownTriggers.filter(d => d.showEffects !== false).map(d => {
@@ -2446,6 +2446,11 @@ function applyFxToChain(ctx, chain, fx, rampSec, atTime) {
     const c = fx.volume;
     set(n.volume.gain, c && Number.isFinite(c.db) ? Math.pow(10, Math.min(Math.max(c.db, -60), 12) / 20) : 1);
   }
+  // Pan (22/10) : neutre = centre (0).
+  if (n.pan) {
+    const c = fx.pan;
+    set(n.pan.pan, c && Number.isFinite(c.value) ? Math.min(Math.max(c.value, -1), 1) : 0);
+  }
 }
 // includeBitcrush (défaut vrai) : un ScriptProcessorNode continue de traiter du silence tant qu'il reste
 // connecté, contrairement à un filtre/reverb/écho natifs (coût négligeable une fois la source arrêtée,
@@ -2467,7 +2472,7 @@ function buildLayerFxChain(ctx, fx, src, startTime, includeBitcrush, forceKeys) 
   fx = fx || {};
   const force = forceKeys || [];
   const wants = k => !!fx[k] || force.indexOf(k) >= 0;
-  if (!wants('lowcut') && !wants('highcut') && !wants('reverb') && !wants('delay') && !wants('bitcrush') && !wants('compressor') && !wants('pitch') && !wants('volume')) return null;
+  if (!wants('lowcut') && !wants('highcut') && !wants('reverb') && !wants('delay') && !wants('bitcrush') && !wants('compressor') && !wants('pitch') && !wants('volume') && !wants('pan')) return null;
   const nodes = {};
   const input = ctx.createGain(); // point d'entrée neutre (gain 1), toujours présent même chaîne courte
   let chainEnd = input;
@@ -2550,6 +2555,15 @@ function buildLayerFxChain(ctx, fx, src, startTime, includeBitcrush, forceKeys) 
     chainEnd.connect(vol);
     chainEnd = vol;
     nodes.volume = vol;
+  }
+
+  // Pan (22/10) : place la voix à gauche ou à droite de l'image stéréo (-1 = tout à gauche, 0 = centre, 1 = tout à droite). Dernier
+  // maillon, après le volume : il règle la position de la voix déjà traitée. Ignoré (voix inchangée) sur un navigateur sans StereoPanner.
+  if (wants('pan') && typeof ctx.createStereoPanner === 'function') {
+    const panner = ctx.createStereoPanner();
+    chainEnd.connect(panner);
+    chainEnd = panner;
+    nodes.pan = panner;
   }
 
   const chain = { input, output: chainEnd, nodes };
