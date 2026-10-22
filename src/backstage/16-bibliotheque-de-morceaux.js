@@ -741,10 +741,14 @@ function togglePreview(ti, cardEl) {
   const previewPlayBtn = row.querySelector('[data-role="playBtn"]');
   try { if (window.LayerPlayerCore && window.LayerPlayerCore.resumeAudio) window.LayerPlayerCore.resumeAudio(); } catch (e) { /* le bouton Lecture reste disponible */ }
   if (previewPlayBtn) {
+    // Numéro de lancement (22/10) : l'identifiant de l'aperçu est le même à chaque relance ; sans ce numéro, le minuteur d'une relance
+    // précédente (aperçu relancé à chaque clic sur la flèche d'un champ) cliquait encore sur SON bouton Lecture -> lectures superposées.
+    host._previewGen = (host._previewGen || 0) + 1;
+    const gen = host._previewGen;
     let waited = 0;
     const autoplayTimer = setInterval(() => {
       waited += 120;
-      if (host.dataset.active !== '1' || host.dataset.previewId !== previewTrack.id) { clearInterval(autoplayTimer); return; }
+      if (host.dataset.active !== '1' || host.dataset.previewId !== previewTrack.id || host._previewGen !== gen) { clearInterval(autoplayTimer); return; }
       if (!previewPlayBtn.disabled) { clearInterval(autoplayTimer); previewPlayBtn.click(); }
       else if (waited > 120000) clearInterval(autoplayTimer);
     }, 120);

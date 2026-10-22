@@ -764,7 +764,15 @@ document.getElementById('libraryContainer').addEventListener('change', e => {
     const isFile = e.target.type === 'file';
     if ((names.length || isFile) && !names.some(n => DESCRIPTIVE_FIELDS.test(n))) {
       const ti = parseInt(e.target.dataset.ti, 10);
-      if (!isNaN(ti) && library[ti]) { togglePreview(ti, card); togglePreview(ti, card); return; }
+      // Relance différée (22/10) : les flèches d'un champ numérique envoient un « change » à chaque clic ; on attend la fin de la
+      // série de clics pour relancer l'aperçu une seule fois, au lieu de le redémarrer (et de le superposer) à chaque clic.
+      if (!isNaN(ti) && library[ti]) {
+        clearTimeout(previewHost._restartTimer);
+        previewHost._restartTimer = setTimeout(() => {
+          if (previewHost.dataset.active === '1' && card.isConnected && library[ti]) { togglePreview(ti, card); togglePreview(ti, card); }
+        }, 450);
+        return;
+      }
     }
   }
   const isTimingField = (field === 'bpm' || field === 'beatsPerBar') || (sectionField === 'bpm' || sectionField === 'beatsPerBar');
