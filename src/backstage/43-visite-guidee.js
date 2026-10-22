@@ -647,6 +647,8 @@ const GUIDE = window.LayerPitchGuide.create({
   onLessonDone: lessonMarkDone,
   onTourDone: tourMarkDone,
   onClose: () => renderTutorialMenu(),
+  // « Quitter » une leçon du tutoriel (22/10) : le tutoriel se remet à zéro (compte fictif, bibliothèque d'exemple), sans les restes de la leçon.
+  onQuit: () => { if (isTutoMode()) window.location.href = window.location.pathname + '?tuto&lang=' + currentLang(); },
   onOpen: () => { const helpTip = document.getElementById('helpTooltip'); if (helpTip) helpTip.classList.remove('visible'); },
   // Vignettes d'exemple : lot à télécharger, bouton « Utiliser » (étapes useSample dont les URL sont connues), et « bientôt
   // disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
@@ -700,6 +702,11 @@ function startBackstageTour() {
 function startLesson(id) {
   const lesson = LESSONS.find(l => l.id === id);
   if (lesson && lesson.page && lessonsAccessOpen() && lessonPlayable(lesson)) { window.location.href = lessonTutoUrl(lesson, id); return; }
+  // Dans le tutoriel, chaque leçon repart d'un compte d'exemple propre (22/10) : changer de leçon recharge la page, sinon les restes
+  // de la leçon précédente (morceau créé, fenêtres) restent à l'écran.
+  if (lesson && lesson.steps && lessonsAccessOpen() && lessonPlayable(lesson) && !lesson.soon && isTutoMode() && new URLSearchParams(window.location.search).get('lesson') !== id) {
+    window.location.href = window.location.pathname + '?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); return;
+  }
   if (lesson && lesson.reload && lessonsAccessOpen() && lessonPlayable(lesson) && !lesson.soon && !(isTutoMode() && new URLSearchParams(window.location.search).get('lesson') === id)) {
     window.location.href = window.location.pathname + '?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); return;
   }
