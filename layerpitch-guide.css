@@ -50,3 +50,4 @@
 .tour-beta-msg.err { color: #b3261e; }
 .tour-beta-ok { color: var(--text); }
 .tour-beta-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.tour-free { font-size: 13px; line-height: 1.55; color: var(--text); margin: 0 0 12px; }

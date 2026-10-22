@@ -649,8 +649,6 @@ const GUIDE = window.LayerPitchGuide.create({
   onLessonDone: lessonMarkDone,
   onTourDone: tourMarkDone,
   onClose: () => renderTutorialMenu(),
-  // « Quitter » une leçon du tutoriel (22/10) : le tutoriel se remet à zéro (compte fictif, bibliothèque d'exemple), sans les restes de la leçon.
-  onQuit: () => { if (isTutoMode()) window.location.href = window.location.pathname + '?tuto&lang=' + currentLang(); },
   onOpen: () => { const helpTip = document.getElementById('helpTooltip'); if (helpTip) helpTip.classList.remove('visible'); },
   // Vignettes d'exemple : lot à télécharger, bouton « Utiliser » (étapes useSample dont les URL sont connues), et « bientôt
   // disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
