@@ -438,9 +438,9 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && t.mode === 'sequential'; } },
     { useSample: true, selector: '#libraryDetail .seq-master-item[data-seq-key="seqIntro"]', titleKey: 'lqIntroTitle', textKey: 'lqIntroText', sampleKey: 'sequential', names: 'seqIntro',
       done: () => { const t = lessonTrack(); return !!t && lessonHasFile(t.intro); } },
-    // L'intro de l'exemple dure 2 temps (moins d'une mesure) et le nom ne dit que le tempo : réglage manuel (mesures = 1, temps par mesure = 2).
+    // L'intro de l'exemple dure 2 temps (moins d'une mesure) et son nom ne porte aucun tempo : réglage manuel (BPM = 110, mesures = 1, temps par mesure = 2).
     { selector: '#libraryDetail .row:has([data-field="introBars"])', titleKey: 'lqIntroSetTitle', textKey: 'lqIntroSetText',
-      done: () => { const t = lessonTrack(); return !!t && !!t.intro && Number(t.intro.bars) === 1 && Number(t.intro.beatsPerBar) === 2; } },
+      done: () => { const t = lessonTrack(); return !!t && !!t.intro && Number(t.intro.bars) === 1 && Number(t.intro.beatsPerBar) === 2 && Number(t.intro.bpm) === 110; } },
     { selector: '#libraryDetail [data-action="add-segment-slot"]', titleKey: 'lqSlotTitle', textKey: 'lqSlotText',
       done: () => { const t = lessonTrack(); return !!t && (t.segmentSlots || []).length >= 1; } },
     { useSample: true, selector: '#libraryDetail .seq-master-item[data-si="0"]', titleKey: 'lqSegTitle', textKey: 'lqSegText', names: 'seqAlt1',
