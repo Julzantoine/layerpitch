@@ -737,6 +737,13 @@ function applyFxToChain(ctx, chain, fx, rampSec, atTime) {
     const c = fx.pitch;
     setNodeParams(n.pitchShift, { enabled: !!(c && c.mode === 'shift'), semitones: c ? (c.semitones || 0) : n.pitchShift.params.semitones });
   }
+  // Compresseur (22/10) : réglage neutre = seuil à 0 dB, ratio 1:1, gain de compensation à 0 dB (le signal passe tel quel).
+  if (n.compressor) {
+    const c = fx.compressor;
+    set(n.compressor.node.threshold, c ? Math.min(Math.max(Number.isFinite(c.threshold) ? c.threshold : -24, -60), 0) : 0);
+    set(n.compressor.node.ratio, c ? Math.min(Math.max(Number.isFinite(c.ratio) ? c.ratio : 4, 1), 20) : 1);
+    set(n.compressor.makeup.gain, c && Number.isFinite(c.makeup) ? Math.pow(10, Math.min(Math.max(c.makeup, -12), 24) / 20) : 1);
+  }
   if (n.volume) {
     const c = fx.volume;
     set(n.volume.gain, c && Number.isFinite(c.db) ? Math.pow(10, Math.min(Math.max(c.db, -60), 12) / 20) : 1);
@@ -762,7 +769,7 @@ function buildLayerFxChain(ctx, fx, src, startTime, includeBitcrush, forceKeys) 
   fx = fx || {};
   const force = forceKeys || [];
   const wants = k => !!fx[k] || force.indexOf(k) >= 0;
-  if (!wants('lowcut') && !wants('highcut') && !wants('reverb') && !wants('delay') && !wants('bitcrush') && !wants('pitch') && !wants('volume')) return null;
+  if (!wants('lowcut') && !wants('highcut') && !wants('reverb') && !wants('delay') && !wants('bitcrush') && !wants('compressor') && !wants('pitch') && !wants('volume')) return null;
   const nodes = {};
   const input = ctx.createGain(); // point d'entrée neutre (gain 1), toujours présent même chaîne courte
   let chainEnd = input;
@@ -794,6 +801,19 @@ function buildLayerFxChain(ctx, fx, src, startTime, includeBitcrush, forceKeys) 
     chainEnd.connect(crusher);
     chainEnd = crusher;
     nodes.bitcrush = crusher;
+  }
+
+  // Compresseur (22/10) : placé AVANT l'écho et la reverb (il uniformise la voix sèche, sans écraser la queue de reverb),
+  // suivi d'un gain de compensation. Attaque/relâchement/coude fixes : réglages de voix de basse/lead courants.
+  if (wants('compressor')) {
+    const node = ctx.createDynamicsCompressor();
+    node.attack.value = 0.01;
+    node.release.value = 0.25;
+    node.knee.value = 12;
+    const makeup = ctx.createGain();
+    chainEnd.connect(node); node.connect(makeup);
+    chainEnd = makeup;
+    nodes.compressor = { node, makeup };
   }
 
   if (wants('delay')) {

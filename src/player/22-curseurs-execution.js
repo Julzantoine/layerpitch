@@ -105,8 +105,12 @@
   // automatique — sinon un fichier qui sonne différemment de ce qu'il a exporté serait déroutant.
   // Le gain mesuré à la conversion reste stocké dans tous les cas ; ce n'est que son application à la
   // lecture qui dépend de ce réglage.
+  // Volume propre à une variation (22/10, réglage du compositeur en dB) : toujours appliqué, contrairement au gain
+  // d'harmonisation ci-dessus qui dépend de la case du morceau.
   function effGain(item) {
-    return (track.normalizeVolume && item && item.gain) ? item.gain : 1;
+    const norm = (track.normalizeVolume && item && item.gain) ? item.gain : 1;
+    const db = item && Number.isFinite(item.volumeDb) ? Math.min(Math.max(item.volumeDb, -24), 12) : 0;
+    return norm * Math.pow(10, db / 20);
   }
   // Solo/muet par voix (vertical et vertical-random) : plusieurs voix peuvent être soloées en même temps
   // (convention DAW classique) — dès qu'au moins une l'est, tout le reste se tait, quel que soit son

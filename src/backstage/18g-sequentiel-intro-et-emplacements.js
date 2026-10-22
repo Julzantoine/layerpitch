@@ -282,6 +282,7 @@
             <div class="row">
               <div><label>${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('altLabelPlaceholder')}" data-slot-alt-field="label" data-ti="${ti}" data-si="${si}" data-ai="${ai}" value="${escapeAttr(alt.label)}"></div>
               <div><label>${tr('barsLabel')}</label><input type="text" inputmode="numeric" data-slot-alt-field="bars" data-ti="${ti}" data-si="${si}" data-ai="${ai}" value="${alt.bars || 8}"></div>
+              <div><label>${tr('altVolumeLabel')}</label><input type="number" step="0.5" min="-24" max="12" data-slot-alt-field="volumeDb" data-ti="${ti}" data-si="${si}" data-ai="${ai}" value="${alt.volumeDb || 0}"></div>
               <div><label>${tr('roleLabel')}</label>
                 <select data-role-select="segment" data-ti="${ti}" data-si="${si}" data-ai="${ai}">
                   <option value="intro">${tr('roleIntro')}</option>

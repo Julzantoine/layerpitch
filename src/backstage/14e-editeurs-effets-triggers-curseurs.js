@@ -53,6 +53,7 @@ const FX_PRESETS = {
   highcut:  [{ frequency: 12000 }, { frequency: 5000 }, { frequency: 1500 }],
   reverb:   [{ decay: 0.8, wet: 0.2 }, { decay: 2, wet: 0.3 }, { decay: 5, wet: 0.45 }],
   delay:    [{ time: 0.12, feedback: 0.2, wet: 0.2 }, { time: 0.3, feedback: 0.35, wet: 0.25 }, { time: 0.6, feedback: 0.5, wet: 0.3 }],
+  compressor: [{ threshold: -18, ratio: 2, makeup: 1 }, { threshold: -24, ratio: 4, makeup: 3 }, { threshold: -30, ratio: 8, makeup: 6 }],
   bitcrush: [{ bits: 10, reduction: 2 }, { bits: 6, reduction: 6 }, { bits: 3, reduction: 12 }]
 };
 const FX_PRESET_KEYS = ['fxPresetLight', 'fxPresetMedium', 'fxPresetHard'];
@@ -130,7 +131,7 @@ function fxBlockHtml(fx, extraAttrs) {
   // effets sont le contenu même de la carte.
   const fxKey = 'fx:' + (extraAttrs || '').replace(/\s+/g, ' ').trim();
   const expanded = isTriggerBlock || expandedAltPoolKeys.has(fxKey);
-  const activeCount = ['volume', 'lowcut', 'highcut', 'pitch', 'reverb', 'delay', 'bitcrush'].filter(k => fx[k]).length;
+  const activeCount = ['volume', 'compressor', 'lowcut', 'highcut', 'pitch', 'reverb', 'delay', 'bitcrush'].filter(k => fx[k]).length;
   return `
     <div style="margin-top:10px">
       ${isTriggerBlock ? '' : `<button type="button" class="btn btn-small alt-pool-toggle" data-role="fxBlockToggle" data-fx-key="${escapeAttr(fxKey)}"><span data-role="caret">${expanded ? '▾' : '▸'}</span> ${tr('fxSectionTitle')}${activeCount ? ` <span class="hint-inline" style="margin:0">(${tr('fxActiveCount', { n: activeCount })})</span>` : ''}</button>`}
@@ -139,6 +140,13 @@ function fxBlockHtml(fx, extraAttrs) {
         ${num('volume', 'db', fx.volume ? fx.volume.db : 0, 'fxVolumeDbLabel', 0.5, -60, 12)}
         <div class="hint-inline">${tr('fxVolumeHint')}</div>
       `)}
+      ${toggle('compressor', !!fx.compressor, 'fxCompressorLabel', `<div data-fx-box="compressor">
+        <div class="hint-inline">${tr('fxCompressorHint')}</div>
+        ${fxPresetsHtml('compressor', fx.compressor, gated)}
+        ${num('compressor', 'threshold', fx.compressor ? fx.compressor.threshold : -24, 'fxCompressorThresholdLabel', 1, -60, 0)}
+        ${num('compressor', 'ratio', fx.compressor ? fx.compressor.ratio : 4, 'fxCompressorRatioLabel', 0.5, 1, 20)}
+        ${num('compressor', 'makeup', fx.compressor ? fx.compressor.makeup : 3, 'fxCompressorMakeupLabel', 0.5, -12, 24)}
+      </div>`)}
       ${['lowcut', 'highcut'].map(k => {
         const c = k === 'lowcut' ? lc : hc;
         const slopeVal = c && (+c.slope === 12 || +c.slope === 48) ? +c.slope : 24;

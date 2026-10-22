@@ -55,7 +55,7 @@ async function loadData(silent) {
           pools: (sec.pools || []).map(p => ({
             id: p.id || genId(), label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
             referencesPoolId: p.referencesPoolId || null,
-            alternatives: (p.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1 })),
+            alternatives: (p.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1, volumeDb: a.volumeDb || 0 })),
             fx: p.fx || null
           }))
         }));
@@ -69,7 +69,7 @@ async function loadData(silent) {
           migratedPools.push({
             id: g.id || genId(), label: g.label || '', avoidImmediateRepeat: g.avoidImmediateRepeat !== false,
             referencesPoolId: g.referencesGroupId || null,
-            alternatives: (g.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file || null, pendingFile: null, gain: a.gain || 1 }))
+            alternatives: (g.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file || null, pendingFile: null, gain: a.gain || 1, volumeDb: a.volumeDb || 0 }))
           });
         });
         sections = migratedPools.length ? [{
@@ -121,7 +121,7 @@ async function loadData(silent) {
             transition: opt.transition ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, remoteFile: opt.transition.file || null, originalFileName: opt.transition.originalFileName || null, pendingFile: null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '', fx: opt.transition.fx || null } : null,
             fxActions: opt.fxActions || null
           })) : null,
-          alternatives: (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1 })),
+          alternatives: (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1, volumeDb: a.volumeDb || 0 })),
           fx: sl.fx || null
         })) : ((t.segments && t.segments.length) ? [{
           id: genId(), label: '', avoidImmediateRepeat: t.avoidImmediateRepeat !== false, repeatCount: 1,

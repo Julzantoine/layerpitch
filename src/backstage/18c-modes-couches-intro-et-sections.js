@@ -145,6 +145,8 @@
               altRow.innerHTML = `
                 <div data-role="poolAltFileCtrl"></div>
                 <label style="margin-top:8px">${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('altLabelPlaceholder')}" data-pool-alt-field="label" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" data-ai="${ai}" value="${escapeAttr(alt.label)}">
+                <label style="margin-top:8px">${tr('altVolumeLabel')}</label><input type="number" step="0.5" min="-24" max="12" data-pool-alt-field="volumeDb" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" data-ai="${ai}" value="${alt.volumeDb || 0}" style="max-width:120px">
+                <div class="hint-inline">${tr('altVolumeHint')}</div>
               `;
               const altCtrlHost = altRow.querySelector('[data-role="poolAltFileCtrl"]');
               altCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'), deleteIconBtnHtml('remove-pool-alt', { ti, si: sci, pi, ai }, tr('removeAlternativeBtn')));

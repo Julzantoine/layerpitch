@@ -52,7 +52,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
           transition: (opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile)) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile || null, localUrl: opt.transition.remoteFile ? null : pendingPreviewUrl(opt.transition.pendingFile), originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '', fx: opt.transition.fx || null } : null,
           fxActions: opt.fxActions || null
         })) : null,
-        alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1 })),
+        alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1, volumeDb: a.volumeDb || 0 })),
         fx: sl.fx || null
       })),
       // Embranchement-vertical : une entrée par boucle déclarée (même les boucles sans fichier — voir
@@ -92,7 +92,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         pools: sec.referencesSectionId ? [] : (sec.pools || []).map(p => ({
           id: p.id, label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
           referencesPoolId: p.referencesPoolId || null,
-          alternatives: p.referencesPoolId ? [] : (p.alternatives || []).map(a => ({ label: a.label || '', file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1 })),
+          alternatives: p.referencesPoolId ? [] : (p.alternatives || []).map(a => ({ label: a.label || '', file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1, volumeDb: a.volumeDb || 0 })),
           fx: p.fx || null
         }))
       })),

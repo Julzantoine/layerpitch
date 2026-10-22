@@ -597,6 +597,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     const alt = library[ti].segmentSlots[si].alternatives[ai];
     if (e.target.dataset.slotAltField === 'label') alt.label = e.target.value;
     else if (e.target.dataset.slotAltField === 'bars') alt.bars = parseInt(e.target.value, 10) || 8;
+    else if (e.target.dataset.slotAltField === 'volumeDb') alt.volumeDb = Math.min(Math.max(parseFloat(e.target.value) || 0, -24), 12);
   } else if (e.target.dataset.branchField) {
     const ti = parseInt(e.target.dataset.ti, 10);
     const si = parseInt(e.target.dataset.si, 10);
@@ -707,6 +708,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     const ai = parseInt(e.target.dataset.ai, 10);
     const alt = library[ti].sections[si].pools[pi].alternatives[ai];
     if (e.target.dataset.poolAltField === 'label') alt.label = e.target.value;
+    else if (e.target.dataset.poolAltField === 'volumeDb') alt.volumeDb = Math.min(Math.max(parseFloat(e.target.value) || 0, -24), 12);
   } else if (e.target.dataset.roleSelect) {
     // Reclassification d'un bloc du mode séquentiel entre intro / segment / outro (utilisé après le
     // dépôt groupé, dont le rôle deviné par nom de fichier peut avoir besoin d'être corrigé).
