@@ -15,6 +15,11 @@ const TOUR_STEPS = [
 ];
 
 // Morceau en cours d'édition dans la Bibliothèque musicale (celui sélectionné dans la liste).
+// Pool « basse » du morceau de la leçon aléatoire (compresseur, 22/10) : son rang dans la section, et ses éléments dans l'éditeur.
+function lessonBassPoolIndex() { const sec = lessonSection(); return sec ? (sec.pools || []).findIndex(p => /\bBS$/i.test((p.label || '').trim())) : -1; }
+function lessonBassFxToggle() { const i = lessonBassPoolIndex(); return i < 0 ? null : document.querySelector(`#libraryDetail [data-role="fxBlockToggle"][data-fx-key*='data-fx-target="pool"'][data-fx-key*='data-pi="${i}"']`); }
+function lessonBassCompressorCheckbox() { const i = lessonBassPoolIndex(); return i < 0 ? null : document.querySelector(`#libraryDetail input[data-fx-effect="compressor"][data-fx-param="enabled"][data-fx-target="pool"][data-pi="${i}"]`); }
+function lessonBassCompressor() { const sec = lessonSection(); const p = sec && sec.pools && sec.pools[lessonBassPoolIndex()]; return (p && p.fx && p.fx.compressor) || null; }
 function lessonSection() { const t = lessonTrack(); return (t && t.sections && t.sections[0]) || null; }
 function lessonPoolFiles(i) { const sec = lessonSection(); const p = sec && sec.pools && sec.pools[i]; return p ? (p.alternatives || []).filter(a => a.pendingFile || a.remoteFile).length : 0; }
 // Point d'accès unique aux leçons : aujourd'hui le feu vert « in_app_lessons ». Une future version publique (mode démo,
@@ -409,6 +414,13 @@ const LESSONS = [
     // L'intro (2 temps, moins d'une mesure) est rangée toute seule, mais sa durée se règle à la main : 1 mesure de 2 temps.
     { selector: '#libraryDetail [data-role="introTimingRows"]', titleKey: 'lrIntroSetTitle', textKey: 'lrIntroSetText',
       done: () => { const t = lessonTrack(); return !!t && !!t.intro && Number(t.intro.bars) === 1 && Number(t.intro.beatsPerBar) === 2; } },
+    // Compresseur sur la basse (22/10) : réglages de Jules-Antoine (seuil -30 dB, ratio 4, gain +2 dB). Ignoré tant que les effets par voix sont fermés.
+    { selector: () => lessonBassFxToggle(), titleKey: 'lrCompOpenTitle', textKey: 'lrCompOpenText', skip: () => !fxOpen('fx_per_voice') || lessonBassPoolIndex() < 0,
+      done: () => { const b = lessonBassFxToggle(); return !!b && expandedAltPoolKeys.has(b.dataset.fxKey); } },
+    { selector: () => lessonBassCompressorCheckbox(), titleKey: 'lrCompOnTitle', textKey: 'lrCompOnText', skip: () => !fxOpen('fx_per_voice') || lessonBassPoolIndex() < 0,
+      done: () => !!lessonBassCompressor() },
+    { selector: () => { const c = lessonBassCompressorCheckbox(); return c ? c.closest('label').parentElement : null; }, titleKey: 'lrCompSetTitle', textKey: 'lrCompSetText', skip: () => !fxOpen('fx_per_voice') || lessonBassPoolIndex() < 0,
+      done: () => { const c = lessonBassCompressor(); return !!c && c.threshold === -30 && c.ratio === 4 && c.makeup === 2; } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lrListenTitle', textKey: 'lrListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lrEndTitle', textKey: 'lrEndText', final: true },
