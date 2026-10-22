@@ -87,6 +87,17 @@
   const DEMO_TRACK_JAZZ_SFX = { id: 't-jazz-lo', owner_id: 'demo-composer', folder_id: null, title: 'Jazz Lo Static', description: '', mode: 'static', loopable: true, loop_engine: 'quantized',
     bpm: 110, beats_per_bar: 4, loop_in_beat: 2, loop_out_beat: 34, duration: 20.48, base: TUTO_BASE + 'Jazz%20Lo/', layers: [{ label: 'Jazz Lo', file: 'Jazz Lo_2bts Intro_8M_110bpm.wav', originalFileName: 'Jazz Lo_2bts Intro_8M_110bpm.wav', gain: 1, duration: 20.48 }],
     intro: null, outro: null, loops: null, sections: null, segment_slots: [], track_sfx: [], tags: [], fx: null, fx_triggers: [], fx_sliders: [], protected: false, retired_at: null };
+  // Les trois Sfx de la leçon Sfx, déjà dans la bibliothèque et dans le morceau pendant la leçon « événements d'effets » (22/10) : on les déclenche par-dessus
+  // l'ambiance « groupe dans un coin » pour un vrai bar. Réglages relevés dans le Backstage de Jules-Antoine ; fichiers dans media.layerpitch.com/tuto/SFX/.
+  const SFX_BASE = TUTO_BASE + 'SFX/';
+  const sfxRow = (id, title, files, spatial) => ({ id, owner_id: 'demo-composer', folder_id: null, title, description_fr: '', description_en: '', rr_mode: 'random', duck_main_track: false,
+    base: SFX_BASE, alternatives: files.map(f => ({ file: f, label: f.replace(/\.wav$/, ''), originalFileName: f })), spatial, tag: '', retired_at: null, protected: false });
+  const SFX_SPACE = (x, y, mode, points, binaural, durationSec) => ({ x, y, room: 'room', enabled: true, binaural, path: { loop: 'loop', mode, points, durationSec: durationSec || null } });
+  const DEMO_SFX = [
+    sfxRow('sfx-glacons', 'Glaçons', ['Glaçons 1.wav', 'Glaçons 2.wav', 'Glaçons 3.wav'], SFX_SPACE(1.4, -0.5, 'steps', [{ x: 1.4, y: -0.5 }, { x: -1.4, y: -0.5 }, { x: 1.2, y: 0.7 }, { x: -1, y: 1.4 }, { x: -2, y: -0.1 }, { x: -0.5, y: -1.6 }], false)),
+    sfxRow('sfx-verre', 'Se Remplir un Verre', ['Verre 1.wav', 'Verre 2.wav'], SFX_SPACE(1.4, 0.6, 'steps', [{ x: 1.4, y: 0.6 }, { x: -1.4, y: 0.6 }, { x: 1.1, y: -0.7 }, { x: 0.3, y: -1.7 }, { x: -1.9, y: -1.4 }], true)),
+    sfxRow('sfx-bar', 'Se balader dans le Bar', ['AMBRest_Ambiance de bar 2 (ID 0481)_LaSonotheque.fr.wav'], SFX_SPACE(1.5, 0.4, 'glide', [{ x: 1.5, y: 0.4 }, { x: -1.7, y: 1.3 }, { x: -1.9, y: -1.2 }, { x: 1.9, y: -1.4 }, { x: 2, y: 1.4 }, { x: -0.9, y: 0.3 }], true, 20)),
+  ];
   // Pack de la bibliothèque du compositeur fictif (leçon « La musique du projet » : on le partage au Projet).
   const DEMO_PACKS = [{ id: 'p-alone', owner_id: 'demo-composer', title: 'Alone : ambiances du lac (exemple)', illustration: null, illustration_original_name: null, watermark: null,
     watermark_original_name: null, presentation_fr: '', presentation_en: '', buyable: false, buy_url: null, free_download_enabled: false, video_test_mode_enabled: false,
@@ -105,7 +116,9 @@
   const listRows = table => {
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
     if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
-    if (table === 'tracks' && (lessonParam() === 'sfx' || lessonParam() === 'events')) return [DEMO_TRACK_JAZZ_SFX];
+    if (table === 'tracks' && lessonParam() === 'sfx') return [DEMO_TRACK_JAZZ_SFX];
+    if (table === 'tracks' && lessonParam() === 'events') return [Object.assign({}, DEMO_TRACK_JAZZ_SFX, { track_sfx: DEMO_SFX.map((x, i) => ({ sfx_id: x.id, position: i })) })];
+    if (table === 'sfx_library' && lessonParam() === 'events') return DEMO_SFX;
     if (table === 'packs' && projectPage) return DEMO_PACKS;
     // Atelier vidéo (21/10 : l'outil de capture a quitté la page du pack pour l'atelier, ouvert dans le Backstage).
     const packPage = onAtelierPage();

@@ -35,6 +35,25 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const fn = await c.functions.invoke('create-media-signed-url', { body: {} });
   check('fonctions serveur indisponibles (erreur claire)', !!fn.error && /tutoriel/.test(fn.error.message));
 
+  // Leçons Sfx et événements d'effets (22/10) : le morceau « Jazz Lo Static » est préchargé ; dans la leçon des événements, les trois Sfx de la leçon
+  // précédente sont déjà dans la bibliothèque et attachés au morceau (pour jouer l'ambiance du bar).
+  for (const lesson of ['sfx', 'events']) {
+    const sbL = { window: { location: { pathname: '/layerpitch-backstage.html', search: '?tuto&lesson=' + lesson } }, setTimeout, console, URLSearchParams };
+    vm.createContext(sbL);
+    vm.runInContext(read('api/demo-client.js'), sbL);
+    const cl = sbL.window.LayerPitchDemoClient;
+    const tl = (await cl.from('tracks').select('*')).data;
+    check('leçon ' + lesson + ' : « Jazz Lo Static » préchargé, fichier lisible (dossier dans l’adresse de base)', tl.length === 1 && tl[0].title === 'Jazz Lo Static' && /\/tuto\/Jazz%20Lo\/$/.test(tl[0].base) && tl[0].layers[0].file.indexOf('/') < 0);
+    const sl = (await cl.from('sfx_library').select('*')).data;
+    if (lesson === 'events') {
+      check('leçon events : les trois Sfx sont dans la bibliothèque', Array.isArray(sl) && sl.length === 3 && sl.every(x => x.spatial && x.spatial.enabled));
+      check('leçon events : ils sont attachés au morceau', tl[0].track_sfx.length === 3 && tl[0].track_sfx.every(r => sl.some(x => x.id === r.sfx_id)));
+      check('leçon events : l’ambiance du bar glisse sur 20 s, les glaçons vont pas à pas', sl.find(x => x.id === 'sfx-bar').spatial.path.mode === 'glide' && sl.find(x => x.id === 'sfx-bar').spatial.path.durationSec === 20 && sl.find(x => x.id === 'sfx-glacons').spatial.path.mode === 'steps');
+    } else {
+      check('leçon sfx : bibliothèque Sfx vide au départ', !sl || sl.length === 0);
+      check('leçon sfx : morceau sans Sfx attaché', tl[0].track_sfx.length === 0);
+    }
+  }
   // Leçon AdReel : la vidéo d'Alone en deux versions (même montage), et le palier qui montre les versions dans le bloc vidéo.
   const sbA = { window: { location: { pathname: '/layerpitch-backstage.html', search: '?tuto&lesson=adreel' } }, setTimeout, console, URLSearchParams };
   vm.createContext(sbA);
