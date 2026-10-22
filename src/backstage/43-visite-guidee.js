@@ -407,7 +407,7 @@ const LESSONS = [
     { selector: '#libraryDetail .seq-master-item[data-seq-key="vrsIntro"]', titleKey: 'lrIntroOpenTitle', textKey: 'lrIntroOpenText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'vrsIntro'; } },
     // L'intro (2 temps, moins d'une mesure) est rangée toute seule, mais sa durée se règle à la main : 1 mesure de 2 temps.
-    { selector: '#libraryDetail .row:has([data-field="introBars"])', titleKey: 'lrIntroSetTitle', textKey: 'lrIntroSetText',
+    { selector: '#libraryDetail [data-role="introTimingRows"]', titleKey: 'lrIntroSetTitle', textKey: 'lrIntroSetText',
       done: () => { const t = lessonTrack(); return !!t && !!t.intro && Number(t.intro.bars) === 1 && Number(t.intro.beatsPerBar) === 2; } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lrListenTitle', textKey: 'lrListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },

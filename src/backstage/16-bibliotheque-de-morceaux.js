@@ -78,8 +78,8 @@ function sectionHasAnyFile(section) {
 // "The_Last_Door_Intro_120bpm_14M.wav" n'était jamais reconnu comme intro.
 function guessSequentialRole(filename) {
   const n = filename.toLowerCase().replace(/\.[^/.]+$/, '');
-  if (/(?:^|[^a-z0-9])intro(?:$|[^a-z0-9])/.test(n)) return 'intro';
-  if (/(?:^|[^a-z0-9])outro(?:$|[^a-z0-9])/.test(n)) return 'outro';
+  if (/(?:^|[^a-z0-9])intro(?:only)?(?:$|[^a-z0-9])/.test(n)) return 'intro'; // « IntroONLY » (22/10) : l'intro seule du morceau Jazz Lo du tuto
+  if (/(?:^|[^a-z0-9])outro(?:only)?(?:$|[^a-z0-9])/.test(n)) return 'outro';
   return 'segment';
 }
 
