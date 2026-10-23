@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792785395951">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1792789989548">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1879,17 +1879,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792785395951"></script>
-<script src="layerpitch-i18n.js?v=1792785395951"></script>
-<script src="layerpitch-appearance.js?v=1792785395951"></script>
-<script src="layerpitch-album-shared.js?v=1792785395951"></script>
-<script src="layerpitch-album-editor.js?v=1792785395951"></script>
-<script src="layerpitch-shell.js?v=1792785395951"></script>
-<script src="layerpitch-social-icons.js?v=1792785395951"></script>
-<script src="layerpitch-notify.js?v=1792785395951"></script>
-<script src="layerpitch-guide.js?v=1792785395951"></script>
-<script src="layerpitch-help.js?v=1792785395951"></script>
-<script src="player.js?v=1792785395951"></script>
+<script src="layerpitch-tuto.js?v=1792789989548"></script>
+<script src="layerpitch-i18n.js?v=1792789989548"></script>
+<script src="layerpitch-appearance.js?v=1792789989548"></script>
+<script src="layerpitch-album-shared.js?v=1792789989548"></script>
+<script src="layerpitch-album-editor.js?v=1792789989548"></script>
+<script src="layerpitch-shell.js?v=1792789989548"></script>
+<script src="layerpitch-social-icons.js?v=1792789989548"></script>
+<script src="layerpitch-notify.js?v=1792789989548"></script>
+<script src="layerpitch-guide.js?v=1792789989548"></script>
+<script src="layerpitch-help.js?v=1792789989548"></script>
+<script src="player.js?v=1792789989548"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -15984,6 +15984,26 @@ const LESSONS = [
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lvxListenTitle', textKey: 'lvxListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { titleKey: 'lvxEndTitle', textKey: 'lvxEndText', final: true },
   ] },
+  // Leçon « C'est quoi un AdReel ? » (23/10) : visite d'un Main AdReel DÉJÀ REMPLI (api/demo-client.js, ?tuto&lesson=adreel-intro). Aucun geste d'écriture : on lit, on déplie, on prévisualise.
+  // L'annuaire des compositeurs n'existe PAS encore : le texte final le présente comme « à venir ».
+  { id: 'adreel-intro', theme: 'pitch', public: true, reload: true, titleKey: 'liTitle', descKey: 'liDesc', steps: [
+    { titleKey: 'liWelcomeTitle', textKey: 'liWelcomeText' },
+    { selector: '#adReelSelect', titleKey: 'liMainTitle', textKey: 'liMainText' },
+    { selector: '#btnAddAdReel', titleKey: 'liNewTitle', textKey: 'liNewText' },
+    { selector: '#btnToggleCollapseAllBlocks', titleKey: 'liOpenTitle', textKey: 'liOpenText', done: () => !!document.querySelector('.block-editor-body:not(.collapsed)') },
+    { selector: '.block-editor-card[data-type="header"]', titleKey: 'liHeaderTitle', textKey: 'liHeaderText' },
+    { selector: '.block-editor-card[data-type="bio"]', titleKey: 'liBioTitle', textKey: 'liBioText' },
+    { selector: '.block-editor-card[data-type="tracks"]', titleKey: 'liTracksTitle', textKey: 'liTracksText' },
+    { selector: '.block-editor-card[data-type="text"]', titleKey: 'liTextTitle', textKey: 'liTextText' },
+    { selector: '.block-editor-card[data-type="testimonials"]', titleKey: 'liTestiTitle', textKey: 'liTestiText' },
+    { selector: '.block-editor-card[data-type="contact"]', titleKey: 'liContactTitle', textKey: 'liContactText' },
+    { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'liOrderTitle', textKey: 'liOrderText' },
+    { selector: '.nav-item[data-tab="appearance"]', titleKey: 'liAppearanceTitle', textKey: 'liAppearanceText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
+    { selector: '.nav-item[data-tab="content"]', titleKey: 'liBackTitle', textKey: 'liBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
+    { selector: '#btnPreview', titleKey: 'liPreviewTitle', textKey: 'liPreviewText', clickDone: true },
+    { selector: '#btnPublish', titleKey: 'liLinkTitle', textKey: 'liLinkText' },
+    { titleKey: 'liDirectoryTitle', textKey: 'liDirectoryText', final: true },
+  ] },
   // Leçon « Créer un AdReel » (20/10) : se joue dans le Backstage du mode tutoriel, bibliothèque d'exemple préchargée (api/demo-client.js,
   // ?tuto&lesson=adreel : rechargement obligatoire d'où `reload`). Fil rouge (22/10) : au retour de la WorldGameCon, le compositeur envoie à Joshua, créateur du jeu « Music City », un AdReel custom (quatre villes, un fil rouge musical).
   // L'aperçu de fin ouvre l'AdReel REMPLI (bouton Prévisualiser : aperçu local, sans serveur).
@@ -15992,27 +16012,23 @@ const LESSONS = [
     { selector: '#btnAddAdReel', titleKey: 'laNewTitle', textKey: 'laNewText', clickDone: true },
     { selector: '#newAdReelLabel', titleKey: 'laNameTitle', textKey: 'laNameText', done: () => { const i = document.getElementById('newAdReelLabel'); return !!i && i.value.trim().length > 2; },
       drops: [{ kind: 'text', label: 'Music City : pitch musical', value: 'Music City : pitch musical' }] },
+    // 23/10 : le nouvel AdReel REPREND l'en-tête et la bio du Main AdReel (modale de création, source + cases à cocher), puis on y écrit un texte et on y met de la musique.
+    { selector: '#newAdReelSource', titleKey: 'laSourceTitle', textKey: 'laSourceText', done: () => { const e = document.getElementById('newAdReelSource'); return !!e && e.value === 'main'; } },
+    { selector: () => document.getElementById('importHeader'), titleKey: 'laImportHeaderTitle', textKey: 'laImportHeaderText', done: () => { const e = document.getElementById('importHeader'); return !!e && e.checked; } },
+    { selector: () => document.getElementById('importBio'), titleKey: 'laImportBioTitle', textKey: 'laImportBioText', done: () => { const e = document.getElementById('importBio'); return !!e && e.checked; } },
     { selector: '#newAdReelOk', titleKey: 'laCreateTitle', textKey: 'laCreateText', done: () => currentAdReelId !== 'main' && adReels.length >= 2 },
     { selector: '#btnToggleCollapseAllBlocks', titleKey: 'laOpenTitle', textKey: 'laOpenText', done: () => !!document.querySelector('.block-editor-body:not(.collapsed)') },
-    { selector: '.block-editor-card[data-type="header"] [data-role="title"]', titleKey: 'laHeaderTitleTitle', textKey: 'laHeaderTitleText', done: () => (profile.title || '').trim().length > 2,
-      drops: [{ kind: 'text', label: 'Music City', value: 'Music City' }] },
-    { selector: '.block-editor-card[data-type="header"] [data-role="subtitle"]', titleKey: 'laHeaderSubTitle', textKey: 'laHeaderSubText', done: () => (profile.subtitle || '').trim().length > 2,
-      drops: [{ kind: 'text', label: 'Un jeu où chaque ville a sa propre ambiance. Musique interactive.', value: 'Un jeu où chaque ville a sa propre ambiance. Musique interactive.' }] },
-    { selector: '.block-editor-card[data-type="bio"] [data-role="bioText"]', titleKey: 'laBioTitle', textKey: 'laBioText', done: () => (profile.bio || '').trim().length > 5,
-      drops: [{ kind: 'text', label: 'Quatre villes, quatre ambiances (Rock, Jazz, Disco, Synth) et un fil rouge musical qui les relie : le même tempo, des univers différents.', value: 'Quatre villes, quatre ambiances (Rock, Jazz, Disco, Synth) et un fil rouge musical qui les relie : le même tempo, des univers différents.' }] },
-    { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack1Title', textKey: 'laTrack1Text', done: () => trackIds.length >= 1 },
-    { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack2Title', textKey: 'laTrack2Text', done: () => trackIds.length >= 2 },
-    // Mise en page : explication, sans geste obligatoire (le glisser-déposer des blocs marche à la souris, pas toujours au doigt).
-    { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'laReorderTitle', textKey: 'laReorderText' },
+    { selector: '.block-editor-card[data-type="header"]', titleKey: 'laReusedTitle', textKey: 'laReusedText' },
     { selector: '#btnAddText', titleKey: 'laAddTextTitle', textKey: 'laAddTextText', clickDone: true, done: () => blocks.some(b => b.type === 'text') },
     { selector: '.block-editor-card[data-type="text"] [data-role="title"]', titleKey: 'laTextTitleTitle', textKey: 'laTextTitleText', done: () => blocks.some(b => b.type === 'text' && (b.title || '').trim().length > 2),
       drops: [{ kind: 'text', label: 'Direction sonore', value: 'Direction sonore' }] },
     { selector: '.block-editor-card[data-type="text"] [data-role="content"]', titleKey: 'laTextBodyTitle', textKey: 'laTextBodyText', done: () => blocks.some(b => b.type === 'text' && (b.content || '').trim().length > 5),
       drops: [{ kind: 'text', label: 'Un fil rouge entre toutes les villes : le même tempo (110 BPM), et une ambiance différente à chaque ville.', value: 'Un fil rouge entre toutes les villes : le même tempo (110 BPM), et une ambiance différente à chaque ville.' }] },
+    { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack1Title', textKey: 'laTrack1Text', done: () => trackIds.length >= 1 },
+    { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack2Title', textKey: 'laTrack2Text', done: () => trackIds.length >= 2 },
+    // Mise en page : explication, sans geste obligatoire (le glisser-déposer des blocs marche à la souris, pas toujours au doigt).
+    { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'laReorderTitle', textKey: 'laReorderText' },
     // Bloc vidéo : la vidéo de gameplay de la leçon « Versioning » (lien à fournir : LESSON_ADREEL_VIDEO ; l'étape du lien est sautée tant qu'il manque).
-    { selector: '.nav-item[data-tab="appearance"]', titleKey: 'laAppearanceTitle', textKey: 'laAppearanceText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
-    { selector: () => document.querySelector('#themeProQuickStartGallery button, #appThemeFreeGallery button'), titleKey: 'laThemeTitle', textKey: 'laThemeText', clickDone: true },
-    { selector: '.nav-item[data-tab="content"]', titleKey: 'laBackTitle', textKey: 'laBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
     // Aperçu de l'AdReel rempli : nouvelle fenêtre, aperçu local (rien n'est publié).
     { selector: '#btnPreview', titleKey: 'laPreviewTitle', textKey: 'laPreviewText', clickDone: true },
     { selector: '#btnPublish', titleKey: 'laSendTitle', textKey: 'laSendText', clickDone: true },

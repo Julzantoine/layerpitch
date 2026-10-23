@@ -109,6 +109,31 @@
   ].map(([id, title, file]) => ({ id, owner_id: 'demo-composer', folder_id: null, title, description: '', mode: 'static', loopable: true, loop_engine: 'simple',
     bpm: 110, beats_per_bar: 4, duration: 8.727, base: CITY_BASE, layers: [{ label: 'Boucle', file, originalFileName: file, gain: 1, duration: 8.727 }], intro: null, outro: null,
     loops: null, sections: null, segment_slots: [], track_sfx: [], tags: [], fx: null, fx_triggers: [], fx_sliders: [], protected: false, retired_at: null }));
+  // Leçon « C'est quoi un AdReel ? » (23/10, ?tuto&lesson=adreel-intro) : le Main AdReel de Daniel Orcman, DÉJÀ REMPLI (mêmes quatre villes que la leçon suivante).
+  // Forme relevée dans la base réelle (voir reshapeAdReel dans api/adreels.js). Textes selon la langue de l'interface.
+  const demoMainAdReel = () => {
+    let en = false; try { en = localStorage.getItem('layerpitch_lang') === 'en'; } catch (e) { /* stockage indisponible : français */ }
+    const T = en ? {
+      title: 'Daniel Orcman', subtitle: 'Composer of interactive music for video games',
+      bio: 'I write music that reacts to the player: layers that come in with the action, loops that never tire, transitions that follow the gameplay. Here are four city moods, all at the same tempo.',
+      tracksTitle: 'Four cities, four moods', textTitle: 'My approach',
+      text: 'One common thread through the whole game: the same tempo, a different atmosphere in every city. The music adapts without ever breaking.',
+      quote: 'Daniel understood our game in a single listen. The music follows the player like a shadow.', author: 'Joshua, creator of “Music City”', label: 'Main' ,
+    } : {
+      title: 'Daniel Orcman', subtitle: 'Compositeur de musique interactive pour jeux vidéo',
+      bio: 'J’écris une musique qui réagit au joueur : des couches qui entrent avec l’action, des boucles qui ne lassent pas, des transitions qui suivent le gameplay. Voici quatre ambiances de ville, au même tempo.',
+      tracksTitle: 'Quatre villes, quatre ambiances', textTitle: 'Ma façon de travailler',
+      text: 'Un fil rouge à travers tout le jeu : le même tempo, une atmosphère différente dans chaque ville. La musique s’adapte sans jamais se casser.',
+      quote: 'Daniel a compris notre jeu en une seule écoute. La musique suit le joueur comme son ombre.', author: 'Joshua, créateur de « Music City »', label: 'Principal (main)',
+    };
+    return { id: 'main', owner_id: DEMO_COMPOSER_ID, folder_id: null, label: T.label, lang: en ? 'en' : 'fr', allow_indexing: true, slug: null, access_mode: 'public',
+      profile: { title: T.title, subtitle: T.subtitle, bio: T.bio, contactEmail: 'daniel@orcman-music.example', contactUrl: 'https://orcman-music.example', logo: null, photo: null, tagline: '',
+        theme: { font: 'default', bgColor: '#f6f5f3', bgImage: null, titleColor: '#262521', contentColor: '#262521', bgImageOpacity: 1, sectionLabelColor: '#516dc2' }, effectivePlan: 'pro' },
+      testimonials: [{ text: T.quote, author: T.author, avatar: null }],
+      blocks: [{ id: 'b-header', type: 'header' }, { id: 'b-bio', type: 'bio' }, { id: 'b-tracks', type: 'tracks' }, { id: 'b-text', type: 'text', align: 'left', title: T.textTitle, content: T.text },
+        { id: 'b-testimonials', type: 'testimonials' }, { id: 'b-contact', type: 'contact' }],
+      track_overrides: {}, ad_reel_tracks: DEMO_TRACKS_CITIES.map((t, i) => ({ track_id: t.id, position: i })) };
+  };
   // Pack de la bibliothèque du compositeur fictif (leçon « La musique du projet » : on le partage au Projet).
   const DEMO_PACKS = [{ id: 'p-alone', owner_id: 'demo-composer', title: 'Alone : ambiances du lac (exemple)', illustration: null, illustration_original_name: null, watermark: null,
     watermark_original_name: null, presentation_fr: '', presentation_en: '', buyable: false, buy_url: null, free_download_enabled: false, video_test_mode_enabled: false,
@@ -126,7 +151,8 @@
   // Morceaux d'exemple : leçon AdReel (Backstage) et pages Projets (leur propre bibliothèque, pour le pack et la carte). Pack : pages Projets.
   const listRows = table => {
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
-    if (table === 'tracks' && lessonParam() === 'adreel' && !projectPage) return DEMO_TRACKS_CITIES;
+    if (table === 'ad_reels' && (lessonParam() === 'adreel-intro' || lessonParam() === 'adreel')) return [demoMainAdReel()];
+    if (table === 'tracks' && (lessonParam() === 'adreel' || lessonParam() === 'adreel-intro') && !projectPage) return DEMO_TRACKS_CITIES;
     if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
     if (table === 'tracks' && lessonParam() === 'sfx') return [DEMO_TRACK_JAZZ_SFX];
     if (table === 'tracks' && lessonParam() === 'events') return [Object.assign({}, DEMO_TRACK_JAZZ_SFX, { track_sfx: DEMO_SFX.map((x, i) => ({ sfx_id: x.id, position: i })) })];
