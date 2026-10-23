@@ -87,6 +87,7 @@ function lessonShowLoading(done, total, pct) {
   el.textContent = tr('lessonSampleLoading', { done, total, pct });
 }
 async function lessonUseSample(step) {
+  if (window.LayerPitchTuto && guide) window.LayerPitchTuto.track('sample_use', { lesson: guide.lessonId, step: guide.index + 1, files: lessonStepFileNames(step).length });
   const target = guideStepTarget(step);
   if (!target) throw new Error('zone introuvable');
   if (typeof DataTransfer === 'undefined' || typeof DragEvent === 'undefined') throw new Error('dépôt non pris en charge par ce navigateur');

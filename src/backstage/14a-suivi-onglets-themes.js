@@ -1,6 +1,6 @@
 function pushEvent(entry) {
   try {
-    if (entry.context === 'test' || !window.umami || typeof window.umami.track !== 'function') return;
+    if (entry.context === 'test' || isTutoMode() || !window.umami || typeof window.umami.track !== 'function') return;
     window.umami.track('backstage_' + entry.type, Object.assign({ name: String(entry.name).slice(0, 200) }, entry.detail));
   } catch (e) { /* jamais bloquant pour l'utilisateur */ }
 }

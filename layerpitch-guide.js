@@ -43,6 +43,9 @@
 
   function create(host) {
     const tr = (k, v) => host.tr(k, v);
+    // Suivi (23/10) : la page peut fournir host.onTrack(nom, détails) ; à défaut, le suivi Umami du tutoriel (layerpitch-tuto.js) s'il est chargé.
+    // Jamais bloquant ; que des identifiants de leçon et d'étape.
+    const track = (name, detail) => { try { const f = host.onTrack || (window.LayerPitchTuto && window.LayerPitchTuto.track); if (f) f(name, detail); } catch (e) { /* jamais bloquant */ } };
     let guide = null; // { root, kind, lessonId, steps, index, maxIndex, ctx, timer, advancing, clicked, cardKey, userMoved }
 
 
@@ -151,6 +154,8 @@
       document.removeEventListener('keydown', onKeydown, true);
       document.removeEventListener('click', onClickCapture, true);
       const kind = guide.kind;
+      // Fermée avant la fin (Quitter, Échap, changement de leçon) : on note jusqu'où la personne est allée.
+      if (!guide.finished) track(kind === 'lesson' ? 'lesson_quit' : 'tour_quit', { lesson: guide.lessonId || undefined, step: guide.maxIndex + 1, steps: guide.steps.length });
       guide = null;
       if (kind === 'tour' && host.onTourDone) host.onTourDone();
       if (host.onClose) host.onClose();
@@ -183,7 +188,10 @@
       const leaving = guide.steps[guide.index];
       if (delta < 0 && leaving && leaving.onBack) leaving.onBack(guide.ctx); // ex. fenêtre ouverte par l'étape quittée
       guide.index = next; guide.clicked = false; guide.advancing = false; guide.userMoved = false;
-      if (next > guide.maxIndex) guide.maxIndex = next; // étape la plus avancée atteinte : au-delà du « front », on ne fait que revoir
+      if (next > guide.maxIndex) {
+        guide.maxIndex = next; // étape la plus avancée atteinte : au-delà du « front », on ne fait que revoir
+        track(guide.kind === 'lesson' ? 'step' : 'tour_step', { lesson: guide.lessonId || undefined, step: next + 1, steps: guide.steps.length, key: guide.steps[next].titleKey });
+      }
       const step = guide.steps[next];
       if (step.enter) step.enter(guide.ctx);
       render();
@@ -293,6 +301,7 @@
     }
     function finish() {
       if (guide && guide.kind === 'lesson' && host.onLessonDone) host.onLessonDone(guide.lessonId);
+      if (guide) { track(guide.kind === 'lesson' ? 'lesson_done' : 'tour_done', { lesson: guide.lessonId || undefined, steps: guide.steps.length }); guide.finished = true; }
       close();
     }
     function stepIsDone(step) {
@@ -472,6 +481,7 @@
       document.body.appendChild(root);
       document.body.classList.add('lp-guide-active'); // masque les bulles d'aide au survol (voir 12-bulles-d-aide.js)
       if (host.onOpen) host.onOpen();
+      track(kind === 'lesson' ? 'lesson_open' : 'tour_open', { lesson: lessonId || undefined, steps: steps.length });
       guide = { root, kind, lessonId, steps, index: 0, maxIndex: 0, ctx: {}, timer: null, advancing: false, clicked: false, cardKey: '', userMoved: false };
       enableCardDrag(root.querySelector('.tour-card'));
       if (steps[0].enter) steps[0].enter(guide.ctx);

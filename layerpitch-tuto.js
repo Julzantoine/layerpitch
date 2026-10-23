@@ -44,5 +44,37 @@
     switchToDemo();
     return true;
   }
-  window.LayerPitchTuto = { publicOpen, isOn, adminGate, accessLevel, switchToDemo, enter };
+  // ---- Suivi Umami du tutoriel (23/10) ----
+  // Umami (sans cookie) est chargé SEULEMENT sur les pages du mode tutoriel (?tuto), avec le même site Umami que les pages publiques.
+  // Les événements du tutoriel y portent le préfixe « tuto_ » (tuto_lesson_open, tuto_step, tuto_lesson_done, tuto_lesson_quit…) et ne
+  // contiennent que des identifiants de leçon et d'étape, jamais de donnée personnelle. Le tutoriel joue sur un faux compte : on retire
+  // `window.umami` une fois le script chargé, pour que ni le lecteur (play, pause…) ni le Backstage (track_add…) n'envoient leurs
+  // événements « réels » à Umami depuis un compte fictif : seule la fonction track() ci-dessous parle à Umami.
+  const UMAMI_SRC = 'https://cloud.umami.is/script.js';
+  const UMAMI_SITE = '2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f';
+  let umami = null;
+  const queue = [];
+  function sendNow(name, detail) { umami.track('tuto_' + name, detail || {}); }
+  function track(name, detail) {
+    if (!isOn()) return;
+    try {
+      if (umami && typeof umami.track === 'function') sendNow(name, detail);
+      else if (queue.length < 200) queue.push([name, detail]); // script pas encore chargé : on garde les premiers événements
+    } catch (e) { /* jamais bloquant */ }
+  }
+  function loadUmami() {
+    if (!isOn() || document.querySelector('script[data-lp-tuto-umami]')) return;
+    const s = document.createElement('script');
+    s.defer = true; s.src = UMAMI_SRC;
+    s.setAttribute('data-website-id', UMAMI_SITE);
+    s.setAttribute('data-lp-tuto-umami', '1');
+    s.onload = () => {
+      umami = window.umami || null;
+      window.umami = undefined; // voir plus haut : pas d'événements « réels » depuis le compte fictif
+      try { while (queue.length) { const [n, d] = queue.shift(); if (umami && umami.track) sendNow(n, d); } } catch (e) { /* jamais bloquant */ }
+    };
+    document.head.appendChild(s);
+  }
+  loadUmami();
+  window.LayerPitchTuto = { track, publicOpen, isOn, adminGate, accessLevel, switchToDemo, enter };
 })();
