@@ -20,6 +20,20 @@
     } catch (e) { /* traité comme non admin */ }
     return false;
   }
+  // Niveau d'accès d'une personne réellement connectée (23/10, ouverture aux bêta-testeurs) : 'admin', 'member' (tout compte connecté), ou null
+  // (personne de connecté). Le Backstage s'en sert pour laisser entrer les bêta-testeurs dans le tutoriel du moteur audio ; les pages
+  // Projet (leçons « Préproduction ») gardent la porte admin ci-dessus, via enter().
+  async function accessLevel() {
+    try {
+      const client = window.LayerPitchSupabaseClient.getClient();
+      const { data } = await client.auth.getSession();
+      if (data && data.session && data.session.user) {
+        const res = await client.rpc('is_admin');
+        return (!res.error && res.data) ? 'admin' : 'member';
+      }
+    } catch (e) { /* traité comme personne de connecté */ }
+    return null;
+  }
   // Bascule : tous les api/*.js appellent window.LayerPitchSupabaseClient.getClient() à chaque usage, donc cette seule ligne les met
   // tous sur le faux serveur (api/demo-client.js doit être chargé).
   function switchToDemo() { window.LayerPitchSupabaseClient = { getClient: () => window.LayerPitchDemoClient }; }
@@ -30,5 +44,5 @@
     switchToDemo();
     return true;
   }
-  window.LayerPitchTuto = { publicOpen, isOn, adminGate, switchToDemo, enter };
+  window.LayerPitchTuto = { publicOpen, isOn, adminGate, accessLevel, switchToDemo, enter };
 })();

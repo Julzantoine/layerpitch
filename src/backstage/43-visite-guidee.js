@@ -27,7 +27,11 @@ function lessonPoolFiles(i) { const sec = lessonSection(); const p = sec && sec.
 function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 // Mode tutoriel (?tuto) en version publique : seules les leçons « publiques » sont jouables, les autres restent visibles
 // avec la mention « le tuto complet nécessite un compte ». Un admin (tutoFullAccess) a tout.
-function lessonPlayable(lesson) { return !isTutoMode() || tutoFullAccess || lessonIsPublic(lesson); }
+// Thèmes de leçons ouverts à tous les bêta-testeurs (23/10) : les autres restent grisés (« bientôt »), jouables par les admins seulement.
+// Pour débloquer un thème (par exemple « pitch », quand les leçons AdReel seront refaites) : l'ajouter à cette liste.
+const LESSON_THEMES_OPEN = ['engine'];
+function lessonOpenToMe(lesson) { return !lesson || LESSON_THEMES_OPEN.includes(lesson.theme) || (isTutoMode() ? tutoFullAccess : currentUserIsAdmin); }
+function lessonPlayable(lesson) { return lessonOpenToMe(lesson) && (!isTutoMode() || tutoFullAccess || lessonIsPublic(lesson)); }
 // URL de chaque fichier d'exemple (nom de fichier -> URL), à renseigner quand les fichiers seront en ligne (stockage
 // des médias, avec CORS ouvert à l'origine du Backstage). Tant qu'un nom manque, le bouton « Utiliser » n'apparaît pas.
 const LESSON_SAMPLE_URLS = {
@@ -785,6 +789,18 @@ function tourTargetVisible(el) { return window.LayerPitchGuide.targetVisible(el)
 function tourMarkDone() { try { localStorage.setItem(TOUR_DONE_STORAGE, '1'); } catch (e) { /* stockage indisponible */ } }
 function tourAlreadyDone() { try { return localStorage.getItem(TOUR_DONE_STORAGE) === '1'; } catch (e) { return false; } }
 function lessonsDone() { try { return JSON.parse(localStorage.getItem(LESSONS_DONE_STORAGE) || '{}') || {}; } catch (e) { return {}; } }
+// Leçons à faire (23/10) : celles ouvertes à tous, disponibles, pas encore terminées dans ce navigateur. Tant qu'il en reste, la pastille
+// de l'icône « Tutoriel » ne disparaît pas ; chacune a aussi sa propre pastille dans le menu.
+function lessonAvailable(l) { return lessonOpenToMe(l) && LESSON_THEMES_OPEN.includes(l.theme) && !l.soon && !(l.needs && !flagOpen(l.needs)); }
+function lessonsToDo() { const done = lessonsDone(); return LESSONS.filter(l => lessonAvailable(l) && !done[l.id]); }
+function syncTutorialBadge() {
+  const badge = document.getElementById('tutorialMenuBadge');
+  if (!badge) return;
+  const n = lessonsToDo().length;
+  badge.hidden = n === 0;
+  badge.textContent = String(n);
+  badge.title = tr('tutorialToDoBadge');
+}
 function lessonMarkDone(id) { try { const d = lessonsDone(); d[id] = true; localStorage.setItem(LESSONS_DONE_STORAGE, JSON.stringify(d)); } catch (e) { /* stockage indisponible */ } }
 
 
@@ -892,11 +908,15 @@ function renderTutorialMenu() {
       const [thMain, ...thRest] = tr(th.titleKey).split(' : ');
       return `<div class="tutorial-menu-section"><strong>${escapeHtml(thMain)}</strong>${thRest.length ? `<small>${escapeHtml(capitalizeFirst(thRest.join(' : ')))}</small>` : ''}</div>` + (items.length ? items.map(l => `
       <button class="account-menu-item tutorial-menu-lesson" type="button" data-tutorial="${l.id}" ${(l.soon || !lessonPlayable(l) || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}>
-        <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr(l.titleKey))}</b><small>${escapeHtml(lessonPlayable(l) ? tr(l.descKey) : tr('tutoNeedsAccount'))}</small></span></span>
-        ${!lessonPlayable(l) ? `<span class="nav-badge">${escapeHtml(tr('tutoAccountBadge'))}</span>` : (l.soon || (l.needs && !flagOpen(l.needs))) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : '')}
+        <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr(l.titleKey))}</b><small>${escapeHtml(!lessonOpenToMe(l) || lessonPlayable(l) ? tr(l.descKey) : tr('tutoNeedsAccount'))}</small></span></span>
+        ${!lessonOpenToMe(l) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : !lessonPlayable(l) ? `<span class="nav-badge">${escapeHtml(tr('tutoAccountBadge'))}</span>` : (l.soon || (l.needs && !flagOpen(l.needs))) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : (lessonAvailable(l) ? `<span class="tutorial-todo-dot" title="${escapeAttr(tr('tutorialToDoBadge'))}" aria-label="${escapeAttr(tr('tutorialToDoBadge'))}"></span>` : ''))}
       </button>`).join('') : `<div class="tutorial-menu-empty">${escapeHtml(tr('lessonThemeSoon'))}</div>`);
     }).join('')}`;
+  syncTutorialBadge();
 }
+// Une leçon terminée dans un autre onglet (le tutoriel s'ouvre dans une nouvelle fenêtre) ou au retour sur la page : le menu et la pastille suivent.
+window.addEventListener('storage', e => { if (e.key === LESSONS_DONE_STORAGE) renderTutorialMenu(); });
+window.addEventListener('focus', () => renderTutorialMenu());
 function initTutorialMenuUi() {
   const btn = document.getElementById('btnTutorialMenu');
   const dropdown = document.getElementById('tutorialMenuDropdown');

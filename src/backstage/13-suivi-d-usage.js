@@ -25,7 +25,7 @@ var postgresReadScriptsLoaded = null;
 // compte fictif, rien n'est lu ni écrit en base, tout est remis à zéro à chaque chargement. Ce sont des FONCTIONS (et non
 // des variables) pour rester utilisables dès le tout premier appel, avant que le script n'ait fini de se dérouler.
 function isTutoMode() { return new URLSearchParams(window.location.search).has('tuto'); }
-// Tant que Jules-Antoine n'a pas ouvert le tutoriel au public : seul un admin connecté pour de vrai peut y entrer.
+// Tant que Jules-Antoine n'a pas ouvert le tutoriel au public : seules les personnes connectées pour de vrai (bêta-testeurs, admins) peuvent y entrer.
 // Pour l'ouvrir à tout le monde : faire répondre « true » ici (une seule ligne).
 function tutoPublicOpen() { return window.LayerPitchTuto.publicOpen(); } // règle d'accès unique : layerpitch-tuto.js
 // Vrai si l'accès est celui d'un admin (tutoriel complet) ; en version publique, seules les leçons marquées « public »
@@ -33,8 +33,10 @@ function tutoPublicOpen() { return window.LayerPitchTuto.publicOpen(); } // règ
 var tutoFullAccess = false;
 // Vérifie, AVANT de passer sur le faux serveur, qu'un vrai admin est connecté (SDK réel + vrai client). Sinon on
 // retourne au Backstage normal (qui renverra vers la connexion si besoin).
-async function tutoAdminGate() {
-  if (await window.LayerPitchTuto.adminGate()) return true;
+async function tutoAccessGate() {
+  // Tout compte réellement connecté entre (bêta-testeurs) ; seul un admin a le tutoriel complet (tutoFullAccess).
+  const level = await window.LayerPitchTuto.accessLevel();
+  if (level) return level;
   window.location.replace(window.location.pathname);
   return new Promise(() => {}); // la page s'en va : on ne laisse rien se charger
 }
@@ -68,7 +70,7 @@ function loadPostgresReadScripts() {
     document.head.appendChild(s);
   }))).then(async () => {
     if (!tuto) return;
-    if (!tutoPublicOpen()) tutoFullAccess = await tutoAdminGate();
+    if (!tutoPublicOpen()) tutoFullAccess = (await tutoAccessGate()) === 'admin';
     // Bascule : tous les api/*.js appellent window.LayerPitchSupabaseClient.getClient() à chaque usage, donc cette
     // seule ligne les met tous sur le faux serveur.
     window.LayerPitchTuto.switchToDemo();
