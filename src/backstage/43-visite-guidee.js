@@ -811,7 +811,20 @@ const LESSONS = [
   ] },
   // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
   // Projet fictif ; `page` renvoie vers cette page au clic.
-  { id: 'tracking', theme: 'pitch', public: true, soon: true, titleKey: 'ltTitle', descKey: 'ltDesc' }, // à construire ; « bientôt » d'ici là
+  // Leçon « Vérifier le tracking » (25/10, ?tuto&lesson=tracking, rechargement obligatoire d'où `reload`) : tableau de bord Analytics (palier Pro) déjà garni par le faux serveur (api/demo-client.js, analyticsDemo).
+  { id: 'tracking', theme: 'pitch', public: true, reload: true, titleKey: 'ltTitle', descKey: 'ltDesc', steps: [
+    { titleKey: 'ltWelcomeTitle', textKey: 'ltWelcomeText' },
+    { selector: '.nav-item[data-tab="analytics"]', titleKey: 'ltNavTitle', textKey: 'ltNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="analytics"].active') },
+    { selector: '#analyticsPresets', titleKey: 'ltPeriodTitle', textKey: 'ltPeriodText' },
+    { selector: '#analyticsOverview .an-kpis', titleKey: 'ltKpiTitle', textKey: 'ltKpiText' },
+    { selector: '#analyticsOverview .an-charts', titleKey: 'ltChartTitle', textKey: 'ltChartText' },
+    { selector: '#analyticsOverview .an-table', titleKey: 'ltTableTitle', textKey: 'ltTableText' },
+    { selector: '#analyticsOverview .an-row[data-id="music-city"]', titleKey: 'ltOpenTitle', textKey: 'ltOpenText', done: () => !!analyticsSelected && analyticsSelected.id === 'music-city' },
+    { selector: '#analyticsEntityDetail .an-devices', titleKey: 'ltDeviceTitle', textKey: 'ltDeviceText' },
+    { selector: '#analyticsEntityDetail .an-table', titleKey: 'ltTracksTitle', textKey: 'ltTracksText' },
+    { selector: '#analyticsEntityDetail .an-ix', titleKey: 'ltIxTitle', textKey: 'ltIxText' },
+    { titleKey: 'ltEndTitle', textKey: 'ltEndText', final: true },
+  ] },
   { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc' },
   { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
   { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },

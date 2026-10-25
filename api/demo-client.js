@@ -24,7 +24,36 @@
 
   // Sur les pages Projets (liste et espace), le compte fictif peut créer des Projets ; ailleurs (Backstage), la fonction reste fermée.
   const onProjectPage = () => !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
+  // Leçon « Vérifier le tracking » (25/10, ?tuto&lesson=tracking) : tableau de bord Analytics PRO déjà garni, sur sept jours (chiffres inventés, jamais envoyés nulle part).
+  // Même forme que les réponses de get_my_analytics_overview / get_my_analytics_entity (voir api/analytics.js et renderAnalyticsView).
+  const analyticsDemo = (() => {
+    const DAY = 86400000;
+    const buckets = () => { const end = new Date(); end.setHours(0, 0, 0, 0); return [6, 5, 4, 3, 2, 1, 0].map(i => new Date(end.getTime() - i * DAY).toISOString()); };
+    const ENTITIES = [
+      { type: 'adreel', id: 'main', name: 'Principal (main)', visits: 38, plays: 112, series: [2, 3, 4, 5, 8, 7, 9], mobile: 14, desktop: 24 },
+      { type: 'adreel', id: 'music-city', name: 'Music City : pitch musical', visits: 14, plays: 57, series: [0, 0, 1, 1, 6, 3, 3], mobile: 3, desktop: 11 },
+      { type: 'pack', id: 'p-cities', name: 'Music City : les quatre villes', visits: 9, plays: 31, series: [0, 1, 1, 2, 1, 2, 2], mobile: 4, desktop: 5 },
+    ];
+    const overview = () => ({ ok: true, tier: 'pro', locked: false, windowStart: buckets()[0], windowEnd: buckets()[6], retentionDays: 365, bucket: 'day', buckets: buckets(),
+      totals: { visits: 61, plays: 200, mobileShare: 31, items: ENTITIES.length },
+      series: { visits: [2, 4, 6, 8, 15, 12, 14], plays: [4, 9, 14, 20, 62, 41, 50] },
+      entities: ENTITIES.map(e => ({ type: e.type, id: e.id, name: e.name, visits: e.visits, plays: e.plays, series: e.series, lastVisit: new Date(Date.now() - 3 * 3600000).toISOString() })) });
+    const entity = (a) => {
+      const e = ENTITIES.find(x => x.id === a.p_id) || ENTITIES[0];
+      return { ok: true, tier: 'pro', entity: { type: e.type, id: e.id, name: e.name }, bucket: 'day', buckets: buckets(),
+        totals: { visits: e.visits, plays: e.plays, mobile: e.mobile, desktop: e.desktop, unknownDevice: 0 },
+        series: { visits: e.series, plays: e.series.map(v => v * 3) },
+        tracks: [['Jazz City (exemple)', 0.46, 0.74, 0.08], ['Rock City (exemple)', 0.27, 0.58, 0.19], ['Disco City (exemple)', 0.17, 0.64, 0.12], ['Synth City (exemple)', 0.10, 0.4, 0.3]]
+          .map(([title, share, end, skip]) => { const plays = Math.round(e.plays * share); return { title, plays, reachedEnd: Math.round(plays * end), skipped: Math.round(plays * skip) }; }),
+        interactions: [{ name: 'voice_volume_change', count: 18 }, { name: 'seq_branch_select', count: 11 }, { name: 'pool_refresh', count: 7 }],
+        fxButtons: [],
+        recentSessions: [3, 26, 50].map((h, i) => ({ openedAt: new Date(Date.now() - h * 3600000).toISOString(), device: i === 1 ? 'Mobile' : 'Ordinateur', plays: [6, 2, 9][i] })) };
+    };
+    return { overview, entity };
+  })();
   const RPC_ANSWERS = {
+    get_my_analytics_overview: (a) => lessonParam() === 'tracking' ? analyticsDemo.overview(a) : null,
+    get_my_analytics_entity: (a) => lessonParam() === 'tracking' ? analyticsDemo.entity(a) : null,
     is_admin: () => false,
     my_feature_flags: () => DEMO_FLAGS.concat(onProjectPage() ? ['projects'] : [], (lessonParam() === 'adreel' || isVersioning()) ? ['video_upload', 'versioning'] : []).map(key => ({ key, allowed: true })),
     my_entitlements: () => DEMO_ENTITLEMENTS_ALLOWED.concat(onProjectPage() ? ['projects'] : [], isVersioning() ? ['test_in_game', 'no_watermark'] : []).map(f => ({ feature: f, allowed: true, amount: f === 'projects' ? 5 : null, level: (f === 'versioning' && (lessonParam() === 'adreel' || isVersioning())) || f === 'test_in_game' ? 'saved' : 'pro', plan: 'pro', source: 'demo' }))
