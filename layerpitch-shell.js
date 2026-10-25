@@ -37,6 +37,7 @@
     sales: '<path d="M17 5.5A7 7 0 1 0 17 18.5M3 10h10M3 14h10"/>',
     purchases: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/>',
     catalog: '<path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>',
+    directory: '<circle cx="9" cy="9" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6.3a3 3 0 0 1 0 5.4"/><path d="M17.5 14a5.5 5.5 0 0 1 3 5"/>',
     custom: '<path d="M21 16V8l-9-5-9 5v8l9 5 9-5zM3.3 7 12 12l8.7-5M12 22V12"/>',
     team: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
     plan: '<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/>',
@@ -457,6 +458,8 @@
     const common = [];
     // Shop public (29/09) : packs et OST adaptive ; remplace l'ancienne entrée « Catalogue ». Feu vert « shop » (admin seulement pendant la bêta).
     if (ctx.flags.shop) common.push({ id: 'shop', icon: 'catalog', href: 'shop.html' });
+    // Annuaire des compositeurs (23/10) : feu vert « composer_directory » (admin seulement pendant la bêta).
+    if (ctx.flags.composer_directory) common.push({ id: 'directory', icon: 'directory', href: 'annuaire.html' });
     if (ctx.flags.projects) common.push({ id: 'projects', icon: 'projects', href: 'projets.html' });
     common.push({ id: 'invitations', icon: 'invitations', href: 'invitation.html', badge: ctx.invitations });
     if (ctx.isAdmin && !(ctx.preview && ctx.preview.hideUnreleased)) common.push({ id: 'albums', icon: 'albums', href: 'mes-albums.html' });
