@@ -721,7 +721,10 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="text"]', titleKey: 'liTextTitle', textKey: 'liTextText' },
     { selector: '.block-editor-card[data-type="testimonials"]', titleKey: 'liTestiTitle', textKey: 'liTestiText' },
     { selector: '.block-editor-card[data-type="contact"]', titleKey: 'liContactTitle', textKey: 'liContactText' },
-    { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'liOrderTitle', textKey: 'liOrderText' },
+    // Réordonner est plus simple blocs repliés ; l'étape attend que l'ordre ait vraiment changé avant d'afficher « Suivant ».
+    { selector: '#btnToggleCollapseAllBlocks', titleKey: 'liCollapseTitle', textKey: 'liCollapseText', done: () => allBlocksCollapsed() },
+    { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'liOrderTitle', textKey: 'liOrderText',
+      enter: ctx => { ctx.blocksOrder0 = blocks.map(b => b.id).join(); }, done: ctx => !!ctx.blocksOrder0 && blocks.map(b => b.id).join() !== ctx.blocksOrder0 },
     { selector: '.nav-item[data-tab="appearance"]', titleKey: 'liAppearanceTitle', textKey: 'liAppearanceText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
     { selector: '.nav-item[data-tab="content"]', titleKey: 'liBackTitle', textKey: 'liBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
     { selector: '#btnPublish', titleKey: 'liLinkTitle', textKey: 'liLinkText' },
