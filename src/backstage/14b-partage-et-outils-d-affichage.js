@@ -243,3 +243,19 @@ const pendingR2Deletes = new Map();
 // laissait la version en ligne muette, et depuis la duplication (Alt + glisser) une copie partage les fichiers
 // de l'original. Effacés à la publication, et seulement si plus rien ne les utilise (allReferencedR2Keys).
 const pendingOrphanR2Keys = new Set();
+
+// Téléphone (25/10) : le bouton « Menu » ramène aux entrées de la barre (descendues sous le contenu), un clic sur une entrée remonte au contenu.
+(function setupPhoneMenu() {
+  const fab = document.getElementById('phoneMenuBtn');
+  if (!fab) return;
+  const phone = () => window.matchMedia('(max-width: 720px)').matches;
+  fab.addEventListener('click', () => {
+    const first = document.querySelector('.backstage-sidebar > .nav-section-label');
+    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  document.querySelector('.backstage-sidebar').addEventListener('click', e => {
+    if (!phone() || !e.target.closest('.nav-item[data-tab]') || e.target.closest('.sidebar-adreel-group')) return;
+    const c = document.querySelector('.backstage-content');
+    if (c) setTimeout(() => c.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  });
+})();
