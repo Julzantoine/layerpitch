@@ -178,6 +178,10 @@ async function renderAdminOnlyPanels(session) {
   // le verrou jumeau dans upsert_album / claim_test_album).
   const studioLink = document.getElementById('accountMenuStudio');
   if (studioLink) studioLink.hidden = !flagOpen('studio_space');
+  // Annuaire des compositeurs (23/10) : lien actif selon le feu vert « composer_directory », sinon « bientôt » grisé.
+  const directoryLink = document.getElementById('accountMenuDirectory'), directoryOff = document.getElementById('accountMenuDirectoryOff');
+  if (directoryLink) directoryLink.hidden = !flagOpen('composer_directory');
+  if (directoryOff) directoryOff.hidden = flagOpen('composer_directory');
   const projectsLink = document.getElementById('accountMenuProjects');
   if (projectsLink) projectsLink.hidden = !flagOpen('projects');
   // Navigation commune de la barre (28/09) : Projets selon le feu vert ; rubrique Studio si le compte a un studio

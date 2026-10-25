@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pageTitle">LayerPitch — Annuaire des compositeurs</title>
+<meta name="description" content="Compositeurs et sound designers de musique adaptative pour le jeu vidéo : découvre leur AdReel ou écris-leur directement.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
+    --text: #24262b; --text-dim: #5f636b; --text-dimmer: #9a9ea6;
+    --accent: #2f80c0; --accent-soft: #e6eef8; --on-accent: #ffffff;
+    --font-body: 'Inter', system-ui, sans-serif; --font-title: 'Space Grotesk', 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 32px 16px 60px; }
+  .page { max-width: 1040px; margin: 0 auto; }
+  a { color: var(--accent); }
+  h1 { font-family: var(--font-title); font-size: 28px; margin: 0 0 8px; }
+  .intro { color: var(--text-dim); line-height: 1.6; max-width: 68ch; margin: 6px 0 18px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .filters input, .filters select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); }
+  .filters input { flex: 1 1 240px; min-width: 0; }
+  .filters select { max-width: 220px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; align-items: start; }
+  .card { display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color .15s; }
+  .card:hover, .card:focus-within { border-color: var(--accent); }
+  .card-link { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 16px 10px; text-align: center; text-decoration: none; color: inherit; outline: none; flex: 1; }
+  .photo { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; background: linear-gradient(135deg, #23262d, #3a3f48); display: block; }
+  .name { font-family: var(--font-title); font-size: 17px; overflow-wrap: anywhere; }
+  .bio { font-size: 13px; color: var(--text-dim); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+  .tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px; }
+  .tag { font-size: 11px; color: var(--text-dim); border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; }
+  .open { font-size: 12.5px; color: var(--accent); margin-top: 4px; }
+  .contact-btn { margin: 0 14px 14px; border: 1px solid var(--accent); background: transparent; color: var(--accent); border-radius: 999px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 12.5px; }
+  .contact-btn:hover { background: var(--accent-soft); }
+  .contact-host { padding: 0 14px 14px; }
+  .contact-host .lp-seller-contact { margin: 0 !important; }
+  .empty { color: var(--text-dimmer); text-align: center; padding: 60px 0; }
+  .notice { background: var(--bg-card); border: 1px dashed var(--border); border-radius: 10px; padding: 40px 20px; text-align: center; color: var(--text-dim); }
+  /* Visiteur sans compte : barre du site (même esprit que le Shop). Posée par le script après la vérification de la session. */
+  .site-bar { display: none; }
+  body.visitor { --bg: #f6f5f3; --border: #e4e1da; --text: #262521; --text-dim: #6f6b62; --text-dimmer: #a8a399; --accent: #2f6fe0; --accent-soft: #dce7fb; padding-top: 0; }
+  body.visitor .site-bar { display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap; position: sticky; top: 0; z-index: 20; margin: 0 -16px 28px; padding: 14px 24px;
+    background: rgba(246,245,243,0.88); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+  .site-logo { font-family: var(--font-title); font-weight: 700; font-size: 18px; font-style: italic; color: var(--text); text-decoration: none; }
+  .site-nav { display: flex; flex-wrap: wrap; gap: 2px 4px; flex: 1; }
+  .site-right { display: flex; align-items: center; gap: 14px; font-family: var(--font-mono); font-size: 12px; }
+  .site-right .lang a { color: var(--text-dim); text-decoration: none; } .site-right .lang a.on { color: var(--text); font-weight: 600; }
+  .site-login { color: var(--text); border: 1px solid var(--border); background: var(--bg-card); border-radius: 6px; padding: 8px 14px; text-decoration: none; }
+  .site-login:hover { border-color: var(--accent); color: var(--accent); }
+  @media (max-width: 720px) { .site-nav { order: 3; flex-basis: 100%; } .site-right { margin-left: auto; } }
+</style>
+</head>
+<body>
+<header class="site-bar" id="siteBar"><a class="site-logo" href="https://www.layerpitch.com/">LayerPitch</a><nav class="site-nav" id="siteNav"></nav><div class="site-right" id="siteRight"></div></header>
+<div class="page">
+  <h1 data-i18n="h1">Annuaire des compositeurs</h1>
+  <p class="intro" data-i18n="intro">Des compositeurs et sound designers de musique adaptative pour le jeu vidéo.</p>
+  <div class="filters" id="filters">
+    <input type="search" id="q" data-i18n-placeholder="searchPlaceholder" aria-label="Recherche">
+    <select id="kwSel" aria-label="Mot-clé"></select>
+  </div>
+  <div id="grid" class="grid"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="layerpitch-i18n.js?v=1792955031897"></script>
+<script src="api/supabase-client.js?v=1792955031897"></script>
+<script src="api/auth.js?v=1792955031897"></script>
+<script src="layerpitch-appearance.js?v=1792955031897"></script>
+<script src="layerpitch-shell.js?v=1792955031897"></script>
+<script src="api/composers.js?v=1792955031897"></script>
+<script src="layerpitch-seller-contact.js?v=1792955031897"></script>
+<script>
+// annuaire.html — page publique « Annuaire des compositeurs » (adresse /compositeurs) (23/10, demande de Jules-Antoine ; migration
+// 20261023010000). Visible sans compte. Chaque carte : photo, nom et bio du compositeur (ceux de son AdReel principal), ses mots-clés ;
+// un clic mène à son AdReel principal (/<identifiant>/) ; « Contacter » ouvre un petit formulaire (Edge Function submit-contact-message,
+// { handle }) : l'adresse du compositeur n'est jamais montrée. Tant que le feu vert « composer_directory » n'est pas donné, seul un
+// administrateur voit la liste (les autres lisent « bientôt »). L'ordre vient de la base (paliers payants en tête, puis un ordre du jour).
+const pageLang = (new URLSearchParams(location.search).get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
+function tr(key, vars) {
+  const I18N = window.LAYERPITCH_I18N || { fr: { directory: {} }, en: { directory: {} } };
+  const dict = I18N[pageLang] || I18N.fr;
+  let str = (dict.directory && dict.directory[key]) || (I18N.fr.directory && I18N.fr.directory[key]) || key;
+  if (vars) Object.keys(vars).forEach(k => { str = str.split('{' + k + '}').join(vars[k]); });
+  return str;
+}
+document.documentElement.lang = pageLang;
+document.title = tr('pageTitle');
+document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = tr(el.dataset.i18nPlaceholder); });
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const IMAGES_BASE = 'https://media.layerpitch.com/images/';
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const state = { open: false, composers: [], contactOpen: null };
+const $ = id => document.getElementById(id);
+
+window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'directory', crumbs: [{ label: tr('h1') }] });
+
+// Barre du site pour les visiteurs sans compte (même principe que shop.html).
+(async function visitorBar() {
+  const { session } = await window.LayerPitchAuth.getSession();
+  if (session) return;
+  const q = pageLang === 'en' ? '?lang=en' : '';
+  $('siteRight').innerHTML = `<span class="lang"><a class="${pageLang === 'fr' ? 'on' : ''}" href="?lang=fr">FR</a> / <a class="${pageLang === 'en' ? 'on' : ''}" href="?lang=en">EN</a></span><a class="site-login" href="./bienvenue.html${q}">${esc(pageLang === 'en' ? 'Log in' : 'Se connecter')}</a>`;
+  document.body.classList.add('visitor');
+})();
+
+const gridEmpty = key => `<div class="empty" style="grid-column:1/-1">${esc(tr(key))}</div>`;
+const adReelHref = c => `/${encodeURIComponent(c.handle)}/${pageLang === 'en' ? '?lang=en' : ''}`;
+
+function renderKeywordSelect() {
+  const kws = [...new Set(state.composers.flatMap(c => c.keywords || []).map(k => k.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const sel = $('kwSel'), keep = sel.value;
+  sel.innerHTML = `<option value="">${esc(tr('allKeywords'))}</option>` + kws.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
+  sel.value = kws.includes(keep) ? keep : '';
+}
+function card(c) {
+  const photo = c.photo ? `<img class="photo" src="${IMAGES_BASE}${esc(c.photo)}" alt="${esc(tr('photoAlt', { name: c.name }))}" loading="lazy">` : `<div class="photo" aria-hidden="true"></div>`;
+  return `<div class="card" data-handle="${esc(c.handle)}">
+    <a class="card-link" href="${adReelHref(c)}">
+      ${photo}
+      <div class="name">${esc(c.name)}</div>
+      ${c.bio ? `<div class="bio">${esc(c.bio)}</div>` : ''}
+      ${(c.keywords || []).length ? `<div class="tags">${c.keywords.map(k => `<span class="tag">${esc(k)}</span>`).join('')}</div>` : ''}
+      <span class="open">${esc(tr('openAdReel'))} →</span>
+    </a>
+    <button class="contact-btn" type="button" data-contact="${esc(c.handle)}">${esc(tr('contact'))}</button>
+    <div class="contact-host" data-contact-host="${esc(c.handle)}"></div>
+  </div>`;
+}
+function renderGrid() {
+  const grid = $('grid');
+  if (!state.open) { $('filters').hidden = true; grid.innerHTML = `<div class="notice" style="grid-column:1/-1"><strong>${esc(tr('comingSoonTitle'))}</strong><div>${esc(tr('comingSoonHint'))}</div></div>`; return; }
+  $('filters').hidden = false;
+  const q = norm($('q').value), kw = $('kwSel').value;
+  const list = state.composers.filter(c => (!q || norm([c.name, c.bio, (c.keywords || []).join(' ')].join(' ')).includes(q)) && (!kw || (c.keywords || []).includes(kw)));
+  if (!list.length) { grid.innerHTML = gridEmpty(state.composers.length ? 'noMatch' : 'empty'); return; }
+  grid.innerHTML = list.map(card).join('');
+  grid.querySelectorAll('[data-contact]').forEach(b => b.onclick = () => {
+    const handle = b.dataset.contact, host = grid.querySelector(`[data-contact-host="${CSS.escape(handle)}"]`);
+    if (state.contactOpen === handle) { host.innerHTML = ''; state.contactOpen = null; return; }
+    grid.querySelectorAll('[data-contact-host]').forEach(h => { h.innerHTML = ''; });
+    state.contactOpen = handle;
+    const c = state.composers.find(x => x.handle === handle);
+    window.LayerPitchSellerContact.mount(host, { kind: 'composer', id: handle, name: c ? c.name : handle });
+    const d = host.querySelector('details'); if (d) d.open = true;
+  });
+}
+$('q').addEventListener('input', renderGrid);
+$('kwSel').addEventListener('change', renderGrid);
+
+(async () => {
+  $('grid').innerHTML = gridEmpty('loading');
+  const status = await LayerPitchComposers.directoryStatus();
+  state.open = status.open;
+  if (!state.open) { renderGrid(); return; }
+  const res = await LayerPitchComposers.directory();
+  if (res.error) { $('grid').innerHTML = gridEmpty('loadError'); return; }
+  state.composers = res.composers;
+  renderKeywordSelect();
+  renderGrid();
+})();
+</script>
+</body>
+</html>

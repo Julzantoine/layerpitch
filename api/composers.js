@@ -29,5 +29,26 @@
     return { link: data || null, error: null };
   }
 
-  window.LayerPitchComposers = { resolveHandle, resolvePublicLink };
+  // Annuaire des compositeurs (23/10, migration 20261023010000).
+  // directoryStatus : { open } — ouvert pour l'appelant (tout le monde après le feu vert 'composer_directory', sinon administrateurs).
+  async function directoryStatus() {
+    const { data, error } = await getClient().rpc('directory_status');
+    return { open: !!(data && data.open), error: error ? error.message : null };
+  }
+  // directory : la liste publique (vide tant que l'annuaire n'est pas ouvert pour l'appelant), paliers payants en tête.
+  async function directory() {
+    const { data, error } = await getClient().rpc('composer_directory');
+    return { composers: data || [], error: error ? error.message : null };
+  }
+  // Réglages du compositeur connecté : { optIn, keywords }.
+  async function getMyDirectory() {
+    const { data, error } = await getClient().rpc('get_my_directory');
+    return { settings: data || null, error: error ? error.message : null };
+  }
+  async function setMyDirectory(optIn, keywords) {
+    const { data, error } = await getClient().rpc('set_my_directory', { p_opt_in: !!optIn, p_keywords: keywords || [] });
+    return { settings: data || null, error: error ? error.message : null };
+  }
+
+  window.LayerPitchComposers = { resolveHandle, resolvePublicLink, directoryStatus, directory, getMyDirectory, setMyDirectory };
 })();

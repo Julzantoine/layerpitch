@@ -24,7 +24,7 @@ export function routeOf(url) {
   const segs = url.pathname.split('/').filter(Boolean).map(s => { try { return decodeURIComponent(s); } catch (e) { return s; } });
   if (!segs.length) return null;
   if (segs[0] === 'album' && segs.length === 2 && !segs[1].includes('.')) return { kind: 'album', handle: '', ref: segs[1], alt: '' };
-  if (['shop', 'vitrine', 'album'].includes(segs[0]) || segs[0].includes('.')) return null; // pages réservées et vrais fichiers
+  if (['shop', 'vitrine', 'album', 'compositeurs', 'composers'].includes(segs[0]) || segs[0].includes('.')) return null; // pages réservées et vrais fichiers
   const handle = segs[0];
   if (segs.length === 1) return { kind: 'adreel', handle, ref: '', alt: url.searchParams.get('adreel') || '' };
   if (segs.length !== 2) return null;

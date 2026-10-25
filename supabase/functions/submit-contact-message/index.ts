@@ -10,6 +10,9 @@
 // bloc Contact de son AdReel principal, à défaut l'adresse de connexion du vendeur ; pour un studio, celle du propriétaire).
 // Le message ne révèle jamais l'adresse du vendeur à l'expéditeur.
 //
+// Annuaire des compositeurs (23/10) : accepte aussi { handle } — le compositeur de l'annuaire (case « visible » cochée) ; même
+// recherche du destinataire que pour un pack (adresse de contact de ses AdReels, à défaut l'adresse de connexion).
+//
 // Appelée anonymement (aucune session requise, un visiteur public n'a pas de compte) — le
 // propriétaire réel et son email de contact sont retrouvés ICI, côté serveur, à partir de l'AdReel
 // visé, jamais depuis une valeur envoyée par le client (même principe que log_analytics_event()).
@@ -83,10 +86,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { adReelId, packId, albumId, name, email, message } = await req.json();
-    const shopKind = typeof packId === 'string' && packId ? 'pack' : (typeof albumId === 'string' && albumId ? 'album' : null);
+    const { adReelId, packId, albumId, handle, name, email, message } = await req.json();
+    const shopKind = typeof packId === 'string' && packId ? 'pack' : (typeof albumId === 'string' && albumId ? 'album' : (typeof handle === 'string' && handle ? 'composer' : null));
     if (!shopKind && (!adReelId || typeof adReelId !== 'string')) {
-      return new Response(JSON.stringify({ error: 'adReelId, packId ou albumId manquant.' }), {
+      return new Response(JSON.stringify({ error: 'adReelId, packId, albumId ou handle manquant.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -126,7 +129,12 @@ Deno.serve(async (req) => {
     if (shopKind) {
       // Shop : pack ou album EN VENTE (jamais un brouillon).
       let sellerProfileId: string | null = null;
-      if (shopKind === 'pack') {
+      if (shopKind === 'composer') {
+        const { data: cp } = await adminClient.from('composer_profiles').select('id, profile_id, directory_opt_in').eq('handle', handle).maybeSingle();
+        if (!cp || !cp.directory_opt_in) return new Response(JSON.stringify({ error: 'Compositeur introuvable.' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        ownerComposerId = cp.id; sellerProfileId = cp.profile_id;
+        adReelLabel = `Annuaire · ${handle}`; logRef = 'main';
+      } else if (shopKind === 'pack') {
         const { data: pack } = await adminClient.from('packs').select('owner_id, title, buyable').eq('id', packId).maybeSingle();
         if (!pack || !pack.buyable) return new Response(JSON.stringify({ error: 'Pack introuvable.' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         const { data: cp } = await adminClient.from('composer_profiles').select('id, profile_id').eq('id', pack.owner_id).maybeSingle();

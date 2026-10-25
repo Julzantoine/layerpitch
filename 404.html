@@ -44,6 +44,13 @@
     location.replace('/shop.html?' + p.toString());
     return;
   }
+  // /compositeurs (et /composers) (23/10, annuaire des compositeurs) : noms réservés.
+  if ((handle === 'compositeurs' || handle === 'composers') && segments.length === 1) {
+    const p = new URLSearchParams(location.search);
+    p.set('__pretty', path + location.search);
+    location.replace('/annuaire.html?' + p.toString());
+    return;
+  }
   // /album/<id> (29/09, page publique d'un album en vente) : « album » est un nom réservé.
   if (handle === 'album' && segments.length === 2 && !segments[1].includes('.')) {
     const p = new URLSearchParams(location.search);
