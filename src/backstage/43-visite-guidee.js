@@ -811,6 +811,28 @@ const LESSONS = [
   ] },
   // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
   // Projet fictif ; `page` renvoie vers cette page au clic.
+  // Leçon « Créer un album » (25/10, ?tuto&lesson=album, rechargement obligatoire d'où `reload`) : album d'OST adaptative avec les quatre villes de « Music City ».
+  // L'onglet Albums est normalement réservé aux comptes qui ont le droit sell_albums : le faux serveur l'accorde pour cette leçon (api/demo-client.js).
+  // La version officielle (prise enregistrée dans le lecteur) est expliquée, pas jouée ; la mise en vente est expliquée (achat factice pendant la bêta).
+  { id: 'album', theme: 'pitch', public: true, reload: true, titleKey: 'albTitle', descKey: 'albDesc', steps: [
+    { titleKey: 'albWelcomeTitle', textKey: 'albWelcomeText' },
+    { selector: '.nav-item[data-tab="albums"]', titleKey: 'albNavTitle', textKey: 'albNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="albums"].active') },
+    { selector: '#btnAddAlbum', titleKey: 'albAddTitle', textKey: 'albAddText', clickDone: true, done: () => albumsState.albums.length >= 1 },
+    { selector: '#albumsContainer [data-ae-field="title"]', titleKey: 'albNameTitle', textKey: 'albNameText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].title || '').trim().length > 2,
+      drops: [{ kind: 'text', label: 'Music City : la bande-son adaptative', value: 'Music City : la bande-son adaptative' }] },
+    { selector: '#albumsContainer [data-ae-field="presentationFr"]', titleKey: 'albTextTitle', textKey: 'albTextText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].presentationFr || '').trim().length > 5,
+      drops: [{ kind: 'text', label: 'Quatre villes, quatre ambiances, un même tempo. Une musique qui s’adapte au joueur, à garder et à rejouer.', value: 'Quatre villes, quatre ambiances, un même tempo. Une musique qui s’adapte au joueur, à garder et à rejouer.' }] },
+    { selector: '#albumsContainer [data-ae-cover-ctrl]', titleKey: 'albCoverTitle', textKey: 'albCoverText' },
+    { selector: '#albumsContainer [data-ae-field="priceInput"]', titleKey: 'albPriceTitle', textKey: 'albPriceText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].priceInput || '').trim().length > 0,
+      drops: [{ kind: 'text', label: '5', value: '5' }] },
+    { selector: () => document.querySelector('#albumsContainer [data-ae-track]:not(:checked)'), titleKey: 'albTracksTitle', textKey: 'albTracksText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].trackIds.length >= 4 },
+    { selector: '#albumsContainer [data-ae-listen]', titleKey: 'albListenTitle', textKey: 'albListenText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].listenMode !== 'none' },
+    { selector: '#albumsContainer [data-ae-save]', titleKey: 'albSaveTitle', textKey: 'albSaveText', clickDone: true, done: () => albumsState.albums.length > 0 && albumsState.albums[0].saved },
+    { selector: '#albumsContainer [data-ae-record]', titleKey: 'albOfficialTitle', textKey: 'albOfficialText' },
+    { selector: '#albumsContainer [data-ae-rights-decl]', titleKey: 'albRightsTitle', textKey: 'albRightsText' },
+    { selector: '#albumsContainer [data-ae-buyable]', titleKey: 'albSellTitle', textKey: 'albSellText' },
+    { titleKey: 'albEndTitle', textKey: 'albEndText', final: true },
+  ] },
   // Leçon « Vérifier le tracking » (25/10, ?tuto&lesson=tracking, rechargement obligatoire d'où `reload`) : tableau de bord Analytics (palier Pro) déjà garni par le faux serveur (api/demo-client.js, analyticsDemo).
   { id: 'tracking', theme: 'pitch', public: true, reload: true, titleKey: 'ltTitle', descKey: 'ltDesc', steps: [
     { titleKey: 'ltWelcomeTitle', textKey: 'ltWelcomeText' },
