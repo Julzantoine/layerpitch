@@ -708,6 +708,26 @@ const LESSONS = [
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lvxListenTitle', textKey: 'lvxListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { titleKey: 'lvxEndTitle', textKey: 'lvxEndText', final: true },
   ] },
+  // Leçon « C'est quoi un AdReel ? » (23/10) : visite d'un Main AdReel DÉJÀ REMPLI (api/demo-client.js, ?tuto&lesson=adreel-intro). Aucun geste d'écriture : on lit, on déplie, on prévisualise.
+  // L'annuaire des compositeurs n'existe PAS encore : le texte final le présente comme « à venir ».
+  { id: 'adreel-intro', theme: 'pitch', public: true, reload: true, titleKey: 'liTitle', descKey: 'liDesc', steps: [
+    { titleKey: 'liWelcomeTitle', textKey: 'liWelcomeText' },
+    { selector: '#adReelSelect', titleKey: 'liMainTitle', textKey: 'liMainText' },
+    { selector: '#btnAddAdReel', titleKey: 'liNewTitle', textKey: 'liNewText' },
+    { selector: '#btnToggleCollapseAllBlocks', titleKey: 'liOpenTitle', textKey: 'liOpenText', done: () => !!document.querySelector('.block-editor-body:not(.collapsed)') },
+    { selector: '.block-editor-card[data-type="header"]', titleKey: 'liHeaderTitle', textKey: 'liHeaderText' },
+    { selector: '.block-editor-card[data-type="bio"]', titleKey: 'liBioTitle', textKey: 'liBioText' },
+    { selector: '.block-editor-card[data-type="tracks"]', titleKey: 'liTracksTitle', textKey: 'liTracksText' },
+    { selector: '.block-editor-card[data-type="text"]', titleKey: 'liTextTitle', textKey: 'liTextText' },
+    { selector: '.block-editor-card[data-type="testimonials"]', titleKey: 'liTestiTitle', textKey: 'liTestiText' },
+    { selector: '.block-editor-card[data-type="contact"]', titleKey: 'liContactTitle', textKey: 'liContactText' },
+    { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'liOrderTitle', textKey: 'liOrderText' },
+    { selector: '.nav-item[data-tab="appearance"]', titleKey: 'liAppearanceTitle', textKey: 'liAppearanceText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
+    { selector: '.nav-item[data-tab="content"]', titleKey: 'liBackTitle', textKey: 'liBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
+    { selector: '#btnPublish', titleKey: 'liLinkTitle', textKey: 'liLinkText' },
+    { selector: '#btnPreview', titleKey: 'liPreviewTitle', textKey: 'liPreviewText', clickDone: true },
+    { titleKey: 'liDirectoryTitle', textKey: 'liDirectoryText', final: true },
+  ] },
   // Leçon « Créer un AdReel » (20/10) : se joue dans le Backstage du mode tutoriel, bibliothèque d'exemple préchargée (api/demo-client.js,
   // ?tuto&lesson=adreel : rechargement obligatoire d'où `reload`). Fil rouge (22/10) : au retour de la WorldGameCon, le compositeur envoie à Joshua, créateur du jeu « Music City », un AdReel custom (quatre villes, un fil rouge musical).
   // L'aperçu de fin ouvre l'AdReel REMPLI (bouton Prévisualiser : aperçu local, sans serveur).
@@ -716,31 +736,51 @@ const LESSONS = [
     { selector: '#btnAddAdReel', titleKey: 'laNewTitle', textKey: 'laNewText', clickDone: true },
     { selector: '#newAdReelLabel', titleKey: 'laNameTitle', textKey: 'laNameText', done: () => { const i = document.getElementById('newAdReelLabel'); return !!i && i.value.trim().length > 2; },
       drops: [{ kind: 'text', label: 'Music City : pitch musical', value: 'Music City : pitch musical' }] },
+    // 23/10 : le nouvel AdReel REPREND l'en-tête et la bio du Main AdReel (modale de création, source + cases à cocher), puis on y écrit un texte et on y met de la musique.
+    { selector: '#newAdReelSource', titleKey: 'laSourceTitle', textKey: 'laSourceText', done: () => { const e = document.getElementById('newAdReelSource'); return !!e && e.value === 'main'; } },
+    { selector: () => document.getElementById('importHeader'), titleKey: 'laImportHeaderTitle', textKey: 'laImportHeaderText', done: () => { const e = document.getElementById('importHeader'); return !!e && e.checked; } },
+    { selector: () => document.getElementById('importBio'), titleKey: 'laImportBioTitle', textKey: 'laImportBioText', done: () => { const e = document.getElementById('importBio'); return !!e && e.checked; } },
     { selector: '#newAdReelOk', titleKey: 'laCreateTitle', textKey: 'laCreateText', done: () => currentAdReelId !== 'main' && adReels.length >= 2 },
     { selector: '#btnToggleCollapseAllBlocks', titleKey: 'laOpenTitle', textKey: 'laOpenText', done: () => !!document.querySelector('.block-editor-body:not(.collapsed)') },
-    { selector: '.block-editor-card[data-type="header"] [data-role="title"]', titleKey: 'laHeaderTitleTitle', textKey: 'laHeaderTitleText', done: () => (profile.title || '').trim().length > 2,
-      drops: [{ kind: 'text', label: 'Music City', value: 'Music City' }] },
-    { selector: '.block-editor-card[data-type="header"] [data-role="subtitle"]', titleKey: 'laHeaderSubTitle', textKey: 'laHeaderSubText', done: () => (profile.subtitle || '').trim().length > 2,
-      drops: [{ kind: 'text', label: 'Un jeu où chaque ville a sa propre ambiance. Musique interactive.', value: 'Un jeu où chaque ville a sa propre ambiance. Musique interactive.' }] },
-    { selector: '.block-editor-card[data-type="bio"] [data-role="bioText"]', titleKey: 'laBioTitle', textKey: 'laBioText', done: () => (profile.bio || '').trim().length > 5,
-      drops: [{ kind: 'text', label: 'Quatre villes, quatre ambiances (Rock, Jazz, Disco, Synth) et un fil rouge musical qui les relie : le même tempo, des univers différents.', value: 'Quatre villes, quatre ambiances (Rock, Jazz, Disco, Synth) et un fil rouge musical qui les relie : le même tempo, des univers différents.' }] },
-    { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack1Title', textKey: 'laTrack1Text', done: () => trackIds.length >= 1 },
-    { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack2Title', textKey: 'laTrack2Text', done: () => trackIds.length >= 2 },
-    // Mise en page : explication, sans geste obligatoire (le glisser-déposer des blocs marche à la souris, pas toujours au doigt).
-    { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'laReorderTitle', textKey: 'laReorderText' },
+    { selector: '.block-editor-card[data-type="header"]', titleKey: 'laReusedTitle', textKey: 'laReusedText' },
     { selector: '#btnAddText', titleKey: 'laAddTextTitle', textKey: 'laAddTextText', clickDone: true, done: () => blocks.some(b => b.type === 'text') },
     { selector: '.block-editor-card[data-type="text"] [data-role="title"]', titleKey: 'laTextTitleTitle', textKey: 'laTextTitleText', done: () => blocks.some(b => b.type === 'text' && (b.title || '').trim().length > 2),
       drops: [{ kind: 'text', label: 'Direction sonore', value: 'Direction sonore' }] },
     { selector: '.block-editor-card[data-type="text"] [data-role="content"]', titleKey: 'laTextBodyTitle', textKey: 'laTextBodyText', done: () => blocks.some(b => b.type === 'text' && (b.content || '').trim().length > 5),
       drops: [{ kind: 'text', label: 'Un fil rouge entre toutes les villes : le même tempo (110 BPM), et une ambiance différente à chaque ville.', value: 'Un fil rouge entre toutes les villes : le même tempo (110 BPM), et une ambiance différente à chaque ville.' }] },
+    { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack1Title', textKey: 'laTrack1Text', done: () => trackIds.length >= 1 },
+    { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack2Title', textKey: 'laTrack2Text', done: () => trackIds.length >= 2 },
+    // Mise en page : explication, sans geste obligatoire (le glisser-déposer des blocs marche à la souris, pas toujours au doigt).
+    { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'laReorderTitle', textKey: 'laReorderText' },
     // Bloc vidéo : la vidéo de gameplay de la leçon « Versioning » (lien à fournir : LESSON_ADREEL_VIDEO ; l'étape du lien est sautée tant qu'il manque).
-    { selector: '.nav-item[data-tab="appearance"]', titleKey: 'laAppearanceTitle', textKey: 'laAppearanceText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
-    { selector: () => document.querySelector('#themeProQuickStartGallery button, #appThemeFreeGallery button'), titleKey: 'laThemeTitle', textKey: 'laThemeText', clickDone: true },
-    { selector: '.nav-item[data-tab="content"]', titleKey: 'laBackTitle', textKey: 'laBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
     // Aperçu de l'AdReel rempli : nouvelle fenêtre, aperçu local (rien n'est publié).
-    { selector: '#btnPreview', titleKey: 'laPreviewTitle', textKey: 'laPreviewText', clickDone: true },
     { selector: '#btnPublish', titleKey: 'laSendTitle', textKey: 'laSendText', clickDone: true },
+    { selector: '#btnPreview', titleKey: 'laPreviewTitle', textKey: 'laPreviewText', clickDone: true },
     { titleKey: 'adEndTitle', textKey: 'adEndText', final: true },
+  ] },
+  // Leçon « Faire un pack » (25/10, ?tuto&lesson=pack, rechargement obligatoire d'où `reload`) : bibliothèque d'exemple (les quatre villes), aucun pack au départ.
+  // Contenu → Présentation → Apparence (galerie de thèmes, police) → Diffusion (prix) → aperçu de la page publique, dernier geste. La vente en ligne est fermée pendant la bêta : expliquée, pas jouée.
+  { id: 'pack', theme: 'pitch', public: true, reload: true, titleKey: 'lpTitle', descKey: 'lpDesc', steps: [
+    { titleKey: 'lpWelcomeTitle', textKey: 'lpWelcomeText' },
+    { selector: '.nav-item[data-tab="packs"]', titleKey: 'lpNavTitle', textKey: 'lpNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="packs"].active') },
+    { selector: '#btnAddPack', titleKey: 'lpAddTitle', textKey: 'lpAddText', clickDone: true, done: () => packs.length >= 1 },
+    { selector: '#packsContainer [data-role="trackSelector"] select[data-sel-action="add"]', titleKey: 'lpTrack1Title', textKey: 'lpTrack1Text', done: () => packs.length > 0 && packs[0].trackIds.length >= 1 },
+    { selector: '#packsContainer [data-role="trackSelector"] select[data-sel-action="add"]', titleKey: 'lpTrack2Title', textKey: 'lpTrack2Text', done: () => packs.length > 0 && packs[0].trackIds.length >= 2 },
+    { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="presentation"]', titleKey: 'lpPresTitle', textKey: 'lpPresText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'presentation' },
+    { selector: '#packsContainer input[data-pack-field="title"][data-pi="0"]:not(.seq-header-title)', titleKey: 'lpNameTitle', textKey: 'lpNameText', done: () => packs.length > 0 && (packs[0].title || '').trim().length > 2 && packs[0].title !== tr('defaultPackTitle'),
+      drops: [{ kind: 'text', label: 'Music City : les quatre villes', value: 'Music City : les quatre villes' }] },
+    { selector: '#packsContainer textarea[data-pack-field="presentationFr"]', titleKey: 'lpTextTitle', textKey: 'lpTextText', done: () => packs.length > 0 && (packs[0].presentationFr || '').trim().length > 5,
+      drops: [{ kind: 'text', label: 'Quatre ambiances de ville au même tempo : Jazz, Rock, Disco et Synth. À écouter, et à tester dans le jeu.', value: 'Quatre ambiances de ville au même tempo : Jazz, Rock, Disco et Synth. À écouter, et à tester dans le jeu.' }] },
+    { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="appearance"]', titleKey: 'lpAppearTitle', textKey: 'lpAppearText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'appearance' },
+    { selector: () => document.querySelectorAll('#packsContainer .theme-preset-card')[1] || document.querySelector('#packsContainer .theme-preset-card'), titleKey: 'lpThemeTitle', textKey: 'lpThemeText', clickDone: true },
+    { selector: '#packsContainer select[data-pack-field="font"]', titleKey: 'lpFontTitle', textKey: 'lpFontText', done: () => packs.length > 0 && !!packs[0].font && packs[0].font !== 'default', skip: () => !document.querySelector('#packsContainer select[data-pack-field="font"]') },
+    { selector: '#packsContainer [data-pack-field="bgColor"]', titleKey: 'lpColorsTitle', textKey: 'lpColorsText', skip: () => !document.querySelector('#packsContainer [data-pack-field="bgColor"]') },
+    { selector: '#packsContainer [data-role="illustrationCtrl"]', titleKey: 'lpImageTitle', textKey: 'lpImageText' },
+    { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="distribution"]', titleKey: 'lpDistTitle', textKey: 'lpDistText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'distribution' },
+    { selector: '#packsContainer select[data-pack-field="priceEurCents"]', titleKey: 'lpPriceTitle', textKey: 'lpPriceText', done: () => packs.length > 0 && packs[0].priceEurCents !== 1000 },
+    { selector: '#packsContainer input[data-pack-field="buyable"]', titleKey: 'lpSellTitle', textKey: 'lpSellText' },
+    { selector: '#packsContainer [data-action="preview-pack"]', titleKey: 'lpPreviewTitle', textKey: 'lpPreviewText', clickDone: true },
+    { titleKey: 'lpEndTitle', textKey: 'lpEndText', final: true },
   ] },
   // Leçon « Versioning vidéo » (21/10, refaite le même jour : elle se joue dans le Backstage, pas sur la page du pack). Parcours choisi par
   // Jules-Antoine : onglet Vidéo → Atelier ; DANS l'atelier (cadre, atelier-lecons.js) : choisir le pack, la vidéo muette d'« Alone in the
@@ -771,7 +811,42 @@ const LESSONS = [
   ] },
   // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
   // Projet fictif ; `page` renvoie vers cette page au clic.
-  { id: 'tracking', theme: 'pitch', public: true, soon: true, titleKey: 'ltTitle', descKey: 'ltDesc' }, // à construire ; « bientôt » d'ici là
+  // Leçon « Créer un album » (25/10, ?tuto&lesson=album, rechargement obligatoire d'où `reload`) : album d'OST adaptative avec les quatre villes de « Music City ».
+  // L'onglet Albums est normalement réservé aux comptes qui ont le droit sell_albums : le faux serveur l'accorde pour cette leçon (api/demo-client.js).
+  // La version officielle (prise enregistrée dans le lecteur) est expliquée, pas jouée ; la mise en vente est expliquée (achat factice pendant la bêta).
+  { id: 'album', theme: 'pitch', public: true, reload: true, titleKey: 'albTitle', descKey: 'albDesc', steps: [
+    { titleKey: 'albWelcomeTitle', textKey: 'albWelcomeText' },
+    { selector: '.nav-item[data-tab="albums"]', titleKey: 'albNavTitle', textKey: 'albNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="albums"].active') },
+    { selector: '#btnAddAlbum', titleKey: 'albAddTitle', textKey: 'albAddText', clickDone: true, done: () => albumsState.albums.length >= 1 },
+    { selector: '#albumsContainer [data-ae-field="title"]', titleKey: 'albNameTitle', textKey: 'albNameText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].title || '').trim().length > 2,
+      drops: [{ kind: 'text', label: 'Music City : la bande-son adaptative', value: 'Music City : la bande-son adaptative' }] },
+    { selector: '#albumsContainer [data-ae-field="presentationFr"]', titleKey: 'albTextTitle', textKey: 'albTextText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].presentationFr || '').trim().length > 5,
+      drops: [{ kind: 'text', label: 'Quatre villes, quatre ambiances, un même tempo. Une musique qui s’adapte au joueur, à garder et à rejouer.', value: 'Quatre villes, quatre ambiances, un même tempo. Une musique qui s’adapte au joueur, à garder et à rejouer.' }] },
+    { selector: '#albumsContainer [data-ae-cover-ctrl]', titleKey: 'albCoverTitle', textKey: 'albCoverText' },
+    { selector: '#albumsContainer [data-ae-field="priceInput"]', titleKey: 'albPriceTitle', textKey: 'albPriceText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].priceInput || '').trim().length > 0,
+      drops: [{ kind: 'text', label: '5', value: '5' }] },
+    { selector: () => document.querySelector('#albumsContainer [data-ae-track]:not(:checked)'), titleKey: 'albTracksTitle', textKey: 'albTracksText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].trackIds.length >= 4 },
+    { selector: '#albumsContainer [data-ae-listen]', titleKey: 'albListenTitle', textKey: 'albListenText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].listenMode !== 'none' },
+    { selector: '#albumsContainer [data-ae-save]', titleKey: 'albSaveTitle', textKey: 'albSaveText', clickDone: true, done: () => albumsState.albums.length > 0 && albumsState.albums[0].saved },
+    { selector: '#albumsContainer [data-ae-record]', titleKey: 'albOfficialTitle', textKey: 'albOfficialText' },
+    { selector: '#albumsContainer [data-ae-rights-decl]', titleKey: 'albRightsTitle', textKey: 'albRightsText' },
+    { selector: '#albumsContainer [data-ae-buyable]', titleKey: 'albSellTitle', textKey: 'albSellText' },
+    { titleKey: 'albEndTitle', textKey: 'albEndText', final: true },
+  ] },
+  // Leçon « Vérifier le tracking » (25/10, ?tuto&lesson=tracking, rechargement obligatoire d'où `reload`) : tableau de bord Analytics (palier Pro) déjà garni par le faux serveur (api/demo-client.js, analyticsDemo).
+  { id: 'tracking', theme: 'pitch', public: true, reload: true, titleKey: 'ltTitle', descKey: 'ltDesc', steps: [
+    { titleKey: 'ltWelcomeTitle', textKey: 'ltWelcomeText' },
+    { selector: '.nav-item[data-tab="analytics"]', titleKey: 'ltNavTitle', textKey: 'ltNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="analytics"].active') },
+    { selector: '#analyticsPresets', titleKey: 'ltPeriodTitle', textKey: 'ltPeriodText' },
+    { selector: '#analyticsOverview .an-kpis', titleKey: 'ltKpiTitle', textKey: 'ltKpiText' },
+    { selector: '#analyticsOverview .an-charts', titleKey: 'ltChartTitle', textKey: 'ltChartText' },
+    { selector: '#analyticsOverview .an-table', titleKey: 'ltTableTitle', textKey: 'ltTableText' },
+    { selector: '#analyticsOverview .an-row[data-id="music-city"]', titleKey: 'ltOpenTitle', textKey: 'ltOpenText', done: () => !!analyticsSelected && analyticsSelected.id === 'music-city' },
+    { selector: '#analyticsEntityDetail .an-devices', titleKey: 'ltDeviceTitle', textKey: 'ltDeviceText' },
+    { selector: '#analyticsEntityDetail .an-table', titleKey: 'ltTracksTitle', textKey: 'ltTracksText' },
+    { selector: '#analyticsEntityDetail .an-ix', titleKey: 'ltIxTitle', textKey: 'ltIxText' },
+    { titleKey: 'ltEndTitle', textKey: 'ltEndText', final: true },
+  ] },
   { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc' },
   { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
   { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },
