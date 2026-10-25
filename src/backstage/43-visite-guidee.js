@@ -298,6 +298,12 @@ let atelierLessonFinished = false;
 function onAtelierLessonDone() { atelierLessonFinished = true; }
 // Première vidéo du premier bloc vidéo de l'AdReel en cours (celle que la leçon fait remplir).
 function lessonAdreelVideo() { const b = blocks.find(x => x.type === 'video'); return b && b.videos && b.videos[0] || null; }
+// Fichiers d'exemple de la leçon d'envoi de fichiers (25/10) : À DÉPOSER par Jules-Antoine dans media.layerpitch.com/tuto/ (images légères, JPG ~300 Ko ; la vidéo est la même que celle de la leçon Versioning).
+const UPLOAD_KIT = {
+  url: name => 'https://media.layerpitch.com/tuto/' + encodeURIComponent(name),
+  photo: { name: 'alone-ponton.jpg' }, thumb: { name: 'alone-brume.jpg' }, cover: { name: 'alone-rameur.jpg' }, album: { name: 'alone-cabane.jpg' },
+  video: { name: 'alone-gameplay-muette.mp4' },
+};
 const LESSON_THEMES = [
   { id: 'engine', titleKey: 'lessonThemeEngine' },
   { id: 'pitch', titleKey: 'lessonThemePitch' },
@@ -802,6 +808,73 @@ const LESSONS = [
     { selector: '#packsContainer [data-action="preview-pack"]', titleKey: 'lpPreviewTitle', textKey: 'lpPreviewText', clickDone: true },
     { titleKey: 'lpEndTitle', textKey: 'lpEndText', final: true },
   ] },
+  // Leçon « Créer un album » (25/10, ?tuto&lesson=album, rechargement obligatoire d'où `reload`) : album d'OST adaptative avec les quatre villes de « Music City ».
+  // L'onglet Albums est normalement réservé aux comptes qui ont le droit sell_albums : le faux serveur l'accorde pour cette leçon (api/demo-client.js).
+  // La version officielle (prise enregistrée dans le lecteur) est expliquée, pas jouée ; la mise en vente est expliquée (achat factice pendant la bêta).
+  { id: 'album', theme: 'pitch', public: true, reload: true, titleKey: 'albTitle', descKey: 'albDesc', steps: [
+    { titleKey: 'albWelcomeTitle', textKey: 'albWelcomeText' },
+    { selector: '.nav-item[data-tab="albums"]', titleKey: 'albNavTitle', textKey: 'albNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="albums"].active') },
+    { selector: '#btnAddAlbum', titleKey: 'albAddTitle', textKey: 'albAddText', clickDone: true, done: () => albumsState.albums.length >= 1 },
+    { selector: '#albumsContainer [data-ae-field="title"]', titleKey: 'albNameTitle', textKey: 'albNameText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].title || '').trim().length > 2,
+      drops: [{ kind: 'text', label: 'Music City : la bande-son adaptative', value: 'Music City : la bande-son adaptative' }] },
+    { selector: '#albumsContainer [data-ae-field="presentationFr"]', titleKey: 'albTextTitle', textKey: 'albTextText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].presentationFr || '').trim().length > 5,
+      drops: [{ kind: 'text', label: 'Quatre villes, quatre ambiances, un même tempo. Une musique qui s’adapte au joueur, à garder et à rejouer.', value: 'Quatre villes, quatre ambiances, un même tempo. Une musique qui s’adapte au joueur, à garder et à rejouer.' }] },
+    { selector: '#albumsContainer [data-ae-cover-ctrl]', titleKey: 'albCoverTitle', textKey: 'albCoverText' },
+    { selector: '#albumsContainer [data-ae-field="priceInput"]', titleKey: 'albPriceTitle', textKey: 'albPriceText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].priceInput || '').trim().length > 0,
+      drops: [{ kind: 'text', label: '5', value: '5' }] },
+    { selector: () => document.querySelector('#albumsContainer [data-ae-track]:not(:checked)'), titleKey: 'albTracksTitle', textKey: 'albTracksText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].trackIds.length >= 4 },
+    { selector: '#albumsContainer [data-ae-listen]', titleKey: 'albListenTitle', textKey: 'albListenText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].listenMode !== 'none' },
+    { selector: '#albumsContainer [data-ae-save]', titleKey: 'albSaveTitle', textKey: 'albSaveText', clickDone: true, done: () => albumsState.albums.length > 0 && albumsState.albums[0].saved },
+    { selector: '#albumsContainer [data-ae-record]', titleKey: 'albOfficialTitle', textKey: 'albOfficialText' },
+    { selector: '#albumsContainer [data-ae-rights-decl]', titleKey: 'albRightsTitle', textKey: 'albRightsText' },
+    { selector: '#albumsContainer [data-ae-buyable]', titleKey: 'albSellTitle', textKey: 'albSellText' },
+    { titleKey: 'albEndTitle', textKey: 'albEndText', final: true },
+  ] },
+  // Leçon « Intégrer un lecteur sur un site web » (25/10, ?tuto&lesson=embed, rechargement obligatoire d'où `reload`) : le code d'intégration d'un pack (même principe pour une collection et
+  // la liste de morceaux d'un AdReel), puis l'autorisation donnée aux visiteurs (Réseaux sociaux). Adresse d'exemple en mode tutoriel (30-packs.js).
+  { id: 'embed', theme: 'pitch', public: true, reload: true, titleKey: 'leTitle', descKey: 'leDesc', steps: [
+    { titleKey: 'embWelcomeTitle', textKey: 'embWelcomeText' },
+    { selector: '.nav-item[data-tab="packs"]', titleKey: 'lePacksTabTitle', textKey: 'lePacksTabText', done: () => !!document.querySelector('.backstage-panel[data-panel="packs"].active') },
+    { selector: '#btnAddPack', titleKey: 'leAddPackTitle', textKey: 'leAddPackText', clickDone: true, done: () => packs.length >= 1 },
+    { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="distribution"]', titleKey: 'leDistTitle', textKey: 'leDistText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'distribution' },
+    { selector: '#packsContainer [data-action="embed-pack"]', titleKey: 'leEmbedBtnTitle', textKey: 'leEmbedBtnText', clickDone: true, done: () => document.getElementById('embedModalOverlay').style.display === 'flex' },
+    { selector: '#embedCodeArea', titleKey: 'leCodeTitle', textKey: 'leCodeText' },
+    { selector: '#embedCopyBtn', titleKey: 'leCopyTitle', textKey: 'leCopyText', clickDone: true },
+    { selector: '#embedCloseBtn', titleKey: 'leCloseTitle', textKey: 'leCloseText', clickDone: true, done: () => document.getElementById('embedModalOverlay').style.display !== 'flex' },
+    { selector: '.nav-item[data-tab="socials"]', titleKey: 'leSocialsTabTitle', textKey: 'leSocialsTabText', done: () => !!document.querySelector('.backstage-panel[data-panel="socials"].active') },
+    { selector: '#allowEmbeddingCheckbox', titleKey: 'leAllowTitle', textKey: 'leAllowText', done: () => !!document.getElementById('allowEmbeddingCheckbox').checked },
+    { titleKey: 'embEndTitle', textKey: 'embEndText', final: true },
+  ] },
+  // Leçon « Envoyer des images et des vidéos » (25/10, ?tuto&lesson=upload, rechargement obligatoire d'où `reload`) : l'apprenant glisse des fichiers d'exemple sur les zones d'envoi
+  // (image d'un bloc Photo, vignette d'un bloc Vidéo, bibliothèque vidéo hébergée, illustration d'un pack, pochette d'un album). Envoi SIMULÉ dans le compte fictif : rien n'est enregistré.
+  // « bientôt » tant que les fichiers d'exemple (UPLOAD_KIT) ne sont pas déposés par Jules-Antoine dans media.layerpitch.com/tuto/ (même dossier que les vidéos de la leçon Versioning).
+  { id: 'upload', theme: 'pitch', public: true, reload: true, soon: true, titleKey: 'luTitle', descKey: 'luDesc', steps: [
+    { titleKey: 'luWelcomeTitle', textKey: 'luWelcomeText' },
+    { selector: '#btnAddPhoto', titleKey: 'luPhotoBlockTitle', textKey: 'luPhotoBlockText', clickDone: true, done: () => blocks.some(b => b.type === 'photo') },
+    { selector: '.block-editor-card[data-type="photo"] [data-role="addBtn"]', titleKey: 'luAddImageTitle', textKey: 'luAddImageText', clickDone: true, done: () => blocks.some(b => b.type === 'photo' && b.images.length >= 1) },
+    { selector: '.block-editor-card[data-type="photo"] [data-role="list"] .file-ctrl', titleKey: 'luDropImageTitle', textKey: 'luDropImageText', done: () => blocks.some(b => b.type === 'photo' && b.images.some(i => !!i.pendingFile)),
+      drops: [{ kind: 'file', label: UPLOAD_KIT.photo.name, url: UPLOAD_KIT.url(UPLOAD_KIT.photo.name), name: UPLOAD_KIT.photo.name }] },
+    { selector: '#btnAddVideoBlock', titleKey: 'luVideoBlockTitle', textKey: 'luVideoBlockText', clickDone: true, done: () => blocks.some(b => b.type === 'video') },
+    { selector: '.block-editor-card[data-type="video"] [data-role="addBtn"]', titleKey: 'luAddVideoTitle', textKey: 'luAddVideoText', clickDone: true, done: () => blocks.some(b => b.type === 'video' && b.videos.length >= 1) },
+    { selector: '.block-editor-card[data-type="video"] [data-role="thumbCtrl"] .file-ctrl', titleKey: 'luThumbTitle', textKey: 'luThumbText', done: () => blocks.some(b => b.type === 'video' && b.videos.some(v => !!v.pendingThumbnail)),
+      drops: [{ kind: 'file', label: UPLOAD_KIT.thumb.name, url: UPLOAD_KIT.url(UPLOAD_KIT.thumb.name), name: UPLOAD_KIT.thumb.name }] },
+    { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'luLibTabTitle', textKey: 'luLibTabText', done: () => !!document.querySelector('.backstage-panel[data-panel="videoLibrary"].active') },
+    { selector: '#videoLibraryDropzone', titleKey: 'luLibDropTitle', textKey: 'luLibDropText', done: () => !!document.querySelector('#videoLibraryList .video-library-item'),
+      drops: [{ kind: 'file', label: UPLOAD_KIT.video.name, url: UPLOAD_KIT.url(UPLOAD_KIT.video.name), name: UPLOAD_KIT.video.name }] },
+    { selector: '.nav-item[data-tab="content"]', titleKey: 'luBackTitle', textKey: 'luBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
+    { selector: '.block-editor-card[data-type="video"] [data-role="sourceRadio"][value="library"]', titleKey: 'luPickSourceTitle', textKey: 'luPickSourceText', done: () => blocks.some(b => b.type === 'video' && b.videos.some(v => v.source === 'library')) },
+    { selector: '.block-editor-card[data-type="video"] [data-role="librarySelect"]', titleKey: 'luPickVideoTitle', textKey: 'luPickVideoText', done: () => blocks.some(b => b.type === 'video' && b.videos.some(v => !!v.libraryVideoId)) },
+    { selector: '.nav-item[data-tab="packs"]', titleKey: 'luPacksTabTitle', textKey: 'luPacksTabText', done: () => !!document.querySelector('.backstage-panel[data-panel="packs"].active') },
+    { selector: '#btnAddPack', titleKey: 'luAddPackTitle', textKey: 'luAddPackText', clickDone: true, done: () => packs.length >= 1 },
+    { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="appearance"]', titleKey: 'luPackAppearTitle', textKey: 'luPackAppearText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'appearance' },
+    { selector: '#packsContainer [data-role="illustrationCtrl"] .file-ctrl', titleKey: 'luPackImageTitle', textKey: 'luPackImageText', done: () => packs.length > 0 && !!packs[0].pendingIllustration,
+      drops: [{ kind: 'file', label: UPLOAD_KIT.cover.name, url: UPLOAD_KIT.url(UPLOAD_KIT.cover.name), name: UPLOAD_KIT.cover.name }] },
+    { selector: '.nav-item[data-tab="albums"]', titleKey: 'luAlbumsTabTitle', textKey: 'luAlbumsTabText', done: () => !!document.querySelector('.backstage-panel[data-panel="albums"].active') },
+    { selector: '#btnAddAlbum', titleKey: 'luAddAlbumTitle', textKey: 'luAddAlbumText', clickDone: true, done: () => albumsState.albums.length >= 1 },
+    { selector: '#albumsContainer [data-ae-cover-ctrl] .file-ctrl', titleKey: 'luAlbumCoverTitle', textKey: 'luAlbumCoverText', done: () => albumsState.albums.length > 0 && !!albumsState.albums[0].pendingCover,
+      drops: [{ kind: 'file', label: UPLOAD_KIT.album.name, url: UPLOAD_KIT.url(UPLOAD_KIT.album.name), name: UPLOAD_KIT.album.name }] },
+    { titleKey: 'luEndTitle', textKey: 'luEndText', final: true },
+  ] },
   // Leçon « Versioning vidéo » (21/10, refaite le même jour : elle se joue dans le Backstage, pas sur la page du pack). Parcours choisi par
   // Jules-Antoine : onglet Vidéo → Atelier ; DANS l'atelier (cadre, atelier-lecons.js) : choisir le pack, la vidéo muette d'« Alone in the
   // Barque », capturer la musique 1, enregistrer le montage, version musique 2, écoute en direct ; puis, ici, le bloc vidéo d'un AdReel :
@@ -831,28 +904,6 @@ const LESSONS = [
   ] },
   // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
   // Projet fictif ; `page` renvoie vers cette page au clic.
-  // Leçon « Créer un album » (25/10, ?tuto&lesson=album, rechargement obligatoire d'où `reload`) : album d'OST adaptative avec les quatre villes de « Music City ».
-  // L'onglet Albums est normalement réservé aux comptes qui ont le droit sell_albums : le faux serveur l'accorde pour cette leçon (api/demo-client.js).
-  // La version officielle (prise enregistrée dans le lecteur) est expliquée, pas jouée ; la mise en vente est expliquée (achat factice pendant la bêta).
-  { id: 'album', theme: 'pitch', public: true, reload: true, titleKey: 'albTitle', descKey: 'albDesc', steps: [
-    { titleKey: 'albWelcomeTitle', textKey: 'albWelcomeText' },
-    { selector: '.nav-item[data-tab="albums"]', titleKey: 'albNavTitle', textKey: 'albNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="albums"].active') },
-    { selector: '#btnAddAlbum', titleKey: 'albAddTitle', textKey: 'albAddText', clickDone: true, done: () => albumsState.albums.length >= 1 },
-    { selector: '#albumsContainer [data-ae-field="title"]', titleKey: 'albNameTitle', textKey: 'albNameText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].title || '').trim().length > 2,
-      drops: [{ kind: 'text', label: 'Music City : la bande-son adaptative', value: 'Music City : la bande-son adaptative' }] },
-    { selector: '#albumsContainer [data-ae-field="presentationFr"]', titleKey: 'albTextTitle', textKey: 'albTextText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].presentationFr || '').trim().length > 5,
-      drops: [{ kind: 'text', label: 'Quatre villes, quatre ambiances, un même tempo. Une musique qui s’adapte au joueur, à garder et à rejouer.', value: 'Quatre villes, quatre ambiances, un même tempo. Une musique qui s’adapte au joueur, à garder et à rejouer.' }] },
-    { selector: '#albumsContainer [data-ae-cover-ctrl]', titleKey: 'albCoverTitle', textKey: 'albCoverText' },
-    { selector: '#albumsContainer [data-ae-field="priceInput"]', titleKey: 'albPriceTitle', textKey: 'albPriceText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].priceInput || '').trim().length > 0,
-      drops: [{ kind: 'text', label: '5', value: '5' }] },
-    { selector: () => document.querySelector('#albumsContainer [data-ae-track]:not(:checked)'), titleKey: 'albTracksTitle', textKey: 'albTracksText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].trackIds.length >= 4 },
-    { selector: '#albumsContainer [data-ae-listen]', titleKey: 'albListenTitle', textKey: 'albListenText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].listenMode !== 'none' },
-    { selector: '#albumsContainer [data-ae-save]', titleKey: 'albSaveTitle', textKey: 'albSaveText', clickDone: true, done: () => albumsState.albums.length > 0 && albumsState.albums[0].saved },
-    { selector: '#albumsContainer [data-ae-record]', titleKey: 'albOfficialTitle', textKey: 'albOfficialText' },
-    { selector: '#albumsContainer [data-ae-rights-decl]', titleKey: 'albRightsTitle', textKey: 'albRightsText' },
-    { selector: '#albumsContainer [data-ae-buyable]', titleKey: 'albSellTitle', textKey: 'albSellText' },
-    { titleKey: 'albEndTitle', textKey: 'albEndText', final: true },
-  ] },
   { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc' },
   { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
   { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },

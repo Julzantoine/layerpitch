@@ -56,17 +56,18 @@
     get_my_analytics_overview: (a) => lessonParam() === 'tracking' ? analyticsDemo.overview(a) : null,
     get_my_analytics_entity: (a) => lessonParam() === 'tracking' ? analyticsDemo.entity(a) : null,
     is_admin: () => false,
-    my_feature_flags: () => DEMO_FLAGS.concat(onProjectPage() ? ['projects'] : [], (lessonParam() === 'adreel' || isVersioning()) ? ['video_upload', 'versioning'] : []).map(key => ({ key, allowed: true })),
-    my_entitlements: () => DEMO_ENTITLEMENTS_ALLOWED.concat(lessonParam() === 'album' ? ['sell_albums'] : [], onProjectPage() ? ['projects'] : [], isVersioning() ? ['test_in_game', 'no_watermark'] : []).map(f => ({ feature: f, allowed: true, amount: f === 'projects' ? 5 : null, level: (f === 'versioning' && (lessonParam() === 'adreel' || isVersioning())) || f === 'test_in_game' ? 'saved' : 'pro', plan: 'pro', source: 'demo' }))
+    my_feature_flags: () => DEMO_FLAGS.concat(onProjectPage() ? ['projects'] : [], (lessonParam() === 'adreel' || lessonParam() === 'upload' || isVersioning()) ? ['video_upload', 'versioning'] : []).map(key => ({ key, allowed: true })),
+    my_entitlements: () => DEMO_ENTITLEMENTS_ALLOWED.concat(['album', 'upload'].includes(lessonParam()) ? ['sell_albums'] : [], onProjectPage() ? ['projects'] : [], isVersioning() ? ['test_in_game', 'no_watermark'] : []).map(f => ({ feature: f, allowed: true, amount: f === 'projects' ? 5 : null, level: (f === 'versioning' && (lessonParam() === 'adreel' || lessonParam() === 'upload' || isVersioning())) || f === 'test_in_game' ? 'saved' : 'pro', plan: 'pro', source: 'demo' }))
       .concat(DEMO_ENTITLEMENTS_DENIED.filter(f => !(f === 'sell_albums' && lessonParam() === 'album')).map(f => ({ feature: f, allowed: false, amount: null, level: null, plan: 'pro', source: 'demo' }))),
     get_trial_status: () => [{ plan: 'pro', trial_ends_at: null, real_plan: 'pro', preview_active: false }],
     my_billing: () => ({}),
     my_admin_preview: () => null,
     ensure_composer_profile: () => DEMO_COMPOSER_ID,
     my_studio: () => null,
-    list_my_videos: () => (aloneMontageShown()
-      ? { videos: ALONE_VIDEOS.map(v => ({ id: v.id, title: v.title, base: TUTO_BASE, file: v.file, originalName: v.file, sizeBytes: 0, durationSec: 30 })), interrupted: [], quotaGb: null, usedBytes: 0 }
-      : { videos: [], interrupted: [], quotaGb: null, usedBytes: 0 }),
+    // Vidéos « envoyées » pendant la leçon d'envoi de fichiers (envoi simulé, gardé en mémoire le temps de la page) + montage d'exemple d'« Alone ».
+    list_my_videos: () => ({ videos: (aloneMontageShown() ? ALONE_VIDEOS.map(v => ({ id: v.id, title: v.title, base: TUTO_BASE, file: v.file, originalName: v.file, sizeBytes: 0, durationSec: 30 })) : []).concat(UPLOADED_VIDEOS),
+      interrupted: [], quotaGb: null, usedBytes: 0 }),
+    upsert_video: a => { const p = (a && a.payload) || {}; UPLOADED_VIDEOS.push({ id: p.id, title: p.title, base: p.base, file: p.file, originalName: p.originalName, kind: 'upload', sizeBytes: p.sizeBytes || 0, durationSeconds: p.durationSeconds || 0, durationSec: p.durationSeconds || 0, updatedAt: new Date().toISOString() }); return null; },
     list_my_video_captures: a => (aloneMontageShown() ? [ALONE_CAPTURE] : [...CAPTURES.values()].filter(c => !a || !a.p_pack_id || c.packId === a.p_pack_id)),
     // Musique 1 = l'export direct du montage (ALONE_CAPTURE.lastExportVideoId) ; musique 2 = une version vidéo du montage.
     list_video_capture_versions: a => (aloneMontageShown() ? [{ id: 'ver-2', captureId: ALONE_CAPTURE.id, title: ALONE_VIDEOS[1].versionTitle, lastExportVideoId: ALONE_VIDEOS[1].id }] : [...VERSIONS.values()].filter(v => a && v.captureId === a.p_capture_id)),
@@ -89,7 +90,7 @@
       { key: 'ver-2', title: ALONE_VIDEOS[1].versionTitle, url: TUTO_BASE + ALONE_VIDEOS[1].file, kind: 'video', cues: [] }] } : null),
     list_video_export_history: () => [],
   };
-  const CAPTURES = new Map(), VERSIONS = new Map();
+  const CAPTURES = new Map(), VERSIONS = new Map(), UPLOADED_VIDEOS = [];
   const isVersioning = () => lessonParam() === 'versioning';
   const onAtelierPage = () => !!(window.location && /\/atelier\.html$/.test(window.location.pathname));
   // Montage d'exemple d'« Alone » déjà publié en deux musiques : leçon AdReel, et partie « bloc vidéo » de la leçon Versioning (Backstage).
@@ -148,11 +149,12 @@
       text: 'Des couches qui s’empilent avec l’action, un embranchement qui change de direction sur le temps, un tirage au sort qui ne se répète pas : la musique s’adapte sans jamais se casser. Essaie toi-même dans le lecteur.',
       quote: 'Daniel a compris notre jeu en une seule écoute. La musique suit le joueur comme son ombre.', author: 'Joshua, créateur de « Music City »', label: 'Principal (main)',
     };
+    const withMedia = lessonParam() !== 'upload'; // leçon d'envoi de fichiers : le Main AdReel n'a ni vidéo ni photo, c'est l'apprenant qui les ajoute
     return { id: 'main', owner_id: DEMO_COMPOSER_ID, folder_id: null, label: T.label, lang: en ? 'en' : 'fr', allow_indexing: true, slug: null, access_mode: 'public',
       profile: { title: T.title, subtitle: T.subtitle, bio: T.bio, contactEmail: 'daniel@orcman-music.example', contactUrl: 'https://orcman-music.example', logo: null, photo: null, tagline: '',
         theme: { font: 'google:Space Grotesk', bgColor: '#1B1035', bgImage: null, titleColor: '#FF3EA5', contentColor: '#D9CFFF', bgImageOpacity: 1, sectionLabelColor: '#7A5FFF', separator: { visible: true, color: '#7A5FFF', thickness: 1 } }, effectivePlan: 'pro' },
       testimonials: [{ text: T.quote, author: T.author, avatar: null }],
-      blocks: [{ id: 'b-header', type: 'header' }, { id: 'b-bio', type: 'bio' }, { id: 'b-tracks', type: 'tracks' }, { id: 'b-video', type: 'video', videos: [{ url: 'https://youtu.be/vHJAhKIIlWc', title: 'Rescore Trailer DLC ProjectCars', source: 'url', comment: 'Halloween + Motor Racing Brutality = Pure Adrenaline', montageId: null, thumbnail: 'bmrc9ryuilymwc-thumb-0.png', defaultVersion: null, hiddenVersions: [], libraryVideoId: null }] }, { id: 'b-text', type: 'text', align: 'left', title: T.textTitle, content: T.text },
+      blocks: [{ id: 'b-header', type: 'header' }, { id: 'b-bio', type: 'bio' }, { id: 'b-tracks', type: 'tracks' }, ...(withMedia ? [{ id: 'b-video', type: 'video', videos: [{ url: 'https://youtu.be/vHJAhKIIlWc', title: 'Rescore Trailer DLC ProjectCars', source: 'url', comment: 'Halloween + Motor Racing Brutality = Pure Adrenaline', montageId: null, thumbnail: 'bmrc9ryuilymwc-thumb-0.png', defaultVersion: null, hiddenVersions: [], libraryVideoId: null }] }] : []), { id: 'b-text', type: 'text', align: 'left', title: T.textTitle, content: T.text },
         { id: 'b-testimonials', type: 'testimonials' }, { id: 'b-contact', type: 'contact' }],
       track_overrides: {}, ad_reel_tracks: DEMO_TRACKS_JAZZ.map((t, i) => ({ track_id: t.id, position: i })) };
   };
@@ -173,8 +175,8 @@
   // Morceaux d'exemple : leçon AdReel (Backstage) et pages Projets (leur propre bibliothèque, pour le pack et la carte). Pack : pages Projets.
   const listRows = table => {
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
-    if (table === 'ad_reels' && (lessonParam() === 'adreel-intro' || lessonParam() === 'adreel')) return [demoMainAdReel()];
-    if (table === 'tracks' && ['adreel', 'adreel-intro', 'pack', 'album', 'tracking'].includes(lessonParam()) && !projectPage) return DEMO_TRACKS_JAZZ;
+    if (table === 'ad_reels' && (['adreel-intro', 'adreel', 'upload'].includes(lessonParam()))) return [demoMainAdReel()];
+    if (table === 'tracks' && ['adreel', 'adreel-intro', 'pack', 'album', 'tracking', 'upload'].includes(lessonParam()) && !projectPage) return DEMO_TRACKS_JAZZ;
     if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
     if (table === 'tracks' && lessonParam() === 'sfx') return [DEMO_TRACK_JAZZ_SFX];
     if (table === 'tracks' && lessonParam() === 'events') return [Object.assign({}, DEMO_TRACK_JAZZ_SFX, { track_sfx: DEMO_SFX.map((x, i) => ({ sfx_id: x.id, position: i })) })];
