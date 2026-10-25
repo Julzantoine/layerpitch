@@ -45,8 +45,11 @@
     const { data, error } = await getClient().rpc('get_my_directory');
     return { settings: data || null, error: error ? error.message : null };
   }
-  async function setMyDirectory(optIn, keywords) {
-    const { data, error } = await getClient().rpc('set_my_directory', { p_opt_in: !!optIn, p_keywords: keywords || [] });
+  // photoFrame : { x, y, zoom } (cadrage de la photo dans l'annuaire), {} = recentrer, undefined = inchangé.
+  async function setMyDirectory(optIn, keywords, photoFrame) {
+    const args = { p_opt_in: !!optIn, p_keywords: keywords || [] };
+    if (photoFrame !== undefined) args.p_photo_frame = photoFrame;
+    const { data, error } = await getClient().rpc('set_my_directory', args);
     return { settings: data || null, error: error ? error.message : null };
   }
 

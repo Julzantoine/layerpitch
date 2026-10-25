@@ -47,19 +47,20 @@
   <div id="content"></div>
 </div>
 
-<script src="layerpitch-i18n.js?v=1792959749398"></script>
-<script src="layerpitch-notify.js?v=1792959749398"></script>
+<script src="layerpitch-i18n.js?v=1792961546523"></script>
+<script src="layerpitch-notify.js?v=1792961546523"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1792959749398"></script>
-<script src="api/auth.js?v=1792959749398"></script>
-<script src="layerpitch-appearance.js?v=1792959749398"></script>
-<script src="layerpitch-shell.js?v=1792959749398"></script>
-<script src="api/subscriptions.js?v=1792959749398"></script>
-<script src="api/notification-prefs.js?v=1792959749398"></script>
-<script src="api/composers.js?v=1792959749398"></script>
-<script src="api/studio.js?v=1792959749398"></script>
-<script src="api/connect.js?v=1792959749398"></script>
-<script src="api/invoices.js?v=1792959749398"></script>
+<script src="api/supabase-client.js?v=1792961546523"></script>
+<script src="api/auth.js?v=1792961546523"></script>
+<script src="layerpitch-appearance.js?v=1792961546523"></script>
+<script src="layerpitch-shell.js?v=1792961546523"></script>
+<script src="api/subscriptions.js?v=1792961546523"></script>
+<script src="api/notification-prefs.js?v=1792961546523"></script>
+<script src="api/composers.js?v=1792961546523"></script>
+<script src="layerpitch-photo-frame.js?v=1792961546523"></script>
+<script src="api/studio.js?v=1792961546523"></script>
+<script src="api/connect.js?v=1792961546523"></script>
+<script src="api/invoices.js?v=1792961546523"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 const content = document.getElementById('content');
@@ -279,6 +280,7 @@ function wireDraftCard() {
 async function directoryCardHtml() {
   const [{ settings }, { open }] = await Promise.all([window.LayerPitchComposers.getMyDirectory(), window.LayerPitchComposers.directoryStatus()]);
   if (!settings) return '';
+  directorySettings = settings;
   return `
     <div class="card">
       <h2>${tr('directoryTitle')}</h2>
@@ -287,6 +289,19 @@ async function directoryCardHtml() {
         <input type="checkbox" id="directoryOptInToggle" ${settings.optIn ? 'checked' : ''}>
         <span>${tr('directoryCheckboxLabel')}</span>
       </div>
+      ${settings.photo ? `
+      <div class="signin-box" style="max-width:none;text-align:left;margin-top:12px">
+        <label>${tr('directoryPhotoLabel')}</label>
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+          <div id="directoryPhotoCircle" style="position:relative;width:140px;height:140px;border-radius:50%;overflow:hidden;background:#23262d;cursor:grab;touch-action:none;flex:none"><img id="directoryPhotoImg" alt="" draggable="false" src="https://media.layerpitch.com/images/${escapeHtml(settings.photo)}" style="width:100%;height:100%;object-fit:cover;user-select:none;-webkit-user-drag:none"></div>
+          <div style="flex:1 1 200px;min-width:0">
+            <label for="directoryZoom" style="margin-top:0">${tr('directoryPhotoZoom')}</label>
+            <input type="range" id="directoryZoom" min="1" max="3" step="0.05" value="1" style="width:100%">
+            <button class="btn" id="directoryPhotoReset" type="button" style="margin-top:8px">${tr('directoryPhotoReset')}</button>
+          </div>
+        </div>
+        <div class="hint" style="margin:8px 0 0">${tr('directoryPhotoHint')}</div>
+      </div>` : ''}
       <div class="signin-box" style="max-width:none;text-align:left;margin-top:12px">
         <label for="directoryKeywordsInput">${tr('directoryKeywordsLabel')}</label>
         <input type="text" id="directoryKeywordsInput" value="${escapeHtml((settings.keywords || []).join(', '))}" placeholder="${escapeHtml(tr('directoryKeywordsPlaceholder'))}" autocomplete="off">
@@ -297,14 +312,41 @@ async function directoryCardHtml() {
       <div class="hint">${open ? `<a href="annuaire.html">${tr('directoryOpenLink')}</a>` : tr('directoryNotOpen')}</div>
     </div>`;
 }
+// Cadrage de la photo (25/10) : on fait glisser l'image dans le rond, le curseur règle le zoom ; même calcul que la page publique
+// (layerpitch-photo-frame.js). frameTouched : tant qu'on n'y touche pas, l'enregistrement laisse le cadrage tel qu'il est.
+let directoryFrame = null, directoryFrameTouched = false, directorySettings = null;
+function wireDirectoryPhoto(settings) {
+  const circle = document.getElementById('directoryPhotoCircle'), img = document.getElementById('directoryPhotoImg'), zoom = document.getElementById('directoryZoom');
+  if (!circle || !img) return;
+  const PF = window.LayerPitchPhotoFrame;
+  directoryFrame = PF.normalize(settings.photoFrame); directoryFrameTouched = false;
+  const draw = () => { img.setAttribute('style', PF.style(directoryFrame, img.naturalWidth, img.naturalHeight) + ';user-select:none;-webkit-user-drag:none'); zoom.value = directoryFrame.zoom; };
+  if (img.complete && img.naturalWidth) draw(); else img.addEventListener('load', draw, { once: true });
+  let drag = null;
+  circle.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, start: PF.layout(directoryFrame, img.naturalWidth, img.naturalHeight) }; circle.setPointerCapture(e.pointerId); circle.style.cursor = 'grabbing'; });
+  circle.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const size = circle.clientWidth, l = drag.start;
+    // Glisser l'image vers la droite montre ce qui est à sa gauche : le point central recule d'autant (en % de la taille affichée).
+    directoryFrame = PF.normalize({ x: l.x - (e.clientX - drag.x) / size * 10000 / l.width, y: l.y - (e.clientY - drag.y) / size * 10000 / l.height, zoom: directoryFrame.zoom });
+    const c = PF.layout(directoryFrame, img.naturalWidth, img.naturalHeight); directoryFrame.x = c.x; directoryFrame.y = c.y;
+    directoryFrameTouched = true; draw();
+  });
+  const end = () => { drag = null; circle.style.cursor = 'grab'; };
+  circle.addEventListener('pointerup', end); circle.addEventListener('pointercancel', end);
+  zoom.addEventListener('input', () => { directoryFrame = PF.normalize({ x: directoryFrame.x, y: directoryFrame.y, zoom: Number(zoom.value) }); const c = PF.layout(directoryFrame, img.naturalWidth, img.naturalHeight); directoryFrame.x = c.x; directoryFrame.y = c.y; directoryFrameTouched = true; draw(); });
+  document.getElementById('directoryPhotoReset').addEventListener('click', () => { directoryFrame = PF.normalize(null); directoryFrameTouched = true; draw(); });
+}
 function wireDirectoryCard() {
   const btn = document.getElementById('directorySaveBtn');
   if (!btn) return;
+  if (directorySettings) wireDirectoryPhoto(directorySettings);
   btn.addEventListener('click', async () => {
     const msg = document.getElementById('directoryMsg');
     btn.disabled = true; msg.textContent = '…'; msg.className = 'msg';
     const keywords = document.getElementById('directoryKeywordsInput').value.split(/[,;\n]/).map(k => k.trim()).filter(Boolean);
-    const { settings, error } = await window.LayerPitchComposers.setMyDirectory(document.getElementById('directoryOptInToggle').checked, keywords);
+    const { settings, error } = await window.LayerPitchComposers.setMyDirectory(document.getElementById('directoryOptInToggle').checked, keywords, directoryFrameTouched ? directoryFrame : undefined);
+    if (!error) directoryFrameTouched = false;
     if (error) { msg.textContent = tr('errorPrefix', { message: error }); msg.className = 'msg err'; }
     else { document.getElementById('directoryKeywordsInput').value = (settings.keywords || []).join(', '); msg.textContent = tr('directorySaved'); msg.className = 'msg ok'; }
     btn.disabled = false;
