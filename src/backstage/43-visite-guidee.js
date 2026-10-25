@@ -718,9 +718,11 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="header"]', titleKey: 'liHeaderTitle', textKey: 'liHeaderText' },
     { selector: '.block-editor-card[data-type="bio"]', titleKey: 'liBioTitle', textKey: 'liBioText' },
     { selector: '.block-editor-card[data-type="tracks"]', titleKey: 'liTracksTitle', textKey: 'liTracksText' },
+    { selector: '.block-editor-card[data-type="video"]', titleKey: 'liVideoTitle', textKey: 'liVideoText' },
     { selector: '.block-editor-card[data-type="text"]', titleKey: 'liTextTitle', textKey: 'liTextText' },
     { selector: '.block-editor-card[data-type="testimonials"]', titleKey: 'liTestiTitle', textKey: 'liTestiText' },
     { selector: '.block-editor-card[data-type="contact"]', titleKey: 'liContactTitle', textKey: 'liContactText' },
+    { selector: '#btnAddPhoto', titleKey: 'liMoreTitle', textKey: 'liMoreText' },
     // Réordonner est plus simple blocs repliés ; l'étape attend que l'ordre ait vraiment changé avant d'afficher « Suivant ».
     { selector: '#btnToggleCollapseAllBlocks', titleKey: 'liCollapseTitle', textKey: 'liCollapseText', done: () => allBlocksCollapsed() },
     { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'liOrderTitle', textKey: 'liOrderText',
