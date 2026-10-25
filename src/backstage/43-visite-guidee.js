@@ -758,6 +758,20 @@ const LESSONS = [
     { selector: '#btnPreview', titleKey: 'laPreviewTitle', textKey: 'laPreviewText', clickDone: true },
     { titleKey: 'adEndTitle', textKey: 'adEndText', final: true },
   ] },
+  // Leçon « Vérifier le tracking » (25/10, ?tuto&lesson=tracking, rechargement obligatoire d'où `reload`) : tableau de bord Analytics (palier Pro) déjà garni par le faux serveur (api/demo-client.js, analyticsDemo).
+  { id: 'tracking', theme: 'pitch', public: true, reload: true, titleKey: 'ltTitle', descKey: 'ltDesc', steps: [
+    { titleKey: 'ltWelcomeTitle', textKey: 'ltWelcomeText' },
+    { selector: '.nav-item[data-tab="analytics"]', titleKey: 'ltNavTitle', textKey: 'ltNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="analytics"].active') },
+    { selector: '#analyticsPresets', titleKey: 'ltPeriodTitle', textKey: 'ltPeriodText' },
+    { selector: '#analyticsOverview .an-kpis', titleKey: 'ltKpiTitle', textKey: 'ltKpiText' },
+    { selector: '#analyticsOverview .an-charts', titleKey: 'ltChartTitle', textKey: 'ltChartText' },
+    { selector: '#analyticsOverview .an-table', titleKey: 'ltTableTitle', textKey: 'ltTableText' },
+    { selector: '#analyticsOverview .an-row[data-id="music-city"]', titleKey: 'ltOpenTitle', textKey: 'ltOpenText', done: () => !!analyticsSelected && analyticsSelected.id === 'music-city' },
+    { selector: '#analyticsEntityDetail .an-devices', titleKey: 'ltDeviceTitle', textKey: 'ltDeviceText' },
+    { selector: '#analyticsEntityDetail .an-table', titleKey: 'ltTracksTitle', textKey: 'ltTracksText' },
+    { selector: '#analyticsEntityDetail .an-ix', titleKey: 'ltIxTitle', textKey: 'ltIxText' },
+    { titleKey: 'ltEndTitle', textKey: 'ltEndText', final: true },
+  ] },
   // Leçon « Faire un pack » (25/10, ?tuto&lesson=pack, rechargement obligatoire d'où `reload`) : bibliothèque d'exemple (les quatre villes), aucun pack au départ.
   // Contenu → Présentation → Apparence (galerie de thèmes, police) → Diffusion (prix) → aperçu de la page publique, dernier geste. La vente en ligne est fermée pendant la bêta : expliquée, pas jouée.
   { id: 'pack', theme: 'pitch', public: true, reload: true, titleKey: 'lpTitle', descKey: 'lpDesc', steps: [
@@ -832,20 +846,6 @@ const LESSONS = [
     { selector: '#albumsContainer [data-ae-rights-decl]', titleKey: 'albRightsTitle', textKey: 'albRightsText' },
     { selector: '#albumsContainer [data-ae-buyable]', titleKey: 'albSellTitle', textKey: 'albSellText' },
     { titleKey: 'albEndTitle', textKey: 'albEndText', final: true },
-  ] },
-  // Leçon « Vérifier le tracking » (25/10, ?tuto&lesson=tracking, rechargement obligatoire d'où `reload`) : tableau de bord Analytics (palier Pro) déjà garni par le faux serveur (api/demo-client.js, analyticsDemo).
-  { id: 'tracking', theme: 'pitch', public: true, reload: true, titleKey: 'ltTitle', descKey: 'ltDesc', steps: [
-    { titleKey: 'ltWelcomeTitle', textKey: 'ltWelcomeText' },
-    { selector: '.nav-item[data-tab="analytics"]', titleKey: 'ltNavTitle', textKey: 'ltNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="analytics"].active') },
-    { selector: '#analyticsPresets', titleKey: 'ltPeriodTitle', textKey: 'ltPeriodText' },
-    { selector: '#analyticsOverview .an-kpis', titleKey: 'ltKpiTitle', textKey: 'ltKpiText' },
-    { selector: '#analyticsOverview .an-charts', titleKey: 'ltChartTitle', textKey: 'ltChartText' },
-    { selector: '#analyticsOverview .an-table', titleKey: 'ltTableTitle', textKey: 'ltTableText' },
-    { selector: '#analyticsOverview .an-row[data-id="music-city"]', titleKey: 'ltOpenTitle', textKey: 'ltOpenText', done: () => !!analyticsSelected && analyticsSelected.id === 'music-city' },
-    { selector: '#analyticsEntityDetail .an-devices', titleKey: 'ltDeviceTitle', textKey: 'ltDeviceText' },
-    { selector: '#analyticsEntityDetail .an-table', titleKey: 'ltTracksTitle', textKey: 'ltTracksText' },
-    { selector: '#analyticsEntityDetail .an-ix', titleKey: 'ltIxTitle', textKey: 'ltIxText' },
-    { titleKey: 'ltEndTitle', textKey: 'ltEndText', final: true },
   ] },
   { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc' },
   { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
