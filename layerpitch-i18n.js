@@ -3680,7 +3680,7 @@ window.LAYERPITCH_I18N = {
       photoAlt: "Photo de {name}",
     },
     directoryContact: {
-      title: "Écrire à {name}",
+      title: "Contacter le compositeur",
       hint: "Ton message lui parvient par e-mail et il te répondra directement. Son adresse n'est jamais montrée.",
       name: "Ton nom",
       email: "Ton e-mail",
@@ -7670,7 +7670,7 @@ window.LAYERPITCH_I18N = {
       photoAlt: "Photo of {name}",
     },
     directoryContact: {
-      title: "Write to {name}",
+      title: "Contact the composer",
       hint: "Your message reaches them by email and they will answer you directly. Their address is never shown.",
       name: "Your name",
       email: "Your email",
