@@ -724,8 +724,8 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'liOrderTitle', textKey: 'liOrderText' },
     { selector: '.nav-item[data-tab="appearance"]', titleKey: 'liAppearanceTitle', textKey: 'liAppearanceText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
     { selector: '.nav-item[data-tab="content"]', titleKey: 'liBackTitle', textKey: 'liBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
-    { selector: '#btnPreview', titleKey: 'liPreviewTitle', textKey: 'liPreviewText', clickDone: true },
     { selector: '#btnPublish', titleKey: 'liLinkTitle', textKey: 'liLinkText' },
+    { selector: '#btnPreview', titleKey: 'liPreviewTitle', textKey: 'liPreviewText', clickDone: true },
     { titleKey: 'liDirectoryTitle', textKey: 'liDirectoryText', final: true },
   ] },
   // Leçon « Créer un AdReel » (20/10) : se joue dans le Backstage du mode tutoriel, bibliothèque d'exemple préchargée (api/demo-client.js,
@@ -754,9 +754,33 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'laReorderTitle', textKey: 'laReorderText' },
     // Bloc vidéo : la vidéo de gameplay de la leçon « Versioning » (lien à fournir : LESSON_ADREEL_VIDEO ; l'étape du lien est sautée tant qu'il manque).
     // Aperçu de l'AdReel rempli : nouvelle fenêtre, aperçu local (rien n'est publié).
-    { selector: '#btnPreview', titleKey: 'laPreviewTitle', textKey: 'laPreviewText', clickDone: true },
     { selector: '#btnPublish', titleKey: 'laSendTitle', textKey: 'laSendText', clickDone: true },
+    { selector: '#btnPreview', titleKey: 'laPreviewTitle', textKey: 'laPreviewText', clickDone: true },
     { titleKey: 'adEndTitle', textKey: 'adEndText', final: true },
+  ] },
+  // Leçon « Faire un pack » (25/10, ?tuto&lesson=pack, rechargement obligatoire d'où `reload`) : bibliothèque d'exemple (les quatre villes), aucun pack au départ.
+  // Contenu → Présentation → Apparence (galerie de thèmes, police) → Diffusion (prix) → aperçu de la page publique, dernier geste. La vente en ligne est fermée pendant la bêta : expliquée, pas jouée.
+  { id: 'pack', theme: 'pitch', public: true, reload: true, titleKey: 'lpTitle', descKey: 'lpDesc', steps: [
+    { titleKey: 'lpWelcomeTitle', textKey: 'lpWelcomeText' },
+    { selector: '.nav-item[data-tab="packs"]', titleKey: 'lpNavTitle', textKey: 'lpNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="packs"].active') },
+    { selector: '#btnAddPack', titleKey: 'lpAddTitle', textKey: 'lpAddText', clickDone: true, done: () => packs.length >= 1 },
+    { selector: '#packsContainer [data-role="trackSelector"] select[data-sel-action="add"]', titleKey: 'lpTrack1Title', textKey: 'lpTrack1Text', done: () => packs.length > 0 && packs[0].trackIds.length >= 1 },
+    { selector: '#packsContainer [data-role="trackSelector"] select[data-sel-action="add"]', titleKey: 'lpTrack2Title', textKey: 'lpTrack2Text', done: () => packs.length > 0 && packs[0].trackIds.length >= 2 },
+    { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="presentation"]', titleKey: 'lpPresTitle', textKey: 'lpPresText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'presentation' },
+    { selector: '#packsContainer input[data-pack-field="title"][data-pi="0"]:not(.seq-header-title)', titleKey: 'lpNameTitle', textKey: 'lpNameText', done: () => packs.length > 0 && (packs[0].title || '').trim().length > 2 && packs[0].title !== tr('defaultPackTitle'),
+      drops: [{ kind: 'text', label: 'Music City : les quatre villes', value: 'Music City : les quatre villes' }] },
+    { selector: '#packsContainer textarea[data-pack-field="presentationFr"]', titleKey: 'lpTextTitle', textKey: 'lpTextText', done: () => packs.length > 0 && (packs[0].presentationFr || '').trim().length > 5,
+      drops: [{ kind: 'text', label: 'Quatre ambiances de ville au même tempo : Jazz, Rock, Disco et Synth. À écouter, et à tester dans le jeu.', value: 'Quatre ambiances de ville au même tempo : Jazz, Rock, Disco et Synth. À écouter, et à tester dans le jeu.' }] },
+    { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="appearance"]', titleKey: 'lpAppearTitle', textKey: 'lpAppearText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'appearance' },
+    { selector: () => document.querySelectorAll('#packsContainer .theme-preset-card')[1] || document.querySelector('#packsContainer .theme-preset-card'), titleKey: 'lpThemeTitle', textKey: 'lpThemeText', clickDone: true },
+    { selector: '#packsContainer select[data-pack-field="font"]', titleKey: 'lpFontTitle', textKey: 'lpFontText', done: () => packs.length > 0 && !!packs[0].font && packs[0].font !== 'default', skip: () => !document.querySelector('#packsContainer select[data-pack-field="font"]') },
+    { selector: '#packsContainer [data-pack-field="bgColor"]', titleKey: 'lpColorsTitle', textKey: 'lpColorsText', skip: () => !document.querySelector('#packsContainer [data-pack-field="bgColor"]') },
+    { selector: '#packsContainer [data-role="illustrationCtrl"]', titleKey: 'lpImageTitle', textKey: 'lpImageText' },
+    { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="distribution"]', titleKey: 'lpDistTitle', textKey: 'lpDistText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'distribution' },
+    { selector: '#packsContainer select[data-pack-field="priceEurCents"]', titleKey: 'lpPriceTitle', textKey: 'lpPriceText', done: () => packs.length > 0 && packs[0].priceEurCents !== 1000 },
+    { selector: '#packsContainer input[data-pack-field="buyable"]', titleKey: 'lpSellTitle', textKey: 'lpSellText' },
+    { selector: '#packsContainer [data-action="preview-pack"]', titleKey: 'lpPreviewTitle', textKey: 'lpPreviewText', clickDone: true },
+    { titleKey: 'lpEndTitle', textKey: 'lpEndText', final: true },
   ] },
   // Leçon « Versioning vidéo » (21/10, refaite le même jour : elle se joue dans le Backstage, pas sur la page du pack). Parcours choisi par
   // Jules-Antoine : onglet Vidéo → Atelier ; DANS l'atelier (cadre, atelier-lecons.js) : choisir le pack, la vidéo muette d'« Alone in the

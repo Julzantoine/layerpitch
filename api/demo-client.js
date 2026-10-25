@@ -152,7 +152,7 @@
   const listRows = table => {
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
     if (table === 'ad_reels' && (lessonParam() === 'adreel-intro' || lessonParam() === 'adreel')) return [demoMainAdReel()];
-    if (table === 'tracks' && (lessonParam() === 'adreel' || lessonParam() === 'adreel-intro') && !projectPage) return DEMO_TRACKS_CITIES;
+    if (table === 'tracks' && ['adreel', 'adreel-intro', 'pack'].includes(lessonParam()) && !projectPage) return DEMO_TRACKS_CITIES;
     if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
     if (table === 'tracks' && lessonParam() === 'sfx') return [DEMO_TRACK_JAZZ_SFX];
     if (table === 'tracks' && lessonParam() === 'events') return [Object.assign({}, DEMO_TRACK_JAZZ_SFX, { track_sfx: DEMO_SFX.map((x, i) => ({ sfx_id: x.id, position: i })) })];
