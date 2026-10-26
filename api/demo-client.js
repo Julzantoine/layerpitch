@@ -179,6 +179,15 @@
       make('english', 'English version', 'en', [0, 1, 2, 3], null, 'Composer of interactive music for video games'),
     ];
   };
+  // AdReel de Joshua « Music City : pitch musical » TEL QU'ON LE LAISSE à la fin de la leçon « Mise en situation » : en-tête et bio repris du Main AdReel, un bloc texte, deux morceaux,
+  // apparence NEUTRE (thème par défaut). Point de départ de la leçon « Apparence » (26/10).
+  const demoJoshuaAdReel = () => {
+    const main = demoMainAdReel(); const en = main.lang === 'en';
+    return Object.assign({}, main, { id: 'music-city', label: en ? 'Music City: musical pitch' : 'Music City : pitch musical', slug: null,
+      profile: Object.assign({}, main.profile, { theme: { font: 'default', bgColor: '#f6f5f3', bgImage: null, titleColor: '#262521', contentColor: '#262521', bgImageOpacity: 1, sectionLabelColor: '#516dc2' } }),
+      blocks: [{ id: 'mc-h', type: 'header' }, { id: 'mc-b', type: 'bio' }, { id: 'mc-x', type: 'text', align: 'left', title: en ? 'Sound direction' : 'Direction sonore', content: en ? 'A common thread through all the cities: the same tempo, a different mood in each city.' : 'Un fil rouge entre toutes les villes : le même tempo, une ambiance différente à chaque ville.' }, { id: 'mc-t', type: 'tracks' }],
+      testimonials: [], ad_reel_tracks: [0, 1].map((t, i) => ({ track_id: DEMO_TRACKS_JAZZ[t].id, position: i })) });
+  };
   // Pack de la bibliothèque du compositeur fictif (leçon « La musique du projet » : on le partage au Projet).
   const DEMO_PACKS = [{ id: 'p-alone', owner_id: 'demo-composer', title: 'Alone : ambiances du lac (exemple)', illustration: null, illustration_original_name: null, watermark: null,
     watermark_original_name: null, presentation_fr: '', presentation_en: '', buyable: false, buy_url: null, free_download_enabled: false, video_test_mode_enabled: false,
@@ -196,9 +205,9 @@
   // Morceaux d'exemple : leçon AdReel (Backstage) et pages Projets (leur propre bibliothèque, pour le pack et la carte). Pack : pages Projets.
   const listRows = table => {
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
-    if (table === 'ad_reels' && (['adreel-intro', 'adreel', 'upload'].includes(lessonParam()))) return lessonParam() === 'adreel-intro' ? [demoMainAdReel()].concat(demoOtherAdReels()) : [demoMainAdReel()];
+    if (table === 'ad_reels' && (['adreel-intro', 'adreel', 'upload', 'appearance'].includes(lessonParam()))) return lessonParam() === 'adreel-intro' ? [demoMainAdReel()].concat(demoOtherAdReels()) : (lessonParam() === 'appearance' ? [demoMainAdReel(), demoJoshuaAdReel()] : [demoMainAdReel()]);
     if (table === 'tracks' && lessonParam() === 'pack' && !projectPage) return DEMO_TRACKS_8BIT;
-    if (table === 'tracks' && ['adreel', 'adreel-intro', 'album', 'tracking', 'upload'].includes(lessonParam()) && !projectPage) return DEMO_TRACKS_JAZZ;
+    if (table === 'tracks' && ['adreel', 'adreel-intro', 'album', 'tracking', 'upload', 'appearance'].includes(lessonParam()) && !projectPage) return DEMO_TRACKS_JAZZ;
     if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
     if (table === 'tracks' && lessonParam() === 'sfx') return [DEMO_TRACK_JAZZ_SFX];
     if (table === 'tracks' && lessonParam() === 'events') return [Object.assign({}, DEMO_TRACK_JAZZ_SFX, { track_sfx: DEMO_SFX.map((x, i) => ({ sfx_id: x.id, position: i })) })];

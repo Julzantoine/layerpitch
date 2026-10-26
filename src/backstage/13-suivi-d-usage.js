@@ -56,11 +56,13 @@ function loadPostgresReadScripts() {
     './api/notification-prefs.js',
   ];
   const tuto = isTutoMode();
+  // Une personne déjà connectée (session mémorisée) charge quand même le SDK : le tutoriel public ne doit pas lui retirer l'accès complet d'un admin (leçons réservées).
+  const storedSession = (() => { try { return Object.keys(localStorage).some(k => /^sb-.*-auth-token$/.test(k)); } catch (e) { return false; } })();
   // Mode tutoriel public : pas de SDK Supabase du tout (rien à contacter) ; fermé au public : SDK chargé seulement pour
   // vérifier qu'un vrai admin entre.
   // Le feu vert « public_tutorial » (lecture asynchrone) est lu avant de décider quoi charger.
   postgresReadScriptsLoaded = (tuto ? window.LayerPitchTuto.ready : Promise.resolve()).then(() => {
-  const needRealSdk = !tuto || !tutoPublicOpen();
+  const needRealSdk = !tuto || !tutoPublicOpen() || storedSession;
   const list = (needRealSdk ? srcs : srcs.filter(src => !src.startsWith('http')));
   if (tuto) list.push('./api/demo-client.js');
   return Promise.all(list.map(src => new Promise((resolve, reject) => {
@@ -74,6 +76,7 @@ function loadPostgresReadScripts() {
   }).then(async () => {
     if (!tuto) return;
     if (!tutoPublicOpen()) tutoFullAccess = (await tutoAccessGate()) === 'admin';
+    else if (storedSession) tutoFullAccess = (await window.LayerPitchTuto.accessLevel()) === 'admin'; // tutoriel public : un admin connecté garde l'accès complet
     // Bascule : tous les api/*.js appellent window.LayerPitchSupabaseClient.getClient() à chaque usage, donc cette
     // seule ligne les met tous sur le faux serveur.
     window.LayerPitchTuto.switchToDemo();

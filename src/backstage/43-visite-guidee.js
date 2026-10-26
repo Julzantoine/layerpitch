@@ -787,6 +787,30 @@ const LESSONS = [
     { selector: '#btnPreview', titleKey: 'laPreviewTitle', textKey: 'laPreviewText', clickDone: true },
     { titleKey: 'adEndTitle', textKey: 'adEndText', final: true },
   ] },
+  // Leçon « Apparence » (26/10, ?tuto&lesson=appearance) : on part de l'AdReel de Joshua tel que la mise en situation le laisse (apparence neutre) et on le rend beau étape par étape :
+  // thème, couleurs, police, image de fond, séparateurs, polices perso (expliquées), réglage d'un bloc, forme d'onde et carte des chemins ; l'aperçu de la page publique est le dernier geste.
+  // Le partage et l'accès (indexation, adresse, mot de passe) feront une leçon « Diffuser son AdReel » à part.
+  { id: 'appearance', theme: 'pitch', public: true, reload: true, startAdReel: 'music-city', titleKey: 'aprTitle', descKey: 'aprDesc', steps: [
+    { titleKey: 'aprWelcomeTitle', textKey: 'aprWelcomeText' },
+    { selector: '.nav-item[data-tab="appearance"]', titleKey: 'aprTabTitle', textKey: 'aprTabText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
+    { selector: '#themeProQuickStartGallery', titleKey: 'aprThemeTitle', textKey: 'aprThemeText', done: () => (profile.theme && (profile.theme.bgColor || '').toLowerCase() === '#1b1035') },
+    { selector: '#appThemeTitleColor', titleKey: 'aprTitleColorTitle', textKey: 'aprTitleColorText', done: () => (profile.theme && (profile.theme.titleColor || '').toLowerCase() !== '#ff3ea5') },
+    { selector: '#appThemeBgColor', titleKey: 'aprColorsTitle', textKey: 'aprColorsText' },
+    { selector: '#appThemeFont', titleKey: 'aprFontTitle', textKey: 'aprFontText', done: () => !!profile.theme && profile.theme.font !== 'google:Space Grotesk' },
+    { selector: '#btnAddCustomFont', titleKey: 'aprCustomFontTitle', textKey: 'aprCustomFontText' },
+    { selector: '#appThemeBgImageCtrl .file-ctrl', titleKey: 'aprBgImageTitle', textKey: 'aprBgImageText', done: () => !!themeBgImagePendingFile,
+      drops: [{ kind: 'file', label: ALBUM_COVER.name, url: ALBUM_COVER.url, name: ALBUM_COVER.name }] },
+    { selector: '#appThemeBgImageOpacity', titleKey: 'aprOpacityTitle', textKey: 'aprOpacityText' },
+    { selector: '#appSeparatorVisible', titleKey: 'aprSepTitle', textKey: 'aprSepText', done: () => !!profile.theme && !!profile.theme.separator && !!profile.theme.separator.visible },
+    { selector: '#waveformStyleSelect', titleKey: 'aprWaveTitle', textKey: 'aprWaveText' },
+    { selector: '#seqMapThemeSelect', titleKey: 'aprMapTitle', textKey: 'aprMapText' },
+    { selector: '.nav-item[data-tab="content"]', titleKey: 'aprBackTitle', textKey: 'aprBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
+    { selector: '.block-editor-card[data-type="text"] [data-role="appearanceToggleHead"]', titleKey: 'aprBlockTitle', textKey: 'aprBlockText', clickDone: true,
+      enter: () => { const c = document.querySelector('.block-editor-card[data-type="text"] .block-editor-body.collapsed'); const h = document.querySelector('.block-editor-card[data-type="text"] [data-role="toggle-collapse"], .block-editor-card[data-type="text"] [data-action="toggle-collapse"]'); if (c && h) h.click(); } },
+    { selector: '.block-editor-card[data-type="text"] [data-role="elementAppearanceFields"]', titleKey: 'aprElementTitle', textKey: 'aprElementText', skip: () => !document.querySelector('.block-editor-card[data-type="text"] [data-role="elementAppearanceFields"]') },
+    { selector: '#btnPreview', titleKey: 'aprPreviewTitle', textKey: 'aprPreviewText', clickDone: true },
+    { titleKey: 'aprEndTitle', textKey: 'aprEndText', final: true },
+  ] },
   // Leçon « Vérifier le tracking » (25/10, ?tuto&lesson=tracking, rechargement obligatoire d'où `reload`) : tableau de bord Analytics (palier Pro) déjà garni par le faux serveur (api/demo-client.js, analyticsDemo).
   { id: 'tracking', theme: 'pitch', public: true, reload: true, titleKey: 'ltTitle', descKey: 'ltDesc', steps: [
     { titleKey: 'ltWelcomeTitle', textKey: 'ltWelcomeText' },
@@ -1031,7 +1055,8 @@ function resetLessonView(lesson) {
   if (!lesson || lesson.theme !== 'pitch' || !isTutoMode()) return;
   try {
     if (typeof switchTab === 'function') switchTab('content');
-    if (typeof switchAdReel === 'function' && typeof adReels !== 'undefined' && currentAdReelId !== 'main' && adReels.some(a => a.id === 'main')) switchAdReel('main');
+    const start = lesson.startAdReel || 'main';
+    if (typeof switchAdReel === 'function' && typeof adReels !== 'undefined' && currentAdReelId !== start && adReels.some(a => a.id === start)) switchAdReel(start);
   } catch (e) { /* la leçon se déroule quand même */ }
 }
 function startLesson(id, opts) {
