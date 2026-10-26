@@ -312,9 +312,10 @@ const ALBUM_COVER = { name: 'music-city-cover.jpg', url: './images/tuto-music-ci
 // Illustration d'exemple du pack (image réelle du pack « 8 bits Comptines », copiée dans le dépôt).
 const PACK_ILLUSTRATION = { name: 'illustration-8-bits.png', url: './images/tuto-8bits-illustration.png' };
 const UPLOAD_KIT = {
-  url: name => 'https://media.layerpitch.com/tuto/' + encodeURIComponent(name),
+  // Images « Alone » (réduites) et petit film de présentation : fichiers du dépôt, servis avec le site (aucun dépôt dans le stockage des médias).
+  url: name => ({ 'alone-ponton.jpg': './images/tuto-ponton.jpg', 'alone-brume.jpg': './images/tuto-brume.jpg', 'alone-rameur.jpg': './images/tuto-rameur.jpg', 'layerpitch-le-film.mp4': './images/tuto-film.mp4', [ALBUM_COVER.name]: ALBUM_COVER.url }[name] || ('https://media.layerpitch.com/tuto/' + encodeURIComponent(name))),
   photo: { name: 'alone-ponton.jpg' }, thumb: { name: 'alone-brume.jpg' }, cover: { name: 'alone-rameur.jpg' }, album: ALBUM_COVER,
-  video: { name: 'alone-gameplay-muette.mp4' },
+  video: { name: 'layerpitch-le-film.mp4' },
 };
 const LESSON_THEMES = [
   { id: 'engine', titleKey: 'lessonThemeEngine' },
@@ -923,7 +924,7 @@ const LESSONS = [
   // Leçon « Envoyer des images et des vidéos » (25/10, ?tuto&lesson=upload, rechargement obligatoire d'où `reload`) : l'apprenant glisse des fichiers d'exemple sur les zones d'envoi
   // (image d'un bloc Photo, vignette d'un bloc Vidéo, bibliothèque vidéo hébergée, illustration d'un pack, pochette d'un album). Envoi SIMULÉ dans le compte fictif : rien n'est enregistré.
   // « bientôt » tant que les fichiers d'exemple (UPLOAD_KIT) ne sont pas déposés par Jules-Antoine dans media.layerpitch.com/tuto/ (même dossier que les vidéos de la leçon Versioning).
-  { id: 'upload', theme: 'pitch', public: true, reload: true, soon: true, titleKey: 'luTitle', descKey: 'luDesc', steps: [
+  { id: 'upload', theme: 'pitch', public: true, reload: true, titleKey: 'luTitle', descKey: 'luDesc', steps: [
     { titleKey: 'luWelcomeTitle', textKey: 'luWelcomeText' },
     { selector: '#btnAddPhoto', titleKey: 'luPhotoBlockTitle', textKey: 'luPhotoBlockText', clickDone: true, done: () => blocks.some(b => b.type === 'photo') },
     { selector: '.block-editor-card[data-type="photo"] [data-role="addBtn"]', titleKey: 'luAddImageTitle', textKey: 'luAddImageText', clickDone: true, done: () => blocks.some(b => b.type === 'photo' && b.images.length >= 1) },
