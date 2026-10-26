@@ -809,7 +809,7 @@ const LESSONS = [
     { selector: '#appSeparatorThickness', titleKey: 'aprSepTitle', textKey: 'aprSepText', enter: ctx => { ctx.sepThickness0 = Number(document.getElementById('appSeparatorThickness').value); },
       done: ctx => ctx.sepThickness0 != null && Number(document.getElementById('appSeparatorThickness').value) !== ctx.sepThickness0,
       drops: [{ kind: 'text', label: '3', value: '3' }] },
-    { selector: () => document.getElementById('waveformStylePicker') || document.getElementById('waveformStyleSelect'), titleKey: 'aprWaveTitle', textKey: 'aprWaveText' }, // menu d'hier ou cartes d'aperçu (branche « boutons de lecture »)
+    { selector: '#waveformStylePicker', titleKey: 'aprWaveTitle', textKey: 'aprWaveText', clickDone: true },
     { selector: '#seqMapThemeSelect', titleKey: 'aprMapTitle', textKey: 'aprMapText' },
     // Premier aperçu : avec l'image de fond, les textes se lisent mal -> on revient les mettre en blanc, puis on revisualise.
     { selector: '#btnPreview', titleKey: 'aprPreviewTitle', textKey: 'aprPreviewText', clickDone: true },
