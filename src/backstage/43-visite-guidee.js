@@ -893,6 +893,7 @@ const LESSONS = [
     { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="distribution"]', titleKey: 'lpDistTitle', textKey: 'lpDistText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'distribution' },
     { selector: '#packsContainer select[data-pack-field="priceEurCents"]', titleKey: 'lpPriceTitle', textKey: 'lpPriceText', done: () => packs.length > 0 && packs[0].priceEurCents !== 1000 },
     { selector: '#packsContainer input[data-pack-field="buyable"]', titleKey: 'lpSellTitle', textKey: 'lpSellText' },
+    { selector: '#packsContainer input[data-pack-field="videoTestModeEnabled"]', titleKey: 'lpGameplayTitle', textKey: 'lpGameplayText', done: () => packs.length > 0 && !!packs[0].videoTestModeEnabled },
     { selector: '#packsContainer [data-action="preview-pack"]', titleKey: 'lpPreviewTitle', textKey: 'lpPreviewText', clickDone: true },
     { titleKey: 'lpEndTitle', textKey: 'lpEndText', final: true },
   ] },
