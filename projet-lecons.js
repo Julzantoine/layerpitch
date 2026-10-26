@@ -71,6 +71,10 @@
         { selector: '#createBtn', titleKey: 'plCreateBtnTitle', textKey: 'plCreateBtnText', clickDone: true, done: () => !!document.querySelector('a.row') },
         { selector: 'a.row', titleKey: 'plCreateDoneTitle', textKey: 'plCreateDoneText', final: true },
       ],
+      // Arrivée depuis le Backstage pour une leçon du projet : on ouvre le projet d'exemple, la leçon demandée démarre à l'intérieur.
+      'pj-open': [
+        { selector: 'a.row', titleKey: 'plOpenTitle', textKey: 'plOpenText', clickDone: true },
+      ],
       'pj-chat': [
         { titleKey: 'plChatWelcomeTitle', textKey: 'plChatWelcomeText' },
         { selector: '#newMsg', titleKey: 'plChatWriteTitle', textKey: 'plChatWriteText', done: () => hasText('newMsg'),

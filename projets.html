@@ -43,7 +43,7 @@
   .choice input { width: auto; margin: 0; }
   .empty { color: var(--text-dimmer); text-align: center; padding: 24px 0; }
 </style>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793047627549">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793047853553">
 </head>
 <body>
 <div class="page">
@@ -51,19 +51,19 @@
   <div id="content"></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-tuto.js?v=1793047627549"></script>
-<script src="layerpitch-i18n.js?v=1793047627549"></script>
-<script src="layerpitch-notify.js?v=1793047627549"></script>
-<script src="api/supabase-client.js?v=1793047627549"></script>
-<script src="api/auth.js?v=1793047627549"></script>
-<script src="layerpitch-appearance.js?v=1793047627549"></script>
-<script src="layerpitch-shell.js?v=1793047627549"></script>
-<script src="api/studio.js?v=1793047627549"></script>
-<script src="api/demo-client.js?v=1793047627549"></script>
-<script src="api/demo-projects.js?v=1793047627549"></script>
-<script src="layerpitch-guide.js?v=1793047627549"></script>
-<script src="projet-lecons.js?v=1793047627549"></script>
-<script src="api/projects.js?v=1793047627549"></script>
+<script src="layerpitch-tuto.js?v=1793047853553"></script>
+<script src="layerpitch-i18n.js?v=1793047853553"></script>
+<script src="layerpitch-notify.js?v=1793047853553"></script>
+<script src="api/supabase-client.js?v=1793047853553"></script>
+<script src="api/auth.js?v=1793047853553"></script>
+<script src="layerpitch-appearance.js?v=1793047853553"></script>
+<script src="layerpitch-shell.js?v=1793047853553"></script>
+<script src="api/studio.js?v=1793047853553"></script>
+<script src="api/demo-client.js?v=1793047853553"></script>
+<script src="api/demo-projects.js?v=1793047853553"></script>
+<script src="layerpitch-guide.js?v=1793047853553"></script>
+<script src="projet-lecons.js?v=1793047853553"></script>
+<script src="api/projects.js?v=1793047853553"></script>
 <script>
 // projets.html — liste et création des Projets (chantier profils et permissions, étape 5, 28/09 ; D20, D24, D36).
 // Créer : compositeur (Warrior 1, Boss 5) ou studio (Indie 1, AA 5, AAA illimité) ; les invités ne paient jamais.
@@ -86,8 +86,11 @@ let showArchived = false;
 // MODE TUTORIEL (?tuto, 20/10) : Projets fictifs sur un faux serveur local (api/demo-projects.js), rien n'est enregistré ; porte d'entrée unique :
 // layerpitch-tuto.js (fermé au public tant que Jules-Antoine ne l'a pas ouvert).
 const TUTO = new URLSearchParams(location.search).has('tuto');
+// Leçon du projet lancée depuis le Backstage (26/10) : la liste montre déjà le projet d'exemple, et le clic dessus l'ouvre avec la leçon.
+const PJ_LESSON = TUTO ? new URLSearchParams(location.search).get('lesson') : null;
+const PJ_LESSON_IN_PROJECT = !!PJ_LESSON && /^pj-/.test(PJ_LESSON) && PJ_LESSON !== 'pj-create';
 const tutoReady = TUTO ? window.LayerPitchTuto.enter('./projets.html', { adminOnly: true }) : Promise.resolve();
-const PJ = TUTO ? window.LayerPitchDemoProjects.create({ startEmpty: true }) : window.LayerPitchProjects;
+const PJ = TUTO ? window.LayerPitchDemoProjects.create({ startEmpty: !PJ_LESSON_IN_PROJECT }) : window.LayerPitchProjects;
 const TUTO_LESSONS = TUTO ? window.LayerPitchProjetLessons.init({ lang: pageLang, S: {}, $ }) : { list: [], start: () => false };
 
 async function render() {
@@ -123,7 +126,7 @@ async function render() {
   html += `<div class="card">
     <div class="top" style="margin-bottom:4px"><h2 style="margin:0">${esc(tr('listTitle'))}</h2>
       <label class="choice" style="margin:0"><input type="checkbox" id="archivedToggle" ${showArchived ? 'checked' : ''}> ${esc(tr('showArchived'))}</label></div>
-    ${projects.length ? projects.map(p => `<a class="row" href="./projet.html?id=${encodeURIComponent(p.id)}${TUTO ? '&tuto' : ''}&lang=${pageLang}">
+    ${projects.length ? projects.map(p => `<a class="row" href="./projet.html?id=${encodeURIComponent(p.id)}${TUTO ? '&tuto' : ''}${PJ_LESSON_IN_PROJECT ? '&lesson=' + encodeURIComponent(PJ_LESSON) : ''}&lang=${pageLang}">
         <div class="row-main"><div class="row-title">${esc(p.title)}</div>
           <div class="row-sub">${esc(tr(p.ownerKind === 'studio' ? 'ownedByStudio' : 'ownedByComposer'))} · ${esc(tr('role_' + p.role))}${p.archived ? ' · ' + esc(tr('archived')) : ''}</div></div>
         ${p.unread ? `<span class="pill">${esc(tr('unread', { n: p.unread }))}</span>` : ''}
@@ -147,7 +150,7 @@ async function render() {
 if (!TUTO) window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'projects', crumbs: [{ label: tr('h1') }] });
 tutoReady.then(() => LayerPitchAuth.onAuthStateChange(() => render().then(() => {
   const l = TUTO ? new URLSearchParams(location.search).get('lesson') : null; // lien depuis le menu Tutoriel du Backstage
-  if (l && !TUTO_LESSONS.started) { TUTO_LESSONS.started = true; setTimeout(() => TUTO_LESSONS.start(l), 400); }
+  if (l && !TUTO_LESSONS.started) { TUTO_LESSONS.started = true; setTimeout(() => TUTO_LESSONS.start(PJ_LESSON_IN_PROJECT ? 'pj-open' : l), 400); }
 })));
 </script>
 </body>

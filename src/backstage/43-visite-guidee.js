@@ -329,6 +329,15 @@ function lessonPageUrl(l) { if (l && l.steps) return window.location.pathname; r
 // Adresse complète d'une leçon dans le mode tutoriel (la page de la leçon + ?tuto&lesson=…).
 function lessonTutoUrl(l, id) { const base = lessonPageUrl(l); return base + (base.includes('?') ? '&' : '?') + 'tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); }
 function lessonIsPublic(lesson) { return !!(lesson && lesson.public); }
+// Départ des leçons « Préproduction » dans le Backstage (26/10) : on montre le lien « Projets » de la barre latérale, puis la leçon continue sur
+// projets.html (qui mène au projet pour les leçons du projet) ; voir projet-lecons.js.
+function preprodEntrySteps(id, introTextKey) {
+  return [
+    { titleKey: 'plCreateIntroTitle', textKey: introTextKey },
+    { selector: '#navLinkProjects', titleKey: 'plCreateNavTitle', textKey: 'plCreateNavText', clickDone: true,
+      enter: () => { const a = document.getElementById('navLinkProjects'); if (a) a.setAttribute('href', 'projets.html?tuto&lesson=' + id + '&lang=' + currentLang()); } },
+  ];
+}
 const LESSONS = [
   { id: 'static', theme: 'engine', public: true, titleKey: 'lessonStaticTitle', descKey: 'lessonStaticDesc', steps: [
     // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
@@ -987,17 +996,12 @@ const LESSONS = [
   ] },
   // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
   // Projet fictif ; `page` renvoie vers cette page au clic.
-  { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc', steps: [
-    // Départ dans le Backstage (26/10) : on montre le lien « Projets » de la barre latérale, puis la leçon continue sur projets.html (projet-lecons.js).
-    { titleKey: 'plCreateIntroTitle', textKey: 'plCreateIntroText' },
-    { selector: '#navLinkProjects', titleKey: 'plCreateNavTitle', textKey: 'plCreateNavText', clickDone: true,
-      enter: () => { const a = document.getElementById('navLinkProjects'); if (a) a.setAttribute('href', 'projets.html?tuto&lesson=pj-create&lang=' + currentLang()); } },
-  ] },
-  { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
-  { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },
-  { id: 'pj-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMusicTitle', descKey: 'plMusicDesc' },
+  { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc', steps: preprodEntrySteps('pj-create', 'plCreateIntroText') },
+  { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc', steps: preprodEntrySteps('pj-chat', 'plEntryIntroText') },
+  { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc', steps: preprodEntrySteps('pj-moodboard', 'plEntryIntroText') },
+  { id: 'pj-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMusicTitle', descKey: 'plMusicDesc', steps: preprodEntrySteps('pj-music', 'plEntryIntroText') },
   { id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plAnnTitle', descKey: 'plAnnDesc' }, // projet-lecons.js ; « bientôt » tant que les vidéos d'« Alone » manquent
-  { id: 'pj-map-build', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc' },
+  { id: 'pj-map-build', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc', steps: preprodEntrySteps('pj-map-build', 'plEntryIntroText') },
   // « Musique » et « balade » attendent les fichiers sonores d'exemple (kit MAP_MUSIC dans projet-lecons.js) : « bientôt » d'ici là.
   { id: 'pj-map-music', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc' },
   { id: 'pj-map-walk', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc' },
