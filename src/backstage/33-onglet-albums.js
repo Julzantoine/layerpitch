@@ -52,7 +52,7 @@ function albumEditorConfig(al) {
     save: async p => { await loadPostgresReadScripts(); return A().upsertAlbum(p); },
     uploadCover: async a => {
       // Mode tutoriel : envoi simulé, rien n'est envoyé au stockage (la pochette choisie reste visible dans l'éditeur, enregistrée ou non).
-      if (isTutoMode()) return { illustration: null, illustrationOriginalName: a.pendingCover.name };
+      if (typeof isTutoMode === 'function' && isTutoMode()) return { illustration: null, illustrationOriginalName: a.pendingCover.name };
       await loadPostgresReadScripts();
       const { composerId, error } = await window.LayerPitchAuth.ensureMyComposerProfile();
       if (error || !composerId) throw new Error(error || 'aucun profil compositeur');
