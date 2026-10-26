@@ -303,6 +303,10 @@ function lessonAdreelVideo() { const b = blocks.find(x => x.type === 'video'); r
 const PACK_8BIT_TEXT = (typeof currentLang === 'function' && currentLang() === 'en')
   ? 'I’m the same age as Nintendo’s FamiCom… I’ve played on the NES, Master System, Mega Drive, Game Boy, Super Nintendo, Game Gear, GameCube, PlayStation, Xbox… So when I became a dad, just as fakebit was taking the world by storm, I almost had to revisit some nursery rhymes with a chiptune twist!'
   : 'J’ai le même âge que la FamiCon de Nintendo… J’ai joué à la Nes, à la mastersystem, à la mega drive, à la gameboy, la supernes, la game gear, la gamecube, la PlayStation, la Xbox… Alors quand je suis devenu papa, alors que le fakebit explosait à la face du monde, j’étais presque obligé de revisiter quelques comptines à la sauce chiptune !';
+// Texte de présentation de l'album de la leçon « Vendre une OST interactive » (dans la langue du Backstage).
+const ALBUM_TEXT = (typeof currentLang === 'function' && currentLang() === 'en')
+  ? 'Discover the Music City OST, winner at the OST Awards! Listen to every track as if you were in the heart of the game, make your versions evolve, pick your settings, or hear a new random version each time!'
+  : 'Retrouvez l’OST de Music City, primée aux OST Awards ! Écoutez tous les morceaux comme si vous étiez au cœur du jeu, faites évoluer vos versions, choisissez vos réglages ou écoutez une nouvelle version aléatoire à chaque fois !';
 const UPLOAD_KIT = {
   url: name => 'https://media.layerpitch.com/tuto/' + encodeURIComponent(name),
   photo: { name: 'alone-ponton.jpg' }, thumb: { name: 'alone-brume.jpg' }, cover: { name: 'alone-rameur.jpg' }, album: { name: 'alone-cabane.jpg' },
@@ -819,28 +823,6 @@ const LESSONS = [
     { selector: '#packsContainer [data-action="preview-pack"]', titleKey: 'lpPreviewTitle', textKey: 'lpPreviewText', clickDone: true },
     { titleKey: 'lpEndTitle', textKey: 'lpEndText', final: true },
   ] },
-  // Leçon « Créer un album » (25/10, ?tuto&lesson=album, rechargement obligatoire d'où `reload`) : album d'OST adaptative avec les quatre villes de « Music City ».
-  // L'onglet Albums est normalement réservé aux comptes qui ont le droit sell_albums : le faux serveur l'accorde pour cette leçon (api/demo-client.js).
-  // La version officielle (prise enregistrée dans le lecteur) est expliquée, pas jouée ; la mise en vente est expliquée (achat factice pendant la bêta).
-  { id: 'album', theme: 'pitch', public: true, reload: true, titleKey: 'albTitle', descKey: 'albDesc', steps: [
-    { titleKey: 'albWelcomeTitle', textKey: 'albWelcomeText' },
-    { selector: '.nav-item[data-tab="albums"]', titleKey: 'albNavTitle', textKey: 'albNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="albums"].active') },
-    { selector: '#btnAddAlbum', titleKey: 'albAddTitle', textKey: 'albAddText', clickDone: true, done: () => albumsState.albums.length >= 1 },
-    { selector: '#albumsContainer [data-ae-field="title"]', titleKey: 'albNameTitle', textKey: 'albNameText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].title || '').trim().length > 2,
-      drops: [{ kind: 'text', label: 'Music City OST - Interactive Edition', value: 'Music City OST - Interactive Edition' }] },
-    { selector: '#albumsContainer [data-ae-field="presentationFr"]', titleKey: 'albTextTitle', textKey: 'albTextText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].presentationFr || '').trim().length > 5,
-      drops: [{ kind: 'text', label: 'Quatre villes, quatre ambiances, un même tempo. Une musique qui s’adapte au joueur, à garder et à rejouer.', value: 'Quatre villes, quatre ambiances, un même tempo. Une musique qui s’adapte au joueur, à garder et à rejouer.' }] },
-    { selector: '#albumsContainer [data-ae-cover-ctrl]', titleKey: 'albCoverTitle', textKey: 'albCoverText' },
-    { selector: '#albumsContainer [data-ae-field="priceInput"]', titleKey: 'albPriceTitle', textKey: 'albPriceText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].priceInput || '').trim().length > 0,
-      drops: [{ kind: 'text', label: '5', value: '5' }] },
-    { selector: () => document.querySelector('#albumsContainer [data-ae-track]:not(:checked)'), titleKey: 'albTracksTitle', textKey: 'albTracksText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].trackIds.length >= 4 },
-    { selector: '#albumsContainer [data-ae-listen]', titleKey: 'albListenTitle', textKey: 'albListenText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].listenMode !== 'none' },
-    { selector: '#albumsContainer [data-ae-save]', titleKey: 'albSaveTitle', textKey: 'albSaveText', clickDone: true, done: () => albumsState.albums.length > 0 && albumsState.albums[0].saved },
-    { selector: '#albumsContainer [data-ae-record]', titleKey: 'albOfficialTitle', textKey: 'albOfficialText' },
-    { selector: '#albumsContainer [data-ae-rights-decl]', titleKey: 'albRightsTitle', textKey: 'albRightsText' },
-    { selector: '#albumsContainer [data-ae-buyable]', titleKey: 'albSellTitle', textKey: 'albSellText' },
-    { titleKey: 'albEndTitle', textKey: 'albEndText', final: true },
-  ] },
   // Leçon « Intégrer un lecteur sur un site web » (25/10, ?tuto&lesson=embed, rechargement obligatoire d'où `reload`) : le code d'intégration d'un pack (même principe pour une collection et
   // la liste de morceaux d'un AdReel), puis l'autorisation donnée aux visiteurs (Réseaux sociaux). Adresse d'exemple en mode tutoriel (30-packs.js).
   { id: 'embed', theme: 'pitch', public: true, reload: true, titleKey: 'leTitle', descKey: 'leDesc', steps: [
@@ -855,6 +837,31 @@ const LESSONS = [
     { selector: '.nav-item[data-tab="socials"]', titleKey: 'leSocialsTabTitle', textKey: 'leSocialsTabText', done: () => !!document.querySelector('.backstage-panel[data-panel="socials"].active') },
     { selector: '#allowEmbeddingCheckbox', titleKey: 'leAllowTitle', textKey: 'leAllowText', done: () => !!document.getElementById('allowEmbeddingCheckbox').checked },
     { titleKey: 'embEndTitle', textKey: 'embEndText', final: true },
+  ] },
+  // Leçon « Créer un album » (25/10, ?tuto&lesson=album, rechargement obligatoire d'où `reload`) : album d'OST adaptative avec les quatre villes de « Music City ».
+  // L'onglet Albums est normalement réservé aux comptes qui ont le droit sell_albums : le faux serveur l'accorde pour cette leçon (api/demo-client.js).
+  // La version officielle (prise enregistrée dans le lecteur) est expliquée, pas jouée ; la mise en vente est expliquée (achat factice pendant la bêta).
+  { id: 'album', theme: 'pitch', public: true, reload: true, titleKey: 'albTitle', descKey: 'albDesc', steps: [
+    { titleKey: 'albWelcomeTitle', textKey: 'albWelcomeText' },
+    { selector: '.nav-item[data-tab="albums"]', titleKey: 'albNavTitle', textKey: 'albNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="albums"].active') },
+    { selector: '#btnAddAlbum', titleKey: 'albAddTitle', textKey: 'albAddText', clickDone: true, done: () => albumsState.albums.length >= 1 },
+    { selector: '#albumsContainer [data-ae-field="title"]', titleKey: 'albNameTitle', textKey: 'albNameText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].title || '').trim().length > 2,
+      drops: [{ kind: 'text', label: 'Music City OST - Interactive Edition', value: 'Music City OST - Interactive Edition' }] },
+    { selector: '#albumsContainer [data-ae-field="presentationFr"]', titleKey: 'albTextTitle', textKey: 'albTextText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].presentationFr || '').trim().length > 5,
+      drops: [{ kind: 'text', label: ALBUM_TEXT, value: ALBUM_TEXT }] },
+    { selector: '#albumsContainer [data-ae-cover-ctrl]', titleKey: 'albCoverTitle', textKey: 'albCoverText' },
+    { selector: '#albumsContainer [data-ae-field="priceInput"]', titleKey: 'albPriceTitle', textKey: 'albPriceText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].priceInput || '').trim().length > 0,
+      drops: [{ kind: 'text', label: '5', value: '5' }] },
+    { selector: '#albumsContainer select[data-ae-addtrack]', titleKey: 'albTracksTitle', textKey: 'albTracksText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].trackIds.length >= 4 },
+    { selector: '#albumsContainer [data-ae-trk] .lpae-grip', titleKey: 'albOrderTitle', textKey: 'albOrderText',
+      enter: ctx => { ctx.albumOrder0 = albumsState.albums.length ? albumsState.albums[0].trackIds.join() : ''; }, done: ctx => !!ctx.albumOrder0 && albumsState.albums.length > 0 && albumsState.albums[0].trackIds.join() !== ctx.albumOrder0 },
+    { selector: '#albumsContainer [data-ae-listen="selected"]', titleKey: 'albListenTitle', textKey: 'albListenText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].listenMode === 'selected' },
+    { selector: '#albumsContainer [data-ae-free]', titleKey: 'albListenOneTitle', textKey: 'albListenOneText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].freeTrackIds.length >= 1 },
+    { selector: '#albumsContainer [data-ae-save]', titleKey: 'albSaveTitle', textKey: 'albSaveText', clickDone: true, done: () => albumsState.albums.length > 0 && albumsState.albums[0].saved },
+    { selector: '#albumsContainer [data-ae-record]', titleKey: 'albOfficialTitle', textKey: 'albOfficialText' },
+    { selector: '#albumsContainer [data-ae-rights-decl]', titleKey: 'albRightsTitle', textKey: 'albRightsText' },
+    { selector: '#albumsContainer [data-ae-buyable]', titleKey: 'albSellTitle', textKey: 'albSellText' },
+    { titleKey: 'albEndTitle', textKey: 'albEndText', final: true },
   ] },
   // Leçon « Envoyer des images et des vidéos » (25/10, ?tuto&lesson=upload, rechargement obligatoire d'où `reload`) : l'apprenant glisse des fichiers d'exemple sur les zones d'envoi
   // (image d'un bloc Photo, vignette d'un bloc Vidéo, bibliothèque vidéo hébergée, illustration d'un pack, pochette d'un album). Envoi SIMULÉ dans le compte fictif : rien n'est enregistré.

@@ -113,7 +113,10 @@
 .lpae-badge{font-size:11px;letter-spacing:.04em;color:var(--accent);background:var(--accent-soft);padding:3px 9px;border-radius:999px;white-space:nowrap}
 .lpae-badge.bad{color:#c0392b;background:none;border:1px solid #c0392b}
 .lpae-cover{width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--border)}
-.lpae-cover.empty{border-style:dashed}`;
+.lpae-cover.empty{border-style:dashed}
+.lpae-trk{display:flex;align-items:center;gap:8px;padding:6px 8px;margin-top:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg)}
+.lpae-trk.dragging{opacity:.4}.lpae-trk.over{border-color:var(--accent)}
+.lpae-grip{cursor:grab;color:var(--text-dim);user-select:none}.lpae-num{color:var(--text-dim);min-width:20px}.lpae-trk-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}`;
     document.head.appendChild(st);
   }
 
@@ -132,23 +135,27 @@
     const PRIMARY = 'btn-primary primary', DANGER = 'btn-danger danger';
 
     // ---- Rendu ----
+    // Morceaux de l'album (26/10) : liste ordonnée (glisser-déposer par la poignée, ou flèches) + menu « Ajouter un morceau ». L'ordre de la liste est l'ordre de l'album.
     function trackRows() {
       const list = cfg.tracks ? cfg.tracks() : [], own = ownSet();
-      const listed = new Set(list.map(t => t.id));
-      const row = (id, label) => {
-        const pos = al.trackIds.indexOf(id);
-        return `<label class="lpae-row"><input type="checkbox" data-ae-track="${esc(id)}"${pos >= 0 ? ' checked' : ''}><span>${pos >= 0 ? (pos + 1) + '. ' : ''}${esc(label)}</span></label>`;
-      };
-      let html = '', last;
-      list.forEach(t => {
-        if (t.group !== undefined && t.group !== last) { last = t.group; html += `<div class="lpae-hint"><strong>${esc(t.group)}</strong></div>`; }
-        html += row(t.id, t.title || t.id);
+      const rows = al.trackIds.filter(id => !own || own.has(id));
+      const hidden = al.trackIds.length - rows.length;
+      const remaining = list.filter(t => !al.trackIds.includes(t.id));
+      let opts = '', last;
+      remaining.forEach(t => {
+        if (t.group !== undefined && t.group !== last) { if (last !== undefined) opts += '</optgroup>'; last = t.group; opts += `<optgroup label="${esc(t.group)}">`; }
+        opts += `<option value="${esc(t.id)}">${esc(t.title || t.id)}</option>`;
       });
-      // Morceau de l'album absent de la liste (ex. supprimé de la bibliothèque) : montré quand même, décochable, plutôt que perdu en silence.
-      const orphans = al.trackIds.filter(id => !listed.has(id));
-      if (!own) orphans.forEach(id => { html += row(id, id); });
-      else if (orphans.length) html += `<div class="lpae-hint">${esc(tr('foreignTracks', { n: orphans.length }))}</div>`;
-      return html || `<div class="lpae-hint">${esc(tr('noTracks'))}</div>`;
+      if (last !== undefined) opts += '</optgroup>';
+      const items = rows.map((id, i) => `<div class="lpae-trk" draggable="true" data-ae-trk="${esc(id)}">
+          <span class="lpae-grip" title="${esc(tr('dragHint'))}">⠿</span><span class="lpae-num">${i + 1}.</span><span class="lpae-trk-title">${esc(title(id))}</span>
+          <button class="btn btn-small" type="button" data-ae-up="${esc(id)}"${i === 0 ? ' disabled' : ''} aria-label="${esc(tr('moveUp'))}">↑</button>
+          <button class="btn btn-small" type="button" data-ae-down="${esc(id)}"${i === rows.length - 1 ? ' disabled' : ''} aria-label="${esc(tr('moveDown'))}">↓</button>
+          <button class="btn btn-small" type="button" data-ae-untrack="${esc(id)}">${esc(tr('remove'))}</button></div>`).join('');
+      const add = (remaining.length || !list.length)
+        ? `<select data-ae-addtrack><option value="">${esc(tr('addTrackOpt'))}</option>${opts}</select>` : '';
+      return (items || (list.length ? '' : `<div class="lpae-hint">${esc(tr('noTracks'))}</div>`))
+        + (hidden ? `<div class="lpae-hint">${esc(tr('foreignTracks', { n: hidden }))}</div>` : '') + add;
     }
 
     function officialRows() {
@@ -406,6 +413,26 @@
       renderAll();
     }
 
+    // Déplace un morceau d'un cran parmi les morceaux affichés (ceux des invités, masqués, gardent leur place).
+    function moveTrack(id, delta) {
+      const shown = al.trackIds.filter(isOwn), i = shown.indexOf(id), j = i + delta;
+      if (i < 0 || j < 0 || j >= shown.length) return;
+      moveTrackBefore(id, delta < 0 ? shown[j] : (shown[j + 1] || null));
+    }
+    // Place `id` juste avant `beforeId` (null = à la fin).
+    function moveTrackBefore(id, beforeId) {
+      const rest = al.trackIds.filter(x => x !== id);
+      const at = beforeId ? rest.indexOf(beforeId) : rest.length;
+      rest.splice(at < 0 ? rest.length : at, 0, id);
+      al.trackIds = rest; render();
+    }
+    let dragId = null;
+    const onDragStart = e => { const r = e.target.closest && e.target.closest('[data-ae-trk]'); if (!r) return; dragId = r.dataset.aeTrk; r.classList.add('dragging'); try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragId); } catch (x) { /* tant pis */ } };
+    const onDragOver = e => { if (!dragId) return; const r = e.target.closest && e.target.closest('[data-ae-trk]'); if (!r) return; e.preventDefault(); host.querySelectorAll('.lpae-trk.over').forEach(x => x.classList.remove('over')); r.classList.add('over'); };
+    const onDrop = e => { if (!dragId) return; const r = e.target.closest && e.target.closest('[data-ae-trk]'); const id = dragId; dragId = null; if (!r) return; e.preventDefault(); const target = r.dataset.aeTrk; if (target === id) { render(); return; }
+      const shown = al.trackIds.filter(isOwn), from = shown.indexOf(id), to = shown.indexOf(target); moveTrackBefore(id, from < to ? (shown[to + 1] || null) : target); };
+    const onDragEnd = () => { dragId = null; host.querySelectorAll('.lpae-trk.dragging, .lpae-trk.over').forEach(x => x.classList.remove('dragging', 'over')); };
+
     // ---- Événements (délégation sur l'hôte) ----
     const onInput = e => {
       const t = e.target, d = t.dataset;
@@ -425,7 +452,7 @@
         render();
       } else if (d.aeListen) { al.listenMode = d.aeListen; render(); }
       else if (d.aeFree) al.freeTrackIds = t.checked ? al.freeTrackIds.concat(d.aeFree) : al.freeTrackIds.filter(x => x !== d.aeFree);
-      else if (d.aeTrack) { al.trackIds = t.checked ? al.trackIds.concat(d.aeTrack) : al.trackIds.filter(x => x !== d.aeTrack); render(); } // les numéros suivent l'ordre de cochage
+      else if (d.aeAddtrack != null) { if (t.value) { al.trackIds = al.trackIds.concat(t.value); render(); } }
       else if (d.aeCover != null) {
         const f = t.files && t.files[0]; if (!f) return;
         if (al.pendingCoverUrl) URL.revokeObjectURL(al.pendingCoverUrl);
@@ -436,7 +463,9 @@
       const b = e.target.closest('button');
       if (!b || !host.contains(b)) return;
       const d = b.dataset;
-      if (d.aeSave != null) save();
+      if (d.aeUntrack) { al.trackIds = al.trackIds.filter(x => x !== d.aeUntrack); render(); }
+      else if (d.aeUp || d.aeDown) { moveTrack(d.aeUp || d.aeDown, d.aeUp ? -1 : 1); }
+      else if (d.aeSave != null) save();
       else if (d.aeExtra != null) { const a = (cfg.actions(al) || [])[Number(d.aeExtra)]; if (a) a.onClick(al); }
       else if (d.aePlay) togglePlay(d.aePlay);
       else if (d.aeRecord) openRecorder(d.aeRecord);
@@ -479,10 +508,11 @@
     host.addEventListener('input', onInput);
     host.addEventListener('change', onChange);
     host.addEventListener('click', onClick);
+    host.addEventListener('dragstart', onDragStart); host.addEventListener('dragover', onDragOver); host.addEventListener('drop', onDrop); host.addEventListener('dragend', onDragEnd);
 
     function destroy() {
       instances.delete(inst);
-      host.removeEventListener('input', onInput); host.removeEventListener('change', onChange); host.removeEventListener('click', onClick);
+      host.removeEventListener('input', onInput); host.removeEventListener('change', onChange); host.removeEventListener('click', onClick); host.removeEventListener('dragstart', onDragStart); host.removeEventListener('dragover', onDragOver); host.removeEventListener('drop', onDrop); host.removeEventListener('dragend', onDragEnd);
       if (recorder && recorder.owner === inst) closeRecorder();
       if (playback && playback.owner === inst) playback.stop();
       host.innerHTML = '';

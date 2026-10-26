@@ -110,12 +110,15 @@ const click = (el) => el.dispatchEvent(new (el.ownerDocument.defaultView.MouseEv
 
   input(s.w, s.doc.querySelectorAll('[data-ae-field="title"]')[1], 'Mon OST');
   input(s.w, s.doc.querySelectorAll('[data-ae-field="priceInput"]')[1], '3,5');
-  // Cocher Crépuscule (t3) puis Forêt (t1) : l'ordre suit l'ordre de cochage
-  let boxes = () => s.doc.querySelectorAll('#albumsContainer .list-block')[1].querySelectorAll('[data-ae-track]');
-  let t3 = [...boxes()].find(b => b.dataset.aeTrack === 't3'); t3.checked = true; change(s.w, t3);
-  let t1 = [...boxes()].find(b => b.dataset.aeTrack === 't1'); t1.checked = true; change(s.w, t1);
-  const labelsText = [...s.doc.querySelectorAll('#albumsContainer .list-block')[1].querySelectorAll('label span')].map(x => x.textContent);
-  check('numérotation selon l\'ordre de cochage (1. Crépuscule, 2. Forêt)', labelsText.includes('1. Crépuscule') && labelsText.includes('2. Forêt'));
+  // Ajouter Crépuscule (t3) puis Forêt (t1) par le menu « + Ajouter un morceau » : l'ordre de la liste est l'ordre de l'album
+  const addTo = (card, id) => { const sel = card.querySelector('[data-ae-addtrack]'); sel.value = id; change(s.w, sel); };
+  addTo(s.doc.querySelectorAll('#albumsContainer .list-block')[1], 't3');
+  addTo(s.doc.querySelectorAll('#albumsContainer .list-block')[1], 't1');
+  let trkRows = () => [...s.doc.querySelectorAll('#albumsContainer .list-block')[1].querySelectorAll('[data-ae-trk]')];
+  check('liste ordonnée selon l\'ordre d\'ajout (1. Crépuscule, 2. Forêt)', trkRows().length === 2 && /1\.Crépuscule/.test(trkRows()[0].textContent) && /2\.Forêt/.test(trkRows()[1].textContent));
+  click(trkRows()[1].querySelector('[data-ae-up]'));
+  check('la flèche ↑ remonte Forêt en tête (1. Forêt, 2. Crépuscule)', /1\.Forêt/.test(trkRows()[0].textContent) && /2\.Crépuscule/.test(trkRows()[1].textContent));
+  click(trkRows()[0].querySelector('[data-ae-down]'));
   check('la saisie du titre survit au re-rendu (état conservé)', s.doc.querySelectorAll('[data-ae-field="title"]')[1].value === 'Mon OST');
 
   // Refus côté client : en vente sans prix
@@ -162,7 +165,7 @@ const click = (el) => el.dispatchEvent(new (el.ownerDocument.defaultView.MouseEv
   // ---- Scénario 2b : morceau décoché d'un album déjà obtenu -> gardé pour les acheteurs, message au compositeur ----
   s = await scenario({ testEnabled: true, saveResult: () => ({ ok: true, data: { ok: true, keptForBuyers: ['t2'] } }), claimResult: () => ({ ok: true }) });
   await s.t.loadAlbums(); await tick();
-  const t2box = s.doc.querySelector('[data-ae-track="t2"]'); t2box.checked = false; change(s.w, t2box);
+  click(s.doc.querySelector('[data-ae-untrack="t2"]'));
   const buy2 = s.doc.querySelector('[data-ae-buyable]'); buy2.checked = false; change(s.w, buy2);
   click(s.doc.querySelector('[data-ae-save]')); await tick(); await tick();
   const txt2 = s.doc.getElementById('albumsContainer').textContent;
@@ -240,9 +243,9 @@ const click = (el) => el.dispatchEvent(new (el.ownerDocument.defaultView.MouseEv
   cards = s.doc.querySelectorAll('#albumsContainer .list-block');
   check('album de studio : carte réduite avec badge « invité », titre en lecture seule', cards.length === 2 && /Album de studio \(invité\)/.test(cards[0].textContent) && cards[0].querySelector('[data-ae-field="title"]') === null);
   check('album de studio : ni prix, ni mise en vente, ni présentation, ni pochette', !cards[0].querySelector('[data-ae-field]') && !cards[0].querySelector('[data-ae-cover-ctrl]') && !cards[0].querySelector('[data-ae-extra]'));
-  check('album de studio : nom du studio et mes morceaux cochés (t2)', /studio@x\.test/.test(cards[0].textContent) && cards[0].querySelector('[data-ae-track="t2"]').checked && !cards[0].querySelector('[data-ae-track="t1"]').checked);
+  check('album de studio : nom du studio et mes morceaux cochés (t2)', /studio@x\.test/.test(cards[0].textContent) && !!cards[0].querySelector('[data-ae-trk="t2"]') && !cards[0].querySelector('[data-ae-trk="t1"]'));
   check('album de studio : version officielle de t2 (✓ 0:42) et bouton pour l\'enregistrer', /✓ 0:42/.test(cards[0].textContent) && !!cards[0].querySelector('[data-ae-record="t2"]'));
-  const cb = cards[0].querySelector('[data-ae-track="t1"]'); cb.checked = true; change(s.w, cb);
+  const cb = cards[0].querySelector('[data-ae-addtrack]'); cb.value = 't1'; change(s.w, cb);
   click(s.doc.querySelector('#albumsContainer [data-ae-contrib-save]')); await tick(); await tick();
   check('enregistrer : seulement MES morceaux envoyés (t2 puis t1)', JSON.stringify(s.calls.contribSave) === JSON.stringify([{ id: 'alb_studio', ids: ['t2', 't1'] }]) && !s.calls.upsert.length);
   click(s.doc.querySelector('#albumsContainer [data-ae-contrib-leave]')); await tick(); await tick();
