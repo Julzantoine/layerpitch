@@ -48,7 +48,7 @@ function albumEditorConfig(al) {
     tracks: () => library.map(t => ({ id: t.id, title: t.title || t.id })),
     trackTitle: albumTrackTitle,
     mediaBase: MEDIA_BASE + 'images/',
-    features: { rights: true },
+    features: { rights: true, autoTake: typeof currentUserIsAdmin !== 'undefined' && currentUserIsAdmin }, // version officielle automatique : admin seulement (nouvelles fonctions)
     save: async p => { await loadPostgresReadScripts(); return A().upsertAlbum(p); },
     uploadCover: async a => {
       await loadPostgresReadScripts();

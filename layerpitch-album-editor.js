@@ -18,7 +18,8 @@
 //   reload(id)             (optionnel) relit l'album après enregistrement -> objet renvoyé par listAlbums, ou null
 //   checkBeforeSale(al)    (optionnel) texte d'erreur qui bloque l'enregistrement d'un album en vente
 //   saveErrorHint(error)   (optionnel) indice ajouté à une erreur d'enregistrement
-//   features               { contributors, rights, confirmRights }  (tout à faux par défaut)
+//   features               { contributors, rights, confirmRights, autoTake }  (tout à faux par défaut ; autoTake = version officielle
+//                          fabriquée automatiquement, admin seulement pour l'instant)
 //   actions(al)            boutons en plus d'« Enregistrer » : [{ id, label, primary?, onClick(al) }]
 //   contribution           { save(al), leave(al) } pour l'album d'un studio où je suis compositeur invité (état fromContribution)
 //   beforeAudio()          arrête ce qui joue ailleurs dans la page
@@ -163,6 +164,7 @@
           ${done ? `<span>✓ ${esc(shared().fmtDuration(al.officialDurations[id]))}</span>` : `<span class="lpae-badge bad">${esc(tr('officialMissing'))}</span>`}
           ${done ? btn(`data-ae-play="${esc(id)}"`, tr(playing ? 'officialStop' : 'officialListen')) : ''}
           ${btn(`data-ae-record="${esc(id)}"`, tr(done ? 'officialRedo' : 'officialRecord'), done ? '' : PRIMARY)}
+          ${feat.autoTake ? btn(`data-ae-auto="${esc(id)}"`, tr('officialAuto')) : ''}
         </div><div data-ae-rec-host="${esc(key)}"></div>`;
       }).join('') + (pending ? `<div class="lpae-hint">${esc(tr('officialSaveFirst'))}</div>` : '');
     }
@@ -394,10 +396,10 @@
       const pb = getPlayback(); pb.owner = inst;
       return pb.toggle(al.id, trackId, { beforeStart: () => { closeRecorder(); if (cfg.beforeAudio) cfg.beforeAudio(); } });
     }
-    async function openRecorder(trackId) {
+    async function openRecorder(trackId, auto) {
       closeRecorder();
       if (playback) playback.stop();
-      const rec = shared().openRecorder({
+      const rec = shared()[auto ? 'openGenerator' : 'openRecorder']({
         albumId: al.id, trackId,
         beforeStart: () => { if (cfg.beforeAudio) cfg.beforeAudio(); },
         onSaved: take => { al.officialDurations[trackId] = take.duration; render(); },
@@ -440,6 +442,7 @@
       else if (d.aeExtra != null) { const a = (cfg.actions(al) || [])[Number(d.aeExtra)]; if (a) a.onClick(al); }
       else if (d.aePlay) togglePlay(d.aePlay);
       else if (d.aeRecord) openRecorder(d.aeRecord);
+      else if (d.aeAuto) openRecorder(d.aeAuto, true);
       else if (d.aeContribSave != null) cfg.contribution.save(al);
       else if (d.aeContribLeave != null) cfg.contribution.leave(al);
       else if (d.aeInvite != null) {
