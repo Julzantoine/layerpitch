@@ -122,7 +122,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
     noAiCertifiedGlobal: !!noAiCertifiedGlobal,
     waveformStyle: window.LayerPlayerCore.WAVEFORM_STYLES.includes(waveformStyle) ? waveformStyle : 'bars',
     seqMapTheme: window.LayerPlayerCore.SEQ_MAP_THEMES.includes(seqMapTheme) ? seqMapTheme : 'light',
-    allowEmbedding: !!allowEmbedding,
+    embedAllowed: cleanEmbedAllowed(),
     sharePreview: { title: (sharePreview.title || '').trim(), description: (sharePreview.description || '').trim(), image: sharePreview.image || null, imageOriginalName: sharePreview.imageOriginalName || null, autoFit: sharePreview.autoFit !== false, fitMode: sharePreview.fitMode === 'contain' ? 'contain' : 'fill', fitColor: /^#[0-9a-f]{6}$/i.test(sharePreview.fitColor || '') ? sharePreview.fitColor : '#ffffff' },
     collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', presetId: c.presetId || null, separator: c.separator || null, effectivePlan, buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
     customFonts: customFonts.filter(f => f.remoteFile).map(f => ({ id: f.id, name: f.name || '', file: f.remoteFile, originalFileName: f.originalFileName || null })),
@@ -598,7 +598,7 @@ async function publishAll() {
       publishedAt: data.publishedAt, implementationSkills: data.implementationSkills,
       noAiCertifiedGlobal: data.noAiCertifiedGlobal, customFonts: data.customFonts,
       waveformStyle: data.waveformStyle, seqMapTheme: data.seqMapTheme,
-      allowEmbedding: data.allowEmbedding, sharePreview: data.sharePreview,
+      embedAllowed: data.embedAllowed, sharePreview: data.sharePreview,
     });
     if (!settingsRes.ok) {
       throw new Error('Écriture Postgres échouée pour les réglages — publication arrêtée :\n' + settingsRes.error);

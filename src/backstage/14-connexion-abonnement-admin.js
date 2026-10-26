@@ -191,6 +191,8 @@ async function renderAdminOnlyPanels(session) {
   // Shop public (29/09) : lien dans la rubrique Compte, feu vert « shop » (admin seulement pendant la bêta).
   const navShop = document.getElementById('navLinkCatalog');
   if (navShop) navShop.hidden = !flagOpen('shop');
+  const navDirectory = document.getElementById('navLinkDirectory');
+  if (navDirectory) navDirectory.hidden = !flagOpen('composer_directory');
   if (window.LayerPitchAuth && window.LayerPitchAuth.getMyStudioId) {
     window.LayerPitchAuth.getMyStudioId().then(({ studioId }) => {
       const show = !!studioId && flagOpen('studio_space');

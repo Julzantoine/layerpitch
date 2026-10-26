@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793008888632">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793010472186">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1233,6 +1233,10 @@
       <a class="nav-item" id="navLinkCatalog" href="shop.html" hidden>
         <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg><span data-i18n="navCatalog">Catalogue audio</span></span>
       </a>
+      <!-- Annuaire des compositeurs (26/10) : lien dans la barre, sous le catalogue ; feu vert « composer_directory ». -->
+      <a class="nav-item" id="navLinkDirectory" href="annuaire.html" hidden>
+        <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6.3a3 3 0 0 1 0 5.4"/><path d="M17.5 14a5.5 5.5 0 0 1 3 5"/></svg><span data-i18n="navDirectory">Annuaire des compositeurs</span></span>
+      </a>
       </div>
 
       <!-- Navigation commune (28/09) : mêmes rubriques que la barre latérale des autres pages (layerpitch-shell.js),
@@ -1417,11 +1421,12 @@
         <h2 data-i18n="navSocials">Réseaux sociaux</h2>
         <div class="sub" data-i18n="socialsPanelSub">Ajoute un réseau pour faire apparaître un bouton "Publier" pré-rempli sur tes packs et collections (onglet Contenu de chacun) — X, Facebook, LinkedIn, WhatsApp et Telegram ouvrent leur fenêtre de publication avec le texte et le lien déjà prêts, il ne reste qu'à valider chez eux. Instagram, TikTok, YouTube et SoundCloud n'offrent aucun mécanisme de ce genre — gardés ici uniquement comme aide-mémoire de tes liens.</div>
 
-        <div style="margin-bottom:18px" data-help="allowEmbedding">
-          <label style="display:flex;align-items:flex-start;gap:8px;margin:0;">
-            <input type="checkbox" id="allowEmbeddingCheckbox" style="width:auto;margin:2px 0 0 0;">
-            <span style="font-size:11px;color:var(--text-dimmer);line-height:1.5;" data-i18n="allowEmbeddingLabel">Autoriser les visiteurs à intégrer eux-mêmes tes packs, collections et listes de morceaux d'AdReel sur leur propre site (bouton "Intégrer" affiché sur les pages publiques). Décoché par défaut — toi seul peux alors générer un code d'intégration, depuis chaque onglet Distribution ou le sélecteur d'AdReel.</span>
-          </label>
+        <div class="list-block" style="margin-bottom:18px" id="embedAllowedBox">
+          <div class="list-block-body">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px" data-i18n="embedAllowedTitle">Intégration par les visiteurs</div>
+            <div style="font-size:11px;color:var(--text-dimmer);line-height:1.5;margin-bottom:10px;" data-i18n="embedAllowedHelp">Choisis les playlists que les visiteurs peuvent intégrer sur leur propre site (bouton « Intégrer » des pages publiques). Ton propre code d'intégration reste toujours disponible. Par défaut, rien n'est autorisé.</div>
+            <div id="embedAllowedList"></div>
+          </div>
         </div>
 
         <div class="list-block" style="margin-bottom:18px" id="sharePreviewCard">
@@ -1912,17 +1917,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793008888632"></script>
-<script src="layerpitch-i18n.js?v=1793008888632"></script>
-<script src="layerpitch-appearance.js?v=1793008888632"></script>
-<script src="layerpitch-album-shared.js?v=1793008888632"></script>
-<script src="layerpitch-album-editor.js?v=1793008888632"></script>
-<script src="layerpitch-shell.js?v=1793008888632"></script>
-<script src="layerpitch-social-icons.js?v=1793008888632"></script>
-<script src="layerpitch-notify.js?v=1793008888632"></script>
-<script src="layerpitch-guide.js?v=1793008888632"></script>
-<script src="layerpitch-help.js?v=1793008888632"></script>
-<script src="player.js?v=1793008888632"></script>
+<script src="layerpitch-tuto.js?v=1793010472186"></script>
+<script src="layerpitch-i18n.js?v=1793010472186"></script>
+<script src="layerpitch-appearance.js?v=1793010472186"></script>
+<script src="layerpitch-album-shared.js?v=1793010472186"></script>
+<script src="layerpitch-album-editor.js?v=1793010472186"></script>
+<script src="layerpitch-shell.js?v=1793010472186"></script>
+<script src="layerpitch-social-icons.js?v=1793010472186"></script>
+<script src="layerpitch-notify.js?v=1793010472186"></script>
+<script src="layerpitch-guide.js?v=1793010472186"></script>
+<script src="layerpitch-help.js?v=1793010472186"></script>
+<script src="player.js?v=1793010472186"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2372,6 +2377,8 @@ async function renderAdminOnlyPanels(session) {
   // Shop public (29/09) : lien dans la rubrique Compte, feu vert « shop » (admin seulement pendant la bêta).
   const navShop = document.getElementById('navLinkCatalog');
   if (navShop) navShop.hidden = !flagOpen('shop');
+  const navDirectory = document.getElementById('navLinkDirectory');
+  if (navDirectory) navDirectory.hidden = !flagOpen('composer_directory');
   if (window.LayerPitchAuth && window.LayerPitchAuth.getMyStudioId) {
     window.LayerPitchAuth.getMyStudioId().then(({ studioId }) => {
       const show = !!studioId && flagOpen('studio_space');
@@ -2712,6 +2719,7 @@ const BACKSTAGE_TAB_STORAGE = 'lp_backstage_tab';
 function switchTab(tabName) {
   document.querySelectorAll('.backstage-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === tabName));
   document.querySelectorAll('.nav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
+  if (tabName === 'socials' && typeof renderEmbedAllowedList === 'function') renderEmbedAllowedList(); // noms et liste à jour
   try { sessionStorage.setItem(BACKSTAGE_TAB_STORAGE, tabName); } catch (e) { /* stockage indisponible */ }
 }
 // Ouvre un onglet et lance son chargement à la demande (appel RPC get_my_analytics() etc. -- jamais au chargement du
@@ -3164,11 +3172,11 @@ let waveformStyle = 'bars';
 // thème (Clair/Sombre) de la carte des chemins, même principe que waveformStyle ci-dessus. Valeurs
 // valides : window.LayerPlayerCore.SEQ_MAP_THEMES ('light' par défaut/repli).
 let seqMapTheme = 'light';
-// Réglage global (pas par pack/collection/AdReel), tous paliers : autorise ou non les VISITEURS des
-// pages publiques (pack.html/collection.html/index.html) à générer eux-mêmes un code d'intégration
-// depuis un bouton public -- ne bloque jamais un lien ?embed=1 déjà généré par le compositeur lui-même
-// ici, dans le backstage, toujours disponible quel que soit ce réglage. Faux par défaut (opt-in).
-let allowEmbedding = false;
+// Réglage PAR PLAYLIST (26/10, remplace l'ancien oui/non global), tous paliers : liste des AdReels, packs et
+// collections que les VISITEURS des pages publiques (index.html/pack.html/collection.html) ont le droit
+// d'intégrer depuis le bouton public « Intégrer » -- ne bloque jamais un lien ?embed=1 déjà généré par le
+// compositeur lui-même ici, dans le backstage, toujours disponible. Absent de la liste = non autorisé (opt-in).
+let embedAllowed = { adreels: [], packs: [], collections: [] };
 // Aperçu des liens partagés (1er/10, rubrique Réseaux sociaux) : titre, description et image de la carte qu'affichent LinkedIn,
 // Facebook, WhatsApp… quand on colle un lien. image = chemin sous images/ (publié) ; le fichier choisi attend la publication.
 // autoFit (vrai par défaut) : à la publication, l'image choisie est ajustée au format 1200 × 630 (voir sharePreviewFit) ;
@@ -13311,14 +13319,47 @@ document.getElementById('noAiCertifiedGlobal').addEventListener('change', e => {
 });
 fillNoAiCertifiedGlobalField();
 
-function fillAllowEmbeddingField() {
-  document.getElementById('allowEmbeddingCheckbox').checked = !!allowEmbedding;
+// Menu « Intégration par les visiteurs » (26/10) : une case par AdReel, pack et collection (embedAllowed = listes d'identifiants).
+function normalizeEmbedAllowed(v) {
+  const o = v || {};
+  const arr = k => Array.isArray(o[k]) ? o[k].filter(x => typeof x === 'string') : [];
+  return { adreels: arr('adreels'), packs: arr('packs'), collections: arr('collections') };
 }
-document.getElementById('allowEmbeddingCheckbox').addEventListener('change', e => {
-  allowEmbedding = e.target.checked;
+// Valeur publiée : uniquement les éléments qui existent encore (un élément supprimé n'y reste pas).
+function cleanEmbedAllowed() {
+  const keep = (kind, items) => items.map(x => x.id).filter(id => embedAllowed[kind].includes(id));
+  return { adreels: keep('adreels', adReels), packs: keep('packs', packs), collections: keep('collections', collections) };
+}
+function renderEmbedAllowedList() {
+  const box = document.getElementById('embedAllowedList');
+  if (!box) return;
+  const kinds = [
+    ['adreels', 'embedAllowedAdreels', adReels, a => a.label || a.id],
+    ['packs', 'embedAllowedPacks', packs, p => p.title || p.id],
+    ['collections', 'embedAllowedCollections', collections, c => c.title || c.id],
+  ];
+  box.innerHTML = kinds.map(([kind, titleKey, items, nameOf]) => {
+    const n = items.filter(x => embedAllowed[kind].includes(x.id)).length;
+    const rows = items.length ? items.map(x => `<label style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12px;">
+        <input type="checkbox" style="width:auto;margin:0" data-embed-kind="${kind}" data-embed-id="${escapeAttr(x.id)}"${embedAllowed[kind].includes(x.id) ? ' checked' : ''}>
+        <span>${escapeHtml(nameOf(x))}</span></label>`).join('')
+      : `<div style="font-size:11px;color:var(--text-dimmer)">${tr('embedAllowedNone')}</div>`;
+    return `<details style="margin-bottom:6px"><summary style="cursor:pointer;font-size:12px;font-weight:600;">${tr(titleKey)} (${n}/${items.length})</summary><div style="padding:6px 0 0 14px">${rows}</div></details>`;
+  }).join('');
+}
+document.getElementById('embedAllowedList').addEventListener('change', e => {
+  const cb = e.target.closest('[data-embed-kind]');
+  if (!cb) return;
+  const list = embedAllowed[cb.dataset.embedKind];
+  const i = list.indexOf(cb.dataset.embedId);
+  if (cb.checked && i < 0) list.push(cb.dataset.embedId);
+  if (!cb.checked && i >= 0) list.splice(i, 1);
   hasUnsavedEdits = true;
+  const d = cb.closest('details');
+  const kind = cb.dataset.embedKind, items = { adreels: adReels, packs, collections }[kind];
+  d.querySelector('summary').textContent = d.querySelector('summary').textContent.replace(/\(\d+\//, `(${items.filter(x => embedAllowed[kind].includes(x.id)).length}/`);
 });
-fillAllowEmbeddingField();
+renderEmbedAllowedList();
 
 /* ---------------- Aperçu des liens partagés (1er/10, rubrique Réseaux sociaux) ----------------
  * Titre, description et image de la carte qu'affichent LinkedIn, Facebook, WhatsApp, Discord… quand on colle un lien de l'AdReel
@@ -13493,7 +13534,7 @@ async function loadData(silent) {
       noAiCertifiedGlobal = false;
       waveformStyle = 'bars';
       seqMapTheme = 'light';
-      allowEmbedding = false;
+      embedAllowed = { adreels: [], packs: [], collections: [] };
       sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW); sharePreviewPendingFile = null;
       adReels = [{ id: 'main', label: tr('defaultAdreelLabel'), lang: currentLang(), blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, allowIndexing: true, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null }];
       currentAdReelId = 'main';
@@ -13502,7 +13543,7 @@ async function loadData(silent) {
       logoPendingFile = null; photoPendingFile = null;
       collapsedPackIds.clear(); collapsedBlockIds.clear(); collapsedCollectionIds.clear();
       cur.blocks.forEach(b => collapsedBlockIds.add(b.id));
-      renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); fillSharePreviewFields(); rebuildAllCards();
+      renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); renderEmbedAllowedList(); fillSharePreviewFields(); rebuildAllCards();
       pendingR2Deletes.clear(); pendingOrphanR2Keys.clear();
       rememberPublishedCatalog();
       dataLoadOk = true; // absence légitime de data.json (premier lancement) -- pas un échec, publier est sûr
@@ -13702,7 +13743,7 @@ async function loadData(silent) {
     noAiCertifiedGlobal = !!data.noAiCertifiedGlobal;
     waveformStyle = window.LayerPlayerCore.WAVEFORM_STYLES.includes(data.waveformStyle) ? data.waveformStyle : 'bars';
     seqMapTheme = window.LayerPlayerCore.SEQ_MAP_THEMES.includes(data.seqMapTheme) ? data.seqMapTheme : 'light';
-    allowEmbedding = !!data.allowEmbedding;
+    embedAllowed = normalizeEmbedAllowed(data.embedAllowed);
     sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW, data.sharePreview || {}); sharePreviewPendingFile = null;
     collections = (data.collections || []).map(c => ({
       id: c.id, title: c.title || '', illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, pendingIllustration: null,
@@ -13870,7 +13911,7 @@ function draftState() {
   saveWorkingPendingIntoCurrent(); // fichiers en cours de l'AdReel affiché -> dans son AdReel
   return {
     library, libraryFolders, sfxLibrary, sfxFolders, socials, packs, collections, customFonts, adReels, adReelFolders,
-    currentAdReelId, implementationSkills, noAiCertifiedGlobal, waveformStyle, seqMapTheme, allowEmbedding, sharePreview, sharePreviewPendingFile,
+    currentAdReelId, implementationSkills, noAiCertifiedGlobal, waveformStyle, seqMapTheme, embedAllowed, sharePreview, sharePreviewPendingFile,
     pendingR2Deletes, pendingOrphanR2Keys,
   };
 }
@@ -13944,7 +13985,7 @@ function applyDraftState(d) {
   socials = d.socials || []; packs = d.packs || []; collections = d.collections || []; customFonts = d.customFonts || [];
   adReels = (d.adReels && d.adReels.length) ? d.adReels : adReels; adReelFolders = d.adReelFolders || [];
   implementationSkills = d.implementationSkills || implementationSkills; noAiCertifiedGlobal = !!d.noAiCertifiedGlobal;
-  waveformStyle = d.waveformStyle || waveformStyle; seqMapTheme = d.seqMapTheme || seqMapTheme; allowEmbedding = !!d.allowEmbedding;
+  waveformStyle = d.waveformStyle || waveformStyle; seqMapTheme = d.seqMapTheme || seqMapTheme; if (d.embedAllowed) embedAllowed = normalizeEmbedAllowed(d.embedAllowed);
   sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW, d.sharePreview || {}); sharePreviewPendingFile = d.sharePreviewPendingFile || null;
   pendingR2Deletes.clear(); (d.pendingR2Deletes || new Map()).forEach((v, k) => pendingR2Deletes.set(k, v));
   pendingOrphanR2Keys.clear(); (d.pendingOrphanR2Keys || new Set()).forEach(k => pendingOrphanR2Keys.add(k));
@@ -13956,7 +13997,7 @@ function applyDraftState(d) {
   collapsedCollectionIds.clear(); collections.forEach(c => collapsedCollectionIds.add(c.id));
   collapsedBlockIds.clear(); adReels.forEach(a => a.blocks.forEach(b => collapsedBlockIds.add(b.id)));
   renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels();
-  fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); fillSharePreviewFields(); rebuildAllCards();
+  fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); renderEmbedAllowedList(); fillSharePreviewFields(); rebuildAllCards();
   hasUnsavedEdits = true; // rien de tout ça n'est publié : le garde-fou « quitter la page ? » reste actif
 }
 if (typeof indexedDB !== 'undefined') {
@@ -14823,7 +14864,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
     noAiCertifiedGlobal: !!noAiCertifiedGlobal,
     waveformStyle: window.LayerPlayerCore.WAVEFORM_STYLES.includes(waveformStyle) ? waveformStyle : 'bars',
     seqMapTheme: window.LayerPlayerCore.SEQ_MAP_THEMES.includes(seqMapTheme) ? seqMapTheme : 'light',
-    allowEmbedding: !!allowEmbedding,
+    embedAllowed: cleanEmbedAllowed(),
     sharePreview: { title: (sharePreview.title || '').trim(), description: (sharePreview.description || '').trim(), image: sharePreview.image || null, imageOriginalName: sharePreview.imageOriginalName || null, autoFit: sharePreview.autoFit !== false, fitMode: sharePreview.fitMode === 'contain' ? 'contain' : 'fill', fitColor: /^#[0-9a-f]{6}$/i.test(sharePreview.fitColor || '') ? sharePreview.fitColor : '#ffffff' },
     collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', presetId: c.presetId || null, separator: c.separator || null, effectivePlan, buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
     customFonts: customFonts.filter(f => f.remoteFile).map(f => ({ id: f.id, name: f.name || '', file: f.remoteFile, originalFileName: f.originalFileName || null })),
@@ -15299,7 +15340,7 @@ async function publishAll() {
       publishedAt: data.publishedAt, implementationSkills: data.implementationSkills,
       noAiCertifiedGlobal: data.noAiCertifiedGlobal, customFonts: data.customFonts,
       waveformStyle: data.waveformStyle, seqMapTheme: data.seqMapTheme,
-      allowEmbedding: data.allowEmbedding, sharePreview: data.sharePreview,
+      embedAllowed: data.embedAllowed, sharePreview: data.sharePreview,
     });
     if (!settingsRes.ok) {
       throw new Error('Écriture Postgres échouée pour les réglages — publication arrêtée :\n' + settingsRes.error);
@@ -16180,7 +16221,7 @@ const LESSONS = [
     { selector: '#embedCopyBtn', titleKey: 'leCopyTitle', textKey: 'leCopyText', clickDone: true },
     { selector: '#embedCloseBtn', titleKey: 'leCloseTitle', textKey: 'leCloseText', clickDone: true, done: () => document.getElementById('embedModalOverlay').style.display !== 'flex' },
     { selector: '.nav-item[data-tab="socials"]', titleKey: 'leSocialsTabTitle', textKey: 'leSocialsTabText', done: () => !!document.querySelector('.backstage-panel[data-panel="socials"].active') },
-    { selector: '#allowEmbeddingCheckbox', titleKey: 'leAllowTitle', textKey: 'leAllowText', done: () => !!document.getElementById('allowEmbeddingCheckbox').checked },
+    { selector: '#embedAllowedBox', titleKey: 'leAllowTitle', textKey: 'leAllowText', done: () => !!document.querySelector('#embedAllowedList input:checked') },
     { titleKey: 'embEndTitle', textKey: 'embEndText', final: true },
   ] },
   // Leçon « Envoyer des images et des vidéos » (25/10, ?tuto&lesson=upload, rechargement obligatoire d'où `reload`) : l'apprenant glisse des fichiers d'exemple sur les zones d'envoi

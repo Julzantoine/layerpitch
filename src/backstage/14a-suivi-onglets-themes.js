@@ -21,6 +21,7 @@ const BACKSTAGE_TAB_STORAGE = 'lp_backstage_tab';
 function switchTab(tabName) {
   document.querySelectorAll('.backstage-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === tabName));
   document.querySelectorAll('.nav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
+  if (tabName === 'socials' && typeof renderEmbedAllowedList === 'function') renderEmbedAllowedList(); // noms et liste à jour
   try { sessionStorage.setItem(BACKSTAGE_TAB_STORAGE, tabName); } catch (e) { /* stockage indisponible */ }
 }
 // Ouvre un onglet et lance son chargement à la demande (appel RPC get_my_analytics() etc. -- jamais au chargement du
