@@ -10,12 +10,12 @@ const { JSDOM } = require('jsdom');
   const html = read('projet.html');
   const inlineSrc = html.match(/<script>\n(const shellTr[\s\S]*?)<\/script>/)[1];
 
-  check('fermé au public par défaut (règle unique dans layerpitch-tuto.js)', /function publicOpen\(\) \{ return false; \}/.test(read('layerpitch-tuto.js')));
+  check('fermé au public par défaut (règle unique dans layerpitch-tuto.js)', /let flagOpen = false;/.test(read('layerpitch-tuto.js')));
   check('pas de barre commune ni de vrai serveur en mode tutoriel', /if \(!DEMO && !TUTO\) window\.LayerPitchShell/.test(inlineSrc));
 
   // Dans le test seulement, on ouvre le tutoriel (sans quoi le verrou admin renvoie vers la liste des projets).
   const opened = inlineSrc;
-  const tutoOpen = read('layerpitch-tuto.js').replace('function publicOpen() { return false; }', 'function publicOpen() { return true; }');
+  const tutoOpen = read('layerpitch-tuto.js').replace('let flagOpen = false;', 'let flagOpen = true;');
   async function boot() {
     const dom = new JSDOM('<div id="content"></div><div id="presence"></div>', { url: 'https://beta.layerpitch.com/projet.html?tuto&lang=fr', runScripts: 'outside-only', pretendToBeVisual: true });
     const w = dom.window;

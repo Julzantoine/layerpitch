@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792965626858">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793008888632">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1912,17 +1912,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792965626858"></script>
-<script src="layerpitch-i18n.js?v=1792965626858"></script>
-<script src="layerpitch-appearance.js?v=1792965626858"></script>
-<script src="layerpitch-album-shared.js?v=1792965626858"></script>
-<script src="layerpitch-album-editor.js?v=1792965626858"></script>
-<script src="layerpitch-shell.js?v=1792965626858"></script>
-<script src="layerpitch-social-icons.js?v=1792965626858"></script>
-<script src="layerpitch-notify.js?v=1792965626858"></script>
-<script src="layerpitch-guide.js?v=1792965626858"></script>
-<script src="layerpitch-help.js?v=1792965626858"></script>
-<script src="player.js?v=1792965626858"></script>
+<script src="layerpitch-tuto.js?v=1793008888632"></script>
+<script src="layerpitch-i18n.js?v=1793008888632"></script>
+<script src="layerpitch-appearance.js?v=1793008888632"></script>
+<script src="layerpitch-album-shared.js?v=1793008888632"></script>
+<script src="layerpitch-album-editor.js?v=1793008888632"></script>
+<script src="layerpitch-shell.js?v=1793008888632"></script>
+<script src="layerpitch-social-icons.js?v=1793008888632"></script>
+<script src="layerpitch-notify.js?v=1793008888632"></script>
+<script src="layerpitch-guide.js?v=1793008888632"></script>
+<script src="layerpitch-help.js?v=1793008888632"></script>
+<script src="player.js?v=1793008888632"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2145,17 +2145,20 @@ function loadPostgresReadScripts() {
   const tuto = isTutoMode();
   // Mode tutoriel public : pas de SDK Supabase du tout (rien à contacter) ; fermé au public : SDK chargé seulement pour
   // vérifier qu'un vrai admin entre.
+  // Le feu vert « public_tutorial » (lecture asynchrone) est lu avant de décider quoi charger.
+  postgresReadScriptsLoaded = (tuto ? window.LayerPitchTuto.ready : Promise.resolve()).then(() => {
   const needRealSdk = !tuto || !tutoPublicOpen();
   const list = (needRealSdk ? srcs : srcs.filter(src => !src.startsWith('http')));
   if (tuto) list.push('./api/demo-client.js');
-  postgresReadScriptsLoaded = Promise.all(list.map(src => new Promise((resolve, reject) => {
+  return Promise.all(list.map(src => new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = (src.startsWith('http') || !version) ? src : src + '?v=' + version;
     s.async = false;
     s.onload = resolve;
     s.onerror = () => reject(new Error('Échec du chargement de ' + s.src));
     document.head.appendChild(s);
-  }))).then(async () => {
+  })));
+  }).then(async () => {
     if (!tuto) return;
     if (!tutoPublicOpen()) tutoFullAccess = (await tutoAccessGate()) === 'admin';
     // Bascule : tous les api/*.js appellent window.LayerPitchSupabaseClient.getClient() à chaque usage, donc cette
