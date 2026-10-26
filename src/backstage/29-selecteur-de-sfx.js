@@ -358,8 +358,27 @@ function ensureFontPreviewsLoaded() {
   link.href = 'https://fonts.googleapis.com/css2?' + GOOGLE_FONTS_PRESET.map(n => 'family=' + n.replace(/ /g, '+')).join('&') + '&display=swap';
   document.head.appendChild(link);
 }
+// Polices téléversées : enregistrées comme FontFace sous un nom interne (lp-preview-<id>) pour que leurs
+// options s'affichent dans leur propre police. Fichier pas encore publié -> lu depuis le fichier local
+// choisi ; déjà publié -> depuis media.layerpitch.com (même adresse que la page publique). Chaque police
+// n'est enregistrée qu'une fois par source ; un échec de chargement laisse simplement le nom en texte normal.
+const customFontPreviewSources = {};
+function ensureCustomFontPreviewsLoaded() {
+  if (typeof FontFace === 'undefined') return;
+  customFonts.forEach(f => {
+    const source = f.pendingFile || f.remoteFile;
+    if (!source || customFontPreviewSources[f.id] === source) return;
+    customFontPreviewSources[f.id] = source;
+    const family = 'lp-preview-' + f.id;
+    const load = f.pendingFile
+      ? f.pendingFile.arrayBuffer().then(buf => new FontFace(family, buf))
+      : Promise.resolve(new FontFace(family, 'url(https://media.layerpitch.com/fonts/' + String(f.remoteFile).split('/').map(encodeURIComponent).join('/') + ')'));
+    load.then(face => face.load()).then(face => document.fonts.add(face)).catch(() => {});
+  });
+}
 function buildFontSelectOptionsHtml(currentVal) {
   ensureFontPreviewsLoaded();
+  ensureCustomFontPreviewsLoaded();
   const val = currentVal || 'default';
   let html = `<option value="default" ${val === 'default' ? 'selected' : ''}>${tr('fontDefaultOption')}</option>`;
   html += `<optgroup label="${tr('fontGoogleGroupLabel')}">`;
@@ -372,7 +391,7 @@ function buildFontSelectOptionsHtml(currentVal) {
     html += `<optgroup label="${tr('fontCustomGroupLabel')}">`;
     html += customFonts.map(f => {
       const v = 'custom:' + f.id;
-      return `<option value="${v}" ${val === v ? 'selected' : ''}>${escapeAttr(f.name)}</option>`;
+      return `<option value="${v}" style="font-family:'lp-preview-${escapeAttr(f.id)}'" ${val === v ? 'selected' : ''}>${escapeAttr(f.name)}</option>`;
     }).join('');
     html += `</optgroup>`;
   }

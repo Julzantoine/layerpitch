@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793034932697">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793035260874">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1928,17 +1928,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793034932697"></script>
-<script src="layerpitch-i18n.js?v=1793034932697"></script>
-<script src="layerpitch-appearance.js?v=1793034932697"></script>
-<script src="layerpitch-album-shared.js?v=1793034932697"></script>
-<script src="layerpitch-album-editor.js?v=1793034932697"></script>
-<script src="layerpitch-shell.js?v=1793034932697"></script>
-<script src="layerpitch-social-icons.js?v=1793034932697"></script>
-<script src="layerpitch-notify.js?v=1793034932697"></script>
-<script src="layerpitch-guide.js?v=1793034932697"></script>
-<script src="layerpitch-help.js?v=1793034932697"></script>
-<script src="player.js?v=1793034932697"></script>
+<script src="layerpitch-tuto.js?v=1793035260874"></script>
+<script src="layerpitch-i18n.js?v=1793035260874"></script>
+<script src="layerpitch-appearance.js?v=1793035260874"></script>
+<script src="layerpitch-album-shared.js?v=1793035260874"></script>
+<script src="layerpitch-album-editor.js?v=1793035260874"></script>
+<script src="layerpitch-shell.js?v=1793035260874"></script>
+<script src="layerpitch-social-icons.js?v=1793035260874"></script>
+<script src="layerpitch-notify.js?v=1793035260874"></script>
+<script src="layerpitch-guide.js?v=1793035260874"></script>
+<script src="layerpitch-help.js?v=1793035260874"></script>
+<script src="player.js?v=1793035260874"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -11280,8 +11280,27 @@ function ensureFontPreviewsLoaded() {
   link.href = 'https://fonts.googleapis.com/css2?' + GOOGLE_FONTS_PRESET.map(n => 'family=' + n.replace(/ /g, '+')).join('&') + '&display=swap';
   document.head.appendChild(link);
 }
+// Polices téléversées : enregistrées comme FontFace sous un nom interne (lp-preview-<id>) pour que leurs
+// options s'affichent dans leur propre police. Fichier pas encore publié -> lu depuis le fichier local
+// choisi ; déjà publié -> depuis media.layerpitch.com (même adresse que la page publique). Chaque police
+// n'est enregistrée qu'une fois par source ; un échec de chargement laisse simplement le nom en texte normal.
+const customFontPreviewSources = {};
+function ensureCustomFontPreviewsLoaded() {
+  if (typeof FontFace === 'undefined') return;
+  customFonts.forEach(f => {
+    const source = f.pendingFile || f.remoteFile;
+    if (!source || customFontPreviewSources[f.id] === source) return;
+    customFontPreviewSources[f.id] = source;
+    const family = 'lp-preview-' + f.id;
+    const load = f.pendingFile
+      ? f.pendingFile.arrayBuffer().then(buf => new FontFace(family, buf))
+      : Promise.resolve(new FontFace(family, 'url(https://media.layerpitch.com/fonts/' + String(f.remoteFile).split('/').map(encodeURIComponent).join('/') + ')'));
+    load.then(face => face.load()).then(face => document.fonts.add(face)).catch(() => {});
+  });
+}
 function buildFontSelectOptionsHtml(currentVal) {
   ensureFontPreviewsLoaded();
+  ensureCustomFontPreviewsLoaded();
   const val = currentVal || 'default';
   let html = `<option value="default" ${val === 'default' ? 'selected' : ''}>${tr('fontDefaultOption')}</option>`;
   html += `<optgroup label="${tr('fontGoogleGroupLabel')}">`;
@@ -11294,7 +11313,7 @@ function buildFontSelectOptionsHtml(currentVal) {
     html += `<optgroup label="${tr('fontCustomGroupLabel')}">`;
     html += customFonts.map(f => {
       const v = 'custom:' + f.id;
-      return `<option value="${v}" ${val === v ? 'selected' : ''}>${escapeAttr(f.name)}</option>`;
+      return `<option value="${v}" style="font-family:'lp-preview-${escapeAttr(f.id)}'" ${val === v ? 'selected' : ''}>${escapeAttr(f.name)}</option>`;
     }).join('');
     html += `</optgroup>`;
   }
