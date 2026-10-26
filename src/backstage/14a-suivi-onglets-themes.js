@@ -23,6 +23,7 @@ function switchTab(tabName) {
   document.querySelectorAll('.nav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
   if (tabName === 'socials' && typeof renderEmbedAllowedList === 'function') renderEmbedAllowedList(); // noms et liste à jour
   try { sessionStorage.setItem(BACKSTAGE_TAB_STORAGE, tabName); } catch (e) { /* stockage indisponible */ }
+  try { localStorage.setItem(BACKSTAGE_TAB_STORAGE, tabName); } catch (e) { /* stockage indisponible */ } // reprise après reconnexion (layerpitch-shell.js)
 }
 // Ouvre un onglet et lance son chargement à la demande (appel RPC get_my_analytics() etc. -- jamais au chargement du
 // backstage, seulement quand le compositeur ouvre vraiment l'onglet).
@@ -35,7 +36,7 @@ function openTab(tabName) {
 // Au rafraîchissement, on revient sur l'onglet où on était (pas de retour forcé sur l'AdReel).
 function restoreBackstageTab() {
   let name = null;
-  try { name = sessionStorage.getItem(BACKSTAGE_TAB_STORAGE); } catch (e) { return; }
+  try { name = sessionStorage.getItem(BACKSTAGE_TAB_STORAGE) || localStorage.getItem(BACKSTAGE_TAB_STORAGE); } catch (e) { return; }
   if (!name || name === 'content') return;
   const btn = document.querySelector('.nav-item[data-tab="' + name + '"]');
   if (!btn || btn.disabled || btn.hidden || btn.closest('[hidden]')) return;

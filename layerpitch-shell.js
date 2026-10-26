@@ -604,5 +604,36 @@
   }
   function onNavigate(fn) { state.navHandler = fn; }
 
+  // Reprise là où on s'était arrêté (26/10) : à chaque page d'espace on retient son adresse (par personne) ; à l'arrivée
+  // dans une session de navigation (connexion, nouvel onglet) sur une page d'entrée (Backstage / Mon compte, sans
+  // paramètre), on est renvoyé sur la dernière page vue. Une seule fois par onglet : naviguer ensuite reste libre.
+  // Le Backstage retient son onglet à part (lp_backstage_tab, relu par restoreBackstageTab).
+  const LAST_KEY = 'lp_last_page', RESUME_FLAG = 'lp_resume_done';
+  const RESUMABLE = ['layerpitch-backstage.html', 'mon-compte.html', 'studio.html', 'projets.html', 'projet.html', 'mes-albums.html', 'annuaire.html', 'library.html', 'atelier.html', 'shop.html'];
+  const ENTRY_PAGES = ['layerpitch-backstage.html', 'mon-compte.html'];
+  const SKIP_PARAMS = ['tuto', 'demo', 'subscribed', 'portal', 'code', 'token', 'access_token', 'error'];
+  function resumeTrack(session) {
+    try {
+      if (!session || !session.user) return;
+      const file = location.pathname.split('/').pop() || 'index.html';
+      const params = new URLSearchParams(location.search);
+      if (SKIP_PARAMS.some(k => params.has(k))) return;
+      let done = false; try { done = !!sessionStorage.getItem(RESUME_FLAG); } catch (e) { /* stockage indisponible */ }
+      let last = null; try { last = JSON.parse(localStorage.getItem(LAST_KEY) || 'null'); } catch (e) { last = null; }
+      try { sessionStorage.setItem(RESUME_FLAG, '1'); } catch (e) { /* stockage indisponible */ }
+      const lastFile = last && last.url ? last.url.split('?')[0] : null;
+      const plainEntry = ENTRY_PAGES.includes(file) && !Array.from(params.keys()).some(k => k !== 'lang');
+      if (!done && plainEntry && last && last.user === session.user.id && lastFile && lastFile !== file && RESUMABLE.includes(lastFile)) {
+        location.replace(last.url);
+        return;
+      }
+      if (RESUMABLE.includes(file)) localStorage.setItem(LAST_KEY, JSON.stringify({ user: session.user.id, url: file + location.search }));
+    } catch (e) { /* mémoire de la dernière page facultative */ }
+  }
+  if (window.LayerPitchAuth && window.LayerPitchAuth.getSession) {
+    window.LayerPitchAuth.getSession().then(r => resumeTrack(r && r.session)).catch(() => {});
+    if (window.LayerPitchAuth.onAuthStateChange) window.LayerPitchAuth.onAuthStateChange((event, session) => { if (event === 'SIGNED_IN') resumeTrack(session); });
+  }
+
   window.LayerPitchShell = { mount, update, onNavigate, tr, collapsible, isCollapsed, setCollapsed, startInbox, onInbox, refreshInbox, markInboxSeen, relTime };
 })();
