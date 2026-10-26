@@ -1127,7 +1127,9 @@ function syncBackstageTour() {
   if (wrap) wrap.hidden = !lessonsOpen;
   if (lessonsOpen) renderTutorialMenu();
   const wanted = isTutoMode() ? new URLSearchParams(window.location.search).get('lesson') : null;
-  if (wanted && lessonsOpen && !guide && !window.__lessonAutoStarted) { window.__lessonAutoStarted = true; setTimeout(() => startLesson(wanted), 900); return; }
+  if (wanted && lessonsOpen && !guide && !window.__lessonAutoStarted) { window.__lessonAutoStarted = true; // Le niveau d'accès (admin ou non) se résout en réseau : on attend qu'il soit connu (6 s au plus) avant de lancer la leçon, sinon une leçon réservée aux admins ne démarrait « pas du tout » quand la réponse arrivait après 0,9 s.
+    const tryStart = left => { const l = LESSONS.find(x => x.id === wanted); if (!l || lessonPlayable(l) || left <= 0) startLesson(wanted); else setTimeout(() => tryStart(left - 1), 400); };
+    setTimeout(() => tryStart(15), 900); return; }
   if (open && !tourAlreadyDone() && !guide) setTimeout(startBackstageTour, 600);
 }
 (function wireTourMenu() {
