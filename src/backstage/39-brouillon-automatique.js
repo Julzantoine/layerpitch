@@ -67,7 +67,7 @@ function draftState() {
   saveWorkingPendingIntoCurrent(); // fichiers en cours de l'AdReel affiché -> dans son AdReel
   return {
     library, libraryFolders, sfxLibrary, sfxFolders, socials, packs, collections, customFonts, adReels, adReelFolders,
-    currentAdReelId, implementationSkills, noAiCertifiedGlobal, waveformStyle, seqMapTheme, allowEmbedding, sharePreview, sharePreviewPendingFile,
+    currentAdReelId, implementationSkills, noAiCertifiedGlobal, waveformStyle, seqMapTheme, embedAllowed, sharePreview, sharePreviewPendingFile,
     pendingR2Deletes, pendingOrphanR2Keys,
   };
 }
@@ -141,7 +141,7 @@ function applyDraftState(d) {
   socials = d.socials || []; packs = d.packs || []; collections = d.collections || []; customFonts = d.customFonts || [];
   adReels = (d.adReels && d.adReels.length) ? d.adReels : adReels; adReelFolders = d.adReelFolders || [];
   implementationSkills = d.implementationSkills || implementationSkills; noAiCertifiedGlobal = !!d.noAiCertifiedGlobal;
-  waveformStyle = d.waveformStyle || waveformStyle; seqMapTheme = d.seqMapTheme || seqMapTheme; allowEmbedding = !!d.allowEmbedding;
+  waveformStyle = d.waveformStyle || waveformStyle; seqMapTheme = d.seqMapTheme || seqMapTheme; if (d.embedAllowed) embedAllowed = normalizeEmbedAllowed(d.embedAllowed);
   sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW, d.sharePreview || {}); sharePreviewPendingFile = d.sharePreviewPendingFile || null;
   pendingR2Deletes.clear(); (d.pendingR2Deletes || new Map()).forEach((v, k) => pendingR2Deletes.set(k, v));
   pendingOrphanR2Keys.clear(); (d.pendingOrphanR2Keys || new Set()).forEach(k => pendingOrphanR2Keys.add(k));
@@ -153,7 +153,7 @@ function applyDraftState(d) {
   collapsedCollectionIds.clear(); collections.forEach(c => collapsedCollectionIds.add(c.id));
   collapsedBlockIds.clear(); adReels.forEach(a => a.blocks.forEach(b => collapsedBlockIds.add(b.id)));
   renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels();
-  fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); fillSharePreviewFields(); rebuildAllCards();
+  fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); renderEmbedAllowedList(); fillSharePreviewFields(); rebuildAllCards();
   hasUnsavedEdits = true; // rien de tout ça n'est publié : le garde-fou « quitter la page ? » reste actif
 }
 if (typeof indexedDB !== 'undefined') {
