@@ -805,7 +805,7 @@ const LESSONS = [
     { selector: '#packsContainer textarea[data-pack-field="presentationFr"]', titleKey: 'lpTextTitle', textKey: 'lpTextText', done: () => packs.length > 0 && (packs[0].presentationFr || '').trim().length > 5,
       drops: [{ kind: 'text', label: 'Quatre ambiances de ville au même tempo : Jazz, Rock, Disco et Synth. À écouter, et à tester dans le jeu.', value: 'Quatre ambiances de ville au même tempo : Jazz, Rock, Disco et Synth. À écouter, et à tester dans le jeu.' }] },
     { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="appearance"]', titleKey: 'lpAppearTitle', textKey: 'lpAppearText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'appearance' },
-    { selector: () => document.querySelectorAll('#packsContainer .theme-preset-card')[1] || document.querySelector('#packsContainer .theme-preset-card'), titleKey: 'lpThemeTitle', textKey: 'lpThemeText', clickDone: true },
+    { selector: () => document.querySelector('#packsContainer .theme-preset-card[data-preset-id="amber"]') || document.querySelector('#packsContainer .theme-preset-card'), titleKey: 'lpThemeTitle', textKey: 'lpThemeText', clickDone: true },
     { selector: '#packsContainer select[data-pack-field="font"]', titleKey: 'lpFontTitle', textKey: 'lpFontText', done: () => packs.length > 0 && !!packs[0].font && packs[0].font !== 'default', skip: () => !document.querySelector('#packsContainer select[data-pack-field="font"]') },
     { selector: '#packsContainer [data-pack-field="bgColor"]', titleKey: 'lpColorsTitle', textKey: 'lpColorsText', skip: () => !document.querySelector('#packsContainer [data-pack-field="bgColor"]') },
     { selector: '#packsContainer [data-role="illustrationCtrl"]', titleKey: 'lpImageTitle', textKey: 'lpImageText' },
@@ -948,7 +948,10 @@ function lessonMarkDone(id) { try { const d = lessonsDone(); d[id] = true; local
 function nextLessonOf(lessonId) {
   const i = LESSONS.findIndex(l => l.id === lessonId);
   const next = i >= 0 ? LESSONS[i + 1] : null;
-  return next && next.steps && next.theme === LESSONS[i].theme && !next.reload && lessonPlayable(next) && (!next.needs || flagOpen(next.needs)) ? { lesson: next, n: i + 2 } : null;
+  // Les leçons à rechargement (compte fictif propre) sont proposées aussi : startLesson recharge la page sur la bonne leçon. Le numéro affiché est celui du titre (« 3 · … »).
+  if (!(next && next.steps && next.theme === LESSONS[i].theme && !next.soon && lessonOpenToMe(next) && lessonPlayable(next) && (!next.needs || flagOpen(next.needs)))) return null;
+  const num = /^(\d+)\s·/.exec(tr(next.titleKey));
+  return { lesson: next, n: num ? Number(num[1]) : i + 2 };
 }
 const GUIDE = window.LayerPitchGuide.create({
   tr,

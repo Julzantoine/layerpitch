@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793006188257">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793006571497">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1912,17 +1912,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793006188257"></script>
-<script src="layerpitch-i18n.js?v=1793006188257"></script>
-<script src="layerpitch-appearance.js?v=1793006188257"></script>
-<script src="layerpitch-album-shared.js?v=1793006188257"></script>
-<script src="layerpitch-album-editor.js?v=1793006188257"></script>
-<script src="layerpitch-shell.js?v=1793006188257"></script>
-<script src="layerpitch-social-icons.js?v=1793006188257"></script>
-<script src="layerpitch-notify.js?v=1793006188257"></script>
-<script src="layerpitch-guide.js?v=1793006188257"></script>
-<script src="layerpitch-help.js?v=1793006188257"></script>
-<script src="player.js?v=1793006188257"></script>
+<script src="layerpitch-tuto.js?v=1793006571497"></script>
+<script src="layerpitch-i18n.js?v=1793006571497"></script>
+<script src="layerpitch-appearance.js?v=1793006571497"></script>
+<script src="layerpitch-album-shared.js?v=1793006571497"></script>
+<script src="layerpitch-album-editor.js?v=1793006571497"></script>
+<script src="layerpitch-shell.js?v=1793006571497"></script>
+<script src="layerpitch-social-icons.js?v=1793006571497"></script>
+<script src="layerpitch-notify.js?v=1793006571497"></script>
+<script src="layerpitch-guide.js?v=1793006571497"></script>
+<script src="layerpitch-help.js?v=1793006571497"></script>
+<script src="player.js?v=1793006571497"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -16147,7 +16147,7 @@ const LESSONS = [
     { selector: '#packsContainer textarea[data-pack-field="presentationFr"]', titleKey: 'lpTextTitle', textKey: 'lpTextText', done: () => packs.length > 0 && (packs[0].presentationFr || '').trim().length > 5,
       drops: [{ kind: 'text', label: 'Quatre ambiances de ville au même tempo : Jazz, Rock, Disco et Synth. À écouter, et à tester dans le jeu.', value: 'Quatre ambiances de ville au même tempo : Jazz, Rock, Disco et Synth. À écouter, et à tester dans le jeu.' }] },
     { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="appearance"]', titleKey: 'lpAppearTitle', textKey: 'lpAppearText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'appearance' },
-    { selector: () => document.querySelectorAll('#packsContainer .theme-preset-card')[1] || document.querySelector('#packsContainer .theme-preset-card'), titleKey: 'lpThemeTitle', textKey: 'lpThemeText', clickDone: true },
+    { selector: () => document.querySelector('#packsContainer .theme-preset-card[data-preset-id="amber"]') || document.querySelector('#packsContainer .theme-preset-card'), titleKey: 'lpThemeTitle', textKey: 'lpThemeText', clickDone: true },
     { selector: '#packsContainer select[data-pack-field="font"]', titleKey: 'lpFontTitle', textKey: 'lpFontText', done: () => packs.length > 0 && !!packs[0].font && packs[0].font !== 'default', skip: () => !document.querySelector('#packsContainer select[data-pack-field="font"]') },
     { selector: '#packsContainer [data-pack-field="bgColor"]', titleKey: 'lpColorsTitle', textKey: 'lpColorsText', skip: () => !document.querySelector('#packsContainer [data-pack-field="bgColor"]') },
     { selector: '#packsContainer [data-role="illustrationCtrl"]', titleKey: 'lpImageTitle', textKey: 'lpImageText' },
@@ -16290,7 +16290,10 @@ function lessonMarkDone(id) { try { const d = lessonsDone(); d[id] = true; local
 function nextLessonOf(lessonId) {
   const i = LESSONS.findIndex(l => l.id === lessonId);
   const next = i >= 0 ? LESSONS[i + 1] : null;
-  return next && next.steps && next.theme === LESSONS[i].theme && !next.reload && lessonPlayable(next) && (!next.needs || flagOpen(next.needs)) ? { lesson: next, n: i + 2 } : null;
+  // Les leçons à rechargement (compte fictif propre) sont proposées aussi : startLesson recharge la page sur la bonne leçon. Le numéro affiché est celui du titre (« 3 · … »).
+  if (!(next && next.steps && next.theme === LESSONS[i].theme && !next.soon && lessonOpenToMe(next) && lessonPlayable(next) && (!next.needs || flagOpen(next.needs)))) return null;
+  const num = /^(\d+)\s·/.exec(tr(next.titleKey));
+  return { lesson: next, n: num ? Number(num[1]) : i + 2 };
 }
 const GUIDE = window.LayerPitchGuide.create({
   tr,
