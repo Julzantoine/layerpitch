@@ -8,7 +8,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
-<link rel="stylesheet" href="player.css?v=1793035595826">
+<link rel="stylesheet" href="player.css?v=1793036814782">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -461,11 +461,11 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793035595826"></script>
-<script src="layerpitch-notify.js?v=1793035595826"></script>
-<script src="public-page.js?v=1793035595826"></script>
-<script src="layerpitch-seller-contact.js?v=1793035595826"></script>
-<script src="player.js?v=1793035595826"></script>
+<script src="layerpitch-i18n.js?v=1793036814782"></script>
+<script src="layerpitch-notify.js?v=1793036814782"></script>
+<script src="public-page.js?v=1793036814782"></script>
+<script src="layerpitch-seller-contact.js?v=1793036814782"></script>
+<script src="player.js?v=1793036814782"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -930,12 +930,12 @@ async function init() {
     if (pack.watermark) {
       const watermarkEl = document.createElement('div');
       watermarkEl.className = 'pack-watermark';
-      watermarkEl.style.backgroundImage = `url('${IMAGES_BASE}${pack.watermark}')`;
+      watermarkEl.style.backgroundImage = `url('${/^(blob:|data:)/.test(pack.watermark) ? pack.watermark : IMAGES_BASE + pack.watermark}')`;
       document.body.prepend(watermarkEl);
     }
     container.innerHTML = `
       <div class="pub-section">
-        ${pack.illustration ? `<img class="pack-illustration" src="${IMAGES_BASE}${pack.illustration}" alt="">` : `<div class="pack-illustration empty"></div>`}
+        ${pack.illustration ? `<img class="pack-illustration" src="${/^(blob:|data:)/.test(pack.illustration) ? pack.illustration : IMAGES_BASE + pack.illustration}" alt="">` : `<div class="pack-illustration empty"></div>`}
         <div class="pack-title">${escapeHtml(pack.title)}</div>
         <div class="pack-presentation">${pickBilingualText(pack.presentationFr, pack.presentationEn).split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('')}</div>
       </div>
@@ -1168,6 +1168,6 @@ document.getElementById('publicEmbedCopyBtn').addEventListener('click', async ()
 })();
 window.addEventListener('load', init);
 </script>
-<script src="layerpitch-preview-tuto.js?v=1793035595826"></script>
+<script src="layerpitch-preview-tuto.js?v=1793036814782"></script>
 </body>
 </html>

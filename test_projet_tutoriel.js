@@ -23,7 +23,12 @@ const { JSDOM } = require('jsdom');
     w.LayerPitchProjects = {};
     w.LayerPitchAuth = { getSession: () => Promise.resolve({ session: { user: { id: 'demo-user', email: 'demo@layerpitch.com' } } }), getMyComposerId: () => Promise.resolve({ composerId: 'demo-composer' }), onAuthStateChange: cb => setTimeout(() => cb('INITIAL_SESSION'), 0) };
     w.LayerPitchNotify = { confirm: () => Promise.resolve(true), error: () => {}, info: () => {} };
-    w.LayerPitchSupabaseClient = { getClient: () => { throw new Error('le vrai serveur ne doit pas être appelé en mode tutoriel'); } };
+    // Seule la porte d'entrée (admin réel, préproduction réservée aux admins) peut parler au vrai client, une seule fois, avant la bascule sur le faux serveur.
+    let gateCalls = 0;
+    w.LayerPitchSupabaseClient = { getClient: () => {
+      if (gateCalls++ < 2) return { auth: { getSession: async () => ({ data: { session: { user: { id: 'admin' } } } }) }, rpc: async () => ({ data: true, error: null }) };
+      throw new Error('le vrai serveur ne doit pas être appelé en mode tutoriel');
+    } };
     w.LayerPitchTracks = { listTracksByIds: () => Promise.resolve({ tracks: [] }), listTracks: () => Promise.resolve({ tracks: [] }) };
     w.LayerPitchAlbums = { listAlbums: () => Promise.resolve({ albums: [] }) };
     w.LayerPitchSfx = { listSfx: () => Promise.resolve({ sfx: [] }) };
@@ -148,7 +153,11 @@ const { JSDOM } = require('jsdom');
     ['layerpitch-i18n.js', 'layerpitch-guide.js', '__TUTO__', 'api/demo-client.js', 'api/demo-projects.js', 'projet-lecons.js'].forEach(f => pw.eval(f === '__TUTO__' ? tutoOpen : read(f)));
     pw.LayerPitchAuth = { getSession: () => Promise.resolve({ session: { user: { id: 'demo-user', email: 'demo@layerpitch.com' } } }), getMyComposerId: () => Promise.resolve({ composerId: 'demo-composer' }), getMyStudioId: () => Promise.resolve({ studioId: null }), onAuthStateChange: cb => setTimeout(() => cb('INITIAL_SESSION'), 0) };
     pw.LayerPitchNotify = { error() {}, info() {} };
-    pw.LayerPitchSupabaseClient = { getClient: () => { throw new Error('le vrai serveur ne doit pas être appelé'); } };
+    let pGate = 0; // seule la porte d'entrée (admin réel) parle au vrai client, avant la bascule
+    pw.LayerPitchSupabaseClient = { getClient: () => {
+      if (pGate++ < 2) return { auth: { getSession: async () => ({ data: { session: { user: { id: 'admin' } } } }) }, rpc: async () => ({ data: true, error: null }) };
+      throw new Error('le vrai serveur ne doit pas être appelé');
+    } };
     pw.LayerPitchStudio = { myFeatureFlags: async () => ({ flags: { projects: true } }), myEntitlements: async () => ({ entitlements: { projects: { allowed: true, amount: 5 } } }) };
     pw.LayerPitchProjects = {};
     pw.LayerPitchShell = { mount() { throw new Error('la barre commune ne doit pas être montée'); } };

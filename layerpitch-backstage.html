@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793035595826">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793036814782">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1928,17 +1928,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793035595826"></script>
-<script src="layerpitch-i18n.js?v=1793035595826"></script>
-<script src="layerpitch-appearance.js?v=1793035595826"></script>
-<script src="layerpitch-album-shared.js?v=1793035595826"></script>
-<script src="layerpitch-album-editor.js?v=1793035595826"></script>
-<script src="layerpitch-shell.js?v=1793035595826"></script>
-<script src="layerpitch-social-icons.js?v=1793035595826"></script>
-<script src="layerpitch-notify.js?v=1793035595826"></script>
-<script src="layerpitch-guide.js?v=1793035595826"></script>
-<script src="layerpitch-help.js?v=1793035595826"></script>
-<script src="player.js?v=1793035595826"></script>
+<script src="layerpitch-tuto.js?v=1793036814782"></script>
+<script src="layerpitch-i18n.js?v=1793036814782"></script>
+<script src="layerpitch-appearance.js?v=1793036814782"></script>
+<script src="layerpitch-album-shared.js?v=1793036814782"></script>
+<script src="layerpitch-album-editor.js?v=1793036814782"></script>
+<script src="layerpitch-shell.js?v=1793036814782"></script>
+<script src="layerpitch-social-icons.js?v=1793036814782"></script>
+<script src="layerpitch-notify.js?v=1793036814782"></script>
+<script src="layerpitch-guide.js?v=1793036814782"></script>
+<script src="layerpitch-help.js?v=1793036814782"></script>
+<script src="player.js?v=1793036814782"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -14963,7 +14963,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
     // choisie, url ou non.
     socials: socials.map(s => ({ id: s.id, platform: s.platform, url: s.url || '' })),
     adReelFolders: adReelFolders.map(f => ({ id: f.id, label: f.label || '' })),
-    packs: packs.map(p => ({ id: p.id, title: p.title, illustration: p.illustration || null, illustrationOriginalName: p.illustrationOriginalName || null, watermark: p.watermark || null, watermarkOriginalName: p.watermarkOriginalName || null, presentationFr: p.presentationFr || '', presentationEn: p.presentationEn || '', buyable: !!p.buyable, buyUrl: p.buyUrl || '', priceEurCents: p.priceEurCents == null ? null : p.priceEurCents, subscriberCredits: p.subscriberCredits == null ? null : p.subscriberCredits, catalogListed: p.catalogListed !== false, freeDownloadEnabled: !!p.freeDownloadEnabled, videoTestModeEnabled: !!p.videoTestModeEnabled, bgColor: p.bgColor || '#f6f5f3', textColor: p.textColor || '#262521', font: p.font || 'default', presetId: p.presetId || null, separator: p.separator || null, effectivePlan, trackIds: p.trackIds || [], sfxIds: p.sfxIds || [], linkedAdReelId: p.linkedAdReelId || null })),
+    packs: packs.map(p => ({ id: p.id, title: p.title, illustration: pendingPreviewUrl(p.pendingIllustration) || p.illustration || null, illustrationOriginalName: p.illustrationOriginalName || null, watermark: pendingPreviewUrl(p.pendingWatermark) || p.watermark || null, watermarkOriginalName: p.watermarkOriginalName || null, presentationFr: p.presentationFr || '', presentationEn: p.presentationEn || '', buyable: !!p.buyable, buyUrl: p.buyUrl || '', priceEurCents: p.priceEurCents == null ? null : p.priceEurCents, subscriberCredits: p.subscriberCredits == null ? null : p.subscriberCredits, catalogListed: p.catalogListed !== false, freeDownloadEnabled: !!p.freeDownloadEnabled, videoTestModeEnabled: !!p.videoTestModeEnabled, bgColor: p.bgColor || '#f6f5f3', textColor: p.textColor || '#262521', font: p.font || 'default', presetId: p.presetId || null, separator: p.separator || null, effectivePlan, trackIds: p.trackIds || [], sfxIds: p.sfxIds || [], linkedAdReelId: p.linkedAdReelId || null })),
     implementationSkills: { wwise: !!implementationSkills.wwise, fmod: !!implementationSkills.fmod, unity: !!implementationSkills.unity, unreal: !!implementationSkills.unreal },
     noAiCertifiedGlobal: !!noAiCertifiedGlobal,
     waveformStyle: window.LayerPlayerCore.WAVEFORM_STYLES.includes(waveformStyle) ? waveformStyle : 'bars',
@@ -15795,6 +15795,8 @@ const ALBUM_TEXT = (typeof currentLang === 'function' && currentLang() === 'en')
 const ALBUM_COVER = { name: 'music-city-cover.jpg', url: './images/tuto-music-city-cover.jpg' };
 // Illustration d'exemple du pack (image réelle du pack « 8 bits Comptines », copiée dans le dépôt).
 const PACK_ILLUSTRATION = { name: 'illustration-8-bits.png', url: './images/tuto-8bits-illustration.png' };
+// Filigrane d'exemple du pack (même image que l'illustration dans le vrai pack « 8 bits Comptines »).
+const PACK_WATERMARK = { name: 'filigrane-8-bits.png', url: './images/tuto-8bits-illustration.png' };
 const UPLOAD_KIT = {
   // Images « Alone » (réduites) et petit film de présentation : fichiers du dépôt, servis avec le site (aucun dépôt dans le stockage des médias).
   url: name => ({ 'alone-ponton.jpg': './images/tuto-ponton.jpg', 'alone-brume.jpg': './images/tuto-brume.jpg', 'alone-rameur.jpg': './images/tuto-rameur.jpg', 'layerpitch-le-film.mp4': './images/tuto-film.mp4', [ALBUM_COVER.name]: ALBUM_COVER.url }[name] || ('https://media.layerpitch.com/tuto/' + encodeURIComponent(name))),
@@ -16282,23 +16284,26 @@ const LESSONS = [
     { titleKey: 'aprWelcomeTitle', textKey: 'aprWelcomeText' },
     { selector: '.nav-item[data-tab="appearance"]', titleKey: 'aprTabTitle', textKey: 'aprTabText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
     { selector: '#themeProQuickStartGallery', titleKey: 'aprThemeTitle', textKey: 'aprThemeText', done: () => (profile.theme && (profile.theme.bgColor || '').toLowerCase() === '#1b1035') },
-    { selector: '#appThemeTitleColor', titleKey: 'aprTitleColorTitle', textKey: 'aprTitleColorText', done: () => (profile.theme && (profile.theme.titleColor || '').toLowerCase() !== '#ff3ea5'),
+    { selector: '#appThemeTitleColor', titleKey: 'aprTitleColorTitle', textKey: 'aprTitleColorText', done: () => (profile.theme && (profile.theme.titleColor || '').toLowerCase() === '#00ccff'),
       drops: [{ kind: 'text', label: 'Cyan (#00CCFF)', value: '#00ccff' }] },
-    { selector: '#appThemeBgColor', titleKey: 'aprColorsTitle', textKey: 'aprColorsText' },
-    { selector: '#appThemeFont', titleKey: 'aprFontTitle', textKey: 'aprFontText', done: () => !!profile.theme && profile.theme.font !== 'google:Space Grotesk' },
+    { selector: '#appThemePlayButtonColor', titleKey: 'aprColorsTitle', textKey: 'aprColorsText', done: () => !!profile.theme && (profile.theme.playButtonColor || '').toLowerCase() === '#ffd400',
+      drops: [{ kind: 'text', label: 'Jaune (#FFD400)', value: '#ffd400' }] },
+    { selector: '#appThemeFont', titleKey: 'aprFontTitle', textKey: 'aprFontText', done: () => !!profile.theme && profile.theme.font === 'google:Playfair Display' },
     { selector: '#btnAddCustomFont', titleKey: 'aprCustomFontTitle', textKey: 'aprCustomFontText' },
     { selector: '#appThemeBgImageCtrl .file-ctrl', titleKey: 'aprBgImageTitle', textKey: 'aprBgImageText', done: () => !!themeBgImagePendingFile,
       drops: [{ kind: 'file', label: ALBUM_COVER.name, url: ALBUM_COVER.url, name: ALBUM_COVER.name }] },
-    { selector: '#appThemeBgImageOpacity', titleKey: 'aprOpacityTitle', textKey: 'aprOpacityText' },
+    { selector: '#appThemeBgImageOpacity', titleKey: 'aprOpacityTitle', textKey: 'aprOpacityText', done: () => !!profile.theme && Number(profile.theme.bgImageOpacity) >= 0.4 && Number(profile.theme.bgImageOpacity) <= 0.6 },
     { selector: '#appSeparatorThickness', titleKey: 'aprSepTitle', textKey: 'aprSepText', enter: ctx => { ctx.sepThickness0 = Number(document.getElementById('appSeparatorThickness').value); },
       done: ctx => ctx.sepThickness0 != null && Number(document.getElementById('appSeparatorThickness').value) !== ctx.sepThickness0,
       drops: [{ kind: 'text', label: '3', value: '3' }] },
     { selector: '#waveformStylePicker', titleKey: 'aprWaveTitle', textKey: 'aprWaveText', clickDone: true },
-    { selector: '#seqMapThemeSelect', titleKey: 'aprMapTitle', textKey: 'aprMapText' },
+    { selector: '#seqMapThemeSelect', titleKey: 'aprMapTitle', textKey: 'aprMapText', enter: ctx => { ctx.mapTheme0 = document.getElementById('seqMapThemeSelect').value; }, done: ctx => ctx.mapTheme0 != null && document.getElementById('seqMapThemeSelect').value !== ctx.mapTheme0 },
     // Premier aperçu : avec l'image de fond, les textes se lisent mal -> on revient les mettre en blanc, puis on revisualise.
     { selector: '#btnPreview', titleKey: 'aprPreviewTitle', textKey: 'aprPreviewText', clickDone: true },
     { titleKey: 'aprReviewTitle', textKey: 'aprReviewText' },
     { selector: '#appThemeContentColor', titleKey: 'aprWhiteTitle', textKey: 'aprWhiteText', done: () => !!profile.theme && (profile.theme.contentColor || '').toLowerCase() === '#ffffff',
+      drops: [{ kind: 'text', label: 'Blanc (#FFFFFF)', value: '#ffffff' }] },
+    { selector: '#appThemeSectionLabelColor', titleKey: 'aprLabelsTitle', textKey: 'aprLabelsText', done: () => !!profile.theme && (profile.theme.sectionLabelColor || '').toLowerCase() === '#ffffff',
       drops: [{ kind: 'text', label: 'Blanc (#FFFFFF)', value: '#ffffff' }] },
     { selector: '.nav-item[data-tab="content"]', titleKey: 'aprBackTitle', textKey: 'aprBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
     { selector: '.block-editor-card[data-type="text"] .block-editor-head [data-action="toggle-collapse"]', titleKey: 'aprBlockOpenTitle', textKey: 'aprBlockOpenText',
@@ -16321,7 +16326,7 @@ const LESSONS = [
     { selector: '#appAccessMode', titleKey: 'shrAccessTitle', textKey: 'shrAccessText', done: () => document.getElementById('appAccessMode').value === 'password' },
     { selector: '#appAccessPassword', titleKey: 'shrPasswordTitle', textKey: 'shrPasswordText', done: () => (document.getElementById('appAccessPassword').value || '').trim().length >= 4,
       drops: [{ kind: 'text', label: 'musiccity2026', value: 'musiccity2026' }] },
-    { selector: '#btnSaveAccessPassword', titleKey: 'shrSaveTitle', textKey: 'shrSaveText' },
+    { selector: '#btnSaveAccessPassword', titleKey: 'shrSaveTitle', textKey: 'shrSaveText', clickDone: true },
     { selector: '#adReelLinkButtons', titleKey: 'shrLinkTitle', textKey: 'shrLinkText', skip: () => { const e = document.getElementById('adReelLinkButtons'); return !e || e.hidden; } },
     { titleKey: 'shrEndTitle', textKey: 'shrEndText', final: true },
   ] },
@@ -16358,6 +16363,8 @@ const LESSONS = [
     { selector: '#packsContainer [data-pack-field="bgColor"]', titleKey: 'lpColorsTitle', textKey: 'lpColorsText', skip: () => !document.querySelector('#packsContainer [data-pack-field="bgColor"]') },
     { selector: '#packsContainer [data-role="illustrationCtrl"] .file-ctrl', titleKey: 'lpImageTitle', textKey: 'lpImageText', done: () => packs.length > 0 && !!packs[0].pendingIllustration,
       drops: [{ kind: 'file', label: PACK_ILLUSTRATION.name, url: PACK_ILLUSTRATION.url, name: PACK_ILLUSTRATION.name }] },
+    { selector: '#packsContainer [data-role="watermarkCtrl"] .file-ctrl', titleKey: 'lpWatermarkTitle', textKey: 'lpWatermarkText', done: () => packs.length > 0 && !!packs[0].pendingWatermark,
+      drops: [{ kind: 'file', label: PACK_WATERMARK.name, url: PACK_WATERMARK.url, name: PACK_WATERMARK.name }] },
     { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="distribution"]', titleKey: 'lpDistTitle', textKey: 'lpDistText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'distribution' },
     { selector: '#packsContainer select[data-pack-field="priceEurCents"]', titleKey: 'lpPriceTitle', textKey: 'lpPriceText', done: () => packs.length > 0 && packs[0].priceEurCents !== 1000 },
     { selector: '#packsContainer input[data-pack-field="buyable"]', titleKey: 'lpSellTitle', textKey: 'lpSellText' },

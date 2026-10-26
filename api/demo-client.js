@@ -56,6 +56,7 @@
     get_my_notification_prefs: () => [{ email_announcements: true, lang: 'fr' }],
     get_my_directory: () => ({ optIn: true, keywords: ['jazz', 'musique interactive', 'RPG', 'adaptatif'], photo: null }),
     directory_status: () => ({ open: true }),
+    set_ad_reel_access: a => ({ mode: a.p_mode, token: a.p_mode === 'magic' ? 'tutoriel-lien-magique' : null }), // accès privé simulé (leçon « Diffuser »)
     list_album_rights: () => lessonParam() === 'album' ? { declaration: 'sole', ackAt: null, settled: false, sellerShareBps: 10000, holders: [] } : null,
     get_my_analytics_overview: (a) => lessonParam() === 'tracking' ? analyticsDemo.overview(a) : null,
     get_my_analytics_entity: (a) => lessonParam() === 'tracking' ? analyticsDemo.entity(a) : null,
@@ -207,7 +208,7 @@
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
     if (table === 'ad_reels' && (['adreel-intro', 'adreel', 'upload', 'appearance', 'share'].includes(lessonParam()))) return lessonParam() === 'adreel-intro' ? [demoMainAdReel()].concat(demoOtherAdReels()) : (['appearance', 'share'].includes(lessonParam()) ? [demoMainAdReel(), demoJoshuaAdReel()] : [demoMainAdReel()]);
     if (table === 'tracks' && lessonParam() === 'pack' && !projectPage) return DEMO_TRACKS_8BIT.filter(t => t.id !== 'bmruc9x0htabo1'); // « Doucement s'en va le jour » : son fichier audio est introuvable en ligne (404), on ne le propose pas
-    if (table === 'tracks' && ['adreel', 'adreel-intro', 'album', 'tracking', 'upload', 'appearance', 'share'].includes(lessonParam()) && !projectPage) return DEMO_TRACKS_JAZZ;
+    if (table === 'tracks' && ['adreel', 'adreel-intro', 'album', 'tracking', 'upload', 'appearance', 'share'].includes(lessonParam()) && !projectPage) return lessonParam() === 'share' ? DEMO_TRACKS_JAZZ.map(t => Object.assign({}, t, { protected: true })) : DEMO_TRACKS_JAZZ; // « Diffuser » : morceaux déjà protégés (sinon la demande de protection complique l'étape du mot de passe)
     if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
     if (table === 'tracks' && lessonParam() === 'sfx') return [DEMO_TRACK_JAZZ_SFX];
     if (table === 'tracks' && lessonParam() === 'events') return [Object.assign({}, DEMO_TRACK_JAZZ_SFX, { track_sfx: DEMO_SFX.map((x, i) => ({ sfx_id: x.id, position: i })) })];
