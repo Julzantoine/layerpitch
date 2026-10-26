@@ -114,13 +114,13 @@ function world(opts) {
     g.w.LayerPitchSfx = { getSfx: async id => ({ sfx: { id, title: 'Cloche', alternatives: [{ file: 'a.ogg' }] } }) };
     g.w.LayerCaptureRender.playTake = async (take, o) => { g.log.play.push(take); g.log.ended = o.onEnd; return { stop() { g.log.stopped++; } }; };
     g.w.LayerPitchAutoTake = {
-      supports: t => t.mode === 'vertical' || t.mode === 'static',
-      describe: () => ({ fixedDuration: false, quantized: false, layers: 3, barSec: 2 }),
+      supports: t => t.mode !== 'autre',
+      describe: () => ({ fixedDuration: false, quantized: false, layers: 3, barSec: 2, intervalKind: opts.kind || 'layers', fade: true }),
       defaults: () => ({ duration: 120, intervalSec: 8, stinger: true, sfxId: 's1', fadeSec: 3, seed: 1 }),
       generate: async (track, sfxById, settings) => { g.log.gen.push(settings); if (opts.genFails) throw new Error('fichier absent'); return { take: { kind: 'layerpitch-take', trackId: track.id, duration: 120 }, info: { stingerAt: 70 } }; },
     };
     g.w.LayerCaptureRender.loaded = true;
-    g.w.LayerCapturePlan = {};
+    g.w.LayerCapturePlan = {}; g.w.LayerCaptureRetarget = {};
     return g;
   }
   x = genWorld();
@@ -147,13 +147,16 @@ function world(opts) {
   gen = x.S.openGenerator({ albumId: 'al', trackId: 't1' }); await flush();
   gen.el.querySelector('[data-role="autoGen"]').click(); await flush();
   check('auto : génération impossible -> erreur affichée, rien à valider', /Erreur : fichier absent/.test(gen.el.textContent) && gen.el.querySelector('[data-role="autoSave"]').disabled && !x.log.setTake.length);
-  x = genWorld({ mode: 'sequential' });
+  x = genWorld({ mode: 'autre' });
   gen = x.S.openGenerator({ albumId: 'al', trackId: 't1' }); await flush();
-  check('auto : mode non géré -> message clair (à enregistrer à la main)', /pas encore géré/.test(gen.el.textContent) && !gen.el.querySelector('[data-role="autoGen"]'));
+  check('auto : mode non géré -> message clair (à enregistrer à la main)', /pas géré/.test(gen.el.textContent) && !gen.el.querySelector('[data-role="autoGen"]'));
+  x = genWorld({ kind: 'sections' });
+  gen = x.S.openGenerator({ albumId: 'al', trackId: 't1' }); await flush();
+  check('auto : le réglage de rythme porte le nom du mode (section pour le vertical-aléatoire)', /Durée d'une section/.test(gen.el.textContent));
   x = genWorld({ noSfx: true });
   gen = x.S.openGenerator({ albumId: 'al', trackId: 't1' }); await flush();
   check('auto : morceau sans Sfx -> pas de case stinger, message', !gen.el.querySelector('[data-role="autoStinger"]') && /Aucun Sfx/.test(gen.el.textContent));
-  check('textes FR et EN de la version automatique', ['autoHint', 'autoUnsupported', 'autoDuration', 'autoInterval', 'autoFade', 'autoStinger', 'autoNoSfx', 'autoFixed', 'autoGenerate', 'autoListen', 'autoStop', 'autoSave', 'autoWorking', 'autoReady', 'autoStingerAt', 'autoNoStinger'].every(k => I18N.fr.albumShared[k] && I18N.en.albumShared[k]) && I18N.fr.albumEditor.officialAuto && I18N.en.albumEditor.officialAuto);
+  check('textes FR et EN de la version automatique', ['autoHint', 'autoUnsupported', 'autoDuration', 'autoIntervalLayers', 'autoIntervalLoops', 'autoIntervalSlots', 'autoIntervalSections', 'autoFade', 'autoStinger', 'autoNoSfx', 'autoFixed', 'autoGenerate', 'autoListen', 'autoStop', 'autoSave', 'autoWorking', 'autoReady', 'autoStingerAt', 'autoNoStinger'].every(k => I18N.fr.albumShared[k] && I18N.en.albumShared[k]) && I18N.fr.albumEditor.officialAuto && I18N.en.albumEditor.officialAuto);
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
   process.exit(failures ? 1 : 0);
 })();

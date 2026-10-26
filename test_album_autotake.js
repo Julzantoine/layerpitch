@@ -9,7 +9,7 @@ const path = require('path');
   const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8').replace(/<\/script/gi, '<\\/script');
   const html = `<!DOCTYPE html><html><body>
   <script>${read('layerpitch-i18n.js')}</script><script>${read('player.js')}</script>
-  <script>${read('capture-render.js')}</script><script>${read('capture-plan.js')}</script><script>${read('layerpitch-album-autotake.js')}</script></body></html>`;
+  <script>${read('capture-render.js')}</script><script>${read('capture-plan.js')}</script><script>${read('capture-retarget.js')}</script><script>${read('layerpitch-album-autotake.js')}</script></body></html>`;
   const dom = new JSDOM(html, {
     url: 'http://localhost/test.html', runScripts: 'dangerously', pretendToBeVisual: true,
     beforeParse(win) {
@@ -38,7 +38,7 @@ const path = require('path');
   const statQ = Object.assign({}, stat, { id: 'sq', loopEngine: 'quantized', loopOutBeat: 16, duration: 10 });
   const measure = async () => 3;
 
-  check('modes pris en charge : statique et vertical seulement', A.supports(vertical) && A.supports(stat) && !A.supports({ mode: 'sequential' }) && !A.supports({ mode: 'embranchement-vertical' }) && !A.supports({ mode: 'vertical-random' }));
+  check('modes pris en charge : les cinq modes', ['static', 'vertical', 'sequential', 'vertical-random', 'embranchement-vertical'].every(m => A.supports({ mode: m })) && !A.supports({ mode: 'autre' }) && !A.supports(null));
 
   // Réglages de départ
   const d = A.defaults(vertical, [sfx]);
@@ -111,10 +111,89 @@ const path = require('path');
     check('statique en moteur quantifié : générations relayées comme un vertical à une couche', q.take.voices.length >= 3 && q.take.voices.every(v => /l0\.ogg/.test(v.url)) && q.take.voices.some(v => v.start > 0));
   }
 
+
+  // ---- Séquentiel ----
+  const SQ = { id: 'sq1', mode: 'sequential', base: 'https://m/sq/', publishedAt: 'p2', bpm: 120, beatsPerBar: 4, fxTriggers: [], fxSliders: [],
+    intro: { file: 'i.ogg', bars: 1 }, outro: { file: 'o.ogg' },
+    segmentSlots: [
+      { id: 'A', repeatCount: 2, alternatives: [{ file: 'a0.ogg', bars: 2 }, { file: 'a1.ogg', bars: 2 }] },
+      { id: 'B', alternatives: [{ file: 'b.ogg', bars: 2 }], nextOptions: [{ targetId: 'C', transition: { file: 't.ogg', bars: 1 } }, { targetId: 'A' }] },
+      { id: 'C', alternatives: [{ file: 'c.ogg', bars: 2 }] }
+    ] };
+  {
+    const ds = A.defaults(SQ, [sfx]);
+    check('séquentiel : rythme de départ = 2 tours du premier emplacement (8 s)', ds.intervalSec === 8 && A.describe(SQ).intervalKind === 'slots');
+    const s = Object.assign(ds, { duration: 60, seed: 4 });
+    const { take, info } = await A.generate(SQ, sfxById, s, { measure });
+    const names = take.voices.map(v => v.url.replace(/^https:\/\/m\/sq\//, '').replace(/\?v=p2$/, ''));
+    check('séquentiel : l\'intro ouvre la prise, puis l\'emplacement A joue ses 2 répétitions (blocs de 4 s)', names[0] === 'i.ogg' && /^a[01]\.ogg$/.test(names[1]) && /^a[01]\.ogg$/.test(names[2]) && take.voices[1].start === 2 && take.voices[2].start === 6);
+    check('séquentiel : l\'emplacement à embranchements reste le rythme choisi (2 blocs de 4 s) puis prend une sortie', names.indexOf('b.ogg') === 3 && names[4] === 'b.ogg' && (names[5] === 't.ogg' || /^a[01]\.ogg$/.test(names[5])));
+    check('séquentiel : l\'outro termine la prise, après la durée visée', names[names.length - 1] === 'o.ogg' && info.musicEnd >= 60 && take.voices[take.voices.length - 1].start === info.musicEnd);
+    check('séquentiel : chaque bloc part à la fin du précédent (jamais de coupure), sans arrêt forcé', take.voices.every(v => v.stop === null) && take.voices.slice(1).every((v, i) => v.start > take.voices[i].start));
+    const outs = new Set();
+    for (let seed = 1; seed < 12; seed++) { const r = await A.generate(SQ, sfxById, Object.assign({}, s, { seed, stinger: false }), { measure }); r.take.voices.forEach(v => outs.add(v.url.replace(/^.*\//, '').replace(/\?.*/, ''))); }
+    check('séquentiel : les deux sorties de l\'emplacement B (transition vers C, retour sur A) s\'entendent selon les tirages', outs.has('t.ogg') && outs.has('c.ogg'));
+    const tr = take.voices.find(v => /t\.ogg/.test(v.url));
+    const noOutro = await A.generate(Object.assign({}, SQ, { outro: null }), sfxById, Object.assign({}, s, { stinger: false }), { measure });
+    check('séquentiel sans outro : la prise finit avec le dernier bloc', !noOutro.take.voices.some(v => /o\.ogg/.test(v.url)));
+    check('séquentiel : stinger posé (début de mesure)', take.sfx.length === 1 && info.stingerAt % 2 === 0);
+    check('séquentiel : durée de la prise = fin du dernier fichier (3 s mesurées)', near(take.duration, take.voices[take.voices.length - 1].start + 3));
+    void tr;
+  }
+
+  // ---- Vertical-aléatoire ----
+  const VRT = { id: 'vr1', mode: 'vertical-random', base: 'https://m/vr/', publishedAt: 'p3', bpm: 120, beatsPerBar: 4, fxTriggers: [], fxSliders: [],
+    intro: { file: 'i.ogg', bars: 1 }, outro: { file: 'o.ogg' },
+    sections: [
+      { id: 'S1', bpm: 120, beatsPerBar: 4, loopOutBeat: 16, maxLoops: 2, pools: [{ alternatives: [{ file: 'p0.ogg' }, { file: 'p1.ogg' }] }, { alternatives: [{ file: 'q0.ogg' }] }] },
+      { id: 'S2', bpm: 120, beatsPerBar: 4, loopOutBeat: 16, pools: [{ alternatives: [{ file: 'r0.ogg' }] }] }
+    ] };
+  {
+    const ds = A.defaults(VRT, []);
+    check('vertical-aléatoire : rythme de départ = 2 cycles de la première section (16 s)', ds.intervalSec === 16 && A.describe(VRT).intervalKind === 'sections');
+    const s = Object.assign(ds, { duration: 60, seed: 2 });
+    const { take, info } = await A.generate(VRT, sfxById, Object.assign({}, s, { stinger: false }), { measure });
+    const starts = [...new Set(take.voices.map(v => v.start))];
+    check('vertical-aléatoire : intro, puis 2 cycles de S1 (maxLoops) de 8 s, puis S2 pour le rythme choisi (2 cycles)', starts[0] === 0 && starts[1] === 2 && starts[2] === 10 && starts[3] === 18 && starts[4] === 26);
+    check('vertical-aléatoire : un tirage par pool à chaque cycle (S1 : 2 pools, S2 : 1)', take.voices.filter(v => v.start === 2).length === 2 && take.voices.filter(v => v.start === 18).length === 1);
+    check('vertical-aléatoire : premier cycle depuis le point de départ, les suivants depuis l\'entrée de boucle', take.voices.filter(v => v.start === 2).every(v => v.offset === 0));
+    check('vertical-aléatoire : l\'outro termine la prise', take.voices[take.voices.length - 1].url.includes('o.ogg') && take.voices[take.voices.length - 1].start === info.musicEnd);
+    const seen = new Set();
+    for (let seed = 1; seed < 20; seed++) { const r = await A.generate(VRT, sfxById, Object.assign({}, s, { seed, stinger: false }), { measure }); r.take.voices.forEach(v => seen.add(v.url.replace(/^.*\//, '').replace(/\?.*/, ''))); }
+    check('vertical-aléatoire : le tirage varie avec la graine (les deux variations du pool 1 s\'entendent)', seen.has('p0.ogg') && seen.has('p1.ogg'));
+    const x2 = await A.generate(VRT, sfxById, Object.assign({}, s, { stinger: false }), { measure });
+    check('vertical-aléatoire : même graine, même prise', JSON.stringify(x2.take.voices.map(v => [v.url, v.start])) === JSON.stringify(take.voices.map(v => [v.url, v.start])));
+  }
+
+  // ---- Embranchement-vertical ----
+  const EM = { id: 'em1', mode: 'embranchement-vertical', base: 'https://m/em/', publishedAt: 'p4', bpm: 120, beatsPerBar: 4, fxTriggers: [], fxSliders: [],
+    loops: [
+      { id: 'L0', file: 'l0.ogg', isInitial: true, isDetour: false, duration: 8, bars: 4 },
+      { id: 'L1', file: 'l1.ogg', isDetour: false, duration: 8, bars: 4, transition: { file: 'tr.ogg', durationUnit: 'seconds', durationSeconds: 2 } },
+      { id: 'L2', file: 'l2.ogg', isDetour: false, duration: 8, bars: 4 },
+      { id: 'D', file: 'd.ogg', isDetour: true, detourMode: 'once', duration: 2, bars: 1 }
+    ] };
+  {
+    const ds = A.defaults(EM, []);
+    check('embranchement : rythme de départ = 2 cycles (16 s)', ds.intervalSec === 16 && A.describe(EM).intervalKind === 'loops' && A.describe(EM).fade);
+    const s = Object.assign(ds, { duration: 64, seed: 1, stinger: false, fadeSec: 3 });
+    const { take, info } = await A.generate(EM, sfxById, s, { measure });
+    const gens = take.voices.filter(v => /l0\.ogg/.test(v.url)).map(v => v.start);
+    check('embranchement : une génération des boucles jumelles par cycle (8 s), 3 boucles chacune', gens.length === 8 && take.voices.filter(v => /l1\.ogg/.test(v.url)).length === 8 && take.voices.filter(v => /l2\.ogg/.test(v.url)).length === 8);
+    const l1 = take.voices.find(v => /l1\.ogg/.test(v.url) && v.start === 16);
+    check('embranchement : à 16 s (+ fichier de transition de 2 s) la boucle L1 devient audible', l1.gain.auto.some(a => a[0] === 'lin' && a[2] === 1 && a[1] >= 18 && a[1] < 18.6) || l1.gain.init === 1);
+    check('embranchement : le fichier de transition de L1 est joué', take.voices.some(v => /tr\.ogg/.test(v.url) && near(v.start, 16)));
+    check('embranchement : le détour est joué une fois', take.voices.some(v => /d\.ogg/.test(v.url)));
+    check('embranchement : les voix s\'arrêtent à la fin, fondu sur le gain maître', take.voices.filter(v => /l0\.ogg/.test(v.url)).every(v => v.stop === 64 || v.stop === null || v.stop <= 64) && take.master.auto.some(a => a[0] === 'lin' && near(a[1], 64) && a[2] === 0) && info.musicEnd === 64);
+    check('embranchement : au moins une bascule jouée', info.switches >= 2);
+    const st = await A.generate(EM, sfxById, Object.assign({}, s, { stinger: true, sfxId: 'x' }), { measure });
+    check('embranchement : stinger posé', st.take.sfx.length === 1);
+  }
+
   // ---- Refus des modes non gérés ----
   let refused = false;
-  try { await A.generate({ id: 'z', mode: 'sequential' }, {}, {}, {}); } catch (e) { refused = true; }
-  check('mode séquentiel : refusé clairement (étape suivante)', refused);
+  try { await A.generate({ id: 'z', mode: 'autre' }, {}, {}, {}); } catch (e) { refused = true; }
+  check('mode inconnu : refusé clairement', refused);
 
   if (failures) { console.log('\n' + failures + ' échec(s)'); process.exit(1); }
   console.log('\nTous les tests passent');

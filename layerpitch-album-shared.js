@@ -48,7 +48,7 @@
     return scriptLoads[file];
   }
   const loadCaptureRender = () => loadScript('capture-render.js', 'LayerCaptureRender');
-  const loadAutoTake = () => Promise.all([loadCaptureRender(), loadScript('capture-plan.js', 'LayerCapturePlan')])
+  const loadAutoTake = () => Promise.all([loadCaptureRender(), loadScript('capture-plan.js', 'LayerCapturePlan'), loadScript('capture-retarget.js', 'LayerCaptureRetarget')])
     .then(() => loadScript('layerpitch-album-autotake.js', 'LayerPitchAutoTake'));
 
   // ---- Écoute de la version officielle ----
@@ -193,12 +193,14 @@
         if (rec.closed) return;
         const d = A.describe(track), def = A.defaults(track, sfxList);
         const sfxTitle = s => s.title || s.name || s.id;
-        const num = (role, label, value, extra) => `<label style="display:flex;align-items:center;gap:6px;font-size:12px">${esc(label)} <input type="number" data-role="${role}" value="${esc(value)}" min="1" step="1" style="width:84px"${extra || ''}></label>`;
+        const num = (role, label, value, extra) => `<label style="display:flex;align-items:center;gap:6px;font-size:12px">${esc(label)} <input type="number" data-role="${role}" value="${esc(value)}" min="1" step="any" style="width:84px"${extra || ''}></label>`;
+        const shown = x => Math.round(x * 10) / 10;
+        const intervalLabels = { layers: 'autoIntervalLayers', loops: 'autoIntervalLoops', slots: 'autoIntervalSlots', sections: 'autoIntervalSections' };
         el.innerHTML = `<div class="hint" style="margin-bottom:8px">${esc(tr('autoHint'))}</div>
           <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
-            ${num('autoDuration', tr('autoDuration'), Math.round(def.duration), d.fixedDuration ? ' disabled' : '')}
-            ${d.layers > 1 ? num('autoInterval', tr('autoInterval'), Math.round(def.intervalSec)) : ''}
-            ${!d.quantized && !d.fixedDuration ? num('autoFade', tr('autoFade'), def.fadeSec, ' min="0"') : ''}
+            ${num('autoDuration', tr('autoDuration'), shown(def.duration), d.fixedDuration ? ' disabled' : '')}
+            ${d.intervalKind && (d.intervalKind !== 'layers' || d.layers > 1) ? num('autoInterval', tr(intervalLabels[d.intervalKind]), shown(def.intervalSec)) : ''}
+            ${d.fade && !d.fixedDuration ? num('autoFade', tr('autoFade'), def.fadeSec, ' min="0"') : ''}
             ${sfxList.length ? `<label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" data-role="autoStinger"${def.stinger ? ' checked' : ''}> ${esc(tr('autoStinger'))}
               <select data-role="autoSfx">${sfxList.map(s => `<option value="${esc(s.id)}"${s.id === def.sfxId ? ' selected' : ''}>${esc(sfxTitle(s))}</option>`).join('')}</select></label>` : `<span class="hint">${esc(tr('autoNoSfx'))}</span>`}
           </div>
