@@ -17,11 +17,12 @@ const I18N = sandbox.window.LAYERPITCH_I18N;
 const stepsSrc = tour.match(/const TOUR_STEPS = \[([\s\S]*?)\n\];/)[1];
 const selectors = [...stepsSrc.matchAll(/selector: '([^']+)'/g)].map(m => m[1]);
 const keys = [...stepsSrc.matchAll(/(?:titleKey|textKey): '([^']+)'/g)].map(m => m[1]);
-check('au moins 5 étapes ciblées', selectors.length >= 5);
+check('au moins 12 étapes ciblées', selectors.length >= 12);
 selectors.forEach(sel => {
   const id = sel.match(/^#(\w+)$/);
   const tab = sel.match(/data-tab="(\w+)"/);
-  check('zone ciblée présente dans la page : ' + sel, id ? page.includes('id="' + id[1] + '"') : page.includes('data-tab="' + tab[1] + '"'));
+  const cls = sel.match(/^\.([\w-]+)$/);
+  check('zone ciblée présente dans la page : ' + sel, id ? page.includes('id="' + id[1] + '"') : cls ? page.includes(cls[1]) : page.includes('data-tab="' + tab[1] + '"'));
 });
 ['fr', 'en'].forEach(lang => {
   const dict = I18N[lang].backstage;
