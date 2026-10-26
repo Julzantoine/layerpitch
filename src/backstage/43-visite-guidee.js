@@ -751,8 +751,9 @@ const LESSONS = [
     { selector: '.nav-item[data-tab="manageAdreels"]', titleKey: 'liManageTabTitle', textKey: 'liManageTabText', done: () => !!document.querySelector('.backstage-panel[data-panel="manageAdreels"].active') },
     { selector: '#manageAdreelsMaster', titleKey: 'liManageListTitle', textKey: 'liManageListText' },
     { selector: '#manageAdreelsDetail', titleKey: 'liManageActionsTitle', textKey: 'liManageActionsText' },
-    { selector: '#navLinkAccount', titleKey: 'liAccountTitle', textKey: 'liAccountText' },
-    { titleKey: 'liDirectoryTitle', textKey: 'liDirectoryText', final: true },
+    // Le fond de la bulle est l'annuaire public (iframe) ; la dernière étape, « Mon compte », ouvre le compte fictif de Daniel (même onglet) où une courte bulle montre la case à cocher puis renvoie vers la leçon suivante.
+    { titleKey: 'liDirectoryTitle', textKey: 'liDirectoryText', enter: () => showDirectoryBackdrop(), onBack: () => hideDirectoryBackdrop() },
+    { selector: '#navLinkAccount', titleKey: 'liAccountTitle', textKey: 'liAccountText', final: true, enter: () => hideDirectoryBackdrop() },
   ] },
   // Leçon « Créer un AdReel » (20/10) : se joue dans le Backstage du mode tutoriel, bibliothèque d'exemple préchargée (api/demo-client.js,
   // ?tuto&lesson=adreel : rechargement obligatoire d'où `reload`). Fil rouge (22/10) : au retour de la WorldGameCon, le compositeur envoie à Joshua, créateur du jeu « Music City », un AdReel custom (quatre villes, un fil rouge musical).
@@ -1013,7 +1014,7 @@ const GUIDE = window.LayerPitchGuide.create({
   startLesson: id => startLesson(id),
   onLessonDone: lessonMarkDone,
   onTourDone: tourMarkDone,
-  onClose: () => renderTutorialMenu(),
+  onClose: () => { hideDirectoryBackdrop(); renderTutorialMenu(); },
   onOpen: () => { const helpTip = document.getElementById('helpTooltip'); if (helpTip) helpTip.classList.remove('visible'); },
   // Vignettes d'exemple : lot à télécharger, bouton « Utiliser » (étapes useSample dont les URL sont connues), et « bientôt
   // disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
@@ -1067,9 +1068,23 @@ function startBackstageTour() {
   openGuide('tour', TOUR_STEPS.filter(s => !s.selector || tourTargetVisible(document.querySelector(s.selector))));
 }
 // Leçons du thème « pitch » : elles partent toujours de l'onglet Contenu, sur le Main AdReel (on peut avoir laissé le tutoriel sur un autre onglet ou un autre AdReel).
+// Fond « annuaire » d'une étape de leçon : la vraie page publique de l'annuaire, derrière la bulle (retirée à la sortie de l'étape et à la fermeture).
+let directoryBackdrop = null;
+function hideDirectoryBackdrop() { if (directoryBackdrop) { directoryBackdrop.remove(); directoryBackdrop = null; } }
+function showDirectoryBackdrop() {
+  hideDirectoryBackdrop();
+  const f = document.createElement('iframe');
+  f.src = 'annuaire.html?lang=' + currentLang();
+  f.title = 'annuaire';
+  f.setAttribute('aria-hidden', 'true');
+  f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:8500;background:#fff';
+  document.body.appendChild(f);
+  directoryBackdrop = f;
+}
 function resetLessonView(lesson) {
   if (!lesson || lesson.theme !== 'pitch' || !isTutoMode()) return;
   try {
+    const pub = document.getElementById('btnPublish'); if (pub) pub.disabled = false; // rien n'est réel en tutoriel : « Sauvegarder / publier » reste cliquable
     if (typeof switchTab === 'function') switchTab('content');
     const start = lesson.startAdReel || 'main';
     if (typeof switchAdReel === 'function' && typeof adReels !== 'undefined' && currentAdReelId !== start && adReels.some(a => a.id === start)) switchAdReel(start);
