@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793047853553">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793048017912">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1928,17 +1928,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793047853553"></script>
-<script src="layerpitch-i18n.js?v=1793047853553"></script>
-<script src="layerpitch-appearance.js?v=1793047853553"></script>
-<script src="layerpitch-album-shared.js?v=1793047853553"></script>
-<script src="layerpitch-album-editor.js?v=1793047853553"></script>
-<script src="layerpitch-shell.js?v=1793047853553"></script>
-<script src="layerpitch-social-icons.js?v=1793047853553"></script>
-<script src="layerpitch-notify.js?v=1793047853553"></script>
-<script src="layerpitch-guide.js?v=1793047853553"></script>
-<script src="layerpitch-help.js?v=1793047853553"></script>
-<script src="player.js?v=1793047853553"></script>
+<script src="layerpitch-tuto.js?v=1793048017912"></script>
+<script src="layerpitch-i18n.js?v=1793048017912"></script>
+<script src="layerpitch-appearance.js?v=1793048017912"></script>
+<script src="layerpitch-album-shared.js?v=1793048017912"></script>
+<script src="layerpitch-album-editor.js?v=1793048017912"></script>
+<script src="layerpitch-shell.js?v=1793048017912"></script>
+<script src="layerpitch-social-icons.js?v=1793048017912"></script>
+<script src="layerpitch-notify.js?v=1793048017912"></script>
+<script src="layerpitch-guide.js?v=1793048017912"></script>
+<script src="layerpitch-help.js?v=1793048017912"></script>
+<script src="player.js?v=1793048017912"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -16451,6 +16451,11 @@ const LESSONS = [
       drops: [{ kind: 'file', label: UPLOAD_KIT.album.name, url: UPLOAD_KIT.url(UPLOAD_KIT.album.name), name: UPLOAD_KIT.album.name }] },
     { titleKey: 'luEndTitle', textKey: 'luEndText', final: true },
   ] },
+  // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
+  // Projet fictif ; `page` renvoie vers cette page au clic.
+  { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc', steps: preprodEntrySteps('pj-create', 'plCreateIntroText') },
+  { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc', steps: preprodEntrySteps('pj-chat', 'plEntryIntroText') },
+  { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc', steps: preprodEntrySteps('pj-moodboard', 'plEntryIntroText') },
   // Leçon « Versioning vidéo » (21/10, refaite le même jour : elle se joue dans le Backstage, pas sur la page du pack). Parcours choisi par
   // Jules-Antoine : onglet Vidéo → Atelier ; DANS l'atelier (cadre, atelier-lecons.js) : choisir le pack, la vidéo muette d'« Alone in the
   // Barque », capturer la musique 1, enregistrer le montage, version musique 2, écoute en direct ; puis, ici, le bloc vidéo d'un AdReel :
@@ -16478,11 +16483,6 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="video"] [data-role="versionNew"]', titleKey: 'lvBlockNewTitle', textKey: 'lvBlockNewText' },
     { titleKey: 'lvEndTitle', textKey: 'lvEndText', final: true },
   ] },
-  // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
-  // Projet fictif ; `page` renvoie vers cette page au clic.
-  { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc', steps: preprodEntrySteps('pj-create', 'plCreateIntroText') },
-  { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc', steps: preprodEntrySteps('pj-chat', 'plEntryIntroText') },
-  { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc', steps: preprodEntrySteps('pj-moodboard', 'plEntryIntroText') },
   { id: 'pj-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMusicTitle', descKey: 'plMusicDesc', steps: preprodEntrySteps('pj-music', 'plEntryIntroText') },
   { id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plAnnTitle', descKey: 'plAnnDesc' }, // projet-lecons.js ; « bientôt » tant que les vidéos d'« Alone » manquent
   { id: 'pj-map-build', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc', steps: preprodEntrySteps('pj-map-build', 'plEntryIntroText') },
