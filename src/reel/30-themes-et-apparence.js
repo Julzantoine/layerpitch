@@ -29,6 +29,7 @@ function applyBlockAppearance(el, block, customFonts) {
   if (ov.titleColor) el.style.setProperty('--text-title', ov.titleColor);
   if (ov.contentColor) el.style.setProperty('--text', ov.contentColor);
   if (ov.sectionLabelColor) el.style.setProperty('--section-label-color', ov.sectionLabelColor);
+  if (ov.playButtonColor) el.style.setProperty('--play-btn-color', ov.playButtonColor);
   if (ov.font) {
     const family = fontCssFamily(ov.font, customFonts);
     if (family) el.style.setProperty('--font-body', family);

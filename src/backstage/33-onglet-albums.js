@@ -557,6 +557,7 @@ document.getElementById('appThemeBgColor').addEventListener('input', e => handle
 document.getElementById('appThemeTitleColor').addEventListener('input', e => handleThemeFieldChange('titleColor', e.target.value));
 document.getElementById('appThemeContentColor').addEventListener('input', e => handleThemeFieldChange('contentColor', e.target.value));
 document.getElementById('appThemeSectionLabelColor').addEventListener('input', e => handleThemeFieldChange('sectionLabelColor', e.target.value));
+document.getElementById('appThemePlayButtonColor').addEventListener('input', e => handleThemeFieldChange('playButtonColor', e.target.value));
 document.getElementById('appThemeFont').addEventListener('change', e => handleThemeFieldChange('font', e.target.value));
 document.getElementById('appThemeBgImageOpacity').addEventListener('input', e => {
   document.getElementById('appThemeBgImageOpacityValue').textContent = Math.round(parseFloat(e.target.value) * 100) + '%';

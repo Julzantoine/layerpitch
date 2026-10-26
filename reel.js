@@ -244,6 +244,7 @@ function applyBlockAppearance(el, block, customFonts) {
   if (ov.titleColor) el.style.setProperty('--text-title', ov.titleColor);
   if (ov.contentColor) el.style.setProperty('--text', ov.contentColor);
   if (ov.sectionLabelColor) el.style.setProperty('--section-label-color', ov.sectionLabelColor);
+  if (ov.playButtonColor) el.style.setProperty('--play-btn-color', ov.playButtonColor);
   if (ov.font) {
     const family = fontCssFamily(ov.font, customFonts);
     if (family) el.style.setProperty('--font-body', family);
@@ -576,6 +577,9 @@ function reelApplyTheme(theme, separator, container, opts) {
   // septembre, absent -> repli sur --accent (comportement inchangé pour tout AdReel publié avant ce
   // changement, jamais republié depuis).
   if (theme.sectionLabelColor) document.documentElement.style.setProperty('--section-label-color', theme.sectionLabelColor);
+  // Boutons de lecture : couleur réglable (ajout 26/10) ; absente -> couleur du texte du contenu, donc
+  // toujours lisible sur fond sombre (avant : gris fixe, invisible sur les thèmes sombres).
+  document.documentElement.style.setProperty('--play-btn-color', theme.playButtonColor || theme.contentColor);
   // Séparateurs entre blocs : imposés par le preset sur Free, réglables indépendamment du reste du
   // thème sur Starter et au-dessus (profile.theme.separator, absent -> désactivé par défaut).
   document.documentElement.style.setProperty('--separator-color', separator.color);

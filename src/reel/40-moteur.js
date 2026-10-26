@@ -24,6 +24,9 @@ function reelApplyTheme(theme, separator, container, opts) {
   // septembre, absent -> repli sur --accent (comportement inchangé pour tout AdReel publié avant ce
   // changement, jamais republié depuis).
   if (theme.sectionLabelColor) document.documentElement.style.setProperty('--section-label-color', theme.sectionLabelColor);
+  // Boutons de lecture : couleur réglable (ajout 26/10) ; absente -> couleur du texte du contenu, donc
+  // toujours lisible sur fond sombre (avant : gris fixe, invisible sur les thèmes sombres).
+  document.documentElement.style.setProperty('--play-btn-color', theme.playButtonColor || theme.contentColor);
   // Séparateurs entre blocs : imposés par le preset sur Free, réglables indépendamment du reste du
   // thème sur Starter et au-dessus (profile.theme.separator, absent -> désactivé par défaut).
   document.documentElement.style.setProperty('--separator-color', separator.color);

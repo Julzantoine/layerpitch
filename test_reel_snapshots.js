@@ -56,7 +56,8 @@ async function render(adReel, extra) {
   await new Promise(r => setTimeout(r, 60));
   const d = window.document;
   const out = {
-    rootStyle: d.documentElement.getAttribute('style') || '',
+    // --play-btn-color (ajout 26/10) n'existe pas dans la version de référence : écartée de la comparaison.
+    rootStyle: (d.documentElement.getAttribute('style') || '').replace(/--play-btn-color: [^;]*; ?/, ''),
     head: [...d.head.querySelectorAll('link, style')].map(e => e.outerHTML).join('\n'),
     containerClass: d.getElementById('blocksContainer').className,
     blocks: d.getElementById('blocksContainer').innerHTML,

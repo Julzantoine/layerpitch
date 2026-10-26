@@ -56,7 +56,7 @@ const KNOWN_TYPES = ['header', 'bio', 'testimonials', 'tracks', 'text', 'photo',
 
 // Thème général d'un AdReel : remplace les anciens champs profile.bgColor/textColor (gardés en lecture
 // seule pour la rétrocompatibilité — jamais réécrits, seul profile.theme est publié désormais).
-const DEFAULT_THEME = { bgColor: '#f5f6f8', titleColor: '#24262b', contentColor: '#24262b', sectionLabelColor: '#2f80c0', font: 'default', bgImage: null, bgImageOpacity: 1 };
+const DEFAULT_THEME = { bgColor: '#f5f6f8', titleColor: '#24262b', contentColor: '#24262b', sectionLabelColor: '#2f80c0', playButtonColor: '#5f636b', font: 'default', bgImage: null, bgImageOpacity: 1 };
 // Liste de polices Google Fonts pré-intégrées — mélange délibéré sans-serif/serif/display pour couvrir
 // différents styles de pitch (neutre/technique vs plus éditorial), sans imposer d'upload personnalisé.
 const GOOGLE_FONTS_PRESET = [
@@ -72,6 +72,7 @@ const APPEARANCE_FIELDS = [
   { key: 'titleColor', label: 'themeTitleColorLabel', type: 'color' },
   { key: 'contentColor', label: 'themeContentColorLabel', type: 'color' },
   { key: 'sectionLabelColor', label: 'themeSectionLabelColorLabel', type: 'color' },
+  { key: 'playButtonColor', label: 'themePlayButtonColorLabel', type: 'color' },
   { key: 'font', label: 'themeFontLabel', type: 'font' },
   { key: 'bgImage', label: 'themeBgImageLabel', type: 'image' },
   { key: 'bgImageOpacity', label: 'themeBgImageOpacityLabel', type: 'opacity' }

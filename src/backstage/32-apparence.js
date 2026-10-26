@@ -5,6 +5,7 @@ function fillAppearanceFields() {
   document.getElementById('appThemeTitleColor').value = profile.theme.titleColor || DEFAULT_THEME.titleColor;
   document.getElementById('appThemeContentColor').value = profile.theme.contentColor || DEFAULT_THEME.contentColor;
   document.getElementById('appThemeSectionLabelColor').value = profile.theme.sectionLabelColor || DEFAULT_THEME.sectionLabelColor;
+  document.getElementById('appThemePlayButtonColor').value = profile.theme.playButtonColor || profile.theme.contentColor || DEFAULT_THEME.playButtonColor;
   document.getElementById('appThemeFont').innerHTML = buildFontSelectOptionsHtml(profile.theme.font || DEFAULT_THEME.font);
   renderCustomFontsList();
   fillWaveformStyleField();
