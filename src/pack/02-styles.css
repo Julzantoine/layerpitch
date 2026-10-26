@@ -52,7 +52,7 @@
   .share-btn:active { transform: scale(0.94); }
   .share-btn svg { width: 18px; height: 18px; }
   .share-btn.copied { color: #2a7; border-color: #2a7; }
-  /* Bouton "Intégrer" public (composer.allowEmbedding) : même style que .share-btn, juste à sa gauche --
+  /* Bouton "Intégrer" public (data.embedAllowed) : même style que .share-btn, juste à sa gauche --
      seulement visible si le compositeur a explicitement autorisé les visiteurs à générer eux-mêmes un
      code d'intégration (réglage global, backstage -- réglage "socials"). */
   .embed-public-btn { right: 68px; }

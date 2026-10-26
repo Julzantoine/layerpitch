@@ -61,7 +61,7 @@
       customFonts: settings.customFonts || [],
       waveformStyle: settings.waveformStyle || 'bars',
       seqMapTheme: settings.seqMapTheme || 'light',
-      allowEmbedding: !!settings.allowEmbedding,
+      embedAllowed: settings.embedAllowed || {},
       sharePreview: settings.sharePreview || {},
       adReels: adReelsRes.adReels,
       adReelFolders: adReelFoldersRes.folders,

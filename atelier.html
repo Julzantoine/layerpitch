@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1793010693306">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793010693306">
+<link rel="stylesheet" href="player.css?v=1793011718800">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793011718800">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -65,7 +65,7 @@
   .share-btn:active { transform: scale(0.94); }
   .share-btn svg { width: 18px; height: 18px; }
   .share-btn.copied { color: #2a7; border-color: #2a7; }
-  /* Bouton "Intégrer" public (composer.allowEmbedding) : même style que .share-btn, juste à sa gauche --
+  /* Bouton "Intégrer" public (data.embedAllowed) : même style que .share-btn, juste à sa gauche --
      seulement visible si le compositeur a explicitement autorisé les visiteurs à générer eux-mêmes un
      code d'intégration (réglage global, backstage -- réglage "socials"). */
   .embed-public-btn { right: 68px; }
@@ -425,16 +425,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793010693306"></script>
-<script src="layerpitch-notify.js?v=1793010693306"></script>
-<script src="public-page.js?v=1793010693306"></script>
-<script src="player.js?v=1793010693306"></script>
-<script src="capture-plan.js?v=1793010693306"></script>
-<script src="capture-render.js?v=1793010693306"></script>
-<script src="capture-retarget.js?v=1793010693306"></script>
-<script src="capture-versioning.js?v=1793010693306"></script>
-<script src="layerpitch-guide.js?v=1793010693306"></script>
-<script src="atelier-lecons.js?v=1793010693306"></script>
+<script src="layerpitch-i18n.js?v=1793011718800"></script>
+<script src="layerpitch-notify.js?v=1793011718800"></script>
+<script src="public-page.js?v=1793011718800"></script>
+<script src="player.js?v=1793011718800"></script>
+<script src="capture-plan.js?v=1793011718800"></script>
+<script src="capture-render.js?v=1793011718800"></script>
+<script src="capture-retarget.js?v=1793011718800"></script>
+<script src="capture-versioning.js?v=1793011718800"></script>
+<script src="layerpitch-guide.js?v=1793011718800"></script>
+<script src="atelier-lecons.js?v=1793011718800"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 

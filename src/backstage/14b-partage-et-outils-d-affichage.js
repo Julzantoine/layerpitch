@@ -192,11 +192,11 @@ let waveformStyle = 'bars';
 // thème (Clair/Sombre) de la carte des chemins, même principe que waveformStyle ci-dessus. Valeurs
 // valides : window.LayerPlayerCore.SEQ_MAP_THEMES ('light' par défaut/repli).
 let seqMapTheme = 'light';
-// Réglage global (pas par pack/collection/AdReel), tous paliers : autorise ou non les VISITEURS des
-// pages publiques (pack.html/collection.html/index.html) à générer eux-mêmes un code d'intégration
-// depuis un bouton public -- ne bloque jamais un lien ?embed=1 déjà généré par le compositeur lui-même
-// ici, dans le backstage, toujours disponible quel que soit ce réglage. Faux par défaut (opt-in).
-let allowEmbedding = false;
+// Réglage PAR PLAYLIST (26/10, remplace l'ancien oui/non global), tous paliers : liste des AdReels, packs et
+// collections que les VISITEURS des pages publiques (index.html/pack.html/collection.html) ont le droit
+// d'intégrer depuis le bouton public « Intégrer » -- ne bloque jamais un lien ?embed=1 déjà généré par le
+// compositeur lui-même ici, dans le backstage, toujours disponible. Absent de la liste = non autorisé (opt-in).
+let embedAllowed = { adreels: [], packs: [], collections: [] };
 // Aperçu des liens partagés (1er/10, rubrique Réseaux sociaux) : titre, description et image de la carte qu'affichent LinkedIn,
 // Facebook, WhatsApp… quand on colle un lien. image = chemin sous images/ (publié) ; le fichier choisi attend la publication.
 // autoFit (vrai par défaut) : à la publication, l'image choisie est ajustée au format 1200 × 630 (voir sharePreviewFit) ;
@@ -258,4 +258,11 @@ const pendingOrphanR2Keys = new Set();
     const c = document.querySelector('.backstage-content');
     if (c) setTimeout(() => c.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   });
+})();
+
+// Mode tutoriel (26/10) : « Mon compte » ouvre le compte FICTIF (mon-compte.html?tuto), jamais le vrai compte de la personne.
+(function setupTutoAccountLinks() {
+  if (!isTutoMode()) return;
+  const lang = (typeof currentLang === 'function') ? currentLang() : 'fr';
+  document.querySelectorAll('a[href="mon-compte.html"]').forEach(a => { a.setAttribute('href', 'mon-compte.html?tuto&lang=' + lang); a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener'); });
 })();

@@ -70,8 +70,8 @@ const input = (w, el, v) => { el.value = v; el.dispatchEvent(new w.Event('input'
   click(rows()[0].querySelector('[data-act="edit"]')); await flush();
   const d = s.doc;
   check('éditeur : titre, prix (8.00) et pochette', d.querySelector('[data-ae-field="title"]').value === 'OST Forêt' && d.querySelector('[data-ae-field="priceInput"]').value === '8.00' && !!d.querySelector('[data-ae-cover]'));
-  check('éditeur : les morceaux du studio (packs) sont proposés, s1 coché', d.querySelectorAll("[data-ae-track]").length === 2 && d.querySelector('[data-ae-track="s1"]').checked && !d.querySelector('[data-ae-track="s2"]').checked);
-  check('éditeur : les morceaux d\'invités sont comptés, pas listés', /1 morceau\(x\) ajouté\(s\) par les compositeurs invités/.test(d.body.textContent) && !d.querySelector('[data-ae-track="c9"]'));
+  check('éditeur : les morceaux du studio (packs) sont proposés, s1 coché', d.querySelectorAll("[data-ae-trk]").length === 1 && !!d.querySelector('[data-ae-trk="s1"]') && !!d.querySelector('[data-ae-addtrack] option[value="s2"]'));
+  check('éditeur : les morceaux d\'invités sont comptés, pas listés', /1 morceau\(x\) ajouté\(s\) par les compositeurs invités/.test(d.body.textContent) && !d.querySelector('[data-ae-trk="c9"]'));
   check('version officielle : s1 ✓ 1:00 avec Écouter et Refaire', /✓ 1:00/.test(d.body.textContent) && !!d.querySelector('[data-ae-play="s1"]') && /Refaire/.test(d.querySelector('[data-ae-record="s1"]').textContent));
   check('invités : deux lignes avec leur statut, retrait possible', /coco@x\.test/.test(d.body.textContent) && /a accepté/.test(d.body.textContent) && /invité/.test(d.body.textContent) && d.querySelectorAll('[data-ae-remove-contrib]').length === 2);
 
@@ -80,7 +80,7 @@ const input = (w, el, v) => { el.value = v; el.dispatchEvent(new w.Event('input'
   click(d.querySelector('[data-ae-save]')); await flush();
   check('mise en vente sans confirmer les droits : refusée côté écran, rien envoyé', /Confirme que tu as les droits/.test(d.body.textContent) && !s.calls.upsert.length);
   d.querySelector('[data-ae-confirm]').checked = true; change(s.w, d.querySelector('[data-ae-confirm]'));
-  const t2 = d.querySelector('[data-ae-track="s2"]'); t2.checked = true; change(s.w, t2);
+  const t2 = d.querySelector('[data-ae-addtrack]'); t2.value = 's2'; change(s.w, t2);
   d.querySelector('[data-ae-buyable]').checked = true; change(s.w, d.querySelector('[data-ae-buyable]'));
   d.querySelector('[data-ae-confirm]').checked = true; change(s.w, d.querySelector('[data-ae-confirm]'));
   click(d.querySelector('[data-ae-save]')); await flush();

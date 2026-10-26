@@ -47,7 +47,7 @@ const e2 = E.create({ host: w.document.getElementById('b'), album: a2, cfg: cfg(
 e1.render(); e2.render();
 check('titre et morceau malveillants : échappés, aucune balise injectée', !w.document.querySelector('img') && !w.document.querySelector('#a script'));
 check('deux éditeurs indépendants : chacun son titre', w.document.querySelector('#a [data-ae-field="title"]').value === '"><script>1</script>' && w.document.querySelector('#b [data-ae-field="title"]').value === 'Deux');
-check('un morceau absent de la liste reste visible (décochable) plutôt que perdu', !!w.document.querySelector('#a [data-ae-track="gone"]'));
+check('un morceau absent de la liste reste visible (retirable) plutôt que perdu', !!w.document.querySelector('#a [data-ae-trk="gone"]'));
 e1.destroy(); e2.destroy();
 check('détruire un éditeur vide son hôte', w.document.getElementById('a').innerHTML === '' && w.document.getElementById('b').innerHTML === '');
 

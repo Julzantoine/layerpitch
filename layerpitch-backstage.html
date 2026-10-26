@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793010693306">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793011718800">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1233,6 +1233,10 @@
       <a class="nav-item" id="navLinkCatalog" href="shop.html" hidden>
         <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg><span data-i18n="navCatalog">Catalogue audio</span></span>
       </a>
+      <!-- Annuaire des compositeurs (26/10) : lien dans la barre, sous le catalogue ; feu vert « composer_directory ». -->
+      <a class="nav-item" id="navLinkDirectory" href="annuaire.html" hidden>
+        <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6.3a3 3 0 0 1 0 5.4"/><path d="M17.5 14a5.5 5.5 0 0 1 3 5"/></svg><span data-i18n="navDirectory">Annuaire des compositeurs</span></span>
+      </a>
       </div>
 
       <!-- Navigation commune (28/09) : mêmes rubriques que la barre latérale des autres pages (layerpitch-shell.js),
@@ -1417,11 +1421,12 @@
         <h2 data-i18n="navSocials">Réseaux sociaux</h2>
         <div class="sub" data-i18n="socialsPanelSub">Ajoute un réseau pour faire apparaître un bouton "Publier" pré-rempli sur tes packs et collections (onglet Contenu de chacun) — X, Facebook, LinkedIn, WhatsApp et Telegram ouvrent leur fenêtre de publication avec le texte et le lien déjà prêts, il ne reste qu'à valider chez eux. Instagram, TikTok, YouTube et SoundCloud n'offrent aucun mécanisme de ce genre — gardés ici uniquement comme aide-mémoire de tes liens.</div>
 
-        <div style="margin-bottom:18px" data-help="allowEmbedding">
-          <label style="display:flex;align-items:flex-start;gap:8px;margin:0;">
-            <input type="checkbox" id="allowEmbeddingCheckbox" style="width:auto;margin:2px 0 0 0;">
-            <span style="font-size:11px;color:var(--text-dimmer);line-height:1.5;" data-i18n="allowEmbeddingLabel">Autoriser les visiteurs à intégrer eux-mêmes tes packs, collections et listes de morceaux d'AdReel sur leur propre site (bouton "Intégrer" affiché sur les pages publiques). Décoché par défaut — toi seul peux alors générer un code d'intégration, depuis chaque onglet Distribution ou le sélecteur d'AdReel.</span>
-          </label>
+        <div class="list-block" style="margin-bottom:18px" id="embedAllowedBox">
+          <div class="list-block-body">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px" data-i18n="embedAllowedTitle">Intégration par les visiteurs</div>
+            <div style="font-size:11px;color:var(--text-dimmer);line-height:1.5;margin-bottom:10px;" data-i18n="embedAllowedHelp">Choisis les playlists que les visiteurs peuvent intégrer sur leur propre site (bouton « Intégrer » des pages publiques). Ton propre code d'intégration reste toujours disponible. Par défaut, rien n'est autorisé.</div>
+            <div id="embedAllowedList"></div>
+          </div>
         </div>
 
         <div class="list-block" style="margin-bottom:18px" id="sharePreviewCard">
@@ -1912,17 +1917,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793010693306"></script>
-<script src="layerpitch-i18n.js?v=1793010693306"></script>
-<script src="layerpitch-appearance.js?v=1793010693306"></script>
-<script src="layerpitch-album-shared.js?v=1793010693306"></script>
-<script src="layerpitch-album-editor.js?v=1793010693306"></script>
-<script src="layerpitch-shell.js?v=1793010693306"></script>
-<script src="layerpitch-social-icons.js?v=1793010693306"></script>
-<script src="layerpitch-notify.js?v=1793010693306"></script>
-<script src="layerpitch-guide.js?v=1793010693306"></script>
-<script src="layerpitch-help.js?v=1793010693306"></script>
-<script src="player.js?v=1793010693306"></script>
+<script src="layerpitch-tuto.js?v=1793011718800"></script>
+<script src="layerpitch-i18n.js?v=1793011718800"></script>
+<script src="layerpitch-appearance.js?v=1793011718800"></script>
+<script src="layerpitch-album-shared.js?v=1793011718800"></script>
+<script src="layerpitch-album-editor.js?v=1793011718800"></script>
+<script src="layerpitch-shell.js?v=1793011718800"></script>
+<script src="layerpitch-social-icons.js?v=1793011718800"></script>
+<script src="layerpitch-notify.js?v=1793011718800"></script>
+<script src="layerpitch-guide.js?v=1793011718800"></script>
+<script src="layerpitch-help.js?v=1793011718800"></script>
+<script src="player.js?v=1793011718800"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2369,6 +2374,8 @@ async function renderAdminOnlyPanels(session) {
   // Shop public (29/09) : lien dans la rubrique Compte, feu vert « shop » (admin seulement pendant la bêta).
   const navShop = document.getElementById('navLinkCatalog');
   if (navShop) navShop.hidden = !flagOpen('shop');
+  const navDirectory = document.getElementById('navLinkDirectory');
+  if (navDirectory) navDirectory.hidden = !flagOpen('composer_directory');
   if (window.LayerPitchAuth && window.LayerPitchAuth.getMyStudioId) {
     window.LayerPitchAuth.getMyStudioId().then(({ studioId }) => {
       const show = !!studioId && flagOpen('studio_space');
@@ -2709,6 +2716,7 @@ const BACKSTAGE_TAB_STORAGE = 'lp_backstage_tab';
 function switchTab(tabName) {
   document.querySelectorAll('.backstage-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === tabName));
   document.querySelectorAll('.nav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
+  if (tabName === 'socials' && typeof renderEmbedAllowedList === 'function') renderEmbedAllowedList(); // noms et liste à jour
   try { sessionStorage.setItem(BACKSTAGE_TAB_STORAGE, tabName); } catch (e) { /* stockage indisponible */ }
 }
 // Ouvre un onglet et lance son chargement à la demande (appel RPC get_my_analytics() etc. -- jamais au chargement du
@@ -3161,11 +3169,11 @@ let waveformStyle = 'bars';
 // thème (Clair/Sombre) de la carte des chemins, même principe que waveformStyle ci-dessus. Valeurs
 // valides : window.LayerPlayerCore.SEQ_MAP_THEMES ('light' par défaut/repli).
 let seqMapTheme = 'light';
-// Réglage global (pas par pack/collection/AdReel), tous paliers : autorise ou non les VISITEURS des
-// pages publiques (pack.html/collection.html/index.html) à générer eux-mêmes un code d'intégration
-// depuis un bouton public -- ne bloque jamais un lien ?embed=1 déjà généré par le compositeur lui-même
-// ici, dans le backstage, toujours disponible quel que soit ce réglage. Faux par défaut (opt-in).
-let allowEmbedding = false;
+// Réglage PAR PLAYLIST (26/10, remplace l'ancien oui/non global), tous paliers : liste des AdReels, packs et
+// collections que les VISITEURS des pages publiques (index.html/pack.html/collection.html) ont le droit
+// d'intégrer depuis le bouton public « Intégrer » -- ne bloque jamais un lien ?embed=1 déjà généré par le
+// compositeur lui-même ici, dans le backstage, toujours disponible. Absent de la liste = non autorisé (opt-in).
+let embedAllowed = { adreels: [], packs: [], collections: [] };
 // Aperçu des liens partagés (1er/10, rubrique Réseaux sociaux) : titre, description et image de la carte qu'affichent LinkedIn,
 // Facebook, WhatsApp… quand on colle un lien. image = chemin sous images/ (publié) ; le fichier choisi attend la publication.
 // autoFit (vrai par défaut) : à la publication, l'image choisie est ajustée au format 1200 × 630 (voir sharePreviewFit) ;
@@ -3227,6 +3235,13 @@ const pendingOrphanR2Keys = new Set();
     const c = document.querySelector('.backstage-content');
     if (c) setTimeout(() => c.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   });
+})();
+
+// Mode tutoriel (26/10) : « Mon compte » ouvre le compte FICTIF (mon-compte.html?tuto), jamais le vrai compte de la personne.
+(function setupTutoAccountLinks() {
+  if (!isTutoMode()) return;
+  const lang = (typeof currentLang === 'function') ? currentLang() : 'fr';
+  document.querySelectorAll('a[href="mon-compte.html"]').forEach(a => { a.setAttribute('href', 'mon-compte.html?tuto&lang=' + lang); a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener'); });
 })();
 function queueR2Delete(key) { pendingOrphanR2Keys.add(key); }
 function queueTrackFileDelete(track, obj) { if (obj && obj.remoteFile) queueR2Delete(`audio/${track.id}/${obj.remoteFile}`); }
@@ -13308,14 +13323,47 @@ document.getElementById('noAiCertifiedGlobal').addEventListener('change', e => {
 });
 fillNoAiCertifiedGlobalField();
 
-function fillAllowEmbeddingField() {
-  document.getElementById('allowEmbeddingCheckbox').checked = !!allowEmbedding;
+// Menu « Intégration par les visiteurs » (26/10) : une case par AdReel, pack et collection (embedAllowed = listes d'identifiants).
+function normalizeEmbedAllowed(v) {
+  const o = v || {};
+  const arr = k => Array.isArray(o[k]) ? o[k].filter(x => typeof x === 'string') : [];
+  return { adreels: arr('adreels'), packs: arr('packs'), collections: arr('collections') };
 }
-document.getElementById('allowEmbeddingCheckbox').addEventListener('change', e => {
-  allowEmbedding = e.target.checked;
+// Valeur publiée : uniquement les éléments qui existent encore (un élément supprimé n'y reste pas).
+function cleanEmbedAllowed() {
+  const keep = (kind, items) => items.map(x => x.id).filter(id => embedAllowed[kind].includes(id));
+  return { adreels: keep('adreels', adReels), packs: keep('packs', packs), collections: keep('collections', collections) };
+}
+function renderEmbedAllowedList() {
+  const box = document.getElementById('embedAllowedList');
+  if (!box) return;
+  const kinds = [
+    ['adreels', 'embedAllowedAdreels', adReels, a => a.label || a.id],
+    ['packs', 'embedAllowedPacks', packs, p => p.title || p.id],
+    ['collections', 'embedAllowedCollections', collections, c => c.title || c.id],
+  ];
+  box.innerHTML = kinds.map(([kind, titleKey, items, nameOf]) => {
+    const n = items.filter(x => embedAllowed[kind].includes(x.id)).length;
+    const rows = items.length ? items.map(x => `<label style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12px;">
+        <input type="checkbox" style="width:auto;margin:0" data-embed-kind="${kind}" data-embed-id="${escapeAttr(x.id)}"${embedAllowed[kind].includes(x.id) ? ' checked' : ''}>
+        <span>${escapeHtml(nameOf(x))}</span></label>`).join('')
+      : `<div style="font-size:11px;color:var(--text-dimmer)">${tr('embedAllowedNone')}</div>`;
+    return `<details style="margin-bottom:6px"><summary style="cursor:pointer;font-size:12px;font-weight:600;">${tr(titleKey)} (${n}/${items.length})</summary><div style="padding:6px 0 0 14px">${rows}</div></details>`;
+  }).join('');
+}
+document.getElementById('embedAllowedList').addEventListener('change', e => {
+  const cb = e.target.closest('[data-embed-kind]');
+  if (!cb) return;
+  const list = embedAllowed[cb.dataset.embedKind];
+  const i = list.indexOf(cb.dataset.embedId);
+  if (cb.checked && i < 0) list.push(cb.dataset.embedId);
+  if (!cb.checked && i >= 0) list.splice(i, 1);
   hasUnsavedEdits = true;
+  const d = cb.closest('details');
+  const kind = cb.dataset.embedKind, items = { adreels: adReels, packs, collections }[kind];
+  d.querySelector('summary').textContent = d.querySelector('summary').textContent.replace(/\(\d+\//, `(${items.filter(x => embedAllowed[kind].includes(x.id)).length}/`);
 });
-fillAllowEmbeddingField();
+renderEmbedAllowedList();
 
 /* ---------------- Aperçu des liens partagés (1er/10, rubrique Réseaux sociaux) ----------------
  * Titre, description et image de la carte qu'affichent LinkedIn, Facebook, WhatsApp, Discord… quand on colle un lien de l'AdReel
@@ -13490,7 +13538,7 @@ async function loadData(silent) {
       noAiCertifiedGlobal = false;
       waveformStyle = 'bars';
       seqMapTheme = 'light';
-      allowEmbedding = false;
+      embedAllowed = { adreels: [], packs: [], collections: [] };
       sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW); sharePreviewPendingFile = null;
       adReels = [{ id: 'main', label: tr('defaultAdreelLabel'), lang: currentLang(), blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, allowIndexing: true, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null }];
       currentAdReelId = 'main';
@@ -13499,7 +13547,7 @@ async function loadData(silent) {
       logoPendingFile = null; photoPendingFile = null;
       collapsedPackIds.clear(); collapsedBlockIds.clear(); collapsedCollectionIds.clear();
       cur.blocks.forEach(b => collapsedBlockIds.add(b.id));
-      renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); fillSharePreviewFields(); rebuildAllCards();
+      renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); renderEmbedAllowedList(); fillSharePreviewFields(); rebuildAllCards();
       pendingR2Deletes.clear(); pendingOrphanR2Keys.clear();
       rememberPublishedCatalog();
       dataLoadOk = true; // absence légitime de data.json (premier lancement) -- pas un échec, publier est sûr
@@ -13699,7 +13747,7 @@ async function loadData(silent) {
     noAiCertifiedGlobal = !!data.noAiCertifiedGlobal;
     waveformStyle = window.LayerPlayerCore.WAVEFORM_STYLES.includes(data.waveformStyle) ? data.waveformStyle : 'bars';
     seqMapTheme = window.LayerPlayerCore.SEQ_MAP_THEMES.includes(data.seqMapTheme) ? data.seqMapTheme : 'light';
-    allowEmbedding = !!data.allowEmbedding;
+    embedAllowed = normalizeEmbedAllowed(data.embedAllowed);
     sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW, data.sharePreview || {}); sharePreviewPendingFile = null;
     collections = (data.collections || []).map(c => ({
       id: c.id, title: c.title || '', illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, pendingIllustration: null,
@@ -13867,7 +13915,7 @@ function draftState() {
   saveWorkingPendingIntoCurrent(); // fichiers en cours de l'AdReel affiché -> dans son AdReel
   return {
     library, libraryFolders, sfxLibrary, sfxFolders, socials, packs, collections, customFonts, adReels, adReelFolders,
-    currentAdReelId, implementationSkills, noAiCertifiedGlobal, waveformStyle, seqMapTheme, allowEmbedding, sharePreview, sharePreviewPendingFile,
+    currentAdReelId, implementationSkills, noAiCertifiedGlobal, waveformStyle, seqMapTheme, embedAllowed, sharePreview, sharePreviewPendingFile,
     pendingR2Deletes, pendingOrphanR2Keys,
   };
 }
@@ -13941,7 +13989,7 @@ function applyDraftState(d) {
   socials = d.socials || []; packs = d.packs || []; collections = d.collections || []; customFonts = d.customFonts || [];
   adReels = (d.adReels && d.adReels.length) ? d.adReels : adReels; adReelFolders = d.adReelFolders || [];
   implementationSkills = d.implementationSkills || implementationSkills; noAiCertifiedGlobal = !!d.noAiCertifiedGlobal;
-  waveformStyle = d.waveformStyle || waveformStyle; seqMapTheme = d.seqMapTheme || seqMapTheme; allowEmbedding = !!d.allowEmbedding;
+  waveformStyle = d.waveformStyle || waveformStyle; seqMapTheme = d.seqMapTheme || seqMapTheme; if (d.embedAllowed) embedAllowed = normalizeEmbedAllowed(d.embedAllowed);
   sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW, d.sharePreview || {}); sharePreviewPendingFile = d.sharePreviewPendingFile || null;
   pendingR2Deletes.clear(); (d.pendingR2Deletes || new Map()).forEach((v, k) => pendingR2Deletes.set(k, v));
   pendingOrphanR2Keys.clear(); (d.pendingOrphanR2Keys || new Set()).forEach(k => pendingOrphanR2Keys.add(k));
@@ -13953,7 +14001,7 @@ function applyDraftState(d) {
   collapsedCollectionIds.clear(); collections.forEach(c => collapsedCollectionIds.add(c.id));
   collapsedBlockIds.clear(); adReels.forEach(a => a.blocks.forEach(b => collapsedBlockIds.add(b.id)));
   renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels();
-  fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); fillSharePreviewFields(); rebuildAllCards();
+  fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); renderEmbedAllowedList(); fillSharePreviewFields(); rebuildAllCards();
   hasUnsavedEdits = true; // rien de tout ça n'est publié : le garde-fou « quitter la page ? » reste actif
 }
 if (typeof indexedDB !== 'undefined') {
@@ -14820,7 +14868,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
     noAiCertifiedGlobal: !!noAiCertifiedGlobal,
     waveformStyle: window.LayerPlayerCore.WAVEFORM_STYLES.includes(waveformStyle) ? waveformStyle : 'bars',
     seqMapTheme: window.LayerPlayerCore.SEQ_MAP_THEMES.includes(seqMapTheme) ? seqMapTheme : 'light',
-    allowEmbedding: !!allowEmbedding,
+    embedAllowed: cleanEmbedAllowed(),
     sharePreview: { title: (sharePreview.title || '').trim(), description: (sharePreview.description || '').trim(), image: sharePreview.image || null, imageOriginalName: sharePreview.imageOriginalName || null, autoFit: sharePreview.autoFit !== false, fitMode: sharePreview.fitMode === 'contain' ? 'contain' : 'fill', fitColor: /^#[0-9a-f]{6}$/i.test(sharePreview.fitColor || '') ? sharePreview.fitColor : '#ffffff' },
     collections: collections.map(c => ({ id: c.id, title: c.title, illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, presentationFr: c.presentationFr || '', presentationEn: c.presentationEn || '', bgColor: c.bgColor || '#f6f5f3', textColor: c.textColor || '#262521', font: c.font || 'default', presetId: c.presetId || null, separator: c.separator || null, effectivePlan, buyable: !!c.buyable, buyUrl: c.buyUrl || '', freeDownloadEnabled: !!c.freeDownloadEnabled, packIds: c.packIds || [] })),
     customFonts: customFonts.filter(f => f.remoteFile).map(f => ({ id: f.id, name: f.name || '', file: f.remoteFile, originalFileName: f.originalFileName || null })),
@@ -15296,7 +15344,7 @@ async function publishAll() {
       publishedAt: data.publishedAt, implementationSkills: data.implementationSkills,
       noAiCertifiedGlobal: data.noAiCertifiedGlobal, customFonts: data.customFonts,
       waveformStyle: data.waveformStyle, seqMapTheme: data.seqMapTheme,
-      allowEmbedding: data.allowEmbedding, sharePreview: data.sharePreview,
+      embedAllowed: data.embedAllowed, sharePreview: data.sharePreview,
     });
     if (!settingsRes.ok) {
       throw new Error('Écriture Postgres échouée pour les réglages — publication arrêtée :\n' + settingsRes.error);
@@ -15634,9 +15682,19 @@ function onAtelierLessonDone() { atelierLessonFinished = true; }
 // Première vidéo du premier bloc vidéo de l'AdReel en cours (celle que la leçon fait remplir).
 function lessonAdreelVideo() { const b = blocks.find(x => x.type === 'video'); return b && b.videos && b.videos[0] || null; }
 // Fichiers d'exemple de la leçon d'envoi de fichiers (25/10) : À DÉPOSER par Jules-Antoine dans media.layerpitch.com/tuto/ (images légères, JPG ~300 Ko ; la vidéo est la même que celle de la leçon Versioning).
+// Texte de présentation du pack « 8 bits Comptines » de Jules-Antoine (leçon pack) : version dans la langue du Backstage.
+const PACK_8BIT_TEXT = (typeof currentLang === 'function' && currentLang() === 'en')
+  ? 'I’m the same age as Nintendo’s FamiCom… I’ve played on the NES, Master System, Mega Drive, Game Boy, Super Nintendo, Game Gear, GameCube, PlayStation, Xbox… So when I became a dad, just as fakebit was taking the world by storm, I almost had to revisit some nursery rhymes with a chiptune twist!'
+  : 'J’ai le même âge que la FamiCon de Nintendo… J’ai joué à la Nes, à la mastersystem, à la mega drive, à la gameboy, la supernes, la game gear, la gamecube, la PlayStation, la Xbox… Alors quand je suis devenu papa, alors que le fakebit explosait à la face du monde, j’étais presque obligé de revisiter quelques comptines à la sauce chiptune !';
+// Texte de présentation de l'album de la leçon « Vendre une OST interactive » (dans la langue du Backstage).
+const ALBUM_TEXT = (typeof currentLang === 'function' && currentLang() === 'en')
+  ? 'Discover the Music City OST, winner at the OST Awards! Listen to every track as if you were in the heart of the game, make your versions evolve, pick your settings, or hear a new random version each time!'
+  : 'Retrouvez l’OST de Music City, primée aux OST Awards ! Écoutez tous les morceaux comme si vous étiez au cœur du jeu, faites évoluer vos versions, choisissez vos réglages ou écoutez une nouvelle version aléatoire à chaque fois !';
+// Pochette d'exemple de l'album (image du dépôt, servie avec le site : pas besoin du stockage des médias).
+const ALBUM_COVER = { name: 'music-city-cover.jpg', url: './images/tuto-music-city-cover.jpg' };
 const UPLOAD_KIT = {
   url: name => 'https://media.layerpitch.com/tuto/' + encodeURIComponent(name),
-  photo: { name: 'alone-ponton.jpg' }, thumb: { name: 'alone-brume.jpg' }, cover: { name: 'alone-rameur.jpg' }, album: { name: 'alone-cabane.jpg' },
+  photo: { name: 'alone-ponton.jpg' }, thumb: { name: 'alone-brume.jpg' }, cover: { name: 'alone-rameur.jpg' }, album: ALBUM_COVER,
   video: { name: 'alone-gameplay-muette.mp4' },
 };
 const LESSON_THEMES = [
@@ -16069,9 +16127,13 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'liOrderTitle', textKey: 'liOrderText',
       enter: ctx => { ctx.blocksOrder0 = blocks.map(b => b.id).join(); }, done: ctx => !!ctx.blocksOrder0 && blocks.map(b => b.id).join() !== ctx.blocksOrder0 },
     { selector: '.nav-item[data-tab="appearance"]', titleKey: 'liAppearanceTitle', textKey: 'liAppearanceText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
+    { selector: () => document.getElementById('themeProQuickStartGallery') || document.getElementById('appThemeFreeGallery'), titleKey: 'liThemeTitle', textKey: 'liThemeText' },
     { selector: '.nav-item[data-tab="content"]', titleKey: 'liBackTitle', textKey: 'liBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
     { selector: '#btnPublish', titleKey: 'liLinkTitle', textKey: 'liLinkText' },
     { selector: '#btnPreview', titleKey: 'liPreviewTitle', textKey: 'liPreviewText', clickDone: true },
+    { selector: '.nav-item[data-tab="manageAdreels"]', titleKey: 'liManageTabTitle', textKey: 'liManageTabText', done: () => !!document.querySelector('.backstage-panel[data-panel="manageAdreels"].active') },
+    { selector: '#manageAdreelsMaster', titleKey: 'liManageListTitle', textKey: 'liManageListText' },
+    { selector: '#manageAdreelsDetail', titleKey: 'liManageActionsTitle', textKey: 'liManageActionsText' },
     { selector: '#navLinkAccount', titleKey: 'liAccountTitle', textKey: 'liAccountText' },
     { titleKey: 'liDirectoryTitle', textKey: 'liDirectoryText', final: true },
   ] },
@@ -16098,7 +16160,10 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack1Title', textKey: 'laTrack1Text', done: () => trackIds.length >= 1 },
     { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack2Title', textKey: 'laTrack2Text', done: () => trackIds.length >= 2 },
     // Mise en page : explication, sans geste obligatoire (le glisser-déposer des blocs marche à la souris, pas toujours au doigt).
-    { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'laReorderTitle', textKey: 'laReorderText' },
+    // Réordonner est plus simple blocs repliés ; l'étape attend que l'ordre ait vraiment changé avant d'afficher « Suivant ».
+    { selector: '#btnToggleCollapseAllBlocks', titleKey: 'liCollapseTitle', textKey: 'liCollapseText', done: () => allBlocksCollapsed() },
+    { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'laReorderTitle', textKey: 'laReorderText',
+      enter: ctx => { ctx.blocksOrder0 = blocks.map(b => b.id).join(); }, done: ctx => !!ctx.blocksOrder0 && blocks.map(b => b.id).join() !== ctx.blocksOrder0 },
     // Bloc vidéo : la vidéo de gameplay de la leçon « Versioning » (lien à fournir : LESSON_ADREEL_VIDEO ; l'étape du lien est sautée tant qu'il manque).
     // Aperçu de l'AdReel rempli : nouvelle fenêtre, aperçu local (rien n'est publié).
     { selector: '#btnPublish', titleKey: 'laSendTitle', textKey: 'laSendText', clickDone: true },
@@ -16129,12 +16194,12 @@ const LESSONS = [
     { selector: '#packsContainer [data-role="trackSelector"] select[data-sel-action="add"]', titleKey: 'lpTrack2Title', textKey: 'lpTrack2Text', done: () => packs.length > 0 && packs[0].trackIds.length >= 2 },
     { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="presentation"]', titleKey: 'lpPresTitle', textKey: 'lpPresText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'presentation' },
     { selector: '#packsContainer input[data-pack-field="title"][data-pi="0"]:not(.seq-header-title)', titleKey: 'lpNameTitle', textKey: 'lpNameText', done: () => packs.length > 0 && (packs[0].title || '').trim().length > 2 && packs[0].title !== tr('defaultPackTitle'),
-      drops: [{ kind: 'text', label: 'Music City : les quatre villes', value: 'Music City : les quatre villes' }] },
+      drops: [{ kind: 'text', label: '8 bits Comptines', value: '8 bits Comptines' }] },
     { selector: '#packsContainer textarea[data-pack-field="presentationFr"]', titleKey: 'lpTextTitle', textKey: 'lpTextText', done: () => packs.length > 0 && (packs[0].presentationFr || '').trim().length > 5,
-      drops: [{ kind: 'text', label: 'Quatre ambiances de ville au même tempo : Jazz, Rock, Disco et Synth. À écouter, et à tester dans le jeu.', value: 'Quatre ambiances de ville au même tempo : Jazz, Rock, Disco et Synth. À écouter, et à tester dans le jeu.' }] },
+      drops: [{ kind: 'text', label: PACK_8BIT_TEXT, value: PACK_8BIT_TEXT }] },
     { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="appearance"]', titleKey: 'lpAppearTitle', textKey: 'lpAppearText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'appearance' },
-    { selector: () => document.querySelectorAll('#packsContainer .theme-preset-card')[1] || document.querySelector('#packsContainer .theme-preset-card'), titleKey: 'lpThemeTitle', textKey: 'lpThemeText', clickDone: true },
-    { selector: '#packsContainer select[data-pack-field="font"]', titleKey: 'lpFontTitle', textKey: 'lpFontText', done: () => packs.length > 0 && !!packs[0].font && packs[0].font !== 'default', skip: () => !document.querySelector('#packsContainer select[data-pack-field="font"]') },
+    { selector: () => document.querySelector('#packsContainer .theme-preset-card[data-preset-id="default"]') || document.querySelector('#packsContainer .theme-preset-card'), titleKey: 'lpThemeTitle', textKey: 'lpThemeText', clickDone: true },
+    { selector: '#packsContainer select[data-pack-field="font"]', titleKey: 'lpFontTitle', textKey: 'lpFontText', skip: () => !document.querySelector('#packsContainer select[data-pack-field="font"]') },
     { selector: '#packsContainer [data-pack-field="bgColor"]', titleKey: 'lpColorsTitle', textKey: 'lpColorsText', skip: () => !document.querySelector('#packsContainer [data-pack-field="bgColor"]') },
     { selector: '#packsContainer [data-role="illustrationCtrl"]', titleKey: 'lpImageTitle', textKey: 'lpImageText' },
     { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="distribution"]', titleKey: 'lpDistTitle', textKey: 'lpDistText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'distribution' },
@@ -16142,28 +16207,6 @@ const LESSONS = [
     { selector: '#packsContainer input[data-pack-field="buyable"]', titleKey: 'lpSellTitle', textKey: 'lpSellText' },
     { selector: '#packsContainer [data-action="preview-pack"]', titleKey: 'lpPreviewTitle', textKey: 'lpPreviewText', clickDone: true },
     { titleKey: 'lpEndTitle', textKey: 'lpEndText', final: true },
-  ] },
-  // Leçon « Créer un album » (25/10, ?tuto&lesson=album, rechargement obligatoire d'où `reload`) : album d'OST adaptative avec les quatre villes de « Music City ».
-  // L'onglet Albums est normalement réservé aux comptes qui ont le droit sell_albums : le faux serveur l'accorde pour cette leçon (api/demo-client.js).
-  // La version officielle (prise enregistrée dans le lecteur) est expliquée, pas jouée ; la mise en vente est expliquée (achat factice pendant la bêta).
-  { id: 'album', theme: 'pitch', public: true, reload: true, titleKey: 'albTitle', descKey: 'albDesc', steps: [
-    { titleKey: 'albWelcomeTitle', textKey: 'albWelcomeText' },
-    { selector: '.nav-item[data-tab="albums"]', titleKey: 'albNavTitle', textKey: 'albNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="albums"].active') },
-    { selector: '#btnAddAlbum', titleKey: 'albAddTitle', textKey: 'albAddText', clickDone: true, done: () => albumsState.albums.length >= 1 },
-    { selector: '#albumsContainer [data-ae-field="title"]', titleKey: 'albNameTitle', textKey: 'albNameText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].title || '').trim().length > 2,
-      drops: [{ kind: 'text', label: 'Music City : la bande-son adaptative', value: 'Music City : la bande-son adaptative' }] },
-    { selector: '#albumsContainer [data-ae-field="presentationFr"]', titleKey: 'albTextTitle', textKey: 'albTextText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].presentationFr || '').trim().length > 5,
-      drops: [{ kind: 'text', label: 'Quatre villes, quatre ambiances, un même tempo. Une musique qui s’adapte au joueur, à garder et à rejouer.', value: 'Quatre villes, quatre ambiances, un même tempo. Une musique qui s’adapte au joueur, à garder et à rejouer.' }] },
-    { selector: '#albumsContainer [data-ae-cover-ctrl]', titleKey: 'albCoverTitle', textKey: 'albCoverText' },
-    { selector: '#albumsContainer [data-ae-field="priceInput"]', titleKey: 'albPriceTitle', textKey: 'albPriceText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].priceInput || '').trim().length > 0,
-      drops: [{ kind: 'text', label: '5', value: '5' }] },
-    { selector: () => document.querySelector('#albumsContainer [data-ae-track]:not(:checked)'), titleKey: 'albTracksTitle', textKey: 'albTracksText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].trackIds.length >= 4 },
-    { selector: '#albumsContainer [data-ae-listen]', titleKey: 'albListenTitle', textKey: 'albListenText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].listenMode !== 'none' },
-    { selector: '#albumsContainer [data-ae-save]', titleKey: 'albSaveTitle', textKey: 'albSaveText', clickDone: true, done: () => albumsState.albums.length > 0 && albumsState.albums[0].saved },
-    { selector: '#albumsContainer [data-ae-record]', titleKey: 'albOfficialTitle', textKey: 'albOfficialText' },
-    { selector: '#albumsContainer [data-ae-rights-decl]', titleKey: 'albRightsTitle', textKey: 'albRightsText' },
-    { selector: '#albumsContainer [data-ae-buyable]', titleKey: 'albSellTitle', textKey: 'albSellText' },
-    { titleKey: 'albEndTitle', textKey: 'albEndText', final: true },
   ] },
   // Leçon « Intégrer un lecteur sur un site web » (25/10, ?tuto&lesson=embed, rechargement obligatoire d'où `reload`) : le code d'intégration d'un pack (même principe pour une collection et
   // la liste de morceaux d'un AdReel), puis l'autorisation donnée aux visiteurs (Réseaux sociaux). Adresse d'exemple en mode tutoriel (30-packs.js).
@@ -16177,8 +16220,34 @@ const LESSONS = [
     { selector: '#embedCopyBtn', titleKey: 'leCopyTitle', textKey: 'leCopyText', clickDone: true },
     { selector: '#embedCloseBtn', titleKey: 'leCloseTitle', textKey: 'leCloseText', clickDone: true, done: () => document.getElementById('embedModalOverlay').style.display !== 'flex' },
     { selector: '.nav-item[data-tab="socials"]', titleKey: 'leSocialsTabTitle', textKey: 'leSocialsTabText', done: () => !!document.querySelector('.backstage-panel[data-panel="socials"].active') },
-    { selector: '#allowEmbeddingCheckbox', titleKey: 'leAllowTitle', textKey: 'leAllowText', done: () => !!document.getElementById('allowEmbeddingCheckbox').checked },
+    { selector: '#embedAllowedBox', titleKey: 'leAllowTitle', textKey: 'leAllowText', done: () => !!document.querySelector('#embedAllowedList input:checked') },
     { titleKey: 'embEndTitle', textKey: 'embEndText', final: true },
+  ] },
+  // Leçon « Créer un album » (25/10, ?tuto&lesson=album, rechargement obligatoire d'où `reload`) : album d'OST adaptative avec les quatre villes de « Music City ».
+  // L'onglet Albums est normalement réservé aux comptes qui ont le droit sell_albums : le faux serveur l'accorde pour cette leçon (api/demo-client.js).
+  // La version officielle (prise enregistrée dans le lecteur) est expliquée, pas jouée ; la mise en vente est expliquée (achat factice pendant la bêta).
+  { id: 'album', theme: 'pitch', public: true, reload: true, titleKey: 'albTitle', descKey: 'albDesc', steps: [
+    { titleKey: 'albWelcomeTitle', textKey: 'albWelcomeText' },
+    { selector: '.nav-item[data-tab="albums"]', titleKey: 'albNavTitle', textKey: 'albNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="albums"].active') },
+    { selector: '#btnAddAlbum', titleKey: 'albAddTitle', textKey: 'albAddText', clickDone: true, done: () => albumsState.albums.length >= 1 },
+    { selector: '#albumsContainer [data-ae-field="title"]', titleKey: 'albNameTitle', textKey: 'albNameText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].title || '').trim().length > 2,
+      drops: [{ kind: 'text', label: 'Music City OST - Interactive Edition', value: 'Music City OST - Interactive Edition' }] },
+    { selector: '#albumsContainer [data-ae-field="presentationFr"]', titleKey: 'albTextTitle', textKey: 'albTextText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].presentationFr || '').trim().length > 5,
+      drops: [{ kind: 'text', label: ALBUM_TEXT, value: ALBUM_TEXT }] },
+    { selector: '#albumsContainer [data-ae-cover-ctrl] .file-ctrl', titleKey: 'albCoverTitle', textKey: 'albCoverText', done: () => albumsState.albums.length > 0 && !!albumsState.albums[0].pendingCover,
+      drops: [{ kind: 'file', label: ALBUM_COVER.name, url: ALBUM_COVER.url, name: ALBUM_COVER.name }] },
+    { selector: '#albumsContainer [data-ae-field="priceInput"]', titleKey: 'albPriceTitle', textKey: 'albPriceText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].priceInput || '').trim().length > 0,
+      drops: [{ kind: 'text', label: '5', value: '5' }] },
+    { selector: '#albumsContainer select[data-ae-addtrack]', titleKey: 'albTracksTitle', textKey: 'albTracksText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].trackIds.length >= 4 },
+    { selector: '#albumsContainer [data-ae-trk] .lpae-grip', titleKey: 'albOrderTitle', textKey: 'albOrderText',
+      enter: ctx => { ctx.albumOrder0 = albumsState.albums.length ? albumsState.albums[0].trackIds.join() : ''; }, done: ctx => !!ctx.albumOrder0 && albumsState.albums.length > 0 && albumsState.albums[0].trackIds.join() !== ctx.albumOrder0 },
+    { selector: '#albumsContainer [data-ae-listen="selected"]', titleKey: 'albListenTitle', textKey: 'albListenText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].listenMode === 'selected' },
+    { selector: '#albumsContainer [data-ae-free]', titleKey: 'albListenOneTitle', textKey: 'albListenOneText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].freeTrackIds.length >= 1 },
+    { selector: '#albumsContainer [data-ae-save]', titleKey: 'albSaveTitle', textKey: 'albSaveText', clickDone: true, done: () => albumsState.albums.length > 0 && albumsState.albums[0].saved },
+    { selector: '#albumsContainer [data-ae-record]', titleKey: 'albOfficialTitle', textKey: 'albOfficialText' },
+    { selector: '#albumsContainer [data-ae-rights-decl]', titleKey: 'albRightsTitle', textKey: 'albRightsText' },
+    { selector: '#albumsContainer [data-ae-buyable]', titleKey: 'albSellTitle', textKey: 'albSellText' },
+    { titleKey: 'albEndTitle', textKey: 'albEndText', final: true },
   ] },
   // Leçon « Envoyer des images et des vidéos » (25/10, ?tuto&lesson=upload, rechargement obligatoire d'où `reload`) : l'apprenant glisse des fichiers d'exemple sur les zones d'envoi
   // (image d'un bloc Photo, vignette d'un bloc Vidéo, bibliothèque vidéo hébergée, illustration d'un pack, pochette d'un album). Envoi SIMULÉ dans le compte fictif : rien n'est enregistré.
@@ -16276,7 +16345,10 @@ function lessonMarkDone(id) { try { const d = lessonsDone(); d[id] = true; local
 function nextLessonOf(lessonId) {
   const i = LESSONS.findIndex(l => l.id === lessonId);
   const next = i >= 0 ? LESSONS[i + 1] : null;
-  return next && next.steps && next.theme === LESSONS[i].theme && !next.reload && lessonPlayable(next) && (!next.needs || flagOpen(next.needs)) ? { lesson: next, n: i + 2 } : null;
+  // Les leçons à rechargement (compte fictif propre) sont proposées aussi : startLesson recharge la page sur la bonne leçon. Le numéro affiché est celui du titre (« 3 · … »).
+  if (!(next && next.steps && next.theme === LESSONS[i].theme && !next.soon && lessonOpenToMe(next) && lessonPlayable(next) && (!next.needs || flagOpen(next.needs)))) return null;
+  const num = /^(\d+)\s·/.exec(tr(next.titleKey));
+  return { lesson: next, n: num ? Number(num[1]) : i + 2 };
 }
 const GUIDE = window.LayerPitchGuide.create({
   tr,
@@ -16337,8 +16409,18 @@ function startBackstageTour() {
   if (guide) return;
   openGuide('tour', TOUR_STEPS.filter(s => !s.selector || tourTargetVisible(document.querySelector(s.selector))));
 }
-function startLesson(id) {
+// Leçons du thème « pitch » : elles partent toujours de l'onglet Contenu, sur le Main AdReel (on peut avoir laissé le tutoriel sur un autre onglet ou un autre AdReel).
+function resetLessonView(lesson) {
+  if (!lesson || lesson.theme !== 'pitch' || !isTutoMode()) return;
+  try {
+    if (typeof switchTab === 'function') switchTab('content');
+    if (typeof switchAdReel === 'function' && typeof adReels !== 'undefined' && currentAdReelId !== 'main' && adReels.some(a => a.id === 'main')) switchAdReel('main');
+  } catch (e) { /* la leçon se déroule quand même */ }
+}
+function startLesson(id, opts) {
   const lesson = LESSONS.find(l => l.id === id);
+  // Relancer, depuis le menu, la leçon déjà ouverte : on recharge la page, sinon les restes de la partie précédente (AdReel créé, onglet) faussent les étapes.
+  if (opts && opts.restart && lesson && lesson.reload && !lesson.soon && isTutoMode() && new URLSearchParams(window.location.search).get('lesson') === id) { window.location.reload(); return; }
   if (lesson && lesson.page && lessonsAccessOpen() && lessonPlayable(lesson)) { window.location.href = lessonTutoUrl(lesson, id); return; }
   // Dans le tutoriel, chaque leçon repart d'un compte d'exemple propre (22/10) : changer de leçon recharge la page, sinon les restes
   // de la leçon précédente (morceau créé, fenêtres) restent à l'écran.
@@ -16349,6 +16431,7 @@ function startLesson(id) {
     window.location.href = window.location.pathname + '?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); return;
   }
   if (!lesson || !lesson.steps || !lessonsAccessOpen() || !lessonPlayable(lesson) || (lesson.needs && !flagOpen(lesson.needs))) return;
+  resetLessonView(lesson);
   openGuide('lesson', lesson.steps, id);
   // Saute les étapes déjà faites au départ (par ex. bibliothèque déjà ouverte).
   const skipDone = () => { while (guide && guide.index < guide.steps.length - 1 && guide.steps[guide.index].done && guideStepIsDone(guide.steps[guide.index])) guideGo(1); };
@@ -16412,7 +16495,7 @@ function initTutorialMenuUi() {
     const l = LESSONS.find(x => x.id === id);
     // Nouvelle fenêtre (22/10) : le vrai Backstage reste ouvert à côté du tutoriel.
     if (!isTutoMode() && l && !l.soon) { window.open(lessonTutoUrl(l, id), '_blank', 'noopener'); return; }
-    startLesson(id);
+    startLesson(id, { restart: true });
   });
 }
 // Appelée une fois les feux verts connus (fin de renderAdminOnlyPanels) : montre le menu et lance la visite la toute

@@ -47,20 +47,22 @@
   <div id="content"></div>
 </div>
 
-<script src="layerpitch-i18n.js?v=1793010693306"></script>
-<script src="layerpitch-notify.js?v=1793010693306"></script>
+<script src="layerpitch-i18n.js?v=1793011718800"></script>
+<script src="layerpitch-notify.js?v=1793011718800"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1793010693306"></script>
-<script src="api/auth.js?v=1793010693306"></script>
-<script src="layerpitch-appearance.js?v=1793010693306"></script>
-<script src="layerpitch-shell.js?v=1793010693306"></script>
-<script src="api/subscriptions.js?v=1793010693306"></script>
-<script src="api/notification-prefs.js?v=1793010693306"></script>
-<script src="api/composers.js?v=1793010693306"></script>
-<script src="layerpitch-photo-frame.js?v=1793010693306"></script>
-<script src="api/studio.js?v=1793010693306"></script>
-<script src="api/connect.js?v=1793010693306"></script>
-<script src="api/invoices.js?v=1793010693306"></script>
+<script src="api/supabase-client.js?v=1793011718800"></script>
+<script src="layerpitch-tuto.js?v=1793011718800"></script>
+<script src="api/demo-client.js?v=1793011718800"></script>
+<script src="api/auth.js?v=1793011718800"></script>
+<script src="layerpitch-appearance.js?v=1793011718800"></script>
+<script src="layerpitch-shell.js?v=1793011718800"></script>
+<script src="api/subscriptions.js?v=1793011718800"></script>
+<script src="api/notification-prefs.js?v=1793011718800"></script>
+<script src="api/composers.js?v=1793011718800"></script>
+<script src="layerpitch-photo-frame.js?v=1793011718800"></script>
+<script src="api/studio.js?v=1793011718800"></script>
+<script src="api/connect.js?v=1793011718800"></script>
+<script src="api/invoices.js?v=1793011718800"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 const content = document.getElementById('content');
@@ -724,8 +726,18 @@ function accountPlaces() {
     crumbs: [{ label: tr('h1') }, { label }] };
 }
 document.getElementById('pageTitle').textContent = accountPlaces().crumbs[1].label;
-window.LayerPitchShell && window.LayerPitchShell.mount(accountPlaces());
-LayerPitchAuth.onAuthStateChange(() => render());
+// Mode tutoriel (?tuto, 26/10) : la page tourne sur le compte FICTIF de Daniel Orcman (api/demo-client.js), jamais sur le vrai compte de la personne.
+const tutoReady = (window.LayerPitchTuto && window.LayerPitchTuto.isOn()) ? window.LayerPitchTuto.enter('./mon-compte.html') : Promise.resolve();
+tutoReady.then(() => {
+  if (window.LayerPitchTuto && window.LayerPitchTuto.isOn()) {
+    const bar = document.createElement('div');
+    bar.style.cssText = 'background:#e8f0f8;border-bottom:1px solid #b8cfe4;color:#1d3a57;text-align:center;padding:8px 12px;font-size:13px;position:sticky;top:0;z-index:2000';
+    bar.textContent = tr('tutoAccountBanner');
+    document.body.insertBefore(bar, document.body.firstChild);
+  }
+  window.LayerPitchShell && window.LayerPitchShell.mount(accountPlaces());
+  LayerPitchAuth.onAuthStateChange(() => render());
+});
 </script>
 </body>
 </html>

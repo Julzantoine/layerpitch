@@ -209,9 +209,9 @@ async function init() {
       // directement sur ce pack).
       backLinkEl.addEventListener('click', (e) => { e.preventDefault(); window.history.back(); });
     }
-    // Bouton "Intégrer" public (data.allowEmbedding, réglage global du compositeur) : jamais affiché
+    // Bouton "Intégrer" public (data.embedAllowed.packs, choix du compositeur pack par pack) : jamais affiché
     // depuis une iframe déjà en mode embed (pas de poupées russes), génère le même lien que le backstage.
-    if (!embedMode && data.allowEmbedding) {
+    if (!embedMode && ((data.embedAllowed || {}).packs || []).includes(id)) {
       const publicEmbedUrl = `${location.origin}${location.pathname}?id=${encodeURIComponent(id)}&lang=${pageLang}${handleParam}&embed=1`;
       showPublicEmbedButton(publicEmbedUrl);
     }
