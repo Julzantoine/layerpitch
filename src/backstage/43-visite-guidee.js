@@ -325,7 +325,7 @@ const LESSON_THEMES = [
   { id: 'preprod', titleKey: 'lessonThemePreprod' },
 ];
 // Page où se joue une leçon : le Backstage lui-même, ou une autre page du mode tutoriel (liste des projets, espace Projet).
-function lessonPageUrl(l) { return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : window.location.pathname); }
+function lessonPageUrl(l) { if (l && l.steps) return window.location.pathname; return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : window.location.pathname); }
 // Adresse complète d'une leçon dans le mode tutoriel (la page de la leçon + ?tuto&lesson=…).
 function lessonTutoUrl(l, id) { const base = lessonPageUrl(l); return base + (base.includes('?') ? '&' : '?') + 'tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); }
 function lessonIsPublic(lesson) { return !!(lesson && lesson.public); }
@@ -987,7 +987,12 @@ const LESSONS = [
   ] },
   // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
   // Projet fictif ; `page` renvoie vers cette page au clic.
-  { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc' },
+  { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc', steps: [
+    // Départ dans le Backstage (26/10) : on montre le lien « Projets » de la barre latérale, puis la leçon continue sur projets.html (projet-lecons.js).
+    { titleKey: 'plCreateIntroTitle', textKey: 'plCreateIntroText' },
+    { selector: '#navLinkProjects', titleKey: 'plCreateNavTitle', textKey: 'plCreateNavText', clickDone: true,
+      enter: () => { const a = document.getElementById('navLinkProjects'); if (a) a.setAttribute('href', 'projets.html?tuto&lesson=pj-create&lang=' + currentLang()); } },
+  ] },
   { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
   { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },
   { id: 'pj-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMusicTitle', descKey: 'plMusicDesc' },
@@ -1121,7 +1126,7 @@ function startLesson(id, opts) {
   const lesson = LESSONS.find(l => l.id === id);
   // Relancer, depuis le menu, la leçon déjà ouverte : on recharge la page, sinon les restes de la partie précédente (AdReel créé, onglet) faussent les étapes.
   if (opts && opts.restart && lesson && lesson.reload && !lesson.soon && isTutoMode() && new URLSearchParams(window.location.search).get('lesson') === id) { window.location.reload(); return; }
-  if (lesson && lesson.page && lessonsAccessOpen() && lessonPlayable(lesson)) { window.location.href = lessonTutoUrl(lesson, id); return; }
+  if (lesson && lesson.page && !lesson.steps && lessonsAccessOpen() && lessonPlayable(lesson)) { window.location.href = lessonTutoUrl(lesson, id); return; }
   // Dans le tutoriel, chaque leçon repart d'un compte d'exemple propre (22/10) : changer de leçon recharge la page, sinon les restes
   // de la leçon précédente (morceau créé, fenêtres) restent à l'écran.
   if (lesson && lesson.steps && lessonsAccessOpen() && lessonPlayable(lesson) && !lesson.soon && isTutoMode() && new URLSearchParams(window.location.search).get('lesson') !== id) {
