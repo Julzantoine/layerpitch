@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793026586950">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793027022115">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1917,17 +1917,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793026586950"></script>
-<script src="layerpitch-i18n.js?v=1793026586950"></script>
-<script src="layerpitch-appearance.js?v=1793026586950"></script>
-<script src="layerpitch-album-shared.js?v=1793026586950"></script>
-<script src="layerpitch-album-editor.js?v=1793026586950"></script>
-<script src="layerpitch-shell.js?v=1793026586950"></script>
-<script src="layerpitch-social-icons.js?v=1793026586950"></script>
-<script src="layerpitch-notify.js?v=1793026586950"></script>
-<script src="layerpitch-guide.js?v=1793026586950"></script>
-<script src="layerpitch-help.js?v=1793026586950"></script>
-<script src="player.js?v=1793026586950"></script>
+<script src="layerpitch-tuto.js?v=1793027022115"></script>
+<script src="layerpitch-i18n.js?v=1793027022115"></script>
+<script src="layerpitch-appearance.js?v=1793027022115"></script>
+<script src="layerpitch-album-shared.js?v=1793027022115"></script>
+<script src="layerpitch-album-editor.js?v=1793027022115"></script>
+<script src="layerpitch-shell.js?v=1793027022115"></script>
+<script src="layerpitch-social-icons.js?v=1793027022115"></script>
+<script src="layerpitch-notify.js?v=1793027022115"></script>
+<script src="layerpitch-guide.js?v=1793027022115"></script>
+<script src="layerpitch-help.js?v=1793027022115"></script>
+<script src="player.js?v=1793027022115"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -16186,7 +16186,8 @@ const LESSONS = [
     { titleKey: 'aprWelcomeTitle', textKey: 'aprWelcomeText' },
     { selector: '.nav-item[data-tab="appearance"]', titleKey: 'aprTabTitle', textKey: 'aprTabText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
     { selector: '#themeProQuickStartGallery', titleKey: 'aprThemeTitle', textKey: 'aprThemeText', done: () => (profile.theme && (profile.theme.bgColor || '').toLowerCase() === '#1b1035') },
-    { selector: '#appThemeTitleColor', titleKey: 'aprTitleColorTitle', textKey: 'aprTitleColorText', done: () => (profile.theme && (profile.theme.titleColor || '').toLowerCase() !== '#ff3ea5') },
+    { selector: '#appThemeTitleColor', titleKey: 'aprTitleColorTitle', textKey: 'aprTitleColorText', done: () => (profile.theme && (profile.theme.titleColor || '').toLowerCase() !== '#ff3ea5'),
+      drops: [{ kind: 'text', label: 'Cyan (#00CCFF)', value: '#00ccff' }] },
     { selector: '#appThemeBgColor', titleKey: 'aprColorsTitle', textKey: 'aprColorsText' },
     { selector: '#appThemeFont', titleKey: 'aprFontTitle', textKey: 'aprFontText', done: () => !!profile.theme && profile.theme.font !== 'google:Space Grotesk' },
     { selector: '#btnAddCustomFont', titleKey: 'aprCustomFontTitle', textKey: 'aprCustomFontText' },
@@ -16194,14 +16195,22 @@ const LESSONS = [
       drops: [{ kind: 'file', label: ALBUM_COVER.name, url: ALBUM_COVER.url, name: ALBUM_COVER.name }] },
     { selector: '#appThemeBgImageOpacity', titleKey: 'aprOpacityTitle', textKey: 'aprOpacityText' },
     { selector: '#appSeparatorThickness', titleKey: 'aprSepTitle', textKey: 'aprSepText', enter: ctx => { ctx.sepThickness0 = Number(document.getElementById('appSeparatorThickness').value); },
-      done: ctx => ctx.sepThickness0 != null && Number(document.getElementById('appSeparatorThickness').value) !== ctx.sepThickness0 },
+      done: ctx => ctx.sepThickness0 != null && Number(document.getElementById('appSeparatorThickness').value) !== ctx.sepThickness0,
+      drops: [{ kind: 'text', label: '3', value: '3' }] },
     { selector: '#waveformStyleSelect', titleKey: 'aprWaveTitle', textKey: 'aprWaveText' },
     { selector: '#seqMapThemeSelect', titleKey: 'aprMapTitle', textKey: 'aprMapText' },
-    { selector: '.nav-item[data-tab="content"]', titleKey: 'aprBackTitle', textKey: 'aprBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
-    { selector: '.block-editor-card[data-type="text"] [data-role="appearanceToggleHead"]', titleKey: 'aprBlockTitle', textKey: 'aprBlockText', clickDone: true,
-      enter: () => { const c = document.querySelector('.block-editor-card[data-type="text"] .block-editor-body.collapsed'); const h = document.querySelector('.block-editor-card[data-type="text"] [data-role="toggle-collapse"], .block-editor-card[data-type="text"] [data-action="toggle-collapse"]'); if (c && h) h.click(); } },
-    { selector: '.block-editor-card[data-type="text"] [data-role="elementAppearanceFields"]', titleKey: 'aprElementTitle', textKey: 'aprElementText', skip: () => !document.querySelector('.block-editor-card[data-type="text"] [data-role="elementAppearanceFields"]') },
+    // Premier aperçu : avec l'image de fond, les textes se lisent mal -> on revient les mettre en blanc, puis on revisualise.
     { selector: '#btnPreview', titleKey: 'aprPreviewTitle', textKey: 'aprPreviewText', clickDone: true },
+    { titleKey: 'aprReviewTitle', textKey: 'aprReviewText' },
+    { selector: '#appThemeContentColor', titleKey: 'aprWhiteTitle', textKey: 'aprWhiteText', done: () => !!profile.theme && (profile.theme.contentColor || '').toLowerCase() === '#ffffff',
+      drops: [{ kind: 'text', label: 'Blanc (#FFFFFF)', value: '#ffffff' }] },
+    { selector: '.nav-item[data-tab="content"]', titleKey: 'aprBackTitle', textKey: 'aprBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
+    { selector: '.block-editor-card[data-type="text"] .block-editor-head [data-action="toggle-collapse"]', titleKey: 'aprBlockOpenTitle', textKey: 'aprBlockOpenText',
+      done: () => !!document.querySelector('.block-editor-card[data-type="text"] .block-editor-body:not(.collapsed)') },
+    { selector: '.block-editor-card[data-type="text"] [data-role="appearanceToggleHead"]', titleKey: 'aprBlockTitle', textKey: 'aprBlockText', clickDone: true },
+    { selector: '.block-editor-card[data-type="text"] [data-role="elAppearanceToggleHead"]', titleKey: 'aprElementTitle', textKey: 'aprElementText', clickDone: true,
+      skip: () => !document.querySelector('.block-editor-card[data-type="text"] [data-role="elAppearanceToggleHead"]') },
+    { selector: '#btnPreview', titleKey: 'aprPreview2Title', textKey: 'aprPreview2Text', clickDone: true },
     { titleKey: 'aprEndTitle', textKey: 'aprEndText', final: true },
   ] },
   // Leçon « Diffuser son AdReel » (26/10, ?tuto&lesson=share) : langue de la page, indexation par Google, adresse personnalisée, accès privé (mot de passe). Elle suit « Apparence » et reprend l'AdReel de Joshua :
