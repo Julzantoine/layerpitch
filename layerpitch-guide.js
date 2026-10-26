@@ -120,6 +120,7 @@
         chip.addEventListener('pointerdown', ev => {
           if (ev.button !== undefined && ev.button !== 0) return;
           ev.preventDefault();
+          const sx = ev.clientX, sy = ev.clientY; // un simple appui (sans déplacement) vaut « utiliser » : indispensable au doigt, où l'on ne glisse pas toujours
           const ghost = chip.cloneNode(true);
           ghost.classList.add('tour-chip-ghost');
           ghost.removeAttribute('data-tour-drop');
@@ -136,7 +137,7 @@
             document.removeEventListener('pointerup', end, true);
             document.removeEventListener('pointercancel', end, true);
             ghost.remove(); chip.classList.remove('is-dragging'); hot(false);
-            if (e.type !== 'pointercancel' && pointInTarget(step, e.clientX, e.clientY)) use();
+            if (e.type !== 'pointercancel' && (Math.hypot(e.clientX - sx, e.clientY - sy) < 6 || pointInTarget(step, e.clientX, e.clientY))) use();
           };
           document.addEventListener('pointermove', move, true);
           document.addEventListener('pointerup', end, true);
@@ -421,7 +422,14 @@
           const b = target.getBoundingClientRect();
           // (certains champs passent sous une barre fixe : la page peut demander de les ramener au centre)
           const underBar = !!(host.centerTarget && host.centerTarget(target, b));
-          if (b.bottom > window.innerHeight - 8 || b.top < 8 || underBar) { try { target.scrollIntoView({ block: b.height > window.innerHeight * 0.7 ? 'start' : 'center' }); } catch (e) { /* ancien navigateur */ } }
+          // Téléphone : la bulle est ancrée en bas de l'écran (guide.css) ; la cible doit rester dans la moitié haute.
+          const phone = window.matchMedia && window.matchMedia('(max-width: 720px)').matches;
+          if (b.bottom > window.innerHeight - 8 || b.top < 8 || underBar || (phone && b.bottom > window.innerHeight * 0.55)) {
+            try {
+              if (phone) { target.style.scrollMarginTop = '84px'; target.scrollIntoView({ block: 'start' }); }
+              else target.scrollIntoView({ block: b.height > window.innerHeight * 0.7 ? 'start' : 'center' });
+            } catch (e) { /* ancien navigateur */ }
+          }
         }
         const r = target.getBoundingClientRect();
         spot.style.display = 'block';

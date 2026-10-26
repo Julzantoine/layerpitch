@@ -261,6 +261,8 @@ function buildVideoCard(block) {
       hasUnsavedEdits = true;
       renderList();
       refreshAllBlockSummaries();
+      // Bibliothèque relue au choix de « Bibliothèque vidéo » : une vidéo envoyée APRÈS la création du bloc y figure alors aussi.
+      if (v.source === 'library' && flagOpen('video_upload')) loadMyVideos().then(({ videos }) => { libraryVideos = videos || []; libraryLoaded = true; renderList(); });
       return;
     }
     const shown = e.target.closest('[data-role="versionShown"]');

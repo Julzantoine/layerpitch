@@ -293,7 +293,8 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   const embedBtn = e.target.closest('[data-action="embed-pack"]');
   if (embedBtn) {
     const pi = parseInt(embedBtn.dataset.pi, 10);
-    const embedUrl = computePackUrl(packs[pi].id);
+    // Mode tutoriel : le compte fictif n'a pas d'adresse publique, on montre le code avec une adresse d'exemple.
+    const embedUrl = computePackUrl(packs[pi].id) || (isTutoMode() ? 'https://beta.layerpitch.com/pack.html?id=' + encodeURIComponent(packs[pi].id) : '');
     if (!embedUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
     openEmbedModal(`${embedUrl}&embed=1`, packs[pi].title, 'embedModalHintPack');
     return;

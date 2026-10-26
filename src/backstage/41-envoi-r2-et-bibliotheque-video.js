@@ -291,12 +291,15 @@ async function uploadLibraryVideo(file) {
   statusEl.classList.add('busy');
   const withName = (msg) => `${file.name} — ${msg}`;
   try {
+    // Mode tutoriel : envoi SIMULÉ (ni compression ni envoi au stockage) ; la vidéo apparaît dans la bibliothèque du compte fictif.
+    const tuto = isTutoMode();
     statusEl.textContent = withName(tr('videoLibraryCompressing'));
     const duration = await readVideoLibraryDuration(file);
-    const blob = await compressVideoForLibrary(file, (msg) => { statusEl.textContent = withName(msg); });
+    const blob = tuto ? file : await compressVideoForLibrary(file, (msg) => { statusEl.textContent = withName(msg); });
     statusEl.textContent = withName(tr('videoLibraryUploading'));
     const base = `${MEDIA_BASE}video/${id}/`;
-    await r2PutFile(`video/${id}/source.mp4`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    if (tuto) await new Promise(r => setTimeout(r, 1200));
+    else await r2PutFile(`video/${id}/source.mp4`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
       payload: {
         id, kind: 'upload', title: file.name.replace(/\.[^.]+$/, ''), base, file: 'source.mp4',

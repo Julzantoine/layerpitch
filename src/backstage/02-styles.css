@@ -316,6 +316,8 @@
   .backstage-sidebar { transition: width .15s ease, padding .15s ease; }
   .backstage-sidebar > .lp-collapse-btn-own { display: flex; margin: -6px -4px 8px auto; }
   .nav-icon-collapsed-only { display: none; }
+  /* Barre repliée en icônes : ordinateur seulement (sur téléphone la barre passe au-dessus du contenu, voir plus bas). */
+  @media (min-width: 721px) {
   html.lp-sidebar-collapsed .backstage-sidebar { width: 48px; padding: 12px 6px; }
   html.lp-sidebar-collapsed .backstage-sidebar > .lp-collapse-btn-own { margin: 0 auto 10px; }
   html.lp-sidebar-collapsed .backstage-sidebar .nav-item-label > span,
@@ -330,6 +332,8 @@
   html.lp-sidebar-collapsed .content-appearance-toggle { flex-direction: column; margin-top: 0; gap: 4px; }
   html.lp-sidebar-collapsed .content-appearance-toggle .nav-item { padding: 7px 0; }
   html.lp-sidebar-collapsed .nav-icon-collapsed-only { display: block; }
+  }
+  .phone-menu-fab { display: none; }
   .backstage-panel { display: none; }
   .backstage-panel.active { display: block; }
   .empty-panel-placeholder { border: 1px dashed #d8d8dc; border-radius: 8px; padding: 30px; text-align: center; color: var(--text-dimmer); font-size: 12px; }
@@ -940,3 +944,28 @@
   .tutorial-menu-empty { font-size: 12px; color: var(--text-dimmer); padding: 2px 10px 8px 20px; }
   .tutorial-menu-text { display: flex; flex-direction: column; gap: 2px; }
   .tutorial-menu-text small { font-size: 11.5px; color: var(--text-dim); font-weight: 400; }
+  /* ---- Téléphone (25/10, capture de Jules-Antoine : la page faisait ~580 px pour un écran de 375 px) ----
+     Une seule colonne : la barre de gauche passe au-dessus du contenu (pleine largeur, non collante), ses entrées en deux colonnes ;
+     le contenu prend toute la largeur ; les rangées de boutons passent à la ligne ; les deux colonnes internes s'empilent. */
+  @media (max-width: 720px) {
+    body { padding: 12px 12px 70px; }
+    .page-top-row { flex-direction: column; align-items: stretch; gap: 10px; position: static; }
+    .page-top-row h1 { font-size: 18px; }
+    .global-actions-bar { flex-wrap: wrap; flex-shrink: 1; gap: 8px; }
+    .backstage-layout { flex-direction: column; align-items: stretch; gap: 14px; margin-top: 12px; }
+    /* La barre de gauche « s'éclate » : la carte « AdReel en édition » reste en haut, le contenu vient juste après, et les autres entrées
+       (Compte, Studio, Commun…) descendent sous le contenu ; le bouton « Menu » (en bas à droite) y ramène, un clic sur une entrée remonte au contenu. */
+    .backstage-sidebar { display: contents; }
+    .backstage-sidebar > .lp-collapse-btn-own { display: none; }
+    .backstage-sidebar > .sidebar-adreel-group { order: 1; background: var(--bg-sidebar, #efeee9); padding: 12px; border-radius: 10px; margin-bottom: 0; }
+    .backstage-content { order: 2; }
+    .backstage-sidebar > :not(.sidebar-adreel-group):not(.lp-collapse-btn-own) { order: 3; }
+    .nav-account-group { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .nav-account-group .nav-item { margin-bottom: 0; min-width: 0; }
+    .phone-menu-fab { display: inline-flex; position: fixed; right: 14px; bottom: 14px; z-index: 450; padding: 10px 16px; border-radius: 999px; box-shadow: 0 4px 14px rgba(20,22,28,0.25); background: #24262b; color: #fff; border: none; font-size: 13px; }
+    .backstage-content { width: 100%; }
+    .backstage-content input[type="text"], .backstage-content input[type="email"], .backstage-content input[type="number"], .backstage-content select, .backstage-content textarea { max-width: 100%; box-sizing: border-box; }
+    .row { flex-direction: column; gap: 8px; }
+    .list-block-head { flex-wrap: wrap; gap: 6px; }
+    .actions, .actions-top { gap: 8px; }
+  }
