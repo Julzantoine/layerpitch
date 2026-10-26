@@ -118,7 +118,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   w.eval(`flagOpen = () => true; guide.lessonId = 'static'; guide.index = guide.steps.length - 1; guide.maxIndex = guide.index; guide.cardKey = ''; renderGuideStep();`);
   const nl = w.document.querySelector('[data-tour="nextlesson"]');
   check('bulle finale : bouton vers la leçon suivante', !!nl && /Passer à la leçon 2 : Mode embranchement vertical/.test(nl.textContent));
-  w.eval(`guide.lessonId = 'branching'; guide.cardKey = ''; renderGuideStep();`);
+  w.eval(`guide.lessonId = 'events'; guide.cardKey = ''; renderGuideStep();`);
   check('dernière leçon : pas de bouton « leçon suivante »', !w.document.querySelector('[data-tour="nextlesson"]'));
   // Glisser simulé : relâcher sur la zone dépose ; la vignette apparaît quand l'exemple est prêt.
   zone.getBoundingClientRect = () => ({ left: 100, top: 100, right: 300, bottom: 160, width: 200, height: 60 });
