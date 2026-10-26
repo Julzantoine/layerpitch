@@ -28,7 +28,7 @@
         customFonts: data.custom_fonts,
         waveformStyle: data.waveform_style,
         seqMapTheme: data.seq_map_theme,
-        allowEmbedding: !!data.allow_embedding,
+        embedAllowed: data.embed_allowed || {},
         sharePreview: data.share_preview || {},
       },
       error: null,
@@ -43,7 +43,7 @@
   }
 
   // payload : { publishedAt, implementationSkills, noAiCertifiedGlobal, customFonts, waveformStyle,
-  // seqMapTheme, allowEmbedding, sharePreview } — même forme que la partie correspondante de data.json.
+  // seqMapTheme, embedAllowed, sharePreview } — même forme que la partie correspondante de data.json.
   async function upsertSettings(payload) {
     const { data, error } = await getClient().rpc('upsert_settings', { payload });
     if (error) return { ok: false, error: error.message };

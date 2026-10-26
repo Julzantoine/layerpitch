@@ -842,7 +842,7 @@ const LESSONS = [
     { selector: '#embedCopyBtn', titleKey: 'leCopyTitle', textKey: 'leCopyText', clickDone: true },
     { selector: '#embedCloseBtn', titleKey: 'leCloseTitle', textKey: 'leCloseText', clickDone: true, done: () => document.getElementById('embedModalOverlay').style.display !== 'flex' },
     { selector: '.nav-item[data-tab="socials"]', titleKey: 'leSocialsTabTitle', textKey: 'leSocialsTabText', done: () => !!document.querySelector('.backstage-panel[data-panel="socials"].active') },
-    { selector: '#allowEmbeddingCheckbox', titleKey: 'leAllowTitle', textKey: 'leAllowText', done: () => !!document.getElementById('allowEmbeddingCheckbox').checked },
+    { selector: '#embedAllowedBox', titleKey: 'leAllowTitle', textKey: 'leAllowText', done: () => !!document.querySelector('#embedAllowedList input:checked') },
     { titleKey: 'embEndTitle', textKey: 'embEndText', final: true },
   ] },
   // Leçon « Envoyer des images et des vidéos » (25/10, ?tuto&lesson=upload, rechargement obligatoire d'où `reload`) : l'apprenant glisse des fichiers d'exemple sur les zones d'envoi

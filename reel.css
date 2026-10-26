@@ -117,7 +117,7 @@ a { color: var(--accent); }
 .share-btn svg { width: 18px; height: 18px; }
 .share-btn.copied { color: #2a7; border-color: #2a7; }
 /* Bouton "Intégrer" public (?embed=1, liste de morceaux d'AdReel uniquement) : voir le commentaire
-   équivalent dans pack.html. Ne s'affiche que si data.allowEmbedding ET au moins un bloc "Morceaux". */
+   équivalent dans pack.html. Ne s'affiche que si embedAllowed.adreels ET au moins un bloc "Morceaux". */
 .embed-public-btn { right: 68px; }
 .embed-public-btn[hidden] { display: none; }
 body.has-preview-banner .embed-public-btn { top: 56px; }

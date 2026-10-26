@@ -11,7 +11,7 @@ async function loadData(silent) {
       noAiCertifiedGlobal = false;
       waveformStyle = 'bars';
       seqMapTheme = 'light';
-      allowEmbedding = false;
+      embedAllowed = { adreels: [], packs: [], collections: [] };
       sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW); sharePreviewPendingFile = null;
       adReels = [{ id: 'main', label: tr('defaultAdreelLabel'), lang: currentLang(), blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, allowIndexing: true, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null }];
       currentAdReelId = 'main';
@@ -20,7 +20,7 @@ async function loadData(silent) {
       logoPendingFile = null; photoPendingFile = null;
       collapsedPackIds.clear(); collapsedBlockIds.clear(); collapsedCollectionIds.clear();
       cur.blocks.forEach(b => collapsedBlockIds.add(b.id));
-      renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); fillAllowEmbeddingField(); fillSharePreviewFields(); rebuildAllCards();
+      renderLibrary(); renderSfxLibrary(); renderSocials(); renderPacks(); renderCollections(); renderAdReelSelect(); renderManageAdreels(); fillAppearanceFields(); fillImplementationSkillsFields(); fillNoAiCertifiedGlobalField(); renderEmbedAllowedList(); fillSharePreviewFields(); rebuildAllCards();
       pendingR2Deletes.clear(); pendingOrphanR2Keys.clear();
       rememberPublishedCatalog();
       dataLoadOk = true; // absence légitime de data.json (premier lancement) -- pas un échec, publier est sûr
@@ -220,7 +220,7 @@ async function loadData(silent) {
     noAiCertifiedGlobal = !!data.noAiCertifiedGlobal;
     waveformStyle = window.LayerPlayerCore.WAVEFORM_STYLES.includes(data.waveformStyle) ? data.waveformStyle : 'bars';
     seqMapTheme = window.LayerPlayerCore.SEQ_MAP_THEMES.includes(data.seqMapTheme) ? data.seqMapTheme : 'light';
-    allowEmbedding = !!data.allowEmbedding;
+    embedAllowed = normalizeEmbedAllowed(data.embedAllowed);
     sharePreview = Object.assign({}, DEFAULT_SHARE_PREVIEW, data.sharePreview || {}); sharePreviewPendingFile = null;
     collections = (data.collections || []).map(c => ({
       id: c.id, title: c.title || '', illustration: c.illustration || null, illustrationOriginalName: c.illustrationOriginalName || null, pendingIllustration: null,
