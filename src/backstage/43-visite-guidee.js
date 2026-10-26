@@ -307,9 +307,11 @@ const PACK_8BIT_TEXT = (typeof currentLang === 'function' && currentLang() === '
 const ALBUM_TEXT = (typeof currentLang === 'function' && currentLang() === 'en')
   ? 'Discover the Music City OST, winner at the OST Awards! Listen to every track as if you were in the heart of the game, make your versions evolve, pick your settings, or hear a new random version each time!'
   : 'Retrouvez l’OST de Music City, primée aux OST Awards ! Écoutez tous les morceaux comme si vous étiez au cœur du jeu, faites évoluer vos versions, choisissez vos réglages ou écoutez une nouvelle version aléatoire à chaque fois !';
+// Pochette d'exemple de l'album (image du dépôt, servie avec le site : pas besoin du stockage des médias).
+const ALBUM_COVER = { name: 'music-city-cover.jpg', url: './images/tuto-music-city-cover.jpg' };
 const UPLOAD_KIT = {
   url: name => 'https://media.layerpitch.com/tuto/' + encodeURIComponent(name),
-  photo: { name: 'alone-ponton.jpg' }, thumb: { name: 'alone-brume.jpg' }, cover: { name: 'alone-rameur.jpg' }, album: { name: 'alone-cabane.jpg' },
+  photo: { name: 'alone-ponton.jpg' }, thumb: { name: 'alone-brume.jpg' }, cover: { name: 'alone-rameur.jpg' }, album: ALBUM_COVER,
   video: { name: 'alone-gameplay-muette.mp4' },
 };
 const LESSON_THEMES = [
@@ -849,7 +851,8 @@ const LESSONS = [
       drops: [{ kind: 'text', label: 'Music City OST - Interactive Edition', value: 'Music City OST - Interactive Edition' }] },
     { selector: '#albumsContainer [data-ae-field="presentationFr"]', titleKey: 'albTextTitle', textKey: 'albTextText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].presentationFr || '').trim().length > 5,
       drops: [{ kind: 'text', label: ALBUM_TEXT, value: ALBUM_TEXT }] },
-    { selector: '#albumsContainer [data-ae-cover-ctrl]', titleKey: 'albCoverTitle', textKey: 'albCoverText' },
+    { selector: '#albumsContainer [data-ae-cover-ctrl] .file-ctrl', titleKey: 'albCoverTitle', textKey: 'albCoverText', done: () => albumsState.albums.length > 0 && !!albumsState.albums[0].pendingCover,
+      drops: [{ kind: 'file', label: ALBUM_COVER.name, url: ALBUM_COVER.url, name: ALBUM_COVER.name }] },
     { selector: '#albumsContainer [data-ae-field="priceInput"]', titleKey: 'albPriceTitle', textKey: 'albPriceText', done: () => albumsState.albums.length > 0 && (albumsState.albums[0].priceInput || '').trim().length > 0,
       drops: [{ kind: 'text', label: '5', value: '5' }] },
     { selector: '#albumsContainer select[data-ae-addtrack]', titleKey: 'albTracksTitle', textKey: 'albTracksText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].trackIds.length >= 4 },
