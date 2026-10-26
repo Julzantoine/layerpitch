@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793049751633">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793050149262">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1932,17 +1932,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793049751633"></script>
-<script src="layerpitch-i18n.js?v=1793049751633"></script>
-<script src="layerpitch-appearance.js?v=1793049751633"></script>
-<script src="layerpitch-album-shared.js?v=1793049751633"></script>
-<script src="layerpitch-album-editor.js?v=1793049751633"></script>
-<script src="layerpitch-shell.js?v=1793049751633"></script>
-<script src="layerpitch-social-icons.js?v=1793049751633"></script>
-<script src="layerpitch-notify.js?v=1793049751633"></script>
-<script src="layerpitch-guide.js?v=1793049751633"></script>
-<script src="layerpitch-help.js?v=1793049751633"></script>
-<script src="player.js?v=1793049751633"></script>
+<script src="layerpitch-tuto.js?v=1793050149262"></script>
+<script src="layerpitch-i18n.js?v=1793050149262"></script>
+<script src="layerpitch-appearance.js?v=1793050149262"></script>
+<script src="layerpitch-album-shared.js?v=1793050149262"></script>
+<script src="layerpitch-album-editor.js?v=1793050149262"></script>
+<script src="layerpitch-shell.js?v=1793050149262"></script>
+<script src="layerpitch-social-icons.js?v=1793050149262"></script>
+<script src="layerpitch-notify.js?v=1793050149262"></script>
+<script src="layerpitch-guide.js?v=1793050149262"></script>
+<script src="layerpitch-help.js?v=1793050149262"></script>
+<script src="player.js?v=1793050149262"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -16712,7 +16712,11 @@ function initTutorialMenuUi() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
   dropdown.addEventListener('click', (e) => {
     const fold = e.target.closest('[data-fold-theme]');
-    if (fold) { toggleLessonThemeFold(fold.dataset.foldTheme); renderTutorialMenu(); return; }
+    if (fold) {
+      // Le menu est redessiné : le bouton cliqué sort alors du DOM et le clic remonté au document paraîtrait « hors menu » (fermeture). On l'arrête ici.
+      e.stopPropagation();
+      toggleLessonThemeFold(fold.dataset.foldTheme); renderTutorialMenu(); return;
+    }
     const item = e.target.closest('[data-tutorial]');
     if (!item || item.disabled) return;
     closeMenu();

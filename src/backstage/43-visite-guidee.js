@@ -1223,7 +1223,11 @@ function initTutorialMenuUi() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
   dropdown.addEventListener('click', (e) => {
     const fold = e.target.closest('[data-fold-theme]');
-    if (fold) { toggleLessonThemeFold(fold.dataset.foldTheme); renderTutorialMenu(); return; }
+    if (fold) {
+      // Le menu est redessiné : le bouton cliqué sort alors du DOM et le clic remonté au document paraîtrait « hors menu » (fermeture). On l'arrête ici.
+      e.stopPropagation();
+      toggleLessonThemeFold(fold.dataset.foldTheme); renderTutorialMenu(); return;
+    }
     const item = e.target.closest('[data-tutorial]');
     if (!item || item.disabled) return;
     closeMenu();
