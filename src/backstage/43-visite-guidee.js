@@ -325,10 +325,19 @@ const LESSON_THEMES = [
   { id: 'preprod', titleKey: 'lessonThemePreprod' },
 ];
 // Page où se joue une leçon : le Backstage lui-même, ou une autre page du mode tutoriel (liste des projets, espace Projet).
-function lessonPageUrl(l) { return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : window.location.pathname); }
+function lessonPageUrl(l) { if (l && l.steps) return window.location.pathname; return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : window.location.pathname); }
 // Adresse complète d'une leçon dans le mode tutoriel (la page de la leçon + ?tuto&lesson=…).
 function lessonTutoUrl(l, id) { const base = lessonPageUrl(l); return base + (base.includes('?') ? '&' : '?') + 'tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); }
 function lessonIsPublic(lesson) { return !!(lesson && lesson.public); }
+// Départ des leçons « Préproduction » dans le Backstage (26/10) : on montre le lien « Projets » de la barre latérale, puis la leçon continue sur
+// projets.html (qui mène au projet pour les leçons du projet) ; voir projet-lecons.js.
+function preprodEntrySteps(id, introTextKey) {
+  return [
+    { titleKey: 'plCreateIntroTitle', textKey: introTextKey },
+    { selector: '#navLinkProjects', titleKey: 'plCreateNavTitle', textKey: 'plCreateNavText', clickDone: true,
+      enter: () => { const a = document.getElementById('navLinkProjects'); if (a) a.setAttribute('href', 'projets.html?tuto&lesson=' + id + '&lang=' + currentLang()); } },
+  ];
+}
 const LESSONS = [
   { id: 'static', theme: 'engine', public: true, titleKey: 'lessonStaticTitle', descKey: 'lessonStaticDesc', steps: [
     // Message d'accueil : premier écran de la leçon (étape manuelle, sans zone en surbrillance).
@@ -959,6 +968,11 @@ const LESSONS = [
       drops: [{ kind: 'file', label: UPLOAD_KIT.album.name, url: UPLOAD_KIT.url(UPLOAD_KIT.album.name), name: UPLOAD_KIT.album.name }] },
     { titleKey: 'luEndTitle', textKey: 'luEndText', final: true },
   ] },
+  // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
+  // Projet fictif ; `page` renvoie vers cette page au clic.
+  { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc', steps: preprodEntrySteps('pj-create', 'plCreateIntroText') },
+  { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc', steps: preprodEntrySteps('pj-chat', 'plEntryIntroText') },
+  { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc', steps: preprodEntrySteps('pj-moodboard', 'plEntryIntroText') },
   // Leçon « Versioning vidéo » (21/10, refaite le même jour : elle se joue dans le Backstage, pas sur la page du pack). Parcours choisi par
   // Jules-Antoine : onglet Vidéo → Atelier ; DANS l'atelier (cadre, atelier-lecons.js) : choisir le pack, la vidéo muette d'« Alone in the
   // Barque », capturer la musique 1, enregistrer le montage, version musique 2, écoute en direct ; puis, ici, le bloc vidéo d'un AdReel :
@@ -986,14 +1000,9 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="video"] [data-role="versionNew"]', titleKey: 'lvBlockNewTitle', textKey: 'lvBlockNewText' },
     { titleKey: 'lvEndTitle', textKey: 'lvEndText', final: true },
   ] },
-  // Leçons « Préproduction » (20/10) : elles se jouent sur la page du Projet (projet.html?tuto, voir projet-lecons.js), dans un
-  // Projet fictif ; `page` renvoie vers cette page au clic.
-  { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc' },
-  { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc' },
-  { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc' },
-  { id: 'pj-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMusicTitle', descKey: 'plMusicDesc' },
+  { id: 'pj-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMusicTitle', descKey: 'plMusicDesc', steps: preprodEntrySteps('pj-music', 'plEntryIntroText') },
   { id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plAnnTitle', descKey: 'plAnnDesc' }, // projet-lecons.js ; « bientôt » tant que les vidéos d'« Alone » manquent
-  { id: 'pj-map-build', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc' },
+  { id: 'pj-map-build', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc', steps: preprodEntrySteps('pj-map-build', 'plEntryIntroText') },
   // « Musique » et « balade » attendent les fichiers sonores d'exemple (kit MAP_MUSIC dans projet-lecons.js) : « bientôt » d'ici là.
   { id: 'pj-map-music', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc' },
   { id: 'pj-map-walk', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc' },
@@ -1122,7 +1131,7 @@ function startLesson(id, opts) {
   const lesson = LESSONS.find(l => l.id === id);
   // Relancer, depuis le menu, la leçon déjà ouverte : on recharge la page, sinon les restes de la partie précédente (AdReel créé, onglet) faussent les étapes.
   if (opts && opts.restart && lesson && lesson.reload && !lesson.soon && isTutoMode() && new URLSearchParams(window.location.search).get('lesson') === id) { window.location.reload(); return; }
-  if (lesson && lesson.page && lessonsAccessOpen() && lessonPlayable(lesson)) { window.location.href = lessonTutoUrl(lesson, id); return; }
+  if (lesson && lesson.page && !lesson.steps && lessonsAccessOpen() && lessonPlayable(lesson)) { window.location.href = lessonTutoUrl(lesson, id); return; }
   // Dans le tutoriel, chaque leçon repart d'un compte d'exemple propre (22/10) : changer de leçon recharge la page, sinon les restes
   // de la leçon précédente (morceau créé, fenêtres) restent à l'écran.
   if (lesson && lesson.steps && lessonsAccessOpen() && lessonPlayable(lesson) && !lesson.soon && isTutoMode() && new URLSearchParams(window.location.search).get('lesson') !== id) {

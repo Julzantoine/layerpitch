@@ -61,7 +61,7 @@
     get_my_analytics_overview: (a) => lessonParam() === 'tracking' ? analyticsDemo.overview(a) : null,
     get_my_analytics_entity: (a) => lessonParam() === 'tracking' ? analyticsDemo.entity(a) : null,
     is_admin: () => false,
-    my_feature_flags: () => DEMO_FLAGS.concat(onProjectPage() ? ['projects'] : [], (lessonParam() === 'adreel' || lessonParam() === 'upload' || isVersioning()) ? ['video_upload', 'versioning'] : []).map(key => ({ key, allowed: true })),
+    my_feature_flags: () => DEMO_FLAGS.concat(onProjectPage() || /^pj-/.test(lessonParam() || '') ? ['projects'] : [], (lessonParam() === 'adreel' || lessonParam() === 'upload' || isVersioning()) ? ['video_upload', 'versioning'] : []).map(key => ({ key, allowed: true })),
     my_entitlements: () => DEMO_ENTITLEMENTS_ALLOWED.concat(['album', 'upload'].includes(lessonParam()) ? ['sell_albums'] : [], lessonParam() === 'share' ? ['custom_address', 'private_links'] : [], onProjectPage() ? ['projects'] : [], isVersioning() ? ['test_in_game', 'no_watermark'] : []).map(f => ({ feature: f, allowed: true, amount: f === 'projects' ? 5 : null, level: (f === 'versioning' && (lessonParam() === 'adreel' || lessonParam() === 'upload' || isVersioning())) || f === 'test_in_game' ? 'saved' : 'pro', plan: 'pro', source: 'demo' }))
       .concat(DEMO_ENTITLEMENTS_DENIED.filter(f => !((['album', 'upload'].includes(lessonParam()) && f === 'sell_albums') || (lessonParam() === 'share' && (f === 'custom_address' || f === 'private_links')))).map(f => ({ feature: f, allowed: false, amount: null, level: null, plan: 'pro', source: 'demo' }))),
     get_trial_status: () => [{ plan: 'pro', trial_ends_at: null, real_plan: 'pro', preview_active: false }],
