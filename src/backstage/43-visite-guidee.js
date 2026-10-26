@@ -738,6 +738,9 @@ const LESSONS = [
     { selector: '.nav-item[data-tab="content"]', titleKey: 'liBackTitle', textKey: 'liBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
     { selector: '#btnPublish', titleKey: 'liLinkTitle', textKey: 'liLinkText' },
     { selector: '#btnPreview', titleKey: 'liPreviewTitle', textKey: 'liPreviewText', clickDone: true },
+    { selector: '.nav-item[data-tab="manageAdreels"]', titleKey: 'liManageTabTitle', textKey: 'liManageTabText', done: () => !!document.querySelector('.backstage-panel[data-panel="manageAdreels"].active') },
+    { selector: '#manageAdreelsMaster', titleKey: 'liManageListTitle', textKey: 'liManageListText' },
+    { selector: '#manageAdreelsDetail', titleKey: 'liManageActionsTitle', textKey: 'liManageActionsText' },
     { selector: '#navLinkAccount', titleKey: 'liAccountTitle', textKey: 'liAccountText' },
     { titleKey: 'liDirectoryTitle', textKey: 'liDirectoryText', final: true },
   ] },
@@ -764,7 +767,10 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack1Title', textKey: 'laTrack1Text', done: () => trackIds.length >= 1 },
     { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack2Title', textKey: 'laTrack2Text', done: () => trackIds.length >= 2 },
     // Mise en page : explication, sans geste obligatoire (le glisser-déposer des blocs marche à la souris, pas toujours au doigt).
-    { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'laReorderTitle', textKey: 'laReorderText' },
+    // Réordonner est plus simple blocs repliés ; l'étape attend que l'ordre ait vraiment changé avant d'afficher « Suivant ».
+    { selector: '#btnToggleCollapseAllBlocks', titleKey: 'liCollapseTitle', textKey: 'liCollapseText', done: () => allBlocksCollapsed() },
+    { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'laReorderTitle', textKey: 'laReorderText',
+      enter: ctx => { ctx.blocksOrder0 = blocks.map(b => b.id).join(); }, done: ctx => !!ctx.blocksOrder0 && blocks.map(b => b.id).join() !== ctx.blocksOrder0 },
     // Bloc vidéo : la vidéo de gameplay de la leçon « Versioning » (lien à fournir : LESSON_ADREEL_VIDEO ; l'étape du lien est sautée tant qu'il manque).
     // Aperçu de l'AdReel rempli : nouvelle fenêtre, aperçu local (rien n'est publié).
     { selector: '#btnPublish', titleKey: 'laSendTitle', textKey: 'laSendText', clickDone: true },
@@ -1003,8 +1009,18 @@ function startBackstageTour() {
   if (guide) return;
   openGuide('tour', TOUR_STEPS.filter(s => !s.selector || tourTargetVisible(document.querySelector(s.selector))));
 }
-function startLesson(id) {
+// Leçons du thème « pitch » : elles partent toujours de l'onglet Contenu, sur le Main AdReel (on peut avoir laissé le tutoriel sur un autre onglet ou un autre AdReel).
+function resetLessonView(lesson) {
+  if (!lesson || lesson.theme !== 'pitch' || !isTutoMode()) return;
+  try {
+    if (typeof switchTab === 'function') switchTab('content');
+    if (typeof switchAdReel === 'function' && typeof adReels !== 'undefined' && currentAdReelId !== 'main' && adReels.some(a => a.id === 'main')) switchAdReel('main');
+  } catch (e) { /* la leçon se déroule quand même */ }
+}
+function startLesson(id, opts) {
   const lesson = LESSONS.find(l => l.id === id);
+  // Relancer, depuis le menu, la leçon déjà ouverte : on recharge la page, sinon les restes de la partie précédente (AdReel créé, onglet) faussent les étapes.
+  if (opts && opts.restart && lesson && lesson.reload && !lesson.soon && isTutoMode() && new URLSearchParams(window.location.search).get('lesson') === id) { window.location.reload(); return; }
   if (lesson && lesson.page && lessonsAccessOpen() && lessonPlayable(lesson)) { window.location.href = lessonTutoUrl(lesson, id); return; }
   // Dans le tutoriel, chaque leçon repart d'un compte d'exemple propre (22/10) : changer de leçon recharge la page, sinon les restes
   // de la leçon précédente (morceau créé, fenêtres) restent à l'écran.
@@ -1015,6 +1031,7 @@ function startLesson(id) {
     window.location.href = window.location.pathname + '?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); return;
   }
   if (!lesson || !lesson.steps || !lessonsAccessOpen() || !lessonPlayable(lesson) || (lesson.needs && !flagOpen(lesson.needs))) return;
+  resetLessonView(lesson);
   openGuide('lesson', lesson.steps, id);
   // Saute les étapes déjà faites au départ (par ex. bibliothèque déjà ouverte).
   const skipDone = () => { while (guide && guide.index < guide.steps.length - 1 && guide.steps[guide.index].done && guideStepIsDone(guide.steps[guide.index])) guideGo(1); };
@@ -1078,7 +1095,7 @@ function initTutorialMenuUi() {
     const l = LESSONS.find(x => x.id === id);
     // Nouvelle fenêtre (22/10) : le vrai Backstage reste ouvert à côté du tutoriel.
     if (!isTutoMode() && l && !l.soon) { window.open(lessonTutoUrl(l, id), '_blank', 'noopener'); return; }
-    startLesson(id);
+    startLesson(id, { restart: true });
   });
 }
 // Appelée une fois les feux verts connus (fin de renderAdminOnlyPanels) : montre le menu et lance la visite la toute

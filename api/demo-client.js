@@ -12,7 +12,7 @@
 // Chargé par loadPostgresReadScripts() (src/backstage/13-suivi-d-usage.js) uniquement quand l'adresse contient ?tuto.
 
 (function () {
-  const DEMO_USER = { id: 'demo-user', email: 'demo@layerpitch.com', user_metadata: {}, app_metadata: {} };
+  const DEMO_USER = { id: 'demo-user', email: 'daniel@orcman-music.example', user_metadata: {}, app_metadata: {} };
   const DEMO_SESSION = { access_token: 'demo', refresh_token: 'demo', expires_in: 86400, token_type: 'bearer', user: DEMO_USER };
   const DEMO_COMPOSER_ID = 'demo-composer';
 
@@ -52,6 +52,10 @@
     return { overview, entity };
   })();
   const RPC_ANSWERS = {
+    // Page « Mon compte » du compte fictif (annuaire des compositeurs : visible d'office, mots-clés d'exemple).
+    get_my_notification_prefs: () => [{ email_announcements: true, lang: 'fr' }],
+    get_my_directory: () => ({ optIn: true, keywords: ['jazz', 'musique interactive', 'RPG', 'adaptatif'], photo: null }),
+    directory_status: () => ({ open: true }),
     list_album_rights: () => lessonParam() === 'album' ? { declaration: 'sole', ackAt: null, settled: false, sellerShareBps: 10000, holders: [] } : null,
     get_my_analytics_overview: (a) => lessonParam() === 'tracking' ? analyticsDemo.overview(a) : null,
     get_my_analytics_entity: (a) => lessonParam() === 'tracking' ? analyticsDemo.entity(a) : null,
@@ -158,6 +162,21 @@
         { id: 'b-testimonials', type: 'testimonials' }, { id: 'b-contact', type: 'contact' }],
       track_overrides: {}, ad_reel_tracks: DEMO_TRACKS_JAZZ.map((t, i) => ({ track_id: t.id, position: i })) };
   };
+  // Autres AdReels de Daniel Orcman, pour la leçon « C'est quoi un AdReel ? » (passage « Gérer les AdReels », 26/10) : un AdReel par destinataire, chacun avec une sélection de morceaux.
+  const demoOtherAdReels = () => {
+    const main = demoMainAdReel();
+    const make = (id, label, lang, tracks, title, subtitle) => Object.assign({}, main, { id, label, lang, slug: null,
+      profile: Object.assign({}, main.profile, { title: title || main.profile.title, subtitle: subtitle || main.profile.subtitle }),
+      blocks: [{ id: id + '-h', type: 'header' }, { id: id + '-b', type: 'bio' }, { id: id + '-t', type: 'tracks' }, { id: id + '-c', type: 'contact' }],
+      testimonials: [], ad_reel_tracks: tracks.map((t, i) => ({ track_id: DEMO_TRACKS_JAZZ[t].id, position: i })) });
+    const en = main.lang === 'en';
+    return [
+      make('studio-aurora', en ? 'Studio Aurora: pitch' : 'Studio Aurora : pitch musical', main.lang, [0, 1], null, en ? 'Music for “Aurora Run”' : 'Musique pour « Aurora Run »'),
+      make('pixel-forge', en ? 'Pixel Forge: RPG demo' : 'Pixel Forge : démo RPG', main.lang, [2, 3], null, en ? 'Adaptive music for RPGs' : 'Musique adaptative pour RPG'),
+      make('music-city', en ? 'Music City: musical pitch' : 'Music City : pitch musical', main.lang, [0, 1, 2, 3], null, en ? 'Four interactive moods for “Music City”' : 'Quatre ambiances interactives pour « Music City »'),
+      make('english', 'English version', 'en', [0, 1, 2, 3], null, 'Composer of interactive music for video games'),
+    ];
+  };
   // Pack de la bibliothèque du compositeur fictif (leçon « La musique du projet » : on le partage au Projet).
   const DEMO_PACKS = [{ id: 'p-alone', owner_id: 'demo-composer', title: 'Alone : ambiances du lac (exemple)', illustration: null, illustration_original_name: null, watermark: null,
     watermark_original_name: null, presentation_fr: '', presentation_en: '', buyable: false, buy_url: null, free_download_enabled: false, video_test_mode_enabled: false,
@@ -175,7 +194,7 @@
   // Morceaux d'exemple : leçon AdReel (Backstage) et pages Projets (leur propre bibliothèque, pour le pack et la carte). Pack : pages Projets.
   const listRows = table => {
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
-    if (table === 'ad_reels' && (['adreel-intro', 'adreel', 'upload'].includes(lessonParam()))) return [demoMainAdReel()];
+    if (table === 'ad_reels' && (['adreel-intro', 'adreel', 'upload'].includes(lessonParam()))) return lessonParam() === 'adreel-intro' ? [demoMainAdReel()].concat(demoOtherAdReels()) : [demoMainAdReel()];
     if (table === 'tracks' && ['adreel', 'adreel-intro', 'pack', 'album', 'tracking', 'upload'].includes(lessonParam()) && !projectPage) return DEMO_TRACKS_JAZZ;
     if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
     if (table === 'tracks' && lessonParam() === 'sfx') return [DEMO_TRACK_JAZZ_SFX];

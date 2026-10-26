@@ -259,3 +259,10 @@ const pendingOrphanR2Keys = new Set();
     if (c) setTimeout(() => c.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   });
 })();
+
+// Mode tutoriel (26/10) : « Mon compte » ouvre le compte FICTIF (mon-compte.html?tuto), jamais le vrai compte de la personne.
+(function setupTutoAccountLinks() {
+  if (!isTutoMode()) return;
+  const lang = (typeof currentLang === 'function') ? currentLang() : 'fr';
+  document.querySelectorAll('a[href="mon-compte.html"]').forEach(a => { a.setAttribute('href', 'mon-compte.html?tuto&lang=' + lang); a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener'); });
+})();
