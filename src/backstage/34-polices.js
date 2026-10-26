@@ -46,10 +46,22 @@ document.getElementById('customFontsContainer').addEventListener('click', e => {
   fillAppearanceFields();
   rebuildAllCards();
 });
+// Le bouton ouvre directement le dialogue de choix du fichier : une police n'existe qu'avec son fichier, donc
+// rien n'est ajouté tant qu'aucun fichier n'est choisi (annuler le dialogue ne laisse pas de ligne vide).
+// Le nom est prérempli avec celui du fichier, modifiable ensuite.
+const CUSTOM_FONT_ACCEPT = '.woff2,.woff,.ttf,.otf';
 document.getElementById('btnAddCustomFont').addEventListener('click', () => {
-  customFonts.push({ id: genId(), name: '', pendingFile: null, remoteFile: null });
-  hasUnsavedEdits = true;
-  trackBackstageEvent('custom_font_add', {});
-  renderCustomFontsList();
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = CUSTOM_FONT_ACCEPT;
+  input.addEventListener('change', () => {
+    const f = input.files[0];
+    if (!f || !fileMatchesAccept(f, CUSTOM_FONT_ACCEPT)) return;
+    customFonts.push({ id: genId(), name: f.name.replace(/\.[^.]+$/, ''), pendingFile: f, remoteFile: null });
+    hasUnsavedEdits = true;
+    trackBackstageEvent('custom_font_add', {});
+    renderCustomFontsList();
+    fillAppearanceFields(); // le nouveau nom apparaît tout de suite dans les sélecteurs de police
+  });
+  input.click();
 });
-
