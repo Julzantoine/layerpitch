@@ -311,6 +311,8 @@ const ALBUM_TEXT = (typeof currentLang === 'function' && currentLang() === 'en')
 const ALBUM_COVER = { name: 'music-city-cover.jpg', url: './images/tuto-music-city-cover.jpg' };
 // Illustration d'exemple du pack (image réelle du pack « 8 bits Comptines », copiée dans le dépôt).
 const PACK_ILLUSTRATION = { name: 'illustration-8-bits.png', url: './images/tuto-8bits-illustration.png' };
+// Filigrane d'exemple du pack (même image que l'illustration dans le vrai pack « 8 bits Comptines »).
+const PACK_WATERMARK = { name: 'filigrane-8-bits.png', url: './images/tuto-8bits-illustration.png' };
 const UPLOAD_KIT = {
   // Images « Alone » (réduites) et petit film de présentation : fichiers du dépôt, servis avec le site (aucun dépôt dans le stockage des médias).
   url: name => ({ 'alone-ponton.jpg': './images/tuto-ponton.jpg', 'alone-brume.jpg': './images/tuto-brume.jpg', 'alone-rameur.jpg': './images/tuto-rameur.jpg', 'layerpitch-le-film.mp4': './images/tuto-film.mp4', [ALBUM_COVER.name]: ALBUM_COVER.url }[name] || ('https://media.layerpitch.com/tuto/' + encodeURIComponent(name))),
@@ -798,23 +800,26 @@ const LESSONS = [
     { titleKey: 'aprWelcomeTitle', textKey: 'aprWelcomeText' },
     { selector: '.nav-item[data-tab="appearance"]', titleKey: 'aprTabTitle', textKey: 'aprTabText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
     { selector: '#themeProQuickStartGallery', titleKey: 'aprThemeTitle', textKey: 'aprThemeText', done: () => (profile.theme && (profile.theme.bgColor || '').toLowerCase() === '#1b1035') },
-    { selector: '#appThemeTitleColor', titleKey: 'aprTitleColorTitle', textKey: 'aprTitleColorText', done: () => (profile.theme && (profile.theme.titleColor || '').toLowerCase() !== '#ff3ea5'),
+    { selector: '#appThemeTitleColor', titleKey: 'aprTitleColorTitle', textKey: 'aprTitleColorText', done: () => (profile.theme && (profile.theme.titleColor || '').toLowerCase() === '#00ccff'),
       drops: [{ kind: 'text', label: 'Cyan (#00CCFF)', value: '#00ccff' }] },
-    { selector: '#appThemeBgColor', titleKey: 'aprColorsTitle', textKey: 'aprColorsText' },
-    { selector: '#appThemeFont', titleKey: 'aprFontTitle', textKey: 'aprFontText', done: () => !!profile.theme && profile.theme.font !== 'google:Space Grotesk' },
+    { selector: '#appThemePlayButtonColor', titleKey: 'aprColorsTitle', textKey: 'aprColorsText', done: () => !!profile.theme && (profile.theme.playButtonColor || '').toLowerCase() === '#ffd400',
+      drops: [{ kind: 'text', label: 'Jaune (#FFD400)', value: '#ffd400' }] },
+    { selector: '#appThemeFont', titleKey: 'aprFontTitle', textKey: 'aprFontText', done: () => !!profile.theme && profile.theme.font === 'google:Playfair Display' },
     { selector: '#btnAddCustomFont', titleKey: 'aprCustomFontTitle', textKey: 'aprCustomFontText' },
     { selector: '#appThemeBgImageCtrl .file-ctrl', titleKey: 'aprBgImageTitle', textKey: 'aprBgImageText', done: () => !!themeBgImagePendingFile,
       drops: [{ kind: 'file', label: ALBUM_COVER.name, url: ALBUM_COVER.url, name: ALBUM_COVER.name }] },
-    { selector: '#appThemeBgImageOpacity', titleKey: 'aprOpacityTitle', textKey: 'aprOpacityText' },
+    { selector: '#appThemeBgImageOpacity', titleKey: 'aprOpacityTitle', textKey: 'aprOpacityText', done: () => !!profile.theme && Number(profile.theme.bgImageOpacity) >= 0.4 && Number(profile.theme.bgImageOpacity) <= 0.6 },
     { selector: '#appSeparatorThickness', titleKey: 'aprSepTitle', textKey: 'aprSepText', enter: ctx => { ctx.sepThickness0 = Number(document.getElementById('appSeparatorThickness').value); },
       done: ctx => ctx.sepThickness0 != null && Number(document.getElementById('appSeparatorThickness').value) !== ctx.sepThickness0,
       drops: [{ kind: 'text', label: '3', value: '3' }] },
-    { selector: () => document.getElementById('waveformStylePicker') || document.getElementById('waveformStyleSelect'), titleKey: 'aprWaveTitle', textKey: 'aprWaveText' }, // menu d'hier ou cartes d'aperçu (branche « boutons de lecture »)
-    { selector: '#seqMapThemeSelect', titleKey: 'aprMapTitle', textKey: 'aprMapText' },
+    { selector: '#waveformStylePicker', titleKey: 'aprWaveTitle', textKey: 'aprWaveText', clickDone: true },
+    { selector: '#seqMapThemeSelect', titleKey: 'aprMapTitle', textKey: 'aprMapText', enter: ctx => { ctx.mapTheme0 = document.getElementById('seqMapThemeSelect').value; }, done: ctx => ctx.mapTheme0 != null && document.getElementById('seqMapThemeSelect').value !== ctx.mapTheme0 },
     // Premier aperçu : avec l'image de fond, les textes se lisent mal -> on revient les mettre en blanc, puis on revisualise.
     { selector: '#btnPreview', titleKey: 'aprPreviewTitle', textKey: 'aprPreviewText', clickDone: true },
     { titleKey: 'aprReviewTitle', textKey: 'aprReviewText' },
     { selector: '#appThemeContentColor', titleKey: 'aprWhiteTitle', textKey: 'aprWhiteText', done: () => !!profile.theme && (profile.theme.contentColor || '').toLowerCase() === '#ffffff',
+      drops: [{ kind: 'text', label: 'Blanc (#FFFFFF)', value: '#ffffff' }] },
+    { selector: '#appThemeSectionLabelColor', titleKey: 'aprLabelsTitle', textKey: 'aprLabelsText', done: () => !!profile.theme && (profile.theme.sectionLabelColor || '').toLowerCase() === '#ffffff',
       drops: [{ kind: 'text', label: 'Blanc (#FFFFFF)', value: '#ffffff' }] },
     { selector: '.nav-item[data-tab="content"]', titleKey: 'aprBackTitle', textKey: 'aprBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
     { selector: '.block-editor-card[data-type="text"] .block-editor-head [data-action="toggle-collapse"]', titleKey: 'aprBlockOpenTitle', textKey: 'aprBlockOpenText',
@@ -837,7 +842,7 @@ const LESSONS = [
     { selector: '#appAccessMode', titleKey: 'shrAccessTitle', textKey: 'shrAccessText', done: () => document.getElementById('appAccessMode').value === 'password' },
     { selector: '#appAccessPassword', titleKey: 'shrPasswordTitle', textKey: 'shrPasswordText', done: () => (document.getElementById('appAccessPassword').value || '').trim().length >= 4,
       drops: [{ kind: 'text', label: 'musiccity2026', value: 'musiccity2026' }] },
-    { selector: '#btnSaveAccessPassword', titleKey: 'shrSaveTitle', textKey: 'shrSaveText' },
+    { selector: '#btnSaveAccessPassword', titleKey: 'shrSaveTitle', textKey: 'shrSaveText', clickDone: true },
     { selector: '#adReelLinkButtons', titleKey: 'shrLinkTitle', textKey: 'shrLinkText', skip: () => { const e = document.getElementById('adReelLinkButtons'); return !e || e.hidden; } },
     { titleKey: 'shrEndTitle', textKey: 'shrEndText', final: true },
   ] },
@@ -874,9 +879,12 @@ const LESSONS = [
     { selector: '#packsContainer [data-pack-field="bgColor"]', titleKey: 'lpColorsTitle', textKey: 'lpColorsText', skip: () => !document.querySelector('#packsContainer [data-pack-field="bgColor"]') },
     { selector: '#packsContainer [data-role="illustrationCtrl"] .file-ctrl', titleKey: 'lpImageTitle', textKey: 'lpImageText', done: () => packs.length > 0 && !!packs[0].pendingIllustration,
       drops: [{ kind: 'file', label: PACK_ILLUSTRATION.name, url: PACK_ILLUSTRATION.url, name: PACK_ILLUSTRATION.name }] },
+    { selector: '#packsContainer [data-role="watermarkCtrl"] .file-ctrl', titleKey: 'lpWatermarkTitle', textKey: 'lpWatermarkText', done: () => packs.length > 0 && !!packs[0].pendingWatermark,
+      drops: [{ kind: 'file', label: PACK_WATERMARK.name, url: PACK_WATERMARK.url, name: PACK_WATERMARK.name }] },
     { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="distribution"]', titleKey: 'lpDistTitle', textKey: 'lpDistText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'distribution' },
     { selector: '#packsContainer select[data-pack-field="priceEurCents"]', titleKey: 'lpPriceTitle', textKey: 'lpPriceText', done: () => packs.length > 0 && packs[0].priceEurCents !== 1000 },
     { selector: '#packsContainer input[data-pack-field="buyable"]', titleKey: 'lpSellTitle', textKey: 'lpSellText' },
+    { selector: '#packsContainer input[data-pack-field="videoTestModeEnabled"]', titleKey: 'lpGameplayTitle', textKey: 'lpGameplayText', done: () => packs.length > 0 && !!packs[0].videoTestModeEnabled },
     { selector: '#packsContainer [data-action="preview-pack"]', titleKey: 'lpPreviewTitle', textKey: 'lpPreviewText', clickDone: true },
     { titleKey: 'lpEndTitle', textKey: 'lpEndText', final: true },
   ] },

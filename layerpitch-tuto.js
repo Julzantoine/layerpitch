@@ -46,10 +46,11 @@
   // tous sur le faux serveur (api/demo-client.js doit être chargé).
   function switchToDemo() { window.LayerPitchSupabaseClient = { getClient: () => window.LayerPitchDemoClient }; }
   // Entrée complète pour les pages à balises <script> statiques : porte (si fermée) puis bascule. `leaveTo` : page de repli pour un refus.
-  async function enter(leaveTo) {
+  // `opts.adminOnly` : page réservée aux admins même quand le tutoriel public est ouvert (leçons « Préproduction » pas encore vérifiées, 26/10).
+  async function enter(leaveTo, opts) {
     if (!isOn()) return false;
     await ready;
-    if (!publicOpen() && !(await adminGate())) { window.location.replace(leaveTo || window.location.pathname); await new Promise(() => {}); }
+    if ((!publicOpen() || (opts && opts.adminOnly)) && !(await adminGate())) { window.location.replace(leaveTo || window.location.pathname); await new Promise(() => {}); }
     switchToDemo();
     return true;
   }
