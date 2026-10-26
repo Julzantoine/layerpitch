@@ -309,6 +309,8 @@ const ALBUM_TEXT = (typeof currentLang === 'function' && currentLang() === 'en')
   : 'Retrouvez l’OST de Music City, primée aux OST Awards ! Écoutez tous les morceaux comme si vous étiez au cœur du jeu, faites évoluer vos versions, choisissez vos réglages ou écoutez une nouvelle version aléatoire à chaque fois !';
 // Pochette d'exemple de l'album (image du dépôt, servie avec le site : pas besoin du stockage des médias).
 const ALBUM_COVER = { name: 'music-city-cover.jpg', url: './images/tuto-music-city-cover.jpg' };
+// Illustration d'exemple du pack (image réelle du pack « 8 bits Comptines », copiée dans le dépôt).
+const PACK_ILLUSTRATION = { name: 'illustration-8-bits.png', url: './images/tuto-8bits-illustration.png' };
 const UPLOAD_KIT = {
   url: name => 'https://media.layerpitch.com/tuto/' + encodeURIComponent(name),
   photo: { name: 'alone-ponton.jpg' }, thumb: { name: 'alone-brume.jpg' }, cover: { name: 'alone-rameur.jpg' }, album: ALBUM_COVER,
@@ -869,7 +871,8 @@ const LESSONS = [
     { selector: () => document.querySelector('#packsContainer .theme-preset-card[data-preset-id="default"]') || document.querySelector('#packsContainer .theme-preset-card'), titleKey: 'lpThemeTitle', textKey: 'lpThemeText', clickDone: true },
     { selector: '#packsContainer select[data-pack-field="font"]', titleKey: 'lpFontTitle', textKey: 'lpFontText', skip: () => !document.querySelector('#packsContainer select[data-pack-field="font"]') },
     { selector: '#packsContainer [data-pack-field="bgColor"]', titleKey: 'lpColorsTitle', textKey: 'lpColorsText', skip: () => !document.querySelector('#packsContainer [data-pack-field="bgColor"]') },
-    { selector: '#packsContainer [data-role="illustrationCtrl"]', titleKey: 'lpImageTitle', textKey: 'lpImageText' },
+    { selector: '#packsContainer [data-role="illustrationCtrl"] .file-ctrl', titleKey: 'lpImageTitle', textKey: 'lpImageText', done: () => packs.length > 0 && !!packs[0].pendingIllustration,
+      drops: [{ kind: 'file', label: PACK_ILLUSTRATION.name, url: PACK_ILLUSTRATION.url, name: PACK_ILLUSTRATION.name }] },
     { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="distribution"]', titleKey: 'lpDistTitle', textKey: 'lpDistText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'distribution' },
     { selector: '#packsContainer select[data-pack-field="priceEurCents"]', titleKey: 'lpPriceTitle', textKey: 'lpPriceText', done: () => packs.length > 0 && packs[0].priceEurCents !== 1000 },
     { selector: '#packsContainer input[data-pack-field="buyable"]', titleKey: 'lpSellTitle', textKey: 'lpSellText' },
