@@ -6,10 +6,10 @@ const TOUR_DONE_STORAGE = 'layerpitch_tour_done_v1';
 const LESSONS_DONE_STORAGE = 'layerpitch_lessons_done_v1';
 const TOUR_STEPS = [
   { titleKey: 'tourWelcomeTitle', textKey: 'tourWelcomeText' },
+  { selector: '.nav-item[data-tab="library"]', titleKey: 'tourLibraryTitle', textKey: 'tourLibraryText' },
   { selector: '.sidebar-adreel-group', titleKey: 'tourAdreelTitle', textKey: 'tourAdreelText' },
   { selector: '.nav-item[data-tab="content"]', titleKey: 'tourContentTitle', textKey: 'tourContentText' },
   { selector: '.nav-item[data-tab="appearance"]', titleKey: 'tourAppearanceTitle', textKey: 'tourAppearanceText' },
-  { selector: '.nav-item[data-tab="library"]', titleKey: 'tourLibraryTitle', textKey: 'tourLibraryText' },
   { selector: '.nav-item[data-tab="sfxLibrary"]', titleKey: 'tourSfxTitle', textKey: 'tourSfxText' },
   { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'tourVideoTitle', textKey: 'tourVideoText', hideIf: () => { const b = document.getElementById('navVideoLibraryBadge'); return !!b && !b.hidden; } },
   { selector: '.nav-item[data-tab="packs"]', titleKey: 'tourPacksTitle', textKey: 'tourPacksText' },
