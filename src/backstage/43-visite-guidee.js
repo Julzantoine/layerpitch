@@ -802,7 +802,7 @@ const LESSONS = [
       drops: [{ kind: 'file', label: ALBUM_COVER.name, url: ALBUM_COVER.url, name: ALBUM_COVER.name }] },
     { selector: '#appThemeBgImageOpacity', titleKey: 'aprOpacityTitle', textKey: 'aprOpacityText' },
     { selector: '#appSeparatorVisible', titleKey: 'aprSepTitle', textKey: 'aprSepText', done: () => !!profile.theme && !!profile.theme.separator && !!profile.theme.separator.visible },
-    { selector: '#waveformStyleSelect', titleKey: 'aprWaveTitle', textKey: 'aprWaveText' },
+    { selector: '#waveformStylePicker', titleKey: 'aprWaveTitle', textKey: 'aprWaveText' },
     { selector: '#seqMapThemeSelect', titleKey: 'aprMapTitle', textKey: 'aprMapText' },
     { selector: '.nav-item[data-tab="content"]', titleKey: 'aprBackTitle', textKey: 'aprBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
     { selector: '.block-editor-card[data-type="text"] [data-role="appearanceToggleHead"]', titleKey: 'aprBlockTitle', textKey: 'aprBlockText', clickDone: true,
