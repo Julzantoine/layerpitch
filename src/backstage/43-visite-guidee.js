@@ -7,10 +7,20 @@ const LESSONS_DONE_STORAGE = 'layerpitch_lessons_done_v1';
 const TOUR_STEPS = [
   { titleKey: 'tourWelcomeTitle', textKey: 'tourWelcomeText' },
   { selector: '.nav-item[data-tab="library"]', titleKey: 'tourLibraryTitle', textKey: 'tourLibraryText' },
+  { selector: '.sidebar-adreel-group', titleKey: 'tourAdreelTitle', textKey: 'tourAdreelText' },
   { selector: '.nav-item[data-tab="content"]', titleKey: 'tourContentTitle', textKey: 'tourContentText' },
   { selector: '.nav-item[data-tab="appearance"]', titleKey: 'tourAppearanceTitle', textKey: 'tourAppearanceText' },
+  { selector: '.nav-item[data-tab="sfxLibrary"]', titleKey: 'tourSfxTitle', textKey: 'tourSfxText' },
+  { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'tourVideoTitle', textKey: 'tourVideoText', hideIf: () => { const b = document.getElementById('navVideoLibraryBadge'); return !!b && !b.hidden; } },
   { selector: '.nav-item[data-tab="packs"]', titleKey: 'tourPacksTitle', textKey: 'tourPacksText' },
+  { selector: '.nav-item[data-tab="albums"]', titleKey: 'tourAlbumsTitle', textKey: 'tourAlbumsText' },
+  { selector: '.nav-item[data-tab="collections"]', titleKey: 'tourCollectionsTitle', textKey: 'tourCollectionsText' },
+  { selector: '.nav-item[data-tab="socials"]', titleKey: 'tourSocialsTitle', textKey: 'tourSocialsText' },
+  { selector: '.nav-item[data-tab="manageAdreels"]', titleKey: 'tourManageTitle', textKey: 'tourManageText' },
+  { selector: '.nav-item[data-tab="analytics"]', titleKey: 'tourAnalyticsTitle', textKey: 'tourAnalyticsText' },
+  { selector: '#btnPreview', titleKey: 'tourPreviewTitle', textKey: 'tourPreviewText' },
   { selector: '#btnPublish', titleKey: 'tourPublishTitle', textKey: 'tourPublishText' },
+  { selector: '#btnTutorialMenu', titleKey: 'tourTutorialTitle', textKey: 'tourTutorialText' },
   { selector: '#btnAccountMenu', titleKey: 'tourAccountTitle', textKey: 'tourAccountText' },
 ];
 
@@ -1082,7 +1092,7 @@ const GUIDE = window.LayerPitchGuide.create({
       lessonUseSample(step).catch(err => window.LayerPitchNotify.error(tr('lessonSampleError', { error: err.message || String(err) })));
     });
   },
-  textVars: (step, st) => ({ file: LESSON_SAMPLE_NAMES[step.names || st.lessonId] || '' }),
+  textVars: (step, st) => ({ file: LESSON_SAMPLE_NAMES[step.names || st.lessonId] || '', n: st.steps.length }),
   adminTools: lessonAdminTools,
   autoSample: step => lessonUseSample(step),
   arrowPoint: lessonArrowPoint,
@@ -1102,7 +1112,8 @@ function openGuide(kind, steps, lessonId) { GUIDE.open(kind, steps, lessonId); }
 function closeBackstageTour() { GUIDE.close(); }
 function startBackstageTour() {
   if (guide) return;
-  openGuide('tour', TOUR_STEPS.filter(s => !s.selector || tourTargetVisible(document.querySelector(s.selector))));
+  // Seules les zones réellement présentes à l'écran sont visitées (onglets réservés aux admins, bouton « Tutoriel » encore fermé, menu replié sur téléphone…).
+  openGuide('tour', TOUR_STEPS.filter(s => !s.selector || (tourTargetVisible(document.querySelector(s.selector)) && !(s.hideIf && s.hideIf()))));
 }
 // Leçons du thème « pitch » : elles partent toujours de l'onglet Contenu, sur le Main AdReel (on peut avoir laissé le tutoriel sur un autre onglet ou un autre AdReel).
 // Fond « annuaire » d'une étape de leçon : la vraie page publique de l'annuaire, derrière la bulle (retirée à la sortie de l'étape et à la fermeture).
@@ -1212,7 +1223,11 @@ function initTutorialMenuUi() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
   dropdown.addEventListener('click', (e) => {
     const fold = e.target.closest('[data-fold-theme]');
-    if (fold) { toggleLessonThemeFold(fold.dataset.foldTheme); renderTutorialMenu(); return; }
+    if (fold) {
+      // Le menu est redessiné : le bouton cliqué sort alors du DOM et le clic remonté au document paraîtrait « hors menu » (fermeture). On l'arrête ici.
+      e.stopPropagation();
+      toggleLessonThemeFold(fold.dataset.foldTheme); renderTutorialMenu(); return;
+    }
     const item = e.target.closest('[data-tutorial]');
     if (!item || item.disabled) return;
     closeMenu();
