@@ -61,8 +61,8 @@
     get_my_analytics_entity: (a) => lessonParam() === 'tracking' ? analyticsDemo.entity(a) : null,
     is_admin: () => false,
     my_feature_flags: () => DEMO_FLAGS.concat(onProjectPage() ? ['projects'] : [], (lessonParam() === 'adreel' || lessonParam() === 'upload' || isVersioning()) ? ['video_upload', 'versioning'] : []).map(key => ({ key, allowed: true })),
-    my_entitlements: () => DEMO_ENTITLEMENTS_ALLOWED.concat(['album', 'upload'].includes(lessonParam()) ? ['sell_albums'] : [], onProjectPage() ? ['projects'] : [], isVersioning() ? ['test_in_game', 'no_watermark'] : []).map(f => ({ feature: f, allowed: true, amount: f === 'projects' ? 5 : null, level: (f === 'versioning' && (lessonParam() === 'adreel' || lessonParam() === 'upload' || isVersioning())) || f === 'test_in_game' ? 'saved' : 'pro', plan: 'pro', source: 'demo' }))
-      .concat(DEMO_ENTITLEMENTS_DENIED.filter(f => !(f === 'sell_albums' && lessonParam() === 'album')).map(f => ({ feature: f, allowed: false, amount: null, level: null, plan: 'pro', source: 'demo' }))),
+    my_entitlements: () => DEMO_ENTITLEMENTS_ALLOWED.concat(['album', 'upload'].includes(lessonParam()) ? ['sell_albums'] : [], lessonParam() === 'share' ? ['custom_address', 'private_links'] : [], onProjectPage() ? ['projects'] : [], isVersioning() ? ['test_in_game', 'no_watermark'] : []).map(f => ({ feature: f, allowed: true, amount: f === 'projects' ? 5 : null, level: (f === 'versioning' && (lessonParam() === 'adreel' || lessonParam() === 'upload' || isVersioning())) || f === 'test_in_game' ? 'saved' : 'pro', plan: 'pro', source: 'demo' }))
+      .concat(DEMO_ENTITLEMENTS_DENIED.filter(f => !((['album', 'upload'].includes(lessonParam()) && f === 'sell_albums') || (lessonParam() === 'share' && (f === 'custom_address' || f === 'private_links')))).map(f => ({ feature: f, allowed: false, amount: null, level: null, plan: 'pro', source: 'demo' }))),
     get_trial_status: () => [{ plan: 'pro', trial_ends_at: null, real_plan: 'pro', preview_active: false }],
     my_billing: () => ({}),
     my_admin_preview: () => null,
@@ -205,9 +205,9 @@
   // Morceaux d'exemple : leçon AdReel (Backstage) et pages Projets (leur propre bibliothèque, pour le pack et la carte). Pack : pages Projets.
   const listRows = table => {
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
-    if (table === 'ad_reels' && (['adreel-intro', 'adreel', 'upload', 'appearance'].includes(lessonParam()))) return lessonParam() === 'adreel-intro' ? [demoMainAdReel()].concat(demoOtherAdReels()) : (lessonParam() === 'appearance' ? [demoMainAdReel(), demoJoshuaAdReel()] : [demoMainAdReel()]);
+    if (table === 'ad_reels' && (['adreel-intro', 'adreel', 'upload', 'appearance', 'share'].includes(lessonParam()))) return lessonParam() === 'adreel-intro' ? [demoMainAdReel()].concat(demoOtherAdReels()) : (['appearance', 'share'].includes(lessonParam()) ? [demoMainAdReel(), demoJoshuaAdReel()] : [demoMainAdReel()]);
     if (table === 'tracks' && lessonParam() === 'pack' && !projectPage) return DEMO_TRACKS_8BIT;
-    if (table === 'tracks' && ['adreel', 'adreel-intro', 'album', 'tracking', 'upload', 'appearance'].includes(lessonParam()) && !projectPage) return DEMO_TRACKS_JAZZ;
+    if (table === 'tracks' && ['adreel', 'adreel-intro', 'album', 'tracking', 'upload', 'appearance', 'share'].includes(lessonParam()) && !projectPage) return DEMO_TRACKS_JAZZ;
     if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
     if (table === 'tracks' && lessonParam() === 'sfx') return [DEMO_TRACK_JAZZ_SFX];
     if (table === 'tracks' && lessonParam() === 'events') return [Object.assign({}, DEMO_TRACK_JAZZ_SFX, { track_sfx: DEMO_SFX.map((x, i) => ({ sfx_id: x.id, position: i })) })];

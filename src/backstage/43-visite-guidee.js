@@ -811,6 +811,22 @@ const LESSONS = [
     { selector: '#btnPreview', titleKey: 'aprPreviewTitle', textKey: 'aprPreviewText', clickDone: true },
     { titleKey: 'aprEndTitle', textKey: 'aprEndText', final: true },
   ] },
+  // Leçon « Diffuser son AdReel » (26/10, ?tuto&lesson=share) : langue de la page, indexation par Google, adresse personnalisée, accès privé (mot de passe). Elle suit « Apparence » et reprend l'AdReel de Joshua :
+  // on l'envoie à une seule personne, donc on le rend privé. Rien n'est enregistré (les réglages d'adresse et d'accès sont immédiats dans un vrai compte, ici on ne clique pas sur « Enregistrer »).
+  { id: 'share', theme: 'pitch', public: true, reload: true, startAdReel: 'music-city', titleKey: 'shrTitle', descKey: 'shrDesc', steps: [
+    { titleKey: 'shrWelcomeTitle', textKey: 'shrWelcomeText' },
+    { selector: '.nav-item[data-tab="appearance"]', titleKey: 'shrTabTitle', textKey: 'shrTabText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
+    { selector: '#appLang', titleKey: 'shrLangTitle', textKey: 'shrLangText' },
+    { selector: '#appAllowIndexing', titleKey: 'shrIndexTitle', textKey: 'shrIndexText', done: () => !document.getElementById('appAllowIndexing').checked },
+    { selector: '#appSlug', titleKey: 'shrSlugTitle', textKey: 'shrSlugText', done: () => (document.getElementById('appSlug').value || '').trim().length > 2,
+      drops: [{ kind: 'text', label: 'music-city-joshua', value: 'music-city-joshua' }] },
+    { selector: '#appAccessMode', titleKey: 'shrAccessTitle', textKey: 'shrAccessText', done: () => document.getElementById('appAccessMode').value === 'password' },
+    { selector: '#appAccessPassword', titleKey: 'shrPasswordTitle', textKey: 'shrPasswordText', done: () => (document.getElementById('appAccessPassword').value || '').trim().length >= 4,
+      drops: [{ kind: 'text', label: 'musiccity2026', value: 'musiccity2026' }] },
+    { selector: '#btnSaveAccessPassword', titleKey: 'shrSaveTitle', textKey: 'shrSaveText' },
+    { selector: '#adReelLinkButtons', titleKey: 'shrLinkTitle', textKey: 'shrLinkText', skip: () => { const e = document.getElementById('adReelLinkButtons'); return !e || e.hidden; } },
+    { titleKey: 'shrEndTitle', textKey: 'shrEndText', final: true },
+  ] },
   // Leçon « Vérifier le tracking » (25/10, ?tuto&lesson=tracking, rechargement obligatoire d'où `reload`) : tableau de bord Analytics (palier Pro) déjà garni par le faux serveur (api/demo-client.js, analyticsDemo).
   { id: 'tracking', theme: 'pitch', public: true, reload: true, titleKey: 'ltTitle', descKey: 'ltDesc', steps: [
     { titleKey: 'ltWelcomeTitle', textKey: 'ltWelcomeText' },
