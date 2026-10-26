@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1792957009008">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793008902952">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1203,6 +1203,10 @@
       <a class="nav-item" id="navLinkCatalog" href="shop.html" hidden>
         <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg><span data-i18n="navCatalog">Catalogue audio</span></span>
       </a>
+      <!-- Annuaire des compositeurs (26/10) : lien dans la barre, sous le catalogue ; feu vert « composer_directory ». -->
+      <a class="nav-item" id="navLinkDirectory" href="annuaire.html" hidden>
+        <span class="nav-item-label"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6.3a3 3 0 0 1 0 5.4"/><path d="M17.5 14a5.5 5.5 0 0 1 3 5"/></svg><span data-i18n="navDirectory">Annuaire des compositeurs</span></span>
+      </a>
       </div>
 
       <!-- Navigation commune (28/09) : mêmes rubriques que la barre latérale des autres pages (layerpitch-shell.js),
@@ -1882,17 +1886,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1792957009008"></script>
-<script src="layerpitch-i18n.js?v=1792957009008"></script>
-<script src="layerpitch-appearance.js?v=1792957009008"></script>
-<script src="layerpitch-album-shared.js?v=1792957009008"></script>
-<script src="layerpitch-album-editor.js?v=1792957009008"></script>
-<script src="layerpitch-shell.js?v=1792957009008"></script>
-<script src="layerpitch-social-icons.js?v=1792957009008"></script>
-<script src="layerpitch-notify.js?v=1792957009008"></script>
-<script src="layerpitch-guide.js?v=1792957009008"></script>
-<script src="layerpitch-help.js?v=1792957009008"></script>
-<script src="player.js?v=1792957009008"></script>
+<script src="layerpitch-tuto.js?v=1793008902952"></script>
+<script src="layerpitch-i18n.js?v=1793008902952"></script>
+<script src="layerpitch-appearance.js?v=1793008902952"></script>
+<script src="layerpitch-album-shared.js?v=1793008902952"></script>
+<script src="layerpitch-album-editor.js?v=1793008902952"></script>
+<script src="layerpitch-shell.js?v=1793008902952"></script>
+<script src="layerpitch-social-icons.js?v=1793008902952"></script>
+<script src="layerpitch-notify.js?v=1793008902952"></script>
+<script src="layerpitch-guide.js?v=1793008902952"></script>
+<script src="layerpitch-help.js?v=1793008902952"></script>
+<script src="player.js?v=1793008902952"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2339,6 +2343,8 @@ async function renderAdminOnlyPanels(session) {
   // Shop public (29/09) : lien dans la rubrique Compte, feu vert « shop » (admin seulement pendant la bêta).
   const navShop = document.getElementById('navLinkCatalog');
   if (navShop) navShop.hidden = !flagOpen('shop');
+  const navDirectory = document.getElementById('navLinkDirectory');
+  if (navDirectory) navDirectory.hidden = !flagOpen('composer_directory');
   if (window.LayerPitchAuth && window.LayerPitchAuth.getMyStudioId) {
     window.LayerPitchAuth.getMyStudioId().then(({ studioId }) => {
       const show = !!studioId && flagOpen('studio_space');
