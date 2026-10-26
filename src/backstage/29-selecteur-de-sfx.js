@@ -347,13 +347,25 @@ function buildCardForBlock(block) {
 // Construit les options d'un sélecteur de police : "Par défaut" + groupe Google Fonts pré-intégrées +
 // groupe Polices personnalisées (uniquement celles déjà publiées ou en attente d'upload). Encodage de
 // la valeur : 'default' | 'google:NomDeLaPolice' | 'custom:idDeLaPoliceUploadée'.
+// Aperçu des polices dans les menus : chaque nom s'affiche dans sa propre police. Une seule feuille Google
+// Fonts pour toute la liste pré-intégrée, injectée une fois au premier menu construit (display=swap :
+// le menu reste utilisable pendant le chargement). Polices téléversées : pas d'aperçu (fichier privé).
+function ensureFontPreviewsLoaded() {
+  if (document.getElementById('fontPreviewsLink')) return;
+  const link = document.createElement('link');
+  link.id = 'fontPreviewsLink';
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?' + GOOGLE_FONTS_PRESET.map(n => 'family=' + n.replace(/ /g, '+')).join('&') + '&display=swap';
+  document.head.appendChild(link);
+}
 function buildFontSelectOptionsHtml(currentVal) {
+  ensureFontPreviewsLoaded();
   const val = currentVal || 'default';
   let html = `<option value="default" ${val === 'default' ? 'selected' : ''}>${tr('fontDefaultOption')}</option>`;
   html += `<optgroup label="${tr('fontGoogleGroupLabel')}">`;
   html += GOOGLE_FONTS_PRESET.map(name => {
     const v = 'google:' + name;
-    return `<option value="${v}" ${val === v ? 'selected' : ''}>${name}</option>`;
+    return `<option value="${v}" style="font-family:'${name}'" ${val === v ? 'selected' : ''}>${name}</option>`;
   }).join('');
   html += `</optgroup>`;
   if (customFonts.length) {
