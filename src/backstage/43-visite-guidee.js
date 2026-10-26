@@ -802,7 +802,8 @@ const LESSONS = [
     { selector: '#appThemeBgImageCtrl .file-ctrl', titleKey: 'aprBgImageTitle', textKey: 'aprBgImageText', done: () => !!themeBgImagePendingFile,
       drops: [{ kind: 'file', label: ALBUM_COVER.name, url: ALBUM_COVER.url, name: ALBUM_COVER.name }] },
     { selector: '#appThemeBgImageOpacity', titleKey: 'aprOpacityTitle', textKey: 'aprOpacityText' },
-    { selector: '#appSeparatorVisible', titleKey: 'aprSepTitle', textKey: 'aprSepText', done: () => !!profile.theme && !!profile.theme.separator && !!profile.theme.separator.visible },
+    { selector: '#appSeparatorThickness', titleKey: 'aprSepTitle', textKey: 'aprSepText', enter: ctx => { ctx.sepThickness0 = Number(document.getElementById('appSeparatorThickness').value); },
+      done: ctx => ctx.sepThickness0 != null && Number(document.getElementById('appSeparatorThickness').value) !== ctx.sepThickness0 },
     { selector: '#waveformStyleSelect', titleKey: 'aprWaveTitle', textKey: 'aprWaveText' },
     { selector: '#seqMapThemeSelect', titleKey: 'aprMapTitle', textKey: 'aprMapText' },
     { selector: '.nav-item[data-tab="content"]', titleKey: 'aprBackTitle', textKey: 'aprBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
@@ -1056,7 +1057,13 @@ const GUIDE = window.LayerPitchGuide.create({
   autoSample: step => lessonUseSample(step),
   arrowPoint: lessonArrowPoint,
   // Les champs de la fiche passent sous la barre fixe du haut : on les ramène au centre.
-  centerTarget: (target, b) => b.top < 250 && !!target.closest('#libraryDetail'),
+  // Cible cachée sous la barre du haut (collante sur ordinateur) : on la ramène au centre de l'écran.
+  centerTarget: (target, b) => {
+    if (b.top < 250 && target.closest('#libraryDetail')) return true;
+    const bar = document.querySelector('.page-top-row');
+    if (bar && getComputedStyle(bar).position === 'sticky') { const bb = bar.getBoundingClientRect(); return b.top < bb.bottom + 8 && b.bottom > bb.top; }
+    return false;
+  },
 });
 // `guide` (état de la bulle en cours, ou null) reste lisible partout dans ce fichier comme avant.
 Object.defineProperty(window, 'guide', { get: () => GUIDE.state(), configurable: true });
