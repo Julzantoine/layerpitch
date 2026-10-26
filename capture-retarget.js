@@ -620,5 +620,17 @@
     return out;
   }
 
-  window.LayerCaptureRetarget = { compareTracks, suggestSfx, retarget, listensOf };
+  // Rejoue les GESTES d'un morceau (clics d'embranchement) avec ses propres règles -- quantification, transitions, retours
+  // automatiques, générations -- et rend les repères du moteur (embr_gen, embr_gains, embr_loop_select...). Même traduction
+  // que `retarget`, le morceau d'origine et le morceau cible étant le même : sert à fabriquer une écoute automatique
+  // (layerpitch-album-autotake.js). Seul le mode embranchement-vertical en a besoin (les autres sont écrits directement).
+  function replayEmbrGestures(events, track, opts) {
+    opts = opts || {};
+    const notes = [], out = [];
+    const note = (severity, code, extra) => notes.push(Object.assign({ severity, code, trackId: track.id }, extra));
+    retargetEmbr({ events, src: track, dst: track, total: P().captureTotal(events), out, note, snapToImage: false, fileDuration: opts.fileDuration });
+    return { events: out.sort(byT), notes };
+  }
+
+  window.LayerCaptureRetarget = { compareTracks, suggestSfx, retarget, listensOf, replayEmbrGestures };
 })();

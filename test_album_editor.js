@@ -51,5 +51,29 @@ check('un morceau absent de la liste reste visible (retirable) plutôt que perdu
 e1.destroy(); e2.destroy();
 check('détruire un éditeur vide son hôte', w.document.getElementById('a').innerHTML === '' && w.document.getElementById('b').innerHTML === '');
 
+// Version officielle automatique (26/10) : bouton réservé à la fonction « autoTake » (admin), qui ouvre le générateur à la place de l'enregistreur
+{
+  const mk = auto => {
+    const host = w.document.createElement('div'); w.document.body.appendChild(host);
+    const al = E.fromApi({ id: 'au', title: 'A', trackIds: ['x1'], officialDurations: {} });
+    const ed = E.create({ host, album: al, cfg: Object.assign(cfg(), { features: { autoTake: auto } }) });
+    ed.render();
+    return { host, ed };
+  };
+  const calls = [];
+  w.LayerPitchAlbumShared = { openGenerator: o => { calls.push(['gen', o.albumId, o.trackId]); return { el: w.document.createElement('div'), albumId: o.albumId, trackId: o.trackId, close() {} }; },
+    openRecorder: o => { calls.push(['rec', o.albumId, o.trackId]); return { el: w.document.createElement('div'), albumId: o.albumId, trackId: o.trackId, close() {} }; }, createPlayback: () => ({ key: () => null, stop() {}, toggle() {} }) };
+  const off = mk(false);
+  check('version automatique : pas de bouton sans la fonction autoTake', !off.host.querySelector('[data-ae-auto]') && !!off.host.querySelector('[data-ae-record="x1"]'));
+  const on = mk(true);
+  const btn = on.host.querySelector('[data-ae-auto="x1"]');
+  check('version automatique : bouton présent avec autoTake, à côté de l\'enregistrement manuel (conservé)', !!btn && !!on.host.querySelector('[data-ae-record="x1"]'));
+  btn.click();
+  check('version automatique : le bouton ouvre le générateur (pas l\'enregistreur) pour le bon morceau', calls.length === 1 && calls[0].join('|') === 'gen|au|x1');
+  on.host.querySelector('[data-ae-record="x1"]').click();
+  check('enregistrement manuel : toujours l\'enregistreur habituel', calls[calls.length - 1].join('|') === 'rec|au|x1');
+  on.ed.destroy(); off.ed.destroy();
+}
+
 console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
 process.exit(failures ? 1 : 0);
