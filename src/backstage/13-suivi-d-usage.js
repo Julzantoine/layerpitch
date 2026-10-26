@@ -58,17 +58,20 @@ function loadPostgresReadScripts() {
   const tuto = isTutoMode();
   // Mode tutoriel public : pas de SDK Supabase du tout (rien à contacter) ; fermé au public : SDK chargé seulement pour
   // vérifier qu'un vrai admin entre.
+  // Le feu vert « public_tutorial » (lecture asynchrone) est lu avant de décider quoi charger.
+  postgresReadScriptsLoaded = (tuto ? window.LayerPitchTuto.ready : Promise.resolve()).then(() => {
   const needRealSdk = !tuto || !tutoPublicOpen();
   const list = (needRealSdk ? srcs : srcs.filter(src => !src.startsWith('http')));
   if (tuto) list.push('./api/demo-client.js');
-  postgresReadScriptsLoaded = Promise.all(list.map(src => new Promise((resolve, reject) => {
+  return Promise.all(list.map(src => new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = (src.startsWith('http') || !version) ? src : src + '?v=' + version;
     s.async = false;
     s.onload = resolve;
     s.onerror = () => reject(new Error('Échec du chargement de ' + s.src));
     document.head.appendChild(s);
-  }))).then(async () => {
+  })));
+  }).then(async () => {
     if (!tuto) return;
     if (!tutoPublicOpen()) tutoFullAccess = (await tutoAccessGate()) === 'admin';
     // Bascule : tous les api/*.js appellent window.LayerPitchSupabaseClient.getClient() à chaque usage, donc cette

@@ -3,9 +3,17 @@
 // Le tutoriel tourne sur un faux serveur local (api/demo-client.js, api/demo-projects.js) : compte fictif, rien n'est lu ni écrit en base,
 // tout est remis à zéro à chaque chargement. Ce fichier ne contient que la règle d'accès, pour qu'elle ne vive qu'à UN endroit.
 (function () {
-  // POUR OUVRIR LE TUTORIEL AU PUBLIC : faire répondre « true » ici (une seule ligne, pour les trois pages). Tant que c'est « false »,
-  // seul un admin réellement connecté y entre ; tout autre visiteur est renvoyé vers la page normale.
-  function publicOpen() { return false; }
+  // OUVERTURE AU PUBLIC (26/10) : feu vert `public_tutorial` (table feature_flags, lecture publique, sans connexion). Tant qu'il est
+  // fermé (ou illisible : réseau, erreur), seul un compte réellement connecté entre ; tout autre visiteur est renvoyé vers la page
+  // normale. Pour ouvrir : select public.set_feature_released('public_tutorial', true);
+  const FLAG_URL = 'https://ypygllyjfynrnvapufow.supabase.co/rest/v1/feature_flags?select=released&key=eq.public_tutorial';
+  const FLAG_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
+  let flagOpen = false;
+  // `ready` : à attendre avant d'appeler publicOpen() (la lecture du feu vert est asynchrone).
+  const ready = !new URLSearchParams(window.location.search).has('tuto') || typeof fetch !== 'function' ? Promise.resolve()
+    : fetch(FLAG_URL, { headers: { apikey: FLAG_KEY } }).then(r => r.ok ? r.json() : [])
+        .then(rows => { flagOpen = !!(rows && rows[0] && rows[0].released === true); }).catch(() => { flagOpen = false; });
+  function publicOpen() { return flagOpen; }
   function isOn() { return new URLSearchParams(window.location.search).has('tuto'); }
 
   // Vérifie qu'un vrai admin est connecté (vrai client Supabase, avant la bascule). Sinon : retour à la page normale, sans ?tuto.
@@ -40,6 +48,7 @@
   // Entrée complète pour les pages à balises <script> statiques : porte (si fermée) puis bascule. `leaveTo` : page de repli pour un refus.
   async function enter(leaveTo) {
     if (!isOn()) return false;
+    await ready;
     if (!publicOpen() && !(await adminGate())) { window.location.replace(leaveTo || window.location.pathname); await new Promise(() => {}); }
     switchToDemo();
     return true;
@@ -76,5 +85,5 @@
     document.head.appendChild(s);
   }
   loadUmami();
-  window.LayerPitchTuto = { track, publicOpen, isOn, adminGate, accessLevel, switchToDemo, enter };
+  window.LayerPitchTuto = { track, ready, publicOpen, isOn, adminGate, accessLevel, switchToDemo, enter };
 })();

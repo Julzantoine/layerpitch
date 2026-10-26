@@ -72,7 +72,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
 
   // Branchements dans les sources du Backstage.
   const load = read('src/backstage/13-suivi-d-usage.js');
-  check('fermé au public par défaut, règle unique dans layerpitch-tuto.js', /function publicOpen\(\) \{ return false; \}/.test(read('layerpitch-tuto.js')) && /function tutoPublicOpen\(\) \{ return window\.LayerPitchTuto\.publicOpen\(\); \}/.test(load));
+  check('fermé au public par défaut (feu vert public_tutorial illisible = fermé), règle unique dans layerpitch-tuto.js', /let flagOpen = false;/.test(read('layerpitch-tuto.js')) && /key=eq\.public_tutorial/.test(read('layerpitch-tuto.js')) && /function publicOpen\(\) \{ return flagOpen; \}/.test(read('layerpitch-tuto.js')) && /function tutoPublicOpen\(\) \{ return window\.LayerPitchTuto\.publicOpen\(\); \}/.test(load));
   check('garde de connexion avant le faux serveur (bêta-testeurs : tout compte connecté ; admin : accès complet)', /if \(!tutoPublicOpen\(\)\) tutoFullAccess = \(await tutoAccessGate\(\)\) === 'admin'/.test(load));
   check('SDK réel non chargé en version publique', /needRealSdk = !tuto \|\| !tutoPublicOpen\(\)/.test(load));
   check('bascule du client en une ligne (layerpitch-tuto.js)', /window\.LayerPitchSupabaseClient = \{ getClient: \(\) => window\.LayerPitchDemoClient \}/.test(read('layerpitch-tuto.js')) && /window\.LayerPitchTuto\.switchToDemo\(\)/.test(load));
