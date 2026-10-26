@@ -357,6 +357,7 @@
       <div class="tour-move-note">${esc(tr('lessonMoveNote'))}</div>
       <div class="tour-text">${esc(tr(step.textKey, vars).replace(/\n/g, '\n\n'))}</div>
       ${extras}
+      ${guide.kind === 'lesson' && guide.index === 0 ? `<div class="tour-desktop">${esc(tr('lessonDesktopNote'))}</div>` : ''}
       ${guide.kind === 'lesson' && step.final ? `<div class="tour-free">${esc(tr('lessonFreePlay'))}</div>` : ''}
       ${guide.kind === 'lesson' && step.final ? `<div class="tour-ps">${esc(tr('lessonBetaPs'))} <a href="#" data-tour="beta">${esc(tr('lessonBetaLink'))}</a></div>` : ''}
       ${auto || (listening && !guide.clicked && !revisiting) ? `<div class="tour-waiting">${esc(tr('lessonDoIt'))}</div>` : ''}
