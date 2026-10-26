@@ -734,6 +734,7 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="tracks"] .block-drag-handle', titleKey: 'liOrderTitle', textKey: 'liOrderText',
       enter: ctx => { ctx.blocksOrder0 = blocks.map(b => b.id).join(); }, done: ctx => !!ctx.blocksOrder0 && blocks.map(b => b.id).join() !== ctx.blocksOrder0 },
     { selector: '.nav-item[data-tab="appearance"]', titleKey: 'liAppearanceTitle', textKey: 'liAppearanceText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
+    { selector: () => document.getElementById('themeProQuickStartGallery') || document.getElementById('appThemeFreeGallery'), titleKey: 'liThemeTitle', textKey: 'liThemeText' },
     { selector: '.nav-item[data-tab="content"]', titleKey: 'liBackTitle', textKey: 'liBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
     { selector: '#btnPublish', titleKey: 'liLinkTitle', textKey: 'liLinkText' },
     { selector: '#btnPreview', titleKey: 'liPreviewTitle', textKey: 'liPreviewText', clickDone: true },
