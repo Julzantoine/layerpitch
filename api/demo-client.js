@@ -51,12 +51,16 @@
     };
     return { overview, entity };
   })();
+  const demoOfficialTakes = {};
   const RPC_ANSWERS = {
     // Page « Mon compte » du compte fictif (annuaire des compositeurs : visible d'office, mots-clés d'exemple).
     get_my_notification_prefs: () => [{ email_announcements: true, lang: 'fr' }],
     get_my_directory: () => ({ optIn: true, keywords: ['jazz', 'musique interactive', 'RPG', 'adaptatif'], photo: null }),
     directory_status: () => ({ open: true }),
     set_ad_reel_access: a => ({ mode: a.p_mode, token: a.p_mode === 'magic' ? 'tutoriel-lien-magique' : null }), // accès privé simulé (leçon « Diffuser »)
+    // Version officielle d'un morceau d'album (leçon « Créer un album », 26/10) : gardée en mémoire le temps de la page, pour que « Écouter »
+    // rejoue la version que l'apprenant vient de valider. Rien n'est enregistré.
+    set_album_track_default_settings: a => { demoOfficialTakes[a.p_album_id + '|' + a.p_track_id] = a.p_settings; return null; },
     list_album_rights: () => lessonParam() === 'album' ? { declaration: 'sole', ackAt: null, settled: false, sellerShareBps: 10000, holders: [] } : null,
     get_my_analytics_overview: (a) => lessonParam() === 'tracking' ? analyticsDemo.overview(a) : null,
     get_my_analytics_entity: (a) => lessonParam() === 'tracking' ? analyticsDemo.entity(a) : null,
@@ -225,19 +229,28 @@
   const UNAVAILABLE = { message: 'Indisponible en mode tutoriel : rien n\'est enregistré.' };
 
   // Requête chaînable (select/eq/order…) qui se résout au « await » : la liste de la table, ou la ligne unique demandée.
+  // Filtres « eq » retenus pour deux lectures d'une seule ligne : un morceau par son identifiant (getTrack, version automatique d'un
+  // album) et la version officielle d'un morceau d'album (album_tracks). Les autres filtres sont ignorés.
+  function singleRow(table, eqs) {
+    if (table === 'tracks' && eqs.id) { const list = listRows('tracks'); return (list && list.find(t => t.id === eqs.id)) || null; }
+    if (table === 'album_tracks' && eqs.album_id && eqs.track_id) { const t = demoOfficialTakes[eqs.album_id + '|' + eqs.track_id]; return t ? { default_settings: t } : null; }
+    return TABLE_ROWS[table] || null;
+  }
   function makeQuery(table, isWrite, payload) {
     let single = false;
+    const eqs = {};
     const q = new Proxy(function () {}, {
       get(_t, prop) {
         if (prop === 'then') {
           const row = TABLE_ROWS[table];
           let result;
           if (isWrite) result = OK(single ? (payload || null) : null);
-          else if (single) result = OK(row || null);
+          else if (single) result = OK(singleRow(table, eqs));
           else result = OK(listRows(table) || (row ? [row] : []));
           return (res, rej) => Promise.resolve(result).then(res, rej);
         }
         if (prop === 'single' || prop === 'maybeSingle') return () => { single = true; return q; };
+        if (prop === 'eq') return (col, val) => { eqs[col] = val; return q; };
         return () => q; // select, eq, in, order, limit, filter… : on ignore, la réponse est de toute façon locale
       },
     });

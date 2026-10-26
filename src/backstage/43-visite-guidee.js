@@ -914,7 +914,9 @@ const LESSONS = [
   ] },
   // Leçon « Créer un album » (25/10, ?tuto&lesson=album, rechargement obligatoire d'où `reload`) : album d'OST adaptative avec les quatre villes de « Music City ».
   // L'onglet Albums est normalement réservé aux comptes qui ont le droit sell_albums : le faux serveur l'accorde pour cette leçon (api/demo-client.js).
-  // La version officielle (prise enregistrée dans le lecteur) est expliquée, pas jouée ; la mise en vente est expliquée (achat factice pendant la bêta).
+  // Version officielle (refaite le 26/10) : fabriquée avec « Générer automatiquement », puis retouchée sur la timeline (layerpitch-album-timeline.js) :
+  // écouter depuis un point, glisser une bascule, la modifier, Alt+clic, menu de commandes, régénérer en gardant ses retouches, valider.
+  // Le faux serveur garde la version validée le temps de la page (api/demo-client.js). La mise en vente est expliquée (achat factice pendant la bêta).
   { id: 'album', theme: 'pitch', public: true, reload: true, titleKey: 'albTitle', descKey: 'albDesc', steps: [
     { titleKey: 'albWelcomeTitle', textKey: 'albWelcomeText' },
     { selector: '.nav-item[data-tab="albums"]', titleKey: 'albNavTitle', textKey: 'albNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="albums"].active') },
@@ -933,7 +935,20 @@ const LESSONS = [
     { selector: '#albumsContainer [data-ae-listen="selected"]', titleKey: 'albListenTitle', textKey: 'albListenText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].listenMode === 'selected' },
     { selector: '#albumsContainer [data-ae-free]', titleKey: 'albListenOneTitle', textKey: 'albListenOneText', done: () => albumsState.albums.length > 0 && albumsState.albums[0].freeTrackIds.length >= 1 },
     { selector: '#albumsContainer [data-ae-save]', titleKey: 'albSaveTitle', textKey: 'albSaveText', clickDone: true, done: () => albumsState.albums.length > 0 && albumsState.albums[0].saved },
-    { selector: '#albumsContainer [data-ae-record]', titleKey: 'albOfficialTitle', textKey: 'albOfficialText' },
+    // Sans la version automatique (feu vert pas encore donné : tout le monde sauf un admin) : l'explication seule, comme avant le 26/10.
+    { selector: '#albumsContainer [data-ae-record]', titleKey: 'albOfficialTitle', textKey: 'albOfficialManualText', skip: () => albumAutoTakeOpen() },
+    { selector: '#albumsContainer [data-ae-record]', titleKey: 'albOfficialTitle', textKey: 'albOfficialText', skip: () => !albumAutoTakeOpen() },
+    { selector: '#albumsContainer [data-ae-auto]', skip: () => !albumAutoTakeOpen(), titleKey: 'albAutoOpenTitle', textKey: 'albAutoOpenText', clickDone: true, done: () => !!document.querySelector('#albumsContainer [data-role="autoGen"]') },
+    { selector: '#albumsContainer [data-role="autoDuration"]', skip: () => !albumAutoTakeOpen(), titleKey: 'albAutoSettingsTitle', textKey: 'albAutoSettingsText' },
+    { selector: '#albumsContainer [data-role="autoGen"]', skip: () => !albumAutoTakeOpen(), titleKey: 'albAutoGenTitle', textKey: 'albAutoGenText', done: () => !!document.querySelector('#albumsContainer .lpvt [data-tl="area"]') },
+    { selector: '#albumsContainer .lpvt-area', skip: () => !albumAutoTakeOpen(), titleKey: 'albTimelineTitle', textKey: 'albTimelineText', done: () => !!document.querySelector('#albumsContainer .lpvt[data-seeked]') },
+    { selector: () => document.querySelector('#albumsContainer .lpvt-chip.sw:not(.fixed)'), skip: () => !albumAutoTakeOpen(), titleKey: 'albDragTitle', textKey: 'albDragText', done: () => !!document.querySelector('#albumsContainer .lpvt[data-edited]') },
+    { selector: () => document.querySelector('#albumsContainer .lpvt-chip.sw:not(.fixed)'), skip: () => !albumAutoTakeOpen(), titleKey: 'albMarkerTitle', textKey: 'albMarkerText', done: () => !!document.querySelector('#albumsContainer [data-tl="editor"]') },
+    { selector: '#albumsContainer .lpvt-area', skip: () => !albumAutoTakeOpen(), titleKey: 'albMultiTitle', textKey: 'albMultiText', done: () => { const t = document.querySelector('#albumsContainer .lpvt'); return !!t && Number(t.dataset.selected) >= 2; } },
+    { selector: '#albumsContainer [data-tl="cmd"]', skip: () => !albumAutoTakeOpen(), titleKey: 'albCmdTitle', textKey: 'albCmdText', done: () => { const t = document.querySelector('#albumsContainer .lpvt'); return !!t && t.dataset.lastCmd === 'every'; } },
+    { selector: '#albumsContainer [data-role="autoGen"]', skip: () => !albumAutoTakeOpen(), titleKey: 'albRegenTitle', textKey: 'albRegenText', done: () => !!document.querySelector('#albumsContainer [data-ask]') },
+    { selector: '#albumsContainer [data-role="autoAsk"]', skip: () => !albumAutoTakeOpen(), titleKey: 'albAskTitle', textKey: 'albAskText', done: () => !document.querySelector('#albumsContainer [data-ask]') },
+    { selector: '#albumsContainer [data-role="autoSave"]', skip: () => !albumAutoTakeOpen(), titleKey: 'albAutoSaveTitle', textKey: 'albAutoSaveText', clickDone: true },
     { selector: '#albumsContainer [data-ae-rights-decl]', titleKey: 'albRightsTitle', textKey: 'albRightsText' },
     { selector: '#albumsContainer [data-ae-buyable]', titleKey: 'albSellTitle', textKey: 'albSellText' },
     { titleKey: 'albEndTitle', textKey: 'albEndText', final: true },

@@ -10,13 +10,17 @@
 //   LayerPitchAutoTake.supports(track)                 true pour les cinq modes (static, vertical, sequential, vertical-random, embranchement-vertical)
 //   LayerPitchAutoTake.defaults(track, sfxList)        réglages de départ { duration, intervalSec, stinger, sfxId, fadeSec, seed }
 //   LayerPitchAutoTake.describe(track)                 { fixedDuration, quantized, barSec, layers, loopSec } pour l'écran de réglages
-//   await LayerPitchAutoTake.generate(track, sfxById, settings, { measure })
-//        -> { take, info:{ duration, musicEnd, stingerAt, intervalSec, layerEntries, fadeSec, sfxId } }
+//   LayerPitchAutoTake.draft(track, sfxById, settings)  -> partition { mode, end, fadeSec, seed, markers, info } (voir « Partition »)
+//   await LayerPitchAutoTake.compile(track, sfxById, score, { measure })
+//        -> { take, info:{ duration, musicEnd, stingerAt, intervalSec, layerEntries, fadeSec, sfxId }, resolved:{ idMarqueur: instant joué | null } }
 //        measure(url) -> durée en secondes d'un fichier (pour le « duck » de la musique sous un Sfx qui le demande)
+//   await LayerPitchAutoTake.generate(track, sfxById, settings, { measure })   draft puis compile ; renvoie aussi `score`
+//   LayerPitchAutoTake.grid(track)                     { beatSec, barSec } (aimant de la timeline)
 //   LayerPitchAutoTake.planToTake(plan, opts)          (exposé pour les tests)
 //
-// Le hasard (position du stinger, variation tirée) est fixé par `settings.seed` : une prise générée est stable, « Régénérer »
-// change la graine.
+// Le hasard (position du stinger, variation tirée, ordre brassé) est fixé par la graine : une prise générée est stable,
+// « Régénérer » change la graine. La timeline de l'éditeur (layerpitch-album-timeline.js, 26/10) retouche la partition et
+// recompile : ce qu'on voit est ce qu'on entend.
 (function () {
   const C = () => window.LayerPlayerCore;
   const P = () => window.LayerCapturePlan;
@@ -75,213 +79,360 @@
     return { duration: d.fixedDuration ? Number(track.duration) || 0 : 120, intervalSec: round3(interval), stinger: sfxs.length > 0, sfxId: sfxs[0] ? sfxs[0].id : null, fadeSec: 3, seed: 1 };
   }
 
+  // ---- Partition (26/10, Jules-Antoine : « bascule n°1 de… vers… au bout de… secondes », marqueurs déplaçables) ----
+  // Une version = une PARTITION : la durée visée et des marqueurs datés, que la timeline de l'éditeur affiche et qu'on
+  // retouche à la main.
+  //   { kind: 'layers',  t, on: [indices des couches actives] }   statique / vertical (bascule verticale)
+  //   { kind: 'slot',    t, slotId }                              séquentiel (bascule horizontale vers un emplacement)
+  //   { kind: 'section', t, sectionIndex }                        vertical-aléatoire
+  //   { kind: 'loop',    t, loopId }                              embranchement-vertical
+  //   { kind: 'stinger', t, sfxId, variationIndex }
+  // Le premier marqueur de bascule (le départ) est `fixed` : il ne bouge pas. draft() fabrique une partition depuis les
+  // réglages ; compile() la traduit en frise puis en prise. Une bascule horizontale se cale sur la fin de bloc / de cycle la
+  // plus proche (jamais de coupure) : `resolved[id]` donne l'instant réellement joué (null : marqueur après la fin).
+  const SWITCH_KINDS = ['layers', 'slot', 'section', 'loop'];
+  const SWITCH_KIND_OF = { static: 'layers', vertical: 'layers', sequential: 'slot', 'vertical-random': 'section', 'embranchement-vertical': 'loop' };
+  const byT = (a, b) => a.t - b.t;
+  let idSeq = 0;
+  const newId = () => 'm' + (++idSeq).toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+  const mk = o => Object.assign({ id: newId() }, o);
+  // Bascules triées ; le départ (marqueur `fixed`, sinon le plus tôt) en tête.
+  function switchesOf(score) {
+    const kind = SWITCH_KIND_OF[score.mode];
+    const list = (score.markers || []).filter(m => m.kind === kind).sort(byT);
+    const start = list.find(m => m.fixed) || list[0];
+    return start ? [start].concat(list.filter(m => m !== start)) : [];
+  }
+  const fileLayers = track => (track.mode === 'static' ? [0] : (track.layers || []).map((l, i) => (l && l.file ? i : -1)).filter(i => i >= 0));
+
   // Stinger : un Sfx du morceau posé sur le début d'une mesure, entre 50 % et 80 % du morceau (après `after` si possible) --
   // l'endroit exact et la variation sont tirés avec la graine.
-  function placeStinger(events, info, track, settings, sfxById, R, musicEnd, after) {
-    info.stingerAt = null; info.sfxId = null;
+  function draftStinger(track, settings, sfxById, R, musicEnd, after) {
     const sfx = settings.stinger && settings.sfxId ? sfxById[settings.sfxId] : null;
     const alts = sfx ? sfxWithFiles(sfx) : [];
-    if (!sfx || !alts.length) return;
+    if (!sfx || !alts.length) return null;
     const bar = describe(track).barSec;
     const lo = Math.max(0.5 * musicEnd, after || 0);
     const hi = Math.max(lo, 0.8 * musicEnd);
     const kLo = Math.ceil(lo / bar - 1e-9), kHi = Math.max(kLo, Math.floor(hi / bar + 1e-9));
     const k = kLo + Math.floor(R() * (kHi - kLo + 1));
     const at = round3(Math.min(k * bar, Math.max(0, musicEnd - 0.5)));
-    const variationIndex = Math.floor(R() * alts.length);
-    const detail = { trackId: track.id, sfxId: sfx.id, variationIndex, spatialStep: 0 };
-    if (alts[variationIndex].duration > 0) detail.fileDuration = alts[variationIndex].duration;
-    events.push({ t: at, name: 'stinger_play', detail });
-    info.stingerAt = at; info.sfxId = sfx.id;
+    return mk({ kind: 'stinger', t: at, sfxId: sfx.id, variationIndex: Math.floor(R() * alts.length) });
+  }
+  function stingerEvents(track, score, sfxById, limit, events, info, resolved) {
+    info.stingerAt = null; info.sfxId = null;
+    (score.markers || []).filter(m => m.kind === 'stinger').sort(byT).forEach(m => {
+      const sfx = sfxById[m.sfxId], alts = sfxWithFiles(sfx);
+      if (!alts.length || !(m.t >= 0) || m.t > limit) { resolved[m.id] = null; return; }
+      const variationIndex = Math.max(0, Math.min(alts.length - 1, m.variationIndex | 0));
+      const detail = { trackId: track.id, sfxId: sfx.id, variationIndex, spatialStep: 0 };
+      if (alts[variationIndex].duration > 0) detail.fileDuration = alts[variationIndex].duration;
+      events.push({ t: round3(m.t), name: 'stinger_play', detail });
+      resolved[m.id] = round3(m.t);
+      if (info.stingerAt == null) { info.stingerAt = round3(m.t); info.sfxId = sfx.id; }
+    });
   }
 
-  // ---- Frise ----
-  function buildLayerEvents(track, settings, sfxById) {
-    const id = track.id, d = describe(track), R = rng(settings.seed);
-    const dur = Number(track.duration) || 0;
-    const layerCount = Math.max(1, d.layers);
-    const events = [];
-    const info = { fadeSec: 0 };
-    let musicEnd, segEnd; // musicEnd : instant « musical » de fin ; segEnd : fin des blocs de couche (queue du fichier comprise)
-    let D = Math.max(1, Number(settings.duration) || 0);
-
-    if (d.fixedDuration) {
-      // Statique qui ne boucle pas : le fichier joue une fois, de bout en bout.
-      musicEnd = segEnd = dur;
-      events.push({ t: 0, name: 'layer_segment', detail: { trackId: id, layerIndex: 0, duration: dur, offset: 0 } });
-    } else if (d.quantized) {
-      // Moteur quantifié : une génération par tour ; la dernière joue jusqu'au bout du fichier (sa queue sonne seule).
+  // ---- Statique / vertical ----
+  // Fin du morceau pour une durée visée E : fichier joué une fois (durée imposée), générations du moteur quantifié (la
+  // dernière joue jusqu'au bout du fichier, sa queue sonne seule), ou nombre entier de tours du moteur simple.
+  function layerSpan(track, E) {
+    const d = describe(track), dur = Number(track.duration) || 0;
+    if (d.fixedDuration) return { engine: 'fixed', musicEnd: dur, segEnd: dur };
+    if (d.quantized) {
       const qt = C().quantizedLoopTiming(track);
       const first = Math.max(0.01, qt.loopOutSec - qt.startTrackSec);
-      const n = Math.max(1, 1 + Math.round((D - first) / qt.cycleLength));
-      events.push({ t: 0, name: 'layer_gen', detail: { trackId: id, bufferOffset: qt.startTrackSec, level: 0 } });
-      for (let k = 1; k < n; k++) events.push({ t: round3(first + (k - 1) * qt.cycleLength), name: 'layer_gen', detail: { trackId: id, bufferOffset: qt.loopInSec, level: 0 } });
+      const n = Math.max(1, 1 + Math.round((E - first) / qt.cycleLength));
       const lastStart = n > 1 ? first + (n - 2) * qt.cycleLength : 0;
-      musicEnd = n > 1 ? lastStart + qt.cycleLength : first;
-      segEnd = lastStart + Math.max(0.01, dur - (n > 1 ? qt.loopInSec : qt.startTrackSec));
-    } else {
-      // Moteur simple : chaque couche boucle nativement ; la durée est un nombre entier de tours, fin en fondu.
-      const turns = dur > 0 ? Math.max(1, Math.round(D / dur)) : 1;
-      musicEnd = segEnd = turns * (dur || D);
-      events.push({ t: 0, name: 'layer_run', detail: { trackId: id, offset: 0, loop: [0, dur], level: 0 } });
-      events.push({ t: musicEnd, name: 'voices_stop', detail: { trackId: id } });
-      info.fadeSec = Math.max(0, Math.min(Number(settings.fadeSec) || 0, musicEnd / 2));
+      return { engine: 'quant', qt, first, n, musicEnd: n > 1 ? lastStart + qt.cycleLength : first, segEnd: lastStart + Math.max(0.01, dur - (n > 1 ? qt.loopInSec : qt.startTrackSec)) };
     }
-
-    // Entrée des couches : la couche i entre à i × intervalle (calé sur la mesure), puis reste jusqu'à la fin.
-    const layerEntries = [];
-    if (!d.fixedDuration) {
+    const turns = dur > 0 ? Math.max(1, Math.round(E / dur)) : 1;
+    const m = turns * (dur || E);
+    return { engine: 'simple', musicEnd: m, segEnd: m };
+  }
+  // Réglages -> une couche de plus toutes les `intervalSec` (calé sur la mesure), chacune reste jusqu'à la fin.
+  function draftLayers(track, settings, sfxById, R) {
+    const d = describe(track), avail = fileLayers(track);
+    const end = d.fixedDuration ? Number(track.duration) || 0 : Math.max(1, Number(settings.duration) || 0);
+    const sp = layerSpan(track, end);
+    const markers = [mk({ kind: 'layers', t: 0, on: avail.slice(0, 1), fixed: true })];
+    let interval = 0;
+    if (!d.fixedDuration && track.mode === 'vertical' && avail.length > 1) {
       const bar = d.barSec;
-      const interval = layerCount > 1 ? Math.max(bar, Math.round((Number(settings.intervalSec) || bar) / bar) * bar) : 0;
-      info.intervalSec = interval;
-      for (let i = 0; i < layerCount; i++) {
+      interval = Math.max(bar, Math.round((Number(settings.intervalSec) || bar) / bar) * bar);
+      for (let i = 1; i < avail.length; i++) {
         const a = round3(i * interval);
-        if (a >= musicEnd - 1e-6) break; // une couche qui entrerait après la fin n'entre pas
-        layerEntries.push(a);
-        events.push({ t: a, name: 'layer_segment', detail: { trackId: id, layerIndex: i, duration: round3(segEnd - a), offset: 0 } });
+        if (a >= sp.musicEnd - 1e-6) break; // une couche qui entrerait après la fin n'entre pas
+        markers.push(mk({ kind: 'layers', t: a, on: avail.slice(0, i + 1) }));
       }
-      // Statique bouclable : un seul segment (la couche 0), déjà posé ci-dessus (layerCount = 1).
-    } else layerEntries.push(0);
-
-    placeStinger(events, info, track, settings, sfxById, R, musicEnd, layerEntries.length ? layerEntries[layerEntries.length - 1] : 0);
-    info.musicEnd = musicEnd; info.layerEntries = layerEntries; info.segEnd = segEnd;
-    events.sort((x, y) => x.t - y.t);
-    return { events, info };
+    }
+    const st = draftStinger(track, settings, sfxById, R, sp.musicEnd, markers[markers.length - 1].t);
+    if (st) markers.push(st);
+    return { end, markers, info: { intervalSec: interval } };
+  }
+  function compileLayers(track, score, sfxById) {
+    const id = track.id, d = describe(track);
+    const E = d.fixedDuration ? Number(track.duration) || 0 : Math.max(1, Number(score.end) || 0);
+    const sp = layerSpan(track, E);
+    const events = [], info = { fadeSec: 0 }, resolved = {};
+    if (sp.engine === 'fixed') events.push({ t: 0, name: 'layer_segment', detail: { trackId: id, layerIndex: 0, duration: sp.musicEnd, offset: 0 } });
+    else if (sp.engine === 'quant') {
+      const qt = sp.qt;
+      events.push({ t: 0, name: 'layer_gen', detail: { trackId: id, bufferOffset: qt.startTrackSec, level: 0 } });
+      for (let k = 1; k < sp.n; k++) events.push({ t: round3(sp.first + (k - 1) * qt.cycleLength), name: 'layer_gen', detail: { trackId: id, bufferOffset: qt.loopInSec, level: 0 } });
+    } else {
+      // Moteur simple : chaque couche boucle nativement ; fin en fondu.
+      events.push({ t: 0, name: 'layer_run', detail: { trackId: id, offset: 0, loop: [0, Number(track.duration) || 0], level: 0 } });
+      events.push({ t: sp.musicEnd, name: 'voices_stop', detail: { trackId: id } });
+      info.fadeSec = Math.max(0, Math.min(Number(score.fadeSec) || 0, sp.musicEnd / 2));
+    }
+    // Couches : une plage continue par couche active (layer_segment), d'un marqueur qui l'allume à celui qui l'éteint.
+    const sw = switchesOf(score), states = [];
+    sw.forEach((m, k) => {
+      const t = k === 0 ? 0 : round3(Math.max(0, m.t));
+      if (k > 0 && t >= sp.musicEnd - 1e-6) { resolved[m.id] = null; return; }
+      resolved[m.id] = t;
+      states.push({ t, on: track.mode === 'static' ? [0] : (m.on || []) });
+    });
+    if (!states.length) states.push({ t: 0, on: fileLayers(track).slice(0, 1) });
+    if (sp.engine !== 'fixed') {
+      fileLayers(track).forEach(i => {
+        let from = null;
+        states.forEach(s => {
+          const on = s.on.indexOf(i) >= 0;
+          if (on && from == null) from = s.t;
+          else if (!on && from != null) { if (s.t > from) events.push({ t: from, name: 'layer_segment', detail: { trackId: id, layerIndex: i, duration: round3(s.t - from), offset: 0 } }); from = null; }
+        });
+        if (from != null) events.push({ t: from, name: 'layer_segment', detail: { trackId: id, layerIndex: i, duration: round3(sp.segEnd - from), offset: 0 } });
+      });
+    }
+    stingerEvents(track, score, sfxById, sp.musicEnd, events, info, resolved);
+    Object.assign(info, { musicEnd: sp.musicEnd, segEnd: sp.segEnd, layerEntries: states.map(s => s.t) });
+    return { events: events.sort(byT), info, resolved };
   }
 
   // ---- Séquentiel ----
-  // Intro, puis les emplacements dans l'ordre de la chaîne (ou brassés si le morceau le demande) : un emplacement sans
-  // embranchement joue son nombre de répétitions, un emplacement à embranchements reste `intervalSec` puis prend une de ses
-  // sorties (on tourne sur les sorties pour tout faire entendre), avec sa transition ; à la durée visée, l'outro (s'il y en a
-  // une) ou la fin du dernier bloc. Les blocs s'enchaînent aux fins de répétition : jamais de coupure.
-  function buildSeqEvents(track, settings, sfxById, R) {
-    const id = track.id, slots = track.segmentSlots || [], events = [], info = {};
+  // Réglages -> intro, puis les emplacements dans l'ordre de la chaîne (ou brassés si le morceau le demande) : un emplacement
+  // sans embranchement joue son nombre de répétitions, un emplacement à embranchements reste `intervalSec` puis prend une de ses
+  // sorties (on tourne sur les sorties pour tout faire entendre) ; à la durée visée, la fin.
+  const nominalSlotSec = (track, slot) => { const a0 = slotAlts(track, slot).find(hasFile); return C().seqBlockSeconds(track, a0 && a0.bars, slot); };
+  function draftSeq(track, settings, sfxById, R) {
+    const slots = track.segmentSlots || [], markers = [];
     const D = Math.max(1, Number(settings.duration) || 0);
     const playable = slots.map((sl, i) => (slotAlts(track, sl).some(hasFile) ? i : -1)).filter(i => i >= 0);
     if (!playable.length) throw new Error('aucun emplacement jouable');
     const shuffled = () => { const o = playable.slice(); for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); const t = o[i]; o[i] = o[j]; o[j] = t; } return o; };
     let order = track.randomizeSections ? shuffled() : playable.slice();
-    let pos = 0, t = 0, cycles = 0, last = null;
+    let pos = 0, t = 0, cycles = 0, cur = order[0], guard = 0;
     const used = {};
-    if (hasFile(track.intro)) { events.push({ t: 0, name: 'seq_intro_start', detail: { trackId: id } }); t += C().seqIntroSeconds(track, slots[playable[0]]); }
-    const pickAlt = (slot, slotIdx) => {
-      const alts = slotAlts(track, slot), valid = alts.map((a, i) => (hasFile(a) ? i : -1)).filter(i => i >= 0);
-      let k = valid[Math.floor(R() * valid.length)];
-      if (slot.avoidImmediateRepeat && valid.length > 1) while (k === last) k = valid[Math.floor(R() * valid.length)];
-      last = k;
-      return k;
-    };
-    let cur = order[0], guard = 0;
+    if (hasFile(track.intro)) t += C().seqIntroSeconds(track, slots[cur]);
+    markers.push(mk({ kind: 'slot', t: round3(t), slotId: slots[cur].id, fixed: true }));
     while (t < D && guard++ < 400) {
       const slot = slots[cur];
       const branching = (slot.nextOptions || []).length > 0;
-      let reps = 1;
-      if (branching) { const a0 = slotAlts(track, slot).find(hasFile); reps = Math.max(1, Math.round((Number(settings.intervalSec) || 0) / C().seqBlockSeconds(track, a0 && a0.bars, slot))); }
-      else reps = Math.max(1, slot.repeatCount || 1);
-      for (let r = 0; r < reps; r++) {
-        const altIndex = pickAlt(slot, cur), alt = slotAlts(track, slot)[altIndex];
-        events.push({ t: round3(t), name: 'seq_slot_start', detail: { trackId: id, slotId: slot.id, altIndex } });
-        t += C().seqBlockSeconds(track, alt && alt.bars, slot);
-      }
+      const nom = nominalSlotSec(track, slot);
+      t += nom * (branching ? Math.max(1, Math.round((Number(settings.intervalSec) || 0) / nom)) : Math.max(1, slot.repeatCount || 1));
       if (t >= D) break;
+      let next = -1, opt = null;
       if (branching) {
         const opts = slot.nextOptions.filter(o => { const ti = slots.findIndex(x => x.id === o.targetId); return ti >= 0 && playable.indexOf(ti) >= 0; });
         if (opts.length) {
           // l'option la moins empruntée d'abord (tirage à égalité) : toutes les sorties finissent par s'entendre
           const min = Math.min(...opts.map(o => used[slot.id + '>' + o.targetId] || 0));
           const cands = opts.filter(o => (used[slot.id + '>' + o.targetId] || 0) === min);
-          const opt = cands[Math.floor(R() * cands.length)];
+          opt = cands[Math.floor(R() * cands.length)];
           used[slot.id + '>' + opt.targetId] = min + 1;
-          if (hasFile(opt.transition)) {
-            events.push({ t: round3(t), name: 'seq_transition_start', detail: { trackId: id, fromSlotId: slot.id, targetId: opt.targetId } });
-            t += C().seqTransitionDurationSec(track, opt, slot) || 0;
-          }
-          cur = slots.findIndex(x => x.id === opt.targetId);
-          pos = order.indexOf(cur);
-          continue;
+          next = slots.findIndex(x => x.id === opt.targetId);
+          pos = Math.max(0, order.indexOf(next));
         }
       }
-      pos++;
-      if (pos >= order.length) { pos = 0; cycles++; if (track.maxChainLoops && cycles >= track.maxChainLoops) break; if (track.randomizeSections) order = shuffled(); }
-      cur = order[pos];
+      if (next < 0) {
+        pos++;
+        if (pos >= order.length) { pos = 0; cycles++; if (track.maxChainLoops && cycles >= track.maxChainLoops) break; if (track.randomizeSections) order = shuffled(); }
+        next = order[pos];
+      }
+      if (opt || next !== cur) markers.push(mk({ kind: 'slot', t: round3(t), slotId: slots[next].id }));
+      if (opt && hasFile(opt.transition)) t += C().seqTransitionDurationSec(track, opt, slot) || 0;
+      cur = next;
     }
+    const st = draftStinger(track, settings, sfxById, R, t, 0);
+    if (st) markers.push(st);
+    return { end: round3(t), markers, info: { intervalSec: Number(settings.intervalSec) || 0 } };
+  }
+  // Partition -> blocs : l'emplacement courant répète ses blocs jusqu'à la fin de bloc la plus proche de la bascule suivante
+  // (au moins un bloc), puis la transition prévue entre les deux emplacements (s'il y en a une), etc. ; l'outro à la fin.
+  function compileSeq(track, score, sfxById, R) {
+    const id = track.id, slots = track.segmentSlots || [], events = [], resolved = {};
+    const idxOf = sid => slots.findIndex(x => x.id === sid);
+    const playable = i => i >= 0 && slotAlts(track, slots[i]).some(hasFile);
+    let sw = switchesOf(score).filter(m => { const ok = playable(idxOf(m.slotId)); if (!ok) resolved[m.id] = null; return ok; });
+    if (!sw.length) {
+      const first = slots.findIndex((sl, i) => playable(i));
+      if (first < 0) throw new Error('aucun emplacement jouable');
+      sw = [{ id: null, t: 0, slotId: slots[first].id }];
+    }
+    let t = 0, last = null, guard = 0, cur = idxOf(sw[0].slotId);
+    if (hasFile(track.intro)) { events.push({ t: 0, name: 'seq_intro_start', detail: { trackId: id } }); t += C().seqIntroSeconds(track, slots[cur]); }
+    if (sw[0].id) resolved[sw[0].id] = round3(t);
+    const pickAlt = slot => {
+      const valid = slotAlts(track, slot).map((a, i) => (hasFile(a) ? i : -1)).filter(i => i >= 0);
+      let k = valid[Math.floor(R() * valid.length)];
+      if (slot.avoidImmediateRepeat && valid.length > 1) while (k === last) k = valid[Math.floor(R() * valid.length)];
+      last = k;
+      return k;
+    };
+    const playUntil = T => {
+      const slot = slots[cur], half = nominalSlotSec(track, slot) / 2;
+      do {
+        const altIndex = pickAlt(slot), alt = slotAlts(track, slot)[altIndex];
+        events.push({ t: round3(t), name: 'seq_slot_start', detail: { trackId: id, slotId: slot.id, altIndex } });
+        t += C().seqBlockSeconds(track, alt && alt.bars, slot);
+      } while (t + half < T - 1e-6 && guard++ < 2000);
+    };
+    for (let k = 1; k < sw.length; k++) {
+      const m = sw[k], slot = slots[cur];
+      playUntil(m.t);
+      resolved[m.id] = round3(t);
+      const opt = (slot.nextOptions || []).find(o => o.targetId === m.slotId);
+      if (opt && hasFile(opt.transition)) {
+        events.push({ t: round3(t), name: 'seq_transition_start', detail: { trackId: id, fromSlotId: slot.id, targetId: m.slotId } });
+        t += C().seqTransitionDurationSec(track, opt, slot) || 0;
+      }
+      cur = idxOf(m.slotId);
+    }
+    playUntil(Number(score.end) || 0);
     const musicEnd = round3(t);
     if (hasFile(track.outro)) events.push({ t: musicEnd, name: 'seq_outro_start', detail: { trackId: id } });
-    placeStinger(events, info, track, settings, sfxById, R, musicEnd, 0);
-    info.musicEnd = musicEnd; info.segEnd = musicEnd + 60; info.fadeSec = 0;
-    return { events: events.sort((x, y) => x.t - y.t), info };
+    const info = { musicEnd, segEnd: musicEnd + 60, fadeSec: 0 };
+    stingerEvents(track, score, sfxById, musicEnd, events, info, resolved);
+    return { events: events.sort(byT), info, resolved };
   }
 
   // ---- Vertical-aléatoire ----
-  // Intro, puis les sections dans l'ordre (ou brassées) : chaque section fait `maxLoops` cycles (ou, à défaut, le rythme
-  // choisi), avec un tirage par pool à chaque cycle ; à la durée visée, l'outro (s'il y en a une) ou la fin du dernier cycle.
-  function buildVrEvents(track, settings, sfxById, R) {
-    const id = track.id, events = [], info = {};
-    const D = Math.max(1, Number(settings.duration) || 0);
+  // Réglages -> intro, puis les sections dans l'ordre (ou brassées) : chaque section fait `maxLoops` cycles (ou, à défaut, le
+  // rythme choisi) ; à la durée visée, la fin. Le premier cycle d'une section part de son point de départ (plus long ou plus
+  // court que les suivants, qui partent de l'entrée de boucle).
+  function vrCycleSec(track, idx, started) { const tm = C().vrSectionTiming(P().resolveVRSection(track, idx)); return started ? tm.cycleLength : tm.loopOutSec - tm.startTrackSec; }
+  function draftVr(track, settings, sfxById, R) {
+    const D = Math.max(1, Number(settings.duration) || 0), markers = [];
     const playable = playableSections(track);
     if (!playable.length) throw new Error('aucune section jouable');
     const shuffled = () => { const o = playable.slice(); for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); const t = o[i]; o[i] = o[j]; o[j] = t; } return o; };
     let order = track.randomizeSections ? shuffled() : playable.slice();
     let t = 0, pos = 0, cycles = 0, guard = 0;
-    const started = {}, lastPick = {};
-    if (hasFile(track.intro)) { events.push({ t: 0, name: 'vr_intro_start', detail: { trackId: id } }); t += C().vrIntroDurationSec(track, P().resolveVRSection(track, playable[0])); }
+    const started = {};
+    if (hasFile(track.intro)) t += C().vrIntroDurationSec(track, P().resolveVRSection(track, order[0]));
+    markers.push(mk({ kind: 'section', t: round3(t), sectionIndex: order[0], fixed: true }));
     while (t < D && guard++ < 400) {
       const secIdx = order[pos], section = P().resolveVRSection(track, secIdx), timing = C().vrSectionTiming(section);
       const n = section.maxLoops ? section.maxLoops : Math.max(1, Math.round((Number(settings.intervalSec) || 0) / timing.cycleLength));
-      for (let k = 0; k < n; k++) {
-        const first = !started[secIdx];
-        started[secIdx] = true;
-        const offset = first ? timing.startTrackSec : timing.loopInSec;
+      for (let k = 0; k < n; k++) { t += vrCycleSec(track, secIdx, started[secIdx]); started[secIdx] = true; }
+      pos++;
+      if (pos >= order.length) { pos = 0; cycles++; if (track.maxChainLoops && cycles >= track.maxChainLoops) break; if (track.randomizeSections) order = shuffled(); }
+      if (t >= D) break;
+      if (order[pos] !== secIdx) markers.push(mk({ kind: 'section', t: round3(t), sectionIndex: order[pos] }));
+    }
+    const st = draftStinger(track, settings, sfxById, R, t, 0);
+    if (st) markers.push(st);
+    return { end: round3(t), markers, info: { intervalSec: Number(settings.intervalSec) || 0 } };
+  }
+  function compileVr(track, score, sfxById, R) {
+    const id = track.id, events = [], resolved = {};
+    const ok = i => playableSections(track).indexOf(i) >= 0;
+    let sw = switchesOf(score).filter(m => { const good = ok(m.sectionIndex); if (!good) resolved[m.id] = null; return good; });
+    if (!sw.length) {
+      const first = playableSections(track)[0];
+      if (first == null) throw new Error('aucune section jouable');
+      sw = [{ id: null, t: 0, sectionIndex: first }];
+    }
+    const started = {}, lastPick = {};
+    let t = 0, guard = 0, cur = sw[0].sectionIndex;
+    if (hasFile(track.intro)) { events.push({ t: 0, name: 'vr_intro_start', detail: { trackId: id } }); t += C().vrIntroDurationSec(track, P().resolveVRSection(track, cur)); }
+    if (sw[0].id) resolved[sw[0].id] = round3(t);
+    const playUntil = T => {
+      do {
+        const section = P().resolveVRSection(track, cur), timing = C().vrSectionTiming(section);
+        const first = !started[cur];
+        started[cur] = true;
         const picks = (section.pools || []).map((pool, poolIndex) => {
           const alts = pool.alternatives || [];
           if (!alts.length) return { poolIndex, altIndex: -1 };
           let idx = Math.floor(R() * alts.length);
-          const key = secIdx + ':' + poolIndex;
+          const key = cur + ':' + poolIndex;
           if (pool.avoidImmediateRepeat && alts.length > 1) while (idx === lastPick[key]) idx = Math.floor(R() * alts.length);
           lastPick[key] = idx;
           return { poolIndex, altIndex: idx };
         });
-        events.push({ t: round3(t), name: 'vr_section_start', detail: { trackId: id, sectionId: (track.sections[secIdx] || {}).id || null, sectionIndex: secIdx, bufferOffset: offset, picks } });
+        events.push({ t: round3(t), name: 'vr_section_start', detail: { trackId: id, sectionId: (track.sections[cur] || {}).id || null, sectionIndex: cur, bufferOffset: first ? timing.startTrackSec : timing.loopInSec, picks } });
         t += first ? timing.loopOutSec - timing.startTrackSec : timing.cycleLength;
-      }
-      pos++;
-      if (pos >= order.length) { pos = 0; cycles++; if (track.maxChainLoops && cycles >= track.maxChainLoops) break; if (track.randomizeSections) order = shuffled(); }
+      } while (t + vrCycleSec(track, cur, true) / 2 < T - 1e-6 && guard++ < 2000);
+    };
+    for (let k = 1; k < sw.length; k++) {
+      playUntil(sw[k].t);
+      resolved[sw[k].id] = round3(t);
+      cur = sw[k].sectionIndex;
     }
+    playUntil(Number(score.end) || 0);
     const musicEnd = round3(t);
     if (hasFile(track.outro)) events.push({ t: musicEnd, name: 'vr_outro_start', detail: { trackId: id } });
-    placeStinger(events, info, track, settings, sfxById, R, musicEnd, 0);
-    info.musicEnd = musicEnd; info.segEnd = musicEnd + 60; info.fadeSec = 0;
-    return { events: events.sort((x, y) => x.t - y.t), info };
+    const info = { musicEnd, segEnd: musicEnd + 60, fadeSec: 0 };
+    stingerEvents(track, score, sfxById, musicEnd, events, info, resolved);
+    return { events: events.sort(byT), info, resolved };
   }
 
   // ---- Embranchement-vertical ----
-  // Départ sur la boucle de référence ; toutes les `intervalSec` (calées sur le cycle) on bascule sur la boucle suivante de la
-  // liste -- boucles jumelles d'abord, détours ensuite -- puis retour à la référence. Le MOTEUR de l'embranchement (quantification
-  // de la bascule, fichier de transition, baisse de la boucle quittée, retour automatique, fin d'un détour) est celui du
-  // lecteur, via LayerCaptureRetarget.replayEmbrGestures. Fin en fondu sur le gain maître.
-  async function buildEmbrEvents(track, settings, sfxById, R, opts) {
-    const id = track.id, loopsList = track.loops || [], info = {};
-    const timing = C().embrLoopTimingOf(track);
-    const cycle = timing.cycleLength || describe(track).barSec * 4;
+  // Réglages -> départ sur la boucle de référence ; toutes les `intervalSec` (calées sur le cycle) bascule sur la boucle
+  // suivante de la liste -- boucles jumelles d'abord, détours ensuite -- puis retour à la référence. Le MOTEUR de
+  // l'embranchement (quantification de la bascule, fichier de transition, baisse de la boucle quittée, retour automatique,
+  // fin d'un détour) est celui du lecteur, via LayerCaptureRetarget.replayEmbrGestures. Fin en fondu sur le gain maître.
+  const embrCycle = track => C().embrLoopTimingOf(track).cycleLength || describe(track).barSec * 4;
+  const embrEnd = (track, end) => { const cycle = embrCycle(track); return Math.max(cycle, Math.round(Math.max(1, Number(end) || 0) / cycle) * cycle); };
+  function draftEmbr(track, settings, sfxById, R) {
+    const loopsList = track.loops || [], cycle = embrCycle(track);
     const stay = Math.max(1, Math.round((Number(settings.intervalSec) || 0) / cycle)) * cycle;
-    const D = Math.max(cycle, Math.round(Math.max(1, Number(settings.duration) || 0) / cycle) * cycle);
+    const D = embrEnd(track, settings.duration);
     const ref = C().embrReferenceIndex(track), peers = C().embrPeerIndicesOf(track);
     const withFile = i => hasFile(loopsList[i]);
     const queue = peers.filter(i => i !== ref && withFile(i)).concat(loopsList.map((l, i) => i).filter(i => peers.indexOf(i) < 0 && withFile(i)));
     if (queue.length) queue.push(ref);
+    const markers = [mk({ kind: 'loop', t: 0, loopId: (loopsList[ref] || {}).id, fixed: true })];
+    queue.forEach((i, k) => { const t = round3((k + 1) * stay); if (t < D - cycle) markers.push(mk({ kind: 'loop', t, loopId: loopsList[i].id })); });
+    const st = draftStinger(track, settings, sfxById, R, D, 0);
+    if (st) markers.push(st);
+    return { end: D, markers, info: { intervalSec: Number(settings.intervalSec) || 0 } };
+  }
+  async function compileEmbr(track, score, sfxById, opts) {
+    const id = track.id, loopsList = track.loops || [], resolved = {};
+    const D = embrEnd(track, score.end);
     // Durée des fichiers de transition (réglée « durée du fichier » : il faut la mesurer pour savoir quand la bascule arrive).
     const fd = {};
     for (const l of loopsList) { if (hasFile(l.transition) && !l.transition.durationUnit && opts.measure) fd[l.transition.file] = await opts.measure(track.base + encodeURIComponent(l.transition.file) + (track.publishedAt ? '?v=' + encodeURIComponent(track.publishedAt) : '')); }
     const gestures = [{ t: 0, name: 'track_play', detail: { trackId: id } }];
-    queue.forEach((i, k) => { const t = round3((k + 1) * stay); if (t < D - cycle) gestures.push({ t, name: 'embr_loop_select', detail: { trackId: id, loopId: loopsList[i].id } }); });
+    switchesOf(score).forEach((m, k) => {
+      if (k === 0) { resolved[m.id] = 0; return; } // départ : toujours la boucle de référence (règle du lecteur)
+      const ok = m.t > 0 && m.t < D && loopsList.some(l => l.id === m.loopId && hasFile(l));
+      resolved[m.id] = ok ? round3(m.t) : null;
+      if (!ok) return;
+      // Bascule sans transition posée pile sur un début de génération : 10 ms plus tard, sinon la génération qui démarre à
+      // cet instant garderait l'ancienne boucle jusqu'au cycle suivant (le changement de volume doit tomber DANS la génération).
+      const loop = loopsList.find(l => l.id === m.loopId), cycle = embrCycle(track);
+      const onEdge = cycle > 0 && Math.abs(m.t / cycle - Math.round(m.t / cycle)) * cycle < 1e-3;
+      const nudge = !hasFile(loop.transition) && onEdge ? 0.01 : 0;
+      gestures.push({ t: round3(m.t + nudge), name: 'embr_loop_select', detail: { trackId: id, loopId: m.loopId }, mid: m.id, nudge });
+    });
     gestures.push({ t: D, name: 'voices_stop', detail: { trackId: id } });
     const replay = window.LayerCaptureRetarget.replayEmbrGestures(gestures, track, { fileDuration: (t, file) => (file in fd ? fd[file] : null) });
     const events = [{ t: 0, name: 'track_play', detail: { trackId: id } }].concat(replay.events, [{ t: D, name: 'voices_stop', detail: { trackId: id } }]);
-    placeStinger(events, info, track, settings, sfxById, R, D, 0);
-    info.musicEnd = D; info.segEnd = D + 60;
-    info.fadeSec = Math.max(0, Math.min(Number(settings.fadeSec) || 0, D / 2));
+    // Instant réellement joué de chaque bascule : la bascule du moteur vers la même boucle, au plus tôt après le geste.
+    const played = replay.events.filter(e => e.name === 'embr_loop_select');
+    gestures.filter(gs => gs.mid).forEach(gs => {
+      const i = played.findIndex(e => e.detail.loopId === gs.detail.loopId && e.t >= gs.t - 1e-6);
+      resolved[gs.mid] = i >= 0 ? round3(played.splice(i, 1)[0].t - gs.nudge) : null;
+    });
+    const info = { musicEnd: D, segEnd: D + 60, fadeSec: Math.max(0, Math.min(Number(score.fadeSec) || 0, D / 2)) };
+    stingerEvents(track, score, sfxById, D, events, info, resolved);
     info.switches = events.filter(e => e.name === 'embr_loop_select').length;
-    return { events: events.sort((x, y) => x.t - y.t), info };
+    return { events: events.sort(byT), info, resolved };
   }
 
   // ---- Plan -> prise ----
@@ -377,21 +528,32 @@
     };
   }
 
-  async function generate(track, sfxById, settings, opts) {
+  // Réglages -> partition (rien n'est joué ni mesuré).
+  function draft(track, sfxById, settings) {
+    if (!supports(track)) throw new Error('mode non géré : ' + track.mode);
+    const R = rng(settings.seed);
+    const f = track.mode === 'sequential' ? draftSeq : track.mode === 'vertical-random' ? draftVr : track.mode === 'embranchement-vertical' ? draftEmbr : draftLayers;
+    const d = f(track, settings, sfxById || {}, R);
+    return { v: 1, mode: track.mode, end: d.end, fadeSec: Number(settings.fadeSec) || 0, seed: settings.seed, markers: d.markers, info: d.info };
+  }
+
+  // Partition -> prise. Renvoie aussi `resolved` (instant réellement joué de chaque marqueur) pour la timeline.
+  async function compile(track, sfxById, score, opts) {
     if (!supports(track)) throw new Error('mode non géré : ' + track.mode);
     opts = opts || {};
-    const R = rng(settings.seed);
+    sfxById = sfxById || {};
+    const R = rng(score.seed);
     let built;
-    if (track.mode === 'sequential') built = buildSeqEvents(track, settings, sfxById || {}, R);
-    else if (track.mode === 'vertical-random') built = buildVrEvents(track, settings, sfxById || {}, R);
-    else if (track.mode === 'embranchement-vertical') built = await buildEmbrEvents(track, settings, sfxById || {}, R, opts);
-    else built = buildLayerEvents(track, settings, sfxById || {});
+    if (track.mode === 'sequential') built = compileSeq(track, score, sfxById, R);
+    else if (track.mode === 'vertical-random') built = compileVr(track, score, sfxById, R);
+    else if (track.mode === 'embranchement-vertical') built = await compileEmbr(track, score, sfxById, opts);
+    else built = compileLayers(track, score, sfxById);
     // Statique en moteur quantifié : le plan gère les générations pour le mode « vertical » ; on lui présente le morceau comme
     // un vertical à une seule couche (même fichier, mêmes réglages).
     const asVertical = track.mode === 'static' && isQuantized(track);
     const planTrack = asVertical ? Object.assign({}, track, { mode: 'vertical', layers: [track.layers[0]] }) : track;
     const findTrack = id => (id === track.id ? planTrack : null);
-    const findSfx = id => (sfxById || {})[id] || null;
+    const findSfx = id => sfxById[id] || null;
     // `total` du plan : jusqu'au bout de la queue de la dernière génération (+ la marge de queue habituelle).
     const { plan } = P().buildPlan(built.events, { findTrack, findSfx, total: built.info.segEnd + P().TAIL });
     const fadeSec = built.info.fadeSec || 0; // fondu de sortie : moteur simple et embranchement (les autres finissent par leur queue naturelle)
@@ -400,10 +562,21 @@
       trackId: track.id, publishedAt: track.publishedAt, measure: opts.measure, fileEnds: !layerMode,
       fade: fadeSec > 0 ? { end: built.info.musicEnd, sec: fadeSec } : null
     });
-    take.generated = { v: 1, mode: track.mode, settings: { duration: settings.duration, intervalSec: settings.intervalSec, stinger: !!settings.stinger, sfxId: settings.sfxId || null, fadeSec: settings.fadeSec, seed: settings.seed } };
-    const info = Object.assign({}, built.info, { duration: take.duration });
-    return { take, info };
+    const clean = { v: 1, mode: score.mode, end: score.end, fadeSec: score.fadeSec, seed: score.seed, markers: (score.markers || []).map(m => Object.assign({}, m)) };
+    take.generated = Object.assign({ v: 2, mode: track.mode, score: clean }, opts.settings ? { settings: opts.settings } : {});
+    const info = Object.assign({}, score.info || {}, built.info, { duration: take.duration });
+    return { take, info, resolved: built.resolved, events: built.events };
   }
 
-  window.LayerPitchAutoTake = { supports, defaults, describe, generate, planToTake };
+  async function generate(track, sfxById, settings, opts) {
+    const score = draft(track, sfxById, settings);
+    const settingsCopy = { duration: settings.duration, intervalSec: settings.intervalSec, stinger: !!settings.stinger, sfxId: settings.sfxId || null, fadeSec: settings.fadeSec, seed: settings.seed };
+    const res = await compile(track, sfxById, score, Object.assign({}, opts, { settings: settingsCopy }));
+    return Object.assign(res, { score });
+  }
+
+  // Grille de la timeline (aimant) : un temps, une mesure.
+  function grid(track) { const tt = C().trackTempo(track); return { beatSec: tt.secondsPerBeat, barSec: tt.beatsPerBar * tt.secondsPerBeat }; }
+
+  window.LayerPitchAutoTake = { supports, defaults, describe, draft, compile, generate, grid, planToTake, SWITCH_KIND_OF, fileLayers };
 })();

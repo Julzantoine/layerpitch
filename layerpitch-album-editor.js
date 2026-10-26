@@ -165,7 +165,8 @@
       if (!al.saved || !mine.length) return head + `<div class="lpae-hint">${esc(tr('officialSaveFirst'))}</div>`;
       const pending = al.trackIds.join('|') !== al.savedTrackIds.join('|');
       const pb = getPlayback();
-      return head + mine.map(id => {
+      const stale = pending ? `<div class="lpae-hint" style="color:#c0392b;font-weight:600">${esc(tr('officialStale'))}</div>` : '';
+      return head + stale + `<div${pending ? ' style="opacity:.45;pointer-events:none" aria-disabled="true"' : ''}>` + mine.map(id => {
         const done = has(al.officialDurations, id), key = al.id + '|' + id, playing = pb.key() === key;
         return `<div class="lpae-row wrap"><span style="min-width:0;flex:1 1 160px;color:var(--text)">${esc(title(id))}</span>
           ${done ? `<span>✓ ${esc(shared().fmtDuration(al.officialDurations[id]))}</span>` : `<span class="lpae-badge bad">${esc(tr('officialMissing'))}</span>`}
@@ -173,7 +174,7 @@
           ${btn(`data-ae-record="${esc(id)}"`, tr(done ? 'officialRedo' : 'officialRecord'), done ? '' : PRIMARY)}
           ${feat.autoTake ? btn(`data-ae-auto="${esc(id)}"`, tr('officialAuto')) : ''}
         </div><div data-ae-rec-host="${esc(key)}"></div>`;
-      }).join('') + (pending ? `<div class="lpae-hint">${esc(tr('officialSaveFirst'))}</div>` : '');
+      }).join('') + '</div>';
     }
 
     function listeningRows() {

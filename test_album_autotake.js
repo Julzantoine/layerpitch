@@ -190,6 +190,45 @@ const path = require('path');
     check('embranchement : stinger posé', st.take.sfx.length === 1);
   }
 
+  // ---- Partition retouchée (timeline, 26/10) ----
+  {
+    // Vertical : bascule « de couche 1 vers couche 2 » (la 1 sort, la 2 entre), deux stingers, fin déplacée.
+    const sc = A.draft(vertical, sfxById, Object.assign(A.defaults(vertical, [sfx]), { duration: 60, seed: 3 }));
+    check('partition : départ fixe, une bascule par couche qui entre, un stinger', sc.mode === 'vertical' && sc.markers[0].fixed && sc.markers.filter(m => m.kind === 'layers').length === 3 && sc.markers.filter(m => m.kind === 'stinger').length === 1);
+    const edited = { mode: 'vertical', end: 40, fadeSec: 0, seed: 3, markers: [
+      { id: 'a', kind: 'layers', t: 0, on: [0], fixed: true }, { id: 'b', kind: 'layers', t: 16, on: [1] }, { id: 'c', kind: 'layers', t: 24, on: [0, 1, 2] },
+      { id: 'd', kind: 'layers', t: 90, on: [2] }, { id: 's1', kind: 'stinger', t: 10, sfxId: 'x', variationIndex: 1 }, { id: 's2', kind: 'stinger', t: 30, sfxId: 'x', variationIndex: 0 }] };
+    const r = await A.compile(vertical, sfxById, edited, { measure });
+    const v0 = r.take.voices[0], v1 = r.take.voices[1], v2 = r.take.voices[2];
+    check('retouche verticale : la couche 1 sort à 16 s puis revient à 24 s', v0.gain.init === 1 && v0.gain.auto.some(a => a[2] === 0 && a[1] > 16 && a[1] < 18) && v0.gain.auto.some(a => a[2] === 1 && a[1] > 24 && a[1] < 26));
+    check('retouche verticale : la couche 2 entre à 16 s, la couche 3 à 24 s', v1.gain.init === 0 && v1.gain.auto.some(a => a[2] === 1 && a[1] > 16 && a[1] < 18) && v2.gain.auto.some(a => a[2] === 1 && a[1] > 24 && a[1] < 26));
+    check('retouche verticale : fin déplacée à 40 s, bascule après la fin ignorée (resolved null)', r.info.musicEnd === 40 && r.resolved.d === null && r.resolved.b === 16);
+    check('retouche verticale : deux stingers posés (variation choisie), le premier annoncé', r.take.sfx.length === 2 && /x1\.ogg/.test(r.take.sfx[0].url) && r.info.stingerAt === 10);
+    check('retouche : la prise garde sa partition (pour la rouvrir)', r.take.generated.v === 2 && r.take.generated.score.markers.length === 6);
+  }
+  {
+    // Séquentiel : bascule vers C posée au milieu d'un bloc -> calée sur la fin de bloc la plus proche, avec la transition B -> C.
+    const sc = { mode: 'sequential', end: 31, seed: 1, markers: [{ id: 'a', kind: 'slot', t: 2, slotId: 'B', fixed: true }, { id: 'b', kind: 'slot', t: 11, slotId: 'C' }] };
+    const r = await A.compile(SQ, sfxById, sc, { measure });
+    const names = r.take.voices.map(v => v.url.replace(/^.*\//, '').replace(/\?.*/, ''));
+    check('retouche séquentielle : départ sur B après l\'intro, bascule demandée à 11 s jouée à 10 s (fin de bloc), transition B -> C', names[0] === 'i.ogg' && names[1] === 'b.ogg' && names[2] === 'b.ogg' && r.resolved.b === 10 && names[3] === 't.ogg' && names[4] === 'c.ogg' && r.take.voices[4].start === 12);
+    check('retouche séquentielle : la fin se cale sur la fin de bloc la plus proche, puis l\'outro', r.info.musicEnd === 32 && names[names.length - 1] === 'o.ogg');
+    const back = await A.compile(SQ, sfxById, { mode: 'sequential', end: 20, seed: 1, markers: [{ id: 'a', kind: 'slot', t: 2, slotId: 'C', fixed: true }, { id: 'b', kind: 'slot', t: 6, slotId: 'A' }] }, { measure });
+    check('retouche séquentielle : bascule sans sortie prévue (C -> A) : enchaînement direct en fin de bloc, sans transition', !back.take.voices.some(v => /t\.ogg/.test(v.url)) && back.resolved.b === 6);
+  }
+  {
+    // Vertical-aléatoire : S2 puis S1 à 20 s (cycle de 8 s : calé sur 18 s).
+    const r = await A.compile(VRT, sfxById, { mode: 'vertical-random', end: 40, seed: 2, markers: [{ id: 'a', kind: 'section', t: 2, sectionIndex: 1, fixed: true }, { id: 'b', kind: 'section', t: 20, sectionIndex: 0 }] }, { measure });
+    const firstS1 = r.take.voices.find(v => /p[01]\.ogg/.test(v.url));
+    check('retouche vertical-aléatoire : départ sur S2, bascule vers S1 calée sur la fin de cycle (18 s)', r.take.voices[1].url.includes('r0.ogg') && r.resolved.b === 18 && firstS1.start === 18);
+  }
+  {
+    // Embranchement : une seule bascule vers L2 à 24 s.
+    const r = await A.compile(EM, sfxById, { mode: 'embranchement-vertical', end: 48, fadeSec: 0, seed: 1, markers: [{ id: 'a', kind: 'loop', t: 0, loopId: 'L0', fixed: true }, { id: 'b', kind: 'loop', t: 24, loopId: 'L2' }] }, { measure });
+    const l2 = r.take.voices.find(v => /l2\.ogg/.test(v.url) && v.start === 24);
+    check('retouche embranchement : une seule bascule, vers L2 à 24 s (marqueur posé sur la fin de cycle), fin à 48 s', r.info.switches === 1 && r.resolved.b === 24 && l2 && (l2.gain.init === 1 || l2.gain.auto.some(a => a[2] === 1)) && r.info.musicEnd === 48 && !r.take.voices.some(v => /d\.ogg/.test(v.url)));
+  }
+
   // ---- Refus des modes non gérés ----
   let refused = false;
   try { await A.generate({ id: 'z', mode: 'autre' }, {}, {}, {}); } catch (e) { refused = true; }

@@ -104,38 +104,105 @@ function world(opts) {
   rec = x.S.openRecorder({ albumId: 'al', trackId: 't1' }); rec.close(); await flush();
   check('fermée pendant le chargement : rien n\'est monté', !x.log.player.length && x.log.rec === undefined);
 
-  // ---- version automatique (openGenerator) : faux module de génération, vrai écran ----
+  // ---- version automatique (openGenerator) : faux moteur (draft / compile), vraie timeline, vrai écran ----
+  const tlSrc = fs.readFileSync(path.join(__dirname, 'layerpitch-album-timeline.js'), 'utf8');
   function genWorld(opts) {
     opts = opts || {};
     const g = world(opts);
-    g.log.gen = [];
+    g.log.gen = []; g.log.compiled = [];
+    g.w.requestAnimationFrame = () => 0; g.w.cancelAnimationFrame = () => {};
     g.w.LayerPlayerCore.resumeAudio = async () => {};
-    g.w.LayerPitchTracks = { getTrack: async id => ({ track: { id, mode: opts.mode || 'vertical', sfxIds: opts.noSfx ? [] : ['s1'] } }) };
+    g.w.LayerPitchTracks = { getTrack: async id => ({ track: { id, mode: opts.mode || 'vertical', sfxIds: opts.noSfx ? [] : ['s1'], layers: [{ file: 'a.ogg', label: 'Basse' }, { file: 'b.ogg' }, { file: 'c.ogg' }] } }) };
     g.w.LayerPitchSfx = { getSfx: async id => ({ sfx: { id, title: 'Cloche', alternatives: [{ file: 'a.ogg' }] } }) };
-    g.w.LayerCaptureRender.playTake = async (take, o) => { g.log.play.push(take); g.log.ended = o.onEnd; return { stop() { g.log.stopped++; } }; };
+    g.w.LayerCaptureRender.playTake = async (take, o) => { g.log.play.push(Object.assign({ take }, o)); g.log.ended = o.onEnd; return { stop() { g.log.stopped++; }, position: () => 12 }; };
     g.w.LayerPitchAutoTake = {
       supports: t => t.mode !== 'autre',
       describe: () => ({ fixedDuration: false, quantized: false, layers: 3, barSec: 2, intervalKind: opts.kind || 'layers', fade: true }),
       defaults: () => ({ duration: 120, intervalSec: 8, stinger: true, sfxId: 's1', fadeSec: 3, seed: 1 }),
-      generate: async (track, sfxById, settings) => { g.log.gen.push(settings); if (opts.genFails) throw new Error('fichier absent'); return { take: { kind: 'layerpitch-take', trackId: track.id, duration: 120 }, info: { stingerAt: 70 } }; },
+      grid: () => ({ beatSec: 0.5, barSec: 2 }),
+      fileLayers: () => [0, 1, 2],
+      SWITCH_KIND_OF: { static: 'layers', vertical: 'layers', sequential: 'slot', 'vertical-random': 'section', 'embranchement-vertical': 'loop' },
+      draft: (track, sfxById, settings) => {
+        g.log.gen.push(settings);
+        if (opts.genFails) throw new Error('fichier absent');
+        return { v: 1, mode: track.mode, end: settings.duration, fadeSec: 3, seed: settings.seed, info: {}, markers: [
+          { id: 's' + settings.seed, kind: 'layers', t: 0, on: [0], fixed: true }, { id: 'b' + settings.seed, kind: 'layers', t: 8, on: [0, 1] },
+          { id: 'x' + settings.seed, kind: 'stinger', t: 70, sfxId: 's1', variationIndex: 0 }] };
+      },
+      compile: async (track, sfxById, score) => {
+        g.log.compiled.push(JSON.parse(JSON.stringify(score)));
+        const resolved = {}; score.markers.forEach(m => { resolved[m.id] = m.t; });
+        return { take: { kind: 'layerpitch-take', trackId: track.id, duration: 120 }, info: { stingerAt: 70, musicEnd: 120, duration: 120 }, resolved, events: [] };
+      },
     };
+    g.w.eval(tlSrc);
     g.w.LayerCaptureRender.loaded = true;
     g.w.LayerCapturePlan = {}; g.w.LayerCaptureRetarget = {};
     return g;
   }
+  const fire = (w, node, type, o) => node.dispatchEvent(new w.MouseEvent(type, Object.assign({ bubbles: true, cancelable: true, clientX: 0 }, o || {})));
   x = genWorld();
   let gsaved = null, gstarted = 0;
   let gen = x.S.openGenerator({ albumId: 'al', trackId: 't1', beforeStart: () => gstarted++, onSaved: t => { gsaved = t; } });
   x.w.document.getElementById('host').appendChild(gen.el);
   await flush();
   const gq = r => gen.el.querySelector('[data-role="' + r + '"]');
+  const lastScore = () => x.log.compiled[x.log.compiled.length - 1];
+  const chip = id => gen.el.querySelector('[data-mid="' + id + '"]');
   check('auto : réglages montrés (durée, intervalle, fondu, stinger + Sfx), Écouter/Valider grisés tant que rien n\'est généré', gq('autoDuration').value === '120' && gq('autoInterval').value === '8' && gq('autoFade').value === '3' && gq('autoStinger').checked && /Cloche/.test(gen.el.textContent) && gq('autoListen').disabled && gq('autoSave').disabled);
   gq('autoDuration').value = '90'; gq('autoStinger').checked = false;
   gq('autoGen').click(); await flush();
-  check('auto : génération avec les réglages saisis, écoute lancée aussitôt, Valider disponible', x.log.gen[0].duration === 90 && x.log.gen[0].stinger === false && x.log.gen[0].intervalSec === 8 && x.log.play.length === 1 && !gq('autoSave').disabled && /Version prête \(2:00\)/.test(gen.el.textContent) && /Stinger à 1:10/.test(gen.el.textContent) && gstarted >= 1);
+  check('auto : partition fabriquée avec les réglages saisis, compilée, écoute lancée depuis le début, Valider disponible', x.log.gen[0].duration === 90 && x.log.gen[0].stinger === false && x.log.gen[0].intervalSec === 8 && x.log.compiled.length === 1 && x.log.play.length === 1 && x.log.play[0].from === 0 && !gq('autoSave').disabled && /Version prête \(2:00\)/.test(gen.el.textContent) && /Stinger à 1:10/.test(gen.el.textContent) && gstarted >= 1);
   const seed1 = x.log.gen[0].seed;
+  check('timeline : départ, bascule n°1 (couches nommées), stinger et fin affichés ; le bouton devient « Régénérer »', /Départ : Basse/.test(chip('s' + seed1).textContent) && /n°1 → Basse \+ Couche 2/.test(chip('b' + seed1).textContent) && /Cloche/.test(chip('x' + seed1).textContent) && /Fin 2:00/.test(chip('end').textContent) && gq('autoGen').textContent === 'Régénérer');
+  // clic sur la bascule : panneau, changement de cible -> recompilation
+  fire(x.w, chip('b' + seed1), 'pointerdown'); fire(x.w, gen.el.querySelector('[data-tl="area"]'), 'pointerup'); await flush();
+  const box3 = [...gen.el.querySelectorAll('[data-tl="editor"] [data-tf="to"]')].find(b => b.value === '2');
+  check('timeline : clic sur un marqueur -> panneau « Bascule n°1 », de / vers / à', /Bascule n°1/.test(gen.el.textContent) && /De : Basse/.test(gen.el.textContent) && !!box3);
+  box3.checked = true; box3.onchange(); await new Promise(r => setTimeout(r, 200)); await flush();
+  check('timeline : nouvelle cible -> partition recompilée (couches 1+2+3, marqueur marqué « retouché »)', JSON.stringify(lastScore().markers.find(m => m.id === 'b' + seed1).on) === '[0,1,2]' && lastScore().markers.find(m => m.id === 'b' + seed1).edited === true);
+  // Alt+clic sur le stinger puis glisser la bascule : les deux bougent ensemble, calés sur la mesure
+  const area0 = gen.el.querySelector('[data-tl="area"]');
+  fire(x.w, chip('x' + seed1), 'pointerdown', { altKey: true }); await flush(); // la bascule est déjà sélectionnée (clic précédent)
+  const area = gen.el.querySelector('[data-tl="area"]');
+  area.getBoundingClientRect = () => ({ left: 0, width: 1000, top: 0, height: 120 });
+  fire(x.w, chip('b' + seed1), 'pointerdown', { clientX: 100 });
+  fire(x.w, area, 'pointermove', { clientX: 200 }); fire(x.w, area, 'pointerup', { clientX: 200 });
+  await new Promise(r => setTimeout(r, 200)); await flush();
+  const mb = lastScore().markers.find(m => m.id === 'b' + seed1), mx = lastScore().markers.find(m => m.id === 'x' + seed1);
+  check('timeline : Alt+clic = sélection multiple, glisser déplace la sélection du même écart (calé sur la mesure)', area0 !== area && mb.t === 20 && mx.t === 82 && /2 marqueur\(s\) sélectionné\(s\)/.test(gen.el.textContent));
+  // menu de commandes : bascule précise
+  gen.el.querySelector('[data-tl="cmd"]').click(); await flush();
+  check('commandes : menu façon « insérer une fonction » (bascule, bascules régulières, rester, stinger, fin)', ['Bascule', 'Bascules régulières', 'Rester', 'Stinger', 'Fin'].every(t => [...gen.el.querySelectorAll('.lpvt-cmd b')].some(b => b.textContent === t)));
+  gen.el.querySelector('[data-pick="switch"]').click(); await flush();
+  const cp = gen.el.querySelector('[data-tl="cmdpanel"]');
+  cp.querySelector('[data-cf="at"]').value = '0:40';
+  [...cp.querySelectorAll('[data-tf="to"]')].find(b => b.value === '2').checked = true;
+  cp.querySelector('[data-cmd="apply"]').click(); await new Promise(r => setTimeout(r, 200)); await flush();
+  check('commandes : « Bascule » vers la couche 3 à 0:40 -> marqueur posé', lastScore().markers.some(m => m.kind === 'layers' && m.t === 40 && JSON.stringify(m.on) === '[2]'));
+  gen.el.querySelector('[data-tl="cmd"]').click(); await flush();
+  gen.el.querySelector('[data-pick="every"]').click(); await flush();
+  const cp2 = gen.el.querySelector('[data-tl="cmdpanel"]');
+  cp2.querySelector('[data-cf="min"]').value = '10'; cp2.querySelector('[data-cf="max"]').value = '10';
+  cp2.querySelector('[data-cf="from"]').value = '0'; cp2.querySelector('[data-cf="to"]').value = '1:00';
+  cp2.querySelector('[data-cf="order"]').value = 'up';
+  cp2.querySelector('[data-cmd="apply"]').click(); await new Promise(r => setTimeout(r, 200)); await flush();
+  const sws = lastScore().markers.filter(m => m.kind === 'layers' && !m.fixed).sort((a, b) => a.t - b.t);
+  check('commandes : « Bascules régulières » toutes les 10 s jusqu\'à 1:00 (une couche de plus) -> remplace les bascules de la plage', sws.map(m => m.t).join(',') === '10,20,30,40,50' && JSON.stringify(sws[0].on) === '[0,1]' && JSON.stringify(sws[1].on) === '[0,1,2]');
+  // régénérer après retouches : la question est posée
+  const nPlay = x.log.play.length;
   gq('autoGen').click(); await flush();
-  check('auto : « Régénérer » change la graine (nouveau tirage) et arrête l\'écoute en cours', x.log.gen[1].seed !== seed1 && x.log.stopped >= 1 && x.log.play.length === 2);
+  check('régénérer après retouches : la question est posée (tout refaire / garder / annuler), rien n\'est refait', /Tu as retouché la version/.test(gen.el.textContent) && x.log.gen.length === 1);
+  gen.el.querySelector('[data-ask="cancel"]').click(); await flush();
+  check('« Annuler » : la version reste telle quelle', x.log.gen.length === 1 && !/Tu as retouché/.test(gen.el.textContent));
+  gq('autoGen').click(); await flush();
+  gen.el.querySelector('[data-ask="keep"]').click(); await flush(); await flush();
+  const kept = lastScore();
+  check('« Garder mes retouches » : nouvelle graine, les marqueurs retouchés restent', x.log.gen.length === 2 && x.log.gen[1].seed !== seed1 && kept.markers.some(m => m.t === 50 && m.edited) && kept.markers.some(m => m.id === 'x' + seed1) && !kept.markers.some(m => m.id === 'x' + x.log.gen[1].seed) && x.log.play.length > nPlay);
+  check('« Garder mes retouches » : aucune nouvelle bascule dans la plage remplie par « Bascules régulières » (0 à 1:00)', !kept.markers.some(m => m.id === 'b' + x.log.gen[1].seed) && kept.markers.filter(m => m.kind === 'layers' && !m.fixed).every(m => m.edited));
+  gq('autoGen').click(); await flush();
+  gen.el.querySelector('[data-ask="all"]').click(); await flush(); await flush();
+  check('« Tout refaire » : partition neuve, retouches perdues', x.log.gen.length === 3 && !lastScore().markers.some(m => m.edited));
   gq('autoListen').click(); await flush();
   check('auto : « Arrêter » coupe l\'écoute', x.log.stopped >= 2);
   gq('autoSave').click(); await flush();
@@ -156,7 +223,8 @@ function world(opts) {
   x = genWorld({ noSfx: true });
   gen = x.S.openGenerator({ albumId: 'al', trackId: 't1' }); await flush();
   check('auto : morceau sans Sfx -> pas de case stinger, message', !gen.el.querySelector('[data-role="autoStinger"]') && /Aucun Sfx/.test(gen.el.textContent));
-  check('textes FR et EN de la version automatique', ['autoHint', 'autoUnsupported', 'autoDuration', 'autoIntervalLayers', 'autoIntervalLoops', 'autoIntervalSlots', 'autoIntervalSections', 'autoFade', 'autoStinger', 'autoNoSfx', 'autoFixed', 'autoGenerate', 'autoListen', 'autoStop', 'autoSave', 'autoWorking', 'autoReady', 'autoStingerAt', 'autoNoStinger'].every(k => I18N.fr.albumShared[k] && I18N.en.albumShared[k]) && I18N.fr.albumEditor.officialAuto && I18N.en.albumEditor.officialAuto);
+  const enKeys = Object.keys(I18N.fr.albumShared).filter(k => /^(auto|tl)/.test(k));
+  check('textes FR et EN de la version automatique et de la timeline (mêmes clés)', enKeys.length > 60 && enKeys.every(k => I18N.en.albumShared[k]) && Object.keys(I18N.en.albumShared).filter(k => /^(auto|tl)/.test(k)).every(k => I18N.fr.albumShared[k]) && I18N.fr.albumEditor.officialAuto && I18N.en.albumEditor.officialAuto);
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
   process.exit(failures ? 1 : 0);
 })();

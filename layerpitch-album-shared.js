@@ -5,7 +5,8 @@
 //   LayerPitchAlbumShared.fmtDuration(secondes)                  '1:05'
 //   LayerPitchAlbumShared.createPlayback({ onChange, onError })   une seule écoute de version officielle à la fois
 //        .toggle(albumId, trackId, { beforeStart })  démarre / arrête ; .stop() ; .key() -> 'album|morceau' ou null
-//   LayerPitchAlbumShared.openGenerator({ albumId, trackId, onSaved, beforeStart })   idem, mais la prise est FABRIQUÉE (admin ; layerpitch-album-autotake.js)
+//   LayerPitchAlbumShared.openGenerator({ albumId, trackId, onSaved, beforeStart })   idem, mais la prise est FABRIQUÉE puis retouchée sur une
+//        timeline (admin ; layerpitch-album-autotake.js + layerpitch-album-timeline.js)
 //   LayerPitchAlbumShared.openRecorder({ albumId, trackId, onSaved, beforeStart })
 //        -> { el, albumId, trackId, close() } : boîte (à placer par l'appelant) avec le lecteur habituel du morceau, journal de
 //        prise actif et « Enregistrer comme version de l'album » ; onSaved(take) après enregistrement réussi.
@@ -145,45 +146,59 @@
     return rec;
   }
 
-  // ---- Version officielle automatique (26/10, admin, morceaux statiques et verticaux) ----
-  // Au lieu de jouer le morceau à la main : une frise est fabriquée à partir de sa config (couches qui entrent à intervalles
-  // réguliers, un stinger, une fin), traduite en prise (layerpitch-album-autotake.js), écoutée, réglable, puis « Valider » la
-  // range comme la prise enregistrée à la main. Même forme de retour que openRecorder (boîte à placer par l'appelant).
+  // ---- Version officielle automatique (26/10, admin, les cinq modes) ----
+  // Au lieu de jouer le morceau à la main : une PARTITION est fabriquée à partir de sa config (bascules de couches,
+  // d'emplacements, de sections ou de boucles, un stinger, une fin), affichée sur une timeline où on la retouche
+  // (layerpitch-album-timeline.js), traduite en prise (layerpitch-album-autotake.js), écoutée depuis n'importe quel point,
+  // puis « Valider » la range comme la prise enregistrée à la main. Même forme de retour que openRecorder.
   function openGenerator({ albumId, trackId, onSaved, beforeStart }) {
     const P = window.LayerPlayerCore;
     const el = document.createElement('div');
     el.style.cssText = 'margin:8px 0 12px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg)';
     el.innerHTML = `<div class="hint">${esc(tr('recLoading'))}</div>`;
-    let playing = null, take = null, seed = 1 + Math.floor(Math.random() * 1e6), busy = false;
+    let playing = null, take = null, seed = 1 + Math.floor(Math.random() * 1e6), busy = false, score = null, tl = null, raf = 0;
+    let compileSeq = 0, compileTimer = 0;
     const rec = {
       el, albumId, trackId, closed: false,
-      close() { if (rec.closed) return; rec.closed = true; stopListen(); el.remove(); },
+      close() { if (rec.closed) return; rec.closed = true; stopListen(); clearTimeout(compileTimer); el.remove(); },
     };
-    function stopListen() { const c = playing; playing = null; if (c) c.stop(); refreshButtons(); }
     const q = role => el.querySelector('[data-role="' + role + '"]');
     const say = (text, err) => { const m = q('autoMsg'); if (m) { m.textContent = text; m.style.color = err ? '#c0392b' : ''; } };
     function refreshButtons() {
-      const l = q('autoListen'), v = q('autoSave');
+      const l = q('autoListen'), v = q('autoSave'), gbtn = q('autoGen');
       if (l) { l.disabled = !take || busy; l.textContent = tr(playing ? 'autoStop' : 'autoListen'); }
       if (v) v.disabled = !take || busy;
+      if (gbtn) gbtn.textContent = tr(score ? 'autoRegenerate' : 'autoGenerate');
     }
-    async function listen() {
+    function stopListen() {
+      const c = playing; playing = null;
+      cancelAnimationFrame(raf);
+      if (c && c.stop) { if (tl && c.position) tl.setCursor(c.position()); c.stop(); }
+      if (tl) tl.setPlayhead(null);
+      refreshButtons();
+    }
+    async function listen(from) {
       if (!take) return;
       stopListen();
       if (beforeStart) beforeStart();
       const mine = {};
       playing = mine;
+      refreshButtons();
       try {
         await P.resumeAudio();
-        const ctrl = await window.LayerCaptureRender.playTake(take, { fetchBytes: url => P.fetchAudioBytes(url), onEnd: () => { if (playing === mine) { playing = null; refreshButtons(); } } });
+        const start = from != null ? from : (tl ? tl.cursor() : 0);
+        const ctrl = await window.LayerCaptureRender.playTake(take, { from: start >= take.duration - 0.05 ? 0 : start, fetchBytes: url => P.fetchAudioBytes(url), onEnd: () => { if (playing === ctrl) { playing = null; cancelAnimationFrame(raf); if (tl) { tl.setCursor(0); tl.setPlayhead(null); } refreshButtons(); } } });
         if (playing !== mine) { ctrl.stop(); return; }
         playing = ctrl;
+        const tick = () => { if (playing !== ctrl) return; if (tl) tl.setPlayhead(ctrl.position()); raf = requestAnimationFrame(tick); };
+        tick();
       } catch (e) { if (playing === mine) playing = null; say(tr('playError', { error: e.message }), true); }
       refreshButtons();
     }
     (async () => {
       try {
         await loadAutoTake();
+        await loadScript('layerpitch-album-timeline.js', 'LayerPitchVersionTimeline');
         const A = window.LayerPitchAutoTake;
         const r = await window.LayerPitchTracks.getTrack(trackId);
         if (!r || !r.track) throw new Error(tr('recUnpublished'));
@@ -211,35 +226,99 @@
             <button class="btn btn-small btn-primary" type="button" data-role="autoSave" disabled>${esc(tr('autoSave'))}</button>
             <button class="btn btn-small" type="button" data-role="autoClose">${esc(tr('recClose'))}</button>
           </div>
-          <div class="hint" data-role="autoMsg" style="margin-top:6px"></div>`;
+          <div data-role="autoAsk"></div>
+          <div class="hint" data-role="autoMsg" style="margin-top:6px"></div>
+          <div data-role="autoTimeline"></div>`;
         const measureCache = {};
         const measure = async url => {
           if (!measureCache[url]) measureCache[url] = (async () => { const bytes = await P.fetchAudioBytes(url); return (await P.decodeAudioCompat(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))).duration; })();
           return measureCache[url];
         };
         const read = (role, fallback) => { const n = q(role); const v = n ? Number(n.value) : NaN; return isFinite(v) ? v : fallback; };
-        let first = true;
-        q('autoClose').onclick = () => rec.close();
-        q('autoListen').onclick = () => (playing ? stopListen() : listen());
-        q('autoGen').onclick = async () => {
-          if (busy) return;
-          stopListen();
-          busy = true; take = null; refreshButtons();
-          say(tr('autoWorking'));
-          if (!first) seed++;
+        const settingsNow = () => { const stingerBox = q('autoStinger'); return { duration: read('autoDuration', def.duration), intervalSec: read('autoInterval', def.intervalSec), fadeSec: read('autoFade', def.fadeSec), stinger: !!(stingerBox && stingerBox.checked), sfxId: q('autoSfx') ? q('autoSfx').value : null, seed }; };
+
+        // Partition -> prise ; la timeline affiche les instants réellement joués. Une écoute en cours repart du même endroit.
+        async function recompile() {
+          const my = ++compileSeq;
+          const wasPlaying = playing && playing.position ? playing.position() : null;
+          busy = true; refreshButtons();
           try {
-            const stingerBox = q('autoStinger');
-            const settings = { duration: read('autoDuration', def.duration), intervalSec: read('autoInterval', def.intervalSec), fadeSec: read('autoFade', def.fadeSec),
-              stinger: !!(stingerBox && stingerBox.checked), sfxId: q('autoSfx') ? q('autoSfx').value : null, seed };
-            const res = await A.generate(track, sfxById, settings, { measure });
-            take = res.take; first = false;
+            const res = await A.compile(track, sfxById, score, { measure, settings: settingsNow() });
+            if (my !== compileSeq || rec.closed) return;
+            take = res.take;
+            tl.setResult(res);
             say(tr('autoReady', { duration: fmtDuration(take.duration), stinger: res.info.stingerAt != null ? tr('autoStingerAt', { at: fmtDuration(res.info.stingerAt) }) : tr('autoNoStinger') }));
             busy = false; refreshButtons();
-            await listen();
-          } catch (e) { busy = false; take = null; say(tr('recError', { error: e.message }), true); refreshButtons(); }
+            if (wasPlaying != null) await listen(wasPlaying);
+          } catch (e) { if (my === compileSeq) { busy = false; take = null; say(tr('recError', { error: e.message }), true); refreshButtons(); } }
+        }
+        function showTimeline() {
+          if (!tl) {
+            tl = window.LayerPitchVersionTimeline.create({
+              track, sfxList, tr, esc,
+              onChange: () => { clearTimeout(compileTimer); compileTimer = setTimeout(recompile, 120); },
+              onSeek: t => { if (playing) listen(t); }
+            });
+            q('autoTimeline').appendChild(tl.el);
+          }
+          tl.setScore(score);
+        }
+        // « Générer » : nouvelle partition. Si des marqueurs ont été retouchés, on demande d'abord (Jules-Antoine, 26/10).
+        async function generate(mode) {
+          let fresh;
+          try { fresh = A.draft(track, sfxById, settingsNow()); } catch (e) { say(tr('recError', { error: e.message }), true); return; }
+          if (mode === 'keep' && score) {
+            const bar = A.grid(track).barSec;
+            const kept = score.markers.filter(m => m.edited);
+            const keptStart = kept.find(m => m.fixed);
+            const keptSw = kept.filter(m => m.kind !== 'stinger');
+            const keptSting = kept.some(m => m.kind === 'stinger');
+            // Zones retouchées : les plages des commandes (bascules régulières, rester) et une mesure autour de chaque
+            // marqueur retouché ; les nouvelles bascules n'y entrent pas.
+            const locks = (score.locks || []).concat(keptSw.filter(m => !m.fixed).map(m => ({ a: m.t - bar + 1e-6, b: m.t + bar - 1e-6 })));
+            const extra = fresh.markers.filter(m => {
+              if (m.fixed) return !keptStart;
+              if (m.kind === 'stinger') return !keptSting;
+              return !locks.some(l => m.t >= l.a - 1e-6 && m.t <= l.b + 1e-6);
+            });
+            if (tl.endEdited()) fresh.end = score.end;
+            fresh.markers = kept.concat(extra);
+            fresh.locks = score.locks || [];
+          }
+          score = fresh;
+          showTimeline();
+          await recompile();
+          if (!playing) await listen(0);
+        }
+        q('autoClose').onclick = () => rec.close();
+        q('autoListen').onclick = () => (playing ? stopListen() : listen());
+        q('autoGen').onclick = () => {
+          if (busy) return;
+          stopListen();
+          const ask = q('autoAsk');
+          if (score && tl && tl.edited()) {
+            ask.innerHTML = `<div style="margin-top:8px;padding:10px;border:1px solid var(--border);border-radius:6px">
+              <div style="margin-bottom:6px">${esc(tr('autoAskRegen'))}</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-small" type="button" data-ask="all">${esc(tr('autoAskAll'))}</button>
+                <button class="btn btn-small btn-primary" type="button" data-ask="keep">${esc(tr('autoAskKeep'))}</button>
+                <button class="btn btn-small" type="button" data-ask="cancel">${esc(tr('autoAskCancel'))}</button>
+              </div></div>`;
+            ask.querySelectorAll('[data-ask]').forEach(b => {
+              b.onclick = () => {
+                ask.innerHTML = '';
+                if (b.dataset.ask === 'cancel') return;
+                seed++;
+                generate(b.dataset.ask);
+              };
+            });
+            return;
+          }
+          if (score) seed++;
+          generate('all');
         };
         q('autoSave').onclick = async () => {
-          if (!take) return;
+          if (!take || busy) return;
           busy = true; refreshButtons();
           try {
             const res = await window.LayerPitchAlbums.setAlbumTrackOfficialTake(albumId, trackId, take);

@@ -40,6 +40,8 @@ async function loadAlbums() {
 
 function albumTrackTitle(id) { const t = library.find(x => x.id === id); return (t && t.title) || id; }
 
+function albumAutoTakeOpen() { return typeof isTutoMode === 'function' && isTutoMode() ? (typeof tutoFullAccess !== 'undefined' && tutoFullAccess) : (typeof currentUserIsAdmin !== 'undefined' && currentUserIsAdmin); }
+
 // Réglages de l'éditeur commun pour le Backstage : morceaux de la bibliothèque, enregistrement par upsert_album, pochette
 // rangée sous l'identifiant du compositeur (images/<id>/album-<id>.<ext>, comme toutes les images, voir publishAll).
 function albumEditorConfig(al) {
@@ -48,7 +50,9 @@ function albumEditorConfig(al) {
     tracks: () => library.map(t => ({ id: t.id, title: t.title || t.id })),
     trackTitle: albumTrackTitle,
     mediaBase: MEDIA_BASE + 'images/',
-    features: { rights: true, autoTake: typeof currentUserIsAdmin !== 'undefined' && currentUserIsAdmin }, // version officielle automatique : admin seulement (nouvelles fonctions)
+    // Version officielle automatique : admin seulement (nouvelles fonctions, feu vert pas encore donné) ; dans le tutoriel, pour un admin seulement
+    // (tutoFullAccess) : la leçon « Créer un album » est publique, ses étapes « Générer automatiquement » sont sautées pour les autres.
+    features: { rights: true, autoTake: albumAutoTakeOpen() },
     save: async p => { await loadPostgresReadScripts(); return A().upsertAlbum(p); },
     uploadCover: async a => {
       // Mode tutoriel : envoi simulé, rien n'est envoyé au stockage (la pochette choisie reste visible dans l'éditeur, enregistrée ou non).
