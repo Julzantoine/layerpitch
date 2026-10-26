@@ -103,6 +103,60 @@ function world(opts) {
   x = world();
   rec = x.S.openRecorder({ albumId: 'al', trackId: 't1' }); rec.close(); await flush();
   check('fermée pendant le chargement : rien n\'est monté', !x.log.player.length && x.log.rec === undefined);
+
+  // ---- version automatique (openGenerator) : faux module de génération, vrai écran ----
+  function genWorld(opts) {
+    opts = opts || {};
+    const g = world(opts);
+    g.log.gen = [];
+    g.w.LayerPlayerCore.resumeAudio = async () => {};
+    g.w.LayerPitchTracks = { getTrack: async id => ({ track: { id, mode: opts.mode || 'vertical', sfxIds: opts.noSfx ? [] : ['s1'] } }) };
+    g.w.LayerPitchSfx = { getSfx: async id => ({ sfx: { id, title: 'Cloche', alternatives: [{ file: 'a.ogg' }] } }) };
+    g.w.LayerCaptureRender.playTake = async (take, o) => { g.log.play.push(take); g.log.ended = o.onEnd; return { stop() { g.log.stopped++; } }; };
+    g.w.LayerPitchAutoTake = {
+      supports: t => t.mode !== 'autre',
+      describe: () => ({ fixedDuration: false, quantized: false, layers: 3, barSec: 2, intervalKind: opts.kind || 'layers', fade: true }),
+      defaults: () => ({ duration: 120, intervalSec: 8, stinger: true, sfxId: 's1', fadeSec: 3, seed: 1 }),
+      generate: async (track, sfxById, settings) => { g.log.gen.push(settings); if (opts.genFails) throw new Error('fichier absent'); return { take: { kind: 'layerpitch-take', trackId: track.id, duration: 120 }, info: { stingerAt: 70 } }; },
+    };
+    g.w.LayerCaptureRender.loaded = true;
+    g.w.LayerCapturePlan = {}; g.w.LayerCaptureRetarget = {};
+    return g;
+  }
+  x = genWorld();
+  let gsaved = null, gstarted = 0;
+  let gen = x.S.openGenerator({ albumId: 'al', trackId: 't1', beforeStart: () => gstarted++, onSaved: t => { gsaved = t; } });
+  x.w.document.getElementById('host').appendChild(gen.el);
+  await flush();
+  const gq = r => gen.el.querySelector('[data-role="' + r + '"]');
+  check('auto : réglages montrés (durée, intervalle, fondu, stinger + Sfx), Écouter/Valider grisés tant que rien n\'est généré', gq('autoDuration').value === '120' && gq('autoInterval').value === '8' && gq('autoFade').value === '3' && gq('autoStinger').checked && /Cloche/.test(gen.el.textContent) && gq('autoListen').disabled && gq('autoSave').disabled);
+  gq('autoDuration').value = '90'; gq('autoStinger').checked = false;
+  gq('autoGen').click(); await flush();
+  check('auto : génération avec les réglages saisis, écoute lancée aussitôt, Valider disponible', x.log.gen[0].duration === 90 && x.log.gen[0].stinger === false && x.log.gen[0].intervalSec === 8 && x.log.play.length === 1 && !gq('autoSave').disabled && /Version prête \(2:00\)/.test(gen.el.textContent) && /Stinger à 1:10/.test(gen.el.textContent) && gstarted >= 1);
+  const seed1 = x.log.gen[0].seed;
+  gq('autoGen').click(); await flush();
+  check('auto : « Régénérer » change la graine (nouveau tirage) et arrête l\'écoute en cours', x.log.gen[1].seed !== seed1 && x.log.stopped >= 1 && x.log.play.length === 2);
+  gq('autoListen').click(); await flush();
+  check('auto : « Arrêter » coupe l\'écoute', x.log.stopped >= 2);
+  gq('autoSave').click(); await flush();
+  check('auto : valider range la prise générée pour le bon album+morceau et prévient l\'éditeur', x.log.setTake[0].join('|') === 'al|t1' && gsaved && gsaved.trackId === 't1' && /Version enregistrée \(2:00\)/.test(gen.el.textContent));
+  gen.close();
+  check('auto : fermer retire la boîte et arrête l\'écoute', !x.w.document.getElementById('host').contains(gen.el));
+
+  x = genWorld({ genFails: true });
+  gen = x.S.openGenerator({ albumId: 'al', trackId: 't1' }); await flush();
+  gen.el.querySelector('[data-role="autoGen"]').click(); await flush();
+  check('auto : génération impossible -> erreur affichée, rien à valider', /Erreur : fichier absent/.test(gen.el.textContent) && gen.el.querySelector('[data-role="autoSave"]').disabled && !x.log.setTake.length);
+  x = genWorld({ mode: 'autre' });
+  gen = x.S.openGenerator({ albumId: 'al', trackId: 't1' }); await flush();
+  check('auto : mode non géré -> message clair (à enregistrer à la main)', /pas géré/.test(gen.el.textContent) && !gen.el.querySelector('[data-role="autoGen"]'));
+  x = genWorld({ kind: 'sections' });
+  gen = x.S.openGenerator({ albumId: 'al', trackId: 't1' }); await flush();
+  check('auto : le réglage de rythme porte le nom du mode (section pour le vertical-aléatoire)', /Durée d'une section/.test(gen.el.textContent));
+  x = genWorld({ noSfx: true });
+  gen = x.S.openGenerator({ albumId: 'al', trackId: 't1' }); await flush();
+  check('auto : morceau sans Sfx -> pas de case stinger, message', !gen.el.querySelector('[data-role="autoStinger"]') && /Aucun Sfx/.test(gen.el.textContent));
+  check('textes FR et EN de la version automatique', ['autoHint', 'autoUnsupported', 'autoDuration', 'autoIntervalLayers', 'autoIntervalLoops', 'autoIntervalSlots', 'autoIntervalSections', 'autoFade', 'autoStinger', 'autoNoSfx', 'autoFixed', 'autoGenerate', 'autoListen', 'autoStop', 'autoSave', 'autoWorking', 'autoReady', 'autoStingerAt', 'autoNoStinger'].every(k => I18N.fr.albumShared[k] && I18N.en.albumShared[k]) && I18N.fr.albumEditor.officialAuto && I18N.en.albumEditor.officialAuto);
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
   process.exit(failures ? 1 : 0);
 })();
