@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793034880047">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793047324776">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -947,8 +947,12 @@
   /* Les bulles guidées (.tour-*) sont dans layerpitch-guide.css, partagé avec les autres pages. */
   .tutorial-menu-heading { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dimmer); padding: 6px 10px 2px; }
   /* Sections du menu (21/10) : le niveau le plus visible sous « Leçons », séparées par un trait ; leçons en retrait, titres moins appuyés. */
-  .tutorial-menu-section { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding: 10px 10px 4px; border-top: 1px solid var(--border); }
+  .tutorial-menu-section { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; font: inherit; text-align: left; cursor: pointer; color: inherit; margin-top: 6px; padding: 10px 10px 4px; border-top: 1px solid var(--border); }
   .tutorial-menu-heading + .tutorial-menu-section { border-top: 0; margin-top: 0; padding-top: 4px; }
+  .tutorial-menu-section-text { display: flex; flex-direction: column; gap: 2px; }
+  .tutorial-menu-chevron { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-dimmer); transition: transform 0.15s; }
+  .tutorial-menu-section[aria-expanded="false"] .tutorial-menu-chevron { transform: rotate(-90deg); }
+  .tutorial-menu-group[hidden] { display: none; }
   .tutorial-menu-section strong { font-size: 14px; font-weight: 700; color: var(--text); }
   .tutorial-menu-section small { font-size: 11.5px; color: var(--text-dim); }
   .account-menu-item.tutorial-menu-lesson { padding-left: 20px; }
@@ -1928,17 +1932,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793034880047"></script>
-<script src="layerpitch-i18n.js?v=1793034880047"></script>
-<script src="layerpitch-appearance.js?v=1793034880047"></script>
-<script src="layerpitch-album-shared.js?v=1793034880047"></script>
-<script src="layerpitch-album-editor.js?v=1793034880047"></script>
-<script src="layerpitch-shell.js?v=1793034880047"></script>
-<script src="layerpitch-social-icons.js?v=1793034880047"></script>
-<script src="layerpitch-notify.js?v=1793034880047"></script>
-<script src="layerpitch-guide.js?v=1793034880047"></script>
-<script src="layerpitch-help.js?v=1793034880047"></script>
-<script src="player.js?v=1793034880047"></script>
+<script src="layerpitch-tuto.js?v=1793047324776"></script>
+<script src="layerpitch-i18n.js?v=1793047324776"></script>
+<script src="layerpitch-appearance.js?v=1793047324776"></script>
+<script src="layerpitch-album-shared.js?v=1793047324776"></script>
+<script src="layerpitch-album-editor.js?v=1793047324776"></script>
+<script src="layerpitch-shell.js?v=1793047324776"></script>
+<script src="layerpitch-social-icons.js?v=1793047324776"></script>
+<script src="layerpitch-notify.js?v=1793047324776"></script>
+<script src="layerpitch-guide.js?v=1793047324776"></script>
+<script src="layerpitch-help.js?v=1793047324776"></script>
+<script src="player.js?v=1793047324776"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -16617,6 +16621,21 @@ function startLesson(id, opts) {
 
 // ---- Menu « Tutoriel » (barre du haut) ----
 const capitalizeFirst = str => str.charAt(0).toUpperCase() + str.slice(1);
+// Sections de leçons repliées dans le menu (retour de Jules-Antoine, 26/10) : mémorisées sur cet ordinateur,
+// dépliées par défaut. Le stockage peut être indisponible (navigation privée) : le repli marche alors le temps de la page.
+const FOLDED_LESSON_THEMES_KEY = 'lp_tuto_folded_themes';
+let foldedLessonThemesMem = null;
+function foldedLessonThemes() {
+  if (!foldedLessonThemesMem) {
+    try { foldedLessonThemesMem = new Set(JSON.parse(localStorage.getItem(FOLDED_LESSON_THEMES_KEY) || '[]')); } catch (e) { foldedLessonThemesMem = new Set(); }
+  }
+  return foldedLessonThemesMem;
+}
+function toggleLessonThemeFold(id) {
+  const set = foldedLessonThemes();
+  if (!set.delete(id)) set.add(id);
+  try { localStorage.setItem(FOLDED_LESSON_THEMES_KEY, JSON.stringify([...set])); } catch (e) {}
+}
 function renderTutorialMenu() {
   const list = document.getElementById('tutorialMenuList');
   if (!list) return;
@@ -16634,11 +16653,12 @@ function renderTutorialMenu() {
       // Hiérarchie (retour de Jules-Antoine, 21/10) : « Leçons » = petite étiquette ; chaque section = vrai titre (le plus visible),
       // coupé en titre + sous-titre au « : » ; les leçons en dessous, en retrait et moins appuyées.
       const [thMain, ...thRest] = tr(th.titleKey).split(' : ');
-      return `<div class="tutorial-menu-section"><strong>${escapeHtml(thMain)}</strong>${thRest.length ? `<small>${escapeHtml(capitalizeFirst(thRest.join(' : ')))}</small>` : ''}</div>` + (items.length ? items.map(l => `
+      const folded = foldedLessonThemes().has(th.id);
+      return `<button type="button" class="tutorial-menu-section" data-fold-theme="${th.id}" aria-expanded="${!folded}"><span class="tutorial-menu-section-text"><strong>${escapeHtml(thMain)}</strong>${thRest.length ? `<small>${escapeHtml(capitalizeFirst(thRest.join(' : ')))}</small>` : ''}</span><svg class="tutorial-menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="tutorial-menu-group"${folded ? ' hidden' : ''}>` + (items.length ? items.map(l => `
       <button class="account-menu-item tutorial-menu-lesson" type="button" data-tutorial="${l.id}" ${(l.soon || !lessonPlayable(l) || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}>
         <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr(l.titleKey))}</b><small>${escapeHtml(!lessonOpenToMe(l) || lessonPlayable(l) ? tr(l.descKey) : tr('tutoNeedsAccount'))}</small></span></span>
         ${!lessonOpenToMe(l) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : !lessonPlayable(l) ? `<span class="nav-badge">${escapeHtml(tr('tutoAccountBadge'))}</span>` : (l.soon || (l.needs && !flagOpen(l.needs))) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : (lessonAvailable(l) ? `<span class="tutorial-todo-dot" title="${escapeAttr(tr('tutorialToDoBadge'))}" aria-label="${escapeAttr(tr('tutorialToDoBadge'))}"></span>` : ''))}
-      </button>`).join('') : `<div class="tutorial-menu-empty">${escapeHtml(tr('lessonThemeSoon'))}</div>`);
+      </button>`).join('') : `<div class="tutorial-menu-empty">${escapeHtml(tr('lessonThemeSoon'))}</div>`) + '</div>';
     }).join('')}`;
   syncTutorialBadge();
 }
@@ -16662,6 +16682,8 @@ function initTutorialMenuUi() {
   document.addEventListener('click', (e) => { if (!dropdown.hidden && !dropdown.contains(e.target) && e.target !== btn) closeMenu(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
   dropdown.addEventListener('click', (e) => {
+    const fold = e.target.closest('[data-fold-theme]');
+    if (fold) { toggleLessonThemeFold(fold.dataset.foldTheme); renderTutorialMenu(); return; }
     const item = e.target.closest('[data-tutorial]');
     if (!item || item.disabled) return;
     closeMenu();

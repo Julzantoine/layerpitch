@@ -1133,6 +1133,21 @@ function startLesson(id, opts) {
 
 // ---- Menu « Tutoriel » (barre du haut) ----
 const capitalizeFirst = str => str.charAt(0).toUpperCase() + str.slice(1);
+// Sections de leçons repliées dans le menu (retour de Jules-Antoine, 26/10) : mémorisées sur cet ordinateur,
+// dépliées par défaut. Le stockage peut être indisponible (navigation privée) : le repli marche alors le temps de la page.
+const FOLDED_LESSON_THEMES_KEY = 'lp_tuto_folded_themes';
+let foldedLessonThemesMem = null;
+function foldedLessonThemes() {
+  if (!foldedLessonThemesMem) {
+    try { foldedLessonThemesMem = new Set(JSON.parse(localStorage.getItem(FOLDED_LESSON_THEMES_KEY) || '[]')); } catch (e) { foldedLessonThemesMem = new Set(); }
+  }
+  return foldedLessonThemesMem;
+}
+function toggleLessonThemeFold(id) {
+  const set = foldedLessonThemes();
+  if (!set.delete(id)) set.add(id);
+  try { localStorage.setItem(FOLDED_LESSON_THEMES_KEY, JSON.stringify([...set])); } catch (e) {}
+}
 function renderTutorialMenu() {
   const list = document.getElementById('tutorialMenuList');
   if (!list) return;
@@ -1150,11 +1165,12 @@ function renderTutorialMenu() {
       // Hiérarchie (retour de Jules-Antoine, 21/10) : « Leçons » = petite étiquette ; chaque section = vrai titre (le plus visible),
       // coupé en titre + sous-titre au « : » ; les leçons en dessous, en retrait et moins appuyées.
       const [thMain, ...thRest] = tr(th.titleKey).split(' : ');
-      return `<div class="tutorial-menu-section"><strong>${escapeHtml(thMain)}</strong>${thRest.length ? `<small>${escapeHtml(capitalizeFirst(thRest.join(' : ')))}</small>` : ''}</div>` + (items.length ? items.map(l => `
+      const folded = foldedLessonThemes().has(th.id);
+      return `<button type="button" class="tutorial-menu-section" data-fold-theme="${th.id}" aria-expanded="${!folded}"><span class="tutorial-menu-section-text"><strong>${escapeHtml(thMain)}</strong>${thRest.length ? `<small>${escapeHtml(capitalizeFirst(thRest.join(' : ')))}</small>` : ''}</span><svg class="tutorial-menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="tutorial-menu-group"${folded ? ' hidden' : ''}>` + (items.length ? items.map(l => `
       <button class="account-menu-item tutorial-menu-lesson" type="button" data-tutorial="${l.id}" ${(l.soon || !lessonPlayable(l) || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}>
         <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr(l.titleKey))}</b><small>${escapeHtml(!lessonOpenToMe(l) || lessonPlayable(l) ? tr(l.descKey) : tr('tutoNeedsAccount'))}</small></span></span>
         ${!lessonOpenToMe(l) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : !lessonPlayable(l) ? `<span class="nav-badge">${escapeHtml(tr('tutoAccountBadge'))}</span>` : (l.soon || (l.needs && !flagOpen(l.needs))) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : (lessonAvailable(l) ? `<span class="tutorial-todo-dot" title="${escapeAttr(tr('tutorialToDoBadge'))}" aria-label="${escapeAttr(tr('tutorialToDoBadge'))}"></span>` : ''))}
-      </button>`).join('') : `<div class="tutorial-menu-empty">${escapeHtml(tr('lessonThemeSoon'))}</div>`);
+      </button>`).join('') : `<div class="tutorial-menu-empty">${escapeHtml(tr('lessonThemeSoon'))}</div>`) + '</div>';
     }).join('')}`;
   syncTutorialBadge();
 }
@@ -1178,6 +1194,8 @@ function initTutorialMenuUi() {
   document.addEventListener('click', (e) => { if (!dropdown.hidden && !dropdown.contains(e.target) && e.target !== btn) closeMenu(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
   dropdown.addEventListener('click', (e) => {
+    const fold = e.target.closest('[data-fold-theme]');
+    if (fold) { toggleLessonThemeFold(fold.dataset.foldTheme); renderTutorialMenu(); return; }
     const item = e.target.closest('[data-tutorial]');
     if (!item || item.disabled) return;
     closeMenu();
