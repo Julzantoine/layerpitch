@@ -309,10 +309,13 @@ const ALBUM_TEXT = (typeof currentLang === 'function' && currentLang() === 'en')
   : 'Retrouvez l’OST de Music City, primée aux OST Awards ! Écoutez tous les morceaux comme si vous étiez au cœur du jeu, faites évoluer vos versions, choisissez vos réglages ou écoutez une nouvelle version aléatoire à chaque fois !';
 // Pochette d'exemple de l'album (image du dépôt, servie avec le site : pas besoin du stockage des médias).
 const ALBUM_COVER = { name: 'music-city-cover.jpg', url: './images/tuto-music-city-cover.jpg' };
+// Illustration d'exemple du pack (image réelle du pack « 8 bits Comptines », copiée dans le dépôt).
+const PACK_ILLUSTRATION = { name: 'illustration-8-bits.png', url: './images/tuto-8bits-illustration.png' };
 const UPLOAD_KIT = {
-  url: name => 'https://media.layerpitch.com/tuto/' + encodeURIComponent(name),
+  // Images « Alone » (réduites) et petit film de présentation : fichiers du dépôt, servis avec le site (aucun dépôt dans le stockage des médias).
+  url: name => ({ 'alone-ponton.jpg': './images/tuto-ponton.jpg', 'alone-brume.jpg': './images/tuto-brume.jpg', 'alone-rameur.jpg': './images/tuto-rameur.jpg', 'layerpitch-le-film.mp4': './images/tuto-film.mp4', [ALBUM_COVER.name]: ALBUM_COVER.url }[name] || ('https://media.layerpitch.com/tuto/' + encodeURIComponent(name))),
   photo: { name: 'alone-ponton.jpg' }, thumb: { name: 'alone-brume.jpg' }, cover: { name: 'alone-rameur.jpg' }, album: ALBUM_COVER,
-  video: { name: 'alone-gameplay-muette.mp4' },
+  video: { name: 'layerpitch-le-film.mp4' },
 };
 const LESSON_THEMES = [
   { id: 'engine', titleKey: 'lessonThemeEngine' },
@@ -751,8 +754,9 @@ const LESSONS = [
     { selector: '.nav-item[data-tab="manageAdreels"]', titleKey: 'liManageTabTitle', textKey: 'liManageTabText', done: () => !!document.querySelector('.backstage-panel[data-panel="manageAdreels"].active') },
     { selector: '#manageAdreelsMaster', titleKey: 'liManageListTitle', textKey: 'liManageListText' },
     { selector: '#manageAdreelsDetail', titleKey: 'liManageActionsTitle', textKey: 'liManageActionsText' },
-    { selector: '#navLinkAccount', titleKey: 'liAccountTitle', textKey: 'liAccountText' },
-    { titleKey: 'liDirectoryTitle', textKey: 'liDirectoryText', final: true },
+    // Le fond de la bulle est l'annuaire public (iframe) ; la dernière étape, « Mon compte », ouvre le compte fictif de Daniel (même onglet) où une courte bulle montre la case à cocher puis renvoie vers la leçon suivante.
+    { titleKey: 'liDirectoryTitle', textKey: 'liDirectoryText', enter: () => showDirectoryBackdrop(), onBack: () => hideDirectoryBackdrop() },
+    { selector: '#navLinkAccount', titleKey: 'liAccountTitle', textKey: 'liAccountText', final: true, enter: () => hideDirectoryBackdrop() },
   ] },
   // Leçon « Créer un AdReel » (20/10) : se joue dans le Backstage du mode tutoriel, bibliothèque d'exemple préchargée (api/demo-client.js,
   // ?tuto&lesson=adreel : rechargement obligatoire d'où `reload`). Fil rouge (22/10) : au retour de la WorldGameCon, le compositeur envoie à Joshua, créateur du jeu « Music City », un AdReel custom (quatre villes, un fil rouge musical).
@@ -794,21 +798,31 @@ const LESSONS = [
     { titleKey: 'aprWelcomeTitle', textKey: 'aprWelcomeText' },
     { selector: '.nav-item[data-tab="appearance"]', titleKey: 'aprTabTitle', textKey: 'aprTabText', done: () => !!document.querySelector('.nav-item[data-tab="appearance"].active') },
     { selector: '#themeProQuickStartGallery', titleKey: 'aprThemeTitle', textKey: 'aprThemeText', done: () => (profile.theme && (profile.theme.bgColor || '').toLowerCase() === '#1b1035') },
-    { selector: '#appThemeTitleColor', titleKey: 'aprTitleColorTitle', textKey: 'aprTitleColorText', done: () => (profile.theme && (profile.theme.titleColor || '').toLowerCase() !== '#ff3ea5') },
+    { selector: '#appThemeTitleColor', titleKey: 'aprTitleColorTitle', textKey: 'aprTitleColorText', done: () => (profile.theme && (profile.theme.titleColor || '').toLowerCase() !== '#ff3ea5'),
+      drops: [{ kind: 'text', label: 'Cyan (#00CCFF)', value: '#00ccff' }] },
     { selector: '#appThemeBgColor', titleKey: 'aprColorsTitle', textKey: 'aprColorsText' },
     { selector: '#appThemeFont', titleKey: 'aprFontTitle', textKey: 'aprFontText', done: () => !!profile.theme && profile.theme.font !== 'google:Space Grotesk' },
     { selector: '#btnAddCustomFont', titleKey: 'aprCustomFontTitle', textKey: 'aprCustomFontText' },
     { selector: '#appThemeBgImageCtrl .file-ctrl', titleKey: 'aprBgImageTitle', textKey: 'aprBgImageText', done: () => !!themeBgImagePendingFile,
       drops: [{ kind: 'file', label: ALBUM_COVER.name, url: ALBUM_COVER.url, name: ALBUM_COVER.name }] },
     { selector: '#appThemeBgImageOpacity', titleKey: 'aprOpacityTitle', textKey: 'aprOpacityText' },
-    { selector: '#appSeparatorVisible', titleKey: 'aprSepTitle', textKey: 'aprSepText', done: () => !!profile.theme && !!profile.theme.separator && !!profile.theme.separator.visible },
-    { selector: '#waveformStylePicker', titleKey: 'aprWaveTitle', textKey: 'aprWaveText' },
+    { selector: '#appSeparatorThickness', titleKey: 'aprSepTitle', textKey: 'aprSepText', enter: ctx => { ctx.sepThickness0 = Number(document.getElementById('appSeparatorThickness').value); },
+      done: ctx => ctx.sepThickness0 != null && Number(document.getElementById('appSeparatorThickness').value) !== ctx.sepThickness0,
+      drops: [{ kind: 'text', label: '3', value: '3' }] },
+    { selector: () => document.getElementById('waveformStylePicker') || document.getElementById('waveformStyleSelect'), titleKey: 'aprWaveTitle', textKey: 'aprWaveText' }, // menu d'hier ou cartes d'aperçu (branche « boutons de lecture »)
     { selector: '#seqMapThemeSelect', titleKey: 'aprMapTitle', textKey: 'aprMapText' },
-    { selector: '.nav-item[data-tab="content"]', titleKey: 'aprBackTitle', textKey: 'aprBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
-    { selector: '.block-editor-card[data-type="text"] [data-role="appearanceToggleHead"]', titleKey: 'aprBlockTitle', textKey: 'aprBlockText', clickDone: true,
-      enter: () => { const c = document.querySelector('.block-editor-card[data-type="text"] .block-editor-body.collapsed'); const h = document.querySelector('.block-editor-card[data-type="text"] [data-role="toggle-collapse"], .block-editor-card[data-type="text"] [data-action="toggle-collapse"]'); if (c && h) h.click(); } },
-    { selector: '.block-editor-card[data-type="text"] [data-role="elementAppearanceFields"]', titleKey: 'aprElementTitle', textKey: 'aprElementText', skip: () => !document.querySelector('.block-editor-card[data-type="text"] [data-role="elementAppearanceFields"]') },
+    // Premier aperçu : avec l'image de fond, les textes se lisent mal -> on revient les mettre en blanc, puis on revisualise.
     { selector: '#btnPreview', titleKey: 'aprPreviewTitle', textKey: 'aprPreviewText', clickDone: true },
+    { titleKey: 'aprReviewTitle', textKey: 'aprReviewText' },
+    { selector: '#appThemeContentColor', titleKey: 'aprWhiteTitle', textKey: 'aprWhiteText', done: () => !!profile.theme && (profile.theme.contentColor || '').toLowerCase() === '#ffffff',
+      drops: [{ kind: 'text', label: 'Blanc (#FFFFFF)', value: '#ffffff' }] },
+    { selector: '.nav-item[data-tab="content"]', titleKey: 'aprBackTitle', textKey: 'aprBackText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
+    { selector: '.block-editor-card[data-type="text"] .block-editor-head [data-action="toggle-collapse"]', titleKey: 'aprBlockOpenTitle', textKey: 'aprBlockOpenText',
+      done: () => !!document.querySelector('.block-editor-card[data-type="text"] .block-editor-body:not(.collapsed)') },
+    { selector: '.block-editor-card[data-type="text"] [data-role="appearanceToggleHead"]', titleKey: 'aprBlockTitle', textKey: 'aprBlockText', clickDone: true },
+    { selector: '.block-editor-card[data-type="text"] [data-role="elAppearanceToggleHead"]', titleKey: 'aprElementTitle', textKey: 'aprElementText', clickDone: true,
+      skip: () => !document.querySelector('.block-editor-card[data-type="text"] [data-role="elAppearanceToggleHead"]') },
+    { selector: '#btnPreview', titleKey: 'aprPreview2Title', textKey: 'aprPreview2Text', clickDone: true },
     { titleKey: 'aprEndTitle', textKey: 'aprEndText', final: true },
   ] },
   // Leçon « Diffuser son AdReel » (26/10, ?tuto&lesson=share) : langue de la page, indexation par Google, adresse personnalisée, accès privé (mot de passe). Elle suit « Apparence » et reprend l'AdReel de Joshua :
@@ -858,7 +872,8 @@ const LESSONS = [
     { selector: () => document.querySelector('#packsContainer .theme-preset-card[data-preset-id="default"]') || document.querySelector('#packsContainer .theme-preset-card'), titleKey: 'lpThemeTitle', textKey: 'lpThemeText', clickDone: true },
     { selector: '#packsContainer select[data-pack-field="font"]', titleKey: 'lpFontTitle', textKey: 'lpFontText', skip: () => !document.querySelector('#packsContainer select[data-pack-field="font"]') },
     { selector: '#packsContainer [data-pack-field="bgColor"]', titleKey: 'lpColorsTitle', textKey: 'lpColorsText', skip: () => !document.querySelector('#packsContainer [data-pack-field="bgColor"]') },
-    { selector: '#packsContainer [data-role="illustrationCtrl"]', titleKey: 'lpImageTitle', textKey: 'lpImageText' },
+    { selector: '#packsContainer [data-role="illustrationCtrl"] .file-ctrl', titleKey: 'lpImageTitle', textKey: 'lpImageText', done: () => packs.length > 0 && !!packs[0].pendingIllustration,
+      drops: [{ kind: 'file', label: PACK_ILLUSTRATION.name, url: PACK_ILLUSTRATION.url, name: PACK_ILLUSTRATION.name }] },
     { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="distribution"]', titleKey: 'lpDistTitle', textKey: 'lpDistText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'distribution' },
     { selector: '#packsContainer select[data-pack-field="priceEurCents"]', titleKey: 'lpPriceTitle', textKey: 'lpPriceText', done: () => packs.length > 0 && packs[0].priceEurCents !== 1000 },
     { selector: '#packsContainer input[data-pack-field="buyable"]', titleKey: 'lpSellTitle', textKey: 'lpSellText' },
@@ -909,7 +924,7 @@ const LESSONS = [
   // Leçon « Envoyer des images et des vidéos » (25/10, ?tuto&lesson=upload, rechargement obligatoire d'où `reload`) : l'apprenant glisse des fichiers d'exemple sur les zones d'envoi
   // (image d'un bloc Photo, vignette d'un bloc Vidéo, bibliothèque vidéo hébergée, illustration d'un pack, pochette d'un album). Envoi SIMULÉ dans le compte fictif : rien n'est enregistré.
   // « bientôt » tant que les fichiers d'exemple (UPLOAD_KIT) ne sont pas déposés par Jules-Antoine dans media.layerpitch.com/tuto/ (même dossier que les vidéos de la leçon Versioning).
-  { id: 'upload', theme: 'pitch', public: true, reload: true, soon: true, titleKey: 'luTitle', descKey: 'luDesc', steps: [
+  { id: 'upload', theme: 'pitch', public: true, reload: true, titleKey: 'luTitle', descKey: 'luDesc', steps: [
     { titleKey: 'luWelcomeTitle', textKey: 'luWelcomeText' },
     { selector: '#btnAddPhoto', titleKey: 'luPhotoBlockTitle', textKey: 'luPhotoBlockText', clickDone: true, done: () => blocks.some(b => b.type === 'photo') },
     { selector: '.block-editor-card[data-type="photo"] [data-role="addBtn"]', titleKey: 'luAddImageTitle', textKey: 'luAddImageText', clickDone: true, done: () => blocks.some(b => b.type === 'photo' && b.images.length >= 1) },
@@ -1013,7 +1028,7 @@ const GUIDE = window.LayerPitchGuide.create({
   startLesson: id => startLesson(id),
   onLessonDone: lessonMarkDone,
   onTourDone: tourMarkDone,
-  onClose: () => renderTutorialMenu(),
+  onClose: () => { hideDirectoryBackdrop(); renderTutorialMenu(); },
   onOpen: () => { const helpTip = document.getElementById('helpTooltip'); if (helpTip) helpTip.classList.remove('visible'); },
   // Vignettes d'exemple : lot à télécharger, bouton « Utiliser » (étapes useSample dont les URL sont connues), et « bientôt
   // disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
@@ -1055,7 +1070,13 @@ const GUIDE = window.LayerPitchGuide.create({
   autoSample: step => lessonUseSample(step),
   arrowPoint: lessonArrowPoint,
   // Les champs de la fiche passent sous la barre fixe du haut : on les ramène au centre.
-  centerTarget: (target, b) => b.top < 250 && !!target.closest('#libraryDetail'),
+  // Cible cachée sous la barre du haut (collante sur ordinateur) : on la ramène au centre de l'écran.
+  centerTarget: (target, b) => {
+    if (b.top < 250 && target.closest('#libraryDetail')) return true;
+    const bar = document.querySelector('.page-top-row');
+    if (bar && getComputedStyle(bar).position === 'sticky') { const bb = bar.getBoundingClientRect(); return b.top < bb.bottom + 8 && b.bottom > bb.top; }
+    return false;
+  },
 });
 // `guide` (état de la bulle en cours, ou null) reste lisible partout dans ce fichier comme avant.
 Object.defineProperty(window, 'guide', { get: () => GUIDE.state(), configurable: true });
@@ -1067,9 +1088,23 @@ function startBackstageTour() {
   openGuide('tour', TOUR_STEPS.filter(s => !s.selector || tourTargetVisible(document.querySelector(s.selector))));
 }
 // Leçons du thème « pitch » : elles partent toujours de l'onglet Contenu, sur le Main AdReel (on peut avoir laissé le tutoriel sur un autre onglet ou un autre AdReel).
+// Fond « annuaire » d'une étape de leçon : la vraie page publique de l'annuaire, derrière la bulle (retirée à la sortie de l'étape et à la fermeture).
+let directoryBackdrop = null;
+function hideDirectoryBackdrop() { if (directoryBackdrop) { directoryBackdrop.remove(); directoryBackdrop = null; } }
+function showDirectoryBackdrop() {
+  hideDirectoryBackdrop();
+  const f = document.createElement('iframe');
+  f.src = 'annuaire.html?lang=' + currentLang();
+  f.title = 'annuaire';
+  f.setAttribute('aria-hidden', 'true');
+  f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:8500;background:#fff';
+  document.body.appendChild(f);
+  directoryBackdrop = f;
+}
 function resetLessonView(lesson) {
   if (!lesson || lesson.theme !== 'pitch' || !isTutoMode()) return;
   try {
+    const pub = document.getElementById('btnPublish'); if (pub) pub.disabled = false; // rien n'est réel en tutoriel : « Sauvegarder / publier » reste cliquable
     if (typeof switchTab === 'function') switchTab('content');
     const start = lesson.startAdReel || 'main';
     if (typeof switchAdReel === 'function' && typeof adReels !== 'undefined' && currentAdReelId !== start && adReels.some(a => a.id === start)) switchAdReel(start);

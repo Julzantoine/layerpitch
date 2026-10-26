@@ -197,7 +197,8 @@ function openPreview(relativeUrl) {
     log(tr('previewFailedMsg', { message: e.message }), 'err');
     return;
   }
-  window.open(relativeUrl, '_blank');
+  // Mode tutoriel : « &tuto » fait afficher, sur la page d'aperçu, la bulle qui ramène au Backstage (layerpitch-preview-tuto.js).
+  window.open(isTutoMode() ? relativeUrl + '&tuto' : relativeUrl, '_blank');
 }
 document.getElementById('btnPreview').addEventListener('click', () => {
   const adreelParam = currentAdReelId === 'main' ? '' : `&adreel=${encodeURIComponent(currentAdReelId)}`;

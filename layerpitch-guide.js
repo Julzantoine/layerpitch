@@ -320,6 +320,12 @@
         setTimeout(() => go(1), 450); // laisse voir le résultat du geste avant la bulle suivante
         return;
       }
+      // Étape à clic revue avec « Précédent » : si la personne reclique vraiment sur la cible, on avance (sinon « +Pack » recliqué ne faisait rien).
+      if (guide.kind === 'lesson' && !guide.advancing && guide.index < guide.maxIndex && step.clickDone && guide.clicked) {
+        guide.advancing = true;
+        setTimeout(() => go(1), 450);
+        return;
+      }
       render(true);
     }
     function render(positionOnly) {

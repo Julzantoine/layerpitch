@@ -206,7 +206,7 @@
   const listRows = table => {
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
     if (table === 'ad_reels' && (['adreel-intro', 'adreel', 'upload', 'appearance', 'share'].includes(lessonParam()))) return lessonParam() === 'adreel-intro' ? [demoMainAdReel()].concat(demoOtherAdReels()) : (['appearance', 'share'].includes(lessonParam()) ? [demoMainAdReel(), demoJoshuaAdReel()] : [demoMainAdReel()]);
-    if (table === 'tracks' && lessonParam() === 'pack' && !projectPage) return DEMO_TRACKS_8BIT;
+    if (table === 'tracks' && lessonParam() === 'pack' && !projectPage) return DEMO_TRACKS_8BIT.filter(t => t.id !== 'bmruc9x0htabo1'); // « Doucement s'en va le jour » : son fichier audio est introuvable en ligne (404), on ne le propose pas
     if (table === 'tracks' && ['adreel', 'adreel-intro', 'album', 'tracking', 'upload', 'appearance', 'share'].includes(lessonParam()) && !projectPage) return DEMO_TRACKS_JAZZ;
     if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
     if (table === 'tracks' && lessonParam() === 'sfx') return [DEMO_TRACK_JAZZ_SFX];

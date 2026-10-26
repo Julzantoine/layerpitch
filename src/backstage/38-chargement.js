@@ -298,7 +298,8 @@ async function loadData(silent) {
     // backstage -- si dataLoadOk est déjà vrai (rechargement manuel ultérieur ayant échoué à son tour),
     // les données en mémoire restent les bonnes (ce catch ne les a pas touchées), publier reste donc sûr et
     // le bouton n'est délibérément pas re-désactivé ici.
-    if (!dataLoadOk) {
+    // Mode tutoriel : rien n'est réel, le bouton reste utilisable (les leçons demandent de cliquer dessus).
+    if (!dataLoadOk && !isTutoMode()) {
       log(tr('publishBlockedNoLoadMsg'), 'err');
       document.getElementById('btnPublish').disabled = true;
     }

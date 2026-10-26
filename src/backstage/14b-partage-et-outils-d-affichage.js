@@ -264,5 +264,5 @@ const pendingOrphanR2Keys = new Set();
 (function setupTutoAccountLinks() {
   if (!isTutoMode()) return;
   const lang = (typeof currentLang === 'function') ? currentLang() : 'fr';
-  document.querySelectorAll('a[href="mon-compte.html"]').forEach(a => { a.setAttribute('href', 'mon-compte.html?tuto&lang=' + lang); a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener'); });
+  document.querySelectorAll('a[href="mon-compte.html"]').forEach(a => { a.setAttribute('href', 'mon-compte.html?tuto&lang=' + lang + '&from=' + encodeURIComponent(new URLSearchParams(location.search).get('lesson') || '')); });
 })();

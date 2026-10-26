@@ -15,7 +15,7 @@ function waveformPreviewPeaks(count) {
 }
 function drawWaveformStylePreviews() {
   const host = document.getElementById('waveformStylePicker');
-  if (!host) return;
+  if (!host || typeof window.LayerPlayerCore.drawWaveformCanvas !== 'function') return;
   const color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2f80c0';
   host.querySelectorAll('canvas[data-wave-style]').forEach(canvas => {
     const style = canvas.dataset.waveStyle;
@@ -37,7 +37,7 @@ function fillWaveformStyleField() {
 }
 // Le panneau Apparence est souvent caché au premier dessin (canvas sans taille) : on redessine dès qu'il
 // devient visible ou change de largeur.
-new ResizeObserver(() => drawWaveformStylePreviews()).observe(document.getElementById('waveformStylePicker'));
+if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => drawWaveformStylePreviews()).observe(document.getElementById('waveformStylePicker'));
 document.getElementById('waveformStylePicker').addEventListener('click', e => {
   const btn = e.target.closest('[data-wave-style-btn]');
   if (!btn) return;
