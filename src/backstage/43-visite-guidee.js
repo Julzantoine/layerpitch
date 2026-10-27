@@ -1068,6 +1068,8 @@ const GUIDE = window.LayerPitchGuide.create({
   tr,
   nextLesson: nextLessonOf,
   startLesson: id => startLesson(id),
+  // Choix de fin de visite : dans le vrai compte, la leçon s'ouvre dans une nouvelle fenêtre (compte fictif), comme depuis le menu « Tutoriel ».
+  startChoice: id => { const l = LESSONS.find(x => x.id === id); if (!isTutoMode() && l && !l.soon) window.open(lessonTutoUrl(l, id), '_blank', 'noopener'); else startLesson(id); },
   onLessonDone: lessonMarkDone,
   onTourDone: tourMarkDone,
   onClose: () => { hideDirectoryBackdrop(); renderTutorialMenu(); },
@@ -1125,7 +1127,7 @@ Object.defineProperty(window, 'guide', { get: () => GUIDE.state(), configurable:
 const guideStepTarget = GUIDE.stepTarget, guideStepIsDone = GUIDE.stepIsDone, guideGo = GUIDE.go, finishGuide = GUIDE.finish, renderGuideStep = GUIDE.render, guideTick = GUIDE.tick;
 function openGuide(kind, steps, lessonId) { GUIDE.open(kind, steps, lessonId); }
 function closeBackstageTour() { GUIDE.close(); }
-// Fin de la visite dans le mode tutoriel (27/10, demande de Jules-Antoine) : double choix, enchaîner sur la première leçon du moteur audio
+// Fin de la visite, dans le mode tutoriel comme dans le vrai compte (27/10, demande de Jules-Antoine) : double choix, enchaîner sur la première leçon du moteur audio
 // ou sur celle de « Pitcher et vendre ». Chaque choix n'apparaît que si sa leçon est jouable ici.
 function tourChoiceStep() {
   const first = theme => LESSONS.find(l => l.theme === theme && l.steps && !l.soon && lessonPlayable(l) && !(l.needs && !flagOpen(l.needs)));
@@ -1137,7 +1139,7 @@ function startBackstageTour() {
   if (guide) return;
   // Seules les zones réellement présentes à l'écran sont visitées (onglets réservés aux admins, bouton « Tutoriel » encore fermé, menu replié sur téléphone…).
   const steps = TOUR_STEPS.filter(s => !s.selector || (tourTargetVisible(document.querySelector(s.selector)) && !(s.hideIf && s.hideIf())));
-  const choice = isTutoMode() ? tourChoiceStep() : null;
+  const choice = tourChoiceStep();
   openGuide('tour', choice ? steps.concat(choice) : steps);
 }
 // Leçons du thème « pitch » : elles partent toujours de l'onglet Contenu, sur le Main AdReel (on peut avoir laissé le tutoriel sur un autre onglet ou un autre AdReel).
