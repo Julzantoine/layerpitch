@@ -10,7 +10,7 @@
 //     audio/<toTrackId>/ (relancer la même demande recopie à l'identique) et renvoie l'erreur.
 // NON TESTÉE EN RÉEL au 6/10 : supabase functions deploy copy-track-files
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 const ALLOWED_ORIGINS = new Set(['https://beta.layerpitch.com', 'https://layerpitch.com', 'https://www.layerpitch.com', 'http://localhost:8420']);
 const MAX_FILES = 400;

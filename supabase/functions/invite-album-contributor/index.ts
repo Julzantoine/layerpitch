@@ -10,7 +10,7 @@
 // transmette lui-même.
 // NON TESTÉE EN RÉEL au 29/09 : à déployer (supabase functions deploy invite-album-contributor) puis essayer sur une
 // adresse de test ; l'URL de retour doit figurer dans les URLs autorisées de Supabase Auth.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 const ALLOWED_ORIGINS = new Set([
   'https://beta.layerpitch.com',

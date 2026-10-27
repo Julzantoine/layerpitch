@@ -78,7 +78,7 @@ function loadPurchaseScripts() {
   // Même chargeur que loadPostgresReadScripts() (public-page.js) : téléchargement parallèle, exécution dans l'ordre,
   // version du déploiement.
   purchaseScriptsLoaded = lpLoadScriptsInOrder([
-    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js',
     './api/supabase-client.js',
     './api/auth.js',
     './api/packs.js',

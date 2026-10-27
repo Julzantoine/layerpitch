@@ -43,7 +43,7 @@ function loadPostgresReadScripts() {
     // layerpitch-tuto.js (admins seulement tant que le tutoriel n'est pas ouvert au public). Sans ?tuto : rien ne change.
     const tuto = new URLSearchParams(location.search).has('tuto');
     postgresReadScriptsLoaded = lpLoadScriptsInOrder((tuto ? ['./layerpitch-tuto.js', './api/demo-client.js', './api/auth.js'] : []).concat([
-      'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
+      'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js',
       './api/supabase-client.js',
       './api/tracks.js',
       './api/packs.js',

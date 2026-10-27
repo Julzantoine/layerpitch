@@ -7,7 +7,7 @@
 //
 // Nécessite le SDK Supabase + api/supabase-client.js chargés en amont via <script> (build UMD,
 // pas de module ES — voir contrainte 100% statique/file://) :
-//   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+//   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 //   <script src="api/supabase-client.js"></script>
 //   <script src="api/auth.js"></script>
 //

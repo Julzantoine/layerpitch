@@ -19,7 +19,7 @@
 // plusieurs vendeurs : à valider avec l'expert-comptable (Stripe Tax activé seulement si le VENDEUR est assujetti,
 // comme pour les packs).
 import Stripe from 'npm:stripe@22.6.0';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 const ALLOWED_ORIGINS = new Set([
   'https://beta.layerpitch.com',

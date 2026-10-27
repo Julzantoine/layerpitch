@@ -18,7 +18,7 @@
 // la main) AVANT de planifier. supabase functions deploy process-account-deletions
 import Stripe from 'npm:stripe@22.6.0';
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 const unxml = (s: string) => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
 

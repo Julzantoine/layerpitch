@@ -24,7 +24,7 @@
 // Envoi par lots via l'API batch de Resend (jusqu'à 100 emails par appel) plutôt qu'un appel par
 // destinataire : évite la limite de débit par seconde. Même précautions de délivrabilité que les
 // autres emails (version texte brut, reply_to) depuis l'épisode "classé en spam" du 20 septembre.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 const APP_URL = 'https://beta.layerpitch.com';
 const REPLY_TO = 'contact@layerpitch.com';

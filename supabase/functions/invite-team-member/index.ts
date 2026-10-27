@@ -6,7 +6,7 @@
 // (compte créé si besoin : type 'invite', sinon 'magiclink') vers invitation.html, où la personne accepte ou refuse.
 // E-mail via Resend (RESEND_API_KEY, RESEND_FROM_ADDRESS). Échec d'envoi : le lien est renvoyé pour être transmis à la main.
 // NON TESTÉE EN RÉEL au 28/09 : à déployer (supabase functions deploy invite-team-member).
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 const ALLOWED_ORIGINS = new Set([
   'https://beta.layerpitch.com',

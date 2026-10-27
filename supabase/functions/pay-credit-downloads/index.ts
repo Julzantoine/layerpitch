@@ -11,7 +11,7 @@
 // NON TESTÉE AVEC STRIPE au 28/09. Factures de ces ventes (mandat de facturation, acheteur = le studio) : à ajouter avec
 // l'expert-comptable (même générateur que les packs), non construit ici.
 import Stripe from 'npm:stripe@22.6.0';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 Deno.serve(async (req) => {
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });

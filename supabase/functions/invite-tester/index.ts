@@ -31,7 +31,7 @@
 // l'email à une policy Access séparée avant l'invitation (docs/infrastructure.md, Partie C,
 // journal du 7 septembre pour le raisonnement complet). Plus nécessaire — Cloudflare Access ne
 // protège désormais plus que admin.html, jamais le parcours compositeur ordinaire.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 // Autorise uniquement les origines LayerPitch connues plutôt que '*' -- ces fonctions manipulent
 // paiement/facturation/média/admin ; un JWT qui fuit ailleurs ne doit pas pouvoir être rejoué

@@ -17,7 +17,7 @@
 // propriétaire réel et son email de contact sont retrouvés ICI, côté serveur, à partir de l'AdReel
 // visé, jamais depuis une valeur envoyée par le client (même principe que log_analytics_event()).
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 // Autorise uniquement les origines LayerPitch connues plutôt que '*' -- ces fonctions manipulent
 // paiement/facturation/média/admin ; un JWT qui fuit ailleurs ne doit pas pouvoir être rejoué

@@ -11,7 +11,7 @@
 // Jules-Antoine (16 septembre, sur sa demande : jusqu'ici il fallait penser à aller voir le
 // panneau admin du backstage, une demande pouvait facilement passer inaperçue plusieurs jours).
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 // Autorise uniquement les origines LayerPitch connues plutôt que '*' -- ces fonctions manipulent
 // paiement/facturation/média/admin ; un JWT qui fuit ailleurs ne doit pas pouvoir être rejoué

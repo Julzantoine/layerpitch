@@ -29,7 +29,7 @@
 // - checkout.session.completed avec metadata.kind = 'album' (28/09) : achat d'album partagé -- voir handleAlbumPurchase.
 
 import Stripe from 'npm:stripe@22.6.0';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
 import { parseLookupKey, SELF_SERVE } from '../_shared/stripe-plans.ts';

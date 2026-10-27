@@ -10,7 +10,7 @@
 // génère une URL R2 pré-signée à courte durée de vie (5 minutes) avec les identifiants
 // service_role -- jamais d'URL publique permanente pour ce bucket.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
 
 // Autorise uniquement les origines LayerPitch connues plutôt que '*' -- ces fonctions manipulent

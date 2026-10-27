@@ -6,7 +6,7 @@
 // La configuration du portail (une par profil) et les Prix Stripe sont tenus à jour depuis la table plans
 // (_shared/stripe-plans.ts).
 import Stripe from 'npm:stripe@22.6.0';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 import { ensurePortalConfiguration, type PlanRow } from '../_shared/stripe-plans.ts';
 
 // Mêmes origines autorisées que les autres fonctions de paiement (durcissement du 11/09).

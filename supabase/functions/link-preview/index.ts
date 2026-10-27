@@ -12,7 +12,7 @@
 // Même liste de sites que public.project_link_has_preview (migration 20260928140000) : les garder identiques.
 //
 // Déploiement : supabase functions deploy link-preview
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 const ALLOWED_ORIGINS = new Set([
   'https://beta.layerpitch.com',

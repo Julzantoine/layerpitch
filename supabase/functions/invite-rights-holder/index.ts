@@ -11,7 +11,7 @@
 // vendeur pour qu'il le transmette lui-même.
 // NON TESTÉE EN RÉEL au 28/09 : à déployer (supabase functions deploy invite-rights-holder) puis essayer sur une
 // adresse de test ; l'URL de retour doit figurer dans les URLs autorisées de Supabase Auth.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 const ALLOWED_ORIGINS = new Set([
   'https://beta.layerpitch.com',

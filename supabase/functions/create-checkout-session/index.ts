@@ -20,7 +20,7 @@
 // pouvoir avoir lieu, sous peine de bloquer la génération de la facture après coup.
 
 import Stripe from 'npm:stripe@22.6.0';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 // Autorise uniquement les origines LayerPitch connues plutôt que '*' -- ces fonctions manipulent
 // paiement/facturation/média/admin ; un JWT qui fuit ailleurs ne doit pas pouvoir être rejoué

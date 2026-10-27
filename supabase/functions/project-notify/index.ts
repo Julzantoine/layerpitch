@@ -5,7 +5,7 @@
 //   * { action: 'annotation', annotationId, projectUrl } : une note ADRESSÉE prévient son destinataire par e-mail (la
 //     notification dans la page est déjà écrite par add_project_annotation). Appelant = auteur de la note.
 // Envoi via Resend (RESEND_API_KEY, RESEND_FROM_ADDRESS). NON TESTÉE EN RÉEL au 28/09 (supabase functions deploy project-notify).
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 const ALLOWED_ORIGINS = new Set([
   'https://beta.layerpitch.com',

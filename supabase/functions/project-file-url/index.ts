@@ -15,7 +15,7 @@
 // NON TESTÉE EN RÉEL au 28/09 : créer le seau privé, ajouter le secret R2_PROJECTS_BUCKET, déployer
 // (supabase functions deploy project-file-url --no-verify-jwt : la lecture d'une vitrine publique se fait sans compte).
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 const ALLOWED_ORIGINS = new Set([
   'https://beta.layerpitch.com',

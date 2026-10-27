@@ -16,7 +16,7 @@
 // fonction refuse et renvoie vers « Gérer mon abonnement » (sinon un changement de palier en créait un second).
 
 import Stripe from 'npm:stripe@22.6.0';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 import { ensurePrice, type PlanRow } from '../_shared/stripe-plans.ts';
 
 // Autorise uniquement les origines LayerPitch connues plutôt que '*' -- ces fonctions manipulent

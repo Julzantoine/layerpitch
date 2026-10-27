@@ -9,7 +9,7 @@
 // adresse répond « introuvable » (player.js).
 // NON TESTÉE EN RÉEL au 29/09 : supabase functions deploy set-track-protection
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 const ALLOWED_ORIGINS = new Set(['https://beta.layerpitch.com', 'https://layerpitch.com', 'https://www.layerpitch.com', 'http://localhost:8420']);
 function corsHeadersFor(req: Request): Record<string, string> {
