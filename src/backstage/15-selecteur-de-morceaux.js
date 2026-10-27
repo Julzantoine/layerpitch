@@ -601,10 +601,10 @@ document.getElementById('newAdReelOk').addEventListener('click', () => {
     testimonials: (imp.testimonials && source) ? source.testimonials.map(t => ({ ...t })) : [],
     trackIds: (imp.tracks && source) ? source.trackIds.slice() : [],
     trackOverrides: (imp.tracks && source) ? JSON.parse(JSON.stringify(source.trackOverrides || {})) : {},
-    // Toujours indexé par défaut à la création, même en dupliquant un AdReel non-indexé -- décision
-    // volontaire (15/09) : rien à "importer" ici, chaque AdReel démarre visible et c'est au
-    // compositeur de le décocher explicitement s'il s'agit d'une démo.
-    allowIndexing: true,
+    // Jamais indexé à la création, même en dupliquant un AdReel indexé -- décision de Jules-Antoine
+    // (27/10, chantier SEO) : seul l'AdReel principal est visible sur Google par défaut ; les autres
+    // AdReels sont souvent des démos pour un prospect, au compositeur de les cocher s'il le veut.
+    allowIndexing: false,
     logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null,
     folderId: null
   };

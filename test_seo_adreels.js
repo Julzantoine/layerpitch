@@ -107,6 +107,15 @@ const check = (label, cond) => { console.log((cond ? 'OK   ' : 'FAIL ') + label)
   check('données structurées de la landing à jour avec la FAQ (sinon : node scripts/landing-structured-data.js)', ldCheck.status === 0);
   check('llms.txt présent dans la nouvelle landing', fs.existsSync(path.join(__dirname, 'nouvelle-landing', 'llms.txt')));
 
+  // ---- Seul l'AdReel principal est indexable par défaut (27/10) ----
+  const sel = fs.readFileSync(path.join(__dirname, 'src/backstage/15-selecteur-de-morceaux.js'), 'utf8');
+  check('nouvel AdReel : case « Indexable » décochée au départ', /const newAdReel = \{[\s\S]*?allowIndexing: false,/.test(sel));
+  const mig = fs.readFileSync(path.join(__dirname, 'supabase/migrations/20261027030000_only_main_adreel_indexed_by_default.sql'), 'utf8');
+  await q(`update public.ad_reels set allow_indexing = true`);
+  await q(mig.replace(/^--.*$/gm, ''));
+  const rows = await q(`select id, allow_indexing from public.ad_reels where owner_id = $1 order by id`, [c1]);
+  check('migration : AdReels existants décochés sauf le principal', rows.every(r => r.allow_indexing === (r.id === 'main')));
+
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est OK');
   process.exit(failures ? 1 : 0);
 })();

@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793108410664">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793133892187">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1592,8 +1592,9 @@
         <!-- Partage (15/09, décidé et construit avec Jules-Antoine) : par AdReel, pas par compositeur
              ni sur packs/collections -- un pack peut être rattaché à plusieurs AdReels (voir
              upsert_ad_reel), son indexation ne doit donc jamais dépendre du réglage d'UN SEUL des
-             AdReels qui le montrent. Coché par défaut (colonne ad_reels.allow_indexing, migration
-             20260916050000) pour ne rien changer à ce qui est déjà publié. Application réelle : balise
+             AdReels qui le montrent. Colonne ad_reels.allow_indexing (migration 20260916050000). Depuis le 27/10
+             (chantier SEO, migration 20261027030000) : seul l'AdReel principal est coché par défaut, tout nouvel
+             AdReel démarre décoché (voir 15-selecteur-de-morceaux.js). Application réelle : balise
              <meta name="robots" content="noindex"> injectée par index.html quand décoché (voir
              applyIndexingMeta() dans index.html) -- fiable pour Google (exécute le JS avant
              indexation), pas garanti à 100% pour tous les moteurs moins bons en JS. -->
@@ -1603,7 +1604,7 @@
             <input type="checkbox" id="appAllowIndexing" style="width:auto;margin:0;">
             <span data-i18n="allowIndexingLabel">Indexable par les moteurs de recherche</span>
           </label>
-          <div class="hint-inline" data-i18n="allowIndexingHint">Décoche pour retirer cet AdReel des résultats Google (utile pour un AdReel de démo envoyé à un seul prospect) sans le rendre privé — le lien restera ouvert à qui le reçoit. N'affecte pas les packs/collections qu'il montre, qui peuvent être partagés par d'autres AdReels.</div>
+          <div class="hint-inline" data-i18n="allowIndexingHint">Coché : cet AdReel peut apparaître dans Google. Seul l'AdReel principal est coché par défaut, les autres sont souvent des démos pour un seul prospect. Décoché, il n'est pas privé pour autant — le lien reste ouvert à qui le reçoit. N'affecte pas les packs/collections qu'il montre, qui peuvent être partagés par d'autres AdReels.</div>
           <!-- Adresse personnalisable (27/09) : nom de l'AdReel dans l'adresse publique, enregistré tout de suite (pas à la
                publication) pour vérifier aussitôt qu'il est libre. Admin seulement pendant la bêta. -->
           <label style="margin-top:14px" data-i18n="adreelSlugLabel">Adresse de cet AdReel</label>
@@ -1948,17 +1949,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793108410664"></script>
-<script src="layerpitch-i18n.js?v=1793108410664"></script>
-<script src="layerpitch-appearance.js?v=1793108410664"></script>
-<script src="layerpitch-album-shared.js?v=1793108410664"></script>
-<script src="layerpitch-album-editor.js?v=1793108410664"></script>
-<script src="layerpitch-shell.js?v=1793108410664"></script>
-<script src="layerpitch-social-icons.js?v=1793108410664"></script>
-<script src="layerpitch-notify.js?v=1793108410664"></script>
-<script src="layerpitch-guide.js?v=1793108410664"></script>
-<script src="layerpitch-help.js?v=1793108410664"></script>
-<script src="player.js?v=1793108410664"></script>
+<script src="layerpitch-tuto.js?v=1793133892187"></script>
+<script src="layerpitch-i18n.js?v=1793133892187"></script>
+<script src="layerpitch-appearance.js?v=1793133892187"></script>
+<script src="layerpitch-album-shared.js?v=1793133892187"></script>
+<script src="layerpitch-album-editor.js?v=1793133892187"></script>
+<script src="layerpitch-shell.js?v=1793133892187"></script>
+<script src="layerpitch-social-icons.js?v=1793133892187"></script>
+<script src="layerpitch-notify.js?v=1793133892187"></script>
+<script src="layerpitch-guide.js?v=1793133892187"></script>
+<script src="layerpitch-help.js?v=1793133892187"></script>
+<script src="player.js?v=1793133892187"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -5575,10 +5576,10 @@ document.getElementById('newAdReelOk').addEventListener('click', () => {
     testimonials: (imp.testimonials && source) ? source.testimonials.map(t => ({ ...t })) : [],
     trackIds: (imp.tracks && source) ? source.trackIds.slice() : [],
     trackOverrides: (imp.tracks && source) ? JSON.parse(JSON.stringify(source.trackOverrides || {})) : {},
-    // Toujours indexé par défaut à la création, même en dupliquant un AdReel non-indexé -- décision
-    // volontaire (15/09) : rien à "importer" ici, chaque AdReel démarre visible et c'est au
-    // compositeur de le décocher explicitement s'il s'agit d'une démo.
-    allowIndexing: true,
+    // Jamais indexé à la création, même en dupliquant un AdReel indexé -- décision de Jules-Antoine
+    // (27/10, chantier SEO) : seul l'AdReel principal est visible sur Google par défaut ; les autres
+    // AdReels sont souvent des démos pour un prospect, au compositeur de les cocher s'il le veut.
+    allowIndexing: false,
     logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null,
     folderId: null
   };
