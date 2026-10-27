@@ -43,7 +43,7 @@
         if (sig !== seqSig) { seqSig = sig; notify(); }
       }, 250);
     }
-    const itemAt = pos => (pos ? (pos.kind === 'edge' ? model.edgeById(map, pos.id) : model.nodeById(map, pos.id)) : null);
+    const itemAt = pos => (pos ? model.targetOf(map, pos) : null); // élément, parcours, zone ou mode de déplacement
     // Chargement d'un son (récupération + décodage, parfois plusieurs secondes pour un morceau à couches) : compté pour que la page l'indique.
     const load = ref => {
       st.loading++; notify();
@@ -71,7 +71,8 @@
 
     async function setRoom() {
       const item = itemAt(st.position);
-      const ref = item ? model.resolveRoom(map, item) : (map && map.roomTone) || null;
+      // Balade libre : le fond d'ambiance vient de l'endroit où l'on se tient (cercle, zone), choisi par la page.
+      const ref = st.free ? (st.roomOverride || null) : item ? model.resolveRoom(map, item) : (map && map.roomTone) || null;
       const key = model.refKey(ref);
       if (key === model.refKey(st.room)) { if (roomVoice) roomVoice.setLevel(model.dbToGain(map.roomToneDb), 0.3); return; }
       const my = ++roomSeq;
@@ -152,13 +153,31 @@
       get state() { return snapshot(); },
       // Se placer sur un élément ou un parcours : démarre la lecture si besoin.
       async goTo(target) {
-        if (!map || !model.pointOf(map, target)) return false;
+        if (!map || !target || !model.targetOf(map, target) || target.kind === 'mode') return false;
+        st.free = false; st.roomOverride = null;
         if (target.kind === 'node' && (model.nodeById(map, target.id) || {}).type === 'transition') return false; // un nœud « Transition » se traverse, on ne s'y place pas
         st.via = target.via && target.via.length ? target.via.slice() : null; // nœud(s) « Transition » franchi(s) pour arriver ici
         if (!st.position || st.position.kind !== target.kind || st.position.id !== target.id) st.intensity = null; // nouveau lieu : la couche redevient automatique
         st.position = { kind: target.kind, id: target.id };
         if (!model.hasAltMusic(map, st.position)) st.combat = false;
         st.playing = true; await enter(); return true;
+      },
+      // Balade libre (monde ouvert, 27/10) : la page calcule qui joue là où se tient le personnage (cercle d'élément, mode de déplacement,
+      // zone ; model.governorAt) et le fond d'ambiance de l'endroit ; le lecteur ne bouge que si l'un des deux change. target null : rien ne
+      // joue ici (la musique s'éteint avec la transition par défaut de la carte).
+      async follow(target, opts) {
+        if (!map) return false;
+        const o = opts || {};
+        const t = target && model.targetOf(map, target) ? { kind: target.kind, id: target.id } : null;
+        const same = t && st.position ? (t.kind === st.position.kind && t.id === st.position.id) : (!t && !st.position);
+        const combat = !!o.combat && !!t && model.hasAltMusic(map, t);
+        const room = o.room || null;
+        if (st.free && st.playing && same && combat === st.combat && model.refKey(room) === model.refKey(st.roomOverride)) return false;
+        if (!same) st.intensity = null;
+        if (same && t && combat !== st.combat) { const it = itemAt(t); st.switchStinger = (it && it.altTransition) || null; }
+        st.free = true; st.roomOverride = room; st.via = null;
+        st.position = t; st.combat = combat; st.playing = true;
+        await enter(); return true;
       },
       // Flèche : voisin dans la direction demandée.
       async step(dx, dy) {
@@ -196,7 +215,7 @@
         if (seqTimer) { clearInterval(seqTimer); seqTimer = null; }
         st.playing = false; st.music = null; st.room = null; notify();
       },
-      async resume() { if (st.position) { st.playing = true; await enter(); } },
+      async resume() { if (st.position || st.free) { st.playing = true; await enter(); } },
       // Réglage fait pendant l'écoute (niveau du fond d'ambiance).
       refreshRoomLevel() { if (roomVoice && map) roomVoice.setLevel(model.dbToGain(map.roomToneDb), 0.2); },
     };

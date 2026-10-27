@@ -93,6 +93,46 @@
   check('son de transition (stinger) invalide refusé', await bad(m => { m.nodes[0].transition = { stinger: { kind: 'asset', id: '00000000-0000-0000-0000-0000000000ff' } }; }, /pas dans ce Projet/));
   check('deux fonds propres à un même élément refusés', await bad(m => { m.nodes[0].sounds.room = [{ kind: 'sfx', id: 'a' }, { kind: 'sfx', id: 'b' }]; }, /invalides/));
 
+  // Monde ouvert (migration 20261027010000) : zones, modes de déplacement, image de fond, sous-cartes, cercles de proximité
+  const ok = async mut => { const m = JSON.parse(JSON.stringify(map)); mut(m); try { await db.query(`select public.save_project_map($1, $2::jsonb)`, [pid, JSON.stringify({ id, title: 'Monde', data: m })]); return true; } catch (e) { console.log('   ' + e.message); return false; } };
+  const zoneR = { id: 'z1', label: 'Forêt', shape: 'rect', x: 0, y: 0, w: 800, h: 600, color: '#3c9a5f', keepMusic: false, sounds: { main: [{ kind: 'track', id: 'foret', title: 'Forêt' }], combat: [], room: [] } };
+  const zoneP = { id: 'z2', label: 'Village', shape: 'poly', points: [{ x: 100, y: 100 }, { x: 300, y: 100 }, { x: 200, y: 300 }], keepMusic: true, sounds: { main: [], combat: [], room: [] }, transition: { style: 'cut' } };
+  check('zones (rectangle, forme libre) acceptées', await ok(m => { m.zones = [zoneR, zoneP, Object.assign({}, zoneR, { id: 'z3', shape: 'ellipse' })]; }));
+  check('forme de zone inconnue refusée', await bad(m => { m.zones = [Object.assign({}, zoneR, { shape: 'etoile' })]; }, /inconnue/));
+  check('forme libre de 2 points refusée', await bad(m => { m.zones = [Object.assign({}, zoneP, { points: zoneP.points.slice(0, 2) })]; }, /Forme libre/));
+  check('zone de taille nulle refusée', await bad(m => { m.zones = [Object.assign({}, zoneR, { w: 0 })]; }, /Taille/));
+  check('identifiant de zone en double refusé', await bad(m => { m.zones = [zoneR, Object.assign({}, zoneP, { id: 'z1' })]; }, /double/));
+  check('couleur de zone invalide refusée', await bad(m => { m.zones = [Object.assign({}, zoneR, { color: 'red;' })]; }, /Couleur/));
+  check('son de zone d\'un autre Projet refusé', await bad(m => { m.zones = [Object.assign({}, zoneR, { sounds: { main: [{ kind: 'asset', id: '00000000-0000-0000-0000-0000000000ff' }] } })]; }, /pas dans ce Projet/));
+  check('plus de 100 zones refusées', await bad(m => { m.zones = Array.from({ length: 101 }, (_, i) => Object.assign({}, zoneR, { id: 'zz' + i })); }, /100/));
+  check('modes de déplacement acceptés', await ok(m => { m.modes = [{ id: 'm1', label: 'À pied', speed: 140, sounds: { main: [], combat: [], room: [] } }, { id: 'm2', label: 'Cheval', speed: 420, sounds: { main: [{ kind: 'track', id: 'galop', title: 'Galop' }] } }]; }));
+  check('vitesse de déplacement hors limites refusée', await bad(m => { m.modes = [{ id: 'm1', label: 'Fusée', speed: 99999 }]; }, /Vitesse/));
+  check('plus de 8 déplacements refusés', await bad(m => { m.modes = Array.from({ length: 9 }, (_, i) => ({ id: 'm' + i, label: 'x', speed: 100 })); }, /8 au plus/));
+  check('cercle de proximité accepté', await ok(m => { m.nodes[1].radius = 150; }));
+  check('cercle de proximité hors limites refusé', await bad(m => { m.nodes[1].radius = 5; }, /Cercle/));
+  const sub = await val(`select (public.save_project_map($1, $2::jsonb))->>'id'`, [pid, JSON.stringify({ title: 'Château', data: { nodes: [], edges: [] } })]);
+  check('élément et zone menant à une sous-carte du Projet : acceptés', await ok(m => { m.nodes[1].link = sub; m.zones = [Object.assign({}, zoneR, { link: sub })]; }));
+  check('lien de sous-carte qui n\'est pas un identifiant : refusé', await bad(m => { m.nodes[1].link = 'pas-un-id'; }, /Lien de sous-carte/));
+  const pid2 = await val(`select public.create_project('Autre jeu')`);
+  const other = await val(`select (public.save_project_map($1, $2::jsonb))->>'id'`, [pid2, JSON.stringify({ title: 'Ailleurs', data: { nodes: [], edges: [] } })]);
+  check('sous-carte d\'un autre Projet refusée', await bad(m => { m.nodes[1].link = other; }, /de ce Projet/));
+  check('lien vers une carte supprimée toléré (un autre membre a pu la supprimer)', await ok(m => { m.nodes[1].link = '00000000-0000-0000-0000-0000000000ab'; }));
+  // Image de fond : une image de ce Projet
+  const fimg = await val(`select public.reserve_project_file($1, 'monde.png', 1000)`, [pid]);
+  await q(`select public.complete_project_file($1)`, [fimg.fileId]);
+  const imgId = (await val(`select public.add_project_asset($1, $2::jsonb, false)`, [pid, JSON.stringify({ kind: 'image', fileId: fimg.fileId, title: 'Carte du monde' })])).id;
+  const bgOk = { kind: 'asset', id: imgId, title: 'Carte du monde', x: -100, y: -50, w: 2000, h: 1200, opacity: 0.8 };
+  check('image de fond (image du Projet) acceptée', await ok(m => { m.background = bgOk; }));
+  check('image de fond qui n\'est pas une image du Projet refusée', await bad(m => { m.background = Object.assign({}, bgOk, { id: '00000000-0000-0000-0000-0000000000ff' }); }, /image de ce Projet/));
+  check('opacité de l\'image de fond hors limites refusée', await bad(m => { m.background = Object.assign({}, bgOk, { opacity: 0 }); }, /Opacité/));
+  check('image de fond sans taille refusée', await bad(m => { m.background = Object.assign({}, bgOk, { w: -5 }); }, /Position/));
+  // Supprimer la sous-carte retire les liens qui y menaient
+  await ok(m => { m.nodes[1].link = sub; m.zones = [Object.assign({}, zoneR, { link: sub }), zoneP]; });
+  await q(`select public.delete_project_map($1)`, [sub]);
+  const after = (await val(`select data from public.project_maps where id = $1`, [id]));
+  check('sous-carte supprimée : les liens qui y menaient disparaissent (élément et zone), le reste est intact',
+    !after.nodes[1].link && !after.zones[0].link && after.zones.length === 2 && after.zones[1].keepMusic === true && after.nodes.length === 7);
+
   // Suppression
   check('un membre supprime une carte', await (async () => { await as(2); await q(`select public.delete_project_map($1)`, [id]); return (await val(`select count(*)::int from public.project_maps where id = $1`, [id])) === 0; })());
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');

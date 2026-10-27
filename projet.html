@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793053879485">
-<link rel="stylesheet" href="player.css?v=1793053879485">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793095617212">
+<link rel="stylesheet" href="player.css?v=1793095617212">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -185,27 +185,27 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1793053879485"></script>
-<script src="layerpitch-notify.js?v=1793053879485"></script>
-<script src="player.js?v=1793053879485"></script>
-<script src="api/supabase-client.js?v=1793053879485"></script>
-<script src="api/auth.js?v=1793053879485"></script>
-<script src="layerpitch-appearance.js?v=1793053879485"></script>
-<script src="layerpitch-shell.js?v=1793053879485"></script>
-<script src="api/tracks.js?v=1793053879485"></script>
-<script src="api/packs.js?v=1793053879485"></script>
-<script src="api/albums.js?v=1793053879485"></script>
-<script src="api/studio.js?v=1793053879485"></script>
-<script src="api/adreels.js?v=1793053879485"></script>
-<script src="api/demo-client.js?v=1793053879485"></script>
-<script src="api/demo-projects.js?v=1793053879485"></script>
-<script src="layerpitch-guide.js?v=1793053879485"></script>
-<script src="projet-lecons.js?v=1793053879485"></script>
-<script src="layerpitch-video-versions.js?v=1793053879485"></script>
-<script src="api/projects.js?v=1793053879485"></script>
-<script src="api/sfx.js?v=1793053879485"></script>
-<script src="projet-carte-audio.js?v=1793053879485"></script>
-<script src="projet-carte.js?v=1793053879485"></script>
+<script src="layerpitch-i18n.js?v=1793095617212"></script>
+<script src="layerpitch-notify.js?v=1793095617212"></script>
+<script src="player.js?v=1793095617212"></script>
+<script src="api/supabase-client.js?v=1793095617212"></script>
+<script src="api/auth.js?v=1793095617212"></script>
+<script src="layerpitch-appearance.js?v=1793095617212"></script>
+<script src="layerpitch-shell.js?v=1793095617212"></script>
+<script src="api/tracks.js?v=1793095617212"></script>
+<script src="api/packs.js?v=1793095617212"></script>
+<script src="api/albums.js?v=1793095617212"></script>
+<script src="api/studio.js?v=1793095617212"></script>
+<script src="api/adreels.js?v=1793095617212"></script>
+<script src="api/demo-client.js?v=1793095617212"></script>
+<script src="api/demo-projects.js?v=1793095617212"></script>
+<script src="layerpitch-guide.js?v=1793095617212"></script>
+<script src="projet-lecons.js?v=1793095617212"></script>
+<script src="layerpitch-video-versions.js?v=1793095617212"></script>
+<script src="api/projects.js?v=1793095617212"></script>
+<script src="api/sfx.js?v=1793095617212"></script>
+<script src="projet-carte-audio.js?v=1793095617212"></script>
+<script src="projet-carte.js?v=1793095617212"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -487,7 +487,7 @@ function downloadPlan(secId) {
   }
   return out;
 }
-// Fichiers déposés sur une carte (fond d'ambiance, éléments, parcours, transitions) : un dossier par élément. Seuls les sons
+// Fichiers déposés sur une carte (fond d'ambiance, éléments, parcours, zones, déplacements, transitions, image de fond) : un dossier par élément. Seuls les sons
 // « fichier du Projet » sont inclus (les morceaux et effets du Backstage n'ont pas de fichier dans le Projet).
 function downloadMapFiles(m) {
   const data = m.data || {}, assets = S.content.assets || [], out = [];
@@ -496,6 +496,9 @@ function downloadMapFiles(m) {
   const sounds = (dir, o) => { ['main', 'combat', 'room'].forEach(k => add(dir, (o.sounds || {})[k])); if (o.transition && o.transition.stinger) add(dir, [o.transition.stinger]); };
   (data.nodes || []).forEach(n => sounds(n.label || tr('map_untitled'), n));
   (data.edges || []).forEach(e => sounds(e.label || tr('map_untitled'), e));
+  (data.zones || []).forEach(z => sounds(z.label || tr('map_zone'), z));
+  (data.modes || []).forEach(x => sounds(x.label || tr('map_modes'), x));
+  if (data.background) add(tr('map_bg'), [data.background]);
   const seen = new Set();
   const plan = out.filter(x => { const k = x.dir + x.asset.id; if (seen.has(k)) return false; seen.add(k); return true; });
   return zipPlan(uniquePaths(plan), m.title || tr('map_untitled'));
@@ -1853,6 +1856,18 @@ async function renderMap(panel) {
       return { ref };
     },
     // Relier la carte à des sections (sections ouvertes seulement) : le lien est le même que le 🗺 d'une section.
+    // Image de fond (monde ouvert, 27/10) : une image du Projet, ou une image envoyée depuis l'ordinateur (rangée avec les autres images).
+    images: (S.content.assets || []).filter(a => a.kind === 'image').map(a => ({ id: a.id, title: assetTitle(a) })),
+    imageUrl: async id => { const a = assetById(id); return a ? fileUrl(a.fileId) : null; },
+    uploadImage: async file => {
+      if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) return { error: tr('map_bgImageOnly') };
+      const up = await uploadOrReuse(file);
+      if (up.error) return { error: up.error };
+      const r = await addAsset(projectId, { kind: 'image', fileId: up.data.fileId, title: file.name, origin: 'own' }, false);
+      if (r.error || !r.data || !r.data.id) return { error: r.error || file.name };
+      await reloadContent(); broadcast('content');
+      return { ref: { kind: 'asset', id: r.data.id, title: file.name } };
+    },
     linkSections: S.sections ? openMapSectionsDialog : null, linkedNames: S.sections ? (m => m ? S.sections.sections.filter(x => x.mapId === m.id).map(x => x.title).join(', ') : '') : null,
     maps: r.data || [],
     save: async m => {
