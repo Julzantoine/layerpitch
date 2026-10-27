@@ -162,6 +162,19 @@ if (typeof indexedDB !== 'undefined') {
 }
 
 document.getElementById('btnPublish').addEventListener('click', publishAll);
+// Raccourci Cmd+S (Mac) / Ctrl+S (27/10) : même effet qu'un clic sur « Sauvegarder / publier » (le tutoriel le voit
+// donc comme un clic). Le champ en cours de saisie perd d'abord le focus, pour que sa valeur soit prise en compte
+// (beaucoup de champs ne s'enregistrent qu'à l'événement « change »). Bouton désactivé (chargement ou publication en
+// cours) : rien, mais la fenêtre « Enregistrer la page » du navigateur ne s'ouvre jamais.
+document.addEventListener('keydown', (e) => {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || (e.key || '').toLowerCase() !== 's') return;
+  e.preventDefault();
+  if (e.repeat) return;
+  const btn = document.getElementById('btnPublish');
+  if (!btn || btn.disabled) return;
+  if (document.activeElement && document.activeElement !== document.body && typeof document.activeElement.blur === 'function') document.activeElement.blur();
+  btn.click();
+});
 document.getElementById('btnView').addEventListener('click', () => {
   // 24/09 : ne plus exiger owner/repo GitHub ici (signalé par Jules-Antoine : le bouton ne faisait RIEN sur
   // http://localhost, où ces champs -- gardés dans le stockage local de chaque adresse -- sont vides ; le message
