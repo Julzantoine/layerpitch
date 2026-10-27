@@ -8,7 +8,7 @@
 <!-- Barre repliée (réglage commun, layerpitch-shell.js) : posé avant l'affichage pour que la barre ne saute pas. -->
 <script>try { if (localStorage.getItem('layerpitch_sidebar_collapsed') === '1') document.documentElement.classList.add('lp-sidebar-collapsed'); } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793053879485">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793096039614">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -453,6 +453,18 @@
   #newAdReelModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   #newAdReelModal h3 { font-size: 13px; margin-bottom: 12px; color: var(--text); }
   #newAdReelModal .actions { justify-content: flex-end; }
+  /* Recherche rapide Cmd/Ctrl+P (27/10, 44-recherche-rapide.js) */
+  #quickSearchOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: flex-start; justify-content: center; padding: 12vh 16px 0; z-index: 1100; }
+  #quickSearchOverlay[hidden] { display: none; }
+  #quickSearchOverlay .qs-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; width: 520px; max-width: 100%; box-shadow: 0 12px 32px rgba(0,0,0,0.18); overflow: hidden; }
+  #quickSearchOverlay .qs-input { width: 100%; border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 14px 16px; font-size: 15px; background: transparent; color: var(--text); outline: none; }
+  #quickSearchOverlay .qs-list { max-height: 50vh; overflow-y: auto; padding: 6px; }
+  #quickSearchOverlay .qs-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text); }
+  #quickSearchOverlay .qs-item.active { background: var(--accent-soft); }
+  #quickSearchOverlay .qs-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #quickSearchOverlay .qs-kind { flex-shrink: 0; font-size: 11px; color: var(--text-dimmer); }
+  #quickSearchOverlay .qs-empty { padding: 14px 10px; font-size: 13px; color: var(--text-dim); }
+  #quickSearchOverlay .qs-hint { border-top: 1px solid var(--border); padding: 8px 16px; font-size: 11px; color: var(--text-dimmer); }
   #feedbackModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
   #feedbackModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 420px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   #feedbackModal h3 { font-size: 13px; margin-bottom: 4px; color: var(--text); }
@@ -1932,17 +1944,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793053879485"></script>
-<script src="layerpitch-i18n.js?v=1793053879485"></script>
-<script src="layerpitch-appearance.js?v=1793053879485"></script>
-<script src="layerpitch-album-shared.js?v=1793053879485"></script>
-<script src="layerpitch-album-editor.js?v=1793053879485"></script>
-<script src="layerpitch-shell.js?v=1793053879485"></script>
-<script src="layerpitch-social-icons.js?v=1793053879485"></script>
-<script src="layerpitch-notify.js?v=1793053879485"></script>
-<script src="layerpitch-guide.js?v=1793053879485"></script>
-<script src="layerpitch-help.js?v=1793053879485"></script>
-<script src="player.js?v=1793053879485"></script>
+<script src="layerpitch-tuto.js?v=1793096039614"></script>
+<script src="layerpitch-i18n.js?v=1793096039614"></script>
+<script src="layerpitch-appearance.js?v=1793096039614"></script>
+<script src="layerpitch-album-shared.js?v=1793096039614"></script>
+<script src="layerpitch-album-editor.js?v=1793096039614"></script>
+<script src="layerpitch-shell.js?v=1793096039614"></script>
+<script src="layerpitch-social-icons.js?v=1793096039614"></script>
+<script src="layerpitch-notify.js?v=1793096039614"></script>
+<script src="layerpitch-guide.js?v=1793096039614"></script>
+<script src="layerpitch-help.js?v=1793096039614"></script>
+<script src="player.js?v=1793096039614"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -14119,6 +14131,19 @@ if (typeof indexedDB !== 'undefined') {
 }
 
 document.getElementById('btnPublish').addEventListener('click', publishAll);
+// Raccourci Cmd+S (Mac) / Ctrl+S (27/10) : même effet qu'un clic sur « Sauvegarder / publier » (le tutoriel le voit
+// donc comme un clic). Le champ en cours de saisie perd d'abord le focus, pour que sa valeur soit prise en compte
+// (beaucoup de champs ne s'enregistrent qu'à l'événement « change »). Bouton désactivé (chargement ou publication en
+// cours) : rien, mais la fenêtre « Enregistrer la page » du navigateur ne s'ouvre jamais.
+document.addEventListener('keydown', (e) => {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || (e.key || '').toLowerCase() !== 's') return;
+  e.preventDefault();
+  if (e.repeat) return;
+  const btn = document.getElementById('btnPublish');
+  if (!btn || btn.disabled) return;
+  if (document.activeElement && document.activeElement !== document.body && typeof document.activeElement.blur === 'function') document.activeElement.blur();
+  btn.click();
+});
 document.getElementById('btnView').addEventListener('click', () => {
   // 24/09 : ne plus exiger owner/repo GitHub ici (signalé par Jules-Antoine : le bouton ne faisait RIEN sur
   // http://localhost, où ces champs -- gardés dans le stockage local de chaque adresse -- sont vides ; le message
@@ -16786,6 +16811,157 @@ function syncBackstageTour() {
   if (viewBtn) { viewBtn.disabled = true; viewBtn.title = tr('tutoNoPublicLink'); }
   document.getElementById('btnTutoQuit').addEventListener('click', () => { window.location.href = window.location.pathname; });
 })();
+/* ---------------- Recherche rapide Cmd+P / Ctrl+P (27/10) ----------------
+ * Une petite fenêtre au milieu de l'écran : on tape quelques lettres et on saute directement à un onglet, un morceau,
+ * un Sfx, un AdReel, un pack, une collection ou un album. Flèches pour choisir, Entrée pour ouvrir, Échap pour fermer.
+ * Cmd/Ctrl+K reste l'insertion de lien (21-insertion-de-lien.js). Feu vert 'quick_search' (admin seulement jusqu'à
+ * son ouverture) : feu vert fermé, Cmd/Ctrl+P garde son effet habituel du navigateur (imprimer). */
+const QUICK_SEARCH_MAX = 60;
+let quickSearchEl = null, quickSearchResults = [], quickSearchIndex = 0;
+
+function quickSearchNormalize(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+// Ouvre un élément d'une liste en accordéon (packs, collections, albums) : on l'amène à l'écran.
+function quickSearchScrollTo(containerId, index) {
+  const box = document.getElementById(containerId);
+  const el = box && box.children[index];
+  if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+function quickSearchItems() {
+  const items = [];
+  // Onglets visibles et utilisables de la barre latérale.
+  document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
+    if (btn.disabled || btn.hidden || btn.closest('[hidden]')) return;
+    const label = (btn.textContent || '').replace(/\s+/g, ' ').trim();
+    if (label) items.push({ kind: 'tab', label, run: () => openTab(btn.dataset.tab) });
+  });
+  library.forEach((t, i) => items.push({ kind: 'track', label: t.title || tr('trackFallback', { n: i + 1 }), run: () => {
+    if (t.folderId) collapsedLibraryFolderIds.delete(t.folderId);
+    manageLibrarySelectedId = t.id;
+    openTab('library');
+    renderLibrary();
+  } }));
+  sfxLibrary.forEach((s, i) => items.push({ kind: 'sfx', label: s.title || tr('sfxFallback', { n: i + 1 }), run: () => {
+    if (s.folderId) collapsedSfxFolderIds.delete(s.folderId);
+    manageSfxSelectedId = s.id;
+    openTab('sfxLibrary');
+    renderSfxLibrary();
+  } }));
+  adReels.forEach(a => items.push({ kind: 'adreel', label: a.label || a.id, run: () => {
+    if (a.id !== currentAdReelId) switchAdReel(a.id);
+    openTab('content');
+  } }));
+  packs.forEach((p, i) => items.push({ kind: 'pack', label: p.title || tr('packFallback', { n: i + 1 }), run: () => {
+    openTab('packs');
+    if (collapsedPackIds.has(p.id)) { collapsedPackIds.delete(p.id); renderPacks(); }
+    quickSearchScrollTo('packsContainer', i);
+  } }));
+  collections.forEach((c, i) => items.push({ kind: 'collection', label: c.title || tr('collectionFallback', { n: i + 1 }), run: () => {
+    openTab('collections');
+    if (collapsedCollectionIds.has(c.id)) { collapsedCollectionIds.delete(c.id); renderCollections(); }
+    quickSearchScrollTo('collectionsContainer', i);
+  } }));
+  // Albums : chargés à la première ouverture de leur onglet seulement ; avant, l'onglet « Albums » suffit.
+  const albumsNav = document.getElementById('navItemAlbums');
+  if (albumsState.loaded && albumsNav && !albumsNav.hidden) {
+    albumsState.albums.forEach((al, i) => items.push({ kind: 'album', label: al.title || tr('quickSearchUntitled'), run: () => {
+      openTab('albums');
+      quickSearchScrollTo('albumsContainer', i);
+    } }));
+  }
+  return items;
+}
+// Classement : début du nom, puis début d'un mot, puis n'importe où ; à égalité, l'ordre des listes est gardé.
+function quickSearchFilter(query) {
+  const all = quickSearchItems();
+  const q = quickSearchNormalize(query);
+  if (!q) return all.slice(0, QUICK_SEARCH_MAX);
+  const scored = [];
+  all.forEach((it, order) => {
+    const name = quickSearchNormalize(it.label);
+    const pos = name.indexOf(q);
+    if (pos < 0) return;
+    const score = pos === 0 ? 0 : /[\s\-_'’(]/.test(name[pos - 1]) ? 1 : 2;
+    scored.push({ it, score, order });
+  });
+  scored.sort((a, b) => a.score - b.score || a.order - b.order);
+  return scored.slice(0, QUICK_SEARCH_MAX).map(s => s.it);
+}
+function quickSearchRender() {
+  const list = quickSearchEl.querySelector('.qs-list');
+  quickSearchResults = quickSearchFilter(quickSearchEl.querySelector('.qs-input').value);
+  if (quickSearchIndex >= quickSearchResults.length) quickSearchIndex = Math.max(0, quickSearchResults.length - 1);
+  if (!quickSearchResults.length) { list.innerHTML = `<div class="qs-empty">${escapeHtml(tr('quickSearchNoResult'))}</div>`; return; }
+  list.innerHTML = quickSearchResults.map((it, i) => `
+    <div class="qs-item${i === quickSearchIndex ? ' active' : ''}" role="option" aria-selected="${i === quickSearchIndex}" data-qs-index="${i}">
+      <span class="qs-label">${escapeHtml(it.label)}</span>
+      <span class="qs-kind">${escapeHtml(tr('quickSearchKind_' + it.kind))}</span>
+    </div>`).join('');
+  const active = list.querySelector('.qs-item.active');
+  if (active) active.scrollIntoView({ block: 'nearest' });
+}
+function quickSearchChoose(i) {
+  const it = quickSearchResults[i];
+  closeQuickSearch();
+  if (!it) return;
+  it.run();
+  trackBackstageEvent('quick_search_open', { kind: it.kind });
+}
+function buildQuickSearch() {
+  const el = document.createElement('div');
+  el.id = 'quickSearchOverlay';
+  el.hidden = true;
+  el.innerHTML = `
+    <div class="qs-box" role="dialog" aria-modal="true" aria-label="${escapeAttr(tr('quickSearchTitle'))}">
+      <input type="text" class="qs-input" autocomplete="off" spellcheck="false" placeholder="${escapeAttr(tr('quickSearchPlaceholder'))}">
+      <div class="qs-list" role="listbox"></div>
+      <div class="qs-hint">${escapeHtml(tr('quickSearchHint'))}</div>
+    </div>`;
+  document.body.appendChild(el);
+  const input = el.querySelector('.qs-input');
+  input.addEventListener('input', () => { quickSearchIndex = 0; quickSearchRender(); });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!quickSearchResults.length) return;
+      const n = quickSearchResults.length;
+      quickSearchIndex = (quickSearchIndex + (e.key === 'ArrowDown' ? 1 : -1) + n) % n;
+      quickSearchRender();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      quickSearchChoose(quickSearchIndex);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeQuickSearch();
+    }
+  });
+  el.addEventListener('mousedown', e => { if (e.target === el) closeQuickSearch(); }); // clic à côté : on ferme
+  el.querySelector('.qs-list').addEventListener('click', e => {
+    const row = e.target.closest('[data-qs-index]');
+    if (row) quickSearchChoose(Number(row.dataset.qsIndex));
+  });
+  return el;
+}
+function openQuickSearch() {
+  if (!quickSearchEl) quickSearchEl = buildQuickSearch();
+  const input = quickSearchEl.querySelector('.qs-input');
+  input.value = '';
+  quickSearchIndex = 0;
+  quickSearchEl.hidden = false;
+  quickSearchRender();
+  input.focus();
+}
+function closeQuickSearch() {
+  if (quickSearchEl) quickSearchEl.hidden = true;
+}
+document.addEventListener('keydown', (e) => {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || (e.key || '').toLowerCase() !== 'p') return;
+  if (!flagOpen('quick_search')) return; // feu vert fermé : le navigateur garde son « Imprimer »
+  e.preventDefault();
+  if (e.repeat) return;
+  if (quickSearchEl && !quickSearchEl.hidden) closeQuickSearch(); else openQuickSearch();
+});
 </script>
 <script type="text/javascript">
   // Bandeau de consentement cookies (Microsoft Clarity uniquement -- 17 septembre). RGPD/CNIL,
