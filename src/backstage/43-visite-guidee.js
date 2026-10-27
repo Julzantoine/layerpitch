@@ -1125,10 +1125,20 @@ Object.defineProperty(window, 'guide', { get: () => GUIDE.state(), configurable:
 const guideStepTarget = GUIDE.stepTarget, guideStepIsDone = GUIDE.stepIsDone, guideGo = GUIDE.go, finishGuide = GUIDE.finish, renderGuideStep = GUIDE.render, guideTick = GUIDE.tick;
 function openGuide(kind, steps, lessonId) { GUIDE.open(kind, steps, lessonId); }
 function closeBackstageTour() { GUIDE.close(); }
+// Fin de la visite dans le mode tutoriel (27/10, demande de Jules-Antoine) : double choix, enchaîner sur la première leçon du moteur audio
+// ou sur celle de « Pitcher et vendre ». Chaque choix n'apparaît que si sa leçon est jouable ici.
+function tourChoiceStep() {
+  const first = theme => LESSONS.find(l => l.theme === theme && l.steps && !l.soon && lessonPlayable(l) && !(l.needs && !flagOpen(l.needs)));
+  const choices = [['engine', 'tourChoiceEngine'], ['pitch', 'tourChoicePitch']]
+    .map(([theme, labelKey]) => { const l = first(theme); return l ? { labelKey, lesson: l.id } : null; }).filter(Boolean);
+  return choices.length && lessonsAccessOpen() ? { titleKey: 'tourChoiceTitle', textKey: 'tourChoiceText', choices } : null;
+}
 function startBackstageTour() {
   if (guide) return;
   // Seules les zones réellement présentes à l'écran sont visitées (onglets réservés aux admins, bouton « Tutoriel » encore fermé, menu replié sur téléphone…).
-  openGuide('tour', TOUR_STEPS.filter(s => !s.selector || (tourTargetVisible(document.querySelector(s.selector)) && !(s.hideIf && s.hideIf()))));
+  const steps = TOUR_STEPS.filter(s => !s.selector || (tourTargetVisible(document.querySelector(s.selector)) && !(s.hideIf && s.hideIf())));
+  const choice = isTutoMode() ? tourChoiceStep() : null;
+  openGuide('tour', choice ? steps.concat(choice) : steps);
 }
 // Leçons du thème « pitch » : elles partent toujours de l'onglet Contenu, sur le Main AdReel (on peut avoir laissé le tutoriel sur un autre onglet ou un autre AdReel).
 // Fond « annuaire » d'une étape de leçon : la vraie page publique de l'annuaire, derrière la bulle (retirée à la sortie de l'étape et à la fermeture).
@@ -1271,6 +1281,9 @@ function syncBackstageTour() {
   if (wanted && lessonsOpen && !guide && !window.__lessonAutoStarted) { window.__lessonAutoStarted = true; // Le niveau d'accès (admin ou non) se résout en réseau : on attend qu'il soit connu (6 s au plus) avant de lancer la leçon, sinon une leçon réservée aux admins ne démarrait « pas du tout » quand la réponse arrivait après 0,9 s.
     const tryStart = left => { const l = LESSONS.find(x => x.id === wanted); if (!l || lessonPlayable(l) || left <= 0) startLesson(wanted); else setTimeout(() => tryStart(left - 1), 400); };
     setTimeout(() => tryStart(15), 900); return; }
+  // Mode tutoriel sans leçon demandée (adresse publique layerpitch-backstage.html?tuto, 27/10) : la visite guidée part directement, à chaque
+  // ouverture (le compte fictif repart de zéro), même si le feu vert in_app_tour du faux serveur est fermé ; elle finit sur le double choix.
+  if (isTutoMode() && !wanted) { if (!guide && !window.__tutoTourAutoStarted) { window.__tutoTourAutoStarted = true; setTimeout(startBackstageTour, 600); } return; }
   if (open && !tourAlreadyDone() && !guide) setTimeout(startBackstageTour, 600);
 }
 (function wireTourMenu() {
