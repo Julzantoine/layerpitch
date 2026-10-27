@@ -29,7 +29,7 @@
  * un dépôt de lien ou de texte ordinaire. `host.onDrop(step, drop, target)` (facultatif) reprend la main à la place.
  * `selector` peut être une fonction qui renvoie l'élément visé (cible calculée à chaque instant).
  * Bulle à CHOIX (27/10) : une étape peut porter `choices: [{ labelKey, lesson }]` — un gros bouton par choix ; un clic termine la
- * bulle en cours puis lance la leçon `lesson` (host.startLesson). Sert à la fin de la visite guidée du mode tutoriel.
+ * bulle en cours puis lance la leçon `lesson` (host.startLesson). Sert à la fin de la visite guidée (host.startChoice(id) si la page le fournit, sinon host.startLesson).
  * Étapes : { selector, titleKey, textKey, done(ctx), clickDone, listen, listenTarget, enter(ctx), skip(ctx), final,
  *            keepTrack, arrow: {bar} } — voir les leçons du Backstage pour des exemples.
  * Mise en forme : layerpitch-guide.css. Gabarit de page attendu : variables --bg, --border, --accent, --text-dim.
@@ -400,7 +400,7 @@
           card.querySelector('[data-tour="adm-jump"]').onclick = () => { guide.autoRunning = false; go(parseInt(tsel.value, 10) - guide.index); };
           card.querySelector('[data-tour="adm-auto"]').onclick = () => autoTo(parseInt(tsel.value, 10));
         }
-        card.querySelectorAll('[data-tour="choice"]').forEach(b => { b.onclick = () => { const id = b.dataset.lesson; finish(); if (host.startLesson) host.startLesson(id); }; });
+        card.querySelectorAll('[data-tour="choice"]').forEach(b => { b.onclick = () => { const id = b.dataset.lesson; finish(); const go = host.startChoice || host.startLesson; if (go) go(id); }; });
         const nlBtn = card.querySelector('[data-tour="nextlesson"]');
         if (nlBtn) nlBtn.onclick = goToNextLesson;
         wireDrops(card, step);
