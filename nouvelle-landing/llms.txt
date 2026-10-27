@@ -1,0 +1,37 @@
+# LayerPitch
+
+> LayerPitch is a web workspace and set of tools to compose, present, test and validate video game music and sound design, between composers, sound designers and studios. Composers share adaptive (interactive) music as an AdReel: a web page where the listener plays with the music live, with no software to install.
+
+Key facts:
+
+- An AdReel ("Adaptive Reel") is a shareable link presenting non-linear music: state changes, branches, intensity changes and random pools. The studio receiving it can adjust intensity, mute layers and explore branches itself.
+- Five adaptive playback modes: loopable static, vertical layering, randomized layering, branching sequential and random sequential.
+- Listening to AdReels, packs and showcases is always free and needs no account.
+- Studios get a shared Project space with a Moodboard (references, images, videos, notes, tracks) to build the sound direction with their composer and test versions on video.
+- Composers can sell music through packs (Stripe Connect payouts with an invoicing mandate); real sales start at public launch.
+- Tiers: composers Rookie (free), Warrior, Boss; studios SoloDev, Indie, AA, AAA. There is always a free tier.
+- Music stays the property of its author. Data is hosted in Europe (Supabase, Ireland; files on Cloudflare, Western Europe).
+- Status: closed beta, by invitation.
+- Founded by Jules-Antoine Escande, video game composer.
+
+## Pages (English)
+
+- [Home](https://www.layerpitch.com/en/): what LayerPitch does
+- [For composers and sound designers](https://www.layerpitch.com/en/composers): AdReels, presenting adaptive music to studios
+- [For studios](https://www.layerpitch.com/en/studios): Project space, Moodboard, working with a composer
+- [FAQ](https://www.layerpitch.com/en/faq): access, AdReels, projects, pricing, ownership and data
+- [About](https://www.layerpitch.com/en/about): why LayerPitch exists
+
+## Pages (français)
+
+- [Accueil](https://www.layerpitch.com/)
+- [Compositeurs et sound designers](https://www.layerpitch.com/compositeurs)
+- [Studios](https://www.layerpitch.com/studios)
+- [FAQ](https://www.layerpitch.com/faq)
+- [À propos](https://www.layerpitch.com/a-propos)
+
+## Optional
+
+- [Composer AdReels sitemap](https://beta.layerpitch.com/sitemap-adreels.xml): public AdReels whose composers allow search indexing
+- [Legal notice](https://www.layerpitch.com/en/legal)
+- [Privacy](https://www.layerpitch.com/en/privacy)
