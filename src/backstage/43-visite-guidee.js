@@ -21,6 +21,8 @@ const TOUR_STEPS = [
   { selector: '#btnPreview', titleKey: 'tourPreviewTitle', textKey: 'tourPreviewText' },
   { selector: '#btnPublish', titleKey: 'tourPublishTitle', textKey: 'tourPublishText' },
   { selector: '#btnTutorialMenu', titleKey: 'tourTutorialTitle', textKey: 'tourTutorialText' },
+  // Raccourcis clavier (27/10) : une bulle, qui renvoie à la leçon « Raccourcis clavier » (Tutoriel → Prise en main).
+  { selector: '#btnTutorialMenu', titleKey: 'tourShortcutsTitle', textKey: 'tourShortcutsText' },
   { selector: '#btnAccountMenu', titleKey: 'tourAccountTitle', textKey: 'tourAccountText' },
 ];
 
@@ -39,7 +41,7 @@ function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 // avec la mention « le tuto complet nécessite un compte ». Un admin (tutoFullAccess) a tout.
 // Thèmes de leçons ouverts à tous les bêta-testeurs (23/10) : les autres restent grisés (« bientôt »), jouables par les admins seulement.
 // Pour débloquer un thème (par exemple « pitch », quand les leçons AdReel seront refaites) : l'ajouter à cette liste.
-const LESSON_THEMES_OPEN = ['engine', 'pitch'];
+const LESSON_THEMES_OPEN = ['engine', 'pitch', 'basics'];
 function lessonOpenToMe(lesson) { return !lesson || LESSON_THEMES_OPEN.includes(lesson.theme) || (isTutoMode() ? tutoFullAccess : currentUserIsAdmin); }
 function lessonPlayable(lesson) { return lessonOpenToMe(lesson) && (!isTutoMode() || tutoFullAccess || lessonIsPublic(lesson)); }
 // URL de chaque fichier d'exemple (nom de fichier -> URL), à renseigner quand les fichiers seront en ligne (stockage
@@ -333,6 +335,8 @@ const LESSON_THEMES = [
   { id: 'engine', titleKey: 'lessonThemeEngine' },
   { id: 'pitch', titleKey: 'lessonThemePitch' },
   { id: 'preprod', titleKey: 'lessonThemePreprod' },
+  // « Prise en main » (27/10) : ce qui sert partout dans le Backstage, hors métier (raccourcis clavier, plus tard d'autres astuces).
+  { id: 'basics', titleKey: 'lessonThemeBasics' },
 ];
 // Page où se joue une leçon : le Backstage lui-même, ou une autre page du mode tutoriel (liste des projets, espace Projet).
 function lessonPageUrl(l) { if (l && l.steps) return window.location.pathname; return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : window.location.pathname); }
@@ -1031,7 +1035,40 @@ const LESSONS = [
   // « Musique » et « balade » attendent les fichiers sonores d'exemple (kit MAP_MUSIC dans projet-lecons.js) : « bientôt » d'ici là.
   { id: 'pj-map-music', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc' },
   { id: 'pj-map-walk', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc' },
+  // Leçon « Raccourcis clavier » (27/10, ?tuto&lesson=shortcuts, rechargement obligatoire d'où `reload`) : rubrique « Prise en main ». Faux serveur :
+  // les morceaux Jazz et le Main AdReel. Cmd/Ctrl+P pour sauter à un morceau, Option/Alt + glisser pour le copier, Cmd/Ctrl+S pour enregistrer,
+  // Cmd/Ctrl+K pour mettre un lien dans un texte. Chaque étape attend le geste au CLAVIER (un clic sur le bouton ne compte pas) ; les étapes dont
+  // le feu vert est fermé sont sautées (quick_search, alt_drag_delete).
+  { id: 'shortcuts', theme: 'basics', public: true, reload: true, titleKey: 'lkTitle', descKey: 'lkDesc', steps: [
+    { titleKey: 'lkWelcomeTitle', textKey: 'lkWelcomeText' },
+    { titleKey: 'lkSearchTitle', textKey: 'lkSearchText', done: () => lessonShortcutsUsed.search && !!document.querySelector('.backstage-panel[data-panel="library"].active'), skip: () => !flagOpen('quick_search') },
+    { selector: '.nav-item[data-tab="library"]', titleKey: 'lsLibTitle', textKey: 'lsLibText', done: () => !!document.querySelector('.backstage-panel[data-panel="library"].active'), skip: () => flagOpen('quick_search') },
+    { selector: '#libraryMaster', titleKey: 'lkCopyTitle', textKey: 'lkCopyText', done: () => library.length > lessonShortcutsBase, skip: () => !flagOpen('alt_drag_delete') },
+    { selector: '#btnPublish', titleKey: 'lkSaveTitle', textKey: 'lkSaveText', done: () => lessonShortcutsUsed.save },
+    { selector: '.nav-item[data-tab="content"]', titleKey: 'lkContentTitle', textKey: 'lkContentText', done: () => !!document.querySelector('.backstage-panel[data-panel="content"].active') },
+    { selector: '.block-editor-card[data-type="text"] .block-editor-head [data-action="toggle-collapse"]', titleKey: 'lkBlockTitle', textKey: 'lkBlockText',
+      done: () => !!document.querySelector('.block-editor-card[data-type="text"] .block-editor-body:not(.collapsed)') },
+    { selector: lessonShortcutsLinkField, titleKey: 'lkLinkTitle', textKey: 'lkLinkText', done: () => { const f = lessonShortcutsLinkField(); return !!f && /\]\([^)\s]+\)/.test(f.value || ''); } },
+    { titleKey: 'lkEndTitle', textKey: 'lkEndText', final: true },
+  ] },
 ];
+// Leçon « Raccourcis clavier » : gestes faits au clavier pendant la leçon (pas les clics sur les boutons), et nombre de morceaux au départ
+// (une copie par Option/Alt + glisser en ajoute un). Écoute en phase de capture : les raccourcis eux-mêmes empêchent l'action du navigateur.
+const lessonShortcutsUsed = { search: false, save: false };
+let lessonShortcutsBase = Infinity;
+document.addEventListener('keydown', e => {
+  if (!guide || guide.lessonId !== 'shortcuts' || !(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+  const k = (e.key || '').toLowerCase();
+  if (k === 'p') lessonShortcutsUsed.search = true;
+  if (k === 's') lessonShortcutsUsed.save = true;
+}, true);
+// Champ de texte de la leçon (Cmd/Ctrl+K) : le texte du bloc « Ma façon de travailler » du Main AdReel (faux serveur), une fois le bloc déplié.
+function lessonShortcutsLinkField() {
+  const f = document.querySelector('.backstage-panel[data-panel="content"].active .block-editor-card[data-type="text"] textarea[data-role="content"]');
+  return f && f.offsetParent ? f : null;
+}
+// Touches affichées dans les bulles : Cmd / Option sur Mac, Ctrl / Alt ailleurs.
+const LESSON_IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
 
 // Le moteur de bulles (affichage, avancement des étapes, clavier, déplacement) est partagé avec les autres pages :
 // layerpitch-guide.js. Ici ne reste que ce qui est propre au Backstage : les textes, les leçons, les vignettes de fichiers
@@ -1109,7 +1146,7 @@ const GUIDE = window.LayerPitchGuide.create({
       lessonUseSample(step).catch(err => window.LayerPitchNotify.error(tr('lessonSampleError', { error: err.message || String(err) })));
     });
   },
-  textVars: (step, st) => ({ file: LESSON_SAMPLE_NAMES[step.names || st.lessonId] || '', n: st.steps.length }),
+  textVars: (step, st) => ({ file: LESSON_SAMPLE_NAMES[step.names || st.lessonId] || '', n: st.steps.length, mod: LESSON_IS_MAC ? 'Cmd' : 'Ctrl', alt: LESSON_IS_MAC ? 'Option' : 'Alt' }),
   adminTools: lessonAdminTools,
   autoSample: step => lessonUseSample(step),
   arrowPoint: lessonArrowPoint,
@@ -1157,6 +1194,13 @@ function showDirectoryBackdrop() {
   directoryBackdrop = f;
 }
 function resetLessonView(lesson) {
+  // Raccourcis clavier : on part de l'onglet Contenu (Cmd/Ctrl+P mène ensuite à la Bibliothèque), compteurs remis à zéro.
+  if (lesson && lesson.id === 'shortcuts') {
+    lessonShortcutsUsed.search = lessonShortcutsUsed.save = false;
+    lessonShortcutsBase = library.length;
+    try { if (typeof switchTab === 'function') switchTab('content'); } catch (e) { /* la leçon se déroule quand même */ }
+    return;
+  }
   if (!lesson || lesson.theme !== 'pitch' || !isTutoMode()) return;
   try {
     const pub = document.getElementById('btnPublish'); if (pub) pub.disabled = false; // rien n'est réel en tutoriel : « Sauvegarder / publier » reste cliquable

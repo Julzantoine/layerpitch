@@ -17,7 +17,7 @@
   const DEMO_COMPOSER_ID = 'demo-composer';
 
   // Feux verts ouverts dans le tutoriel : ce dont les leçons ont besoin, rien d'autre (les nouveautés restent fermées).
-  const DEMO_FLAGS = ['in_app_lessons', 'audio_fx', 'bulk_drop', 'alt_drag_delete'];
+  const DEMO_FLAGS = ['in_app_lessons', 'audio_fx', 'bulk_drop', 'alt_drag_delete', 'quick_search'];
   // Droits de la matrice : tout ce qui touche à la vente ou au compte payant reste fermé.
   const DEMO_ENTITLEMENTS_ALLOWED = ['versioning'];
   const DEMO_ENTITLEMENTS_DENIED = ['custom_address', 'private_links', 'sell_albums', 'sell_packs', 'subscriber_catalog'];
@@ -210,9 +210,9 @@
   // Morceaux d'exemple : leçon AdReel (Backstage) et pages Projets (leur propre bibliothèque, pour le pack et la carte). Pack : pages Projets.
   const listRows = table => {
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
-    if (table === 'ad_reels' && (['adreel-intro', 'adreel', 'upload', 'appearance', 'share'].includes(lessonParam()))) return lessonParam() === 'adreel-intro' ? [demoMainAdReel()].concat(demoOtherAdReels()) : (['appearance', 'share'].includes(lessonParam()) ? [demoMainAdReel(), demoJoshuaAdReel()] : [demoMainAdReel()]);
+    if (table === 'ad_reels' && (['adreel-intro', 'adreel', 'upload', 'appearance', 'share', 'shortcuts'].includes(lessonParam()))) return lessonParam() === 'adreel-intro' ? [demoMainAdReel()].concat(demoOtherAdReels()) : (['appearance', 'share'].includes(lessonParam()) ? [demoMainAdReel(), demoJoshuaAdReel()] : [demoMainAdReel()]);
     if (table === 'tracks' && lessonParam() === 'pack' && !projectPage) return DEMO_TRACKS_8BIT.filter(t => t.id !== 'bmruc9x0htabo1'); // « Doucement s'en va le jour » : son fichier audio est introuvable en ligne (404), on ne le propose pas
-    if (table === 'tracks' && ['adreel', 'adreel-intro', 'album', 'tracking', 'upload', 'appearance', 'share'].includes(lessonParam()) && !projectPage) return lessonParam() === 'share' ? DEMO_TRACKS_JAZZ.map(t => Object.assign({}, t, { protected: true })) : DEMO_TRACKS_JAZZ; // « Diffuser » : morceaux déjà protégés (sinon la demande de protection complique l'étape du mot de passe)
+    if (table === 'tracks' && ['adreel', 'adreel-intro', 'album', 'tracking', 'upload', 'appearance', 'share', 'shortcuts'].includes(lessonParam()) && !projectPage) return lessonParam() === 'share' ? DEMO_TRACKS_JAZZ.map(t => Object.assign({}, t, { protected: true })) : DEMO_TRACKS_JAZZ; // « Diffuser » : morceaux déjà protégés (sinon la demande de protection complique l'étape du mot de passe)
     if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
     if (table === 'tracks' && lessonParam() === 'sfx') return [DEMO_TRACK_JAZZ_SFX];
     if (table === 'tracks' && lessonParam() === 'events') return [Object.assign({}, DEMO_TRACK_JAZZ_SFX, { track_sfx: DEMO_SFX.map((x, i) => ({ sfx_id: x.id, position: i })) })];
@@ -288,7 +288,8 @@
     // Temps réel (présence, « ça a changé ») : rien à écouter dans un tutoriel à un seul utilisateur.
     channel: () => { const c = { on: () => c, subscribe: () => c, track: () => c, send: () => c, presenceState: () => ({}), unsubscribe() {} }; return c; },
     removeChannel: () => {},
-    functions: { invoke: async () => ({ data: null, error: UNAVAILABLE }) },
+    // Copie d'un morceau (Option/Alt + glisser, leçon « Raccourcis clavier », 27/10) : la copie reste dans la page, rien n'est copié pour de vrai.
+    functions: { invoke: async (name) => name === 'copy-track-files' ? OK({ ok: true, files: 0 }) : { data: null, error: UNAVAILABLE } },
     storage: { from: () => ({ upload: async () => ({ data: null, error: UNAVAILABLE }), getPublicUrl: () => ({ data: { publicUrl: '' } }), remove: async () => OK(null) }) },
   };
 

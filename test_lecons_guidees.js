@@ -188,7 +188,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
     const ids = LESSON_THEMES.map(t => t.id);
     return { ids, allThemed: LESSONS.every(l => ids.includes(l.theme)), pub: LESSONS.filter(lessonIsPublic).map(l => l.id), total: LESSONS.length };
   })()`);
-  check('3 thèmes : moteur audio, pitch, préproduction', th.ids.join() === 'engine,pitch,preprod');
+  check('4 thèmes : moteur audio, pitch, préproduction, prise en main', th.ids.join() === 'engine,pitch,preprod,basics');
   check('chaque leçon appartient à un thème', th.allThemed === true);
   check('toutes les leçons sont ouvertes sans compte (le tutoriel se joue toujours en mode sans compte)', th.pub.length === th.total);
   w.eval(`myFlags = { in_app_lessons: true }; renderTutorialMenu();`);

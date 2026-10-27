@@ -38,7 +38,7 @@ function tr(key, vars) {
   const dictFr = I18N.fr;
   let str = (dict.backstage && dict.backstage[key]) || (dict.shared && dict.shared[key])
     || (dictFr.backstage && dictFr.backstage[key]) || (dictFr.shared && dictFr.shared[key]) || key;
-  if (vars) Object.keys(vars).forEach(k => { str = str.replace('{' + k + '}', vars[k]); });
+  if (vars) Object.keys(vars).forEach(k => { str = str.split('{' + k + '}').join(vars[k]); });
   return str;
 }
 function applyI18n() {
