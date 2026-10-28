@@ -21,6 +21,14 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
   check('bêta-testeur : les autres leçons (AdReel, préproduction) sont grisées, « bientôt », sans pastille', others.length > 0 && others.every(id => lessonBtn(id).disabled && !lessonBtn(id).querySelector('.tutorial-todo-dot') && /bientôt/.test(lessonBtn(id).textContent)));
   check('bêta-testeur : aucune de ces leçons n’est jouable', others.every(id => w.eval(`lessonPlayable(LESSONS.find(l => l.id === '${id}'))`) === false) && engine.every(id => w.eval(`lessonPlayable(LESSONS.find(l => l.id === '${id}'))`) === true));
 
+  const sectionBadge = th => doc.querySelector('#tutorialMenuList [data-fold-theme="' + th + '"] .tutorial-section-badge');
+  const engineTheme = w.eval(`LESSONS.find(l => l.id === '${engine[0]}').theme`);
+  const engineThemeCount = w.eval(`LESSONS.filter(l => l.theme === '${engineTheme}' && lessonAvailable(l)).length`);
+  check('section dépliée : pas de compteur à côté du titre (les leçons ont déjà leur pastille)', !sectionBadge(engineTheme));
+  w.eval(`toggleLessonThemeFold('${engineTheme}'); renderTutorialMenu();`);
+  check('section repliée : le nombre de leçons à faire s’affiche à côté du titre', !!sectionBadge(engineTheme) && sectionBadge(engineTheme).textContent === String(engineThemeCount));
+  w.eval(`toggleLessonThemeFold('${engineTheme}'); renderTutorialMenu();`);
+
   w.eval(`lessonMarkDone('${engine[0]}'); renderTutorialMenu();`);
   check('une leçon faite : la pastille baisse, la leçon passe au coche', badge().textContent === String(engine.length - 1) && !lessonBtn(engine[0]).querySelector('.tutorial-todo-dot') && !!lessonBtn(engine[0]).querySelector('svg'));
   w.eval(`${JSON.stringify(engine.slice(1))}.forEach(id => lessonMarkDone(id)); renderTutorialMenu();`);
