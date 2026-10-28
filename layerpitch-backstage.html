@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793108410664">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793133780746">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -971,6 +971,7 @@
   .tutorial-menu-group[hidden] { display: none; }
   .tutorial-menu-section strong { font-size: 14px; font-weight: 700; color: var(--text); }
   .tutorial-menu-section small { font-size: 11.5px; color: var(--text-dim); }
+  .tutorial-section-badge { display: inline-block; vertical-align: 2px; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: #d63a2a; color: #fff; box-sizing: border-box; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
   .account-menu-item.tutorial-menu-lesson { padding-left: 20px; }
   .tutorial-menu-lesson .tutorial-menu-text b { font-weight: 500; font-size: 13px; }
   .tutorial-menu-empty { font-size: 12px; color: var(--text-dimmer); padding: 2px 10px 8px 20px; }
@@ -1948,18 +1949,18 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793108410664"></script>
-<script src="layerpitch-i18n.js?v=1793108410664"></script>
-<script src="layerpitch-import-engine.js?v=1793108410664"></script>
-<script src="layerpitch-appearance.js?v=1793108410664"></script>
-<script src="layerpitch-album-shared.js?v=1793108410664"></script>
-<script src="layerpitch-album-editor.js?v=1793108410664"></script>
-<script src="layerpitch-shell.js?v=1793108410664"></script>
-<script src="layerpitch-social-icons.js?v=1793108410664"></script>
-<script src="layerpitch-notify.js?v=1793108410664"></script>
-<script src="layerpitch-guide.js?v=1793108410664"></script>
-<script src="layerpitch-help.js?v=1793108410664"></script>
-<script src="player.js?v=1793108410664"></script>
+<script src="layerpitch-tuto.js?v=1793133780746"></script>
+<script src="layerpitch-i18n.js?v=1793133780746"></script>
+<script src="layerpitch-import-engine.js?v=1793133780746"></script>
+<script src="layerpitch-appearance.js?v=1793133780746"></script>
+<script src="layerpitch-album-shared.js?v=1793133780746"></script>
+<script src="layerpitch-album-editor.js?v=1793133780746"></script>
+<script src="layerpitch-shell.js?v=1793133780746"></script>
+<script src="layerpitch-social-icons.js?v=1793133780746"></script>
+<script src="layerpitch-notify.js?v=1793133780746"></script>
+<script src="layerpitch-guide.js?v=1793133780746"></script>
+<script src="layerpitch-help.js?v=1793133780746"></script>
+<script src="player.js?v=1793133780746"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -16549,7 +16550,10 @@ function renderTutorialMenu() {
       // coupé en titre + sous-titre au « : » ; les leçons en dessous, en retrait et moins appuyées.
       const [thMain, ...thRest] = tr(th.titleKey).split(' : ');
       const folded = foldedLessonThemes().has(th.id);
-      return `<button type="button" class="tutorial-menu-section" data-fold-theme="${th.id}" aria-expanded="${!folded}"><span class="tutorial-menu-section-text"><strong>${escapeHtml(thMain)}</strong>${thRest.length ? `<small>${escapeHtml(capitalizeFirst(thRest.join(' : ')))}</small>` : ''}</span><svg class="tutorial-menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="tutorial-menu-group"${folded ? ' hidden' : ''}>` + (items.length ? items.map(l => `
+      // Section repliée (retour de Jules-Antoine, 27/10) : ses leçons à faire sont cachées, leur nombre s'affiche donc à côté du titre.
+      const toDo = folded ? items.filter(l => lessonAvailable(l) && !done[l.id]).length : 0;
+      const toDoBadge = toDo ? ` <span class="tutorial-section-badge" title="${escapeAttr(tr('tutorialToDoBadge'))}" aria-label="${escapeAttr(tr('tutorialToDoBadge'))}">${toDo}</span>` : '';
+      return `<button type="button" class="tutorial-menu-section" data-fold-theme="${th.id}" aria-expanded="${!folded}"><span class="tutorial-menu-section-text"><strong>${escapeHtml(thMain)}${toDoBadge}</strong>${thRest.length ? `<small>${escapeHtml(capitalizeFirst(thRest.join(' : ')))}</small>` : ''}</span><svg class="tutorial-menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="tutorial-menu-group"${folded ? ' hidden' : ''}>` + (items.length ? items.map(l => `
       <button class="account-menu-item tutorial-menu-lesson" type="button" data-tutorial="${l.id}" ${(l.soon || !lessonPlayable(l) || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}>
         <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr(l.titleKey))}</b><small>${escapeHtml(!lessonOpenToMe(l) || lessonPlayable(l) ? tr(l.descKey) : tr('tutoNeedsAccount'))}</small></span></span>
         ${!lessonOpenToMe(l) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : !lessonPlayable(l) ? `<span class="nav-badge">${escapeHtml(tr('tutoAccountBadge'))}</span>` : (l.soon || (l.needs && !flagOpen(l.needs))) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : (lessonAvailable(l) ? `<span class="tutorial-todo-dot" title="${escapeAttr(tr('tutorialToDoBadge'))}" aria-label="${escapeAttr(tr('tutorialToDoBadge'))}"></span>` : ''))}
