@@ -6,7 +6,8 @@
     "test": "node scripts/run-tests.js",
     "bump-version": "node scripts/bump-version.js",
     "migrate": "node scripts/apply-migrations.js",
-    "build": "node scripts/build-sources.js"
+    "build": "node scripts/build-sources.js",
+    "veille": "node scripts/veille.js"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
