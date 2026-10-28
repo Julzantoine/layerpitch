@@ -45,7 +45,7 @@ window.LayerPitchAlbumShared = { createPlayback: () => ({ toggle() {}, stop() {}
 window.__failures = [];
 window.__log = (ok, label) => { console.log((ok ? 'OK   - ' : 'FAIL - ') + label); if (!ok) window.__failures.push(label); };
 
-const i18nSrc = fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'layerpitch-guide.js'), 'utf8'); // + moteur de bulles guidées (partagé, 20/10)
+const i18nSrc = fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'layerpitch-guide.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'layerpitch-import-engine.js'), 'utf8'); // + moteur de bulles guidées (partagé, 20/10) + moteur de lecture des noms (partagé, 27/10)
 
 const assertions = `
 function check(label, cond) { window.__log(!!cond, label); }

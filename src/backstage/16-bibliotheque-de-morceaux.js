@@ -1,18 +1,12 @@
 /* ---------------- Bibliothèque de morceaux ---------------- */
-function titleFromFilename(filename) {
-  return filename.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim();
-}
-// Reconnaissance de bpm/nombre de mesures dans le nom d'un fichier déposé (demande du 13/08, nomenclature
-// de Jules-Antoine : "..._160bpm_40M.wav") — restaurée le 01/09 après une disparition accidentelle
-// constatée en investiguant la dérive des tests (aucune trace de suppression volontaire, contrairement aux
-// changements du 18/08 qui portent tous un commentaire de refonte). Jeton bpm ("\d+bpm") et jeton mesures
-// ("\d+M") isolés par un séparateur (_, -, espace) ou une limite de chaîne des deux côtés, pour éviter un
-// faux positif du type "Room40Meters" (le "M" colle directement à "eters", donc pas de limite après).
-function parseAudioFilenameHints(filename) {
-  const bpmMatch = filename.match(/(?:^|[_\s-])(\d+)bpm(?=[_\s.-]|$)/i);
-  const barsMatch = filename.match(/(?:^|[_\s-])(\d+)M(?=[_\s.-]|$)/);
-  return { bpm: bpmMatch ? parseInt(bpmMatch[1], 10) : null, bars: barsMatch ? parseInt(barsMatch[1], 10) : null };
-}
+// Lecture des noms de fichiers : moteur partagé (layerpitch-import-engine.js, chargé avant ce script ; phase 1 du MCP, 27/10).
+// Il ne se modifie QUE là-bas -- le serveur MCP lira exactement le même fichier.
+const {
+  titleFromFilename, parseAudioFilenameHints, parseIntroBarsHint, titleFromFilenameStrippingHints, guessSequentialRole,
+  nameFamilyKey, stripVariantSuffix, stripVariantSuffixLoose, groupFilesByNameFamily, firstFilenameHints,
+  isTransitionFile, folderImportNumber, pairLoopsWithTransitions, guessFolderStructure, groupFilesBySequentialSlot,
+  FOLDER_IMPORT_MODES, FOLDER_IMPORT_AUDIO_RE, folderImportByName,
+} = window.LayerPitchImportEngine;
 if (typeof window !== 'undefined') window.parseAudioFilenameHints = parseAudioFilenameHints;
 // Choix d'un fichier un par un (bouton « Choisir un WAV »), qui ne lisait pas le nom alors que le dépôt groupé le lisait (21/10).
 // Variation d'un emplacement séquentiel : mesures lues dans le nom ; tempo repris pour l'emplacement seulement s'il n'en a pas
@@ -30,23 +24,7 @@ function applySeqTransitionFileNameHints(transition, file) {
   if (h.bpm && !transition.bpm) { transition.bpm = h.bpm; if (!transition.durationUnit) transition.durationUnit = 'bars'; }
 }
 if (typeof window !== 'undefined') { window.applySeqAltFileNameHints = applySeqAltFileNameHints; window.applySeqTransitionFileNameHints = applySeqTransitionFileNameHints; }
-// Mesures d'intro DANS une boucle (« ..._120bpm_18M_intro2M.wav » : les 2 premières mesures ne rebouclent pas), 11/10.
-// Fonction à part (et non un champ de plus de parseAudioFilenameHints, dont le résultat est comparé tel quel par des tests).
-function parseIntroBarsHint(filename) {
-  const m = filename.match(/(?:^|[_\s-])intro(\d+)M(?=[_\s.-]|$)/i);
-  return m ? parseInt(m[1], 10) : null;
-}
 if (typeof window !== 'undefined') window.parseIntroBarsHint = parseIntroBarsHint;
-// Même principe que titleFromFilename() ci-dessus, mais retire d'abord les jetons bpm/mesures repérés par
-// parseAudioFilenameHints() — pour ne pas les laisser traîner dans le libellé affiché d'un emplacement.
-function titleFromFilenameStrippingHints(filename) {
-  return filename.replace(/\.[^/.]+$/, '')
-    .replace(/(?:^|[_\s-])(\d+)bpm(?=[_\s.-]|$)/i, '')
-    .replace(/(?:^|[_\s-])(\d+)M(?=[_\s.-]|$)/, '')
-    .replace(/(?:^|[_\s-])intro(\d+)M(?=[_\s.-]|$)/i, '')
-    .replace(/[_-]+/g, ' ')
-    .trim();
-}
 // Morceau statique (08/10) : le fichier déposé donne le titre (sans le jeton « 120bpm »), le tempo et la longueur en mesures --
 // même nomenclature que le dépôt groupé du séquentiel (parseAudioFilenameHints). Un titre déjà saisi n'est jamais écrasé.
 function applyStaticFileNameHints(track, file) {
@@ -71,16 +49,6 @@ function applySectionTempoFromFileNames(section, files, sectionHadFiles) {
 }
 function sectionHasAnyFile(section) {
   return (section.pools || []).some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile));
-}
-// Devine le rôle (intro/segment/outro) d'un fichier déposé en lot dans le mode séquentiel, à partir de
-// son nom. "Segment" par défaut si rien ne correspond — reste ajustable ensuite via le sélecteur "Rôle".
-// Séparateurs explicites plutôt que \b (25/09) : pour \b le tiret bas est une lettre, donc
-// "The_Last_Door_Intro_120bpm_14M.wav" n'était jamais reconnu comme intro.
-function guessSequentialRole(filename) {
-  const n = filename.toLowerCase().replace(/\.[^/.]+$/, '');
-  if (/(?:^|[^a-z0-9])intro(?:only)?(?:$|[^a-z0-9])/.test(n)) return 'intro'; // « IntroONLY » (22/10) : l'intro seule du morceau Jazz Lo du tuto
-  if (/(?:^|[^a-z0-9])outro(?:only)?(?:$|[^a-z0-9])/.test(n)) return 'outro';
-  return 'segment';
 }
 
 // ---- Dépôts du mode séquentiel (25/09) : partagés entre les zones de dépôt du détail (sélecteur de fichier de
@@ -127,94 +95,9 @@ function addFilesToSeqSlot(track, ti, si, files) {
   });
 }
 
-// ---- Dépôt groupé "par familles de noms" (25/09, demandes de Jules-Antoine) ----
-// Sert aux pools d'une section vertical-random et à la bibliothèque Sfx (un Sfx par famille, ses fichiers en
-// variations round-robin). L'intro/outro est reconnue au nom (guessSequentialRole) quand c'est pertinent, le
-// reste est rangé par racine de nom commune ("Alt Perc 1", "Alt Perc 1.5" -> "Alt Perc"). Rien n'est écrit
-// tant que le compositeur n'a pas validé la fenêtre de vérification (openGroupedDropDialog) : déplacer un
-// fichier, renommer un groupe, piste vide par pool, tempo/mesures lus dans les noms.
-function nameFamilyKey(s) {
-  return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
-}
-// Retire les marques de variante en fin de nom, de façon répétée : "(8th)", "#2", "1.5", "BS1" -> "BS".
-// Si tout le nom y passe (fichier "01.wav"), on garde le nom tel quel.
-function stripVariantSuffix(label) {
-  const orig = (label || '').trim();
-  let s = orig, prev;
-  do {
-    prev = s;
-    s = s.replace(/\s*\([^()]*\)\s*$/, '').replace(/\s*#?\s*\d+(?:[.,]\d+)?\s*$/, '').trim();
-  } while (s && s !== prev);
-  return s || orig;
-}
-// Variante "large" : retire aussi une lettre isolée finale ("Hit A", "Hit B", "Step v2") -- appliquée
-// seulement si elle réunit vraiment plusieurs fichiers, pour ne pas abîmer un nom comme "Plan B" seul.
-function stripVariantSuffixLoose(label) {
-  const s = stripVariantSuffix(label);
-  const t = s.replace(/\s+(?:v\d*|[a-z])$/i, '').trim();
-  return t ? stripVariantSuffix(t) : s;
-}
-function groupFilesByNameFamily(files, detectIntroOutro) {
-  let intro = null, outro = null;
-  const rest = [];
-  files.forEach(f => {
-    const role = detectIntroOutro ? guessSequentialRole(f.name) : 'segment';
-    if (role === 'intro' && !intro) intro = f;
-    else if (role === 'outro' && !outro) outro = f;
-    else rest.push(f);
-  });
-  // Nom de pool = ce qui précède le premier « _ » (« BS_Stories… », « DM_Foothills… » -> pools BS et DM) : au moins 2 fichiers qui
-  // le partagent (casse ignorée) forment un seul pool (21/10, règle choisie par Jules-Antoine : plus simple et sans piège que
-  // les majuscules). Un fichier sans « _ », ou seul sous son préfixe, suit les règles de familles de noms ci-dessous.
-  const prefixOf = f => { const m = f.name.match(/^([^_]+)_/); const p = m ? m[1].trim() : ''; return p || null; };
-  const prefixCount = new Map();
-  rest.forEach(f => { const p = prefixOf(f); if (p) { const k = p.toLowerCase(); prefixCount.set(k, (prefixCount.get(k) || 0) + 1); } });
-  const codeGroups = new Map();
-  for (let i = rest.length - 1; i >= 0; i--) {
-    const p = prefixOf(rest[i]);
-    if (!p || prefixCount.get(p.toLowerCase()) < 2) continue;
-    const k = p.toLowerCase();
-    if (!codeGroups.has(k)) codeGroups.set(k, { label: p, files: [] });
-    codeGroups.get(k).files.unshift(rest.splice(i, 1)[0]);
-  }
-  const strictLabel = f => stripVariantSuffix(titleFromFilenameStrippingHints(f.name));
-  const looseCount = new Map();
-  rest.forEach(f => { const k = nameFamilyKey(stripVariantSuffixLoose(strictLabel(f))); looseCount.set(k, (looseCount.get(k) || 0) + 1); });
-  const groups = new Map();
-  rest.forEach(f => {
-    const strict = strictLabel(f);
-    const loose = stripVariantSuffixLoose(strict);
-    const label = looseCount.get(nameFamilyKey(loose)) >= 2 ? loose : strict;
-    const key = nameFamilyKey(label);
-    if (!groups.has(key)) groups.set(key, { label, files: [] });
-    groups.get(key).files.push(f);
-  });
-  // Un fichier resté seul rejoint le groupe dont le nom est le début du sien ("BS SLAP" -> "BS"), à
-  // condition que ce groupe soit une vraie famille (au moins 2 fichiers) -- "Main Perc" reste à part.
-  const familyKeys = [...groups.keys()].filter(k => groups.get(k).files.length >= 2);
-  [...groups.keys()].forEach(k => {
-    const g = groups.get(k);
-    if (g.files.length !== 1) return;
-    const words = k.split(' ');
-    for (let n = words.length - 1; n >= 1; n--) {
-      const prefix = words.slice(0, n).join(' ');
-      if (familyKeys.includes(prefix)) { groups.get(prefix).files.push(...g.files); groups.delete(k); break; }
-    }
-  });
-  const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-  return { intro, outro, groups: [...codeGroups.values(), ...groups.values()].map(g => ({ label: g.label, files: g.files.sort(byName) })) };
-}
 if (typeof window !== 'undefined') window.groupFilesByNameFamily = groupFilesByNameFamily;
 function hintsText(h) {
   return h ? [h.bpm ? h.bpm + ' BPM' : '', h.bars ? tr('vrsBatchBarsN', { n: h.bars }) : '', h.introBars ? tr('importFolderEmbrIntro', { n: h.introBars }) : ''].filter(Boolean).join(', ') : '';
-}
-// Premier fichier (hors intro/outro) dont le nom porte un tempo ou un nombre de mesures.
-// anyRole (21/10) : morceau à couches / boucles, où « intro » dans un nom (« Jazz Hi_2bts Intro_8M_110bpm ») n'est pas un rôle à part --
-// tous les fichiers comptent, sinon ce nom ne proposait jamais son tempo.
-function firstFilenameHints(files, anyRole) {
-  const f = files.find(x => { const h = parseAudioFilenameHints(x.name); return (anyRole || guessSequentialRole(x.name) === 'segment') && (h.bpm || h.bars || parseIntroBarsHint(x.name)); });
-  // introBars (11/10, « ..._intro2M ») s'ajoute ici, pas dans parseAudioFilenameHints (comparé tel quel par des tests).
-  return f ? { file: f, hints: Object.assign({}, parseAudioFilenameHints(f.name), { introBars: parseIntroBarsHint(f.name) }) } : null;
 }
 
 if (typeof window !== 'undefined') window.firstFilenameHints = firstFilenameHints;
