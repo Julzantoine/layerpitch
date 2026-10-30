@@ -1,5 +1,5 @@
-// Annuaire des compositeurs (23/10, migration 20261023010000, annuaire.html) : feu vert, qui apparaît, ordre (paliers payants en tête),
-// réglages du compositeur (case + mots-clés), noms réservés, routage /compositeurs, textes FR/EN. Base jetable PGlite.
+// Annuaire des compositeurs (23/10, migration 20261023010000, annuaire.html) : feu vert, qui apparaît,
+// réglages du compositeur (case + cadrage ; les tags et l'ordre : test_directory_tags.js), noms réservés, routage /compositeurs, textes FR/EN. Base jetable PGlite.
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -19,7 +19,11 @@ const vm = require('vm');
     await q(`insert into auth.users (id, email) values ($1, $2)`, [U(n), `c${n}@x.test`]);
     await q(`insert into public.profiles (id) values ($1) on conflict do nothing`, [U(n)]);
     const id = (await q(`insert into public.composer_profiles (profile_id, handle, plan) values ($1, $2, $3) returning id`, [U(n), handle, plan || 'free']))[0].id;
-    if (!extra || !extra.noMain) await q(`insert into public.ad_reels (id, owner_id, label, profile) values ('main', $1, 'Principal', $2::jsonb)`, [id, JSON.stringify({ title: 'Nom ' + n, bio: 'Bio ' + n, photo: `p${n}.jpg` })]);
+    if (!extra || !extra.noMain) {
+      await q(`insert into public.ad_reels (id, owner_id, label, profile) values ('main', $1, 'Principal', $2::jsonb)`, [id, JSON.stringify({ title: 'Nom ' + n, bio: 'Bio ' + n, photo: `p${n}.jpg` })]);
+      await q(`insert into public.tracks (id, owner_id, title, mode) values ($1, $2, 'T', 'static')`, ['t' + n, id]);
+      await q(`insert into public.ad_reel_tracks (ad_reel_id, owner_id, track_id, position) values ('main', $1, $2, 0)`, [id, 't' + n]);
+    }
     return id;
   };
   await mk(1, 'ana', 'free'); await mk(2, 'bob', 'pro'); await mk(3, 'cleo', 'starter');
@@ -38,17 +42,11 @@ const vm = require('vm');
   const list = await q(`select * from public.composer_directory()`);
   const handles = list.map(r => r.handle);
   check('sans AdReel principal, sans identifiant, case décochée ou compte suspendu : absent', ['dan', 'eve', 'fay'].every(h => !handles.includes(h)) && handles.length === 3);
-  check('ordre : Boss avant Warrior avant Rookie', handles.join(',') === 'bob,cleo,ana');
-  const bob = list[0];
+  const bob = list.find(r => r.handle === 'bob');
   check('fiche : nom, bio et photo viennent de l\'AdReel principal', bob.name === 'Nom 2' && bob.bio === 'Bio 2' && bob.photo === 'p2.jpg');
   check('aucune adresse e-mail dans la liste', !Object.keys(bob).some(k => /mail|profile_id|owner/.test(k)));
 
   await as(U(1));
-  const r = await val(`select public.set_my_directory(true, array['  Orchestral ', 'orchestral', 'RPG', '', 'RPG', 'x']::text[])`);
-  check('mots-clés : espaces retirés, vides et doublons exacts retirés', JSON.stringify(r.keywords) === JSON.stringify(['Orchestral', 'orchestral', 'RPG', 'x']));
-  const many = Array.from({ length: 20 }, (_, i) => 'k' + i);
-  check('mots-clés : 12 au plus', (await val(`select public.set_my_directory(true, $1::text[])`, [many])).keywords.length === 12);
-  check('mots-clés : 30 caractères au plus', (await val(`select public.set_my_directory(true, array[repeat('a', 50)]::text[])`)).keywords[0].length === 30);
   check('lecture de ses réglages', (await val(`select public.get_my_directory()`)).optIn === true);
   await val(`select public.set_my_directory(false, array['rpg']::text[])`);
   const fr1 = await val(`select public.set_my_directory(true, array['rpg']::text[], '{"x": 130, "y": -5, "zoom": 9}'::jsonb)`);
@@ -62,7 +60,6 @@ const vm = require('vm');
   await as(U(1)); await val(`select public.set_my_directory(false, array['rpg']::text[])`); await as(null);
   check('case décochée : disparaît de l\'annuaire', !(await q(`select handle from public.composer_directory()`)).some(r => r.handle === 'ana'));
   await as(U(1)); await val(`select public.set_my_directory(true, array['rpg']::text[])`); await as(null);
-  check('mots-clés visibles dans la liste', (await q(`select keywords from public.composer_directory() where handle = 'ana'`))[0].keywords.join(',') === 'rpg');
   await q(`insert into auth.users (id, email) values ($1, 'studio@x.test')`, [U(20)]);
   await q(`insert into public.profiles (id) values ($1) on conflict do nothing`, [U(20)]);
   await as(U(20));
@@ -80,10 +77,10 @@ const vm = require('vm');
   // Textes FR/EN et branchements
   const sb = { window: {} }; vm.createContext(sb); vm.runInContext(fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf8'), sb);
   const I = sb.window.LAYERPITCH_I18N;
-  const keys = ['pageTitle', 'h1', 'intro', 'searchPlaceholder', 'allKeywords', 'openAdReel', 'contact', 'noMatch', 'empty', 'loadError', 'comingSoonTitle', 'comingSoonHint'];
+  const keys = ['pageTitle', 'h1', 'intro', 'searchPlaceholder', 'filterPlaceholder', 'filterRemove', 'filterNone', 'listen', 'listenClose', 'listenTitle', 'openAdReel', 'contact', 'noMatch', 'empty', 'loadError', 'comingSoonTitle', 'comingSoonHint'];
   check('page : textes FR et EN', keys.every(k => I.fr.directory[k] && I.en.directory[k]));
   check('contact : textes FR et EN', ['title', 'hint', 'name', 'email', 'message', 'send', 'sent', 'error'].every(k => I.fr.directoryContact[k] && I.en.directoryContact[k]));
-  check('carte Mon compte : textes FR et EN', ['directoryKeywordsLabel', 'directoryKeywordsHint', 'directorySave', 'directorySaved', 'directoryOpenLink', 'directoryNotOpen', 'directoryPhotoLabel', 'directoryPhotoZoom', 'directoryPhotoReset', 'directoryPhotoHint'].every(k => I.fr.monCompte[k] && I.en.monCompte[k]));
+  check('carte Mon compte : textes FR et EN', ['directoryKeywordsLabel', 'directoryKeywordsHint', 'directoryTagCreate', 'directoryTagRemove', 'directoryHidden_no_tracks', 'directoryHidden_private', 'directoryHidden_no_adreel', 'directoryHidden_no_handle', 'directorySave', 'directorySaved', 'directoryOpenLink', 'directoryNotOpen', 'directoryPhotoLabel', 'directoryPhotoZoom', 'directoryPhotoReset', 'directoryPhotoHint'].every(k => I.fr.monCompte[k] && I.en.monCompte[k]));
   check('barre latérale et menu Compte : libellés FR et EN', !!(I.fr.shell.item_directory && I.en.shell.item_directory && I.fr.backstage.navDirectory && I.en.backstage.navDirectory));
   const page = fs.readFileSync(path.join(__dirname, 'annuaire.html'), 'utf8');
   check('annuaire.html : ouvert sans compte (aucune redirection de connexion), clic vers l\'AdReel, contact par identifiant', !/requireSession|redirectToLogin/.test(page) && /adReelHref/.test(page) && /kind: 'composer'/.test(page));

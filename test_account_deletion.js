@@ -29,7 +29,7 @@
     project_vitrines.created_by project_maps.created_by project_sections.created_by project_section_assets.added_by project_section_pins.pinned_by project_section_messages.author_id project_section_follows.profile_id project_appearance.updated_by projects.owner_profile_id projects.created_by studio_credit_ledger.actor_id studio_members.profile_id studio_profiles.profile_id
     profiles.id
     ad_reel_folders.owner_id ad_reels.owner_id admin_message_reads.composer_id analytics_events.owner_id collections.owner_id composer_handle_aliases.composer_id
-    composer_videos.owner_id contact_messages.owner_id credit_payouts.composer_id invoices.composer_id packs.owner_id settings.owner_id sfx_folders.owner_id
+    composer_directory_tags.composer_id composer_videos.owner_id contact_messages.owner_id credit_payouts.composer_id invoices.composer_id packs.owner_id settings.owner_id sfx_folders.owner_id
     sfx_library.owner_id socials.owner_id track_folders.owner_id tracks.owner_id video_capture_versions.owner_id video_captures.owner_id video_export_history.owner_id
     composer_videos.owner_studio_id video_captures.owner_studio_id video_capture_versions.owner_studio_id video_export_history.owner_studio_id
     invoices.studio_id projects.owner_studio_id studio_credit_ledger.studio_id studio_custom_packs.studio_id studio_members.studio_id`.split(/\s+/).filter(Boolean));

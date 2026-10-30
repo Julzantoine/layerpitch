@@ -40,7 +40,7 @@
   .checkbox-row span { font-size: 12px; color: var(--text-dim); }
   .btn.danger { border-color: #b23; color: #b23; }
 </style>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793190141300">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793385461602">
 </head>
 <body>
 <div class="page">
@@ -48,23 +48,24 @@
   <div id="content"></div>
 </div>
 
-<script src="layerpitch-i18n.js?v=1793190141300"></script>
-<script src="layerpitch-notify.js?v=1793190141300"></script>
+<script src="layerpitch-i18n.js?v=1793385461602"></script>
+<script src="layerpitch-notify.js?v=1793385461602"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1793190141300"></script>
-<script src="layerpitch-tuto.js?v=1793190141300"></script>
-<script src="api/demo-client.js?v=1793190141300"></script>
-<script src="api/auth.js?v=1793190141300"></script>
-<script src="layerpitch-appearance.js?v=1793190141300"></script>
-<script src="layerpitch-guide.js?v=1793190141300"></script>
-<script src="layerpitch-shell.js?v=1793190141300"></script>
-<script src="api/subscriptions.js?v=1793190141300"></script>
-<script src="api/notification-prefs.js?v=1793190141300"></script>
-<script src="api/composers.js?v=1793190141300"></script>
-<script src="layerpitch-photo-frame.js?v=1793190141300"></script>
-<script src="api/studio.js?v=1793190141300"></script>
-<script src="api/connect.js?v=1793190141300"></script>
-<script src="api/invoices.js?v=1793190141300"></script>
+<script src="api/supabase-client.js?v=1793385461602"></script>
+<script src="layerpitch-tuto.js?v=1793385461602"></script>
+<script src="api/demo-client.js?v=1793385461602"></script>
+<script src="api/auth.js?v=1793385461602"></script>
+<script src="layerpitch-appearance.js?v=1793385461602"></script>
+<script src="layerpitch-guide.js?v=1793385461602"></script>
+<script src="layerpitch-shell.js?v=1793385461602"></script>
+<script src="api/subscriptions.js?v=1793385461602"></script>
+<script src="api/notification-prefs.js?v=1793385461602"></script>
+<script src="api/composers.js?v=1793385461602"></script>
+<script src="layerpitch-photo-frame.js?v=1793385461602"></script>
+<script src="layerpitch-tag-picker.js?v=1793385461602"></script>
+<script src="api/studio.js?v=1793385461602"></script>
+<script src="api/connect.js?v=1793385461602"></script>
+<script src="api/invoices.js?v=1793385461602"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 const content = document.getElementById('content');
@@ -278,17 +279,21 @@ function wireDraftCard() {
   });
 }
 
-// Annuaire des compositeurs (23/10, migration 20261023010000) : case « être visible » (cochée d'office) et mots-clés choisis par le
-// compositeur. Carte réservée aux comptes compositeur (les studios n'ont pas de fiche). Tant que le feu vert « composer_directory »
-// n'est pas donné, la carte le dit : les réglages sont pris en compte dès l'ouverture.
+// Annuaire des compositeurs (23/10, migrations 20261023010000 et 20261030010000) : case « être visible » (cochée d'office) et tags (liste
+// commune, ceux qu'il ajoute deviennent disponibles pour tous). Carte réservée aux comptes compositeur (les studios n'ont pas de fiche).
+// Tant que le feu vert « composer_directory » n'est pas donné, la carte le dit ; les tags et la raison d'une fiche cachée restent réservés
+// à ceux pour qui l'annuaire est ouvert (les admins pendant la bêta).
 async function directoryCardHtml() {
   const [{ settings }, { open }] = await Promise.all([window.LayerPitchComposers.getMyDirectory(), window.LayerPitchComposers.directoryStatus()]);
   if (!settings) return '';
   directorySettings = settings;
+  // Être décoché ne mérite pas d'alerte : la case le montre déjà.
+  const hiddenKey = open && settings.hiddenReason && settings.hiddenReason !== 'opted_out' ? 'directoryHidden_' + settings.hiddenReason : null;
   return `
     <div class="card">
       <h2>${tr('directoryTitle')}</h2>
       <div class="hint">${tr('directoryHint')}</div>
+      ${hiddenKey ? `<div class="msg err" id="directoryHiddenMsg" role="status">${tr(hiddenKey)}</div>` : ''}
       <div class="checkbox-row">
         <input type="checkbox" id="directoryOptInToggle" ${settings.optIn ? 'checked' : ''}>
         <span>${tr('directoryCheckboxLabel')}</span>
@@ -307,9 +312,9 @@ async function directoryCardHtml() {
         <div class="hint" style="margin:8px 0 0">${tr('directoryPhotoHint')}</div>
       </div>` : ''}
       <div class="signin-box" style="max-width:none;text-align:left;margin-top:12px">
-        <label for="directoryKeywordsInput">${tr('directoryKeywordsLabel')}</label>
-        <input type="text" id="directoryKeywordsInput" value="${escapeHtml((settings.keywords || []).join(', '))}" placeholder="${escapeHtml(tr('directoryKeywordsPlaceholder'))}" autocomplete="off">
-        <div class="hint" style="margin:0 0 10px">${tr('directoryKeywordsHint')}</div>
+        ${open ? `<label>${tr('directoryKeywordsLabel')}</label>
+        <div id="directoryTagsHost" style="margin-bottom:6px"></div>
+        <div class="hint" style="margin:0 0 10px">${tr('directoryKeywordsHint')}</div>` : ''}
         <button class="btn" id="directorySaveBtn" type="button">${tr('directorySave')}</button>
       </div>
       <div class="msg" id="directoryMsg"></div>
@@ -318,7 +323,7 @@ async function directoryCardHtml() {
 }
 // Cadrage de la photo (25/10) : on fait glisser l'image dans le rond, le curseur règle le zoom ; même calcul que la page publique
 // (layerpitch-photo-frame.js). frameTouched : tant qu'on n'y touche pas, l'enregistrement laisse le cadrage tel qu'il est.
-let directoryFrame = null, directoryFrameTouched = false, directorySettings = null;
+let directoryFrame = null, directoryFrameTouched = false, directorySettings = null, directoryPicker = null;
 function wireDirectoryPhoto(settings) {
   const circle = document.getElementById('directoryPhotoCircle'), img = document.getElementById('directoryPhotoImg'), zoom = document.getElementById('directoryZoom');
   if (!circle || !img) return;
@@ -345,14 +350,26 @@ function wireDirectoryCard() {
   const btn = document.getElementById('directorySaveBtn');
   if (!btn) return;
   if (directorySettings) wireDirectoryPhoto(directorySettings);
+  directoryPicker = null;
+  const tagsHost = document.getElementById('directoryTagsHost');
+  if (tagsHost && directorySettings) {
+    const skills = directorySettings.skillTags || [];
+    // Le champ s'affiche tout de suite ; les suggestions arrivent dès que la liste commune est lue.
+    const mountPicker = tags => {
+      const keep = directoryPicker ? directoryPicker.get() : (directorySettings.keywords || []).concat(skills);
+      directoryPicker = window.LayerPitchTagPicker.mount(tagsHost, { tags: tags.map(t => ({ label: t.label, aliases: t.aliases, count: t.uses })), selected: keep, allowCreate: true, max: 100,
+        strings: { placeholder: tr('directoryKeywordsPlaceholder'), label: tr('directoryKeywordsLabel'), create: tr('directoryTagCreate'), remove: tr('directoryTagRemove'), none: tr('directoryTagNone') } });
+    };
+    mountPicker([]);
+    window.LayerPitchComposers.directoryTags().then(r => mountPicker(r.tags));
+  }
   btn.addEventListener('click', async () => {
     const msg = document.getElementById('directoryMsg');
     btn.disabled = true; msg.textContent = '…'; msg.className = 'msg';
-    const keywords = document.getElementById('directoryKeywordsInput').value.split(/[,;\n]/).map(k => k.trim()).filter(Boolean);
-    const { settings, error } = await window.LayerPitchComposers.setMyDirectory(document.getElementById('directoryOptInToggle').checked, keywords, directoryFrameTouched ? directoryFrame : undefined);
+    const { settings, error } = await window.LayerPitchComposers.setMyDirectory(document.getElementById('directoryOptInToggle').checked, directoryPicker ? directoryPicker.get() : null, directoryFrameTouched ? directoryFrame : undefined);
     if (!error) directoryFrameTouched = false;
     if (error) { msg.textContent = tr('errorPrefix', { message: error }); msg.className = 'msg err'; }
-    else { document.getElementById('directoryKeywordsInput').value = (settings.keywords || []).join(', '); msg.textContent = tr('directorySaved'); msg.className = 'msg ok'; }
+    else { if (directoryPicker) directoryPicker.set(settings.keywords || []); msg.textContent = tr('directorySaved'); msg.className = 'msg ok'; }
     btn.disabled = false;
   });
 }

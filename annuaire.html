@@ -21,12 +21,13 @@
   h1 { font-family: var(--font-title); font-size: 28px; margin: 0 0 8px; }
   .intro { color: var(--text-dim); line-height: 1.6; max-width: 68ch; margin: 6px 0 18px; }
   .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
-  .filters input, .filters select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); }
-  .filters input { flex: 1 1 240px; min-width: 0; }
-  .filters select { max-width: 220px; }
+  .filters > input { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); flex: 1 1 240px; min-width: 0; }
+  .filters > #tagFilter { flex: 1 1 280px; min-width: 0; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; align-items: start; }
   .card { display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color .15s; }
   .card:hover, .card:focus-within { border-color: var(--accent); }
+  .card[hidden] { display: none; }
+  .card.listening { grid-column: 1 / -1; border-color: var(--accent); }
   .card-link { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 16px 10px; text-align: center; text-decoration: none; color: inherit; outline: none; flex: 1; }
   .photo { position: relative; width: 96px; height: 96px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg, #23262d, #3a3f48); display: block; flex: none; }
   .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -36,7 +37,11 @@
   .tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px; }
   .tag { font-size: 11px; color: var(--text-dim); border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; }
   .open { font-size: 12.5px; color: var(--accent); margin-top: 4px; }
-  .contact-btn { margin: 0 14px 14px; border: 1px solid var(--accent); background: transparent; color: var(--accent); border-radius: 999px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 12.5px; }
+  .card-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 0 14px 14px; }
+  .listen-btn { border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); border-radius: 999px; padding: 6px 14px; cursor: pointer; font: inherit; font-size: 12.5px; }
+  .listen-btn:hover { filter: brightness(1.08); }
+  .listen-host iframe { display: block; width: 100%; height: 520px; border: 0; border-top: 1px solid var(--border); background: #fff; }
+  .contact-btn { border: 1px solid var(--accent); background: transparent; color: var(--accent); border-radius: 999px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 12.5px; }
   .contact-btn:hover { background: var(--accent-soft); }
   .contact-host { padding: 0 14px 14px; }
   .contact-host .lp-seller-contact { margin: 0 !important; }
@@ -63,26 +68,28 @@
   <p class="intro" data-i18n="intro">Des compositeurs et sound designers de musique adaptative pour le jeu vidéo.</p>
   <div class="filters" id="filters">
     <input type="search" id="q" data-i18n-placeholder="searchPlaceholder" aria-label="Recherche">
-    <select id="kwSel" aria-label="Mot-clé"></select>
+    <div id="tagFilter"></div>
   </div>
   <div id="grid" class="grid"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1793190141300"></script>
-<script src="api/supabase-client.js?v=1793190141300"></script>
-<script src="api/auth.js?v=1793190141300"></script>
-<script src="layerpitch-appearance.js?v=1793190141300"></script>
-<script src="layerpitch-shell.js?v=1793190141300"></script>
-<script src="api/composers.js?v=1793190141300"></script>
-<script src="layerpitch-photo-frame.js?v=1793190141300"></script>
-<script src="layerpitch-seller-contact.js?v=1793190141300"></script>
+<script src="layerpitch-i18n.js?v=1793385461602"></script>
+<script src="api/supabase-client.js?v=1793385461602"></script>
+<script src="api/auth.js?v=1793385461602"></script>
+<script src="layerpitch-appearance.js?v=1793385461602"></script>
+<script src="layerpitch-shell.js?v=1793385461602"></script>
+<script src="api/composers.js?v=1793385461602"></script>
+<script src="layerpitch-photo-frame.js?v=1793385461602"></script>
+<script src="layerpitch-seller-contact.js?v=1793385461602"></script>
+<script src="layerpitch-tag-picker.js?v=1793385461602"></script>
 <script>
-// annuaire.html — page publique « Annuaire des compositeurs » (adresse /compositeurs) (23/10, demande de Jules-Antoine ; migration
-// 20261023010000). Visible sans compte. Chaque carte : photo, nom et bio du compositeur (ceux de son AdReel principal), ses mots-clés ;
-// un clic mène à son AdReel principal (/<identifiant>/) ; « Contacter » ouvre un petit formulaire (Edge Function submit-contact-message,
-// { handle }) : l'adresse du compositeur n'est jamais montrée. Tant que le feu vert « composer_directory » n'est pas donné, seul un
-// administrateur voit la liste (les autres lisent « bientôt »). L'ordre vient de la base (paliers payants en tête, puis un ordre du jour).
+// annuaire.html — page publique « Annuaire des compositeurs » (adresse /compositeurs) (23/10, demande de Jules-Antoine ; migrations
+// 20261023010000 et 20261030010000). Visible sans compte. Chaque carte : photo, nom et bio du compositeur (ceux de son AdReel principal),
+// ses tags ; un clic mène à son AdReel principal (/<identifiant>/) ; « Écouter » ouvre sur place la liste de morceaux (mode intégration,
+// embed=1 de index.html, chargé au clic seulement, un seul lecteur ouvert) ; « Contacter » ouvre un petit formulaire (Edge Function
+// submit-contact-message, { handle }) : l'adresse du compositeur n'est jamais montrée. Tant que le feu vert « composer_directory » n'est
+// pas donné, seul un administrateur voit la liste (les autres lisent « bientôt »). L'ordre vient de la base (tiré au sort, voir la migration).
 const pageLang = (new URLSearchParams(location.search).get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
 function tr(key, vars) {
   const I18N = window.LAYERPITCH_I18N || { fr: { directory: {} }, en: { directory: {} } };
@@ -99,7 +106,7 @@ document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placehol
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const IMAGES_BASE = 'https://media.layerpitch.com/images/';
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-const state = { open: false, composers: [], contactOpen: null };
+const state = { open: false, composers: [], tags: [], selectedTags: [], contactOpen: null, listenOpen: null };
 const $ = id => document.getElementById(id);
 
 window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'directory', crumbs: [{ label: tr('h1') }] });
@@ -116,11 +123,19 @@ window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'directory', cr
 const gridEmpty = key => `<div class="empty" style="grid-column:1/-1">${esc(tr(key))}</div>`;
 const adReelHref = c => `/${encodeURIComponent(c.handle)}/${pageLang === 'en' ? '?lang=en' : ''}`;
 
-function renderKeywordSelect() {
-  const kws = [...new Set(state.composers.flatMap(c => c.keywords || []).map(k => k.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  const sel = $('kwSel'), keep = sel.value;
-  sel.innerHTML = `<option value="">${esc(tr('allKeywords'))}</option>` + kws.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
-  sel.value = kws.includes(keep) ? keep : '';
+// index.html plutôt que /<identifiant>/ : c'est la page où 404.html redirigerait de toute façon, sans ce détour dans le cadre.
+const embedHref = c => `index.html?u=${encodeURIComponent(c.handle)}&embed=1&from=directory`;
+const hasTag = (c, label) => (c.keywords || []).some(k => LayerPitchTagPicker.key(k) === LayerPitchTagPicker.key(label));
+
+// Filtre : la liste commune, avec le nombre de fiches visibles pour chaque tag (les plus représentés d'abord).
+function mountTagFilter() {
+  const seen = new Map();
+  state.tags.forEach(t => seen.set(LayerPitchTagPicker.key(t.label), { label: t.label, aliases: t.aliases || [] }));
+  state.composers.forEach(c => (c.keywords || []).forEach(k => { const id = LayerPitchTagPicker.key(k); if (!seen.has(id)) seen.set(id, { label: k, aliases: [] }); }));
+  const tags = [...seen.values()].map(t => ({ ...t, count: state.composers.filter(c => hasTag(c, t.label)).length }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  LayerPitchTagPicker.mount($('tagFilter'), { tags, strings: { placeholder: tr('filterPlaceholder'), label: tr('filterPlaceholder'), remove: tr('filterRemove'), none: tr('filterNone') },
+    onChange: labels => { state.selectedTags = labels; applyFilters(); } });
 }
 function card(c) {
   // Cadrage choisi par le compositeur (Mon compte) : appliqué à l'image une fois chargée (layerpitch-photo-frame.js) ; sans cadrage, centrée.
@@ -133,19 +148,44 @@ function card(c) {
       ${(c.keywords || []).length ? `<div class="tags">${c.keywords.map(k => `<span class="tag">${esc(k)}</span>`).join('')}</div>` : ''}
       <span class="open">${esc(tr('openAdReel'))} →</span>
     </a>
-    <button class="contact-btn" type="button" data-contact="${esc(c.handle)}">${esc(tr('contact'))}</button>
+    <div class="card-actions">
+      <button class="listen-btn" type="button" data-listen="${esc(c.handle)}" aria-expanded="false">${esc(tr('listen'))}</button>
+      <button class="contact-btn" type="button" data-contact="${esc(c.handle)}">${esc(tr('contact'))}</button>
+    </div>
+    <div class="listen-host" data-listen-host="${esc(c.handle)}"></div>
     <div class="contact-host" data-contact-host="${esc(c.handle)}"></div>
   </div>`;
 }
+// Un seul lecteur ouvert : retirer le cadre coupe le son du précédent.
+function closeListen() {
+  const handle = state.listenOpen; if (!handle) return;
+  const grid = $('grid'), cardEl = grid.querySelector(`.card[data-handle="${CSS.escape(handle)}"]`);
+  if (cardEl) { cardEl.classList.remove('listening'); cardEl.querySelector('[data-listen-host]').innerHTML = ''; const b = cardEl.querySelector('[data-listen]'); b.textContent = tr('listen'); b.setAttribute('aria-expanded', 'false'); }
+  state.listenOpen = null;
+}
+function openListen(handle) {
+  const same = state.listenOpen === handle;
+  closeListen();
+  if (same) return;
+  const c = state.composers.find(x => x.handle === handle), cardEl = $('grid').querySelector(`.card[data-handle="${CSS.escape(handle)}"]`);
+  if (!c || !cardEl) return;
+  const frame = document.createElement('iframe');
+  frame.src = embedHref(c); frame.title = tr('listenTitle', { name: c.name }); frame.setAttribute('allow', 'autoplay');
+  cardEl.querySelector('[data-listen-host]').appendChild(frame);
+  cardEl.classList.add('listening');
+  const b = cardEl.querySelector('[data-listen]'); b.textContent = tr('listenClose'); b.setAttribute('aria-expanded', 'true');
+  state.listenOpen = handle;
+  if (cardEl.scrollIntoView) cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+// Les cartes sont dessinées une fois ; filtrer les montre ou les cache, pour ne pas couper la musique à chaque lettre tapée.
 function renderGrid() {
   const grid = $('grid');
   if (!state.open) { $('filters').hidden = true; grid.innerHTML = `<div class="notice" style="grid-column:1/-1"><strong>${esc(tr('comingSoonTitle'))}</strong><div>${esc(tr('comingSoonHint'))}</div></div>`; return; }
   $('filters').hidden = false;
-  const q = norm($('q').value), kw = $('kwSel').value;
-  const list = state.composers.filter(c => (!q || norm([c.name, c.bio, (c.keywords || []).join(' ')].join(' ')).includes(q)) && (!kw || (c.keywords || []).includes(kw)));
-  if (!list.length) { grid.innerHTML = gridEmpty(state.composers.length ? 'noMatch' : 'empty'); return; }
-  grid.innerHTML = list.map(card).join('');
+  if (!state.composers.length) { grid.innerHTML = gridEmpty('empty'); return; }
+  grid.innerHTML = state.composers.map(card).join('') + `<div class="empty" id="noMatchMsg" style="grid-column:1/-1" hidden>${esc(tr('noMatch'))}</div>`;
   grid.querySelectorAll('img[data-frame]').forEach(img => { let f = {}; try { f = JSON.parse(img.dataset.frame); } catch (e) { /* cadrage illisible : centrée */ } window.LayerPitchPhotoFrame.apply(img, f); });
+  grid.querySelectorAll('[data-listen]').forEach(b => { b.onclick = () => openListen(b.dataset.listen); });
   grid.querySelectorAll('[data-contact]').forEach(b => b.onclick = () => {
     const handle = b.dataset.contact, host = grid.querySelector(`[data-contact-host="${CSS.escape(handle)}"]`);
     if (state.contactOpen === handle) { host.innerHTML = ''; state.contactOpen = null; return; }
@@ -155,9 +195,21 @@ function renderGrid() {
     window.LayerPitchSellerContact.mount(host, { kind: 'composer', id: handle, name: c ? c.name : handle });
     const d = host.querySelector('details'); if (d) d.open = true;
   });
+  applyFilters();
 }
-$('q').addEventListener('input', renderGrid);
-$('kwSel').addEventListener('change', renderGrid);
+// Plusieurs tags : le compositeur doit les avoir tous (« RPG » + « Wwise » resserre la liste).
+function applyFilters() {
+  const grid = $('grid'), q = norm($('q').value);
+  let shown = 0;
+  state.composers.forEach(c => {
+    const el = grid.querySelector(`.card[data-handle="${CSS.escape(c.handle)}"]`); if (!el) return;
+    const ok = (!q || norm([c.name, c.bio, (c.keywords || []).join(' ')].join(' ')).includes(q)) && state.selectedTags.every(t => hasTag(c, t));
+    el.hidden = !ok;
+    if (ok) shown++; else if (state.listenOpen === c.handle) closeListen();
+  });
+  const none = $('noMatchMsg'); if (none) none.hidden = shown > 0;
+}
+$('q').addEventListener('input', applyFilters);
 
 (async () => {
   $('grid').innerHTML = gridEmpty('loading');
@@ -167,7 +219,9 @@ $('kwSel').addEventListener('change', renderGrid);
   const res = await LayerPitchComposers.directory();
   if (res.error) { $('grid').innerHTML = gridEmpty('loadError'); return; }
   state.composers = res.composers;
-  renderKeywordSelect();
+  const tagRes = await LayerPitchComposers.directoryTags();
+  state.tags = tagRes.tags;
+  mountTagFilter();
   renderGrid();
 })();
 </script>
