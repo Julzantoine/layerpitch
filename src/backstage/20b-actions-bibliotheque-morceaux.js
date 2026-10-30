@@ -321,7 +321,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     }
     else if (field === 'mode') {
       library[ti].mode = e.target.value;
-      if (e.target.value === 'vertical-random') {
+      if (isSectionsMode(e.target.value)) {
         if (!library[ti].intro) library[ti].intro = { label: 'Intro', bars: 8, remoteFile: null, pendingFile: null };
         if (!library[ti].outro) library[ti].outro = { label: 'Outro', remoteFile: null, pendingFile: null };
         if (!library[ti].sections) library[ti].sections = [];
@@ -696,6 +696,7 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     else if (e.target.dataset.sectionField === 'bpm') section.bpm = parseFloat(e.target.value) || 120;
     else if (e.target.dataset.sectionField === 'beatsPerBar') section.beatsPerBar = parseInt(e.target.value, 10) || 4;
     else if (e.target.dataset.sectionField === 'maxLoops') section.maxLoops = e.target.value === '' ? null : parseInt(e.target.value, 10);
+    else if (e.target.dataset.sectionField === 'startLevel') section.startLevel = parseInt(e.target.value, 10) || 0;
     else if (e.target.dataset.sectionField === 'referencesSectionId') {
       const isReferencedByOthers = library[ti].sections.some(s2 => s2.referencesSectionId === section.id);
       if (isReferencedByOthers) { renderLibrary(); return; } // garde-fou : une section-source ne peut pas devenir elle-même un duplicata

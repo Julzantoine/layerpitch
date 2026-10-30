@@ -24,6 +24,7 @@ async function loadData(silent) {
       pendingR2Deletes.clear(); pendingOrphanR2Keys.clear();
       rememberPublishedCatalog();
       dataLoadOk = true; // absence légitime de data.json (premier lancement) -- pas un échec, publier est sûr
+      syncBackstageWelcome();
       document.getElementById('btnPublish').disabled = false;
       return;
     }
@@ -51,6 +52,7 @@ async function loadData(silent) {
           // d'une vraie timeline par section) si présent, sinon 4 mesures par défaut.
           loopOutBeat: sec.loopOutBeat || ((sec.bars || 4) * (sec.beatsPerBar || 4)),
           maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
+          startLevel: sec.startLevel || 0,
           duration: sec.duration || 0,
           pools: (sec.pools || []).map(p => ({
             id: p.id || genId(), label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
@@ -288,6 +290,7 @@ async function loadData(silent) {
     pendingR2Deletes.clear(); pendingOrphanR2Keys.clear();
     rememberPublishedCatalog();
     dataLoadOk = true;
+    syncBackstageWelcome();
     document.getElementById('btnPublish').disabled = false;
     log(tr('loadedSummary', { adreels: adReels.length, packs: packs.length, tracks: library.length }), 'ok');
   } catch (err) {

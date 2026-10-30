@@ -60,9 +60,10 @@
       </div>
       <!-- Menu « Tutoriel » (08/10) : visite guidée + leçons guidées par mode ; affiché selon le feu vert 'in_app_tour'. -->
       <div class="account-menu" id="tutorialMenuWrap" hidden>
-        <button class="btn btn-icon" id="btnTutorialMenu" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="tutorialMenuTitle" title="Tutoriel">
+        <button class="btn btn-icon btn-tutorial" id="btnTutorialMenu" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="tutorialMenuTitle" title="Tutoriel">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 9.5 12 5l9.5 4.5L12 14z"/><path d="M6.5 11.5v4.2c0 1.2 2.5 2.8 5.5 2.8s5.5-1.6 5.5-2.8v-4.2"/><path d="M21.5 9.5v5"/></svg>
-          <span class="notif-badge" id="tutorialMenuBadge" hidden></span>
+          <span data-i18n="tutorialMenuTitle">Tutoriel</span>
+        <span class="notif-badge" id="tutorialMenuBadge" hidden></span>
         </button>
         <div class="account-menu-dropdown account-menu-dropdown-wide" id="tutorialMenuDropdown" hidden>
           <div id="tutorialMenuList" style="padding:6px;"></div>
@@ -289,6 +290,16 @@
     </nav>
 
     <div class="backstage-content">
+
+      <!-- Accueil tant que la bibliothèque est vide (30/10) : visible quel que soit l'onglet ouvert ; piloté par syncBackstageWelcome() (43-visite-guidee.js). -->
+      <div id="backstageWelcome" class="backstage-welcome" hidden>
+        <div class="backstage-welcome-text">
+          <strong data-i18n="welcomeTutoTitle">Pas encore de morceau ?</strong>
+          <span data-i18n="welcomeTutoText">Essaie LayerPitch avec nos morceaux : le tutoriel te guide pas à pas et rien n'est enregistré sur ton compte.</span>
+        </div>
+        <button class="btn btn-primary" id="btnWelcomeTuto" type="button" data-i18n="welcomeTutoStart">Lancer le tutoriel</button>
+        <button class="btn" id="btnWelcomeDismiss" type="button" data-i18n="welcomeTutoDismiss">Plus tard</button>
+      </div>
 
       <div class="backstage-panel" data-panel="library">
         <h2 data-i18n="navLibrary">Bibliothèque</h2>
@@ -939,16 +950,16 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793190141300"></script>
-<script src="layerpitch-i18n.js?v=1793190141300"></script>
-<script src="layerpitch-import-engine.js?v=1793190141300"></script>
-<script src="layerpitch-appearance.js?v=1793190141300"></script>
-<script src="layerpitch-album-shared.js?v=1793190141300"></script>
-<script src="layerpitch-album-editor.js?v=1793190141300"></script>
-<script src="layerpitch-shell.js?v=1793190141300"></script>
-<script src="layerpitch-social-icons.js?v=1793190141300"></script>
-<script src="layerpitch-notify.js?v=1793190141300"></script>
-<script src="layerpitch-guide.js?v=1793190141300"></script>
-<script src="layerpitch-help.js?v=1793190141300"></script>
-<script src="player.js?v=1793190141300"></script>
+<script src="layerpitch-tuto.js?v=1793396774972"></script>
+<script src="layerpitch-i18n.js?v=1793396774972"></script>
+<script src="layerpitch-import-engine.js?v=1793396774972"></script>
+<script src="layerpitch-appearance.js?v=1793396774972"></script>
+<script src="layerpitch-album-shared.js?v=1793396774972"></script>
+<script src="layerpitch-album-editor.js?v=1793396774972"></script>
+<script src="layerpitch-shell.js?v=1793396774972"></script>
+<script src="layerpitch-social-icons.js?v=1793396774972"></script>
+<script src="layerpitch-notify.js?v=1793396774972"></script>
+<script src="layerpitch-guide.js?v=1793396774972"></script>
+<script src="layerpitch-help.js?v=1793396774972"></script>
+<script src="player.js?v=1793396774972"></script>
 <script>

@@ -131,7 +131,7 @@ function trackReferenceLoudness(track, measureOf) {
   const m = measureOf;
   if (track.mode === 'static') return combineSimultaneous((track.layers || []).slice(0, 1).map(m));
   if (track.mode === 'vertical') return combineSimultaneous((track.layers || []).map(m));
-  if (track.mode === 'vertical-random') {
+  if (track.mode === 'vertical-random' || track.mode === 'vertical-additive-sequential') {
     const sections = (track.sections || []).map(sec => combineSimultaneous((sec.pools || []).map(p => combineAlternatives((p.alternatives || []).map(m)))));
     return combineSequential([m(track.intro), ...sections, m(track.outro)].filter(Boolean));
   }

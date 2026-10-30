@@ -1243,7 +1243,7 @@ function initTutorialMenuUi() {
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
     const willOpen = dropdown.hidden;
-    if (willOpen) renderTutorialMenu();
+    if (willOpen) { renderTutorialMenu(); trackBackstageEvent('tutorial_menu_open'); }
     dropdown.hidden = !willOpen;
     btn.setAttribute('aria-expanded', String(willOpen));
     if (willOpen) document.dispatchEvent(new CustomEvent('lp-header-menu-open', { detail: 'tutorial' }));
@@ -1271,6 +1271,19 @@ function initTutorialMenuUi() {
     startLesson(id, { restart: true });
   });
 }
+// Première connexion (30/10, retours de bêta : visite passée inaperçue) : une vraie fenêtre propose la visite, au lieu d'une bulle qui part seule.
+// Une seule fois par navigateur : refuser vaut « déjà proposée » ; le bouton Tutoriel et le menu du compte la relancent ensuite.
+let tourOffered = false;
+function offerBackstageTour() {
+  if (tourOffered) return;
+  tourOffered = true;
+  trackBackstageEvent('tour_offer_shown');
+  setTimeout(async () => {
+    const go = await window.LayerPitchNotify.confirm(tr('tourOfferText'), { okLabel: tr('tourOfferStart'), cancelLabel: tr('tourOfferLater') });
+    trackBackstageEvent(go ? 'tour_offer_start' : 'tour_offer_later');
+    if (go) startBackstageTour(); else tourMarkDone();
+  }, 600);
+}
 // Appelée une fois les feux verts connus (fin de renderAdminOnlyPanels) : montre le menu et lance la visite la toute
 // première fois, sans jamais la relancer ensuite.
 function syncBackstageTour() {
@@ -1289,8 +1302,32 @@ function syncBackstageTour() {
   // Mode tutoriel sans leçon demandée (adresse publique layerpitch-backstage.html?tuto, 27/10) : la visite guidée part directement, à chaque
   // ouverture (le compte fictif repart de zéro), même si le feu vert in_app_tour du faux serveur est fermé ; elle finit sur le double choix.
   if (isTutoMode() && !wanted) { if (!guide && !window.__tutoTourAutoStarted) { window.__tutoTourAutoStarted = true; setTimeout(startBackstageTour, 600); } return; }
-  if (open && !tourAlreadyDone() && !guide) setTimeout(startBackstageTour, 600);
+  if (open && !tourAlreadyDone() && !guide) offerBackstageTour();
 }
+// Accueil tant que la bibliothèque est vide (30/10, retours de bêta : tuto interactif pas vu, pas de morceau prêt pour essayer). Attend un
+// chargement réussi pour ne pas clignoter à l'ouverture, jamais en mode tutoriel. « Plus tard » vaut pour ce navigateur.
+const WELCOME_DISMISSED_STORAGE = 'layerpitch_welcome_dismissed_v1';
+function welcomeDismissed() { try { return localStorage.getItem(WELCOME_DISMISSED_STORAGE) === '1'; } catch (e) { return false; } }
+let welcomeShownTracked = false;
+function syncBackstageWelcome() {
+  const box = document.getElementById('backstageWelcome');
+  if (!box) return;
+  box.hidden = !(dataLoadOk && !isTutoMode() && library.length === 0 && !welcomeDismissed());
+  if (!box.hidden && !welcomeShownTracked) { welcomeShownTracked = true; trackBackstageEvent('welcome_tuto_shown'); }
+}
+(function wireBackstageWelcome() {
+  const start = document.getElementById('btnWelcomeTuto');
+  const dismiss = document.getElementById('btnWelcomeDismiss');
+  if (start) start.addEventListener('click', () => {
+    trackBackstageEvent('welcome_tuto_start');
+    window.open(lessonTutoUrl(LESSONS.find(l => l.id === 'static'), 'static'), '_blank', 'noopener');
+  });
+  if (dismiss) dismiss.addEventListener('click', () => {
+    trackBackstageEvent('welcome_tuto_dismiss');
+    try { localStorage.setItem(WELCOME_DISMISSED_STORAGE, '1'); } catch (e) { /* stockage indisponible */ }
+    document.getElementById('backstageWelcome').hidden = true;
+  });
+})();
 (function wireTourMenu() {
   const item = document.getElementById('accountMenuTour');
   if (item) item.addEventListener('click', () => {

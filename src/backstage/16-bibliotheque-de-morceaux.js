@@ -277,8 +277,12 @@ function openVrsBatchDropDialog(track, section, files) {
   // d'office seulement si la section n'a encore aucun fichier (on n'écrase pas un réglage déjà fait).
   const sectionHasFile = (section.pools || []).some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile));
   const found = firstFilenameHints(files);
+  // Layering additif : pas de regroupement par nom, chaque fichier devient sa couche, dans l'ordre des noms.
+  const isAdditive = track.mode === 'vertical-additive-sequential';
+  if (isAdditive) guess.groups = guess.groups.flatMap(g => g.files).sort(compareFilesByName).map(f => ({ label: titleFromFilenameStrippingHints(f.name), files: [f] }));
   openGroupedDropDialog({
-    files, groupKind: 'pool', withIntroOutro: true, withSilent: true,
+    files, groupKind: 'pool', withIntroOutro: true, withSilent: !isAdditive,
+    labels: isAdditive ? { summary: 'additiveBatchSummary', option: 'additiveBatchOption', fallback: 'additiveLayerFallback', empty: 'additiveBatchEmptyGroup', placeholder: 'additiveLayerNamePlaceholder', addGroup: 'additiveAddLayerBtn' } : undefined,
     title: tr('vrsBatchTitle', { section: section.label || tr('untitledFallback') }),
     groups: guess.groups, intro: guess.intro, outro: guess.outro,
     introTaken: !!(track.intro && (track.intro.pendingFile || track.intro.remoteFile)),
@@ -288,7 +292,7 @@ function openVrsBatchDropDialog(track, section, files) {
       text: tr('vrsBatchApplyHintsLabel', { hints: hintsText(found.hints), file: escapeHtml(found.file.name) }),
       note: sectionHasFile ? tr('vrsBatchHintsSectionHasFiles') : ''
     }] : [],
-    confirmLabel: tr('vrsBatchConfirmBtn'),
+    confirmLabel: tr(isAdditive ? 'additiveBatchConfirmBtn' : 'vrsBatchConfirmBtn'),
     onConfirm: res => applyVrsBatchDrop(track, section, files, res, res.checks.hints ? found.hints : null)
   });
 }
@@ -300,9 +304,19 @@ function applyVrsBatchDrop(track, section, files, res, hints) {
   // retirés pour ne pas laisser un pool fantôme à côté de ceux qu'on crée. Aucun fichier distant en jeu.
   section.pools = section.pools.filter(p => (p.label || '').trim() || (p.alternatives || []).some(hasFile));
   const touched = [];
-  res.groups.forEach(g => {
-    let target = g.label ? section.pools.find(sp => nameFamilyKey(sp.label) === nameFamilyKey(g.label)) : null;
-    if (target) {
+  const isAdditive = track.mode === 'vertical-additive-sequential';
+  // Layering additif : même si la fenêtre a réuni deux fichiers, chacun reste sa propre couche.
+  const groups = isAdditive
+    ? res.groups.flatMap(g => g.files.map(f => ({ label: g.files.length > 1 ? titleFromFilenameStrippingHints(f.name) : g.label, silent: false, files: [f] })))
+    : res.groups;
+  groups.forEach(g => {
+    // « Basse 1 » et « Basse 2 » sont deux couches : en additif, seul le nom exact désigne une couche existante.
+    const sameLayer = sp => isAdditive ? (sp.label || '').trim().toLowerCase() === g.label.trim().toLowerCase() : nameFamilyKey(sp.label) === nameFamilyKey(g.label);
+    let target = g.label ? section.pools.find(sameLayer) : null;
+    if (target && isAdditive) {
+      (target.alternatives || []).forEach(a => { if (a.remoteFile) queueR2Delete(`audio/${track.id}/${a.remoteFile}`); });
+      target.alternatives = [];
+    } else if (target) {
       if (!target.alternatives) target.alternatives = [];
       // Pool nommé à l'avance mais encore sans aucun fichier : ses emplacements vides d'origine sont des
       // attentes de fichier, pas des silences voulus -- remplacés par les fichiers déposés.
@@ -559,6 +573,7 @@ function buildPreviewTrack(track) {
       bpm: sec.bpm || 120, beatsPerBar: sec.beatsPerBar || 4, startTrackBeat: sec.startTrackBeat || 0,
       loopInBeat: sec.loopInBeat || 0, loopOutBeat: sec.loopOutBeat || 16,
       maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
+      startLevel: sec.startLevel || 0,
       pools: (sec.pools || []).map(p => ({
         id: p.id, label: p.label, avoidImmediateRepeat: p.avoidImmediateRepeat,
         alternatives: (p.alternatives || []).map(mapAlternative),
@@ -581,7 +596,7 @@ function togglePreview(ti, cardEl) {
   const track = library[ti];
   const hasFile = f => !!(f && (f.pendingFile || f.remoteFile));
   let hasAnyFile;
-  if (track.mode === 'vertical-random') {
+  if (isSectionsMode(track.mode)) {
     hasAnyFile = hasFile(track.intro) || hasFile(track.outro) || (track.sections || []).some(sec => (sec.pools || []).some(p => (p.alternatives || []).some(hasFile)));
   } else if (track.mode === 'sequential') {
     hasAnyFile = hasFile(track.intro) || hasFile(track.outro) || (track.segmentSlots || []).some(sl => (sl.alternatives || []).some(hasFile));

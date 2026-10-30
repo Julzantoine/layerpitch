@@ -94,6 +94,7 @@
         const declaredSection = (track.sections || [])[secIdx];
         if (sectionCurrentEl) sectionCurrentEl.textContent = (declaredSection && declaredSection.label) || t('sectionFallback', { n: secIdx + 1 });
         vrBlockEls.forEach((el, i) => { if (el) el.classList.toggle('active', i === secIdx); });
+        renderSectionLevelPicker(secIdx); // même règle : les boutons changent quand la section s'entend
       }
     }, delayMs);
     voiceGraphTimeouts.push(timeoutId);

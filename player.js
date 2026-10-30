@@ -1009,18 +1009,22 @@ function renderTracksBlock(container, tracks, packsByTrackId, globalNoAiCertifie
 // bascule entre boucles nommées est la nature même du mode, donc toujours mentionnée. Sans `track`
 // (repli), le libellé de base "séquentiel" est utilisé — ne devrait arriver qu'en dehors du rendu
 // normal d'une piste (aucun appelant connu actuellement dans ce cas).
+// Layering additif à sections (30/10) : mêmes données et même moteur que le vertical-random (sections > pools),
+// plus un niveau d'intensité propre à chaque section. Un pool = une couche, dans l'ordre d'empilement.
+const ADDITIVE_SECTIONS_MODE = 'vertical-additive-sequential';
 function getModeLabel(mode, track) {
   const hasSeqBranching = !!(track && (track.segmentSlots || []).some(sl => sl.nextOptions && sl.nextOptions.length));
   const map = {
     static: t('modeStatic'),
     vertical: t('modeVertical'),
     'vertical-random': t('modeVerticalRandom'),
+    [ADDITIVE_SECTIONS_MODE]: t('modeVerticalAdditiveSequential'),
     sequential: hasSeqBranching ? t('modeSequentialBranching') : t('modeSequential'),
     'embranchement-vertical': t('modeEmbranchementVertical')
   };
   return map[mode] || mode;
 }
-const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential', 'embranchement-vertical'];
+const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential', 'embranchement-vertical', ADDITIVE_SECTIONS_MODE];
 
 function layerHasSource(l) { return !!(l && (l.localFile || l.localUrl || l.file)); }
 
@@ -1037,6 +1041,18 @@ function resolveVRSection(track, idx) {
     return src || sec;
   }
   return sec;
+}
+// Nombre de niveaux d'une section (additif à sections) : un par couche, duplicata compris.
+function additiveSectionLevelCount(track, idx) {
+  const r = resolveVRSection(track, idx);
+  return r ? (r.pools || []).length : 0;
+}
+// Niveau de départ d'une section (0 = première couche seule), réglé dans le Backstage ; propre à la section
+// déclarée, même si elle duplique une autre. Toujours ramené dans les couches qui existent.
+function additiveSectionStartLevel(track, idx) {
+  const sec = (track.sections || [])[idx];
+  const n = additiveSectionLevelCount(track, idx);
+  return Math.max(0, Math.min(Math.max(0, n - 1), (sec && sec.startLevel) || 0));
 }
 function vrSectionIsPlayable(track, idx) {
   const r = resolveVRSection(track, idx);
@@ -1246,7 +1262,8 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   const isNoAiCertified = !suppressIndividualBadge && ((track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : !!globalNoAiCertified);
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
-  const isVerticalRandom = track.mode === 'vertical-random';
+  const isAdditiveSections = track.mode === ADDITIVE_SECTIONS_MODE;
+  const isVerticalRandom = track.mode === 'vertical-random' || isAdditiveSections; // même moteur, mêmes données
   const isSequential = track.mode === 'sequential';
   const isEmbrVert = track.mode === 'embranchement-vertical';
   const loops = !isStatic || !!track.loopable;
@@ -1319,6 +1336,14 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       <div class="track-intensity-block">
         <div class="track-intensity-label">${t('intensityLabel')}</div>
         <div class="intensity-picker" data-role="slider">${chips}</div>
+      </div>
+    `;
+  } else if (isAdditiveSections && supported) {
+    // Additif à sections : les boutons dépendent de la section entendue, le lecteur les remplit (renderSectionLevelPicker).
+    intensityBlockHtml = `
+      <div class="track-intensity-block" data-role="sectionLevelBlock" hidden>
+        <div class="track-intensity-label">${t('intensityLabel')}</div>
+        <div class="intensity-picker" data-role="sectionLevelPicker"></div>
       </div>
     `;
   }
@@ -1453,7 +1478,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
           </div>
         </div>
         <div class="actions" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-          <button type="button" class="voice-refresh-btn" data-role="refreshPool">${t('refreshPool')}</button>
+          ${isAdditiveSections ? '' : `<button type="button" class="voice-refresh-btn" data-role="refreshPool">${t('refreshPool')}</button>`}
           <button type="button" class="voice-refresh-btn" data-role="goToNextSectionBtn" disabled>${t('goToNextSectionBtn')}</button>
           <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled>${t('goToEndBtn')}</button>
         </div>
@@ -3044,7 +3069,8 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   let lpEndedCb = null, lpManualStop = false;
   const { bg: waveBgColor, fg: waveFgColor } = resolveWaveformColors(elementColors);
   const isStatic = track.mode === 'static';
-  const isVerticalRandom = track.mode === 'vertical-random';
+  const isAdditiveSections = track.mode === ADDITIVE_SECTIONS_MODE;
+  const isVerticalRandom = track.mode === 'vertical-random' || isAdditiveSections; // même moteur, mêmes données
   const isSequential = track.mode === 'sequential';
   const isEmbrVert = track.mode === 'embranchement-vertical';
   const supported = PLAYABLE_MODES.includes(track.mode);
@@ -3862,6 +3888,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     const bufs = (sectionBuffers[secIdx] && sectionBuffers[secIdx][poolIdx]) || [];
     const n = bufs.length;
     if (n === 0) return -1;
+    if (isAdditiveSections) return bufs.findIndex(Boolean); // une couche = un fichier, jamais de tirage
     const key = canonicalPoolKey(secIdx, poolIdx);
     let idx = Math.floor(Math.random() * n);
     if (pool && pool.avoidImmediateRepeat && n > 1) {
@@ -5383,6 +5410,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         const declaredSection = (track.sections || [])[secIdx];
         if (sectionCurrentEl) sectionCurrentEl.textContent = (declaredSection && declaredSection.label) || t('sectionFallback', { n: secIdx + 1 });
         vrBlockEls.forEach((el, i) => { if (el) el.classList.toggle('active', i === secIdx); });
+        renderSectionLevelPicker(secIdx); // même règle : les boutons changent quand la section s'entend
       }
     }, delayMs);
     voiceGraphTimeouts.push(timeoutId);
@@ -6266,6 +6294,52 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       trackPublicEvent(name, Object.assign({}, detail, cut ? { cut: { hard: true, fadeSec: 0 } } : {}), { at, rate });
     }, Math.max(0, (at - ctx.currentTime) * 1000)));
   }
+  // Additif à sections (30/10) : niveau propre à chaque section. Une section retrouve le dernier niveau choisi
+  // quand on y revient ; le niveau de départ réglé dans le Backstage ne vaut que pour le premier passage.
+  const sectionLevels = new Map();
+  let levelPickerSecIdx = -1; // section dont les boutons sont affichés
+  const sectionLevelBlock = wrapper.querySelector('[data-role="sectionLevelBlock"]');
+  const sectionLevelPicker = wrapper.querySelector('[data-role="sectionLevelPicker"]');
+  function getSectionLevel(secIdx) {
+    if (!sectionLevels.has(secIdx)) sectionLevels.set(secIdx, additiveSectionStartLevel(track, secIdx));
+    return sectionLevels.get(secIdx);
+  }
+  function renderSectionLevelPicker(secIdx) {
+    if (!isAdditiveSections || !sectionLevelPicker) return;
+    levelPickerSecIdx = secIdx;
+    const section = resolveVRSection(track, secIdx);
+    const pools = (section && section.pools) || [];
+    const lv = getSectionLevel(secIdx);
+    sectionLevelBlock.hidden = pools.length < 2; // une seule couche : rien à choisir
+    sectionLevelPicker.innerHTML = pools.map((pool, i) => {
+      const inner = pool.label ? `<span class="intensity-chip-num">${i + 1}</span>${escapeHtml(pool.label)}` : String(i + 1);
+      return `<button type="button" class="intensity-chip${i === lv ? ' active' : ''}" data-level="${i}">${inner}</button>`;
+    }).join('');
+    wwisePoolVoiceEls.forEach((el, pi) => { if (el) el.classList.toggle('is-level-off', pi > lv); });
+  }
+  function setSectionLevel(secIdx, lv) {
+    sectionLevels.set(secIdx, lv);
+    renderSectionLevelPicker(secIdx);
+    trackPublicEvent('intensity_change', { trackId: track.id, level: lv, sectionIndex: secIdx });
+    if (!playing) return;
+    const now = ctx.currentTime;
+    // Seulement les voix de CETTE section : celles de la suivante, déjà programmées, gardent leur propre niveau.
+    activeGenSources.forEach(entry => {
+      if (entry.secIdx !== secIdx || entry.poolIdx == null) return;
+      entry.baseGain = entry.rawGain * (entry.poolIdx <= lv ? 1 : 0); // refreshVoiceGains (solo/muet) repart de cette valeur
+      entry.gain.gain.cancelScheduledValues(now);
+      entry.gain.gain.setValueAtTime(entry.gain.gain.value, now);
+      entry.gain.gain.linearRampToValueAtTime(entry.baseGain * voiceGain(entry.voiceKey), now + INTENSITY_RAMP_SEC);
+    });
+  }
+  if (sectionLevelPicker) {
+    sectionLevelPicker.addEventListener('click', e => {
+      const chip = e.target.closest('[data-level]');
+      if (chip && levelPickerSecIdx >= 0) setSectionLevel(levelPickerSecIdx, parseInt(chip.dataset.level, 10));
+    });
+    const firstPlayable = (track.sections || []).findIndex((s, i) => vrSectionIsPlayable(track, i));
+    if (firstPlayable >= 0) renderSectionLevelPicker(firstPlayable);
+  }
   function scheduleSectionGeneration(ctxStartTime, secIdx, isFirstEverForThisSection, offsetOverride) {
     const section = resolveVRSection(track, secIdx);
     const declaredSection = (track.sections || [])[secIdx];
@@ -6291,14 +6365,15 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         const buf = bufs[idx];
         silent = !buf;
         pickedBuf = buf;
-        label = buf ? ((alt && alt.label) ? alt.label : t('altFallback', { n: idx + 1 })) : t('silenceLabel');
+        label = buf ? (isAdditiveSections && pool.label) ? pool.label : ((alt && alt.label) ? alt.label : t('altFallback', { n: idx + 1 })) : t('silenceLabel');
         if (buf) {
           const src = ctx.createBufferSource();
           src.buffer = buf;
           applyTrackPitchRate(src, ctxStartTime);
           const g = ctx.createGain();
           const key = 'pool-' + displaySlot;
-          const base = effGain(alt);
+          const rawGain = effGain(alt);
+          const base = rawGain * (!isAdditiveSections || poolIdx <= getSectionLevel(secIdx) ? 1 : 0);
           g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
           // fx : porté par le pool (la "voix"/l'emplacement), pas par l'alternative tirée au sort -- même
           // chaîne quel que soit le tirage, cf. la logique retenue pour les emplacements séquentiels.
@@ -6313,7 +6388,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
           }
           journalVoice(src, g, fxChain);
           src.start(ctxStartTime, bufferOffset);
-          activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
+          activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base, rawGain, poolIdx, secIdx });
         }
       }
       poolPicks.push({ pi: displaySlot, label, silent, buf: pickedBuf });
@@ -6453,6 +6528,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     // (rebrassé si "randomiser" est coché), intro rejouée si présente. Une reprise continue la chaîne là
     // où elle en était — même convention que playSequential(isContinuation) pour le séquentiel.
     if (!isContinuation || !sectionScheduler) {
+      if (playableSectionOriginalIndex.length) renderSectionLevelPicker(playableSectionOriginalIndex[0]); // boutons de la section qui va démarrer
       vrPlayableSectionRefs = playableSectionOriginalIndex.map(origIdx => ({ maxLoops: resolveVRSection(track, origIdx).maxLoops }));
       sectionScheduler = createSectionPlaybackScheduler(
         vrPlayableSectionRefs,
@@ -6572,6 +6648,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       const declaredSection = (track.sections || [])[r.origIdx];
       if (sectionCurrentEl) sectionCurrentEl.textContent = (declaredSection && declaredSection.label) || t('sectionFallback', { n: r.origIdx + 1 });
       vrBlockEls.forEach((el, i) => { if (el) el.classList.toggle('active', i === r.origIdx); });
+      renderSectionLevelPicker(r.origIdx);
       seekVerticalRandom(r.frac);
     }
     return true;
@@ -7970,6 +8047,7 @@ window.LayerPlayerCore = {
   fetchAudioBytes,
   createSectionPlaybackScheduler,
   PLAYABLE_MODES,
+  ADDITIVE_SECTIONS_MODE,
   WAVEFORM_STYLES,
   setWaveformStyle,
   currentWaveformStyle,

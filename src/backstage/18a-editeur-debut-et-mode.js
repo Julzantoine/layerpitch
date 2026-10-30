@@ -5,6 +5,7 @@ function renderLibrary() {
   const masterHost = document.getElementById('libraryMaster');
   const detailHost = document.getElementById('libraryDetail');
   if (!masterHost || !detailHost) return; // panneau pas encore dans le DOM au tout premier rendu
+  if (dataLoadOk) syncBackstageWelcome(); // un morceau ajouté ou retiré : l'accueil suit
   if (!manageLibrarySelectedId || !library.some(t => t.id === manageLibrarySelectedId)) {
     manageLibrarySelectedId = library.length ? library[0].id : null;
   }
@@ -28,7 +29,7 @@ function renderLibrary() {
   library.forEach((track, ti) => {
     if (track.id !== manageLibrarySelectedId) return; // un seul morceau affiché à la fois -- celui sélectionné dans la liste maître
     const isStatic = track.mode === 'static';
-    const isVerticalRandom = track.mode === 'vertical-random';
+    const isVerticalRandom = isSectionsMode(track.mode);
     const isSequential = track.mode === 'sequential';
     const isEmbrVert = track.mode === 'embranchement-vertical';
     const loops = !isStatic || !!track.loopable;
@@ -47,7 +48,7 @@ function renderLibrary() {
             <option value="sequential"${track.mode === 'sequential' ? ' selected' : ''}>${tr('modeOptionSequential')}</option>
             <option value="embranchement-vertical"${track.mode === 'embranchement-vertical' ? ' selected' : ''}>${tr('modeOptionEmbranchementVertical')}</option>
             <option value="vertical-additive-random" disabled>${tr('modeOptionVerticalAdditiveRandom')}</option>
-            <option value="vertical-additive-sequential" disabled>${tr('modeOptionVerticalAdditiveSequential')}</option>
+            <option value="vertical-additive-sequential"${track.mode === 'vertical-additive-sequential' ? ' selected' : ''}${flagOpen('additive_sections') || track.mode === 'vertical-additive-sequential' ? '' : ' disabled'}>${tr('modeOptionVerticalAdditiveSequential')}${flagOpen('additive_sections') ? '' : ' ' + tr('modeOptionComingSoonSuffix')}</option>
             <option value="vertical-additive-sequential-random" disabled>${tr('modeOptionVerticalAdditiveSequentialRandom')}</option>
           </select>
         </div>
