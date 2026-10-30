@@ -5,6 +5,7 @@ function renderLibrary() {
   const masterHost = document.getElementById('libraryMaster');
   const detailHost = document.getElementById('libraryDetail');
   if (!masterHost || !detailHost) return; // panneau pas encore dans le DOM au tout premier rendu
+  if (dataLoadOk) syncBackstageWelcome(); // un morceau ajouté ou retiré : l'accueil suit
   if (!manageLibrarySelectedId || !library.some(t => t.id === manageLibrarySelectedId)) {
     manageLibrarySelectedId = library.length ? library[0].id : null;
   }

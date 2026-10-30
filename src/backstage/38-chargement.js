@@ -24,6 +24,7 @@ async function loadData(silent) {
       pendingR2Deletes.clear(); pendingOrphanR2Keys.clear();
       rememberPublishedCatalog();
       dataLoadOk = true; // absence légitime de data.json (premier lancement) -- pas un échec, publier est sûr
+      syncBackstageWelcome();
       document.getElementById('btnPublish').disabled = false;
       return;
     }
@@ -288,6 +289,7 @@ async function loadData(silent) {
     pendingR2Deletes.clear(); pendingOrphanR2Keys.clear();
     rememberPublishedCatalog();
     dataLoadOk = true;
+    syncBackstageWelcome();
     document.getElementById('btnPublish').disabled = false;
     log(tr('loadedSummary', { adreels: adReels.length, packs: packs.length, tracks: library.length }), 'ok');
   } catch (err) {
