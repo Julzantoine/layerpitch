@@ -168,22 +168,21 @@ function renderTracksBlock(container, tracks, packsByTrackId, globalNoAiCertifie
 // bascule entre boucles nommées est la nature même du mode, donc toujours mentionnée. Sans `track`
 // (repli), le libellé de base "séquentiel" est utilisé — ne devrait arriver qu'en dehors du rendu
 // normal d'une piste (aucun appelant connu actuellement dans ce cas).
-// Layering additif à sections (30/10) : mêmes données et même moteur que le vertical-random (sections > pools),
-// plus un niveau d'intensité propre à chaque section. Un pool = une couche, dans l'ordre d'empilement.
-const ADDITIVE_SECTIONS_MODE = 'vertical-additive-sequential';
 function getModeLabel(mode, track) {
   const hasSeqBranching = !!(track && (track.segmentSlots || []).some(sl => sl.nextOptions && sl.nextOptions.length));
   const map = {
     static: t('modeStatic'),
     vertical: t('modeVertical'),
     'vertical-random': t('modeVerticalRandom'),
-    [ADDITIVE_SECTIONS_MODE]: t('modeVerticalAdditiveSequential'),
     sequential: hasSeqBranching ? t('modeSequentialBranching') : t('modeSequential'),
-    'embranchement-vertical': t('modeEmbranchementVertical')
+    'embranchement-vertical': t('modeEmbranchementVertical'),
+    [HYBRID_MODE]: t('modeHybridSequential')
   };
   return map[mode] || mode;
 }
-const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential', 'embranchement-vertical', ADDITIVE_SECTIONS_MODE];
+const HYBRID_MODE = 'hybrid-sequential'; // voir 34-sequentiel-hybride.js
+const HYBRID_SECTION_MODES = ['static', 'vertical']; // modes qui savent déjà passer la main à la section suivante
+const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential', 'embranchement-vertical', HYBRID_MODE];
 
 function layerHasSource(l) { return !!(l && (l.localFile || l.localUrl || l.file)); }
 
@@ -200,18 +199,6 @@ function resolveVRSection(track, idx) {
     return src || sec;
   }
   return sec;
-}
-// Nombre de niveaux d'une section (additif à sections) : un par couche, duplicata compris.
-function additiveSectionLevelCount(track, idx) {
-  const r = resolveVRSection(track, idx);
-  return r ? (r.pools || []).length : 0;
-}
-// Niveau de départ d'une section (0 = première couche seule), réglé dans le Backstage ; propre à la section
-// déclarée, même si elle duplique une autre. Toujours ramené dans les couches qui existent.
-function additiveSectionStartLevel(track, idx) {
-  const sec = (track.sections || [])[idx];
-  const n = additiveSectionLevelCount(track, idx);
-  return Math.max(0, Math.min(Math.max(0, n - 1), (sec && sec.startLevel) || 0));
 }
 function vrSectionIsPlayable(track, idx) {
   const r = resolveVRSection(track, idx);

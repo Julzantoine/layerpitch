@@ -29,9 +29,10 @@ function renderLibrary() {
   library.forEach((track, ti) => {
     if (track.id !== manageLibrarySelectedId) return; // un seul morceau affiché à la fois -- celui sélectionné dans la liste maître
     const isStatic = track.mode === 'static';
-    const isVerticalRandom = isSectionsMode(track.mode);
+    const isVerticalRandom = track.mode === 'vertical-random';
     const isSequential = track.mode === 'sequential';
     const isEmbrVert = track.mode === 'embranchement-vertical';
+    const isHybrid = track.mode === 'hybrid-sequential';
     const loops = !isStatic || !!track.loopable;
     const beatsPerBar = track.beatsPerBar || 4;
     const bpm = track.bpm || 120;
@@ -47,8 +48,9 @@ function renderLibrary() {
             <option value="vertical-random"${track.mode === 'vertical-random' ? ' selected' : ''}>${tr('modeOptionVerticalRandom')}</option>
             <option value="sequential"${track.mode === 'sequential' ? ' selected' : ''}>${tr('modeOptionSequential')}</option>
             <option value="embranchement-vertical"${track.mode === 'embranchement-vertical' ? ' selected' : ''}>${tr('modeOptionEmbranchementVertical')}</option>
+            <option value="hybrid-sequential"${isHybrid ? ' selected' : ''}${isHybrid || flagOpen('hybrid_sequential') ? '' : ' disabled'}>${tr(isHybrid || flagOpen('hybrid_sequential') ? 'modeOptionHybridSequential' : 'modeOptionHybridSequentialSoon')}</option>
             <option value="vertical-additive-random" disabled>${tr('modeOptionVerticalAdditiveRandom')}</option>
-            <option value="vertical-additive-sequential"${track.mode === 'vertical-additive-sequential' ? ' selected' : ''}${flagOpen('additive_sections') || track.mode === 'vertical-additive-sequential' ? '' : ' disabled'}>${tr('modeOptionVerticalAdditiveSequential')}${flagOpen('additive_sections') ? '' : ' ' + tr('modeOptionComingSoonSuffix')}</option>
+            <option value="vertical-additive-sequential" disabled>${tr('modeOptionVerticalAdditiveSequential')}</option>
             <option value="vertical-additive-sequential-random" disabled>${tr('modeOptionVerticalAdditiveSequentialRandom')}</option>
           </select>
         </div>
@@ -68,6 +70,8 @@ function renderLibrary() {
           <div class="seq-master-list" data-role="segmentSlotsMaster"></div>
           <div class="seq-detail-col" data-role="segmentSlotsDetail"></div>
         </div>
+      ` : isHybrid ? `
+        <div data-role="hybridEditor"></div>
       ` : `
         <div class="seq-two-col">
           <div class="seq-master-list" data-role="modeMaster"></div>

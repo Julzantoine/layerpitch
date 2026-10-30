@@ -12,7 +12,7 @@
     sources = []; gains = []; layerFxChains = [];
   }
   function playSimple() {
-    const nowStart = startSoon(); // toutes les couches sur un même instant (voir startSoon)
+    const nowStart = engineStartTime(); // toutes les couches sur un même instant (voir startSoon)
     startedAt = nowStart - offsetAt / trackPitchRatio;
     const p = profiles[level] || profiles[0];
     // Repère de capture : toutes les couches démarrent ici, à cette position du fichier, en boucle ou non, au niveau
@@ -53,6 +53,22 @@
         };
       }
     }
+    if (chainHooks && (!loops || track.maxLoops || chainFinishRequested)) armChainEndSimple();
+  }
+  // Séquentiel hybride : fin de la boucle native. Le fichier n'a pas de queue au-delà de sa durée : la section s'arrête pile sur la
+  // frontière (dernier appel gagnant : une demande de passage peut avancer une fin déjà prévue par le nombre de boucles).
+  function armChainEndSimple() {
+    if (!sources.length) return;
+    const cycle = track.duration / trackPitchRatio;
+    if (!loops) { chainHooks.onFinalBoundary(startedAt + cycle); return; }
+    const elapsedLoops = Math.max(0, ctx.currentTime - startedAt) / cycle;
+    let n = chainFinishRequested ? Math.ceil(elapsedLoops + 1e-6) : Math.max(track.maxLoops, Math.ceil(elapsedLoops + 1e-6));
+    if (startedAt + n * cycle - ctx.currentTime < 0.05) n++;
+    const at = startedAt + n * cycle;
+    sources.forEach(s => { if (s) s.stop(at); });
+    const marker = sources.find(Boolean);
+    marker.onended = () => { if (sources.includes(marker)) naturalEnd(); };
+    chainHooks.onFinalBoundary(at);
   }
 
   function pulseMeter(el) {
@@ -94,7 +110,6 @@
         const declaredSection = (track.sections || [])[secIdx];
         if (sectionCurrentEl) sectionCurrentEl.textContent = (declaredSection && declaredSection.label) || t('sectionFallback', { n: secIdx + 1 });
         vrBlockEls.forEach((el, i) => { if (el) el.classList.toggle('active', i === secIdx); });
-        renderSectionLevelPicker(secIdx); // même règle : les boutons changent quand la section s'entend
       }
     }, delayMs);
     voiceGraphTimeouts.push(timeoutId);

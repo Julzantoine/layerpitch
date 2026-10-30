@@ -47,10 +47,11 @@
   function schedulerTick() {
     const lookahead = 1.0;
     while (nextGenStartCtxTime < ctx.currentTime + lookahead) {
-      if (track.maxLoops && loopsPlayed >= track.maxLoops) {
+      if ((track.maxLoops && loopsPlayed >= track.maxLoops) || chainFinishRequested) {
         clearInterval(schedulerTimer);
         schedulerTimer = null;
         armFinalGenerationEnd();
+        if (chainHooks) chainHooks.onFinalBoundary(nextGenStartCtxTime); // la section suivante démarre ici, sous la queue
         return;
       }
       scheduleGeneration(nextGenStartCtxTime, nextGenBufferOffset);
@@ -98,7 +99,7 @@
   }
   function playQuantized(fromOffsetSec) {
     stopQuantized();
-    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
+    const now = engineStartTime(); // toutes les voix sur un même instant, juste après (voir startSoon)
     scheduleGeneration(now, fromOffsetSec);
     let timeUntilNext;
     if (fromOffsetSec >= loopOutSec - 1e-4) {

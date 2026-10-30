@@ -92,7 +92,6 @@
     const bufs = (sectionBuffers[secIdx] && sectionBuffers[secIdx][poolIdx]) || [];
     const n = bufs.length;
     if (n === 0) return -1;
-    if (isAdditiveSections) return bufs.findIndex(Boolean); // une couche = un fichier, jamais de tirage
     const key = canonicalPoolKey(secIdx, poolIdx);
     let idx = Math.floor(Math.random() * n);
     if (pool && pool.avoidImmediateRepeat && n > 1) {

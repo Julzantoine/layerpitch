@@ -20,7 +20,6 @@
 .wwise-col-voices { justify-content: space-around; align-items: center; flex: 1; }
 .wwise-node { background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dim); white-space: nowrap; text-align: center; }
 .wwise-node-source, .wwise-node-bus { font-weight: 600; color: var(--text); }
-.wwise-node-voice.is-level-off { opacity: 0.35; }
 .wwise-node-voice { display: flex; flex-direction: column; gap: 5px; align-items: center; width: 220px; flex-shrink: 0; }
 .wwise-node-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
 .wwise-node-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; text-align: left; }
@@ -243,3 +242,14 @@
 .stinger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .stinger-btn svg { width: 10px; height: 10px; }
 .placeholder-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dimmer); border: 1px dashed var(--border); border-radius: 4px; padding: 8px 12px; display: inline-block; }
+
+/* Séquentiel hybride (31/10) : le lecteur d'une section sans son en-tête, le parent porte Lecture et Stop. La section qui n'est pas
+   entendue reste mesurée hors de l'écran (ses formes d'onde gardent leur taille) ; sa queue peut encore sonner. */
+.hybrid-blocks { display: flex; gap: 6px; margin: 10px 0; }
+.hybrid-blocks .seq-block { flex: 1; min-width: 0; }
+.hybrid-children { position: relative; overflow: hidden; }
+.hybrid-child > .track-row { display: none; }
+.hybrid-child > .track-row-details { max-height: none !important; overflow: visible; }
+.hybrid-child .track-row-details-inner { padding-left: 0; }
+.hybrid-child [data-role="status"] { display: none; }
+.hybrid-child-offstage { position: absolute; left: -200%; top: 0; width: 100%; visibility: hidden; }
