@@ -281,7 +281,7 @@ async function loadData(silent) {
     fillAppearanceFields();
     fillImplementationSkillsFields();
     fillNoAiCertifiedGlobalField();
-    fillAllowEmbeddingField(); fillSharePreviewFields();
+    fillSharePreviewFields();
     rebuildAllCards();
     hasUnsavedEdits = false;
     // Suppressions non publiées abandonnées par ce rechargement : les éléments reviennent, leurs fichiers R2 restent.
