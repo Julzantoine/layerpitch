@@ -80,6 +80,8 @@ check('mode jouable par le lecteur', /PLAYABLE_MODES = \[[^\]]*ADDITIVE_SECTIONS
       { id: 'b', label: 'B', bpm: 150, beatsPerBar: 1, startTrackBeat: 0, loopInBeat: 0, loopOutBeat: 1, maxLoops: null, pools: [layer('Piano', 4), layer('Cordes', 5)] },
     ],
   };
+  // Une couche garde un seul fichier joué : le choix court-circuite le tirage au hasard.
+  check('jamais de tirage dans une couche', /if \(isAdditiveSections\) return bufs\.findIndex\(Boolean\);/.test(player));
   const row = Core.buildTrackRow(track, null, false);
   window.document.getElementById('host').appendChild(row);
   Core.initTrackPlayer(track, row);
@@ -96,6 +98,7 @@ check('mode jouable par le lecteur', /PLAYABLE_MODES = \[[^\]]*ADDITIVE_SECTIONS
   check('avant lecture : niveau de départ réglé', activeChip() === 1);
 
   click(row.querySelector('[data-role="playBtn"]'));
+  check('pas de bouton pour retirer au hasard', !row.querySelector('[data-role="refreshPool"]'));
   check('section A entendue', await waitUntil(() => current.textContent === 'A', 2000));
   check('niveau 2 : deux couches sur trois', lastGains(3).join() === '1,1,0');
 

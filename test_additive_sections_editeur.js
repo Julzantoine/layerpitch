@@ -32,6 +32,18 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   if (startSel) pick(startSel, '1');
   check('niveau de départ enregistré sur la section', window.eval('library[0].sections[0].startLevel') === 1);
 
+  // Une couche = un seul fichier : ni alternatives, ni anti-répétition, ni vocabulaire « pool ».
+  window.eval("library[0].sections[0].pools = [{ id: 'x', label: 'Basse', alternatives: [{ label: 'a', remoteFile: 'a.wav', pendingFile: null }, { label: 'b', remoteFile: 'b.wav', pendingFile: null }] }]; renderLibrary();");
+  const detail = () => q('#libraryContainer').textContent;
+  check("pas de bouton d'alternative dans une couche", !q('[data-action="add-pool-alt"]'));
+  check('pas de réglage anti-répétition dans une couche', !q('[data-pool-field="avoidImmediateRepeat"]'));
+  check('bouton + Couche', /\+ (Couche|Layer)/.test(q('[data-action="add-pool"]').textContent));
+  check('plus aucun mot « pool » dans la section', !/\bpools?\b/i.test(detail()));
+  check('fichiers en trop signalés, pas perdus', /autre\(s\) fichier|other file/.test(detail()) && window.eval('library[0].sections[0].pools[0].alternatives.length') === 2);
+  window.eval("window.__g = null; var __o = openGroupedDropDialog; openGroupedDropDialog = function (o) { window.__g = o; }; openVrsBatchDropDialog(library[0], library[0].sections[0], ['Basse 2.wav', 'Basse 10.wav', 'Basse 1.wav', 'Intro.wav'].map(function (n) { return { name: n }; })); openGroupedDropDialog = __o;");
+  check('dépôt groupé : un fichier = une couche, dans l\'ordre des noms', window.eval("__g.groups.map(function (g) { return g.files.length + g.files[0].name; }).join('|')") === '1Basse 1.wav|1Basse 2.wav|1Basse 10.wav');
+  check('dépôt groupé : intro reconnue, pas de piste vide', window.eval('__g.intro.name') === 'Intro.wav' && window.eval('__g.withSilent') === false);
+
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
 })().catch(e => { console.error('TEST THREW:', e); process.exit(1); });

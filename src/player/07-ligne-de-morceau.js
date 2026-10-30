@@ -222,7 +222,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
           </div>
         </div>
         <div class="actions" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-          <button type="button" class="voice-refresh-btn" data-role="refreshPool">${t('refreshPool')}</button>
+          ${isAdditiveSections ? '' : `<button type="button" class="voice-refresh-btn" data-role="refreshPool">${t('refreshPool')}</button>`}
           <button type="button" class="voice-refresh-btn" data-role="goToNextSectionBtn" disabled>${t('goToNextSectionBtn')}</button>
           <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled>${t('goToEndBtn')}</button>
         </div>

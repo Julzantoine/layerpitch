@@ -1478,7 +1478,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
           </div>
         </div>
         <div class="actions" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-          <button type="button" class="voice-refresh-btn" data-role="refreshPool">${t('refreshPool')}</button>
+          ${isAdditiveSections ? '' : `<button type="button" class="voice-refresh-btn" data-role="refreshPool">${t('refreshPool')}</button>`}
           <button type="button" class="voice-refresh-btn" data-role="goToNextSectionBtn" disabled>${t('goToNextSectionBtn')}</button>
           <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled>${t('goToEndBtn')}</button>
         </div>
@@ -3888,6 +3888,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     const bufs = (sectionBuffers[secIdx] && sectionBuffers[secIdx][poolIdx]) || [];
     const n = bufs.length;
     if (n === 0) return -1;
+    if (isAdditiveSections) return bufs.findIndex(Boolean); // une couche = un fichier, jamais de tirage
     const key = canonicalPoolKey(secIdx, poolIdx);
     let idx = Math.floor(Math.random() * n);
     if (pool && pool.avoidImmediateRepeat && n > 1) {
@@ -6364,7 +6365,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         const buf = bufs[idx];
         silent = !buf;
         pickedBuf = buf;
-        label = buf ? ((alt && alt.label) ? alt.label : t('altFallback', { n: idx + 1 })) : t('silenceLabel');
+        label = buf ? (isAdditiveSections && pool.label) ? pool.label : ((alt && alt.label) ? alt.label : t('altFallback', { n: idx + 1 })) : t('silenceLabel');
         if (buf) {
           const src = ctx.createBufferSource();
           src.buffer = buf;

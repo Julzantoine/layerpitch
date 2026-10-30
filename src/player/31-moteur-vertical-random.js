@@ -85,7 +85,7 @@
         const buf = bufs[idx];
         silent = !buf;
         pickedBuf = buf;
-        label = buf ? ((alt && alt.label) ? alt.label : t('altFallback', { n: idx + 1 })) : t('silenceLabel');
+        label = buf ? (isAdditiveSections && pool.label) ? pool.label : ((alt && alt.label) ? alt.label : t('altFallback', { n: idx + 1 })) : t('silenceLabel');
         if (buf) {
           const src = ctx.createBufferSource();
           src.buffer = buf;
