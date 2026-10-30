@@ -33,6 +33,7 @@ const _signedAudioPending = new Map();
 const MEDIA_AUDIO_RE = /^https?:\/\/[^/]+\/audio\/([^/?#]+)\/([^?#]+)/;
 
 async function signedAudioFor(trackId) {
+  trackId = String(trackId).split('~')[0]; // section d'un séquentiel hybride : le morceau d'origine
   const cached = _signedAudio.get(trackId);
   if (cached && (cached.none ? cached.until : cached.expiresAt) > Date.now()) return cached.none ? null : cached;
   if (_signedAudioPending.has(trackId)) return _signedAudioPending.get(trackId);

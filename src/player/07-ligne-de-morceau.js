@@ -4,10 +4,10 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   // (true/false) prime sur le réglage global, sinon on suit le réglage global. Pas affiché du tout si
   // le badge collectif (tout le catalogue certifié) est déjà montré une fois pour tout le bloc.
   const isNoAiCertified = !suppressIndividualBadge && ((track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : !!globalNoAiCertified);
+  if (track.mode === HYBRID_MODE) return buildHybridRow(track, isNoAiCertified);
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
-  const isAdditiveSections = track.mode === ADDITIVE_SECTIONS_MODE;
-  const isVerticalRandom = track.mode === 'vertical-random' || isAdditiveSections; // même moteur, mêmes données
+  const isVerticalRandom = track.mode === 'vertical-random';
   const isSequential = track.mode === 'sequential';
   const isEmbrVert = track.mode === 'embranchement-vertical';
   const loops = !isStatic || !!track.loopable;
@@ -80,14 +80,6 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       <div class="track-intensity-block">
         <div class="track-intensity-label">${t('intensityLabel')}</div>
         <div class="intensity-picker" data-role="slider">${chips}</div>
-      </div>
-    `;
-  } else if (isAdditiveSections && supported) {
-    // Additif à sections : les boutons dépendent de la section entendue, le lecteur les remplit (renderSectionLevelPicker).
-    intensityBlockHtml = `
-      <div class="track-intensity-block" data-role="sectionLevelBlock" hidden>
-        <div class="track-intensity-label">${t('intensityLabel')}</div>
-        <div class="intensity-picker" data-role="sectionLevelPicker"></div>
       </div>
     `;
   }
@@ -222,7 +214,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
           </div>
         </div>
         <div class="actions" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-          ${isAdditiveSections ? '' : `<button type="button" class="voice-refresh-btn" data-role="refreshPool">${t('refreshPool')}</button>`}
+          <button type="button" class="voice-refresh-btn" data-role="refreshPool">${t('refreshPool')}</button>
           <button type="button" class="voice-refresh-btn" data-role="goToNextSectionBtn" disabled>${t('goToNextSectionBtn')}</button>
           <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled>${t('goToEndBtn')}</button>
         </div>

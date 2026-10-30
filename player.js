@@ -64,6 +64,8 @@ function captureMark(name, detail) {
 }
 // captureExtra : détails utiles à la seule capture vidéo (jamais envoyés aux statistiques).
 function trackPublicEvent(name, detail, captureExtra) {
+  // Section d'un séquentiel hybride : les statistiques comptent le morceau d'origine.
+  if (detail && typeof detail.trackId === 'string' && detail.trackId.includes('~')) detail = Object.assign({}, detail, { trackId: detail.trackId.split('~')[0] });
   captureMark(name, captureExtra ? Object.assign({}, detail, captureExtra) : detail);
   try {
     if (!window.umami) return;
@@ -338,6 +340,7 @@ const _signedAudioPending = new Map();
 const MEDIA_AUDIO_RE = /^https?:\/\/[^/]+\/audio\/([^/?#]+)\/([^?#]+)/;
 
 async function signedAudioFor(trackId) {
+  trackId = String(trackId).split('~')[0]; // section d'un séquentiel hybride : le morceau d'origine
   const cached = _signedAudio.get(trackId);
   if (cached && (cached.none ? cached.until : cached.expiresAt) > Date.now()) return cached.none ? null : cached;
   if (_signedAudioPending.has(trackId)) return _signedAudioPending.get(trackId);
@@ -1009,22 +1012,21 @@ function renderTracksBlock(container, tracks, packsByTrackId, globalNoAiCertifie
 // bascule entre boucles nommées est la nature même du mode, donc toujours mentionnée. Sans `track`
 // (repli), le libellé de base "séquentiel" est utilisé — ne devrait arriver qu'en dehors du rendu
 // normal d'une piste (aucun appelant connu actuellement dans ce cas).
-// Layering additif à sections (30/10) : mêmes données et même moteur que le vertical-random (sections > pools),
-// plus un niveau d'intensité propre à chaque section. Un pool = une couche, dans l'ordre d'empilement.
-const ADDITIVE_SECTIONS_MODE = 'vertical-additive-sequential';
 function getModeLabel(mode, track) {
   const hasSeqBranching = !!(track && (track.segmentSlots || []).some(sl => sl.nextOptions && sl.nextOptions.length));
   const map = {
     static: t('modeStatic'),
     vertical: t('modeVertical'),
     'vertical-random': t('modeVerticalRandom'),
-    [ADDITIVE_SECTIONS_MODE]: t('modeVerticalAdditiveSequential'),
     sequential: hasSeqBranching ? t('modeSequentialBranching') : t('modeSequential'),
-    'embranchement-vertical': t('modeEmbranchementVertical')
+    'embranchement-vertical': t('modeEmbranchementVertical'),
+    [HYBRID_MODE]: t('modeHybridSequential')
   };
   return map[mode] || mode;
 }
-const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential', 'embranchement-vertical', ADDITIVE_SECTIONS_MODE];
+const HYBRID_MODE = 'hybrid-sequential'; // voir 34-sequentiel-hybride.js
+const HYBRID_SECTION_MODES = ['static', 'vertical']; // modes qui savent déjà passer la main à la section suivante
+const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential', 'embranchement-vertical', HYBRID_MODE];
 
 function layerHasSource(l) { return !!(l && (l.localFile || l.localUrl || l.file)); }
 
@@ -1041,18 +1043,6 @@ function resolveVRSection(track, idx) {
     return src || sec;
   }
   return sec;
-}
-// Nombre de niveaux d'une section (additif à sections) : un par couche, duplicata compris.
-function additiveSectionLevelCount(track, idx) {
-  const r = resolveVRSection(track, idx);
-  return r ? (r.pools || []).length : 0;
-}
-// Niveau de départ d'une section (0 = première couche seule), réglé dans le Backstage ; propre à la section
-// déclarée, même si elle duplique une autre. Toujours ramené dans les couches qui existent.
-function additiveSectionStartLevel(track, idx) {
-  const sec = (track.sections || [])[idx];
-  const n = additiveSectionLevelCount(track, idx);
-  return Math.max(0, Math.min(Math.max(0, n - 1), (sec && sec.startLevel) || 0));
 }
 function vrSectionIsPlayable(track, idx) {
   const r = resolveVRSection(track, idx);
@@ -1260,10 +1250,10 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   // (true/false) prime sur le réglage global, sinon on suit le réglage global. Pas affiché du tout si
   // le badge collectif (tout le catalogue certifié) est déjà montré une fois pour tout le bloc.
   const isNoAiCertified = !suppressIndividualBadge && ((track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : !!globalNoAiCertified);
+  if (track.mode === HYBRID_MODE) return buildHybridRow(track, isNoAiCertified);
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
-  const isAdditiveSections = track.mode === ADDITIVE_SECTIONS_MODE;
-  const isVerticalRandom = track.mode === 'vertical-random' || isAdditiveSections; // même moteur, mêmes données
+  const isVerticalRandom = track.mode === 'vertical-random';
   const isSequential = track.mode === 'sequential';
   const isEmbrVert = track.mode === 'embranchement-vertical';
   const loops = !isStatic || !!track.loopable;
@@ -1336,14 +1326,6 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       <div class="track-intensity-block">
         <div class="track-intensity-label">${t('intensityLabel')}</div>
         <div class="intensity-picker" data-role="slider">${chips}</div>
-      </div>
-    `;
-  } else if (isAdditiveSections && supported) {
-    // Additif à sections : les boutons dépendent de la section entendue, le lecteur les remplit (renderSectionLevelPicker).
-    intensityBlockHtml = `
-      <div class="track-intensity-block" data-role="sectionLevelBlock" hidden>
-        <div class="track-intensity-label">${t('intensityLabel')}</div>
-        <div class="intensity-picker" data-role="sectionLevelPicker"></div>
       </div>
     `;
   }
@@ -1478,7 +1460,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
           </div>
         </div>
         <div class="actions" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-          ${isAdditiveSections ? '' : `<button type="button" class="voice-refresh-btn" data-role="refreshPool">${t('refreshPool')}</button>`}
+          <button type="button" class="voice-refresh-btn" data-role="refreshPool">${t('refreshPool')}</button>
           <button type="button" class="voice-refresh-btn" data-role="goToNextSectionBtn" disabled>${t('goToNextSectionBtn')}</button>
           <button type="button" class="voice-refresh-btn" data-role="goToEndBtn" disabled>${t('goToEndBtn')}</button>
         </div>
@@ -3063,14 +3045,24 @@ function fxChainHasLeakyNode(fxChain) {
 // opts.concurrent (6/10, Carte de niveau du Projet) : ce lecteur joue EN MÊME TEMPS que d'autres (fond d'ambiance, morceau qui entre pendant
 // que l'autre s'éteint) au lieu d'arrêter le morceau actif ; il expose alors wrapper.lpControl (voir 32-pause-reprise-lecture.js).
 function initTrackPlayer(track, wrapper, elementColors, opts) {
+  if (track.mode === HYBRID_MODE) return initHybridPlayer(track, wrapper, elementColors);
   const concurrent = !!(opts && opts.concurrent);
+  // Section d'un séquentiel hybride (31/10) : le chef d'orchestre impose l'instant de départ (chainStartAt) et peut demander de finir à
+  // la fin de la boucle en cours (chainFinishRequested) ; onFinalBoundary reçoit alors l'instant où la section suivante doit démarrer.
+  const chainHooks = (opts && opts.chain) || null;
+  let chainStartAt = null, chainFinishRequested = false;
+  function engineStartTime() {
+    if (chainStartAt == null) return startSoon();
+    const when = Math.max(chainStartAt, ctx.currentTime + 0.005);
+    chainStartAt = null;
+    return when;
+  }
   // Fin naturelle d'un morceau lancé par programme (Carte de niveau, écoute aléatoire des albums) : lpEndedCb est appelée une seule fois quand
   // le morceau se termine TOUT SEUL ; un arrêt demandé (Stop, pause, autre morceau) lève lpManualStop et ne l'appelle pas.
   let lpEndedCb = null, lpManualStop = false;
   const { bg: waveBgColor, fg: waveFgColor } = resolveWaveformColors(elementColors);
   const isStatic = track.mode === 'static';
-  const isAdditiveSections = track.mode === ADDITIVE_SECTIONS_MODE;
-  const isVerticalRandom = track.mode === 'vertical-random' || isAdditiveSections; // même moteur, mêmes données
+  const isVerticalRandom = track.mode === 'vertical-random';
   const isSequential = track.mode === 'sequential';
   const isEmbrVert = track.mode === 'embranchement-vertical';
   const supported = PLAYABLE_MODES.includes(track.mode);
@@ -3888,7 +3880,6 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     const bufs = (sectionBuffers[secIdx] && sectionBuffers[secIdx][poolIdx]) || [];
     const n = bufs.length;
     if (n === 0) return -1;
-    if (isAdditiveSections) return bufs.findIndex(Boolean); // une couche = un fichier, jamais de tirage
     const key = canonicalPoolKey(secIdx, poolIdx);
     let idx = Math.floor(Math.random() * n);
     if (pool && pool.avoidImmediateRepeat && n > 1) {
@@ -5328,7 +5319,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     sources = []; gains = []; layerFxChains = [];
   }
   function playSimple() {
-    const nowStart = startSoon(); // toutes les couches sur un même instant (voir startSoon)
+    const nowStart = engineStartTime(); // toutes les couches sur un même instant (voir startSoon)
     startedAt = nowStart - offsetAt / trackPitchRatio;
     const p = profiles[level] || profiles[0];
     // Repère de capture : toutes les couches démarrent ici, à cette position du fichier, en boucle ou non, au niveau
@@ -5369,6 +5360,22 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         };
       }
     }
+    if (chainHooks && (!loops || track.maxLoops || chainFinishRequested)) armChainEndSimple();
+  }
+  // Séquentiel hybride : fin de la boucle native. Le fichier n'a pas de queue au-delà de sa durée : la section s'arrête pile sur la
+  // frontière (dernier appel gagnant : une demande de passage peut avancer une fin déjà prévue par le nombre de boucles).
+  function armChainEndSimple() {
+    if (!sources.length) return;
+    const cycle = track.duration / trackPitchRatio;
+    if (!loops) { chainHooks.onFinalBoundary(startedAt + cycle); return; }
+    const elapsedLoops = Math.max(0, ctx.currentTime - startedAt) / cycle;
+    let n = chainFinishRequested ? Math.ceil(elapsedLoops + 1e-6) : Math.max(track.maxLoops, Math.ceil(elapsedLoops + 1e-6));
+    if (startedAt + n * cycle - ctx.currentTime < 0.05) n++;
+    const at = startedAt + n * cycle;
+    sources.forEach(s => { if (s) s.stop(at); });
+    const marker = sources.find(Boolean);
+    marker.onended = () => { if (sources.includes(marker)) naturalEnd(); };
+    chainHooks.onFinalBoundary(at);
   }
 
   function pulseMeter(el) {
@@ -5410,7 +5417,6 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         const declaredSection = (track.sections || [])[secIdx];
         if (sectionCurrentEl) sectionCurrentEl.textContent = (declaredSection && declaredSection.label) || t('sectionFallback', { n: secIdx + 1 });
         vrBlockEls.forEach((el, i) => { if (el) el.classList.toggle('active', i === secIdx); });
-        renderSectionLevelPicker(secIdx); // même règle : les boutons changent quand la section s'entend
       }
     }, delayMs);
     voiceGraphTimeouts.push(timeoutId);
@@ -5465,10 +5471,11 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   function schedulerTick() {
     const lookahead = 1.0;
     while (nextGenStartCtxTime < ctx.currentTime + lookahead) {
-      if (track.maxLoops && loopsPlayed >= track.maxLoops) {
+      if ((track.maxLoops && loopsPlayed >= track.maxLoops) || chainFinishRequested) {
         clearInterval(schedulerTimer);
         schedulerTimer = null;
         armFinalGenerationEnd();
+        if (chainHooks) chainHooks.onFinalBoundary(nextGenStartCtxTime); // la section suivante démarre ici, sous la queue
         return;
       }
       scheduleGeneration(nextGenStartCtxTime, nextGenBufferOffset);
@@ -5516,7 +5523,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   }
   function playQuantized(fromOffsetSec) {
     stopQuantized();
-    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
+    const now = engineStartTime(); // toutes les voix sur un même instant, juste après (voir startSoon)
     scheduleGeneration(now, fromOffsetSec);
     let timeUntilNext;
     if (fromOffsetSec >= loopOutSec - 1e-4) {
@@ -6294,52 +6301,6 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       trackPublicEvent(name, Object.assign({}, detail, cut ? { cut: { hard: true, fadeSec: 0 } } : {}), { at, rate });
     }, Math.max(0, (at - ctx.currentTime) * 1000)));
   }
-  // Additif à sections (30/10) : niveau propre à chaque section. Une section retrouve le dernier niveau choisi
-  // quand on y revient ; le niveau de départ réglé dans le Backstage ne vaut que pour le premier passage.
-  const sectionLevels = new Map();
-  let levelPickerSecIdx = -1; // section dont les boutons sont affichés
-  const sectionLevelBlock = wrapper.querySelector('[data-role="sectionLevelBlock"]');
-  const sectionLevelPicker = wrapper.querySelector('[data-role="sectionLevelPicker"]');
-  function getSectionLevel(secIdx) {
-    if (!sectionLevels.has(secIdx)) sectionLevels.set(secIdx, additiveSectionStartLevel(track, secIdx));
-    return sectionLevels.get(secIdx);
-  }
-  function renderSectionLevelPicker(secIdx) {
-    if (!isAdditiveSections || !sectionLevelPicker) return;
-    levelPickerSecIdx = secIdx;
-    const section = resolveVRSection(track, secIdx);
-    const pools = (section && section.pools) || [];
-    const lv = getSectionLevel(secIdx);
-    sectionLevelBlock.hidden = pools.length < 2; // une seule couche : rien à choisir
-    sectionLevelPicker.innerHTML = pools.map((pool, i) => {
-      const inner = pool.label ? `<span class="intensity-chip-num">${i + 1}</span>${escapeHtml(pool.label)}` : String(i + 1);
-      return `<button type="button" class="intensity-chip${i === lv ? ' active' : ''}" data-level="${i}">${inner}</button>`;
-    }).join('');
-    wwisePoolVoiceEls.forEach((el, pi) => { if (el) el.classList.toggle('is-level-off', pi > lv); });
-  }
-  function setSectionLevel(secIdx, lv) {
-    sectionLevels.set(secIdx, lv);
-    renderSectionLevelPicker(secIdx);
-    trackPublicEvent('intensity_change', { trackId: track.id, level: lv, sectionIndex: secIdx });
-    if (!playing) return;
-    const now = ctx.currentTime;
-    // Seulement les voix de CETTE section : celles de la suivante, déjà programmées, gardent leur propre niveau.
-    activeGenSources.forEach(entry => {
-      if (entry.secIdx !== secIdx || entry.poolIdx == null) return;
-      entry.baseGain = entry.rawGain * (entry.poolIdx <= lv ? 1 : 0); // refreshVoiceGains (solo/muet) repart de cette valeur
-      entry.gain.gain.cancelScheduledValues(now);
-      entry.gain.gain.setValueAtTime(entry.gain.gain.value, now);
-      entry.gain.gain.linearRampToValueAtTime(entry.baseGain * voiceGain(entry.voiceKey), now + INTENSITY_RAMP_SEC);
-    });
-  }
-  if (sectionLevelPicker) {
-    sectionLevelPicker.addEventListener('click', e => {
-      const chip = e.target.closest('[data-level]');
-      if (chip && levelPickerSecIdx >= 0) setSectionLevel(levelPickerSecIdx, parseInt(chip.dataset.level, 10));
-    });
-    const firstPlayable = (track.sections || []).findIndex((s, i) => vrSectionIsPlayable(track, i));
-    if (firstPlayable >= 0) renderSectionLevelPicker(firstPlayable);
-  }
   function scheduleSectionGeneration(ctxStartTime, secIdx, isFirstEverForThisSection, offsetOverride) {
     const section = resolveVRSection(track, secIdx);
     const declaredSection = (track.sections || [])[secIdx];
@@ -6365,15 +6326,14 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         const buf = bufs[idx];
         silent = !buf;
         pickedBuf = buf;
-        label = buf ? (isAdditiveSections && pool.label) ? pool.label : ((alt && alt.label) ? alt.label : t('altFallback', { n: idx + 1 })) : t('silenceLabel');
+        label = buf ? ((alt && alt.label) ? alt.label : t('altFallback', { n: idx + 1 })) : t('silenceLabel');
         if (buf) {
           const src = ctx.createBufferSource();
           src.buffer = buf;
           applyTrackPitchRate(src, ctxStartTime);
           const g = ctx.createGain();
           const key = 'pool-' + displaySlot;
-          const rawGain = effGain(alt);
-          const base = rawGain * (!isAdditiveSections || poolIdx <= getSectionLevel(secIdx) ? 1 : 0);
+          const base = effGain(alt);
           g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
           // fx : porté par le pool (la "voix"/l'emplacement), pas par l'alternative tirée au sort -- même
           // chaîne quel que soit le tirage, cf. la logique retenue pour les emplacements séquentiels.
@@ -6388,7 +6348,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
           }
           journalVoice(src, g, fxChain);
           src.start(ctxStartTime, bufferOffset);
-          activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base, rawGain, poolIdx, secIdx });
+          activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
         }
       }
       poolPicks.push({ pi: displaySlot, label, silent, buf: pickedBuf });
@@ -6528,7 +6488,6 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     // (rebrassé si "randomiser" est coché), intro rejouée si présente. Une reprise continue la chaîne là
     // où elle en était — même convention que playSequential(isContinuation) pour le séquentiel.
     if (!isContinuation || !sectionScheduler) {
-      if (playableSectionOriginalIndex.length) renderSectionLevelPicker(playableSectionOriginalIndex[0]); // boutons de la section qui va démarrer
       vrPlayableSectionRefs = playableSectionOriginalIndex.map(origIdx => ({ maxLoops: resolveVRSection(track, origIdx).maxLoops }));
       sectionScheduler = createSectionPlaybackScheduler(
         vrPlayableSectionRefs,
@@ -6648,7 +6607,6 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       const declaredSection = (track.sections || [])[r.origIdx];
       if (sectionCurrentEl) sectionCurrentEl.textContent = (declaredSection && declaredSection.label) || t('sectionFallback', { n: r.origIdx + 1 });
       vrBlockEls.forEach((el, i) => { if (el) el.classList.toggle('active', i === r.origIdx); });
-      renderSectionLevelPicker(r.origIdx);
       seekVerticalRandom(r.frac);
     }
     return true;
@@ -6970,6 +6928,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       resumeEmbrVerticalAfterBackground();
       return;
     }
+    if (chainHooks && ctx.state === 'running') return; // section d'un hybride : la relancer casserait le passage déjà calculé
     const resumeFrom = computeElapsed();
     stopAllSources(false);
     offsetAt = resumeFrom;
@@ -7013,6 +6972,16 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       },
       stop() { lpCancelWait(); if (playing) stopAllSources(false); },
       isReady: () => !!ready,
+      // Séquentiel hybride : départ à un instant précis, demande de finir à la fin de la boucle en cours, pause et remise à zéro.
+      startAt(when) { chainStartAt = when; chainFinishRequested = false; playThisTrack(true); },
+      finishAtLoopEnd() {
+        chainFinishRequested = true;
+        if (!playing) return;
+        if (!useQuantizedLoop) armChainEndSimple();
+      },
+      pause: () => pauseThisTrack(),
+      resume: () => playThisTrack(true),
+      reset() { chainStartAt = null; chainFinishRequested = false; lpEndedCb = null; lpCancelWait(); stopThisTrack(); },
       // Vertical-random : « nouveau tirage » (rejoue la section en cours avec de nouveaux tirages) ; faux pour les autres modes.
       canRefreshPool: () => isVerticalRandom,
       refreshPool() { if (!isVerticalRandom) return false; rerollPool(); return true; },
@@ -7616,6 +7585,229 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   })();
 }
 
+/* ---- Séquentiel hybride (31/10) : un morceau parent enchaîne des sections, et chaque section est un morceau normal de la
+   bibliothèque, joué par son propre lecteur (statique et layering additif pour commencer). Le parent ne programme aucun son : il dit
+   à une section de finir à sa fin de boucle, reçoit l'instant exact de cette fin, et y fait démarrer la suivante pendant que la queue
+   de la précédente sonne encore. Une section qui revient (AABA) a son propre lecteur : d'où l'identifiant `morceau~section`. ---- */
+const HYBRID_PLAY_SVG = '<path d="M8 5v14l11-7z"/>';
+const HYBRID_PAUSE_SVG = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+const HYBRID_HANDOFF_LEAD_SEC = 1.2; // au moins la seconde d'avance du moteur quantifié, malgré les minuteurs ralentis
+
+function hybridPlayableSections(track) {
+  return (track.sections || []).filter(sec => {
+    const child = sec && sec.track;
+    if (!child || !HYBRID_SECTION_MODES.includes(child.mode)) return false;
+    const layers = child.layers || [];
+    return layerHasSource(layers[0]) && (child.mode === 'static' || layers.every(layerHasSource));
+  });
+}
+function hybridChildTrack(sec) {
+  // Boucles : 0 = sans limite, vide = le réglage du morceau lui-même.
+  const maxLoops = sec.maxLoops === 0 ? null : (sec.maxLoops || sec.track.maxLoops || null);
+  return Object.assign({}, sec.track, { id: sec.track.id + '~' + sec.id, maxLoops });
+}
+
+function buildHybridRow(track, isNoAiCertified) {
+  const sections = hybridPlayableSections(track);
+  const wrapper = document.createElement('div');
+  wrapper.className = 'track-row-wrapper';
+  wrapper.innerHTML = `
+    <div class="track-row">
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="play-btn" data-role="playBtn" disabled aria-label="${t('loadingAriaLabel')}">
+          <svg data-role="playIcon" class="loading-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="28 100"/></svg>
+        </button>
+        <button class="play-btn" data-role="stopBtn" style="display:none" aria-label="${t('stopAriaLabel')}" title="${t('stopAriaLabel')}">
+          <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+        </button>
+      </div>
+      <div class="track-row-title" data-role="titleToggle">
+        <span class="name">${escapeHtml(track.title)}</span>
+        ${isNoAiCertified ? `<span class="no-ai-badge" title="${t('noAiBadgeTitle')}">${noAiBadgeSvg()}</span>` : ''}
+        <span class="mode-tag">${getModeLabel(track.mode, track)}</span>
+      </div>
+    </div>
+    <div class="track-row-details" data-role="details">
+     <div class="track-row-details-inner">
+      <div class="track-desc" data-role="trackDesc">${linkify(track.description || '')}</div>
+      ${track.tags ? `<div class="track-tags">${track.tags.split(',').map(s => s.trim()).filter(Boolean).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+      ${!sections.length ? `<span class="placeholder-tag">${t('hybridNoSection')}</span>` : `
+        <div class="status" data-role="status">${t('loadingAriaLabel')}</div>
+        <div class="seq-blocks hybrid-blocks" data-role="hybridBlocks">
+          ${sections.map(sec => `<div class="seq-block"><span class="seq-block-label">${escapeHtml(sec.label || sec.track.title || '')}</span></div>`).join('')}
+        </div>
+        <div><button type="button" class="voice-refresh-btn" data-role="hybridNext" disabled>${t('goToNextSectionBtn')}</button></div>
+        <div class="hybrid-children" data-role="hybridChildren"></div>
+      `}
+     </div>
+    </div>
+  `;
+  wrapper.querySelector('[data-role="titleToggle"]').addEventListener('click', () => {
+    const details = wrapper.querySelector('[data-role="details"]');
+    setDetailsExpanded(details, !details.classList.contains('expanded'));
+  });
+  return wrapper;
+}
+
+function initHybridPlayer(track, wrapper, elementColors) {
+  const sections = hybridPlayableSections(track);
+  const q = role => wrapper.querySelector(`[data-role="${role}"]`);
+  const playBtn = q('playBtn'), playIcon = q('playIcon'), stopBtn = q('stopBtn'), details = q('details');
+  const statusEl = q('status'), nextBtn = q('hybridNext'), childrenHost = q('hybridChildren');
+  trackCollapsers[track.id] = () => setDetailsExpanded(details, false);
+  if (!sections.length) { playIcon.classList.remove('loading-icon'); playIcon.innerHTML = HYBRID_PLAY_SVG; return; }
+  const blocks = [...q('hybridBlocks').children];
+
+  let cur = -1, playing = false, paused = false, ending = false;
+  let pending = null; // { to, at, given } : passage annoncé par la section en cours ; given = la suivante est déjà programmée
+  let queuedAt = null; // fin déjà annoncée par la section programmée, avant même qu'on l'entende (statique sans boucle, nombre de boucles)
+  let timer = null, endedCb = null;
+
+  const players = sections.map((sec, i) => {
+    const child = hybridChildTrack(sec);
+    const row = buildTrackRow(child, null, false, true);
+    row.classList.add('hybrid-child', 'hybrid-child-offstage');
+    childrenHost.appendChild(row);
+    initTrackPlayer(child, row, elementColors, { concurrent: true, chain: { onFinalBoundary: at => onBoundary(i, at) } });
+    return { row, control: row.lpControl };
+  });
+
+  function show(i) {
+    players.forEach((p, n) => p.row.classList.toggle('hybrid-child-offstage', n !== i));
+    blocks.forEach((b, n) => b.classList.toggle('active', n === i));
+    if (details.classList.contains('expanded')) setDetailsExpanded(details, true); // la hauteur suit celle de la section affichée
+  }
+  function refreshNext() {
+    const last = cur === sections.length - 1;
+    nextBtn.disabled = !playing || cur < 0 || ending || !!pending;
+    nextBtn.textContent = (ending || pending) ? t('hybridEndOfLoop') : t(last ? 'goToEndBtn' : 'goToNextSectionBtn');
+  }
+  function setPlayUI() {
+    playIcon.innerHTML = playing ? HYBRID_PAUSE_SVG : HYBRID_PLAY_SVG;
+    stopBtn.style.display = (playing || paused) ? '' : 'none';
+    statusEl.textContent = t(playing ? 'playingStatus' : paused ? 'pausedStatus' : 'readyStatus');
+    refreshNext();
+  }
+  function onBoundary(i, at) {
+    if (pending && pending.given && pending.to === i) { queuedAt = at; return; }
+    if (i !== cur || !playing) return;
+    if (i === sections.length - 1) ending = true;
+    else pending = { to: i + 1, at, given: false };
+    refreshNext();
+  }
+  function startSection(i, when) {
+    players[i].control.onEnded(() => onSectionEnded(i));
+    players[i].control.startAt(when);
+  }
+  function onSectionEnded(i) {
+    // La dernière section a fini de sonner. Une section qui s'arrête sans avoir annoncé de passage ne bloque pas la suite.
+    if (i !== cur || !playing || (pending && pending.given)) return; // la suivante est déjà en route : simple queue qui s'éteint
+    if (i < sections.length - 1) { pending = null; startSection(i + 1, startSoon()); cur = i + 1; show(cur); refreshNext(); return; }
+    stopAll();
+    if (endedCb) { const cb = endedCb; endedCb = null; try { cb(); } catch (e) { /* jamais bloquant */ } }
+  }
+  function tick() {
+    if (!pending || !playing) return;
+    const now = ctx.currentTime;
+    if (!pending.given && pending.at - now < HYBRID_HANDOFF_LEAD_SEC) {
+      pending.given = true;
+      startSection(pending.to, pending.at);
+    }
+    if (pending.given && now >= pending.at) {
+      cur = pending.to;
+      pending = null;
+      show(cur);
+      if (queuedAt != null) { const at = queuedAt; queuedAt = null; onBoundary(cur, at); }
+      refreshNext();
+    }
+  }
+  function startChain() {
+    if (activeTrackId && activeTrackId !== track.id) {
+      document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+      if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
+    }
+    Object.keys(trackCollapsers).forEach(id => { if (id !== track.id) trackCollapsers[id](); });
+    activeTrackId = track.id;
+    resumeAudioContext();
+    setDetailsExpanded(details, true);
+  }
+  function play() {
+    startChain();
+    if (paused) {
+      paused = false;
+      playing = true;
+      players[cur].control.resume(); // annonce de nouveau son passage s'il était demandé
+    } else {
+      playing = true;
+      ending = false;
+      pending = null;
+      queuedAt = null;
+      cur = 0;
+      trackPublicEvent('track_play', { trackId: track.id, mode: track.mode });
+      startSection(0, startSoon());
+      show(0);
+    }
+    if (!timer) timer = setInterval(tick, 100);
+    setPlayUI();
+  }
+  function pause() {
+    // Une section programmée mais pas encore entendue est annulée : le passage sera recalculé à la reprise.
+    if (pending && pending.given) players[pending.to].control.reset();
+    pending = null;
+    queuedAt = null;
+    ending = false;
+    players.forEach((p, n) => { if (n !== cur) p.control.reset(); });
+    players[cur].control.pause();
+    playing = false;
+    paused = true;
+    clearInterval(timer); timer = null;
+    setPlayUI();
+  }
+  function stopAll() {
+    if (timer) { clearInterval(timer); timer = null; }
+    players.forEach(p => p.control.reset());
+    if (playing || paused) trackPublicEvent('track_stop', { trackId: track.id, mode: track.mode });
+    playing = false; paused = false; ending = false; pending = null; queuedAt = null; cur = -1;
+    blocks.forEach(b => b.classList.remove('active'));
+    if (activeTrackId === track.id) activeTrackId = null;
+    setPlayUI();
+  }
+
+  playBtn.addEventListener('click', () => { playing ? pause() : play(); });
+  stopBtn.addEventListener('click', () => { stopAll(); });
+  nextBtn.addEventListener('click', () => {
+    if (!playing || cur < 0) return;
+    trackPublicEvent('hybrid_next', { trackId: track.id, sectionIndex: cur });
+    players[cur].control.finishAtLoopEnd();
+    nextBtn.disabled = true;
+    nextBtn.textContent = t('hybridEndOfLoop');
+  });
+  document.addEventListener('stop-track', e => { if (e.detail === track.id) { stopAll(); } });
+
+  // Le bouton Lecture s'active quand TOUTES les sections sont chargées : un passage ne peut pas attendre un téléchargement.
+  const isReady = () => players.every(p => p.control.isReady());
+  const readyTimer = setInterval(() => {
+    if (!isReady()) return;
+    clearInterval(readyTimer);
+    playBtn.disabled = false;
+    playBtn.setAttribute('aria-label', t('playAriaLabel'));
+    playIcon.classList.remove('loading-icon');
+    playIcon.innerHTML = HYBRID_PLAY_SVG;
+    show(0);
+    setPlayUI();
+  }, 100);
+
+  // Même pilotage que les autres lecteurs (Carte de niveau, écoute aléatoire des albums) : pas de niveaux ni d'emplacements à piloter.
+  wrapper.lpControl = {
+    start() { if (!playing) play(); },
+    stop() { stopAll(); },
+    isReady, isPlaying: () => playing, onEnded(cb) { endedCb = cb; },
+    elapsed: () => 0, nextBoundary: () => null, setLevel() {},
+    canRefreshPool: () => false, refreshPool: () => false,
+    layerCount: () => 0, layerKind: () => 'layers', layerLabels: () => null, layerAuto: () => 0, intensityLevel: () => 0, setIntensity() {},
+    sequenceCount: () => 0, sequenceLabels: () => null, sequenceCurrent: () => -1, sequenceReachable: () => [], sequencePending: () => -1, goToSequence: () => false,
+  };
+}
 /* ---------------- Init ---------------- */
 
 
@@ -8047,7 +8239,6 @@ window.LayerPlayerCore = {
   fetchAudioBytes,
   createSectionPlaybackScheduler,
   PLAYABLE_MODES,
-  ADDITIVE_SECTIONS_MODE,
   WAVEFORM_STYLES,
   setWaveformStyle,
   currentWaveformStyle,
