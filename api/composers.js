@@ -35,23 +35,29 @@
     const { data, error } = await getClient().rpc('directory_status');
     return { open: !!(data && data.open), error: error ? error.message : null };
   }
-  // directory : la liste publique (vide tant que l'annuaire n'est pas ouvert pour l'appelant), paliers payants en tête.
+  // directory : la liste publique (vide tant que l'annuaire n'est pas ouvert pour l'appelant), dans un ordre tiré au sort (migration 20261030010000).
   async function directory() {
     const { data, error } = await getClient().rpc('composer_directory');
     return { composers: data || [], error: error ? error.message : null };
   }
-  // Réglages du compositeur connecté : { optIn, keywords }.
+  // directoryTags : la liste commune des tags { id, label, aliases, uses } (compositeurs et filtre des studios).
+  async function directoryTags() {
+    const { data, error } = await getClient().rpc('directory_tag_list');
+    return { tags: data || [], error: error ? error.message : null };
+  }
+  // Réglages du compositeur connecté : { optIn, keywords, skillTags, hiddenReason, photo, photoFrame }.
   async function getMyDirectory() {
     const { data, error } = await getClient().rpc('get_my_directory');
     return { settings: data || null, error: error ? error.message : null };
   }
-  // photoFrame : { x, y, zoom } (cadrage de la photo dans l'annuaire), {} = recentrer, undefined = inchangé.
+  // keywords : noms des tags (100 au plus, les inconnus sont créés), null = inchangés. photoFrame : { x, y, zoom } (cadrage de la photo
+  // dans l'annuaire), {} = recentrer, undefined = inchangé.
   async function setMyDirectory(optIn, keywords, photoFrame) {
-    const args = { p_opt_in: !!optIn, p_keywords: keywords || [] };
+    const args = { p_opt_in: !!optIn, p_keywords: keywords === undefined ? null : keywords };
     if (photoFrame !== undefined) args.p_photo_frame = photoFrame;
     const { data, error } = await getClient().rpc('set_my_directory', args);
     return { settings: data || null, error: error ? error.message : null };
   }
 
-  window.LayerPitchComposers = { resolveHandle, resolvePublicLink, directoryStatus, directory, getMyDirectory, setMyDirectory };
+  window.LayerPitchComposers = { resolveHandle, resolvePublicLink, directoryStatus, directory, directoryTags, getMyDirectory, setMyDirectory };
 })();

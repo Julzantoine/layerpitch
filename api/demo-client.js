@@ -55,8 +55,9 @@
   const RPC_ANSWERS = {
     // Page « Mon compte » du compte fictif (annuaire des compositeurs : visible d'office, mots-clés d'exemple).
     get_my_notification_prefs: () => [{ email_announcements: true, lang: 'fr' }],
-    get_my_directory: () => ({ optIn: true, keywords: ['jazz', 'musique interactive', 'RPG', 'adaptatif'], photo: null }),
+    get_my_directory: () => ({ optIn: true, keywords: ['Jazz', 'Adaptive Music', 'RPG'], photo: null }),
     directory_status: () => ({ open: true }),
+    directory_tag_list: () => [{ id: 1, label: 'RPG', aliases: [], uses: 1 }, { id: 2, label: 'Jazz', aliases: [], uses: 1 }, { id: 3, label: 'Adaptive Music', aliases: ['Musique adaptative', 'Musique interactive'], uses: 1 }],
     set_ad_reel_access: a => ({ mode: a.p_mode, token: a.p_mode === 'magic' ? 'tutoriel-lien-magique' : null }), // accès privé simulé (leçon « Diffuser »)
     // Version officielle d'un morceau d'album (leçon « Créer un album », 26/10) : gardée en mémoire le temps de la page, pour que « Écouter »
     // rejoue la version que l'apprenant vient de valider. Rien n'est enregistré.
