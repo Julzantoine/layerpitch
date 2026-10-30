@@ -14,6 +14,52 @@
       trackPublicEvent(name, Object.assign({}, detail, cut ? { cut: { hard: true, fadeSec: 0 } } : {}), { at, rate });
     }, Math.max(0, (at - ctx.currentTime) * 1000)));
   }
+  // Additif à sections (30/10) : niveau propre à chaque section. Une section retrouve le dernier niveau choisi
+  // quand on y revient ; le niveau de départ réglé dans le Backstage ne vaut que pour le premier passage.
+  const sectionLevels = new Map();
+  let levelPickerSecIdx = -1; // section dont les boutons sont affichés
+  const sectionLevelBlock = wrapper.querySelector('[data-role="sectionLevelBlock"]');
+  const sectionLevelPicker = wrapper.querySelector('[data-role="sectionLevelPicker"]');
+  function getSectionLevel(secIdx) {
+    if (!sectionLevels.has(secIdx)) sectionLevels.set(secIdx, additiveSectionStartLevel(track, secIdx));
+    return sectionLevels.get(secIdx);
+  }
+  function renderSectionLevelPicker(secIdx) {
+    if (!isAdditiveSections || !sectionLevelPicker) return;
+    levelPickerSecIdx = secIdx;
+    const section = resolveVRSection(track, secIdx);
+    const pools = (section && section.pools) || [];
+    const lv = getSectionLevel(secIdx);
+    sectionLevelBlock.hidden = pools.length < 2; // une seule couche : rien à choisir
+    sectionLevelPicker.innerHTML = pools.map((pool, i) => {
+      const inner = pool.label ? `<span class="intensity-chip-num">${i + 1}</span>${escapeHtml(pool.label)}` : String(i + 1);
+      return `<button type="button" class="intensity-chip${i === lv ? ' active' : ''}" data-level="${i}">${inner}</button>`;
+    }).join('');
+    wwisePoolVoiceEls.forEach((el, pi) => { if (el) el.classList.toggle('is-level-off', pi > lv); });
+  }
+  function setSectionLevel(secIdx, lv) {
+    sectionLevels.set(secIdx, lv);
+    renderSectionLevelPicker(secIdx);
+    trackPublicEvent('intensity_change', { trackId: track.id, level: lv, sectionIndex: secIdx });
+    if (!playing) return;
+    const now = ctx.currentTime;
+    // Seulement les voix de CETTE section : celles de la suivante, déjà programmées, gardent leur propre niveau.
+    activeGenSources.forEach(entry => {
+      if (entry.secIdx !== secIdx || entry.poolIdx == null) return;
+      entry.baseGain = entry.rawGain * (entry.poolIdx <= lv ? 1 : 0); // refreshVoiceGains (solo/muet) repart de cette valeur
+      entry.gain.gain.cancelScheduledValues(now);
+      entry.gain.gain.setValueAtTime(entry.gain.gain.value, now);
+      entry.gain.gain.linearRampToValueAtTime(entry.baseGain * voiceGain(entry.voiceKey), now + INTENSITY_RAMP_SEC);
+    });
+  }
+  if (sectionLevelPicker) {
+    sectionLevelPicker.addEventListener('click', e => {
+      const chip = e.target.closest('[data-level]');
+      if (chip && levelPickerSecIdx >= 0) setSectionLevel(levelPickerSecIdx, parseInt(chip.dataset.level, 10));
+    });
+    const firstPlayable = (track.sections || []).findIndex((s, i) => vrSectionIsPlayable(track, i));
+    if (firstPlayable >= 0) renderSectionLevelPicker(firstPlayable);
+  }
   function scheduleSectionGeneration(ctxStartTime, secIdx, isFirstEverForThisSection, offsetOverride) {
     const section = resolveVRSection(track, secIdx);
     const declaredSection = (track.sections || [])[secIdx];
@@ -39,14 +85,15 @@
         const buf = bufs[idx];
         silent = !buf;
         pickedBuf = buf;
-        label = buf ? ((alt && alt.label) ? alt.label : t('altFallback', { n: idx + 1 })) : t('silenceLabel');
+        label = buf ? (isAdditiveSections && pool.label) ? pool.label : ((alt && alt.label) ? alt.label : t('altFallback', { n: idx + 1 })) : t('silenceLabel');
         if (buf) {
           const src = ctx.createBufferSource();
           src.buffer = buf;
           applyTrackPitchRate(src, ctxStartTime);
           const g = ctx.createGain();
           const key = 'pool-' + displaySlot;
-          const base = effGain(alt);
+          const rawGain = effGain(alt);
+          const base = rawGain * (!isAdditiveSections || poolIdx <= getSectionLevel(secIdx) ? 1 : 0);
           g.gain.setValueAtTime(base * voiceGain(key), ctxStartTime);
           // fx : porté par le pool (la "voix"/l'emplacement), pas par l'alternative tirée au sort -- même
           // chaîne quel que soit le tirage, cf. la logique retenue pour les emplacements séquentiels.
@@ -61,7 +108,7 @@
           }
           journalVoice(src, g, fxChain);
           src.start(ctxStartTime, bufferOffset);
-          activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base });
+          activeGenSources.push({ src, gain: g, voiceKey: key, baseGain: base, rawGain, poolIdx, secIdx });
         }
       }
       poolPicks.push({ pi: displaySlot, label, silent, buf: pickedBuf });
@@ -201,6 +248,7 @@
     // (rebrassé si "randomiser" est coché), intro rejouée si présente. Une reprise continue la chaîne là
     // où elle en était — même convention que playSequential(isContinuation) pour le séquentiel.
     if (!isContinuation || !sectionScheduler) {
+      if (playableSectionOriginalIndex.length) renderSectionLevelPicker(playableSectionOriginalIndex[0]); // boutons de la section qui va démarrer
       vrPlayableSectionRefs = playableSectionOriginalIndex.map(origIdx => ({ maxLoops: resolveVRSection(track, origIdx).maxLoops }));
       sectionScheduler = createSectionPlaybackScheduler(
         vrPlayableSectionRefs,

@@ -49,9 +49,11 @@
           if (section.duration === undefined) section.duration = 0;
           if (section.maxLoops === undefined) section.maxLoops = null;
           const isDuplicateForMaster = !!section.referencesSectionId;
+          // Layering additif : une couche = un seul fichier, jamais de tirage (les données restent celles des pools).
+          const isAdditive = track.mode === 'vertical-additive-sequential';
           modeMasterHost.appendChild(modeMasterItem(sci, `
             <div class="seq-master-item-label">${dragHandleHtml()}${escapeAttr(section.label) || tr('sectionFallback', { n: sci + 1 })}</div>
-            <div class="seq-master-item-tags">${isDuplicateForMaster ? `<span class="seq-master-item-tag">${tr('seqDuplicateTag')}</span>` : `<span class="seq-master-item-tag">${trCount(section.pools.length, 'vrsPoolCountSingular', 'vrsPoolCountPlural')}</span>`}</div>
+            <div class="seq-master-item-tags">${isDuplicateForMaster ? `<span class="seq-master-item-tag">${tr('seqDuplicateTag')}</span>` : `<span class="seq-master-item-tag">${trCount(section.pools.length, isAdditive ? 'additiveLayerCountSingular' : 'vrsPoolCountSingular', isAdditive ? 'additiveLayerCountPlural' : 'vrsPoolCountPlural')}</span>`}</div>
           `, section.id, true));
           if (modeSel !== sci) return;
           const sectionBpm = section.bpm || 120;
@@ -67,36 +69,43 @@
           sectionEl.innerHTML = `
             <label>${tr('nameFieldLabel')}</label><input type="text" placeholder="${tr('sectionNamePlaceholder')}" data-section-field="label" data-ti="${ti}" data-si="${sci}" value="${escapeAttr(section.label)}" style="margin-bottom:8px">
             <div class="actions"><button class="btn btn-small btn-danger" data-action="remove-section" data-ti="${ti}" data-si="${sci}">${tr('removeSectionBtn')}</button></div>
-            ${!hasAnyFile ? `<div class="hint-inline" style="color:#b45309">${tr('noAltFileWarning')}</div>` : ''}
-            <label data-help="slotContentSource" style="margin-top:8px">${tr('slotContentSourceLabel')}</label>
+            ${!hasAnyFile ? `<div class="hint-inline" style="color:#b45309">${tr(isAdditive ? 'additiveSectionNoFileWarning' : 'noAltFileWarning')}</div>` : ''}
+            <label data-help="${isAdditive ? 'additiveContentSource' : 'slotContentSource'}" style="margin-top:8px">${tr('slotContentSourceLabel')}</label>
             <select data-section-field="referencesSectionId" data-ti="${ti}" data-si="${sci}" ${isReferencedByOthers ? 'disabled' : ''}>
               <option value="">${tr('slotContentOwnOption')}</option>
               ${duplicatableOptions.map(other => `<option value="${other.id}" ${section.referencesSectionId === other.id ? 'selected' : ''}>${tr('slotContentDuplicateOption', { label: escapeAttr(other.label) || tr('untitledFallback') })}</option>`).join('')}
             </select>
             ${isReferencedByOthers ? `<div class="hint-inline">${tr('slotIsSourceHint')}</div>` : ''}
+            ${isAdditive && ((isDuplicate ? (sourceSection && sourceSection.pools) : section.pools) || []).length > 1 ? `
+              <label style="margin-top:14px">${tr('sectionStartLevelLabel')}</label>
+              <select data-section-field="startLevel" data-ti="${ti}" data-si="${sci}">
+                ${((isDuplicate ? sourceSection.pools : section.pools)).map((p, lv) => `<option value="${lv}"${Math.min(section.startLevel || 0, (isDuplicate ? sourceSection.pools : section.pools).length - 1) === lv ? ' selected' : ''}>${lv + 1}${p.label ? ' · ' + escapeAttr(p.label) : ''}</option>`).join('')}
+              </select>
+              <div class="hint-inline">${tr('sectionStartLevelHint')}</div>
+            ` : ''}
             ${isDuplicate ? `
-              <div class="hint-inline">${tr('sectionDuplicateHint', { label: escapeAttr((sourceSection && sourceSection.label) || tr('untitledFallback')) })}</div>
+              <div class="hint-inline">${tr(isAdditive ? 'additiveSectionDuplicateHint' : 'sectionDuplicateHint', { label: escapeAttr((sourceSection && sourceSection.label) || tr('untitledFallback')) })}</div>
             ` : `
-              <label data-help="vrsSectionBatchDrop" style="margin-top:14px">${tr('vrsSectionBatchDropLabel')}${!flagOpen('bulk_drop') ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}</label>
-              <div class="hint-inline">${tr('vrsSectionBatchDropHint')}</div>
+              <label data-help="${isAdditive ? 'additiveBatchDrop' : 'vrsSectionBatchDrop'}" style="margin-top:14px">${tr('vrsSectionBatchDropLabel')}${!flagOpen('bulk_drop') ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}</label>
+              <div class="hint-inline">${tr(isAdditive ? 'additiveBatchDropHint' : 'vrsSectionBatchDropHint')}</div>
               <div data-role="vrsSectionDrop" class="${flagOpen('bulk_drop') ? '' : 'is-disabled'}" style="margin-top:6px">${tr('dropAllFilesHint')}</div>
-              <label data-help="bpmMeasuresVerticalRandom" style="margin-top:14px">${tr('bpmMeasuresLabel')}</label>
+              <label data-help="${isAdditive ? 'additiveBpmMeasures' : 'bpmMeasuresVerticalRandom'}" style="margin-top:14px">${tr('bpmMeasuresLabel')}</label>
               <div class="row" style="margin-top:8px">
                 <div><label>${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-section-field="bpm" data-ti="${ti}" data-si="${sci}" value="${sectionBpm}"></div>
                 <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" data-section-field="beatsPerBar" data-ti="${ti}" data-si="${sci}" value="${sectionBeatsPerBar}"></div>
               </div>
-              <label data-help="loopPointsVerticalRandom" style="margin-top:8px">${tr('loopPointsLabel')}</label>
+              <label data-help="${isAdditive ? 'additiveLoopPoints' : 'loopPointsVerticalRandom'}" style="margin-top:8px">${tr('loopPointsLabel')}</label>
               <div data-role="loopTimelineHost" data-ti="${ti}" data-si="${sci}"></div>
-              <div class="hint-inline">${tr('loopTimelineHintVerticalRandom')}</div>
+              <div class="hint-inline">${tr(isAdditive ? 'additiveLoopTimelineHint' : 'loopTimelineHintVerticalRandom')}</div>
               <label data-help="defaultLoopCount" style="margin-top:10px">${tr('defaultLoopCountLabel')}</label>
               <select data-section-field="maxLoops" data-ti="${ti}" data-si="${sci}">
                 <option value=""${!section.maxLoops ? ' selected' : ''}>${tr('infiniteLoops')}</option>
                 ${[1,2,3,5,10].map(n => `<option value="${n}"${section.maxLoops === n ? ' selected' : ''}>${n}</option>`).join('')}
               </select>
               <div class="hint-inline">${tr('loopCountVisitorHint')}</div>
-              <label data-help="vrsPools" style="margin-top:14px">${tr('vrsPoolsLabel')}</label>
+              <label data-help="${isAdditive ? 'additiveLayers' : 'vrsPools'}" style="margin-top:14px">${tr(isAdditive ? 'additivePoolsLabel' : 'vrsPoolsLabel')}</label>
               <div data-role="vrsPools"></div>
-              <div class="actions"><button class="btn btn-small" data-action="add-pool" data-ti="${ti}" data-si="${sci}">${tr('addPoolBtn')}</button></div>
+              <div class="actions"><button class="btn btn-small" data-action="add-pool" data-ti="${ti}" data-si="${sci}">${tr(isAdditive ? 'additiveAddLayerBtn' : 'addPoolBtn')}</button></div>
             `}
           `;
           modeDetailHost.appendChild(sectionEl);
@@ -118,6 +127,65 @@
             const poolEl = document.createElement('div');
             poolEl.className = 'list-block';
             poolEl.style.marginBottom = '8px';
+            if (isAdditive) {
+              const alt = additiveLayerAlt(pool);
+              const ai = pool.alternatives.indexOf(alt);
+              const altHasFile = !!(alt.pendingFile || alt.remoteFile);
+              const otherFiles = pool.alternatives.filter(a => a !== alt && (a.pendingFile || a.remoteFile)).length;
+              poolEl.innerHTML = `
+                <div class="list-block-head">
+                  <input type="text" placeholder="${tr('additiveLayerNamePlaceholder')}" data-pool-field="label" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" value="${escapeAttr(pool.label)}" style="flex:1;margin-right:8px;">
+                  <button class="btn btn-small btn-danger" data-action="remove-pool" data-ti="${ti}" data-si="${sci}" data-pi="${pi}">${tr('additiveRemoveLayerBtn')}</button>
+                </div>
+                ${!altHasFile ? `<div class="hint-inline" style="color:#b45309">${tr('additiveLayerNoFileWarning')}</div>` : ''}
+                ${otherFiles ? `<div class="hint-inline" style="color:#b45309">${tr('additiveLayerExtraFiles', { n: otherFiles })}</div>` : ''}
+                <div data-role="layerFileCtrl" style="margin-top:8px"></div>
+                <div class="hint-inline">${tr('additiveLayerDropHint')}</div>
+                <label style="margin-top:8px">${tr('altVolumeLabel')}</label><input type="number" step="0.5" min="-24" max="12" data-pool-alt-field="volumeDb" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" data-ai="${ai}" value="${alt.volumeDb || 0}" style="max-width:120px">
+                ${poolFxHtml(pool, ti, sci, pi)}
+              `;
+              // Un fichier reçu remplit cette couche et la nomme si elle n'a pas encore de nom.
+              const fillLayer = (layer, layerAlt, f) => {
+                layerAlt.pendingFile = f;
+                layerAlt.label = titleFromFilenameStrippingHints(f.name);
+                if (!layer.label || !layer.label.trim()) layer.label = layerAlt.label;
+              };
+              const afterFiles = files => {
+                hasUnsavedEdits = true;
+                renderLibrary();
+                Promise.all(files.map(probeAudioDuration)).then(durs => {
+                  const maxDur = Math.max(0, ...durs);
+                  if (maxDur > (section.duration || 0)) { section.duration = maxDur; renderLibrary(); }
+                  if (maxDur > (track.duration || 0)) { track.duration = maxDur; }
+                });
+              };
+              const layerCtrlHost = poolEl.querySelector('[data-role="layerFileCtrl"]');
+              layerCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'), altHasFile ? deleteIconBtnHtml('remove-pool-alt', { ti, si: sci, pi, ai }, tr('additiveRemoveFileBtn')) : '');
+              wireFileControl(layerCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
+                () => alt.pendingFile, () => alt.remoteFile,
+                f => {
+                  const hadFiles = sectionHasAnyFile(section);
+                  fillLayer(pool, alt, f);
+                  applySectionTempoFromFileNames(section, [f], hadFiles);
+                  afterFiles([f]);
+                }, () => alt.originalFileName);
+              // Plusieurs fichiers lâchés sur la carte : le premier pour cette couche, chacun des suivants crée
+              // sa propre couche juste après, dans l'ordre des noms.
+              wireBatchDrop(poolEl, files => {
+                const hadFiles = sectionHasAnyFile(section);
+                const sorted = [...files].sort(compareFilesByName);
+                fillLayer(pool, alt, sorted[0]);
+                sorted.slice(1).forEach((f, n) => {
+                  const layer = { id: genId(), label: '', avoidImmediateRepeat: true, alternatives: [{ label: '', remoteFile: null, pendingFile: null }] };
+                  fillLayer(layer, layer.alternatives[0], f);
+                  section.pools.splice(pi + 1 + n, 0, layer);
+                });
+                applySectionTempoFromFileNames(section, sorted, hadFiles);
+                afterFiles(sorted);
+              });
+              poolsHost.appendChild(poolEl);
+              return;
+            }
             const poolHasFile = pool.alternatives.some(a => a.pendingFile || a.remoteFile);
             poolEl.innerHTML = `
               <div class="list-block-head">

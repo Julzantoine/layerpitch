@@ -345,6 +345,7 @@ window.LayerPlayerCore = {
   fetchAudioBytes,
   createSectionPlaybackScheduler,
   PLAYABLE_MODES,
+  ADDITIVE_SECTIONS_MODE,
   WAVEFORM_STYLES,
   setWaveformStyle,
   currentWaveformStyle,

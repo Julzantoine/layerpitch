@@ -69,6 +69,7 @@
       const declaredSection = (track.sections || [])[r.origIdx];
       if (sectionCurrentEl) sectionCurrentEl.textContent = (declaredSection && declaredSection.label) || t('sectionFallback', { n: r.origIdx + 1 });
       vrBlockEls.forEach((el, i) => { if (el) el.classList.toggle('active', i === r.origIdx); });
+      renderSectionLevelPicker(r.origIdx);
       seekVerticalRandom(r.frac);
     }
     return true;

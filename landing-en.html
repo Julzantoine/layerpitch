@@ -168,6 +168,15 @@
 
   footer { text-align: center; padding: 26px 24px 34px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dimmer); background: var(--bg-dark); }
   footer, .cta-band { color: var(--text-on-dark-dim); }
+  /* Fenêtre proposée juste après l'envoi du formulaire (30/10) : faire le tutoriel public sans attendre l'invitation. */
+  .tuto-popup { border: 0; border-radius: 14px; padding: 28px; width: min(440px, calc(100vw - 32px)); background: var(--bg-card); color: var(--text); box-shadow: var(--shadow-card); text-align: left; }
+  .tuto-popup::backdrop { background: rgba(32,30,27,0.6); }
+  .tuto-popup h3 { font-family: var(--font-title); font-size: 21px; line-height: 1.25; margin: 0 0 10px; }
+  .tuto-popup p { font-size: 15px; line-height: 1.55; color: var(--text-dim); margin: 0 0 20px; }
+  .tuto-popup-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+  .tuto-popup-later { background: none; border: 0; padding: 10px 12px; font: inherit; font-size: 14px; color: var(--text-dim); cursor: pointer; }
+  .tuto-popup-later:hover { color: var(--text); }
+  .cta-msg.ok a { color: inherit; }
 </style>
 </head>
 <body>
@@ -343,6 +352,15 @@
   <footer>LayerPitch — interactive music for your game pitches</footer>
 </div>
 
+<dialog class="tuto-popup" id="tutoPopup" aria-labelledby="tutoPopupTitle">
+  <h3 id="tutoPopupTitle"></h3>
+  <p>In the meantime, you can already try LayerPitch: the interactive tutorial guides you step by step, with no account and with sample tracks.</p>
+  <div class="tuto-popup-actions">
+    <button type="button" class="tuto-popup-later" id="tutoPopupLater">Later</button>
+    <a class="btn btn-primary" id="tutoPopupGo" href="https://beta.layerpitch.com/layerpitch-backstage.html?tuto&amp;lang=en" target="_blank" rel="noopener">Try the tutorial</a>
+  </div>
+</dialog>
+
 <script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
 <script>
   // Same public values as api/supabase-client.js (a "publishable" key, not a secret) -- raw
@@ -356,6 +374,11 @@
   form.querySelectorAll('button[data-intent]').forEach((btn) => {
     btn.addEventListener('click', () => { intentField.value = btn.dataset.intent; });
   });
+  // Propose le tutoriel public dès l'inscription (30/10) : le lien reste aussi sur la page une fois la fenêtre fermée.
+  const tutoPopup = document.getElementById('tutoPopup');
+  document.getElementById('tutoPopupLater').addEventListener('click', () => tutoPopup.close());
+  tutoPopup.addEventListener('click', (e) => { if (e.target === tutoPopup) tutoPopup.close(); });
+  document.getElementById('tutoPopupGo').addEventListener('click', () => { window.umami && window.umami.track('landing_tuto_popup_go'); tutoPopup.close(); });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     msg.textContent = 'Sending…'; msg.className = 'cta-msg';
@@ -367,7 +390,9 @@
       });
       if (res.ok) {
         window.umami && window.umami.track('landing_signup', { intent: intentField.value });
-        form.innerHTML = '<div class="cta-msg ok">Thanks — we\'ll keep you posted ✓</div>';
+        form.innerHTML = '<div class="cta-msg ok">Thanks — we\'ll keep you posted ✓ <a href="https://beta.layerpitch.com/layerpitch-backstage.html?tuto&amp;lang=en" target="_blank" rel="noopener">Try the tutorial</a></div>';
+        document.getElementById('tutoPopupTitle').textContent = intentField.value === 'waitlist' ? "Thanks, we'll keep you posted!" : "Thanks, your invitation is on its way!";
+        tutoPopup.showModal();
       } else {
         msg.textContent = 'Something went wrong — try again.';
         msg.className = 'cta-msg err';

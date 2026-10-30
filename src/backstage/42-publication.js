@@ -88,6 +88,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         startTrackBeat: sec.startTrackBeat || 0,
         loopInBeat: sec.loopInBeat || 0, loopOutBeat: sec.loopOutBeat || (sec.beatsPerBar || 4) * 4,
         maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
+        startLevel: sec.startLevel || 0,
         duration: Math.round((sec.duration || 0) * 100) / 100,
         pools: sec.referencesSectionId ? [] : (sec.pools || []).map(p => ({
           id: p.id, label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
