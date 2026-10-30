@@ -69,7 +69,6 @@
       const declaredSection = (track.sections || [])[r.origIdx];
       if (sectionCurrentEl) sectionCurrentEl.textContent = (declaredSection && declaredSection.label) || t('sectionFallback', { n: r.origIdx + 1 });
       vrBlockEls.forEach((el, i) => { if (el) el.classList.toggle('active', i === r.origIdx); });
-      renderSectionLevelPicker(r.origIdx);
       seekVerticalRandom(r.frac);
     }
     return true;
@@ -391,6 +390,7 @@
       resumeEmbrVerticalAfterBackground();
       return;
     }
+    if (chainHooks && ctx.state === 'running') return; // section d'un hybride : la relancer casserait le passage déjà calculé
     const resumeFrom = computeElapsed();
     stopAllSources(false);
     offsetAt = resumeFrom;
@@ -434,6 +434,16 @@
       },
       stop() { lpCancelWait(); if (playing) stopAllSources(false); },
       isReady: () => !!ready,
+      // Séquentiel hybride : départ à un instant précis, demande de finir à la fin de la boucle en cours, pause et remise à zéro.
+      startAt(when) { chainStartAt = when; chainFinishRequested = false; playThisTrack(true); },
+      finishAtLoopEnd() {
+        chainFinishRequested = true;
+        if (!playing) return;
+        if (!useQuantizedLoop) armChainEndSimple();
+      },
+      pause: () => pauseThisTrack(),
+      resume: () => playThisTrack(true),
+      reset() { chainStartAt = null; chainFinishRequested = false; lpEndedCb = null; lpCancelWait(); stopThisTrack(); },
       // Vertical-random : « nouveau tirage » (rejoue la section en cours avec de nouveaux tirages) ; faux pour les autres modes.
       canRefreshPool: () => isVerticalRandom,
       refreshPool() { if (!isVerticalRandom) return false; rerollPool(); return true; },

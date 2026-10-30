@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793403470200">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793403864289">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -560,7 +560,6 @@
   .wwise-col-voices { justify-content: space-around; align-items: center; flex: 1; }
   .wwise-node { background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dim); white-space: nowrap; text-align: center; }
   .wwise-node-source, .wwise-node-bus { font-weight: 600; color: var(--text); }
-  .wwise-node-voice.is-level-off { opacity: 0.35; }
   .wwise-node-voice { display: flex; flex-direction: column; gap: 5px; align-items: center; width: 220px; flex-shrink: 0; }
   .wwise-node-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
   .wwise-node-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; text-align: left; }
@@ -1014,6 +1013,16 @@
   .waveform-style-card canvas { width: 100%; height: 56px; display: block; }
   .waveform-style-card:hover { border-color: var(--accent); }
   .waveform-style-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); color: var(--text); font-weight: 600; }
+/* Séquentiel hybride (31/10) : le lecteur d'une section sans son en-tête, le parent porte Lecture et Stop. La section qui n'est pas
+   entendue reste mesurée hors de l'écran (ses formes d'onde gardent leur taille) ; sa queue peut encore sonner. */
+.hybrid-blocks { display: flex; gap: 6px; margin: 10px 0; }
+.hybrid-blocks .seq-block { flex: 1; min-width: 0; }
+.hybrid-children { position: relative; overflow: hidden; }
+.hybrid-child > .track-row { display: none; }
+.hybrid-child > .track-row-details { max-height: none !important; overflow: visible; }
+.hybrid-child .track-row-details-inner { padding-left: 0; }
+.hybrid-child [data-role="status"] { display: none; }
+.hybrid-child-offstage { position: absolute; left: -200%; top: 0; width: 100%; visibility: hidden; }
 </style>
 </head>
 <body>
@@ -1966,18 +1975,18 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793403470200"></script>
-<script src="layerpitch-i18n.js?v=1793403470200"></script>
-<script src="layerpitch-import-engine.js?v=1793403470200"></script>
-<script src="layerpitch-appearance.js?v=1793403470200"></script>
-<script src="layerpitch-album-shared.js?v=1793403470200"></script>
-<script src="layerpitch-album-editor.js?v=1793403470200"></script>
-<script src="layerpitch-shell.js?v=1793403470200"></script>
-<script src="layerpitch-social-icons.js?v=1793403470200"></script>
-<script src="layerpitch-notify.js?v=1793403470200"></script>
-<script src="layerpitch-guide.js?v=1793403470200"></script>
-<script src="layerpitch-help.js?v=1793403470200"></script>
-<script src="player.js?v=1793403470200"></script>
+<script src="layerpitch-tuto.js?v=1793403864289"></script>
+<script src="layerpitch-i18n.js?v=1793403864289"></script>
+<script src="layerpitch-import-engine.js?v=1793403864289"></script>
+<script src="layerpitch-appearance.js?v=1793403864289"></script>
+<script src="layerpitch-album-shared.js?v=1793403864289"></script>
+<script src="layerpitch-album-editor.js?v=1793403864289"></script>
+<script src="layerpitch-shell.js?v=1793403864289"></script>
+<script src="layerpitch-social-icons.js?v=1793403864289"></script>
+<script src="layerpitch-notify.js?v=1793403864289"></script>
+<script src="layerpitch-guide.js?v=1793403864289"></script>
+<script src="layerpitch-help.js?v=1793403864289"></script>
+<script src="player.js?v=1793403864289"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3382,16 +3391,6 @@ function log(msg, cls) {
   el.appendChild(line);
   el.scrollTop = el.scrollHeight;
 }
-// Modes à sections (sections > pools) : le vertical-random et le layering additif à sections (30/10).
-function isSectionsMode(mode) { return mode === 'vertical-random' || mode === 'vertical-additive-sequential'; }
-// Layering additif : le fichier de la couche (le premier qui existe), le seul joué. Une couche vide garde un
-// emplacement pour en recevoir un.
-function additiveLayerAlt(pool) {
-  if (!pool.alternatives) pool.alternatives = [];
-  if (!pool.alternatives.length) pool.alternatives.push({ label: '', remoteFile: null, pendingFile: null });
-  return pool.alternatives.find(a => a.pendingFile || a.remoteFile) || pool.alternatives[0];
-}
-function compareFilesByName(a, b) { return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }); }
 function slug(str) {
   return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'item';
 }
@@ -3833,9 +3832,9 @@ function fxTriggerTargetChoices(track) {
   else if (track.mode === 'vertical') (track.layers || []).forEach((l, i) => out.push({ value: 'layer:' + i, label: l.label || tr('layerFallback', { n: i + 1 }) }));
   else if (track.mode === 'embranchement-vertical') (track.loops || []).forEach((l, i) => out.push({ value: 'loop:' + i, label: l.label || tr('embrLoopFallback', { n: i + 1 }) }));
   else if (track.mode === 'sequential') (track.segmentSlots || []).forEach((sl, i) => out.push({ value: 'slot:' + i, label: '#' + (i + 1) + ' ' + (sl.label || tr('slotFallback', { n: i + 1 })) }));
-  else if (isSectionsMode(track.mode)) (track.sections || []).forEach((sec, si) => (sec.pools || []).forEach((p, pi) => out.push({ value: 'pool:' + si + ':' + pi, label: (sec.label || ('S' + (si + 1))) + ' / ' + (p.label || (track.mode === 'vertical-additive-sequential' ? tr('additiveLayerFallback', { n: pi + 1 }) : 'P' + (pi + 1))) })));
+  else if (track.mode === 'vertical-random') (track.sections || []).forEach((sec, si) => (sec.pools || []).forEach((p, pi) => out.push({ value: 'pool:' + si + ':' + pi, label: (sec.label || ('S' + (si + 1))) + ' / ' + (p.label || ('P' + (pi + 1))) })));
   // Intro, outro, transitions (7/10) : leurs chaînes d'effets sont des cibles comme les voix.
-  if (track.mode === 'sequential' || isSectionsMode(track.mode)) { out.push({ value: 'intro', label: tr('fxTargetIntro') }); out.push({ value: 'outro', label: tr('fxTargetOutro') }); }
+  if (track.mode === 'sequential' || track.mode === 'vertical-random') { out.push({ value: 'intro', label: tr('fxTargetIntro') }); out.push({ value: 'outro', label: tr('fxTargetOutro') }); }
   if (track.mode === 'sequential' || track.mode === 'embranchement-vertical') out.push({ value: 'transition', label: tr('fxTargetTransitions') });
   return out;
 }
@@ -5918,12 +5917,8 @@ function openVrsBatchDropDialog(track, section, files) {
   // d'office seulement si la section n'a encore aucun fichier (on n'écrase pas un réglage déjà fait).
   const sectionHasFile = (section.pools || []).some(p => (p.alternatives || []).some(a => a.pendingFile || a.remoteFile));
   const found = firstFilenameHints(files);
-  // Layering additif : pas de regroupement par nom, chaque fichier devient sa couche, dans l'ordre des noms.
-  const isAdditive = track.mode === 'vertical-additive-sequential';
-  if (isAdditive) guess.groups = guess.groups.flatMap(g => g.files).sort(compareFilesByName).map(f => ({ label: titleFromFilenameStrippingHints(f.name), files: [f] }));
   openGroupedDropDialog({
-    files, groupKind: 'pool', withIntroOutro: true, withSilent: !isAdditive,
-    labels: isAdditive ? { summary: 'additiveBatchSummary', option: 'additiveBatchOption', fallback: 'additiveLayerFallback', empty: 'additiveBatchEmptyGroup', placeholder: 'additiveLayerNamePlaceholder', addGroup: 'additiveAddLayerBtn' } : undefined,
+    files, groupKind: 'pool', withIntroOutro: true, withSilent: true,
     title: tr('vrsBatchTitle', { section: section.label || tr('untitledFallback') }),
     groups: guess.groups, intro: guess.intro, outro: guess.outro,
     introTaken: !!(track.intro && (track.intro.pendingFile || track.intro.remoteFile)),
@@ -5933,7 +5928,7 @@ function openVrsBatchDropDialog(track, section, files) {
       text: tr('vrsBatchApplyHintsLabel', { hints: hintsText(found.hints), file: escapeHtml(found.file.name) }),
       note: sectionHasFile ? tr('vrsBatchHintsSectionHasFiles') : ''
     }] : [],
-    confirmLabel: tr(isAdditive ? 'additiveBatchConfirmBtn' : 'vrsBatchConfirmBtn'),
+    confirmLabel: tr('vrsBatchConfirmBtn'),
     onConfirm: res => applyVrsBatchDrop(track, section, files, res, res.checks.hints ? found.hints : null)
   });
 }
@@ -5945,19 +5940,9 @@ function applyVrsBatchDrop(track, section, files, res, hints) {
   // retirés pour ne pas laisser un pool fantôme à côté de ceux qu'on crée. Aucun fichier distant en jeu.
   section.pools = section.pools.filter(p => (p.label || '').trim() || (p.alternatives || []).some(hasFile));
   const touched = [];
-  const isAdditive = track.mode === 'vertical-additive-sequential';
-  // Layering additif : même si la fenêtre a réuni deux fichiers, chacun reste sa propre couche.
-  const groups = isAdditive
-    ? res.groups.flatMap(g => g.files.map(f => ({ label: g.files.length > 1 ? titleFromFilenameStrippingHints(f.name) : g.label, silent: false, files: [f] })))
-    : res.groups;
-  groups.forEach(g => {
-    // « Basse 1 » et « Basse 2 » sont deux couches : en additif, seul le nom exact désigne une couche existante.
-    const sameLayer = sp => isAdditive ? (sp.label || '').trim().toLowerCase() === g.label.trim().toLowerCase() : nameFamilyKey(sp.label) === nameFamilyKey(g.label);
-    let target = g.label ? section.pools.find(sameLayer) : null;
-    if (target && isAdditive) {
-      (target.alternatives || []).forEach(a => { if (a.remoteFile) queueR2Delete(`audio/${track.id}/${a.remoteFile}`); });
-      target.alternatives = [];
-    } else if (target) {
+  res.groups.forEach(g => {
+    let target = g.label ? section.pools.find(sp => nameFamilyKey(sp.label) === nameFamilyKey(g.label)) : null;
+    if (target) {
       if (!target.alternatives) target.alternatives = [];
       // Pool nommé à l'avance mais encore sans aucun fichier : ses emplacements vides d'origine sont des
       // attentes de fichier, pas des silences voulus -- remplacés par les fichiers déposés.
@@ -6076,6 +6061,15 @@ function offerTrackTempoFromFilenames(track, files, withLoopBars) {
 }
 
 function buildPreviewTrack(track) {
+  if (track.mode === 'hybrid-sequential') {
+    return {
+      id: track.id, title: track.title, description: track.description, tags: track.tags || '', mode: track.mode, duration: 0, base: track.base, layers: [], sfxIds: [],
+      sections: (track.sections || []).map(sec => {
+        const source = library.find(l => l.id === sec.trackId);
+        return { id: sec.id, label: sec.label, trackId: sec.trackId, maxLoops: sec.maxLoops, track: source ? buildPreviewTrack(source) : null };
+      })
+    };
+  }
   const mapItem = (item) => {
     if (!item) return null;
     // fx (chantier "effets dynamiques", 22/09) : porté ici plutôt que dans un mapper dédié aux couches,
@@ -6214,7 +6208,6 @@ function buildPreviewTrack(track) {
       bpm: sec.bpm || 120, beatsPerBar: sec.beatsPerBar || 4, startTrackBeat: sec.startTrackBeat || 0,
       loopInBeat: sec.loopInBeat || 0, loopOutBeat: sec.loopOutBeat || 16,
       maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
-      startLevel: sec.startLevel || 0,
       pools: (sec.pools || []).map(p => ({
         id: p.id, label: p.label, avoidImmediateRepeat: p.avoidImmediateRepeat,
         alternatives: (p.alternatives || []).map(mapAlternative),
@@ -6237,7 +6230,9 @@ function togglePreview(ti, cardEl) {
   const track = library[ti];
   const hasFile = f => !!(f && (f.pendingFile || f.remoteFile));
   let hasAnyFile;
-  if (isSectionsMode(track.mode)) {
+  if (track.mode === 'hybrid-sequential') {
+    hasAnyFile = (track.sections || []).some(sec => { const s = library.find(l => l.id === sec.trackId); return s && (s.layers || []).some(hasFile); });
+  } else if (track.mode === 'vertical-random') {
     hasAnyFile = hasFile(track.intro) || hasFile(track.outro) || (track.sections || []).some(sec => (sec.pools || []).some(p => (p.alternatives || []).some(hasFile)));
   } else if (track.mode === 'sequential') {
     hasAnyFile = hasFile(track.intro) || hasFile(track.outro) || (track.segmentSlots || []).some(sl => (sl.alternatives || []).some(hasFile));
@@ -6985,9 +6980,10 @@ function renderLibrary() {
   library.forEach((track, ti) => {
     if (track.id !== manageLibrarySelectedId) return; // un seul morceau affiché à la fois -- celui sélectionné dans la liste maître
     const isStatic = track.mode === 'static';
-    const isVerticalRandom = isSectionsMode(track.mode);
+    const isVerticalRandom = track.mode === 'vertical-random';
     const isSequential = track.mode === 'sequential';
     const isEmbrVert = track.mode === 'embranchement-vertical';
+    const isHybrid = track.mode === 'hybrid-sequential';
     const loops = !isStatic || !!track.loopable;
     const beatsPerBar = track.beatsPerBar || 4;
     const bpm = track.bpm || 120;
@@ -7003,8 +6999,9 @@ function renderLibrary() {
             <option value="vertical-random"${track.mode === 'vertical-random' ? ' selected' : ''}>${tr('modeOptionVerticalRandom')}</option>
             <option value="sequential"${track.mode === 'sequential' ? ' selected' : ''}>${tr('modeOptionSequential')}</option>
             <option value="embranchement-vertical"${track.mode === 'embranchement-vertical' ? ' selected' : ''}>${tr('modeOptionEmbranchementVertical')}</option>
+            <option value="hybrid-sequential"${isHybrid ? ' selected' : ''}${isHybrid || flagOpen('hybrid_sequential') ? '' : ' disabled'}>${tr(isHybrid || flagOpen('hybrid_sequential') ? 'modeOptionHybridSequential' : 'modeOptionHybridSequentialSoon')}</option>
             <option value="vertical-additive-random" disabled>${tr('modeOptionVerticalAdditiveRandom')}</option>
-            <option value="vertical-additive-sequential"${track.mode === 'vertical-additive-sequential' ? ' selected' : ''}${flagOpen('additive_sections') || track.mode === 'vertical-additive-sequential' ? '' : ' disabled'}>${tr('modeOptionVerticalAdditiveSequential')}${flagOpen('additive_sections') ? '' : ' ' + tr('modeOptionComingSoonSuffix')}</option>
+            <option value="vertical-additive-sequential" disabled>${tr('modeOptionVerticalAdditiveSequential')}</option>
             <option value="vertical-additive-sequential-random" disabled>${tr('modeOptionVerticalAdditiveSequentialRandom')}</option>
           </select>
         </div>
@@ -7024,6 +7021,8 @@ function renderLibrary() {
           <div class="seq-master-list" data-role="segmentSlotsMaster"></div>
           <div class="seq-detail-col" data-role="segmentSlotsDetail"></div>
         </div>
+      ` : isHybrid ? `
+        <div data-role="hybridEditor"></div>
       ` : `
         <div class="seq-two-col">
           <div class="seq-master-list" data-role="modeMaster"></div>
@@ -7033,7 +7032,9 @@ function renderLibrary() {
       </div>
     `;
 
-    if (!isSequential) {
+    if (isHybrid) {
+      renderHybridEditor(el.querySelector('[data-role="hybridEditor"]'), track, ti);
+    } else if (!isSequential) {
       // ---- Disposition maître-détail généralisée à tous les modes non séquentiels (18/08) : mêmes 3
       // entrées virtuelles (Infos du morceau / Sfx / Infos additionnelles) qu'en séquentiel, réutilisant
       // seqSelectedSlotIndex (déjà générique, clé = track.id) et le même gestionnaire délégué
@@ -7239,11 +7240,9 @@ function renderLibrary() {
           if (section.duration === undefined) section.duration = 0;
           if (section.maxLoops === undefined) section.maxLoops = null;
           const isDuplicateForMaster = !!section.referencesSectionId;
-          // Layering additif : une couche = un seul fichier, jamais de tirage (les données restent celles des pools).
-          const isAdditive = track.mode === 'vertical-additive-sequential';
           modeMasterHost.appendChild(modeMasterItem(sci, `
             <div class="seq-master-item-label">${dragHandleHtml()}${escapeAttr(section.label) || tr('sectionFallback', { n: sci + 1 })}</div>
-            <div class="seq-master-item-tags">${isDuplicateForMaster ? `<span class="seq-master-item-tag">${tr('seqDuplicateTag')}</span>` : `<span class="seq-master-item-tag">${trCount(section.pools.length, isAdditive ? 'additiveLayerCountSingular' : 'vrsPoolCountSingular', isAdditive ? 'additiveLayerCountPlural' : 'vrsPoolCountPlural')}</span>`}</div>
+            <div class="seq-master-item-tags">${isDuplicateForMaster ? `<span class="seq-master-item-tag">${tr('seqDuplicateTag')}</span>` : `<span class="seq-master-item-tag">${trCount(section.pools.length, 'vrsPoolCountSingular', 'vrsPoolCountPlural')}</span>`}</div>
           `, section.id, true));
           if (modeSel !== sci) return;
           const sectionBpm = section.bpm || 120;
@@ -7259,43 +7258,36 @@ function renderLibrary() {
           sectionEl.innerHTML = `
             <label>${tr('nameFieldLabel')}</label><input type="text" placeholder="${tr('sectionNamePlaceholder')}" data-section-field="label" data-ti="${ti}" data-si="${sci}" value="${escapeAttr(section.label)}" style="margin-bottom:8px">
             <div class="actions"><button class="btn btn-small btn-danger" data-action="remove-section" data-ti="${ti}" data-si="${sci}">${tr('removeSectionBtn')}</button></div>
-            ${!hasAnyFile ? `<div class="hint-inline" style="color:#b45309">${tr(isAdditive ? 'additiveSectionNoFileWarning' : 'noAltFileWarning')}</div>` : ''}
-            <label data-help="${isAdditive ? 'additiveContentSource' : 'slotContentSource'}" style="margin-top:8px">${tr('slotContentSourceLabel')}</label>
+            ${!hasAnyFile ? `<div class="hint-inline" style="color:#b45309">${tr('noAltFileWarning')}</div>` : ''}
+            <label data-help="slotContentSource" style="margin-top:8px">${tr('slotContentSourceLabel')}</label>
             <select data-section-field="referencesSectionId" data-ti="${ti}" data-si="${sci}" ${isReferencedByOthers ? 'disabled' : ''}>
               <option value="">${tr('slotContentOwnOption')}</option>
               ${duplicatableOptions.map(other => `<option value="${other.id}" ${section.referencesSectionId === other.id ? 'selected' : ''}>${tr('slotContentDuplicateOption', { label: escapeAttr(other.label) || tr('untitledFallback') })}</option>`).join('')}
             </select>
             ${isReferencedByOthers ? `<div class="hint-inline">${tr('slotIsSourceHint')}</div>` : ''}
-            ${isAdditive && ((isDuplicate ? (sourceSection && sourceSection.pools) : section.pools) || []).length > 1 ? `
-              <label style="margin-top:14px">${tr('sectionStartLevelLabel')}</label>
-              <select data-section-field="startLevel" data-ti="${ti}" data-si="${sci}">
-                ${((isDuplicate ? sourceSection.pools : section.pools)).map((p, lv) => `<option value="${lv}"${Math.min(section.startLevel || 0, (isDuplicate ? sourceSection.pools : section.pools).length - 1) === lv ? ' selected' : ''}>${lv + 1}${p.label ? ' · ' + escapeAttr(p.label) : ''}</option>`).join('')}
-              </select>
-              <div class="hint-inline">${tr('sectionStartLevelHint')}</div>
-            ` : ''}
             ${isDuplicate ? `
-              <div class="hint-inline">${tr(isAdditive ? 'additiveSectionDuplicateHint' : 'sectionDuplicateHint', { label: escapeAttr((sourceSection && sourceSection.label) || tr('untitledFallback')) })}</div>
+              <div class="hint-inline">${tr('sectionDuplicateHint', { label: escapeAttr((sourceSection && sourceSection.label) || tr('untitledFallback')) })}</div>
             ` : `
-              <label data-help="${isAdditive ? 'additiveBatchDrop' : 'vrsSectionBatchDrop'}" style="margin-top:14px">${tr('vrsSectionBatchDropLabel')}${!flagOpen('bulk_drop') ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}</label>
-              <div class="hint-inline">${tr(isAdditive ? 'additiveBatchDropHint' : 'vrsSectionBatchDropHint')}</div>
+              <label data-help="vrsSectionBatchDrop" style="margin-top:14px">${tr('vrsSectionBatchDropLabel')}${!flagOpen('bulk_drop') ? `<span class="hint-inline" style="margin:0 0 0 6px">${tr('fxAdminOnlyHint')}</span>` : ''}</label>
+              <div class="hint-inline">${tr('vrsSectionBatchDropHint')}</div>
               <div data-role="vrsSectionDrop" class="${flagOpen('bulk_drop') ? '' : 'is-disabled'}" style="margin-top:6px">${tr('dropAllFilesHint')}</div>
-              <label data-help="${isAdditive ? 'additiveBpmMeasures' : 'bpmMeasuresVerticalRandom'}" style="margin-top:14px">${tr('bpmMeasuresLabel')}</label>
+              <label data-help="bpmMeasuresVerticalRandom" style="margin-top:14px">${tr('bpmMeasuresLabel')}</label>
               <div class="row" style="margin-top:8px">
                 <div><label>${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-section-field="bpm" data-ti="${ti}" data-si="${sci}" value="${sectionBpm}"></div>
                 <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" data-section-field="beatsPerBar" data-ti="${ti}" data-si="${sci}" value="${sectionBeatsPerBar}"></div>
               </div>
-              <label data-help="${isAdditive ? 'additiveLoopPoints' : 'loopPointsVerticalRandom'}" style="margin-top:8px">${tr('loopPointsLabel')}</label>
+              <label data-help="loopPointsVerticalRandom" style="margin-top:8px">${tr('loopPointsLabel')}</label>
               <div data-role="loopTimelineHost" data-ti="${ti}" data-si="${sci}"></div>
-              <div class="hint-inline">${tr(isAdditive ? 'additiveLoopTimelineHint' : 'loopTimelineHintVerticalRandom')}</div>
+              <div class="hint-inline">${tr('loopTimelineHintVerticalRandom')}</div>
               <label data-help="defaultLoopCount" style="margin-top:10px">${tr('defaultLoopCountLabel')}</label>
               <select data-section-field="maxLoops" data-ti="${ti}" data-si="${sci}">
                 <option value=""${!section.maxLoops ? ' selected' : ''}>${tr('infiniteLoops')}</option>
                 ${[1,2,3,5,10].map(n => `<option value="${n}"${section.maxLoops === n ? ' selected' : ''}>${n}</option>`).join('')}
               </select>
               <div class="hint-inline">${tr('loopCountVisitorHint')}</div>
-              <label data-help="${isAdditive ? 'additiveLayers' : 'vrsPools'}" style="margin-top:14px">${tr(isAdditive ? 'additivePoolsLabel' : 'vrsPoolsLabel')}</label>
+              <label data-help="vrsPools" style="margin-top:14px">${tr('vrsPoolsLabel')}</label>
               <div data-role="vrsPools"></div>
-              <div class="actions"><button class="btn btn-small" data-action="add-pool" data-ti="${ti}" data-si="${sci}">${tr(isAdditive ? 'additiveAddLayerBtn' : 'addPoolBtn')}</button></div>
+              <div class="actions"><button class="btn btn-small" data-action="add-pool" data-ti="${ti}" data-si="${sci}">${tr('addPoolBtn')}</button></div>
             `}
           `;
           modeDetailHost.appendChild(sectionEl);
@@ -7317,65 +7309,6 @@ function renderLibrary() {
             const poolEl = document.createElement('div');
             poolEl.className = 'list-block';
             poolEl.style.marginBottom = '8px';
-            if (isAdditive) {
-              const alt = additiveLayerAlt(pool);
-              const ai = pool.alternatives.indexOf(alt);
-              const altHasFile = !!(alt.pendingFile || alt.remoteFile);
-              const otherFiles = pool.alternatives.filter(a => a !== alt && (a.pendingFile || a.remoteFile)).length;
-              poolEl.innerHTML = `
-                <div class="list-block-head">
-                  <input type="text" placeholder="${tr('additiveLayerNamePlaceholder')}" data-pool-field="label" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" value="${escapeAttr(pool.label)}" style="flex:1;margin-right:8px;">
-                  <button class="btn btn-small btn-danger" data-action="remove-pool" data-ti="${ti}" data-si="${sci}" data-pi="${pi}">${tr('additiveRemoveLayerBtn')}</button>
-                </div>
-                ${!altHasFile ? `<div class="hint-inline" style="color:#b45309">${tr('additiveLayerNoFileWarning')}</div>` : ''}
-                ${otherFiles ? `<div class="hint-inline" style="color:#b45309">${tr('additiveLayerExtraFiles', { n: otherFiles })}</div>` : ''}
-                <div data-role="layerFileCtrl" style="margin-top:8px"></div>
-                <div class="hint-inline">${tr('additiveLayerDropHint')}</div>
-                <label style="margin-top:8px">${tr('altVolumeLabel')}</label><input type="number" step="0.5" min="-24" max="12" data-pool-alt-field="volumeDb" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" data-ai="${ai}" value="${alt.volumeDb || 0}" style="max-width:120px">
-                ${poolFxHtml(pool, ti, sci, pi)}
-              `;
-              // Un fichier reçu remplit cette couche et la nomme si elle n'a pas encore de nom.
-              const fillLayer = (layer, layerAlt, f) => {
-                layerAlt.pendingFile = f;
-                layerAlt.label = titleFromFilenameStrippingHints(f.name);
-                if (!layer.label || !layer.label.trim()) layer.label = layerAlt.label;
-              };
-              const afterFiles = files => {
-                hasUnsavedEdits = true;
-                renderLibrary();
-                Promise.all(files.map(probeAudioDuration)).then(durs => {
-                  const maxDur = Math.max(0, ...durs);
-                  if (maxDur > (section.duration || 0)) { section.duration = maxDur; renderLibrary(); }
-                  if (maxDur > (track.duration || 0)) { track.duration = maxDur; }
-                });
-              };
-              const layerCtrlHost = poolEl.querySelector('[data-role="layerFileCtrl"]');
-              layerCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'), altHasFile ? deleteIconBtnHtml('remove-pool-alt', { ti, si: sci, pi, ai }, tr('additiveRemoveFileBtn')) : '');
-              wireFileControl(layerCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
-                () => alt.pendingFile, () => alt.remoteFile,
-                f => {
-                  const hadFiles = sectionHasAnyFile(section);
-                  fillLayer(pool, alt, f);
-                  applySectionTempoFromFileNames(section, [f], hadFiles);
-                  afterFiles([f]);
-                }, () => alt.originalFileName);
-              // Plusieurs fichiers lâchés sur la carte : le premier pour cette couche, chacun des suivants crée
-              // sa propre couche juste après, dans l'ordre des noms.
-              wireBatchDrop(poolEl, files => {
-                const hadFiles = sectionHasAnyFile(section);
-                const sorted = [...files].sort(compareFilesByName);
-                fillLayer(pool, alt, sorted[0]);
-                sorted.slice(1).forEach((f, n) => {
-                  const layer = { id: genId(), label: '', avoidImmediateRepeat: true, alternatives: [{ label: '', remoteFile: null, pendingFile: null }] };
-                  fillLayer(layer, layer.alternatives[0], f);
-                  section.pools.splice(pi + 1 + n, 0, layer);
-                });
-                applySectionTempoFromFileNames(section, sorted, hadFiles);
-                afterFiles(sorted);
-              });
-              poolsHost.appendChild(poolEl);
-              return;
-            }
             const poolHasFile = pool.alternatives.some(a => a.pendingFile || a.remoteFile);
             poolEl.innerHTML = `
               <div class="list-block-head">
@@ -8303,6 +8236,71 @@ function renderLibrary() {
   });
 }
 
+/* ---------------- Séquentiel hybride (31/10) : la liste des sections du morceau ---------------- */
+// Une section n'a pas de fichier à elle : elle désigne un morceau de la bibliothèque (static ou vertical pour commencer). Rien n'est
+// recopié, donc le morceau reste modifiable à un seul endroit.
+const HYBRID_SECTION_MODES_BS = ['static', 'vertical'];
+function hybridSectionTrackIsReady(source) {
+  if (!source || !HYBRID_SECTION_MODES_BS.includes(source.mode)) return false;
+  const layers = source.layers || [], has = l => !!(l && (l.pendingFile || l.remoteFile));
+  return has(layers[0]) && (source.mode === 'static' || layers.every(has));
+}
+function renderHybridEditor(host, track, ti) {
+  if (!track.sections) track.sections = [];
+  const eligible = library.filter(l => l.id !== track.id && HYBRID_SECTION_MODES_BS.includes(l.mode));
+  host.innerHTML = `
+    <label>${tr('descriptionLabel')}</label>
+    <textarea data-field="description" data-ti="${ti}">${escapeHtml(track.description || '')}</textarea>
+    <div class="hint-inline" style="margin-top:10px">${tr('hybridEditorIntro')}</div>
+    <label style="margin-top:14px">${tr('hybridSectionsLabel')}</label>
+    ${!eligible.length ? `<div class="hint-inline" style="color:#b45309">${tr('hybridNoEligibleTrack')}</div>` : ''}
+    <div data-role="hybridSections"></div>
+    <div class="actions"><button class="btn btn-small" type="button" data-role="hybridAdd"${eligible.length ? '' : ' disabled'}>${tr('hybridAddSection')}</button></div>
+  `;
+  const changed = () => { hasUnsavedEdits = true; renderLibrary(); };
+  const list = host.querySelector('[data-role="hybridSections"]');
+  track.sections.forEach((sec, si) => {
+    const source = library.find(l => l.id === sec.trackId);
+    const row = document.createElement('div');
+    row.className = 'list-block';
+    row.style.marginBottom = '8px';
+    const loopValue = sec.maxLoops == null ? '' : String(sec.maxLoops);
+    row.innerHTML = `
+      <div class="list-block-head">
+        <strong>${si + 1}</strong>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-small" type="button" data-hybrid="up"${si === 0 ? ' disabled' : ''}>${tr('hybridMoveUp')}</button>
+          <button class="btn btn-small" type="button" data-hybrid="down"${si === track.sections.length - 1 ? ' disabled' : ''}>${tr('hybridMoveDown')}</button>
+          <button class="btn btn-small btn-danger" type="button" data-hybrid="remove">${tr('hybridRemoveSection')}</button>
+        </div>
+      </div>
+      <label>${tr('hybridSectionTrackLabel')}</label>
+      <select data-hybrid="track">
+        <option value="">${tr('hybridPickTrack')}</option>
+        ${eligible.map(l => `<option value="${escapeAttr(l.id)}"${l.id === sec.trackId ? ' selected' : ''}>${escapeHtml(l.title || tr('untitledFallback'))}</option>`).join('')}
+      </select>
+      ${sec.trackId && !hybridSectionTrackIsReady(source) ? `<div class="hint-inline" style="color:#b45309">${tr('hybridMissingTrack')}</div>` : ''}
+      <label style="margin-top:8px">${tr('hybridSectionNameLabel')}</label>
+      <input type="text" data-hybrid="label" value="${escapeAttr(sec.label || '')}" placeholder="${escapeAttr((source && source.title) || '')}">
+      <label style="margin-top:8px">${tr('hybridSectionLoopsLabel')}</label>
+      <select data-hybrid="loops">
+        <option value=""${loopValue === '' ? ' selected' : ''}>${tr('hybridLoopsFromTrack')}</option>
+        <option value="0"${loopValue === '0' ? ' selected' : ''}>${tr('hybridLoopsInfinite')}</option>
+        ${[1, 2, 3, 5, 10].map(n => `<option value="${n}"${loopValue === String(n) ? ' selected' : ''}>${n}</option>`).join('')}
+      </select>
+    `;
+    const swap = (a, b) => { const arr = track.sections; [arr[a], arr[b]] = [arr[b], arr[a]]; changed(); };
+    row.querySelector('[data-hybrid="up"]').addEventListener('click', () => swap(si, si - 1));
+    row.querySelector('[data-hybrid="down"]').addEventListener('click', () => swap(si, si + 1));
+    row.querySelector('[data-hybrid="remove"]').addEventListener('click', () => { track.sections.splice(si, 1); changed(); });
+    row.querySelector('[data-hybrid="track"]').addEventListener('change', e => { sec.trackId = e.target.value || null; changed(); });
+    row.querySelector('[data-hybrid="label"]').addEventListener('input', e => { sec.label = e.target.value; hasUnsavedEdits = true; });
+    row.querySelector('[data-hybrid="loops"]').addEventListener('change', e => { sec.maxLoops = e.target.value === '' ? null : parseInt(e.target.value, 10); hasUnsavedEdits = true; });
+    list.appendChild(row);
+  });
+  host.querySelector('[data-role="hybridAdd"]').addEventListener('click', () => { track.sections.push({ id: genId(), label: '', trackId: null, maxLoops: null }); changed(); });
+}
+
 /* ---------------- Bibliothèque Sfx ---------------- */
 function renderSfxLibrary() {
   const masterHost = document.getElementById('sfxLibraryMaster');
@@ -9041,7 +9039,8 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   if (btn.dataset.action === 'remove-track') {
     // Demande confirmation avant de retirer le morceau : il disparaît aussi des AdReels et Packs qui l'utilisent.
     const tk = library[ti];
-    const usedIn = adReels.filter(a => a.trackIds.includes(tk.id)).length + packs.filter(p => (p.trackIds || []).includes(tk.id)).length;
+    const usedIn = adReels.filter(a => a.trackIds.includes(tk.id)).length + packs.filter(p => (p.trackIds || []).includes(tk.id)).length
+      + library.filter(l => l.mode === 'hybrid-sequential' && (l.sections || []).some(sec => sec.trackId === tk.id)).length;
     const title = tk.title || tr('trackFallback', { n: ti + 1 });
     if (!(await window.LayerPitchNotify.confirm(tr(usedIn ? 'deleteTrackConfirmUsed' : 'deleteTrackConfirm', { title, n: usedIn }), { danger: true }))) return;
     if (library[ti] !== tk) return; // données rechargées pendant la question : l'index ne désigne plus ce morceau
@@ -9054,6 +9053,7 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     library.splice(ti, 1);
     adReels.forEach(a => { a.trackIds = a.trackIds.filter(id => id !== removedId); });
     packs.forEach(p => { p.trackIds = (p.trackIds || []).filter(id => id !== removedId); });
+    library.forEach(l => { if (l.mode === 'hybrid-sequential') l.sections = (l.sections || []).filter(sec => sec.trackId !== removedId); });
     trackBackstageEvent('track_delete', {});
   }
   else if (btn.dataset.action === 'add-fx-trigger') {
@@ -9250,8 +9250,20 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       if (blockTracksRefresh) blockTracksRefresh(); packTracksRefreshers.forEach(fn => fn());
     }
     else if (field === 'mode') {
+      // Les sections d'un hybride et celles du vertical-random partagent le même champ : on ne mélange jamais les deux. Un morceau qui a
+      // déjà des sections à lui ne devient pas hybride (ses fichiers seraient perdus) ; un hybride qui change de mode repart sans section.
+      if (e.target.value === 'hybrid-sequential') {
+        if ((library[ti].sections || []).some(sec => (sec.pools || []).length)) {
+          window.LayerPitchNotify.info(tr('hybridNeedsNewTrack'));
+          renderLibrary();
+          return;
+        }
+        library[ti].sections = [];
+      } else if (library[ti].mode === 'hybrid-sequential') {
+        library[ti].sections = [];
+      }
       library[ti].mode = e.target.value;
-      if (isSectionsMode(e.target.value)) {
+      if (e.target.value === 'vertical-random') {
         if (!library[ti].intro) library[ti].intro = { label: 'Intro', bars: 8, remoteFile: null, pendingFile: null };
         if (!library[ti].outro) library[ti].outro = { label: 'Outro', remoteFile: null, pendingFile: null };
         if (!library[ti].sections) library[ti].sections = [];
@@ -9626,7 +9638,6 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
     else if (e.target.dataset.sectionField === 'bpm') section.bpm = parseFloat(e.target.value) || 120;
     else if (e.target.dataset.sectionField === 'beatsPerBar') section.beatsPerBar = parseInt(e.target.value, 10) || 4;
     else if (e.target.dataset.sectionField === 'maxLoops') section.maxLoops = e.target.value === '' ? null : parseInt(e.target.value, 10);
-    else if (e.target.dataset.sectionField === 'startLevel') section.startLevel = parseInt(e.target.value, 10) || 0;
     else if (e.target.dataset.sectionField === 'referencesSectionId') {
       const isReferencedByOthers = library[ti].sections.some(s2 => s2.referencesSectionId === section.id);
       if (isReferencedByOthers) { renderLibrary(); return; } // garde-fou : une section-source ne peut pas devenir elle-même un duplicata
@@ -9967,7 +9978,7 @@ function describeVerticalRandom(track) {
     const secLabel = sec.label || `Section ${sci + 1}`;
     if (sec.referencesSectionId) {
       const src = allSections.find(s2 => s2.id === sec.referencesSectionId);
-      lines.push(`  ${sci + 1}. "${secLabel}" : duplique ${track.mode === 'vertical-additive-sequential' ? 'toutes les couches' : 'tous les pools'} de la section "${(src && src.label) || 'sans nom'}" (${track.mode === 'vertical-additive-sequential' ? 'mêmes fichiers, même ordre' : 'mêmes fichiers, mêmes probabilités, anti-répétition partagée par pool'}).`);
+      lines.push(`  ${sci + 1}. "${secLabel}" : duplique tous les pools de la section "${(src && src.label) || 'sans nom'}" (mêmes fichiers, mêmes probabilités, anti-répétition partagée par pool).`);
       return;
     }
     const pools = (sec.pools || []).filter(p => (p.alternatives || []).some(a => a.remoteFile || a.pendingFile));
@@ -9976,10 +9987,6 @@ function describeVerticalRandom(track) {
       return `${p.label || 'sans nom'} (${alts.length} variante(s)${p.avoidImmediateRepeat ? ', anti-répétition immédiate' : ''})`;
     });
     const bpm = sec.bpm || 120, bpb = sec.beatsPerBar || 4;
-    if (track.mode === 'vertical-additive-sequential') {
-      lines.push(`  ${sci + 1}. "${secLabel}" (${bpm} BPM, ${bpb} temps/mesure, boucle entre le temps ${sec.loopInBeat || 0} et le temps ${sec.loopOutBeat || 16}) : ${pools.length} couche(s) empilée(s), de la base vers le sommet — ${pools.map(p => p.label || 'sans nom').join(', ')}.`);
-      return;
-    }
     lines.push(`  ${sci + 1}. "${secLabel}" (${bpm} BPM, ${bpb} temps/mesure, boucle entre le temps ${sec.loopInBeat || 0} et le temps ${sec.loopOutBeat || 16}) : ${pools.length} pool(s) simultané(s) — ${poolDescs.join(', ')}.`);
   });
   if (track.maxChainLoops) lines.push(`Nombre de cycles complets (toutes les sections une fois chacune) avant transition automatique : ${track.maxChainLoops} (réglable par le visiteur côté page publique ; illimité si non précisé).`);
@@ -10053,7 +10060,7 @@ function describeTrackBehavior(track) {
     case 'static': return describeStatic(track);
     case 'vertical': return describeVertical(track);
     case 'vertical-random': return describeVerticalRandom(track);
-    case 'vertical-additive-sequential': return ['Layering additif à sections : le visiteur choisit le nombre de couches entendues, section par section (chaque section garde son propre niveau).', ...describeVerticalRandom(track)];
+    case 'hybrid-sequential': return ['Séquentiel hybride : des sections qui s\'enchaînent, chacune étant un morceau de la bibliothèque avec son propre mode. Passage à la fin de la boucle en cours, la queue de la section précédente continue de sonner.', ...(track.sections || []).map((sec, i) => { const source = (typeof library !== 'undefined' ? library : []).find(l => l.id === sec.trackId); return `  ${i + 1}. ${sec.label || (source && source.title) || 'sans nom'}`; })];
     case 'sequential': return describeSequential(track);
     case 'embranchement-vertical': return describeEmbrVert(track);
     default: return [`Mode "${track.mode}" non pris en charge par le générateur de fiche pour l'instant.`];
@@ -10087,14 +10094,14 @@ function buildTrackSheetJson(track) {
       defaultMaxLoops: track.maxLoops || null
     };
   }
-  if (track.mode === 'sequential' || isSectionsMode(track.mode)) {
+  if (track.mode === 'sequential' || track.mode === 'vertical-random') {
     json.defaultMaxChainLoops = track.maxChainLoops || null;
   }
   if (track.mode === 'static') {
     json.loopable = !!track.loopable;
   } else if (track.mode === 'vertical') {
     json.layers = (track.layers || []).map((l, i) => ({ threshold: i, label: l.label || `Couche ${i + 1}` }));
-  } else if (isSectionsMode(track.mode)) {
+  } else if (track.mode === 'vertical-random') {
     json.randomizeSections = !!track.randomizeSections;
     json.sections = (track.sections || []).map((sec, sci) => {
       const base = { order: sci, label: sec.label || '' };
@@ -13616,7 +13623,9 @@ async function loadData(silent) {
       // déjà publié dans l'ancien format devient donc une unique section qui reprend tout à l'identique
       // (mêmes fichiers, même timeline, mêmes probabilités) : comportement de lecture strictement inchangé.
       let sections;
-      if (t.sections && t.sections.length) {
+      if (mode === 'hybrid-sequential') {
+        sections = (t.sections || []).map(sec => ({ id: sec.id || genId(), label: sec.label || '', trackId: sec.trackId || null, maxLoops: sec.maxLoops != null ? sec.maxLoops : null }));
+      } else if (t.sections && t.sections.length) {
         sections = t.sections.map(sec => ({
           id: sec.id || genId(), label: sec.label || '',
           referencesSectionId: sec.referencesSectionId || null,
@@ -13627,7 +13636,6 @@ async function loadData(silent) {
           // d'une vraie timeline par section) si présent, sinon 4 mesures par défaut.
           loopOutBeat: sec.loopOutBeat || ((sec.bars || 4) * (sec.beatsPerBar || 4)),
           maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
-          startLevel: sec.startLevel || 0,
           duration: sec.duration || 0,
           pools: (sec.pools || []).map(p => ({
             id: p.id || genId(), label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,
@@ -14252,7 +14260,7 @@ function trackReferenceLoudness(track, measureOf) {
   const m = measureOf;
   if (track.mode === 'static') return combineSimultaneous((track.layers || []).slice(0, 1).map(m));
   if (track.mode === 'vertical') return combineSimultaneous((track.layers || []).map(m));
-  if (track.mode === 'vertical-random' || track.mode === 'vertical-additive-sequential') {
+  if (track.mode === 'vertical-random') {
     const sections = (track.sections || []).map(sec => combineSimultaneous((sec.pools || []).map(p => combineAlternatives((p.alternatives || []).map(m)))));
     return combineSequential([m(track.intro), ...sections, m(track.outro)].filter(Boolean));
   }
@@ -14892,14 +14900,13 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : chaque section porte
       // désormais son propre tempo/timeline, comme un vrai segment Wwise indépendant — plus de
       // fixedLayers/randomGroups au niveau du morceau, tout vit dans sections[].pools[].
-      sections: (t.sections || []).map(sec => ({
+      sections: t.mode === 'hybrid-sequential' ? (t.sections || []).map(sec => ({ id: sec.id, label: sec.label || '', trackId: sec.trackId || null, maxLoops: sec.maxLoops != null ? sec.maxLoops : null })) : (t.sections || []).map(sec => ({
         id: sec.id, label: sec.label || '',
         referencesSectionId: sec.referencesSectionId || null,
         bpm: sec.bpm || 120, beatsPerBar: sec.beatsPerBar || 4,
         startTrackBeat: sec.startTrackBeat || 0,
         loopInBeat: sec.loopInBeat || 0, loopOutBeat: sec.loopOutBeat || (sec.beatsPerBar || 4) * 4,
         maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
-        startLevel: sec.startLevel || 0,
         duration: Math.round((sec.duration || 0) * 100) / 100,
         pools: sec.referencesSectionId ? [] : (sec.pools || []).map(p => ({
           id: p.id, label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,

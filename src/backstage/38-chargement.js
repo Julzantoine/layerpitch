@@ -41,7 +41,9 @@ async function loadData(silent) {
       // déjà publié dans l'ancien format devient donc une unique section qui reprend tout à l'identique
       // (mêmes fichiers, même timeline, mêmes probabilités) : comportement de lecture strictement inchangé.
       let sections;
-      if (t.sections && t.sections.length) {
+      if (mode === 'hybrid-sequential') {
+        sections = (t.sections || []).map(sec => ({ id: sec.id || genId(), label: sec.label || '', trackId: sec.trackId || null, maxLoops: sec.maxLoops != null ? sec.maxLoops : null }));
+      } else if (t.sections && t.sections.length) {
         sections = t.sections.map(sec => ({
           id: sec.id || genId(), label: sec.label || '',
           referencesSectionId: sec.referencesSectionId || null,
@@ -52,7 +54,6 @@ async function loadData(silent) {
           // d'une vraie timeline par section) si présent, sinon 4 mesures par défaut.
           loopOutBeat: sec.loopOutBeat || ((sec.bars || 4) * (sec.beatsPerBar || 4)),
           maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
-          startLevel: sec.startLevel || 0,
           duration: sec.duration || 0,
           pools: (sec.pools || []).map(p => ({
             id: p.id || genId(), label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,

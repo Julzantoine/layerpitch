@@ -81,14 +81,13 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : chaque section porte
       // désormais son propre tempo/timeline, comme un vrai segment Wwise indépendant — plus de
       // fixedLayers/randomGroups au niveau du morceau, tout vit dans sections[].pools[].
-      sections: (t.sections || []).map(sec => ({
+      sections: t.mode === 'hybrid-sequential' ? (t.sections || []).map(sec => ({ id: sec.id, label: sec.label || '', trackId: sec.trackId || null, maxLoops: sec.maxLoops != null ? sec.maxLoops : null })) : (t.sections || []).map(sec => ({
         id: sec.id, label: sec.label || '',
         referencesSectionId: sec.referencesSectionId || null,
         bpm: sec.bpm || 120, beatsPerBar: sec.beatsPerBar || 4,
         startTrackBeat: sec.startTrackBeat || 0,
         loopInBeat: sec.loopInBeat || 0, loopOutBeat: sec.loopOutBeat || (sec.beatsPerBar || 4) * 4,
         maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
-        startLevel: sec.startLevel || 0,
         duration: Math.round((sec.duration || 0) * 100) / 100,
         pools: sec.referencesSectionId ? [] : (sec.pools || []).map(p => ({
           id: p.id, label: p.label || '', avoidImmediateRepeat: p.avoidImmediateRepeat !== false,

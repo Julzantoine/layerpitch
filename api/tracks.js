@@ -61,6 +61,21 @@
     };
   }
 
+  // Séquentiel hybride (31/10) : le lecteur reçoit chaque section avec son morceau (sec.track), même si ce morceau n'est pas sur la
+  // page publique ou l'AdReel. Les morceaux déjà lus servent directement ; les autres sont demandés d'un coup.
+  async function attachHybridSections(tracks) {
+    const hybrids = tracks.filter(t => t && t.mode === 'hybrid-sequential');
+    if (!hybrids.length) return tracks;
+    const byId = new Map(tracks.filter(Boolean).map(t => [t.id, t]));
+    const missing = [...new Set(hybrids.flatMap(t => (t.sections || []).map(s => s.trackId)))].filter(id => id && !byId.has(id));
+    if (missing.length) {
+      const { data } = await getClient().from('tracks').select(TRACK_SELECT).in('id', missing);
+      (data || []).forEach(row => byId.set(row.id, reshapeTrack(row)));
+    }
+    hybrids.forEach(t => { t.sections = (t.sections || []).map(s => Object.assign({}, s, { track: byId.get(s.trackId) || null })); });
+    return tracks;
+  }
+
   // opts.ownerId : filtre par compositeur (Session C/D, isolation multi-compositeur — sans ce
   // filtre, listTracks() renvoyait le catalogue de TOUS les compositeurs mélangés, sans distinction
   // possible entre bibliothèque du backstage courant et celle des autres comptes ; trouvé en
@@ -74,7 +89,7 @@
     // Morceau retiré (27/09, supprimé par son compositeur mais gardé pour les fans qui l'ont obtenu) : plus dans le
     // catalogue. Filtré ici plutôt que dans la requête : la colonne n'existe qu'une fois la migration 20260927020000
     // appliquée, et getTrack (page fan) doit toujours le trouver.
-    return { tracks: data.filter(r => !r.retired_at).map(reshapeTrack), error: null };
+    return { tracks: await attachHybridSections(data.filter(r => !r.retired_at).map(reshapeTrack)), error: null };
   }
 
   // Morceaux précis, tous compositeurs confondus (espace studio : packs achetés, packs custom). Lecture publique,
@@ -83,7 +98,7 @@
     if (!ids || !ids.length) return { tracks: [], error: null };
     const { data, error } = await getClient().from('tracks').select(TRACK_SELECT).in('id', ids);
     if (error) return { tracks: null, error: error.message };
-    return { tracks: data.map(reshapeTrack), error: null };
+    return { tracks: await attachHybridSections(data.map(reshapeTrack)), error: null };
   }
 
   // Organisation propre au backstage — jamais lue par le rendu public (index.html/pack.html/
@@ -111,7 +126,7 @@
   async function getTrack(id) {
     const { data, error } = await getClient().from('tracks').select(TRACK_SELECT).eq('id', id).maybeSingle();
     if (error) return { track: null, error: error.message };
-    return { track: reshapeTrack(data), error: null };
+    return { track: (await attachHybridSections([reshapeTrack(data)]))[0], error: null };
   }
 
   // payload : même forme qu'un morceau de data.json (voir reshapeTrack ci-dessus pour le mapping
