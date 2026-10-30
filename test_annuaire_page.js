@@ -50,7 +50,7 @@ const clearTags = s => { while (s.d.querySelector('#tagFilter [data-rm]')) s.d.q
   const fInput = s.d.querySelector('#tagFilter input');
   fInput.dispatchEvent(new s.w.Event('focus'));
   const opts = [...s.d.querySelectorAll('#tagFilter .lp-tags-opt')].map(o => o.textContent);
-  check('filtre : liste commune + tags des fiches, nombre de fiches, le plus présent d\'abord', opts[0] === 'RPG2' && opts.includes('Wwise0') && opts.includes('chiptune1'));
+  check('filtre : liste commune + tags des fiches, nombre de fiches (rien si 0), le plus présent d\'abord', opts[0] === 'RPG2' && opts.includes('Wwise') && opts.includes('chiptune1'));
   pickTag(s, 'chiptune');
   check('filtre par tag', cards(s.d).length === 1 && cards(s.d)[0].dataset.handle === 'ana');
   clearTags(s);

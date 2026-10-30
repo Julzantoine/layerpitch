@@ -140,6 +140,23 @@ const picker = require('./layerpitch-tag-picker.js');
   await q(`update public.profiles set deleted_at = now() where id = $1`, [U(11)]);
   check('compte anonymisé : ses tags ne comptent plus', (await val(`select count(*)::int from public.composer_directory_tags l join public.composer_profiles c on c.id = l.composer_id where c.profile_id = $1`, [U(11)])) === 0);
 
+  // ---- Saisie : Entrée prend le tag existant avant de proposer d'en créer un ----
+  const { JSDOM } = require('jsdom');
+  const dom = new JSDOM('<div id="h"></div>');
+  global.document = dom.window.document;
+  const typed = picker.mount(dom.window.document.getElementById('h'), { tags: [{ label: 'Electronic', aliases: ['Electro'], count: 0 }], allowCreate: true });
+  const field = dom.window.document.querySelector('.lp-tags-input');
+  const typeAndEnter = text => {
+    field.value = text;
+    field.dispatchEvent(new dom.window.Event('input'));
+    field.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter' }));
+  };
+  typeAndEnter('elec');
+  check('saisie partielle + Entrée : prend le tag existant', JSON.stringify(typed.get()) === '["Electronic"]');
+  typeAndEnter('Zarzuela');
+  check('nom inconnu + Entrée : crée le tag', typed.get().includes('Zarzuela'));
+  delete global.document;
+
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
   process.exit(failures ? 1 : 0);
 })();

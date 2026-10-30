@@ -56,9 +56,10 @@
       found.sort((a, b) => Number(b.keys.some(k => k.startsWith(q))) - Number(a.keys.some(k => k.startsWith(q))));
       options = found.slice(0, 30).map(t => ({ label: t.label, count: t.count }));
       const exact = q && byKey.has(q);
-      if (opts.allowCreate && q && !exact) options.unshift({ label: input.value.trim().replace(/\s+/g, ' ').slice(0, 30), create: true });
+      // « Créer » en dernier : Entrée prend d'abord le tag existant (« elec » → Electronic), sinon la liste se remplit de doublons proches.
+      if (opts.allowCreate && q && !exact) options.push({ label: input.value.trim().replace(/\s+/g, ' ').slice(0, 30), create: true });
       active = options.length && q ? 0 : -1;
-      list.innerHTML = options.length ? options.map((o, i) => `<button type="button" role="option" class="lp-tags-opt${i === active ? ' on' : ''}" data-i="${i}"><span>${esc(o.create ? String(s.create || '{tag}').replace('{tag}', o.label) : o.label)}</span>${o.count != null ? `<small>${esc(o.count)}</small>` : ''}</button>`).join('')
+      list.innerHTML = options.length ? options.map((o, i) => `<button type="button" role="option" class="lp-tags-opt${i === active ? ' on' : ''}" data-i="${i}"><span>${esc(o.create ? String(s.create || '{tag}').replace('{tag}', o.label) : o.label)}</span>${o.count ? `<small>${esc(o.count)}</small>` : ''}</button>`).join('')
         : `<div class="lp-tags-empty">${esc(s.none || '')}</div>`;
       list.querySelectorAll('[data-i]').forEach(b => {
         b.onmousedown = e => { e.preventDefault(); pick(options[Number(b.dataset.i)]); };
