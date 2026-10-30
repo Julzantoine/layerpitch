@@ -52,7 +52,7 @@ function describeVerticalRandom(track) {
     const secLabel = sec.label || `Section ${sci + 1}`;
     if (sec.referencesSectionId) {
       const src = allSections.find(s2 => s2.id === sec.referencesSectionId);
-      lines.push(`  ${sci + 1}. "${secLabel}" : duplique tous les pools de la section "${(src && src.label) || 'sans nom'}" (mêmes fichiers, mêmes probabilités, anti-répétition partagée par pool).`);
+      lines.push(`  ${sci + 1}. "${secLabel}" : duplique ${track.mode === 'vertical-additive-sequential' ? 'toutes les couches' : 'tous les pools'} de la section "${(src && src.label) || 'sans nom'}" (${track.mode === 'vertical-additive-sequential' ? 'mêmes fichiers, même ordre' : 'mêmes fichiers, mêmes probabilités, anti-répétition partagée par pool'}).`);
       return;
     }
     const pools = (sec.pools || []).filter(p => (p.alternatives || []).some(a => a.remoteFile || a.pendingFile));
@@ -61,6 +61,10 @@ function describeVerticalRandom(track) {
       return `${p.label || 'sans nom'} (${alts.length} variante(s)${p.avoidImmediateRepeat ? ', anti-répétition immédiate' : ''})`;
     });
     const bpm = sec.bpm || 120, bpb = sec.beatsPerBar || 4;
+    if (track.mode === 'vertical-additive-sequential') {
+      lines.push(`  ${sci + 1}. "${secLabel}" (${bpm} BPM, ${bpb} temps/mesure, boucle entre le temps ${sec.loopInBeat || 0} et le temps ${sec.loopOutBeat || 16}) : ${pools.length} couche(s) empilée(s), de la base vers le sommet — ${pools.map(p => p.label || 'sans nom').join(', ')}.`);
+      return;
+    }
     lines.push(`  ${sci + 1}. "${secLabel}" (${bpm} BPM, ${bpb} temps/mesure, boucle entre le temps ${sec.loopInBeat || 0} et le temps ${sec.loopOutBeat || 16}) : ${pools.length} pool(s) simultané(s) — ${poolDescs.join(', ')}.`);
   });
   if (track.maxChainLoops) lines.push(`Nombre de cycles complets (toutes les sections une fois chacune) avant transition automatique : ${track.maxChainLoops} (réglable par le visiteur côté page publique ; illimité si non précisé).`);
@@ -134,6 +138,7 @@ function describeTrackBehavior(track) {
     case 'static': return describeStatic(track);
     case 'vertical': return describeVertical(track);
     case 'vertical-random': return describeVerticalRandom(track);
+    case 'vertical-additive-sequential': return ['Layering additif à sections : le visiteur choisit le nombre de couches entendues, section par section (chaque section garde son propre niveau).', ...describeVerticalRandom(track)];
     case 'sequential': return describeSequential(track);
     case 'embranchement-vertical': return describeEmbrVert(track);
     default: return [`Mode "${track.mode}" non pris en charge par le générateur de fiche pour l'instant.`];
@@ -167,14 +172,14 @@ function buildTrackSheetJson(track) {
       defaultMaxLoops: track.maxLoops || null
     };
   }
-  if (track.mode === 'sequential' || track.mode === 'vertical-random') {
+  if (track.mode === 'sequential' || isSectionsMode(track.mode)) {
     json.defaultMaxChainLoops = track.maxChainLoops || null;
   }
   if (track.mode === 'static') {
     json.loopable = !!track.loopable;
   } else if (track.mode === 'vertical') {
     json.layers = (track.layers || []).map((l, i) => ({ threshold: i, label: l.label || `Couche ${i + 1}` }));
-  } else if (track.mode === 'vertical-random') {
+  } else if (isSectionsMode(track.mode)) {
     json.randomizeSections = !!track.randomizeSections;
     json.sections = (track.sections || []).map((sec, sci) => {
       const base = { order: sci, label: sec.label || '' };

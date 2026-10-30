@@ -7,7 +7,8 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   let lpEndedCb = null, lpManualStop = false;
   const { bg: waveBgColor, fg: waveFgColor } = resolveWaveformColors(elementColors);
   const isStatic = track.mode === 'static';
-  const isVerticalRandom = track.mode === 'vertical-random';
+  const isAdditiveSections = track.mode === ADDITIVE_SECTIONS_MODE;
+  const isVerticalRandom = track.mode === 'vertical-random' || isAdditiveSections; // même moteur, mêmes données
   const isSequential = track.mode === 'sequential';
   const isEmbrVert = track.mode === 'embranchement-vertical';
   const supported = PLAYABLE_MODES.includes(track.mode);
