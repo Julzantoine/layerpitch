@@ -6,7 +6,8 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   const isNoAiCertified = !suppressIndividualBadge && ((track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : !!globalNoAiCertified);
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
-  const isVerticalRandom = track.mode === 'vertical-random';
+  const isAdditiveSections = track.mode === ADDITIVE_SECTIONS_MODE;
+  const isVerticalRandom = track.mode === 'vertical-random' || isAdditiveSections; // même moteur, mêmes données
   const isSequential = track.mode === 'sequential';
   const isEmbrVert = track.mode === 'embranchement-vertical';
   const loops = !isStatic || !!track.loopable;
@@ -79,6 +80,14 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       <div class="track-intensity-block">
         <div class="track-intensity-label">${t('intensityLabel')}</div>
         <div class="intensity-picker" data-role="slider">${chips}</div>
+      </div>
+    `;
+  } else if (isAdditiveSections && supported) {
+    // Additif à sections : les boutons dépendent de la section entendue, le lecteur les remplit (renderSectionLevelPicker).
+    intensityBlockHtml = `
+      <div class="track-intensity-block" data-role="sectionLevelBlock" hidden>
+        <div class="track-intensity-label">${t('intensityLabel')}</div>
+        <div class="intensity-picker" data-role="sectionLevelPicker"></div>
       </div>
     `;
   }

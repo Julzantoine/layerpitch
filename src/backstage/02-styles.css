@@ -543,6 +543,7 @@
   .wwise-col-voices { justify-content: space-around; align-items: center; flex: 1; }
   .wwise-node { background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dim); white-space: nowrap; text-align: center; }
   .wwise-node-source, .wwise-node-bus { font-weight: 600; color: var(--text); }
+  .wwise-node-voice.is-level-off { opacity: 0.35; }
   .wwise-node-voice { display: flex; flex-direction: column; gap: 5px; align-items: center; width: 220px; flex-shrink: 0; }
   .wwise-node-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
   .wwise-node-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; text-align: left; }

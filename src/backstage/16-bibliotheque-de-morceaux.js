@@ -559,6 +559,7 @@ function buildPreviewTrack(track) {
       bpm: sec.bpm || 120, beatsPerBar: sec.beatsPerBar || 4, startTrackBeat: sec.startTrackBeat || 0,
       loopInBeat: sec.loopInBeat || 0, loopOutBeat: sec.loopOutBeat || 16,
       maxLoops: (sec.maxLoops !== undefined && sec.maxLoops !== null) ? sec.maxLoops : null,
+      startLevel: sec.startLevel || 0,
       pools: (sec.pools || []).map(p => ({
         id: p.id, label: p.label, avoidImmediateRepeat: p.avoidImmediateRepeat,
         alternatives: (p.alternatives || []).map(mapAlternative),
@@ -581,7 +582,7 @@ function togglePreview(ti, cardEl) {
   const track = library[ti];
   const hasFile = f => !!(f && (f.pendingFile || f.remoteFile));
   let hasAnyFile;
-  if (track.mode === 'vertical-random') {
+  if (isSectionsMode(track.mode)) {
     hasAnyFile = hasFile(track.intro) || hasFile(track.outro) || (track.sections || []).some(sec => (sec.pools || []).some(p => (p.alternatives || []).some(hasFile)));
   } else if (track.mode === 'sequential') {
     hasAnyFile = hasFile(track.intro) || hasFile(track.outro) || (track.segmentSlots || []).some(sl => (sl.alternatives || []).some(hasFile));

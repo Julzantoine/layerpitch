@@ -74,6 +74,13 @@
               ${duplicatableOptions.map(other => `<option value="${other.id}" ${section.referencesSectionId === other.id ? 'selected' : ''}>${tr('slotContentDuplicateOption', { label: escapeAttr(other.label) || tr('untitledFallback') })}</option>`).join('')}
             </select>
             ${isReferencedByOthers ? `<div class="hint-inline">${tr('slotIsSourceHint')}</div>` : ''}
+            ${track.mode === 'vertical-additive-sequential' && ((isDuplicate ? (sourceSection && sourceSection.pools) : section.pools) || []).length > 1 ? `
+              <label style="margin-top:14px">${tr('sectionStartLevelLabel')}</label>
+              <select data-section-field="startLevel" data-ti="${ti}" data-si="${sci}">
+                ${((isDuplicate ? sourceSection.pools : section.pools)).map((p, lv) => `<option value="${lv}"${Math.min(section.startLevel || 0, (isDuplicate ? sourceSection.pools : section.pools).length - 1) === lv ? ' selected' : ''}>${lv + 1}${p.label ? ' · ' + escapeAttr(p.label) : ''}</option>`).join('')}
+              </select>
+              <div class="hint-inline">${tr('sectionStartLevelHint')}</div>
+            ` : ''}
             ${isDuplicate ? `
               <div class="hint-inline">${tr('sectionDuplicateHint', { label: escapeAttr((sourceSection && sourceSection.label) || tr('untitledFallback')) })}</div>
             ` : `
@@ -94,7 +101,7 @@
                 ${[1,2,3,5,10].map(n => `<option value="${n}"${section.maxLoops === n ? ' selected' : ''}>${n}</option>`).join('')}
               </select>
               <div class="hint-inline">${tr('loopCountVisitorHint')}</div>
-              <label data-help="vrsPools" style="margin-top:14px">${tr('vrsPoolsLabel')}</label>
+              <label data-help="vrsPools" style="margin-top:14px">${tr(track.mode === 'vertical-additive-sequential' ? 'additivePoolsLabel' : 'vrsPoolsLabel')}</label>
               <div data-role="vrsPools"></div>
               <div class="actions"><button class="btn btn-small" data-action="add-pool" data-ti="${ti}" data-si="${sci}">${tr('addPoolBtn')}</button></div>
             `}

@@ -134,6 +134,7 @@ function describeTrackBehavior(track) {
     case 'static': return describeStatic(track);
     case 'vertical': return describeVertical(track);
     case 'vertical-random': return describeVerticalRandom(track);
+    case 'vertical-additive-sequential': return ['Layering additif à sections : le visiteur choisit le nombre de couches entendues, section par section (chaque section garde son propre niveau).', ...describeVerticalRandom(track)];
     case 'sequential': return describeSequential(track);
     case 'embranchement-vertical': return describeEmbrVert(track);
     default: return [`Mode "${track.mode}" non pris en charge par le générateur de fiche pour l'instant.`];
@@ -167,14 +168,14 @@ function buildTrackSheetJson(track) {
       defaultMaxLoops: track.maxLoops || null
     };
   }
-  if (track.mode === 'sequential' || track.mode === 'vertical-random') {
+  if (track.mode === 'sequential' || isSectionsMode(track.mode)) {
     json.defaultMaxChainLoops = track.maxChainLoops || null;
   }
   if (track.mode === 'static') {
     json.loopable = !!track.loopable;
   } else if (track.mode === 'vertical') {
     json.layers = (track.layers || []).map((l, i) => ({ threshold: i, label: l.label || `Couche ${i + 1}` }));
-  } else if (track.mode === 'vertical-random') {
+  } else if (isSectionsMode(track.mode)) {
     json.randomizeSections = !!track.randomizeSections;
     json.sections = (track.sections || []).map((sec, sci) => {
       const base = { order: sci, label: sec.label || '' };

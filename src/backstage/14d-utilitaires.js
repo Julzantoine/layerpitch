@@ -6,6 +6,8 @@ function log(msg, cls) {
   el.appendChild(line);
   el.scrollTop = el.scrollHeight;
 }
+// Modes à sections (sections > pools) : le vertical-random et le layering additif à sections (30/10).
+function isSectionsMode(mode) { return mode === 'vertical-random' || mode === 'vertical-additive-sequential'; }
 function slug(str) {
   return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'item';
 }
