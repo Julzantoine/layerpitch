@@ -1025,7 +1025,7 @@ function getModeLabel(mode, track) {
   return map[mode] || mode;
 }
 const HYBRID_MODE = 'hybrid-sequential'; // voir 34-sequentiel-hybride.js
-const HYBRID_SECTION_MODES = ['static', 'vertical']; // modes qui savent déjà passer la main à la section suivante
+const HYBRID_SECTION_MODES = ['static', 'vertical', 'sequential', 'vertical-random', 'embranchement-vertical']; // tout sauf un autre hybride
 const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential', 'embranchement-vertical', HYBRID_MODE];
 
 function layerHasSource(l) { return !!(l && (l.localFile || l.localUrl || l.file)); }
@@ -3051,6 +3051,10 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // la fin de la boucle en cours (chainFinishRequested) ; onFinalBoundary reçoit alors l'instant où la section suivante doit démarrer.
   const chainHooks = (opts && opts.chain) || null;
   let chainStartAt = null, chainFinishRequested = false, chainCutTimer = null;
+  let chainGens = [], chainEmbrLoops = 0, chainEmbrMarker = null; // ce qui a été programmé : position dans le fichier et tempo à cet instant
+  function chainNoteGen(at, offset, secondsPerBeat, beatsPerBar, limit) {
+    if (chainHooks) chainGens.push({ at, offset, secondsPerBeat, beatsPerBar, limit });
+  }
   function engineStartTime() {
     if (chainStartAt == null) return startSoon();
     const when = Math.max(chainStartAt, ctx.currentTime + 0.005);
@@ -4943,6 +4947,10 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     if (!buffer) return;
     const off = offsetSec || 0;
     const total = totalDurationSec != null ? totalDurationSec : ((fillDurationSec != null) ? fillDurationSec + off : buffer.duration);
+    if (chainHooks) {
+      const tempo = seqSlotTiming(track, slotIdx != null ? (track.segmentSlots || [])[slotIdx] : (track.segmentSlots || [])[0]);
+      chainNoteGen(ctxStartTime, off, tempo.secondsPerBeat, tempo.beatsPerBar, fillDurationSec != null ? off + fillDurationSec : buffer.duration);
+    }
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     applyTrackPitchRate(src, ctxStartTime);
@@ -5044,12 +5052,14 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       if (!next) {
         clearInterval(seqSchedulerTimer); seqSchedulerTimer = null;
         armSeqFinalEnd();
+        if (chainHooks) chainHooks.onFinalBoundary(seqNextStartCtxTime);
         return;
       }
       scheduleSeqGeneration(seqNextStartCtxTime, next.buffer, next.label, next.kind, next.terminal ? null : next.durationSec, next.gain, 0, null, next.terminal, next.slotIdx, next.desc, next.fromSlotIdx, next.toSlotIdx);
       if (next.terminal) {
         clearInterval(seqSchedulerTimer); seqSchedulerTimer = null;
         armSeqFinalEnd();
+        if (chainHooks) chainHooks.onFinalBoundary(seqNextStartCtxTime + next.buffer.duration / trackPitchRatio);
         return;
       }
       seqNextStartCtxTime += next.durationSec / trackPitchRatio;
@@ -5097,7 +5107,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       seqMapFrontierIdx = -1;
       seqRoundPlayedIds = new Set(); seqRoundLastIdx = -1;
     }
-    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
+    const now = engineStartTime(); // toutes les voix sur un même instant, juste après (voir startSoon)
     let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain, firstDesc, firstSlotIdx = -1;
     if (!isContinuation && introBuffer) {
       // L'intro n'appartient à aucun emplacement — son tempo suit celui du premier emplacement de la
@@ -5431,6 +5441,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     // d'intensité en cours -- programmée jusqu'à 1 s plus tôt (at = son instant de départ). Une génération programmée puis annulée par un
     // arrêt est effacée par le repère voices_stop qui la précède.
     captureMark('layer_gen', { trackId: track.id, bufferOffset, level, at: ctxStartTime, rate: trackPitchRatio });
+    { const tt = trackTempo(track); chainNoteGen(ctxStartTime, bufferOffset, tt.secondsPerBeat, tt.beatsPerBar, loopOutSec); }
     const thisGenSources = [];
     const p = profiles[level] || profiles[0];
     const gensThisRound = [];
@@ -5513,42 +5524,51 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // Séquentiel hybride : position dans le fichier de ce qu'on entend, et limite au-delà de laquelle on ne coupe plus (fin de boucle).
   function chainBufferPosition() {
     const now = ctx.currentTime;
-    if (useQuantizedLoop) {
-      const live = scheduledGens.filter(g => !g.stopped);
-      const gen = [...live].reverse().find(g => g.ctxStartTime <= now) || live[0];
+    const usesGens = useQuantizedLoop || isSequential || isVerticalRandom || isEmbrVert;
+    if (usesGens) {
+      const gen = [...chainGens].reverse().find(g => g.at <= now) || chainGens[0];
       if (!gen) return null;
-      return { sec: gen.bufferOffset + Math.max(0, now - gen.ctxStartTime) * gen.ratio, limit: loopOutSec };
+      return { now, sec: gen.offset + Math.max(0, now - gen.at) * trackPitchRatio, limit: gen.limit, secondsPerBeat: gen.secondsPerBeat, beatsPerBar: gen.beatsPerBar };
     }
     if (!sources.length) return null;
     const played = Math.max(0, now - startedAt) * trackPitchRatio;
-    return { sec: loops ? played % track.duration : played, limit: track.duration };
+    const tt = trackTempo(track);
+    return { now, sec: loops ? played % track.duration : played, limit: track.duration, secondsPerBeat: tt.secondsPerBeat, beatsPerBar: tt.beatsPerBar };
   }
   // Prochain instant de sortie (horloge audio), ou null s'il n'y en a pas avant la fin de la boucle.
   function chainNextExitSec(mode, points) {
     const pos = chainBufferPosition();
     if (!pos) return null;
-    const tt = trackTempo(track);
     const earliest = pos.sec + 0.06 * trackPitchRatio; // le temps de programmer sans clic
     let exit;
     if (mode === 'point') {
-      exit = (points || []).map(b => b * tt.secondsPerBeat).sort((a, b) => a - b).find(s => s >= earliest);
+      exit = (points || []).map(b => b * pos.secondsPerBeat).sort((a, b) => a - b).find(s => s >= earliest);
     } else {
-      const unit = mode === 'bar' ? tt.secondsPerBeat * tt.beatsPerBar : tt.secondsPerBeat;
+      const unit = mode === 'bar' ? pos.secondsPerBeat * pos.beatsPerBar : pos.secondsPerBeat;
       exit = Math.ceil(earliest / unit - 1e-9) * unit;
     }
     if (exit == null || exit >= pos.limit - 1e-4) return null;
-    return ctx.currentTime + (exit - pos.sec) / trackPitchRatio;
+    return pos.now + (exit - pos.sec) / trackPitchRatio; // même instant que la position lue : sinon la sortie glisse de quelques ms
+  }
+  // Demande de finir sans couper : fin de boucle, ou, pour le séquentiel et le vertical-random, leur propre fin (outro comprise).
+  function chainRequestEnd() {
+    chainFinishRequested = true;
+    if (!playing) return;
+    if (isSequential) goToEndRequested = true;
+    else if (isVerticalRandom) { if (sectionScheduler) sectionScheduler.requestGoToEnd(); }
+    else if (!useQuantizedLoop && !isEmbrVert) armChainEndSimple();
   }
   // Coupe la section à cet instant, avec un fondu. La suivante démarre au début du fondu.
   function chainCutAt(at, fadeSec) {
     const fade = Math.max(0.01, fadeSec || 0);
-    if (useQuantizedLoop) {
-      if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
-      finalGenerationMarkerSrc = null;
-      activeGenSources.forEach(({ src }) => { try { src.stop(at + fade); } catch (e) {} });
-    } else {
-      sources.forEach(s => { if (s) { s.onended = null; try { s.stop(at + fade); } catch (e) {} } });
-    }
+    [schedulerTimer, seqSchedulerTimer, vrSchedulerTimer, embrSchedulerTimer].forEach(id => { if (id) clearInterval(id); });
+    schedulerTimer = seqSchedulerTimer = vrSchedulerTimer = embrSchedulerTimer = null;
+    finalGenerationMarkerSrc = null; seqFinalMarkerSrc = null; chainEmbrMarker = null;
+    const voices = isSequential ? seqActiveSources.map(v => v.src)
+      : isEmbrVert ? embrActiveGenSources.map(v => v.src)
+      : (useQuantizedLoop || isVerticalRandom) ? activeGenSources.map(v => v.src)
+      : sources.filter(Boolean);
+    voices.forEach(src => { if (!useQuantizedLoop && !isSequential && !isVerticalRandom && !isEmbrVert) src.onended = null; try { src.stop(at + fade); } catch (e) {} });
     const g = trackMasterGain.gain;
     g.cancelScheduledValues(ctx.currentTime);
     g.setValueAtTime(1, at);
@@ -5839,6 +5859,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   function scheduleEmbrGeneration(ctxStartTime, isFirst, offsetOverride) {
     const timing = embrLoopTiming();
     const bufferOffset = offsetOverride != null ? offsetOverride : (isFirst ? timing.startSec : timing.loopInSec);
+    { const tt = trackTempo(track); chainNoteGen(ctxStartTime, bufferOffset, tt.secondsPerBeat, tt.beatsPerBar, timing.loopInSec + timing.cycleLength); }
     // Repère de capture : nouvelle génération des boucles jumelles (toutes démarrent ensemble, seule la boucle active
     // est audible).
     captureMark('embr_gen', { trackId: track.id, bufferOffset, at: ctxStartTime, rate: trackPitchRatio,
@@ -5873,6 +5894,26 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   function embrSchedulerTick() {
     const lookahead = 1.0;
     while (embrNextStartCtxTime < ctx.currentTime + lookahead) {
+      // Section d'un hybride : ce mode boucle sans fin d'habitude. Plus de relance : le dernier passage finit avec sa queue.
+      if (chainHooks && (chainFinishRequested || (track.maxLoops && chainEmbrLoops >= track.maxLoops))) {
+        clearInterval(embrSchedulerTimer); embrSchedulerTimer = null;
+        const last = embrActiveGenSources[embrActiveGenSources.length - 1];
+        const marker = last && last.src;
+        chainEmbrMarker = marker || null;
+        if (marker) {
+          const previous = marker.onended;
+          marker.onended = () => {
+            if (previous) previous();
+            if (chainEmbrMarker !== marker) return;
+            chainEmbrMarker = null;
+            stopEmbrVertical();
+            naturalEnd();
+          };
+        }
+        chainHooks.onFinalBoundary(embrNextStartCtxTime);
+        return;
+      }
+      chainEmbrLoops++;
       embrClockAtGeneration(embrNextStartCtxTime);
       scheduleEmbrGeneration(embrNextStartCtxTime, false); // jamais "Départ" ici, uniquement au tout premier lancement (playEmbrVertical)
       embrNextStartCtxTime += embrCycleLengthSec() / trackPitchRatio;
@@ -5995,7 +6036,8 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     stopEmbrVertical();
     embrActiveLoopIdx = embrReferenceIdx;
     applyFxActions(((track.loops || [])[embrReferenceIdx] || {}).fxActions); // état de départ = celui de la boucle de référence
-    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
+    chainEmbrLoops = 1;
+    const now = engineStartTime(); // toutes les voix sur un même instant, juste après (voir startSoon)
     embrClockReset(now, 0); // point zéro de l'horloge de phase, utilisée par embrQuantizeDelaySec()
     embrIntroPhase = true;
     scheduleEmbrGeneration(now, true); // seul appel avec isFirst=true -- démarre à "Départ", pas "Entrée"
@@ -6359,6 +6401,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     const declaredSection = (track.sections || [])[secIdx];
     const timing = sectionTiming(section);
     const bufferOffset = offsetOverride != null ? offsetOverride : (isFirstEverForThisSection ? timing.startTrackSec : timing.loopInSec);
+    chainNoteGen(ctxStartTime, bufferOffset, 60 / (section.bpm || 120), section.beatsPerBar || 4, timing.loopOutSec);
     const pools = section.pools || [];
     const poolPicks = [];
     const telemetryPicks = []; // { poolIndex, altIndex } par pool réellement tiré CE cycle -- seule donnée qui
@@ -6436,6 +6479,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       if (!next) {
         clearInterval(vrSchedulerTimer); vrSchedulerTimer = null;
         armVRFinalEnd();
+        if (chainHooks) chainHooks.onFinalBoundary(vrNextStartCtxTime);
         return;
       }
       if (next.type === 'intro') {
@@ -6468,7 +6512,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         continue;
       }
       if (next.type === 'outro') {
-        if (!outroBuffer) { clearInterval(vrSchedulerTimer); vrSchedulerTimer = null; armVRFinalEnd(); return; }
+        if (!outroBuffer) { clearInterval(vrSchedulerTimer); vrSchedulerTimer = null; armVRFinalEnd(); if (chainHooks) chainHooks.onFinalBoundary(vrNextStartCtxTime); return; }
         const src = ctx.createBufferSource();
         src.buffer = outroBuffer;
         applyTrackPitchRate(src, vrNextStartCtxTime);
@@ -6488,6 +6532,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         emitVROutcome('vr_outro_start', vrNextStartCtxTime, { trackId: track.id });
         clearInterval(vrSchedulerTimer); vrSchedulerTimer = null;
         armVRFinalEnd();
+        if (chainHooks) chainHooks.onFinalBoundary(vrNextStartCtxTime + outroBuffer.duration / trackPitchRatio);
         return;
       }
       // next.type === 'section'
@@ -6552,7 +6597,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         }
       );
     }
-    vrNextStartCtxTime = startSoon(); // toutes les voix du premier cycle sur un même instant (voir startSoon)
+    vrNextStartCtxTime = engineStartTime(); // toutes les voix du premier cycle sur un même instant (voir startSoon)
     sectionSchedulerTick();
     vrSchedulerTimer = setInterval(sectionSchedulerTick, 200);
     if (goToEndBtn) goToEndBtn.disabled = false;
@@ -6723,6 +6768,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   function stopAllSources(keepPosition) {
     lpManualStop = true; // arrêt demandé : pas une fin naturelle (voir setStoppedUI)
     if (chainCutTimer) { clearTimeout(chainCutTimer); chainCutTimer = null; }
+    chainGens = []; chainEmbrMarker = null;
     playing = false;
     playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
     // Annule toute rampe de ducking en cours et revient à 1 immédiatement — sinon une prochaine lecture
@@ -6940,6 +6986,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible' || !playing) return;
     resumeAudioContext();
+    if (chainHooks && ctx.state === 'running') return; // section d'un hybride : la relancer casserait le passage déjà calculé
     // Séquentiel et vertical-random (bug trouvé le 13/08) : le chemin générique ci-dessous arrêtait tout
     // puis relançait la chaîne via un tout nouveau tirage (isContinuation=true préserve la position dans
     // la CHAÎNE, mais le bloc en cours au moment du passage en arrière-plan était perdu, remplacé par un
@@ -6982,7 +7029,6 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       resumeEmbrVerticalAfterBackground();
       return;
     }
-    if (chainHooks && ctx.state === 'running') return; // section d'un hybride : la relancer casserait le passage déjà calculé
     const resumeFrom = computeElapsed();
     stopAllSources(false);
     offsetAt = resumeFrom;
@@ -7028,11 +7074,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       isReady: () => !!ready,
       // Séquentiel hybride : départ à un instant précis, demande de finir à la fin de la boucle en cours, pause et remise à zéro.
       startAt(when) { chainStartAt = when; chainFinishRequested = false; playThisTrack(true); },
-      finishAtLoopEnd() {
-        chainFinishRequested = true;
-        if (!playing) return;
-        if (!useQuantizedLoop) armChainEndSimple();
-      },
+      finishAtLoopEnd() { chainRequestEnd(); },
       // Quitter la section avant sa fin : au prochain temps, à la prochaine mesure ou au prochain point de transition (temps du fichier).
       // Rien d'atteignable avant la fin de la boucle : la fin de boucle, avec sa queue.
       finishAt(mode, points, fadeSec) {
@@ -7040,7 +7082,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         if (!playing) return;
         const target = mode === 'beat' || mode === 'bar' || mode === 'point' ? chainNextExitSec(mode, points) : null;
         if (target != null) chainCutAt(target, fadeSec);
-        else if (!useQuantizedLoop) armChainEndSimple();
+        else chainRequestEnd();
       },
       pause: () => pauseThisTrack(),
       resume: () => playThisTrack(true),
@@ -7660,14 +7702,22 @@ function hybridPlayableSections(track) {
   return (track.sections || []).filter(sec => {
     const child = sec && sec.track;
     if (!child || !HYBRID_SECTION_MODES.includes(child.mode)) return false;
+    if (child.mode === 'sequential') return (child.segmentSlots || []).some(sl => (sl.alternatives || []).some(layerHasSource));
+    if (child.mode === 'vertical-random') return (child.sections || []).some((_, i) => vrSectionIsPlayable(child, i));
+    if (child.mode === 'embranchement-vertical') return (child.loops || []).some(layerHasSource);
     const layers = child.layers || [];
     return layerHasSource(layers[0]) && (child.mode === 'static' || layers.every(layerHasSource));
   });
 }
 function hybridChildTrack(sec) {
   // Boucles : 0 = sans limite, vide = le réglage du morceau lui-même.
-  const maxLoops = sec.maxLoops === 0 ? null : (sec.maxLoops || sec.track.maxLoops || null);
-  return Object.assign({}, sec.track, { id: sec.track.id + '~' + sec.id, maxLoops });
+  // Le séquentiel et le vertical-random comptent en tours complets de leur chaîne.
+  const key = sec.track.mode === 'sequential' || sec.track.mode === 'vertical-random' ? 'maxChainLoops' : 'maxLoops';
+  const limit = sec.maxLoops === 0 ? null : (sec.maxLoops || sec.track[key] || null);
+  const child = Object.assign({}, sec.track, { id: sec.track.id + '~' + sec.id, [key]: limit });
+  // Une section interne sans limite ne ferait jamais finir le tour : avec un nombre de tours, elle joue une fois par tour.
+  if (limit && child.mode === 'vertical-random') child.sections = (child.sections || []).map(s => Object.assign({}, s, { maxLoops: s.maxLoops || 1 }));
+  return child;
 }
 
 function buildHybridRow(track, isNoAiCertified) {

@@ -244,6 +244,7 @@
   function scheduleEmbrGeneration(ctxStartTime, isFirst, offsetOverride) {
     const timing = embrLoopTiming();
     const bufferOffset = offsetOverride != null ? offsetOverride : (isFirst ? timing.startSec : timing.loopInSec);
+    { const tt = trackTempo(track); chainNoteGen(ctxStartTime, bufferOffset, tt.secondsPerBeat, tt.beatsPerBar, timing.loopInSec + timing.cycleLength); }
     // Repère de capture : nouvelle génération des boucles jumelles (toutes démarrent ensemble, seule la boucle active
     // est audible).
     captureMark('embr_gen', { trackId: track.id, bufferOffset, at: ctxStartTime, rate: trackPitchRatio,
@@ -278,6 +279,26 @@
   function embrSchedulerTick() {
     const lookahead = 1.0;
     while (embrNextStartCtxTime < ctx.currentTime + lookahead) {
+      // Section d'un hybride : ce mode boucle sans fin d'habitude. Plus de relance : le dernier passage finit avec sa queue.
+      if (chainHooks && (chainFinishRequested || (track.maxLoops && chainEmbrLoops >= track.maxLoops))) {
+        clearInterval(embrSchedulerTimer); embrSchedulerTimer = null;
+        const last = embrActiveGenSources[embrActiveGenSources.length - 1];
+        const marker = last && last.src;
+        chainEmbrMarker = marker || null;
+        if (marker) {
+          const previous = marker.onended;
+          marker.onended = () => {
+            if (previous) previous();
+            if (chainEmbrMarker !== marker) return;
+            chainEmbrMarker = null;
+            stopEmbrVertical();
+            naturalEnd();
+          };
+        }
+        chainHooks.onFinalBoundary(embrNextStartCtxTime);
+        return;
+      }
+      chainEmbrLoops++;
       embrClockAtGeneration(embrNextStartCtxTime);
       scheduleEmbrGeneration(embrNextStartCtxTime, false); // jamais "Départ" ici, uniquement au tout premier lancement (playEmbrVertical)
       embrNextStartCtxTime += embrCycleLengthSec() / trackPitchRatio;
@@ -400,7 +421,8 @@
     stopEmbrVertical();
     embrActiveLoopIdx = embrReferenceIdx;
     applyFxActions(((track.loops || [])[embrReferenceIdx] || {}).fxActions); // état de départ = celui de la boucle de référence
-    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
+    chainEmbrLoops = 1;
+    const now = engineStartTime(); // toutes les voix sur un même instant, juste après (voir startSoon)
     embrClockReset(now, 0); // point zéro de l'horloge de phase, utilisée par embrQuantizeDelaySec()
     embrIntroPhase = true;
     scheduleEmbrGeneration(now, true); // seul appel avec isFirst=true -- démarre à "Départ", pas "Entrée"

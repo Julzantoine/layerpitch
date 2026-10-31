@@ -1,10 +1,14 @@
 /* ---------------- Séquentiel hybride (31/10) : la liste des sections du morceau ---------------- */
 // Une section n'a pas de fichier à elle : elle désigne un morceau de la bibliothèque (static ou vertical pour commencer). Rien n'est
 // recopié, donc le morceau reste modifiable à un seul endroit.
-const HYBRID_SECTION_MODES_BS = ['static', 'vertical'];
+const HYBRID_SECTION_MODES_BS = ['static', 'vertical', 'sequential', 'vertical-random', 'embranchement-vertical'];
 function hybridSectionTrackIsReady(source) {
   if (!source || !HYBRID_SECTION_MODES_BS.includes(source.mode)) return false;
-  const layers = source.layers || [], has = l => !!(l && (l.pendingFile || l.remoteFile));
+  const has = l => !!(l && (l.pendingFile || l.remoteFile));
+  if (source.mode === 'sequential') return (source.segmentSlots || []).some(sl => (sl.alternatives || []).some(has));
+  if (source.mode === 'vertical-random') return (source.sections || []).some(sec => (sec.pools || []).some(p => (p.alternatives || []).some(has)) || sec.referencesSectionId);
+  if (source.mode === 'embranchement-vertical') return (source.loops || []).some(has);
+  const layers = source.layers || [];
   return has(layers[0]) && (source.mode === 'static' || layers.every(has));
 }
 // Frise des points de transition d'une section : une graduation par temps du morceau. Un clic pose un point, un clic sur un point l'enlève.
@@ -53,7 +57,9 @@ function renderHybridEditor(host, track, ti) {
     row.className = 'list-block';
     row.style.marginBottom = '8px';
     const loopValue = sec.maxLoops == null ? '' : String(sec.maxLoops);
-    const switchMode = sec.switchMode || 'end';
+    // Le séquentiel et le vertical-random enchaînent plusieurs fichiers : pas de frise unique où poser des points.
+    const hasOneTimeline = !source || (source.mode !== 'sequential' && source.mode !== 'vertical-random');
+    const switchMode = !hasOneTimeline && sec.switchMode === 'point' ? 'end' : (sec.switchMode || 'end');
     const hasTrans = !!(sec.transition && (sec.transition.pendingFile || sec.transition.remoteFile));
     row.innerHTML = `
       <div class="list-block-head">
@@ -72,7 +78,7 @@ function renderHybridEditor(host, track, ti) {
       ${sec.trackId && !hybridSectionTrackIsReady(source) ? `<div class="hint-inline" style="color:#b45309">${tr('hybridMissingTrack')}</div>` : ''}
       <label style="margin-top:8px">${tr('hybridSectionNameLabel')}</label>
       <input type="text" data-hybrid="label" value="${escapeAttr(sec.label || '')}" placeholder="${escapeAttr((source && source.title) || '')}">
-      <label style="margin-top:8px">${tr('hybridSectionLoopsLabel')}</label>
+      <label style="margin-top:8px">${tr(hasOneTimeline ? 'hybridSectionLoopsLabel' : 'hybridSectionCyclesLabel')}</label>
       <select data-hybrid="loops">
         <option value=""${loopValue === '' ? ' selected' : ''}>${tr('hybridLoopsFromTrack')}</option>
         <option value="0"${loopValue === '0' ? ' selected' : ''}>${tr('hybridLoopsInfinite')}</option>
@@ -80,7 +86,7 @@ function renderHybridEditor(host, track, ti) {
       </select>
       <label style="margin-top:8px">${tr('hybridSwitchLabel')}</label>
       <select data-hybrid="switch">
-        ${[['beat', 'hybridSwitchBeat'], ['bar', 'hybridSwitchBar'], ['point', 'hybridSwitchPoint'], ['end', 'hybridSwitchEnd']].map(([v, k]) => `<option value="${v}"${switchMode === v ? ' selected' : ''}>${tr(k)}</option>`).join('')}
+        ${[['beat', 'hybridSwitchBeat'], ['bar', 'hybridSwitchBar'], ...(hasOneTimeline ? [['point', 'hybridSwitchPoint']] : []), ['end', 'hybridSwitchEnd']].map(([v, k]) => `<option value="${v}"${switchMode === v ? ' selected' : ''}>${tr(k)}</option>`).join('')}
       </select>
       <div class="hint-inline">${tr('hybridSwitchHint')}</div>
       ${switchMode === 'point' ? `

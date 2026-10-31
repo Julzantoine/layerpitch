@@ -19,6 +19,7 @@
     const declaredSection = (track.sections || [])[secIdx];
     const timing = sectionTiming(section);
     const bufferOffset = offsetOverride != null ? offsetOverride : (isFirstEverForThisSection ? timing.startTrackSec : timing.loopInSec);
+    chainNoteGen(ctxStartTime, bufferOffset, 60 / (section.bpm || 120), section.beatsPerBar || 4, timing.loopOutSec);
     const pools = section.pools || [];
     const poolPicks = [];
     const telemetryPicks = []; // { poolIndex, altIndex } par pool réellement tiré CE cycle -- seule donnée qui
@@ -96,6 +97,7 @@
       if (!next) {
         clearInterval(vrSchedulerTimer); vrSchedulerTimer = null;
         armVRFinalEnd();
+        if (chainHooks) chainHooks.onFinalBoundary(vrNextStartCtxTime);
         return;
       }
       if (next.type === 'intro') {
@@ -128,7 +130,7 @@
         continue;
       }
       if (next.type === 'outro') {
-        if (!outroBuffer) { clearInterval(vrSchedulerTimer); vrSchedulerTimer = null; armVRFinalEnd(); return; }
+        if (!outroBuffer) { clearInterval(vrSchedulerTimer); vrSchedulerTimer = null; armVRFinalEnd(); if (chainHooks) chainHooks.onFinalBoundary(vrNextStartCtxTime); return; }
         const src = ctx.createBufferSource();
         src.buffer = outroBuffer;
         applyTrackPitchRate(src, vrNextStartCtxTime);
@@ -148,6 +150,7 @@
         emitVROutcome('vr_outro_start', vrNextStartCtxTime, { trackId: track.id });
         clearInterval(vrSchedulerTimer); vrSchedulerTimer = null;
         armVRFinalEnd();
+        if (chainHooks) chainHooks.onFinalBoundary(vrNextStartCtxTime + outroBuffer.duration / trackPitchRatio);
         return;
       }
       // next.type === 'section'
@@ -212,7 +215,7 @@
         }
       );
     }
-    vrNextStartCtxTime = startSoon(); // toutes les voix du premier cycle sur un même instant (voir startSoon)
+    vrNextStartCtxTime = engineStartTime(); // toutes les voix du premier cycle sur un même instant (voir startSoon)
     sectionSchedulerTick();
     vrSchedulerTimer = setInterval(sectionSchedulerTick, 200);
     if (goToEndBtn) goToEndBtn.disabled = false;

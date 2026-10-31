@@ -7,6 +7,10 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // la fin de la boucle en cours (chainFinishRequested) ; onFinalBoundary reçoit alors l'instant où la section suivante doit démarrer.
   const chainHooks = (opts && opts.chain) || null;
   let chainStartAt = null, chainFinishRequested = false, chainCutTimer = null;
+  let chainGens = [], chainEmbrLoops = 0, chainEmbrMarker = null; // ce qui a été programmé : position dans le fichier et tempo à cet instant
+  function chainNoteGen(at, offset, secondsPerBeat, beatsPerBar, limit) {
+    if (chainHooks) chainGens.push({ at, offset, secondsPerBeat, beatsPerBar, limit });
+  }
   function engineStartTime() {
     if (chainStartAt == null) return startSoon();
     const when = Math.max(chainStartAt, ctx.currentTime + 0.005);

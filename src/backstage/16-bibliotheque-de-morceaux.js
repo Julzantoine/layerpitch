@@ -596,7 +596,7 @@ function togglePreview(ti, cardEl) {
   const hasFile = f => !!(f && (f.pendingFile || f.remoteFile));
   let hasAnyFile;
   if (track.mode === 'hybrid-sequential') {
-    hasAnyFile = (track.sections || []).some(sec => { const s = library.find(l => l.id === sec.trackId); return s && (s.layers || []).some(hasFile); });
+    hasAnyFile = (track.sections || []).some(sec => { const s = library.find(l => l.id === sec.trackId); return hybridSectionTrackIsReady(s); });
   } else if (track.mode === 'vertical-random') {
     hasAnyFile = hasFile(track.intro) || hasFile(track.outro) || (track.sections || []).some(sec => (sec.pools || []).some(p => (p.alternatives || []).some(hasFile)));
   } else if (track.mode === 'sequential') {

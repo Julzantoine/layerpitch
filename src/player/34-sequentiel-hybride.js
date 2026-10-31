@@ -10,14 +10,22 @@ function hybridPlayableSections(track) {
   return (track.sections || []).filter(sec => {
     const child = sec && sec.track;
     if (!child || !HYBRID_SECTION_MODES.includes(child.mode)) return false;
+    if (child.mode === 'sequential') return (child.segmentSlots || []).some(sl => (sl.alternatives || []).some(layerHasSource));
+    if (child.mode === 'vertical-random') return (child.sections || []).some((_, i) => vrSectionIsPlayable(child, i));
+    if (child.mode === 'embranchement-vertical') return (child.loops || []).some(layerHasSource);
     const layers = child.layers || [];
     return layerHasSource(layers[0]) && (child.mode === 'static' || layers.every(layerHasSource));
   });
 }
 function hybridChildTrack(sec) {
   // Boucles : 0 = sans limite, vide = le réglage du morceau lui-même.
-  const maxLoops = sec.maxLoops === 0 ? null : (sec.maxLoops || sec.track.maxLoops || null);
-  return Object.assign({}, sec.track, { id: sec.track.id + '~' + sec.id, maxLoops });
+  // Le séquentiel et le vertical-random comptent en tours complets de leur chaîne.
+  const key = sec.track.mode === 'sequential' || sec.track.mode === 'vertical-random' ? 'maxChainLoops' : 'maxLoops';
+  const limit = sec.maxLoops === 0 ? null : (sec.maxLoops || sec.track[key] || null);
+  const child = Object.assign({}, sec.track, { id: sec.track.id + '~' + sec.id, [key]: limit });
+  // Une section interne sans limite ne ferait jamais finir le tour : avec un nombre de tours, elle joue une fois par tour.
+  if (limit && child.mode === 'vertical-random') child.sections = (child.sections || []).map(s => Object.assign({}, s, { maxLoops: s.maxLoops || 1 }));
+  return child;
 }
 
 function buildHybridRow(track, isNoAiCertified) {

@@ -181,7 +181,7 @@ function getModeLabel(mode, track) {
   return map[mode] || mode;
 }
 const HYBRID_MODE = 'hybrid-sequential'; // voir 34-sequentiel-hybride.js
-const HYBRID_SECTION_MODES = ['static', 'vertical']; // modes qui savent déjà passer la main à la section suivante
+const HYBRID_SECTION_MODES = ['static', 'vertical', 'sequential', 'vertical-random', 'embranchement-vertical']; // tout sauf un autre hybride
 const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential', 'embranchement-vertical', HYBRID_MODE];
 
 function layerHasSource(l) { return !!(l && (l.localFile || l.localUrl || l.file)); }

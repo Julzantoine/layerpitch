@@ -7,6 +7,7 @@
     // d'intensité en cours -- programmée jusqu'à 1 s plus tôt (at = son instant de départ). Une génération programmée puis annulée par un
     // arrêt est effacée par le repère voices_stop qui la précède.
     captureMark('layer_gen', { trackId: track.id, bufferOffset, level, at: ctxStartTime, rate: trackPitchRatio });
+    { const tt = trackTempo(track); chainNoteGen(ctxStartTime, bufferOffset, tt.secondsPerBeat, tt.beatsPerBar, loopOutSec); }
     const thisGenSources = [];
     const p = profiles[level] || profiles[0];
     const gensThisRound = [];
@@ -89,42 +90,51 @@
   // Séquentiel hybride : position dans le fichier de ce qu'on entend, et limite au-delà de laquelle on ne coupe plus (fin de boucle).
   function chainBufferPosition() {
     const now = ctx.currentTime;
-    if (useQuantizedLoop) {
-      const live = scheduledGens.filter(g => !g.stopped);
-      const gen = [...live].reverse().find(g => g.ctxStartTime <= now) || live[0];
+    const usesGens = useQuantizedLoop || isSequential || isVerticalRandom || isEmbrVert;
+    if (usesGens) {
+      const gen = [...chainGens].reverse().find(g => g.at <= now) || chainGens[0];
       if (!gen) return null;
-      return { sec: gen.bufferOffset + Math.max(0, now - gen.ctxStartTime) * gen.ratio, limit: loopOutSec };
+      return { now, sec: gen.offset + Math.max(0, now - gen.at) * trackPitchRatio, limit: gen.limit, secondsPerBeat: gen.secondsPerBeat, beatsPerBar: gen.beatsPerBar };
     }
     if (!sources.length) return null;
     const played = Math.max(0, now - startedAt) * trackPitchRatio;
-    return { sec: loops ? played % track.duration : played, limit: track.duration };
+    const tt = trackTempo(track);
+    return { now, sec: loops ? played % track.duration : played, limit: track.duration, secondsPerBeat: tt.secondsPerBeat, beatsPerBar: tt.beatsPerBar };
   }
   // Prochain instant de sortie (horloge audio), ou null s'il n'y en a pas avant la fin de la boucle.
   function chainNextExitSec(mode, points) {
     const pos = chainBufferPosition();
     if (!pos) return null;
-    const tt = trackTempo(track);
     const earliest = pos.sec + 0.06 * trackPitchRatio; // le temps de programmer sans clic
     let exit;
     if (mode === 'point') {
-      exit = (points || []).map(b => b * tt.secondsPerBeat).sort((a, b) => a - b).find(s => s >= earliest);
+      exit = (points || []).map(b => b * pos.secondsPerBeat).sort((a, b) => a - b).find(s => s >= earliest);
     } else {
-      const unit = mode === 'bar' ? tt.secondsPerBeat * tt.beatsPerBar : tt.secondsPerBeat;
+      const unit = mode === 'bar' ? pos.secondsPerBeat * pos.beatsPerBar : pos.secondsPerBeat;
       exit = Math.ceil(earliest / unit - 1e-9) * unit;
     }
     if (exit == null || exit >= pos.limit - 1e-4) return null;
-    return ctx.currentTime + (exit - pos.sec) / trackPitchRatio;
+    return pos.now + (exit - pos.sec) / trackPitchRatio; // même instant que la position lue : sinon la sortie glisse de quelques ms
+  }
+  // Demande de finir sans couper : fin de boucle, ou, pour le séquentiel et le vertical-random, leur propre fin (outro comprise).
+  function chainRequestEnd() {
+    chainFinishRequested = true;
+    if (!playing) return;
+    if (isSequential) goToEndRequested = true;
+    else if (isVerticalRandom) { if (sectionScheduler) sectionScheduler.requestGoToEnd(); }
+    else if (!useQuantizedLoop && !isEmbrVert) armChainEndSimple();
   }
   // Coupe la section à cet instant, avec un fondu. La suivante démarre au début du fondu.
   function chainCutAt(at, fadeSec) {
     const fade = Math.max(0.01, fadeSec || 0);
-    if (useQuantizedLoop) {
-      if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
-      finalGenerationMarkerSrc = null;
-      activeGenSources.forEach(({ src }) => { try { src.stop(at + fade); } catch (e) {} });
-    } else {
-      sources.forEach(s => { if (s) { s.onended = null; try { s.stop(at + fade); } catch (e) {} } });
-    }
+    [schedulerTimer, seqSchedulerTimer, vrSchedulerTimer, embrSchedulerTimer].forEach(id => { if (id) clearInterval(id); });
+    schedulerTimer = seqSchedulerTimer = vrSchedulerTimer = embrSchedulerTimer = null;
+    finalGenerationMarkerSrc = null; seqFinalMarkerSrc = null; chainEmbrMarker = null;
+    const voices = isSequential ? seqActiveSources.map(v => v.src)
+      : isEmbrVert ? embrActiveGenSources.map(v => v.src)
+      : (useQuantizedLoop || isVerticalRandom) ? activeGenSources.map(v => v.src)
+      : sources.filter(Boolean);
+    voices.forEach(src => { if (!useQuantizedLoop && !isSequential && !isVerticalRandom && !isEmbrVert) src.onended = null; try { src.stop(at + fade); } catch (e) {} });
     const g = trackMasterGain.gain;
     g.cancelScheduledValues(ctx.currentTime);
     g.setValueAtTime(1, at);
