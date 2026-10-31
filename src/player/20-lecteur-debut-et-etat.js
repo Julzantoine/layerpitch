@@ -6,7 +6,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // Section d'un séquentiel hybride (31/10) : le chef d'orchestre impose l'instant de départ (chainStartAt) et peut demander de finir à
   // la fin de la boucle en cours (chainFinishRequested) ; onFinalBoundary reçoit alors l'instant où la section suivante doit démarrer.
   const chainHooks = (opts && opts.chain) || null;
-  let chainStartAt = null, chainFinishRequested = false;
+  let chainStartAt = null, chainFinishRequested = false, chainCutTimer = null;
   function engineStartTime() {
     if (chainStartAt == null) return startSoon();
     const when = Math.max(chainStartAt, ctx.currentTime + 0.005);

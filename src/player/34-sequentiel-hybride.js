@@ -74,6 +74,10 @@ function initHybridPlayer(track, wrapper, elementColors) {
   let cur = -1, playing = false, paused = false, ending = false;
   let pending = null; // { to, at, given } : passage annoncé par la section en cours ; given = la suivante est déjà programmée
   let queuedAt = null; // fin déjà annoncée par la section programmée, avant même qu'on l'entende (statique sans boucle, nombre de boucles)
+  // Fichier de transition d'une section vers la suivante : joué au moment du passage, la section suivante démarre après.
+  const transitionBuffers = sections.map(() => null);
+  let transitionsLoaded = false;
+  let transitionSrc = null, resumeFresh = false;
   let timer = null, endedCb = null;
 
   const players = sections.map((sec, i) => {
@@ -105,7 +109,16 @@ function initHybridPlayer(track, wrapper, elementColors) {
     if (pending && pending.given && pending.to === i) { queuedAt = at; return; }
     if (i !== cur || !playing) return;
     if (i === sections.length - 1) ending = true;
-    else pending = { to: i + 1, at, given: false };
+    else {
+      const buf = transitionBuffers[i];
+      const trans = sections[i].transition;
+      if (buf) {
+        // Durée en mesures au tempo de la section suivante (la fin du fichier peut alors chevaucher son début), sinon le fichier entier.
+        const tt = trackTempo(sections[i + 1].track);
+        const dur = trans.bars ? trans.bars * tt.beatsPerBar * tt.secondsPerBeat : buf.duration;
+        pending = { to: i + 1, at: at + dur, given: false, transAt: at, transBuf: buf };
+      } else pending = { to: i + 1, at, given: false };
+    }
     refreshNext();
   }
   function startSection(i, when) {
@@ -122,6 +135,13 @@ function initHybridPlayer(track, wrapper, elementColors) {
   function tick() {
     if (!pending || !playing) return;
     const now = ctx.currentTime;
+    if (pending.transBuf && pending.transAt - now < HYBRID_HANDOFF_LEAD_SEC) {
+      transitionSrc = ctx.createBufferSource();
+      transitionSrc.buffer = pending.transBuf;
+      transitionSrc.connect(ctx.destination);
+      transitionSrc.start(Math.max(pending.transAt, now + 0.005));
+      pending.transBuf = null;
+    }
     if (!pending.given && pending.at - now < HYBRID_HANDOFF_LEAD_SEC) {
       pending.given = true;
       startSection(pending.to, pending.at);
@@ -149,7 +169,8 @@ function initHybridPlayer(track, wrapper, elementColors) {
     if (paused) {
       paused = false;
       playing = true;
-      players[cur].control.resume(); // annonce de nouveau son passage s'il était demandé
+      if (resumeFresh) { resumeFresh = false; startSection(cur, startSoon()); show(cur); } // pause pendant une transition : on repart sur la suite
+      else players[cur].control.resume(); // annonce de nouveau son passage s'il était demandé
     } else {
       playing = true;
       ending = false;
@@ -163,14 +184,19 @@ function initHybridPlayer(track, wrapper, elementColors) {
     if (!timer) timer = setInterval(tick, 100);
     setPlayUI();
   }
+  function stopTransition() {
+    if (transitionSrc) { try { transitionSrc.stop(); } catch (e) {} transitionSrc = null; }
+  }
   function pause() {
     // Une section programmée mais pas encore entendue est annulée : le passage sera recalculé à la reprise.
     if (pending && pending.given) players[pending.to].control.reset();
+    stopTransition();
+    if (pending && pending.transAt != null && ctx.currentTime >= pending.transAt) { players[cur].control.reset(); cur = pending.to; resumeFresh = true; }
     pending = null;
     queuedAt = null;
     ending = false;
     players.forEach((p, n) => { if (n !== cur) p.control.reset(); });
-    players[cur].control.pause();
+    if (!resumeFresh) players[cur].control.pause();
     playing = false;
     paused = true;
     clearInterval(timer); timer = null;
@@ -179,6 +205,8 @@ function initHybridPlayer(track, wrapper, elementColors) {
   function stopAll() {
     if (timer) { clearInterval(timer); timer = null; }
     players.forEach(p => p.control.reset());
+    stopTransition();
+    resumeFresh = false;
     if (playing || paused) trackPublicEvent('track_stop', { trackId: track.id, mode: track.mode });
     playing = false; paused = false; ending = false; pending = null; queuedAt = null; cur = -1;
     blocks.forEach(b => b.classList.remove('active'));
@@ -191,14 +219,25 @@ function initHybridPlayer(track, wrapper, elementColors) {
   nextBtn.addEventListener('click', () => {
     if (!playing || cur < 0) return;
     trackPublicEvent('hybrid_next', { trackId: track.id, sectionIndex: cur });
-    players[cur].control.finishAtLoopEnd();
+    const sec = sections[cur];
+    players[cur].control.finishAt(sec.switchMode || 'end', sec.transitionPoints, sec.fadeSec != null ? sec.fadeSec : 0.5);
     nextBtn.disabled = true;
     nextBtn.textContent = t('hybridEndOfLoop');
   });
   document.addEventListener('stop-track', e => { if (e.detail === track.id) { stopAll(); } });
 
   // Le bouton Lecture s'active quand TOUTES les sections sont chargées : un passage ne peut pas attendre un téléchargement.
-  const isReady = () => players.every(p => p.control.isReady());
+  const isReady = () => transitionsLoaded && players.every(p => p.control.isReady());
+  Promise.all(sections.map(async (sec, i) => {
+    const tr = sec.transition;
+    if (i === sections.length - 1 || !tr || !(tr.localFile || tr.localUrl || tr.file)) return;
+    try {
+      const ab = tr.localFile ? await tr.localFile.arrayBuffer()
+        : tr.localUrl ? await (await fetch(tr.localUrl)).arrayBuffer()
+        : await (await fetchAudio(track.base + encodeURIComponent(tr.file) + (track.publishedAt ? '?v=' + encodeURIComponent(track.publishedAt) : ''), track.protected)).arrayBuffer();
+      transitionBuffers[i] = await decodeAudioCompat(ab);
+    } catch (e) { console.warn('Transition illisible, passage direct :', e); }
+  })).then(() => { transitionsLoaded = true; });
   const readyTimer = setInterval(() => {
     if (!isReady()) return;
     clearInterval(readyTimer);

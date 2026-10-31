@@ -134,7 +134,7 @@ function describeTrackBehavior(track) {
     case 'static': return describeStatic(track);
     case 'vertical': return describeVertical(track);
     case 'vertical-random': return describeVerticalRandom(track);
-    case 'hybrid-sequential': return ['Séquentiel hybride : des sections qui s\'enchaînent, chacune étant un morceau de la bibliothèque avec son propre mode. Passage à la fin de la boucle en cours, la queue de la section précédente continue de sonner.', ...(track.sections || []).map((sec, i) => { const source = (typeof library !== 'undefined' ? library : []).find(l => l.id === sec.trackId); return `  ${i + 1}. ${sec.label || (source && source.title) || 'sans nom'}`; })];
+    case 'hybrid-sequential': return ['Hybride à sections : des sections qui s\'enchaînent, chacune étant un morceau de la bibliothèque avec son propre mode. Passage à la fin de la boucle en cours, la queue de la section précédente continue de sonner.', ...(track.sections || []).map((sec, i) => { const source = (typeof library !== 'undefined' ? library : []).find(l => l.id === sec.trackId); return `  ${i + 1}. ${sec.label || (source && source.title) || 'sans nom'}`; })];
     case 'sequential': return describeSequential(track);
     case 'embranchement-vertical': return describeEmbrVert(track);
     default: return [`Mode "${track.mode}" non pris en charge par le générateur de fiche pour l'instant.`];

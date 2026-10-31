@@ -131,6 +131,7 @@
   }
   function stopAllSources(keepPosition) {
     lpManualStop = true; // arrêt demandé : pas une fin naturelle (voir setStoppedUI)
+    if (chainCutTimer) { clearTimeout(chainCutTimer); chainCutTimer = null; }
     playing = false;
     playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
     // Annule toute rampe de ducking en cours et revient à 1 immédiatement — sinon une prochaine lecture
@@ -440,6 +441,15 @@
         chainFinishRequested = true;
         if (!playing) return;
         if (!useQuantizedLoop) armChainEndSimple();
+      },
+      // Quitter la section avant sa fin : au prochain temps, à la prochaine mesure ou au prochain point de transition (temps du fichier).
+      // Rien d'atteignable avant la fin de la boucle : la fin de boucle, avec sa queue.
+      finishAt(mode, points, fadeSec) {
+        chainFinishRequested = true;
+        if (!playing) return;
+        const target = mode === 'beat' || mode === 'bar' || mode === 'point' ? chainNextExitSec(mode, points) : null;
+        if (target != null) chainCutAt(target, fadeSec);
+        else if (!useQuantizedLoop) armChainEndSimple();
       },
       pause: () => pauseThisTrack(),
       resume: () => playThisTrack(true),

@@ -31,9 +31,26 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   click([...window.document.querySelectorAll('[data-hybrid="up"]')][1]);
   check('ordre modifiable', window.eval("library.find(l => l.id === 'h').sections[0].trackId") === 'st');
 
+  // Réglage du passage, points, fondu, fichier de transition.
+  window.eval("library.find(l => l.id === 'vt').duration = 8; library.find(l => l.id === 'vt').bpm = 120; renderLibrary();");
+  const switches = () => [...window.document.querySelectorAll('select[data-hybrid="switch"]')];
+  check('réglage par défaut : fin de la section', switches()[1].value === 'end');
+  pick(switches()[1], 'point');
+  const pts = () => [...window.document.querySelectorAll('.hybrid-point')];
+  check('frise : une case par temps du morceau', pts().length === 16);
+  click(pts()[4]);
+  click(pts()[8]);
+  click(pts()[4]);
+  check('un clic pose, un second enlève', JSON.stringify(window.eval("library.find(l => l.id === 'h').sections[1].transitionPoints")) === '[8]');
+  check('fondu proposé', !!q('input[data-hybrid="fade"]'));
+  check('dernière section : pas de fichier de transition', window.document.querySelectorAll('[data-role="hybridTransFile"]').length === 1);
+  window.eval("library.find(l => l.id === 'h').sections[0].transition = { remoteFile: 'section-x-transition.ogg', originalFileName: 'x.wav', pendingFile: null, bars: 2 }; renderLibrary();");
   const snap = window.eval("JSON.stringify(buildDataSnapshot({}, 1).library.find(l => l.id === 'h').sections)");
   const sec = JSON.parse(snap);
   check('publication : champs des sections conservés', sec.length === 2 && sec[1].trackId === 'vt' && sec[1].maxLoops === 2 && sec[1].label === 'Exploration' && !('pools' in sec[1]) && !('track' in sec[1]));
+  check('publication : réglages du passage conservés', sec[1].switchMode === 'point' && JSON.stringify(sec[1].transitionPoints) === '[8]' && sec[0].transition.file === 'section-x-transition.ogg' && sec[0].transition.bars === 2);
+  check('fichier de transition supprimé avec le morceau', window.eval("trackRemoteFileKeys(library.find(l => l.id === 'h'))").length === 1);
+  check('rechargement : lecture du format publié', /remoteFile: sec\.transition\.file/.test(require('fs').readFileSync('src/backstage/38-chargement.js', 'utf-8')));
   const preview = JSON.parse(window.eval("JSON.stringify(buildPreviewTrack(library.find(l => l.id === 'h')))"));
   check('aperçu : la section porte son morceau', preview.sections[1].track && preview.sections[1].track.mode === 'vertical');
   const copy = JSON.parse(window.eval("JSON.stringify(cloneTrackWithRemap(library.find(l => l.id === 'h')))"));

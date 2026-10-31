@@ -86,6 +86,59 @@
       if (activeTrackId === track.id) activeTrackId = null;
     };
   }
+  // Séquentiel hybride : position dans le fichier de ce qu'on entend, et limite au-delà de laquelle on ne coupe plus (fin de boucle).
+  function chainBufferPosition() {
+    const now = ctx.currentTime;
+    if (useQuantizedLoop) {
+      const live = scheduledGens.filter(g => !g.stopped);
+      const gen = [...live].reverse().find(g => g.ctxStartTime <= now) || live[0];
+      if (!gen) return null;
+      return { sec: gen.bufferOffset + Math.max(0, now - gen.ctxStartTime) * gen.ratio, limit: loopOutSec };
+    }
+    if (!sources.length) return null;
+    const played = Math.max(0, now - startedAt) * trackPitchRatio;
+    return { sec: loops ? played % track.duration : played, limit: track.duration };
+  }
+  // Prochain instant de sortie (horloge audio), ou null s'il n'y en a pas avant la fin de la boucle.
+  function chainNextExitSec(mode, points) {
+    const pos = chainBufferPosition();
+    if (!pos) return null;
+    const tt = trackTempo(track);
+    const earliest = pos.sec + 0.06 * trackPitchRatio; // le temps de programmer sans clic
+    let exit;
+    if (mode === 'point') {
+      exit = (points || []).map(b => b * tt.secondsPerBeat).sort((a, b) => a - b).find(s => s >= earliest);
+    } else {
+      const unit = mode === 'bar' ? tt.secondsPerBeat * tt.beatsPerBar : tt.secondsPerBeat;
+      exit = Math.ceil(earliest / unit - 1e-9) * unit;
+    }
+    if (exit == null || exit >= pos.limit - 1e-4) return null;
+    return ctx.currentTime + (exit - pos.sec) / trackPitchRatio;
+  }
+  // Coupe la section à cet instant, avec un fondu. La suivante démarre au début du fondu.
+  function chainCutAt(at, fadeSec) {
+    const fade = Math.max(0.01, fadeSec || 0);
+    if (useQuantizedLoop) {
+      if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
+      finalGenerationMarkerSrc = null;
+      activeGenSources.forEach(({ src }) => { try { src.stop(at + fade); } catch (e) {} });
+    } else {
+      sources.forEach(s => { if (s) { s.onended = null; try { s.stop(at + fade); } catch (e) {} } });
+    }
+    const g = trackMasterGain.gain;
+    g.cancelScheduledValues(ctx.currentTime);
+    g.setValueAtTime(1, at);
+    g.linearRampToValueAtTime(0, at + fade);
+    if (chainCutTimer) clearTimeout(chainCutTimer);
+    chainCutTimer = setTimeout(() => {
+      chainCutTimer = null;
+      const cb = lpEndedCb;
+      lpEndedCb = null;
+      stopThisTrack();
+      if (cb) cb();
+    }, (at + fade - ctx.currentTime) * 1000 + 30);
+    chainHooks.onFinalBoundary(at);
+  }
   function stopQuantized() {
     captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
     finalGenerationMarkerSrc = null;

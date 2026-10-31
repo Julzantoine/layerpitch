@@ -123,6 +123,7 @@ function trackAudioItems(track) {
   });
   (track.sections || []).forEach(sec => (sec.pools || []).forEach(p => (p.alternatives || []).forEach(a => items.push(a))));
   (track.loops || []).forEach(l => { items.push(l); if (l.transition) items.push(l.transition); });
+  (track.sections || []).forEach(sec => { if (sec.transition) items.push(sec.transition); });
   return items.filter(it => it && (it.remoteFile || it.pendingFile || it._measure));
 }
 

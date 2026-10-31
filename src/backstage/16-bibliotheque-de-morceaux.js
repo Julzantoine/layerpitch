@@ -426,7 +426,12 @@ function buildPreviewTrack(track) {
       id: track.id, title: track.title, description: track.description, tags: track.tags || '', mode: track.mode, duration: 0, base: track.base, layers: [], sfxIds: [],
       sections: (track.sections || []).map(sec => {
         const source = library.find(l => l.id === sec.trackId);
-        return { id: sec.id, label: sec.label, trackId: sec.trackId, maxLoops: sec.maxLoops, track: source ? buildPreviewTrack(source) : null };
+        const trans = sec.transition;
+        return {
+          id: sec.id, label: sec.label, trackId: sec.trackId, maxLoops: sec.maxLoops, track: source ? buildPreviewTrack(source) : null,
+          switchMode: sec.switchMode || 'end', transitionPoints: sec.transitionPoints || [], fadeSec: sec.fadeSec != null ? sec.fadeSec : 0.5,
+          transition: trans && trans.pendingFile ? { localFile: trans.pendingFile, bars: trans.bars || null } : trans && trans.remoteFile ? { file: trans.remoteFile, bars: trans.bars || null } : null,
+        };
       })
     };
   }

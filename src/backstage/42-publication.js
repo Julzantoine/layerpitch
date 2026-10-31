@@ -81,7 +81,11 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : chaque section porte
       // désormais son propre tempo/timeline, comme un vrai segment Wwise indépendant — plus de
       // fixedLayers/randomGroups au niveau du morceau, tout vit dans sections[].pools[].
-      sections: t.mode === 'hybrid-sequential' ? (t.sections || []).map(sec => ({ id: sec.id, label: sec.label || '', trackId: sec.trackId || null, maxLoops: sec.maxLoops != null ? sec.maxLoops : null })) : (t.sections || []).map(sec => ({
+      sections: t.mode === 'hybrid-sequential' ? (t.sections || []).map(sec => ({
+        id: sec.id, label: sec.label || '', trackId: sec.trackId || null, maxLoops: sec.maxLoops != null ? sec.maxLoops : null,
+        switchMode: sec.switchMode || 'end', transitionPoints: sec.transitionPoints || [], fadeSec: sec.fadeSec != null ? sec.fadeSec : 0.5,
+        transition: (sec.transition && (sec.transition.remoteFile || sec.transition.pendingFile)) ? { file: sec.transition.remoteFile || null, localUrl: sec.transition.remoteFile ? null : pendingPreviewUrl(sec.transition.pendingFile), originalFileName: sec.transition.originalFileName || null, bars: sec.transition.bars || null } : null,
+      })) : (t.sections || []).map(sec => ({
         id: sec.id, label: sec.label || '',
         referencesSectionId: sec.referencesSectionId || null,
         bpm: sec.bpm || 120, beatsPerBar: sec.beatsPerBar || 4,
@@ -450,6 +454,16 @@ async function publishAll() {
       }
       for (let sci = 0; sci < (track.sections || []).length; sci++) {
         const section = track.sections[sci];
+        if (section.transition && section.transition.pendingFile) { // séquentiel hybride : fichier de transition vers la section suivante
+          log(tr('convertingGeneric', { title: track.title, label: tr('transitionFallbackShort') }));
+          const { bytes, measure } = await wavFileToOgg(section.transition.pendingFile);
+          const fileName = `section-${section.id}-transition.ogg`;
+          const path = `audio/${track.id}/${fileName}`;
+          log(tr('uploadingPath', { path }));
+          await r2PutFile(path, bytes, 'audio/ogg');
+          section.transition.remoteFile = fileName; section.transition.originalFileName = section.transition.pendingFile.name; section.transition.pendingFile = null; section.transition._measure = measure;
+          log(tr('uploadedPath', { path }), 'ok');
+        }
         for (let pi = 0; pi < (section.pools || []).length; pi++) {
           const pool = section.pools[pi];
           for (let ai = 0; ai < pool.alternatives.length; ai++) {
