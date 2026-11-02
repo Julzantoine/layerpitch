@@ -31,7 +31,7 @@
  * Bulle à CHOIX (27/10) : une étape peut porter `choices: [{ labelKey, lesson }]` — un gros bouton par choix ; un clic termine la
  * bulle en cours puis lance la leçon `lesson` (host.startLesson). Sert à la fin de la visite guidée (host.startChoice(id) si la page le fournit, sinon host.startLesson).
  * Étapes : { selector, titleKey, textKey, done(ctx), clickDone, listen, listenTarget, enter(ctx), skip(ctx), final,
- *            keepTrack, arrow: {bar} } — voir les leçons du Backstage pour des exemples.
+ *            keepTrack, arrow: {bar, labelKey?, point?} } — voir les leçons du Backstage pour des exemples.
  * Mise en forme : layerpitch-guide.css. Gabarit de page attendu : variables --bg, --border, --accent, --text-dim.
  */
 (function () {
@@ -407,10 +407,11 @@
         if (host.wireCard) host.wireCard(card, step, guide);
       }
       // Flèches indicatives (étapes avec `arrow`, une flèche ou une liste) : pointent les mesures à viser sur la timeline.
-      const arrows = step.arrow && visible && host.arrowPoint ? [].concat(step.arrow) : [];
+      // `point` (facultatif, sur une flèche) : sa position écran {x, y} calculée par la leçon (ex. une case de la frise des points de transition) ; `label: ''` : sans étiquette.
+      const arrows = step.arrow && visible ? [].concat(step.arrow).filter(a => a.point || host.arrowPoint) : [];
       const arrowEls = [...guide.root.querySelectorAll('.tour-arrow')];
       arrows.forEach((a, k) => {
-        const ap = host.arrowPoint(a.bar);
+        const ap = a.point ? a.point() : host.arrowPoint(a.bar);
         let arrowEl = arrowEls[k];
         if (!ap) { if (arrowEl) { arrowEl.remove(); arrowEls[k] = null; } return; }
         if (!arrowEl) {
@@ -420,7 +421,9 @@
           guide.root.appendChild(arrowEl);
           arrowEls[k] = arrowEl;
         }
-        arrowEl.querySelector('.tour-arrow-label').textContent = a.labelKey ? tr(a.labelKey) : tr('lessonArrowLabel', { n: a.bar });
+        const label = arrowEl.querySelector('.tour-arrow-label');
+        label.textContent = a.label === '' ? '' : a.labelKey ? tr(a.labelKey) : tr('lessonArrowLabel', { n: a.bar });
+        label.hidden = a.label === ''; // `label: ''` : la pointe seule (petites flèches serrées, ex. frise des points de transition)
         arrowEl.style.left = ap.x + 'px';
         arrowEl.style.top = ap.y + 'px';
       });

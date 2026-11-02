@@ -18,12 +18,16 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   ids.forEach(id => check('faux serveur : morceau ' + id + ' présent', demo.includes('"id":"' + id + '"')));
 
   const lesson = window.eval("LESSONS.find(l => l.id === 'hybrid')");
-  check('leçon déclarée dans le thème moteur audio, réservée aux admins', !!lesson && lesson.theme === 'engine' && lesson.adminOnly === true && lesson.reload === true);
+  check('leçon déclarée dans le thème moteur audio', !!lesson && lesson.theme === 'engine' && lesson.reload === true);
+  // Ouverte à tous le 02/11 : jouable et comptée dans les pastilles pour un bêta-testeur.
   window.eval('currentUserIsAdmin = false;');
-  check('non-admin : leçon fermée', window.eval("!lessonOpenToMe(LESSONS.find(l => l.id === 'hybrid'))"));
-  check('non-admin : les autres leçons du thème restent ouvertes', window.eval("lessonOpenToMe(LESSONS.find(l => l.id === 'static'))"));
+  check('bêta-testeur : leçon ouverte et comptée dans les pastilles', window.eval("(function () { const l = LESSONS.find(x => x.id === 'hybrid'); return lessonOpenToMe(l) && lessonAvailable(l); })()"));
   window.eval('currentUserIsAdmin = true;');
-  check('admin : leçon ouverte', window.eval("lessonOpenToMe(LESSONS.find(l => l.id === 'hybrid'))"));
+  // 2e bulle : la carte finale, dessinée dans la bulle.
+  const mapStep = lesson.steps[1];
+  check('2e bulle : aperçu de la carte finale', mapStep.preview === 'hybridMap' && !mapStep.selector);
+  const mapHtml = window.eval('lhMapPreviewHtml()');
+  check('aperçu : les 7 sections et la fin', (mapHtml.match(/<rect/g) || []).length === 8 && mapHtml.includes('Meet me there') && mapHtml.includes('This place is so'));
 
   // Bibliothèque de départ : les 6 morceaux Jazz (fichiers déjà en ligne, réglages de boucle réels : la frise s'arrête à la sortie de boucle), puis le morceau de l'apprenant.
   window.eval(`
@@ -97,6 +101,8 @@ const { loadBackstage } = require('./scripts/test-harness.js');
     '4:embr:Would you like to walk a bit more?:end>fin/end', '5:hi:This is so pretty over there:end>fin/end', '6:rand:This place is so nice:end>fin/end',
     '7:hi:I would like it never ends:end>fin/end'].join(' ; '));
   console.log('   ' + tree);
+  gesture('lhFreeTitle', click);
+  check('retour libre : coché sur les 7 sections', window.eval("library.find(l => l.id === 'h').sections.every(s => s.freeReturn)"));
   check('l\'écoute trouve son bouton', !!target(find('lhListenTitle')));
 
   // Textes en français et en anglais pour chaque étape.
