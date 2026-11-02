@@ -30,7 +30,11 @@ function hybridPointsTimeline(sec, source, changed) {
   const duration = source && source.duration;
   if (!duration) { wrap.innerHTML = `<div class="hint-inline">${tr('hybridPointsNeedTrack')}</div>`; return wrap; }
   if (!sec.transitionPoints) sec.transitionPoints = [];
-  const totalBeats = Math.max(1, Math.floor(duration * bpm / 60));
+  // Pas de point après la sortie de boucle : le lecteur y passerait de toute façon à la fin de la boucle.
+  const loopOutBeat = source.mode === 'embranchement-vertical'
+    ? (((source.loops || []).find(l => l.isInitial) || (source.loops || [])[0] || {}).loopOutBeat)
+    : (source.loopEngine === 'quantized' ? (source.loopOutBeat || beatsPerBar * 4) : null);
+  const totalBeats = Math.max(1, Math.min(Math.floor(duration * bpm / 60 + 1e-6), loopOutBeat || Infinity));
   wrap.className = 'hybrid-points';
   for (let beat = 0; beat < totalBeats; beat++) {
     const cell = document.createElement('button');
