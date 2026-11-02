@@ -1,7 +1,7 @@
 // api/demo-projects.js — LayerPitch, faux serveur « Projets » du MODE TUTORIEL (projet.html?tuto), 20/10.
 //
 // Même interface que window.LayerPitchProjects (api/projects.js), mais tout vit en mémoire dans la page : le Projet
-// fictif « Alone in the Barque » (discussion, sections, Moodboard) est reconstruit à chaque chargement, on peut y ÉCRIRE
+// fictif « Music City » (discussion, sections, Moodboard) est reconstruit à chaque chargement, on peut y ÉCRIRE
 // librement (poster, épingler, ranger, créer des sections…), rien n'est envoyé nulle part, tout repart de zéro au
 // rechargement. Les fichiers déposés restent dans le navigateur (adresses locales). Aperçus de liens : la fonction serveur
 // link-preview n'existe pas ici ; les aperçus sont préremplis (LINK_PREVIEWS) ou construits à partir de l'adresse.
@@ -9,43 +9,63 @@
 (function () {
   const ME = { id: 'demo-user', email: 'demo@layerpitch.com' };
 
-  // ---------- Données de départ (fil rouge fictif « Alone in the Barque », pastiche assumé) ----------
+  // ---------- Données de départ (fil rouge fictif « Music City », 02/11 : remplace « Alone in the Barque ») ----------
+  // Le jeu de Joshua, mis en musique par le compositeur Daniel (le même que dans les leçons AdReel et album du Backstage) : quatre villes, un seul tempo (110 bpm), et la musique
+  // de la série « Jazz Hi/Lo » de Jules-Antoine. Rock City est le carrefour : toutes les rues y mènent.
   const SEED = {
-    project: { title: 'Alone in the Barque', description: 'Jeu d’horreur lacustre. Quatre zones (ponton, lac ouvert, brouillard, cabane), une menace qui se rapproche, et un silence comme récompense.' },
+    project: { title: 'Music City', description: 'Jeu d’exploration musicale. Quatre villes (Jazz City, Rock City, Disco City, Synth City), un style par ville, et toute la ville bat au même tempo.' },
     members: [
-      { email: 'margaux@barque.example', role: 'admin' },
-      { email: 'samir@barque.example', role: 'editor' },
-      { email: 'theo@barque.example', role: 'editor' },
+      { email: 'joshua@musiccity.example', role: 'admin' },
+      { email: 'lea@musiccity.example', role: 'editor' },
+      { email: 'malik@musiccity.example', role: 'editor' },
+      { email: 'daniel.orcman@example.com', role: 'editor' }, // le compositeur
     ],
-    // [heure d’hier, auteur, texte] — source : scripts/seed-demo-barque.js (discussion fictive).
+    // [heure d’hier, auteur, texte] — discussion fictive.
     messages: [
-      ['10:02', 'Margaux', 'Version 1 de la vidéo de gameplay en ligne. C’est la traversée complète, du ponton à la cabane.'],
-      ['10:09', 'Samir', 'Je l’ai vue. Le visuel passe bien, mais la musique est plate. Rien ne dit au joueur que le brouillard est dangereux.'],
-      ['10:14', 'Théo', 'C’est le morceau générique que j’ai mis en attendant : une seule boucle de deux minutes. Je ne voulais pas l’écrire avant de voir l’image.'],
-      ['10:16', 'Margaux', 'Je veux que le joueur sente la menace avant de la voir.'],
-      ['10:21', 'Théo', 'Alors je ne propose plus un morceau mais quatre ambiances, une par zone : ponton, lac ouvert, brouillard, cabane. Et des couches qui s’ajoutent quand le monstre se rapproche.'],
-      ['10:25', 'Samir', 'Côté jeu, je peux t’envoyer la distance au monstre en continu, de 0 à 100.'],
-      ['10:27', 'Théo', 'Parfait, c’est exactement ce qu’il me faut. Les cordes entrent à 40, les basses à 70.'],
-      ['10:31', 'Margaux', 'Et la lanterne ? Quand elle vacille, j’aimerais un petit son sec, pas de la musique.'],
-      ['10:34', 'Théo', 'Ça, c’est un événement : un effet ponctuel, avec une montée très courte et un retour lent, pour que le joueur reste sur ses gardes après.'],
-      ['10:38', 'Samir', 'Et à la cabane, on coupe tout ? Le silence comme récompense.'],
-      ['10:40', 'Margaux', 'Oui. Refuge égale feu de bois et un accord de piano, rien d’autre.'],
-      ['10:44', 'Théo', 'Je prépare la carte et je te renvoie la vidéo avec la vraie musique : ce sera la version 2.'],
-      ['10:46', 'Samir', 'Garde la v1 à côté, qu’on compare les deux d’un coup d’œil.'],
-      ['10:49', 'Margaux', 'Validé. On présente la v2 jeudi.'],
+      ['10:02', 'Joshua', 'Version 1 de la vidéo de gameplay en ligne : la balade dans Jazz City, de la rue jusqu’au club.'],
+      ['10:09', 'Léa', 'Je l’ai vue. L’image passe bien, mais la musique est plate : quand on entre dans le club, rien ne change.'],
+      ['10:14', 'Joshua', 'C’est la musique provisoire. Il faudrait que la ville respire avec le joueur.'],
+      ['10:21', 'Daniel', 'Je propose une ambiance par ville, toutes au même tempo pour passer de l’une à l’autre sans casser le rythme. Et dans le club, des couches qui s’ajoutent quand la salle se remplit.'],
+      ['10:25', 'Malik', 'Côté jeu, je peux t’envoyer le nombre de clients dans le club, en continu.'],
+      ['10:27', 'Daniel', 'Parfait : la contrebasse seule quand c’est vide, la batterie quand ça se remplit, le clavier quand c’est plein.'],
+      ['10:31', 'Léa', 'Et au bar ? J’aimerais entendre les glaçons dans les verres.'],
+      ['10:34', 'Daniel', 'Ça, c’est un Sfx : il se joue par-dessus la musique, avec une variante différente à chaque fois.'],
+      ['10:38', 'Joshua', 'Et Rock City ? C’est le carrefour, toutes les rues y mènent.'],
+      ['10:40', 'Léa', 'Je prépare la carte des quatre villes.'],
+      ['10:44', 'Daniel', 'Je pose la vraie musique sur la vidéo : ce sera la version 2.'],
+      ['10:46', 'Malik', 'Garde la v1 à côté, qu’on compare les deux d’un coup d’œil.'],
+      ['10:49', 'Joshua', 'Validé. On présente la v2 jeudi.'],
     ],
-    // Les quatre zones du jeu, comme sections du Projet.
-    sections: ['Ponton', 'Lac ouvert', 'Brouillard', 'Cabane'],
-    // Notes de Moodboard de départ (au Moodboard général). Les références musicales (liens) sont à déposer par l’apprenant.
+    // Les quatre villes du jeu, comme sections du Projet.
+    sections: ['Jazz City', 'Rock City', 'Disco City', 'Synth City'],
+    // Notes de Moodboard de départ (au Moodboard général).
     notes: [
-      ['Direction sonore', 'La menace se sent avant de se voir. Le silence fait partie de la musique : refuge = feu de bois et un accord de piano.'],
-      ['Le lac à minuit', 'Vaste lac noir à minuit, fine brume sur l’eau, pleine lune derrière les nuages, silhouettes de sapins au loin. Tons teal et bleu profond.'],
-      ['La lanterne', 'Gros plan sur une vieille lanterne à huile en laiton, lueur ambre, à la proue d’une petite barque en bois.'],
+      ['Direction sonore', 'Un tempo pour toute la ville (110 bpm), un style par quartier. On passe d’une ville à l’autre sans jamais casser le rythme.'],
+      ['Jazz City la nuit', 'Rues mouillées, enseignes au néon bleu et ambre, saxophone qui s’échappe d’une porte entrouverte.'],
+      ['Le club', 'Petite salle en sous-sol, scène au fond, bar en cuivre. Plus la salle se remplit, plus l’orchestre s’étoffe.'],
+    ],
+    // Références musicales déjà épinglées au Moodboard (liens vérifiés le 02/11). Les autres se déposent pendant la leçon (LESSON_LINKS).
+    links: [
+      ['Banjo-Kazooie : Gruntilda’s Lair', 'https://www.youtube.com/watch?v=O5yOvsl0ftQ', 'Le même thème change d’instruments selon la zone, sans couper : notre idée d’une ville, un tempo, un style par quartier.'],
+      ['Cuphead : l’enregistrement de « Floral Fury »', 'https://www.youtube.com/watch?v=v6h1vM9W2NM', 'Big band jazz enregistré en live : la couleur de Jazz City et du club.'],
     ],
   };
-  // Aperçus de liens préremplis : adresse -> { provider, title, author, thumbnail, embedUrl, embedHeight }. À compléter avec les
-  // vraies références (liens fournis par Jules-Antoine). Une adresse absente reçoit un aperçu construit depuis son adresse.
-  const LINK_PREVIEWS = {};
+  // Musique de chaque ville sur la carte (leçons « la musique » et « se balader ») : les boucles de 4 mesures de « Jazz Hi Seq. Branch. »
+  // de Jules-Antoine, déjà en ligne dans media.layerpitch.com/tuto/. Clé -> [nom du lieu sur la carte, fichier].
+  const CITY_DIR = 'https://media.layerpitch.com/tuto/' + encodeURIComponent('Jazz Hi Seq. Branch.') + '/';
+  const CITY_MUSIC = {};
+  [['jazz', 'Jazz City', 'Jazz Hi_Jazz City_4M_110bpm.wav'], ['rock', 'Rock City', 'Jazz Hi_Rock City_4M_110bpm.wav'],
+    ['disco', 'Disco City', 'Jazz Hi_Disco City_4M_110bpm.wav'], ['synth', 'Synth City', 'Jazz Hi_Synth city_4M_110bpm.wav']]
+    .forEach(([k, place, name]) => { CITY_MUSIC[k] = { place, label: name, name, url: CITY_DIR + encodeURIComponent(name) }; });
+
+  // Aperçus de liens préremplis : adresse -> { provider, title, author, thumbnail, embedUrl, embedHeight }. Une adresse absente reçoit
+  // un aperçu construit depuis son adresse.
+  const LINK_PREVIEWS = {
+    'https://www.youtube.com/watch?v=O5yOvsl0ftQ': { provider: 'youtube', title: 'Gruntilda’s Lair (Medley)', author: 'Banjo-Kazooie, Grant Kirkhope', thumbnail: 'https://i.ytimg.com/vi/O5yOvsl0ftQ/hqdefault.jpg', embedUrl: 'https://www.youtube-nocookie.com/embed/O5yOvsl0ftQ' },
+    'https://www.youtube.com/watch?v=v6h1vM9W2NM': { provider: 'youtube', title: 'The Music of Cuphead: Recording Floral Fury', author: 'Studio MDHR', thumbnail: 'https://i.ytimg.com/vi/v6h1vM9W2NM/hqdefault.jpg', embedUrl: 'https://www.youtube-nocookie.com/embed/v6h1vM9W2NM' },
+    'https://www.youtube.com/watch?v=O2i1Vq3Odbg': { provider: 'youtube', title: 'Hi-Fi RUSH | Launch Trailer', author: 'Xbox', thumbnail: 'https://i.ytimg.com/vi/O2i1Vq3Odbg/hqdefault.jpg', embedUrl: 'https://www.youtube-nocookie.com/embed/O2i1Vq3Odbg' },
+    'https://open.spotify.com/album/4pJT0WKggr4xk149X8A6KC': { provider: 'spotify', title: 'PERSONA5 ORIGINAL SOUNDTRACK', author: 'ATLUS Sound Team', embedUrl: 'https://open.spotify.com/embed/album/4pJT0WKggr4xk149X8A6KC', embedHeight: 352 },
+  };
 
   const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
   const youtubeId = u => { const m = String(u).match(/(?:youtube\.com\/watch\?(?:[^#]*&)?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{11})/); return m ? m[1] : null; };
@@ -73,7 +93,7 @@
     let created = false; // leçon « créer un projet » : la liste des projets est vide tant qu'on n'en a pas créé un (opts.startEmpty)
     const activity = (kind, payload) => log.unshift({ kind, payload: payload || {}, createdAt: now(), actorEmail: ME.email });
 
-    const project = { id: 'demo-barque', title: SEED.project.title, description: SEED.project.description, ownerKind: 'composer', archived: false, createdAt: stamp('09:00'), updatedAt: now() };
+    const project = { id: 'demo-music-city', title: SEED.project.title, description: SEED.project.description, ownerKind: 'composer', archived: false, createdAt: stamp('09:00'), updatedAt: now() };
     const members = SEED.members.map((m, i) => ({ profileId: 'm' + i, email: m.email, status: 'active', source: 'team', role: m.role, me: false }));
     members.unshift({ profileId: ME.id, email: ME.email, status: 'active', source: 'owner', role: 'admin', me: true });
 
@@ -88,29 +108,40 @@
     let secPins = [];                  // { sectionId, assetId, position, starred }
     const annotations = [];
     // Musique du Projet : un pack déjà partagé par un autre compositeur ; le pack du compositeur fictif (api/demo-client.js) se partage en leçon.
-    const PACK_TITLES = { 'p-alone': 'Alone : ambiances du lac (exemple)' };
-    const sharedPacks = [{ packId: 'p-theo', title: 'Alone : cordes et brouillard (pack de Théo)', illustration: null, mode: 'share', priceEurCents: null, subscriberCredits: null, mine: false, sharedByEmail: 'theo@barque.example' }];
+    const PACK_TITLES = { 'p-music-city': 'Music City : le club de jazz (exemple)' };
+    const sharedPacks = [{ packId: 'p-cities', title: 'Music City : les quatre villes (pack de Daniel)', illustration: null, mode: 'share', priceEurCents: null, subscriberCredits: null, mine: false, sharedByEmail: 'daniel.orcman@example.com' }];
     const maps = [];
     // Carte déjà construite (celle que la leçon « construire la carte » fait faire) : pour les leçons « musique » et « balade ».
+    // Balade (opts.seedMapMusic) : chaque ville a déjà sa musique, un objet « audio » du Projet lu depuis media.layerpitch.com/tuto/.
     if (opts.seedMap) {
       const emptySounds = () => ({ main: [], combat: [], room: [] });
-      const node = (id, type, label, x, y, note) => ({ id, type, label, x, y, note: note || '', sounds: emptySounds(), transition: null });
+      const cityRef = label => {
+        const c = opts.seedMapMusic && Object.values(CITY_MUSIC).find(x => x.place === label);
+        if (!c) return [];
+        const fileId = nid('f'); files[fileId] = { name: c.name, size: 0, type: 'audio/wav', url: c.url };
+        const a = { id: nid('a'), kind: 'audio', origin: 'own', title: c.name, body: '', url: null, fileId, fileName: c.name, mimeType: 'audio/wav', createdAt: now(), authorEmail: 'daniel.orcman@example.com', preview: null };
+        assets.push(a);
+        return [{ kind: 'asset', id: a.id, title: c.name }];
+      };
+      const node = (id, type, label, x, y, note) => ({ id, type, label, x, y, note: note || '', sounds: Object.assign(emptySounds(), { main: cityRef(label) }), transition: null });
       const edge = (id, from, to) => ({ id, from, to, label: '', enemy: false, sounds: emptySounds(), transition: null });
-      maps.push({ id: 'map-barque', title: 'Alone in the Barque', updatedAt: now(), data: {
-        nodes: [node('n1', 'start', 'La cabane', -240, 0), node('n2', 'transition', '', -120, 0), node('n3', 'place', 'La forêt', 0, 0),
-          node('n4', 'place', 'Le manoir', 260, -110, 'Entrée du manoir : sa carte est au niveau 2.'), node('n5', 'place', 'La scierie', 260, 110)],
+      maps.push({ id: 'map-music-city', title: 'Music City', updatedAt: now(), data: {
+        nodes: [node('n1', 'start', 'Jazz City', -240, 0), node('n2', 'transition', '', -120, 0), node('n3', 'place', 'Rock City', 0, 0),
+          node('n4', 'place', 'Disco City', 260, -110, 'La boîte de nuit de Disco City : sa carte est au niveau 2.'), node('n5', 'place', 'Synth City', 260, 110)],
         edges: [edge('e1', 'n1', 'n2'), edge('e2', 'n2', 'n3'), edge('e3', 'n3', 'n4'), edge('e4', 'n3', 'n5')],
         roomTone: null, roomToneDb: -14, defaults: { transition: { style: 'crossfade', sec: 2, sync: 'bar' } } } });
     }
     const snapshots = [];
     let appearance = {};
 
-    const addNote = (title, body, pin) => { const a = { id: nid('a'), kind: 'note', origin: 'board', title, body, url: null, fileId: null, createdAt: now(), authorEmail: ME.email, preview: null }; assets.push(a); if (pin) moodboard.push(a.id); return a; };
+    const addNote = (title, body, pin) => { const a = { id: nid('a'), kind: 'note', origin: 'own', title, body, url: null, fileId: null, createdAt: now(), authorEmail: ME.email, preview: null }; assets.push(a); if (pin) moodboard.push(a.id); return a; };
     SEED.notes.forEach(([t, b]) => addNote(t, b, true));
-    // Leçon « Annoter un montage » (21/10) : le montage d'« Alone » (deux musiques, api/demo-client.js : cap-alone) déjà ajouté au Projet.
+    // Comme sur la vraie page, une adresse YouTube/Vimeo devient une vidéo, les autres un lien.
+    SEED.links.forEach(([title, url, body]) => { const a = { id: nid('a'), kind: /youtube\.com|youtu\.be|vimeo\.com/.test(url) ? 'video' : 'link', origin: 'external', title, body, url, fileId: null, createdAt: now(), authorEmail: 'lea@musiccity.example', preview: previewFromUrl(url) }; assets.push(a); moodboard.push(a.id); });
+    // Leçon « Annoter un montage » (21/10) : le montage de « Music City » (deux musiques, api/demo-client.js : cap-music-city) déjà ajouté au Projet.
     if (opts.seedMontage) {
-      const m = { id: nid('a'), kind: 'montage', origin: 'board', title: 'Alone in the Barque : traversée', body: 'Deux musiques sur la même scène : laquelle garde-t-on ?',
-        montageId: 'cap-alone', montageTitle: 'Alone in the Barque : traversée', url: null, fileId: null, createdAt: now(), authorEmail: 'daniel.orcman@example.com', preview: null };
+      const m = { id: nid('a'), kind: 'montage', origin: 'own', title: 'Music City : de la rue au club', body: 'Deux musiques sur la même scène : laquelle garde-t-on ?',
+        montageId: 'cap-music-city', montageTitle: 'Music City : de la rue au club', url: null, fileId: null, createdAt: now(), authorEmail: 'daniel.orcman@example.com', preview: null };
       assets.push(m); moodboard.push(m.id);
     }
 
@@ -146,7 +177,7 @@
         return ok(list.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
       },
       post: async (id, body, attachments) => {
-        const att = (attachments || []).map(x => { const a = { id: nid('a'), kind: 'file', origin: 'chat', title: x.title || '', fileId: x.fileId, createdAt: now(), authorEmail: ME.email, preview: null }; assets.push(a); return { assetId: a.id, kind: a.kind, title: a.title, fileId: a.fileId, fileName: (files[a.fileId] || {}).name, mimeType: (files[a.fileId] || {}).type }; });
+        const att = (attachments || []).map(x => { const a = { id: nid('a'), kind: 'file', origin: 'own', title: x.title || '', fileId: x.fileId, createdAt: now(), authorEmail: ME.email, preview: null }; assets.push(a); return { assetId: a.id, kind: a.kind, title: a.title, fileId: a.fileId, fileName: (files[a.fileId] || {}).name, mimeType: (files[a.fileId] || {}).type }; });
         const m = { id: nid('m'), body: body || '', createdAt: now(), editedAt: null, authorId: ME.id, authorEmail: ME.email, mine: true, attachments: att };
         messages.push(m); activity('message', {}); return ok(m.id);
       },
@@ -160,7 +191,7 @@
         const dup = p.url && assets.find(a => a.url === p.url);
         if (dup) { if (pin && !moodboard.includes(dup.id)) moodboard.push(dup.id); return ok({ id: dup.id, existed: true }); }
         const f = p.fileId ? files[p.fileId] : null;
-        const a = { id: nid('a'), kind: p.kind, origin: p.origin || 'board', title: p.title || '', body: p.body || '', url: p.url || null, fileId: p.fileId || null,
+        const a = { id: nid('a'), kind: p.kind, origin: ['external', 'own', 'layerpitch'].includes(p.origin) ? p.origin : 'own', // comme le vrai serveur title: p.title || '', body: p.body || '', url: p.url || null, fileId: p.fileId || null,
           fileName: f && f.name, fileSize: f && f.size, mimeType: f && f.type, trackId: p.trackId || null, packId: p.packId || null, albumId: p.albumId || null,
           createdAt: now(), authorEmail: ME.email, preview: null };
         assets.push(a); if (pin) moodboard.push(a.id); activity('asset_added', { kind: a.kind, title: a.title });
@@ -221,7 +252,7 @@
       // Tchat par section
       sectionMessages: async sid => ok((secMessages[sid] || []).slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt))),
       postSectionMessage: async (sid, body, attachments) => {
-        const att = (attachments || []).map(x => { const a = { id: nid('a'), kind: 'file', origin: 'chat', title: x.title || '', fileId: x.fileId, createdAt: now(), authorEmail: ME.email, preview: null }; assets.push(a); links.push({ sectionId: sid, assetId: a.id }); return { assetId: a.id, kind: a.kind, title: a.title, fileId: a.fileId, fileName: (files[a.fileId] || {}).name, mimeType: (files[a.fileId] || {}).type }; });
+        const att = (attachments || []).map(x => { const a = { id: nid('a'), kind: 'file', origin: 'own', title: x.title || '', fileId: x.fileId, createdAt: now(), authorEmail: ME.email, preview: null }; assets.push(a); links.push({ sectionId: sid, assetId: a.id }); return { assetId: a.id, kind: a.kind, title: a.title, fileId: a.fileId, fileName: (files[a.fileId] || {}).name, mimeType: (files[a.fileId] || {}).type }; });
         const m = { id: nid('m'), body: body || '', createdAt: now(), authorId: ME.id, authorEmail: ME.email, mine: true, attachments: att };
         (secMessages[sid] = secMessages[sid] || []).push(m); followed.add(sid); // écrire dans un canal le suit
         return ok(m.id);
@@ -258,5 +289,5 @@
     return new Proxy(P, { get: (t, k) => (k in t ? t[k] : (typeof k === 'string' ? async () => ok(null) : undefined)) });
   }
 
-  window.LayerPitchDemoProjects = { create, SEED, LINK_PREVIEWS, previewFromUrl };
+  window.LayerPitchDemoProjects = { create, SEED, LINK_PREVIEWS, previewFromUrl, CITY_MUSIC };
 })();

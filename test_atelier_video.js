@@ -39,8 +39,8 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('Backstage et studio : listes rafraîchies sans recharger l’atelier', /if \(e\.data\.type === 'changed'\) \{\s*videoVersioningIndexPromise = null;/.test(bs)
     && /e\.data\.type !== 'changed'\) return;\s*const host = \$\('svLists'\);\s*if \(host\) renderVideoLists\(host\);/.test(studio));
 
-  // Faux serveur : dans l'atelier, la leçon part de zéro (montages en mémoire) ; dans le Backstage, le montage d'« Alone » déjà publié.
-  const at = { window: { location: { pathname: '/atelier.html', search: '?id=p-alone&tuto&lesson=versioning' } }, setTimeout, console, URLSearchParams };
+  // Faux serveur : dans l'atelier, la leçon part de zéro (montages en mémoire) ; dans le Backstage, le montage de « Music City » déjà publié.
+  const at = { window: { location: { pathname: '/atelier.html', search: '?id=p-music-city&tuto&lesson=versioning' } }, setTimeout, console, URLSearchParams };
   vm.createContext(at); vm.runInContext(read('api/demo-client.js'), at);
   const c = at.window.LayerPitchDemoClient;
   const packs = (await c.from('packs').select('*')).data;
@@ -48,15 +48,15 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const ent = (await c.rpc('my_entitlements')).data;
   check('droits de la leçon : enregistrer un montage et versionner', ent.some(e => e.feature === 'test_in_game' && e.level === 'saved') && ent.some(e => e.feature === 'versioning' && e.level === 'saved'));
   check('atelier : aucun montage au départ', (await c.rpc('list_my_video_captures', {})).data.length === 0);
-  await c.rpc('save_video_capture', { p_id: 'm1', p_pack_id: 'p-alone', p_title: 'Musique 1', p_video_filename: 'alone-gameplay-muette.mp4', p_events: [{ t: 1, name: 'x' }] });
-  check('montage gardé en mémoire (liste + lecture)', (await c.rpc('list_my_video_captures', { p_pack_id: 'p-alone' })).data.length === 1 && (await c.rpc('get_video_capture', { p_id: 'm1' })).data.title === 'Musique 1');
+  await c.rpc('save_video_capture', { p_id: 'm1', p_pack_id: 'p-music-city', p_title: 'Musique 1', p_video_filename: 'music-city-gameplay-muette.mp4', p_events: [{ t: 1, name: 'x' }] });
+  check('montage gardé en mémoire (liste + lecture)', (await c.rpc('list_my_video_captures', { p_pack_id: 'p-music-city' })).data.length === 1 && (await c.rpc('get_video_capture', { p_id: 'm1' })).data.title === 'Musique 1');
   await c.rpc('save_video_capture_version', { p_id: 'v2', p_capture_id: 'm1', p_title: 'Musique 2', p_substitutions: { a: 'b' } });
   check('version vidéo gardée en mémoire', (await c.rpc('list_video_capture_versions', { p_capture_id: 'm1' })).data.map(v => v.title).join() === 'Musique 2');
   const bk = { window: { location: { pathname: '/layerpitch-backstage.html', search: '?tuto&lesson=versioning' } }, setTimeout, console, URLSearchParams };
   vm.createContext(bk); vm.runInContext(read('api/demo-client.js'), bk);
   const caps = (await bk.window.LayerPitchDemoClient.rpc('list_my_video_captures', {})).data;
-  check('Backstage (leçon) : le montage d’« Alone » publié en deux musiques, pour le bloc vidéo', caps.length === 1 && caps[0].id === 'cap-alone' && (await bk.window.LayerPitchDemoClient.rpc('list_my_videos')).data.videos.length === 2);
-  const sb2 = { window: { location: { pathname: '/atelier.html', search: '?id=p-alone' } }, setTimeout, console, URLSearchParams };
+  check('Backstage (leçon) : le montage de « Music City » publié en deux musiques, pour le bloc vidéo', caps.length === 1 && caps[0].id === 'cap-music-city' && (await bk.window.LayerPitchDemoClient.rpc('list_my_videos')).data.videos.length === 2);
+  const sb2 = { window: { location: { pathname: '/atelier.html', search: '?id=p-music-city' } }, setTimeout, console, URLSearchParams };
   vm.createContext(sb2); vm.runInContext(read('api/demo-client.js'), sb2);
   check('hors leçon : pas de pack ni de montage d’exemple', (await sb2.window.LayerPitchDemoClient.from('packs').select('*')).data.length === 0);
   check('chargeur des scripts du compte : ne remet pas le vrai client en mode tutoriel', /window\.LayerPitchTuto\.switchToDemo\(\)/.test(read('src/pack/10-donnees-et-achat.js')));
@@ -73,7 +73,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
     vm.runInContext('window.__L = window.LayerPitchAtelierLessons.init({ lang: "fr" }); window.__L.start()', sbl);
     return { all: sbl.window.__L.steps, opened };
   };
-  const first = runLesson('?tuto&lesson=versioning'), second = runLesson('?id=p-alone&tuto&lesson=versioning');
+  const first = runLesson('?tuto&lesson=versioning'), second = runLesson('?id=p-music-city&tuto&lesson=versioning');
   check('atelier : sans pack, la leçon fait choisir le pack', first.opened.length === 2 && first.opened[1].selector === '#atelierPackSelect');
   check('atelier : pack choisi (rechargé), la leçon reprend à « Choisir la vidéo »', second.opened[0].selector === '.video-capture-trigger-btn' && second.opened[second.opened.length - 1].final);
   const keys = new Set(first.all.flatMap(s => [s.titleKey, s.textKey]));
@@ -88,9 +88,9 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   // Suite : annoter le montage dans l'espace Projet (projet.html?tuto&lesson=pj-annotate).
   const dp = { window: {}, console, setTimeout }; vm.createContext(dp); vm.runInContext(read('api/demo-projects.js'), dp);
   const PJ = dp.window.LayerPitchDemoProjects.create({ seedMontage: true });
-  const content = (await PJ.content('demo-barque')).data;
-  check('Projet (leçon) : le montage d’« Alone » est dans le Projet', content.assets.some(a => a.kind === 'montage' && a.montageId === 'cap-alone'));
-  const mont = (await bk.window.LayerPitchDemoClient.rpc('get_public_video_montage', { p_capture_id: 'cap-alone' })).data;
+  const content = (await PJ.content('demo-music-city')).data;
+  check('Projet (leçon) : le montage de « Music City » est dans le Projet', content.assets.some(a => a.kind === 'montage' && a.montageId === 'cap-music-city'));
+  const mont = (await bk.window.LayerPitchDemoClient.rpc('get_public_video_montage', { p_capture_id: 'cap-music-city' })).data;
   check('lecteur à versions : deux musiques sur la même scène', mont && mont.versions.length === 2 && mont.versions.every(v => v.url && v.kind === 'video'));
   check('page Projet : le montage d’exemple seulement pour cette leçon', /seedMontage: params\.get\('lesson'\) === 'pj-annotate'/.test(read('projet.html')));
   const pl = read('projet-lecons.js');
