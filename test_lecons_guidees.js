@@ -119,6 +119,9 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const nl = w.document.querySelector('[data-tour="nextlesson"]');
   check('bulle finale : bouton vers la leçon suivante', !!nl && /Passer à la leçon 2 : Mode embranchement vertical/.test(nl.textContent));
   w.eval(`guide.lessonId = 'events'; guide.cardKey = ''; renderGuideStep();`);
+  const nl8 = w.document.querySelector('[data-tour="nextlesson"]');
+  check('leçon 8 (FX) : propose la leçon 9, hybride à sections', !!nl8 && /9 : Mode hybride à sections/.test(nl8.textContent));
+  w.eval(`guide.lessonId = 'hybrid'; guide.cardKey = ''; renderGuideStep();`);
   check('dernière leçon : pas de bouton « leçon suivante »', !w.document.querySelector('[data-tour="nextlesson"]'));
   // Glisser simulé : relâcher sur la zone dépose ; la vignette apparaît quand l'exemple est prêt.
   zone.getBoundingClientRect = () => ({ left: 100, top: 100, right: 300, bottom: 160, width: 200, height: 60 });
