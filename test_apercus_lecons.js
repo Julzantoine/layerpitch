@@ -17,8 +17,8 @@ const I18N = ctx.window.LAYERPITCH_I18N, PV = ctx.window.LayerPitchLessonPreview
 
 const ids = ['static', 'embranchement', 'additive', 'random', 'sequential', 'branching', 'sfx', 'events',
   'adreel-intro', 'adreel', 'appearance', 'share', 'tracking', 'pack', 'embed', 'album', 'upload',
-  'pj-create', 'pj-chat', 'pj-moodboard', 'pj-music', 'pj-map-build'];
-check('22 leçons ont un schéma (la leçon hybride garde sa carte)', ids.every(id => PV.has(id)) && !PV.has('hybrid'));
+  'pj-create', 'pj-chat', 'pj-moodboard', 'pj-music', 'pj-map-build', 'pj-map-music', 'pj-map-walk'];
+check('24 leçons ont un schéma (la leçon hybride garde sa carte)', ids.every(id => PV.has(id)) && !PV.has('hybrid'));
 
 for (const lang of ['fr', 'en']) {
   const missing = new Set();

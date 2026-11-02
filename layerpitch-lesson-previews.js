@@ -12,7 +12,7 @@
     const lines = String(label).split('\n');
     const ty = y + h / 2 - (lines.length - 1) * 5.5 + (sub ? -4 : 3);
     return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${o.fill || CARD}" stroke="${o.stroke || 'var(--accent)'}" stroke-width="1.2"/>`
-      + lines.map((l, k) => `<text x="${x + w / 2}" y="${ty + k * 11}" text-anchor="middle" font-size="${o.fs || 9}" fill="var(--text)">${esc(l)}</text>`).join('')
+      + lines.map((l, k) => `<text x="${x + w / 2}" y="${ty + k * 11}" text-anchor="middle" font-size="${o.fs || 9}" fill="${o.tc || 'var(--text)'}"${o.bold ? ' font-weight="600"' : ''}>${esc(l)}</text>`).join('')
       + (sub ? `<text x="${x + w / 2}" y="${y + h - 6}" text-anchor="middle" font-size="7.5" fill="var(--text-dim)">${esc(sub)}</text>` : '');
   };
   const curve = (x1, y1, x2, y2, o = {}) => `<path d="M${x1} ${y1} C${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}" fill="none" stroke="${o.c || 'var(--border)'}" stroke-width="${o.w || 1.4}"${o.arrow ? ' marker-end="url(#lpvArrow)"' : ''}/>`;
@@ -33,6 +33,24 @@
   const svg = (h, body) => `<svg class="tour-map-preview" viewBox="0 0 400 ${h}" role="img"><defs><marker id="lpvArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--text-dim)"/></marker></defs>${body}</svg>`;
   const T = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${CARD}" stroke="${WARM}"/>` + txt(x + w / 2, y + h / 2 + 3, 'T', { c: WARM, fs: 8, bold: true });
 
+  const CITIES = ['Jazz City', 'Rock City', 'Disco City', 'Synth City'];
+  // Carte de niveau de « Music City » : Jazz City (départ) → Rock City (carrefour) → Disco City (niveau 2) / Synth City.
+  const mapSvg = (t, o) => {
+    const P = { jazz: [30, 66], rock: [160, 66], disco: [290, 24], synth: [290, 112] }, W = 84, H = 32;
+    const c = (k, side) => [P[k][0] + (side ? W : 0), P[k][1] + H / 2];
+    const edge = (a, b, on) => { const [x1, y1] = c(a, 1), [x2, y2] = c(b, 0); return curve(x1, y1, x2, y2, { c: on ? 'var(--accent)' : 'var(--text-dim)', w: on ? 3 : 1.6 }); };
+    let b = rect(10, 8, 380, 150, 'var(--accent-soft)', { r: 8 });
+    b += edge('jazz', 'rock', o.walk) + edge('rock', 'disco', o.walk) + edge('rock', 'synth', false);
+    [['jazz', 'Jazz City'], ['rock', 'Rock City'], ['disco', 'Disco City'], ['synth', 'Synth City']].forEach(([k, n]) => {
+      const here = o.walk && k === 'disco';
+      b += box(P[k][0], P[k][1], W, H, (o.music ? '♪ ' : '') + n, '', { fs: 8.5, fill: here ? 'var(--accent)' : CARD, tc: here ? CARD : '', bold: here });
+    });
+    b += txt(P.jazz[0] + W / 2, P.jazz[1] - 6, t('glMapStart'), { c: 'var(--accent)', bold: true });
+    if (o.note) b += txt(P.disco[0] + W / 2, P.disco[1] + H + 10, t('glMapLevel2'), { fs: 7 });
+    if (o.transition) b += T(232, 90, 22, 14);
+    b += txt(200, 172, t(o.walk ? 'glMapWalkLegend' : o.music ? 'glMapMusicLegend' : 'glTransLegendMap'));
+    return svg(180, b);
+  };
   // Un dessin par leçon ; t = tr() de la page.
   const DRAW = {
     static: t => svg(150,
@@ -145,31 +163,36 @@
         + (i === 2 ? play(x + 34, 58) : `<path d="M${x + 10} 82 L${x + 28} 58 L${x + 40} 72 L${x + 48} 64 L${x + 60} 82 Z" fill="var(--accent)" opacity=".55"/><circle cx="${x + 50}" cy="40" r="6" fill="var(--accent)" opacity=".55"/>`)
         + txt(x + 34, 108, a, { c: 'var(--text)', fs: 9, bold: true }) + txt(x + 34, 121, b);
     }).join('') + txt(200, 150, t('glMediaWhere'))),
+    // Leçons Projet : le projet d’exemple « Music City » (api/demo-projects.js) — quatre villes en sections, carte Jazz → Rock → Disco / Synth.
     'pj-create': t => svg(170, `<rect x="100" y="10" width="200" height="150" rx="8" fill="${CARD}" stroke="var(--accent)" stroke-width="1.4"/>`
-      + txt(200, 32, 'Alone in the Barque', { c: 'var(--text)', fs: 11, bold: true })
-      + [0, 1, 2].map(i => `<circle cx="${178 + i * 16}" cy="48" r="7" fill="var(--accent)" opacity="${0.4 + i * 0.25}" stroke="${CARD}"/>`).join('') + txt(240, 51, t('glTeam'), { a: 'start' })
-      + ['Ponton', 'Lac ouvert', 'Brouillard', 'Cabane'].map((s, i) => block(116, 64 + i * 23, 168, 19, s, { left: true })).join('')),
+      + txt(200, 32, 'Music City', { c: 'var(--text)', fs: 11, bold: true })
+      + ['J', 'L', 'M', 'D'].map((n, i) => `<circle cx="${170 + i * 15}" cy="48" r="7" fill="var(--accent)" opacity="${0.4 + i * 0.18}" stroke="${CARD}"/>` + txt(170 + i * 15, 51, n, { c: CARD, fs: 7, bold: true })).join('') + txt(234, 51, t('glTeam'), { a: 'start' })
+      + CITIES.map((s, i) => block(116, 64 + i * 23, 168, 19, s, { left: true })).join('')),
     'pj-chat': t => svg(170, rect(20, 10, 110, 150, 'var(--accent-soft)', { r: 6 })
-      + ['# ' + t('glChGeneral'), '# Ponton', '# Lac ouvert', '# Brouillard', '# Cabane'].map((c, i) => txt(30, 32 + i * 24, c, { a: 'start', c: i === 1 ? 'var(--accent)' : 'var(--text)', bold: i === 1 })).join('')
-      + rect(140, 10, 240, 150, CARD, { r: 6, stroke: 'var(--border)' })
-      + [[150, t('glMsg1'), OFF], [210, t('glMsg2'), 'var(--accent-soft)'], [150, t('glMsg3'), OFF]].map(([x, m, c], i) => rect(x, 24 + i * 40, 160, 28, c, { r: 10 }) + txt(x + 80, 42 + i * 40, m, { c: 'var(--text)', fs: 7.5 })).join('')),
-    'pj-moodboard': t => svg(170, ['Ponton', 'Cabane'].map((s, k) => {
-      const x = 14 + k * 194, note = (nx, ny, w, h, label) => `<rect x="${nx}" y="${ny}" width="${w}" height="${h}" rx="3" fill="#f3e3a1"/>` + txt(nx + w / 2, ny + h / 2 + 3, label, { c: '#3a3320', fs: 7.5 });
-      return rect(x, 10, 180, 150, 'var(--accent-soft)', { r: 6 }) + txt(x + 10, 28, s, { a: 'start', c: 'var(--text)', fs: 9, bold: true })
-        + rect(x + 10, 38, 76, 56, CARD, { stroke: 'var(--border)' }) + `<path d="M${x + 14} 90 L${x + 40} 60 L${x + 56} 76 L${x + 82} 90 Z" fill="var(--accent)" opacity=".5"/>`
-        + note(x + 94, 38, 76, 40, t(k ? 'glNoteWood' : 'glNoteMist'))
-        + rect(x + 94, 86, 76, 22, CARD, { stroke: 'var(--border)' }) + txt(x + 132, 100, '🔗 ' + t('glReference'), { c: 'var(--text)', fs: 7.5 })
-        + note(x + 10, 102, 76, 46, t(k ? 'glNotePiano' : 'glNoteSlow'));
-    }).join('')),
-    'pj-music': t => svg(160, box(10, 20, 110, 40, t('glComposer'), t('glSharesTracks')) + box(10, 100, 110, 40, 'Packs', t('glBoughtTracks'))
+      + ['# ' + t('glChGeneral')].concat(CITIES.map(c => '# ' + c)).map((c, i) => txt(30, 32 + i * 24, c, { a: 'start', c: i === 1 ? 'var(--accent)' : 'var(--text)', bold: i === 1 })).join('')
+      + rect(140, 10, 240, 150, CARD, { r: 6, stroke: 'var(--border)' }) + txt(150, 26, '# Jazz City', { a: 'start', c: 'var(--accent)', bold: true })
+      + [[148, t('glMsg1'), OFF], [182, t('glMsg2'), 'var(--accent-soft)'], [148, t('glMsg3'), OFF]].map(([x, m, c], i) => rect(x, 36 + i * 40, 190, 28, c, { r: 10 }) + txt(x + 95, 54 + i * 40, m, { c: 'var(--text)', fs: 7.5 })).join('')),
+    'pj-moodboard': t => {
+      // Post-it : deux lignes au plus (\n dans le texte).
+      const note = (nx, ny, w, h, label) => `<rect x="${nx}" y="${ny}" width="${w}" height="${h}" rx="3" fill="#f3e3a1"/>`
+        + String(label).split('\n').map((l, i, all) => txt(nx + w / 2, ny + h / 2 + 3 + (i - (all.length - 1) / 2) * 10, l, { c: '#3a3320', fs: 7.5 })).join('');
+      const ref = (nx, ny, label) => rect(nx, ny, 76, 22, CARD, { stroke: 'var(--border)' }) + play(nx + 10, ny + 11) + txt(nx + 20, ny + 14, label, { a: 'start', c: 'var(--text)', fs: 7 });
+      return svg(170, [[t('glBoardGeneral'), 'glNoteTempo', 'Banjo-Kazooie', 'glNoteClub'], ['Jazz City', 'glNoteNeon', 'Cuphead', 'glNoteBar']].map(([s, n1, r, n2], k) => {
+        const x = 14 + k * 194;
+        return rect(x, 10, 180, 150, 'var(--accent-soft)', { r: 6 }) + txt(x + 10, 28, s, { a: 'start', c: 'var(--text)', fs: 9, bold: true })
+          + (k ? rect(x + 10, 38, 76, 56, CARD, { stroke: 'var(--border)' }) + `<path d="M${x + 14} 90 L${x + 40} 60 L${x + 56} 76 L${x + 82} 90 Z" fill="var(--accent)" opacity=".5"/>` : note(x + 10, 38, 76, 56, t(n1)))
+          + (k ? note(x + 94, 38, 76, 40, t(n1)) : note(x + 94, 38, 76, 40, t(n2)))
+          + ref(x + 94, 86, r)
+          + (k ? note(x + 10, 102, 76, 46, t(n2)) : '');
+      }).join(''));
+    },
+    'pj-music': t => svg(160, box(10, 20, 110, 40, 'Daniel', t('glComposerShares')) + box(10, 100, 110, 40, t('glYouCap'), t('glYouShare'))
       + curve(120, 40, 200, 72, { arrow: true }) + curve(120, 120, 200, 88, { arrow: true })
       + rect(204, 40, 186, 84, CARD, { r: 6, stroke: 'var(--accent)' }) + txt(214, 58, t('glProjectMusic'), { a: 'start', c: 'var(--text)', fs: 9, bold: true })
-      + [t('glPmTheme'), t('glPmCabin'), t('glPmForest')].map((m, i) => play(222, 74 + i * 18) + txt(234, 77 + i * 18, m, { a: 'start', c: 'var(--text)' })).join('')),
-    'pj-map-build': t => svg(170, rect(10, 8, 380, 154, 'var(--accent-soft)', { r: 8 })
-      + `<path d="M40 140 C 120 60, 200 160, 360 40" fill="none" stroke="${CARD}" stroke-width="10" opacity=".7"/>`
-      + curve(86, 120, 180, 70, { c: 'var(--accent)', w: 2 }) + curve(220, 70, 300, 120, { c: 'var(--accent)', w: 2 }) + curve(200, 90, 200, 120, { c: 'var(--accent)', w: 2 })
-      + box(30, 110, 70, 30, 'La cabane', '', { fs: 8.5 }) + box(160, 50, 80, 30, 'La forêt', '', { fs: 8.5 }) + box(290, 110, 80, 30, 'Le manoir', '', { fs: 8.5 }) + box(160, 122, 80, 28, 'La scierie', '', { fs: 8.5 })
-      + T(252, 82, 22, 14)),
+      + [[t('glPmDaniel'), 'Daniel'], [t('glPmMine'), t('glYouCap')]].map(([m, who], i) => play(222, 76 + i * 22) + txt(234, 76 + i * 22, m, { a: 'start', c: 'var(--text)' }) + txt(234, 85 + i * 22, t('glSharedBy', { name: who }), { a: 'start', fs: 6.5 })).join('')),
+    'pj-map-build': t => mapSvg(t, { transition: true, note: true }),
+    'pj-map-music': t => mapSvg(t, { music: true }),
+    'pj-map-walk': t => mapSvg(t, { music: true, walk: true }),
   };
   // Clé du texte de la bulle de chaque leçon (layerpitch-i18n.js, zone shared).
   const TEXT_KEY = id => 'glText_' + id.replace(/-/g, '_');

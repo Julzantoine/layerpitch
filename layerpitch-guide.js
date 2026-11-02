@@ -361,7 +361,7 @@
         <span class="tour-admin-msg" data-tour="adm-msg">${esc(guide.adminMsg || '')}</span></div>` : '';
         card.innerHTML = `
       <div class="tour-count"><span>${guide.index + 1} / ${guide.steps.length}</span><span class="tour-grip" title="${esc(tr('lessonMoveHint'))}" aria-hidden="true">⠿</span></div>
-      <div class="tour-title">${esc(tr(step.titleKey))}</div>
+      <div class="tour-title">${esc(tr(step.titleKey, vars))}</div>
       <div class="tour-move-note">${esc(tr('lessonMoveNote'))}</div>
       <div class="tour-text">${esc(tr(step.textKey, vars).replace(/\n/g, '\n\n'))}</div>
       ${extras}
