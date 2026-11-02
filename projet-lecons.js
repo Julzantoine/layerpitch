@@ -34,6 +34,9 @@
     { id: 'pj-map-walk', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc' },
     // « bientôt » tant que les deux vidéos de « Music City » (music-city-gameplay-musique1/2.mp4) ne sont pas en ligne (media.layerpitch.com/tuto/).
     { id: 'pj-annotate', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc', soon: true },
+    // Vitrine (02/11), tout à la fin : la construire, puis son apparence.
+    { id: 'pj-vitrine', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc' },
+    { id: 'pj-vitrine-look', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc' },
   ];
 
   function init(ctx) {
@@ -188,6 +191,75 @@
       { selector: () => nodeEl('Rock City'), titleKey: 'plMapWalkForestTitle', textKey: 'plMapWalkForestText', done: () => isHere('Rock City') },
       { selector: () => nodeEl('Disco City'), titleKey: 'plMapWalkManorTitle', textKey: 'plMapWalkManorText', done: () => isHere('Disco City') },
       { titleKey: 'plMapWalkDoneTitle', textKey: 'plMapWalkDoneText', final: true },
+    ];
+
+    // ---- Vitrine (02/11) : le brouillon en cours (S.vitrineDraft), et la carte de chacun de ses blocs (le dernier bloc de ce type) ----
+    const DP = window.LayerPitchDemoProjects || {};
+    const draft = () => S.vitrineDraft;
+    const hasBlock = type => !!(draft() && draft().blocks.some(b => b.type === type));
+    const vbEl = type => { const d = draft(); const b = d && d.blocks.filter(x => x.type === type).pop(); return b ? document.querySelector(`[data-vb="${b.id}"]`) : null; };
+    const vbField = (type, f) => () => { const r = vbEl(type); return r && r.querySelector(`[data-f="${f}"]`); };
+    const vbHas = (type, f) => { const el = vbField(type, f)(); return !!(el && el.value.trim().length > 1); };
+    const picked = type => { const d = draft(); const b = d && d.blocks.filter(x => x.type === type).pop(); return b ? (b.assetIds || []).length : 0; };
+    const linkRows = () => { const r = vbEl('links'); return r ? r.querySelectorAll('[data-link]').length : 0; };
+    const linkUrl = j => () => { const r = vbEl('links'); const row = r && r.querySelector(`[data-link="${j}"]`); return row && row.querySelector('[data-f="url"]'); };
+    const linkHas = j => { const el = linkUrl(j)(); return !!(el && /^https:\/\//.test(el.value.trim())); };
+    const LINKS = DP.SHOWCASE_LINKS || [];
+    const linkName = j => () => { const r = vbEl('links'); const row = r && r.querySelector(`[data-link="${j}"]`); return row && row.querySelector('[data-f="label"]'); };
+    // Un lien = son nom (sinon la vitrine affiche l'adresse brute), puis son adresse.
+    const linkStep = (j, titleKey, textKey, name) => [
+      { selector: linkName(j), titleKey: 'plVitLinkNameTitle', textKey: 'plVitLinkNameText', textVars: { name }, done: () => { const el = linkName(j)(); return !!(el && el.value.trim()); },
+        drops: [{ kind: 'text', label: name, value: name }] },
+      { selector: linkUrl(j), titleKey, textKey, done: () => linkHas(j), drops: LINKS[j] ? [{ kind: 'link', label: LINKS[j], value: LINKS[j] }] : [] }];
+    const moreLink = n => ({ selector: () => { const r = vbEl('links'); return r && r.querySelector('[data-addlink]'); }, titleKey: 'plVitLinkMoreTitle', textKey: 'plVitLinkMoreText', done: () => linkRows() >= n });
+    const showcaseTab = { selector: '.tab[data-tab="showcase"]', titleKey: 'plVitTabTitle', textKey: 'plVitTabText', done: () => S.tab === 'showcase' && !!document.querySelector('[data-new]') };
+    const saveStep = { selector: '#vSave', titleKey: 'plVitSaveTitle', textKey: 'plVitSaveText', done: () => !draft() && (S.vitrines || []).length > 0 };
+    // L'aperçu s'ouvre dans un nouvel onglet (vitrine.html?tuto) : la vitrine y est relue depuis le navigateur.
+    const previewStep = { selector: 'a[href*="vitrine.html?id="]', titleKey: 'plVitPreviewTitle', textKey: 'plVitPreviewText', clickDone: true };
+    lessons['pj-vitrine'] = [
+      { titleKey: 'plVitWelcomeTitle', textKey: 'plVitWelcomeText' },
+      showcaseTab,
+      { selector: '[data-new="players"]', titleKey: 'plVitNewTitle', textKey: 'plVitNewText', done: () => !!draft() },
+      { selector: '#vSub', titleKey: 'plVitSubTitle', textKey: 'plVitSubText', done: () => hasText('vSub'),
+        drops: [{ kind: 'text', label: 'Quatre villes, un tempo : la ville qui joue avec toi.', value: 'Quatre villes, un tempo : la ville qui joue avec toi.' }] },
+      { selector: '#vSlug', titleKey: 'plVitSlugTitle', textKey: 'plVitSlugText', done: () => hasText('vSlug'), drops: [{ kind: 'text', label: 'music-city', value: 'music-city' }] },
+      { selector: () => vbEl('tracks'), titleKey: 'plVitTracksTitle', textKey: 'plVitTracksText' },
+      { selector: '[data-addblock="text"]', titleKey: 'plVitAddTextTitle', textKey: 'plVitAddTextText', done: () => hasBlock('text') },
+      { selector: vbField('text', 'title'), titleKey: 'plVitTextTitleTitle', textKey: 'plVitTextTitleText', done: () => vbHas('text', 'title'), drops: [{ kind: 'text', label: 'Le pitch', value: 'Le pitch' }] },
+      { selector: vbField('text', 'content'), titleKey: 'plVitTextBodyTitle', textKey: 'plVitTextBodyText', done: () => vbHas('text', 'content'),
+        drops: DP.SHOWCASE_PITCH ? [{ kind: 'text', label: DP.SHOWCASE_PITCH, value: DP.SHOWCASE_PITCH }] : [] },
+      { selector: '[data-addblock="video"]', titleKey: 'plVitAddVideoTitle', textKey: 'plVitAddVideoText', done: () => hasBlock('video') },
+      { selector: () => vbEl('video'), titleKey: 'plVitPickVideoTitle', textKey: 'plVitPickVideoText', done: () => picked('video') >= 1 },
+      { selector: '[data-addblock="photo"]', titleKey: 'plVitAddPhotoTitle', textKey: 'plVitAddPhotoText', done: () => hasBlock('photo') },
+      { selector: () => vbEl('photo'), titleKey: 'plVitPickPhotoTitle', textKey: 'plVitPickPhotoText', done: () => picked('photo') >= 4 },
+      { selector: '[data-addblock="links"]', titleKey: 'plVitAddLinksTitle', textKey: 'plVitAddLinksText', done: () => hasBlock('links') },
+      ...linkStep(0, 'plVitLink1Title', 'plVitLink1Text', 'Instagram'),
+      moreLink(2),
+      ...linkStep(1, 'plVitLink2Title', 'plVitLink2Text', 'YouTube'),
+      moreLink(3),
+      ...linkStep(2, 'plVitLink3Title', 'plVitLink3Text', 'Steam'),
+      { selector: '[data-addblock="contact"]', titleKey: 'plVitAddContactTitle', textKey: 'plVitAddContactText', done: () => hasBlock('contact') },
+      saveStep,
+      previewStep,
+      { titleKey: 'plVitDoneTitle', textKey: 'plVitDoneText', final: true },
+    ];
+    // Apparence : la vitrine de la leçon précédente est déjà là (seedVitrineBuilt).
+    const textBlockAp = sel => () => { const r = vbEl('text'); return r && r.querySelector(sel); };
+    lessons['pj-vitrine-look'] = [
+      { titleKey: 'plLookWelcomeTitle', textKey: 'plLookWelcomeText' },
+      showcaseTab,
+      { selector: '[data-edit]', titleKey: 'plLookEditTitle', textKey: 'plLookEditText', done: () => !!draft() },
+      { selector: '#vFont', titleKey: 'plLookFontTitle', textKey: 'plLookFontText', done: () => !!($('vFont') && $('vFont').value !== 'default') },
+      { selector: '[data-theme="titleColor"]', titleKey: 'plLookColorTitle', textKey: 'plLookColorText', done: () => { const i = document.querySelector('[data-theme="titleColor"]'); return !!(i && i.value.toLowerCase() !== '#24262b'); } },
+      { selector: '#vBg', titleKey: 'plLookBgTitle', textKey: 'plLookBgText', done: () => !!($('vBg') && $('vBg').value) },
+      { selector: '#vBgOp', titleKey: 'plLookOpacityTitle', textKey: 'plLookOpacityText', done: () => !!($('vBgOp') && Number($('vBgOp').value) <= 0.2) },
+      { selector: '#vSep', titleKey: 'plLookSepTitle', textKey: 'plLookSepText', done: () => !!($('vSep') && $('vSep').checked) },
+      { selector: textBlockAp('details > summary'), titleKey: 'plLookBlockTitle', textKey: 'plLookBlockText', done: () => { const d = textBlockAp('details')(); return !!(d && d.open); } },
+      { selector: () => { const c = textBlockAp('[data-apon="bgColor"]')(); return c && c.closest('label'); }, titleKey: 'plLookBlockBgTitle', textKey: 'plLookBlockBgText',
+        done: () => { const c = textBlockAp('[data-apon="bgColor"]')(); return !!(c && c.checked); } },
+      saveStep,
+      previewStep,
+      { titleKey: 'plLookDoneTitle', textKey: 'plLookDoneText', final: true },
     ];
 
     const G = window.LayerPitchGuide.create({

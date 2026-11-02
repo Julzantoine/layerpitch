@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793651898926">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793658642889">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1993,18 +1993,18 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793651898926"></script>
-<script src="layerpitch-i18n.js?v=1793651898926"></script>
-<script src="layerpitch-import-engine.js?v=1793651898926"></script>
-<script src="layerpitch-appearance.js?v=1793651898926"></script>
-<script src="layerpitch-album-shared.js?v=1793651898926"></script>
-<script src="layerpitch-album-editor.js?v=1793651898926"></script>
-<script src="layerpitch-shell.js?v=1793651898926"></script>
-<script src="layerpitch-social-icons.js?v=1793651898926"></script>
-<script src="layerpitch-notify.js?v=1793651898926"></script>
-<script src="layerpitch-guide.js?v=1793651898926"></script>
-<script src="layerpitch-help.js?v=1793651898926"></script>
-<script src="player.js?v=1793651898926"></script>
+<script src="layerpitch-tuto.js?v=1793658642889"></script>
+<script src="layerpitch-i18n.js?v=1793658642889"></script>
+<script src="layerpitch-import-engine.js?v=1793658642889"></script>
+<script src="layerpitch-appearance.js?v=1793658642889"></script>
+<script src="layerpitch-album-shared.js?v=1793658642889"></script>
+<script src="layerpitch-album-editor.js?v=1793658642889"></script>
+<script src="layerpitch-shell.js?v=1793658642889"></script>
+<script src="layerpitch-social-icons.js?v=1793658642889"></script>
+<script src="layerpitch-notify.js?v=1793658642889"></script>
+<script src="layerpitch-guide.js?v=1793658642889"></script>
+<script src="layerpitch-help.js?v=1793658642889"></script>
+<script src="player.js?v=1793658642889"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -16916,6 +16916,10 @@ const LESSONS = [
     { titleKey: 'lvEndTitle', textKey: 'lvEndText', final: true },
   ] },
   { id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plAnnTitle', descKey: 'plAnnDesc' }, // projet-lecons.js ; « bientôt » tant que les vidéos de « Music City » manquent
+  // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Réservées aux admins tant que les images
+  // de Music City (media.layerpitch.com/tuto/music-city/) ne sont pas en ligne et que les leçons n'ont pas été validées.
+  { id: 'pj-vitrine', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
+  { id: 'pj-vitrine-look', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
 ];
 
 // Le moteur de bulles (affichage, avancement des étapes, clavier, déplacement) est partagé avec les autres pages :

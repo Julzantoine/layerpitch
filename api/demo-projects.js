@@ -58,6 +58,21 @@
     ['disco', 'Disco City', 'Jazz Hi_Disco City_4M_110bpm.wav'], ['synth', 'Synth City', 'Jazz Hi_Synth city_4M_110bpm.wav']]
     .forEach(([k, place, name]) => { CITY_MUSIC[k] = { place, label: name, name, url: CITY_DIR + encodeURIComponent(name) }; });
 
+  // Leçons Vitrine (02/11) : images tirées des clips de la vidéo de gameplay, la vidéo elle-même et deux morceaux favoris (★, repris
+  // d'office par le bloc « Morceaux » d'une nouvelle vitrine). Fichiers dans media.layerpitch.com/tuto/music-city/.
+  const MC_DIR = 'https://media.layerpitch.com/tuto/music-city/';
+  const SHOWCASE_IMAGES = [['La rue de Jazz City, la nuit', 'rue.jpg'], ['L’escalier du club', 'escalier.jpg'], ['Dans le club', 'club.jpg'], ['La scène', 'scene.jpg']]
+    .map(([title, file]) => ({ title, name: file, url: MC_DIR + file }));
+  const SHOWCASE_VIDEO = { title: 'Music City : de la rue au club (gameplay)', name: 'music-city-gameplay-musique1.mp4', url: 'https://media.layerpitch.com/tuto/music-city-gameplay-musique1.mp4' };
+  const SHOWCASE_TRACKS = [['bmvilh6aprhhug', 'Jazz Hi Static'], ['bmvidtfhvfa5tt', 'Jazz Hi Lay. Add.']];
+  const SHOWCASE_PITCH = 'Music City est un jeu d’exploration musicale. Tu traverses quatre villes, Jazz City, Rock City, Disco City et Synth City : la musique change de style à chaque quartier, sans jamais perdre le tempo.';
+  // Vitrine « déjà construite » (leçon apparence) : le résultat de la leçon « construire ».
+  const SHOWCASE_LINKS = ['https://www.instagram.com/musiccity.exemple', 'https://www.youtube.com/@musiccity-exemple', 'https://store.steampowered.com/search/?term=music%20city%20exemple'];
+  const TUTO_VITRINE_KEY = 'layerpitch_tuto_vitrine_v1'; // aperçu : lu par vitrine.html?tuto
+
+  // Carte de la balade : celle de Jules-Antoine (Projet réel « Music City », 02/11), recopiée telle quelle.
+  const WALK_MAP = {"edges":[{"id":"emvzsj6ph03ug","to":"n3","from":"n1","enemy":false,"label":"","sounds":{"main":[],"room":[],"combat":[]},"transition":null},{"id":"e3","to":"n4","from":"n3","enemy":false,"label":"","sounds":{"main":[{"id":"bmvzsfnd1c3n9o","kind":"track","title":"Street+Footsteps"}],"room":[],"combat":[]},"transition":null},{"id":"e4","to":"n5","from":"n3","enemy":false,"label":"","sounds":{"main":[{"id":"bmvzsfnd1c3n9o","kind":"track","title":"Street+Footsteps"}],"room":[],"combat":[]},"transition":null}],"nodes":[{"x":-240,"y":0,"id":"n1","note":"","side":false,"type":"start","label":"Jazz City","anchor":null,"sounds":{"main":[{"id":"bmvill7tqkvevl","kind":"track","title":"Jazz Lo Static"}],"room":[],"combat":[]},"transition":null},{"x":0,"y":0,"id":"n3","note":"","side":false,"type":"place","label":"Rock City","anchor":null,"sounds":{"main":[{"id":"bmvzs0mx1ifoqg","kind":"track","title":"Jazz Hi Rock City 4M 110bpm"}],"room":[],"combat":[]},"transition":null},{"x":260,"y":-110,"id":"n4","note":"La boîte de nuit de Disco City : sa carte est au niveau 2.","side":false,"type":"place","label":"Disco City","anchor":null,"sounds":{"main":[{"id":"bmvzrzt5b2xy8n","kind":"track","title":"Jazz Hi Disco City"}],"room":[],"combat":[]},"transition":null},{"x":260,"y":110,"id":"n5","note":"","side":false,"type":"place","label":"Synth City","anchor":null,"sounds":{"main":[{"id":"bmvzs1ea70wix6","kind":"track","title":"Jazz Hi Synth city"}],"room":[],"combat":[]},"transition":null}],"defaults":{"transition":{"sec":2,"sync":"bar","style":"crossfade"}},"roomTone":{"id":"bmvzsorsis6wyd","kind":"track","title":"City Birds"},"roomToneDb":-14};
+
   // Aperçus de liens préremplis : adresse -> { provider, title, author, thumbnail, embedUrl, embedHeight }. Une adresse absente reçoit
   // un aperçu construit depuis son adresse.
   const LINK_PREVIEWS = {
@@ -111,19 +126,13 @@
     const PACK_TITLES = { 'p-music-city': 'Music City : le club de jazz (exemple)' };
     const sharedPacks = [{ packId: 'p-cities', title: 'Music City : les quatre villes (pack de Daniel)', illustration: null, mode: 'share', priceEurCents: null, subscriberCredits: null, mine: false, sharedByEmail: 'daniel.orcman@example.com' }];
     const maps = [];
-    // Carte déjà construite (celle que la leçon « construire la carte » fait faire) : pour les leçons « musique » et « balade ».
-    // Balade (opts.seedMapMusic) : chaque ville a déjà sa musique, un objet « audio » du Projet lu depuis media.layerpitch.com/tuto/.
-    if (opts.seedMap) {
+    // Carte déjà construite (celle que la leçon « construire la carte » fait faire), sans musique : pour la leçon « musique ».
+    // Balade (opts.seedMapMusic) : la carte sonorisée par Jules-Antoine dans son Projet réel (WALK_MAP) ; ses morceaux sont dans
+    // api/demo-client.js (DEMO_TRACKS_CITY_MAP).
+    if (opts.seedMapMusic) maps.push({ id: 'map-music-city', title: 'Music City', updatedAt: now(), data: JSON.parse(JSON.stringify(WALK_MAP)) });
+    else if (opts.seedMap) {
       const emptySounds = () => ({ main: [], combat: [], room: [] });
-      const cityRef = label => {
-        const c = opts.seedMapMusic && Object.values(CITY_MUSIC).find(x => x.place === label);
-        if (!c) return [];
-        const fileId = nid('f'); files[fileId] = { name: c.name, size: 0, type: 'audio/wav', url: c.url };
-        const a = { id: nid('a'), kind: 'audio', origin: 'own', title: c.name, body: '', url: null, fileId, fileName: c.name, mimeType: 'audio/wav', createdAt: now(), authorEmail: 'daniel.orcman@example.com', preview: null };
-        assets.push(a);
-        return [{ kind: 'asset', id: a.id, title: c.name }];
-      };
-      const node = (id, type, label, x, y, note) => ({ id, type, label, x, y, note: note || '', sounds: Object.assign(emptySounds(), { main: cityRef(label) }), transition: null });
+      const node = (id, type, label, x, y, note) => ({ id, type, label, x, y, note: note || '', sounds: emptySounds(), transition: null });
       const edge = (id, from, to) => ({ id, from, to, label: '', enemy: false, sounds: emptySounds(), transition: null });
       maps.push({ id: 'map-music-city', title: 'Music City', updatedAt: now(), data: {
         nodes: [node('n1', 'start', 'Jazz City', -240, 0), node('n2', 'transition', '', -120, 0), node('n3', 'place', 'Rock City', 0, 0),
@@ -133,6 +142,35 @@
     }
     const snapshots = [];
     let appearance = {};
+    // Leçons Vitrine (opts.seedVitrine) : images, vidéo de gameplay et morceaux favoris dans la réserve ; opts.seedVitrineBuilt ajoute
+    // la vitrine déjà construite (leçon « apparence »).
+    const vitrines = [];
+    if (opts.seedVitrine || opts.seedVitrineBuilt) {
+      const fileAsset = (kind, f, mime) => { const fileId = nid('f'); files[fileId] = { name: f.name, size: 0, type: mime, url: f.url };
+        const a = { id: nid('a'), kind, origin: 'own', title: f.title, body: '', url: null, fileId, fileName: f.name, mimeType: mime, createdAt: now(), authorEmail: 'lea@musiccity.example', preview: null }; assets.push(a); return a; };
+      const imgs = SHOWCASE_IMAGES.map(f => fileAsset('image', f, 'image/jpeg'));
+      const vid = fileAsset('video', SHOWCASE_VIDEO, 'video/mp4');
+      const trk = SHOWCASE_TRACKS.map(([trackId, title]) => { const a = { id: nid('a'), kind: 'track', origin: 'own', title, trackId, starred: true, createdAt: now(), authorEmail: 'daniel.orcman@example.com', preview: null }; assets.push(a); return a; });
+      if (opts.seedVitrineBuilt) vitrines.push({ id: 'vit-music-city', audience: 'players', display: 'page', title: 'Music City', subtitle: 'Quatre villes, un tempo : la ville qui joue avec toi.', slug: 'music-city',
+        published: false, secretToken: null, logoAssetId: null, bgAssetId: null, theme: {},
+        blocks: [{ id: 'vb1', type: 'header' }, { id: 'vb2', type: 'tracks', assetIds: trk.map(a => a.id) }, { id: 'vb3', type: 'text', title: 'Le pitch', content: SHOWCASE_PITCH, align: 'left' },
+          { id: 'vb4', type: 'video', assetIds: [vid.id] }, { id: 'vb5', type: 'photo', assetIds: imgs.map(a => a.id), caption: '' },
+          { id: 'vb6', type: 'links', links: SHOWCASE_LINKS.map((url, i) => ({ label: ['Instagram', 'YouTube', 'Steam'][i], url })) }, { id: 'vb7', type: 'contact' }] });
+    }
+    // Aperçu (vitrine.html?tuto) : la vitrine et ce qu'elle cite, recopiés dans le navigateur à chaque enregistrement.
+    async function storePreview(v) {
+      const ids = new Set([v.logoAssetId, v.bgAssetId].filter(Boolean));
+      (v.blocks || []).forEach(b => (b.assetIds || []).forEach(id => ids.add(id)));
+      const map = {}, fileUrls = {};
+      ids.forEach(id => { const a = assets.find(x => x.id === id); if (!a) return;
+        map[id] = { kind: a.kind, title: a.title, fileId: a.fileId || null, trackId: a.trackId || null, url: a.url || null, preview: a.preview || null, packId: a.packId || null };
+        if (a.fileId && files[a.fileId]) fileUrls[a.fileId] = files[a.fileId].url; });
+      const trackIds = Object.values(map).filter(a => a.trackId).map(a => a.trackId);
+      let tracks = [];
+      try { if (trackIds.length && window.LayerPitchTracks) tracks = (await window.LayerPitchTracks.listTracksByIds(trackIds)).tracks || []; } catch (e) { /* aperçu sans morceaux */ }
+      try { localStorage.setItem(TUTO_VITRINE_KEY, JSON.stringify({ vitrine: Object.assign({}, v, { projectTitle: project.title, assets: map }), fileUrls, tracks })); } catch (e) { /* stockage indisponible : pas d'aperçu */ }
+    }
+    if (vitrines.length) storePreview(vitrines[0]);
 
     const addNote = (title, body, pin) => { const a = { id: nid('a'), kind: 'note', origin: 'own', title, body, url: null, fileId: null, createdAt: now(), authorEmail: ME.email, preview: null }; assets.push(a); if (pin) moodboard.push(a.id); return a; };
     SEED.notes.forEach(([t, b]) => addNote(t, b, true));
@@ -271,8 +309,18 @@
       },
       deleteMap: async mapId => { const i = maps.findIndex(m => m.id === mapId); if (i >= 0) maps.splice(i, 1); return ok(null); },
 
-      // Vitrines, musique partagée : fermées dans le tutoriel (rien n’est publié ni partagé)
-      vitrines: async () => ok([]), vitrineStats: async () => ok(null), getVitrine: async () => ok(null),
+      // Musique partagée : rien n’est réellement partagé.
+      // Vitrines : gardées dans la page (jamais publiées) ; l'aperçu passe par le navigateur (storePreview).
+      vitrines: async () => ok(vitrines.map(v => Object.assign({}, v))), vitrineStats: async () => ok(null), getVitrine: async () => ok(null),
+      saveVitrine: async (id, p) => {
+        const doc = JSON.parse(JSON.stringify(p)); doc.slug = doc.slug || 'music-city'; doc.secretToken = null;
+        const i = vitrines.findIndex(v => v.id === doc.id);
+        if (i >= 0) vitrines[i] = Object.assign({}, vitrines[i], doc); else { doc.id = nid('vit'); vitrines.push(doc); }
+        const v = i >= 0 ? vitrines[i] : doc;
+        await storePreview(v);
+        return ok({ id: v.id, slug: v.slug, published: !!v.published });
+      },
+      deleteVitrine: async vid => { const i = vitrines.findIndex(v => v.id === vid); if (i >= 0) vitrines.splice(i, 1); return ok(null); },
       sharePack: async (id, packId, mode) => { if (!sharedPacks.some(p => p.packId === packId)) sharedPacks.push({ packId, title: PACK_TITLES[packId] || 'Pack', illustration: null, mode: mode || 'share', priceEurCents: null, subscriberCredits: null, mine: true, sharedByEmail: ME.email }); return ok(null); },
       unsharePack: async (id, packId) => { const i = sharedPacks.findIndex(p => p.packId === packId); if (i >= 0) sharedPacks.splice(i, 1); return ok(null); },
       linkAlbum: async () => ok(null),
@@ -289,5 +337,5 @@
     return new Proxy(P, { get: (t, k) => (k in t ? t[k] : (typeof k === 'string' ? async () => ok(null) : undefined)) });
   }
 
-  window.LayerPitchDemoProjects = { create, SEED, LINK_PREVIEWS, previewFromUrl, CITY_MUSIC };
+  window.LayerPitchDemoProjects = { create, SEED, LINK_PREVIEWS, previewFromUrl, CITY_MUSIC, SHOWCASE_PITCH, SHOWCASE_LINKS, TUTO_VITRINE_KEY };
 })();

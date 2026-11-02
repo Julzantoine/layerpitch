@@ -1158,6 +1158,10 @@ const LESSONS = [
     { titleKey: 'lvEndTitle', textKey: 'lvEndText', final: true },
   ] },
   { id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plAnnTitle', descKey: 'plAnnDesc' }, // projet-lecons.js ; « bientôt » tant que les vidéos de « Music City » manquent
+  // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Réservées aux admins tant que les images
+  // de Music City (media.layerpitch.com/tuto/music-city/) ne sont pas en ligne et que les leçons n'ont pas été validées.
+  { id: 'pj-vitrine', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
+  { id: 'pj-vitrine-look', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
 ];
 
 // Le moteur de bulles (affichage, avancement des étapes, clavier, déplacement) est partagé avec les autres pages :
