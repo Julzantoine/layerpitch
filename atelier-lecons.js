@@ -4,15 +4,15 @@
  * l'atelier (choisir le pack, la vidéo, jouer, enregistrer, versionner), puis rend la main au Backstage (onDone) pour le bloc vidéo.
  * Choisir le pack recharge l'atelier : la leçon reprend alors juste après cette étape (le pack est dans l'adresse).
  *
- * Parcours choisi par Jules-Antoine : partir d'une vidéo SANS son (le gameplay d'« Alone in the Barque »), y poser une première musique en
- * jouant le pack sur la vidéo (capture), enregistrer le montage, puis en faire une deuxième version avec une autre musique de même
- * structure, et l'écouter en direct (sans rendu vidéo). Moteur partagé layerpitch-guide.js ; faux serveur api/demo-client.js (montages
+ * Parcours choisi par Jules-Antoine : partir d'une vidéo SANS son (le gameplay de « Music City » : la rue de Jazz City, puis le club), y poser une première musique en
+ * jouant le pack sur la vidéo (capture), enregistrer le montage, puis en faire une deuxième version où chaque morceau est remplacé par un
+ * autre du même mode (le statique de la rue par un statique, les couches du club par des couches), et l'écouter en direct (sans rendu vidéo). Moteur partagé layerpitch-guide.js ; faux serveur api/demo-client.js (montages
  * et versions gardés en mémoire, rien n'est enregistré). Tant que la vidéo muette n'est pas fournie (KIT.video vide), la leçon reste
  * « bientôt » dans le menu du Backstage.
  */
 (function () {
   // Vidéo muette du gameplay (fichier à déposer par Jules-Antoine dans media.layerpitch.com/tuto/).
-  const KIT = { video: { label: 'alone-gameplay-muette.mp4', name: 'alone-gameplay-muette.mp4', url: 'https://media.layerpitch.com/tuto/alone-gameplay-muette.mp4' } };
+  const KIT = { video: { label: 'music-city-gameplay-muette.mp4', name: 'music-city-gameplay-muette.mp4', url: 'https://media.layerpitch.com/tuto/music-city-gameplay-muette.mp4' } };
   const ready = () => !!KIT.video.url;
 
   function init(ctx) {
@@ -39,7 +39,7 @@
       { selector: () => document.querySelector('[data-track-id] [data-role="playBtn"]'), titleKey: 'pvPlayTitle', textKey: 'pvPlayText' },
       { selector: '#videoCaptureRecordBtn', titleKey: 'pvStopTitle', textKey: 'pvStopText', clickDone: true },
       { selector: '#videoCaptureTitleInput', titleKey: 'pvNameTitle', textKey: 'pvNameText', done: () => !!($('#videoCaptureTitleInput') && $('#videoCaptureTitleInput').value.trim().length > 2),
-        drops: [{ kind: 'text', label: 'Alone : traversée, musique 1', value: 'Alone : traversée, musique 1' }] },
+        drops: [{ kind: 'text', label: 'Music City : de la rue au club', value: 'Music City : de la rue au club' }] },
       { selector: '#videoCaptureSaveBtn', titleKey: 'pvSaveTitle', textKey: 'pvSaveText', clickDone: true },
       { selector: () => document.querySelector('#videoCaptureVersioning [data-act="new"]'), titleKey: 'pvNewTitle', textKey: 'pvNewText', clickDone: true },
       { selector: '#videoCaptureVersioning', titleKey: 'pvPickTitle', textKey: 'pvPickText' },

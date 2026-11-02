@@ -54,7 +54,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
       check('leçon sfx : morceau sans Sfx attaché', tl[0].track_sfx.length === 0);
     }
   }
-  // Leçon AdReel : la vidéo d'Alone en deux versions (même montage), et le palier qui montre les versions dans le bloc vidéo.
+  // Leçon AdReel : la vidéo de Music City en deux versions (même montage), et le palier qui montre les versions dans le bloc vidéo.
   const sbA = { window: { location: { pathname: '/layerpitch-backstage.html', search: '?tuto&lesson=adreel' } }, setTimeout, console, URLSearchParams };
   vm.createContext(sbA);
   vm.runInContext(read('api/demo-client.js'), sbA);
@@ -62,7 +62,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const vids = (await cA.rpc('list_my_videos')).data.videos;
   const caps = (await cA.rpc('list_my_video_captures', { p_pack_id: null })).data;
   const vers = (await cA.rpc('list_video_capture_versions', { p_capture_id: caps[0] && caps[0].id })).data;
-  check('leçon AdReel : deux vidéos d’Alone = export du montage (musique 1) + une version vidéo (musique 2)', vids.length === 2 && caps.length === 1 && caps[0].lastExportVideoId === vids[0].id && vers.length === 1 && vers[0].lastExportVideoId === vids[1].id);
+  check('leçon AdReel : deux vidéos de Music City = export du montage (musique 1) + une version vidéo (musique 2)', vids.length === 2 && caps.length === 1 && caps[0].lastExportVideoId === vids[0].id && vers.length === 1 && vers[0].lastExportVideoId === vids[1].id);
   const entA = (await cA.rpc('my_entitlements')).data.find(e => e.feature === 'versioning');
   const flagsA = (await cA.rpc('my_feature_flags')).data.map(f => f.key);
   check('leçon AdReel : bibliothèque vidéo ouverte et versions enregistrées visibles', entA && entA.level === 'saved' && flagsA.includes('video_upload'));

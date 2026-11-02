@@ -74,13 +74,13 @@
     my_admin_preview: () => null,
     ensure_composer_profile: () => DEMO_COMPOSER_ID,
     my_studio: () => null,
-    // Vidéos « envoyées » pendant la leçon d'envoi de fichiers (envoi simulé, gardé en mémoire le temps de la page) + montage d'exemple d'« Alone ».
-    list_my_videos: () => ({ videos: (aloneMontageShown() ? ALONE_VIDEOS.map(v => ({ id: v.id, title: v.title, base: TUTO_BASE, file: v.file, originalName: v.file, sizeBytes: 0, durationSec: 30 })) : []).concat(UPLOADED_VIDEOS),
+    // Vidéos « envoyées » pendant la leçon d'envoi de fichiers (envoi simulé, gardé en mémoire le temps de la page) + montage d'exemple de « Music City ».
+    list_my_videos: () => ({ videos: (mcMontageShown() ? MC_VIDEOS.map(v => ({ id: v.id, title: v.title, base: TUTO_BASE, file: v.file, originalName: v.file, sizeBytes: 0, durationSec: 30 })) : []).concat(UPLOADED_VIDEOS),
       interrupted: [], quotaGb: null, usedBytes: 0 }),
     upsert_video: a => { const p = (a && a.payload) || {}; UPLOADED_VIDEOS.push({ id: p.id, title: p.title, base: p.base, file: p.file, originalName: p.originalName, kind: 'upload', sizeBytes: p.sizeBytes || 0, durationSeconds: p.durationSeconds || 0, durationSec: p.durationSeconds || 0, updatedAt: new Date().toISOString() }); return null; },
-    list_my_video_captures: a => (aloneMontageShown() ? [ALONE_CAPTURE] : [...CAPTURES.values()].filter(c => !a || !a.p_pack_id || c.packId === a.p_pack_id)),
-    // Musique 1 = l'export direct du montage (ALONE_CAPTURE.lastExportVideoId) ; musique 2 = une version vidéo du montage.
-    list_video_capture_versions: a => (aloneMontageShown() ? [{ id: 'ver-2', captureId: ALONE_CAPTURE.id, title: ALONE_VIDEOS[1].versionTitle, lastExportVideoId: ALONE_VIDEOS[1].id }] : [...VERSIONS.values()].filter(v => a && v.captureId === a.p_capture_id)),
+    list_my_video_captures: a => (mcMontageShown() ? [MC_CAPTURE] : [...CAPTURES.values()].filter(c => !a || !a.p_pack_id || c.packId === a.p_pack_id)),
+    // Musique 1 = l'export direct du montage (MC_CAPTURE.lastExportVideoId) ; musique 2 = une version vidéo du montage.
+    list_video_capture_versions: a => (mcMontageShown() ? [{ id: 'ver-2', captureId: MC_CAPTURE.id, title: MC_VIDEOS[1].versionTitle, lastExportVideoId: MC_VIDEOS[1].id }] : [...VERSIONS.values()].filter(v => a && v.captureId === a.p_capture_id)),
     account_deletion_status: () => null,
     // Leçon « Versioning vidéo » (atelier vidéo, atelier.html?tuto&lesson=versioning) : montages et versions gardés EN MÉMOIRE (perdus
     // au rechargement), le compte fictif est le compositeur du pack d'exemple.
@@ -94,35 +94,25 @@
     set_video_capture_export: () => ({ removed: [] }),
     set_video_capture_version_export: () => ({ removed: [] }),
     video_capture_base: () => null,
-    // Lecteur à versions (AdReel, espace Projet) : le montage d'« Alone », deux exports complets (musique 1, musique 2).
-    get_public_video_montage: a => (a.p_capture_id === ALONE_CAPTURE.id ? { id: ALONE_CAPTURE.id, title: ALONE_CAPTURE.title, baseUrl: null, versions: [
-      { key: 'original', title: null, url: TUTO_BASE + ALONE_VIDEOS[0].file, kind: 'video', cues: [] },
-      { key: 'ver-2', title: ALONE_VIDEOS[1].versionTitle, url: TUTO_BASE + ALONE_VIDEOS[1].file, kind: 'video', cues: [] }] } : null),
+    // Lecteur à versions (AdReel, espace Projet) : le montage de « Music City », deux exports complets (musique 1, musique 2).
+    get_public_video_montage: a => (a.p_capture_id === MC_CAPTURE.id ? { id: MC_CAPTURE.id, title: MC_CAPTURE.title, baseUrl: null, versions: [
+      { key: 'original', title: null, url: TUTO_BASE + MC_VIDEOS[0].file, kind: 'video', cues: [] },
+      { key: 'ver-2', title: MC_VIDEOS[1].versionTitle, url: TUTO_BASE + MC_VIDEOS[1].file, kind: 'video', cues: [] }] } : null),
     list_video_export_history: () => [],
   };
   const CAPTURES = new Map(), VERSIONS = new Map(), UPLOADED_VIDEOS = [];
   const isVersioning = () => lessonParam() === 'versioning';
   const onAtelierPage = () => !!(window.location && /\/atelier\.html$/.test(window.location.pathname));
-  // Montage d'exemple d'« Alone » déjà publié en deux musiques : leçon AdReel, et partie « bloc vidéo » de la leçon Versioning (Backstage).
+  // Montage d'exemple de « Music City » déjà publié en deux musiques : leçon AdReel, et partie « bloc vidéo » de la leçon Versioning (Backstage).
   // Dans l'atelier, la leçon Versioning part de zéro (montages gardés en mémoire ci-dessus).
-  const aloneMontageShown = () => lessonParam() === 'adreel' || (isVersioning() && !onAtelierPage());
+  const mcMontageShown = () => lessonParam() === 'adreel' || (isVersioning() && !onAtelierPage());
   // Lignes lues « en direct » sur une table (select().maybeSingle()). Toute autre table : liste vide / null.
   const TABLE_ROWS = {
     composer_profiles: { id: DEMO_COMPOSER_ID, handle: 'demo' },
     profiles: { onboarding_completed: true },
   };
 
-  // Bibliothèque d'exemple de la leçon AdReel (?tuto&lesson=adreel) : trois morceaux déjà publiés, lus depuis le stockage public des
-  // fichiers d'essai (media.layerpitch.com/tuto/). Les autres leçons partent d'une bibliothèque vide.
-  // PROVISOIRE : les morceaux d'essai des leçons ; à remplacer par les morceaux finaux de Jules-Antoine (voir DEMO_TRACKS).
   const TUTO_BASE = 'https://media.layerpitch.com/tuto/';
-  const DEMO_TRACKS = [
-    ['t-ponton', 'Alone : le ponton (exemple)', '1_RobotAdventure_WetDarkCave_120bpm_30M.wav', 60],
-    ['t-lac', 'Alone : le lac ouvert (exemple)', '1_Everything_is_fine_120bpm_18M_intro2M.wav.wav', 36],
-    ['t-brouillard', 'Alone : le brouillard (exemple)', '1_BattleLoop_LowIntensity_120bpm_64M.wav', 128],
-  ].map(([id, title, file, duration]) => ({ id, owner_id: 'demo-composer', folder_id: null, title, description: '', mode: 'static', loopable: true, loop_engine: 'simple',
-    bpm: 120, beats_per_bar: 4, duration, base: TUTO_BASE, layers: [{ label: 'Boucle', file, originalFileName: file, gain: 1, duration }], intro: null, outro: null,
-    loops: null, sections: null, segment_slots: [], track_sfx: [], tags: [], fx: null, fx_triggers: [], fx_sliders: [], protected: false, retired_at: null }));
   // Leçons Sfx et événements d'effets (?tuto&lesson=sfx / events) : le morceau « Jazz Lo Static » (statique, boucle quantifiée de la mesure 1 temps 3 à la fin de la mesure 9) déjà dans la
   // bibliothèque, pour y ajouter les Sfx créés pendant la leçon. Fichier dans media.layerpitch.com/tuto/Jazz Lo/.
   const DEMO_TRACK_JAZZ_SFX = { id: 't-jazz-lo', owner_id: 'demo-composer', folder_id: null, title: 'Jazz Lo Static', description: '', mode: 'static', loopable: true, loop_engine: 'quantized',
@@ -146,6 +136,12 @@
   // ci-dessus (lignes copiées de sa base en lecture seule, fichiers publics sous media.layerpitch.com/audio/<id>/). Ses Sfx ne sont pas repris (track_sfx vide) ;
   // les événements d'effets de « Jazz Lo Static +FX » ne visent que le morceau, ils restent.
   const DEMO_TRACKS_HYBRID = DEMO_TRACKS_JAZZ.concat([{"id":"bmvilh6aprhhug","folder_id":null,"title":"Jazz Hi Static","description":"","mode":"static","loopable":true,"implementation_note":"","no_ai_override":null,"loop_engine":"quantized","bpm":"110","beats_per_bar":4,"loop_grid_unit":"bars","loop_in_beat":"2","loop_out_beat":"34","start_track_beat":"0","max_loops":null,"max_chain_loops":null,"normalize_volume":false,"duration":"21.96","base":"https://media.layerpitch.com/audio/bmvilh6aprhhug/","randomize_sections":false,"layers":[{"fx":null,"file":"0-jazz-hi-2bts-intro.ogg","gain":1,"label":"Jazz Hi 2bts Intro","duration":21.96,"localUrl":null,"originalFileName":null}],"intro":null,"outro":null,"loops":[],"sections":[],"created_at":"2026-10-21T21:00:54.235Z","updated_at":"2026-11-02T11:18:32.420Z","owner_id":"demo-composer","fx":null,"fx_triggers":[],"fx_sliders":[],"tags":[],"retired_at":null,"protected":false,"segment_slots":[],"track_sfx":[]},{"id":"bmvjfdonbsfnkd","folder_id":null,"title":"Jazz Lo Static +FX","description":"","mode":"static","loopable":true,"implementation_note":"","no_ai_override":null,"loop_engine":"quantized","bpm":"110","beats_per_bar":4,"loop_grid_unit":"bars","loop_in_beat":"2","loop_out_beat":"34","start_track_beat":"0","max_loops":null,"max_chain_loops":null,"normalize_volume":false,"duration":"20.48","base":"https://media.layerpitch.com/audio/bmvjfdonbsfnkd/","randomize_sections":false,"layers":[{"fx":null,"file":"0-jazz-lo-2bts-intro.ogg","gain":1,"label":"Jazz Lo 2bts Intro","duration":20.48,"localUrl":null,"originalFileName":null}],"intro":null,"outro":null,"loops":[],"sections":[],"created_at":"2026-10-22T10:56:54.831Z","updated_at":"2026-11-02T11:18:31.334Z","owner_id":"demo-composer","fx":null,"fx_triggers":[{"fx":{"lowcut":{"slope":24,"frequency":80},"reverb":{"wet":0.3,"decay":1.3},"volume":{"db":-8},"highcut":{"slope":24,"frequency":5000}},"id":"bmvjfdy9482wan","label":"La musique vient d'un groupe qui joue dans un coin","target":{"type":"track"},"fadeSec":null,"visible":true,"relations":null,"fadeOutSec":null,"showEffects":true},{"fx":{"lowcut":{"slope":24,"frequency":500},"volume":{"db":-18},"highcut":{"slope":24,"frequency":1500}},"id":"bmvjffs3mq4f6w","label":"La musique vient d'une radio","target":{"type":"track"},"fadeSec":null,"visible":true,"relations":null,"fadeOutSec":null,"showEffects":true}],"fx_sliders":[],"tags":[],"retired_at":null,"protected":false,"segment_slots":[],"track_sfx":[]}]);
+  // Projet fictif « Music City » (02/11, remplace « Alone in the Barque ») : la musique du pack du compositeur fictif (pages Projets, leçon
+  // « La musique du projet ») et de l'atelier (leçon « Versioning vidéo »). La vidéo a deux passages : la rue (un statique, Jazz Lo Static ->
+  // Jazz Hi Static en version 2) et le club (couches additives, Jazz Hi Lay. Add. -> Jazz Lo Lay. Add. en version 2, À AJOUTER quand
+  // Jules-Antoine l'aura composé : même nombre de couches, 3), avec le Sfx « Glaçons » au bar.
+  const DEMO_TRACKS = [DEMO_TRACK_JAZZ_SFX, DEMO_TRACKS_HYBRID.find(t => t.title === 'Jazz Hi Static'), DEMO_TRACKS_JAZZ.find(t => t.title === 'Jazz Hi Lay. Add.')];
+  const DEMO_SFX_MUSIC_CITY = DEMO_SFX.filter(x => x.id === 'sfx-glacons');
   // Morceaux du pack « 8 bits Comptines » de Jules-Antoine (copiés de sa base en lecture seule, fichiers publics sous media.layerpitch.com/audio/<id>/) : leçon « Vendre des assets audio » (pack, 26/10).
   const DEMO_TRACKS_8BIT = [{"id":"bmruc7dbdxf1i0","folder_id":null,"title":"Les Petits Poissons","description":"","mode":"static","loopable":false,"implementation_note":"","no_ai_override":null,"loop_engine":"simple","bpm":"120","beats_per_bar":4,"loop_grid_unit":"bars","loop_in_beat":"0","loop_out_beat":"16","start_track_beat":"0","max_loops":null,"max_chain_loops":null,"normalize_volume":false,"duration":"98.14","base":"https://media.layerpitch.com/audio/bmruc7dbdxf1i0/","randomize_sections":false,"layers":[{"fx":null,"file":"0-niveau-1.ogg","gain":0.877,"label":"Niveau 1","duration":0,"localUrl":null,"originalFileName":null}],"intro":null,"outro":null,"loops":[],"sections":[],"created_at":"2026-08-31T10:53:12.519Z","updated_at":"2026-10-22T11:40:53.065Z","owner_id":"demo-composer","fx":null,"fx_triggers":[],"fx_sliders":[],"tags":[],"retired_at":null,"protected":false,"segment_slots":[],"track_sfx":[]},{"id":"bmruc9x0htabo1","folder_id":null,"title":"Doucement s'en va le jour","description":"","mode":"static","loopable":false,"implementation_note":"","no_ai_override":null,"loop_engine":"simple","bpm":"120","beats_per_bar":4,"loop_grid_unit":"bars","loop_in_beat":"0","loop_out_beat":"16","start_track_beat":"0","max_loops":null,"max_chain_loops":null,"normalize_volume":false,"duration":"108.54","base":"https://media.layerpitch.com/audio/bmruc9x0htabo1/","randomize_sections":false,"layers":[{"fx":null,"file":"0-niveau-1.ogg","gain":0.864,"label":"Niveau 1","duration":0,"localUrl":null,"originalFileName":null}],"intro":null,"outro":null,"loops":[],"sections":[],"created_at":"2026-08-31T10:53:12.519Z","updated_at":"2026-10-22T11:40:53.345Z","owner_id":"demo-composer","fx":null,"fx_triggers":[],"fx_sliders":[],"tags":[],"retired_at":null,"protected":false,"segment_slots":[],"track_sfx":[]},{"id":"bmruccnxudcuy8","folder_id":null,"title":"Dans la Forêt Lointaine","description":"","mode":"static","loopable":false,"implementation_note":"","no_ai_override":null,"loop_engine":"simple","bpm":"120","beats_per_bar":4,"loop_grid_unit":"bars","loop_in_beat":"0","loop_out_beat":"16","start_track_beat":"0","max_loops":null,"max_chain_loops":null,"normalize_volume":false,"duration":"112.82","base":"https://media.layerpitch.com/audio/bmruccnxudcuy8/","randomize_sections":false,"layers":[{"fx":null,"file":"0-niveau-1.ogg","gain":0.95,"label":"Niveau 1","duration":0,"localUrl":null,"originalFileName":null}],"intro":null,"outro":null,"loops":[],"sections":[],"created_at":"2026-08-31T10:53:12.519Z","updated_at":"2026-10-22T11:40:53.405Z","owner_id":"demo-composer","fx":null,"fx_triggers":[],"fx_sliders":[],"tags":[],"retired_at":null,"protected":false,"segment_slots":[],"track_sfx":[]}];
   // Leçon « C'est quoi un AdReel ? » (23/10, ?tuto&lesson=adreel-intro) : le Main AdReel de Daniel Orcman, DÉJÀ REMPLI (mêmes quatre villes que la leçon suivante).
@@ -199,18 +195,18 @@
       testimonials: [], ad_reel_tracks: [0, 1].map((t, i) => ({ track_id: DEMO_TRACKS_JAZZ[t].id, position: i })) });
   };
   // Pack de la bibliothèque du compositeur fictif (leçon « La musique du projet » : on le partage au Projet).
-  const DEMO_PACKS = [{ id: 'p-alone', owner_id: 'demo-composer', title: 'Alone : ambiances du lac (exemple)', illustration: null, illustration_original_name: null, watermark: null,
+  const DEMO_PACKS = [{ id: 'p-music-city', owner_id: 'demo-composer', title: 'Music City : le club de jazz (exemple)', illustration: null, illustration_original_name: null, watermark: null,
     watermark_original_name: null, presentation_fr: '', presentation_en: '', buyable: false, buy_url: null, free_download_enabled: false, video_test_mode_enabled: false,
     bg_color: null, text_color: null, font: null, linked_ad_reel_id: null, tags: [], price_eur_cents: null, subscriber_credits: null, catalog_listed: true,
-    pack_tracks: DEMO_TRACKS.map((t, i) => ({ track_id: t.id, position: i })), pack_sfx: [] }];
-  // Leçon AdReel : la vidéo de gameplay d'« Alone in the Barque » en DEUX versions vidéo (même montage, deux musiques), dans la bibliothèque
+    pack_tracks: DEMO_TRACKS.map((t, i) => ({ track_id: t.id, position: i })), pack_sfx: DEMO_SFX_MUSIC_CITY.map((x, i) => ({ sfx_id: x.id, position: i })) }];
+  // Leçon AdReel : la vidéo de gameplay de « Music City » en DEUX versions vidéo (même montage, deux musiques), dans la bibliothèque
   // vidéo du compte fictif. Le bloc vidéo propose alors de choisir la version affichée. FICHIERS À DÉPOSER par Jules-Antoine dans
   // media.layerpitch.com/tuto/ sous ces noms (tant qu'ils manquent, la vidéo ne se lit pas, la leçon se déroule quand même).
-  const ALONE_VIDEOS = [
-    { id: 'vid-alone-1', title: 'Alone in the Barque : gameplay, musique 1', file: 'alone-gameplay-musique1.mp4', versionTitle: 'Musique 1 : boucle d’origine' },
-    { id: 'vid-alone-2', title: 'Alone in the Barque : gameplay, musique 2', file: 'alone-gameplay-musique2.mp4', versionTitle: 'Musique 2 : couches selon la menace' },
+  const MC_VIDEOS = [
+    { id: 'vid-music-city-1', title: 'Music City : gameplay, musique 1', file: 'music-city-gameplay-musique1.mp4', versionTitle: 'Musique 1 : la rue en Jazz Lo, le club en Jazz Hi' },
+    { id: 'vid-music-city-2', title: 'Music City : gameplay, musique 2', file: 'music-city-gameplay-musique2.mp4', versionTitle: 'Musique 2 : la rue en Jazz Hi, le club en Jazz Lo' },
   ];
-  const ALONE_CAPTURE = { id: 'cap-alone', packId: 'p-alone', title: 'Alone in the Barque : traversée', videoFilename: 'alone-gameplay-muette.mp4', lastExportVideoId: 'vid-alone-1', createdAt: '2026-10-20T10:00:00Z', updatedAt: '2026-10-20T10:00:00Z' };
+  const MC_CAPTURE = { id: 'cap-music-city', packId: 'p-music-city', title: 'Music City : de la rue au club', videoFilename: 'music-city-gameplay-muette.mp4', lastExportVideoId: 'vid-music-city-1', createdAt: '2026-10-20T10:00:00Z', updatedAt: '2026-10-20T10:00:00Z' };
   const lessonParam = () => { try { return new URLSearchParams(window.location.search).get('lesson'); } catch (e) { return null; } };
   // Morceaux d'exemple : leçon AdReel (Backstage) et pages Projets (leur propre bibliothèque, pour le pack et la carte). Pack : pages Projets.
   const listRows = table => {
@@ -218,7 +214,7 @@
     if (table === 'ad_reels' && (['adreel-intro', 'adreel', 'upload', 'appearance', 'share'].includes(lessonParam()))) return lessonParam() === 'adreel-intro' ? [demoMainAdReel()].concat(demoOtherAdReels()) : (['appearance', 'share'].includes(lessonParam()) ? [demoMainAdReel(), demoJoshuaAdReel()] : [demoMainAdReel()]);
     if (table === 'tracks' && lessonParam() === 'pack' && !projectPage) return DEMO_TRACKS_8BIT.filter(t => t.id !== 'bmruc9x0htabo1'); // « Doucement s'en va le jour » : son fichier audio est introuvable en ligne (404), on ne le propose pas
     if (table === 'tracks' && ['adreel', 'adreel-intro', 'album', 'tracking', 'upload', 'appearance', 'share'].includes(lessonParam()) && !projectPage) return lessonParam() === 'share' ? DEMO_TRACKS_JAZZ.map(t => Object.assign({}, t, { protected: true })) : DEMO_TRACKS_JAZZ; // « Diffuser » : morceaux déjà protégés (sinon la demande de protection complique l'étape du mot de passe)
-    if (table === 'tracks' && (lessonParam() === 'adreel' || projectPage)) return DEMO_TRACKS;
+    if (table === 'tracks' && projectPage) return DEMO_TRACKS;
     if (table === 'tracks' && lessonParam() === 'hybrid') return DEMO_TRACKS_HYBRID;
     if (table === 'tracks' && lessonParam() === 'sfx') return [DEMO_TRACK_JAZZ_SFX];
     if (table === 'tracks' && lessonParam() === 'events') return [Object.assign({}, DEMO_TRACK_JAZZ_SFX, { track_sfx: DEMO_SFX.map((x, i) => ({ sfx_id: x.id, position: i })) })];
@@ -227,6 +223,7 @@
     // Atelier vidéo (21/10 : l'outil de capture a quitté la page du pack pour l'atelier, ouvert dans le Backstage).
     const packPage = onAtelierPage();
     if (packPage && isVersioning() && table === 'tracks') return DEMO_TRACKS;
+    if (packPage && isVersioning() && table === 'sfx_library') return DEMO_SFX_MUSIC_CITY;
     if (packPage && isVersioning() && table === 'packs') return DEMO_PACKS.map(p => Object.assign({}, p, { video_test_mode_enabled: true }));
     return null;
   };
