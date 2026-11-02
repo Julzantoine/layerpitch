@@ -17,7 +17,8 @@
 .tour-waiting { font-size: 12px; color: var(--accent); margin: -6px 0 12px; }
 .tour-sample { display: block; font-size: 12.5px; margin: -4px 0 12px; }
 .tour-sample-soon { color: var(--text-dimmer); }
-.tour-map-preview { display: block; width: 100%; height: auto; margin: 4px 0 8px; } /* aperçu de la carte finale (leçon hybride) */
+.tour-map-preview { display: block; width: 100%; height: auto; margin: 4px 0 8px; } /* « Ce qu’on va construire » : schéma du résultat final (2e bulle des leçons) */
+@media (min-width: 721px) { .tour-root-lesson .tour-card:has(.tour-map-preview) { width: 460px; } } /* plus large pour que le schéma reste lisible (sur téléphone, la bulle prend déjà toute la largeur) */
 .tour-root-lesson .tour-card { width: 380px; }
 .tour-root-lesson .tour-text { font-size: 13.5px; }
 .tour-text { white-space: pre-line; } /* un « \n » dans un texte fait un retour à la ligne */

@@ -183,8 +183,13 @@
       { titleKey: 'plMapWalkDoneTitle', textKey: 'plMapWalkDoneText', final: true },
     ];
 
+    // 2e bulle (02/11) : « Ce qu’on va construire », le schéma du résultat final (layerpitch-lesson-previews.js), juste après l’accueil.
+    const PV = window.LayerPitchLessonPreviews;
+    if (PV) Object.keys(lessons).forEach(id => { if (PV.has(id)) lessons[id].splice(1, 0, PV.step(id)); });
+
     const G = window.LayerPitchGuide.create({
       tr,
+      cardExtras: step => (step.preview && PV ? PV.html(step.preview, tr) : ''),
       textVars: step => step.textVars || {},
       nextLesson: lessonId => {
         const i = LESSON_LIST.findIndex(l => l.id === lessonId), next = i >= 0 ? LESSON_LIST[i + 1] : null;

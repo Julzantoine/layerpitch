@@ -298,7 +298,7 @@ function lhSecNamed(i) { const s = lhSec(i); return !!s && (s.label || '').trim(
 function lhRow(i) { return document.querySelector(`#libraryDetail [data-role="hybridSections"] > .list-block:nth-child(${i + 1})`); }
 function lhField(i, name) { const r = lhRow(i); return r ? r.querySelector(`[data-hybrid="${name}"]`) : null; }
 // Aperçu de la carte finale (2e bulle de la leçon) : « A little walk in Music City » en arbre, de gauche à droite, comme la carte des chemins.
-// Sections 1 à 7 puis la fin ; la mention sous chaque nom dit le mode du morceau et le moment du passage.
+// Sections 1 à 7 puis la fin ; sous chaque nom, seulement le mode de lecture du morceau (demande de Jules-Antoine, 02/11).
 function lhMapPreviewHtml() {
   const W = 96, H = 44, col = [4, 112, 220, 336], rowY = [8, 60, 112, 164];
   const node = (x, y, n, sub, w) => {
@@ -1158,6 +1158,9 @@ const LESSONS = [
   { id: 'pj-map-music', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc' },
   { id: 'pj-map-walk', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc' },
 ];
+// 2e bulle de chaque leçon (02/11) : « Ce qu’on va construire », le schéma du résultat final (layerpitch-lesson-previews.js), juste après l’accueil.
+// Les leçons « Préproduction » l’ont sur la page du Projet (projet-lecons.js) ; la leçon hybride a déjà sa carte (lhMapPreviewHtml).
+LESSONS.forEach(l => { if (l.steps && !l.page && window.LayerPitchLessonPreviews && window.LayerPitchLessonPreviews.has(l.id)) l.steps.splice(1, 0, window.LayerPitchLessonPreviews.step(l.id)); });
 
 // Le moteur de bulles (affichage, avancement des étapes, clavier, déplacement) est partagé avec les autres pages :
 // layerpitch-guide.js. Ici ne reste que ce qui est propre au Backstage : les textes, les leçons, les vignettes de fichiers
@@ -1204,6 +1207,7 @@ const GUIDE = window.LayerPitchGuide.create({
   // disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
   cardExtras(step) {
     if (step.preview === 'hybridMap') return lhMapPreviewHtml();
+    if (step.preview && window.LayerPitchLessonPreviews) return window.LayerPitchLessonPreviews.html(step.preview, tr);
     const sample = step.sampleKey ? LESSON_SAMPLE_FILES[step.sampleKey] : undefined;
     const canUse = lessonSampleReady(step);
     const many = lessonStepFileNames(step).length > 1;
