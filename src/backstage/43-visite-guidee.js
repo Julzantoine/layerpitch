@@ -40,7 +40,8 @@ function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 // Thèmes de leçons ouverts à tous les bêta-testeurs (23/10) : les autres restent grisés (« bientôt »), jouables par les admins seulement.
 // Pour débloquer un thème (par exemple « pitch », quand les leçons AdReel seront refaites) : l'ajouter à cette liste.
 const LESSON_THEMES_OPEN = ['engine', 'pitch'];
-function lessonOpenToMe(lesson) { return !lesson || LESSON_THEMES_OPEN.includes(lesson.theme) || (isTutoMode() ? tutoFullAccess : currentUserIsAdmin); }
+// `adminOnly` (sur une leçon) : réservée aux admins même dans un thème ouvert, le temps que sa fonction ait son feu vert (leçon « hybrid »).
+function lessonOpenToMe(lesson) { return !lesson || ((LESSON_THEMES_OPEN.includes(lesson.theme) && !lesson.adminOnly) || (isTutoMode() ? tutoFullAccess : currentUserIsAdmin)); }
 function lessonPlayable(lesson) { return lessonOpenToMe(lesson) && (!isTutoMode() || tutoFullAccess || lessonIsPublic(lesson)); }
 // URL de chaque fichier d'exemple (nom de fichier -> URL), à renseigner quand les fichiers seront en ligne (stockage
 // des médias, avec CORS ouvert à l'origine du Backstage). Tant qu'un nom manque, le bouton « Utiliser » n'apparaît pas.
@@ -285,6 +286,30 @@ const LESSON_SAMPLE_NAMES = {
   embrDetour: 'detour_120bpm_4M.wav',
   import: 'Tuto séquentiel - raccourci',
 };
+// Leçon « Hybride à sections » : les 6 morceaux Jazz de la bibliothèque du faux serveur (identifiants de la base de Jules-Antoine, api/demo-client.js)
+// et les noms des 7 sections de son morceau « A little walk in Music City », dans l'ordre où la leçon les crée.
+const LH_TRACKS = { lo: 'bmvjfdonbsfnkd', seq: 'bmvidx6a4320my', add: 'bmvidtfhvfa5tt', embr: 'bmvidp6unbjfkq', hi: 'bmvilh6aprhhug', rand: 'bmvin15j2vxt4p' };
+const LH_NAMES = ['Meet me there', 'This way?', 'Or this one?', 'Would you like to walk a bit more?', 'This is so pretty over there', 'This place is so nice', 'I would like it never ends'];
+function lhSec(i) { const t = lessonTrack(); return (t && t.mode === 'hybrid-sequential' && t.sections && t.sections[i]) || null; }
+function lhBranch(i, bi) { const s = lhSec(i); return (s && s.branches && s.branches[bi]) || null; }
+function lhSecIs(i, key) { const s = lhSec(i); return !!s && s.trackId === LH_TRACKS[key]; }
+function lhSecNamed(i) { const s = lhSec(i); return !!s && (s.label || '').trim().toLowerCase() === LH_NAMES[i].toLowerCase(); }
+function lhRow(i) { return document.querySelector(`#libraryDetail [data-role="hybridSections"] > .list-block:nth-child(${i + 1})`); }
+function lhField(i, name) { const r = lhRow(i); return r ? r.querySelector(`[data-hybrid="${name}"]`) : null; }
+function lhBranchField(i, bi, name) { const r = lhRow(i); const card = r && r.querySelectorAll('[data-role="branchList"] > .list-block')[bi]; return card ? card.querySelector(`[data-branch="${name}"]`) : null; }
+// Les branches restantes du morceau de Jules-Antoine, posées par la leçon une fois le tronc fait : 2 → 5, 3 → 6 et 7 ; 5, 6 et 7 → fin. Une seule fois.
+function lhCompleteMap() {
+  const t = lessonTrack();
+  if (!t || t.mode !== 'hybrid-sequential' || (t.sections || []).length !== 4) return;
+  const secs = t.sections;
+  const section = (key, label) => { const s = { id: genId(), label, trackId: LH_TRACKS[key], maxLoops: null, switchMode: 'end', transitionPoints: [], fadeSec: 0.5, transition: null, branches: [], defaultNext: null, skipIntro: false }; secs.push(s); return s; };
+  const branch = (from, targetId) => { from.branches = from.branches || []; from.branches.push({ id: genId(), targetId, label: '', switchMode: 'end', transition: null }); };
+  const s5 = section('hi', LH_NAMES[4]); branch(secs[1], s5.id); branch(s5, 'end');
+  const s6 = section('rand', LH_NAMES[5]); branch(secs[2], s6.id); branch(s6, 'end');
+  const s7 = section('hi', LH_NAMES[6]); branch(secs[2], s7.id); branch(s7, 'end');
+  hasUnsavedEdits = true;
+  renderLibrary();
+}
 // La boucle de détour de la leçon d'embranchement n'est montrée que lorsque son fichier d'exemple est en ligne.
 function lessonDetourReady() { return lessonStepFileNames({ names: 'embrDetour' }).every(n => !!LESSON_SAMPLE_URLS[n]); }
 // done(ctx) : true quand le geste est fait -> la leçon avance seule. clickDone : un clic sur la cible suffit.
@@ -748,6 +773,57 @@ const LESSONS = [
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lvxListenTitle', textKey: 'lvxListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { titleKey: 'lvxEndTitle', textKey: 'lvxEndText', final: true },
   ] },
+  // Leçon « Hybride à sections » (02/11, ?tuto&lesson=hybrid, rechargement obligatoire d'où `reload`) : on refait « A little walk in Music City » de Jules-Antoine,
+  // un arbre de 7 sections qui puisent dans les 6 morceaux Jazz déjà présents dans la bibliothèque du faux serveur (api/demo-client.js). L'apprenant pose à la main
+  // le tronc (1 → 2 | 3, puis 2 → 4 → fin) ; la leçon complète ensuite les branches restantes, identiques (voir lhCompleteMap). Admins seulement (feu vert
+  // `hybrid_sequential` fermé) : retirer `adminOnly` à l'ouverture du mode.
+  { id: 'hybrid', theme: 'engine', public: true, adminOnly: true, reload: true, titleKey: 'lessonHybridTitle', descKey: 'lessonHybridDesc', steps: [
+    { titleKey: 'lhWelcomeTitle', textKey: 'lhWelcomeText' },
+    { selector: '.nav-item[data-tab="library"]', titleKey: 'lhLibTitle', textKey: 'lhLibText',
+      done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
+    { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
+      enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
+    { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'lhModeTitle', textKey: 'lhModeText',
+      done: () => { const t = lessonTrack(); return !!t && t.mode === 'hybrid-sequential'; } },
+    { selector: '#libraryDetail [data-role="hybridAdd"]', titleKey: 'lhAddTitle', textKey: 'lhAddText',
+      done: () => !!lhSec(0) },
+    { selector: () => lhField(0, 'track'), titleKey: 'lhTrack1Title', textKey: 'lhTrack1Text', done: () => lhSecIs(0, 'lo') },
+    { selector: () => lhField(0, 'label'), titleKey: 'lhName1Title', textKey: 'lhName1Text', done: () => lhSecNamed(0),
+      drops: [{ kind: 'text', label: LH_NAMES[0], value: LH_NAMES[0] }] },
+    { selector: () => lhField(0, 'loops'), titleKey: 'lhLoopsTitle', textKey: 'lhLoopsText' },
+    { selector: () => lhField(0, 'switch'), titleKey: 'lhSwitchTitle', textKey: 'lhSwitchText' },
+    // Seule section du morceau : le premier embranchement crée tout seul la section où il mène (18i-sequentiel-hybride.js).
+    { selector: () => lhField(0, 'addBranch'), titleKey: 'lhBranch1Title', textKey: 'lhBranch1Text',
+      done: () => { const b = lhBranch(0, 0); return !!b && !!lhSec(1) && b.targetId === lhSec(1).id; } },
+    { selector: () => lhField(0, 'addBranch'), titleKey: 'lhBranch2Title', textKey: 'lhBranch2Text',
+      done: () => !!lhBranch(0, 1) },
+    { selector: () => lhBranchField(0, 1, 'target'), titleKey: 'lhNewTitle', textKey: 'lhNewText',
+      done: () => { const b = lhBranch(0, 1); return !!b && !!lhSec(2) && b.targetId === lhSec(2).id; } },
+    { selector: () => lhBranchField(0, 0, 'label'), titleKey: 'lhLabelTitle', textKey: 'lhLabelText' },
+    { selector: () => lhField(0, 'defaultNext'), titleKey: 'lhDefaultTitle', textKey: 'lhDefaultText' },
+    { selector: () => lhField(1, 'track'), titleKey: 'lhTrack2Title', textKey: 'lhTrack2Text', done: () => lhSecIs(1, 'seq') },
+    { selector: () => lhField(1, 'label'), titleKey: 'lhName2Title', textKey: 'lhName2Text', done: () => lhSecNamed(1),
+      drops: [{ kind: 'text', label: LH_NAMES[1], value: LH_NAMES[1] }] },
+    { selector: () => lhField(2, 'track'), titleKey: 'lhTrack3Title', textKey: 'lhTrack3Text', done: () => lhSecIs(2, 'add') },
+    { selector: () => lhField(2, 'label'), titleKey: 'lhName3Title', textKey: 'lhName3Text', done: () => lhSecNamed(2),
+      drops: [{ kind: 'text', label: LH_NAMES[2], value: LH_NAMES[2] }] },
+    // 2e étage : la section 2 mène à une nouvelle section (la 4e), qui mène à la fin du morceau.
+    { selector: () => lhField(1, 'addBranch'), titleKey: 'lhBranch3Title', textKey: 'lhBranch3Text',
+      done: () => !!lhBranch(1, 0) },
+    { selector: () => lhBranchField(1, 0, 'target'), titleKey: 'lhNew2Title', textKey: 'lhNew2Text',
+      done: () => { const b = lhBranch(1, 0); return !!b && !!lhSec(3) && b.targetId === lhSec(3).id; } },
+    { selector: () => lhField(3, 'track'), titleKey: 'lhTrack4Title', textKey: 'lhTrack4Text', done: () => lhSecIs(3, 'embr') },
+    { selector: () => lhField(3, 'label'), titleKey: 'lhName4Title', textKey: 'lhName4Text', done: () => lhSecNamed(3),
+      drops: [{ kind: 'text', label: LH_NAMES[3], value: LH_NAMES[3] }] },
+    { selector: () => lhField(3, 'addBranch'), titleKey: 'lhEnd1Title', textKey: 'lhEnd1Text',
+      done: () => !!lhBranch(3, 0) },
+    { selector: () => lhBranchField(3, 0, 'target'), titleKey: 'lhEnd2Title', textKey: 'lhEnd2Text',
+      done: () => { const b = lhBranch(3, 0); return !!b && b.targetId === 'end'; } },
+    { selector: '#libraryDetail [data-role="hybridSections"]', titleKey: 'lhRestTitle', textKey: 'lhRestText', enter: lhCompleteMap },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lhListenTitle', textKey: 'lhListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
+    { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    { titleKey: 'lhEndTitle', textKey: 'lhEndText', final: true },
+  ] },
   // Leçon « C'est quoi un AdReel ? » (23/10) : visite d'un Main AdReel DÉJÀ REMPLI (api/demo-client.js, ?tuto&lesson=adreel-intro). Aucun geste d'écriture : on lit, on déplie, on prévisualise.
   // L'annuaire des compositeurs n'existe PAS encore : le texte final le présente comme « à venir ».
   { id: 'adreel-intro', theme: 'pitch', public: true, reload: true, titleKey: 'liTitle', descKey: 'liDesc', steps: [
@@ -1042,7 +1118,7 @@ function tourAlreadyDone() { try { return localStorage.getItem(TOUR_DONE_STORAGE
 function lessonsDone() { try { return JSON.parse(localStorage.getItem(LESSONS_DONE_STORAGE) || '{}') || {}; } catch (e) { return {}; } }
 // Leçons à faire (23/10) : celles ouvertes à tous, disponibles, pas encore terminées dans ce navigateur. Tant qu'il en reste, la pastille
 // de l'icône « Tutoriel » ne disparaît pas ; chacune a aussi sa propre pastille dans le menu.
-function lessonAvailable(l) { return lessonOpenToMe(l) && LESSON_THEMES_OPEN.includes(l.theme) && !l.soon && !(l.needs && !flagOpen(l.needs)); }
+function lessonAvailable(l) { return lessonOpenToMe(l) && LESSON_THEMES_OPEN.includes(l.theme) && !l.soon && !l.adminOnly && !(l.needs && !flagOpen(l.needs)); } // pastilles : leçons ouvertes à tous seulement
 function lessonsToDo() { const done = lessonsDone(); return LESSONS.filter(l => lessonAvailable(l) && !done[l.id]); }
 function syncTutorialBadge() {
   const badge = document.getElementById('tutorialMenuBadge');

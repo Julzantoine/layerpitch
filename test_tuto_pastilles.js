@@ -10,8 +10,9 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
   const w = dom.window;
   const doc = w.document;
   w.eval(`myFlags = { in_app_lessons: true }; currentUserIsAdmin = false; localStorage.removeItem(LESSONS_DONE_STORAGE); renderTutorialMenu();`);
-  const engine = w.eval(`LESSONS.filter(l => LESSON_THEMES_OPEN.includes(l.theme) && !l.soon).map(l => l.id)`);
-  const others = w.eval(`LESSONS.filter(l => !(LESSON_THEMES_OPEN.includes(l.theme) && !l.soon)).map(l => l.id)`);
+  // `adminOnly` (leçon « hybrid », 02/11) : grisée pour un bêta-testeur, comme une leçon d'un thème fermé.
+  const engine = w.eval(`LESSONS.filter(l => LESSON_THEMES_OPEN.includes(l.theme) && !l.soon && !l.adminOnly).map(l => l.id)`);
+  const others = w.eval(`LESSONS.filter(l => !(LESSON_THEMES_OPEN.includes(l.theme) && !l.soon && !l.adminOnly)).map(l => l.id)`);
   const badge = () => doc.getElementById('tutorialMenuBadge');
   const lessonBtn = id => doc.querySelector('#tutorialMenuList [data-tutorial="' + id + '"]');
 
